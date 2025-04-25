@@ -87,11 +87,12 @@ body{
     background-color: rgb(0, 0, 0);
     max-width: 1600px;
     width: 100%;
-    height: 560px;          /* Largura do formulário */
+    height: 660px;          /* Largura do formulário */
     margin: 0% auto;
     background-color: #cacaca;
     border-radius: 8px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
+    overflow-y: auto;
   }
 
   .miniTitle{
@@ -101,10 +102,11 @@ body{
   }
   .periodoMontagem{
     display: flex;
-    justify-content: space-between;
+    justify-content: space-around;
     align-items: center;
     flex-direction: row;
-    width: 100%;
+    width: 90px;
+    margin: 20px 0;
   }
   .inicioMontagem, .Realizacao, .dtMarcacao, .dtDesmontagem{
     display: flex;
@@ -161,12 +163,13 @@ body{
     justify-content:space-evenly;
     align-items: center;
     flex-direction: row;
+    margin: 20px;
   }
   .select{
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 5px ;
+    gap: 15px ;
   }
   select{
     font-family:  var(--Font-primary);
@@ -190,7 +193,32 @@ body{
     width: 250px;
   }
 
+  fieldset{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    background-color: transparent;
+    width: 990px;
+    border-color: var(--dark-color);
+    border: 3px solid;
+    margin: 0 auto;
+  }
 
+  fieldset.Datas, fieldset.Datas{
+    gap: 10px ;
+  }
+
+  legend{
+    padding: 10px;
+    margin-left: 10px
+  }
+
+  .Norcamento{
+    display: flex;
+    justify-content: center;
+    margin: 0 auto;
+  }
   .form-2colunas{
     display: flex;
     flex-direction: row;
@@ -206,9 +234,9 @@ body{
     margin: 12px;
     gap:5px;
   }
-  .form input{
+  .form input {
     font-family:  var(--Font-primary);
-    width: 350px;
+    width: 300px;
     height: 30px;
     border-radius: 6px;
     font-size: 13px;
@@ -286,6 +314,20 @@ body{
     height: 30px;
     font-size: 17px;
   }
+  input#dataMarcacao, input#dtInicioMontagem, input#dtFim, input#dtInicioRealizacao, input#dtFimRealizacao, input#dtDesmontagem{
+    width: 200px;
+  }
+
+  .Norcamento{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto;
+  }
+
+  input#idNumOrcamento{
+    width: 300px;
+  }
 
   input::placeholder{
     font: bold;
@@ -315,8 +357,14 @@ body{
     cursor: pointer;
     display: flex;
     justify-content: center;
-    margin: 30px auto;
     transition: 5%;
+  }
+
+  .addLinha{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 10px 0;
   }
 
   .Close{
@@ -362,6 +410,7 @@ body{
   }
 
   th, td {
+    height: 100%;
     padding: 8px;
   }
 
@@ -384,6 +433,13 @@ body{
     font-size: 15px;
   }
 
+  .Acao{
+    display: flex;
+    justify-content: center; /* horizontal */
+    align-items: center;     /* vertical */
+    height: 100%; 
+  }
+
   td.extracampo input.hospedagem, td.extracampo input.transporte{
     display: flex;
     justify-content: center;
@@ -395,9 +451,67 @@ body{
     font-size: 15px;
   }
 
-  td button.deleteBtn{
+
+  .deleteBtn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: rgb(20, 20, 20);
+    border: none;
+    font-weight: 600;
     display: flex;
-    width: 50px;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.164);
+    cursor: pointer;
+    transition-duration: 0.3s;
+    overflow: hidden;
+    position: relative;
+  }
+  
+  .delete-svgIcon {
+    width: 15px;
+    transition-duration: 0.3s;
+  }
+  
+  .delete-svgIcon path {
+    fill: white;
+  }
+  
+  .deleteBtn:hover {
+    width: 90px;
+    border-radius: 50px;
+    transition-duration: 0.3s;
+    background-color: rgb(255, 69, 69);
+    align-items: center;
+  }
+  
+  .deleteBtn:hover .delete-svgIcon {
+    width: 20px;
+    transition-duration: 0.3s;
+    transform: translateY(60%);
+    -webkit-transform: rotate(360deg);
+    -moz-transform: rotate(360deg);
+    -o-transform: rotate(360deg);
+    -ms-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+  
+  .deleteBtn::before {
+    display: none;
+    content: "Delete";
+    color: white;
+    transition-duration: 0.3s;
+    font-size: 2px;
+  }
+  
+  .deleteBtn:hover::before {
+    display: block;
+    padding-right: 10px;
+    font-size: 13px;
+    opacity: 1;
+    transform: translateY(0px);
+    transition-duration: 0.3s;
   }
 
   .modal-buttons {
@@ -422,3 +536,117 @@ body{
   .BTNs button{
     width: 200px;
   }
+
+  /* --------------------------- @medias ------------------------------------- */
+
+@media(max-width: 1628px){
+  .modal{
+    position: fixed;
+    top: 50%; 
+    left: 50%;   
+    transform: translate(-50%, -50%); 
+    background-color: #4d4d4d;
+    padding: 5px;
+    margin-top: 10px;
+    max-width: 1300px; 
+    height: 580px;
+    font-size: 16px;
+    z-index: 9999;
+  }
+  
+  form{
+    overflow-y: auto;
+  }
+  
+  .title{
+    font-family: "Abel", sans-serif;
+    font-size: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 0;
+  }
+
+  #form-orcamento {
+    font-family: "Abel", sans-serif;
+    display: flex;                /* Define o modelo de layout Flexbox */
+    flex-direction: column;
+    justify-content: center;
+    background-color: rgb(0, 0, 0);
+    max-width: 1324px;
+    width: 100%;
+    height: 500px;          /* Largura do formulário */
+    margin: 0% auto;
+    background-color: #cacaca;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
+  }
+  .periodoMontagem{
+    font-size: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-direction: row;
+    width: 100%;
+  }
+  .inicioMontagem, .Realizacao, .dtMarcacao, .dtDesmontagem{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-direction: column;
+    gap: 10px;
+    margin: 5px 10px;
+  }
+
+  .dtMarcacao input, .dtDesmontagem input{
+    display: flex;
+    width: 60px;
+    padding:  0 50px;
+  }
+
+  .De{
+    display: flex;
+    justify-content: center;
+    flex-direction: row;
+    gap: 3px;
+    width: 90px;
+    padding: 0 50px;
+  }
+  .De input, .De label{
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    flex-direction: row;
+    gap: 3px;
+    width: 90px;
+  }
+.Acresimo, .totG, .totGCTO, .lucro, .percent, .valorCliente, .Desconto{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: row;
+    margin-top: 20px;
+  }
+
+
+.percent label, .totG label, .totGCTO label, .lucro label, .percent label, .Desconto label, .Acresimo label, .valorCliente label{
+    font-size: 20px;
+    margin: 0 5px;
+  }
+
+  .Desconto input, .Acresimo input, .totG input, .totGCTO input, .lucro input, .percent input, .valorCliente input{ 
+  width: 80px;
+  }
+  .Close{
+    height: 35px;
+  }
+  .BTNs{
+    display: flex;
+    text-align: center;
+    justify-content: space-between;
+  }
+
+  .BTNs button, .Close button{
+    width: 200px;
+  }
+}
