@@ -1,3 +1,70 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:3b20e8febfe6ab8295beb3bdfbb87f09d7767fce1a457b6813154148620c508b
-size 2910
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="css/Modal/LocalMontagem.css">
+    <link rel="stylesheet" href="css/Roots/Roots.css">
+    <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+    
+    <!-- <link rel="stylesheet" href="//use.fontawesome.com/releases/v5.0.7/css/all.css"> -->
+    
+    <title>Equipamentos</title>
+
+</head>
+<body>
+
+<div id="CadModal" class="modal" >
+    <div class="modal-overlay"></div> 
+    <div class="modal-content">
+        
+        <div class="Close"><button class="close" > X </button></div>
+
+        <div id ="form-cargo"> 
+            <div class = "title">
+                <h1>Cadastro Local de Montagem</h1>
+            </div>
+
+            <form  id="form" name="form" autocomplete="on">
+    
+                <fieldset>
+                    <div class="form">
+                        <input type="text" name="idMontagem" id="idMontagem" required spellcheck="false">
+                        <label for ="idMontagem">Código</label>
+                    </div>
+                    <legend>Cadastre o Local</legend>
+                    <div class ="form">
+                        <input type="text" style="text-transform: uppercase;" name="descMontagem" id="descMontagem"  required spellcheck="false">
+                        <label for = "descMontagem">Local </label>
+                    </div>
+                    <div class ="form-2colunas">
+                        <div class="form2">
+                            <input type="text" style="text-transform: uppercase;" name="cidadeMontagem" id="cidadeMontagem"  required spellcheck="false">
+                            <label for = "cidadeMontagem"> Cidade </label>
+                        </div>
+                        <div class="form2">         
+                            <input type="text" style="text-transform: uppercase;" name="ufMontagem" id="ufMontagem" required maxlength="2" spellcheck="false">
+                            <label for = "ufMontagem"> UF </label>
+                        </div>
+                    </div>
+                </fieldset>
+                <div class="BTNs">
+                    <button class="Pesquisar" id="Pesquisar" type="button">Pesquisar</button>
+                    <button class="Limpar"  id="Limpar" type="reset">Limpar</button>
+                    <button class="Enviar" id="Enviar" type="button">Enviar</button>
+                </div>
+            </form>
+        </div>
+
+                
+    
+        <!-- </div> -->
+        
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</body>
+</html>
+
+<!-- version certa montagem -->
