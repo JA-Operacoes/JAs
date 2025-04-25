@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="//use.fontawesome.com/releases/v5.0.7/css/all.css">
     
-    <title>Equipamentos</title>
+    <title>Montagem</title>
 
 </head>
 <body>
@@ -24,7 +24,7 @@
             
             
             <div class = "title">
-                <h1>Cadastro de Equipamentos</h1>
+                <h1>Cadastro de Local de Montagem </h1>
             </div>
 
             <form  method="post"  id="form" name="form" autocomplete="on">
@@ -37,20 +37,19 @@
                     <legend>Cadastre o Equipamento</legend>
                     <div class ="form">
                         <input type="text" name="descMontagem" id="descMontagem"  required spellcheck="false">
-                        <label for = "descMontagem"> Equipamentos </label>
+                        <label for = "descMontagem"> Local de Montagem </label>
                     </div>
                     <div class ="form-2colunas">
                         <div class="form2">
                             <input type="text" name="cidadeMontagem" id="cidadeMontagem"  required spellcheck="false">
-                            <label for = "cidadeMontagem"> Custo </label>
+                            <label for = "cidadeMontagem"> Cidade </label>
                         </div>
                         <div class="form2">         
                             <input type="text" name="ufMontagem" id="ufMontagem" required maxlength="2" spellcheck="false">
-                            <label for ="ufMontagem"> Venda </label>
+                            <label for ="ufMontagem"> UF </label>
                         </div>
                     </div>
                 </fieldset>
-           
         </div>
         <div class="BTNs">
             <button id="search" class="Pesquisar">Pesquisar</button>
@@ -60,7 +59,6 @@
       </form>
     </div>
 </div>
-<script src="js/Moeda.js"></script>
-<script src="js/Index.js"></script>
+<script src="js/LocalMontagem.js"></script>
 </body>
 </html>
