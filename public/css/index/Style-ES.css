@@ -1,3 +1,140 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:2071dfa0525af6b612fc53278e0bbbad84d27aa3b732cee43e8aaf807513e65c
-size 2530
+*{
+  margin:0;
+  padding:0;
+  box-sizing: border-box;
+  font-family:'Lucida Sans';
+}
+
+header{
+  width: 100%;
+  /* background-color: #474646; */
+  background: linear-gradient(to right, #80cd3b, rgb(43, 42, 42)  );  
+}
+
+.interface{
+  max-width: 2560px;
+  padding: 0 ;
+  margin: 0 ;
+  display: flex;
+  align-items:center;
+  justify-content: space-between;
+}
+.logotipo{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding:5px 10px;
+  gap:5px;
+}
+
+.logotipo img{
+  max-width: 150px;
+  height: auto;
+  display: flex;
+  justify-content: flex-start;
+  object-fit: contain;
+}
+
+.minilogos{
+  display: flex;
+  align-items: center;
+}
+
+.minilogos img{
+  max-width: 25px;
+  height: auto;
+  display: flex;
+  justify-content: flex-start;
+  object-fit: contain;
+  align-items: center;
+}
+
+span{
+  gap: 3px;
+}
+
+nav {
+  background-color: #474646; /* Cor inicial */
+  transition: background 0.3s ease-in-out; /* Suaviza a troca de cor */
+}
+
+/* Quando o mouse passar sobre cada logo, a cor do menu muda */
+.logo-expo:hover ~ nav {
+  background-color: #f47722;
+}
+
+.logo-ES:hover ~ nav {
+  background-color: #6ec62d;
+}
+
+.logo-EP:hover ~ nav {
+  background-color: #989997;
+}
+
+.logo-ED:hover ~ nav {
+  background-color: #4db3e9;
+}
+
+
+nav ul{
+width: 100%;
+margin: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  list-style-type: none;
+}
+
+/*personalização dos itens menu */
+
+nav ul li a{
+  color: #fff;
+  padding: 20px 40px;
+  text-decoration: none;
+  font-weight: 700;
+  display: flex;
+  justify-content: center;
+  transition: .2s;
+}
+
+/* /borda muda de cor ao passar mouse/ */
+
+nav ul li a:hover{
+  background-color: #ff0000;
+  color: #ffffff;
+  box-shadow: inset 0 0 8px #0000008a;
+
+}
+
+/* menu --- nesta parte podemos poupar linhas de codigos adicionando as classes e dando a elas o mesmo padrao das outras, para as classes que n utilizam o . seguido de função , utilizando apenas a , para adicionar as classes que n utilição função  */
+.Cadastro, 
+.Orçamento{
+  position: relative;
+  display: flex;
+  justify-content: center;
+  color: #fff;
+
+}
+
+/* /submenu/ */
+.Cadastro .drop,
+.Orçamento .drop{
+  position:absolute;
+  background-color:#65636b;
+  width: 100%;
+  height: 0;
+  overflow: hidden;
+  transition: .2s;
+}
+
+/* /submenu/ */
+.Cadastro .drop a,
+.Orçamento .drop a{
+padding: 20px;
+
+}
+.Cadastro:hover .drop,
+.Orçamento:hover .drop{
+  height: 255px;
+}

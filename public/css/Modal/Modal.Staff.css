@@ -1,3 +1,236 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:d1d1e5db9eb3b48f1899578b820d5b7267eeb68e5a6c9c80acb98cc38179f135
-size 5409
+body{
+  background-color: darkgray;
+}
+/* Estilo para o fundo escuro (overlay) */
+#modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  background-color: rgba(0, 0, 0, 0.5); /* Cor preta com transparência */
+  display: none; /* Inicialmente invisível */
+  z-index: 9998; /* Fica acima de outros elementos */
+}
+
+/* Estilo para o container do modal */
+#modal-container {
+  position: fixed;
+  top: 50%; /* Alinha verticalmente ao centro */
+  left: 50%; /* Alinha horizontalmente ao centro */
+  transform: translate(-50%, -50%); /* Ajuste para o centro exato */
+  background-color: rgba(255, 255, 255, 0.356);
+  padding: 5px;
+  border-radius: 8px;
+  box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
+  width: 80%; /* Ajuste o tamanho conforme necessário */
+  max-width: 700px; /* Largura máxima do modal */
+  display: none; /* Inicialmente invisível */
+  z-index: 1000; /* Fica acima do overlay */
+}
+
+/* Estilo opcional para o modal (você pode personalizar conforme necessário) */
+.modal {
+  position: fixed;
+  top: 50%; /* Alinha verticalmente ao centro */
+  left: 50%; /* Alinha horizontalmente ao centro */   
+  transform: translate(-50%, -50%); /* Ajuste para o centro exato */
+  background-color: transparent;
+  padding: 5px;
+  width: 725px; /* Ajuste o tamanho conforme necessário */
+  height: 590px;
+  font-size: 16px;
+  z-index: 9999;
+}
+
+.modal-open{
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Quando o modal estiver visível */
+.modal-open #modal-overlay, 
+.modal-open #modal-container {
+  display: block;
+  pointer-events: auto; /* Torna visíveis o overlay e o modal */
+}
+
+body .modal-open {
+  overflow: hidden;
+  pointer-events: none; /* Impede a rolagem da página */
+}
+
+
+body{
+  font-family: "Abel", sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto;
+}
+
+.title{
+  font-family: "Abel", sans-serif;
+  font-size: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 5px;
+}
+
+#form-cargo {
+  font-family: "Abel", sans-serif;
+  display: flex;                /* Define o modelo de layout Flexbox */
+  flex-direction: column; 
+  justify-content: center;
+  background-color: rgb(0, 0, 0);
+  max-width: 700px;   
+  width: 100%;  
+  height: 600px;          /* Largura do formulário */
+  margin: 0% auto 30% auto;               /* Centraliza o formulário na tela */
+  padding: 10px;                /* Espaçamento interno */
+  background-color: #cacaca; 
+  border: #ce0303;     /* Fundo branco */
+  border-bottom-right-radius: 8px;          /* Bordas arredondadas */
+  border-bottom-left-radius: 8px;          /* Bordas arredondadas */
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
+}
+.form{
+  font-family: "Abel", sans-serif;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.form p{
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.form2{
+  font-family: "Abel", sans-serif;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.Files{
+  font-family: "Abel", sans-serif;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+
+textarea{
+  font-family:"Abel",sans-serif;
+  width: 100%;
+  display: flex;
+  justify-content: center;                  /* Faz os inputs ocuparem toda a largura */
+  padding: 5px 50px; 
+  margin: 5px 10px;
+  font-size: 17px;               /* Espaçamento interno nos campos */
+  border: 1px solid #000000;      /* Cor de borda */
+  border-radius: 8px;  
+  flex: 1;      
+  max-width: 100%;        /* Bordas arredondadas */
+}
+
+
+input {
+  font-family:"Abel",sans-serif;
+  width: 100%;
+  display: flex;
+  justify-content: center;                  /* Faz os inputs ocuparem toda a largura */
+  padding: 5px 50px; 
+  margin: 5px 10px;
+  font-size: 17px;               /* Espaçamento interno nos campos */
+  border: 1px solid #000000;      /* Cor de borda */
+  border-radius: 8px;  
+  flex: 1;      
+  max-width: 100%;        /* Bordas arredondadas */
+}
+
+input[type=date]{
+  width: 111px;
+  height: 30px;
+  font-size: 17px;
+}
+
+input[type=file]{
+  display: flex;
+  justify-content: center;
+}
+
+
+
+input::placeholder{
+  font: bold;
+  text-align: center;
+}
+
+label {
+  font-family: "Abel", sans-serif;
+  font-size: 20px;
+  margin: 5px 10px;
+  text-align: start;
+  width: 160px;
+  gap: 50px;
+}
+
+
+#Venda, #Custo, #Beneficios{
+  display: flex;
+  justify-content: center;
+  text-align: center;
+}
+
+
+button {
+  font-family: "Abel", sans-serif;
+  font-size: 20px;
+  background-color: #9e0505;
+  width: 25%;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;  
+  margin: 30px auto;
+  transition: 5%;
+}
+
+  button.Close {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+  width: 700px;
+  margin: 0;
+}
+
+
+.BTNs{
+  display: flex;
+  text-align: center;
+  justify-content: space-between;
+}
+
+.Enviar:hover,
+.Limpar:hover,
+.Pesquisar:hover{
+  background-color: #5f0101;
+}

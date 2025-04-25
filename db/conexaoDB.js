@@ -1,3 +1,16 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:51b1307650d1b3b4fbecc79d5c05d3b72f5f3aa1f5698e44d1adfe9a7d4b74fe
-size 419
+const { Pool } = require("pg");
+require("dotenv").config();
+
+const pool = new Pool({
+  user: process.env.DB_USER,
+  host: process.env.DB_HOST,
+  database: process.env.DB_NAME,
+  password: process.env.DB_PASS,
+  port: process.env.DB_PORT,
+});
+
+pool.connect()
+  .then(() => console.log("Banco de dados conectado!"))
+  .catch(err => console.error("Erro ao conectar no banco:", err));
+
+module.exports = pool;

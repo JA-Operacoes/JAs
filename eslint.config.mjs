@@ -1,3 +1,12 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:eb6160f8d376f2927a5cbbb61f3daa7e6fa4c4151eedfcc5dfa614942acb7210
-size 441
+import { defineConfig } from "eslint/config";
+import globals from "globals";
+import js from "@eslint/js";
+import pluginReact from "eslint-plugin-react";
+
+
+export default defineConfig([
+  { files: ["**/*.{js,mjs,cjs,jsx}"] },
+  { files: ["**/*.{js,mjs,cjs,jsx}"], languageOptions: { globals: globals.browser } },
+  { files: ["**/*.{js,mjs,cjs,jsx}"], plugins: { js }, extends: ["js/recommended"] },
+  pluginReact.configs.flat.recommended,
+]);
