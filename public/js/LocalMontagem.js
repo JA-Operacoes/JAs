@@ -90,7 +90,7 @@ function verificaMontagem() {
                 text: 'Faça alguma alteração antes de salvar.',
                 confirmButtonText: 'Entendi'
             });
-           // mostrarAlerta();
+         
              
             console.log("Nenhuma alteração detectada.");
             return;
@@ -348,19 +348,6 @@ function limparMontagemOriginal() {
         cidadeMontagem: "",
         ufMontagem: ""
     };
-}
-function mostrarAlerta() {
-    Swal.fire({
-        icon: 'info',
-        title: 'Nada foi alterado!',
-        text: 'Faça alguma alteração antes de salvar.',
-        confirmButtonText: 'OK',
-
-        didOpen: () => {
-            const confirmBtn = Swal.getConfirmButton();
-            if (confirmBtn) confirmBtn.focus();
-          }
-    });
 }
 
 function limparCamposMontagem() {
