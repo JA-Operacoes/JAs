@@ -27,22 +27,22 @@
 
       <form  id="form" name="form" autocomplete="off">     
 
-        <div class="form-2colunas" id="campoPesquisa" style="display: none;">
+        <!-- <div class="form-2colunas" id="campoPesquisa" style="display: none;">
           <div class="buscar">
-            <input type="text" name="idCliente" id="idCliente"  spellcheck="false">
+            <input type="text" name="idCliente" id="idCliente" spellcheck="false">
             <label for ="idCliente">#Codigo</label>
           </div>
           <div class="buscarbtn"><button id="buscar">Buscar</button></div>
-        </div>
+        </div> -->
 
         <fieldset>
           <legend>Informações do Cliente</legend>                
           <div class="form-2colunas">
               <div class="form2">
-                
                 <input type="text" style="text-transform: uppercase;" name="nmFantasia" id="nmFantasia" required >
                 <label for="nmFantasia"> Nome Fantasia</label>
-              </div>
+              </div> 
+
               <div class="form2">
                 <input type="text" style="text-transform: uppercase;" name="razaoSocial" id="razaoSocial" required >
                 <label for="razaoSocial"> Razão Social</label> 
@@ -80,38 +80,38 @@
         </div>
 
         
-<div class="form-3colunas">
-    <div class="checkbox-wrapper-33">
-      <label class="checkbox">
-        <p class="checkbox__textwrapper">Cliente Ativo</p>
-        <input class="checkbox__trigger visuallyhidden" type="checkbox" />
-        <span class="checkbox__symbol">
-          <svg
-            aria-hidden="true"
-            class="icon-checkbox"
-            width="28px"
-            height="28px"
-            viewBox="0 0 28 28"
-            version="1"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path d="M4 14l8 7L24 7"></path>
-          </svg>
-        </span>
-        
-      </label>
-    </div>
+        <div class="form-3colunas">
+            <div class="checkbox-wrapper-33">
+              <label class="checkbox">
+                <p class="checkbox__textwrapper">Cliente Ativo</p>
+                <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo"/>
+                <span class="checkbox__symbol">
+                  <svg
+                    aria-hidden="true"
+                    class="icon-checkbox"
+                    width="28px"
+                    height="28px"
+                    viewBox="0 0 28 28"
+                    version="1"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path d="M4 14l8 7L24 7"></path>
+                  </svg>
+                </span>
+                
+              </label>
+            </div>
 
-  <div class="form2">
-    <input type="text" style="text-transform: uppercase;" name="tpcliente" id="tpcliente" maxlength="1" required spellcheck="false" />
-    <label for="tpcliente">F/J</label>
-  </div>
+          <div class="form2">
+            <input type="text" style="text-transform: uppercase;" name="tpcliente" id="tpcliente" maxlength="1" title="F = Física | J = Jurídica" required spellcheck="false" />
+            <label for="tpcliente">F/J</label>
+          </div>
 
-  <div class="form2">
-    <input type="text" style="text-transform: uppercase;" name="id" id="id" required spellcheck="false" />
-    <label for="id">ID</label>
-  </div>
-</div>
+          <div class="form2">
+            <input type="text" style="text-transform: uppercase;" name="idCliente" id="idCliente" spellcheck="false" />
+            <label for="idCliente">Código</label>
+          </div>          
+        </div>
 
             
         </fieldset><br>

@@ -33,9 +33,11 @@ let clienteOriginal = {idCliente: "",
     tpcliente: ""
 };
 
+
 let maskCNPJ, maskTelefone, maskCelContato, maskCEP;
 
 function aplicarMascaras() {
+    console.log("Aplicando máscaras aos campos de entrada...");
     maskCNPJ = IMask(document.querySelector("#cnpj"), {
         mask: "00.000.000/0000-00"
     });
@@ -64,7 +66,9 @@ function carregarClientes() {
     
     aplicarMascaras();  
     //pesquisar cliente pelo nome fantasia
+    
     document.querySelector("#nmFantasia").addEventListener("blur", async function () {
+        
         const nmFantasia = this.value.trim();
 
         console.log("Campo nome fansasia procurado:", nmFantasia);
@@ -72,8 +76,7 @@ function carregarClientes() {
         if (nmFantasia === "") return;
     
         try {
-            
-        
+  
             const response = await fetch(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
             console.log("Response",response);
             
@@ -314,63 +317,88 @@ function carregarClientes() {
             tpcliente === clienteOriginal.tpcliente
            
         ) {
-            //  alert("Nenhuma alteração detectada.");
-            // Swal.fire({
-            //     icon: 'info', // info | success | warning | error | question
-            //     title: 'Nada foi alterado!',
-            //     text: 'Faça alguma alteração antes de salvar.',
-            //     confirmButtonText: 'Entendi'
-            // });
-            mostrarAlerta();
+            Swal.fire({
+                icon: 'info', // info | success | warning | error | question
+                title: 'Nenhuma alteração foi detectada!',
+                text: 'Faça alguma alteração antes de salvar.',
+                confirmButtonText: 'Entendi'
+            });
              
             console.log("Nenhuma alteração detectada.");
             return;
         }
     
-       
-    
-        try {
-            let response;
-    
-            if (idCliente) {
-                response = await fetch(`http://localhost:3000/clientes/${idCliente}`, {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify(dados)
-                });
-            } else {
+       if (idCliente) {
+
+            Swal.fire({
+                title: "Deseja salvar as alterações?",
+                text: "Você está prestes a atualizar os dados do cliente.",
+                icon: "question",
+                showCancelButton: true,
+                confirmButtonText: "Sim, salvar",
+                cancelButtonText: "Cancelar",
+                reverseButtons: true,
+                focusCancel: true
+                
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        response = await fetch(`http://localhost:3000/clientes/${idCliente}`, {
+                            method: "PUT",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify(dados)
+                        });
+        
+                        const resultJson = await response.json();
+        
+                        if (response.ok) {
+                            document.getElementById('form').reset();
+                            Swal.fire("Sucesso!", resultJson.mensagem || "Alterações salvas com sucesso!", "success");
+                            document.querySelector("#idCliente").value = "";
+                            limparClienteOriginal();  
+                        } else {
+                            Swal.fire("Erro", resultJson.erro || "Erro ao salvar as alterações do Cliente.", "error");
+                        }
+                    } catch (error) {
+                        console.error("Erro ao enviar dados:", error);
+                        Swal.fire("Erro de conexão", "Não foi possível conectar ao servidor.", "error");
+                    }
+                } else {
+                    console.log("Usuário cancelou a alteração.");
+                }
+            });
+        } else {
+        // Se for novo, salva direto
+            try {
                 console.log("Salvando novo cliente...CLIENTES.JS");
-                response = await fetch("http://localhost:3000/clientes", {
+                const response = await fetch("http://localhost:3000/clientes", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify(dados)
                 });
+        
+                const resultJson = await response.json();
+        
+                if (response.ok) {
+                    Swal.fire("Sucesso!", resultJson.mensagem || "Cliente cadastrado!", "success");
+                    form.reset();
+                    limparClienteOriginal();
+                    document.querySelector("#idCliente").value = "";
+                } else {
+                    Swal.fire("Erro", resultJson.erro || "Erro ao cadastrar o Cliente.", "error");
+                }
+            } catch (error) {
+                console.error("Erro ao enviar dados:", error);
+                Swal.fire("Erro de conexão", "Não foi possível conectar ao servidor.", "error");
             }
-    
-            const result = await response.json();
-    
-            if (response.ok) {
-                alert(result.mensagem || "Operação realizada com sucesso!");
-                form.reset();
-                document.querySelector("#idCliente").value = "";
-
-                limparClienteOriginal(); // Limpa os dados do cliente original após salvar
-                clienteExistente = false; // Reseta o estado do cliente existente
-    
-               
-            } else {
-                alert(result.erro || "Erro ao salvar o cliente.");
-            }
-    
-        } catch (error) {
-            console.error("Erro ao enviar dados:", error);
-            alert("Erro de conexão com o servidor.");
         }
+    
     });
+
     const btnLimpar = document.getElementById("Limpar");
 
     if (btnLimpar) {
@@ -406,9 +434,17 @@ function carregarClientes() {
             const input = document.querySelector("#nmFantasia");
             
             const select = criarSelectClientes(clientes);
+           
+            if (input && input.parentNode) {
+                input.parentNode.replaceChild(select, input);
+            }
+            // input.parentNode.replaceChild(select, input);
             
-            input.parentNode.replaceChild(select, input);
-    
+            const label = document.querySelector('label[for="nmFantasia"]');
+            if (label) {
+              label.style.display = "none"; // ou guarda o texto, se quiser restaurar exatamente o mesmo
+            }
+
             select.addEventListener("change", async function () {
                 console.log("Cliente selecionado antes de carregarClientes:", this.value);
                 const desc = this.value?.trim(); // Protegendo contra undefined
@@ -424,29 +460,12 @@ function carregarClientes() {
                 console.log("Cliente selecionado:", this.value);
             });
                 
-            } catch (error) {
-                console.error("Erro ao carregar clientes:", error);
-                mostrarErro("Erro", "Não foi possível carregar as clientes.");
-            }});
-    // Adicione aqui outros eventos ou configurações necessárias para o modal de clientes
-  
-}
-
-
-function estiloCampo(elemento) {
-    Object.assign(elemento.style, {
-        fontFamily: "Abel, sans-serif",
-        width: "100%",
-        display: "flex",
-        justifyContent: "center",
-        padding: "5px 10px",
-        margin: "5px 10px",
-        fontSize: "17px",
-        border: "1px solid #000",
-        borderRadius: "8px",
-        flex: "1",
-        maxWidth: "100%"
+        } catch (error) {
+            console.error("Erro ao carregar clientes:", error);
+            mostrarErro("Erro", "Não foi possível carregar as clientes.");
+        }
     });
+  
 }
 
 function criarSelectClientes(clientes) {
@@ -456,9 +475,8 @@ function criarSelectClientes(clientes) {
     select.required = true;
     select.className = "form";
 
-    estiloCampo(select);
-
     const defaultOption = document.createElement("option");
+    
     defaultOption.text = "Selecione um cliente...";
     defaultOption.disabled = true;
     defaultOption.selected = true;
@@ -467,15 +485,13 @@ function criarSelectClientes(clientes) {
 
     console.log("Clientes encontrados no CriarSelects:", clientes);
 
-    clientes.forEach(clientes => {
+    clientes.forEach(clientesachados => {
         const option = document.createElement("option");
-        option.value = clientes.nmfantasia;
-        option.text = clientes.nmfantasia;
+        option.value = clientesachados.nmfantasia;
+        option.text = clientesachados.nmfantasia;
         select.appendChild(option);
     });
     
-
-
     return select;
 }
 
@@ -553,12 +569,16 @@ async function carregarClientesNmFantasia(desc, elementoAtual) {
         novoInput.className = "form";
         novoInput.value = cliente.nmfantasia;
 
-        estiloCampo(novoInput);
         elementoAtual.parentNode.replaceChild(novoInput, elementoAtual);
+        const label = document.querySelector('label[for="nmFantasia"]');
+        if (label) {
+        label.style.display = "block";
+        label.textContent = "Nome Fantasia"; // ou algum texto que você tenha guardado
+        }
 
         novoInput.addEventListener("blur", async function () {
             if (!this.value.trim()) return;
-            await carregarClientesNmFantasia(this.value, this);
+            await carregarFuncaoDescricao(this.value, this);
         });
 
     } catch {
@@ -637,17 +657,7 @@ function limparCamposCliente(){
     }
 }
 
-function mostrarAlerta() {
-    Swal.fire({
-        icon: 'info',
-        title: 'Nada foi alterado!',
-        text: 'Faça alguma alteração antes de salvar.',
-        confirmButtonText: 'Entendi',
-        customClass: {
-            popup: 'swal-custom-z'
-          }
-    });
-}
+
 function configurarEventosClientes() {
     console.log("Configurando eventos para o modal de clientes...");
     carregarClientes();

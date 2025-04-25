@@ -166,6 +166,36 @@ fieldset {
   color: #000000;
   outline: none;
 }
+
+.form2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px; /* espaço entre os campos */
+  align-items: center; /* aqui é o segredo do alinhamento */
+}
+
+
+.form2 select{
+  /* box-sizing: border-box; */
+  border-radius: 5px;
+  flex: 1;
+  font-family: var(--Font-primary);
+  width: 270px;
+  min-width: 270px;
+  max-width: 270px;
+  height: 30px; 
+  /* line-height: 20px; */
+  border-radius: 6px;
+  font-size: 13px;
+  padding: 0 8px;
+  margin-top: -1px; 
+  border: 1px solid #000000;
+  background: transparent;
+  color: #000000;
+  outline: none;
+}
+
+
 .form3 input{
   flex: 1;
   font-family: var(--Font-primary);
@@ -198,6 +228,7 @@ fieldset {
   pointer-events: none;
   transition: 0.3s;
 }
+
 input:focus{
   border: 2px solid #ce0303;
 }
@@ -224,11 +255,21 @@ input#numero, input#estado, input#pais, input#complemento{
   width: 120px;
 }
 
-  input#id{
+input#id{
   width: 70px;
 }
 input#tpcliente{
-  width: 20px;
+  width: 50px;
+}
+
+input.tpcliente {
+  text-align: center;          /* Centraliza horizontalmente */
+  vertical-align: middle;      /* Boa prática */
+  font-size: 1.2rem;           /* Tamanho legal pro caractere */
+  height: 2.5em;
+  width: 2.5em;
+  line-height: 2.5em;          /* Alinha verticalmente no input */
+  padding: 0;
 }
 label#tpcliente{
   font-size: 9px;
