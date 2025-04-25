@@ -1,3 +1,64 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:39568d738ad9c179db3088c548132d6051023cbbcc328f132593abc91850deda
-size 2568
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="css/Modal/CadSuprimentos.css">
+    <link rel="stylesheet" href="css/Roots/Roots.css">
+    <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="//use.fontawesome.com/releases/v5.0.7/css/all.css">
+    
+    <title>Equipamentos</title>
+
+</head>
+<body>
+
+<div id="CadModal" class="modal" >
+
+    <div class="modal-content">
+        
+        <div class="Close"><button class="close"> X </button></div>
+
+        <div id ="form-cargo"> 
+            
+            
+            <div class = "title">
+                <h1>Cadastro de Suprimento</h1>
+            </div>
+
+            <form  method="post"  id="form" name="form" autocomplete="on">
+    
+                <fieldset>
+                    <div class="form">
+                        <input type="text" name="idSup" id="idSup" required spellcheck="false">
+                        <label for ="idSup">#Codigo</label>
+                    </div>
+                    <legend>Cadastre o Suprimento</legend>
+                    <div class ="form">
+                        <input type="text" name="descSup" id="descSup"  required spellcheck="false">
+                        <label for = "descSup"> Suprimento </label>
+                    </div>
+                    <div class ="form-2colunas">
+                        <div class="form2">
+                            <input type="text" name="ctoSup" id="ctoSup"  required spellcheck="false">
+                            <label for = "ctoSup"> Custo </label>
+                        </div>
+                        <div class="form2">         
+                            <input type="text" name="vdaSup" id="vdaSup" required maxlength="2" spellcheck="false">
+                            <label for = "vdaSup"> Venda </label>
+                        </div>
+                    </div>
+                </fieldset>
+            </form>
+        </div>
+        <div class="BTNs">
+            <button id="search" class="Pesquisar">Pesquisar</button>
+            <button class="Limpar" type="submit">limpar</button>
+            <button class="Enviar" type="submit">Enviar</button>
+        </div>
+    </div>
+</div>
+    <script src="js/Index.js"></script>
+</body>
+</html>

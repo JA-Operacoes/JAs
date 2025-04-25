@@ -1,3 +1,17 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:ca4d0850edfab3e55943961dc9ad0b5edcf6847b9b8870a0e08888f3beec6aca
-size 213
+:root{
+
+/* Fontes */
+    --Font-primary:"Abel", sans serif;
+
+/*  cores principais */
+    --dark-color: black;
+
+    --light-color: white;
+
+
+    --JA-Oper: #942123;
+    --JA-Oper-dark:#641516;
+
+}
+
+

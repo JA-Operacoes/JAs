@@ -1,3 +1,66 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:9eb61953ba0def8dacfc4a865f08bda00b584134427b35b6eeb8221a0852b0f5
-size 2249
+const express = require("express");
+const router = express.Router();
+const pool = require("../db/conexaoDB");
+
+// GET todas ou por descrição
+router.get("/", async (req, res) => {
+  const { descFuncao } = req.query;
+
+  try {
+    if (descFuncao) {
+      const result = await pool.query(
+        "SELECT * FROM orcamento WHERE descFuncao ILIKE $1 LIMIT 1",
+        [descFuncao]
+      );
+      return result.rows.length
+        ? res.json(result.rows[0])
+        : res.status(404).json({ message: "Função não encontrada" });
+    } else {
+      const result = await pool.query("SELECT * FROM funcao ORDER BY descFuncao ASC");
+      return result.rows.length
+        ? res.json(result.rows)
+        : res.status(404).json({ message: "Nenhuma função encontrada" });
+    }
+  } catch (error) {
+    console.error("Erro ao buscar função:", error);
+    res.status(500).json({ message: "Erro ao buscar função" });
+  }
+});
+
+// PUT atualizar
+router.put("/:id", async (req, res) => {
+  const id = req.params.id;
+  const { descFuncao, vlrCusto, vlrVenda } = req.body;
+
+  try {
+    const result = await pool.query(
+      `UPDATE Funcao SET descFuncao = $1, vlrCusto = $2, vlrVenda = $3 WHERE idFuncao = $4 RETURNING *`,
+      [descFuncao, vlrCusto, vlrVenda, id]
+    );
+
+    return result.rowCount
+      ? res.json({ message: "Função atualizada com sucesso!", funcao: result.rows[0] })
+      : res.status(404).json({ message: "Função não encontrada para atualizar." });
+  } catch (error) {
+    console.error("Erro ao atualizar função:", error);
+    res.status(500).json({ message: "Erro ao atualizar função." });
+  }
+});
+
+// POST criar nova função
+router.post("/", async (req, res) => {
+  const { descFuncao, vlrCusto, vlrVenda } = req.body;
+
+  try {
+    const result = await pool.query(
+      "INSERT INTO funcao (descFuncao, vlrCusto, vlrVenda) VALUES ($1, $2, $3) RETURNING *",
+      [descFuncao, vlrCusto, vlrVenda]
+    );
+    res.json({ mensagem: "Função salva com sucesso!", funcao: result.rows[0] });
+  } catch (error) {
+    console.error("Erro ao salvar função:", error);
+    res.status(500).json({ erro: "Erro ao salvar função" });
+  }
+});
+
+module.exports = router;
