@@ -1,3 +1,162 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:640f5b8ce68b30ca1c71a4ee7f755522ae21ba423d7be63f12448da6275262fe
-size 4861
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width", initial-scale="1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="css/index/Style-OPER.css">
+    <link rel="stylesheet" href="css/Footer/Footer-OPER.CSS">
+    <link rel="stylesheet" href="css/Roots/Roots.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <title>Cadastros</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+    <link rel="shortcut icon" href="img/icons/favicon.ico" type="image/x-icon">
+
+</head>
+
+<body>
+
+<header>      
+    <div class="interface">
+        <div class="logotipo">
+            <div class="logo-Oper"><a href="OPER-index.html"><img src= "img/JA_Oper.png" alt="JA_Oper"></a></div>
+            <div class="logo-expo"><a class="minilogos "href="EXPO-index.html"><img src= "img/JA_Expo.png" alt="JA_EXPO"></a></div>
+            <div class="logo-ES"><a class="minilogos" href="ES-index.html"><img src= "img/JA_ES.png" alt="JA_ES"></a></div>
+            <div class="logo-EA"><a class="minilogos" href="EA-index.html"><img src= "img/JA_EA.png" alt="JA_EA"></a></div>
+            <div class="logo-ED"><a class="minilogos" href="ED-index.html"><img src= "img/JA_ED.png" alt="JA_ED"></a></div>
+            <div class="logo-EP"><a class="minilogos" href="EP-index.html"><img src= "img/JA_EP.png" alt="JA_EP"></a></div>
+        </div>
+
+        <div class="interface">
+            <nav>
+                <ul id = "menu-horizontal">
+                    <li class="Cadastro"> 
+                        <a href="#">Cadastros</a>
+                        <div class ="drop">
+                            <div class ="drop-content">  
+                                <a href="#" onclick="abrirModal('CadClientes.html')">Clientes</a>
+                                <a href="#" onclick="abrirModal('CadFuncao.html')">Funções</a>
+                                <a href="#" onclick="abrirModal('CadFuncionarios.html')">Funcionários</a>
+                                <a href="#" onclick="abrirModal('CadEquipamentos.html')">Equipamentos</a>
+                                <a href="#" onclick="abrirModal('CadSuprimentos.html')">Suprimentos</a>
+                                <!-- <a href="#" onclick="abrirModal('CadEmpresa.html')">Empresas</a> -->
+                                <a href="#" onclick="abrirModal('CadLocalMontagem.html')">Local Montagem</a>
+                                
+                            </div>
+                        </div>
+                    </li>
+                    <li class="Orcamento">
+                        
+                        <a href="#" onclick= "abrirModal('Orcamento.html')">Orçamento</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+    </header>
+
+    <div id="modal-overlay" class="moda-overlay" ></div>
+    <div id="modal-container"></div>
+
+    <div id="wrapper"> 
+        <aside id="sidebar">
+            <div id="toggle-btn" onclick="alternarMenu()">»</div>
+        
+            <section id="painel-container">
+                <div class="abas">
+                <div id="aba-clientes" class="aba ativa" onclick="mostrarPainel('clientes')">Clientes</div>
+                <div id="aba-eventos" class="aba desativada" onclick="mostrarPainel('eventos')">Eventos</div>
+                <div id="aba-orcamento" class="aba desativada" onclick="mostrarPainel('orcamento')">Orçamento</div>
+                </div>
+        
+                <div id="painel-clientes" class="painel ativo">
+                <div class="destaque">Selecione o Cliente:</div>
+                <ul id="lista-dados-clientes"></ul>
+                </div>
+        
+                <div id="painel-eventos" class="painel">
+                <div id="cliente-selecionado" class="destaque">Nome do cliente</div>
+                <ul id="lista-dados-eventos"></ul>
+                </div>
+        
+                <div id="painel-orcamentos" class="painel">
+                <div id="orcamento-selecionado" class="destaque">Nome do cliente / Evento</div>
+                <ul id="lista-dados-orcamento"></ul>
+                </div>
+            </section>
+        </aside> 
+    </div>
+
+<main id="conteudo"> 
+        <section id="painel-infos">
+            <h2>Informações do Sistema</h2>
+            <ul class="infos-lista">
+                <li><strong>Nome do sistema:</strong> JAS </li>
+                <li><strong>Versão:</strong> 1.0.0 ALPHA </li>
+                <li><strong>Última atualização:</strong> Abril de 2025</li>
+                <li><strong>Desenvolvedor:</strong> JA Developers </li>
+                <li><strong>Contato:</strong> contato@seudominio.com</li>
+            </ul>
+        </section>
+</main>
+
+
+
+    <footer id="footer-content">
+
+        <div id="grid">
+            <div class="footer-logo">
+                <img src="img/JA_Oper.png" alt="logo-expo">
+                <p><strong> Da Ideia à Execução</strong></p>
+            </div>
+            
+            <div id="Social-Icons">
+                <p>Siga-nos Nas Redes Sociais</p>
+
+                <div class="footer-links">
+                    <a href="https://www.instagram.com/ja.eventoss_/" class="footer-links" id="instagram">
+                        <i class="fa-brands fa-instagram"></i>
+                    </a>
+                    <a href=""  class="footer-links" id="">
+                        <i class="fa-brands fa-facebook-f"></i>
+                    </a>
+                    <a href="" class="footer-links"  id="">
+                    </a>
+                </div>
+            </div>
+<!-- 
+            <div class="prototipo">
+                <p></p>
+            </div> -->
+        </div>
+        
+        
+        <div class="copyRigths">
+            &#169
+            2025 Todos os Direitos Reservados
+        </div>
+    </footer>
+
+    <script src="js/Index.js" defer ></script>
+    <script src="js/Aside.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/imask"></script>
+    <script src="js/Formataçoes.js" defer ></script>
+    <script src="js/Orcamento.js" defer ></script>
+    <script src="js/Clientes.js" defer ></script>
+    <script src="js/Funcao.js" defer></script>
+    <script src="js/LocalMontagem.js" defer ></script>
+    <script src="js/Equipamentos.js" defer ></script>
+    <script src="js/Suprimentos.js" defer ></script>
+    <script src="js/Funcionarios.js" defer ></script>
+    <script src="js/Eventos.js" defer></script>
+    
+    
+   
+    <!-- <script src="../db/conexaoDB.js" defer ></script> -->
+    <!-- <script src="../routes/rotaFuncao.js" defer ></script> -->
+    <!-- <script src="../routes/rotaOrcamento.js" defer ></script> -->
+   
+    
+</body>
+</html> 

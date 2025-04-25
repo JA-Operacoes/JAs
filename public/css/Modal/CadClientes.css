@@ -1,3 +1,476 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:8ba30658d840a01cf66fd0267de9c26b058e0ae35575974d865fcfb48bbe5809
-size 8758
+.modal-open main,
+.modal-open header,
+.modal-open #content,  /* qualquer container do seu conteúdo de fundo */
+.modal-open #pagina {
+  pointer-events: none;
+  user-select: none;
+}
+.swal2-container {
+  z-index: 10001 !important;
+  position: fixed !important;
+  inset: 0 !important;
+}
+
+.swal2-popup {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.swal2-actions {
+  display: flex !important;
+  justify-content: center !important;
+}
+
+.swal2-center-button {
+  z-index: 999999 !important;
+  /* position: fixed !important; */
+
+ 
+}
+body.swal2-shown {
+  overflow-y: auto !important;
+}
+
+body{
+  background-color: darkgray;
+}
+/* Estilo para o fundo escuro (overlay) */
+#modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5); /* Cor preta com transparência */
+  display: none; /* Inicialmente invisível */
+  z-index: 999; /* Fica acima de outros elementos */
+}
+
+/* Estilo para o container do modal */
+#modal-container {
+  position: fixed;
+  top: 50%; /* Alinha verticalmente ao centro */
+  left: 50%; /* Alinha horizontalmente ao centro */
+  transform: translate(-50%, -50%); /* Ajuste para o centro exato */
+  background-color: rgba(255, 255, 255, 0.356);
+  padding: 5px;
+  border-radius: 8px;
+  box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
+  width: 80%; /* Ajuste o tamanho conforme necessário */
+  max-width: 700px; /* Largura máxima do modal */
+  display: none; /* Inicialmente invisível */
+  z-index: 1000; /* Fica acima do overlay */
+}
+
+/* Estilo opcional para o modal (você pode personalizar conforme necessário) */
+.modal {
+  position: fixed;
+  top: 50%; /* Alinha verticalmente ao centro */
+  left: 50%; /* Alinha horizontalmente ao centro */   
+  transform: translate(-50%, -50%); /* Ajuste para o centro exato */
+  background-color: #4d4d4d;
+  padding: 5px;
+  margin-top: 10px;
+  width: 725px; /* Ajuste o tamanho conforme necessário */
+  height: 580px;
+  font-size: 16px;
+  z-index: 9999;
+}
+
+.modal-content{
+  height: 590px;
+}
+
+.modal-open{
+  overflow: visible; /* Permite a rolagem do modal */
+  /* overflow: hidden;
+  pointer-events: none; */
+}
+
+/* Quando o modal estiver visível */
+.modal-open #modal-overlay, 
+.modal-open #modal-container {
+  display: block;
+  pointer-events: auto; /* Torna visíveis o overlay e o modal */
+}
+
+body .modal-open {
+  overflow: hidden;
+  pointer-events: none; /* Impede a rolagem da página */
+}
+
+body{
+  font-family: "Abel", sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto;
+}
+
+.title{
+  font-family: "Abel", sans-serif;
+    font-size: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 300px;
+}
+
+
+#form-content {
+  font-family: "Abel", sans-serif;
+  display: flex;                
+  flex-direction: column; 
+  justify-content: center;
+  background-color: white;
+  max-width: 700px;   
+  width: 100%;  
+  height: 490px; 
+  margin: 0 auto;         
+  padding: 10px;                
+  background-color: #cacaca; 
+  border: #ce0303;    
+  border-bottom-right-radius: 8px;          
+  border-bottom-left-radius: 8px;         
+  overflow-y: auto;
+  position: relative;
+}
+
+fieldset {
+  display: flex;
+  flex-direction: column;
+  width: 650px;
+  background-color: transparent;
+  border-color: var(--dark-color);
+  margin: 0 auto;
+}
+
+.form-2colunas{
+  display: flex;
+  gap: 0.5px; /* Espaço entre os inputs */
+  max-width: 300; /* Garante que os elementos não ultrapassem o container */
+  justify-content: center;
+}
+
+.form-3colunas{
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  max-width: 300;
+  gap: 0,5px;
+}
+
+.form, .form2, .form3, .form-checkbox{
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin: 12px;
+  gap:5px;
+}
+
+.form input{
+  font-family:  var(--Font-primary);
+  width: 350px;
+  height: 30px;
+  border-radius: 6px;
+  font-size: 13px;
+  padding: 0 15px;
+  border: 1px solid #000000;
+  background: transparent;
+  color: #000000;
+  outline: none;
+}
+
+.form2 input{
+  flex: 1;
+  font-family: var(--Font-primary);
+  width: 270px;
+  height: 30px;
+  border-radius: 6px;
+  font-size: 13px;
+  padding: 0 20px;
+  border: 1px solid #000000;
+  background: transparent;
+  color: #000000;
+  outline: none;
+}
+.form3 input{
+  flex: 1;
+  font-family: var(--Font-primary);
+  width: 270px;
+  height: 30px;
+  border-radius: 6px;
+  font-size: 13px;
+  padding: 0 20px;
+  border: 1px solid #000000;
+  background: transparent;
+  color: #000000;
+  outline: none;
+}
+.form label, .form-2colunas label, .form2 label{
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #000000;
+  font-size: 19px;
+  pointer-events: none;
+  transition: 0.3s;
+ 
+}
+.form3 label{
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #000000;
+  font-size: 19px;
+  pointer-events: none;
+  transition: 0.3s;
+}
+input:focus{
+  border: 2px solid #ce0303;
+}
+input:focus ~ label,
+input:valid ~ label{
+  top: 0;
+  left: 25%;
+  font-size: 15px;
+  padding: 0 2px;
+  background: #cacaca;
+}
+
+input[type=date]{
+  width: 111px;
+  height: 30px;
+  font-size: 17px;
+}
+
+input[type=file]{
+  display: none;
+}
+
+input#numero, input#estado, input#pais, input#complemento{
+  width: 120px;
+}
+
+  input#id{
+  width: 70px;
+}
+input#tpcliente{
+  width: 20px;
+}
+label#tpcliente{
+  font-size: 9px;
+}
+
+/* From Uiverse.io by Shoh2008 */ 
+.checkbox-wrapper-33 {
+  --s-xsmall: 0.625em;
+  --s-small: 1.2em;
+  --border-width: 1px;
+  --c-primary: #0c6400;
+  --c-primary-20-percent-opacity: rgba(17, 232, 35, 0.2);
+  --c-primary-10-percent-opacity: rgba(42, 232, 17, 0.1);
+  --t-base: 0.4s;
+  --t-fast: 0.2s;
+  --e-in: ease-in;
+  --e-out: cubic-bezier(0.11, 0.29, 0.18, 0.98);
+}
+
+.checkbox-wrapper-33 .visuallyhidden {
+  border: 0;
+  clip: rect(0 0 0 0);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  width: 1px;
+}
+
+.checkbox-wrapper-33 .checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  color: rgb(0, 0, 0);
+}
+
+.checkbox-wrapper-33 .checkbox + .checkbox {
+  margin-top: var(--s-small);
+}
+
+.checkbox-wrapper-33 .checkbox__symbol {
+  display: inline-block;
+  display: flex;
+  margin-right: calc(var(--s-small) * 0.7);
+  border: var(--border-width) solid var(--c-primary);
+  position: relative;
+  border-radius: 0.1em;
+  width: 1.5em;
+  height: 1.5em;
+  transition: box-shadow var(--t-base) var(--e-out),
+    background-color var(--t-base);
+  box-shadow: 0 0 0 0 var(--c-primary-10-percent-opacity);
+}
+
+.checkbox-wrapper-33 .checkbox__symbol:after {
+  content: "";
+  position: absolute;
+  top: 0.5em;
+  left: 0.5em;
+  width: 0.25em;
+  height: 0.25em;
+  background-color: var(--c-primary-20-percent-opacity);
+  opacity: 0;
+  border-radius: 3em;
+  transform: scale(1);
+  transform-origin: 50% 50%;
+}
+
+.checkbox-wrapper-33 .checkbox .icon-checkbox {
+  width: 1em;
+  height: 1em;
+  margin: auto;
+  fill: none;
+  stroke-width: 3;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-miterlimit: 10;
+  color: var(--c-primary);
+  display: inline-block;
+}
+
+.checkbox-wrapper-33 .checkbox .icon-checkbox path {
+  transition: stroke-dashoffset var(--t-fast) var(--e-in);
+  stroke-dasharray: 30px, 31px;
+  stroke-dashoffset: 31px;
+}
+
+.checkbox-wrapper-33 .checkbox__textwrapper {
+  margin: 0;
+}
+
+.checkbox-wrapper-33 .checkbox__trigger:checked + .checkbox__symbol:after {
+  -webkit-animation: ripple-33 1.5s var(--e-out);
+  animation: ripple-33 1.5s var(--e-out);
+}
+
+.checkbox-wrapper-33
+  .checkbox__trigger:checked
+  + .checkbox__symbol
+  .icon-checkbox
+  path {
+  transition: stroke-dashoffset var(--t-base) var(--e-out);
+  stroke-dashoffset: 0px;
+}
+
+.checkbox-wrapper-33 .checkbox__trigger:focus + .checkbox__symbol {
+  box-shadow: 0 0 0 0.25em var(--c-primary-20-percent-opacity);
+}
+
+@-webkit-keyframes ripple-33 {
+  from {
+    transform: scale(0);
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(20);
+  }
+}
+
+@keyframes ripple-33 {
+  from {
+    transform: scale(0);
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(20);
+  }
+}
+
+
+button {
+  font-family: "Abel", sans-serif;
+  font-size: 20px;
+  background-color: #9e0505;
+  width: 25%;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;  
+  transition: 5%;
+}
+
+button.Close {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+  width: 600px;
+  height: 25px;
+}
+
+.Close{
+  display: flex;
+  justify-content: center;
+}
+
+.BTNs{
+  display: flex;
+  text-align: center;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.Enviar:hover,
+.Limpar:hover,
+.Pesquisar:hover{
+  background-color: #5f0101;
+}
+
+.radio{
+  display: flex;
+  text-align: center;
+  gap: 1px;
+}
+
+.hidden{
+  display: none;
+}
+#endereço{
+  display: none;
+  margin-top: 10px;
+}
+#mensagemErro {
+  color: red;
+  font-size: 14px;
+  display: none;
+}
+
+/* Estiliza a largura do scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 12px; /* Para o scrollbar horizontal */
+}
+
+/* Estiliza a parte que você pode arrastar (thumb) */
+::-webkit-scrollbar-thumb {
+  background-color: #888;
+  border-radius: 10px;
+}
+
+/* Estiliza a trilha do scrollbar (o fundo) */
+::-webkit-scrollbar-track {
+  background-color: transparent;
+  border-radius: 5px;
+}
+
+/* Adiciona um efeito de hover para o thumb */
+::-webkit-scrollbar-thumb:hover {
+  background-color: #555;
+}

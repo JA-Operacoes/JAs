@@ -1,3 +1,97 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:94098a3225f6037017f2b81f51bd29d6b403efea584fa552b55ba5cac9b7c06b
-size 4110
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width", initial-scale="1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="css/index/Style-EXPO.css">
+    <link rel="stylesheet" href="css/Modal/StyleModal.css">
+    <link rel="stylesheet" href="css/Footer/Footer-EXPO.CSS">
+    <title>Cadastros</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+    <link rel="shortcut icon" href="img/icons/EXPOfavicon.ico" type="image/x-icon">
+
+</head>
+
+<body>
+
+    <header>      
+        <div class="interface">
+            <div class="logotipo">
+                <div class="logo-expo"><a href="EXPO-index.html"><img src= "img/JA_Expo.png" alt="JA_EXPO"></a></div>
+                <div class="logo-Oper"><a class="minilogos" href="OPER-index.html"><img src= "img/JA_Oper.png" alt="JA_Oper"></a></div>
+                <div class="logo-ES"><a class="minilogos" href="ES-index.html"><img src= "img/JA_ES.png" alt="JA_ES"></a></div>
+                <div class="EA"><a class="minilogos" href="EA-index.html"><img src= "img/JA_EA.png" alt="JA_EA"></a></div>
+                <div class="ED"><a class="minilogos" href="ED-index.html"><img src= "img/JA_ED.png" alt="JA_ED"></a></div>
+                <div class="EP"><a class="minilogos" href="EP-index.html"><img src= "img/JA_EP.png" alt="JA_EP"></a></div>
+            </div>
+
+            <div class="interface">
+                <nav>
+                    <ul id = "menu-horizontal">
+                        <li class="Cadastro"> 
+                            <a href="#">
+                                <span class="fa-regular fa-pen-to-square"></span>
+                                <span>Cadastros</span>
+                                <span class="fa-solid fa-caret-down"></span>
+                            </a>
+                            <div class ="drop">
+                                <div class ="drop-content">  <!--apenas teste-->
+                                    <a href="#" onclick="abrirModal('CadCargo.html')">Cargos</a>
+                                    <a href="#">Local Montagem</a>
+                                    <a href="#">Equipamentos</a>
+                                    <a href="#">Suprimentos</a>
+                                    <a href="#">Empresas</a>
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+        </header>
+
+        <div id="modal-overlay" class="moda-overlay" onclick="fecharModal()"></div>
+        <div id="modal-container"></div>
+
+    <footer id="footer-content">
+
+        <div id="grid">
+            <div class="footer-logo">
+                <img src="img/JA_Expo.png" alt="logo-expo">
+                <p><strong> Da Ideia à Execução</strong></p>
+            </div>
+            
+            <div id="Social-Icons">
+                <p>Siga-nos Nas Redes Sociais</p>
+
+                <div class="footer-links">
+                    <a href="https://www.instagram.com/ja.eventoss_/" class="footer-links" id="instagram">
+                        <i class="fa-brands fa-instagram"></i>
+                    </a>
+                    <a href=""  class="footer-links" id="">
+                        <i class="fa-brands fa-facebook-f"></i>
+                    </a>
+                    <a href="" class="footer-links"  id="">
+                    </a>
+                </div>
+            </div>
+<!-- 
+            <div class="prototipo">
+                <p></p>
+            </div> -->
+        </div>
+        
+        
+        <div class="copyRigths">
+            &#169
+            2025 Todos os Direitos Reservados
+        </div>
+        
+</div>
+
+</footer>
+    <script src ="js/scripts.js"></script>
+</body>
+</html>

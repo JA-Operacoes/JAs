@@ -1,3 +1,66 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:08ee536ee2435382c9364bd1dc9cbb14bbb81aa49e74cc73351609f870f60568
-size 4009
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="css/Modal/CadFuncao.css">
+    <link rel="stylesheet" href="css/Roots/Roots.css">
+    <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    
+    <title>Modal</title>
+    
+</head>
+<body>
+
+    <div id="CadModal" class="modal">
+        <div class="modal-content">
+
+            <div class="Close"><button class="close"> X </button></div>
+
+
+            <div id ="form-funcao"> 
+
+                <div class = "title">
+                    <h1>Cadastro de Funções</h1>
+                </div>
+
+            
+                <fieldset>
+                    <legend>Cadastre a Função </legend>
+                    <form id="form" name="form" autocomplete="on">
+                        <div class ="form">
+                            <label for = "idFuncao">Código</label>
+                            <input type="text" name="idFuncao" id = "idFuncao" >
+                        </div>
+                        <div class ="form">
+                            <label for = "descFuncao"> Descrição da Função </label>
+                            <input type="text" style="text-transform: uppercase;" name="descFuncao" id="descFuncao" required>
+                        </div>
+                        <div class="form-2colunas">
+                            <div class ="form2">
+                                <label for = "Custo"> Custo </label>
+                                <input type="text" name="Custo" id ="Custo"  required>
+                            </div>
+                            <div class ="form2">
+                                <label for = "Venda"> Venda </label>
+                                <input type="text" name="Venda" id ="Venda"  required>
+                            </div>
+                        </div>
+                </fieldset>
+
+                    </div>  
+                    <div class="BTNs">
+                        <button class="Pesquisar" id="Pesquisar" type="button">Pesquisar</button>
+                        <button class="limpar" type="reset">limpar</button>
+                        <button class="enviar" id="Enviar" type="submit">Enviar</button>
+                    </div>
+                </form>
+        </div>  
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    
+</body>
+</html>
