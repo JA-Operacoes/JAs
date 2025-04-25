@@ -1,6 +1,4 @@
-body{
-  background-color: darkgray;
-}
+
 /* Estilo para o fundo escuro (overlay) */
 #modal-overlay {
   position: fixed;
@@ -10,8 +8,10 @@ body{
   height: 100%;
   background-color: rgba(0, 0, 0, 0.5); /* Cor preta com transparência */
   display: none; /* Inicialmente invisível */
-  z-index: 999; /* Fica acima de outros elementos */
+  z-index: 999; /* Fica acima de outros elementos 24042025*/
 }
+
+
 
 /* Estilo para o container do modal */
 #modal-container {
@@ -39,10 +39,11 @@ body{
   padding: 5px;
   margin-top: 10px;
   width: 725px; /* Ajuste o tamanho conforme necessário */
-  height: 500px;
+  height: 430px;
   font-size: 16px;
   z-index: 9999;
 }
+
 
 .modal-content{
   height: 590px;
@@ -62,10 +63,11 @@ body{
 
 body .modal-open {
   overflow: hidden;
-  pointer-events: none; /* Impede a rolagem da página */
+  pointer-events: none; /*Impede a rolagem da página*/
 }
 
-body{
+body {
+  background-color: darkgray;
   font-family: "Abel", sans-serif;
   display: flex;
   justify-content: center;
@@ -87,10 +89,9 @@ body{
   display: flex;                
   flex-direction: column; 
   justify-content: center;
-  background-color: white;
   max-width: 700px;   
   width: 100%;  
-  height: 400px; 
+  height: 330px; 
   margin: 0 auto;         
   padding: 10px;                
   background-color: #cacaca; 
@@ -223,8 +224,9 @@ fieldset {
   transform: translateY(-50%);
   color: #000000;
   font-size: 19px;
-  pointer-events: none;
+  pointer-events: none; 
   transition: 0.3s;
+  /* transition: background-color 0.3s ease; */
 }
 input:focus{
   border: 2px solid #ce0303;
@@ -328,9 +330,7 @@ button.Close {
   margin-top: 10px;
 }
 
-.Enviar:hover,
-.Limpar:hover,
-.Pesquisar:hover{
+.Enviar:hover, .Limpar:hover, .Pesquisar:hover, .close:hover{
   background-color: #5f0101;
 }
 
@@ -376,4 +376,53 @@ button.Close {
   background-color: #555;
 }
 
+/* === Estilos personalizados para SweetAlert2 === */
+.swal2-container {
+  z-index: 100000 !important;
+}
 
+.swal2-popup .swal2-styled {
+  all: initial;
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 0.625em 1.5em;
+  border: none;
+  border-radius: 0.25em;
+  background: #d63030;
+  /* background: #3083d6; */
+  color: #fff;
+  cursor: pointer;
+  margin: 0 0.25em;
+}
+.swal2-confirm, .swal2-cancel {
+  font-family: "Abel", sans-serif;
+  font-size: 16px;
+  padding: 10px 24px !important;
+  border-radius: 12px !important;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.25s ease-in-out;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+}
+
+.swal2-confirm {
+  /* background-color: #28a745 !important;  Verde para confirmar */
+  background-color: #ce0303 !important;  /* Vermelho para confirmar */
+  color: #ffffff !important;
+}
+
+.swal2-confirm:hover {
+  /* background-color: #218838 !important; */
+  background-color: #ce0303  !important; /* Vermelho para confirmar */
+}
+
+.swal2-cancel {
+  background-color: #6c757d !important;  /* Cinza para cancelar */
+  color: #ffffff !important;
+}
+
+.swal2-cancel:hover {
+  background-color: #5a6268 !important;
+}
+/* version certa  */
