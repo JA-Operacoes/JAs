@@ -9,7 +9,7 @@ router.get("/", async (req, res) => {
   try {
     if (nmFantasia) {
       const result = await pool.query(
-        "SELECT * FROM clientes WHERE nmfantasia ILIKE $1 LIMIT 1",
+        "SELECT * FROM clientes WHERE nmfantasia ILIKE $1 ORDER BY nmfantasia ASC LIMIT 1 ",
         [nmFantasia]
       );
       return result.rows.length
@@ -46,7 +46,9 @@ router.put("/:id", async (req, res) => {
       : res.status(404).json({ message: "Cliente não encontrada para atualizar." });
   } catch (error) {
     console.error("Erro ao atualizar cliente:", error);
-    res.status(500).json({ message: "Erro ao atualizar cliente." });
+          // já imprime stack no terminal
+    res.status(500).json({ message: "Erro ao atualizar cliente.", detail: error.message });
+    
   }
 });
 
