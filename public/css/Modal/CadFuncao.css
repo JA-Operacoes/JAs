@@ -1,63 +1,45 @@
 .modal-open main,
 .modal-open header,
-.modal-open #content,  /* qualquer container do seu conteúdo de fundo */
+.modal-open #content,/* qualquer container do seu conteúdo de fundo */
 .modal-open #pagina {
   pointer-events: none;
   user-select: none;
 }
-.swal2-container {
-  z-index: 10001 !important;
-  position: fixed !important;
-  inset: 0 !important;
+
+/* Estilo para o fundo escuro (overlay) */
+#modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  background-color: rgba(0, 0, 0, 0.5); /* Cor preta com transparência */
+  display: none; /* Inicialmente invisível */ 
+  z-index: 9998; /* Fica acima de outros elementos */  
 }
 
-.swal2-popup {
-  max-height: none !important;
-  overflow: visible !important;
-}
-
-.swal2-actions {
-  display: flex !important;
-  justify-content: center !important;
-}
-
-
-body{
-    background-color: darkgray;
-  }
-  /* Estilo para o fundo escuro (overlay) */
-  #modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: auto;
-    background-color: rgba(0, 0, 0, 0.5); /* Cor preta com transparência */
-    display: none; /* Inicialmente invisível */
-    z-index: 9998; /* Fica acima de outros elementos */
-  }
-  
-  /* Estilo para o container do modal */
-  #modal-container {
-    position: fixed;
-    top: 50%; /* Alinha verticalmente ao centro */
-    left: 50%; /* Alinha horizontalmente ao centro */
-    transform: translate(-50%, -50%); /* Ajuste para o centro exato */
-    background-color: rgba(255, 255, 255, 0.356);
-    padding: 5px;
-    border-radius: 8px;
-    box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
-    width: 80%; /* Ajuste o tamanho conforme necessário */
-    max-width: 700px; /* Largura máxima do modal */
-    display: none; /* Inicialmente invisível */
-    z-index: 1000; /* Fica acima do overlay */
-  }
-  
-  /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
-  .modal {
-    position: fixed;
+/* Estilo para o container do modal */
+#modal-container {
+  position: fixed;
   top: 50%; /* Alinha verticalmente ao centro */
-  left: 50%; /* Alinha horizontalmente ao centro */   
+  left: 50%; /* Alinha horizontalmente ao centro */
+  transform: translate(-50%, -50%); /* Ajuste para o centro exato */
+  background-color: rgba(255, 255, 255, 0.356);
+  padding: 5px;
+  border-radius: 8px;
+  box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
+  width: 80%; /* Ajuste o tamanho conforme necessário */
+  max-width: 700px;  /* Largura máxima do modal */
+  display: none;  /* Inicialmente invisível */
+  z-index: 1000;  /* Fica acima do overlay */
+ 
+}
+
+/* Estilo opcional para o modal (você pode personalizar conforme necessário) */
+.modal {
+  position: fixed;
+  top: 50%;  /* Alinha verticalmente ao centro */
+  left: 50%; /* Alinha horizontalmente ao centro */
   transform: translate(-50%, -50%); /* Ajuste para o centro exato */
   background-color: #4d4d4d;
   padding: 5px;
@@ -66,501 +48,284 @@ body{
   height: 490px;
   font-size: 16px;
   z-index: 9999;
-  }
-  
-    
-  .modal-open{
-    overflow: visible;
-    /* overflow: hidden;
+}
+
+
+.modal-open {
+  overflow: visible;
+  /* overflow: hidden;
     pointer-events: none;  */
-  }
-  
-  /* Quando o modal estiver visível */
-  .modal-open #modal-overlay, 
-  .modal-open #modal-container {
-    display: block;
-    pointer-events: auto; /* Torna visíveis o overlay e o modal */
-  }
+}
 
- 
-  
-  body .modal-open {
-    overflow: visible;
-    /* overflow: hidden;
+/* Quando o modal estiver visível */
+.modal-open #modal-overlay,
+.modal-open #modal-container {
+  display: block;
+  pointer-events: auto;
+  /* Torna visíveis o overlay e o modal */
+}
+
+
+
+body .modal-open {
+  overflow: visible;
+  /* overflow: hidden;
     pointer-events: none; Impede a rolagem da página */
-  }
-  
-  
-  body{
-    font-family: "Abel", sans-serif;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin: 0 auto;
-  }
-  
-  .title{
-    font-family: "Abel", sans-serif;
-    font-size: 20px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-top: 5px;
-  }
-  
-  #form-funcao {
-    font-family: "Abel", sans-serif;
-    display: flex;                /* Define o modelo de layout Flexbox */
-    flex-direction: column; 
-    justify-content: center;
-    background-color: rgb(0, 0, 0);
-    max-width: 700px;   
-    width: 100%;  
-    height: 350px;          /* Largura do formulário */
-    margin: 0% auto;               /* Centraliza o formulário na tela */
-    padding: 10px;                /* Espaçamento interno */
-    background-color: #cacaca; 
-    border: #ce0303;     /* Fundo branco */
-    border-bottom-right-radius: 8px;          /* Bordas arredondadas */
-    border-bottom-left-radius: 8px;          /* Bordas arredondadas */
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
-  }
-  fieldset {
-    display: flex;
-    flex-direction: column;
-    width: 650px;
-    background-color: transparent;
-    border-color: var(--dark-color);
-    margin: 0 auto;
-  }
-  
-  .form-2colunas{
-    display: flex;
-    gap: 0.5px; /* Espaço entre os inputs */
-    max-width: 300; /* Garante que os elementos não ultrapassem o container */
-    justify-content: center;
-  }
-  
-  .form-3colunas{
-    display: flex;
-    justify-content: space-evenly;
-    align-items: center;
-    max-width: 300;
-    gap: 0,5px;
-  }
-  
-  .form, .form2, .form3, .form-checkbox{
-    position: relative;
-    display: flex;
-    justify-content: center;
-    margin: 12px;
-    gap:5px;
-  }
-  
-  .form input{
-    font-family:  var(--Font-primary);
-    width: 350px;
-    height: 30px;
-    border-radius: 6px;
-    font-size: 13px;
-    padding: 0 15px;
-    border: 1px solid #000000;
-    background: transparent;
-    color: #000000;
-    outline: none;
-  }
-  
-  .form2 input{
-    flex: 1;
-    font-family: var(--Font-primary);
-    width: 270px;
-    height: 30px;
-    border-radius: 6px;
-    font-size: 13px;
-    padding: 0 20px;
-    border: 1px solid #000000;
-    background: transparent;
-    color: #000000;
-    outline: none;
-  }
-  .form3 input{
-    flex: 1;
-    font-family: var(--Font-primary);
-    width: 270px;
-    height: 30px;
-    border-radius: 6px;
-    font-size: 13px;
-    padding: 0 20px;
-    border: 1px solid #000000;
-    background: transparent;
-    color: #000000;
-    outline: none;
-  }
-  .form label, .form-2colunas label, .form2 label{
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #000000;
-    font-size: 19px;
-    pointer-events: none;
-    transition: 0.3s;
-   
-  }
-  .form3 label{
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #000000;
-    font-size: 19px;
-    pointer-events: none;
-    transition: 0.3s;
-  }
-  input:focus{
-    border: 2px solid #ce0303;
-  }
-  input:focus ~ label,
-  input:valid ~ label{
-    top: 0;
-    left: 25%;
-    font-size: 15px;
-    padding: 0 2px;
-    background: #cacaca;
-  }
-  
-  input[type=date]{
-    width: 111px;
-    height: 30px;
-    font-size: 17px;
-  }
-  
-  input[type=file]{
-    display: none;
-  }
+}
 
+
+body {
+  font-family: "Abel", sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto;
+  background-color: darkgray;
+}
+
+.title {
+  font-family: "Abel", sans-serif;
+  font-size: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 5px;
+}
+
+#form-funcao {
+  font-family: "Abel", sans-serif;
+  display: flex;  /* Define o modelo de layout Flexbox */
+  flex-direction: column;
+  justify-content: center;
+  background-color: rgb(0, 0, 0);
+  max-width: 700px;
+  width: 100%;
+  height: 350px; /* Largura do formulário */
+  margin: 0% auto;  /* Centraliza o formulário na tela */
+  padding: 10px;  /* Espaçamento interno */
+  background-color: #cacaca;
+  border: #ce0303; /* Fundo branco */
+  border-bottom-right-radius: 8px; /* Bordas arredondadas */
+  border-bottom-left-radius: 8px; /* Bordas arredondadas */
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
   
-  button {
-    font-family: "Abel", sans-serif;
-    font-size: 20px;
-    background-color: #9e0505;
-    width: 25%;
-    color: white;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    display: flex;
-    justify-content: center;  
-    margin: 30px auto;
-    transition: 5%;
-  }
-  
-    button.close {
-    display: flex;
-    justify-content: center;
-    text-align: center;
-    width: 200px;
-    height: 30px;
-    margin: 0;
-  }
-  
-  .Close{
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 40px;
-  }
-  
-  
-  .BTNs{
-    display: flex;
-    text-align: center;
-    justify-content: space-between;
-  }
-  
-  .Enviar:hover,
-  .Limpar:hover,
-  .Pesquisar:hover{
-    background-color: #5f0101;
-  }
-.modal-open main,
-.modal-open header,
-.modal-open #content,  /* qualquer container do seu conteúdo de fundo */
-.modal-open #pagina {
+}
+
+fieldset {
+  display: flex;
+  flex-direction: column;
+  width: 650px;
+  background-color: transparent;
+  border-color: var(--dark-color);
+  margin: 0 auto;
+}
+
+.form-2colunas {
+  display: flex;
+  gap: 0.5px;  /* Espaço entre os inputs */
+  max-width: 300; /* Garante que os elementos não ultrapassem o container */
+  justify-content: center;
+}
+
+
+.form,
+.form2,
+.form3,
+.form-checkbox {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin: 12px;
+  gap: 5px;
+}
+
+.form input {
+  font-family: var(--Font-primary);
+  width: 350px;
+  height: 30px;
+  border-radius: 6px;
+  font-size: 13px;
+  padding: 0 15px;
+  border: 1px solid #000000;
+  background: transparent;
+  color: #000000;
+  outline: none;
+}
+
+.form2 input {
+  flex: 1;
+  font-family: var(--Font-primary);
+  width: 270px;
+  height: 30px;
+  border-radius: 6px;
+  font-size: 13px;
+  padding: 0 20px;
+  border: 1px solid #000000;
+  background: transparent;
+  color: #000000;
+  outline: none;
+} 
+
+ .form2 { 
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px; /* espaço entre os campos */
+  align-items: center;  /* aqui é o segredo do alinhamento */
+ }
+
+.form select {
+  /* box-sizing: border-box; */
+  border-radius: 5px;
+  flex: 1;
+  font-family: var(--Font-primary);
+  width: 350px;
+  min-width: 350px;
+  max-width: 350px;
+  height: 30px;
+  /* line-height: 20px; */
+  border-radius: 6px;
+  font-size: 13px;
+  padding: 0 8px;
+  margin-top: -1px;
+  border: 1px solid #000000;
+  background: transparent;
+  color: #000000;
+  outline: none;
+}
+
+.form label,
+.form-2colunas label,
+.form2 label {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #000000;
+  font-size: 19px;
   pointer-events: none;
-  user-select: none;
+  transition: 0.3s;
+
 }
+
+
+input:focus {
+  border: 2px solid #ce0303;
+}
+
+input:focus~label,
+input:valid~label {
+  top: 0;
+  left: 25%;
+  font-size: 15px;
+  padding: 0 2px;
+  background: #cacaca;
+}
+
+input[type=date] {
+  width: 111px;
+  height: 30px;
+  font-size: 17px;
+}
+
+input[type=file] {
+  display: none;
+}
+
+
+button {
+  font-family: "Abel", sans-serif;
+  font-size: 20px;
+  background-color: #9e0505;
+  width: 25%;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  margin: 30px auto;
+  transition: 5%;
+}
+
+button.close {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+  width: 200px;
+  height: 30px;
+  margin: 0;
+}
+
+.Close {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 40px;
+}
+
+
+.BTNs {
+  display: flex;
+  text-align: center;
+  justify-content: space-between;
+}
+
+.Enviar:hover,
+.Limpar:hover,
+.Pesquisar:hover {
+  background-color: #5f0101;
+}
+
+/* === Estilos personalizados para SweetAlert2 === */
 .swal2-container {
-  z-index: 10001 !important;
-  position: fixed !important;
-  inset: 0 !important;
+  z-index: 100000 !important;
 }
 
-.swal2-popup {
-  max-height: none !important;
-  overflow: visible !important;
+.swal2-popup .swal2-styled {
+  all: initial;
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 0.625em 1.5em;
+  border: none;
+  border-radius: 0.25em;
+  background: #d63030;
+  /* background: #3083d6; */
+  color: #fff;
+  cursor: pointer;
+  margin: 0 0.25em;
 }
 
-.swal2-actions {
-  display: flex !important;
-  justify-content: center !important;
-}
-
-
-body{
-    background-color: darkgray;
-  }
-  /* Estilo para o fundo escuro (overlay) */
-  #modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: auto;
-    background-color: rgba(0, 0, 0, 0.5); /* Cor preta com transparência */
-    display: none; /* Inicialmente invisível */
-    z-index: 9998; /* Fica acima de outros elementos */
-  }
-  
-  /* Estilo para o container do modal */
-  #modal-container {
-    position: fixed;
-    top: 50%; /* Alinha verticalmente ao centro */
-    left: 50%; /* Alinha horizontalmente ao centro */
-    transform: translate(-50%, -50%); /* Ajuste para o centro exato */
-    background-color: rgba(255, 255, 255, 0.356);
-    padding: 5px;
-    border-radius: 8px;
-    box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
-    width: 80%; /* Ajuste o tamanho conforme necessário */
-    max-width: 700px; /* Largura máxima do modal */
-    display: none; /* Inicialmente invisível */
-    z-index: 1000; /* Fica acima do overlay */
-  }
-  
-  /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
-  .modal {
-    position: fixed;
-  top: 50%; /* Alinha verticalmente ao centro */
-  left: 50%; /* Alinha horizontalmente ao centro */   
-  transform: translate(-50%, -50%); /* Ajuste para o centro exato */
-  background-color: #4d4d4d;
-  padding: 5px;
-  margin-top: 10px;
-  width: 725px; /* Ajuste o tamanho conforme necessário */
-  height: 490px;
+.swal2-confirm,
+.swal2-cancel {
+  font-family: "Abel", sans-serif;
   font-size: 16px;
-  z-index: 9999;
-  }
-  
-    
-  .modal-open{
-    overflow: visible;
-    /* overflow: hidden;
-    pointer-events: none;  */
-  }
-  
-  /* Quando o modal estiver visível */
-  .modal-open #modal-overlay, 
-  .modal-open #modal-container {
-    display: block;
-    pointer-events: auto; /* Torna visíveis o overlay e o modal */
-  }
+  padding: 10px 24px !important;
+  border-radius: 12px !important;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.25s ease-in-out;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+}
 
- 
-  
-  body .modal-open {
-    overflow: visible;
-    /* overflow: hidden;
-    pointer-events: none; Impede a rolagem da página */
-  }
-  
-  
-  body{
-    font-family: "Abel", sans-serif;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin: 0 auto;
-  }
-  
-  .title{
-    font-family: "Abel", sans-serif;
-    font-size: 20px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-top: 5px;
-  }
-  
-  #form-funcao {
-    font-family: "Abel", sans-serif;
-    display: flex;                /* Define o modelo de layout Flexbox */
-    flex-direction: column; 
-    justify-content: center;
-    background-color: rgb(0, 0, 0);
-    max-width: 700px;   
-    width: 100%;  
-    height: 350px;          /* Largura do formulário */
-    margin: 0% auto;               /* Centraliza o formulário na tela */
-    padding: 10px;                /* Espaçamento interno */
-    background-color: #cacaca; 
-    border: #ce0303;     /* Fundo branco */
-    border-bottom-right-radius: 8px;          /* Bordas arredondadas */
-    border-bottom-left-radius: 8px;          /* Bordas arredondadas */
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
-  }
-  fieldset {
-    display: flex;
-    flex-direction: column;
-    width: 650px;
-    background-color: transparent;
-    border-color: var(--dark-color);
-    margin: 0 auto;
-  }
-  
-  .form-2colunas{
-    display: flex;
-    gap: 0.5px; /* Espaço entre os inputs */
-    max-width: 300; /* Garante que os elementos não ultrapassem o container */
-    justify-content: center;
-  }
-  
-  .form-3colunas{
-    display: flex;
-    justify-content: space-evenly;
-    align-items: center;
-    max-width: 300;
-    gap: 0,5px;
-  }
-  
-  .form, .form2, .form3, .form-checkbox{
-    position: relative;
-    display: flex;
-    justify-content: center;
-    margin: 12px;
-    gap:5px;
-  }
-  
-  .form input{
-    font-family:  var(--Font-primary);
-    width: 350px;
-    height: 30px;
-    border-radius: 6px;
-    font-size: 13px;
-    padding: 0 15px;
-    border: 1px solid #000000;
-    background: transparent;
-    color: #000000;
-    outline: none;
-  }
-  
-  .form2 input{
-    flex: 1;
-    font-family: var(--Font-primary);
-    width: 270px;
-    height: 30px;
-    border-radius: 6px;
-    font-size: 13px;
-    padding: 0 20px;
-    border: 1px solid #000000;
-    background: transparent;
-    color: #000000;
-    outline: none;
-  }
-  .form3 input{
-    flex: 1;
-    font-family: var(--Font-primary);
-    width: 270px;
-    height: 30px;
-    border-radius: 6px;
-    font-size: 13px;
-    padding: 0 20px;
-    border: 1px solid #000000;
-    background: transparent;
-    color: #000000;
-    outline: none;
-  }
-  .form label, .form-2colunas label, .form2 label{
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #000000;
-    font-size: 19px;
-    pointer-events: none;
-    transition: 0.3s;
-   
-  }
-  .form3 label{
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #000000;
-    font-size: 19px;
-    pointer-events: none;
-    transition: 0.3s;
-  }
-  input:focus{
-    border: 2px solid #ce0303;
-  }
-  input:focus ~ label,
-  input:valid ~ label{
-    top: 0;
-    left: 25%;
-    font-size: 15px;
-    padding: 0 2px;
-    background: #cacaca;
-  }
-  
-  input[type=date]{
-    width: 111px;
-    height: 30px;
-    font-size: 17px;
-  }
-  
-  input[type=file]{
-    display: none;
-  }
+.swal2-confirm {
+  /* background-color: #28a745 !important;  Verde para confirmar */
+  background-color: #ce0303 !important;
+  /* Vermelho para confirmar */
+  color: #ffffff !important;
+}
 
-  
-  button {
-    font-family: "Abel", sans-serif;
-    font-size: 20px;
-    background-color: #9e0505;
-    width: 25%;
-    color: white;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    display: flex;
-    justify-content: center;  
-    margin: 30px auto;
-    transition: 5%;
-  }
-  
-    button.close {
-    display: flex;
-    justify-content: center;
-    text-align: center;
-    width: 200px;
-    height: 30px;
-    margin: 0;
-  }
-  
-  .Close{
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 40px;
-  }
-  
-  
-  .BTNs{
-    display: flex;
-    text-align: center;
-    justify-content: space-between;
-  }
-  
-  .Enviar:hover,
-  .Limpar:hover,
-  .Pesquisar:hover{
-    background-color: #5f0101;
-  }
+.swal2-confirm:hover {
+  /* background-color: #218838 !important; */
+  background-color: #ce0303 !important;
+  /* Vermelho para confirmar */
+}
+
+.swal2-cancel {
+  background-color: #6c757d !important;
+  /* Cinza para cancelar */
+  color: #ffffff !important;
+}
+
+.swal2-cancel:hover {
+  background-color: #5a6268 !important;
+}
