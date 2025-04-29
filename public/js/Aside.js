@@ -1,44 +1,9 @@
-async function carregarDados(tipo) {
-  try {
-    const resposta = await fetch(`http://localhost:3000/api/${tipo}`);
-    const json = await resposta.json();
-
-    if (!json.success || !json.data) {
-      console.error("Erro ao buscar dados:", json.erro || 'Sem dados');
-      return;
-    }
-
-    const dados = json.data;
-    const ul = document.getElementById(tipo === 'clientes' ? 'lista-dados' : 'lista-dados-eventos');
-    const destaque = document.getElementById(tipo === 'clientes' ? 'destaque-cliente' : 'destaque-evento');
-
-    ul.innerHTML = '';
-    destaque.innerHTML = dados.length > 0
-      ? (tipo === 'clientes' ? dados[0].nmfantasia : dados[0].titulo)
-      : 'Nenhum dado encontrado';
-
-    dados.forEach(item => {
-      const li = document.createElement('li');
-      li.textContent = tipo === 'clientes' ? item.nmfantasia : item.titulo;
-      ul.appendChild(li);
-    });
-  } catch (error) {
-    console.error("Erro ao buscar dados:", error);
-  }
-}
-
-
-window.onload = () => carregarDados(tipoAtual);
-
-// ------------------------------------------------------------ teste---------------------------------------
-
 let clienteSelecionado = null;
 let nomeClienteSelecionado = '';
 let nomeEventoSelecionado = '';
 
-window.onload = () => {
-  carregarDados('clientes');
-};
+// Carregar dados ao carregar a página
+window.onload = () => carregarDados('clientes');
 
 function mostrarPainel(tipo) {
   const paineis = document.querySelectorAll('.painel');
@@ -60,25 +25,34 @@ function mostrarPainel(tipo) {
 
 async function carregarDados(tipo) {
   try {
-    const resposta = await fetch(`http://localhost:3000/api/${tipo}`);
+    const resposta = await fetch(`http://localhost:3000/${tipo}`);
     const json = await resposta.json();
+    console.log("Json", json);
 
-    if (!json.success || !json.data) {
-      console.error("Erro ao buscar dados:", json.erro || 'Sem dados');
+    if (!Array.isArray(json) || json.length === 0) {
+      console.error("Erro ao buscar dados: Nenhum dado encontrado");
       return;
     }
 
     const ul = document.getElementById(`lista-dados-${tipo}`);
     ul.innerHTML = '';
 
-    json.data.forEach(item => {
+    json.forEach(item => {
       const li = document.createElement('li');
+
       if (tipo === 'clientes') {
         li.textContent = item.nmfantasia;
         li.onclick = () => {
-          clienteSelecionado = item.id;
+          clienteSelecionado = item.idcliente;
           nomeClienteSelecionado = item.nmfantasia;
+
+          // Exibir nome do cliente na aba de eventos
+          document.getElementById('cliente-selecionado').textContent = `Eventos de ${nomeClienteSelecionado}`;
+
+          // Habilitar aba de eventos
           document.getElementById('aba-eventos').classList.remove('desativada');
+
+          // Mostrar aba de eventos e carregar os dados
           mostrarPainel('eventos');
         };
       } else {
@@ -89,6 +63,7 @@ async function carregarDados(tipo) {
           mostrarPainel('orcamento');
         };
       }
+
       ul.appendChild(li);
     });
   } catch (error) {
@@ -98,22 +73,21 @@ async function carregarDados(tipo) {
 
 async function carregarEventosDoCliente(idCliente) {
   try {
-    const resposta = await fetch(`http://localhost:3000/api/eventos?clienteId=${idCliente}`);
+    const resposta = await fetch(`http://localhost:3000/eventos?clienteId=${idCliente}`);
     const json = await resposta.json();
+    console.log("Eventos:", json);
 
     const ul = document.getElementById('lista-dados-eventos');
     ul.innerHTML = '';
 
-    document.getElementById('cliente-selecionado').textContent = nomeClienteSelecionado;
-
-    if (!json.success || !json.data || json.data.length === 0) {
+    if (!Array.isArray(json) || json.length === 0) {
       const li = document.createElement('li');
       li.textContent = 'Nenhum evento encontrado.';
       ul.appendChild(li);
       return;
     }
 
-    json.data.forEach(evento => {
+    json.forEach(evento => {
       const li = document.createElement('li');
       li.textContent = evento.titulo;
       li.onclick = () => {
@@ -134,19 +108,16 @@ function ativarAbaOrcamento() {
   abaOrcamento.style.pointerEvents = 'auto';
 }
 
-
-// ---------------------------------------- SIDEBAR BUTTON ---------------------------------------------------------
+// Função para alternar o menu lateral
 function alternarMenu() {
   const wrapper = document.getElementById("wrapper");
   const btn = document.getElementById("toggle-btn");
 
   wrapper.classList.toggle("menu-fechado");
 
-  // Troca a seta visual
   if (wrapper.classList.contains("menu-fechado")) {
     btn.innerHTML = "»";
   } else {
     btn.innerHTML = "«";
   }
 }
-
