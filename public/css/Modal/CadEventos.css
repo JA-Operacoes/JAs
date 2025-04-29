@@ -91,7 +91,7 @@ body {
   margin-top: 5px;
 }
 
-#form-funcao {
+#form-content {
   font-family: "Abel", sans-serif;
   display: flex;  /* Define o modelo de layout Flexbox */
   flex-direction: column;

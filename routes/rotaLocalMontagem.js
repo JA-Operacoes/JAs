@@ -34,7 +34,7 @@ router.put("/:id", async (req, res) => {
 
   try {
     const result = await pool.query(
-      `UPDATE Funcao SET descmontagem = $1, cidademontagem = $2, ufmontagem = $3 WHERE idFuncao = $4 RETURNING *`,
+      `UPDATE localmontagem SET descmontagem = $1, cidademontagem = $2, ufmontagem = $3 WHERE idFuncao = $4 RETURNING *`,
       [descmontagem, cidademontagem, ufmontagem, id]
     );
 
@@ -49,12 +49,12 @@ router.put("/:id", async (req, res) => {
 
 // POST criar nova local montagem
 router.post("/", async (req, res) => {
-  const { descmontagem, cidademontagem, ufmontagem } = req.body;
+  const { descMontagem, cidadeMontagem, ufMontagem } = req.body;
 
   try {
     const result = await pool.query(
       "INSERT INTO localmontagem (descmontagem, cidademontagem, ufmontagem) VALUES ($1, $2, $3) RETURNING *",
-      [descmontagem, cidademontagem, ufmontagem]
+      [descMontagem, cidadeMontagem, ufMontagem]
     );
     res.json({ mensagem: "Local Montagem salva com sucesso!", localmontagem: result.rows[0] });
   } catch (error) {

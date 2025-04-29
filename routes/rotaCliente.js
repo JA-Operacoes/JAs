@@ -42,7 +42,7 @@ router.put("/:id", async (req, res) => {
     );
 
     return result.rowCount
-      ? res.json({ message: "Cliente atualizada com sucesso!", funcao: result.rows[0] })
+      ? res.json({ message: "Cliente atualizada com sucesso!", cliente: result.rows[0] })
       : res.status(404).json({ message: "Cliente não encontrada para atualizar." });
   } catch (error) {
     console.error("Erro ao atualizar cliente:", error);
@@ -62,7 +62,7 @@ router.post("/", async (req, res) => {
       "INSERT INTO clientes (nmfantasia, razaosocial, cnpj, inscestadual, emailcliente, emailnfe, site, telefone, nmcontato, celcontato, emailcontato,  cep, rua, numero, complemento, bairro, cidade, estado, pais, ativo, tpcliente) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING *",
       [nmFantasia, razaoSocial, cnpj, inscEstadual, emailCliente, emailNfe,  site, telefone, nmContato, celContato, emailContato, cep, rua, numero, complemento, bairro, cidade, estado, pais, ativo, tpcliente]
     );
-    res.json({ mensagem: "Cliente salvo com sucesso!", funcao: result.rows[0] });
+    res.json({ mensagem: "Cliente salvo com sucesso!", cliente: result.rows[0] });
   } catch (error) {
     console.error("Erro ao salvar cliente:", error);
     res.status(500).json({ erro: "Erro ao salvar cliente" });

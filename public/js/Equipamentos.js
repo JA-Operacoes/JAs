@@ -165,7 +165,7 @@ function verificaFuncao() {
     
                 // Zera os valores antigos após salvar
                 limparFuncaoOriginal();
-                FuncaoExistente = false;
+        
                
             } else {
                 alert(result.erro || "Erro ao salvar o Funcao.");
@@ -266,9 +266,7 @@ function verificaFuncao() {
                         vlrCusto: funcao.ctofuncao,
                         vlrVenda: funcao.vdafuncao
                     };
-                    FuncaoExistente = true;
-
-                    
+                        
                     const input = document.createElement("input");
                     input.type = "text";
                     input.id = "descFuncao";
@@ -300,7 +298,7 @@ function verificaFuncao() {
                                 vlrCusto: funcao.ctofuncao,
                                 vlrVenda: funcao.vdafuncao
                             };
-                            FuncaoExistente = true;
+             
                         } else {
                             Swal.fire({
                                 icon: 'warning',
@@ -309,7 +307,7 @@ function verificaFuncao() {
                                 confirmButtonText: 'Ok'
                             });
                             limparFuncaoOriginal();
-                            FuncaoExistente = false;
+                        
                         }
                     });
 
@@ -321,7 +319,6 @@ function verificaFuncao() {
                         confirmButtonText: 'Ok'
                     });
                     limparFuncaoOriginal();
-                    FuncaoExistente = false;
                 }
             });
 

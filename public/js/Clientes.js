@@ -8,8 +8,6 @@ if (typeof Swal === "undefined") {
     document.head.appendChild(script);
 }
 
-let clienteExistente = false;
-
 let clienteOriginal = {idCliente: "",
     nmFantasia: "",
     razaoSocial: "",
@@ -119,13 +117,11 @@ function carregarClientes() {
         });
 
         clienteOriginal = { ...cliente };
-        clienteExistente = true;
     };
 
     const limparFormulario = () => {
         form.reset();
         document.querySelector("#idCliente").value = "";
-        clienteExistente = false;
         if (typeof limparClienteOriginal === "function") limparClienteOriginal();
     };
 
@@ -188,10 +184,10 @@ function carregarClientes() {
       
         // validações
         if (!dados.nmFantasia || !dados.razaoSocial || !dados.cnpj) {
-          return Swal.fire("Atenção", "Preencha Fantasia, Razão e CNPJ.", "warning");
+          return Swal.fire("Atenção!", "Preencha Fantasia, Razão e CNPJ.", "warning");
         }
         if (!houveAlteracao(dados)) {
-          return Swal.fire("Nenhuma alteração", "Nada mudou para salvar.", "info");
+          return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
         }
       
         // escolhe método e URL
@@ -204,11 +200,14 @@ function carregarClientes() {
           // se for PUT, pede confirmação
           if (metodo === "PUT") {
             const { isConfirmed } = await Swal.fire({
-              title: "Salvar alterações?",
+              title: "Deseja salvar ss alterações?",
+              text: "Você está prestes a atualizar os dados da função.",
               icon: "question",
               showCancelButton: true,
               confirmButtonText: "Sim, salvar",
-              cancelButtonText: "Cancelar"
+              cancelButtonText: "Cancelar",
+              reverseButtons: true,
+              focusCancel: true
             });
             if (!isConfirmed) return;
           }
@@ -755,9 +754,7 @@ async function carregarClientesNmFantasia(desc, elementoAtual) {
             ativo: cliente.ativo,
             tpcliente: cliente.tpcliente
         };
-        clienteExistente = true; // Define que o cliente existe
-
-
+   
         const novoInput = document.createElement("input");
         novoInput.type = "text";
         novoInput.id = "nmFantasia";
@@ -781,7 +778,7 @@ async function carregarClientesNmFantasia(desc, elementoAtual) {
     } catch {
         mostrarErro("Cliente não encontrado", "Nenhuma função com essa descrição foi encontrada.");
         limparClienteOriginal();
-        ClienteExistente = false;
+    
     }
 }
 

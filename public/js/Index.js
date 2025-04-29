@@ -39,9 +39,12 @@ function abrirModal(url) {
             } else if (url.includes("Orcamento")) {
                 script = document.createElement("script");
                 script.src = "js/Orcamento.js";
-            } else if (url.includes("LocalMontagem")) {
+            } else if (url.includes("CadLocalMontagem")) {
                 script = document.createElement("script");
-                script.src = "js/Montagem.js";
+                script.src = "js/LocalMontagem.js";
+            } else if (url.includes("CadEventos")) {
+                script = document.createElement("script");
+                script.src = "js/Eventos.js";
             }
 
             if (script) {
@@ -93,7 +96,8 @@ function configurarEventosEspecificos(url) {
     const rotas = [
         { keyword: "Orcamento", func: configurarEventosOrcamento },
         { keyword: "CadFuncao", func: configurarEventosFuncao },
-        { keyword: "LocalMontagem", func: configurarEventosMontagem },
+        { keyword: "CadLocalMontagem", func: configurarEventosMontagem },
+        { keyword: "CadEventos", func: configurarEventosCadEvento},
        // { keyword: "Equipamentos", func: configurarEventosEquipamentos },
        // { keyword: "Suprimentos", func: configurarEventosSuprimentos },
        

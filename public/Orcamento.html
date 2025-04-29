@@ -1,3 +1,217 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:4e682e35d77ba34c6019fcebc85004e9a4a1879778d397ecd2fe9165db40bd66
-size 10822
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/Modal/Orcamento.css">
+    <link rel="stylesheet" href="css/Roots/Roots.css">
+    <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+    <title>OrÃ§amento</title>
+    
+</head>
+<body>
+
+<div id="CadModal" class="modal">
+    <div class="modal-content">
+        <div class="Close"><button onclick="fecharModal()">X</button></div>
+
+
+        <div id ="form-orcamento">
+        
+        <form id="form" name="form" autocomplete="on" data-action="http://localhost:3000/salvarOrcamento">
+
+                
+                  <div class="title">
+                      <h2>Orçamento</h2>
+                  </div>
+
+                        <div class="Norcamento">
+                          <div class="form">
+                              <input type="text" id="idNumOrcamento" name="idNumOrcamento" required spellcheck="false">
+                              <label for="idNumOrcamento">N° do Orçamento</label>
+                          </div>
+                        </div>
+
+
+                        <div class="Selects">
+                      <div class="select">
+                          <label for="idCliente">Cliente:</label>
+                          <select class="idCliente" required spellcheck="false"></select>
+                      </div>
+                      <div class="select">
+                          <label for="idEvento">Evento:</label>
+                          <select class="idEvento" required spellcheck="false"></select>
+                      </div>
+                      <div class="select">
+                          <label for="idMontagem">Local Montagem:</label>
+                          <select class="idMontagem"  onchange="atualizarUFOrc(this)"></select>
+                      </div>
+                      <div class="form3">
+                          <input type="text" class="ufmontagem" id="ufmontagem" name="ufmontagem" required spellcheck="false">
+                          <label  for="ufmontagem">UF</label>
+                      </div>
+                  </div>
+                
+                
+                
+                <!-- <div class="Selects"> -->
+                    <!-- <div class="select">
+                        <label for="idMontagem">Local Montagem:</label>
+                        <select class="idMontagem"  onchange="atualizarUF(this)"></select>
+                    </div>
+
+                    <div class="form3">
+                        <input type="text" class="ufmontagem" id="ufmontagem" name="ufmontagem" required spellcheck="false">
+                        <label  for="ufmontagem">UF</label>
+                    </div> -->
+                    
+                      <div class="periodoMontagem">
+                      
+                              <div class="dtMarcacao">
+                                  <label for="dataMarcacao">Data de Marcação:</label>
+                                  <input type="date" id="dataMarcacao" name="dataMarcacao">
+                              </div>
+                          <div class="inicioMontagem">
+                              <label class="miniTitle">Periodo de Montagem</label>
+                              <div class="De">
+                                  <label class="miniTitle" for="periodoMontagem"> De:</label>
+                                  <input type="date" id="dtInicioMontagem" name="dtInicioMontagem">
+                                  <label class="miniTitle" for="dtFimMontagem">Até:</label>
+                                  <input type="date" id="dtFim" name="dtFimMontagem">
+                              </div>
+                          </div>
+                          <div class="Realizacao">
+                              <label class="miniTitle">Periodo de Realização</label>
+                              <div class="De">
+                                  <label class="miniTitle" for="periodoRealizacao"> De:</label>
+                                  <input type="date" id="dtInicioRealizacao" name="dtInicioRealizacao">
+                                  <label class="miniTitle" for="dtFimRealizacao">Até:</label>
+                                  <input type="date" id="dtFimRealizacao" name="dtFimRealizacao">
+                              </div>
+                          </div>
+                      
+                          <div class="dtDesmontagem">
+                              <label for="dDesmontagem">Data de Desmontagem:</label>
+                              <input type="date" id="dtDesmontagem" name="dtDesmontagem">
+                          </div>
+                      </div>
+                    
+
+                    
+                      <div class = 'Selects'>
+                      
+                          <div class="select">
+                              <label for="idFuncao">Função:</label>
+                              <select class="idFuncao" onchange="resetarOutrosSelectsOrc(this)"></select>
+                          </div>
+                          <div class="select">
+                              <label for="idEquipamento">Equipamento:</label>
+                              <select class="idEquipamento" onchange="resetarOutrosSelectsOrc(this)"></select>
+                          </div>
+                          <div class="select">
+                              <label for="idSuprimento">Suprimento:</label>
+                              <select class="idSuprimento" onchange="resetarOutrosSelectsOrc(this)"></select>
+                          </div>
+                      </div>
+                    
+
+                <!-- </div>  -->
+
+                        <div class="table">
+                        <table id="tabela">
+                            <thead>
+                                <tr>
+                                    <th>Qtd Pessoas</th>
+                                    <th>Produto</th>
+                                    <th>Qtd Dias</th>
+                                    <th>VlrDiaria</th>
+                                    <th>TotDiaria</th>
+                                    <th>CtoDiaria</th>
+                                    <th>TotDiaria</th>
+                                    <th>AjdCusto</th>
+                                    <th>TotAjdCusto</th>
+                                    <th class="extraColuna" style="display: none;">Hospedagem</th>
+                                    <th class="extraColuna" style="display: none;">Transporte</th>
+                                    <!-- incluir campos hospegadem e transporte se for local montagem fora de SP -->
+                                    <th>TotGeral</th>
+                                    <th>Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><input type="number" class="qtdPessoas" min="0" oninput="calcularTotalOrc(this)"></td>
+                                    <td class="produto"></td>
+                                    <td><input type="number" class="qtdDias" min="0" oninput="calcularTotalOrc(this)"></td>
+                                    <td class="vlrVenda"></td>
+                                    <td class="totVdaDiaria">0</td>
+                                    <td class="vlrCusto"></td>
+                                    <td class="totCtoDiaria">0</td>
+                                    <td class="ajdCusto"></td>
+                                    <td class="totAjdCusto">0</td>
+                                    <td class="extraCampo" style="display: none;">
+                                        <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotaisOrc()">
+                                    </td>
+                                    <td class="extraCampo" style="display: none;">
+                                        <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotaisOrc()">
+                                    </td>
+                                    <td class="totGeral">0</td>
+                                    <td class="Acao"><button class="deleteBtn" onclick="removerLinhaOrc(this)"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class = 'Selects'>
+                        <div class="totG">
+                            <label for="totalGeral">Total Geral:</label>
+                            <input type="text" id="totalGeral" name="totalGeral" readonly>
+                        </div>
+
+                        <div class="totGCTO">
+                            <label for="totalGeralCto">Total Geral Custo:</label>
+                            <input type="text" id="totalGeral" name="totalGeral" readonly>
+                        </div>
+
+                        <div class="lucro">
+                            <label for="Lucro"> Lucro: </label>
+                            <input type="text"  id="Lucro" name="Lucro" >
+                        </div>
+
+                        <div class="percent">
+                            <input type="text"  id="perCent" name="perCent">
+                            <label for="perCent" style="display: flex ; font-size: 15px;"> %</label>
+                        </div>
+
+                        <div class="Desconto">
+                            <label for="Desconto">Desconto:</label>
+                            <input type="text"  id="Desconto" name="Desconto"  oninput="calcularTotalGeralOrc()">
+                        </div>
+
+                        <div class="Acresimo">
+                            <label for="Acrescimo">Acréscimo:</label>
+                            <input type="text"  id="Acrescimo" name="Acrescimo"  oninput="calcularTotalGeralOrc()">
+                        </div>
+
+                        <div class="valorCliente">
+                            <label for="valorCliente"> Valor do Cliente</label>
+                            <input type="text" id="valorCliente" name="valorCliente">
+                        </div>
+
+                </div>
+                <br>
+                    <div class="addLinha"><button class="adicionar" onclick="adicionarLinhaOrc()">Adicionar Linha</button></div>
+            <br>
+
+          </div>
+            <div class="BTNs">
+                <button class="pesquisar" onclick="pesquisarOrcamento()">Pesquisar</button>
+                <button class="editar" onclick="editarOrcamento()">Editar</button>
+                <button class="fecharModal" onclick="fecharModal()">Cancelar</button>
+                <button class="salvar" onclick="salvarOrcamento()">Salvar</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script src="js/PorCent.js"></script>
+</body>
+</html>

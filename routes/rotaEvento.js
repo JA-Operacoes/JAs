@@ -5,7 +5,7 @@ const pool = require("../db/conexaoDB");
 // GET todas ou por descrição
 router.get("/", async (req, res) => {
   const { nmEvento } = req.query;
-
+  console.log("nmEvento NA ROTA", nmEvento);
   try {
     if (nmEvento) {
       const result = await pool.query(
@@ -16,7 +16,7 @@ router.get("/", async (req, res) => {
         ? res.json(result.rows[0])
         : res.status(404).json({ message: "Evento não encontrada" });
     } else {
-      const result = await pool.query("SELECT * FROM eventos ORDER BY nmEvento ASC");
+      const result = await pool.query("SELECT * FROM eventos ORDER BY nmevento ASC");
       return result.rows.length
         ? res.json(result.rows)
         : res.status(404).json({ message: "Nenhuma evento encontrada" });
@@ -34,7 +34,7 @@ router.put("/:id", async (req, res) => {
 
   try {
     const result = await pool.query(
-      `UPDATE eventos SET nmEvento = $1  WHERE idevento = $4 RETURNING *`,
+      `UPDATE eventos SET nmEvento = $1  WHERE idevento = $2 RETURNING *`,
       [nmEvento, id]
     );
 

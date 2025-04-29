@@ -218,6 +218,27 @@ fieldset {
   color: #000000;
   outline: none;
 }
+
+.form2 { 
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px; /* espaço entre os campos */
+  align-items: center;  /* aqui é o segredo do alinhamento */
+ }
+
+ .form select{
+  font-family:  var(--Font-primary);
+  width: 350px;
+  height: 30px;
+  border-radius: 6px;
+  font-size: 13px;
+  padding: 0 15px;
+  border: 1px solid #000000;
+  background: transparent;
+  color: #000000;
+  outline: none;
+}
+
 .form label, .form-2colunas label, .form2 label{
   position: absolute;
   top: 50%;
@@ -226,7 +247,7 @@ fieldset {
   font-size: 19px;
   pointer-events: none; 
   transition: 0.3s;
-  /* transition: background-color 0.3s ease; */
+ 
 }
 input:focus{
   border: 2px solid #ce0303;

@@ -1,4 +1,11 @@
-
+if (typeof Swal === "undefined") {
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/sweetalert2@11";
+    script.onload = () => {
+        console.log("SweetAlert2 carregado com sucesso.");
+    };
+    document.head.appendChild(script);
+}
 
 let MontagemOriginal = {
     idMontagem: "",
@@ -36,8 +43,9 @@ function verificaMontagem() {
         }
     });
 
+    const botaoLimpar = document.querySelector("#Limpar");
     const botaoEnviar = document.querySelector("#Enviar");
-    
+    const botaoPesquisar = document.querySelector("#Pesquisar");
     const form = document.querySelector("#form");
 
     if (!botaoEnviar || !form) {
@@ -45,6 +53,12 @@ function verificaMontagem() {
         return;
     }
 
+    botaoLimpar.addEventListener("click", function (event) {
+        event.preventDefault(); // Previne o envio padrão do formulário 
+
+        limparCamposMontagem();
+
+    });
     botaoEnviar.addEventListener("click", async function (event) {
         event.preventDefault(); // Previne o envio padrão do formulário
 
@@ -54,33 +68,24 @@ function verificaMontagem() {
         const descMontagem = document.querySelector("#descMontagem").value.trim().toUpperCase();
         const cidadeMontagem = document.querySelector("#cidadeMontagem").value.trim().toUpperCase();
         const ufMontagem = document.querySelector("#ufMontagem").value.trim().toUpperCase();
-
-      
-    
+        
         if (!descMontagem || !cidadeMontagem || !ufMontagem) {
-            alert("Preencha todos os campos.");
+           
+            Swal.fire({
+                icon: 'warning',
+                title: 'Campos obrigatórios!',
+                text: 'Preencha todos os campos antes de enviar.',
+                confirmButtonText: 'Entendi'
+            });
             return;
-        }
-        if (MontagemOriginal.idMontagem.toString() === idMontagem) {
-            console.log("idMontagem", idMontagem);
-        }
-        if (MontagemOriginal.descMontagem === descMontagem) {
-            console.log("descMontagem", descMontagem);
-            
-        }
-        if (MontagemOriginal.cidadeMontagem === cidadeMontagem) {
-            console.log("cidadeMontagem", cidadeMontagem);
-        }
-        if (MontagemOriginal.ufMontagem === ufMontagem) {
-            console.log("ufMontagem", ufMontagem);
         }
         // 🔍 Comparar com os valores originais
         if (
                       
-            MontagemOriginal.idMontagem.toString() === idMontagem &&
-            MontagemOriginal.descMontagem === descMontagem &&
-            MontagemOriginal.cidadeMontagem=== cidadeMontagem &&   
-            MontagemOriginal.ufMontagem === ufMontagem
+            parseInt(idMontagem) === parseInt(MontagemOriginal.idMontagem) && 
+            descMontagem === MontagemOriginal.descMontagem   &&
+            cidadeMontagem === MontagemOriginal.cidadeMontagem  &&   
+            ufMontagem === MontagemOriginal.ufMontagem 
             
         ) {
            
@@ -144,6 +149,8 @@ function verificaMontagem() {
         } else {
             // Se for novo, salva direto
             try {
+                console.log("Enviando dados para o servidor:", dados);
+                
                 const response = await fetch("http://localhost:3000/localmontagem", {
                     method: "POST",
                     headers: {
@@ -170,7 +177,7 @@ function verificaMontagem() {
        
     });
 
-    const botaoPesquisar = document.querySelector("#Pesquisar");
+    
     console.log("botaoPesquisar", botaoPesquisar);
     botaoPesquisar.addEventListener("click", async function (event) {
         event.preventDefault();
@@ -179,38 +186,36 @@ function verificaMontagem() {
         console.log("Pesquisando Montagem...");
         
         try {
-           
            const response = await fetch("http://localhost:3000/localmontagem"); // ajuste a rota conforme sua API
            if (!response.ok) throw new Error("Erro ao buscar Local Montagem");
     
             const montagem = await response.json();
  
-
             const select = criarSelectMontagem(montagem);
             limparCamposMontagem();
             const input = document.querySelector("#descMontagem");
-    
-            
+  
             // Substituir o input pelo select
-            input.parentNode.replaceChild(select, input);
+            
+            if (input && input.parentNode) {
+                input.parentNode.replaceChild(select, input);
+            }
 
-    
+            const label = document.querySelector('label[for="descMontagem"]');
+            if (label) {
+              label.style.display = "none"; // ou guarda o texto, se quiser restaurar exatamente o mesmo
+            }
             // Reativar o evento blur para o novo select
             select.addEventListener("change", async function () {
-                console.log("Montagem selecionado antes de carregarMontagem:", this.value);
                 const desc = this.value?.trim();
-
 
                 if (!desc) {
                     console.warn("Valor do select está vazio ou indefinido.");
                     return;
                 }
 
-                console.log("Selecionado:", desc);
-
                 await carregarLocalMontagem(desc, this);
-                console.log("Cliente selecionado:", this.value);
-             
+                   
                 const novoInput = document.createElement("input");
                 novoInput.type = "text";
                 novoInput.id = "descMontagem";
@@ -218,15 +223,18 @@ function verificaMontagem() {
                 novoInput.required = true;
                 novoInput.className = "form";
                 novoInput.value = desc;
-                //novoInput.value = montagem.descmontagem;
-
+      
                 novoInput.addEventListener("input", function() {
                     this.value = this.value.toUpperCase(); // transforma o texto em maiúsculo à medida que o usuário digita
                 });
 
-                estiloCampo(novoInput);
-                //elementoAtual.parentNode.replaceChild(novoInput, elementoAtual);
                 this.parentNode.replaceChild(novoInput, this);
+
+                const label = document.querySelector('label[for="descMontagem"]');
+                if (label) {
+                label.style.display = "block";
+                label.textContent = "Local de Montagem"; // ou algum texto que você tenha guardado
+                }
 
                 novoInput.addEventListener("blur", async function () {
                     if (!this.value.trim()) return;
@@ -250,22 +258,6 @@ function verificaMontagem() {
 
 }
 
-function estiloCampo(elemento) {
-    Object.assign(elemento.style, {
-        fontFamily: "Abel, sans-serif",
-        width: "100%",
-        display: "flex",
-        justifyContent: "center",
-        padding: "5px 10px",
-        margin: "5px 10px",
-        fontSize: "17px",
-        border: "1px solid #000",
-        borderRadius: "8px",
-        flex: "1",
-        maxWidth: "100%"
-    });
-}
-
 function criarSelectMontagem(montagem) {
     const select = document.createElement("select");
     select.id = "descMontagem";
@@ -273,10 +265,9 @@ function criarSelectMontagem(montagem) {
     select.required = true;
     select.className = "form";
 
-    estiloCampo(select);
-
     limparCamposMontagem();
     const defaultOption = document.createElement("option");
+    defaultOption.value = "";
     defaultOption.text = "Selecione um Local de Montagem...";
     defaultOption.disabled = true;
     defaultOption.selected = true;
@@ -291,24 +282,17 @@ function criarSelectMontagem(montagem) {
         option.text = localmontagem.descmontagem;
         select.appendChild(option);
     });
-    
-
-
+ 
     return select;
 }
 
 async function carregarLocalMontagem(desc, elementoAtual) {
     try {
-    
-        console.log("Carregando Local Montagem:", desc);
         const response = await fetch(`http://localhost:3000/localmontagem?descmontagem=${encodeURIComponent(desc.trim())}`);
         if (!response.ok) throw new Error();
 
-        console.log("Response carregarLocalMontagem",response);
         const montagem = await response.json();
        
-        console.log("Montagem encontrado:", montagem);
-
         document.querySelector("#idMontagem").value = montagem.idmontagem;
         document.querySelector("#descMontagem").value = montagem.descmontagem;
         document.querySelector("#cidadeMontagem").value = montagem.cidademontagem;
@@ -321,25 +305,29 @@ async function carregarLocalMontagem(desc, elementoAtual) {
             ufMontagem: montagem.ufmontagem,
             
         };
-        console.log("MontagemOriginal", MontagemOriginal);
+     
           
-    } catch {
-        mostrarErro("Local  Montagem não encontrada", "Nenhum local de montagem com essa descrição foi encontrada.");
-    
+    }  catch (error) {
 
+        const resultado = Swal.fire({
+        icon: 'question',
+        title: `Deseja cadastrar "${desc.toUpperCase()}" como novo Local de Montagem?`,
+        text: `Local "${desc.toUpperCase()}" não encontrado`,
+        showCancelButton: true,
+        confirmButtonText: 'Sim, cadastrar',
+        cancelButtonText: 'Cancelar'
+        });
+
+        if (resultado.isConfirmed) {
+            // Chame aqui sua função para abrir o modal de cadastro ou iniciar o processo
+            return;
+        } else {
+            limparCamposMontagem(); 
+                  
+        }
     }
     
 }
-
-function mostrarErro(titulo, texto) {
-    Swal.fire({
-        icon: 'warning',
-        title: titulo,
-        text: texto,
-        confirmButtonText: 'Ok'
-    });
-}
-
 
 function limparMontagemOriginal() {
     MontagemOriginal = {
@@ -356,7 +344,8 @@ function limparCamposMontagem() {
         const campo = document.getElementById(id);
         if (campo) campo.value = "";
     });
-    console.log("Campos de montagem limpos.");
+    
+    
 }
 
 function configurarEventosMontagem() {

@@ -30,10 +30,10 @@ router.get("/", async (req, res) => {
 // PUT atualizar
 router.put("/:id", async (req, res) => {
   const id = req.params.id;
-  const { descFuncao, vlrCusto, vlrVenda } = req.body;
+  const { descFuncao, custo, venda } = req.body;
 
-  const custo = parseFloat(String(vlrCusto).replace(",", "."));
-  const venda = parseFloat(String(vlrVenda).replace(",", "."));
+  // const custo = parseFloat(String(vlrCusto).replace(",", "."));
+  // const venda = parseFloat(String(vlrVenda).replace(",", "."));
 
   try {
     const result = await pool.query(

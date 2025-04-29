@@ -48,7 +48,7 @@ function carregarEventosOrc() {
     
     console.log("Função carregar Eventos chamada");
 
-    fetch('http://localhost:3000/evento')
+    fetch('http://localhost:3000/eventos')
     .then(response => response.json())
     .then(eventos => {
         console.log('Eventos recebidos:', eventos);
