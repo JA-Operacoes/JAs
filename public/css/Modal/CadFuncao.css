@@ -119,6 +119,21 @@ fieldset {
   margin: 0 auto;
 }
 
+textarea{
+  flex: 1;
+  font-family: var(--Font-primary);
+  width: 270px;
+  height: 80px;
+  border-radius: 6px;
+  font-size: 13px;
+  padding: 0 20px;
+  border: 1px solid #000000;
+  background: transparent;
+  color: #000000;
+  outline: none;
+  font-size: 15px;
+}
+
 .form-2colunas {
   display: flex;
   gap: 0.5px;  /* Espaço entre os inputs */
@@ -204,12 +219,14 @@ fieldset {
 }
 
 
-input:focus {
+input:focus, textarea:focus {
   border: 2px solid #ce0303;
 }
 
 input:focus~label,
-input:valid~label {
+input:valid~label,
+textarea:focus~label,
+textarea:valid~label {
   top: 0;
   left: 25%;
   font-size: 15px;
