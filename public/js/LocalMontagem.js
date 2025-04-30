@@ -309,22 +309,17 @@ async function carregarLocalMontagem(desc, elementoAtual) {
           
     }  catch (error) {
 
-        const resultado = Swal.fire({
-        icon: 'question',
-        title: `Deseja cadastrar "${desc.toUpperCase()}" como novo Local de Montagem?`,
-        text: `Local "${desc.toUpperCase()}" não encontrado`,
-        showCancelButton: true,
-        confirmButtonText: 'Sim, cadastrar',
-        cancelButtonText: 'Cancelar'
-        });
-
-        if (resultado.isConfirmed) {
-            // Chame aqui sua função para abrir o modal de cadastro ou iniciar o processo
-            return;
-        } else {
-            limparCamposMontagem(); 
-                  
+        if (!idMontagem.value) {
+            const resultado = Swal.fire({
+            icon: 'question',
+            title: `Deseja cadastrar "${desc.toUpperCase()}" como novo Local de Montagem?`,
+            text: `Local "${desc.toUpperCase()}" não encontrado`,
+            showCancelButton: true,
+            confirmButtonText: 'Sim, cadastrar',
+            cancelButtonText: 'Cancelar'
+            });
         }
+        
     }
     
 }

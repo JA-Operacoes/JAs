@@ -299,23 +299,23 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
        
 
     } catch (error) {
+        
+        if (!idFuncao.value) {
     
-        const resultado = Swal.fire({
-            icon: 'question',
-            title: `Deseja cadastrar "${desc.toUpperCase()}" como nova Função?`,
-            text: `Função "${desc.toUpperCase()}" não encontrado`,
-            showCancelButton: true,
-            confirmButtonText: 'Sim, cadastrar',
-            cancelButtonText: 'Cancelar'
-            });
-    
-            if (resultado.isConfirmed) {
-                // Chame aqui sua função para abrir o modal de cadastro ou iniciar o processo
-                return;
-            } else {
-                limparCamposFuncao(); // Ou limpe os campos relacionados
-            }
-  
+            const resultado = await Swal.fire({
+                icon: 'question',
+                title: `Deseja cadastrar "${desc.toUpperCase()}" como nova Função?`,
+                text: `Função "${desc.toUpperCase()}" não encontrado`,
+                showCancelButton: true,
+                confirmButtonText: "Sim, salvar",
+                cancelButtonText: "Cancelar",
+                reverseButtons: true,
+                focusCancel: true
+                });
+
+                console.log("Resultado do Swal:", resultado);
+        
+        }
     }
 }
 

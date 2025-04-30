@@ -296,7 +296,7 @@ async function carregarEventoDescricao(desc, elementoAtual) {
         console.log("Evento encontrado:", EventoOriginal);
     } catch (error) {
     
-        if (!idEvento) {
+        if (!idEvento.value) {
       
             const resultado = Swal.fire({
                 icon: 'question',
@@ -307,12 +307,6 @@ async function carregarEventoDescricao(desc, elementoAtual) {
                 cancelButtonText: 'Cancelar'
             });
         
-            if (resultado.isConfirmed) {
-                // Chame aqui sua função para abrir o modal de cadastro ou iniciar o processo
-                return;
-            } else {
-                limparCamposEvento(); // Ou limpe os campos relacionados
-            }
         }
     }
 }
