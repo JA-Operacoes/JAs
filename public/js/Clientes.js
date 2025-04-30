@@ -117,6 +117,12 @@ function carregarClientes() {
         });
 
         clienteOriginal = { ...cliente };
+
+        const campoCodigo = getCampo("idCliente");
+        if (campoCodigo && campoCodigo.value.trim()) {
+            campoCodigo.classList.add("has-value");
+        }
+        campoCodigo.readOnly = true; // bloqueia o campo
     };
 
     const limparFormulario = () => {
@@ -130,30 +136,31 @@ function carregarClientes() {
         const rawIE = valor("inscEstadual");
         const inscEstadual = rawIE.toUpperCase() === "ISENTO" ? "ISENTO" : rawIE.replace(/\D/g, '');  // só números
         return {
-            nmFantasia: valor("nmFantasia"),
-            razaoSocial: valor("razaoSocial"),
+            nmFantasia: valor("nmFantasia").toUpperCase(),
+            razaoSocial: valor("razaoSocial").toUpperCase(),
             cnpj: valor("cnpj").replace(/\D/g, ''),
             inscEstadual,
             emailCliente: valor("emailCliente"),
             emailNfe: valor("emailNfe"),
             site: valor("site"),
             telefone: valor("telefone").replace(/\D/g, ''),
-            nmContato: valor("nmContato"),
+            nmContato: valor("nmContato").toUpperCase(),
             celContato: valor("celContato").replace(/\D/g, ''),
             emailContato: valor("emailContato"),
             cep: valor("cep").replace(/\D/g, ''),
-            rua: valor("rua"),
+            rua: valor("rua").toUpperCase(),
             numero: valor("numero"),
-            complemento: valor("complemento"),
-            bairro: valor("bairro"),
-            cidade: valor("cidade"),
-            estado: valor("estado"),
-            pais: valor("pais"),
+            complemento: valor("complemento").toUpperCase(),
+            bairro: valor("bairro").toUpperCase(),
+            cidade: valor("cidade").toUpperCase(),
+            estado: valor("estado").toUpperCase(),
+            pais: valor("pais").toUpperCase(),
             ativo: getCampo("ativo")?.checked,
-            tpcliente: valor("tpcliente")
+            tpcliente: valor("tpcliente").toUpperCase()
         };
     };
 
+    
     // Event: Buscar cliente ao perder foco no nome fantasia
     getCampo("nmFantasia").addEventListener("blur", async function () {
         const nmFantasia = this.value.trim();
@@ -164,14 +171,33 @@ function carregarClientes() {
             if (!response.ok) throw new Error("Cliente não encontrado");
 
             const cliente = await response.json();
+            console.log("Cliente encontrado:", cliente);
             if (!cliente || Object.keys(cliente).length === 0) throw new Error("Dados de cliente vazios");
 
             preencherFormulario(cliente);
             console.log("Cliente carregado:", cliente);
+            
+
 
         } catch (error) {
-            console.warn(error.message);
-            limparFormulario();
+            console.log("Erro ao buscar cliente:", nmFantasia, idCliente.value, error);
+            if (!idCliente.value) {
+                const { isConfirmed } = await Swal.fire({
+                    icon: 'question',
+                    title: `Deseja cadastrar "${nmFantasia.toUpperCase()}" como novo Cliente?`,
+                    text: `Cliente "${nmFantasia.toUpperCase()}" não encontrado`,
+                    showCancelButton: true,
+                    confirmButtonText: 'Sim, cadastrar',
+                    cancelButtonText: 'Cancelar'
+                });
+            
+                // Se o usuário cancelar, limpa o campo para evitar submit indevido
+                if (!isConfirmed) {
+                    //this.value = "";
+                    return;
+                }
+            }
+        
         }
     });
 
@@ -180,7 +206,7 @@ function carregarClientes() {
         e.preventDefault();
       
         const dados = obterDadosFormulario();
-        const idCliente = document.querySelector("#idCliente").value.trim();
+        const valorIdCliente = document.querySelector("#idCliente").value.trim();
       
         // validações
         if (!dados.nmFantasia || !dados.razaoSocial || !dados.cnpj) {
@@ -191,44 +217,60 @@ function carregarClientes() {
         }
       
         // escolhe método e URL
-        const metodo = idCliente ? "PUT" : "POST";
-        const url = idCliente
-          ? `http://localhost:3000/clientes/${idCliente}`
+        const metodo = valorIdCliente ? "PUT" : "POST";
+        const url = valorIdCliente
+          ? `http://localhost:3000/clientes/${valorIdCliente}`
           : "http://localhost:3000/clientes";
       
         try {
           // se for PUT, pede confirmação
-          if (metodo === "PUT") {
-            const { isConfirmed } = await Swal.fire({
-              title: "Deseja salvar ss alterações?",
-              text: "Você está prestes a atualizar os dados da função.",
-              icon: "question",
-              showCancelButton: true,
-              confirmButtonText: "Sim, salvar",
-              cancelButtonText: "Cancelar",
-              reverseButtons: true,
-              focusCancel: true
-            });
-            if (!isConfirmed) return;
-          }
+            if (metodo === "PUT") {
+                const { isConfirmed } = await Swal.fire({
+                title: "Deseja salvar as alterações?",
+                text: "Você está prestes a atualizar os dados da função.",
+                icon: "question",
+                showCancelButton: true,
+                confirmButtonText: "Sim, salvar",
+                cancelButtonText: "Cancelar",
+                reverseButtons: true,
+                focusCancel: true
+                });
+                if (!isConfirmed) return;
+            }
+        
       
           const res = await fetch(url, {
             method: metodo,
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(dados)
           });
-          const json = await res.json();
+
+          console.log("Response do servidor:", res, dados);
+        //   const json = await res.json();
       
-          if (!res.ok) throw new Error(json.erro || json.message || "Erro ao salvar cliente");
+        //   if (!res.ok) throw new Error(json.erro || json.message || "Erro ao salvar cliente");
       
-          await Swal.fire("Sucesso!", json.message || "Cliente salvo com sucesso.", "success");
-          limparFormulario();
-      
-        } catch (err) {
-          console.error("Erro no envio:", err);
-          Swal.fire("Erro", err.message, "error");
+        //   await Swal.fire("Sucesso!", json.message || "Cliente salvo com sucesso.", "success");
+        const texto = await res.text();
+        console.log("Resposta bruta do servidor:", texto);
+        
+        let json;
+        try {
+          json = JSON.parse(texto);
+        } catch (e) {
+          throw new Error("Resposta não é um JSON válido: " + texto);
         }
-      });
+        
+        if (!res.ok) throw new Error(json.erro || json.message || "Erro ao salvar cliente");
+        await Swal.fire("Sucesso!", json.message || "Cliente salvo com sucesso.", "success");
+        limparFormulario();
+      
+        
+        } catch (error) {
+          console.error("Erro ao enviar dados:", error);
+          Swal.fire("Erro", error.message || "Erro ao salvar cliente.", "error");
+        }
+    });
       
 
     // Event: Limpar formulário
@@ -631,6 +673,8 @@ async function buscarClientePorNome() {
     const nmFantasia = this.value.trim();
     if (!nmFantasia) return;
   
+    console.log("BUSCANDO cliente por nome fantasia no buscarClientePorNome:", nmFantasia);
+
     try {
       const res = await fetch(
         `http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`
@@ -643,8 +687,18 @@ async function buscarClientePorNome() {
       clienteExistente = true;
   
     } catch (err) {
-      console.warn(err.message);
-      limparFormulario();      // limpa campos + estado clienteExistente = false
+        if (!idCliente.value) {
+      
+            const resultado = Swal.fire({
+                icon: 'question',
+                title: `Deseja cadastrar "${nmFantasia.toUpperCase()}" como novo Cliente?`,
+                text: `Cliente "${nmFantasia.toUpperCase()}" não encontrado`,
+                showCancelButton: true,
+                confirmButtonText: 'Sim, cadastrar',
+                cancelButtonText: 'Cancelar'
+            });
+        
+        }
     }
   }
 
@@ -852,8 +906,32 @@ function limparCamposCliente(){
 }
 
 
+
+
 function configurarEventosClientes() {
     console.log("Configurando eventos para o modal de clientes...");
     carregarClientes();
 }
 window.configurarEventosClientes = configurarEventosClientes;
+
+document.addEventListener('DOMContentLoaded', () => {
+    const inputCodigo = document.querySelector("#idCliente");
+  
+    const atualizarLabelCodigo = () => {
+      if (inputCodigo.value.trim()) {
+        inputCodigo.classList.add("has-value");
+      } else {
+        inputCodigo.classList.remove("has-value");
+      }
+    };
+  
+    // Roda no carregamento
+    atualizarLabelCodigo();
+  
+    // Observa mudanças manuais e via script
+    inputCodigo.addEventListener("input", atualizarLabelCodigo);
+  
+    // Atualiza se o valor for preenchido programaticamente
+    const observer = new MutationObserver(atualizarLabelCodigo);
+    observer.observe(inputCodigo, { attributes: true, attributeFilter: ["value"] });
+  });

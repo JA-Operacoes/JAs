@@ -275,6 +275,15 @@ label#tpcliente{
   font-size: 9px;
 }
 
+#idCliente.has-value + label,
+#idCliente:focus + label {
+  top: 0;
+  left: 25%;
+  font-size: 15px;
+  padding: 0 2px;
+  background: #cacaca;
+}
+
 /* From Uiverse.io by Shoh2008 */ 
 .checkbox-wrapper-33 {
   --s-xsmall: 0.625em;

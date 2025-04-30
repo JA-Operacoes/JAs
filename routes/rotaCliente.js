@@ -31,7 +31,7 @@ router.get("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   const id = req.params.id;
   const ativo = req.body.ativo;
-  console.log("Ativo:", ativo); // Log do valor de ativo
+ // console.log("Ativo:", ativo); // Log do valor de ativo
 
   const { nmFantasia, razaoSocial, cnpj, inscEstadual, emailCliente, emailNfe, site, telefone, nmContato, celContato, emailContato,   cep, rua, numero, complemento, bairro, cidade, estado, pais, tpcliente } = req.body;
 
