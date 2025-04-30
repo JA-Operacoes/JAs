@@ -736,4 +736,119 @@ function removerMascaraMoedaInputs() {
 
 // Chame após o cálculo ou inserção de valores
 aplicarMascaraMoeda();
+
+function fecharOrcamento() {
+const statusInput = document.getElementById('Status');
+
+if (statusInput.value === 'Fechado') {
+    Swal.fire('Este orçamento já está fechado.');
+    return;
+}
+
+Swal.fire({
+    title: 'Deseja realmente fechar este orçamento?',
+    text: "Você não poderá reabrir diretamente.",
+    icon: 'warning',
+    showCancelButton: true,
+    cancelButtonText: 'Cancelar',
+    confirmButtonText: 'Sim, fechar',
+    reverseButtons: true,
+    focusCancel:true
+}).then((result) => {
+    if (result.isConfirmed) {
+    statusInput.value = 'Fechado';
+    Swal.fire('Fechado!', 'O orçamento foi fechado com sucesso.', 'success');
+    }
+});
+}
+
+function gerarOrcamentoPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    doc.text("Orçamento de Exemplo", 10, 10);
+    doc.save("orcamento.pdf");
+
+// Descomente isso quando quiser salvar no banco
+/*
+fetch('/api/orcamento', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dados: '...' })
+})
+.then(res => res.json())
+.then(data => {
+    console.log('Orçamento salvo com sucesso:', data);
+})
+.catch(err => {
+    console.error('Erro ao salvar orçamento:', err);
+});
+*/
+}
+
+function gerarPropostaPDF() {
+if (!window.jspdf || !window.jspdf.jsPDF) {
+    console.error('jsPDF não carregado.');
+    return;
+}
+
+const { jsPDF } = window.jspdf;
+const doc = new jsPDF();
+let y = 20;
+
+// Dados do cliente e evento
+const nomeCliente = document.getElementById('#idCliente')?.value || "N/D";
+const nomeEvento = document.getElementById('#idEvento')?.value || "N/D";
+const localEvento = document.getElementById('#idMontagem')?.value || "N/D";
+const dataInicio = document.getElementById('#dtInicioRealizacao')?.value || "N/D";
+const dataFim = document.getElementById('#dtFimRealizacao')?.value || "N/D";
+
+// Cabeçalho
+doc.setFontSize(14);
+doc.text("Proposta de Serviços", 20, y);
+y += 10;
+
+doc.setFontSize(11);
+doc.text(`Cliente: ${nomeCliente}`, 20, y); y += 6;
+doc.text(`Evento: ${nomeEvento}`, 20, y); y += 6;
+doc.text(`Local: ${localEvento}`, 20, y); y += 6;
+doc.text(`Data: De ${dataInicio} até ${dataFim}`, 20, y);
+
+
+
+// Escopo da proposta (tabela)
+doc.setFontSize(12);
+doc.text("Escopo da proposta:", 20, y); y += 8;
+
+const tabela = document.getElementById('tabela-equipamentos');
+const linhas = tabela?.querySelectorAll('tbody tr') || [];
+
+linhas.forEach((linha) => {
+    const colunas = linha.querySelectorAll('td');
+    const qtdItens = colunas[0]?.innerText.trim();
+    const produto = colunas[1]?.innerText.trim();
+    const qtdDias = colunas[2]?.innerText.trim();
+
+    if (produto && qtdItens && qtdDias) {
+    doc.text(`• ${produto} — ${qtdItens} item(s), ${qtdDias} dia(s)`, 25, y);
+    y += 7;
+    }
+});
+
+y += 10;
+doc.setFontSize(10);
+doc.text("Obs: Proposta informativa sem valores financeiros.", 20, y);
+
+y += 15;
+doc.text("São Paulo, " + new Date().toLocaleDateString('pt-BR'), 20, y);
+
+y += 20;
+doc.text("João S. Neto", 20, y);
+y += 6;
+doc.text("Diretor Comercial", 20, y);
+
+doc.save("proposta_servicos.pdf");
+}
+
+
 window.configurarEventosOrcamento = configurarEventosOrcamento;
