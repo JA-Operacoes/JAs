@@ -27,7 +27,7 @@
 
                     <div class="Norcamento">
                         <div class="form2">
-                            <input type="text" id="Status" name="Status" required spellcheck="false">
+                            <input type="text" id="Status" name="Status" value="Aberto" required spellcheck="false">
                             <label for="Status">Status</label>
                         </div>
                         <div class="form">
@@ -212,13 +212,16 @@
           </div>
             <div class="BTNs">
                 <button class="pesquisar" onclick="pesquisarOrcamento()">Pesquisar</button>
-                <button class="editar" onclick="editarOrcamento()">Editar</button>
-                <button class="fecharModal" onclick="fecharModal()">Cancelar</button>
+                <button class=contrato onclick="gerarOrcamentoPDF()">Gerar Orçamento</button>
+                <button class="Proposta" onclick="gerarPropostaPDF()">Gerar Proposta</button>
+                <button class="fecharOrc" onclick="fecharOrcamento()">Fechar Orçamento</button>
                 <button class="salvar" onclick="salvarOrcamento()">Salvar</button>
             </div>
         </form>
     </div>
 </div>
-<script src="js/PorCent.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 </body>
 </html>
