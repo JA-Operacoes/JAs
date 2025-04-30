@@ -21,98 +21,102 @@
         <form id="form" name="form" autocomplete="on" data-action="http://localhost:3000/salvarOrcamento">
 
                 
-                  <div class="title">
-                      <h2>Orçamento</h2>
-                  </div>
+                <div class="title">
+                    <h2>Orçamento</h2>
+                </div>
 
-                        <div class="Norcamento">
-                          <div class="form">
-                              <input type="text" id="idNumOrcamento" name="idNumOrcamento" required spellcheck="false">
-                              <label for="idNumOrcamento">N° do Orçamento</label>
-                          </div>
+                    <div class="Norcamento">
+                        <div class="form2">
+                            <input type="text" id="Status" name="Status" required spellcheck="false">
+                            <label for="Status">Status</label>
                         </div>
-
-
-                        <div class="Selects">
-                      <div class="select">
-                          <label for="idCliente">Cliente:</label>
-                          <select class="idCliente" required spellcheck="false"></select>
-                      </div>
-                      <div class="select">
-                          <label for="idEvento">Evento:</label>
-                          <select class="idEvento" required spellcheck="false"></select>
-                      </div>
-                      <div class="select">
-                          <label for="idMontagem">Local Montagem:</label>
-                          <select class="idMontagem"  onchange="atualizarUFOrc(this)"></select>
-                      </div>
-                      <div class="form3">
-                          <input type="text" class="ufmontagem" id="ufmontagem" name="ufmontagem" required spellcheck="false">
-                          <label  for="ufmontagem">UF</label>
-                      </div>
-                  </div>
-                
-                
-                
-                <!-- <div class="Selects"> -->
-                    <!-- <div class="select">
-                        <label for="idMontagem">Local Montagem:</label>
-                        <select class="idMontagem"  onchange="atualizarUF(this)"></select>
+                        <div class="form">
+                            <input type="text" id="idNumOrcamento" name="idNumOrcamento" required spellcheck="false">
+                            <label for="idNumOrcamento">N° do Orçamento</label>
+                        </div>
                     </div>
 
+
+                    <div class="Selects">
+                    <div class="select">
+                        <label for="idCliente">Cliente:</label>
+                        <select class="idCliente" required spellcheck="false"></select>
+                    </div>
+                    <div class="select">
+                        <label for="idEvento">Evento:</label>
+                        <select class="idEvento" required spellcheck="false"></select>
+                    </div>
+                    <div class="select">
+                        <label for="idMontagem">Local Montagem:</label>
+                        <select class="idMontagem"  onchange="atualizarUFOrc(this)"></select>
+                    </div>
                     <div class="form3">
                         <input type="text" class="ufmontagem" id="ufmontagem" name="ufmontagem" required spellcheck="false">
                         <label  for="ufmontagem">UF</label>
-                    </div> -->
-                    
-                      <div class="periodoMontagem">
-                      
-                              <div class="dtMarcacao">
-                                  <label for="dataMarcacao">Data de Marcação:</label>
-                                  <input type="date" id="dataMarcacao" name="dataMarcacao">
-                              </div>
-                          <div class="inicioMontagem">
-                              <label class="miniTitle">Periodo de Montagem</label>
-                              <div class="De">
-                                  <label class="miniTitle" for="periodoMontagem"> De:</label>
-                                  <input type="date" id="dtInicioMontagem" name="dtInicioMontagem">
-                                  <label class="miniTitle" for="dtFimMontagem">Até:</label>
-                                  <input type="date" id="dtFim" name="dtFimMontagem">
-                              </div>
-                          </div>
-                          <div class="Realizacao">
-                              <label class="miniTitle">Periodo de Realização</label>
-                              <div class="De">
-                                  <label class="miniTitle" for="periodoRealizacao"> De:</label>
-                                  <input type="date" id="dtInicioRealizacao" name="dtInicioRealizacao">
-                                  <label class="miniTitle" for="dtFimRealizacao">Até:</label>
-                                  <input type="date" id="dtFimRealizacao" name="dtFimRealizacao">
-                              </div>
-                          </div>
-                      
-                          <div class="dtDesmontagem">
-                              <label for="dDesmontagem">Data de Desmontagem:</label>
-                              <input type="date" id="dtDesmontagem" name="dtDesmontagem">
-                          </div>
-                      </div>
-                    
+                    </div>
+                </div>
+            
+            
+            
+            <!-- <div class="Selects"> -->
+                <!-- <div class="select">
+                    <label for="idMontagem">Local Montagem:</label>
+                    <select class="idMontagem"  onchange="atualizarUF(this)"></select>
+                </div>
 
+                <div class="form3">
+                    <input type="text" class="ufmontagem" id="ufmontagem" name="ufmontagem" required spellcheck="false">
+                    <label  for="ufmontagem">UF</label>
+                </div> -->
+                
+                    <div class="periodoMontagem">
                     
-                      <div class = 'Selects'>
-                      
-                          <div class="select">
-                              <label for="idFuncao">Função:</label>
-                              <select class="idFuncao" onchange="resetarOutrosSelectsOrc(this)"></select>
-                          </div>
-                          <div class="select">
-                              <label for="idEquipamento">Equipamento:</label>
-                              <select class="idEquipamento" onchange="resetarOutrosSelectsOrc(this)"></select>
-                          </div>
-                          <div class="select">
-                              <label for="idSuprimento">Suprimento:</label>
-                              <select class="idSuprimento" onchange="resetarOutrosSelectsOrc(this)"></select>
-                          </div>
-                      </div>
+                            <div class="dtMarcacao">
+                                <label for="dataMarcacao">Data de Marcação:</label>
+                                <input type="date" id="dataMarcacao" name="dataMarcacao">
+                            </div>
+                        <div class="inicioMontagem">
+                            <label class="miniTitle">Periodo de Montagem</label>
+                            <div class="De">
+                                <label class="miniTitle" for="periodoMontagem"> De:</label>
+                                <input type="date" id="dtInicioMontagem" name="dtInicioMontagem">
+                                <label class="miniTitle" for="dtFimMontagem">Até:</label>
+                                <input type="date" id="dtFim" name="dtFimMontagem">
+                            </div>
+                        </div>
+                        <div class="Realizacao">
+                            <label class="miniTitle">Periodo de Realização</label>
+                            <div class="De">
+                                <label class="miniTitle" for="periodoRealizacao"> De:</label>
+                                <input type="date" id="dtInicioRealizacao" name="dtInicioRealizacao">
+                                <label class="miniTitle" for="dtFimRealizacao">Até:</label>
+                                <input type="date" id="dtFimRealizacao" name="dtFimRealizacao">
+                            </div>
+                        </div>
+                    
+                        <div class="dtDesmontagem">
+                            <label for="dDesmontagem">Data de Desmontagem:</label>
+                            <input type="date" id="dtDesmontagem" name="dtDesmontagem">
+                        </div>
+                    </div>
+                
+
+                
+                    <div class = 'Selects'>
+                    
+                        <div class="select">
+                            <label for="idFuncao">Função:</label>
+                            <select class="idFuncao" onchange="resetarOutrosSelectsOrc(this)"></select>
+                        </div>
+                        <div class="select">
+                            <label for="idEquipamento">Equipamento:</label>
+                            <select class="idEquipamento" onchange="resetarOutrosSelectsOrc(this)"></select>
+                        </div>
+                        <div class="select">
+                            <label for="idSuprimento">Suprimento:</label>
+                            <select class="idSuprimento" onchange="resetarOutrosSelectsOrc(this)"></select>
+                        </div>
+                    </div>
                     
 
                 <!-- </div>  -->
@@ -121,13 +125,13 @@
                         <table id="tabela">
                             <thead>
                                 <tr>
-                                    <th>Qtd Pessoas</th>
+                                    <th>Qtd Itens</th>
                                     <th>Produto</th>
                                     <th>Qtd Dias</th>
                                     <th>VlrDiaria</th>
-                                    <th>TotDiaria</th>
+                                    <th>Tot Venda Diaria</th>
                                     <th>CtoDiaria</th>
-                                    <th>TotDiaria</th>
+                                    <th>Tot Custo Diaria</th>
                                     <th>AjdCusto</th>
                                     <th>TotAjdCusto</th>
                                     <th class="extraColuna" style="display: none;">Hospedagem</th>
@@ -139,13 +143,13 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td><input type="number" class="qtdPessoas" min="0" oninput="calcularTotalOrc(this)"></td>
+                                    <td class="qtdPessoas"><div class="add-less"><input type="number" class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
                                     <td class="produto"></td>
-                                    <td><input type="number" class="qtdDias" min="0" oninput="calcularTotalOrc(this)"></td>
-                                    <td class="vlrVenda"></td>
-                                    <td class="totVdaDiaria">0</td>
-                                    <td class="vlrCusto"></td>
-                                    <td class="totCtoDiaria">0</td>
+                                    <td class="qtdDias"><div class="add-less"><input type="number" class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+                                    <td class="vlrVenda Moeda"></td>
+                                    <td class="totVdaDiaria Moeda"></td>
+                                    <td class="vlrCusto Moeda"></td>
+                                    <td class="totCtoDiaria Moeda"></td>
                                     <td class="ajdCusto"></td>
                                     <td class="totAjdCusto">0</td>
                                     <td class="extraCampo" style="display: none;">
@@ -155,49 +159,52 @@
                                         <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotaisOrc()">
                                     </td>
                                     <td class="totGeral">0</td>
-                                    <td class="Acao"><button class="deleteBtn" onclick="removerLinhaOrc(this)"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></td>
+                                    <td><div class="Acao"><button class="deleteBtn" onclick="removerLinhaOrc(this)"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
 
                     <div class = 'Selects'>
-                        <div class="totG">
-                            <label for="totalGeral">Total Geral:</label>
-                            <input type="text" id="totalGeral" name="totalGeral" readonly>
+                        <div class="form2">
+                            <input type="text" class="Moeda" id="totalGeralVda" name="totalGeralVda" value="0" required readonly style="font-size: 15px;" >
+                            <label for="totalGeralVda">Total Geral Venda:</label>
                         </div>
 
-                        <div class="totGCTO">
+                        <div class="form2">
+                            <input type="text" class="Moeda" id="totalGeralCto" value="0" name="totalGeralCto" required readonly style="font-size: 15px;" >
                             <label for="totalGeralCto">Total Geral Custo:</label>
-                            <input type="text" id="totalGeral" name="totalGeral" readonly>
                         </div>
 
-                        <div class="lucro">
-                            <label for="Lucro"> Lucro: </label>
-                            <input type="text"  id="Lucro" name="Lucro" >
+                        <div class="lucroTot">
+                            <div class="form2">
+                                <input type="text" id="Lucro" name="Lucro" required style="font-size: 15px;">
+                                <label for="Lucro"> Lucro: </label>
+                            </div>
+                            <div class="form3">
+                                <input type="text"  id="perCent" name="perCent" required style="font-size: 15px;">
+                                <label for="perCent"> % </label>
+                            </div>
                         </div>
 
-                        <div class="percent">
-                            <input type="text"  id="perCent" name="perCent">
-                            <label for="perCent" style="display: flex ; font-size: 15px;"> %</label>
-                        </div>
-
-                        <div class="Desconto">
+                        <div class="form2">
+                            <input type="text"  id="Desconto" name="Desconto" required oninput="aplicarDesconto()" style="font-size: 15px;" autocomplete="off">
                             <label for="Desconto">Desconto:</label>
-                            <input type="text"  id="Desconto" name="Desconto"  oninput="calcularTotalGeralOrc()">
                         </div>
 
-                        <div class="Acresimo">
+                        <div class="form2">
+                            <input type="text"  id="Acrescimo" name="Acrescimo" required oninput="calcularTotalGeralOrc()" style="font-size: 15px;" autocomplete="off">
                             <label for="Acrescimo">Acréscimo:</label>
-                            <input type="text"  id="Acrescimo" name="Acrescimo"  oninput="calcularTotalGeralOrc()">
                         </div>
 
-                        <div class="valorCliente">
+                        <div class="form2">
+                            <input type="text" id="valorCliente" name="valorCliente" required style="font-size: 15px;">
                             <label for="valorCliente"> Valor do Cliente</label>
-                            <input type="text" id="valorCliente" name="valorCliente">
                         </div>
-
                 </div>
+                        <textarea  name="Observacao" id="Observacao" placeholder="Observaçoes"></textarea>
+
+
                 <br>
                     <div class="addLinha"><button class="adicionar" onclick="adicionarLinhaOrc()">Adicionar Linha</button></div>
             <br>

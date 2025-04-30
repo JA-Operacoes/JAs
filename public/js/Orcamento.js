@@ -232,7 +232,7 @@ function configurarFormularioOrc() {
 
         let tabela = document.getElementById("tabela");
         let linhas = tabela.getElementsByTagName("tbody")[0].getElementsByTagName("tr");
-        let orcamento = { idCliente, itens: [] };
+        let orcamento = { idCliente, Pessoas: [] };
 
         for (let linha of linhas) {
             let dados = {
@@ -242,7 +242,7 @@ function configurarFormularioOrc() {
                 valor: linha.cells[2].textContent.trim(),
                 total: linha.cells[3].textContent.trim()
             };
-            orcamento.itens.push(dados);
+            orcamento.Pessoas.push(dados);
         }
 
         fetch('/salvar-orcamento', {
@@ -260,74 +260,241 @@ function configurarFormularioOrc() {
     
 }
 
-function calcularTotaisOrc() {
-    let tabela = document.getElementById("tabela");
-    
-    if (!tabela) return;
 
-    tabela.addEventListener("input", function (event) {
-        let target = event.target;
 
-        // Verifica se o evento foi disparado em "qtdPessoas" ou "qtdDias"
-        if (target.classList.contains("qtdPessoas") || target.classList.contains("qtdDias") ||
-            target.classList.contains("hospedagem") || target.classList.contains("transporte")) {
-            
-            let linha = target.closest("tr"); // Obtém a linha atual
 
-            let qtdPessoas = parseFloat(linha.querySelector(".qtdPessoas").value) || 0;
-            let qtdDias = parseFloat(linha.querySelector(".qtdDias").value) || 0;
-            let vlrCusto = parseFloat(linha.querySelector(".vlrCusto").textContent) || 0;
-            let vlrVenda = parseFloat(linha.querySelector(".vlrVenda").textContent) || 0;
-           
-            let hospedagem = parseFloat(linha.querySelector(".hospedagem")?.value) || 0;
-            let transporte = parseFloat(linha.querySelector(".transporte")?.value) || 0;
-            
-            // let ajdCusto = parseFloat(linha.querySelector(".ajdCusto")?.value) || 0;
+if (!window.hasRegisteredClickListener) {
+    document.addEventListener('click', function(event) {
+        if (event.target.classList.contains('increment') || event.target.classList.contains('decrement')) {
+            const input = event.target.closest('.add-less').querySelector('input');
+            let currentValue = parseInt(input.value || 0);
 
-            // Calcula os valores
-            let totalCustoDiario = qtdPessoas * qtdDias * vlrCusto;
-            let totalVendaDiario = qtdPessoas * qtdDias * vlrVenda;
-
-            // Atualiza os campos na tabela
-            if (totalCustoDiario !== 0) {
-                linha.querySelector(".totalCustoDiario").textContent = totalCustoDiario.toFixed(2);
+            if (event.target.classList.contains('increment')) {
+                console.log('Incrementando...');
+                input.value = currentValue + 1;
+            } else if (event.target.classList.contains('decrement')) {
+                console.log('Decrementando...');
+                if (currentValue > 0) {
+                    input.value = currentValue - 1;
+                }
             }
-            if (totalVendaDiario !== 0) {   
-                linha.querySelector(".totalVendaDiario").textContent = totalVendaDiario.toFixed(2);
-            }
+
+            // Depois de mudar o valor, recalcula o total da linha
+            recalcularLinha(input.closest('tr'));
         }
     });
+
+    window.hasRegisteredClickListener = true;
 }
+
+
+function desformatarMoeda(valor) {
+    if (!valor) return 0;
+    return parseFloat(valor.replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
+}
+
+function formatarMoeda(valor) {
+    return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function recalcularLinha(linha) {
+    if (!linha) return;
+
+    try {
+        console.log("Linha recebida:", linha);
+
+        // --- Primeiro, recalcula o TotVendaDiaria e TotCtoDiaria
+        let qtdItens = parseFloat(linha.querySelector('.qtdPessoas input')?.value) || 0;
+        let qtdDias = parseFloat(linha.querySelector('.qtdDias input')?.value) || 0;
+        let vlrVenda = desformatarMoeda(linha.querySelector('.vlrVenda')?.textContent);
+        let vlrCusto = desformatarMoeda(linha.querySelector('.vlrCusto')?.textContent);
+
+        let totalIntermediario = qtdItens * qtdDias;
+        let totalVenda = totalIntermediario * vlrVenda;
+        let totalCusto = totalIntermediario * vlrCusto;
+
+        console.log(`Total Venda calculado: ${totalVenda.toFixed(2)}`);
+        console.log(`Total Custo calculado: ${totalCusto.toFixed(2)}`);
+
+        // Atualiza o valor na célula TotVendaDiaria
+        let totalVendaCell = linha.querySelector('.totVdaDiaria');
+        if (totalVendaCell) {
+            totalVendaCell.textContent = totalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        // Atualiza o valor na célula TotCtoDiaria
+        let totalCustoCell = linha.querySelector('.totCtoDiaria');
+        if (totalCustoCell) {
+            totalCustoCell.textContent = totalCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        // --- Agora, recalcula o total geral dos custos e vendas
+        let totalCustoGeral = 0;
+        let totalVendaGeral = 0;
+
+        document.querySelectorAll('.totCtoDiaria').forEach(cell => {
+            totalCustoGeral += desformatarMoeda(cell.textContent);
+        });
+
+        document.querySelectorAll('.totVdaDiaria').forEach(cell => {
+            totalVendaGeral += desformatarMoeda(cell.textContent);
+        });
+
+        // Atualiza o campo de Total Geral Custo se existir
+        let inputTotalCusto = document.querySelector('#totalGeralCto');
+        if (inputTotalCusto) {
+            inputTotalCusto.value = totalCustoGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        // Atualiza o campo de Total Geral Venda se existir
+        let inputTotalVenda = document.querySelector('#totalGeralVda');
+        if (inputTotalVenda) {
+            inputTotalVenda.value = totalVendaGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        console.log("Total Geral de Custo:", totalCustoGeral.toFixed(2));
+        console.log("Total Geral de Venda:", totalVendaGeral.toFixed(2));
+
+        aplicarMascaraMoeda();
+        aplicarDesconto();
+        calcularLucro();
+
+    } catch (error) {
+        console.error("Erro no recalcularLinha:", error);
+    }
+}
+
+function recalcularTotaisGerais() {
+    let totalCustoGeral = 0;
+    let totalVendaGeral = 0;
+
+    // Soma os custos
+    document.querySelectorAll('.totCtoDiaria').forEach(cell => {
+        totalCustoGeral += desformatarMoeda(cell.textContent);
+    });
+
+    // Soma as vendas
+    document.querySelectorAll('.totVdaDiaria').forEach(cell => {
+        totalVendaGeral += desformatarMoeda(cell.textContent);
+    });
+
+    // Atualiza campos visuais
+    document.querySelector('#totalGeralCto').value = totalCustoGeral.toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    });
+
+    document.querySelector('#totalGeralVda').value = totalVendaGeral.toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    });
+    calcularLucro();
+
+}
+
+function calcularLucro() {
+    let totalCustoGeral = 0;
+    let totalVendaGeral = 0;
+
+    // Extraímos os valores numéricos das células, desformatados de moeda
+    totalCustoGeral = desformatarMoeda(document.querySelector('#totalGeralCto').value);
+    totalVendaGeral = desformatarMoeda(document.querySelector('#totalGeralVda').value);
+
+    // Calcula o lucro
+    let lucro = totalVendaGeral - totalCustoGeral;
+
+    let porcentagemLucro = 0;
+    if (totalVendaGeral > 0) {
+        porcentagemLucro = (lucro / totalVendaGeral) * 100;
+    }
+
+    // Exibe o lucro no console
+    console.log('Lucro calculado:', lucro);
+    console.log('Porcentagem de Lucro:', porcentagemLucro.toFixed(2) + '%');
+
+    // Atualiza o campo de lucro com a formatação de moeda
+    let inputLucro = document.querySelector('#Lucro');
+    if (inputLucro) {
+        inputLucro.value = formatarMoeda(lucro);
+    }
+
+    let inputPorcentagemLucro = document.querySelector('#perCent');
+    if (inputPorcentagemLucro) {
+        inputPorcentagemLucro.value = porcentagemLucro.toFixed(2) + '%';
+    }
+}
+
+function aplicarDesconto() {
+    aplicarMascaraMoeda();
+
+    let totalVendaGeral = desformatarMoeda(document.querySelector('#totalGeralVda').value);
+    let desconto = desformatarMoeda(document.querySelector('#Desconto').value);
+
+    // Garante que o desconto não ultrapasse o total
+    if (desconto > totalVendaGeral) {
+        desconto = totalVendaGeral;
+        document.querySelector('#Desconto').value = formatarMoeda(desconto);
+    }
+
+    let valorFinal = totalVendaGeral - desconto;
+
+    // Atualiza o campo de valor final
+    let inputValorFinal = document.querySelector('#valorCliente');
+    if (inputValorFinal) {
+        inputValorFinal.value = formatarMoeda(valorFinal);
+    }
+
+    console.log('Valor Final ao Cliente:', valorFinal);
+}
+
+
+// Exemplo de função para remover a linha
+function removerLinha(linha) {
+    // Remove a linha da DOM
+    linha.remove();
+
+    // Recalcular os totais após a remoção
+    
+    recalcularTotaisGerais();
+    aplicarDesconto()
+    aplicarMascaraMoeda()
+    calcularLucro()
+}
+
+
+
+
+
+
 
 function adicionarLinhaOrc() {
     let tabela = document.getElementById("tabela").getElementsByTagName("tbody")[0];
 
     let novaLinha = tabela.insertRow();
     novaLinha.innerHTML = `
-        <td><input type="number" class="qtdPessoas" min="0" oninput="calcularTotal(this)"></td>
-
-        <td class="produto"></td>
-        <td><input type="number" class="qtdDias" min="0" oninput="calcularTotal(this)"></td>
-        <td class="vlrVenda">0</td>
-        <td class="totVdaDiaria">0</td>
-        <td class="vlrCusto">0</td>
-        <td class="totCtoDiaria">0</td>
-        <td class="ajdCusto">0</td>
-        <td class="totAjdCusto">0</td>
-        <td class="extraCampo" style="display: none;">
-            <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotais()">                                
-        </td>
-        <td class="extraCampo" style="display: none;">
-           <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotais()">
-        </td>
-        <td class="totGeral">0</td>
-        <td><button class="deleteBtn" onclick="removerLinhaOrc(this)"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></td>
+    <td class="qtdPessoas"><div class="add-less"><input type="number" class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+    <td class="produto"></td>
+    <td class="qtdDias"><div class="add-less"><input type="number" class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+    <td class="vlrVenda Moeda"></td>
+    <td class="totVdaDiaria Moeda"></td>
+    <td class="vlrCusto Moeda"></td>
+    <td class="totCtoDiaria Moeda"></td>
+    <td class="ajdCusto"></td>
+    <td class="totAjdCusto">0</td>
+    <td class="extraCampo" style="display: none;">
+        <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotaisOrc()">
+    </td>
+    <td class="extraCampo" style="display: none;">
+        <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotaisOrc()">
+    </td>
+    <td class="totGeral">0</td>
+    <td><div class="Acao"><button class="deleteBtn" onclick="removerLinhaOrc(this)"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
     `;
 }
 
 function removerLinhaOrc(botao) {
     let linha = botao.closest("tr"); // Encontra a linha mais próxima
-    linha.remove(); // Remove a linha
+    removerLinha(linha); // Remove a linha
 }
 
 //formulario de 
@@ -471,7 +638,7 @@ function enviarOrcamento() {
         headers: {
             "Content-Type": "application/json"
         },
-        body: JSON.stringify({ itens: dados })
+        body: JSON.stringify({ Pessoas: dados })
     })
     .then(res => res.json())
     .then(res => {
@@ -485,4 +652,88 @@ function enviarOrcamento() {
 }
 
 // Exportar as funções se necessário
+
+
+// --------------------------------------- botoes Quantidade-----------------------------------------
+
+if (!window.hasRegisteredClickListener) {
+    document.addEventListener('click', function(event) {
+    if (event.target.classList.contains('increment')) {
+        console.log('Incrementando...');
+        const input = event.target.closest('.add-less').querySelector('input');
+        input.value = parseInt(input.value || 0) + 1;
+    }
+
+    if (event.target.classList.contains('decrement')) {
+        console.log('Decrementando...');
+        const input = event.target.closest('.add-less').querySelector('input');
+        let currentValue = parseInt(input.value || 0);
+        if (currentValue > 0) {
+        input.value = currentValue - 1;
+        }
+    }
+    });
+    window.hasRegisteredClickListener = true;
+}
+
+
+// ------------------------------- Preenchimento automatico -------------------------
+document.querySelectorAll('.form2 input').forEach(input => {
+    // Verifica se o campo já tem valor ao carregar
+    if (input.value.trim() !== '') {
+      input.classList.add('preenchido');
+    }
+  
+    // Ao digitar ou colar algo
+    input.addEventListener('input', () => {
+      if (input.value.trim() !== '') {
+        input.classList.add('preenchido');
+      } else {
+        input.classList.remove('preenchido');
+      }
+    });
+  
+    // Em caso de preenchimento via script
+    input.addEventListener('blur', () => {
+      if (input.value.trim() !== '') {
+        input.classList.add('preenchido');
+      } else {
+        input.classList.remove('preenchido');
+      }
+    });
+  });
+
+
+//   ------------------ exibição de Moeda --------------------------------
+
+function aplicarMascaraMoeda() {
+    // Formatar valores de <td> com a classe .Moeda
+    document.querySelectorAll('td.Moeda').forEach(td => {
+        let valor = parseFloat(td.textContent);
+        if (!isNaN(valor)) {
+            td.textContent = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+    });
+
+    // Formatar inputs somente se forem readonly (apenas visual)
+    document.querySelectorAll('input.Moeda[readonly]').forEach(input => {
+        let valor = parseFloat(input.value);
+        if (!isNaN(valor)) {
+            input.dataset.valorOriginal = input.value; // guarda o valor real
+            input.value = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+    });
+}
+
+// Caso precise reverter a formatação (ex: para enviar ao backend)
+function removerMascaraMoedaInputs() {
+    document.querySelectorAll('input.Moeda[readonly]').forEach(input => {
+        if (input.dataset.valorOriginal) {
+            input.value = input.dataset.valorOriginal;
+        }
+    });
+}
+
+// Chame após o cálculo ou inserção de valores
+aplicarMascaraMoeda();
 window.configurarEventosOrcamento = configurarEventosOrcamento;
