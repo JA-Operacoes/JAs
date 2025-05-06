@@ -656,7 +656,7 @@
 
   /* --------------------------- @medias ------------------------------------- */
 
-@media(max-width: 2174px){
+@media(max-width: 5674px){
   textarea{
       font-family: var(--Font-primary);
       width: 100%;
