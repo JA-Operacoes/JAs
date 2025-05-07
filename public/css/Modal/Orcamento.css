@@ -480,6 +480,7 @@
     width: 100%;    /* vertical */
     height: auto; 
   }
+  
   .Bt{
     display: flex;
     justify-content: center;
