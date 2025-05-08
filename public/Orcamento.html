@@ -125,6 +125,7 @@
                         <table id="tabela">
                             <thead>
                                 <tr>
+                                    <th>Categoria</th>
                                     <th>Qtd Itens</th>
                                     <th>Produto</th>
                                     <th>Qtd Dias</th>
@@ -143,6 +144,7 @@
                             </thead>
                             <tbody>
                                 <tr>
+                                    <td class="Categoria"></td>
                                     <td class="qtdPessoas"><div class="add-less"><input type="number" class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
                                     <td class="produto"></td>
                                     <td class="qtdDias"><div class="add-less"><input type="number" class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
@@ -167,12 +169,12 @@
 
                     <div class = 'Selects'>
                         <div class="form2">
-                            <input type="text" class="Moeda" id="totalGeralVda" name="totalGeralVda" value="0" required readonly style="font-size: 15px;" >
+                            <input type="text" class="Moeda preenchido" id="totalGeralVda" name="totalGeralVda" value="0" required readonly style="font-size: 15px;" >
                             <label for="totalGeralVda">Total Geral Venda:</label>
                         </div>
 
                         <div class="form2">
-                            <input type="text" class="Moeda" id="totalGeralCto" value="0" name="totalGeralCto" required readonly style="font-size: 15px;" >
+                            <input type="text" class="Moeda preenchido" id="totalGeralCto" value="0" name="totalGeralCto" required readonly style="font-size: 15px;" >
                             <label for="totalGeralCto">Total Geral Custo:</label>
                         </div>
 

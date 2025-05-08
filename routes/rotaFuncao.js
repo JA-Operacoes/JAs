@@ -52,9 +52,7 @@ router.put("/:id", async (req, res) => {
 
 // POST criar nova função
 router.post("/", async (req, res) => {
-  const { descFuncao, vlrCusto, vlrVenda } = req.body;
-  const custo = parseFloat(String(vlrCusto).replace(",", "."));
-  const venda = parseFloat(String(vlrVenda).replace(",", "."));
+  const { descFuncao, custo, venda } = req.body;
   try {
     const result = await pool.query(
       "INSERT INTO funcao (descFuncao, ctofuncao, vdafuncao) VALUES ($1, $2, $3) RETURNING *",
