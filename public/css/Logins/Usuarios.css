@@ -324,7 +324,7 @@ height: 550px;
   }
 }
 
-button{
+/* button{
   display: flex;
   justify-content: center;
   align-items: center;
@@ -335,7 +335,7 @@ button{
   border: 1px solid #000000;
   width: 100%;
   max-width: 100px;
-}
+} */
 
 .bts{
   display: flex;
