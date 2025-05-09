@@ -17,7 +17,7 @@ body{
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: 20px;
+  font-size: 15px;
   color: rgb(255, 255, 255);
   margin: 0 auto;
 }
@@ -110,6 +110,93 @@ height: 550px;
   background: transparent;
   margin-bottom: 0;
 }
+
+
+
+/* personalizacao do olhinho da senha */
+.camposenha {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.camposenha input {
+  width: 100%;
+  padding-right: 35px; /* espaço para o ícone */
+}
+
+.toggle-senha {
+  position: absolute;
+  right: 10px;
+  cursor: pointer;
+  color: #666;
+}
+
+/* pesquisa de usuario */
+.input-wrapper {
+  position: relative;
+}
+
+.input-wrapper input {
+  width: 100%;
+  padding-right: 30px;
+}
+
+.input-wrapper label {
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  transform: translateY(-50%);
+  color: #aaa;
+  pointer-events: none;
+  transition: 0.2s ease;
+}
+
+/* Se quiser animar o label quando o campo for focado */
+.input-wrapper input:focus + label,
+.input-wrapper input:not(:placeholder-shown) + label {
+  top: -10px;
+  font-size: 0.8em;
+  color: #333;
+}
+
+.input-wrapper i {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+
+/* Lista de sugestões */
+.autocomplete-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 150px;
+  background: white;
+  border: 1px solid #fb1313;
+  border-top: none;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.autocomplete-list li {
+  padding: 10px;
+  cursor: pointer;
+}
+
+.autocomplete-list li:hover {
+  background: #f8dfdf;
+}
+
+
+ 
 
 .login-box .user-box label {
   position: absolute;
@@ -259,5 +346,59 @@ button{
 }
 
 input:-webkit-autofill {
-  -webkit-background-origin: transparent;
+  background-color: transparent !important;
+}
+
+/* === Estilos personalizados para SweetAlert2 === */
+.swal2-container {
+  z-index: 100000 !important;
+}
+
+.swal2-popup .swal2-styled {
+  all: initial;
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 0.625em 1.5em;
+  border: none;
+  border-radius: 0.25em;
+  background: #d63030;
+  color: #fff;
+  cursor: pointer;
+  margin: 0 0.25em;
+}
+
+.swal2-confirm,
+.swal2-cancel {
+  font-family: "Abel", sans-serif;
+  font-size: 16px;
+  padding: 10px 24px !important;
+  border-radius: 12px !important;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.25s ease-in-out;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+}
+
+.swal2-confirm {
+  /* background-color: #28a745 !important;  Verde para confirmar */
+  background-color: #ce0303 !important;
+  /* Vermelho para confirmar */
+  color: #ffffff !important;
+}
+
+.swal2-confirm:hover {
+  /* background-color: #218838 !important; */
+  background-color: #ce0303 !important;
+  /* Vermelho para confirmar */
+}
+
+.swal2-cancel {
+  background-color: #6c757d !important;
+  /* Cinza para cancelar */
+  color: #ffffff !important;
+}
+
+.swal2-cancel:hover {
+  background-color: #5a6268 !important;
 }

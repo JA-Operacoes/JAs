@@ -11,7 +11,9 @@ let FuncaoOriginal = {
     idFuncao: "",
     descFuncao: "",
     vlrCusto: "",
-    vlrVenda: ""
+    vlrVenda: "",
+    vlrajdcusto: "",
+    obsFuncao: ""
 };
 
 function verificaFuncao() {
@@ -66,13 +68,16 @@ function verificaFuncao() {
         console.log("ENVIANDO DADOS DO Funcao PELO Funcao.JS", document);
 
         const idFuncao = document.querySelector("#idFuncao").value.trim();
-        const descFuncao = document.querySelector("#descFuncao").value.trim();
+        const descFuncao = document.querySelector("#descFuncao").value.toUpperCase().trim();
         const vlrCusto = document.querySelector("#Custo").value;
         const vlrVenda = document.querySelector("#Venda").value;
+        const vlrajdcusto = document.querySelector("#ajdCusto").value;
+        const obsfuncao = document.querySelector("#ObsAjc").value.trim();
     
         const custo = parseFloat(String(vlrCusto).replace(",", "."));
         const venda = parseFloat(String(vlrVenda).replace(",", "."));
-    
+        const ajcfuncao = parseFloat(String(vlrajdcusto).replace(",", "."));
+
         if (!descFuncao || !vlrCusto || !vlrVenda) {
            
             Swal.fire({
@@ -83,15 +88,17 @@ function verificaFuncao() {
             });
             return;
         }
-        console.log("Valores do Funcao:", idFuncao, descFuncao, custo, venda);
-        console.log("Valores do Funcao Original:", FuncaoOriginal.idFuncao, FuncaoOriginal.descFuncao, FuncaoOriginal.vlrCusto, FuncaoOriginal.vlrVenda);
+        console.log("Valores do Funcao:", idFuncao, descFuncao, custo, venda, ajcfuncao, obsfuncao);
+        console.log("Valores do Funcao Original:", FuncaoOriginal.idFuncao, FuncaoOriginal.descFuncao, FuncaoOriginal.vlrCusto, FuncaoOriginal.vlrVenda, FuncaoOriginal.vlrajdcusto, FuncaoOriginal.obsFuncao);
     
         // Comparar com os valores originais
         if (
             parseInt(idFuncao) === parseInt(FuncaoOriginal.idFuncao) && 
             descFuncao === FuncaoOriginal.descFuncao && 
             Number(custo).toFixed(2) === Number(FuncaoOriginal.vlrCusto).toFixed(2) &&
-            Number(venda).toFixed(2) === Number(FuncaoOriginal.vlrVenda).toFixed(2)
+            Number(venda).toFixed(2) === Number(FuncaoOriginal.vlrVenda).toFixed(2) &&
+            Number(ajcfuncao).toFixed(2) === Number(FuncaoOriginal.ajcfuncao).toFixed(2) &&
+            obsfuncao === FuncaoOriginal.obsfuncao
         ) {
             console.log("Nenhuma alteração detectada.");
             await Swal.fire({
@@ -103,7 +110,7 @@ function verificaFuncao() {
             return;
         }
     
-        const dados = { descFuncao, custo, venda };
+        const dados = { descFuncao, custo, venda, ajcfuncao, obsfuncao };
      
         if (idFuncao) {
             Swal.fire({
@@ -288,12 +295,16 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
         document.querySelector("#idFuncao").value = funcao.idfuncao;
         document.querySelector("#Custo").value = funcao.ctofuncao;
         document.querySelector("#Venda").value = funcao.vdafuncao;
+        document.querySelector("#ajdCusto").value = funcao.ajcfuncao;
+        document.querySelector("#ObsAjc").value = funcao.obsfuncao;
         
         FuncaoOriginal = {
             idFuncao: funcao.idfuncao,
             descFuncao: funcao.descfuncao,
             vlrCusto: funcao.ctofuncao,
-            vlrVenda: funcao.vdafuncao
+            vlrVenda: funcao.vdafuncao,
+            vlrajdcusto: funcao.ajcfuncao,
+            obsFuncao: funcao.obsfuncao
         };
    
        
@@ -333,11 +344,12 @@ function limparFuncaoOriginal() {
 
 
 function limparCamposFuncao() {
-    const campos = ["idFuncao", "descFuncao","Custo", "Venda" ];
+    const campos = ["idFuncao", "descFuncao","Custo", "Venda", "ajdCusto", "ObsAjc" ];
     campos.forEach(id => {
         const campo = document.getElementById(id);
         if (campo) campo.value = "";
     });
+    
 }
 
 function configurarEventosFuncao() {

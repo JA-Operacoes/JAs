@@ -32,19 +32,30 @@ function abrirModal(url) {
             if (url.includes("CadClientes")) {
                 script = document.createElement("script");
                 script.src = "js/Clientes.js";
+
             } else if (url.includes("CadFuncao")) {
                 script = document.createElement("script");
-                // script.src = "js/Funcao.js";
-                script.src = "js/Funcao.js"; // Corrigido para carregar o script correto
+                script.src = "js/Funcao.js"; 
+
             } else if (url.includes("Orcamento")) {
                 script = document.createElement("script");
                 script.src = "js/Orcamento.js";
+
             } else if (url.includes("CadLocalMontagem")) {
                 script = document.createElement("script");
                 script.src = "js/LocalMontagem.js";
+
             } else if (url.includes("CadEventos")) {
                 script = document.createElement("script");
                 script.src = "js/Eventos.js";
+
+            }else if (url.includes("CadEquipamentos")) {
+                script = document.createElement("script");
+                script.src = "js/Equipamentos.js";
+
+            }else if (url.includes("CadSuprimentos")) {
+                script = document.createElement("script");
+                script.src = "js/Suprimentos.js";
             }
 
             if (script) {
@@ -66,7 +77,7 @@ function abrirModal(url) {
                 let closeButton = modal.querySelector('.close');
                 if (closeButton) closeButton.addEventListener('click', fecharModal);
 
-                configurarEventosEspecificos(url);           
+                //configurarEventosEspecificos(url);           
                 
             }
         })
@@ -98,9 +109,8 @@ function configurarEventosEspecificos(url) {
         { keyword: "CadFuncao", func: configurarEventosFuncao },
         { keyword: "CadLocalMontagem", func: configurarEventosMontagem },
         { keyword: "CadEventos", func: configurarEventosCadEvento},
-       // { keyword: "Equipamentos", func: configurarEventosEquipamentos },
-       // { keyword: "Suprimentos", func: configurarEventosSuprimentos },
-       
+        { keyword: "CadEquipamentos", func: configurarEventosEquipamento },
+        { keyword: "CadSuprimentos", func: configurarEventosSuprimento },
         { keyword: "CadClientes", func: configurarEventosClientes },
     ];
 

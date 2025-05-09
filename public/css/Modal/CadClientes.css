@@ -258,8 +258,9 @@ input#numero, input#estado, input#pais, input#complemento{
 input#id{
   width: 70px;
 }
+
 input#tpcliente{
-  width: 50px;
+  width: 60px;
 }
 
 input.tpcliente {

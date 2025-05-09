@@ -7,39 +7,39 @@
 //     document.head.appendChild(script);
 // }
 
-let FuncaoExistente = false;
-let FuncaoOriginal = {
-    idFuncao: "",
-    descFuncao: "",
+let FuncionarioExistente = false;
+let FuncionarioOriginal = {
+    idFuncionario: "",
+    descFuncionario: "",
     vlrCusto: "",
     vlrVenda: ""
 };
 
-function verificaFuncao() {
+function verificaFuncionario() {
 
-    console.log("Carregando Funcao...");
+    console.log("Carregando Funcionario...");
     
-    document.querySelector("#descFuncao").addEventListener("blur", async function () {
+    document.querySelector("#descFuncionario").addEventListener("blur", async function () {
         const desc = this.value.trim();
 
-        console.log("Campo descFuncao procurado:", desc);
+        console.log("Campo descFuncionario procurado:", desc);
     
         if (desc === "") return;
     
         try {
-            const response = await fetch(`http://localhost:3000/funcao?descFuncao=${encodeURIComponent(desc)}`);
+            const response = await fetch(`http://localhost:3000/funcao?descFuncionario=${encodeURIComponent(desc)}`);
 
             
             if (!response.ok) {
-                console.log("Funcao não encontrado.");
-                limparFuncaoOriginal();
-                FuncaoExistente = false;
+                console.log("Funcionario não encontrado.");
+                limparFuncionarioOriginal();
+                FuncionarioExistente = false;
                 return;
             }
     
-            const Funcao = await response.json();
+            const Funcionario = await response.json();
 
-            if (!Funcao || Object.keys(Funcao).length === 0) {
+            if (!Funcionario || Object.keys(Funcionario).length === 0) {
                 console.log("Cliente não encontrado no corpo da resposta.");
                 Swal.fire({
                     icon: 'warning',
@@ -47,39 +47,39 @@ function verificaFuncao() {
                     text: `Nenhum cliente com o nome fantasia "${nmFantasia}" foi encontrado.`,
                     confirmButtonText: 'Ok'
                 });
-                limparFuncaoOriginal();
-                FuncaoExistente = false;
+                limparFuncionarioOriginal();
+                FuncionarioExistente = false;
                 return;
             }
             else{
-                FuncaoExistente = true; // Define que o cliente existe 
+                FuncionarioExistente = true; // Define que o cliente existe 
             }
             
-            if (FuncaoExistente){
+            if (FuncionarioExistente){
 
-                console.log("Funcao encontrado:", Funcao);
+                console.log("Funcionario encontrado:", Funcionario);
                 console.log("Campos encontrados:", {
-                    idFuncao: document.querySelector("#idFuncao"),
+                    idFuncionario: document.querySelector("#idFuncionario"),
                     Custo: document.querySelector("#Custo"),
                     Venda: document.querySelector("#Venda")
                 });
 
                 // Preenche os campos com os dados retornados
-                document.querySelector("#idFuncao").value = Funcao.idfuncao; // se existir o campo
-                document.querySelector("#Custo").value = Funcao.ctofuncao;
-                document.querySelector("#Venda").value = Funcao.vdafuncao;
+                document.querySelector("#idFuncionario").value = Funcionario.idfuncao; // se existir o campo
+                document.querySelector("#Custo").value = Funcionario.ctofuncao;
+                document.querySelector("#Venda").value = Funcionario.vdafuncao;
                 
-                FuncaoOriginal = {
-                    idFuncao: Funcao.idfuncao,
-                    descFuncao: Funcao.descfuncao,
-                    vlrCusto: Funcao.ctofuncao,
-                    vlrVenda: Funcao.vdafuncao
+                FuncionarioOriginal = {
+                    idFuncionario: Funcionario.idfuncao,
+                    descFuncionario: Funcionario.descfuncao,
+                    vlrCusto: Funcionario.ctofuncao,
+                    vlrVenda: Funcionario.vdafuncao
                 };
         
-                console.log("Funcao encontrado e preenchido:", Funcao);
+                console.log("Funcionario encontrado e preenchido:", Funcionario);
             }
         } catch (error) {
-            console.error("Erro ao buscar Funcao:", error);
+            console.error("Erro ao buscar Funcionario:", error);
         }
     });
 
@@ -95,27 +95,27 @@ function verificaFuncao() {
     botaoEnviar.addEventListener("click", async function (event) {
         event.preventDefault(); // Previne o envio padrão do formulário
 
-        console.log("ENVIANDO DADOS DO Funcao PELO Funcao.JS", document);
+        console.log("ENVIANDO DADOS DO Funcionario PELO Funcionario.JS", document);
 
-        const idFuncao = document.querySelector("#idFuncao").value.trim();
-        const descFuncao = document.querySelector("#descFuncao").value.trim();
+        const idFuncionario = document.querySelector("#idFuncionario").value.trim();
+        const descFuncionario = document.querySelector("#descFuncionario").value.trim();
         const vlrCusto = document.querySelector("#Custo").value.trim();
         const vlrVenda = document.querySelector("#Venda").value.trim();
 
         const custo = parseFloat(String(vlrCusto).replace(",", "."));
         const venda = parseFloat(String(vlrVenda).replace(",", "."));
     
-        if (!descFuncao || !vlrCusto || !vlrVenda) {
+        if (!descFuncionario || !vlrCusto || !vlrVenda) {
             alert("Preencha todos os campos.");
             return;
         }
     
         // 🔍 Comparar com os valores originais
         if (
-            idFuncao === FuncaoOriginal.idfuncao &&
-            descFuncao === FuncaoOriginal.descfuncao &&
-            custo === FuncaoOriginal.ctofuncao &&
-            venda === FuncaoOriginal.vdafuncao
+            idFuncionario === FuncionarioOriginal.idfuncao &&
+            descFuncionario === FuncionarioOriginal.descfuncao &&
+            custo === FuncionarioOriginal.ctofuncao &&
+            venda === FuncionarioOriginal.vdafuncao
         ) {
             //  alert("Nenhuma alteração detectada.");
             // Swal.fire({
@@ -130,16 +130,16 @@ function verificaFuncao() {
             return;
         }
     
-        const dados = { descFuncao, custo, venda };
+        const dados = { descFuncionario, custo, venda };
      
         
     
         try {
             let response;
-            console.log("idFuncao", idFuncao);
-            if (idFuncao) {
+            console.log("idFuncionario", idFuncionario);
+            if (idFuncionario) {
 
-                response = await fetch(`http://localhost:3000/funcao/${idFuncao}`, {
+                response = await fetch(`http://localhost:3000/funcao/${idFuncionario}`, {
                     method: "PUT",
                     headers: {
                         "Content-Type": "application/json"
@@ -161,14 +161,14 @@ function verificaFuncao() {
             if (response.ok) {
                 alert(result.mensagem || "Operação realizada com sucesso!");
                 form.reset();
-                document.querySelector("#idFuncao").value = "";
+                document.querySelector("#idFuncionario").value = "";
     
                 // Zera os valores antigos após salvar
-                limparFuncaoOriginal();
-                FuncaoExistente = false;
+                limparFuncionarioOriginal();
+                FuncionarioExistente = false;
                
             } else {
-                alert(result.erro || "Erro ao salvar o Funcao.");
+                alert(result.erro || "Erro ao salvar o Funcionario.");
             }
     
         } catch (error) {
@@ -179,12 +179,12 @@ function verificaFuncao() {
 
     botaoPesquisar.addEventListener("click", async function (event) {
         event.preventDefault();
-        limparCamposFuncao();
-        console.log("Pesquisando Funcao...");
+        limparCamposFuncionario();
+        console.log("Pesquisando Funcionario...");
         try {
            
             
-            const response = await fetch("http://localhost:3000/Funcao"); // ajuste a rota conforme sua API
+            const response = await fetch("http://localhost:3000/Funcionario"); // ajuste a rota conforme sua API
      
 
             if (!response.ok) throw new Error("Erro ao buscar funções");
@@ -219,12 +219,12 @@ function verificaFuncao() {
                 elemento.style.maxWidth = "100%"; // Limita a largura máxima
                 
             };
-            const input = document.querySelector("#descFuncao");
+            const input = document.querySelector("#descFuncionario");
     
             // Criar novo SELECT
             const select = document.createElement("select");
-            select.id = "descFuncao";
-            select.name = "descFuncao";
+            select.id = "descFuncionario";
+            select.name = "descFuncionario";
             select.required = true;
             select.className = "form";
             estiloCampo(select);
@@ -252,27 +252,27 @@ function verificaFuncao() {
             // Reativar o evento blur para o novo select
             select.addEventListener("change", async function () {
                 const desc = this.value.trim();
-                const response = await fetch(`http://localhost:3000/funcao?descFuncao=${encodeURIComponent(desc)}`);
+                const response = await fetch(`http://localhost:3000/funcao?descFuncionario=${encodeURIComponent(desc)}`);
                 if (response.ok) {
                    
                     const funcao = await response.json();
-                    document.querySelector("#idFuncao").value = funcao.idfuncao;
+                    document.querySelector("#idFuncionario").value = funcao.idfuncao;
                     document.querySelector("#Custo").value = funcao.ctofuncao;
                     document.querySelector("#Venda").value = funcao.vdafuncao;
                     
-                    FuncaoOriginal = {
-                        idFuncao: funcao.idfuncao,
-                        descFuncao: funcao.descfuncao,
+                    FuncionarioOriginal = {
+                        idFuncionario: funcao.idfuncao,
+                        descFuncionario: funcao.descfuncao,
                         vlrCusto: funcao.ctofuncao,
                         vlrVenda: funcao.vdafuncao
                     };
-                    FuncaoExistente = true;
+                    FuncionarioExistente = true;
 
                     
                     const input = document.createElement("input");
                     input.type = "text";
-                    input.id = "descFuncao";
-                    input.name = "descFuncao";
+                    input.id = "descFuncionario";
+                    input.name = "descFuncionario";
                     input.required = true;
                     input.className = "form";
                     input.style.width = "100%";
@@ -288,19 +288,19 @@ function verificaFuncao() {
                         const desc = this.value.trim();
                         if (desc === "") return;
 
-                        const response = await fetch(`http://localhost:3000/funcao?descFuncao=${encodeURIComponent(desc)}`);
+                        const response = await fetch(`http://localhost:3000/funcao?descFuncionario=${encodeURIComponent(desc)}`);
                         if (response.ok) {
                             const funcao = await response.json();
-                            document.querySelector("#idFuncao").value = funcao.idfuncao;
+                            document.querySelector("#idFuncionario").value = funcao.idfuncao;
                             document.querySelector("#Custo").value = funcao.ctofuncao;
                             document.querySelector("#Venda").value = funcao.vdafuncao;
-                            FuncaoOriginal = {
-                                idFuncao: funcao.idfuncao,
-                                descFuncao: funcao.descfuncao,
+                            FuncionarioOriginal = {
+                                idFuncionario: funcao.idfuncao,
+                                descFuncionario: funcao.descfuncao,
                                 vlrCusto: funcao.ctofuncao,
                                 vlrVenda: funcao.vdafuncao
                             };
-                            FuncaoExistente = true;
+                            FuncionarioExistente = true;
                         } else {
                             Swal.fire({
                                 icon: 'warning',
@@ -308,8 +308,8 @@ function verificaFuncao() {
                                 text: `Nenhuma função com essa descrição foi encontrada.`,
                                 confirmButtonText: 'Ok'
                             });
-                            limparFuncaoOriginal();
-                            FuncaoExistente = false;
+                            limparFuncionarioOriginal();
+                            FuncionarioExistente = false;
                         }
                     });
 
@@ -320,8 +320,8 @@ function verificaFuncao() {
                         text: `Nenhuma função com essa descrição foi encontrada.`,
                         confirmButtonText: 'Ok'
                     });
-                    limparFuncaoOriginal();
-                    FuncaoExistente = false;
+                    limparFuncionarioOriginal();
+                    FuncionarioExistente = false;
                 }
             });
 
@@ -333,8 +333,8 @@ function verificaFuncao() {
             //             text: `Nenhuma função com essa descrição foi encontrada.`,
             //             confirmButtonText: 'Ok'
             //         });
-            //         limparFuncaoOriginal();
-            //         FuncaoExistente = false;
+            //         limparFuncionarioOriginal();
+            //         FuncionarioExistente = false;
             //     }
             // });
     
@@ -352,10 +352,10 @@ function verificaFuncao() {
 
 }
 
-function limparFuncaoOriginal() {
-    FuncaoOriginal = {
-        idFuncao: "",
-        descFuncao: "",
+function limparFuncionarioOriginal() {
+    FuncionarioOriginal = {
+        idFuncionario: "",
+        descFuncionario: "",
         vlrCusto: "",
         vlrVenda: ""
     };
@@ -374,19 +374,19 @@ function mostrarAlerta() {
     });
 }
 
-function limparCamposFuncao() {
-    const campos = ["idFuncao", "Custo", "Venda", "descFuncao"];
+function limparCamposFuncionario() {
+    const campos = ["idFuncionario", "Custo", "Venda", "descFuncionario"];
     campos.forEach(id => {
         const campo = document.getElementById(id);
         if (campo) campo.value = "";
     });
 }
 
-function configurarEventosFuncao() {
-    console.log("Configurando eventos Funcao...");
-    verificaFuncao(); // Carrega os Funcao ao abrir o modal
-    console.log("Entrou configurar Funcao no FUNCAO.js.");
+function configurarEventosFuncionario() {
+    console.log("Configurando eventos Funcionario...");
+    verificaFuncionario(); // Carrega os Funcionario ao abrir o modal
+    console.log("Entrou configurar Funcionario no FUNCAO.js.");
     
 
 } 
-window.configurarEventosFuncao = configurarEventosFuncao;
+window.configurarEventosFuncionario = configurarEventosFuncionario;

@@ -4,62 +4,62 @@ const pool = require("../db/conexaoDB");
 
 // GET todas ou por descrição
 router.get("/", async (req, res) => {
-  const { descFuncao } = req.query;
+  const { descSup } = req.query;
 
   try {
-    if (descFuncao) {
+    if (descSup) {
       const result = await pool.query(
-        "SELECT * FROM orcamento WHERE descFuncao ILIKE $1 LIMIT 1",
-        [descFuncao]
+        "SELECT * FROM suprimentos WHERE descSup ILIKE $1 LIMIT 1",
+        [descSup]
       );
       return result.rows.length
         ? res.json(result.rows[0])
-        : res.status(404).json({ message: "Função não encontrada" });
+        : res.status(404).json({ message: "Suprimento não encontrada" });
     } else {
-      const result = await pool.query("SELECT * FROM funcao ORDER BY descFuncao ASC");
+      const result = await pool.query("SELECT * FROM suprimentos ORDER BY descSup ASC");
       return result.rows.length
         ? res.json(result.rows)
-        : res.status(404).json({ message: "Nenhuma função encontrada" });
+        : res.status(404).json({ message: "Nenhuma suprimento encontrado" });
     }
   } catch (error) {
-    console.error("Erro ao buscar função:", error);
-    res.status(500).json({ message: "Erro ao buscar função" });
+    console.error("Erro ao buscar suprimentos:", error);
+    res.status(500).json({ message: "Erro ao buscar suprimentos" });
   }
 });
 
 // PUT atualizar
 router.put("/:id", async (req, res) => {
   const id = req.params.id;
-  const { descFuncao, vlrCusto, vlrVenda } = req.body;
+  const { descSup, custo, venda } = req.body;
 
   try {
     const result = await pool.query(
-      `UPDATE Funcao SET descFuncao = $1, vlrCusto = $2, vlrVenda = $3 WHERE idFuncao = $4 RETURNING *`,
-      [descFuncao, vlrCusto, vlrVenda, id]
+      `UPDATE suprimentos SET descSup = $1, ctosup = $2, vdasup = $3 WHERE idSup = $4 RETURNING *`,
+      [descSup, custo, venda, id]
     );
 
     return result.rowCount
-      ? res.json({ message: "Função atualizada com sucesso!", funcao: result.rows[0] })
-      : res.status(404).json({ message: "Função não encontrada para atualizar." });
+      ? res.json({ message: "Suprimento atualizado com sucesso!", suprimento: result.rows[0] })
+      : res.status(404).json({ message: "Suprimento não encontrado para atualizar." });
   } catch (error) {
-    console.error("Erro ao atualizar função:", error);
-    res.status(500).json({ message: "Erro ao atualizar função." });
+    console.error("Erro ao atualizar suprimento:", error);
+    res.status(500).json({ message: "Erro ao atualizar suprimento." });
   }
 });
 
 // POST criar nova função
 router.post("/", async (req, res) => {
-  const { descFuncao, vlrCusto, vlrVenda } = req.body;
+  const { descSup, custo, venda } = req.body;
 
   try {
     const result = await pool.query(
-      "INSERT INTO funcao (descFuncao, vlrCusto, vlrVenda) VALUES ($1, $2, $3) RETURNING *",
-      [descFuncao, vlrCusto, vlrVenda]
+      "INSERT INTO suprimentos (descSup, ctoSup, vdaSup) VALUES ($1, $2, $3) RETURNING *",
+      [descSup, custo, venda]
     );
-    res.json({ mensagem: "Função salva com sucesso!", funcao: result.rows[0] });
+    res.json({ mensagem: "Suprimento salvo com sucesso!", suprimento: result.rows[0] });
   } catch (error) {
-    console.error("Erro ao salvar função:", error);
-    res.status(500).json({ erro: "Erro ao salvar função" });
+    console.error("Erro ao salvar suprimento:", error);
+    res.status(500).json({ erro: "Erro ao salvar suprimento" });
   }
 });
 

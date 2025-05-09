@@ -30,15 +30,12 @@ router.get("/", async (req, res) => {
 // PUT atualizar
 router.put("/:id", async (req, res) => {
   const id = req.params.id;
-  const { descFuncao, custo, venda } = req.body;
-
-  // const custo = parseFloat(String(vlrCusto).replace(",", "."));
-  // const venda = parseFloat(String(vlrVenda).replace(",", "."));
+  const { descFuncao, custo, venda, ajcfuncao, obsfuncao } = req.body;
 
   try {
     const result = await pool.query(
-      `UPDATE Funcao SET descFuncao = $1, ctofuncao = $2, vdafuncao = $3 WHERE idFuncao = $4 RETURNING *`,
-      [descFuncao, custo, venda, id]
+      `UPDATE Funcao SET descFuncao = $1, ctofuncao = $2, vdafuncao = $3, ajcfuncao = $4, obsfuncao = $5 WHERE idFuncao = $6 RETURNING *`,
+      [descFuncao, custo, venda, ajcfuncao, obsfuncao, id]
     );
 
     return result.rowCount
@@ -52,13 +49,13 @@ router.put("/:id", async (req, res) => {
 
 // POST criar nova função
 router.post("/", async (req, res) => {
-  const { descFuncao, vlrCusto, vlrVenda } = req.body;
-  const custo = parseFloat(String(vlrCusto).replace(",", "."));
-  const venda = parseFloat(String(vlrVenda).replace(",", "."));
+  const { descFuncao, custo, venda, ajcfuncao, obsfuncao } = req.body;
+ 
+  
   try {
     const result = await pool.query(
-      "INSERT INTO funcao (descFuncao, ctofuncao, vdafuncao) VALUES ($1, $2, $3) RETURNING *",
-      [descFuncao, custo, venda]
+      "INSERT INTO funcao (descFuncao, ctofuncao, vdafuncao, ajcfuncao, obsfuncao) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+      [descFuncao, custo, venda, ajcfuncao, obsfuncao]
     );
     res.json({ mensagem: "Função salva com sucesso!", funcao: result.rows[0] });
   } catch (error) {

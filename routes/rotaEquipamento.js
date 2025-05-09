@@ -14,7 +14,7 @@ router.get("/", async (req, res) => {
       );
       return result.rows.length
         ? res.json(result.rows[0])
-        : res.status(404).json({ message: "Equipamentoo não encontrada" });
+        : res.status(404).json({ message: "Equipamento não encontrada" });
     } else {
       const result = await pool.query("SELECT * FROM equipamentos ORDER BY descEquip ASC");
       return result.rows.length
@@ -30,12 +30,12 @@ router.get("/", async (req, res) => {
 // PUT atualizar
 router.put("/:id", async (req, res) => {
   const id = req.params.id;
-  const { descEquip, vlrCusto, vlrVenda } = req.body;
+  const { descEquip, custo, venda } = req.body;
 
   try {
     const result = await pool.query(
       `UPDATE equipamentos SET descEquip = $1, ctoEquip = $2, vdaEquip = $3 WHERE idequip = $4 RETURNING *`,
-      [descEquip, vlrCusto, vlrVenda, id]
+      [descEquip, custo, venda, id]
     );
 
     return result.rowCount
@@ -49,12 +49,13 @@ router.put("/:id", async (req, res) => {
 
 // POST criar nova equipamentos
 router.post("/", async (req, res) => {
-  const { descEquip, vlrCusto, vlrVenda } = req.body;
+  const { descEquip, custo, venda } = req.body;
 
+  console.log("Dados recebidos:", req.body);
   try {
     const result = await pool.query(
       "INSERT INTO equipamentos (descEquip, ctoEquip, vdaEquip) VALUES ($1, $2, $3) RETURNING *",
-      [descEquip, vlrCusto, vlrVenda]
+      [descEquip, custo, venda]
     );
     res.json({ mensagem: "Equipamento salvo com sucesso!", equipamentos: result.rows[0] });
   } catch (error) {

@@ -1,0 +1,47 @@
+<!-- public/permissoes.html -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Permissões</title>
+</head>
+<body>
+  <h2>Definir Permissões</h2>
+  <form id="formPermissao">
+    <label>ID Usuário: <input type="number" name="id_usuario" required></label><br>
+    <label>Módulo:
+      <select name="modulo">
+        <option value="clientes">Clientes</option>
+        <option value="orcamentos">Orçamentos</option>
+        <option value="eventos">Eventos</option>
+        <option value="equipamentos">Equipamentos</option>
+        <option value="suprimentos">Suprimentos</option>
+        <option value="localmontagem">Local de Montagem</option>
+        <option value="funcionarios">Funcionários</option>
+      </select>
+    </label><br>
+    <label><input type="checkbox" name="pode_cadastrar"> Cadastrar</label><br>
+    <label><input type="checkbox" name="pode_alterar"> Alterar</label><br>
+    <label><input type="checkbox" name="pode_pesquisar"> Pesquisar</label><br>
+    <button type="submit">Salvar Permissão</button>
+  </form>
+
+  <script>
+    document.getElementById("formPermissao").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const dados = Object.fromEntries(new FormData(e.target));
+      const booleanos = ['pode_cadastrar', 'pode_alterar', 'pode_pesquisar'];
+      booleanos.forEach(chave => dados[chave] = dados[chave] ? true : false);
+
+      const res = await fetch("/auth/permissoes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dados)
+      });
+
+      const json = await res.json();
+      alert(json.mensagem || json.erro);
+    });
+  </script>
+</body>
+</html>

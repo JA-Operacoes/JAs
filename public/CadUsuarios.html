@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/Logins/Usuarios.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+/>
+<body>
+  <div class="login-box">
+  <form id="Registrar">
+    
+      <div class="title">
+        <h1>Cadastro/Alteração de Usuários</h1>
+      </div>
+
+      <div class="Empresas">
+        <div class="logotipo">
+          <div class="minilogos "href="EXPO-index.html"><img src= "img/JA_Expo.png" alt="JA_EXPO"></a></div>
+          <div class="minilogos" href="ES-index.html"><img src= "img/JA_ES.png" alt="JA_ES"></a></div>
+          <div href="OPER-index.html"><img src= "img/JA_Oper.png" alt="JA_Oper"></a></div>
+          <div class="minilogos" href="EA-index.html"><img src= "img/JA_EA.png" alt="JA_EA"></a></div>
+          <div class="minilogos" href="ED-index.html"><img src= "img/JA_ED.png" alt="JA_ED"></a></div>
+          <div class="minilogos" href="EP-index.html"><img src= "img/JA_EP.png" alt="JA_EP"></a></div>
+        </div>
+      </div>
+
+      <br>
+   
+      <div class="user-box camposenha">
+        <!-- <div class="input-wrapper"> -->
+          <input type="text" id="buscaUsuario"  autocomplete="off" spellcheck="false">
+          <label for="buscaUsuario">Buscar Usuário</label>
+          <span toggle="#senha" class="toggle-senha">
+            <i class="fa-solid fa-magnifying-glass" id="iconeBuscarUsuario"></i>
+          </span>
+          <ul id="listaUsuarios" class="autocomplete-list"></ul>
+          <!-- <i class="fa-solid fa-magnifying-glass" id="iconeBuscarUsuario"></i> -->
+        <!-- </div> -->
+      </div>
+        
+          <div class="user-box dupla">
+            <div class="user-box2">
+              <input type="text" id="nome" name="nome" required>
+              <label for="nome">Nome</label>
+            </div>
+            <div class="user-box2">
+              <input type="text" id="sobrenome" name="sobrenome" required>
+              <label for="sobrenome">Sobrenome</label>
+            </div>
+          </div>
+          <div class="user-box">
+            <input type="email" id ="email"  name="email" required="">
+            <input type="hidden" id="email_original">
+            <label>Email</label>
+          </div>
+          <div class="user-box camposenha">
+            <input  type="password" id="senha"  name="senha" required="">
+            <label>Senha</label>
+            <span toggle="#senha" class="toggle-senha">
+              <i class="fa-regular fa-eye" id="icone-senha"></i>
+            </span>
+          </div>
+          <div class="user-box camposenha">
+            <input  type="password" id="confirmasenha" name="confirmasenha" required="">
+            <label> Confirmar senha</label>
+            <span toggle="#confirmasenha" class="toggle-senha">
+              <i class="fa-regular fa-eye" id="icone-confirmasenha"></i>
+            </span>
+          </div>
+          <div class="bts">
+              <!-- <a href="#">REGISTRAR <span></span></a> -->
+              <button type="submit" id="btnCadastrar">CADASTRAR<span></span></button>
+              <button type="button" id="btnAlterar" style="display: none;">ALTERAR<span></span></button>
+              <button type="button" id="btnCancelar">CANCELAR<span></span></button>
+              <button type="button" id="btnFechar">FECHAR<span></span></button>
+          </div>
+    </form>
+    <div id="listaUsuarios" class="modal-lista" style="display: none;">
+      <ul id="usuariosEncontrados"></ul>
+    </div>
+      </div>
+  </div>
+  <script src="js/usuario.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</body>
+</html>

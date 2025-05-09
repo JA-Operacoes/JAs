@@ -32,11 +32,11 @@
                 <fieldset>
                     <div class="form">
                         <input type="text" name="idSup" id="idSup" required spellcheck="false">
-                        <label for ="idSup">#Codigo</label>
+                        <label for ="idSup">Código</label>
                     </div>
                     <legend>Cadastre o Suprimento</legend>
                     <div class ="form">
-                        <input type="text" name="descSup" id="descSup"  required spellcheck="false">
+                        <input type="text" style="text-transform: uppercase" name="descSup" id="descSup"  required spellcheck="false">
                         <label for = "descSup"> Suprimento </label>
                     </div>
                     <div class ="form-2colunas">
@@ -45,7 +45,7 @@
                             <label for = "ctoSup"> Custo </label>
                         </div>
                         <div class="form2">         
-                            <input type="text" name="vdaSup" id="vdaSup" required maxlength="2" spellcheck="false">
+                            <input type="text" name="vdaSup" id="vdaSup" required  spellcheck="false">
                             <label for = "vdaSup"> Venda </label>
                         </div>
                     </div>
@@ -53,12 +53,12 @@
             </form>
         </div>
         <div class="BTNs">
-            <button id="search" class="Pesquisar">Pesquisar</button>
-            <button class="Limpar" type="submit">limpar</button>
-            <button class="Enviar" type="submit">Enviar</button>
+            <button class="Pesquisar" id="Pesquisar" type="button">Pesquisar</button>
+            <button class="Limpar" id="Limpar" type="button">Limpar</button>
+            <button class="Enviar" id="Enviar" type="button">Enviar</button>
         </div>
     </div>
 </div>
-    <script src="js/Index.js"></script>
+    
 </body>
 </html>

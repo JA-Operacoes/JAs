@@ -1,11 +1,3 @@
-// if (typeof Swal === "undefined") {
-//     const script = document.createElement("script");
-//     script.src = "https://cdn.jsdelivr.net/npm/sweetalert2@11";
-//     script.onload = () => {
-//         console.log("SweetAlert2 carregado com sucesso.");
-//     };
-//     document.head.appendChild(script);
-// }
 
 let EventoOriginal = {
     idEvento: "",
@@ -324,12 +316,52 @@ function limparEventoOriginal() {
 
 
 function limparCamposEvento() {
-    const campos = ["idEvento", "nmEvento" ];
-    campos.forEach(id => {
-        const campo = document.getElementById(id);
-        if (campo) campo.value = "";
-    });
+    // const campos = ["idEvento", "nmEvento" ];
+    // campos.forEach(id => {
+    //     const campo = document.getElementById(id);
+    //     if (campo) campo.value = "";
+    // });
+
+    const idEvent = document.getElementById("idEvento");
+    const descEventEl = document.getElementById("nmEvento");
+    
+
+    if (idEvent) idEvent.value = "";
+   
+
+    if (descEventEl && descEventEl.tagName === "SELECT") {
+        // Se for SELECT, trocar por INPUT
+        const novoInput = document.createElement("input");
+        novoInput.type = "text";
+        novoInput.id = "nmEvent";
+        novoInput.name = "nmEvent";
+        novoInput.required = true;
+        novoInput.className = "form";
+
+        // Configura o evento de transformar texto em maiúsculo
+        novoInput.addEventListener("input", function () {
+            this.value = this.value.toUpperCase();
+        });
+
+        // Reativa o evento blur
+        novoInput.addEventListener("blur", async function () {
+            if (!this.value.trim()) return;
+            await carregarEventoDescricao(this.value, this);
+        });
+
+        descEventEl.parentNode.replaceChild(novoInput, descEventEl);
+
+        const label = document.querySelector('label[for="nmEvento"]');
+        if (label) {
+            label.style.display = "block";
+            label.textContent = "Descrição do Evento";
+        }
+    } else if (descEventEl) {
+        // Se for input normal, só limpa
+        descEventEl.value = "";
+    }
 }
+
 
 function configurarEventosCadEvento() {
     console.log("Configurando eventos Evento...");

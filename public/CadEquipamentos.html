@@ -32,11 +32,11 @@
                 <fieldset>
                     <div class="form">
                         <input type="text" name="idEquip" id="idEquip" required spellcheck="false">
-                        <label for ="idEquip">#Codigo</label>
+                        <label for ="idEquip">Codigo</label>
                     </div>
                     <legend>Cadastre o Equipamento</legend>
                     <div class ="form">
-                        <input type="text" name="descEquip" id="descEquip"  required spellcheck="false">
+                        <input type="text" style="text-transform: uppercase" name="descEquip" id="descEquip"  required spellcheck="false">
                         <label for = "descEquip"> Equipamentos </label>
                     </div>
                     <div class ="form-2colunas">
@@ -45,7 +45,7 @@
                             <label for = "ctoEquip"> Custo </label>
                         </div>
                         <div class="form2">         
-                            <input type="text" name="vdaEquip" id="vdaEquip" required maxlength="2" spellcheck="false">
+                            <input type="text" name="vdaEquip" id="vdaEquip" required spellcheck="false">
                             <label for ="vdaEquip"> Venda </label>
                         </div>
                     </div>
@@ -53,13 +53,12 @@
             </form>
         </div>
         <div class="BTNs">
-            <button id="search" class="Pesquisar">Pesquisar</button>
-            <button class="Limpar" type="submit">limpar</button>
-            <button class="Enviar" type="submit">Enviar</button>
+            <button class="Pesquisar" id="Pesquisar" type="button">Pesquisar</button>
+            <button class="Limpar"  id="Limpar" type="button">Limpar</button>
+            <button class="Enviar" id="Enviar" type="button">Enviar</button>
         </div>
     </div>
 </div>
-<script src="js/Moeda.js"></script>
-<script src="js/Index.js"></script>
+
 </body>
 </html>
