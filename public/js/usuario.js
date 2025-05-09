@@ -371,4 +371,9 @@ function limparCampos() {
   document.getElementById("email_original").value = ""; // Limpa o email original
   document.getElementById("btnCadastrar").style.display = "inline-block";
   document.getElementById("btnAlterar").style.display = "none"; // Esconde o botão de alterar após cadastro
-} 
+}
+
+document.getElementById("btnCadastrar").addEventListener("click", function (e) {
+  e.preventDefault();
+  document.getElementById("btnCadastrarReal").click();
+});

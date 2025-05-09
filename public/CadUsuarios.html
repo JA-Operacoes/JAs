@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-bR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -34,12 +34,12 @@
       <div class="user-box camposenha">
         <!-- <div class="input-wrapper"> -->
           <input type="text" id="buscaUsuario"  autocomplete="off" spellcheck="false">
-          <label for="buscaUsuario">Buscar Usuário</label>
+          <label for="buscaUsuario">buscar Usuário</label>
           <span toggle="#senha" class="toggle-senha">
-            <i class="fa-solid fa-magnifying-glass" id="iconeBuscarUsuario"></i>
+            <i class="fa-solid fa-magnifying-glass" id="iconebuscarUsuario"></i>
           </span>
           <ul id="listaUsuarios" class="autocomplete-list"></ul>
-          <!-- <i class="fa-solid fa-magnifying-glass" id="iconeBuscarUsuario"></i> -->
+          <!-- <i class="fa-solid fa-magnifying-glass" id="iconebuscarUsuario"></i> -->
         <!-- </div> -->
       </div>
         
@@ -74,10 +74,11 @@
           </div>
           <div class="bts">
               <!-- <a href="#">REGISTRAR <span></span></a> -->
-              <button type="submit" id="btnCadastrar">CADASTRAR<span></span></button>
-              <button type="button" id="btnAlterar" style="display: none;">ALTERAR<span></span></button>
-              <button type="button" id="btnCancelar">CANCELAR<span></span></button>
-              <button type="button" id="btnFechar">FECHAR<span></span></button>
+              <a type="submit" id="btnCadastrar">CADASTRAR<span></span></a>
+                <button type="submit" id="btnCadastrarReal" style="display: none;"></button>
+              <a type="button" id="btnAlterar" style="display: none;">ALTERAR<span></span></a>
+              <a type="button" id="btnCancelar">CANCELAR<span></span></a>
+              <a type="button" id="btnFechar">FECHAR<span></span></a>
           </div>
     </form>
     <div id="listaUsuarios" class="modal-lista" style="display: none;">
