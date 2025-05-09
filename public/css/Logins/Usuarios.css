@@ -20,6 +20,7 @@ body{
   font-size: 15px;
   color: rgb(255, 255, 255);
   margin: 0 auto;
+  margin-top: 40px;
 }
 
 #Registrar{
@@ -228,7 +229,7 @@ height: 550px;
   text-transform: uppercase;
   overflow: hidden;
   transition: .5s;
-  margin-top: 40px;
+  margin-top: 15px;
   letter-spacing: 4px
 }
 
