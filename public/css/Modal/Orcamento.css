@@ -1,6 +1,4 @@
-body{
-    background-color: darkgray;
-  }
+
   /* Estilo para o fundo escuro (overlay) */
   #modal-overlay {
     position: fixed;
@@ -10,7 +8,7 @@ body{
     height: auto;
     background-color: rgba(0, 0, 0, 0.5); /* Cor preta com transparência */
     display: none; /* Inicialmente invisível */
-    z-index: 9998; /* Fica acima de outros elementos */
+    z-index: 999; /* Fica acima de outros elementos */
   }
 
   /* Estilo para o container do modal */
@@ -102,11 +100,10 @@ body{
   }
   .periodoMontagem{
     display: flex;
-    justify-content: space-around;
+    justify-content: space-between;
     align-items: center;
     flex-direction: row;
-    width: 90px;
-    margin: 20px 0;
+    width: 100%;
   }
   .inicioMontagem, .Realizacao, .dtMarcacao, .dtDesmontagem{
     display: flex;
@@ -483,6 +480,7 @@ body{
     width: 100%;    /* vertical */
     height: auto; 
   }
+  
   .Bt{
     display: flex;
     justify-content: center;
@@ -658,6 +656,21 @@ body{
 }
 
   /* --------------------------- @medias ------------------------------------- */
+
+@media(max-width: 5674px){
+  textarea{
+      font-family: var(--Font-primary);
+      width: 100%;
+      height: 60px;
+      border-radius: 6px;
+      font-size: 15px;
+      border: 1px solid #000000;
+      background: white;
+      color: #000000;
+      overflow-y: auto;
+      margin: 0 auto;
+  }
+}
 
 @media(max-width: 1628px){
   .modal{

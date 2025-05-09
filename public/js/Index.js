@@ -75,9 +75,7 @@ function abrirModal(url) {
                 document.body.classList.add("modal-open");
 
                 let closeButton = modal.querySelector('.close');
-                if (closeButton) closeButton.addEventListener('click', fecharModal);
-
-                //configurarEventosEspecificos(url);           
+                if (closeButton) closeButton.addEventListener('click', fecharModal);          
                 
             }
         })
