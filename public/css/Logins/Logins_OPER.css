@@ -171,8 +171,14 @@ body{
   }
 }
 
-
-
+/* #emailusuario:-webkit-autofill,
+#emailusuario:-webkit-autofill:hover,
+#emailusuario:-webkit-autofill:focus,
+#emailusuario:-webkit-autofill::first-line {
+  background:none!important;
+  -webkit-text-fill-color: white !important; /* Se a cor do seu texto padrão é branco *
+ border-color: transparent;
+} */
 
 button{
   display: flex;

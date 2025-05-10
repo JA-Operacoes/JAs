@@ -1,30 +1,58 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const form = document.querySelector("form");
+document.getElementById("Login").addEventListener("submit", async function (e) {
+  e.preventDefault();
 
-  form.addEventListener("submit", (e) => {
-      e.preventDefault(); // Impede o envio padrão do formulário
+//   const username = document.getElementById("nome").value.trim();
+  const email= document.getElementById("emailusuario").value.trim();
+  const password = document.getElementById("senha").value;
 
-      const email = document.getElementById("email").value.trim();
-      const senha = document.getElementById("password").value.trim();
+  if (!email || !password) {
+    alert("Por favor, preencha todos os campos.");
+    return;
+  }
 
-      // Recupera os usuários cadastrados do LocalStorage
-      const users = JSON.parse(localStorage.getItem("users")) || [];
+  try {
+    const response = await fetch("http://localhost:3000/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        email,
+        senha: password
+      })
+    });
 
-      // Verifica se o usuário existe
-      const user = users.find(user => user.email === email);
+    const dados = await response.json();
 
-      if (!user) {
-          alert("Usuário não encontrado! Verifique o e-mail.");
-          return;
-      }
+    if (!response.ok) {
+        // alert(dados.erro || "Erro ao realizar login.");
+        Swal.fire({
+            icon: 'error',
+            title: 'Falha no login',
+            text: dados.erro || 'Erro ao realizar login.',
+            confirmButtonText: 'OK'
+        });
+        
+        return;
+    }
 
-      // Verifica se a senha está correta
-      if (user.senha !== senha) {
-          alert("Senha incorreta!");
-          return;
-      }
+    localStorage.setItem("token", dados.token);
+    // Redirecionar para página inicial após login
+    window.location.href = "OPER-index.html"; // ajuste conforme necessário
 
-      alert("Login realizado com sucesso!");
-      window.location.href = "OPER-index.html"; // Redireciona para a página inicial
-  });
+  } catch (erro) {
+    console.error("Erro no login:", erro);
+    // alert("Erro inesperado ao tentar fazer login.");
+     Swal.fire({
+        icon: 'error',
+        title: 'Erro Inexperado',
+        text: 'Erro inesperado ao tentar fazer login.',
+    });
+  }
+});
+
+
+document.getElementById("btnEntrar").addEventListener("click", function (e) {
+  e.preventDefault();
+  document.getElementById("btnEntrarReal").click();
 });

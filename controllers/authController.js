@@ -6,10 +6,10 @@ const jwt = require('jsonwebtoken');
 // Cadastro de usuário
 // controllers/authController.js
 async function verificarUsuarioExistente(req, res) {
-    const { nome, sobrenome, email } = req.body;
+    const { nome, sobrenome, email, ativo } = req.body;
   
     try {
-      const { rows } = await db.query("SELECT * FROM usuarios WHERE nome = $1 AND sobrenome = $2 AND email = $3", [nome, sobrenome, email]);
+      const { rows } = await db.query("SELECT * FROM usuarios WHERE nome = $1 AND sobrenome = $2 AND email = $3 AND ativo = $4", [nome, sobrenome, email, ativo]);
   
       if (rows.length > 0) {
         return res.status(200).json({ usuarioExistente: true });
@@ -62,7 +62,7 @@ async function verificarUsuarioExistente(req, res) {
 // }
 
 async function cadastrarOuAtualizarUsuario(req, res) {
-  const { nome, sobrenome, email, senha, email_original } = req.body;
+  const { nome, sobrenome, email, senha, email_original, ativo } = req.body;
   console.log('Dados recebidos cadastrarOuAtualizarUsuario:', req.body);
   try {
     // Busca o usuário pelo email original
@@ -78,6 +78,7 @@ async function cadastrarOuAtualizarUsuario(req, res) {
         nome === usuario.nome &&
         sobrenome === usuario.sobrenome &&
         email === usuario.email &&
+        usuario.ativo === req.body.ativo &&
         !senha; // senha vazia significa que não foi alterada
 
       if (camposIguais) {
@@ -104,6 +105,11 @@ async function cadastrarOuAtualizarUsuario(req, res) {
         valores.push(email);
       }
 
+      if (typeof req.body.ativo !== 'undefined' && req.body.ativo !== usuario.ativo) {
+        atualizacoes.push(`ativo = $${idx++}`);
+        valores.push(req.body.ativo);
+      }
+
       if (senha && senha !== '') {
         const senhaHash = await bcrypt.hash(senha, 10);
         atualizacoes.push(`senha_hash = $${idx++}`);
@@ -118,16 +124,24 @@ async function cadastrarOuAtualizarUsuario(req, res) {
 
     } else {
       // Novo usuário
-      const { rows: emailJaUsado } = await db.query("SELECT 1 FROM usuarios WHERE email = $1", [email]);
-      if (emailJaUsado.length > 0) {
-        return res.status(400).json({ erro: "E-mail já está em uso por outro usuário." });
+      // const { rows: emailJaUsado } = await db.query("SELECT 1 FROM usuarios WHERE email = $1", [email]);
+      // if (emailJaUsado.length > 0) {
+      //   return res.status(400).json({ erro: "E-mail já está em uso por outro usuário." });
+      // }
+      const { rows: usuariosComMesmoEmail } = await db.query("SELECT * FROM usuarios WHERE email = $1", [email]);
+      if (usuariosComMesmoEmail.length > 0) {
+        const usuarioExistente = usuariosComMesmoEmail[0];
+
+        if (usuarioExistente.ativo) {
+          return res.status(400).json({ erro: "E-mail já está em uso por outro usuário ativo." });
+        }
       }
 
       const senhaHash = await bcrypt.hash(senha, 10);
       await db.query(`
-        INSERT INTO usuarios (nome, sobrenome, email, senha_hash)
-        VALUES ($1, $2, $3, $4)
-      `, [nome, sobrenome, email, senhaHash]);
+        INSERT INTO usuarios (nome, sobrenome, email, senha_hash, ativo)
+        VALUES ($1, $2, $3, $4, true)
+      `, [nome, sobrenome, email, senhaHash, ativo]);
 
       return res.status(201).json({ mensagem: 'Usuário cadastrado com sucesso.' });
     }
@@ -141,7 +155,7 @@ async function cadastrarOuAtualizarUsuario(req, res) {
   
   async function listarUsuarios(req, res) {
     try {
-      const { rows } = await db.query('SELECT id, nome, sobrenome, email, senha_hash FROM usuarios ORDER BY nome');
+      const { rows } = await db.query('SELECT id, nome, sobrenome, email, senha_hash, ativo FROM usuarios ORDER BY nome');
       res.status(200).json(rows);
     } catch (erro) {
       console.error('Erro ao listar usuários:', erro);
@@ -154,7 +168,7 @@ async function cadastrarOuAtualizarUsuario(req, res) {
   
     try {
       const { rows } = await db.query(`
-        SELECT id, nome, sobrenome, email, senha_hash
+        SELECT id, nome, sobrenome, email, senha_hash, ativo
         FROM usuarios 
         WHERE LOWER(nome) LIKE LOWER($1) 
         ORDER BY nome 
@@ -185,7 +199,8 @@ async function login(req, res) {
             expiresIn: '8h',
         });
 
-        res.json({ token });
+        //res.json({ token });
+        res.status(200).json({ token }); // sucesso
     } catch (error) {
         console.error('Erro ao fazer login:', error);
         res.status(500).json({ erro: 'Erro no login.' });
