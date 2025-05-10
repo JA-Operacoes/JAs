@@ -244,6 +244,10 @@ input[type=file] {
   display: none;
 }
 
+#ObsAjc {
+  padding-top: 0.7em; /* ajuste esse valor conforme seu design */
+}
+
 
 button {
   font-family: "Abel", sans-serif;
