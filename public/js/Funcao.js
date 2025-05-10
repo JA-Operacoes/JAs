@@ -7,13 +7,15 @@ if (typeof Swal === "undefined") {
     document.head.appendChild(script);
 }
 
-let FuncaoOriginal = {
-    idFuncao: "",
-    descFuncao: "",
-    vlrCusto: "",
-    vlrVenda: "",
-    vlrajdcusto: "",
-    obsFuncao: ""
+if (typeof window.FuncaoOriginal === "undefined") {
+    window.FuncaoOriginal = {
+        idFuncao: "",
+        descFuncao: "",
+        vlrCusto: "",
+        vlrVenda: "",
+        vlrajdcusto: "",
+        obsFuncao: ""
+    }
 };
 
 function verificaFuncao() {
@@ -65,9 +67,7 @@ function verificaFuncao() {
     botaoEnviar.addEventListener("click", async function (event) {
         event.preventDefault(); // Previne o envio padrão do formulário
 
-        console.log("ENVIANDO DADOS DO Funcao PELO Funcao.JS", document);
-
-        const idFuncao = document.querySelector("#idFuncao").value.trim();
+        const idFuncao = document.querySelector("#idFuncao").value;
         const descFuncao = document.querySelector("#descFuncao").value.toUpperCase().trim();
         const vlrCusto = document.querySelector("#Custo").value;
         const vlrVenda = document.querySelector("#Venda").value;
@@ -78,6 +78,7 @@ function verificaFuncao() {
         const venda = parseFloat(String(vlrVenda).replace(",", "."));
         const ajcfuncao = parseFloat(String(vlrajdcusto).replace(",", "."));
 
+       
         if (!descFuncao || !vlrCusto || !vlrVenda) {
            
             Swal.fire({
@@ -89,16 +90,16 @@ function verificaFuncao() {
             return;
         }
         console.log("Valores do Funcao:", idFuncao, descFuncao, custo, venda, ajcfuncao, obsfuncao);
-        console.log("Valores do Funcao Original:", FuncaoOriginal.idFuncao, FuncaoOriginal.descFuncao, FuncaoOriginal.vlrCusto, FuncaoOriginal.vlrVenda, FuncaoOriginal.vlrajdcusto, FuncaoOriginal.obsFuncao);
-    
+        console.log("Valores do Funcao Original:", window.FuncaoOriginal.idFuncao, window.FuncaoOriginal.descFuncao, window.FuncaoOriginal.vlrCusto, window.FuncaoOriginal.vlrVenda, window.FuncaoOriginal.vlrajdcusto, window.FuncaoOriginal.obsFuncao);
+            
         // Comparar com os valores originais
         if (
-            parseInt(idFuncao) === parseInt(FuncaoOriginal.idFuncao) && 
-            descFuncao === FuncaoOriginal.descFuncao && 
-            Number(custo).toFixed(2) === Number(FuncaoOriginal.vlrCusto).toFixed(2) &&
-            Number(venda).toFixed(2) === Number(FuncaoOriginal.vlrVenda).toFixed(2) &&
-            Number(ajcfuncao).toFixed(2) === Number(FuncaoOriginal.ajcfuncao).toFixed(2) &&
-            obsfuncao === FuncaoOriginal.obsfuncao
+            parseInt(idFuncao) === parseInt(window.FuncaoOriginal.idFuncao) && 
+            descFuncao === window.FuncaoOriginal.descFuncao && 
+            Number(custo).toFixed(2) === Number(window.FuncaoOriginal.vlrCusto).toFixed(2) &&
+            Number(venda).toFixed(2) === Number(window.FuncaoOriginal.vlrVenda).toFixed(2) &&
+            Number(ajcfuncao).toFixed(2) === Number(window.FuncaoOriginal.vlrajdcusto).toFixed(2) &&
+            obsfuncao=== window.FuncaoOriginal.obsFuncao
         ) {
             console.log("Nenhuma alteração detectada.");
             await Swal.fire({
@@ -298,7 +299,7 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
         document.querySelector("#ajdCusto").value = funcao.ajcfuncao;
         document.querySelector("#ObsAjc").value = funcao.obsfuncao;
         
-        FuncaoOriginal = {
+        window.FuncaoOriginal = {
             idFuncao: funcao.idfuncao,
             descFuncao: funcao.descfuncao,
             vlrCusto: funcao.ctofuncao,
@@ -333,11 +334,12 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
 
 
 function limparFuncaoOriginal() {
-    FuncaoOriginal = {
+    window.FuncaoOriginal = {
         idFuncao: "",
         descFuncao: "",
         vlrCusto: "",
-        vlrVenda: ""
+        vlrVenda: "",
+        obsFuncao:""
     };
 }
 
