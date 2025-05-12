@@ -126,6 +126,7 @@ fieldset {
 
 .form-3colunas{
   display: flex;
+  flex-direction: row;
   justify-content: space-evenly;
   align-items: center;
   max-width: 300;
