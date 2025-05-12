@@ -77,6 +77,7 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
   const senha = document.getElementById("senha").value;
   const confirmacaoSenha = document.getElementById("confirmasenha").value;
   const email_original = document.getElementById("email_original").value;
+  const ativo = document.getElementById('ativo').checked;
   
 
   if (!nome || !sobrenome || !email ) {
@@ -103,7 +104,7 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
     const resposta = await fetch("http://localhost:3000/auth/cadastro", {
       method: "PUT",  // Mudamos para PUT para indicar alteração
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nome, email, senha, sobrenome, email_original  })
+      body: JSON.stringify({ nome, email, senha, sobrenome, email_original, ativo  })
 
     });
  
@@ -191,6 +192,7 @@ async function verificarUsuarioExistenteFront() {
   const nome = document.getElementById("nome").value.trim();
   const sobrenome = document.getElementById("sobrenome").value.trim();
   const email = document.getElementById("email").value.trim();
+  
 
   if (!nome || !sobrenome || !email) {
     return; // Só verifica se os três estiverem preenchidos
@@ -200,23 +202,35 @@ async function verificarUsuarioExistenteFront() {
     const resposta = await fetch("http://localhost:3000/auth/verificarUsuario", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nome, sobrenome, email })
+      body: JSON.stringify({ nome, sobrenome, email, ativo })
     });
 
     const dados = await resposta.json();
 
     if (dados.usuarioExistente) {
-      // Usuário já existe → bloquear cadastro, mostrar alteração
-      document.getElementById("btnCadastrar").style.display = "none";
-      document.getElementById("btnAlterar").style.display = "inline-block";
+      if (dados.usuarioExistente.ativo) {
+        // Usuário ativo → só pode alterar
+        document.getElementById("btnCadastrar").style.display = "none";
+        document.getElementById("btnAlterar").style.display = "inline-block";
 
-      Swal.fire({
-        icon: "info",
-        title: "Usuário já cadastrado",
-        text: "Você pode atualizar os dados existentes."
-      });
+        Swal.fire({
+          icon: "info",
+          title: "Usuário já cadastrado",
+          text: "Você pode atualizar os dados existentes."
+        });
+      } else {
+        // Usuário inativo → permitir reativação ou novo cadastro
+        document.getElementById("btnCadastrar").style.display = "inline-block";
+        document.getElementById("btnAlterar").style.display = "inline-block";
+
+        Swal.fire({
+          icon: "warning",
+          title: "Usuário inativo encontrado",
+          text: "Você pode cadastrar novamente ou reativar este usuário."
+        });
+      }
     } else {
-      // Usuário não existe → permitir cadastro, esconder alteração
+      // Usuário não existe → cadastro permitido
       document.getElementById("btnCadastrar").style.display = "inline-block";
       document.getElementById("btnAlterar").style.display = "none";
     }
@@ -235,8 +249,9 @@ document.getElementById("btnCancelar").addEventListener("click", async function 
   const email = document.getElementById("email").value.trim();
   const senha = document.getElementById("senha").value.trim();
   const confirmasenha = document.getElementById("confirmasenha").value.trim();
+  const ativo = document.getElementById('ativo').checked;
 
-  if (!nome && !sobrenome && !email && !senha && !confirmasenha) {
+  if (!nome && !sobrenome && !email && !senha && !confirmasenha && !ativo) {
     // Todos os campos estão vazios
 
     console.log("Todos os campos estão vazios.");
@@ -355,7 +370,8 @@ lista.addEventListener('click', (e) => {
     const nome = e.target.dataset.nome;
     const sobrenome = e.target.dataset.sobrenome;
     const email = e.target.dataset.email;
-   // const senha = e.target.dataset.senha;
+    const ativo = e.target.dataset.ativo === 'true'; 
+  
 
     console.log("Usuário selecionado:", nome, sobrenome, email, senha); // Log do usuário selecionado
 
@@ -363,8 +379,8 @@ lista.addEventListener('click', (e) => {
     document.getElementById('sobrenome').value = sobrenome;
     document.getElementById('email').value = email;
     document.getElementById("email_original").value = email; // Armazena o email original para comparação
-  //  document.getElementById('senha').value = senha;
-  //  document.getElementById('confirmasenha').value = senha;
+    document.getElementById('ativo').checked = ativo;
+   
     document.getElementById('buscaUsuario').value = `${nome} ${sobrenome}`;
     lista.innerHTML = '';
     lista.style.display = 'none';
@@ -385,6 +401,7 @@ function limparCampos() {
   document.getElementById("email_original").value = ""; // Limpa o email original
   document.getElementById("btnCadastrar").style.display = "inline-block";
   document.getElementById("btnAlterar").style.display = "none"; // Esconde o botão de alterar após cadastro
+  document.getElementById("ativo").checked = false;
 }
 
 document.getElementById("btnCadastrar").addEventListener("click", function (e) {

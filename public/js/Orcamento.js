@@ -1003,4 +1003,66 @@ async function gerarPropostaPDF() {
     img.src = 'img/Fundo Propostas.png';
 }
 
+
+async function salvarOrcamento(event) {
+    event.preventDefault(); // evita o envio padrão do formulário
+
+    const form = document.getElementById("form");
+    const formData = new FormData(form);
+
+    // Você pode adicionar campos adicionais se forem calculados dinamicamente
+    // Por exemplo, valores da tabela ou campos que não estão no <form>
+
+    const dados = {};
+    formData.forEach((value, key) => {
+        dados[key] = value;
+    });
+
+    // Exemplo de como capturar itens da tabela (ajuste conforme sua lógica)
+    const itens = [];
+    const linhas = document.querySelectorAll("#tabela tbody tr");
+    linhas.forEach((linha) => {
+        const item = {
+            categoria: linha.querySelector(".Categoria")?.textContent.trim(),
+            qtdPessoas: linha.querySelector(".qtdPessoas input")?.value,
+            produto: linha.querySelector(".produto")?.textContent.trim(),
+            qtdDias: linha.querySelector(".qtdDias input")?.value,
+            vlrVenda: linha.querySelector(".vlrVenda")?.textContent.trim(),
+            totVdaDiaria: linha.querySelector(".totVdaDiaria")?.textContent.trim(),
+            vlrCusto: linha.querySelector(".vlrCusto")?.textContent.trim(),
+            totCtoDiaria: linha.querySelector(".totCtoDiaria")?.textContent.trim(),
+            ajdCusto: linha.querySelector(".ajdCusto")?.textContent.trim(),
+            totAjdCusto: linha.querySelector(".totAjdCusto")?.textContent.trim(),
+            hospedagem: linha.querySelector(".hospedagem")?.value || "0",
+            transporte: linha.querySelector(".transporte")?.value || "0",
+            totGeral: linha.querySelector(".totGeral")?.textContent.trim()
+        };
+        itens.push(item);
+    });
+
+    // Inclui os itens no objeto principal
+    dados.itens = itens;
+
+    try {
+        const resposta = await fetch(form.getAttribute('data-action'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(dados)
+        });
+
+        if (resposta.ok) {
+            const resultado = await resposta.json();
+            Swal.fire("Sucesso", "Orçamento salvo com sucesso!", "success");
+        } else {
+            const erro = await resposta.text();
+            Swal.fire("Erro", "Falha ao salvar orçamento: " + erro, "error");
+        }
+    } catch (err) {
+        console.error(err);
+        Swal.fire("Erro", "Erro inesperado ao salvar orçamento.", "error");
+    }
+}
+
 window.configurarEventosOrcamento = configurarEventosOrcamento;

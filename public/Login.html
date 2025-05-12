@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="public/css/Logins/Logins_OPER.css">
   <title>Login</title>
 
   <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
   <link rel="stylesheet" href="css/Logins/Logins_OPER.css">
+  <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
 <body>
   <div class="login-box">
     <form id="Login">
@@ -29,23 +30,26 @@
     <!-- From Uiverse.io by guilhermeyohan --> 
       
           <div class="user-box">
-            <input type="text" name="" required="">
-            <label>Username</label>
+            <input type="text" id="emailusuario" name="emailusuario" required="">
+            <label>Email Usuário</label>
           </div>
           <div class="user-box">
-            <input type="password" name="" required="">
-            <label>Password</label>
+            <input type="password" id="senha" name="senha" required="">
+            <label>Senha</label>
           </div>
           <div class="bts">
             <center>
-              <a href="#">ENTRAR <span></span></a>
-              <a href="#">REGISTRAR <span></span></a>
+              <a type="submit" id="btnEntrar">ENTRAR<span></span></a>
+                <button type="submit" id="btnEntrarReal" style="display: none;"></button>
+              
+              <!-- <a href="#">REGISTRAR <span></span></a> -->
           </center>
           </div>
       </div>
     </form>
   </div>
 
-  <script src="js/login/login.js"></script>
+  <script src="js/login.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 </html>

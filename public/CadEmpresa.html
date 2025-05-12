@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="Css/Modal/StyleModal.css">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+    
+    <title>Cadastro de Empresas</title>
+
+</head>
+
+<body>
+    <div id="CadModal" class="modal">
+        <main class="modal-content">
+            <span class="close" onclick="fecharModal('CadModal')">&times;</span>
+
+            <div id ="form-cargo">
+                <form action ="" id="form">
+
+                    <div class = "title">
+                    <h1>Cadastro de Empresas</h1>
+                    </div>
+                    
+                    <div class ="form">
+                        <label for = "codEmpresa">Código</label>
+                        <input type="text" name="codEmpresa" id = "codEmpresa" placeholder="Código" required>
+                    </div>
+                    <div class ="form">   
+                        <label for = "descEmpresa" class = "form-label">Descrição</label>
+                        <input type="text" name="descEmpresa" id = "descEmpresa" class ="form-control" placeholder="Descrição">
+                    </div>
+                    <div class ="form">    
+                        <label for = "cnpj" class = "form-label">Cnpj</label>
+                        <input type="text" name="cnpj" id ="cnpj" placeholder="Cnpj" required>
+                    </div>
+                
+                    <button class="enviar" type="submit">Enviar</button>
+
+                </form>
+            </div>
+        </main>
+    </div>
+     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</body>
+</html>
