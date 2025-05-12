@@ -167,6 +167,18 @@ document.getElementById("sobrenome").addEventListener("blur", function () {
   verificarUsuarioExistenteFront();
 });
 
+ const getCampo = (key) => document.querySelector(campos[key]);
+    const setCampo = (key, value) => {
+        const campo = getCampo(key);
+        if (campo) {
+            if (campo.type === "checkbox") {
+                campo.checked = value === true || value === "true" || value === 1;
+            } else {
+                campo.value = value ?? "";
+            }
+        }
+    };
+
 document.getElementById("email").addEventListener("blur", function (){
    if (!buscaUsuario){
     verificarUsuarioExistenteFront();
@@ -356,6 +368,8 @@ lista.addEventListener('click', (e) => {
     document.getElementById('buscaUsuario').value = `${nome} ${sobrenome}`;
     lista.innerHTML = '';
     lista.style.display = 'none';
+
+    preencherUsuarioPeloEmail(email);
   }
   document.getElementById("btnCadastrar").style.display = "none";
   document.getElementById("btnAlterar").style.display = "inline-block";
@@ -377,3 +391,31 @@ document.getElementById("btnCadastrar").addEventListener("click", function (e) {
   e.preventDefault();
   document.getElementById("btnCadastrarReal").click();
 });
+
+
+function flipBox() {
+  var container = document.getElementById("flip-container");
+  container.classList.toggle("flipped");
+}
+
+document.getElementById("btnsalvarPermissao").addEventListener("click", function (e) {
+  e.preventDefault();
+  document.getElementById("btnPermissaoReal").click();
+});
+
+async function preencherUsuarioPeloEmail(email) {
+  try {
+    const resposta = await fetch(`http://localhost:3000/auth/email/${encodeURIComponent(email)}`);
+    if (!resposta.ok) throw new Error('Usuário não encontrado');
+
+    const dados = await resposta.json();
+
+    const campoUsuario = document.getElementById('nome_usuario');
+    campoUsuario.value = `${dados.nome} ${dados.sobrenome}`; // mostra nome e sobrenome
+
+  } catch (erro) {
+    console.error('Erro ao buscar usuário:', erro);
+  }
+}
+
+
