@@ -19,26 +19,27 @@
 
         <div id ="form-orcamento">
         
-        <form id="form" name="form" autocomplete="on" data-action="http://localhost:3000/salvarOrcamento">
-
+        <form id="form" name="form" autocomplete="on" ><!-- data-action="http://localhost:3000/salvarOrcamento"> -->
+            
                 
-                <div class="title">
-                    <h2>Orçamento</h2>
+            <div class="title">
+                <h2>Orçamento</h2>
+            </div>
+
+                <div class="Norcamento">
+                    <div class="form2">
+                        <input type="text" style="text-transform: uppercase;" id="Status"  value="A" name="Status" maxlength="1" pattern="^[aAfF]$"
+                            title="A = Aberto | F = Fechado"  required spellcheck="false">
+                        <label for="Status">Status  (A/F)</label>
+                    </div>
+                    <div class="form">
+                        <input type="text" id="idNumOrcamento" name="idNumOrcamento" spellcheck="false">
+                        <label for="idNumOrcamento">N° do Orçamento</label>
+                    </div>
                 </div>
 
-                    <div class="Norcamento">
-                        <div class="form2">
-                            <input type="text" id="Status" name="Status" value="Aberto" required spellcheck="false">
-                            <label for="Status">Status</label>
-                        </div>
-                        <div class="form">
-                            <input type="text" id="idNumOrcamento" name="idNumOrcamento" required spellcheck="false">
-                            <label for="idNumOrcamento">N° do Orçamento</label>
-                        </div>
-                    </div>
 
-
-                    <div class="Selects">
+                <div class="Selects">
                     <div class="select">
                         <label for="idCliente">Cliente:</label>
                         <select class="idCliente" required spellcheck="false"></select>
@@ -56,169 +57,178 @@
                         <label  for="ufmontagem">UF</label>
                     </div>
                 </div>
+        
+        
+        
+        
             
-            
-            
-            <!-- <div class="Selects"> -->
-                <!-- <div class="select">
-                    <label for="idMontagem">Local Montagem:</label>
-                    <select class="idMontagem"  onchange="atualizarUF(this)"></select>
+                <div class="periodoMontagem">
+                
+                    <div class="dtMarcacao">
+                        <label class="miniTitle">Período de Marcação</label>
+                        <div class="De">
+                            <label class="miniTitle" for="periodoMarcacao"> De:</label>
+                            <input type="date" id="dtIniMarcacao" name="dtIniMarcacao">
+                            <label class="miniTitle" for="dtFimMarcacao">Até:</label>
+                            <input type="date" id="dtFimMarcacao" name="dtFimMarcacao">
+                        </div>
+                    </div>
+                    <div class="inicioMontagem">
+                        <label class="miniTitle">Período de Montagem</label>
+                        <div class="De">
+                            <label class="miniTitle" for="periodoMontagem"> De:</label>
+                            <input type="date" id="dtInicioMontagem" name="dtInicioMontagem">
+                            <label class="miniTitle" for="dtFimMontagem">Até:</label>
+                            <input type="date" id="dtFimMontagem" name="dtFimMontagem">
+                        </div>
+                    </div>
+                    <div class="Realizacao">
+                        <label class="miniTitle">Período de Realização</label>
+                        <div class="De">
+                            <label class="miniTitle" for="periodoRealizacao"> De:</label>
+                            <input type="date" id="dtInicioRealizacao" name="dtInicioRealizacao">
+                            <label class="miniTitle" for="dtFimRealizacao">Até:</label>
+                            <input type="date" id="dtFimRealizacao" name="dtFimRealizacao">
+                        </div>
+                    </div>
+                
+                    <div class="dtDesmontagem">
+                        <label class="miniTitle">Período de Desmontagem</label>
+                        <div class="De">
+                            <label class="miniTitle" for="periodoDesmontagem"> De:</label>
+                            <input type="date" id="dtIniDesmontagem" name="dtIniDesmontagem">
+                            <label class="miniTitle" for="dtFimDesmontagem">Até:</label>
+                            <input type="date" id="dtFimDesmontagem" name="dtFimDesmontagem">
+                        </div>
+                    </div>
                 </div>
+            
 
-                <div class="form3">
-                    <input type="text" class="ufmontagem" id="ufmontagem" name="ufmontagem" required spellcheck="false">
-                    <label  for="ufmontagem">UF</label>
-                </div> -->
+            
+                <div class = 'Selects'>
                 
-                    <div class="periodoMontagem">
-                    
-                            <div class="dtMarcacao">
-                                <label for="dataMarcacao">Data de Marcação:</label>
-                                <input type="date" id="dataMarcacao" name="dataMarcacao">
-                            </div>
-                        <div class="inicioMontagem">
-                            <label class="miniTitle">Periodo de Montagem</label>
-                            <div class="De">
-                                <label class="miniTitle" for="periodoMontagem"> De:</label>
-                                <input type="date" id="dtInicioMontagem" name="dtInicioMontagem">
-                                <label class="miniTitle" for="dtFimMontagem">Até:</label>
-                                <input type="date" id="dtFim" name="dtFimMontagem">
-                            </div>
-                        </div>
-                        <div class="Realizacao">
-                            <label class="miniTitle">Periodo de Realização</label>
-                            <div class="De">
-                                <label class="miniTitle" for="periodoRealizacao"> De:</label>
-                                <input type="date" id="dtInicioRealizacao" name="dtInicioRealizacao">
-                                <label class="miniTitle" for="dtFimRealizacao">Até:</label>
-                                <input type="date" id="dtFimRealizacao" name="dtFimRealizacao">
-                            </div>
-                        </div>
-                    
-                        <div class="dtDesmontagem">
-                            <label for="dDesmontagem">Data de Desmontagem:</label>
-                            <input type="date" id="dtDesmontagem" name="dtDesmontagem">
-                        </div>
+                    <div class="select">
+                        <label for="idFuncao">Função:</label>
+                        <select class="idFuncao" onchange="resetarOutrosSelectsOrc(this)"></select>
                     </div>
-                
-
-                
-                    <div class = 'Selects'>
-                    
-                        <div class="select">
-                            <label for="idFuncao">Função:</label>
-                            <select class="idFuncao" onchange="resetarOutrosSelectsOrc(this)"></select>
-                        </div>
-                        <div class="select">
-                            <label for="idEquipamento">Equipamento:</label>
-                            <select class="idEquipamento" onchange="resetarOutrosSelectsOrc(this)"></select>
-                        </div>
-                        <div class="select">
-                            <label for="idSuprimento">Suprimento:</label>
-                            <select class="idSuprimento" onchange="resetarOutrosSelectsOrc(this)"></select>
-                        </div>
+                    <div class="select">
+                        <label for="idEquipamento">Equipamento:</label>
+                        <select class="idEquipamento" onchange="resetarOutrosSelectsOrc(this)"></select>
                     </div>
-                    
-
-                <!-- </div>  -->
-
-                        <div class="table">
-                        <table id="tabela">
-                            <thead>
-                                <tr>
-                                    <th>Categoria</th>
-                                    <th>Qtd Itens</th>
-                                    <th>Produto</th>
-                                    <th>Qtd Dias</th>
-                                    <th>VlrDiaria</th>
-                                    <th>Tot Venda Diaria</th>
-                                    <th>CtoDiaria</th>
-                                    <th>Tot Custo Diaria</th>
-                                    <th>AjdCusto</th>
-                                    <th>TotAjdCusto</th>
-                                    <th class="extraColuna" style="display: none;">Hospedagem</th>
-                                    <th class="extraColuna" style="display: none;">Transporte</th>
-                                    <!-- incluir campos hospegadem e transporte se for local montagem fora de SP -->
-                                    <th>TotGeral</th>
-                                    <th>Ação</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td class="Categoria"></td>
-                                    <td class="qtdPessoas"><div class="add-less"><input type="number" class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
-                                    <td class="produto"></td>
-                                    <td class="qtdDias"><div class="add-less"><input type="number" class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
-                                    <td class="vlrVenda Moeda"></td>
-                                    <td class="totVdaDiaria Moeda"></td>
-                                    <td class="vlrCusto Moeda"></td>
-                                    <td class="totCtoDiaria Moeda"></td>
-                                    <td class="ajdCusto"></td>
-                                    <td class="totAjdCusto">0</td>
-                                    <td class="extraCampo" style="display: none;">
-                                        <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotaisOrc()">
-                                    </td>
-                                    <td class="extraCampo" style="display: none;">
-                                        <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotaisOrc()">
-                                    </td>
-                                    <td class="totGeral">0</td>
-                                    <td><div class="Acao"><button class="deleteBtn" onclick="removerLinhaOrc(this)"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div class="select">
+                        <label for="idSuprimento">Suprimento:</label>
+                        <select class="idSuprimento" onchange="resetarOutrosSelectsOrc(this)"></select>
                     </div>
-
-                    <div class = 'Selects'>
-                        <div class="form2">
-                            <input type="text" class="Moeda preenchido" id="totalGeralVda" name="totalGeralVda" value="0" required readonly style="font-size: 15px;" >
-                            <label for="totalGeralVda">Total Geral Venda:</label>
-                        </div>
-
-                        <div class="form2">
-                            <input type="text" class="Moeda preenchido" id="totalGeralCto" value="0" name="totalGeralCto" required readonly style="font-size: 15px;" >
-                            <label for="totalGeralCto">Total Geral Custo:</label>
-                        </div>
-
-                        <div class="lucroTot">
-                            <div class="form2">
-                                <input type="text" id="Lucro" name="Lucro" required style="font-size: 15px;">
-                                <label for="Lucro"> Lucro: </label>
-                            </div>
-                            <div class="form3">
-                                <input type="text"  id="perCent" name="perCent" required style="font-size: 15px;">
-                                <label for="perCent"> % </label>
-                            </div>
-                        </div>
-
-                        <div class="form2">
-                            <input type="text"  id="Desconto" name="Desconto" required oninput="aplicarDesconto()" style="font-size: 15px;" autocomplete="off">
-                            <label for="Desconto">Desconto:</label>
-                        </div>
-
-                        <div class="form2">
-                            <input type="text"  id="Acrescimo" name="Acrescimo" required oninput="calcularTotalGeralOrc()" style="font-size: 15px;" autocomplete="off">
-                            <label for="Acrescimo">Acréscimo:</label>
-                        </div>
-
-                        <div class="form2">
-                            <input type="text" id="valorCliente" name="valorCliente" required style="font-size: 15px;">
-                            <label for="valorCliente"> Valor do Cliente</label>
-                        </div>
                 </div>
-                        <textarea  name="Observacao" id="Observacao" placeholder="Observaçoes"></textarea>
-
-
+                
+                <div class="table">
+                    <table id="tabela">
+                        <thead>
+                            <tr>
+                                <th>Categoria</th>
+                                <th>Qtd Itens</th>
+                                <th>Produto</th>
+                                <th>Qtd Dias</th>
+                                <th>VlrDiaria</th>
+                                <th>Tot Venda Diaria</th>
+                                <th>CtoDiaria</th>
+                                <th>Tot Custo Diaria</th>
+                                <th>AjdCusto</th>
+                                <th>TotAjdCusto</th>
+                                <th class="extraColuna" style="display: none;">Hospedagem</th>
+                                <th class="extraColuna" style="display: none;">Transporte</th>
+                                <!-- incluir campos hospegadem e transporte se for local montagem fora de SP -->
+                                <th>TotGeral</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="Categoria"></td>
+                                <td class="qtdPessoas"><div class="add-less"><input type="number" class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+                                <td class="produto"></td>
+                                <td class="qtdDias"><div class="add-less"><input type="number" class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+                                <td class="vlrVenda Moeda"></td>
+                                <td class="totVdaDiaria Moeda"></td>
+                                <td class="vlrCusto Moeda"></td>
+                                <td class="totCtoDiaria Moeda"></td>
+                                <td class="ajdCusto Moeda"></td>
+                                <td class="totAjdCusto Moeda">0</td>
+                                <td class="extraCampo" style="display: none;">
+                                    <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotaisOrc()">
+                                </td>
+                                <td class="extraCampo" style="display: none;">
+                                    <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotaisOrc()">
+                                </td>
+                                <td class="totGeral">0</td>
+                                <td><div class="Acao"><button class="deleteBtn" onclick="removerLinhaOrc(this)"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
                 <br>
-                    <div class="addLinha"><button class="adicionar" onclick="adicionarLinhaOrc()">Adicionar Linha</button></div>
+                <div class="addLinha"><button class="adicionar" onclick="adicionarLinhaOrc()">Adicionar Linha</button></div>
+            
+                <div class = 'Selects'>
+                    <div class="form2">
+                        <input type="text" class="Moeda preenchido" id="totalGeralVda" name="totalGeralVda" value="0" required readonly style="font-size: 15px;" >
+                        <label for="totalGeralVda">Total Geral Venda:</label>
+                    </div>
+
+                    <div class="form2">
+                        <input type="text" class="Moeda preenchido" id="totalGeralCto" value="0" name="totalGeralCto" required readonly style="font-size: 15px;" >
+                        <label for="totalGeralCto">Total Geral Custo:</label>
+                    </div>
+
+                    <div class="lucroTot">
+                        <div class="form2">
+                            <input type="text" id="Lucro" name="Lucro" required style="font-size: 15px;">
+                            <label for="Lucro"> Lucro: </label>
+                        </div>
+                        <div class="form3">
+                            <input type="text"  id="perCent" name="perCent" required style="font-size: 15px;">
+                            <label for="perCent"> % </label>
+                        </div>
+                    </div>
+
+                    <div class="form2">
+                        <input type="text"  id="Desconto" name="Desconto" required oninput="aplicarDesconto()" style="font-size: 15px;" autocomplete="off">
+                        <label for="Desconto">Desconto:</label>
+                    </div>
+
+                    <div class="form2">
+                        <input type="text"  id="Acrescimo" name="Acrescimo" required oninput="calcularTotalGeralOrc()" style="font-size: 15px;" autocomplete="off">
+                        <label for="Acrescimo">Acréscimo:</label>
+                    </div>
+
+                    <div class="lucroReal">
+                        <div class="form2">
+                            <input type="text" id="LucroReal" name="LucroReal" required style="font-size: 15px;">
+                            <label for="Lucro Real"> Lucro Real: </label>
+                        </div>
+                        <div class="form3">
+                            <input type="text"  id="perCentReal" name="perCentReal" required style="font-size: 15px;">
+                            <label for="perCentReal"> % </label>
+                        </div>
+                    </div>
+
+                    <div class="form2">
+                        <input type="text" id="valorCliente" name="valorCliente" required style="font-size: 15px;">
+                        <label for="valorCliente"> Valor do Cliente</label>
+                    </div>
+                </div>
+                <textarea  name="Observacao" id="Observacao" placeholder="Observaçoes"></textarea>
+            <br>
+                <!-- <div class="addLinha"><button class="adicionar" onclick="adicionarLinhaOrc()">Adicionar Linha</button></div> -->
             <br>
 
-          </div>
+            </div>
             <div class="BTNs">
                 <button class="pesquisar" onclick="pesquisarOrcamento()">Pesquisar</button>
                 <button class="contrato" onclick="gerarOrcamentoPDF()">Gerar Orçamento</button>
                 <button class="Proposta" onclick="gerarPropostaPDF()">Gerar Proposta</button>
                 <button class="fecharOrc" onclick="fecharOrcamento()">Fechar Orçamento</button>
-                <button class="salvar" onclick="salvarOrcamento()">Salvar</button>
+                <button class="salvar" id="btnSalvar" type="submit">Salvar Orçamento</button>
             </div>
         </form>
     </div>
