@@ -106,7 +106,7 @@
     flex-direction: row;
     width: 100%;
   }
-  .inicioMontagem, .Realizacao, .dtMarcacao, .dtDesmontagem{
+  .inicioMontagem, .Realizacao, .dtMarcacao, .dtDesmontagem, .dtInfra{
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -137,6 +137,23 @@
     gap: 3px;
     width: 90px;
   }
+
+  .ate{
+    display: flex;
+    justify-content: center;
+    flex-direction: row;
+    gap: 3px;
+    width: 90px;
+    padding: 0 50px;
+  }
+  .ate input, .ate label{
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    flex-direction: row;
+    gap: 3px;
+    width: 150px;
+  }
 .Acresimo, .totG, .totGCTO, .lucro, .percent, .lucroReal, .valorCliente, .Desconto{
     display: flex;
     justify-content: center;
@@ -158,7 +175,7 @@
 
   .Selects{
     display: flex;
-    justify-content:space-evenly;
+    justify-content:space-around;
     align-items: center;
     flex-direction: row;
     margin: 20px;
@@ -329,7 +346,7 @@
   }
 
   input[type=date]{
-    width: 111px;
+    width: 150px;
     height: 30px;
     font-size: 17px;
   }
@@ -365,8 +382,8 @@
 
   textarea{
     font-family: var(--Font-primary);
-    width: 1255px;
-    height: 60px;
+    width: 255px;
+    height: 90px;
     border-radius: 6px;
     font-size: 15px;
     border: 1px solid #000000;
@@ -403,7 +420,6 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    margin: 10px 0;
   }
 
   .Close{
@@ -615,7 +631,7 @@
   textarea{
       font-family: var(--Font-primary);
       width: 100%;
-      height: 60px;
+      height: 90px;
       border-radius: 6px;
       font-size: 15px;
       border: 1px solid #000000;
@@ -679,7 +695,7 @@
   }
 
   
-  .inicioMontagem, .Realizacao, .dtMarcacao, .dtDesmontagem{
+  .inicioMontagem, .Realizacao, .dtMarcacao, .dtDesmontagem, .dtInfra{
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -688,11 +704,6 @@
     margin: 5px 10px;
   }
 
-  /* .dtMarcacao input{
-    display: flex;
-    width: 60px;
-    padding:  0 50px;
-  } */
 
   .De{
     display: flex;
@@ -708,10 +719,27 @@
     align-items: center;
     flex-direction: row;
     gap: 3px;
+    width: 150px;
+  }
+
+  .ate{
+    display: flex;
+    justify-content: center;
+    flex-direction: row;
+    gap: 3px;
     width: 90px;
+    padding: 0 50px;
+  }
+  .ate input, .ate label{
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    flex-direction: row;
+    gap: 3px;
+    width: 150px;
   }
   
-.Acresimo, .totG, .totGCTO, .lucro, .percent, .valorCliente, .Desconto{
+.Acresimo, .totG, .totGCTO, .lucro, .lucroReal, .percent, .valorCliente, .Desconto{
     display: flex;
     justify-content: center;
     align-items: center;
@@ -720,12 +748,12 @@
   }
 
 
-.percent label, .totG label, .totGCTO label, .lucro label, .percent label, .Desconto label, .Acresimo label, .valorCliente label{
+.percent label, .totG label, .totGCTO label, .lucro label, .lucroReal label, .percent label, .Desconto label, .Acresimo label, .valorCliente label{
     font-size: 20px;
     margin: 0 5px;
   }
 
-  .Desconto input, .Acresimo input, .totG input, .totGCTO input, .lucro input, .percent input, .valorCliente input{ 
+  .Desconto input, .Acresimo input, .totG input, .totGCTO input, .lucro input, .lucroReal input, .percent input, .valorCliente input{ 
   width: 80px;
   }
   .Close{
