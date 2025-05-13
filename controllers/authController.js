@@ -207,4 +207,32 @@ async function login(req, res) {
     }
 }
 
-module.exports = { cadastrarOuAtualizarUsuario, login, verificarUsuarioExistente, listarUsuarios, buscarUsuariosPorNome };
+async function buscarUsuarioPorEmail(req, res) {
+  const { email } = req.params;
+
+  try {
+    const { rows } = await db.query(
+      'SELECT id, nome, sobrenome FROM usuarios WHERE email = $1',
+      [email]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ erro: 'Usuário não encontrado' });
+    }
+
+    const usuario = rows[0];
+    return res.status(200).json({
+      id: usuario.id,
+      nome: usuario.nome,
+      sobrenome: usuario.sobrenome
+    });
+
+  } catch (erro) {
+    console.error('Erro ao buscar usuário por e-mail:', erro);
+    return res.status(500).json({ erro: 'Erro ao buscar usuário.' });
+  }
+}
+
+
+
+module.exports = { cadastrarOuAtualizarUsuario, login, verificarUsuarioExistente, listarUsuarios, buscarUsuariosPorNome, buscarUsuarioPorEmail };

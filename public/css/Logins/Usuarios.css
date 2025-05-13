@@ -20,14 +20,15 @@ body{
   font-size: 15px;
   color: rgb(255, 255, 255);
   margin: 0 auto;
+  margin-top: 40px;
 }
 
 #Registrar{
-display: flex;
-justify-content: center;
-align-items: center;
-flex-direction: column;
-height: 550px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  height: 550px;
 }
 
 .Empresas{
@@ -37,6 +38,7 @@ height: 550px;
   padding: 0 20px;
   gap: 20px;
 }
+
 .logotipo{
   display: flex;
   justify-content: center;
@@ -66,10 +68,7 @@ height: 550px;
   justify-content: flex-start;
   object-fit: contain;
   align-items: center;
-
 }
-
-
 
 /* Container principal */
 .login-box {
@@ -77,7 +76,7 @@ height: 550px;
   top: 50%;
   left: 50%;
   width: 500px;
-  height: 590px;
+  height: 600px;
   transform: translate(-50%, -50%);
   background: rgba(58, 51, 51, 0.987);
   box-sizing: border-box;
@@ -92,7 +91,7 @@ height: 550px;
 }
 
 .user-box{
-  width: 100%; /* ou defina um valor fixo maior, tipo 800px */
+  width: 100%;
   max-width: 300px;
   position: relative;
   margin-bottom: 20px;
@@ -111,8 +110,6 @@ height: 550px;
   margin-bottom: 0;
 }
 
-
-
 /* personalizacao do olhinho da senha */
 .camposenha {
   position: relative;
@@ -122,7 +119,7 @@ height: 550px;
 
 .camposenha input {
   width: 100%;
-  padding-right: 35px; /* espaço para o ícone */
+  padding-right: 35px;
 }
 
 .toggle-senha {
@@ -152,7 +149,6 @@ height: 550px;
   transition: 0.2s ease;
 }
 
-/* Se quiser animar o label quando o campo for focado */
 .input-wrapper input:focus + label,
 .input-wrapper input:not(:placeholder-shown) + label {
   top: -10px;
@@ -167,7 +163,6 @@ height: 550px;
   transform: translateY(-50%);
   cursor: pointer;
 }
-
 
 /* Lista de sugestões */
 .autocomplete-list {
@@ -195,9 +190,6 @@ height: 550px;
   background: #f8dfdf;
 }
 
-
- 
-
 .login-box .user-box label {
   position: absolute;
   top: 0;
@@ -217,7 +209,7 @@ height: 550px;
   font-size: 12px;
 }
 
-/* Botões */
+/* Botões */
 .login-box form a {
   position: relative;
   display: inline-block;
@@ -228,8 +220,14 @@ height: 550px;
   text-transform: uppercase;
   overflow: hidden;
   transition: .5s;
-  margin-top: 40px;
-  letter-spacing: 4px
+  margin-top: 10px;
+  letter-spacing: 4px;
+  cursor: pointer;
+}
+
+.login-box a {
+  transition: transform 0.5s ease;
+  transform-style: preserve-3d;
 }
 
 .login-box a:hover {
@@ -240,6 +238,7 @@ height: 550px;
               0 0 25px #f40303,
               0 0 50px #f40303,
               0 0 100px #f40303;
+  transform: rotateY(15deg);
 }
 
 .login-box a span {
@@ -272,7 +271,6 @@ height: 550px;
 .user-box.dupla {
   display: flex;
   gap: 20px;
-  margin-bottom: 30px;
 }
 
 .user-box.dupla .user-box2 {
@@ -289,7 +287,7 @@ height: 550px;
   border-bottom: 1px solid #fff;
   outline: none;
   background: transparent;
-  margin-bottom: 0; /* importante para alinhamento */
+  margin-bottom: 0;
 }
 
 .user-box.dupla .user-box2 label {
@@ -311,17 +309,266 @@ height: 550px;
   font-size: 12px;
 }
 
-/* Responsivo: empilhar em telas pequenas */
-@media (max-width: 480px) {
-  .user-box.dupla {
-    flex-direction: column;
-    gap: 0;
+.user-boxSelect label{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto;
+}
+.user-boxSelect select{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 150px;
+  height: 30px;
+  border-radius: 10px;
+  margin: 0 auto;
+  background-color: transparent;
+  border-color: #bdb8b8;
+  color: #bdb8b8;
+  cursor: pointer;
+}
+
+.user-boxSelect option{
+  color: black;
+  border-radius: 10px;
+}
+
+
+
+
+
+
+.form-3colunas {
+  max-width: 300px;
+  display: flex;
+  gap: 20px;
+}
+
+.user-box2 {
+  flex: 1;
+}
+
+.checkbox-coluna {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.form-checkbox{
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin: 12px;
+  gap:5px;
+}
+
+.checkbox-wrapper-33 {
+  --s-xsmall: 0.625em;
+  --s-small: 1.2em;
+  --border-width: 3px;
+  --c-primary: #0c6400;
+  --c-primary-20-percent-opacity: rgba(17, 232, 35, 0.2);
+  --c-primary-10-percent-opacity: rgba(42, 232, 17, 0.1);
+  --t-base: 0.4s;
+  --t-fast: 0.2s;
+  --e-in: ease-in;
+  --e-out: cubic-bezier(0.11, 0.29, 0.18, 0.98);
+}
+
+.checkbox-wrapper-33 .visuallyhidden {
+  border: 0;
+  clip: rect(0 0 0 0);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  width: 1px;
+}
+
+.checkbox-wrapper-33 .checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  color: rgb(255, 255, 255);
+}
+
+.checkbox-wrapper-33 .checkbox + .checkbox {
+  margin-top: var(--s-small);
+}
+
+.checkbox-wrapper-33 .checkbox__symbol {
+  display: inline-block;
+  display: flex;
+  margin-right: calc(var(--s-small) * 0.7);
+  border: var(--border-width) solid var(--c-primary);
+  position: relative;
+  border-radius: 0.1em;
+  width: 2em;
+  height: 1.5em;
+  transition: box-shadow var(--t-base) var(--e-out),
+    background-color var(--t-base);
+  box-shadow: 0 0 0 0 var(--c-primary-10-percent-opacity);
+}
+
+.checkbox-wrapper-33 .checkbox__symbol:after {
+  content: "";
+  position: absolute;
+  top: 0.5em;
+  left: 0.5em;
+  width: 0.25em;
+  height: 0.25em;
+  background-color: var(--c-primary-20-percent-opacity);
+  opacity: 0;
+  border-radius: 3em;
+  transform: scale(1);
+  transform-origin: 50% 50%;
+}
+
+.checkbox-wrapper-33 .checkbox .icon-checkbox {
+  width: 1em;
+  height: 1em;
+  margin: auto;
+  fill: none;
+  stroke-width: 3;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-miterlimit: 10;
+  color: var(--c-primary);
+  display: inline-block;
+}
+
+.checkbox-wrapper-33 .checkbox .icon-checkbox path {
+  transition: stroke-dashoffset var(--t-fast) var(--e-in);
+  stroke-dasharray: 30px, 31px;
+  stroke-dashoffset: 31px;
+}
+
+.checkbox-wrapper-33 .checkbox__textwrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: row;
+  margin: 0;
+}
+
+.checkbox-wrapper-33 .checkbox__trigger:checked + .checkbox__symbol:after {
+  -webkit-animation: ripple-33 1.5s var(--e-out);
+  animation: ripple-33 1.5s var(--e-out);
+}
+
+.checkbox-wrapper-33
+  .checkbox__trigger:checked
+  + .checkbox__symbol
+  .icon-checkbox
+  path {
+  transition: stroke-dashoffset var(--t-base) var(--e-out);
+  stroke-dashoffset: 0px;
+}
+
+.checkbox-wrapper-33 .checkbox__trigger:focus + .checkbox__symbol {
+  box-shadow: 0 0 0 0.25em var(--c-primary-20-percent-opacity);
+}
+
+@-webkit-keyframes ripple-33 {
+  from {
+    transform: scale(0);
+    opacity: 1;
   }
 
-  .login-box {
-    width: 90%;
-    padding: 40px 20px;
+  to {
+    opacity: 0;
+    transform: scale(20);
   }
+}
+
+@keyframes ripple-33 {
+  from {
+    transform: scale(0);
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(20);
+  }
+}
+
+#formPermissao{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto;
+  flex-direction: column;
+}
+
+.Permissions {
+  --_clr-primary: #666;
+  --_clr-hover: #f33131;
+  --_clr-checked: #ffffff;
+}
+.Permissions > div {
+  --_clr-current: var(--_clr-primary);
+
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.Permissions > div + div {
+  margin-block-start: 0.5rem;
+}
+.Permissions label {
+  cursor: pointer;
+  color: var(--_clr-current);
+  transition: color 150ms ease-in-out;
+}
+
+/* styled checkbox */
+.Permissions input[type="checkbox"] {
+  appearance: none;
+  outline: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  aspect-ratio: 1;
+  padding: 0.25rem;
+  background: transparent;
+  border: 1px solid var(--_clr-current);
+  border-radius: 2px;
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+}
+.Permissions input[type="checkbox"]::after {
+  content: "\2714";
+  opacity: 0;
+  transition: opacity 150ms ease-in-out;
+  color: var(--_clr-checked);
+  font-size: inherit;
+  font-family: inherit;
+}
+
+.Permissions label:hover,
+.Permissions input[type="checkbox"]:focus-visible,
+.Permissions input[type="checkbox"]:focus-visible + label,
+.Permissions input[type="checkbox"]:hover,
+.Permissions input[type="checkbox"]:hover + label {
+  --_clr-current: var(--_clr-hover);
+}
+.Permissions input[type="checkbox"]:focus-visible::after,
+.Permissions input[type="checkbox"]:hover::after {
+  opacity: 0.5;
+  color: var(--_clr-hover);
+}
+
+.Permissions input[type="checkbox"]:checked + label:not(:hover),
+.Permissions input[type="checkbox"]:checked:not(:hover) {
+  --_clr-current: var(--_clr-checked);
+}
+.Permissions input[type="checkbox"]:checked::after {
+  opacity: 1;
 }
 
 
@@ -332,6 +579,43 @@ height: 550px;
   gap: 30px;
   margin: 0 auto;
 }
+
+.flip-container {
+  perspective: 1000px;
+}
+
+.flipper {
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s;
+  transform-style: preserve-3d;
+}
+
+.flip-container.flipped .flipper {
+  transform: rotateY(180deg);
+}
+
+.front, .back {
+  backface-visibility: hidden;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.back {
+  transform: rotateY(180deg);
+}
+
+/* Ajuste nos botões de rotação */
+#btnFechar, #btnCancelar {
+  cursor: pointer;
+}
+
+#formPermissao button {
+  cursor: pointer;
+}
+
+
 
 input:-webkit-autofill {
   background-color: transparent !important;
