@@ -5,14 +5,15 @@ document.getElementById("Registrar").addEventListener("submit", async function (
     const sobrenome = document.getElementById("sobrenome").value;
     const email = document.getElementById("email").value;
     const senha = document.getElementById("senha").value;
-    const confirmacaoSenha = document.getElementById("confirmasenha").value;
+  //  const confirmacaoSenha = document.getElementById("confirmasenha").value;
+    const ativo = document.getElementById('ativo').checked;
    
   
     try {
       const resposta = await fetch("http://localhost:3000/auth/cadastro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, email, senha, sobrenome })
+        body: JSON.stringify({ nome, email, senha, sobrenome, ativo })
       });
   
       const dados = await resposta.json();
@@ -104,6 +105,7 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
     const resposta = await fetch("http://localhost:3000/auth/cadastro", {
       method: "PUT",  // Mudamos para PUT para indicar alteração
       headers: { "Content-Type": "application/json" },
+      
       body: JSON.stringify({ nome, email, senha, sobrenome, email_original, ativo  })
 
     });
@@ -158,6 +160,7 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
 //   }
 // }
 // );
+
 document.getElementById("nome").addEventListener("blur", function () {
   formatarNome("nome");
   verificarUsuarioExistenteFront();
@@ -192,13 +195,14 @@ async function verificarUsuarioExistenteFront() {
   const nome = document.getElementById("nome").value.trim();
   const sobrenome = document.getElementById("sobrenome").value.trim();
   const email = document.getElementById("email").value.trim();
-  
+  const ativo = document.getElementById('ativo').checked;
 
   if (!nome || !sobrenome || !email) {
     return; // Só verifica se os três estiverem preenchidos
   }
 
   try {
+    
     const resposta = await fetch("http://localhost:3000/auth/verificarUsuario", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -259,14 +263,7 @@ document.getElementById("btnCancelar").addEventListener("click", async function 
      // Esconde o formulário de cadastro
   } else {
     
-    limparCampos(); // Limpa os campos do formulário
-    // document.getElementById("buscaUsuario").value = "";
-    // document.getElementById("nome").value = "";
-    // document.getElementById("sobrenome").value = "";
-    // document.getElementById("email").value = "";
-    // document.getElementById("senha").value = "";
-    // document.getElementById("confirmasenha").value = "";
-    // console.log("Algum campo foi preenchido.");
+      limparCampos(); // Limpa os campos do formulário
   }
 });
 
@@ -348,9 +345,11 @@ inputBusca.addEventListener('input', async () => {
 usuarios.forEach(usuario => {
   const li = document.createElement('li');
   li.textContent = `${usuario.nome} ${usuario.sobrenome}`;
+  li.dataset.idusuario = usuario.idusuario;
   li.dataset.email = usuario.email;
   li.dataset.nome = usuario.nome;
   li.dataset.sobrenome = usuario.sobrenome;
+  li.dataset.ativo = usuario.ativo;
  // li.dataset.senha = usuario.senha_hash; // Adiciona o hash da senha como dataset
   lista.appendChild(li);
 });
@@ -371,15 +370,16 @@ lista.addEventListener('click', (e) => {
     const sobrenome = e.target.dataset.sobrenome;
     const email = e.target.dataset.email;
     const ativo = e.target.dataset.ativo === 'true'; 
-  
+    const idusuario = e.target.dataset.idusuario;
 
-    console.log("Usuário selecionado:", nome, sobrenome, email, senha); // Log do usuário selecionado
+    console.log("Usuário selecionado:", nome, sobrenome, email, senha, idusuario); // Log do usuário selecionado
 
     document.getElementById('nome').value = nome;
     document.getElementById('sobrenome').value = sobrenome;
     document.getElementById('email').value = email;
     document.getElementById("email_original").value = email; // Armazena o email original para comparação
     document.getElementById('ativo').checked = ativo;
+ 
    
     document.getElementById('buscaUsuario').value = `${nome} ${sobrenome}`;
     lista.innerHTML = '';
@@ -392,6 +392,7 @@ lista.addEventListener('click', (e) => {
 });
 
 function limparCampos() {
+  document.getElementById('Registrar').reset();
   document.getElementById("nome").value = "";
   document.getElementById("sobrenome").value = "";
   document.getElementById("email").value = "";
@@ -402,6 +403,9 @@ function limparCampos() {
   document.getElementById("btnCadastrar").style.display = "inline-block";
   document.getElementById("btnAlterar").style.display = "none"; // Esconde o botão de alterar após cadastro
   document.getElementById("ativo").checked = false;
+  document.getElementById('listaUsuarios').innerHTML = '';
+  document.getElementById('listaUsuarios').style.display = 'none';
+ 
 }
 
 document.getElementById("btnCadastrar").addEventListener("click", function (e) {
@@ -415,9 +419,47 @@ function flipBox() {
   container.classList.toggle("flipped");
 }
 
-document.getElementById("btnsalvarPermissao").addEventListener("click", function (e) {
+// Salvando permissões
+document.getElementById("btnsalvarPermissao").addEventListener("click", async function (e) {
   e.preventDefault();
   document.getElementById("btnPermissaoReal").click();
+
+  
+  const email = document.getElementById("nome_usuario").value.trim();
+  const modulo = document.getElementById("modulo").value;
+  console.log("btnSalvarPermissao", email, modulo);
+  if (!email || modulo === "choose") {
+    Swal.fire("Atenção", "Informe um usuário e selecione um módulo.", "warning");
+    return;
+  }
+
+  const permissoes = {
+    email,
+    modulo,
+    acesso: document.getElementById("Acesso").checked,
+    cadastrar: document.getElementById("Cadastrar").checked,
+    alterar: document.getElementById("Alterar").checked,
+    pesquisar: document.getElementById("Pesquisar").checked,
+    leitura: document.getElementById("Leitura").checked
+  };
+
+  try {
+    const res = await fetch("http://localhost:3000/permissoes/cadastro", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(permissoes)
+    });
+
+    if (res.ok) {
+      Swal.fire("Sucesso", "Permissões salvas com sucesso!", "success");
+    } else {
+      const resultado = await res.json();
+      Swal.fire("Erro", resultado.error || "Erro ao salvar permissões.", "error");
+    }
+  } catch (err) {
+    console.error("Erro ao salvar permissões:", err);
+  }
+  
 });
 
 async function preencherUsuarioPeloEmail(email) {
@@ -436,3 +478,4 @@ async function preencherUsuarioPeloEmail(email) {
 }
 
 
+  

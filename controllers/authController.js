@@ -155,7 +155,8 @@ async function cadastrarOuAtualizarUsuario(req, res) {
   
   async function listarUsuarios(req, res) {
     try {
-      const { rows } = await db.query('SELECT id, nome, sobrenome, email, senha_hash, ativo FROM usuarios ORDER BY nome');
+      console.log("listarUsuarios AuthController", req );
+      const { rows } = await db.query('SELECT idusuario, nome, sobrenome, email, senha_hash, ativo FROM usuarios ORDER BY nome');
       res.status(200).json(rows);
     } catch (erro) {
       console.error('Erro ao listar usuários:', erro);
@@ -165,10 +166,10 @@ async function cadastrarOuAtualizarUsuario(req, res) {
 
   async function buscarUsuariosPorNome(req, res) {
     const { nome } = req.query;
-  
+    console.log("buscarUsuarioPorNome", nome);
     try {
       const { rows } = await db.query(`
-        SELECT id, nome, sobrenome, email, senha_hash, ativo
+        SELECT idusuario, nome, sobrenome, email, senha_hash, ativo
         FROM usuarios 
         WHERE LOWER(nome) LIKE LOWER($1) 
         ORDER BY nome 
@@ -212,7 +213,7 @@ async function buscarUsuarioPorEmail(req, res) {
 
   try {
     const { rows } = await db.query(
-      'SELECT id, nome, sobrenome FROM usuarios WHERE email = $1',
+      'SELECT idusuario, nome, sobrenome FROM usuarios WHERE email = $1',
       [email]
     );
 

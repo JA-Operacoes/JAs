@@ -1,0 +1,79 @@
+const db = require('../db');
+
+// Listar todas permissões
+async function listarPermissoes(req, res) {
+  try {
+    const { rows } = await db.query('SELECT * FROM permissoes');
+    res.status(200).json(rows);
+  } catch (erro) {
+    console.error('Erro ao listar permissões:', erro);
+    res.status(500).json({ erro: 'Erro ao listar permissões.' });
+  }
+}
+
+// Listar permissões por usuário
+async function listarPermissoesPorUsuario(req, res) {
+  const { idusuario } = req.params;
+  try {
+    const { rows } = await db.query('SELECT * FROM permissoes WHERE idusuario = $1', [idusuario]);
+    res.status(200).json(rows);
+  } catch (erro) {
+    console.error('Erro ao buscar permissões do usuário:', erro);
+    res.status(500).json({ erro: 'Erro ao buscar permissões do usuário.' });
+  }
+}
+
+// Cadastrar ou atualizar permissões
+async function cadastrarOuAtualizarPermissoes(req, res) {
+  const { idusuario, modulo, cadastrar, alterar, pesquisar } = req.body;
+
+  try {
+    const { rows } = await db.query(
+      'SELECT * FROM permissoes WHERE idusuario = $1 AND modulo = $2',
+      [idusuario, modulo]
+    );
+
+    if (rows.length > 0) {
+      // Atualiza
+      await db.query(`
+        UPDATE permissoes
+        SET cadastrar = $1, alterar = $2, pesquisar = $3
+        WHERE idusuario = $4 AND modulo = $5
+      `, [cadastrar, alterar, pesquisar, idusuario, modulo]);
+
+      return res.status(200).json({ mensagem: 'Permissões atualizadas com sucesso.' });
+    } else {
+      // Insere
+      await db.query(`
+        INSERT INTO permissoes (idusuario, modulo, cadastrar, alterar, pesquisar)
+        VALUES ($1, $2, $3, $4, $5)
+      `, [idusuario, modulo, cadastrar, alterar, pesquisar]);
+
+      return res.status(201).json({ mensagem: 'Permissões cadastradas com sucesso.' });
+    }
+
+  } catch (erro) {
+    console.error('Erro ao cadastrar/atualizar permissões:', erro);
+    res.status(500).json({ erro: 'Erro ao salvar permissões.' });
+  }
+}
+
+// Deletar permissão
+async function deletarPermissao(req, res) {
+  const { idpermissao } = req.params;
+
+  try {
+    await db.query('DELETE FROM permissoes WHERE idpermissao = $1', [idpermissao]);
+    res.status(200).json({ mensagem: 'Permissão deletada com sucesso.' });
+  } catch (erro) {
+    console.error('Erro ao deletar permissão:', erro);
+    res.status(500).json({ erro: 'Erro ao deletar permissão.' });
+  }
+}
+
+module.exports = {
+  listarPermissoes,
+  listarPermissoesPorUsuario,
+  cadastrarOuAtualizarPermissoes,
+  deletarPermissao
+};
