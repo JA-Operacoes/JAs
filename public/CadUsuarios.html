@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-bR">
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -39,6 +39,7 @@
         <div class="user-box camposenha">
           <input type="text" id="buscaUsuario" autocomplete="off" spellcheck="false">
           <label for="buscaUsuario">buscar Usuário</label>
+          <input type="hidden" id="idusuario">
           <span toggle="#senha" class="toggle-senha">
             <i class="fa-solid fa-magnifying-glass" id="iconebuscarUsuario"></i>
           </span>
@@ -98,9 +99,10 @@
         </div>
 
         <div class="bts">
-          <a type="submit" id="btnCadastrar" onclick="flipBox()">CADASTRAR<span></span></a>
+          <!-- <a type="submit" id="btnCadastrar" onclick="flipBox()">CADASTRAR<span></span></a>-->
+          <a type="submit" id="btnCadastrar">CADASTRAR<span></span></a> 
           <button type="submit" id="btnCadastrarReal" style="display: none;"></button>
-          <a type="button" id="btnAlterar" style="display: none;" onclick="flipBox()">ALTERAR<span></span></a>
+          <a type="button" id="btnAlterar" style="display: none;">ALTERAR<span></span></a>
           <a type="button" id="btnCancelar">CANCELAR<span></span></a>
           <a type="button" id="btnFechar">FECHAR<span></span></a>
         </div>
@@ -166,7 +168,7 @@
           <a type="button" id="btnsalvarPermissao">SALVAR PERMISSÃO<span></span></a>
             <button type="button" id="btnPermissaoReal" style="display: none;"></button>
 
-            <a type="button" id="btnVoltar" onclick="flipBox()">Voltar<span></span></a>
+            <a type="button" id="btnVoltar">Voltar<span></span></a>
         </div>
       </form>
     </div>

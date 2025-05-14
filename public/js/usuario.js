@@ -111,7 +111,6 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
     });
  
 
-
     const dados = await resposta.json();
     console.log("DADOS ALTERADOS", dados);
 
@@ -123,22 +122,32 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
       });
       return;
     }
-
-    if (dados.mensagem === 'Nenhuma alteração detectada.') {
+    console.log("Dados Mensagem", dados.mensagem);
+    if (dados.mensagem === 'Nenhuma alteração detectada no Usuário.') {
       Swal.fire({
         icon: 'info',
         title: 'Aviso',
         text: dados.mensagem
+      }).then((result) => {
+        if (result.isConfirmed) {
+          flipBox(); // Só executa após o usuário clicar em OK
+        }
       });
+    
     } else {
-      Swal.fire({
-        icon: 'success',
-        title: 'Sucesso',
-        text: dados.mensagem || 'Usuário atualizado com sucesso!'
+        Swal.fire({
+          icon: 'success',
+          title: 'Sucesso',
+          text: dados.mensagem || 'Usuário atualizado com sucesso!'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            flipBox(); // Só executa após o usuário clicar em OK
+          }
       });
-
     }
     limparCampos(); // Limpa os campos do formulário após a atualização
+    console.log("Chamando FlipBox");
+  
 
   } catch (erro) {
     console.error("Erro na requisição:", erro);
@@ -372,8 +381,9 @@ lista.addEventListener('click', (e) => {
     const ativo = e.target.dataset.ativo === 'true'; 
     const idusuario = e.target.dataset.idusuario;
 
-    console.log("Usuário selecionado:", nome, sobrenome, email, senha, idusuario); // Log do usuário selecionado
+    console.log("Usuário selecionado:", nome, sobrenome, email, ativo, idusuario); // Log do usuário selecionado
 
+    document.getElementById('idusuario').value = idusuario;
     document.getElementById('nome').value = nome;
     document.getElementById('sobrenome').value = sobrenome;
     document.getElementById('email').value = email;
@@ -413,27 +423,82 @@ document.getElementById("btnCadastrar").addEventListener("click", function (e) {
   document.getElementById("btnCadastrarReal").click();
 });
 
+async function preencherUsuarioPeloEmail(email) {
+  try {
+    const resposta = await fetch(`http://localhost:3000/auth/email/${encodeURIComponent(email)}`);
+    if (!resposta.ok) throw new Error('Usuário não encontrado');
+
+    const dados = await resposta.json();
+
+    const campoUsuario = document.getElementById('nome_usuario');
+    campoUsuario.value = `${dados.nome} ${dados.sobrenome}`; // mostra nome e sobrenome
+
+  } catch (erro) {
+    console.error('Erro ao buscar usuário:', erro);
+  }
+}
 
 function flipBox() {
-  var container = document.getElementById("flip-container");
-  container.classList.toggle("flipped");
+   var container = document.getElementById("flip-container");
+   container.classList.toggle("flipped");
+  const idusuario = document.getElementById("idusuario").value;
+  if (idusuario) {
+    console.log("Vai entrar em carregarPermissoesUsuario IdUsuario",idusuario);
+    carregarPermissoesUsuario(idusuario);
+  }
+
+   console.log("Entrou no flipBox");
 }
+
+document.getElementById("btnVoltar").addEventListener("click", function() {
+  console.log("clicou no voltar");
+   flipBox();
+
+   // pega o idusuario que já está armazenado em um campo hidden
+  
+});
+
+let permissoesOriginais = {
+  modulo:   null,
+  acesso:   false,
+  cadastrar:false,
+  alterar:  false,
+  pesquisar:false,
+  leitura:  false
+};
 
 // Salvando permissões
 document.getElementById("btnsalvarPermissao").addEventListener("click", async function (e) {
   e.preventDefault();
   document.getElementById("btnPermissaoReal").click();
 
-  
+  const idusuario = document.getElementById("idusuario").value;
   const email = document.getElementById("nome_usuario").value.trim();
   const modulo = document.getElementById("modulo").value;
-  console.log("btnSalvarPermissao", email, modulo);
+
   if (!email || modulo === "choose") {
     Swal.fire("Atenção", "Informe um usuário e selecione um módulo.", "warning");
     return;
   }
+  // valores atuais
+  const atuais = {
+    modulo,
+    acesso:    document.getElementById("Acesso").checked,
+    cadastrar: document.getElementById("Cadastrar").checked,
+    alterar:   document.getElementById("Alterar").checked,
+    pesquisar: document.getElementById("Pesquisar").checked,
+    leitura:   document.getElementById("Leitura").checked
+  };
 
+   // compara tudo
+  const semAlteracao = Object.keys(atuais).every(key => atuais[key] === permissoesOriginais[key]);
+  if (semAlteracao) {
+    return Swal.fire("Aviso", "Nenhuma alteração detectada em Permissões.", "info");
+  }
+
+  // monta o body
   const permissoes = {
+    idusuario,
     email,
     modulo,
     acesso: document.getElementById("Acesso").checked,
@@ -452,6 +517,7 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
 
     if (res.ok) {
       Swal.fire("Sucesso", "Permissões salvas com sucesso!", "success");
+      permissoesOriginais = { ...atuais };
     } else {
       const resultado = await res.json();
       Swal.fire("Erro", resultado.error || "Erro ao salvar permissões.", "error");
@@ -462,20 +528,109 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
   
 });
 
-async function preencherUsuarioPeloEmail(email) {
+async function carregarPermissoesUsuario(idusuario) {
+  
+  const selectModulo = document.getElementById("modulo");
+  const chkAcesso    = document.getElementById("Acesso");
+  const chkCadastrar = document.getElementById("Cadastrar");
+  const chkAlterar   = document.getElementById("Alterar");
+  const chkPesquisar = document.getElementById("Pesquisar");
+  const chkLeitura   = document.getElementById("Leitura");
+
+  // 1. limpa tudo
+  selectModulo.value = "choose";
+  [chkAcesso, chkCadastrar, chkAlterar, chkPesquisar, chkLeitura]
+    .forEach(chk => chk.checked = false);
+
   try {
-    const resposta = await fetch(`http://localhost:3000/auth/email/${encodeURIComponent(email)}`);
-    if (!resposta.ok) throw new Error('Usuário não encontrado');
+    console.log("Entrou no carregarPermissoesUsuario", idusuario);
+    const resp = await fetch(`http://localhost:3000/permissoes/${idusuario}`);
+    if (!resp.ok) throw new Error("Falha ao buscar permissões");
+    const permissoes = await resp.json();
 
-    const dados = await resposta.json();
+    if (permissoes.length > 0) {
+    const p = permissoes[0];
+    // seta o select e checkboxes
+    selectModulo.value    = p.modulo;
+    chkAcesso.checked     = Boolean(p.acesso);
+    chkCadastrar.checked  = Boolean(p.cadastrar);
+    chkAlterar.checked    = Boolean(p.alterar);
+    chkPesquisar.checked  = Boolean(p.pesquisar);
+    chkLeitura.checked    = Boolean(p.leitura);
 
-    const campoUsuario = document.getElementById('nome_usuario');
-    campoUsuario.value = `${dados.nome} ${dados.sobrenome}`; // mostra nome e sobrenome
+    // guarda no original
+    permissoesOriginais = {
+      modulo:    p.modulo,
+      acesso:    Boolean(p.acesso),
+      cadastrar: Boolean(p.cadastrar),
+      alterar:   Boolean(p.alterar),
+      pesquisar: Boolean(p.pesquisar),
+      leitura:   Boolean(p.leitura)
+    };
+    } else {
+    // sem permissões ainda → zera original também
+      permissoesOriginais = {
+        modulo:   selectModulo.value,
+        acesso:   false,
+        cadastrar:false,
+        alterar:  false,
+        pesquisar:false,
+        leitura:  false
+      };
+    }
 
-  } catch (erro) {
-    console.error('Erro ao buscar usuário:', erro);
+  } catch (err) {
+    console.error("Erro ao carregar permissões:", err);
+  }
+  
+}
+
+function aplicarPermissoes(permissoes) {
+  console.log("Entrou em aplicarPermissoes");
+
+
+  // Define qual é o módulo desta página; 
+  // pode vir de uma variável global, do próprio select, ou do nome da rota.
+  // Por exemplo, num <body data-modulo="Clientes">:
+  const moduloAtual = document.body.dataset.modulo;  
+
+  // Encontra o objeto de permissão correspondente
+  const p = permissoes.find(x => x.modulo === moduloAtual);
+
+  // Se não existir ou não tiver acesso geral, bloqueia tudo:
+  if (!p || !p.acesso) {
+    document.querySelectorAll("input, select, textarea, button").forEach(el => {
+      el.disabled = true;
+    });
+    return;
+  }
+
+  // Se tiver acesso mas não puder cadastrar:
+  if (!p.cadastrar) {
+    document.querySelectorAll(".btnCadastrar").forEach(btn => btn.disabled = true);
+  }
+
+  // Se não puder alterar:
+  if (!p.alterar) {
+    document.querySelectorAll(".btnAlterar").forEach(btn => btn.disabled = true);
+  }
+
+  // Se não puder pesquisar:
+  if (!p.pesquisar) {
+    document.querySelectorAll(".btnPesquisar").forEach(btn => btn.disabled = true);
+  }
+
+  // Se for “apenas leitura”, desabilita todos os campos, deixando só o pesquisar habilitado:
+  if (p.leitura) {
+    document.querySelectorAll("input, select, textarea").forEach(el => el.readOnly = true);
+    document.querySelectorAll("button").forEach(btn => {
+      if (!btn.classList.contains("btnPesquisar")) btn.disabled = true;
+    });
   }
 }
+
+
+
 
 
   

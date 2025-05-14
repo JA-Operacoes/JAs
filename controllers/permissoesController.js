@@ -26,7 +26,7 @@ async function listarPermissoesPorUsuario(req, res) {
 // Cadastrar ou atualizar permissões
 async function cadastrarOuAtualizarPermissoes(req, res) {
   const { idusuario, modulo, cadastrar, alterar, pesquisar } = req.body;
-
+    console.log("cadastrarOuAtualizarPermissoes", req.body)
   try {
     const { rows } = await db.query(
       'SELECT * FROM permissoes WHERE idusuario = $1 AND modulo = $2',

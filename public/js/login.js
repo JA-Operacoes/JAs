@@ -21,7 +21,7 @@ document.getElementById("Login").addEventListener("submit", async function (e) {
         senha: password
       })
     });
-
+    console.log("response", response);
     const dados = await response.json();
 
     if (!response.ok) {
@@ -35,9 +35,15 @@ document.getElementById("Login").addEventListener("submit", async function (e) {
         
         return;
     }
+    const { token, idusuario } = dados;
+    console.log("token, idusuario", token, idusuario);
+    // guarda para usar nas outras páginas
+    localStorage.setItem("token", token);
+    localStorage.setItem("idusuario", idusuario);
 
-    localStorage.setItem("token", dados.token);
+   
     // Redirecionar para página inicial após login
+
     window.location.href = "OPER-index.html"; // ajuste conforme necessário
 
   } catch (erro) {
