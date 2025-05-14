@@ -308,6 +308,26 @@ function carregarLocalMontOrc() {
     .catch(error => console.error('Erro ao carregar Local Montagem:', error));
 }
 
+function configurarInfraCheckbox() {
+    let checkbox = document.getElementById("ativo");
+    let bloco = document.getElementById("blocoInfra");
+    let bloco2 = document.getElementById("blocoInfra2");
+ 
+    if (!checkbox || !bloco || !bloco2) return;
+
+
+    function atualizarVisibilidade() {
+        bloco.style.display = checkbox.checked ? "block" : "none";
+        bloco2.style.display = checkbox.checked ? "block" : "none";
+    }
+
+    checkbox.addEventListener("change", atualizarVisibilidade);
+console.log("entrou na função");
+    // Opcional: já configura o estado inicial com base no checkbox
+    atualizarVisibilidade();
+}
+
+
 
 
 

@@ -48,13 +48,24 @@
                         <label for="idEvento">Evento:</label>
                         <select class="idEvento" required spellcheck="false"></select>
                     </div>
-                    <div class="select">
-                        <label for="idMontagem">Local Montagem:</label>
-                        <select class="idMontagem"  onchange="atualizarUFOrc(this)"></select>
-                    </div>
-                    <div class="form3">
-                        <input type="text" class="ufmontagem" id="ufmontagem" name="ufmontagem" required spellcheck="false">
-                        <label  for="ufmontagem">UF</label>
+                        <div class="select2">
+                            <label for="idMontagem">Local Montagem:</label>
+                            <select class="idMontagem"  onchange="atualizarUFOrc(this)"></select>
+                        <div class="form3">
+                            <input type="text" class="ufmontagem" id="ufmontagem" name="ufmontagem" required spellcheck="false">
+                            <label  for="ufmontagem">UF</label>
+                        </div>
+                        <div class="checkbox-wrapper-33 checkbox-coluna" oninput="configurarInfraCheckbox()">
+                            <p class="checkbox__textwrapper"> infra.</p>
+                            <label class="checkbox">
+                                <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo">
+                                <span class="checkbox__symbol">
+                                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M4 14l8 7L24 7"></path>
+                                    </svg>
+                                </span>
+                            </label>
+                        </div>
                     </div>
                 </div>
         
@@ -64,17 +75,19 @@
             
                 <div class="periodoMontagem">
                 
-                    <div class="dtInfra">
-                        <label class="miniTitle">Periodo de Infraestrutura</label> 
-                        <div class="De">
-                            <label  for="periodoInfra"> De:</label>
-                            <input type="date" id="dtIniInfra" >
+                    <div id="blocoInfra" class=" inativo-esquerda"  style="display: none;">
+                        <div class="dtInfra">
+                            <label class="miniTitle">Montagem de Infra.</label>
+                            <div class="De">
+                                <label  for="periodoInfra"> De:</label>
+                                <input type="date" id="dtIniInfra" >
+                            </div>
+                            <div class="ate">
+                                <label  for="dtFimMarcacao">Até:</label>
+                                <input type="date" id="dtFimInfra">
+                            </div>
                         </div>
-                        <div class="ate">
-                            <label  for="dtFimMarcacao">Até:</label>
-                            <input type="date" id="dtFimInfra">
-                        </div>
-                    </div>  
+                    </div>
 
                     <div class="dtMarcacao">
                         <label class="miniTitle">Período de Marcação</label>
@@ -125,6 +138,20 @@
                         </div>
                         
                     </div>
+
+                    <div id="blocoInfra2" class="inativo-direita" style="display: none;">
+                        <div class="dtInfra">
+                            <label class="miniTitle">Desmontagem de Infra.</label>
+                            <div class="De">
+                                <label  for="periodoInfra"> De:</label>
+                                <input type="date" id="dtIniInfra" >
+                            </div>
+                            <div class="ate">
+                                <label  for="dtFimMarcacao">Até:</label>
+                                <input type="date" id="dtFimInfra">
+                            </div>
+                        </div>
+                    </div> 
                 </div>
             
 
