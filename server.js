@@ -32,6 +32,7 @@ app.use("/profissional", require("./routes/rotaProfissional"));
 app.use("/localmontagem", require("./routes/rotaLocalMontagem"));
 
 app.use("/auth", require("./routes/auth")); // Rota para login e cadastro de usuários
+app.use("/permissoes", require("./routes/rotaPermissoes")); //Rota permissoes usuários
 
 // Start
 app.listen(port, () => {

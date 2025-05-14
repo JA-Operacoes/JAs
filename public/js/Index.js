@@ -1,10 +1,17 @@
-document.addEventListener("DOMContentLoaded", function () {
-    document.querySelectorAll(".abrir-modal").forEach(botao => {
-        botao.addEventListener("click", function () {
-            let url = botao.getAttribute("data-url"); // Obtém a URL do modal
-            abrirModal(url);
-        });
+document.addEventListener("DOMContentLoaded", async function () {
+  // 1) Inicializa permissões do usuário para a página inteira
+  if (window.initPermissoes) {
+    console.log("iniPermissoes no DOM");
+    await initPermissoes();
+  }
+
+  // 2) Então configura seus modais
+  document.querySelectorAll(".abrir-modal").forEach(botao => {
+    botao.addEventListener("click", function () {
+      let url = botao.getAttribute("data-url");
+      abrirModal(url);
     });
+  });
 });
 
 function abrirModal(url) {
@@ -62,6 +69,10 @@ function abrirModal(url) {
                 script.defer = true;
                 script.onload = () => {
                     configurarEventosEspecificos(url); // só chama depois que o JS carregar
+                    // e depois reaplica as permissões, agora incluindo elementos do modal
+                    if (window.initPermissoes) {
+                    initPermissoes();
+                    }
                 };
                 document.body.appendChild(script);
             }

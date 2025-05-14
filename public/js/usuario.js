@@ -5,14 +5,15 @@ document.getElementById("Registrar").addEventListener("submit", async function (
     const sobrenome = document.getElementById("sobrenome").value;
     const email = document.getElementById("email").value;
     const senha = document.getElementById("senha").value;
-    const confirmacaoSenha = document.getElementById("confirmasenha").value;
+  //  const confirmacaoSenha = document.getElementById("confirmasenha").value;
+    const ativo = document.getElementById('ativo').checked;
    
   
     try {
       const resposta = await fetch("http://localhost:3000/auth/cadastro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, email, senha, sobrenome })
+        body: JSON.stringify({ nome, email, senha, sobrenome, ativo })
       });
   
       const dados = await resposta.json();
@@ -104,11 +105,11 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
     const resposta = await fetch("http://localhost:3000/auth/cadastro", {
       method: "PUT",  // Mudamos para PUT para indicar alteração
       headers: { "Content-Type": "application/json" },
+      
       body: JSON.stringify({ nome, email, senha, sobrenome, email_original, ativo  })
 
     });
  
-
 
     const dados = await resposta.json();
     console.log("DADOS ALTERADOS", dados);
@@ -121,22 +122,32 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
       });
       return;
     }
-
-    if (dados.mensagem === 'Nenhuma alteração detectada.') {
+    console.log("Dados Mensagem", dados.mensagem);
+    if (dados.mensagem === 'Nenhuma alteração detectada no Usuário.') {
       Swal.fire({
         icon: 'info',
         title: 'Aviso',
         text: dados.mensagem
+      }).then((result) => {
+        if (result.isConfirmed) {
+          flipBox(); // Só executa após o usuário clicar em OK
+        }
       });
+    
     } else {
-      Swal.fire({
-        icon: 'success',
-        title: 'Sucesso',
-        text: dados.mensagem || 'Usuário atualizado com sucesso!'
+        Swal.fire({
+          icon: 'success',
+          title: 'Sucesso',
+          text: dados.mensagem || 'Usuário atualizado com sucesso!'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            flipBox(); // Só executa após o usuário clicar em OK
+          }
       });
-
     }
     limparCampos(); // Limpa os campos do formulário após a atualização
+    console.log("Chamando FlipBox");
+  
 
   } catch (erro) {
     console.error("Erro na requisição:", erro);
@@ -158,6 +169,7 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
 //   }
 // }
 // );
+
 document.getElementById("nome").addEventListener("blur", function () {
   formatarNome("nome");
   verificarUsuarioExistenteFront();
@@ -192,13 +204,14 @@ async function verificarUsuarioExistenteFront() {
   const nome = document.getElementById("nome").value.trim();
   const sobrenome = document.getElementById("sobrenome").value.trim();
   const email = document.getElementById("email").value.trim();
-  
+  const ativo = document.getElementById('ativo').checked;
 
   if (!nome || !sobrenome || !email) {
     return; // Só verifica se os três estiverem preenchidos
   }
 
   try {
+    
     const resposta = await fetch("http://localhost:3000/auth/verificarUsuario", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -259,14 +272,7 @@ document.getElementById("btnCancelar").addEventListener("click", async function 
      // Esconde o formulário de cadastro
   } else {
     
-    limparCampos(); // Limpa os campos do formulário
-    // document.getElementById("buscaUsuario").value = "";
-    // document.getElementById("nome").value = "";
-    // document.getElementById("sobrenome").value = "";
-    // document.getElementById("email").value = "";
-    // document.getElementById("senha").value = "";
-    // document.getElementById("confirmasenha").value = "";
-    // console.log("Algum campo foi preenchido.");
+      limparCampos(); // Limpa os campos do formulário
   }
 });
 
@@ -348,9 +354,11 @@ inputBusca.addEventListener('input', async () => {
 usuarios.forEach(usuario => {
   const li = document.createElement('li');
   li.textContent = `${usuario.nome} ${usuario.sobrenome}`;
+  li.dataset.idusuario = usuario.idusuario;
   li.dataset.email = usuario.email;
   li.dataset.nome = usuario.nome;
   li.dataset.sobrenome = usuario.sobrenome;
+  li.dataset.ativo = usuario.ativo;
  // li.dataset.senha = usuario.senha_hash; // Adiciona o hash da senha como dataset
   lista.appendChild(li);
 });
@@ -371,15 +379,17 @@ lista.addEventListener('click', (e) => {
     const sobrenome = e.target.dataset.sobrenome;
     const email = e.target.dataset.email;
     const ativo = e.target.dataset.ativo === 'true'; 
-  
+    const idusuario = e.target.dataset.idusuario;
 
-    console.log("Usuário selecionado:", nome, sobrenome, email, senha); // Log do usuário selecionado
+    console.log("Usuário selecionado:", nome, sobrenome, email, ativo, idusuario); // Log do usuário selecionado
 
+    document.getElementById('idusuario').value = idusuario;
     document.getElementById('nome').value = nome;
     document.getElementById('sobrenome').value = sobrenome;
     document.getElementById('email').value = email;
     document.getElementById("email_original").value = email; // Armazena o email original para comparação
     document.getElementById('ativo').checked = ativo;
+ 
    
     document.getElementById('buscaUsuario').value = `${nome} ${sobrenome}`;
     lista.innerHTML = '';
@@ -392,6 +402,7 @@ lista.addEventListener('click', (e) => {
 });
 
 function limparCampos() {
+  document.getElementById('Registrar').reset();
   document.getElementById("nome").value = "";
   document.getElementById("sobrenome").value = "";
   document.getElementById("email").value = "";
@@ -402,22 +413,14 @@ function limparCampos() {
   document.getElementById("btnCadastrar").style.display = "inline-block";
   document.getElementById("btnAlterar").style.display = "none"; // Esconde o botão de alterar após cadastro
   document.getElementById("ativo").checked = false;
+  document.getElementById('listaUsuarios').innerHTML = '';
+  document.getElementById('listaUsuarios').style.display = 'none';
+ 
 }
 
 document.getElementById("btnCadastrar").addEventListener("click", function (e) {
   e.preventDefault();
   document.getElementById("btnCadastrarReal").click();
-});
-
-
-function flipBox() {
-  var container = document.getElementById("flip-container");
-  container.classList.toggle("flipped");
-}
-
-document.getElementById("btnsalvarPermissao").addEventListener("click", function (e) {
-  e.preventDefault();
-  document.getElementById("btnPermissaoReal").click();
 });
 
 async function preencherUsuarioPeloEmail(email) {
@@ -435,4 +438,199 @@ async function preencherUsuarioPeloEmail(email) {
   }
 }
 
+function flipBox() {
+   var container = document.getElementById("flip-container");
+   container.classList.toggle("flipped");
+  const idusuario = document.getElementById("idusuario").value;
+  if (idusuario) {
+    console.log("Vai entrar em carregarPermissoesUsuario IdUsuario",idusuario);
+    carregarPermissoesUsuario(idusuario);
+  }
 
+   console.log("Entrou no flipBox");
+}
+
+document.getElementById("btnVoltar").addEventListener("click", function() {
+  console.log("clicou no voltar");
+   flipBox();
+
+   // pega o idusuario que já está armazenado em um campo hidden
+  
+});
+
+let permissoesOriginais = {
+  modulo:   null,
+  acesso:   false,
+  cadastrar:false,
+  alterar:  false,
+  pesquisar:false,
+  leitura:  false
+};
+
+// Salvando permissões
+document.getElementById("btnsalvarPermissao").addEventListener("click", async function (e) {
+  e.preventDefault();
+  document.getElementById("btnPermissaoReal").click();
+
+  const idusuario = document.getElementById("idusuario").value;
+  const email = document.getElementById("nome_usuario").value.trim();
+  const modulo = document.getElementById("modulo").value;
+
+  if (!email || modulo === "choose") {
+    Swal.fire("Atenção", "Informe um usuário e selecione um módulo.", "warning");
+    return;
+  }
+  // valores atuais
+  const atuais = {
+    modulo,
+    acesso:    document.getElementById("Acesso").checked,
+    cadastrar: document.getElementById("Cadastrar").checked,
+    alterar:   document.getElementById("Alterar").checked,
+    pesquisar: document.getElementById("Pesquisar").checked,
+    leitura:   document.getElementById("Leitura").checked
+  };
+
+   // compara tudo
+  const semAlteracao = Object.keys(atuais).every(key => atuais[key] === permissoesOriginais[key]);
+  if (semAlteracao) {
+    return Swal.fire("Aviso", "Nenhuma alteração detectada em Permissões.", "info");
+  }
+
+  // monta o body
+  const permissoes = {
+    idusuario,
+    email,
+    modulo,
+    acesso: document.getElementById("Acesso").checked,
+    cadastrar: document.getElementById("Cadastrar").checked,
+    alterar: document.getElementById("Alterar").checked,
+    pesquisar: document.getElementById("Pesquisar").checked,
+    leitura: document.getElementById("Leitura").checked
+  };
+
+  try {
+    const res = await fetch("http://localhost:3000/permissoes/cadastro", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(permissoes)
+    });
+
+    if (res.ok) {
+      Swal.fire("Sucesso", "Permissões salvas com sucesso!", "success");
+      permissoesOriginais = { ...atuais };
+    } else {
+      const resultado = await res.json();
+      Swal.fire("Erro", resultado.error || "Erro ao salvar permissões.", "error");
+    }
+  } catch (err) {
+    console.error("Erro ao salvar permissões:", err);
+  }
+  
+});
+
+async function carregarPermissoesUsuario(idusuario) {
+  
+  const selectModulo = document.getElementById("modulo");
+  const chkAcesso    = document.getElementById("Acesso");
+  const chkCadastrar = document.getElementById("Cadastrar");
+  const chkAlterar   = document.getElementById("Alterar");
+  const chkPesquisar = document.getElementById("Pesquisar");
+  const chkLeitura   = document.getElementById("Leitura");
+
+  // 1. limpa tudo
+  selectModulo.value = "choose";
+  [chkAcesso, chkCadastrar, chkAlterar, chkPesquisar, chkLeitura]
+    .forEach(chk => chk.checked = false);
+
+  try {
+    console.log("Entrou no carregarPermissoesUsuario", idusuario);
+    const resp = await fetch(`http://localhost:3000/permissoes/${idusuario}`);
+    if (!resp.ok) throw new Error("Falha ao buscar permissões");
+    const permissoes = await resp.json();
+
+    if (permissoes.length > 0) {
+    const p = permissoes[0];
+    // seta o select e checkboxes
+    selectModulo.value    = p.modulo;
+    chkAcesso.checked     = Boolean(p.acesso);
+    chkCadastrar.checked  = Boolean(p.cadastrar);
+    chkAlterar.checked    = Boolean(p.alterar);
+    chkPesquisar.checked  = Boolean(p.pesquisar);
+    chkLeitura.checked    = Boolean(p.leitura);
+
+    // guarda no original
+    permissoesOriginais = {
+      modulo:    p.modulo,
+      acesso:    Boolean(p.acesso),
+      cadastrar: Boolean(p.cadastrar),
+      alterar:   Boolean(p.alterar),
+      pesquisar: Boolean(p.pesquisar),
+      leitura:   Boolean(p.leitura)
+    };
+    } else {
+    // sem permissões ainda → zera original também
+      permissoesOriginais = {
+        modulo:   selectModulo.value,
+        acesso:   false,
+        cadastrar:false,
+        alterar:  false,
+        pesquisar:false,
+        leitura:  false
+      };
+    }
+
+  } catch (err) {
+    console.error("Erro ao carregar permissões:", err);
+  }
+  
+}
+
+function aplicarPermissoes(permissoes) {
+  console.log("Entrou em aplicarPermissoes");
+
+
+  // Define qual é o módulo desta página; 
+  // pode vir de uma variável global, do próprio select, ou do nome da rota.
+  // Por exemplo, num <body data-modulo="Clientes">:
+  const moduloAtual = document.body.dataset.modulo;  
+
+  // Encontra o objeto de permissão correspondente
+  const p = permissoes.find(x => x.modulo === moduloAtual);
+
+  // Se não existir ou não tiver acesso geral, bloqueia tudo:
+  if (!p || !p.acesso) {
+    document.querySelectorAll("input, select, textarea, button").forEach(el => {
+      el.disabled = true;
+    });
+    return;
+  }
+
+  // Se tiver acesso mas não puder cadastrar:
+  if (!p.cadastrar) {
+    document.querySelectorAll(".btnCadastrar").forEach(btn => btn.disabled = true);
+  }
+
+  // Se não puder alterar:
+  if (!p.alterar) {
+    document.querySelectorAll(".btnAlterar").forEach(btn => btn.disabled = true);
+  }
+
+  // Se não puder pesquisar:
+  if (!p.pesquisar) {
+    document.querySelectorAll(".btnPesquisar").forEach(btn => btn.disabled = true);
+  }
+
+  // Se for “apenas leitura”, desabilita todos os campos, deixando só o pesquisar habilitado:
+  if (p.leitura) {
+    document.querySelectorAll("input, select, textarea").forEach(el => el.readOnly = true);
+    document.querySelectorAll("button").forEach(btn => {
+      if (!btn.classList.contains("btnPesquisar")) btn.disabled = true;
+    });
+  }
+}
+
+
+
+
+
+  

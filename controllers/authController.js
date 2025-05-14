@@ -23,43 +23,6 @@ async function verificarUsuarioExistente(req, res) {
     }
   }
 
-// async function cadastrarUsuario(req, res) {
-//     const { nome, sobrenome, email, senha } = req.body;
-  
-//     try {
-//       const { rows } = await db.query("SELECT * FROM usuarios WHERE email = $1", [email]);
-  
-//       if (rows.length > 0) {
-//         // Usuário existe → já cadastrado
-//         return res.status(400).json({ erro: 'Usuário já cadastrado com este e-mail.' });
-//       }
-
-//       const senhaHash = await bcrypt.hash(senha, 10);
-  
-//       if (rows.length > 0) {
-//         // Usuário existe → atualiza
-//         await db.query(`
-//           UPDATE usuarios
-//           SET nome = $1, sobrenome = $2, senha_hash = $3
-//           WHERE email = $4
-//         `, [nome, sobrenome, senhaHash, email]);
-  
-//         return res.status(200).json({ mensagem: 'Usuário atualizado com sucesso.' });
-//       } else {
-//         // Novo usuário
-//         await db.query(`
-//           INSERT INTO usuarios (nome, sobrenome, email, senha_hash)
-//           VALUES ($1, $2, $3, $4)
-//         `, [nome, sobrenome, email, senhaHash]);
-  
-//         return res.status(201).json({ mensagem: 'Usuário cadastrado com sucesso.' });
-//       }
-  
-//     } catch (erro) {
-//       console.error('Erro ao cadastrar ou atualizar usuário:', erro);
-//       res.status(500).json({ erro: 'Erro ao cadastrar ou atualizar usuário.' });
-//     }
-// }
 
 async function cadastrarOuAtualizarUsuario(req, res) {
   const { nome, sobrenome, email, senha, email_original, ativo } = req.body;
@@ -82,7 +45,7 @@ async function cadastrarOuAtualizarUsuario(req, res) {
         !senha; // senha vazia significa que não foi alterada
 
       if (camposIguais) {
-        return res.status(200).json({ mensagem: 'Nenhuma alteração detectada.' });
+        return res.status(200).json({ mensagem: 'Nenhuma alteração detectada no Usuário.' });
       }
 
       if (nome && nome !== usuario.nome) {
@@ -91,7 +54,7 @@ async function cadastrarOuAtualizarUsuario(req, res) {
       }
 
       if (sobrenome && sobrenome !== usuario.sobrenome) {
-        atualizacoes.push(`sobrenome = $${idx++}`);
+        atualizacoes.push(`sobrenome = $${idx++}`); 
         valores.push(sobrenome);
       }
 
@@ -123,11 +86,7 @@ async function cadastrarOuAtualizarUsuario(req, res) {
       return res.status(200).json({ mensagem: 'Usuário atualizado com sucesso.' });
 
     } else {
-      // Novo usuário
-      // const { rows: emailJaUsado } = await db.query("SELECT 1 FROM usuarios WHERE email = $1", [email]);
-      // if (emailJaUsado.length > 0) {
-      //   return res.status(400).json({ erro: "E-mail já está em uso por outro usuário." });
-      // }
+    
       const { rows: usuariosComMesmoEmail } = await db.query("SELECT * FROM usuarios WHERE email = $1", [email]);
       if (usuariosComMesmoEmail.length > 0) {
         const usuarioExistente = usuariosComMesmoEmail[0];
@@ -155,7 +114,8 @@ async function cadastrarOuAtualizarUsuario(req, res) {
   
   async function listarUsuarios(req, res) {
     try {
-      const { rows } = await db.query('SELECT id, nome, sobrenome, email, senha_hash, ativo FROM usuarios ORDER BY nome');
+      console.log("listarUsuarios AuthController", req );
+      const { rows } = await db.query('SELECT idusuario, nome, sobrenome, email, senha_hash, ativo FROM usuarios ORDER BY nome');
       res.status(200).json(rows);
     } catch (erro) {
       console.error('Erro ao listar usuários:', erro);
@@ -165,10 +125,10 @@ async function cadastrarOuAtualizarUsuario(req, res) {
 
   async function buscarUsuariosPorNome(req, res) {
     const { nome } = req.query;
-  
+    console.log("buscarUsuarioPorNome", nome);
     try {
       const { rows } = await db.query(`
-        SELECT id, nome, sobrenome, email, senha_hash, ativo
+        SELECT idusuario, nome, sobrenome, email, senha_hash, ativo
         FROM usuarios 
         WHERE LOWER(nome) LIKE LOWER($1) 
         ORDER BY nome 
@@ -195,12 +155,11 @@ async function login(req, res) {
         const senhaCorreta = await bcrypt.compare(senha, usuario.senha_hash);
         if (!senhaCorreta) return res.status(401).json({ erro: 'Senha inválida.' });
 
-        const token = jwt.sign({ id: usuario.id, nome: usuario.nome }, process.env.JWT_SECRET, {
+        const token = jwt.sign({ id: usuario.idusuario, nome: usuario.nome }, process.env.JWT_SECRET, {
             expiresIn: '8h',
         });
-
-        //res.json({ token });
-        res.status(200).json({ token }); // sucesso
+        res.status(200).json({ token, idusuario: usuario.idusuario });
+        
     } catch (error) {
         console.error('Erro ao fazer login:', error);
         res.status(500).json({ erro: 'Erro no login.' });
@@ -212,7 +171,7 @@ async function buscarUsuarioPorEmail(req, res) {
 
   try {
     const { rows } = await db.query(
-      'SELECT id, nome, sobrenome FROM usuarios WHERE email = $1',
+      'SELECT idusuario, nome, sobrenome FROM usuarios WHERE email = $1',
       [email]
     );
 

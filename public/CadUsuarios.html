@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-bR">
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -22,92 +22,95 @@
           <h1>Cadastro/Alteração de Usuários</h1>
         </div>
 
-            <div class="Empresas">
-              <div class="logotipo">
-                <div class="minilogos " href="EXPO-index.html"><img src="img/JA_Expo.png" alt="JA_EXPO"></div>
-                <div class="minilogos" href="ES-index.html"><img src="img/JA_ES.png" alt="JA_ES"></div>
-                <div href="OPER-index.html"><img src="img/JA_Oper.png" alt="JA_Oper"></div>
-                <div class="minilogos" href="EA-index.html"><img src="img/JA_EA.png" alt="JA_EA"></div>
-                <div class="minilogos" href="ED-index.html"><img src="img/JA_ED.png" alt="JA_ED"></div>
-                <div class="minilogos" href="EP-index.html"><img src="img/JA_EP.png" alt="JA_EP"></div>
-              </div>
+        <div class="Empresas">
+          <div class="logotipo">
+            <div class="minilogos" href="EXPO-index.html"><img src="img/JA_Expo.png" alt="JA_EXPO"></div>
+            <div class="minilogos" href="ES-index.html"><img src="img/JA_ES.png" alt="JA_ES"></div>
+            <!-- <div href="OPER-index.html"><img src="img/JA_Oper.png" alt="JA_Oper"></div> -->
+            <a><img src="img/JA_Oper.png" alt="JA_Oper"></a>
+            <div class="minilogos" href="EA-index.html"><img src="img/JA_EA.png" alt="JA_EA"></div>
+            <div class="minilogos" href="ED-index.html"><img src="img/JA_ED.png" alt="JA_ED"></div>
+            <div class="minilogos" href="EP-index.html"><img src="img/JA_EP.png" alt="JA_EP"></div>
+          </div>
+        </div>
+
+        <br>
+
+        <div class="user-box camposenha">
+          <input type="text" id="buscaUsuario" autocomplete="off" spellcheck="false">
+          <label for="buscaUsuario">buscar Usuário</label>
+          <input type="hidden" id="idusuario">
+          <span toggle="#senha" class="toggle-senha">
+            <i class="fa-solid fa-magnifying-glass" id="iconebuscarUsuario"></i>
+          </span>
+          <ul id="listaUsuarios" class="autocomplete-list"></ul>
+        </div>
+
+        <div class="form-3colunas">
+          <div class="user-box dupla">
+          <!-- Nome -->
+          <div class="user-box2">
+            <input type="text" id="nome" name="nome" required>
+            <label for="nome">Nome</label>
+          </div>
+            <!-- Sobrenome -->
+            <div class="user-box2">
+              <input type="text" id="sobrenome" name="sobrenome" required>
+              <label for="sobrenome">Sobrenome</label>
             </div>
+          </div>
 
-            <br>
-
-            <div class="user-box camposenha">
-              <input type="text" id="buscaUsuario" autocomplete="off" spellcheck="false">
-              <label for="buscaUsuario">buscar Usuário</label>
-              <span toggle="#senha" class="toggle-senha">
-                <i class="fa-solid fa-magnifying-glass" id="iconebuscarUsuario"></i>
+          <!-- Checkbox -->
+          <div class="checkbox-wrapper-33 checkbox-coluna">
+            <label class="checkbox">
+              <p class="checkbox__textwrapper">User Ativo</p>
+              <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo">
+              <span class="checkbox__symbol">
+                <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M4 14l8 7L24 7"></path>
+                </svg>
               </span>
-              <ul id="listaUsuarios" class="autocomplete-list"></ul>
-            </div>
+              
+            </label>
+          </div>
+        </div>
+        
 
-            <div class="form-3colunas">
-              <div class="user-box dupla">
-              <!-- Nome -->
-              <div class="user-box2">
-                <input type="text" id="nome" name="nome" required>
-                <label for="nome">Nome</label>
-              </div>
-                <!-- Sobrenome -->
-                <div class="user-box2">
-                  <input type="text" id="sobrenome" name="sobrenome" required>
-                  <label for="sobrenome">Sobrenome</label>
-                </div>
-              </div>
+        <div class="user-box">
+          <input type="email" id="email" name="email" required="">
+          <input type="hidden" id="email_original">
+          <label for="email">Email</label>
+        </div>
 
-              <!-- Checkbox -->
-              <div class="checkbox-wrapper-33 checkbox-coluna">
-                <label class="checkbox">
-                  <p class="checkbox__textwrapper">User Ativo</p>
-                  <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo">
-                  <span class="checkbox__symbol">
-                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M4 14l8 7L24 7"></path>
-                    </svg>
-                  </span>
-                  
-                </label>
-              </div>
-            </div>
-            
+        <div class="user-box camposenha">
+          <input type="password" id="senha" name="senha" required="">
+          <label>Senha</label>
+          <span toggle="#senha" class="toggle-senha">
+            <i class="fa-regular fa-eye" id="icone-senha"></i>
+          </span>
+        </div>
 
-            <div class="user-box">
-              <input type="email" id="email" name="email" required="">
-              <input type="hidden" id="email_original">
-              <label>Email</label>
-            </div>
+        <div class="user-box camposenha">
+          <input type="password" id="confirmasenha" name="confirmasenha" required="">
+          <label> Confirmar senha</label>
+          <span toggle="#confirmasenha" class="toggle-senha">
+            <i class="fa-regular fa-eye" id="icone-confirmasenha"></i>
+          </span>
+        </div>
 
-            <div class="user-box camposenha">
-              <input type="password" id="senha" name="senha" required="">
-              <label>Senha</label>
-              <span toggle="#senha" class="toggle-senha">
-                <i class="fa-regular fa-eye" id="icone-senha"></i>
-              </span>
-            </div>
-
-            <div class="user-box camposenha">
-              <input type="password" id="confirmasenha" name="confirmasenha" required="">
-              <label> Confirmar senha</label>
-              <span toggle="#confirmasenha" class="toggle-senha">
-                <i class="fa-regular fa-eye" id="icone-confirmasenha"></i>
-              </span>
-            </div>
-
-              <div class="bts">
-          <a type="submit" id="btnCadastrar" onclick="flipBox()">CADASTRAR<span></span></a>
+        <div class="bts">
+          <!-- <a type="submit" id="btnCadastrar" onclick="flipBox()">CADASTRAR<span></span></a>-->
+          <a type="submit" id="btnCadastrar">CADASTRAR<span></span></a> 
           <button type="submit" id="btnCadastrarReal" style="display: none;"></button>
-          <a type="button" id="btnAlterar" style="display: none;" onclick="flipBox()">ALTERAR<span></span></a>
+          <a type="button" id="btnAlterar" style="display: none;">ALTERAR<span></span></a>
           <a type="button" id="btnCancelar">CANCELAR<span></span></a>
           <a type="button" id="btnFechar">FECHAR<span></span></a>
         </div>
       </form>
 
-      <div id="listaUsuarios" class="modal-lista" style="display: none;">
+      <!-- <div id="listaUsuarios" class="modal-lista" style="display: none;">
         <ul id="usuariosEncontrados"></ul>
-      </div>
+      </div> -->
   </div>
 
     <!-- Verso: outro formulário ou mensagem -->
@@ -117,56 +120,56 @@
           <h1>Definir Permissões</h1>
         </div>
             
-              <div class="user-box camposenha">
-                <input type="text" id="nome_usuario" value="" spellcheck="false" oninput="preencherUsuarioPeloEmail()" >
-                <label for="nome_usuario"> Usuário:</label>
-              </div>
-              <div class="user-box  user-boxSelect">
-                <label for="modulo">Módulo:</label>
-                  <select name="modulo" id="modulo">
-                    <option value="choose" selected>Escolha o Modulo</option>
-                    <option value=Clientes">Clientes</option>
-                    <option value="Orçamentos">Orçamentos</option>
-                    <option value="Eventos">Eventos</option>
-                    <option value="Equipamentos">Equipamentos</option>
-                    <option value="Suprimentos">Suprimentos</option>
-                    <option value="Local de Montagem">Local de Montagem</option>
-                    <option value="Funcionários">Funcionários</option>
-                  </select>
-              </div>
-              <div class="Permissions">
-                <div>
-                  <input id="Acesso" type="checkbox" />
-                  <label for="Acesso">Acesso ao Modulo</label>
-                </div>
-                <div>
-                  <input id="Cadastrar" type="checkbox" />
-                  <label for="Cadastrar">Cadastrar</label>
-                </div>
-                <div>
-                  <input  id="Alterar" type="checkbox" />
-                  <label for="Alterar">Alterar</label>
-                </div>
-                <div>
-                  <input id="Pesquisar" type="checkbox" />
-                  <label for="Pesquisar">Pesquisar</label>
-                </div>
-                <div>
-                  <input id="Leitura" type="checkbox" />
-                  <label for="Leitura">Apenas Leitura</label>
-                </div>
-              </div> 
-          
-            <!-- <label><input type="checkbox" name="pode_cadastrar"> </label><br>
-            <label><input type="checkbox" name="pode_alterar"> </label><br>
-            <label><input type="checkbox" name="pode_pesquisar"> </label><br> -->
+        <div class="user-box camposenha">
+          <input type="text" id="nome_usuario" value="" spellcheck="false" oninput="preencherUsuarioPeloEmail()" >
+          <label for="nome_usuario"> Usuário:</label>
+        </div>
+        <div class="user-box  user-boxSelect">
+          <label for="modulo">Módulo:</label>
+            <select name="modulo" id="modulo">
+              <option value="choose" selected>Escolha o Modulo</option>
+              <option value="Clientes">Clientes</option>
+              <option value="Orçamentos">Orçamentos</option>
+              <option value="Eventos">Eventos</option>
+              <option value="Equipamentos">Equipamentos</option>
+              <option value="Suprimentos">Suprimentos</option>
+              <option value="Local de Montagem">Local de Montagem</option>
+              <option value="Funcionários">Funcionários</option>
+            </select>
+        </div>
+        <div class="Permissions">
+          <div>
+            <input id="Acesso" type="checkbox" />
+            <label for="Acesso">Acesso ao Modulo</label>
+          </div>
+          <div>
+            <input id="Cadastrar" type="checkbox" />
+            <label for="Cadastrar">Cadastrar</label>
+          </div>
+          <div>
+            <input  id="Alterar" type="checkbox" />
+            <label for="Alterar">Alterar</label>
+          </div>
+          <div>
+            <input id="Pesquisar" type="checkbox" />
+            <label for="Pesquisar">Pesquisar</label>
+          </div>
+          <div>
+            <input id="Leitura" type="checkbox" />
+            <label for="Leitura">Apenas Leitura</label>
+          </div>
+        </div> 
+    
+      <!-- <label><input type="checkbox" name="pode_cadastrar"> </label><br>
+      <label><input type="checkbox" name="pode_alterar"> </label><br>
+      <label><input type="checkbox" name="pode_pesquisar"> </label><br> -->
 
-              <div class="bts">
-                <a type="submit" id="btnsalvarPermissao">SALVAR PERMISSÃO<span></span></a>
-                  <button type="submit" id="btnPermissaoReal" style="display: none;"></button>
+        <div class="bts">
+          <a type="button" id="btnsalvarPermissao">SALVAR PERMISSÃO<span></span></a>
+            <button type="button" id="btnPermissaoReal" style="display: none;"></button>
 
-                  <a type="button" id="btnVoltar" onclick="flipBox()">Voltar<span></span></a>
-              </div>
+            <a type="button" id="btnVoltar">Voltar<span></span></a>
+        </div>
       </form>
     </div>
   </div>
