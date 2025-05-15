@@ -21,6 +21,7 @@
   
   .interface{
     max-width: 2560px;
+    max-height: 90px;
     padding: 0 ;
     margin: 0 ;
     display: flex;
