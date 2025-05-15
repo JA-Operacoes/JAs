@@ -15,7 +15,17 @@ async function listarPermissoes(req, res) {
 async function listarPermissoesPorUsuario(req, res) {
   const { idusuario } = req.params;
   try {
-    const { rows } = await db.query('SELECT * FROM permissoes WHERE idusuario = $1', [idusuario]);
+    const { rows } = await db.query(`
+      SELECT *
+      FROM permissoes
+      WHERE idusuario = $1
+      ORDER BY modulo
+    `, [idusuario]);
+    
+    rows.forEach(row => {
+      row.modulo = row.modulo.charAt(0).toUpperCase() + row.modulo.slice(1).toLowerCase();
+    });
+
     res.status(200).json(rows);
   } catch (erro) {
     console.error('Erro ao buscar permissões do usuário:', erro);
@@ -25,7 +35,11 @@ async function listarPermissoesPorUsuario(req, res) {
 
 // Cadastrar ou atualizar permissões
 async function cadastrarOuAtualizarPermissoes(req, res) {
-  const { idusuario, modulo, cadastrar, alterar, pesquisar, acesso } = req.body;
+  // const { idusuario, modulo, cadastrar, alterar, pesquisar, acesso } = req.body;
+  let { idusuario, modulo, cadastrar, alterar, pesquisar, acesso } = req.body;
+
+  // Normalizar o nome do módulo: primeira letra maiúscula, resto minúsculo
+  modulo = modulo.charAt(0).toUpperCase() + modulo.slice(1).toLowerCase();
     console.log("cadastrarOuAtualizarPermissoes", req.body)
   try {
     const { rows } = await db.query(

@@ -38,8 +38,8 @@ document.getElementById("Login").addEventListener("submit", async function (e) {
     const { token, idusuario } = dados;
     console.log("token, idusuario", token, idusuario);
     // guarda para usar nas outras páginas
-    localStorage.setItem("token", token);
-    localStorage.setItem("idusuario", idusuario);
+    sessionStorage.setItem("token", token);
+    sessionStorage.setItem("idusuario", idusuario);
 
    
     // Redirecionar para página inicial após login
@@ -51,7 +51,7 @@ document.getElementById("Login").addEventListener("submit", async function (e) {
     // alert("Erro inesperado ao tentar fazer login.");
      Swal.fire({
         icon: 'error',
-        title: 'Erro Inexperado',
+        title: 'Erro Inesperado',
         text: 'Erro inesperado ao tentar fazer login.',
     });
   }
