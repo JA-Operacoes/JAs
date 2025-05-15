@@ -308,6 +308,26 @@ function carregarLocalMontOrc() {
     .catch(error => console.error('Erro ao carregar Local Montagem:', error));
 }
 
+function configurarInfraCheckbox() {
+    let checkbox = document.getElementById("ativo");
+    let bloco = document.getElementById("blocoInfra");
+    let bloco2 = document.getElementById("blocoInfra2");
+ 
+    if (!checkbox || !bloco || !bloco2) return;
+
+
+    function atualizarVisibilidade() {
+        bloco.style.display = checkbox.checked ? "block" : "none";
+        bloco2.style.display = checkbox.checked ? "block" : "none";
+    }
+
+    checkbox.addEventListener("change", atualizarVisibilidade);
+console.log("entrou na função");
+    // Opcional: já configura o estado inicial com base no checkbox
+    atualizarVisibilidade();
+}
+
+
 
 
 
@@ -428,13 +448,15 @@ function recalcularLinha(linha) {
         let vlrCusto = desformatarMoeda(linha.querySelector('.vlrCusto')?.textContent);
         let vlrAjdCusto = desformatarMoeda(linha.querySelector('.ajdCusto')?.textContent);
              
-        let totalIntermediario = qtdItens * qtdDias;
+        let totalIntermediario = qtdItens * qtdDias; // multiplica o quantidade de dias pelo quantidade de itens 
+
         let totalVenda = totalIntermediario * vlrVenda;
         let totalCusto = totalIntermediario * vlrCusto;
 
         let totalAjdCusto = totalIntermediario * vlrAjdCusto;
 
         let totGeralCtoItem = totalCusto + totalAjdCusto;
+
       
         
         console.log("valor ajd custo",linha.querySelector('.ajdCusto'));
@@ -506,12 +528,12 @@ function recalcularLinha(linha) {
         }
 
         // Atualiza o campo de Total Geral Ajuda de Custo se existir
-        let inputTotalAjdCusto = document.querySelector('#totalAjdCusto');
+        let inputTotalAjdCusto = document.querySelector('#totalajdCusto');
         if (inputTotalAjdCusto) {
             inputTotalAjdCusto.value = totalAjdCustoGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
 
-        let inputTotalGeralCtoItem = document.querySelector('#totGeral');
+        let inputTotalGeralCtoItem = document.querySelector('#totalGeral');
         if (inputTotalGeralCtoItem) {
             inputTotalGeralCtoItem.value = totalGeralCustoItem.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
@@ -523,7 +545,7 @@ function recalcularLinha(linha) {
 
 
         aplicarMascaraMoeda();
-        aplicarDesconto();
+        aplicarDescontoEAcrescimo();
         calcularLucro();
 
     } catch (error) {
@@ -534,7 +556,7 @@ function recalcularLinha(linha) {
 function recalcularTotaisGerais() {
     let totalCustoGeral = 0;
     let totalVendaGeral = 0;
-  //  let totalAjdCustoGeral = 0;
+    let totalAjdCustoGeral = 0;
 
     console.log("recalcularTotaisGerais")
 
@@ -548,9 +570,9 @@ function recalcularTotaisGerais() {
         totalVendaGeral += desformatarMoeda(cell.textContent);
     });
 
-    // document.querySelectorAll('.totAjdCusto').forEach(cell => {
-    //     totalAjdCustoGeral += desformatarMoeda(cell.textContent);
-    // });
+    document.querySelectorAll('.totAjdCusto').forEach(cell => {
+        totalAjdCustoGeral += desformatarMoeda(cell.textContent);
+    });
 
 
     // Atualiza campos visuais
@@ -599,27 +621,59 @@ function calcularLucro() {
     }
 }
 
-function aplicarDesconto() {
-    
+function calcularLucroReal() {
+    let totalCustoGeral = 0;
+    let valorFinalCliente = 0;
 
-    let totalVendaGeral = desformatarMoeda(document.querySelector('#totalGeralVda').value);
-    let desconto = desformatarMoeda(document.querySelector('#Desconto').value);
+    // Obtém o valor do custo total
+    totalCustoGeral = desformatarMoeda(document.querySelector('#totalGeral').value);
 
-    // Garante que o desconto não ultrapasse o total
-    if (desconto > totalVendaGeral) {
-        desconto = totalVendaGeral;
-        document.querySelector('#Desconto').value = formatarMoeda(desconto);
-    }
-    aplicarMascaraMoeda();
-    let valorFinal = totalVendaGeral - desconto;
+    // Obtém o valor final ao cliente (já com desconto ou acréscimo)
+    valorFinalCliente = desformatarMoeda(document.querySelector('#valorCliente').value);
 
-    // Atualiza o campo de valor final
-    let inputValorFinal = document.querySelector('#valorCliente');
-    if (inputValorFinal) {
-        inputValorFinal.value = formatarMoeda(valorFinal);
+    // Calcula o lucro real (valor final recebido - custo total)
+    let lucroReal = valorFinalCliente - totalCustoGeral;
+
+    let porcentagemLucroReal = 0;
+    if (valorFinalCliente > 0) {
+        porcentagemLucroReal = (lucroReal / valorFinalCliente) * 100;
     }
 
-    console.log('Valor Final ao Cliente:', valorFinal);
+    // Exibe o lucro no console
+    console.log('Lucro Real calculado:', lucroReal);
+    console.log('Porcentagem de Lucro Real:', porcentagemLucroReal.toFixed(2) + '%');
+
+    // Atualiza o campo de lucro com a formatação de moeda
+    let inputLucro = document.querySelector('#LucroReal');
+    if (inputLucro) {
+        inputLucro.value = formatarMoeda(lucroReal); // Corrigido aqui
+    }
+
+    let inputPorcentagemLucro = document.querySelector('#perCentReal');
+    if (inputPorcentagemLucro) {
+        inputPorcentagemLucro.value = porcentagemLucroReal.toFixed(2) + '%'; // Corrigido aqui
+    }
+
+}
+
+function aplicarDescontoEAcrescimo() {
+    let totalVenda = desformatarMoeda(document.querySelector('#totalGeralVda').value);
+    let valorDesconto = desformatarMoeda(document.querySelector('#Desconto').value);
+    let valorAcrescimo = desformatarMoeda(document.querySelector('#Acrescimo').value);
+
+    // Aplica desconto e depois acréscimo sobre o valor original (totalVenda)
+    let valorFinalCliente = totalVenda - valorDesconto + valorAcrescimo;
+
+    aplicarMascaraMoeda()
+
+    // Atualiza o campo de valor final ao cliente
+    let campoValorCliente = document.querySelector('#valorCliente');
+    if (campoValorCliente) {
+        campoValorCliente.value = formatarMoeda(valorFinalCliente);
+    }
+
+    // Recalcula lucro real com base no valor final ao cliente atualizado
+    calcularLucroReal();
 }
 
 
@@ -631,9 +685,10 @@ function removerLinha(linha) {
     // Recalcular os totais após a remoção
     
     recalcularTotaisGerais();
-    aplicarDesconto()
+    aplicarDescontoEAcrescimo();
     aplicarMascaraMoeda()
     calcularLucro()
+    calcularLucroReal()
 }
 
 

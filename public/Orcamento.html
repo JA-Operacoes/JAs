@@ -19,7 +19,7 @@
 
         <div id ="form-orcamento">
         
-        <form id="form" name="form" autocomplete="on" ><!-- data-action="http://localhost:3000/salvarOrcamento"> -->
+        <form id="form" name="form" autocomplete="off" ><!-- data-action="http://localhost:3000/salvarOrcamento"> -->
             
                 
             <div class="title">
@@ -27,9 +27,9 @@
             </div>
 
                 <div class="Norcamento">
-                    <div class="form2">
+                    <div class="form2" >
                         <input type="text" style="text-transform: uppercase;" id="Status"  value="A" name="Status" maxlength="1" pattern="^[aAfF]$"
-                            title="A = Aberto | F = Fechado"  required spellcheck="false">
+                            title="A = Aberto | F = Fechado"   required spellcheck="false">
                         <label for="Status">Status  (A/F)</label>
                     </div>
                     <div class="form">
@@ -48,13 +48,24 @@
                         <label for="idEvento">Evento:</label>
                         <select class="idEvento" required spellcheck="false"></select>
                     </div>
-                    <div class="select">
-                        <label for="idMontagem">Local Montagem:</label>
-                        <select class="idMontagem"  onchange="atualizarUFOrc(this)"></select>
-                    </div>
-                    <div class="form3">
-                        <input type="text" class="ufmontagem" id="ufmontagem" name="ufmontagem" required spellcheck="false">
-                        <label  for="ufmontagem">UF</label>
+                        <div class="select2">
+                            <label for="idMontagem">Local Montagem:</label>
+                            <select class="idMontagem"  onchange="atualizarUFOrc(this)"></select>
+                        <div class="form3">
+                            <input type="text" class="ufmontagem" id="ufmontagem" name="ufmontagem" required spellcheck="false">
+                            <label  for="ufmontagem">UF</label>
+                        </div>
+                        <div class="checkbox-wrapper-33 checkbox-coluna" oninput="configurarInfraCheckbox()">
+                            <p class="checkbox__textwrapper"> infra.</p>
+                            <label class="checkbox">
+                                <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo">
+                                <span class="checkbox__symbol">
+                                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M4 14l8 7L24 7"></path>
+                                    </svg>
+                                </span>
+                            </label>
+                        </div>
                     </div>
                 </div>
         
@@ -64,32 +75,55 @@
             
                 <div class="periodoMontagem">
                 
+                    <div id="blocoInfra" class=" inativo-esquerda"  style="display: none;">
+                        <div class="dtInfra">
+                            <label class="miniTitle">Montagem de Infra.</label>
+                            <div class="De">
+                                <label  for="periodoInfra"> De:</label>
+                                <input type="date" id="dtIniInfra" >
+                            </div>
+                            <div class="ate">
+                                <label  for="dtFimMarcacao">Até:</label>
+                                <input type="date" id="dtFimInfra">
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="dtMarcacao">
                         <label class="miniTitle">Período de Marcação</label>
                         <div class="De">
-                            <label class="miniTitle" for="periodoMarcacao"> De:</label>
+                            <label  for="periodoMarcacao"> De:</label>
                             <input type="date" id="dtIniMarcacao" name="dtIniMarcacao">
-                            <label class="miniTitle" for="dtFimMarcacao">Até:</label>
+                        </div> 
+                        <div class="ate">
+                            <label for="dtFimMarcacao">Até:</label>
                             <input type="date" id="dtFimMarcacao" name="dtFimMarcacao">
                         </div>
+                        
                     </div>
                     <div class="inicioMontagem">
                         <label class="miniTitle">Período de Montagem</label>
                         <div class="De">
                             <label class="miniTitle" for="periodoMontagem"> De:</label>
                             <input type="date" id="dtInicioMontagem" name="dtInicioMontagem">
+                        </div>
+                        <div class="ate">
                             <label class="miniTitle" for="dtFimMontagem">Até:</label>
                             <input type="date" id="dtFimMontagem" name="dtFimMontagem">
                         </div>
+                        
                     </div>
                     <div class="Realizacao">
                         <label class="miniTitle">Período de Realização</label>
                         <div class="De">
                             <label class="miniTitle" for="periodoRealizacao"> De:</label>
                             <input type="date" id="dtInicioRealizacao" name="dtInicioRealizacao">
+                        </div>
+                        <div class="ate">
                             <label class="miniTitle" for="dtFimRealizacao">Até:</label>
                             <input type="date" id="dtFimRealizacao" name="dtFimRealizacao">
                         </div>
+                        
                     </div>
                 
                     <div class="dtDesmontagem">
@@ -97,10 +131,27 @@
                         <div class="De">
                             <label class="miniTitle" for="periodoDesmontagem"> De:</label>
                             <input type="date" id="dtIniDesmontagem" name="dtIniDesmontagem">
+                        </div>
+                        <div class="ate">
                             <label class="miniTitle" for="dtFimDesmontagem">Até:</label>
                             <input type="date" id="dtFimDesmontagem" name="dtFimDesmontagem">
                         </div>
+                        
                     </div>
+
+                    <div id="blocoInfra2" class="inativo-direita" style="display: none;">
+                        <div class="dtInfra">
+                            <label class="miniTitle">Desmontagem de Infra.</label>
+                            <div class="De">
+                                <label  for="periodoInfra"> De:</label>
+                                <input type="date" id="dtIniInfra" >
+                            </div>
+                            <div class="ate">
+                                <label  for="dtFimMarcacao">Até:</label>
+                                <input type="date" id="dtFimInfra">
+                            </div>
+                        </div>
+                    </div> 
                 </div>
             
 
@@ -170,57 +221,73 @@
                 <div class="addLinha"><button class="adicionar" onclick="adicionarLinhaOrc()">Adicionar Linha</button></div>
             
                 <div class = 'Selects'>
-                    <div class="form2">
-                        <input type="text" class="Moeda preenchido" id="totalGeralVda" name="totalGeralVda" value="0" required readonly style="font-size: 15px;" >
-                        <label for="totalGeralVda">Total Geral Venda:</label>
+                    <textarea  name="Observacao" id="Observacao" placeholder="Observaçoes"></textarea>
+                    <div>
+                        <div class="form-2colunas">
+                            <div class="form2">
+                                <input type="text" class="Moeda preenchido" id="totalGeralVda" name="totalGeralVda" value=" R$ 0,00" required readonly style="font-size: 15px;" >
+                                <label for="totalGeralVda">Total Geral Venda:</label>
+                            </div>
+                            <div class="form2">
+                                <input type="text" class="Moeda preenchido" id="totalGeralCto" value=" R$ 0,00" name="totalGeralCto" required readonly style="font-size: 15px;" >
+                                <label for="totalGeralCto">Total Geral Custo:</label>
+                            </div>
+                        </div>
+                        <div class="form-2colunas">
+                            <div class="form2">
+                                <input type="text" class="Moeda preenchido" id="totalajdCusto" value=" R$ 0,00" required readonly style="font-size: 15px;" >
+                                <label for="totalGeralCto">Total Ajuda De Custo:</label>
+                            </div>
+                            <div class="form2">
+                                <input type="text" class="Moeda preenchido" id="totalGeral" value=" R$ 0,00" required readonly style="font-size: 15px;" >
+                                <label for="totalGeral">Total Geral:</label>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="form2">
-                        <input type="text" class="Moeda preenchido" id="totalGeralCto" value="0" name="totalGeralCto" required readonly style="font-size: 15px;" >
-                        <label for="totalGeralCto">Total Geral Custo:</label>
+                    <div>
+                        <div class="lucroTot">
+                            <div class="form2">
+                                <input type="text" id="Lucro" value=" R$ 0,00" style="font-size: 15px;">
+                                <label for="Lucro"> Lucro: </label>
+                            </div>
+                            <div class="form3">
+                                <input type="text"  id="perCent" name="perCent" required style="font-size: 15px;">
+                                <label for="perCent"> % </label>
+                            </div>
+                        </div>
+                        <div class="lucroTot">
+                            <div class="form2">
+                                <input type="text" id="LucroReal" name="LucroReal" value=" R$ 0,00" required style="font-size: 15px;">
+                                <label for="LucroReal"> Lucro Real: </label>
+                            </div>
+                            <div class="form3">
+                                <input type="text"  id="perCentReal" name="perCentReal" required style="font-size: 15px;">
+                                <label for="perCentReal"> % </label>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="lucroTot">
+                    <div>
+                        
+                        <div class="form-2colunas">
+                            <div class="form2">
+                                <input type="text"  id="Desconto" name="Desconto"  required  oninput="aplicarDescontoEAcrescimo()" style="font-size: 15px;" autocomplete="off">
+                                <label for="Desconto">Desconto:</label>
+                            </div>
+                            <div class="form2">
+                                <input type="text"  id="Acrescimo" name="Acrescimo"  required  oninput="aplicarDescontoEAcrescimo()" style="font-size: 15px;" autocomplete="off">
+                                <label for="Acrescimo">Acréscimo:</label>
+                            </div>
+                        </div>
+                        
                         <div class="form2">
-                            <input type="text" id="Lucro" name="Lucro" required style="font-size: 15px;">
-                            <label for="Lucro"> Lucro: </label>
-                        </div>
-                        <div class="form3">
-                            <input type="text"  id="perCent" name="perCent" required style="font-size: 15px;">
-                            <label for="perCent"> % </label>
+                            <input type="text" id="valorCliente" name="valorCliente" value=" R$ 0,00" required style="font-size: 15px;">
+                            <label for="valorCliente"> Valor do Cliente</label>
                         </div>
                     </div>
-
-                    <div class="form2">
-                        <input type="text"  id="Desconto" name="Desconto" required oninput="aplicarDesconto()" style="font-size: 15px;" autocomplete="off">
-                        <label for="Desconto">Desconto:</label>
-                    </div>
-
-                    <div class="form2">
-                        <input type="text"  id="Acrescimo" name="Acrescimo" required oninput="calcularTotalGeralOrc()" style="font-size: 15px;" autocomplete="off">
-                        <label for="Acrescimo">Acréscimo:</label>
-                    </div>
-
-                    <div class="lucroReal">
-                        <div class="form2">
-                            <input type="text" id="LucroReal" name="LucroReal" required style="font-size: 15px;">
-                            <label for="Lucro Real"> Lucro Real: </label>
-                        </div>
-                        <div class="form3">
-                            <input type="text"  id="perCentReal" name="perCentReal" required style="font-size: 15px;">
-                            <label for="perCentReal"> % </label>
-                        </div>
-                    </div>
-
-                    <div class="form2">
-                        <input type="text" id="valorCliente" name="valorCliente" required style="font-size: 15px;">
-                        <label for="valorCliente"> Valor do Cliente</label>
-                    </div>
-                </div>
-                <textarea  name="Observacao" id="Observacao" placeholder="Observaçoes"></textarea>
-            <br>
-                <!-- <div class="addLinha"><button class="adicionar" onclick="adicionarLinhaOrc()">Adicionar Linha</button></div> -->
-            <br>
+                 
+            </div>
 
             </div>
             <div class="BTNs">
