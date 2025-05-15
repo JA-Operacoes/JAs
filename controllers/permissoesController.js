@@ -25,7 +25,7 @@ async function listarPermissoesPorUsuario(req, res) {
 
 // Cadastrar ou atualizar permissões
 async function cadastrarOuAtualizarPermissoes(req, res) {
-  const { idusuario, modulo, cadastrar, alterar, pesquisar } = req.body;
+  const { idusuario, modulo, cadastrar, alterar, pesquisar, acesso } = req.body;
     console.log("cadastrarOuAtualizarPermissoes", req.body)
   try {
     const { rows } = await db.query(
@@ -37,17 +37,17 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
       // Atualiza
       await db.query(`
         UPDATE permissoes
-        SET cadastrar = $1, alterar = $2, pesquisar = $3
-        WHERE idusuario = $4 AND modulo = $5
-      `, [cadastrar, alterar, pesquisar, idusuario, modulo]);
+        SET cadastrar = $1, alterar = $2, pesquisar = $3, acesso = $4
+        WHERE idusuario = $5 AND modulo = $6
+      `, [cadastrar, alterar, pesquisar, acesso, idusuario, modulo]);
 
       return res.status(200).json({ mensagem: 'Permissões atualizadas com sucesso.' });
     } else {
       // Insere
       await db.query(`
-        INSERT INTO permissoes (idusuario, modulo, cadastrar, alterar, pesquisar)
-        VALUES ($1, $2, $3, $4, $5)
-      `, [idusuario, modulo, cadastrar, alterar, pesquisar]);
+        INSERT INTO permissoes (idusuario, modulo, cadastrar, alterar, pesquisar, acesso)
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `, [idusuario, modulo, cadastrar, alterar, pesquisar, acesso]);
 
       return res.status(201).json({ mensagem: 'Permissões cadastradas com sucesso.' });
     }

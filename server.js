@@ -15,7 +15,14 @@ app.use('/js', express.static(path.join(__dirname, 'js'))); // Scripts externos
 app.use('/css', express.static(path.join(__dirname, 'css'))); // CSS externos
 
 // Middlewares
-app.use(cors({ methods: ['GET', 'POST', 'PUT'], allowedHeaders: ['Content-Type'] }));
+//app.use(cors({ methods: ['GET', 'POST', 'PUT'], allowedHeaders: ['Content-Type'] }));
+app.use(cors({
+  origin: 'http://127.0.0.1:5500', // ou '*' se quiser liberar geral
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
 app.use(express.json());
 app.use('/js', express.static(path.join(__dirname, 'js')));
 

@@ -586,7 +586,8 @@ async function carregarPermissoesUsuario(idusuario) {
 }
 
 function aplicarPermissoes(permissoes) {
-  console.log("Entrou em aplicarPermissoes");
+  console.log("[Permissões] aplicando em módulo:", document.body.dataset.modulo);
+  console.log("[Permissões] lista de permissões:", permissoes);
 
 
   // Define qual é o módulo desta página; 

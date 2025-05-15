@@ -1,18 +1,12 @@
-document.addEventListener("DOMContentLoaded", async function () {
-  // 1) Inicializa permissões do usuário para a página inteira
-  if (window.initPermissoes) {
-    console.log("iniPermissoes no DOM");
-    await initPermissoes();
-  }
-
-  // 2) Então configura seus modais
+document.addEventListener("DOMContentLoaded", function () {
+  // Apenas configura seus modais
   document.querySelectorAll(".abrir-modal").forEach(botao => {
     botao.addEventListener("click", function () {
       let url = botao.getAttribute("data-url");
       abrirModal(url);
     });
   });
-});
+})
 
 function abrirModal(url) {
     console.log("ABRIR  MODAL  Carregando modal de:", url);
@@ -34,48 +28,115 @@ function abrirModal(url) {
             let modalContainer = document.getElementById("modal-container");
             modalContainer.innerHTML = html;
 
-            let script = null;
+            // let script = null;
+
+            // if (url.includes("CadClientes")) {
+            //     script = document.createElement("script");
+            //     script.src = "js/Clientes.js";
+            //     window.moduloAtual = "Clientes";
+            //     console.log("MODULO ATUAL", window.moduloAtual);
+
+            // } else if (url.includes("CadFuncao")) {
+            //     script = document.createElement("script");
+            //     script.src = "js/Funcao.js"; 
+
+            // } else if (url.includes("Orcamento")) {
+            //     script = document.createElement("script");
+            //     script.src = "js/Orcamento.js";
+
+            // } else if (url.includes("CadLocalMontagem")) {
+            //     script = document.createElement("script");
+            //     script.src = "js/LocalMontagem.js";
+
+            // } else if (url.includes("CadEventos")) {
+            //     script = document.createElement("script");
+            //     script.src = "js/Eventos.js";
+
+            // }else if (url.includes("CadEquipamentos")) {
+            //     script = document.createElement("script");
+            //     script.src = "js/Equipamentos.js";
+
+            // }else if (url.includes("CadSuprimentos")) {
+            //     script = document.createElement("script");
+            //     script.src = "js/Suprimentos.js";
+            // }
+
+            // if (script) {
+            //     script.defer = true;
+            //     script.onload = () => {
+            //         configurarEventosEspecificos(url); // só chama depois que o JS carregar
+            //         // e depois reaplica as permissões, agora incluindo elementos do modal
+            //         if (window.initPermissoes) {
+            //             setTimeout(() => {
+            //                 console.log("Reexecutando initPermissoes após carregar modal");
+            //                 initPermissoes();
+            //             }, 100); // dá tempo do conteúdo ser renderizado
+            //         }
+            //     };
+            //    // document.body.appendChild(script);
+               
+            // }
+
+            let scriptSrc = null;
 
             if (url.includes("CadClientes")) {
-                script = document.createElement("script");
-                script.src = "js/Clientes.js";
-
+                scriptSrc = "js/Clientes.js";
+                window.moduloAtual = "Clientes";
             } else if (url.includes("CadFuncao")) {
-                script = document.createElement("script");
-                script.src = "js/Funcao.js"; 
-
+                scriptSrc = "js/Funcao.js";
+                window.moduloAtual = "Funções";
             } else if (url.includes("Orcamento")) {
-                script = document.createElement("script");
-                script.src = "js/Orcamento.js";
-
+                scriptSrc = "js/Orcamento.js";
+                window.moduloAtual = "Orcamento";
             } else if (url.includes("CadLocalMontagem")) {
-                script = document.createElement("script");
-                script.src = "js/LocalMontagem.js";
-
+                scriptSrc = "js/LocalMontagem.js";
+                window.moduloAtual = "Locais";
             } else if (url.includes("CadEventos")) {
-                script = document.createElement("script");
-                script.src = "js/Eventos.js";
-
-            }else if (url.includes("CadEquipamentos")) {
-                script = document.createElement("script");
-                script.src = "js/Equipamentos.js";
-
-            }else if (url.includes("CadSuprimentos")) {
-                script = document.createElement("script");
-                script.src = "js/Suprimentos.js";
+                scriptSrc = "js/Eventos.js";
+                window.moduloAtual = "Eventos";
+            } else if (url.includes("CadEquipamentos")) {
+                scriptSrc = "js/Equipamentos.js";
+                window.moduloAtual = "Equipamentos";
+            } else if (url.includes("CadSuprimentos")) {
+                scriptSrc = "js/Suprimentos.js";
+                window.moduloAtual = "Suprimentos";
             }
 
-            if (script) {
+
+            console.log("MODULO ATUAL:", window.moduloAtual);
+
+            // Verifica se o script já está carregado
+            const scriptsExistentes = Array.from(document.scripts);
+            const jaCarregado = scriptsExistentes.some(s => s.src.includes(scriptSrc));
+
+            if (scriptSrc && !jaCarregado) {
+                let script = document.createElement("script");
+                script.src = scriptSrc;
                 script.defer = true;
                 script.onload = () => {
-                    configurarEventosEspecificos(url); // só chama depois que o JS carregar
-                    // e depois reaplica as permissões, agora incluindo elementos do modal
+                    // Só configurar eventos e permissões depois do script carregar
+                    configurarEventosEspecificos(url);
+
                     if (window.initPermissoes) {
-                    initPermissoes();
+                        setTimeout(() => {
+                            console.log("Reexecutando initPermissoes após carregar modal");
+                            initPermissoes();
+                        }, 100); // para garantir que DOM está pronto
                     }
                 };
                 document.body.appendChild(script);
+            } else {
+                // Script já carregado, só configurar eventos e permissões
+                configurarEventosEspecificos(url);
+
+                if (window.initPermissoes) {
+                    setTimeout(() => {
+                        console.log("Reexecutando initPermissoes após carregar modal (sem recarregar script)");
+                        initPermissoes();
+                    }, 100);
+                }
             }
+
 
             let modal = modalContainer.querySelector(".modal");
             let overlay = document.getElementById("modal-overlay");
@@ -135,8 +196,5 @@ function configurarEventosEspecificos(url) {
             }, 500);
         }
     });
-
-    
-
 
 }

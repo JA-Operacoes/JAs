@@ -86,7 +86,7 @@ function carregarClientes() {
     const form = document.querySelector("#form");
     const botaoEnviar = document.querySelector("#Enviar");
     const btnLimpar = document.getElementById("Limpar");
-    const btnPesquisar = document.getElementById("Pesquisar");
+    const btnPesquisar = document.getElementById("btnPesquisar");
 
     if (!form || !botaoEnviar) {
         console.error("Formulário ou botão Enviar não encontrado.");
@@ -333,7 +333,8 @@ function carregarClientes() {
     if (btnPesquisar) {
         btnPesquisar.addEventListener("click", async (event) => {
             event.preventDefault();
-            
+             console.log("ENTROU NO BOTÃO PESQUISAR");
+
             limparFormulario();
             try {
                 const response = await fetch("http://localhost:3000/Clientes");
