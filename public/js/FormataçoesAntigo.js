@@ -34,7 +34,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
 
-  function formatCPF(input) {
+  window.formatCPF = function (input) {
     if (!input.value) return;
 
     let cpf = input.value.replace(/\D/g, ""); // Remove tudo que não for número
@@ -72,7 +72,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
 
-  function formatRG(input) {
+ window.formatRG = function(input) {
     if (!input.value) return;
 
     let rg = input.value.replace(/\D/g, ""); // Remove tudo que não for número
@@ -82,15 +82,6 @@ document.addEventListener("DOMContentLoaded", function () {
     input.value = rg.replace(/^(\d{2})(\d{3})(\d{3})([\dXx]?)$/, "$1.$2.$3-$4");
 }
 
-// Adiciona evento automaticamente ao input RG
-document.addEventListener("DOMContentLoaded", function () {
-    let rgInput = document.querySelector("#rg");
-    if (rgInput) {
-        rgInput.addEventListener("input", function () {
-            formatRG(this);
-        });
-    }
-});
 
 
 

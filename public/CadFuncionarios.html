@@ -49,24 +49,30 @@
                           <label for="radio">Free-lancer</label>
                           <input type="radio" name="radio" id="radio3" >
                         </div>
+                        <div class="container" oninput="configurarPreviewFoto()"> 
+                          <!-- Preview da imagem (inicialmente escondido) -->
+                          <img id="previewFoto" src="#" alt="Pré-visualização" style="display: none; max-width: 100%; margin-bottom: 10px; border-radius: 8px;" />
 
-                        <div class="perfil-foto">
-                          <label for="file" class="file-upload-label">
-                            <div class="file-upload-design">
-                              <svg viewBox="0 0 640 512" height="1em">
-                                <path
-                                  d="M144 480C64.5 480 0 415.5 0 336c0-62.8 40.2-116.2 96.2-135.9c-.1-2.7-.2-5.4-.2-8.1c0-88.4 71.6-160 160-160c59.3 0 111 32.2 138.7 80.2C409.9 102 428.3 96 448 96c53 0 96 43 96 96c0 12.2-2.3 23.8-6.4 34.6C596 238.4 640 290.1 640 352c0 70.7-57.3 128-128 128H144zm79-217c-9.4 9.4-9.4 24.6 0 33.9s24.6 9.4 33.9 0l39-39V392c0 13.3 10.7 24 24 24s24-10.7 24-24V257.9l39 39c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-80-80c-9.4-9.4-24.6-9.4-33.9 0l-80 80z"
-                                ></path>
-                              </svg>
-                              <p>Arraste e solte </p>
-                              <p>ou</p>
-                              <span class="browse-button">Pesquisar</span>
-                            </div>
-                            <input id="file" type="file" />
-                            <img id="previewFoto" style="max-height: 150px; display: none; margin-top: 10px;" />
-                            <input type="hidden" id="linkFotoFuncionario" name="foto">
-                          </label>
-                        </div>                  
+                          <!-- Cabeçalho com instruções e ícones -->
+                          <div class="header" id="uploadHeader"> 
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M7 10V9C7 6.23858 9.23858 4 12 4C14.7614 4 17 6.23858 17 9V10C19.2091 10 21 11.7909 21 14C21 15.4806 20.1956 16.8084 19 17.5M7 10C4.79086 10 3 11.7909 3 14C3 15.4806 3.8044 16.8084 5 17.5M7 10C7.43285 10 7.84965 10.0688 8.24006 10.1959M12 12V21M12 12L15 15M12 12L9 15" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg> 
+                            <p>Browse File to upload!</p>
+                          </div> 
+
+                          <!-- Rodapé com ícones e nome do arquivo -->
+                          <label for="file" class="footer"> 
+                            <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+                              <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+                            </svg> 
+                            <p id="fileName">Nenhum arquivo selecionado</p>
+                          </label> 
+
+                          <input id="file" type="file" accept="image/*"> 
+                          <input type="hidden" id="linkFotoFuncionario" name="foto" />
+                        </div>
                     </div>  
             </fieldset>
 
@@ -79,11 +85,11 @@
               </div>
                   <div class="form-2colunas">
                     <div class="form2">
-                      <input type="text" name="cpf" id="cpf"  maxlength="14"  oninput="formatCPF(this)" spellcheck="false" required>
+                      <input type="text" name="cpf" id="cpf" oninput="formatCPF(this)" maxlength="14" spellcheck="false" required>
                       <label for="cpf">CPF</label>
                     </div>
                     <div class="form2">
-                      <input type="text" name="rg" id="rg" maxlength="12" oninput="formatRG(this)" spellcheck="false" required >
+                      <input type="text" name="rg" id="rg" oninput="formatRG(this)" maxlength="12" spellcheck="false" required >
                       <label for="rg">RG</label>
                     </div>
                   </div>
@@ -168,5 +174,7 @@
   </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/imask" defer></script>
+  <script src="js/Funcionarios.js" defer></script>
 </body>
 </html>

@@ -166,65 +166,85 @@
     justify-self: center; /* Centraliza os radios abaixo dos labels */
   }
   
-  /* From Uiverse.io by Fundiman */ 
-  .perfil-foto {
-    width: fit-content;
-    height: fit-content;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 10px;
-  }
-  
-  .file-upload-label input {
-    display: none;
-  }
-  
-  .file-upload-label svg {
-    height: 30px;
-    margin-bottom: 20px;
-  }
-  
-  .file-upload-label {
-    cursor: pointer;
-    background-color: transparent; /* Darker background for the label */
-    padding: 20px 50px;
-    border-radius: 40px;
-    border: 2px dashed #000000; /* Lighter gray dashed border */
-    box-shadow: 0px 0px 200px -50px rgba(0, 0, 0, 0.5); /* Adjusted shadow */
-    color: #000000; /* Text color for the label */
-    font-size: 15px;
-  }
-  
-  .file-upload-design {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-  }
-  
-  .browse-button {
-    background-color: #8f0202; /* Lighter gray for the button */
-    padding: 5px 5px;
-    border-radius: 10px;
-    color: #eee; /* Off-white text for better contrast */
-    transition: all 0.3s;
-  }
-  
-  .browse-button:hover {
-    background-color: #000000; /* Slightly lighter gray on hover */
-    color: #fff; /* White text on hover */
-  }
-  
-  
-  .picture {
-    cursor: pointer;
-    font-size: 14px;
-    padding: 5px;
-    margin: 50 auto;
-    border-radius: 10px;
-  }
+.container {
+  height: auto;                  /* Remova altura fixa */
+  width: 140px;
+  border-radius: 10px;
+  box-shadow: 4px 4px 30px rgba(0, 0, 0, .2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;  /* Mantém conteúdo no topo */
+  padding: 10px;
+  gap: 6px;
+  background-color: rgba(0, 110, 255, 0.041);
+}
+
+.header {
+  flex: 1;
+  width: 100%;
+  border: 2px dashed rgb(225, 65, 65);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.header svg {
+  height: 100px;
+}
+
+.header p {
+  text-align: center;
+  color: black;
+}
+
+.footer {
+  background-color: rgba(0, 110, 255, 0.075);
+  width: 100%;
+  padding: 6px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  color: black;
+  border: none;
+  box-sizing: border-box;
+}
+
+
+.footer svg {
+  height:25px;
+  fill: rgb(225, 65, 65);
+  background-color: transparent;
+  border-radius: 50%;
+  padding: 2px;
+  cursor: pointer;
+  box-shadow: 0 2px 30px transparent;
+}
+
+.footer p {
+  flex: 1;
+  text-align: center;
+  font-size: 10px;
+}
+
+#file {
+display: none;
+}
+
+#previewFoto {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 8px;
+  display: none;
+  margin-bottom: 4px; /* reduz a margem */
+  flex-shrink: 0;
+}
+
   
   
   
@@ -293,9 +313,9 @@
     font-size: 17px;
   }
   
-  input[type=file]{
+  /* input[type=file]{
     display: none;
-  }
+  } */
   
   input#complemento, input#pais, input#estado, input#numero{
     width: 120px; 

@@ -433,6 +433,10 @@
     border-radius: 5px;
   }
   
+  /* Adiciona um efeito de hover para o thumb */
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: transparent;
+  }
   
   /* ----------------------------------------------   RESPONSIVIDADE   --------------------------------------------------------- */
   @media(max-width: 767px){
