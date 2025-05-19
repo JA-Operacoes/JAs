@@ -60,9 +60,9 @@ router.post("/", async (req, res) => {
 
   try {
     const result = await pool.query(
-      "areadeatuacao, foto, nome, cpf, rg, contatoPessoal, contatoFamiliar, email, cep, rua, numero, complemento, bairro, cidade, estado, pais) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *",
-      [areadeatuacao, foto, nome, cpf, rg, contatoPessoal, contatoFamiliar, email, cep, rua, numero, complemento, bairro, cidade, estado, pais]
-    );
+  "INSERT INTO funcionarios (areadeatuacao, foto, nome, cpf, rg, contatoPessoal, contatoFamiliar, email, cep, rua, numero, complemento, bairro, cidade, estado, pais) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *",
+  [areadeatuacao, foto, nome, cpf, rg, contatoPessoal, contatoFamiliar, email, cep, rua, numero, complemento, bairro, cidade, estado, pais]
+);
     res.json({ mensagem: "funcionarios salvo com sucesso!", funcionarios: result.rows[0] });
   } catch (error) {
     console.error("Erro ao salvar funcionarios:", error);

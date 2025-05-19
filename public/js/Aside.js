@@ -280,3 +280,51 @@ function alternarMenu() {
 
   btn.innerHTML = wrapper.classList.contains("menu-fechado") ? "»" : "«";
 }
+
+function carregarEventosDoCliente(clienteId) {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', '/api/eventos?cliente_id=' + clienteId, true);
+
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4 && xhr.status === 200) {
+      var eventos = JSON.parse(xhr.responseText);
+      var lista = document.getElementById('lista-dados-eventos');
+      lista.innerHTML = ''; // Limpa a lista
+
+      if (eventos.length > 0) {
+        for (var i = 0; i < eventos.length; i++) {
+          var li = document.createElement('li');
+          li.textContent = eventos[i].nome;
+          li.setAttribute('data-evento-id', eventos[i].id);
+          li.setAttribute('data-cliente-id', clienteId);
+          lista.appendChild(li);
+        }
+
+        // Habilita a aba de eventos
+        var abaEventos = document.querySelector('.aba[data-alvo="eventos"]');
+        if (abaEventos) {
+          abaEventos.classList.remove('desativada');
+        }
+
+      } else {
+        var vazio = document.createElement('li');
+        vazio.textContent = 'Nenhum evento cadastrado.';
+        lista.appendChild(vazio);
+      }
+    }
+  };
+
+  xhr.send();
+}
+
+function aplicarCliqueNosClientes() {
+  var clientes = document.querySelectorAll('#lista-dados-clientes li');
+
+  for (var i = 0; i < clientes.length; i++) {
+    clientes[i].addEventListener('click', function() {
+      var clienteId = this.getAttribute('data-cliente-id');
+      carregarEventosDoCliente(clienteId);
+    });
+  }
+}
+
