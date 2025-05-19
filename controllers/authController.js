@@ -142,28 +142,136 @@ async function cadastrarOuAtualizarUsuario(req, res) {
     }
   }
 
+// async function login(req, res) {
+//     const { email, senha } = req.body;
+
+//     try {
+//         const { rows } = await db.query('SELECT * FROM usuarios WHERE email = $1', [email]);
+//         const usuario = rows[0];
+
+//         if (!usuario) return res.status(401).json({ erro: 'Usuário não encontrado.' });
+
+//         const senhaCorreta = await bcrypt.compare(senha, usuario.senha_hash);
+//         if (!senhaCorreta) return res.status(401).json({ erro: 'Senha inválida.' });
+
+//         // 🔍 Buscar permissões do usuário no banco
+//         const { rows: permissoes } = await db.query(`
+//             SELECT modulo,  pesquisar, cadastrar, alterar, acesso
+//             FROM permissoes
+//             WHERE idusuario = $1
+//         `, [usuario.idusuario]);
+
+//         // 📦 Gerar token com permissões no payload
+//         const token = jwt.sign(
+//             {
+//                 id: usuario.idusuario,
+//                 nome: usuario.nome,
+//                 permissoes: permissoes  // <-- importante!
+//             },
+//             process.env.JWT_SECRET,
+//             { expiresIn: '8h' }
+//         );
+
+//         res.status(200).json({
+//             token,
+//             idusuario: usuario.idusuario,
+//             nome: usuario.nome,
+//             permissoes // também pode enviar separado se quiser usar no frontend
+//         });
+
+//     } catch (error) {
+//         console.error('Erro ao fazer login:', error);
+//         res.status(500).json({ erro: 'Erro no login.' });
+//     }
+// }
+
 // Login de usuário
 async function login(req, res) {
-    const { email, senha } = req.body;
+  const { email, senha } = req.body;
 
-    try {
-        const { rows } = await db.query('SELECT * FROM usuarios WHERE email = $1', [email]);
-        const usuario = rows[0];
+  try {
+    const { rows } = await db.query(
+      'SELECT * FROM usuarios WHERE email = $1',
+      [email]
+    );
+    const usuario = rows[0];
+    if (!usuario) return res.status(401).json({ erro: 'Usuário não encontrado.' });
 
-        if (!usuario) return res.status(401).json({ erro: 'Usuário não encontrado.' });
+    const senhaCorreta = await bcrypt.compare(senha, usuario.senha_hash);
+    if (!senhaCorreta) return res.status(401).json({ erro: 'Senha inválida.' });
 
-        const senhaCorreta = await bcrypt.compare(senha, usuario.senha_hash);
-        if (!senhaCorreta) return res.status(401).json({ erro: 'Senha inválida.' });
+    // 🔍 Buscar permissões do usuário no banco
+    const { rows: permissoesRaw } = await db.query(
+      `
+      SELECT
+        modulo,
+        acesso   AS pode_acessar,
+        pesquisar AS pode_pesquisar,
+        cadastrar AS pode_cadastrar,
+        alterar   AS pode_alterar
+      FROM permissoes
+      WHERE idusuario = $1
+      `,
+      [usuario.idusuario]
+    );
 
-        const token = jwt.sign({ id: usuario.idusuario, nome: usuario.nome }, process.env.JWT_SECRET, {
-            expiresIn: '8h',
-        });
-        res.status(200).json({ token, idusuario: usuario.idusuario });
-        
-    } catch (error) {
-        console.error('Erro ao fazer login:', error);
-        res.status(500).json({ erro: 'Erro no login.' });
-    }
+    // 📦 Gerar token com permissões no payload
+    const token = jwt.sign(
+      {
+        id: usuario.idusuario,
+        nome: usuario.nome,
+        permissoes: permissoesRaw
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
+    // Retorna token, dados do usuário e permissões
+    res.status(200).json({
+      token,
+      idusuario: usuario.idusuario,
+      nome: usuario.nome,
+      permissoes: permissoesRaw
+    });
+
+  } catch (error) {
+    console.error('Erro ao fazer login:', error);
+    res.status(500).json({ erro: 'Erro no login.' });
+  }
+}
+
+// → Nova função para listar permissões do usuário logado
+async function listarPermissoes(req, res) {
+  const idusuario = req.usuario.idusuario || req.usuario.id;
+  try {
+    const { rows } = await db.query(
+      `
+      SELECT
+        modulo,
+        acesso   AS acessar,
+        pesquisar AS pesquisar,
+        cadastrar AS cadastrar,
+        alterar   AS alterar
+      FROM permissoes
+      WHERE idusuario = $1
+      `,
+      [idusuario]
+    );
+
+    // padroniza tudo em lowercase caso necessário
+    const permissoes = rows.map(p => ({
+      modulo: p.modulo.toLowerCase(),
+      pode_acessar: p.acessar,
+      pode_pesquisar: p.pesquisar,
+      pode_cadastrar: p.cadastrar,
+      pode_alterar: p.alterar
+    }));
+
+    res.json(permissoes);
+  } catch (err) {
+    console.error('Erro ao buscar permissões:', err);
+    res.status(500).json({ erro: 'Erro ao buscar permissões.' });
+  }
 }
 
 async function buscarUsuarioPorEmail(req, res) {
@@ -194,4 +302,4 @@ async function buscarUsuarioPorEmail(req, res) {
 
 
 
-module.exports = { cadastrarOuAtualizarUsuario, login, verificarUsuarioExistente, listarUsuarios, buscarUsuariosPorNome, buscarUsuarioPorEmail };
+module.exports = { cadastrarOuAtualizarUsuario, login, verificarUsuarioExistente, listarUsuarios, buscarUsuariosPorNome, buscarUsuarioPorEmail, listarPermissoes };

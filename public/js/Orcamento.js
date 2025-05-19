@@ -16,44 +16,62 @@ let idLocalMontagem;
 function carregarClientesOrc() {
     console.log("Função carregar Cliente chamada");
 
-    fetch('http://localhost:3000/clientes')
-        .then(response => response.json())
-        .then(clientes => {
-            console.log('Clientes recebidos:', clientes);
+    const token = localStorage.getItem("token");
 
-            let selects = document.querySelectorAll(".idCliente");
+    if (!token) {
+        console.warn("Usuário não autenticado");
+        return;
+    }
 
-            selects.forEach(select => {
-                const nomeSelecionado = select.value;
-                select.innerHTML = '<option value="">Selecione Cliente</option>';
+    fetch('/orcamentos/clientes', {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}`, // ENVIA O TOKEN AQUI
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Erro ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(clientes => {
+        console.log('Clientes recebidos:', clientes);
 
-                clientes.forEach(cliente => {
-                    let option = document.createElement("option");
-                    option.value = cliente.nmfantasia;
-                    option.textContent = cliente.nmfantasia;
-                    option.setAttribute("data-idCliente", cliente.idcliente);
-                    select.appendChild(option);
-                });
+        let selects = document.querySelectorAll(".idCliente");
 
-                // Evento de seleção de cliente
-                select.addEventListener('change', function () {
-                    const nomeFantasia = this.value;
-                    const selectedOption = select.options[select.selectedIndex];
-                    idCliente = selectedOption.getAttribute("data-idCliente");
-                    console.log("idCliente", idCliente);
-                    if (nomeFantasia) {
-                        buscarEExibirDadosClientePorNome(nomeFantasia);
-                    }
-                });
+        selects.forEach(select => {
+            const nomeSelecionado = select.value;
+            select.innerHTML = '<option value="">Selecione Cliente</option>';
 
-                if (nomeSelecionado) {
-                    buscarEExibirDadosClientePorNome(nomeSelecionado);
+            clientes.forEach(cliente => {
+                let option = document.createElement("option");
+                option.value = cliente.nmfantasia;
+                option.textContent = cliente.nmfantasia;
+                option.setAttribute("data-idCliente", cliente.idcliente);
+                select.appendChild(option);
+            });
+
+            // Evento de seleção de cliente
+            select.addEventListener('change', function () {
+                const nomeFantasia = this.value;
+                const selectedOption = select.options[select.selectedIndex];
+                idCliente = selectedOption.getAttribute("data-idCliente");
+                console.log("idCliente", idCliente);
+                if (nomeFantasia) {
+                    buscarEExibirDadosClientePorNome(nomeFantasia);
                 }
             });
-        })
-        .catch(error => {
-            console.error("Erro ao carregar clientes:", error);
+
+            if (nomeSelecionado) {
+                buscarEExibirDadosClientePorNome(nomeSelecionado);
+            }
         });
+    })
+    .catch(error => {
+        console.error("Erro ao carregar clientes:", error);
+    });
 }
 
 // Atualiza texto no DOM

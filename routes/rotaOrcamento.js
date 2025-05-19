@@ -1,9 +1,14 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../db/conexaoDB");
+const { autenticarToken } = require('../middlewares/authMiddlewares');
+const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
+
+// Aplica autenticação em todas as rotas
+router.use(autenticarToken);
 
 // GET todas ou por id
-router.get("/", async (req, res) => {
+router.get("/", autenticarToken, async (req, res) => {
   const { idOrcamento } = req.query;
 
   try {
@@ -26,6 +31,28 @@ router.get("/", async (req, res) => {
     res.status(500).json({ message: "Erro ao buscar orçamento" });
   }
 });
+
+// GET /orcamento/clientes
+router.get('/clientes', autenticarToken, async (req, res) => {
+    const permissoes = req.usuario?.permissoes;
+
+    const temPermissaoOrcamento = permissoes?.some(p =>
+        p.modulo === 'orcamentos' && (p.acessar || p.pesquisar)
+    );
+
+    if (!temPermissaoOrcamento) {
+        return res.status(403).json({ erro: "Sem permissão ao módulo Orçamentos." });
+    }
+
+    try {
+        const resultado = await pool.query('SELECT idcliente, nmfantasia FROM clientes ORDER BY nmfantasia');
+        res.json(resultado.rows);
+    } catch (erro) {
+        console.error("Erro ao buscar clientes para orçamento:", erro);
+        res.status(500).json({ erro: "Erro interno ao buscar clientes." });
+    }
+});
+
 
 // POST criar novo orçamento com itens
 router.post("/", async (req, res) => {

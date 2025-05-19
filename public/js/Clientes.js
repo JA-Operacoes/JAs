@@ -37,6 +37,7 @@ if (typeof window.clienteOriginal === "undefined") {
 
 let maskCNPJ, maskTelefone, maskCelContato, maskCEP;
 
+
 function aplicarMascaras() {
     console.log("Aplicando máscaras aos campos de entrada...");
     maskCNPJ = IMask(document.querySelector("#cnpj"), {
@@ -86,7 +87,7 @@ function carregarClientes() {
     const form = document.querySelector("#form");
     const botaoEnviar = document.querySelector("#Enviar");
     const btnLimpar = document.getElementById("Limpar");
-    const btnPesquisar = document.getElementById("btnPesquisar");
+    const btnPesquisar = document.getElementById("Pesquisar");
 
     if (!form || !botaoEnviar) {
         console.error("Formulário ou botão Enviar não encontrado.");
@@ -212,12 +213,53 @@ function carregarClientes() {
         
 
 
+    // getCampo("nmFantasia").addEventListener("blur", async function () {
+    //     const nmFantasia = this.value.trim();
+    //     if (!nmFantasia) return;
+
+    //     try {
+    //         const response = await fetch(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
+    //         if (!response.ok) throw new Error("Cliente não encontrado");
+
+    //         const cliente = await response.json();
+    //         console.log("Cliente encontrado:", cliente);
+    //         if (!cliente || Object.keys(cliente).length === 0) throw new Error("Dados de cliente vazios");
+
+    //         preencherFormulario(cliente);
+    //         console.log("Cliente carregado:", cliente);
+            
+
+
+    //     } catch (error) {
+    //         console.log("Erro ao buscar cliente:", nmFantasia, idCliente.value, error);
+    //         if (!idCliente.value) {
+    //             const { isConfirmed } = await Swal.fire({
+    //                 icon: 'question',
+    //                 title: `Deseja cadastrar "${nmFantasia.toUpperCase()}" como novo Cliente?`,
+    //                 text: `Cliente "${nmFantasia.toUpperCase()}" não encontrado`,
+    //                 showCancelButton: true,
+    //                 confirmButtonText: 'Sim, cadastrar',
+    //                 cancelButtonText: 'Cancelar'
+    //             });
+            
+    //             // Se o usuário cancelar, limpa o campo para evitar submit indevido
+    //             if (!isConfirmed) {
+    //                 //this.value = "";
+    //                 return;
+    //             }
+    //         }
+        
+    //     }
+    // });
+
     getCampo("nmFantasia").addEventListener("blur", async function () {
-        const nmFantasia = this.value.trim();
-        if (!nmFantasia) return;
+    const nmFantasia = this.value.trim();
+    if (!nmFantasia) return;
 
         try {
-            const response = await fetch(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
+           // const token = localStorage.getItem('token');
+            // const response = await fetchComToken(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
+            const response = await fetchComToken(`/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
             if (!response.ok) throw new Error("Cliente não encontrado");
 
             const cliente = await response.json();
@@ -226,9 +268,6 @@ function carregarClientes() {
 
             preencherFormulario(cliente);
             console.log("Cliente carregado:", cliente);
-            
-
-
         } catch (error) {
             console.log("Erro ao buscar cliente:", nmFantasia, idCliente.value, error);
             if (!idCliente.value) {
@@ -240,89 +279,152 @@ function carregarClientes() {
                     confirmButtonText: 'Sim, cadastrar',
                     cancelButtonText: 'Cancelar'
                 });
-            
-                // Se o usuário cancelar, limpa o campo para evitar submit indevido
-                if (!isConfirmed) {
-                    //this.value = "";
-                    return;
-                }
+
+                if (!isConfirmed) return;
             }
-        
         }
     });
 
-    // Event: Enviar formulário
+    // // Event: Enviar formulário
+
+    
+    // botaoEnviar.addEventListener("click", async (e) => {
+    //     e.preventDefault();
+      
+    //     const dados = obterDadosFormulario();
+    //     const valorIdCliente = document.querySelector("#idCliente").value.trim();
+      
+    //     console.log("Verificação clientes:", dados, window.clienteOriginal);
+    //     // validações
+    //     if (!dados.nmFantasia || !dados.razaoSocial || !dados.cnpj) {
+    //       return Swal.fire("Atenção!", "Preencha Fantasia, Razão e CNPJ.", "warning");
+    //     }
+    //     if (!houveAlteracao(dados)) {
+    //       return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
+    //     }
+      
+    //     // escolhe método e URL
+    //     const metodo = valorIdCliente ? "PUT" : "POST";
+    //     const url = valorIdCliente
+    //       ? `http://localhost:3000/clientes/${valorIdCliente}`
+    //       : "http://localhost:3000/clientes";
+      
+    //     try {
+    //       // se for PUT, pede confirmação
+    //         if (metodo === "PUT") {
+    //             const { isConfirmed } = await Swal.fire({
+    //             title: "Deseja salvar as alterações?",
+    //             text: "Você está prestes a atualizar os dados da função.",
+    //             icon: "question",
+    //             showCancelButton: true,
+    //             confirmButtonText: "Sim, salvar",
+    //             cancelButtonText: "Cancelar",
+    //             reverseButtons: true,
+    //             focusCancel: true
+    //             });
+    //             if (!isConfirmed) return;
+    //         }
+        
+      
+    //       const res = await fetch(url, {
+    //         method: metodo,
+    //         headers: {
+    //             "Content-Type": "application/json",
+    //             "Authorization": `Bearer ${localStorage.getItem("token")}`
+    //         },
+            
+    //         body: JSON.stringify(dados)
+    //       });
+
+    //       console.log("Response do servidor:", res, dados);
+    //     //   const json = await res.json();
+      
+    //     //   if (!res.ok) throw new Error(json.erro || json.message || "Erro ao salvar cliente");
+      
+    //     //   await Swal.fire("Sucesso!", json.message || "Cliente salvo com sucesso.", "success");
+    //     const texto = await res.text();
+    //     console.log("Resposta bruta do servidor:", texto);
+        
+    //     let json;
+    //     try {
+    //       json = JSON.parse(texto);
+    //     } catch (e) {
+    //       throw new Error("Resposta não é um JSON válido: " + texto);
+    //     }
+        
+    //     if (!res.ok) throw new Error(json.erro || json.message || "Erro ao salvar cliente");
+    //     await Swal.fire("Sucesso!", json.message || "Cliente salvo com sucesso.", "success");
+    //     limparFormulario();
+      
+        
+    //     } catch (error) {
+    //       console.error("Erro ao enviar dados:", error);
+    //       Swal.fire("Erro", error.message || "Erro ao salvar cliente.", "error");
+    //     }
+    // });
+      
     botaoEnviar.addEventListener("click", async (e) => {
         e.preventDefault();
-      
+
         const dados = obterDadosFormulario();
         const valorIdCliente = document.querySelector("#idCliente").value.trim();
-      
+
         console.log("Verificação clientes:", dados, window.clienteOriginal);
-        // validações
+
         if (!dados.nmFantasia || !dados.razaoSocial || !dados.cnpj) {
-          return Swal.fire("Atenção!", "Preencha Fantasia, Razão e CNPJ.", "warning");
+            return Swal.fire("Atenção!", "Preencha Fantasia, Razão e CNPJ.", "warning");
         }
         if (!houveAlteracao(dados)) {
-          return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
+            return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
         }
-      
-        // escolhe método e URL
+
         const metodo = valorIdCliente ? "PUT" : "POST";
         const url = valorIdCliente
-          ? `http://localhost:3000/clientes/${valorIdCliente}`
-          : "http://localhost:3000/clientes";
-      
+            ? `http://localhost:3000/clientes/${valorIdCliente}`
+            : "http://localhost:3000/clientes";
+
         try {
-          // se for PUT, pede confirmação
             if (metodo === "PUT") {
                 const { isConfirmed } = await Swal.fire({
-                title: "Deseja salvar as alterações?",
-                text: "Você está prestes a atualizar os dados da função.",
-                icon: "question",
-                showCancelButton: true,
-                confirmButtonText: "Sim, salvar",
-                cancelButtonText: "Cancelar",
-                reverseButtons: true,
-                focusCancel: true
+                    title: "Deseja salvar as alterações?",
+                    text: "Você está prestes a atualizar os dados da função.",
+                    icon: "question",
+                    showCancelButton: true,
+                    confirmButtonText: "Sim, salvar",
+                    cancelButtonText: "Cancelar",
+                    reverseButtons: true,
+                    focusCancel: true
                 });
                 if (!isConfirmed) return;
             }
-        
-      
-          const res = await fetch(url, {
-            method: metodo,
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(dados)
-          });
 
-          console.log("Response do servidor:", res, dados);
-        //   const json = await res.json();
-      
-        //   if (!res.ok) throw new Error(json.erro || json.message || "Erro ao salvar cliente");
-      
-        //   await Swal.fire("Sucesso!", json.message || "Cliente salvo com sucesso.", "success");
-        const texto = await res.text();
-        console.log("Resposta bruta do servidor:", texto);
-        
-        let json;
-        try {
-          json = JSON.parse(texto);
-        } catch (e) {
-          throw new Error("Resposta não é um JSON válido: " + texto);
-        }
-        
-        if (!res.ok) throw new Error(json.erro || json.message || "Erro ao salvar cliente");
-        await Swal.fire("Sucesso!", json.message || "Cliente salvo com sucesso.", "success");
-        limparFormulario();
-      
-        
+            const res = await fetchComToken(url, {
+                method: metodo,
+                body: JSON.stringify(dados)
+            });
+
+            console.log("Response do servidor:", res, dados);
+
+            const texto = await res.text();
+            console.log("Resposta bruta do servidor:", texto);
+
+            let json;
+            try {
+                json = JSON.parse(texto);
+            } catch (e) {
+                throw new Error("Resposta não é um JSON válido: " + texto);
+            }
+
+            if (!res.ok) throw new Error(json.erro || json.message || "Erro ao salvar cliente");
+            await Swal.fire("Sucesso!", json.message || "Cliente salvo com sucesso.", "success");
+            limparFormulario();
+
         } catch (error) {
-          console.error("Erro ao enviar dados:", error);
-          Swal.fire("Erro", error.message || "Erro ao salvar cliente.", "error");
+            console.error("Erro ao enviar dados:", error);
+            Swal.fire("Erro", error.message || "Erro ao salvar cliente.", "error");
         }
     });
-      
+
 
     // Event: Limpar formulário
     if (btnLimpar) {
@@ -330,14 +432,49 @@ function carregarClientes() {
     }
 
     // Event: Pesquisar clientes
+    // if (btnPesquisar) {
+    //     btnPesquisar.addEventListener("click", async (event) => {
+    //         event.preventDefault();
+    //          console.log("ENTROU NO BOTÃO PESQUISAR");
+
+    //         limparFormulario();
+    //         try {
+    //             const response = await fetch("http://localhost:3000/Clientes");
+    //             if (!response.ok) throw new Error("Erro ao buscar clientes");
+
+    //             const clientes = await response.json();
+    //             const input = getCampo("nmFantasia");
+
+    //             const select = criarSelectClientes(clientes);
+    //             if (input && input.parentNode) {
+    //                 input.parentNode.replaceChild(select, input);
+    //             }
+
+    //             const label = document.querySelector('label[for="nmFantasia"]');
+    //             if (label) label.style.display = "none";
+
+    //             select.addEventListener("change", async function () {
+    //                 const desc = this.value?.trim();
+    //                 if (!desc) return;
+
+    //                 await carregarClientesNmFantasia(desc, this);
+    //                 console.log("Cliente selecionado:", desc);
+    //             });
+
+    //         } catch (error) {
+    //             console.error("Erro ao carregar clientes:", error);
+    //             mostrarErro("Erro", "Não foi possível carregar os clientes.");
+    //         }
+    //     });
+    // }
     if (btnPesquisar) {
         btnPesquisar.addEventListener("click", async (event) => {
             event.preventDefault();
-             console.log("ENTROU NO BOTÃO PESQUISAR");
+            console.log("ENTROU NO BOTÃO PESQUISAR");
 
             limparFormulario();
             try {
-                const response = await fetch("http://localhost:3000/Clientes");
+                const response = await fetchComToken("http://localhost:3000/clientes");
                 if (!response.ok) throw new Error("Erro ao buscar clientes");
 
                 const clientes = await response.json();
@@ -366,66 +503,110 @@ function carregarClientes() {
         });
     }
     
-    
 }
-async function buscarClientePorNome() {
-    const nmFantasia = this.value.trim();
-    if (!nmFantasia) return;
-  
-    console.log("BUSCANDO cliente por nome fantasia no buscarClientePorNome:", nmFantasia);
 
-    try {
-      const res = await fetch(
-        `http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`
-      );
-      if (!res.ok) throw new Error("Cliente não encontrado");
+// async function buscarClientePorNome() {
+//     const nmFantasia = this.value.trim();
+//     if (!nmFantasia) return;
   
-      const cliente = await res.json();
-      // preenche o form
-      preencherFormularioCliente(cliente);
-      clienteExistente = true;
+//     console.log("BUSCANDO cliente por nome fantasia no buscarClientePorNome:", nmFantasia);
+
+//     try {
+//     //   const res = await fetch(
+//     //     `http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`
+//     //   );
+//         const res = await fetch(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`, {
+//             method: "GET",
+//             headers: {
+//                 "Content-Type": "application/json",
+//                 "Authorization": `Bearer ${token}`
+//             }
+//         });
+//         if (!res.ok) throw new Error("Cliente não encontrado");
+
+//         const cliente = await res.json();
+//         // preenche o form
+//         preencherFormularioCliente(cliente);
+//         clienteExistente = true;
   
-    } catch (err) {
-        if (!idCliente.value) {
+//     } catch (err) {
+//         if (!idCliente.value) {
       
-            const resultado = Swal.fire({
-                icon: 'question',
-                title: `Deseja cadastrar "${nmFantasia.toUpperCase()}" como novo Cliente?`,
-                text: `Cliente "${nmFantasia.toUpperCase()}" não encontrado`,
-                showCancelButton: true,
-                confirmButtonText: 'Sim, cadastrar',
-                cancelButtonText: 'Cancelar'
-            });
+//             const resultado = Swal.fire({
+//                 icon: 'question',
+//                 title: `Deseja cadastrar "${nmFantasia.toUpperCase()}" como novo Cliente?`,
+//                 text: `Cliente "${nmFantasia.toUpperCase()}" não encontrado`,
+//                 showCancelButton: true,
+//                 confirmButtonText: 'Sim, cadastrar',
+//                 cancelButtonText: 'Cancelar'
+//             });
         
-        }
-    }
-  }
+//         }
+//     }
+//   }
+// async function buscarClientePorNome() {
+//     const nmFantasia = this.value.trim();
+//     if (!nmFantasia) return;
+
+//     console.log("BUSCANDO cliente por nome fantasia:", nmFantasia);
+
+//     try {
+//         const res = await fetchComToken(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
+//         if (!res.ok) throw new Error("Cliente não encontrado");
+
+//         const cliente = await res.json();
+//         preencherFormularioCliente(cliente);
+//         clienteExistente = true;
+
+//     } catch (err) {
+//         if (!idCliente.value) {
+//             Swal.fire({
+//                 icon: 'question',
+//                 title: `Deseja cadastrar "${nmFantasia.toUpperCase()}" como novo Cliente?`,
+//                 text: `Cliente "${nmFantasia.toUpperCase()}" não encontrado`,
+//                 showCancelButton: true,
+//                 confirmButtonText: 'Sim, cadastrar',
+//                 cancelButtonText: 'Cancelar'
+//             });
+//         }
+//     }
+// }
 
   /**
  * Retorna true se houver alguma diferença entre os dados atuais e clienteOriginal.
  * @param {Object} dados - objeto com as propriedades e valores do formulário.
  */
+// function houveAlteracao(dados) {
+//     // Se não temos um clienteOriginal, assume que é novo => sempre houve alteração
+//     console.log("Verificando alterações:", dados, window.clienteOriginal);
+//     if (!window.clienteOriginal) return true;
+  
+//     return Object.keys(dados).some(key => {
+//        const atual = dados[key]?.toString()   || "";
+//        const original = (clienteOriginal[key]?.toString()) || "";
+    
+//     //   const atual = dados[key]?.toString()?.toUpperCase() || "";
+//     //   const original = window.clienteOriginal[key.toLowerCase()]?.toString()?.toUpperCase() || "";
+
+//       if (atual !== original) {
+//         console.log(`Campo alterado: ${key} | Original: ${original} | Atual: ${atual}`);
+//     }
+
+//       return atual !== original;
+//     });
+    
+//   }
+  
 function houveAlteracao(dados) {
-    // Se não temos um clienteOriginal, assume que é novo => sempre houve alteração
-    console.log("Verificando alterações:", dados, window.clienteOriginal);
     if (!window.clienteOriginal) return true;
-  
+
     return Object.keys(dados).some(key => {
-       const atual = dados[key]?.toString()   || "";
-       const original = (clienteOriginal[key]?.toString()) || "";
-    
-    //   const atual = dados[key]?.toString()?.toUpperCase() || "";
-    //   const original = window.clienteOriginal[key.toLowerCase()]?.toString()?.toUpperCase() || "";
-
-      if (atual !== original) {
-        console.log(`Campo alterado: ${key} | Original: ${original} | Atual: ${atual}`);
-    }
-
-      return atual !== original;
+        const original = window.clienteOriginal[key];
+        const atual = dados[key];
+        return String(original ?? "").trim() !== String(atual ?? "").trim();
     });
-    
-  }
-  
+}
+
 
 function criarSelectClientes(clientes) {
     const select = document.createElement("select");
@@ -454,31 +635,128 @@ function criarSelectClientes(clientes) {
     return select;
 }
 
+// async function carregarClientesNmFantasia(desc, elementoAtual) {
+//     try {
+//         // const response = await fetch(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(desc.trim())}`);
+//         const response = await fetch(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(desc.trim())}`, {
+//             method: "GET",
+//             headers: {
+//                 "Content-Type": "application/json",
+//                 "Authorization": `Bearer ${token}`
+//             }
+//         });
+        
+//         if (!response.ok) throw new Error();
+//         console.log("Response carregarClientesNmFantasia",response);
+//         const cliente = await response.json();
+       
+//         console.log("Cliente encontrado:", cliente);
+
+//         document.querySelector("#idCliente").value = cliente.idcliente || "";
+//         document.querySelector("#nmFantasia").value = cliente.nmfantasia || "";
+//         document.querySelector("#razaoSocial").value = cliente.razaosocial || "";
+
+//         maskCNPJ.value = cliente.cnpj || '';
+//         document.querySelector("#inscEstadual").value = cliente.inscestadual || "";
+//         document.querySelector("#emailCliente").value = cliente.emailcliente || "";
+//         document.querySelector("#emailNfe").value = cliente.emailnfe || "";
+//         document.querySelector("#site").value = cliente.site || "";
+
+//         maskTelefone.value = cliente.telefone || '';
+//         maskCelContato.value = cliente.celcontato || '';
+
+//         document.querySelector("#nmContato").value = cliente.nmcontato || "";
+//         document.querySelector("#emailContato").value = cliente.emailcontato || "";
+
+//         maskCEP.value = cliente.cep || '';
+//         document.querySelector("#rua").value = cliente.rua || "";
+//         document.querySelector("#numero").value = cliente.numero || "";
+//         document.querySelector("#complemento").value = cliente.complemento || "";
+//         document.querySelector("#bairro").value = cliente.bairro || "";
+//         document.querySelector("#cidade").value = cliente.cidade || "";
+//         document.querySelector("#estado").value = cliente.estado || "";
+//         document.querySelector("#pais").value = cliente.pais || "";
+
+//         document.querySelector("#ativo").checked =
+//             cliente.ativo === true || cliente.ativo === "true" || cliente.ativo === 1;
+        
+//         document.querySelector("#tpcliente").value = cliente.tpcliente || "";
+       
+//         // Atualiza o cliente original para comparação futura
+//         clienteOriginal = {
+//             idCliente: cliente.idcliente,
+//             nmFantasia: cliente.nmfantasia,
+//             razaoSocial: cliente.razaosocial,
+//             cnpj: cliente.cnpj,
+//             inscEstadual: cliente.inscestadual,
+//             emailCliente: cliente.emailcliente,
+//             emailNfe: cliente.emailnfe,
+//             telefone: cliente.telefone,
+//             nmContato: cliente.nmcontato,
+//             celContato: cliente.celcontato,
+//             emailContato: cliente.emailcontato,
+//             site: cliente.site,
+//             cep: cliente.cep,
+//             rua: cliente.rua,
+//             numero: cliente.numero,
+//             complemento: cliente.complemento,
+//             bairro: cliente.bairro,
+//             cidade: cliente.cidade,
+//             estado: cliente.estado,
+//             pais: cliente.pais,
+//             ativo: cliente.ativo,
+//             tpcliente: cliente.tpcliente
+//         };
+//         console.log("Cliente original atualizado:", clienteOriginal);
+   
+//         const novoInput = document.createElement("input");
+//         novoInput.type = "text";
+//         novoInput.id = "nmFantasia";
+//         novoInput.name = "nmFantasia";
+//         novoInput.required = true;
+//         novoInput.className = "form";
+//         novoInput.value = cliente.nmfantasia;
+
+//         elementoAtual.parentNode.replaceChild(novoInput, elementoAtual);
+//         const label = document.querySelector('label[for="nmFantasia"]');
+//         if (label) {
+//         label.style.display = "block";
+//         label.textContent = "Nome Fantasia"; // ou algum texto que você tenha guardado
+//         }
+
+//         novoInput.addEventListener("blur", async function () {
+//             if (!this.value.trim()) return;
+//             await carregarFuncaoDescricao(this.value, this);
+//         });
+
+//     } catch {
+//         mostrarErro("Cliente não encontrado", "Nenhuma função com essa descrição foi encontrada.");
+//         limparClienteOriginal();
+    
+//     }
+// }
 async function carregarClientesNmFantasia(desc, elementoAtual) {
     try {
-        const response = await fetch(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(desc.trim())}`);
+        const response = await fetchComToken(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(desc.trim())}`);
         if (!response.ok) throw new Error();
-        console.log("Response carregarClientesNmFantasia",response);
+
+        console.log("Response carregarClientesNmFantasia", response);
         const cliente = await response.json();
-       
         console.log("Cliente encontrado:", cliente);
 
+        // Preencher os campos...
         document.querySelector("#idCliente").value = cliente.idcliente || "";
         document.querySelector("#nmFantasia").value = cliente.nmfantasia || "";
         document.querySelector("#razaoSocial").value = cliente.razaosocial || "";
-
         maskCNPJ.value = cliente.cnpj || '';
         document.querySelector("#inscEstadual").value = cliente.inscestadual || "";
         document.querySelector("#emailCliente").value = cliente.emailcliente || "";
         document.querySelector("#emailNfe").value = cliente.emailnfe || "";
         document.querySelector("#site").value = cliente.site || "";
-
         maskTelefone.value = cliente.telefone || '';
         maskCelContato.value = cliente.celcontato || '';
-
         document.querySelector("#nmContato").value = cliente.nmcontato || "";
         document.querySelector("#emailContato").value = cliente.emailcontato || "";
-
         maskCEP.value = cliente.cep || '';
         document.querySelector("#rua").value = cliente.rua || "";
         document.querySelector("#numero").value = cliente.numero || "";
@@ -487,39 +765,12 @@ async function carregarClientesNmFantasia(desc, elementoAtual) {
         document.querySelector("#cidade").value = cliente.cidade || "";
         document.querySelector("#estado").value = cliente.estado || "";
         document.querySelector("#pais").value = cliente.pais || "";
-
         document.querySelector("#ativo").checked =
             cliente.ativo === true || cliente.ativo === "true" || cliente.ativo === 1;
-        
         document.querySelector("#tpcliente").value = cliente.tpcliente || "";
-       
-        // Atualiza o cliente original para comparação futura
-        clienteOriginal = {
-            idCliente: cliente.idcliente,
-            nmFantasia: cliente.nmfantasia,
-            razaoSocial: cliente.razaosocial,
-            cnpj: cliente.cnpj,
-            inscEstadual: cliente.inscestadual,
-            emailCliente: cliente.emailcliente,
-            emailNfe: cliente.emailnfe,
-            telefone: cliente.telefone,
-            nmContato: cliente.nmcontato,
-            celContato: cliente.celcontato,
-            emailContato: cliente.emailcontato,
-            site: cliente.site,
-            cep: cliente.cep,
-            rua: cliente.rua,
-            numero: cliente.numero,
-            complemento: cliente.complemento,
-            bairro: cliente.bairro,
-            cidade: cliente.cidade,
-            estado: cliente.estado,
-            pais: cliente.pais,
-            ativo: cliente.ativo,
-            tpcliente: cliente.tpcliente
-        };
-        console.log("Cliente original atualizado:", clienteOriginal);
-   
+
+        clienteOriginal = { ...cliente };
+
         const novoInput = document.createElement("input");
         novoInput.type = "text";
         novoInput.id = "nmFantasia";
@@ -529,10 +780,11 @@ async function carregarClientesNmFantasia(desc, elementoAtual) {
         novoInput.value = cliente.nmfantasia;
 
         elementoAtual.parentNode.replaceChild(novoInput, elementoAtual);
+
         const label = document.querySelector('label[for="nmFantasia"]');
         if (label) {
-        label.style.display = "block";
-        label.textContent = "Nome Fantasia"; // ou algum texto que você tenha guardado
+            label.style.display = "block";
+            label.textContent = "Nome Fantasia";
         }
 
         novoInput.addEventListener("blur", async function () {
@@ -543,7 +795,6 @@ async function carregarClientesNmFantasia(desc, elementoAtual) {
     } catch {
         mostrarErro("Cliente não encontrado", "Nenhuma função com essa descrição foi encontrada.");
         limparClienteOriginal();
-    
     }
 }
 
@@ -616,7 +867,17 @@ function limparCamposCliente(){
     }
 }
 
-
+function fetchComToken(url, options = {}) {
+    const token = localStorage.getItem("token");
+    return fetch(url, {
+        ...options,
+        headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+            ...options.headers,
+        },
+    });
+}
 
 function configurarEventosClientes() {
     console.log("Configurando eventos para o modal de clientes...");

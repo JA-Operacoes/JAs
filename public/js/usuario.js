@@ -585,50 +585,50 @@ async function carregarPermissoesUsuario(idusuario) {
   
 }
 
-function aplicarPermissoes(permissoes) {
-  console.log("[Permissões] aplicando em módulo:", document.body.dataset.modulo);
-  console.log("[Permissões] lista de permissões:", permissoes);
+// function aplicarPermissoes(permissoes) {
+//   console.log("[Permissões] aplicando em módulo:", document.body.dataset.modulo);
+//   console.log("[Permissões] lista de permissões:", permissoes);
 
 
-  // Define qual é o módulo desta página; 
-  // pode vir de uma variável global, do próprio select, ou do nome da rota.
-  // Por exemplo, num <body data-modulo="Clientes">:
-  const moduloAtual = document.body.dataset.modulo;  
+//   // Define qual é o módulo desta página; 
+//   // pode vir de uma variável global, do próprio select, ou do nome da rota.
+//   // Por exemplo, num <body data-modulo="Clientes">:
+//   const moduloAtual = document.body.dataset.modulo;  
 
-  // Encontra o objeto de permissão correspondente
-  const p = permissoes.find(x => x.modulo === moduloAtual);
+//   // Encontra o objeto de permissão correspondente
+//   const p = permissoes.find(x => x.modulo === moduloAtual);
 
-  // Se não existir ou não tiver acesso geral, bloqueia tudo:
-  if (!p || !p.acesso) {
-    document.querySelectorAll("input, select, textarea, button").forEach(el => {
-      el.disabled = true;
-    });
-    return;
-  }
+//   // Se não existir ou não tiver acesso geral, bloqueia tudo:
+//   if (!p || !p.acesso) {
+//     document.querySelectorAll("input, select, textarea, button").forEach(el => {
+//       el.disabled = true;
+//     });
+//     return;
+//   }
 
-  // Se tiver acesso mas não puder cadastrar:
-  if (!p.cadastrar) {
-    document.querySelectorAll(".btnCadastrar").forEach(btn => btn.disabled = true);
-  }
+//   // Se tiver acesso mas não puder cadastrar:
+//   if (!p.cadastrar) {
+//     document.querySelectorAll(".btnCadastrar").forEach(btn => btn.disabled = true);
+//   }
 
-  // Se não puder alterar:
-  if (!p.alterar) {
-    document.querySelectorAll(".btnAlterar").forEach(btn => btn.disabled = true);
-  }
+//   // Se não puder alterar:
+//   if (!p.alterar) {
+//     document.querySelectorAll(".btnAlterar").forEach(btn => btn.disabled = true);
+//   }
 
-  // Se não puder pesquisar:
-  if (!p.pesquisar) {
-    document.querySelectorAll(".btnPesquisar").forEach(btn => btn.disabled = true);
-  }
+//   // Se não puder pesquisar:
+//   if (!p.pesquisar) {
+//     document.querySelectorAll(".btnPesquisar").forEach(btn => btn.disabled = true);
+//   }
 
-  // Se for “apenas leitura”, desabilita todos os campos, deixando só o pesquisar habilitado:
-  if (p.leitura) {
-    document.querySelectorAll("input, select, textarea").forEach(el => el.readOnly = true);
-    document.querySelectorAll("button").forEach(btn => {
-      if (!btn.classList.contains("btnPesquisar")) btn.disabled = true;
-    });
-  }
-}
+//   // Se for “apenas leitura”, desabilita todos os campos, deixando só o pesquisar habilitado:
+//   if (p.leitura) {
+//     document.querySelectorAll("input, select, textarea").forEach(el => el.readOnly = true);
+//     document.querySelectorAll("button").forEach(btn => {
+//       if (!btn.classList.contains("btnPesquisar")) btn.disabled = true;
+//     });
+//   }
+// }
 
 
 

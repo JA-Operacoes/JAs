@@ -1,8 +1,9 @@
 // public/js/permissoes.js
 
-// 1) Função genérica para aplicar as permissões no DOM
+//Função genérica para aplicar as permissões no DOM
 function aplicarPermissoes(permissoes) {
   const moduloAtual = window.moduloAtual;
+
   console.log("moduloAtual:", moduloAtual);
   console.log("permissoes recebidas:", permissoes);
   permissoes.forEach(p => {
@@ -15,37 +16,15 @@ function aplicarPermissoes(permissoes) {
     moduloAtual &&
     x.modulo.trim().toLowerCase() === moduloAtual.trim().toLowerCase()
   );
-  console.log("Comparando moduloAtual:", moduloAtual);
-  permissoes.forEach(p => console.log("Comparando com:", p.modulo));
 
-  console.log("Entrou no aplicarPermissoes", moduloAtual, p);
-  console.log("PERMISSOES", permissoes);  
-  
-  // se não tiver acesso geral, bloqueia tudo
-  if (!p || !p.acesso) {
-
-    document.querySelectorAll("input, select, textarea, button")
-            .forEach(el => el.disabled = true);
+  if (!p) {
+    console.warn(`[Permissões] Nenhuma permissão encontrada para o módulo: ${moduloAtual}`);
     return;
   }
 
-  // se tiver apenas leitura
-  if (p.leitura) {
-    document.querySelectorAll("input, select, textarea")
-            .forEach(el => el.readOnly = true);
-    document.querySelectorAll("button")
-            .forEach(btn => {
-                if (!btn.classList.contains("btnPesquisar") && !btn.classList.contains("btnLimpar")) {
-                      btn.disabled = true;
+  console.log("Entrou no aplicarPermissoes", p, permissoes);
 
-                      console.log("Habilitar btnPesquisar e btnLimpar");
-                }
-            });
-    return;
-  }
-
-  // senão, vai desabilitar só o que o usuário não pode
-  if (!p.cadastrar){ 
+  if (!p.cadastrar) {
     document.querySelectorAll(".btnCadastrar")
             .forEach(btn => btn.disabled = true);
   }
@@ -58,57 +37,40 @@ function aplicarPermissoes(permissoes) {
     document.querySelectorAll(".btnPesquisar")
             .forEach(btn => btn.disabled = true);
   }
+
+  if (p.pesquisar && !p.cadastrar && !p.alterar) {
+    console.log("Usuário só pode pesquisar - ocultando botões de envio");
+    document.querySelectorAll("button[type='submit'], .btnSalvar, .btnEnviar")
+            .forEach(btn => btn.style.display = 'none');
+  }
 }
 
-// 2) Função init para buscar e aplicar logo que a página carrega
+
+//Função init para buscar e aplicar logo que a página carrega
 async function initPermissoes() {
   console.log("Entrou em iniPermissoes");
   console.log("[Permissões] Iniciando initPermissoes()");  
 
-  // const idusuario = localStorage.getItem("idusuario");
-  // console.log("[Permissões] idusuario =", idusuario);
-
-  // if (!idusuario) return;
-  // try {
-  //   const resp = await fetch(`http://localhost:3000/permissoes/${idusuario}`, {
-  //     headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
-  //   });
-  //   if (!resp.ok) throw new Error("Sem permissão");
-  //   const permissoes = await resp.json();
-  //   console.log("[Permissões] Dados recebidos:", permissoes);
-  //   aplicarPermissoes(permissoes);
-  //   filtrarMenuPorPermissoes(permissoes);
-  // } catch (e) {
-  //   console.error("Permissões:", e);
-  // }
-  const idusuario = sessionStorage.getItem('idusuario');
+  const idusuario = localStorage.getItem('idusuario');
   console.log('[Permissões] idusuario =', idusuario);
 
    if (!idusuario) {
-    console.error('[Permissões] idusuario não encontrado na sessionStorage.');
+    console.error('[Permissões] idusuario não encontrado na localStorage.');
     return;
   }
 
-  fetch(`http://localhost:3000/permissoes/${idusuario}`)
+  // fetch(`http://localhost:3000/permissoes/${idusuario}`)
+  fetch(`/permissoes/${idusuario}`)
     .then(res => res.json())
     .then(permissoes => {
       console.log('[Permissões] Dados recebidos:', permissoes);
       filtrarMenuPorPermissoes(permissoes);  // em vez de filtrar por 'moduloAtual'
+      aplicarPermissoes(permissoes);
     });
 }
 
 function filtrarMenuPorPermissoes(permissoes) {
-  // const menu = document.getElementById('menu');
-  // if (!menu) return;
-
-  // const itens = menu.querySelectorAll('li[data-modulo]');
-  // itens.forEach(item => {
-  //   const modulo = item.getAttribute('data-modulo');
-  //   const temPermissao = permissoes.some(p => 
-  //     p.modulo.trim().toLowerCase() === modulo.trim().toLowerCase() && p.acesso
-  //   );
-  //   item.style.display = temPermissao ? 'block' : 'none';
-  // });
+  
   const links = document.querySelectorAll('a[data-modulo]');
 
   links.forEach(link => {
@@ -116,7 +78,7 @@ function filtrarMenuPorPermissoes(permissoes) {
     const permissao = permissoes.find(p => p.modulo === modulo);
 
     if (!permissao || (!permissao.cadastrar && !permissao.alterar && !permissao.pesquisar)) {
-      console.log(`[Permissões] Ocultando item do menu para módulo: ${modulo}`);
+   //   console.log(`[Permissões] Ocultando item do menu para módulo: ${modulo}`);
       link.style.display = 'none';
     } else {
       console.log(`[Permissões] Permitido acesso ao módulo: ${modulo}`);
@@ -126,7 +88,7 @@ function filtrarMenuPorPermissoes(permissoes) {
 
 
 
-// 3) Expor globalmente
+//Expor globalmente
 window.initPermissoes = initPermissoes;
 window.aplicarPermissoes = aplicarPermissoes;
 

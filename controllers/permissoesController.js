@@ -85,6 +85,7 @@ async function deletarPermissao(req, res) {
   }
 }
 
+
 module.exports = {
   listarPermissoes,
   listarPermissoesPorUsuario,
