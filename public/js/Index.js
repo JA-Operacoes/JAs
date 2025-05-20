@@ -264,7 +264,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   // 1) Buscar permissões do backend
   const token = localStorage.getItem("token");
   let permissoes = [];
-  
+
   try {
     const resp = await fetch("/auth/permissoes", {
       headers: { Authorization: `Bearer ${token}` }
@@ -280,13 +280,23 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   // 2) Função utilitária de permissão
-  window.temPermissao = function(modulo, acao) {
+  window.temPermissao = function (modulo, acao) {
     if (!modulo) return false;
     const p = permissoes.find(x => x.modulo.toLowerCase() === modulo.toLowerCase());
     return p && p[`pode_${acao}`];
   };
 
   // 3) Mostrar/ocultar e adicionar listener nos botões de modal
+  const mapaModulos = {
+    'orcamentos': 'Orçamentos',
+    'clientes': 'Clientes',
+    'funcao': 'Função',
+    'localmontagem': 'LocalMontagem',
+    'eventos': 'Eventos',
+    'equipamentos': 'Equipamentos',
+    'suprimentos': 'Suprimentos'
+  };
+
   document.querySelectorAll(".abrir-modal").forEach(botao => {
     const url = botao.dataset.url || "";
     const explicitModulo = botao.dataset.modulo; // leia data-modulo se existir
@@ -294,17 +304,17 @@ document.addEventListener("DOMContentLoaded", async function () {
     let modulo = null;
 
     if (explicitModulo) {
-      modulo = explicitModulo.toLowerCase();
+      modulo = explicitModulo;
     } else {
-      // mapeamento de URL para módulo, baseado em lowercase
-      if (urlLower.includes("orcamento"))            modulo = 'Orçamentos';
-      else if (urlLower.includes("clientes"))         modulo = 'Clientes';
-      else if (urlLower.includes("funcao"))           modulo = 'Função';
-      else if (urlLower.includes("localmontagem"))    modulo = 'LocalMontagem';
-      else if (urlLower.includes("eventos"))          modulo = 'Eventos';
-      else if (urlLower.includes("equipamentos"))     modulo = 'Equipamentos';
-      else if (urlLower.includes("suprimentos"))      modulo = 'Suprimentos';
+      for (const chave in mapaModulos) {
+        if (urlLower.includes(chave)) {
+          modulo = mapaModulos[chave];
+          break;
+        }
+      }
     }
+
+    console.log("URL:", url, "| Módulo identificado:", modulo);
 
     if (!modulo) {
       console.warn(`Botão de modal com URL '${url}' não mapeia para módulo.`, botao);
@@ -317,7 +327,6 @@ document.addEventListener("DOMContentLoaded", async function () {
       return;
     }
 
-    // adiciona listener se for visível
     botao.removeAttribute('onclick'); // remove qualquer onclick inline
     // botao.addEventListener('click', () => abrirModal(url, modulo));
     botao.addEventListener('click', () => {
@@ -329,6 +338,8 @@ document.addEventListener("DOMContentLoaded", async function () {
     
   });
 });
+
+let moduloAtual = undefined;
 
 async function abrirModal(url, modulo) {
   console.log("Tentando abrir modal de", modulo);
@@ -394,12 +405,10 @@ async function abrirModal(url, modulo) {
 }
 
 function aplicarConfiguracoes(modulo) {
-  // configura eventos específicos do módulo
   if (typeof configurarEventosEspecificos === 'function') {
     configurarEventosEspecificos(modulo);
   }
 
-  // aplicar permissões internas (botões de ação)
   if (!temPermissao(modulo, 'cadastrar')) {
     document.querySelectorAll('.btnCadastrar').forEach(btn => btn.style.display = 'none');
   }
