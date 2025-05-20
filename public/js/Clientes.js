@@ -1,13 +1,4 @@
 
-if (typeof Swal === "undefined") {
-    const script = document.createElement("script");
-    script.src = "https://cdn.jsdelivr.net/npm/sweetalert2@11";
-    script.onload = () => {
-        console.log("SweetAlert2 carregado com sucesso.");
-    };
-    document.head.appendChild(script);
-}
-
 if (typeof window.clienteOriginal === "undefined") {
     window.clienteOriginal = {
         idCliente: "",
@@ -252,7 +243,39 @@ function carregarClientes() {
     //     }
     // });
 
-    getCampo("nmFantasia").addEventListener("blur", async function () {
+    // getCampo("nmFantasia").addEventListener("blur", async function () {
+    // const nmFantasia = this.value.trim();
+    // if (!nmFantasia) return;
+
+    //     try {
+    //        // const token = localStorage.getItem('token');
+    //         // const response = await fetchComToken(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
+    //         const response = await fetchComToken(`/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
+    //         if (!response.ok) throw new Error("Cliente não encontrado");
+
+    //         const cliente = await response.json();
+    //         console.log("Cliente encontrado:", cliente);
+    //         if (!cliente || Object.keys(cliente).length === 0) throw new Error("Dados de cliente vazios");
+
+    //         preencherFormulario(cliente);
+    //         console.log("Cliente carregado:", cliente);
+    //     } catch (error) {
+    //         console.log("Erro ao buscar cliente:", nmFantasia, idCliente.value, error);
+    //         if (!idCliente.value) {
+    //             const { isConfirmed } = await Swal.fire({
+    //                 icon: 'question',
+    //                 title: `Deseja cadastrar "${nmFantasia.toUpperCase()}" como novo Cliente?`,
+    //                 text: `Cliente "${nmFantasia.toUpperCase()}" não encontrado`,
+    //                 showCancelButton: true,
+    //                 confirmButtonText: 'Sim, cadastrar',
+    //                 cancelButtonText: 'Cancelar'
+    //             });
+
+    //             if (!isConfirmed) return;
+    //         }
+    //     }
+    // });
+getCampo("nmFantasia").addEventListener("blur", async function () {
     const nmFantasia = this.value.trim();
     if (!nmFantasia) return;
 
@@ -284,7 +307,6 @@ function carregarClientes() {
             }
         }
     });
-
     // // Event: Enviar formulário
 
     
@@ -474,7 +496,7 @@ function carregarClientes() {
 
             limparFormulario();
             try {
-                const response = await fetchComToken("http://localhost:3000/clientes");
+                const response = await fetchComToken("/clientes");
                 if (!response.ok) throw new Error("Erro ao buscar clientes");
 
                 const clientes = await response.json();
@@ -737,7 +759,7 @@ function criarSelectClientes(clientes) {
 // }
 async function carregarClientesNmFantasia(desc, elementoAtual) {
     try {
-        const response = await fetchComToken(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(desc.trim())}`);
+        const response = await fetchComToken(`/clientes?nmFantasia=${encodeURIComponent(desc.trim())}`);
         if (!response.ok) throw new Error();
 
         console.log("Response carregarClientesNmFantasia", response);
@@ -867,17 +889,41 @@ function limparCamposCliente(){
     }
 }
 
+// function fetchComToken(url, options = {}) {
+//     const token = localStorage.getItem("token");
+//     return fetch(url, {
+//         ...options,
+//         headers: {
+//             "Authorization": `Bearer ${token}`,
+//             "Content-Type": "application/json",
+//             ...options.headers,
+//         },
+//     });
+// }
 function fetchComToken(url, options = {}) {
-    const token = localStorage.getItem("token");
-    return fetch(url, {
-        ...options,
-        headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json",
-            ...options.headers,
-        },
-    });
+  const token = localStorage.getItem("token");
+  if (!token) {
+    throw new Error("fetchComToken: nenhum token encontrado. Faça login primeiro.");
+  }
+
+  // Monta os headers sempre incluindo Authorization
+  const headers = {
+    "Authorization": `Bearer ${token}`,
+    // só coloca Content-Type se houver body (POST/PUT)
+    ...(options.body ? { "Content-Type": "application/json" } : {}),
+    ...options.headers
+  };
+
+  return fetch(url, {
+    ...options,
+    headers,
+    // caso seu back-end esteja em outro host e precisa de CORS:
+    mode: "cors",
+    // se precisar enviar cookies de sessão:
+    credentials: "include"
+  });
 }
+
 
 function configurarEventosClientes() {
     console.log("Configurando eventos para o modal de clientes...");
@@ -911,3 +957,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const observer = new MutationObserver(atualizarLabelCodigo);
     observer.observe(inputCodigo, { attributes: true, attributeFilter: ["value"] });
   });
+
+  function configurarEventosEspecificos(modulo) {
+  console.log("⚙️ configurarEventosEspecificos recebeu:", modulo);
+  if (modulo.trim().toLowerCase() === 'clientes') {
+    configurarEventosClientes();
+  }
+}
+window.configurarEventosEspecificos = configurarEventosEspecificos;

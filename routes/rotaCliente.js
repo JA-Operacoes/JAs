@@ -10,7 +10,7 @@ router.use(autenticarToken);
 // GET todas ou por descrição
 router.get("/", autenticarToken, verificarPermissao('Clientes', 'pesquisar'), async (req, res) => {
   const { nmFantasia } = req.query;
-
+  console.log("nmFantasia na Rota:", nmFantasia); // Log do valor de nmFantasia
   try {
     if (nmFantasia) {
       const result = await pool.query(

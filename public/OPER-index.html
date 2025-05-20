@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="css/Footer/Footer-OPER.CSS">
     <link rel="stylesheet" href="css/Roots/Roots.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+   
+    <script src="https://cdn.jsdelivr.net/npm/imask" defer></script>
     <title>Cadastros</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
@@ -35,7 +37,8 @@
                         <a href="#">Cadastros</a>
                         <div class ="drop">
                             <div class ="drop-content">  
-                                <a href="#" data-modulo="Clientes" onclick="abrirModal('CadClientes.html')">Clientes</a>
+                                <!-- <a href="#" data-modulo="Clientes" onclick="abrirModal('CadClientes.html')">Clientes</a> -->
+                                <a button class="abrir-modal" data-url="CadClientes.html" data-modulo="Clientes">Clientes</button></a>
                                 <a href="#" data-modulo="Funcao" onclick="abrirModal('CadFuncao.html')">Funções</a>
                                 <a href="#" data-modulo="Funcionários" onclick="abrirModal('CadFuncionarios.html')">Funcionários</a>
                                 <a href="#" data-modulo="Funcionários" onclick="abrirModal('CadFuncionarios.html')">Funcionários</a>
@@ -145,8 +148,8 @@
     <script src="js/permissoes.js" defer></script>
     <script src="js/Index.js" defer ></script>
     <script src="js/Aside.js" defer></script>
-    <scrizsript>
-    <script src="js/Funcionarios.js" defer ></script>
+ 
+    <!-- <script src="js/Funcionarios.js" defer ></script>
     <script src="js/Eventos.js" defer></script> -->
  
     

@@ -289,7 +289,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   // 3) Mostrar/ocultar e adicionar listener nos botões de modal
   document.querySelectorAll(".abrir-modal").forEach(botao => {
     const url = botao.dataset.url || "";
-    const explicitModulo = botao.dataset.modulo;                  // leia data-modulo se existir
+    const explicitModulo = botao.dataset.modulo; // leia data-modulo se existir
     const urlLower = url.toLowerCase();
     let modulo = null;
 
@@ -319,7 +319,14 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     // adiciona listener se for visível
     botao.removeAttribute('onclick'); // remove qualquer onclick inline
-    botao.addEventListener('click', () => abrirModal(url, modulo));
+    // botao.addEventListener('click', () => abrirModal(url, modulo));
+    botao.addEventListener('click', () => {
+      // GUARDO o módulo antes de tudo
+      window.moduloAtual = modulo;
+      console.log("🏷️  janela.moduloAtual setado para:", window.moduloAtual);
+      abrirModal(url, modulo);
+    });
+    
   });
 });
 
@@ -348,9 +355,15 @@ async function abrirModal(url, modulo) {
     return;
   }
 
+
   // inserir HTML e overlay
   const container = document.getElementById('modal-container');
   container.innerHTML = html;
+
+  // ** Aqui aplicamos as permissões internas do modal: **
+  if (window.permissoes && typeof aplicarPermissoes === 'function') {
+    aplicarPermissoes(window.permissoes);
+  }
 
   // carregar script do módulo dinamicamente
   const scriptName = modulo.charAt(0).toUpperCase() + modulo.slice(1) + '.js';
@@ -359,7 +372,11 @@ async function abrirModal(url, modulo) {
     const script = document.createElement('script');
     script.src = scriptSrc;
     script.defer = true;
-    script.onload = () => aplicarConfiguracoes(modulo);
+    // script.onload = () => aplicarConfiguracoes(modulo);
+    script.onload = () => {
+      console.log("✅ Script do módulo carregado:", scriptName);
+      aplicarConfiguracoes(modulo);
+    };
     document.body.appendChild(script);
   } else {
     aplicarConfiguracoes(modulo);

@@ -11,7 +11,7 @@ if (idFuncionarios) {
     }).then(async (result) => {
         if (result.isConfirmed) {
             try {
-                const response = await fetch(`http://localhost:3000/funcionarios/${idFuncionarios}`, {
+                const response = await fetch(`/funcionarios/${idFuncionarios}`, {
                     method: "PUT",
                     headers: {
                         "Content-Type": "application/json"
@@ -40,7 +40,7 @@ if (idFuncionarios) {
 } else {
     // Se for novo, salva direto
     try {
-        const response = await fetch("http://localhost:3000/funcionarios", {
+        const response = await fetch("/funcionarios", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
@@ -107,7 +107,7 @@ function configurarPreviewFoto() {
   });
 }
 
-  function configurarEventosFuncionarioss() {
+ async function configurarEventosFuncionarioss() {
     console.log("Configurando eventos Funcionarioss...");
     verificaFuncionarioss(); // Carrega os Funcionarioss ao abrir o modal
     configurarPreviewFoto();

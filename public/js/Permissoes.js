@@ -65,7 +65,7 @@ async function initPermissoes() {
     .then(permissoes => {
       console.log('[Permissões] Dados recebidos:', permissoes);
       filtrarMenuPorPermissoes(permissoes);  // em vez de filtrar por 'moduloAtual'
-      aplicarPermissoes(permissoes);
+      //aplicarPermissoes(permissoes);
     });
 }
 

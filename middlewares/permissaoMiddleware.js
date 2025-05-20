@@ -16,7 +16,7 @@ function verificarPermissao(modulo, acao) {
       const { rows } = await db.query(query, [usuarioId, modulo]);
       const permissao = rows[0];
 
-      if (!permissao || !permissao[`pode_${acao}`]) {
+      if (!permissao || !permissao[`${acao}`]) {
         return res.status(403).json({ erro: `Você não tem permissão para ${acao} neste módulo.` });
       }
       console.log(`✅ Acesso concedido para '${acao}' no módulo '${modulo}'`);
