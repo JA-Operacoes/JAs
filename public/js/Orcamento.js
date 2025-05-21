@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", function () {
-    console.log("Script orcamento.js carregado.");
+    // console.log("Script orcamento.js carregado.");
 
     let selects = document.querySelectorAll(".idFuncao, .idEquipamento, .idSuprimento");
     selects.forEach(select => {
@@ -14,12 +14,12 @@ let idLocalMontagem;
 
 
 function carregarClientesOrc() {
-    console.log("Função carregar Cliente chamada");
+    // console.log("Função carregar Cliente chamada");
 
     fetch('http://localhost:3000/clientes')
         .then(response => response.json())
         .then(clientes => {
-            console.log('Clientes recebidos:', clientes);
+            // console.log('Clientes recebidos:', clientes);
 
             let selects = document.querySelectorAll(".idCliente");
 
@@ -40,7 +40,7 @@ function carregarClientesOrc() {
                     const nomeFantasia = this.value;
                     const selectedOption = select.options[select.selectedIndex];
                     idCliente = selectedOption.getAttribute("data-idCliente");
-                    console.log("idCliente", idCliente);
+                    // console.log("idCliente", idCliente);
                     if (nomeFantasia) {
                         buscarEExibirDadosClientePorNome(nomeFantasia);
                     }
@@ -102,24 +102,24 @@ document.addEventListener("DOMContentLoaded", carregarClientesOrc);
 
 function carregarEventosOrc() {
     
-    console.log("Função carregar Eventos chamada");
+    // console.log("Função carregar Eventos chamada");
 
     fetch('http://localhost:3000/eventos')
     .then(response => response.json())
     .then(eventos => {
-        console.log('Eventos recebidos:', eventos);
+        // console.log('Eventos recebidos:', eventos);
         
         let selects = document.querySelectorAll(".idEvento");
         
         selects.forEach(select => {
             
-            console.log("dentro do SELECT EVENTOS",eventos);
+            // console.log("dentro do SELECT EVENTOS",eventos);
             
             select.innerHTML = '<option value="">Selecione Evento</option>'; // Adiciona a opção padrão
             eventos.forEach(evento => {
                 let option = document.createElement("option");
                 
-                console.log('Eventos recebidos 2:', eventos);
+                // console.log('Eventos recebidos 2:', eventos);
               
                 option.value = evento.idevento;  // Atenção ao nome da propriedade (idMontagem)
                 option.textContent = evento.nmevento; 
@@ -132,7 +132,7 @@ function carregarEventosOrc() {
             select.addEventListener('change', function () {
                 const selectedOption = select.options[select.selectedIndex];   
                 idEvento = selectedOption.getAttribute("data-idEvento");
-                console.log("IDEVENTO",idEvento);
+                // console.log("IDEVENTO",idEvento);
                     
             });
             
@@ -147,18 +147,18 @@ let Categoria = "";
 
 // Função para carregar os Funcao
 function carregarFuncaoOrc() {
-    console.log("Função carregarFuncao chamada ORCAMENTO.js");
+    // console.log("Função carregarFuncao chamada ORCAMENTO.js");
 
     fetch('http://localhost:3000/funcao')
         .then(response => response.json())
         .then(funcao => {
-            console.log('Funcao recebidos 1:', funcao); // Log das Funções recebidas
+            // console.log('Funcao recebidos 1:', funcao); // Log das Funções recebidas
 
             let selects = document.querySelectorAll(".idFuncao");
             selects.forEach(select => {
                 select.innerHTML = "";
 
-                console.log('Funcao recebidos 2:', funcao); // Log das Funções recebidas
+                // console.log('Funcao recebidos 2:', funcao); // Log das Funções recebidas
                 let opcaoPadrao = document.createElement("option");
                 opcaoPadrao.setAttribute("value", "");
                 opcaoPadrao.textContent = "Selecione Função";
@@ -192,7 +192,7 @@ function carregarFuncaoOrc() {
 // Função para carregar os equipamentos
 function carregarEquipamentosOrc() {
 
-    console.log("Função carregarEquipamentos chamada");
+    // console.log("Função carregarEquipamentos chamada");
     fetch('http://localhost:3000/equipamentos')
         .then(response => response.json())
         .then(equipamentos => {
@@ -229,13 +229,13 @@ function carregarEquipamentosOrc() {
 
 // Função para carregar os suprimentos
 function carregarSuprimentosOrc() {
-    console.log("Função carregarSuprimentos chamada");
+    // console.log("Função carregarSuprimentos chamada");
     fetch('http://localhost:3000/suprimentos')
         .then(response => response.json())
         .then(suprimentos => {
             let selects = document.querySelectorAll(".idSuprimento");
-            console.log('Suprimentos recebidos:', suprimentos); // Log dos suprimentos recebidos
-            console.log('Selects Suprimento',selects);
+            // console.log('Suprimentos recebidos:', suprimentos); // Log dos suprimentos recebidos
+            // console.log('Selects Suprimento',selects);
             selects.forEach(select => {
                 select.innerHTML = '<option value="">Selecione Suprimento</option>';
                 suprimentos.forEach(suprimentos => {
@@ -266,11 +266,11 @@ function carregarSuprimentosOrc() {
 // Função para carregar os locais de montagem
 function carregarLocalMontOrc() {
     
-    console.log("Função carregar LocalMontagem chamada");
+    // console.log("Função carregar LocalMontagem chamada");
     fetch('http://localhost:3000/localmontagem')
     .then(response => response.json())
     .then(montagem => {
-        console.log('Local Montagem recebidos:', montagem);
+        // console.log('Local Montagem recebidos:', montagem);
         
         let selects = document.querySelectorAll(".idMontagem");
         
@@ -296,7 +296,7 @@ function carregarLocalMontOrc() {
             select.addEventListener("change", function (event) {
                 const selectedOption = select.options[select.selectedIndex];
                 idLocalMontagem = selectedOption.getAttribute("data-idlocalmontagem") || "N/D";
-                console.log("IDLOCALMONTAGEM", idLocalMontagem);
+                // console.log("IDLOCALMONTAGEM", idLocalMontagem);
                 
             });
             
@@ -322,7 +322,7 @@ function configurarInfraCheckbox() {
     }
 
     checkbox.addEventListener("change", atualizarVisibilidade);
-console.log("entrou na função");
+// console.log("entrou na função");
     // Opcional: já configura o estado inicial com base no checkbox
     atualizarVisibilidade();
 }
@@ -382,10 +382,10 @@ if (!window.hasRegisteredClickListener) {
             let currentValue = parseInt(input.value || 0);
 
             if (event.target.classList.contains('increment')) {
-                console.log('Incrementando...');
+                // console.log('Incrementando...');
                 input.value = currentValue + 1;
             } else if (event.target.classList.contains('decrement')) {
-                console.log('Decrementando...');
+                // console.log('Decrementando...');
                 if (currentValue > 0) {
                     input.value = currentValue - 1;
                 }
@@ -402,7 +402,7 @@ if (!window.hasRegisteredClickListener) {
 
 function desformatarMoeda(valor) {
 
-    console.log ("DESFORMATARMOEDA", valor);
+    // console.log ("DESFORMATARMOEDA", valor);
     // if (!valor) return 0;
     // return parseFloat(valor.replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
     
@@ -436,64 +436,92 @@ function formatarMoeda(valor) {
 
 function recalcularLinha(linha) {
     if (!linha) return;
-    
+
     try {
         console.log("Linha recebida:", linha);
 
-        // --- Primeiro, recalcula o TotVendaDiaria e TotCtoDiaria
         let qtdItens = parseFloat(linha.querySelector('.qtdPessoas input')?.value) || 0;
         let qtdDias = parseFloat(linha.querySelector('.qtdDias input')?.value) || 0;
-       
-        let vlrVenda = desformatarMoeda(linha.querySelector('.vlrVenda')?.textContent);
+
+        let celulaVenda = linha.querySelector('.vlrVenda');
+
+        // Salva o valor original da venda apenas uma vez
+        if (celulaVenda && !celulaVenda.dataset.vendaOriginal) {
+            celulaVenda.dataset.vendaOriginal = desformatarMoeda(celulaVenda.textContent);
+        }
+
+        // Usa o valor original salvo (se houver), senão tenta pegar do texto atual
+        let vlrVendaOriginal = parseFloat(celulaVenda?.dataset.vendaOriginal) || desformatarMoeda(celulaVenda?.textContent);
+        let vlrVenda = vlrVendaOriginal;
+
         let vlrCusto = desformatarMoeda(linha.querySelector('.vlrCusto')?.textContent);
         let vlrAjdCusto = desformatarMoeda(linha.querySelector('.ajdCusto')?.textContent);
-             
-        let totalIntermediario = qtdItens * qtdDias; // multiplica o quantidade de dias pelo quantidade de itens 
 
-        let totalVenda = totalIntermediario * vlrVenda;
+        // Pega os campos de valor e percentual para desconto e acréscimo
+        let campoDescValor = linha.querySelector('.desconto .ValorInteiros');
+        let campoDescPct = linha.querySelector('.desconto .valorPerCent');
+
+        let campoAcrescValor = linha.querySelector('.Acrescimo .ValorInteiros');
+        let campoAcrescPct = linha.querySelector('.Acrescimo .valorPerCent');
+
+        let desconto = desformatarMoeda(campoDescValor?.value) || 0;
+        let perCentDesc = parseFloat(campoDescPct?.value) || 0;
+
+        let acrescimo = desformatarMoeda(campoAcrescValor?.value) || 0;
+        let perCentAcresc = parseFloat(campoAcrescPct?.value) || 0;
+
+        // Se o percentual de desconto/acréscimo foi preenchido, calcula o valor
+        if (perCentDesc > 0) {
+            desconto = vlrVenda * (perCentDesc / 100);
+            if (campoDescValor) campoDescValor.value = desconto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        } else if (desconto > 0) {
+            perCentDesc = (desconto / vlrVenda) * 100;
+            if (campoDescPct) campoDescPct.value = perCentDesc.toFixed(2);
+        }
+
+        if (perCentAcresc > 0) {
+            acrescimo = vlrVenda * (perCentAcresc / 100);
+            if (campoAcrescValor) campoAcrescValor.value = acrescimo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        } else if (acrescimo > 0) {
+            perCentAcresc = (acrescimo / vlrVenda) * 100;
+            if (campoAcrescPct) campoAcrescPct.value = perCentAcresc.toFixed(2);
+        }
+
+        // Calcula novo valor de venda com desconto e acréscimo
+        let vlrVendaCorrigido = vlrVenda - desconto + acrescimo;
+
+        let totalIntermediario = qtdItens * qtdDias;
+        let totalVenda = totalIntermediario * vlrVendaCorrigido;
         let totalCusto = totalIntermediario * vlrCusto;
-
         let totalAjdCusto = totalIntermediario * vlrAjdCusto;
-
         let totGeralCtoItem = totalCusto + totalAjdCusto;
 
-      
-        
-        console.log("valor ajd custo",linha.querySelector('.ajdCusto'));
-       
-        console.log("calculo ajCusto", totalIntermediario, vlrAjdCusto, vlrVenda, vlrCusto);
-            
-          
-        console.log(`Total Venda calculado: ${totalVenda.toFixed(2)}`);
-        console.log(`Total Custo calculado: ${totalCusto.toFixed(2)}`);
-        console.log(`Total ajdCusto calculado: ${totalAjdCusto.toFixed(2)}`);
-        console.log(`Total Geral Custo Item calculado: ${totGeralCtoItem.toFixed(2)}`);
-
-        // Atualiza o valor na célula TotVendaDiaria
+        // Atualiza a DOM
         let totalVendaCell = linha.querySelector('.totVdaDiaria');
         if (totalVendaCell) {
             totalVendaCell.textContent = totalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
 
-        // Atualiza o valor na célula TotCtoDiaria
+        if (celulaVenda) {
+            celulaVenda.textContent = vlrVendaCorrigido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
         let totalCustoCell = linha.querySelector('.totCtoDiaria');
         if (totalCustoCell) {
             totalCustoCell.textContent = totalCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
 
-        // Atualiza o valor na célula TotAjdCusto
         let totalAjdCustoCell = linha.querySelector('.totAjdCusto');
         if (totalAjdCustoCell) {
             totalAjdCustoCell.textContent = totalAjdCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
 
-        // Atualiza o valor na célula TotGeral (Total de Custo + Total AjdCusto)
         let totalGeralCtoCell = linha.querySelector('.totGeral');
         if (totalGeralCtoCell) {
             totalGeralCtoCell.textContent = totGeralCtoItem.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
 
-        // --- Agora, recalcula o total geral dos custos e vendas
+        // Totais gerais
         let totalCustoGeral = 0;
         let totalVendaGeral = 0;
         let totalAjdCustoGeral = 0;
@@ -515,19 +543,16 @@ function recalcularLinha(linha) {
             totalGeralCustoItem += desformatarMoeda(cell.textContent);
         });
 
-        // Atualiza o campo de Total Geral Custo se existir
         let inputTotalCusto = document.querySelector('#totalGeralCto');
         if (inputTotalCusto) {
             inputTotalCusto.value = totalCustoGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
 
-        // Atualiza o campo de Total Geral Venda se existir
         let inputTotalVenda = document.querySelector('#totalGeralVda');
         if (inputTotalVenda) {
             inputTotalVenda.value = totalVendaGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
 
-        // Atualiza o campo de Total Geral Ajuda de Custo se existir
         let inputTotalAjdCusto = document.querySelector('#totalajdCusto');
         if (inputTotalAjdCusto) {
             inputTotalAjdCusto.value = totalAjdCustoGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -538,15 +563,17 @@ function recalcularLinha(linha) {
             inputTotalGeralCtoItem.value = totalGeralCustoItem.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
 
+        console.log("Calculo desc e Acresc:", vlrVendaOriginal, "-", desconto, "+", acrescimo);
+        console.log("valor c/ desc e Acresc:", vlrVendaCorrigido);
         console.log("Total Geral de Custo:", totalCustoGeral.toFixed(2));
         console.log("Total Geral de Venda:", totalVendaGeral.toFixed(2));
         console.log("Total Geral de AjdCusto:", totalAjdCustoGeral.toFixed(2));
         console.log("Total Geral de Custo Item:", totalGeralCustoItem.toFixed(2));
 
-
         aplicarMascaraMoeda();
-        aplicarDescontoEAcrescimo();
+        // aplicarDescontoEAcrescimo();
         calcularLucro();
+        recalcularTotaisGerais();
 
     } catch (error) {
         console.error("Erro no recalcularLinha:", error);
@@ -557,8 +584,6 @@ function recalcularTotaisGerais() {
     let totalCustoGeral = 0;
     let totalVendaGeral = 0;
     let totalAjdCustoGeral = 0;
-
-    console.log("recalcularTotaisGerais")
 
     // Soma os custos
     document.querySelectorAll('.totCtoDiaria').forEach(cell => {
@@ -574,7 +599,6 @@ function recalcularTotaisGerais() {
         totalAjdCustoGeral += desformatarMoeda(cell.textContent);
     });
 
-
     // Atualiza campos visuais
     document.querySelector('#totalGeralCto').value = totalCustoGeral.toLocaleString('pt-BR', {
         style: 'currency',
@@ -585,8 +609,17 @@ function recalcularTotaisGerais() {
         style: 'currency',
         currency: 'BRL'
     });
-    calcularLucro();
 
+    // Atualiza o valor do cliente com o valor total de venda
+    const campoValorCliente = document.querySelector('#valorCliente');
+    if (campoValorCliente) {
+        campoValorCliente.value = totalVendaGeral.toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        });
+    }
+
+    calcularLucro();
 }
 
 function calcularLucro() {
@@ -656,24 +689,59 @@ function calcularLucroReal() {
 
 }
 
-function aplicarDescontoEAcrescimo() {
-    let totalVenda = desformatarMoeda(document.querySelector('#totalGeralVda').value);
-    let valorDesconto = desformatarMoeda(document.querySelector('#Desconto').value);
-    let valorAcrescimo = desformatarMoeda(document.querySelector('#Acrescimo').value);
+function aplicarDescontoEAcrescimo(input = null) {
+    const campoTotalVenda = document.querySelector('#totalGeralVda');
+    const campoDesconto = document.querySelector('#Desconto');
+    const campoPerCentDesc = document.querySelector('#perCentDesc');
+    const campoAcrescimo = document.querySelector('#Acrescimo');
+    const campoPerCentAcresc = document.querySelector('#perCentAcresc');
+    const campoValorCliente = document.querySelector('#valorCliente');
 
-    // Aplica desconto e depois acréscimo sobre o valor original (totalVenda)
-    let valorFinalCliente = totalVenda - valorDesconto + valorAcrescimo;
+    let totalVenda = desformatarMoeda(campoTotalVenda?.value || '0');
+    if (isNaN(totalVenda)) totalVenda = 0;
 
-    aplicarMascaraMoeda()
+    let valorDesconto = desformatarMoeda(campoDesconto?.value || '0');
+    let perCentDesc = parseFloat((campoPerCentDesc?.value || '0').replace('%', '').replace(',', '.')) || 0;
 
-    // Atualiza o campo de valor final ao cliente
-    let campoValorCliente = document.querySelector('#valorCliente');
-    if (campoValorCliente) {
-        campoValorCliente.value = formatarMoeda(valorFinalCliente);
+    let valorAcrescimo = desformatarMoeda(campoAcrescimo?.value || '0');
+    let perCentAcresc = parseFloat((campoPerCentAcresc?.value || '0').replace('%', '').replace(',', '.')) || 0;
+
+    // Se input for null, só calcula e mostra o valor final
+    if (input === null) {
+        const valorFinal = totalVenda - valorDesconto + valorAcrescimo;
+        if (campoValorCliente) {
+            campoValorCliente.value = formatarMoeda(valorFinal);
+        }
+        return;
     }
 
-    // Recalcula lucro real com base no valor final ao cliente atualizado
+    // Sincronizar desconto
+    if (input === campoDesconto && totalVenda > 0) {
+        perCentDesc = (valorDesconto / totalVenda) * 100;
+        campoPerCentDesc.value = perCentDesc.toFixed(2) + '%';
+    } else if (input === campoPerCentDesc && totalVenda > 0) {
+        valorDesconto = totalVenda * (perCentDesc / 100);
+        campoDesconto.value = formatarMoeda(valorDesconto);
+    }
+
+    // Sincronizar acréscimo
+    if (input === campoAcrescimo && totalVenda > 0) {
+        perCentAcresc = (valorAcrescimo / totalVenda) * 100;
+        campoPerCentAcresc.value = perCentAcresc.toFixed(2) + '%';
+    } else if (input === campoPerCentAcresc && totalVenda > 0) {
+        valorAcrescimo = totalVenda * (perCentAcresc / 100);
+        campoAcrescimo.value = formatarMoeda(valorAcrescimo);
+    }
+
+    // Calcular valor final para o cliente
+    const valorFinal = totalVenda - valorDesconto + valorAcrescimo;
+
+    if (campoValorCliente) {
+        campoValorCliente.value = formatarMoeda(valorFinal);
+    }
+
     calcularLucroReal();
+    calcularLucro();
 }
 
 
@@ -697,24 +765,27 @@ function adicionarLinhaOrc() {
 
     let novaLinha = tabela.insertRow();
     novaLinha.innerHTML = `
-                <td class="Categoria"></td>
-                <td class="qtdPessoas"><div class="add-less"><input type="number" class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
-                <td class="produto"></td>
-                <td class="qtdDias"><div class="add-less"><input type="number" class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
-                <td class="vlrVenda Moeda"></td>
-                <td class="totVdaDiaria Moeda"></td>
-                <td class="vlrCusto Moeda"></td>
-                <td class="totCtoDiaria Moeda"></td>
-                <td class="ajdCusto Moeda"></td>
-                <td class="totAjdCusto Moeda">0</td>
-                <td class="extraCampo" style="display: none;">
-                    <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotaisOrc()">
-                </td>
-                <td class="extraCampo" style="display: none;">
-                    <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotaisOrc()">
-                </td>
-                <td class="totGeral">0</td>
-                <td><div class="Acao"><button class="deleteBtn" onclick="removerLinhaOrc(this)"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
+            <td class="Proposta"> <input type="checkbox" name="" id=""> </td>
+            <td class="Categoria"></td>
+            <td class="qtdPessoas"><div class="add-less"><input type="number" class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+            <td class="produto"></td>
+            <td class="qtdDias"><div class="add-less"><input type="number" class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+            <td class="vlrVenda Moeda"></td>
+            <td class="desconto Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
+            <td class="Acrescimo Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
+            <td class="totVdaDiaria Moeda"></td>
+            <td class="vlrCusto Moeda"></td>
+            <td class="totCtoDiaria Moeda"></td>
+            <td class="ajdCusto Moeda"></td>
+            <td class="totAjdCusto Moeda">0</td>
+            <td class="extraCampo" style="display: none;">
+                <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotaisOrc()">
+            </td>
+            <td class="extraCampo" style="display: none;">
+                <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotaisOrc()">
+            </td>
+            <td class="totGeral">0</td>
+            <td><div class="Acao"><button class="deleteBtn" onclick="removerLinhaOrc(this)"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
 `;
 }
 
@@ -725,7 +796,7 @@ function removerLinhaOrc(botao) {
 
 //formulario de 
 function atualizarUFOrc(selectLocalMontagem) {
-     console.log("Função atualizarUF chamada");
+    //  console.log("Função atualizarUF chamada");
     // console.log("Lista atual de locais antes da busca:", locaisDeMontagem);
 
     let selectedOption = selectLocalMontagem.options[selectLocalMontagem.selectedIndex]; // Obtém a opção selecionada
@@ -754,11 +825,11 @@ function atualizarUFOrc(selectLocalMontagem) {
     
     
     if (ufSelecionada !== "SP") {
-        console.log("UF diferente de SP, exibindo campos extras.");
+        // console.log("UF diferente de SP, exibindo campos extras.");
         colunasExtras.forEach(col => col.style.display = "table-cell"); // Exibe cabeçalho
         camposExtras.forEach(campo => campo.style.display = "table-cell"); // Exibe campos
     } else {
-        console.log("UF é SP, ocultando campos extras.");
+        // console.log("UF é SP, ocultando campos extras.");
         colunasExtras.forEach(col => col.style.display = "none"); // Oculta cabeçalho
         camposExtras.forEach(campo => campo.style.display = "none"); // Oculta campos
     }
@@ -766,7 +837,7 @@ function atualizarUFOrc(selectLocalMontagem) {
 }
 
 function atualizaProdutoOrc(event) {
-    console.log("Função atualizaProduto chamada", Categoria);
+    // console.log("Função atualizaProduto chamada", Categoria);
 
     let select = event.target; // Qual select foi alterado (Funcao, equipamento ou suprimento)
 
@@ -834,7 +905,7 @@ function resetarOutrosSelectsOrc(select) {
 // Função para configurar eventos no modal de orçamento
 function configurarEventosOrcamento() {
 
-    console.log("Função configurarEventosOrcamento CHAMADA");
+    // console.log("Função configurarEventosOrcamento CHAMADA");
     carregarFuncaoOrc();
     carregarEventosOrc();
     carregarClientesOrc();
@@ -988,19 +1059,50 @@ function enviarOrcamento() {
 
 // Exportar as funções se necessário
 
+// -------------------------------------- input Desconto e Acrésimo -----------------------------------------------------------
+window.addEventListener('DOMContentLoaded', () => {
+    aplicarDescontoEAcrescimo(); // ✅ Atualiza o valor do cliente assim que a tela carregar
 
+    // Seu listener existente
+    document.body.addEventListener('blur', function (e) {
+        const input = e.target;
+
+        // Campos por linha
+        if (
+            input.matches('.desconto .ValorInteiros') ||
+            input.matches('.Acrescimo .ValorInteiros') ||
+            input.matches('.desconto .valorPerCent') ||
+            input.matches('.Acrescimo .valorPerCent')
+        ) {
+            const linha = input.closest('tr');
+            if (linha) {
+                recalcularLinha(linha);
+            }
+        }
+
+        // Campos gerais
+        if (
+            input.matches('#Desconto') ||
+            input.matches('#valorPerCentDesc') ||
+            input.matches('#Acrescimo') ||
+            input.matches('#valorPerCentAcresc')
+        ) {
+            aplicarDescontoEAcrescimo();
+        }
+    }, true);
+});
 // --------------------------------------- botoes Quantidade-----------------------------------------
 
 if (!window.hasRegisteredClickListener) {
     document.addEventListener('click', function(event) {
     if (event.target.classList.contains('increment')) {
-        console.log('Incrementando...');
+        // console.log('Incrementando...');
         const input = event.target.closest('.add-less').querySelector('input');
         input.value = parseInt(input.value || 0) + 1;
     }
 
     if (event.target.classList.contains('decrement')) {
-        console.log('Decrementando...');
+        // console.log('Decrementando...');
         const input = event.target.closest('.add-less').querySelector('input');
         let currentValue = parseInt(input.value || 0);
         if (currentValue > 0) {
