@@ -1,7 +1,7 @@
 
 let EventoOriginal = {
     idEvento: "",
-    descEvento: ""
+    nmEvento: ""
    
 };
 
@@ -12,7 +12,7 @@ let EventoOriginal = {
 //     document.querySelector("#nmEvento").addEventListener("blur", async function () {
 //         const desc = this.value.trim();
 
-//         console.log("Campo descEvento procurado:", desc);
+//         console.log("Campo nmEvento procurado:", desc);
     
 //         if (desc === "") return;
     
@@ -57,10 +57,10 @@ let EventoOriginal = {
 //         console.log("ENVIANDO DADOS DO Evento PELO Evento.JS", document);
 
 //         const idEvento = document.querySelector("#idEvento").value.trim();
-//         const descEvento = document.querySelector("#nmEvento").value.trim();
+//         const nmEvento = document.querySelector("#nmEvento").value.trim();
     
     
-//         if (!descEvento ) {
+//         if (!nmEvento ) {
            
 //             Swal.fire({
 //                 icon: 'warning',
@@ -70,13 +70,13 @@ let EventoOriginal = {
 //             });
 //             return;
 //         }
-//         console.log("Valores do Evento:", idEvento, descEvento);
-//         console.log("Valores do Evento Original:", EventoOriginal.idEvento, EventoOriginal.descEvento);
+//         console.log("Valores do Evento:", idEvento, nmEvento);
+//         console.log("Valores do Evento Original:", EventoOriginal.idEvento, EventoOriginal.nmEvento);
     
 //         // Comparar com os valores originais
 //         if (
 //             parseInt(idEvento) === parseInt(EventoOriginal.idEvento) && 
-//             descEvento === EventoOriginal.descEvento
+//             nmEvento === EventoOriginal.nmEvento
            
 //         ) {
 //             console.log("Nenhuma alteração detectada.");
@@ -89,7 +89,7 @@ let EventoOriginal = {
 //             return;
 //         }
     
-//         const dados = { descEvento };
+//         const dados = { nmEvento };
 
 //         console.log("Dados a serem enviados:", idEvento);
      
@@ -273,7 +273,7 @@ async function verificaEvento() {
         event.preventDefault();
 
         const idEvento = document.querySelector("#idEvento").value.trim();
-        const descEvento = document.querySelector("#nmEvento").value.toUpperCase().trim();
+        const nmEvento = document.querySelector("#nmEvento").value.toUpperCase().trim();
         
         // Permissões
         const temPermissaoCadastrar = temPermissao("Eventos", "cadastrar");
@@ -289,29 +289,32 @@ async function verificaEvento() {
             return Swal.fire("Acesso negado", "Você não tem permissão para alterar eventos.", "error");
         }
 
-        if (!descEvento) {
+        if (!nmEvento) {
             return Swal.fire("Campos obrigatórios!", "Preencha todos os campos antes de enviar.", "warning");
         }
 
-        const dados = { descEvento};
+        const dados = { nmEvento};
 
         // Verifica alterações
         if (
             idEvento &&
             parseInt(idEvento) === parseInt(window.EventoOriginal?.idEvento) &&
-            descEvento === window.EventoOriginal?.descEvento  
+            nmEvento === window.EventoOriginal?.nmEvento  
         ) {
             return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
         }
         
         // Valida alterações
-        if (!houveAlteracao(dados)) {
-            return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
-        }
-        const url = idEvento
+        // if (!houveAlteracao(dados)) {
+        //     return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
+        // }
+         const url = idEvento
             ? `/eventos/${idEvento}`
             : "/eventos";
-
+        console.log("idEvento:", idEvento);
+        console.log("Dados a serem enviados:", dados);
+        console.log("Evento Original:", EventoOriginal);
+        console.log("Url:", url);
         try {
             // Confirma alteração (PUT)
             if (metodo === "PUT") {
@@ -470,7 +473,7 @@ function criarSelectEvento(eventos) {
       
 //         EventoOriginal = {
 //             idEvento: eventos.idevento,
-//             descEvento: eventos.nmevento
+//             nmEvento: eventos.nmevento
            
 //         };
    
@@ -506,7 +509,7 @@ async function carregarEventoDescricao(desc, elementoAtual) {
 
         EventoOriginal = {
             idEvento: eventos.idevento,
-            descEvento: eventos.nmevento
+            nmEvento: eventos.nmevento
         };
 
         console.log("Evento encontrado:", EventoOriginal);
@@ -551,7 +554,7 @@ async function carregarEventoDescricao(desc, elementoAtual) {
 function limparEventoOriginal() {
     EventoOriginal = {
         idEvento: "",
-        descEvento: ""
+        nmEvento: ""
        
     };
 }
@@ -576,8 +579,8 @@ function limparCamposEvento() {
         // Se for SELECT, trocar por INPUT
         const novoInput = document.createElement("input");
         novoInput.type = "text";
-        novoInput.id = "nmEvent";
-        novoInput.name = "nmEvent";
+        novoInput.id = "nmEvento";
+        novoInput.name = "nmEvento";
         novoInput.required = true;
         novoInput.className = "form";
 
