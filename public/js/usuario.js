@@ -10,7 +10,7 @@ document.getElementById("Registrar").addEventListener("submit", async function (
    
   
     try {
-      const resposta = await fetch("http://localhost:3000/auth/cadastro", {
+      const resposta = await fetch("/auth/cadastro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nome, email, senha, sobrenome, ativo })
@@ -102,7 +102,7 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
   try {
      console.log("ENTROU NO TRY", nome, sobrenome, email, senha);
    
-    const resposta = await fetch("http://localhost:3000/auth/cadastro", {
+    const resposta = await fetch("/auth/cadastro", {
       method: "PUT",  // Mudamos para PUT para indicar alteração
       headers: { "Content-Type": "application/json" },
       
@@ -212,7 +212,7 @@ async function verificarUsuarioExistenteFront() {
 
   try {
     
-    const resposta = await fetch("http://localhost:3000/auth/verificarUsuario", {
+    const resposta = await fetch("/auth/verificarUsuario", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ nome, sobrenome, email, ativo })
@@ -328,7 +328,7 @@ inputBusca.addEventListener('input', async () => {
   }
 
   try {
-    const resposta = await fetch(`http://localhost:3000/auth/usuarios?nome=${encodeURIComponent(termo)}`);
+    const resposta = await fetch(`/auth/usuarios?nome=${encodeURIComponent(termo)}`);
     const usuarios = await resposta.json();
 
     lista.innerHTML = '';
@@ -425,7 +425,7 @@ document.getElementById("btnCadastrar").addEventListener("click", function (e) {
 
 async function preencherUsuarioPeloEmail(email) {
   try {
-    const resposta = await fetch(`http://localhost:3000/auth/email/${encodeURIComponent(email)}`);
+    const resposta = await fetch(`/auth/email/${encodeURIComponent(email)}`);
     if (!resposta.ok) throw new Error('Usuário não encontrado');
 
     const dados = await resposta.json();
@@ -509,7 +509,7 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
   };
 
   try {
-    const res = await fetch("http://localhost:3000/permissoes/cadastro", {
+    const res = await fetch("/permissoes/cadastro", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(permissoes)
@@ -530,6 +530,7 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
 
 async function carregarPermissoesUsuario(idusuario) {
   
+  limparCheckboxesPermissao();
   const selectModulo = document.getElementById("modulo");
   const chkAcesso    = document.getElementById("Acesso");
   const chkCadastrar = document.getElementById("Cadastrar");
@@ -537,17 +538,17 @@ async function carregarPermissoesUsuario(idusuario) {
   const chkPesquisar = document.getElementById("Pesquisar");
   const chkLeitura   = document.getElementById("Leitura");
 
-  // 1. limpa tudo
-  selectModulo.value = "choose";
-  [chkAcesso, chkCadastrar, chkAlterar, chkPesquisar, chkLeitura]
-    .forEach(chk => chk.checked = false);
+  // // 1. limpa tudo
+  // selectModulo.value = "choose";
+  // [chkAcesso, chkCadastrar, chkAlterar, chkPesquisar, chkLeitura]
+  //   .forEach(chk => chk.checked = false);
 
   try {
     console.log("Entrou no carregarPermissoesUsuario", idusuario);
-    const resp = await fetch(`http://localhost:3000/permissoes/${idusuario}`);
+    const resp = await fetch(`/permissoes/${idusuario}`);
     if (!resp.ok) throw new Error("Falha ao buscar permissões");
     const permissoes = await resp.json();
-
+    console.log("Permissões carregadas:", permissoes);
     if (permissoes.length > 0) {
     const p = permissoes[0];
     // seta o select e checkboxes
@@ -584,6 +585,30 @@ async function carregarPermissoesUsuario(idusuario) {
   }
   
 }
+
+//função para limpar todos os checkboxes de permissão
+function limparCheckboxesPermissao() {
+  ['Acesso','Cadastrar','Alterar','Pesquisar','Leitura']
+    .forEach(id => {
+      const chk = document.getElementById(id);
+      if (chk) chk.checked = false;
+    });
+}
+
+const selectModulo = document.getElementById("modulo");
+selectModulo.addEventListener("change", () => {
+  // Limpa tudo imediatamente
+  limparCheckboxesPermissao();
+  // Zera o estado original também, para que o "Salvar" não indique nenhuma alteração
+  permissoesOriginais = {
+    modulo: selectModulo.value,
+    acesso: false,
+    cadastrar: false,
+    alterar: false,
+    pesquisar: false,
+    leitura: false
+  };
+});
 
 // function aplicarPermissoes(permissoes) {
 //   console.log("[Permissões] aplicando em módulo:", document.body.dataset.modulo);

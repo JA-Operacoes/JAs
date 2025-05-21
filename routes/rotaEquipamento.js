@@ -1,9 +1,14 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../db/conexaoDB");
+const { autenticarToken } = require('../middlewares/authMiddlewares');
+const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
+
+// Aplica autenticação em todas as rotas
+router.use(autenticarToken);
 
 // GET todas ou por descrição
-router.get("/", async (req, res) => {
+router.get("/", autenticarToken, verificarPermissao('Equipamentos', 'pesquisar'), async (req, res) => {
   const { descEquip } = req.query;
 
   try {
@@ -28,7 +33,7 @@ router.get("/", async (req, res) => {
 });
 
 // PUT atualizar
-router.put("/:id", async (req, res) => {
+router.put("/:id", autenticarToken, verificarPermissao('Equipamentos', 'alterar'), async (req, res) => {
   const id = req.params.id;
   const { descEquip, custo, venda } = req.body;
 
@@ -48,7 +53,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // POST criar nova equipamentos
-router.post("/", async (req, res) => {
+router.post("/", autenticarToken, verificarPermissao('Equipamentos', 'cadastrar'), async (req, res) => {
   const { descEquip, custo, venda } = req.body;
 
   console.log("Dados recebidos:", req.body);

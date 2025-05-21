@@ -268,6 +268,7 @@ async function listarPermissoes(req, res) {
     }));
 
     res.json(permissoes);
+    console.log("PERMISSOES EM LISTAR PERMISSOES", permissoes);
   } catch (err) {
     console.error('Erro ao buscar permissões:', err);
     res.status(500).json({ erro: 'Erro ao buscar permissões.' });

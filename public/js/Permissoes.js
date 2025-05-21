@@ -24,21 +24,21 @@ function aplicarPermissoes(permissoes) {
 
   console.log("Entrou no aplicarPermissoes", p, permissoes);
 
-  if (!p.cadastrar) {
+  if (!p.pode_cadastrar) {
     document.querySelectorAll(".btnCadastrar")
             .forEach(btn => btn.disabled = true);
   }
-  if (!p.alterar){
+  if (!p.pode_alterar){
     document.querySelectorAll(".btnAlterar")
             .forEach(btn => btn.disabled = true);
   }         
-  if (!p.pesquisar){
+  if (!p.pode_pesquisar){
     console.log("Habilitar btnPesquisar");
     document.querySelectorAll(".btnPesquisar")
             .forEach(btn => btn.disabled = true);
   }
 
-  if (p.pesquisar && !p.cadastrar && !p.alterar) {
+  if (p.pode_pesquisar && !p.pode_cadastrar && !p.pode_alterar) {
     console.log("Usuário só pode pesquisar - ocultando botões de envio");
     document.querySelectorAll("button[type='submit'], .btnSalvar, .btnEnviar")
             .forEach(btn => btn.style.display = 'none');

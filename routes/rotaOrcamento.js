@@ -8,7 +8,7 @@ const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 router.use(autenticarToken);
 
 // GET todas ou por id
-router.get("/", autenticarToken, async (req, res) => {
+router.get("/", autenticarToken, verificarPermissao('Orcamentos', 'pesquisar'), async (req, res) => {
   const { idOrcamento } = req.query;
 
   try {
@@ -33,7 +33,7 @@ router.get("/", autenticarToken, async (req, res) => {
 });
 
 // GET /orcamento/clientes
-router.get('/clientes', autenticarToken, async (req, res) => {
+router.get('/clientes',  async (req, res) => {
     const permissoes = req.usuario?.permissoes;
 
     const temPermissaoOrcamento = permissoes?.some(p =>
@@ -55,7 +55,7 @@ router.get('/clientes', autenticarToken, async (req, res) => {
 
 
 // POST criar novo orçamento com itens
-router.post("/", async (req, res) => {
+router.post("/", autenticarToken, verificarPermissao('Orcamentos', 'cadastrar'), async (req, res) => {
   const client = await pool.connect();
   const dados = req.body;
 

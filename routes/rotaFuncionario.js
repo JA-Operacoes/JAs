@@ -1,9 +1,14 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../db/conexaoDB");
+const { autenticarToken } = require('../middlewares/authMiddlewares');
+const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
+
+// Aplica autenticação em todas as rotas
+router.use(autenticarToken);
 
 // GET todas ou por descrição
-router.get("/", async (req, res) => {
+router.get("/", autenticarToken, verificarPermissao('Funcionarios', 'pesquisar'), async (req, res) => {
   const { nome } = req.query;
 
   try {
@@ -29,7 +34,7 @@ router.get("/", async (req, res) => {
 
 
 // PUT atualizar
-router.put("/:id", async (req, res) => {
+router.put("/:id", autenticarToken, verificarPermissao('Funcionarios', 'alterar'),  async (req, res) => {
   const id = req.params.id;
 //   const ativo = req.body.ativo;
  // console.log("Ativo:", ativo); // Log do valor de ativo
@@ -54,7 +59,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // POST criar nova função
-router.post("/", async (req, res) => {
+router.post("/", autenticarToken, verificarPermissao('Funcionarios', 'cadastrar'), async (req, res) => {
 //   const ativo = req.body.ativo === "on" ? true : false;
   const { areadeatuacao, foto, nome, cpf, rg, contatoPessoal, contatoFamiliar, email, cep, rua, numero, complemento, bairro, cidade, estado, pais} = req.body;
 
