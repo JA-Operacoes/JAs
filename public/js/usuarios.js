@@ -194,11 +194,13 @@ document.getElementById("sobrenome").addEventListener("blur", function () {
   const sobrenome = document.getElementById("sobrenome").value.trim();
   const email = document.getElementById("email").value.trim();
 
-  if (!nome || !sobrenome || email) {
-    verificarNomeCompleto();
-  }
+  console.log("Entrou no verificarNomeCompleto","nome:", nome, "sobrenome:", sobrenome, "email:", email);
+   if (nome && sobrenome && !email) {
+    console.log("Entrou no verificarNomeCompleto2");
+     verificarNomeCompleto();
+   }
 
-  verificarUsuarioExistenteFront();
+  //verificarUsuarioExistenteFront();
 });
 
 document.getElementById("email").addEventListener("blur", function (){
@@ -290,10 +292,15 @@ async function verificarNomeExistente() {
   const nome = document.getElementById("buscaUsuario").value.trim();
   const sobrenome = document.getElementById("sobrenome").value.trim();
 
-  if (!nome || sobrenome || clicouNaLista) {
+  if (!nome) return;  // Sem nome? nada a fazer
+
+  if (clicouNaLista) {
     clicouNaLista = false;
-    return;
+    return;  // Seleção manual da lista, não mostrar alertas
   }
+
+  if (sobrenome !== "") return;  // Usuário já digitou sobrenome, pular alerta
+
 
   try {
     const resposta = await fetch("/auth/verificarNomeExistente", {
@@ -313,7 +320,10 @@ async function verificarNomeExistente() {
           title: "Nome encontrado",
           text: "Digite também o sobrenome para refinar a busca.",
         }).then(() => {
+           document.getElementById("nome").value = nome;
+           clicouNaLista = true;
            document.getElementById("sobrenome").focus();
+          
         });
       }
     } else {
@@ -341,7 +351,7 @@ async function verificarNomeExistente() {
 async function verificarNomeCompleto() {
   const nome = document.getElementById("buscaUsuario").value.trim();
   const sobrenome = document.getElementById("sobrenome").value.trim();
-
+  
   if (!nome || !sobrenome) return;
 
   try {
@@ -406,7 +416,8 @@ document.getElementById("btnCancelar").addEventListener("click", async function 
 document.getElementById("btnFechar").addEventListener("click", async function (e) {
   e.preventDefault(); 
 
-  window.close(); 
+  //window.close(); 
+   document.querySelector(".login-box").style.display = "none";
 });
 
 document.querySelectorAll(".toggle-senha").forEach((el) => {
