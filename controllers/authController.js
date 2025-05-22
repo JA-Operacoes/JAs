@@ -3,6 +3,7 @@ const db = require('../db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
+
 // Cadastro de usuário
 // controllers/authController.js
 async function verificarUsuarioExistente(req, res) {
@@ -123,67 +124,74 @@ async function cadastrarOuAtualizarUsuario(req, res) {
     }
   }
 
-  async function buscarUsuariosPorNome(req, res) {
-    const { nome } = req.query;
-    console.log("buscarUsuarioPorNome", nome);
+async function buscarUsuariosPorNome(req, res) {
+  const { nome } = req.query;
+  console.log("buscarUsuarioPorNome", nome);
+  try {
+    const { rows } = await db.query(`
+      SELECT idusuario, nome, sobrenome, email, senha_hash, ativo
+      FROM usuarios 
+      WHERE LOWER(nome) LIKE LOWER($1) 
+      ORDER BY nome 
+      LIMIT 10
+    `, [`${nome}%`]);
+
+    res.status(200).json(rows)
+  } catch (erro) {
+    console.error('Erro ao buscar usuários por nome:', erro);
+    res.status(500).json({ erro: 'Erro ao buscar usuários.' });
+  }
+}
+
+async function verificarNomeExistente(req, res) {
+    const { nome } = req.body;
+
+    console.log("verificarNomeExistente AuthController", nome);
+
+    if (!nome) {
+      return res.status(400).json({ error: "Nome é obrigatório" });
+    }
+
     try {
-      const { rows } = await db.query(`
-        SELECT idusuario, nome, sobrenome, email, senha_hash, ativo
-        FROM usuarios 
-        WHERE LOWER(nome) LIKE LOWER($1) 
-        ORDER BY nome 
-        LIMIT 10
-      `, [`${nome}%`]);
-  
-      res.status(200).json(rows)
-    } catch (erro) {
-      console.error('Erro ao buscar usuários por nome:', erro);
-      res.status(500).json({ erro: 'Erro ao buscar usuários.' });
+      const resultado = await db.query(`
+        SELECT * FROM usuarios WHERE LOWER(nome) = LOWER($1) LIMIT 1
+      `, [nome]);
+
+      const nomeEncontrado = resultado.rows.length > 0;
+      console.log("NOME ENCONTRADO authController", nomeEncontrado);
+      return res.json({ nomeEncontrado });
+
+    } catch (error) {
+      console.error("Erro ao buscar nome:", error.message);
+      console.error(error.stack); // mostra a linha exata
+      return res.status(500).json({ error: "Erro interno do servidor" });
     }
   }
 
-// async function login(req, res) {
-//     const { email, senha } = req.body;
+async function verificarNomeCompleto(req, res) {
+  const { nome, sobrenome } = req.body;
 
-//     try {
-//         const { rows } = await db.query('SELECT * FROM usuarios WHERE email = $1', [email]);
-//         const usuario = rows[0];
+  if (!nome || !sobrenome) {
+    return res.status(400).json({ error: "Nome e sobrenome são obrigatórios" });
+  }
 
-//         if (!usuario) return res.status(401).json({ erro: 'Usuário não encontrado.' });
+  try {
+    const resultado = await db.query(`
+      SELECT * FROM usuarios WHERE nome = $1 AND sobrenome = $2 LIMIT 1
+    `, [nome, sobrenome]);
 
-//         const senhaCorreta = await bcrypt.compare(senha, usuario.senha_hash);
-//         if (!senhaCorreta) return res.status(401).json({ erro: 'Senha inválida.' });
+    if (resultado.rows.length > 0) {
+      return res.json({ usuario: resultado.rows[0] });
+    } else {
+      return res.json({ usuario: null });
+    }
 
-//         // 🔍 Buscar permissões do usuário no banco
-//         const { rows: permissoes } = await db.query(`
-//             SELECT modulo,  pesquisar, cadastrar, alterar, acesso
-//             FROM permissoes
-//             WHERE idusuario = $1
-//         `, [usuario.idusuario]);
+  } catch (error) {
+    console.error("Erro ao buscar nome e sobrenome:", error);
+    return res.status(500).json({ error: "Erro interno do servidor" });
+  }
+}
 
-//         // 📦 Gerar token com permissões no payload
-//         const token = jwt.sign(
-//             {
-//                 id: usuario.idusuario,
-//                 nome: usuario.nome,
-//                 permissoes: permissoes  // <-- importante!
-//             },
-//             process.env.JWT_SECRET,
-//             { expiresIn: '8h' }
-//         );
-
-//         res.status(200).json({
-//             token,
-//             idusuario: usuario.idusuario,
-//             nome: usuario.nome,
-//             permissoes // também pode enviar separado se quiser usar no frontend
-//         });
-
-//     } catch (error) {
-//         console.error('Erro ao fazer login:', error);
-//         res.status(500).json({ erro: 'Erro no login.' });
-//     }
-// }
 
 // Login de usuário
 async function login(req, res) {
@@ -303,4 +311,4 @@ async function buscarUsuarioPorEmail(req, res) {
 
 
 
-module.exports = { cadastrarOuAtualizarUsuario, login, verificarUsuarioExistente, listarUsuarios, buscarUsuariosPorNome, buscarUsuarioPorEmail, listarPermissoes };
+module.exports = { cadastrarOuAtualizarUsuario, login, verificarUsuarioExistente, listarUsuarios, buscarUsuariosPorNome, buscarUsuarioPorEmail, listarPermissoes, verificarNomeExistente, verificarNomeCompleto };
