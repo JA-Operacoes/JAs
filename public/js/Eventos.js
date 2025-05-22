@@ -311,10 +311,7 @@ async function verificaEvento() {
          const url = idEvento
             ? `/eventos/${idEvento}`
             : "/eventos";
-        console.log("idEvento:", idEvento);
-        console.log("Dados a serem enviados:", dados);
-        console.log("Evento Original:", EventoOriginal);
-        console.log("Url:", url);
+        
         try {
             // Confirma alteração (PUT)
             if (metodo === "PUT") {

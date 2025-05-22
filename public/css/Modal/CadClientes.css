@@ -431,6 +431,14 @@ button {
   transition: 5%;
 }
 
+#btnEnviar:disabled {
+  background-color: #cccccc; /* Cinza claro */
+  color: #666666;            /* Texto mais escuro */
+  cursor: not-allowed;       /* Cursor de "proibido" */
+  border: 1px solid #999999;
+  opacity: 0.8;
+}
+
 button.Close {
   display: flex;
   justify-content: center;

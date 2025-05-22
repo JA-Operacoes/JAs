@@ -30,7 +30,7 @@ function aplicarPermissoes(permissoes) {
   }
   if (!p.pode_alterar){
     document.querySelectorAll(".btnAlterar")
-            .forEach(btn => btn.disabled = true);
+            .forEach(btn => btn.disabled = true);            
   }         
   if (!p.pode_pesquisar){
     console.log("Habilitar btnPesquisar");
@@ -40,9 +40,32 @@ function aplicarPermissoes(permissoes) {
 
   if (p.pode_pesquisar && !p.pode_cadastrar && !p.pode_alterar) {
     console.log("Usuário só pode pesquisar - ocultando botões de envio");
+    
     document.querySelectorAll("button[type='submit'], .btnSalvar, .btnEnviar")
             .forEach(btn => btn.style.display = 'none');
   }
+
+  // Se só pode alterar → muda botão para “Atualizar”
+  if (!p.pode_cadastrar && p.pode_alterar) {
+    console.log("Usuário só pode alterar - ajustando botão para 'Atualizar'");
+    document.querySelectorAll("button[type='submit'], .btnSalvar, .btnEnviar")
+      .forEach(btn => {
+        btn.textContent = "Atualizar";
+        btn.title = "Você só pode alterar registros existentes";
+        btn.classList.add("btnAtualizar");
+      });
+  }
+
+  // Se não pode salvar nem alterar → desabilita botão
+  if (!p.pode_cadastrar && !p.pode_alterar) {
+    console.log("Usuário sem permissão para salvar ou alterar - desabilitando botão");
+    document.querySelectorAll("button[type='submit'], .btnSalvar, .btnEnviar")
+      .forEach(btn => {
+        btn.disabled = true;
+        btn.title = "Você não tem permissão para salvar ou alterar";
+        btn.classList.add("btnDesabilitado");
+      });
+    }
 }
 
 

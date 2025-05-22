@@ -26,6 +26,7 @@ if (typeof window.clienteOriginal === "undefined") {
 }
 
 
+
 let maskCNPJ, maskTelefone, maskCelContato, maskCEP;
 
 
@@ -49,6 +50,8 @@ function aplicarMascaras() {
     
 
 }
+
+
 
 function carregarClientes() {
     console.log("Configurando eventos para o modal de clientes");
@@ -76,11 +79,12 @@ function carregarClientes() {
     }
     //pesquisar cliente pelo nome fantasia
     const form = document.querySelector("#form");
-    const botaoEnviar = document.querySelector("#Enviar");
+    const btnEnviar = document.querySelector("#Enviar");
     const btnLimpar = document.getElementById("Limpar");
     const btnPesquisar = document.getElementById("Pesquisar");
+    
 
-    if (!form || !botaoEnviar) {
+    if (!form || !btnEnviar) {
         console.error("Formulário ou botão Enviar não encontrado.");
         return;
     }
@@ -167,6 +171,8 @@ function carregarClientes() {
         form.reset();
         document.querySelector("#idCliente").value = "";
         if (typeof limparClienteOriginal === "function") limparClienteOriginal();
+       
+        
     };
 
     const obterDadosFormulario = () => {
@@ -259,7 +265,7 @@ function carregarClientes() {
     });
 
 
-    botaoEnviar.addEventListener("click", async (e) => {
+    btnEnviar.addEventListener("click", async (e) => {
     e.preventDefault();
         console.log("Entrou no botão Enviar");
         const dados = obterDadosFormulario();
@@ -346,14 +352,39 @@ function carregarClientes() {
 
 
     // Event: Limpar formulário
+    // if (btnLimpar) {
+    //     console.log("Entrou no botão limpar");
+    //     btnLimpar.addEventListener("click", limparFormulario);
+       
+    // }
+
     if (btnLimpar) {
-        console.log("Entrou no botão limpar");
-        btnLimpar.addEventListener("click", limparFormulario);
+        btnLimpar.addEventListener("click", () => {
+            const campo = document.getElementById("nmFantasia");
+
+            if (campo && campo.tagName.toLowerCase() === "select") {
+                const input = document.createElement("input");
+                input.type = "text";
+                input.id = "nmFantasia";
+                input.name = "nmFantasia";
+                input.className = "form";
+                input.required = true;
+
+                campo.parentNode.replaceChild(input, campo);
+
+                const label = document.querySelector('label[for="nmFantasia"]');
+                if (label) label.style.display = "block";
+            }
+
+            limparFormulario(); // Se você quiser limpar o restante do formulário
+        });
     }
 
+
        
-     if (btnPesquisar) {
+    if (btnPesquisar) {
         console.log("Entrou no botão pesquisar antes do click");
+        
         btnPesquisar.addEventListener("click", async (event) => {
             event.preventDefault();
             console.log("ENTROU NO BOTÃO PESQUISAR DEPOIS DO CLICK");
@@ -391,8 +422,7 @@ function carregarClientes() {
     
  }
 
-
-
+    
   /**
  * Retorna true se houver alguma diferença entre os dados atuais e clienteOriginal.
  * @param {Object} dados - objeto com as propriedades e valores do formulário.
