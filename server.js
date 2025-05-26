@@ -44,6 +44,8 @@ app.use("/funcionarios", require("./routes/rotaFuncionario"));
 app.use("/profissional", require("./routes/rotaProfissional"));
 app.use("/localmontagem", require("./routes/rotaLocalMontagem"));
 
+app.use("/enviar-pdf", require("./routes/rotaEnviarPdf"));
+
 app.use("/auth", require("./routes/auth")); // Rota para login e cadastro de usuários
 app.use("/permissoes", require("./routes/rotaPermissoes")); //Rota permissoes usuários
 

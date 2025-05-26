@@ -83,9 +83,9 @@ async function buscarEExibirDadosClientePorNome(nmFantasia) {
             email: dadosCliente.emailcontato
         });
 
-        atualizarOuCriarCampoTexto("nmContato", dadosCliente.nmcontato);
-        atualizarOuCriarCampoTexto("celContato", dadosCliente.celcontato);
-        atualizarOuCriarCampoTexto("emailContato", dadosCliente.emailcontato);
+        // atualizarOuCriarCampoTexto("nmContato", dadosCliente.nmcontato);
+        // atualizarOuCriarCampoTexto("celContato", dadosCliente.celcontato);
+        // atualizarOuCriarCampoTexto("emailContato", dadosCliente.emailcontato);
 
     } catch (error) {
         console.error("Erro ao buscar dados do cliente:", error);
@@ -618,7 +618,7 @@ function recalcularTotaisGerais() {
             currency: 'BRL'
         });
     }
-
+    calcularLucroReal();
     calcularLucro();
 }
 
@@ -714,7 +714,7 @@ function aplicarDescontoEAcrescimo(input = null) {
         }
         return;
     }
-
+        
     // Sincronizar desconto
     if (input === campoDesconto && totalVenda > 0) {
         perCentDesc = (valorDesconto / totalVenda) * 100;
@@ -1225,31 +1225,55 @@ fetch('/api/orcamento', {
 */
 }
 
-// Função completa para gerar o PDF
+document.getElementById('Proposta').addEventListener('click', function(event) {
+    event.preventDefault();
+    gerarPropostaPDF();
+});
+
 async function gerarPropostaPDF() {
+    console.log("Início da função gerarPropostaPDF");
+
     if (!window.jspdf || !window.jspdf.jsPDF) {
         console.error('jsPDF não carregado.');
         return;
     }
 
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
     const img = new Image();
+    img.src = 'img/orcamento_fundo.jpg';
 
     img.onload = async function () {
+        console.log("Imagem de fundo carregada");
+
+        const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
-        doc.addImage(img, 'PNG', 0, 0, pageWidth, pageHeight);
+        const margemRodape = 40;
+        const limiteInferior = pageHeight - margemRodape;
+        const lineHeight = 7;
+        const x = 25;
+        const tituloFontSize = 15;
+        const textoFontSize = 10;
 
         let y = 50;
-        const x = 25;
-        const lineHeight = 7;
-        const tituloFontSize = 18;
-        const textoFontSize = 11;
 
-        doc.setFontSize(tituloFontSize);
-        doc.text("Proposta de Serviços", x, y);
-        y += 20;
+        function adicionarLinha(texto, fontSize = textoFontSize, bold = false) {
+            if (y + lineHeight > limiteInferior) {
+                doc.addPage();
+                doc.addImage(img, 'PNG', 0, 0, pageWidth, pageHeight);
+                y = 50;
+            }
+            doc.setFontSize(fontSize);
+            doc.setFont('helvetica', bold ? 'bold' : 'normal');
+            const textWidth = doc.getTextWidth(texto);
+            const centroX = (pageWidth - textWidth) / 2;
+            doc.text(texto, centroX, y);
+            y += lineHeight;
+        }
+
+        doc.addImage(img, 'PNG', 0, 0, pageWidth, pageHeight);
+
+        console.log("Buscando dados do formulário");
 
         const clienteSelect = document.querySelector('.idCliente');
         const nomeCliente = clienteSelect?.options[clienteSelect.selectedIndex]?.innerText || "N/D";
@@ -1260,14 +1284,13 @@ async function gerarPropostaPDF() {
         const dataInicio = document.getElementById('dtInicioRealizacao')?.value || "N/D";
         const dataFim = document.getElementById('dtFimRealizacao')?.value || "N/D";
 
-        // Busca dados de contato do cliente
         let dadosContato = { nmcontato: "N/D", celcontato: "N/D", emailcontato: "N/D" };
         try {
+            console.log("Buscando dados do cliente via API");
             const resposta = await fetch(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(nomeCliente)}`);
             const dados = await resposta.json();
-
-            if (dados && (Array.isArray(dados) ? dados.length > 0 : true)) {
-                const cliente = Array.isArray(dados) ? dados[0] : dados;
+            const cliente = Array.isArray(dados) ? dados[0] : dados;
+            if (cliente) {
                 dadosContato = {
                     nmcontato: cliente.nmcontato || "N/D",
                     celcontato: cliente.celcontato || "N/D",
@@ -1278,98 +1301,111 @@ async function gerarPropostaPDF() {
             console.warn("Erro ao buscar dados do cliente:", erro);
         }
 
-        // Cabeçalho
-        doc.setFontSize(textoFontSize);
-        doc.text(`Cliente: ${nomeCliente}`, x, y); y += lineHeight;
-        doc.text(`Responsável: ${dadosContato.nmcontato}  -  Celular: ${dadosContato.celcontato}  -  Email: ${dadosContato.emailcontato}`, x, y); y += lineHeight;
-        doc.text(`Evento: ${nomeEvento}  -  Local: ${localEvento}`, x, y); y += lineHeight;
-        doc.text(`Data: De ${dataInicio} até ${dataFim}`, x, y); y += 15;
+        
 
-        // Título do escopo
         doc.setFontSize(tituloFontSize);
-        const escopoWidth = doc.getTextWidth("Escopo da proposta:");
-        const escopoX = (pageWidth - escopoWidth) / 2;
-        doc.text("Escopo da proposta:", escopoX, y);
-        y += 8;
+        doc.text("Proposta de Serviços", x, y);
+        y += 20;
 
-        // Coleta os itens da tabela agrupados por categoria
+        adicionarLinha(`Cliente: ${nomeCliente}`);
+        adicionarLinha(`Responsável: ${dadosContato.nmcontato} - Celular: ${dadosContato.celcontato} - Email: ${dadosContato.emailcontato}`);
+        adicionarLinha(`Evento: ${nomeEvento} - Local: ${localEvento}`);
+        adicionarLinha(`Data: De ${dataInicio} até ${dataFim}`);
+        y += 10;
+
+        doc.setFontSize(tituloFontSize);
+        adicionarLinha("Escopo da proposta:");
+        y += 5;
+
         const tabela = document.getElementById('tabela');
         const linhas = tabela?.querySelectorAll('tbody tr') || [];
         const categoriasMap = {};
 
-        linhas.forEach(linha => {
-            const qtdItensInput = linha.querySelector('.qtdPessoas input');
-            const produtoCelula = linha.querySelector('.produto');
-            const qtdDiasInput = linha.querySelector('.qtdDias input');
-            const categoriaCelula = linha.querySelector('.Categoria');
+        
 
-            const qtdItens = qtdItensInput?.value?.trim();
-            const produto = produtoCelula?.innerText?.trim();
-            const qtdDias = qtdDiasInput?.value?.trim();
-            const categoria = categoriaCelula?.innerText?.trim() || "Sem Categoria";
+        linhas.forEach(linha => {
+            const checkbox = linha.querySelector('.Proposta input');
+            if (!checkbox || !checkbox.checked) return;
+
+            const qtdItens = linha.querySelector('.qtdPessoas input')?.value?.trim();
+            const produto = linha.querySelector('.produto')?.innerText?.trim();
+            const qtdDias = linha.querySelector('.qtdDias input')?.value?.trim();
+            const categoria = linha.querySelector('.Categoria')?.innerText?.trim() || "Sem Categoria";
 
             if (produto && qtdItens !== '0' && qtdDias !== '0') {
-                if (!categoriasMap[categoria]) {
-                    categoriasMap[categoria] = [];
-                }
+                if (!categoriasMap[categoria]) categoriasMap[categoria] = [];
                 categoriasMap[categoria].push(`• ${produto} — ${qtdItens} Item(s), ${qtdDias} Diaria(s)`);
             }
         });
 
-        // Escreve os itens no PDF agrupados por categoria
         for (const [categoria, itens] of Object.entries(categoriasMap)) {
-            doc.setFontSize(12);
-            doc.setFont(undefined, 'bold');
-            doc.text(`${categoria}:`, x, y);
-            y += lineHeight;
-
-            doc.setFont(undefined, 'normal');
-            doc.setFontSize(textoFontSize);
-            itens.forEach(item => {
-                doc.text(item, x + 5, y);
-                y += lineHeight;
-            });
-
+            adicionarLinha(categoria + ":", 12, true);
+            itens.forEach(item => adicionarLinha(item));
             y += 5;
         }
 
-        // Rodapé
-        y += 5;
+        doc.addPage();
+        doc.addImage(img, 'PNG', 0, 0, pageWidth, pageHeight);
+        y = 40;
+
+        adicionarLinha("SUPORTE TÉCNICO", textoFontSize, true);
+        doc.splitTextToSize("Caso seja necessário suporte técnico para as impressoras, a diária adicional é de R$ XX.", pageWidth - 2 * x)
+            .forEach(linha => adicionarLinha(linha));
+        y += 10;
+
+        adicionarLinha("INVESTIMENTO", textoFontSize, true);
+        doc.splitTextToSize("O valor para a execução desta proposta é de R$ XX...", pageWidth - 2 * x)
+            .forEach(linha => adicionarLinha(linha));
+        y += 10;
+
+        adicionarLinha("FORMA DE PAGAMENTO", textoFontSize, true);
+        doc.splitTextToSize("Condições de pagamento a serem definidas...", pageWidth - 2 * x)
+            .forEach(linha => adicionarLinha(linha));
+        y += 15;
+
         doc.setFontSize(10);
-        const obsWidth = doc.getTextWidth("Obs: Proposta informativa sem valores financeiros.");
-        const obsX = (pageWidth - obsWidth) / 2;
-        doc.text("Obs: Proposta informativa sem valores financeiros.", obsX, y);
+        adicionarLinha("Obs: Proposta informativa sem valores financeiros.");
 
         const dataAtual = new Date();
-        const dia = String(dataAtual.getDate()).padStart(2, '0');
-        const mes = String(dataAtual.getMonth() + 1).padStart(2, '0');
-        const ano = dataAtual.getFullYear();
-        const dataFormatada = `${dia}/${mes}/${ano}`;
+        const dataFormatada = dataAtual.toLocaleDateString('pt-BR');
+        y += 10;
 
-        y += 15;
         doc.setFontSize(11);
-        const dataWidth = doc.getTextWidth(`São Paulo, ${dataFormatada}`);
-        const dataX = (pageWidth - dataWidth) / 2;
-        doc.text(`São Paulo, ${dataFormatada}`, dataX, y);
+        adicionarLinha(`São Paulo, ${dataFormatada}`);
+        adicionarLinha("João S. Neto");
+        adicionarLinha("Diretor Comercial");
 
-        y += 15;
-        const joaoWidth = doc.getTextWidth("João S. Neto");
-        const joaoX = (pageWidth - joaoWidth) / 2;
-        doc.text("João S. Neto", joaoX, y);
-        y += lineHeight;
-        const diretorWidth = doc.getTextWidth("Diretor Comercial");
-        const diretorX = (pageWidth - diretorWidth) / 2;
-        doc.text("Diretor Comercial", diretorX, y);
+        
 
-        const nomeArquivo = `${nomeEvento.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_')}_${dataFormatada}.pdf`;
-        doc.save(nomeArquivo);
-    };
+        const nomeArquivoSalvar = `${nomeEvento.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_')}_${dataFormatada}.pdf`;
+        const pdfBlob = doc.output('blob');
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(pdfBlob);
+        link.download = nomeArquivoSalvar;
+        link.click();
+    }
 
+    //     console.log("Enviando PDF para o backend");
+
+    //     const nomeArquivo = `${nomeEvento.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_')}_${dataFormatada}.pdf`;
+
+    //     const formData = new FormData();
+    //     formData.append('arquivo', pdfBlob, nomeArquivo);
+    //     formData.append('cliente', nomeCliente);
+    //     formData.append('evento', nomeEvento);
+
+    //     fetch("http://localhost:3000/enviar-pdf", {
+    //         method: "POST",
+    //         body: formData
+    //     })
+    //     .then(res => res.json())
+    //     .then(data => console.log("Resposta do servidor:", data))
+    //     .catch(err => console.error("Erro ao enviar PDF:", err));
+    // };
+
+    
     img.src = 'img/Fundo Propostas.png';
 }
-
-
-
 async function salvarOrcamento(event) {
     event.preventDefault(); // evita o envio padrão do formulário
 
