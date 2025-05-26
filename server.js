@@ -16,7 +16,7 @@ app.use('/css', express.static(path.join(__dirname, 'css'))); // CSS externos
 
 // Middlewares
 //app.use(cors({ methods: ['GET', 'POST', 'PUT'], allowedHeaders: ['Content-Type'] }));
-const allowedOrigins = ['http://127.0.0.1:5500', 'http://127.0.0.1:5501'];
+const allowedOrigins = ['http://127.0.0.1:5500', 'http://127.0.0.1:5501','http://127.0.0.1:3000'];
 
 app.use(cors({
   origin: function (origin, callback) {
@@ -44,7 +44,7 @@ app.use("/funcionarios", require("./routes/rotaFuncionario"));
 app.use("/profissional", require("./routes/rotaProfissional"));
 app.use("/localmontagem", require("./routes/rotaLocalMontagem"));
 
-app.use("/enviar-pdf", require("./routes/rotaEnviarPdf"));
+// app.use("/enviar-pdf", require("./routes/rotaEnviarPdf")); // ia servir para salvar o orçamento, mas imagino que foi feito errado (gl)
 
 app.use("/auth", require("./routes/auth")); // Rota para login e cadastro de usuários
 app.use("/permissoes", require("./routes/rotaPermissoes")); //Rota permissoes usuários

@@ -1176,11 +1176,99 @@ function removerMascaraMoedaInputs() {
 // Chame após o cálculo ou inserção de valores
 aplicarMascaraMoeda();
 
+function bloquearCamposSeFechado() {
+    const statusInput = document.getElementById('Status');
+    const fechado = statusInput?.value === 'Fechado';
+
+    // IDs que não devem ser bloqueados nunca
+    const idsPermitidos = ['Desconto', 'perCentDesc', 'Acrescimo', 'perCentAcresc'];
+
+    if (fechado) {
+        // Bloqueia todos os campos, exceto os permitidos
+        const campos = document.querySelectorAll('input, select, textarea');
+        campos.forEach(campo => {
+            const id = campo.id;
+
+            if (
+                campo.classList.contains('idFuncao') ||
+                campo.classList.contains('idEquipamento') ||
+                campo.classList.contains('idSuprimento') ||
+                idsPermitidos.includes(id)
+            ) return;
+
+            campo.readOnly = true;
+            campo.disabled = true;
+            campo.classList.add('bloqueado');
+        });
+
+        // Gerencia os botões
+        const botoes = document.querySelectorAll('button');
+        botoes.forEach(botao => {
+            const id = botao.id || '';
+            const classes = botao.classList;
+
+            const deveContinuarAtivo =
+                id === 'btnSalvar' ||
+                id === 'Proposta' ||
+                classes.contains('pesquisar') ||
+                classes.contains('Adicional');
+
+            if (id === 'fecharOrc' || id === 'adicionar') {
+                botao.style.display = 'none';
+            } else if (deveContinuarAtivo) {
+                botao.style.display = 'inline-block';
+                botao.disabled = false;
+            } else {
+                botao.disabled = true;
+            }
+        });
+
+        // Adiciona alerta se tentar editar manualmente (exceto os permitidos)
+        const elementosEditaveis = document.querySelectorAll('input, select, textarea, .Proposta input');
+        elementosEditaveis.forEach(el => {
+            const id = el.id;
+
+            if (
+                el.classList.contains('idFuncao') ||
+                el.classList.contains('idEquipamento') ||
+                el.classList.contains('idSuprimento') ||
+                idsPermitidos.includes(id)
+            ) return;
+
+            el.addEventListener('focus', () => {
+                Swal.fire('Orçamento fechado', 'Este orçamento está fechado. Não é possível fazer alterações, apenas inserir adicionais.', 'warning');
+                el.blur();
+            });
+        });
+
+    } else {
+        // Desbloqueia todos os campos normalmente
+        const campos = document.querySelectorAll('input, select, textarea');
+        campos.forEach(campo => {
+            campo.classList.remove('bloqueado');
+            campo.readOnly = false;
+            campo.disabled = false;
+        });
+
+        // Mostra botão de fechar
+        const btnFechar = document.getElementById('fecharOrc');
+        if (btnFechar) {
+            btnFechar.style.display = 'inline-block';
+            btnFechar.disabled = false;
+        }
+
+        // Oculta botões adicionais se necessário
+        const btnAdicional = document.querySelectorAll('.Adicional');
+        btnAdicional.forEach(btn => {
+            btn.style.display = 'none';
+        });
+    }
+}
 function fecharOrcamento() {
 const statusInput = document.getElementById('Status');
 
 if (statusInput.value === 'Fechado') {
-    Swal.fire('Este orçamento já está fechado.');
+    Swal.fire('Orçamento fechado', 'Este orçamento está fechado e não pode ser alterado.', 'warning');
     return;
 }
 
@@ -1196,33 +1284,77 @@ Swal.fire({
 }).then((result) => {
     if (result.isConfirmed) {
     statusInput.value = 'Fechado';
+    bloquearCamposSeFechado();
     Swal.fire('Fechado!', 'O orçamento foi fechado com sucesso.', 'success');
     }
 });
 }
 
 function gerarOrcamentoPDF() {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
+    const cliente = document.querySelector('#clienteSelecionado')?.textContent || '';
+    const evento = document.querySelector('#eventoSelecionado')?.textContent || '';
+    const local = document.querySelector('#localSelecionado')?.textContent || '';
+    const data_inicio = document.querySelector('#dtInicioRealizacao')?.value || '';
+    const data_fim = document.querySelector('#dtFimRealizacao')?.value || '';
+    const infraAtivado = document.querySelector('#checkboxInfra')?.checked;
 
-    doc.text("Orçamento de Exemplo", 10, 10);
-    doc.save("orcamento.pdf");
+    // Pega os períodos (dataRange)
+    function pegarRange(idPrefixo) {
+        const de = document.querySelector(`#${idPrefixo}De`)?.value || null;
+        const ate = document.querySelector(`#${idPrefixo}Ate`)?.value || null;
+        return de && ate ? { de, ate } : null;
+    }
 
-// Descomente isso quando quiser salvar no banco
-/*
-fetch('/api/orcamento', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ dados: '...' })
-})
-.then(res => res.json())
-.then(data => {
-    console.log('Orçamento salvo com sucesso:', data);
-})
-.catch(err => {
-    console.error('Erro ao salvar orçamento:', err);
-});
-*/
+    const periodos = {
+        montagem_infra: infraAtivado ? pegarRange('montagemInfra') : null,
+        periodo_marcacao: pegarRange('periodoMarcacao'),
+        periodo_montagem: pegarRange('periodoMontagem'),
+        periodo_realizacao: pegarRange('periodoRealizacao'),
+        periodo_desmontagem: pegarRange('periodoDesmontagem'),
+        desmontagem_infra: infraAtivado ? pegarRange('desmontagemInfra') : null
+    };
+
+    // Pega todos os itens com classe .Proposta (independente do checkbox estar marcado)
+    const linhas = document.querySelectorAll('.Proposta');
+    const itens = Array.from(linhas).map(linha => {
+        const categoria = linha.querySelector('.Categoria')?.textContent?.trim() || '';
+        const produto = linha.querySelector('.produto')?.textContent?.trim() || '';
+        const quantidade = linha.querySelector('.qtdPessoas input')?.value || '0';
+        const dias = linha.querySelector('.qtdDias input')?.value || '0';
+
+        return {
+            categoria,
+            produto,
+            quantidade: parseInt(quantidade),
+            dias: parseInt(dias)
+        };
+    });
+
+    const dados = {
+        cliente,
+        evento,
+        local,
+        data_inicio,
+        data_fim,
+        ...periodos,
+        itens
+    };
+
+    // Envia para o backend
+    fetch('http://localhost:3000/orcamentos1', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dados)
+    })
+    .then(res => res.json())
+    .then(resp => {
+        console.log('Orçamento salvo com sucesso:', resp);
+        alert('Orçamento salvo com sucesso!');
+    })
+    .catch(err => {
+        console.error('Erro ao salvar orçamento:', err);
+        alert('Erro ao salvar orçamento.');
+    });
 }
 
 document.getElementById('Proposta').addEventListener('click', function(event) {

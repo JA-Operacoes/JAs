@@ -18,7 +18,6 @@ function abrirModal(url) {
         console.log("URL do modal fornecida:", url);
         if (url.includes("Orcamento")) {
             console.log("URL do modal é de orçamento");
-           
         }
     }
 

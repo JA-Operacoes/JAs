@@ -28,7 +28,7 @@
 
                 <div class="Norcamento">
                     <div class="form2" >
-                        <input type="text" style="text-transform: uppercase;" id="Status"  value="A" name="Status" maxlength="1" pattern="^[aAfF]$"
+                        <input type="text" style="text-transform: uppercase;" class="preenchido" id="Status"  value="A" name="Status" maxlength="1" pattern="^[aAfF]$"
                             title="A = Aberto | F = Fechado"   required spellcheck="false">
                         <label for="Status">Status  (A/F)</label>
                     </div>
@@ -198,7 +198,7 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td class="Proposta"> <input type="checkbox" name="" id=""> </td>
+                                <td class="Proposta"><input type="checkbox"></td>
                                 <td class="Categoria"></td>
                                 <td class="qtdPessoas"><div class="add-less"><input type="number" class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
                                 <td class="produto"></td>
@@ -224,10 +224,13 @@
                     </table>
                 </div>
                 <br>
-                <div class="addLinha"><button class="adicionar" onclick="adicionarLinhaOrc()">Adicionar Linha</button></div>
+                <div class="addLinha"><button class="adicionar" id="adicionar" onclick="adicionarLinhaOrc()">Adicionar Linha</button></div>
             
                 <div class = 'Selects'>
-                    <textarea  name="Observacao" id="Observacao" placeholder="Observaçoes"></textarea>
+                    <div class="Observacoes">
+                        <textarea  name="Observacao" id="Observacao" placeholder="Observaçoes sobre os Itens "></textarea>
+                        <textarea  name="ObservacaoProposta" id="ObservacaoProposta" placeholder="Observaçoes sobre a Proposta"></textarea>
+                    </div>
                     <div>
                         <div class="form-2colunas">
                             <div class="form2">
@@ -254,21 +257,21 @@
                     <div>
                         <div class="lucroTot">
                             <div class="form2">
-                                <input type="text" id="Lucro" value=" R$ 0,00" style="font-size: 15px;">
+                                <input type="text" id="Lucro" value=" R$ 0,00" class="preenchido" style="font-size: 15px;">
                                 <label for="Lucro"> Lucro: </label>
                             </div>
                             <div class="form3">
-                                <input type="text"  id="perCent" name="perCent" required style="font-size: 15px;">
+                                <input type="text"  id="perCent" class="preenchido" value="0%" name="perCent" required style="font-size: 15px;">
                                 <label for="perCent"> % </label>
                             </div>
                         </div>
                         <div class="lucroTot">
                             <div class="form2">
-                                <input type="text" id="LucroReal" name="LucroReal" value=" R$ 0,00" required style="font-size: 15px;">
+                                <input type="text" id="LucroReal"  class="preenchido" name="LucroReal" value=" R$ 0,00" required style="font-size: 15px;">
                                 <label for="LucroReal"> Lucro Real: </label>
                             </div>
                             <div class="form3">
-                                <input type="text"  id="perCentReal" name="perCentReal" required style="font-size: 15px;">
+                                <input type="text"  id="perCentReal " class="preenchido" value="0%" name="perCentReal" required style="font-size: 15px;">
                                 <label for="perCentReal"> % </label>
                             </div>
                         </div>
@@ -278,20 +281,20 @@
                         
                         <div class="form-2colunas">
                             <div class="form2">
-                                <input type="text" value="R$ 0,00" id="Desconto" min="0" class="ValorInteiros" name="Desconto"  required  oninput="aplicarDescontoEAcrescimo(this)" style="font-size: 15px;" autocomplete="off">
+                                <input type="text" value="R$ 0,00" id="Desconto" min="0" class="ValorInteiros preenchido" name="Desconto"  required  oninput="aplicarDescontoEAcrescimo(this)" style="font-size: 15px;" autocomplete="off">
                                 <label for="Desconto">Desconto:</label>
                             </div>
                             <div class="form3">
-                                <input type="text" value="0% " id="perCentDesc" min="0" class="valorPerCentDesc" name="perCentDesc"  oninput="aplicarDescontoEAcrescimo(this)"  required style="font-size: 15px;">
+                                <input type="text" value="0% " id="perCentDesc" min="0" class="valorPerCentDesc preenchido" name="perCentDesc"  oninput="aplicarDescontoEAcrescimo(this)"  required style="font-size: 15px;">
                             </div>
                         </div>
                             <div class="form-2colunas">
                                 <div class="form2">
-                                    <input type="text"  value="R$ 0,00" min="0" id="Acrescimo" class="ValorInteiros" name="Acrescimo"  required  oninput="aplicarDescontoEAcrescimo(this)" style="font-size: 15px;" autocomplete="off">
+                                    <input type="text"  value="R$ 0,00" min="0" id="Acrescimo" class="ValorInteiros preenchido" name="Acrescimo"  required  oninput="aplicarDescontoEAcrescimo(this)" style="font-size: 15px;" autocomplete="off">
                                     <label for="Acrescimo">Acréscimo:</label>
                                 </div>
                                 <div class="form3">
-                                <input type="text" value="0%" min="0" id="perCentAcresc"  class="valorPerCentAcresc" name="perCentAcresc"  oninput="aplicarDescontoEAcrescimo(this)" required style="font-size: 15px;">
+                                <input type="text" value="0%" min="0" id="perCentAcresc"  class="valorPerCentAcresc preenchido" name="perCentAcresc"  oninput="aplicarDescontoEAcrescimo(this)" required style="font-size: 15px;">
                             </div>
                         </div>
                     
@@ -306,9 +309,9 @@
             </div>
             <div class="BTNs">
                 <button class="pesquisar" onclick="pesquisarOrcamento()">Pesquisar</button>
-                <button class="contrato" onclick="gerarOrcamentoPDF()">Gerar Orçamento</button>
-                <button class="Proposta" id="Proposta" onclick="gerarPropostaPDF()" >Gerar Proposta</button>
-                <button class="fecharOrc" onclick="fecharOrcamento()">Fechar Orçamento</button>
+                <button class="Proposta" id="Proposta" onclick="gerarPropostaPDF()">Gerar Proposta</button>
+                <button class="Adicional" onclick="adicionarLinhaOrc()" style="display: none;">Adicional</button>
+                <button class="fecharOrc" id="fecharOrc" onclick="fecharOrcamento()">Fechar Orçamento</button>
                 <button class="salvar" id="btnSalvar" type="submit">Salvar Orçamento</button>
             </div>
         </form>

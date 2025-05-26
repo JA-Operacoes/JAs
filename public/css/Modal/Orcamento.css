@@ -196,6 +196,7 @@
   select{
     font-family:  var(--Font-primary);
     display: flex;
+    height: 40px;
     justify-content: center;
     align-items: center;
     gap: 10px ;
@@ -208,11 +209,13 @@
     outline: none;
   }
   select.idMontagem {
-    width: 305px;
+    width: 303px;
+    height: 40px;
   }
 
   select.idFuncao {
     width: 250px;
+    height: 40px;
   }
 
   .Norcamento{
@@ -244,7 +247,7 @@
   .form input {
     font-family:  var(--Font-primary);
     width: 300px;
-    height: 30px;
+    height: 40px;
     border-radius: 6px;
     font-size: 13px;
     padding: 0 15px;
@@ -257,7 +260,7 @@
   .form2 input{
     font-family: var(--Font-primary);
     width: 120px;
-    height: 30px;
+    height: 40px;
     border-radius: 6px;
     font-size: 19px;
     padding: 0 20px;
@@ -270,7 +273,7 @@
   .form3 input{
     font-family: var(--Font-primary);
     width: 80px;
-    height: 30px;
+    height: 40px;
     border-radius: 6px;
     font-size: 19px;
     padding: 0 15px;
@@ -400,6 +403,11 @@
     overflow-y: auto;
     margin: 0 auto;
     margin-left: 15px;
+    gap: 5px;
+  }
+
+  .Observacoes{
+    gap: 5px;
   }
 
   textarea::placeholder{
@@ -792,9 +800,15 @@
     width: 200px;
   }
 
- 
+/* --------------------------------- Campos bloqueados ------------------------------------ */
+.bloqueado {
+    background-color: #dcdcdc !important; /* cinza claro */
+    color: #555 !important;
+    cursor: not-allowed !important;
+}
 
-  /* --------------------------- @medias ------------------------------------- */
+
+/* -------------------------------------- @medias ---------------------------------------- */
 
 @media(max-width: 5674px){
   textarea{
