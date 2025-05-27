@@ -770,6 +770,38 @@ function adicionarLinhaOrc() {
             <td class="qtdPessoas"><div class="add-less"><input type="number" class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
             <td class="produto"></td>
             <td class="qtdDias"><div class="add-less"><input type="number" class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+             <td class="Periodo"><div class="Acres-Desc"><p>de:<input type="date" class="data-inicio" oninput="atualizarQtdDias(this)"></p><p>até <input type="date" class="data-fim" oninput="atualizarQtdDias(this)"></p></div></td>
+            <td class="vlrVenda Moeda"></td>
+            <td class="desconto Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
+            <td class="Acrescimo Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
+            <td class="totVdaDiaria Moeda"></td>
+            <td class="vlrCusto Moeda"></td>
+            <td class="totCtoDiaria Moeda"></td>
+            <td class="ajdCusto Moeda"></td>
+            <td class="totAjdCusto Moeda">0</td>
+            <td class="extraCampo" style="display: none;">
+                <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotaisOrc()">
+            </td>
+            <td class="extraCampo" style="display: none;">
+                <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotaisOrc()">
+            </td>
+            <td class="totGeral">0</td>
+            <td><div class="Acao"><button class="deleteBtn" onclick="removerLinhaOrc(this)"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
+`;
+}
+function adicionarLinhaAdicional() {
+    let tabela = document.getElementById("tabela").getElementsByTagName("tbody")[0];
+
+    let novaLinha = tabela.insertRow();
+    novaLinha.classList.add("linha-adicional");
+
+    novaLinha.innerHTML = `
+            <td class="Proposta"> <input type="checkbox" name="" id=""> </td>
+            <td class="Categoria"></td>
+            <td class="qtdPessoas"><div class="add-less"><input type="number" class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+            <td class="produto"></td>
+            <td class="qtdDias"><div class="add-less"><input type="number" class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+            <td class="Periodo"><div class="Acres-Desc"><p>de:<input type="date" class="data-inicio" oninput="atualizarQtdDias(this)"></p><p>até <input type="date" class="data-fim" oninput="atualizarQtdDias(this)"></p></div></td>
             <td class="vlrVenda Moeda"></td>
             <td class="desconto Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
             <td class="Acrescimo Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
@@ -793,6 +825,33 @@ function removerLinhaOrc(botao) {
     let linha = botao.closest("tr"); // Encontra a linha mais próxima
     removerLinha(linha); // Remove a linha
 }
+
+function atualizarQtdDias(input) {
+  var linha = input.closest('tr');
+  var dataInicio = linha.querySelector('.data-inicio').value;
+  var dataFim = linha.querySelector('.data-fim').value;
+  var inputQtdDias = linha.querySelector('input.qtdDias');
+
+  if (dataInicio && dataFim) {
+    var inicio = new Date(dataInicio);
+    var fim = new Date(dataFim);
+
+    if (fim >= inicio) {
+      var diffDias = Math.floor((fim - inicio) / (1000 * 60 * 60 * 24)) + 1;
+      inputQtdDias.value = diffDias;
+    } else {
+      inputQtdDias.value = "-";
+    }
+  } else {
+    inputQtdDias.value = "-";
+  }
+
+  if (typeof calcularTotalOrc === 'function') {
+    calcularTotalOrc();
+  }
+  recalcularLinha(linha);
+}
+
 
 //formulario de 
 function atualizarUFOrc(selectLocalMontagem) {
@@ -1210,6 +1269,8 @@ function bloquearCamposSeFechado() {
             const deveContinuarAtivo =
                 id === 'btnSalvar' ||
                 id === 'Proposta' ||
+                id === 'Close' ||
+                classes.contains('Close') ||
                 classes.contains('pesquisar') ||
                 classes.contains('Adicional');
 
@@ -1290,72 +1351,72 @@ Swal.fire({
 });
 }
 
-function gerarOrcamentoPDF() {
-    const cliente = document.querySelector('#clienteSelecionado')?.textContent || '';
-    const evento = document.querySelector('#eventoSelecionado')?.textContent || '';
-    const local = document.querySelector('#localSelecionado')?.textContent || '';
-    const data_inicio = document.querySelector('#dtInicioRealizacao')?.value || '';
-    const data_fim = document.querySelector('#dtFimRealizacao')?.value || '';
-    const infraAtivado = document.querySelector('#checkboxInfra')?.checked;
+// function gerarOrcamentoPDF() {
+//     const cliente = document.querySelector('#clienteSelecionado')?.textContent || '';
+//     const evento = document.querySelector('#eventoSelecionado')?.textContent || '';
+//     const local = document.querySelector('#localSelecionado')?.textContent || '';
+//     const data_inicio = document.querySelector('#dtInicioRealizacao')?.value || '';
+//     const data_fim = document.querySelector('#dtFimRealizacao')?.value || '';
+//     const infraAtivado = document.querySelector('#checkboxInfra')?.checked;
 
-    // Pega os períodos (dataRange)
-    function pegarRange(idPrefixo) {
-        const de = document.querySelector(`#${idPrefixo}De`)?.value || null;
-        const ate = document.querySelector(`#${idPrefixo}Ate`)?.value || null;
-        return de && ate ? { de, ate } : null;
-    }
+//     // Pega os períodos (dataRange)
+//     function pegarRange(idPrefixo) {
+//         const de = document.querySelector(`#${idPrefixo}De`)?.value || null;
+//         const ate = document.querySelector(`#${idPrefixo}Ate`)?.value || null;
+//         return de && ate ? { de, ate } : null;
+//     }
 
-    const periodos = {
-        montagem_infra: infraAtivado ? pegarRange('montagemInfra') : null,
-        periodo_marcacao: pegarRange('periodoMarcacao'),
-        periodo_montagem: pegarRange('periodoMontagem'),
-        periodo_realizacao: pegarRange('periodoRealizacao'),
-        periodo_desmontagem: pegarRange('periodoDesmontagem'),
-        desmontagem_infra: infraAtivado ? pegarRange('desmontagemInfra') : null
-    };
+//     const periodos = {
+//         montagem_infra: infraAtivado ? pegarRange('montagemInfra') : null,
+//         periodo_marcacao: pegarRange('periodoMarcacao'),
+//         periodo_montagem: pegarRange('periodoMontagem'),
+//         periodo_realizacao: pegarRange('periodoRealizacao'),
+//         periodo_desmontagem: pegarRange('periodoDesmontagem'),
+//         desmontagem_infra: infraAtivado ? pegarRange('desmontagemInfra') : null
+//     };
 
-    // Pega todos os itens com classe .Proposta (independente do checkbox estar marcado)
-    const linhas = document.querySelectorAll('.Proposta');
-    const itens = Array.from(linhas).map(linha => {
-        const categoria = linha.querySelector('.Categoria')?.textContent?.trim() || '';
-        const produto = linha.querySelector('.produto')?.textContent?.trim() || '';
-        const quantidade = linha.querySelector('.qtdPessoas input')?.value || '0';
-        const dias = linha.querySelector('.qtdDias input')?.value || '0';
+//     // Pega todos os itens com classe .Proposta (independente do checkbox estar marcado)
+//     const linhas = document.querySelectorAll('.Proposta');
+//     const itens = Array.from(linhas).map(linha => {
+//         const categoria = linha.querySelector('.Categoria')?.textContent?.trim() || '';
+//         const produto = linha.querySelector('.produto')?.textContent?.trim() || '';
+//         const quantidade = linha.querySelector('.qtdPessoas input')?.value || '0';
+//         const dias = linha.querySelector('.qtdDias input')?.value || '0';
 
-        return {
-            categoria,
-            produto,
-            quantidade: parseInt(quantidade),
-            dias: parseInt(dias)
-        };
-    });
+//         return {
+//             categoria,
+//             produto,
+//             quantidade: parseInt(quantidade),
+//             dias: parseInt(dias)
+//         };
+//     });
 
-    const dados = {
-        cliente,
-        evento,
-        local,
-        data_inicio,
-        data_fim,
-        ...periodos,
-        itens
-    };
+//     const dados = {
+//         cliente,
+//         evento,
+//         local,
+//         data_inicio,
+//         data_fim,
+//         ...periodos,
+//         itens
+//     };
 
-    // Envia para o backend
-    fetch('http://localhost:3000/orcamentos1', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dados)
-    })
-    .then(res => res.json())
-    .then(resp => {
-        console.log('Orçamento salvo com sucesso:', resp);
-        alert('Orçamento salvo com sucesso!');
-    })
-    .catch(err => {
-        console.error('Erro ao salvar orçamento:', err);
-        alert('Erro ao salvar orçamento.');
-    });
-}
+//     // Envia para o backend
+//     fetch('http://localhost:3000/orcamentos1', {
+//         method: 'POST',
+//         headers: { 'Content-Type': 'application/json' },
+//         body: JSON.stringify(dados)
+//     })
+//     .then(res => res.json())
+//     .then(resp => {
+//         console.log('Orçamento salvo com sucesso:', resp);
+//         alert('Orçamento salvo com sucesso!');
+//     })
+//     .catch(err => {
+//         console.error('Erro ao salvar orçamento:', err);
+//         alert('Erro ao salvar orçamento.');
+//     });
+// }
 
 document.getElementById('Proposta').addEventListener('click', function(event) {
     event.preventDefault();
@@ -1372,7 +1433,7 @@ async function gerarPropostaPDF() {
 
     const { jsPDF } = window.jspdf;
     const img = new Image();
-    img.src = 'img/orcamento_fundo.jpg';
+    img.src = 'img/Fundo Propostas.png';
 
     img.onload = async function () {
         console.log("Imagem de fundo carregada");
@@ -1402,6 +1463,13 @@ async function gerarPropostaPDF() {
             doc.text(texto, centroX, y);
             y += lineHeight;
         }
+
+      function formatarDataBR(dataStr) {
+    if (!dataStr || dataStr.trim() === "") return "null";
+    const [ano, mes, dia] = dataStr.split("-");
+    if (!ano || !mes || !dia) return "null";
+    return `${dia}/${mes}/${ano}`;
+}
 
         doc.addImage(img, 'PNG', 0, 0, pageWidth, pageHeight);
 
@@ -1433,8 +1501,6 @@ async function gerarPropostaPDF() {
             console.warn("Erro ao buscar dados do cliente:", erro);
         }
 
-        
-
         doc.setFontSize(tituloFontSize);
         doc.text("Proposta de Serviços", x, y);
         y += 20;
@@ -1442,7 +1508,7 @@ async function gerarPropostaPDF() {
         adicionarLinha(`Cliente: ${nomeCliente}`);
         adicionarLinha(`Responsável: ${dadosContato.nmcontato} - Celular: ${dadosContato.celcontato} - Email: ${dadosContato.emailcontato}`);
         adicionarLinha(`Evento: ${nomeEvento} - Local: ${localEvento}`);
-        adicionarLinha(`Data: De ${dataInicio} até ${dataFim}`);
+        adicionarLinha(`Data: De ${formatarDataBR(dataInicio)} até ${formatarDataBR(dataFim)}`);
         y += 10;
 
         doc.setFontSize(tituloFontSize);
@@ -1451,9 +1517,8 @@ async function gerarPropostaPDF() {
 
         const tabela = document.getElementById('tabela');
         const linhas = tabela?.querySelectorAll('tbody tr') || [];
-        const categoriasMap = {};
-
-        
+         const categoriasMap = {};
+        const adicionais = [];
 
         linhas.forEach(linha => {
             const checkbox = linha.querySelector('.Proposta input');
@@ -1462,18 +1527,41 @@ async function gerarPropostaPDF() {
             const qtdItens = linha.querySelector('.qtdPessoas input')?.value?.trim();
             const produto = linha.querySelector('.produto')?.innerText?.trim();
             const qtdDias = linha.querySelector('.qtdDias input')?.value?.trim();
-            const categoria = linha.querySelector('.Categoria')?.innerText?.trim() || "Sem Categoria";
+            const categoria = linha.querySelector('.Categoria')?.innerText?.trim();
 
-            if (produto && qtdItens !== '0' && qtdDias !== '0') {
-                if (!categoriasMap[categoria]) categoriasMap[categoria] = [];
-                categoriasMap[categoria].push(`• ${produto} — ${qtdItens} Item(s), ${qtdDias} Diaria(s)`);
+            const dataInicioProdutoRaw = linha.querySelector('.data-inicio')?.value?.trim() || "";
+            const dataFimProdutoRaw = linha.querySelector('.data-fim')?.value?.trim() || "";
+
+            const dataInicioProduto = formatarDataBR(dataInicioProdutoRaw);
+            const dataFimProduto = formatarDataBR(dataFimProdutoRaw);
+
+            const itemDescricao = `• ${produto || 'Item sem nome'} — ${qtdItens} Item(s), ${qtdDias} Diária(s), de ${dataInicioProduto} até ${dataFimProduto}`;
+
+            const isLinhaAdicional = linha.classList.contains('linha-adicional');
+
+            if (qtdItens !== '0' && qtdDias !== '0') {
+                if (isLinhaAdicional) {
+                    adicionais.push(itemDescricao);
+                } else {
+                    const nomeCategoria = categoria || "Outros";
+                    if (!categoriasMap[nomeCategoria]) categoriasMap[nomeCategoria] = [];
+                    categoriasMap[nomeCategoria].push(itemDescricao);
+                }
             }
         });
 
+        // Primeiro, itens agrupados por categoria
         for (const [categoria, itens] of Object.entries(categoriasMap)) {
             adicionarLinha(categoria + ":", 12, true);
             itens.forEach(item => adicionarLinha(item));
             y += 5;
+        }
+
+        // Depois, itens adicionais
+        if (adicionais.length > 0) {
+            y += 10;
+            adicionarLinha("Adicionais:", 12, true);
+            adicionais.forEach(item => adicionarLinha(item));
         }
 
         doc.addPage();
@@ -1486,7 +1574,7 @@ async function gerarPropostaPDF() {
         y += 10;
 
         adicionarLinha("INVESTIMENTO", textoFontSize, true);
-        doc.splitTextToSize("O valor para a execução desta proposta é de R$ XX...", pageWidth - 2 * x)
+        doc.splitTextToSize("O valor para a execução desta proposta é de R$ XX  Incluso no valor todos os custos referentes honorários de funcionários e prestadores de serviços, impostos fiscais devidos que deverão ser recolhidos pela JA Promoções e Eventos, arcando inclusive com as eventuais sanções legais oriundas do não cumprimento dessas obrigações.", pageWidth - 2 * x)
             .forEach(linha => adicionarLinha(linha));
         y += 10;
 
@@ -1496,10 +1584,16 @@ async function gerarPropostaPDF() {
         y += 15;
 
         doc.setFontSize(10);
-        adicionarLinha("Obs: Proposta informativa sem valores financeiros.");
+        adicionarLinha("*Prazos de pagamento sujeitos a alteração conforme necessidade e acordo. ");
 
         const dataAtual = new Date();
-        const dataFormatada = dataAtual.toLocaleDateString('pt-BR');
+        const dataFormatada = dataAtual.toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric'
+        });
+
+        const dataEstiloTexto = `*${dataFormatada.replace(/^(\d{2}) de/, '$1 de')}*`;
         y += 10;
 
         doc.setFontSize(11);
@@ -1507,15 +1601,13 @@ async function gerarPropostaPDF() {
         adicionarLinha("João S. Neto");
         adicionarLinha("Diretor Comercial");
 
-        
-
         const nomeArquivoSalvar = `${nomeEvento.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_')}_${dataFormatada}.pdf`;
         const pdfBlob = doc.output('blob');
         const link = document.createElement('a');
         link.href = URL.createObjectURL(pdfBlob);
         link.download = nomeArquivoSalvar;
         link.click();
-    }
+    };
 
     //     console.log("Enviando PDF para o backend");
 

@@ -14,7 +14,7 @@
 
 <div id="CadModal" class="modal">
     <div class="modal-content">
-        <div class="Close"><button onclick="fecharModal()">X</button></div>
+        <div class="Close" id="Close"><button onclick="fecharModal()" id="Close">X</button></div>
 
 
         <div id ="form-orcamento">
@@ -181,6 +181,7 @@
                                 <th>Qtd Itens</th>
                                 <th>Produto</th>
                                 <th>Qtd Dias</th>
+                                <th>Periodo das diarias </th>
                                 <th>VlrDiaria</th>
                                 <th>Desconto</th>
                                 <th>Acrescimo</th>
@@ -203,6 +204,7 @@
                                 <td class="qtdPessoas"><div class="add-less"><input type="number" class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
                                 <td class="produto"></td>
                                 <td class="qtdDias"><div class="add-less"><input type="number" class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+                                <td class="Periodo"><div class="Acres-Desc"><p>de:<input type="date" class="data-inicio" oninput="atualizarQtdDias(this)"></p><p>até <input type="date" class="data-fim" oninput="atualizarQtdDias(this)"></p></div></td>
                                 <td class="vlrVenda Moeda"></td>
                                 <td class="desconto Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
                                 <td class="Acrescimo Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
@@ -257,21 +259,21 @@
                     <div>
                         <div class="lucroTot">
                             <div class="form2">
-                                <input type="text" id="Lucro" value=" R$ 0,00" class="preenchido" style="font-size: 15px;">
+                                <input type="text" id="Lucro" value=" R$ 0,00" class="preenchido" readonly style="font-size: 15px;">
                                 <label for="Lucro"> Lucro: </label>
                             </div>
                             <div class="form3">
-                                <input type="text"  id="perCent" class="preenchido" value="0%" name="perCent" required style="font-size: 15px;">
+                                <input type="text"  id="perCent" class="preenchido" value="0%" name="perCent" required readonly style="font-size: 15px;">
                                 <label for="perCent"> % </label>
                             </div>
                         </div>
                         <div class="lucroTot">
                             <div class="form2">
-                                <input type="text" id="LucroReal"  class="preenchido" name="LucroReal" value=" R$ 0,00" required style="font-size: 15px;">
+                                <input type="text" id="LucroReal"  class="preenchido" name="LucroReal" value=" R$ 0,00" required readonly style="font-size: 15px;">
                                 <label for="LucroReal"> Lucro Real: </label>
                             </div>
                             <div class="form3">
-                                <input type="text"  id="perCentReal " class="preenchido" value="0%" name="perCentReal" required style="font-size: 15px;">
+                                <input type="text"  id="perCentReal " class="preenchido" value="0%" name="perCentReal" required readonly style="font-size: 15px;">
                                 <label for="perCentReal"> % </label>
                             </div>
                         </div>
@@ -310,7 +312,7 @@
             <div class="BTNs">
                 <button class="pesquisar" onclick="pesquisarOrcamento()">Pesquisar</button>
                 <button class="Proposta" id="Proposta" onclick="gerarPropostaPDF()">Gerar Proposta</button>
-                <button class="Adicional" onclick="adicionarLinhaOrc()" style="display: none;">Adicional</button>
+                <button class="linha-adicional Adicional" onclick="adicionarLinhaAdicional()"  style="display: none;">Adicional</button>
                 <button class="fecharOrc" id="fecharOrc" onclick="fecharOrcamento()">Fechar Orçamento</button>
                 <button class="salvar" id="btnSalvar" type="submit">Salvar Orçamento</button>
             </div>
