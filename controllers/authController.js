@@ -40,7 +40,6 @@ async function cadastrarOuAtualizarUsuario(req, res) {
     // Busca o usuário pelo email original
     const { rows } = await db.query("SELECT * FROM usuarios WHERE email = $1", [email_original]);
 
-    const empresasIguais = arraysIguais(empresas, await getEmpresasDoUsuario(usuario.idusuario));
 
     if (rows.length > 0) {
       const usuario = rows[0];
@@ -48,8 +47,6 @@ async function cadastrarOuAtualizarUsuario(req, res) {
       // Aqui pegamos as empresas do usuário do banco para comparação
       const empresasDoUsuario = await getEmpresasDoUsuario(usuario.idusuario);
       const empresasIguais = arraysIguais(empresas, empresasDoUsuario);
-
-      
 
       const camposIguais =
         nome === usuario.nome &&
@@ -128,7 +125,7 @@ async function cadastrarOuAtualizarUsuario(req, res) {
       const senhaHash = await bcrypt.hash(senha, 10);
       await db.query(`
         INSERT INTO usuarios (nome, sobrenome, email, senha_hash, ativo)
-        VALUES ($1, $2, $3, $4, true)
+        VALUES ($1, $2, $3, $4, true) RETURNING *
       `, [nome, sobrenome, email, senhaHash, ativo]);
 
       
@@ -136,7 +133,7 @@ async function cadastrarOuAtualizarUsuario(req, res) {
 
       if (Array.isArray(empresas)) {
         for (const idempresa of empresas) {
-          await db.query(`INSERT INTO usuarioempresas (idusuario, idempresa) VALUES ($1, $2)`, [usuarioId, idempresa]);
+          await db.query(`INSERT INTO usuarioempresas (idusuario, idempresa) VALUES ($1, $2) RETURNING *`, [usuarioId, idempresa]);
         }
       }
 
