@@ -7,12 +7,24 @@ document.getElementById("Registrar").addEventListener("submit", async function (
     const senha = document.getElementById("senha").value;
     const ativo = document.getElementById('ativo').checked;
    
+    // Captura empresas selecionadas (checkboxes)
+    const empresasSelecionadas = Array.from(document.querySelectorAll('#listaEmpresas input[type="checkbox"]:checked'))
+      .map(cb => cb.value);
+
+
+    if (empresasSelecionadas.length === 0) {
+      return Swal.fire({
+        icon: "warning",
+        title: "Atenção",
+        text: "Selecione pelo menos uma empresa."
+      });
+    }
   
     try {
       const resposta = await fetch("/auth/cadastro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, email, senha, sobrenome, ativo })
+        body: JSON.stringify({ nome, email, senha, sobrenome, ativo, empresas: empresasSelecionadas })
       });
   
       const dados = await resposta.json();
@@ -97,6 +109,8 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
     return;
   }
 
+
+ 
   try {
      console.log("ENTROU NO TRY", nome, sobrenome, email, senha);
    
@@ -737,9 +751,10 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
     return;
   }
 
-  // Captura empresas selecionadas
-  const empresasSelecionadas = Array.from(document.getElementById("empresasPermissao").selectedOptions)
-    .map(option => option.value);
+   // Captura empresas selecionadas (checkboxes)
+  const empresasSelecionadas = Array.from(document.querySelectorAll('#listaEmpresas input[type="checkbox"]:checked'))
+    .map(cb => cb.value);
+
 
   if (!empresasSelecionadas.length) {
     Swal.fire("Atenção", "Selecione ao menos uma empresa.", "warning");
@@ -762,44 +777,62 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
     return Swal.fire("Aviso", "Nenhuma alteração detectada em Permissões.", "info");
   }
 
-  // monta o body
-  const permissoesBase = {
+  const payload = {
     idusuario,
     email,
     modulo,
-    acesso: document.getElementById("Acesso").checked,
-    cadastrar: document.getElementById("Cadastrar").checked,
-    alterar: document.getElementById("Alterar").checked,
-    pesquisar: document.getElementById("Pesquisar").checked,
-    leitura: document.getElementById("Leitura").checked
+    acesso: atuais.acesso,
+    cadastrar: atuais.cadastrar,
+    alterar: atuais.alterar,
+    pesquisar: atuais.pesquisar,
+    leitura: atuais.leitura,
+    empresas: empresasSelecionadas // <- aqui está a diferença
   };
 
+   
+  // monta o body
+  // const permissoesBase = {
+  //   idusuario,
+  //   email,
+  //   modulo,
+  //   acesso: document.getElementById("Acesso").checked,
+  //   cadastrar: document.getElementById("Cadastrar").checked,
+  //   alterar: document.getElementById("Alterar").checked,
+  //   pesquisar: document.getElementById("Pesquisar").checked,
+  //   leitura: document.getElementById("Leitura").checked
+  // };
+
   try {
-    let sucesso = 0;
-    for (const idempresa of empresasSelecionadas) {
-      const permissoes = { ...permissoesBase, idempresa };
+    // let sucesso = 0;
+    // for (const idempresa of empresasSelecionadas) {
+    //   const permissoes = { ...permissoesBase, idempresa };
 
       const res = await fetch("/permissoes/cadastro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(permissoes)
+        body: JSON.stringify(payload)
       });
+
+      const resultado = await res.json();
+
       if (res.ok) {
-        sucesso++;
+       // sucesso++;
+        Swal.fire("Sucesso", "Permissões e empresas salvas com sucesso!", "success");
+        permissoesOriginais = { ...atuais };
       }else {
-        const resultado = await res.json();
-        console.warn(`Erro ao salvar para empresa ${idempresa}:`, resultado.error);
+        //const resultado = await res.json();
+        Swal.fire("Erro", resultado.error || "Erro ao salvar permissões.", "error");;
       }
-    }
+    
 
     //if (res.ok) {
-    if (sucesso > 0) {
-      Swal.fire("Sucesso", "Permissões salvas com sucesso!", "success");
-      permissoesOriginais = { ...atuais };
-    } else {
-      const resultado = await res.json();
-      Swal.fire("Erro", resultado.error || "Erro ao salvar permissões.", "error");
-    }
+    // if (sucesso > 0) {
+    //   Swal.fire("Sucesso", "Permissões salvas com sucesso!", "success");
+    //   permissoesOriginais = { ...atuais };
+    // } else {
+    //   const resultado = await res.json();
+    //   Swal.fire("Erro", resultado.error || "Erro ao salvar permissões.", "error");
+    // }
   } catch (err) {
     console.error("Erro ao salvar permissões:", err);
   }
@@ -819,7 +852,7 @@ async function carregarPermissoesUsuario(idusuario) {
 
   try {
     console.log("Entrou no carregarPermissoesUsuario", idusuario, "Módulo:", modulo);
-    const resp = await fetch(`/permissoes/${idusuario}?modulo=${modulo}`);
+    const resp = await fetchComToken(`/permissoes/${idusuario}?modulo=${modulo}`);
     if (!resp.ok) throw new Error("Falha ao buscar permissões");
 
     const permissoes = await resp.json();
@@ -856,6 +889,35 @@ async function carregarPermissoesUsuario(idusuario) {
   } catch (err) {
     console.error("Erro ao carregar permissões:", err);
   }
+}
+
+function fetchComToken(url, options = {}) {
+  const token = localStorage.getItem("token");
+  const idempresa = localStorage.getItem("idempresa");
+  if (!token) {
+    throw new Error("fetchComToken: nenhum token encontrado. Faça login primeiro.");
+  }
+
+  if (!idempresa) {
+    throw new Error("fetchComToken: nenhum idempresa encontrado. Selecione uma empresa.");
+  }
+  // Monta os headers sempre incluindo Authorization
+  const headers = {
+    "Authorization": `Bearer ${token}`,
+    "idempresa": options.headers?.idempresa || idempresa,
+    // só coloca Content-Type se houver body (POST/PUT)
+    ...(options.body ? { "Content-Type": "application/json" } : {}),
+    ...options.headers
+  };
+
+  return fetch(url, {
+    ...options,
+    headers,
+    // caso seu back-end esteja em outro host e precisa de CORS:
+    mode: "cors",
+    // se precisar enviar cookies de sessão:
+    credentials: "include"
+  });
 }
 
 //função para limpar todos os checkboxes de permissão

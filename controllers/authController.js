@@ -94,11 +94,11 @@ async function cadastrarOuAtualizarUsuario(req, res) {
         atualizacoes.push(`senha_hash = $${idx++}`);
         valores.push(senhaHash);
       }
-
-      valores.push(email_original);
-      const sql = `UPDATE usuarios SET ${atualizacoes.join(', ')} WHERE email = $${idx}`;
-      await db.query(sql, valores);
-
+      if (atualizacoes.length > 0) {
+        valores.push(email_original);
+        const sql = `UPDATE usuarios SET ${atualizacoes.join(', ')} WHERE email = $${idx}`;
+        await db.query(sql, valores);
+       }
       // Atualizar empresas associadas se fornecido
       if (Array.isArray(empresas)) {
         // Remove todas associações antigas
@@ -123,7 +123,7 @@ async function cadastrarOuAtualizarUsuario(req, res) {
       }
 
       const senhaHash = await bcrypt.hash(senha, 10);
-      await db.query(`
+      const result = await db.query(`
         INSERT INTO usuarios (nome, sobrenome, email, senha_hash, ativo)
         VALUES ($1, $2, $3, $4, true) RETURNING *
       `, [nome, sobrenome, email, senhaHash, ativo]);
@@ -155,23 +155,23 @@ async function getEmpresasDoUsuario(idusuario) {
 async function listarUsuarios(req, res) {
     try {
       console.log("listarUsuarios AuthController", req );
-      // const { rows } = await db.query('SELECT idusuario, nome, sobrenome, email, senha_hash, ativo FROM usuarios ORDER BY nome');
-      // res.status(200).json(rows);
-      const { rows } = await db.query(`
-        SELECT u.idusuario, u.nome, u.sobrenome, u.email, u.ativo,
-          COALESCE(
-            json_agg(
-              json_build_object('idempresa', e.idempresa, 'nome', e.nome)
-            ) FILTER (WHERE e.idempresa IS NOT NULL),
-            '[]'
-          ) AS empresas
-        FROM usuarios u
-        LEFT JOIN usuarioempresas ue ON u.idusuario = ue.idusuario
-        LEFT JOIN empresas e ON ue.idempresa = e.idempresa
-        GROUP BY u.idusuario
-        ORDER BY u.nome
-      `);
-      res.status(200).json(rows);
+       const { rows } = await db.query('SELECT idusuario, nome, sobrenome, email, senha_hash, ativo FROM usuarios ORDER BY nome');
+       res.status(200).json(rows);
+      // const { rows } = await db.query(`
+      //   SELECT u.idusuario, u.nome, u.sobrenome, u.email, u.ativo,
+      //     COALESCE(
+      //       json_agg(
+      //         json_build_object('idempresa', e.idempresa, 'nome', e.nome)
+      //       ) FILTER (WHERE e.idempresa IS NOT NULL),
+      //       '[]'
+      //     ) AS empresas
+      //   FROM usuarios u
+      //   LEFT JOIN usuarioempresas ue ON u.idusuario = ue.idusuario
+      //   LEFT JOIN empresas e ON ue.idempresa = e.idempresa
+      //   GROUP BY u.idusuario
+      //   ORDER BY u.nome
+      // `);
+      //res.status(200).json(rows);
     } catch (erro) {
       console.error('Erro ao listar usuários:', erro);
       res.status(500).json({ erro: 'Erro ao listar usuários.' });
