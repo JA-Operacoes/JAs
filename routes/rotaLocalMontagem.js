@@ -8,8 +8,9 @@ const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 router.use(autenticarToken);
 
 // GET todas ou por descrição
-router.get("/", autenticarToken, verificarPermissao('LocalMontagem', 'pesquisar'), async (req, res) => {
+router.get("/", autenticarToken, verificarPermissao('Localmontagem', 'pesquisar'), async (req, res) => {
   const { descmontagem } = req.query;
+  console.log("descmontagem na rota", descmontagem);
 
   try {
     if (descmontagem) {
@@ -33,14 +34,14 @@ router.get("/", autenticarToken, verificarPermissao('LocalMontagem', 'pesquisar'
 });
 
 // PUT atualizar
-router.put("/:id", autenticarToken, verificarPermissao('LocalMontagem', 'alterar'),  async (req, res) => {
+router.put("/:id", autenticarToken, verificarPermissao('Localmontagem', 'alterar'),  async (req, res) => {
   const id = req.params.id;
-  const { descmontagem, cidademontagem, ufmontagem } = req.body;
-
+  const { descMontagem, cidadeMontagem, ufMontagem } = req.body;
+  console.log("descmontagem na rota", descMontagem);
   try {
     const result = await pool.query(
-      `UPDATE localmontagem SET descmontagem = $1, cidademontagem = $2, ufmontagem = $3 WHERE idFuncao = $4 RETURNING *`,
-      [descmontagem, cidademontagem, ufmontagem, id]
+      `UPDATE localmontagem SET descmontagem = $1, cidademontagem = $2, ufmontagem = $3 WHERE idmontagem = $4 RETURNING *`,
+      [descMontagem, cidadeMontagem, ufMontagem, id]
     );
 
     return result.rowCount
@@ -53,7 +54,7 @@ router.put("/:id", autenticarToken, verificarPermissao('LocalMontagem', 'alterar
 });
 
 // POST criar nova local montagem
-router.post("/", autenticarToken, verificarPermissao('LocalMontagem', 'cadastrar'), async (req, res) => {
+router.post("/", autenticarToken, verificarPermissao('Localmontagem', 'cadastrar'), async (req, res) => {
   const { descMontagem, cidadeMontagem, ufMontagem } = req.body;
 
   try {

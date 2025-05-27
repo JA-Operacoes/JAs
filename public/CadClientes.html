@@ -73,7 +73,7 @@
                 <label for="site"> Site </label>
               </div>
               <div class="form2">
-                <input type="tel" name="telefone" id="telefone" required>
+                <input type="tel" name="telefone" id="telefone" maxlength="15" oninput="formatTelefone(this)" required>
                 <label for="tel"> Telefone </label>
               </div>
             </div>
@@ -118,7 +118,7 @@
                 <label for="nmContato"> Nome Contato </label>
               </div>
               <div class="form2">
-                <input type="tel" name="celContato" id="celContato" maxlength="15" oninput="formatCelular(this)"
+                <input type="tel" name="celContato" id="celContato" maxlength="15" oninput="formatTelefone(this)"
                   required>
                 <label for="celContato">Celular para contato </label>
               </div>
@@ -192,6 +192,7 @@
     </div>
   </div>
   </div>
+  
   <!-- <script src="js/permissoes.js"></script> -->
   <!-- <script src="js/Index.js"></script> -->
 </body>

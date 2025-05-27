@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
 const { autenticarToken } = require('../middlewares/authMiddlewares');
+//const { getEmpresasDoUsuario } = require('../utils');
 
 const { cadastrarOuAtualizarUsuario, login, verificarUsuarioExistente, listarUsuarios, buscarUsuariosPorNome, buscarUsuarioPorEmail, listarPermissoes, verificarNomeExistente  } = require('../controllers/authController');
 

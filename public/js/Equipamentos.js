@@ -206,6 +206,7 @@ function verificaEquipamento() {
             });
 
             this.parentNode.replaceChild(novoInput, this);
+            adicionarEventoBlurEquipamento();
 
             if (label) {
                 label.style.display = "block";
@@ -249,7 +250,7 @@ function criarSelectEquipamento(equipamentos) {
     defaultOption.selected = true;
     select.appendChild(defaultOption);
    
-    console.log("PESQUISANDO FUNCAO:", equipamentos);
+    console.log("PESQUISANDO EQUIPAMENTO:", equipamentos);
 
     equipamentos.forEach(equipamentosachado => {
         const option = document.createElement("option");
@@ -259,6 +260,43 @@ function criarSelectEquipamento(equipamentos) {
     });
  
     return select;
+}
+
+function adicionarEventoBlurEquipamento() {
+    const input = document.querySelector("#descEquip");
+    if (!input) return;
+    
+    let ultimoClique = null;
+
+    // Captura o último elemento clicado no documento
+    document.addEventListener("mousedown", (e) => {
+        ultimoClique = e.target;
+    });
+    
+    input.addEventListener("blur", async function () {
+       
+        const botoesIgnorados = ["Limpar", "Pesquisar", "Enviar"];
+        const ehBotaoIgnorado =
+            ultimoClique?.id && botoesIgnorados.includes(ultimoClique.id) ||
+            ultimoClique?.classList.contains("close");
+
+        if (ehBotaoIgnorado) {
+            console.log("🔁 Blur ignorado: clique em botão de controle (Fechar/Limpar/Pesquisar).");
+            return;
+        }
+
+        const desc = this.value.trim();
+        console.log("Campo descEquip procurado:", desc);
+
+        if (!desc) return;
+
+        try {
+            await carregarEquipamentoDescricao(desc, this);
+            console.log("Equipamento selecionado depois de carregarEquipamentoDescricao:", this.value);
+        } catch (error) {
+            console.error("Erro ao buscar Equipamento:", error);
+        }
+    });
 }
 
 async function carregarEquipamentoDescricao(desc, elementoAtual) {
@@ -291,22 +329,26 @@ async function carregarEquipamentoDescricao(desc, elementoAtual) {
                 title: `Deseja cadastrar "${desc.toUpperCase()}" como novo Equipamento?`,
                 text: `Equipamento "${desc.toUpperCase()}" não encontrado.`,
                 showCancelButton: true,
-                confirmButtonText: "Sim, salvar",
+                confirmButtonText: "Sim, cadastrar",
                 cancelButtonText: "Cancelar",
                 reverseButtons: true,
                 focusCancel: true
             });
 
-            if (resultado.isConfirmed) {
-                // Aqui você pode chamar a função que abre o modal ou inicia o cadastro
-                // abrirModalCadastroEquipamento(desc);
-                console.log(`Usuário optou por cadastrar: ${desc}`);
+            
+            if (!resultado.isConfirmed) {
+                console.log("Usuário cancelou o cadastro do Equipamento.");
+                elementoAtual.value = ""; // Limpa o campo se não for cadastrar
+                setTimeout(() => {
+                    elementoAtual.focus();
+                }, 0);
+                return;
             }
         } else if (!podeCadastrar) {
             Swal.fire({
                 icon: "info",
                 title: "Equipamento não cadastrado",
-                text: "Você não tem permissão para cadastrar quipamentos.",
+                text: "Você não tem permissão para cadastrar equipamentos.",
                 confirmButtonText: "OK"
             });
         }
@@ -380,6 +422,7 @@ function limparCamposEquipamento() {
         });
 
         descEquipEl.parentNode.replaceChild(novoInput, descEquipEl);
+        adicionarEventoBlurEquipamento()
 
         const label = document.querySelector('label[for="descEquip"]');
         if (label) {
@@ -396,6 +439,7 @@ function limparCamposEquipamento() {
 function configurarEventosEquipamento() {
     console.log("Configurando eventos Equipamento...");
     verificaEquipamento(); // Carrega os Equipamento ao abrir o modal
+    adicionarEventoBlurEquipamento();
     console.log("Entrou configurar Equipamento no EQUIPAMENTO.js.");
     
 

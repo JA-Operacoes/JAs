@@ -248,7 +248,7 @@ function carregarEquipamentosOrc() {
 // Função para carregar os suprimentos
 function carregarSuprimentosOrc() {
     console.log("Função carregarSuprimentos chamada");
-    fetch('http://localhost:3000/suprimentos')
+    fetchComToken('http://localhost:3000/suprimentos')
         .then(response => response.json())
         .then(suprimentos => {
             let selects = document.querySelectorAll(".idSuprimento");

@@ -70,7 +70,6 @@ document.getElementById("confirmasenha").addEventListener("blur", function () {
 document.getElementById("btnAlterar").addEventListener("click", async function (e) {
   e.preventDefault();
 
-
   const nome = document.getElementById("nome").value;
   const sobrenome = document.getElementById("sobrenome").value;
   const email = document.getElementById("email").value;
@@ -171,16 +170,18 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
 
 let clicouNaLista = false; // Flag de clique
 
-// Quando clicar em um item da lista, definimos que foi clique
-function selecionarNome(nome) {
-  document.getElementById("buscaUsuario").value = nome;
-  clicouNaLista = true;
-  document.getElementById("sobrenome").focus(); // Já direciona para o próximo passo
-}
-
 document.getElementById('buscaUsuario').addEventListener('blur', function () {
+  
   formatarNome("buscaUsuario");
-  verificarNomeExistente();
+
+  setTimeout(() => {
+    if (!clicouNaLista) {
+      verificarNomeExistente();
+    }
+    // Reseta a flag para próxima interação
+    clicouNaLista = false;
+  }, 150);
+  
 });
 
 document.getElementById("nome").addEventListener("blur", function () {
@@ -210,6 +211,15 @@ document.getElementById("email").addEventListener("blur", function (){
     
 });
 
+document.getElementById("buscaUsuario").addEventListener("input", function () {
+  const valor = this.value.trim();
+
+  if (valor === "") {
+    // Limpa campos relacionados ao usuário
+    limparCampos();
+  }
+});
+
 
  const getCampo = (key) => document.querySelector(campos[key]);
     const setCampo = (key, value) => {
@@ -231,6 +241,7 @@ async function verificarUsuarioExistenteFront() {
   const sobrenome = document.getElementById("sobrenome").value.trim();
   const email = document.getElementById("email").value.trim();
   const ativo = document.getElementById('ativo').checked;
+  
 
   console.log("Entrou no verificarUsuarioExistenteFront", nome, sobrenome, email, ativo);
 
@@ -321,7 +332,6 @@ async function verificarNomeExistente() {
           text: "Digite também o sobrenome para refinar a busca.",
         }).then(() => {
            document.getElementById("nome").value = nome;
-           clicouNaLista = true;
            document.getElementById("sobrenome").focus();
           
         });
@@ -365,11 +375,18 @@ async function verificarNomeCompleto() {
 
     if (dados.usuario) {
       // Preencher os dados retornados
-      document.getElementById("email").value = dados.usuario.email || "";
-      document.getElementById("ativo").checked = dados.usuario.ativo;
+      // document.getElementById("email").value = dados.usuario.email || "";
+      // document.getElementById("ativo").checked = dados.usuario.ativo;
+
+      setCampo("email", dados.usuario.email);
+      setCampo("ativo", dados.usuario.ativo);
 
       document.getElementById("btnCadastrar").style.display = "none";
       document.getElementById("btnAlterar").style.display = "inline-block";
+
+      if (dados.usuario.email) {
+        carregarPermissoesEEmpresasDoUsuario(dados.usuario.email);
+      }
     } else {
       const confirmacao = await Swal.fire({
         icon: "question",
@@ -546,10 +563,12 @@ usuarios.forEach(usuario => {
 });
 
 // Clique na sugestão
-lista.addEventListener('click', (e) => {
+lista.addEventListener('mousedown', (e) => {
   console.log("Elemento clicado:", e.target); // Log do elemento clicado
   console.log("Tag do elemento clicado:", e.target.tagName); // Log da tag do elemento clicado
   if (e.target.tagName === 'LI') {
+    clicouNaLista = true; // Define que foi um clique na lista
+
     const nome = e.target.dataset.nome;
     const sobrenome = e.target.dataset.sobrenome;
     const email = e.target.dataset.email;
@@ -565,8 +584,9 @@ lista.addEventListener('click', (e) => {
     document.getElementById("email_original").value = email; // Armazena o email original para comparação
     document.getElementById('ativo').checked = ativo;
  
-   
     document.getElementById('buscaUsuario').value = `${nome} ${sobrenome}`;
+  
+    console.log("clicou na lista", clicouNaLista); // Log do clique na lista
     lista.innerHTML = '';
     lista.style.display = 'none';
 
@@ -575,6 +595,11 @@ lista.addEventListener('click', (e) => {
   document.getElementById("btnCadastrar").style.display = "none";
   document.getElementById("btnAlterar").style.display = "inline-block";
 });
+
+function limparPermissoes() {
+  document.querySelectorAll('.modulo-container input[type="checkbox"]').forEach(cb => cb.checked = false);
+  document.querySelectorAll('.checkbox-empresa').forEach(cb => cb.checked = false);
+}
 
 function limparCampos() {
   document.getElementById('Registrar').reset();
@@ -590,6 +615,7 @@ function limparCampos() {
   document.getElementById("ativo").checked = false;
   document.getElementById('listaUsuarios').innerHTML = '';
   document.getElementById('listaUsuarios').style.display = 'none';
+  limparPermissoes(); // Limpa as permissões
  
 }
 
@@ -616,10 +642,43 @@ document.getElementById("btnCadastrar").addEventListener("click", function (e) {
   document.getElementById("btnCadastrarReal").click();
 });
 
+async function carregarPermissoesEEmpresasDoUsuario(email) {
+  try {
+    const resposta = await fetch(`/auth/permissoes-usuario/${email}`);
+    const dados = await resposta.json();
+
+    if (!resposta.ok) {
+      console.error("Erro ao buscar permissões:", dados);
+      return;
+    }
+
+    // Marca os checkboxes de permissões
+    dados.permissoes.forEach(permissao => {
+      const checkbox = document.querySelector(
+        `.modulo-container[data-modulo="${permissao.modulo}"] input[type="checkbox"][data-tipo="${permissao.tipo}"]`
+      );
+      if (checkbox) {
+        checkbox.checked = true;
+      }
+    });
+
+    // Marca as empresas selecionadas
+    const checkboxesEmpresa = document.querySelectorAll('.checkbox-empresa');
+    checkboxesEmpresa.forEach(checkbox => {
+      if (dados.empresas.includes(parseInt(checkbox.dataset.idempresa))) {
+        checkbox.checked = true;
+      }
+    });
+
+  } catch (erro) {
+    console.error("Erro ao carregar permissões e empresas:", erro);
+  }
+}
+
 async function preencherUsuarioPeloEmail(email) {
   try {
     const resposta = await fetch(`/auth/email/${encodeURIComponent(email)}`);
-    if (!resposta.ok) throw new Error('Usuário não encontrado');
+    if (!resposta.ok) throw new Error('Usuário não encontrado - Preencher Usuário pelo Email');
 
     const dados = await resposta.json();
 
@@ -630,6 +689,8 @@ async function preencherUsuarioPeloEmail(email) {
     console.error('Erro ao buscar usuário:', erro);
   }
 }
+
+//PERMISSÕES
 
 function flipBox() {
    var container = document.getElementById("flip-container");
@@ -642,6 +703,8 @@ function flipBox() {
 
    console.log("Entrou no flipBox");
 }
+
+
 
 document.getElementById("btnVoltar").addEventListener("click", function() {
   console.log("clicou no voltar");
@@ -668,11 +731,21 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
   const idusuario = document.getElementById("idusuario").value;
   const email = document.getElementById("nome_usuario").value.trim();
   const modulo = document.getElementById("modulo").value;
-
+ 
   if (!email || modulo === "choose") {
     Swal.fire("Atenção", "Informe um usuário e selecione um módulo.", "warning");
     return;
   }
+
+  // Captura empresas selecionadas
+  const empresasSelecionadas = Array.from(document.getElementById("empresasPermissao").selectedOptions)
+    .map(option => option.value);
+
+  if (!empresasSelecionadas.length) {
+    Swal.fire("Atenção", "Selecione ao menos uma empresa.", "warning");
+    return;
+  }
+
   // valores atuais
   const atuais = {
     modulo,
@@ -690,7 +763,7 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
   }
 
   // monta o body
-  const permissoes = {
+  const permissoesBase = {
     idusuario,
     email,
     modulo,
@@ -702,13 +775,25 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
   };
 
   try {
-    const res = await fetch("/permissoes/cadastro", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(permissoes)
-    });
+    let sucesso = 0;
+    for (const idempresa of empresasSelecionadas) {
+      const permissoes = { ...permissoesBase, idempresa };
 
-    if (res.ok) {
+      const res = await fetch("/permissoes/cadastro", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(permissoes)
+      });
+      if (res.ok) {
+        sucesso++;
+      }else {
+        const resultado = await res.json();
+        console.warn(`Erro ao salvar para empresa ${idempresa}:`, resultado.error);
+      }
+    }
+
+    //if (res.ok) {
+    if (sucesso > 0) {
       Swal.fire("Sucesso", "Permissões salvas com sucesso!", "success");
       permissoesOriginais = { ...atuais };
     } else {
@@ -722,61 +807,55 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
 });
 
 async function carregarPermissoesUsuario(idusuario) {
-  
   limparCheckboxesPermissao();
   const selectModulo = document.getElementById("modulo");
+  const modulo = selectModulo.value;
+
   const chkAcesso    = document.getElementById("Acesso");
   const chkCadastrar = document.getElementById("Cadastrar");
   const chkAlterar   = document.getElementById("Alterar");
   const chkPesquisar = document.getElementById("Pesquisar");
   const chkLeitura   = document.getElementById("Leitura");
 
-  // // 1. limpa tudo
-  // selectModulo.value = "choose";
-  // [chkAcesso, chkCadastrar, chkAlterar, chkPesquisar, chkLeitura]
-  //   .forEach(chk => chk.checked = false);
-
   try {
-    console.log("Entrou no carregarPermissoesUsuario", idusuario);
-    const resp = await fetch(`/permissoes/${idusuario}`);
+    console.log("Entrou no carregarPermissoesUsuario", idusuario, "Módulo:", modulo);
+    const resp = await fetch(`/permissoes/${idusuario}?modulo=${modulo}`);
     if (!resp.ok) throw new Error("Falha ao buscar permissões");
+
     const permissoes = await resp.json();
     console.log("Permissões carregadas:", permissoes);
-    if (permissoes.length > 0) {
-    const p = permissoes[0];
-    // seta o select e checkboxes
-    selectModulo.value    = p.modulo;
-    chkAcesso.checked     = Boolean(p.acesso);
-    chkCadastrar.checked  = Boolean(p.cadastrar);
-    chkAlterar.checked    = Boolean(p.alterar);
-    chkPesquisar.checked  = Boolean(p.pesquisar);
-    chkLeitura.checked    = Boolean(p.leitura);
 
-    // guarda no original
-    permissoesOriginais = {
-      modulo:    p.modulo,
-      acesso:    Boolean(p.acesso),
-      cadastrar: Boolean(p.cadastrar),
-      alterar:   Boolean(p.alterar),
-      pesquisar: Boolean(p.pesquisar),
-      leitura:   Boolean(p.leitura)
-    };
-    } else {
-    // sem permissões ainda → zera original também
+    if (permissoes.length > 0) {
+      const p = permissoes[0];
+      console.log("Permissões encontradas:", p);
+      selectModulo.value    = p.modulo;
+      chkAcesso.checked     = Boolean(p.acesso);
+      chkCadastrar.checked  = Boolean(p.cadastrar);
+      chkAlterar.checked    = Boolean(p.alterar);
+      chkPesquisar.checked  = Boolean(p.pesquisar);
+      chkLeitura.checked    = Boolean(p.leitura);
+
       permissoesOriginais = {
-        modulo:   selectModulo.value,
-        acesso:   false,
-        cadastrar:false,
-        alterar:  false,
-        pesquisar:false,
-        leitura:  false
+        modulo,
+        acesso: Boolean(p.acesso),
+        cadastrar: Boolean(p.cadastrar),
+        alterar: Boolean(p.alterar),
+        pesquisar: Boolean(p.pesquisar),
+        leitura: Boolean(p.leitura)
+      };
+    } else {
+      permissoesOriginais = {
+        modulo,
+        acesso: false,
+        cadastrar: false,
+        alterar: false,
+        pesquisar: false,
+        leitura: false
       };
     }
-
   } catch (err) {
     console.error("Erro ao carregar permissões:", err);
   }
-  
 }
 
 //função para limpar todos os checkboxes de permissão
@@ -790,66 +869,9 @@ function limparCheckboxesPermissao() {
 
 const selectModulo = document.getElementById("modulo");
 selectModulo.addEventListener("change", () => {
-  // Limpa tudo imediatamente
-  limparCheckboxesPermissao();
-  // Zera o estado original também, para que o "Salvar" não indique nenhuma alteração
-  permissoesOriginais = {
-    modulo: selectModulo.value,
-    acesso: false,
-    cadastrar: false,
-    alterar: false,
-    pesquisar: false,
-    leitura: false
-  };
+  const idusuario = document.getElementById("idusuario").value;
+  if (idusuario) {
+    carregarPermissoesUsuario(idusuario);
+  }
 });
 
-// function aplicarPermissoes(permissoes) {
-//   console.log("[Permissões] aplicando em módulo:", document.body.dataset.modulo);
-//   console.log("[Permissões] lista de permissões:", permissoes);
-
-
-//   // Define qual é o módulo desta página; 
-//   // pode vir de uma variável global, do próprio select, ou do nome da rota.
-//   // Por exemplo, num <body data-modulo="Clientes">:
-//   const moduloAtual = document.body.dataset.modulo;  
-
-//   // Encontra o objeto de permissão correspondente
-//   const p = permissoes.find(x => x.modulo === moduloAtual);
-
-//   // Se não existir ou não tiver acesso geral, bloqueia tudo:
-//   if (!p || !p.acesso) {
-//     document.querySelectorAll("input, select, textarea, button").forEach(el => {
-//       el.disabled = true;
-//     });
-//     return;
-//   }
-
-//   // Se tiver acesso mas não puder cadastrar:
-//   if (!p.cadastrar) {
-//     document.querySelectorAll(".btnCadastrar").forEach(btn => btn.disabled = true);
-//   }
-
-//   // Se não puder alterar:
-//   if (!p.alterar) {
-//     document.querySelectorAll(".btnAlterar").forEach(btn => btn.disabled = true);
-//   }
-
-//   // Se não puder pesquisar:
-//   if (!p.pesquisar) {
-//     document.querySelectorAll(".btnPesquisar").forEach(btn => btn.disabled = true);
-//   }
-
-//   // Se for “apenas leitura”, desabilita todos os campos, deixando só o pesquisar habilitado:
-//   if (p.leitura) {
-//     document.querySelectorAll("input, select, textarea").forEach(el => el.readOnly = true);
-//     document.querySelectorAll("button").forEach(btn => {
-//       if (!btn.classList.contains("btnPesquisar")) btn.disabled = true;
-//     });
-//   }
-// }
-
-
-
-
-
-  

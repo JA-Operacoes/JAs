@@ -7,10 +7,12 @@
 
   <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/Logins/Usuarios.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-/>
-<body>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+
+
+  <body>
 
   <div class="login-box">
   <div class="flip-container" id="flip-container">
@@ -124,17 +126,53 @@
           <input type="text" id="nome_usuario" value="" spellcheck="false" oninput="preencherUsuarioPeloEmail()" >
           <label for="nome_usuario"> Usuário:</label>
         </div>
+
+      <!-- Empresas -->
+        <div class="tab-content hidden" id="empresas">
+          <label>Empresas:</label>
+          <div class="checkbox-group" id="listaEmpresas">
+            <label class="checkbox-option">
+              <input type="checkbox" name="empresaPermissao1" value="1">
+              <span>JA OPER</span>
+            </label>
+            <label class="checkbox-option">
+              <input type="checkbox" name="empresaPermissao2" value="2">
+              <span>ES</span>
+            </label>
+            <label class="checkbox-option">
+              <input type="checkbox" name="empresaPermissao3" value="3">
+              <span>JA EXPO</span>
+            </label>
+            <label class="checkbox-option">
+              <input type="checkbox" name="empresaPermissao4" value="4">
+              <span>EA</span>
+            </label>
+            <label class="checkbox-option">
+              <input type="checkbox" name="empresaPermissao5" value="5">
+              <span>ED</span>
+            </label>
+            <label class="checkbox-option">
+              <input type="checkbox" name="empresaPermissao6" value="6">
+              <span>EP</span>
+            </label>
+          </div>
+        </div>
+
+  
+
         <div class="user-box  user-boxSelect">
           <label for="modulo">Módulo:</label>
             <select name="modulo" id="modulo">
               <option value="choose" selected>Escolha o Modulo</option>
               <option value="Clientes">Clientes</option>
+              <option value="Funcao">Função</option>
               <option value="Orçamentos">Orçamentos</option>
               <option value="Eventos">Eventos</option>
               <option value="Equipamentos">Equipamentos</option>
               <option value="Suprimentos">Suprimentos</option>
-              <option value="Local de Montagem">Local de Montagem</option>
-              <option value="Funcionários">Funcionários</option>
+              <option value="Localmontagem">Local de Montagem</option>
+              <option value="Staff">Staff</option>
+              <option value="Funcionarios">Funcionários</option>
             </select>
         </div>
         <div class="Permissions">
@@ -176,5 +214,6 @@
 </div>
   <script src="js/usuarios.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 </body>
 </html>

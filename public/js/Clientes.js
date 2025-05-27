@@ -37,7 +37,17 @@ function aplicarMascaras() {
     });
 
     maskTelefone = IMask(document.querySelector("#telefone"), {
-        mask: "(00) 0000-0000" // ou "(00) 00000-0000" dependendo do padrão
+        mask: [
+        {
+            mask: "(00) 0000-0000", // Fixo: 10 dígitos
+          
+        },
+        {
+            mask: "(00) 00000-0000", // Celular: 11 dígitos
+            
+        }]
+    
+  
     });
 
     maskCelContato = IMask(document.querySelector("#celContato"), {
@@ -50,46 +60,7 @@ function aplicarMascaras() {
     
 
 }
-
-
-
-function carregarClientes() {
-    console.log("Configurando eventos para o modal de clientes");
-    
-    
-    aplicarMascaras();  
-
-
-    const tpClienteInput = document.getElementById('tpcliente');
-    if(tpClienteInput){
-        tpClienteInput.addEventListener('input', function(event) {
-            const valor = event.target.value;
-            const permitido = /^[jJfF]$/.test(valor); // Usa regex para verificar
-
-            if (!permitido) {
-                event.target.value = ''; // Limpa o campo se a entrada for inválida
-                Swal.fire({
-                    title: 'Entrada Inválida',
-                    text: 'Por favor, digite apenas "J" ou "F"',
-                    icon: 'warning',
-                    confirmButtonText: 'Ok'
-                });
-            }
-        });
-    }
-    //pesquisar cliente pelo nome fantasia
-    const form = document.querySelector("#form");
-    const btnEnviar = document.querySelector("#Enviar");
-    const btnLimpar = document.getElementById("Limpar");
-    const btnPesquisar = document.getElementById("Pesquisar");
-    
-
-    if (!form || !btnEnviar) {
-        console.error("Formulário ou botão Enviar não encontrado.");
-        return;
-    }
-
-    const campos = {
+const campos = {
         idCliente: "#idCliente",
         nmFantasia: "#nmFantasia",
         razaoSocial: "#razaoSocial",
@@ -113,7 +84,8 @@ function carregarClientes() {
         ativo: "#ativo",
         tpcliente: "#tpcliente"
     };
-    const getCampo = (key) => document.querySelector(campos[key]);
+
+const getCampo = (key) => document.querySelector(campos[key]);
     const setCampo = (key, value) => {
         const campo = getCampo(key);
         if (campo) {
@@ -125,7 +97,7 @@ function carregarClientes() {
         }
     };
 
-    const preencherFormulario = (cliente) => {
+     const preencherFormulario = (cliente) => {
         Object.entries(campos).forEach(([key]) => {
             if (key === "telefone") maskTelefone.value = cliente.telefone || '';
             else if (key === "cnpj") maskCNPJ.value = cliente.cnpj || '';
@@ -204,67 +176,44 @@ function carregarClientes() {
         };
     };
 
-    // Event: Preencher campos ao sair do campo Nome Fantasia
-    getCampo("nmFantasia").addEventListener("blur", async function () {
-        const nmFantasia = this.value.trim();
-        if (!nmFantasia) return;
 
-        try {
-            const response = await fetchComToken(`/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
-            if (!response.ok) throw new Error("Cliente não encontrado");
+function carregarClientes() {
+    console.log("Configurando eventos para o modal de clientes");
+    
+    
+    aplicarMascaras();  
 
-            const cliente = await response.json();
-            console.log("Cliente encontrado:", cliente);
 
-            if (!cliente || Object.keys(cliente).length === 0)
-                throw new Error("Dados de cliente vazios");
+    const tpClienteInput = document.getElementById('tpcliente');
+    if(tpClienteInput){
+        tpClienteInput.addEventListener('input', function(event) {
+            const valor = event.target.value;
+            const permitido = /^[jJfF]$/.test(valor); // Usa regex para verificar
 
-            preencherFormulario(cliente);
-            console.log("Cliente carregado:", cliente);
-
-        } catch (error) {
-            console.log("Erro ao buscar cliente:", nmFantasia, idCliente.value, error);
-
-            //  Se cliente não existe e ainda não tem ID preenchido
-            if (!idCliente.value) {
-                const podeCadastrar = temPermissao("Clientes", "cadastrar");
-
-                // Só pergunta se deseja cadastrar se tiver permissão
-                if (podeCadastrar) {
-                    const { isConfirmed } = await Swal.fire({
-                        icon: 'question',
-                        title: `Deseja cadastrar "${nmFantasia.toUpperCase()}" como novo Cliente?`,
-                        text: `Cliente "${nmFantasia.toUpperCase()}" não encontrado`,
-                        showCancelButton: true,
-                        confirmButtonText: 'Sim, cadastrar',
-                        cancelButtonText: 'Cancelar'
-                    });
-
-                    if (!isConfirmed) return;
-
-                    // Se confirmado, pode continuar com o formulário em branco
-                    limparFormulario(); // opcional
-                    getCampo("nmFantasia").value = nmFantasia; // mantém o nome digitado
-                } else {
-                    //  Sem permissão: apenas alerta
-                    await Swal.fire({
-                        icon: 'info',
-                        title: "Cliente não encontrado",
-                        text: `Você não tem permissão para cadastrar um novo cliente.`,
-                    });
-                    getCampo("nmFantasia").value = '';
-                    // ⚠️ Aguardar fechamento do Swal e forçar foco no campo
-                    setTimeout(() => {
-                        getCampo("nmFantasia").focus();
-                    }, 100); // Pequeno delay (100ms)
-                                
-                getCampo("nmFantasia").focus();
-                }
+            if (!permitido) {
+                event.target.value = ''; // Limpa o campo se a entrada for inválida
+                Swal.fire({
+                    title: 'Entrada Inválida',
+                    text: 'Por favor, digite apenas "J" ou "F"',
+                    icon: 'warning',
+                    confirmButtonText: 'Ok'
+                });
             }
-        }
-    });
+        });
+    }
+    //pesquisar cliente pelo nome fantasia
+    const form = document.querySelector("#form");
+    const btnEnviar = document.querySelector("#Enviar");
+    const btnLimpar = document.getElementById("Limpar");
+    const btnPesquisar = document.getElementById("Pesquisar");
+    
 
+    if (!form || !btnEnviar) {
+        console.error("Formulário ou botão Enviar não encontrado.");
+        return;
+    }
 
+   
     btnEnviar.addEventListener("click", async (e) => {
     e.preventDefault();
         console.log("Entrou no botão Enviar");
@@ -350,14 +299,6 @@ function carregarClientes() {
     });
 
 
-
-    // Event: Limpar formulário
-    // if (btnLimpar) {
-    //     console.log("Entrou no botão limpar");
-    //     btnLimpar.addEventListener("click", limparFormulario);
-       
-    // }
-
     if (btnLimpar) {
         btnLimpar.addEventListener("click", () => {
             const campo = document.getElementById("nmFantasia");
@@ -371,6 +312,7 @@ function carregarClientes() {
                 input.required = true;
 
                 campo.parentNode.replaceChild(input, campo);
+                adicionarEventoBlurCliente() 
 
                 const label = document.querySelector('label[for="nmFantasia"]');
                 if (label) label.style.display = "block";
@@ -467,6 +409,89 @@ function criarSelectClientes(clientes) {
     return select;
 }
 
+function adicionarEventoBlurCliente() {
+    
+    // Event: Preencher campos ao sair do campo Nome Fantasia
+    let ultimoClique = null;
+
+    // Captura o último elemento clicado no documento
+    document.addEventListener("mousedown", (e) => {
+        ultimoClique = e.target;
+    });
+    
+    getCampo("nmFantasia").addEventListener("blur", async function () {
+       
+        const botoesIgnorados = ["Limpar", "Pesquisar", "Enviar"];
+        const ehBotaoIgnorado =
+            ultimoClique?.id && botoesIgnorados.includes(ultimoClique.id) ||
+            ultimoClique?.classList.contains("close");
+
+        if (ehBotaoIgnorado) {
+            console.log("🔁 Blur ignorado: clique em botão de controle (Fechar/Limpar/Pesquisar).");
+            return;
+        }
+
+    
+    
+        const nmFantasia = this.value.trim();
+        if (!nmFantasia) return;
+
+        try {
+            const response = await fetchComToken(`/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
+            if (!response.ok) throw new Error("Cliente não encontrado");
+
+            const cliente = await response.json();
+            console.log("Cliente encontrado:", cliente);
+
+            if (!cliente || Object.keys(cliente).length === 0)
+                throw new Error("Dados de cliente vazios");
+
+            preencherFormulario(cliente);
+            console.log("Cliente carregado:", cliente);
+
+        } catch (error) {
+            console.log("Erro ao buscar cliente:", nmFantasia, idCliente.value, error);
+
+            //  Se cliente não existe e ainda não tem ID preenchido
+            if (!idCliente.value) {
+                const podeCadastrar = temPermissao("Clientes", "cadastrar");
+
+                // Só pergunta se deseja cadastrar se tiver permissão
+                if (podeCadastrar) {
+                    const { isConfirmed } = await Swal.fire({
+                        icon: 'question',
+                        title: `Deseja cadastrar "${nmFantasia.toUpperCase()}" como novo Cliente?`,
+                        text: `Cliente "${nmFantasia.toUpperCase()}" não encontrado`,
+                        showCancelButton: true,
+                        confirmButtonText: 'Sim, cadastrar',
+                        cancelButtonText: 'Cancelar'
+                    });
+
+                    if (!isConfirmed) return;
+
+                    // Se confirmado, pode continuar com o formulário em branco
+                    limparFormulario(); // opcional
+                    getCampo("nmFantasia").value = nmFantasia; // mantém o nome digitado
+                } else {
+                    //  Sem permissão: apenas alerta
+                    await Swal.fire({
+                        icon: 'info',
+                        title: "Cliente não encontrado",
+                        text: `Você não tem permissão para cadastrar um novo cliente.`,
+                    });
+                    getCampo("nmFantasia").value = '';
+                    // ⚠️ Aguardar fechamento do Swal e forçar foco no campo
+                    setTimeout(() => {
+                        getCampo("nmFantasia").focus();
+                    }, 100); // Pequeno delay (100ms)
+                                
+                getCampo("nmFantasia").focus();
+                }
+            }
+        }
+    });
+}
+
 async function carregarClientesNmFantasia(desc, elementoAtual) {
     try {
         const response = await fetchComToken(`/clientes?nmFantasia=${encodeURIComponent(desc.trim())}`);
@@ -512,6 +537,7 @@ async function carregarClientesNmFantasia(desc, elementoAtual) {
         novoInput.value = cliente.nmfantasia;
 
         elementoAtual.parentNode.replaceChild(novoInput, elementoAtual);
+        adicionarEventoBlurCliente();
 
         const label = document.querySelector('label[for="nmFantasia"]');
         if (label) {
@@ -521,7 +547,7 @@ async function carregarClientesNmFantasia(desc, elementoAtual) {
 
         novoInput.addEventListener("blur", async function () {
             if (!this.value.trim()) return;
-            await carregarFuncaoDescricao(this.value, this);
+            await carregarClientesNmFantasia(this.value, this);
         });
 
     } catch {
@@ -624,13 +650,6 @@ function fetchComToken(url, options = {}) {
   });
 }
 
-
-function configurarEventosClientes() {
-    console.log("Configurando eventos para o modal de clientes...");
-    carregarClientes();
-}
-window.configurarEventosClientes = configurarEventosClientes;
-
 document.addEventListener('DOMContentLoaded', () => {
     const inputCodigo = document.querySelector("#idCliente");
   
@@ -657,6 +676,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const observer = new MutationObserver(atualizarLabelCodigo);
     observer.observe(inputCodigo, { attributes: true, attributeFilter: ["value"] });
 });
+
+function configurarEventosClientes() {
+    console.log("Configurando eventos para o modal de clientes...");
+    carregarClientes();
+    adicionarEventoBlurCliente() ;
+}
+window.configurarEventosClientes = configurarEventosClientes;
 
 function configurarEventosEspecificos(modulo) {
   console.log("⚙️ configurarEventosEspecificos recebeu:", modulo);

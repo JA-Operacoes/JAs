@@ -1,11 +1,3 @@
-if (typeof Swal === "undefined") {
-    const script = document.createElement("script");
-    script.src = "https://cdn.jsdelivr.net/npm/sweetalert2@11";
-    script.onload = () => {
-        console.log("SweetAlert2 carregado com sucesso.");
-    };
-    document.head.appendChild(script);
-}
 
 if (typeof window.SuprimentoOriginal === "undefined") {
     window.SuprimentoOriginal = {
@@ -21,31 +13,7 @@ function verificaSuprimento() {
 
     console.log("Carregando Suprimento...");
     
-    document.querySelector("#descSup").addEventListener("blur", async function () {
-        const desc = this.value.trim();
-
-        console.log("Campo descSup procurado:", desc);
     
-        if (desc === "") return;
-    
-        try {
-            if (!desc) {
-                console.warn("Valor do select está vazio ou indefinido.");
-                return;
-            }
-
-            console.log("Selecionado:", desc);
-
-            await carregarSuprimentoDescricao(desc, this);
-            console.log("Suprimento selecionado depois de carregarSuprimentoDescricao:", this.value);
-         
-
-        } catch (error) {
-            console.error("Erro ao buscar Suprimento:", error);
-        }
-
-    });
-
     const botaoEnviar = document.querySelector("#Enviar");
     const botaoPesquisar = document.querySelector("#Pesquisar");
     const form = document.querySelector("#form");
@@ -75,6 +43,20 @@ function verificaSuprimento() {
     
         const custo = parseFloat(String(vlrCusto).replace(",", "."));
         const venda = parseFloat(String(vlrVenda).replace(",", "."));
+
+        // Permissões
+        const temPermissaoCadastrar = temPermissao("Suprimentos", "cadastrar");
+        const temPermissaoAlterar = temPermissao("Suprimentos", "alterar");
+
+        const metodo = idSup ? "PUT" : "POST";
+
+        if (!idSup && !temPermissaoCadastrar) {
+            return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novo suprimento.", "error");
+        }
+
+        if (idSup && !temPermissaoAlterar) {
+            return Swal.fire("Acesso negado", "Você não tem permissão para alterar suprimentos.", "error");
+        }
     
         if (!descSup || !vlrCusto || !vlrVenda) {
            
@@ -107,82 +89,137 @@ function verificaSuprimento() {
         }
     
         const dados = { descSup, custo, venda };
+
+        const url = idSup
+            ? `/suprimentos/${idSup}`
+            : "/suprimentos";
+
+
      
-        if (idSup) {
-            Swal.fire({
-                title: "Deseja salvar as alterações?",
-                text: "Você está prestes a atualizar os dados da função.",
-                icon: "question",
-                showCancelButton: true,
-                confirmButtonText: "Sim, salvar",
-                cancelButtonText: "Cancelar",
-                reverseButtons: true,
-                focusCancel: true
+        // if (idSup) {
+        //     Swal.fire({
+        //         title: "Deseja salvar as alterações?",
+        //         text: "Você está prestes a atualizar os dados da função.",
+        //         icon: "question",
+        //         showCancelButton: true,
+        //         confirmButtonText: "Sim, salvar",
+        //         cancelButtonText: "Cancelar",
+        //         reverseButtons: true,
+        //         focusCancel: true
                 
-            }).then(async (result) => {
-                if (result.isConfirmed) {
-                    try {
-                        const response = await fetch(`http://localhost:3000/suprimentos/${idSup}`, {
-                            method: "PUT",
-                            headers: {
-                                "Content-Type": "application/json"
-                            },
-                            body: JSON.stringify(dados)
-                        });
+        //     }).then(async (result) => {
+        //         if (result.isConfirmed) {
+        //             try {
+        //                 const response = await fetch(`http://localhost:3000/suprimentos/${idSup}`, {
+        //                     method: "PUT",
+        //                     headers: {
+        //                         "Content-Type": "application/json"
+        //                     },
+        //                     body: JSON.stringify(dados)
+        //                 });
         
-                        const resultJson = await response.json();
+        //                 const resultJson = await response.json();
         
-                        if (response.ok) {
-                            document.getElementById('form').reset();
-                            Swal.fire("Sucesso!", resultJson.mensagem || "Alterações salvas com sucesso!", "success");
-                            //form.reset();
-                            document.querySelector("#idSup").value = "";
-                            limparSuprimentoOriginal();  
-                        } else {
-                            Swal.fire("Erro", resultJson.erro || "Erro ao salvar o Função.", "error");
-                        }
-                    } catch (error) {
-                        console.error("Erro ao enviar dados:", error);
-                        Swal.fire("Erro de conexão", "Não foi possível conectar ao servidor.", "error");
-                    }
-                } else {
-                    console.log("Usuário cancelou a alteração.");
-                }
-            });
-        } else {
-            // Se for novo, salva direto
-            try {
-                const response = await fetch("http://localhost:3000/suprimentos", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify(dados)
+        //                 if (response.ok) {
+        //                     document.getElementById('form').reset();
+        //                     Swal.fire("Sucesso!", resultJson.mensagem || "Alterações salvas com sucesso!", "success");
+        //                     //form.reset();
+        //                     document.querySelector("#idSup").value = "";
+        //                     limparSuprimentoOriginal();  
+        //                 } else {
+        //                     Swal.fire("Erro", resultJson.erro || "Erro ao salvar o Função.", "error");
+        //                 }
+        //             } catch (error) {
+        //                 console.error("Erro ao enviar dados:", error);
+        //                 Swal.fire("Erro de conexão", "Não foi possível conectar ao servidor.", "error");
+        //             }
+        //         } else {
+        //             console.log("Usuário cancelou a alteração.");
+        //         }
+        //     });
+        // } else {
+        //     // Se for novo, salva direto
+        //     try {
+        //         const response = await fetch("http://localhost:3000/suprimentos", {
+        //             method: "POST",
+        //             headers: {
+        //                 "Content-Type": "application/json"
+        //             },
+        //             body: JSON.stringify(dados)
+        //         });
+        
+        //         const resultJson = await response.json();
+        
+        //         if (response.ok) {
+        //             Swal.fire("Sucesso!", resultJson.mensagem || "Suprimento cadastrado!", "success");
+        //             form.reset();
+        //             limparSuprimentoOriginal();
+        //             document.querySelector("#idSup").value = "";
+        //         } else {
+        //             Swal.fire("Erro", resultJson.erro || "Erro ao cadastrar o Função.", "error");
+        //         }
+        //     } catch (error) {
+        //         console.error("Erro ao enviar dados:", error);
+        //         Swal.fire("Erro de conexão", "Não foi possível conectar ao servidor.", "error");
+        //     }
+        // }
+        
+    // });
+        try {
+            // Confirma alteração (PUT)
+            if (metodo === "PUT") {
+                const { isConfirmed } = await Swal.fire({
+                    title: "Deseja salvar as alterações?",
+                    text: "Você está prestes a atualizar os dados do Suprimentos.",
+                    icon: "question",
+                    showCancelButton: true,
+                    confirmButtonText: "Sim, salvar",
+                    cancelButtonText: "Cancelar",
+                    reverseButtons: true,
+                    focusCancel: true
                 });
-        
-                const resultJson = await response.json();
-        
-                if (response.ok) {
-                    Swal.fire("Sucesso!", resultJson.mensagem || "Suprimento cadastrado!", "success");
-                    form.reset();
-                    limparSuprimentoOriginal();
-                    document.querySelector("#idSup").value = "";
-                } else {
-                    Swal.fire("Erro", resultJson.erro || "Erro ao cadastrar o Função.", "error");
-                }
-            } catch (error) {
-                console.error("Erro ao enviar dados:", error);
-                Swal.fire("Erro de conexão", "Não foi possível conectar ao servidor.", "error");
+                if (!isConfirmed) return;
             }
+            console.log("Enviando dados para o servidor:", dados, url, metodo);
+            const res = await fetchComToken(url, {
+                method: metodo,
+                body: JSON.stringify(dados)
+            });
+
+            const texto = await res.text();
+            let json;
+            try {
+                json = JSON.parse(texto);
+            } catch (e) {
+                throw new Error("Resposta não é um JSON válido: " + texto);
+            }
+
+            if (!res.ok) throw new Error(json.erro || json.message || "Erro ao salvar local montagem");
+
+            await Swal.fire("Sucesso!", json.message || "Suprimento salvo com sucesso.", "success");
+            document.getElementById("form").reset();
+            document.querySelector("#idSup").value = "";
+            limparSuprimentoOriginal();
+
+        } catch (error) {
+            console.error("Erro ao enviar dados:", error);
+            Swal.fire("Erro", error.message || "Erro ao salvar Suprimento.", "error");
         }
     });
-    
+
+
     botaoPesquisar.addEventListener("click", async function (event) {
         event.preventDefault();
         limparCamposSuprimento();
+        
         console.log("Pesquisando Suprimento...");
+        const temPermissaoPesquisar = temPermissao('Suprimentos', 'pesquisar');
+        if (!temPermissaoPesquisar) {
+            return Swal.fire("Acesso negado", "Você não tem permissão para pesquisar.", "warning");
+        }
+
         try {
-            const response = await fetch("http://localhost:3000/suprimentos"); // ajuste a rota conforme sua API
+            const response = await fetchComToken("/suprimentos"); // ajuste a rota conforme sua API
             if (!response.ok) throw new Error("Erro ao buscar suprimentos");
     
             const suprimentos = await response.json();
@@ -191,6 +228,7 @@ function verificaSuprimento() {
 
             const select = criarSelectSuprimento(suprimentos);
             limparCamposSuprimento();
+
             const input = document.querySelector("#descSup");
                
             if (input && input.parentNode) {
@@ -226,6 +264,7 @@ function verificaSuprimento() {
                 });
 
                 this.parentNode.replaceChild(novoInput, this);
+                adicionarEventoBlurSuprimento();
                
                 const label = document.querySelector('label[for="descSup"]');
                 if (label) {
@@ -270,7 +309,7 @@ function criarSelectSuprimento(suprimentos) {
     defaultOption.selected = true;
     select.appendChild(defaultOption);
    
-    console.log("PESQUISANDO FUNCAO:", suprimentos);
+    console.log("PESQUISANDO SUPRIMENTO:", suprimentos);
 
     suprimentos.forEach(suprimentosachado => {
         const option = document.createElement("option");
@@ -282,9 +321,46 @@ function criarSelectSuprimento(suprimentos) {
     return select;
 }
 
+function adicionarEventoBlurSuprimento() {
+    const input = document.querySelector("#descSup");
+    if (!input) return;
+    
+    let ultimoClique = null;
+
+    // Captura o último elemento clicado no documento
+    document.addEventListener("mousedown", (e) => {
+        ultimoClique = e.target;
+    });
+    
+    input.addEventListener("blur", async function () {
+       
+        const botoesIgnorados = ["Limpar", "Pesquisar", "Enviar"];
+        const ehBotaoIgnorado =
+            ultimoClique?.id && botoesIgnorados.includes(ultimoClique.id) ||
+            ultimoClique?.classList.contains("close");
+
+        if (ehBotaoIgnorado) {
+            console.log("🔁 Blur ignorado: clique em botão de controle (Fechar/Limpar/Pesquisar).");
+            return;
+        }
+
+        const desc = this.value.trim();
+        console.log("Campo descSup procurado:", desc);
+
+        if (!desc) return;
+
+        try {
+            await carregarSuprimentoDescricao(desc, this);
+            console.log("Suprimento selecionado depois de carregarSuprimentoDescricao:", this.value);
+        } catch (error) {
+            console.error("Erro ao buscar Local Montagem:", error);
+        }
+    });
+}
+
 async function carregarSuprimentoDescricao(desc, elementoAtual) {
     try {
-        const response = await fetch(`http://localhost:3000/suprimentos?descSup=${encodeURIComponent(desc)}`);
+        const response = await fetchComToken(`/suprimentos?descSup=${encodeURIComponent(desc)}`);
         if (!response.ok) throw new Error();
            
         const suprimentos = await response.json();
@@ -301,25 +377,46 @@ async function carregarSuprimentoDescricao(desc, elementoAtual) {
 
     } catch (error) {
         
-        if (!idSup.value) {
-    
-            const resultado = await Swal.fire({
+         
+        console.warn("Suprimento não encontrado.");
+
+        const inputIdSuprimento = document.querySelector("#idSup");
+        const podeCadastrarSuprimento = temPermissao("Suprimentos", "cadastrar");
+
+       if (!inputIdSuprimento.value && podeCadastrarSuprimento) {
+             const resultado = await Swal.fire({
                 icon: 'question',
                 title: `Deseja cadastrar "${desc.toUpperCase()}" como novo Suprimento?`,
-                text: `Suprimento "${desc.toUpperCase()}" não encontrado`,
+                text: `Suprimento "${desc.toUpperCase()}" não encontrado.`,
                 showCancelButton: true,
-                confirmButtonText: "Sim, salvar",
+                confirmButtonText: "Sim, cadastrar",
                 cancelButtonText: "Cancelar",
                 reverseButtons: true,
                 focusCancel: true
-                });
+            });
 
-                console.log("Resultado do Swal:", resultado);
-
+            if (resultado.isConfirmed) {
+                
+                console.log(`Usuário optou por cadastrar: ${desc}`);
+            }
+            if (!resultado.isConfirmed) {
+                console.log("Usuário cancelou o cadastro do Suprimento.");
+                elementoAtual.value = ""; // Limpa o campo se não for cadastrar
+                setTimeout(() => {
+                    elementoAtual.focus();
+                }, 0);
+                return;
+            }
+        } else if (!podeCadastrarSuprimento) {
+            Swal.fire({
+                icon: "info",
+                title: "Suprimento não cadastrado",
+                text: "Você não tem permissão para cadastrar suprimentos.",
+                confirmButtonText: "OK"
+            });
         }
     }
 }
-
 
 
 function limparSuprimentoOriginal() {
@@ -334,11 +431,7 @@ function limparSuprimentoOriginal() {
 
 
 function limparCamposSuprimento() {
-    // const campos = ["idSup", "descSup","ctoSup", "vdaSup" ];
-    // campos.forEach(id => {
-    //     const campo = document.getElementById(id);
-    //     if (campo) campo.value = "";
-    // });
+    
     const idSup = document.getElementById("idSup");
     const descSupEl = document.getElementById("descSup");
     const ctoSup = document.getElementById("ctoSup");
@@ -369,6 +462,7 @@ function limparCamposSuprimento() {
         });
 
         descSupEl.parentNode.replaceChild(novoInput, descSupEl);
+        adicionarEventoBlurSuprimento();
 
         const label = document.querySelector('label[for="descSup"]');
         if (label) {
@@ -382,11 +476,45 @@ function limparCamposSuprimento() {
 
 }
 
+function fetchComToken(url, options = {}) {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    throw new Error("fetchComToken: nenhum token encontrado. Faça login primeiro.");
+  }
+
+  // Monta os headers sempre incluindo Authorization
+  const headers = {
+    "Authorization": `Bearer ${token}`,
+    // só coloca Content-Type se houver body (POST/PUT)
+    ...(options.body ? { "Content-Type": "application/json" } : {}),
+    ...options.headers
+  };
+
+  return fetch(url, {
+    ...options,
+    headers,
+    // caso seu back-end esteja em outro host e precisa de CORS:
+    //mode: "cors",
+    // se precisar enviar cookies de sessão:
+    credentials: "include"
+  });
+}
+
 function configurarEventosSuprimento() {
     console.log("Configurando eventos Suprimento...");
     verificaSuprimento(); // Carrega os Suprimento ao abrir o modal
+    adicionarEventoBlurSuprimento(); // Adiciona o evento blur ao campo de descrição
     console.log("Entrou configurar Suprimento no EQUIPAMENTO.js.");
     
 
 } 
 window.configurarEventosSuprimento = configurarEventosSuprimento;
+
+function configurarEventosEspecificos(modulo) {
+  console.log("⚙️ configurarEventosEspecificos recebeu:", modulo);
+  if (modulo.trim().toLowerCase() === 'suprimentos') {
+    console.log("Modulo", modulo.trim().toLowerCase() );
+    configurarEventosSuprimento();
+  }
+}
+window.configurarEventosEspecificos = configurarEventosEspecificos;

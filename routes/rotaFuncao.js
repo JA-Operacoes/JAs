@@ -19,7 +19,7 @@ router.get("/", autenticarToken, verificarPermissao('Funcao', 'pesquisar'), asyn
       );
       return result.rows.length
         ? res.json(result.rows[0])
-        : res.status(404).json({ message: "Função não encontrada" });
+        : res.status(404).json({ message: "Funcao não encontrada" });
     } else {
       const result = await pool.query("SELECT * FROM funcao ORDER BY descFuncao ASC");
       return result.rows.length

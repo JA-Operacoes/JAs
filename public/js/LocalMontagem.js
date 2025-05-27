@@ -1,12 +1,3 @@
-if (typeof Swal === "undefined") {
-    const script = document.createElement("script");
-    script.src = "https://cdn.jsdelivr.net/npm/sweetalert2@11";
-    script.onload = () => {
-        console.log("SweetAlert2 carregado com sucesso.");
-    };
-    document.head.appendChild(script);
-}
-
 let MontagemOriginal = {
     idMontagem: "",
     descMontagem: "",
@@ -18,31 +9,6 @@ function verificaMontagem() {
 
     console.log("Carregando Montagem...");
     
-    document.querySelector("#descMontagem").addEventListener("blur", async function () {
-        const desc = this.value?.trim();
-
-        console.log("Campo descMontagem procurado:", desc);
-    
-        //if (desc === "") return;
-    
-        try {
-            
-            if (!desc) {
-                console.warn("Valor do select está vazio ou indefinido.");
-                return;
-            }
-
-            console.log("Selecionado:", desc);
-
-            await carregarLocalMontagem(desc, this);
-            console.log("Cliente selecionado depois de carregarLocalMontagem:", this.value);
-         
-
-        } catch (error) {
-            console.error("Erro ao buscar Montagem:", error);
-        }
-    });
-
     const botaoLimpar = document.querySelector("#Limpar");
     const botaoEnviar = document.querySelector("#Enviar");
     const botaoPesquisar = document.querySelector("#Pesquisar");
@@ -55,10 +21,11 @@ function verificaMontagem() {
 
     botaoLimpar.addEventListener("click", function (event) {
         event.preventDefault(); // Previne o envio padrão do formulário 
-
+        
         limparCamposMontagem();
 
     });
+
     botaoEnviar.addEventListener("click", async function (event) {
         event.preventDefault(); // Previne o envio padrão do formulário
 
@@ -69,6 +36,22 @@ function verificaMontagem() {
         const cidadeMontagem = document.querySelector("#cidadeMontagem").value.trim().toUpperCase();
         const ufMontagem = document.querySelector("#ufMontagem").value.trim().toUpperCase();
         
+        // Permissões
+        const temPermissaoCadastrar = temPermissao("Eventos", "cadastrar");
+        const temPermissaoAlterar = temPermissao("Eventos", "alterar");
+
+        const metodo = idMontagem ? "PUT" : "POST";
+
+        if (!idMontagem && !temPermissaoCadastrar) {
+            return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos eventos.", "error");
+        }
+
+        if (idMontagem && !temPermissaoAlterar) {
+            return Swal.fire("Acesso negado", "Você não tem permissão para alterar eventos.", "error");
+        }
+
+       
+
         if (!descMontagem || !cidadeMontagem || !ufMontagem) {
            
             Swal.fire({
@@ -102,97 +85,83 @@ function verificaMontagem() {
         }
     
         const dados = { descMontagem, cidadeMontagem, ufMontagem };
-   
-        if (idMontagem) {
-            // Se for alteração, perguntar ao usuário antes
-            
-            Swal.fire({
-                title: "Deseja salvar as alterações?",
-                text: "Você está prestes a atualizar os dados do local de montagem.",
-                icon: "question",
-                showCancelButton: true,
-                confirmButtonText: "Sim, salvar",
-                cancelButtonText: "Cancelar",
-                reverseButtons: true,
-                focusCancel: true
-                
-            }).then(async (result) => {
-                if (result.isConfirmed) {
-                    try {
-                        const response = await fetch(`http://localhost:3000/localmontagem/${idMontagem}`, {
-                            method: "PUT",
-                            headers: {
-                                "Content-Type": "application/json"
-                            },
-                            body: JSON.stringify(dados)
-                        });
-        
-                        const resultJson = await response.json();
-        
-                        if (response.ok) {
-                            document.getElementById('form').reset();
-                            Swal.fire("Sucesso!", resultJson.mensagem || "Alterações salvas com sucesso!", "success");
-                            //form.reset();
-                            document.querySelector("#idMontagem").value = "";
-                            limparMontagemOriginal();  
-                        } else {
-                            Swal.fire("Erro", resultJson.erro || "Erro ao salvar o Local de Montagem.", "error");
-                        }
-                    } catch (error) {
-                        console.error("Erro ao enviar dados:", error);
-                        Swal.fire("Erro de conexão", "Não foi possível conectar ao servidor.", "error");
-                    }
-                } else {
-                    console.log("Usuário cancelou a alteração.");
-                }
-            });
-        } else {
-            // Se for novo, salva direto
-            try {
-                console.log("Enviando dados para o servidor:", dados);
-                
-                const response = await fetch("http://localhost:3000/localmontagem", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify(dados)
-                });
-        
-                const resultJson = await response.json();
-        
-                if (response.ok) {
-                    Swal.fire("Sucesso!", resultJson.mensagem || "Local de montagem cadastrado!", "success");
-                    form.reset();
-                    limparMontagemOriginal();
-                    document.querySelector("#idMontagem").value = "";
-                } else {
-                    Swal.fire("Erro", resultJson.erro || "Erro ao cadastrar o Local de Montagem.", "error");
-                }
-            } catch (error) {
-                console.error("Erro ao enviar dados:", error);
-                Swal.fire("Erro de conexão", "Não foi possível conectar ao servidor.", "error");
-            }
-        }
-       
-    });
 
+        const url = idMontagem
+            ? `/localmontagem/${idMontagem}`
+            : "/localmontagem";
+   
+        try {
+            // Confirma alteração (PUT)
+            if (metodo === "PUT") {
+                const { isConfirmed } = await Swal.fire({
+                    title: "Deseja salvar as alterações?",
+                    text: "Você está prestes a atualizar os dados do Local Montagem.",
+                    icon: "question",
+                    showCancelButton: true,
+                    confirmButtonText: "Sim, salvar",
+                    cancelButtonText: "Cancelar",
+                    reverseButtons: true,
+                    focusCancel: true
+                });
+                if (!isConfirmed) {
+                    console.log("Usuário cancelou o cadastro do Local de Montagem.");
+                    elementoAtual.value = ""; // Limpa o campo se não for cadastrar
+                    setTimeout(() => {
+                        elementoAtual.focus();
+                    }, 0);
+                    return;
+                }
+            }
+            
+            console.log("Enviando dados para o servidor:", dados, url, metodo);
+            const res = await fetchComToken(url, {
+                method: metodo,
+                body: JSON.stringify(dados)
+            });
+
+            const texto = await res.text();
+            let json;
+            try {
+                json = JSON.parse(texto);
+            } catch (e) {
+                throw new Error("Resposta não é um JSON válido: " + texto);
+            }
+
+            if (!res.ok) throw new Error(json.erro || json.message || "Erro ao salvar local montagem");
+
+            await Swal.fire("Sucesso!", json.message || "Local Montagem salvo com sucesso.", "success");
+            document.getElementById("form").reset();
+            document.querySelector("#idMontagem").value = "";
+            limparMontagemOriginal();
+
+        } catch (error) {
+            console.error("Erro ao enviar dados:", error);
+            Swal.fire("Erro", error.message || "Erro ao salvar Local de Montagem.", "error");
+        }
+    });
     
     console.log("botaoPesquisar", botaoPesquisar);
     botaoPesquisar.addEventListener("click", async function (event) {
         event.preventDefault();
 
         limparCamposMontagem();
+
         console.log("Pesquisando Montagem...");
+        const temPermissaoPesquisar = temPermissao('Eventos', 'pesquisar');
+        if (!temPermissaoPesquisar) {
+            return Swal.fire("Acesso negado", "Você não tem permissão para pesquisar.", "warning");
+        }
+
         
         try {
-           const response = await fetch("http://localhost:3000/localmontagem"); // ajuste a rota conforme sua API
+           const response = await fetchComToken("/localmontagem"); // ajuste a rota conforme sua API
            if (!response.ok) throw new Error("Erro ao buscar Local Montagem");
     
             const montagem = await response.json();
  
             const select = criarSelectMontagem(montagem);
             limparCamposMontagem();
+
             const input = document.querySelector("#descMontagem");
   
             // Substituir o input pelo select
@@ -229,6 +198,7 @@ function verificaMontagem() {
                 });
 
                 this.parentNode.replaceChild(novoInput, this);
+                adicionarEventoBlurMontagem();
 
                 const label = document.querySelector('label[for="descMontagem"]');
                 if (label) {
@@ -286,9 +256,46 @@ function criarSelectMontagem(montagem) {
     return select;
 }
 
+function adicionarEventoBlurMontagem() {
+    const input = document.querySelector("#descMontagem");
+    if (!input) return;
+
+    let ultimoClique = null;
+
+    // Captura o último elemento clicado no documento
+    document.addEventListener("mousedown", (e) => {
+        ultimoClique = e.target;
+    });
+    
+    input.addEventListener("blur", async function () {
+       
+        const botoesIgnorados = ["Limpar", "Pesquisar", "Enviar"];
+        const ehBotaoIgnorado =
+            ultimoClique?.id && botoesIgnorados.includes(ultimoClique.id) ||
+            ultimoClique?.classList.contains("close");
+
+        if (ehBotaoIgnorado) {
+            console.log("🔁 Blur ignorado: clique em botão de controle (Fechar/Limpar/Pesquisar).");
+            return;
+        }
+
+        const desc = this.value.trim();
+        console.log("Campo descMontagem procurado:", desc);
+
+        if (!desc) return;
+
+        try {
+            await carregarLocalMontagem(desc, this);
+            console.log("Local Montagem selecionado depois de carregarLocalMontagem:", this.value);
+        } catch (error) {
+            console.error("Erro ao buscar Local Montagem:", error);
+        }
+    });
+}
+
 async function carregarLocalMontagem(desc, elementoAtual) {
     try {
-        const response = await fetch(`http://localhost:3000/localmontagem?descmontagem=${encodeURIComponent(desc.trim())}`);
+        const response = await fetchComToken(`/localmontagem?descmontagem=${encodeURIComponent(desc.trim())}`);
         if (!response.ok) throw new Error();
 
         const montagem = await response.json();
@@ -309,17 +316,45 @@ async function carregarLocalMontagem(desc, elementoAtual) {
           
     }  catch (error) {
 
-        if (!idMontagem.value) {
-            const resultado = Swal.fire({
-            icon: 'question',
-            title: `Deseja cadastrar "${desc.toUpperCase()}" como novo Local de Montagem?`,
-            text: `Local "${desc.toUpperCase()}" não encontrado`,
-            showCancelButton: true,
-            confirmButtonText: 'Sim, cadastrar',
-            cancelButtonText: 'Cancelar'
+        
+        console.warn("Local de Montagem não encontrado.");
+
+        const inputIdMontagem = document.querySelector("#idMontagem");
+        const podeCadastrarMontagem = temPermissao("Localmontagem", "cadastrar");
+
+       if (!inputIdMontagem.value && podeCadastrarMontagem) {
+             const resultado = await Swal.fire({
+                icon: 'question',
+                title: `Deseja cadastrar "${desc.toUpperCase()}" como novo Local de Montagem?`,
+                text: `Local de Montagem "${desc.toUpperCase()}" não encontrado.`,
+                showCancelButton: true,
+                confirmButtonText: "Sim, cadastrar",
+                cancelButtonText: "Cancelar",
+                reverseButtons: true,
+                focusCancel: true
+            });
+
+            if (resultado.isConfirmed) {
+                
+                console.log(`Usuário optou por cadastrar: ${desc}`);
+            }
+            if (!resultado.isConfirmed) {
+                console.log("Usuário cancelou o cadastro do Local de Montagem.");
+                elementoAtual.value = ""; // Limpa o campo se não for cadastrar
+                setTimeout(() => {
+                    elementoAtual.focus();
+                }, 0);
+                return;
+            }
+            
+        } else if (!podeCadastrarMontagem) {
+            Swal.fire({
+                icon: "info",
+                title: "Local de Montagem não cadastrado",
+                text: "Você não tem permissão para cadastrar local de montagem.",
+                confirmButtonText: "OK"
             });
         }
-        
     }
     
 }
@@ -339,15 +374,89 @@ function limparCamposMontagem() {
         const campo = document.getElementById(id);
         if (campo) campo.value = "";
     });
+
+    const idMontagem = document.getElementById("idMontagem");
+    const descMontagemEl = document.getElementById("descMontagem");
+        
+
+    if (idMontagem) idMontagem.value = "";
     
+
+    if (descMontagemEl && descMontagemEl.tagName === "SELECT") {
+        // Se for SELECT, trocar por INPUT
+        const novoInput = document.createElement("input");
+        novoInput.type = "text";
+        novoInput.id = "descMontagem";
+        novoInput.name = "descMontagem";
+        novoInput.required = true;
+        novoInput.className = "form";
+
+        // Configura o evento de transformar texto em maiúsculo
+        novoInput.addEventListener("input", function () {
+            this.value = this.value.toUpperCase();
+        });
+
+        // Reativa o evento blur
+        novoInput.addEventListener("blur", async function () {
+            if (!this.value.trim()) return;
+            await carregarLocalMontagem(this.value, this);
+        });
+
+        descMontagemEl.parentNode.replaceChild(novoInput, descMontagemEl);
+        adicionarEventoBlurMontagem();
+
+        const label = document.querySelector('label[for="descMontagem"]');
+        if (label) {
+            label.style.display = "block";
+            label.textContent = "Local de Montagem";
+        }
+    } else if (descMontagemEl) {
+        // Se for input normal, só limpa
+        descMontagemEl.value = "";
+    }
     
 }
+
+function fetchComToken(url, options = {}) {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    throw new Error("fetchComToken: nenhum token encontrado. Faça login primeiro.");
+  }
+
+  // Monta os headers sempre incluindo Authorization
+  const headers = {
+    "Authorization": `Bearer ${token}`,
+    // só coloca Content-Type se houver body (POST/PUT)
+    ...(options.body ? { "Content-Type": "application/json" } : {}),
+    ...options.headers
+  };
+
+  return fetch(url, {
+    ...options,
+    headers,
+    // caso seu back-end esteja em outro host e precisa de CORS:
+    //mode: "cors",
+    // se precisar enviar cookies de sessão:
+    credentials: "include"
+  });
+}
+
 
 function configurarEventosMontagem() {
     console.log("Configurando eventos Montagem...");
     verificaMontagem(); // Carrega os Montagem ao abrir o modal
+    adicionarEventoBlurMontagem();
     console.log("Entrou configurar Montagem no MONTAGEM.js.");
     
 
 } 
 window.configurarEventosMontagem = configurarEventosMontagem;
+
+function configurarEventosEspecificos(modulo) {
+  console.log("⚙️ configurarEventosEspecificos recebeu:", modulo);
+  if (modulo.trim().toLowerCase() === 'localmontagem') {
+    console.log("Modulo", modulo.trim().toLowerCase() );
+    configurarEventosMontagem();
+  }
+}
+window.configurarEventosEspecificos = configurarEventosEspecificos;

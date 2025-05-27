@@ -10,15 +10,17 @@ function aplicarPermissoes(permissoes) {
     console.log("Item de permissao:", p);
     console.log("p.modulo:", p.modulo);
   });
-
+  
   const p = permissoes.find(x =>
     x.modulo &&
     moduloAtual &&
     x.modulo.trim().toLowerCase() === moduloAtual.trim().toLowerCase()
   );
 
+  const moduloNormalizado = moduloAtual ? moduloAtual.trim().toLowerCase() : null;
+
   if (!p) {
-    console.warn(`[Permissões] Nenhuma permissão encontrada para o módulo: ${moduloAtual}`);
+    console.warn(`[Permissões] Nenhuma permissão encontrada para o módulo: ${moduloNormalizado}`);
     return;
   }
 
@@ -82,7 +84,7 @@ async function initPermissoes() {
     return;
   }
 
-  // fetch(`http://localhost:3000/permissoes/${idusuario}`)
+ 
   fetch(`/permissoes/${idusuario}`)
     .then(res => res.json())
     .then(permissoes => {
@@ -98,7 +100,9 @@ function filtrarMenuPorPermissoes(permissoes) {
 
   links.forEach(link => {
     const modulo = link.dataset.modulo;
+    
     const permissao = permissoes.find(p => p.modulo === modulo);
+    
 
     if (!permissao || (!permissao.cadastrar && !permissao.alterar && !permissao.pesquisar)) {
    //   console.log(`[Permissões] Ocultando item do menu para módulo: ${modulo}`);

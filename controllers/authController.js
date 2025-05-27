@@ -26,28 +26,46 @@ async function verificarUsuarioExistente(req, res) {
 
 
 async function cadastrarOuAtualizarUsuario(req, res) {
-  const { nome, sobrenome, email, senha, email_original, ativo } = req.body;
+  const { nome, sobrenome, email, senha, email_original, ativo, empresas } = req.body;
+  
+  function arraysIguais(arr1, arr2) {
+    if (!Array.isArray(arr1) || !Array.isArray(arr2)) return false;
+    if (arr1.length !== arr2.length) return false;
+    const sorted1 = [...arr1].sort();
+    const sorted2 = [...arr2].sort();
+    return sorted1.every((val, idx) => val === sorted2[idx]);
+  }
   console.log('Dados recebidos cadastrarOuAtualizarUsuario:', req.body);
   try {
     // Busca o usuário pelo email original
     const { rows } = await db.query("SELECT * FROM usuarios WHERE email = $1", [email_original]);
 
+    const empresasIguais = arraysIguais(empresas, await getEmpresasDoUsuario(usuario.idusuario));
+
     if (rows.length > 0) {
       const usuario = rows[0];
-      const atualizacoes = [];
-      const valores = [];
-      let idx = 1;
+
+      // Aqui pegamos as empresas do usuário do banco para comparação
+      const empresasDoUsuario = await getEmpresasDoUsuario(usuario.idusuario);
+      const empresasIguais = arraysIguais(empresas, empresasDoUsuario);
+
+      
 
       const camposIguais =
         nome === usuario.nome &&
         sobrenome === usuario.sobrenome &&
         email === usuario.email &&
         usuario.ativo === req.body.ativo &&
-        !senha; // senha vazia significa que não foi alterada
+        !senha &&
+        empresasIguais; // senha vazia significa que não foi alterada
 
       if (camposIguais) {
         return res.status(200).json({ mensagem: 'Nenhuma alteração detectada no Usuário.' });
       }
+
+      const atualizacoes = [];
+      const valores = [];
+      let idx = 1;
 
       if (nome && nome !== usuario.nome) {
         atualizacoes.push(`nome = $${idx++}`);
@@ -84,6 +102,16 @@ async function cadastrarOuAtualizarUsuario(req, res) {
       const sql = `UPDATE usuarios SET ${atualizacoes.join(', ')} WHERE email = $${idx}`;
       await db.query(sql, valores);
 
+      // Atualizar empresas associadas se fornecido
+      if (Array.isArray(empresas)) {
+        // Remove todas associações antigas
+        await db.query('DELETE FROM usuarioempresas WHERE idusuario = $1', [usuario.idusuario]);
+        // Insere as novas associações
+        for (const idempresa of empresas) {
+          await db.query('INSERT INTO usuarioempresas (idusuario, idempresa) VALUES ($1, $2)', [usuario.idusuario, idempresa]);
+        }
+      }
+
       return res.status(200).json({ mensagem: 'Usuário atualizado com sucesso.' });
 
     } else {
@@ -103,6 +131,15 @@ async function cadastrarOuAtualizarUsuario(req, res) {
         VALUES ($1, $2, $3, $4, true)
       `, [nome, sobrenome, email, senhaHash, ativo]);
 
+      
+      const usuarioId = result.rows[0].idusuario;
+
+      if (Array.isArray(empresas)) {
+        for (const idempresa of empresas) {
+          await db.query(`INSERT INTO usuarioempresas (idusuario, idempresa) VALUES ($1, $2)`, [usuarioId, idempresa]);
+        }
+      }
+
       return res.status(201).json({ mensagem: 'Usuário cadastrado com sucesso.' });
     }
 
@@ -112,11 +149,31 @@ async function cadastrarOuAtualizarUsuario(req, res) {
   }
 }
 
-  
-  async function listarUsuarios(req, res) {
+// função auxiliar para buscar empresas do usuário do BD
+async function getEmpresasDoUsuario(idusuario) {
+  const { rows } = await db.query('SELECT idempresa FROM usuarioempresas WHERE idusuario = $1', [idusuario]);
+  return rows.map(row => row.idempresa);
+}
+
+async function listarUsuarios(req, res) {
     try {
       console.log("listarUsuarios AuthController", req );
-      const { rows } = await db.query('SELECT idusuario, nome, sobrenome, email, senha_hash, ativo FROM usuarios ORDER BY nome');
+      // const { rows } = await db.query('SELECT idusuario, nome, sobrenome, email, senha_hash, ativo FROM usuarios ORDER BY nome');
+      // res.status(200).json(rows);
+      const { rows } = await db.query(`
+        SELECT u.idusuario, u.nome, u.sobrenome, u.email, u.ativo,
+          COALESCE(
+            json_agg(
+              json_build_object('idempresa', e.idempresa, 'nome', e.nome)
+            ) FILTER (WHERE e.idempresa IS NOT NULL),
+            '[]'
+          ) AS empresas
+        FROM usuarios u
+        LEFT JOIN usuarioempresas ue ON u.idusuario = ue.idusuario
+        LEFT JOIN empresas e ON ue.idempresa = e.idempresa
+        GROUP BY u.idusuario
+        ORDER BY u.nome
+      `);
       res.status(200).json(rows);
     } catch (erro) {
       console.error('Erro ao listar usuários:', erro);
@@ -194,54 +251,107 @@ async function verificarNomeCompleto(req, res) {
 
 
 // Login de usuário
+// async function login(req, res) {
+//   const { email, senha } = req.body;
+
+//   try {
+//     const { rows } = await db.query(
+//       'SELECT * FROM usuarios WHERE email = $1',
+//       [email]
+//     );
+//     const usuario = rows[0];
+//     if (!usuario) return res.status(401).json({ erro: 'Usuário não encontrado.' });
+
+//     const senhaCorreta = await bcrypt.compare(senha, usuario.senha_hash);
+//     if (!senhaCorreta) return res.status(401).json({ erro: 'Senha inválida.' });
+
+//     // 🔍 Buscar permissões do usuário no banco
+//     const { rows: permissoesRaw } = await db.query(
+//       `
+//       SELECT
+//         modulo,
+//         acesso   AS pode_acessar,
+//         pesquisar AS pode_pesquisar,
+//         cadastrar AS pode_cadastrar,
+//         alterar   AS pode_alterar
+//       FROM permissoes
+//       WHERE idusuario = $1
+//       `,
+//       [usuario.idusuario]
+//     );
+
+//     // 📦 Gerar token com permissões no payload
+//     const token = jwt.sign(
+//       {
+//         id: usuario.idusuario,
+//         nome: usuario.nome,
+//         permissoes: permissoesRaw
+//       },
+//       process.env.JWT_SECRET,
+//       { expiresIn: '8h' }
+//     );
+
+//     const { rows: empresas } = await db.query(
+//       `SELECT e.idempresa, e.nome_fantasia FROM empresas e
+//       JOIN usuario_empresas ue ON e.idempresa = ue.idempresa
+//       WHERE ue.idusuario = $1`, 
+//       [usuario.idusuario]
+//     );
+
+//     // Retorna token, dados do usuário e permissões
+//     res.status(200).json({
+//       token,
+//       idusuario: usuario.idusuario,
+//       nome: usuario.nome,
+//       permissoes: permissoesRaw,
+//       empresas
+//     });
+
+//   } catch (error) {
+//     console.error('Erro ao fazer login:', error);
+//     res.status(500).json({ erro: 'Erro no login.' });
+//   }
+// }
+
+// Login
 async function login(req, res) {
   const { email, senha } = req.body;
 
   try {
-    const { rows } = await db.query(
-      'SELECT * FROM usuarios WHERE email = $1',
-      [email]
-    );
+    const { rows } = await db.query('SELECT * FROM usuarios WHERE email = $1', [email]);
     const usuario = rows[0];
+
     if (!usuario) return res.status(401).json({ erro: 'Usuário não encontrado.' });
 
     const senhaCorreta = await bcrypt.compare(senha, usuario.senha_hash);
     if (!senhaCorreta) return res.status(401).json({ erro: 'Senha inválida.' });
 
-    // 🔍 Buscar permissões do usuário no banco
     const { rows: permissoesRaw } = await db.query(
-      `
-      SELECT
-        modulo,
-        acesso   AS pode_acessar,
-        pesquisar AS pode_pesquisar,
-        cadastrar AS pode_cadastrar,
-        alterar   AS pode_alterar
-      FROM permissoes
-      WHERE idusuario = $1
-      `,
+      `SELECT modulo, acesso AS pode_acessar, pesquisar AS pode_pesquisar, cadastrar AS pode_cadastrar, alterar AS pode_alterar
+       FROM permissoes WHERE idusuario = $1`,
       [usuario.idusuario]
     );
 
-    // 📦 Gerar token com permissões no payload
     const token = jwt.sign(
-      {
-        id: usuario.idusuario,
-        nome: usuario.nome,
-        permissoes: permissoesRaw
-      },
+      { id: usuario.idusuario, nome: usuario.nome, permissoes: permissoesRaw },
       process.env.JWT_SECRET,
       { expiresIn: '8h' }
     );
 
-    // Retorna token, dados do usuário e permissões
+    const { rows: empresas } = await db.query(
+      `SELECT e.idempresa, e.nome FROM empresas e
+       JOIN usuarioempresas ue ON e.idempresa = ue.idempresa
+       WHERE ue.idusuario = $1`,
+      [usuario.idusuario]
+    );
+
     res.status(200).json({
       token,
       idusuario: usuario.idusuario,
       nome: usuario.nome,
-      permissoes: permissoesRaw
+      permissoes: permissoesRaw,
+      empresas
     });
-
   } catch (error) {
     console.error('Erro ao fazer login:', error);
     res.status(500).json({ erro: 'Erro no login.' });
@@ -250,6 +360,7 @@ async function login(req, res) {
 
 // → Nova função para listar permissões do usuário logado
 async function listarPermissoes(req, res) {
+  console.log("listarPermissoes AuthController", req.usuario);
   const idusuario = req.usuario.idusuario || req.usuario.id;
   try {
     const { rows } = await db.query(
@@ -310,5 +421,14 @@ async function buscarUsuarioPorEmail(req, res) {
 }
 
 
-
-module.exports = { cadastrarOuAtualizarUsuario, login, verificarUsuarioExistente, listarUsuarios, buscarUsuariosPorNome, buscarUsuarioPorEmail, listarPermissoes, verificarNomeExistente, verificarNomeCompleto };
+module.exports = {
+  verificarUsuarioExistente,
+  cadastrarOuAtualizarUsuario,
+  listarUsuarios,
+  buscarUsuariosPorNome,
+  verificarNomeExistente,
+  verificarNomeCompleto,
+  login,
+  listarPermissoes,
+  buscarUsuarioPorEmail
+};

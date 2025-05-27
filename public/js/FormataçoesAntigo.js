@@ -234,17 +234,33 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
 
- window.formatCelular = function (input) {
-    let value = input.value.replace(/\D/g, "");
-    if (value.length > 2 && value.length <= 6) {
+ window.formatTelefone = function (input) {
+    // let value = input.value.replace(/\D/g, "");
+    // if (value.length > 2 && value.length <= 6) {
+    //     input.value = `(${value.substring(0, 2)}) ${value.substring(2)}`;
+    // } else if (value.length > 6 && value.length <= 10) {
+    //     input.value = `(${value.substring(0, 2)}) ${value.substring(2, 6)}-${value.substring(6)}`;
+    // } else if (value.length > 10) {
+    //     input.value = `(${value.substring(0, 2)}) ${value.substring(2, 7)}-${value.substring(7, 11)}`;
+    // } else {
+    //     input.value = value;
+
+    let value = input.value.replace(/\D/g, ""); // Remove tudo que não for dígito
+
+    if (value.length <= 2) {
+        input.value = value;
+    } else if (value.length <= 6) {
         input.value = `(${value.substring(0, 2)}) ${value.substring(2)}`;
-    } else if (value.length > 6 && value.length <= 10) {
+    } else if (value.length === 10) {
+        // Telefone fixo
         input.value = `(${value.substring(0, 2)}) ${value.substring(2, 6)}-${value.substring(6)}`;
-    } else if (value.length > 10) {
+    } else if (value.length >= 11) {
+        // Celular
         input.value = `(${value.substring(0, 2)}) ${value.substring(2, 7)}-${value.substring(7, 11)}`;
     } else {
         input.value = value;
     }
+    // }
 };
 
 

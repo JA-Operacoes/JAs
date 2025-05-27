@@ -107,6 +107,8 @@ function configurarPreviewFoto() {
   });
 }
 
+
+
  async function configurarEventosFuncionarioss() {
     console.log("Configurando eventos Funcionarioss...");
     verificaFuncionarioss(); // Carrega os Funcionarioss ao abrir o modal
