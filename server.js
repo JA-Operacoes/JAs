@@ -9,27 +9,25 @@ const path = require("path");
 const app = express();
 const port = process.env.PORT || 3000;
 
-const contextoEmpresa = require('./middlewares/contextoEmpresaMiddleware');
-const { autenticarToken } = require('./middlewares/authMiddlewares');
+app.use(express.static(path.join(__dirname, 'public'))); // Para HTMLs, imagens etc.
+app.use('/js', express.static(path.join(__dirname, 'js'))); // Scripts externos
+app.use('/css', express.static(path.join(__dirname, 'css'))); // CSS externos
 
-// --- antes de app.use('/auth', authRoutes); e de todas as outras rotas:
-app.use(express.json());                 // lê JSON no corpo das requisições
-app.use(express.urlencoded({ extended: true })); // lê formulários URL-encoded
+// Middlewares
+//app.use(cors({ methods: ['GET', 'POST', 'PUT'], allowedHeaders: ['Content-Type'] }));
+const allowedOrigins = ['http://127.0.0.1:5500', 'http://127.0.0.1:5501'];
 
-const authRoutes = require('./routes/auth');
-app.use('/auth', authRoutes);
- 
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 
-// const cors = require("cors");
-
-// app.use(cors({
-//   origin: ["http://127.0.0.1:5501"],
-//   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-//   allowedHeaders: ['Content-Type'],
-//   credentials: true
-// }));
-
-// Middleware para parsear JSON
 app.use(express.json());
 
 // Serve todos os arquivos estáticos de "public" (HTML, JS, CSS, imagens)
