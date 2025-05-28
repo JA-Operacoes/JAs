@@ -237,7 +237,7 @@ input:focus ~ label,
 input:valid ~ label{
   top: 0;
   left: 25%;
-  font-size: 15px;
+  font-size: 12px;
   padding: 0 2px;
   background: #cacaca;
 }
@@ -429,6 +429,14 @@ button {
   display: flex;
   justify-content: center;  
   transition: 5%;
+}
+
+#btnEnviar:disabled {
+  background-color: #cccccc; /* Cinza claro */
+  color: #666666;            /* Texto mais escuro */
+  cursor: not-allowed;       /* Cursor de "proibido" */
+  border: 1px solid #999999;
+  opacity: 0.8;
 }
 
 button.Close {

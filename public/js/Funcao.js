@@ -1,11 +1,3 @@
-if (typeof Swal === "undefined") {
-    const script = document.createElement("script");
-    script.src = "https://cdn.jsdelivr.net/npm/sweetalert2@11";
-    script.onload = () => {
-        console.log("SweetAlert2 carregado com sucesso.");
-    };
-    document.head.appendChild(script);
-}
 
 if (typeof window.FuncaoOriginal === "undefined") {
     window.FuncaoOriginal = {
@@ -21,32 +13,7 @@ if (typeof window.FuncaoOriginal === "undefined") {
 function verificaFuncao() {
 
     console.log("Carregando Funcao...");
-    
-    document.querySelector("#descFuncao").addEventListener("blur", async function () {
-        const desc = this.value.trim();
-
-        console.log("Campo descFuncao procurado:", desc);
-    
-        if (desc === "") return;
-    
-        try {
-            if (!desc) {
-                console.warn("Valor do select está vazio ou indefinido.");
-                return;
-            }
-
-            console.log("Selecionado:", desc);
-
-            await carregarFuncaoDescricao(desc, this);
-            console.log("Função selecionado depois de carregarFuncaoDescricao:", this.value);
-         
-
-        } catch (error) {
-            console.error("Erro ao buscar Função:", error);
-        }
-
-    });
-
+       
     const botaoEnviar = document.querySelector("#Enviar");
     const botaoPesquisar = document.querySelector("#Pesquisar");
     const form = document.querySelector("#form");
@@ -59,7 +26,26 @@ function verificaFuncao() {
 
     botaoLimpar.addEventListener("click", function (event) {
         event.preventDefault(); // Previne o envio padrão do formulário 
+        const campo = document.getElementById("descFuncao");
 
+        if (campo && campo.tagName.toLowerCase() === "select") {
+            const input = document.createElement("input");
+            input.type = "text";
+            input.id = "descFuncao";
+            input.name = "descFuncao";
+            input.value = "Descrição da Função";
+            input.className = "form";
+            input.required = true;
+
+            campo.parentNode.replaceChild(input, campo);
+            adicionarEventoBlurFuncao();
+
+            const label = document.querySelector('label[for="descFuncao"]');
+            if (label) label.style.display = "block";
+
+            // Adiciona o evento blur ao novo input
+        
+        }
         limparCamposFuncao();
 
     });
@@ -78,7 +64,20 @@ function verificaFuncao() {
         const venda = parseFloat(String(vlrVenda).replace(",", "."));
         const ajcfuncao = parseFloat(String(vlrajdcusto).replace(",", "."));
 
-       
+       // Permissões
+        const temPermissaoCadastrar = temPermissao("Funcao", "cadastrar");
+        const temPermissaoAlterar = temPermissao("Funcao", "alterar");
+
+        const metodo = idFuncao ? "PUT" : "POST";
+
+        if (!idFuncao && !temPermissaoCadastrar) {
+            return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novas funções.", "error");
+        }
+
+        if (idFuncao && !temPermissaoAlterar) {
+            return Swal.fire("Acesso negado", "Você não tem permissão para alterar funções.", "error");
+        }
+ 
         if (!descFuncao || !vlrCusto || !vlrVenda) {
            
             Swal.fire({
@@ -112,6 +111,7 @@ function verificaFuncao() {
         }
     
         const dados = { descFuncao, custo, venda, ajcfuncao, obsfuncao };
+
      
         if (idFuncao) {
             Swal.fire({
@@ -127,7 +127,7 @@ function verificaFuncao() {
             }).then(async (result) => {
                 if (result.isConfirmed) {
                     try {
-                        const response = await fetch(`http://localhost:3000/funcao/${idFuncao}`, {
+                        const response = await fetchComToken(`/funcao/${idFuncao}`, {
                             method: "PUT",
                             headers: {
                                 "Content-Type": "application/json"
@@ -157,7 +157,7 @@ function verificaFuncao() {
         } else {
             // Se for novo, salva direto
             try {
-                const response = await fetch("http://localhost:3000/funcao", {
+                const response = await fetchComToken("/funcao", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
@@ -184,10 +184,19 @@ function verificaFuncao() {
     
     botaoPesquisar.addEventListener("click", async function (event) {
         event.preventDefault();
+        console.log("Pesquisando Funcao...");
+
         limparCamposFuncao();
         console.log("Pesquisando Funcao...");
+
+        const temPermissaoPesquisar = temPermissao('Funcao', 'pesquisar');
+        console.log("Tem permissão para pesquisar Função:", temPermissaoPesquisar);
+        if (!temPermissaoPesquisar) {
+            return Swal.fire("Acesso negado", "Você não tem permissão para pesquisar.", "warning");
+        }
+
         try {
-            const response = await fetch("http://localhost:3000/funcao"); // ajuste a rota conforme sua API
+            const response = await fetchComToken("/funcao"); // ajuste a rota conforme sua API
             if (!response.ok) throw new Error("Erro ao buscar funções");
     
             const funcoes = await response.json();
@@ -231,6 +240,7 @@ function verificaFuncao() {
                 });
 
                 this.parentNode.replaceChild(novoInput, this);
+                adicionarEventoBlurFuncao();
                
                 const label = document.querySelector('label[for="descFuncao"]');
                 if (label) {
@@ -287,9 +297,45 @@ function criarSelectFuncao(funcoes) {
     return select;
 }
 
+function adicionarEventoBlurFuncao() {
+    const input = document.querySelector("#descFuncao");
+    if (!input) return;
+
+    let ultimoClique = null;
+
+    // Captura o último elemento clicado no documento
+    document.addEventListener("mousedown", (e) => {
+        ultimoClique = e.target;
+    });
+    
+    input.addEventListener("blur", async function () {
+       
+        const botoesIgnorados = ["Limpar", "Pesquisar", "Enviar"];
+        const ehBotaoIgnorado =
+            ultimoClique?.id && botoesIgnorados.includes(ultimoClique.id) ||
+            ultimoClique?.classList.contains("close");
+
+        if (ehBotaoIgnorado) {
+            console.log("🔁 Blur ignorado: clique em botão de controle (Fechar/Limpar/Pesquisar).");
+            return;
+        }
+        const desc = this.value.trim();
+        console.log("Campo descFuncao procurado:", desc);
+
+        if (!desc) return;
+
+        try {
+            await carregarFuncaoDescricao(desc, this);
+            console.log("Função selecionada depois de carregarFuncaoDescricao:", this.value);
+        } catch (error) {
+            console.error("Erro ao buscar Função:", error);
+        }
+    });
+}
+
 async function carregarFuncaoDescricao(desc, elementoAtual) {
     try {
-        const response = await fetch(`http://localhost:3000/funcao?descFuncao=${encodeURIComponent(desc)}`);
+        const response = await fetchComToken(`/funcao?descFuncao=${encodeURIComponent(desc)}`);
         if (!response.ok) throw new Error();
            
         const funcao = await response.json();
@@ -312,22 +358,41 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
 
     } catch (error) {
         
-        if (!idFuncao.value) {
+        const inputIdFuncao = document.querySelector("#idFuncao");
+        const podeCadastrarFuncao = temPermissao("Funcao", "cadastrar");
+
+       if (!inputIdFuncao.value && podeCadastrarFuncao) {
     
             const resultado = await Swal.fire({
                 icon: 'question',
                 title: `Deseja cadastrar "${desc.toUpperCase()}" como nova Função?`,
                 text: `Função "${desc.toUpperCase()}" não encontrado`,
                 showCancelButton: true,
-                confirmButtonText: "Sim, salvar",
+                confirmButtonText: "Sim, cadastrar",
                 cancelButtonText: "Cancelar",
                 reverseButtons: true,
                 focusCancel: true
-                });
+            });
 
                 console.log("Resultado do Swal:", resultado);
+            if (!resultado.isConfirmed) {
+                console.log("Usuário cancelou o cadastro da Função.");
+                elementoAtual.value = ""; // Limpa o campo se não for cadastrar
+                setTimeout(() => {
+                    elementoAtual.focus();
+                }, 0);
+                return;
+            }
         
+        }else if (!podeCadastrarFuncao) {
+            Swal.fire({
+                icon: "info",
+                title: "Função não cadastrada",
+                text: "Você não tem permissão para cadastrar função.",
+                confirmButtonText: "OK"
+            });
         }
+        
     }
 }
 
@@ -343,8 +408,6 @@ function limparFuncaoOriginal() {
     };
 }
 
-
-
 function limparCamposFuncao() {
     const campos = ["idFuncao", "descFuncao","Custo", "Venda", "ajdCusto", "ObsAjc" ];
     campos.forEach(id => {
@@ -354,11 +417,49 @@ function limparCamposFuncao() {
     
 }
 
+function fetchComToken(url, options = {}) {
+  const token = localStorage.getItem("token");
+  const idempresa = localStorage.getItem("idempresa");
+  if (!token) {
+    throw new Error("fetchComToken: nenhum token encontrado. Faça login primeiro.");
+  }
+
+  if (!idempresa) {
+    throw new Error("fetchComToken: nenhum idempresa encontrado. Selecione uma empresa.");
+  }
+  // Monta os headers sempre incluindo Authorization
+  const headers = {
+    "Authorization": `Bearer ${token}`,
+    "idempresa": options.headers?.idempresa || idempresa,
+    // só coloca Content-Type se houver body (POST/PUT)
+    ...(options.body ? { "Content-Type": "application/json" } : {}),
+    ...options.headers
+  };
+
+  return fetch(url, {
+    ...options,
+    headers,
+    // caso seu back-end esteja em outro host e precisa de CORS:
+    mode: "cors",
+    // se precisar enviar cookies de sessão:
+    credentials: "include"
+  });
+}
+
 function configurarEventosFuncao() {
     console.log("Configurando eventos Funcao...");
     verificaFuncao(); // Carrega os Funcao ao abrir o modal
+    adicionarEventoBlurFuncao();
     console.log("Entrou configurar Funcao no FUNCAO.js.");
     
 
 } 
 window.configurarEventosFuncao = configurarEventosFuncao;
+
+function configurarEventosEspecificos(modulo) {
+  console.log("⚙️ configurarEventosEspecificos recebeu:", modulo);
+  if (modulo.trim().toLowerCase() === 'funcao') {
+    configurarEventosFuncao();
+  }
+}
+window.configurarEventosEspecificos = configurarEventosEspecificos;

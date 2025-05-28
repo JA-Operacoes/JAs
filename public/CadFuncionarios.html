@@ -29,7 +29,7 @@
         <form  id="funcionarios" name="form" autocomplete="off">
           
             <div class="form">
-              <input type="text" name="idFuncionarios" id="idFuncionarios" required spellcheck="false">
+              <input type="text" name="idFuncionarios" id="idFuncionarios" readonly required  spellcheck="false">
               <label for ="idFuncionarios">#Codigo</label>
             </div>
 
@@ -100,11 +100,11 @@
               <legend> Informaçoes para contato</legend>
               <div class="form-2colunas">
                 <div class="form2">
-                  <input type="tel" name="celContato" id="celContato" maxlength="15" oninput="formatCelular(this)" required>
+                  <input type="tel" name="celContato" id="celContato" maxlength="15" oninput="formatTelefone(this)" required>
                   <label for="celContato">Celular Pessoal</label>
                 </div>
                 <div class="form2">
-                  <input type="tel" name="celContato " id="celContato"  maxlength="15" oninput="formatCelular(this)" required>
+                  <input type="tel" name="celContato " id="celContato"  maxlength="15" oninput="formatTelefone(this)" required>
                   <label for="celContato">Celular para contato familiar </label>
                 </div>
               </div>
@@ -165,16 +165,16 @@
       </div>
 
           <div class="BTNs">
-            <button class="Pesquisar" type="submit">Pesquisar</button>
-            <button class="Limpar" type="submit">Limpar</button>
-            <button class="Enviar" type="submit">Enviar</button>
+            <button class="btnPesquisar" type="submit">Pesquisar</button>
+            <button class="btnLimpar" type="submit">Limpar</button>
+            <button class="btnEnviar" type="submit">Enviar</button>
           </div> 
           
         </form>
   </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="https://cdn.jsdelivr.net/npm/imask" defer></script>
-<script src="js/Funcionarios.js"></script>
+<!-- <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/imask" defer></script>
+  <script src="js/Funcionarios.js" defer></script> -->
 </body>
 </html>

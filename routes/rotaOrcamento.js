@@ -1,36 +1,63 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db'); // instância do pool do PostgreSQL
+const pool = require("../db/conexaoDB");
+const { autenticarToken } = require('../middlewares/authMiddlewares');
+const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 
-// GET - Buscar todos os orçamentos
-router.get('/orcamentos1', async (req, res) => {
+// Aplica autenticação em todas as rotas
+router.use(autenticarToken);
+
+// GET todas ou por id
+router.get("/", autenticarToken, verificarPermissao('Orcamentos', 'pesquisar'), async (req, res) => {
+  const { idOrcamento } = req.query;
+
+  try {
+    if (idOrcamento) {
+      const result = await pool.query(
+        "SELECT * FROM orcamentos WHERE id = $1 LIMIT 1",
+        [idOrcamento]
+      );
+      return result.rows.length
+        ? res.json(result.rows[0])
+        : res.status(404).json({ message: "Orçamento não encontrado" });
+    } else {
+      const result = await pool.query("SELECT * FROM orcamentos");
+      return result.rows.length
+        ? res.json(result.rows)
+        : res.status(404).json({ message: "Nenhum orçamento encontrado" });
+    }
+  } catch (error) {
+    console.error("Erro ao buscar orçamento:", error);
+    res.status(500).json({ message: "Erro ao buscar orçamento" });
+  }
+});
+
+// GET /orcamento/clientes
+router.get('/clientes',  async (req, res) => {
+    const permissoes = req.usuario?.permissoes;
+
+    const temPermissaoOrcamento = permissoes?.some(p =>
+        p.modulo === 'orcamentos' && (p.acessar || p.pesquisar)
+    );
+
+    if (!temPermissaoOrcamento) {
+        return res.status(403).json({ erro: "Sem permissão ao módulo Orçamentos." });
+    }
+
     try {
-        const result = await pool.query('SELECT * FROM orcamentos1');
-        res.json(result.rows);
-    } catch (err) {
-        console.error('Erro ao buscar orçamentos:', err);
-        res.status(500).json({ error: 'Erro ao buscar orçamentos' });
+        const resultado = await pool.query('SELECT idcliente, nmfantasia FROM clientes ORDER BY nmfantasia');
+        res.json(resultado.rows);
+    } catch (erro) {
+        console.error("Erro ao buscar clientes para orçamento:", erro);
+        res.status(500).json({ erro: "Erro interno ao buscar clientes." });
     }
 });
 
-// POST - Criar um novo orçamento
-router.post('/orcamentos1', async (req, res) => {
-    const {
-        cliente,
-        evento,
-        local,
-        data_inicio,
-        data_fim,
-        montagem_infra,
-        periodo_marcacao,
-        periodo_montagem,
-        periodo_realizacao,
-        periodo_desmontagem,
-        desmontagem_infra,
-        itens
-    } = req.body;
 
-    const client = await pool.connect();
+// POST criar novo orçamento com itens
+router.post("/", autenticarToken, verificarPermissao('Orcamentos', 'cadastrar'), async (req, res) => {
+  const client = await pool.connect();
+  const dados = req.body;
 
     try {
         await client.query('BEGIN');

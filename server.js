@@ -4,34 +4,41 @@
 
 require("dotenv").config();
 const express = require("express");
-const cors = require("cors");
 const path = require("path");
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(express.static(path.join(__dirname, 'public'))); // Para HTMLs, imagens etc.
-app.use('/js', express.static(path.join(__dirname, 'js'))); // Scripts externos
-app.use('/css', express.static(path.join(__dirname, 'css'))); // CSS externos
+const contextoEmpresa = require('./middlewares/contextoEmpresaMiddleware');
+const { autenticarToken } = require('./middlewares/authMiddlewares');
 
-// Middlewares
-//app.use(cors({ methods: ['GET', 'POST', 'PUT'], allowedHeaders: ['Content-Type'] }));
-const allowedOrigins = ['http://127.0.0.1:5500', 'http://127.0.0.1:5501','http://127.0.0.1:3000'];
+// --- antes de app.use('/auth', authRoutes); e de todas as outras rotas:
+app.use(express.json());                 // lê JSON no corpo das requisições
+app.use(express.urlencoded({ extended: true })); // lê formulários URL-encoded
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
-}));
+const authRoutes = require('./routes/auth');
+app.use('/auth', authRoutes);
+ 
 
+// const cors = require("cors");
+
+// app.use(cors({
+//   origin: ["http://127.0.0.1:5501"],
+//   methods: ['GET', 'POST', 'PUT', 'DELETE'],
+//   allowedHeaders: ['Content-Type'],
+//   credentials: true
+// }));
+
+// Middleware para parsear JSON
 app.use(express.json());
-app.use('/js', express.static(path.join(__dirname, 'js')));
 
+// Serve todos os arquivos estáticos de "public" (HTML, JS, CSS, imagens)
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Middleware para definir o contexto da empresa
+// Middleware para autenticação de token
+app.use(autenticarToken);
+app.use(contextoEmpresa); 
 
 // Rotas
 app.use("/funcao", require("./routes/rotaFuncao"));
@@ -44,14 +51,17 @@ app.use("/funcionarios", require("./routes/rotaFuncionario"));
 app.use("/profissional", require("./routes/rotaProfissional"));
 app.use("/localmontagem", require("./routes/rotaLocalMontagem"));
 
-app.use("/enviar-pdf", require("./routes/rotaEnviarPdf")); // ia servir para salvar o orçamento, mas imagino que foi feito errado 
-
 app.use("/auth", require("./routes/auth")); // Rota para login e cadastro de usuários
 app.use("/permissoes", require("./routes/rotaPermissoes")); //Rota permissoes usuários
 
-// Start
+// Redireciona / para login.html (opcional)
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+// Inicia o servidor
 app.listen(port, () => {
-  console.log(`Servidor rodando em http://localhost:${port}`);
+  console.log(`✅ Servidor rodando em http://localhost:${port}`);
 });
 
 

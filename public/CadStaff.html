@@ -27,63 +27,71 @@
   
               <form action ="https://script.google.com/macros/s/AKfycbzkIqPo8IvThfgU7b83ZloedRaEwq0G8_RrVA4MD8WYyl_qa_QSCr3qj5pvsmCZwXqf/exec" id="form" name="form" autocomplete="off">
   
-                    <div class ="form">
-                      <input type="text" name="ID" id = "ID"  required>
-                      <label for = "ID">ID Staff</label>
-                    </div>
+                <div class ="form">
+                  <input type="text" name="idStaff" id = "idStaff"  required readonly>
+                  <label for = "ID">ID Staff</label>
+                </div>
                 <fieldset>
-                  <legend>Informaçoes do Funcionario </legend>
+                  <legend>Informações do Funcionário </legend>
                   <div class="form-2colunas">
                       <div class ="form2">
-                        <input type="text" name="Nome" id="Nome"  required autocomplete="on">
-                          <label for = "Nome"> Funcionario </label>
-                        </div>
-                        <div class="form2">
+                        <input type="text" name="nmFuncionario" id="nmFuncionario"  required autocomplete="on">
+                          <label for = "nmFuncionario"> Funcionário </label>
+                      </div>
+                      <div class="form2">
                           <input type="text" name="descFuncao" id="descFuncao"  required>
                           <label for="codFuncao">Função</label>
-                        </div>
+                      </div>
                   </div>
                   <div class="form-2colunas">
-                    <div class="form2">
-                      <input type="text" name="Beneficios" id="Beneficios"  required>
-                      <label for="Beneficios">Beneficios</label>
+                    <div class="form2">                   
+                      <input type="text" name="vlrCusto" id="vlrCusto" required>
+                      <label for="vlrCusto">Custo</label>
                     </div>
                     <div class="form2">
-                      <textarea name="DescriçãoBeneficios" id="DescriçãoBeneficios">Descreva os Beneficios</textarea>
+                      <input type="text" name="vlrBeneficio" id="vlrBeneficio" required>
+                      <label for="vlrBeneficio">Benefícios</label>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="form2"> 
+                      <textarea name="descBeneficio" id="descBeneficio">Descreva os Beneficios</textarea>
                     </div>
                   </div>
                 </fieldset>
   
-                    <fieldset>
-                      <legend> Cliente e Evento</legend>
-                      <div class="form-2colunas">
-                        <div class="form2">
-                          <input type="text" name="Clientes" id="Clientes" required>
-                          <label for="Clientes">Cliente</label>
-                        </div>
-                      
-                        <div class="form2">
-                          <input type="text" name="Evento" id="Evento"  required>
-                        <label for="Evento"> Evento </label>
-                        </div>
-                      </div>
-                        
-                      <div class="form-2colunas">
-                     
-                      <div class="form2"> 
-                        <h3>Periodo do Evento: </h3>
-                        <p>De:</p><input type="date" name="Data" id="Data"  required>
-                      </div>
-                      <div class="form2">
-                        <p>Até:</p><input type="date" name="Data" id="Data"  required>
-                      </div>
+                <fieldset>
+                  <legend> Cliente e Evento</legend>
+                  <div class="form-2colunas">
+                    <div class="form2">
+                      <input type="text" name="nmCliente" id="nmCliente" required>
+                      <label for="nmCliente">Cliente</label>
                     </div>
-                    </fieldset>
-  
-                
+                  
+                    <div class="form2">
+                      <input type="text" name="nmEvento" id="nmEvento"  required>
+                      <label for="Evento"> Evento </label>
+                    </div>
+                  </div>
                     
-
-                
+                  <div class="form-2colunas">
+                  
+                    <div class="form2"> 
+                      <h3>Periodo do Evento: </h3>
+                      <p>De:</p><input type="date" name="dtInicio" id="dtInicio"  required>
+                    </div>
+                    <div class="form2">
+                      <p>Até:</p><input type="date" name="dtFim" id="dtFim"  required>
+                    </div>
+                  </div>
+                  <div class="form-2colunas">
+                    <div class="form2">
+                      <input type="text" name="vlrTotal" id="vlrTotal"  required>
+                      <label for="vlrTotal"> Valor Total </label>
+                    </div>
+                  </div>
+                </fieldset>
+            
   
                 <div class="Files"> 
                   <div class="Corpo"> 
@@ -100,9 +108,9 @@
               </div>
               
                 <div class="BTNs">
-                      <button class="Pesquisar" type="submit">Pesquisar</button>
-                      <button class="Limpar" type="submit">Limpar</button>
-                      <button class="Enviar" type="submit">Enviar</button>
+                      <button class="btnPesquisar" type="button">Pesquisar</button>
+                      <button class="btnLimpar" type="button">Limpar</button>
+                      <button class="btnEnviar" type="button">Enviar</button>
                   </div>
                 </form>
 

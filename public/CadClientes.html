@@ -4,12 +4,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
   <link rel="stylesheet" href="css/Modal/CadClientes.css">
   <link rel="stylesheet" href="css/Roots/Roots.css">
   <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  
 
   <title>Modal</title>
 
@@ -29,14 +31,6 @@
         </div>
 
         <form id="form" name="form" autocomplete="off">
-
-          <!-- <div class="form-2colunas" id="campoPesquisa" style="display: none;">
-          <div class="buscar">
-            <input type="text" name="idCliente" id="idCliente" spellcheck="false">
-            <label for ="idCliente">#Codigo</label>
-          </div>
-          <div class="buscarbtn"><button id="buscar">Buscar</button></div>
-          </div> -->
 
           <fieldset>
             <legend>Informações do Cliente</legend>
@@ -79,7 +73,7 @@
                 <label for="site"> Site </label>
               </div>
               <div class="form2">
-                <input type="tel" name="telefone" id="telefone" required>
+                <input type="tel" name="telefone" id="telefone" maxlength="15" oninput="formatTelefone(this)" required>
                 <label for="tel"> Telefone </label>
               </div>
             </div>
@@ -108,7 +102,7 @@
 
               <div class="form2">
                 <input type="text" style="text-transform: uppercase;" name="idCliente" id="idCliente" placeholder=" "
-                  spellcheck="false" />
+                  spellcheck="false" readonly />
                 <label for="idCliente">Código</label>
               </div>
             </div>
@@ -124,7 +118,7 @@
                 <label for="nmContato"> Nome Contato </label>
               </div>
               <div class="form2">
-                <input type="tel" name="celContato" id="celContato" maxlength="15" oninput="formatCelular(this)"
+                <input type="tel" name="celContato" id="celContato" maxlength="15" oninput="formatTelefone(this)"
                   required>
                 <label for="celContato">Celular para contato </label>
               </div>
@@ -198,9 +192,9 @@
     </div>
   </div>
   </div>
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="https://cdn.jsdelivr.net/npm/imask" defer></script>
-  <script src="js/permissoes.js"></script>
+  
+  <!-- <script src="js/permissoes.js"></script> -->
+  <!-- <script src="js/Index.js"></script> -->
 </body>
 
 </html>

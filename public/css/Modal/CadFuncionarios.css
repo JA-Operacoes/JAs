@@ -266,7 +266,7 @@ display: none;
     width: 350px;
     height: 30px;
     border-radius: 6px;
-    font-size: 13px;
+    font-size: 12px;
     padding: 0 15px;
     border: 1px solid #000000;
     background: transparent;
@@ -279,7 +279,7 @@ display: none;
     width: 270px;
     height: 30px;
     border-radius: 6px;
-    font-size: 13px;
+    font-size: 12px;
     padding: 0 15px;
     border: 1px solid #000000;
     background: transparent;
@@ -302,7 +302,7 @@ display: none;
   input:valid ~ label{
     top: 0;
     left: 25%;
-    font-size: 16px;
+    font-size: 12px;
     padding: 0 2px;
     background: #cacaca;
   }

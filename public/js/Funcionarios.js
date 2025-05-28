@@ -19,15 +19,15 @@ async function salvarFuncionario(dados) {
       reverseButtons: true,
       focusCancel: true
     }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          const response = await fetch(`http://localhost:3000/funcionarios/${idFuncionarios}`, {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify(dados)
-          });
+        if (result.isConfirmed) {
+            try {
+                const response = await fetch(`/funcionarios/${idFuncionarios}`, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(dados)
+                });
 
           const resultJson = await response.json();
 
@@ -48,13 +48,13 @@ async function salvarFuncionario(dados) {
   } else {
     // Se for novo, salva direto
     try {
-      const response = await fetch("http://localhost:3000/funcionarios", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(dados)
-      });
+        const response = await fetch("/funcionarios", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(dados)
+        });
 
       const resultJson = await response.json();
 
@@ -119,15 +119,14 @@ function configurarPreviewFoto() {
       hiddenInput.value = e.target.result;
     };
     reader.readAsDataURL(file);
-    console.log("nome do file :", file);
   });
 }
 
-document.addEventListener('click', function (event) {
-  // Verifica se clicou no input file do modal
-  const inputFile = document.getElementById('file');
 
-  if (event.target === inputFile && !inputFile.dataset.previewSet) {
+
+ async function configurarEventosFuncionarioss() {
+    console.log("Configurando eventos Funcionarioss...");
+    verificaFuncionarioss(); // Carrega os Funcionarioss ao abrir o modal
     configurarPreviewFoto();
     inputFile.dataset.previewSet = "true"; // Evita configurar mais de uma vez
   }

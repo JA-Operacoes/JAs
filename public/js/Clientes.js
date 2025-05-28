@@ -1,13 +1,4 @@
 
-if (typeof Swal === "undefined") {
-    const script = document.createElement("script");
-    script.src = "https://cdn.jsdelivr.net/npm/sweetalert2@11";
-    script.onload = () => {
-        console.log("SweetAlert2 carregado com sucesso.");
-    };
-    document.head.appendChild(script);
-}
-
 if (typeof window.clienteOriginal === "undefined") {
     window.clienteOriginal = {
         idCliente: "",
@@ -35,7 +26,9 @@ if (typeof window.clienteOriginal === "undefined") {
 }
 
 
+
 let maskCNPJ, maskTelefone, maskCelContato, maskCEP;
+
 
 function aplicarMascaras() {
     console.log("Aplicando máscaras aos campos de entrada...");
@@ -44,7 +37,17 @@ function aplicarMascaras() {
     });
 
     maskTelefone = IMask(document.querySelector("#telefone"), {
-        mask: "(00) 0000-0000" // ou "(00) 00000-0000" dependendo do padrão
+        mask: [
+        {
+            mask: "(00) 0000-0000", // Fixo: 10 dígitos
+          
+        },
+        {
+            mask: "(00) 00000-0000", // Celular: 11 dígitos
+            
+        }]
+    
+  
     });
 
     maskCelContato = IMask(document.querySelector("#celContato"), {
@@ -57,43 +60,7 @@ function aplicarMascaras() {
     
 
 }
-
-function carregarClientes() {
-    console.log("Configurando eventos para o modal de clientes");
-    
-    
-    aplicarMascaras();  
-
-
-    const tpClienteInput = document.getElementById('tpcliente');
-    if(tpClienteInput){
-        tpClienteInput.addEventListener('input', function(event) {
-            const valor = event.target.value;
-            const permitido = /^[jJfF]$/.test(valor); // Usa regex para verificar
-
-            if (!permitido) {
-                event.target.value = ''; // Limpa o campo se a entrada for inválida
-                Swal.fire({
-                    title: 'Entrada Inválida',
-                    text: 'Por favor, digite apenas "J" ou "F"',
-                    icon: 'warning',
-                    confirmButtonText: 'Ok'
-                });
-            }
-        });
-    }
-    //pesquisar cliente pelo nome fantasia
-    const form = document.querySelector("#form");
-    const botaoEnviar = document.querySelector("#Enviar");
-    const btnLimpar = document.getElementById("Limpar");
-    const btnPesquisar = document.getElementById("btnPesquisar");
-
-    if (!form || !botaoEnviar) {
-        console.error("Formulário ou botão Enviar não encontrado.");
-        return;
-    }
-
-    const campos = {
+const campos = {
         idCliente: "#idCliente",
         nmFantasia: "#nmFantasia",
         razaoSocial: "#razaoSocial",
@@ -117,7 +84,8 @@ function carregarClientes() {
         ativo: "#ativo",
         tpcliente: "#tpcliente"
     };
-    const getCampo = (key) => document.querySelector(campos[key]);
+
+const getCampo = (key) => document.querySelector(campos[key]);
     const setCampo = (key, value) => {
         const campo = getCampo(key);
         if (campo) {
@@ -129,7 +97,7 @@ function carregarClientes() {
         }
     };
 
-    const preencherFormulario = (cliente) => {
+     const preencherFormulario = (cliente) => {
         Object.entries(campos).forEach(([key]) => {
             if (key === "telefone") maskTelefone.value = cliente.telefone || '';
             else if (key === "cnpj") maskCNPJ.value = cliente.cnpj || '';
@@ -175,6 +143,8 @@ function carregarClientes() {
         form.reset();
         document.querySelector("#idCliente").value = "";
         if (typeof limparClienteOriginal === "function") limparClienteOriginal();
+       
+        
     };
 
     const obterDadosFormulario = () => {
@@ -206,138 +176,164 @@ function carregarClientes() {
         };
     };
 
+
+function carregarClientes() {
+    console.log("Configurando eventos para o modal de clientes");
     
-    // Event: Buscar cliente ao perder foco no nome fantasia
-   
-        
+    
+    aplicarMascaras();  
 
 
-    getCampo("nmFantasia").addEventListener("blur", async function () {
-        const nmFantasia = this.value.trim();
-        if (!nmFantasia) return;
+    const tpClienteInput = document.getElementById('tpcliente');
+    if(tpClienteInput){
+        tpClienteInput.addEventListener('input', function(event) {
+            const valor = event.target.value;
+            const permitido = /^[jJfF]$/.test(valor); // Usa regex para verificar
 
-        try {
-            const response = await fetch(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
-            if (!response.ok) throw new Error("Cliente não encontrado");
-
-            const cliente = await response.json();
-            console.log("Cliente encontrado:", cliente);
-            if (!cliente || Object.keys(cliente).length === 0) throw new Error("Dados de cliente vazios");
-
-            preencherFormulario(cliente);
-            console.log("Cliente carregado:", cliente);
-            
-
-
-        } catch (error) {
-            console.log("Erro ao buscar cliente:", nmFantasia, idCliente.value, error);
-            if (!idCliente.value) {
-                const { isConfirmed } = await Swal.fire({
-                    icon: 'question',
-                    title: `Deseja cadastrar "${nmFantasia.toUpperCase()}" como novo Cliente?`,
-                    text: `Cliente "${nmFantasia.toUpperCase()}" não encontrado`,
-                    showCancelButton: true,
-                    confirmButtonText: 'Sim, cadastrar',
-                    cancelButtonText: 'Cancelar'
+            if (!permitido) {
+                event.target.value = ''; // Limpa o campo se a entrada for inválida
+                Swal.fire({
+                    title: 'Entrada Inválida',
+                    text: 'Por favor, digite apenas "J" ou "F"',
+                    icon: 'warning',
+                    confirmButtonText: 'Ok'
                 });
-            
-                // Se o usuário cancelar, limpa o campo para evitar submit indevido
-                if (!isConfirmed) {
-                    //this.value = "";
-                    return;
-                }
             }
-        
-        }
-    });
+        });
+    }
+    //pesquisar cliente pelo nome fantasia
+    const form = document.querySelector("#form");
+    const btnEnviar = document.querySelector("#Enviar");
+    const btnLimpar = document.getElementById("Limpar");
+    const btnPesquisar = document.getElementById("Pesquisar");
+    
 
-    // Event: Enviar formulário
-    botaoEnviar.addEventListener("click", async (e) => {
-        e.preventDefault();
-      
+    if (!form || !btnEnviar) {
+        console.error("Formulário ou botão Enviar não encontrado.");
+        return;
+    }
+
+   
+    btnEnviar.addEventListener("click", async (e) => {
+    e.preventDefault();
+        console.log("Entrou no botão Enviar");
         const dados = obterDadosFormulario();
         const valorIdCliente = document.querySelector("#idCliente").value.trim();
-      
-        console.log("Verificação clientes:", dados, window.clienteOriginal);
-        // validações
-        if (!dados.nmFantasia || !dados.razaoSocial || !dados.cnpj) {
-          return Swal.fire("Atenção!", "Preencha Fantasia, Razão e CNPJ.", "warning");
-        }
-        if (!houveAlteracao(dados)) {
-          return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
-        }
-      
-        // escolhe método e URL
+
+        const temPermissaoCadastrar = temPermissao("Clientes", "cadastrar");
+        const temPermissaoAlterar = temPermissao("Clientes", "alterar");
+
         const metodo = valorIdCliente ? "PUT" : "POST";
+
+        // Bloqueia tentativa de cadastro se não tem permissão
+        if (!valorIdCliente && !temPermissaoCadastrar) {
+            return Swal.fire({
+                    icon: "info",
+                    title: "Cliente não cadastrado",
+                    text: "Você não tem permissão para cadastrar Clientes.",
+                    confirmButtonText: "OK"
+                });
+        }
+
+        // Bloqueia tentativa de edição se não tem permissão
+        if (valorIdCliente && !temPermissaoAlterar) {
+            return wal.fire({
+                    icon: "info",
+                    title: "Acesso negado",
+                    text: "Você não tem permissão para alterar Clientes.",
+                    confirmButtonText: "OK"
+                });
+        }
+
+        // Valida campos obrigatórios
+        if (!dados.nmFantasia || !dados.razaoSocial || !dados.cnpj) {
+            return Swal.fire("Atenção!", "Preencha Fantasia, Razão e CNPJ.", "warning");
+        }
+
+        // Valida alterações
+        if (!houveAlteracao(dados)) {
+            return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
+        }
+
         const url = valorIdCliente
-          ? `http://localhost:3000/clientes/${valorIdCliente}`
-          : "http://localhost:3000/clientes";
-      
+            ? `/clientes/${valorIdCliente}`
+            : "/clientes";
+
         try {
-          // se for PUT, pede confirmação
             if (metodo === "PUT") {
                 const { isConfirmed } = await Swal.fire({
-                title: "Deseja salvar as alterações?",
-                text: "Você está prestes a atualizar os dados da função.",
-                icon: "question",
-                showCancelButton: true,
-                confirmButtonText: "Sim, salvar",
-                cancelButtonText: "Cancelar",
-                reverseButtons: true,
-                focusCancel: true
+                    title: "Deseja salvar as alterações?",
+                    text: "Você está prestes a atualizar os dados do cliente.",
+                    icon: "question",
+                    showCancelButton: true,
+                    confirmButtonText: "Sim, salvar",
+                    cancelButtonText: "Cancelar",
+                    reverseButtons: true,
+                    focusCancel: true
                 });
                 if (!isConfirmed) return;
             }
-        
-      
-          const res = await fetch(url, {
-            method: metodo,
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(dados)
-          });
 
-          console.log("Response do servidor:", res, dados);
-        //   const json = await res.json();
-      
-        //   if (!res.ok) throw new Error(json.erro || json.message || "Erro ao salvar cliente");
-      
-        //   await Swal.fire("Sucesso!", json.message || "Cliente salvo com sucesso.", "success");
-        const texto = await res.text();
-        console.log("Resposta bruta do servidor:", texto);
-        
-        let json;
-        try {
-          json = JSON.parse(texto);
-        } catch (e) {
-          throw new Error("Resposta não é um JSON válido: " + texto);
-        }
-        
-        if (!res.ok) throw new Error(json.erro || json.message || "Erro ao salvar cliente");
-        await Swal.fire("Sucesso!", json.message || "Cliente salvo com sucesso.", "success");
-        limparFormulario();
-      
-        
+            const res = await fetchComToken(url, {
+                method: metodo,
+                body: JSON.stringify(dados)
+            });
+
+            const texto = await res.text();
+            let json;
+            try {
+                json = JSON.parse(texto);
+            } catch (e) {
+                throw new Error("Resposta não é um JSON válido: " + texto);
+            }
+
+            if (!res.ok) throw new Error(json.erro || json.message || "Erro ao salvar cliente");
+
+            await Swal.fire("Sucesso!", json.message || "Cliente salvo com sucesso.", "success");
+            limparFormulario();
+
         } catch (error) {
-          console.error("Erro ao enviar dados:", error);
-          Swal.fire("Erro", error.message || "Erro ao salvar cliente.", "error");
+            console.error("Erro ao enviar dados:", error);
+            Swal.fire("Erro", error.message || "Erro ao salvar cliente.", "error");
         }
     });
-      
 
-    // Event: Limpar formulário
+
     if (btnLimpar) {
-        btnLimpar.addEventListener("click", limparFormulario);
+        btnLimpar.addEventListener("click", () => {
+            const campo = document.getElementById("nmFantasia");
+
+            if (campo && campo.tagName.toLowerCase() === "select") {
+                const input = document.createElement("input");
+                input.type = "text";
+                input.id = "nmFantasia";
+                input.name = "nmFantasia";
+                input.className = "form";
+                input.required = true;
+
+                campo.parentNode.replaceChild(input, campo);
+                adicionarEventoBlurCliente() 
+
+                const label = document.querySelector('label[for="nmFantasia"]');
+                if (label) label.style.display = "block";
+            }
+
+            limparFormulario(); // Se você quiser limpar o restante do formulário
+        });
     }
 
-    // Event: Pesquisar clientes
+
+       
     if (btnPesquisar) {
+        console.log("Entrou no botão pesquisar antes do click");
+        
         btnPesquisar.addEventListener("click", async (event) => {
             event.preventDefault();
-             console.log("ENTROU NO BOTÃO PESQUISAR");
+            console.log("ENTROU NO BOTÃO PESQUISAR DEPOIS DO CLICK");
 
             limparFormulario();
             try {
-                const response = await fetch("http://localhost:3000/Clientes");
+                const response = await fetchComToken("/clientes");
                 if (!response.ok) throw new Error("Erro ao buscar clientes");
 
                 const clientes = await response.json();
@@ -366,66 +362,25 @@ function carregarClientes() {
         });
     }
     
+ }
+
     
-}
-async function buscarClientePorNome() {
-    const nmFantasia = this.value.trim();
-    if (!nmFantasia) return;
-  
-    console.log("BUSCANDO cliente por nome fantasia no buscarClientePorNome:", nmFantasia);
-
-    try {
-      const res = await fetch(
-        `http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`
-      );
-      if (!res.ok) throw new Error("Cliente não encontrado");
-  
-      const cliente = await res.json();
-      // preenche o form
-      preencherFormularioCliente(cliente);
-      clienteExistente = true;
-  
-    } catch (err) {
-        if (!idCliente.value) {
-      
-            const resultado = Swal.fire({
-                icon: 'question',
-                title: `Deseja cadastrar "${nmFantasia.toUpperCase()}" como novo Cliente?`,
-                text: `Cliente "${nmFantasia.toUpperCase()}" não encontrado`,
-                showCancelButton: true,
-                confirmButtonText: 'Sim, cadastrar',
-                cancelButtonText: 'Cancelar'
-            });
-        
-        }
-    }
-  }
-
   /**
  * Retorna true se houver alguma diferença entre os dados atuais e clienteOriginal.
  * @param {Object} dados - objeto com as propriedades e valores do formulário.
  */
+
+  
 function houveAlteracao(dados) {
-    // Se não temos um clienteOriginal, assume que é novo => sempre houve alteração
-    console.log("Verificando alterações:", dados, window.clienteOriginal);
     if (!window.clienteOriginal) return true;
-  
+
     return Object.keys(dados).some(key => {
-       const atual = dados[key]?.toString()   || "";
-       const original = (clienteOriginal[key]?.toString()) || "";
-    
-    //   const atual = dados[key]?.toString()?.toUpperCase() || "";
-    //   const original = window.clienteOriginal[key.toLowerCase()]?.toString()?.toUpperCase() || "";
-
-      if (atual !== original) {
-        console.log(`Campo alterado: ${key} | Original: ${original} | Atual: ${atual}`);
-    }
-
-      return atual !== original;
+        const original = window.clienteOriginal[key];
+        const atual = dados[key];
+        return String(original ?? "").trim() !== String(atual ?? "").trim();
     });
-    
-  }
-  
+}
+
 
 function criarSelectClientes(clientes) {
     const select = document.createElement("select");
@@ -454,31 +409,111 @@ function criarSelectClientes(clientes) {
     return select;
 }
 
+function adicionarEventoBlurCliente() {
+    
+    // Event: Preencher campos ao sair do campo Nome Fantasia
+    let ultimoClique = null;
+
+    // Captura o último elemento clicado no documento
+    document.addEventListener("mousedown", (e) => {
+        ultimoClique = e.target;
+    });
+    
+    getCampo("nmFantasia").addEventListener("blur", async function () {
+       
+        const botoesIgnorados = ["Limpar", "Pesquisar", "Enviar"];
+        const ehBotaoIgnorado =
+            ultimoClique?.id && botoesIgnorados.includes(ultimoClique.id) ||
+            ultimoClique?.classList.contains("close");
+
+        if (ehBotaoIgnorado) {
+            console.log("🔁 Blur ignorado: clique em botão de controle (Fechar/Limpar/Pesquisar).");
+            return;
+        }
+
+    
+    
+        const nmFantasia = this.value.trim();
+        if (!nmFantasia) return;
+
+        try {
+            const response = await fetchComToken(`/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
+            if (!response.ok) throw new Error("Cliente não encontrado");
+
+            const cliente = await response.json();
+            console.log("Cliente encontrado:", cliente);
+
+            if (!cliente || Object.keys(cliente).length === 0)
+                throw new Error("Dados de cliente vazios");
+
+            preencherFormulario(cliente);
+            console.log("Cliente carregado:", cliente);
+
+        } catch (error) {
+            console.log("Erro ao buscar cliente:", nmFantasia, idCliente.value, error);
+
+            //  Se cliente não existe e ainda não tem ID preenchido
+            if (!idCliente.value) {
+                const podeCadastrar = temPermissao("Clientes", "cadastrar");
+
+                // Só pergunta se deseja cadastrar se tiver permissão
+                if (podeCadastrar) {
+                    const { isConfirmed } = await Swal.fire({
+                        icon: 'question',
+                        title: `Deseja cadastrar "${nmFantasia.toUpperCase()}" como novo Cliente?`,
+                        text: `Cliente "${nmFantasia.toUpperCase()}" não encontrado`,
+                        showCancelButton: true,
+                        confirmButtonText: 'Sim, cadastrar',
+                        cancelButtonText: 'Cancelar'
+                    });
+
+                    if (!isConfirmed) return;
+
+                    // Se confirmado, pode continuar com o formulário em branco
+                    limparFormulario(); // opcional
+                    getCampo("nmFantasia").value = nmFantasia; // mantém o nome digitado
+                } else {
+                    //  Sem permissão: apenas alerta
+                    await Swal.fire({
+                        icon: 'info',
+                        title: "Cliente não encontrado",
+                        text: `Você não tem permissão para cadastrar um novo cliente.`,
+                    });
+                    getCampo("nmFantasia").value = '';
+                    // ⚠️ Aguardar fechamento do Swal e forçar foco no campo
+                    setTimeout(() => {
+                        getCampo("nmFantasia").focus();
+                    }, 100); // Pequeno delay (100ms)
+                                
+                getCampo("nmFantasia").focus();
+                }
+            }
+        }
+    });
+}
+
 async function carregarClientesNmFantasia(desc, elementoAtual) {
     try {
-        const response = await fetch(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(desc.trim())}`);
+        const response = await fetchComToken(`/clientes?nmFantasia=${encodeURIComponent(desc.trim())}`);
         if (!response.ok) throw new Error();
-        console.log("Response carregarClientesNmFantasia",response);
+
+        console.log("Response carregarClientesNmFantasia", response);
         const cliente = await response.json();
-       
         console.log("Cliente encontrado:", cliente);
 
+        // Preencher os campos...
         document.querySelector("#idCliente").value = cliente.idcliente || "";
         document.querySelector("#nmFantasia").value = cliente.nmfantasia || "";
         document.querySelector("#razaoSocial").value = cliente.razaosocial || "";
-
         maskCNPJ.value = cliente.cnpj || '';
         document.querySelector("#inscEstadual").value = cliente.inscestadual || "";
         document.querySelector("#emailCliente").value = cliente.emailcliente || "";
         document.querySelector("#emailNfe").value = cliente.emailnfe || "";
         document.querySelector("#site").value = cliente.site || "";
-
         maskTelefone.value = cliente.telefone || '';
         maskCelContato.value = cliente.celcontato || '';
-
         document.querySelector("#nmContato").value = cliente.nmcontato || "";
         document.querySelector("#emailContato").value = cliente.emailcontato || "";
-
         maskCEP.value = cliente.cep || '';
         document.querySelector("#rua").value = cliente.rua || "";
         document.querySelector("#numero").value = cliente.numero || "";
@@ -487,39 +522,12 @@ async function carregarClientesNmFantasia(desc, elementoAtual) {
         document.querySelector("#cidade").value = cliente.cidade || "";
         document.querySelector("#estado").value = cliente.estado || "";
         document.querySelector("#pais").value = cliente.pais || "";
-
         document.querySelector("#ativo").checked =
             cliente.ativo === true || cliente.ativo === "true" || cliente.ativo === 1;
-        
         document.querySelector("#tpcliente").value = cliente.tpcliente || "";
-       
-        // Atualiza o cliente original para comparação futura
-        clienteOriginal = {
-            idCliente: cliente.idcliente,
-            nmFantasia: cliente.nmfantasia,
-            razaoSocial: cliente.razaosocial,
-            cnpj: cliente.cnpj,
-            inscEstadual: cliente.inscestadual,
-            emailCliente: cliente.emailcliente,
-            emailNfe: cliente.emailnfe,
-            telefone: cliente.telefone,
-            nmContato: cliente.nmcontato,
-            celContato: cliente.celcontato,
-            emailContato: cliente.emailcontato,
-            site: cliente.site,
-            cep: cliente.cep,
-            rua: cliente.rua,
-            numero: cliente.numero,
-            complemento: cliente.complemento,
-            bairro: cliente.bairro,
-            cidade: cliente.cidade,
-            estado: cliente.estado,
-            pais: cliente.pais,
-            ativo: cliente.ativo,
-            tpcliente: cliente.tpcliente
-        };
-        console.log("Cliente original atualizado:", clienteOriginal);
-   
+
+        clienteOriginal = { ...cliente };
+
         const novoInput = document.createElement("input");
         novoInput.type = "text";
         novoInput.id = "nmFantasia";
@@ -529,21 +537,22 @@ async function carregarClientesNmFantasia(desc, elementoAtual) {
         novoInput.value = cliente.nmfantasia;
 
         elementoAtual.parentNode.replaceChild(novoInput, elementoAtual);
+        adicionarEventoBlurCliente();
+
         const label = document.querySelector('label[for="nmFantasia"]');
         if (label) {
-        label.style.display = "block";
-        label.textContent = "Nome Fantasia"; // ou algum texto que você tenha guardado
+            label.style.display = "block";
+            label.textContent = "Nome Fantasia";
         }
 
         novoInput.addEventListener("blur", async function () {
             if (!this.value.trim()) return;
-            await carregarFuncaoDescricao(this.value, this);
+            await carregarClientesNmFantasia(this.value, this);
         });
 
     } catch {
         mostrarErro("Cliente não encontrado", "Nenhuma função com essa descrição foi encontrada.");
         limparClienteOriginal();
-    
     }
 }
 
@@ -617,12 +626,29 @@ function limparCamposCliente(){
 }
 
 
+function fetchComToken(url, options = {}) {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    throw new Error("fetchComToken: nenhum token encontrado. Faça login primeiro.");
+  }
 
-function configurarEventosClientes() {
-    console.log("Configurando eventos para o modal de clientes...");
-    carregarClientes();
+  // Monta os headers sempre incluindo Authorization
+  const headers = {
+    "Authorization": `Bearer ${token}`,
+    // só coloca Content-Type se houver body (POST/PUT)
+    ...(options.body ? { "Content-Type": "application/json" } : {}),
+    ...options.headers
+  };
+
+  return fetch(url, {
+    ...options,
+    headers,
+    // caso seu back-end esteja em outro host e precisa de CORS:
+    //mode: "cors",
+    // se precisar enviar cookies de sessão:
+    credentials: "include"
+  });
 }
-window.configurarEventosClientes = configurarEventosClientes;
 
 document.addEventListener('DOMContentLoaded', () => {
     const inputCodigo = document.querySelector("#idCliente");
@@ -649,4 +675,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // Atualiza se o valor for preenchido programaticamente
     const observer = new MutationObserver(atualizarLabelCodigo);
     observer.observe(inputCodigo, { attributes: true, attributeFilter: ["value"] });
-  });
+});
+
+function configurarEventosClientes() {
+    console.log("Configurando eventos para o modal de clientes...");
+    carregarClientes();
+    adicionarEventoBlurCliente() ;
+}
+window.configurarEventosClientes = configurarEventosClientes;
+
+function configurarEventosEspecificos(modulo) {
+  console.log("⚙️ configurarEventosEspecificos recebeu:", modulo);
+  if (modulo.trim().toLowerCase() === 'clientes') {
+    configurarEventosClientes();
+  }
+}
+window.configurarEventosEspecificos = configurarEventosEspecificos;

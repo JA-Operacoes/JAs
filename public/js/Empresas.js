@@ -5,14 +5,14 @@ let permissoesEmpresa = {
   pesquisar: false
 };
 
-// document.addEventListener('DOMContentLoaded', async () => {
-//   permissoesEmpresa = await verificarPermissoes('empresa');
-//   carregarEmpresas();
+document.addEventListener('DOMContentLoaded', async () => {
+  permissoesEmpresa = await verificarPermissoes('empresa');
+  carregarEmpresas();
 
-//   if (!permissoesEmpresa.cadastrar) {
-//     document.getElementById('btnSalvarEmpresa').style.display = 'none';
-//   }
-// });
+  if (!permissoesEmpresa.cadastrar) {
+    document.getElementById('btnSalvarEmpresa').style.display = 'none';
+  }
+});
 
 async function verificarPermissoes(modulo) {
   try {

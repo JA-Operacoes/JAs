@@ -1,9 +1,14 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../db/conexaoDB");
+const { autenticarToken } = require('../middlewares/authMiddlewares');
+const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
+
+// Aplica autenticação em todas as rotas
+router.use(autenticarToken);
 
 // GET todas ou por descrição
-router.get("/", async (req, res) => {
+router.get("/", autenticarToken, verificarPermissao('Funcao', 'pesquisar'), async (req, res) => {
   const { descFuncao } = req.query;
   console.log("descFuncao na ROTAFUNCAO", descFuncao);
   try {
@@ -14,7 +19,7 @@ router.get("/", async (req, res) => {
       );
       return result.rows.length
         ? res.json(result.rows[0])
-        : res.status(404).json({ message: "Função não encontrada" });
+        : res.status(404).json({ message: "Funcao não encontrada" });
     } else {
       const result = await pool.query("SELECT * FROM funcao ORDER BY descFuncao ASC");
       return result.rows.length
@@ -28,7 +33,7 @@ router.get("/", async (req, res) => {
 });
 
 // PUT atualizar
-router.put("/:id", async (req, res) => {
+router.put("/:id", autenticarToken, verificarPermissao('Funcao', 'alterar'), async (req, res) => {
   const id = req.params.id;
   const { descFuncao, custo, venda, ajcfuncao, obsfuncao } = req.body;
 
@@ -48,7 +53,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // POST criar nova função
-router.post("/", async (req, res) => {
+router.post("/", autenticarToken, verificarPermissao('Funcao', 'cadastrar'), async (req, res) => {
   const { descFuncao, custo, venda, ajcfuncao, obsfuncao } = req.body;
  
   
