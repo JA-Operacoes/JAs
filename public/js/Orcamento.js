@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", function () {
     selects.forEach(select => {
         select.addEventListener("change", atualizaProdutoOrc);
     });
-
+     inicializarFlatpickr();
 });
 
 let idCliente;
@@ -826,6 +826,24 @@ function removerLinhaOrc(botao) {
     removerLinha(linha); // Remove a linha
 }
 
+// function inicializarFlatpickr() {
+//     const input = document.querySelector("#seletorData input");
+
+//     if (!input._flatpickr) {
+//         flatpickr(input, {
+//             mode: "range",
+//             dateFormat: "d/m/y",
+//             locale: "pt_br",
+//             onChange: function(selectedDates, dateStr, instance) {
+//                 // Só chama atualizarQtdDias se houver duas datas selecionadas
+//                 if (selectedDates.length === 2) {
+//                     atualizarQtdDias(instance.input);
+//                 }
+//             }
+//         });
+//     }
+// }
+
 function atualizarQtdDias(input) {
   var linha = input.closest('tr');
   var dataInicio = linha.querySelector('.data-inicio').value;
@@ -851,6 +869,36 @@ function atualizarQtdDias(input) {
   }
   recalcularLinha(linha);
 }
+
+// function atualizarQtdDias(input) {
+//    var linha = input.closest('tr'); // CORRETO: vai até o <tr>
+//   var inputQtdDias = linha.querySelector('input.qtdDias'); // busca o campo na linha inteira
+
+//   var datas = input.value.split(" a ");
+
+//   if (datas.length === 2) {
+//     var partesInicio = datas[0].split('/');
+//     var partesFim = datas[1].split('/');
+
+//     var inicio = new Date(partesInicio[2], partesInicio[1] - 1, partesInicio[0]);
+//     var fim = new Date(partesFim[2], partesFim[1] - 1, partesFim[0]);
+
+//     if (fim >= inicio) {
+//       var diffDias = Math.floor((fim - inicio) / (1000 * 60 * 60 * 24)) + 1;
+//       inputQtdDias.value = diffDias;
+//     } else {
+//       inputQtdDias.value = "-";
+//     }
+//   } else {
+//     inputQtdDias.value = "-";
+//   }
+
+//   if (typeof calcularTotalOrc === 'function') {
+//     calcularTotalOrc();
+//   }
+
+//   recalcularLinha(linha);
+// }
 
 
 //formulario de 

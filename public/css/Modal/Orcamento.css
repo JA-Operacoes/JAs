@@ -650,11 +650,27 @@
     width: 55px;
     height: 100px;
     margin: 0 auto;
+    margin-left: 12px;
     border: none;
-    font-size: 15px;
+    font-size: 16px;
   }
+  input.qtdDias:focus,input.qtdPessoas:focus {
+  outline: none;
+  border: none;
+  box-shadow: none; /* também remove o "brilho" do foco */
+}
 
     .Acres-Desc input {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 20px;
+    margin: 5px auto;
+    border: 1px solid black;
+    font-size: 13px;
+  }
+    .Periodo input {
     display: flex;
     justify-content: center;
     align-items: center;
