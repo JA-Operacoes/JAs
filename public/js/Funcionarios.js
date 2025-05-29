@@ -130,4 +130,3 @@ function configurarPreviewFoto() {
     configurarPreviewFoto();
     inputFile.dataset.previewSet = "true"; // Evita configurar mais de uma vez
   }
-});
