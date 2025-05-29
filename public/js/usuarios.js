@@ -9,8 +9,26 @@ document.getElementById("Registrar").addEventListener("submit", async function (
    
     // Captura empresas selecionadas (checkboxes)
     const empresasSelecionadas = Array.from(document.querySelectorAll('#listaEmpresas input[type="checkbox"]:checked'))
-      .map(cb => cb.value);
+    .map(cb => cb.value);
 
+    // Validação básica
+    if (!nome || !sobrenome || !email || !senha || !confirmacaoSenha) {
+      return Swal.fire({
+        icon: "warning",
+        title: "Atenção",
+        text: "Todos os campos devem ser preenchidos."
+      });
+    }
+
+
+    if (senha !== confirmacaoSenha) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Erro',
+          text: 'As senhas não coincidem.',
+      });
+      return;
+    }
 
     // if (empresasSelecionadas.length === 0) {
     //   return Swal.fire({
@@ -137,28 +155,40 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
       return;
     }
     console.log("Dados Mensagem", dados.mensagem);
-    if (dados.mensagem === 'Nenhuma alteração detectada no Usuário.') {
-      Swal.fire({
-        icon: 'info',
-        title: 'Aviso',
-        text: dados.mensagem
-      }).then((result) => {
-        if (result.isConfirmed) {
-          flipBox(); // Só executa após o usuário clicar em OK
-        }
-      });
+
+    //testar 
+    const mensagem = dados.mensagem || "Usuário atualizado com sucesso!";
+
+    Swal.fire({
+      icon: dados.mensagem === "Nenhuma alteração detectada no Usuário." ? "info" : "success",
+      title: dados.mensagem === "Nenhuma alteração detectada no Usuário." ? "Aviso" : "Sucesso",
+      text: mensagem
+    }).then((result) => {
+      if (result.isConfirmed) flipBox();
+    });
+
+    // if (dados.mensagem === 'Nenhuma alteração detectada no Usuário.') {
+    //   Swal.fire({
+    //     icon: 'info',
+    //     title: 'Aviso',
+    //     text: dados.mensagem
+    //   }).then((result) => {
+    //     if (result.isConfirmed) {
+    //       flipBox(); // Só executa após o usuário clicar em OK
+    //     }
+    //   });
     
-    } else {
-        Swal.fire({
-          icon: 'success',
-          title: 'Sucesso',
-          text: dados.mensagem || 'Usuário atualizado com sucesso!'
-        }).then((result) => {
-          if (result.isConfirmed) {
-            flipBox(); // Só executa após o usuário clicar em OK
-          }
-      });
-    }
+    // } else {
+    //     Swal.fire({
+    //       icon: 'success',
+    //       title: 'Sucesso',
+    //       text: dados.mensagem || 'Usuário atualizado com sucesso!'
+    //     }).then((result) => {
+    //       if (result.isConfirmed) {
+    //         flipBox(); // Só executa após o usuário clicar em OK
+    //       }
+    //   });
+    // }
     limparCampos(); // Limpa os campos do formulário após a atualização
     console.log("Chamando FlipBox");
   
@@ -173,16 +203,22 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
   }
 });
 
-// document.getElementById("email").addEventListener("blur", function () { 
+ document.getElementById("email").addEventListener("blur", function () { 
 //   const emailValue = email.value;
 //   console.log("Verificando email:", emailValue);
-
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return Swal.fire({
+        icon: "warning",
+        title: "Email inválido",
+        text: "Digite um email válido."
+      });
+    }
   
 //   if (emailValue) {
 //     verificarUsuarioExistenteFront();
 //   }
-// }
-// );
+});
 
 let clicouNaLista = false; // Flag de clique
 
@@ -471,7 +507,6 @@ document.querySelectorAll(".toggle-senha").forEach((el) => {
 });
 
 
-
 const iconeBuscar = document.getElementById('iconebuscarUsuario');
 
 iconeBuscar.addEventListener('click', async () => {
@@ -519,6 +554,44 @@ iconeBuscar.addEventListener('click', async () => {
   inputBusca.focus(); // foca no input para interação do usuário
 });
 
+const listaUsuariosContainer = document.querySelector('#listaUsuarios'); 
+// Evento ao clicar em um usuário da lista
+listaUsuariosContainer.addEventListener('click', async (e) => {
+  const item = e.target.closest('.usuario-item');
+  if (!item) return;
+
+  const idusuario = item.dataset.idusuario;
+
+  try {
+    // Buscar empresas vinculadas
+    const resposta = await fetchComToken(`/usuarios/${idusuario}/empresas`);
+    const empresas = await resposta.json();
+
+    // Preencher campos com dados do usuário (opcional)
+    document.querySelector('#nome').value = item.textContent.split(' ')[0];
+    document.querySelector('#sobrenome').value = item.textContent.split(' ')[1];
+    document.querySelector('#email').value = item.textContent.match(/\(([^)]+)\)/)[1];
+    document.querySelector('#idusuario').value = idusuario; // hidden input
+
+    if (empresas.length === 0) {
+      // Nenhuma empresa vinculada, virar o flipbox
+      flipbox.classList.add('flip');
+    } else {
+      // Já possui vínculos, marcar checkboxes correspondentes
+      empresas.forEach(emp => {
+        const checkbox = document.querySelector(`.empresa-checkbox[data-idempresa="${emp.idempresa}"]`);
+        if (checkbox) checkbox.checked = true;
+      });
+
+      // Opcional: permitir editar ou apenas visualizar
+      flipbox.classList.add('flip'); // Se desejar continuar para permissões
+    }
+
+  } catch (erro) {
+    console.error('Erro ao buscar empresas do usuário:', erro);
+    Swal.fire('Erro', 'Erro ao buscar empresas vinculadas.', 'error');
+  }
+});
 
 function formatarNome(inputId) {
   const input = document.getElementById(inputId);
@@ -579,17 +652,17 @@ inputBusca.addEventListener('input', async () => {
 
 usuarios.forEach(usuario => {
   const li = document.createElement('li');
-  li.textContent = `${usuario.nome} ${usuario.sobrenome}`;
-  li.dataset.idusuario = usuario.idusuario;
-  li.dataset.email = usuario.email;
-  li.dataset.nome = usuario.nome;
-  li.dataset.sobrenome = usuario.sobrenome;
-  li.dataset.ativo = usuario.ativo;
- // li.dataset.senha = usuario.senha_hash; // Adiciona o hash da senha como dataset
-  lista.appendChild(li);
-});
+    li.textContent = `${usuario.nome} ${usuario.sobrenome}`;
+    li.dataset.idusuario = usuario.idusuario;
+    li.dataset.email = usuario.email;
+    li.dataset.nome = usuario.nome;
+    li.dataset.sobrenome = usuario.sobrenome;
+    li.dataset.ativo = usuario.ativo;
+  // li.dataset.senha = usuario.senha_hash; // Adiciona o hash da senha como dataset
+    lista.appendChild(li);
+  });
 
-    lista.style.display = 'block';
+  lista.style.display = 'block';
 
   } catch (error) {
     console.error('Erro ao buscar usuários:', error);
@@ -597,7 +670,7 @@ usuarios.forEach(usuario => {
 });
 
 // Clique na sugestão
-lista.addEventListener('mousedown', (e) => {
+lista.addEventListener('mousedown', async (e) => {
   console.log("Elemento clicado:", e.target); // Log do elemento clicado
   console.log("Tag do elemento clicado:", e.target.tagName); // Log da tag do elemento clicado
   if (e.target.tagName === 'LI') {
@@ -617,17 +690,52 @@ lista.addEventListener('mousedown', (e) => {
     document.getElementById('email').value = email;
     document.getElementById("email_original").value = email; // Armazena o email original para comparação
     document.getElementById('ativo').checked = ativo;
- 
     document.getElementById('buscaUsuario').value = `${nome} ${sobrenome}`;
-  
+   
+    document.getElementById("btnCadastrar").style.display = "none";
+    document.getElementById("btnAlterar").style.display = "inline-block";
+    
     console.log("clicou na lista", clicouNaLista); // Log do clique na lista
     lista.innerHTML = '';
     lista.style.display = 'none';
 
     preencherUsuarioPeloEmail(email);
+
+     // 🔽 Aqui começa a parte nova: buscar empresas vinculadas
+    try {
+      // Limpa os checkboxes antes
+      document.querySelectorAll('.empresa-checkbox').forEach(cb => cb.checked = false);
+
+      const resposta = await fetchComToken(`/usuarios/${idusuario}/empresas`);
+      const empresas = await resposta.json();
+
+      if (!Array.isArray(empresas)) {
+        console.error('Resposta inesperada ao buscar empresas:', empresas);
+        Swal.fire('Erro', 'Erro ao buscar empresas do usuário.', 'error');
+        return;
+      }
+
+      if (empresas.length === 0) {
+        // Nenhuma empresa vinculada → vira flipbox
+        document.querySelector('.flipbox').classList.add('flip');
+      } else {
+        // Marca checkboxes das empresas vinculadas
+        empresas.forEach(emp => {
+          const checkbox = document.querySelector(`.empresa-checkbox[data-idempresa="${emp.idempresa}"]`);
+          if (checkbox) checkbox.checked = true;
+        });
+
+        // Mostra o lado de permissões
+        document.querySelector('.flipbox').classList.add('flip');
+      }
+    } catch (erro) {
+      console.error('Erro ao buscar empresas do usuário:', erro);
+      Swal.fire('Erro', 'Erro ao buscar empresas vinculadas.', 'error');
+    }
+  
   }
-  document.getElementById("btnCadastrar").style.display = "none";
-  document.getElementById("btnAlterar").style.display = "inline-block";
+  // document.getElementById("btnCadastrar").style.display = "none";
+  // document.getElementById("btnAlterar").style.display = "inline-block";
 });
 
 function limparPermissoes() {

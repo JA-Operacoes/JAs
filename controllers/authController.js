@@ -154,76 +154,40 @@ async function getEmpresasDoUsuario(idusuario) {
   return rows.map(row => row.idempresa);
 }
 
+async function listarEmpresasDoUsuario(req, res) {
+  const { id } = req.params;
+  try {
+    const empresasQuery = await db.query(`
+      SELECT ue.idempresa, e.nome_fantasia
+      FROM usuarioempresas ue
+      JOIN empresas e ON ue.idempresa = e.idempresa
+      WHERE ue.idusuario = $1
+    `, [id]);
+
+    res.json(empresasQuery.rows);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ erro: 'Erro ao buscar empresas do usuário.' });
+  }
+}
+
+
 async function listarUsuarios(req, res) {
-  
-    // try {
-    //   console.log("listarUsuarios AuthController", req );
-    //   //  const { rows } = await db.query('SELECT idusuario, nome, sobrenome, email, senha_hash, ativo FROM usuarios ORDER BY nome');
-    //   //  res.status(200).json(rows);
-    //   // Busca as empresas vinculadas ao usuário
-    //   const empresasQuery = await db.query(`
-    //     SELECT e.idempresa, e.nome 
-    //     FROM usuarioempresas ue
-    //     JOIN empresas e ON ue.idempresa = e.idempresa
-    //     WHERE ue.idusuario = $1
-    //   `, [usuario.idusuario]);
 
-    //   const empresas = empresasQuery.rows;
-
-    //   if (empresas.length === 0) {
-    //     return res.status(403).json({ erro: 'Usuário não possui empresas vinculadas.' });
-    //   }
-
-    //   // Criar o token com idusuario e (opcional) idempresaDefault
-    //   const tokenPayload = {
-    //     idusuario: usuario.idusuario,
-    //     email: usuario.email,
-    //     idempresaDefault: empresas[0].idempresa, // opcional
-    //   };
-
-    //   const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '8h' });
-
-    //   res.status(200).json({
-    //     token,
-    //     idusuario: usuario.idusuario,
-    //     empresas,
-    //     idempresaDefault: empresas[0].idempresa, // opcional
-    //   });
-
-    // } catch (erro) {
-    //   console.error('Erro ao listar usuários:', erro);
-    //   res.status(500).json({ erro: 'Erro ao listar usuários.' });
-    // }
     try {
       console.log('Headers:', req.headers);
       console.log('req.user:', req.user);
       console.log('req.idempresa:', req.idempresa);
    
-      const { idusuario } = req.usuario;
-      const idempresa = req.idempresa;
+    // Se o endpoint for usado com verificarEmpresa = false, ignore o filtro por empresa
+    const usuariosQuery = await db.query(`
+      SELECT idusuario, nome, sobrenome, email, ativo
+      FROM usuarios
+      ORDER BY nome
+    `);
 
-      console.log('req.user:', req.user);
-      console.log('req.idempresa:', req.idempresa);
+     res.json(usuariosQuery.rows);
 
-      // valida se o usuário tem acesso a essa empresa, por exemplo:
-      const empresasQuery = await db.query(
-        `SELECT * FROM usuarioempresas WHERE idusuario = $1 AND idempresa = $2`,
-        [idusuario, idempresa]
-      );
-      if (empresasQuery.rows.length === 0) {
-        return res.status(403).json({ erro: 'Usuário não tem acesso a essa empresa.' });
-      }
-
-      // busca usuários da empresa
-      const usuariosQuery = await db.query(`
-        SELECT u.idusuario, u.nome, u.sobrenome, u.email, u.ativo
-        FROM usuarios u
-        JOIN usuarioempresas ue ON u.idusuario = ue.idusuario
-        WHERE ue.idempresa = $1
-        ORDER BY u.nome
-      `, [idempresa]);
-
-      res.json(usuariosQuery.rows);
     } catch (erro) {
       console.error(erro);
       res.status(500).json({ erro: 'Erro ao buscar usuários.' });
