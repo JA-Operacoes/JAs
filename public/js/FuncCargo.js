@@ -1,3 +1,44 @@
+document.addEventListener("DOMContentLoaded", function () {
+    carregarFuncoes();
+    carregarFuncionarios();
+});
+
+function carregarFuncoes() {
+    fetch("/funcao", {
+        headers: { Authorization: "Bearer " + localStorage.getItem("token") }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const selectFuncao = document.getElementById("Funcao");
+        data.forEach(funcao => {
+            const option = document.createElement("option");
+            option.value = funcao.idfuncao || funcao.descfuncao; // Ajuste conforme sua estrutura
+            option.textContent = funcao.descfuncao;
+            selectFuncao.appendChild(option);
+        });
+        console.log("Funções carregadas:", data);
+    })
+    .catch(error => console.error("Erro ao carregar funções:", error));
+}
+
+function carregarFuncionarios() {
+    fetch("/funcionarios-funcoes", {
+        headers: { Authorization: "Bearer " + localStorage.getItem("token") }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const selectFuncionario = document.getElementById("Funcionario");
+        data.forEach(func => {
+            const option = document.createElement("option");
+            option.value = func.idfuncionario;
+            option.textContent = `${func.nomefuncionario} (${func.descfuncao || "Sem função"})`;
+            selectFuncionario.appendChild(option);
+        });
+        console.log("Funcionários com função carregados:", data);
+    })
+    .catch(error => console.error("Erro ao carregar funcionários:", error));
+}
+
 function salvarFuncao() {
         var select = document.getElementById("Funcao");
         var funcaoSelecionada = select.value;
