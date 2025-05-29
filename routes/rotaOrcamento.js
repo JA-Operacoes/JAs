@@ -1,4 +1,4 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
 const pool = require("../db/conexaoDB");
 const { autenticarToken } = require('../middlewares/authMiddlewares');
@@ -59,88 +59,47 @@ router.post("/", autenticarToken, verificarPermissao('Orcamentos', 'cadastrar'),
   const client = await pool.connect();
   const dados = req.body;
 
-  console.log("ENTROU NO POST", dados, client);
-  try {
-    await client.query('BEGIN');
+    try {
+        await client.query('BEGIN');
 
-    const insertOrcamento = `
-      INSERT INTO orcamentos (idcliente, idevento, idlocalmontagem, dtinimarcacao, dtfimmarcacao, dtinimontagem, dtfimmontagem,
-       dtinirealizacao, dtfimrealizacao, dtinidesmontagem, dtfimdesmontagem, totvdageral, totctogeral, desconto, acrescimo,
-       lucrobruto, lucroreal, vlrcliente, observacao, status)
-      VALUES ($1, $2, $3, $4, $5, $6,$7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
-      RETURNING idOrcamento
-    `;
+        const insertOrcamento = `
+            INSERT INTO orcamentos1 (
+                cliente, evento, local, data_inicio, data_fim,
+                montagem_infra, periodo_marcacao, periodo_montagem,
+                periodo_realizacao, periodo_desmontagem, desmontagem_infra
+            ) VALUES (
+                $1, $2, $3, $4, $5,
+                $6, $7, $8, $9, $10, $11
+            ) RETURNING id
+        `;
 
-    const valoresOrcamento = [
-      dados.idCliente || null,
-      dados.idEvento || null,
-      dados.idLocalMontagem || null,
-      dados.dtIniMarcacao || null,
-      dados.dtFimMarcacao || null,
-      dados.dtIniMontagem || null,
-      dados.dtFimMontagem || null,
-      dados.dtIniRealizacao || null,
-      dados.dtFimRealizacao || null,
-      dados.dtIniDesmontagem || null,
-      dados.dtFimRealizacao || null,
-      dados.totVdaGeral || null,
-      dados.totCtoGeral || null,
-      dados.desconto || null,
-      dados.acrescimo || null,
-      dados.lucroBruto || null,
-      dados.lucroReal || null,
-      dados.vlrCliente || null,
-      dados.status || null,
-      dados.observacoes || ''
-    ];
+        const values = [
+            cliente, evento, local, data_inicio, data_fim,
+            montagem_infra, periodo_marcacao, periodo_montagem,
+            periodo_realizacao, periodo_desmontagem, desmontagem_infra
+        ];
 
-    const resOrcamento = await client.query(insertOrcamento, valoresOrcamento);
-    const orcamentoId = resOrcamento.rows[0].id;
+        const result = await client.query(insertOrcamento, values);
+        const orcamentoId = result.rows[0].id;
 
-    console.log("resOrcamento", resOrcamento);
+        for (const item of itens) {
+            await client.query(`
+                INSERT INTO itens_orcamento (
+                    orcamento_id, categoria, produto, quantidade, dias
+                ) VALUES ($1, $2, $3, $4, $5)
+            `, [orcamentoId, item.categoria, item.produto, item.quantidade, item.dias]);
+        }
 
-    const insertItem = `
-      INSERT INTO orcamentoitens (
-        idorcamento, categoria, idproduto, qtdproduto, qtddias,
-        vdadiaria, totvdadiaria, ctodiaria, totctodiaria,
-        ajdctodiaria, totajdctodiaria, vlrhospdiaria, vlrtranspdiaria, totgeralcto
-      ) VALUES (
-        $1, $2, $3, $4, $5,
-        $6, $7, $8, $9,
-        $10, $11, $12, $13, $14)
-        RETURNING idorcitem
-    `;
+        await client.query('COMMIT');
+        res.json({ success: true, id: orcamentoId });
 
-    for (const item of dados.itens) {
-      const valoresItem = [
-        orcamentoId,
-        item.categoria,
-        item.produto,
-        parseInt(item.qtdPessoas),
-        parseInt(item.qtdDias),
-        parseFloat(item.vlrVenda?.replace(/[R$.,\s]/g, '').replace(',', '.') || 0),
-        parseFloat(item.totVdaDiaria?.replace(/[R$.,\s]/g, '').replace(',', '.') || 0),
-        parseFloat(item.vlrCusto?.replace(/[R$.,\s]/g, '').replace(',', '.') || 0),
-        parseFloat(item.totCtoDiaria?.replace(/[R$.,\s]/g, '').replace(',', '.') || 0),
-        parseFloat(item.ajdCusto?.replace(/[R$.,\s]/g, '').replace(',', '.') || 0),
-        parseFloat(item.totAjdCusto?.replace(/[R$.,\s]/g, '').replace(',', '.') || 0),
-        parseFloat(item.hospedagem || 0),
-        parseFloat(item.transporte || 0),
-        parseFloat(item.totGeral?.replace(/[R$.,\s]/g, '').replace(',', '.') || 0)
-      ];
-
-      await client.query(insertItem, valoresItem);
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Erro ao salvar orçamento:', error);
+        res.status(500).json({ error: 'Erro ao salvar orçamento' });
+    } finally {
+        client.release();
     }
-
-    await client.query('COMMIT');
-    res.status(200).json({ mensagem: "Orçamento salvo com sucesso", id: orcamentoId });
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error("Erro ao salvar orçamento:", error);
-    res.status(500).json({ mensagem: "Erro ao salvar orçamento" });
-  } finally {
-    client.release();
-  }
 });
 
 module.exports = router;

@@ -1,11 +1,11 @@
 document.addEventListener("DOMContentLoaded", function () {
-    console.log("Script orcamento.js carregado.");
+    // console.log("Script orcamento.js carregado.");
 
     let selects = document.querySelectorAll(".idFuncao, .idEquipamento, .idSuprimento");
     selects.forEach(select => {
         select.addEventListener("change", atualizaProdutoOrc);
     });
-
+     inicializarFlatpickr();
 });
 
 let idCliente;
@@ -14,7 +14,7 @@ let idLocalMontagem;
 
 
 function carregarClientesOrc() {
-    console.log("Função carregar Cliente chamada");
+    // console.log("Função carregar Cliente chamada");
 
     const token = localStorage.getItem("token");
 
@@ -101,9 +101,9 @@ async function buscarEExibirDadosClientePorNome(nmFantasia) {
             email: dadosCliente.emailcontato
         });
 
-        atualizarOuCriarCampoTexto("nmContato", dadosCliente.nmcontato);
-        atualizarOuCriarCampoTexto("celContato", dadosCliente.celcontato);
-        atualizarOuCriarCampoTexto("emailContato", dadosCliente.emailcontato);
+        // atualizarOuCriarCampoTexto("nmContato", dadosCliente.nmcontato);
+        // atualizarOuCriarCampoTexto("celContato", dadosCliente.celcontato);
+        // atualizarOuCriarCampoTexto("emailContato", dadosCliente.emailcontato);
 
     } catch (error) {
         console.error("Erro ao buscar dados do cliente:", error);
@@ -120,24 +120,24 @@ document.addEventListener("DOMContentLoaded", carregarClientesOrc);
 
 function carregarEventosOrc() {
     
-    console.log("Função carregar Eventos chamada");
+    // console.log("Função carregar Eventos chamada");
 
     fetch('http://localhost:3000/eventos')
     .then(response => response.json())
     .then(eventos => {
-        console.log('Eventos recebidos:', eventos);
+        // console.log('Eventos recebidos:', eventos);
         
         let selects = document.querySelectorAll(".idEvento");
         
         selects.forEach(select => {
             
-            console.log("dentro do SELECT EVENTOS",eventos);
+            // console.log("dentro do SELECT EVENTOS",eventos);
             
             select.innerHTML = '<option value="">Selecione Evento</option>'; // Adiciona a opção padrão
             eventos.forEach(evento => {
                 let option = document.createElement("option");
                 
-                console.log('Eventos recebidos 2:', eventos);
+                // console.log('Eventos recebidos 2:', eventos);
               
                 option.value = evento.idevento;  // Atenção ao nome da propriedade (idMontagem)
                 option.textContent = evento.nmevento; 
@@ -150,7 +150,7 @@ function carregarEventosOrc() {
             select.addEventListener('change', function () {
                 const selectedOption = select.options[select.selectedIndex];   
                 idEvento = selectedOption.getAttribute("data-idEvento");
-                console.log("IDEVENTO",idEvento);
+                // console.log("IDEVENTO",idEvento);
                     
             });
             
@@ -165,18 +165,18 @@ let Categoria = "";
 
 // Função para carregar os Funcao
 function carregarFuncaoOrc() {
-    console.log("Função carregarFuncao chamada ORCAMENTO.js");
+    // console.log("Função carregarFuncao chamada ORCAMENTO.js");
 
     fetch('http://localhost:3000/funcao')
         .then(response => response.json())
         .then(funcao => {
-            console.log('Funcao recebidos 1:', funcao); // Log das Funções recebidas
+            // console.log('Funcao recebidos 1:', funcao); // Log das Funções recebidas
 
             let selects = document.querySelectorAll(".idFuncao");
             selects.forEach(select => {
                 select.innerHTML = "";
 
-                console.log('Funcao recebidos 2:', funcao); // Log das Funções recebidas
+                // console.log('Funcao recebidos 2:', funcao); // Log das Funções recebidas
                 let opcaoPadrao = document.createElement("option");
                 opcaoPadrao.setAttribute("value", "");
                 opcaoPadrao.textContent = "Selecione Função";
@@ -210,7 +210,7 @@ function carregarFuncaoOrc() {
 // Função para carregar os equipamentos
 function carregarEquipamentosOrc() {
 
-    console.log("Função carregarEquipamentos chamada");
+    // console.log("Função carregarEquipamentos chamada");
     fetch('http://localhost:3000/equipamentos')
         .then(response => response.json())
         .then(equipamentos => {
@@ -252,8 +252,8 @@ function carregarSuprimentosOrc() {
         .then(response => response.json())
         .then(suprimentos => {
             let selects = document.querySelectorAll(".idSuprimento");
-            console.log('Suprimentos recebidos:', suprimentos); // Log dos suprimentos recebidos
-            console.log('Selects Suprimento',selects);
+            // console.log('Suprimentos recebidos:', suprimentos); // Log dos suprimentos recebidos
+            // console.log('Selects Suprimento',selects);
             selects.forEach(select => {
                 select.innerHTML = '<option value="">Selecione Suprimento</option>';
                 suprimentos.forEach(suprimentos => {
@@ -284,11 +284,11 @@ function carregarSuprimentosOrc() {
 // Função para carregar os locais de montagem
 function carregarLocalMontOrc() {
     
-    console.log("Função carregar LocalMontagem chamada");
+    // console.log("Função carregar LocalMontagem chamada");
     fetch('http://localhost:3000/localmontagem')
     .then(response => response.json())
     .then(montagem => {
-        console.log('Local Montagem recebidos:', montagem);
+        // console.log('Local Montagem recebidos:', montagem);
         
         let selects = document.querySelectorAll(".idMontagem");
         
@@ -314,7 +314,7 @@ function carregarLocalMontOrc() {
             select.addEventListener("change", function (event) {
                 const selectedOption = select.options[select.selectedIndex];
                 idLocalMontagem = selectedOption.getAttribute("data-idlocalmontagem") || "N/D";
-                console.log("IDLOCALMONTAGEM", idLocalMontagem);
+                // console.log("IDLOCALMONTAGEM", idLocalMontagem);
                 
             });
             
@@ -340,7 +340,7 @@ function configurarInfraCheckbox() {
     }
 
     checkbox.addEventListener("change", atualizarVisibilidade);
-console.log("entrou na função");
+// console.log("entrou na função");
     // Opcional: já configura o estado inicial com base no checkbox
     atualizarVisibilidade();
 }
@@ -400,10 +400,10 @@ if (!window.hasRegisteredClickListener) {
             let currentValue = parseInt(input.value || 0);
 
             if (event.target.classList.contains('increment')) {
-                console.log('Incrementando...');
+                // console.log('Incrementando...');
                 input.value = currentValue + 1;
             } else if (event.target.classList.contains('decrement')) {
-                console.log('Decrementando...');
+                // console.log('Decrementando...');
                 if (currentValue > 0) {
                     input.value = currentValue - 1;
                 }
@@ -420,7 +420,7 @@ if (!window.hasRegisteredClickListener) {
 
 function desformatarMoeda(valor) {
 
-    console.log ("DESFORMATARMOEDA", valor);
+    // console.log ("DESFORMATARMOEDA", valor);
     // if (!valor) return 0;
     // return parseFloat(valor.replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
     
@@ -454,64 +454,92 @@ function formatarMoeda(valor) {
 
 function recalcularLinha(linha) {
     if (!linha) return;
-    
+
     try {
         console.log("Linha recebida:", linha);
 
-        // --- Primeiro, recalcula o TotVendaDiaria e TotCtoDiaria
         let qtdItens = parseFloat(linha.querySelector('.qtdPessoas input')?.value) || 0;
         let qtdDias = parseFloat(linha.querySelector('.qtdDias input')?.value) || 0;
-       
-        let vlrVenda = desformatarMoeda(linha.querySelector('.vlrVenda')?.textContent);
+
+        let celulaVenda = linha.querySelector('.vlrVenda');
+
+        // Salva o valor original da venda apenas uma vez
+        if (celulaVenda && !celulaVenda.dataset.vendaOriginal) {
+            celulaVenda.dataset.vendaOriginal = desformatarMoeda(celulaVenda.textContent);
+        }
+
+        // Usa o valor original salvo (se houver), senão tenta pegar do texto atual
+        let vlrVendaOriginal = parseFloat(celulaVenda?.dataset.vendaOriginal) || desformatarMoeda(celulaVenda?.textContent);
+        let vlrVenda = vlrVendaOriginal;
+
         let vlrCusto = desformatarMoeda(linha.querySelector('.vlrCusto')?.textContent);
         let vlrAjdCusto = desformatarMoeda(linha.querySelector('.ajdCusto')?.textContent);
-             
-        let totalIntermediario = qtdItens * qtdDias; // multiplica o quantidade de dias pelo quantidade de itens 
 
-        let totalVenda = totalIntermediario * vlrVenda;
+        // Pega os campos de valor e percentual para desconto e acréscimo
+        let campoDescValor = linha.querySelector('.desconto .ValorInteiros');
+        let campoDescPct = linha.querySelector('.desconto .valorPerCent');
+
+        let campoAcrescValor = linha.querySelector('.Acrescimo .ValorInteiros');
+        let campoAcrescPct = linha.querySelector('.Acrescimo .valorPerCent');
+
+        let desconto = desformatarMoeda(campoDescValor?.value) || 0;
+        let perCentDesc = parseFloat(campoDescPct?.value) || 0;
+
+        let acrescimo = desformatarMoeda(campoAcrescValor?.value) || 0;
+        let perCentAcresc = parseFloat(campoAcrescPct?.value) || 0;
+
+        // Se o percentual de desconto/acréscimo foi preenchido, calcula o valor
+        if (perCentDesc > 0) {
+            desconto = vlrVenda * (perCentDesc / 100);
+            if (campoDescValor) campoDescValor.value = desconto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        } else if (desconto > 0) {
+            perCentDesc = (desconto / vlrVenda) * 100;
+            if (campoDescPct) campoDescPct.value = perCentDesc.toFixed(2);
+        }
+
+        if (perCentAcresc > 0) {
+            acrescimo = vlrVenda * (perCentAcresc / 100);
+            if (campoAcrescValor) campoAcrescValor.value = acrescimo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        } else if (acrescimo > 0) {
+            perCentAcresc = (acrescimo / vlrVenda) * 100;
+            if (campoAcrescPct) campoAcrescPct.value = perCentAcresc.toFixed(2);
+        }
+
+        // Calcula novo valor de venda com desconto e acréscimo
+        let vlrVendaCorrigido = vlrVenda - desconto + acrescimo;
+
+        let totalIntermediario = qtdItens * qtdDias;
+        let totalVenda = totalIntermediario * vlrVendaCorrigido;
         let totalCusto = totalIntermediario * vlrCusto;
-
         let totalAjdCusto = totalIntermediario * vlrAjdCusto;
-
         let totGeralCtoItem = totalCusto + totalAjdCusto;
 
-      
-        
-        console.log("valor ajd custo",linha.querySelector('.ajdCusto'));
-       
-        console.log("calculo ajCusto", totalIntermediario, vlrAjdCusto, vlrVenda, vlrCusto);
-            
-          
-        console.log(`Total Venda calculado: ${totalVenda.toFixed(2)}`);
-        console.log(`Total Custo calculado: ${totalCusto.toFixed(2)}`);
-        console.log(`Total ajdCusto calculado: ${totalAjdCusto.toFixed(2)}`);
-        console.log(`Total Geral Custo Item calculado: ${totGeralCtoItem.toFixed(2)}`);
-
-        // Atualiza o valor na célula TotVendaDiaria
+        // Atualiza a DOM
         let totalVendaCell = linha.querySelector('.totVdaDiaria');
         if (totalVendaCell) {
             totalVendaCell.textContent = totalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
 
-        // Atualiza o valor na célula TotCtoDiaria
+        if (celulaVenda) {
+            celulaVenda.textContent = vlrVendaCorrigido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
         let totalCustoCell = linha.querySelector('.totCtoDiaria');
         if (totalCustoCell) {
             totalCustoCell.textContent = totalCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
 
-        // Atualiza o valor na célula TotAjdCusto
         let totalAjdCustoCell = linha.querySelector('.totAjdCusto');
         if (totalAjdCustoCell) {
             totalAjdCustoCell.textContent = totalAjdCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
 
-        // Atualiza o valor na célula TotGeral (Total de Custo + Total AjdCusto)
         let totalGeralCtoCell = linha.querySelector('.totGeral');
         if (totalGeralCtoCell) {
             totalGeralCtoCell.textContent = totGeralCtoItem.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
 
-        // --- Agora, recalcula o total geral dos custos e vendas
+        // Totais gerais
         let totalCustoGeral = 0;
         let totalVendaGeral = 0;
         let totalAjdCustoGeral = 0;
@@ -533,19 +561,16 @@ function recalcularLinha(linha) {
             totalGeralCustoItem += desformatarMoeda(cell.textContent);
         });
 
-        // Atualiza o campo de Total Geral Custo se existir
         let inputTotalCusto = document.querySelector('#totalGeralCto');
         if (inputTotalCusto) {
             inputTotalCusto.value = totalCustoGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
 
-        // Atualiza o campo de Total Geral Venda se existir
         let inputTotalVenda = document.querySelector('#totalGeralVda');
         if (inputTotalVenda) {
             inputTotalVenda.value = totalVendaGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
 
-        // Atualiza o campo de Total Geral Ajuda de Custo se existir
         let inputTotalAjdCusto = document.querySelector('#totalajdCusto');
         if (inputTotalAjdCusto) {
             inputTotalAjdCusto.value = totalAjdCustoGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -556,15 +581,17 @@ function recalcularLinha(linha) {
             inputTotalGeralCtoItem.value = totalGeralCustoItem.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
 
+        console.log("Calculo desc e Acresc:", vlrVendaOriginal, "-", desconto, "+", acrescimo);
+        console.log("valor c/ desc e Acresc:", vlrVendaCorrigido);
         console.log("Total Geral de Custo:", totalCustoGeral.toFixed(2));
         console.log("Total Geral de Venda:", totalVendaGeral.toFixed(2));
         console.log("Total Geral de AjdCusto:", totalAjdCustoGeral.toFixed(2));
         console.log("Total Geral de Custo Item:", totalGeralCustoItem.toFixed(2));
 
-
         aplicarMascaraMoeda();
-        aplicarDescontoEAcrescimo();
+        // aplicarDescontoEAcrescimo();
         calcularLucro();
+        recalcularTotaisGerais();
 
     } catch (error) {
         console.error("Erro no recalcularLinha:", error);
@@ -575,8 +602,6 @@ function recalcularTotaisGerais() {
     let totalCustoGeral = 0;
     let totalVendaGeral = 0;
     let totalAjdCustoGeral = 0;
-
-    console.log("recalcularTotaisGerais")
 
     // Soma os custos
     document.querySelectorAll('.totCtoDiaria').forEach(cell => {
@@ -592,7 +617,6 @@ function recalcularTotaisGerais() {
         totalAjdCustoGeral += desformatarMoeda(cell.textContent);
     });
 
-
     // Atualiza campos visuais
     document.querySelector('#totalGeralCto').value = totalCustoGeral.toLocaleString('pt-BR', {
         style: 'currency',
@@ -603,8 +627,17 @@ function recalcularTotaisGerais() {
         style: 'currency',
         currency: 'BRL'
     });
-    calcularLucro();
 
+    // Atualiza o valor do cliente com o valor total de venda
+    const campoValorCliente = document.querySelector('#valorCliente');
+    if (campoValorCliente) {
+        campoValorCliente.value = totalVendaGeral.toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        });
+    }
+    calcularLucroReal();
+    calcularLucro();
 }
 
 function calcularLucro() {
@@ -674,24 +707,59 @@ function calcularLucroReal() {
 
 }
 
-function aplicarDescontoEAcrescimo() {
-    let totalVenda = desformatarMoeda(document.querySelector('#totalGeralVda').value);
-    let valorDesconto = desformatarMoeda(document.querySelector('#Desconto').value);
-    let valorAcrescimo = desformatarMoeda(document.querySelector('#Acrescimo').value);
+function aplicarDescontoEAcrescimo(input = null) {
+    const campoTotalVenda = document.querySelector('#totalGeralVda');
+    const campoDesconto = document.querySelector('#Desconto');
+    const campoPerCentDesc = document.querySelector('#perCentDesc');
+    const campoAcrescimo = document.querySelector('#Acrescimo');
+    const campoPerCentAcresc = document.querySelector('#perCentAcresc');
+    const campoValorCliente = document.querySelector('#valorCliente');
 
-    // Aplica desconto e depois acréscimo sobre o valor original (totalVenda)
-    let valorFinalCliente = totalVenda - valorDesconto + valorAcrescimo;
+    let totalVenda = desformatarMoeda(campoTotalVenda?.value || '0');
+    if (isNaN(totalVenda)) totalVenda = 0;
 
-    aplicarMascaraMoeda()
+    let valorDesconto = desformatarMoeda(campoDesconto?.value || '0');
+    let perCentDesc = parseFloat((campoPerCentDesc?.value || '0').replace('%', '').replace(',', '.')) || 0;
 
-    // Atualiza o campo de valor final ao cliente
-    let campoValorCliente = document.querySelector('#valorCliente');
-    if (campoValorCliente) {
-        campoValorCliente.value = formatarMoeda(valorFinalCliente);
+    let valorAcrescimo = desformatarMoeda(campoAcrescimo?.value || '0');
+    let perCentAcresc = parseFloat((campoPerCentAcresc?.value || '0').replace('%', '').replace(',', '.')) || 0;
+
+    // Se input for null, só calcula e mostra o valor final
+    if (input === null) {
+        const valorFinal = totalVenda - valorDesconto + valorAcrescimo;
+        if (campoValorCliente) {
+            campoValorCliente.value = formatarMoeda(valorFinal);
+        }
+        return;
+    }
+        
+    // Sincronizar desconto
+    if (input === campoDesconto && totalVenda > 0) {
+        perCentDesc = (valorDesconto / totalVenda) * 100;
+        campoPerCentDesc.value = perCentDesc.toFixed(2) + '%';
+    } else if (input === campoPerCentDesc && totalVenda > 0) {
+        valorDesconto = totalVenda * (perCentDesc / 100);
+        campoDesconto.value = formatarMoeda(valorDesconto);
     }
 
-    // Recalcula lucro real com base no valor final ao cliente atualizado
+    // Sincronizar acréscimo
+    if (input === campoAcrescimo && totalVenda > 0) {
+        perCentAcresc = (valorAcrescimo / totalVenda) * 100;
+        campoPerCentAcresc.value = perCentAcresc.toFixed(2) + '%';
+    } else if (input === campoPerCentAcresc && totalVenda > 0) {
+        valorAcrescimo = totalVenda * (perCentAcresc / 100);
+        campoAcrescimo.value = formatarMoeda(valorAcrescimo);
+    }
+
+    // Calcular valor final para o cliente
+    const valorFinal = totalVenda - valorDesconto + valorAcrescimo;
+
+    if (campoValorCliente) {
+        campoValorCliente.value = formatarMoeda(valorFinal);
+    }
+
     calcularLucroReal();
+    calcularLucro();
 }
 
 
@@ -715,24 +783,59 @@ function adicionarLinhaOrc() {
 
     let novaLinha = tabela.insertRow();
     novaLinha.innerHTML = `
-                <td class="Categoria"></td>
-                <td class="qtdPessoas"><div class="add-less"><input type="number" class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
-                <td class="produto"></td>
-                <td class="qtdDias"><div class="add-less"><input type="number" class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
-                <td class="vlrVenda Moeda"></td>
-                <td class="totVdaDiaria Moeda"></td>
-                <td class="vlrCusto Moeda"></td>
-                <td class="totCtoDiaria Moeda"></td>
-                <td class="ajdCusto Moeda"></td>
-                <td class="totAjdCusto Moeda">0</td>
-                <td class="extraCampo" style="display: none;">
-                    <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotaisOrc()">
-                </td>
-                <td class="extraCampo" style="display: none;">
-                    <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotaisOrc()">
-                </td>
-                <td class="totGeral">0</td>
-                <td><div class="Acao"><button class="deleteBtn" onclick="removerLinhaOrc(this)"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
+            <td class="Proposta"> <input type="checkbox" name="" id=""> </td>
+            <td class="Categoria"></td>
+            <td class="qtdPessoas"><div class="add-less"><input type="number" class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+            <td class="produto"></td>
+            <td class="qtdDias"><div class="add-less"><input type="number" class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+             <td class="Periodo"><div class="Acres-Desc"><p>de:<input type="date" class="data-inicio" oninput="atualizarQtdDias(this)"></p><p>até <input type="date" class="data-fim" oninput="atualizarQtdDias(this)"></p></div></td>
+            <td class="vlrVenda Moeda"></td>
+            <td class="desconto Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
+            <td class="Acrescimo Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
+            <td class="totVdaDiaria Moeda"></td>
+            <td class="vlrCusto Moeda"></td>
+            <td class="totCtoDiaria Moeda"></td>
+            <td class="ajdCusto Moeda"></td>
+            <td class="totAjdCusto Moeda">0</td>
+            <td class="extraCampo" style="display: none;">
+                <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotaisOrc()">
+            </td>
+            <td class="extraCampo" style="display: none;">
+                <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotaisOrc()">
+            </td>
+            <td class="totGeral">0</td>
+            <td><div class="Acao"><button class="deleteBtn" onclick="removerLinhaOrc(this)"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
+`;
+}
+function adicionarLinhaAdicional() {
+    let tabela = document.getElementById("tabela").getElementsByTagName("tbody")[0];
+
+    let novaLinha = tabela.insertRow();
+    novaLinha.classList.add("linha-adicional");
+
+    novaLinha.innerHTML = `
+            <td class="Proposta"> <input type="checkbox" name="" id=""> </td>
+            <td class="Categoria"></td>
+            <td class="qtdPessoas"><div class="add-less"><input type="number" class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+            <td class="produto"></td>
+            <td class="qtdDias"><div class="add-less"><input type="number" class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+            <td class="Periodo"><div class="Acres-Desc"><p>de:<input type="date" class="data-inicio" oninput="atualizarQtdDias(this)"></p><p>até <input type="date" class="data-fim" oninput="atualizarQtdDias(this)"></p></div></td>
+            <td class="vlrVenda Moeda"></td>
+            <td class="desconto Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
+            <td class="Acrescimo Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
+            <td class="totVdaDiaria Moeda"></td>
+            <td class="vlrCusto Moeda"></td>
+            <td class="totCtoDiaria Moeda"></td>
+            <td class="ajdCusto Moeda"></td>
+            <td class="totAjdCusto Moeda">0</td>
+            <td class="extraCampo" style="display: none;">
+                <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotaisOrc()">
+            </td>
+            <td class="extraCampo" style="display: none;">
+                <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotaisOrc()">
+            </td>
+            <td class="totGeral">0</td>
+            <td><div class="Acao"><button class="deleteBtn" onclick="removerLinhaOrc(this)"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
 `;
 }
 
@@ -741,9 +844,84 @@ function removerLinhaOrc(botao) {
     removerLinha(linha); // Remove a linha
 }
 
+// function inicializarFlatpickr() {
+//     const input = document.querySelector("#seletorData input");
+
+//     if (!input._flatpickr) {
+//         flatpickr(input, {
+//             mode: "range",
+//             dateFormat: "d/m/y",
+//             locale: "pt_br",
+//             onChange: function(selectedDates, dateStr, instance) {
+//                 // Só chama atualizarQtdDias se houver duas datas selecionadas
+//                 if (selectedDates.length === 2) {
+//                     atualizarQtdDias(instance.input);
+//                 }
+//             }
+//         });
+//     }
+// }
+
+function atualizarQtdDias(input) {
+  var linha = input.closest('tr');
+  var dataInicio = linha.querySelector('.data-inicio').value;
+  var dataFim = linha.querySelector('.data-fim').value;
+  var inputQtdDias = linha.querySelector('input.qtdDias');
+
+  if (dataInicio && dataFim) {
+    var inicio = new Date(dataInicio);
+    var fim = new Date(dataFim);
+
+    if (fim >= inicio) {
+      var diffDias = Math.floor((fim - inicio) / (1000 * 60 * 60 * 24)) + 1;
+      inputQtdDias.value = diffDias;
+    } else {
+      inputQtdDias.value = "-";
+    }
+  } else {
+    inputQtdDias.value = "-";
+  }
+
+  if (typeof calcularTotalOrc === 'function') {
+    calcularTotalOrc();
+  }
+  recalcularLinha(linha);
+}
+
+// function atualizarQtdDias(input) {
+//    var linha = input.closest('tr'); // CORRETO: vai até o <tr>
+//   var inputQtdDias = linha.querySelector('input.qtdDias'); // busca o campo na linha inteira
+
+//   var datas = input.value.split(" a ");
+
+//   if (datas.length === 2) {
+//     var partesInicio = datas[0].split('/');
+//     var partesFim = datas[1].split('/');
+
+//     var inicio = new Date(partesInicio[2], partesInicio[1] - 1, partesInicio[0]);
+//     var fim = new Date(partesFim[2], partesFim[1] - 1, partesFim[0]);
+
+//     if (fim >= inicio) {
+//       var diffDias = Math.floor((fim - inicio) / (1000 * 60 * 60 * 24)) + 1;
+//       inputQtdDias.value = diffDias;
+//     } else {
+//       inputQtdDias.value = "-";
+//     }
+//   } else {
+//     inputQtdDias.value = "-";
+//   }
+
+//   if (typeof calcularTotalOrc === 'function') {
+//     calcularTotalOrc();
+//   }
+
+//   recalcularLinha(linha);
+// }
+
+
 //formulario de 
 function atualizarUFOrc(selectLocalMontagem) {
-     console.log("Função atualizarUF chamada");
+    //  console.log("Função atualizarUF chamada");
     // console.log("Lista atual de locais antes da busca:", locaisDeMontagem);
 
     let selectedOption = selectLocalMontagem.options[selectLocalMontagem.selectedIndex]; // Obtém a opção selecionada
@@ -772,11 +950,11 @@ function atualizarUFOrc(selectLocalMontagem) {
     
     
     if (ufSelecionada !== "SP") {
-        console.log("UF diferente de SP, exibindo campos extras.");
+        // console.log("UF diferente de SP, exibindo campos extras.");
         colunasExtras.forEach(col => col.style.display = "table-cell"); // Exibe cabeçalho
         camposExtras.forEach(campo => campo.style.display = "table-cell"); // Exibe campos
     } else {
-        console.log("UF é SP, ocultando campos extras.");
+        // console.log("UF é SP, ocultando campos extras.");
         colunasExtras.forEach(col => col.style.display = "none"); // Oculta cabeçalho
         camposExtras.forEach(campo => campo.style.display = "none"); // Oculta campos
     }
@@ -784,7 +962,7 @@ function atualizarUFOrc(selectLocalMontagem) {
 }
 
 function atualizaProdutoOrc(event) {
-    console.log("Função atualizaProduto chamada", Categoria);
+    // console.log("Função atualizaProduto chamada", Categoria);
 
     let select = event.target; // Qual select foi alterado (Funcao, equipamento ou suprimento)
 
@@ -852,7 +1030,7 @@ function resetarOutrosSelectsOrc(select) {
 // Função para configurar eventos no modal de orçamento
 function configurarEventosOrcamento() {
 
-    console.log("Função configurarEventosOrcamento CHAMADA");
+    // console.log("Função configurarEventosOrcamento CHAMADA");
     carregarFuncaoOrc();
     carregarEventosOrc();
     carregarClientesOrc();
@@ -1006,19 +1184,50 @@ function enviarOrcamento() {
 
 // Exportar as funções se necessário
 
+// -------------------------------------- input Desconto e Acrésimo -----------------------------------------------------------
+window.addEventListener('DOMContentLoaded', () => {
+    aplicarDescontoEAcrescimo(); // ✅ Atualiza o valor do cliente assim que a tela carregar
 
+    // Seu listener existente
+    document.body.addEventListener('blur', function (e) {
+        const input = e.target;
+
+        // Campos por linha
+        if (
+            input.matches('.desconto .ValorInteiros') ||
+            input.matches('.Acrescimo .ValorInteiros') ||
+            input.matches('.desconto .valorPerCent') ||
+            input.matches('.Acrescimo .valorPerCent')
+        ) {
+            const linha = input.closest('tr');
+            if (linha) {
+                recalcularLinha(linha);
+            }
+        }
+
+        // Campos gerais
+        if (
+            input.matches('#Desconto') ||
+            input.matches('#valorPerCentDesc') ||
+            input.matches('#Acrescimo') ||
+            input.matches('#valorPerCentAcresc')
+        ) {
+            aplicarDescontoEAcrescimo();
+        }
+    }, true);
+});
 // --------------------------------------- botoes Quantidade-----------------------------------------
 
 if (!window.hasRegisteredClickListener) {
     document.addEventListener('click', function(event) {
     if (event.target.classList.contains('increment')) {
-        console.log('Incrementando...');
+        // console.log('Incrementando...');
         const input = event.target.closest('.add-less').querySelector('input');
         input.value = parseInt(input.value || 0) + 1;
     }
 
     if (event.target.classList.contains('decrement')) {
-        console.log('Decrementando...');
+        // console.log('Decrementando...');
         const input = event.target.closest('.add-less').querySelector('input');
         let currentValue = parseInt(input.value || 0);
         if (currentValue > 0) {
@@ -1092,11 +1301,101 @@ function removerMascaraMoedaInputs() {
 // Chame após o cálculo ou inserção de valores
 aplicarMascaraMoeda();
 
+function bloquearCamposSeFechado() {
+    const statusInput = document.getElementById('Status');
+    const fechado = statusInput?.value === 'Fechado';
+
+    // IDs que não devem ser bloqueados nunca
+    const idsPermitidos = ['Desconto', 'perCentDesc', 'Acrescimo', 'perCentAcresc'];
+
+    if (fechado) {
+        // Bloqueia todos os campos, exceto os permitidos
+        const campos = document.querySelectorAll('input, select, textarea');
+        campos.forEach(campo => {
+            const id = campo.id;
+
+            if (
+                campo.classList.contains('idFuncao') ||
+                campo.classList.contains('idEquipamento') ||
+                campo.classList.contains('idSuprimento') ||
+                idsPermitidos.includes(id)
+            ) return;
+
+            campo.readOnly = true;
+            campo.disabled = true;
+            campo.classList.add('bloqueado');
+        });
+
+        // Gerencia os botões
+        const botoes = document.querySelectorAll('button');
+        botoes.forEach(botao => {
+            const id = botao.id || '';
+            const classes = botao.classList;
+
+            const deveContinuarAtivo =
+                id === 'btnSalvar' ||
+                id === 'Proposta' ||
+                id === 'Close' ||
+                classes.contains('Close') ||
+                classes.contains('pesquisar') ||
+                classes.contains('Adicional');
+
+            if (id === 'fecharOrc' || id === 'adicionar') {
+                botao.style.display = 'none';
+            } else if (deveContinuarAtivo) {
+                botao.style.display = 'inline-block';
+                botao.disabled = false;
+            } else {
+                botao.disabled = true;
+            }
+        });
+
+        // Adiciona alerta se tentar editar manualmente (exceto os permitidos)
+        const elementosEditaveis = document.querySelectorAll('input, select, textarea, .Proposta input');
+        elementosEditaveis.forEach(el => {
+            const id = el.id;
+
+            if (
+                el.classList.contains('idFuncao') ||
+                el.classList.contains('idEquipamento') ||
+                el.classList.contains('idSuprimento') ||
+                idsPermitidos.includes(id)
+            ) return;
+
+            el.addEventListener('focus', () => {
+                Swal.fire('Orçamento fechado', 'Este orçamento está fechado. Não é possível fazer alterações, apenas inserir adicionais.', 'warning');
+                el.blur();
+            });
+        });
+
+    } else {
+        // Desbloqueia todos os campos normalmente
+        const campos = document.querySelectorAll('input, select, textarea');
+        campos.forEach(campo => {
+            campo.classList.remove('bloqueado');
+            campo.readOnly = false;
+            campo.disabled = false;
+        });
+
+        // Mostra botão de fechar
+        const btnFechar = document.getElementById('fecharOrc');
+        if (btnFechar) {
+            btnFechar.style.display = 'inline-block';
+            btnFechar.disabled = false;
+        }
+
+        // Oculta botões adicionais se necessário
+        const btnAdicional = document.querySelectorAll('.Adicional');
+        btnAdicional.forEach(btn => {
+            btn.style.display = 'none';
+        });
+    }
+}
 function fecharOrcamento() {
 const statusInput = document.getElementById('Status');
 
 if (statusInput.value === 'Fechado') {
-    Swal.fire('Este orçamento já está fechado.');
+    Swal.fire('Orçamento fechado', 'Este orçamento está fechado e não pode ser alterado.', 'warning');
     return;
 }
 
@@ -1112,60 +1411,135 @@ Swal.fire({
 }).then((result) => {
     if (result.isConfirmed) {
     statusInput.value = 'Fechado';
+    bloquearCamposSeFechado();
     Swal.fire('Fechado!', 'O orçamento foi fechado com sucesso.', 'success');
     }
 });
 }
 
-function gerarOrcamentoPDF() {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
+// function gerarOrcamentoPDF() {
+//     const cliente = document.querySelector('#clienteSelecionado')?.textContent || '';
+//     const evento = document.querySelector('#eventoSelecionado')?.textContent || '';
+//     const local = document.querySelector('#localSelecionado')?.textContent || '';
+//     const data_inicio = document.querySelector('#dtInicioRealizacao')?.value || '';
+//     const data_fim = document.querySelector('#dtFimRealizacao')?.value || '';
+//     const infraAtivado = document.querySelector('#checkboxInfra')?.checked;
 
-    doc.text("Orçamento de Exemplo", 10, 10);
-    doc.save("orcamento.pdf");
+//     // Pega os períodos (dataRange)
+//     function pegarRange(idPrefixo) {
+//         const de = document.querySelector(`#${idPrefixo}De`)?.value || null;
+//         const ate = document.querySelector(`#${idPrefixo}Ate`)?.value || null;
+//         return de && ate ? { de, ate } : null;
+//     }
 
-// Descomente isso quando quiser salvar no banco
-/*
-fetch('/api/orcamento', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ dados: '...' })
-})
-.then(res => res.json())
-.then(data => {
-    console.log('Orçamento salvo com sucesso:', data);
-})
-.catch(err => {
-    console.error('Erro ao salvar orçamento:', err);
+//     const periodos = {
+//         montagem_infra: infraAtivado ? pegarRange('montagemInfra') : null,
+//         periodo_marcacao: pegarRange('periodoMarcacao'),
+//         periodo_montagem: pegarRange('periodoMontagem'),
+//         periodo_realizacao: pegarRange('periodoRealizacao'),
+//         periodo_desmontagem: pegarRange('periodoDesmontagem'),
+//         desmontagem_infra: infraAtivado ? pegarRange('desmontagemInfra') : null
+//     };
+
+//     // Pega todos os itens com classe .Proposta (independente do checkbox estar marcado)
+//     const linhas = document.querySelectorAll('.Proposta');
+//     const itens = Array.from(linhas).map(linha => {
+//         const categoria = linha.querySelector('.Categoria')?.textContent?.trim() || '';
+//         const produto = linha.querySelector('.produto')?.textContent?.trim() || '';
+//         const quantidade = linha.querySelector('.qtdPessoas input')?.value || '0';
+//         const dias = linha.querySelector('.qtdDias input')?.value || '0';
+
+//         return {
+//             categoria,
+//             produto,
+//             quantidade: parseInt(quantidade),
+//             dias: parseInt(dias)
+//         };
+//     });
+
+//     const dados = {
+//         cliente,
+//         evento,
+//         local,
+//         data_inicio,
+//         data_fim,
+//         ...periodos,
+//         itens
+//     };
+
+//     // Envia para o backend
+//     fetch('http://localhost:3000/orcamentos1', {
+//         method: 'POST',
+//         headers: { 'Content-Type': 'application/json' },
+//         body: JSON.stringify(dados)
+//     })
+//     .then(res => res.json())
+//     .then(resp => {
+//         console.log('Orçamento salvo com sucesso:', resp);
+//         alert('Orçamento salvo com sucesso!');
+//     })
+//     .catch(err => {
+//         console.error('Erro ao salvar orçamento:', err);
+//         alert('Erro ao salvar orçamento.');
+//     });
+// }
+
+document.getElementById('Proposta').addEventListener('click', function(event) {
+    event.preventDefault();
+    gerarPropostaPDF();
 });
-*/
-}
 
-// Função completa para gerar o PDF
 async function gerarPropostaPDF() {
+    console.log("Início da função gerarPropostaPDF");
+
     if (!window.jspdf || !window.jspdf.jsPDF) {
         console.error('jsPDF não carregado.');
         return;
     }
 
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
     const img = new Image();
+    img.src = 'img/Fundo Propostas.png';
 
     img.onload = async function () {
+        console.log("Imagem de fundo carregada");
+
+        const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
-        doc.addImage(img, 'PNG', 0, 0, pageWidth, pageHeight);
+        const margemRodape = 40;
+        const limiteInferior = pageHeight - margemRodape;
+        const lineHeight = 7;
+        const x = 25;
+        const tituloFontSize = 15;
+        const textoFontSize = 10;
 
         let y = 50;
-        const x = 25;
-        const lineHeight = 7;
-        const tituloFontSize = 18;
-        const textoFontSize = 11;
 
-        doc.setFontSize(tituloFontSize);
-        doc.text("Proposta de Serviços", x, y);
-        y += 20;
+        function adicionarLinha(texto, fontSize = textoFontSize, bold = false) {
+            if (y + lineHeight > limiteInferior) {
+                doc.addPage();
+                doc.addImage(img, 'PNG', 0, 0, pageWidth, pageHeight);
+                y = 50;
+            }
+            doc.setFontSize(fontSize);
+            doc.setFont('helvetica', bold ? 'bold' : 'normal');
+            const textWidth = doc.getTextWidth(texto);
+            const centroX = (pageWidth - textWidth) / 2;
+            doc.text(texto, centroX, y);
+            y += lineHeight;
+        }
+
+      function formatarDataBR(dataStr) {
+    if (!dataStr || dataStr.trim() === "") return "null";
+    const [ano, mes, dia] = dataStr.split("-");
+    if (!ano || !mes || !dia) return "null";
+    return `${dia}/${mes}/${ano}`;
+}
+
+        doc.addImage(img, 'PNG', 0, 0, pageWidth, pageHeight);
+
+        console.log("Buscando dados do formulário");
 
         const clienteSelect = document.querySelector('.idCliente');
         const nomeCliente = clienteSelect?.options[clienteSelect.selectedIndex]?.innerText || "N/D";
@@ -1176,14 +1550,13 @@ async function gerarPropostaPDF() {
         const dataInicio = document.getElementById('dtInicioRealizacao')?.value || "N/D";
         const dataFim = document.getElementById('dtFimRealizacao')?.value || "N/D";
 
-        // Busca dados de contato do cliente
         let dadosContato = { nmcontato: "N/D", celcontato: "N/D", emailcontato: "N/D" };
         try {
+            console.log("Buscando dados do cliente via API");
             const resposta = await fetch(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(nomeCliente)}`);
             const dados = await resposta.json();
-
-            if (dados && (Array.isArray(dados) ? dados.length > 0 : true)) {
-                const cliente = Array.isArray(dados) ? dados[0] : dados;
+            const cliente = Array.isArray(dados) ? dados[0] : dados;
+            if (cliente) {
                 dadosContato = {
                     nmcontato: cliente.nmcontato || "N/D",
                     celcontato: cliente.celcontato || "N/D",
@@ -1194,98 +1567,135 @@ async function gerarPropostaPDF() {
             console.warn("Erro ao buscar dados do cliente:", erro);
         }
 
-        // Cabeçalho
-        doc.setFontSize(textoFontSize);
-        doc.text(`Cliente: ${nomeCliente}`, x, y); y += lineHeight;
-        doc.text(`Responsável: ${dadosContato.nmcontato}  -  Celular: ${dadosContato.celcontato}  -  Email: ${dadosContato.emailcontato}`, x, y); y += lineHeight;
-        doc.text(`Evento: ${nomeEvento}  -  Local: ${localEvento}`, x, y); y += lineHeight;
-        doc.text(`Data: De ${dataInicio} até ${dataFim}`, x, y); y += 15;
-
-        // Título do escopo
         doc.setFontSize(tituloFontSize);
-        const escopoWidth = doc.getTextWidth("Escopo da proposta:");
-        const escopoX = (pageWidth - escopoWidth) / 2;
-        doc.text("Escopo da proposta:", escopoX, y);
-        y += 8;
+        doc.text("Proposta de Serviços", x, y);
+        y += 20;
 
-        // Coleta os itens da tabela agrupados por categoria
+        adicionarLinha(`Cliente: ${nomeCliente}`);
+        adicionarLinha(`Responsável: ${dadosContato.nmcontato} - Celular: ${dadosContato.celcontato} - Email: ${dadosContato.emailcontato}`);
+        adicionarLinha(`Evento: ${nomeEvento} - Local: ${localEvento}`);
+        adicionarLinha(`Data: De ${formatarDataBR(dataInicio)} até ${formatarDataBR(dataFim)}`);
+        y += 10;
+
+        doc.setFontSize(tituloFontSize);
+        adicionarLinha("Escopo da proposta:");
+        y += 5;
+
         const tabela = document.getElementById('tabela');
         const linhas = tabela?.querySelectorAll('tbody tr') || [];
-        const categoriasMap = {};
+         const categoriasMap = {};
+        const adicionais = [];
 
         linhas.forEach(linha => {
-            const qtdItensInput = linha.querySelector('.qtdPessoas input');
-            const produtoCelula = linha.querySelector('.produto');
-            const qtdDiasInput = linha.querySelector('.qtdDias input');
-            const categoriaCelula = linha.querySelector('.Categoria');
+            const checkbox = linha.querySelector('.Proposta input');
+            if (!checkbox || !checkbox.checked) return;
 
-            const qtdItens = qtdItensInput?.value?.trim();
-            const produto = produtoCelula?.innerText?.trim();
-            const qtdDias = qtdDiasInput?.value?.trim();
-            const categoria = categoriaCelula?.innerText?.trim() || "Sem Categoria";
+            const qtdItens = linha.querySelector('.qtdPessoas input')?.value?.trim();
+            const produto = linha.querySelector('.produto')?.innerText?.trim();
+            const qtdDias = linha.querySelector('.qtdDias input')?.value?.trim();
+            const categoria = linha.querySelector('.Categoria')?.innerText?.trim();
 
-            if (produto && qtdItens !== '0' && qtdDias !== '0') {
-                if (!categoriasMap[categoria]) {
-                    categoriasMap[categoria] = [];
+            const dataInicioProdutoRaw = linha.querySelector('.data-inicio')?.value?.trim() || "";
+            const dataFimProdutoRaw = linha.querySelector('.data-fim')?.value?.trim() || "";
+
+            const dataInicioProduto = formatarDataBR(dataInicioProdutoRaw);
+            const dataFimProduto = formatarDataBR(dataFimProdutoRaw);
+
+            const itemDescricao = `• ${produto || 'Item sem nome'} — ${qtdItens} Item(s), ${qtdDias} Diária(s), de ${dataInicioProduto} até ${dataFimProduto}`;
+
+            const isLinhaAdicional = linha.classList.contains('linha-adicional');
+
+            if (qtdItens !== '0' && qtdDias !== '0') {
+                if (isLinhaAdicional) {
+                    adicionais.push(itemDescricao);
+                } else {
+                    const nomeCategoria = categoria || "Outros";
+                    if (!categoriasMap[nomeCategoria]) categoriasMap[nomeCategoria] = [];
+                    categoriasMap[nomeCategoria].push(itemDescricao);
                 }
-                categoriasMap[categoria].push(`• ${produto} — ${qtdItens} Item(s), ${qtdDias} Diaria(s)`);
             }
         });
 
-        // Escreve os itens no PDF agrupados por categoria
+        // Primeiro, itens agrupados por categoria
         for (const [categoria, itens] of Object.entries(categoriasMap)) {
-            doc.setFontSize(12);
-            doc.setFont(undefined, 'bold');
-            doc.text(`${categoria}:`, x, y);
-            y += lineHeight;
-
-            doc.setFont(undefined, 'normal');
-            doc.setFontSize(textoFontSize);
-            itens.forEach(item => {
-                doc.text(item, x + 5, y);
-                y += lineHeight;
-            });
-
+            adicionarLinha(categoria + ":", 12, true);
+            itens.forEach(item => adicionarLinha(item));
             y += 5;
         }
 
-        // Rodapé
-        y += 5;
+        // Depois, itens adicionais
+        if (adicionais.length > 0) {
+            y += 10;
+            adicionarLinha("Adicionais:", 12, true);
+            adicionais.forEach(item => adicionarLinha(item));
+        }
+
+        doc.addPage();
+        doc.addImage(img, 'PNG', 0, 0, pageWidth, pageHeight);
+        y = 40;
+
+        adicionarLinha("SUPORTE TÉCNICO", textoFontSize, true);
+        doc.splitTextToSize("Caso seja necessário suporte técnico para as impressoras, a diária adicional é de R$ XX.", pageWidth - 2 * x)
+            .forEach(linha => adicionarLinha(linha));
+        y += 10;
+
+        adicionarLinha("INVESTIMENTO", textoFontSize, true);
+        doc.splitTextToSize("O valor para a execução desta proposta é de R$ XX  Incluso no valor todos os custos referentes honorários de funcionários e prestadores de serviços, impostos fiscais devidos que deverão ser recolhidos pela JA Promoções e Eventos, arcando inclusive com as eventuais sanções legais oriundas do não cumprimento dessas obrigações.", pageWidth - 2 * x)
+            .forEach(linha => adicionarLinha(linha));
+        y += 10;
+
+        adicionarLinha("FORMA DE PAGAMENTO", textoFontSize, true);
+        doc.splitTextToSize("Condições de pagamento a serem definidas...", pageWidth - 2 * x)
+            .forEach(linha => adicionarLinha(linha));
+        y += 15;
+
         doc.setFontSize(10);
-        const obsWidth = doc.getTextWidth("Obs: Proposta informativa sem valores financeiros.");
-        const obsX = (pageWidth - obsWidth) / 2;
-        doc.text("Obs: Proposta informativa sem valores financeiros.", obsX, y);
+        adicionarLinha("*Prazos de pagamento sujeitos a alteração conforme necessidade e acordo. ");
 
         const dataAtual = new Date();
-        const dia = String(dataAtual.getDate()).padStart(2, '0');
-        const mes = String(dataAtual.getMonth() + 1).padStart(2, '0');
-        const ano = dataAtual.getFullYear();
-        const dataFormatada = `${dia}/${mes}/${ano}`;
+        const dataFormatada = dataAtual.toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric'
+        });
 
-        y += 15;
+        const dataEstiloTexto = `*${dataFormatada.replace(/^(\d{2}) de/, '$1 de')}*`;
+        y += 10;
+
         doc.setFontSize(11);
-        const dataWidth = doc.getTextWidth(`São Paulo, ${dataFormatada}`);
-        const dataX = (pageWidth - dataWidth) / 2;
-        doc.text(`São Paulo, ${dataFormatada}`, dataX, y);
+        adicionarLinha(`São Paulo, ${dataFormatada}`);
+        adicionarLinha("João S. Neto");
+        adicionarLinha("Diretor Comercial");
 
-        y += 15;
-        const joaoWidth = doc.getTextWidth("João S. Neto");
-        const joaoX = (pageWidth - joaoWidth) / 2;
-        doc.text("João S. Neto", joaoX, y);
-        y += lineHeight;
-        const diretorWidth = doc.getTextWidth("Diretor Comercial");
-        const diretorX = (pageWidth - diretorWidth) / 2;
-        doc.text("Diretor Comercial", diretorX, y);
-
-        const nomeArquivo = `${nomeEvento.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_')}_${dataFormatada}.pdf`;
-        doc.save(nomeArquivo);
+        const nomeArquivoSalvar = `${nomeEvento.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_')}_${dataFormatada}.pdf`;
+        const pdfBlob = doc.output('blob');
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(pdfBlob);
+        link.download = nomeArquivoSalvar;
+        link.click();
     };
 
+    //     console.log("Enviando PDF para o backend");
+
+    //     const nomeArquivo = `${nomeEvento.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_')}_${dataFormatada}.pdf`;
+
+    //     const formData = new FormData();
+    //     formData.append('arquivo', pdfBlob, nomeArquivo);
+    //     formData.append('cliente', nomeCliente);
+    //     formData.append('evento', nomeEvento);
+
+    //     fetch("http://localhost:3000/enviar-pdf", {
+    //         method: "POST",
+    //         body: formData
+    //     })
+    //     .then(res => res.json())
+    //     .then(data => console.log("Resposta do servidor:", data))
+    //     .catch(err => console.error("Erro ao enviar PDF:", err));
+    // };
+
+    
     img.src = 'img/Fundo Propostas.png';
 }
-
-
-
 async function salvarOrcamento(event) {
     event.preventDefault(); // evita o envio padrão do formulário
 

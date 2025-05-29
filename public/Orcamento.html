@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/material_red.css">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
     <link rel="stylesheet" href="css/Modal/Orcamento.css">
     <link rel="stylesheet" href="css/Roots/Roots.css">
@@ -14,12 +18,12 @@
 
 <div id="CadModal" class="modal">
     <div class="modal-content">
-        <div class="Close"><button onclick="fecharModal()">X</button></div>
+        <div class="Close" id="Close"><button onclick="fecharModal()" id="Close">X</button></div>
 
 
         <div id ="form-orcamento">
         
-        <form id="form" name="form" autocomplete="off" ><!-- data-action="http://localhost:3000/salvarOrcamento"> -->
+        <form id="form" name="form" autocomplete="off"><!-- data-action="http://localhost:3000/salvarOrcamento"> -->
             
                 
             <div class="title">
@@ -28,7 +32,7 @@
 
                 <div class="Norcamento">
                     <div class="form2" >
-                        <input type="text" style="text-transform: uppercase;" id="Status"  value="A" name="Status" maxlength="1" pattern="^[aAfF]$"
+                        <input type="text" style="text-transform: uppercase;" class="preenchido" id="Status"  value="A" name="Status" maxlength="1" pattern="^[aAfF]$"
                             title="A = Aberto | F = Fechado"   required spellcheck="false">
                         <label for="Status">Status  (A/F)</label>
                     </div>
@@ -176,11 +180,15 @@
                     <table id="tabela">
                         <thead>
                             <tr>
+                                <th>P/ Proposta</th>
                                 <th>Categoria</th>
                                 <th>Qtd Itens</th>
                                 <th>Produto</th>
                                 <th>Qtd Dias</th>
+                                <th>Periodo das diarias </th>
                                 <th>VlrDiaria</th>
+                                <th>Desconto</th>
+                                <th>Acrescimo</th>
                                 <th>Tot Venda Diaria</th>
                                 <th>CtoDiaria</th>
                                 <th>Tot Custo Diaria</th>
@@ -195,11 +203,19 @@
                         </thead>
                         <tbody>
                             <tr>
+                                <td class="Proposta"><input type="checkbox"></td>
                                 <td class="Categoria"></td>
-                                <td class="qtdPessoas"><div class="add-less"><input type="number" class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+                                <td class="qtdPessoas"><div class="add-less"><input type="number" readonly class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
                                 <td class="produto"></td>
-                                <td class="qtdDias"><div class="add-less"><input type="number" class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+                                <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+
+                                <!-- <td class="Periodo"><div class="flatpickr" id="seletorData"><input type="text" data-input  oninput="atualizarQtdDias(this)" onclick="inicializarFlatpickr()"  require("flatpickr/dist/themes/material_red.css") placeholder="Clique para Selecionar"></div></td> -->
+                                <td class="Periodo"><div class="Acres-Desc"><p>de:<input type="date" class="data-inicio" oninput="atualizarQtdDias(this)"></p><p>até<input type="date" class="data-fim" oninput="atualizarQtdDias(this)"></p></div></td>
+
+
                                 <td class="vlrVenda Moeda"></td>
+                                <td class="desconto Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
+                                <td class="Acrescimo Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
                                 <td class="totVdaDiaria Moeda"></td>
                                 <td class="vlrCusto Moeda"></td>
                                 <td class="totCtoDiaria Moeda"></td>
@@ -218,10 +234,13 @@
                     </table>
                 </div>
                 <br>
-                <div class="addLinha"><button class="adicionar" onclick="adicionarLinhaOrc()">Adicionar Linha</button></div>
+                <div class="addLinha"><button class="adicionar" id="adicionar" onclick="adicionarLinhaOrc()">Adicionar Linha</button></div>
             
                 <div class = 'Selects'>
-                    <textarea  name="Observacao" id="Observacao" placeholder="Observaçoes"></textarea>
+                    <div class="Observacoes">
+                        <textarea  name="Observacao" id="Observacao" placeholder="Observaçoes sobre os Itens "></textarea>
+                        <textarea  name="ObservacaoProposta" id="ObservacaoProposta" placeholder="Observaçoes sobre a Proposta"></textarea>
+                    </div>
                     <div>
                         <div class="form-2colunas">
                             <div class="form2">
@@ -248,21 +267,21 @@
                     <div>
                         <div class="lucroTot">
                             <div class="form2">
-                                <input type="text" id="Lucro" value=" R$ 0,00" style="font-size: 15px;">
+                                <input type="text" id="Lucro" value=" R$ 0,00" class="preenchido" readonly style="font-size: 15px;">
                                 <label for="Lucro"> Lucro: </label>
                             </div>
                             <div class="form3">
-                                <input type="text"  id="perCent" name="perCent" required style="font-size: 15px;">
+                                <input type="text"  id="perCent" class="preenchido" value="0%" name="perCent" required readonly style="font-size: 15px;">
                                 <label for="perCent"> % </label>
                             </div>
                         </div>
                         <div class="lucroTot">
                             <div class="form2">
-                                <input type="text" id="LucroReal" name="LucroReal" value=" R$ 0,00" required style="font-size: 15px;">
+                                <input type="text" id="LucroReal"  class="preenchido" name="LucroReal" value=" R$ 0,00" required readonly style="font-size: 15px;">
                                 <label for="LucroReal"> Lucro Real: </label>
                             </div>
                             <div class="form3">
-                                <input type="text"  id="perCentReal" name="perCentReal" required style="font-size: 15px;">
+                                <input type="text"  id="perCentReal " class="preenchido" value="0%" name="perCentReal" required readonly style="font-size: 15px;">
                                 <label for="perCentReal"> % </label>
                             </div>
                         </div>
@@ -272,36 +291,49 @@
                         
                         <div class="form-2colunas">
                             <div class="form2">
-                                <input type="text"  id="Desconto" name="Desconto"  required  oninput="aplicarDescontoEAcrescimo()" style="font-size: 15px;" autocomplete="off">
+                                <input type="text" value="R$ 0,00" id="Desconto" min="0" class="ValorInteiros preenchido" name="Desconto"  required  oninput="aplicarDescontoEAcrescimo(this)" style="font-size: 15px;" autocomplete="off">
                                 <label for="Desconto">Desconto:</label>
                             </div>
-                            <div class="form2">
-                                <input type="text"  id="Acrescimo" name="Acrescimo"  required  oninput="aplicarDescontoEAcrescimo()" style="font-size: 15px;" autocomplete="off">
-                                <label for="Acrescimo">Acréscimo:</label>
+                            <div class="form3">
+                                <input type="text" value="0% " id="perCentDesc" min="0" class="valorPerCentDesc preenchido" name="perCentDesc"  oninput="aplicarDescontoEAcrescimo(this)"  required style="font-size: 15px;">
                             </div>
                         </div>
-                        
+                            <div class="form-2colunas">
+                                <div class="form2">
+                                    <input type="text"  value="R$ 0,00" min="0" id="Acrescimo" class="ValorInteiros preenchido" name="Acrescimo"  required  oninput="aplicarDescontoEAcrescimo(this)" style="font-size: 15px;" autocomplete="off">
+                                    <label for="Acrescimo">Acréscimo:</label>
+                                </div>
+                                <div class="form3">
+                                <input type="text" value="0%" min="0" id="perCentAcresc"  class="valorPerCentAcresc preenchido" name="perCentAcresc"  oninput="aplicarDescontoEAcrescimo(this)" required style="font-size: 15px;">
+                            </div>
+                        </div>
+                    
+
                         <div class="form2">
-                            <input type="text" id="valorCliente" name="valorCliente" value=" R$ 0,00" required style="font-size: 15px;">
+                            <input type="text" id="valorCliente" class="preenchido" name="valorCliente" readonly value="R$ 0,00" required style="font-size: 15px;">
                             <label for="valorCliente"> Valor do Cliente</label>
                         </div>
-                    </div>
-                 
+                    </div>  
             </div>
 
             </div>
             <div class="BTNs">
                 <button class="pesquisar" onclick="pesquisarOrcamento()">Pesquisar</button>
-                <button class="contrato" onclick="gerarOrcamentoPDF()">Gerar Orçamento</button>
-                <button class="Proposta" onclick="gerarPropostaPDF()">Gerar Proposta</button>
-                <button class="fecharOrc" onclick="fecharOrcamento()">Fechar Orçamento</button>
+                <button class="Proposta" id="Proposta" onclick="gerarPropostaPDF()">Gerar Proposta</button>
+                <button class="linha-adicional Adicional" onclick="adicionarLinhaAdicional()"  style="display: none;">Adicional</button>
+                <button class="fecharOrc" id="fecharOrc" onclick="fecharOrcamento()">Fechar Orçamento</button>
                 <button class="salvar" id="btnSalvar" type="submit">Salvar Orçamento</button>
             </div>
         </form>
     </div>
 </div>
+<script src="js/Orcamento.js"defer></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt_br.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+
 
 </body>
 </html>
