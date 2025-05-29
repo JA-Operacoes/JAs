@@ -102,6 +102,8 @@ function filtrarMenuPorPermissoes(permissoes) {
     const modulo = link.dataset.modulo;
     
     const permissao = permissoes.find(p => p.modulo === modulo);
+
+    console.log(`[Permissões] Verificando módulo: ${modulo}`, permissao);
     
 
     if (!permissao || (!permissao.cadastrar && !permissao.alterar && !permissao.pesquisar)) {

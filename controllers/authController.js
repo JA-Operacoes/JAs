@@ -3,12 +3,14 @@ const db = require('../db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
+const JWT_SECRET = process.env.JWT_SECRET;
+
 
 // Cadastro de usuário
 // controllers/authController.js
 async function verificarUsuarioExistente(req, res) {
     const { nome, sobrenome, email, ativo } = req.body;
-  
+    console.log("verificarUsuarioExistente AuthController", req.body);
     try {
       const { rows } = await db.query("SELECT * FROM usuarios WHERE nome = $1 AND sobrenome = $2 AND email = $3 AND ativo = $4", [nome, sobrenome, email, ativo]);
   
@@ -153,30 +155,80 @@ async function getEmpresasDoUsuario(idusuario) {
 }
 
 async function listarUsuarios(req, res) {
+  
+    // try {
+    //   console.log("listarUsuarios AuthController", req );
+    //   //  const { rows } = await db.query('SELECT idusuario, nome, sobrenome, email, senha_hash, ativo FROM usuarios ORDER BY nome');
+    //   //  res.status(200).json(rows);
+    //   // Busca as empresas vinculadas ao usuário
+    //   const empresasQuery = await db.query(`
+    //     SELECT e.idempresa, e.nome 
+    //     FROM usuarioempresas ue
+    //     JOIN empresas e ON ue.idempresa = e.idempresa
+    //     WHERE ue.idusuario = $1
+    //   `, [usuario.idusuario]);
+
+    //   const empresas = empresasQuery.rows;
+
+    //   if (empresas.length === 0) {
+    //     return res.status(403).json({ erro: 'Usuário não possui empresas vinculadas.' });
+    //   }
+
+    //   // Criar o token com idusuario e (opcional) idempresaDefault
+    //   const tokenPayload = {
+    //     idusuario: usuario.idusuario,
+    //     email: usuario.email,
+    //     idempresaDefault: empresas[0].idempresa, // opcional
+    //   };
+
+    //   const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '8h' });
+
+    //   res.status(200).json({
+    //     token,
+    //     idusuario: usuario.idusuario,
+    //     empresas,
+    //     idempresaDefault: empresas[0].idempresa, // opcional
+    //   });
+
+    // } catch (erro) {
+    //   console.error('Erro ao listar usuários:', erro);
+    //   res.status(500).json({ erro: 'Erro ao listar usuários.' });
+    // }
     try {
-      console.log("listarUsuarios AuthController", req );
-       const { rows } = await db.query('SELECT idusuario, nome, sobrenome, email, senha_hash, ativo FROM usuarios ORDER BY nome');
-       res.status(200).json(rows);
-      // const { rows } = await db.query(`
-      //   SELECT u.idusuario, u.nome, u.sobrenome, u.email, u.ativo,
-      //     COALESCE(
-      //       json_agg(
-      //         json_build_object('idempresa', e.idempresa, 'nome', e.nome)
-      //       ) FILTER (WHERE e.idempresa IS NOT NULL),
-      //       '[]'
-      //     ) AS empresas
-      //   FROM usuarios u
-      //   LEFT JOIN usuarioempresas ue ON u.idusuario = ue.idusuario
-      //   LEFT JOIN empresas e ON ue.idempresa = e.idempresa
-      //   GROUP BY u.idusuario
-      //   ORDER BY u.nome
-      // `);
-      //res.status(200).json(rows);
+      console.log('Headers:', req.headers);
+      console.log('req.user:', req.user);
+      console.log('req.idempresa:', req.idempresa);
+   
+      const { idusuario } = req.usuario;
+      const idempresa = req.idempresa;
+
+      console.log('req.user:', req.user);
+      console.log('req.idempresa:', req.idempresa);
+
+      // valida se o usuário tem acesso a essa empresa, por exemplo:
+      const empresasQuery = await db.query(
+        `SELECT * FROM usuarioempresas WHERE idusuario = $1 AND idempresa = $2`,
+        [idusuario, idempresa]
+      );
+      if (empresasQuery.rows.length === 0) {
+        return res.status(403).json({ erro: 'Usuário não tem acesso a essa empresa.' });
+      }
+
+      // busca usuários da empresa
+      const usuariosQuery = await db.query(`
+        SELECT u.idusuario, u.nome, u.sobrenome, u.email, u.ativo
+        FROM usuarios u
+        JOIN usuarioempresas ue ON u.idusuario = ue.idusuario
+        WHERE ue.idempresa = $1
+        ORDER BY u.nome
+      `, [idempresa]);
+
+      res.json(usuariosQuery.rows);
     } catch (erro) {
-      console.error('Erro ao listar usuários:', erro);
-      res.status(500).json({ erro: 'Erro ao listar usuários.' });
+      console.error(erro);
+      res.status(500).json({ erro: 'Erro ao buscar usuários.' });
     }
-  }
+}
 
 async function buscarUsuariosPorNome(req, res) {
   const { nome } = req.query;
@@ -312,48 +364,191 @@ async function verificarNomeCompleto(req, res) {
 
 // Login
 async function login(req, res) {
-  const { email, senha } = req.body;
+  // const { email, senha } = req.body;
+
+  // try {
+  //   const { rows } = await db.query('SELECT * FROM usuarios WHERE email = $1', [email]);
+  //   const usuario = rows[0];
+
+  //   if (!usuario) return res.status(401).json({ erro: 'Usuário não encontrado.' });
+
+  //   const senhaCorreta = await bcrypt.compare(senha, usuario.senha_hash);
+  //   if (!senhaCorreta) return res.status(401).json({ erro: 'Senha inválida.' });
+
+  //   const { rows: permissoesRaw } = await db.query(
+  //     `SELECT modulo, acesso AS pode_acessar, pesquisar AS pode_pesquisar, cadastrar AS pode_cadastrar, alterar AS pode_alterar
+  //      FROM permissoes WHERE idusuario = $1`,
+  //     [usuario.idusuario]
+  //   );
+
+  //   const token = jwt.sign(
+  //     { id: usuario.idusuario, nome: usuario.nome, permissoes: permissoesRaw },
+  //     process.env.JWT_SECRET,
+  //     { expiresIn: '8h' }
+  //   );
+
+  //   const { rows: empresas } = await db.query(
+  //     `SELECT e.idempresa, e.nome FROM empresas e
+  //      JOIN usuarioempresas ue ON e.idempresa = ue.idempresa
+  //      WHERE ue.idusuario = $1`,
+  //     [usuario.idusuario]
+  //   );
+
+  //   res.status(200).json({
+  //     token,
+  //     idusuario: usuario.idusuario,
+  //     nome: usuario.nome,
+  //     permissoes: permissoesRaw,
+  //     empresas
+  //   });
+  // } catch (error) {
+  //   console.error('Erro ao fazer login:', error);
+  //   res.status(500).json({ erro: 'Erro no login.' });
+  // }
+  // const { email, senha } = req.body;
+  // try {
+  //   // Buscar usuário pelo email
+  //   const { rows } = await db.query('SELECT idusuario, nome, email, senha_hash FROM usuarios WHERE email = $1', [email]);
+  //   if (rows.length === 0) {
+  //     return res.status(401).json({ erro: 'Usuário ou senha inválidos' });
+  //   }
+  //   const usuario = rows[0];
+
+  //   // Aqui você deve verificar a senha (ex: bcrypt.compare), exemplo simplificado:
+  //   if (senha !== usuario.senha_hash) {
+  //     return res.status(401).json({ erro: 'Usuário ou senha inválidos' });
+  //   }
+
+  //   // Criar token
+  //   const tokenPayload = { idusuario: usuario.idusuario, email: usuario.email, idempresaDefault: empresas[0].idempresa, };
+  //   const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '8h' });
+
+  //   res.json({ token, idusuario: usuario.idusuario, nome: usuario.nome });
+  // } catch (erro) {
+  //   console.error('Erro no login:', erro);
+  //   res.status(500).json({ erro: 'Erro interno' });
+  // }
+
+  console.log("login AuthController ENTROU EM LOGIN", req.body);
+
+  //  const { email, senha } = req.body;
+
+  // try {
+  //   const resultado = await db.query('SELECT * FROM usuarios WHERE email = $1', [email]);
+  //   const usuario = resultado.rows[0];
+
+  //   if (!usuario) {
+  //     return res.status(401).json({ erro: 'Usuário não encontrado.' });
+  //   }
+
+  //   // Substitua isso por verificação com bcrypt na versão final
+  //   const senhaCorreta = senha === usuario.senha;
+  //   if (!senhaCorreta) {
+  //     return res.status(401).json({ erro: 'Senha inválida.' });
+  //   }
+
+  //   const empresasQuery = await db.query(`
+  //     SELECT e.idempresa, e.nome 
+  //     FROM usuarioempresas ue
+  //     JOIN empresas e ON ue.idempresa = e.idempresa
+  //     WHERE ue.idusuario = $1
+  //   `, [usuario.idusuario]);
+
+  //   const empresas = empresasQuery.rows;
+  //   if (empresas.length === 0) {
+  //     return res.status(403).json({ erro: 'Usuário sem empresas vinculadas.' });
+  //   }
+
+  //   console.log("EMPRESAS DO USUÁRIO", empresas);
+  //   const { rows: permissoesRaw } = await db.query(
+  //     `SELECT modulo, acesso AS pode_acessar, pesquisar AS pode_pesquisar, cadastrar AS pode_cadastrar, alterar AS pode_alterar
+  //      FROM permissoes
+  //      WHERE idusuario = $1`,
+  //     [usuario.idusuario]
+  //   );
+  //   console.log("PERMISSOES DO USUÁRIO", permissoesRaw);
+  //   const tokenPayload = {
+  //     id: usuario.idusuario,
+  //     nome: usuario.nome,
+  //     empresas,
+  //     idempresaDefault: empresas[0].idempresa,
+  //     permissoes: permissoesRaw,
+     
+  //   };
+  //   console.log("TOKEN PAYLOAD", tokenPayload);
+  //   const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '8h' });
+
+  //   res.status(200).json({
+  //     token,
+  //     idusuario: usuario.idusuario,
+  //     nome: usuario.nome,
+  //     empresas,
+  //     idempresaDefault: empresas[0].idempresa,
+  //     permissoes: permissoesRaw,
+  //   });
+
+  // } catch (erro) {
+  //   console.error('Erro no login:', erro);
+  //   res.status(500).json({ erro: 'Erro ao fazer login.' });
+  // }
 
   try {
-    const { rows } = await db.query('SELECT * FROM usuarios WHERE email = $1', [email]);
-    const usuario = rows[0];
+    const { email, senha } = req.body;
 
-    if (!usuario) return res.status(401).json({ erro: 'Usuário não encontrado.' });
+    if (!email || !senha) {
+      return res.status(400).json({ erro: "Email e senha são obrigatórios." });
+    }
 
-    const senhaCorreta = await bcrypt.compare(senha, usuario.senha_hash);
-    if (!senhaCorreta) return res.status(401).json({ erro: 'Senha inválida.' });
+    // Buscar usuário pelo email
+    const queryUsuario = "SELECT idusuario, email, senha_hash, nome FROM usuarios WHERE email = $1";
+    const resultUsuario = await db.query(queryUsuario, [email]);
 
-    const { rows: permissoesRaw } = await db.query(
-      `SELECT modulo, acesso AS pode_acessar, pesquisar AS pode_pesquisar, cadastrar AS pode_cadastrar, alterar AS pode_alterar
-       FROM permissoes WHERE idusuario = $1`,
-      [usuario.idusuario]
-    );
+    if (resultUsuario.rows.length === 0) {
+      return res.status(401).json({ erro: "Usuário ou senha inválidos." });
+    }
 
+    const usuario = resultUsuario.rows[0];
+
+    // Verificar senha com bcrypt
+    const senhaValida = await bcrypt.compare(senha, usuario.senha_hash);
+    if (!senhaValida) {
+      return res.status(401).json({ erro: "Usuário ou senha inválidos." });
+    }
+
+    // Buscar empresas associadas
+    const queryEmpresas = `
+      SELECT e.idempresa
+      FROM usuarioempresas ue
+      JOIN empresas e ON ue.idempresa = e.idempresa
+      WHERE ue.idusuario = $1
+    `;
+    const resultEmpresas = await db.query(queryEmpresas, [usuario.idusuario]);
+    const empresas = resultEmpresas.rows;
+
+    // Definir empresa padrão (a primeira da lista ou null)
+    const idempresaDefault = empresas.length > 0 ? empresas[0].idempresa : null;
+
+    // Gerar token JWT (pode incluir mais dados se quiser)
     const token = jwt.sign(
-      { id: usuario.idusuario, nome: usuario.nome, permissoes: permissoesRaw },
-      process.env.JWT_SECRET,
-      { expiresIn: '8h' }
+      { idusuario: usuario.idusuario, email: usuario.email },
+      JWT_SECRET,
+      { expiresIn: "10h" }
     );
 
-    const { rows: empresas } = await db.query(
-      `SELECT e.idempresa, e.nome FROM empresas e
-       JOIN usuarioempresas ue ON e.idempresa = ue.idempresa
-       WHERE ue.idusuario = $1`,
-      [usuario.idusuario]
-    );
-
-    res.status(200).json({
+    // Retornar resposta para o frontend
+    return res.json({
       token,
       idusuario: usuario.idusuario,
-      nome: usuario.nome,
-      permissoes: permissoesRaw,
-      empresas
+      empresas,
+      idempresaDefault,
     });
+
   } catch (error) {
-    console.error('Erro ao fazer login:', error);
-    res.status(500).json({ erro: 'Erro no login.' });
+    console.error("Erro no login:", error);
+    return res.status(500).json({ erro: "Erro interno no servidor." });
   }
 }
+
 
 // → Nova função para listar permissões do usuário logado
 async function listarPermissoes(req, res) {
