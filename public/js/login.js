@@ -26,17 +26,18 @@ try {
     // ← você precisa desta linha:
     const dados = await response.json();
 
-    const { token, idusuario, empresas } = dados;  // agora 'dados' existe
+        
+    const { token, idusuario, empresas, idempresaDefault } = dados;
     console.log("token, idusuario", token, idusuario, empresas);
-
     localStorage.setItem("token", token);
     localStorage.setItem("idusuario", idusuario);
     localStorage.setItem("empresas", JSON.stringify(empresas));
+    localStorage.setItem("idempresa", idempresaDefault);
 
-    // você pode salvar a empresa ativa inicial como a primeira da lista
-    if (empresas.length > 0) {
-      localStorage.setItem("idempresa", empresas[0].idempresa);
-    }
+    // // você pode salvar a empresa ativa inicial como a primeira da lista
+    // if (empresas.length > 0) {
+    //   localStorage.setItem("idempresa", empresas[0].idempresa);
+    // }
 
     // Redireciona só depois de buscar permissões etc.
     window.location.href = "OPER-index.html";

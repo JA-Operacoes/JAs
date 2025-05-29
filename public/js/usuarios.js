@@ -12,16 +12,16 @@ document.getElementById("Registrar").addEventListener("submit", async function (
       .map(cb => cb.value);
 
 
-    if (empresasSelecionadas.length === 0) {
-      return Swal.fire({
-        icon: "warning",
-        title: "Atenção",
-        text: "Selecione pelo menos uma empresa."
-      });
-    }
+    // if (empresasSelecionadas.length === 0) {
+    //   return Swal.fire({
+    //     icon: "warning",
+    //     title: "Atenção",
+    //     text: "Selecione pelo menos uma empresa."
+    //   });
+    // }
   
     try {
-      const resposta = await fetch("/auth/cadastro", {
+      const resposta = await fetchComToken("/auth/cadastro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nome, email, senha, sobrenome, ativo, empresas: empresasSelecionadas })
@@ -90,6 +90,9 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
   const email_original = document.getElementById("email_original").value;
   const ativo = document.getElementById('ativo').checked;
   
+  const empresasSelecionadas = Array.from(document.querySelectorAll('#listaEmpresas input[type="checkbox"]:checked'))
+    .map(cb => cb.value);
+
 
   if (!nome || !sobrenome || !email ) {
     Swal.fire({
@@ -114,11 +117,10 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
   try {
      console.log("ENTROU NO TRY", nome, sobrenome, email, senha);
    
-    const resposta = await fetch("/auth/cadastro", {
+    const resposta = await fetchComToken("/auth/cadastro", {
       method: "PUT",  // Mudamos para PUT para indicar alteração
       headers: { "Content-Type": "application/json" },
-      
-      body: JSON.stringify({ nome, email, senha, sobrenome, email_original, ativo  })
+      body: JSON.stringify({ nome, sobrenome, email, senha, email_original, ativo, empresas: empresasSelecionadas }),
 
     });
  
@@ -265,7 +267,7 @@ async function verificarUsuarioExistenteFront() {
  
   try {
     
-    const resposta = await fetch("/auth/verificarUsuario", {
+    const resposta = await fetchComToken("/auth/verificarUsuario", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ nome, sobrenome, email, ativo })
@@ -328,7 +330,7 @@ async function verificarNomeExistente() {
 
 
   try {
-    const resposta = await fetch("/auth/verificarNomeExistente", {
+    const resposta = await fetchComToken("/auth/verificarNomeExistente", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ nome }),
@@ -379,7 +381,7 @@ async function verificarNomeCompleto() {
   if (!nome || !sobrenome) return;
 
   try {
-    const resposta = await fetch("/auth/verificarNomeCompleto", {
+    const resposta = await fetchComToken("/auth/verificarNomeCompleto", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ nome, sobrenome }),
@@ -474,12 +476,25 @@ const iconeBuscar = document.getElementById('iconebuscarUsuario');
 
 iconeBuscar.addEventListener('click', async () => {
   const termo = inputBusca.value.trim();
+  const idempresa = localStorage.getItem('idempresa') || '1';
+
+  console.log("Termo de busca ao clicar no ícone:", termo); // Log do termo de busca
 
   if (termo.length < 2) {
     // Se não tiver termo, buscar todos
+    console.log("Termo de busca muito curto, buscando todos os usuários.");
     try {
-      const resposta = await fetch(`/auth/usuarios`);
+      const resposta = await fetchComToken(`/auth/usuarios`);
+      // const usuarios = await resposta.json();
+
       const usuarios = await resposta.json();
+
+      if (!Array.isArray(usuarios)) {
+        console.error('Resposta não é uma lista de usuários:', usuarios);
+        return; // ou trate o erro apropriadamente
+      }
+
+      console.log('Resposta da API:', usuarios);
 
       lista.innerHTML = '';
       usuarios.forEach(usuario => {
@@ -534,8 +549,13 @@ inputBusca.addEventListener('input', async () => {
   }
 
   try {
-    const resposta = await fetch(`/auth/usuarios?nome=${encodeURIComponent(termo)}`);
+    console.log("Token no localStorage inputBusca:", localStorage.getItem("token"));
+    const resposta = await fetchComToken(`/auth/usuarios?nome=${encodeURIComponent(termo)}`);
+    console.log('Resposta da API:', resposta);
+   
     const usuarios = await resposta.json();
+
+   
 
     lista.innerHTML = '';
 
@@ -658,7 +678,7 @@ document.getElementById("btnCadastrar").addEventListener("click", function (e) {
 
 async function carregarPermissoesEEmpresasDoUsuario(email) {
   try {
-    const resposta = await fetch(`/auth/permissoes-usuario/${email}`);
+    const resposta = await fetchComToken(`/auth/permissoes-usuario/${email}`);
     const dados = await resposta.json();
 
     if (!resposta.ok) {
@@ -691,7 +711,7 @@ async function carregarPermissoesEEmpresasDoUsuario(email) {
 
 async function preencherUsuarioPeloEmail(email) {
   try {
-    const resposta = await fetch(`/auth/email/${encodeURIComponent(email)}`);
+    const resposta = await fetchComToken(`/auth/email/${encodeURIComponent(email)}`);
     if (!resposta.ok) throw new Error('Usuário não encontrado - Preencher Usuário pelo Email');
 
     const dados = await resposta.json();
@@ -772,9 +792,12 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
   };
 
    // compara tudo
-  const semAlteracao = Object.keys(atuais).every(key => atuais[key] === permissoesOriginais[key]);
-  if (semAlteracao) {
-    return Swal.fire("Aviso", "Nenhuma alteração detectada em Permissões.", "info");
+  // 
+  if (typeof permissoesOriginais === "object") {
+    const semAlteracao = Object.keys(atuais).every(key => atuais[key] === permissoesOriginais[key]);
+    if (semAlteracao) {
+      return Swal.fire("Aviso", "Nenhuma alteração detectada em Permissões.", "info");
+    }
   }
 
   const payload = {
@@ -807,7 +830,7 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
     // for (const idempresa of empresasSelecionadas) {
     //   const permissoes = { ...permissoesBase, idempresa };
 
-      const res = await fetch("/permissoes/cadastro", {
+      const res = await fetchComToken("/permissoes/cadastro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -848,7 +871,7 @@ async function carregarPermissoesUsuario(idusuario) {
   const chkCadastrar = document.getElementById("Cadastrar");
   const chkAlterar   = document.getElementById("Alterar");
   const chkPesquisar = document.getElementById("Pesquisar");
-  const chkLeitura   = document.getElementById("Leitura");
+  // const chkLeitura   = document.getElementById("Leitura");
 
   try {
     console.log("Entrou no carregarPermissoesUsuario", idusuario, "Módulo:", modulo);
@@ -866,15 +889,15 @@ async function carregarPermissoesUsuario(idusuario) {
       chkCadastrar.checked  = Boolean(p.cadastrar);
       chkAlterar.checked    = Boolean(p.alterar);
       chkPesquisar.checked  = Boolean(p.pesquisar);
-      chkLeitura.checked    = Boolean(p.leitura);
+      // chkLeitura.checked    = Boolean(p.leitura);
 
       permissoesOriginais = {
         modulo,
         acesso: Boolean(p.acesso),
         cadastrar: Boolean(p.cadastrar),
         alterar: Boolean(p.alterar),
-        pesquisar: Boolean(p.pesquisar),
-        leitura: Boolean(p.leitura)
+        pesquisar: Boolean(p.pesquisar)
+        // leitura: Boolean(p.leitura)
       };
     } else {
       permissoesOriginais = {
@@ -882,8 +905,8 @@ async function carregarPermissoesUsuario(idusuario) {
         acesso: false,
         cadastrar: false,
         alterar: false,
-        pesquisar: false,
-        leitura: false
+        pesquisar: false
+        // leitura: false
       };
     }
   } catch (err) {
@@ -891,34 +914,30 @@ async function carregarPermissoesUsuario(idusuario) {
   }
 }
 
-function fetchComToken(url, options = {}) {
+async function fetchComToken(url, options = {}) {
+  console.log("URL da requisição:", url);
   const token = localStorage.getItem("token");
   const idempresa = localStorage.getItem("idempresa");
-  if (!token) {
-    throw new Error("fetchComToken: nenhum token encontrado. Faça login primeiro.");
+ 
+  console.log("ID da empresa no localStorage:", idempresa);
+  console.log("Token no localStorage:", token);
+
+  if (!options.headers) options.headers = {};
+
+  options.headers['Authorization'] = 'Bearer ' + token;
+  if (idempresa) options.headers['idempresa'] = idempresa;
+
+  const resposta = await fetch(url, options);
+
+  if (!resposta.ok) {
+    const erro = await resposta.json();
+    throw new Error(erro.erro || 'Erro desconhecido');
   }
 
-  if (!idempresa) {
-    throw new Error("fetchComToken: nenhum idempresa encontrado. Selecione uma empresa.");
-  }
-  // Monta os headers sempre incluindo Authorization
-  const headers = {
-    "Authorization": `Bearer ${token}`,
-    "idempresa": options.headers?.idempresa || idempresa,
-    // só coloca Content-Type se houver body (POST/PUT)
-    ...(options.body ? { "Content-Type": "application/json" } : {}),
-    ...options.headers
-  };
-
-  return fetch(url, {
-    ...options,
-    headers,
-    // caso seu back-end esteja em outro host e precisa de CORS:
-    mode: "cors",
-    // se precisar enviar cookies de sessão:
-    credentials: "include"
-  });
+  return resposta;
 }
+
+
 
 //função para limpar todos os checkboxes de permissão
 function limparCheckboxesPermissao() {
