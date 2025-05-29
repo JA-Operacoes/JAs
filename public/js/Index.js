@@ -31,6 +31,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     suprimentos: "Suprimentos",
     funcionarios: "Funcionarios",
     staff: "Staff",
+    usuarios: "Usuarios"
   };
 
   document.querySelectorAll(".abrir-modal").forEach((botao) => {

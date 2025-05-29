@@ -52,6 +52,7 @@ app.use("/funcionarios", autenticarToken, require("./routes/rotaFuncionario"));
 app.use("/profissional", autenticarToken, require("./routes/rotaProfissional"));
 app.use("/localmontagem", autenticarToken, require("./routes/rotaLocalMontagem"));
 app.use("/staff", autenticarToken, require("./routes/rotaStaff"));
+//app.use("/usuarios", autenticarToken, require("./routes/Usuarios"));
 
 
 
