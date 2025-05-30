@@ -263,198 +263,10 @@ async function verificarNomeCompleto(req, res) {
 }
 
 
-// Login de usuário
-// async function login(req, res) {
-//   const { email, senha } = req.body;
-
-//   try {
-//     const { rows } = await db.query(
-//       'SELECT * FROM usuarios WHERE email = $1',
-//       [email]
-//     );
-//     const usuario = rows[0];
-//     if (!usuario) return res.status(401).json({ erro: 'Usuário não encontrado.' });
-
-//     const senhaCorreta = await bcrypt.compare(senha, usuario.senha_hash);
-//     if (!senhaCorreta) return res.status(401).json({ erro: 'Senha inválida.' });
-
-//     // 🔍 Buscar permissões do usuário no banco
-//     const { rows: permissoesRaw } = await db.query(
-//       `
-//       SELECT
-//         modulo,
-//         acesso   AS pode_acessar,
-//         pesquisar AS pode_pesquisar,
-//         cadastrar AS pode_cadastrar,
-//         alterar   AS pode_alterar
-//       FROM permissoes
-//       WHERE idusuario = $1
-//       `,
-//       [usuario.idusuario]
-//     );
-
-//     // 📦 Gerar token com permissões no payload
-//     const token = jwt.sign(
-//       {
-//         id: usuario.idusuario,
-//         nome: usuario.nome,
-//         permissoes: permissoesRaw
-//       },
-//       process.env.JWT_SECRET,
-//       { expiresIn: '8h' }
-//     );
-
-//     const { rows: empresas } = await db.query(
-//       `SELECT e.idempresa, e.nome_fantasia FROM empresas e
-//       JOIN usuario_empresas ue ON e.idempresa = ue.idempresa
-//       WHERE ue.idusuario = $1`, 
-//       [usuario.idusuario]
-//     );
-
-//     // Retorna token, dados do usuário e permissões
-//     res.status(200).json({
-//       token,
-//       idusuario: usuario.idusuario,
-//       nome: usuario.nome,
-//       permissoes: permissoesRaw,
-//       empresas
-//     });
-
-//   } catch (error) {
-//     console.error('Erro ao fazer login:', error);
-//     res.status(500).json({ erro: 'Erro no login.' });
-//   }
-// }
-
 // Login
 async function login(req, res) {
-  // const { email, senha } = req.body;
-
-  // try {
-  //   const { rows } = await db.query('SELECT * FROM usuarios WHERE email = $1', [email]);
-  //   const usuario = rows[0];
-
-  //   if (!usuario) return res.status(401).json({ erro: 'Usuário não encontrado.' });
-
-  //   const senhaCorreta = await bcrypt.compare(senha, usuario.senha_hash);
-  //   if (!senhaCorreta) return res.status(401).json({ erro: 'Senha inválida.' });
-
-  //   const { rows: permissoesRaw } = await db.query(
-  //     `SELECT modulo, acesso AS pode_acessar, pesquisar AS pode_pesquisar, cadastrar AS pode_cadastrar, alterar AS pode_alterar
-  //      FROM permissoes WHERE idusuario = $1`,
-  //     [usuario.idusuario]
-  //   );
-
-  //   const token = jwt.sign(
-  //     { id: usuario.idusuario, nome: usuario.nome, permissoes: permissoesRaw },
-  //     process.env.JWT_SECRET,
-  //     { expiresIn: '8h' }
-  //   );
-
-  //   const { rows: empresas } = await db.query(
-  //     `SELECT e.idempresa, e.nome FROM empresas e
-  //      JOIN usuarioempresas ue ON e.idempresa = ue.idempresa
-  //      WHERE ue.idusuario = $1`,
-  //     [usuario.idusuario]
-  //   );
-
-  //   res.status(200).json({
-  //     token,
-  //     idusuario: usuario.idusuario,
-  //     nome: usuario.nome,
-  //     permissoes: permissoesRaw,
-  //     empresas
-  //   });
-  // } catch (error) {
-  //   console.error('Erro ao fazer login:', error);
-  //   res.status(500).json({ erro: 'Erro no login.' });
-  // }
-  // const { email, senha } = req.body;
-  // try {
-  //   // Buscar usuário pelo email
-  //   const { rows } = await db.query('SELECT idusuario, nome, email, senha_hash FROM usuarios WHERE email = $1', [email]);
-  //   if (rows.length === 0) {
-  //     return res.status(401).json({ erro: 'Usuário ou senha inválidos' });
-  //   }
-  //   const usuario = rows[0];
-
-  //   // Aqui você deve verificar a senha (ex: bcrypt.compare), exemplo simplificado:
-  //   if (senha !== usuario.senha_hash) {
-  //     return res.status(401).json({ erro: 'Usuário ou senha inválidos' });
-  //   }
-
-  //   // Criar token
-  //   const tokenPayload = { idusuario: usuario.idusuario, email: usuario.email, idempresaDefault: empresas[0].idempresa, };
-  //   const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '8h' });
-
-  //   res.json({ token, idusuario: usuario.idusuario, nome: usuario.nome });
-  // } catch (erro) {
-  //   console.error('Erro no login:', erro);
-  //   res.status(500).json({ erro: 'Erro interno' });
-  // }
-
+  
   console.log("login AuthController ENTROU EM LOGIN", req.body);
-
-  //  const { email, senha } = req.body;
-
-  // try {
-  //   const resultado = await db.query('SELECT * FROM usuarios WHERE email = $1', [email]);
-  //   const usuario = resultado.rows[0];
-
-  //   if (!usuario) {
-  //     return res.status(401).json({ erro: 'Usuário não encontrado.' });
-  //   }
-
-  //   // Substitua isso por verificação com bcrypt na versão final
-  //   const senhaCorreta = senha === usuario.senha;
-  //   if (!senhaCorreta) {
-  //     return res.status(401).json({ erro: 'Senha inválida.' });
-  //   }
-
-  //   const empresasQuery = await db.query(`
-  //     SELECT e.idempresa, e.nome 
-  //     FROM usuarioempresas ue
-  //     JOIN empresas e ON ue.idempresa = e.idempresa
-  //     WHERE ue.idusuario = $1
-  //   `, [usuario.idusuario]);
-
-  //   const empresas = empresasQuery.rows;
-  //   if (empresas.length === 0) {
-  //     return res.status(403).json({ erro: 'Usuário sem empresas vinculadas.' });
-  //   }
-
-  //   console.log("EMPRESAS DO USUÁRIO", empresas);
-  //   const { rows: permissoesRaw } = await db.query(
-  //     `SELECT modulo, acesso AS pode_acessar, pesquisar AS pode_pesquisar, cadastrar AS pode_cadastrar, alterar AS pode_alterar
-  //      FROM permissoes
-  //      WHERE idusuario = $1`,
-  //     [usuario.idusuario]
-  //   );
-  //   console.log("PERMISSOES DO USUÁRIO", permissoesRaw);
-  //   const tokenPayload = {
-  //     id: usuario.idusuario,
-  //     nome: usuario.nome,
-  //     empresas,
-  //     idempresaDefault: empresas[0].idempresa,
-  //     permissoes: permissoesRaw,
-     
-  //   };
-  //   console.log("TOKEN PAYLOAD", tokenPayload);
-  //   const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '8h' });
-
-  //   res.status(200).json({
-  //     token,
-  //     idusuario: usuario.idusuario,
-  //     nome: usuario.nome,
-  //     empresas,
-  //     idempresaDefault: empresas[0].idempresa,
-  //     permissoes: permissoesRaw,
-  //   });
-
-  // } catch (erro) {
-  //   console.error('Erro no login:', erro);
-  //   res.status(500).json({ erro: 'Erro ao fazer login.' });
-  // }
 
   try {
     const { email, senha } = req.body;
@@ -489,16 +301,30 @@ async function login(req, res) {
     const resultEmpresas = await db.query(queryEmpresas, [usuario.idusuario]);
     const empresas = resultEmpresas.rows;
 
+    console.log("Empresas encontradas:", resultEmpresas.rows);
+
     // Definir empresa padrão (a primeira da lista ou null)
     const idempresaDefault = empresas.length > 0 ? empresas[0].idempresa : null;
 
-    // Gerar token JWT (pode incluir mais dados se quiser)
-    const token = jwt.sign(
-      { idusuario: usuario.idusuario, email: usuario.email },
-      JWT_SECRET,
-      { expiresIn: "10h" }
-    );
+    // // Gerar token JWT (pode incluir mais dados se quiser)
+    // const token = jwt.sign(
+    //   { idusuario: usuario.idusuario, email: usuario.email },
+    //   JWT_SECRET,
+    //   // 
+    //   { expiresIn: "10h" }
+    // );
+console.log("Empresa default:", idempresaDefault);
+    // Gerar token JWT com dados úteis no payload
+    const tokenPayload = {
+      idusuario: usuario.idusuario,
+      email: usuario.email,
+      empresas: empresas.map(e => ({ idempresa: e.idempresa })), // se quiser incluir nome, pode também
+      idempresaDefault
+    };
 
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '10h' });
+
+ //   console.log("Token gerado:", token);
     // Retornar resposta para o frontend
     return res.json({
       token,
@@ -544,6 +370,7 @@ async function listarPermissoes(req, res) {
 
     res.json(permissoes);
     console.log("PERMISSOES EM LISTAR PERMISSOES", permissoes);
+    
   } catch (err) {
     console.error('Erro ao buscar permissões:', err);
     res.status(500).json({ erro: 'Erro ao buscar permissões.' });

@@ -29,11 +29,18 @@ try {
         
     const { token, idusuario, empresas, idempresaDefault } = dados;
     console.log("token, idusuario", token, idusuario, empresas);
+    localStorage.clear();
     localStorage.setItem("token", token);
     localStorage.setItem("idusuario", idusuario);
     localStorage.setItem("empresas", JSON.stringify(empresas));
-    localStorage.setItem("idempresa", idempresaDefault);
+    if (idempresaDefault) {
+      localStorage.setItem("idempresa", idempresaDefault);
+    } else {
+      localStorage.removeItem("idempresa"); // para evitar lixo
+    }
 
+    // const permissoes = await fetchComToken('/auth/permissoes');
+    // localStorage.setItem('permissoes', JSON.stringify(permissoes));
     // // você pode salvar a empresa ativa inicial como a primeira da lista
     // if (empresas.length > 0) {
     //   localStorage.setItem("idempresa", empresas[0].idempresa);

@@ -4,6 +4,7 @@ const db = require('../db');
 async function listarPermissoes(req, res) {
   try {
     const { rows } = await db.query('SELECT * FROM permissoes');
+    console.log("listarPermissoes", rows);
     res.status(200).json(rows);
   } catch (erro) {
     console.error('Erro ao listar permissões:', erro);
@@ -16,6 +17,9 @@ async function listarPermissoes(req, res) {
 async function listarPermissoesPorUsuario(req, res) {
   const { idusuario } = req.params;
   const { modulo } = req.query;
+  const idempresa = req.headers.idempresa;
+
+  console.log("listarPermissoesPorUsuario", idusuario, modulo, idempresa);
 
   try {
     let query = `
@@ -29,17 +33,36 @@ async function listarPermissoesPorUsuario(req, res) {
       query += ` AND modulo = $2`;
       params.push(modulo);
     }
+    if (idempresa) {
+          query += ` AND idempresa = $${params.length + 1}`;
+          params.push(idempresa);
+   }
 
+   
     query += ` ORDER BY modulo`;
 
     const { rows } = await db.query(query, params);
 
-    // Capitaliza o nome do módulo (ex: 'clientes' → 'Clientes')
-    rows.forEach(row => {
-      row.modulo = row.modulo.charAt(0).toUpperCase() + row.modulo.slice(1).toLowerCase();
-    });
+    const permissoes = rows.map(row => ({
+      idpermissao: row.idpermissao,
+      idusuario: row.idusuario,
+      email: row.email,
+      modulo: row.modulo.charAt(0).toUpperCase() + row.modulo.slice(1).toLowerCase(),
+      cadastrar: !!row.cadastrar,
+      alterar: !!row.alterar,
+      pesquisar: !!row.pesquisar,
+      acesso: !!row.acesso,
+      idempresa: row.idempresa
+    }));
 
-    res.status(200).json(rows);
+    res.status(200).json(permissoes);
+
+    // Capitaliza o nome do módulo (ex: 'clientes' → 'Clientes')
+    // rows.forEach(row => {
+    //   row.modulo = row.modulo.charAt(0).toUpperCase() + row.modulo.slice(1).toLowerCase();
+    // });
+
+   // res.status(200).json(rows);
   } catch (erro) {
     console.error('Erro ao buscar permissões do usuário:', erro);
     res.status(500).json({ erro: 'Erro ao buscar permissões do usuário.' });
@@ -164,7 +187,7 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
         // Insere
         await db.query(`
           INSERT INTO permissoes (idusuario, email, modulo, cadastrar, alterar, pesquisar, acesso, idempresa)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         `, [idusuario, email, modulo, cadastrar, alterar, pesquisar, acesso, idempresa]);
       }
     }

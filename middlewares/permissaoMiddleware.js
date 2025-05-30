@@ -1,5 +1,5 @@
 // // middlewares/permissaoMiddleware.js
-// const db = require('../db');
+ const db = require('../db');
 
 // // middleware: verifica se o usuário pode executar uma ação em um módulo
 // function verificarPermissao(modulo, acao) {
@@ -41,6 +41,8 @@
 // middleware: verifica se o usuário pode executar uma ação em um módulo e empresa
 function verificarPermissao(modulo, acao) {
   return async (req, res, next) => {
+
+    console.log("🔍 Verificando permissões para:", modulo, acao);
     const usuarioId = req.usuario.id;
 
     // Obtem idempresa do cabeçalho ou corpo (ajuste conforme sua arquitetura)

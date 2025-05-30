@@ -1,8 +1,14 @@
 document.addEventListener("DOMContentLoaded", async function () {
-  const resp = await fetchComToken("/auth/permissoes");
-  if (!resp || !resp.ok) {
-    const erroTexto = await resp?.text?.();
-    console.error("Falha ao carregar permissões:", erroTexto || resp);
+  
+let resp;
+  try {
+    resp = await fetchComToken("/auth/permissoes");
+    if (!resp.ok) {
+      const textoErro = await resp.text();
+      throw new Error(textoErro);
+    }
+  } catch (erro) {
+    console.error("Falha ao carregar permissões:", erro);
     await Swal.fire({
       icon: "error",
       title: "Erro",
@@ -19,7 +25,10 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (!modulo) return false;
     const p = permissoes.find((x) => x.modulo.toLowerCase() === modulo.toLowerCase());
     return p && p[`pode_${acao}`];
+    
   };
+
+
 
   const mapaModulos = {
     orcamentos: "Orçamentos",
@@ -38,8 +47,13 @@ document.addEventListener("DOMContentLoaded", async function () {
     const url = botao.dataset.url || "";
     const explicitModulo = botao.dataset.modulo;
     const urlLower = url.toLowerCase();
-    let modulo = explicitModulo || Object.keys(mapaModulos).find(k => urlLower.includes(k)) && mapaModulos[urlLower.match(/(\w+)/)[0]];
-
+    
+    let modulo = explicitModulo;
+    if (!modulo) {
+      const chave = Object.keys(mapaModulos).find(k => urlLower.includes(k));
+      modulo = chave ? mapaModulos[chave] : null;
+    }
+    
     if (!modulo) {
       console.warn(`Botão com URL '${url}' não mapeia para módulo.`, botao);
       return;
@@ -59,6 +73,11 @@ document.addEventListener("DOMContentLoaded", async function () {
 });
 
 async function abrirModal(url, modulo) {
+  if (!window.moduloAtual) {
+    alert("Módulo atual não está definido. Não é possível abrir o modal.");
+    return;
+  }
+  
   if (!modulo || (!temPermissao(modulo, "acessar") && !temPermissao(modulo, "pesquisar"))) {
     Swal.fire("Acesso Negado", `Você não tem permissão para acessar o módulo ${modulo}.`, "warning");
     return;
@@ -66,9 +85,7 @@ async function abrirModal(url, modulo) {
 
   let html;
   try {
-    const resp = await fetchComToken(url);
-    if (!resp?.ok) throw new Error(`Status ${resp?.status}`);
-    html = await resp.text();
+    html = await fetchHtmlComToken(url);
   } catch (err) {
     console.error("Erro ao carregar modal:", err);
     return;
@@ -103,6 +120,127 @@ async function abrirModal(url, modulo) {
   }
 }
 
+// fetchComToken retorna Response para controlar no chamador
+async function fetchComToken(url, options = {}) {
+  const token = localStorage.getItem("token");
+  const idempresa = localStorage.getItem("idempresa");
+
+  if (!options.headers) options.headers = {};
+  options.headers["Authorization"] = "Bearer " + token;
+  if (idempresa) options.headers["idempresa"] = idempresa;
+
+  const resposta = await fetch(url, options);
+
+  if (resposta.status === 401) {
+    localStorage.clear();
+    await Swal.fire({
+      icon: "warning",
+      title: "Sessão expirada",
+      text: "Por favor, faça login novamente.",
+    });
+    window.location.href = "login.html";
+    throw new Error("Sessão expirada");
+  }
+
+  if (!resposta.ok) {
+    const textoErro = await resposta.text();
+    throw new Error(`Erro ${resposta.status}: ${textoErro}`);
+  }
+
+  return resposta;
+}
+
+// fetchHtmlComToken retorna Response para controlar no chamador
+async function fetchHtmlComToken(url, options = {}) {
+  const token = localStorage.getItem("token");
+  const idempresa = localStorage.getItem("idempresa");
+
+  if (!options.headers) options.headers = {};
+  options.headers["Authorization"] = "Bearer " + token;
+  if (idempresa) options.headers["idempresa"] = idempresa;
+
+  const resposta = await fetch(url, options);
+
+  if (resposta.status === 401) {
+    localStorage.clear();
+    await Swal.fire({
+      icon: "warning",
+      title: "Sessão expirada",
+      text: "Por favor, faça login novamente.",
+    });
+    window.location.href = "login.html";
+    throw new Error("Sessão expirada");
+  }
+
+  if (!resposta.ok) {
+    const textoErro = await resposta.text();
+    throw new Error(`Erro ${resposta.status}: ${textoErro}`);
+  }
+
+  // Aqui quem chama decide se quer .text() ou .json()
+  return resposta.text();
+}
+
+// Expõe as funções globalmente
+window.fetchComToken = fetchComToken;
+window.fetchHtmlComToken = fetchHtmlComToken;
+
+
+
+
+
+// async function abrirModal(url, modulo) {
+//  if (!window.moduloAtual) {
+//     alert("Módulo atual não está definido. Não é possível abrir o modal.");
+//     return;
+//   }
+ 
+//   if (!modulo || (!temPermissao(modulo, "acessar") && !temPermissao(modulo, "pesquisar"))) {
+//     Swal.fire("Acesso Negado", `Você não tem permissão para acessar o módulo ${modulo}.`, "warning");
+//     return;
+//   }
+
+//   let html;
+//   try {
+//     const resp = await fetchComToken(url);
+//     if (!resp?.ok) throw new Error(`Status ${resp?.status}`);
+//     html = await resp.text();
+//   } catch (err) {
+//     console.error("Erro ao carregar modal:", err);
+//     return;
+//   }
+
+//   const container = document.getElementById("modal-container");
+//   container.innerHTML = html;
+
+//   if (window.permissoes && typeof aplicarPermissoes === "function") {
+//     aplicarPermissoes(window.permissoes);
+//   }
+
+//   const scriptName = modulo.charAt(0).toUpperCase() + modulo.slice(1) + ".js";
+//   const scriptSrc = `js/${scriptName}`;
+//   if (!Array.from(document.scripts).some((s) => s.src.includes(scriptName))) {
+//     const script = document.createElement("script");
+//     script.src = scriptSrc;
+//     script.defer = true;
+//     script.onload = () => aplicarConfiguracoes(modulo);
+//     document.body.appendChild(script);
+//   } else {
+//     aplicarConfiguracoes(modulo);
+//   }
+
+//   const modal = document.querySelector("#modal-container .modal");
+//   const overlay = document.getElementById("modal-overlay");
+//   if (modal && overlay) {
+//     modal.style.display = "block";
+//     overlay.style.display = "block";
+//     document.body.classList.add("modal-open");
+//     modal.querySelector(".close")?.addEventListener("click", fecharModal);
+//   }
+
+  
+// }
+
 function aplicarConfiguracoes(modulo) {
   if (typeof configurarEventosEspecificos === "function") {
     configurarEventosEspecificos(modulo);
@@ -115,6 +253,43 @@ function aplicarConfiguracoes(modulo) {
     document.querySelectorAll(".btnEditar").forEach((btn) => (btn.style.display = "none"));
   }
 }
+
+async function fetchComToken(url, options = {}) {
+  console.log("URL da requisição:", url);
+  const token = localStorage.getItem("token");
+  const idempresa = localStorage.getItem("idempresa");
+
+  console.log("ID da empresa no localStorage:", idempresa);
+  console.log("Token no localStorage:", token);
+
+  if (!options.headers) options.headers = {};
+
+  options.headers['Authorization'] = 'Bearer ' + token;
+  if (idempresa) options.headers['idempresa'] = idempresa;
+
+  const resposta = await fetch(url, options);
+
+  if (resposta.status === 401) {
+    localStorage.clear();
+    Swal.fire({
+      icon: "warning",
+      title: "Sessão expirada",
+      text: "Por favor, faça login novamente."
+    }).then(() => {
+      window.location.href = "login.html"; // ajuste conforme necessário
+    });
+    //return;
+    throw new Error('Sessão expirada'); 
+  }
+
+  // if (!resposta.ok) {
+  //   const erro = await resposta.json();
+  //   throw new Error(erro.erro || 'Erro desconhecido');
+  // }
+
+  return await resposta.json(); // Retorna o JSON já resolvido
+}
+
 
 function fecharModal() {
   document.getElementById("modal-container").innerHTML = "";

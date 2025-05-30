@@ -37,7 +37,7 @@ router.get('/clientes',  async (req, res) => {
     const permissoes = req.usuario?.permissoes;
 
     const temPermissaoOrcamento = permissoes?.some(p =>
-        p.modulo === 'orcamentos' && (p.acessar || p.pesquisar)
+        p.pode_modulo === 'orcamentos' && (p.pode_acessar || p.pode_pesquisar)
     );
 
     if (!temPermissaoOrcamento) {

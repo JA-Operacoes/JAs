@@ -2,10 +2,10 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width", initial-scale="1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="css/index/Style-OPER.css">
-    <link rel="stylesheet" href="css/Footer/Footer-OPER.CSS">
+    <link rel="stylesheet" href="css/Footer/Footer-OPER.css">
     <link rel="stylesheet" href="css/Roots/Roots.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/material_red.css">
@@ -13,21 +13,20 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
 
-    <title>Home</title>
+    <title>Home - Sistema Grupo JA</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
-    <link rel="shortcut icon" href="img/icons/favicon.ico" type="image/x-icon">
-
+    
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
    
     <script src="https://cdn.jsdelivr.net/npm/imask" defer></script>
-    <title>Cadastros</title>
+   
 
     
 </head>
 
-<body onload="initPermissoes()">
-
+<!-- <body onload="initPermissoes()"> -->
+<body>
 <header>      
     <div class="interface">
         <div class="logotipo">
@@ -46,24 +45,34 @@
                         <a href="#">Cadastros</a>
                         <div class ="drop">
                             <div class ="drop-content">  
-                                <a href="#" data-modulo="Clientes" onclick="abrirModal('CadClientes.html')">Clientes</a>
-                                <a href="#" data-modulo="Funcao" onclick="abrirModal('CadFuncao.html')">Funções</a>
-                                <a href="#" data-modulo="Funcionários" onclick="abrirModal('CadFuncionarios.html')">Funcionários</a>
-                                <a href="#" data-modulo="Equipamentos" onclick="abrirModal('CadEquipamentos.html')">Equipamentos</a>
-                                <a href="#" data-modulo="Suprimentos" onclick="abrirModal('CadSuprimentos.html')">Suprimentos</a>
-                                <a href="#" data-modulo="Eventos" onclick="abrirModal('CadEventos.html')">Eventos</a>
-                                <a href="#" data-modulo="LocalMontagem" onclick="abrirModal('CadLocalMontagem.html')">Local Montagem</a>
-                                <a href="#" data-modulo="Staff" onclick="abrirModal('CadStaff.html')">Staff</a>
-                                <a href="#" data-modulo="Empresas" onclick="abrirModal('CadEmpresa.html')">Empresas</a>
+                                <!-- <a href="#" class="abrir-modal" data-modulo="Clientes" onclick="abrirModal('CadClientes.html')">Clientes</a>
+                                <a href="#" class="abrir-modal" data-modulo="Funcao" onclick="abrirModal('CadFuncao.html')">Funções</a>
+                                <a href="#" class="abrir-modal" data-modulo="Funcionários" onclick="abrirModal('CadFuncionarios.html')">Funcionários</a>
+                                <a href="#" class="abrir-modal" data-modulo="Equipamentos" onclick="abrirModal('CadEquipamentos.html')">Equipamentos</a>
+                                <a href="#" class="abrir-modal" data-modulo="Suprimentos" onclick="abrirModal('CadSuprimentos.html')">Suprimentos</a>
+                                <a href="#" class="abrir-modal" data-modulo="Eventos" onclick="abrirModal('CadEventos.html')">Eventos</a>
+                                <a href="#" class="abrir-modal" data-modulo="LocalMontagem" onclick="abrirModal('CadLocalMontagem.html')">Local Montagem</a>
+                                <a href="#" class="abrir-modal" data-modulo="Staff" onclick="abrirModal('CadStaff.html')">Staff</a>
+                                <a href="#" class="abrir-modal" data-modulo="Empresas" onclick="abrirModal('CadEmpresa.html')">Empresas</a> -->
+
+                                <a href="#" class="abrir-modal" data-modulo="Clientes" data-url="CadClientes.html">Clientes</a>
+                                <a href="#" class="abrir-modal" data-modulo="Funcao" data-url="CadFuncao.html">Funções</a>
+                                <a href="#" class="abrir-modal" data-modulo="Funcionários" data-url="CadFuncionarios.html">Funcionários</a>
+                                <a href="#" class="abrir-modal" data-modulo="Equipamentos" data-url="CadEquipamentos.html">Equipamentos</a>
+                                <a href="#" class="abrir-modal" data-modulo="Suprimentos" data-url="CadSuprimentos.html">Suprimentos</a>
+                                <a href="#" class="abrir-modal" data-modulo="Eventos" data-url="CadEventos.html">Eventos</a>
+                                <a href="#" class="abrir-modal" data-modulo="LocalMontagem" data-url="CadLocalMontagem.html">Local Montagem</a>
+                                <a href="#" class="abrir-modal" data-modulo="Staff" data-url="CadStaff.html">Staff</a>
+                                <a href="#" class="abrir-modal" data-modulo="Empresas" data-url="CadEmpresa.html">Empresas</a>
                                 
                             </div>
                         </div>
                     </li>
                     <li class="Orcamento">
-                        <a button class="abrir-modal" data-url="Orcamento.html" data-modulo="Orçamentos">Orçamento</a>
+                        <a href="#" class="abrir-modal" data-url="Orcamento.html" data-modulo="Orçamentos">Orçamento</a>
                     </li>
                     <li class="Usuarios">
-                        <a button class="abrir-modal" data-url="CadUsuarios.html" data-modulo="Usuarios">Usuários</a>
+                        <a href="#" class="abrir-modal" data-url="CadUsuarios.html" data-modulo="Usuarios">Usuários</a>
                     </li>
                 </ul>
             </nav>

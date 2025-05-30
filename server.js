@@ -8,7 +8,9 @@ const path = require("path");
 const app = express();
 const port = process.env.PORT || 3000;
 
-const { autenticarToken } = require('./middlewares/authMiddlewares');
+
+const { autenticarToken, contextoEmpresa } = require('./middlewares/authMiddlewares');
+//const contextoEmpresa = require('./middlewares/contextoEmpresa');
 
 // --- antes de app.use('/auth', authRoutes); e de todas as outras rotas:
 app.use(express.json());                 // lê JSON no corpo das requisições
@@ -17,16 +19,17 @@ app.use(express.urlencoded({ extended: true })); // lê formulários URL-encoded
 // const authRoutes = require('./routes/auth');
 // app.use('/auth', authRoutes);
  
+// const cors = require('cors');
+
+// const allowedOrigins = [
+//   'http://127.0.0.1:5500',  // Live Server, VS Code, etc.
+//   'http://localhost:5500',
+//   'http://localhost:5173',  // Vite (se usar)
+//   'http://localhost:3001',  // Outro frontend separado
+//   // adicione mais se precisar
+// ];
 
 
-// const cors = require("cors");
-
-// app.use(cors({
-//   origin: ["http://127.0.0.1:5501"],
-//   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-//   allowedHeaders: ['Content-Type'],
-//   credentials: true
-// }));
 
 // Middleware para parsear JSON
 app.use(express.json());
@@ -42,7 +45,7 @@ app.use("/auth", require("./routes/auth")); // Rota para login e cadastro de usu
 app.use("/permissoes", require("./routes/rotaPermissoes")); //Rota permissoes usuários
 
 // Rotas protegidas com autenticação
-app.use("/funcao",autenticarToken, require("./routes/rotaFuncao"));
+app.use("/funcao",autenticarToken(), contextoEmpresa, require("./routes/rotaFuncao"));
 app.use("/clientes", autenticarToken, require("./routes/rotaCliente"));
 app.use("/orcamentos", autenticarToken, require("./routes/rotaOrcamento"));
 app.use("/eventos", autenticarToken, require("./routes/rotaEvento"));
@@ -52,7 +55,7 @@ app.use("/funcionarios", autenticarToken, require("./routes/rotaFuncionario"));
 app.use("/profissional", autenticarToken, require("./routes/rotaProfissional"));
 app.use("/localmontagem", autenticarToken, require("./routes/rotaLocalMontagem"));
 app.use("/staff", autenticarToken, require("./routes/rotaStaff"));
-//app.use("/usuarios", autenticarToken, require("./routes/Usuarios"));
+//app.use("/usuarios", require("./routes/Usuarios"));
 
 
 

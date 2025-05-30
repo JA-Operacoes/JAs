@@ -1,3 +1,4 @@
+//const e = require("express");
 
 if (typeof window.FuncaoOriginal === "undefined") {
     window.FuncaoOriginal = {
@@ -26,6 +27,7 @@ function verificaFuncao() {
 
     botaoLimpar.addEventListener("click", function (event) {
         event.preventDefault(); // Previne o envio padrão do formulário 
+        console.log("Limpando Funcao...");
         const campo = document.getElementById("descFuncao");
 
         if (campo && campo.tagName.toLowerCase() === "select") {
@@ -52,7 +54,7 @@ function verificaFuncao() {
 
     botaoEnviar.addEventListener("click", async function (event) {
         event.preventDefault(); // Previne o envio padrão do formulário
-
+        console.log("Enviando Funcao...");
         const idFuncao = document.querySelector("#idFuncao").value;
         const descFuncao = document.querySelector("#descFuncao").value.toUpperCase().trim();
         const vlrCusto = document.querySelector("#Custo").value;
@@ -182,6 +184,7 @@ function verificaFuncao() {
         }
     });
     
+    console.log("botaoPesquisar:", botaoPesquisar);
     botaoPesquisar.addEventListener("click", async function (event) {
         event.preventDefault();
         console.log("Pesquisando Funcao...");
@@ -196,10 +199,14 @@ function verificaFuncao() {
         }
 
         try {
-            const response = await fetchComToken("/funcao"); // ajuste a rota conforme sua API
-            if (!response.ok) throw new Error("Erro ao buscar funções");
+            
+            const desc = input?.value?.trim() || "";
+
+            const funcoes = await fetchComToken(`/funcao?descFuncao=${encodeURIComponent(desc)}`);
+            // const response = await fetchComToken("/funcao"); // ajuste a rota conforme sua API
+            // if (!response.ok) throw new Error("Erro ao buscar funções");
     
-            const funcoes = await response.json();
+            //const funcoes = await response.json();
 
             console.log("Funções encontradas:", funcoes);
 
@@ -265,9 +272,8 @@ function verificaFuncao() {
             });
         }
     });
-    
-
 }
+
 function criarSelectFuncao(funcoes) {
    
     const select = document.createElement("select");
@@ -297,34 +303,39 @@ function criarSelectFuncao(funcoes) {
     return select;
 }
 
+
+// Variável global para armazenar o último elemento clicado
+let ultimoClique = null;
+
+// Captura o último elemento clicado no documento (uma única vez)
+document.addEventListener("mousedown", (e) => {
+    ultimoClique = e.target;
+});
+
 function adicionarEventoBlurFuncao() {
     const input = document.querySelector("#descFuncao");
     if (!input) return;
 
-    let ultimoClique = null;
-
-    // Captura o último elemento clicado no documento
-    document.addEventListener("mousedown", (e) => {
-        ultimoClique = e.target;
-    });
-    
     input.addEventListener("blur", async function () {
-       
+        console.log("Blur no campo descFuncao:", this.value);
+
         const botoesIgnorados = ["Limpar", "Pesquisar", "Enviar"];
         const ehBotaoIgnorado =
-            ultimoClique?.id && botoesIgnorados.includes(ultimoClique.id) ||
-            ultimoClique?.classList.contains("close");
+            (ultimoClique?.id && botoesIgnorados.includes(ultimoClique.id)) ||
+            (ultimoClique?.classList && ultimoClique.classList.contains("close"));
 
         if (ehBotaoIgnorado) {
             console.log("🔁 Blur ignorado: clique em botão de controle (Fechar/Limpar/Pesquisar).");
             return;
         }
+
         const desc = this.value.trim();
         console.log("Campo descFuncao procurado:", desc);
 
         if (!desc) return;
 
         try {
+            console.log("Buscando Função com descrição:", desc);
             await carregarFuncaoDescricao(desc, this);
             console.log("Função selecionada depois de carregarFuncaoDescricao:", this.value);
         } catch (error) {
@@ -333,12 +344,17 @@ function adicionarEventoBlurFuncao() {
     });
 }
 
+
 async function carregarFuncaoDescricao(desc, elementoAtual) {
+    console.log("Carregando Função com descrição:", desc, elementoAtual);
     try {
-        const response = await fetchComToken(`/funcao?descFuncao=${encodeURIComponent(desc)}`);
-        if (!response.ok) throw new Error();
-           
-        const funcao = await response.json();
+      
+       const funcao = await fetchComToken(`/funcao?descFuncao=${encodeURIComponent(desc)}`);
+      
+       console.log("Resposta da busca de Função:", funcao);
+       if (!funcao || !funcao.idfuncao) throw new Error("Função não encontrada");
+     
+
         document.querySelector("#idFuncao").value = funcao.idfuncao;
         document.querySelector("#Custo").value = funcao.ctofuncao;
         document.querySelector("#Venda").value = funcao.vdafuncao;
@@ -417,34 +433,138 @@ function limparCamposFuncao() {
     
 }
 
-function fetchComToken(url, options = {}) {
+// function fetchComToken(url, options = {}) {
+//     console.log("fetchComToken chamado com URL:", url, "e opções:", options);
+//   const token = localStorage.getItem("token");
+   
+//   const idempresa = localStorage.getItem("idempresa");
+//   if (!token) {
+//     throw new Error("fetchComToken: nenhum token encontrado. Faça login primeiro.");
+//   }
+
+//   if (!idempresa) {
+//     throw new Error("fetchComToken: nenhum idempresa encontrado. Selecione uma empresa.");
+//   }
+//   // Monta os headers sempre incluindo Authorization
+//   const headers = {
+//     "Authorization": `Bearer ${token}`,
+//     "idempresa": options.headers?.idempresa || idempresa,
+//     // só coloca Content-Type se houver body (POST/PUT)
+//     ...(options.body ? { "Content-Type": "application/json" } : {}),
+//     ...options.headers
+//   };
+
+//   return fetch(url, {
+//     ...options,
+//     headers,
+//     // caso seu back-end esteja em outro host e precisa de CORS:
+//     //mode: "cors",
+//     // se precisar enviar cookies de sessão:
+//     credentials: "include"
+//   });
+// }
+
+// async function fetchComToken(url, options = {}) {
+//   console.log("URL da requisição:", url);
+//   const token = localStorage.getItem("token");
+//   const idempresa = localStorage.getItem("idempresa");
+
+//   console.log("ID da empresa no localStorage:", idempresa);
+//   console.log("Token no localStorage:", token);
+
+//   if (!token) {
+//     throw new Error("Token ausente. Faça login.");
+//   }
+
+//   if (!options.headers) options.headers = {};
+
+//   options.headers['Authorization'] = 'Bearer ' + token;
+  
+// //   if (idempresa) options.headers['idempresa'] = idempresa;
+// // Adiciona o ID da empresa apenas se for um número válido
+// //   if (idempresa && !isNaN(Number(idempresa))) {
+// //     options.headers['idempresa'] = idempresa;
+// //   } else {
+// //     console.warn("⚠️ idempresa ausente ou inválido nos headers!");
+// //   }
+// if (idempresa) options.headers['x-id-empresa'] = idempresa;
+
+//   console.log("Headers da requisição:", options.headers);
+
+//   const resposta = await fetch(url, options);
+//   console.log("Resposta da requisição:", resposta);
+
+//   if (resposta.status === 401) {
+//     localStorage.clear();
+//     Swal.fire({
+//       icon: "warning",
+//       title: "Sessão expirada",
+//       text: "Por favor, faça login novamente."
+//     }).then(() => {
+//       window.location.href = "login.html"; // ajuste conforme necessário
+//     });
+//     //return;
+//     throw new Error('Sessão expirada'); 
+//   }
+
+  
+//   return await resposta.json(); // Retorna o JSON já resolvido
+// }
+
+async function fetchComToken(url, options = {}) {
   const token = localStorage.getItem("token");
   const idempresa = localStorage.getItem("idempresa");
+
+  console.log("➡️ URL da requisição:", url);
+  console.log("📦 Token no localStorage:", token);
+  console.log("🏢 ID da empresa no localStorage:", idempresa);
+
   if (!token) {
-    throw new Error("fetchComToken: nenhum token encontrado. Faça login primeiro.");
+    throw new Error("Token ausente. Faça login.");
   }
 
-  if (!idempresa) {
-    throw new Error("fetchComToken: nenhum idempresa encontrado. Selecione uma empresa.");
-  }
-  // Monta os headers sempre incluindo Authorization
-  const headers = {
-    "Authorization": `Bearer ${token}`,
-    "idempresa": options.headers?.idempresa || idempresa,
-    // só coloca Content-Type se houver body (POST/PUT)
-    ...(options.body ? { "Content-Type": "application/json" } : {}),
-    ...options.headers
-  };
+  // Inicializa os headers, se ainda não existirem
+  options.headers ??= {};
 
-  return fetch(url, {
-    ...options,
-    headers,
-    // caso seu back-end esteja em outro host e precisa de CORS:
-    mode: "cors",
-    // se precisar enviar cookies de sessão:
-    credentials: "include"
-  });
+  // Adiciona token no header Authorization
+  options.headers['Authorization'] = `Bearer ${token}`;
+
+  // Adiciona idempresa como header personalizado, se for um valor válido
+  if (idempresa) {
+    options.headers['x-id-empresa'] = idempresa;
+  } else {
+    console.warn("⚠️ idempresa ausente ou inválido nos headers!");
+  }
+
+  console.log("🧾 Headers da requisição:", options.headers);
+
+  try {
+    const resposta = await fetch(url, options);
+    console.log("📥 Resposta da requisição:", resposta);
+
+    if (resposta.status === 401) {
+      // Token expirado ou inválido
+      localStorage.clear();
+      await Swal.fire({
+        icon: "warning",
+        title: "Sessão expirada",
+        text: "Por favor, faça login novamente."
+      });
+      window.location.href = "login.html"; // ajuste o caminho se necessário
+      throw new Error("Sessão expirada");
+    }
+
+    const dados = await resposta.json();
+    return dados;
+
+  } catch (erro) {
+    console.error("❌ Erro ao fazer fetch:", erro);
+    console.error("❌ Erro ao fazer fetch:", erro, "➡️ URL:", url, "📤 Options:", options);
+
+    throw erro;
+  }
 }
+
 
 function configurarEventosFuncao() {
     console.log("Configurando eventos Funcao...");

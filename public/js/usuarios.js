@@ -861,8 +861,8 @@ let permissoesOriginais = {
   acesso:   false,
   cadastrar:false,
   alterar:  false,
-  pesquisar:false,
-  leitura:  false
+  pesquisar:false
+  // leitura:  false
 };
 
 // Salvando permissões
@@ -895,8 +895,8 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
     acesso:    document.getElementById("Acesso").checked,
     cadastrar: document.getElementById("Cadastrar").checked,
     alterar:   document.getElementById("Alterar").checked,
-    pesquisar: document.getElementById("Pesquisar").checked,
-    leitura:   document.getElementById("Leitura").checked
+    pesquisar: document.getElementById("Pesquisar").checked
+    // leitura:   document.getElementById("Leitura").checked
   };
 
    // compara tudo
@@ -916,7 +916,7 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
     cadastrar: atuais.cadastrar,
     alterar: atuais.alterar,
     pesquisar: atuais.pesquisar,
-    leitura: atuais.leitura,
+    // leitura: atuais.leitura,
     empresas: empresasSelecionadas // <- aqui está a diferença
   };
 
@@ -1022,11 +1022,34 @@ async function carregarPermissoesUsuario(idusuario) {
   }
 }
 
+// async function fetchComToken(url, options = {}) {
+//   console.log("URL da requisição:", url);
+//   const token = localStorage.getItem("token");
+//   const idempresa = localStorage.getItem("idempresa");
+ 
+//   console.log("ID da empresa no localStorage:", idempresa);
+//   console.log("Token no localStorage:", token);
+
+//   if (!options.headers) options.headers = {};
+
+//   options.headers['Authorization'] = 'Bearer ' + token;
+//   if (idempresa) options.headers['idempresa'] = idempresa;
+
+//   const resposta = await fetch(url, options);
+
+//   if (!resposta.ok) {
+//     const erro = await resposta.json();
+//     throw new Error(erro.erro || 'Erro desconhecido');
+//   }
+
+//   return resposta;
+// }
+
 async function fetchComToken(url, options = {}) {
   console.log("URL da requisição:", url);
   const token = localStorage.getItem("token");
   const idempresa = localStorage.getItem("idempresa");
- 
+
   console.log("ID da empresa no localStorage:", idempresa);
   console.log("Token no localStorage:", token);
 
@@ -1037,12 +1060,25 @@ async function fetchComToken(url, options = {}) {
 
   const resposta = await fetch(url, options);
 
-  if (!resposta.ok) {
-    const erro = await resposta.json();
-    throw new Error(erro.erro || 'Erro desconhecido');
+  if (resposta.status === 401) {
+    localStorage.clear();
+    Swal.fire({
+      icon: "warning",
+      title: "Sessão expirada",
+      text: "Por favor, faça login novamente."
+    }).then(() => {
+      window.location.href = "login.html"; // ajuste conforme necessário
+    });
+    //return;
+    throw new Error('Sessão expirada'); 
   }
 
-  return resposta;
+  // if (!resposta.ok) {
+  //   const erro = await resposta.json();
+  //   throw new Error(erro.erro || 'Erro desconhecido');
+  // }
+
+  return await resposta.json(); // Retorna o JSON já resolvido
 }
 
 
