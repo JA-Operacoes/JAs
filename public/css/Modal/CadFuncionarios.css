@@ -286,6 +286,19 @@ display: none;
     color: #000000;
     outline: none;
   }
+
+  .form2 select{
+    font-family: var(--Font-primary);
+    width: 270px;
+    height: 30px;
+    border-radius: 6px;
+    font-size: 12px;
+    padding: 0 15px;
+    border: 1px solid #000000;
+    background: transparent;
+    color: #000000;
+    outline: none;
+  }
   .form label, .form-2colunas label, .form2 label{
     position: absolute;
     top: 50%;
@@ -317,8 +330,19 @@ display: none;
     display: none;
   } */
   
-  input#complemento, input#pais, input#estado, input#numero{
+  input#complemento, input#pais, input#estado, input#numero, input#agencia, input#Pix, input#Banco, input#CodBanco {
     width: 120px; 
+  }
+
+  select#TPconta{
+    width: 145px;
+    height: 34px;
+    font-size: 15px;
+  }
+  select#Linguas{
+    width: 220px;
+    height: 34px;
+    font-size: 15px;
   }
   
   .fileUpload{
