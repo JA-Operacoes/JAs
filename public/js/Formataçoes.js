@@ -298,16 +298,69 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         }
     });
-    
-
-
-
-
-
 });
 
+// --------------------------------------------------- Autocomplete Bancos ---------------------------------------------------------
+window.autoPreencherBanco = function(input, evento) {
+  const nomeInput = document.getElementById('Banco');
+  const codInput = document.getElementById('CodBanco');
 
+  if (!nomeInput || !codInput) return;
 
+  const bancos = {
+    "001": "Banco do Brasil",
+    "237": "Bradesco",
+    "104": "Caixa Econômica Federal",
+    "341": "Itaú",
+    "033": "Santander",
+    "422": "Banco Safra",
+    "077": "Banco Inter",
+    "260": "Nubank",
+    "212": "Banco Original",
+    "208": "BTG Pactual"
+  };
+
+  const valor = input.value.trim();
+  const valorLower = valor.toLowerCase();
+  const valorNumerico = valor.replace(/\D/g, '');
+
+  // Normaliza texto removendo acentos
+  function normalizar(texto) {
+    return texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  }
+
+  // Digitando o código (campo CodBanco)
+  if (input === codInput) {
+    if (valorNumerico.length >= 3 || evento === 'blur') {
+      const nomeBanco = bancos[valorNumerico];
+      if (nomeBanco) nomeInput.value = nomeBanco;
+    }
+    if (valor === '') nomeInput.value = '';
+    return;
+  }
+
+  // Digitando o nome (campo Banco)
+  if (input === nomeInput) {
+    if (valor.length >= 3 || evento === 'blur') {
+      let achado = false;
+      const entradaNormalizada = normalizar(valorLower);
+
+      for (let [codigo, nomeBanco] of Object.entries(bancos)) {
+        if (normalizar(nomeBanco).includes(entradaNormalizada)) {
+          codInput.value = codigo;
+          if (evento === 'blur') nomeInput.value = nomeBanco; // completa o nome ao sair
+          achado = true;
+          break;
+        }
+      }
+
+      if (!achado && evento === 'blur') {
+        codInput.value = '';
+      }
+    }
+    if (valor === '') codInput.value = '';
+  }
+};
 
 document.querySelectorAll(".modal").forEach(modal => {
     modal.addEventListener("input", function(event) {
