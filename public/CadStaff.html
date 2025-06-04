@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="css/Modal/CadStaff.css">
     <link rel="stylesheet" href="css/Roots/Roots.css">
     <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/material_red.css">
     
     <title>Modal</title>
 
@@ -31,91 +33,156 @@
                   <input type="text" name="idStaff" id = "idStaff"  required readonly>
                   <label for = "ID">ID Staff</label>
                 </div>
+
                 <fieldset>
-                  <legend>Informações do Funcionário </legend>
-                  <div class="form-2colunas">
-                      <div class ="form2">
-                        <input type="text" name="nmFuncionario" id="nmFuncionario"  required autocomplete="on">
-                          <label for = "nmFuncionario"> Funcionário </label>
+                  <legend>Informaçoes do Funcionário</legend>
+
+                  <div class="grid-container">
+                      <!-- Coluna da Foto -->
+                      <div class="gridPhoto">
+                        <div class="container">
+                          <img id="previewFoto" src="#" alt="Pré-visualização" style="display: none; max-width: 100%; margin-bottom: 10px; border-radius: 8px;" />
+
+                          <div class="header" id="uploadHeader">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M7 10V9C7 6.23858 9.23858 4 12 4C14.7614 4 17 6.23858 17 9V10C19.2091 10 21 11.7909 21 14C21 15.4806 20.1956 16.8084 19 17.5M7 10C4.79086 10 3 11.7909 3 14C3 15.4806 3.8044 16.8084 5 17.5M7 10C7.43285 10 7.84965 10.0688 8.24006 10.1959M12 12V21M12 12L15 15M12 12L9 15" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <p>Browse File to upload!</p>
+                          </div>
+
+                          <label for="file" class="footer">
+                            <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+                              <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+                            </svg>
+                            <p id="fileName">Nenhum arquivo selecionado</p>
+                          </label>
+
+                          <input id="file" type="file" accept="image/png, image/jpeg">
+                          <input type="hidden" id="linkFotoFuncionarios" name="foto" />
+                        </div>
                       </div>
-                      <div class="form2">
-                          <input type="text" name="descFuncao" id="descFuncao"  required>
-                          <label for="codFuncao">Função</label>
+
+                      <!-- Coluna dos Inputs -->
+                      <div class="gridInput">
+                       <div class="form2">
+                          <select name="avaliacao" id="avaliacao" onchange="mostrarTarja()" required>
+                            <option value="" selected disabled>Avalie o Funcionario</option>
+                            <option value="muito_bom">Muito bom</option>
+                            <option value="satisfatorio">Satisfatório</option>
+                            <option value="regular">Regular</option>
+                          </select>
+                        </div>
+                        
+                        <div class="form-2colunas">
+                          <div class="form2">
+                            <input type="text" name="nmFuncionario" id="nmFuncionario" required autocomplete="on">
+                            <label for="nmFuncionario">Funcionário</label>
+                          </div>
+                          <div class="form2">
+                            <input type="text" name="descFuncao" id="descFuncao" required>
+                            <label for="descFuncao">Função</label>
+                          </div>
+                        </div>
+
+                        <div class="form-2colunas">
+                          <div class="form2">
+                            <input type="text" name="vlrCusto" id="vlrCusto" required>
+                            <label for="vlrCusto">Custo</label>
+                          </div>
+                          <div class="form2">
+                            <input type="text" name="vlrBeneficio" id="vlrBeneficio" required>
+                            <label for="vlrBeneficio">Benefícios</label>
+                          </div>
+                        </div>
+
+                        
+
+                        <div>
+                          <div class="form2">
+                            <textarea name="descBeneficio" id="descBeneficio" required>Descreva os Benefícios</textarea>
+                          </div>
+                        </div>
+
+                        
+
+                        
                       </div>
-                  </div>
-                  <div class="form-2colunas">
-                    <div class="form2">                   
-                      <input type="text" name="vlrCusto" id="vlrCusto" required>
-                      <label for="vlrCusto">Custo</label>
                     </div>
-                    <div class="form2">
-                      <input type="text" name="vlrBeneficio" id="vlrBeneficio" required>
-                      <label for="vlrBeneficio">Benefícios</label>
-                    </div>
-                  </div>
-                  <div>
-                    <div class="form2"> 
-                      <textarea name="descBeneficio" id="descBeneficio">Descreva os Beneficios</textarea>
-                    </div>
-                  </div>
-                </fieldset>
+                    <div id="tarjaAvaliacao" class="tarja-avaliacao"></div>
+                  </fieldset>
   
-                <fieldset>
-                  <legend> Cliente e Evento</legend>
-                  <div class="form-2colunas">
-                    <div class="form2">
-                      <input type="text" name="nmCliente" id="nmCliente" required>
-                      <label for="nmCliente">Cliente</label>
-                    </div>
-                  
-                    <div class="form2">
-                      <input type="text" name="nmEvento" id="nmEvento"  required>
-                      <label for="Evento"> Evento </label>
-                    </div>
-                  </div>
-                    
-                  <div class="form-2colunas">
-                  
-                    <div class="form2"> 
-                      <h3>Periodo do Evento: </h3>
-                      <p>De:</p><input type="date" name="dtInicio" id="dtInicio"  required>
-                    </div>
-                    <div class="form2">
-                      <p>Até:</p><input type="date" name="dtFim" id="dtFim"  required>
-                    </div>
-                  </div>
-                  <div class="form-2colunas">
-                    <div class="form2">
-                      <input type="text" name="vlrTotal" id="vlrTotal"  required>
-                      <label for="vlrTotal"> Valor Total </label>
-                    </div>
-                  </div>
-                </fieldset>
+<div id="containerFieldsets">
+  <fieldset>
+    <legend>Cliente e Evento</legend>
+    
+    <div class="form-2colunas">
+      <div class="form2">
+        <input type="text" name="nmCliente[]" required>
+        <label>Cliente</label>
+      </div>
+      <div class="form2">
+        <input type="text" name="nmEvento[]" required>
+        <label>Evento</label>
+      </div>
+    </div>
+
+    <div class="form-2colunas">
+      <div class="form2"> 
+        <h3>Período do Evento:</h3>
+        <input type="text" id="datasEvento" name="datasEvento[]" placeholder="Selecione os dias" required>
+        <p id="contadorDatas">Nenhuma data selecionada.</p>
+      </div>
+    </div>
+    <div class="form-2colunas">
+      <textarea name="Bonus[]" id="Bonus" required>Bônus</textarea>
+      <div class="form2">
+        <input type="text" name="vlrTotal[]" required>
+        <label>Valor Total</label>
+      </div>
+    </div>
+
+    <div class="pdf">
+      <h5>Comprovante de Pagamento</h5>
+      <div class="containerPDF">
+        <label for="filePDF" class="footerPDF" name="footerPDF[]">
+          <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+            <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+            <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+          </svg>
+          <p id="fileNamePDF" name="fileNamePDF">Nenhum arquivo selecionado</p>
+        </label>
+        <input id="filePDF" type="file" name="filePDF" accept="application/pdf">
+        <input type="hidden" id="ComprovantePagamentos"  name="foto[]" />
+      </div>
+    </div>
+    <br>
+  </fieldset>
+</div>
+
+<br>
+<button type="button" onclick="adicionarCampos()">Adicionar</button>
+<br>
+                
             
   
-                <div class="Files"> 
-                  <div class="Corpo"> 
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> 
-                      <path d="M7 10V9C7 6.23858 9.23858 4 12 4C14.7614 4 17 6.23858 17 9V10C19.2091 10 21 11.7909 21 14C21 15.4806 20.1956 16.8084 19 17.5M7 10C4.79086 10 3 11.7909 3 14C3 15.4806 3.8044 16.8084 5 17.5M7 10C7.43285 10 7.84965 10.0688 8.24006 10.1959M12 12V21M12 12L15 15M12 12L9 15" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg> <p>Browse File to upload!</p>
-                  </div> 
-                  <label for="file" class="arquivo"> 
-                    <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><path d="M15.331 6H8.5v20h15V14.154h-8.169z"></path><path d="M18.153 6h-.009v5.342H23.5v-.002z"></path></g></svg> 
-                    <p>Not selected file </p>
-                    <!-- <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M5.16565 10.1534C5.07629 8.99181 5.99473 8 7.15975 8H16.8402C18.0053 8 18.9237 8.9918 18.8344 10.1534L18.142 19.1534C18.0619 20.1954 17.193 21 16.1479 21H7.85206C6.80699 21 5.93811 20.1954 5.85795 19.1534L5.16565 10.1534Z" stroke="#000000" stroke-width="2"></path> <path d="M19.5 5H4.5" stroke="#000000" stroke-width="2" stroke-linecap="round"></path> <path d="M10 3C10 2.44772 10.4477 2 11 2H13C13.5523 2 14 2.44772 14 3V5H10V3Z" stroke="#000000" stroke-width="2"></path> </g></svg> -->
-                  </label> 
-                  <input id="file" type="file"> 
-                </div>
+
+                  
+
               </div>
-              
                 <div class="BTNs">
                       <button class="btnPesquisar" type="button">Pesquisar</button>
                       <button class="btnLimpar" type="button">Limpar</button>
                       <button class="btnEnviar" type="button">Enviar</button>
-                  </div>
-                </form>
+                </div>
+              </form>
 
-        </div>
+        
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="js/Staff.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
 </body>
 </html>

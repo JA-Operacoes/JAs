@@ -36,7 +36,7 @@
   background-color: #4d4d4d;
   padding: 5px;
   width: 725px; /* Ajuste o tamanho conforme necessário */
-  height: 625px;
+  height: 645px;
   font-size: 16px;
   z-index: 9999;
 }
@@ -73,8 +73,7 @@ body{
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-top: 60px;
-  margin-bottom: 10px;
+  margin-top: 390px;
 }
 
 #form-cargo {
@@ -83,10 +82,10 @@ body{
   flex-direction: column; 
   justify-content: center;
   background-color: rgb(0, 0, 0);
-  max-width: 700px;   
+  max-width: 720px;   
   width: 100%;  
   height: 550px;          /* Largura do formulário */
- margin: 0 auto;            /* Centraliza o formulário na tela */
+  margin: 0 auto;            /* Centraliza o formulário na tela */
   padding: 10px;                /* Espaçamento interno */
   background-color: #cacaca; 
   border: #ce0303;     /* Fundo branco */
@@ -94,7 +93,213 @@ body{
   border-bottom-left-radius: 8px;          /* Bordas arredondadas */
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
   overflow-y: auto;
+  overflow-x: none;
 }
+
+.grid-container {
+  display: grid;
+  grid-template-columns: 1fr 2fr; /* ou ajuste conforme necessidade */
+  gap: 20px;
+  align-items: start;
+}
+.gridInput {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.container {
+  height: auto;                  /* Remova altura fixa */
+  width: 140px;
+  border-radius: 10px;
+  box-shadow: 4px 4px 30px rgba(0, 0, 0, .2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;  /* Mantém conteúdo no topo */
+  padding: 10px;
+  gap: 6px;
+  background-color: rgba(0, 110, 255, 0.041);
+}
+
+.header {
+  flex: 1;
+  width: 100%;
+  border: 2px dashed rgb(225, 65, 65);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.header svg {
+  height: 100px;
+}
+
+.header p {
+  text-align: center;
+  color: black;
+}
+
+.footer {
+  background-color: rgba(0, 110, 255, 0.075);
+  width: 100%;
+  padding: 6px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  color: black;
+  border: none;
+  box-sizing: border-box;
+}
+
+
+.footer svg {
+  height:25px;
+  fill: rgb(225, 65, 65);
+  background-color: transparent;
+  border-radius: 50%;
+  padding: 2px;
+  cursor: pointer;
+  box-shadow: 0 2px 30px transparent;
+}
+
+.footer p {
+  flex: 1;
+  text-align: center;
+  font-size: 10px;
+}
+
+#file {
+display: none;
+}
+
+#previewFoto {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 8px;
+  display: none;
+  margin-bottom: 4px; /* reduz a margem */
+  flex-shrink: 0;
+}
+
+.containerPDF {
+  height: auto;                  /* Remova altura fixa */
+  width: 250px;
+  border-radius: 10px;
+  box-shadow: 4px 4px 30px rgba(0, 0, 0, .2);
+  display: flex;
+  align-items: center;
+  justify-content: center;  /* Mantém conteúdo no topo */
+  padding: 10px;
+  gap: 6px;
+  background-color: rgba(0, 110, 255, 0.041);
+}
+
+.headerPDF {
+  flex: 1;
+  width: 100%;
+  border: 2px dashed rgb(225, 65, 65);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.headerPDF svg {
+  height: 100px;
+}
+
+.headerPDF p {
+  text-align: center;
+  color: black;
+}
+
+.footerPDF {
+  background-color: rgba(0, 110, 255, 0.075);
+  width: 100%;
+  padding: 6px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  color: black;
+  border: none;
+  box-sizing: border-box;
+}
+
+
+.footerPDF svg {
+  height:25px;
+  fill: rgb(225, 65, 65);
+  background-color: transparent;
+  border-radius: 50%;
+  padding: 2px;
+  cursor: pointer;
+  box-shadow: 0 2px 30px transparent;
+}
+
+.footerPDF p {
+  flex: 1;
+  text-align: center;
+  font-size: 15px;
+}
+
+#filePDF {
+display: none;
+}
+
+#previewFotoPDF {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 8px;
+  display: none;
+  margin-bottom: 4px; /* reduz a margem */
+  flex-shrink: 0;
+}
+
+.pdf{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+input[type="file"]{
+  display: none;
+}
+
+  .tarja-avaliacao {
+    display: flex;
+    flex-direction: column;
+    margin-top: 10px;
+    padding: 10px;
+    color: white;
+    font-weight: bold;
+    border-radius: 6px;
+    display: none;
+  }
+
+  .muito-bom {
+    background-color: #28a745; /* Verde */
+  }
+
+  .satisfatorio {
+    background-color: #ffc107; /* Amarelo */
+    color: black;
+  }
+
+  .regular {
+    background-color: #dc3545; /* Vermelho */
+  }
+
 .form-2colunas {
   display: flex;
   gap: 0.5px;  /* Espaço entre os inputs */
@@ -128,6 +333,20 @@ body{
 }
 
 .form2 input {
+  flex: 1;
+  font-family: var(--Font-primary);
+  width: 270px;
+  height: 30px;
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 0 20px;
+  border: 1px solid #000000;
+  background: transparent;
+  color: #000000;
+  outline: none;
+} 
+
+.form2 select {
   flex: 1;
   font-family: var(--Font-primary);
   width: 270px;
@@ -196,6 +415,7 @@ textarea:valid~label {
 }
 
 fieldset{
+  max-width: 100px;
   border-radius: 10px;
   border-color: #000000;
 }
@@ -224,6 +444,7 @@ input[type=date]{
 }
 
 
+
 input::placeholder{
   font: bold;
   text-align: center;
@@ -250,7 +471,6 @@ button {
   display: flex;
   justify-content: center;  
   margin: 0 auto;
-  margin-top: 10px;
   transition: 5%;
 }
 
@@ -267,6 +487,7 @@ button {
   display: flex;
   text-align: center;
   justify-content: space-between;
+  margin: 10px;
 }
 
 .Enviar:hover,
@@ -342,3 +563,13 @@ button {
 #file {
   display: none;
 }
+
+input#nmFuncionario, #descFuncao,#vlrCusto,#vlrBeneficio{
+  width: 179px;
+}
+
+input.form-control.input {
+    width: 500px;
+    overflow-x: auto;
+}
+
