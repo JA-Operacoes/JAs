@@ -217,6 +217,9 @@
     width: 250px;
     height: 40px;
   }
+  select#tpAjdCusto{
+    width: 171px;
+  }
 
   .Norcamento{
     display: flex;
@@ -424,6 +427,7 @@
   flex-direction: column;
   margin-bottom: 20px;
 }
+
 
 .form-checkbox{
   position: relative;
@@ -792,6 +796,13 @@
     transition-duration: 0.3s;
   }
 
+  .Propostaobs{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: row;
+  }
+
   .modal-buttons {
       margin-top: 10px;
       text-align: right;
@@ -829,7 +840,7 @@
 @media(max-width: 5674px){
   textarea{
       font-family: var(--Font-primary);
-      width: 100%;
+      width: 400px;
       height: 90px;
       border-radius: 6px;
       font-size: 15px;
@@ -837,7 +848,7 @@
       background: white;
       color: #000000;
       overflow-y: auto;
-      margin: 0 auto;
+      margin: 5px auto;
   }
 }
 
