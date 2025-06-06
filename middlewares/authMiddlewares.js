@@ -3,10 +3,10 @@ const jwt = require('jsonwebtoken');
 
 function autenticarToken(opcoes = { verificarEmpresa: true }) {
   return (req, res, next) => {
-    console.log("Headers brutos recebidos:", JSON.stringify(req.headers, null, 2));
+   // console.log("Headers brutos recebidos:", JSON.stringify(req.headers, null, 2));
     const authHeader = req.headers['authorization'];
     
-    console.log("Todos os headers recebidos:", req.headers);
+   // console.log("Todos os headers recebidos:", req.headers);
   //  const idempresaHeader = req.headers['x-id-empresa'];
   //const idempresaHeader = req.headers['x-id-empresa'] || req.headers['idempresa'];
 const idempresaHeader = req.get('x-id-empresa') || req.get('idempresa');
@@ -58,6 +58,8 @@ const idempresaHeader = req.get('x-id-empresa') || req.get('idempresa');
 
         req.idempresa = idempresaFinal;
        
+      }else{
+          req.idempresa = Number(idempresaHeader);
       }
 
       console.log('Usuário autenticado:', usuario.nome || usuario.email || usuario.idusuario);
@@ -68,27 +70,15 @@ const idempresaHeader = req.get('x-id-empresa') || req.get('idempresa');
 }
 
 function contextoEmpresa(req, res, next) {
-  const { idempresa } = req.usuario || {};
-  req.empresaId = idempresa; // define mesmo que as rotas não usem
+  
+  console.log('Headers recebidos:', req.headers);
+  const idempresa = parseInt(req.headers['idempresa']);
+  if (!idempresa || isNaN(idempresa)) {
+    return res.status(400).json({ erro: 'Nenhuma Empresa associada ao usuário' });
+  }
+  req.idempresa = idempresa;
   next();
 }
-// module.exports = contextoEmpresa;
 
-// function contextoEmpresa(opcoes = {}) {
-//   return (req, res, next) => {
-//     const idEmpresa = req.headers['x-id-empresa'];
-    
-//     if (!idEmpresa && !opcoes.permitirSemEmpresa) {
-//       console.log("[contextoEmpresa] Empresa não informada.");
-//       return res.status(400).json({ erro: 'Empresa não informada' });
-//     }
-
-//     if (idEmpresa) {
-//       req.idEmpresa = parseInt(idEmpresa, 10);
-//     }
-
-//     next();
-//   };
-// }
 
 module.exports = { autenticarToken, contextoEmpresa };

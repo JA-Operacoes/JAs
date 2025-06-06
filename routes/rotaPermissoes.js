@@ -18,6 +18,6 @@ router.get('/:idusuario', autenticarToken({ verificarEmpresa: false }), listarPe
 router.post('/cadastro', autenticarToken({ verificarEmpresa: false }), cadastrarOuAtualizarPermissoes);
 
 // Deletar uma permissão específica
-router.delete('/:idpermissao', autenticarToken({ verificarEmpresa: false }), deletarPermissao);
+//router.delete('/:idpermissao', autenticarToken({ verificarEmpresa: false }), deletarPermissao);
 
 module.exports = router;

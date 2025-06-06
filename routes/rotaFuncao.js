@@ -1,15 +1,15 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../db/conexaoDB");
-//const { autenticarToken} = require('../middlewares/authMiddlewares');
+const { autenticarToken} = require('../middlewares/authMiddlewares');
 
 //const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 
 // Aplica autenticação em todas as rotas
-//router.use(autenticarToken);
+router.use(autenticarToken);
 
 // GET todas ou por descrição
-router.get("/",/*verificarPermissao('Funcao', 'pesquisar'),*/ async (req, res) => {
+router.get("/", autenticarToken({ verificarEmpresa: false }), async (req, res) => {
   console.log("Rota de função acessada - GET", req.query);
   const idempresa = req.idempresa;
   const { descFuncao } = req.query;
@@ -36,7 +36,7 @@ router.get("/",/*verificarPermissao('Funcao', 'pesquisar'),*/ async (req, res) =
 });
 
 // PUT atualizar
-router.put("/:id", /*verificarPermissao('Funcao', 'alterar'),*/ async (req, res) => {
+router.put("/:id", autenticarToken({ verificarEmpresa: false }), async (req, res) => {
    console.log("Rota de função acessada - PUT", req.query);
   const id = req.params.id;
   const { descFuncao, custo, venda, ajcfuncao, obsfuncao } = req.body;
@@ -57,7 +57,8 @@ router.put("/:id", /*verificarPermissao('Funcao', 'alterar'),*/ async (req, res)
 });
 
 // POST criar nova função
-router.post("/", /*verificarPermissao('Funcao', 'cadastrar'),*/ async (req, res) => {
+router.post("/", autenticarToken({ verificarEmpresa: false }), async (req, res) => {
+  
    console.log("Rota de função acessada - POST", req.query);
   const { descFuncao, custo, venda, ajcfuncao, obsfuncao } = req.body;
  

@@ -3,9 +3,10 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
 const { autenticarToken } = require('../middlewares/authMiddlewares');
-const { getEmpresasDoUsuario } = require('../controllers/authController');
 
-const { cadastrarOuAtualizarUsuario, login, verificarUsuarioExistente, listarUsuarios, buscarUsuariosPorNome, buscarUsuarioPorEmail, listarPermissoes, verificarNomeExistente  } = require('../controllers/authController');
+
+
+const { cadastrarOuAtualizarUsuario, login, verificarUsuarioExistente, listarUsuarios, buscarUsuariosPorNome, buscarUsuarioPorEmail, listarPermissoes, verificarNomeExistente, listarEmpresasDoUsuario  } = require('../controllers/authController');
 
 router.post('/cadastro', autenticarToken({ verificarEmpresa: false }), cadastrarOuAtualizarUsuario);
 router.put('/cadastro', autenticarToken({ verificarEmpresa: false }), cadastrarOuAtualizarUsuario);
@@ -16,6 +17,7 @@ router.post('/verificarNomeCompleto', authController.verificarNomeCompleto);
 router.get('/usuarios', autenticarToken({ verificarEmpresa: false }), listarUsuarios);
 router.get('/buscarUsuarios', autenticarToken({ verificarEmpresa: false }), buscarUsuariosPorNome);
 
+router.get('/usuarios/:id/empresas', autenticarToken({ verificarEmpresa: false }), listarEmpresasDoUsuario);
 
 router.post('/login', authController.login);
 

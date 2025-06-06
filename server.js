@@ -31,9 +31,6 @@ app.use(express.urlencoded({ extended: true })); // lê formulários URL-encoded
 
 
 
-// Middleware para parsear JSON
-app.use(express.json());
-
 // Serve todos os arquivos estáticos de "public" (HTML, JS, CSS, imagens)
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -46,16 +43,18 @@ app.use("/permissoes", require("./routes/rotaPermissoes")); //Rota permissoes us
 
 // Rotas protegidas com autenticação
 app.use("/funcao",autenticarToken(), contextoEmpresa, require("./routes/rotaFuncao"));
-app.use("/clientes", autenticarToken, require("./routes/rotaCliente"));
-app.use("/orcamentos", autenticarToken, require("./routes/rotaOrcamento"));
-app.use("/eventos", autenticarToken, require("./routes/rotaEvento"));
-app.use("/equipamentos", autenticarToken, require("./routes/rotaEquipamento"));
-app.use("/suprimentos", autenticarToken, require("./routes/rotaSuprimento"));
-app.use("/funcionarios", autenticarToken, require("./routes/rotaFuncionario"));
-app.use("/profissional", autenticarToken, require("./routes/rotaProfissional"));
-app.use("/localmontagem", autenticarToken, require("./routes/rotaLocalMontagem"));
-app.use("/staff", autenticarToken, require("./routes/rotaStaff"));
-//app.use("/usuarios", require("./routes/Usuarios"));
+app.use("/clientes", autenticarToken(), contextoEmpresa, require("./routes/rotaCliente"));
+app.use("/orcamentos", autenticarToken(), contextoEmpresa, require("./routes/rotaOrcamento"));
+app.use("/eventos",autenticarToken(), contextoEmpresa, require("./routes/rotaEvento"));
+app.use("/equipamentos", autenticarToken(), contextoEmpresa, require("./routes/rotaEquipamento"));
+app.use("/suprimentos", autenticarToken(), contextoEmpresa, require("./routes/rotaSuprimento"));
+app.use("/funcionarios", autenticarToken(), contextoEmpresa, require("./routes/rotaFuncionario"));
+app.use("/profissional", autenticarToken(), contextoEmpresa, require("./routes/rotaProfissional"));
+app.use("/localmontagem", autenticarToken(), contextoEmpresa, require("./routes/rotaLocalMontagem"));
+app.use("/staff", autenticarToken(), contextoEmpresa, require("./routes/rotaStaff"));
+app.use("/empresas", autenticarToken(), contextoEmpresa, require("./routes/rotaEmpresa"));
+app.use("/modulos", autenticarToken(), require("./routes/rotaModulo"));
+
 
 
 

@@ -323,6 +323,11 @@
     pointer-events: none;
     transition: 0.3s;
   }
+
+  .uppercase {
+    text-transform: uppercase;
+  }
+
   input:focus{
     border: 2px solid #ce0303;
   }

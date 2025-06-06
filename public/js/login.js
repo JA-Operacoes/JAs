@@ -31,12 +31,18 @@ try {
     console.log("token, idusuario", token, idusuario, empresas);
     localStorage.clear();
     localStorage.setItem("token", token);
-    localStorage.setItem("idusuario", idusuario);
+    localStorage.setItem("idusuario", idusuario);    
     localStorage.setItem("empresas", JSON.stringify(empresas));
+   
     if (idempresaDefault) {
       localStorage.setItem("idempresa", idempresaDefault);
+      // Aqui busca as permissões para essa empresa e salva localmente 04/06/2025
+      // const permissoes = await fetchComToken('/auth/permissoes');
+      // localStorage.setItem('permissoes', JSON.stringify(permissoes));
+
     } else {
       localStorage.removeItem("idempresa"); // para evitar lixo
+      localStorage.removeItem('permissoes');//04/06/2025
     }
 
     // const permissoes = await fetchComToken('/auth/permissoes');

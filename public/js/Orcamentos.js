@@ -23,11 +23,12 @@ function carregarClientesOrc() {
         return;
     }
 
-    fetch('/orcamentos/clientes', {
+    fetchComToken('/orcamentos/clientes', {
         method: 'GET',
         headers: {
             'Authorization': `Bearer ${token}`, // ENVIA O TOKEN AQUI
             'Content-Type': 'application/json'
+            // 'x-id-empresa': idEmpresa
         }
     })
     .then(response => {
@@ -87,7 +88,7 @@ function atualizarOuCriarCampoTexto(nmFantasia, texto) {
 // Busca por nome fantasia
 async function buscarEExibirDadosClientePorNome(nmFantasia) {
     try {
-        const response = await fetch(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
+        const response = await fetchComToken(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
 
         if (!response.ok) {
             throw new Error(`Erro ao buscar dados do cliente: ${response.status}`);
@@ -122,7 +123,7 @@ function carregarEventosOrc() {
     
     // console.log("Função carregar Eventos chamada");
 
-    fetch('http://localhost:3000/eventos')
+    fetchComToken('http://localhost:3000/eventos')
     .then(response => response.json())
     .then(eventos => {
         // console.log('Eventos recebidos:', eventos);
@@ -167,7 +168,7 @@ let Categoria = "";
 function carregarFuncaoOrc() {
     // console.log("Função carregarFuncao chamada ORCAMENTO.js");
 
-    fetch('http://localhost:3000/funcao')
+    fetchComToken('http://localhost:3000/funcao')
         .then(response => response.json())
         .then(funcao => {
             // console.log('Funcao recebidos 1:', funcao); // Log das Funções recebidas
@@ -211,7 +212,7 @@ function carregarFuncaoOrc() {
 function carregarEquipamentosOrc() {
 
     // console.log("Função carregarEquipamentos chamada");
-    fetch('http://localhost:3000/equipamentos')
+    fetchComToken('http://localhost:3000/equipamentos')
         .then(response => response.json())
         .then(equipamentos => {
             let selects = document.querySelectorAll(".idEquipamento"); //
@@ -285,7 +286,7 @@ function carregarSuprimentosOrc() {
 function carregarLocalMontOrc() {
     
     // console.log("Função carregar LocalMontagem chamada");
-    fetch('http://localhost:3000/localmontagem')
+    fetchComToken('http://localhost:3000/localmontagem')
     .then(response => response.json())
     .then(montagem => {
         // console.log('Local Montagem recebidos:', montagem);
@@ -345,6 +346,70 @@ function configurarInfraCheckbox() {
     atualizarVisibilidade();
 }
 
+async function fetchComToken(url, options = {}) {
+ // console.log("URL da requisição USUARIOS:", url);
+  const token = localStorage.getItem("token");
+  const idempresa = localStorage.getItem("idempresa");
+
+  //console.log("ID da empresa no localStorage:", idempresa);
+ // console.log("Token no localStorage:", token);
+
+  if (!options.headers) options.headers = {};
+
+  options.headers['Authorization'] = 'Bearer ' + token;
+  if (idempresa) options.headers['idempresa'] = idempresa;
+
+if (
+    idempresa && 
+    idempresa !== 'null' && 
+    idempresa !== 'undefined' && 
+    idempresa.trim() !== '' &&
+    !isNaN(idempresa) && 
+    Number(idempresa) > 0
+  ) {
+    options.headers['idempresa'] = idempresa;
+    console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
+  } else {
+    console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
+  }
+
+  const resposta = await fetch(url, options);
+
+ // console.log("Resposta da requisição:", resposta);
+
+  if (resposta.status === 401) {
+    localStorage.clear();
+    Swal.fire({
+      icon: "warning",
+      title: "Sessão expirada",
+      text: "Por favor, faça login novamente."
+    }).then(() => {
+      window.location.href = "login.html"; // ajuste conforme necessário
+    });
+    //return;
+    throw new Error('Sessão expirada'); 
+  }
+
+
+  let dados;
+
+  try {
+    // Tenta parsear JSON
+    dados = await resposta.json();
+  } catch {
+    // Se não for JSON, tenta pegar texto puro
+    const texto = await resposta.text();
+    dados = texto || null;
+  }
+
+  if (!resposta.ok) {
+    // lança erro com a mensagem retornada (se houver)
+    const mensagemErro = (dados && dados.erro) || JSON.stringify(dados) || resposta.statusText;
+    throw new Error(`Erro na requisição: ${mensagemErro}`);
+  }
+
+  return dados;
+}
 
 
 
@@ -375,9 +440,13 @@ function configurarFormularioOrc() {
             orcamento.Pessoas.push(dados);
         }
 
-        fetch('/salvar-orcamento', {
+        fetchComToken('/salvar-orcamento', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                        "Content-Type": "application/json",
+                        'Authorization': `Bearer ${token}`
+                        // 'x-id-empresa': idEmpresa
+                    },
             body: JSON.stringify(orcamento)
         })
         .then(response => response.json())
@@ -1120,9 +1189,13 @@ function configurarEventosOrcamento() {
         };
 
         try {
-            const response = await fetch('http://localhost:3000/orcamentos', {
+            const response = await fetchComToken('http://localhost:3000/orcamentos', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                        "Content-Type": "application/json",
+                        'Authorization': `Bearer ${token}`
+                        // 'x-id-empresa': idEmpresa
+                    },
             body: JSON.stringify(payload)
             });
 
@@ -1164,10 +1237,12 @@ function enviarOrcamento() {
 
     console.log("Dados a enviar:", dados);
 
-    fetch("http://localhost:3000/orcamento", {
+    fetchComToken("http://localhost:3000/orcamento", {
         method: "POST",
         headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            'Authorization': `Bearer ${token}`
+            // 'x-id-empresa': idEmpresa
         },
         body: JSON.stringify({ Pessoas: dados })
     })
@@ -1553,7 +1628,7 @@ async function gerarPropostaPDF() {
         let dadosContato = { nmcontato: "N/D", celcontato: "N/D", emailcontato: "N/D" };
         try {
             console.log("Buscando dados do cliente via API");
-            const resposta = await fetch(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(nomeCliente)}`);
+            const resposta = await fetchComToken(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(nomeCliente)}`);
             const dados = await resposta.json();
             const cliente = Array.isArray(dados) ? dados[0] : dados;
             if (cliente) {
@@ -1738,10 +1813,12 @@ async function salvarOrcamento(event) {
     console.log("DADOS ITENS", dados.itens);
 
     try {
-        const resposta = await fetch(form.getAttribute('data-action'), {
+        const resposta = await fetchComToken(form.getAttribute('data-action'), {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+                // 'x-id-empresa': idEmpresa
             },
             body: JSON.stringify(dados)
         });
@@ -1760,3 +1837,20 @@ async function salvarOrcamento(event) {
 }
 
 window.configurarEventosOrcamento = configurarEventosOrcamento;
+
+function configurarEventosEspecificos(modulo) {
+  console.log("⚙️ configurarEventosEspecificos recebeu:", modulo);
+  
+  if (modulo.trim().toLowerCase() === 'orcamentos') {
+    
+    configurarEventosOrcamento();
+
+    if (typeof aplicarPermissoes === "function" && window.permissoes) {// 01/06/2025
+      aplicarPermissoes(window.permissoes);
+    } else {
+      console.warn("⚠️ aplicarPermissoes ou window.permissoes ainda não estão disponíveis.");
+    }
+  
+  }
+}
+window.configurarEventosEspecificos = configurarEventosEspecificos;

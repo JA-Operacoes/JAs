@@ -37,6 +37,7 @@ function verificaFuncao() {
             input.name = "descFuncao";
             input.value = "Descrição da Função";
             input.className = "form";
+            input.classList.add('uppercase');
             input.required = true;
 
             campo.parentNode.replaceChild(input, campo);
@@ -45,9 +46,8 @@ function verificaFuncao() {
             const label = document.querySelector('label[for="descFuncao"]');
             if (label) label.style.display = "block";
 
-            // Adiciona o evento blur ao novo input
-        
         }
+        
         limparCamposFuncao();
 
     });
@@ -55,6 +55,7 @@ function verificaFuncao() {
     botaoEnviar.addEventListener("click", async function (event) {
         event.preventDefault(); // Previne o envio padrão do formulário
         console.log("Enviando Funcao...");
+
         const idFuncao = document.querySelector("#idFuncao").value;
         const descFuncao = document.querySelector("#descFuncao").value.toUpperCase().trim();
         const vlrCusto = document.querySelector("#Custo").value;
@@ -70,6 +71,9 @@ function verificaFuncao() {
         const temPermissaoCadastrar = temPermissao("Funcao", "cadastrar");
         const temPermissaoAlterar = temPermissao("Funcao", "alterar");
 
+        console.log("temPermissaoCadastrar:", temPermissaoCadastrar);
+        console.log("temPermissaoAlterar:", temPermissaoAlterar);
+
         const metodo = idFuncao ? "PUT" : "POST";
 
         if (!idFuncao && !temPermissaoCadastrar) {
@@ -79,6 +83,8 @@ function verificaFuncao() {
         if (idFuncao && !temPermissaoAlterar) {
             return Swal.fire("Acesso negado", "Você não tem permissão para alterar funções.", "error");
         }
+
+        console.log("campos antes de salvar", idFuncao, descFuncao, custo, venda, ajcfuncao, obsfuncao);
  
         if (!descFuncao || !vlrCusto || !vlrVenda) {
            
@@ -113,7 +119,11 @@ function verificaFuncao() {
         }
     
         const dados = { descFuncao, custo, venda, ajcfuncao, obsfuncao };
+        const token = localStorage.getItem('token');
+        const idEmpresa = localStorage.getItem('idEmpresa');
 
+        console.log("Dados a serem enviados:", dados);
+        console.log("ID da empresa:", idEmpresa);
      
         if (idFuncao) {
             Swal.fire({
@@ -129,7 +139,7 @@ function verificaFuncao() {
             }).then(async (result) => {
                 if (result.isConfirmed) {
                     try {
-                        const response = await fetchComToken(`/funcao/${idFuncao}`, {
+                        const resultJson = await fetchComToken(`/funcao/${idFuncao}`, {
                             method: "PUT",
                             headers: {
                                 "Content-Type": "application/json"
@@ -137,9 +147,7 @@ function verificaFuncao() {
                             body: JSON.stringify(dados)
                         });
         
-                        const resultJson = await response.json();
-        
-                        if (response.ok) {
+                        if (resultJson.sucesso) {
                             document.getElementById('form').reset();
                             Swal.fire("Sucesso!", resultJson.mensagem || "Alterações salvas com sucesso!", "success");
                             //form.reset();
@@ -159,17 +167,18 @@ function verificaFuncao() {
         } else {
             // Se for novo, salva direto
             try {
-                const response = await fetchComToken("/funcao", {
+                const resultJson = await fetchComToken("/funcao", {
                     method: "POST",
                     headers: {
-                        "Content-Type": "application/json"
+                        "Content-Type": "application/json",
+                        'Authorization': `Bearer ${token}`,
+                        'x-id-empresa': idEmpresa
                     },
                     body: JSON.stringify(dados)
                 });
         
-                const resultJson = await response.json();
-        
-                if (response.ok) {
+                       
+                if (resultJson.sucesso) {
                     Swal.fire("Sucesso!", resultJson.mensagem || "Função cadastrada!", "success");
                     form.reset();
                     limparFuncaoOriginal();
@@ -199,20 +208,14 @@ function verificaFuncao() {
         }
 
         try {
-            
+            const input = document.querySelector("#descFuncao");
             const desc = input?.value?.trim() || "";
 
             const funcoes = await fetchComToken(`/funcao?descFuncao=${encodeURIComponent(desc)}`);
-            // const response = await fetchComToken("/funcao"); // ajuste a rota conforme sua API
-            // if (!response.ok) throw new Error("Erro ao buscar funções");
-    
-            //const funcoes = await response.json();
-
-            console.log("Funções encontradas:", funcoes);
-
+          
             const select = criarSelectFuncao(funcoes);
             limparCamposFuncao();
-            const input = document.querySelector("#descFuncao");
+            
                
             if (input && input.parentNode) {
                 input.parentNode.replaceChild(select, input);
@@ -240,6 +243,7 @@ function verificaFuncao() {
                 novoInput.name = "descFuncao";
                 novoInput.required = true;
                 novoInput.className = "form";
+                novoInput.classList.add('uppercase');
                 novoInput.value = desc;
             
                 novoInput.addEventListener("input", function() {
@@ -305,11 +309,13 @@ function criarSelectFuncao(funcoes) {
 
 
 // Variável global para armazenar o último elemento clicado
-let ultimoClique = null;
-
+if (!window.ultimoClique) {
+    window.ultimoClique = null;
+  
+}
 // Captura o último elemento clicado no documento (uma única vez)
 document.addEventListener("mousedown", (e) => {
-    ultimoClique = e.target;
+    window.ultimoClique = e.target;
 });
 
 function adicionarEventoBlurFuncao() {
@@ -319,7 +325,7 @@ function adicionarEventoBlurFuncao() {
     input.addEventListener("blur", async function () {
         console.log("Blur no campo descFuncao:", this.value);
 
-        const botoesIgnorados = ["Limpar", "Pesquisar", "Enviar"];
+        const botoesIgnorados = ["Limpar", "Pesquisar", "Close"];
         const ehBotaoIgnorado =
             (ultimoClique?.id && botoesIgnorados.includes(ultimoClique.id)) ||
             (ultimoClique?.classList && ultimoClique.classList.contains("close"));
@@ -433,84 +439,6 @@ function limparCamposFuncao() {
     
 }
 
-// function fetchComToken(url, options = {}) {
-//     console.log("fetchComToken chamado com URL:", url, "e opções:", options);
-//   const token = localStorage.getItem("token");
-   
-//   const idempresa = localStorage.getItem("idempresa");
-//   if (!token) {
-//     throw new Error("fetchComToken: nenhum token encontrado. Faça login primeiro.");
-//   }
-
-//   if (!idempresa) {
-//     throw new Error("fetchComToken: nenhum idempresa encontrado. Selecione uma empresa.");
-//   }
-//   // Monta os headers sempre incluindo Authorization
-//   const headers = {
-//     "Authorization": `Bearer ${token}`,
-//     "idempresa": options.headers?.idempresa || idempresa,
-//     // só coloca Content-Type se houver body (POST/PUT)
-//     ...(options.body ? { "Content-Type": "application/json" } : {}),
-//     ...options.headers
-//   };
-
-//   return fetch(url, {
-//     ...options,
-//     headers,
-//     // caso seu back-end esteja em outro host e precisa de CORS:
-//     //mode: "cors",
-//     // se precisar enviar cookies de sessão:
-//     credentials: "include"
-//   });
-// }
-
-// async function fetchComToken(url, options = {}) {
-//   console.log("URL da requisição:", url);
-//   const token = localStorage.getItem("token");
-//   const idempresa = localStorage.getItem("idempresa");
-
-//   console.log("ID da empresa no localStorage:", idempresa);
-//   console.log("Token no localStorage:", token);
-
-//   if (!token) {
-//     throw new Error("Token ausente. Faça login.");
-//   }
-
-//   if (!options.headers) options.headers = {};
-
-//   options.headers['Authorization'] = 'Bearer ' + token;
-  
-// //   if (idempresa) options.headers['idempresa'] = idempresa;
-// // Adiciona o ID da empresa apenas se for um número válido
-// //   if (idempresa && !isNaN(Number(idempresa))) {
-// //     options.headers['idempresa'] = idempresa;
-// //   } else {
-// //     console.warn("⚠️ idempresa ausente ou inválido nos headers!");
-// //   }
-// if (idempresa) options.headers['x-id-empresa'] = idempresa;
-
-//   console.log("Headers da requisição:", options.headers);
-
-//   const resposta = await fetch(url, options);
-//   console.log("Resposta da requisição:", resposta);
-
-//   if (resposta.status === 401) {
-//     localStorage.clear();
-//     Swal.fire({
-//       icon: "warning",
-//       title: "Sessão expirada",
-//       text: "Por favor, faça login novamente."
-//     }).then(() => {
-//       window.location.href = "login.html"; // ajuste conforme necessário
-//     });
-//     //return;
-//     throw new Error('Sessão expirada'); 
-//   }
-
-  
-//   return await resposta.json(); // Retorna o JSON já resolvido
-// }
-
 async function fetchComToken(url, options = {}) {
   const token = localStorage.getItem("token");
   const idempresa = localStorage.getItem("idempresa");
@@ -539,6 +467,7 @@ async function fetchComToken(url, options = {}) {
   console.log("🧾 Headers da requisição:", options.headers);
 
   try {
+    console.log("📤 Enviando requisição para:", url, "com opções:", options);
     const resposta = await fetch(url, options);
     console.log("📥 Resposta da requisição:", resposta);
 
@@ -572,14 +501,24 @@ function configurarEventosFuncao() {
     adicionarEventoBlurFuncao();
     console.log("Entrou configurar Funcao no FUNCAO.js.");
     
+    
 
 } 
 window.configurarEventosFuncao = configurarEventosFuncao;
 
 function configurarEventosEspecificos(modulo) {
   console.log("⚙️ configurarEventosEspecificos recebeu:", modulo);
+  
   if (modulo.trim().toLowerCase() === 'funcao') {
+    
     configurarEventosFuncao();
+
+    if (typeof aplicarPermissoes === "function" && window.permissoes) {// 01/06/2025
+      aplicarPermissoes(window.permissoes);
+    } else {
+      console.warn("⚠️ aplicarPermissoes ou window.permissoes ainda não estão disponíveis.");
+    }
+  
   }
 }
 window.configurarEventosEspecificos = configurarEventosEspecificos;
