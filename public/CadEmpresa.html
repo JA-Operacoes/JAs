@@ -13,17 +13,15 @@
 
 </head>
 
-<body data-modulo="Empresa">
+<body data-modulo="Empresas">
 
 
     <div id="CadModal" class="modal">
         <div class="modal-content">
-
             
             <div class="Close"><button onclick="fecharModal('CadModal')">X</button></div>
             <div id ="form-content">
                 <form id="form">
-
 
                     <div class = "title">
                     <h1>Cadastro de Empresas</h1>
@@ -33,12 +31,12 @@
                         <legend>Informações da  Empresa</legend>
                         <div class="form-2colunas">
                         <div class="form2">
-                            <input type="text" style="text-transform: uppercase;" name="nmFantasia" id="nmFantasia" required>
+                            <input type="text" class="uppercase" name="nmFantasia" id="nmFantasia" required>
                             <label for="nmFantasia"> Nome Fantasia</label>
                         </div>
 
                         <div class="form2">
-                            <input type="text" style="text-transform: uppercase;" name="razaoSocial" id="razaoSocial" required>
+                            <input type="text" class="uppercase" name="razaoSocial" id="razaoSocial" required>
                             <label for="razaoSocial"> Razão Social</label>
                         </div>
                         </div>
@@ -49,7 +47,7 @@
                             <label for="cnpj">CNPJ</label>
                         </div>
                         <div class="form2">
-                            <input type="text" style="text-transform: uppercase;" name="inscEstadual" id="inscEstadual" required
+                            <input type="text" class="uppercase" name="inscEstadual" id="inscEstadual" required
                             oninput="formatIE(this)">
                             <label for="inscEstadual">Inscrição Estadual</label>
                         </div>
@@ -84,7 +82,7 @@
                             <label for="cep">CEP</label>
                         </div>
                         <div class="form2">
-                            <input type="text" style="text-transform: uppercase;" id="rua" name="rua" required>
+                            <input type="text" class="uppercase" id="rua" name="rua" required>
                             <label for="rua">Rua</label>
                         </div>
                         </div>
@@ -94,27 +92,27 @@
                             <label for="numero">Número</label>
                         </div>
                         <div class="form2">
-                            <input type="text" style="text-transform: uppercase;" class="Complemento" name="complemento"
+                            <input type="text" class="uppercase" class="Complemento" name="complemento"
                             id="complemento" required spellcheck="false">
                             <label for="complemento">Complemento</label>
                         </div>
                         <div class="form2">
-                            <input type="text" style="text-transform: uppercase;" id="bairro" name="bairro" required>
+                            <input type="text" class="uppercase" id="bairro" name="bairro" required>
                             <label for="bairro"> Bairro </label>
                         </div>
                         </div>
 
                         <div class="form-2colunas">
                         <div class="form2">
-                            <input type="text" style="text-transform: uppercase;" id="cidade" name="cidade" required>
+                            <input type="text" class="uppercase" id="cidade" name="cidade" required>
                             <label for="cidade">Cidade</label>
                         </div>
                         <div class="form2">
-                            <input type="text" style="text-transform: uppercase;" id="estado" name="estado" required>
+                            <input type="text" class="uppercase" id="estado" name="estado" required>
                             <label for="estado"> Estado</label>
                         </div>
                         <div class="form2">
-                            <input type="text" style="text-transform: uppercase;" id="pais" name="pais" required>
+                            <input type="text" class="uppercase" id="pais" name="pais" required>
                             <label for="pais">Pais</label>
                         </div>
                         </div>

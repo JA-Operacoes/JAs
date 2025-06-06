@@ -5,58 +5,61 @@ const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-
 // Cadastro de usuário
 // controllers/authController.js
 async function verificarUsuarioExistente(req, res) {
-    const { nome, sobrenome, email, ativo } = req.body;
-    console.log("verificarUsuarioExistente AuthController", req.body);
-    try {
-      const { rows } = await db.query("SELECT * FROM usuarios WHERE nome = $1 AND sobrenome = $2 AND email = $3 AND ativo = $4", [nome, sobrenome, email, ativo]);
-  
-      if (rows.length > 0) {
-        return res.status(200).json({ usuarioExistente: true });
-      } else {
-        return res.status(200).json({ usuarioExistente: false });
-      }
-  
-    } catch (erro) {
-      console.error('Erro ao verificar usuário:', erro);
-      res.status(500).json({ erro: 'Erro ao verificar usuário.' });
+  const { nome, sobrenome, email, ativo, idempresadefault } = req.body;
+  console.log("verificarUsuarioExistente AuthController", req.body);
+  try {
+    // const { rows } = await db.query("SELECT * FROM usuarios WHERE nome = $1 AND sobrenome = $2 AND email = $3 AND ativo = $4", [nome, sobrenome, email, ativo, idempresadefault]);
+    const { rows } = await db.query("SELECT u.idusuario, u.nome, u.sobrenome, u.email, u.ativo, u.idempresadefault, e.nome AS empresadefaultnome FROM usuarios u LEFT JOIN empresas e ON u.idempresadefault = e.idempresa WHERE u.nome = $1 AND u.sobrenome = $2 AND u.email = $3 AND u.ativo = $4 AND u.idempresadefault = $5", [nome, sobrenome, email, ativo, idempresadefault]);
+    if (rows.length > 0) {
+      return res.status(200).json({ usuarioExistente: true });
+    } else {
+      return res.status(200).json({ usuarioExistente: false });
     }
+
+  } catch (erro) {
+    console.error('Erro ao verificar usuário:', erro);
+    res.status(500).json({ erro: 'Erro ao verificar usuário.' });
   }
+}
 
-
-async function cadastrarOuAtualizarUsuario(req, res) {
-  const { nome, sobrenome, email, senha, email_original, ativo, empresas } = req.body;
-  
-  function arraysIguais(arr1, arr2) {
+function arraysIguais(arr1, arr2) {
+    
     if (!Array.isArray(arr1) || !Array.isArray(arr2)) return false;
     if (arr1.length !== arr2.length) return false;
-    const sorted1 = [...arr1].sort();
-    const sorted2 = [...arr2].sort();
+    const sorted1 = [...arr1].map(Number).sort((a, b) => a - b);
+    const sorted2 = [...arr2].map(Number).sort((a, b) => a - b);
     return sorted1.every((val, idx) => val === sorted2[idx]);
-  }
+}
+
+async function cadastrarOuAtualizarUsuario(req, res) {
+ 
+  const { nome, sobrenome, email, senha, email_original, ativo, idempresadefault} = req.body;
+   
   console.log('Dados recebidos cadastrarOuAtualizarUsuario:', req.body);
   try {
     // Busca o usuário pelo email original
     const { rows } = await db.query("SELECT * FROM usuarios WHERE email = $1", [email_original]);
 
-
     if (rows.length > 0) {
-      const usuario = rows[0];
+      const usuario = rows[0];    
 
-      // Aqui pegamos as empresas do usuário do banco para comparação
       const empresasDoUsuario = await getEmpresasDoUsuario(usuario.idusuario);
-      const empresasIguais = arraysIguais(empresas, empresasDoUsuario);
+    //  const empresasIguais = arraysIguais(empresas, empresasDoUsuario);
+      console.log("Empresas do usuário:", empresasDoUsuario);
+      //console.log("Empresas enviadas:", empresas);
+     // console.log("Nome:", nome, "Sobrenome:", sobrenome, "Email:", email, "Ativo:", req.body.ativo, "IdEmpresaDefault:", idempresadefault, "Empresas:", empresas, "Empresas do Usuario:", empresasDoUsuario, "Empresas Iguais:", empresasIguais);
 
       const camposIguais =
         nome === usuario.nome &&
         sobrenome === usuario.sobrenome &&
         email === usuario.email &&
-        usuario.ativo === req.body.ativo &&
-        !senha &&
-        empresasIguais; // senha vazia significa que não foi alterada
+        Boolean(usuario.ativo) === Boolean(req.body.ativo) &&
+        String(usuario.idempresadefault) === String(idempresadefault) &&
+        !senha;
+        //empresasIguais; // senha vazia significa que não foi alterada
 
       if (camposIguais) {
         return res.status(200).json({ mensagem: 'Nenhuma alteração detectada no Usuário.' });
@@ -96,22 +99,33 @@ async function cadastrarOuAtualizarUsuario(req, res) {
         atualizacoes.push(`senha_hash = $${idx++}`);
         valores.push(senhaHash);
       }
+
+      // CORREÇÃO — incluir atualização de idempresadefault
+      if (
+        idempresadefault !== undefined &&
+        idempresadefault !== null &&
+        idempresadefault !== usuario.idempresadefault
+      ) {
+        atualizacoes.push(`idempresadefault = $${idx++}`);
+        valores.push(idempresadefault);
+      }
+
       if (atualizacoes.length > 0) {
         valores.push(email_original);
         const sql = `UPDATE usuarios SET ${atualizacoes.join(', ')} WHERE email = $${idx}`;
         await db.query(sql, valores);
        }
-      // Atualizar empresas associadas se fornecido
-      if (Array.isArray(empresas)) {
-        // Remove todas associações antigas
-        await db.query('DELETE FROM usuarioempresas WHERE idusuario = $1', [usuario.idusuario]);
-        // Insere as novas associações
-        for (const idempresa of empresas) {
-          await db.query('INSERT INTO usuarioempresas (idusuario, idempresa) VALUES ($1, $2)', [usuario.idusuario, idempresa]);
-        }
-      }
 
-      return res.status(200).json({ mensagem: 'Usuário atualizado com sucesso.' });
+       // Atualizar empresas associadas somente se tiverem sido alteradas
+      // if (Array.isArray(empresas) && !empresasIguais) {
+      //   await db.query('DELETE FROM usuarioempresas WHERE idusuario = $1', [usuario.idusuario]);
+      //   for (const idempresa of empresas) {
+      //     await db.query('INSERT INTO usuarioempresas (idusuario, idempresa) VALUES ($1, $2)', [usuario.idusuario, idempresa]);
+      //   }
+      // }
+
+
+      return res.status(200).json({ mensagem: 'Usuário atualizado com sucesso.' }); 
 
     } else {
     
@@ -126,9 +140,9 @@ async function cadastrarOuAtualizarUsuario(req, res) {
 
       const senhaHash = await bcrypt.hash(senha, 10);
       const result = await db.query(`
-        INSERT INTO usuarios (nome, sobrenome, email, senha_hash, ativo)
-        VALUES ($1, $2, $3, $4, true) RETURNING *
-      `, [nome, sobrenome, email, senhaHash, ativo]);
+        INSERT INTO usuarios (nome, sobrenome, email, senha_hash, ativo, idempresadefault)
+        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *
+      `, [nome, sobrenome, email, senhaHash, ativo, idempresadefault]);
 
       
       const usuarioId = result.rows[0].idusuario;
@@ -150,21 +164,29 @@ async function cadastrarOuAtualizarUsuario(req, res) {
 
 // função auxiliar para buscar empresas do usuário do BD
 async function getEmpresasDoUsuario(idusuario) {
-  const { rows } = await db.query('SELECT idempresa FROM usuarioempresas WHERE idusuario = $1', [idusuario]);
+  console.log("getEmpresasDoUsuario AuthController", idusuario);
+  const { rows } = await db.query(`
+    SELECT idempresa 
+    FROM usuarioempresas 
+    WHERE idusuario = $1`, [idusuario]);
   return rows.map(row => row.idempresa);
 }
 
+// Listar empresas do usuário controllers/authController.js
 async function listarEmpresasDoUsuario(req, res) {
+  console.log("listarEmpresasDoUsuario AuthController", req.params);
   const { id } = req.params;
   try {
     const empresasQuery = await db.query(`
-      SELECT ue.idempresa, e.nome_fantasia
+      SELECT ue.idusuario, ue.idempresa, e.nome AS nome_empresa
       FROM usuarioempresas ue
       JOIN empresas e ON ue.idempresa = e.idempresa
       WHERE ue.idusuario = $1
     `, [id]);
 
     res.json(empresasQuery.rows);
+
+    console.log("Empresas do usuário:", empresasQuery.rows);
   } catch (erro) {
     console.error(erro);
     res.status(500).json({ erro: 'Erro ao buscar empresas do usuário.' });
@@ -175,13 +197,13 @@ async function listarEmpresasDoUsuario(req, res) {
 async function listarUsuarios(req, res) {
 
     try {
-      console.log('Headers:', req.headers);
-      console.log('req.user:', req.user);
+     // console.log('Headers:', req.headers);
+      console.log('req.user:', req.usuario);
       console.log('req.idempresa:', req.idempresa);
    
     // Se o endpoint for usado com verificarEmpresa = false, ignore o filtro por empresa
     const usuariosQuery = await db.query(`
-      SELECT idusuario, nome, sobrenome, email, ativo
+      SELECT idusuario, nome, sobrenome, email, ativo, idempresadefault
       FROM usuarios
       ORDER BY nome
     `);
@@ -199,7 +221,7 @@ async function buscarUsuariosPorNome(req, res) {
   console.log("buscarUsuarioPorNome", nome);
   try {
     const { rows } = await db.query(`
-      SELECT idusuario, nome, sobrenome, email, senha_hash, ativo
+      SELECT idusuario, nome, sobrenome, email, senha_hash, ativo, idempresadefault
       FROM usuarios 
       WHERE LOWER(nome) LIKE LOWER($1) 
       ORDER BY nome 
@@ -224,7 +246,7 @@ async function verificarNomeExistente(req, res) {
 
     try {
       const resultado = await db.query(`
-        SELECT * FROM usuarios WHERE LOWER(nome) = LOWER($1) LIMIT 1
+        SELECT idusuario, nome, sobrenome, email, ativo, idempresadefault FROM usuarios WHERE LOWER(nome) = LOWER($1) LIMIT 1
       `, [nome]);
 
       const nomeEncontrado = resultado.rows.length > 0;
@@ -276,7 +298,7 @@ async function login(req, res) {
     }
 
     // Buscar usuário pelo email
-    const queryUsuario = "SELECT idusuario, email, senha_hash, nome FROM usuarios WHERE email = $1";
+    const queryUsuario = "SELECT idusuario, email, senha_hash, nome, idempresadefault FROM usuarios WHERE email = $1";
     const resultUsuario = await db.query(queryUsuario, [email]);
 
     if (resultUsuario.rows.length === 0) {
@@ -284,6 +306,7 @@ async function login(req, res) {
     }
 
     const usuario = resultUsuario.rows[0];
+    console.log("Usuário encontrado:", usuario);
 
     // Verificar senha com bcrypt
     const senhaValida = await bcrypt.compare(senha, usuario.senha_hash);
@@ -296,41 +319,42 @@ async function login(req, res) {
       SELECT e.idempresa
       FROM usuarioempresas ue
       JOIN empresas e ON ue.idempresa = e.idempresa
-      WHERE ue.idusuario = $1
-    `;
+      WHERE ue.idusuario = $1 `;
+
     const resultEmpresas = await db.query(queryEmpresas, [usuario.idusuario]);
-    const empresas = resultEmpresas.rows;
+   // const empresas = resultEmpresas.rows;
+    const empresas = resultEmpresas.rows.map(row => row.idempresa);
+
+    if (empresas.length === 0) {
+      return res.status(403).json({ erro: "Usuário não está vinculado a nenhuma empresa. Contate o administrador." });
+    }
 
     console.log("Empresas encontradas:", resultEmpresas.rows);
 
-    // Definir empresa padrão (a primeira da lista ou null)
-    const idempresaDefault = empresas.length > 0 ? empresas[0].idempresa : null;
+    
+    const idempresaDefault = empresas.length > 0 ? empresas[0] : null;
 
-    // // Gerar token JWT (pode incluir mais dados se quiser)
-    // const token = jwt.sign(
-    //   { idusuario: usuario.idusuario, email: usuario.email },
-    //   JWT_SECRET,
-    //   // 
-    //   { expiresIn: "10h" }
-    // );
-console.log("Empresa default:", idempresaDefault);
-    // Gerar token JWT com dados úteis no payload
+   
+    console.log("Empresa default:", idempresaDefault);
+    
+    
     const tokenPayload = {
       idusuario: usuario.idusuario,
       email: usuario.email,
-      empresas: empresas.map(e => ({ idempresa: e.idempresa })), // se quiser incluir nome, pode também
+      empresas, // já é array de IDs
       idempresaDefault
     };
-
     const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '10h' });
-
- //   console.log("Token gerado:", token);
-    // Retornar resposta para o frontend
-    return res.json({
+    
+    console.log("Token gerado authController:", token);
+   
+    res.json({
       token,
       idusuario: usuario.idusuario,
+      nome: usuario.nome,
       empresas,
-      idempresaDefault,
+      idempresaDefault
+      // idempresaDefault: empresas[0] || null
     });
 
   } catch (error) {
@@ -405,6 +429,8 @@ async function buscarUsuarioPorEmail(req, res) {
 
 
 module.exports = {
+  listarEmpresasDoUsuario,
+  getEmpresasDoUsuario,
   verificarUsuarioExistente,
   cadastrarOuAtualizarUsuario,
   listarUsuarios,

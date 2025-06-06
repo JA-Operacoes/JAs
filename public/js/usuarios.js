@@ -1,3 +1,5 @@
+let empresasOriginais = []; // Variável global para armazenar as empresas originais
+
 document.getElementById("Registrar").addEventListener("submit", async function (e) {
     e.preventDefault();
   
@@ -6,10 +8,15 @@ document.getElementById("Registrar").addEventListener("submit", async function (
     const email = document.getElementById("email").value;
     const senha = document.getElementById("senha").value;
     const ativo = document.getElementById('ativo').checked;
-   
+    const idempresaDefault = document.getElementById("empresaDefaultSelect").value;
+
+    console.log("ID EMPRESA DEFAULT SELECT", idempresaDefault);
     // Captura empresas selecionadas (checkboxes)
-    const empresasSelecionadas = Array.from(document.querySelectorAll('#listaEmpresas input[type="checkbox"]:checked'))
-    .map(cb => cb.value);
+    // const empresasSelecionadas = Array.from(document.querySelectorAll('#listaEmpresas input[type="checkbox"]:checked'))
+    // .map(cb => cb.value);
+   // const empresaSelecionada = document.getElementById("listaEmpresas").value;
+
+    const confirmacaoSenha = document.getElementById("confirmasenha").value;
 
     // Validação básica
     if (!nome || !sobrenome || !email || !senha || !confirmacaoSenha) {
@@ -37,32 +44,32 @@ document.getElementById("Registrar").addEventListener("submit", async function (
     //     text: "Selecione pelo menos uma empresa."
     //   });
     // }
-  
+    
     try {
       const resposta = await fetchComToken("/auth/cadastro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, email, senha, sobrenome, ativo, empresas: empresasSelecionadas })
+        // body: JSON.stringify({ nome, email, senha, sobrenome, ativo, empresas: empresasSelecionadas })
+        body: JSON.stringify({ nome, email, senha, sobrenome, ativo, idempresadefault: idempresaDefault })
       });
   
       const dados = await resposta.json();
       console.log(dados);
   
-      if (!resposta.ok) {
-        Swal.fire({
-          icon: "error",
-          title: "Erro",
-          text: dados.erro || "Erro ao cadastrar."
-        });
       
-        return;
-      }
-  
-      Swal.fire({
-        icon: "success",
-        title: "Sucesso",
-        text: "Usuário cadastrado com sucesso!"
+      if (!dados || dados.erro) {
+      return Swal.fire({
+        icon: "error",
+        title: "Erro",
+        text: dados.erro || "Erro ao cadastrar."
       });
+    }
+
+    Swal.fire({
+      icon: "success",
+      title: "Sucesso",
+      text: "Usuário cadastrado com sucesso!"
+    });
   
       // limpa o formulário
       document.getElementById("Registrar").reset();
@@ -107,16 +114,17 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
   const confirmacaoSenha = document.getElementById("confirmasenha").value;
   const email_original = document.getElementById("email_original").value;
   const ativo = document.getElementById('ativo').checked;
-  
-  const empresasSelecionadas = Array.from(document.querySelectorAll('#listaEmpresas input[type="checkbox"]:checked'))
-    .map(cb => cb.value);
+  const idempresaDefault = document.getElementById("empresaDefaultSelect").value;
+
+  // const empresasSelecionadas = Array.from(document.querySelectorAll('#listaEmpresas input[type="checkbox"]:checked'))
+  //   .map(cb => cb.value);
 
 
-  if (!nome || !sobrenome || !email ) {
+  if (!nome || !sobrenome || !email || !idempresaDefault ) {
     Swal.fire({
       icon: 'warning',
       title: 'Atenção',
-      text: 'Todos os campos devem ser preenchidos.',
+      text: 'Campos: Nome, Sobrenome, email e Empresa Default, devem ser preenchidos.',
     });
     return;
   }
@@ -130,65 +138,56 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
     return;
   }
 
-
+ 
  
   try {
-     console.log("ENTROU NO TRY", nome, sobrenome, email, senha);
+     console.log("ENTROU NO TRY", nome, sobrenome, email, senha, idempresaDefault);
    
-    const resposta = await fetchComToken("/auth/cadastro", {
+    const dados = await fetchComToken("/auth/cadastro", {
       method: "PUT",  // Mudamos para PUT para indicar alteração
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nome, sobrenome, email, senha, email_original, ativo, empresas: empresasSelecionadas }),
+      // body: JSON.stringify({ nome, sobrenome, email, senha, email_original, ativo, empresas: empresasSelecionadas }),
+      body: JSON.stringify({ nome, sobrenome, email, senha, email_original, ativo, idempresadefault: idempresaDefault }),
 
     });
  
 
-    const dados = await resposta.json();
+    //const dados = await resposta.json();
     console.log("DADOS ALTERADOS", dados);
 
-    if (!resposta.ok) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Erro',
-        text: dados.erro || 'Erro ao atualizar.'
-      });
-      return;
-    }
     console.log("Dados Mensagem", dados.mensagem);
 
     //testar 
-    const mensagem = dados.mensagem || "Usuário atualizado com sucesso!";
+   //const mensagem = dados.mensagem || "Usuário atualizado com sucesso!";
 
-    Swal.fire({
-      icon: dados.mensagem === "Nenhuma alteração detectada no Usuário." ? "info" : "success",
-      title: dados.mensagem === "Nenhuma alteração detectada no Usuário." ? "Aviso" : "Sucesso",
-      text: mensagem
-    }).then((result) => {
-      if (result.isConfirmed) flipBox();
-    });
+    // Swal.fire({
+    //   icon: dados.mensagem === "Nenhuma alteração detectada no Usuário." ? "info" : "success",
+    //   title: dados.mensagem === "Nenhuma alteração detectada no Usuário." ? "Aviso" : "Sucesso",
+    //   text: mensagem
+    // }).then((result) => {
+    //   if (result.isConfirmed) flipBox();
+    // });
 
-    // if (dados.mensagem === 'Nenhuma alteração detectada no Usuário.') {
-    //   Swal.fire({
-    //     icon: 'info',
-    //     title: 'Aviso',
-    //     text: dados.mensagem
-    //   }).then((result) => {
-    //     if (result.isConfirmed) {
-    //       flipBox(); // Só executa após o usuário clicar em OK
-    //     }
-    //   });
+    if (dados.erro) {
+      Swal.fire({
+        icon: "error",
+        title: "Erro",
+        text: dados.erro
+      });
+    } else {
+      const mensagem = dados.mensagem;
+      const isSemAlteracao = mensagem === "Nenhuma alteração detectada no Usuário.";
+
+      Swal.fire({
+        icon: isSemAlteracao ? "info" : "success",
+        title: isSemAlteracao ? "Aviso" : "Sucesso",
+        text: mensagem
+      }).then((result) => {
+        if (result.isConfirmed) flipBox();
+      });
+    }
+
     
-    // } else {
-    //     Swal.fire({
-    //       icon: 'success',
-    //       title: 'Sucesso',
-    //       text: dados.mensagem || 'Usuário atualizado com sucesso!'
-    //     }).then((result) => {
-    //       if (result.isConfirmed) {
-    //         flipBox(); // Só executa após o usuário clicar em OK
-    //       }
-    //   });
-    // }
     limparCampos(); // Limpa os campos do formulário após a atualização
     console.log("Chamando FlipBox");
   
@@ -204,16 +203,16 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
 });
 
  document.getElementById("email").addEventListener("blur", function () { 
-//   const emailValue = email.value;
+  // const emailValue = email.value;
 //   console.log("Verificando email:", emailValue);
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return Swal.fire({
-        icon: "warning",
-        title: "Email inválido",
-        text: "Digite um email válido."
-      });
-    }
+  // const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  //   if (!emailRegex.test(email)) {
+  //     return Swal.fire({
+  //       icon: "warning",
+  //       title: "Email inválido",
+  //       text: "Digite um email válido."
+  //     });
+  //   }
   
 //   if (emailValue) {
 //     verificarUsuarioExistenteFront();
@@ -293,20 +292,20 @@ async function verificarUsuarioExistenteFront() {
   const sobrenome = document.getElementById("sobrenome").value.trim();
   const email = document.getElementById("email").value.trim();
   const ativo = document.getElementById('ativo').checked;
-  
+  const idempresaDefault = document.getElementById("empresaDefaultSelect").value;
 
-  console.log("Entrou no verificarUsuarioExistenteFront", nome, sobrenome, email, ativo);
+  console.log("Entrou no verificarUsuarioExistenteFront", nome, sobrenome, email, ativo, idempresaDefault);
 
   if (!nome || !sobrenome || !email) {
     return; // Só verifica se os três estiverem preenchidos
   } 
- 
+  
   try {
     
     const resposta = await fetchComToken("/auth/verificarUsuario", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nome, sobrenome, email, ativo })
+      body: JSON.stringify({ nome, sobrenome, email, ativo, idempresaDefault: idempresaDefault, empresas: empresasSelecionadas }) // Envia idempresaDefault e empresas como array vazio,
     });
 
     const dados = await resposta.json();
@@ -405,7 +404,7 @@ async function verificarNomeExistente() {
     }
 
   } catch (erro) {
-    console.error("Erro na busca por nome:", erro);
+    //console.error("Erro na busca por nome:", erro); // verificar se funciona com isso comentado
   }
 }
 
@@ -426,10 +425,7 @@ async function verificarNomeCompleto() {
     const dados = await resposta.json();
 
     if (dados.usuario) {
-      // Preencher os dados retornados
-      // document.getElementById("email").value = dados.usuario.email || "";
-      // document.getElementById("ativo").checked = dados.usuario.ativo;
-
+     // Se o usuário já existe, preenche os campos
       setCampo("email", dados.usuario.email);
       setCampo("ativo", dados.usuario.ativo);
 
@@ -513,23 +509,23 @@ iconeBuscar.addEventListener('click', async () => {
   const termo = inputBusca.value.trim();
   const idempresa = localStorage.getItem('idempresa') || '1';
 
-  console.log("Termo de busca ao clicar no ícone:", termo); // Log do termo de busca
+  //console.log("Termo de busca ao clicar no ícone:", termo); // Log do termo de busca
 
   if (termo.length < 2) {
     // Se não tiver termo, buscar todos
-    console.log("Termo de busca muito curto, buscando todos os usuários.");
+   // console.log("Termo de busca muito curto, buscando todos os usuários.");
     try {
-      const resposta = await fetchComToken(`/auth/usuarios`);
+      const usuarios = await fetchComToken(`/auth/usuarios`);
       // const usuarios = await resposta.json();
 
-      const usuarios = await resposta.json();
+     // const usuarios = await resposta.json();
 
       if (!Array.isArray(usuarios)) {
         console.error('Resposta não é uma lista de usuários:', usuarios);
         return; // ou trate o erro apropriadamente
       }
 
-      console.log('Resposta da API:', usuarios);
+     // console.log('Resposta da API:', usuarios);
 
       lista.innerHTML = '';
       usuarios.forEach(usuario => {
@@ -540,6 +536,10 @@ iconeBuscar.addEventListener('click', async () => {
         li.dataset.nome = usuario.nome;
         li.dataset.sobrenome = usuario.sobrenome;
         li.dataset.ativo = usuario.ativo;
+        li.dataset.idempresadefault = usuario.idempresadefault;
+
+        preencherEmpresaDefault(usuario.idempresadefault);
+
         lista.appendChild(li);
       });
 
@@ -564,14 +564,15 @@ listaUsuariosContainer.addEventListener('click', async (e) => {
 
   try {
     // Buscar empresas vinculadas
-    const resposta = await fetchComToken(`/usuarios/${idusuario}/empresas`);
-    const empresas = await resposta.json();
-
-    // Preencher campos com dados do usuário (opcional)
-    document.querySelector('#nome').value = item.textContent.split(' ')[0];
-    document.querySelector('#sobrenome').value = item.textContent.split(' ')[1];
-    document.querySelector('#email').value = item.textContent.match(/\(([^)]+)\)/)[1];
+    const empresas = await fetchComToken(`/usuarios/${idusuario}/empresas`);
+   
+    const [primeiroNome, ...resto] = item.dataset.nome.split(' ');
+    document.querySelector('#nome').value = primeiroNome;
+    document.querySelector('#sobrenome').value = item.dataset.sobrenome; // usa dataset diretamente
+    document.querySelector('#email').value = item.dataset.email;
+    document.querySelector('#email_original').value = item.dataset.email; // Armazena o email original para comparação
     document.querySelector('#idusuario').value = idusuario; // hidden input
+
 
     if (empresas.length === 0) {
       // Nenhuma empresa vinculada, virar o flipbox
@@ -579,7 +580,9 @@ listaUsuariosContainer.addEventListener('click', async (e) => {
     } else {
       // Já possui vínculos, marcar checkboxes correspondentes
       empresas.forEach(emp => {
-        const checkbox = document.querySelector(`.empresa-checkbox[data-idempresa="${emp.idempresa}"]`);
+       // const checkbox = document.querySelector(`.empresa-checkbox[data-idempresa="${emp.idempresa}"]`);
+       const checkbox = document.querySelector(`input[type="checkbox"][data-idempresa="${emp.idempresa}"]`);
+
         if (checkbox) checkbox.checked = true;
       });
 
@@ -592,6 +595,9 @@ listaUsuariosContainer.addEventListener('click', async (e) => {
     Swal.fire('Erro', 'Erro ao buscar empresas vinculadas.', 'error');
   }
 });
+
+
+
 
 function formatarNome(inputId) {
   const input = document.getElementById(inputId);
@@ -613,7 +619,7 @@ const lista = document.getElementById('listaUsuarios');
 inputBusca.addEventListener('input', async () => {
   const termo = inputBusca.value.trim();
 
-  console.log("Termo de busca:", termo); // Log do termo de busca
+  //console.log("Termo de busca:", termo); // Log do termo de busca
 
   if (termo.length < 2) {
     lista.innerHTML = '';
@@ -622,13 +628,11 @@ inputBusca.addEventListener('input', async () => {
   }
 
   try {
-    console.log("Token no localStorage inputBusca:", localStorage.getItem("token"));
-    const resposta = await fetchComToken(`/auth/usuarios?nome=${encodeURIComponent(termo)}`);
-    console.log('Resposta da API:', resposta);
+    //console.log("Token no localStorage inputBusca:", localStorage.getItem("token"));
+    const usuarios = await fetchComToken(`/auth/usuarios?nome=${encodeURIComponent(termo)}`);
    
-    const usuarios = await resposta.json();
-
-   
+   // console.log('Resposta da API:', usuarios);
+       
 
     lista.innerHTML = '';
 
@@ -648,31 +652,39 @@ inputBusca.addEventListener('input', async () => {
 
       // Ordena alfabeticamente como fallback
       return aNome.localeCompare(bNome);
-});
-
-usuarios.forEach(usuario => {
-  const li = document.createElement('li');
-    li.textContent = `${usuario.nome} ${usuario.sobrenome}`;
-    li.dataset.idusuario = usuario.idusuario;
-    li.dataset.email = usuario.email;
-    li.dataset.nome = usuario.nome;
-    li.dataset.sobrenome = usuario.sobrenome;
-    li.dataset.ativo = usuario.ativo;
-  // li.dataset.senha = usuario.senha_hash; // Adiciona o hash da senha como dataset
-    lista.appendChild(li);
   });
 
+  if (usuarios.length === 0) {
+      lista.innerHTML = '<li>Nenhum usuário encontrado</li>';
+  } else {
+    usuarios.forEach(usuario => {
+      const li = document.createElement('li');
+        li.textContent = `${usuario.nome} ${usuario.sobrenome}`;
+        li.dataset.idusuario = usuario.idusuario;
+        li.dataset.email = usuario.email;
+        li.dataset.nome = usuario.nome;
+        li.dataset.sobrenome = usuario.sobrenome;
+        li.dataset.ativo = usuario.ativo;
+        li.dataset.idempresaDefault = usuario.idempresadefault;
+      // Preencher o select da empresa default
+        preencherEmpresaDefault(usuario.idempresadefault);
+        lista.appendChild(li);
+      });
+      
+  }
   lista.style.display = 'block';
 
   } catch (error) {
-    console.error('Erro ao buscar usuários:', error);
+    console.warn('Erro ao buscar usuários:', error);
+    lista.innerHTML = '';
+    lista.style.display = 'none';
   }
 });
 
 // Clique na sugestão
 lista.addEventListener('mousedown', async (e) => {
-  console.log("Elemento clicado:", e.target); // Log do elemento clicado
-  console.log("Tag do elemento clicado:", e.target.tagName); // Log da tag do elemento clicado
+//  console.log("Elemento clicado:", e.target); // Log do elemento clicado
+//  console.log("Tag do elemento clicado:", e.target.tagName); // Log da tag do elemento clicado
   if (e.target.tagName === 'LI') {
     clicouNaLista = true; // Define que foi um clique na lista
 
@@ -682,7 +694,7 @@ lista.addEventListener('mousedown', async (e) => {
     const ativo = e.target.dataset.ativo === 'true'; 
     const idusuario = e.target.dataset.idusuario;
 
-    console.log("Usuário selecionado:", nome, sobrenome, email, ativo, idusuario); // Log do usuário selecionado
+ //   console.log("Usuário selecionado:", nome, sobrenome, email, ativo, idusuario); // Log do usuário selecionado
 
     document.getElementById('idusuario').value = idusuario;
     document.getElementById('nome').value = nome;
@@ -691,23 +703,33 @@ lista.addEventListener('mousedown', async (e) => {
     document.getElementById("email_original").value = email; // Armazena o email original para comparação
     document.getElementById('ativo').checked = ativo;
     document.getElementById('buscaUsuario').value = `${nome} ${sobrenome}`;
+
+    
    
     document.getElementById("btnCadastrar").style.display = "none";
     document.getElementById("btnAlterar").style.display = "inline-block";
     
-    console.log("clicou na lista", clicouNaLista); // Log do clique na lista
+//    console.log("clicou na lista", clicouNaLista); // Log do clique na lista
     lista.innerHTML = '';
     lista.style.display = 'none';
 
     preencherUsuarioPeloEmail(email);
 
+    // Limpar checkboxes de empresas e permissões antes de carregar
+    limparCheckboxesEmpresas();
+    limparCheckboxesPermissao();
+
      // 🔽 Aqui começa a parte nova: buscar empresas vinculadas
     try {
       // Limpa os checkboxes antes
-      document.querySelectorAll('.empresa-checkbox').forEach(cb => cb.checked = false);
+     // document.querySelectorAll('.empresa-checkbox').forEach(cb => cb.checked = false);
 
-      const resposta = await fetchComToken(`/usuarios/${idusuario}/empresas`);
-      const empresas = await resposta.json();
+//      console.log("Buscando empresas vinculadas ao usuário com ID:", idusuario);
+
+      //const empresas = await fetchComToken(`/usuarios/${idusuario}/empresas`);
+      const empresas = await fetchComToken(`/auth/usuarios/${idusuario}/empresas`);
+    //  const empresas = await resposta.json(); // verificar se funciona com isso comentado
+
 
       if (!Array.isArray(empresas)) {
         console.error('Resposta inesperada ao buscar empresas:', empresas);
@@ -717,7 +739,7 @@ lista.addEventListener('mousedown', async (e) => {
 
       if (empresas.length === 0) {
         // Nenhuma empresa vinculada → vira flipbox
-        document.querySelector('.flipbox').classList.add('flip');
+        document.querySelector('.flip-container').classList.add('flip');
       } else {
         // Marca checkboxes das empresas vinculadas
         empresas.forEach(emp => {
@@ -726,21 +748,42 @@ lista.addEventListener('mousedown', async (e) => {
         });
 
         // Mostra o lado de permissões
-        document.querySelector('.flipbox').classList.add('flip');
+        document.querySelector('.flip-container').classList.add('flip');
       }
+      await carregarPermissoesUsuario(idusuario); //novo 02/06/2025
     } catch (erro) {
       console.error('Erro ao buscar empresas do usuário:', erro);
       Swal.fire('Erro', 'Erro ao buscar empresas vinculadas.', 'error');
     }
   
   }
-  // document.getElementById("btnCadastrar").style.display = "none";
-  // document.getElementById("btnAlterar").style.display = "inline-block";
+ 
 });
+
+function preencherEmpresaDefault(idempresadefault) {
+  const empresaDefaultSelect = document.getElementById('empresaDefaultSelect');
+  if (empresaDefaultSelect && idempresadefault) {
+    const option = [...empresaDefaultSelect.options].find(opt => opt.value === idempresadefault);
+    if (option) {
+      empresaDefaultSelect.value = idempresadefault;
+    } else {
+      const novaOption = new Option(`Empresa ID ${idempresadefault}`, idempresadefault);
+      empresaDefaultSelect.add(novaOption);
+      empresaDefaultSelect.value = idempresadefault;
+    }
+  }
+}
+
+
+// Função para limpar checkboxes de empresas
+function limparCheckboxesEmpresas() {
+  document.querySelectorAll('.empresa-checkbox').forEach(cb => cb.checked = false);
+}
+
 
 function limparPermissoes() {
   document.querySelectorAll('.modulo-container input[type="checkbox"]').forEach(cb => cb.checked = false);
-  document.querySelectorAll('.checkbox-empresa').forEach(cb => cb.checked = false);
+  //document.querySelectorAll('.checkbox-empresa').forEach(cb => cb.checked = false);
 }
 
 function limparCampos() {
@@ -786,8 +829,8 @@ document.getElementById("btnCadastrar").addEventListener("click", function (e) {
 
 async function carregarPermissoesEEmpresasDoUsuario(email) {
   try {
-    const resposta = await fetchComToken(`/auth/permissoes-usuario/${email}`);
-    const dados = await resposta.json();
+    const dados = await fetchComToken(`/auth/permissoes-usuario/${email}`);
+   // const dados = await resposta.json();// verificar se funciona com isso comentado
 
     if (!resposta.ok) {
       console.error("Erro ao buscar permissões:", dados);
@@ -819,10 +862,10 @@ async function carregarPermissoesEEmpresasDoUsuario(email) {
 
 async function preencherUsuarioPeloEmail(email) {
   try {
-    const resposta = await fetchComToken(`/auth/email/${encodeURIComponent(email)}`);
-    if (!resposta.ok) throw new Error('Usuário não encontrado - Preencher Usuário pelo Email');
+    const dados = await fetchComToken(`/auth/email/${encodeURIComponent(email)}`);
+  //  if (!resposta.ok) throw new Error('Usuário não encontrado - Preencher Usuário pelo Email'); // verificar se funciona com isso comentado
 
-    const dados = await resposta.json();
+   // const dados = await resposta.json(); // verificar se funciona com isso comentado
 
     const campoUsuario = document.getElementById('nome_usuario');
     campoUsuario.value = `${dados.nome} ${dados.sobrenome}`; // mostra nome e sobrenome
@@ -831,6 +874,27 @@ async function preencherUsuarioPeloEmail(email) {
     console.error('Erro ao buscar usuário:', erro);
   }
 }
+
+// async function preencherUsuarioPeloEmail() {
+//   const email = document.getElementById('nome_usuario').value.trim();
+//   if (email.length < 3) return; // espera mais caracteres para buscar
+
+//   try {
+//     const usuario = await fetchComToken(`/auth/email=${encodeURIComponent(email)}`);
+//     if (usuario && usuario.idusuario) {
+//       document.getElementById('idusuario').value = usuario.idusuario;
+//       carregarPermissoesUsuario(usuario.idusuario);
+//       carregarEmpresasUsuario(usuario.idusuario); // Se usar empresas também
+//     } else {
+//       document.getElementById('idusuario').value = '';
+//       limparCheckboxesPermissao();
+//       limparListaEmpresas();
+//     }
+//   } catch (e) {
+//     console.error("Erro ao buscar usuário pelo email:", e);
+//   }
+// }
+
 
 //PERMISSÕES
 
@@ -846,7 +910,12 @@ function flipBox() {
    console.log("Entrou no flipBox");
 }
 
-
+// function carregarPermissoesUsuarioSelecionadas() {
+//   const idusuario = document.getElementById("idusuario").value;
+//   if (idusuario && idusuario.trim() !== '') {
+//     carregarPermissoesUsuario(idusuario);
+//   }
+// }
 
 document.getElementById("btnVoltar").addEventListener("click", function() {
   console.log("clicou no voltar");
@@ -862,10 +931,87 @@ let permissoesOriginais = {
   cadastrar:false,
   alterar:  false,
   pesquisar:false
-  // leitura:  false
 };
 
 // Salvando permissões
+// document.getElementById("btnsalvarPermissao").addEventListener("click", async function (e) {
+//   e.preventDefault();
+//   document.getElementById("btnPermissaoReal").click();
+
+//   const idusuario = document.getElementById("idusuario").value;
+//   const email = document.getElementById("nome_usuario").value.trim();
+//   const modulo = document.getElementById("modulo").value;
+ 
+//   if (!email || modulo === "choose") {
+//     Swal.fire("Atenção", "Informe um usuário e selecione um módulo.", "warning");
+//     return;
+//   }
+
+//    // Captura empresas selecionadas (checkboxes)
+//   const empresasSelecionadas = Array.from(document.querySelectorAll('#listaEmpresas input[type="checkbox"]:checked'))
+//     .map(cb => cb.value);
+
+
+//   if (!empresasSelecionadas.length) {
+//     Swal.fire("Atenção", "Selecione ao menos uma empresa.", "warning");
+//     return;
+//   }
+
+//   // valores atuais
+//   const atuais = {
+//     modulo,
+//     acesso:    document.getElementById("Acesso").checked,
+//     cadastrar: document.getElementById("Cadastrar").checked,
+//     alterar:   document.getElementById("Alterar").checked,
+//     pesquisar: document.getElementById("Pesquisar").checked
+//   };
+
+//    // compara tudo
+//   // 
+//   if (typeof permissoesOriginais === "object") {
+//     const semAlteracao = Object.keys(atuais).every(key => atuais[key] === permissoesOriginais[key]);
+//     if (semAlteracao) {
+//       return Swal.fire("Aviso", "Nenhuma alteração detectada em Permissões.", "info");
+//     }
+//   }
+
+//   const payload = {
+//     idusuario,
+//     email,
+//     modulo,
+//     acesso: atuais.acesso,
+//     cadastrar: atuais.cadastrar,
+//     alterar: atuais.alterar,
+//     pesquisar: atuais.pesquisar,
+//     empresas: empresasSelecionadas // <- aqui está a diferença
+//   };
+  
+ 
+//   try {
+    
+//       const res = await fetchComToken("/permissoes/cadastro", {
+//         method: "POST",
+//         headers: { "Content-Type": "application/json" },
+//         body: JSON.stringify(payload)
+//       });
+
+//       const resultado = await res.json();
+
+//       if (res.ok) {
+//        // sucesso++;
+//         Swal.fire("Sucesso", "Permissões e empresas salvas com sucesso!", "success");
+//         permissoesOriginais = { ...atuais };
+//       }else {
+//         //const resultado = await res.json();
+//         Swal.fire("Erro", resultado.error || "Erro ao salvar permissões.", "error");;
+//       } 
+  
+//   } catch (err) {
+//     console.error("Erro ao salvar permissões:", err);
+//   }
+  
+// });
+
 document.getElementById("btnsalvarPermissao").addEventListener("click", async function (e) {
   e.preventDefault();
   document.getElementById("btnPermissaoReal").click();
@@ -873,39 +1019,41 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
   const idusuario = document.getElementById("idusuario").value;
   const email = document.getElementById("nome_usuario").value.trim();
   const modulo = document.getElementById("modulo").value;
- 
+
   if (!email || modulo === "choose") {
     Swal.fire("Atenção", "Informe um usuário e selecione um módulo.", "warning");
     return;
   }
 
-   // Captura empresas selecionadas (checkboxes)
+  // Empresas selecionadas atualmente
   const empresasSelecionadas = Array.from(document.querySelectorAll('#listaEmpresas input[type="checkbox"]:checked'))
     .map(cb => cb.value);
-
 
   if (!empresasSelecionadas.length) {
     Swal.fire("Atenção", "Selecione ao menos uma empresa.", "warning");
     return;
   }
 
-  // valores atuais
+  // Permissões atuais
   const atuais = {
     modulo,
     acesso:    document.getElementById("Acesso").checked,
     cadastrar: document.getElementById("Cadastrar").checked,
     alterar:   document.getElementById("Alterar").checked,
     pesquisar: document.getElementById("Pesquisar").checked
-    // leitura:   document.getElementById("Leitura").checked
   };
 
-   // compara tudo
-  // 
-  if (typeof permissoesOriginais === "object") {
-    const semAlteracao = Object.keys(atuais).every(key => atuais[key] === permissoesOriginais[key]);
-    if (semAlteracao) {
-      return Swal.fire("Aviso", "Nenhuma alteração detectada em Permissões.", "info");
-    }
+  // Verifica se há mudança nas permissões
+  const semAlteracaoPermissoes = typeof permissoesOriginais === "object" &&
+    Object.keys(atuais).every(key => atuais[key] === permissoesOriginais[key]);
+
+  // Verifica se há mudança nas empresas
+  const empresasOriginaisOrdenadas = (empresasOriginais || []).slice().sort();
+  const empresasSelecionadasOrdenadas = empresasSelecionadas.slice().sort();
+  const semAlteracaoEmpresas = JSON.stringify(empresasOriginaisOrdenadas) === JSON.stringify(empresasSelecionadasOrdenadas);
+
+  if (semAlteracaoPermissoes && semAlteracaoEmpresas) {
+    return Swal.fire("Aviso", "Nenhuma alteração detectada nas Permissões ou Empresas.", "info");
   }
 
   const payload = {
@@ -916,59 +1064,68 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
     cadastrar: atuais.cadastrar,
     alterar: atuais.alterar,
     pesquisar: atuais.pesquisar,
-    // leitura: atuais.leitura,
-    empresas: empresasSelecionadas // <- aqui está a diferença
+    empresas: empresasSelecionadas
   };
 
-   
-  // monta o body
-  // const permissoesBase = {
-  //   idusuario,
-  //   email,
-  //   modulo,
-  //   acesso: document.getElementById("Acesso").checked,
-  //   cadastrar: document.getElementById("Cadastrar").checked,
-  //   alterar: document.getElementById("Alterar").checked,
-  //   pesquisar: document.getElementById("Pesquisar").checked,
-  //   leitura: document.getElementById("Leitura").checked
-  // };
-
   try {
-    // let sucesso = 0;
-    // for (const idempresa of empresasSelecionadas) {
-    //   const permissoes = { ...permissoesBase, idempresa };
+    const dados = await fetchComToken("/permissoes/cadastro", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
 
-      const res = await fetchComToken("/permissoes/cadastro", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
+    if (dados && dados.sucesso) {
+      Swal.fire("Sucesso", "Permissões e empresas salvas com sucesso!", "success");
 
-      const resultado = await res.json();
+      // Atualiza os dados originais
+      permissoesOriginais = { ...atuais };
+      empresasOriginais = [...empresasSelecionadas];
+    } else {
+      Swal.fire("Erro", dados.erro || "Erro ao salvar permissões.", "error");
+    }
 
-      if (res.ok) {
-       // sucesso++;
-        Swal.fire("Sucesso", "Permissões e empresas salvas com sucesso!", "success");
-        permissoesOriginais = { ...atuais };
-      }else {
-        //const resultado = await res.json();
-        Swal.fire("Erro", resultado.error || "Erro ao salvar permissões.", "error");;
-      }
-    
-
-    //if (res.ok) {
-    // if (sucesso > 0) {
-    //   Swal.fire("Sucesso", "Permissões salvas com sucesso!", "success");
-    //   permissoesOriginais = { ...atuais };
-    // } else {
-    //   const resultado = await res.json();
-    //   Swal.fire("Erro", resultado.error || "Erro ao salvar permissões.", "error");
-    // }
   } catch (err) {
     console.error("Erro ao salvar permissões:", err);
+    Swal.fire("Erro", "Erro inesperado ao salvar permissões.", "error");
   }
-  
 });
+
+async function carregarEmpresasUsuario(idusuario) {
+  const container = document.getElementById('listaEmpresas');
+  container.innerHTML = ''; // limpa
+
+  try {
+    const empresas = await fetchComToken(`/usuario_empresas/${idusuario}`); // endpoint hipotético
+    empresas.forEach(emp => {
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.id = 'empresa_' + emp.id;
+      cb.value = emp.id;
+      cb.checked = emp.selecionada; // ou conforme sua resposta
+      const label = document.createElement('label');
+      label.htmlFor = cb.id;
+      label.textContent = emp.nome;
+
+      const div = document.createElement('div');
+      div.appendChild(cb);
+      div.appendChild(label);
+
+      container.appendChild(div);
+    });
+
+    // Armazena lista original para comparar alterações
+    empresasOriginais = empresas.filter(e => e.selecionada).map(e => e.id);
+
+  } catch (e) {
+    console.error("Erro ao carregar empresas do usuário:", e);
+  }
+}
+
+function limparListaEmpresas() {
+  const container = document.getElementById('listaEmpresas');
+  container.innerHTML = '';
+  empresasOriginais = [];
+}
 
 async function carregarPermissoesUsuario(idusuario) {
   limparCheckboxesPermissao();
@@ -983,10 +1140,10 @@ async function carregarPermissoesUsuario(idusuario) {
 
   try {
     console.log("Entrou no carregarPermissoesUsuario", idusuario, "Módulo:", modulo);
-    const resp = await fetchComToken(`/permissoes/${idusuario}?modulo=${modulo}`);
-    if (!resp.ok) throw new Error("Falha ao buscar permissões");
+    const permissoes = await fetchComToken(`/permissoes/${idusuario}?modulo=${modulo}`);
+   // if (!resp.ok) throw new Error("Falha ao buscar permissões"); // verificar se funciona com isso comentado
 
-    const permissoes = await resp.json();
+   // const permissoes = await resp.json();// verificar se funciona com isso comentado
     console.log("Permissões carregadas:", permissoes);
 
     if (permissoes.length > 0) {
@@ -1017,48 +1174,43 @@ async function carregarPermissoesUsuario(idusuario) {
         // leitura: false
       };
     }
+    console.log("Permissões originais:", permissoesOriginais);
+    console.log("Permissões", permissoes)
   } catch (err) {
     console.error("Erro ao carregar permissões:", err);
   }
 }
 
-// async function fetchComToken(url, options = {}) {
-//   console.log("URL da requisição:", url);
-//   const token = localStorage.getItem("token");
-//   const idempresa = localStorage.getItem("idempresa");
- 
-//   console.log("ID da empresa no localStorage:", idempresa);
-//   console.log("Token no localStorage:", token);
-
-//   if (!options.headers) options.headers = {};
-
-//   options.headers['Authorization'] = 'Bearer ' + token;
-//   if (idempresa) options.headers['idempresa'] = idempresa;
-
-//   const resposta = await fetch(url, options);
-
-//   if (!resposta.ok) {
-//     const erro = await resposta.json();
-//     throw new Error(erro.erro || 'Erro desconhecido');
-//   }
-
-//   return resposta;
-// }
-
 async function fetchComToken(url, options = {}) {
-  console.log("URL da requisição:", url);
+ // console.log("URL da requisição USUARIOS:", url);
   const token = localStorage.getItem("token");
   const idempresa = localStorage.getItem("idempresa");
 
-  console.log("ID da empresa no localStorage:", idempresa);
-  console.log("Token no localStorage:", token);
+  //console.log("ID da empresa no localStorage:", idempresa);
+ // console.log("Token no localStorage:", token);
 
   if (!options.headers) options.headers = {};
 
   options.headers['Authorization'] = 'Bearer ' + token;
   if (idempresa) options.headers['idempresa'] = idempresa;
 
+if (
+    idempresa && 
+    idempresa !== 'null' && 
+    idempresa !== 'undefined' && 
+    idempresa.trim() !== '' &&
+    !isNaN(idempresa) && 
+    Number(idempresa) > 0
+  ) {
+    options.headers['idempresa'] = idempresa;
+    console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
+  } else {
+    console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
+  }
+
   const resposta = await fetch(url, options);
+
+ // console.log("Resposta da requisição:", resposta);
 
   if (resposta.status === 401) {
     localStorage.clear();
@@ -1073,15 +1225,101 @@ async function fetchComToken(url, options = {}) {
     throw new Error('Sessão expirada'); 
   }
 
-  // if (!resposta.ok) {
-  //   const erro = await resposta.json();
-  //   throw new Error(erro.erro || 'Erro desconhecido');
-  // }
 
-  return await resposta.json(); // Retorna o JSON já resolvido
+  let dados;
+
+  try {
+    // Tenta parsear JSON
+    dados = await resposta.json();
+  } catch {
+    // Se não for JSON, tenta pegar texto puro
+    const texto = await resposta.text();
+    dados = texto || null;
+  }
+
+  if (!resposta.ok) {
+    // lança erro com a mensagem retornada (se houver)
+    const mensagemErro = (dados && dados.erro) || JSON.stringify(dados) || resposta.statusText;
+    throw new Error(`Erro na requisição: ${mensagemErro}`);
+  }
+
+  return dados;
+
+
+  
 }
 
+async function carregarEmpresas() {
+  try {
+    console.log("Carregando empresas...");
+    const empresas = await fetchComToken('/empresas'); // substitua pela rota correta se for diferente
+    //if (!response.ok) throw new Error('Erro ao carregar empresas');
 
+   // const empresas = await response.json();
+
+    const select = document.getElementById('listaEmpresas');
+
+    console.log("Empresas carregadas:", empresas);
+
+    // Remove todas as opções exceto a primeira
+    select.innerHTML = '<option value="all">Todas as empresas</option>';
+
+    // Preenche com as empresas
+    empresas.forEach(emp => {
+      const option = document.createElement('option');
+      option.value = emp.idempresa;
+      option.textContent = emp.nome;
+      select.appendChild(option);
+    });
+
+  } catch (error) {
+    console.error('Erro ao carregar empresas:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Erro',
+      text: 'Não foi possível carregar a lista de empresas.'
+    });
+  }
+}
+
+document.getElementById('listaEmpresas').addEventListener('change', function () {
+  const idempresa = this.value;
+  const selectModulos = document.getElementById('modulo');
+
+  if (idempresa && idempresa !== 'all') {
+    selectModulos.disabled = false;
+    
+  } else {
+    selectModulos.disabled = true;
+    selectModulos.value = ""; // limpa seleção anterior se houver
+  }
+});
+
+async function carregarModulos() {
+  try {
+    console.log("CARREGAR MODULO");
+    const modulos = await fetchComToken('/modulos');
+    console.log('Módulos retornados:', modulos); // ajuste se necessário
+    //if (!response.ok) throw new Error('Erro ao buscar módulos.');
+
+    //const modulos = await response.json();
+
+    const selectModulo = document.getElementById('modulo');
+    selectModulo.innerHTML = '<option value="choose" selected>Escolha o Módulo</option>';
+
+    modulos.forEach(modulo => {
+      const option = document.createElement('option');
+      option.value = modulo.modulo;
+      option.textContent = modulo.modulo;
+      selectModulo.appendChild(option);
+    });
+
+    selectModulo.disabled = false;
+
+  } catch (error) {
+    console.error('Erro ao carregar módulos:', error);
+  }
+}
 
 //função para limpar todos os checkboxes de permissão
 function limparCheckboxesPermissao() {
@@ -1100,3 +1338,14 @@ selectModulo.addEventListener("change", () => {
   }
 });
 
+document.addEventListener('DOMContentLoaded', () => {
+  
+  carregarEmpresas();
+  carregarModulos();
+  const btnFechar = document.getElementById('btnFechar');
+  if (btnFechar) {
+    btnFechar.addEventListener('click', () => {
+      window.location.href = 'login.html'; // Substitua pelo caminho correto se estiver em outra pasta
+    });
+  }
+});

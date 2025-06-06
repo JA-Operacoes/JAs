@@ -50,11 +50,11 @@
 
         <div class="form-3colunas">
           <div class="user-box dupla">
-          <!-- Nome -->
-          <div class="user-box2">
-            <input type="text" id="nome" name="nome" required>
-            <label for="nome">Nome</label>
-          </div>
+            <!-- Nome -->
+            <div class="user-box2">
+              <input type="text" id="nome" name="nome" required>
+              <label for="nome">Nome</label>
+            </div>
             <!-- Sobrenome -->
             <div class="user-box2">
               <input type="text" id="sobrenome" name="sobrenome" required>
@@ -77,12 +77,28 @@
           </div>
         </div>
         
+        <!-- <div class="form-2colunas"> -->
+          <!-- <div class="user-box dupla"> -->
+              <div class="user-box">
+                <input type="email" id="email" name="email" required="">
+                <input type="hidden" id="email_original">
+                <label for="email">Email</label>
+              </div>
 
-        <div class="user-box">
-          <input type="email" id="email" name="email" required="">
-          <input type="hidden" id="email_original">
-          <label for="email">Email</label>
-        </div>
+              <div class="user-box">
+                <label for="empresaDefaultSelect">Empresa Padrão</label>
+                <select id="empresaDefaultSelect" name="empresaDefaultSelect" required>
+                  <option value="">Selecione</option>
+                  <option value="1">JA OPER</option>
+                  <option value="2">ES</option>
+                  <option value="3">JA EXPO</option>
+                  <option value="4">EA</option>
+                  <option value="5">ED</option>
+                  <option value="6">EP</option>
+                </select>
+              </div>
+          <!-- </div> -->
+        <!-- </div>  -->
 
         <div class="user-box camposenha">
           <input type="password" id="senha" name="senha" required="">
@@ -124,47 +140,22 @@
             
         <div class="user-box camposenha">
           <input type="text" id="nome_usuario" value="" spellcheck="false" oninput="preencherUsuarioPeloEmail()" >
-          <label for="nome_usuario"> Usuário:</label>
+          <label for="nome_usuario"> Usuário:</label>    
         </div>
-
-      <!-- Empresas -->
-        <div class="tab-content hidden" id="empresas">
-          <label>Empresas:</label>
-          <div class="checkbox-group" id="listaEmpresas">
-            <label class="checkbox-option">
-              <input type="checkbox"  name="empresaPermissao1" value="1" data-idempresa="1">
-              <span>JA OPER</span>
-            </label>
-            <label class="checkbox-option">
-              <input type="checkbox" name="empresaPermissao2" value="2" data-idempresa="2">
-              <span>ES</span>
-            </label>
-            <label class="checkbox-option">
-              <input type="checkbox" name="empresaPermissao3" value="3" data-idempresa="3">
-              <span>JA EXPO</span>
-            </label>
-            <label class="checkbox-option">
-              <input type="checkbox" name="empresaPermissao4" value="4" data-idempresa="4">
-              <span>EA</span>
-            </label>
-            <label class="checkbox-option">
-              <input type="checkbox" name="empresaPermissao5" value="5" data-idempresa="5">
-              <span>ED</span>
-            </label>
-            <label class="checkbox-option">
-              <input type="checkbox" name="empresaPermissao6" value="6" data-idempresa="6">
-              <span>EP</span>
-            </label>
-          </div>
+     
+        <div class="user-box  user-boxSelect">       
+          <label for="listaEmpresas">Empresa:</label>
+          <select id="listaEmpresas">
+            <option value="all">Todas as empresas</option>
+            <!-- Empresas serão adicionadas aqui via JavaScript -->
+          </select>          
         </div>
-
-  
 
         <div class="user-box  user-boxSelect">
           <label for="modulo">Módulo:</label>
-            <select name="modulo" id="modulo">
+            <select name="modulo" id="modulo" disabled>
               <option value="choose" selected>Escolha o Modulo</option>
-              <option value="Clientes">Clientes</option>
+              <!-- <option value="Clientes">Clientes</option>
               <option value="Funcao">Função</option>
               <option value="Orçamentos">Orçamentos</option>
               <option value="Eventos">Eventos</option>
@@ -173,6 +164,7 @@
               <option value="Localmontagem">Local de Montagem</option>
               <option value="Staff">Staff</option>
               <option value="Funcionarios">Funcionários</option>
+              <option value="Empresas">Funcionários</option> -->
             </select>
         </div>
         <div class="Permissions">
@@ -192,16 +184,9 @@
             <input id="Pesquisar" type="checkbox" />
             <label for="Pesquisar">Pesquisar</label>
           </div>
-          <!-- <div>
-            <input id="Leitura" type="checkbox" />
-            <label for="Leitura">Apenas Leitura</label>
-          </div> -->
+          
         </div> 
     
-      <!-- <label><input type="checkbox" name="pode_cadastrar"> </label><br>
-      <label><input type="checkbox" name="pode_alterar"> </label><br>
-      <label><input type="checkbox" name="pode_pesquisar"> </label><br> -->
-
         <div class="bts">
           <a type="button" id="btnsalvarPermissao">SALVAR PERMISSÃO<span></span></a>
             <button type="button" id="btnPermissaoReal" style="display: none;"></button>

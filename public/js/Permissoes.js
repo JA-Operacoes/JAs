@@ -34,7 +34,7 @@ function aplicarPermissoes(permissoes) {
 
   
   // Caso só possa pesquisar, oculta botões de envio
-  if (p.pesquisar && !p.cadastrar && !p.alterar) {
+  if (p.pode_pesquisar && !p.pode_cadastrar && !p.pode_alterar) {
     document.querySelectorAll("button[type='submit'], .btnSalvar, .btnEnviar")
       .forEach(btn => btn.style.display = "none");
   }
@@ -62,6 +62,7 @@ function aplicarPermissoes(permissoes) {
 async function initPermissoes() {
   console.log("[Permissões] Iniciando initPermissoes()");
   const idusuario = localStorage.getItem("idusuario");
+  const idempresa = localStorage.getItem("idempresa");
 
   if (!idusuario) {
     console.error("[Permissões] idusuario não encontrado no localStorage");
@@ -70,9 +71,17 @@ async function initPermissoes() {
 
   try {
     console.log("[Permissões] Buscando permissões para o usuário:", idusuario);
-    // const permissoes = await fetchComToken(`/permissoes/${idusuario}`);
-const resposta = await fetchComToken(`/permissoes/${idusuario}`);
-const permissoes = await resposta.json(); // ← ESTA LINHA FALTANDO!
+    const response = await fetchComToken(`/permissoes/${idusuario}`);
+     if (!response.ok) {
+    console.error("[Permissões] Erro na resposta:", response.status);
+    return;
+  }
+    const permissoes = await response.json(); 
+
+    console.log("[Permissões] Tipo do retorno:", typeof permissoes);
+console.log("[Permissões] O retorno é instanceof Response?", permissoes instanceof Response);
+console.log("[Permissões] Permissões recebidas:", permissoes);
+
     console.log("[Permissões] Permissões recebidas:", permissoes);
 
     if (!permissoes || !Array.isArray(permissoes)) {
@@ -81,11 +90,8 @@ const permissoes = await resposta.json(); // ← ESTA LINHA FALTANDO!
       return;
     }
 
-   // console.log("[Permissões] Permissões recebidas:", permissoes);
-
     filtrarMenuPorPermissoes(permissoes);
-
-    // Opcional: aplicarPermissoes para o módulo atual (se quiser aplicar logo após carregar)
+  
     aplicarPermissoes(permissoes);
 
   } catch (erro) {
@@ -116,6 +122,45 @@ function filtrarMenuPorPermissoes(permissoes) {
 }
 
 // Função genérica para fazer fetch com token e tratamento de erros
+// async function fetchComToken(url, options = {}) {
+//   const token = localStorage.getItem("token");
+//   const idempresa = localStorage.getItem("idempresa");
+
+//   if (!options.headers) options.headers = {};
+//   options.headers["Authorization"] = "Bearer " + token;
+//   if (idempresa) options.headers["idempresa"] = idempresa;
+
+//   try {
+//     const resposta = await fetch(url, options);
+//     console.log("[fetchComToken] Resposta bruta recebida:", resposta); 
+
+//     if (resposta.status === 401) {
+//       localStorage.clear();
+//       await Swal.fire({
+//         icon: "warning",
+//         title: "Sessão expirada",
+//         text: "Por favor, faça login novamente."
+//       });
+//       window.location.href = "login.html";
+//       throw new Error("Sessão expirada");
+//     }
+
+//     if (!resposta.ok) {
+//       const textoErro = await resposta.text();
+//       throw new Error(`Erro ${resposta.status}: ${textoErro}`);
+//     }
+
+//     const data = await resposta.json();
+//     console.log("[fetchComToken] Dados convertidos de JSON:", data);
+//     console.trace("Retornando dados JSON");
+//     return data;
+
+//   } catch (erro) {
+//     console.error("[fetchComToken] Erro ao buscar:", erro);
+//     throw erro;
+//   }
+// }
+
 async function fetchComToken(url, options = {}) {
   const token = localStorage.getItem("token");
   const idempresa = localStorage.getItem("idempresa");
@@ -126,7 +171,6 @@ async function fetchComToken(url, options = {}) {
 
   try {
     const resposta = await fetch(url, options);
-    console.log("[fetchComToken] Resposta bruta recebida:", resposta); 
 
     if (resposta.status === 401) {
       localStorage.clear();
@@ -145,7 +189,6 @@ async function fetchComToken(url, options = {}) {
     }
 
     const data = await resposta.json();
-    console.log("[fetchComToken] Dados convertidos de JSON:", data);
     return data;
 
   } catch (erro) {
@@ -153,6 +196,7 @@ async function fetchComToken(url, options = {}) {
     throw erro;
   }
 }
+
 
 // Expor globalmente para poder chamar de fora, se necessário
 window.initPermissoes = initPermissoes;
