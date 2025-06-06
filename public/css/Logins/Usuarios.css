@@ -28,7 +28,7 @@ body{
   justify-content: center;
   align-items: center;
   flex-direction: column;
-  height: 550px;
+  height: 650px;
 }
 
 .Empresas{
@@ -76,7 +76,7 @@ body{
   top: 50%;
   left: 50%;
   width: 500px;
-  height: 600px;
+  height: 700px;
   transform: translate(-50%, -50%);
   background: rgba(58, 51, 51, 0.987);
   box-sizing: border-box;
@@ -98,6 +98,14 @@ body{
   position: relative;
   margin-bottom: 20px;
 }
+.user-box-select{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 300px;
+  position: relative;
+}
 
 .user-box input {
   width: 100%;
@@ -110,6 +118,25 @@ body{
   outline: none;
   background: transparent;
   margin-bottom: 0;
+}
+
+ .user-box select{
+  width: 100%;
+  max-width: 500px;
+  padding: 10px 0px;
+  font-size: 16px;
+  color: #ffffff;
+  border: none;
+  border-bottom: 1px solid #fff;
+  outline: none;
+  background: transparent;
+  margin-bottom: 0;
+   appearance: none;           /* Padrão moderno */
+  -webkit-appearance: none;   /* Safari/Chrome */
+  -moz-appearance: none;  
+}
+option{
+  background-color: #000000;
 }
 
 /* personalizacao do olhinho da senha */
@@ -275,7 +302,12 @@ body{
   gap: 20px;
 }
 
-.user-box.dupla .user-box2 {
+.user-box.dupla.select{
+  margin: 0px;
+}
+
+
+.user-box.dupla .user-box2  {
   flex: 1;
   position: relative;
 }
