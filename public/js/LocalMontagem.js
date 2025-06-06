@@ -441,6 +441,37 @@ function fetchComToken(url, options = {}) {
   });
 }
 
+function criarInputsPavilhoes(quantidade) {
+    const container = document.getElementById('inputsPavilhoes');
+    container.innerHTML = ''; // Limpa inputs anteriores
+
+    if (quantidade === 'null') return; // Se for "S/ Pavilhão", não mostra nada
+
+    for (let i = 1; i <= parseInt(quantidade); i++) {
+      const div = document.createElement('div');
+      div.classList.add('form2');
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.name = 'nomePavilhao[]';
+      input.id = `nomePavilhao${i}`;
+      input.required = true;
+
+      const label = document.createElement('label');
+      label.setAttribute('for', `nomePavilhao${i}`);
+      label.textContent = `Nome do Pavilhão ${i}`;
+
+
+      div.appendChild(input);
+      div.appendChild(label);
+      container.appendChild(div);
+    }
+  }
+
+  document.getElementById('Pavilhoes').addEventListener('change', function () {
+    criarInputsPavilhoes(this.value);
+  });
+
 
 function configurarEventosMontagem() {
     console.log("Configurando eventos Montagem...");
