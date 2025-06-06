@@ -481,6 +481,258 @@ const campos = ["idStaff", "nmFuncionario", "descFuncao", "vlrCusto", "vlrBenefi
     
 }
 
+console.log("Ainda não Entrou no Preview");
+
+function configurarPreviewPDF() {
+  const inputPDF = document.getElementById('filePDF');
+  const previewPDF = document.getElementById('previewPDF');
+  const fileNamePDF = document.getElementById('fileNamePDF');
+  const hiddenPDF = document.getElementById('ComprovantePagamentos');
+  const headerPDF = document.getElementById('uploadHeaderPDF');
+
+  inputPDF.addEventListener('change', function () {
+    const file = inputPDF.files[0];
+
+    if (!file || file.type !== 'application/pdf') {
+      if (previewPDF) previewPDF.style.display = 'none';
+      if (headerPDF) headerPDF.style.display = 'block';
+      if (fileNamePDF) fileNamePDF.textContent = 'Nenhum arquivo selecionado';
+      if (hiddenPDF) hiddenPDF.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      if (previewPDF) {
+        previewPDF.src = e.target.result;
+        previewPDF.style.display = 'block';
+      }
+      if (headerPDF) headerPDF.style.display = 'none';
+      if (fileNamePDF) fileNamePDF.textContent = file.name;
+      if (hiddenPDF) hiddenPDF.value = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function configurarPreviewImagem() {
+  const inputImg = document.getElementById('file');
+  const previewImg = document.getElementById('previewFoto');
+  const fileNameImg = document.getElementById('fileName');
+  const hiddenImg = document.getElementById('linkFotoFuncionarios');
+  const headerImg = document.getElementById('uploadHeader');
+
+  inputImg.addEventListener('change', function () {
+    const file = inputImg.files[0];
+    if (!file || !file.type.startsWith('image/')) {
+      previewImg.style.display = 'none';
+      headerImg.style.display = 'block';
+      fileNameImg.textContent = 'Nenhum arquivo selecionado';
+      hiddenImg.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      previewImg.src = e.target.result;
+      previewImg.style.display = 'block';
+      headerImg.style.display = 'none';
+      fileNameImg.textContent = file.name;
+      hiddenImg.value = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+window.addEventListener('DOMContentLoaded', function () {
+  configurarPreviewPDF();
+  configurarPreviewImagem();
+});
+
+
+ let contadorFieldsets = 1;
+let datasGlobaisSelecionadas = [];
+
+function adicionarCampos() {
+  const container = document.getElementById("containerFieldsets");
+  const fieldsetOriginal = container.querySelector("fieldset");
+  const novoFieldset = fieldsetOriginal.cloneNode(true);
+
+  contadorFieldsets++;
+
+  const novoId = "datasEvento-" + contadorFieldsets;
+  const novoContadorId = "contadorDatas-" + contadorFieldsets;
+  const novoFileId = "filePDF" + contadorFieldsets;
+  const novoFileNameId = "fileNamePDF" + contadorFieldsets;
+  const novoHiddenId = "ComprovantePagamentos" + contadorFieldsets;
+
+  // Atualiza campo de datas
+  const inputDatas = novoFieldset.querySelector("input[id^='datasEvento']");
+  inputDatas.id = novoId;
+  inputDatas.value = "";
+
+  // Atualiza contador de datas
+  const contador = novoFieldset.querySelector("p[id^='contadorDatas']");
+  contador.id = novoContadorId;
+  contador.textContent = "Nenhuma data selecionada.";
+
+  // Atualiza campo de arquivo PDF
+  const inputFile = novoFieldset.querySelector("input[type='file']");
+  const labelFile = novoFieldset.querySelector("label[for^='filePDF']");
+  const pFileName = novoFieldset.querySelector("p[id^='fileNamePDF']");
+  const hiddenInput = novoFieldset.querySelector("input[type='hidden']");
+
+  inputFile.id = novoFileId;
+  labelFile.setAttribute("for", novoFileId);
+  pFileName.id = novoFileNameId;
+  pFileName.textContent = "Nenhum arquivo selecionado";
+  hiddenInput.id = novoHiddenId;
+  hiddenInput.name = "foto[]";
+  hiddenInput.value = "";
+
+  // Evento de conversão do PDF para base64
+  inputFile.addEventListener("change", function () {
+    const file = this.files[0];
+    const fileNameDisplay = document.getElementById(novoFileNameId);
+    const hiddenInputTarget = document.getElementById(novoHiddenId);
+
+    if (file) {
+      fileNameDisplay.textContent = file.name;
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        hiddenInputTarget.value = e.target.result; // Base64
+      };
+      reader.readAsDataURL(file);
+    } else {
+      fileNameDisplay.textContent = "Nenhum arquivo selecionado";
+      hiddenInputTarget.value = "";
+    }
+  });
+
+  // Botão de remover o fieldset
+  const botaoExistente = novoFieldset.querySelector(".btn-remover");
+  if (botaoExistente) botaoExistente.remove();
+
+  const botaoRemover = document.createElement("button");
+  botaoRemover.type = "button";
+  botaoRemover.textContent = "Remover";
+  botaoRemover.className = "btn-remover";
+  botaoRemover.style.marginTop = "10px";
+  botaoRemover.onclick = function () {
+    const fpInstance = inputDatas._flatpickr;
+    if (fpInstance) {
+      fpInstance.selectedDates.forEach(data => {
+        datasGlobaisSelecionadas = datasGlobaisSelecionadas.filter(
+          d => d.getTime() !== data.getTime()
+        );
+      });
+    }
+
+    container.removeChild(novoFieldset);
+    atualizarFlatpickrs();
+  };
+
+  novoFieldset.appendChild(botaoRemover);
+  container.appendChild(novoFieldset);
+
+  inicializarFlatpickr(`#${novoId}`, novoContadorId);
+}
+
+function inicializarFlatpickr(selector, contadorId) {
+  flatpickr(selector, {
+    mode: "multiple",
+    dateFormat: "d/m/Y",
+    locale: "pt",
+    altFormat: "d/m/Y",
+    disable: datasGlobaisSelecionadas,
+    onChange: function (selectedDates, dateStr, instance) {
+      // Remove datas antigas do array
+      datasGlobaisSelecionadas = datasGlobaisSelecionadas.filter(
+        d => !instance.previousSelectedDates?.some(sd => sd.getTime() === d.getTime())
+      );
+      // Adiciona novas datas
+      selectedDates.forEach(data => {
+        if (!datasGlobaisSelecionadas.some(d => d.getTime() === data.getTime())) {
+          datasGlobaisSelecionadas.push(data);
+        }
+      });
+
+      // Atualiza contador
+      const contador = document.getElementById(contadorId);
+      if (contador) {
+        contador.textContent = selectedDates.length > 0
+          ? `${selectedDates.length} data(s) selecionada(s).`
+          : "Nenhuma data selecionada.";
+      }
+
+      instance.previousSelectedDates = [...selectedDates];
+      atualizarFlatpickrs();
+    },
+    onReady: function (selectedDates, dateStr, instance) {
+      instance.previousSelectedDates = [...selectedDates];
+    }
+  });
+}
+
+function atualizarFlatpickrs() {
+  document.querySelectorAll("input[id^='datasEvento']").forEach(input => {
+    const fpInstance = input._flatpickr;
+    if (fpInstance) {
+      fpInstance.set("disable", datasGlobaisSelecionadas);
+    }
+  });
+}
+
+// Inicializa o primeiro flatpickr e file input
+document.addEventListener("DOMContentLoaded", function () {
+  inicializarFlatpickr("#datasEvento", "contadorDatas");
+
+  // Setup do primeiro input file
+  const inputFile = document.getElementById("filePDF");
+  const fileName = document.getElementById("fileNamePDF");
+  const hiddenInput = document.getElementById("ComprovantePagamentos");
+
+  inputFile.addEventListener("change", function () {
+    const file = this.files[0];
+    if (file) {
+      fileName.textContent = file.name;
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        hiddenInput.value = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    } else {
+      fileName.textContent = "Nenhum arquivo selecionado";
+      hiddenInput.value = "";
+    }
+  });
+});
+
+ function mostrarTarja() {
+    var select = document.getElementById('avaliacao');
+    var tarja = document.getElementById('tarjaAvaliacao');
+
+    tarja.className = 'tarja-avaliacao'; // Reseta classes
+    tarja.style.display = 'none'; // Oculta por padrão
+
+    if (select.value === 'muito_bom') {
+      tarja.classList.add('muito-bom');
+      tarja.textContent = 'Funcionário Muito Bom';
+      tarja.style.display = 'block';
+    } else if (select.value === 'satisfatorio') {
+      tarja.classList.add('satisfatorio');
+      tarja.textContent = 'Funcionário Satisfatório';
+      tarja.style.display = 'block';
+    } else if (select.value === 'regular') {
+      tarja.classList.add('regular');
+      tarja.textContent = 'Funcionário Regular';
+      tarja.style.display = 'block';
+    }
+  }
+
+
+
 function fetchComToken(url, options = {}) {
   const token = localStorage.getItem("token");
   if (!token) {

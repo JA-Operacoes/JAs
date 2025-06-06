@@ -122,6 +122,83 @@ function configurarPreviewFoto() {
   });
 }
 
+function atualizarCamposLinguas() {
+    const select = document.getElementById('Linguas');
+    const container = document.getElementById('idiomasContainer');
+    const valor = select.value;
+
+    container.innerHTML = ""; // Limpa campos anteriores
+
+    if (valor === "") return;
+
+    // Sempre adiciona o campo "Português"
+    const inputPT = document.createElement("input");
+    inputPT.type = "text";
+    inputPT.value = "Português";
+    inputPT.disabled = true;
+    inputPT.className = "idiomaInput";
+    inputPT.style.marginBottom = "5px";
+    container.appendChild(inputPT);
+    container.appendChild(document.createElement("br"));
+
+    if (valor === "1") {
+      // Monolíngue: nada mais a fazer
+      return;
+    }
+
+    if (valor === "2" || valor === "3") {
+      const qtd = parseInt(valor) - 1; // Já temos "Português", agora só os restantes
+      for (let i = 1; i <= qtd; i++) {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.placeholder = `Idioma ${i + 1}`;
+        input.name = `idioma${i + 1}`;
+        input.className = "idiomaInput";
+        container.appendChild(input);
+        container.appendChild(document.createElement("br"));
+      }
+    } 
+    else if (valor === "custom") {
+      // Poliglota → campo para definir quantas línguas no total
+      const label = document.createElement("p");
+      label.textContent = "Quantos idiomas (incluindo Português)?";
+      const inputQtd = document.createElement("input");
+      label.style.fontSize = "10px";
+      label.style.margin = "0";
+      label.style.padding = "0";  
+      label.style.lineHeight = "1";  
+      inputQtd.type = "number";
+      inputQtd.min = 4; // mínimo de 4 porque "Poliglota" não é monolíngue, bilíngue e nem Trílingue
+      inputQtd.placeholder = "Min: 4";
+      inputQtd.onchange = function () {
+      label.style.display = "none";
+      inputQtd.style.display = "none";
+      gerarCamposPoliglota(parseInt(this.value));
+      };
+      container.appendChild(label);
+      // container.appendChild(document.createElement("br"));
+      container.appendChild(inputQtd);
+    }
+  }
+
+  function gerarCamposPoliglota(qtd) {
+    const container = document.getElementById('idiomasContainer');
+    // Remove todos elementos exceto os dois primeiros (Português + campo de quantidade)
+    while (container.children.length > 3) {
+      container.removeChild(container.lastChild);
+    }
+
+    for (let i = 1; i < qtd; i++) { // Começa em 1 porque o primeiro já é "Português"
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = `Idioma ${i + 1}`;
+      input.name = `idioma${i + 1}`;
+      input.className = "idiomaInput";
+      // container.appendChild(document.createElement("br"));
+      container.appendChild(input);
+    }
+  }
+
 
 
  async function configurarEventosFuncionarioss() {

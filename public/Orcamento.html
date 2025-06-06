@@ -219,7 +219,7 @@
                                 <td class="totVdaDiaria Moeda"></td>
                                 <td class="vlrCusto Moeda"></td>
                                 <td class="totCtoDiaria Moeda"></td>
-                                <td class="ajdCusto Moeda"></td>
+                                <td class="ajdCusto Moeda"> <div class="Acres-Desc"><select id="tpAjdCusto"><option value="select" selected disabled></option><option value="Almoco">Almoço</option><option value="janta">jantar</option><option value="2alimentacao">Almoço + jantar</option></select></div></td>
                                 <td class="totAjdCusto Moeda">0</td>
                                 <td class="extraCampo" style="display: none;">
                                     <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotaisOrc()">
@@ -238,11 +238,10 @@
             
                 <div class = 'Selects'>
                     <div class="Observacoes">
-                        <textarea  name="Observacao" id="Observacao" placeholder="Observaçoes sobre os Itens "></textarea>
-                        <textarea  name="ObservacaoProposta" id="ObservacaoProposta" placeholder="Observaçoes sobre a Proposta"></textarea>
+                        <div class="Propostaobs"><input type="checkbox"><textarea class="PropostaobsTexto" name="Observacao" id="Observacao" placeholder="Observaçoes sobre os Itens "></textarea></div>
+                        <div class="Propostaobs"><input type="checkbox" id="ativarObs"><textarea class="PropostaobsTexto=""" name="ObservacaoProposta" id="ObservacaoProposta" placeholder="Observaçoes sobre a Proposta"></textarea></div>
                     </div>
                     <div>
-                        <div class="form-2colunas">
                             <div class="form2">
                                 <input type="text" class="Moeda preenchido" id="totalGeralVda" name="totalGeralVda" value=" R$ 0,00" required readonly style="font-size: 15px;" >
                                 <label for="totalGeralVda">Total Geral Venda:</label>
@@ -251,17 +250,12 @@
                                 <input type="text" class="Moeda preenchido" id="totalGeralCto" value=" R$ 0,00" name="totalGeralCto" required readonly style="font-size: 15px;" >
                                 <label for="totalGeralCto">Total Geral Custo:</label>
                             </div>
-                        </div>
-                        <div class="form-2colunas">
+                        
+                       
                             <div class="form2">
                                 <input type="text" class="Moeda preenchido" id="totalajdCusto" value=" R$ 0,00" required readonly style="font-size: 15px;" >
                                 <label for="totalGeralCto">Total Ajuda De Custo:</label>
                             </div>
-                            <div class="form2">
-                                <input type="text" class="Moeda preenchido" id="totalGeral" value=" R$ 0,00" required readonly style="font-size: 15px;" >
-                                <label for="totalGeral">Total Geral:</label>
-                            </div>
-                        </div>
                     </div>
 
                     <div>
