@@ -13,68 +13,6 @@ let idEvento;
 let idLocalMontagem;
 
 
-function carregarClientesOrc() {
-    // console.log("Função carregar Cliente chamada");
-
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-        console.warn("Usuário não autenticado");
-        return;
-    }
-
-    fetchComToken('/orcamentos/clientes', {
-        method: 'GET',
-        headers: {
-            'Authorization': `Bearer ${token}`, // ENVIA O TOKEN AQUI
-            'Content-Type': 'application/json'
-            // 'x-id-empresa': idEmpresa
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`Erro ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(clientes => {
-        console.log('Clientes recebidos:', clientes);
-
-        let selects = document.querySelectorAll(".idCliente");
-
-        selects.forEach(select => {
-            const nomeSelecionado = select.value;
-            select.innerHTML = '<option value="">Selecione Cliente</option>';
-
-            clientes.forEach(cliente => {
-                let option = document.createElement("option");
-                option.value = cliente.nmfantasia;
-                option.textContent = cliente.nmfantasia;
-                option.setAttribute("data-idCliente", cliente.idcliente);
-                select.appendChild(option);
-            });
-
-            // Evento de seleção de cliente
-            select.addEventListener('change', function () {
-                const nomeFantasia = this.value;
-                const selectedOption = select.options[select.selectedIndex];
-                idCliente = selectedOption.getAttribute("data-idCliente");
-                console.log("idCliente", idCliente);
-                if (nomeFantasia) {
-                    buscarEExibirDadosClientePorNome(nomeFantasia);
-                }
-            });
-
-            if (nomeSelecionado) {
-                buscarEExibirDadosClientePorNome(nomeSelecionado);
-            }
-        });
-    })
-    .catch(error => {
-        console.error("Erro ao carregar clientes:", error);
-    });
-}
-
 // Atualiza texto no DOM
 function atualizarOuCriarCampoTexto(nmFantasia, texto) {
     const campo = document.getElementById(nmFantasia);
@@ -117,16 +55,65 @@ async function buscarEExibirDadosClientePorNome(nmFantasia) {
 }
 
 // Carregar ao iniciar
-document.addEventListener("DOMContentLoaded", carregarClientesOrc);
+//document.addEventListener("DOMContentLoaded");
+async function  carregarClientesOrc() {
+    console.log("Função CARREGAR Cliente chamada");
 
-function carregarEventosOrc() {
+    // const token = localStorage.getItem("token");
+
+    // if (!token) {
+    //     console.warn("Usuário não autenticado");
+    //     return;
+    // }
+
+    try{
+
+        const clientes = await fetchComToken('orcamentos/clientes');
     
-    // console.log("Função carregar Eventos chamada");
+        console.log('Clientes recebidos:', clientes);
 
-    fetchComToken('http://localhost:3000/eventos')
-    .then(response => response.json())
-    .then(eventos => {
-        // console.log('Eventos recebidos:', eventos);
+        let selects = document.querySelectorAll(".idCliente");
+
+        selects.forEach(select => {
+            const nomeSelecionado = select.value;
+            select.innerHTML = '<option value="">Selecione Cliente</option>';
+
+            clientes.forEach(cliente => {
+                let option = document.createElement("option");
+                option.value = cliente.nmfantasia;
+                option.textContent = cliente.nmfantasia;
+                option.setAttribute("data-idCliente", cliente.idcliente);
+                select.appendChild(option);
+            });
+
+            // Evento de seleção de cliente
+            select.addEventListener('change', function () {
+                const nomeFantasia = this.value;
+                const selectedOption = select.options[select.selectedIndex];
+                idCliente = selectedOption.getAttribute("data-idCliente");
+                console.log("idCliente", idCliente);
+                if (nomeFantasia) {
+                    buscarEExibirDadosClientePorNome(nomeFantasia);
+                }
+            });
+
+            if (nomeSelecionado) {
+                buscarEExibirDadosClientePorNome(nomeSelecionado);
+            }
+        });
+    
+    }
+    catch(error){
+        console.error("Erro ao carregar clientes:", error);
+    }
+}
+
+
+async function carregarEventosOrc() {
+      
+    try{
+
+        const eventos = await fetchComToken('/orcamentos/eventos');
         
         let selects = document.querySelectorAll(".idEvento");
         
@@ -151,145 +138,20 @@ function carregarEventosOrc() {
             select.addEventListener('change', function () {
                 const selectedOption = select.options[select.selectedIndex];   
                 idEvento = selectedOption.getAttribute("data-idEvento");
-                // console.log("IDEVENTO",idEvento);
-                    
+                  
             });
             
         });
-    
-    })
+    }catch(error){
+        console.error("Erro ao carregar eventos:", error);
+    }   
 
-     // Chama a função para atualizar o campo UF após carregar os locais de montagem
-    .catch(error => console.error('Erro ao carregar Local Montagem:', error));
-}
-let Categoria = "";
-
-// Função para carregar os Funcao
-function carregarFuncaoOrc() {
-    // console.log("Função carregarFuncao chamada ORCAMENTO.js");
-
-    fetchComToken('http://localhost:3000/funcao')
-        .then(response => response.json())
-        .then(funcao => {
-            // console.log('Funcao recebidos 1:', funcao); // Log das Funções recebidas
-
-            let selects = document.querySelectorAll(".idFuncao");
-            selects.forEach(select => {
-                select.innerHTML = "";
-
-                // console.log('Funcao recebidos 2:', funcao); // Log das Funções recebidas
-                let opcaoPadrao = document.createElement("option");
-                opcaoPadrao.setAttribute("value", "");
-                opcaoPadrao.textContent = "Selecione Função";
-                select.appendChild(opcaoPadrao);
-
-                funcao.forEach(funcao => {
-                    let option = document.createElement("option");
-                    option.value = funcao.idfuncao;
-                    option.textContent = funcao.descfuncao;
-                    option.setAttribute("data-descproduto", funcao.descfuncao);
-                    option.setAttribute("data-cto", funcao.ctofuncao);
-                    option.setAttribute("data-vda", funcao.vdafuncao);
-                    option.setAttribute("data-ajdcusto", funcao.ajcfuncao);
-                    option.setAttribute("data-categoria", "Produto(s)");
-                    select.appendChild(option);
-                });
-
-                
-                    select.addEventListener("change", function (event) {
-                        const selectedOption = select.options[select.selectedIndex];
-                        
-                        Categoria = selectedOption.getAttribute("data-categoria") || "N/D";
-                        atualizaProdutoOrc(event);
-                    });
-                Categoria = "Produto(s)"; // define padrão ao carregar
-            });
-        })
-        .catch(error => console.error('Erro ao carregar Funcao:', error));
-}
-
-// Função para carregar os equipamentos
-function carregarEquipamentosOrc() {
-
-    // console.log("Função carregarEquipamentos chamada");
-    fetchComToken('http://localhost:3000/equipamentos')
-        .then(response => response.json())
-        .then(equipamentos => {
-            let selects = document.querySelectorAll(".idEquipamento"); //
-            selects.forEach(select => {
-                select.innerHTML = "";
-               
-                let opcaoPadrao = document.createElement("option");
-                opcaoPadrao.setAttribute("value", "");
-                opcaoPadrao.textContent = "Selecione Equipamento";
-                select.appendChild(opcaoPadrao);
-                equipamentos.forEach(equipamentos => {
-                    let option = document.createElement("option");
-                    option.value = equipamentos.idequip;
-                    option.textContent = equipamentos.descequip;
-                    option.setAttribute("data-descproduto", equipamentos.descequip);
-                    option.setAttribute("data-cto", equipamentos.ctoequip);
-                    option.setAttribute("data-vda", equipamentos.vdaequip);
-                    option.setAttribute("data-categoria", "Equipamentos(s)");
-                    select.appendChild(option);
-                });
-                    select.addEventListener("change", function (event) {
-                        const selectedOption = select.options[select.selectedIndex];
-                        Categoria = selectedOption.getAttribute("data-categoria") || "N/D";
-                        atualizaProdutoOrc(event);
-                    });
-                
-
-                Categoria = "Equipamentos(s)"; // define padrão ao carregar
-            });
-        })
-        .catch(error => console.error('Erro ao carregar Funcao:', error));
-}
-
-// Função para carregar os suprimentos
-function carregarSuprimentosOrc() {
-    console.log("Função carregarSuprimentos chamada");
-    fetchComToken('http://localhost:3000/suprimentos')
-        .then(response => response.json())
-        .then(suprimentos => {
-            let selects = document.querySelectorAll(".idSuprimento");
-            // console.log('Suprimentos recebidos:', suprimentos); // Log dos suprimentos recebidos
-            // console.log('Selects Suprimento',selects);
-            selects.forEach(select => {
-                select.innerHTML = '<option value="">Selecione Suprimento</option>';
-                suprimentos.forEach(suprimentos => {
-                    let option = document.createElement("option");
-                    option.value = suprimentos.idsup;
-                    option.textContent = suprimentos.descsup;
-                    option.setAttribute("data-descproduto", suprimentos.descsup);
-                    option.setAttribute("data-cto", suprimentos.ctosup);
-                    option.setAttribute("data-vda", suprimentos.vdasup);
-                    option.setAttribute("data-categoria", "Suprimento(s)");
-                    select.appendChild(option);
-                   
-                  //  console.log("Select atualizado Suprimento:", select.innerHTML);
-
-                });
-                
-                select.addEventListener("change", function (event) {
-                    const selectedOption = select.options[select.selectedIndex];
-                    Categoria = selectedOption.getAttribute("data-categoria") || "N/D";
-                    atualizaProdutoOrc(event);
-                });
-                Categoria = "Suprimento(s)"; // define padrão ao carregar
-            });
-        })
-        .catch(error => console.error('Erro ao carregar Funcao:', error));
 }
 
 // Função para carregar os locais de montagem
-function carregarLocalMontOrc() {
-    
-    // console.log("Função carregar LocalMontagem chamada");
-    fetchComToken('http://localhost:3000/localmontagem')
-    .then(response => response.json())
-    .then(montagem => {
-        // console.log('Local Montagem recebidos:', montagem);
+async function carregarLocalMontOrc() {
+    try{
+        const montagem = await fetchComToken('/orcamentos/localmontagem');
         
         let selects = document.querySelectorAll(".idMontagem");
         
@@ -312,7 +174,7 @@ function carregarLocalMontOrc() {
                 locaisDeMontagem = montagem;
 
             });
-            select.addEventListener("change", function (event) {
+            select.addEventListener("change", function () {
                 const selectedOption = select.options[select.selectedIndex];
                 idLocalMontagem = selectedOption.getAttribute("data-idlocalmontagem") || "N/D";
                 // console.log("IDLOCALMONTAGEM", idLocalMontagem);
@@ -320,12 +182,126 @@ function carregarLocalMontOrc() {
             });
             
         });
-    
-    })
-
-     // Chama a função para atualizar o campo UF após carregar os locais de montagem
-    .catch(error => console.error('Erro ao carregar Local Montagem:', error));
+    }catch(error){
+        console.error("Erro ao carregar localmontagem:", error);
+    } 
 }
+
+let Categoria = "";
+
+// Função para carregar os Funcao
+async function carregarFuncaoOrc() {
+    try{
+        const funcao = await fetchComToken('/orcamentos/funcao');
+
+        let selects = document.querySelectorAll(".idFuncao");
+        selects.forEach(select => {
+            select.innerHTML = "";
+
+            // console.log('Funcao recebidos 2:', funcao); // Log das Funções recebidas
+            let opcaoPadrao = document.createElement("option");
+            opcaoPadrao.setAttribute("value", "");
+            opcaoPadrao.textContent = "Selecione Função";
+            select.appendChild(opcaoPadrao);
+
+            funcao.forEach(funcao => {
+                let option = document.createElement("option");
+                option.value = funcao.idfuncao;
+                option.textContent = funcao.descfuncao;
+                option.setAttribute("data-descproduto", funcao.descfuncao);
+                option.setAttribute("data-cto", funcao.ctofuncao);
+                option.setAttribute("data-vda", funcao.vdafuncao);
+                option.setAttribute("data-ajdcusto", funcao.ajcfuncao);
+                option.setAttribute("data-categoria", "Produto(s)");
+                select.appendChild(option);
+            });
+
+            
+            select.addEventListener("change", function (event) {
+                const selectedOption = select.options[select.selectedIndex];
+                
+                Categoria = selectedOption.getAttribute("data-categoria") || "N/D";
+                atualizaProdutoOrc(event);
+            });
+            Categoria = "Produto(s)"; // define padrão ao carregar
+        });
+    }catch(error){
+    console.error("Erro ao carregar funcao:", error);
+    } 
+}
+
+// Função para carregar os equipamentos
+async function carregarEquipamentosOrc() {
+
+    try{
+        const equipamentos = await fetchComToken('/orcamentos/equipamentos');
+
+        let selects = document.querySelectorAll(".idEquipamento"); //
+        selects.forEach(select => {
+            select.innerHTML = "";
+            
+            let opcaoPadrao = document.createElement("option");
+            opcaoPadrao.setAttribute("value", "");
+            opcaoPadrao.textContent = "Selecione Equipamento";
+            select.appendChild(opcaoPadrao);
+            equipamentos.forEach(equipamentos => {
+                let option = document.createElement("option");
+                option.value = equipamentos.idequip;
+                option.textContent = equipamentos.descequip;
+                option.setAttribute("data-descproduto", equipamentos.descequip);
+                option.setAttribute("data-cto", equipamentos.ctoequip);
+                option.setAttribute("data-vda", equipamentos.vdaequip);
+                option.setAttribute("data-categoria", "Equipamentos(s)");
+                select.appendChild(option);
+            });
+            select.addEventListener("change", function (event) {
+                const selectedOption = select.options[select.selectedIndex];
+                Categoria = selectedOption.getAttribute("data-categoria") || "N/D";
+                atualizaProdutoOrc(event);
+            });
+            
+            Categoria = "Equipamentos(s)"; // define padrão ao carregar
+        });
+    }catch(error){
+    console.error("Erro ao carregar equipamentos:", error);
+    }
+}
+        
+
+// Função para carregar os suprimentos
+async function carregarSuprimentosOrc() {
+   try{
+        const suprimentos = await fetchComToken('/orcamentos/suprimentos');
+        let selects = document.querySelectorAll(".idSuprimento");
+       
+        selects.forEach(select => {
+            select.innerHTML = '<option value="">Selecione Suprimento</option>';
+            suprimentos.forEach(suprimentos => {
+                let option = document.createElement("option");
+                option.value = suprimentos.idsup;
+                option.textContent = suprimentos.descsup;
+                option.setAttribute("data-descproduto", suprimentos.descsup);
+                option.setAttribute("data-cto", suprimentos.ctosup);
+                option.setAttribute("data-vda", suprimentos.vdasup);
+                option.setAttribute("data-categoria", "Suprimento(s)");
+                select.appendChild(option);
+                
+                //  console.log("Select atualizado Suprimento:", select.innerHTML);
+
+            });
+            
+            select.addEventListener("change", function (event) {
+                const selectedOption = select.options[select.selectedIndex];
+                Categoria = selectedOption.getAttribute("data-categoria") || "N/D";
+                atualizaProdutoOrc(event);
+            });
+            Categoria = "Suprimento(s)"; // define padrão ao carregar
+        });
+    }catch(error){
+    console.error("Erro ao carregar suprimentos:", error);
+    }
+} 
+
 
 function configurarInfraCheckbox() {
     let checkbox = document.getElementById("ativo");
@@ -347,12 +323,12 @@ function configurarInfraCheckbox() {
 }
 
 async function fetchComToken(url, options = {}) {
- // console.log("URL da requisição USUARIOS:", url);
+  console.log("URL da requisição ORÇAMENTOS:", url);
   const token = localStorage.getItem("token");
   const idempresa = localStorage.getItem("idempresa");
 
-  //console.log("ID da empresa no localStorage:", idempresa);
- // console.log("Token no localStorage:", token);
+  console.log("ID da empresa no localStorage:", idempresa);
+  console.log("Token no localStorage:", token);
 
   if (!options.headers) options.headers = {};
 
@@ -372,10 +348,12 @@ if (
   } else {
     console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
   }
+  console.log("URL OPTIONS", url, options)
 
+   // const resposta = await fetch(url, options);
   const resposta = await fetch(url, options);
 
- // console.log("Resposta da requisição:", resposta);
+  console.log("Resposta da requisição:", resposta);
 
   if (resposta.status === 401) {
     localStorage.clear();

@@ -4,11 +4,16 @@
 
 // middleware: verifica se o usuário pode executar uma ação em um módulo e empresa
 function verificarPermissao(modulo, acao) {
-  return async (req, res, next) => {
+ 
+   return async (req, res, next) => {
 
     console.log("🔍 Verificando permissões para:", modulo, acao);
     const usuarioId = req.usuario.id;
-
+    
+    if (!usuarioId) {
+      console.warn("⚠️ Nenhum usuário autenticado encontrado em req.usuario");
+      return res.status(401).json({ erro: "Usuário não autenticado." });
+    }
     // Obtem idempresa do cabeçalho ou corpo (ajuste conforme sua arquitetura)
     const idempresa = req.headers['idempresa'] || req.body.idempresa || req.query.idempresa;
 
@@ -30,8 +35,9 @@ function verificarPermissao(modulo, acao) {
         SELECT * FROM permissoes
         WHERE idusuario = $1 AND LOWER(modulo) = $2 AND idempresa = $3
       `;
+console.log('🔍 Iniciando consulta permissão...');
       const { rows } = await db.query(query, [usuarioId, moduloNormalizado, idempresa]);
-
+console.log('✅ Consulta permissão retornou:', rows);
       const permissao = rows[0];
 
       if (!permissao || !permissao[acaoNormalizada]) {

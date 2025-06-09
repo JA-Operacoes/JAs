@@ -598,7 +598,6 @@ listaUsuariosContainer.addEventListener('click', async (e) => {
 
 
 
-
 function formatarNome(inputId) {
   const input = document.getElementById(inputId);
   const palavras = input.value

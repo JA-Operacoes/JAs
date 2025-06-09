@@ -6,11 +6,11 @@ const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlew
 router.use(autenticarToken);
 
 
-// routes/rotaModulo.js
+
 
 const db = require('../db'); // ajuste se necessário
 
-router.get('/', autenticarToken, contextoEmpresa, async (req, res) => {
+router.get('/', async (req, res) => {
    console.log("✅ ROTA /modulos ACESSADA");
   try {
     const { rows } = await db.query('SELECT modulo FROM modulos ORDER BY modulo');
