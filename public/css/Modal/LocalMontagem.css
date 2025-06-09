@@ -101,13 +101,6 @@ body {
   position: relative;
 }
 
-.Documentos{
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-direction: column;
-}
-
 textarea{
   font-family:"Abel",sans-serif;
   width: 100%;
@@ -130,53 +123,10 @@ fieldset {
   border-color: var(--dark-color);
 }
 
-/* Grid Principal */
-.Perfil {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr); /* 2 colunas */
-  align-items: center;
-  gap: 20px;
-}
-
-/* Área das opções */
-.perfil-radios {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center; 
-  gap: 10px;  
-}
-
-.perfil-radios label {
-  display: flex;
-  flex-direction: row;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  font-size: 16px;
-  width: 90px;
-}
-
-.perfil-radios input {
-  display: flex;
-  justify-self: center; /* Centraliza os radios abaixo dos labels */
-}
-
-/* Estilização da área de upload */
-.perfil-foto {
-  display: flex;
-  justify-content: end;
-  flex-direction: column;
-  align-items: center;
-  margin: 0 30px;
-}
-
-.picture {
-  cursor: pointer;
-  font-size: 14px;
+legend{
+  margin-left: 10px;
   padding: 5px;
 }
-
 
 
 .form-2colunas{
@@ -252,71 +202,30 @@ fieldset {
   text-transform: uppercase;
 }
 
+select{
+  font-family: var(--Font-primary);
+  width: 270px;
+  height: 30px;
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 0 15px;
+  border: 1px solid #000000;
+  background: transparent;
+  color: #000000;
+  outline: none;
+  margin: 10px auto;
+}
+
 input:focus{
   border: 2px solid #ce0303;
 }
 input:focus ~ label,
 input:valid ~ label{
   top: 0;
-  left: 25%;
+  left: 35%;
   font-size: 10px;
   padding: 0 2px;
   background: #cacaca;
-}
-
-
-.fileUpload{
-  font-family: "Abel", sans-serif;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-  max-width: 800px;
-  width: 100%;
-  margin: 0 auto;
-}
-
-
-input[type=date]{
-  width: 111px;
-  height: 30px;
-  font-size: 17px;
-}
-
-input[type=file]{
-  display: none;
-}
-
-.perfil{
-  display: flex;
-  justify-content: center;
-  width: 300px;
-}
-
-
-.picture{
-width: 120px;  
-height: 160px;
-background-color: rgb(146, 146, 146);
-color: rgb(0, 0, 0);
-border: 2px dashed;
-display: flex;
-justify-content: center;
-align-items: center;
-margin: 0 auto;
-cursor: pointer;
-transition: color 300ms ease-in-out;
-overflow: hidden;
-}
-
-.picture:hover{
-  color: #ce0303;
-}
-
-.pictureImage{
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: cover;
 }
 
 
@@ -358,24 +267,6 @@ button.Close {
   background-color: #5f0101;
 }
 
-.radio{
-  display: flex;
-  text-align: center;
-  gap: 1px;
-}
-
-.hidden{
-  display: none;
-}
-#endereço{
-  display: none;
-  margin-top: 10px;
-}
-#mensagemErro {
-  color: red;
-  font-size: 14px;
-  display: none;
-}
 
 /* Estiliza a largura do scrollbar */
 ::-webkit-scrollbar {

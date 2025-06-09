@@ -78,26 +78,29 @@
         </div>
         
         <!-- <div class="form-2colunas"> -->
-          <!-- <div class="user-box dupla"> -->
+          
               <div class="user-box">
                 <input type="email" id="email" name="email" required="">
                 <input type="hidden" id="email_original">
                 <label for="email">Email</label>
               </div>
 
-              <div class="user-box">
+          <div class="user-box dupla select">
+              <div class="user-box-select">
                 <label for="empresaDefaultSelect">Empresa Padrão</label>
-                <select id="empresaDefaultSelect" name="empresaDefaultSelect" required>
-                  <option value="">Selecione</option>
-                  <option value="1">JA OPER</option>
-                  <option value="2">ES</option>
-                  <option value="3">JA EXPO</option>
-                  <option value="4">EA</option>
-                  <option value="5">ED</option>
-                  <option value="6">EP</option>
-                </select>
               </div>
-          <!-- </div> -->
+                <div class="user-box">
+                  <select id="empresaDefaultSelect" name="empresaDefaultSelect" required>
+                    <option value="" selected disabled>Selecione</option>
+                    <option value="1">JA OPER</option>
+                    <option value="2">ES</option>
+                    <option value="3">JA EXPO</option>
+                    <option value="4">EA</option>
+                    <option value="5">ED</option>
+                    <option value="6">EP</option>
+                  </select>
+                </div>
+          </div>
         <!-- </div>  -->
 
         <div class="user-box camposenha">
@@ -143,29 +146,38 @@
           <label for="nome_usuario"> Usuário:</label>    
         </div>
      
-        <div class="user-box  user-boxSelect">       
-          <label for="listaEmpresas">Empresa:</label>
-          <select id="listaEmpresas">
-            <option value="all">Todas as empresas</option>
-            <!-- Empresas serão adicionadas aqui via JavaScript -->
-          </select>          
+        <div class="user-box dupla select">       
+          <div class="user-box-select">
+            <label for="listaEmpresas">Empresa:</label>
+          </div>
+          <div class="user-box">
+            <select id="listaEmpresas">
+              <option value="" selected disabled>Selecione</option>
+              <option value="all">Todas as empresas</option>
+              <!-- Empresas serão adicionadas aqui via JavaScript -->
+            </select>
+          </div>         
         </div>
 
-        <div class="user-box  user-boxSelect">
-          <label for="modulo">Módulo:</label>
-            <select name="modulo" id="modulo" disabled>
-              <option value="choose" selected>Escolha o Modulo</option>
-              <!-- <option value="Clientes">Clientes</option>
-              <option value="Funcao">Função</option>
-              <option value="Orçamentos">Orçamentos</option>
-              <option value="Eventos">Eventos</option>
-              <option value="Equipamentos">Equipamentos</option>
-              <option value="Suprimentos">Suprimentos</option>
-              <option value="Localmontagem">Local de Montagem</option>
-              <option value="Staff">Staff</option>
-              <option value="Funcionarios">Funcionários</option>
-              <option value="Empresas">Funcionários</option> -->
-            </select>
+        <div class="user-box dupla select">
+          <div class="user-box-select">
+            <label for="modulo">Módulo:</label>
+          </div>
+            <div class="user-box">
+              <select name="modulo" id="modulo" >
+                <option value="choose" selected disabled>Escolha o Modulo</option>
+                <!-- <option value="Clientes">Clientes</option>
+                <option value="Funcao">Função</option>
+                <option value="Orçamentos">Orçamentos</option>
+                <option value="Eventos">Eventos</option>
+                <option value="Equipamentos">Equipamentos</option>
+                <option value="Suprimentos">Suprimentos</option>
+                <option value="Localmontagem">Local de Montagem</option>
+                <option value="Staff">Staff</option>
+                <option value="Funcionarios">Funcionários</option>
+                <option value="Empresas">Funcionários</option>  -->
+              </select>
+            </div>
         </div>
         <div class="Permissions">
           <div>
