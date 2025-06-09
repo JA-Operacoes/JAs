@@ -481,7 +481,7 @@ const campos = ["idStaff", "nmFuncionario", "descFuncao", "vlrCusto", "vlrBenefi
     
 }
 
-console.log("Ainda não Entrou no Preview");
+console.log("Ainda não Entrou no Previewpdf");
 
 function configurarPreviewPDF() {
   const inputPDF = document.getElementById('filePDF');
@@ -512,9 +512,10 @@ function configurarPreviewPDF() {
       if (hiddenPDF) hiddenPDF.value = e.target.result;
     };
     reader.readAsDataURL(file);
+    console.log("funcionou pdf", fileNamePDF)
   });
 }
-
+console.log("Ainda não Entrou no PreviewIMg");
 function configurarPreviewImagem() {
   const inputImg = document.getElementById('file');
   const previewImg = document.getElementById('previewFoto');
@@ -541,6 +542,7 @@ function configurarPreviewImagem() {
       hiddenImg.value = e.target.result;
     };
     reader.readAsDataURL(file);
+    console.log("pegou a imagem do ", fileNameImg)
   });
 }
 
@@ -550,18 +552,21 @@ window.addEventListener('DOMContentLoaded', function () {
 });
 
 
- let contadorFieldsets = 1;
+let contadorFieldsets = 1;
 let datasGlobaisSelecionadas = [];
 
 function adicionarCampos() {
+  console.log("✅ Função adicionarCampos chamada");
+
   const container = document.getElementById("containerFieldsets");
   const fieldsetOriginal = container.querySelector("fieldset");
   const novoFieldset = fieldsetOriginal.cloneNode(true);
+  console.log("📋 Fieldset clonado");
 
   contadorFieldsets++;
 
-  const novoId = "datasEvento-" + contadorFieldsets;
-  const novoContadorId = "contadorDatas-" + contadorFieldsets;
+  const novoId = "datasEvento" + contadorFieldsets;
+  const novoContadorId = "contadorDatas" + contadorFieldsets;
   const novoFileId = "filePDF" + contadorFieldsets;
   const novoFileNameId = "fileNamePDF" + contadorFieldsets;
   const novoHiddenId = "ComprovantePagamentos" + contadorFieldsets;
@@ -570,11 +575,13 @@ function adicionarCampos() {
   const inputDatas = novoFieldset.querySelector("input[id^='datasEvento']");
   inputDatas.id = novoId;
   inputDatas.value = "";
+  console.log("📅 Novo input de datas ID:", novoId);
 
   // Atualiza contador de datas
   const contador = novoFieldset.querySelector("p[id^='contadorDatas']");
   contador.id = novoContadorId;
   contador.textContent = "Nenhuma data selecionada.";
+  console.log("🔢 Contador de datas atualizado:", novoContadorId);
 
   // Atualiza campo de arquivo PDF
   const inputFile = novoFieldset.querySelector("input[type='file']");
@@ -589,6 +596,7 @@ function adicionarCampos() {
   hiddenInput.id = novoHiddenId;
   hiddenInput.name = "foto[]";
   hiddenInput.value = "";
+  console.log("📁 Input de arquivo atualizado:", novoFileId);
 
   // Evento de conversão do PDF para base64
   inputFile.addEventListener("change", function () {
@@ -597,22 +605,28 @@ function adicionarCampos() {
     const hiddenInputTarget = document.getElementById(novoHiddenId);
 
     if (file) {
+      console.log("📎 Arquivo selecionado:", file.name);
       fileNameDisplay.textContent = file.name;
 
       const reader = new FileReader();
       reader.onload = function (e) {
-        hiddenInputTarget.value = e.target.result; // Base64
+        hiddenInputTarget.value = e.target.result;
+        console.log("📦 Arquivo convertido para Base64");
       };
       reader.readAsDataURL(file);
     } else {
+      console.log("⚠️ Nenhum arquivo selecionado");
       fileNameDisplay.textContent = "Nenhum arquivo selecionado";
       hiddenInputTarget.value = "";
     }
   });
 
-  // Botão de remover o fieldset
+  // Botão de remover
   const botaoExistente = novoFieldset.querySelector(".btn-remover");
-  if (botaoExistente) botaoExistente.remove();
+  if (botaoExistente) {
+    botaoExistente.remove();
+    console.log("🧽 Botão de remover antigo excluído");
+  }
 
   const botaoRemover = document.createElement("button");
   botaoRemover.type = "button";
@@ -627,31 +641,59 @@ function adicionarCampos() {
           d => d.getTime() !== data.getTime()
         );
       });
+      console.log("🗑️ Datas removidas do array global");
     }
 
     container.removeChild(novoFieldset);
+    console.log("❌ Fieldset removido");
+
     atualizarFlatpickrs();
   };
 
   novoFieldset.appendChild(botaoRemover);
   container.appendChild(novoFieldset);
+  console.log("✅ Novo fieldset adicionado ao container");
 
   inicializarFlatpickr(`#${novoId}`, novoContadorId);
+
+}
+  
+function inicializarFlatpickr(selector, contadorId) {
+  console.log("📅 Inicializando Flatpickr para:", selector);
+
+  const input = typeof selector === "string"
+    ? document.querySelector(selector)
+    : selector;
+
+  if (!input) {
+    console.warn("⚠️ Campo não encontrado para o seletor:", selector);
+    return;
+  }else{
+    console.log("✅ campo encontrado para o seletor");
+  }
+
+  if (input._flatpickr) {
+  input._flatpickr.destroy();
 }
 
-function inicializarFlatpickr(selector, contadorId) {
-  flatpickr(selector, {
+  
+
+  flatpickr(input, {
     mode: "multiple",
     dateFormat: "d/m/Y",
     locale: "pt",
+    altInput:true,
     altFormat: "d/m/Y",
     disable: datasGlobaisSelecionadas,
     onChange: function (selectedDates, dateStr, instance) {
-      // Remove datas antigas do array
+      console.log("🖊️ onChange disparado. Datas selecionadas:", dateStr);
+
+      // Remove datas antigas
       datasGlobaisSelecionadas = datasGlobaisSelecionadas.filter(
         d => !instance.previousSelectedDates?.some(sd => sd.getTime() === d.getTime())
       );
-      // Adiciona novas datas
+
+      // Adiciona novas
       selectedDates.forEach(data => {
         if (!datasGlobaisSelecionadas.some(d => d.getTime() === data.getTime())) {
           datasGlobaisSelecionadas.push(data);
@@ -664,6 +706,7 @@ function inicializarFlatpickr(selector, contadorId) {
         contador.textContent = selectedDates.length > 0
           ? `${selectedDates.length} data(s) selecionada(s).`
           : "Nenhuma data selecionada.";
+        console.log("📊 Contador atualizado:", contador.textContent);
       }
 
       instance.previousSelectedDates = [...selectedDates];
@@ -671,22 +714,28 @@ function inicializarFlatpickr(selector, contadorId) {
     },
     onReady: function (selectedDates, dateStr, instance) {
       instance.previousSelectedDates = [...selectedDates];
+      console.log("📂 Flatpickr pronto com datas:", selectedDates);
     }
   });
 }
 
 function atualizarFlatpickrs() {
+  console.log("♻️ Atualizando todos os Flatpickrs");
+
   document.querySelectorAll("input[id^='datasEvento']").forEach(input => {
     const fpInstance = input._flatpickr;
     if (fpInstance) {
       fpInstance.set("disable", datasGlobaisSelecionadas);
+      console.log("🚫 Datas desabilitadas atualizadas para:", input.id);
     }
   });
 }
 
-// Inicializa o primeiro flatpickr e file input
+// Inicializa o primeiro campo ao carregar a página
 document.addEventListener("DOMContentLoaded", function () {
+  console.log("📦 DOM totalmente carregado. Inicializando primeiro Flatpickr.");
   inicializarFlatpickr("#datasEvento", "contadorDatas");
+});
 
   // Setup do primeiro input file
   const inputFile = document.getElementById("filePDF");
@@ -707,7 +756,6 @@ document.addEventListener("DOMContentLoaded", function () {
       hiddenInput.value = "";
     }
   });
-});
 
  function mostrarTarja() {
     var select = document.getElementById('avaliacao');
