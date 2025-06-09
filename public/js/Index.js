@@ -147,10 +147,13 @@ async function abrirModal(url, modulo) {
     document.body.classList.add("modal-open");
     modal.querySelector(".close")?.addEventListener("click", fecharModal);
   }
+
+  console.log("ABRIRMODAL", modal);
 }
 
 // fetchHtmlComToken retorna Response para controlar no chamador
 async function fetchHtmlComToken(url, options = {}) {
+  console.log("FETCH HTML", url, options);
   const token = localStorage.getItem("token");
   const idempresa = localStorage.getItem("idempresa");
 

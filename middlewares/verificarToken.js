@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 
 const verificarToken = (req, res, next) => {
+  console.log("VERIFICAR TOKEN");
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1]; // Formato: "Bearer <token>"
 
@@ -14,6 +15,7 @@ const verificarToken = (req, res, next) => {
     }
     req.usuario = usuario; // adiciona info do usuário no request
     next();
+    console.log("TOKEN VERIFICADO");
   });
 };
 

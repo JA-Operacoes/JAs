@@ -8,11 +8,11 @@ const JWT_SECRET = process.env.JWT_SECRET;
 // Cadastro de usuário
 // controllers/authController.js
 async function verificarUsuarioExistente(req, res) {
-  const { nome, sobrenome, email, ativo, idempresadefault } = req.body;
+  const { nome, sobrenome, email, ativo, idempresadefault, empresas } = req.body;
   console.log("verificarUsuarioExistente AuthController", req.body);
   try {
     // const { rows } = await db.query("SELECT * FROM usuarios WHERE nome = $1 AND sobrenome = $2 AND email = $3 AND ativo = $4", [nome, sobrenome, email, ativo, idempresadefault]);
-    const { rows } = await db.query("SELECT u.idusuario, u.nome, u.sobrenome, u.email, u.ativo, u.idempresadefault, e.nome AS empresadefaultnome FROM usuarios u LEFT JOIN empresas e ON u.idempresadefault = e.idempresa WHERE u.nome = $1 AND u.sobrenome = $2 AND u.email = $3 AND u.ativo = $4 AND u.idempresadefault = $5", [nome, sobrenome, email, ativo, idempresadefault]);
+    const { rows } = await db.query("SELECT u.idusuario, u.nome, u.sobrenome, u.email, u.ativo, u.idempresadefault, e.nome AS empresadefaultnome FROM usuarios u LEFT JOIN empresas e ON u.idempresadefault = e.idempresa WHERE u.nome = $1 AND u.sobrenome = $2 AND u.email = $3 AND u.ativo = $4 AND u.idempresadefault = $5", [nome, sobrenome, email, ativo, idempresadefault, empresas]);
     if (rows.length > 0) {
       return res.status(200).json({ usuarioExistente: true });
     } else {
@@ -36,7 +36,7 @@ function arraysIguais(arr1, arr2) {
 
 async function cadastrarOuAtualizarUsuario(req, res) {
  
-  const { nome, sobrenome, email, senha, email_original, ativo, idempresadefault} = req.body;
+  const { nome, sobrenome, email, senha, email_original, ativo, idempresadefault, empresas} = req.body;
    
   console.log('Dados recebidos cadastrarOuAtualizarUsuario:', req.body);
   try {
@@ -369,6 +369,18 @@ async function listarPermissoes(req, res) {
   console.log("listarPermissoes AuthController", req.usuario);
   const idusuario = req.usuario.idusuario || req.usuario.id;
   try {
+     console.log("🚨 Tentando consultar permissões no banco");
+  // console.log("Query params:", {
+  //   usuarioId,
+  //   moduloNormalizado,
+  //   idempresa,
+  //   tipos: {
+  //   usuarioId: typeof usuarioId,
+  //   moduloNormalizado: typeof moduloNormalizado,
+  //   idempresa: typeof idempresa
+  // }
+  // });
+  
     const { rows } = await db.query(
       `
       SELECT

@@ -333,10 +333,10 @@ function carregarClientes() {
 
             limparFormulario();
             try {
-                const response = await fetchComToken("/clientes");
-                if (!response.ok) throw new Error("Erro ao buscar clientes");
+                const clientes = await fetchComToken("/clientes");
+               // if (!response.ok) throw new Error("Erro ao buscar clientes");
 
-                const clientes = await response.json();
+               // const clientes = await response.json();
                 const input = getCampo("nmFantasia");
 
                 const select = criarSelectClientes(clientes);
@@ -437,10 +437,10 @@ function adicionarEventoBlurCliente() {
         if (!nmFantasia) return;
 
         try {
-            const response = await fetchComToken(`/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
-            if (!response.ok) throw new Error("Cliente não encontrado");
+            const cliente = await fetchComToken(`/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
+          //  if (!response.ok) throw new Error("Cliente não encontrado");
 
-            const cliente = await response.json();
+          //  const cliente = await response.json();
             console.log("Cliente encontrado:", cliente);
 
             if (!cliente || Object.keys(cliente).length === 0)
@@ -636,8 +636,9 @@ function fetchComToken(url, options = {}) {
   const headers = {
     "Authorization": `Bearer ${token}`,
     // só coloca Content-Type se houver body (POST/PUT)
-    ...(options.body ? { "Content-Type": "application/json" } : {}),
-    ...options.headers
+   //  "idempresa": localStorage.getItem("idempresa") || "", // Insira aqui
+     ...(options.body ? { "Content-Type": "application/json" } : {}),
+     ...options.headers
   };
 
   return fetch(url, {

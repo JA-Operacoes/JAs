@@ -1,14 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const pool = require("../db/conexaoDB");
-const { autenticarToken } = require('../middlewares/authMiddlewares');
+const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlewares');
 const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 
+
 // Aplica autenticação em todas as rotas
-router.use(autenticarToken);
+//router.use(autenticarToken);
+//router.use(contextoEmpresa);
+
 
 // GET todas ou por id
-router.get("/", autenticarToken, verificarPermissao('Orcamentos', 'pesquisar'), async (req, res) => {
+router.get("/", autenticarToken(), contextoEmpresa,/*verificarPermissao('Orcamentos', 'pesquisar'),*/ async (req, res) => {
+  console.log("✅ Entrou na rota /orcamentos");
   const { idOrcamento } = req.query;
 
   try {
@@ -33,29 +37,163 @@ router.get("/", autenticarToken, verificarPermissao('Orcamentos', 'pesquisar'), 
 });
 
 // GET /orcamento/clientes
-router.get('/clientes',  async (req, res) => {
-    const permissoes = req.usuario?.permissoes;
+router.get('/clientes', async (req, res) => {
+  
+  console.log("🔥 Rota /orcamentos/clientes acessada");
 
-    const temPermissaoOrcamento = permissoes?.some(p =>
-        p.pode_modulo === 'orcamentos' && (p.pode_acessar || p.pode_pesquisar)
-    );
+  const idempresa = req.idempresa;
 
-    if (!temPermissaoOrcamento) {
-        return res.status(403).json({ erro: "Sem permissão ao módulo Orçamentos." });
-    }
+  try {
+     
+    const resultado = await pool.query(`
+      SELECT c.*
+      FROM clientes c
+      INNER JOIN clienteempresas ce ON ce.idcliente = c.idcliente
+      WHERE ce.idempresa = $1
+      ORDER BY c.nmfantasia
+    `, [idempresa]);
 
-    try {
-        const resultado = await pool.query('SELECT idcliente, nmfantasia FROM clientes ORDER BY nmfantasia');
-        res.json(resultado.rows);
-    } catch (erro) {
-        console.error("Erro ao buscar clientes para orçamento:", erro);
-        res.status(500).json({ erro: "Erro interno ao buscar clientes." });
-    }
+    res.json(resultado.rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: 'Erro ao buscar clientes' });
+  }
+
+});
+
+// GET /orcamento/eventos
+router.get('/eventos', async (req, res) => {
+  
+ console.log("🔥 Rota /orcamentos/eventos acessada");
+
+  const idempresa = req.idempresa;
+
+  try {
+     
+    const resultado = await pool.query(`
+      SELECT e.*
+      FROM eventos e
+      INNER JOIN eventoempresas ee ON ee.idevento = e.idevento
+      WHERE ee.idempresa = $1
+      ORDER BY e.nmevento
+    `, [idempresa]);
+
+    res.json(resultado.rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: 'Erro ao buscar clientes' });
+  }
+});
+
+// GET /orcamento/localmontagem
+router.get('/localmontagem', async (req, res) => {
+  
+ console.log("🔥 Rota /orcamentos/localmontagem acessada");
+
+  const idempresa = req.idempresa;
+
+  try {
+     
+    const resultado = await pool.query(`
+      SELECT l.*
+      FROM localmontagem l
+      INNER JOIN localmontempresas le ON le.idmontagem = l.idmontagem
+      WHERE le.idempresa = $1
+      ORDER BY l.descmontagem
+    `, [idempresa]);
+
+    res.json(resultado.rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: 'Erro ao buscar clientes' });
+  }
+
+});
+
+// GET /orcamento/funcao
+router.get('/funcao', async (req, res) => {
+  
+ console.log("🔥 Rota /orcamentos/funcao acessada");
+
+  const idempresa = req.idempresa;
+
+  try {
+     
+    const resultado = await pool.query(`
+      SELECT f.*
+      FROM funcao f
+      INNER JOIN funcaoempresas fe ON fe.idfuncao = f.idfuncao
+      WHERE fe.idempresa = $1
+      ORDER BY f.descfuncao
+    `, [idempresa]);
+
+    res.json(resultado.rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: 'Erro ao buscar clientes' });
+  }
+
+});
+
+// GET /orcamento/equipamentos
+router.get('/equipamentos', async (req, res) => {
+  
+ console.log("🔥 Rota /orcamentos/equipamentos acessada");
+
+  const idempresa = req.idempresa;
+
+  try {
+     
+    const resultado = await pool.query(`
+      SELECT eq.*
+      FROM equipamentos eq
+      INNER JOIN equipamentoempresas eqe ON eqe.idequip = eq.idequip
+      WHERE eqe.idempresa = $1
+      ORDER BY eq.descequip
+    `, [idempresa]);
+
+    res.json(resultado.rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: 'Erro ao buscar clientes' });
+  }
+
+});
+
+// GET /orcamento/suprimentos
+router.get('/suprimentos', async (req, res) => {
+  
+ console.log("🔥 Rota /orcamentos/suprimentos acessada");
+
+  const idempresa = req.idempresa;
+
+  try {
+     
+    const resultado = await pool.query(`
+      SELECT s.*
+      FROM suprimentos s
+      INNER JOIN suprimentoempresas se ON se.idsup = s.idsup
+      WHERE se.idempresa = $1
+      ORDER BY s.descsup
+    `, [idempresa]);
+
+    res.json(resultado.rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: 'Erro ao buscar clientes' });
+  }
+
 });
 
 
 // POST criar novo orçamento com itens
-router.post("/", autenticarToken, verificarPermissao('Orcamentos', 'cadastrar'), async (req, res) => {
+router.post("/", autenticarToken(), contextoEmpresa,/*autenticarToken, verificarPermissao('Orcamentos', 'cadastrar'),*/ async (req, res) => {
   const client = await pool.connect();
   const dados = req.body;
 
@@ -63,7 +201,7 @@ router.post("/", autenticarToken, verificarPermissao('Orcamentos', 'cadastrar'),
         await client.query('BEGIN');
 
         const insertOrcamento = `
-            INSERT INTO orcamentos1 (
+            INSERT INTO orcamentos (
                 cliente, evento, local, data_inicio, data_fim,
                 montagem_infra, periodo_marcacao, periodo_montagem,
                 periodo_realizacao, periodo_desmontagem, desmontagem_infra
@@ -73,11 +211,11 @@ router.post("/", autenticarToken, verificarPermissao('Orcamentos', 'cadastrar'),
             ) RETURNING id
         `;
 
-        const values = [
+        const {
             cliente, evento, local, data_inicio, data_fim,
             montagem_infra, periodo_marcacao, periodo_montagem,
             periodo_realizacao, periodo_desmontagem, desmontagem_infra
-        ];
+        }=dados;
 
         const result = await client.query(insertOrcamento, values);
         const orcamentoId = result.rows[0].id;

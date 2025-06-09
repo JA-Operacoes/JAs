@@ -2,7 +2,9 @@ const db = require('../db');
 
 // Listar todas permissões
 async function listarPermissoes(req, res) {
+console.log("LISTAR PERMISSOES EM PERMISSOES CONTROLLER");
   try {
+    
     const { rows } = await db.query('SELECT * FROM permissoes');
     console.log("listarPermissoes", rows);
     res.status(200).json(rows);
@@ -23,6 +25,7 @@ async function listarPermissoesPorUsuario(req, res) {
   console.log("listarPermissoesPorUsuario", idusuario, modulo, idempresa);
 
   try {
+    
     let query = `
       SELECT *
       FROM permissoes
