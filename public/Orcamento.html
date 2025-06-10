@@ -192,7 +192,8 @@
                                 <th>Tot Venda Diaria</th>
                                 <th>CtoDiaria</th>
                                 <th>Tot Custo Diaria</th>
-                                <th>AjdCusto</th>
+                                <th>AjdCusto/alimentação</th>
+                                <th>AjdCusto/transporte</th>
                                 <th>TotAjdCusto</th>
                                 <th class="extraColuna" style="display: none;">Hospedagem</th>
                                 <th class="extraColuna" style="display: none;">Transporte</th>
@@ -203,7 +204,7 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td class="Proposta"><input type="checkbox"></td>
+                                <td class="Proposta"><div class="checkbox-wrapper-33" style="margin-top: 40px;"><label class="checkbox"><input class="checkbox__trigger visuallyhidden" type="checkbox" /><span class="checkbox__symbol"><svg aria-hidden="true" class="icon-checkbox"      width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg"><path d="M4 14l8 7L24 7"></path></svg></span><p class="checkbox__textwrapper"></p></label></div></td>
                                 <td class="Categoria"></td>
                                 <td class="qtdPessoas"><div class="add-less"><input type="number" readonly class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
                                 <td class="produto"></td>
@@ -219,7 +220,8 @@
                                 <td class="totVdaDiaria Moeda"></td>
                                 <td class="vlrCusto Moeda"></td>
                                 <td class="totCtoDiaria Moeda"></td>
-                                <td class="ajdCusto Moeda"> <div class="Acres-Desc"><select id="tpAjdCusto"><option value="select" selected disabled></option><option value="Almoco">Almoço</option><option value="janta">jantar</option><option value="2alimentacao">Almoço + jantar</option></select></div></td>
+                                <td class="ajdCusto Moeda"><div class="Acres-Desc"><select id="tpAjdCusto"><option value="select" selected disabled>Alimentação</option><option value="Almoco">Almoço</option><option value="janta">jantar</option><option value="2alimentacao">Almoço + jantar</option></select></div><br><div class="valorbanco"></div></td>
+                                <td class="ajdCusto Moeda"><div class="Acres-Desc"><select id="tpAjdCusto"><option value="select" selected disabled>Veiculo </option><option value="Publico">Publico</option><option value="alugado">alugado</option><option value="Proprio">Proprio</option></select></div><br><div class="valorbanco"></div></td>
                                 <td class="totAjdCusto Moeda">0</td>
                                 <td class="extraCampo" style="display: none;">
                                     <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotaisOrc()">
@@ -238,8 +240,35 @@
             
                 <div class = 'Selects'>
                     <div class="Observacoes">
-                        <div class="Propostaobs"><input type="checkbox"><textarea class="PropostaobsTexto" name="Observacao" id="Observacao" placeholder="Observaçoes sobre os Itens "></textarea></div>
-                        <div class="Propostaobs"><input type="checkbox" id="ativarObs"><textarea class="PropostaobsTexto=""" name="ObservacaoProposta" id="ObservacaoProposta" placeholder="Observaçoes sobre a Proposta"></textarea></div>
+                        <div class="Propostaobs1">
+                            <div class="checkbox-wrapper-33" style="margin-top: 40px; margin-right: 5px;">
+                                <label class="checkbox">
+                                    <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                                    <span class="checkbox__symbol">
+                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M4 14l8 7L24 7"></path>
+                                        </svg>
+                                    </span>
+                                    <p class="checkbox__textwrapper"></p>
+                                </label>
+                            </div>
+                                <textarea class="PropostaobsTexto" name="Observacao" id="Observacao" placeholder="Observações sobre os Itens"></textarea>
+                        </div>
+
+                        <div class="Propostaobs2">
+                            <div class="checkbox-wrapper-33">
+                                <label class="checkbox">
+                                    <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                                    <span class="checkbox__symbol">
+                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M4 14l8 7L24 7"></path>
+                                        </svg>
+                                    </span>
+                                    <p class="checkbox__textwrapper"></p>
+                                </label>
+                            </div>
+                                <textarea class="PropostaobsTexto" name="ObservacaoProposta" id="ObservacaoProposta" placeholder="Observações sobre a Proposta"></textarea>
+                        </div>
                     </div>
                     <div>
                             <div class="form2">

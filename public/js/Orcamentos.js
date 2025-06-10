@@ -842,7 +842,7 @@ function adicionarLinhaOrc() {
             <td class="totVdaDiaria Moeda"></td>
             <td class="vlrCusto Moeda"></td>
             <td class="totCtoDiaria Moeda"></td>
-            <td class="ajdCusto Moeda"></td>
+            <td class="ajdCusto Moeda"><div class="Acres-Desc"><select id="tpAjdCusto"><option value="select" selected disabled></option><option value="Almoco">Almoço</option><option value="janta">jantar</option><option value="2alimentacao">Almoço + jantar</option></select></div></td>
             <td class="totAjdCusto Moeda">0</td>
             <td class="extraCampo" style="display: none;">
                 <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotaisOrc()">
@@ -1683,6 +1683,36 @@ async function gerarPropostaPDF() {
             adicionais.forEach(item => adicionarLinha(item));
         }
 
+        // Observações sobre os Itens
+        const checkboxItens = document.querySelectorAll('.Propostaobs1 .checkbox__trigger')[0];
+        const textoItens = document.querySelectorAll('.PropostaobsTexto')[0]?.value?.trim();
+
+        if (checkboxItens && checkboxItens.checked && textoItens) {
+            y += 10;
+            adicionarLinha("Observações sobre os Itens:", 12, true);
+
+            const linhasItens = doc.splitTextToSize(textoItens, 180);
+            linhasItens.forEach(linha => {
+                adicionarLinha(linha);
+                y += 5;
+            });
+        }
+
+        // Observações sobre a Proposta
+        const checkboxProposta = document.querySelectorAll('.Propostaobs2 .checkbox__trigger')[1];
+        const textoProposta = document.querySelectorAll('.PropostaobsTexto')[1]?.value?.trim();
+
+        if (checkboxProposta && checkboxProposta.checked && textoProposta) {
+            y += 10;
+            adicionarLinha("Observações sobre a Proposta:", 12, true);
+
+            const linhasProposta = doc.splitTextToSize(textoProposta, 180);
+            linhasProposta.forEach(linha => {
+                adicionarLinha(linha);
+                y += 5;
+            });
+        }
+
         doc.addPage();
         doc.addImage(img, 'PNG', 0, 0, pageWidth, pageHeight);
         y = 40;
@@ -1721,11 +1751,15 @@ async function gerarPropostaPDF() {
         adicionarLinha("Diretor Comercial");
 
         const nomeArquivoSalvar = `${nomeEvento.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_')}_${dataFormatada}.pdf`;
+
         const pdfBlob = doc.output('blob');
         const link = document.createElement('a');
         link.href = URL.createObjectURL(pdfBlob);
         link.download = nomeArquivoSalvar;
+        document.body.appendChild(link); // necessário para Firefox
         link.click();
+        document.body.removeChild(link); // limpa após o clique
+        URL.revokeObjectURL(link.href); // libera memória
     };
 
     //     console.log("Enviando PDF para o backend");
@@ -1745,10 +1779,9 @@ async function gerarPropostaPDF() {
     //     .then(data => console.log("Resposta do servidor:", data))
     //     .catch(err => console.error("Erro ao enviar PDF:", err));
     // };
-
-    
-    img.src = 'img/Fundo Propostas.png';
 }
+
+
 async function salvarOrcamento(event) {
     event.preventDefault(); // evita o envio padrão do formulário
 
