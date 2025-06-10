@@ -1181,35 +1181,30 @@ async function carregarPermissoesUsuario(idusuario) {
 }
 
 async function fetchComToken(url, options = {}) {
- // console.log("URL da requisição USUARIOS:", url);
+
   const token = localStorage.getItem("token");
   const idempresa = localStorage.getItem("idempresa");
-
-  //console.log("ID da empresa no localStorage:", idempresa);
- // console.log("Token no localStorage:", token);
 
   if (!options.headers) options.headers = {};
 
   options.headers['Authorization'] = 'Bearer ' + token;
   if (idempresa) options.headers['idempresa'] = idempresa;
 
-if (
-    idempresa && 
-    idempresa !== 'null' && 
-    idempresa !== 'undefined' && 
-    idempresa.trim() !== '' &&
-    !isNaN(idempresa) && 
-    Number(idempresa) > 0
-  ) {
-    options.headers['idempresa'] = idempresa;
-    console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
-  } else {
-    console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
+  if (
+      idempresa && 
+      idempresa !== 'null' && 
+      idempresa !== 'undefined' && 
+      idempresa.trim() !== '' &&
+      !isNaN(idempresa) && 
+      Number(idempresa) > 0
+    ) {
+      options.headers['idempresa'] = idempresa;
+      console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
+    } else {
+      console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
   }
 
   const resposta = await fetch(url, options);
-
- // console.log("Resposta da requisição:", resposta);
 
   if (resposta.status === 401) {
     localStorage.clear();
@@ -1223,7 +1218,6 @@ if (
     //return;
     throw new Error('Sessão expirada'); 
   }
-
 
   let dados;
 
@@ -1241,11 +1235,7 @@ if (
     const mensagemErro = (dados && dados.erro) || JSON.stringify(dados) || resposta.statusText;
     throw new Error(`Erro na requisição: ${mensagemErro}`);
   }
-
   return dados;
-
-
-  
 }
 
 async function carregarEmpresas() {
