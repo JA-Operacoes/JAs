@@ -437,10 +437,10 @@ function adicionarEventoBlurCliente() {
         if (!nmFantasia) return;
 
         try {
-            const cliente = await fetchComToken(`/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
-          //  if (!response.ok) throw new Error("Cliente não encontrado");
+            const response = await fetchComToken(`/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
+            if (!response.ok) throw new Error("Cliente não encontrado");
 
-          //  const cliente = await response.json();
+            const cliente = await response.json();
             console.log("Cliente encontrado:", cliente);
 
             if (!cliente || Object.keys(cliente).length === 0)
@@ -628,6 +628,8 @@ function limparCamposCliente(){
 
 function fetchComToken(url, options = {}) {
   const token = localStorage.getItem("token");
+  const idempresa = localStorage.getItem("idempresa");
+  
   if (!token) {
     throw new Error("fetchComToken: nenhum token encontrado. Faça login primeiro.");
   }
@@ -636,7 +638,7 @@ function fetchComToken(url, options = {}) {
   const headers = {
     "Authorization": `Bearer ${token}`,
     // só coloca Content-Type se houver body (POST/PUT)
-   //  "idempresa": localStorage.getItem("idempresa") || "", // Insira aqui
+     "idempresa": localStorage.getItem("idempresa") || "", // Insira aqui
      ...(options.body ? { "Content-Type": "application/json" } : {}),
      ...options.headers
   };

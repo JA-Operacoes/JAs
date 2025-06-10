@@ -1,14 +1,12 @@
 const express = require('express');
 const router = express.Router();
-//const pool = require('../db'); // ajuste o caminho conforme seu projeto
+const db = require('../db'); // ajuste o caminho conforme seu projeto
 const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlewares');
+
 // Aplica autenticação em todas as rotas
-router.use(autenticarToken);
 
-
-
-
-const db = require('../db'); // ajuste se necessário
+//router.use(autenticarToken);
+router.use(contextoEmpresa);
 
 router.get('/', async (req, res) => {
    console.log("✅ ROTA /modulos ACESSADA");
