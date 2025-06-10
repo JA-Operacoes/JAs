@@ -118,6 +118,10 @@ fieldset {
   border-color: var(--dark-color);
   margin: 0 auto;
 }
+legend{
+  margin-left: 10px;
+  padding: 5px;
+}
 
 textarea{
   flex: 1;
@@ -235,6 +239,10 @@ textarea:valid~label {
   font-size: 12px;
   padding: 0 2px;
   background: #cacaca;
+}
+
+input#Almoco, input#jantar{
+  width: 125px;
 }
 
 input[type=date] {
