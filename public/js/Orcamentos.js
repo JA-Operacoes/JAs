@@ -723,35 +723,41 @@ function calcularLucroReal() {
     let totalCustoGeral = 0;
     let valorFinalCliente = 0;
 
-    // Obtém o valor do custo total
-    totalCustoGeral = desformatarMoeda(document.querySelector('#totalGeral').value);
+    const inputTotalGeral = document.querySelector('#totalGeralCto');
+    const inputValorCliente = document.querySelector('#valorCliente');
 
-    // Obtém o valor final ao cliente (já com desconto ou acréscimo)
-    valorFinalCliente = desformatarMoeda(document.querySelector('#valorCliente').value);
+    if (!inputTotalGeral || !inputValorCliente) {
+        console.warn("⚠️ Campo(s) #totalGeral ou #valorCliente não encontrados. Lucro não pode ser calculado.");
+        return;
+    }
 
-    // Calcula o lucro real (valor final recebido - custo total)
+    // Obtém os valores convertendo de moeda
+    totalCustoGeral = desformatarMoeda(inputTotalGeral.value);
+    valorFinalCliente = desformatarMoeda(inputValorCliente.value);
+
+    // Calcula lucro
     let lucroReal = valorFinalCliente - totalCustoGeral;
+    let porcentagemLucroReal = valorFinalCliente > 0
+        ? (lucroReal / valorFinalCliente) * 100
+        : 0;
 
-    let porcentagemLucroReal = 0;
-    if (valorFinalCliente > 0) {
-        porcentagemLucroReal = (lucroReal / valorFinalCliente) * 100;
-    }
+    console.log('📈 Lucro Real calculado:', lucroReal);
+    console.log('📊 Porcentagem de Lucro Real:', porcentagemLucroReal.toFixed(2) + '%');
 
-    // Exibe o lucro no console
-    console.log('Lucro Real calculado:', lucroReal);
-    console.log('Porcentagem de Lucro Real:', porcentagemLucroReal.toFixed(2) + '%');
-
-    // Atualiza o campo de lucro com a formatação de moeda
-    let inputLucro = document.querySelector('#LucroReal');
+    // Atualiza os campos de resultado
+    const inputLucro = document.querySelector('#LucroReal');
     if (inputLucro) {
-        inputLucro.value = formatarMoeda(lucroReal); // Corrigido aqui
+        inputLucro.value = formatarMoeda(lucroReal);
+    } else {
+        console.warn("⚠️ Campo #LucroReal não encontrado.");
     }
 
-    let inputPorcentagemLucro = document.querySelector('#perCentReal');
+    const inputPorcentagemLucro = document.querySelector('#perCentReal');
     if (inputPorcentagemLucro) {
-        inputPorcentagemLucro.value = porcentagemLucroReal.toFixed(2) + '%'; // Corrigido aqui
+        inputPorcentagemLucro.value = porcentagemLucroReal.toFixed(2) + '%';
+    } else {
+        console.warn("⚠️ Campo #perCentReal não encontrado.");
     }
-
 }
 
 function aplicarDescontoEAcrescimo(input = null) {
@@ -830,28 +836,33 @@ function adicionarLinhaOrc() {
 
     let novaLinha = tabela.insertRow();
     novaLinha.innerHTML = `
-            <td class="Proposta"> <input type="checkbox" name="" id=""> </td>
-            <td class="Categoria"></td>
-            <td class="qtdPessoas"><div class="add-less"><input type="number" class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
-            <td class="produto"></td>
-            <td class="qtdDias"><div class="add-less"><input type="number" class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
-             <td class="Periodo"><div class="Acres-Desc"><p>de:<input type="date" class="data-inicio" oninput="atualizarQtdDias(this)"></p><p>até <input type="date" class="data-fim" oninput="atualizarQtdDias(this)"></p></div></td>
-            <td class="vlrVenda Moeda"></td>
-            <td class="desconto Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
-            <td class="Acrescimo Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
-            <td class="totVdaDiaria Moeda"></td>
-            <td class="vlrCusto Moeda"></td>
-            <td class="totCtoDiaria Moeda"></td>
-            <td class="ajdCusto Moeda"><div class="Acres-Desc"><select id="tpAjdCusto"><option value="select" selected disabled></option><option value="Almoco">Almoço</option><option value="janta">jantar</option><option value="2alimentacao">Almoço + jantar</option></select></div></td>
-            <td class="totAjdCusto Moeda">0</td>
-            <td class="extraCampo" style="display: none;">
-                <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotaisOrc()">
-            </td>
-            <td class="extraCampo" style="display: none;">
-                <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotaisOrc()">
-            </td>
-            <td class="totGeral">0</td>
-            <td><div class="Acao"><button class="deleteBtn" onclick="removerLinhaOrc(this)"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
+                                <td class="Proposta"><div class="checkbox-wrapper-33" style="margin-top: 40px;"><label class="checkbox"><input class="checkbox__trigger visuallyhidden" type="checkbox" /><span class="checkbox__symbol"><svg aria-hidden="true" class="icon-checkbox"      width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg"><path d="M4 14l8 7L24 7"></path></svg></span><p class="checkbox__textwrapper"></p></label></div></td>
+                                <td class="Categoria"></td>
+                                <td class="qtdPessoas"><div class="add-less"><input type="number" readonly class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+                                <td class="produto"></td>
+                                <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><!--  <div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div>--></td>
+
+                                <td class="Periodo"><div class="flatpickr" id="seletorData"><input type="text" data-input required readonly placeholder="Clique para Selecionar" oninput="atualizarQtdDias(this)" onclick="inicializarFlatpickr(this)"></div></td>
+                                <!-- <td class="Periodo"><div class="Acres-Desc"><p>de:<input type="date" class="data-inicio" oninput="atualizarQtdDias(this)"></p><p>até<input type="date" class="data-fim" oninput="atualizarQtdDias(this)"></p></div></td> -->
+
+                                
+                                <td class="desconto Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
+                                <td class="Acrescimo Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
+                                <td class="vlrVenda Moeda"></td>
+                                <td class="totVdaDiaria Moeda"></td>
+                                <td class="vlrCusto Moeda"></td>
+                                <td class="totCtoDiaria Moeda"></td>
+                                <td class="ajdCusto Moeda"><div class="Acres-Desc"><select id="tpAjdCusto"><option value="select" selected disabled>Alimentação</option><option value="Almoco">Almoço</option><option value="janta">jantar</option><option value="2alimentacao">Almoço + jantar</option></select></div><br><div class="valorbanco"></div></td>
+                                <td class="ajdCusto Moeda"><div class="Acres-Desc"><select id="tpAjdCusto"><option value="select" selected disabled>Veiculo </option><option value="Publico">Publico</option><option value="alugado">alugado</option><option value="Proprio">Proprio</option></select></div><br><div class="valorbanco"></div></td>
+                                <td class="totAjdCusto Moeda">0</td>
+                                <td class="extraCampo" style="display: none;">
+                                    <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotaisOrc()">
+                                </td>
+                                <td class="extraCampo" style="display: none;">
+                                    <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotaisOrc()">
+                                </td>
+                                <td class="totGeral">0</td>
+                                <td><div class="Acao"><button class="deleteBtn" onclick="removerLinhaOrc(this)"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
 `;
 }
 function adicionarLinhaAdicional() {
@@ -861,28 +872,33 @@ function adicionarLinhaAdicional() {
     novaLinha.classList.add("linha-adicional");
 
     novaLinha.innerHTML = `
-            <td class="Proposta"> <input type="checkbox" name="" id=""> </td>
-            <td class="Categoria"></td>
-            <td class="qtdPessoas"><div class="add-less"><input type="number" class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
-            <td class="produto"></td>
-            <td class="qtdDias"><div class="add-less"><input type="number" class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
-            <td class="Periodo"><div class="Acres-Desc"><p>de:<input type="date" class="data-inicio" oninput="atualizarQtdDias(this)"></p><p>até <input type="date" class="data-fim" oninput="atualizarQtdDias(this)"></p></div></td>
-            <td class="vlrVenda Moeda"></td>
-            <td class="desconto Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
-            <td class="Acrescimo Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
-            <td class="totVdaDiaria Moeda"></td>
-            <td class="vlrCusto Moeda"></td>
-            <td class="totCtoDiaria Moeda"></td>
-            <td class="ajdCusto Moeda"></td>
-            <td class="totAjdCusto Moeda">0</td>
-            <td class="extraCampo" style="display: none;">
-                <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotaisOrc()">
-            </td>
-            <td class="extraCampo" style="display: none;">
-                <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotaisOrc()">
-            </td>
-            <td class="totGeral">0</td>
-            <td><div class="Acao"><button class="deleteBtn" onclick="removerLinhaOrc(this)"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
+            <td class="Proposta"><div class="checkbox-wrapper-33" style="margin-top: 40px;"><label class="checkbox"><input class="checkbox__trigger visuallyhidden" type="checkbox" /><span class="checkbox__symbol"><svg aria-hidden="true" class="icon-checkbox"      width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg"><path d="M4 14l8 7L24 7"></path></svg></span><p class="checkbox__textwrapper"></p></label></div></td>
+                                <td class="Categoria"></td>
+                                <td class="qtdPessoas"><div class="add-less"><input type="number" readonly class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+                                <td class="produto"></td>
+                                <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><!--  <div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div>--></td>
+
+                                <td class="Periodo"><div class="flatpickr" id="seletorData"><input type="text" data-input required readonly placeholder="Clique para Selecionar" oninput="atualizarQtdDias(this)" onclick="inicializarFlatpickr(this)"></div></td>
+                                <!-- <td class="Periodo"><div class="Acres-Desc"><p>de:<input type="date" class="data-inicio" oninput="atualizarQtdDias(this)"></p><p>até<input type="date" class="data-fim" oninput="atualizarQtdDias(this)"></p></div></td> -->
+
+                                
+                                <td class="desconto Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
+                                <td class="Acrescimo Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
+                                <td class="vlrVenda Moeda"></td>
+                                <td class="totVdaDiaria Moeda"></td>
+                                <td class="vlrCusto Moeda"></td>
+                                <td class="totCtoDiaria Moeda"></td>
+                                <td class="ajdCusto Moeda"><div class="Acres-Desc"><select id="tpAjdCusto"><option value="select" selected disabled>Alimentação</option><option value="Almoco">Almoço</option><option value="janta">jantar</option><option value="2alimentacao">Almoço + jantar</option></select></div><br><div class="valorbanco"></div></td>
+                                <td class="ajdCusto Moeda"><div class="Acres-Desc"><select id="tpAjdCusto"><option value="select" selected disabled>Veiculo </option><option value="Publico">Publico</option><option value="alugado">alugado</option><option value="Proprio">Proprio</option></select></div><br><div class="valorbanco"></div></td>
+                                <td class="totAjdCusto Moeda">0</td>
+                                <td class="extraCampo" style="display: none;">
+                                    <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotaisOrc()">
+                                </td>
+                                <td class="extraCampo" style="display: none;">
+                                    <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotaisOrc()">
+                                </td>
+                                <td class="totGeral">0</td>
+                                <td><div class="Acao"><button class="deleteBtn" onclick="removerLinhaOrc(this)"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
 `;
 }
 
@@ -891,62 +907,44 @@ function removerLinhaOrc(botao) {
     removerLinha(linha); // Remove a linha
 }
 
-// function inicializarFlatpickr() {
-//     const input = document.querySelector("#seletorData input");
-
-//     if (!input._flatpickr) {
-//         flatpickr(input, {
-//             mode: "range",
-//             dateFormat: "d/m/y",
-//             locale: "pt_br",
-//             onChange: function(selectedDates, dateStr, instance) {
-//                 // Só chama atualizarQtdDias se houver duas datas selecionadas
-//                 if (selectedDates.length === 2) {
-//                     atualizarQtdDias(instance.input);
-//                 }
-//             }
-//         });
-//     }
-// }
-
-function atualizarQtdDias(input) {
-  var linha = input.closest('tr');
-  var dataInicio = linha.querySelector('.data-inicio').value;
-  var dataFim = linha.querySelector('.data-fim').value;
-  var inputQtdDias = linha.querySelector('input.qtdDias');
-
-  if (dataInicio && dataFim) {
-    var inicio = new Date(dataInicio);
-    var fim = new Date(dataFim);
-
-    if (fim >= inicio) {
-      var diffDias = Math.floor((fim - inicio) / (1000 * 60 * 60 * 24)) + 1;
-      inputQtdDias.value = diffDias;
-    } else {
-      inputQtdDias.value = "-";
+function inicializarFlatpickr(input) {
+    if (!input._flatpickr) {
+        flatpickr(input, {
+            mode: "range",
+            dateFormat: "d/m/y",
+            locale: "pt_br",
+            appendTo: input.closest('.modal'),
+            positionElement: input,
+            onChange: function(selectedDates, dateStr, instance) {
+                if (selectedDates.length === 1 || selectedDates.length === 2) {
+                    atualizarQtdDias(instance.input);
+                }
+                }
+            });
     }
-  } else {
-    inputQtdDias.value = "-";
-  }
-
-  if (typeof calcularTotalOrc === 'function') {
-    calcularTotalOrc();
-  }
-  recalcularLinha(linha);
+}
+function inicializarFlatpickrPeriodos(input) {
+    if(!input._flatpickr){
+        flatpickr(input,{
+            mode: "range",
+            dateFormat: "d/m/y",
+            locale: "pt_br",
+            appendTo: input.closest('.modal'),
+            positionElement: input,
+        });
+    }
 }
 
+
 // function atualizarQtdDias(input) {
-//    var linha = input.closest('tr'); // CORRETO: vai até o <tr>
-//   var inputQtdDias = linha.querySelector('input.qtdDias'); // busca o campo na linha inteira
+//   var linha = input.closest('tr');
+//   var dataInicio = linha.querySelector('.data-inicio').value;
+//   var dataFim = linha.querySelector('.data-fim').value;
+//   var inputQtdDias = linha.querySelector('input.qtdDias');
 
-//   var datas = input.value.split(" a ");
-
-//   if (datas.length === 2) {
-//     var partesInicio = datas[0].split('/');
-//     var partesFim = datas[1].split('/');
-
-//     var inicio = new Date(partesInicio[2], partesInicio[1] - 1, partesInicio[0]);
-//     var fim = new Date(partesFim[2], partesFim[1] - 1, partesFim[0]);
+//   if (dataInicio && dataFim) {
+//     var inicio = new Date(dataInicio);
+//     var fim = new Date(dataFim);
 
 //     if (fim >= inicio) {
 //       var diffDias = Math.floor((fim - inicio) / (1000 * 60 * 60 * 24)) + 1;
@@ -961,9 +959,50 @@ function atualizarQtdDias(input) {
 //   if (typeof calcularTotalOrc === 'function') {
 //     calcularTotalOrc();
 //   }
-
 //   recalcularLinha(linha);
 // }
+
+function atualizarQtdDias(input) {
+  console.log("⏱️ Campo de datas alterado:", input.value);
+
+  var linha = input.closest('tr');
+  var inputQtdDias = linha.querySelector('input.qtdDias');
+  var datas = input.value.split(" to ");
+  console.log("📆 Datas selecionadas:", datas);
+
+  let diffDias = 1;
+
+  if (datas.length === 2) {
+    // Dois dias selecionados (intervalo)
+    var partesInicio = datas[0].trim().split('/');
+    var partesFim = datas[1].trim().split('/');
+    var inicio = new Date(partesInicio[2], partesInicio[1] - 1, partesInicio[0]);
+    var fim = new Date(partesFim[2], partesFim[1] - 1, partesFim[0]);
+
+    if (fim >= inicio) {
+      diffDias = Math.floor((fim - inicio) / (1000 * 60 * 60 * 24)) + 1;
+    } else {
+      diffDias = "-";
+    }
+
+  } else if (datas.length === 1 && datas[0].trim() !== '') {
+    // Apenas um dia selecionado
+    diffDias = 1;
+  } else {
+    diffDias = "-";
+  }
+
+  inputQtdDias.value = diffDias;
+  console.log("📤 Valor final enviado para input.qtdDias:", inputQtdDias.value);
+
+  // Atualiza a linha automaticamente
+  if (typeof recalcularLinha === 'function') {
+    console.log("🔁 Chamando recalcularLinha...");
+    recalcularLinha(linha);
+  } else {
+    console.warn("⚠️ Função recalcularLinha não está definida.");
+  }
+}
 
 
 //formulario de 
@@ -1358,20 +1397,23 @@ function bloquearCamposSeFechado() {
     const statusInput = document.getElementById('Status');
     const fechado = statusInput?.value === 'Fechado';
 
-    // IDs que não devem ser bloqueados nunca
-    const idsPermitidos = ['Desconto', 'perCentDesc', 'Acrescimo', 'perCentAcresc'];
+    const idsPermitidos = ['Desconto', 'perCentDesc', 'Acrescimo', 'perCentAcresc', 'ObservacaoProposta', 'Observacao'];
+
+    const tabela = document.querySelector('table');
 
     if (fechado) {
-        // Bloqueia todos os campos, exceto os permitidos
         const campos = document.querySelectorAll('input, select, textarea');
         campos.forEach(campo => {
             const id = campo.id;
+            const dentroDeAdicional = campo.closest('.linhaAdicional');
 
+            // NÃO bloquear se estiver em linha adicional ou for permitido
             if (
                 campo.classList.contains('idFuncao') ||
                 campo.classList.contains('idEquipamento') ||
                 campo.classList.contains('idSuprimento') ||
-                idsPermitidos.includes(id)
+                idsPermitidos.includes(id) ||
+                dentroDeAdicional
             ) return;
 
             campo.readOnly = true;
@@ -1403,16 +1445,23 @@ function bloquearCamposSeFechado() {
             }
         });
 
-        // Adiciona alerta se tentar editar manualmente (exceto os permitidos)
+        // Altera a cor da tabela
+        if (tabela) {
+            tabela.classList.add('bloqueada');
+        }
+
+        // Adiciona alerta ao tentar editar manualmente (exceto os permitidos ou da linha adicional)
         const elementosEditaveis = document.querySelectorAll('input, select, textarea, .Proposta input');
         elementosEditaveis.forEach(el => {
             const id = el.id;
+            const dentroDeAdicional = el.closest('.linhaAdicional');
 
             if (
                 el.classList.contains('idFuncao') ||
                 el.classList.contains('idEquipamento') ||
                 el.classList.contains('idSuprimento') ||
-                idsPermitidos.includes(id)
+                idsPermitidos.includes(id) ||
+                dentroDeAdicional
             ) return;
 
             el.addEventListener('focus', () => {
@@ -1422,7 +1471,7 @@ function bloquearCamposSeFechado() {
         });
 
     } else {
-        // Desbloqueia todos os campos normalmente
+        // Desbloqueia todos os campos
         const campos = document.querySelectorAll('input, select, textarea');
         campos.forEach(campo => {
             campo.classList.remove('bloqueado');
@@ -1430,18 +1479,23 @@ function bloquearCamposSeFechado() {
             campo.disabled = false;
         });
 
-        // Mostra botão de fechar
+        // Botão de fechar visível e habilitado
         const btnFechar = document.getElementById('fecharOrc');
         if (btnFechar) {
             btnFechar.style.display = 'inline-block';
             btnFechar.disabled = false;
         }
 
-        // Oculta botões adicionais se necessário
+        // Oculta botões adicionais (caso algum deva sumir com status "aberto")
         const btnAdicional = document.querySelectorAll('.Adicional');
         btnAdicional.forEach(btn => {
             btn.style.display = 'none';
         });
+
+        // Remove o visual de bloqueio da tabela
+        if (tabela) {
+            tabela.classList.remove('bloqueada');
+        }
     }
 }
 function fecharOrcamento() {

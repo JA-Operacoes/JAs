@@ -82,78 +82,85 @@
                     <div id="blocoInfra" class=" inativo-esquerda"  style="display: none;">
                         <div class="dtInfra">
                             <label class="miniTitle">Montagem de Infra.</label>
-                            <div class="De">
+                            <!-- <div class="De">
                                 <label  for="periodoInfra"> De:</label>
                                 <input type="date" id="dtIniInfra" >
                             </div>
                             <div class="ate">
                                 <label  for="dtFimMarcacao">Até:</label>
                                 <input type="date" id="dtFimInfra">
-                            </div>
+                            </div> -->
+                            <input type="text" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
+
                         </div>
                     </div>
 
                     <div class="dtMarcacao">
                         <label class="miniTitle">Período de Marcação</label>
-                        <div class="De">
+                        <!-- <div class="De">
                             <label  for="periodoMarcacao"> De:</label>
                             <input type="date" id="dtIniMarcacao" name="dtIniMarcacao">
                         </div> 
                         <div class="ate">
                             <label for="dtFimMarcacao">Até:</label>
                             <input type="date" id="dtFimMarcacao" name="dtFimMarcacao">
-                        </div>
+                        </div> -->
+                        <input type="text" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
                         
                     </div>
                     <div class="inicioMontagem">
                         <label class="miniTitle">Período de Montagem</label>
-                        <div class="De">
+                        <!-- <div class="De">
                             <label class="miniTitle" for="periodoMontagem"> De:</label>
                             <input type="date" id="dtInicioMontagem" name="dtInicioMontagem">
                         </div>
                         <div class="ate">
                             <label class="miniTitle" for="dtFimMontagem">Até:</label>
                             <input type="date" id="dtFimMontagem" name="dtFimMontagem">
-                        </div>
+                        </div> -->
+                        <input type="text" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
                         
                     </div>
                     <div class="Realizacao">
                         <label class="miniTitle">Período de Realização</label>
-                        <div class="De">
+                        <!-- <div class="De">
                             <label class="miniTitle" for="periodoRealizacao"> De:</label>
                             <input type="date" id="dtInicioRealizacao" name="dtInicioRealizacao">
                         </div>
                         <div class="ate">
                             <label class="miniTitle" for="dtFimRealizacao">Até:</label>
                             <input type="date" id="dtFimRealizacao" name="dtFimRealizacao">
-                        </div>
+                        </div> -->
+                        <input type="text" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
                         
                     </div>
                 
                     <div class="dtDesmontagem">
                         <label class="miniTitle">Período de Desmontagem</label>
-                        <div class="De">
+                        <!-- <div class="De">
                             <label class="miniTitle" for="periodoDesmontagem"> De:</label>
                             <input type="date" id="dtIniDesmontagem" name="dtIniDesmontagem">
                         </div>
                         <div class="ate">
                             <label class="miniTitle" for="dtFimDesmontagem">Até:</label>
                             <input type="date" id="dtFimDesmontagem" name="dtFimDesmontagem">
-                        </div>
-                        
+                        </div> -->
+                        <input type="text" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
                     </div>
 
                     <div id="blocoInfra2" class="inativo-direita" style="display: none;">
                         <div class="dtInfra">
                             <label class="miniTitle">Desmontagem de Infra.</label>
-                            <div class="De">
+                            <!-- <div class="De">
                                 <label  for="periodoInfra"> De:</label>
                                 <input type="date" id="dtIniInfra" >
                             </div>
                             <div class="ate">
                                 <label  for="dtFimMarcacao">Até:</label>
                                 <input type="date" id="dtFimInfra">
-                            </div>
+                            </div> -->
+                        <input type="text" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
+
                         </div>
                     </div> 
                 </div>
@@ -186,9 +193,9 @@
                                 <th>Produto</th>
                                 <th>Qtd Dias</th>
                                 <th>Periodo das diarias </th>
-                                <th>VlrDiaria</th>
                                 <th>Desconto</th>
                                 <th>Acrescimo</th>
+                                <th>VlrDiaria</th>
                                 <th>Tot Venda Diaria</th>
                                 <th>CtoDiaria</th>
                                 <th>Tot Custo Diaria</th>
@@ -208,15 +215,15 @@
                                 <td class="Categoria"></td>
                                 <td class="qtdPessoas"><div class="add-less"><input type="number" readonly class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
                                 <td class="produto"></td>
-                                <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+                                <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><!--  <div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div>--></td>
 
-                                <!-- <td class="Periodo"><div class="flatpickr" id="seletorData"><input type="text" data-input  oninput="atualizarQtdDias(this)" onclick="inicializarFlatpickr()"  require("flatpickr/dist/themes/material_red.css") placeholder="Clique para Selecionar"></div></td> -->
-                                <td class="Periodo"><div class="Acres-Desc"><p>de:<input type="date" class="data-inicio" oninput="atualizarQtdDias(this)"></p><p>até<input type="date" class="data-fim" oninput="atualizarQtdDias(this)"></p></div></td>
+                                <td class="Periodo"><div class="flatpickr" id="seletorData"><input type="text" data-input required readonly placeholder="Clique para Selecionar" oninput="atualizarQtdDias(this)" onclick="inicializarFlatpickr(this)"></div></td>
+                                <!-- <td class="Periodo"><div class="Acres-Desc"><p>de:<input type="date" class="data-inicio" oninput="atualizarQtdDias(this)"></p><p>até<input type="date" class="data-fim" oninput="atualizarQtdDias(this)"></p></div></td> -->
 
-
-                                <td class="vlrVenda Moeda"></td>
+                                
                                 <td class="desconto Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
                                 <td class="Acrescimo Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
+                                <td class="vlrVenda Moeda"></td>
                                 <td class="totVdaDiaria Moeda"></td>
                                 <td class="vlrCusto Moeda"></td>
                                 <td class="totCtoDiaria Moeda"></td>
@@ -304,7 +311,7 @@
                                 <label for="LucroReal"> Lucro Real: </label>
                             </div>
                             <div class="form3">
-                                <input type="text"  id="perCentReal " class="preenchido" value="0%" name="perCentReal" required readonly style="font-size: 15px;">
+                                <input type="text"  id="perCentReal" class="preenchido" value="0%" name="perCentReal" required readonly style="font-size: 15px;">
                                 <label for="perCentReal"> % </label>
                             </div>
                         </div>
