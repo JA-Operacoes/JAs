@@ -1606,7 +1606,7 @@ async function gerarPropostaPDF() {
         let dadosContato = { nmcontato: "N/D", celcontato: "N/D", emailcontato: "N/D" };
         try {
             console.log("Buscando dados do cliente via API");
-            const resposta = await fetchComToken(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(nomeCliente)}`);
+            const resposta = await fetch(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(nomeCliente)}`);
             const dados = await resposta.json();
             const cliente = Array.isArray(dados) ? dados[0] : dados;
             if (cliente) {
@@ -1699,10 +1699,11 @@ async function gerarPropostaPDF() {
         }
 
         // Observações sobre a Proposta
-        const checkboxProposta = document.querySelectorAll('.Propostaobs2 .checkbox__trigger')[1];
-        const textoProposta = document.querySelectorAll('.PropostaobsTexto')[1]?.value?.trim();
+        const propostaObs2 = document.querySelector('.Propostaobs2');
+        const checkboxProposta = propostaObs2?.querySelector('.checkbox__trigger');
+        const textoProposta = propostaObs2?.querySelector('.PropostaobsTexto')?.value?.trim();
 
-        if (checkboxProposta && checkboxProposta.checked && textoProposta) {
+        if (checkboxProposta?.checked && textoProposta) {
             y += 10;
             adicionarLinha("Observações sobre a Proposta:", 12, true);
 
@@ -1751,15 +1752,11 @@ async function gerarPropostaPDF() {
         adicionarLinha("Diretor Comercial");
 
         const nomeArquivoSalvar = `${nomeEvento.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_')}_${dataFormatada}.pdf`;
-
         const pdfBlob = doc.output('blob');
         const link = document.createElement('a');
         link.href = URL.createObjectURL(pdfBlob);
         link.download = nomeArquivoSalvar;
-        document.body.appendChild(link); // necessário para Firefox
         link.click();
-        document.body.removeChild(link); // limpa após o clique
-        URL.revokeObjectURL(link.href); // libera memória
     };
 
     //     console.log("Enviando PDF para o backend");
@@ -1779,6 +1776,9 @@ async function gerarPropostaPDF() {
     //     .then(data => console.log("Resposta do servidor:", data))
     //     .catch(err => console.error("Erro ao enviar PDF:", err));
     // };
+
+
+    img.src = 'img/Fundo Propostas.png';
 }
 
 
