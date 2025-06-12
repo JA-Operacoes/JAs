@@ -872,34 +872,34 @@ function adicionarLinhaAdicional() {
     novaLinha.classList.add("linha-adicional");
 
     novaLinha.innerHTML = `
-            <td class="Proposta"><div class="checkbox-wrapper-33" style="margin-top: 40px;"><label class="checkbox"><input class="checkbox__trigger visuallyhidden" type="checkbox" /><span class="checkbox__symbol"><svg aria-hidden="true" class="icon-checkbox"      width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg"><path d="M4 14l8 7L24 7"></path></svg></span><p class="checkbox__textwrapper"></p></label></div></td>
-                                <td class="Categoria"></td>
-                                <td class="qtdPessoas"><div class="add-less"><input type="number" readonly class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
-                                <td class="produto"></td>
-                                <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><!--  <div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div>--></td>
-
-                                <td class="Periodo"><div class="flatpickr" id="seletorData"><input type="text" data-input required readonly placeholder="Clique para Selecionar" oninput="atualizarQtdDias(this)" onclick="inicializarFlatpickr(this)"></div></td>
-                                <!-- <td class="Periodo"><div class="Acres-Desc"><p>de:<input type="date" class="data-inicio" oninput="atualizarQtdDias(this)"></p><p>até<input type="date" class="data-fim" oninput="atualizarQtdDias(this)"></p></div></td> -->
-
-                                
-                                <td class="desconto Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
-                                <td class="Acrescimo Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
-                                <td class="vlrVenda Moeda"></td>
-                                <td class="totVdaDiaria Moeda"></td>
-                                <td class="vlrCusto Moeda"></td>
-                                <td class="totCtoDiaria Moeda"></td>
-                                <td class="ajdCusto Moeda"><div class="Acres-Desc"><select id="tpAjdCusto"><option value="select" selected disabled>Alimentação</option><option value="Almoco">Almoço</option><option value="janta">jantar</option><option value="2alimentacao">Almoço + jantar</option></select></div><br><div class="valorbanco"></div></td>
-                                <td class="ajdCusto Moeda"><div class="Acres-Desc"><select id="tpAjdCusto"><option value="select" selected disabled>Veiculo </option><option value="Publico">Publico</option><option value="alugado">alugado</option><option value="Proprio">Proprio</option></select></div><br><div class="valorbanco"></div></td>
-                                <td class="totAjdCusto Moeda">0</td>
-                                <td class="extraCampo" style="display: none;">
-                                    <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotaisOrc()">
-                                </td>
-                                <td class="extraCampo" style="display: none;">
-                                    <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotaisOrc()">
-                                </td>
-                                <td class="totGeral">0</td>
-                                <td><div class="Acao"><button class="deleteBtn" onclick="removerLinhaOrc(this)"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
-`;
+            <tr class="adicional">
+                <td class="Proposta"><div class="checkbox-wrapper-33" style="margin-top: 40px;"><label class="checkbox"><input class="checkbox__trigger visuallyhidden" type="checkbox" /><span class="checkbox__symbol"><svg aria-hidden="true" class="icon-checkbox"      width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg"><path d="M4 14l8 7L24 7"></path></svg></span><p class="checkbox__textwrapper"></p></label></div></td>
+                                    <td class="Categoria"></td>
+                                    <td class="qtdPessoas"><div class="add-less"><input type="number" readonly class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+                                    <td class="produto"></td>
+                                    <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><!--  <div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div>--></td>
+                                    <td class="Periodo"><div class="flatpickr" id="seletorData"><input type="text" data-input required readonly placeholder="Clique para Selecionar" oninput="atualizarQtdDias(this)" onclick="inicializarFlatpickr(this)"></div></td>
+                                    <!-- <td class="Periodo"><div class="Acres-Desc"><p>de:<input type="date" class="data-inicio" oninput="atualizarQtdDias(this)"></p><p>até<input type="date" class="data-fim" oninput="atualizarQtdDias(this)"></p></div></td> -->
+                
+                                    <td class="desconto Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
+                                    <td class="Acrescimo Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
+                                    <td class="vlrVenda Moeda"></td>
+                                    <td class="totVdaDiaria Moeda"></td>
+                                    <td class="vlrCusto Moeda"></td>
+                                    <td class="totCtoDiaria Moeda"></td>
+                                    <td class="ajdCusto Moeda"><div class="Acres-Desc"><select id="tpAjdCusto"><option value="select" selected disabled>Alimentação</option><option value="Almoco">Almoço</option><option value="janta">jantar</option><option value="2alimentacao">Almoço + jantar</option></select></div><br><div class="valorbanco"></div></td>
+                                    <td class="ajdCusto Moeda"><div class="Acres-Desc"><select id="tpAjdCusto"><option value="select" selected disabled>Veiculo </option><option value="Publico">Publico</option><option value="alugado">alugado</option><option value="Proprio">Proprio</option></select></div><br><div class="valorbanco"></div></td>
+                                    <td class="totAjdCusto Moeda">0</td>
+                                    <td class="extraCampo" style="display: none;">
+                                        <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotaisOrc()">
+                                    </td>
+                                    <td class="extraCampo" style="display: none;">
+                                        <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotaisOrc()">
+                                    </td>
+                                    <td class="totGeral">0</td>
+                                    <td><div class="Acao"><button class="deleteBtn" onclick="removerLinhaOrc(this)"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
+                                    </tr>
+                                    `;
 }
 
 function removerLinhaOrc(botao) {

@@ -628,13 +628,13 @@
 
   .table{
     border-collapse: collapse;
-    overflow-x: auto;
   }
   table {
     width: 100%;
     border-collapse: collapse;
     margin-top: 10px;
     background-color: white;
+    overflow-x: auto;
   }
 
 /* incluido para teste */
@@ -650,7 +650,7 @@
 
       /* incluidos para teste */
       vertical-align: middle;
-      font-size: 14px; /* se quiser uniformizar também a fonte */
+      font-size: 12px; /* se quiser uniformizar também a fonte */
   }
 
   th, td {
@@ -863,12 +863,9 @@
     background-color: #6b6b6b; /* Cor de fundo diferenciada */
 }
 
-table.bloqueada .linhaAdicional {
-    background-color: white !important;
-    opacity: 1 !important;
+.linha-adicional{
+  background-color: #ffffff;
 }
-
-
 
 /* -------------------------------------- @medias ---------------------------------------- */
 
@@ -1013,6 +1010,14 @@ table.bloqueada .linhaAdicional {
 
   .BTNs button, .Close button{
     width: 200px;
+  }
+  
+
+}
+
+@media (max-width: 1467px){
+  .table{
+    overflow-x: scroll;
   }
 }
 
