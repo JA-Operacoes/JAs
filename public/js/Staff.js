@@ -657,7 +657,11 @@ function adicionarCampos() {
   inicializarFlatpickr(`#${novoId}`, novoContadorId);
 
 }
+console.log("ainda n carregou o Flat")
   
+const selector = document.getElementById("datasEventos");
+const contadorId = document.getElementById("contadorDatas")
+
 function inicializarFlatpickr(selector, contadorId) {
   console.log("📅 Inicializando Flatpickr para:", selector);
 
@@ -672,18 +676,16 @@ function inicializarFlatpickr(selector, contadorId) {
     console.log("✅ campo encontrado para o seletor");
   }
 
-  if (input._flatpickr) {
-  input._flatpickr.destroy();
-}
+//   if (input._flatpickr) {
+//   input._flatpickr.destroy();
+// }
 
   
 
   flatpickr(input, {
     mode: "multiple",
     dateFormat: "d/m/Y",
-    locale: "pt",
-    altInput:true,
-    altFormat: "d/m/Y",
+    // locale: "pt",
     disable: datasGlobaisSelecionadas,
     onChange: function (selectedDates, dateStr, instance) {
       console.log("🖊️ onChange disparado. Datas selecionadas:", dateStr);
@@ -725,7 +727,7 @@ function atualizarFlatpickrs() {
   document.querySelectorAll("input[id^='datasEvento']").forEach(input => {
     const fpInstance = input._flatpickr;
     if (fpInstance) {
-      fpInstance.set("disable", datasGlobaisSelecionadas);
+      fpInstance.set( datasGlobaisSelecionadas);
       console.log("🚫 Datas desabilitadas atualizadas para:", input.id);
     }
   });
@@ -810,6 +812,7 @@ function configurarEventosStaff() {
     verificaStaff(); // Carrega os Staff ao abrir o modal
     adicionarEventoBlurStaff();
     console.log("Entrou configurar Staff no FUNCAO.js.");
+    inicializarFlatpickr("#datasEvento", "contadorDatas");
     
 
 } 

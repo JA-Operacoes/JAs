@@ -74,7 +74,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-top: 70px;
+    margin-top: 150px;
   }
 
   #form-orcamento {
@@ -96,7 +96,7 @@
   .miniTitle{
     display: flex;
     justify-content: center;
-    font-size: 20px;
+    font-size: 15px;
   }
 
   .periodoMontagem{
@@ -218,8 +218,22 @@
     height: 40px;
   }
   select#tpAjdCusto{
-    width: 171px;
+    width: 130px;
+    height: 30px;
+    font-size: 13px;
+    margin: 0 auto;
   }
+    .ajdContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    }
+    option{
+      color: #ffffff;
+      background-color: #555;
+    }
+
 
   .Norcamento{
     display: flex;
@@ -483,7 +497,7 @@
   display: flex;
   border: var(--border-width) solid black;
   position: relative;
-  border-radius: 10px;
+  border-radius: 5px;
   width: 2em;
   height: 1.5em;
   transition: box-shadow var(--t-base) var(--e-out),
@@ -577,6 +591,7 @@
 
 
 
+
   button {
     font-family: "Abel", sans-serif;
     font-size: 20px;
@@ -611,16 +626,15 @@
     margin: 0;
   }
 
-
   .table{
     border-collapse: collapse;
-    overflow-x: auto;
   }
   table {
     width: 100%;
     border-collapse: collapse;
     margin-top: 10px;
     background-color: white;
+    overflow-x: auto;
   }
 
 /* incluido para teste */
@@ -636,7 +650,7 @@
 
       /* incluidos para teste */
       vertical-align: middle;
-      font-size: 14px; /* se quiser uniformizar também a fonte */
+      font-size: 12px; /* se quiser uniformizar também a fonte */
   }
 
   th, td {
@@ -673,8 +687,8 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 100%;
-    height: 20px;
+    width: 100px;
+    height: 30px;
     margin: 5px auto;
     border: 1px solid black;
     font-size: 13px;
@@ -683,7 +697,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 100%;
+    width: 150px;
     height: 20px;
     margin: 5px auto;
     border: 1px solid black;
@@ -801,7 +815,7 @@
     transition-duration: 0.3s;
   }
 
-  .Propostaobs{
+  .Propostaobs1, .Propostaobs2{
     display: flex;
     justify-content: center;
     align-items: center;
@@ -832,13 +846,38 @@
     width: 200px;
   }
 
+  .Excel button{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+
+.Excel > svg {
+  margin-top: 10px;
+}
+
+
+  .flatpickr-calendar {
+  z-index: 9999 !important; /* alto o suficiente para ficar acima do modal */
+  position: absolute !important;
+}
+
+
 /* --------------------------------- Campos bloqueados ------------------------------------ */
 .bloqueado {
-    background-color: #dcdcdc !important; /* cinza claro */
-    color: #555 !important;
+    background-color: #6b6b6b !important; /* cinza claro */
+    color: #ffffff !important;
     cursor: not-allowed !important;
 }
 
+ table.bloqueada {
+    background-color: #6b6b6b; /* Cor de fundo diferenciada */
+}
+
+.linha-adicional{
+  background-color: #ffffff;
+}
 
 /* -------------------------------------- @medias ---------------------------------------- */
 
@@ -882,7 +921,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-top: 0;
+    margin-top: 0px;
   }
 
   #form-orcamento {
@@ -984,4 +1023,14 @@
   .BTNs button, .Close button{
     width: 200px;
   }
+  
+
 }
+
+@media (max-width: 1467px){
+  .table{
+    overflow-x: scroll;
+  }
+}
+
+

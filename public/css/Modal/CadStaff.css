@@ -588,6 +588,6 @@ input.form-control.input {
 }
 
 .flatpickr-calendar {
-  z-index: 1055 !important; /* Maior que o z-index do modal Bootstrap (1050) */
+  z-index: 1000; /* Maior que o z-index do modal Bootstrap (1050) */
 }
 
