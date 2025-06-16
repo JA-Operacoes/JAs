@@ -116,25 +116,13 @@ function verificaEquipamento() {
                 if (!isConfirmed) return;
             }
 
-            const res = await fetchComToken(url, {
+            const respostaApi = await fetchComToken(url, {
                 method: metodo,
                 body: JSON.stringify(dados)
-            });
+            });            
 
-            const texto = await res.text();
-            let json;
-            try {
-                json = JSON.parse(texto);
-            } catch (e) {
-                throw new Error("Resposta não é um JSON válido: " + texto);
-            }
-
-            if (!res.ok) throw new Error(json.erro || json.message || "Erro ao salvar equipamento");
-
-            await Swal.fire("Sucesso!", json.message || "Equipamento salvo com sucesso.", "success");
-            document.getElementById("form").reset();
-            document.querySelector("#idEquip").value = "";
-            limparEquipamentoOriginal();
+            await Swal.fire("Sucesso!", respostaApi.message || "Equipamento salvo com sucesso.", "success");
+            limparCamposEquipamento();
 
         } catch (error) {
             console.error("Erro ao enviar dados:", error);
@@ -160,11 +148,7 @@ function verificaEquipamento() {
     }
 
     try {
-        const response = await fetchComToken("/equipamentos");
-
-        if (!response.ok) throw new Error("Erro ao buscar equipamentos");
-
-        const equipamentos = await response.json();
+        const equipamentos = await fetchComToken("/equipamentos");        
 
         console.log("Equipamentos encontrados:", equipamentos);
 
@@ -262,23 +246,25 @@ function criarSelectEquipamento(equipamentos) {
     return select;
 }
 
+if (!window.ultimoClique) {
+    window.ultimoClique = null;
+  
+}
+document.addEventListener("mousedown", (e) => {
+    window.ultimoClique = e.target;
+});
+
 function adicionarEventoBlurEquipamento() {
     const input = document.querySelector("#descEquip");
-    if (!input) return;
+    if (!input) return;   
     
-    let ultimoClique = null;
-
-    // Captura o último elemento clicado no documento
-    document.addEventListener("mousedown", (e) => {
-        ultimoClique = e.target;
-    });
     
     input.addEventListener("blur", async function () {
        
-        const botoesIgnorados = ["Limpar", "Pesquisar", "Enviar"];
+        const botoesIgnorados = ["Limpar", "Pesquisar", "Close"];
         const ehBotaoIgnorado =
-            ultimoClique?.id && botoesIgnorados.includes(ultimoClique.id) ||
-            ultimoClique?.classList.contains("close");
+            (ultimoClique?.id && botoesIgnorados.includes(ultimoClique.id)) ||
+            (ultimoClique?.classList && ultimoClique.classList.contains("close"));
 
         if (ehBotaoIgnorado) {
             console.log("🔁 Blur ignorado: clique em botão de controle (Fechar/Limpar/Pesquisar).");
@@ -301,11 +287,10 @@ function adicionarEventoBlurEquipamento() {
 
 async function carregarEquipamentoDescricao(desc, elementoAtual) {
     try {
-        const response = await fetchComToken(`/equipamentos?descEquip=${encodeURIComponent(desc)}`);
-        if (!response.ok) throw new Error("Equipamento não encontrado");
-
-        const equipamentos = await response.json();
-
+        const equipamentos = await fetchComToken(`/equipamentos?descEquip=${encodeURIComponent(desc)}`);
+       
+        if (!equipamentos || !equipamentos.idequip) throw new Error("Equipamento não encontrada");
+     
         document.querySelector("#idEquip").value = equipamentos.idequip;
         document.querySelector("#ctoEquip").value = equipamentos.ctoequip;
         document.querySelector("#vdaEquip").value = equipamentos.vdaequip;
@@ -318,12 +303,13 @@ async function carregarEquipamentoDescricao(desc, elementoAtual) {
         };
 
     } catch (error) {
-        console.warn("Erro ao buscar equipamento:", error);
+        //console.warn("Erro ao buscar equipamento:", error);
 
         const inputIdEquip = document.querySelector("#idEquip");
         const podeCadastrar = temPermissao("Equipamentos", "cadastrar");
 
         if (!inputIdEquip.value && podeCadastrar) {
+            console.log("Detectado Equipamento não encontrado e usuário tem permissão para cadastrar.");
             const resultado = await Swal.fire({
                 icon: 'question',
                 title: `Deseja cadastrar "${desc.toUpperCase()}" como novo Equipamento?`,
@@ -335,16 +321,24 @@ async function carregarEquipamentoDescricao(desc, elementoAtual) {
                 focusCancel: true
             });
 
-            
-            if (!resultado.isConfirmed) {
-                console.log("Usuário cancelou o cadastro do Equipamento.");
+            console.log("Resultado bruto do Swal.fire:", resultado);
+            if (resultado.isConfirmed) {
+               console.log("DEBUG: Swal.fire CONFIRMADO! Prosseguindo...");
+                // Não há 'return' aqui. O código continuará após o bloco if
+                // A ação de cadastrar será tratada pelo botãoEnviar.addEventListener
+                // Você pode, por exemplo, simular um clique no botão de enviar aqui se necessário,
+                // ou simplesmente deixar que o usuário finalize o formulário e clique no botão 'Enviar'
+                // principal. Pelo seu contexto, parece que o objetivo é apenas preencher o campo de descrição.
+            } else { // Usuário clicou em Cancelar ou descartou o modal
+                console.log("DEBUG: Swal.fire CANCELADO ou DISMISSADO. Detalhes:", resultado); // ✅ Mais detalhes aqui
                 elementoAtual.value = ""; // Limpa o campo se não for cadastrar
                 setTimeout(() => {
                     elementoAtual.focus();
                 }, 0);
-                return;
+                return; // Sai da função carregarEquipamentoDescricao
             }
         } else if (!podeCadastrar) {
+            console.log("Equipamento não encontrado, mas usuário NÃO tem permissão para cadastrar.");
             Swal.fire({
                 icon: "info",
                 title: "Equipamento não cadastrado",
@@ -365,75 +359,134 @@ function limparEquipamentoOriginal() {
     };
 }
 
-function fetchComToken(url, options = {}) {
+async function fetchComToken(url, options = {}) {
+  console.log("URL da requisição:", url);
   const token = localStorage.getItem("token");
-  if (!token) {
-    throw new Error("fetchComToken: nenhum token encontrado. Faça login primeiro.");
+  const idempresa = localStorage.getItem("idempresa");
+
+  console.log("ID da empresa no localStorage:", idempresa);
+  console.log("Token no localStorage:", token);
+
+  if (!options.headers) options.headers = {};
+  
+  if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
+        options.headers['Content-Type'] = 'application/json';
+  }else if (options.body && typeof options.body === 'object' && options.headers['Content-Type'] !== 'multipart/form-data') {
+       
+        options.body = JSON.stringify(options.body);
+        options.headers['Content-Type'] = 'application/json';
   }
 
-  // Monta os headers sempre incluindo Authorization
-  const headers = {
-    "Authorization": `Bearer ${token}`,
-    // só coloca Content-Type se houver body (POST/PUT)
-    ...(options.body ? { "Content-Type": "application/json" } : {}),
-    ...options.headers
-  };
+  options.headers['Authorization'] = 'Bearer ' + token; 
 
-  return fetch(url, {
-    ...options,
-    headers,
-    // caso seu back-end esteja em outro host e precisa de CORS:
-    mode: "cors",
-    // se precisar enviar cookies de sessão:
-    credentials: "include"
-  });
+  if (
+      idempresa && 
+      idempresa !== 'null' && 
+      idempresa !== 'undefined' && 
+      idempresa.trim() !== '' &&
+      !isNaN(idempresa) && 
+      Number(idempresa) > 0
+  ) {
+      options.headers['idempresa'] = idempresa;
+      console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
+  } else {
+    console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
+  }
+  console.log("URL OPTIONS", url, options)
+ 
+  const resposta = await fetch(url, options);
+
+  console.log("Resposta da requisição:", resposta);
+
+  let responseBody = null;
+  try {
+      // Primeiro, tente ler como JSON, pois é o mais comum para APIs
+      responseBody = await resposta.json();
+  } catch (jsonError) {
+      // Se falhar (não é JSON, ou resposta vazia, etc.), tente ler como texto
+      try {
+          responseBody = await resposta.text();
+      } catch (textError) {
+          // Se nem como texto conseguir, assume que não há corpo lido ou que é inválido
+          responseBody = null;
+      }
+  }
+
+  if (resposta.status === 401) {
+    localStorage.clear();
+    Swal.fire({
+      icon: "warning",
+      title: "Sessão expirada",
+      text: "Por favor, faça login novamente."
+    }).then(() => {
+      window.location.href = "login.html"; // ajuste conforme necessário
+    });
+    //return;
+    throw new Error('Sessão expirada'); 
+  }
+
+  if (!resposta.ok) {
+        // Se a resposta NÃO foi bem-sucedida (status 4xx ou 5xx)
+        // Use o responseBody já lido para obter a mensagem de erro
+        const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
+        throw new Error(`Erro na requisição: ${errorMessage}`);
+  }
+
+  return responseBody;
 }
 
-
-function limparCamposEquipamento() {
+// function limparCamposEquipamento() {
        
-    const idEquip = document.getElementById("idEquip");
-    const descEquipEl = document.getElementById("descEquip");
-    const ctoEquip = document.getElementById("ctoEquip");
-    const vdaEquip = document.getElementById("vdaEquip");
+//     const idEquip = document.getElementById("idEquip");
+//     const descEquipEl = document.getElementById("descEquip");
+//     const ctoEquip = document.getElementById("ctoEquip");
+//     const vdaEquip = document.getElementById("vdaEquip");
 
-    if (idEquip) idEquip.value = "";
-    if (ctoEquip) ctoEquip.value = "";
-    if (vdaEquip) vdaEquip.value = "";
+//     if (idEquip) idEquip.value = "";
+//     if (ctoEquip) ctoEquip.value = "";
+//     if (vdaEquip) vdaEquip.value = "";
 
-    if (descEquipEl && descEquipEl.tagName === "SELECT") {
-        // Se for SELECT, trocar por INPUT
-        const novoInput = document.createElement("input");
-        novoInput.type = "text";
-        novoInput.id = "descEquip";
-        novoInput.name = "descEquip";
-        novoInput.required = true;
-        novoInput.className = "form";
+//     if (descEquipEl && descEquipEl.tagName === "SELECT") {
+//         // Se for SELECT, trocar por INPUT
+//         const novoInput = document.createElement("input");
+//         novoInput.type = "text";
+//         novoInput.id = "descEquip";
+//         novoInput.name = "descEquip";
+//         novoInput.required = true;
+//         novoInput.className = "form";
 
-        // Configura o evento de transformar texto em maiúsculo
-        novoInput.addEventListener("input", function () {
-            this.value = this.value.toUpperCase();
-        });
+//         // Configura o evento de transformar texto em maiúsculo
+//         novoInput.addEventListener("input", function () {
+//             this.value = this.value.toUpperCase();
+//         });
 
-        // Reativa o evento blur
-        novoInput.addEventListener("blur", async function () {
-            if (!this.value.trim()) return;
-            await carregarEquipamentoDescricao(this.value, this);
-        });
+//         // Reativa o evento blur
+//         novoInput.addEventListener("blur", async function () {
+//             if (!this.value.trim()) return;
+//             await carregarEquipamentoDescricao(this.value, this);
+//         });
 
-        descEquipEl.parentNode.replaceChild(novoInput, descEquipEl);
-        adicionarEventoBlurEquipamento()
+//         descEquipEl.parentNode.replaceChild(novoInput, descEquipEl);
+//         adicionarEventoBlurEquipamento()
 
-        const label = document.querySelector('label[for="descEquip"]');
-        if (label) {
-            label.style.display = "block";
-            label.textContent = "Descrição do Equipamento";
-        }
-    } else if (descEquipEl) {
-        // Se for input normal, só limpa
-        descEquipEl.value = "";
-    }
+//         const label = document.querySelector('label[for="descEquip"]');
+//         if (label) {
+//             label.style.display = "block";
+//             label.textContent = "Descrição do Equipamento";
+//         }
+//     } else if (descEquipEl) {
+//         // Se for input normal, só limpa
+//         descEquipEl.value = "";
+//     }
 
+// }
+function limparCamposEquipamento() {
+    const campos = ["idEquip", "descEquip","ctoEquip", "vdaEquip" ];
+    campos.forEach(id => {
+        const campo = document.getElementById(id);
+        if (campo) campo.value = "";
+    });
+    
 }
 
 function configurarEventosEquipamento() {
@@ -450,6 +503,12 @@ function configurarEventosEspecificos(modulo) {
   console.log("⚙️ configurarEventosEspecificos recebeu:", modulo);
   if (modulo.trim().toLowerCase() === 'equipamentos') {
     configurarEventosEquipamento();
+    
+    if (typeof aplicarPermissoes === "function" && window.permissoes) {
+      aplicarPermissoes(window.permissoes);
+    } else {
+      console.warn("⚠️ aplicarPermissoes ou window.permissoes ainda não estão disponíveis para LocalMontagem.");
+    }
   }
 }
 window.configurarEventosEspecificos = configurarEventosEspecificos;

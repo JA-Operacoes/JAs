@@ -126,7 +126,7 @@ function verificaFuncao() {
         console.log("ID da empresa:", idEmpresa);
      
         if (idFuncao) {
-            Swal.fire({
+            const { isConfirmed } = await Swal.fire({
                 title: "Deseja salvar as alterações?",
                 text: "Você está prestes a atualizar os dados da função.",
                 icon: "question",
@@ -135,62 +135,48 @@ function verificaFuncao() {
                 cancelButtonText: "Cancelar",
                 reverseButtons: true,
                 focusCancel: true
-                
-            }).then(async (result) => {
-                if (result.isConfirmed) {
-                    try {
-                        const resultJson = await fetchComToken(`/funcao/${idFuncao}`, {
-                            method: "PUT",
-                            headers: {
-                                "Content-Type": "application/json"
-                            },
-                            body: JSON.stringify(dados)
-                        });
-        
-                        if (resultJson.sucesso) {
-                            document.getElementById('form').reset();
-                            Swal.fire("Sucesso!", resultJson.mensagem || "Alterações salvas com sucesso!", "success");
-                            //form.reset();
-                            document.querySelector("#idFuncao").value = "";
-                            limparFuncaoOriginal();  
-                        } else {
-                            Swal.fire("Erro", resultJson.erro || "Erro ao salvar o Função.", "error");
-                        }
-                    } catch (error) {
-                        console.error("Erro ao enviar dados:", error);
-                        Swal.fire("Erro de conexão", "Não foi possível conectar ao servidor.", "error");
-                    }
-                } else {
-                    console.log("Usuário cancelou a alteração.");
-                }
             });
-        } else {
-            // Se for novo, salva direto
+
+            if (!isConfirmed) return; 
+
             try {
+                
+                const resultJson = await fetchComToken(`/funcao/${idFuncao}`, {
+                    method: "PUT",
+                    body: dados 
+                });
+
+            
+                Swal.fire("Sucesso!", resultJson.message || "Alterações salvas com sucesso!", "success"); 
+                document.getElementById('form').reset();
+                document.querySelector("#idFuncao").value = "";
+                limparFuncaoOriginal();
+
+            } catch (error) {
+                console.error("Erro ao enviar dados (PUT):", error);
+                
+                Swal.fire("Erro", error.message || "Erro ao salvar a Função.", "error");
+            }
+        } else {
+            // Lógica para POST (Salvar novo)
+            try {
+                
                 const resultJson = await fetchComToken("/funcao", {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        'Authorization': `Bearer ${token}`,
-                        'x-id-empresa': idEmpresa
-                    },
-                    body: JSON.stringify(dados)
+                    body: dados // Passe o objeto dados diretamente
                 });
-        
-                       
-                if (resultJson.sucesso) {
-                    Swal.fire("Sucesso!", resultJson.mensagem || "Função cadastrada!", "success");
-                    form.reset();
-                    limparFuncaoOriginal();
-                    document.querySelector("#idFuncao").value = "";
-                } else {
-                    Swal.fire("Erro", resultJson.erro || "Erro ao cadastrar o Função.", "error");
-                }
+
+            
+                Swal.fire("Sucesso!", resultJson.mensagem || "Função cadastrada!", "success"); 
+                document.getElementById('form').reset(); 
+                limparFuncaoOriginal();
+                document.querySelector("#idFuncao").value = "";
+
             } catch (error) {
-                console.error("Erro ao enviar dados:", error);
-                Swal.fire("Erro de conexão", "Não foi possível conectar ao servidor.", "error");
+                console.error("Erro ao enviar dados (POST):", error);            
+                Swal.fire("Erro", error.message || "Erro ao cadastrar a Função.", "error");
             }
-        }
+        }           
     });
     
     console.log("botaoPesquisar:", botaoPesquisar);
@@ -360,7 +346,6 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
        console.log("Resposta da busca de Função:", funcao);
        if (!funcao || !funcao.idfuncao) throw new Error("Função não encontrada");
      
-
         document.querySelector("#idFuncao").value = funcao.idfuncao;
         document.querySelector("#Custo").value = funcao.ctofuncao;
         document.querySelector("#Venda").value = funcao.vdafuncao;
@@ -396,7 +381,7 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
                 focusCancel: true
             });
 
-                console.log("Resultado do Swal:", resultado);
+            console.log("Resultado do Swal:", resultado);
             if (!resultado.isConfirmed) {
                 console.log("Usuário cancelou o cadastro da Função.");
                 elementoAtual.value = ""; // Limpa o campo se não for cadastrar
@@ -418,8 +403,6 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
     }
 }
 
-
-
 function limparFuncaoOriginal() {
     window.FuncaoOriginal = {
         idFuncao: "",
@@ -440,58 +423,79 @@ function limparCamposFuncao() {
 }
 
 async function fetchComToken(url, options = {}) {
+  console.log("URL da requisição:", url);
   const token = localStorage.getItem("token");
   const idempresa = localStorage.getItem("idempresa");
 
-  console.log("➡️ URL da requisição:", url);
-  console.log("📦 Token no localStorage:", token);
-  console.log("🏢 ID da empresa no localStorage:", idempresa);
+  console.log("ID da empresa no localStorage:", idempresa);
+  console.log("Token no localStorage:", token);
 
-  if (!token) {
-    throw new Error("Token ausente. Faça login.");
+  if (!options.headers) options.headers = {};
+  
+  if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
+        options.headers['Content-Type'] = 'application/json';
+  }else if (options.body && typeof options.body === 'object' && options.headers['Content-Type'] !== 'multipart/form-data') {
+       
+        options.body = JSON.stringify(options.body);
+        options.headers['Content-Type'] = 'application/json';
   }
 
-  // Inicializa os headers, se ainda não existirem
-  options.headers ??= {};
+  options.headers['Authorization'] = 'Bearer ' + token; 
 
-  // Adiciona token no header Authorization
-  options.headers['Authorization'] = `Bearer ${token}`;
-
-  // Adiciona idempresa como header personalizado, se for um valor válido
-  if (idempresa) {
-    options.headers['x-id-empresa'] = idempresa;
+  if (
+      idempresa && 
+      idempresa !== 'null' && 
+      idempresa !== 'undefined' && 
+      idempresa.trim() !== '' &&
+      !isNaN(idempresa) && 
+      Number(idempresa) > 0
+  ) {
+      options.headers['idempresa'] = idempresa;
+      console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
   } else {
-    console.warn("⚠️ idempresa ausente ou inválido nos headers!");
+    console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
   }
+  console.log("URL OPTIONS", url, options)
+ 
+  const resposta = await fetch(url, options);
 
-  console.log("🧾 Headers da requisição:", options.headers);
+  console.log("Resposta da requisição:", resposta);
 
+  let responseBody = null;
   try {
-    console.log("📤 Enviando requisição para:", url, "com opções:", options);
-    const resposta = await fetch(url, options);
-    console.log("📥 Resposta da requisição:", resposta);
-
-    if (resposta.status === 401) {
-      // Token expirado ou inválido
-      localStorage.clear();
-      await Swal.fire({
-        icon: "warning",
-        title: "Sessão expirada",
-        text: "Por favor, faça login novamente."
-      });
-      window.location.href = "login.html"; // ajuste o caminho se necessário
-      throw new Error("Sessão expirada");
-    }
-
-    const dados = await resposta.json();
-    return dados;
-
-  } catch (erro) {
-    console.error("❌ Erro ao fazer fetch:", erro);
-    console.error("❌ Erro ao fazer fetch:", erro, "➡️ URL:", url, "📤 Options:", options);
-
-    throw erro;
+      // Primeiro, tente ler como JSON, pois é o mais comum para APIs
+      responseBody = await resposta.json();
+  } catch (jsonError) {
+      // Se falhar (não é JSON, ou resposta vazia, etc.), tente ler como texto
+      try {
+          responseBody = await resposta.text();
+      } catch (textError) {
+          // Se nem como texto conseguir, assume que não há corpo lido ou que é inválido
+          responseBody = null;
+      }
   }
+
+  if (resposta.status === 401) {
+    localStorage.clear();
+    Swal.fire({
+      icon: "warning",
+      title: "Sessão expirada",
+      text: "Por favor, faça login novamente."
+    }).then(() => {
+      window.location.href = "login.html"; // ajuste conforme necessário
+    });
+    //return;
+    throw new Error('Sessão expirada'); 
+  }
+
+  if (!resposta.ok) {
+        // Se a resposta NÃO foi bem-sucedida (status 4xx ou 5xx)
+        // Use o responseBody já lido para obter a mensagem de erro
+        const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
+        throw new Error(`Erro na requisição: ${errorMessage}`);
+  }
+
+  return responseBody;
 }
 
 

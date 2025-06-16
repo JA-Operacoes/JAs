@@ -8,11 +8,11 @@
     <link rel="stylesheet" href="css/Modal/CadFuncionarios.css">
     <link rel="stylesheet" href="css/Roots/Roots.css">
     <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
-    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <title>Modal</title>
 
 </head>
-<body data-modulo="Funcionários">
+<body data-modulo="Funcionarios">
 
 
 <div id="CadModal" class="modal">
@@ -81,7 +81,7 @@
               <legend> Informaçoes Pessoais </legend>
                 <div class="form-2colunas">
                     <div class="form2">
-                      <input type="text" name="nome" id="nome" required spellcheck="false">
+                      <input type="text" name="nome" id="nome" class = "uppercase" required spellcheck="false">
                       <label for="nome">Nome</label>
                     </div>
                   
@@ -116,12 +116,12 @@
               <legend> Informaçoes para contato</legend>
               <div class="form-2colunas">
                 <div class="form2">
-                  <input type="tel" name="celContato" id="celContato" maxlength="15" oninput="formatTelefone(this)" required>
-                  <label for="celContato">Celular Pessoal</label>
+                  <input type="tel" name="celularPessoal" id="celularPessoal" maxlength="15" oninput="formatTelefone(this)" required>
+                  <label for="celPessoal">Celular Pessoal</label>
                 </div>
                 <div class="form2">
-                  <input type="tel" name="celContato " id="celContato"  maxlength="15" oninput="formatTelefone(this)" required>
-                  <label for="celContato">Celular para contato familiar </label>
+                  <input type="tel" name="celularFamiliar" id="celularFamiliar"  maxlength="15" oninput="formatTelefone(this)" required>
+                  <label for="celFamiliar">Celular para contato familiar </label>
                 </div>
               </div>
               <div class="form-2colunas">
@@ -140,12 +140,12 @@
               <legend>Dados para Transferencia</legend>
                 <div class="form-2colunas">
                   <div class="form2">
-                    <input type="text" name="Banco" id="Banco" required  oninput="autoPreencherBanco(this, 'input')" onblur="autoPreencherBanco(this, 'blur')">
+                    <input type="text" name="Banco" id="Banco" class = "uppercase" required  oninput="autoPreencherBanco(this, 'input')" onblur="autoPreencherBanco(this, 'blur')">
                     <label for="Banco">Banco</label>
                   </div>
                   <div class="form2">
                     <input type="text" name="CodBanco" id="CodBanco"  required  oninput="autoPreencherBanco(this, 'input')" onblur="autoPreencherBanco(this, 'blur')">
-                    <label for="CodBanco"> Codigo do banco </label>
+                    <label for="CodBanco"> Cod. Banco </label>
                   </div>
                   <div class="form2">
                     <input type="text" name="Pix" id="Pix" spellcheck="false" required>
@@ -178,11 +178,11 @@
               <legend>Informaçoes de Residencia</legend>
               <div class="form-2colunas">
                   <div class="form2">
-                    <input type="text" id="cep" name="cep" maxlength="9" oninput="formatCEP(this)" required spellcheck="false">
+                    <input type="text" id="cep" name="cep" maxlength="9" oninput="formatCEP(this)" oninput="buscarCEP()" required spellcheck="false">
                       <label for="cep">CEP</label>
                   </div>
                   <div class="form2">
-                    <input type="text" id="rua" name="rua" required spellcheck="false">
+                    <input type="text" id="rua" name="rua" class = "uppercase" required spellcheck="false">
                       <label for="rua">Rua</label>
                   </div>
                 </div>
@@ -192,26 +192,26 @@
                       <label for="numero">Número</label>
                     </div>
                     <div class="form2">
-                      <input type="text" id="complemento" name="complemento" required spellcheck="false" >
+                      <input type="text" id="complemento" name="complemento" class = "uppercase" required spellcheck="false" >
                       <label for="complemento">Complemento</label>
                     </div>
                     <div class="form2">
-                      <input type="text" id="bairro" name="bairro" required spellcheck="false">
+                      <input type="text" id="bairro" name="bairro" class = "uppercase" required spellcheck="false">
                       <label for="bairro"> Bairro </label>
                     </div>
                   </div>
     
                       <div class="form-2colunas">
                         <div class="form2">
-                          <input type="text" id="cidade" name="cidade" required >
+                          <input type="text" id="cidade" name="cidade" class = "uppercase" required >
                           <label for="cidade">Cidade</label>
                         </div>
                         <div class="form2">
-                          <input type="text" id="estado" name="estado" required >
+                          <input type="text" id="estado" name="estado" class = "uppercase" required >
                           <label for="estado"> Estado</label>
                         </div>
                         <div class="form2">
-                          <input type="text" id="pais" name="pais" required>
+                          <input type="text" id="pais" name="pais" class = "uppercase" required>
                           <label for="pais">Pais</label>
                         </div>
                       </div>
@@ -219,17 +219,17 @@
       </div>
 
           <div class="BTNs">
-            <button class="btnPesquisar" type="submit">Pesquisar</button>
-            <button class="btnLimpar" type="submit">Limpar</button>
-            <button class="btnEnviar" type="submit">Enviar</button>
+            <button class="btnPesquisar" id="Pesquisar" type="button">Pesquisar</button>
+            <button class="btnLimpar" id="Limpar" type="button">Limpar</button>
+            <button class="btnEnviar" id="Enviar" type="button">Enviar</button>
           </div> 
           
         </form>
   </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<!-- <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/imask" defer></script>
   <script src="js/Funcionarios.js" defer></script>
-  <script src="js/Formataçoes.js"></script>
+  <script src="js/Formataçoes.js"></script> -->
 </body>
 </html>

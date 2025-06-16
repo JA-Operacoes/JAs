@@ -26,15 +26,33 @@ if (typeof window.clienteOriginal === "undefined") {
 }
 
 
-
 let maskCNPJ, maskTelefone, maskCelContato, maskCEP;
 
 
 function aplicarMascaras() {
     console.log("Aplicando máscaras aos campos de entrada...");
-    maskCNPJ = IMask(document.querySelector("#cnpj"), {
-        mask: "00.000.000/0000-00"
+    maskCNPJ = IMask(document.querySelector("#cnpj"), {    
+        mask: [
+                {
+                    mask: '000.000.000-00', // Máscara para CPF (11 dígitos)
+                    maxLength: 11 // Define o comprimento máximo para esta máscara
+                },
+                {
+                    mask: '00.000.000/0000-00', // Máscara para CNPJ (14 dígitos)
+                    maxLength: 14 // Define o comprimento máximo para esta máscara
+                }
+            ],
+            dispatch: function (appended, dynamicMasked) {
+                const number = (dynamicMasked.value + appended).replace(/\D/g,'');
+
+                if (number.length <= 11) {
+                    return dynamicMasked.compiledMasks[0]; // Retorna a máscara de CPF
+                }
+                
+                return dynamicMasked.compiledMasks[1]; // Retorna a máscara de CNPJ
+            }
     });
+    
 
     maskTelefone = IMask(document.querySelector("#telefone"), {
         mask: [
@@ -56,10 +74,10 @@ function aplicarMascaras() {
 
     maskCEP = IMask(document.querySelector("#cep"), {
         mask: "00000-000"
-    });
-    
+    });  
 
 }
+
 const campos = {
         idCliente: "#idCliente",
         nmFantasia: "#nmFantasia",
@@ -83,106 +101,108 @@ const campos = {
         emailContato: "#emailContato",
         ativo: "#ativo",
         tpcliente: "#tpcliente"
-    };
+};
 
 const getCampo = (key) => document.querySelector(campos[key]);
-    const setCampo = (key, value) => {
-        const campo = getCampo(key);
-        if (campo) {
-            if (campo.type === "checkbox") {
-                campo.checked = value === true || value === "true" || value === 1;
-            } else {
-                campo.value = value ?? "";
-            }
+
+const setCampo = (key, value) => {
+    const campo = getCampo(key);
+    if (campo) {
+        if (campo.type === "checkbox") {
+            campo.checked = value === true || value === "true" || value === 1;
+        } else {
+            campo.value = value ?? "";
         }
+    }
+};
+
+const preencherFormulario = (cliente) => {
+    console.log("PREENCHER FORMULARIO", cliente);
+    Object.entries(campos).forEach(([key]) => {
+        if (key === "telefone") maskTelefone.value = cliente.telefone || '';
+        else if (key === "cnpj") maskCNPJ.value = cliente.cnpj || '';
+        else if (key === "cep") maskCEP.value = cliente.cep || '';
+        else if (key === "celContato") maskCelContato.value = cliente.celcontato || '';
+        else setCampo(key, cliente[key.toLowerCase()]);
+    });
+
+    window.clienteOriginal = {
+        idCliente: cliente.idcliente || "",
+        nmFantasia: cliente.nmfantasia || "",
+        razaoSocial: cliente.razaosocial || "",
+        cnpj: cliente.cnpj || "",
+        nmContato: cliente.nmcontato || "",
+        celContato: cliente.celcontato || "",
+        emailCliente: cliente.emailcliente || "",
+        emailNfe: cliente.emailnfe || "",
+        emailContato: cliente.emailcontato || "",
+        site: cliente.site || "",
+        inscEstadual: cliente.inscestadual || "",
+        cep: cliente.cep || "",
+        rua: cliente.rua || "",
+        numero: cliente.numero || "",
+        complemento: cliente.complemento || "",
+        bairro: cliente.bairro || "",
+        cidade: cliente.cidade || "",
+        estado: cliente.estado || "",
+        pais: cliente.pais || "",
+        ativo: cliente.ativo || false,
+        tpcliente: cliente.tpcliente || ""
     };
 
-     const preencherFormulario = (cliente) => {
-        Object.entries(campos).forEach(([key]) => {
-            if (key === "telefone") maskTelefone.value = cliente.telefone || '';
-            else if (key === "cnpj") maskCNPJ.value = cliente.cnpj || '';
-            else if (key === "cep") maskCEP.value = cliente.cep || '';
-            else if (key === "celContato") maskCelContato.value = cliente.celcontato || '';
-            else setCampo(key, cliente[key.toLowerCase()]);
-        });
+    console.log("Cliente original CarregarCliente:", window.clienteOriginal);
 
-        window.clienteOriginal = {
-            idCliente: cliente.idcliente || "",
-            nmFantasia: cliente.nmfantasia || "",
-            razaoSocial: cliente.razaosocial || "",
-            cnpj: cliente.cnpj || "",
-            nmContato: cliente.nmcontato || "",
-            celContato: cliente.celcontato || "",
-            emailCliente: cliente.emailcliente || "",
-            emailNfe: cliente.emailnfe || "",
-            emailContato: cliente.emailcontato || "",
-            site: cliente.site || "",
-            inscEstadual: cliente.inscestadual || "",
-            cep: cliente.cep || "",
-            rua: cliente.rua || "",
-            numero: cliente.numero || "",
-            complemento: cliente.complemento || "",
-            bairro: cliente.bairro || "",
-            cidade: cliente.cidade || "",
-            estado: cliente.estado || "",
-            pais: cliente.pais || "",
-            ativo: cliente.ativo || false,
-            tpcliente: cliente.tpcliente || ""
-        };
+    const campoCodigo = getCampo("idCliente");
+    if (campoCodigo && campoCodigo.value.trim()) {
+        campoCodigo.classList.add("has-value");
+    }
+    campoCodigo.readOnly = true; // bloqueia o campo
+};
 
-       console.log("Cliente original CarregarCliente:", window.clienteOriginal);
+const limparFormulario = () => {
+    form.reset();
+    document.querySelector("#idCliente").value = "";
+    if (typeof limparClienteOriginal === "function") limparClienteOriginal();
+    
+    
+};
 
-        const campoCodigo = getCampo("idCliente");
-        if (campoCodigo && campoCodigo.value.trim()) {
-            campoCodigo.classList.add("has-value");
-        }
-        campoCodigo.readOnly = true; // bloqueia o campo
+const obterDadosFormulario = () => {
+    const valor = (key) => getCampo(key)?.value?.trim() || "";
+    const rawIE = valor("inscEstadual");
+    const inscEstadual = rawIE.toUpperCase() === "ISENTO" ? "ISENTO" : rawIE.replace(/\D/g, '');  // só números
+    const dados = {
+        nmFantasia: valor("nmFantasia").toUpperCase(),
+        razaoSocial: valor("razaoSocial").toUpperCase(),
+        cnpj: valor("cnpj").replace(/\D/g, ''),
+        inscEstadual,
+        emailCliente: valor("emailCliente"),
+        emailNfe: valor("emailNfe"),
+        site: valor("site"),
+        telefone: valor("telefone").replace(/\D/g, ''),
+        nmContato: valor("nmContato").toUpperCase(),
+        celContato: valor("celContato").replace(/\D/g, ''),
+        emailContato: valor("emailContato"),
+        cep: valor("cep").replace(/\D/g, ''),
+        rua: valor("rua").toUpperCase(),
+        numero: valor("numero"),
+        complemento: valor("complemento").toUpperCase(),
+        bairro: valor("bairro").toUpperCase(),
+        cidade: valor("cidade").toUpperCase(),
+        estado: valor("estado").toUpperCase(),
+        pais: valor("pais").toUpperCase(),
+        ativo: getCampo("ativo")?.checked,
+        tpcliente: valor("tpcliente").toUpperCase()
     };
-
-    const limparFormulario = () => {
-        form.reset();
-        document.querySelector("#idCliente").value = "";
-        if (typeof limparClienteOriginal === "function") limparClienteOriginal();
-       
-        
-    };
-
-    const obterDadosFormulario = () => {
-        const valor = (key) => getCampo(key)?.value?.trim() || "";
-        const rawIE = valor("inscEstadual");
-        const inscEstadual = rawIE.toUpperCase() === "ISENTO" ? "ISENTO" : rawIE.replace(/\D/g, '');  // só números
-        return {
-            nmFantasia: valor("nmFantasia").toUpperCase(),
-            razaoSocial: valor("razaoSocial").toUpperCase(),
-            cnpj: valor("cnpj").replace(/\D/g, ''),
-            inscEstadual,
-            emailCliente: valor("emailCliente"),
-            emailNfe: valor("emailNfe"),
-            site: valor("site"),
-            telefone: valor("telefone").replace(/\D/g, ''),
-            nmContato: valor("nmContato").toUpperCase(),
-            celContato: valor("celContato").replace(/\D/g, ''),
-            emailContato: valor("emailContato"),
-            cep: valor("cep").replace(/\D/g, ''),
-            rua: valor("rua").toUpperCase(),
-            numero: valor("numero"),
-            complemento: valor("complemento").toUpperCase(),
-            bairro: valor("bairro").toUpperCase(),
-            cidade: valor("cidade").toUpperCase(),
-            estado: valor("estado").toUpperCase(),
-            pais: valor("pais").toUpperCase(),
-            ativo: getCampo("ativo")?.checked,
-            tpcliente: valor("tpcliente").toUpperCase()
-        };
-    };
+    console.log("Dados do formulário prontos para envio:", dados);
+    return dados;
+};
 
 
 function carregarClientes() {
     console.log("Configurando eventos para o modal de clientes");
-    
-    
+   
     aplicarMascaras();  
-
 
     const tpClienteInput = document.getElementById('tpcliente');
     if(tpClienteInput){
@@ -274,22 +294,12 @@ function carregarClientes() {
                 if (!isConfirmed) return;
             }
 
-            const res = await fetchComToken(url, {
+            const respostaApi = await fetchComToken(url, {
                 method: metodo,
                 body: JSON.stringify(dados)
-            });
+            });            
 
-            const texto = await res.text();
-            let json;
-            try {
-                json = JSON.parse(texto);
-            } catch (e) {
-                throw new Error("Resposta não é um JSON válido: " + texto);
-            }
-
-            if (!res.ok) throw new Error(json.erro || json.message || "Erro ao salvar cliente");
-
-            await Swal.fire("Sucesso!", json.message || "Cliente salvo com sucesso.", "success");
+            await Swal.fire("Sucesso!", respostaApi.message || "Cliente salvo com sucesso.", "success");
             limparFormulario();
 
         } catch (error) {
@@ -310,6 +320,7 @@ function carregarClientes() {
                 input.name = "nmFantasia";
                 input.className = "form";
                 input.required = true;
+                input.classList.add("uppercase");
 
                 campo.parentNode.replaceChild(input, campo);
                 adicionarEventoBlurCliente() 
@@ -321,9 +332,7 @@ function carregarClientes() {
             limparFormulario(); // Se você quiser limpar o restante do formulário
         });
     }
-
-
-       
+     
     if (btnPesquisar) {
         console.log("Entrou no botão pesquisar antes do click");
         
@@ -333,10 +342,9 @@ function carregarClientes() {
 
             limparFormulario();
             try {
+                console.log("CarregarClientes");
                 const clientes = await fetchComToken("/clientes");
-               // if (!response.ok) throw new Error("Erro ao buscar clientes");
-
-               // const clientes = await response.json();
+                
                 const input = getCampo("nmFantasia");
 
                 const select = criarSelectClientes(clientes);
@@ -421,7 +429,7 @@ function adicionarEventoBlurCliente() {
     
     getCampo("nmFantasia").addEventListener("blur", async function () {
        
-        const botoesIgnorados = ["Limpar", "Pesquisar", "Enviar"];
+        const botoesIgnorados = ["Limpar", "Pesquisar", "Close"];
         const ehBotaoIgnorado =
             ultimoClique?.id && botoesIgnorados.includes(ultimoClique.id) ||
             ultimoClique?.classList.contains("close");
@@ -429,18 +437,14 @@ function adicionarEventoBlurCliente() {
         if (ehBotaoIgnorado) {
             console.log("🔁 Blur ignorado: clique em botão de controle (Fechar/Limpar/Pesquisar).");
             return;
-        }
-
-    
+        }    
     
         const nmFantasia = this.value.trim();
         if (!nmFantasia) return;
 
         try {
-            const response = await fetchComToken(`/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
-            if (!response.ok) throw new Error("Cliente não encontrado");
-
-            const cliente = await response.json();
+            const cliente = await fetchComToken(`/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
+            
             console.log("Cliente encontrado:", cliente);
 
             if (!cliente || Object.keys(cliente).length === 0)
@@ -455,7 +459,7 @@ function adicionarEventoBlurCliente() {
             //  Se cliente não existe e ainda não tem ID preenchido
             if (!idCliente.value) {
                 const podeCadastrar = temPermissao("Clientes", "cadastrar");
-
+                console.log("PODE CADASTRAR ", podeCadastrar);
                 // Só pergunta se deseja cadastrar se tiver permissão
                 if (podeCadastrar) {
                     const { isConfirmed } = await Swal.fire({
@@ -494,11 +498,8 @@ function adicionarEventoBlurCliente() {
 
 async function carregarClientesNmFantasia(desc, elementoAtual) {
     try {
-        const response = await fetchComToken(`/clientes?nmFantasia=${encodeURIComponent(desc.trim())}`);
-        if (!response.ok) throw new Error();
-
-        console.log("Response carregarClientesNmFantasia", response);
-        const cliente = await response.json();
+        const cliente = await fetchComToken(`/clientes?nmFantasia=${encodeURIComponent(desc.trim())}`);
+        
         console.log("Cliente encontrado:", cliente);
 
         // Preencher os campos...
@@ -534,7 +535,9 @@ async function carregarClientesNmFantasia(desc, elementoAtual) {
         novoInput.name = "nmFantasia";
         novoInput.required = true;
         novoInput.className = "form";
+        novoInput.classList.add("uppercase");
         novoInput.value = cliente.nmfantasia;
+
 
         elementoAtual.parentNode.replaceChild(novoInput, elementoAtual);
         adicionarEventoBlurCliente();
@@ -551,7 +554,7 @@ async function carregarClientesNmFantasia(desc, elementoAtual) {
         });
 
     } catch {
-        mostrarErro("Cliente não encontrado", "Nenhuma função com essa descrição foi encontrada.");
+        mostrarErro("Cliente não encontrado", "Nenhum cliente com esse nome foi encontrado.");
         limparClienteOriginal();
     }
 }
@@ -619,38 +622,82 @@ function limparCamposCliente(){
         input.id = "nmFantasia";
         input.name = "nmFantasia";
         input.className = "form";
-        input.value = "Nome Fantasia";  // Exibe o nome fantasia por padrão
+        input.value = "Nome Fantasia"; 
+        input.classList.add("uppercase");
         input.required = true;
         campoNomeFantasia.parentNode.replaceChild(input, campoNomeFantasia);
     }
 }
 
-
-function fetchComToken(url, options = {}) {
+async function fetchComToken(url, options = {}) {
+  console.log("URL da requisição ORÇAMENTOS:", url);
   const token = localStorage.getItem("token");
   const idempresa = localStorage.getItem("idempresa");
+
+  console.log("ID da empresa no localStorage:", idempresa);
+  console.log("Token no localStorage:", token);
+
+  if (!options.headers) options.headers = {};
   
-  if (!token) {
-    throw new Error("fetchComToken: nenhum token encontrado. Faça login primeiro.");
+  if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
+        options.headers['Content-Type'] = 'application/json';
+    }
+
+  options.headers['Authorization'] = 'Bearer ' + token;
+  if (idempresa) options.headers['idempresa'] = idempresa;
+
+if (
+    idempresa && 
+    idempresa !== 'null' && 
+    idempresa !== 'undefined' && 
+    idempresa.trim() !== '' &&
+    !isNaN(idempresa) && 
+    Number(idempresa) > 0
+  ) {
+    options.headers['idempresa'] = idempresa;
+    console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
+  } else {
+    console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
+  }
+  console.log("URL OPTIONS", url, options)
+
+ 
+  const resposta = await fetch(url, options);
+
+  console.log("Resposta da requisição:", resposta);
+
+  if (resposta.status === 401) {
+    localStorage.clear();
+    Swal.fire({
+      icon: "warning",
+      title: "Sessão expirada",
+      text: "Por favor, faça login novamente."
+    }).then(() => {
+      window.location.href = "login.html"; // ajuste conforme necessário
+    });
+    //return;
+    throw new Error('Sessão expirada'); 
   }
 
-  // Monta os headers sempre incluindo Authorization
-  const headers = {
-    "Authorization": `Bearer ${token}`,
-    // só coloca Content-Type se houver body (POST/PUT)
-     "idempresa": localStorage.getItem("idempresa") || "", // Insira aqui
-     ...(options.body ? { "Content-Type": "application/json" } : {}),
-     ...options.headers
-  };
 
-  return fetch(url, {
-    ...options,
-    headers,
-    // caso seu back-end esteja em outro host e precisa de CORS:
-    //mode: "cors",
-    // se precisar enviar cookies de sessão:
-    credentials: "include"
-  });
+  let dados;
+
+  try {
+    // Tenta parsear JSON
+    dados = await resposta.json();
+  } catch {
+    // Se não for JSON, tenta pegar texto puro
+    const texto = await resposta.text();
+    dados = texto || null;
+  }
+
+  if (!resposta.ok) {
+    // lança erro com a mensagem retornada (se houver)
+    const mensagemErro = (dados && dados.erro) || JSON.stringify(dados) || resposta.statusText;
+    throw new Error(`Erro na requisição: ${mensagemErro}`);
+  }
+
+  return dados;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -691,6 +738,12 @@ function configurarEventosEspecificos(modulo) {
   console.log("⚙️ configurarEventosEspecificos recebeu:", modulo);
   if (modulo.trim().toLowerCase() === 'clientes') {
     configurarEventosClientes();
+    
+    if (typeof aplicarPermissoes === "function" && window.permissoes) {// 01/06/2025
+      aplicarPermissoes(window.permissoes);
+    } else {
+      console.warn("⚠️ aplicarPermissoes ou window.permissoes ainda não estão disponíveis.");
+    }
   }
 }
 window.configurarEventosEspecificos = configurarEventosEspecificos;

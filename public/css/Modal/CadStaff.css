@@ -395,7 +395,7 @@ input[type="file"]{
   font-size: 19px;
   pointer-events: none;
   transition: 0.3s;
-
+  left: 20px;
 }
 
 .uppercase {
@@ -407,15 +407,25 @@ input:focus, textarea:focus {
 }
 
 input:focus~label,
-input:valid~label,
-textarea:focus~label,
-textarea:valid~label {
+/* input:valid~label, */
+textarea:focus~label {
+/* textarea:valid~label { */
   top: 0;
-  left: 25%;
+  left: 25px;
   font-size: 12px;
   padding: 0 2px;
   background: #cacaca;
 }
+
+input:not([value=""]) ~ label,
+textarea:not([value=""]) ~ label {
+    top: 0;
+    left: 25px;
+    font-size: 12px;
+    padding: 0 2px;
+    background: #cacaca;
+}
+ 
 
 fieldset{
   max-width: 100px;

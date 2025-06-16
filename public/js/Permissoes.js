@@ -80,9 +80,10 @@ async function initPermissoes() {
 
     console.log("[Permissões] Tipo do retorno:", typeof permissoes);
 console.log("[Permissões] O retorno é instanceof Response?", permissoes instanceof Response);
+
 console.log("[Permissões] Permissões recebidas:", permissoes);
 
-    console.log("[Permissões] Permissões recebidas:", permissoes);
+    
 
     if (!permissoes || !Array.isArray(permissoes)) {
       console.error("[Permissões] Permissões inválidas ou não recebidas:", permissoes);

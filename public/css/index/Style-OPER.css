@@ -389,7 +389,7 @@
   }
   .Cadastro:hover .drop,
   .Orçamento:hover .drop{
-    height: 255px;
+    height: 300px;
   }
   
   /* NAV vertical para mobile */

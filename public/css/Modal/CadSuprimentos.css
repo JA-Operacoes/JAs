@@ -174,7 +174,9 @@ fieldset {
   padding: 5px;
 }
 
-
+.uppercase {
+  text-transform: uppercase;
+}
 
 .form-2colunas{
   display: flex;
@@ -247,10 +249,10 @@ fieldset {
   font-size: 19px;
   pointer-events: none;
   transition: 0.3s;
+
+
 }
-.uppercase {
-  text-transform: uppercase;
-}
+
 
 input:focus{
   border: 2px solid #ce0303;
@@ -258,11 +260,12 @@ input:focus{
 input:focus ~ label,
 input:valid ~ label{
   top: 0;
-  left: 25%;
+  left: 25px;
   font-size: 12px;
   padding: 0 2px;
   background: #cacaca;
 }
+
 
 
 .fileUpload{

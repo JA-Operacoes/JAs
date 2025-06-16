@@ -3,13 +3,14 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
 const { autenticarToken } = require('../middlewares/authMiddlewares');
+const logMiddleware = require('../middlewares/logMiddleware');
 
 
 
 const { cadastrarOuAtualizarUsuario, login, verificarUsuarioExistente, listarUsuarios, buscarUsuariosPorNome, buscarUsuarioPorEmail, listarPermissoes, verificarNomeExistente, listarEmpresasDoUsuario  } = require('../controllers/authController');
 
 router.post('/cadastro', autenticarToken({ verificarEmpresa: false }), cadastrarOuAtualizarUsuario);
-router.put('/cadastro', autenticarToken({ verificarEmpresa: false }), cadastrarOuAtualizarUsuario);
+router.put('/cadastro', autenticarToken({ verificarEmpresa: false }),  cadastrarOuAtualizarUsuario);
 // Rota para verificar se o usuário existe
 router.post('/verificarUsuario',autenticarToken({ verificarEmpresa: false }), verificarUsuarioExistente);
 router.post('/verificarNomeExistente', autenticarToken({ verificarEmpresa: false }), verificarNomeExistente);

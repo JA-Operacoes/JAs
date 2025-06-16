@@ -12,7 +12,7 @@ async function verificarUsuarioExistente(req, res) {
   console.log("verificarUsuarioExistente AuthController", req.body);
   try {
     // const { rows } = await db.query("SELECT * FROM usuarios WHERE nome = $1 AND sobrenome = $2 AND email = $3 AND ativo = $4", [nome, sobrenome, email, ativo, idempresadefault]);
-    const { rows } = await db.query("SELECT u.idusuario, u.nome, u.sobrenome, u.email, u.ativo, u.idempresadefault, e.nome AS empresadefaultnome FROM usuarios u LEFT JOIN empresas e ON u.idempresadefault = e.idempresa WHERE u.nome = $1 AND u.sobrenome = $2 AND u.email = $3 AND u.ativo = $4 AND u.idempresadefault = $5", [nome, sobrenome, email, ativo, idempresadefault, empresas]);
+    const { rows } = await db.query("SELECT u.idusuario, u.nome, u.sobrenome, u.email, u.ativo, u.idempresadefault, e.nmfantasia AS empresadefaultnome FROM usuarios u LEFT JOIN empresas e ON u.idempresadefault = e.idempresa WHERE u.nome = $1 AND u.sobrenome = $2 AND u.email = $3 AND u.ativo = $4 AND u.idempresadefault = $5", [nome, sobrenome, email, ativo, idempresadefault, empresas]);
     if (rows.length > 0) {
       return res.status(200).json({ usuarioExistente: true });
     } else {
@@ -152,7 +152,7 @@ async function cadastrarOuAtualizarUsuario(req, res) {
           await db.query(`INSERT INTO usuarioempresas (idusuario, idempresa) VALUES ($1, $2) RETURNING *`, [usuarioId, idempresa]);
         }
       }
-
+      res.locals.insertedId = result.rows[0].idusuario;
       return res.status(201).json({ mensagem: 'Usuário cadastrado com sucesso.' });
     }
 
@@ -178,7 +178,7 @@ async function listarEmpresasDoUsuario(req, res) {
   const { id } = req.params;
   try {
     const empresasQuery = await db.query(`
-      SELECT ue.idusuario, ue.idempresa, e.nome AS nome_empresa
+      SELECT ue.idusuario, ue.idempresa, e.nmfantasia AS nome_empresa
       FROM usuarioempresas ue
       JOIN empresas e ON ue.idempresa = e.idempresa
       WHERE ue.idusuario = $1
@@ -368,8 +368,9 @@ async function login(req, res) {
 async function listarPermissoes(req, res) {
   console.log("listarPermissoes AuthController", req.usuario);
   const idusuario = req.usuario.idusuario || req.usuario.id;
+  const idempresa = req.idempresa;
   try {
-     console.log("🚨 Tentando consultar permissões no banco");
+     console.log("🚨 Tentando consultar permissões no banco", idusuario, idempresa);
   // console.log("Query params:", {
   //   usuarioId,
   //   moduloNormalizado,
@@ -390,9 +391,9 @@ async function listarPermissoes(req, res) {
         cadastrar AS cadastrar,
         alterar   AS alterar
       FROM permissoes
-      WHERE idusuario = $1
+      WHERE idusuario = $1 AND idempresa = $2
       `,
-      [idusuario]
+      [idusuario, idempresa]
     );
 
     // padroniza tudo em lowercase caso necessário

@@ -307,6 +307,7 @@ display: none;
     font-size: 19px;
     pointer-events: none;
     transition: 0.3s;
+    left: 20px;
   }
 
   .uppercase {
@@ -316,14 +317,28 @@ display: none;
   input:focus{
     border: 2px solid #ce0303;
   }
+
+  .uppercase {
+  text-transform: uppercase;
+  }
+
   input:focus ~ label,
-  input:valid ~ label{
+  input:valid ~ label,
+  input:not([value=""]) ~ label{
     top: 0;
     left: 25%;
     font-size: 12px;
     padding: 0 2px;
     background: #cacaca;
   }
+  
+input:not([value=""]) ~ label {
+  top: 0;
+  left: 25%;
+  font-size: 15px;
+  padding: 0 2px;
+  background: #cacaca; /* Certifique-se que esta cor corresponde ao background do seu #form-content ou fieldset */
+}
   
   input[type=date]{
     width: 111px;

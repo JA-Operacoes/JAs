@@ -57,17 +57,12 @@
                     </fieldset>
 
                     <fieldset>
-                        <legend> Cadastre os Pavilhoes</legend>
+                        <legend> Cadastre os Pavilhões</legend>
                         <label for="Pavilhoes"> </label>
-                        <select name="Pavilhoes" id="Pavilhoes">
-                            <option value="" selected disabled> Quantidade de Pavilhoes </option>
-                            <option value="null"> S/ Pavilhao </option>
-                            <option value="1"> 1 </option>
-                            <option value="2"> 2 </option>
-                            <option value="3"> 3 </option>
-                            <option value="4"> 4 </option>
-                            <option value="5"> 5 </option>
-                        </select>
+                        <div class="form"> 
+                            <input type="number" name="qtdPavilhao" id="qtdPavilhao" min="0" value="0" required spellcheck="false">
+                            <label for="qtdPavilhao">Quantidade de Pavilhões</label>
+                        </div>
 
                         <div id="inputsPavilhoes"></div>
                     </fieldset>

@@ -10,6 +10,7 @@ const port = process.env.PORT || 3000;
 
 
 const { autenticarToken, contextoEmpresa } = require('./middlewares/authMiddlewares');
+
 //const contextoEmpresa = require('./middlewares/contextoEmpresa');
 
 // --- antes de app.use('/auth', authRoutes); e de todas as outras rotas:
@@ -55,14 +56,15 @@ app.use("/staff", autenticarToken(), contextoEmpresa, require("./routes/rotaStaf
 app.use("/empresas", autenticarToken(), contextoEmpresa, require("./routes/rotaEmpresa"));
 app.use("/modulos", autenticarToken(), require("./routes/rotaModulo"));
 
-
-
-
 // Redireciona / para login.html (opcional)
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
+app.use((err, req, res, next) => {
+    console.error("🚨 ERRO GLOBAL NÃO TRATADO:", err.stack);
+    res.status(500).send('Algo deu errado!');
+});
 // Inicia o servidor
 app.listen(port, () => {
   console.log(`✅ Servidor rodando em http://localhost:${port}`);

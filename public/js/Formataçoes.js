@@ -235,16 +235,45 @@ document.addEventListener("DOMContentLoaded", function () {
   //  ----------------------- Formatação CNPJ -----------------------
 
     // Define a função globalmente antes de tudo
-    window.formatCNPJ = function (input) {
-    let cnpj = input.value.replace(/\D/g, "").slice(0, 14);
-    input.value = cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})$/, "$1.$2.$3/$4-$5");
-    };
+    // window.formatCNPJ = function (input) {
+    // let cnpj = input.value.replace(/\D/g, "").slice(0, 14);
+    // input.value = cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})$/, "$1.$2.$3/$4-$5");
+    // };
 
-    // Quando o DOM carregar, apenas exibir logs para depuração
-    document.addEventListener("DOMContentLoaded", function () {
-    console.log("Script carregado e formatCNPJ está definido!");
-    });
+    // // Quando o DOM carregar, apenas exibir logs para depuração
+    // document.addEventListener("DOMContentLoaded", function () {
+    // console.log("Script carregado e formatCNPJ está definido!");
+    // });
 
+    //FORMATA CNPJ OU CPF 
+window.formatCNPJ = function (input) {
+    let value = input.value.replace(/\D/g, ""); // Remove tudo que não é dígito
+
+    if (value.length <= 11) {
+        console.log("CPF");
+        // É um CPF (ou um número menor)
+        value = value.slice(0, 11); // Limita a 11 dígitos para CPF
+        if (value.length > 9) {
+            input.value = value.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,2})$/, "$1.$2.$3-$4");
+        } else if (value.length > 6) {
+            input.value = value.replace(/^(\d{3})(\d{3})(\d{0,3})$/, "$1.$2.$3");
+        } else if (value.length > 3) {
+            input.value = value.replace(/^(\d{3})(\d{0,3})$/, "$1.$2");
+        } else {
+            input.value = value;
+        }
+    } else {
+        console.log("CPF");
+        // É um CNPJ (ou um número maior que 11 dígitos)
+        value = value.slice(0, 14); // Limita a 14 dígitos para CNPJ
+        input.value = value.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})$/, "$1.$2.$3/$4-$5");
+    }
+};
+
+document.addEventListener("DOMContentLoaded", function () {
+    console.log("Script carregado e formatCpfCnpj está definido!");
+
+});
 //  ----------------------- Formatação INSCRIÇÃO ESTADUAL -----------------------
 
     window.formatIE = function(input) {

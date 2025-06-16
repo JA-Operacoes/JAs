@@ -2,7 +2,9 @@ let MontagemOriginal = {
     idMontagem: "",
     descMontagem: "",
     cidadeMontagem: "",
-    ufMontagem: ""
+    ufMontagem: "",
+    qtdPavilhao:"",
+    pavilhoes: []
 };
 
 function verificaMontagem() {
@@ -35,12 +37,29 @@ function verificaMontagem() {
         const descMontagem = document.querySelector("#descMontagem").value.trim().toUpperCase();
         const cidadeMontagem = document.querySelector("#cidadeMontagem").value.trim().toUpperCase();
         const ufMontagem = document.querySelector("#ufMontagem").value.trim().toUpperCase();
+        const qtdPavilhao = parseInt(document.querySelector("#qtdPavilhao").value.trim()); 
         
+        const pavilhoesInputElements = document.querySelectorAll('#inputsPavilhoes input[name="nmPavilhao[]"]');
+        const pavilhoes = [];
+        let hasEmptyPavilhao = false;
+
+        pavilhoesInputElements.forEach(input => { 
+            const nmPavilhao = input.value.trim().toUpperCase();
+            pavilhoes.push({
+                idpavilhao: input.dataset.idpavilhao ? parseInt(input.dataset.idpavilhao) : null,
+                nmpavilhao: nmPavilhao 
+            });
+            if (nmPavilhao === "" && qtdPavilhao > 0) { // Se qtdPavilhao > 0 E o nome do pavilhão está vazio
+                hasEmptyPavilhao = true;
+            }
+        });
         // Permissões
-        const temPermissaoCadastrar = temPermissao("Eventos", "cadastrar");
-        const temPermissaoAlterar = temPermissao("Eventos", "alterar");
+        const temPermissaoCadastrar = temPermissao("Locamontagem", "cadastrar");
+        const temPermissaoAlterar = temPermissao("Localmontagem", "alterar");
 
         const metodo = idMontagem ? "PUT" : "POST";
+
+    
 
         if (!idMontagem && !temPermissaoCadastrar) {
             return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos eventos.", "error");
@@ -50,9 +69,17 @@ function verificaMontagem() {
             return Swal.fire("Acesso negado", "Você não tem permissão para alterar eventos.", "error");
         }
 
-       
+       console.log(isNaN(qtdPavilhao), qtdPavilhao);
 
-        if (!descMontagem || !cidadeMontagem || !ufMontagem) {
+       console.log("--- Valores para Validação ---");
+    console.log("descMontagem:", descMontagem, " (Vazio/Falso:", !descMontagem, ")");
+    console.log("cidadeMontagem:", cidadeMontagem, " (Vazio/Falso:", !cidadeMontagem, ")");
+    console.log("ufMontagem:", ufMontagem, " (Vazio/Falso:", !ufMontagem, ")");
+    console.log("qtdPavilhao:", qtdPavilhao, " (NaN:", isNaN(qtdPavilhao), ")", " (< 0:", qtdPavilhao < 0, ")");
+    console.log("hasEmptyPavilhao:", hasEmptyPavilhao);
+    console.log("--- Fim da Checagem de Valores ---");
+
+        if (!descMontagem || !cidadeMontagem || !ufMontagem || isNaN(qtdPavilhao) || qtdPavilhao < 0 || hasEmptyPavilhao) {
            
             Swal.fire({
                 icon: 'warning',
@@ -68,7 +95,10 @@ function verificaMontagem() {
             parseInt(idMontagem) === parseInt(MontagemOriginal.idMontagem) && 
             descMontagem === MontagemOriginal.descMontagem   &&
             cidadeMontagem === MontagemOriginal.cidadeMontagem  &&   
-            ufMontagem === MontagemOriginal.ufMontagem 
+            ufMontagem === MontagemOriginal.ufMontagem &&
+            qtdPavilhao == MontagemOriginal.qtdPavilhao &&   
+            JSON.stringify(pavilhoes.map(p => ({idpavilhao: p.idpavilhao, nmpavilhao: p.nmpavilhao})).sort((a,b) => (a.nmpavilhao > b.nmpavilhao) ? 1 : ((b.nmpavilhao > a.nmpavilhao) ? -1 : 0))) === // Compara pavilhões
+            JSON.stringify(MontagemOriginal.pavilhoes.map(p => ({idpavilhao: p.idpavilhao, nmpavilhao: p.nmpavilhao})).sort((a,b) => (a.nmpavilhao > b.nmpavilhao) ? 1 : ((b.nmpavilhao > a.nmpavilhao) ? -1 : 0)))
             
         ) {
            
@@ -84,7 +114,7 @@ function verificaMontagem() {
             return;
         }
     
-        const dados = { descMontagem, cidadeMontagem, ufMontagem };
+        const dados = { descMontagem, cidadeMontagem, ufMontagem, qtdPavilhao, pavilhoes };
 
         const url = idMontagem
             ? `/localmontagem/${idMontagem}`
@@ -114,29 +144,17 @@ function verificaMontagem() {
             }
             
             console.log("Enviando dados para o servidor:", dados, url, metodo);
-            const res = await fetchComToken(url, {
+            const respostaApi = await fetchComToken(url, {
                 method: metodo,
                 body: JSON.stringify(dados)
-            });
+            });            
 
-            const texto = await res.text();
-            let json;
-            try {
-                json = JSON.parse(texto);
-            } catch (e) {
-                throw new Error("Resposta não é um JSON válido: " + texto);
-            }
-
-            if (!res.ok) throw new Error(json.erro || json.message || "Erro ao salvar local montagem");
-
-            await Swal.fire("Sucesso!", json.message || "Local Montagem salvo com sucesso.", "success");
-            document.getElementById("form").reset();
-            document.querySelector("#idMontagem").value = "";
-            limparMontagemOriginal();
+            await Swal.fire("Sucesso!", respostaApi.message || "Suprimento salvo com sucesso.", "success");
+            limparCamposMontagem();
 
         } catch (error) {
             console.error("Erro ao enviar dados:", error);
-            Swal.fire("Erro", error.message || "Erro ao salvar Local de Montagem.", "error");
+            Swal.fire("Erro", error.message || "Erro ao salvar suprimento.", "error");
         }
     });
     
@@ -147,18 +165,15 @@ function verificaMontagem() {
         limparCamposMontagem();
 
         console.log("Pesquisando Montagem...");
-        const temPermissaoPesquisar = temPermissao('Eventos', 'pesquisar');
+        const temPermissaoPesquisar = temPermissao('Localmontagem', 'pesquisar');
         if (!temPermissaoPesquisar) {
             return Swal.fire("Acesso negado", "Você não tem permissão para pesquisar.", "warning");
         }
 
         
         try {
-           const response = await fetchComToken("/localmontagem"); // ajuste a rota conforme sua API
-           if (!response.ok) throw new Error("Erro ao buscar Local Montagem");
-    
-            const montagem = await response.json();
- 
+            const montagem = await fetchComToken("/localmontagem"); // ajuste a rota conforme sua API
+           
             const select = criarSelectMontagem(montagem);
             limparCamposMontagem();
 
@@ -192,6 +207,7 @@ function verificaMontagem() {
                 novoInput.required = true;
                 novoInput.className = "form";
                 novoInput.value = desc;
+                novoInput.classList.add('uppercase');
       
                 novoInput.addEventListener("input", function() {
                     this.value = this.value.toUpperCase(); // transforma o texto em maiúsculo à medida que o usuário digita
@@ -235,7 +251,8 @@ function criarSelectMontagem(montagem) {
     select.required = true;
     select.className = "form";
 
-    limparCamposMontagem();
+   // limparCamposMontagem();
+
     const defaultOption = document.createElement("option");
     defaultOption.value = "";
     defaultOption.text = "Selecione um Local de Montagem...";
@@ -256,23 +273,26 @@ function criarSelectMontagem(montagem) {
     return select;
 }
 
+if (!window.ultimoClique) {
+    window.ultimoClique = null;
+  
+}
+// Captura o último elemento clicado no documento (uma única vez)
+document.addEventListener("mousedown", (e) => {
+    window.ultimoClique = e.target;
+});
+
+
 function adicionarEventoBlurMontagem() {
     const input = document.querySelector("#descMontagem");
-    if (!input) return;
-
-    let ultimoClique = null;
-
-    // Captura o último elemento clicado no documento
-    document.addEventListener("mousedown", (e) => {
-        ultimoClique = e.target;
-    });
+    if (!input) return;   
     
     input.addEventListener("blur", async function () {
        
         const botoesIgnorados = ["Limpar", "Pesquisar", "Enviar"];
         const ehBotaoIgnorado =
             ultimoClique?.id && botoesIgnorados.includes(ultimoClique.id) ||
-            ultimoClique?.classList.contains("close");
+            (ultimoClique?.classList && ultimoClique.classList.contains("close"));
 
         if (ehBotaoIgnorado) {
             console.log("🔁 Blur ignorado: clique em botão de controle (Fechar/Limpar/Pesquisar).");
@@ -295,21 +315,23 @@ function adicionarEventoBlurMontagem() {
 
 async function carregarLocalMontagem(desc, elementoAtual) {
     try {
-        const response = await fetchComToken(`/localmontagem?descmontagem=${encodeURIComponent(desc.trim())}`);
-        if (!response.ok) throw new Error();
-
-        const montagem = await response.json();
-       
+        const montagem = await fetchComToken(`/localmontagem?descmontagem=${encodeURIComponent(desc.trim())}`);
+             console.log("Dados da montagem recebidos no frontend:", montagem);  
         document.querySelector("#idMontagem").value = montagem.idmontagem;
         document.querySelector("#descMontagem").value = montagem.descmontagem;
         document.querySelector("#cidadeMontagem").value = montagem.cidademontagem;
         document.querySelector("#ufMontagem").value = montagem.ufmontagem;
+        document.querySelector("#qtdPavilhao").value = montagem.qtdpavilhao;
+
+        criarInputsPavilhoes(montagem.qtdpavilhao, montagem.pavilhoes);
         
         MontagemOriginal = {
             idMontagem: montagem.idmontagem,
             descMontagem: montagem.descmontagem,
             cidadeMontagem: montagem.cidademontagem,
             ufMontagem: montagem.ufmontagem,
+            qtdPavilhao:montagem.qtdpavilhao,
+            pavilhoes: montagem.pavilhoes || [] 
             
         };
      
@@ -334,16 +356,22 @@ async function carregarLocalMontagem(desc, elementoAtual) {
                 focusCancel: true
             });
 
-            if (resultado.isConfirmed) {
-                
+            if (resultado.isConfirmed) {                
                 console.log(`Usuário optou por cadastrar: ${desc}`);
+                document.querySelector("#idMontagem").value = "";
+                document.querySelector("#qtdPavilhao").value = "";
+                criarInputsPavilhoes(0); 
+                MontagemOriginal.qtdPavilhao = ""; 
+                MontagemOriginal.pavilhoes = []; 
             }
             if (!resultado.isConfirmed) {
                 console.log("Usuário cancelou o cadastro do Local de Montagem.");
                 elementoAtual.value = ""; // Limpa o campo se não for cadastrar
+                
                 setTimeout(() => {
                     elementoAtual.focus();
                 }, 0);
+                limparCamposMontagem();
                 return;
             }
             
@@ -364,16 +392,23 @@ function limparMontagemOriginal() {
         idMontagem: "",
         descMontagem: "",
         cidadeMontagem: "",
-        ufMontagem: ""
+        ufMontagem: "",
+        qtdPavilhao:"",
+        pavilhoes: []
     };
 }
 
 function limparCamposMontagem() {
-    const campos = ["idMontagem", "cidadeMontagem", "ufMontagem", "descMontagem"];
+    const campos = ["idMontagem", "cidadeMontagem", "ufMontagem", "descMontagem", "qtdPavilhao"];
     campos.forEach(id => {
         const campo = document.getElementById(id);
         if (campo) campo.value = "";
     });
+
+    const containerPavilhoes = document.getElementById('inputsPavilhoes');
+    if (containerPavilhoes) {
+        containerPavilhoes.innerHTML = '';
+    }
 
     const idMontagem = document.getElementById("idMontagem");
     const descMontagemEl = document.getElementById("descMontagem");
@@ -390,6 +425,8 @@ function limparCamposMontagem() {
         novoInput.name = "descMontagem";
         novoInput.required = true;
         novoInput.className = "form";
+        novoInput.classList.add('uppercase');
+      
 
         // Configura o evento de transformar texto em maiúsculo
         novoInput.addEventListener("input", function () {
@@ -417,60 +454,133 @@ function limparCamposMontagem() {
     
 }
 
-function fetchComToken(url, options = {}) {
+async function fetchComToken(url, options = {}) {
+  console.log("URL da requisição:", url);
   const token = localStorage.getItem("token");
-  if (!token) {
-    throw new Error("fetchComToken: nenhum token encontrado. Faça login primeiro.");
+  const idempresa = localStorage.getItem("idempresa");
+
+  console.log("ID da empresa no localStorage:", idempresa);
+  console.log("Token no localStorage:", token);
+
+  if (!options.headers) options.headers = {};
+  
+  if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
+        options.headers['Content-Type'] = 'application/json';
+  }else if (options.body && typeof options.body === 'object' && options.headers['Content-Type'] !== 'multipart/form-data') {
+       
+        options.body = JSON.stringify(options.body);
+        options.headers['Content-Type'] = 'application/json';
   }
 
-  // Monta os headers sempre incluindo Authorization
-  const headers = {
-    "Authorization": `Bearer ${token}`,
-    // só coloca Content-Type se houver body (POST/PUT)
-    ...(options.body ? { "Content-Type": "application/json" } : {}),
-    ...options.headers
-  };
+  options.headers['Authorization'] = 'Bearer ' + token; 
 
-  return fetch(url, {
-    ...options,
-    headers,
-    // caso seu back-end esteja em outro host e precisa de CORS:
-    //mode: "cors",
-    // se precisar enviar cookies de sessão:
-    credentials: "include"
-  });
+  if (
+      idempresa && 
+      idempresa !== 'null' && 
+      idempresa !== 'undefined' && 
+      idempresa.trim() !== '' &&
+      !isNaN(idempresa) && 
+      Number(idempresa) > 0
+  ) {
+      options.headers['idempresa'] = idempresa;
+      console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
+  } else {
+    console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
+  }
+  console.log("URL OPTIONS", url, options)
+ 
+  const resposta = await fetch(url, options);
+
+  console.log("Resposta da requisição:", resposta);
+
+  let responseBody = null;
+  try {     
+      responseBody = await resposta.json();
+  } catch (jsonError) {    
+      try {
+          responseBody = await resposta.text();
+      } catch (textError) {        
+          responseBody = null;
+      }
+  }
+
+  if (resposta.status === 401) {
+    localStorage.clear();
+    Swal.fire({
+      icon: "warning",
+      title: "Sessão expirada",
+      text: "Por favor, faça login novamente."
+    }).then(() => {
+      window.location.href = "login.html"; 
+    });
+   
+    throw new Error('Sessão expirada'); 
+  }
+
+  if (!resposta.ok) {        
+        const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
+        throw new Error(`Erro na requisição: ${errorMessage}`);
+  }
+
+  return responseBody;
 }
 
-function criarInputsPavilhoes(quantidade) {
+function criarInputsPavilhoes(quantidade, pavilhoesExistentes = []) {
     const container = document.getElementById('inputsPavilhoes');
     container.innerHTML = ''; // Limpa inputs anteriores
 
-    if (quantidade === 'null') return; // Se for "S/ Pavilhão", não mostra nada
+    const numQuantidade = parseInt(quantidade);
+    if (isNaN(numQuantidade) || numQuantidade <= 0) {
+        return; // Não cria inputs se a quantidade for inválida ou zero
+    }
 
-    for (let i = 1; i <= parseInt(quantidade); i++) {
-      const div = document.createElement('div');
-      div.classList.add('form2');
+    for (let i = 0; i < numQuantidade; i++) { // ✅ Loop de 0 a quantidade-1
+        const div = document.createElement('div');
+        div.classList.add('form2');
 
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.name = 'nomePavilhao[]';
-      input.id = `nomePavilhao${i}`;
-      input.required = true;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.name = 'nmPavilhao[]';
+        input.id = `nmPavilhao${i + 1}`; // ID começa em 1
+        input.required = true;
+        input.classList.add('uppercase');
 
-      const label = document.createElement('label');
-      label.setAttribute('for', `nomePavilhao${i}`);
-      label.textContent = `Nome do Pavilhão ${i}`;
+        if (numQuantidade > 0) {
+            input.required = true; 
+        } else {
+            input.required = false; // Garante que não é obrigatório se for 0
+        }
+
+        // Preenche com dados existentes se houver
+        if (pavilhoesExistentes[i]) {
+            input.value = pavilhoesExistentes[i].nmpavilhao;
+            input.dataset.idpavilhao = pavilhoesExistentes[i].idpavilhao; // ✅ Guarda o ID do pavilhão no dataset
+        }
+
+        input.addEventListener("input", function() {
+            this.value = this.value.toUpperCase();
+        });
 
 
-      div.appendChild(input);
-      div.appendChild(label);
-      container.appendChild(div);
+        const label = document.createElement('label');
+        label.setAttribute('for', `nmPavilhao${i + 1}`);
+        label.textContent = `Nome do Pavilhão ${i + 1}`; // Rótulo para cada pavilhão
+
+        div.appendChild(input);
+        div.appendChild(label);
+        container.appendChild(div);
     }
   }
 
-  document.getElementById('Pavilhoes').addEventListener('change', function () {
-    criarInputsPavilhoes(this.value);
-  });
+  document.querySelector("#qtdPavilhao").addEventListener("input", function() {
+    // O evento 'input' é melhor para type="number" pois dispara a cada tecla
+    const quantidade = parseInt(this.value);
+    if (!isNaN(quantidade) && quantidade >= 0) { // Validação básica antes de chamar
+        criarInputsPavilhoes(quantidade);
+    } else if (this.value.trim() === '') { // Se o campo for esvaziado, também limpa os pavilhões
+        criarInputsPavilhoes(0);
+    }
+});
 
 
 function configurarEventosMontagem() {
@@ -488,6 +598,12 @@ function configurarEventosEspecificos(modulo) {
   if (modulo.trim().toLowerCase() === 'localmontagem') {
     console.log("Modulo", modulo.trim().toLowerCase() );
     configurarEventosMontagem();
+
+    if (typeof aplicarPermissoes === "function" && window.permissoes) {
+      aplicarPermissoes(window.permissoes);
+    } else {
+      console.warn("⚠️ aplicarPermissoes ou window.permissoes ainda não estão disponíveis para LocalMontagem.");
+    }
   }
 }
 window.configurarEventosEspecificos = configurarEventosEspecificos;

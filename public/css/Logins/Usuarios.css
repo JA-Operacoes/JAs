@@ -103,8 +103,13 @@ body{
   justify-content: center;
   align-items: center;
   width: 100%;
-  max-width: 300px;
-  position: relative;
+  /* max-width: 300px; */
+  position: relative;  
+  
+  max-height: 150px;    
+  overflow-y: auto; 
+  width: 100%;     
+  box-sizing: border-box;
 }
 
 .user-box input {

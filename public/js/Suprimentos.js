@@ -95,76 +95,6 @@ function verificaSuprimento() {
             : "/suprimentos";
 
 
-     
-        // if (idSup) {
-        //     Swal.fire({
-        //         title: "Deseja salvar as alterações?",
-        //         text: "Você está prestes a atualizar os dados da função.",
-        //         icon: "question",
-        //         showCancelButton: true,
-        //         confirmButtonText: "Sim, salvar",
-        //         cancelButtonText: "Cancelar",
-        //         reverseButtons: true,
-        //         focusCancel: true
-                
-        //     }).then(async (result) => {
-        //         if (result.isConfirmed) {
-        //             try {
-        //                 const response = await fetch(`http://localhost:3000/suprimentos/${idSup}`, {
-        //                     method: "PUT",
-        //                     headers: {
-        //                         "Content-Type": "application/json"
-        //                     },
-        //                     body: JSON.stringify(dados)
-        //                 });
-        
-        //                 const resultJson = await response.json();
-        
-        //                 if (response.ok) {
-        //                     document.getElementById('form').reset();
-        //                     Swal.fire("Sucesso!", resultJson.mensagem || "Alterações salvas com sucesso!", "success");
-        //                     //form.reset();
-        //                     document.querySelector("#idSup").value = "";
-        //                     limparSuprimentoOriginal();  
-        //                 } else {
-        //                     Swal.fire("Erro", resultJson.erro || "Erro ao salvar o Função.", "error");
-        //                 }
-        //             } catch (error) {
-        //                 console.error("Erro ao enviar dados:", error);
-        //                 Swal.fire("Erro de conexão", "Não foi possível conectar ao servidor.", "error");
-        //             }
-        //         } else {
-        //             console.log("Usuário cancelou a alteração.");
-        //         }
-        //     });
-        // } else {
-        //     // Se for novo, salva direto
-        //     try {
-        //         const response = await fetch("http://localhost:3000/suprimentos", {
-        //             method: "POST",
-        //             headers: {
-        //                 "Content-Type": "application/json"
-        //             },
-        //             body: JSON.stringify(dados)
-        //         });
-        
-        //         const resultJson = await response.json();
-        
-        //         if (response.ok) {
-        //             Swal.fire("Sucesso!", resultJson.mensagem || "Suprimento cadastrado!", "success");
-        //             form.reset();
-        //             limparSuprimentoOriginal();
-        //             document.querySelector("#idSup").value = "";
-        //         } else {
-        //             Swal.fire("Erro", resultJson.erro || "Erro ao cadastrar o Função.", "error");
-        //         }
-        //     } catch (error) {
-        //         console.error("Erro ao enviar dados:", error);
-        //         Swal.fire("Erro de conexão", "Não foi possível conectar ao servidor.", "error");
-        //     }
-        // }
-        
-    // });
         try {
             // Confirma alteração (PUT)
             if (metodo === "PUT") {
@@ -181,29 +111,17 @@ function verificaSuprimento() {
                 if (!isConfirmed) return;
             }
             console.log("Enviando dados para o servidor:", dados, url, metodo);
-            const res = await fetchComToken(url, {
+            const respostaApi = await fetchComToken(url, {
                 method: metodo,
                 body: JSON.stringify(dados)
-            });
+            });            
 
-            const texto = await res.text();
-            let json;
-            try {
-                json = JSON.parse(texto);
-            } catch (e) {
-                throw new Error("Resposta não é um JSON válido: " + texto);
-            }
-
-            if (!res.ok) throw new Error(json.erro || json.message || "Erro ao salvar local montagem");
-
-            await Swal.fire("Sucesso!", json.message || "Suprimento salvo com sucesso.", "success");
-            document.getElementById("form").reset();
-            document.querySelector("#idSup").value = "";
-            limparSuprimentoOriginal();
+            await Swal.fire("Sucesso!", respostaApi.message || "Suprimento salvo com sucesso.", "success");
+            limparCamposSuprimento();
 
         } catch (error) {
             console.error("Erro ao enviar dados:", error);
-            Swal.fire("Erro", error.message || "Erro ao salvar Suprimento.", "error");
+            Swal.fire("Erro", error.message || "Erro ao salvar suprimento.", "error");
         }
     });
 
@@ -219,11 +137,8 @@ function verificaSuprimento() {
         }
 
         try {
-            const response = await fetchComToken("/suprimentos"); // ajuste a rota conforme sua API
-            if (!response.ok) throw new Error("Erro ao buscar suprimentos");
-    
-            const suprimentos = await response.json();
-
+            const suprimentos = await fetchComToken("/suprimentos"); // ajuste a rota conforme sua API
+            
             console.log("Suprimentos encontrados:", suprimentos);
 
             const select = criarSelectSuprimento(suprimentos);
@@ -320,24 +235,25 @@ function criarSelectSuprimento(suprimentos) {
  
     return select;
 }
+if (!window.ultimoClique) {
+    window.ultimoClique = null;
+  
+}
+// Captura o último elemento clicado no documento (uma única vez)
+document.addEventListener("mousedown", (e) => {
+    window.ultimoClique = e.target;
+});
 
 function adicionarEventoBlurSuprimento() {
     const input = document.querySelector("#descSup");
     if (!input) return;
-    
-    let ultimoClique = null;
-
-    // Captura o último elemento clicado no documento
-    document.addEventListener("mousedown", (e) => {
-        ultimoClique = e.target;
-    });
-    
+        
     input.addEventListener("blur", async function () {
        
-        const botoesIgnorados = ["Limpar", "Pesquisar", "Enviar"];
+        const botoesIgnorados = ["Limpar", "Pesquisar", "Close"];
         const ehBotaoIgnorado =
             ultimoClique?.id && botoesIgnorados.includes(ultimoClique.id) ||
-            ultimoClique?.classList.contains("close");
+             (ultimoClique?.classList && ultimoClique.classList.contains("close"));
 
         if (ehBotaoIgnorado) {
             console.log("🔁 Blur ignorado: clique em botão de controle (Fechar/Limpar/Pesquisar).");
@@ -353,17 +269,15 @@ function adicionarEventoBlurSuprimento() {
             await carregarSuprimentoDescricao(desc, this);
             console.log("Suprimento selecionado depois de carregarSuprimentoDescricao:", this.value);
         } catch (error) {
-            console.error("Erro ao buscar Local Montagem:", error);
+            console.error("Erro ao buscar Suprimentos:", error);
         }
     });
 }
 
 async function carregarSuprimentoDescricao(desc, elementoAtual) {
     try {
-        const response = await fetchComToken(`/suprimentos?descSup=${encodeURIComponent(desc)}`);
-        if (!response.ok) throw new Error();
-           
-        const suprimentos = await response.json();
+        const suprimentos = await fetchComToken(`/suprimentos?descSup=${encodeURIComponent(desc)}`);
+        
         document.querySelector("#idSup").value = suprimentos.idsup;
         document.querySelector("#ctoSup").value = suprimentos.ctosup;
         document.querySelector("#vdaSup").value = suprimentos.vdasup
@@ -476,28 +390,75 @@ function limparCamposSuprimento() {
 
 }
 
-function fetchComToken(url, options = {}) {
+async function fetchComToken(url, options = {}) {
+  console.log("URL da requisição:", url);
   const token = localStorage.getItem("token");
-  if (!token) {
-    throw new Error("fetchComToken: nenhum token encontrado. Faça login primeiro.");
+  const idempresa = localStorage.getItem("idempresa");
+
+  console.log("ID da empresa no localStorage:", idempresa);
+  console.log("Token no localStorage:", token);
+
+  if (!options.headers) options.headers = {};
+  
+  if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
+        options.headers['Content-Type'] = 'application/json';
+  }else if (options.body && typeof options.body === 'object' && options.headers['Content-Type'] !== 'multipart/form-data') {
+       
+        options.body = JSON.stringify(options.body);
+        options.headers['Content-Type'] = 'application/json';
   }
 
-  // Monta os headers sempre incluindo Authorization
-  const headers = {
-    "Authorization": `Bearer ${token}`,
-    // só coloca Content-Type se houver body (POST/PUT)
-    ...(options.body ? { "Content-Type": "application/json" } : {}),
-    ...options.headers
-  };
+  options.headers['Authorization'] = 'Bearer ' + token; 
 
-  return fetch(url, {
-    ...options,
-    headers,
-    // caso seu back-end esteja em outro host e precisa de CORS:
-    //mode: "cors",
-    // se precisar enviar cookies de sessão:
-    credentials: "include"
-  });
+  if (
+      idempresa && 
+      idempresa !== 'null' && 
+      idempresa !== 'undefined' && 
+      idempresa.trim() !== '' &&
+      !isNaN(idempresa) && 
+      Number(idempresa) > 0
+  ) {
+      options.headers['idempresa'] = idempresa;
+      console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
+  } else {
+    console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
+  }
+  console.log("URL OPTIONS", url, options)
+ 
+  const resposta = await fetch(url, options);
+
+  console.log("Resposta da requisição:", resposta);
+
+  let responseBody = null;
+  try {     
+      responseBody = await resposta.json();
+  } catch (jsonError) {    
+      try {
+          responseBody = await resposta.text();
+      } catch (textError) {        
+          responseBody = null;
+      }
+  }
+
+  if (resposta.status === 401) {
+    localStorage.clear();
+    Swal.fire({
+      icon: "warning",
+      title: "Sessão expirada",
+      text: "Por favor, faça login novamente."
+    }).then(() => {
+      window.location.href = "login.html"; 
+    });
+
+    throw new Error('Sessão expirada'); 
+  }
+
+  if (!resposta.ok) {
+        const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
+        throw new Error(`Erro na requisição: ${errorMessage}`);
+  }
+
+  return responseBody;
 }
 
 function configurarEventosSuprimento() {
@@ -515,6 +476,12 @@ function configurarEventosEspecificos(modulo) {
   if (modulo.trim().toLowerCase() === 'suprimentos') {
     console.log("Modulo", modulo.trim().toLowerCase() );
     configurarEventosSuprimento();
+    
+    if (typeof aplicarPermissoes === "function" && window.permissoes) {
+      aplicarPermissoes(window.permissoes);
+    } else {
+      console.warn("⚠️ aplicarPermissoes ou window.permissoes ainda não estão disponíveis para LocalMontagem.");
+    }
   }
 }
 window.configurarEventosEspecificos = configurarEventosEspecificos;

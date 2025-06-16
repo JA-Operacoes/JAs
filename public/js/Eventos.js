@@ -25,8 +25,8 @@ async function verificaEvento() {
         limparCamposEvento();
     });
 
-    botaoEnviar.addEventListener("click", async (event) => {
-        event.preventDefault();
+    botaoEnviar.addEventListener("click", async (e) => {
+        e.preventDefault();
 
         const idEvento = document.querySelector("#idEvento").value.trim();
         const nmEvento = document.querySelector("#nmEvento").value.toUpperCase().trim();
@@ -86,34 +86,23 @@ async function verificaEvento() {
                 if (!isConfirmed) return;
             }
 
-            const res = await fetchComToken(url, {
+            console.log("Enviando dados para o servidor:", dados, url, metodo);
+            const respostaApi = await fetchComToken(url, {
                 method: metodo,
                 body: JSON.stringify(dados)
-            });
+            });            
 
-            const texto = await res.text();
-            let json;
-            try {
-                json = JSON.parse(texto);
-            } catch (e) {
-                throw new Error("Resposta não é um JSON válido: " + texto);
-            }
-
-            if (!res.ok) throw new Error(json.erro || json.message || "Erro ao salvar evento");
-
-            await Swal.fire("Sucesso!", json.message || "Evento salvo com sucesso.", "success");
-            document.getElementById("form").reset();
-            document.querySelector("#idEvento").value = "";
-            limparEventoOriginal();
+            await Swal.fire("Sucesso!", respostaApi.message || "Suprimento salvo com sucesso.", "success");
+            limparCamposEvento();
 
         } catch (error) {
             console.error("Erro ao enviar dados:", error);
-            Swal.fire("Erro", error.message || "Erro ao salvar Evento.", "error");
+            Swal.fire("Erro", error.message || "Erro ao salvar suprimento.", "error");
         }
     });
 
-    botaoPesquisar.addEventListener("click", async function (event) {
-        event.preventDefault();
+    botaoPesquisar.addEventListener("click", async function (e) {
+        e.preventDefault();
         limparCamposEvento();
 
         console.log("Pesquisando Evento...");
@@ -126,10 +115,8 @@ async function verificaEvento() {
         console.log("Pesquisando Evento...");
 
         try {
-            const response = await fetchComToken("/eventos");
-            if (!response.ok) throw new Error("Erro ao buscar Eventos");
-
-            const eventos = await response.json();
+            const eventos = await fetchComToken("/eventos");
+           
             const select = criarSelectEvento(eventos);
 
             limparCamposEvento();
@@ -215,23 +202,25 @@ function criarSelectEvento(eventos) {
     return select;
 }
 
+if (!window.ultimoClique) {
+    window.ultimoClique = null;
+  
+}
+// Captura o último elemento clicado no documento (uma única vez)
+document.addEventListener("mousedown", (e) => {
+    window.ultimoClique = e.target;
+});
+
 function adicionarEventoBlurEvento() {
     const input = document.querySelector("#nmEvento");
     if (!input) return;
-
-    let ultimoClique = null;
-
-    // Captura o último elemento clicado no documento
-    document.addEventListener("mousedown", (e) => {
-        ultimoClique = e.target;
-    });
 
     input.addEventListener("blur", async function () {
         
         const botoesIgnorados = ["Limpar", "Pesquisar", "Enviar"];
         const ehBotaoIgnorado =
             ultimoClique?.id && botoesIgnorados.includes(ultimoClique.id) ||
-            ultimoClique?.classList.contains("close");
+             (ultimoClique?.classList && ultimoClique.classList.contains("close"));
 
         if (ehBotaoIgnorado) {
             console.log("🔁 Blur ignorado: clique em botão de controle (Fechar/Limpar/Pesquisar).");
@@ -254,14 +243,9 @@ function adicionarEventoBlurEvento() {
 
 async function carregarEventoDescricao(desc, elementoAtual) {
     try {
-        const response = await fetchComToken(`/eventos?nmEvento=${encodeURIComponent(desc)}`);
-        console.log("Resposta do servidor:", response);
-
-        if (!response.ok) throw new Error();
-
-        const eventos = await response.json();
-        console.log("Resposta json:", eventos);
-
+        const eventos = await fetchComToken(`/eventos?nmEvento=${encodeURIComponent(desc)}`);
+       // console.log("Resposta do servidor:", response);
+       
         document.querySelector("#idEvento").value = eventos.idevento;
 
         window.EventoOriginal = {
@@ -364,28 +348,75 @@ function limparCamposEvento() {
     }
 }
 
-function fetchComToken(url, options = {}) {
+async function fetchComToken(url, options = {}) {
+  console.log("URL da requisição:", url);
   const token = localStorage.getItem("token");
-  if (!token) {
-    throw new Error("fetchComToken: nenhum token encontrado. Faça login primeiro.");
+  const idempresa = localStorage.getItem("idempresa");
+
+  console.log("ID da empresa no localStorage:", idempresa);
+  console.log("Token no localStorage:", token);
+
+  if (!options.headers) options.headers = {};
+  
+  if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
+        options.headers['Content-Type'] = 'application/json';
+  }else if (options.body && typeof options.body === 'object' && options.headers['Content-Type'] !== 'multipart/form-data') {
+       
+        options.body = JSON.stringify(options.body);
+        options.headers['Content-Type'] = 'application/json';
   }
 
-  // Monta os headers sempre incluindo Authorization
-  const headers = {
-    "Authorization": `Bearer ${token}`,
-    // só coloca Content-Type se houver body (POST/PUT)
-    ...(options.body ? { "Content-Type": "application/json" } : {}),
-    ...options.headers
-  };
+  options.headers['Authorization'] = 'Bearer ' + token; 
 
-  return fetch(url, {
-    ...options,
-    headers,
-    // caso seu back-end esteja em outro host e precisa de CORS:
-    //mode: "cors",
-    // se precisar enviar cookies de sessão:
-    credentials: "include"
-  });
+  if (
+      idempresa && 
+      idempresa !== 'null' && 
+      idempresa !== 'undefined' && 
+      idempresa.trim() !== '' &&
+      !isNaN(idempresa) && 
+      Number(idempresa) > 0
+  ) {
+      options.headers['idempresa'] = idempresa;
+      console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
+  } else {
+    console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
+  }
+  console.log("URL OPTIONS", url, options)
+ 
+  const resposta = await fetch(url, options);
+
+  console.log("Resposta da requisição:", resposta);
+
+  let responseBody = null;
+  try {     
+      responseBody = await resposta.json();
+  } catch (jsonError) {    
+      try {
+          responseBody = await resposta.text();
+      } catch (textError) {        
+          responseBody = null;
+      }
+  }
+
+  if (resposta.status === 401) {
+    localStorage.clear();
+    Swal.fire({
+      icon: "warning",
+      title: "Sessão expirada",
+      text: "Por favor, faça login novamente."
+    }).then(() => {
+      window.location.href = "login.html"; 
+    });
+   
+    throw new Error('Sessão expirada'); 
+  }
+
+  if (!resposta.ok) {        
+        const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
+        throw new Error(`Erro na requisição: ${errorMessage}`);
+  }
+
+  return responseBody;
 }
 
 function configurarEventosCadEvento() {
@@ -400,6 +431,12 @@ function configurarEventosEspecificos(modulo) {
   console.log("⚙️ configurarEventosEspecificos recebeu:", modulo);
   if (modulo.trim().toLowerCase() === 'eventos') {
     configurarEventosCadEvento();
+    
+    if (typeof aplicarPermissoes === "function" && window.permissoes) {
+      aplicarPermissoes(window.permissoes);
+    } else {
+      console.warn("⚠️ aplicarPermissoes ou window.permissoes ainda não estão disponíveis para LocalMontagem.");
+    }
   }
 }
 window.configurarEventosEspecificos = configurarEventosEspecificos;
