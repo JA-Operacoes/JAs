@@ -76,129 +76,118 @@ async function salvarFuncionario(dados) {
 
 console.log("Ainda não Entrou no Preview");
 
-function configurarPreviewFoto() {
-  const inputFile = document.getElementById('file');
-  const preview = document.getElementById('previewFoto');
-  const fileName = document.getElementById('fileName');
-  const hiddenInput = document.getElementById('linkFotoFuncionarios');
-  const header = document.getElementById('uploadHeader');
+function configurarPreviewImagem() {
+  const inputImg = document.getElementById('file');
+  const previewImg = document.getElementById('previewFoto');
+  const fileNameImg = document.getElementById('fileName');
+  const hiddenImg = document.getElementById('linkFotoFuncionarios');
+  const headerImg = document.getElementById('uploadHeader');
 
-  if (!inputFile || !preview || !fileName || !hiddenInput || !header) {
-    console.warn("Elementos do preview não encontrados.");
-    return;
-  }
-
-  inputFile.addEventListener('change', function () {
-    const file = inputFile.files[0];
-
-    if (!file) {
-      // Nenhum arquivo selecionado
-      preview.style.display = 'none';
-      header.style.display = 'block';
-      fileName.textContent = 'Nenhum arquivo selecionado';
-      hiddenInput.value = '';
-      return;
-    }
-
-    if (!file.type.startsWith('image/')) {
-      Swal.fire('Arquivo inválido', 'Selecione uma imagem válida.', 'warning');
-      inputFile.value = '';
-      preview.style.display = 'none';
-      header.style.display = 'block';
-      fileName.textContent = 'Nenhum arquivo selecionado';
-      hiddenInput.value = '';
+  inputImg.addEventListener('change', function () {
+    const file = inputImg.files[0];
+    if (!file || !file.type.startsWith('image/')) {
+      previewImg.style.display = 'none';
+      headerImg.style.display = 'block';
+      fileNameImg.textContent = 'Nenhum arquivo selecionado';
+      hiddenImg.value = '';
       return;
     }
 
     const reader = new FileReader();
     reader.onload = function (e) {
-      preview.src = e.target.result;
-      preview.style.display = 'block';
-      header.style.display = 'none';
-      fileName.textContent = file.name;
-      hiddenInput.value = e.target.result;
+      previewImg.src = e.target.result;
+      previewImg.style.display = 'block';
+      headerImg.style.display = 'none';
+      fileNameImg.textContent = file.name;
+      hiddenImg.value = e.target.result;
     };
     reader.readAsDataURL(file);
+    console.log("pegou a imagem do ", fileNameImg)
   });
 }
 
+window.addEventListener('DOMContentLoaded', function () {
+
+  configurarPreviewImagem();
+});
+
 function atualizarCamposLinguas() {
-    const select = document.getElementById('Linguas');
-    const container = document.getElementById('idiomasContainer');
-    const valor = select.value;
+  const select = document.getElementById('Linguas');
+  const container = document.getElementById('idiomasContainer');
+  const valor = select.value;
 
-    container.innerHTML = ""; // Limpa campos anteriores
+  container.innerHTML = ""; // Limpa campos anteriores
 
-    if (valor === "") return;
+  if (valor === "") return;
 
-    // Sempre adiciona o campo "Português"
-    const inputPT = document.createElement("input");
-    inputPT.type = "text";
-    inputPT.value = "Português";
-    inputPT.disabled = true;
-    inputPT.className = "idiomaInput";
-    inputPT.style.marginBottom = "5px";
-    container.appendChild(inputPT);
-    container.appendChild(document.createElement("br"));
+  // Sempre adiciona o campo "Português"
+  const inputPT = document.createElement("input");
+  inputPT.type = "text";
+  inputPT.value = "Português";
+  inputPT.disabled = true;
+  inputPT.className = "idiomaInput";
+  inputPT.style.marginBottom = "5px";
+  container.appendChild(inputPT);
 
-    if (valor === "1") {
-      // Monolíngue: nada mais a fazer
-      return;
-    }
-
-    if (valor === "2" || valor === "3") {
-      const qtd = parseInt(valor) - 1; // Já temos "Português", agora só os restantes
-      for (let i = 1; i <= qtd; i++) {
-        const input = document.createElement("input");
-        input.type = "text";
-        input.placeholder = `Idioma ${i + 1}`;
-        input.name = `idioma${i + 1}`;
-        input.className = "idiomaInput";
-        container.appendChild(input);
-        container.appendChild(document.createElement("br"));
-      }
-    } 
-    else if (valor === "custom") {
-      // Poliglota → campo para definir quantas línguas no total
-      const label = document.createElement("p");
-      label.textContent = "Quantos idiomas (incluindo Português)?";
-      const inputQtd = document.createElement("input");
-      label.style.fontSize = "10px";
-      label.style.margin = "0";
-      label.style.padding = "0";  
-      label.style.lineHeight = "1";  
-      inputQtd.type = "number";
-      inputQtd.min = 4; // mínimo de 4 porque "Poliglota" não é monolíngue, bilíngue e nem Trílingue
-      inputQtd.placeholder = "Min: 4";
-      inputQtd.onchange = function () {
-      label.style.display = "none";
-      inputQtd.style.display = "none";
-      gerarCamposPoliglota(parseInt(this.value));
-      };
-      container.appendChild(label);
-      // container.appendChild(document.createElement("br"));
-      container.appendChild(inputQtd);
-    }
+  if (valor === "1") {
+    return; // Monolíngue
   }
 
-  function gerarCamposPoliglota(qtd) {
-    const container = document.getElementById('idiomasContainer');
-    // Remove todos elementos exceto os dois primeiros (Português + campo de quantidade)
-    while (container.children.length > 3) {
-      container.removeChild(container.lastChild);
-    }
-
-    for (let i = 1; i < qtd; i++) { // Começa em 1 porque o primeiro já é "Português"
+  if (valor === "2" || valor === "3") {
+    const qtd = parseInt(valor) - 1;
+    for (let i = 1; i <= qtd; i++) {
       const input = document.createElement("input");
       input.type = "text";
       input.placeholder = `Idioma ${i + 1}`;
       input.name = `idioma${i + 1}`;
       input.className = "idiomaInput";
-      // container.appendChild(document.createElement("br"));
       container.appendChild(input);
     }
+  } else if (valor === "custom") {
+    const grupo = document.createElement("div");
+    grupo.style.display = "flex";
+    grupo.style.flexDirection = "column";
+    grupo.style.alignItems = "flex-start";
+    grupo.style.marginRight = "10px";
+
+    const label = document.createElement("h6");
+    label.textContent = "Quantos idiomas (incluindo Português)?";
+    label.style.fontSize = "10px";
+    label.style.margin = "0";
+    label.style.padding = "0";
+    label.style.lineHeight = "1.2";
+
+    const inputQtd = document.createElement("input");
+    inputQtd.type = "number";
+    inputQtd.min = 4;
+    inputQtd.placeholder = "Min: 4";
+
+    inputQtd.onchange = function () {
+      grupo.style.display = "none";
+      gerarCamposPoliglota(parseInt(this.value));
+    };
+
+    grupo.appendChild(label);
+    grupo.appendChild(inputQtd);
+    container.appendChild(grupo);
+  }
+}
+
+function gerarCamposPoliglota(qtd) {
+  const container = document.getElementById('idiomasContainer');
+  while (container.children.length > 3) {
+    container.removeChild(container.lastChild);
   }
 
+  for (let i = 1; i < qtd; i++) {
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = `Idioma ${i + 1}`;
+    input.name = `idioma${i + 1}`;
+    input.className = "idiomaInput";
+    container.appendChild(input);
+  }
+}
 
 
  async function configurarEventosFuncionarioss() {

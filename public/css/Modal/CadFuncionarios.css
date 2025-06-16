@@ -76,7 +76,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      margin-top: 400px;
+      margin-top: 470px;
   }
   
   
@@ -334,7 +334,22 @@ display: none;
   /* input[type=file]{
     display: none;
   } */
-  
+
+  .Idiomas {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: row;
+}
+
+#idiomasContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  max-width: 320px; /* Aproximadamente 4 inputs por linha */
+  justify-content: flex-start;
+}
+
   input#complemento, input#pais, input#estado, input#numero, input#agencia, input#Pix, input#Banco, input#CodBanco {
     width: 120px; 
   }
