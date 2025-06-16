@@ -118,7 +118,7 @@
                             <label class="miniTitle" for="dtFimMontagem">Até:</label>
                             <input type="date" id="dtFimMontagem" name="dtFimMontagem">
                         </div> -->
-                        <input type="text" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
+                        <input type="text"  required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
                         
                     </div>
                     <div class="Realizacao">
@@ -131,7 +131,7 @@
                             <label class="miniTitle" for="dtFimRealizacao">Até:</label>
                             <input type="date" id="dtFimRealizacao" name="dtFimRealizacao">
                         </div> -->
-                        <input type="text" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
+                        <input type="text" class="realizacao" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
                         
                     </div>
                 
@@ -145,7 +145,7 @@
                             <label class="miniTitle" for="dtFimDesmontagem">Até:</label>
                             <input type="date" id="dtFimDesmontagem" name="dtFimDesmontagem">
                         </div> -->
-                        <input type="text" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
+                        <input type="text"  required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
                     </div>
 
                     <div id="blocoInfra2" class="inativo-direita" style="display: none;">
@@ -214,10 +214,10 @@
                                 <td class="Proposta"><div class="checkbox-wrapper-33" style="margin-top: 40px;"><label class="checkbox"><input class="checkbox__trigger visuallyhidden" type="checkbox" /><span class="checkbox__symbol"><svg aria-hidden="true" class="icon-checkbox"      width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg"><path d="M4 14l8 7L24 7"></path></svg></span><p class="checkbox__textwrapper"></p></label></div></td>
                                 <td class="Categoria"></td>
                                 <td class="qtdPessoas"><div class="add-less"><input type="number" readonly class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
-                                <td class="produto"></td>
+                                <td class="produto"><div class="Acres-Desc"><select id="Pavilhoes"><option value="select">Pavilhao de atuação </option></select></div><br><div class="valorbanco"></div></td>
                                 <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><!--  <div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div>--></td>
 
-                                <td class="Periodo"><div class="flatpickr" id="seletorData"><input type="text" data-input required readonly placeholder="Clique para Selecionar" oninput="atualizarQtdDias(this)" onclick="inicializarFlatpickr(this)"></div></td>
+                                <td class="Periodo"><div class="flatpickr" id="seletorData"><input type="text" class="datas" data-input required readonly placeholder="Clique para Selecionar" oninput="atualizarQtdDias(this)" onclick="inicializarFlatpickr(this)"></div></td>
                                 <!-- <td class="Periodo"><div class="Acres-Desc"><p>de:<input type="date" class="data-inicio" oninput="atualizarQtdDias(this)"></p><p>até<input type="date" class="data-fim" oninput="atualizarQtdDias(this)"></p></div></td> -->
 
                                 
@@ -351,12 +351,14 @@
                 <button class="pesquisar" onclick="pesquisarOrcamento()">Pesquisar</button>
                 <button class="Proposta" id="Proposta" onclick="gerarPropostaPDF()">Gerar Proposta</button>
                 <button class="Adicional" onclick="adicionarLinhaAdicional()"  style="display: none;">Adicional</button>
+                <button class="Excel" onclick="exportarParaExcel()" style="display: none;">Exportar P/ Excel</button>
                 <button class="fecharOrc" id="fecharOrc" onclick="fecharOrcamento()">Fechar Orçamento</button>
                 <button class="salvar" id="btnSalvar" type="submit">Salvar Orçamento</button>
             </div>
         </form>
     </div>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="js/Orcamento.js"defer></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt_br.js"></script>

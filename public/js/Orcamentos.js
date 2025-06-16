@@ -1433,9 +1433,10 @@ function bloquearCamposSeFechado() {
                 id === 'Close' ||
                 classes.contains('Close') ||
                 classes.contains('pesquisar') ||
-                classes.contains('Adicional');
+                classes.contains('Adicional') ||
+                classes.contains('Excel') ;
 
-            if (id === 'fecharOrc' || id === 'adicionar') {
+            if (id === 'fecharOrc' || id === 'adicionar' || id ==='Excel') {
                 botao.style.display = 'none';
             } else if (deveContinuarAtivo) {
                 botao.style.display = 'inline-block';
@@ -1596,6 +1597,8 @@ document.getElementById('Proposta').addEventListener('click', function(event) {
     gerarPropostaPDF();
 });
 
+
+
 async function gerarPropostaPDF() {
     console.log("Início da função gerarPropostaPDF");
 
@@ -1654,8 +1657,7 @@ async function gerarPropostaPDF() {
         const nomeEvento = eventoSelect?.options[eventoSelect.selectedIndex]?.innerText || "N/D";
         const montagemSelect = document.querySelector('.idMontagem');
         const localEvento = montagemSelect?.options[montagemSelect.selectedIndex]?.innerText || "N/D";
-        const dataInicio = document.getElementById('dtInicioRealizacao')?.value || "N/D";
-        const dataFim = document.getElementById('dtFimRealizacao')?.value || "N/D";
+        const inputRealizacao = document.querySelector('.realizacao')?.value?.trim().replace(" to ", " até ") ||  "N/D" ; 
 
         let dadosContato = { nmcontato: "N/D", celcontato: "N/D", emailcontato: "N/D" };
         try {
@@ -1681,7 +1683,7 @@ async function gerarPropostaPDF() {
         adicionarLinha(`Cliente: ${nomeCliente}`);
         adicionarLinha(`Responsável: ${dadosContato.nmcontato} - Celular: ${dadosContato.celcontato} - Email: ${dadosContato.emailcontato}`);
         adicionarLinha(`Evento: ${nomeEvento} - Local: ${localEvento}`);
-        adicionarLinha(`Data: De ${formatarDataBR(dataInicio)} até ${formatarDataBR(dataFim)}`);
+        adicionarLinha(`Data de Realização: ${inputRealizacao}`); console.log( "valor data", inputRealizacao)
         y += 10;
 
         doc.setFontSize(tituloFontSize);
@@ -1702,14 +1704,12 @@ async function gerarPropostaPDF() {
             const qtdDias = linha.querySelector('.qtdDias input')?.value?.trim();
             const categoria = linha.querySelector('.Categoria')?.innerText?.trim();
 
-            const dataInicioProdutoRaw = linha.querySelector('.data-inicio')?.value?.trim() || "";
-            const dataFimProdutoRaw = linha.querySelector('.data-fim')?.value?.trim() || "";
+            const datasRaw = linha.querySelector('.datas')?.value?.trim().replace(" to ", " até: ") || "";
+            // const [dataInicioProdutoRaw, dataFimProdutoRaw] = datasRaw.split(" a ") || ["", ""];
 
-            const dataInicioProduto = formatarDataBR(dataInicioProdutoRaw);
-            const dataFimProduto = formatarDataBR(dataFimProdutoRaw);
+            console.log(" datas",  datasRaw);
 
-            const itemDescricao = `• ${produto || 'Item sem nome'} — ${qtdItens} Item(s), ${qtdDias} Diária(s), de ${dataInicioProduto} até ${dataFimProduto}`;
-
+            const itemDescricao = `• ${produto} — ${qtdItens} Item(s), ${qtdDias} Diária(s), de: ${datasRaw} `;
             const isLinhaAdicional = linha.classList.contains('linha-adicional');
 
             if (qtdItens !== '0' && qtdDias !== '0') {
@@ -1835,6 +1835,102 @@ async function gerarPropostaPDF() {
     img.src = 'img/Fundo Propostas.png';
 }
 
+function exportarParaExcel() {
+  const linhas = document.querySelectorAll("#tabela tbody tr");
+  const dados = [];
+
+  // Cabeçalhos
+  const cabecalhos = [
+    "P/ Proposta", "Categoria", "Qtd Itens", "Produto", "Qtd Dias", "Período das diárias",
+    "Desconto", "Acréscimo", "Vlr Diária", "Tot Venda Diária", "Cto Diária", "Tot Custo Diária",
+    "AjdCusto Alimentação", "AjdCusto Transporte", "Tot AjdCusto", "Hospedagem", "Transporte", "Tot Geral"
+  ];
+  dados.push(cabecalhos);
+
+  // Linhas da tabela
+  linhas.forEach(tr => {
+    const linha = [];
+
+    linha.push(tr.querySelector('input[type="checkbox"]')?.checked ? "Sim" : "Não");
+    linha.push(tr.querySelector(".Categoria")?.innerText.trim() || "");
+    linha.push(tr.querySelector(".qtdPessoas input")?.value || "0");
+    linha.push(tr.querySelector(".produto")?.innerText.trim() || "");
+    linha.push(tr.querySelector(".qtdDias input")?.value || "0");
+    linha.push(tr.querySelector(".datas")?.value || "");
+
+    const descontoValor = tr.querySelector(".desconto .ValorInteiros")?.value || "R$ 0,00";
+    const descontoPerc = tr.querySelector(".desconto .valorPerCent")?.value || "0%";
+    linha.push(`${descontoValor} (${descontoPerc})`);
+
+    const acrescValor = tr.querySelector(".Acrescimo .ValorInteiros")?.value || "R$ 0,00";
+    const acrescPerc = tr.querySelector(".Acrescimo .valorPerCent")?.value || "0%";
+    linha.push(`${acrescValor} (${acrescPerc})`);
+
+    linha.push(tr.querySelector(".vlrVenda")?.innerText.trim() || "");
+    linha.push(tr.querySelector(".totVdaDiaria")?.innerText.trim() || "");
+    linha.push(tr.querySelector(".vlrCusto")?.innerText.trim() || "");
+    linha.push(tr.querySelector(".totCtoDiaria")?.innerText.trim() || "");
+
+    const selectAlim = tr.querySelectorAll(".ajdCusto select")[0];
+    linha.push(selectAlim?.value || "");
+
+    const selectTrans = tr.querySelectorAll(".ajdCusto select")[1];
+    linha.push(selectTrans?.value || "");
+
+    linha.push(tr.querySelector(".totAjdCusto")?.innerText.trim() || "0");
+    linha.push(tr.querySelector("input.hospedagem")?.value || "");
+    linha.push(tr.querySelector("input.transporte")?.value || "");
+    linha.push(tr.querySelector(".totGeral")?.innerText.trim() || "0");
+
+    dados.push(linha);
+  });
+
+  // Criar planilha
+  const ws = XLSX.utils.aoa_to_sheet(dados);
+
+  // Aplicar largura das colunas
+  ws['!cols'] = [
+    { wch: 10 }, { wch: 14 }, {  wch: 9 }, {  wch: 20 }, { wch: 9 },
+    { wch: 20 }, {  wch: 13 }, {  wch: 13 }, {  wch: 13 }, {  wch: 15 },
+    {  wch: 11 }, {  wch: 15 }, {  wch: 19 }, {  wch: 18 }, {  wch: 16 },
+    {  wch: 20 }, {  wch: 20 }, {  wch: 15 }
+  ];
+
+  // Aplicar estilo no cabeçalho (linha 0)
+  const headerStyle = {
+    font: { bold: true, color: { rgb: "FFFFFF" } }, // texto branco
+    fill: { fgColor: { rgb: "2f3330" } },           // fundo azul
+    alignment: { horizontal: "center", vertical: "center" },
+    border: {
+        top: { style: "thin", color: { rgb: "000000" } },
+        bottom: { style: "thin", color: { rgb: "000000" } },
+        left: { style: "thin", color: { rgb: "000000" } },
+        right: { style: "thin", color: { rgb: "000000" } }
+    }
+    };
+  const range = XLSX.utils.decode_range(ws['!ref']);
+
+// Aplica estilo ao cabeçalho
+for (let C = range.s.c; C <= range.e.c; ++C) {
+  const cellAddress = XLSX.utils.encode_cell({ r: 0, c: C });
+  if (!ws[cellAddress]) continue;
+  ws[cellAddress].s = headerStyle;
+}
+
+// Alinha todas as células ao centro
+for (let R = range.s.r; R <= range.e.r; ++R) {
+  for (let C = range.s.c; C <= range.e.c; ++C) {
+    const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+    if (!ws[cellAddress]) continue;
+    if (!ws[cellAddress].s) ws[cellAddress].s = {};
+    ws[cellAddress].s.alignment = { horizontal: "center", vertical: "center" };
+  }
+}
+  // Criar e salvar arquivo
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Orçamento");
+  XLSX.writeFile(wb, "orcamento_formatado.xlsx");
+}
 
 async function salvarOrcamento(event) {
     event.preventDefault(); // evita o envio padrão do formulário

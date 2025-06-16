@@ -846,6 +846,18 @@
     width: 200px;
   }
 
+  .Excel button{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+
+.Excel > svg {
+  margin-top: 10px;
+}
+
+
   .flatpickr-calendar {
   z-index: 9999 !important; /* alto o suficiente para ficar acima do modal */
   position: absolute !important;
