@@ -344,17 +344,24 @@ display: none;
 
 #idiomasContainer {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: row;
   gap: 5px;
-  max-width: 320px; /* Aproximadamente 4 inputs por linha */
-  justify-content: flex-start;
+  justify-content: center;
+  width: 200px;
 }
 
-  input#complemento, input#pais, input#estado, input#numero, input#agencia, input#Pix, input#Banco, input#CodBanco {
+p{
+  font-size: 10px;
+  margin-left: 150px;
+  line-height: 1.2;
+  width: 300px;
+}
+
+  input#complemento, input#pais, input#estado, input#numero, input#agencia, input#Banco, input#CodBanco {
     width: 120px; 
   }
 
-  select#TPconta{
+  select#TPconta, input#Pix{
     width: 145px;
     height: 34px;
     font-size: 15px;

@@ -126,7 +126,8 @@ function atualizarCamposLinguas() {
   inputPT.value = "Português";
   inputPT.disabled = true;
   inputPT.className = "idiomaInput";
-  inputPT.style.marginBottom = "5px";
+  // inputPT.style.marginBottom = "5px";
+  inputPT.style.width = "90px";
   container.appendChild(inputPT);
 
   if (valor === "1") {
@@ -141,26 +142,32 @@ function atualizarCamposLinguas() {
       input.placeholder = `Idioma ${i + 1}`;
       input.name = `idioma${i + 1}`;
       input.className = "idiomaInput";
+        input.style.width = "90px";
+
       container.appendChild(input);
     }
   } else if (valor === "custom") {
     const grupo = document.createElement("div");
     grupo.style.display = "flex";
     grupo.style.flexDirection = "column";
-    grupo.style.alignItems = "flex-start";
-    grupo.style.marginRight = "10px";
+    grupo.style.alignItems = "center";
+      grupo.style.width = "200px";
 
-    const label = document.createElement("h6");
+
+    const label = document.createElement("p");
     label.textContent = "Quantos idiomas (incluindo Português)?";
     label.style.fontSize = "10px";
-    label.style.margin = "0";
+    label.style.marginleft = "150px";
     label.style.padding = "0";
     label.style.lineHeight = "1.2";
+    label.style.width = "300px";
 
     const inputQtd = document.createElement("input");
     inputQtd.type = "number";
     inputQtd.min = 4;
     inputQtd.placeholder = "Min: 4";
+      inputQtd.style.width = "90px";
+
 
     inputQtd.onchange = function () {
       grupo.style.display = "none";
@@ -185,6 +192,7 @@ function gerarCamposPoliglota(qtd) {
     input.placeholder = `Idioma ${i + 1}`;
     input.name = `idioma${i + 1}`;
     input.className = "idiomaInput";
+    input.style.width = "90px";
     container.appendChild(input);
   }
 }
