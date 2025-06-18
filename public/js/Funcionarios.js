@@ -300,6 +300,35 @@ async function salvarFuncionario(dados) {
   }
 }
 
+function verificarPerfil() {
+  const internoSelecionado = document.getElementById("interno").checked;
+  const container = document.getElementById("campoFuncaoContainer");
+
+  // Limpa o campo, caso já exista
+  container.innerHTML = "";
+
+  if (internoSelecionado) {
+    const div = document.createElement("div");
+    div.classList.add("form2");
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.name = "funcao";
+    input.id = "funcao";
+    input.required = true;
+    input.spellcheck = false;
+
+    const label = document.createElement("label");
+    label.setAttribute("for", "funcao");
+    label.innerText = "Função";
+    
+
+    div.appendChild(input);
+    div.appendChild(label);
+    container.appendChild(div);
+  }
+}
+
 
 console.log("Ainda não Entrou no Preview");
 

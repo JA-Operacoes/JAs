@@ -39,15 +39,15 @@
                       
                         <div class="perfil-radios">
                           <label for="radio">Interno</label>
-                          <input type="radio" name="radio" id="radio1" >
+                          <input type="radio" name="interno" id="interno" onchange="verificarPerfil()" >
                         </div>
                         <div class="perfil-radios">
                           <label for="radio">Externo</label>
-                          <input type="radio" name="radio" id="radio2" >
+                          <input type="radio" name="externo" id="externo" onchange="verificarPerfil()" >
                         </div>
                         <div class="perfil-radios">
                           <label for="radio">Free-lancer</label>
-                          <input type="radio" name="radio" id="radio3" >
+                          <input type="radio" name="freelancer" id="freelancer" onchange="verificarPerfil()" >
                         </div>
                         <div class="container">
                           <img id="previewFoto" src="#" alt="Pré-visualização" style="display: none; max-width: 100%; margin-bottom: 10px; border-radius: 8px;" />
@@ -86,28 +86,31 @@
                       <input type="text" name="cpf" id="cpf" oninput="formatCPF(this)" maxlength="14" spellcheck="false" required>
                       <label for="cpf">CPF</label>
                     </div>
+                    
+                      <div class="form2">
+                        <input type="text" name="rg" id="rg" oninput="formatRG(this)" maxlength="14" spellcheck="false" required >
+                        <label for="rg">RG</label>
+                      </div>
                 </div>
+                    
+                
                 <div class="form-2colunas">
-                    <div class="form2">
-                      <input type="text" name="rg" id="rg" oninput="formatRG(this)" maxlength="12" spellcheck="false" required >
-                      <label for="rg">RG</label>
-                    </div>
-
-                    <div class="form2">
-                      <select id="Linguas" onchange="atualizarCamposLinguas()">
-                        <option value="" selected disabled> Selecione o nível de fluência </option>
-                        <option value="1">Monolíngue</option>
-                        <option value="2">Bilíngue</option>
-                        <option value="3">Trilíngue</option>
-                        <option value="custom">Poliglota</option>
-                      </select>
-                    </div>
-
+                  <div class="form2">
+                    <select id="Linguas" onchange="atualizarCamposLinguas()">
+                      <option value="" selected disabled> Selecione o nível de fluência </option>
+                      <option value="1">Monolíngue</option>
+                      <option value="2">Bilíngue</option>
+                      <option value="3">Trilíngue</option>
+                      <option value="custom">Poliglota</option>
+                    </select>
                   </div>
-
-                  <div class="Idiomas">
-                    <div class="form"  id="idiomasContainer" ></div>
-                  </div>
+                  
+                  <div id="campoFuncaoContainer"></div>
+                </div>
+                
+                <div class="Idiomas">
+                  <div class="form"  id="idiomasContainer" ></div>
+                </div>
 
             </fieldset>
 
