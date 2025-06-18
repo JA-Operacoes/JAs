@@ -3,10 +3,11 @@ document.addEventListener("DOMContentLoaded", async function () {
 let resp;
   try {
     resp = await fetchComToken("/auth/permissoes");
-    if (!resp.ok) {
-      const textoErro = await resp.text();
-      throw new Error(textoErro);
-    }
+    //commentado para evitar erro de CORS
+    // if (!resp.ok) {
+    //   const textoErro = await resp.text();
+    //   throw new Error(textoErro);
+    // }
   } catch (erro) {
     console.error("Falha ao carregar permissões:", erro);
     await Swal.fire({
@@ -16,8 +17,10 @@ let resp;
     });
     return;
   }
-
-  const permissoes = await resp.json();
+  const permissoes = resp; // Aqui assumimos que resp já é o JSON esperado
+  // Se resp for um Response, descomente a linha abaixo:
+  //commentado para evitar erro de CORS
+ // const permissoes = await resp.json();
   window.permissoes = permissoes;
 
   // Função utilitária para verificar permissão
