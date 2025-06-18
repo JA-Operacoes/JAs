@@ -76,7 +76,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      margin-top: 400px;
+      margin-top: 470px;
   }
   
   
@@ -349,12 +349,34 @@ input:not([value=""]) ~ label {
   /* input[type=file]{
     display: none;
   } */
-  
-  input#complemento, input#pais, input#estado, input#numero, input#agencia, input#Pix, input#Banco, input#CodBanco {
+
+  .Idiomas {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: row;
+}
+
+#idiomasContainer {
+  display: flex;
+  flex-direction: row;
+  gap: 5px;
+  justify-content: center;
+  width: 200px;
+}
+
+p{
+  font-size: 10px;
+  margin-left: 150px;
+  line-height: 1.2;
+  width: 300px;
+}
+
+  input#complemento, input#pais, input#estado, input#numero, input#agencia, input#Banco, input#CodBanco {
     width: 120px; 
   }
 
-  select#TPconta{
+  select#TPconta, input#Pix{
     width: 145px;
     height: 34px;
     font-size: 15px;
