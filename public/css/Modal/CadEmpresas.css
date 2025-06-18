@@ -251,6 +251,15 @@ input:valid ~ label{
   background: #cacaca;
 }
 
+  input#idEmpresa:not([value=""]) ~ label {
+    top: 0;
+    left: 5%;
+    font-size: 12px;
+    background: #cacaca;
+    margin-left: 10px;
+  }
+
+
 
 input[type=date]{
   width: 111px;

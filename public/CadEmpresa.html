@@ -29,7 +29,7 @@
                     </div>
                     
                <fieldset>
-            <legend>Informações do Cliente</legend>
+            <legend>Informações da Empresa</legend>
             <div class="form-2colunas">
               <div class="form2">
                 <input type="text" class="uppercase" name="nmFantasia" id="nmFantasia" required>
@@ -55,8 +55,8 @@
             </div>
             <div class="form-2colunas">
               <div class="form2">
-                <input type="email" name="emailCliente" id="emailCliente" required>
-                <label for="emailCliente">Email Cliente</label>
+                <input type="email" name="emailEmpresa" id="emailEmpresa" required>
+                <label for="emailEmpresa">Email Empresa</label>
               </div>
               <div class="form2">
                 <input type="text" name="emailNfe" id="emailNfe" required>
@@ -78,7 +78,7 @@
             <div class="form-3colunas">
               <div class="checkbox-wrapper-33">
                 <label class="checkbox">
-                  <p class="checkbox__textwrapper">Cliente Ativo</p>
+                  <p class="checkbox__textwrapper">Empresa Ativo</p>
                   <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo" />
                   <span class="checkbox__symbol">
                     <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28"
@@ -91,9 +91,8 @@
               </div>
 
               <div class="form2">
-                <input type="text" class="uppercase" name="idCliente" id="idCliente" placeholder=" "
-                  spellcheck="false" readonly />
-                <label for="idCliente">Código</label>
+                <input type="text" name="idEmpresa" id="idEmpresa" spellcheck="false"  readonly required/>
+                <label for="idEmpresa">Código</label>
               </div>
             </div>
 
@@ -160,5 +159,6 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="js/permissoes.js"></script>
+    <script src="js/Formataçoes.js"></script>
 </body>
 </html>
