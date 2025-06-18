@@ -104,6 +104,7 @@ body{
   border: #ce0303;    
 border-radius: 10px;      
   position: relative;
+  overflow-y: auto;
 }
 
 fieldset {
@@ -242,8 +243,7 @@ input:focus{
 }
 
 input:focus ~ label,
-input:valid ~ label,
-input:not([value=""]) ~ label {
+input:valid ~ label{
   top: 0;
   left: 25%;
   font-size: 15px;
@@ -251,13 +251,6 @@ input:not([value=""]) ~ label {
   background: #cacaca;
 }
 
-input:not([value=""]) ~ label {
-  top: 0;
-  left: 25%;
-  font-size: 15px;
-  padding: 0 2px;
-  background: #cacaca; /* Certifique-se que esta cor corresponde ao background do seu #form-content ou fieldset */
-}
 
 input[type=date]{
   width: 111px;
