@@ -24,107 +24,271 @@ async function verificaFuncionarios() {
     botaoEnviar.addEventListener("click", async (event) => {
         event.preventDefault();
 
-      const idFuncionarios = document.querySelector("#idFuncionarios").value.trim();
-   
-      const perfil = document.querySelector('input[name="radio"]:checked')?.value || '';
-      const linkFoto = document.getElementById("linkFotoFuncionarios").value.trim();
-      const nome = document.querySelector("#nome").value.toUpperCase().trim();
-      const cpf = document.getElementById("cpf").value.trim();
-      const rg = document.getElementById("rg").value.trim();
-      const nivelFluenciaLinguas = document.getElementById("Linguas").value.trim();
-      // Para idiomasAdicionais, você precisará de uma lógica para coletar de inputs dinâmicos
-      // Por enquanto, vou pegar de um campo simples, mas ajuste conforme seu HTML
-      const idiomasAdicionais = document.getElementById("idiomasAdicionais")?.value.trim() || ''; 
-      const celularPessoal = document.getElementById("celularPessoal").value.trim();
-      const celularFamiliar = document.getElementById("celularFamiliar").value.trim();
-      const email = document.getElementById("email").value.trim();
-      const site = document.getElementById("site").value.trim();
-      const banco = document.getElementById("Banco").value.toUpperCase().trim();
-      const codigoBanco = document.getElementById("CodBanco").value.trim();
-      const pix = document.getElementById("Pix").value.trim();
-      const numeroConta = document.getElementById("Nconta").value.trim();
-      const agencia = document.getElementById("agencia").value.trim();
-      const tipoConta = document.getElementById("TPconta").value.trim();
-      const cep = document.getElementById("cep").value.trim();
-      const rua = document.getElementById("rua").value.toUpperCase().trim();
-      const numero = document.getElementById("numero").value.trim();
-      const complemento = document.getElementById("complemento").value.toUpperCase().trim();
-      const bairro = document.getElementById("bairro").value.toUpperCase().trim();
-      const cidade = document.getElementById("cidade").value.toUpperCase().trim();
-      const estado = document.getElementById("estado").value.toUpperCase().trim();
-      const pais = document.getElementById("pais").value.toUpperCase().trim();
+        const idFuncionarios = document.querySelector("#idFuncionarios").value.trim();
+    
+        const perfil = document.querySelector('input[name="perfil"]:checked')?.value || '';
+        
+        //const linkFoto = document.getElementById("linkFotoFuncionarios")?.value.trim() || '';
+        const nome = document.querySelector("#nome").value.toUpperCase().trim();
+        const cpf = document.getElementById("cpf")?.value.trim() || '';
+        const rg = document.getElementById("rg")?.value.trim() || '';     
+        const nivelFluenciaLinguas = document.getElementById("Linguas")?.value.trim() || '';
+        const inputsIdioma = idiomasContainer.querySelectorAll('.idiomaInput');
+        
+        const idiomasAdicionaisArray = [];
+        inputsIdioma.forEach(input => {
+            const valor = input.value.trim();
+            if (valor) {
+                idiomasAdicionaisArray.push(valor);
+            }
+        });
 
-      // Validação de campos obrigatórios
-      if (!nome || !cpf || !rg || !celularPessoal || !email || !cep || !rua || !numero || !bairro || !cidade || !estado || !pais || !perfil) {
-          return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Nome, CPF, RG, Celular Pessoal, E-mail, CEP, Rua, Número, Bairro, Cidade, Estado, País e Perfil.", "warning");
-      }
+        // Converte para JSON string para armazenar na coluna TEXT
+        const idiomasAdicionais = JSON.stringify(idiomasAdicionaisArray);
+        // const idiomasAdicionais = document.getElementById("idiomasAdicionais")?.value.trim() || ''; 
+        const celularPessoal = document.getElementById("celularPessoal")?.value.trim() || '';
+        const celularFamiliar = document.getElementById("celularFamiliar")?.value.trim() || '';
+        const email = document.getElementById("email")?.value.trim() || '';
+        const site = document.getElementById("site")?.value.trim() || '';
+        //  const banco = document.getElementById("banco")?.value.toUpperCase().trim() || '';
+        const codigoBanco = document.getElementById("codBanco")?.value.trim() || '';
+        const pix = document.getElementById("pix")?.value.trim() || '';
+        const numeroConta = document.getElementById("nConta")?.value.trim() || '';
+        const agencia = document.getElementById("agencia")?.value.trim() || '';
+        const tipoConta = document.getElementById("tpConta")?.value.trim() || '';
+        const cep = document.getElementById("cep")?.value.trim() || '';
+        const rua = document.getElementById("rua")?.value.trim() || '';
+        const numero = document.getElementById("numero")?.value.trim() || '';
+        const complemento = document.getElementById("complemento")?.value.trim() || '';
+        const bairro = document.getElementById("bairro")?.value.toUpperCase().trim() || '';
+        const cidade = document.getElementById("cidade")?.value.toUpperCase().trim() || '';
+        const estado = document.getElementById("estado")?.value.toUpperCase().trim() || '';
+        const pais = document.getElementById("pais")?.value.toUpperCase().trim() || '';
 
-      // Permissões
-      const temPermissaoCadastrar = temPermissao("Funcionarios", "cadastrar");
-      const temPermissaoAlterar = temPermissao("Funcionarios", "alterar");
+        // Validação de campos obrigatórios
+        if (!nome || !cpf || !rg || !celularPessoal || !email || !cep || !rua || !numero || !bairro || !cidade || !estado || !pais || !perfil) {
+            return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Nome, CPF, RG, Celular Pessoal, E-mail, CEP, Rua, Número, Bairro, Cidade, Estado, País e Perfil.", "warning");
+        }
 
-      const metodo = idFuncionarios ? "PUT" : "POST";
-      const url = idFuncionarios ? `/funcionarios/${idFuncionarios}` : "/funcionarios";
+        // Permissões
+        const temPermissaoCadastrar = temPermissao("Funcionarios", "cadastrar");
+        const temPermissaoAlterar = temPermissao("Funcionarios", "alterar");
 
-      if (!idFuncionarios && !temPermissaoCadastrar) {
-          return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos funcionários.", "error");
-      }
+        const metodo = idFuncionarios ? "PUT" : "POST";
+        const url = idFuncionarios ? `/funcionarios/${idFuncionarios}` : "/funcionarios";
 
-      if (idFuncionarios && !temPermissaoAlterar) {
-          return Swal.fire("Acesso negado", "Você não tem permissão para alterar funcionários.", "error");
-      }
+        if (!idFuncionarios && !temPermissaoCadastrar) {
+            return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos funcionários.", "error");
+        }
 
-      const dados = {
-          perfil, linkFoto, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
-          celularPessoal, celularFamiliar, email, site, banco, codigoBanco, pix,
-          numeroConta, agencia, tipoConta, cep, rua, numero, complemento, bairro,
-          cidade, estado, pais
-      };
+        if (idFuncionarios && !temPermissaoAlterar) {
+            return Swal.fire("Acesso negado", "Você não tem permissão para alterar funcionários.", "error");
+        }
 
-      // Verifica se houve alterações para PUT
-      if (metodo === "PUT" && funcionarioOriginal) {
-          const dadosAlterados = Object.keys(dados).some(key => {
-              // Conversão de valores para comparação consistente (ex: null vs '')
-              const oldValue = funcionarioOriginal[key] === null ? '' : String(funcionarioOriginal[key]);
-              const newValue = dados[key] === null ? '' : String(dados[key]);
-              return oldValue !== newValue;
-          });
+        console.log("Preparando dados para envio:", {
+            perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
+            celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
+            numeroConta, agencia, tipoConta, cep, rua, numero, complemento, bairro,
+            cidade, estado, pais
+        });
+       // --- CRIANDO O FORMDATA ---
+        const formData = new FormData();
 
-          if (!dadosAlterados) {
-              return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
-          }
-      }
+        // Adiciona todos os campos de texto ao FormData
+        formData.append('perfil', perfil);
+        formData.append('nome', nome);
+        formData.append('cpf', cpf);
+        formData.append('rg', rg);
+        formData.append('nivelFluenciaLinguas', nivelFluenciaLinguas);
+        formData.append('idiomasAdicionais', idiomasAdicionais);
+        formData.append('celularPessoal', celularPessoal);
+        formData.append('celularFamiliar', celularFamiliar);
+        formData.append('email', email);
+        formData.append('site', site);
+       // formData.append('banco', banco); // Adicionado
+        formData.append('codigoBanco', codigoBanco);
+        formData.append('pix', pix);
+        formData.append('numeroConta', numeroConta);
+        formData.append('agencia', agencia);
+        formData.append('tipoConta', tipoConta);
+        formData.append('cep', cep);
+        formData.append('rua', rua);
+        formData.append('numero', numero);
+        formData.append('complemento', complemento);
+        formData.append('bairro', bairro);
+        formData.append('cidade', cidade);
+        formData.append('estado', estado);
+        formData.append('pais', pais);
 
-      try {
-          // Confirmação para alteração (PUT)
-          if (metodo === "PUT") {
-              const { isConfirmed } = await Swal.fire({
-                  title: "Deseja salvar as alterações?",
-                  text: "Você está prestes a atualizar os dados do funcionário.",
-                  icon: "question",
-                  showCancelButton: true,
-                  confirmButtonText: "Sim, salvar",
-                  cancelButtonText: "Cancelar",
-                  reverseButtons: true,
-                  focusCancel: true
-              });
-              if (!isConfirmed) return;
-          }
+        // Adiciona o arquivo da foto APENAS SE UM NOVO ARQUIVO FOI SELECIONADO
+        const inputFileElement = document.getElementById('file');
+        const fotoArquivo = inputFileElement.files[0];
+        if (fotoArquivo) {
+            formData.append('foto', fotoArquivo); // 'foto' é o nome do campo esperado pelo Multer
+        }
 
-          console.log("Enviando dados para o servidor:", dados, "URL:", url, "Método:", metodo);
-          const respostaApi = await fetchComToken(url, {
-              method: metodo,
-              body: JSON.stringify(dados)
-          });
+        console.log("Preparando envio de FormData. Método:", metodo, "URL:", url);
+        console.log("Dados do FormData:", {
+            perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
+            celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
+            numeroConta, agencia, tipoConta, cep, rua, numero, complemento, bairro,
+            cidade, estado, pais
+        });
+        if (metodo === "PUT" && funcionarioOriginal) {
+            let houveAlteracao = false;
 
-          await Swal.fire("Sucesso!", respostaApi.mensagem || "Funcionário salvo com sucesso.", "success");
-          limparCamposFuncionarios();
-          funcionarioOriginal = null; // Reseta o estado original após sucesso
+            // 1. Verificar alteração na foto
+            if (fotoArquivo) { // Se um novo arquivo foi selecionado
+                houveAlteracao = true;
+            } else {
+                // Se nenhum novo arquivo foi selecionado, verifique se a foto existente foi removida (se tiver uma lógica para isso)
+                // ou se o link da foto no BD mudaria para null (se o frontend permitisse "deselecionar" a foto)
+                // Por enquanto, vamos assumir que se não há novo arquivo, a foto antiga é mantida,
+                // a menos que você adicione um botão "remover foto".
+                // Para ser exato: se `funcionarioOriginal.foto` existe e `fotoArquivo` é nulo, mas o backend não apaga, não é alteração.
+                // Se `funcionarioOriginal.foto` é nulo e `fotoArquivo` é nulo, não é alteração.
+            }
 
-      } catch (error) {
-          console.error("Erro ao enviar dados do funcionário:", error);
-          Swal.fire("Erro", error.message || "Erro ao salvar funcionário.", "error");
-      }
+            // 2. Comparar os outros campos de texto
+            if (!houveAlteracao) { // Só verifica os outros campos se a foto não causou uma alteração
+                const camposTextoParaComparar = {
+                    perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
+                    celularPessoal, celularFamiliar, email, site, banco, codigoBanco, pix,
+                    numeroConta, agencia, tipoConta, cep, rua, numero, complemento, bairro,
+                    cidade, estado, pais
+                };
+
+                for (const key in camposTextoParaComparar) {
+                    // É importante que `funcionarioOriginal` tenha as chaves mapeadas para os nomes do frontend
+                    // e que os valores sejam comparáveis (ex: ambos string, ambos uppercase se necessário).
+                    const valorOriginal = String(funcionarioOriginal[key] || '').toUpperCase().trim();
+                    const valorAtual = String(camposTextoParaComparar[key] || '').toUpperCase().trim();
+
+                    if (key === 'idiomasAdicionais') {
+                        try {
+                            const oldParsed = JSON.parse(String(funcionarioOriginal.idiomasadicionais || '[]'));
+                            const newParsed = JSON.parse(String(idiomasAdicionais || '[]'));
+                            // Ordena os arrays para comparação consistente
+                            if (JSON.stringify(oldParsed.sort()) !== JSON.stringify(newParsed.sort())) {
+                                houveAlteracao = true;
+                                break;
+                            }
+                        } catch (e) {
+                            // Fallback para comparação de string simples se o parse falhar
+                            if (valorOriginal !== valorAtual) {
+                                houveAlteracao = true;
+                                break;
+                            }
+                        }
+                    } else if (valorOriginal !== valorAtual) {
+                        houveAlteracao = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!houveAlteracao) {
+                return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
+            }
+        }
+
+        try {
+            // Confirmação para alteração (PUT)
+            if (metodo === "PUT") {
+                const { isConfirmed } = await Swal.fire({
+                    title: "Deseja salvar as alterações?",
+                    text: "Você está prestes a atualizar os dados do funcionário.",
+                    icon: "question",
+                    showCancelButton: true,
+                    confirmButtonText: "Sim, salvar",
+                    cancelButtonText: "Cancelar",
+                    reverseButtons: true,
+                    focusCancel: true
+                });
+                if (!isConfirmed) return;
+            }
+
+            // --- CHAMADA FETCH COM FORMDATA ---
+            const respostaApi = await fetchComToken(url, {
+                method: metodo,
+                body: formData, // ENVIA O FORMDATA AQUI
+                // O fetchComToken deve ser ajustado para NÃO adicionar Content-Type: application/json
+                // quando o body é um FormData. O navegador cuida disso automaticamente.
+            });
+
+            await Swal.fire("Sucesso!", respostaApi.message || "Funcionário salvo com sucesso.", "success");
+            limparCamposFuncionarios();
+            funcionarioOriginal = null; // Reseta o estado original após sucesso
+
+        } catch (error) {
+            console.error("Erro ao enviar dados do funcionário:", error);
+            Swal.fire("Erro", error.message || "Erro ao salvar funcionário.", "error");
+        }
+
+    //   const dados = {
+    //       perfil, linkFoto, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
+    //       celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
+    //       numeroConta, agencia, tipoConta, cep, rua, numero, complemento, bairro,
+    //       cidade, estado, pais
+    //   };
+
+    //   console.log("Dados do funcionário:", dados);
+
+    //   // Verifica se houve alterações para PUT
+    //   if (metodo === "PUT" && funcionarioOriginal) {
+    //       const dadosAlterados = Object.keys(dados).some(key => {
+    //           // Conversão de valores para comparação consistente (ex: null vs '')
+    //           const oldValue = funcionarioOriginal[key] === null ? '' : String(funcionarioOriginal[key]);
+    //           const newValue = dados[key] === null ? '' : String(dados[key]);
+    //           if (key === 'idiomasAdicionais') {
+    //             try {
+    //                 const oldParsed = JSON.parse(oldValue || '[]');
+    //                 const newParsed = JSON.parse(newValue || '[]');
+    //                 // Compara arrays de forma profunda
+    //                 return JSON.stringify(oldParsed.sort()) !== JSON.stringify(newParsed.sort());
+    //             } catch (e) {
+    //                 // Se falhar a parse, compara como string simples
+    //                 return oldValue !== newValue;
+    //             }
+    //         }
+    //           return oldValue !== newValue;
+    //       });
+
+    //       if (!dadosAlterados) {
+    //           return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
+    //       }
+    //   }
+
+    //   try {
+    //       // Confirmação para alteração (PUT)
+    //       if (metodo === "PUT") {
+    //           const { isConfirmed } = await Swal.fire({
+    //               title: "Deseja salvar as alterações?",
+    //               text: "Você está prestes a atualizar os dados do funcionário.",
+    //               icon: "question",
+    //               showCancelButton: true,
+    //               confirmButtonText: "Sim, salvar",
+    //               cancelButtonText: "Cancelar",
+    //               reverseButtons: true,
+    //               focusCancel: true
+    //           });
+    //           if (!isConfirmed) return;
+    //       }
+
+    //       console.log("Enviando dados para o servidor:", dados, "URL:", url, "Método:", metodo);
+    //       const respostaApi = await fetchComToken(url, {
+    //           method: metodo,
+    //           body: JSON.stringify(dados)
+    //       });
+
+    //       await Swal.fire("Sucesso!", respostaApi.mensagem || "Funcionário salvo com sucesso.", "success");
+    //       limparCamposFuncionarios();
+    //       funcionarioOriginal = null; // Reseta o estado original após sucesso
+
+    //   } catch (error) {
+    //       console.error("Erro ao enviar dados do funcionário:", error);
+    //       Swal.fire("Erro", error.message || "Erro ao salvar funcionário.", "error");
+    //   }
     });
 
     botaoPesquisar.addEventListener("click", async function (event) {
@@ -307,10 +471,10 @@ function configurarPreviewFoto() {
   const inputFile = document.getElementById('file');
   const preview = document.getElementById('previewFoto');
   const fileName = document.getElementById('fileName');
-  const hiddenInput = document.getElementById('linkFotoFuncionarios');
+  //const hiddenInput = document.getElementById('linkFotoFuncionarios');
   const header = document.getElementById('uploadHeader');
 
-  if (!inputFile || !preview || !fileName || !hiddenInput || !header) {
+  if (!inputFile || !preview || !fileName || !header) {
     console.warn("Elementos do preview não encontrados.");
     return;
   }
@@ -320,6 +484,7 @@ function configurarPreviewFoto() {
 
     if (!file) {
       // Nenhum arquivo selecionado
+      previewFoto.src = '#';
       preview.style.display = 'none';
       header.style.display = 'block';
       fileName.textContent = 'Nenhum arquivo selecionado';
@@ -330,10 +495,11 @@ function configurarPreviewFoto() {
     if (!file.type.startsWith('image/')) {
       Swal.fire('Arquivo inválido', 'Selecione uma imagem válida.', 'warning');
       inputFile.value = '';
+      preview.src = '#';
       preview.style.display = 'none';
       header.style.display = 'block';
       fileName.textContent = 'Nenhum arquivo selecionado';
-      hiddenInput.value = '';
+    //  hiddenInput.value = '';
       return;
     }
 
@@ -343,7 +509,7 @@ function configurarPreviewFoto() {
       preview.style.display = 'block';
       header.style.display = 'none';
       fileName.textContent = file.name;
-      hiddenInput.value = e.target.result;
+      //hiddenInput.value = e.target.result;
     };
     reader.readAsDataURL(file);
   });
@@ -355,29 +521,80 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
         
         if (funcionario) {
             // Preenche os campos do formulário com os dados do funcionário
-            idFuncionariosInput.value = funcionario.idfuncionarios || '';
-            nomeFuncionarioInput.value = funcionario.nome || '';
-            document.getElementById("perfil").value = funcionario.perfil || '';
-            document.getElementById("linkFoto").value = funcionario.linkfoto || '';
+           // idFuncionariosInput.value = funcionario.idfuncionarios || '';
+           // nomeFuncionarioInput.value = funcionario.nome || '';
+            document.getElementById("idFuncionarios").value = funcionario.idfuncionario || '';
+            document.getElementById("nome").value = funcionario.nome || '';
+
+            const radiosPerfil = document.querySelectorAll('input[name="perfil"]'); // Ou input[name="radio"] se você não mudou o name
+            radiosPerfil.forEach(radio => {
+                if (radio.value === funcionario.perfil) {
+                    radio.checked = true;
+                } else {
+                    radio.checked = false; // Desmarcar outros, caso haja
+                }
+            });
+
+            const previewFoto = document.getElementById('previewFoto'); // ID da sua tag <img>
+            const fileNameSpan = document.getElementById('fileName');       // ID do span/p que mostra o nome do arquivo
+            const uploadHeader = document.getElementById('uploadHeader');
+
+            if (funcionario.foto) {
+                // Se o funcionário tem uma foto salva no banco de dados, exiba-a
+                // Adicione a barra '/' no início para que o navegador encontre o recurso no servidor estático
+                previewFoto.src = `/${funcionario.foto}`;
+                previewFoto.style.display = 'block'; // Torna a imagem visível
+                uploadHeader.style.display = 'none'; // Esconde o cabeçalho de upload
+                // Extrai o nome do arquivo do caminho completo para exibir
+                fileNameSpan.textContent = funcionario.foto.split('/').pop() || 'Foto carregada';
+            } else {
+                // Se o funcionário NÃO tem uma foto, limpe a pré-visualização e mostre o cabeçalho de upload
+                previewFoto.src = '#'; // Limpa o src da imagem
+                previewFoto.style.display = 'none'; // Esconde a imagem
+                uploadHeader.style.display = 'block'; // Mostra o cabeçalho de upload
+                fileNameSpan.textContent = 'Nenhum arquivo selecionado'; // Reseta o texto
+            }
+
+           
             document.getElementById("cpf").value = funcionario.cpf || '';
             document.getElementById("rg").value = funcionario.rg || '';
-            document.getElementById("nivelFluenciaLinguas").value = funcionario.nivelfluencialinguas || '';
+            document.getElementById("Linguas").value = funcionario.fluencia || '';
+            atualizarCamposLinguas();
 
-            // Lógica para preencher o campo de idiomas adicionais (se for um JSON ou string)
-            // Você precisará adaptar isso dependendo de como 'idiomasAdicionais' é gerenciado no seu HTML
-            // Exemplo simples:
-            document.getElementById("idiomasAdicionais").value = funcionario.idiomasadicionais ? JSON.stringify(funcionario.idiomasadicionais) : '';
+           // document.getElementById("idiomasContainer").value = funcionario.idiomasadicionais ? JSON.stringify(funcionario.idiomasadicionais) : '';
+
+            if (funcionario.idiomasadicionais) {
+                try {
+                    const idiomasSalvos = JSON.parse(funcionario.idiomasadicionais);
+                    const inputsIdioma = document.querySelectorAll('#idiomasContainer .idiomaInput'); // Pega os inputs recém-gerados
+
+                    // Percorre os inputs e preenche com os idiomas salvos
+                    inputsIdioma.forEach((input, index) => {
+                        if (idiomasSalvos[index]) {
+                            input.value = idiomasSalvos[index];
+                        }
+                    });
+                } catch (e) {
+                    console.error("Erro ao fazer parse dos idiomas salvos:", e);
+                }
+            }
 
             document.getElementById("celularPessoal").value = funcionario.celularpessoal || '';
             document.getElementById("celularFamiliar").value = funcionario.celularfamiliar || '';
             document.getElementById("email").value = funcionario.email || '';
             document.getElementById("site").value = funcionario.site || '';
-            document.getElementById("banco").value = funcionario.banco || '';
-            document.getElementById("codigoBanco").value = funcionario.codigobanco || '';
+            // document.getElementById("banco").value = funcionario.banco || '';
+            document.getElementById("codBanco").value = funcionario.codigobanco || '';
             document.getElementById("pix").value = funcionario.pix || '';
-            document.getElementById("numeroConta").value = funcionario.numeroconta || '';
+            document.getElementById("nConta").value = funcionario.numeroconta || '';
             document.getElementById("agencia").value = funcionario.agencia || '';
-            document.getElementById("tipoConta").value = funcionario.tipoconta || '';
+           
+           // document.getElementById("tpConta").value = funcionario.tipoconta || '';
+           // Lógica para select de tipo de conta (se "tpConta" é o ID correto)
+            const selectTipoConta = document.getElementById('tpConta'); // Verifique se 'tpConta' é o ID certo
+            if (selectTipoConta) {
+                selectTipoConta.value = funcionario.tipoconta || 'selecionado';
+            }
             document.getElementById("cep").value = funcionario.cep || '';
             document.getElementById("rua").value = funcionario.rua || '';
             document.getElementById("numero").value = funcionario.numero || '';
@@ -390,33 +607,17 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
             // Armazena o estado original do funcionário para futuras comparações (PUT)
             funcionarioOriginal = { ...funcionario }; // Copia o objeto para não modificar o original
 
-            // Lógica para rádio buttons de perfil
-            const radioPerfilElements = document.querySelectorAll('input[name="radio"]');
-            radioPerfilElements.forEach(radio => {
-                if (radio.value === funcionario.perfil) {
-                    radio.checked = true;
-                } else {
-                    radio.checked = false;
-                }
-            });
-
             // Lógica para select de nível de fluência (se "Linguas" é o ID correto)
             const selectLinguas = document.getElementById('Linguas'); // Verifique se 'Linguas' é o ID certo
             if (selectLinguas) {
-                selectLinguas.value = funcionario.nivelfluencialinguas || '';
-            }
-
-            // Lógica para select de tipo de conta (se "TPconta" é o ID correto)
-            const selectTipoConta = document.getElementById('TPconta'); // Verifique se 'TPconta' é o ID certo
-            if (selectTipoConta) {
-                selectTipoConta.value = funcionario.tipoconta || 'selecionado';
-            }
+                selectLinguas.value = funcionario.fluencia || '';
+            }            
 
             // Ativa os campos de formulário (se estiverem desativados após uma pesquisa)
             const formInputs = document.querySelectorAll('#formFuncionarios input, #formFuncionarios select, #formFuncionarios textarea');
             formInputs.forEach(input => input.removeAttribute('disabled'));
 
-            Swal.fire("Sucesso", "Funcionário carregado com sucesso!", "success");
+         //   Swal.fire("Sucesso", "Funcionário carregado com sucesso!", "success");
         } else {
             Swal.fire("Não encontrado", "Funcionário não encontrado.", "info");
             limparCamposFuncionarios(); // Limpa os campos se não encontrar
@@ -532,83 +733,169 @@ function atualizarCamposLinguas() {
     }
   }
 
-  async function fetchComToken(url, options = {}) {
-  console.log("URL da requisição:", url);
-  const token = localStorage.getItem("token");
-  const idempresa = localStorage.getItem("idempresa");
+//   async function fetchComToken(url, options = {}) {
+//     console.log("URL da requisição:", url);
+//     const token = localStorage.getItem("token");
+//     const idempresa = localStorage.getItem("idempresa");
 
-  console.log("ID da empresa no localStorage:", idempresa);
-  console.log("Token no localStorage:", token);
+//     console.log("ID da empresa no localStorage:", idempresa);
+//     console.log("Token no localStorage:", token);
 
-  if (!options.headers) options.headers = {};
-  
-  if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
-        options.headers['Content-Type'] = 'application/json';
-  }else if (options.body && typeof options.body === 'object' && options.headers['Content-Type'] !== 'multipart/form-data') {
-       
+//     if (!options.headers) options.headers = {};
+    
+//     if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
+//             options.headers['Content-Type'] = 'application/json';
+//     }else if (options.body && typeof options.body === 'object' && options.headers['Content-Type'] !== 'multipart/form-data') {
+        
+//             options.body = JSON.stringify(options.body);
+//             options.headers['Content-Type'] = 'application/json';
+//     }
+
+//     options.headers['Authorization'] = 'Bearer ' + token; 
+
+//     if (
+//         idempresa && 
+//         idempresa !== 'null' && 
+//         idempresa !== 'undefined' && 
+//         idempresa.trim() !== '' &&
+//         !isNaN(idempresa) && 
+//         Number(idempresa) > 0
+//     ) {
+//         options.headers['idempresa'] = idempresa;
+//         console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
+//     } else {
+//         console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
+//     }
+//     console.log("URL OPTIONS", url, options)
+    
+//     const resposta = await fetch(url, options);
+
+//     console.log("Resposta da requisição:", resposta);
+
+//     let responseBody = null;
+//     try {     
+//         responseBody = await resposta.json();
+//     } catch (jsonError) {    
+//         try {
+//             responseBody = await resposta.text();
+//         } catch (textError) {        
+//             responseBody = null;
+//         }
+//     }
+
+//     if (resposta.status === 401) {
+//         localStorage.clear();
+//         Swal.fire({
+//         icon: "warning",
+//         title: "Sessão expirada",
+//         text: "Por favor, faça login novamente."
+//         }).then(() => {
+//         window.location.href = "login.html"; 
+//         });
+    
+//         throw new Error('Sessão expirada'); 
+//     }
+
+//     if (!resposta.ok) {        
+//             const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
+//             throw new Error(`Erro na requisição: ${errorMessage}`);
+//     }
+
+//     return responseBody;
+// }
+
+async function fetchComToken(url, options = {}) {
+    console.log("URL da requisição:", url);
+    const token = localStorage.getItem("token");
+    const idempresa = localStorage.getItem("idempresa");
+
+    console.log("ID da empresa no localStorage:", idempresa);
+    console.log("Token no localStorage:", token);
+
+    // Inicializa headers se não existirem
+    if (!options.headers) options.headers = {};
+
+    // --- LÓGICA DE TRATAMENTO DO CORPO E CONTENT-TYPE ---
+    // 1. Se o corpo é FormData, NÃO FAÇA NADA com Content-Type, o navegador cuida.
+    //    E NÃO STRINGIFIQUE O CORPO.
+    if (options.body instanceof FormData) {
+        // Nada a fazer aqui. O navegador define o Content-Type: multipart/form-data automaticamente.
+        // E o corpo já está no formato correto.
+        console.log("[fetchComToken] Detectado FormData. Content-Type e body serão gerenciados pelo navegador.");
+    }
+    // 2. Se o corpo é um objeto e NÃO é FormData, trata como JSON.
+    else if (options.body && typeof options.body === 'object') {
         options.body = JSON.stringify(options.body);
         options.headers['Content-Type'] = 'application/json';
-  }
+        console.log("[fetchComToken] Detectado corpo JSON. Content-Type definido como application/json.");
+    }
+    // 3. Se o corpo é uma string que parece JSON, trata como JSON.
+    else if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
+        options.headers['Content-Type'] = 'application/json';
+        console.log("[fetchComToken] Detectado string JSON. Content-Type definido como application/json.");
+    }
+    // --- FIM DA LÓGICA DE TRATAMENTO DO CORPO ---
 
-  options.headers['Authorization'] = 'Bearer ' + token; 
+    // Adiciona o token de autorização
+    options.headers['Authorization'] = 'Bearer ' + token;
 
-  if (
-      idempresa && 
-      idempresa !== 'null' && 
-      idempresa !== 'undefined' && 
-      idempresa.trim() !== '' &&
-      !isNaN(idempresa) && 
-      Number(idempresa) > 0
-  ) {
-      options.headers['idempresa'] = idempresa;
-      console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
-  } else {
-    console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
-  }
-  console.log("URL OPTIONS", url, options)
- 
-  const resposta = await fetch(url, options);
+    // Adiciona o idempresa ao cabeçalho, se válido
+    if (
+        idempresa &&
+        idempresa !== 'null' &&
+        idempresa !== 'undefined' &&
+        idempresa.trim() !== '' &&
+        !isNaN(idempresa) &&
+        Number(idempresa) > 0
+    ) {
+        options.headers['idempresa'] = idempresa;
+        console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
+    } else {
+        console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
+    }
 
-  console.log("Resposta da requisição:", resposta);
+    console.log("URL OPTIONS", url, options);
 
-  let responseBody = null;
-  try {     
-      responseBody = await resposta.json();
-  } catch (jsonError) {    
-      try {
-          responseBody = await resposta.text();
-      } catch (textError) {        
-          responseBody = null;
-      }
-  }
+    const resposta = await fetch(url, options);
 
-  if (resposta.status === 401) {
-    localStorage.clear();
-    Swal.fire({
-      icon: "warning",
-      title: "Sessão expirada",
-      text: "Por favor, faça login novamente."
-    }).then(() => {
-      window.location.href = "login.html"; 
-    });
-   
-    throw new Error('Sessão expirada'); 
-  }
+    console.log("Resposta da requisição:", resposta);
 
-  if (!resposta.ok) {        
+    let responseBody = null;
+    try {
+        responseBody = await resposta.json();
+    } catch (jsonError) {
+        try {
+            responseBody = await resposta.text();
+        } catch (textError) {
+            responseBody = null;
+        }
+    }
+
+    if (resposta.status === 401) {
+        localStorage.clear();
+        Swal.fire({
+            icon: "warning",
+            title: "Sessão expirada",
+            text: "Por favor, faça login novamente."
+        }).then(() => {
+            window.location.href = "login.html";
+        });
+        throw new Error('Sessão expirada');
+    }
+
+    if (!resposta.ok) {
         const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
         throw new Error(`Erro na requisição: ${errorMessage}`);
-  }
+    }
 
-  return responseBody;
+    return responseBody;
 }
 
 function limparCamposFuncionarios(){
     const camposParaLimpar = [
-        "idFuncionarios", 
-        "nome", "cpf", "rg",
+        "idFuncionarios", "nome", "cpf", "rg",
         "celularPessoal", "celularFamiliar", "email", "site",
-        "Banco", "CodBanco", "Pix", "Nconta", "agencia",
+        "banco", "codBanco", "pix", "nConta", "agencia",
         "cep", "rua", "numero", "complemento", "bairro",
         "cidade", "estado", "pais"
     ];
@@ -627,7 +914,7 @@ function limparCamposFuncionarios(){
     });
 
     // --- Limpeza específica para Radio Buttons (Perfil) ---
-    const radioPerfil = document.querySelectorAll('input[name="radio"]'); // Seleciona todos os rádios com name="radio"
+    const radioPerfil = document.querySelectorAll('input[name="perfil"]'); // Seleciona todos os rádios com name="perfil"
     radioPerfil.forEach(radio => {
         radio.checked = false; // Desmarca cada radio button
     });
@@ -693,7 +980,7 @@ function limparCamposFuncionarios(){
         input.value = "Nome"; 
         input.classList.add("uppercase");
         input.required = true;
-        campoNomeFantasia.parentNode.replaceChild(input, campoNomeFantasia);
+        campoNome.parentNode.replaceChild(input, campoNome);
     }
 }
 

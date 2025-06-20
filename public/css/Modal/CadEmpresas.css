@@ -242,8 +242,7 @@ input:focus{
 }
 
 input:focus ~ label,
-input:valid ~ label,
-input:not([value=""]) ~ label {
+input:valid ~ label{
   top: 0;
   left: 25%;
   font-size: 15px;
@@ -251,7 +250,7 @@ input:not([value=""]) ~ label {
   background: #cacaca;
 }
 
-input:not([value=""]) ~ label {
+input#idEmpresa:not([value=""]) ~ label {
   top: 0;
   left: 25%;
   font-size: 15px;

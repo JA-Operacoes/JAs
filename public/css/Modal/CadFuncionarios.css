@@ -349,12 +349,12 @@ input:not([value=""]) ~ label {
   /* input[type=file]{
     display: none;
   } */
-  
-  input#complemento, input#pais, input#estado, input#numero, input#agencia, input#Pix, input#Banco, input#CodBanco {
+
+  input#complemento, input#pais, input#estado, input#numero, input#agencia, input#pix, input#banco, input#codBanco {
     width: 120px; 
   }
 
-  select#TPconta{
+  select#tpConta{
     width: 145px;
     height: 34px;
     font-size: 15px;

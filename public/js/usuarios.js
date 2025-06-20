@@ -1,4 +1,3 @@
-let empresasOriginais = []; // Variável global para armazenar as empresas originais
 
 document.getElementById("Registrar").addEventListener("submit", async function (e) {
     e.preventDefault();
@@ -9,7 +8,7 @@ document.getElementById("Registrar").addEventListener("submit", async function (
     const senha = document.getElementById("senha").value;
     const ativo = document.getElementById('ativo').checked;
     const idempresaDefault = document.getElementById("empresaDefaultSelect").value;
-
+const empresaSelecionada = document.getElementById("listaEmpresas");
     console.log("ID EMPRESA DEFAULT SELECT", idempresaDefault);
     
     const confirmacaoSenha = document.getElementById("confirmasenha").value;
@@ -42,11 +41,11 @@ document.getElementById("Registrar").addEventListener("submit", async function (
     // }
     
     try {
-      const resposta = await fetchComToken("/auth/cadastro", {
+      const reponse = await fetchComToken("/auth/cadastro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // body: JSON.stringify({ nome, email, senha, sobrenome, ativo, empresas: empresasSelecionadas })
-        body: JSON.stringify({ nome, email, senha, sobrenome, ativo, idempresadefault: idempresaDefault })
+        body: JSON.stringify({ nome, email, senha, sobrenome, ativo, empresas: empresaSelecionada })
+       // body: JSON.stringify({ nome, email, senha, sobrenome, ativo, idempresadefault: idempresaDefault })
       });
   
       const dados = await resposta.json();
@@ -111,7 +110,7 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
   const email_original = document.getElementById("email_original").value;
   const ativo = document.getElementById('ativo').checked;
   const idempresaDefault = document.getElementById("empresaDefaultSelect").value;
-
+const empresaSelecionada = document.getElementById("listaEmpresas");
   // const empresasSelecionadas = Array.from(document.querySelectorAll('#listaEmpresas input[type="checkbox"]:checked'))
   //   .map(cb => cb.value);
 
@@ -140,8 +139,8 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
     const dados = await fetchComToken("/auth/cadastro", {
       method: "PUT",  // Mudamos para PUT para indicar alteração
       headers: { "Content-Type": "application/json" },
-      // body: JSON.stringify({ nome, sobrenome, email, senha, email_original, ativo, empresas: empresasSelecionadas }),
-      body: JSON.stringify({ nome, sobrenome, email, senha, email_original, ativo, idempresadefault: idempresaDefault }),
+       body: JSON.stringify({ nome, sobrenome, email, senha, email_original, ativo,idempresadefault: idempresaDefault, empresas: empresaSelecionada }),
+      //body: JSON.stringify({ nome, sobrenome, email, senha, email_original, ativo, idempresadefault: idempresaDefault }),
 
     });
 
@@ -196,20 +195,7 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
 });
 
  document.getElementById("email").addEventListener("blur", function () { 
-  // const emailValue = email.value;
-//   console.log("Verificando email:", emailValue);
-  // const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  //   if (!emailRegex.test(email)) {
-  //     return Swal.fire({
-  //       icon: "warning",
-  //       title: "Email inválido",
-  //       text: "Digite um email válido."
-  //     });
-  //   }
-  
-//   if (emailValue) {
-//     verificarUsuarioExistenteFront();
-//   }
+
 });
 
 let clicouNaLista = false; // Flag de clique
@@ -244,14 +230,12 @@ document.getElementById("sobrenome").addEventListener("blur", function () {
     console.log("Entrou no verificarNomeCompleto2");
      verificarNomeCompleto();
    }
-
-  //verificarUsuarioExistenteFront();
 });
 
 document.getElementById("email").addEventListener("blur", function (){
-  // if (!buscaUsuario){
+
     verificarUsuarioExistenteFront();
- //  }
+
     
 });
 
@@ -262,6 +246,15 @@ document.getElementById("buscaUsuario").addEventListener("input", function () {
     // Limpa campos relacionados ao usuário
     limparCampos();
   }
+});
+
+document.getElementById('empresaDefaultSelect').addEventListener('change', function () {
+  
+  const selectDefault = this.value;
+  idEmpresaDefaultSelecionada = selectDefault;
+
+  console.log("EMPRESA DEFAULT SELECIONADA NO SELECT USUARIOS", idEmpresaDefaultSelecionada);
+  
 });
 
 
@@ -286,7 +279,7 @@ async function verificarUsuarioExistenteFront() {
   const email = document.getElementById("email").value.trim();
   const ativo = document.getElementById('ativo').checked;
   const idempresaDefault = document.getElementById("empresaDefaultSelect").value;
-
+  const empresaSelecionada = document.getElementById("listaEmpresas");
   console.log("Entrou no verificarUsuarioExistenteFront", nome, sobrenome, email, ativo, idempresaDefault);
 
   if (!nome || !sobrenome || !email) {
@@ -295,13 +288,14 @@ async function verificarUsuarioExistenteFront() {
   
   try {
     
-    const resposta = await fetchComToken("/auth/verificarUsuario", {
+    const dados = await fetchComToken("/auth/verificarUsuario", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nome, sobrenome, email, ativo, idempresaDefault: idempresaDefault, empresas: empresasSelecionadas }) // Envia idempresaDefault e empresas como array vazio,
+      // body: JSON.stringify({ nome, sobrenome, email, ativo, idempresaDefault: idempresaDefault, empresas: empresasSelecionadas }) // Envia idempresaDefault e empresas como array vazio,
+    body: JSON.stringify({ nome, sobrenome, email, ativo, idempresaDefault: idempresaDefault, empresas: empresaSelecionada }) // Envia idempresaDefault e empresas como array vazio,
     });
 
-    const dados = await resposta.json();
+    //const dados = await resposta.json();
 
     if (dados.usuarioExistente) {
       if (dados.usuarioExistente.ativo) {
@@ -499,20 +493,16 @@ document.querySelectorAll(".toggle-senha").forEach((el) => {
 const iconeBuscar = document.getElementById('iconebuscarUsuario');
 
 iconeBuscar.addEventListener('click', async () => {
+  limparCampos(); // Limpa os campos do formulário antes de buscar
   const termo = inputBusca.value.trim();
-  const idempresa = localStorage.getItem('idempresa') || '1';
-
-  //console.log("Termo de busca ao clicar no ícone:", termo); // Log do termo de busca
+  const idempresa = localStorage.getItem('idempresa') || '1'; 
 
   if (termo.length < 2) {
-    // Se não tiver termo, buscar todos
-   // console.log("Termo de busca muito curto, buscando todos os usuários.");
+   
     try {
       const usuarios = await fetchComToken(`/auth/usuarios`);
       // const usuarios = await resposta.json();
-
-     // const usuarios = await resposta.json();
-
+   
       if (!Array.isArray(usuarios)) {
         console.error('Resposta não é uma lista de usuários:', usuarios);
         return; // ou trate o erro apropriadamente
@@ -531,7 +521,9 @@ iconeBuscar.addEventListener('click', async () => {
         li.dataset.ativo = usuario.ativo;
         li.dataset.idempresadefault = usuario.idempresadefault;
 
-        preencherEmpresaDefault(usuario.idempresadefault);
+        console.log("ID Empresa Default:", usuario.idempresadefault);
+
+        //preencherEmpresaDefault(usuario.idempresadefault);
 
         lista.appendChild(li);
       });
@@ -550,6 +542,7 @@ iconeBuscar.addEventListener('click', async () => {
 const listaUsuariosContainer = document.querySelector('#listaUsuarios'); 
 // Evento ao clicar em um usuário da lista
 listaUsuariosContainer.addEventListener('click', async (e) => {
+  console.log("Clicou na lista de usuários listaUsuariosContainer");
   const item = e.target.closest('.usuario-item');
   if (!item) return;
 
@@ -609,6 +602,7 @@ const inputBusca = document.getElementById('buscaUsuario');
 const lista = document.getElementById('listaUsuarios');
 
 inputBusca.addEventListener('input', async () => {
+
   const termo = inputBusca.value.trim();
 
   //console.log("Termo de busca:", termo); // Log do termo de busca
@@ -659,7 +653,8 @@ inputBusca.addEventListener('input', async () => {
         li.dataset.ativo = usuario.ativo;
         li.dataset.idempresaDefault = usuario.idempresadefault;
       // Preencher o select da empresa default
-        preencherEmpresaDefault(usuario.idempresadefault);
+      console.log("ID Empresa Default2:", usuario.idempresadefault);
+      //  preencherEmpresaDefault(usuario.idempresadefault);
         lista.appendChild(li);
       });
       
@@ -675,7 +670,8 @@ inputBusca.addEventListener('input', async () => {
 
 // Clique na sugestão
 lista.addEventListener('mousedown', async (e) => {
-//  console.log("Elemento clicado:", e.target); // Log do elemento clicado
+   // Limpa os campos do formulário antes de preencher com os dados do usuário clicado
+  console.log("mousedown Elemento clicado:", e.target); // Log do elemento clicado
 //  console.log("Tag do elemento clicado:", e.target.tagName); // Log da tag do elemento clicado
   if (e.target.tagName === 'LI') {
     clicouNaLista = true; // Define que foi um clique na lista
@@ -685,7 +681,8 @@ lista.addEventListener('mousedown', async (e) => {
     const email = e.target.dataset.email;
     const ativo = e.target.dataset.ativo === 'true'; 
     const idusuario = e.target.dataset.idusuario;
-
+    const idEmpresaDefaultDoLi = e.target.dataset.idempresadefault;
+console.log("Valor de idEmpresaDefaultDoLi antes de chamar preencherEmpresaDefault:", idEmpresaDefaultDoLi); // <-- NOVO LOG AQUI
  //   console.log("Usuário selecionado:", nome, sobrenome, email, ativo, idusuario); // Log do usuário selecionado
 
     document.getElementById('idusuario').value = idusuario;
@@ -705,22 +702,30 @@ lista.addEventListener('mousedown', async (e) => {
     lista.innerHTML = '';
     lista.style.display = 'none';
 
-    preencherUsuarioPeloEmail(email);
+    if (idEmpresaDefaultDoLi) { // Apenas tenta se não for indefinido/vazio
+          preencherEmpresaDefault(idEmpresaDefaultDoLi);
+    } else {
+          console.warn("DEBUG: idEmpresaDefaultDoLi está indefinido ou vazio para este usuário. O select não será preenchido.");
+          // Opcional: Se o ID da empresa padrão for opcional, você pode resetar o select aqui
+          // document.getElementById('empresaDefaultSelect').value = '';
+    }
 
-    // Limpar checkboxes de empresas e permissões antes de carregar
-    limparCheckboxesEmpresas();
+     preencherUsuarioPeloEmail(email);
+
+     //limparSelectsEmpresas();
+
     limparCheckboxesPermissao();
 
-     // 🔽 Aqui começa a parte nova: buscar empresas vinculadas
-    try {
-      // Limpa os checkboxes antes
-     // document.querySelectorAll('.empresa-checkbox').forEach(cb => cb.checked = false);
+//      // 🔽 Aqui começa a parte nova: buscar empresas vinculadas
+     try {
+//       // Limpa os checkboxes antes
+//      // document.querySelectorAll('.empresa-checkbox').forEach(cb => cb.checked = false);
 
-//      console.log("Buscando empresas vinculadas ao usuário com ID:", idusuario);
+// //      console.log("Buscando empresas vinculadas ao usuário com ID:", idusuario);
 
-      //const empresas = await fetchComToken(`/usuarios/${idusuario}/empresas`);
-      const empresas = await fetchComToken(`/auth/usuarios/${idusuario}/empresas`);
-    //  const empresas = await resposta.json(); // verificar se funciona com isso comentado
+//       //const empresas = await fetchComToken(`/usuarios/${idusuario}/empresas`);
+       const empresas = await fetchComToken(`/auth/usuarios/${idusuario}/empresas`);
+//     //  const empresas = await resposta.json(); // verificar se funciona com isso comentado
 
 
       if (!Array.isArray(empresas)) {
@@ -754,27 +759,6 @@ lista.addEventListener('mousedown', async (e) => {
  
 });
 
-function preencherEmpresaDefault(idempresadefault) {
-  const empresaDefaultSelect = document.getElementById('empresaDefaultSelect');
-  if (empresaDefaultSelect && idempresadefault) {
-    const option = [...empresaDefaultSelect.options].find(opt => opt.value === idempresadefault);
-    if (option) {
-      empresaDefaultSelect.value = idempresadefault;
-    } else {
-      const novaOption = new Option(`Empresa ID ${idempresadefault}`, idempresadefault);
-      empresaDefaultSelect.add(novaOption);
-      empresaDefaultSelect.value = idempresadefault;
-    }
-  }
-}
-
-
-// Função para limpar checkboxes de empresas
-function limparCheckboxesEmpresas() {
-  document.querySelectorAll('.empresa-checkbox').forEach(cb => cb.checked = false);
-}
-
-
 function limparPermissoes() {
   document.querySelectorAll('.modulo-container input[type="checkbox"]').forEach(cb => cb.checked = false);
   //document.querySelectorAll('.checkbox-empresa').forEach(cb => cb.checked = false);
@@ -795,6 +779,15 @@ function limparCampos() {
   document.getElementById('listaUsuarios').innerHTML = '';
   document.getElementById('listaUsuarios').style.display = 'none';
   limparPermissoes(); // Limpa as permissões
+  const listaEmpresasSelect = document.getElementById('listaEmpresas');
+  const empresaDefaultSelect = document.getElementById('empresaDefaultSelect');
+
+  if (listaEmpresasSelect) {
+      listaEmpresasSelect.value = ""; // Volta para a opção de "Todas as empresas"     
+  }
+  if (empresaDefaultSelect) {
+      empresaDefaultSelect.value = ""; // Volta para a opção "Selecione"     
+  }
  
 }
 
@@ -826,10 +819,23 @@ async function carregarPermissoesEEmpresasDoUsuario(email) {
     const dados = await fetchComToken(`/auth/permissoes-usuario/${email}`);
    // const dados = await resposta.json();// verificar se funciona com isso comentado
 
-    if (!resposta.ok) {
-      console.error("Erro ao buscar permissões:", dados);
+    if (!dados) {
+      console.warn("Nenhum dado de permissão ou empresa retornado para o usuário:", email);
+      // Opcional: Limpar ou definir valores padrão para as variáveis originais
+      permissoesOriginais = {};
+      empresasOriginais = [];
       return;
     }
+
+
+    if (Array.isArray(dados.empresas)) {
+            empresasOriginais = [...dados.empresas]; // Cria uma cópia para evitar modificações diretas
+    } else {
+        empresasOriginais = []; // Garante que seja um array vazio se não vier no formato esperado
+        console.warn("Dados de empresas não estão no formato de array para o usuário:", email, dados.empresas);
+    }
+    console.log("Empresas Originais Inicializadas:", empresasOriginais);
+    
 
     // Marca os checkboxes de permissões
     dados.permissoes.forEach(permissao => {
@@ -842,12 +848,12 @@ async function carregarPermissoesEEmpresasDoUsuario(email) {
     });
 
     // Marca as empresas selecionadas
-    const checkboxesEmpresa = document.querySelectorAll('.checkbox-empresa');
-    checkboxesEmpresa.forEach(checkbox => {
-      if (dados.empresas.includes(parseInt(checkbox.dataset.idempresa))) {
-        checkbox.checked = true;
-      }
-    });
+    // const checkboxesEmpresa = document.querySelectorAll('.checkbox-empresa');
+    // checkboxesEmpresa.forEach(checkbox => {
+    //   if (dados.empresas.includes(parseInt(checkbox.dataset.idempresa))) {
+    //     checkbox.checked = true;
+    //   }
+    // });
 
   } catch (erro) {
     console.error("Erro ao carregar permissões e empresas:", erro);
@@ -891,8 +897,16 @@ async function preencherUsuarioPeloEmail(email) {
 
 
 //PERMISSÕES
+let permissoesOriginais = {
+  modulo:   null,
+  acesso:   false,
+  cadastrar:false,
+  alterar:  false,
+  pesquisar:false
+};
+let empresasOriginais = []; // Variável global para armazenar as empresas originais
 
-function flipBox() {
+async function flipBox() {
    var container = document.getElementById("flip-container");
    container.classList.toggle("flipped");
 
@@ -900,28 +914,88 @@ function flipBox() {
   const nomeUsuarioDisplay = document.getElementById("nome_usuario"); // O campo de exibição do nome do usuário no verso
   const nomeUsuarioFrente = document.getElementById("nome").value; // Nome do usuário do formulário da frente
   
-  // if (idusuario) {
-  //   console.log("Vai entrar em carregarPermissoesUsuario IdUsuario",idusuario);
-  //   carregarPermissoesUsuario(idusuario);
-  // }
-// Preenche o nome do usuário no verso
-if (container.classList.contains("flipped")) {
-        if (nomeUsuarioDisplay && nomeUsuarioFrente) {
-            nomeUsuarioDisplay.value = nomeUsuarioFrente;
-            nomeUsuarioDisplay.readOnly = true; // Torna somente leitura para não ser editado
-        }      
-     
-        selectModulo.disabled = true;
-        //carregarModulos(); 
-       
+  
 
+// Preenche o nome do usuário no verso
+  if (container.classList.contains("flipped")) {
+      if (nomeUsuarioDisplay && nomeUsuarioFrente) {
+          nomeUsuarioDisplay.value = nomeUsuarioFrente;
+          nomeUsuarioDisplay.readOnly = true; // Torna somente leitura para não ser editado
+      } 
+      
+      ////inserido para teste
+if (idusuario) {
+    console.log("Vai entrar em carregarEmpresasUsuario IdUsuario",idusuario);
+     
+
+            console.log("Vai entrar em carregarEmpresasUsuario IdUsuario", idusuario);
+            // AGORA COM AWAIT DIRETO NA FUNÇÃO ASYNC flipBox
+            await carregarEmpresasUsuario(idusuario); // Espere aqui
+            console.log("carregarEmpresasUsuario CONCLUÍDO. Empresas Originais:", empresasOriginais);
+
+            // Agora que empresasOriginais está preenchida, e o select está (ou deveria estar) atualizado
+            const selectModuloElement = document.getElementById("modulo");
+            const selectEmpresaElement = document.getElementById("listaEmpresas");
+
+            if (!selectModuloElement || !selectEmpresaElement) {
+                console.error("Elementos de select (modulo ou listaEmpresas) não encontrados no DOM.");
+                return;
+            }
+
+            
+            const empresaAlvoAtual = selectEmpresaElement.value;
+            const moduloAtual = "";
+
+            console.log("Modulo Atual para carregarPermissoes:", moduloAtual);
+            console.log("Empresa Alvo Atual para carregarPermissoes:", empresaAlvoAtual);
+
+            if (selectModuloElement.options.length > 1) { // Mais de uma opção (além do "choose")
+                moduloAtual = selectModuloElement.options[1].value; // Pega o valor do primeiro módulo real
+                selectModuloElement.value = moduloAtual; // Pré-seleciona
+            } else {
+                // Caso não haja módulos carregados ainda (menos provável se DOMContentLoaded já chamou carregarModulos)
+                console.warn("Nenhum módulo real disponível para seleção inicial.");
+            }
+            console.log("Módulo Atual (APÓS AJUSTE) para carregarPermissoes:", moduloAtual);
+            console.log("Empresa Alvo Atual (APÓS AJUSTE) para carregarPermissoes:", empresaAlvoAtual);
+
+            // Agora, chame carregarPermissoesUsuario com os valores que *tentamos* pré-selecionar.
+            // A condição agora verifica se temos valores válidos.
+            if (moduloAtual && moduloAtual !== 'choose' && empresaAlvoAtual && empresaAlvoAtual !== '' && empresaAlvoAtual !== 'Selecione') {
+                // Seu backend espera o NOME do módulo, não o value, certo?
+                const nomeModuloParaAPI = selectModuloElement.options[selectModuloElement.selectedIndex].textContent;
+                await carregarPermissoesUsuario(idusuario, empresaAlvoAtual, nomeModuloParaAPI);
+                console.log("carregarPermissoesUsuario CONCLUÍDO.");
+            } else {
+                console.warn("Ainda sem dados suficientes para carregar permissões iniciais. Módulo:", moduloAtual, "Empresa:", empresaAlvoAtual);
+                permissoesOriginais = { modulo: null, acesso: false, cadastrar: false, alterar: false, pesquisar: false };
+            }
+        } else {
+            console.warn("ID de usuário não encontrado ao virar para o verso para carregar permissões/empresas.");
+            empresasOriginais = [];
+            permissoesOriginais = { modulo: null, acesso: false, cadastrar: false, alterar: false, pesquisar: false };
+        }
+
+        // Removi selectModulo.disabled = true; daqui. É melhor habilitar/desabilitar baseado na seleção
+        // da empresa e módulo, talvez no `change` listener.
+        console.log("Entrou no flipBox - Flipped.");
+      ///fim
+
+
+      selectModulo.disabled = true;
+      //carregarModulos();     
     } else {
-        // Se virou para a frente (cadastro de usuário)
-        console.log("Voltou para a frente do cadastro de usuário.");
-        // Opcional: Limpar campos do verso ao voltar, se necessário.
+      // Se virou para a frente (cadastro de usuário)
+      console.log("Voltou para a frente do cadastro de usuário.");
+      // Opcional: Limpar campos do verso ao voltar, se necessário.
+      limparListaEmpresas(); // Se essa função limpa o HTML do container de empresas
+        empresasOriginais = []; // E garante que a variável global esteja vazia
+        permissoesOriginais = { modulo: null, acesso: false, cadastrar: false, alterar: false, pesquisar: false };
+        limparCheckboxesPermissao(); // Limpa os checkboxes de permissão
     }
    console.log("Entrou no flipBox");
-  }
+  
+}
 
 
 document.getElementById("btnVoltar").addEventListener("click", function() {
@@ -930,14 +1004,6 @@ document.getElementById("btnVoltar").addEventListener("click", function() {
    // pega o idusuario que já está armazenado em um campo hidden
   
 });
-
-let permissoesOriginais = {
-  modulo:   null,
-  acesso:   false,
-  cadastrar:false,
-  alterar:  false,
-  pesquisar:false
-};
 
 
 document.getElementById("btnsalvarPermissao").addEventListener("click", async function (e) {
@@ -949,6 +1015,8 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
    
   const empresaSelecionada = document.getElementById("listaEmpresas");
   const idEmpresaAtual = empresaSelecionada.value;
+  const empresasAtualmenteSelecionadas = [idEmpresaAtual];
+
   
   if (!idusuario) {
         Swal.fire("Atenção", "Selecione um usuário primeiro.", "warning");
@@ -963,7 +1031,7 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
         Swal.fire("Atenção", "Selecione uma empresa válida para aplicar as permissões.", "warning");
         return;
     }
- // const empresasSelecionadas = [empresaSelecionadaUnica];
+  //const empresasSelecionadas = [empresaSelecionadaUnica];
   
   console.log("EMPRESA SELECIONADA BT SALVAR", empresaSelecionada);
 
@@ -985,7 +1053,16 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
   const semAlteracaoPermissoes = typeof permissoesOriginais === "object" &&
     Object.keys(atuais).every(key => atuais[key] === permissoesOriginais[key]);
 
-  
+    console.log("Permissões Originais:", permissoesOriginais);
+    console.log("Permissões Atuais:", atuais);
+
+  const semAlteracaoEmpresas = empresasOriginais.length === empresasAtualmenteSelecionadas.length &&
+                               empresasOriginais.every(empId => empresasAtualmenteSelecionadas.includes(empId));
+
+  console.log("Empresas Originais:", empresasOriginais);
+  console.log("Empresas Atualmente Selecionadas:", empresasAtualmenteSelecionadas);
+  console.log("Sem Alteração nas Empresas:", semAlteracaoEmpresas);
+
   if (semAlteracaoPermissoes && semAlteracaoEmpresas) {
     return Swal.fire("Aviso", "Nenhuma alteração detectada nas Permissões ou Empresas.", "info");
   }
@@ -1016,7 +1093,10 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
 
       // Atualiza os dados originais
       permissoesOriginais = { ...atuais };
-      empresasOriginais = [...empresaSelecionada];
+      empresasOriginais = [...empresasAtualmenteSelecionadas];
+       // Atualiza com as empresas atualmente selecionadas
+       console.log("empresasOriginais atualizadas após salvar:", empresasOriginais);
+
     } else {
       Swal.fire("Erro", dados.erro || "Erro ao salvar permissões.", "error");
     }
@@ -1027,35 +1107,51 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
   }
 });
 
+
 async function carregarEmpresasUsuario(idusuario) {
-  const container = document.getElementById('listaEmpresas');
-  container.innerHTML = ''; // limpa
+    const container = document.getElementById('listaEmpresas'); // Note que 'listaEmpresas' agora é um select, não um container de checkboxes
+    // A sua função 'carregarEmpresasUsuario' atualmente parece estar manipulando DIVs e checkboxes,
+    // mas seu HTML do salvamento mostra um <select id="listaEmpresas">.
+    // Se 'listaEmpresas' for o <select> para TODAS as empresas, e você tiver outro elemento
+    // para exibir as empresas DO USUARIO (como um grupo de checkboxes),
+    // então essa função precisa ser revisada.
 
-  try {
-    const empresas = await fetchComToken(`/usuario_empresas/${idusuario}`); // endpoint hipotético
-    empresas.forEach(emp => {
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.id = 'empresa_' + emp.id;
-      cb.value = emp.id;
-      cb.checked = emp.selecionada; // ou conforme sua resposta
-      const label = document.createElement('label');
-      label.htmlFor = cb.id;
-      label.textContent = emp.nmfantasia;
+    // **ASSUMINDO QUE '/usuario_empresas/:idusuario' RETORNA AS EMPRESAS DO USUÁRIO:**
+    try {
+        // Este endpoint deve retornar apenas as empresas que o usuário já possui.
+        const empresasDoUsuario = await fetchComToken(`usuarios/${idusuario}/empresas`);
+        console.log("Empresas DO USUÁRIO carregadas (para empresasOriginais):", empresasDoUsuario);
 
-      const div = document.createElement('div');
-      div.appendChild(cb);
-      div.appendChild(label);
+        if (Array.isArray(empresasDoUsuario)) {
+            // Mapeie apenas os IDs das empresas que o usuário já possui
+            empresasOriginais = empresasDoUsuario.map(emp => String(emp.id)); // Converte para string para consistência com `value` do select
+            console.log("empresasOriginais inicializada com:", empresasOriginais);
 
-      container.appendChild(div);
-    });
+            // Opcional: Se você quiser que o select 'listaEmpresas' (o que tem TODAS as empresas)
+            // selecione a empresa padrão do usuário automaticamente ao carregar:
+            if (empresasOriginais.length > 0) {
+                const selectEmpresa = document.getElementById("listaEmpresas");
+                if (selectEmpresa) {
+                    selectEmpresa.value = empresasOriginais[0]; // Seleciona a primeira empresa do usuário como padrão
+                    // Dispare um evento 'change' para acionar a lógica de carregar módulos/permissões se necessário
+                    selectEmpresa.dispatchEvent(new Event('change'));
+                }
+            }
 
-    // Armazena lista original para comparar alterações
-    empresasOriginais = empresas.filter(e => e.selecionada).map(e => e.id);
+        } else {
+            empresasOriginais = [];
+            console.warn("Formato inesperado para empresas do usuário:", empresasDoUsuario);
+        }
 
-  } catch (e) {
-    console.error("Erro ao carregar empresas do usuário:", e);
-  }
+        // Se o seu 'listaEmpresas' é um SELECT para escolher UMA empresa para o usuário,
+        // então você não deve criar checkboxes aqui. Sua função 'carregarEmpresas' já preenche esse SELECT.
+        // A sua `carregarEmpresasUsuario` pode ser mais para carregar o *estado* das empresas do usuário
+        // e preencher `empresasOriginais`.
+
+    } catch (e) {
+        console.error("Erro ao carregar empresas do usuário para inicializar empresasOriginais:", e);
+        empresasOriginais = []; // Garante que seja vazio em caso de erro
+    }
 }
 
 function limparListaEmpresas() {
@@ -1085,7 +1181,7 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
             }
             // fetchComToken vai adicionar o Authorization e Content-Type, etc.
         };
-    const permissoes = await fetchComToken(url, options);
+    const permissoes = await fetchComToken(url, options);    
    
     console.log("Permissões carregadas:", permissoes);
 
@@ -1109,7 +1205,7 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
       
 
       permissoesOriginais = {
-        modulo,
+        modulo: p.modulo,
         acesso: Boolean(p.acesso),
         cadastrar: Boolean(p.cadastrar),
         alterar: Boolean(p.alterar),
@@ -1119,7 +1215,7 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
     } else {
       console.log("16. Nenhuma permissão encontrada. Permissões Originais serão falsas.");
       permissoesOriginais = {
-        modulo,
+        modulo: nomeModulo || null, // Se não houver módulo, mantém null
         acesso: false,
         cadastrar: false,
         alterar: false,
@@ -1214,37 +1310,75 @@ async function fetchComToken(url, options = {}) {
 
 let idEmpresaSelecionada = null;
 
+function preencherEmpresaDefault(idEmpresaDefault) {
+    console.log("Preenchendo empresa default com ID:", idEmpresaDefault); 
+    const selectEmpresa = document.getElementById('empresaDefaultSelect');
 
+    if (!selectEmpresa) {
+        console.error("ERRO CRÍTICO: Select de empresa (#empresaDefaultSelect) NÃO ENCONTRADO para preenchimento.");
+        return;
+    }
 
-async function carregarEmpresas() {
-  try {
-    console.log("Carregando empresas...");
-    const empresas = await fetchComToken('/empresas'); // substitua pela rota correta se for diferente
-    
-    const select = document.getElementById('listaEmpresas');
-    
-    console.log("Empresas carregadas:", empresas);
+    const valorParaSelecionar = String(idEmpresaDefault || ''); 
+    console.log(`Tentando setar select.value para: '${valorParaSelecionar}'`);
 
-    // Remove todas as opções exceto a primeira
-    select.innerHTML = '<option value="all">Todas as empresas</option>';
+    selectEmpresa.value = valorParaSelecionar;
 
-    // Preenche com as empresas
-    empresas.forEach(emp => {
-      const option = document.createElement('option');
-      option.value = emp.idempresa;
-      option.textContent = emp.nmfantasia;
-      select.appendChild(option);
-    });    
- 
+    const selectedOption = selectEmpresa.options[selectEmpresa.selectedIndex];
+    if (selectedOption && selectedOption.value === valorParaSelecionar) {
+        console.log(`SUCESSO: Select agora exibe: '<span class="math-inline">\{selectedOption\.textContent\}' \(Valor\: '</span>{selectedOption.value}')`);
+    } else {
+        console.error(`FALHA NA SELEÇÃO VISUAL: O valor '${valorParaSelecionar}' não foi encontrado ou selecionado no select. Atualmente exibe: ${selectedOption ? selectedOption.textContent : 'Nenhum'}`);
+        console.error("Valores disponíveis no select (verifique se '"+ valorParaSelecionar +"' está entre eles):");
+        Array.from(selectEmpresa.options).forEach((opt, index) => {
+            console.log(`  Opção <span class="math-inline">\{index\}\: Texto\='</span>{opt.textContent}', Valor='${opt.value}'`);
+        });
+    }
+}
 
-  } catch (error) {
-    console.error('Erro ao carregar empresas:', error);
-    Swal.fire({
-      icon: 'error',
-      title: 'Erro',
-      text: 'Não foi possível carregar a lista de empresas.'
-    });
-  }
+async function carregarEmpresas(selectIds = ['listaEmpresas', 'empresaDefaultSelect']) {
+    try {
+        console.log("Carregando empresas...");
+        const empresas = await fetchComToken('/empresas');
+        console.log("Empresas carregadas:", empresas);
+
+        selectIds.forEach(id => {
+            const selectElement = document.getElementById(id);
+
+            if (selectElement) {
+                selectElement.innerHTML = ''; // Limpa todas as opções
+
+                let defaultOptionText = "Selecione";
+                if (id === 'listaEmpresas') {
+                    defaultOptionText = "Todas as empresas";
+                }
+                const defaultOption = document.createElement('option');
+                defaultOption.value = "";
+                defaultOption.textContent = defaultOptionText;
+                defaultOption.selected = true;
+                defaultOption.disabled = true;
+                selectElement.appendChild(defaultOption);
+
+                empresas.forEach(emp => {
+                    const option = document.createElement('option');
+                    option.value = String(emp.idempresa); // Mantenha como String
+                    option.textContent = emp.nmfantasia;
+                    selectElement.appendChild(option);
+                }); 
+                console.log(`Select #${id} preenchido com ${empresas.length + 1} opções.`);
+            } else {
+                console.error(`ERRO CRÍTICO: Elemento select com ID '${id}' NÃO ENCONTRADO no DOM.`); // Altere para error
+            }
+        });
+
+    } catch (error) {
+        console.error('Erro ao carregar empresas:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Erro',
+            text: 'Não foi possível carregar a lista de empresas.'
+        });
+    }
 }
 
 document.getElementById('listaEmpresas').addEventListener('change', function () {
@@ -1333,14 +1467,18 @@ selectModulo.addEventListener("change", () => {
     }
 });
 
-document.addEventListener('DOMContentLoaded', () => {
-  
-  carregarEmpresas();
-  carregarModulos();
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log("DOMContentLoaded disparado. Iniciando carregamento de dados...");
+  await carregarEmpresas();
+  await carregarModulos();
+  console.log("--> carregarEmpresas() e carregarModulos() concluídos.");
+
+
   const btnFechar = document.getElementById('btnFechar');
   if (btnFechar) {
     btnFechar.addEventListener('click', () => {
       window.location.href = 'login.html'; // Substitua pelo caminho correto se estiver em outra pasta
     });
   }
+
 });

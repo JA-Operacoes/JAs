@@ -99,6 +99,10 @@ body{
   margin-bottom: 20px;
 }
 .user-box-select{
+ -webkit-appearance: none; /* Para navegadores baseados em Webkit (Chrome, Safari) */
+  -moz-appearance: none;    /* Para navegadores baseados em Gecko (Firefox) */
+  appearance: none;         /* Padrão */
+  
   display: flex;
   justify-content: center;
   align-items: center;
@@ -110,6 +114,9 @@ body{
   overflow-y: auto; 
   width: 100%;     
   box-sizing: border-box;
+  font-size: 16px;
+
+ 
 }
 
 .user-box input {

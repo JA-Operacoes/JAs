@@ -412,11 +412,12 @@ function adicionarEventoBlurEmpresa() {
         }    
     
         const nmFantasia = this.value.trim();
+       
         if (!nmFantasia) return;
 
         try {
             const empresa = await fetchComToken(`/empresas?nmFantasia=${encodeURIComponent(nmFantasia)}`);
-            
+            //const idEmpresa = empresa.idempresa || document.querySelector("#idEmpresa");
             console.log("Empresa encontrado:", empresa);
 
             if (!empresa || Object.keys(empresa).length === 0)
@@ -520,8 +521,9 @@ async function carregarEmpresasNmFantasia(desc, elementoAtual) {
             await carregarEmpresasNmFantasia(this.value, this);
         });
 
-    } catch {
-        mostrarErro("Empresa não encontrado", "Nenhum empresa com esse nome foi encontrado.");
+    } catch (erro) {
+        console.error("Erro ao carregar empresa:", erro);
+        mostrarErro("Empresa não encontrada", erro.message || "Nenhuma empresa com esse nome foi encontrada.");
         limparEmpresaOriginal();
     }
 }

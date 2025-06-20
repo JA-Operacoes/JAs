@@ -17,6 +17,8 @@ const { autenticarToken, contextoEmpresa } = require('./middlewares/authMiddlewa
 app.use(express.json());                 // lê JSON no corpo das requisições
 app.use(express.urlencoded({ extended: true })); // lê formulários URL-encoded
 
+app.use('/uploads', express.static('uploads'));
+
 // const authRoutes = require('./routes/auth');
 // app.use('/auth', authRoutes);
  

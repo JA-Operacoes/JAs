@@ -12,6 +12,7 @@ router.use(contextoEmpresa);
 router.get('/',  verificarPermissao('Empresas', 'pesquisar'), async (req, res) => {
   console.log('✅ [GET /empresas] Rota acessada com sucesso');
   const { nmFantasia } = req.query;  
+  
   try {
     if (nmFantasia) {
       console.log("🔍 Buscando empresa por nmFantasia:", nmFantasia);
@@ -25,25 +26,46 @@ router.get('/',  verificarPermissao('Empresas', 'pesquisar'), async (req, res) =
       console.log("✅ Consulta por nmFantasia retornou:", result.rows.length, "linhas.");
       return result.rows.length
         ? res.json(result.rows[0])
-        : res.status(404).json({ message: "Cliente não encontrada" });
+        : res.status(404).json({ message: "Empresa não encontrada" });
     } else {
-      console.log("🔍 Buscando todos os clientes para a empresa:");
+      
+      console.log("🔍 Buscando todas as empresas:");
       const result = await pool.query(
         `SELECT * 
         FROM empresas        
         ORDER BY nmfantasia`
         );
-      console.log("✅ Consulta de todos os clientes retornou:", result.rows.length, "linhas.");
+      console.log("✅ Consulta de todos as empresas retornou:", result.rows.length, "linhas.");
       return result.rows.length
         ? res.json(result.rows)
-        : res.status(404).json({ message: "Nenhum Cliente encontrado" });
+        : res.status(404).json({ message: "Nenhuma Empresa encontrada" });
     }
   } catch (error) {
-    console.error("❌ Erro ao buscar clientes:", error);
+    console.error("❌ Erro ao buscar empresas:", error);
     res.status(500).json({ message: "Erro ao buscar nome fantasia" });
   }
 });
 
+router.get('/:idempresa', verificarPermissao('Empresas', 'pesquisar'), async (req, res) => {
+  const { idempresa } = req.params;
+  console.log(`🔍 Buscando empresa por ID: ${idempresa}`);
+
+  try {
+    const result = await pool.query(
+      `SELECT * FROM empresas WHERE idempresa = $1`,
+      [idempresa]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "Empresa não encontrada" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("❌ Erro ao buscar empresa por ID:", error);
+    res.status(500).json({ message: "Erro ao buscar empresa" });
+  }
+});
 // Criar nova empresa
 router.post('/', verificarPermissao('Empresas', 'cadastrar'), 
   logMiddleware('Empresas', { // Módulo 'Empresas'
@@ -106,6 +128,8 @@ router.put('/:id', verificarPermissao('Empresas', 'alterar'),
   const id = req.params.id; // idempresa da empresa a ser atualizado
   const idempresa = req.idempresa; // ID da empresa do usuário logado
   const ativo = req.body.ativo;
+
+  console.log(`Atualizando empresa com ID: ${id} para a empresa do usuário logado: ${idempresa}`);
 
   const { nmFantasia, razaoSocial, cnpj, inscEstadual, emailEmpresa, emailNfe, site, telefone, cep, endereco, numero, complemento, bairro, cidade, estado, pais} = req.body;
   try {

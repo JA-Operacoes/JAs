@@ -331,8 +331,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
 // --------------------------------------------------- Autocomplete Bancos ---------------------------------------------------------
 window.autoPreencherBanco = function(input, evento) {
-  const nomeInput = document.getElementById('Banco');
-  const codInput = document.getElementById('CodBanco');
+  const nomeInput = document.getElementById('banco');
+  const codInput = document.getElementById('codBanco');
 
   if (!nomeInput || !codInput) return;
 

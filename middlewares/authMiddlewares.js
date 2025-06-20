@@ -3,8 +3,7 @@ const jwt = require('jsonwebtoken');
 const db = require('../db');
 const JWT_SECRET = process.env.JWT_SECRET || 'sua_chave_super_secreta';
 
-//function autenticarToken(opcoes = { verificarEmpresa: true }) {
-//  return (req, res, next) => {
+
 function autenticarToken(options = {}) {
     // Define opções padrão
     const { verificarEmpresa = true } = options; // Por padrão, verifica a empresa
@@ -12,7 +11,6 @@ function autenticarToken(options = {}) {
     return (req, res, next) => { // ESTE É O MIDDLEWARE REAL
       console.log("➡️ Entrou no autenticarToken");
       console.log("Todos os headers recebidos AUTENTICAR TOKEN:", req.headers);
-
    
       const authHeader = req.headers['authorization'];
       const token = authHeader.split(' ')[1];
@@ -31,9 +29,7 @@ function autenticarToken(options = {}) {
 
       console.log("Todos os headers recebidos AUTENTICAR TOKEN:", req.headers);
   
-      const idempresaHeader = req.get('x-id-empresa') || req.get('idempresa');
-
-    
+      const idempresaHeader = req.get('x-id-empresa') || req.get('idempresa');    
   
      //jwt.verify(token, process.env.JWT_SECRET, (err, usuario) => {
      jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
@@ -69,50 +65,8 @@ function autenticarToken(options = {}) {
         }
         console.log(`Usuário autenticado: ${decoded.email}. idusuario: ${req.usuario.idusuario}.`); // Log corrigido
         console.log("Empresa definida para requisição (final de autenticarToken):", req.idempresa); // Log para ver o valor final
-        next();
-        
-    //   // Verifica empresa, se necessário
-    //   if (opcoes.verificarEmpresa) {
-    //     const idempresaReq = Number(idempresaHeader);
-    //     if (isNaN(idempresaReq)) {
-    //       return res.status(400).json({ erro: 'ID da empresa inválido.' });
-    //     }
-    //     let empresaValida = false;
-    //     let idempresaFinal = null;
-
-    //     if (Array.isArray(decoded.empresas)) {
-    //       //empresaValida = decoded.empresas.some(e => e.idempresa === idempresaReq);
-    //       empresaValida = decoded.empresas.some(id => id === idempresaReq);
-    //       idempresaFinal = empresaValida ? idempresaReq : decoded.idempresaDefault;
-    //     } else if (decoded.idempresa) {
-    //       empresaValida = (idempresaReq === decoded.idempresa);
-    //       idempresaFinal = empresaValida ? idempresaReq : decoded.idempresa;
-    //     } else {
-    //       console.warn('Nenhuma empresa associada ao usuário no token.');
-    //       return res.status(403).json({ erro: 'Nenhuma empresa associada ao usuário.' });
-    //     }
-       
-    //     if (!empresaValida) {
-    //         console.warn(`Tentativa de acesso a empresa não autorizada. Token decodificado: ${JSON.stringify(decoded)}, Empresa requerida: ${idempresaReq}`);
-    //         return res.status(403).json({ erro: 'Acesso negado para esta empresa.' });
-    //     }
-
-    //     req.idempresa = idempresaFinal;
-    //     console.log('Usuário autenticado:', decoded.nome || decoded.email || decoded.idusuario);
-    //     console.log('Empresa definida para requisição:', req.idempresa);
-    //     return next(); // ✅ CHAMA NEXT() E RETORNA AQUI!
-       
-    //   }else{
-    //       req.idempresa = Number(idempresaHeader);
-    //       console.log('Usuário autenticado (sem verificação de empresa):', decoded.nome || decoded.email || decoded.idusuario);
-    //     console.log('Empresa definida para requisição (sem verificação de empresa):', req.idempresa);
-    //       return next(); // Chama next() após todas as verificações de empresa
-    //       //return res.status(403).json({ erro: 'Nenhuma empresa associada ao usuário.' });
-    //   }
-
-    //   console.log('Usuário autenticado:', decoded.nome || decoded.email || decoded.idusuario);
-    //   console.log('Empresa definida para requisição:', req.idempresa);
-    //  // next();
+        next();        
+    
     });
   }
 }
@@ -120,28 +74,7 @@ function autenticarToken(options = {}) {
 function contextoEmpresa(req, res, next) {
   console.log("➡️ Entrou no contextoEmpresa. req.idempresa atual:", req.idempresa); // Log corrigido para mostrar o valor
  
- // console.log('Headers recebidos:', req.headers);
-  // const idempresa = parseInt(req.headers['idempresa']);
-  // if (!idempresa || isNaN(idempresa)) {
-  //   return res.status(400).json({ erro: 'Nenhuma Empresa associada ao usuário' });
-  // }
-  // req.idempresa = idempresa;
-  
-  // next();
-
-  // if (!req.idempresa) {
-  //   const idempresa = parseInt(req.headers['idempresa'] || req.headers['x-id-empresa']);
-  //   if (!idempresa || isNaN(idempresa) || idempresa <= 0) {
-  //     console.warn('ID da empresa inválido no contextoEmpresa.');
-  //     return res.status(400).json({ erro: 'Nenhuma empresa associada ao usuário.' });
-  //   }
-  //   req.idempresa = idempresa;
-  // }
-  // console.log("Contexto Empresa ok. req.idempresa:", req.idempresa);
-  // return next();
-  
-
-  // Se idempresa já veio do token em autenticarToken, use-o
+   // Se idempresa já veio do token em autenticarToken, use-o
     const idempresa = req.idempresa; 
 
     // Se não veio do token (raro para rotas protegidas), pode tentar de outros lugares
