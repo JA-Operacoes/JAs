@@ -685,7 +685,9 @@ function inicializarFlatpickr(selector, contadorId) {
   flatpickr(input, {
     mode: "multiple",
     dateFormat: "d/m/Y",
-    // locale: "pt",
+    locale: "pt",
+    appendTo: input.closest('.modal'),
+    positionElement: input,
     disable: datasGlobaisSelecionadas,
     onChange: function (selectedDates, dateStr, instance) {
       console.log("🖊️ onChange disparado. Datas selecionadas:", dateStr);
@@ -706,8 +708,8 @@ function inicializarFlatpickr(selector, contadorId) {
       const contador = document.getElementById(contadorId);
       if (contador) {
         contador.textContent = selectedDates.length > 0
-          ? `${selectedDates.length} data(s) selecionada(s).`
-          : "Nenhuma data selecionada.";
+          ? `${selectedDates.length} diaria(s) selecionada(s).`
+          : "Nenhuma diaria selecionada.";
         console.log("📊 Contador atualizado:", contador.textContent);
       }
 

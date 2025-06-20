@@ -76,7 +76,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      margin-top: 400px;
+      margin-top: 470px;
   }
   
   
@@ -351,7 +351,36 @@ input:not([value=""]) ~ label {
   } */
 
   input#complemento, input#pais, input#estado, input#numero, input#agencia, input#pix, input#banco, input#codBanco {
+
+  .Idiomas {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: row;
+}
+
+#idiomasContainer {
+  display: flex;
+  flex-direction: row;
+  gap: 5px;
+  justify-content: center;
+}
+
+#idiomasContainer p{
+  font-size: 10px;
+  margin-left: 150px;
+  line-height: 1.2;
+  width: 300px;
+}
+
+  input#complemento, input#pais, input#estado, input#numero, input#agencia,  input#CodBanco, input#rg,input#cpf {
     width: 120px; 
+  }
+  input#Pix {
+    width: 250px;
+  }
+  input#funcao,input#Banco{
+    width: 150px;
   }
 
   select#tpConta{
@@ -360,8 +389,8 @@ input:not([value=""]) ~ label {
     font-size: 15px;
   }
   select#Linguas{
-    width: 220px;
-    height: 34px;
+    width: 215px;
+    height: 30px;
     font-size: 15px;
   }
   

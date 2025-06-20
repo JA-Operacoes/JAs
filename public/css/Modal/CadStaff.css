@@ -407,9 +407,7 @@ input:focus, textarea:focus {
 }
 
 input:focus~label,
-/* input:valid~label, */
-textarea:focus~label {
-/* textarea:valid~label { */
+input:valid~label {
   top: 0;
   left: 25px;
   font-size: 12px;
@@ -417,15 +415,19 @@ textarea:focus~label {
   background: #cacaca;
 }
 
-input:not([value=""]) ~ label,
-textarea:not([value=""]) ~ label {
+input ~ label,
+textarea ~ label {
     top: 0;
     left: 25px;
     font-size: 12px;
     padding: 0 2px;
     background: #cacaca;
 }
- 
+
+input#idStaff{
+  width: 100px;
+}
+
 
 fieldset{
   max-width: 100px;
@@ -469,7 +471,6 @@ label {
   font-size: 20px;
   margin: 0 auto;
   text-align: center;
-  width: 100px;
 }
 
 

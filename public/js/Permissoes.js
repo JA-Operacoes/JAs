@@ -71,12 +71,16 @@ async function initPermissoes() {
 
   try {
     console.log("[Permissões] Buscando permissões para o usuário:", idusuario);
-    const response = await fetchComToken(`/permissoes/${idusuario}`);
-     if (!response.ok) {
-    console.error("[Permissões] Erro na resposta:", response.status);
-    return;
-  }
-    const permissoes = await response.json(); 
+
+    const permissoes = await fetchComToken(`/permissoes/${idusuario}`);
+
+    //comentado para evitar erro de CORS
+  //   const response = await fetchComToken(`/permissoes/${idusuario}`);
+  //    if (!response.ok) {
+  //   console.error("[Permissões] Erro na resposta:", response.status);
+  //   return;
+  // }
+  //   const permissoes = await response.json(); 
 
     console.log("[Permissões] Tipo do retorno:", typeof permissoes);
 console.log("[Permissões] O retorno é instanceof Response?", permissoes instanceof Response);

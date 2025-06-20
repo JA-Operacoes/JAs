@@ -464,6 +464,35 @@ async function salvarFuncionario(dados) {
   }
 }
 
+function verificarPerfil() {
+  const internoSelecionado = document.getElementById("interno").checked;
+  const container = document.getElementById("campoFuncaoContainer");
+
+  // Limpa o campo, caso já exista
+  container.innerHTML = "";
+
+  if (internoSelecionado) {
+    const div = document.createElement("div");
+    div.classList.add("form2");
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.name = "funcao";
+    input.id = "funcao";
+    input.required = true;
+    input.spellcheck = false;
+
+    const label = document.createElement("label");
+    label.setAttribute("for", "funcao");
+    label.innerText = "Função";
+    
+
+    div.appendChild(input);
+    div.appendChild(label);
+    container.appendChild(div);
+  }
+}
+
 
 console.log("Ainda não Entrou no Preview");
 
@@ -512,6 +541,7 @@ function configurarPreviewFoto() {
       //hiddenInput.value = e.target.result;
     };
     reader.readAsDataURL(file);
+    console.log("pegou a imagem do ", fileNameImg)
   });
 }
 
@@ -657,70 +687,79 @@ function criarSelectFuncionario(funcionarios) {
 
 
 function atualizarCamposLinguas() {
-    const select = document.getElementById('Linguas');
-    const container = document.getElementById('idiomasContainer');
-    const valor = select.value;
+  const select = document.getElementById('Linguas');
+  const container = document.getElementById('idiomasContainer');
+  const valor = select.value;
 
-    container.innerHTML = ""; // Limpa campos anteriores
+  container.innerHTML = ""; // Limpa campos anteriores
 
-    if (valor === "") return;
+  if (valor === "") return;
 
-    // Sempre adiciona o campo "Português"
-    const inputPT = document.createElement("input");
-    inputPT.type = "text";
-    inputPT.value = "Português";
-    inputPT.disabled = true;
-    inputPT.className = "idiomaInput";
-    inputPT.style.marginBottom = "5px";
-    container.appendChild(inputPT);
-    container.appendChild(document.createElement("br"));
+  // Sempre adiciona o campo "Português"
+  const inputPT = document.createElement("input");
+  inputPT.type = "text";
+  inputPT.value = "Português";
+  inputPT.disabled = true;
+  inputPT.className = "idiomaInput";
+  // inputPT.style.marginBottom = "5px";
+  inputPT.style.width = "90px";
+  container.appendChild(inputPT);
 
-    if (valor === "1") {
-      // Monolíngue: nada mais a fazer
-      return;
-    }
-
-    if (valor === "2" || valor === "3") {
-      const qtd = parseInt(valor) - 1; // Já temos "Português", agora só os restantes
-      for (let i = 1; i <= qtd; i++) {
-        const input = document.createElement("input");
-        input.type = "text";
-        input.placeholder = `Idioma ${i + 1}`;
-        input.name = `idioma${i + 1}`;
-        input.className = "idiomaInput";
-        container.appendChild(input);
-        container.appendChild(document.createElement("br"));
-      }
-    } 
-    else if (valor === "custom") {
-      // Poliglota → campo para definir quantas línguas no total
-      const label = document.createElement("p");
-      label.textContent = "Quantos idiomas (incluindo Português)?";
-      const inputQtd = document.createElement("input");
-      label.style.fontSize = "10px";
-      label.style.margin = "0";
-      label.style.padding = "0";  
-      label.style.lineHeight = "1";  
-      inputQtd.type = "number";
-      inputQtd.min = 4; // mínimo de 4 porque "Poliglota" não é monolíngue, bilíngue e nem Trílingue
-      inputQtd.placeholder = "Min: 4";
-      inputQtd.onchange = function () {
-      label.style.display = "none";
-      inputQtd.style.display = "none";
-      gerarCamposPoliglota(parseInt(this.value));
-      };
-      container.appendChild(label);
-      // container.appendChild(document.createElement("br"));
-      container.appendChild(inputQtd);
-    }
+  if (valor === "1") {
+    return; // Monolíngue
   }
 
-  function gerarCamposPoliglota(qtd) {
-    const container = document.getElementById('idiomasContainer');
-    // Remove todos elementos exceto os dois primeiros (Português + campo de quantidade)
-    while (container.children.length > 3) {
-      container.removeChild(container.lastChild);
+  if (valor === "2" || valor === "3") {
+    const qtd = parseInt(valor) - 1;
+    for (let i = 1; i <= qtd; i++) {
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = `Idioma ${i + 1}`;
+      input.name = `idioma${i + 1}`;
+      input.className = "idiomaInput";
+        input.style.width = "90px";
+
+      container.appendChild(input);
     }
+  } else if (valor === "custom") {
+    const grupo = document.createElement("div");
+    grupo.style.display = "flex";
+    grupo.style.flexDirection = "column";
+    grupo.style.alignItems = "center";
+      grupo.style.width = "200px";
+
+
+    const label = document.createElement("p");
+    label.textContent = "Quantos idiomas (incluindo Português)?";
+    label.style.fontSize = "10px";
+    label.style.marginleft = "150px";
+    label.style.padding = "0";
+    label.style.lineHeight = "1.2";
+    label.style.width = "300px";
+
+    const inputQtd = document.createElement("input");
+    inputQtd.type = "number";
+    inputQtd.min = 4;
+    inputQtd.placeholder = "Min: 4";
+      inputQtd.style.width = "90px";
+
+
+    inputQtd.onchange = function () {
+      grupo.style.display = "none";
+      gerarCamposPoliglota(parseInt(this.value));
+    };
+
+    grupo.appendChild(label);
+    grupo.appendChild(inputQtd);
+    container.appendChild(grupo);
+  }
+}
+
+function gerarCamposPoliglota(qtd) {
+  const container = document.getElementById('idiomasContainer');
+  while (container.children.length > 3) {
+    container.removeChild(container.lastChild);
+  }
 
     for (let i = 1; i < qtd; i++) { // Começa em 1 porque o primeiro já é "Português"
       const input = document.createElement("input");
