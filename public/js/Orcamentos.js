@@ -26,13 +26,13 @@ function atualizarOuCriarCampoTexto(nmFantasia, texto) {
 // Busca por nome fantasia
 async function buscarEExibirDadosClientePorNome(nmFantasia) {
     try {
-        const response = await fetchComToken(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
+        const dadosCliente = await fetchComToken(`orcamentos/clientes?nmFantasia=${encodeURIComponent(nmFantasia)}`);
 
-        if (!response.ok) {
-            throw new Error(`Erro ao buscar dados do cliente: ${response.status}`);
-        }
+        // if (!dadosCliente.ok) {
+        //     throw new Error(`Erro ao buscar dados do cliente: ${dadosCliente.status}`);
+        // }
 
-        const dadosCliente = await response.json();
+       // const dadosCliente = await response.json();
 
         console.log("Cliente selecionado! Dados:", {
             nome: dadosCliente.nmcontato,
@@ -54,17 +54,16 @@ async function buscarEExibirDadosClientePorNome(nmFantasia) {
     }
 }
 
-// Carregar ao iniciar
-//document.addEventListener("DOMContentLoaded");
+const idOrcamentoInput = document.getElementById('idOrcamento');
+const nrOrcamentoInput = document.getElementById('nrOrcamento');
+const clienteSelect = document.querySelector('.idCliente'); // Select do cliente no form principal
+const eventoSelect = document.querySelector('.idEvento');   // Select do evento no form principal
+const localMontagemSelect = document.querySelector('.idLocalMontagem'); // Select do local no form principal
+const statusSelect = document.getElementById('Status');
+
+
 async function  carregarClientesOrc() {
-    console.log("Função CARREGAR Cliente chamada");
-
-    // const token = localStorage.getItem("token");
-
-    // if (!token) {
-    //     console.warn("Usuário não autenticado");
-    //     return;
-    // }
+    console.log("Função CARREGAR Cliente chamada");    
 
     try{
 
@@ -86,15 +85,20 @@ async function  carregarClientesOrc() {
                 select.appendChild(option);
             });
 
+
+
             // Evento de seleção de cliente
             select.addEventListener('change', function () {
-                const nomeFantasia = this.value;
-                const selectedOption = select.options[select.selectedIndex];
-                idCliente = selectedOption.getAttribute("data-idCliente");
-                console.log("idCliente", idCliente);
-                if (nomeFantasia) {
-                    buscarEExibirDadosClientePorNome(nomeFantasia);
-                }
+                idCliente = this.value; // O value agora é o ID
+                console.log("idCliente selecionado:", idCliente);
+               
+                // const nomeFantasia = this.value;
+                // const selectedOption = select.options[select.selectedIndex];
+                // idCliente = selectedOption.getAttribute("data-idCliente");
+                // console.log("idCliente", idCliente);
+                // if (nomeFantasia) {
+                //     buscarEExibirDadosClientePorNome(nomeFantasia);
+                // }
             });
 
             if (nomeSelecionado) {
@@ -136,8 +140,10 @@ async function carregarEventosOrc() {
             });
 
             select.addEventListener('change', function () {
-                const selectedOption = select.options[select.selectedIndex];   
-                idEvento = selectedOption.getAttribute("data-idEvento");
+                idEvento = this.value;
+                console.log("idEvento selecionado:", idEvento);
+                // const selectedOption = select.options[select.selectedIndex];   
+                // idEvento = selectedOption.getAttribute("data-idEvento");
                   
             });
             
@@ -175,9 +181,12 @@ async function carregarLocalMontOrc() {
 
             });
             select.addEventListener("change", function () {
-                const selectedOption = select.options[select.selectedIndex];
-                idLocalMontagem = selectedOption.getAttribute("data-idlocalmontagem") || "N/D";
-                // console.log("IDLOCALMONTAGEM", idLocalMontagem);
+
+                 idLocalMontagem = this.value; // O value agora é o ID
+                console.log("IDLOCALMONTAGEM selecionado:", idLocalMontagem);
+                // const selectedOption = select.options[select.selectedIndex];
+                // idLocalMontagem = selectedOption.getAttribute("data-idlocalmontagem") || "N/D";
+                // // console.log("IDLOCALMONTAGEM", idLocalMontagem);
                 
             });
             
@@ -388,9 +397,6 @@ if (
 
   return dados;
 }
-
-
-
 
 function configurarFormularioOrc() {
     let form = document.querySelector("#form");
@@ -745,18 +751,18 @@ function calcularLucroReal() {
     console.log('📊 Porcentagem de Lucro Real:', porcentagemLucroReal.toFixed(2) + '%');
 
     // Atualiza os campos de resultado
-    const inputLucro = document.querySelector('#LucroReal');
+    const inputLucro = document.querySelector('#lucroReal');
     if (inputLucro) {
         inputLucro.value = formatarMoeda(lucroReal);
     } else {
-        console.warn("⚠️ Campo #LucroReal não encontrado.");
+        console.warn("⚠️ Campo #lucroReal não encontrado.");
     }
 
-    const inputPorcentagemLucro = document.querySelector('#perCentReal');
+    const inputPorcentagemLucro = document.querySelector('#percentReal');
     if (inputPorcentagemLucro) {
         inputPorcentagemLucro.value = porcentagemLucroReal.toFixed(2) + '%';
     } else {
-        console.warn("⚠️ Campo #perCentReal não encontrado.");
+        console.warn("⚠️ Campo #percentReal não encontrado.");
     }
 }
 
@@ -1114,7 +1120,7 @@ function resetarOutrosSelectsOrc(select) {
 }
 
 // Função para configurar eventos no modal de orçamento
-function configurarEventosOrcamento() {
+async function verificaOrcamento() {
 
     // console.log("Função configurarEventosOrcamento CHAMADA");
     carregarFuncaoOrc();
@@ -1124,6 +1130,34 @@ function configurarEventosOrcamento() {
     carregarEquipamentosOrc();
     carregarSuprimentosOrc();
     configurarFormularioOrc();
+
+    configurarFormularioOrc(); // Isso deve ser chamado depois que os selects estiverem carregados, se dependerem deles
+
+    // --- INICIALIZAR FLATPCIKR AQUI ---
+    const dateInputs = [
+        'periodoInfraMontagem',
+        'periodoMontagem',
+        'periodoMarcacao',
+        'periodoRealizacao', // Verifique se o nome do ID do input está correto no HTML
+        'periodoDesmontagem',
+        'periodoDesmontagemInfra'
+    ];
+
+    dateInputs.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            flatpickrInstances[id] = flatpickr(element, {
+                mode: "range", // ou "single" se for apenas uma data
+                dateFormat: "Y-m-d", // Formato para o backend
+                altInput: true,
+                altFormat: "d/m/Y", // Formato para o usuário
+                locale: "pt", // Certifique-se de que o locale 'pt' está carregado
+            });
+            console.log(`Flatpickr inicializado para #${id}`);
+        } else {
+            console.warn(`Elemento com ID #${id} não encontrado para inicializar Flatpickr.`);
+        }
+    });
 
     const statusInput = document.getElementById('Status');
     if(statusInput){
@@ -1143,94 +1177,459 @@ function configurarEventosOrcamento() {
         });
     }
 
-    const btnSalvar = document.getElementById('btnSalvar');
-    btnSalvar.addEventListener("click", async function (event) {
+    const nrOrcamentoInput = document.getElementById('nrOrcamento');
+    if(nrOrcamentoInput){
+        nrOrcamentoInput.addEventListener('input', function(event) {
+            const valor = event.target.value;
+            const permitido = /^[0-9]*$/.test(valor); // Permite apenas números
+            if (!permitido) {
+                event.target.value = ''; // Limpa o campo se a entrada for inválida
+                Swal.fire({ 
+                    title: 'Entrada Inválida',
+                    text: 'Por favor, digite apenas números',
+                    icon: 'warning',
+                    confirmButtonText: 'Ok'
+                });
+            }            
+        });
+        nrOrcamentoInput.addEventListener('blur', async function() {
+            const nrOrcamento = this.value.trim(); // Pega o valor do campo e remove espaços
+
+            // Se o campo estiver vazio, limpa o formulário e sai
+            if (!nrOrcamento) {
+                limparFormularioOrcamento(); // Implemente esta função para limpar o form
+                return;
+            }
+
+            console.log(`Buscando orçamento com Nº: ${nrOrcamento}`);
+
+            try {
+                // Monta a URL para a rota GET
+                const url = `orcamentos?nrOrcamento=${nrOrcamento}`;
+                
+                // Faz a requisição usando fetchComToken
+                const orcamento = await fetchComToken(url, { method: 'GET' });
+
+                // Se encontrou o orçamento, preenche o formulário
+                preencherFormularioComOrcamento(orcamento);
+
+                Swal.fire("Sucesso!", `Orçamento Nº ${orcamento.nrorcamento} carregado.`, "success");
+
+            } catch (error) {
+                console.error("Erro ao buscar orçamento:", error);
+                // Assume que 404 significa não encontrado, outros erros são falha.
+                let errorMessage = error.message;
+                if (error.message.includes("404")) { 
+                    errorMessage = `Orçamento com o número ${nrOrcamento} não encontrado.`;
+                    limparFormularioOrcamento(); // Limpa o formulário se não encontrar
+                } else if (error.message.includes("400")) {
+                     errorMessage = "Número do orçamento é inválido ou vazio.";
+                     limparFormularioOrcamento();
+                } else {
+                    errorMessage = `Erro ao carregar orçamento: ${error.message}`;
+                    limparFormularioOrcamento();
+                }
+                
+                Swal.fire("Erro!", errorMessage, "error");
+            }
+        });
+    }
+
+
+    const btnEnviar = document.getElementById('Enviar');
+    btnEnviar.addEventListener("click", async function (event) {
         event.preventDefault(); // Previne o envio padrão do formulário
         console.log("Entrou no botão OK");
+
+        btnEnviar.disabled = true;
+        btnEnviar.textContent = 'Salvando...';
+
+        try{
 
         const form = document.getElementById("form");
         const formData = new FormData(form);
 
+        const idOrcamentoExistenteValue = document.getElementById('idOrcamento')?.value;
+        // --- Converte para número ou define como null de forma segura ---
+        const orcamentoId = idOrcamentoExistenteValue && !isNaN(parseInt(idOrcamentoExistenteValue)) && parseInt(idOrcamentoExistenteValue) > 0
+            ? parseInt(idOrcamentoExistenteValue)
+            : null;
+            
+       
         console.log("formData BTNSALVAR", formData);
+
+        console.log("Valor bruto de idOrcamentoExistenteValue:", idOrcamentoExistenteValue);
+        console.log("ID do Orçamento (parseado para número ou null):", orcamentoId);
 
         console.log("idEvento BTNSALVAR", document.querySelector(".idEvento option:checked")?.getAttribute("data-idEvento"));
         console.log("idlocalmontagem BTNSALVAR", document.querySelector(".idlocalmontagem option:checked")?.getAttribute("data-idLocalMontagem"));
+        
+        const infraMontagemDatas = getPeriodoDatas(formData, "periodoInfraMontagem");
+        const marcacaoDatas = getPeriodoDatas(formData, "periodoMarcacao");
+        const montagemDatas = getPeriodoDatas(formData, "periodoMontagem");
+        const realizacaoDatas = getPeriodoDatas(formData, "periodoRealizacao");
+        const desmontagemDatas = getPeriodoDatas(formData, "periodoDesmontagem");
+        const desmontagemInfraDatas = getPeriodoDatas(formData, "periodoDesmontagemInfra");
 
         const dadosOrcamento = {
+            id: orcamentoId,
             idStatus: formData.get("Status"),
             idCliente: document.querySelector(".idCliente option:checked")?.getAttribute("data-idCliente"),
             idEvento: document.querySelector(".idEvento option:checked")?.getAttribute("data-idEvento"),
             idLocalMontagem: document.querySelector(".idLocalMontagem option:checked")?.getAttribute("data-idlocalmontagem"),
-            dtIniMarcacao: formData.get("dtIniMarcacao"),
-            dtFimMarcacao: formData.get("dtFimMarcacao"),
-            dtIniMontagem: formData.get("dtInicioMontagem"),
-            dtFimMontagem: formData.get("dtFimMontagem"),
-            dtIniRealizacao: formData.get("dtInicioRealizacao"),
-            dtFimRealizacao: formData.get("dtFimRealizacao"),
-            dtIniDesmontagem: formData.get("dtIniDesmontagem"),
-            dtFimDesmontagem: formData.get("dtFimDesmontagem"),
+         //   nrOrcamento: formData.get("nrOrcamento") || null, // Se o campo for vazio, será null
+            infraMontagem: formData.get("infraMontagem"),
+
+            dtiniInfraMontagem: infraMontagemDatas.inicio,
+            dtFimInfraMontagem: infraMontagemDatas.fim,
+            dtIniMontagem: montagemDatas.inicio, // Cuidado: dtIniMontagem aparecia duas vezes
+            dtFimMontagem: montagemDatas.fim,
+            dtIniMarcacao: marcacaoDatas.inicio,
+            dtFimMarcacao: marcacaoDatas.fim,
+            dtIniRealizacao: realizacaoDatas.inicio,
+            dtFimRealizacao: realizacaoDatas.fim,
+            dtIniDesmontagem: desmontagemDatas.inicio,
+            dtFimDesmontagem: desmontagemDatas.fim,
+            dtIniDesmontagemInfra: desmontagemInfraDatas.inicio,
+            dtFimDesmontagemInfra: desmontagemInfraDatas.fim,
+          
+            // dtiniInfraMontagem: formatarDataParaBackend(formData.get("dtIniInfraMontagem")),
+            // dtFimInfraMontagem: formatarDataParaBackend(formData.get("dtFimInfraMontagem")),
+            // dtIniMontagem: formatarDataParaBackend(formData.get("dtIniMontagem")),
+            // dtFimMontagem: formatarDataParaBackend(formData.get("dtFimMontagem")),
+            // dtIniMarcacao: formatarDataParaBackend(formData.get("dtIniMarcacao")),
+            // dtFimMarcacao: formatarDataParaBackend(formData.get("dtFimMarcacao")),
+            // dtIniMontagem: formatarDataParaBackend(formData.get("dtIniMontagem")),
+            // dtFimMontagem: formatarDataParaBackend(formData.get("dtFimMontagem")),
+            // dtIniRealizacao: formatarDataParaBackend(formData.get("dtIniRealizacao")),
+            // dtFimRealizacao: formatarDataParaBackend(formData.get("dtFimRealizacao")),
+            // dtIniDesmontagem: formatarDataParaBackend(formData.get("dtIniDesmontagem")),
+            // dtFimDesmontagem: formatarDataParaBackend(formData.get("dtFimDesmontagem")),
+            // dtIniDesmontagemInfra: formatarDataParaBackend(formData.get("dtIniDesmontagemInfra")),
+            // dtFimDesmontagemInfra: formatarDataParaBackend(formData.get("dtFimDesmontagemInfra")),
+          
+            obsItens: formData.get("obsItens"),
+            obsProposta: formData.get("obsProposta"),
             totGeralVda: desformatarMoeda(document.querySelector('#totalGeralVda').value),
             totGeralCto: desformatarMoeda(document.querySelector('#totalGeralCto').value),
+            totAjdCusto: desformatarMoeda(document.querySelector('#totalAjdCusto').value),
             lucroBruto: desformatarMoeda(document.querySelector('#Lucro').value),
+            percentLucro: parsePercentValue(document.querySelector('#percentLucro').value),
             desconto: parseFloat(formData.get("Desconto")),
+            percentDesconto: parsePercentValue(document.querySelector('#percentDesc').value),
             acrescimo: parseFloat(formData.get("Acrescimo")),
+            percentAcrescimo: parsePercentValue(document.querySelector('#percentAcresc').value),
             lucroReal: desformatarMoeda(document.querySelector('#lucroReal').value),
+            percentLucroReal: parsePercentValue(document.querySelector('#percentReal').value),
             vlrCliente: desformatarMoeda(document.querySelector('#valorCliente').value),
-            observacoes: formData.get("observacoes")
+        
         };
-        const itens = [];
+
+        const itensOrcamento = [];
         const linhas = document.querySelectorAll("#tabela tbody tr");
 
         linhas.forEach((linha) => {
             const item = {
+            id: parseInt(linha.querySelector(".idItemOrcamento")?.value) || null, // Se cada item da tabela tem um ID
+            nrorcamento: parseInt(linha.querySelector(".nrOrcamento")?.value) || null,
+            enviarnaproposta: linha.querySelector('.Proposta input[type="checkbox"]')?.checked || false,
             categoria: linha.querySelector(".Categoria")?.textContent.trim(),
+            qtditens: parseInt(linha.querySelector(".qtdPessoas input")?.value) || 0,
+            idfuncao: parseInt(linha.querySelector(".idFuncao")?.value) || null,
+            idequipamento: parseInt(linha.querySelector(".idEquipamento")?.value) || null,
+            idsuprimento: parseInt(linha.querySelector(".idSuprimento")?.value) || null,
             produto: linha.querySelector(".produto")?.textContent.trim(),
-            qtdPessoas: linha.querySelector(".qtdPessoas input")?.value || "0",
             qtdDias: linha.querySelector(".qtdDias input")?.value || "0",
-            vlrVenda: linha.querySelector(".vlrVenda")?.textContent.trim(),
-            totVdaDiaria: linha.querySelector(".totVdaDiaria")?.textContent.trim(),
-            vlrCusto: linha.querySelector(".vlrCusto")?.textContent.trim(),
-            totCtoDiaria: linha.querySelector(".totCtoDiaria")?.textContent.trim(),
-            ajdCusto: linha.querySelector(".ajdCusto")?.textContent.trim(),
-            totAjdCusto: linha.querySelector(".totAjdCusto")?.textContent.trim(),
-            hospedagem: linha.querySelector(".hospedagem")?.value || "0",
-            transporte: linha.querySelector(".transporte")?.value || "0",
-            totGeral: linha.querySelector(".totGeral")?.textContent.trim()
+            periododiariasinicio: formatarDataParaBackend(linha.querySelector(".Periodo .datas")?.value.split(' to ')[0]),
+            periododiariasfim: formatarDataParaBackend(linha.querySelector(".Periodo .datas")?.value.split(' to ')[1]),
+          
+            descontoitem: desformatarMoeda(linha.querySelector(".desconto.Moeda .ValorInteiros")?.value || '0'),
+            percentdescontoitem: parsePercentValue(linha.querySelector(".desconto.Moeda .valorPerCent")?.value),
+         
+            acrescimoitem: desformatarMoeda(linha.querySelector(".Acrescimo.Moeda .ValorInteiros")?.value || '0'),
+            percentacrescimoitem: parsePercentValue(linha.querySelector(".Acrescimo.Moeda .valorPerCent")?.value),
+           
+            // qtdPessoas: linha.querySelector(".qtdPessoas input")?.value || "0",
+            vlrdiaria: desformatarMoeda(linha.querySelector(".vlrVenda.Moeda")?.textContent || '0'),
+            totvdadiaria: desformatarMoeda(linha.querySelector(".totVdaDiaria.Moeda")?.textContent || '0'),
+            ctodiaria: desformatarMoeda(linha.querySelector(".vlrCusto.Moeda")?.textContent || '0'),
+            totctodiaria: desformatarMoeda(linha.querySelector(".totCtoDiaria.Moeda")?.textContent || '0'),
+            
+            tpajdctoalimentacao: linha.querySelector('.ajdCusto.Moeda #tpAjdCusto.alimentacao')?.value || null,
+            vlrajdctoalimentacao: desformatarMoeda(linha.querySelector('.ajdCusto.Moeda .valorbanco.alimentacao')?.textContent || '0'),
+            tpajdctotransporte: linha.querySelector('.ajdCusto.Moeda #tpAjdCusto.transporte')?.value || null,
+            vlrajdctotransporte: desformatarMoeda(linha.querySelector('.ajdCusto.Moeda .valorbanco.transporte')?.textContent || '0'),
+            totajdctoitem: desformatarMoeda(linha.querySelector(".totAjdCusto.Moeda")?.textContent || '0'),
+            
+            hospedagem: desformatarMoeda(linha.querySelector(".extraCampo .hospedagem")?.value || '0'),
+            transporte: desformatarMoeda(linha.querySelector(".extraCampo .transporte")?.value || '0'),
+            
+            totgeralitem: desformatarMoeda(linha.querySelector(".totGeral")?.textContent || '0')
+                                 
+           
             };
-            itens.push(item);
+            itensOrcamento.push(item);
+        });
+        
+       dadosOrcamento.itens = itensOrcamento;
+
+        console.log("Payload Final do Orçamento (sem id_empresa):", dadosOrcamento);
+
+        // Determina o método e a URL com base na existência do ID do orçamento
+        const isUpdate = orcamentoId !== null;
+        const method = isUpdate ? 'PUT' : 'POST';
+        const url = isUpdate ? `orcamentos/${orcamentoId}` : 'orcamentos';
+
+        // 3. Enviar os dados para o backend usando fetchComToken
+        const resultado = await fetchComToken(url, {
+            method: method,
+            headers: {
+                "Content-Type": "application/json",
+                //'Authorization': `Bearer ${token}` // Assumindo que 'token' está disponível
+                // O ID da empresa pode ser enviado em um header customizado,
+                // mas a lógica principal de salvamento em orcamentoempresas
+                // deve ser no backend.
+                // 'x-id-empresa': idEmpresa // Se você precisar disso no backend para a associação
+            },
+            body: JSON.stringify(dadosOrcamento)
         });
 
-        const payload = {
-            ...dadosOrcamento,
-            itens
-        };
-
-        try {
-            const response = await fetchComToken('http://localhost:3000/orcamentos', {
-            method: 'POST',
-            headers: {
-                        "Content-Type": "application/json",
-                        'Authorization': `Bearer ${token}`
-                        // 'x-id-empresa': idEmpresa
-                    },
-            body: JSON.stringify(payload)
-            });
-
-            if (response.ok) {
-            const resultado = await response.json();
-            Swal.fire("Sucesso", "Orçamento salvo com sucesso!", "success");
-            } else {
-            const erro = await response.text();
-            Swal.fire("Erro", "Falha ao salvar orçamento: " + erro, "error");
+        // 4. Lidar com a resposta do backend
+        //if (response.ok) {
+        //    const resultado = await response.json();
+            Swal.fire("Sucesso!", resultado.message || "Orçamento salvo com sucesso!", "success");
+            // Se for uma criação e o backend retornar o ID, atualize o formulário
+            if (!isUpdate && resultado.id) {
+                document.getElementById('idOrcamento').value = resultado.id;
+                if (resultado.nrOrcamento) {
+                    document.getElementById('nrOrcamento').value = resultado.nrOrcamento; // Atualiza o campo no formulário
+                }
             }
-        } catch (err) {
-            console.error(err);
-            Swal.fire("Erro", "Erro inesperado ao salvar orçamento.", "error");
-        }
-    });
+            
+        // } else {
+        //     const erro = await response.text();
+        //     console.error("Erro do servidor:", erro);
+        //     Swal.fire("Erro!", "Falha ao salvar orçamento: " + erro, "error");
+        // }
+
+    } catch (error) {
+        console.error('Erro inesperado ao salvar orçamento:', error);
+            let errorMessage = "Ocorreu um erro inesperado ao salvar o orçamento.";
+            if (error.message) {
+                errorMessage = error.message; // Pega a mensagem do erro lançada por fetchComToken
+            } else if (typeof error === 'string') {
+                errorMessage = error; // Caso o erro seja uma string simples
+            }
+            Swal.fire("Erro!", "Falha ao salvar orçamento: " + errorMessage, "error");
+    } finally {
+        btnEnviar.disabled = false;
+        btnEnviar.textContent = 'Salvar Orçamento';
+    }
+
+     });
     //calcularTotaisOrc();
 }
 
+function preencherFormularioComOrcamento(orcamento) {
+    if (!orcamento) {
+        limparFormularioOrcamento();
+        return;
+    }
+    
+    idOrcamentoInput.value = orcamento.idorcamento || '';
+    nrOrcamentoInput.value = orcamento.nrorcamento || '';
+    
+    // Define os valores dos selects.
+    // Como os 'value' das options agora são os IDs, a atribuição direta funciona.
+    if (statusSelect) statusSelect.value = orcamento.status || '';
+    if (clienteSelect) clienteSelect.value = orcamento.idcliente || '';
+    if (eventoSelect) eventoSelect.value = orcamento.idevento || '';
+    if (localMontagemSelect) localMontagemSelect.value = orcamento.idlocalmontagem || '';
+
+    // Preencher campos de data do orçamento principal (Flatpickr)
+    // Adapte os IDs dos seus inputs de data conforme seu HTML
+    const flatpickrInstances = {
+        'periodoInfraMontagem': document.getElementById('periodoInfraMontagem'),
+        'periodoMontagem': document.getElementById('periodoMontagem'),
+        'periodoMarcacao': document.getElementById('periodoMarcacao'),
+        'periodoRealizacao': document.getElementById('periodoRealizacao'),
+        'periodoDesmontagem': document.getElementById('periodoDesmontagem'),
+        'periodoDesmontagemInfra': document.getElementById('periodoDesmontagemInfra')
+    };
+
+    for (const key in flatpickrInstances) {
+        const inputElement = flatpickrInstances[key];
+        const pickerInstance = flatpickr.getInstance(inputElement);
+        if (pickerInstance) {
+            let inicio = null;
+            let fim = null;
+            
+            // Mapeia o nome da propriedade do orçamento para a data correta
+            switch(key) {
+                case 'periodoInfraMontagem':
+                    inicio = orcamento.dtiniinframontagem;
+                    fim = orcamento.dtfiminframontagem;
+                    break;
+                case 'periodoMontagem':
+                    inicio = orcamento.dtinimontagem;
+                    fim = orcamento.dtfimmontagem;
+                    break;
+                case 'periodoMarcacao':
+                    inicio = orcamento.dtinimarcacao;
+                    fim = orcamento.dtfimmarcacao;
+                    break;
+                case 'periodoRealizacao':
+                    inicio = orcamento.dtinirealizacao;
+                    fim = orcamento.dtfimmontagem; // Atenção: aqui estava dtfimmontagem, talvez deveria ser dtfimrealizacao?
+                    break; // Corrigido para dtfimrealizacao na rota GET
+                case 'periodoDesmontagem':
+                    inicio = orcamento.dtinidesmontagem;
+                    fim = orcamento.dtfimdesmontagem;
+                    break;
+                case 'periodoDesmontagemInfra':
+                    inicio = orcamento.dtiniinfradesmontagem;
+                    fim = orcamento.dtfiminfradesmontagem;
+                    break;
+            }
+            
+            const startDate = inicio ? new Date(inicio) : null;
+            const endDate = fim ? new Date(fim) : null;
+
+            if (startDate && endDate) {
+                pickerInstance.setDate([startDate, endDate], true);
+            } else if (startDate) {
+                pickerInstance.setDate(startDate, true);
+            } else {
+                pickerInstance.clear();
+            }
+        }
+    }
+
+    // Preencher campos de texto
+    document.getElementById('infraMontagem').value = orcamento.inframontagem || '';
+    document.getElementById('obsItens').value = orcamento.obsitens || '';
+    document.getElementById('obsProposta').value = orcamento.obsproposta || '';
+
+    // Preencher campos de valor formatados
+    document.querySelector('#totalGeralVda').value = formatarMoeda(orcamento.totgeralvda || 0);
+    document.querySelector('#totalGeralCto').value = formatarMoeda(orcamento.totgeralcto || 0);
+    document.querySelector('#totalAjdCusto').value = formatarMoeda(orcamento.totajdcto || 0);
+    document.querySelector('#Lucro').value = formatarMoeda(orcamento.lucrobruto || 0);
+    document.querySelector('#percentLucro').value = formatarPercentual(orcamento.percentlucro || 0);
+    document.getElementById('Desconto').value = (orcamento.desconto || 0).toFixed(2);
+    document.querySelector('#percentDesc').value = formatarPercentual(orcamento.percentdesconto || 0);
+    document.getElementById('Acrescimo').value = (orcamento.acrescimo || 0).toFixed(2);
+    document.querySelector('#percentAcresc').value = formatarPercentual(orcamento.percentacrescimo || 0);
+    document.querySelector('#lucroReal').value = formatarMoeda(orcamento.lucroreal || 0);
+    document.querySelector('#percentReal').value = formatarPercentual(orcamento.percentlucroreal || 0);
+    document.querySelector('#valorCliente').value = formatarMoeda(orcamento.vlrcliente || 0);
+
+    // TODO: Chamar função para preencher a tabela de itens do orçamento
+    // A rota GET no backend deve retornar os itens associados ao orçamento.
+    // Ex: preencherItensOrcamentoTabela(orcamento.itens || []);
+}
+
+// --- Função para Limpar o Formulário Principal ---
+function limparFormularioOrcamento() {
+    document.getElementById('form').reset();
+    idOrcamentoInput.value = '';
+
+    // Limpar seleções de Flatpickr para todos os inputs
+    flatpickr.getInstance(document.getElementById('periodoInfraMontagem'))?.clear();
+    flatpickr.getInstance(document.getElementById('periodoMontagem'))?.clear();
+    flatpickr.getInstance(document.getElementById('periodoMarcacao'))?.clear();
+    flatpickr.getInstance(document.getElementById('periodoRealizacao'))?.clear();
+    flatpickr.getInstance(document.getElementById('periodoDesmontagem'))?.clear();
+    flatpickr.getInstance(document.getElementById('periodoDesmontagemInfra'))?.clear();
+
+    // Resetar selects para a opção padrão (Selecione...)
+    if (statusSelect) statusSelect.value = '';
+    if (clienteSelect) clienteSelect.value = '';
+    if (eventoSelect) eventoSelect.value = '';
+    if (localMontagemSelect) localMontagemSelect.value = '';
+
+    // TODO: Se você tiver uma função para limpar a tabela de itens, chame-a aqui
+    // Ex: limparItensOrcamentoTabela();
+}
+
+
+// Função auxiliar para formatar percentuais (se você precisar)
+function formatarPercentual(valor) {
+    if (valor === null || valor === undefined) return '';
+    return (parseFloat(valor) * 100).toFixed(2) + '%'; // Converte 0.1 para 10.00%
+}
+
+
+function formatarDataParaBackend(dataString) {
+    if (!dataString) return null;
+    const partes = dataString.split('/');
+    if (partes.length === 3) {
+        let dia = partes[0];
+        let mes = partes[1];
+        let ano = partes[2];
+
+        // Adiciona 2000 para anos de 2 dígitos, assumindo que são anos do século 21
+        // Se você tiver datas antes de 2000, essa lógica precisará ser mais robusta
+        if (ano.length === 2) {
+            const currentYear = new Date().getFullYear();
+            const century = Math.floor(currentYear / 100) * 100; // Ex: 2000
+            
+            // Heurística simples: se o ano de 2 dígitos for maior que o ano atual de 2 dígitos (ex: 95 para 2024),
+            // assume século passado (19xx). Caso contrário, assume século atual (20xx).
+            // A melhor prática é que o campo de data sempre retorne 4 dígitos do frontend.
+            if (parseInt(ano) > (currentYear % 100)) {
+                ano = (century - 100) + parseInt(ano); // Ex: 1995
+            } else {
+                ano = century + parseInt(ano); // Ex: 2025
+            }
+        }
+
+        // Garante que mês e dia tenham 2 dígitos (adiciona '0' à esquerda se necessário)
+        mes = mes.padStart(2, '0');
+        dia = dia.padStart(2, '0');
+
+        return `${ano}-${mes}-${dia}`; // Retorna no formato YYYY-MM-DD
+    }
+    return dataString; // Retorna como está se não for DD/MM/YYYY
+}
+
+function getPeriodoDatas(formDataReader, fieldName) {
+    const fullDateString = formDataReader.get(fieldName); // Pega a string completa do input (ex: "23/06/2025 to 25/06/2025")
+    console.log(`Debug - ${fieldName}:`, fullDateString);
+    if (!fullDateString) {
+        return { inicio: null, fim: null }; // Se o campo estiver vazio no form, retorna nulo para ambas as datas
+    }
+
+    // Divide a string em duas partes (ou apenas uma, se for modo single)
+    const rawDates = fullDateString.split(' to ').map(d => d.trim());
+
+    // Formata a primeira data (início)
+    const dataInicio = formatarDataParaBackend(rawDates[0]);
+
+    let dataFim = null;
+    if (rawDates.length > 1 && rawDates[1]) {
+        // Se houver uma segunda data no array e ela não for vazia, formata-a
+        dataFim = formatarDataParaBackend(rawDates[1]);
+    } else {
+        // Se não houver uma segunda data (modo single ou apenas uma data preenchida),
+        // usa a data de início também para a data final.
+        dataFim = dataInicio;
+    }
+
+    return {
+        inicio: dataInicio,
+        fim: dataFim
+    };
+}
+
+function parsePercentValue(valueString) {
+    if (typeof valueString !== 'string' || !valueString) {
+        return 0; // Ou null, dependendo do que seu banco espera para campos vazios
+    }
+    // Remove o '%' e espaços, depois substitui vírgula por ponto para parseFloat
+    const cleanedValue = valueString.replace('%', '').trim().replace(',', '.');
+    return parseFloat(cleanedValue) || 0; // Retorna 0 se não for um número válido após a limpeza
+}
 //SALVANDO ORCAMENTO
 function enviarOrcamento() {
     const tabela = document.getElementById("tabela");
@@ -1499,6 +1898,7 @@ function bloquearCamposSeFechado() {
         }
     }
 }
+
 function fecharOrcamento() {
 const statusInput = document.getElementById('Status');
 
@@ -1525,72 +1925,6 @@ Swal.fire({
 });
 }
 
-// function gerarOrcamentoPDF() {
-//     const cliente = document.querySelector('#clienteSelecionado')?.textContent || '';
-//     const evento = document.querySelector('#eventoSelecionado')?.textContent || '';
-//     const local = document.querySelector('#localSelecionado')?.textContent || '';
-//     const data_inicio = document.querySelector('#dtInicioRealizacao')?.value || '';
-//     const data_fim = document.querySelector('#dtFimRealizacao')?.value || '';
-//     const infraAtivado = document.querySelector('#checkboxInfra')?.checked;
-
-//     // Pega os períodos (dataRange)
-//     function pegarRange(idPrefixo) {
-//         const de = document.querySelector(`#${idPrefixo}De`)?.value || null;
-//         const ate = document.querySelector(`#${idPrefixo}Ate`)?.value || null;
-//         return de && ate ? { de, ate } : null;
-//     }
-
-//     const periodos = {
-//         montagem_infra: infraAtivado ? pegarRange('montagemInfra') : null,
-//         periodo_marcacao: pegarRange('periodoMarcacao'),
-//         periodo_montagem: pegarRange('periodoMontagem'),
-//         periodo_realizacao: pegarRange('periodoRealizacao'),
-//         periodo_desmontagem: pegarRange('periodoDesmontagem'),
-//         desmontagem_infra: infraAtivado ? pegarRange('desmontagemInfra') : null
-//     };
-
-//     // Pega todos os itens com classe .Proposta (independente do checkbox estar marcado)
-//     const linhas = document.querySelectorAll('.Proposta');
-//     const itens = Array.from(linhas).map(linha => {
-//         const categoria = linha.querySelector('.Categoria')?.textContent?.trim() || '';
-//         const produto = linha.querySelector('.produto')?.textContent?.trim() || '';
-//         const quantidade = linha.querySelector('.qtdPessoas input')?.value || '0';
-//         const dias = linha.querySelector('.qtdDias input')?.value || '0';
-
-//         return {
-//             categoria,
-//             produto,
-//             quantidade: parseInt(quantidade),
-//             dias: parseInt(dias)
-//         };
-//     });
-
-//     const dados = {
-//         cliente,
-//         evento,
-//         local,
-//         data_inicio,
-//         data_fim,
-//         ...periodos,
-//         itens
-//     };
-
-//     // Envia para o backend
-//     fetch('http://localhost:3000/orcamentos1', {
-//         method: 'POST',
-//         headers: { 'Content-Type': 'application/json' },
-//         body: JSON.stringify(dados)
-//     })
-//     .then(res => res.json())
-//     .then(resp => {
-//         console.log('Orçamento salvo com sucesso:', resp);
-//         alert('Orçamento salvo com sucesso!');
-//     })
-//     .catch(err => {
-//         console.error('Erro ao salvar orçamento:', err);
-//         alert('Erro ao salvar orçamento.');
-//     });
-// }
 
 document.getElementById('Proposta').addEventListener('click', function(event) {
     event.preventDefault();
@@ -1662,7 +1996,7 @@ async function gerarPropostaPDF() {
         let dadosContato = { nmcontato: "N/D", celcontato: "N/D", emailcontato: "N/D" };
         try {
             console.log("Buscando dados do cliente via API");
-            const resposta = await fetch(`http://localhost:3000/clientes?nmFantasia=${encodeURIComponent(nomeCliente)}`);
+            const resposta = await fetch(`clientes?nmFantasia=${encodeURIComponent(nomeCliente)}`);
             const dados = await resposta.json();
             const cliente = Array.isArray(dados) ? dados[0] : dados;
             if (cliente) {
@@ -1996,6 +2330,13 @@ async function salvarOrcamento(event) {
         Swal.fire("Erro", "Erro inesperado ao salvar orçamento.", "error");
     }
 }
+
+function configurarEventosOrcamento() {
+    console.log("Configurando eventos Orcamento...");
+    verificaOrcamento(); // Carrega os Orcamentos ao abrir o modal
+   // adicionarEventoBlurOrcamento();
+    console.log("Entrou configurar Orcamento no ORCAMENTO.js.");
+} 
 
 window.configurarEventosOrcamento = configurarEventosOrcamento;
 

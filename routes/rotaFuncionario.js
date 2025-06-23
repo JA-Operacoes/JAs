@@ -117,18 +117,11 @@ router.put("/:id",
     async (req, res) => {
         const id = req.params.id;
         const idempresa = req.idempresa;
-
-        // Desestruture todos os campos de texto do req.body.
-        // Adicione 'banco' aqui.
-        // Mantenha consistência nos nomes das variáveis (ex: nivelFluenciaLinguas vs fluencia)
-        console.log('--- DEBUG: Início do Handler PUT ---');
-    console.log('Conteúdo de req.body APÓS Multer:', req.body);
-    console.log('Conteúdo de req.file APÓS Multer:', req.file);
-    console.log('--- FIM DEBUG ---');
+       
         const {
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
             celularPessoal, celularFamiliar, email, site, codigoBanco, pix, // ADICIONADO 'banco'
-            numeroConta, agencia, tipoConta, cep, rua, numero, complemento, bairro,
+            numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
             cidade, estado, pais
         } = req.body;
 
@@ -198,9 +191,9 @@ router.put("/:id",
                 UPDATE funcionarios func
                 SET perfil = $1, foto = $2, nome = $3, cpf = $4, rg = $5, fluencia = $6, idiomasadicionais = $7,
                     celularpessoal = $8, celularfamiliar = $9, email = $10, site = $11, codigobanco = $12,
-                    pix = $13, numeroconta = $14, agencia = $15, tipoconta = $16, cep = $17, rua = $18, numero = $19,
-                    complemento = $20, bairro = $21, cidade = $22, estado = $23, pais = $24
-                WHERE func.idfuncionario = $25
+                    pix = $13, numeroconta = $14, digitoConta = $15, agencia = $16, digitoAgencia = $17, tipoconta = $18, cep = $19, rua = $20, numero = $21,
+                    complemento = $22, bairro = $23, cidade = $24, estado = $25, pais = $26
+                WHERE func.idfuncionario = $27
                 RETURNING func.idfuncionario, func.foto;
             `;
 
@@ -209,7 +202,7 @@ router.put("/:id",
                 fotoPathParaBD,
                 nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
                 celularPessoal, celularFamiliar, email, site, codigoBanco, 
-                pix, numeroConta, agencia, tipoConta, cep, rua, numero,
+                pix, numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero,
                 complemento, bairro, cidade, estado, pais,
                 id // ID do funcionário para a cláusula WHERE
             ];
@@ -278,7 +271,7 @@ router.post("/",
         // Adicione 'banco' aqui e verifique 'nivelFluenciaLinguas'
         const {
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais, celularPessoal, celularFamiliar,
-            email, site, codigoBanco, pix, numeroConta, agencia, tipoConta, cep, rua, numero, // ADICIONADO 'banco'
+            email, site, codigoBanco, pix, numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, // ADICIONADO 'banco'
             complemento, bairro, cidade, estado, pais
         } = req.body;
 
@@ -317,14 +310,14 @@ router.post("/",
                 `INSERT INTO Funcionarios (
                     perfil, foto, nome, cpf, rg, fluencia, idiomasadicionais,
                     celularpessoal, celularfamiliar, email, site, codigobanco, pix,
-                    numeroconta, agencia, tipoconta, cep, rua, numero, complemento, bairro,
+                    numeroconta, digitoConta, agencia, digitoAgencia, tipoconta, cep, rua, numero, complemento, bairro,
                     cidade, estado, pais
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
                 RETURNING idFuncionarios, foto`, // Retorna o ID e o caminho da foto para o frontend
                 [
                     perfil, fotoPathParaBD, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais, // Use nivelFluenciaLinguas
                     celularPessoal, celularFamiliar, email, site, codigoBanco, pix, 
-                    numeroConta, agencia, tipoConta, cep, rua, numero, complemento, bairro,
+                    numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
                     cidade, estado, pais
                 ]
             );
@@ -374,176 +367,3 @@ router.post("/",
 
 module.exports = router;
 
-
-// const express = require("express");
-// const router = express.Router();
-// const pool = require("../db/conexaoDB");
-// const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlewares');
-// const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
-// const logMiddleware = require('../middlewares/logMiddleware');
-
-// // Aplica autenticação em todas as rotas
-// router.use(autenticarToken());
-// router.use(contextoEmpresa);
-
-// // GET todas ou por descrição
-// router.get("/", verificarPermissao('Funcionarios', 'pesquisar'), async (req, res) => {
-//   const { nome } = req.query;
-//   const idempresa = req.idempresa;
-
-//   try {
-//     if (nome) {
-//       const result = await pool.query(
-//         `SELECT func.* FROM funcionarios func
-//         INNER JOIN funcionarioempresas funce ON funce.idfuncionario = func.idfuncionario
-//         WHERE funce.idempresa = $1 AND func.nome ILIKE $2 ORDER BY func.nome ASC LIMIT 1 `,
-//         [idempresa, nome]
-//       );
-//       return result.rows.length
-//         ? res.json(result.rows[0])
-//         : res.status(404).json({ message: "funcionario não encontrada" });
-//     } else {
-//       const result = await pool.query("SELECT * FROM funcionarios ORDER BY nome ASC");
-//       return result.rows.length
-//         ? res.json(result.rows)
-//         : res.status(404).json({ message: "Nenhum Funcionário Encontrado" });
-//     }
-//   } catch (error) {
-//     console.error("Erro ao buscar nome :", error);
-//     res.status(500).json({ message: "Erro ao buscar nome " });
-//   }
-// });
-
-
-// // PUT atualizar
-// router.put("/:id", verificarPermissao('Funcionarios', 'alterar'), 
-//   logMiddleware('Funcionarios', { // Módulo 'Funcionarios'
-//         buscarDadosAnteriores: async (req) => {
-//           const idFuncionario = req.params.id; // O ID do funcionario vem do parâmetro da URL
-//           const idempresa = req.idempresa;
-//             // Para POST, não há dados anteriores para buscar de um ID existente
-//           if (!idFuncionario) {
-//               return { dadosanteriores: null, idregistroalterado: null };
-//           }
-//           try {
-//               // ✅ Seleciona os dados do funcionário, garantindo que pertence à empresa do usuário
-//               const result = await pool.query(
-//                   `SELECT func.* FROM funcionarios func
-//                     INNER JOIN funcionarioempresas funce ON funce.idfuncionario = func.idfuncionario
-//                     WHERE func.idfuncionario = $1 AND funce.idempresa = $2`, // Assumindo que a coluna ID é 'idfuncionario'
-//                   [idFuncionario, idempresa]
-//               );
-//               const linha = result.rows[0] || null;
-//               return {
-//                   dadosanteriores: linha, // O objeto funcionário antes da alteração
-//                   idregistroalterado: linha?.idfuncionario || null // O ID do funcionário que está sendo alterado
-//               };
-//           } catch (error) {
-//               console.error("Erro ao buscar dados anteriores do funcionário:", error);
-//               return { dadosanteriores: null, idregistroalterado: null };
-//           }
-//         }
-//     }),
-//   async (req, res) => {
-//   const id = req.params.id;
-//   const idempresa = req.idempresa; 
-// //   const ativo = req.body.ativo;
-//  // console.log("Ativo:", ativo); // Log do valor de ativo
-//  console.log("Dados recebidos:", req.body); // Log dos dados recebidos
-
-//   const { perfil, linkFoto, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais, celularPessoal, celularFamiliar, email, site, codigoBanco, pix, numeroConta, agencia, tipoconta, cep, rua, numero, complemento, bairro, cidade, estado, pais} = req.body;
-
-//   try {
-//     const result = await pool.query(
-//       `UPDATE funcionarios func
-//       SET perfil = $1, foto = $2, nome = $3, cpf = $4, rg = $5, fluencia = $6, idiomasadicionais= $7, 
-//           celularpessoal = $8, celularfamiliar = $9, email = $10, site = $11, codigobanco = $12,
-//           pix = $13, numeroconta = $14, agencia = $15, tipoconta = $16, cep = $17, rua = $18, numero = $19, 
-//           complemento = $20, bairro = $21, cidade = $22, estado = $23, pais = $24 
-//       FROM funcionarioempresas funce 
-//       WHERE func.idfuncionario = $25 AND funce.idfuncionario = $26
-//       RETURNING func.idfuncionario`,
-//       [ perfil, linkFoto, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais, celularPessoal, celularFamiliar, email, site, codigoBanco, pix, numeroConta, agencia, tipoconta, cep, rua, numero, complemento, bairro, cidade, estado, pais, id, idempresa]
-//     );
-
-//     if (result.rowCount) {
-//       const funcionarioAtualizadoId = result.rows[0].idfuncionario;
-
-//       // --- Ponto Chave para o Log ---
-//       res.locals.acao = 'atualizou';
-//       res.locals.idregistroalterado = funcionarioAtualizadoId;
-//       res.locals.idusuarioAlvo = null;
-
-//       return res.json({ message: "Funcionário atualizado com sucesso!", funcionario: result.rows[0] });
-//     } else {
-//         return res.status(404).json({ message: "Funcionário não encontrado ou você não tem permissão para atualizá-lo." });
-//     }
-//   } catch (error) {
-//       console.error("Erro ao atualizar funcionário:", error);
-//       res.status(500).json({ message: "Erro ao atualizar funcionário." });
-//   }
-// });
-
-// // POST criar nova função
-// router.post("/", verificarPermissao('Funcionarios', 'cadastrar'), 
-//   logMiddleware('Funcionarios', {
-//     buscarDadosAnteriores: async (req) => {
-//         return { dadosanteriores: null, idregistroalterado: null };
-//     }
-//   }),
-//   async (req, res) => {
-//   const { perfil, foto, nome, cpf, rg, fluencia, idiomasadicionais, celularpessoal, celularfamiliar, email, site, codigobanco, pix, numeroconta, agencia, tipoconta, cep, rua, numero, complemento, bairro, cidade, estado, pais} = req.body;
-//   const idempresa = req.idempresa; 
-
-//   let client;   
-
-//   try {
-//     client = await pool.connect(); 
-//     await client.query('BEGIN');
-
-//     const resultFuncionario = await client.query(
-//                 `INSERT INTO Funcionarios (
-//                     perfil, foto, nome, cpf, rg, fluencia, idiomasadicionais,
-//                     celularpessoal, celularfamiliar, email, site, codigobanco, pix,
-//                     numeroConta, agencia, tipoConta, cep, rua, numero, complemento, bairro,
-//                     cidade, estado, pais
-//                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
-//                 RETURNING idFuncionarios`, // Retorna o ID do novo funcionário
-//                 [
-//                     perfil, foto, nome, cpf, rg, fluencia, idiomasadicionais,
-//                     celularpessoal, celularfamiliar, email, site, codigobanco, pix,
-//                     numeroconta, agencia, tipoconta, cep, rua, numero, complemento, bairro,
-//                     cidade, estado, pais
-//                 ]
-//     );
-//     const novoFuncionario = resultFuncionario.rows[0];
-//     const idNovoFuncionario = novoFuncionario.idfuncionarios; 
-
-//     await client.query(
-//         "INSERT INTO FuncionarioEmpresas (idFuncionario, idEmpresa) VALUES ($1, $2)",
-//         [idNovoFuncionario, idempresa]
-//     );
-//     await client.query('COMMIT');
-
-//     res.locals.acao = 'cadastrou';
-//     res.locals.idregistroalterado = idNovoFuncionario;
-//     res.locals.idusuarioAlvo = null;
-
-//     res.status(201).json({ mensagem: "Funcionário salvo e associado à empresa com sucesso!", funcionario: novoFuncionario });
-//   } catch (error) {
-//       if (client) { // Se a conexão foi estabelecida, faz o rollback
-//           await client.query('ROLLBACK');
-//       }
-//       console.error("❌ Erro ao salvar funcionário e/ou associá-lo à empresa:", error);
-//       res.status(500).json({ erro: "Erro ao salvar funcionário", detalhes: error.message });
-//   } finally {
-//       if (client) {
-//           client.release(); // Libera a conexão do pool, esteja o try/catch no que estiver
-//       }
-//   }
-    
-// });
-
-
-
-// module.exports = router;

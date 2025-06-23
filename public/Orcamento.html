@@ -37,8 +37,12 @@
                         <label for="Status">Status  (A/F)</label>
                     </div>
                     <div class="form">
-                        <input type="text" id="idNumOrcamento" name="idNumOrcamento" spellcheck="false">
-                        <label for="idNumOrcamento">N° do Orçamento</label>
+                        <input type="text" id="idOrcamento" name="idOrcamento" spellcheck="false">
+                        <label for="idOrcamento">Código</label>
+                    </div>
+                    <div class="form">
+                        <input type="text" id="nrOrcamento" name="nrOrcamento" spellcheck="false">
+                        <label for="nrOrcamento">N° do Orçamento</label>
                     </div>
                 </div>
 
@@ -71,17 +75,14 @@
                             </label>
                         </div>
                     </div>
-                </div>
-        
-        
-        
-        
+                </div>       
             
                 <div class="periodoMontagem">
                 
                     <div id="blocoInfra" class=" inativo-esquerda"  style="display: none;">
                         <div class="dtInfra">
-                            <label class="miniTitle">Montagem de Infra.</label>
+                            <label class="miniTitle">Montagem de Infra.</label>                           
+
                             <!-- <div class="De">
                                 <label  for="periodoInfra"> De:</label>
                                 <input type="date" id="dtIniInfra" >
@@ -90,13 +91,14 @@
                                 <label  for="dtFimMarcacao">Até:</label>
                                 <input type="date" id="dtFimInfra">
                             </div> -->
-                            <input type="text" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
+                            <input type="text" name="periodoInfraMontagem" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
 
                         </div>
                     </div>
 
                     <div class="dtMarcacao">
                         <label class="miniTitle">Período de Marcação</label>
+
                         <!-- <div class="De">
                             <label  for="periodoMarcacao"> De:</label>
                             <input type="date" id="dtIniMarcacao" name="dtIniMarcacao">
@@ -105,7 +107,7 @@
                             <label for="dtFimMarcacao">Até:</label>
                             <input type="date" id="dtFimMarcacao" name="dtFimMarcacao">
                         </div> -->
-                        <input type="text" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
+                        <input type="text" name="periodoMarcacao" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
                         
                     </div>
                     <div class="inicioMontagem">
@@ -118,7 +120,7 @@
                             <label class="miniTitle" for="dtFimMontagem">Até:</label>
                             <input type="date" id="dtFimMontagem" name="dtFimMontagem">
                         </div> -->
-                        <input type="text"  required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
+                        <input type="text" name="periodoMontagem" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
                         
                     </div>
                     <div class="Realizacao">
@@ -131,7 +133,7 @@
                             <label class="miniTitle" for="dtFimRealizacao">Até:</label>
                             <input type="date" id="dtFimRealizacao" name="dtFimRealizacao">
                         </div> -->
-                        <input type="text" class="realizacao" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
+                        <input type="text" class="realizacao" name="periodoRealizacao" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
                         
                     </div>
                 
@@ -145,7 +147,7 @@
                             <label class="miniTitle" for="dtFimDesmontagem">Até:</label>
                             <input type="date" id="dtFimDesmontagem" name="dtFimDesmontagem">
                         </div> -->
-                        <input type="text"  required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
+                        <input type="text" name="periodoDesmontagem" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
                     </div>
 
                     <div id="blocoInfra2" class="inativo-direita" style="display: none;">
@@ -159,7 +161,7 @@
                                 <label  for="dtFimMarcacao">Até:</label>
                                 <input type="date" id="dtFimInfra">
                             </div> -->
-                        <input type="text" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
+                        <input type="text" name="periodoDesmontagemInfra" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
 
                         </div>
                     </div> 
@@ -289,8 +291,8 @@
                         
                        
                             <div class="form2">
-                                <input type="text" class="Moeda preenchido" id="totalajdCusto" value=" R$ 0,00" required readonly style="font-size: 15px;" >
-                                <label for="totalGeralCto">Total Ajuda De Custo:</label>
+                                <input type="text" class="Moeda preenchido" id="totalAjdCusto" value=" R$ 0,00" required readonly style="font-size: 15px;" >
+                                <label for="totalAjdCto">Total Ajuda De Custo:</label>
                             </div>
                     </div>
 
@@ -301,18 +303,18 @@
                                 <label for="Lucro"> Lucro: </label>
                             </div>
                             <div class="form3">
-                                <input type="text"  id="perCent" class="preenchido" value="0%" name="perCent" required readonly style="font-size: 15px;">
+                                <input type="text"  id="percentLucro" class="preenchido" value="0%" name="perCent" required readonly style="font-size: 15px;">
                                 <label for="perCent"> % </label>
                             </div>
                         </div>
                         <div class="lucroTot">
                             <div class="form2">
-                                <input type="text" id="LucroReal"  class="preenchido" name="LucroReal" value=" R$ 0,00" required readonly style="font-size: 15px;">
+                                <input type="text" id="lucroReal"  class="preenchido" name="LucroReal" value=" R$ 0,00" required readonly style="font-size: 15px;">
                                 <label for="LucroReal"> Lucro Real: </label>
                             </div>
                             <div class="form3">
-                                <input type="text"  id="perCentReal" class="preenchido" value="0%" name="perCentReal" required readonly style="font-size: 15px;">
-                                <label for="perCentReal"> % </label>
+                                <input type="text"  id="percentReal" class="preenchido" value="0%" name="perCentReal" required readonly style="font-size: 15px;">
+                                <label for="percentReal"> % </label>
                             </div>
                         </div>
                     </div>
@@ -325,7 +327,7 @@
                                 <label for="Desconto">Desconto:</label>
                             </div>
                             <div class="form3">
-                                <input type="text" value="0% " id="perCentDesc" min="0" class="valorPerCentDesc preenchido" name="perCentDesc"  oninput="aplicarDescontoEAcrescimo(this)"  required style="font-size: 15px;">
+                                <input type="text" value="0% " id="percentDesc" min="0" class="valorPerCentDesc preenchido" name="perCentDesc"  oninput="aplicarDescontoEAcrescimo(this)"  required style="font-size: 15px;">
                             </div>
                         </div>
                             <div class="form-2colunas">
@@ -334,7 +336,7 @@
                                     <label for="Acrescimo">Acréscimo:</label>
                                 </div>
                                 <div class="form3">
-                                <input type="text" value="0%" min="0" id="perCentAcresc"  class="valorPerCentAcresc preenchido" name="perCentAcresc"  oninput="aplicarDescontoEAcrescimo(this)" required style="font-size: 15px;">
+                                <input type="text" value="0%" min="0" id="percentAcresc"  class="valorPerCentAcresc preenchido" name="perCentAcresc"  oninput="aplicarDescontoEAcrescimo(this)" required style="font-size: 15px;">
                             </div>
                         </div>
                     
@@ -353,17 +355,17 @@
                 <button class="Adicional" onclick="adicionarLinhaAdicional()"  style="display: none;">Adicional</button>
                 <button class="Excel" onclick="exportarParaExcel()" style="display: none;">Exportar P/ Excel</button>
                 <button class="fecharOrc" id="fecharOrc" onclick="fecharOrcamento()">Fechar Orçamento</button>
-                <button class="salvar" id="btnSalvar" type="submit">Salvar Orçamento</button>
+                <button class="btnEnviar" id="Enviar" type="button" >Salvar Orçamento</button>
             </div>
         </form>
     </div>
 </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="js/Orcamento.js"defer></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt_br.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> -->
 
 
 

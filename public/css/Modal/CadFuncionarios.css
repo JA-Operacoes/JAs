@@ -350,7 +350,7 @@ input:not([value=""]) ~ label {
     display: none;
   } */
 
-  input#complemento, input#pais, input#estado, input#numero, input#agencia, input#pix, input#banco, input#codBanco {
+  /* input#complemento, input#pais, input#estado, input#numero, input#agencia, input#pix, input#banco, input#codBanco { */
 
   .Idiomas {
   display: flex;
@@ -358,6 +358,7 @@ input:not([value=""]) ~ label {
   align-items: center;
   flex-direction: row;
 }
+
 
 #idiomasContainer {
   display: flex;

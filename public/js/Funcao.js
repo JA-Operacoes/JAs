@@ -165,7 +165,6 @@ function verificaFuncao() {
                     method: "POST",
                     body: dados // Passe o objeto dados diretamente
                 });
-
             
                 Swal.fire("Sucesso!", resultJson.mensagem || "Função cadastrada!", "success"); 
                 document.getElementById('form').reset(); 
@@ -504,9 +503,6 @@ function configurarEventosFuncao() {
     verificaFuncao(); // Carrega os Funcao ao abrir o modal
     adicionarEventoBlurFuncao();
     console.log("Entrou configurar Funcao no FUNCAO.js.");
-    
-    
-
 } 
 window.configurarEventosFuncao = configurarEventosFuncao;
 

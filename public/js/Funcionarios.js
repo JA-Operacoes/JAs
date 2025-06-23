@@ -1,5 +1,3 @@
-let funcionarioOriginal = null;
-
 async function verificaFuncionarios() {
     console.log("Configurando eventos do modal Funcionários...");
     
@@ -50,11 +48,12 @@ async function verificaFuncionarios() {
         const celularFamiliar = document.getElementById("celularFamiliar")?.value.trim() || '';
         const email = document.getElementById("email")?.value.trim() || '';
         const site = document.getElementById("site")?.value.trim() || '';
-        //  const banco = document.getElementById("banco")?.value.toUpperCase().trim() || '';
         const codigoBanco = document.getElementById("codBanco")?.value.trim() || '';
         const pix = document.getElementById("pix")?.value.trim() || '';
         const numeroConta = document.getElementById("nConta")?.value.trim() || '';
+        const digitoConta = document.getElementById("digitoConta")?.value.trim() || '';
         const agencia = document.getElementById("agencia")?.value.trim() || '';
+        const digitoAgencia = document.getElementById("digitoAgencia")?.value.trim() || '';
         const tipoConta = document.getElementById("tpConta")?.value.trim() || '';
         const cep = document.getElementById("cep")?.value.trim() || '';
         const rua = document.getElementById("rua")?.value.trim() || '';
@@ -88,8 +87,8 @@ async function verificaFuncionarios() {
         console.log("Preparando dados para envio:", {
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
             celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
-            numeroConta, agencia, tipoConta, cep, rua, numero, complemento, bairro,
-            cidade, estado, pais
+            numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, 
+            numero, complemento, bairro, cidade, estado, pais
         });
        // --- CRIANDO O FORMDATA ---
         const formData = new FormData();
@@ -109,7 +108,9 @@ async function verificaFuncionarios() {
         formData.append('codigoBanco', codigoBanco);
         formData.append('pix', pix);
         formData.append('numeroConta', numeroConta);
+        formData.append('digitoConta', digitoConta);
         formData.append('agencia', agencia);
+        formData.append('digitoAgencia', digitoAgencia);
         formData.append('tipoConta', tipoConta);
         formData.append('cep', cep);
         formData.append('rua', rua);
@@ -131,7 +132,7 @@ async function verificaFuncionarios() {
         console.log("Dados do FormData:", {
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
             celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
-            numeroConta, agencia, tipoConta, cep, rua, numero, complemento, bairro,
+            numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
             cidade, estado, pais
         });
         if (metodo === "PUT" && funcionarioOriginal) {
@@ -154,7 +155,7 @@ async function verificaFuncionarios() {
                 const camposTextoParaComparar = {
                     perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
                     celularPessoal, celularFamiliar, email, site, banco, codigoBanco, pix,
-                    numeroConta, agencia, tipoConta, cep, rua, numero, complemento, bairro,
+                    numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
                     cidade, estado, pais
                 };
 
@@ -224,71 +225,7 @@ async function verificaFuncionarios() {
             console.error("Erro ao enviar dados do funcionário:", error);
             Swal.fire("Erro", error.message || "Erro ao salvar funcionário.", "error");
         }
-
-    //   const dados = {
-    //       perfil, linkFoto, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
-    //       celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
-    //       numeroConta, agencia, tipoConta, cep, rua, numero, complemento, bairro,
-    //       cidade, estado, pais
-    //   };
-
-    //   console.log("Dados do funcionário:", dados);
-
-    //   // Verifica se houve alterações para PUT
-    //   if (metodo === "PUT" && funcionarioOriginal) {
-    //       const dadosAlterados = Object.keys(dados).some(key => {
-    //           // Conversão de valores para comparação consistente (ex: null vs '')
-    //           const oldValue = funcionarioOriginal[key] === null ? '' : String(funcionarioOriginal[key]);
-    //           const newValue = dados[key] === null ? '' : String(dados[key]);
-    //           if (key === 'idiomasAdicionais') {
-    //             try {
-    //                 const oldParsed = JSON.parse(oldValue || '[]');
-    //                 const newParsed = JSON.parse(newValue || '[]');
-    //                 // Compara arrays de forma profunda
-    //                 return JSON.stringify(oldParsed.sort()) !== JSON.stringify(newParsed.sort());
-    //             } catch (e) {
-    //                 // Se falhar a parse, compara como string simples
-    //                 return oldValue !== newValue;
-    //             }
-    //         }
-    //           return oldValue !== newValue;
-    //       });
-
-    //       if (!dadosAlterados) {
-    //           return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
-    //       }
-    //   }
-
-    //   try {
-    //       // Confirmação para alteração (PUT)
-    //       if (metodo === "PUT") {
-    //           const { isConfirmed } = await Swal.fire({
-    //               title: "Deseja salvar as alterações?",
-    //               text: "Você está prestes a atualizar os dados do funcionário.",
-    //               icon: "question",
-    //               showCancelButton: true,
-    //               confirmButtonText: "Sim, salvar",
-    //               cancelButtonText: "Cancelar",
-    //               reverseButtons: true,
-    //               focusCancel: true
-    //           });
-    //           if (!isConfirmed) return;
-    //       }
-
-    //       console.log("Enviando dados para o servidor:", dados, "URL:", url, "Método:", metodo);
-    //       const respostaApi = await fetchComToken(url, {
-    //           method: metodo,
-    //           body: JSON.stringify(dados)
-    //       });
-
-    //       await Swal.fire("Sucesso!", respostaApi.mensagem || "Funcionário salvo com sucesso.", "success");
-    //       limparCamposFuncionarios();
-    //       funcionarioOriginal = null; // Reseta o estado original após sucesso
-
-    //   } catch (error) {
-    //       console.error("Erro ao enviar dados do funcionário:", error);
-    //       Swal.fire("Erro", error.message || "Erro ao salvar funcionário.", "error");
-    //   }
+    
     });
 
     botaoPesquisar.addEventListener("click", async function (event) {
@@ -387,8 +324,8 @@ function adicionarEventoBlurFuncionario() {
         if (!desc) return;
 
         try {
-            await carregarEventoDescricao(desc, this);
-            console.log("Funcionário selecionado depois de carregarFuncionarioDescricao:", this.value);
+            await carregarFuncionarioDescricao(desc, this);
+            console.log("Funcionário selecionado depois de carregarFuncionariosDescricao:", this.value);
         } catch (error) {
             console.error("Erro ao buscar Funcionario:", error);
         }
@@ -550,9 +487,8 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
         const funcionario = await fetchComToken(`/funcionarios?nome=${encodeURIComponent(nome)}`);
         
         if (funcionario) {
-            // Preenche os campos do formulário com os dados do funcionário
-           // idFuncionariosInput.value = funcionario.idfuncionarios || '';
-           // nomeFuncionarioInput.value = funcionario.nome || '';
+
+            funcionarioOriginal = { ...funcionario }; // Salva o estado original
             document.getElementById("idFuncionarios").value = funcionario.idfuncionario || '';
             document.getElementById("nome").value = funcionario.nome || '';
 
@@ -613,11 +549,30 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
             document.getElementById("celularFamiliar").value = funcionario.celularfamiliar || '';
             document.getElementById("email").value = funcionario.email || '';
             document.getElementById("site").value = funcionario.site || '';
-            // document.getElementById("banco").value = funcionario.banco || '';
-            document.getElementById("codBanco").value = funcionario.codigobanco || '';
+            
+            //document.getElementById("codBanco").value = funcionario.codigobanco || '';
+            const inputCodBanco = document.getElementById("codBanco");
+            const inputBanco = document.getElementById("banco");
+            
+            if (inputCodBanco && funcionario.codigobanco) {
+                inputCodBanco.value = funcionario.codigobanco;                
+                window.autoPreencherBanco(inputCodBanco, 'blur');
+                
+                if (inputBanco && funcionario.banco) {
+                    inputBanco.value = funcionario.banco; 
+                }
+            } else {
+                // Se não houver codigobanco, limpa os campos de banco
+                if (inputCodBanco) inputCodBanco.value = '';
+                if (inputBanco) inputBanco.value = '';
+            }
+            
             document.getElementById("pix").value = funcionario.pix || '';
-            document.getElementById("nConta").value = funcionario.numeroconta || '';
             document.getElementById("agencia").value = funcionario.agencia || '';
+            document.getElementById("digitoAgencia").value = funcionario.digitoagencia || '';
+            document.getElementById("nConta").value = funcionario.numeroconta || '';
+            document.getElementById("digitoConta").value = funcionario.digitoconta || '';
+            
            
            // document.getElementById("tpConta").value = funcionario.tipoconta || '';
            // Lógica para select de tipo de conta (se "tpConta" é o ID correto)
@@ -772,76 +727,6 @@ function gerarCamposPoliglota(qtd) {
     }
   }
 
-//   async function fetchComToken(url, options = {}) {
-//     console.log("URL da requisição:", url);
-//     const token = localStorage.getItem("token");
-//     const idempresa = localStorage.getItem("idempresa");
-
-//     console.log("ID da empresa no localStorage:", idempresa);
-//     console.log("Token no localStorage:", token);
-
-//     if (!options.headers) options.headers = {};
-    
-//     if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
-//             options.headers['Content-Type'] = 'application/json';
-//     }else if (options.body && typeof options.body === 'object' && options.headers['Content-Type'] !== 'multipart/form-data') {
-        
-//             options.body = JSON.stringify(options.body);
-//             options.headers['Content-Type'] = 'application/json';
-//     }
-
-//     options.headers['Authorization'] = 'Bearer ' + token; 
-
-//     if (
-//         idempresa && 
-//         idempresa !== 'null' && 
-//         idempresa !== 'undefined' && 
-//         idempresa.trim() !== '' &&
-//         !isNaN(idempresa) && 
-//         Number(idempresa) > 0
-//     ) {
-//         options.headers['idempresa'] = idempresa;
-//         console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
-//     } else {
-//         console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
-//     }
-//     console.log("URL OPTIONS", url, options)
-    
-//     const resposta = await fetch(url, options);
-
-//     console.log("Resposta da requisição:", resposta);
-
-//     let responseBody = null;
-//     try {     
-//         responseBody = await resposta.json();
-//     } catch (jsonError) {    
-//         try {
-//             responseBody = await resposta.text();
-//         } catch (textError) {        
-//             responseBody = null;
-//         }
-//     }
-
-//     if (resposta.status === 401) {
-//         localStorage.clear();
-//         Swal.fire({
-//         icon: "warning",
-//         title: "Sessão expirada",
-//         text: "Por favor, faça login novamente."
-//         }).then(() => {
-//         window.location.href = "login.html"; 
-//         });
-    
-//         throw new Error('Sessão expirada'); 
-//     }
-
-//     if (!resposta.ok) {        
-//             const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
-//             throw new Error(`Erro na requisição: ${errorMessage}`);
-//     }
-
-//     return responseBody;
-// }
 
 async function fetchComToken(url, options = {}) {
     console.log("URL da requisição:", url);
@@ -934,7 +819,8 @@ function limparCamposFuncionarios(){
     const camposParaLimpar = [
         "idFuncionarios", "nome", "cpf", "rg",
         "celularPessoal", "celularFamiliar", "email", "site",
-        "banco", "codBanco", "pix", "nConta", "agencia",
+        "banco", "codBanco", "pix", "nConta", "digitoConta",
+        "agencia", "digitoAgencia",
         "cep", "rua", "numero", "complemento", "bairro",
         "cidade", "estado", "pais"
     ];
