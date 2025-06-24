@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
+    <link rel="stylesheet" href="css/Modal/CadBancos.css">
+    <link rel="stylesheet" href="css/Roots/Roots.css">
+    <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
+    <title>Modal</title>
+
+</head>
+
+<body data-modulo="Bancos">
+
+    <div id="CadModal" class="modal">
+        <div class="modal-content">
+
+            <div class="Close"><button class="close"> X </button></div>
+            <div id="form-content">
+
+                <div class="title">
+                    <h1>Cadastro de Bancos</h1>
+                </div>
+
+                <form id="form" name="form" autocomplete="on">
+                    <fieldset>
+                        <legend>Cadastre os Bancos </legend>
+
+                        <div class="form">
+                            <input type="text" name="idBanco" id="idBanco" readonly >
+                            <label for="idBanco">Código</label>
+                        </div>
+                        <div class="form">
+                            <input type="text" class="uppercase" name="nmBanco" id="nmBanco" required>
+                            <label for="nmBanco"> Nomes dos Bancos </label>
+                        </div>
+                        <div class="form">
+                            <input type="text" id="CodBancos" required>
+                            <label for="CodBancos">Codigos dos Bancos</label>
+                        </div>
+                    </fieldset>
+                    
+                </div>
+                <div class="BTNs">
+                    <button class="btnPesquisar" id="Pesquisar" type="button">Pesquisar</button>
+                    <button class="btnLimpar" id="Limpar" type="button">Limpar</button>
+                    <button class="btnEnviar" id="Enviar" type="button">Enviar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+</body>
+
+</html>
