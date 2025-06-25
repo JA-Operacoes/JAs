@@ -10,32 +10,44 @@ router.use(autenticarToken());
 router.use(contextoEmpresa);
 
 // GET: Buscar todos os bancos ou por nome (nmBanco)
-router.get("/", verificarPermissao("Bancos", "pesquisar"), async (req, res) => {
+router.get("/", verificarPermissao("bancos", "pesquisar"), async (req, res) => {
   try {
     const { nmBanco } = req.query;
+    console.log("📥 nmBanco recebido:", nmBanco);
 
     if (nmBanco) {
       const result = await pool.query(
-        "SELECT * FROM bancos WHERE nmbanco ILIKE $1",
+        `SELECT idbanco, codbanco, nmbanco
+         FROM bancos
+         WHERE nmbanco ILIKE $1
+         ORDER BY nmbanco ASC
+         LIMIT 1`,
         [`%${nmBanco}%`]
       );
 
-      return result.rows.length
-        ? res.json(result.rows[0])
-        : res.status(404).json({ message: "Banco não encontrado" });
+      if (result.rows.length > 0) {
+        return res.json(result.rows[0]);
+      } else {
+        return res.status(404).json({ message: "Banco não encontrado" });
+      }
     }
 
-    const result = await pool.query("SELECT * FROM bancos ORDER BY nmbanco ASC");
-    res.json(result.rows);
+    const result = await pool.query(
+      `SELECT idbanco, codbanco, nmbanco
+       FROM bancos
+       ORDER BY nmbanco ASC`
+    );
+
+    return res.json(result.rows);
   } catch (error) {
-    console.error("Erro ao buscar bancos:", error);
-    res.status(500).json({ error: "Erro ao buscar bancos" });
+    console.error("❌ Erro ao buscar bancos:", error);
+    return res.status(500).json({ error: error.message || "Erro ao buscar bancos" });
   }
 });
 
+
 // POST: Criar novo banco
 router.post("/", verificarPermissao("bancos", "cadastrar"), async (req, res) => {
-  console.log("Headers recebidos:", req.headers);
   console.log("📦 Corpo recebido:", req.body); // <-- log importante
 
   const { codBanco, nmBanco } = req.body;
