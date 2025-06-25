@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 
-    <title>Modal</title>
+    <title>Bancos</title>
 
 </head>
 
@@ -31,30 +31,32 @@
                     <fieldset>
                         <legend>Cadastre os Bancos </legend>
 
-                        <div class="form">
+                        <div class="form2">
                             <input type="text" name="idBanco" id="idBanco" readonly >
                             <label for="idBanco">Código</label>
                         </div>
-                        <div class="form">
+                        <div class="form2">
                             <input type="text" class="uppercase" name="nmBanco" id="nmBanco" required>
                             <label for="nmBanco"> Nomes dos Bancos </label>
                         </div>
-                        <div class="form">
-                            <input type="text" id="CodBancos" required>
-                            <label for="CodBancos">Codigos dos Bancos</label>
+                        <div class="form2">
+                            <input type="text" id="codBanco" name="codBanco" required>
+                            <label for="codBanco">Codigos dos Bancos</label>
                         </div>
                     </fieldset>
-                    
-                </div>
-                <div class="BTNs">
-                    <button class="btnPesquisar" id="Pesquisar" type="button">Pesquisar</button>
-                    <button class="btnLimpar" id="Limpar" type="button">Limpar</button>
-                    <button class="btnEnviar" id="Enviar" type="button">Enviar</button>
-                </div>
-            </form>
+
+                   </form>
+                
+            </div>
+            <div class="BTNs">
+                <button class="btnPesquisar" id="Pesquisar" type="button">Pesquisar</button>
+                <button class="btnLimpar" id="Limpar" type="button">Limpar</button>
+                <button class="btnEnviar" id="Enviar" type="button">Enviar</button>
+            </div>
         </div>
     </div>
-    
+
+    <script src="js/Bancos.js"></script>
 </body>
 
 </html>

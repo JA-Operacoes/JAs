@@ -1,17 +1,25 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../db/conexaoDB");
-const { autenticarToken } = require("../middlewares/authMiddlewares");
+const { autenticarToken, contextoEmpresa } = require("../middlewares/authMiddlewares");
+const { verificarPermissao } = require("../middlewares/permissaoMiddleware");
+const logMiddleware = require("../middlewares/logMiddleware");
 
-// Buscar todos os bancos
-router.get("/", autenticarToken(), async (req, res) => {
+// Middleware global: aplica a todos
+router.use(autenticarToken());
+router.use(contextoEmpresa);
+
+// GET: Buscar todos os bancos ou por nome (nmBanco)
+router.get("/", verificarPermissao("Bancos", "pesquisar"), async (req, res) => {
   try {
     const { nmBanco } = req.query;
+
     if (nmBanco) {
       const result = await pool.query(
         "SELECT * FROM bancos WHERE nmbanco ILIKE $1",
         [`%${nmBanco}%`]
       );
+
       return result.rows.length
         ? res.json(result.rows[0])
         : res.status(404).json({ message: "Banco não encontrado" });
@@ -25,30 +33,48 @@ router.get("/", autenticarToken(), async (req, res) => {
   }
 });
 
-// Criar novo banco
-router.post("/", autenticarToken(), async (req, res) => {
+// POST: Criar novo banco
+router.post("/", verificarPermissao("bancos", "cadastrar"), async (req, res) => {
+  console.log("Headers recebidos:", req.headers);
+  console.log("📦 Corpo recebido:", req.body); // <-- log importante
+
   const { codBanco, nmBanco } = req.body;
+  console.log(" entrou no codBanco", codBanco)
+
   try {
     const result = await pool.query(
       "INSERT INTO bancos (codbanco, nmbanco) VALUES ($1, $2) RETURNING *",
       [codBanco, nmBanco]
     );
+
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error("Erro ao inserir banco:", error);
+    console.error("❌ Erro ao inserir banco:", error);
     res.status(500).json({ error: "Erro ao cadastrar banco" });
   }
 });
 
-// Atualizar banco existente
-router.put("/:id", autenticarToken(), async (req, res) => {
+// PUT: Atualizar banco existente
+router.put("/:id", verificarPermissao("Bancos", "alterar"), 
+ logMiddleware('Bancos', {
+        buscarDadosAnteriores: async (req) => {
+            return { dadosanteriores: null, idregistroalterado: null };
+        }
+  }),
+async (req, res) => {
   const { codBanco, nmBanco } = req.body;
   const id = req.params.id;
+
   try {
     const result = await pool.query(
       "UPDATE bancos SET codbanco = $1, nmbanco = $2 WHERE idbanco = $3 RETURNING *",
       [codBanco, nmBanco, id]
     );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "Banco não encontrado para atualizar" });
+    }
+
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Erro ao atualizar banco:", error);

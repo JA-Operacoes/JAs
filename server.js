@@ -56,6 +56,7 @@ app.use("/profissional", autenticarToken(), contextoEmpresa, require("./routes/r
 app.use("/localmontagem", autenticarToken(), contextoEmpresa, require("./routes/rotaLocalMontagem"));
 app.use("/staff", autenticarToken(), contextoEmpresa, require("./routes/rotaStaff"));
 app.use("/empresas", autenticarToken(), contextoEmpresa, require("./routes/rotaEmpresa"));
+app.use("/Bancos", autenticarToken(), contextoEmpresa, require("./routes/rotaBancos"));
 app.use("/modulos", autenticarToken(), require("./routes/rotaModulo"));
 
 // Redireciona / para login.html (opcional)

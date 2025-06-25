@@ -144,7 +144,7 @@ fieldset {
   width: 350px;
   height: 30px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 10px;
   padding: 0 15px;
   border: 1px solid #000000;
   background: transparent;
@@ -153,12 +153,11 @@ fieldset {
 }
 
 .form2 input {
-  flex: 1;
   font-family: var(--Font-primary);
   width: 270px;
-  height: 30px;
+  height: 40px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 15px;
   padding: 0 20px;
   border: 1px solid #000000;
   background: transparent;
@@ -168,7 +167,6 @@ fieldset {
 
  .form2 { 
   display: flex;
-  flex-wrap: wrap;
   gap: 10px; /* espaço entre os campos */
   align-items: center;  /* aqui é o segredo do alinhamento */
  }
@@ -194,6 +192,9 @@ fieldset {
 .form label,
 .form-2colunas label,
 .form2 label {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
@@ -201,7 +202,6 @@ fieldset {
   font-size: 19px;
   pointer-events: none;
   transition: 0.3s;
-  left: 20%;
 }
 
 .uppercase {
@@ -215,7 +215,7 @@ input:focus {
 input:focus~label,
 input:valid~label{
   top: 0;
-  left: 25%;
+  left: 30%;
   font-size: 12px;
   padding: 0 2px;
   background: #cacaca;

@@ -44,7 +44,8 @@ let resp;
     funcionarios: "Funcionarios",
     staff: "Staff",
     usuarios: "Usuarios",
-    empresas: "Empresas"
+    empresas: "Empresas",
+    bancos: "Bancos"
   };
 
   document.querySelectorAll(".abrir-modal").forEach((botao) => {
