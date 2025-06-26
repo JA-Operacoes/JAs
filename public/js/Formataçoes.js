@@ -330,35 +330,44 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 // --------------------------------------------------- Autocomplete Bancos ---------------------------------------------------------
+async function carregarBancosDoBackend() {
+  try {
+    const response = await fetch("/Bancos"); // rota que retorna lista dos bancos
+    if (!response.ok) throw new Error("Erro ao buscar bancos");
+
+    const bancosArray = await response.json(); // espera um array [{ codBanco: '001', nmBanco: 'Banco do Brasil' }, ...]
+
+    // Transforma array em objeto para facilitar busca, igual antes:
+    const bancosObj = {};
+    bancosArray.forEach(banco => {
+      bancosObj[banco.codbanco] = banco.nmbanco;
+    });
+
+    window.bancosData = bancosObj; // variável global que será usada na função
+    console.log("Bancos carregados:", window.bancosData);
+  } catch (error) {
+    console.error("Erro ao carregar bancos do backend:", error);
+    window.bancosData = {}; // garante que não quebre
+  }
+}
+
 window.autoPreencherBanco = function(input, evento) {
   const nomeInput = document.getElementById('banco');
   const codInput = document.getElementById('codBanco');
 
   if (!nomeInput || !codInput) return;
 
-  const bancos = {
-    "001": "Banco do Brasil",
-    "237": "Bradesco",
-    "104": "Caixa Econômica Federal",
-    "341": "Itaú",
-    "033": "Santander",
-    "422": "Banco Safra",
-    "077": "Banco Inter",
-    "260": "Nubank",
-    "212": "Banco Original",
-    "208": "BTG Pactual"
-  };
+  // Usar variável global que foi carregada do backend
+  const bancos = window.bancosData || {};
 
   const valor = input.value.trim();
   const valorLower = valor.toLowerCase();
   const valorNumerico = valor.replace(/\D/g, '');
 
-  // Normaliza texto removendo acentos
   function normalizar(texto) {
     return texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   }
 
-  // Digitando o código (campo CodBanco)
   if (input === codInput) {
     if (valorNumerico.length >= 3 || evento === 'blur') {
       const nomeBanco = bancos[valorNumerico];
@@ -368,7 +377,6 @@ window.autoPreencherBanco = function(input, evento) {
     return;
   }
 
-  // Digitando o nome (campo Banco)
   if (input === nomeInput) {
     if (valor.length >= 3 || evento === 'blur') {
       let achado = false;
@@ -377,7 +385,7 @@ window.autoPreencherBanco = function(input, evento) {
       for (let [codigo, nomeBanco] of Object.entries(bancos)) {
         if (normalizar(nomeBanco).includes(entradaNormalizada)) {
           codInput.value = codigo;
-          if (evento === 'blur') nomeInput.value = nomeBanco; // completa o nome ao sair
+          if (evento === 'blur') nomeInput.value = nomeBanco;
           achado = true;
           break;
         }
