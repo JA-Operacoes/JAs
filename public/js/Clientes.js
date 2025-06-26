@@ -1,3 +1,4 @@
+import { fetchComToken } from '../utils/utils.js';
 
 if (typeof window.clienteOriginal === "undefined") {
     window.clienteOriginal = {
@@ -629,76 +630,76 @@ function limparCamposCliente(){
     }
 }
 
-async function fetchComToken(url, options = {}) {
-  console.log("URL da requisição ORÇAMENTOS:", url);
-  const token = localStorage.getItem("token");
-  const idempresa = localStorage.getItem("idempresa");
+// async function fetchComToken(url, options = {}) {
+//   console.log("URL da requisição ORÇAMENTOS:", url);
+//   const token = localStorage.getItem("token");
+//   const idempresa = localStorage.getItem("idempresa");
 
-  console.log("ID da empresa no localStorage:", idempresa);
-  console.log("Token no localStorage:", token);
+//   console.log("ID da empresa no localStorage:", idempresa);
+//   console.log("Token no localStorage:", token);
 
-  if (!options.headers) options.headers = {};
+//   if (!options.headers) options.headers = {};
   
-  if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
-        options.headers['Content-Type'] = 'application/json';
-    }
+//   if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
+//         options.headers['Content-Type'] = 'application/json';
+//     }
 
-  options.headers['Authorization'] = 'Bearer ' + token;
-  if (idempresa) options.headers['idempresa'] = idempresa;
+//   options.headers['Authorization'] = 'Bearer ' + token;
+//   if (idempresa) options.headers['idempresa'] = idempresa;
 
-if (
-    idempresa && 
-    idempresa !== 'null' && 
-    idempresa !== 'undefined' && 
-    idempresa.trim() !== '' &&
-    !isNaN(idempresa) && 
-    Number(idempresa) > 0
-  ) {
-    options.headers['idempresa'] = idempresa;
-    console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
-  } else {
-    console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
-  }
-  console.log("URL OPTIONS", url, options)
+// if (
+//     idempresa && 
+//     idempresa !== 'null' && 
+//     idempresa !== 'undefined' && 
+//     idempresa.trim() !== '' &&
+//     !isNaN(idempresa) && 
+//     Number(idempresa) > 0
+//   ) {
+//     options.headers['idempresa'] = idempresa;
+//     console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
+//   } else {
+//     console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
+//   }
+//   console.log("URL OPTIONS", url, options)
 
  
-  const resposta = await fetch(url, options);
+//   const resposta = await fetch(url, options);
 
-  console.log("Resposta da requisição:", resposta);
+//   console.log("Resposta da requisição Clientes.js:", resposta);
 
-  if (resposta.status === 401) {
-    localStorage.clear();
-    Swal.fire({
-      icon: "warning",
-      title: "Sessão expirada",
-      text: "Por favor, faça login novamente."
-    }).then(() => {
-      window.location.href = "login.html"; // ajuste conforme necessário
-    });
-    //return;
-    throw new Error('Sessão expirada'); 
-  }
+//   if (resposta.status === 401) {
+//     localStorage.clear();
+//     Swal.fire({
+//       icon: "warning",
+//       title: "Sessão expirada",
+//       text: "Por favor, faça login novamente."
+//     }).then(() => {
+//       window.location.href = "login.html"; // ajuste conforme necessário
+//     });
+//     //return;
+//     throw new Error('Sessão expirada'); 
+//   }
 
 
-  let dados;
+//   let dados;
 
-  try {
-    // Tenta parsear JSON
-    dados = await resposta.json();
-  } catch {
-    // Se não for JSON, tenta pegar texto puro
-    const texto = await resposta.text();
-    dados = texto || null;
-  }
+//   try {
+//     // Tenta parsear JSON
+//     dados = await resposta.json();
+//   } catch {
+//     // Se não for JSON, tenta pegar texto puro
+//     const texto = await resposta.text();
+//     dados = texto || null;
+//   }
 
-  if (!resposta.ok) {
-    // lança erro com a mensagem retornada (se houver)
-    const mensagemErro = (dados && dados.erro) || JSON.stringify(dados) || resposta.statusText;
-    throw new Error(`Erro na requisição: ${mensagemErro}`);
-  }
+//   if (!resposta.ok) {
+//     // lança erro com a mensagem retornada (se houver)
+//     const mensagemErro = (dados && dados.erro) || JSON.stringify(dados) || resposta.statusText;
+//     throw new Error(`Erro na requisição: ${mensagemErro}`);
+//   }
 
-  return dados;
-}
+//   return dados;
+// }
 
 document.addEventListener('DOMContentLoaded', () => {
     const inputCodigo = document.querySelector("#idCliente");

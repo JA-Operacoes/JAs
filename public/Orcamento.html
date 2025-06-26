@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/material_red.css">
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/flatpickr/dist/themes/material_red.css">    
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
@@ -15,12 +15,13 @@
     
 </head>
 <body data-modulo="Orcamentos">
-
+   
+    
 <div id="CadModal" class="modal">
     <div class="modal-content">
-        <div class="Close" id="Close"><button onclick="fecharModal()" id="Close">X</button></div>
+        
 
-
+        <div class="Close"><button class="close"> X </button></div>
         <div id ="form-orcamento">
         
         <form id="form" name="form" autocomplete="off"><!-- data-action="http://localhost:3000/salvarOrcamento"> -->
@@ -58,7 +59,7 @@
                     </div>
                         <div class="select2">
                             <label for="idMontagem">Local Montagem:</label>
-                            <select class="idMontagem"  onchange="atualizarUFOrc(this)"></select>
+                            <select class="idMontagem"  id="selectLocalMontagem"></select>
                         <div class="form3">
                             <input type="text" class="ufmontagem" id="ufmontagem" name="ufmontagem" required spellcheck="false">
                             <label  for="ufmontagem">UF</label>
@@ -91,7 +92,7 @@
                                 <label  for="dtFimMarcacao">Até:</label>
                                 <input type="date" id="dtFimInfra">
                             </div> -->
-                            <input type="text" name="periodoInfraMontagem" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
+                            <input type="text" id="periodoInfraMontagem" name="periodoInfraMontagem" required readonly placeholder="Clique para Selecionar"  >
 
                         </div>
                     </div>
@@ -107,7 +108,7 @@
                             <label for="dtFimMarcacao">Até:</label>
                             <input type="date" id="dtFimMarcacao" name="dtFimMarcacao">
                         </div> -->
-                        <input type="text" name="periodoMarcacao" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
+                        <input type="text" id="periodoMarcacao" name="periodoMarcacao" required readonly placeholder="Clique para Selecionar"  >
                         
                     </div>
                     <div class="inicioMontagem">
@@ -120,7 +121,7 @@
                             <label class="miniTitle" for="dtFimMontagem">Até:</label>
                             <input type="date" id="dtFimMontagem" name="dtFimMontagem">
                         </div> -->
-                        <input type="text" name="periodoMontagem" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
+                        <input type="text" id="periodoMontagem" name="periodoMontagem" required readonly placeholder="Clique para Selecionar"  >
                         
                     </div>
                     <div class="Realizacao">
@@ -133,7 +134,7 @@
                             <label class="miniTitle" for="dtFimRealizacao">Até:</label>
                             <input type="date" id="dtFimRealizacao" name="dtFimRealizacao">
                         </div> -->
-                        <input type="text" class="realizacao" name="periodoRealizacao" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
+                        <input type="text" id="periodoRealizacao" class="realizacao" name="periodoRealizacao" required readonly placeholder="Clique para Selecionar"  >
                         
                     </div>
                 
@@ -147,7 +148,7 @@
                             <label class="miniTitle" for="dtFimDesmontagem">Até:</label>
                             <input type="date" id="dtFimDesmontagem" name="dtFimDesmontagem">
                         </div> -->
-                        <input type="text" name="periodoDesmontagem" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
+                        <input type="text" id="periodoDesmontagem" name="periodoDesmontagem" required readonly placeholder="Clique para Selecionar"  >
                     </div>
 
                     <div id="blocoInfra2" class="inativo-direita" style="display: none;">
@@ -161,7 +162,7 @@
                                 <label  for="dtFimMarcacao">Até:</label>
                                 <input type="date" id="dtFimInfra">
                             </div> -->
-                        <input type="text" name="periodoDesmontagemInfra" required readonly placeholder="Clique para Selecionar" onclick="inicializarFlatpickrPeriodos(this)" >
+                        <input type="text" id="periodoDesmontagemInfra" name="periodoDesmontagemInfra" required readonly placeholder="Clique para Selecionar"  >
 
                         </div>
                     </div> 
@@ -173,15 +174,15 @@
                 
                     <div class="select">
                         <label for="idFuncao">Função:</label>
-                        <select class="idFuncao" onchange="resetarOutrosSelectsOrc(this)"></select>
+                        <select class="idFuncao" id="selectFuncao"></select>
                     </div>
                     <div class="select">
                         <label for="idEquipamento">Equipamento:</label>
-                        <select class="idEquipamento" onchange="resetarOutrosSelectsOrc(this)"></select>
+                        <select class="idEquipamento" id="selectEquipamento" ></select>
                     </div>
                     <div class="select">
                         <label for="idSuprimento">Suprimento:</label>
-                        <select class="idSuprimento" onchange="resetarOutrosSelectsOrc(this)"></select>
+                        <select class="idSuprimento" id="selectSuprimento"></select>
                     </div>
                 </div>
                 
@@ -219,7 +220,7 @@
                                 <td class="produto"><div class="Acres-Desc"><select id="Pavilhoes"><option value="select">Pavilhao de atuação </option></select></div><br><div class="valorbanco"></div></td>
                                 <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><!--  <div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div>--></td>
 
-                                <td class="Periodo"><div class="flatpickr" id="seletorData"><input type="text" class="datas" data-input required readonly placeholder="Clique para Selecionar" oninput="atualizarQtdDias(this)" onclick="inicializarFlatpickr(this)"></div></td>
+                                <td class="Periodo"><div class="flatpickr" id="seletorData"><input type="text" class="datas" data-input required readonly placeholder="Clique para Selecionar" oninput="atualizarQtdDias(this)" ></div></td>
                                 <!-- <td class="Periodo"><div class="Acres-Desc"><p>de:<input type="date" class="data-inicio" oninput="atualizarQtdDias(this)"></p><p>até<input type="date" class="data-fim" oninput="atualizarQtdDias(this)"></p></div></td> -->
 
                                 
@@ -245,7 +246,7 @@
                     </table>
                 </div>
                 <br>
-                <div class="addLinha"><button class="adicionar" id="adicionar" onclick="adicionarLinhaOrc()">Adicionar Linha</button></div>
+                <div class="addLinha"><button class="adicionar" id="adicionarLinha">Adicionar Linha</button></div>
             
                 <div class = 'Selects'>
                     <div class="Observacoes">
@@ -352,7 +353,7 @@
             <div class="BTNs">
                 <button class="pesquisar" onclick="pesquisarOrcamento()">Pesquisar</button>
                 <button class="Proposta" id="Proposta" onclick="gerarPropostaPDF()">Gerar Proposta</button>
-                <button class="Adicional" onclick="adicionarLinhaAdicional()"  style="display: none;">Adicional</button>
+                <button class="Adicional" id="adicionarLinhaAdicional" style="display: none;">Adicional</button>
                 <button class="Excel" onclick="exportarParaExcel()" style="display: none;">Exportar P/ Excel</button>
                 <button class="fecharOrc" id="fecharOrc" onclick="fecharOrcamento()">Fechar Orçamento</button>
                 <button class="btnEnviar" id="Enviar" type="button" >Salvar Orçamento</button>
@@ -360,13 +361,13 @@
         </form>
     </div>
 </div>
-<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="js/Orcamento.js"defer></script>
+<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script> -->
+<!-- <script src="js/Orcamento.js" defer></script> -->
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt_br.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> -->
-
+<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+ -->
 
 
 </body>

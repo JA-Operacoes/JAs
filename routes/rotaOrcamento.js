@@ -94,6 +94,8 @@ router.get(
 
       const result = await client.query(query, values);
 
+      console.log("Resultado da busca por nrOrcamento:", result.rows.length, "linhas.", result);
+
       if (result.rows.length === 0) {
         return res.status(404).json({ message: "Orçamento não encontrado com o número fornecido." });
       }
@@ -406,7 +408,7 @@ router.post(
 
 router.put(
   "/:id", autenticarToken(), contextoEmpresa,
-  verificarPermissao("Orcamentos", "editar"), // Permissão para editar orçamentos
+  verificarPermissao("Orcamentos", "alterar"), // Permissão para editar orçamentos
   logMiddleware("Orcamentos", {
     buscarDadosAnteriores: async (req) => {
         const idOrcamento = req.params.id;
@@ -451,13 +453,15 @@ router.put(
 
     const idempresa = req.idempresa; // ID da empresa do middleware 'contextoEmpresa'
 
+    console.log("🔥 Rota PUT /orcamentos/:id acessada para atualizar o orçamento:", req.body);
+
     try {
       await client.query("BEGIN"); // Inicia a transação
 
       // 1. Atualizar a tabela 'orcamentos'
       const updateOrcamentoQuery = `
                 UPDATE orcamentos SET
-                    Status = $1, idcliente = $2, idevento = $3, idlocalmontagem = $4,
+                    status = $1, idcliente = $2, idevento = $3, idlocalmontagem = $4,
                     inframontagem = $5, dtiniinframontagem = $6, dtfiminframontagem = $7,
                     dtinimontagem = $8, dtfimmontagem = $9, dtinimarcacao = $10, dtfimmarcacao = $11,
                     dtinirealizacao = $12, dtfimrealizacao = $13, dtinidesmontagem = $14, dtfimdesmontagem = $15,

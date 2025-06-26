@@ -1,3 +1,5 @@
+import { fetchComToken} from '../../utils/utils.js';
+
 // let clienteSelecionado = null;
 // let nomeClienteSelecionado = '';
 // let nomeEventoSelecionado = '';
@@ -123,17 +125,17 @@
 // }
 
 // Adicione no topo do arquivo
-function fetchComToken(url, options = {}) {
-  const token = localStorage.getItem("token");
-  return fetch(url, {
-    ...options,
-    headers: {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
-}
+// function fetchComToken(url, options = {}) {
+//   const token = localStorage.getItem("token");
+//   return fetch(url, {
+//     ...options,
+//     headers: {
+//       "Authorization": `Bearer ${token}`,
+//       "Content-Type": "application/json",
+//       ...options.headers,
+//     },
+//   });
+// }
 
 let clienteSelecionado = null;
 let nomeClienteSelecionado = '';
@@ -281,41 +283,41 @@ function alternarMenu() {
   btn.innerHTML = wrapper.classList.contains("menu-fechado") ? "»" : "«";
 }
 
-function carregarEventosDoCliente(clienteId) {
-  var xhr = new XMLHttpRequest();
-  xhr.open('GET', '/api/eventos?cliente_id=' + clienteId, true);
+// function carregarEventosDoCliente(clienteId) {
+//   var xhr = new XMLHttpRequest();
+//   xhr.open('GET', '/api/eventos?cliente_id=' + clienteId, true);
 
-  xhr.onreadystatechange = function() {
-    if (xhr.readyState === 4 && xhr.status === 200) {
-      var eventos = JSON.parse(xhr.responseText);
-      var lista = document.getElementById('lista-dados-eventos');
-      lista.innerHTML = ''; // Limpa a lista
+//   xhr.onreadystatechange = function() {
+//     if (xhr.readyState === 4 && xhr.status === 200) {
+//       var eventos = JSON.parse(xhr.responseText);
+//       var lista = document.getElementById('lista-dados-eventos');
+//       lista.innerHTML = ''; // Limpa a lista
 
-      if (eventos.length > 0) {
-        for (var i = 0; i < eventos.length; i++) {
-          var li = document.createElement('li');
-          li.textContent = eventos[i].nome;
-          li.setAttribute('data-evento-id', eventos[i].id);
-          li.setAttribute('data-cliente-id', clienteId);
-          lista.appendChild(li);
-        }
+//       if (eventos.length > 0) {
+//         for (var i = 0; i < eventos.length; i++) {
+//           var li = document.createElement('li');
+//           li.textContent = eventos[i].nome;
+//           li.setAttribute('data-evento-id', eventos[i].id);
+//           li.setAttribute('data-cliente-id', clienteId);
+//           lista.appendChild(li);
+//         }
 
-        // Habilita a aba de eventos
-        var abaEventos = document.querySelector('.aba[data-alvo="eventos"]');
-        if (abaEventos) {
-          abaEventos.classList.remove('desativada');
-        }
+//         // Habilita a aba de eventos
+//         var abaEventos = document.querySelector('.aba[data-alvo="eventos"]');
+//         if (abaEventos) {
+//           abaEventos.classList.remove('desativada');
+//         }
 
-      } else {
-        var vazio = document.createElement('li');
-        vazio.textContent = 'Nenhum evento cadastrado.';
-        lista.appendChild(vazio);
-      }
-    }
-  };
+//       } else {
+//         var vazio = document.createElement('li');
+//         vazio.textContent = 'Nenhum evento cadastrado.';
+//         lista.appendChild(vazio);
+//       }
+//     }
+//   };
 
-  xhr.send();
-}
+//   xhr.send();
+// }
 
 function aplicarCliqueNosClientes() {
   var clientes = document.querySelectorAll('#lista-dados-clientes li');

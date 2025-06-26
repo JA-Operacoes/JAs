@@ -1,3 +1,4 @@
+import { fetchComToken } from '../utils/utils.js';
 
 if (typeof window.StaffOriginal === "undefined") {
     window.StaffOriginal = {
@@ -785,29 +786,29 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
 
-function fetchComToken(url, options = {}) {
-  const token = localStorage.getItem("token");
-  if (!token) {
-    throw new Error("fetchComToken: nenhum token encontrado. Faça login primeiro.");
-  }
+// async function fetchComToken(url, options = {}) {
+//   const token = localStorage.getItem("token");
+//   if (!token) {
+//     throw new Error("fetchComToken: nenhum token encontrado. Faça login primeiro.");
+//   }
 
-  // Monta os headers sempre incluindo Authorization
-  const headers = {
-    "Authorization": `Bearer ${token}`,
-    // só coloca Content-Type se houver body (POST/PUT)
-    ...(options.body ? { "Content-Type": "application/json" } : {}),
-    ...options.headers
-  };
+//   // Monta os headers sempre incluindo Authorization
+//   const headers = {
+//     "Authorization": `Bearer ${token}`,
+//     // só coloca Content-Type se houver body (POST/PUT)
+//     ...(options.body ? { "Content-Type": "application/json" } : {}),
+//     ...options.headers
+//   };
 
-  return fetch(url, {
-    ...options,
-    headers,
-    // caso seu back-end esteja em outro host e precisa de CORS:
-    mode: "cors",
-    // se precisar enviar cookies de sessão:
-    credentials: "include"
-  });
-}
+//   return fetch(url, {
+//     ...options,
+//     headers,
+//     // caso seu back-end esteja em outro host e precisa de CORS:
+//     mode: "cors",
+//     // se precisar enviar cookies de sessão:
+//     credentials: "include"
+//   });
+// }
 
 function configurarEventosStaff() {
     console.log("Configurando eventos Staff...");

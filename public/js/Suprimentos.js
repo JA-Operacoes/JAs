@@ -1,3 +1,4 @@
+import { fetchComToken } from '../utils/utils.js';
 
 if (typeof window.SuprimentoOriginal === "undefined") {
     window.SuprimentoOriginal = {
@@ -390,76 +391,76 @@ function limparCamposSuprimento() {
 
 }
 
-async function fetchComToken(url, options = {}) {
-  console.log("URL da requisição:", url);
-  const token = localStorage.getItem("token");
-  const idempresa = localStorage.getItem("idempresa");
+// async function fetchComToken(url, options = {}) {
+//   console.log("URL da requisição:", url);
+//   const token = localStorage.getItem("token");
+//   const idempresa = localStorage.getItem("idempresa");
 
-  console.log("ID da empresa no localStorage:", idempresa);
-  console.log("Token no localStorage:", token);
+//   console.log("ID da empresa no localStorage:", idempresa);
+//   console.log("Token no localStorage:", token);
 
-  if (!options.headers) options.headers = {};
+//   if (!options.headers) options.headers = {};
   
-  if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
-        options.headers['Content-Type'] = 'application/json';
-  }else if (options.body && typeof options.body === 'object' && options.headers['Content-Type'] !== 'multipart/form-data') {
+//   if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
+//         options.headers['Content-Type'] = 'application/json';
+//   }else if (options.body && typeof options.body === 'object' && options.headers['Content-Type'] !== 'multipart/form-data') {
        
-        options.body = JSON.stringify(options.body);
-        options.headers['Content-Type'] = 'application/json';
-  }
+//         options.body = JSON.stringify(options.body);
+//         options.headers['Content-Type'] = 'application/json';
+//   }
 
-  options.headers['Authorization'] = 'Bearer ' + token; 
+//   options.headers['Authorization'] = 'Bearer ' + token; 
 
-  if (
-      idempresa && 
-      idempresa !== 'null' && 
-      idempresa !== 'undefined' && 
-      idempresa.trim() !== '' &&
-      !isNaN(idempresa) && 
-      Number(idempresa) > 0
-  ) {
-      options.headers['idempresa'] = idempresa;
-      console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
-  } else {
-    console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
-  }
-  console.log("URL OPTIONS", url, options)
+//   if (
+//       idempresa && 
+//       idempresa !== 'null' && 
+//       idempresa !== 'undefined' && 
+//       idempresa.trim() !== '' &&
+//       !isNaN(idempresa) && 
+//       Number(idempresa) > 0
+//   ) {
+//       options.headers['idempresa'] = idempresa;
+//       console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
+//   } else {
+//     console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
+//   }
+//   console.log("URL OPTIONS", url, options)
  
-  const resposta = await fetch(url, options);
+//   const resposta = await fetch(url, options);
 
-  console.log("Resposta da requisição:", resposta);
+//   console.log("Resposta da requisição Suprimentos.js:", resposta);
 
-  let responseBody = null;
-  try {     
-      responseBody = await resposta.json();
-  } catch (jsonError) {    
-      try {
-          responseBody = await resposta.text();
-      } catch (textError) {        
-          responseBody = null;
-      }
-  }
+//   let responseBody = null;
+//   try {     
+//       responseBody = await resposta.json();
+//   } catch (jsonError) {    
+//       try {
+//           responseBody = await resposta.text();
+//       } catch (textError) {        
+//           responseBody = null;
+//       }
+//   }
 
-  if (resposta.status === 401) {
-    localStorage.clear();
-    Swal.fire({
-      icon: "warning",
-      title: "Sessão expirada",
-      text: "Por favor, faça login novamente."
-    }).then(() => {
-      window.location.href = "login.html"; 
-    });
+//   if (resposta.status === 401) {
+//     localStorage.clear();
+//     Swal.fire({
+//       icon: "warning",
+//       title: "Sessão expirada",
+//       text: "Por favor, faça login novamente."
+//     }).then(() => {
+//       window.location.href = "login.html"; 
+//     });
 
-    throw new Error('Sessão expirada'); 
-  }
+//     throw new Error('Sessão expirada'); 
+//   }
 
-  if (!resposta.ok) {
-        const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
-        throw new Error(`Erro na requisição: ${errorMessage}`);
-  }
+//   if (!resposta.ok) {
+//         const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
+//         throw new Error(`Erro na requisição: ${errorMessage}`);
+//   }
 
-  return responseBody;
-}
+//   return responseBody;
+// }
 
 function configurarEventosSuprimento() {
     console.log("Configurando eventos Suprimento...");

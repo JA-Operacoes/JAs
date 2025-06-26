@@ -1,3 +1,5 @@
+import { fetchComToken } from '../utils/utils.js';
+
 async function verificaFuncionarios() {
     console.log("Configurando eventos do modal Funcionários...");
     
@@ -728,92 +730,92 @@ function gerarCamposPoliglota(qtd) {
   }
 
 
-async function fetchComToken(url, options = {}) {
-    console.log("URL da requisição:", url);
-    const token = localStorage.getItem("token");
-    const idempresa = localStorage.getItem("idempresa");
+// async function fetchComToken(url, options = {}) {
+//     console.log("URL da requisição:", url);
+//     const token = localStorage.getItem("token");
+//     const idempresa = localStorage.getItem("idempresa");
 
-    console.log("ID da empresa no localStorage:", idempresa);
-    console.log("Token no localStorage:", token);
+//     console.log("ID da empresa no localStorage:", idempresa);
+//     console.log("Token no localStorage:", token);
 
-    // Inicializa headers se não existirem
-    if (!options.headers) options.headers = {};
+//     // Inicializa headers se não existirem
+//     if (!options.headers) options.headers = {};
 
-    // --- LÓGICA DE TRATAMENTO DO CORPO E CONTENT-TYPE ---
-    // 1. Se o corpo é FormData, NÃO FAÇA NADA com Content-Type, o navegador cuida.
-    //    E NÃO STRINGIFIQUE O CORPO.
-    if (options.body instanceof FormData) {
-        // Nada a fazer aqui. O navegador define o Content-Type: multipart/form-data automaticamente.
-        // E o corpo já está no formato correto.
-        console.log("[fetchComToken] Detectado FormData. Content-Type e body serão gerenciados pelo navegador.");
-    }
-    // 2. Se o corpo é um objeto e NÃO é FormData, trata como JSON.
-    else if (options.body && typeof options.body === 'object') {
-        options.body = JSON.stringify(options.body);
-        options.headers['Content-Type'] = 'application/json';
-        console.log("[fetchComToken] Detectado corpo JSON. Content-Type definido como application/json.");
-    }
-    // 3. Se o corpo é uma string que parece JSON, trata como JSON.
-    else if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
-        options.headers['Content-Type'] = 'application/json';
-        console.log("[fetchComToken] Detectado string JSON. Content-Type definido como application/json.");
-    }
-    // --- FIM DA LÓGICA DE TRATAMENTO DO CORPO ---
+//     // --- LÓGICA DE TRATAMENTO DO CORPO E CONTENT-TYPE ---
+//     // 1. Se o corpo é FormData, NÃO FAÇA NADA com Content-Type, o navegador cuida.
+//     //    E NÃO STRINGIFIQUE O CORPO.
+//     if (options.body instanceof FormData) {
+//         // Nada a fazer aqui. O navegador define o Content-Type: multipart/form-data automaticamente.
+//         // E o corpo já está no formato correto.
+//         console.log("[fetchComToken] Detectado FormData. Content-Type e body serão gerenciados pelo navegador.");
+//     }
+//     // 2. Se o corpo é um objeto e NÃO é FormData, trata como JSON.
+//     else if (options.body && typeof options.body === 'object') {
+//         options.body = JSON.stringify(options.body);
+//         options.headers['Content-Type'] = 'application/json';
+//         console.log("[fetchComToken] Detectado corpo JSON. Content-Type definido como application/json.");
+//     }
+//     // 3. Se o corpo é uma string que parece JSON, trata como JSON.
+//     else if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
+//         options.headers['Content-Type'] = 'application/json';
+//         console.log("[fetchComToken] Detectado string JSON. Content-Type definido como application/json.");
+//     }
+//     // --- FIM DA LÓGICA DE TRATAMENTO DO CORPO ---
 
-    // Adiciona o token de autorização
-    options.headers['Authorization'] = 'Bearer ' + token;
+//     // Adiciona o token de autorização
+//     options.headers['Authorization'] = 'Bearer ' + token;
 
-    // Adiciona o idempresa ao cabeçalho, se válido
-    if (
-        idempresa &&
-        idempresa !== 'null' &&
-        idempresa !== 'undefined' &&
-        idempresa.trim() !== '' &&
-        !isNaN(idempresa) &&
-        Number(idempresa) > 0
-    ) {
-        options.headers['idempresa'] = idempresa;
-        console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
-    } else {
-        console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
-    }
+//     // Adiciona o idempresa ao cabeçalho, se válido
+//     if (
+//         idempresa &&
+//         idempresa !== 'null' &&
+//         idempresa !== 'undefined' &&
+//         idempresa.trim() !== '' &&
+//         !isNaN(idempresa) &&
+//         Number(idempresa) > 0
+//     ) {
+//         options.headers['idempresa'] = idempresa;
+//         console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
+//     } else {
+//         console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
+//     }
 
-    console.log("URL OPTIONS", url, options);
+//     console.log("URL OPTIONS", url, options);
 
-    const resposta = await fetch(url, options);
+//     const resposta = await fetch(url, options);
 
-    console.log("Resposta da requisição:", resposta);
+//     console.log("Resposta da requisição Funcionarios.js:", resposta);
 
-    let responseBody = null;
-    try {
-        responseBody = await resposta.json();
-    } catch (jsonError) {
-        try {
-            responseBody = await resposta.text();
-        } catch (textError) {
-            responseBody = null;
-        }
-    }
+//     let responseBody = null;
+//     try {
+//         responseBody = await resposta.json();
+//     } catch (jsonError) {
+//         try {
+//             responseBody = await resposta.text();
+//         } catch (textError) {
+//             responseBody = null;
+//         }
+//     }
 
-    if (resposta.status === 401) {
-        localStorage.clear();
-        Swal.fire({
-            icon: "warning",
-            title: "Sessão expirada",
-            text: "Por favor, faça login novamente."
-        }).then(() => {
-            window.location.href = "login.html";
-        });
-        throw new Error('Sessão expirada');
-    }
+//     if (resposta.status === 401) {
+//         localStorage.clear();
+//         Swal.fire({
+//             icon: "warning",
+//             title: "Sessão expirada",
+//             text: "Por favor, faça login novamente."
+//         }).then(() => {
+//             window.location.href = "login.html";
+//         });
+//         throw new Error('Sessão expirada');
+//     }
 
-    if (!resposta.ok) {
-        const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
-        throw new Error(`Erro na requisição: ${errorMessage}`);
-    }
+//     if (!resposta.ok) {
+//         const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
+//         throw new Error(`Erro na requisição: ${errorMessage}`);
+//     }
 
-    return responseBody;
-}
+//     return responseBody;
+// }
 
 function limparCamposFuncionarios(){
     const camposParaLimpar = [
