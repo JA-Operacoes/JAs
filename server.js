@@ -35,7 +35,9 @@ app.use('/uploads', express.static('uploads'));
 
 
 // Serve todos os arquivos estáticos de "public" (HTML, JS, CSS, imagens)
+//app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/utils', express.static(path.join(__dirname, 'utils')));
 
 // // Middleware para autenticação de token
 // app.use(autenticarToken);
