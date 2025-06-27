@@ -1,4 +1,6 @@
 
+import { fetchComToken } from '../../utils/utils.js';
+
 document.getElementById("Registrar").addEventListener("submit", async function (e) {
     e.preventDefault();
   
@@ -550,7 +552,7 @@ listaUsuariosContainer.addEventListener('click', async (e) => {
 
   try {
     // Buscar empresas vinculadas
-    const empresas = await fetchComToken(`/usuarios/${idusuario}/empresas`);
+    const empresas = await fetchComToken(`/auth/usuarios/${idusuario}/empresas`);
    
     const [primeiroNome, ...resto] = item.dataset.nome.split(' ');
     document.querySelector('#nome').value = primeiroNome;
@@ -1119,7 +1121,8 @@ async function carregarEmpresasUsuario(idusuario) {
     // **ASSUMINDO QUE '/usuario_empresas/:idusuario' RETORNA AS EMPRESAS DO USUÁRIO:**
     try {
         // Este endpoint deve retornar apenas as empresas que o usuário já possui.
-        const empresasDoUsuario = await fetchComToken(`usuarios/${idusuario}/empresas`);
+        console.log("Carregando empresas do usuário com ID:", idusuario);
+        const empresasDoUsuario = await fetchComToken(`/auth/usuarios/${idusuario}/empresas`);
         console.log("Empresas DO USUÁRIO carregadas (para empresasOriginais):", empresasDoUsuario);
 
         if (Array.isArray(empresasDoUsuario)) {
@@ -1230,83 +1233,83 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
   }
 }
 
-async function fetchComToken(url, options = {}) {
-  console.log("URL da requisição:", url);
-  const token = localStorage.getItem("token");
-  const idempresaLocalStorage = localStorage.getItem("idempresa");
+// async function fetchComToken(url, options = {}) {
+//   console.log("URL FETCHCOMTOKEN:", url);
+//   const token = localStorage.getItem("token");
+//   const idempresaLocalStorage = localStorage.getItem("idempresa");
 
-  console.log("ID da empresa no localStorage:", idempresaLocalStorage);
-  console.log("Token no localStorage:", token);
+//   console.log("ID da empresa no localStorage:", idempresaLocalStorage);
+//   console.log("Token no localStorage:", token);
 
-  if (!options.headers) options.headers = {};
+//   if (!options.headers) options.headers = {};
 
-  if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
-        options.headers['Content-Type'] = 'application/json';
-    }
+//   if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
+//         options.headers['Content-Type'] = 'application/json';
+//     }
 
-  options.headers['Authorization'] = 'Bearer ' + token;
+//   options.headers['Authorization'] = 'Bearer ' + token;
 
   
  
-  if (!options.headers['idempresa']) { // Se o header 'idempresa' ainda não foi definido
-        if (
-            idempresaLocalStorage &&
-            idempresaLocalStorage !== 'null' &&
-            idempresaLocalStorage !== 'undefined' &&
-            idempresaLocalStorage.trim() !== '' &&
-            !isNaN(idempresaLocalStorage) &&
-            Number(idempresaLocalStorage) > 0
-        ) {
-            options.headers['idempresa'] = idempresaLocalStorage;
-            console.log('[fetchComToken] Enviando idempresa do localStorage no header:', idempresaLocalStorage);
-        } else {
-            console.warn('[fetchComToken] idempresa inválido no localStorage, não será enviado no header:', idempresaLocalStorage);
-        }
-  } else {
-        console.log('[fetchComToken] idempresa já definido no options.headers, usando-o:', options.headers['idempresa']);
-  }
+//   if (!options.headers['idempresa']) { // Se o header 'idempresa' ainda não foi definido
+//         if (
+//             idempresaLocalStorage &&
+//             idempresaLocalStorage !== 'null' &&
+//             idempresaLocalStorage !== 'undefined' &&
+//             idempresaLocalStorage.trim() !== '' &&
+//             !isNaN(idempresaLocalStorage) &&
+//             Number(idempresaLocalStorage) > 0
+//         ) {
+//             options.headers['idempresa'] = idempresaLocalStorage;
+//             console.log('[fetchComToken] Enviando idempresa do localStorage no header:', idempresaLocalStorage);
+//         } else {
+//             console.warn('[fetchComToken] idempresa inválido no localStorage, não será enviado no header:', idempresaLocalStorage);
+//         }
+//   } else {
+//         console.log('[fetchComToken] idempresa já definido no options.headers, usando-o:', options.headers['idempresa']);
+//   }
 
-  console.log("URL OPTIONS", url, options);
-  const resposta = await fetch(url, options);
-  console.log("Resposta da requisição:", resposta);
+//   console.log("URL OPTIONS", url, options);
+//   const resposta = await fetch(url, options);
+//   console.log("Resposta da requisição Usuarios.js:", resposta);
   
   
-  let responseBody = null;
-  try {
-      // Primeiro, tente ler como JSON, pois é o mais comum para APIs
-      responseBody = await resposta.json();
-  } catch (jsonError) {
-      // Se falhar (não é JSON, ou resposta vazia, etc.), tente ler como texto
-      try {
-          responseBody = await resposta.text();
-      } catch (textError) {
-          // Se nem como texto conseguir, assume que não há corpo lido ou que é inválido
-          responseBody = null;
-      }
-  }
+//   let responseBody = null;
+//   try {
+//       // Primeiro, tente ler como JSON, pois é o mais comum para APIs
+//       responseBody = await resposta.json();
+//   } catch (jsonError) {
+//       // Se falhar (não é JSON, ou resposta vazia, etc.), tente ler como texto
+//       try {
+//           responseBody = await resposta.text();
+//       } catch (textError) {
+//           // Se nem como texto conseguir, assume que não há corpo lido ou que é inválido
+//           responseBody = null;
+//       }
+//   }
 
-  if (resposta.status === 401) {
-    localStorage.clear();
-    Swal.fire({
-      icon: "warning",
-      title: "Sessão expirada",
-      text: "Por favor, faça login novamente."
-    }).then(() => {
-      window.location.href = "login.html"; // ajuste conforme necessário
-    });
-    //return;
-    throw new Error('Sessão expirada'); 
-  }
+//   if (resposta.status === 401) {
+//     localStorage.clear();
+//     Swal.fire({
+//       icon: "warning",
+//       title: "Sessão expirada",
+//       text: "Por favor, faça login novamente."
+//     }).then(() => {
+//       window.location.href = "login.html"; // ajuste conforme necessário
+//     });
+//     //return;
+//     throw new Error('Sessão expirada'); 
+//   }
 
-  if (!resposta.ok) {
-        // Se a resposta NÃO foi bem-sucedida (status 4xx ou 5xx)
-        // Use o responseBody já lido para obter a mensagem de erro
-        const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
-        throw new Error(`Erro na requisição: ${errorMessage}`);
-  }
+//   if (!resposta.ok) {
+//         // Se a resposta NÃO foi bem-sucedida (status 4xx ou 5xx)
+//         // Use o responseBody já lido para obter a mensagem de erro
+//         const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
+//         throw new Error(`Erro na requisição: ${errorMessage}`);
+//   }
 
-  return responseBody;
-}
+//   return responseBody;
+// }
 
 let idEmpresaSelecionada = null;
 

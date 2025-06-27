@@ -1,37 +1,160 @@
+import { fetchComToken, fetchHtmlComToken } from '../utils/utils.js';
+
+// async function fetchComToken(url, options = {}) {
+//   console.log("URL da requisição FETCHCOMTOKEN:", url);
+//   const token = localStorage.getItem("token");
+//   const idempresa = localStorage.getItem("idempresa");
+
+//   console.log("ID da empresa no localStorage:", idempresa);
+//   console.log("Token no localStorage:", token);
+
+//   if (!options.headers) options.headers = {};
+
+//   options.headers['Authorization'] = 'Bearer ' + token;
+//  // if (idempresa) options.headers['idempresa'] = idempresa;
+//  if (idempresa) {
+//         options.headers['idempresa'] = idempresa;
+//         options.headers['x-id-empresa'] = idempresa; // Boa prática para headers customizados
+//     }
+
+//   const resposta = await fetch(url, options);
+
+//   if (resposta.status === 401) {
+//     localStorage.clear();
+//     Swal.fire({
+//       icon: "warning",
+//       title: "Sessão expirada",
+//       text: "Por favor, faça login novamente."
+//     }).then(() => {
+//       window.location.href = "login.html"; // ajuste conforme necessário
+//     });
+//     //return;
+
+//     throw new Error('Sessão expirada'); 
+//   }
+  
+//  // return await resposta.json(); // Retorna o JSON já resolvido
+//  const data = await resposta.json();
+//     console.log("✅ [fetchComToken] Dados recebidos e parseados:", data);
+//     return data; // RETORNE OS DADOS PARSEADOS, NÃO O OBJETO 'response'
+// }
+
+// // fetchHtmlComToken retorna Response para controlar no chamador
+// async function fetchHtmlComToken(url, options = {}) {
+//   console.log("FETCH HTML", url, options);
+//   const token = localStorage.getItem("token");
+//   const idempresa = localStorage.getItem("idempresa");
+
+//   if (!options.headers) options.headers = {};
+//   options.headers["Authorization"] = "Bearer " + token;
+//   if (idempresa) options.headers["idempresa"] = idempresa;
+
+//   const resposta = await fetch(url, options);
+
+//   if (resposta.status === 401) {
+//     localStorage.clear();
+//     await Swal.fire({
+//       icon: "warning",
+//       title: "Sessão expirada",
+//       text: "Por favor, faça login novamente.",
+//     });
+//     window.location.href = "login.html";
+//     throw new Error("Sessão expirada");
+//   }
+
+//   if (!resposta.ok) {
+//     const textoErro = await resposta.text();
+//     throw new Error(`Erro ${resposta.status}: ${textoErro}`);
+//   }
+
+//   // Aqui quem chama decide se quer .text() ou .json()
+//   //return resposta.text();
+//   return await resposta.json();
+// }
+
+// // Expõe as funções globalmente
+// window.fetchComToken = fetchComToken;
+// window.fetchHtmlComToken = fetchHtmlComToken;
+
 document.addEventListener("DOMContentLoaded", async function () {
   
-let resp;
+// let resp;
+//   try {
+//     resp = await fetchComToken("/auth/permissoes");
+//     //commentado para evitar erro de CORS
+//     // if (!resp.ok) {
+//     //   const textoErro = await resp.text();
+//     //   throw new Error(textoErro);
+//     // }
+//   } catch (erro) {
+//     console.error("Falha ao carregar permissões:", erro);
+//     await Swal.fire({
+//       icon: "error",
+//       title: "Erro",
+//       text: "Não foi possível carregar suas permissões.",
+//     });
+//     return;
+//   }
+//   const permissoes = resp; // Aqui assumimos que resp já é o JSON esperado
+//   // Se resp for um Response, descomente a linha abaixo:
+//   //commentado para evitar erro de CORS
+//  // const permissoes = await resp.json();
+//   window.permissoes = permissoes;
+
+//   // Função utilitária para verificar permissão
+//   window.temPermissao = function (modulo, acao) {
+//     if (!modulo) return false;
+//     const p = permissoes.find((x) => x.modulo.toLowerCase() === modulo.toLowerCase());
+//     return p && p[`pode_${acao}`];
+    
+//   };
+
+  let permissoesArray; // Renomeado para clareza
+  let permissoesPromise;
+
   try {
-    resp = await fetchComToken("/auth/permissoes");
-    //commentado para evitar erro de CORS
-    // if (!resp.ok) {
-    //   const textoErro = await resp.text();
-    //   throw new Error(textoErro);
-    // }
+      // fetchComToken JÁ retorna o JSON. resp vai ser o ARRAY.
+      console.log("Início da busca de permissões...");
+      permissoesPromise = await fetchComToken("/auth/permissoes");
+      console.log("Promise das permissões obtida:", permissoesPromise);
+
+      permissoesArray = await permissoesPromise;
+      console.log("DEBUG: Valor de permissoesArray ANTES de isArray check:", permissoesArray);
+      console.log("DEBUG: Tipo de permissoesArray ANTES de isArray check:", typeof permissoesArray);
+
+      // VERIFIQUE SE permissoesArray É REALMENTE UM ARRAY AQUI
+      if (!Array.isArray(permissoesArray)) {
+          console.error("Erro: /auth/permissoes não retornou um array de permissões.", permissoesArray);
+          throw new Error("Formato de permissões inválido.");
+      }
+
   } catch (erro) {
-    console.error("Falha ao carregar permissões:", erro);
-    await Swal.fire({
-      icon: "error",
-      title: "Erro",
-      text: "Não foi possível carregar suas permissões.",
-    });
-    return;
+      console.error("Falha ao carregar permissões:", erro);
+      await Swal.fire({
+          icon: "error",
+          title: "Erro",
+          text: "Não foi possível carregar suas permissões.",
+      });
+      return;
   }
-  const permissoes = resp; // Aqui assumimos que resp já é o JSON esperado
-  // Se resp for um Response, descomente a linha abaixo:
-  //commentado para evitar erro de CORS
- // const permissoes = await resp.json();
-  window.permissoes = permissoes;
+
+  // Armazena o array de permissões na variável global window.permissoes
+  window.permissoes = permissoesArray; // <--- AGORA ESTÁ CORRETO
+  console.log("Permissões carregadas e armazenadas em window.permissoes:", window.permissoes);
+
 
   // Função utilitária para verificar permissão
   window.temPermissao = function (modulo, acao) {
-    if (!modulo) return false;
-    const p = permissoes.find((x) => x.modulo.toLowerCase() === modulo.toLowerCase());
-    return p && p[`pode_${acao}`];
-    
+      if (!modulo) return false;
+      // Use window.permissoes diretamente aqui
+      // Adicione uma verificação defensiva caso window.permissoes não seja um array
+      if (!Array.isArray(window.permissoes)) {
+          console.warn("window.permissoes não é um array para temPermissao.");
+          return false;
+      }
+      const p = window.permissoes.find((x) => x.modulo.toLowerCase() === modulo.toLowerCase());
+      return p && p[`pode_${acao}`];
   };
-
-
 
   const mapaModulos = {
     orcamentos: "Orcamentos",
@@ -130,6 +253,7 @@ async function abrirModal(url, modulo) {
   script.id = scriptId;
   script.src = scriptSrc;
   script.defer = true;
+  script.type = "module";
   script.onload = () => {
     console.log(`✅ Script ${scriptName} carregado com sucesso.`);
     aplicarConfiguracoes(modulo);
@@ -155,43 +279,6 @@ async function abrirModal(url, modulo) {
   console.log("ABRIRMODAL", modal);
 }
 
-// fetchHtmlComToken retorna Response para controlar no chamador
-async function fetchHtmlComToken(url, options = {}) {
-  console.log("FETCH HTML", url, options);
-  const token = localStorage.getItem("token");
-  const idempresa = localStorage.getItem("idempresa");
-
-  if (!options.headers) options.headers = {};
-  options.headers["Authorization"] = "Bearer " + token;
-  if (idempresa) options.headers["idempresa"] = idempresa;
-
-  const resposta = await fetch(url, options);
-
-  if (resposta.status === 401) {
-    localStorage.clear();
-    await Swal.fire({
-      icon: "warning",
-      title: "Sessão expirada",
-      text: "Por favor, faça login novamente.",
-    });
-    window.location.href = "login.html";
-    throw new Error("Sessão expirada");
-  }
-
-  if (!resposta.ok) {
-    const textoErro = await resposta.text();
-    throw new Error(`Erro ${resposta.status}: ${textoErro}`);
-  }
-
-  // Aqui quem chama decide se quer .text() ou .json()
-  return resposta.text();
-}
-
-// Expõe as funções globalmente
-window.fetchComToken = fetchComToken;
-window.fetchHtmlComToken = fetchHtmlComToken;
-
-
 function aplicarConfiguracoes(modulo) {
   if (typeof configurarEventosEspecificos === "function") {
     configurarEventosEspecificos(modulo);
@@ -205,36 +292,6 @@ function aplicarConfiguracoes(modulo) {
   }
 }
 
-async function fetchComToken(url, options = {}) {
-  console.log("URL da requisição 1:", url);
-  const token = localStorage.getItem("token");
-  const idempresa = localStorage.getItem("idempresa");
-
-  console.log("ID da empresa no localStorage:", idempresa);
-  console.log("Token no localStorage:", token);
-
-  if (!options.headers) options.headers = {};
-
-  options.headers['Authorization'] = 'Bearer ' + token;
-  if (idempresa) options.headers['idempresa'] = idempresa;
-
-  const resposta = await fetch(url, options);
-
-  if (resposta.status === 401) {
-    localStorage.clear();
-    Swal.fire({
-      icon: "warning",
-      title: "Sessão expirada",
-      text: "Por favor, faça login novamente."
-    }).then(() => {
-      window.location.href = "login.html"; // ajuste conforme necessário
-    });
-    //return;
-    throw new Error('Sessão expirada'); 
-  }
-  
-  return await resposta.json(); // Retorna o JSON já resolvido
-}
 
 function fecharModal() {
   document.getElementById("modal-container").innerHTML = "";

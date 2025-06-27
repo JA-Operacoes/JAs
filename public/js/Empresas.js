@@ -1,3 +1,5 @@
+import { fetchComToken } from '../utils/utils.js';
+
 if (typeof window.empresaOriginal === "undefined") {
     window.empresaOriginal = {
         idEmpresa: "",
@@ -594,81 +596,81 @@ function limparCamposEmpresa(){
     }
 }
 
-async function fetchComToken(url, options = {}) {
-  console.log("URL da requisição ORÇAMENTOS:", url);
-  const token = localStorage.getItem("token");
-  const idempresa = localStorage.getItem("idempresa");
+// async function fetchComToken(url, options = {}) {
+//   console.log("URL da requisição ORÇAMENTOS:", url);
+//   const token = localStorage.getItem("token");
+//   const idempresa = localStorage.getItem("idempresa");
 
-  console.log("ID da empresa no localStorage:", idempresa);
-  console.log("Token no localStorage:", token);
+//   console.log("ID da empresa no localStorage:", idempresa);
+//   console.log("Token no localStorage:", token);
 
-  if (!options.headers) options.headers = {};
+//   if (!options.headers) options.headers = {};
   
-  if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
-        options.headers['Content-Type'] = 'application/json';
-  }else if (options.body && typeof options.body === 'object' && options.headers['Content-Type'] !== 'multipart/form-data') {
+//   if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
+//         options.headers['Content-Type'] = 'application/json';
+//   }else if (options.body && typeof options.body === 'object' && options.headers['Content-Type'] !== 'multipart/form-data') {
        
-        options.body = JSON.stringify(options.body);
-        options.headers['Content-Type'] = 'application/json';
-  }
+//         options.body = JSON.stringify(options.body);
+//         options.headers['Content-Type'] = 'application/json';
+//   }
 
-  options.headers['Authorization'] = 'Bearer ' + token; 
+//   options.headers['Authorization'] = 'Bearer ' + token; 
 
-  if (
-      idempresa && 
-      idempresa !== 'null' && 
-      idempresa !== 'undefined' && 
-      idempresa.trim() !== '' &&
-      !isNaN(idempresa) && 
-      Number(idempresa) > 0
-  ) {
-      options.headers['idempresa'] = idempresa;
-      console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
-  } else {
-    console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
-  }
-  console.log("URL OPTIONS", url, options)
+//   if (
+//       idempresa && 
+//       idempresa !== 'null' && 
+//       idempresa !== 'undefined' && 
+//       idempresa.trim() !== '' &&
+//       !isNaN(idempresa) && 
+//       Number(idempresa) > 0
+//   ) {
+//       options.headers['idempresa'] = idempresa;
+//       console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
+//   } else {
+//     console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
+//   }
+//   console.log("URL OPTIONS", url, options)
  
-  const resposta = await fetch(url, options);
+//   const resposta = await fetch(url, options);
 
-  console.log("Resposta da requisição:", resposta);
+//   console.log("Resposta da requisição Empresas.js:", resposta);
 
-  let responseBody = null;
-  try {
-      // Primeiro, tente ler como JSON, pois é o mais comum para APIs
-      responseBody = await resposta.json();
-  } catch (jsonError) {
-      // Se falhar (não é JSON, ou resposta vazia, etc.), tente ler como texto
-      try {
-          responseBody = await resposta.text();
-      } catch (textError) {
-          // Se nem como texto conseguir, assume que não há corpo lido ou que é inválido
-          responseBody = null;
-      }
-  }
+//   let responseBody = null;
+//   try {
+//       // Primeiro, tente ler como JSON, pois é o mais comum para APIs
+//       responseBody = await resposta.json();
+//   } catch (jsonError) {
+//       // Se falhar (não é JSON, ou resposta vazia, etc.), tente ler como texto
+//       try {
+//           responseBody = await resposta.text();
+//       } catch (textError) {
+//           // Se nem como texto conseguir, assume que não há corpo lido ou que é inválido
+//           responseBody = null;
+//       }
+//   }
 
-  if (resposta.status === 401) {
-    localStorage.clear();
-    Swal.fire({
-      icon: "warning",
-      title: "Sessão expirada",
-      text: "Por favor, faça login novamente."
-    }).then(() => {
-      window.location.href = "login.html"; // ajuste conforme necessário
-    });
-    //return;
-    throw new Error('Sessão expirada'); 
-  }
+//   if (resposta.status === 401) {
+//     localStorage.clear();
+//     Swal.fire({
+//       icon: "warning",
+//       title: "Sessão expirada",
+//       text: "Por favor, faça login novamente."
+//     }).then(() => {
+//       window.location.href = "login.html"; // ajuste conforme necessário
+//     });
+//     //return;
+//     throw new Error('Sessão expirada'); 
+//   }
 
-  if (!resposta.ok) {
-        // Se a resposta NÃO foi bem-sucedida (status 4xx ou 5xx)
-        // Use o responseBody já lido para obter a mensagem de erro
-        const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
-        throw new Error(`Erro na requisição: ${errorMessage}`);
-  }
+//   if (!resposta.ok) {
+//         // Se a resposta NÃO foi bem-sucedida (status 4xx ou 5xx)
+//         // Use o responseBody já lido para obter a mensagem de erro
+//         const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
+//         throw new Error(`Erro na requisição: ${errorMessage}`);
+//   }
 
-  return responseBody;
-}
+//   return responseBody;
+// }
 
 document.addEventListener('DOMContentLoaded', () => {
     const inputCodigo = document.querySelector("#idEmpresa");

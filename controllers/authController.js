@@ -332,29 +332,57 @@ async function login(req, res) {
     console.log("Empresas encontradas:", resultEmpresas.rows);
 
     
-    const idempresaDefault = empresas.length > 0 ? empresas[0] : null;
+    // const idempresaDefault = empresas.length > 0 ? empresas[0] : null;   
+    // console.log("Empresa default:", idempresaDefault);
+    
+    
+    // const tokenPayload = {
+    //   idusuario: usuario.idusuario,
+    //   email: usuario.email,
+    //   empresas, // já é array de IDs
+    //   idempresaDefault
+    // };
 
-   
-    console.log("Empresa default:", idempresaDefault);
-    
-    
+
+    const usuarioIdEmpresaDefault = usuario.idempresadefault; 
+
+    // Verifique se a empresa padrão do usuário está entre as empresas às quais ele tem acesso
+    if (usuarioIdEmpresaDefault && !empresas.includes(usuarioIdEmpresaDefault)) {
+        // Se a empresa default não está na lista de empresas do usuário (ex: foi desvinculada),
+        // você pode escolher uma nova empresa default (a primeira) ou forçar um erro.
+        // Por simplicidade, vamos usar a primeira empresa da lista se a default não estiver lá.
+        console.warn(`Empresa default (${usuarioIdEmpresaDefault}) do usuário não encontrada nas empresas vinculadas. Usando a primeira empresa vinculada.`);
+        const empresaParaToken = empresas[0];
+        // Você pode até atualizar o idempresadefault no banco aqui se quiser que seja persistente.
+        // Ou apenas usar a primeira empresa como a "selecionada" para esta sessão.
+    }
+
     const tokenPayload = {
-      idusuario: usuario.idusuario,
-      email: usuario.email,
-      empresas, // já é array de IDs
-      idempresaDefault
+        idusuario: usuario.idusuario,
+        email: usuario.email,
+        empresas, // array de IDs das empresas que o usuário tem acesso
+        // Passe a idempresadefault do usuário para o token
+        idempresaDefault: usuarioIdEmpresaDefault || (empresas.length > 0 ? empresas[0] : null) 
     };
+
     const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '10h' });
     
     console.log("Token gerado authController:", token);
    
+    // res.json({
+    //   token,
+    //   idusuario: usuario.idusuario,
+    //   nome: usuario.nome,
+    //   empresas,
+    //   idempresaDefault
+    //   // idempresaDefault: empresas[0] || null
+    // });
     res.json({
-      token,
-      idusuario: usuario.idusuario,
-      nome: usuario.nome,
-      empresas,
-      idempresaDefault
-      // idempresaDefault: empresas[0] || null
+        token,
+        idusuario: usuario.idusuario,
+        nome: usuario.nome,
+        empresas, // Todas as empresas que ele pode acessar
+        idempresaDefault: usuarioIdEmpresaDefault // A empresa padrão configurada para o usuário
     });
 
   } catch (error) {
@@ -369,6 +397,9 @@ async function listarPermissoes(req, res) {
   console.log("listarPermissoes AuthController", req.usuario);
   const idusuario = req.usuario.idusuario || req.usuario.id;
   const idempresa = req.idempresa;
+  
+  console.log(`➡️ [listarPermissoes] idusuario: ${idusuario}, idempresa: ${idempresa}`);
+  console.log(`➡️ [listarPermissoes] Tipo de idusuario: ${typeof idusuario}, Tipo de idempresa: ${typeof idempresa}`);
   try {
      console.log("🚨 Tentando consultar permissões no banco", idusuario, idempresa);
   // console.log("Query params:", {

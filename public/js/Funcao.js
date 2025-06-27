@@ -1,4 +1,5 @@
-//const e = require("express");
+
+import { fetchComToken } from '../utils/utils.js';
 
 if (typeof window.FuncaoOriginal === "undefined") {
     window.FuncaoOriginal = {
@@ -6,7 +7,9 @@ if (typeof window.FuncaoOriginal === "undefined") {
         descFuncao: "",
         vlrCusto: "",
         vlrVenda: "",
-        vlrajdcusto: "",
+        vlrTransporte: "",
+        vlrAlmoco: "",
+        vlrJantar: "",
         obsFuncao: ""
     }
 };
@@ -60,12 +63,16 @@ function verificaFuncao() {
         const descFuncao = document.querySelector("#descFuncao").value.toUpperCase().trim();
         const vlrCusto = document.querySelector("#Custo").value;
         const vlrVenda = document.querySelector("#Venda").value;
-        const vlrajdcusto = document.querySelector("#ajdCusto").value;
+        const vlrTransporte = document.querySelector("#transporte").value;
+        const vlrAlmoco = document.querySelector("#almoco").value;
+        const vlrJantar = document.querySelector("#jantar").value;
         const obsfuncao = document.querySelector("#ObsAjc").value.trim();
     
         const custo = parseFloat(String(vlrCusto).replace(",", "."));
         const venda = parseFloat(String(vlrVenda).replace(",", "."));
-        const ajcfuncao = parseFloat(String(vlrajdcusto).replace(",", "."));
+        const transporte = parseFloat(String(vlrTransporte).replace(",", "."));
+        const almoco = parseFloat(String(vlrAlmoco).replace(",", "."));
+        const jantar = parseFloat(String(vlrJantar).replace(",", "."));
 
        // Permissões
         const temPermissaoCadastrar = temPermissao("Funcao", "cadastrar");
@@ -84,7 +91,7 @@ function verificaFuncao() {
             return Swal.fire("Acesso negado", "Você não tem permissão para alterar funções.", "error");
         }
 
-        console.log("campos antes de salvar", idFuncao, descFuncao, custo, venda, ajcfuncao, obsfuncao);
+        console.log("campos antes de salvar", idFuncao, descFuncao, custo, venda, obsfuncao, transporte, almoco, jantar);
  
         if (!descFuncao || !vlrCusto || !vlrVenda) {
            
@@ -96,8 +103,8 @@ function verificaFuncao() {
             });
             return;
         }
-        console.log("Valores do Funcao:", idFuncao, descFuncao, custo, venda, ajcfuncao, obsfuncao);
-        console.log("Valores do Funcao Original:", window.FuncaoOriginal.idFuncao, window.FuncaoOriginal.descFuncao, window.FuncaoOriginal.vlrCusto, window.FuncaoOriginal.vlrVenda, window.FuncaoOriginal.vlrajdcusto, window.FuncaoOriginal.obsFuncao);
+        console.log("Valores do Funcao:", idFuncao, descFuncao, custo, venda, transporte, obsfuncao, almoco, jantar);
+        console.log("Valores do Funcao Original:", window.FuncaoOriginal.idFuncao, window.FuncaoOriginal.descFuncao, window.FuncaoOriginal.vlrCusto, window.FuncaoOriginal.vlrVenda, window.FuncaoOriginal.vlrTransporte, window.FuncaoOriginal.obsFuncao, window.FuncaoOriginal.vlrAlmoco, window.FuncaoOriginal.vlrJantar);
             
         // Comparar com os valores originais
         if (
@@ -105,8 +112,10 @@ function verificaFuncao() {
             descFuncao === window.FuncaoOriginal.descFuncao && 
             Number(custo).toFixed(2) === Number(window.FuncaoOriginal.vlrCusto).toFixed(2) &&
             Number(venda).toFixed(2) === Number(window.FuncaoOriginal.vlrVenda).toFixed(2) &&
-            Number(ajcfuncao).toFixed(2) === Number(window.FuncaoOriginal.vlrajdcusto).toFixed(2) &&
-            obsfuncao=== window.FuncaoOriginal.obsFuncao
+            Number(transporte).toFixed(2) === Number(window.FuncaoOriginal.vlrTransporte).toFixed(2) &&
+            Number(almoco).toFixed(2) === Number(window.FuncaoOriginal.vlrAlmoco).toFixed(2) &&
+            Number(jantar).toFixed(2) === Number(window.FuncaoOriginal.vlrJantar).toFixed(2) &&
+            obsfuncao === window.FuncaoOriginal.obsFuncao
         ) {
             console.log("Nenhuma alteração detectada.");
             await Swal.fire({
@@ -117,8 +126,8 @@ function verificaFuncao() {
             });
             return;
         }
-    
-        const dados = { descFuncao, custo, venda, ajcfuncao, obsfuncao };
+
+        const dados = { descFuncao, custo, venda, transporte, obsfuncao, almoco, jantar };
         const token = localStorage.getItem('token');
         const idEmpresa = localStorage.getItem('idEmpresa');
 
@@ -143,7 +152,7 @@ function verificaFuncao() {
                 
                 const resultJson = await fetchComToken(`/funcao/${idFuncao}`, {
                     method: "PUT",
-                    body: dados 
+                    body: JSON.stringify(dados)
                 });
 
             
@@ -163,7 +172,7 @@ function verificaFuncao() {
                 
                 const resultJson = await fetchComToken("/funcao", {
                     method: "POST",
-                    body: dados // Passe o objeto dados diretamente
+                    body: JSON.stringify(dados) // Passe o objeto dados diretamente
                 });
             
                 Swal.fire("Sucesso!", resultJson.mensagem || "Função cadastrada!", "success"); 
@@ -348,7 +357,10 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
         document.querySelector("#idFuncao").value = funcao.idfuncao;
         document.querySelector("#Custo").value = funcao.ctofuncao;
         document.querySelector("#Venda").value = funcao.vdafuncao;
-        document.querySelector("#ajdCusto").value = funcao.ajcfuncao;
+        console.log("Valores da Função carregada:", funcao.ctofuncao, funcao.vdafuncao, funcao.transporte, funcao.almoco, funcao.jantar);
+        document.querySelector("#transporte").value = funcao.transporte;
+        document.querySelector("#almoco").value = funcao.almoco;
+        document.querySelector("#jantar").value = funcao.jantar;
         document.querySelector("#ObsAjc").value = funcao.obsfuncao;
         
         window.FuncaoOriginal = {
@@ -356,7 +368,9 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
             descFuncao: funcao.descfuncao,
             vlrCusto: funcao.ctofuncao,
             vlrVenda: funcao.vdafuncao,
-            vlrajdcusto: funcao.ajcfuncao,
+            vlrTransporte: funcao.transporte,
+            vlrAlmoco: funcao.almoco,
+            vlrJantar: funcao.jantar,
             obsFuncao: funcao.obsfuncao
         };
    
@@ -408,12 +422,15 @@ function limparFuncaoOriginal() {
         descFuncao: "",
         vlrCusto: "",
         vlrVenda: "",
+        vlrTransporte: "",
+        vlrAlmoco: "",
+        vlrJantar: "",
         obsFuncao:""
     };
 }
 
 function limparCamposFuncao() {
-    const campos = ["idFuncao", "descFuncao","Custo", "Venda", "ajdCusto", "ObsAjc" ];
+    const campos = ["idFuncao", "descFuncao","Custo", "Venda", "transporte", "almoco", "jantar", "ObsAjc"];
     campos.forEach(id => {
         const campo = document.getElementById(id);
         if (campo) campo.value = "";
@@ -421,81 +438,81 @@ function limparCamposFuncao() {
     
 }
 
-async function fetchComToken(url, options = {}) {
-  console.log("URL da requisição:", url);
-  const token = localStorage.getItem("token");
-  const idempresa = localStorage.getItem("idempresa");
+// async function fetchComToken(url, options = {}) {
+//   console.log("URL da requisição:", url);
+//   const token = localStorage.getItem("token");
+//   const idempresa = localStorage.getItem("idempresa");
 
-  console.log("ID da empresa no localStorage:", idempresa);
-  console.log("Token no localStorage:", token);
+//   console.log("ID da empresa no localStorage:", idempresa);
+//   console.log("Token no localStorage:", token);
 
-  if (!options.headers) options.headers = {};
+//   if (!options.headers) options.headers = {};
   
-  if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
-        options.headers['Content-Type'] = 'application/json';
-  }else if (options.body && typeof options.body === 'object' && options.headers['Content-Type'] !== 'multipart/form-data') {
+//   if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
+//         options.headers['Content-Type'] = 'application/json';
+//   }else if (options.body && typeof options.body === 'object' && options.headers['Content-Type'] !== 'multipart/form-data') {
        
-        options.body = JSON.stringify(options.body);
-        options.headers['Content-Type'] = 'application/json';
-  }
+//         options.body = JSON.stringify(options.body);
+//         options.headers['Content-Type'] = 'application/json';
+//   }
 
-  options.headers['Authorization'] = 'Bearer ' + token; 
+//   options.headers['Authorization'] = 'Bearer ' + token; 
 
-  if (
-      idempresa && 
-      idempresa !== 'null' && 
-      idempresa !== 'undefined' && 
-      idempresa.trim() !== '' &&
-      !isNaN(idempresa) && 
-      Number(idempresa) > 0
-  ) {
-      options.headers['idempresa'] = idempresa;
-      console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
-  } else {
-    console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
-  }
-  console.log("URL OPTIONS", url, options)
+//   if (
+//       idempresa && 
+//       idempresa !== 'null' && 
+//       idempresa !== 'undefined' && 
+//       idempresa.trim() !== '' &&
+//       !isNaN(idempresa) && 
+//       Number(idempresa) > 0
+//   ) {
+//       options.headers['idempresa'] = idempresa;
+//       console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
+//   } else {
+//     console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
+//   }
+//   console.log("URL OPTIONS", url, options)
  
-  const resposta = await fetch(url, options);
+//   const resposta = await fetch(url, options);
 
-  console.log("Resposta da requisição:", resposta);
+//   console.log("Resposta da requisição Funcao.js:", resposta);
 
-  let responseBody = null;
-  try {
-      // Primeiro, tente ler como JSON, pois é o mais comum para APIs
-      responseBody = await resposta.json();
-  } catch (jsonError) {
-      // Se falhar (não é JSON, ou resposta vazia, etc.), tente ler como texto
-      try {
-          responseBody = await resposta.text();
-      } catch (textError) {
-          // Se nem como texto conseguir, assume que não há corpo lido ou que é inválido
-          responseBody = null;
-      }
-  }
+//   let responseBody = null;
+//   try {
+//       // Primeiro, tente ler como JSON, pois é o mais comum para APIs
+//       responseBody = await resposta.json();
+//   } catch (jsonError) {
+//       // Se falhar (não é JSON, ou resposta vazia, etc.), tente ler como texto
+//       try {
+//           responseBody = await resposta.text();
+//       } catch (textError) {
+//           // Se nem como texto conseguir, assume que não há corpo lido ou que é inválido
+//           responseBody = null;
+//       }
+//   }
 
-  if (resposta.status === 401) {
-    localStorage.clear();
-    Swal.fire({
-      icon: "warning",
-      title: "Sessão expirada",
-      text: "Por favor, faça login novamente."
-    }).then(() => {
-      window.location.href = "login.html"; // ajuste conforme necessário
-    });
-    //return;
-    throw new Error('Sessão expirada'); 
-  }
+//   if (resposta.status === 401) {
+//     localStorage.clear();
+//     Swal.fire({
+//       icon: "warning",
+//       title: "Sessão expirada",
+//       text: "Por favor, faça login novamente."
+//     }).then(() => {
+//       window.location.href = "login.html"; // ajuste conforme necessário
+//     });
+//     //return;
+//     throw new Error('Sessão expirada'); 
+//   }
 
-  if (!resposta.ok) {
-        // Se a resposta NÃO foi bem-sucedida (status 4xx ou 5xx)
-        // Use o responseBody já lido para obter a mensagem de erro
-        const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
-        throw new Error(`Erro na requisição: ${errorMessage}`);
-  }
+//   if (!resposta.ok) {
+//         // Se a resposta NÃO foi bem-sucedida (status 4xx ou 5xx)
+//         // Use o responseBody já lido para obter a mensagem de erro
+//         const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
+//         throw new Error(`Erro na requisição: ${errorMessage}`);
+//   }
 
-  return responseBody;
-}
+//   return responseBody;
+// }
 
 
 function configurarEventosFuncao() {
