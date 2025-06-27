@@ -114,6 +114,8 @@ body{
   border-radius: 10px;
   box-shadow: 4px 4px 30px rgba(0, 0, 0, .2);
   display: flex;
+  margin-top: 80px;
+  margin-left: 5px;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;  /* Mantém conteúdo no topo */
@@ -269,8 +271,99 @@ display: none;
   display: flex;
   justify-content: center;
   align-items: center;
+  flex-direction: row;
+  gap: 20px ;
+}
+.collumn{
+  display: flex;
+  justify-content: center;
+  align-items: center;
   flex-direction: column;
 }
+
+.checkbox {
+  --_clr-primary: #000000;
+  --_clr-hover: #f33131;
+  --_clr-checked: #ff0000;
+ display: flex;
+ justify-content: center;
+ align-items: center;
+ flex-direction: row;
+ margin-top: 10px;
+  gap: 0.5rem 1rem; /* espaço entre linhas e colunas */
+
+}
+.checkbox > div {
+  --_clr-current: var(--_clr-primary);
+
+  display: flex;
+  flex-direction:row;
+  align-items: center;
+  gap: 0.25rem; /* espaço entre label e checkbox */
+}
+
+.Vertical{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.checkbox label {
+  cursor: pointer;
+  color: var(--_clr-current);
+  transition: color 150ms ease-in-out;
+      display: flex;
+    justify-content: center;
+    flex-direction: column;
+}
+
+
+/* styled checkbox */
+.checkbox input[type="checkbox"] {
+  appearance: none;
+  outline: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  aspect-ratio: 1;
+  padding: 0.25rem;
+  background: transparent;
+  border: 1px solid var(--_clr-current);
+  border-radius: 2px;
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+}
+.checkbox input[type="checkbox"]::after {
+  content: "\2714";
+  opacity: 0;
+  transition: opacity 150ms ease-in-out;
+  color: var(--_clr-checked);
+  font-size: inherit;
+  font-family: inherit;
+}
+
+.checkbox label:hover,
+.checkbox input[type="checkbox"]:focus-visible,
+.checkbox input[type="checkbox"]:focus-visible + label,
+.checkbox input[type="checkbox"]:hover,
+.checkbox input[type="checkbox"]:hover + label {
+  --_clr-current: var(--_clr-hover);
+}
+.checkbox input[type="checkbox"]:focus-visible::after,
+.checkbox input[type="checkbox"]:hover::after {
+  opacity: 0.5;
+  color: var(--_clr-hover);
+}
+
+.checkbox input[type="checkbox"]:checked + label:not(:hover),
+.checkbox input[type="checkbox"]:checked:not(:hover) {
+  --_clr-current: var(--_clr-checked);
+}
+.checkbox input[type="checkbox"]:checked::after {
+  opacity: 1;
+}
+
 
 input[type="file"]{
   display: none;
@@ -336,7 +429,7 @@ input[type="file"]{
   flex: 1;
   font-family: var(--Font-primary);
   width: 270px;
-  height: 30px;
+  height: 40px;
   border-radius: 6px;
   font-size: 12px;
   padding: 0 20px;
@@ -350,9 +443,9 @@ input[type="file"]{
   flex: 1;
   font-family: var(--Font-primary);
   width: 270px;
-  height: 30px;
+  height: 40px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 15px;
   padding: 0 20px;
   border: 1px solid #000000;
   background: transparent;
@@ -415,6 +508,14 @@ input:valid~label {
   background: #cacaca;
 }
 
+input#vlrTotal:not([value=""]) ~ label{
+  top: 0;
+  left: 25px;
+  font-size: 14px;
+  padding: 0 2px;
+  background: #cacaca;
+}
+
 input ~ label,
 textarea ~ label {
     top: 0;
@@ -426,6 +527,10 @@ textarea ~ label {
 
 input#idStaff{
   width: 100px;
+}
+
+input#Transportes,#Alimentação,#Caixinha{
+  width: 145px;
 }
 
 

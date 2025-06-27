@@ -1,4 +1,3 @@
-
 if (typeof window.StaffOriginal === "undefined") {
     window.StaffOriginal = {
         idStaff: "",
@@ -56,22 +55,23 @@ function verificaStaff() {
 
     });
 
-    botaoEnviar.addEventListener("click", async function (event) {
+ botaoEnviar.addEventListener("click", async function (event) {
         event.preventDefault(); // Previne o envio padrão do formulário
 
         const idStaff = document.querySelector("#idStaff").value;
         const nmFuncionario = document.querySelector("#nmFuncionario").value.toUpperCase().trim();
         const descFuncao = document.querySelector("#descFuncao").value;
-        const vlrBeneficio = document.querySelector("#vlrBeneficio").value;
-        const vlrCusto = document.querySelector("#vlrCusto").value;
-        const descBeneficio = document.querySelector("#descBeneficio").value;
+        const vlrCusto = document.querySelector("#vlrCusto").value.trim();
+        const extra = document.querySelector("#extra").value.trim();
+        const transporte = document.querySelector("#transportes").value.trim();
+        const alimentacao = document.querySelector("#alimentacao").value.trim();
+        const caixinha = document.querySelector("#caixinha").value.trim();
         const nmCliente = document.querySelector("#nmCliente").value.trim();
         const nmEvento = document.querySelector("#nmEvento").value.trim();
-        const dtInicio = document.querySelector("#dtInicio").value.trim();
-        const dtFim = document.querySelector("#dtFim").value.trim();
+        const dataevento = document.querySelector("#datasEvento").value.trim();
         const vlrTotal = document.querySelector("#vlrTotal").value;
     
-        const beneficio = parseFloat(String(vlrBeneficio).replace(",", "."));
+        // const beneficio = parseFloat(String(vlrBeneficio).replace(",", "."));
         const custo = parseFloat(String(vlrCusto).replace(",", "."));
         const total = parseFloat(String(vlrTotal).replace(",", "."));
 
@@ -94,8 +94,8 @@ function verificaStaff() {
 
         // Lista de IDs dos campos obrigatórios (exceto o campo "file")
         const camposObrigatorios = [
-            "nmFuncionario", "descFuncao", "vlrCusto", "vlrBeneficio",
-            "nmCliente", "nmEvento", "dtInicio", "dtFim", "vlrTotal"
+            "nmFuncionario", "descFuncao", "vlrCusto",
+            // "nmCliente", "nmEvento", "dataevento", "vlrTotal"
         ];
 
         camposObrigatorios.forEach(id => {
@@ -141,11 +141,12 @@ function verificaStaff() {
             nmCliente === window.StaffOriginal.nmCliente && 
             nmEvento === window.StaffOriginal.nmEvento && 
             Number(custo).toFixed(2) === Number(window.StaffOriginal.vlrCusto).toFixed(2) &&
-            Number(beneficio).toFixed(2) === Number(window.StaffOriginal.vlrBeneficio).toFixed(2) &&
+            Number(extra).toFixed(2) === Number(window.StaffOriginal.extra).toFixed(2) &&
+            Number(transporte).toFixed(2) === Number(window.StaffOriginal.transporte).toFixed(2) &&
+            Number(alimentacao).toFixed(2) === Number(window.StaffOriginal.alimentacao).toFixed(2) &&
+            Number(caixinha).toFixed(2) === Number(window.StaffOriginal.caixinha).toFixed(2) &&
             Number(total).toFixed(2) === Number(window.StaffOriginal.vlrTotal).toFixed(2) &&
-            descBeneficio=== window.StaffOriginal.descBeneficio &&
-            formatarData(dtInicio) === formatarData(window.StaffOriginal.dtInicio) &&
-            formatarData(dtFim) === formatarData(window.StaffOriginal.dtFim)
+            dataevento === window.StaffOriginal.dataevento
         ) {
             console.log("Nenhuma alteração detectada.");
             await Swal.fire({
@@ -157,7 +158,7 @@ function verificaStaff() {
             return;
         }
     
-        const dados = { idStaff, nmFuncionario, descFuncao, custo,  beneficio, descBeneficio, nmCliente, nmEvento, dtInicio: formatarData(dtInicio), dtFim: formatarData(dtFim), total };
+        const dados = { idStaff, nmFuncionario, descFuncao, custo, extra, transporte, alimentacao, caixinha, nmCliente, nmEvento, dataevento , total };
 
      
         if (idStaff) {
@@ -481,6 +482,75 @@ const campos = ["idStaff", "nmFuncionario", "descFuncao", "vlrCusto", "vlrBenefi
     
 }
 
+document.getElementById('Extracheck').addEventListener('change', function () {
+  const campo = document.getElementById('campoExtra');
+  const input = document.getElementById('extra');
+
+  if (this.checked) {
+    campo.style.display = 'block';
+    input.required = true;
+    input.style.width = '100%'; // aplica largura total
+  } else {
+    campo.style.display = 'none';
+    input.value = '';
+    input.required = false;
+  }
+
+  calcularValorTotal();
+});
+
+document.getElementById('Caixinhacheck').addEventListener('change', function () {
+  const campo = document.getElementById('campoCaixinha');
+  const input = document.getElementById('caixinha');
+
+  if (this.checked) {
+    campo.style.display = 'block';
+    input.required = true;
+    input.style.width = '100%'; // aplica largura total
+  } else {
+    campo.style.display = 'none';
+    input.value = '';
+    input.required = false;
+  }
+
+  calcularValorTotal();
+});
+
+    function calcularValorTotal() {
+    const cache = parseFloat(document.getElementById('vlrCusto').value.replace(',', '.')) || 0;
+    const extra = parseFloat(document.getElementById('extra').value.replace(',', '.')) || 0;
+    const transportes = parseFloat(document.getElementById('transportes').value.replace(',', '.')) || 0;
+    const alimentacao = parseFloat(document.getElementById('alimentação').value.replace(',', '.')) || 0;
+    const caixinha = parseFloat(document.getElementById('caixinha').value.replace(',', '.')) || 0;
+
+    const contadorTexto = document.getElementById('contadorDatas').innerText;
+    const match = contadorTexto.match(/\d+/);
+    const numeroDias = match ? parseInt(match[0]) : 0;
+
+    const soma = cache + extra + transportes + alimentacao + caixinha;
+    const total = soma * numeroDias;
+
+    const valorFormatado = 'R$ ' + total.toFixed(2).replace('.', ',');
+    const valorLimpo = total.toFixed(2); // valor limpo com ponto
+
+    // Exibe valor formatado no campo visível
+    document.getElementById('vlrTotal').value = valorFormatado;
+
+    // Salva valor limpo no campo oculto
+    document.getElementById('vlrTotalHidden').value = valorLimpo;
+
+    // Exibe no console
+    console.log(`Cálculo: (${cache} + ${extra} + ${transportes} + ${alimentacao} + ${caixinha}) * ${numeroDias} = ${valorFormatado}`);
+  }
+
+  ['vlrCusto', 'extra', 'transportes', 'alimentação', 'caixinha'].forEach(id => {
+    document.getElementById(id).addEventListener('input', calcularValorTotal);
+  });
+
+  const observer = new MutationObserver(calcularValorTotal);
+  observer.observe(document.getElementById('contadorDatas'), { childList: true, characterData: true, subtree: true });
+
+
 console.log("Ainda não Entrou no Previewpdf");
 
 function configurarPreviewPDF() {
@@ -553,7 +623,7 @@ window.addEventListener('DOMContentLoaded', function () {
 
 
 let contadorFieldsets = 1;
-let datasGlobaisSelecionadas = [];
+const datasGlobaisSelecionadas = [];
 
 function adicionarCampos() {
   console.log("✅ Função adicionarCampos chamada");
@@ -785,28 +855,80 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
 
-function fetchComToken(url, options = {}) {
+async function fetchComToken(url, options = {}) {
+  console.log("URL da requisição:", url);
   const token = localStorage.getItem("token");
-  if (!token) {
-    throw new Error("fetchComToken: nenhum token encontrado. Faça login primeiro.");
+  const idempresa = localStorage.getItem("idempresa");
+
+  console.log("ID da empresa no localStorage:", idempresa);
+  console.log("Token no localStorage:", token);
+
+  if (!options.headers) options.headers = {};
+  
+  if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
+        options.headers['Content-Type'] = 'application/json';
+  }else if (options.body && typeof options.body === 'object' && options.headers['Content-Type'] !== 'multipart/form-data') {
+       
+        options.body = JSON.stringify(options.body);
+        options.headers['Content-Type'] = 'application/json';
   }
 
-  // Monta os headers sempre incluindo Authorization
-  const headers = {
-    "Authorization": `Bearer ${token}`,
-    // só coloca Content-Type se houver body (POST/PUT)
-    ...(options.body ? { "Content-Type": "application/json" } : {}),
-    ...options.headers
-  };
+  options.headers['Authorization'] = 'Bearer ' + token; 
 
-  return fetch(url, {
-    ...options,
-    headers,
-    // caso seu back-end esteja em outro host e precisa de CORS:
-    mode: "cors",
-    // se precisar enviar cookies de sessão:
-    credentials: "include"
-  });
+  if (
+      idempresa && 
+      idempresa !== 'null' && 
+      idempresa !== 'undefined' && 
+      idempresa.trim() !== '' &&
+      !isNaN(idempresa) && 
+      Number(idempresa) > 0
+  ) {
+      options.headers['idempresa'] = idempresa;
+      console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
+  } else {
+    console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
+  }
+  console.log("URL OPTIONS", url, options)
+ 
+  const resposta = await fetch(url, options);
+
+  console.log("Resposta da requisição:", resposta);
+
+  let responseBody = null;
+  try {
+      // Primeiro, tente ler como JSON, pois é o mais comum para APIs
+      responseBody = await resposta.json();
+  } catch (jsonError) {
+      // Se falhar (não é JSON, ou resposta vazia, etc.), tente ler como texto
+      try {
+          responseBody = await resposta.text();
+      } catch (textError) {
+          // Se nem como texto conseguir, assume que não há corpo lido ou que é inválido
+          responseBody = null;
+      }
+  }
+
+  if (resposta.status === 401) {
+    localStorage.clear();
+    Swal.fire({
+      icon: "warning",
+      title: "Sessão expirada",
+      text: "Por favor, faça login novamente."
+    }).then(() => {
+      window.location.href = "login.html"; // ajuste conforme necessário
+    });
+    //return;
+    throw new Error('Sessão expirada'); 
+  }
+
+  if (!resposta.ok) {
+        // Se a resposta NÃO foi bem-sucedida (status 4xx ou 5xx)
+        // Use o responseBody já lido para obter a mensagem de erro
+        const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
+        throw new Error(`Erro na requisição: ${errorMessage}`);
+  }
+
+  return responseBody;
 }
 
 function configurarEventosStaff() {
