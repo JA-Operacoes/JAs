@@ -78,6 +78,11 @@
                 <input type="text" name="nome" id="nome" class = "uppercase" required spellcheck="false">
                 <label for="nome">Nome</label>
               </div>
+
+              <div class="form2">
+                <input type="text" name="dataNasc" id="dataNasc" required readonly>
+                <label for="dataNasc">Data de Nasc</label>
+              </div>
             
               <div class="form2">
                 <input type="text" name="cpf" id="cpf" oninput="formatCPF(this)" maxlength="14" spellcheck="false" required>
@@ -123,6 +128,12 @@
               <div class="form2">
                 <input type="tel" name="celularFamiliar" id="celularFamiliar"  maxlength="15" oninput="formatTelefone(this)" required>
                 <label for="celularFamiliar">Celular para contato familiar </label>
+              </div>
+            </div>
+            <div class="form-2colunas">
+              <div class="form2">
+                <input type="text" name="nomeFamiliar" id="nomeFamiliar" required>
+                <label for="nomeFamiliar">Nome do familiar </label>
               </div>
             </div>
             <div class="form-2colunas">
@@ -227,15 +238,17 @@
               </div>
             </div>
           </fieldset>
-
+            </form>
+          </div>
+          
           <div class="BTNs">
             <button class="btnPesquisar" id="Pesquisar" type="button">Pesquisar</button>
             <button class="btnLimpar" id="Limpar" type="button">Limpar</button>
             <button class="btnEnviar" id="Enviar" type="button">Enviar</button>
           </div> 
           
-        </form>
-      </div>
+        
+      
   </div>
 </div>
 

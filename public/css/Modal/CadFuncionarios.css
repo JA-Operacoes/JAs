@@ -300,6 +300,8 @@ display: none;
     outline: none;
   }
   .form label, .form-2colunas label, .form2 label{
+    display: flex;
+    justify-content: center;
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
@@ -323,8 +325,7 @@ display: none;
   }
 
   input:focus ~ label,
-  input:valid ~ label,
-  input:not([value=""]) ~ label{
+  input:valid ~ label{
     top: 0;
     left: 25%;
     font-size: 12px;
@@ -332,7 +333,7 @@ display: none;
     background: #cacaca;
   }
   
-input:not([value=""]) ~ label {
+input ~ label {
   top: 0;
   left: 25%;
   font-size: 15px;
@@ -374,9 +375,15 @@ input:not([value=""]) ~ label {
   width: 300px;
 }
 
-  input#complemento, input#pais, input#estado, input#numero, input#agencia,  input#CodBanco, input#rg,input#cpf {
-    width: 120px; 
+  input#complemento, input#pais, input#estado, input#numero,input#rg,input#cpf, input#dataNasc {
+    width: 130px; 
   }
+
+  input#codBanco,#banco,#agencia,#digitoAgencia,#nConta,#digitoConta,#pix{
+    width: 170px;
+  }
+
+
   input#Pix {
     width: 250px;
   }

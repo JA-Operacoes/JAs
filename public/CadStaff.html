@@ -62,13 +62,13 @@
                             <p id="fileName">Nenhum arquivo selecionado</p>
                           </label>
 
-                          <input id="file" type="file" accept="image/png, image/jpeg" oninput="configurarPreviewImagem(this)">
+                          <input id="file" nome="foto" type="file" accept="image/png, image/jpeg" oninput="configurarPreviewImagem(this)">
                           <input type="hidden" id="linkFotoFuncionarios" name="foto" />
                         </div>
                       </div>
 
                       <!-- Coluna dos Inputs -->
-                      <div class="gridInput">
+                      <div>
                        <div class="form2">
                           <select name="avaliacao" id="avaliacao" onchange="mostrarTarja()" required>
                             <option value="" selected disabled>Avalie o Funcionario</option>
@@ -77,6 +77,7 @@
                             <option value="regular">Regular</option>
                           </select>
                         </div>
+                        <div id="tarjaAvaliacao" class="tarja-avaliacao"></div>
                         
                         <div class="form-2colunas">
                           <div class="form2">
@@ -89,14 +90,37 @@
                           </div>
                         </div>
 
-                        <div class="form-2colunas">
+                        <div class="checkbox">
+                          <div class="Vertical">
+                            <input id="Extracheck" type="checkbox" />
+                            <label for="Extracheck">Extra</label>
+                          </div>
+                          <div class="Vertical">
+                            <input id="Caixinhacheck" type="checkbox" />
+                            <label for="Caixinhacheck">Caixinha</label>
+                          </div>
+                        </div>
+
+                        <div>
                           <div class="form2">
                             <input type="text" name="vlrCusto" id="vlrCusto" required>
-                            <label for="vlrCusto">Custo</label>
+                            <label for="vlrCusto">Cache</label>
+                          </div>
+                          <div class="form2" id="campoExtra" style="display: none;">
+                            <input type="text" name="extra" id="extra">
+                            <label for="extra">Extra</label>
                           </div>
                           <div class="form2">
-                            <input type="text" name="vlrBeneficio" id="vlrBeneficio" required>
-                            <label for="vlrBeneficio">Benefícios</label>
+                            <input type="text" name="transportes" id="transportes" required>
+                            <label for="transportes">Transportes</label>
+                          </div>
+                          <div class="form2">
+                            <input type="text" name="alimentacao" id="alimentacao" required>
+                            <label for="alimentacao">Alimentação</label>
+                          </div>
+                          <div class="form2" id="campoCaixinha" style="display: none;">
+                            <input type="text" name="caixinha" id="caixinha">
+                            <label for="caixinha">Caixinha</label>
                           </div>
                         </div>
 
@@ -113,7 +137,8 @@
                         
                       </div>
                     </div>
-                    <div id="tarjaAvaliacao" class="tarja-avaliacao"></div>
+                    
+                    <br>
                   </fieldset>
   
 <div id="containerFieldsets">
@@ -122,11 +147,11 @@
     
     <div class="form-2colunas">
       <div class="form2">
-        <input type="text" name="nmCliente[]" required>
+        <input type="text" id="nmCliente" name="nmCliente[]" required>
         <label>Cliente</label>
       </div>
       <div class="form2">
-        <input type="text" name="nmEvento[]" required>
+        <input type="text" id="nmEvento" name="nmEvento[]" required>
         <label>Evento</label>
       </div>
     </div>
@@ -134,20 +159,54 @@
     <div class="form-2colunas">
       <div class="form2"> 
         <h3>Período do Evento:</h3>
-        <input type="text" id="datasEvento" name="datasEvento[]" placeholder="Selecione os dias"  readonly required>
+        <input type="text" id="datasEvento" name="datasEvento[]" placeholder="Selecione os dias" readonly required>
         <p id="contadorDatas">Nenhuma data selecionada.</p>
       </div>
     </div>
     <div class="form-2colunas">
       <textarea name="Bonus[]" id="Bonus" required>Bônus</textarea>
       <div class="form2">
-        <input type="text" name="vlrTotal[]" required>
+        <input type="text" class="preenchido moeda" value="R$ 00,00" id="vlrTotal" name="vlrTotal[]" oninput="calcularValorTotal(this)" readonly required>
         <label>Valor Total</label>
       </div>
     </div>
 
     <div class="pdf">
-      <h5>Comprovante de Pagamento</h5>
+      <div class="collumn">
+        <h5>Comprovante de Cache</h5>
+        <div class="containerPDF">
+          <label for="filePDF" class="footerPDF" name="footerPDF[]">
+            <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+              <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+              <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+            </svg>
+            <p id="fileNamePDF" name="fileNamePDF">Nenhum arquivo selecionado</p>
+          </label>
+          <input id="filePDF" type="file" name="filePDF" accept="application/pdf" oninput="configurarPreviewPDF(this)">
+          <input type="hidden" id="ComprovanteCache"  name="foto[]" />
+        </div>
+      </div>
+
+      <br>
+
+      <div class="collumn">
+        <h5>Comprovante de Ajuda de Custo</h5>
+        <div class="containerPDF">
+          <label for="filePDF" class="footerPDF" name="footerPDF[]">
+            <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+              <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+              <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+            </svg>
+            <p id="fileNamePDF" name="fileNamePDF">Nenhum arquivo selecionado</p>
+          </label>
+          <input id="filePDF" type="file" name="filePDF" accept="application/pdf" oninput="configurarPreviewPDF(this)">
+          <input type="hidden" id="ComprovanteAjdCusto"  name="foto[]" />
+        </div>
+      </div>
+    </div>
+    <br>
+    <div class="collumn">
+      <h5>Comprovante de Caixinha</h5>
       <div class="containerPDF">
         <label for="filePDF" class="footerPDF" name="footerPDF[]">
           <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
@@ -157,7 +216,7 @@
           <p id="fileNamePDF" name="fileNamePDF">Nenhum arquivo selecionado</p>
         </label>
         <input id="filePDF" type="file" name="filePDF" accept="application/pdf" oninput="configurarPreviewPDF(this)">
-        <input type="hidden" id="ComprovantePagamentos"  name="foto[]" />
+        <input type="hidden" id="ComprovanteCaixinha"  name="foto[]" />
       </div>
     </div>
     <br>
@@ -165,7 +224,7 @@
 </div>
 
 <br>
-<button type="button" onclick="adicionarCampos()">Adicionar</button>
+<button type="button" onclick="adicionarCampos(this)">Adicionar</button>
 <br>
                 
             
@@ -175,9 +234,9 @@
 
               </div>
                 <div class="BTNs">
-                      <button class="btnPesquisar" type="button">Pesquisar</button>
-                      <button class="btnLimpar" type="button">Limpar</button>
-                      <button class="btnEnviar" type="button">Enviar</button>
+                  <button class="btnPesquisar" id="Pesquisar" type="button">Pesquisar</button>
+                  <button class="btnLimpar" id="Limpar" type="button">Limpar</button>
+                  <button class="btnEnviar" id="Enviar" type="button">Enviar</button>
                 </div>
               </form>
 
@@ -185,8 +244,8 @@
     </div>
 </div>
 
- <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="js/Staff.js"></script>
-
+<script src="js/Formataçoes.js"></script>
 </body>
 </html>

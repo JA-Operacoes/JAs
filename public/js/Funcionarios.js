@@ -37,6 +37,7 @@ async function verificaFuncionarios() {
     console.log("Configurando eventos do modal Funcionários...");
     
     configurarPreviewFoto();
+    inicializarFlatpickrsGlobais();
 
     const botaoEnviar = document.querySelector("#Enviar");
     const botaoPesquisar = document.querySelector("#Pesquisar");
@@ -67,6 +68,8 @@ async function verificaFuncionarios() {
         const rg = document.getElementById("rg")?.value.trim() || '';     
         const nivelFluenciaLinguas = document.getElementById("Linguas")?.value.trim() || '';
         const inputsIdioma = idiomasContainer.querySelectorAll('.idiomaInput');
+        const dataNascimento = idiomasContainer.querySelectorAll('#dataNasc');
+        const nomeFamiliar = idiomasContainer.querySelectorAll('#nomeFamiliar');
         
         const idiomasAdicionaisArray = [];
         inputsIdioma.forEach(input => {
@@ -100,7 +103,7 @@ async function verificaFuncionarios() {
         const pais = document.getElementById("pais")?.value.toUpperCase().trim() || '';
 
         // Validação de campos obrigatórios
-        if (!nome || !cpf || !rg || !celularPessoal || !cep || !rua || !numero || !bairro || !cidade || !estado || !pais || !perfil) {
+        if (!nome || !cpf || !rg || !celularPessoal || !email || !cep || !rua || !numero || !bairro || !cidade || !estado || !pais || !perfil) {
             return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Nome, CPF, RG, Celular Pessoal, E-mail, CEP, Rua, Número, Bairro, Cidade, Estado, País e Perfil.", "warning");
         }
 
@@ -123,7 +126,7 @@ async function verificaFuncionarios() {
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
             celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
             numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, 
-            numero, complemento, bairro, cidade, estado, pais
+            numero, complemento, bairro, cidade, estado, pais, dataNascimento, nomeFamiliar
         });
        // --- CRIANDO O FORMDATA ---
         const formData = new FormData();
@@ -155,6 +158,8 @@ async function verificaFuncionarios() {
         formData.append('cidade', cidade);
         formData.append('estado', estado);
         formData.append('pais', pais);
+        formData.append('dataNascimento', dataNascimento);
+        formData.append('nomeFamiliar', nomeFamiliar);
 
         // Adiciona o arquivo da foto APENAS SE UM NOVO ARQUIVO FOI SELECIONADO
         const inputFileElement = document.getElementById('file');
@@ -168,7 +173,7 @@ async function verificaFuncionarios() {
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
             celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
             numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
-            cidade, estado, pais
+            cidade, estado, pais, dataNascimento, nomeFamiliar
         });
         if (metodo === "PUT" && window.funcionarioOriginal) {
             let houveAlteracao = false;
@@ -191,7 +196,7 @@ async function verificaFuncionarios() {
                     perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
                     celularPessoal, celularFamiliar, email, site, banco, codigoBanco, pix,
                     numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
-                    cidade, estado, pais
+                    cidade, estado, pais, dataNascimento, nomeFamiliar
                 };
 
                 for (const key in camposTextoParaComparar) {
@@ -334,6 +339,41 @@ async function verificaFuncionarios() {
       }
     });
 
+}
+
+function inicializarFlatpickrsGlobais() {
+console.log("Inicializando Flatpickr para todos os campos de data (globais)...");
+    const dateInputIds = [
+        '',
+    ];
+
+    dateInputIds.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            // Se o Flatpickr ainda não foi inicializado para este elemento
+            if (!element._flatpickr) { 
+                flatpickrInstances[id] = flatpickr(element, { 
+                    mode: "range",
+                    dateFormat: "d/m/Y", // Formato para o usuário
+                    altInput: true,
+                    altFormat: "d/m/Y",
+                    locale: flatpickr.l10ns.pt,
+                    appendTo: document.body, // Se o problema for modal, tente 'document.body' ou 'inputElement.closest('.modal-content')'
+                    positionElement: element,
+                    onChange: function(selectedDates, dateStr, instance) {
+                        // Estes campos NÃO calculam dias, então não chame 'atualizarQtdDias' aqui.
+                        console.log(`Período global selecionado para #${id}: ${dateStr}`);
+                    }
+                });
+                console.log(`Flatpickr inicializado para campo global #${id}`);
+            } else {
+                console.log(`Flatpickr já está inicializado para campo global #${id}, pulando.`);
+                flatpickrInstances[id] = element._flatpickr; 
+            }
+        } else {
+            console.warn(`Elemento com ID #${id} não encontrado para inicializar Flatpickr.`);
+        }
+    });
 }
 
 
@@ -637,7 +677,7 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
             const formInputs = document.querySelectorAll('#formFuncionarios input, #formFuncionarios select, #formFuncionarios textarea');
             formInputs.forEach(input => input.removeAttribute('disabled'));
 
-         //   Swal.fire("Sucesso", "Funcionário carregado com sucesso!", "success");
+            Swal.fire("Sucesso", "Funcionário carregado com sucesso!", "success");
         } else {
             Swal.fire("Não encontrado", "Funcionário não encontrado.", "info");
             limparCamposFuncionarios(); // Limpa os campos se não encontrar
