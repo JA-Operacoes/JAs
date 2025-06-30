@@ -1,5 +1,38 @@
 import { fetchComToken } from '../utils/utils.js';
 
+
+if (typeof window.funcionarioOriginal === "undefined") {
+    window.funcionarioOriginal = {
+        idfuncionario: "",
+        perfil: "",
+        nome: "",
+        cpf: "",
+        rg: "",
+        nivelFluenciaLinguas: "", 
+        idiomasAdicionais: "[]", 
+        celularPessoal: "", 
+        celularFamiliar: "", 
+        email: "",
+        site: "",
+        codigoBanco: "", 
+        pix: "",
+        numeroConta: "", 
+        digitoConta: "", 
+        agencia: "",
+        digitoAgencia: "", 
+        tipoConta: "", 
+        cep: "",
+        rua: "",
+        numero: "",
+        complemento: "",
+        bairro: "",
+        cidade: "",
+        estado: "",
+        pais: ""
+   
+    };
+}
+
 async function verificaFuncionarios() {
     console.log("Configurando eventos do modal Funcionários...");
     
@@ -67,7 +100,7 @@ async function verificaFuncionarios() {
         const pais = document.getElementById("pais")?.value.toUpperCase().trim() || '';
 
         // Validação de campos obrigatórios
-        if (!nome || !cpf || !rg || !celularPessoal || !email || !cep || !rua || !numero || !bairro || !cidade || !estado || !pais || !perfil) {
+        if (!nome || !cpf || !rg || !celularPessoal || !cep || !rua || !numero || !bairro || !cidade || !estado || !pais || !perfil) {
             return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Nome, CPF, RG, Celular Pessoal, E-mail, CEP, Rua, Número, Bairro, Cidade, Estado, País e Perfil.", "warning");
         }
 
@@ -137,7 +170,7 @@ async function verificaFuncionarios() {
             numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
             cidade, estado, pais
         });
-        if (metodo === "PUT" && funcionarioOriginal) {
+        if (metodo === "PUT" && window.funcionarioOriginal) {
             let houveAlteracao = false;
 
             // 1. Verificar alteração na foto
@@ -164,12 +197,12 @@ async function verificaFuncionarios() {
                 for (const key in camposTextoParaComparar) {
                     // É importante que `funcionarioOriginal` tenha as chaves mapeadas para os nomes do frontend
                     // e que os valores sejam comparáveis (ex: ambos string, ambos uppercase se necessário).
-                    const valorOriginal = String(funcionarioOriginal[key] || '').toUpperCase().trim();
+                    const valorOriginal = String(window.funcionarioOriginal[key] || '').toUpperCase().trim();
                     const valorAtual = String(camposTextoParaComparar[key] || '').toUpperCase().trim();
 
                     if (key === 'idiomasAdicionais') {
                         try {
-                            const oldParsed = JSON.parse(String(funcionarioOriginal.idiomasadicionais || '[]'));
+                            const oldParsed = JSON.parse(String(window.funcionarioOriginal.idiomasAdicionais || '[]'));
                             const newParsed = JSON.parse(String(idiomasAdicionais || '[]'));
                             // Ordena os arrays para comparação consistente
                             if (JSON.stringify(oldParsed.sort()) !== JSON.stringify(newParsed.sort())) {
@@ -221,7 +254,7 @@ async function verificaFuncionarios() {
 
             await Swal.fire("Sucesso!", respostaApi.message || "Funcionário salvo com sucesso.", "success");
             limparCamposFuncionarios();
-            funcionarioOriginal = null; // Reseta o estado original após sucesso
+            window.funcionarioOriginal = null; // Reseta o estado original após sucesso
 
         } catch (error) {
             console.error("Erro ao enviar dados do funcionário:", error);
@@ -490,7 +523,7 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
         
         if (funcionario) {
 
-            funcionarioOriginal = { ...funcionario }; // Salva o estado original
+            window.funcionarioOriginal = { ...funcionario }; // Salva o estado original
             document.getElementById("idFuncionarios").value = funcionario.idfuncionario || '';
             document.getElementById("nome").value = funcionario.nome || '';
 
@@ -592,7 +625,7 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
             document.getElementById("pais").value = funcionario.pais || '';
 
             // Armazena o estado original do funcionário para futuras comparações (PUT)
-            funcionarioOriginal = { ...funcionario }; // Copia o objeto para não modificar o original
+            window.funcionarioOriginal = { ...funcionario }; // Copia o objeto para não modificar o original
 
             // Lógica para select de nível de fluência (se "Linguas" é o ID correto)
             const selectLinguas = document.getElementById('Linguas'); // Verifique se 'Linguas' é o ID certo

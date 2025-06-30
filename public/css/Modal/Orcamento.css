@@ -6,9 +6,10 @@
     left: 0;
     width: 100%;
     height: auto;
+   
     background-color: rgba(0, 0, 0, 0.5); /* Cor preta com transparência */
     display: none; /* Inicialmente invisível */
-    z-index: 999; /* Fica acima de outros elementos */
+    z-index: 1040; /* Fica acima de outros elementos */
   }
 
   /* Estilo para o container do modal */
@@ -39,7 +40,7 @@
     width: 1625px; /* Ajuste o tamanho conforme necessário */
     height: 730px;
     font-size: 16px;
-    z-index: 9999;
+    z-index: 9999;    
     border-radius: 10px;
   }
   .modal-open{
@@ -59,6 +60,10 @@
     pointer-events: none; /* Impede a rolagem da página */
   }
 
+  body.modal-open .flatpickr-calendar {
+    pointer-events: auto !important; /* CRÍTICO: Reativa os cliques no calendário */
+    z-index: 99999 !important; /* Mantenha este z-index MUITO alto para garantir que ele apareça acima de tudo */
+  }
 
   body{
     font-family: "Abel", sans-serif;
@@ -388,15 +393,23 @@
     width: 200px;
   }
 
-  .Norcamento{
+  .nrOrcamento{
     display: flex;
     justify-content: center;
     align-items: center;
     margin: 0 auto;
   }
 
-  input#idNumOrcamento{
+  input#idOrcamento{
     width: 300px;
+  }
+
+  input#idOrcamento:not([value=""]) ~ label {
+    top: 0;
+    left: 25px;
+    font-size: 12px;
+    background: #cacaca;
+  
   }
 
   input::placeholder{
@@ -667,7 +680,7 @@
     box-sizing: border-box;
   }
 
-  td input.qtdPessoas, td input.qtdDias{
+  td input.qtdProduto, td input.qtdDias{
     display: flex;
     justify-content: center;
     align-items: center;
@@ -678,7 +691,7 @@
     border: none;
     font-size: 16px;
   }
-  input.qtdDias:focus,input.qtdPessoas:focus {
+  input.qtdDias:focus,input.qtdProduto:focus {
   outline: none;
   border: none;
   box-shadow: none; /* também remove o "brilho" do foco */
@@ -859,11 +872,16 @@
 }
 
 
-  .flatpickr-calendar {
-  z-index: 9999 !important; /* alto o suficiente para ficar acima do modal */
+
+
+.flatpickr-calendar {
+  z-index: 1060 !important; /* alto o suficiente para ficar acima do modal */
   position: absolute !important;
 }
-
+.flatpickr-calendar.open {
+            opacity: 1 !important;
+            visibility: visible !important;
+}
 
 /* --------------------------------- Campos bloqueados ------------------------------------ */
 .bloqueado {

@@ -354,7 +354,7 @@ async function carregarBancosDoBackend() {
 window.autoPreencherBanco = function(input, evento) {
   const nomeInput = document.getElementById('banco');
   const codInput = document.getElementById('codBanco');
-
+console.log("autoPreencherBanco chamado com evento:", evento, codInput, nomeInput);
   if (!nomeInput || !codInput) return;
 
   // Usar variável global que foi carregada do backend
