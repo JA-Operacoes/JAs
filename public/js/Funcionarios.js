@@ -103,7 +103,7 @@ async function verificaFuncionarios() {
         const pais = document.getElementById("pais")?.value.toUpperCase().trim() || '';
 
         // Validação de campos obrigatórios
-        if (!nome || !cpf || !rg || !celularPessoal || !email || !cep || !rua || !numero || !bairro || !cidade || !estado || !pais || !perfil) {
+        if (!nome || !cpf || !rg || !celularPessoal || !cep || !rua || !numero || !bairro || !cidade || !estado || !pais || !perfil) {
             return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Nome, CPF, RG, Celular Pessoal, E-mail, CEP, Rua, Número, Bairro, Cidade, Estado, País e Perfil.", "warning");
         }
 
