@@ -84,29 +84,28 @@
               </div>
 
               <div class="form2">
-                <input type="text" name="dataNasc" id="dataNasc"  required readonly>
+                <input type="text" name="dataNasc" id="dataNasc" placeholder="Clique para Escolher"  required readonly>
                 <label for="dataNasc">Data de Nasc</label>
               </div>
             
+            </div>
+
+            <div class="form-2colunas">
               <div class="form2">
                 <input type="text" name="cpf" id="cpf" oninput="formatCPF(this)" maxlength="14" spellcheck="false" required>
                 <label for="cpf">CPF</label>
               </div>
               
-                <!-- <div class="form2">
-                  <input type="text" name="rg" id="rg" oninput="formatRG(this)" maxlength="14" spellcheck="false" required >
+                <div class="form2">
+                  <input type="text" name="rg" id="rg" oninput="formatRG(this)" maxlength="12" spellcheck="false" required >
                   <label for="rg">RG</label>
-                </div> -->
+                </div>
             </div>
-                
             
             <div class="form-2colunas">
-              <div class="form2">
-                <input type="text" name="rg" id="rg" oninput="formatRG(this)" maxlength="12" spellcheck="false" required >
-                <label for="rg">RG</label>
-              </div>
 
               <div class="form2">
+                <select id="Linguas">
                 <select id="Linguas">
                   <option value="" selected disabled> Selecione o nível de fluência </option>
                   <option value="Monolingue">Monolíngue</option>
@@ -115,10 +114,11 @@
                   <option value="Poliglota">Poliglota</option>
                 </select>
               </div>
+            </div>
 
               <div id="idiomasContainer" style="margin-left: 10px;"></div>
+              <br>
 
-            </div>
           </fieldset>
 
 
