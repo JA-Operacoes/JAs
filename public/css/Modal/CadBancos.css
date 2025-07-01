@@ -165,6 +165,7 @@ fieldset {
   outline: none;
 } 
 
+
  .form2 { 
   display: flex;
   gap: 10px; /* espaço entre os campos */
@@ -226,7 +227,6 @@ input#idBanco:not([value=""]) ~ label {
     left: 25px;
     font-size: 12px;
     background: #cacaca;
-  
   }
 
 button {

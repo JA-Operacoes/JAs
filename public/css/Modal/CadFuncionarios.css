@@ -76,7 +76,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      margin-top: 600px;
+      margin-top: 700px;
   }
   
   
@@ -287,6 +287,19 @@ display: none;
     outline: none;
   }
 
+  #idiomasContainer input {
+  font-family: var(--Font-primary);
+  width: 100px;
+  height: 40px;
+  border-radius: 6px;
+  font-size: 15px;
+  padding: 0 20px;
+  border: 1px solid #000000;
+  background: transparent;
+  color: #000000;
+  outline: none;
+} 
+
   .form2 select{
     font-family: var(--Font-primary);
     width: 270px;
@@ -340,6 +353,13 @@ input ~ label {
   padding: 0 2px;
   background: #cacaca; /* Certifique-se que esta cor corresponde ao background do seu #form-content ou fieldset */
 }
+
+input#dataNasc:not([value=""]) ~ label {
+    top: 0;
+    left: 25px;
+    font-size: 12px;
+    background: #cacaca;
+  }
   
   input[type=date]{
     width: 111px;

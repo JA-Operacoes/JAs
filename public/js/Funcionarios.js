@@ -50,6 +50,7 @@ async function verificaFuncionarios() {
     console.log("Configurando eventos do modal Funcionários...");
     
     configurarPreviewFoto();
+    atualizarCamposLinguas();
     inicializarFlatpickrsGlobais();
 
     const botaoEnviar = document.querySelector("#Enviar");
@@ -71,8 +72,15 @@ async function verificaFuncionarios() {
             console.warn("Código do banco vazio, não fazendo busca.");
             return;
         }
-        preencherBanco(codBanco);
+        preencherDadosBancoPeloCodigo(codBanco);
     });
+
+const selectLinguas = document.getElementById('Linguas');
+if (selectLinguas){
+    selectLinguas.addEventListener('change', async function() {
+        atualizarCamposLinguas();
+    })
+}
 
     botaoLimpar.addEventListener("click", (e) => {
         e.preventDefault();
@@ -92,8 +100,8 @@ async function verificaFuncionarios() {
         const rg = document.getElementById("rg")?.value.trim() || '';     
         const nivelFluenciaLinguas = document.getElementById("Linguas")?.value.trim() || '';
         const inputsIdioma = idiomasContainer.querySelectorAll('.idiomaInput');
-        const dataNascimento = document.getElementById("#dataNasc");
-        const nomeFamiliar = document.getElementById("#nomeFamiliar").value.toUpperCase().trim();
+        const dataNascimento = document.getElementById("#dataNasc").value.trim();
+        // const nomeFamiliar = document.getElementById("#nomeFamiliar").value.toUpperCase().trim();
 
         const idiomasAdicionaisArray = [];
         inputsIdioma.forEach(input => {
@@ -817,178 +825,111 @@ function criarSelectFuncionario(funcionarios) {
 
 
 function atualizarCamposLinguas() {
-  const select = document.getElementById('Linguas');
-  const container = document.getElementById('idiomasContainer');
-  const valor = select.value;
+const select = document.getElementById('Linguas');
+const container = document.getElementById('idiomasContainer');
+const selectFluencia = select.value;
+let valor = "";
+
+switch(selectFluencia){
+    case "Monolingue":
+        valor = "1";
+        break;
+    case "Bilingue":
+        valor = "2";
+        break;
+    case "Trilingue":
+        valor = "3";
+        break;
+    case "Poliglota":
+        valor = "custom";
+        break;
+    default:
+        valor = "";
+        break;
+}
 
   container.innerHTML = ""; // Limpa campos anteriores
 
-  if (valor === "") return;
+if (valor === "") return;
 
-  // Sempre adiciona o campo "Português"
-  const inputPT = document.createElement("input");
-  inputPT.type = "text";
-  inputPT.value = "Português";
-  inputPT.disabled = true;
-  inputPT.className = "idiomaInput";
-  // inputPT.style.marginBottom = "5px";
-  inputPT.style.width = "90px";
-  container.appendChild(inputPT);
+// Sempre adiciona o campo "Português"
+const inputPT = document.createElement("input");
+inputPT.type = "text";
+inputPT.value = "Português";
+inputPT.disabled = true;
+inputPT.className = "idiomaInput";
+// inputPT.style.marginBottom = "5px";
+inputPT.style.width = "100px";
+container.appendChild(inputPT);
 
-  if (valor === "1") {
-    return; // Monolíngue
-  }
+if (valor === "") {
+return; // Monolíngue
+}
 
-  if (valor === "2" || valor === "3") {
-    const qtd = parseInt(valor) - 1;
-    for (let i = 1; i <= qtd; i++) {
-      const input = document.createElement("input");
-      input.type = "text";
-      input.placeholder = `Idioma ${i + 1}`;
-      input.name = `idioma${i + 1}`;
-      input.className = "idiomaInput";
-        input.style.width = "90px";
+if (valor === "2" || valor === "3") {
+const qtd = parseInt(valor) - 1;
+for (let i = 1; i <= qtd; i++) {
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = `Idioma ${i + 1}`;
+    input.name = `idioma${i + 1}`;
+    input.className = "idiomaInput";
+    input.style.width = "100px";
 
-      container.appendChild(input);
-    }
-  } else if (valor === "custom") {
-    const grupo = document.createElement("div");
-    grupo.style.display = "flex";
-    grupo.style.flexDirection = "column";
-    grupo.style.alignItems = "center";
-      grupo.style.width = "200px";
-
-
-    const label = document.createElement("p");
-    label.textContent = "Quantos idiomas (incluindo Português)?";
-    label.style.fontSize = "10px";
-    label.style.marginleft = "150px";
-    label.style.padding = "0";
-    label.style.lineHeight = "1.2";
-    label.style.width = "300px";
-
-    const inputQtd = document.createElement("input");
-    inputQtd.type = "number";
-    inputQtd.min = 4;
-    inputQtd.placeholder = "Min: 4";
-      inputQtd.style.width = "90px";
+    container.appendChild(input);
+}
+} else if (valor === "custom") {
+const grupo = document.createElement("div");
+grupo.style.display = "flex";
+grupo.style.flexDirection = "column";
+grupo.style.alignItems = "center";
+    grupo.style.width = "100px";
+    grupo.style.marginLeft = "50px";
 
 
-    inputQtd.onchange = function () {
-      grupo.style.display = "none";
-      gerarCamposPoliglota(parseInt(this.value));
-    };
+const label = document.createElement("p");
+label.textContent = "Quantos idiomas (incluindo Português)?";
+label.style.fontSize = "15px";
+label.style.marginleft = "150px";
+label.style.padding = "0";
+label.style.lineHeight = "1.2";
+label.style.width = "300px";
 
-    grupo.appendChild(label);
-    grupo.appendChild(inputQtd);
-    container.appendChild(grupo);
-  }
+const inputQtd = document.createElement("input");
+inputQtd.type = "number";
+inputQtd.min = 4;
+inputQtd.placeholder = "Min: 4";
+    inputQtd.style.width = "100px";
+
+
+inputQtd.onchange = function () {
+    grupo.style.display = "none";
+    gerarCamposPoliglota(parseInt(this.value));
+};
+
+grupo.appendChild(label);
+grupo.appendChild(inputQtd);
+container.appendChild(grupo);
+}
 }
 
 function gerarCamposPoliglota(qtd) {
-  const container = document.getElementById('idiomasContainer');
-  while (container.children.length > 3) {
-    container.removeChild(container.lastChild);
-  }
+const container = document.getElementById('idiomasContainer');
+while (container.children.length > 3) {
+container.removeChild(container.lastChild);
+}
 
-    for (let i = 1; i < qtd; i++) { // Começa em 1 porque o primeiro já é "Português"
-      const input = document.createElement("input");
-      input.type = "text";
-      input.placeholder = `Idioma ${i + 1}`;
-      input.name = `idioma${i + 1}`;
-      input.className = "idiomaInput";
-      // container.appendChild(document.createElement("br"));
-      container.appendChild(input);
-    }
-  }
+for (let i = 1; i < qtd; i++) { // Começa em 1 porque o primeiro já é "Português"
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = `Idioma ${i + 1}`;
+    input.name = `idioma${i + 1}`;
+    input.className = "idiomaInput";
+    // container.appendChild(document.createElement("br"));
+    container.appendChild(input);
+}
+}
 
-
-// async function fetchComToken(url, options = {}) {
-//     console.log("URL da requisição:", url);
-//     const token = localStorage.getItem("token");
-//     const idempresa = localStorage.getItem("idempresa");
-
-//     console.log("ID da empresa no localStorage:", idempresa);
-//     console.log("Token no localStorage:", token);
-
-//     // Inicializa headers se não existirem
-//     if (!options.headers) options.headers = {};
-
-//     // --- LÓGICA DE TRATAMENTO DO CORPO E CONTENT-TYPE ---
-//     // 1. Se o corpo é FormData, NÃO FAÇA NADA com Content-Type, o navegador cuida.
-//     //    E NÃO STRINGIFIQUE O CORPO.
-//     if (options.body instanceof FormData) {
-//         // Nada a fazer aqui. O navegador define o Content-Type: multipart/form-data automaticamente.
-//         // E o corpo já está no formato correto.
-//         console.log("[fetchComToken] Detectado FormData. Content-Type e body serão gerenciados pelo navegador.");
-//     }
-//     // 2. Se o corpo é um objeto e NÃO é FormData, trata como JSON.
-//     else if (options.body && typeof options.body === 'object') {
-//         options.body = JSON.stringify(options.body);
-//         options.headers['Content-Type'] = 'application/json';
-//         console.log("[fetchComToken] Detectado corpo JSON. Content-Type definido como application/json.");
-//     }
-//     // 3. Se o corpo é uma string que parece JSON, trata como JSON.
-//     else if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
-//         options.headers['Content-Type'] = 'application/json';
-//         console.log("[fetchComToken] Detectado string JSON. Content-Type definido como application/json.");
-//     }
-//     // --- FIM DA LÓGICA DE TRATAMENTO DO CORPO ---
-
-//     // Adiciona o token de autorização
-//     options.headers['Authorization'] = 'Bearer ' + token;
-
-//     // Adiciona o idempresa ao cabeçalho, se válido
-//     if (
-//         idempresa &&
-//         idempresa !== 'null' &&
-//         idempresa !== 'undefined' &&
-//         idempresa.trim() !== '' &&
-//         !isNaN(idempresa) &&
-//         Number(idempresa) > 0
-//     ) {
-//         options.headers['idempresa'] = idempresa;
-//         console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
-//     } else {
-//         console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
-//     }
-
-//     console.log("URL OPTIONS", url, options);
-
-//     const resposta = await fetch(url, options);
-
-//     console.log("Resposta da requisição Funcionarios.js:", resposta);
-
-//     let responseBody = null;
-//     try {
-//         responseBody = await resposta.json();
-//     } catch (jsonError) {
-//         try {
-//             responseBody = await resposta.text();
-//         } catch (textError) {
-//             responseBody = null;
-//         }
-//     }
-
-//     if (resposta.status === 401) {
-//         localStorage.clear();
-//         Swal.fire({
-//             icon: "warning",
-//             title: "Sessão expirada",
-//             text: "Por favor, faça login novamente."
-//         }).then(() => {
-//             window.location.href = "login.html";
-//         });
-//         throw new Error('Sessão expirada');
-//     }
-
-//     if (!resposta.ok) {
-//         const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
-//         throw new Error(`Erro na requisição: ${errorMessage}`);
-//     }
-
-//     return responseBody;
-// }
 
 function limparCamposFuncionarios(){
     const camposParaLimpar = [
@@ -1088,6 +1029,7 @@ function limparCamposFuncionarios(){
     console.log("Configurando eventos Funcionarios...");
     verificaFuncionarios(); // Carrega os Funcionarios ao abrir o modal
     configurarPreviewFoto();
+    atualizarCamposLinguas();
     adicionarEventoBlurFuncionario();
     inicializarFlatpickrsGlobais();
    // inputFile.dataset.previewSet = "true"; // Evita configurar mais de uma vez
