@@ -67,9 +67,13 @@ async function verificaFuncionarios() {
         const pais = document.getElementById("pais")?.value.toUpperCase().trim() || '';
 
         // Validação de campos obrigatórios
-        if (!nome || !cpf || !rg || !celularPessoal || !email || !cep || !rua || !numero || !bairro || !cidade || !estado || !pais || !perfil) {
-            return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Nome, CPF, RG, Celular Pessoal, E-mail, CEP, Rua, Número, Bairro, Cidade, Estado, País e Perfil.", "warning");
-        }
+        // if (!nome || !cpf || !rg || !celularPessoal || !email || !cep || !rua || !numero || !bairro || !cidade || !estado || !pais || !perfil) {
+        //     return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Nome, CPF, RG, Celular Pessoal, E-mail, CEP, Rua, Número, Bairro, Cidade, Estado, País e Perfil.", "warning");
+        // }
+
+                if (!nome || !cpf || !rg || !celularPessoal || !email  || !perfil) {
+            return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Nome, CPF, RG, Celular Pessoal, E-mail, e Perfil.", "warning");
+                }
 
         // Permissões
         const temPermissaoCadastrar = temPermissao("Funcionarios", "cadastrar");
@@ -156,7 +160,7 @@ async function verificaFuncionarios() {
             if (!houveAlteracao) { // Só verifica os outros campos se a foto não causou uma alteração
                 const camposTextoParaComparar = {
                     perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
-                    celularPessoal, celularFamiliar, email, site, banco, codigoBanco, pix,
+                    celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
                     numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
                     cidade, estado, pais
                 };

@@ -4,6 +4,15 @@ let locaisDeMontagem = [];
 
 let flatpickrInstances = {};
 
+const commonFlatpickrOptions = {
+    mode: "range",
+    dateFormat: "d/m/Y",
+    altInput: true, // Se quiser altInput para os da tabela também
+    altFormat: "d/m/Y",
+    locale: flatpickr.l10ns.pt,
+    appendTo: document.body // Certifique-se de que 'modal-flatpickr-container' existe e é o elemento correto
+};
+
 document.addEventListener("DOMContentLoaded", function () {  
 
     let selects = document.querySelectorAll(".idFuncao, .idEquipamento, .idSuprimento");
@@ -366,72 +375,6 @@ function configurarInfraCheckbox() {
     atualizarVisibilidade();
 }
 
-// async function fetchComToken(url, options = {}) {
-//   console.log("URL da requisição ORÇAMENTOS:", url);
-//   const token = localStorage.getItem("token");
-//   const idempresa = localStorage.getItem("idempresa");
-
-//   console.log("ID da empresa no localStorage:", idempresa);
-//   console.log("Token no localStorage:", token);
-
-//   if (!options.headers) options.headers = {};
-
-//   options.headers['Authorization'] = 'Bearer ' + token;
-//   if (idempresa) options.headers['idempresa'] = idempresa;
-
-// if (
-//     idempresa && 
-//     idempresa !== 'null' && 
-//     idempresa !== 'undefined' && 
-//     idempresa.trim() !== '' &&
-//     !isNaN(idempresa) && 
-//     Number(idempresa) > 0
-//   ) {
-//     options.headers['idempresa'] = idempresa;
-//     console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
-//   } else {
-//     console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
-//   }
-//   console.log("URL OPTIONS", url, options)
-
-//    // const resposta = await fetch(url, options);
-//   const resposta = await fetch(url, options);
-
-//   console.log("Resposta da requisição Orcamentos.js:", resposta);
-
-//   if (resposta.status === 401) {
-//     localStorage.clear();
-//     Swal.fire({
-//       icon: "warning",
-//       title: "Sessão expirada",
-//       text: "Por favor, faça login novamente."
-//     }).then(() => {
-//       window.location.href = "login.html"; // ajuste conforme necessário
-//     });
-//     //return;
-//     throw new Error('Sessão expirada'); 
-//   }
-
-
-//   let dados;
-
-//   try {
-//     // Tenta parsear JSON
-//     dados = await resposta.json();
-//   } catch {
-//     // Se não for JSON, tenta pegar texto puro
-//     const texto = await resposta.text();
-//     dados = texto || null;
-//   }
-
-//   if (!resposta.ok) {
-//     // lança erro com a mensagem retornada (se houver)
-//     const mensagemErro = (dados && dados.erro) || JSON.stringify(dados) || resposta.statusText;
-//     throw new Error(`Erro na requisição: ${mensagemErro}`);
-//   }
-
-//   return dados;
-// }
 
 function configurarFormularioOrc() {
     let form = document.querySelector("#form");
@@ -459,22 +402,22 @@ function configurarFormularioOrc() {
             orcamento.Pessoas.push(dados);
         }
 
-        fetchComToken('/salvar-orcamento', {
-            method: 'POST',
-            headers: {
-                        "Content-Type": "application/json",
-                        'Authorization': `Bearer ${token}`
-                        // 'x-id-empresa': idEmpresa
-                    },
-            body: JSON.stringify(orcamento)
-        })
-        .then(response => response.json())
-        .then(data => {
-            alert("Orçamento salvo com sucesso!");
-            fecharModal();
-        })
-        .catch(error => console.error("Erro ao salvar:", error));
-    });
+    //     fetchComToken('/orcamento', {
+    //         method: 'POST',
+    //         // headers: {
+    //         //             "Content-Type": "application/json",
+    //         //             'Authorization': `Bearer ${token}`
+    //         //             // 'x-id-empresa': idEmpresa
+    //         //         },
+    //         body: JSON.stringify(orcamento)
+    //     })
+    //     .then(response => response.json())
+    //     .then(data => {
+    //         alert("Orçamento salvo com sucesso!");
+    //         fecharModal();
+    //     })
+    //     .catch(error => console.error("Erro ao salvar:", error));
+     });
     
 }
 
@@ -880,7 +823,7 @@ function adicionarLinhaOrc() {
                                 <td class="produto"></td>
                                 <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><!--  <div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div>--></td>
 
-                                <td class="Periodo"><div class="flatpickr" id="seletorData"><input type="text" data-input required readonly placeholder="Clique para Selecionar" oninput="atualizarQtdDias(this)" onclick="inicializarFlatpickr(this)"></div></td>
+                                <td class="Periodo"><div class="flatpickr" id="seletorData"><input type="text" data-input required readonly placeholder="Clique para Selecionar" oninput="atualizarQtdDias(this)"></div></td>
                                 <!-- <td class="Periodo"><div class="Acres-Desc"><p>de:<input type="date" class="data-inicio" oninput="atualizarQtdDias(this)"></p><p>até<input type="date" class="data-fim" oninput="atualizarQtdDias(this)"></p></div></td> -->
 
                                 
@@ -900,8 +843,15 @@ function adicionarLinhaOrc() {
                                     <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotaisOrc()">
                                 </td>
                                 <td class="totGeral">0</td>
-                                <td><div class="Acao"><button class="deleteBtn" onclick="removerLinhaOrc(this)"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
+                                <td><div class="Acao"><button class="deleteBtn" id="removerLinha"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
 `;
+    const novoInputData = novaLinha.querySelector('input[type="text"].datas'); // Encontra o input de data na nova linha
+    if (novoInputData && !novoInputData._flatpickr) {
+        flatpickr(novoInputData, commonFlatpickrOptions); // Inicializa Flatpickr para este input
+        console.log("Flatpickr inicializado para nova linha adicionada:", novoInputData);
+    } else {
+        console.error("Erro: Novo input de data não encontrado ou Flatpickr já inicializado para a nova linha.");
+    }
 }
 function adicionarLinhaAdicional() {
     let tabela = document.getElementById("tabela").getElementsByTagName("tbody")[0];
@@ -916,7 +866,7 @@ function adicionarLinhaAdicional() {
                                     <td class="qtdPessoas"><div class="add-less"><input type="number" readonly class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
                                     <td class="produto"></td>
                                     <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><!--  <div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div>--></td>
-                                    <td class="Periodo"><div class="flatpickr" id="seletorData"><input type="text" data-input required readonly placeholder="Clique para Selecionar" oninput="atualizarQtdDias(this)" onclick="inicializarFlatpickr(this)"></div></td>
+                                    <td class="Periodo"><div class="flatpickr" id="seletorData"><input type="text" data-input required readonly placeholder="Clique para Selecionar" oninput="atualizarQtdDias(this)" ></div></td>
                                     <!-- <td class="Periodo"><div class="Acres-Desc"><p>de:<input type="date" class="data-inicio" oninput="atualizarQtdDias(this)"></p><p>até<input type="date" class="data-fim" oninput="atualizarQtdDias(this)"></p></div></td> -->
                 
                                     <td class="desconto Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
@@ -935,7 +885,7 @@ function adicionarLinhaAdicional() {
                                         <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotaisOrc()">
                                     </td>
                                     <td class="totGeral">0</td>
-                                    <td><div class="Acao"><button class="deleteBtn" onclick="removerLinhaOrc(this)"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
+                                    <td><div class="Acao"><button class="deleteBtn" id="removerLinha"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
                                     </tr>
                                     `;
 }
@@ -943,6 +893,24 @@ function adicionarLinhaAdicional() {
 function removerLinhaOrc(botao) {
     let linha = botao.closest("tr"); // Encontra a linha mais próxima
     removerLinha(linha); // Remove a linha
+}
+
+
+function initializeAllFlatpickrsInModal() {
+    console.log("Inicializando Flatpickr para todos os campos de data no modal...");
+
+    // 1. Inicializa os campos globais com a função já existente
+    inicializarFlatpickrsGlobais(); // Chamamos a função que você já tinha
+
+    // 2. Inicializa Flatpickr para os inputs '.datas' que JÁ EXISTEM na tabela no carregamento inicial do modal
+    document.querySelectorAll(".datas").forEach(input => {
+        if (!input._flatpickr) { // Evita reinicialização
+            flatpickr(input, commonFlatpickrOptions);
+            console.log("Flatpickr inicializado para input da tabela (existente):", input);
+        } else {
+            console.log("Flatpickr já está inicializado para input da tabela (existente), pulando.");
+        }
+    });
 }
 
 // Crie esta nova função
@@ -958,33 +926,41 @@ console.log("Inicializando Flatpickr para todos os campos de data (globais)...")
     ];
 
     dateInputIds.forEach(id => {
+        dateInputIds.forEach(id => {
         const element = document.getElementById(id);
-        if (element) {
-            // Se o Flatpickr ainda não foi inicializado para este elemento
-            if (!element._flatpickr) { 
-                flatpickrInstances[id] = flatpickr(element, { 
-                    mode: "range",
-                    dateFormat: "d/m/Y", // Formato para o usuário
-                    altInput: true,
-                    altFormat: "d/m/Y",
-                    locale: flatpickr.l10ns.pt,
-                    appendTo: document.body, // Se o problema for modal, tente 'document.body' ou 'inputElement.closest('.modal-content')'
-                    positionElement: element,
-                    onChange: function(selectedDates, dateStr, instance) {
-                        // Estes campos NÃO calculam dias, então não chame 'atualizarQtdDias' aqui.
-                        console.log(`Período global selecionado para #${id}: ${dateStr}`);
-                    }
-                });
-                console.log(`Flatpickr inicializado para campo global #${id}`);
-            } else {
-                console.log(`Flatpickr já está inicializado para campo global #${id}, pulando.`);
-                flatpickrInstances[id] = element._flatpickr; 
-            }
-        } else {
-            console.warn(`Elemento com ID #${id} não encontrado para inicializar Flatpickr.`);
+        if (element && !element._flatpickr) {
+            flatpickr(element, commonFlatpickrOptions); // Reutiliza as opções comuns
+            console.log(`Flatpickr inicializado para campo global #${id}`);
         }
     });
+        // const element = document.getElementById(id);
+        // if (element) {
+        //     // Se o Flatpickr ainda não foi inicializado para este elemento
+        //     if (!element._flatpickr) { 
+        //         flatpickrInstances[id] = flatpickr(element, { 
+        //             mode: "range",
+        //             dateFormat: "d/m/Y", // Formato para o usuário
+        //             altInput: true,
+        //             altFormat: "d/m/Y",
+        //             locale: flatpickr.l10ns.pt,
+        //             appendTo: document.getElementById('modal-flatpickr-container') , // Se o problema for modal, tente 'document.body' ou 'inputElement.closest('.modal-content')'
+        //            // positionElement: element,
+        //             onChange: function(selectedDates, dateStr, instance) {
+        //                 // Estes campos NÃO calculam dias, então não chame 'atualizarQtdDias' aqui.
+        //                 console.log(`Período global selecionado para #${id}: ${dateStr}`);
+        //             }
+        //         });
+        //         console.log(`Flatpickr inicializado para campo global #${id}`);
+        //     } else {
+        //         console.log(`Flatpickr já está inicializado para campo global #${id}, pulando.`);
+        //         flatpickrInstances[id] = element._flatpickr; 
+        //     }
+        // } else {
+        //     console.warn(`Elemento com ID #${id} não encontrado para inicializar Flatpickr.`);
+        // }
+    });
 }
+
 
 // No seu Orcamentos.js
 
@@ -1185,9 +1161,12 @@ async function verificaOrcamento() {
     carregarSuprimentosOrc();
     configurarFormularioOrc();
 
-    configurarFormularioOrc(); // Isso deve ser chamado depois que os selects estiverem carregados, se dependerem deles
+    // Isso deve ser chamado depois que os selects estiverem carregados, se dependerem deles
 
-    inicializarFlatpickrsGlobais(); 
+   // inicializarFlatpickrsGlobais(); 
+   initializeAllFlatpickrsInModal(); // Inicializa os campos de data globais
+
+    configurarInfraCheckbox();
     
     const selectElement = document.getElementById('selectLocalMontagem');
 
@@ -1259,7 +1238,7 @@ async function verificaOrcamento() {
                 // Se encontrou o orçamento, preenche o formulário
                 preencherFormularioComOrcamento(orcamento);
 
-                Swal.fire("Sucesso!", `Orçamento Nº ${orcamento.nrorcamento} carregado.`, "success");
+              //  Swal.fire("Sucesso!", `Orçamento Nº ${orcamento.nrorcamento} carregado.`, "success");
 
             } catch (error) {
                 console.error("Erro ao buscar orçamento:", error);
@@ -1285,19 +1264,14 @@ async function verificaOrcamento() {
     if (btnAdicionarLinha) {    
         btnAdicionarLinha.addEventListener('click', function() {
             console.log("Botão 'Adicionar Linha' clicado"); 
-            adicionarLinhaOrc(); // Chama a função para adicionar uma nova linha
-            // Inicializa o Flatpickr para o novo input de data
-            const novoInput = document.querySelector('#tabela tbody tr:last-child .flatpickr    input[type="text"]');
-            if (novoInput) {
-                inicializarFlatpickr(novoInput, calcularQtdDiasTabela); // Passa a função de callback para calcular a quantidade de dias
-            } else {        
-                console.error("Novo input de data não encontrado após adicionar linha.");
-            }
+            adicionarLinhaOrc(); // Chama a função para adicionar uma nova linha          
+            
         });
     } else {
         console.error("Botão 'Adicionar Linha' não encontrado.");
 
     }
+
     const btnAdicionarLinhaAdicional = document.getElementById('adicionarLinhaAdicional');
     if (btnAdicionarLinhaAdicional) {
         btnAdicionarLinhaAdicional.addEventListener('click', function() {
@@ -1313,6 +1287,17 @@ async function verificaOrcamento() {
         });
     } else {
         console.error("Botão 'Adicionar Linha Adicional' não encontrado.");
+    }
+
+    const btnRemoverLinha = document.getElementById('removerLinha');
+    if (btnRemoverLinha) {
+        btnRemoverLinha.addEventListener('click', function() {
+            console.log("Botão 'Remover Linha' clicado");
+            // 
+            removerLinhaOrc(this); // Chama a função para remover a linha
+        });
+    } else {
+        console.error("Botão 'Remover Linha' não encontrado.");
     }
 
     const btnEnviar = document.getElementById('Enviar');
@@ -1456,13 +1441,11 @@ async function verificaOrcamento() {
             
             hospedagem: desformatarMoeda(linha.querySelector(".extraCampo .hospedagem")?.value || '0'),
             transporte: desformatarMoeda(linha.querySelector(".extraCampo .transporte")?.value || '0'),
-            
+
             totgeralitem: desformatarMoeda(linha.querySelector(".totGeral")?.textContent || '0')
-                                 
-           
-            };
-            itensOrcamento.push(item);
-        });
+        };
+        itensOrcamento.push(item);
+    });
         
        dadosOrcamento.itens = itensOrcamento;
 
@@ -1476,9 +1459,9 @@ async function verificaOrcamento() {
         // 3. Enviar os dados para o backend usando fetchComToken
         const resultado = await fetchComToken(url, {
             method: method,
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            // headers: {
+            //     'Content-Type': 'application/json',
+            // },
             body: JSON.stringify(dadosOrcamento)
         });
 
@@ -1600,8 +1583,7 @@ function preencherFormularioComOrcamento(orcamento) {
             const startDate = inicio ? new Date(inicio) : null;
             const endDate = fim ? new Date(fim) : null;
 
-            console.log(`Configurando Flatpickr para ${id}: Data Início = ${startDate}, Data Fim = ${endDate}`);
-           
+            console.log(`Configurando Flatpickr para ${id}: Data Início = ${startDate}, Data Fim = ${endDate}`);           
 
             if (pickerInstance.config.mode === "range") {
                 // Adiciona verificação para datas válidas e tratamento para apenas uma data
@@ -1765,20 +1747,31 @@ function formatarDataParaBackend(dataString) {
 }
 
 function getPeriodoDatas(inputValue) { // Recebe diretamente o valor do input
-    let inicio = null;
-    let fim = null;
+   
+    
+    if (typeof inputValue !== 'string' || inputValue.trim() === '') {
+        // Se o input estiver vazio ou não for uma string, retorna null para as datas.
+        // Isso é exatamente o que você quer para campos opcionais não preenchidos.
+        return { inicio: null, fim: null };
+    }
+    const datas = inputValue.split(' - '); 
 
-    if (inputValue) {
-        const dates = inputValue.split(' to ');
-        if (dates.length === 2) {
-            inicio = dates[0];
-            fim = dates[1];
-        } else if (dates.length === 1) {
-            inicio = dates[0];
-            fim = dates[0]; // Se for uma única data, trate como período de um dia
-        }
-    }   
-    return { inicio: inicio, fim: fim };
+    let dataInicial = null;
+    let dataFinal = null;
+
+    if (datas.length === 2) {
+        // Se há duas partes, é um período completo (início e fim)
+        dataInicial = formatarDataParaBackend(datas[0].trim()); // Trim para remover espaços extras
+        dataFinal = formatarDataParaBackend(datas[1].trim());
+    } else if (datas.length === 1) {
+        // Se há apenas uma parte, é uma única data selecionada
+        dataInicial = formatarDataParaBackend(datas[0].trim());
+        dataFinal = formatarDataParaBackend(datas[0].trim()); // Ou null, dependendo da sua regra para um único dia
+                                                              // Deixei como a mesma data para um período de 1 dia.
+    }
+    // Caso contrário (datas.length é 0, já tratado pela validação inicial)
+
+    return { inicio: dataInicial, fim: dataFinal };
 }
 
 function parsePercentValue(valueString) {
@@ -1812,13 +1805,13 @@ function enviarOrcamento() {
 
     console.log("Dados a enviar:", dados);
 
-    fetchComToken("http://localhost:3000/orcamento", {
+    fetchComToken("/orcamento", {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            'Authorization': `Bearer ${token}`
-            // 'x-id-empresa': idEmpresa
-        },
+        // headers: {
+        //     "Content-Type": "application/json",
+        //     'Authorization': `Bearer ${token}`
+        //     // 'x-id-empresa': idEmpresa
+        // },
         body: JSON.stringify({ Pessoas: dados })
     })
     .then(res => res.json())
@@ -2469,11 +2462,11 @@ async function salvarOrcamento(event) {
     try {
         const resposta = await fetchComToken(form.getAttribute('data-action'), {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-                // 'x-id-empresa': idEmpresa
-            },
+            // headers: {
+            //     'Content-Type': 'application/json',
+            //     'Authorization': `Bearer ${token}`
+            //     // 'x-id-empresa': idEmpresa
+            // },
             body: JSON.stringify(dados)
         });
 
@@ -2494,6 +2487,7 @@ function configurarEventosOrcamento() {
     console.log("Configurando eventos Orcamento...");
     verificaOrcamento(); // Carrega os Orcamentos ao abrir o modal
    // adicionarEventoBlurOrcamento();
+   inicializarFlatpickrsGlobais(); // Inicializa os Flatpickrs globais
 
     console.log("Entrou configurar Orcamento no ORCAMENTO.js.");
 } 

@@ -20,7 +20,7 @@
 <div id="CadModal" class="modal">
     <div class="modal-content">
         
-
+    <div id="modal-flatpickr-container"></div>
         <div class="Close"><button class="close"> X </button></div>
         <div id ="form-orcamento">
         
@@ -38,7 +38,7 @@
                         <label for="Status">Status  (A/F)</label>
                     </div>
                     <div class="form">
-                        <input type="text" id="idOrcamento" name="idOrcamento" spellcheck="false">
+                        <input type="text" id="idOrcamento" name="idOrcamento" spellcheck="false" readonly >
                         <label for="idOrcamento">Código</label>
                     </div>
                     <div class="form">
@@ -51,11 +51,11 @@
                 <div class="Selects">
                     <div class="select">
                         <label for="idCliente">Cliente:</label>
-                        <select class="idCliente" required spellcheck="false"></select>
+                        <select class="idCliente" id="idCliente" required spellcheck="false"></select>
                     </div>
                     <div class="select">
                         <label for="idEvento">Evento:</label>
-                        <select class="idEvento" required spellcheck="false"></select>
+                        <select class="idEvento" id="idEvento" required spellcheck="false"></select>
                     </div>
                         <div class="select2">
                             <label for="idMontagem">Local Montagem:</label>
@@ -64,7 +64,7 @@
                             <input type="text" class="ufmontagem" id="ufmontagem" name="ufmontagem" required spellcheck="false">
                             <label  for="ufmontagem">UF</label>
                         </div>
-                        <div class="checkbox-wrapper-33 checkbox-coluna" oninput="configurarInfraCheckbox()">
+                        <div class="checkbox-wrapper-33 checkbox-coluna">
                             <p class="checkbox__textwrapper"> infra.</p>
                             <label class="checkbox">
                                 <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo">
@@ -240,7 +240,7 @@
                                     <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotaisOrc()">
                                 </td>
                                 <td class="totGeral">0</td>
-                                <td><div class="Acao"><button class="deleteBtn" onclick="removerLinhaOrc(this)"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
+                                <td><div class="Acao"><button class="deleteBtn" id="removerLinha"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
                             </tr>
                         </tbody>
                     </table>
@@ -360,15 +360,10 @@
             </div>
         </form>
     </div>
+    </div>
 </div>
-<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script> -->
-<!-- <script src="js/Orcamento.js" defer></script> -->
+
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt_br.js"></script>
-<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
- -->
-
-
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt-br.js"></script>
 </body>
 </html>
