@@ -14,6 +14,10 @@
 </head>
 <body data-modulo="Funcionarios">
 
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt-br.js"></script> 
+
 <div id="CadModal" class="modal">
   <div class="modal-content">
 
@@ -72,11 +76,11 @@
 
 
           <fieldset>
-            <legend> Informaçoes Pessoais </legend>
+            <legend> Informações Pessoais </legend>
             <div class="form-2colunas">
               <div class="form2">
-                <input type="text" name="nome" id="nome" class = "uppercase" required spellcheck="false">
-                <label for="nome">Nome</label>
+                <input type="text" name="nome" id="nome" class="uppercase" required spellcheck="false">
+                <label for="nome">Nome do Funcionário</label>
               </div>
 
               <div class="form2">
@@ -103,7 +107,7 @@
               </div>
 
               <div class="form2">
-                <select id="Linguas" onchange="atualizarCamposLinguas()">
+                <select id="Linguas">
                   <option value="" selected disabled> Selecione o nível de fluência </option>
                   <option value="Monolingue">Monolíngue</option>
                   <option value="Bilingue">Bilíngue</option>
@@ -254,7 +258,9 @@
   </div>
 </div>
 <!-- Se estiver usando diretamente no HTML -->
-<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/pt.js"></script>
+<!-- <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/pt.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt-br.js"></script> -->
 
 </body>
 </html>

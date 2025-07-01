@@ -122,7 +122,7 @@ router.put("/:id",
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
             celularPessoal, celularFamiliar, email, site, codigoBanco, pix, // ADICIONADO 'banco'
             numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
-            cidade, estado, pais, datanascimento, nomefamiliar
+            cidade, estado, pais, dataNascimento, nomeFamiliar
         } = req.body;
 
         let fotoPathParaBD = null;
