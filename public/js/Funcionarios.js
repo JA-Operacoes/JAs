@@ -1,5 +1,16 @@
 import { fetchComToken } from '../utils/utils.js';
 
+let flatpickrInstances = {};
+
+const commonFlatpickrOptions = {
+    mode: "single",
+    dateFormat: "d/m/Y",
+    altInput: true, // Se quiser altInput para os da tabela também
+    altFormat: "d/m/Y",
+    locale: flatpickr.l10ns.pt,
+    appendTo: document.body // Certifique-se de que 'modal-flatpickr-container' existe e é o elemento correto
+};
+
 
 if (typeof window.funcionarioOriginal === "undefined") {
     window.funcionarioOriginal = {
@@ -28,7 +39,9 @@ if (typeof window.funcionarioOriginal === "undefined") {
         bairro: "",
         cidade: "",
         estado: "",
-        pais: ""
+        pais: "",
+        dataNascimento:"",
+        nomeFamiliar:"",
    
     };
 }
@@ -341,37 +354,29 @@ async function verificaFuncionarios() {
 
 }
 
+// Crie esta nova função
 function inicializarFlatpickrsGlobais() {
 console.log("Inicializando Flatpickr para todos os campos de data (globais)...");
     const dateInputIds = [
-        '',
+        'dataNasc'
     ];
 
-    dateInputIds.forEach(id => {
+    dateInputIds.forEach(id => { // Este é o loop correto
         const element = document.getElementById(id);
-        if (element) {
-            // Se o Flatpickr ainda não foi inicializado para este elemento
+        if (element) { // Verificamos se o elemento existe
+            // **IMPORTANTE**: Só inicialize se já não foi inicializado
             if (!element._flatpickr) { 
-                flatpickrInstances[id] = flatpickr(element, { 
-                    mode: "range",
-                    dateFormat: "d/m/Y", // Formato para o usuário
-                    altInput: true,
-                    altFormat: "d/m/Y",
-                    locale: flatpickr.l10ns.pt,
-                    appendTo: document.body, // Se o problema for modal, tente 'document.body' ou 'inputElement.closest('.modal-content')'
-                    positionElement: element,
-                    onChange: function(selectedDates, dateStr, instance) {
-                        // Estes campos NÃO calculam dias, então não chame 'atualizarQtdDias' aqui.
-                        console.log(`Período global selecionado para #${id}: ${dateStr}`);
-                    }
-                });
-                console.log(`Flatpickr inicializado para campo global #${id}`);
+                const picker = flatpickr(element, commonFlatpickrOptions);
+                // **CRUCIAL**: Salve a instância no objeto global 'flatpickrInstances'
+                flatpickrInstances[id] = picker; 
+                console.log(`Flatpickr inicializado e salvo para campo global #${id}`);
             } else {
-                console.log(`Flatpickr já está inicializado para campo global #${id}, pulando.`);
+                console.log(`Flatpickr para campo global #${id} já estava inicializado.`);
+                // Se já estava inicializado, podemos simplesmente garantir que a instância está salva
                 flatpickrInstances[id] = element._flatpickr; 
             }
         } else {
-            console.warn(`Elemento com ID #${id} não encontrado para inicializar Flatpickr.`);
+            console.warn(`Elemento com ID '${id}' não encontrado para inicialização do Flatpickr.`);
         }
     });
 }
@@ -989,6 +994,7 @@ function limparCamposFuncionarios(){
     verificaFuncionarios(); // Carrega os Funcionarios ao abrir o modal
     configurarPreviewFoto();
     adicionarEventoBlurFuncionario();
+    inicializarFlatpickrsGlobais();
    // inputFile.dataset.previewSet = "true"; // Evita configurar mais de uma vez
   }
   window.configurarEventosFuncionarios = configurarEventosFuncionarios;
