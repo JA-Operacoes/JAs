@@ -122,7 +122,7 @@ router.put("/:id",
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
             celularPessoal, celularFamiliar, email, site, codigoBanco, pix, // ADICIONADO 'banco'
             numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
-            cidade, estado, pais
+            cidade, estado, pais, datanascimento, nomefamiliar
         } = req.body;
 
         let fotoPathParaBD = null;
@@ -191,10 +191,9 @@ router.put("/:id",
                 UPDATE funcionarios func
                 SET perfil = $1, foto = $2, nome = $3, cpf = $4, rg = $5, fluencia = $6, idiomasadicionais = $7,
                     celularpessoal = $8, celularfamiliar = $9, email = $10, site = $11, codigobanco = $12,
-                    pix = $13, numeroconta = $14, digitoConta = $15, agencia = $16, digitoAgencia = $17, 
-                    tipoconta = $18, cep = $19, rua = $20, numero = $21,
-                    complemento = $22, bairro = $23, cidade = $24, estado = $25, pais = $26
-                WHERE func.idfuncionario = $27
+                    pix = $13, numeroconta = $14, digitoConta = $15, agencia = $16, digitoAgencia = $17, tipoconta = $18, cep = $19, rua = $20, numero = $21,
+                    complemento = $22, bairro = $23, cidade = $24, estado = $25, pais = $26, datanascimento = $27, nomefamiliar = $28
+                WHERE func.idfuncionario = $29
                 RETURNING func.idfuncionario, func.foto;
             `;
 
@@ -205,6 +204,7 @@ router.put("/:id",
                 celularPessoal, celularFamiliar, email, site, codigoBanco, 
                 pix, numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero,
                 complemento, bairro, cidade, estado, pais,
+                dataNascimento, nomeFamiliar,
                 id // ID do funcionário para a cláusula WHERE
             ];
 
@@ -270,12 +270,14 @@ router.post("/",
     async (req, res) => {
         // req.body agora é preenchido pelo Multer para campos de texto
         // Adicione 'banco' aqui e verifique 'nivelFluenciaLinguas'
+        console.log('--- Início da requisição POST ---');
+        console.log('req.body:', req.body);
         const {
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais, celularPessoal, celularFamiliar,
             email, site, codigoBanco, pix, numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, // ADICIONADO 'banco'
-            complemento, bairro, cidade, estado, pais
+            complemento, bairro, cidade, estado, pais, dataNascimento, nomeFamiliar
         } = req.body;
-
+        
         const idempresa = req.idempresa;
         let client;
         let fotoPathParaBD = null; // Inicializa com null
@@ -312,18 +314,18 @@ router.post("/",
                     perfil, foto, nome, cpf, rg, fluencia, idiomasadicionais,
                     celularpessoal, celularfamiliar, email, site, codigobanco, pix,
                     numeroconta, digitoConta, agencia, digitoAgencia, tipoconta, cep, rua, numero, complemento, bairro,
-                    cidade, estado, pais
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
-                RETURNING idFuncionarios, foto`, // Retorna o ID e o caminho da foto para o frontend
+                    cidade, estado, pais, datanascimento, nomefamiliar
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
+                RETURNING idFuncionario, foto`, // Retorna o ID e o caminho da foto para o frontend
                 [
                     perfil, fotoPathParaBD, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais, // Use nivelFluenciaLinguas
                     celularPessoal, celularFamiliar, email, site, codigoBanco, pix, 
                     numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
-                    cidade, estado, pais
+                    cidade, estado, pais, dataNascimento, nomeFamiliar
                 ]
             );
             const novoFuncionario = resultFuncionario.rows[0];
-            const idNovoFuncionario = novoFuncionario.idfuncionarios;
+            const idNovoFuncionario = novoFuncionario.idfuncionario;
 
             await client.query(
                 "INSERT INTO FuncionarioEmpresas (idFuncionario, idEmpresa) VALUES ($1, $2)",
@@ -355,6 +357,15 @@ router.post("/",
             // Mensagem de erro mais específica para não-nulo
             if (error.code === '23502') {
                  return res.status(400).json({ message: `Campo obrigatório faltando ou inválido: ${error.column}. Por favor, verifique os dados e tente novamente.`, details: error.message });
+            }
+            if (error.code === '23505' && error.constraint === 'funcionarios_cpf_key') {
+                if (error.constraint === 'funcionarios_cpf_key') {
+                // Erro de CPF duplicado
+                return res.status(409).json({ message: 'Erro ao salvar funcionário: Já existe um funcionário cadastrado com este CPF.' });
+                } else if (error.constraint === 'funcionarios_email_key') {
+                // Erro de e-mail duplicado
+                return res.status(409).json({ message: 'Erro ao salvar funcionário: Já existe um funcionário cadastrado com este e-mail.' });
+                }
             }
             res.status(500).json({ error: "Erro ao salvar funcionário", details: error.message });
         } finally {

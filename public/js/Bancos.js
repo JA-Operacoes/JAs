@@ -1,3 +1,5 @@
+import { fetchComToken } from '../utils/utils.js';
+
 if (typeof window.BancoOriginal === "undefined") {
     window.BancoOriginal = {
         idBanco: "",
@@ -15,6 +17,17 @@ async function verificaBanco() {
     const botaoPesquisar = document.querySelector("#Pesquisar");
     const botaoLimpar = document.querySelector("#Limpar");
     const form = document.querySelector("#form");
+    const inputCodBancoElement = document.querySelector("#codBanco");
+   
+    if (inputCodBancoElement) {
+        inputCodBancoElement.addEventListener("blur", async function () {
+            const codBanco = this.value.toUpperCase().trim();
+            await preencherBanco(codBanco);
+        });
+        console.log("[initFuncionariosModal] Listener 'blur' adicionado ao campo de CÓDIGO do banco (#codigobanco).");
+    } else {
+        console.warn("[initFuncionariosModal] Campo de CÓDIGO do banco (#codigobanco) não encontrado.");
+    }
 
     if (!botaoEnviar || !form) {
         console.error("Formulário ou botão não encontrado no DOM.");
@@ -102,9 +115,11 @@ async function verificaBanco() {
         }
 
         try {
-            const Bancos = await fetchComToken("/Bancos");
+            const bancosEncontrados = await fetchComToken("/bancos"); // Use /bancos (minúsculo) conforme sua rota adaptada
 
-            const select = criarSelectBanco(Bancos);
+            const select = criarSelectBanco(bancosEncontrados);
+        
+            console.log("Bancos encontrados da API:", bancosEncontrados); // Log mais descritivo
             limparCamposBanco();
             const input = document.querySelector("#nmBanco");
 
@@ -138,7 +153,7 @@ async function verificaBanco() {
 
                 if (label) {
                     label.style.display = "block";
-                    label.textContent = "Descrição do Banco";
+                    label.textContent = "Nome do Banco";
                 }
 
                 novoInput.addEventListener("blur", async function () {
@@ -146,6 +161,7 @@ async function verificaBanco() {
                     await carregarBancoDescricao(this.value, this);
                 });
             });
+
 
         } catch (error) {
             console.error("Erro ao carregar Bancos:", error);
@@ -156,30 +172,38 @@ async function verificaBanco() {
                 confirmButtonText: 'Ok'
             });
         }
-    });
+    });   
+    
 }
 
-function criarSelectBanco(Bancos) {
+
+
+function criarSelectBanco(bancosEncontrados) {
+   
     const select = document.createElement("select");
     select.id = "nmBanco";
     select.name = "nmBanco";
     select.required = true;
     select.className = "form";
 
+   
+    // Adicionar opções
     const defaultOption = document.createElement("option");
     defaultOption.value = "";
     defaultOption.text = "Selecione um Banco...";
     defaultOption.disabled = true;
     defaultOption.selected = true;
     select.appendChild(defaultOption);
+   
+    console.log("PESQUISANDO Banco:", bancosEncontrados);
 
-    Bancos.forEach(Bancosachado => {
+    bancosEncontrados.forEach(bancosachado => {
         const option = document.createElement("option");
-        option.value = Bancosachado.nmBanco;
-        option.text = Bancosachado.nmBanco;
+        option.value = bancosachado.nmbanco;
+        option.text = bancosachado.nmbanco;
         select.appendChild(option);
     });
-
+ 
     return select;
 }
 
@@ -212,144 +236,136 @@ function adicionarEventoBlurBanco() {
     });
 }
 
-async function carregarBancoDescricao(desc, elementoAtual) {
-    try {
-        // Busca banco pelo nome
-        const Bancos = await fetchComToken(`/bancos?nmBanco=${encodeURIComponent(desc)}`);
+async function preencherBanco(codBanco) {
+    const inputCodBanco = document.getElementById('codBanco');
+    const inputNmBanco = document.getElementById('nmBanco'); 
+    const inputIdBancoHidden = document.getElementById('idBanco');
+   
+     if (!inputCodBanco || !inputNmBanco || !inputIdBancoHidden) {
+        console.warn("Um ou mais elementos de input de banco (codBanco, nmBanco, idBanco) não foram encontrados no DOM. Verifique os IDs.");
+       
+        return;
+    }
+    if (!codBanco || codBanco.trim() === '') {
+        inputNmBanco.value = ''; 
+        inputIdBancoHidden.value = ''; 
+        inputCodBanco.value = ''; 
+        console.log("Código do banco vazio, limpando campos relacionados.");
+        return;
+    }
 
-        document.querySelector("#idBanco").value = Bancos.idbanco;
-        // Se tiver campo código do banco, preencha também
-        const codBancoInput = document.querySelector("#codBanco");
-        if (codBancoInput) codBancoInput.value = Bancos.codbanco;
+    try {      
+        const url = `/bancos?codBanco=${encodeURIComponent(codBanco)}`; // Encode para garantir URL segura
+        console.log(`[preencherBancoPorCodigo] Buscando banco por código na URL: ${url}`);
+   
+        const bancoData = await fetchComToken(url);
+        if (bancoData && bancoData.idbanco) { 
+            inputNmBanco.value = bancoData.nmbanco || ''; 
+            inputCodBanco.value = bancoData.codbanco || ''; 
+            inputIdBancoHidden.value = bancoData.idbanco || '';
 
-        window.BancoOriginal = {
-            idBanco: Bancos.idbanco,
-            nmBanco: Bancos.nmbanco,
-            codBanco: Bancos.codbanco
-        };
+          
+            window.BancoOriginal = {
+                idBanco: bancoData.idbanco,
+                codBanco: bancoData.codbanco,
+                nmBanco: bancoData.nmbanco,
+            };
+            console.log(`[preencherBancoPorCodigo] Banco encontrado: ${window.BancoOriginal.nmBanco} (${window.BancoOriginal.codBanco})`);
+            
+        } else {
+           
+            inputNmBanco.value = '';
+            inputIdBancoHidden.value = '';
+           
 
-    } catch (error) {
-        console.warn("Banco não encontrado.");
-
-        const inputIdBanco = document.querySelector("#idBanco");
-        const podeCadastrarBanco = temPermissao("Bancos", "cadastrar");
-
-        if (!inputIdBanco.value && podeCadastrarBanco) {
-            // Pergunta se quer cadastrar
-            const resultado = await Swal.fire({
-                icon: 'question',
-                title: `Deseja cadastrar "${desc.toUpperCase()}" como novo Banco?`,
-                text: `Banco "${desc.toUpperCase()}" não encontrado.`,
-                showCancelButton: true,
-                confirmButtonText: "Sim, cadastrar",
-                cancelButtonText: "Cancelar",
-                reverseButtons: true,
-                focusCancel: true
-            });
-
-            if (resultado.isConfirmed) {
-                // Pede código do banco
-                const { value: codigoBanco } = await Swal.fire({
-                    title: `Informe o código do banco "${desc.toUpperCase()}"`,
-                    input: 'text',
-                    inputLabel: 'Código do Banco',
-                    inputPlaceholder: 'Ex: 001',
-                    inputValidator: (value) => {
-                        if (!value) {
-                            return 'Você precisa informar um código válido!';
-                        }
-                        return null;
-                    },
-                    showCancelButton: true,
-                    confirmButtonText: 'Cadastrar',
-                    cancelButtonText: 'Cancelar',
-                });
-
-                if (codigoBanco) {
-                    try {
-                        // Cadastro via API
-                        const response = await fetchComToken('/bancos', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                nmBanco: desc.toUpperCase(),
-                                codBanco: codigoBanco.trim()
-                            })
-                        });
-
-                        // Atualiza inputs com o banco cadastrado
-                        document.querySelector("#idBanco").value = response.idbanco;
-
-                        if (codBancoInput) codBancoInput.value = response.codbanco;
-
-                        window.BancoOriginal = {
-                            idBanco: response.idbanco,
-                            nmBanco: response.nmbanco,
-                            codBanco: response.codbanco
-                        };
-
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Banco cadastrado com sucesso!',
-                            timer: 2000,
-                            showConfirmButton: false
-                        });
-
-                    } catch (cadastroError) {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Erro ao cadastrar banco',
-                            text: cadastroError.message || 'Tente novamente mais tarde.'
-                        });
-                        // Limpa os campos menos o nome para tentar novamente
-                        limparCamposBanco(elementoAtual);
-                        setTimeout(() => {
-                            elementoAtual.focus();
-                        }, 0);
-                    }
-                } else {
-                    // Cancelou o input do código
-                    limparCamposBanco(elementoAtual);
-                    setTimeout(() => {
-                        elementoAtual.focus();
-                    }, 0);
-                }
-            } else {
-                // Cancelou cadastro
-                limparCamposBanco(elementoAtual);
-                setTimeout(() => {
-                    elementoAtual.focus();
-                }, 0);
-            }
-        } else if (!podeCadastrarBanco) {
             Swal.fire({
-                icon: "info",
-                title: "Banco não cadastrado",
-                text: "Você não tem permissão para cadastrar Bancos.",
-                confirmButtonText: "OK"
+                icon: 'info',
+                title: 'Banco não encontrado',
+                text: `Nenhum banco encontrado com o código '${codBanco}'.`,
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000
             });
+            console.log(`[preencherBancoPorCodigo] Banco com código ${codBanco} não encontrado.`);
+        }
+    } catch (error) {
+        console.error('[preencherBancoPorCodigo] Erro ao preencher banco automaticamente:', error);
+        inputNmBanco.value = ''; 
+        inputIdBancoHidden.value = '';
+        inputCodBanco.value = '';
 
-            limparCamposBanco(elementoAtual);
-            setTimeout(() => {
-                elementoAtual.focus();
-            }, 0);
+        if (error.message && error.message.includes('Sessão expirada')) {
+          
+            console.log("Erro de sessão expirada tratado por fetchComToken.");
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro de busca de banco',
+                text: 'Não foi possível buscar as informações do banco. Verifique o código e tente novamente.',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000
+            });
         }
     }
 }
 
-function limparCamposBanco(manterNomeCampo) {
-    // manterNomeCampo: input do nome do banco, que não será limpo
 
-    const idBanco = document.querySelector("#idBanco");
-    const codBanco = document.querySelector("#codBanco");
-
-    if (idBanco) idBanco.value = "";
-    if (codBanco) codBanco.value = "";
-
-    // Limpe aqui outros campos relacionados, se existirem
-    // Exemplo: document.querySelector("#outroCampoBanco")?.value = "";
-
-    // OBS: o campo do nome do banco (manterNomeCampo) NÃO é limpo nem alterado
+async function carregarBancoDescricao(desc, elementoAtual) {
+    try {
+            const bancos = await fetchComToken(`/bancos?nmBanco=${encodeURIComponent(desc)}`);
+           // console.log("Resposta do servidor:", response);
+           
+            document.querySelector("#idBanco").value = bancos.idbanco;
+            document.querySelector("#codBanco").value = bancos.codbanco;
+    
+            window.BancoOriginal = {
+                idBanco: bancos.idbanco,
+                codBanco:bancos.codbanco,
+                nmBanco: bancos.nmbanco,
+            };
+    
+            console.log("Banco encontrado:", BancoOriginal);
+    
+        } catch (error) {
+            console.warn("Banco não encontrado.");
+    
+            const inputIdBanco = document.querySelector("#idBanco");
+            const podeCadastrarBanco = temPermissao("bancos", "cadastrar");
+    
+           if (!inputIdBanco.value && podeCadastrarBanco) {
+                 const resultado = await Swal.fire({
+                    icon: 'question',
+                    title: `Deseja cadastrar "${desc.toUpperCase()}" como novo Banco?`,
+                    text: `Banco "${desc.toUpperCase()}" não encontrado.`,
+                    showCancelButton: true,
+                    confirmButtonText: "Sim, cadastrar",
+                    cancelButtonText: "Cancelar",
+                    reverseButtons: true,
+                    focusCancel: true
+                });
+    
+                
+                if (!resultado.isConfirmed) {
+                    console.log("Usuário cancelou o cadastro do Banco.");
+                    elementoAtual.value = ""; // Limpa o campo se não for cadastrar
+                    setTimeout(() => {
+                        elementoAtual.focus();
+                    }, 0);
+                    return;
+                }
+            } else if (!podeCadastrarBanco) {
+                Swal.fire({
+                    icon: "info",
+                    title:"Banco não cadastrado",
+                    text: "Você não tem permissão para cadastrar bancos.",
+                    confirmButtonText: "OK"
+                });
+            }
+            
+        }
 }
 
 function limparCamposBanco() {
@@ -384,96 +400,21 @@ function limparCamposBanco() {
         const label = document.querySelector('label[for="nmBanco"]');
         if (label) {
             label.style.display = "block";
-            label.textContent = "Descrição do Banco";
+            label.textContent = "Nome do Banco";
         }
     }
 }
 
-async function fetchComToken(url, options = {}) {
-  console.log("URL da requisição:", url);
-  const token = localStorage.getItem("token");
-  const idempresa = localStorage.getItem("idempresa");
 
-  console.log("ID da empresa no localStorage:", idempresa);
-  console.log("Token no localStorage:", token);
-
-  if (!options.headers) options.headers = {};
-  
-  if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
-        options.headers['Content-Type'] = 'application/json';
-  }else if (options.body && typeof options.body === 'object' && options.headers['Content-Type'] !== 'multipart/form-data') {
-       
-        options.body = JSON.stringify(options.body);
-        options.headers['Content-Type'] = 'application/json';
-  }
-
-  options.headers['Authorization'] = 'Bearer ' + token; 
-
-  if (
-      idempresa && 
-      idempresa !== 'null' && 
-      idempresa !== 'undefined' && 
-      idempresa.trim() !== '' &&
-      !isNaN(idempresa) && 
-      Number(idempresa) > 0
-  ) {
-      options.headers['idempresa'] = idempresa;
-      console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
-  } else {
-    console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
-  }
-  console.log("URL OPTIONS", url, options)
- 
-  const resposta = await fetch(url, options);
-
-  console.log("Resposta da requisição:", resposta);
-
-  let responseBody = null;
-  try {
-      // Primeiro, tente ler como JSON, pois é o mais comum para APIs
-      responseBody = await resposta.json();
-  } catch (jsonError) {
-      // Se falhar (não é JSON, ou resposta vazia, etc.), tente ler como texto
-      try {
-          responseBody = await resposta.text();
-      } catch (textError) {
-          // Se nem como texto conseguir, assume que não há corpo lido ou que é inválido
-          responseBody = null;
-      }
-  }
-
-  if (resposta.status === 401) {
-    localStorage.clear();
-    Swal.fire({
-      icon: "warning",
-      title: "Sessão expirada",
-      text: "Por favor, faça login novamente."
-    }).then(() => {
-      window.location.href = "login.html"; // ajuste conforme necessário
-    });
-    //return;
-    throw new Error('Sessão expirada'); 
-  }
-
-  if (!resposta.ok) {
-        // Se a resposta NÃO foi bem-sucedida (status 4xx ou 5xx)
-        // Use o responseBody já lido para obter a mensagem de erro
-        const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
-        throw new Error(`Erro na requisição: ${errorMessage}`);
-  }
-
-  return responseBody;
-}
-
-function configurarEventosCadBanco() {
+function configurarbancosCadBanco() {
     verificaBanco();
     adicionarEventoBlurBanco();
 }
-window.configurarEventosCadBanco = configurarEventosCadBanco;
+window.configurarbancosCadBanco = configurarbancosCadBanco;
 
 function configurarEventosEspecificos(modulo) {
     if (modulo.trim().toLowerCase() === 'bancos') {
-        configurarEventosCadBanco();
+        configurarbancosCadBanco();
         if (typeof aplicarPermissoes === "function" && window.permissoes) {
             aplicarPermissoes(window.permissoes);
         }

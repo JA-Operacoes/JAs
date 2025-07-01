@@ -13,26 +13,49 @@ const commonFlatpickrOptions = {
     appendTo: document.body // Certifique-se de que 'modal-flatpickr-container' existe e é o elemento correto
 };
 
-document.addEventListener("DOMContentLoaded", function () {  
+const commonFlatpickrOptions = {
+    mode: "range",
+    dateFormat: "d/m/Y",
+    altInput: true, // Se quiser altInput para os da tabela também
+    altFormat: "d/m/Y",
+    locale: flatpickr.l10ns.pt,
+    appendTo: document.body // Certifique-se de que 'modal-flatpickr-container' existe e é o elemento correto
+   
+};
 
-    let selects = document.querySelectorAll(".idFuncao, .idEquipamento, .idSuprimento");
-    selects.forEach(select => {
-        select.addEventListener("change", atualizaProdutoOrc);
-    });
-     
-    const selectLocalMontagem = document.getElementById('selectLocalMontagem');
-    if (selectLocalMontagem) {
-        
-        selectLocalMontagem.addEventListener('change', function() {
-            atualizarUFOrc(this);
-        });       
-    }    
-    
+const commonFlatpickrOptionsTable = {
+    mode: "range",
+    dateFormat: "d/m/Y",
+    altInput: true, // Se quiser altInput para os da tabela também
+    altFormat: "d/m/Y",
+    locale: flatpickr.l10ns.pt,
+    appendTo: document.body, // Certifique-se de que 'modal-flatpickr-container' existe e é o elemento correto
+    onChange: function(selectedDates, dateStr, instance) {
+        // Isso garantirá que sua lógica de cálculo de dias e atualização do input
+        // seja chamada para QUALQUER Flatpickr que use estas opções.
+        atualizarQtdDias(instance.element, selectedDates);
+    }
+};
+
+document.addEventListener("DOMContentLoaded", function () {  
+   
 });
 
 let idCliente;
 let idEvento;
 let idLocalMontagem;
+const idOrcamentoInput = document.getElementById('idOrcamento');
+//const nrOrcamentoInput = document.getElementById('nrOrcamento');
+const clienteSelect = document.querySelector('.idCliente'); // Select do cliente no form principal
+const eventoSelect = document.querySelector('.idEvento');   // Select do evento no form principal
+const localMontagemSelect = document.querySelector('.idLocalMontagem'); // Select do local no form principal
+const statusSelect = document.getElementById('Status');
+
+
+ let selects = document.querySelectorAll(".idFuncao, .idEquipamento, .idSuprimento");
+    selects.forEach(select => {
+        select.addEventListener("change", atualizaProdutoOrc);
+    });
 
 const selectFuncao = document.getElementById('selectFuncao');
 if (selectFuncao) {
@@ -54,6 +77,13 @@ if (selectSuprimento) {
     });
 }
 
+const selectLocalMontagem = document.getElementById('idLocalMontagem');
+    if (selectLocalMontagem) {
+        
+        selectLocalMontagem.addEventListener('change', function() {
+            atualizarUFOrc(this);
+        });       
+    }    
 // Atualiza texto no DOM
 function atualizarOuCriarCampoTexto(nmFantasia, texto) {
     const campo = document.getElementById(nmFantasia);
@@ -94,14 +124,6 @@ async function buscarEExibirDadosClientePorNome(nmFantasia) {
         atualizarOuCriarCampoTexto("emailContato", "");
     }
 }
-
-const idOrcamentoInput = document.getElementById('idOrcamento');
-const nrOrcamentoInput = document.getElementById('nrOrcamento');
-const clienteSelect = document.querySelector('.idCliente'); // Select do cliente no form principal
-const eventoSelect = document.querySelector('.idEvento');   // Select do evento no form principal
-const localMontagemSelect = document.querySelector('.idLocalMontagem'); // Select do local no form principal
-const statusSelect = document.getElementById('Status');
-
 
 async function  carregarClientesOrc() {
     console.log("Função CARREGAR Cliente chamada");    
@@ -214,7 +236,7 @@ async function carregarLocalMontOrc() {
 
                 option.value = local.idmontagem;  // Atenção ao nome da propriedade (idMontagem)
                 option.textContent = local.descmontagem; 
-                option.setAttribute("data-idlocalmontagem", local.idmontagem); 
+                option.setAttribute("data-idLocalMontagem", local.idmontagem); 
                 option.setAttribute("data-descmontagem", local.descmontagem);
                 option.setAttribute("data-ufmontagem", local.ufmontagem); 
                 select.appendChild(option);
@@ -264,7 +286,9 @@ async function carregarFuncaoOrc() {
                 option.setAttribute("data-descproduto", funcao.descfuncao);
                 option.setAttribute("data-cto", funcao.ctofuncao);
                 option.setAttribute("data-vda", funcao.vdafuncao);
+                option.setAttribute("data-transporte", funcao.transporte);              
                 option.setAttribute("data-ajdcusto", funcao.ajcfuncao);
+
                 option.setAttribute("data-categoria", "Produto(s)");
                 select.appendChild(option);
             });
@@ -394,7 +418,7 @@ function configurarFormularioOrc() {
         for (let linha of linhas) {
             let dados = {
                 // idFuncao: linha.cells[0].querySelector(".idFuncao").value,
-                qtdPessoas: linha.cells[0].textContent.trim(),
+                qtdProduto: linha.cells[0].textContent.trim(),
                 qtdDias: linha.cells[1].textContent.trim(),
                 valor: linha.cells[2].textContent.trim(),
                 total: linha.cells[3].textContent.trim()
@@ -402,6 +426,22 @@ function configurarFormularioOrc() {
             orcamento.Pessoas.push(dados);
         }
 
+    //     fetchComToken('/orcamento', {
+    //         method: 'POST',
+    //         // headers: {
+    //         //             "Content-Type": "application/json",
+    //         //             'Authorization': `Bearer ${token}`
+    //         //             // 'x-id-empresa': idEmpresa
+    //         //         },
+    //         body: JSON.stringify(orcamento)
+    //     })
+    //     .then(response => response.json())
+    //     .then(data => {
+    //         alert("Orçamento salvo com sucesso!");
+    //         fecharModal();
+    //     })
+    //     .catch(error => console.error("Erro ao salvar:", error));
+     });
     //     fetchComToken('/orcamento', {
     //         method: 'POST',
     //         // headers: {
@@ -477,7 +517,17 @@ function desformatarMoeda(valor) {
 }
 
 function formatarMoeda(valor) {
-    return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+   // return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+   if (valor === null || valor === undefined || valor === '') {
+        return 'R$ 0,00'; // Retorna um valor padrão para nulos/vazios
+    }
+    // Converte o valor para float e verifica se é um número válido
+    const numero = parseFloat(valor);
+    if (isNaN(numero)) {
+        console.warn(`Valor inválido para formatarMoeda: ${valor}. Retornando R$ 0,00.`);
+        return 'R$ 0,00';
+    }
+    return numero.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 function recalcularLinha(linha) {
@@ -486,7 +536,7 @@ function recalcularLinha(linha) {
     try {
         console.log("Linha recebida:", linha);
 
-        let qtdItens = parseFloat(linha.querySelector('.qtdPessoas input')?.value) || 0;
+        let qtdItens = parseFloat(linha.querySelector('.qtdProduto input')?.value) || 0;
         let qtdDias = parseFloat(linha.querySelector('.qtdDias input')?.value) || 0;
 
         let celulaVenda = linha.querySelector('.vlrVenda');
@@ -819,12 +869,11 @@ function adicionarLinhaOrc() {
     novaLinha.innerHTML = `
                                 <td class="Proposta"><div class="checkbox-wrapper-33" style="margin-top: 40px;"><label class="checkbox"><input class="checkbox__trigger visuallyhidden" type="checkbox" /><span class="checkbox__symbol"><svg aria-hidden="true" class="icon-checkbox"      width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg"><path d="M4 14l8 7L24 7"></path></svg></span><p class="checkbox__textwrapper"></p></label></div></td>
                                 <td class="Categoria"></td>
-                                <td class="qtdPessoas"><div class="add-less"><input type="number" readonly class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+                                <td class="qtdProduto"><div class="add-less"><input type="number" readonly class="qtdProduto" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
                                 <td class="produto"></td>
                                 <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><!--  <div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div>--></td>
 
-                                <td class="Periodo"><div class="flatpickr" id="seletorData"><input type="text" data-input required readonly placeholder="Clique para Selecionar" oninput="atualizarQtdDias(this)"></div></td>
-                                <!-- <td class="Periodo"><div class="Acres-Desc"><p>de:<input type="date" class="data-inicio" oninput="atualizarQtdDias(this)"></p><p>até<input type="date" class="data-fim" oninput="atualizarQtdDias(this)"></p></div></td> -->
+                                <td class="Periodo"><div class="flatpickr-container"><input type="text" class="datas" id="seletorData" data-input required readonly placeholder="Clique para Selecionar"></div></td>
 
                                 
                                 <td class="desconto Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
@@ -847,12 +896,13 @@ function adicionarLinhaOrc() {
 `;
     const novoInputData = novaLinha.querySelector('input[type="text"].datas'); // Encontra o input de data na nova linha
     if (novoInputData && !novoInputData._flatpickr) {
-        flatpickr(novoInputData, commonFlatpickrOptions); // Inicializa Flatpickr para este input
+        flatpickr(novoInputData, commonFlatpickrOptionsTable); // Inicializa Flatpickr para este input
         console.log("Flatpickr inicializado para nova linha adicionada:", novoInputData);
     } else {
         console.error("Erro: Novo input de data não encontrado ou Flatpickr já inicializado para a nova linha.");
     }
 }
+
 function adicionarLinhaAdicional() {
     let tabela = document.getElementById("tabela").getElementsByTagName("tbody")[0];
 
@@ -860,34 +910,41 @@ function adicionarLinhaAdicional() {
     novaLinha.classList.add("linha-adicional");
 
     novaLinha.innerHTML = `
-            <tr class="adicional">
-                <td class="Proposta"><div class="checkbox-wrapper-33" style="margin-top: 40px;"><label class="checkbox"><input class="checkbox__trigger visuallyhidden" type="checkbox" /><span class="checkbox__symbol"><svg aria-hidden="true" class="icon-checkbox"      width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg"><path d="M4 14l8 7L24 7"></path></svg></span><p class="checkbox__textwrapper"></p></label></div></td>
-                                    <td class="Categoria"></td>
-                                    <td class="qtdPessoas"><div class="add-less"><input type="number" readonly class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
-                                    <td class="produto"></td>
-                                    <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><!--  <div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div>--></td>
-                                    <td class="Periodo"><div class="flatpickr" id="seletorData"><input type="text" data-input required readonly placeholder="Clique para Selecionar" oninput="atualizarQtdDias(this)" ></div></td>
-                                    <!-- <td class="Periodo"><div class="Acres-Desc"><p>de:<input type="date" class="data-inicio" oninput="atualizarQtdDias(this)"></p><p>até<input type="date" class="data-fim" oninput="atualizarQtdDias(this)"></p></div></td> -->
-                
-                                    <td class="desconto Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
-                                    <td class="Acrescimo Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
-                                    <td class="vlrVenda Moeda"></td>
-                                    <td class="totVdaDiaria Moeda"></td>
-                                    <td class="vlrCusto Moeda"></td>
-                                    <td class="totCtoDiaria Moeda"></td>
-                                    <td class="ajdCusto Moeda"><div class="Acres-Desc"><select id="tpAjdCusto"><option value="select" selected disabled>Alimentação</option><option value="Almoco">Almoço</option><option value="janta">jantar</option><option value="2alimentacao">Almoço + jantar</option></select></div><br><div class="valorbanco"></div></td>
-                                    <td class="ajdCusto Moeda"><div class="Acres-Desc"><select id="tpAjdCusto"><option value="select" selected disabled>Veiculo </option><option value="Publico">Publico</option><option value="alugado">alugado</option><option value="Proprio">Proprio</option></select></div><br><div class="valorbanco"></div></td>
-                                    <td class="totAjdCusto Moeda">0</td>
-                                    <td class="extraCampo" style="display: none;">
-                                        <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotaisOrc()">
-                                    </td>
-                                    <td class="extraCampo" style="display: none;">
-                                        <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotaisOrc()">
-                                    </td>
-                                    <td class="totGeral">0</td>
-                                    <td><div class="Acao"><button class="deleteBtn" id="removerLinha"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
-                                    </tr>
-                                    `;
+        <tr class="adicional">
+        <td class="Proposta"><div class="checkbox-wrapper-33" style="margin-top: 40px;"><label class="checkbox"><input class="checkbox__trigger visuallyhidden" type="checkbox" /><span class="checkbox__symbol"><svg aria-hidden="true" class="icon-checkbox"      width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg"><path d="M4 14l8 7L24 7"></path></svg></span><p class="checkbox__textwrapper"></p></label></div></td>
+        <td class="Categoria"></td>
+        <td class="qtdProduto"><div class="add-less"><input type="number" readonly class="qtdProduto" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+        <td class="produto"></td>
+        <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><!--  <div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div>--></td>
+        
+        <td class="Periodo"><div class="flatpickr-container"><input type="text" class="datas" id="seletorData" data-input required readonly placeholder="Clique para Selecionar"></div></td>
+                        
+        <td class="desconto Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
+        <td class="Acrescimo Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
+        <td class="vlrVenda Moeda"></td>
+        <td class="totVdaDiaria Moeda"></td>
+        <td class="vlrCusto Moeda"></td>
+        <td class="totCtoDiaria Moeda"></td>
+        <td class="ajdCusto Moeda"><div class="Acres-Desc"><select id="tpAjdCusto"><option value="select" selected disabled>Alimentação</option><option value="Almoco">Almoço</option><option value="janta">jantar</option><option value="2alimentacao">Almoço + jantar</option></select></div><br><div class="valorbanco"></div></td>
+        <td class="ajdCusto Moeda"><div class="Acres-Desc"><select id="tpAjdCusto"><option value="select" selected disabled>Veiculo </option><option value="Publico">Publico</option><option value="alugado">alugado</option><option value="Proprio">Proprio</option></select></div><br><div class="valorbanco"></div></td>
+        <td class="totAjdCusto Moeda">0</td>
+        <td class="extraCampo" style="display: none;">
+            <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotaisOrc()">
+        </td>
+        <td class="extraCampo" style="display: none;">
+            <input type="text" class="transporte" min="0" step="0.01" oninput="calcularTotaisOrc()">
+        </td>
+        <td class="totGeral">0</td>
+        <td><div class="Acao"><button class="deleteBtn" id="removerLinha"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
+        </tr>
+        `;
+    const novoInputData = novaLinha.querySelector('input[type="text"].datas'); // Encontra o input de data na nova linha
+    if (novoInputData && !novoInputData._flatpickr) {
+        flatpickr(novoInputData, commonFlatpickrOptionsTable); // Inicializa Flatpickr para este input
+        console.log("Flatpickr inicializado para nova linha adicionada no Adicional:", novoInputData);
+    } else {
+        console.error("Erro: Novo input de data não encontrado ou Flatpickr já inicializado para a nova linha do Adicional.");
+    }
 }
 
 function removerLinhaOrc(botao) {
@@ -925,39 +982,23 @@ console.log("Inicializando Flatpickr para todos os campos de data (globais)...")
         'periodoDesmontagemInfra'
     ];
 
-    dateInputIds.forEach(id => {
-        dateInputIds.forEach(id => {
+    dateInputIds.forEach(id => { // Este é o loop correto
         const element = document.getElementById(id);
-        if (element && !element._flatpickr) {
-            flatpickr(element, commonFlatpickrOptions); // Reutiliza as opções comuns
-            console.log(`Flatpickr inicializado para campo global #${id}`);
+        if (element) { // Verificamos se o elemento existe
+            // **IMPORTANTE**: Só inicialize se já não foi inicializado
+            if (!element._flatpickr) { 
+                const picker = flatpickr(element, commonFlatpickrOptions);
+                // **CRUCIAL**: Salve a instância no objeto global 'flatpickrInstances'
+                flatpickrInstances[id] = picker; 
+                console.log(`Flatpickr inicializado e salvo para campo global #${id}`);
+            } else {
+                console.log(`Flatpickr para campo global #${id} já estava inicializado.`);
+                // Se já estava inicializado, podemos simplesmente garantir que a instância está salva
+                flatpickrInstances[id] = element._flatpickr; 
+            }
+        } else {
+            console.warn(`Elemento com ID '${id}' não encontrado para inicialização do Flatpickr.`);
         }
-    });
-        // const element = document.getElementById(id);
-        // if (element) {
-        //     // Se o Flatpickr ainda não foi inicializado para este elemento
-        //     if (!element._flatpickr) { 
-        //         flatpickrInstances[id] = flatpickr(element, { 
-        //             mode: "range",
-        //             dateFormat: "d/m/Y", // Formato para o usuário
-        //             altInput: true,
-        //             altFormat: "d/m/Y",
-        //             locale: flatpickr.l10ns.pt,
-        //             appendTo: document.getElementById('modal-flatpickr-container') , // Se o problema for modal, tente 'document.body' ou 'inputElement.closest('.modal-content')'
-        //            // positionElement: element,
-        //             onChange: function(selectedDates, dateStr, instance) {
-        //                 // Estes campos NÃO calculam dias, então não chame 'atualizarQtdDias' aqui.
-        //                 console.log(`Período global selecionado para #${id}: ${dateStr}`);
-        //             }
-        //         });
-        //         console.log(`Flatpickr inicializado para campo global #${id}`);
-        //     } else {
-        //         console.log(`Flatpickr já está inicializado para campo global #${id}, pulando.`);
-        //         flatpickrInstances[id] = element._flatpickr; 
-        //     }
-        // } else {
-        //     console.warn(`Elemento com ID #${id} não encontrado para inicializar Flatpickr.`);
-        // }
     });
 }
 
@@ -1006,47 +1047,90 @@ function inicializarFlatpickr(inputElement, onDateChangeCallback = null) {
     console.log(`Flatpickr inicializado para #${inputElement.id} com config:`, config); // Adicionado para depuração
 }
 
-// Sua função para calcular a quantidade de dias na tabela
-function calcularQtdDiasTabela(selectedDates, dateStr, instance) {
-    if (selectedDates.length === 2) { // Apenas calcula se as duas datas do range foram selecionadas
-        const startDate = selectedDates[0];
-        const endDate = selectedDates[1];
+function atualizarQtdDias(input, selectedDatesArray) {
+  console.log("⏱️ Campo de datas alterado:", input.value);
 
-        const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-        // +1 para incluir o dia de início e o dia de fim no cálculo
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+  var linha = input.closest('tr');
+  var inputQtdDias = linha.querySelector('input.qtdDias');
+  var datas = input.value.split(" to ");
+  console.log("📆 Datas selecionadas:", datas);
 
-        // Encontra a linha da tabela e o campo 'qtdDias' dentro dela
-        const linha = instance.element.closest('tr'); // 'instance.element' é o input atual
-        const inputQtdDias = linha ? linha.querySelector('.qtdDias input[type="number"]') : null;
+  let diffDias = 0;
 
-        if (inputQtdDias) {
-            inputQtdDias.value = diffDays;
-            // console.log(`Qtd Dias da linha: ${diffDays}`);
-            // Chame suas funções de cálculo de totais aqui, se necessário
-            // if (typeof recalcularLinha === 'function') {
-            //     recalcularLinha(linha);
-            // }
-            // if (typeof calcularTotalOrc === 'function') {
-            //     calcularTotalOrc();
-            // }
+     if (selectedDatesArray && selectedDatesArray.length === 2) {
+        const startDate = selectedDatesArray[0];
+        const endDate = selectedDatesArray[1];
+
+        // Verifique se as datas são válidas
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+            console.error("Datas selecionadas inválidas.");
+            diffDias = "-"; // Ou outro indicador de erro
+        } else if (endDate >= startDate) {
+            const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+            // +1 para incluir o dia de início e o dia de fim no cálculo
+            diffDias = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
         } else {
-            console.warn("Input 'qtdDias' não encontrado na linha da tabela para", instance.element.id);
+            diffDias = "-"; // Data final é anterior à data inicial
+        }
+    } else if (selectedDatesArray && selectedDatesArray.length === 1 && selectedDatesArray[0]) {
+        // Apenas um dia selecionado (caso mode não seja range ou o usuário selecione apenas um dia)
+        if (!isNaN(selectedDatesArray[0].getTime())) {
+            diffDias = 1;
+        } else {
+            diffDias = "-";
         }
     } else {
-        // Se o range não estiver completo (apenas uma data selecionada), você pode limpar o campo qtdDias
-        const linha = instance.element.closest('tr');
-        const inputQtdDias = linha ? linha.querySelector('.qtdDias input[type="number"]') : null;
-        if (inputQtdDias) {
-            inputQtdDias.value = 0; // Ou "" se preferir um campo vazio
-        }
+        // Nenhuma data selecionada ou seleção incompleta
+        diffDias = 0; // Ou "-" se preferir um valor que indica vazio
     }
+
+    inputQtdDias.value = diffDias;
+    console.log("📤 Valor final enviado para input.qtdDias:", inputQtdDias.value);
+
+    // Atualiza a linha automaticamente
+    if (typeof recalcularLinha === 'function') {
+        console.log("🔁 Chamando recalcularLinha...");
+        recalcularLinha(linha);
+    } else {
+        console.warn("⚠️ Função recalcularLinha não está definida.");
+    }
+
+//   if (datas.length === 2) {
+//     // Dois dias selecionados (intervalo)
+//     var partesInicio = datas[0].trim().split('/');
+//     var partesFim = datas[1].trim().split('/');
+//     var inicio = new Date(partesInicio[2], partesInicio[1] - 1, partesInicio[0]);
+//     var fim = new Date(partesFim[2], partesFim[1] - 1, partesFim[0]);
+
+//     if (fim >= inicio) {
+//       diffDias = Math.floor((fim - inicio) / (1000 * 60 * 60 * 24)) + 1;
+//     } else {
+//       diffDias = "-";
+//     }
+
+//   } else if (datas.length === 1 && datas[0].trim() !== '') {
+//     // Apenas um dia selecionado
+//     diffDias = 1;
+//   } else {
+//     diffDias = "-";
+//   }
+
+//   inputQtdDias.value = diffDias;
+//   console.log("📤 Valor final enviado para input.qtdDias:", inputQtdDias.value);
+
+//   // Atualiza a linha automaticamente
+//   if (typeof recalcularLinha === 'function') {
+//     console.log("🔁 Chamando recalcularLinha...");
+//     recalcularLinha(linha);
+//   } else {
+//     console.warn("⚠️ Função recalcularLinha não está definida.");
+//   }
 }
 
 
 //formulario de 
 function atualizarUFOrc(selectLocalMontagem) {
-      console.log("Função atualizarUF chamada");
+     console.log("Função atualizarUF chamada");
      console.log("Lista atual de locais antes da busca:", locaisDeMontagem);
 
     let selectedOption = selectLocalMontagem.options[selectLocalMontagem.selectedIndex]; // Obtém a opção selecionada
@@ -1164,25 +1248,32 @@ async function verificaOrcamento() {
     // Isso deve ser chamado depois que os selects estiverem carregados, se dependerem deles
 
    // inicializarFlatpickrsGlobais(); 
-   initializeAllFlatpickrsInModal(); // Inicializa os campos de data globais
+    initializeAllFlatpickrsInModal(); // Inicializa os campos de data globais
 
     configurarInfraCheckbox();
     
-    const selectElement = document.getElementById('selectLocalMontagem');
+    const selectElement = document.getElementById('idLocalMontagem');
 
-    if (selectElement) {        
-        // Adiciona o event listener para o evento 'change'
-        selectElement.addEventListener('change', function() {
-            // Chama a função atualizarUFOrc, passando 'this' (o próprio select)
+    if (selectElement) {       
+        selectElement.addEventListener('change', function() {           
             atualizarUFOrc(this);
         });
-        console.log("Event listener adicionado ao selectLocalMontagem.");
+        console.log("Event listener adicionado ao idLocalMontagem.");
 
-        // Se carregarLocalMontOrc() precisar ser chamada imediatamente para popular o select:
-        // carregarLocalMontOrc();
     } else {
-        console.error("Elemento 'selectLocalMontagem' não encontrado no DOM!");
+        console.error("Elemento 'idLocalMontagem' não encontrado no DOM!");
     }   
+
+   const periododtproduto = document.getElementById('seletorData');
+
+    if (periododtproduto) {
+        flatpickr(periododtproduto, commonFlatpickrOptionsTable);  
+    
+        console.log("Flatpickr inicializado para o seletor de data de produto.");
+
+    } else {
+        console.error("Elemento 'seletorData' não encontrado no DOM!");
+    }
     
     const statusInput = document.getElementById('Status');
     if(statusInput){
@@ -1236,7 +1327,10 @@ async function verificaOrcamento() {
                 const orcamento = await fetchComToken(url, { method: 'GET' });
 
                 // Se encontrou o orçamento, preenche o formulário
+                console.log("DEBUG: Conteúdo de flatpickrInstances ANTES de preencher:", flatpickrInstances);
                 preencherFormularioComOrcamento(orcamento);
+                
+
 
               //  Swal.fire("Sucesso!", `Orçamento Nº ${orcamento.nrorcamento} carregado.`, "success");
 
@@ -1277,16 +1371,21 @@ async function verificaOrcamento() {
         btnAdicionarLinhaAdicional.addEventListener('click', function() {
             console.log("Botão 'Adicionar Linha Adicional' clicado");
             adicionarLinhaAdicional(); // Chama a função para adicionar uma nova linha adicional
-            // Inicializa o Flatpickr para o novo input de data
-            const novoInput = document.querySelector('#tabela tbody tr.linha-adicional:last-child .flatpickr input[type="text"]');
-            if (novoInput) {
-                inicializarFlatpickr(novoInput, calcularQtdDiasTabela); // Passa a função de callback para calcular a quantidade de dias
-            } else {
-                console.error("Novo input de data não encontrado após adicionar linha adicional.");
-            }
+            
         });
     } else {
         console.error("Botão 'Adicionar Linha Adicional' não encontrado.");
+    }
+
+    const btnRemoverLinha = document.getElementById('removerLinha');
+    if (btnRemoverLinha) {
+        btnRemoverLinha.addEventListener('click', function() {
+            console.log("Botão 'Remover Linha' clicado");
+            // 
+            removerLinhaOrc(this); // Chama a função para remover a linha
+        });
+    } else {
+        console.error("Botão 'Remover Linha' não encontrado.");
     }
 
     const btnRemoverLinha = document.getElementById('removerLinha');
@@ -1339,14 +1438,18 @@ async function verificaOrcamento() {
         console.log("ID do Orçamento (parseado para número ou null):", orcamentoId);
 
         console.log("idEvento BTNSALVAR", document.querySelector(".idEvento option:checked")?.value || null);
-        console.log("idlocalmontagem BTNSALVAR", document.querySelector(".idlocalmontagem option:checked")?.value || null);
-        
-        const infraMontagemDatas = getPeriodoDatas(formData, "periodoInfraMontagem");
-        const marcacaoDatas = getPeriodoDatas(formData, "periodoMarcacao");
-        const montagemDatas = getPeriodoDatas(formData, "periodoMontagem");
-        const realizacaoDatas = getPeriodoDatas(formData, "periodoRealizacao");
-        const desmontagemDatas = getPeriodoDatas(formData, "periodoDesmontagem");
-        const desmontagemInfraDatas = getPeriodoDatas(formData, "periodoDesmontagemInfra");
+        console.log("idLocalMontagem BTNSALVAR", document.querySelector(".idLocalMontagem option:checked")?.value || null);
+
+        const infraMontagemDatas = getPeriodoDatas(formData.get("periodoInfraMontagem"));
+        for (const pair of formData.entries()) {
+            console.log(`formData entry: ${pair[0]}, ${pair[1]}`);
+        }
+        const marcacaoDatas = getPeriodoDatas(formData.get("periodoMarcacao"));
+        console.log("marcacaoDatas BTNSALVAR", marcacaoDatas);
+        const montagemDatas = getPeriodoDatas(formData.get("periodoMontagem"));
+        const realizacaoDatas = getPeriodoDatas(formData.get("periodoRealizacao"));
+        const desmontagemDatas = getPeriodoDatas(formData.get("periodoDesmontagem"));
+        const desmontagemInfraDatas = getPeriodoDatas(formData.get("periodoDesmontagemInfra"));
 
         const dadosOrcamento = {
             id: orcamentoId,
@@ -1412,7 +1515,7 @@ async function verificaOrcamento() {
             nrorcamento: parseInt(linha.querySelector(".nrOrcamento")?.value) || null,
             enviarnaproposta: linha.querySelector('.Proposta input[type="checkbox"]')?.checked || false,
             categoria: linha.querySelector(".Categoria")?.textContent.trim(),
-            qtditens: parseInt(linha.querySelector(".qtdPessoas input")?.value) || 0,
+            qtditens: parseInt(linha.querySelector(".qtdProduto input")?.value) || 0,
             idfuncao: parseInt(linha.querySelector(".idFuncao")?.value) || null,
             idequipamento: parseInt(linha.querySelector(".idEquipamento")?.value) || null,
             idsuprimento: parseInt(linha.querySelector(".idSuprimento")?.value) || null,
@@ -1427,7 +1530,7 @@ async function verificaOrcamento() {
             acrescimoitem: desformatarMoeda(linha.querySelector(".Acrescimo.Moeda .ValorInteiros")?.value || '0'),
             percentacrescimoitem: parsePercentValue(linha.querySelector(".Acrescimo.Moeda .valorPerCent")?.value),
            
-            // qtdPessoas: linha.querySelector(".qtdPessoas input")?.value || "0",
+            // qtdProduto: linha.querySelector(".qtdProduto input")?.value || "0",
             vlrdiaria: desformatarMoeda(linha.querySelector(".vlrVenda.Moeda")?.textContent || '0'),
             totvdadiaria: desformatarMoeda(linha.querySelector(".totVdaDiaria.Moeda")?.textContent || '0'),
             ctodiaria: desformatarMoeda(linha.querySelector(".vlrCusto.Moeda")?.textContent || '0'),
@@ -1538,21 +1641,26 @@ function preencherFormularioComOrcamento(orcamento) {
         console.warn("Elemento com classe '.idEvento' não encontrado.");
     }
 
-    const localMontagemSelect = document.querySelector('.idMontagem');
+    const localMontagemSelect = document.querySelector('.idLocalMontagem');
     if (localMontagemSelect) {      
-        localMontagemSelect.value = orcamento.idlocalmontagem || '';
+        localMontagemSelect.value = orcamento.idmontagem || '';
     } else {
-        console.warn("Elemento com classe '.idMontagem' não encontrado.");
+        console.warn("Elemento com classe '.idLocalMontagem' não encontrado.");
     }   
 
+    console.log("Preenchendo campos de data com os valores do orçamento:", orcamento);
     for (const id in flatpickrInstances) {
         const pickerInstance = flatpickrInstances[id];
         
+        console.log(`Verificando Flatpickr para ID: ${id}`); // Log para depuração
+        console.log(`Instância Flatpickr para ID ${id}:`, pickerInstance); //
         // Verificação robusta para a instância do Flatpickr
         if (pickerInstance && typeof pickerInstance.setDate === 'function' && pickerInstance.config) {
             let inicio = null;
             let fim = null;
             
+            console.log(`Preenchendo Flatpickr para ID: ${id}`); // Log para depuração
+            console.log(`Valores do orçamento para ${id}:`, orcamento);
             switch(id) {
                 case 'periodoInfraMontagem':
                     inicio = orcamento.dtiniinframontagem;
@@ -1583,8 +1691,10 @@ function preencherFormularioComOrcamento(orcamento) {
             const startDate = inicio ? new Date(inicio) : null;
             const endDate = fim ? new Date(fim) : null;
 
-            console.log(`Configurando Flatpickr para ${id}: Data Início = ${startDate}, Data Fim = ${endDate}`);           
+            console.log(`Configurando Flatpickr para ${id}: Data Início = ${startDate}, Data Fim = ${endDate}`); 
+            console.log(`startDate isNaN: ${isNaN(startDate?.getTime())}, endDate isNaN: ${isNaN(endDate?.getTime())}`);          
 
+                    
             if (pickerInstance.config.mode === "range") {
                 // Adiciona verificação para datas válidas e tratamento para apenas uma data
                 if (startDate && endDate && !isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
@@ -1605,6 +1715,7 @@ function preencherFormularioComOrcamento(orcamento) {
             console.warn(`[preencherFormularioComOrcamento] Instância Flatpickr para ID '${id}' não encontrada ou inválida. Não foi possível preencher.`);
         }
     }
+    console.log("Campos de data preenchidos com sucesso.");
 
     // Preencher campos de texto
      const obsItensInput = document.getElementById('Observacao'); 
@@ -1677,9 +1788,102 @@ function preencherFormularioComOrcamento(orcamento) {
 
     const valorClienteInput = document.getElementById('valorCliente');
     if (valorClienteInput) valorClienteInput.value = formatarMoeda(orcamento.vlrcliente || 0);
-    // TODO: Chamar função para preencher a tabela de itens do orçamento
-    // A rota GET no backend deve retornar os itens associados ao orçamento.
-    // Ex: preencherItensOrcamentoTabela(orcamento.itens || []);
+    
+    preencherItensOrcamentoTabela(orcamento.itens || []);
+}
+
+function preencherItensOrcamentoTabela(itens) {
+    const tabelaBody = document.querySelector("#tabela tbody"); 
+
+    if (!tabelaBody) {
+        console.warn("Corpo da tabela de itens (seletor #tabela tbody) não encontrado. Não é possível preencher os itens.");
+        return;
+    }
+
+    tabelaBody.innerHTML = ''; // Limpa as linhas existentes da tabela antes de preencher
+
+    if (!itens || itens.length === 0) {
+        console.log("Nenhum item encontrado para este orçamento ou 'itens' está vazio.");
+        return;
+    }
+
+    itens.forEach(item => {
+        const newRow = tabelaBody.insertRow();
+        // Adapte os nomes das propriedades para o que seu backend retorna para CADA ITEM
+        // E os IDs/classes para seu HTML da tabela de itens.
+        newRow.innerHTML = `
+            <td><input type="hidden" class="idItemOrcamento" value="${item.iditemorcamento || ''}"></td>
+            <td class="Proposta"><input type="checkbox" ${item.enviarnaproposta ? 'checked' : ''}></td>
+            <td class="Categoria">${item.categoria || ''}</td>
+            <td class="produto">${item.produto || ''}</td>
+            <td class="qtdProduto"><input type="number" value="${item.qtditens || 0}"></td>
+            <td class="qtdDias"><input type="number" value="${item.qtddias || 0}"></td>
+            <td class="Periodo">
+                <input type="text" class="datas-item" value="${formatarDatasParaInputPeriodo(item.periododiariasinicio, item.periododiariasfim)}">
+            </td>
+            <td class="vlrVenda Moeda">${formatarMoeda(item.vlrdiaria || 0)}</td>
+            <td class="totVdaDiaria Moeda">${formatarMoeda(item.totvdadiaria || 0)}</td>
+            <td class="vlrCusto Moeda">${formatarMoeda(item.ctodiaria || 0)}</td>
+            <td class="totCtoDiaria Moeda">${formatarMoeda(item.totctodiaria || 0)}</td>
+            <td class="desconto Moeda">
+                <input type="text" class="ValorInteiros" value="${parseFloat(item.descontoitem || 0).toFixed(2)}">
+                <input type="text" class="valorPerCent" value="${parseFloat(item.percentdescontoitem || 0).toFixed(2)}">
+            </td>
+            <td class="Acrescimo Moeda">
+                <input type="text" class="ValorInteiros" value="${parseFloat(item.acrescimoitem || 0).toFixed(2)}">
+                <input type="text" class="valorPerCent" value="${parseFloat(item.percentacrescimoitem || 0).toFixed(2)}">
+            </td>
+            <td class="ajdCusto Moeda">
+                <input type="text" class="tpAjdCusto-alimentacao" value="${item.tpajdctoalimentacao || ''}">
+                <span class="valorbanco alimentacao">${formatarMoeda(item.vlrajdctoalimentacao || 0)}</span>
+                <input type="text" class="tpAjdCusto-transporte" value="${item.tpajdctotransporte || ''}">
+                <span class="valorbanco transporte">${formatarMoeda(item.vlrajdctotransporte || 0)}</span>
+            </td>
+            <td class="totAjdCusto Moeda">${formatarMoeda(item.totajdctoitem || 0)}</td>
+            <td class="extraCampo">
+                <input type="text" class="hospedagem" value="${item.hospedagem || 0}">
+                <input type="text" class="transporte" value="${item.transporte || 0}">
+            </td>
+            <td class="totGeral">${formatarMoeda(item.totgeralitem || 0)}</td>
+            <td><button type="button" class="btn-excluir-item">Excluir</button></td>
+        `;
+
+        // Se você tem Flatpickr para o campo "Periodo" de CADA ITEM,
+        // você precisará inicializá-lo AQUI para a nova linha recém-criada.
+        const itemDateInput = newRow.querySelector(".Periodo .datas-item");
+        if (itemDateInput) {
+            flatpickr(itemDateInput, {
+                mode: "range",
+                dateFormat: "d/m/Y",
+                locale: "pt",
+            });
+        }
+    });
+}
+
+function formatarDatasParaInputPeriodo(inicioStr, fimStr) {
+    const formatarSimples = (data) => {
+        if (!data) return '';
+        const d = new Date(data);
+        if (isNaN(d.getTime())) return ''; // Verifica se a data é válida
+        const dia = String(d.getDate()).padStart(2, '0');
+        const mes = String(d.getMonth() + 1).padStart(2, '0'); // Mês é base 0
+        const ano = d.getFullYear();
+        return `${dia}/${mes}/${ano}`;
+    };
+
+    const inicioFormatado = formatarSimples(inicioStr);
+    const fimFormatado = formatarSimples(fimStr);
+
+    if (inicioFormatado && fimFormatado) {
+        if (inicioFormatado === fimFormatado) {
+            return inicioFormatado; // Se for a mesma data, mostra apenas uma vez
+        }
+        return `${inicioFormatado} até ${fimFormatado}`;
+    } else if (inicioFormatado) {
+        return inicioFormatado; // Se só tiver data de início
+    }
+    return ''; // Se não tiver nenhuma data
 }
 
 // --- Função para Limpar o Formulário Principal ---
@@ -1705,13 +1909,34 @@ function limparFormularioOrcamento() {
     // Ex: limparItensOrcamentoTabela();
 }
 
+function getPeriodoDatas(inputValue) { // Recebe diretamente o valor do input
+   
+    console.log("Valor do input recebido:", inputValue);
+    
+    if (typeof inputValue !== 'string' || inputValue.trim() === '') {
+        // Se o input estiver vazio ou não for uma string, retorna null para as datas.
+        // Isso é exatamente o que você quer para campos opcionais não preenchidos.
+        return { inicio: null, fim: null };
+    }
+    const datas = inputValue.split(' até '); 
 
-// Função auxiliar para formatar percentuais (se você precisar)
-function formatarPercentual(valor) {
-    if (valor === null || valor === undefined) return '';
-    return (parseFloat(valor)).toFixed(2) + '%'; // Converte 0.1 para 10.00%
+    let dataInicial = null;
+    let dataFinal = null;
+
+    if (datas.length === 2) {
+        // Se há duas partes, é um período completo (início e fim)
+        dataInicial = formatarDataParaBackend(datas[0].trim()); // Trim para remover espaços extras
+        dataFinal = formatarDataParaBackend(datas[1].trim());
+    } else if (datas.length === 1) {
+        // Se há apenas uma parte, é uma única data selecionada
+        dataInicial = formatarDataParaBackend(datas[0].trim());
+        dataFinal = formatarDataParaBackend(datas[0].trim()); // Ou null, dependendo da sua regra para um único dia
+                                                              // Deixei como a mesma data para um período de 1 dia.
+    }
+    // Caso contrário (datas.length é 0, já tratado pela validação inicial)
+console.log("Datas retornadas:", { inicio: dataInicial, fim: dataFinal });
+    return { inicio: dataInicial, fim: dataFinal };
 }
-
 
 function formatarDataParaBackend(dataString) {
     if (!dataString) return null;
@@ -1743,35 +1968,8 @@ function formatarDataParaBackend(dataString) {
 
         return `${ano}-${mes}-${dia}`; // Retorna no formato YYYY-MM-DD
     }
-    return dataString; // Retorna como está se não for DD/MM/YYYY
-}
-
-function getPeriodoDatas(inputValue) { // Recebe diretamente o valor do input
-   
-    
-    if (typeof inputValue !== 'string' || inputValue.trim() === '') {
-        // Se o input estiver vazio ou não for uma string, retorna null para as datas.
-        // Isso é exatamente o que você quer para campos opcionais não preenchidos.
-        return { inicio: null, fim: null };
-    }
-    const datas = inputValue.split(' - '); 
-
-    let dataInicial = null;
-    let dataFinal = null;
-
-    if (datas.length === 2) {
-        // Se há duas partes, é um período completo (início e fim)
-        dataInicial = formatarDataParaBackend(datas[0].trim()); // Trim para remover espaços extras
-        dataFinal = formatarDataParaBackend(datas[1].trim());
-    } else if (datas.length === 1) {
-        // Se há apenas uma parte, é uma única data selecionada
-        dataInicial = formatarDataParaBackend(datas[0].trim());
-        dataFinal = formatarDataParaBackend(datas[0].trim()); // Ou null, dependendo da sua regra para um único dia
-                                                              // Deixei como a mesma data para um período de 1 dia.
-    }
-    // Caso contrário (datas.length é 0, já tratado pela validação inicial)
-
-    return { inicio: dataInicial, fim: dataFinal };
+    //return dataString; // Retorna como está se não for DD/MM/YYYY
+    return null; // Retorna null se a data não estiver no formato esperado
 }
 
 function parsePercentValue(valueString) {
@@ -1782,6 +1980,24 @@ function parsePercentValue(valueString) {
     const cleanedValue = valueString.replace('%', '').trim().replace(',', '.');
     return parseFloat(cleanedValue) || 0; // Retorna 0 se não for um número válido após a limpeza
 }
+
+// Função auxiliar para formatar percentuais (se você precisar)
+function formatarPercentual(valor) {
+    //if (valor === null || valor === undefined) return '';
+    //return (parseFloat(valor)).toFixed(2) + '%'; // Converte 0.1 para 10.00%
+
+    if (valor === null || valor === undefined || valor === '') {
+        return '0,00%'; // Retorna um valor padrão para nulos/vazios
+    }
+    const numero = parseFloat(valor);
+    if (isNaN(numero)) {
+        console.warn(`Valor inválido para formatarPercentual: ${valor}. Retornando 0,00%.`);
+        return '0,00%';
+    }
+    // Usa toLocaleString para formatação com vírgula e 2 casas decimais, depois adiciona o '%'
+    return `${numero.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+}
+
 //SALVANDO ORCAMENTO
 function enviarOrcamento() {
     const tabela = document.getElementById("tabela");
@@ -2185,7 +2401,7 @@ async function gerarPropostaPDF() {
             const checkbox = linha.querySelector('.Proposta input');
             if (!checkbox || !checkbox.checked) return;
 
-            const qtdItens = linha.querySelector('.qtdPessoas input')?.value?.trim();
+            const qtdItens = linha.querySelector('.qtdProduto input')?.value?.trim();
             const produto = linha.querySelector('.produto')?.innerText?.trim();
             const qtdDias = linha.querySelector('.qtdDias input')?.value?.trim();
             const categoria = linha.querySelector('.Categoria')?.innerText?.trim();
@@ -2339,7 +2555,7 @@ function exportarParaExcel() {
 
     linha.push(tr.querySelector('input[type="checkbox"]')?.checked ? "Sim" : "Não");
     linha.push(tr.querySelector(".Categoria")?.innerText.trim() || "");
-    linha.push(tr.querySelector(".qtdPessoas input")?.value || "0");
+    linha.push(tr.querySelector(".qtdProduto input")?.value || "0");
     linha.push(tr.querySelector(".produto")?.innerText.trim() || "");
     linha.push(tr.querySelector(".qtdDias input")?.value || "0");
     linha.push(tr.querySelector(".datas")?.value || "");
@@ -2438,7 +2654,7 @@ async function salvarOrcamento(event) {
     linhas.forEach((linha) => {
         const item = {
             categoria: linha.querySelector(".Categoria")?.textContent.trim(),
-            qtdPessoas: linha.querySelector(".qtdPessoas input")?.value,
+            qtdProduto: linha.querySelector(".qtdProduto input")?.value,
             produto: linha.querySelector(".produto")?.textContent.trim(),
             qtdDias: linha.querySelector(".qtdDias input")?.value,
             vlrVenda: linha.querySelector(".vlrVenda")?.textContent.trim(),

@@ -74,13 +74,13 @@ router.get(
         WHERE
             oe.idempresa = $1 -- Sempre filtra pela empresa do usuário logado
       `;
-      const values = [idempresa];
+      const valuesOrcamento = [idempresa];
       let paramIndex = 2; // Começa em 2 porque $1 já é idempresa
 
       // Adiciona condição WHERE para nrOrcamento
       if (nrOrcamento) {
         query += ` AND o.nrorcamento = $${paramIndex++}`;
-        values.push(nrOrcamento);
+        valuesOrcamento.push(nrOrcamento);
       } else {
         // Se nrOrcamento não for fornecido, não retorne nada ou retorne um erro 400.
         // Para esta funcionalidade, se não há nrOrcamento, não deve haver busca.
@@ -90,18 +90,76 @@ router.get(
       query += ` ORDER BY o.nrorcamento DESC LIMIT 1;`; // Adiciona LIMIT 1 para garantir apenas um resultado
 
       console.log("Query de busca por nrOrcamento:", query);
-      console.log("Valores da busca por nrOrcamento:", values);
+      console.log("Valores da busca por nrOrcamento:", valuesOrcamento);
 
-      const result = await client.query(query, values);
+      const resultOrcamento = await client.query(query, valuesOrcamento);
 
-      console.log("Resultado da busca por nrOrcamento:", result.rows.length, "linhas.", result);
+      console.log("Resultado da busca por nrOrcamento:", resultOrcamento.rows.length, "linhas.", resultOrcamento);
 
-      if (result.rows.length === 0) {
+      if (resultOrcamento.rows.length === 0) {
         return res.status(404).json({ message: "Orçamento não encontrado com o número fornecido." });
       }
 
       // Retorna o primeiro (e único) orçamento encontrado
-      res.status(200).json(result.rows[0]);
+  //     res.status(200).json(resultOrcamento.rows[0]);
+
+  //   } catch (error) {
+  //     console.error("Erro ao buscar orçamento por número:", error);
+  //     res.status(500).json({ error: "Erro ao buscar orçamento.", detail: error.message });
+  //   } finally {
+  //     client.release();
+  //   }
+  // }
+      const orcamento = resultOrcamento.rows[0];
+
+      // Agora, busque os itens do orçamento
+      console.log("Buscando itens do orçamento com ID:", orcamento.idorcamento);
+      
+      // Query para buscar os itens do orçamento
+  const queryItens = `
+        SELECT
+            idorcamentoitem,
+            idorcamento,
+            enviarnaproposta,
+            categoria,
+            produto,
+            qtditens,
+            qtddias,
+            periododiariasinicio,
+            periododiariasfim,
+            vlrdiaria,
+            totvdadiaria,
+            ctodiaria,
+            totctodiaria,
+            descontoitem,
+            percentdescontoitem,
+            acrescimoitem,
+            percentacrescimoitem,
+            tpajdctoalimentacao,
+            vlrajdctoalimentacao,
+            tpajdctotransporte,
+            vlrajdctotransporte,
+            totajdctoitem,
+            hospedagem,
+            transporte,
+            totgeralitem
+        FROM
+            orcamentoitens
+        WHERE
+            idorcamento = $1
+        ORDER BY idorcamentoitem ASC;
+      `;
+      // Use o idorcamento que você acabou de buscar para encontrar os itens
+      const resultItens = await client.query(queryItens, [orcamento.idorcamento]);
+      const itensDoOrcamento = resultItens.rows;
+
+      console.log("Itens encontrados para o orçamento:", itensDoOrcamento.length, "itens.");
+
+      // --- PASSO CRUCIAL: ANEXAR OS ITENS AO OBJETO DO ORÇAMENTO ---
+      orcamento.itens = itensDoOrcamento;
+
+      // Retorna o orçamento completo, agora com os itens
+      res.status(200).json(orcamento);
 
     } catch (error) {
       console.error("Erro ao buscar orçamento por número:", error);

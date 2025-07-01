@@ -4,7 +4,7 @@ const pool = require("../db/conexaoDB");
 const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlewares');
 const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 const logMiddleware = require('../middlewares/logMiddleware');
-// Aplica autenticação em todas as rotas
+
 router.use(autenticarToken());
 router.use(contextoEmpresa);
 

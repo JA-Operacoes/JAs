@@ -76,7 +76,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      margin-top: 470px;
+      margin-top: 700px;
   }
   
   
@@ -287,6 +287,19 @@ display: none;
     outline: none;
   }
 
+  #idiomasContainer input {
+  font-family: var(--Font-primary);
+  width: 100px;
+  height: 40px;
+  border-radius: 6px;
+  font-size: 15px;
+  padding: 0 20px;
+  border: 1px solid #000000;
+  background: transparent;
+  color: #000000;
+  outline: none;
+} 
+
   .form2 select{
     font-family: var(--Font-primary);
     width: 270px;
@@ -300,6 +313,8 @@ display: none;
     outline: none;
   }
   .form label, .form-2colunas label, .form2 label{
+    display: flex;
+    justify-content: center;
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
@@ -323,8 +338,7 @@ display: none;
   }
 
   input:focus ~ label,
-  input:valid ~ label,
-  input:not([value=""]) ~ label{
+  input:valid ~ label{
     top: 0;
     left: 25%;
     font-size: 12px;
@@ -332,13 +346,20 @@ display: none;
     background: #cacaca;
   }
   
-input:not([value=""]) ~ label {
+input ~ label {
   top: 0;
   left: 25%;
   font-size: 15px;
   padding: 0 2px;
   background: #cacaca; /* Certifique-se que esta cor corresponde ao background do seu #form-content ou fieldset */
 }
+
+input#dataNasc:not([value=""]) ~ label {
+    top: 0;
+    left: 25px;
+    font-size: 12px;
+    background: #cacaca;
+  }
   
   input[type=date]{
     width: 111px;
@@ -374,9 +395,30 @@ input:not([value=""]) ~ label {
   width: 300px;
 }
 
-  input#complemento, input#pais, input#estado, input#numero, input#agencia,  input#CodBanco, input#rg,input#cpf {
-    width: 120px; 
+  input#complemento, input#pais, input#estado, input#numero,input#rg,input#cpf, input#dataNasc {
+    width: 130px; 
   }
+
+  input#codBanco,#banco,#agencia,#digitoAgencia,#nConta,#digitoConta,#pix,.form-control.input{
+    width: 170px;
+  }
+
+  .flatpickr-calendar {
+  z-index: 1060 !important; /* alto o suficiente para ficar acima do modal */
+  position: absolute !important;
+}
+.flatpickr-calendar.open {
+            opacity: 1 !important;
+            visibility: visible !important;
+}
+  body.modal-open .flatpickr-calendar {
+    pointer-events: auto !important; /* CRÍTICO: Reativa os cliques no calendário */
+    z-index: 99999 !important; /* Mantenha este z-index MUITO alto para garantir que ele apareça acima de tudo */
+  }
+
+
+
+
   input#Pix {
     width: 250px;
   }

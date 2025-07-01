@@ -59,7 +59,7 @@
                     </div>
                         <div class="select2">
                             <label for="idMontagem">Local Montagem:</label>
-                            <select class="idMontagem"  id="selectLocalMontagem"></select>
+                            <select class="idMontagem"  id="idLocalMontagem"></select>
                         <div class="form3">
                             <input type="text" class="ufmontagem" id="ufmontagem" name="ufmontagem" required spellcheck="false">
                             <label  for="ufmontagem">UF</label>
@@ -216,12 +216,12 @@
                             <tr>
                                 <td class="Proposta"><div class="checkbox-wrapper-33" style="margin-top: 40px;"><label class="checkbox"><input class="checkbox__trigger visuallyhidden" type="checkbox" /><span class="checkbox__symbol"><svg aria-hidden="true" class="icon-checkbox"      width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg"><path d="M4 14l8 7L24 7"></path></svg></span><p class="checkbox__textwrapper"></p></label></div></td>
                                 <td class="Categoria"></td>
-                                <td class="qtdPessoas"><div class="add-less"><input type="number" readonly class="qtdPessoas" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
+                                <td class="qtdProduto"><div class="add-less"><input type="number" readonly class="qtdProduto" min="0" value="0" oninput="calcularTotalOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
                                 <td class="produto"><div class="Acres-Desc"><select id="Pavilhoes"><option value="select">Pavilhao de atuação </option></select></div><br><div class="valorbanco"></div></td>
                                 <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="0" oninput="calcularTotalOrc()"><!--  <div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div>--></td>
 
-                                <td class="Periodo"><div class="flatpickr" id="seletorData"><input type="text" class="datas" data-input required readonly placeholder="Clique para Selecionar" oninput="atualizarQtdDias(this)" ></div></td>
-                                <!-- <td class="Periodo"><div class="Acres-Desc"><p>de:<input type="date" class="data-inicio" oninput="atualizarQtdDias(this)"></p><p>até<input type="date" class="data-fim" oninput="atualizarQtdDias(this)"></p></div></td> -->
+                                <!-- <td class="Periodo"><div class="flatpickr" id="seletorData"><input type="text" class="datas" data-input required readonly placeholder="Clique para Selecionar"></div></td> -->
+                               <td class="Periodo"><div class="flatpickr-container"><input type="text" class="datas" id="seletorData" data-input required readonly placeholder="Clique para Selecionar"></div></td>
 
                                 
                                 <td class="desconto Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
@@ -230,8 +230,28 @@
                                 <td class="totVdaDiaria Moeda"></td>
                                 <td class="vlrCusto Moeda"></td>
                                 <td class="totCtoDiaria Moeda"></td>
-                                <td class="ajdCusto Moeda"><div class="Acres-Desc"><select id="tpAjdCusto"><option value="select" selected disabled>Alimentação</option><option value="Almoco">Almoço</option><option value="janta">jantar</option><option value="2alimentacao">Almoço + jantar</option></select></div><br><div class="valorbanco"></div></td>
-                                <td class="ajdCusto Moeda"><div class="Acres-Desc"><select id="tpAjdCusto"><option value="select" selected disabled>Veiculo </option><option value="Publico">Publico</option><option value="alugado">alugado</option><option value="Proprio">Proprio</option></select></div><br><div class="valorbanco"></div></td>
+                                <td class="ajdCusto Moeda">
+                                    <div class="Acres-Desc">
+                                        <select id="tpAjdCusto">
+                                            <option value="select" selected disabled>Alimentação</option>
+                                            <option value="almoco">Almoço</option>
+                                            <option value="janta">Jantar</option>
+                                            <option value="2alimentacao">Almoço + jantar</option>
+                                        </select>
+                                    </div>
+                                    <br><div class="valorbanco"></div>
+                                </td>
+                                <td class="ajdCusto Moeda">
+                                    <div class="Acres-Desc">
+                                        <select id="tpAjdCusto">
+                                            <option value="select" selected disabled>Veiculo </option>
+                                            <option value="Publico">Publico</option>
+                                            <option value="alugado">alugado</option>
+                                            <option value="Proprio">Proprio</option>
+                                        </select>
+                                    </div>
+                                    <br><div class="valorbanco"></div>
+                                </td>
                                 <td class="totAjdCusto Moeda">0</td>
                                 <td class="extraCampo" style="display: none;">
                                     <input type="text" class="hospedagem" min="0" step="0.01" oninput="calcularTotaisOrc()">

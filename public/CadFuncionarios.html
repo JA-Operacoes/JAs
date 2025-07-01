@@ -28,8 +28,8 @@
         <form  id="funcionarios" name="form" autocomplete="off">
           
           <div class="form">
-            <input type="text" name="idFuncionarios" id="idFuncionarios" readonly required  spellcheck="false">
-            <label for ="idFuncionarios">#Codigo</label>
+            <input type="text" name="idFuncionario" id="idFuncionario" readonly required  spellcheck="false">
+            <label for ="idFuncionario">#Codigo</label>
           </div>
 
           <fieldset>
@@ -78,27 +78,30 @@
                 <input type="text" name="nome" id="nome" class = "uppercase" required spellcheck="false">
                 <label for="nome">Nome</label>
               </div>
+
+              <div class="form2">
+                <input type="text" name="dataNasc" id="dataNasc" placeholder="Clique para Escolher"  required readonly>
+                <label for="dataNasc">Data de Nasc</label>
+              </div>
             
+            </div>
+
+            <div class="form-2colunas">
               <div class="form2">
                 <input type="text" name="cpf" id="cpf" oninput="formatCPF(this)" maxlength="14" spellcheck="false" required>
                 <label for="cpf">CPF</label>
               </div>
               
-                <!-- <div class="form2">
-                  <input type="text" name="rg" id="rg" oninput="formatRG(this)" maxlength="14" spellcheck="false" required >
+                <div class="form2">
+                  <input type="text" name="rg" id="rg" oninput="formatRG(this)" maxlength="12" spellcheck="false" required >
                   <label for="rg">RG</label>
-                </div> -->
+                </div>
             </div>
-                
             
             <div class="form-2colunas">
-              <div class="form2">
-                <input type="text" name="rg" id="rg" oninput="formatRG(this)" maxlength="12" spellcheck="false" required >
-                <label for="rg">RG</label>
-              </div>
 
               <div class="form2">
-                <select id="Linguas" onchange="atualizarCamposLinguas()">
+                <select id="Linguas">
                   <option value="" selected disabled> Selecione o nível de fluência </option>
                   <option value="Monolingue">Monolíngue</option>
                   <option value="Bilingue">Bilíngue</option>
@@ -106,10 +109,11 @@
                   <option value="Poliglota">Poliglota</option>
                 </select>
               </div>
+            </div>
 
               <div id="idiomasContainer" style="margin-left: 10px;"></div>
+              <br>
 
-            </div>
           </fieldset>
 
 
@@ -123,6 +127,12 @@
               <div class="form2">
                 <input type="tel" name="celularFamiliar" id="celularFamiliar"  maxlength="15" oninput="formatTelefone(this)" required>
                 <label for="celularFamiliar">Celular para contato familiar </label>
+              </div>
+            </div>
+            <div class="form-2colunas">
+              <div class="form2">
+                <input type="text" name="nomeFamiliar" id="nomeFamiliar" class="uppercase" required>
+                <label for="nomeFamiliar">Nome do contato familiar</label>
               </div>
             </div>
             <div class="form-2colunas">
@@ -141,11 +151,13 @@
             <legend>Dados Bancários</legend>
             <div class="form-2colunas">
               <div class="form2">
-                <input type="text" name="codBanco" id="codBanco"  required  oninput="autoPreencherBanco(this, 'input')" onblur="autoPreencherBanco(this, 'blur')">
+                <!-- <input type="text" name="codBanco" id="codBanco"  required  oninput="autoPreencherBanco(this, 'input')" onblur="autoPreencherBanco(this, 'blur')"> -->
+                <input type="text" name="codBanco" id="codBanco"  required >
                 <label for="codBanco"> Cod. Banco </label>
               </div>
               <div class="form2">
-                <input type="text" name="banco" id="banco" class = "uppercase" required  oninput="autoPreencherBanco(this, 'input')" onblur="autoPreencherBanco(this, 'blur')">
+                <!-- <input type="text" name="banco" id="banco" class = "uppercase" required  oninput="autoPreencherBanco(this, 'input')" onblur="autoPreencherBanco(this, 'blur')"> -->
+                <input type="text" name="banco" id="banco" class = "uppercase" required  >
                 <label for="banco">Banco</label>
               </div>                 
               
@@ -227,17 +239,22 @@
               </div>
             </div>
           </fieldset>
-
+            </form>
+          </div>
+          
           <div class="BTNs">
             <button class="btnPesquisar" id="Pesquisar" type="button">Pesquisar</button>
             <button class="btnLimpar" id="Limpar" type="button">Limpar</button>
             <button class="btnEnviar" id="Enviar" type="button">Enviar</button>
           </div> 
           
-        </form>
-      </div>
+        
+      
   </div>
 </div>
+<!-- Se estiver usando diretamente no HTML -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/pt.js"></script>
+<script src="js/Funcionarios.js"></script>
 
 </body>
 </html>
