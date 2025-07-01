@@ -982,18 +982,16 @@ console.log("Inicializando Flatpickr para todos os campos de data (globais)...")
         'periodoDesmontagemInfra'
     ];
 
-    dateInputIds.forEach(id => { // Este é o loop correto
+    dateInputIds.forEach(id => { 
         const element = document.getElementById(id);
-        if (element) { // Verificamos se o elemento existe
-            // **IMPORTANTE**: Só inicialize se já não foi inicializado
+        if (element) {
             if (!element._flatpickr) { 
-                const picker = flatpickr(element, commonFlatpickrOptions);
-                // **CRUCIAL**: Salve a instância no objeto global 'flatpickrInstances'
+                const picker = flatpickr(element, commonFlatpickrOptions);               
                 flatpickrInstances[id] = picker; 
                 console.log(`Flatpickr inicializado e salvo para campo global #${id}`);
             } else {
                 console.log(`Flatpickr para campo global #${id} já estava inicializado.`);
-                // Se já estava inicializado, podemos simplesmente garantir que a instância está salva
+               
                 flatpickrInstances[id] = element._flatpickr; 
             }
         } else {
