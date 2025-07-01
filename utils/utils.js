@@ -79,7 +79,5 @@ async function fetchHtmlComToken(url, options = {}) {
   //return await resposta.json();
 }
 
-// window.fetchComToken = fetchComToken;
-// window.fetchHtmlComToken = fetchHtmlComToken;
 
 export { fetchComToken, fetchHtmlComToken };

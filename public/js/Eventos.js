@@ -9,7 +9,6 @@ let EventoOriginal = {
 
 async function verificaEvento() {
     console.log("Carregando Evento...");
-
     
     const botaoEnviar = document.querySelector("#Enviar");
     const botaoPesquisar = document.querySelector("#Pesquisar");
@@ -287,7 +286,7 @@ async function carregarEventoDescricao(desc, elementoAtual) {
             Swal.fire({
                 icon: "info",
                 title: "Evento não cadastrado",
-                text: "Você não tem permissão para cadastrar eventosquipamentos.",
+                text: "Você não tem permissão para cadastrar eventos.",
                 confirmButtonText: "OK"
             });
         }

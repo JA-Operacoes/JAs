@@ -28,8 +28,8 @@
         <form  id="funcionarios" name="form" autocomplete="off">
           
           <div class="form">
-            <input type="text" name="idFuncionarios" id="idFuncionarios" readonly required  spellcheck="false">
-            <label for ="idFuncionarios">#Codigo</label>
+            <input type="text" name="idFuncionario" id="idFuncionario" readonly required  spellcheck="false">
+            <label for ="idFuncionario">#Codigo</label>
           </div>
 
           <fieldset>
@@ -80,7 +80,7 @@
               </div>
 
               <div class="form2">
-                <input type="text" name="dataNasc" id="dataNasc" required readonly>
+                <input type="text" name="dataNasc" id="dataNasc"  required readonly>
                 <label for="dataNasc">Data de Nasc</label>
               </div>
             
@@ -132,8 +132,8 @@
             </div>
             <div class="form-2colunas">
               <div class="form2">
-                <input type="text" name="nomeFamiliar" id="nomeFamiliar" required>
-                <label for="nomeFamiliar">Nome do familiar </label>
+                <input type="text" name="nomeFamiliar" id="nomeFamiliar" class="uppercase" required>
+                <label for="nomeFamiliar">Nome do contato familiar</label>
               </div>
             </div>
             <div class="form-2colunas">
@@ -152,11 +152,13 @@
             <legend>Dados Bancários</legend>
             <div class="form-2colunas">
               <div class="form2">
-                <input type="text" name="codBanco" id="codBanco"  required  oninput="autoPreencherBanco(this, 'input')" onblur="autoPreencherBanco(this, 'blur')">
+                <!-- <input type="text" name="codBanco" id="codBanco"  required  oninput="autoPreencherBanco(this, 'input')" onblur="autoPreencherBanco(this, 'blur')"> -->
+                <input type="text" name="codBanco" id="codBanco"  required >
                 <label for="codBanco"> Cod. Banco </label>
               </div>
               <div class="form2">
-                <input type="text" name="banco" id="banco" class = "uppercase" required  oninput="autoPreencherBanco(this, 'input')" onblur="autoPreencherBanco(this, 'blur')">
+                <!-- <input type="text" name="banco" id="banco" class = "uppercase" required  oninput="autoPreencherBanco(this, 'input')" onblur="autoPreencherBanco(this, 'blur')"> -->
+                <input type="text" name="banco" id="banco" class = "uppercase" required  >
                 <label for="banco">Banco</label>
               </div>                 
               

@@ -45,10 +45,21 @@ async function verificaFuncionarios() {
     
     const form = document.querySelector("#form-funcionario");
 
+    const codBancoInput = document.getElementById("codBanco");
+
     if (!botaoEnviar|| !form) {
         console.error("Formulário ou botão não encontrado no DOM.");
         return;
     }
+
+    codBancoInput.addEventListener("blur", async function () {
+        const codBanco = this.value.trim();
+        if (!codBanco) {
+            console.warn("Código do banco vazio, não fazendo busca.");
+            return;
+        }
+        preencherBanco(codBanco);
+    });
 
     botaoLimpar.addEventListener("click", (e) => {
         e.preventDefault();
@@ -58,7 +69,7 @@ async function verificaFuncionarios() {
     botaoEnviar.addEventListener("click", async (event) => {
         event.preventDefault();
 
-        const idFuncionarios = document.querySelector("#idFuncionarios").value.trim();
+        const idFuncionario = document.querySelector("#idFuncionario").value.trim();
     
         const perfil = document.querySelector('input[name="perfil"]:checked')?.value || '';
         
@@ -68,9 +79,9 @@ async function verificaFuncionarios() {
         const rg = document.getElementById("rg")?.value.trim() || '';     
         const nivelFluenciaLinguas = document.getElementById("Linguas")?.value.trim() || '';
         const inputsIdioma = idiomasContainer.querySelectorAll('.idiomaInput');
-        const dataNascimento = idiomasContainer.querySelectorAll('#dataNasc');
-        const nomeFamiliar = idiomasContainer.querySelectorAll('#nomeFamiliar');
-        
+        const dataNascimento = document.getElementById("#dataNasc");
+        const nomeFamiliar = document.getElementById("#nomeFamiliar").value.toUpperCase().trim();
+
         const idiomasAdicionaisArray = [];
         inputsIdioma.forEach(input => {
             const valor = input.value.trim();
@@ -101,9 +112,10 @@ async function verificaFuncionarios() {
         const cidade = document.getElementById("cidade")?.value.toUpperCase().trim() || '';
         const estado = document.getElementById("estado")?.value.toUpperCase().trim() || '';
         const pais = document.getElementById("pais")?.value.toUpperCase().trim() || '';
+     
 
         // Validação de campos obrigatórios
-        if (!nome || !cpf || !rg || !celularPessoal || !cep || !rua || !numero || !bairro || !cidade || !estado || !pais || !perfil) {
+        if (!nome || !cpf || !rg || !celularPessoal || !cep || !rua || !numero || !bairro || !cidade || !estado || !pais || !perfil || !celularFamiliar || !nomeFamiliar) {
             return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Nome, CPF, RG, Celular Pessoal, E-mail, CEP, Rua, Número, Bairro, Cidade, Estado, País e Perfil.", "warning");
         }
 
@@ -111,14 +123,14 @@ async function verificaFuncionarios() {
         const temPermissaoCadastrar = temPermissao("Funcionarios", "cadastrar");
         const temPermissaoAlterar = temPermissao("Funcionarios", "alterar");
 
-        const metodo = idFuncionarios ? "PUT" : "POST";
-        const url = idFuncionarios ? `/funcionarios/${idFuncionarios}` : "/funcionarios";
+        const metodo = idFuncionario ? "PUT" : "POST";
+        const url = idFuncionario ? `/funcionarios/${idFuncionario}` : "/funcionarios";
 
-        if (!idFuncionarios && !temPermissaoCadastrar) {
+        if (!idFuncionario && !temPermissaoCadastrar) {
             return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos funcionários.", "error");
         }
 
-        if (idFuncionarios && !temPermissaoAlterar) {
+        if (idFuncionario && !temPermissaoAlterar) {
             return Swal.fire("Acesso negado", "Você não tem permissão para alterar funcionários.", "error");
         }
 
@@ -319,6 +331,7 @@ async function verificaFuncionarios() {
                   });
 
                   this.parentNode.replaceChild(novoInput, this);
+
                   if (labelNomeFuncionario) { // Reexibe e atualiza a label
                       labelNomeFuncionario.style.display = "block";
                       labelNomeFuncionario.textContent = "Nome do Funcionário";
@@ -376,6 +389,9 @@ console.log("Inicializando Flatpickr para todos os campos de data (globais)...")
     });
 }
 
+document.addEventListener("mousedown", (e) => {
+    window.ultimoClique = e.target;
+});
 
 function adicionarEventoBlurFuncionario() {
     const input = document.querySelector("#nome");
@@ -409,9 +425,9 @@ function adicionarEventoBlurFuncionario() {
 
 
 async function salvarFuncionario(dados) {
-  const idFuncionarios = document.querySelector("#idFuncionarios").value;
+  const idFuncionario = document.querySelector("#idFuncionario").value;
 
-  if (idFuncionarios) {
+  if (idFuncionario) {
     Swal.fire({
       title: "Deseja salvar as alterações?",
       text: "Você está prestes a atualizar os dados do funcionário.",
@@ -424,7 +440,7 @@ async function salvarFuncionario(dados) {
     }).then(async (result) => {
         if (result.isConfirmed) {
             try {
-                const response = await fetchComToken(`/funcionarios/${idFuncionarios}`, {
+                const response = await fetchComToken(`/funcionarios/${idFuncionario}`, {
                     method: "PUT",
                     headers: {
                         "Content-Type": "application/json"
@@ -437,7 +453,7 @@ async function salvarFuncionario(dados) {
           if (response.ok) {
             document.getElementById('form').reset();
             Swal.fire("Sucesso!", resultJson.mensagem || "Alterações salvas com sucesso!", "success");
-            document.querySelector("#idFuncionarios").value = "";
+            document.querySelector("#idFuncionario").value = "";
             limparFuncionariosOriginal();  
           } else {
             Swal.fire("Erro", resultJson.erro || "Erro ao salvar o funcionário.", "error");
@@ -465,7 +481,7 @@ async function salvarFuncionario(dados) {
         Swal.fire("Sucesso!", resultJson.mensagem || "Funcionário cadastrado com sucesso!", "success");
         document.getElementById('form').reset();
         limparFuncionariosOriginal();
-        document.querySelector("#idFuncionarios").value = "";
+        document.querySelector("#idFuncionario").value = "";
       } else {
         Swal.fire("Erro", resultJson.erro || "Erro ao cadastrar o funcionário.", "error");
       }
@@ -563,8 +579,8 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
         
         if (funcionario) {
 
-            window.funcionarioOriginal = { ...funcionario }; // Salva o estado original
-            document.getElementById("idFuncionarios").value = funcionario.idfuncionario || '';
+            //window.funcionarioOriginal = { ...funcionario }; // Salva o estado original
+            document.getElementById("idFuncionario").value = funcionario.idfuncionario || '';
             document.getElementById("nome").value = funcionario.nome || '';
 
             const radiosPerfil = document.querySelectorAll('input[name="perfil"]'); // Ou input[name="radio"] se você não mudou o name
@@ -625,23 +641,18 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
             document.getElementById("email").value = funcionario.email || '';
             document.getElementById("site").value = funcionario.site || '';
             
-            //document.getElementById("codBanco").value = funcionario.codigobanco || '';
-            const inputCodBanco = document.getElementById("codBanco");
-            const inputBanco = document.getElementById("banco");
-            
-            if (inputCodBanco && funcionario.codigobanco) {
-                inputCodBanco.value = funcionario.codigobanco;                
-                window.autoPreencherBanco(inputCodBanco, 'blur');
-                
-                if (inputBanco && funcionario.banco) {
-                    inputBanco.value = funcionario.banco; 
-                }
+            document.getElementById("codBanco").value = funcionario.codigobanco || '';
+            const inputCodBanco = document.getElementById("codBanco");           
+            if (inputCodBanco) {
+                console.log("[Funcionarios.js] Elemento 'codigobanco' encontrado no DOM. Preenchendo automaticamente o banco.");
+                // Adiciona o event listener para o evento 'blur'
+                //inputCodBanco.addEventListener('blur', () => preencherBanco(inputCodBanco));
+                preencherDadosBancoPeloCodigo();
+                console.log("[Funcionarios.js] Event listener 'blur' adicionado ao input de código do banco.");
             } else {
-                // Se não houver codigobanco, limpa os campos de banco
-                if (inputCodBanco) inputCodBanco.value = '';
-                if (inputBanco) inputBanco.value = '';
+                console.warn("[Funcionarios.js] Elemento 'codigobanco' não encontrado no DOM. O preenchimento automático do banco não funcionará.");
             }
-            
+           
             document.getElementById("pix").value = funcionario.pix || '';
             document.getElementById("agencia").value = funcionario.agencia || '';
             document.getElementById("digitoAgencia").value = funcionario.digitoagencia || '';
@@ -677,15 +688,99 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
             const formInputs = document.querySelectorAll('#formFuncionarios input, #formFuncionarios select, #formFuncionarios textarea');
             formInputs.forEach(input => input.removeAttribute('disabled'));
 
-            Swal.fire("Sucesso", "Funcionário carregado com sucesso!", "success");
-        } else {
-            Swal.fire("Não encontrado", "Funcionário não encontrado.", "info");
-            limparCamposFuncionarios(); // Limpa os campos se não encontrar
-        }
+            //Swal.fire("Sucesso", "Funcionário carregado com sucesso!", "success");
+         } //else {
+        //     Swal.fire("Não encontrado", "Funcionário não encontrado.", "info");
+        //     limparCamposFuncionarios(); // Limpa os campos se não encontrar
+        // }
     } catch (error) {
-        console.error("Erro ao carregar funcionário por descrição:", error);
-        Swal.fire("Erro", error.message || "Erro ao carregar funcionário.", "error");
-        limparCamposFuncionarios();
+       console.warn("Funcionário não encontrado.");
+
+        const inputIdFuncionario = document.querySelector("#idFuncionario");
+        const podeCadastrarFuncionario = temPermissao("Funcionarios", "cadastrar");
+
+        console.log("Verificando se pode cadastrar funcionário:", podeCadastrarFuncionario, inputIdFuncionario.value);
+       if (!inputIdFuncionario.value && podeCadastrarFuncionario) {
+             const resultado = await Swal.fire({
+                icon: 'question',
+                title: `Deseja cadastrar "${nome.toUpperCase()}" como novo Funcionário?`,
+                text: `Funcionário "${nome.toUpperCase()}" não encontrado.`,
+                showCancelButton: true,
+                confirmButtonText: "Sim, cadastrar",
+                cancelButtonText: "Cancelar",
+                reverseButtons: true,
+                focusCancel: true
+            });
+
+            
+            if (!resultado.isConfirmed) {
+                console.log("Usuário cancelou o cadastro do Funcionário.");
+                elementoAtual.value = ""; // Limpa o campo se não for cadastrar
+                setTimeout(() => {
+                    elementoAtual.focus();
+                }, 0);
+                return;
+            }
+        } else if (!podeCadastrarFuncionario) {
+            Swal.fire({
+                icon: "info",
+                title: "Funcionário não cadastrado",
+                text: "Você não tem permissão para cadastrar funcionários.",
+                confirmButtonText: "OK"
+            });
+        }
+        
+    
+       // limparCamposFuncionarios();
+    }
+}
+
+async function preencherDadosBancoPeloCodigo() {
+ 
+    const codBancoInput = document.getElementById('codBanco');
+  
+    if (!codBancoInput) {
+        console.warn("Elemento 'inputBanco' (nome do banco) não encontrado no DOM do modal de Funcionários.");
+        return;
+    }
+
+    if (!codBancoInput.value) {       
+        codBancoInput.value = '';
+        return;
+    }    
+
+    try {
+        const codBanco = document.getElementById("codBanco").value;
+        const url = `/bancos?codBanco=${encodeURIComponent(codBanco)}`;
+        const nomeBanco = await fetchComToken(url);            
+        
+        if (nomeBanco && nomeBanco.codbanco) { 
+            document.getElementById("banco").value = nomeBanco.nmbanco;        
+        } else {        
+    
+            Swal.fire({
+                icon: 'info',
+                title: 'Banco não encontrado',
+                text: `Nenhum banco encontrado com o código '${codBanco}'.`,
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000
+            });           
+        }
+    } catch (error) {        
+           
+        if (error.message !== 'Sessão expirada') {
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro de busca de banco',
+                text: 'Não foi possível buscar as informações do banco. Verifique o código e tente novamente.',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000
+            });
+        }
     }
 }
 
@@ -708,7 +803,7 @@ function criarSelectFuncionario(funcionarios) {
         const option = document.createElement("option");
         option.value = funcionario.nome; // O valor da opção será o nome para a busca
         option.textContent = funcionario.nome;
-        option.setAttribute('data-id', funcionario.idfuncionarios); // Armazenar o ID no data-attribute
+        option.setAttribute('data-id', funcionario.idFuncionario); // Armazenar o ID no data-attribute
         select.appendChild(option);
     });
 
@@ -892,7 +987,7 @@ function gerarCamposPoliglota(qtd) {
 
 function limparCamposFuncionarios(){
     const camposParaLimpar = [
-        "idFuncionarios", "nome", "cpf", "rg",
+        "idFuncionario", "nome", "cpf", "rg",
         "celularPessoal", "celularFamiliar", "email", "site",
         "banco", "codBanco", "pix", "nConta", "digitoConta",
         "agencia", "digitoAgencia",

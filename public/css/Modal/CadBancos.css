@@ -221,6 +221,14 @@ input:valid~label{
   background: #cacaca;
 }
 
+input#idBanco:not([value=""]) ~ label {
+    top: 0;
+    left: 25px;
+    font-size: 12px;
+    background: #cacaca;
+  
+  }
+
 button {
   font-family: "Abel", sans-serif;
   font-size: 20px;

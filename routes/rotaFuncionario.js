@@ -122,7 +122,7 @@ router.put("/:id",
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
             celularPessoal, celularFamiliar, email, site, codigoBanco, pix, // ADICIONADO 'banco'
             numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
-            cidade, estado, pais
+            cidade, estado, pais, datanascimento, nomefamiliar
         } = req.body;
 
         let fotoPathParaBD = null;
@@ -192,8 +192,8 @@ router.put("/:id",
                 SET perfil = $1, foto = $2, nome = $3, cpf = $4, rg = $5, fluencia = $6, idiomasadicionais = $7,
                     celularpessoal = $8, celularfamiliar = $9, email = $10, site = $11, codigobanco = $12,
                     pix = $13, numeroconta = $14, digitoConta = $15, agencia = $16, digitoAgencia = $17, tipoconta = $18, cep = $19, rua = $20, numero = $21,
-                    complemento = $22, bairro = $23, cidade = $24, estado = $25, pais = $26
-                WHERE func.idfuncionario = $27
+                    complemento = $22, bairro = $23, cidade = $24, estado = $25, pais = $26, datanascimento = $27, nomefamiliar = $28
+                WHERE func.idfuncionario = $29
                 RETURNING func.idfuncionario, func.foto;
             `;
 
@@ -204,6 +204,7 @@ router.put("/:id",
                 celularPessoal, celularFamiliar, email, site, codigoBanco, 
                 pix, numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero,
                 complemento, bairro, cidade, estado, pais,
+                dataNascimento, nomeFamiliar,
                 id // ID do funcionário para a cláusula WHERE
             ];
 
@@ -274,7 +275,7 @@ router.post("/",
         const {
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais, celularPessoal, celularFamiliar,
             email, site, codigoBanco, pix, numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, // ADICIONADO 'banco'
-            complemento, bairro, cidade, estado, pais
+            complemento, bairro, cidade, estado, pais, dataNascimento, nomeFamiliar
         } = req.body;
         
         const idempresa = req.idempresa;
@@ -313,14 +314,14 @@ router.post("/",
                     perfil, foto, nome, cpf, rg, fluencia, idiomasadicionais,
                     celularpessoal, celularfamiliar, email, site, codigobanco, pix,
                     numeroconta, digitoConta, agencia, digitoAgencia, tipoconta, cep, rua, numero, complemento, bairro,
-                    cidade, estado, pais
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+                    cidade, estado, pais, datanascimento, nomefamiliar
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
                 RETURNING idFuncionario, foto`, // Retorna o ID e o caminho da foto para o frontend
                 [
                     perfil, fotoPathParaBD, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais, // Use nivelFluenciaLinguas
                     celularPessoal, celularFamiliar, email, site, codigoBanco, pix, 
                     numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
-                    cidade, estado, pais
+                    cidade, estado, pais, dataNascimento, nomeFamiliar
                 ]
             );
             const novoFuncionario = resultFuncionario.rows[0];
