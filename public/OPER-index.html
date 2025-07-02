@@ -26,6 +26,8 @@
 
 <!-- <body onload="initPermissoes()"> -->
 <body>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt-br.js"></script>
 <header>      
     <div class="interface">
         <div class="logotipo">
@@ -43,16 +45,7 @@
                     <li class="Cadastro"> 
                         <a href="#">Cadastros</a>
                         <div class ="drop">
-                            <div class ="drop-content">  
-                                <!-- <a href="#" class="abrir-modal" data-modulo="Clientes" onclick="abrirModal('CadClientes.html')">Clientes</a>
-                                <a href="#" class="abrir-modal" data-modulo="Funcao" onclick="abrirModal('CadFuncao.html')">Funções</a>
-                                <a href="#" class="abrir-modal" data-modulo="Funcionários" onclick="abrirModal('CadFuncionarios.html')">Funcionários</a>
-                                <a href="#" class="abrir-modal" data-modulo="Equipamentos" onclick="abrirModal('CadEquipamentos.html')">Equipamentos</a>
-                                <a href="#" class="abrir-modal" data-modulo="Suprimentos" onclick="abrirModal('CadSuprimentos.html')">Suprimentos</a>
-                                <a href="#" class="abrir-modal" data-modulo="Eventos" onclick="abrirModal('CadEventos.html')">Eventos</a>
-                                <a href="#" class="abrir-modal" data-modulo="LocalMontagem" onclick="abrirModal('CadLocalMontagem.html')">Local Montagem</a>
-                                <a href="#" class="abrir-modal" data-modulo="Staff" onclick="abrirModal('CadStaff.html')">Staff</a>
-                                <a href="#" class="abrir-modal" data-modulo="Empresas" onclick="abrirModal('CadEmpresa.html')">Empresas</a> -->
+                            <div class ="drop-content">                  
 
                                 <a href="#" class="abrir-modal" data-modulo="Clientes" data-url="CadClientes.html">Clientes</a>
                                 <a href="#" class="abrir-modal" data-modulo="Funcao" data-url="CadFuncao.html">Funções</a>
@@ -72,7 +65,8 @@
                         <a href="#" class="abrir-modal" data-url="Orcamento.html" data-modulo="Orcamentos">Orçamento</a>
                     </li>
                     <li class="Usuarios">
-                        <a href="CadUsuarios.html">Usuários</a>
+                        <!-- <a href="CadUsuarios.html">Usuários</a> -->
+                        <a href="CadUsuarios.html" class="abrir-modal" data-modulo="Usuarios">Usuários</a>
                     </li>
                 </ul>
             </nav>

@@ -176,8 +176,6 @@ async function verificaBanco() {
     
 }
 
-
-
 function criarSelectBanco(bancosEncontrados) {
    
     const select = document.createElement("select");
@@ -237,79 +235,56 @@ function adicionarEventoBlurBanco() {
 }
 
 async function preencherBanco(codBanco) {
-    const inputCodBanco = document.getElementById('codBanco');
-    const inputNmBanco = document.getElementById('nmBanco'); 
-    const inputIdBancoHidden = document.getElementById('idBanco');
-   
-     if (!inputCodBanco || !inputNmBanco || !inputIdBancoHidden) {
-        console.warn("Um ou mais elementos de input de banco (codBanco, nmBanco, idBanco) não foram encontrados no DOM. Verifique os IDs.");
-       
-        return;
-    }
-    if (!codBanco || codBanco.trim() === '') {
-        inputNmBanco.value = ''; 
-        inputIdBancoHidden.value = ''; 
-        inputCodBanco.value = ''; 
-        console.log("Código do banco vazio, limpando campos relacionados.");
-        return;
-    }
+    try {
+        const bancos = await fetchComToken(`/bancos?codBanco=${encodeURIComponent(codBanco)}`);    
+        
+        document.querySelector("#idBanco").value = bancos.idbanco;
+        document.querySelector("#nmBanco").value = bancos.nmbanco;
 
-    try {      
-        const url = `/bancos?codBanco=${encodeURIComponent(codBanco)}`; // Encode para garantir URL segura
-        console.log(`[preencherBancoPorCodigo] Buscando banco por código na URL: ${url}`);
-   
-        const bancoData = await fetchComToken(url);
-        if (bancoData && bancoData.idbanco) { 
-            inputNmBanco.value = bancoData.nmbanco || ''; 
-            inputCodBanco.value = bancoData.codbanco || ''; 
-            inputIdBancoHidden.value = bancoData.idbanco || '';
+        window.BancoOriginal = {
+            idBanco: bancos.idbanco,
+            codBanco:bancos.codbanco,
+            nmBanco: bancos.nmbanco,
+        };
 
-          
-            window.BancoOriginal = {
-                idBanco: bancoData.idbanco,
-                codBanco: bancoData.codbanco,
-                nmBanco: bancoData.nmbanco,
-            };
-            console.log(`[preencherBancoPorCodigo] Banco encontrado: ${window.BancoOriginal.nmBanco} (${window.BancoOriginal.codBanco})`);
-            
-        } else {
-           
-            inputNmBanco.value = '';
-            inputIdBancoHidden.value = '';
-           
+        console.log("Banco encontrado:", BancoOriginal);
 
-            Swal.fire({
-                icon: 'info',
-                title: 'Banco não encontrado',
-                text: `Nenhum banco encontrado com o código '${codBanco}'.`,
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 3000
-            });
-            console.log(`[preencherBancoPorCodigo] Banco com código ${codBanco} não encontrado.`);
-        }
     } catch (error) {
-        console.error('[preencherBancoPorCodigo] Erro ao preencher banco automaticamente:', error);
-        inputNmBanco.value = ''; 
-        inputIdBancoHidden.value = '';
-        inputCodBanco.value = '';
+        console.warn("Banco não encontrado.");
 
-        if (error.message && error.message.includes('Sessão expirada')) {
-          
-            console.log("Erro de sessão expirada tratado por fetchComToken.");
-        } else {
+        const inputIdBanco = document.querySelector("#idBanco");
+        const podeCadastrarBanco = temPermissao("bancos", "cadastrar");
+
+        if (!inputIdBanco.value && podeCadastrarBanco) {
+            const resultado = await Swal.fire({
+                icon: 'question',
+                title: `Deseja cadastrar "${codBanco.toUpperCase()}" como novo Banco?`,
+                text: `Banco "${codBanco.toUpperCase()}" não encontrado.`,
+                showCancelButton: true,
+                confirmButtonText: "Sim, cadastrar",
+                cancelButtonText: "Cancelar",
+                reverseButtons: true,
+                focusCancel: true
+            });
+            
+            if (!resultado.isConfirmed) {
+                console.log("Usuário cancelou o cadastro do Banco.");
+                elementoAtual.value = ""; // Limpa o campo se não for cadastrar
+                setTimeout(() => {
+                    elementoAtual.focus();
+                }, 0);
+                return;
+            }
+        } else if (!podeCadastrarBanco) {
             Swal.fire({
-                icon: 'error',
-                title: 'Erro de busca de banco',
-                text: 'Não foi possível buscar as informações do banco. Verifique o código e tente novamente.',
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 3000
+                icon: "info",
+                title:"Banco não cadastrado",
+                text: "Você não tem permissão para cadastrar bancos.",
+                confirmButtonText: "OK"
             });
         }
-    }
+        
+    }   
 }
 
 

@@ -2,7 +2,6 @@
 document.getElementById("Login").addEventListener("submit", async function (e) {
   e.preventDefault();
 
-//   const username = document.getElementById("nome").value.trim();
    const email= document.getElementById("emailusuario").value.trim();
    const password = document.getElementById("senha").value;
    
@@ -24,9 +23,7 @@ try {
       return Swal.fire({ icon: 'error', title: 'Falha no login', text: erro.erro || 'Erro ao realizar login.' });
     }
 
-    // ← você precisa desta linha:
     const dados = await response.json();
-
         
     const { token, idusuario, empresas, idempresaDefault } = dados;
     console.log("token, idusuario", token, idusuario, empresas);
@@ -36,24 +33,13 @@ try {
     localStorage.setItem("empresas", JSON.stringify(empresas));
    
     if (idempresaDefault) {
-      localStorage.setItem("idempresa", idempresaDefault);
-      // Aqui busca as permissões para essa empresa e salva localmente 04/06/2025
-      // const permissoes = await fetchComToken('/auth/permissoes');
-      // localStorage.setItem('permissoes', JSON.stringify(permissoes));
+      localStorage.setItem("idempresa", idempresaDefault);  
 
     } else {
-      localStorage.removeItem("idempresa"); // para evitar lixo
-      localStorage.removeItem('permissoes');//04/06/2025
+      localStorage.removeItem("idempresa"); 
+      localStorage.removeItem('permissoes');
     }
-
-    // const permissoes = await fetchComToken('/auth/permissoes');
-    // localStorage.setItem('permissoes', JSON.stringify(permissoes));
-    // // você pode salvar a empresa ativa inicial como a primeira da lista
-    // if (empresas.length > 0) {
-    //   localStorage.setItem("idempresa", empresas[0].idempresa);
-    // }
-
-    // Redireciona só depois de buscar permissões etc.
+      
     window.location.href = "OPER-index.html";
 
   } catch (err) {

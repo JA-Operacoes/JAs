@@ -21,15 +21,7 @@ function autenticarToken(options = {}) {
       if (!token) {
             console.warn("⚠️ Token não fornecido após split do cabeçalho. Acesso negado.");
             return res.status(401).json({ erro: 'Token não fornecido.' });
-        }
-
-      // if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      //   return res.status(401).json({ erro: 'Formato do token inválido.' });
-      // }
-      // if (!token) {
-      //     console.warn("⚠️ Token não fornecido. Acesso negado.");
-      //     return res.status(401).json({ erro: 'Token não fornecido.' });
-      // }
+        }     
       
       if (token == null) {
               console.warn("⚠️ Token não fornecido. Acesso não autorizado.");
@@ -44,7 +36,6 @@ function autenticarToken(options = {}) {
      jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
       if (err) {
         console.error("❌ Erro ao verificar token:", err.message);
-
         // ✅ Diferencia token expirado de token inválido
         if (err.name === 'TokenExpiredError') {
           return res.status(401).json({ erro: 'Token expirado.' });
@@ -55,71 +46,54 @@ function autenticarToken(options = {}) {
       //req.usuario = usuario;  
           
       req.usuario = decoded; 
-      console.log("Token verificado com sucesso:", decoded);
-      //console.log("ID da empresa do header:", idempresaHeader);
-      
-      // // --- CORREÇÃO AQUI: Garante que req.idempresa seja definido ---
-      //   if (decoded && typeof decoded.idempresaDefault === 'number') { // Verifica se é um número
-      //       req.idempresa = decoded.idempresaDefault;
-      //       console.log("Empresa default do token definida em req.idempresa:", req.idempresa);
-      //   } else if (req.headers['idempresa']) { // Fallback para cabeçalho, se idempresaDefault não estiver no token
-      //       req.idempresa = parseInt(req.headers['idempresa']); // Garante que é número
-      //       console.log("Empresa definida a partir do cabeçalho em req.idempresa:", req.idempresa);
-      //   } else {
-      //       // Este console.warn é importante. Se o token não tem idempresaDefault E o header não tem,
-      //       // então `req.idempresa` continuará undefined, o que pode causar o NaN.
-      //       console.warn("⚠️ idempresaDefault não encontrado no token nem no cabeçalho. `req.idempresa` não definido em autenticarToken.");
-      //       // Você pode decidir retornar um erro aqui se idempresa for *sempre* obrigatório para a rota.
-      //       // Por enquanto, apenas avisamos e continuamos.
-      //   }
+      console.log("Token verificado com sucesso:", decoded);    
 
       if (verificarEmpresa) {
-                let currentIdEmpresa;
-
-                // Prioriza o cabeçalho se fornecido e válido
-                if (idempresaFromHeader) {
-                    const parsedHeaderId = parseInt(idempresaFromHeader, 10);
-                    // Certifica-se de que é um número válido e que o usuário tem acesso a essa empresa
-                    if (!isNaN(parsedHeaderId) && decoded.empresas && decoded.empresas.includes(parsedHeaderId)) {
-                         currentIdEmpresa = parsedHeaderId;
-                         console.log("Empresa selecionada do cabeçalho e validada:", currentIdEmpresa);
-                    } else if (!isNaN(parsedHeaderId) && decoded.empresas && !decoded.empresas.includes(parsedHeaderId)) {
-                        // O usuário tentou acessar uma empresa à qual não tem permissão
-                        console.warn(`⚠️ Usuário ${decoded.idusuario} tentou acessar empresa ${parsedHeaderId} sem permissão.`);
-                        return res.status(403).json({ erro: 'Acesso negado à empresa especificada.' });
-                    }
+        let currentIdEmpresa;
+            // Prioriza o cabeçalho se fornecido e válido
+            if (idempresaFromHeader) {
+                const parsedHeaderId = parseInt(idempresaFromHeader, 10);
+                // Certifica-se de que é um número válido e que o usuário tem acesso a essa empresa
+                if (!isNaN(parsedHeaderId) && decoded.empresas && decoded.empresas.includes(parsedHeaderId)) {
+                        currentIdEmpresa = parsedHeaderId;
+                        console.log("Empresa selecionada do cabeçalho e validada:", currentIdEmpresa);
+                } else if (!isNaN(parsedHeaderId) && decoded.empresas && !decoded.empresas.includes(parsedHeaderId)) {
+                    // O usuário tentou acessar uma empresa à qual não tem permissão
+                    console.warn(`⚠️ Usuário ${decoded.idusuario} tentou acessar empresa ${parsedHeaderId} sem permissão.`);
+                    return res.status(403).json({ erro: 'Acesso negado à empresa especificada.' });
                 }
-                
-                // Retorna para idempresaDefault do token se não houver ID de cabeçalho válido ou se o cabeçalho não foi fornecido
-                if (!currentIdEmpresa && typeof decoded.idempresaDefault === 'number') {
-                    currentIdEmpresa = decoded.idempresaDefault;
-                    console.log("Empresa definida como padrão do token:", currentIdEmpresa);
-                }
-
-                // Se ainda não houver empresa e o usuário tiver pelo menos uma empresa vinculada, usa a primeira como último recurso
-                if (!currentIdEmpresa && decoded.empresas && decoded.empresas.length > 0) {
-                    currentIdEmpresa = decoded.empresas[0];
-                    console.log("Empresa definida como a primeira da lista de empresas acessíveis:", currentIdEmpresa);
-                }
-
-                if (currentIdEmpresa) {
-                    req.idempresa = currentIdEmpresa;
-                    console.log("req.idempresa final para verificação de empresa:", req.idempresa);
-                } else {
-                    console.warn("⚠️ Não foi possível determinar o ID da empresa para a requisição. req.idempresa não definido.");
-                    // Este é um ponto crítico. Se uma rota exige `verificarEmpresa`, e nenhuma empresa pôde ser determinada,
-                    // você provavelmente deve retornar um erro aqui.
-                    return res.status(400).json({ erro: 'Contexto de empresa necessário, mas não especificado ou inválido.' });
-                }
-            } else {
-                // Se verificarEmpresa for false, ainda podemos querer definir req.idempresa para logs ou outros fins
-                // Tentará usar o cabeçalho primeiro, depois o padrão do token, depois o primeiro disponível.
-                req.idempresa = parseInt(idempresaFromHeader || decoded.idempresaDefault || (decoded.empresas && decoded.empresas.length > 0 ? decoded.empresas[0] : null), 10);
-                if (isNaN(req.idempresa)) {
-                     req.idempresa = null; // Garante que não seja NaN se nenhuma empresa for encontrada
-                }
-                console.log("req.idempresa definido (verificarEmpresa=false):", req.idempresa);
             }
+            
+            // Retorna para idempresaDefault do token se não houver ID de cabeçalho válido ou se o cabeçalho não foi fornecido
+            if (!currentIdEmpresa && typeof decoded.idempresaDefault === 'number') {
+                currentIdEmpresa = decoded.idempresaDefault;
+                console.log("Empresa definida como padrão do token:", currentIdEmpresa);
+            }
+
+            // Se ainda não houver empresa e o usuário tiver pelo menos uma empresa vinculada, usa a primeira como último recurso
+            if (!currentIdEmpresa && decoded.empresas && decoded.empresas.length > 0) {
+                currentIdEmpresa = decoded.empresas[0];
+                console.log("Empresa definida como a primeira da lista de empresas acessíveis:", currentIdEmpresa);
+            }
+
+            if (currentIdEmpresa) {
+                req.idempresa = currentIdEmpresa;
+                console.log("req.idempresa final para verificação de empresa:", req.idempresa);
+            } else {
+                console.warn("⚠️ Não foi possível determinar o ID da empresa para a requisição. req.idempresa não definido.");
+                // Este é um ponto crítico. Se uma rota exige `verificarEmpresa`, e nenhuma empresa pôde ser determinada,
+                // você provavelmente deve retornar um erro aqui.
+                return res.status(400).json({ erro: 'Contexto de empresa necessário, mas não especificado ou inválido.' });
+            }
+        } else {
+            // Se verificarEmpresa for false, ainda podemos querer definir req.idempresa para logs ou outros fins
+            // Tentará usar o cabeçalho primeiro, depois o padrão do token, depois o primeiro disponível.
+            req.idempresa = parseInt(idempresaFromHeader || decoded.idempresaDefault || (decoded.empresas && decoded.empresas.length > 0 ? decoded.empresas[0] : null), 10);
+            if (isNaN(req.idempresa)) {
+                    req.idempresa = null; // Garante que não seja NaN se nenhuma empresa for encontrada
+            }
+            console.log("req.idempresa definido (verificarEmpresa=false):", req.idempresa);
+        }
         console.log(`Usuário autenticado: ${decoded.email}. idusuario: ${req.usuario.idusuario}.`); // Log corrigido
         console.log("Empresa definida para requisição (final de autenticarToken):", req.idempresa); // Log para ver o valor final
         next();        

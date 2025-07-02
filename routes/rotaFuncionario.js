@@ -248,6 +248,13 @@ router.put("/:id",
             if (error.code === '23502') { // PostgreSQL error code for not-null constraint violation
                  return res.status(400).json({ message: `Campo obrigatório faltando ou inválido: ${error.column}. Por favor, verifique os dados e tente novamente.`, details: error.message });
             }
+            if (error.code === '22007') { // Código PostgreSQL para sintaxe de data inválida
+                return res.status(400).json({
+                    message: "A Data de Nascimento é obrigatória ou está em um formato inválido. Por favor, verifique.",
+                    field: "dataNascimento", // Adiciona um campo para identificar qual input
+                    details: error.message
+                });
+            }
             res.status(500).json({ message: "Erro ao atualizar funcionário.", details: error.message });
         } finally {
             if (client) {
@@ -366,6 +373,13 @@ router.post("/",
                 // Erro de e-mail duplicado
                 return res.status(409).json({ message: 'Erro ao salvar funcionário: Já existe um funcionário cadastrado com este e-mail.' });
                 }
+            }
+            if (error.code === '22007') { // Código PostgreSQL para sintaxe de data inválida
+                return res.status(400).json({
+                    message: "A Data de Nascimento é obrigatória ou está em um formato inválido. Por favor, verifique.",
+                    field: "dataNascimento", // Adiciona um campo para identificar qual input
+                    details: error.message
+                });
             }
             res.status(500).json({ error: "Erro ao salvar funcionário", details: error.message });
         } finally {

@@ -80,9 +80,7 @@ async function verificaFuncionarios() {
     if (selectLinguas) {
         selectLinguas.addEventListener('change', async function () {
             atualizarCamposLinguas(); 
-        });
-        
-        
+        });        
     }
 
     botaoLimpar.addEventListener("click", (e) => {
@@ -710,6 +708,26 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
             document.getElementById("cidade").value = funcionario.cidade || '';
             document.getElementById("estado").value = funcionario.estado || '';
             document.getElementById("pais").value = funcionario.pais || '';
+            document.getElementById("nomeFamiliar").value = funcionario.nomefamiliar || '';
+             
+            const dataNascimentoInput = document.getElementById("dataNasc");
+            
+            if (funcionario.dataNascimento) {
+                
+                const [ano, mes, dia] = funcionario.dataNascimento.split('-').map(Number);
+                const dataObjeto = new Date(ano, mes - 1, dia); 
+
+                const diaFormatado = String(dataObjeto.getDate()).padStart(2, '0');
+                const mesFormatado = String(dataObjeto.getMonth() + 1).padStart(2, '0'); 
+                const anoFormatado = dataObjeto.getFullYear();
+
+                dataNascimentoInput.value = `${diaFormatado}/${mesFormatado}/${anoFormatado}`;
+
+            } else {
+                
+                dataNascimentoInput.value = '';
+            }
+            console.log("DT DE NASC", dataNascimentoInput.value);
            
             window.funcionarioOriginal = { ...funcionario }; 
            
