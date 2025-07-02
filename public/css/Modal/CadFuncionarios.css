@@ -396,7 +396,7 @@ input#dataNasc:not([value=""]) ~ label {
 }
 
   input#complemento, input#pais, input#estado, input#numero,input#rg,input#cpf, input#dataNasc {
-    width: 130px; 
+    width: 145px; 
   }
 
   input#codBanco,#banco,#agencia,#digitoAgencia,#nConta,#digitoConta,#pix,.form-control.input{

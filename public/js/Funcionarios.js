@@ -1,16 +1,5 @@
 import { fetchComToken } from '../utils/utils.js';
 
-let flatpickrInstances = {};
-
-const commonFlatpickrOptions = {
-    mode: "single",
-    dateFormat: "d/m/Y",
-    altInput: true, // Se quiser altInput para os da tabela também
-    altFormat: "d/m/Y",
-    locale: flatpickr.l10ns.pt,
-    appendTo: document.body // Certifique-se de que 'modal-flatpickr-container' existe e é o elemento correto
-};
-
 
 if (typeof window.funcionarioOriginal === "undefined") {
     window.funcionarioOriginal = {
@@ -50,8 +39,6 @@ async function verificaFuncionarios() {
     console.log("Configurando eventos do modal Funcionários...");
     
     configurarPreviewFoto();
-    //inicializarFlatpickrsGlobais();
-    initializeAllFlatpickrsInModal();
 
     const botaoEnviar = document.querySelector("#Enviar");
     const botaoPesquisar = document.querySelector("#Pesquisar");
@@ -387,53 +374,6 @@ async function verificaFuncionarios() {
     });
 
 }
-
-function initializeAllFlatpickrsInModal() {
-    console.log("Inicializando Flatpickr para todos os campos de data no modal...");
-
-    // 1. Inicializa os campos globais com a função já existente
-    inicializarFlatpickrsGlobais(); // Chamamos a função que você já tinha
-
-    // 2. Inicializa Flatpickr para os inputs '.datas' que JÁ EXISTEM na tabela no carregamento inicial do modal
-    document.querySelectorAll(".datas").forEach(input => {
-        if (!input._flatpickr) { // Evita reinicialização
-            flatpickr(input, commonFlatpickrOptions);
-            console.log("Flatpickr inicializado para input da tabela (existente):", input);
-        } else {
-            console.log("Flatpickr já está inicializado para input da tabela (existente), pulando.");
-        }
-    });
-}
-// Crie esta nova função
-function inicializarFlatpickrsGlobais() {
-console.log("Inicializando Flatpickr para todos os campos de data (globais)...");
-    const dateInputIds = [
-        'dataNasc'
-    ];
-
-    dateInputIds.forEach(id => { 
-        const element = document.getElementById(id);
-        if (element) { 
-            if (!element._flatpickr) { 
-                const picker = flatpickr(element, commonFlatpickrOptions);
-               
-                flatpickrInstances[id] = picker; 
-                console.log(`Flatpickr inicializado e salvo para campo global #${id}`);
-            } else {
-                console.log(`Flatpickr para campo global #${id} já estava inicializado.`);
-               
-                flatpickrInstances[id] = element._flatpickr; 
-            }
-        } else {
-            console.warn(`Elemento com ID '${id}' não encontrado para inicialização do Flatpickr.`);
-        }
-    });
-}
-
-document.addEventListener("mousedown", (e) => {
-    window.ultimoClique = e.target;
-});
-
 function adicionarEventoBlurFuncionario() {
     const input = document.querySelector("#nome");
     if (!input) return;
@@ -675,43 +615,50 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
                 }
             }
 
-            document.getElementById("celularPessoal").value = funcionario.celularpessoal || '';
-            document.getElementById("celularFamiliar").value = funcionario.celularfamiliar || '';
-            document.getElementById("email").value = funcionario.email || '';
-            document.getElementById("site").value = funcionario.site || '';
-            
-            document.getElementById("codBanco").value = funcionario.codigobanco || '';
-            const inputCodBanco = document.getElementById("codBanco");           
-            if (inputCodBanco) {
-                console.log("[Funcionarios.js] Elemento 'codigobanco' encontrado no DOM. Preenchendo automaticamente o banco.");
-               
-                preencherDadosBancoPeloCodigo();
-                console.log("[Funcionarios.js] Event listener 'blur' adicionado ao input de código do banco.");
-            } else {
-                console.warn("[Funcionarios.js] Elemento 'codigobanco' não encontrado no DOM. O preenchimento automático do banco não funcionará.");
-            }
-           
-            document.getElementById("pix").value = funcionario.pix || '';
-            document.getElementById("agencia").value = funcionario.agencia || '';
-            document.getElementById("digitoAgencia").value = funcionario.digitoagencia || '';
-            document.getElementById("nConta").value = funcionario.numeroconta || '';
-            document.getElementById("digitoConta").value = funcionario.digitoconta || '';           
-           
-          
-            const selectTipoConta = document.getElementById('tpConta'); 
-            if (selectTipoConta) {
-                selectTipoConta.value = funcionario.tipoconta || 'selecionado';
-            }
-            document.getElementById("cep").value = funcionario.cep || '';
-            document.getElementById("rua").value = funcionario.rua || '';
-            document.getElementById("numero").value = funcionario.numero || '';
-            document.getElementById("complemento").value = funcionario.complemento || '';
-            document.getElementById("bairro").value = funcionario.bairro || '';
-            document.getElementById("cidade").value = funcionario.cidade || '';
-            document.getElementById("estado").value = funcionario.estado || '';
-            document.getElementById("pais").value = funcionario.pais || '';
-           
-            window.funcionarioOriginal = { ...funcionario }; 
+            console.log("Dados recebidos no Back:", funcionario);
+
+document.getElementById("dataNasc").value = funcionario.datanascimento?.split('T')[0] || '';
+console.log("dataNascimento recebida:", funcionario.datanascimento);
+
+document.getElementById("celularPessoal").value = funcionario.celularpessoal || '';
+document.getElementById("celularFamiliar").value = funcionario.celularfamiliar || '';
+document.getElementById("email").value = funcionario.email || '';
+document.getElementById("site").value = funcionario.site || '';
+
+document.getElementById("codBanco").value = funcionario.codigobanco || '';
+const inputCodBanco = document.getElementById("codBanco");
+if (inputCodBanco) {
+    console.log("[Funcionarios.js] Elemento 'codigobanco' encontrado no DOM. Preenchendo automaticamente o banco.");
+    preencherDadosBancoPeloCodigo();
+} else {
+    console.warn("[Funcionarios.js] Elemento 'codigobanco' não encontrado no DOM.");
+}
+
+document.getElementById("pix").value = funcionario.pix || '';
+document.getElementById("agencia").value = funcionario.agencia || '';
+document.getElementById("digitoAgencia").value = funcionario.digitoagencia || '';
+document.getElementById("nConta").value = funcionario.numeroconta || '';
+document.getElementById("digitoConta").value = funcionario.digitoconta || '';
+
+const selectTipoConta = document.getElementById('tpConta');
+if (selectTipoConta) {
+    selectTipoConta.value = funcionario.tipoconta || 'selecionado';
+}
+
+document.getElementById("cep").value = funcionario.cep || '';
+document.getElementById("rua").value = funcionario.rua || '';
+document.getElementById("numero").value = funcionario.numero || '';
+document.getElementById("complemento").value = funcionario.complemento || '';
+document.getElementById("bairro").value = funcionario.bairro || '';
+document.getElementById("cidade").value = funcionario.cidade || '';
+document.getElementById("estado").value = funcionario.estado || '';
+document.getElementById("pais").value = funcionario.pais || '';
+
+document.getElementById("nomeFamiliar").value = funcionario.nomefamiliar || '';
+console.log("nomeFamiliar recebido:", funcionario.nomefamiliar);
+
+// Armazena o estado original, se necessário
+window.funcionarioOriginal = { ...funcionario };
            
             const selectLinguas = document.getElementById('Linguas'); 
             if (selectLinguas) {
@@ -1044,7 +991,6 @@ function limparCamposFuncionarios(){
     configurarPreviewFoto();
     atualizarCamposLinguas();
     adicionarEventoBlurFuncionario();
-    inicializarFlatpickrsGlobais();
    // inputFile.dataset.previewSet = "true"; // Evita configurar mais de uma vez
   }
   window.configurarEventosFuncionarios = configurarEventosFuncionarios;
