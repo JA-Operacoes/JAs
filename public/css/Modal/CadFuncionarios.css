@@ -279,7 +279,7 @@ display: none;
     width: 270px;
     height: 30px;
     border-radius: 6px;
-    font-size: 12px;
+    font-size: 15px;
     padding: 0 15px;
     border: 1px solid #000000;
     background: transparent;
@@ -302,7 +302,7 @@ display: none;
 
   .form2 select{
     font-family: var(--Font-primary);
-    width: 270px;
+    width: 200px;
     height: 30px;
     border-radius: 6px;
     font-size: 12px;
@@ -395,29 +395,13 @@ input#dataNasc:not([value=""]) ~ label {
   width: 300px;
 }
 
-  input#complemento, input#pais, input#estado, input#numero,input#rg,input#cpf, input#dataNasc {
+  input#complemento, input#pais, input#estado, input#numero,input#rg,input#cpf, input#dataNasc, input#apelido {
     width: 145px; 
   }
 
   input#codBanco,#banco,#agencia,#digitoAgencia,#nConta,#digitoConta,#pix,.form-control.input{
     width: 170px;
   }
-
-  .flatpickr-calendar {
-  z-index: 1060 !important; /* alto o suficiente para ficar acima do modal */
-  position: absolute !important;
-}
-.flatpickr-calendar.open {
-            opacity: 1 !important;
-            visibility: visible !important;
-}
-  body.modal-open .flatpickr-calendar {
-    pointer-events: auto !important; /* CRÍTICO: Reativa os cliques no calendário */
-    z-index: 99999 !important; /* Mantenha este z-index MUITO alto para garantir que ele apareça acima de tudo */
-  }
-
-
-
 
   input#Pix {
     width: 250px;

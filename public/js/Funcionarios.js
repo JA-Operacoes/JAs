@@ -30,7 +30,8 @@ if (typeof window.funcionarioOriginal === "undefined") {
         estado: "",
         pais: "",
         dataNascimento:"",
-        nomeFamiliar:""
+        nomeFamiliar:"",
+        apelido:""
    
     };
 }
@@ -90,6 +91,7 @@ async function verificaFuncionarios() {
         const inputsIdioma = idiomasContainer.querySelectorAll('.idiomaInput');
         const dataNascimento = document.getElementById("dataNasc").value;
         const nomeFamiliar = document.getElementById("nomeFamiliar")?.value.toUpperCase().trim();
+        const apelido = document.getElementById("apelido")?.value.toUpperCase().trim();
 
         const idiomasAdicionaisArray = [];
         inputsIdioma.forEach(input => {
@@ -129,7 +131,7 @@ async function verificaFuncionarios() {
         //     return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Perfil, Nome, Data de Nascimento, CPF, RG, Celular Pessoal, Celular Contato, Nome do Contato, E-mail, CEP, Rua, Número, Bairro, Cidade, Estado e País.", "warning");
         // }
         if (!nome || !cpf || !rg || !celularPessoal || !perfil) {
-        console.log("VALIDACAO", "nome", nome, "cpf", cpf, "rg", rg, "celularPessoal", celularPessoal, "cep", cep,  "rua", rua,  "numero", numero, "bairro", bairro, "cidade", cidade, "estado", estado, "pais", pais, "perfil", perfil, "celularFamiliar", celularFamiliar, "nomeFamiliar", nomeFamiliar )
+        console.log("VALIDACAO", "nome", nome, "cpf", cpf, "rg", rg, "celularPessoal", celularPessoal, "cep", cep,  "rua", rua,  "numero", numero, "bairro", bairro, "cidade", cidade, "estado", estado, "pais", pais, "perfil", perfil, "celularFamiliar", celularFamiliar, "nomeFamiliar", nomeFamiliar, "apelido", apelido )
             return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Perfil, Nome, Data de Nascimento, CPF, RG, Celular Pessoal, Celular Contato, Nome do Contato, E-mail, CEP, Rua, Número, Bairro, Cidade, Estado e País.", "warning");
         }
         // Permissões
@@ -151,7 +153,7 @@ async function verificaFuncionarios() {
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
             celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
             numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, 
-            numero, complemento, bairro, cidade, estado, pais, dataNascimento, nomeFamiliar
+            numero, complemento, bairro, cidade, estado, pais, dataNascimento, nomeFamiliar, apelido
         });
        // --- CRIANDO O FORMDATA ---
         const formData = new FormData();
@@ -185,6 +187,7 @@ async function verificaFuncionarios() {
         formData.append('pais', pais);
         formData.append('dataNascimento', dataNascimento);
         formData.append('nomeFamiliar', nomeFamiliar);
+        formData.append('apelido', apelido);
 
         // Adiciona o arquivo da foto APENAS SE UM NOVO ARQUIVO FOI SELECIONADO
         const inputFileElement = document.getElementById('file');
@@ -198,7 +201,7 @@ async function verificaFuncionarios() {
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
             celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
             numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
-            cidade, estado, pais, dataNascimento, nomeFamiliar
+            cidade, estado, pais, dataNascimento, nomeFamiliar, apelido
         });
         if (metodo === "PUT" && window.funcionarioOriginal) {
             let houveAlteracao = false;
@@ -221,7 +224,7 @@ async function verificaFuncionarios() {
                     perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
                     celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
                     numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
-                    cidade, estado, pais, dataNascimento, nomeFamiliar
+                    cidade, estado, pais, dataNascimento, nomeFamiliar, apelido
                 };
 
                 for (const key in camposTextoParaComparar) {
@@ -326,6 +329,24 @@ async function verificaFuncionarios() {
                   const nomeSelecionado = this.value?.trim();
                   if (!nomeSelecionado) return;
 
+                   const campoApelido = document.querySelector("#apelido");
+                        if (campoApelido.tagName === "SELECT") {
+                            const input = document.createElement("input");
+                            input.type = "text";
+                            input.id = "apelido";
+                            input.name = "apelido";
+                            input.className = "form-2colunas";
+                            input.value = "Apelido"; 
+                            input.classList.add("uppercase");
+                            input.required = true;
+                            campoApelido.parentNode.replaceChild(input, campoApelido);
+                        }
+                         const labelApelido = document.querySelector('label[for="apelido"]');
+                    if (labelApelido) {
+                        labelApelido.style.display = "block";
+                        labelApelido.textContent = "Apelido"; // ou algum texto que você tenha guardado
+                    }
+
                   await carregarFuncionarioDescricao(nomeSelecionado, this);
 
                   // Após carregar, substitui o select de volta para um input de texto
@@ -334,7 +355,7 @@ async function verificaFuncionarios() {
                   novoInput.id = "nome"; // Mantém o ID
                   novoInput.name = "nome";
                   novoInput.required = true;
-                  novoInput.className = "form";
+                  novoInput.className = "form-2colunas";
                   novoInput.classList.add('uppercase');
                   novoInput.value = nomeSelecionado; // Preenche com o nome selecionado
                  // novoInput.readOnly = true; // Torna o campo somente leitura após a seleção
@@ -350,6 +371,99 @@ async function verificaFuncionarios() {
                 if (label) {
                     label.style.display = "block";
                     label.textContent = "Nome do Funcionário"; // ou algum texto que você tenha guardado
+                }
+                novoInput.addEventListener("blur", async function () {
+                    if (!this.value.trim()) return;
+
+                    const campoApelido = document.querySelector("#apelido");
+                        if (campoApelido.tagName === "SELECT") {
+                            const input = document.createElement("input");
+                            input.type = "text";
+                            input.id = "nome";
+                            input.name = "nome";
+                            input.className = "form-2colunas";
+                            input.value = "Nome"; 
+                            input.classList.add("uppercase");
+                            input.required = true;
+                            campoApelido.parentNode.replaceChild(input, campoApelido);
+                        }
+                         const labelApelido = document.querySelector('label[for="apelido"]');
+                    if (labelApelido) {
+                        labelApelido.style.display = "block";
+                        labelApelido.textContent = "Apelido"; // ou algum texto que você tenha guardado
+                    }
+
+                    await carregarFuncionarioDescricao(this.value, this);
+                });
+              });
+          } else {
+              Swal.fire("Nenhum funcionário", "Nenhum funcionário encontrado para pesquisa.", "info");
+          }
+
+          if (funcionarios && funcionarios.length > 0) {
+              const select = criarSelectApelido(funcionarios);
+
+              // Substitui o input de nome pelo select
+              const inputApelido = document.querySelector("#apelido");
+              if (inputApelido && inputApelido.parentNode) {
+                  inputApelido.parentNode.replaceChild(select, inputApelido);
+              }
+
+              // Esconde a label associada ao input de nome, se necessário
+              const labelApelido = document.querySelector('label[for="apelido"]');
+              if (labelApelido) labelApelido.style.display = "none";
+
+              // Adiciona listener para carregar o funcionário selecionado
+              select.addEventListener("change", async function () {
+                  const apelidoSelecionado = this.value?.trim();
+                const optionSelecionada = this.options[this.selectedIndex];
+                const nomeSelecionado = optionSelecionada?.getAttribute("data-nome")?.trim();
+                if (!apelidoSelecionado) return;
+                  if (!apelidoSelecionado) return;
+
+
+                     const campoNome = document.querySelector("#nome");
+                        if (campoNome.tagName === "SELECT") {
+                            const input = document.createElement("input");
+                            input.type = "text";
+                            input.id = "nome";
+                            input.name = "nome";
+                            input.className = "form-2colunas";
+                            input.value = "Nome"; 
+                            input.classList.add("uppercase");
+                            input.required = true;
+                            campoNome.parentNode.replaceChild(input, campoNome);
+                        }
+                         const labelnome = document.querySelector('label[for="nome"]');
+                    if (labelnome) {
+                        labelnome.style.display = "block";
+                        labelnome.textContent = "Nome do Funcionário"; // ou algum texto que você tenha guardado
+                    }
+
+                  await carregarFuncionarioDescricao(nomeSelecionado, this);
+
+                  // Após carregar, substitui o select de volta para um input de texto
+                  const novoInput = document.createElement("input");
+                  novoInput.type = "text";
+                  novoInput.id = "apelido"; // Mantém o ID
+                  novoInput.name = "apelido";
+                  novoInput.required = true;
+                  novoInput.className = "form-2colunas";
+                  novoInput.classList.add('uppercase');
+                  novoInput.value = apelidoSelecionado; // Preenche com o nome selecionado
+                 // novoInput.readOnly = true; // Torna o campo somente leitura após a seleção
+                  
+                  novoInput.addEventListener("blur", async function() {
+                    this.value = this.value.toUpperCase();                      
+                  });
+
+                  this.parentNode.replaceChild(novoInput, this);
+                  adicionarEventoBlurFuncionario();
+
+                  const label = document.querySelector('label[for="apelido"]');
+                if (label) {
+                    label.style.display = "block";
+                    label.textContent = "Apelido"; // ou algum texto que você tenha guardado
                 }
                 novoInput.addEventListener("blur", async function () {
                     if (!this.value.trim()) return;
@@ -372,6 +486,16 @@ async function verificaFuncionarios() {
     });
 
 }
+
+if (!window.ultimoClique) {
+    window.ultimoClique = null;
+  
+}
+// Captura o último elemento clicado no documento (uma única vez)
+document.addEventListener("mousedown", (e) => {
+    window.ultimoClique = e.target;
+});
+
 function adicionarEventoBlurFuncionario() {
     const input = document.querySelector("#nome");
     if (!input) return;
@@ -554,6 +678,7 @@ function configurarPreviewFoto() {
 
 async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
     try {
+        console.log("nome:", nome);
         const funcionario = await fetchComToken(`/funcionarios?nome=${encodeURIComponent(nome)}`);
         
         if (funcionario) {
@@ -561,6 +686,8 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
             //window.funcionarioOriginal = { ...funcionario }; // Salva o estado original
             document.getElementById("idFuncionario").value = funcionario.idfuncionario || '';
             document.getElementById("nome").value = funcionario.nome || '';
+            document.getElementById("apelido").value = funcionario.apelido || '';
+            console.log("Apelido:", apelido);
 
             const radiosPerfil = document.querySelectorAll('input[name="perfil"]'); // Ou input[name="radio"] se você não mudou o name
             radiosPerfil.forEach(radio => {
@@ -653,6 +780,7 @@ document.getElementById("estado").value = funcionario.estado || '';
 document.getElementById("pais").value = funcionario.pais || '';
 
 document.getElementById("nomeFamiliar").value = funcionario.nomefamiliar || '';
+document.getElementById("apelido").value = funcionario.apelido || '';
 console.log("nomeFamiliar recebido:", funcionario.nomefamiliar);
 
 // Armazena o estado original, se necessário
@@ -759,7 +887,7 @@ function criarSelectFuncionario(funcionarios) {
     const select = document.createElement("select");
     select.id = "nome"; // Usamos 'nome' como ID para manter a consistência
     select.name = "nome";
-    select.className = "form";
+    select.className = "form-2colunas";
     select.required = true;
 
     const defaultOption = document.createElement("option");
@@ -774,6 +902,31 @@ function criarSelectFuncionario(funcionarios) {
         option.value = funcionario.nome; // O valor da opção será o nome para a busca
         option.textContent = funcionario.nome;
         option.setAttribute('data-id', funcionario.idFuncionario); // Armazenar o ID no data-attribute
+        select.appendChild(option);
+    });
+    
+    return select;
+}
+function criarSelectApelido(funcionarios) {
+    const select = document.createElement("select");
+    select.id = "apelido"; // Usamos 'nome' como ID para manter a consistência
+    select.name = "apelido";
+    select.className = "form-2colunas";
+    select.required = true;
+
+    const defaultOption = document.createElement("option");
+    defaultOption.value = "";
+    defaultOption.textContent = "Selecione um apelido...";
+    defaultOption.disabled = true;
+    defaultOption.selected = true;
+    select.appendChild(defaultOption);
+
+    funcionarios.forEach(funcionario => {
+        const option = document.createElement("option");
+        option.value = funcionario.apelido; // O valor da opção será o nome para a busca
+        option.textContent = funcionario.apelido;
+        option.setAttribute('data-id', funcionario.idFuncionario); // Armazenar o ID no data-attribute
+        option.setAttribute('data-nome', funcionario.nome); 
         select.appendChild(option);
     });
 
@@ -896,7 +1049,7 @@ function limparCamposFuncionarios(){
         "banco", "codBanco", "pix", "nConta", "digitoConta",
         "agencia", "digitoAgencia", "dataNasc", "tpConta",
         "cep", "rua", "numero", "complemento", "bairro",
-        "cidade", "estado", "pais", "nomeFamiliar", 
+        "cidade", "estado", "pais", "nomeFamiliar", "apelido"
     ];
 
     // Limpa campos de texto e inputs de forma genérica
@@ -980,6 +1133,19 @@ function limparCamposFuncionarios(){
         input.classList.add("uppercase");
         input.required = true;
         campoNome.parentNode.replaceChild(input, campoNome);
+    }
+    
+    const campoApelido = document.querySelector("#apelido");
+    if (campoApelido.tagName === "SELECT") {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.id = "apelido";
+        input.name = "apelido";
+        input.className = "form";
+        input.value = "Nome"; 
+        input.classList.add("uppercase");
+        input.required = true;
+        campoApelido.parentNode.replaceChild(input, campoApelido);
     }
 }
 
