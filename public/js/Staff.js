@@ -1,15 +1,33 @@
  console.log("Staff.js iniciou");
 import { fetchComToken } from '../utils/utils.js';
 
+//importado no inicio do js pois deve ser importado antes do restante do codigo
+import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/flatpickr.min.js";
+import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/l10n/pt.js";
+
+const fp = window.flatpickr; 
+const currentLocale = fp.l10ns.pt || fp.l10ns.default;
+
+if (!currentLocale) {
+    console.error("Flatpickr locale 'pt' não carregado. Verifique o caminho do arquivo.");
+} else {
+    fp.setDefaults({
+        locale: currentLocale
+    });
+    console.log("Flatpickr locale definido para Português.");
+}
+//fim do tratamento do flatpickr
+
 let flatpickrInstances = {};
 
 const commonFlatpickrOptions = {
     mode: "multiple",
     dateFormat: "d/m/Y",
-    altInput: true,
+    altInput: true, // Se quiser altInput para os da tabela também
     altFormat: "d/m/Y",
-    locale: flatpickr.l10ns.pt,
-    appendTo: document.body,
+    //locale: flatpickr.l10ns.pt,
+    locale: currentLocale,
+    appendTo: document.body, // Certifique-se de que 'modal-flatpickr-container' existe e é o elemento correto
     onChange: function(selectedDates) {
         const contador = document.getElementById('contadorDatas');
         if (contador) {
