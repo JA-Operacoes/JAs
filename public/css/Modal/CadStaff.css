@@ -431,7 +431,7 @@ input[type="file"]{
   width: 270px;
   height: 40px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 15px;
   padding: 0 20px;
   border: 1px solid #000000;
   background: transparent;
@@ -532,6 +532,20 @@ input#idStaff{
 input#Transportes,#Alimentação,#Caixinha{
   width: 145px;
 }
+
+  .flatpickr-calendar {
+  z-index: 1060 !important; /* alto o suficiente para ficar acima do modal */
+  position: absolute !important;
+}
+.flatpickr-calendar.open {
+            opacity: 1 !important;
+            visibility: visible !important;
+}
+  body.modal-open .flatpickr-calendar {
+    pointer-events: auto !important; /* CRÍTICO: Reativa os cliques no calendário */
+    z-index: 99999 !important; /* Mantenha este z-index MUITO alto para garantir que ele apareça acima de tudo */
+  }
+
 
 
 fieldset{
