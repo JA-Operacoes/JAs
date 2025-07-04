@@ -48,14 +48,23 @@ document.addEventListener("DOMContentLoaded", function () {
 
   //  ----------------------- Formatação RG -----------------------
 
- window.formatRG = function(input) {
-    if (!input.value) return;
+window.formatRG = function(input) {
+  if (!input.value) return;
 
-    let rg = input.value.replace(/\D/g, ""); // Remove tudo que não for número
-    if (rg.length > 9) rg = rg.slice(0, 9); // Limita a 9 números
+  // Remove tudo que não for número, MAS mantém 1 letra no final se houver
+  let valor = input.value.toUpperCase().replace(/[^0-9A-Z]/g, "");
 
-    // Aplica a formatação automaticamente
-    input.value = rg.replace(/^(\d{2})(\d{3})(\d{3})([\dXx]?)$/, "$1.$2.$3-$4");
+  // Se houver mais de 9 caracteres, mantém os 8 primeiros dígitos + 1 letra (verificador)
+  let rg = valor.slice(0, 9);
+  let verificador = valor.length > 9 ? valor[9] : '';
+
+  // Se o último caractere for letra, usamos como verificador
+  if (/[A-Z]/.test(verificador)) {
+    rg += verificador;
+  }
+
+  // Aplica a formatação: 12.345.678-X
+  input.value = rg.replace(/^(\d{2})(\d{3})(\d{3})([0-9A-Z]?)$/, "$1.$2.$3-$4");
 }
 
 
@@ -329,80 +338,80 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 
-// --------------------------------------------------- Autocomplete Bancos ---------------------------------------------------------
-async function carregarBancosDoBackend() {
-  try {
-    const response = await fetch("/Bancos"); // rota que retorna lista dos bancos
-    if (!response.ok) throw new Error("Erro ao buscar bancos");
+// // --------------------------------------------------- Autocomplete Bancos ---------------------------------------------------------
+// async function carregarBancosDoBackend() {
+//   try {
+//     const response = await fetch("/Bancos"); // rota que retorna lista dos bancos
+//     if (!response.ok) throw new Error("Erro ao buscar bancos");
 
-    const bancosArray = await response.json(); // espera um array [{ codBanco: '001', nmBanco: 'Banco do Brasil' }, ...]
+//     const bancosArray = await response.json(); // espera um array [{ codBanco: '001', nmBanco: 'Banco do Brasil' }, ...]
 
-    // Transforma array em objeto para facilitar busca, igual antes:
-    const bancosObj = {};
-    bancosArray.forEach(banco => {
-      bancosObj[banco.codbanco] = banco.nmbanco;
-    });
+//     // Transforma array em objeto para facilitar busca, igual antes:
+//     const bancosObj = {};
+//     bancosArray.forEach(banco => {
+//       bancosObj[banco.codbanco] = banco.nmbanco;
+//     });
 
-    window.bancosData = bancosObj; // variável global que será usada na função
-    console.log("Bancos carregados:", window.bancosData);
-  } catch (error) {
-    console.error("Erro ao carregar bancos do backend:", error);
-    window.bancosData = {}; // garante que não quebre
-  }
-}
+//     window.bancosData = bancosObj; // variável global que será usada na função
+//     console.log("Bancos carregados:", window.bancosData);
+//   } catch (error) {
+//     console.error("Erro ao carregar bancos do backend:", error);
+//     window.bancosData = {}; // garante que não quebre
+//   }
+// }
 
-window.autoPreencherBanco = function(input, evento) {
-  const nomeInput = document.getElementById('banco');
-  const codInput = document.getElementById('codBanco');
-console.log("autoPreencherBanco chamado com evento:", evento, codInput, nomeInput);
-  if (!nomeInput || !codInput) return;
+// window.autoPreencherBanco = function(input, evento) {
+//   const nomeInput = document.getElementById('banco');
+//   const codInput = document.getElementById('codBanco');
+// console.log("autoPreencherBanco chamado com evento:", evento, codInput, nomeInput);
+//   if (!nomeInput || !codInput) return;
 
-  // Usar variável global que foi carregada do backend
-  const bancos = window.bancosData || {};
+//   // Usar variável global que foi carregada do backend
+//   const bancos = window.bancosData || {};
 
-  const valor = input.value.trim();
-  const valorLower = valor.toLowerCase();
-  const valorNumerico = valor.replace(/\D/g, '');
+//   const valor = input.value.trim();
+//   const valorLower = valor.toLowerCase();
+//   const valorNumerico = valor.replace(/\D/g, '');
 
-  function normalizar(texto) {
-    return texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  }
+//   function normalizar(texto) {
+//     return texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+//   }
 
-  if (input === codInput) {
-    if (valorNumerico.length >= 3 || evento === 'blur') {
-      const nomeBanco = bancos[valorNumerico];
-      if (nomeBanco) nomeInput.value = nomeBanco;
-    }
-    if (valor === '') nomeInput.value = '';
-    return;
-  }
+//   if (input === codInput) {
+//     if (valorNumerico.length >= 3 || evento === 'blur') {
+//       const nomeBanco = bancos[valorNumerico];
+//       if (nomeBanco) nomeInput.value = nomeBanco;
+//     }
+//     if (valor === '') nomeInput.value = '';
+//     return;
+//   }
 
-  if (input === nomeInput) {
-    if (valor.length >= 3 || evento === 'blur') {
-      let achado = false;
-      const entradaNormalizada = normalizar(valorLower);
+//   if (input === nomeInput) {
+//     if (valor.length >= 3 || evento === 'blur') {
+//       let achado = false;
+//       const entradaNormalizada = normalizar(valorLower);
 
-      for (let [codigo, nomeBanco] of Object.entries(bancos)) {
-        if (normalizar(nomeBanco).includes(entradaNormalizada)) {
-          codInput.value = codigo;
-          if (evento === 'blur') nomeInput.value = nomeBanco;
-          achado = true;
-          break;
-        }
-      }
+//       for (let [codigo, nomeBanco] of Object.entries(bancos)) {
+//         if (normalizar(nomeBanco).includes(entradaNormalizada)) {
+//           codInput.value = codigo;
+//           if (evento === 'blur') nomeInput.value = nomeBanco;
+//           achado = true;
+//           break;
+//         }
+//       }
 
-      if (!achado && evento === 'blur') {
-        codInput.value = '';
-      }
-    }
-    if (valor === '') codInput.value = '';
-  }
-};
+//       if (!achado && evento === 'blur') {
+//         codInput.value = '';
+//       }
+//     }
+//     if (valor === '') codInput.value = '';
+//   }
+// };
 
-document.querySelectorAll(".modal").forEach(modal => {
-    modal.addEventListener("input", function(event) {
-        if (event.target.tagName === "INPUT" || event.target.tagName === "TEXTAREA") {
-            event.target.value = event.target.value.toUpperCase();
-        }
-    });
-});
+// document.querySelectorAll(".modal").forEach(modal => {
+//     modal.addEventListener("input", function(event) {
+//         if (event.target.tagName === "INPUT" || event.target.tagName === "TEXTAREA") {
+//             event.target.value = event.target.value.toUpperCase();
+//         }
+//     });
+// });

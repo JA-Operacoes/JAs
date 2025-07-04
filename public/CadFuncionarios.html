@@ -79,8 +79,13 @@
             <legend> Informações Pessoais </legend>
             <div class="form-2colunas">
               <div class="form2">
-                <input type="text" name="nome" id="nome" class="uppercase" required spellcheck="false">
+                <input type="text" name="nome" id="nome" class="uppercase" required >
                 <label for="nome">Nome do Funcionário</label>
+              </div>
+
+              <div class="form2">
+                <input type="text" name="apelido" id="apelido" class="uppercase" required >
+                <label for="apelido">Apelido</label>
               </div>
 
               <div class="form2">
@@ -128,22 +133,24 @@
                 <input type="tel" name="celularPessoal" id="celularPessoal" maxlength="15" oninput="formatTelefone(this)" required>
                 <label for="celularPessoal">Celular Pessoal</label>
               </div>
-              <div class="form2">
-                <input type="tel" name="celularFamiliar" id="celularFamiliar"  maxlength="15" oninput="formatTelefone(this)" required>
-                <label for="celularFamiliar">Celular para contato familiar </label>
+               <div class="form2">
+                <input type="email" name="email" id="email" required spellcheck="false">
+                <label for="email">Email</label>
               </div>
             </div>
+
             <div class="form-2colunas">
               <div class="form2">
                 <input type="text" name="nomeFamiliar" id="nomeFamiliar" class="uppercase" required>
                 <label for="nomeFamiliar">Nome do contato familiar</label>
               </div>
-            </div>
-            <div class="form-2colunas">
               <div class="form2">
-                <input type="email" name="email" id="email" required spellcheck="false">
-                <label for="email">Email</label>
+                <input type="tel" name="celularFamiliar" id="celularFamiliar"  maxlength="15" oninput="formatTelefone(this)" required>
+                <label for="celularFamiliar">Celular para contato familiar </label>
               </div>
+            </div>
+
+            <div class="form-2colunas">
               <div class="form2">
                 <input type="url" name="site" id="site" spellcheck="false" required >
                 <label for="site"> Site </label>

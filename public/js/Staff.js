@@ -1,31 +1,81 @@
+ console.log("Staff.js iniciou");
 import { fetchComToken } from '../utils/utils.js';
+
+//importado no inicio do js pois deve ser importado antes do restante do codigo
+import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/flatpickr.min.js";
+import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/l10n/pt.js";
+
+const fp = window.flatpickr; 
+const currentLocale = fp.l10ns.pt || fp.l10ns.default;
+
+if (!currentLocale) {
+    console.error("Flatpickr locale 'pt' não carregado. Verifique o caminho do arquivo.");
+} else {
+    fp.setDefaults({
+        locale: currentLocale
+    });
+    console.log("Flatpickr locale definido para Português.");
+}
+//fim do tratamento do flatpickr
+
+let flatpickrInstances = {};
+
+const commonFlatpickrOptions = {
+    mode: "multiple",
+    dateFormat: "d/m/Y",
+    altInput: true, // Se quiser altInput para os da tabela também
+    altFormat: "d/m/Y",
+    //locale: flatpickr.l10ns.pt,
+    locale: currentLocale,
+    appendTo: document.body, // Certifique-se de que 'modal-flatpickr-container' existe e é o elemento correto
+    onChange: function(selectedDates) {
+        const contador = document.getElementById('contadorDatas');
+        if (contador) {
+            if (selectedDates.length === 0) {
+                contador.innerText = 'Nenhuma data selecionada';
+            } else {
+                contador.innerText = `${selectedDates.length} ${selectedDates.length === 1 ? 'Diaria Selecionada' : 'Diarias'}`;
+            }
+        }
+    }
+};
 
 if (typeof window.StaffOriginal === "undefined") {
     window.StaffOriginal = {
         idStaff: "",
+        avaliacao:"",
         nmFuncionario: "",
         descFuncao: "",
         vlrCusto: "",
-        vlrBeneficio: "",
+        extra:"",
+        transportes: "",
+        alimentacao:"",
+        caixinha:"",
         descBeneficio: "",
         nmCliente: "",
         nmEvento: "",
-        dtInicio: "",   
-        dtFim: "",
+        datasEventos: "",   
+        bonus: "",   
         vlrTotal: ""
-        
     }
 };
 
-function verificaStaff() {
+console.log("não carregou Verificar");
+ async function verificaStaff() {
 
     console.log("Carregando Staff...");
-       
+
+      configurarPreviewPDF();
+      configurarPreviewImagem();
+      inicializarFlatpickrsGlobais();
+      
+
     const botaoEnviar = document.querySelector("#Enviar");
     const botaoPesquisar = document.querySelector("#Pesquisar");
-    const form = document.querySelector("#form");
     const botaoLimpar = document.querySelector("#Limpar");
 
+    const form = document.querySelector("#form");
+    
     if (!botaoEnviar || !form) {
         console.error("Formulário ou botão não encontrado no DOM.");
         return;
@@ -33,55 +83,38 @@ function verificaStaff() {
 
     botaoLimpar.addEventListener("click", function (event) {
         event.preventDefault(); // Previne o envio padrão do formulário 
-        const campo = document.getElementById("descStaff");
-
-        if (campo && campo.tagName.toLowerCase() === "select") {
-            const input = document.createElement("input");
-            input.type = "text";
-            input.id = "descStaff";
-            input.name = "descStaff";
-            input.value = "Descrição da Função";
-            input.className = "form";
-            input.required = true;
-
-            campo.parentNode.replaceChild(input, campo);
-            adicionarEventoBlurStaff();
-
-            const label = document.querySelector('label[for="descStaff"]');
-            if (label) label.style.display = "block";
-
-            // Adiciona o evento blur ao novo input
-        
-        }
         limparCamposStaff();
-
     });
 
- botaoEnviar.addEventListener("click", async function (event) {
+    botaoEnviar.addEventListener("click", async (event) => {
         event.preventDefault(); // Previne o envio padrão do formulário
 
-        const idStaff = document.querySelector("#idStaff").value;
+        const idStaff = document.querySelector("#idStaff").value.trim();
         const nmFuncionario = document.querySelector("#nmFuncionario").value.toUpperCase().trim();
-        const descFuncao = document.querySelector("#descFuncao").value;
-        const vlrCusto = document.querySelector("#vlrCusto").value.trim();
-        const extra = document.querySelector("#extra").value.trim();
-        const transporte = document.querySelector("#transportes").value.trim();
-        const alimentacao = document.querySelector("#alimentacao").value.trim();
-        const caixinha = document.querySelector("#caixinha").value.trim();
+        const descFuncao = document.querySelector("#descFuncao").value || '';
+        const vlrCusto = document.querySelector("#vlrCusto").value.trim() || '';
+        const extra = document.querySelector("#extra").value.trim() || '';
+        const transporte = document.querySelector("#transportes").value.trim() || '';
+        const alimentacao = document.querySelector("#alimentacao").value.trim() || '';
+        const caixinha = document.querySelector("#caixinha").value.trim() || '';
         const nmCliente = document.querySelector("#nmCliente").value.trim();
         const nmEvento = document.querySelector("#nmEvento").value.trim();
         const dataevento = document.querySelector("#datasEvento").value.trim();
         const vlrTotal = document.querySelector("#vlrTotal").value;
     
-        // const beneficio = parseFloat(String(vlrBeneficio).replace(",", "."));
         const custo = parseFloat(String(vlrCusto).replace(",", "."));
         const total = parseFloat(String(vlrTotal).replace(",", "."));
+
+        if(!nmFuncionario || !descFuncao || !vlrCusto || !transporte || !alimentacao || !nmCliente || !nmEvento || !dataevento){
+           return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Funcionario, Função, Cache, Transportes, Alimentação, Cliente, Evento e Periodo do Evento.", "warning");
+        }
 
        // Permissões
         const temPermissaoCadastrar = temPermissao("Staff", "cadastrar");
         const temPermissaoAlterar = temPermissao("Staff", "alterar");
 
         const metodo = idStaff ? "PUT" : "POST";
+        const url = idStaff ? `/staff/${idStaff}` : "/staff";
 
         if (!idStaff && !temPermissaoCadastrar) {
             return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novas funções.", "error");
@@ -91,147 +124,128 @@ function verificaStaff() {
             return Swal.fire("Acesso negado", "Você não tem permissão para alterar funções.", "error");
         }
  
-        let formValido = true;
-        let mensagens = [];
-
-        // Lista de IDs dos campos obrigatórios (exceto o campo "file")
-        const camposObrigatorios = [
-            "nmFuncionario", "descFuncao", "vlrCusto",
-            // "nmCliente", "nmEvento", "dataevento", "vlrTotal"
-        ];
-
-        camposObrigatorios.forEach(id => {
-            const campo = document.getElementById(id);
-            if (!campo || campo.value.trim() === "") {
-            formValido = false;
-            mensagens.push(`- Campo "${campo?.previousElementSibling?.textContent || id}" é obrigatório.`);
-            }
+         console.log("Preparando dados para envio:", {
+            nmFuncionario, descFuncao, vlrCusto, extra, transporte, alimentacao, caixinha,
+            nmCliente, nmEvento, dataevento, vlrTotal
         });
 
-        // Se não for válido, cancelar o envio e mostrar mensagem
-        if (!formValido) {
-            e.preventDefault();
-            alert("Preencha os campos obrigatórios:\n\n" + mensagens.join("\n"));
+         const formData = new FormData();
+        // Adiciona todos os campos de texto ao FormData
+        formData.append('Nome do Funcionario:', nmFuncionario);
+        formData.append('Função:', descFuncao);
+        formData.append('Cache:', vlrCusto);
+        formData.append('Extra:', extra);
+        formData.append('Transporte:', transporte);
+        formData.append('Alimetação:', alimentacao);
+        formData.append('Caixinha:', caixinha);
+        formData.append('Cliente:', nmCliente);
+        formData.append('Evento:', nmEvento);
+        formData.append('Data de Evento:', dataevento);
+        formData.append('Total a receber:', vlrTotal);
+
+
+          // Adiciona o arquivo da foto APENAS SE UM NOVO ARQUIVO FOI SELECIONADO
+        const inputFileElement = document.getElementById('file');
+        const fotoArquivo = inputFileElement.files[0];
+        if (fotoArquivo) {
+            formData.append('foto', fotoArquivo); // 'foto' é o nome do campo esperado pelo Multer
         }
+        
+        console.log("Preparando envio de FormData. Método:", metodo, "URL:", url);
+        console.log("Dados do FormData:", {
+            nmFuncionario, descFuncao, vlrCusto, extra, transporte, alimentacao, caixinha,
+            nmCliente, nmEvento, dataevento, vlrTotal
+        });
 
+          if (metodo === "PUT" && window.funcionarioOriginal) {
+            let houveAlteracao = false;
 
-        // if (!descStaff || !vlrCusto || !vlrVenda) {
-           
-        //     Swal.fire({
-        //         icon: 'warning',
-        //         title: 'Campos obrigatórios!',
-        //         text: 'Preencha todos os campos antes de enviar.',
+            // 1. Verificar alteração na foto
+            if (fotoArquivo) { // Se um novo arquivo foi selecionado
+                houveAlteracao = true;
+            } else {
+            }
+
+            // 2. Comparar os outros campos de texto
+            if (!houveAlteracao) { // Só verifica os outros campos se a foto não causou uma alteração
+                const camposTextoParaComparar = {
+                    nmFuncionario, descFuncao, vlrCusto, extra, transporte, alimentacao, caixinha,
+            nmCliente, nmEvento, dataevento, vlrTotal
+                };
+                for (const key in camposTextoParaComparar) {
+                    // É importante que `funcionarioOriginal` tenha as chaves mapeadas para os nomes do frontend
+                    // e que os valores sejam comparáveis (ex: ambos string, ambos uppercase se necessário).
+                    const valorOriginal = String(window.StaffOriginal[key] || '').toUpperCase().trim();
+                    const valorAtual = String(camposTextoParaComparar[key] || '').toUpperCase().trim();
+                }
+              }
+
+              if (!houveAlteracao) {
+                  return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
+              }
+
+        //     if (
+        //     parseInt(idStaff) === parseInt(window.StaffOriginal.idStaff) && 
+        //     nmFuncionario === window.StaffOriginal.nmFuncionario && 
+        //     descFuncao === window.StaffOriginal.descFuncao && 
+        //     nmCliente === window.StaffOriginal.nmCliente && 
+        //     nmEvento === window.StaffOriginal.nmEvento && 
+        //     Number(custo).toFixed(2) === Number(window.StaffOriginal.vlrCusto).toFixed(2) &&
+        //     Number(extra).toFixed(2) === Number(window.StaffOriginal.extra).toFixed(2) &&
+        //     Number(transporte).toFixed(2) === Number(window.StaffOriginal.transporte).toFixed(2) &&
+        //     Number(alimentacao).toFixed(2) === Number(window.StaffOriginal.alimentacao).toFixed(2) &&
+        //     Number(caixinha).toFixed(2) === Number(window.StaffOriginal.caixinha).toFixed(2) &&
+        //     Number(total).toFixed(2) === Number(window.StaffOriginal.vlrTotal).toFixed(2) &&
+        //     dataevento === window.StaffOriginal.dataevento
+        // ) {
+        //     console.log("Nenhuma alteração detectada.");
+        //     await Swal.fire({
+        //         icon: 'info',
+        //         title: 'Nenhuma alteração foi detectada!',
+        //         text: 'Faça alguma alteração antes de salvar.',
         //         confirmButtonText: 'Entendi'
         //     });
         //     return;
         // }
-
-        // console.log("Valores do Staff:", idStaff, descStaff, custo, venda, ajcstaff, obsstaff);
-        // console.log("Valores do Staff Original:", window.StaffOriginal.idStaff, window.StaffOriginal.descStaff, window.StaffOriginal.vlrCusto, window.StaffOriginal.vlrVenda, window.StaffOriginal.vlrajdcusto, window.StaffOriginal.obsStaff);
-            
-        // Comparar com os valores originais
-
-        const formatarData = (dataStr) => new Date(dataStr).toISOString().split('T')[0];
-
-        
-        
-
-        if (
-            parseInt(idStaff) === parseInt(window.StaffOriginal.idStaff) && 
-            nmFuncionario === window.StaffOriginal.nmFuncionario && 
-            descFuncao === window.StaffOriginal.descFuncao && 
-            nmCliente === window.StaffOriginal.nmCliente && 
-            nmEvento === window.StaffOriginal.nmEvento && 
-            Number(custo).toFixed(2) === Number(window.StaffOriginal.vlrCusto).toFixed(2) &&
-            Number(extra).toFixed(2) === Number(window.StaffOriginal.extra).toFixed(2) &&
-            Number(transporte).toFixed(2) === Number(window.StaffOriginal.transporte).toFixed(2) &&
-            Number(alimentacao).toFixed(2) === Number(window.StaffOriginal.alimentacao).toFixed(2) &&
-            Number(caixinha).toFixed(2) === Number(window.StaffOriginal.caixinha).toFixed(2) &&
-            Number(total).toFixed(2) === Number(window.StaffOriginal.vlrTotal).toFixed(2) &&
-            dataevento === window.StaffOriginal.dataevento
-        ) {
-            console.log("Nenhuma alteração detectada.");
-            await Swal.fire({
-                icon: 'info',
-                title: 'Nenhuma alteração foi detectada!',
-                text: 'Faça alguma alteração antes de salvar.',
-                confirmButtonText: 'Entendi'
-            });
-            return;
-        }
     
-        const dados = { idStaff, nmFuncionario, descFuncao, custo, extra, transporte, alimentacao, caixinha, nmCliente, nmEvento, dataevento , total };
+        // const dados = { idStaff, nmFuncionario, descFuncao, custo, extra, transporte, alimentacao, caixinha, nmCliente, nmEvento, dataevento , total };
 
-     
-        if (idStaff) {
-            Swal.fire({
-                title: "Deseja salvar as alterações?",
-                text: "Você está prestes a atualizar os dados do Staff.",
-                icon: "question",
-                showCancelButton: true,
-                confirmButtonText: "Sim, salvar",
-                cancelButtonText: "Cancelar",
-                reverseButtons: true,
-                focusCancel: true
-                
-            }).then(async (result) => {
-                if (result.isConfirmed) {
-                    try {
-                        const response = await fetchComToken(`/staff/${idStaff}`, {
-                            method: "PUT",
-                            headers: {
-                                "Content-Type": "application/json"
-                            },
-                            body: JSON.stringify(dados)
-                        });
-        
-                        const resultJson = await response.json();
-        
-                        if (response.ok) {
-                            document.getElementById('form').reset();
-                            Swal.fire("Sucesso!", resultJson.mensagem || "Alterações salvas com sucesso!", "success");
-                            //form.reset();
-                            document.querySelector("#idStaff").value = "";
-                            limparStaffOriginal();  
-                        } else {
-                            Swal.fire("Erro", resultJson.erro || "Erro ao salvar o Staff.", "error");
-                        }
-                    } catch (error) {
-                        console.error("Erro ao enviar dados:", error);
-                        Swal.fire("Erro de conexão", "Não foi possível conectar ao servidor.", "error");
-                    }
-                } else {
-                    console.log("Usuário cancelou a alteração.");
-                }
-            });
-        } else {
-            // Se for novo, salva direto
-            try {
-                const response = await fetchComToken("/staff", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify(dados)
+          try {
+            // Confirmação para alteração (PUT)
+            if (metodo === "PUT") {
+                const { isConfirmed } = await Swal.fire({
+                    title: "Deseja salvar as alterações?",
+                    text: "Você está prestes a atualizar os dados do funcionário.",
+                    icon: "question",
+                    showCancelButton: true,
+                    confirmButtonText: "Sim, salvar",
+                    cancelButtonText: "Cancelar",
+                    reverseButtons: true,
+                    focusCancel: true
                 });
-        
-                const resultJson = await response.json();
-        
-                if (response.ok) {
-                    Swal.fire("Sucesso!", resultJson.mensagem || "Staff cadastrado!", "success");
-                    form.reset();
-                    limparStaffOriginal();
-                    document.querySelector("#idStaff").value = "";
-                } else {
-                    Swal.fire("Erro", resultJson.erro || "Erro ao cadastrar o Staff.", "error");
-                }
-            } catch (error) {
-                console.error("Erro ao enviar dados:", error);
-                Swal.fire("Erro de conexão", "Não foi possível conectar ao servidor.", "error");
+                if (!isConfirmed) return;
             }
+
+            // --- CHAMADA FETCH COM FORMDATA ---
+            const respostaApi = await fetchComToken(url, {
+                method: metodo,
+                body: formData, // ENVIA O FORMDATA AQUI
+                // O fetchComToken deve ser ajustado para NÃO adicionar Content-Type: application/json
+                // quando o body é um FormData. O navegador cuida disso automaticamente.
+            });
+
+            await Swal.fire("Sucesso!", respostaApi.message || "Funcionário salvo com sucesso.", "success");
+            limparCamposSidStaff();
+            window.funcionarioOriginal = null; // Reseta o estado original após sucesso
+
+        } catch (error) {
+            console.error("Erro ao enviar dados do funcionário:", error);
+            Swal.fire("Erro", error.message || "Erro ao salvar funcionário.", "error");
         }
+      }
     });
     
+
     botaoPesquisar.addEventListener("click", async function (event) {
         event.preventDefault();
         console.log("Pesquisando Staff...");
@@ -318,37 +332,66 @@ function verificaStaff() {
     
 
 }
-function criarSelectStaff(funcoes) {
-   
-    const select = document.createElement("select");
-    select.id = "descStaff";
-    select.name = "descStaff";
-    select.required = true;
-    select.className = "form";
 
-   
-    // Adicionar opções
-    const defaultOption = document.createElement("option");
-    defaultOption.value = "";
-    defaultOption.text = "Selecione uma função...";
-    defaultOption.disabled = true;
-    defaultOption.selected = true;
-    select.appendChild(defaultOption);
-   
-    console.log("PESQUISANDO FUNCAO:", funcoes);
+console.log("não iniciou flat")
+function inicializarFlatpickrsGlobais() {
+console.log("Inicializando Flatpickr para todos os campos de data (globais)...");
+    const dateInputIds = [
+        'datasEvento'
+    ];
 
-    funcoes.forEach(staffachada => {
-        const option = document.createElement("option");
-        option.value = staffachada.descstaff;
-        option.text = staffachada.descstaff;
-        select.appendChild(option);
+    dateInputIds.forEach(id => { // Este é o loop correto
+        const element = document.getElementById(id);
+        if (element) { // Verificamos se o elemento existe
+            // **IMPORTANTE**: Só inicialize se já não foi inicializado
+            if (!element._flatpickr) { 
+                const picker = flatpickr(element, commonFlatpickrOptions);
+                // **CRUCIAL**: Salve a instância no objeto global 'flatpickrInstances'
+                flatpickrInstances[id] = picker; 
+                console.log(`Flatpickr inicializado e salvo para campo global #${id}`);
+            } else {
+                console.log(`Flatpickr para campo global #${id} já estava inicializado.`);
+                // Se já estava inicializado, podemos simplesmente garantir que a instância está salva
+                flatpickrInstances[id] = element._flatpickr; 
+            }
+        } else {
+            console.warn(`Elemento com ID '${id}' não encontrado para inicialização do Flatpickr.`);
+        }
     });
- 
-    return select;
 }
 
+// function criarSelectStaff() {
+   
+//     const select = document.createElement("select");
+//     select.id = "descStaff";
+//     select.name = "descStaff";
+//     select.required = true;
+//     select.className = "form";
+
+   
+//     // Adicionar opções
+//     const defaultOption = document.createElement("option");
+//     defaultOption.value = "";
+//     defaultOption.text = "Selecione uma função...";
+//     defaultOption.disabled = true;
+//     defaultOption.selected = true;
+//     select.appendChild(defaultOption);
+   
+//     console.log("PESQUISANDO FUNCAO:", funcoes);
+
+//     funcoes.forEach(staffachada => {
+//         const option = document.createElement("option");
+//         option.value = staffachada.descstaff;
+//         option.text = staffachada.descstaff;
+//         select.appendChild(option);
+//     });
+ 
+//     return select;
+// }
+
+console.log("ainda n adicionou Blur")
 function adicionarEventoBlurStaff() {
-    const input = document.querySelector("#descStaff");
+    const input = document.querySelector("#nmFuncionario");
     if (!input) return;
 
     let ultimoClique = null;
@@ -382,7 +425,7 @@ function adicionarEventoBlurStaff() {
         }
     });
 }
-
+console.log("n carregou a descrição staff");
 async function carregarStaffDescricao(desc, elementoAtual) {
     try {
         const response = await fetchComToken(`/staff?descStaff=${encodeURIComponent(desc)}`);
@@ -427,7 +470,7 @@ async function carregarStaffDescricao(desc, elementoAtual) {
             const resultado = await Swal.fire({
                 icon: 'question',
                 title: `Deseja cadastrar "${desc.toUpperCase()}" como Staff?`,
-                text: `Função "${desc.toUpperCase()}" não encontrado`,
+                text: `Staff "${desc.toUpperCase()}" não encontrado`,
                 showCancelButton: true,
                 confirmButtonText: "Sim, cadastrar",
                 cancelButtonText: "Cancelar",
@@ -518,11 +561,11 @@ document.getElementById('Caixinhacheck').addEventListener('change', function () 
   calcularValorTotal();
 });
 
-    function calcularValorTotal() {
+  function calcularValorTotal() {
     const cache = parseFloat(document.getElementById('vlrCusto').value.replace(',', '.')) || 0;
     const extra = parseFloat(document.getElementById('extra').value.replace(',', '.')) || 0;
     const transportes = parseFloat(document.getElementById('transportes').value.replace(',', '.')) || 0;
-    const alimentacao = parseFloat(document.getElementById('alimentação').value.replace(',', '.')) || 0;
+    const alimentacao = parseFloat(document.getElementById('alimentacao').value.replace(',', '.')) || 0;
     const caixinha = parseFloat(document.getElementById('caixinha').value.replace(',', '.')) || 0;
 
     const contadorTexto = document.getElementById('contadorDatas').innerText;
@@ -533,24 +576,30 @@ document.getElementById('Caixinhacheck').addEventListener('change', function () 
     const total = soma * numeroDias;
 
     const valorFormatado = 'R$ ' + total.toFixed(2).replace('.', ',');
-    const valorLimpo = total.toFixed(2); // valor limpo com ponto
+    const valorLimpo = total.toFixed(2);
 
-    // Exibe valor formatado no campo visível
     document.getElementById('vlrTotal').value = valorFormatado;
-
-    // Salva valor limpo no campo oculto
     document.getElementById('vlrTotalHidden').value = valorLimpo;
 
-    // Exibe no console
     console.log(`Cálculo: (${cache} + ${extra} + ${transportes} + ${alimentacao} + ${caixinha}) * ${numeroDias} = ${valorFormatado}`);
   }
 
-  ['vlrCusto', 'extra', 'transportes', 'alimentação', 'caixinha'].forEach(id => {
-    document.getElementById(id).addEventListener('input', calcularValorTotal);
+  // Adiciona listeners de input para os campos que impactam no cálculo
+  ['vlrCusto', 'extra', 'transportes', 'alimentacao', 'caixinha'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('input', calcularValorTotal);
   });
 
-  const observer = new MutationObserver(calcularValorTotal);
-  observer.observe(document.getElementById('contadorDatas'), { childList: true, characterData: true, subtree: true });
+  // Cria um observer para o contadorDatas para recalcular quando mudar texto
+  const contadorDatasEl = document.getElementById('contadorDatas');
+  if (contadorDatasEl) {
+    const observer = new MutationObserver(calcularValorTotal);
+    observer.observe(contadorDatasEl, { childList: true, characterData: true, subtree: true });
+  }
+
+  // Pode chamar a função na inicialização para garantir valor correto
+  calcularValorTotal();
+
 
 
 console.log("Ainda não Entrou no Previewpdf");
@@ -592,7 +641,7 @@ function configurarPreviewImagem() {
   const inputImg = document.getElementById('file');
   const previewImg = document.getElementById('previewFoto');
   const fileNameImg = document.getElementById('fileName');
-  const hiddenImg = document.getElementById('linkFotoFuncionarios');
+  const hiddenImg = document.getElementById('linkFotoSidStaff');
   const headerImg = document.getElementById('uploadHeader');
 
   inputImg.addEventListener('change', function () {
@@ -618,10 +667,10 @@ function configurarPreviewImagem() {
   });
 }
 
-window.addEventListener('DOMContentLoaded', function () {
-  configurarPreviewPDF();
-  configurarPreviewImagem();
-});
+// window.addEventListener('DOMContentLoaded', function () {
+//   configurarPreviewPDF();
+//   configurarPreviewImagem();
+// });
 
 
 let contadorFieldsets = 1;
@@ -719,99 +768,15 @@ function adicionarCampos() {
     container.removeChild(novoFieldset);
     console.log("❌ Fieldset removido");
 
-    atualizarFlatpickrs();
   };
 
   novoFieldset.appendChild(botaoRemover);
   container.appendChild(novoFieldset);
   console.log("✅ Novo fieldset adicionado ao container");
 
-  inicializarFlatpickr(`#${novoId}`, novoContadorId);
 
 }
-console.log("ainda n carregou o Flat")
-  
-const selector = document.getElementById("datasEventos");
-const contadorId = document.getElementById("contadorDatas")
 
-function inicializarFlatpickr(selector, contadorId) {
-  console.log("📅 Inicializando Flatpickr para:", selector);
-
-  const input = typeof selector === "string"
-    ? document.querySelector(selector)
-    : selector;
-
-  if (!input) {
-    console.warn("⚠️ Campo não encontrado para o seletor:", selector);
-    return;
-  }else{
-    console.log("✅ campo encontrado para o seletor");
-  }
-
-//   if (input._flatpickr) {
-//   input._flatpickr.destroy();
-// }
-
-  
-
-  flatpickr(input, {
-    mode: "multiple",
-    dateFormat: "d/m/Y",
-    locale: "pt",
-    appendTo: input.closest('.modal'),
-    positionElement: input,
-    disable: datasGlobaisSelecionadas,
-    onChange: function (selectedDates, dateStr, instance) {
-      console.log("🖊️ onChange disparado. Datas selecionadas:", dateStr);
-
-      // Remove datas antigas
-      datasGlobaisSelecionadas = datasGlobaisSelecionadas.filter(
-        d => !instance.previousSelectedDates?.some(sd => sd.getTime() === d.getTime())
-      );
-
-      // Adiciona novas
-      selectedDates.forEach(data => {
-        if (!datasGlobaisSelecionadas.some(d => d.getTime() === data.getTime())) {
-          datasGlobaisSelecionadas.push(data);
-        }
-      });
-
-      // Atualiza contador
-      const contador = document.getElementById(contadorId);
-      if (contador) {
-        contador.textContent = selectedDates.length > 0
-          ? `${selectedDates.length} diaria(s) selecionada(s).`
-          : "Nenhuma diaria selecionada.";
-        console.log("📊 Contador atualizado:", contador.textContent);
-      }
-
-      instance.previousSelectedDates = [...selectedDates];
-      atualizarFlatpickrs();
-    },
-    onReady: function (selectedDates, dateStr, instance) {
-      instance.previousSelectedDates = [...selectedDates];
-      console.log("📂 Flatpickr pronto com datas:", selectedDates);
-    }
-  });
-}
-
-function atualizarFlatpickrs() {
-  console.log("♻️ Atualizando todos os Flatpickrs");
-
-  document.querySelectorAll("input[id^='datasEvento']").forEach(input => {
-    const fpInstance = input._flatpickr;
-    if (fpInstance) {
-      fpInstance.set( datasGlobaisSelecionadas);
-      console.log("🚫 Datas desabilitadas atualizadas para:", input.id);
-    }
-  });
-}
-
-// Inicializa o primeiro campo ao carregar a página
-document.addEventListener("DOMContentLoaded", function () {
-  console.log("📦 DOM totalmente carregado. Inicializando primeiro Flatpickr.");
-  inicializarFlatpickr("#datasEvento", "contadorDatas");
-});
 
   // Setup do primeiro input file
   const inputFile = document.getElementById("filePDF");
@@ -856,89 +821,13 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
 
-
-// async function fetchComToken(url, options = {}) {
-//   console.log("URL da requisição:", url);
-//   const token = localStorage.getItem("token");
-//   const idempresa = localStorage.getItem("idempresa");
-
-//   console.log("ID da empresa no localStorage:", idempresa);
-//   console.log("Token no localStorage:", token);
-
-//   if (!options.headers) options.headers = {};
-  
-//   if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
-//         options.headers['Content-Type'] = 'application/json';
-//   }else if (options.body && typeof options.body === 'object' && options.headers['Content-Type'] !== 'multipart/form-data') {
-       
-//         options.body = JSON.stringify(options.body);
-//         options.headers['Content-Type'] = 'application/json';
-//   }
-
-//   options.headers['Authorization'] = 'Bearer ' + token; 
-
-//   if (
-//       idempresa && 
-//       idempresa !== 'null' && 
-//       idempresa !== 'undefined' && 
-//       idempresa.trim() !== '' &&
-//       !isNaN(idempresa) && 
-//       Number(idempresa) > 0
-//   ) {
-//       options.headers['idempresa'] = idempresa;
-//       console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
-//   } else {
-//     console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
-//   }
-//   console.log("URL OPTIONS", url, options)
- 
-//   const resposta = await fetch(url, options);
-
-//   console.log("Resposta da requisição:", resposta);
-
-//   let responseBody = null;
-//   try {
-//       // Primeiro, tente ler como JSON, pois é o mais comum para APIs
-//       responseBody = await resposta.json();
-//   } catch (jsonError) {
-//       // Se falhar (não é JSON, ou resposta vazia, etc.), tente ler como texto
-//       try {
-//           responseBody = await resposta.text();
-//       } catch (textError) {
-//           // Se nem como texto conseguir, assume que não há corpo lido ou que é inválido
-//           responseBody = null;
-//       }
-//   }
-
-//   if (resposta.status === 401) {
-//     localStorage.clear();
-//     Swal.fire({
-//       icon: "warning",
-//       title: "Sessão expirada",
-//       text: "Por favor, faça login novamente."
-//     }).then(() => {
-//       window.location.href = "login.html"; // ajuste conforme necessário
-//     });
-//     //return;
-//     throw new Error('Sessão expirada'); 
-//   }
-
-//   if (!resposta.ok) {
-//         // Se a resposta NÃO foi bem-sucedida (status 4xx ou 5xx)
-//         // Use o responseBody já lido para obter a mensagem de erro
-//         const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
-//         throw new Error(`Erro na requisição: ${errorMessage}`);
-//   }
-
-//   return responseBody;
-// }
-
 function configurarEventosStaff() {
     console.log("Configurando eventos Staff...");
     verificaStaff(); // Carrega os Staff ao abrir o modal
     adicionarEventoBlurStaff();
+    inicializarFlatpickrsGlobais();
     console.log("Entrou configurar Staff no FUNCAO.js.");
-    inicializarFlatpickr("#datasEvento", "contadorDatas"); 
+    
 
 } 
 window.configurarEventosStaff = configurarEventosStaff;

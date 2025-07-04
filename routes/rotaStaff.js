@@ -10,7 +10,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs'); // Para manipulação de arquivos (apagar antigos)
 
-const uploadDir = path.join(__dirname, '../uploads/fotos_Staff');
+const uploadDir = path.join(__dirname, '../uploads/fotos_staff');
 
 // Garante que o diretório de uploads existe
 if (!fs.existsSync(uploadDir)) {
@@ -50,7 +50,7 @@ router.use(autenticarToken());
 router.use(contextoEmpresa);
 
 // GET todas ou por descrição
-router.get("/", verificarPermissao('Staff', 'pesquisar'), async (req, res) => {
+router.get("/", verificarPermissao('staff', 'pesquisar'), async (req, res) => {
     const { nmFuncionario } = req.query;
     const idempresa = req.idempresa;
 
@@ -58,8 +58,8 @@ router.get("/", verificarPermissao('Staff', 'pesquisar'), async (req, res) => {
         if (nmFuncionario) {
             // Busca funcionário por nmFuncionario na empresa específica, limita 1
             const result = await pool.query(
-                `SELECT func.* FROM Staff func
-                 INNER JOIN Staffempresas funce ON funce.idStaff = func.idStaff
+                `SELECT func.* FROM staff func
+                 INNER JOIN staffempresas funce ON funce.idstaff = func.idstaff
                  WHERE funce.idempresa = $1 AND func.nmFuncionario ILIKE $2 ORDER BY func.nmFuncionario ASC LIMIT 1`,
                 [idempresa, `%${nmFuncionario}%`] // Use % para pesquisa parcial se for o caso
             );
@@ -69,8 +69,8 @@ router.get("/", verificarPermissao('Staff', 'pesquisar'), async (req, res) => {
         } else {
             // Busca TODOS os funcionários associados à empresa do usuário logado
             const result = await pool.query(
-                `SELECT func.* FROM Staff func
-                 INNER JOIN Staffempresas funce ON funce.idStaff = func.idStaff
+                `SELECT func.* FROM staff func
+                 INNER JOIN staffempresas funce ON funce.idstaff = func.idstaff
                  WHERE funce.idempresa = $1 ORDER BY func.nmFuncionario ASC`,
                 [idempresa]
             );
@@ -87,26 +87,26 @@ router.get("/", verificarPermissao('Staff', 'pesquisar'), async (req, res) => {
 
 // PUT atualizar
 router.put("/:id",
-    verificarPermissao('Staff', 'alterar'),
+    verificarPermissao('staff', 'alterar'),
     upload.single('foto'), // Middleware do Multer para o campo 'foto'
-    logMiddleware('Staff', {
+    logMiddleware('staff', {
         buscarDadosAnteriores: async (req) => {
-            const idStaff = req.params.id;
+            const idstaff = req.params.id;
             const idempresa = req.idempresa;
-            if (!idStaff) {
+            if (!idstaff) {
                 return { dadosanteriores: null, idregistroalterado: null };
             }
             try {
                 const result = await pool.query(
-                    `SELECT func.* FROM Staff func
-                     INNER JOIN Staffempresas funce ON funce.idStaff = func.idStaff
-                     WHERE func.idStaff = $1 AND funce.idempresa = $2`,
-                    [idStaff, idempresa]
+                    `SELECT func.* FROM staff func
+                     INNER JOIN staffempresas funce ON funce.idstaff = func.idstaff
+                     WHERE func.idstaff = $1 AND funce.idempresa = $2`,
+                    [idstaff, idempresa]
                 );
                 const linha = result.rows[0] || null;
                 return {
                     dadosanteriores: linha,
-                    idregistroalterado: linha?.idStaff || null
+                    idregistroalterado: linha?.idstaff || null
                 };
             } catch (error) {
                 console.error("Erro ao buscar dados anteriores do funcionário para log:", error);
@@ -120,9 +120,7 @@ router.put("/:id",
        
         const {
             foto, nmFuncionario, descFuncao, custo, extra, transporte,
-            alimentação, caixinha, beneficio, site, codigoBanco, pix, // ADICIONADO 'banco'
-            numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
-            cidade, estado, pais
+            alimentação, caixinha, beneficio
         } = req.body;
 
         let fotoPathParaBD = null;
@@ -144,11 +142,11 @@ router.put("/:id",
             if (req.file) {
                 // Se um novo arquivo foi enviado, use o caminho do novo arquivo
                 // E converta barras invertidas para barras normais para compatibilidade de caminho
-                fotoPathParaBD = path.join('uploads/fotos_Staff', req.file.filename).replace(/\\/g, '/');
+                fotoPathParaBD = path.join('uploads/fotos_staff', req.file.filename).replace(/\\/g, '/');
 
                 // Apagar foto antiga se uma nova for enviada
                 const resultFotoAntiga = await client.query( // Usar 'client' para manter na transação
-                    `SELECT foto FROM Staff WHERE idStaff = $1`,
+                    `SELECT foto FROM staff WHERE idstaff = $1`,
                     [id]
                 );
                 if (resultFotoAntiga.rows.length > 0 && resultFotoAntiga.rows[0].foto) {
@@ -164,7 +162,7 @@ router.put("/:id",
                 // Se nenhum novo arquivo foi enviado, MANTENHA o caminho da foto existente no BD
                 // OU defina como NULL se a intenção for remover a foto sem upload de nova
                 const resultFotoExistente = await client.query( // Usar 'client' para manter na transação
-                    `SELECT foto FROM Staff WHERE idStaff = $1`,
+                    `SELECT foto FROM staff WHERE idstaff = $1`,
                     [id]
                 );
                 fotoPathParaBD = resultFotoExistente.rows[0]?.foto || null;
@@ -188,13 +186,13 @@ router.put("/:id",
 
             // 2. Executa a atualização no banco de dados
             const query = `
-                UPDATE Staff func
+                UPDATE staff func
                 SET foto = $1, foto = $2, nmFuncionario = $3, descFuncao = $4, custo = $5, fluencia = $6, transporte = $7,
                     alimentação = $8, caixinha = $9, beneficio = $10, site = $11, codigobanco = $12,
                     pix = $13, numeroconta = $14, digitoConta = $15, agencia = $16, digitoAgencia = $17, tipoconta = $18, cep = $19, rua = $20, numero = $21,
                     complemento = $22, bairro = $23, cidade = $24, estado = $25, pais = $26
-                WHERE func.idStaff = $27
-                RETURNING func.idStaff, func.foto;
+                WHERE func.idstaff = $27
+                RETURNING func.idstaff, func.foto;
             `;
 
             const values = [
@@ -210,17 +208,17 @@ router.put("/:id",
             const result = await client.query(query, values); // Usa 'client' para a query
 
             if (result.rowCount) {
-                const StaffAtualizadoId = result.rows[0].idStaff;
+                const staffAtualizadoId = result.rows[0].idstaff;
 
                 await client.query('COMMIT'); // Confirma a transação
 
                 res.locals.acao = 'atualizou';
-                res.locals.idregistroalterado = StaffAtualizadoId;
+                res.locals.idregistroalterado = staffAtualizadoId;
                 res.locals.idusuarioAlvo = null;
 
                 return res.json({
                     message: "Funcionário atualizado com sucesso!",
-                    id: StaffAtualizadoId,
+                    id: staffAtualizadoId,
                     fotoPath: result.rows[0].foto // Retorna o caminho da foto que foi salvo
                 });
             } else {
@@ -259,9 +257,9 @@ router.put("/:id",
 
 // POST criar novo funcionário
 router.post("/",
-    verificarPermissao('Staff', 'cadastrar'),
+    verificarPermissao('staff', 'cadastrar'),
     upload.single('foto'), // Middleware do Multer para o campo 'foto'
-    logMiddleware('Staff', {
+    logMiddleware('staff', {
         buscarDadosAnteriores: async (req) => {
             return { dadosanteriores: null, idregistroalterado: null };
         }
@@ -286,7 +284,7 @@ router.post("/",
 
         if (req.file) {
             // Se uma foto foi enviada, use o caminho gerado pelo Multer
-            fotoPathParaBD = path.join('uploads/fotos_Staff', req.file.filename).replace(/\\/g, '/');
+            fotoPathParaBD = path.join('uploads/fotos_staff', req.file.filename).replace(/\\/g, '/');
         }
 
         try {
@@ -304,33 +302,33 @@ router.post("/",
                 return res.status(400).json({ message: "O campo 'foto' é obrigatório e não pode ser vazio." });
             }
 
-            const resultStaff = await client.query(
-                `INSERT INTO Staff (
+            const resultstaff = await client.query(
+                `INSERT INTO staff (
                     foto, nmFuncionario, descFuncao, custo, extra, transporte, alimentação, caixinha, linkFoto
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-                RETURNING idStaff, foto`, // Retorna o ID e o caminho da foto para o frontend
+                RETURNING idstaff, foto`, // Retorna o ID e o caminho da foto para o frontend
                 [
                     foto, fotoPathParaBD, nmFuncionario, descFuncao, custo, extra, transporte, // Use extra
                     alimentação, caixinha, linkFoto
                 ]
             );
-            const novoStaff = resultStaff.rows[0];
-            const idNovoStaff = novoStaff.idStaff;
+            const novostaff = resultstaff.rows[0];
+            const idNovostaff = novostaff.idstaff;
 
             await client.query(
-                "INSERT INTO StaffEmpresas (idStaff, idEmpresa) VALUES ($1, $2)",
-                [idNovoStaff, idempresa]
+                "INSERT INTO staffEmpresas (idstaff, idEmpresa) VALUES ($1, $2)",
+                [idNovostaff, idempresa]
             );
             await client.query('COMMIT');
 
             res.locals.acao = 'cadastrou';
-            res.locals.idregistroalterado = idNovoStaff;
+            res.locals.idregistroalterado = idNovostaff;
             res.locals.idusuarioAlvo = null;
 
             res.status(201).json({
                 message: "Funcionário salvo e associado à empresa com sucesso!",
-                id: idNovoStaff,
-                fotoPath: novoStaff.foto // Retorna o caminho da foto
+                id: idNovostaff,
+                fotoPath: novostaff.foto // Retorna o caminho da foto
             });
         } catch (error) {
             if (client) {
