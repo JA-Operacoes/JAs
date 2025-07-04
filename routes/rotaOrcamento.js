@@ -31,7 +31,7 @@ router.get(
             c.nmfantasia AS nomecliente,
             o.idevento,
             e.nmevento AS nomeevento,
-            o.idlocalmontagem,
+            o.idmontagem,
             lm.descmontagem AS nomelocalmontagem,
             o.nrorcamento,
             o.inframontagem,
@@ -70,7 +70,7 @@ router.get(
         LEFT JOIN
             eventos e ON o.idevento = e.idevento
         LEFT JOIN
-            localmontagem lm ON o.idlocalmontagem = lm.idmontagem
+            localmontagem lm ON o.idmontagem = lm.idmontagem
         WHERE
             oe.idempresa = $1 -- Sempre filtra pela empresa do usuário logado
       `;
@@ -354,7 +354,7 @@ router.post(
     const client = await pool.connect();
     console.log("🔥 Rota /orcamentos acessada"); // Removido 'req' para evitar logar objeto grande
 
-    const { idStatus, idCliente, idEvento, idLocalMontagem, // nrOrcamento será gerado pelo DB, não o desestruture daqui se for novo
+    const { idStatus, idCliente, idEvento, idMontagem, // nrOrcamento será gerado pelo DB, não o desestruture daqui se for novo
             infraMontagem, dtiniInfraMontagem, dtfimInfraMontagem,
             dtIniMontagem, dtFimMontagem, dtIniMarcacao, dtFimMarcacao,
             dtIniRealizacao, dtFimRealizacao, dtIniDesmontagem, dtFimDesmontagem,
@@ -373,7 +373,7 @@ router.post(
       // E adicione 'nrorcamento' no RETURNING para capturá-lo.
       const insertOrcamentoQuery = `
                 INSERT INTO orcamentos (
-                    Status, idcliente, idevento, idlocalmontagem,
+                    Status, idcliente, idevento, idmontagem,
                     inframontagem, dtiniinframontagem, dtfiminframontagem,
                     dtinimontagem, dtfimmontagem, dtinimarcacao, dtfimmarcacao,
                     dtinirealizacao, dtfimrealizacao, dtinidesmontagem, dtfimdesmontagem,
@@ -393,7 +393,7 @@ router.post(
 
       // Os valores também precisam ser ajustados, removendo o nrOrcamento daqui
       const orcamentoValues = [
-        idStatus, idCliente, idEvento, idLocalMontagem,
+        idStatus, idCliente, idEvento, idMontagem,
         infraMontagem, dtiniInfraMontagem, dtfimInfraMontagem,
         dtIniMontagem, dtFimMontagem, dtIniMarcacao, dtFimMarcacao,
         dtIniRealizacao, dtFimRealizacao, dtIniDesmontagem, dtFimDesmontagem,
@@ -466,7 +466,7 @@ router.post(
 
 router.put(
   "/:id", autenticarToken(), contextoEmpresa,
-  verificarPermissao("Orcamentos", "alterar"), // Permissão para editar orçamentos
+  verificarPermissao("Orcamentos", "alterar"), // Permissão para editar
   logMiddleware("Orcamentos", {
     buscarDadosAnteriores: async (req) => {
         const idOrcamento = req.params.id;
@@ -500,7 +500,7 @@ router.put(
   async (req, res) => {
     const client = await pool.connect();
     const idOrcamento = req.params.id; // ID do orçamento a ser atualizado
-    const { idStatus, idCliente, idEvento, idLocalMontagem, nrOrcamento, // nrOrcamento pode vir para validação, mas não será atualizado se for gerado
+    const { idStatus, idCliente, idEvento, idMontagem, nrOrcamento, // nrOrcamento pode vir para validação, mas não será atualizado se for gerado
             infraMontagem, dtiniInfraMontagem, dtfimInfraMontagem,
             dtIniMontagem, dtFimMontagem, dtIniMarcacao, dtFimMarcacao,
             dtIniRealizacao, dtFimRealizacao, dtIniDesmontagem, dtFimDesmontagem,
@@ -519,7 +519,7 @@ router.put(
       // 1. Atualizar a tabela 'orcamentos'
       const updateOrcamentoQuery = `
                 UPDATE orcamentos SET
-                    status = $1, idcliente = $2, idevento = $3, idlocalmontagem = $4,
+                    status = $1, idcliente = $2, idevento = $3, idmontagem = $4,
                     inframontagem = $5, dtiniinframontagem = $6, dtfiminframontagem = $7,
                     dtinimontagem = $8, dtfimmontagem = $9, dtinimarcacao = $10, dtfimmarcacao = $11,
                     dtinirealizacao = $12, dtfimrealizacao = $13, dtinidesmontagem = $14, dtfimdesmontagem = $15,
@@ -531,7 +531,7 @@ router.put(
             `;
 
       const orcamentoValues = [
-        idStatus, idCliente, idEvento, idLocalMontagem,
+        idStatus, idCliente, idEvento, idMontagem,
         infraMontagem, dtiniInfraMontagem, dtfimInfraMontagem,
         dtIniMontagem, dtFimMontagem, dtIniMarcacao, dtFimMarcacao,
         dtIniRealizacao, dtFimRealizacao, dtIniDesmontagem, dtFimDesmontagem,
@@ -552,10 +552,10 @@ router.put(
       // 2. Lidar com os itens do orçamento (orcamentoitens)
       // Primeiro, busque os IDs dos itens existentes para este orçamento
       const existingItemsResult = await client.query(
-          `SELECT iditemorcamento FROM orcamentoitens WHERE idorcamento = $1`,
+          `SELECT idorcamentoitem FROM orcamentoitens WHERE idorcamento = $1`,
           [idOrcamento]
       );
-      const existingItemIds = new Set(existingItemsResult.rows.map(row => row.iditemorcamento));
+      const existingItemIds = new Set(existingItemsResult.rows.map(row => row.idorcamentoitem));
       const receivedItemIds = new Set(itens.filter(item => item.id).map(item => item.id));
 
       // Iterar sobre os itens recebidos no payload
@@ -570,7 +570,7 @@ router.put(
                             percentacrescimoitem = $14, vlrdiaria = $15, totvdadiaria = $16, ctodiaria = $17, totctodiaria = $18,
                             tpajdctoalimentacao = $19, vlrajdctoalimentacao = $20, tpajdctotransporte = $21, vlrajdctotransporte = $22,
                             totajdctoitem = $23, hospedagem = $24, transporte = $25, totgeralitem = $26
-                        WHERE iditemorcamento = $27 AND idorcamento = $28;
+                        WHERE idorcamentoitem = $27 AND idorcamento = $28;
                     `;
           const itemValues = [
             item.enviarnaproposta, item.categoria, item.qtditens, item.idfuncao,
@@ -579,7 +579,7 @@ router.put(
             item.percentacrescimoitem, item.vlrdiaria, item.totvdadiaria, item.ctodiaria, item.totctodiaria,
             item.tpajdctoalimentacao, item.vlrajdctoalimentacao, item.tpajdctotransporte, item.vlrajdctotransporte,
             item.totajdctoitem, item.hospedagem, item.transporte, item.totgeralitem,
-            item.id, // $27 (iditemorcamento)
+            item.id, // $27 (idorcamentoitem)
             idOrcamento // $28 (idorcamento)
           ];
           await client.query(updateItemQuery, itemValues);
@@ -617,7 +617,7 @@ router.put(
       // 3. Deletar itens que não foram enviados no payload (removidos pelo usuário)
       const itemsToDelete = Array.from(existingItemIds).filter(id => !receivedItemIds.has(id));
       if (itemsToDelete.length > 0) {
-          const deleteItemQuery = `DELETE FROM orcamentoitens WHERE iditemorcamento = ANY($1) AND idorcamento = $2;`;
+          const deleteItemQuery = `DELETE FROM orcamentoitens WHERE idorcamentoitem = ANY($1) AND idorcamento = $2;`;
           await client.query(deleteItemQuery, [itemsToDelete, idOrcamento]);
       }
 
