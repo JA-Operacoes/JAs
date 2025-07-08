@@ -34,13 +34,13 @@ const empresaSelecionada = document.getElementById("listaEmpresas");
       return;
     }
 
-    // if (empresasSelecionadas.length === 0) {
-    //   return Swal.fire({
-    //     icon: "warning",
-    //     title: "Atenção",
-    //     text: "Selecione pelo menos uma empresa."
-    //   });
-    // }
+    if (empresasSelecionadas.length === 0) {
+      return Swal.fire({
+        icon: "warning",
+        title: "Atenção",
+        text: "Selecione pelo menos uma empresa."
+      });
+    }
     
     try {
       const reponse = await fetchComToken("/auth/cadastro", {
@@ -112,11 +112,8 @@ document.getElementById("btnAlterar").addEventListener("click", async function (
   const email_original = document.getElementById("email_original").value;
   const ativo = document.getElementById('ativo').checked;
   const idempresaDefault = document.getElementById("empresaDefaultSelect").value;
-const empresaSelecionada = document.getElementById("listaEmpresas");
-  // const empresasSelecionadas = Array.from(document.querySelectorAll('#listaEmpresas input[type="checkbox"]:checked'))
-  //   .map(cb => cb.value);
-
-
+  const empresaSelecionada = document.getElementById("listaEmpresas");
+  
   if (!nome || !sobrenome || !email || !idempresaDefault ) {
     Swal.fire({
       icon: 'warning',
@@ -142,25 +139,12 @@ const empresaSelecionada = document.getElementById("listaEmpresas");
       method: "PUT",  // Mudamos para PUT para indicar alteração
       headers: { "Content-Type": "application/json" },
        body: JSON.stringify({ nome, sobrenome, email, senha, email_original, ativo,idempresadefault: idempresaDefault, empresas: empresaSelecionada }),
-      //body: JSON.stringify({ nome, sobrenome, email, senha, email_original, ativo, idempresadefault: idempresaDefault }),
-
+  
     });
-
    
     console.log("DADOS ALTERADOS", dados);
 
-    console.log("Dados Mensagem", dados.mensagem);
-
-    //testar 
-   //const mensagem = dados.mensagem || "Usuário atualizado com sucesso!";
-
-    // Swal.fire({
-    //   icon: dados.mensagem === "Nenhuma alteração detectada no Usuário." ? "info" : "success",
-    //   title: dados.mensagem === "Nenhuma alteração detectada no Usuário." ? "Aviso" : "Sucesso",
-    //   text: mensagem
-    // }).then((result) => {
-    //   if (result.isConfirmed) flipBox();
-    // });
+    console.log("Dados Mensagem", dados.mensagem);    
 
     if (dados.erro) {
       Swal.fire({
@@ -939,12 +923,13 @@ if (idusuario) {
             const selectModuloElement = document.getElementById("modulo");
             const selectEmpresaElement = document.getElementById("listaEmpresas");
 
+
+
             if (!selectModuloElement || !selectEmpresaElement) {
                 console.error("Elementos de select (modulo ou listaEmpresas) não encontrados no DOM.");
                 return;
             }
-
-            
+                        
             const empresaAlvoAtual = selectEmpresaElement.value;
             const moduloAtual = "";
 
@@ -1343,7 +1328,7 @@ async function carregarEmpresas(selectIds = ['listaEmpresas', 'empresaDefaultSel
     try {
         console.log("Carregando empresas...");
         const empresas = await fetchComToken('/empresas');
-        console.log("Empresas carregadas:", empresas);
+        console.log("Empresas carregadas:", empresas);            
 
         selectIds.forEach(id => {
             const selectElement = document.getElementById(id);
@@ -1351,13 +1336,13 @@ async function carregarEmpresas(selectIds = ['listaEmpresas', 'empresaDefaultSel
             if (selectElement) {
                 selectElement.innerHTML = ''; // Limpa todas as opções
 
-                let defaultOptionText = "Selecione";
-                if (id === 'listaEmpresas') {
-                    defaultOptionText = "Todas as empresas";
-                }
+                //let defaultOptionText = "Selecione uma empresa";
+                // if (id === 'listaEmpresas') {
+                //     defaultOptionText = "Todas as empresas";
+                // }
                 const defaultOption = document.createElement('option');
                 defaultOption.value = "";
-                defaultOption.textContent = defaultOptionText;
+                defaultOption.textContent = "Selecione Empresa";
                 defaultOption.selected = true;
                 defaultOption.disabled = true;
                 selectElement.appendChild(defaultOption);
@@ -1389,7 +1374,7 @@ document.getElementById('listaEmpresas').addEventListener('change', function () 
   const idempresa = this.value;
   idEmpresaSelecionada = idempresa;
 
-console.log("EMPRESA SELECIONADA NO SELECT PERMISSOES", idEmpresaSelecionada);
+  console.log("EMPRESA SELECIONADA NO SELECT PERMISSOES", idEmpresaSelecionada);
   const selectModulos = document.getElementById('modulo');
 
   let moduloAnteriorSelecionado = selectModulos.value;

@@ -14,9 +14,7 @@
     <title>OrÃ§amento</title>
     
 </head>
-<body data-modulo="Orcamentos">
-   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt-br.js"></script>
+<body data-modulo="Orcamentos">  
     
 <div id="CadModal" class="modal">
     <div class="modal-content">
@@ -60,7 +58,7 @@
                     </div>
                         <div class="select2">
                             <label for="idMontagem">Local Montagem:</label>
-                            <select class="idMontagem"  id="idLocalMontagem"></select>
+                            <select class="idMontagem"  id="idMontagem"></select>
                         <div class="form3">
                             <input type="text" class="ufmontagem" id="ufmontagem" name="ufmontagem" required spellcheck="false">
                             <label  for="ufmontagem">UF</label>
@@ -84,86 +82,32 @@
                     <div id="blocoInfra" class=" inativo-esquerda"  style="display: none;">
                         <div class="dtInfra">
                             <label class="miniTitle">Montagem de Infra.</label>                           
-
-                            <!-- <div class="De">
-                                <label  for="periodoInfra"> De:</label>
-                                <input type="date" id="dtIniInfra" >
-                            </div>
-                            <div class="ate">
-                                <label  for="dtFimMarcacao">Até:</label>
-                                <input type="date" id="dtFimInfra">
-                            </div> -->
-                            <input type="text" id="periodoInfraMontagem" name="periodoInfraMontagem" required readonly placeholder="Clique para Selecionar"  >
-
+                            <input type="text" id="periodoInfraMontagem" name="periodoInfraMontagem" required readonly placeholder="Clique para Selecionar" style="font-size: 5px;">
                         </div>
                     </div>
 
                     <div class="dtMarcacao">
                         <label class="miniTitle">Período de Marcação</label>
-
-                        <!-- <div class="De">
-                            <label  for="periodoMarcacao"> De:</label>
-                            <input type="date" id="dtIniMarcacao" name="dtIniMarcacao">
-                        </div> 
-                        <div class="ate">
-                            <label for="dtFimMarcacao">Até:</label>
-                            <input type="date" id="dtFimMarcacao" name="dtFimMarcacao">
-                        </div> -->
-                        <input type="text" id="periodoMarcacao" name="periodoMarcacao" required readonly placeholder="Clique para Selecionar"  >
-                        
+                        <input type="text" id="periodoMarcacao" name="periodoMarcacao" required readonly placeholder="Clique para Selecionar" style="font-size: 10px;" >
                     </div>
                     <div class="inicioMontagem">
                         <label class="miniTitle">Período de Montagem</label>
-                        <!-- <div class="De">
-                            <label class="miniTitle" for="periodoMontagem"> De:</label>
-                            <input type="date" id="dtInicioMontagem" name="dtInicioMontagem">
-                        </div>
-                        <div class="ate">
-                            <label class="miniTitle" for="dtFimMontagem">Até:</label>
-                            <input type="date" id="dtFimMontagem" name="dtFimMontagem">
-                        </div> -->
-                        <input type="text" id="periodoMontagem" name="periodoMontagem" required readonly placeholder="Clique para Selecionar"  >
-                        
+                        <input type="text" id="periodoMontagem" name="periodoMontagem" required readonly placeholder="Clique para Selecionar" style="font-size: 10px;" >
                     </div>
                     <div class="Realizacao">
                         <label class="miniTitle">Período de Realização</label>
-                        <!-- <div class="De">
-                            <label class="miniTitle" for="periodoRealizacao"> De:</label>
-                            <input type="date" id="dtInicioRealizacao" name="dtInicioRealizacao">
-                        </div>
-                        <div class="ate">
-                            <label class="miniTitle" for="dtFimRealizacao">Até:</label>
-                            <input type="date" id="dtFimRealizacao" name="dtFimRealizacao">
-                        </div> -->
-                        <input type="text" id="periodoRealizacao" class="realizacao" name="periodoRealizacao" required readonly placeholder="Clique para Selecionar"  >
-                        
+                        <input type="text" id="periodoRealizacao" class="realizacao" name="periodoRealizacao" required readonly placeholder="Clique para Selecionar" style="font-size: 10px;"  >
                     </div>
                 
                     <div class="dtDesmontagem">
                         <label class="miniTitle">Período de Desmontagem</label>
-                        <!-- <div class="De">
-                            <label class="miniTitle" for="periodoDesmontagem"> De:</label>
-                            <input type="date" id="dtIniDesmontagem" name="dtIniDesmontagem">
-                        </div>
-                        <div class="ate">
-                            <label class="miniTitle" for="dtFimDesmontagem">Até:</label>
-                            <input type="date" id="dtFimDesmontagem" name="dtFimDesmontagem">
-                        </div> -->
-                        <input type="text" id="periodoDesmontagem" name="periodoDesmontagem" required readonly placeholder="Clique para Selecionar"  >
+                        <input type="text" id="periodoDesmontagem" name="periodoDesmontagem" required readonly placeholder="Clique para Selecionar"  style="font-size: 10px;" >
                     </div>
 
                     <div id="blocoInfra2" class="inativo-direita" style="display: none;">
                         <div class="dtInfra">
                             <label class="miniTitle">Desmontagem de Infra.</label>
-                            <!-- <div class="De">
-                                <label  for="periodoInfra"> De:</label>
-                                <input type="date" id="dtIniInfra" >
-                            </div>
-                            <div class="ate">
-                                <label  for="dtFimMarcacao">Até:</label>
-                                <input type="date" id="dtFimInfra">
-                            </div> -->
-                        <input type="text" id="periodoDesmontagemInfra" name="periodoDesmontagemInfra" required readonly placeholder="Clique para Selecionar"  >
+                        <input type="text" id="periodoDesmontagemInfra" name="periodoDesmontagemInfra" required readonly placeholder="Clique para Selecionar" style="font-size: 5px;" >
 
                         </div>
                     </div> 
@@ -231,27 +175,28 @@
                                 <td class="totVdaDiaria Moeda"></td>
                                 <td class="vlrCusto Moeda"></td>
                                 <td class="totCtoDiaria Moeda"></td>
+                           
                                 <td class="ajdCusto Moeda">
                                     <div class="Acres-Desc">
-                                        <select id="tpAjdCusto">
+                                        <select id="tpAlimentacao" class="select-alimentacao">
                                             <option value="select" selected disabled>Alimentação</option>
-                                            <option value="almoco">Almoço</option>
-                                            <option value="janta">Jantar</option>
+                                            <option value="Almoco">Almoço</option>
+                                            <option value="Janta">Jantar</option>
                                             <option value="2alimentacao">Almoço + jantar</option>
                                         </select>
                                     </div>
-                                    <br><div class="valorbanco"></div>
+                                    <br><div class="valorbanco valor-alimentacao"></div>
                                 </td>
                                 <td class="ajdCusto Moeda">
                                     <div class="Acres-Desc">
-                                        <select id="tpAjdCusto">
+                                        <select id="tpTransporte" class="select-transporte" >
                                             <option value="select" selected disabled>Veiculo </option>
-                                            <option value="Público">Publico</option>
-                                            <option value="Alugado">alugado</option>
-                                            <option value="Próprio">Proprio</option>
+                                            <option value="Público">Público</option>
+                                            <option value="Alugado">Alugado</option>
+                                            <option value="Próprio">Próprio</option>
                                         </select>
                                     </div>
-                                    <br><div class="valorbanco"></div>
+                                    <br><div class="valorbanco valor-transporte"></div>
                                 </td>
                                 <td class="totAjdCusto Moeda">0</td>
                                 <td class="extraCampo" style="display: none;">

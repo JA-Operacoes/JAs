@@ -1269,7 +1269,7 @@ async function verificaOrcamento() {
             nrorcamento: parseInt(linha.querySelector(".nrOrcamento")?.value) || null,
             enviarnaproposta: linha.querySelector('.Proposta input[type="checkbox"]')?.checked || false,
             categoria: linha.querySelector(".Categoria")?.textContent.trim(),
-            qtditens: parseInt(linha.querySelector(".qtdPessoas input")?.value) || 0,
+            qtditens: parseInt(linha.querySelector(".qtdProduto input")?.value) || 0,
             idfuncao: parseInt(linha.querySelector(".idFuncao")?.value) || null,
             idequipamento: parseInt(linha.querySelector(".idEquipamento")?.value) || null,
             idsuprimento: parseInt(linha.querySelector(".idSuprimento")?.value) || null,
