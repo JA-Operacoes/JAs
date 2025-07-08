@@ -9,14 +9,12 @@
     <link rel="stylesheet" href="css/Roots/Roots.css">
     <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    
+
     <title>Modal</title>
 
 </head>
-<body data-modulo="Funcionarios">
-
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt-br.js"></script> 
+<body data-modulo="Funcionarios"> 
 
 <div id="CadModal" class="modal">
   <div class="modal-content">
@@ -95,20 +93,32 @@
             
             </div>
 
-            <div class="form-2colunas">
+            <div class="form-3colunas">
               <div class="form2">
                 <input type="text" name="cpf" id="cpf" oninput="formatCPF(this)" maxlength="14" spellcheck="false" required>
                 <label for="cpf">CPF</label>
               </div>
               
-                <div class="form2">
-                  <input type="text" name="rg" id="rg" oninput="formatRG(this)" maxlength="12" spellcheck="false" required >
-                  <label for="rg">RG</label>
-                </div>
-            </div>
-            
-            <div class="form-2colunas">
+              <div class="form2">
+                <input type="text" name="rg" id="rg" oninput="formatRG(this)" maxlength="12" spellcheck="false" required >
+                <label for="rg">RG</label>
+              </div>   
 
+              <div class="checkbox-wrapper-33">
+                <label class="checkbox">
+                  <p class="checkbox__textwrapper">PCD</p>
+                  <input class="checkbox__trigger visuallyhidden" type="checkbox" id="pcd" name="pcd" />
+                  <span class="checkbox__symbol">
+                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28"
+                      version="1" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M4 14l8 7L24 7"></path>
+                    </svg>
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-2colunas">
               <div class="form2">
                 <select id="Linguas">            
                   <option value="" selected disabled> Selecione o nível de fluência </option>
