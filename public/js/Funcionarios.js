@@ -31,10 +31,11 @@ if (typeof window.funcionarioOriginal === "undefined") {
         pais: "",
         dataNascimento:"",
         nomeFamiliar:"",
-        apelido:""
-   
+        apelido:"",
+        pcd:""
     };
 }
+
 
 async function verificaFuncionarios() {
     console.log("Configurando eventos do modal Funcionários...");
@@ -61,7 +62,6 @@ async function verificaFuncionarios() {
             return;
         }
         preencherDadosBancoPeloCodigo(codBanco);
-        preencherDadosBancoPeloCodigo(codBanco);
     });
 
     const selectLinguas = document.getElementById('Linguas');
@@ -76,53 +76,49 @@ async function verificaFuncionarios() {
         limparCamposFuncionarios();
     });
 
-    botaoEnviar.addEventListener("click", async (event) => {
-        event.preventDefault();
+botaoEnviar.addEventListener("click", async (event) => {
+    event.preventDefault();
 
-        const idFuncionario = document.querySelector("#idFuncionario").value.trim();
-    
-        const perfil = document.querySelector('input[name="perfil"]:checked')?.value || '';
-        
-        //const linkFoto = document.getElementById("linkFotoFuncionarios")?.value.trim() || '';
-        const nome = document.querySelector("#nome")?.value.toUpperCase().trim();
-        const cpf = document.getElementById("cpf")?.value.trim() || '';
-        const rg = document.getElementById("rg")?.value.trim() || '';     
-        const nivelFluenciaLinguas = document.getElementById("Linguas")?.value.trim() || '';
-        const inputsIdioma = idiomasContainer.querySelectorAll('.idiomaInput');
-        const dataNascimento = document.getElementById("dataNasc").value;
-        const nomeFamiliar = document.getElementById("nomeFamiliar")?.value.toUpperCase().trim();
-        const apelido = document.getElementById("apelido")?.value.toUpperCase().trim();
+    const idFuncionario = document.querySelector("#idFuncionario").value.trim();
+    const perfil = document.querySelector('input[name="perfil"]:checked')?.value || '';
+    const nome = document.querySelector("#nome")?.value.toUpperCase().trim();
+    const cpf = document.getElementById("cpf")?.value.trim() || '';
+    const rg = document.getElementById("rg")?.value.trim() || '';
+    const nivelFluenciaLinguas = document.getElementById("Linguas")?.value.trim() || '';
+    const inputsIdioma = idiomasContainer.querySelectorAll('.idiomaInput');
+    const dataNascimento = document.getElementById("dataNasc").value;
+    const nomeFamiliar = document.getElementById("nomeFamiliar")?.value.toUpperCase().trim();
+    const apelido = document.getElementById("apelido")?.value.toUpperCase().trim();
 
-        const idiomasAdicionaisArray = [];
-        inputsIdioma.forEach(input => {
-            const valor = input.value.trim();
-            if (valor) {
-                idiomasAdicionaisArray.push(valor);
-            }
-        });
+    const idiomasAdicionaisArray = [];
+    inputsIdioma.forEach(input => {
+        const valor = input.value.trim();
+        if (valor) idiomasAdicionaisArray.push(valor);
+    });
+    const idiomasAdicionais = JSON.stringify(idiomasAdicionaisArray);
 
-        // Converte para JSON string para armazenar na coluna TEXT
-        const idiomasAdicionais = JSON.stringify(idiomasAdicionaisArray);
-        // const idiomasAdicionais = document.getElementById("idiomasAdicionais")?.value.trim() || ''; 
-        const celularPessoal = document.getElementById("celularPessoal")?.value.trim() || '';
-        const celularFamiliar = document.getElementById("celularFamiliar")?.value.trim() || '';
-        const email = document.getElementById("email")?.value.trim() || '';
-        const site = document.getElementById("site")?.value.trim() || '';
-        const codigoBanco = document.getElementById("codBanco")?.value.trim() || '';
-        const pix = document.getElementById("pix")?.value.trim() || '';
-        const numeroConta = document.getElementById("nConta")?.value.trim() || '';
-        const digitoConta = document.getElementById("digitoConta")?.value.trim() || '';
-        const agencia = document.getElementById("agencia")?.value.trim() || '';
-        const digitoAgencia = document.getElementById("digitoAgencia")?.value.trim() || '';
-        const tipoConta = document.getElementById("tpConta")?.value.trim() || '';
-        const cep = document.getElementById("cep")?.value.trim() || '';
-        const rua = document.getElementById("rua")?.value.trim() || '';
-        const numero = document.getElementById("numero")?.value.trim() || '';
-        const complemento = document.getElementById("complemento")?.value.trim() || '';
-        const bairro = document.getElementById("bairro")?.value.toUpperCase().trim() || '';
-        const cidade = document.getElementById("cidade")?.value.toUpperCase().trim() || '';
-        const estado = document.getElementById("estado")?.value.toUpperCase().trim() || '';
-        const pais = document.getElementById("pais")?.value.toUpperCase().trim() || '';
+    const celularPessoal = document.getElementById("celularPessoal")?.value.trim() || '';
+    const celularFamiliar = document.getElementById("celularFamiliar")?.value.trim() || '';
+    const email = document.getElementById("email")?.value.trim() || '';
+    const site = document.getElementById("site")?.value.trim() || '';
+    const codigoBanco = document.getElementById("codBanco")?.value.trim() || '';
+    const pix = document.getElementById("pix")?.value.trim() || '';
+    const numeroConta = document.getElementById("nConta")?.value.trim() || '';
+    const digitoConta = document.getElementById("digitoConta")?.value.trim() || '';
+    const agencia = document.getElementById("agencia")?.value.trim() || '';
+    const digitoAgencia = document.getElementById("digitoAgencia")?.value.trim() || '';
+    const tipoConta = document.getElementById("tpConta")?.value.trim() || '';
+    const cep = document.getElementById("cep")?.value.trim() || '';
+    const rua = document.getElementById("rua")?.value.trim() || '';
+    const numero = document.getElementById("numero")?.value.trim() || '';
+    const complemento = document.getElementById("complemento")?.value.trim() || '';
+    const bairro = document.getElementById("bairro")?.value.toUpperCase().trim() || '';
+    const cidade = document.getElementById("cidade")?.value.toUpperCase().trim() || '';
+    const estado = document.getElementById("estado")?.value.toUpperCase().trim() || '';
+    const pais = document.getElementById("pais")?.value.toUpperCase().trim() || '';
+
+    const campoPcd = document.getElementById("pcd").value || "";
+    const pcd = campoPcd?.checked === true;
      
 
         // Validação de campos obrigatórios
@@ -153,41 +149,41 @@ async function verificaFuncionarios() {
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
             celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
             numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, 
-            numero, complemento, bairro, cidade, estado, pais, dataNascimento, nomeFamiliar, apelido
+            numero, complemento, bairro, cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd
         });
        // --- CRIANDO O FORMDATA ---
-        const formData = new FormData();
+    const formData = new FormData();
+    formData.append("perfil", perfil);
+    formData.append("nome", nome);
+    formData.append("cpf", cpf);
+    formData.append("rg", rg);
+    formData.append("nivelFluenciaLinguas", nivelFluenciaLinguas);
+    formData.append("idiomasAdicionais", idiomasAdicionais);
+    formData.append("celularPessoal", celularPessoal);
+    formData.append("celularFamiliar", celularFamiliar);
+    formData.append("email", email);
+    formData.append("site", site);
+    formData.append("codigoBanco", codigoBanco);
+    formData.append("pix", pix);
+    formData.append("numeroConta", numeroConta);
+    formData.append("digitoConta", digitoConta);
+    formData.append("agencia", agencia);
+    formData.append("digitoAgencia", digitoAgencia);
+    formData.append("tipoConta", tipoConta);
+    formData.append("cep", cep);
+    formData.append("rua", rua);
+    formData.append("numero", numero);
+    formData.append("complemento", complemento);
+    formData.append("bairro", bairro);
+    formData.append("cidade", cidade);
+    formData.append("estado", estado);
+    formData.append("pais", pais);
+    formData.append("dataNascimento", dataNascimento);
+    formData.append("nomeFamiliar", nomeFamiliar);
+    formData.append("apelido", apelido);
+    formData.append("pcd", pcd); // <- envia como string "true" ou "false"
 
-        // Adiciona todos os campos de texto ao FormData
-        formData.append('perfil', perfil);
-        formData.append('nome', nome);
-        formData.append('cpf', cpf);
-        formData.append('rg', rg);
-        formData.append('nivelFluenciaLinguas', nivelFluenciaLinguas);
-        formData.append('idiomasAdicionais', idiomasAdicionais);
-        formData.append('celularPessoal', celularPessoal);
-        formData.append('celularFamiliar', celularFamiliar);
-        formData.append('email', email);
-        formData.append('site', site);
-       // formData.append('banco', banco); // Adicionado
-        formData.append('codigoBanco', codigoBanco);
-        formData.append('pix', pix);
-        formData.append('numeroConta', numeroConta);
-        formData.append('digitoConta', digitoConta);
-        formData.append('agencia', agencia);
-        formData.append('digitoAgencia', digitoAgencia);
-        formData.append('tipoConta', tipoConta);
-        formData.append('cep', cep);
-        formData.append('rua', rua);
-        formData.append('numero', numero);
-        formData.append('complemento', complemento);
-        formData.append('bairro', bairro);
-        formData.append('cidade', cidade);
-        formData.append('estado', estado);
-        formData.append('pais', pais);
-        formData.append('dataNascimento', dataNascimento);
-        formData.append('nomeFamiliar', nomeFamiliar);
-        formData.append('apelido', apelido);
+        console.log("valor de pcd:", pcd);
 
         // Adiciona o arquivo da foto APENAS SE UM NOVO ARQUIVO FOI SELECIONADO
         const inputFileElement = document.getElementById('file');
@@ -201,7 +197,7 @@ async function verificaFuncionarios() {
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
             celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
             numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
-            cidade, estado, pais, dataNascimento, nomeFamiliar, apelido
+            cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd
         });
         if (metodo === "PUT" && window.funcionarioOriginal) {
             let houveAlteracao = false;
@@ -224,7 +220,7 @@ async function verificaFuncionarios() {
                     perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
                     celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
                     numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
-                    cidade, estado, pais, dataNascimento, nomeFamiliar, apelido
+                    cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd
                 };
 
                 for (const key in camposTextoParaComparar) {
@@ -689,6 +685,9 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
             document.getElementById("apelido").value = funcionario.apelido || '';
             console.log("Apelido:", apelido);
 
+            const checkboxPcd = document.getElementById("pcd");
+            checkboxPcd.checked = funcionario.pcd === true;
+
             const radiosPerfil = document.querySelectorAll('input[name="perfil"]'); // Ou input[name="radio"] se você não mudou o name
             radiosPerfil.forEach(radio => {
                 if (radio.value === funcionario.perfil) {
@@ -1052,7 +1051,11 @@ function limparCamposFuncionarios(){
         "cidade", "estado", "pais", "nomeFamiliar", "apelido"
     ];
 
-    // Limpa campos de texto e inputs de forma genérica
+    const campoPcd = document.getElementById("pcd");
+    if (campoPcd && campoPcd.type === "checkbox") {
+        campoPcd.checked = false; // ou true dependendo do trecho
+    }
+        // Limpa campos de texto e inputs de forma genérica
     camposParaLimpar.forEach(id => {
         const campo = document.getElementById(id);
         if (campo) {
