@@ -644,7 +644,7 @@
 /* incluido para teste */
   #table thead tr,
   #table tbody tr {
-  height: 40px; /* você pode ajustar conforme quiser */
+  height: 20px; /* você pode ajustar conforme quiser */
   vertical-align: middle;
 }
   table, th, td {
@@ -884,8 +884,8 @@
     background-color: #6b6b6b; /* Cor de fundo diferenciada */
 }
 
-.linha-adicional{
-  background-color: #ffffff;
+.liberada{
+  background-color:#ffffff;
 }
 
 /* -------------------------------------- @medias ---------------------------------------- */
