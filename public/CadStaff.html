@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -25,7 +25,7 @@
 
         <div class="Close"><button class="close" id="Fechar"> X </button></div>
         
-          <div id="form-cargo">
+        <div id="form-cargo">
         <div class = "title">
           <h3>Cadastro STAFF</h3>
         </div>
@@ -41,19 +41,19 @@
                 </div>
                 
                 <fieldset>
-                  <legend>Informaçoes do Funcionário</legend>
+                  <legend>Informações do Funcionário</legend>                                       
 
-                  <div class="grid-container">
-                      <!-- Coluna da Foto -->
                       <div class="gridPhoto">
                         <div class="container">
                           <img id="previewFoto" src="#" alt="Pré-visualização" style="display: none; max-width: 100%; margin-bottom: 10px; border-radius: 8px;" />
 
-                          <div class="header" id="uploadHeader">
+                          <p id="nomeFuncionarioExibido" style="text-align: center; font-weight: bold; margin-top: 5px;"></p>
+
+                          <div class="header" id="uploadHeader" style="display: block;">
                             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                               <path d="M7 10V9C7 6.23858 9.23858 4 12 4C14.7614 4 17 6.23858 17 9V10C19.2091 10 21 11.7909 21 14C21 15.4806 20.1956 16.8084 19 17.5M7 10C4.79086 10 3 11.7909 3 14C3 15.4806 3.8044 16.8084 5 17.5M7 10C7.43285 10 7.84965 10.0688 8.24006 10.1959M12 12V21M12 12L15 15M12 12L9 15" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
-                            <p>Browse File to upload!</p>
+                            <p>Foto do Funcionário</p>
                           </div>
 
                           <label for="file" class="footer">
@@ -64,93 +64,454 @@
                             <p id="fileName">Nenhum arquivo selecionado</p>
                           </label>
 
-                          <input id="file" nome="foto" type="file" accept="image/png, image/jpeg" oninput="configurarPreviewImagem(this)">
+                          <input id="file" nome="foto" type="file" accept="image/png, image/jpeg" disabled>
                           <input type="hidden" id="linkFotoFuncionarios" name="foto" />
                         </div>
-                      </div>
+                     
+                        <div class="gridInputsColumn">                      
 
-                      <!-- Coluna dos Inputs -->
-                      <div>
-                       <div class="form2">
-                          <select name="avaliacao" id="avaliacao" onchange="mostrarTarja()" required>
-                            <option value="" selected disabled>Avalie o Funcionario</option>
-                            <option value="muito_bom">Muito bom</option>
-                            <option value="satisfatorio">Satisfatório</option>
-                            <option value="regular">Regular</option>
-                          </select>
-                        </div>
-                        <div id="tarjaAvaliacao" class="tarja-avaliacao"></div>
-                        
-                        <div class="form-2colunas">
-                          <div class="form2">
-                            <input type="text" name="nmFuncionario" id="nmFuncionario" required autocomplete="on">
-                            <label for="nmFuncionario">Funcionário</label>
+                          <div class="form2">                         
+                            <input type="hidden" id="idFuncionario" name="idFuncionario">
+                            <select class="nmFuncionario" name="nmFuncionario" id="nmFuncionario">       
+                              <option value="" selected disabled>Selecione o Funcionário</option>
+                            </select>
                           </div>
-                          <div class="form2">
-                            <input type="text" name="descFuncao" id="descFuncao" required>
-                            <label for="descFuncao">Função</label>
-                          </div>
-                        </div>
 
-                        <div class="checkbox">
-                          <div class="Vertical">
-                            <input id="Extracheck" type="checkbox" />
-                            <label for="Extracheck">Extra</label>
-                          </div>
-                          <div class="Vertical">
-                            <input id="Caixinhacheck" type="checkbox" />
-                            <label for="Caixinhacheck">Caixinha</label>
-                          </div>
-                        </div>
-
-                        <div>
                           <div class="form2">
-                            <input type="text" name="vlrCusto" id="vlrCusto" required>
-                            <label for="vlrCusto">Cache</label>
-                          </div>
-                          <div class="form2" id="campoExtra" style="display: none;">
-                            <input type="text" name="extra" id="extra">
-                            <label for="extra">Extra</label>
-                          </div>
-                          <div class="form2">
-                            <input type="text" name="transportes" id="transportes" required>
-                            <label for="transportes">Transportes</label>
-                          </div>
-                          <div class="form2">
-                            <input type="text" name="alimentacao" id="alimentacao" required>
-                            <label for="alimentacao">Alimentação</label>
-                          </div>
-                          <div class="form2" id="campoCaixinha" style="display: none;">
-                            <input type="text" name="caixinha" id="caixinha">
-                            <label for="caixinha">Caixinha</label>
-                          </div>
-                        </div>
-
-                        
-
-                        <div>
-                          <div class="form2">
-                            <textarea name="descBeneficio" id="descBeneficio" required>Descreva os Benefícios</textarea>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                            <input type="text" id="apelidoFuncionario" name="apelidoFuncionario">
+                            <label for="apelidoFuncionario">Apelido do Funcionário</label>
+                          </div>     
                     
-                    <br>
-                  </fieldset>
+                          
+                          <div class="form2">
+                            <select name="avaliacao" id="avaliacao" onchange="mostrarTarja()" required>
+                              <option value="" selected disabled>Avalie o Funcionario</option>
+                              <option value="muito_bom">Muito bom</option>
+                              <option value="satisfatorio">Satisfatório</option>
+                              <option value="regular">Regular</option>
+                            </select>
+                          </div>
+                          <div id="tarjaAvaliacao" class="tarja-avaliacao"></div>
+                        </div>
+                      </div>                
+                    
+                <br>
+              </fieldset>
+               <div id="tabelaEventosSection" class="collapsible-wrapper">
+                        <div class="collapsible-header">
+                            <h2>Tabela de Eventos do Funcionário</h2>
+                            <button type="button" class="toggle-arrow-btn"><i class="fas fa-chevron-down"></i></button>
+                        </div>
+                        <div class="collapsible-content collapsed">
+                            <table id="staffDataTable">
+                                <thead>
+                                    <tr>
+                                        <th>#ID</th>
+                                        <th>Função</th>
+                                        <th>Cache</th>
+                                        <th>Extra</th>
+                                        <th>Transp.</th>
+                                        <th>Almoço</th>
+                                        <th>Jantar</th>
+                                        <th>Caixinha</th>
+                                        <th>Benefícios</th>
+                                        <th>Local Mont.</th>
+                                        <th>Pavilhão</th>
+                                        <th>Cliente</th>
+                                        <th>Evento</th>
+                                        <th>Período</th>
+                                        <th>Bônus</th>
+                                        <th>Total</th>
+                                        <th>Comp. Cache</th>
+                                        <th>Comp. Ajuda</th>
+                                        <th>Comp. Caixinha</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    </tbody>
+                            </table>
+                            <p id="noDataMessage" style="text-align: center; margin-top: 10px; display: none;">Nenhum evento encontrado para este funcionário.</p>
+                        </div>
+              </div>
+
+                    <div id="eventoSection" class="collapsible-wrapper">
+                        <div class="collapsible-header">
+                            <h2>Detalhes do Evento e Custos</h2>
+                            <button type="button" class="toggle-arrow-btn"><i class="fas fa-chevron-up"></i></button>
+                        </div>
+                        <div class="collapsible-content">
+                            <div id="containerFieldsets">
+                                <fieldset>
+                                    <legend>Evento</legend>
+                                    <div class="form-2colunas">
+                                        <div class="form2"> 
+                                            <input type="hidden" id="idFuncao" name="idFuncao">
+                                            <select class="descFuncao" name="descFuncao" id="descFuncao"> 
+                                                <option value="" selected disabled> Selecione a Função</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="checkbox">
+                                        <div class="Vertical">
+                                            <input id="Extracheck" type="checkbox" />
+                                            <label for="Extracheck">Extra</label>
+                                        </div>
+                                        <div class="Vertical">
+                                            <input id="Caixinhacheck" type="checkbox" />
+                                            <label for="Caixinhacheck">Caixinha</label>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-2colunas">
+                                        <div class="form2">
+                                            <input type="text" name="vlrCusto" id="vlrCusto" required>
+                                            <label for="vlrCusto">Cache</label>
+                                        </div> 
+                                        <div class="form2" id="campoExtra" style="display: none;">
+                                            <input type="text" name="extra" id="extra">
+                                            <label for="extra">Extra</label>
+                                        </div> 
+                                    </div> 
+
+                                    <div class="form2">
+                                        <input type="text" name="transporte" id="transporte" required>
+                                        <label for="transporte">Transporte</label>
+                                    </div>
+                                        
+                                    <div class="form-2colunas">
+                                        <div class="form2">
+                                            <input type="text" name="almoco" id="almoco" required>
+                                            <label for="almoco">Almoço</label>
+                                        </div>
+                                        <div class="form2">
+                                            <input type="text" name="jantar" id="jantar" required>
+                                            <label for="jantar">Jantar</label>
+                                        </div> 
+                                        <div class="form2" id="campoCaixinha" style="display: none;">
+                                            <input type="text" name="caixinha" id="caixinha">
+                                            <label for="caixinha">Caixinha</label>
+                                        </div> 
+                                    </div>
+                                        
+                                    <div class="form2">
+                                        <textarea name="descBeneficio" id="descBeneficio" required>Descritivo dos benefícios</textarea>
+                                    </div>
+                                    <div class="form-2colunas">
+                                        <div class="form2">
+                                            <input type="hidden" id="idMontagem" name="idMontagem">
+                                            <select class="nmLocalMontagem" name="nmLocalMontagem" id="nmLocalMontagem" required>
+                                                <option value="" selected disabled>Selecione o Local de Montagem</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="form2">
+                                            <input type="hidden" id="idPavilhao" name="idPavilhao">
+                                            <select class="nmPavilhao" name="nmPavilhao" id="nmPavilhao" required>
+                                                <option value="" selected disabled>Selecione o Pavilhão</option>
+                                            </select>
+                                        </div> 
+                                    </div>
+                                    <div class="form-2colunas">
+                                        <div class="form2">
+                                            <input type="hidden" id="idCliente" name="idCliente">
+                                            <select class="nmCliente" name="nmCliente[]" id="nmCliente">
+                                                <option value="" selected disabled>Cliente</option>
+                                            </select>
+                                        </div>
+                                        <div class="form2">
+                                            <input type="hidden" id="idEvento" name="idEvento">
+                                            <select class="nmEvento" name="nmEvento[]" id="nmEvento">
+                                                <option value="" selected disabled>Evento</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-2colunas">
+                                        <div class="form2"> 
+                                            <h3>Período do Evento:</h3>
+                                            <input type="text" id="datasEvento" name="datasEvento[]" placeholder="Selecione os dias"  readonly required>
+                                            <input type="hidden" id="vlrTotalHidden" name="vlrTotalHidden" value="0.00">
+                                            <p id="contadorDatas">Nenhuma data selecionada.</p>
+                                        </div>
+                                    </div>
+                                    <div class="form-2colunas">
+                                        <textarea name="bonus[]" id="bonus" required>Bônus</textarea>
+                                        <div class="form2">
+                                            <input type="text" class="preenchido moeda" value="R$ 0,00" id="vlrTotal" name="vlrTotal[]"  readonly required>
+                                            <label>Valor Total</label>
+                                        </div>
+                                    </div>
+
+                                    <div class="pdf">
+                                      <div class="collumn">
+                                          <h5>Comprovante de Cache</h5>
+                                          <div class="containerPDF">
+                                              <label for="filePDFCache" class="footerPDF">
+                                                  <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+                                                      <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+                                                      <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+                                                  </svg>
+                                                  <p id="fileNamePDFCache">Nenhum arquivo selecionado</p>
+                                              </label>
+                                              <input id="filePDFCache" type="file" name="filePDFCache" accept="application/pdf">
+                                              <input type="hidden" id="ComprovanteCache" name="ComprovanteCache" />
+                                              <embed id="previewPDFCache" src="#" type="application/pdf" style="display: none; width: 100%; height: 200px; margin-top: 10px;">
+                                          </div>
+                                      </div>
+
+                                      <br>
+
+                                      <div class="collumn">
+                                          <h5>Comprovante de Ajuda de Custo</h5>
+                                          <div class="containerPDF">
+                                              <label for="filePDFAjuda" class="footerPDF">
+                                                  <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+                                                      <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+                                                      <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+                                                  </svg>
+                                                  <p id="fileNamePDFAjuda">Nenhum arquivo selecionado</p>
+                                              </label>
+                                              <input id="filePDFAjuda" type="file" name="filePDFAjuda" accept="application/pdf">
+                                              <input type="hidden" id="ComprovanteAjdCusto" name="ComprovanteAjdCusto" />
+                                              <embed id="previewPDFAjuda" src="#" type="application/pdf" style="display: none; width: 100%; height: 200px; margin-top: 10px;">
+                                          </div>
+                                      </div>
+                                      <br>
+                                      <div class="collumn">
+                                          <h5>Comprovante de Caixinha</h5>
+                                          <div class="containerPDF">
+                                              <label for="filePDFCaixinha" class="footerPDF">
+                                                  <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+                                                      <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+                                                      <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+                                                  </svg>
+                                                  <p id="fileNamePDFCaixinha">Nenhum arquivo selecionado</p>
+                                              </label>
+                                              <input id="filePDFCaixinha" type="file" name="filePDFCaixinha" accept="application/pdf">
+                                              <input type="hidden" id="ComprovanteCaixinha" name="ComprovanteCaixinha" />
+                                              <embed id="previewPDFCaixinha" src="#" type="application/pdf" style="display: none; width: 100%; height: 200px; margin-top: 10px;">
+                                          </div>
+                                      </div>
+                                  </div>
+                                </fieldset>
+                            </div>
+                            <br>
+                            <button type="button" onclick="adicionarCampos(this)">Adicionar Nova Diária</button>
+                            <br>
+                        </div>
+                    </div>
+   -->
+
   
+
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="css/Modal/CadStaff.css">
+    <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
+    <link rel="stylesheet" href="css/Roots/Roots.css">
+    <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/material_red.css">
+    
+    <title>Modal</title>
+
+</head>
+<body data-modulo="Staff">
+
+<div id="CadModal" class="modal"> <div class="modal-content">
+      <div id ="form-Staff"> 
+
+        <div class="Close"><button class="close" id="Fechar"> X </button></div>
+        
+        <div id="form-cargo">
+        <div class = "title">
+          <h3>Cadastro STAFF</h3>
+        </div>
+        
+            <form id="form" name="form" autocomplete="off">
+ 
+                <div class="form-2colunas">
+                  <div class="form">
+                    <input type="text" id="idStaff" readonly required>
+                    <label for="idStaff">Id Staff</label>
+                  </div>
+                </div>
+                
+                <fieldset>
+                  <legend>Informações do Funcionário</legend> 
+                      <div class="gridPhoto">
+                        <div class="container">
+                          <img id="previewFoto" src="#" alt="Pré-visualização" style="display: none; max-width: 100%; margin-bottom: 10px; border-radius: 8px;" />
+                          <p id="nomeFuncionarioExibido" style="text-align: center; font-weight: bold; margin-top: 5px;"></p>
+                          <div class="header" id="uploadHeader" style="display: block;">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M7 10V9C7 6.23858 9.23858 4 12 4C14.7614 4 17 6.23858 17 9V10C19.2091 10 21 11.7909 21 14C21 15.4806 20.1956 16.8084 19 17.5M7 10C4.79086 10 3 11.7909 3 14C3 15.4806 3.8044 16.8084 5 17.5M7 10C7.43285 10 7.84965 10.0688 8.24006 10.1959M12 12V21M12 12L15 15M12 12L9 15" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <p>Foto do Funcionário</p>
+                          </div>
+                          <label for="file" class="footer">
+                            <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+                              <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+                            </svg>
+                            <p id="fileName">Nenhum arquivo selecionado</p>
+                          </label>
+                          <input id="file" nome="foto" type="file" accept="image/png, image/jpeg" disabled>
+                          <input type="hidden" id="linkFotoFuncionarios" name="foto" />
+                        </div>
+                      
+                        <div class="gridInputsColumn"> 
+                          <div class="form2"> 
+                            <input type="hidden" id="idFuncionario" name="idFuncionario">
+                            <select class="nmFuncionario" name="nmFuncionario" id="nmFuncionario">    
+                              <option value="" selected disabled>Selecione o Funcionário</option>
+                            </select>
+                          </div>
+
+                          <div class="form2">
+                            <input type="text" id="apelidoFuncionario" name="apelidoFuncionario">
+                            <label for="apelidoFuncionario">Apelido do Funcionário</label>
+                          </div>   
+                    
+                          <div class="form2">
+                            <select name="avaliacao" id="avaliacao" onchange="mostrarTarja()" required>
+                              <option value="" selected disabled>Avalie o Funcionario</option>
+                              <option value="muito_bom">Muito bom</option>
+                              <option value="satisfatorio">Satisfatório</option>
+                              <option value="regular">Regular</option>
+                            </select>
+                          </div>
+                          <div id="tarjaAvaliacao" class="tarja-avaliacao"></div>
+                        </div>
+                      </div> 
+                    <br>
+                </fieldset>
+                
+                <div id="searchResultsSection" style="margin-top: 20px;">
+                    <h2>Resultados da Consulta de Eventos</h2>
+                    <div class="table-container" style="max-height: 300px; overflow-y: auto; border: 1px solid #ccc; border-radius: 5px;">
+                        <table id="eventsDataTable" style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr>
+                                    <th>ID Evento</th>
+                                    <th>Função</th>
+                                    <th>Cache</th>
+                                    <th>Extra</th>
+                                    <th>Transporte</th>
+                                    <th>Almoço</th>
+                                    <th>Jantar</th>
+                                    <th>Caixinha</th>
+                                    <th>Benefícios</th>
+                                    <th>Local Montagem</th>
+                                    <th>Pavilhão</th>
+                                    <th>Cliente</th>
+                                    <th>Evento</th>
+                                    <th>Período</th>
+                                    <th>Bônus</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                </tbody>
+                        </table>
+                        <p id="noResultsMessage" style="text-align: center; margin-top: 10px; display: none; padding: 10px;">Nenhum resultado encontrado.</p>
+                    </div>
+                </div>
+
 <div id="containerFieldsets">
   <fieldset>
-    <legend>Cliente e Evento</legend>
-    
+    <legend>Evento</legend>
+    <div class="form-2colunas">
+      <div class="form2">                            
+          <input type="hidden" id="idFuncao" name="idFuncao">
+          <select class="descFuncao" name="descFuncao" id="descFuncao">       
+            <option value="" selected disabled> Selecione a Função</option>
+          </select>
+      </div>
+    </div>
+
+    <div class="checkbox">
+      <div class="Vertical">
+        <input id="Extracheck" type="checkbox" />
+        <label for="Extracheck">Extra</label>
+      </div>
+      <div class="Vertical">
+        <input id="Caixinhacheck" type="checkbox" />
+        <label for="Caixinhacheck">Caixinha</label>
+      </div>
+    </div>
+
+    <div class="form-2colunas">
+        <div class="form2">
+          <input type="text" name="vlrCusto" id="vlrCusto" required>
+          <label for="vlrCusto">Cache</label>
+        </div>                              
+        <div class="form2" id="campoExtra" style="display: none;">
+          <input type="text" name="extra" id="extra">
+          <label for="extra">Extra</label>
+        </div>                    
+    </div>    
+
+    <div class="form2">
+      <input type="text" name="transporte" id="transporte" required>
+      <label for="transporte">Transporte</label>
+    </div>                         
+        
+      <div class="form-2colunas">
+        <div class="form2">
+          <input type="text" name="almoco" id="almoco" required>
+          <label for="almoco">Almoço</label>
+        </div>                              
+        <div class="form2">
+          <input type="text" name="jantar" id="jantar" required>
+          <label for="jantar">Jantar</label>
+        </div>        
+        <div class="form2" id="campoCaixinha" style="display: none;">
+          <input type="text" name="caixinha" id="caixinha">
+          <label for="caixinha">Caixinha</label>
+        </div>               
+      </div>    
+      
+      <div class="form2">
+        <textarea name="descBeneficio" id="descBeneficio" required>Descritivo dos benefícios</textarea>
+      </div>
+      <div class="form-2colunas">
+      <div class="form2">
+          <input type="hidden" id="idMontagem" name="idMontagem">
+            <select class="nmLocalMontagem" name="nmLocalMontagem" id="nmLocalMontagem" required>
+              <option value="" selected disabled>Selecione o Local de Montagem</option>
+            </select>
+      </div>
+
+      <div class="form2">
+        <input type="hidden" id="idPavilhao" name="idPavilhao">
+        <select class="nmPavilhao" name="nmPavilhao" id="nmPavilhao" required>
+          <option value="" selected disabled>Selecione o Pavilhão</option>
+        </select>
+      </div> 
+    </div>
     <div class="form-2colunas">
       <div class="form2">
-        <input type="text" id="nmCliente" name="nmCliente[]" required>
-        <label>Cliente</label>
+       
+        <input type="hidden" id="idCliente" name="idCliente">
+        <select class="nmCliente" name="nmCliente[]" id="nmCliente">       
+          <option value="" selected disabled>Cliente</option>
+        </select>
       </div>
       <div class="form2">
-        <input type="text" id="nmEvento" name="nmEvento[]" required>
-        <label>Evento</label>
+        
+        <input type="hidden" id="idEvento" name="idEvento">
+        <select class="nmEvento" name="nmEvento[]" id="nmEvento">       
+          <option value="" selected disabled>Evento</option>
+        </select>
       </div>
     </div>
 
@@ -165,7 +526,7 @@
     <div class="form-2colunas">
       <textarea name="bonus[]" id="bonus" required>Bônus</textarea>
       <div class="form2">
-        <input type="text" class="preenchido moeda" value="R$ 00,00" id="vlrTotal" name="vlrTotal[]"  readonly required>
+        <input type="text" class="preenchido moeda" value="R$ 0,00" id="vlrTotal" name="vlrTotal[]"  readonly required>
         <label>Valor Total</label>
       </div>
     </div>
@@ -224,20 +585,15 @@
 
 <br>
 <button type="button" onclick="adicionarCampos(this)">Adicionar</button>
-<br>
-                
-            
-  
+<br>                 
 
-                  
-
-              </div>
-                <div class="BTNs">
-                  <button class="btnPesquisar" id="Pesquisar" type="button">Pesquisar</button>
-                  <button class="btnLimpar" id="Limpar" type="button">Limpar</button>
-                  <button class="btnEnviar" id="Enviar" type="button">Enviar</button>
-                </div>
-              </form>
+      </div>
+        <div class="BTNs">
+          <!-- <button class="btnPesquisar" id="Pesquisar" type="button">Pesquisar</button> -->
+          <button class="btnLimpar" id="Limpar" type="button">Limpar</button>
+          <button class="btnEnviar" id="Enviar" type="button">Enviar</button>
+        </div>
+      </form>
 
         
     </div>

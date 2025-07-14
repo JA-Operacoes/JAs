@@ -2,6 +2,7 @@
 // Autor: Marcia Lima
 
 
+
 require("dotenv").config();
 const express = require("express");
 const path = require("path");
@@ -16,6 +17,11 @@ const { autenticarToken, contextoEmpresa } = require('./middlewares/authMiddlewa
 // --- antes de app.use('/auth', authRoutes); e de todas as outras rotas:
 app.use(express.json());                 // lê JSON no corpo das requisições
 app.use(express.urlencoded({ extended: true })); // lê formulários URL-encoded
+
+app.use((req, res, next) => {
+  console.log(`📥 [${req.method}] ${req.originalUrl}`);
+  next();
+});
 
 app.use('/uploads', express.static('uploads'));
 
