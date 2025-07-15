@@ -127,7 +127,7 @@ router.post("/", verificarPermissao('Clientes', 'cadastrar'),
   }),
 
   async (req, res) => {
-  const ativo = req.body.ativo === "on" ? true : false;
+  const ativo = req.body.ativo !== undefined ? req.body.ativo : false;
   const { nmFantasia, razaoSocial, cnpj, inscEstadual, emailCliente, emailNfe, site, telefone, nmContato, celContato, emailContato,   cep, rua, numero, complemento, bairro, cidade, estado, pais, tpcliente } = req.body;
   const idempresa = req.idempresa;
 
