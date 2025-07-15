@@ -111,20 +111,12 @@ const carregarDadosParaEditar = (eventData) => {
         retornoDados = true;
         // Armazena os dados originais para comparação em um PUT
         currentEditingStaffEvent = eventData;
-      
+
         console.log("Carregando dados para edição:", eventData);
     
         idStaffInput.value = eventData.idstaff || ''; // idstaff da tabela staffeventos
         console.log("IDSTAFFINPUT", idStaffInput.value);
         idFuncionarioHiddenInput.value = eventData.idfuncionario || ''; // idfuncionario do staffeventos
-        
-        // Seleciona o funcionário no dropdown
-        // if (nmFuncionarioSelect) {
-        //     nmFuncionarioSelect.value = eventData.idfuncionario || '';
-        //     // Dispara o evento change para atualizar apelido, foto, etc.
-        //     nmFuncionarioSelect.dispatchEvent(new Event('change')); 
-        // }        
-
         // Preenche os campos do evento
         // Campos de SELECT:
         if (descFuncaoSelect) descFuncaoSelect.value = eventData.idfuncao || '';        
@@ -260,12 +252,6 @@ const carregarDadosParaEditar = (eventData) => {
             }
         }
 
-        
-        // Lógica para PDFs e Imagens (se você quiser carregar os comprovantes existentes)
-        // Isso é mais complexo, pois envolve URLs de arquivos e talvez a necessidade de
-        // desabilitar/reabilitar inputs de arquivo.
-        // Por enquanto, vamos focar em limpar os campos de upload ao carregar para edição,
-        // para que o usuário precise reenviar se quiser alterar.
         if (fileInput) fileInput.value = ''; // Limpa o input de arquivo de foto
         if (document.getElementById('filePDFCache')) document.getElementById('filePDFCache').value = '';
         if (document.getElementById('filePDFAjuda')) document.getElementById('filePDFAjuda').value = '';
@@ -303,7 +289,7 @@ const carregarTabelaStaff = async (funcionarioId) => {
 
             const data = await response.json();
             console.log('Dados de eventos recebidos para o funcionário:', data);
-         
+
             if (data && data.length > 0) {
                 data.forEach(eventData => {
 
@@ -318,7 +304,7 @@ const carregarTabelaStaff = async (funcionarioId) => {
                         avaliacaoSelect.value = avaliacaoValue;
                         mostrarTarja(); // Atualiza a tarja visual
                     }
- console.log('Valor de eventData.periodo antes de exibir:', eventData.datasevento);
+console.log('Valor de eventData.periodo antes de exibir:', eventData.datasevento);
                 console.log('Tipo de eventData.periodo antes de exibir:', typeof eventData.datasevento);
 
                     const row = eventsTableBody.insertRow();                    
@@ -327,6 +313,29 @@ const carregarTabelaStaff = async (funcionarioId) => {
 
                     row.insertCell().textContent = eventData.idevento || '';
                     row.insertCell().textContent = eventData.nmfuncao || '';
+                    row.insertCell().textContent = eventData.nmevento || '';
+                    row.insertCell().textContent = (eventData.datasevento && typeof eventData.datasevento === 'string')
+                    ? JSON.parse(eventData.datasevento) // Primeiro parseia a string JSON para um array
+                    .map(dateStr => { // Depois, mapeia cada string de data no array
+                        const parts = dateStr.split('-'); // Divide a data (ex: ['2025', '07', '01'])
+                        if (parts.length === 3) {
+                            return `${parts[2]}/${parts[1]}/${parts[0]}`; // Reorganiza para DD/MM/YYYY
+                        }
+                        return dateStr; // Retorna a data original se não estiver no formato esperado
+                    })
+                    .join(', ') // Junta as datas formatadas com vírgula e espaço
+                    : (Array.isArray(eventData.datasevento) && eventData.datasevento.length > 0)
+                    ? eventData.datasevento // Se já for um array (do backend, por exemplo)
+                    .map(dateStr => {
+                        const parts = dateStr.split('-');
+                        if (parts.length === 3) {
+                            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                        }
+                        return dateStr;
+                    })
+                    .join(', ')
+                    : 'N/A';
+                    
                     row.insertCell().textContent = parseFloat(eventData.vlrcache || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     row.insertCell().textContent = parseFloat(eventData.vlrextra || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     row.insertCell().textContent = parseFloat(eventData.vlrtransporte || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -337,31 +346,8 @@ const carregarTabelaStaff = async (funcionarioId) => {
                     row.insertCell().textContent = eventData.nmlocalmontagem || '';
                     row.insertCell().textContent = eventData.pavilhao || '';
                     row.insertCell().textContent = eventData.nmcliente || '';
-                    row.insertCell().textContent = eventData.nmevento || '';
-                    row.insertCell().textContent = (eventData.datasevento && typeof eventData.datasevento === 'string')
-                        ? JSON.parse(eventData.datasevento) // Primeiro parseia a string JSON para um array
-                            .map(dateStr => { // Depois, mapeia cada string de data no array
-                                const parts = dateStr.split('-'); // Divide a data (ex: ['2025', '07', '01'])
-                                if (parts.length === 3) {
-                                    return `${parts[2]}/${parts[1]}/${parts[0]}`; // Reorganiza para DD/MM/YYYY
-                                }
-                                return dateStr; // Retorna a data original se não estiver no formato esperado
-                            })
-                            .join(', ') // Junta as datas formatadas com vírgula e espaço
-                        : (Array.isArray(eventData.datasevento) && eventData.datasevento.length > 0)
-                            ? eventData.datasevento // Se já for um array (do backend, por exemplo)
-                                .map(dateStr => {
-                                    const parts = dateStr.split('-');
-                                    if (parts.length === 3) {
-                                        return `${parts[2]}/${parts[1]}/${parts[0]}`;
-                                    }
-                                    return dateStr;
-                                })
-                                .join(', ')
-                            : 'N/A';
-
                     row.insertCell().textContent = eventData.descbonus || '';
-                    row.insertCell().textContent = parseFloat(eventData.total || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    row.insertCell().textContent = parseFloat(eventData.vlrtotal || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                 });
             } else {
                 noResultsMessage.style.display = 'block';
@@ -420,9 +406,6 @@ async function verificaStaff() {
     carregarEventosStaff();
     carregarLocalMontStaff();
 
-   // setupSectionNavigation();
-      
-
     const botaoEnviar = document.querySelector("#Enviar");
  //   const botaoPesquisar = document.querySelector("#Pesquisar");
     const botaoLimpar = document.querySelector("#Limpar");
@@ -436,23 +419,8 @@ async function verificaStaff() {
 
     const tarja = document.querySelector("#avaliacao");
     tarja.addEventListener("change", async function () {
-      mostrarTarja();
+    mostrarTarja();
     }); 
-    
-    // const eventsDataTable = document.getElementById('eventsDataTable');
-
-    // console.log("ANTES DO EVENTS TABLE");
-
-    // // 🎯 NOVO CÓDIGO AQUI: Adiciona um listener de clique à tabela 🎯
-    // if (eventsDataTable) {
-    //     eventsDataTable.addEventListener('click', (event) => {
-    //         // Impede que o evento de clique "borbulhe" para elementos pais.
-    //         // Isso evita que um clique na tabela feche o modal.
-    //         console.log("🎯 NOVO CÓDIGO AQUI: Adiciona um listener de clique à tabela 🎯");
-    //         event.stopPropagation();
-    //         console.log("Clique na tabela detectado. Propagação do evento interrompida.");
-    //     });
-    // }
 
     botaoLimpar.addEventListener("click", function (event) {
         event.preventDefault(); // Previne o envio padrão do formulário 
@@ -502,84 +470,83 @@ async function verificaStaff() {
         const datasEventoRawValue = datasEventoInput.value.trim();
         const periodoDoEvento = getPeriodoDatas(datasEventoRawValue);
 
-      console.log("Array de datas do evento para envio:", periodoDoEvento);
+    console.log("Array de datas do evento para envio:", periodoDoEvento);
 
-      console.log("AVALIACAO", avaliacao);
-      if (periodoDoEvento.length === 0) {
-        return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias do evento.", "warning");
-      }
+    console.log("AVALIACAO", avaliacao);
+    if (periodoDoEvento.length === 0) {
+    return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias do evento.", "warning");
+    }
 
-     // const dtinicio = document.querySelector("#dtInicio").value.trim();
-     // const dtfim = document.querySelector("#dtFim").value.trim();
-      const vlrTotal = document.querySelector("#vlrTotal").value;
-  
-      const custo = parseFloat(String(vlrCusto).replace(",", "."));
-      const total = parseFloat(String(vlrTotal).replace(",", "."));
+    const vlrTotal = document.getElementById('vlrTotal').value; // "R$ 2.345,00"
+    const total = parseFloat(
+    vlrTotal
+        .replace('R$', '') // remove símbolo
+        .replace(/\./g, '') // remove milhares
+        .replace(',', '.') // troca vírgula por ponto
+        .trim()
+    ) || 0;
 
-      if(!nmFuncionario || !descFuncao || !vlrCusto || !transporte || !almoco || !jantar || !nmCliente || !nmEvento || !periodoDoEvento){
-          return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Funcionário, Função, Cachê, Transportes, Alimentação, Cliente, Evento e Período do Evento.", "warning");
-      }
 
-      if (caixinha){
+    if(!nmFuncionario || !descFuncao || !vlrCusto || !transporte || !almoco || !jantar || !nmCliente || !nmEvento || !periodoDoEvento){
+        return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Funcionário, Função, Cachê, Transportes, Alimentação, Cliente, Evento e Período do Evento.", "warning");
+    }
+
+    if (caixinha){
         if(!descBeneficio){
             return Swal.fire("Campos obrigatórios!", "Obrigatório o Preenchimento das Descrições do Benefícios (Caixinha/Extra)!","warning");
         }
-      }
+    }
         
-
       // Permissões
-      const temPermissaoCadastrar = temPermissao("Staff", "cadastrar");
-      const temPermissaoAlterar = temPermissao("Staff", "alterar");
+    const temPermissaoCadastrar = temPermissao("Staff", "cadastrar");
+    const temPermissaoAlterar = temPermissao("Staff", "alterar");
 
     const isEditing = currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento; // Verifica se o objeto existe E se tem um ID de evento válido
     const metodo = isEditing ? "PUT" : "POST";
     const url = isEditing ? `/staff/${currentEditingStaffEvent.idstaffevento}` : "/staff";
 
+    if (!idStaff && !temPermissaoCadastrar) {
+        return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novas funções.", "error");
+    }
 
-    //   const metodo = currentEditingStaffEvent.idstaffevento ? "PUT" : "POST";
-    //   const url = currentEditingStaffEvent.idstaffevento ? `/staff/${currentEditingStaffEvent.idstaffevento}` : "/staff";
-
-      if (!idStaff && !temPermissaoCadastrar) {
-          return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novas funções.", "error");
-      }
-
-      if (idStaff && !temPermissaoAlterar) {
-          return Swal.fire("Acesso negado", "Você não tem permissão para alterar funções.", "error");
-      }
+    if (idStaff && !temPermissaoAlterar) {
+        return Swal.fire("Acesso negado", "Você não tem permissão para alterar funções.", "error");
+    }
 
         console.log("Preparando dados para envio:", {
-          nmFuncionario, descFuncao, nmLocalMontagem, nmCliente, nmEvento, vlrCusto, extra, transporte, almoco, jantar, caixinha,
-          periodoDoEvento, vlrTotal
-      });
+        nmFuncionario, descFuncao, nmLocalMontagem, nmCliente, nmEvento, vlrCusto, extra, transporte, almoco, jantar, caixinha,
+        periodoDoEvento, vlrTotal
+    });
 
-      const formData = new FormData();
-      // Adiciona todos os campos de texto ao FormData
-      formData.append('avaliacao', avaliacao);
-      formData.append('idfuncionario', idFuncionario);
-      formData.append('nmfuncionario', nmFuncionario);
-      formData.append('idfuncao', idFuncao);
-      formData.append('nmfuncao', descFuncao);
-      formData.append('idcliente', idCliente);
-      formData.append('nmcliente', nmCliente);
-      formData.append('idevento', idEvento);
-      formData.append('nmevento', nmEvento);
-      formData.append('idmontagem', idMontagem);
-      formData.append('nmlocalmontagem', nmLocalMontagem);
-      formData.append('pavilhao', pavilhao); 
-      formData.append('vlrcache', vlrCusto);
-      formData.append('vlrextra', extra);
-      formData.append('vlrtransporte', transporte);
-      formData.append('vlralmoco', almoco);
-      formData.append('vlrjantar', jantar);
-      formData.append('vlrcaixinha', caixinha);
-      formData.append('descbonus', bonusTextarea.value.trim());
-     // formData.append('Data de Evento:', dataevento);
-      formData.append('datasevento', JSON.stringify(periodoDoEvento));
-      formData.append('vlrtotal', vlrTotal);   
+        const formData = new FormData();
+        // Adiciona todos os campos de texto ao FormData
+        formData.append('avaliacao', avaliacao);
+        formData.append('idfuncionario', idFuncionario);
+        formData.append('nmfuncionario', nmFuncionario);
+        formData.append('idfuncao', idFuncao);
+        formData.append('nmfuncao', descFuncao);
+        formData.append('idcliente', idCliente);
+        formData.append('nmcliente', nmCliente);
+        formData.append('idevento', idEvento);
+        formData.append('nmevento', nmEvento);
+        formData.append('idmontagem', idMontagem);
+        formData.append('nmlocalmontagem', nmLocalMontagem);
+        formData.append('pavilhao', pavilhao); 
+        formData.append('vlrcache', vlrCusto);
+        formData.append('vlrextra', extra);
+        formData.append('vlrtransporte', transporte);
+        formData.append('vlralmoco', almoco);
+        formData.append('vlrjantar', jantar);
+        formData.append('vlrcaixinha', caixinha);
+        formData.append('descbonus', bonusTextarea.value.trim());
+        // formData.append('Data de Evento:', dataevento);
+        formData.append('datasevento', JSON.stringify(periodoDoEvento));
+        formData.append('vlrtotal', total.toString()); 
+
 
     
 
-      
+
         console.log("Preparando envio de FormData. Método:", metodo, "URL:", url, window.StaffOriginal);
         console.log("Dados do FormData:", {
             nmFuncionario, descFuncao, vlrCusto, extra, transporte, almoco, jantar, caixinha,
@@ -587,26 +554,6 @@ async function verificaStaff() {
         });
 
         console.log("METODO PARA ENVIAR",metodo, currentEditingStaffEvent);
-       
-//         if (metodo === "PUT" && isEditing) { // Garante que é PUT E que há um ID
-//     formData.append('idstaff', currentEditingStaffEvent.idstaff || '');
-//     formData.append('idstaffevento', currentEditingStaffEvent.idstaffevento); // Agora, idstaffevento terá um valor válido aqui
-//     console.log("IDSTAFFEVENTO (para PUT):", currentEditingStaffEvent.idstaffevento);
-// } else if (metodo === "POST") {
-//     // Para POST, não adicione idstaffevento ao FormData, pois ele é autoincremento.
-//     // O erro acontece porque você está em um "POST" mas o código que tenta acessar idstaffevento (que é nulo)
-//     // está dentro de um bloco que você PENSAVA que só executaria para PUT.
-//     // A chave é que "currentEditingStaffEvent" pode não ser nulo, mas seu idstaffevento é nulo.
-//     // Sua verificação `metodo === "PUT" && currentEditingStaffEvent` permite que o código entre.
-//     // A condição `isEditing` é mais robusta.
-// }
-
-        // if (metodo === "PUT" && isEditing) { 
-        //     formData.append('idstaff', currentEditingStaffEvent.idstaff || ''); 
-        //     formData.append('idstaffevento', currentEditingStaffEvent.idstaffevento); 
-
-        //     console.log("IDSTAFFEVENTO", currentEditingStaffEvent.idstaffevento);
-        // }
 
             // 🎯 LOG DO FORMDATA ANTES DO ENVIO 🎯
         console.log("Preparando envio de FormData. Método:", metodo, "URL:", url);
@@ -622,14 +569,6 @@ async function verificaStaff() {
             }
             formData.append('idstaff', currentEditingStaffEvent.idstaff || ''); 
             formData.append('idstaffevento', currentEditingStaffEvent.idstaffevento); 
-
-            // if (!currentEditingStaffEvent) { 
-            //             return Swal.fire("Erro", "Dados originais não encontrados para comparar alterações.", "error");
-            //         }
-
-            // if (!window.StaffOriginal) {
-            //     return Swal.fire("Erro", "Dados originais não encontrados para comparar alterações.", "error");
-            // }
 
             let houveAlteracao = false;
             if (
@@ -652,26 +591,6 @@ async function verificaStaff() {
             }
 
             console.log("ALTERAÇÃO", houveAlteracao);
-
-            // const camposTextoParaComparar = {
-            //     avaliacao, nmFuncionario, descFuncao, vlrCusto, extra, transporte, almoco, jantar, caixinha,
-            //     nmCliente, nmEvento, vlrTotal,
-            //     datasEvento: JSON.stringify(periodoDoEvento)
-            // };
-
-            // for (const key in camposTextoParaComparar) {
-            //     let valorOriginal;
-            //     if (key === 'datasEvento') {
-            //         valorOriginal = JSON.stringify(window.StaffOriginal[key] || []);
-            //     } else {
-            //         valorOriginal = String(window.StaffOriginal[key] || '').toUpperCase().trim();
-            //     }
-            //     const valorAtual = String(camposTextoParaComparar[key] || '').toUpperCase().trim();
-            //     if (valorOriginal !== valorAtual) {
-            //         houveAlteracao = true;
-            //         break;
-            //     }
-            // }
 
             if (!houveAlteracao) {
                 return Swal.fire("Nenhuma alteração detectada", "Faça alguma alteração antes de salvar.", "info");
@@ -704,100 +623,13 @@ async function verificaStaff() {
             limparCamposStaff();
             window.StaffOriginal = null;
 
-            // const idFuncionarioAtual = nmFuncionarioSelect.value.trim();
-            // if (idFuncionarioAtual) {
-            //     carregarTabelaStaff(idFuncionarioAtual);
-            // }
+            await carregarTabelaStaff(idFuncionario);
 
         } catch (error) {
             console.error("❌ Erro ao enviar dados do funcionário:", error);
             Swal.fire("Erro", error.message || "Erro ao salvar funcionário.", "error");
         }
     });
-    
-
-    // botaoPesquisar.addEventListener("click", async function (event) {
-    //     event.preventDefault();
-    //     console.log("Pesquisando Staff...");
-
-    //     limparCamposStaff();
-    //     console.log("Pesquisando Staff...");
-
-    //     const temPermissaoPesquisar = temPermissao('Staff', 'pesquisar');
-    //     console.log("Tem permissão para pesquisar Staff:", temPermissaoPesquisar);
-    //     if (!temPermissaoPesquisar) {
-    //         return Swal.fire("Acesso negado", "Você não tem permissão para pesquisar.", "warning");
-    //     }
-
-    //     try {
-    //         const staff = await fetchComToken("/staff"); // ajuste a rota conforme sua API
-           
-    //         console.log("Staff encontrado:", staff);
-
-    //         const select = criarSelectStaff(staff);
-    //         limparCamposStaff();
-    //         const input = document.querySelector("#descStaff");
-               
-    //         if (input && input.parentNode) {
-    //             input.parentNode.replaceChild(select, input);
-    //         }
-   
-    //         const label = document.querySelector('label[for="descStaff"]');
-    //         if (label) {
-    //           label.style.display = "none"; // ou guarda o texto, se quiser restaurar exatamente o mesmo
-    //         }
-    
-    //         // Reativar o evento blur para o novo select
-    //         select.addEventListener("change", async function () {
-    //             const desc = this.value?.trim();
-               
-    //             if (!desc) {
-    //                 console.warn("Valor do select está vazio ou indefinido.");
-    //                 return;
-    //             }
-
-    //             await carregarStaffDescricao(desc, this);
-
-    //             const novoInput = document.createElement("input");
-    //             novoInput.type = "text";
-    //             novoInput.id = "descStaff";
-    //             novoInput.name = "descStaff";
-    //             novoInput.required = true;
-    //             novoInput.className = "form";
-    //             novoInput.value = desc;
-            
-    //             novoInput.addEventListener("input", function() {
-    //                 this.value = this.value.toUpperCase(); // transforma o texto em maiúsculo à medida que o usuário digita
-    //             });
-
-    //             this.parentNode.replaceChild(novoInput, this);
-    //             adicionarEventoBlurStaff();
-               
-    //             const label = document.querySelector('label[for="descStaff"]');
-    //             if (label) {
-    //             label.style.display = "block";
-    //             label.textContent = "Descrição do Staff"; // ou algum texto que você tenha guardado
-    //             }
-              
-    //             novoInput.addEventListener("blur", async function () {
-    //                 if (!this.value.trim()) return;
-    //                 await carregarStaffDescricao(this.value, this);
-    //             });
- 
-    //      });
-    
-    //     } catch (error) {
-    //         console.error("Erro ao carregar staffs:", error);
-    //         Swal.fire({
-    //             icon: 'error',
-    //             title: 'Erro',
-    //             text: 'Não foi possível carregar os staffs.',
-    //             confirmButtonText: 'Ok'
-    //         });
-    //     }
-    // });
-    
-
 }
 
 
@@ -827,34 +659,6 @@ console.log("Inicializando Flatpickr para todos os campos de data (globais)...")
     });
 }
 
-// function criarSelectStaff() {
-   
-//     const select = document.createElement("select");
-//     select.id = "descStaff";
-//     select.name = "descStaff";
-//     select.required = true;
-//     select.className = "form";
-
-   
-//     // Adicionar opções
-//     const defaultOption = document.createElement("option");
-//     defaultOption.value = "";
-//     defaultOption.text = "Selecione uma função...";
-//     defaultOption.disabled = true;
-//     defaultOption.selected = true;
-//     select.appendChild(defaultOption);
-   
-//     console.log("PESQUISANDO FUNCAO:", funcoes);
-
-//     funcoes.forEach(staffachada => {
-//         const option = document.createElement("option");
-//         option.value = staffachada.descstaff;
-//         option.text = staffachada.descstaff;
-//         select.appendChild(option);
-//     });
- 
-//     return select;
-// }
 
 console.log("ainda n adicionou Blur")
 function adicionarEventoBlurStaff() {
@@ -868,19 +672,9 @@ function adicionarEventoBlurStaff() {
         ultimoClique = e.target;
     });
 
-//     document.addEventListener("click", function() { // Ou mousedown, mouseup
-//     // Verifique se o ultimoClique está DENTRO do modal
-//     const modal = document.querySelector("#modal-container .modal");
-//     if (modal && modal.contains(ultimoClique)) {
-//         // Se o clique foi dentro do modal, NÃO FECHE
-//         return; 
-//     }
-//     // Se o clique foi fora, feche o modal
-//     fecharModal();
-// });
     
     input.addEventListener("blur", async function () {
-       
+    
         const botoesIgnorados = ["Limpar", "Pesquisar", "Enviar"];
         const ehBotaoIgnorado =
             ultimoClique?.id && botoesIgnorados.includes(ultimoClique.id) ||
@@ -911,7 +705,7 @@ async function carregarStaffDescricao(desc, elementoAtual) {
     try {
         const response = await fetchComToken(`/staff?descStaff=${encodeURIComponent(desc)}`);
         if (!response.ok) throw new Error();
-           
+        
         const staff = await response.json();
         document.querySelector("#idStaff").value = staff.idstaff;
         document.querySelector("#nmFuncionario").value = staff.nmFuncionario;
@@ -924,16 +718,6 @@ async function carregarStaffDescricao(desc, elementoAtual) {
         document.querySelector("#avaliacao").value = staff.avaliacao;
 
         console.log("CARREGA AVALIACAO", staff.avaliacao);
-       
-        // if (staff.avaliacao) {
-        //     // Converte a avaliação do DB para o valor do select (ex: "MUITO BOM" -> "muito_bom")
-        //     const avaliacaoValue = (staff.avaliacao || '').toLowerCase().replace(' ', '_');
-        //     avaliacaoSelect.value = avaliacaoValue;
-        //     mostrarTarja(); // Atualiza a tarja visual
-        // }
-        
-      //  document.querySelector("#dtInicio").value = staff.dtinicio ? staff.dtinicio.split('T')[0] : "";
-      //  document.querySelector("#dtFim").value = staff.dtfim ? staff.dtfim.split('T')[0] : "";
 
         document.querySelector("#vlrTotal").value = staff.vlrtotal;
         
@@ -962,7 +746,7 @@ async function carregarStaffDescricao(desc, elementoAtual) {
             bonus: staff.bonus,          
             nmPavilhao: staff.nmpavilhao,
             datasevento: Array.isArray(eventData.datasevento) ? eventData.datasevento :
-                     (typeof eventData.datasevento === 'string' ? JSON.parse(eventData.datasevento) : []),
+                    (typeof eventData.datasevento === 'string' ? JSON.parse(eventData.datasevento) : []),
             vlrTotal: staff.vlrtotal        
     
         };
@@ -1247,19 +1031,11 @@ async function  carregarClientesStaff() {
 
             // Evento de seleção de cliente
             select.addEventListener('change', function () {
-              //  idCliente = this.value; // O value agora é o ID
-              //  console.log("idCliente selecionado:", idCliente);
-              const selectedOption = select.options[select.selectedIndex];
-              //const nomeFantasia = this.value;
-              document.getElementById("idCliente").value = selectedOption.getAttribute("data-idcliente");
-     
-
-                // 
-                // idCliente = selectedOption.getAttribute("data-idCliente");
-                // console.log("idCliente", idCliente);
-                // if (nomeFantasia) {
-                //     buscarEExibirDadosClientePorNome(nomeFantasia);
-                // }
+            //  idCliente = this.value; // O value agora é o ID
+            //  console.log("idCliente selecionado:", idCliente);
+            const selectedOption = select.options[select.selectedIndex];
+            //const nomeFantasia = this.value;
+            document.getElementById("idCliente").value = selectedOption.getAttribute("data-idcliente");
             });            
         });
     
@@ -1467,13 +1243,6 @@ const campos = ["idStaff", "nmFuncionario", "apelidoFuncionario", "linkFotoFunci
         contadorDatas.textContent = "Nenhuma data selecionada.";
     }
 
-    // 4. Limpeza dos campos de UPLOAD DE PDF (Comprovantes)
-    // Como há múltiplos inputs com o mesmo ID 'filePDF' e 'fileNamePDF' no seu HTML,
-    // o querySelectorAll é mais adequado para iterar sobre eles.
-    // **Importante:** Seu HTML tem `id="filePDF"` e `id="fileNamePDF"` repetidos, o que não é ideal.
-    // IDs devem ser únicos. Considere usar classes ou IDs únicos para cada comprovante.
-    // Por enquanto, vou fazer a limpeza usando o que você tem, mas alerto sobre a duplicidade.
-
     // Campos de texto de nome de arquivo PDF
     const fileNamesPDF = document.querySelectorAll('p[name="fileNamePDF"]');
     fileNamesPDF.forEach(p => {
@@ -1524,18 +1293,6 @@ const campos = ["idStaff", "nmFuncionario", "apelidoFuncionario", "linkFotoFunci
             tarjaAvaliacao.textContent = ''; // Limpa o texto da tarja
         }
     }
-
-    // Opcional: Se você estiver manipulando a visibilidade da seção de eventos
-    // como discutido na resposta anterior, você pode querer ocultá-la aqui.
-    // const staffEventosSection = document.getElementById('staffEventosSection');
-    // if (staffEventosSection) {
-    //     staffEventosSection.style.display = 'none';
-    // }
-    // const tabelaStaffEventosBody = document.querySelector('#tabelaStaffEventos tbody');
-    // if (tabelaStaffEventosBody) {
-    //     tabelaStaffEventosBody.innerHTML = '';
-    // }
-
 }
 
 function getPeriodoDatas(inputValue) {
@@ -1632,10 +1389,6 @@ document.getElementById('Caixinhacheck').addEventListener('change', function () 
 
 function calcularValorTotal() {
     console.log("CalcularValorTotal", retornoDados);
-    if (retornoDados) { // 🎯 IGNORA O CÁLCULO SE ESTIVER POPULANDO O FORMULÁRIO 🎯
-        console.log("Cálculo ignorado: formulário está sendo populado.");
-        return;
-    }
 
     const cache = parseFloat(document.getElementById('vlrCusto').value.replace(',', '.')) || 0;
     const extra = parseFloat(document.getElementById('extra').value.replace(',', '.')) || 0;
@@ -1648,7 +1401,7 @@ function calcularValorTotal() {
     const match = contadorTexto.match(/\d+/);
     const numeroDias = match ? parseInt(match[0]) : 0;
 
-    const soma = cache + extra + transporte + almoco+jantar + caixinha;
+    const soma = cache + extra + transporte + almoco + jantar + caixinha;
     const total = soma * numeroDias;
 
     const valorFormatado = 'R$ ' + total.toFixed(2).replace('.', ',');
@@ -1730,222 +1483,37 @@ function checkModalScroll() {
         }, 350); // Deve ser maior que a duração da sua transição (0.3s)
     }
 
-// function configurarPreviewPDF(input, fileNameId, hiddenInputId, previewId) {
-//     const fileNameDisplay = document.getElementById(fileNameId);
-//     const hiddenInput = document.getElementById(hiddenInputId);
-//     const previewEmbed = document.getElementById(previewId); // Usamos o previewId diretamente aqui
-
-//     if (!input || !fileNameDisplay || !hiddenInput || !previewEmbed) {
-//         console.error("Um ou mais elementos de PDF não foram encontrados para os IDs fornecidos:", {
-//             input: input,
-//             fileNameDisplay: fileNameId,
-//             hiddenInput: hiddenInputId,
-//             previewEmbed: previewId
-//         });
-//         return; // Sai da função se algum elemento não for encontrado
-//     }
-
-//     input.addEventListener('change', function () {
-//         const file = input.files[0];
-
-//         if (!file || file.type !== 'application/pdf') {
-//             previewEmbed.style.display = 'none';
-//             previewEmbed.src = '#'; // Limpa o src
-//             fileNameDisplay.textContent = 'Nenhum arquivo selecionado';
-//             hiddenInput.value = '';
-//             // Se houver um headerPDF (como em alguns dos seus exemplos anteriores),
-//             // você precisaria passá-lo como parâmetro também para manipulá-lo aqui.
-//             // No HTML que eu forneci anteriormente, não há 'headerPDF' diretamente ligado a cada PDF individual,
-//             // então essa parte foi removida para simplificar.
-//             return;
-//         }
-
-//         const reader = new FileReader();
-//         reader.onload = function (e) {
-//             previewEmbed.src = e.target.result;
-//             previewEmbed.style.display = 'block';
-//             fileNameDisplay.textContent = file.name;
-//             hiddenInput.value = e.target.result;
-//             // Se houver um headerPDF para ocultar, faria isso aqui.
-//         };
-//         reader.readAsDataURL(file);
-//         console.log("Pré-visualização de PDF configurada para:", file.name);
-//     });
-
-//     // Chama a função uma vez para definir o estado inicial se já houver um valor
-//     // (útil se você estiver carregando dados de um formulário existente)
-//     // if (hiddenInput.value) {
-//     //     previewEmbed.src = hiddenInput.value;
-//     //     previewEmbed.style.display = 'block';
-//     //     // Você pode tentar extrair o nome do arquivo do Data URL ou usar um placeholder
-//     //     fileNameDisplay.textContent = "Arquivo existente"; 
-//     // }
-// }
 function configurarPreviewImagem() {
-  const inputImg = document.getElementById('file');
-  const previewImg = document.getElementById('previewFoto');
-  const fileNameImg = document.getElementById('fileName');
-  const hiddenImg = document.getElementById('linkFotoSidStaff');
-  const headerImg = document.getElementById('uploadHeader');
+const inputImg = document.getElementById('file');
+const previewImg = document.getElementById('previewFoto');
+const fileNameImg = document.getElementById('fileName');
+const hiddenImg = document.getElementById('linkFotoSidStaff');
+const headerImg = document.getElementById('uploadHeader');
 
-  inputImg.addEventListener('change', function () {
+inputImg.addEventListener('change', function () {
     const file = inputImg.files[0];
     if (!file || !file.type.startsWith('image/')) {
-      previewImg.style.display = 'none';
-      headerImg.style.display = 'block';
-      fileNameImg.textContent = 'Nenhum arquivo selecionado';
-      hiddenImg.value = '';
-      return;
+    previewImg.style.display = 'none';
+    headerImg.style.display = 'block';
+    fileNameImg.textContent = 'Nenhum arquivo selecionado';
+    hiddenImg.value = '';
+    return;
     }
 
     const reader = new FileReader();
     reader.onload = function (e) {
-      previewImg.src = e.target.result;
-      previewImg.style.display = 'block';
-      headerImg.style.display = 'none';
-      fileNameImg.textContent = file.name;
-      hiddenImg.value = e.target.result;
+    previewImg.src = e.target.result;
+    previewImg.style.display = 'block';
+    headerImg.style.display = 'none';
+    fileNameImg.textContent = file.name;
+    hiddenImg.value = e.target.result;
     };
     reader.readAsDataURL(file);
     console.log("pegou a imagem do ", fileNameImg)
-  });
+});
 }
 
-// window.addEventListener('DOMContentLoaded', function () {
-//   configurarPreviewPDF();
-//   configurarPreviewImagem();
-// });
-
-
-let contadorFieldsets = 1;
-const datasGlobaisSelecionadas = [];
-
-function adicionarCampos() {
-  console.log("✅ Função adicionarCampos chamada");
-
-  const container = document.getElementById("containerFieldsets");
-  const fieldsetOriginal = container.querySelector("fieldset");
-  const novoFieldset = fieldsetOriginal.cloneNode(true);
-  console.log("📋 Fieldset clonado");
-
-  contadorFieldsets++;
-
-  const novoId = "datasEvento" + contadorFieldsets;
-  const novoContadorId = "contadorDatas" + contadorFieldsets;
-  const novoFileId = "filePDF" + contadorFieldsets;
-  const novoFileNameId = "fileNamePDF" + contadorFieldsets;
-  const novoHiddenId = "ComprovantePagamentos" + contadorFieldsets;
-
-  // Atualiza campo de datas
-  const inputDatas = novoFieldset.querySelector("input[id^='datasEvento']");
-  inputDatas.id = novoId;
-  inputDatas.value = "";
-  console.log("📅 Novo input de datas ID:", novoId);
-
-  // Atualiza contador de datas
-  const contador = novoFieldset.querySelector("p[id^='contadorDatas']");
-  contador.id = novoContadorId;
-  contador.textContent = "Nenhuma data selecionada.";
-  console.log("🔢 Contador de datas atualizado:", novoContadorId);
-
-  // Atualiza campo de arquivo PDF
-  const inputFile = novoFieldset.querySelector("input[type='file']");
-  const labelFile = novoFieldset.querySelector("label[for^='filePDF']");
-  const pFileName = novoFieldset.querySelector("p[id^='fileNamePDF']");
-  const hiddenInput = novoFieldset.querySelector("input[type='hidden']");
-
-  inputFile.id = novoFileId;
-  labelFile.setAttribute("for", novoFileId);
-  pFileName.id = novoFileNameId;
-  pFileName.textContent = "Nenhum arquivo selecionado";
-  hiddenInput.id = novoHiddenId;
-  hiddenInput.name = "foto[]";
-  hiddenInput.value = "";
-  console.log("📁 Input de arquivo atualizado:", novoFileId);
-
-  // Evento de conversão do PDF para base64
-  inputFile.addEventListener("change", function () {
-    const file = this.files[0];
-    const fileNameDisplay = document.getElementById(novoFileNameId);
-    const hiddenInputTarget = document.getElementById(novoHiddenId);
-
-    if (file) {
-      console.log("📎 Arquivo selecionado:", file.name);
-      fileNameDisplay.textContent = file.name;
-
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        hiddenInputTarget.value = e.target.result;
-        console.log("📦 Arquivo convertido para Base64");
-      };
-      reader.readAsDataURL(file);
-    } else {
-      console.log("⚠️ Nenhum arquivo selecionado");
-      fileNameDisplay.textContent = "Nenhum arquivo selecionado";
-      hiddenInputTarget.value = "";
-    }
-  });
-
-  // Botão de remover
-  const botaoExistente = novoFieldset.querySelector(".btn-remover");
-  if (botaoExistente) {
-    botaoExistente.remove();
-    console.log("🧽 Botão de remover antigo excluído");
-  }
-
-  const botaoRemover = document.createElement("button");
-  botaoRemover.type = "button";
-  botaoRemover.textContent = "Remover";
-  botaoRemover.className = "btn-remover";
-  botaoRemover.style.marginTop = "10px";
-  botaoRemover.onclick = function () {
-    const fpInstance = inputDatas._flatpickr;
-    if (fpInstance) {
-      fpInstance.selectedDates.forEach(data => {
-        datasGlobaisSelecionadas = datasGlobaisSelecionadas.filter(
-          d => d.getTime() !== data.getTime()
-        );
-      });
-      console.log("🗑️ Datas removidas do array global");
-    }
-
-    container.removeChild(novoFieldset);
-    console.log("❌ Fieldset removido");
-
-  };
-
-  novoFieldset.appendChild(botaoRemover);
-  container.appendChild(novoFieldset);
-  console.log("✅ Novo fieldset adicionado ao container");
-
-
-}
-
-
-  // Setup do primeiro input file
-//   const inputFile = document.getElementById("filePDF");
-//   const fileName = document.getElementById("fileNamePDF");
-//   const hiddenInput = document.getElementById("ComprovantePagamentos");
-
-//   inputFile.addEventListener("change", function () {
-//     const file = this.files[0];
-//     if (file) {
-//       fileName.textContent = file.name;
-//       const reader = new FileReader();
-//       reader.onload = function (e) {
-//         hiddenInput.value = e.target.result;
-//       };
-//       reader.readAsDataURL(file);
-//     } else {
-//       fileName.textContent = "Nenhum arquivo selecionado";
-//       hiddenInput.value = "";
-//     }
-//   });
-
-
-
-
- function mostrarTarja() {
+function mostrarTarja() {
     var select = document.getElementById('avaliacao');
     var tarja = document.getElementById('tarjaAvaliacao');
 
@@ -1953,21 +1521,19 @@ function adicionarCampos() {
     tarja.style.display = 'none'; // Oculta por padrão
 
     if (select.value === 'muito_bom') {
-      tarja.classList.add('muito-bom');
-      tarja.textContent = 'Funcionário Muito Bom';
-      tarja.style.display = 'block';
+    tarja.classList.add('muito-bom');
+    tarja.textContent = 'Funcionário Muito Bom';
+    tarja.style.display = 'block';
     } else if (select.value === 'satisfatorio') {
-      tarja.classList.add('satisfatorio');
-      tarja.textContent = 'Funcionário Satisfatório';
-      tarja.style.display = 'block';
+    tarja.classList.add('satisfatorio');
+    tarja.textContent = 'Funcionário Satisfatório';
+    tarja.style.display = 'block';
     } else if (select.value === 'regular') {
-      tarja.classList.add('regular');
-      tarja.textContent = 'Funcionário Regular';
-      tarja.style.display = 'block';
+    tarja.classList.add('regular');
+    tarja.textContent = 'Funcionário Regular';
+    tarja.style.display = 'block';
     }
 }
-
-
 
 function configurarEventosStaff() {
     console.log("Configurando eventos Staff...");

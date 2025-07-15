@@ -37,8 +37,8 @@
   transform: translate(-50%, -50%); /* Ajuste para o centro exato */
   background-color: #4d4d4d;
   padding: 5px;
-  width: 725px; /* Ajuste o tamanho conforme necessário */
-  height: 645px;
+  width: 1125px; /* Ajuste o tamanho conforme necessário */
+  height: 745px;
   font-size: 16px;
   z-index: 9999;
 }
@@ -75,7 +75,7 @@ body{
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-top: 900px;
+  margin-top: 620px;
 }
 
 #form-cargo {
@@ -86,7 +86,7 @@ body{
   background-color: rgb(0, 0, 0);
   /* max-width: 700px;    */
   width: 100%;  
-  height: 550px;          /* Largura do formulário */
+  height: 670px;          /* Largura do formulário */
   margin: 0 auto;            /* Centraliza o formulário na tela */
   padding: 10px;                /* Espaçamento interno */
   background-color: #cacaca; 
@@ -188,6 +188,7 @@ justify-content: center;
   align-items: center;
   justify-content: center;  /* Mantém conteúdo no topo */
   padding: 10px;
+  margin: 0 auto;
   gap: 6px;
   background-color: rgba(0, 110, 255, 0.041);
 }
@@ -475,7 +476,7 @@ input[type="file"]{
 .form-checkbox {
   position: relative;
   display: flex;
-  /* justify-content: center; */
+  justify-content: center;
   margin: 12px;
   gap: 5px;
   flex-wrap: wrap;
@@ -526,6 +527,7 @@ input[type="file"]{
   color: #000000;
   outline: none;
 }  */
+
 
  .form2 { 
   display: flex;
@@ -645,9 +647,10 @@ legend{
   margin-left: 10px;
   padding: 3px;
 }
+
 textarea{
   font-family:"Abel",sans-serif;
-  width: 100%;
+  width: 300px;
   display: flex;
   justify-content: center;                  /* Faz os inputs ocuparem toda a largura */
   padding: 5px 50px; 
@@ -655,9 +658,9 @@ textarea{
   font-size: 17px;               /* Espaçamento interno nos campos */
   border: 1px solid #000000;      /* Cor de borda */
   border-radius: 8px;  
-  flex: 1;      
-  max-width: 100%;        /* Bordas arredondadas */
+  max-width: 100%;     /* Bordas arredondadas */
 }
+
 
 input[type=date]{
   width: 170px;
