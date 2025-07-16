@@ -228,54 +228,56 @@
 
       
 
-    <div class="pdf">
-      <div class="collumn">
-        <h5>Comprovante de Cache</h5>
-        <div class="containerPDF">
-          <label for="filePDF" class="footerPDF" name="footerPDF[]">
-            <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
-              <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
-              <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
-            </svg>
-            <p id="fileNamePDF" name="fileNamePDF">Nenhum arquivo selecionado</p>
-          </label>
-          <input id="filePDF" type="file" name="filePDF" accept="application/pdf" oninput="configurarPreviewPDF(this)">
-          <input type="hidden" id="ComprovanteCache"  name="foto[]" />
-        </div>
-      </div>
-
-      <br>
-
-      <div class="collumn">
-        <h5>Comprovante de Ajuda de Custo</h5>
-        <div class="containerPDF">
-          <label for="filePDF" class="footerPDF" name="footerPDF[]">
-            <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
-              <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
-              <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
-            </svg>
-            <p id="fileNamePDF" name="fileNamePDF">Nenhum arquivo selecionado</p>
-          </label>
-          <input id="filePDF" type="file" name="filePDF" accept="application/pdf" oninput="configurarPreviewPDF(this)">
-          <input type="hidden" id="ComprovanteAjdCusto"  name="foto[]" />
-        </div>
-      </div>
-    
-    <br>
-    <div class="collumn">
-      <h5>Comprovante de Caixinha</h5>
-      <div class="containerPDF">
-        <label for="filePDF" class="footerPDF" name="footerPDF[]">
-          <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
-            <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
-            <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
-          </svg>
-          <p id="fileNamePDF" name="fileNamePDF">Nenhum arquivo selecionado</p>
-        </label>
-        <input id="filePDF" type="file" name="filePDF" accept="application/pdf" oninput="configurarPreviewPDF(this)">
-        <input type="hidden" id="ComprovanteCaixinha"  name="foto[]" />
-      </div>
+<div class="pdf">
+  <div class="collumn">
+    <h5>Comprovante de Cache</h5>
+    <div class="containerPDF">
+      <label for="fileCache" class="footerPDF" name="footerPDF[]">
+        <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+          <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+          <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+        </svg>
+        <p id="fileNameCache" class="fileNamePDF">Nenhum arquivo selecionado</p>
+      </label>
+      <input id="fileCache" class="filePDFInput" type="file" name="filePDFCache" accept="application/pdf">
+      <input type="hidden" id="ComprovanteCache" class="hiddenPDF" name="foto[]" />
     </div>
+  </div>
+
+  <br>
+
+  <div class="collumn">
+    <h5>Comprovante de Ajuda de Custo</h5>
+    <div class="containerPDF">
+      <label for="fileAjdCusto" class="footerPDF" name="footerPDF[]">
+        <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+          <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+          <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+        </svg>
+        <p id="fileNameAjdCusto" class="fileNamePDF">Nenhum arquivo selecionado</p>
+      </label>
+      <input id="fileAjdCusto" class="filePDFInput" type="file" name="filePDFAjdCusto" accept="application/pdf">
+      <input type="hidden" id="ComprovanteAjdCusto" class="hiddenPDF" name="foto[]" />
+    </div>
+  </div>
+
+  <br>
+
+  <div class="collumn">
+    <h5>Comprovante de Caixinha</h5>
+    <div class="containerPDF">
+      <label for="fileCaixinha" class="footerPDF" name="footerPDF[]">
+        <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+          <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+          <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+        </svg>
+        <p id="fileNameCaixinha" class="fileNamePDF">Nenhum arquivo selecionado</p>
+      </label>
+      <input id="fileCaixinha" class="filePDFInput" type="file" name="filePDFCaixinha" accept="application/pdf">
+      <input type="hidden" id="ComprovanteCaixinha" class="hiddenPDF" name="foto[]" />
+    </div>
+  </div>
+</div>
     <br>
   </fieldset>
 </div>

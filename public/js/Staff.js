@@ -1,4 +1,3 @@
- console.log("Staff.js iniciou");
 import { fetchComToken } from '../utils/utils.js';
 
 //importado no inicio do js pois deve ser importado antes do restante do codigo
@@ -43,29 +42,34 @@ const commonFlatpickrOptions = {
 if (typeof window.StaffOriginal === "undefined") {
     window.StaffOriginal = {
         idStaff: "",
-        avaliacao:"",
-        idFuncionario:"",
-        nmFuncionario: "",      
+        avaliacao: "",
+        idFuncionario: "",
+        nmFuncionario: "",
         descFuncao: "",
         vlrCusto: "",
-        extra:"",
+        extra: "",
         transporte: "",
-        almoco:"",
-        jantar:"",   
-        caixinha:"",
+        almoco: "",
+        jantar: "",
+        caixinha: "",
         descBeneficio: "",
-        idCliente:"",
+        idCliente: "",
         nmCliente: "",
-        idEvento:"",
+        idEvento: "",
         nmEvento: "",
-        idLocalMontagem:"",
-        nmLocalMontagem:"",
-        datasEventos: "",   
-        bonus: "",   
+        idLocalMontagem: "",
+        nmLocalMontagem: "",
+        datasEventos: "",
+        bonus: "",
         vlrTotal: "",
-        nmPavilhao:""
-    }
-};
+        nmPavilhao: "",
+        
+        // 📎 Comprovantes PDF
+        comprovanteCache: "",
+        comprovanteAjdCusto: "",
+        comprovanteCaixinha: ""
+    };
+}
 
 const eventsTableBody = document.querySelector('#eventsDataTable tbody');
 const noResultsMessage = document.getElementById('noResultsMessage');
@@ -430,16 +434,13 @@ async function verificaStaff() {
     botaoEnviar.addEventListener("click", async (event) => {
       event.preventDefault(); // Previne o envio padrão do formulário
 
-        //const avaliacao = document.querySelector("#avaliacao").value.trim();
         const selectAvaliacao = document.getElementById("avaliacao");
         const avaliacao = selectAvaliacao.options[selectAvaliacao.selectedIndex]?.textContent.trim().toUpperCase() || '';
         const idStaff = document.querySelector("#idStaff").value.trim();
         const idFuncionario = document.querySelector("#idFuncionario").value;
-        //   const nmFuncionario = document.querySelector("#nmFuncionario").value.toUpperCase().trim();
         const selectFuncionario = document.getElementById("nmFuncionario");
         const nmFuncionario = selectFuncionario.options[selectFuncionario.selectedIndex]?.textContent.trim().toUpperCase() || '';
         const idFuncao = document.querySelector("#idFuncao").value;
-        // const descFuncao = document.querySelector("#descFuncao").value || '';
         const selectFuncao = document.getElementById("descFuncao");
         const descFuncao = selectFuncao.options[selectFuncao.selectedIndex]?.textContent.trim().toUpperCase() || '';
         const vlrCusto = document.querySelector("#vlrCusto").value.trim() || '0';
@@ -449,20 +450,22 @@ async function verificaStaff() {
         const jantar = document.querySelector("#jantar").value.trim() || '0';
         const caixinha = document.querySelector("#caixinha").value.trim() || '0';
         const idCliente = document.querySelector("#idCliente").value; 
-        //  const nmCliente = document.querySelector("#nmCliente").value.trim();
         const selectCliente = document.getElementById("nmCliente");
         const nmCliente = selectCliente.options[selectCliente.selectedIndex]?.textContent.trim().toUpperCase() || '';
         const idEvento = document.querySelector("#idEvento").value;       
-        //  const nmEvento = document.querySelector("#nmEvento").value.trim();
         const selectEvento = document.getElementById("nmEvento");
         const nmEvento = selectEvento.options[selectEvento.selectedIndex]?.textContent.trim().toUpperCase() || '';
         const idMontagem = document.querySelector("#idMontagem").value; // ID do local de montagem (FK)
-        //const nmLocalMontagem = document.querySelector("#nmLocalMontagem").value.trim() || ''; // Nome do local de montagem (histórico)
         const selectLocalMontagem = document.getElementById("nmLocalMontagem");
         const nmLocalMontagem = selectLocalMontagem.options[selectLocalMontagem.selectedIndex].textContent.trim();
-        //const pavilhao = document.querySelector("#nmPavilhao").value.trim() || '';
         const selectPavilhao = document.getElementById("nmPavilhao");
         const pavilhao = selectPavilhao.options[selectPavilhao.selectedIndex]?.textContent.trim().toUpperCase() || '';
+        const caixinhaAtivo = document.getElementById("Caixinhacheck")?.checked;
+        const extraAtivo = document.getElementById("Extracheck")?.checked;
+        const descBeneficioInput = document.getElementById("descBeneficio");
+        const descBeneficio = descBeneficioInput?.value.trim() || "";
+
+
         
         // const datasEventoRawValue = document.querySelector("#datasEvento").value.trim();
         // const periodoDoEvento = getPeriodoDatas(datasEventoRawValue);
@@ -491,11 +494,20 @@ async function verificaStaff() {
         return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Funcionário, Função, Cachê, Transportes, Alimentação, Cliente, Evento e Período do Evento.", "warning");
     }
 
-    if (caixinha){
-        if(!descBeneficio){
-            return Swal.fire("Campos obrigatórios!", "Obrigatório o Preenchimento das Descrições do Benefícios (Caixinha/Extra)!","warning");
-        }
+// Validação condicional para benefício
+// 🔒 Se caixinha ou extra estiverem ativados, descBeneficio é obrigatório
+if ((caixinhaAtivo || extraAtivo) && !descBeneficio) {
+    // Coloca foco no campo de descrição (opcional)
+    if (descBeneficioInput) {
+        descBeneficioInput.focus();
     }
+    // Bloqueia envio e mostra aviso
+    return Swal.fire(
+        "Campos obrigatórios!",
+        "Preencha a descrição do benefício (Caixinha ou Extra) antes de salvar.",
+        "warning"
+    );
+}
         
       // Permissões
     const temPermissaoCadastrar = temPermissao("Staff", "cadastrar");
@@ -563,52 +575,102 @@ async function verificaStaff() {
         }
 
 
-        if (metodo === "PUT") {
-            if (!isEditing) { // Use isEditing aqui também para ser consistente
-                return Swal.fire("Erro", "Dados originais não encontrados para comparação (ID ausente para PUT).", "error");
-            }
-            formData.append('idstaff', currentEditingStaffEvent.idstaff || ''); 
-            formData.append('idstaffevento', currentEditingStaffEvent.idstaffevento); 
+       if (metodo === "PUT") {
+    if (!isEditing) { // Use isEditing aqui também para ser consistente
+        console.log("Erro: Dados originais não encontrados para PUT");
+        return Swal.fire("Erro", "Dados originais não encontrados para comparação (ID ausente para PUT).", "error");
+    }
 
-            let houveAlteracao = false;
-            if (
-                currentEditingStaffEvent.idfuncionario != idFuncionario ||
-                currentEditingStaffEvent.nmfuncao.toUpperCase() != descFuncao ||
-                parseFloat(currentEditingStaffEvent.vlrcache || 0) != parseFloat(vlrCusto.replace(',', '.') || 0) ||
-                JSON.stringify(currentEditingStaffEvent.periodo || []) !== JSON.stringify(periodoDoEvento) ||
-                parseFloat(currentEditingStaffEvent.vlrextra || 0) != parseFloat(extra.replace(',', '.') || 0) ||
-                parseFloat(currentEditingStaffEvent.vlrtransporte || 0) != parseFloat(transporte.replace(',', '.') || 0) ||
-                (currentEditingStaffEvent.vlralmoco === 1 ? '1' : '0') != almoco || // Comparar valor '1' ou '0'
-                (currentEditingStaffEvent.vlrjantar === 1 ? '1' : '0') != jantar || // Comparar valor '1' ou '0'
-                parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) != parseFloat(caixinha.replace(',', '.') || 0) ||
-                (currentEditingStaffEvent.descbonus || '') != bonusTextarea.value.trim() ||
-                currentEditingStaffEvent.idcliente != idCliente ||
-                currentEditingStaffEvent.idevento != idEvento ||
-                currentEditingStaffEvent.idmontagem != idMontagem ||
-                (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao // Comparar nomes de pavilhão
-            ) {
-                houveAlteracao = true;
-            }
+    // Valores originais dos checkboxes (considera ativo se valor numérico > 0)
+    const extraAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrextra || 0) > 0;
+    const caixinhaAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) > 0;
+    const extraValorOriginal = parseFloat(currentEditingStaffEvent.vlrextra || 0);
+    const caixinhaValorOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0);
 
-            console.log("ALTERAÇÃO", houveAlteracao);
+    console.log("Valores originais - Extra Ativo:", extraAtivoOriginal, "Extra Valor:", extraValorOriginal);
+    console.log("Valores originais - Caixinha Ativo:", caixinhaAtivoOriginal, "Caixinha Valor:", caixinhaValorOriginal);
 
-            if (!houveAlteracao) {
-                return Swal.fire("Nenhuma alteração detectada", "Faça alguma alteração antes de salvar.", "info");
-            }
+    // Valores atuais (checkboxes e inputs)
+    const extraAtivoAtual = extraAtivo;
+    const caixinhaAtivoAtual = caixinhaAtivo;
+    const extraValorAtual = parseFloat(extra.replace(',', '.') || 0);
+    const caixinhaValorAtual = parseFloat(caixinha.replace(',', '.') || 0);
 
-            const { isConfirmed } = await Swal.fire({
-                title: "Deseja salvar as alterações?",
-                text: "Você está prestes a atualizar os dados do staff.",
-                icon: "question",
-                showCancelButton: true,
-                confirmButtonText: "Sim, salvar",
-                cancelButtonText: "Cancelar",
-                reverseButtons: true,
-                focusCancel: true
-            });
+    console.log("Valores atuais - Extra Ativo:", extraAtivoAtual, "Extra Valor:", extraValorAtual);
+    console.log("Valores atuais - Caixinha Ativo:", caixinhaAtivoAtual, "Caixinha Valor:", caixinhaValorAtual);
 
-            if (!isConfirmed) return;
-        }
+    // Detecta alterações em estado ou valor
+    const houveAlteracaoExtra = (extraAtivoOriginal !== extraAtivoAtual) || (extraValorOriginal !== extraValorAtual);
+    const houveAlteracaoCaixinha = (caixinhaAtivoOriginal !== caixinhaAtivoAtual) || (caixinhaValorOriginal !== caixinhaValorAtual);
+
+    console.log("Houve alteração Extra?", houveAlteracaoExtra);
+    console.log("Houve alteração Caixinha?", houveAlteracaoCaixinha);
+
+    // Se houve alteração ativando extra ou caixinha, obrigar preenchimento de descBeneficio
+    if ((houveAlteracaoExtra && extraAtivoAtual) || (houveAlteracaoCaixinha && caixinhaAtivoAtual)) {
+    console.log("Extra ou Caixinha ativado e houve alteração, verificando descBeneficio...");
+    if (!descBeneficio || descBeneficio.length < 20) {
+        console.log("descBeneficio inválido - bloqueando salvamento");
+        if (descBeneficioInput) descBeneficioInput.focus();
+        return Swal.fire(
+            "Campos obrigatórios!",
+            "A descrição do benefício (Caixinha ou Extra) deve ter no mínimo 20 caracteres para salvar.",
+            "warning"
+        );
+    } else {
+        console.log("descBeneficio preenchido corretamente");
+    }
+
+    } else {
+        console.log("Nenhuma alteração relevante em Extra ou Caixinha que obrigue descBeneficio");
+    }
+
+    formData.append('idstaff', currentEditingStaffEvent.idstaff || '');
+    formData.append('idstaffevento', currentEditingStaffEvent.idstaffevento);
+
+    let houveAlteracao = false;
+    if (
+        currentEditingStaffEvent.idfuncionario != idFuncionario ||
+        currentEditingStaffEvent.nmfuncao.toUpperCase() != descFuncao ||
+        parseFloat(currentEditingStaffEvent.vlrcache || 0) != parseFloat(vlrCusto.replace(',', '.') || 0) ||
+        JSON.stringify(currentEditingStaffEvent.periodo || []) !== JSON.stringify(periodoDoEvento) ||
+        parseFloat(currentEditingStaffEvent.vlrextra || 0) != extraValorAtual ||
+        parseFloat(currentEditingStaffEvent.vlrtransporte || 0) != parseFloat(transporte.replace(',', '.') || 0) ||
+        (currentEditingStaffEvent.vlralmoco === 1 ? '1' : '0') != almoco ||
+        (currentEditingStaffEvent.vlrjantar === 1 ? '1' : '0') != jantar ||
+        parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) != caixinhaValorAtual ||
+        (currentEditingStaffEvent.descbonus || '').trim() != descBeneficio.trim() ||
+        currentEditingStaffEvent.idcliente != idCliente ||
+        currentEditingStaffEvent.idevento != idEvento ||
+        currentEditingStaffEvent.idmontagem != idMontagem ||
+        (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao
+    ) {
+        houveAlteracao = true;
+    }
+
+    console.log("Houve alteração geral?", houveAlteracao);
+
+    if (!houveAlteracao) {
+        console.log("Nenhuma alteração detectada, bloqueando salvamento.");
+        return Swal.fire("Nenhuma alteração detectada", "Faça alguma alteração antes de salvar.", "info");
+    }
+
+    const { isConfirmed } = await Swal.fire({
+        title: "Deseja salvar as alterações?",
+        text: "Você está prestes a atualizar os dados do staff.",
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonText: "Sim, salvar",
+        cancelButtonText: "Cancelar",
+        reverseButtons: true,
+        focusCancel: true
+    });
+
+    if (!isConfirmed) {
+        console.log("Alteração cancelada pelo usuário");
+        return;
+    }
+}
 
         // --- EXECUTA O FETCH PARA POST OU PUT ---
         try {
@@ -747,11 +809,13 @@ async function carregarStaffDescricao(desc, elementoAtual) {
             nmPavilhao: staff.nmpavilhao,
             datasevento: Array.isArray(eventData.datasevento) ? eventData.datasevento :
                     (typeof eventData.datasevento === 'string' ? JSON.parse(eventData.datasevento) : []),
-            vlrTotal: staff.vlrtotal        
+            vlrTotal: staff.vlrtotal,      
     
+            // 📎 Comprovantes PDF (se vierem do banco ou API)
+            comprovanteCache: staff.comprovantecache || "",
+            comprovanteAjdCusto: staff.comprovanteajdcusto || "",
+            comprovanteCaixinha: staff.comprovantecaixinha || ""
         };
-   
-       
 
     } catch (error) {
         
@@ -800,28 +864,39 @@ async function carregarStaffDescricao(desc, elementoAtual) {
 function limparStaffOriginal() {
     window.StaffOriginal = {
         idStaff: "",
-        avaliacao:"",
-        idFuncionario:"",
-        nmFuncionario: "",      
+        avaliacao: "",
+        idFuncionario: "",
+        nmFuncionario: "",
         descFuncao: "",
         vlrCusto: "",
-        extra:"",
+        extra: "",
         transporte: "",
-        almoco:"",
-        jantar:"",   
-        caixinha:"",
+        almoco: "",
+        jantar: "",
+        caixinha: "",
         descBeneficio: "",
-        idCliente:"",
+        idCliente: "",
         nmCliente: "",
-        idEvento:"",
+        idEvento: "",
         nmEvento: "",
-        idLocalMontagem:"",
-        nmLocalMontagem:"",
-        datasEventos: "",   
-        bonus: "",   
+        idLocalMontagem: "",
+        nmLocalMontagem: "",
+        datasEventos: "",
+        bonus: "",
         vlrTotal: "",
-        nmPavilhao:""
+        nmPavilhao: "",
+
+        // 📎 Comprovantes PDF
+        comprovanteCache: "",
+        comprovanteAjdCusto: "",
+        comprovanteCaixinha: ""
     };
+
+    // Log dos campos limpados
+    console.log("✅ StaffOriginal foi resetado com os seguintes campos:");
+    Object.entries(window.StaffOriginal).forEach(([chave, valor]) => {
+        console.log(`- ${chave}: "${valor}"`);
+    });
 }
 
 async function carregarFuncaoStaff() {
@@ -1189,15 +1264,21 @@ async function carregarDadosPavilhao(idMontagem) { // Renomeada para corresponde
 }
 
 function limparCamposStaff() {
-const campos = ["idStaff", "nmFuncionario", "apelidoFuncionario", "linkFotoFuncionarios", "descFuncao", "vlrCusto", 
-    "nmLocalMontagem", "nmPavilhao", "almoco", "jantar", "transporte", "vlrBeneficio", "descBeneficio", "nmCliente", 
-    "nmEvento", "vlrTotal", "vlrTotalHidden",
-    "idFuncionario", "idFuncao", "idMontagem", "idPavilhao", "idCliente", "idEvento" ];
+    const campos = [
+        "idStaff", "nmFuncionario", "apelidoFuncionario", "linkFotoFuncionarios", "descFuncao", "vlrCusto",
+        "nmLocalMontagem", "nmPavilhao", "almoco", "jantar", "transporte", "vlrBeneficio", "descBeneficio",
+        "nmCliente", "nmEvento", "vlrTotal", "vlrTotalHidden", "idFuncionario", "idFuncao", "idMontagem",
+        "idPavilhao", "idCliente", "idEvento"
+    ];
+
     campos.forEach(id => {
         const campo = document.getElementById(id);
-        if (campo) campo.value = "";
+        if (campo) {
+            campo.value = "";
+            console.log(`Campo "${id}" limpo.`);
+        }
     });
-    
+
     const previewFoto = document.getElementById('previewFoto');
     const fileName = document.getElementById('fileName');
     const fileInput = document.getElementById('file');
@@ -1205,66 +1286,57 @@ const campos = ["idStaff", "nmFuncionario", "apelidoFuncionario", "linkFotoFunci
     const linkFotoFuncionarios = document.getElementById('linkFotoFuncionarios');
     const nomeFuncionarioExibido = document.getElementById('nomeFuncionarioExibido');
 
-
     if (previewFoto) {
         previewFoto.src = "#";
         previewFoto.style.display = "none";
+        console.log("Preview da foto limpo.");
     }
     if (fileName) {
         fileName.textContent = "Nenhum arquivo selecionado";
     }
     if (fileInput) {
-        fileInput.value = ""; // Limpa o valor do input file
-        // Se precisar reativar (já que no HTML está disabled), faça aqui
-        // fileInput.disabled = false; 
+        fileInput.value = "";
     }
     if (uploadHeader) {
-        uploadHeader.style.display = "block"; // Reexibe o header de upload
+        uploadHeader.style.display = "block";
     }
     if (linkFotoFuncionarios) {
-        linkFotoFuncionarios.value = ""; // Limpa o hidden input que guarda o link da foto
+        linkFotoFuncionarios.value = "";
     }
     if (nomeFuncionarioExibido) {
-        nomeFuncionarioExibido.textContent = ""; // Limpa o nome exibido abaixo da foto
+        nomeFuncionarioExibido.textContent = "";
     }
 
-    // 3. Limpeza dos campos de DATAS DO EVENTO e CONTADOR
     const datasEventoInput = document.getElementById('datasEvento');
     const contadorDatas = document.getElementById('contadorDatas');
 
-    if (datasEventoInput._flatpickr) {
-        datasEventoInput._flatpickr.clear(); // Isso limpa as datas selecionadas
-    } else {
-        // Se por algum motivo a instância não estiver diretamente acessível,
-        // ou se não for um Flatpickr, apenas limpa o valor do input.
+    if (datasEventoInput && datasEventoInput._flatpickr) {
+        datasEventoInput._flatpickr.clear();
+        console.log("Datas do evento limpas via Flatpickr.");
+    } else if (datasEventoInput) {
         datasEventoInput.value = "";
     }
     if (contadorDatas) {
         contadorDatas.textContent = "Nenhuma data selecionada.";
     }
 
-    // Campos de texto de nome de arquivo PDF
-    const fileNamesPDF = document.querySelectorAll('p[name="fileNamePDF"]');
+    // ✅ Limpeza de PDFs por classe
+    const fileNamesPDF = document.querySelectorAll('.fileNamePDF');
+    const fileInputsPDF = document.querySelectorAll('.filePDFInput');
+    const hiddenInputsPDF = document.querySelectorAll('.hiddenPDF');
+
     fileNamesPDF.forEach(p => {
         p.textContent = "Nenhum arquivo selecionado";
     });
-
-    // Inputs de arquivo PDF
-    const fileInputsPDF = document.querySelectorAll('input[type="file"][name="filePDF"]');
     fileInputsPDF.forEach(input => {
-        input.value = ""; // Limpa o valor do input file
+        input.value = "";
     });
-
-    // Hidden inputs dos comprovantes (ComprovanteCache, ComprovanteAjdCusto, ComprovanteCaixinha)
-    const hiddenComprovantes = ["ComprovanteCache", "ComprovanteAjdCusto", "ComprovanteCaixinha"];
-    hiddenComprovantes.forEach(id => {
-        const hiddenInput = document.getElementById(id);
-        if (hiddenInput) {
-            hiddenInput.value = "";
-        }
+    hiddenInputsPDF.forEach(input => {
+        input.value = "";
     });
+    console.log("Campos de arquivos PDF limpos.");
 
-    // 5. Resetar checkboxes e seus campos associados
+    // Resetar campos opcionais
     const extraCheck = document.getElementById('Extracheck');
     const campoExtra = document.getElementById('campoExtra');
     const caixinhaCheck = document.getElementById('Caixinhacheck');
@@ -1283,16 +1355,19 @@ const campos = ["idStaff", "nmFuncionario", "apelidoFuncionario", "linkFotoFunci
         if (inputCaixinha) inputCaixinha.value = '';
     }
 
-    // 6. Resetar a avaliação para a opção padrão (se for um select)
     const avaliacaoSelect = document.getElementById('avaliacao');
     if (avaliacaoSelect) {
-        avaliacaoSelect.value = ''; // Reseta para a opção disabled "Avalie o Funcionario"
+        avaliacaoSelect.value = '';
         const tarjaAvaliacao = document.getElementById('tarjaAvaliacao');
         if (tarjaAvaliacao) {
-            tarjaAvaliacao.className = 'tarja-avaliacao'; // Remove as classes de cor
-            tarjaAvaliacao.textContent = ''; // Limpa o texto da tarja
+            tarjaAvaliacao.className = 'tarja-avaliacao';
+            tarjaAvaliacao.textContent = '';
         }
     }
+
+    // ✅ Limpa objeto em memória
+    limparStaffOriginal();
+    console.log("StaffOriginal resetado.");
 }
 
 function getPeriodoDatas(inputValue) {
@@ -1434,54 +1509,30 @@ function calcularValorTotal() {
 console.log("Ainda não Entrou no Previewpdf");
 
 function configurarPreviewPDF() {
-  const inputPDF = document.getElementById('filePDF');
-  const previewPDF = document.getElementById('previewPDF');
-  const fileNamePDF = document.getElementById('fileNamePDF');
-  const hiddenPDF = document.getElementById('ComprovantePagamentos');
-  const headerPDF = document.getElementById('uploadHeaderPDF');
+  const inputs = document.querySelectorAll('.filePDFInput');
+  inputs.forEach(function(input) {
+    input.addEventListener('change', function() {
+      const container = this.closest('.containerPDF');
+      const fileNamePDF = container.querySelector('.fileNamePDF');
+      const hiddenPDF = container.querySelector('.hiddenPDF');
+      const file = this.files[0];
 
-  inputPDF.addEventListener('change', function () {
-    const file = inputPDF.files[0];
-
-    if (!file || file.type !== 'application/pdf') {
-      if (previewPDF) previewPDF.style.display = 'none';
-      if (headerPDF) headerPDF.style.display = 'block';
-      if (fileNamePDF) fileNamePDF.textContent = 'Nenhum arquivo selecionado';
-      if (hiddenPDF) hiddenPDF.value = '';
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = function (e) {
-      if (previewPDF) {
-        previewPDF.src = e.target.result;
-        previewPDF.style.display = 'block';
+      if (!file || file.type !== 'application/pdf') {
+        if (fileNamePDF) fileNamePDF.textContent = 'Nenhum arquivo selecionado';
+        if (hiddenPDF) hiddenPDF.value = '';
+        return;
       }
-      if (headerPDF) headerPDF.style.display = 'none';
-      if (fileNamePDF) fileNamePDF.textContent = file.name;
-      if (hiddenPDF) hiddenPDF.value = e.target.result;
-    };
-    reader.readAsDataURL(file);
-    console.log("funcionou pdf", fileNamePDF)
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        if (fileNamePDF) fileNamePDF.textContent = file.name;
+        if (hiddenPDF) hiddenPDF.value = e.target.result;
+        console.log("Arquivo PDF carregado:", file.name);
+      };
+      reader.readAsDataURL(file);
+    });
   });
 }
-
-function checkModalScroll() {
-        // Pequeno atraso para permitir que a transição CSS do collapsible-content ocorra
-        // antes de calcular a altura. 350ms é um pouco mais do que os 0.3s da transição.
-        setTimeout(() => {
-            if (modalContainer) {
-                const contentHeight = modalContainer.scrollHeight; // Altura real do conteúdo
-                const viewportHeight = modalContainer.clientHeight; // Altura visível do container do modal
-
-                if (contentHeight > viewportHeight) {
-                    modalContainer.classList.add('scrollable'); // Adiciona a classe para ativar rolagem
-                } else {
-                    modalContainer.classList.remove('scrollable'); // Remove a classe para desativar rolagem
-                }
-            }
-        }, 350); // Deve ser maior que a duração da sua transição (0.3s)
-    }
 
 function configurarPreviewImagem() {
 const inputImg = document.getElementById('file');
@@ -1540,6 +1591,7 @@ function configurarEventosStaff() {
     verificaStaff(); // Carrega os Staff ao abrir o modal
     adicionarEventoBlurStaff();
     inicializarFlatpickrsGlobais();
+    limparStaffOriginal()
 
 
     
