@@ -241,7 +241,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
                     s.idstaff,
                     s.avaliacao
 
-                    -- *** ATENÇÃO AQUI: Como você armazena as datas do evento (período)? ***
+                    -- * ATENÇÃO AQUI: Como você armazena as datas do evento (período)? *
                     -- Se 'datasevento' no seu POST é um array de datas ou um período,
                     -- você precisa ter uma coluna correspondente em staffeventos ou eventos.
                     -- Exemplo para um período (início e fim) se estiver na tabela 'eventos':
@@ -266,7 +266,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
 
             const result = await client.query(query, queryParams);
 
-            console.log(`Foram encontrados ${result.rows.length} eventos para o funcionário ${idFuncionarioParam}.`);
+            // console.log(Foram encontrados ${result.rows.length} eventos para o funcionário ${idFuncionarioParam});
 
             res.status(200).json(result.rows);
 
@@ -346,7 +346,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
 
 //             //     // Apagar foto antiga se uma nova for enviada
 //             //     const resultFotoAntiga = await client.query( // Usar 'client' para manter na transação
-//             //         `SELECT foto FROM staff WHERE idstaff = $1`,
+//             //         SELECT foto FROM staff WHERE idstaff = $1,
 //             //         [id]
 //             //     );
 //             //     if (resultFotoAntiga.rows.length > 0 && resultFotoAntiga.rows[0].foto) {
@@ -362,7 +362,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
 //             //     // Se nenhum novo arquivo foi enviado, MANTENHA o caminho da foto existente no BD
 //             //     // OU defina como NULL se a intenção for remover a foto sem upload de nova
 //             //     const resultFotoExistente = await client.query( // Usar 'client' para manter na transação
-//             //         `SELECT foto FROM staff WHERE idstaff = $1`,
+//             //         SELECT foto FROM staff WHERE idstaff = $1,
 //             //         [id]
 //             //     );
 //             //     fotoPathParaBD = resultFotoExistente.rows[0]?.foto || null;
@@ -458,7 +458,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
 //             }
 //             // Mensagem de erro mais específica para não-nulo
 //             if (error.code === '23502') { // PostgreSQL error code for not-null constraint violation
-//                  return res.status(400).json({ message: `Campo obrigatório faltando ou inválido: ${error.column}. Por favor, verifique os dados e tente novamente.`, details: error.message });
+//                  return res.status(400).json({ message: Campo obrigatório faltando ou inválido: ${error.column}. Por favor, verifique os dados e tente novamente., details: error.message });
 //             }
 //             res.status(500).json({ message: "Erro ao atualizar funcionário.", details: error.message });
 //         } finally {
@@ -780,4 +780,3 @@ router.post("/", autenticarToken(), contextoEmpresa,
 
 
 module.exports = router;
-
