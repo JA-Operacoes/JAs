@@ -295,8 +295,11 @@ function carregarClientes() {
                 if (!isConfirmed) return;
             }
 
-            const respostaApi = await fetchComToken(url, {
+            const respostaApi = await fetchComToken(url, {                
                 method: metodo,
+                headers: {
+                     'Content-Type': 'application/json',
+                 },
                 body: JSON.stringify(dados)
             });            
 

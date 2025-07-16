@@ -86,10 +86,10 @@ router.put("/:id", verificarPermissao('Clientes', 'alterar'),
   async (req, res) => {
     const id = req.params.id; 
     const idempresa = req.idempresa; 
-    const ativo = req.body.ativo;
+    const ativo = req.body.ativo !== undefined ? req.body.ativo : false; 
 
     const { nmFantasia, razaoSocial, cnpj, inscEstadual, emailCliente, emailNfe, site, telefone, nmContato, celContato, emailContato, cep, rua, numero, complemento, bairro, cidade, estado, pais, tpcliente } = req.body;
-
+  console.log("DADOS RECEBIDOS", req.body);
     try {
         // Adiciona a condição 'idempresa' para garantir que o usuário só possa atualizar clientes de sua empresa
         const result = await pool.query(
@@ -126,11 +126,11 @@ router.post("/", verificarPermissao('Clientes', 'cadastrar'),
         }
   }),
 
-  async (req, res) => {
-  const ativo = req.body.ativo === "on" ? true : false;
+  async (req, res) => {  
+  const ativo = req.body.ativo !== undefined ? req.body.ativo : false; 
   const { nmFantasia, razaoSocial, cnpj, inscEstadual, emailCliente, emailNfe, site, telefone, nmContato, celContato, emailContato,   cep, rua, numero, complemento, bairro, cidade, estado, pais, tpcliente } = req.body;
   const idempresa = req.idempresa;
-
+ console.log("DADOS RECEBIDOS", req.body);
   let client; // Declara a variável client para uso em transação
 
     try {

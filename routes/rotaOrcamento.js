@@ -354,7 +354,7 @@ router.post(
     const client = await pool.connect();
     console.log("🔥 Rota /orcamentos acessada"); // Removido 'req' para evitar logar objeto grande
 
-    const { idStatus, idCliente, idEvento, idMontagem, // nrOrcamento será gerado pelo DB, não o desestruture daqui se for novo
+    const { status, idCliente, idEvento, idMontagem, // nrOrcamento será gerado pelo DB, não o desestruture daqui se for novo
             infraMontagem, dtiniInfraMontagem, dtfimInfraMontagem,
             dtIniMontagem, dtFimMontagem, dtIniMarcacao, dtFimMarcacao,
             dtIniRealizacao, dtFimRealizacao, dtIniDesmontagem, dtFimDesmontagem,
@@ -393,7 +393,7 @@ router.post(
 
       // Os valores também precisam ser ajustados, removendo o nrOrcamento daqui
       const orcamentoValues = [
-        idStatus, idCliente, idEvento, idMontagem,
+        status, idCliente, idEvento, idMontagem,
         infraMontagem, dtiniInfraMontagem, dtfimInfraMontagem,
         dtIniMontagem, dtFimMontagem, dtIniMarcacao, dtFimMarcacao,
         dtIniRealizacao, dtFimRealizacao, dtIniDesmontagem, dtFimDesmontagem,
@@ -465,7 +465,12 @@ router.post(
 );
 
 router.put(
-  "/:id", autenticarToken(), contextoEmpresa,
+  "/:id", 
+  (req, res, next) => {
+        console.log("DEBUG: req.body antes de middlewares:", req.body);
+        next();
+    },
+  autenticarToken(), contextoEmpresa,
   verificarPermissao("Orcamentos", "alterar"), // Permissão para editar
   logMiddleware("Orcamentos", {
     buscarDadosAnteriores: async (req) => {
@@ -500,7 +505,7 @@ router.put(
   async (req, res) => {
     const client = await pool.connect();
     const idOrcamento = req.params.id; // ID do orçamento a ser atualizado
-    const { idStatus, idCliente, idEvento, idMontagem, nrOrcamento, // nrOrcamento pode vir para validação, mas não será atualizado se for gerado
+    const { status, idCliente, idEvento, idMontagem, //nrOrcamento, // nrOrcamento pode vir para validação, mas não será atualizado se for gerado
             infraMontagem, dtiniInfraMontagem, dtfimInfraMontagem,
             dtIniMontagem, dtFimMontagem, dtIniMarcacao, dtFimMarcacao,
             dtIniRealizacao, dtFimRealizacao, dtIniDesmontagem, dtFimDesmontagem,
@@ -531,7 +536,7 @@ router.put(
             `;
 
       const orcamentoValues = [
-        idStatus, idCliente, idEvento, idMontagem,
+        status, idCliente, idEvento, idMontagem,
         infraMontagem, dtiniInfraMontagem, dtfimInfraMontagem,
         dtIniMontagem, dtFimMontagem, dtIniMarcacao, dtFimMarcacao,
         dtIniRealizacao, dtFimRealizacao, dtIniDesmontagem, dtFimDesmontagem,
@@ -617,8 +622,9 @@ router.put(
       // 3. Deletar itens que não foram enviados no payload (removidos pelo usuário)
       const itemsToDelete = Array.from(existingItemIds).filter(id => !receivedItemIds.has(id));
       if (itemsToDelete.length > 0) {
-          const deleteItemQuery = `DELETE FROM orcamentoitens WHERE idorcamentoitem = ANY($1) AND idorcamento = $2;`;
-          await client.query(deleteItemQuery, [itemsToDelete, idOrcamento]);
+        console.log("VAI DELETAR", idOrcamento, itemsToDelete);
+       //   const deleteItemQuery = `DELETE FROM orcamentoitens WHERE idorcamentoitem = ANY($1) AND idorcamento = $2;`;
+       //   await client.query(deleteItemQuery, [itemsToDelete, idOrcamento]);
       }
 
       await client.query("COMMIT"); // Confirma a transação
@@ -638,9 +644,6 @@ router.put(
     }
   }
 );
-
-
-
 
 
 module.exports = router;

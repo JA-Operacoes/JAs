@@ -178,16 +178,16 @@ async function abrirModal(url, modulo) {
 
         // Listener para o mousedown no conteúdo do modal (impede a propagação)
         // Este listener agora roda na fase de CAPTURA (true como terceiro argumento)
-        modalContent.addEventListener("mousedown", (event) => {
-            event.stopPropagation();
-            console.log("Mousedown dentro do modal-content detectado (CAPTURA). Propagação interrompida.");
-        }, true); // <--- TRUE AQUI PARA FASE DE CAPTURA
+        // modalContent.addEventListener("mousedown", (event) => {
+        //     event.stopPropagation();
+        //     console.log("Mousedown dentro do modal-content detectado (CAPTURA). Propagação interrompida.");
+        // }, true); // <--- TRUE AQUI PARA FASE DE CAPTURA
 
-        // Adicionar listener para mouseup no modalContent também (fase de CAPTURA)
-        modalContent.addEventListener("mouseup", (event) => {
-            event.stopPropagation();
-            console.log("Mouseup dentro do modal-content detectado (CAPTURA). Propagação interrompida.");
-        }, true);
+        // // Adicionar listener para mouseup no modalContent também (fase de CAPTURA)
+        // modalContent.addEventListener("mouseup", (event) => {
+        //     event.stopPropagation();
+        //     console.log("Mouseup dentro do modal-content detectado (CAPTURA). Propagação interrompida.");
+        // }, true);
 
     modal.querySelector(".close")?.addEventListener("click", fecharModal);
   }
