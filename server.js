@@ -66,6 +66,7 @@ app.use("/staff", autenticarToken(), contextoEmpresa, require("./routes/rotaStaf
 app.use("/empresas", autenticarToken(), contextoEmpresa, require("./routes/rotaEmpresa"));
 app.use("/Bancos", autenticarToken(), contextoEmpresa, require("./routes/rotaBancos"));
 app.use("/modulos", autenticarToken(), require("./routes/rotaModulo"));
+app.use("/aside", autenticarToken(), require("./routes/rotaAside"));
 
 // Redireciona / para login.html (opcional)
 app.get("/", (req, res) => {

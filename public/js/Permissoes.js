@@ -72,65 +72,6 @@ function aplicarPermissoes(permissoes) {
   
 }
 
-// Função para buscar permissões do usuário e aplicar filtros no menu
-// async function initPermissoes() {
-//   console.log("[Permissões] Iniciando initPermissoes()");
-//   const idusuario = localStorage.getItem("idusuario");
-//   const idempresa = localStorage.getItem("idempresa");
-
-//   if (!idusuario) {
-//     console.error("[Permissões] idusuario não encontrado no localStorage");
-//     return;
-//   }
-
-//   try {
-//     console.log("[Permissões] Buscando permissões para o usuário:", idusuario);
-
-//     const permissoes = await fetchComToken(`/permissoes/${idusuario}`);
-
-//     //comentado para evitar erro de CORS
-//   //   const response = await fetchComToken(`/permissoes/${idusuario}`);
-//   //    if (!response.ok) {
-//   //   console.error("[Permissões] Erro na resposta:", response.status);
-//   //   return;
-//   // }
-//   //   const permissoes = await response.json(); 
-
-//     console.log("[Permissões] Tipo do retorno:", typeof permissoes);
-// console.log("[Permissões] O retorno é instanceof Response?", permissoes instanceof Response);
-
-// console.log("[Permissões] Permissões recebidas:", permissoes);
-
-    
-
-//     // if (!permissoes || !Array.isArray(permissoes)) {
-//     //   console.error("[Permissões] Permissões inválidas ou não recebidas:", permissoes);
-//     //   Swal.fire("Erro", "Não foi possível carregar suas permissões.", "error");
-//     //   return;
-//     // }
-
-//     // AQUI É A MUDANÇA ESSENCIAL: ARMAZENE NO OBJETO GLOBAL
-//         if (Array.isArray(fetchedPermissoes)) { // Verifique se é um array antes de armazenar
-//             window.permissoesUsuario = fetchedPermissoes; // <--- ARMAZENE AQUI
-//             console.log("[Permissões] Permissões armazenadas globalmente em window.permissoesUsuario.");
-//         } else {
-//             console.error("[Permissões] Permissões inválidas ou não recebidas (não é um array):", fetchedPermissoes);
-//             Swal.fire("Erro", "Não foi possível carregar suas permissões.", "error");
-//             window.permissoesUsuario = []; // Garante que seja um array vazio em caso de erro
-//             return;
-//         }
-
-//     filtrarMenuPorPermissoes(window.permissoesUsuario);
-  
-//     aplicarPermissoes(window.permissoesUsuario);
-
-//   } catch (erro) {
-//     console.error("[Permissões] Erro ao carregar permissões:", erro);
-//     Swal.fire("Erro", "Não foi possível carregar suas permissões.", "error");
-//     window.permissoesUsuario = []; // Garante que seja um array vazio em caso de erro
-//   }
-// }
-
 // Função que oculta/mostra itens do menu conforme permissões
 function filtrarMenuPorPermissoes(permissoes) {
   console.log("[Permissões] Iniciando filtrarMenuPorPermissoes()");
@@ -151,50 +92,6 @@ function filtrarMenuPorPermissoes(permissoes) {
     }
   });
 }
-
-
-// async function fetchComToken(url, options = {}) {
-//   const token = localStorage.getItem("token");
-//   const idempresa = localStorage.getItem("idempresa");
-
-//   if (!options.headers) options.headers = {};
-//   options.headers["Authorization"] = "Bearer " + token;
-//   if (idempresa) options.headers["idempresa"] = idempresa;
-
-//   try {
-//     const resposta = await fetch(url, options);
-
-//     if (resposta.status === 401) {
-//       localStorage.clear();
-//       await Swal.fire({
-//         icon: "warning",
-//         title: "Sessão expirada",
-//         text: "Por favor, faça login novamente."
-//       });
-//       window.location.href = "login.html";
-//       throw new Error("Sessão expirada");
-//     }
-
-//     if (!resposta.ok) {
-//       const textoErro = await resposta.text();
-//       throw new Error(`Erro ${resposta.status}: ${textoErro}`);
-//     }
-
-//     const data = await resposta.json();
-//     return data;
-
-//   } catch (erro) {
-//     console.error("[fetchComToken] Erro ao buscar:", erro);
-//     throw erro;
-//   }
-// }
-
 // Expor globalmente para poder chamar de fora, se necessário
 
 window.aplicarPermissoes = aplicarPermissoes;
-
-
-// Inicializa permissões quando a página carregar
-// document.addEventListener("DOMContentLoaded", () => {
-//  // initPermissoes();
-// });

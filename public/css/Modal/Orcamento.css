@@ -687,7 +687,7 @@
   box-shadow: none; /* também remove o "brilho" do foco */
 }
 
-    .Acres-Desc input {
+    .Acres-Desc input, .extraCampo input {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -742,16 +742,17 @@
     width: 50px;
   }
 
-  td.extracampo input.hospedagem, td.extracampo input.transporte{
+  /* td.extracampo input.hospedagem, td.extracampo input.transporte{
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 50px;
-    height: 70px;
-    margin: 0 auto;
-    border: none;
-    font-size: 15px;
-  }
+    width: 100px;
+    height: 30px;
+    margin: 5px auto;
+    border: 1px solid black;
+    font-size: 13px;
+  } */
+
 
 
   .btnApagar {
