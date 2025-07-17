@@ -792,7 +792,7 @@ function adicionarLinhaOrc() {
     
     
         novaLinha.innerHTML = `
-        <td><input type="hidden" class="idItemOrcamento" value=""></td> <!-- Corrigido: de <th> para <td> e adicionado input hidden -->
+        <td style="display:none;"><input type="hidden" class="idItemOrcamento" value=""></td> <!-- Corrigido: de <th> para <td> e adicionado input hidden -->
         <td class="Proposta">
             <div class="checkbox-wrapper-33" style="margin-top: 40px;">
                 <label class="checkbox">
@@ -961,7 +961,7 @@ function adicionarLinhaAdicional() {
     let novaLinha = tabela.insertRow();
     novaLinha.classList.add("liberada");     // aplica nova cor
  novaLinha.innerHTML = `
-        <td><input type="hidden" class="idItemOrcamento" value=""></td> <!-- Corrigido: de <th> para <td> e adicionado input hidden -->
+        <td style="display:none;" ><input type="hidden" class="idItemOrcamento" value=""></td> <!-- Corrigido: de <th> para <td> e adicionado input hidden -->
         <td class="Proposta">
             <div class="checkbox-wrapper-33" style="margin-top: 40px;">
                 <label class="checkbox">
