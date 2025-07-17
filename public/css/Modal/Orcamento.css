@@ -754,7 +754,7 @@
   }
 
 
-  .deleteBtn {
+  .btnApagar {
     width: 40px;
     height: 40px;
     min-width: 40px;
@@ -781,7 +781,7 @@
     fill: white;
   }
   
-  .deleteBtn:hover {
+  .btnApagar:hover {
     width: 90px;
     min-width: 40px; 
     height: 40px; 
@@ -791,7 +791,7 @@
     align-items: center;
   }
   
-  .deleteBtn:hover .delete-svgIcon {
+  .btnApagar:hover .delete-svgIcon {
     width: 20px;
     transition-duration: 0.3s;
     transform: translateY(60%);
@@ -802,7 +802,7 @@
     transform: rotate(360deg);
   }
   
-  .deleteBtn::before {
+  .btnApagar::before {
     display: none;
     content: "Delete";
     color: white;
@@ -810,7 +810,7 @@
     font-size: 2px;
   }
   
-  .deleteBtn:hover::before {
+  .btnApagar:hover::before {
     display: block;
     padding-right: 10px;
     font-size: 13px;

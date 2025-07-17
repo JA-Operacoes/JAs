@@ -10,7 +10,14 @@ document.getElementById("Registrar").addEventListener("submit", async function (
     const senha = document.getElementById("senha").value;
     const ativo = document.getElementById('ativo').checked;
     const idempresaDefault = document.getElementById("empresaDefaultSelect").value;
-const empresaSelecionada = document.getElementById("listaEmpresas");
+   // const empresaSelecionada = document.getElementById("listaEmpresas");
+   const empresaSelecionadaUnica = document.getElementById("listaEmpresas").value; // Obtém o VALOR da opção selecionada
+    let empresasParaEnviar = []; // Inicializa como array vazio
+
+    // Se houver um valor selecionado, adicione-o ao array
+    if (empresaSelecionadaUnica) {
+        empresasParaEnviar.push(parseInt(empresaSelecionadaUnica, 10)); 
+    }
     console.log("ID EMPRESA DEFAULT SELECT", idempresaDefault);
     
     const confirmacaoSenha = document.getElementById("confirmasenha").value;
@@ -43,14 +50,15 @@ const empresaSelecionada = document.getElementById("listaEmpresas");
     }
     
     try {
-      const reponse = await fetchComToken("/auth/cadastro", {
+      const dados = await fetchComToken("/auth/cadastro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, email, senha, sobrenome, ativo, empresas: empresaSelecionada })
-       // body: JSON.stringify({ nome, email, senha, sobrenome, ativo, idempresadefault: idempresaDefault })
+        //body: JSON.stringify({ nome, email, senha, sobrenome, ativo, empresas: empresaSelecionada })
+        body: JSON.stringify({ nome, email, senha, sobrenome, ativo, idempresadefault: idempresaDefault })
+        // body: JSON.stringify({ nome, sobrenome, email, ativo, idempresaDefault: idempresaDefault, empresas: empresasSelecionadas })
       });
   
-      const dados = await resposta.json();
+      //const dados = await resposta.json();
       console.log(dados);
   
       
@@ -234,6 +242,8 @@ document.getElementById("buscaUsuario").addEventListener("input", function () {
   }
 });
 
+let idEmpresaDefaultSelecionada = '';
+
 document.getElementById('empresaDefaultSelect').addEventListener('change', function () {
   
   const selectDefault = this.value;
@@ -278,7 +288,7 @@ async function verificarUsuarioExistenteFront() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       // body: JSON.stringify({ nome, sobrenome, email, ativo, idempresaDefault: idempresaDefault, empresas: empresasSelecionadas }) // Envia idempresaDefault e empresas como array vazio,
-    body: JSON.stringify({ nome, sobrenome, email, ativo, idempresaDefault: idempresaDefault, empresas: empresaSelecionada }) // Envia idempresaDefault e empresas como array vazio,
+      body: JSON.stringify({ nome, sobrenome, email, ativo, idempresaDefault: idempresaDefault, empresas: empresaSelecionada }) // Envia idempresaDefault e empresas como array vazio,
     });
 
     //const dados = await resposta.json();
@@ -955,12 +965,12 @@ if (idusuario) {
                 console.log("carregarPermissoesUsuario CONCLUÍDO.");
             } else {
                 console.warn("Ainda sem dados suficientes para carregar permissões iniciais. Módulo:", moduloAtual, "Empresa:", empresaAlvoAtual);
-                permissoesOriginais = { modulo: null, acesso: false, cadastrar: false, alterar: false, pesquisar: false };
+                permissoesOriginais = { modulo: null, acesso: false, cadastrar: false, alterar: false, pesquisar: false, apagar: false };
             }
         } else {
             console.warn("ID de usuário não encontrado ao virar para o verso para carregar permissões/empresas.");
             empresasOriginais = [];
-            permissoesOriginais = { modulo: null, acesso: false, cadastrar: false, alterar: false, pesquisar: false };
+            permissoesOriginais = { modulo: null, acesso: false, cadastrar: false, alterar: false, pesquisar: false, apagar: false };
         }
 
         // Removi selectModulo.disabled = true; daqui. É melhor habilitar/desabilitar baseado na seleção
@@ -977,7 +987,7 @@ if (idusuario) {
       // Opcional: Limpar campos do verso ao voltar, se necessário.
       limparListaEmpresas(); // Se essa função limpa o HTML do container de empresas
         empresasOriginais = []; // E garante que a variável global esteja vazia
-        permissoesOriginais = { modulo: null, acesso: false, cadastrar: false, alterar: false, pesquisar: false };
+        permissoesOriginais = { modulo: null, acesso: false, cadastrar: false, alterar: false, pesquisar: false, apagar: false };
         limparCheckboxesPermissao(); // Limpa os checkboxes de permissão
     }
    console.log("Entrou no flipBox");
@@ -1033,7 +1043,8 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
     acesso:    document.getElementById("Acesso").checked,
     cadastrar: document.getElementById("Cadastrar").checked,
     alterar:   document.getElementById("Alterar").checked,
-    pesquisar: document.getElementById("Pesquisar").checked
+    pesquisar: document.getElementById("Pesquisar").checked,
+    apagar:    document.getElementById("Apagar").checked,
   };
 
   // Verifica se há mudança nas permissões
@@ -1061,6 +1072,7 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
     cadastrar: atuais.cadastrar,
     alterar: atuais.alterar,
     pesquisar: atuais.pesquisar,
+    apagar: atuais.apagar
 
   };
 
@@ -1156,6 +1168,7 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
   const chkCadastrar = document.getElementById("Cadastrar");
   const chkAlterar   = document.getElementById("Alterar");
   const chkPesquisar = document.getElementById("Pesquisar");
+  const chkApagar    = document.getElementById("Apagar");
   
 
   try {
@@ -1190,6 +1203,7 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
       chkCadastrar.checked  = Boolean(p.cadastrar);
       chkAlterar.checked    = Boolean(p.alterar);
       chkPesquisar.checked  = Boolean(p.pesquisar);
+      chkApagar.checked     = Boolean(p.apagar);
       
 
       permissoesOriginais = {
@@ -1197,7 +1211,8 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
         acesso: Boolean(p.acesso),
         cadastrar: Boolean(p.cadastrar),
         alterar: Boolean(p.alterar),
-        pesquisar: Boolean(p.pesquisar)
+        pesquisar: Boolean(p.pesquisar),
+        apagar: Boolean(p.apagar)
        
       };
     } else {
@@ -1207,8 +1222,8 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
         acesso: false,
         cadastrar: false,
         alterar: false,
-        pesquisar: false
-      
+        pesquisar: false,
+        apagar: false
       };
     }
     console.log("Permissões originais:", permissoesOriginais);
@@ -1430,7 +1445,7 @@ async function carregarModulos() {
 
 //função para limpar todos os checkboxes de permissão
 function limparCheckboxesPermissao() {
-  ['Acesso','Cadastrar','Alterar','Pesquisar','Leitura']
+  ['Acesso','Cadastrar','Alterar','Pesquisar','Apagar']
     .forEach(id => {
       const chk = document.getElementById(id);
       if (chk) chk.checked = false;
