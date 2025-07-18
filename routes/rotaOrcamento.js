@@ -617,15 +617,7 @@ router.put(
           ];
           await client.query(insertItemQuery, itemValues);
         }
-      }
-
-      // 3. Deletar itens que não foram enviados no payload (removidos pelo usuário)
-      const itemsToDelete = Array.from(existingItemIds).filter(id => !receivedItemIds.has(id));
-      if (itemsToDelete.length > 0) {
-        console.log("VAI DELETAR", idOrcamento, itemsToDelete);
-       //   const deleteItemQuery = `DELETE FROM orcamentoitens WHERE idorcamentoitem = ANY($1) AND idorcamento = $2;`;
-       //   await client.query(deleteItemQuery, [itemsToDelete, idOrcamento]);
-      }
+      }      
 
       await client.query("COMMIT"); // Confirma a transação
       
@@ -643,6 +635,88 @@ router.put(
       client.release(); // Libera o cliente do pool
     }
   }
+);
+
+router.delete(
+    "/:idorcamento/itens/:idorcamentoitem",
+    autenticarToken(),
+    contextoEmpresa,
+    verificarPermissao("Orcamentos", "apagar"), // Crie/verifique essa permissão
+    logMiddleware("OrcamentoItens", { // Nome da entidade para o log
+        buscarDadosAnteriores: async (req) => {
+            const { idorcamento, idorcamentoitem } = req.params;
+            const client = await pool.connect();
+            try {
+                const result = await client.query(
+                    `SELECT * FROM orcamentoitens WHERE idorcamento = $1 AND idorcamentoitem = $2;`,
+                    [idorcamento, idorcamentoitem]
+                );
+                return {
+                    dadosanteriores: result.rows[0] || null,
+                    idregistroalterado: idorcamentoitem
+                };
+            } catch (error) {
+                console.error("Erro ao buscar dados anteriores do item para log:", error);
+                return { dadosanteriores: null, idregistroalterado: idorcamentoitem };
+            } finally {
+                client.release();
+            }
+        },
+    }),
+    async (req, res) => {
+        const client = await pool.connect();
+        const { idorcamento, idorcamentoitem } = req.params;
+        const idempresa = req.idempresa; // ID da empresa do middleware
+
+        console.log(`🔥 Rota DELETE /orcamentos/${idorcamento}/itens/${idorcamentoitem} acessada.`);
+
+        try {
+            await client.query("BEGIN");
+
+            // 1. Verifique se o item pertence ao orçamento E se o orçamento pertence à empresa do usuário
+            const checkOwnershipQuery = `
+                SELECT 1
+                FROM orcamentoitens oi
+                JOIN orcamentoempresas oe ON oi.idorcamento = oe.idorcamento
+                WHERE oi.idorcamento = $1
+                AND oi.idorcamentoitem = $2
+                AND oe.idempresa = $3;
+            `;
+            const ownershipResult = await client.query(checkOwnershipQuery, [idorcamento, idorcamentoitem, idempresa]);
+
+            if (ownershipResult.rows.length === 0) {
+                await client.query("ROLLBACK");
+                return res.status(403).json({ error: "Permissão negada ou item não encontrado para este orçamento/empresa." });
+            }
+
+            // 2. Procede com a deleção do item
+            const deleteItemQuery = `
+                DELETE FROM orcamentoitens
+                WHERE idorcamento = $1 AND idorcamentoitem = $2;
+            `;
+            const result = await client.query(deleteItemQuery, [idorcamento, idorcamentoitem]);
+
+            if (result.rowCount === 0) {
+                await client.query("ROLLBACK");
+                return res.status(404).json({ error: "Item do orçamento não encontrado para deletar." });
+            }
+
+            await client.query("COMMIT");
+
+            res.locals.acao = 'deletou';
+            res.locals.idregistroalterado = idorcamentoitem;
+            res.locals.idusuarioAlvo = null; 
+
+            res.status(200).json({ message: "Item do orçamento deletado com sucesso." });
+
+        } catch (error) {
+            await client.query("ROLLBACK");
+            console.error("Erro ao deletar item do orçamento:", error);
+            res.status(500).json({ error: "Erro interno ao deletar item do orçamento.", detail: error.message });
+        } finally {
+            client.release();
+        }
+    }
 );
 
 

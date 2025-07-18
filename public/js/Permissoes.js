@@ -34,11 +34,13 @@ function aplicarPermissoes(permissoes) {
   if (!p.pode_pesquisar) {
     document.querySelectorAll(".btnPesquisar").forEach(btn => btn.disabled = true);
   }
-
+  if (!p.pode_apagar) {
+    document.querySelectorAll(".btnApagar").forEach(btn => btn.disabled = true);
+  }
   
   // Caso só possa pesquisar, oculta botões de envio
-  if (p.pode_pesquisar && !p.pode_cadastrar && !p.pode_alterar) {
-    document.querySelectorAll("button[type='submit'], .btnSalvar, .btnEnviar")
+  if (p.pode_pesquisar && !p.pode_cadastrar && !p.pode_alterar && !p.pode_apagar) {
+    document.querySelectorAll("button[type='submit'], .btnSalvar, .btnEnviar, .btnApagar")
       .forEach(btn => btn.style.display = "none");
   }
 
@@ -58,7 +60,16 @@ function aplicarPermissoes(permissoes) {
       btn.title = "Você não tem permissão para salvar ou alterar";
       btn.classList.add("btnDesabilitado");
     });
-  }
+  }   
+
+  if (!p.pode_apagar) {
+        document.querySelectorAll(".btnApagar").forEach(btn => {
+            btn.disabled = true; // Desabilita o botão
+            btn.title = "Você não tem permissão para apagar"; // Adiciona um tooltip
+            btn.classList.add("btnDesabilitado"); // Opcional: Adiciona uma classe para estilo visual de desabilitado
+        });
+    }
+  
 }
 
 // Função que oculta/mostra itens do menu conforme permissões

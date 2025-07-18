@@ -60,6 +60,7 @@ async function listarPermissoesPorUsuario(req, res) {
       alterar: !!row.alterar,
       pesquisar: !!row.pesquisar,
       acesso: !!row.acesso,
+      apagar: !!row.apagar,
       idempresa: row.idempresa
     }));
     console.log("listarPermissoesPorUsuario FINAL", permissoes);
@@ -79,7 +80,8 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
     acesso,
     cadastrar,
     alterar,
-    pesquisar
+    pesquisar,
+    apagar
   } = req.body;
 
   const idempresa = req.headers.idempresa; 
@@ -112,10 +114,10 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
         // Atualiza
         const updateResult = await db.query(`
           UPDATE permissoes
-          SET cadastrar = $1, alterar = $2, pesquisar = $3, acesso = $4
-          WHERE idusuario = $5 AND modulo = $6 AND idempresa = $7
+          SET cadastrar = $1, alterar = $2, pesquisar = $3, acesso = $4, apagar = $5
+          WHERE idusuario = $6 AND modulo = $7 AND idempresa = $8
           RETURNING id;
-        `, [cadastrar, alterar, pesquisar, acesso, idusuario, moduloFormatado, idempresa]);
+        `, [cadastrar, alterar, pesquisar, acesso, apagar, idusuario, moduloFormatado, idempresa]);
         
   
         idpermissao = updateResult.rows[0]?.id || null;
@@ -124,10 +126,10 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
       } else {
         // Insere nova permissão
         const insertResult = await db.query(`
-          INSERT INTO permissoes (idusuario, modulo, cadastrar, alterar, pesquisar, acesso, idempresa)
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
+          INSERT INTO permissoes (idusuario, modulo, cadastrar, alterar, pesquisar, acesso, apagar, idempresa)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           RETURNING id;
-        `, [idusuario, moduloFormatado, cadastrar, alterar, pesquisar, acesso, idempresa]);
+        `, [idusuario, moduloFormatado, cadastrar, alterar, pesquisar, acesso, apagar, idempresa]);
         idpermissao = insertResult.rows[0].id;
         acao = 'cadastrou';
       }

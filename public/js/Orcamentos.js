@@ -5,6 +5,7 @@ import { fetchComToken} from '../../utils/utils.js';
 import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/flatpickr.min.js";
 import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/l10n/pt.js";
 
+
 const fp = window.flatpickr; 
 const currentLocale = fp.l10ns.pt || fp.l10ns.default;
 
@@ -14,7 +15,7 @@ if (!currentLocale) {
     fp.setDefaults({
         locale: currentLocale
     });
-    console.log("Flatpickr locale definido para Português.");
+  //  console.log("Flatpickr locale definido para Português.");
 }
 //fim do tratamento do flatpickr
 
@@ -68,7 +69,7 @@ const eventoSelect = document.querySelector('.idEvento');   // Select do evento 
 const localMontagemSelect = document.querySelector('.idMontagem'); // Select do local no form principal
 const statusSelect = document.getElementById('Status');
 
-console.log("ID LOCAL MONTAGEM", localMontagemSelect);
+//console.log("ID LOCAL MONTAGEM", localMontagemSelect);
 
  let selects = document.querySelectorAll(".idFuncao, .idEquipamento, .idSuprimento");
     selects.forEach(select => {
@@ -281,9 +282,9 @@ async function carregarLocalMontOrc() {
 }
 
 let Categoria = "";
-let vlrAlmoco = "";
-let vlrJantar = "";
-let vlrTransporte = "";
+let vlrAlmoco = 0;
+let vlrJantar = 0;
+let vlrTransporte = 0;
 
 // Função para carregar os Funcao
 async function carregarFuncaoOrc() {
@@ -547,7 +548,7 @@ if (!window.hasRegisteredChangeListenerForAjdCusto) {
                 return;
             }
             // Chama a função para recalcular e atualizar a exibição daquela linha específica
-            //atualizarValoresAjdCustoNaLinha(linhaAtual);
+            atualizarValoresAjdCustoNaLinha(linhaAtual);
             
             recalcularLinha(linhaAtual);
             //calcularTotaisOrc(); // Recalcula os totais gerais da tabela após mudança em uma linha
@@ -622,11 +623,14 @@ function recalcularTotaisGerais() {
             currency: 'BRL'
         });
     }
-    calcularLucroReal();
+    console.log("RECALCULAR TOTAIS GERAIS", totalCustoGeral, totalVendaGeral, totalAjdCustoGeral);
+    
     calcularLucro();
+    calcularLucroReal();
 }
 
 function calcularLucro() {
+    console.log("CALCULAR LUCRO");
     let totalCustoGeral = 0;
     let totalVendaGeral = 0;
 
@@ -634,6 +638,7 @@ function calcularLucro() {
     totalCustoGeral = desformatarMoeda(document.querySelector('#totalGeralCto').value);
     totalVendaGeral = desformatarMoeda(document.querySelector('#totalGeralVda').value);
 
+    console.log("CALCULAR LUCRO", totalCustoGeral, totalVendaGeral);
     // Calcula o lucro
     let lucro = totalVendaGeral - totalCustoGeral;
 
@@ -659,6 +664,7 @@ function calcularLucro() {
 }
 
 function calcularLucroReal() {
+     
     let totalCustoGeral = 0;
     let totalAjdCusto = 0;
     let valorFinalCliente = 0;
@@ -671,12 +677,13 @@ function calcularLucroReal() {
         console.warn("⚠️ Campo(s) #totalGeral ou #valorCliente não encontrados. Lucro não pode ser calculado.");
         return;
     }
-
+    console.log("CALCULAR LUCRO REAL", inputTotalGeral.value, inputValorCliente.value, inputTotalAjdCusto?.value);
     // Obtém os valores convertendo de moeda
     totalCustoGeral = desformatarMoeda(inputTotalGeral.value);    
     totalAjdCusto = desformatarMoeda(inputTotalAjdCusto.value);
     valorFinalCliente = desformatarMoeda(inputValorCliente.value);
-    console.log("TOTAL AJDCUSTO", totalCustoGeral, totalAjdCusto, valorFinalCliente );
+
+    console.log("TOTAL AJDCUSTO", totalCustoGeral, totalAjdCusto, valorFinalCliente);
 
     // Calcula lucro
     let lucroReal = valorFinalCliente - (totalCustoGeral+totalAjdCusto);
@@ -703,7 +710,101 @@ function calcularLucroReal() {
     }
 }
 
-function aplicarDescontoEAcrescimo(input = null) {
+// function aplicarDescontoEAcrescimo(input = null) { GU
+
+//     console.log ("DESCONTO NO APLICAR DESCONTO E ACRESCIMO",document.querySelector('#Desconto').value, document.querySelector('#percentDesc').value);
+//     const campoTotalVenda = document.querySelector('#totalGeralVda');
+//     const campoDesconto = document.querySelector('#Desconto');
+//     const campoPerCentDesc = document.querySelector('#percentDesc');
+//     const campoAcrescimo = document.querySelector('#Acrescimo');
+//     const campoPerCentAcresc = document.querySelector('#percentAcresc');
+//     const campoValorCliente = document.querySelector('#valorCliente');
+
+//     let totalVenda = desformatarMoeda(campoTotalVenda?.value || '0');
+//     if (isNaN(totalVenda)) totalVenda = 0;
+
+//     let valorDesconto = desformatarMoeda(campoDesconto?.value || '0');
+//     let perCentDesc = parseFloat((campoPerCentDesc?.value || '0').replace('%', '').replace(',', '.')) || 0;
+
+//     let valorAcrescimo = desformatarMoeda(campoAcrescimo?.value || '0');
+//     let perCentAcresc = parseFloat((campoPerCentAcresc?.value || '0').replace('%', '').replace(',', '.')) || 0;
+
+//     // Se input for null, só calcula e mostra o valor final
+//     if (input === null) {
+//         const valorFinal = totalVenda - valorDesconto + valorAcrescimo;
+//         if (campoValorCliente) {
+//             campoValorCliente.value = formatarMoeda(valorFinal);
+//         }
+//         return;
+//     }
+        
+//     // Sincronizar desconto
+//     //console.log("Desconto", campoDesconto, totalVenda);
+
+//     if (input === campoDesconto && totalVenda > 0) {
+//         perCentDesc = (valorDesconto / totalVenda) * 100;
+//         campoPerCentDesc.value = perCentDesc.toFixed(2) + '%';
+//     } else if (input === campoPerCentDesc && totalVenda > 0) {
+//         valorDesconto = totalVenda * (perCentDesc / 100);
+//         campoDesconto.value = formatarMoeda(valorDesconto);
+//     }
+
+//     // Sincronizar acréscimo
+//     if (input === campoAcrescimo && totalVenda > 0) {
+//         perCentAcresc = (valorAcrescimo / totalVenda) * 100;
+//         campoPerCentAcresc.value = perCentAcresc.toFixed(2) + '%';
+//     } else if (input === campoPerCentAcresc && totalVenda > 0) {
+//         valorAcrescimo = totalVenda * (perCentAcresc / 100);
+//         campoAcrescimo.value = formatarMoeda(valorAcrescimo);
+//     }
+
+//     // Calcular valor final para o cliente
+//     const valorFinal = totalVenda - valorDesconto + valorAcrescimo;
+
+//     if (campoValorCliente) {
+//         campoValorCliente.value = formatarMoeda(valorFinal);
+//     }
+
+//     calcularLucroReal();
+//     calcularLucro();
+// }
+
+
+// function calcularLucro() {
+//     let totalCustoGeral = 0;
+//     let totalVendaGeral = 0;
+
+//     // Extraímos os valores numéricos das células, desformatados de moeda
+//     totalCustoGeral = desformatarMoeda(document.querySelector('#totalGeralCto').value);
+//     totalVendaGeral = desformatarMoeda(document.querySelector('#totalGeralVda').value);
+
+//     // Calcula o lucro
+//     let lucro = totalVendaGeral - totalCustoGeral;
+
+//     let porcentagemLucro = 0;
+//     if (totalVendaGeral > 0) {
+//         porcentagemLucro = (lucro / totalVendaGeral) * 100;
+//     }
+
+//     // Exibe o lucro no console
+//     console.log('Lucro calculado:', lucro);
+//     console.log('Porcentagem de Lucro:', porcentagemLucro.toFixed(2) + '%');
+
+//     // Atualiza o campo de lucro com a formatação de moeda
+//     let inputLucro = document.querySelector('#Lucro');
+//     if (inputLucro) {
+//         inputLucro.value = formatarMoeda(lucro);
+//     }
+
+//     let inputPorcentagemLucro = document.querySelector('#percentLucro');
+//     if (inputPorcentagemLucro) {
+//         inputPorcentagemLucro.value = porcentagemLucro.toFixed(2) + '%';
+//     }
+// }
+
+
+function aplicarDescontoEAcrescimo() {
+   console.log ("DESCONTO NO APLICAR DESCONTO E ACRESCIMO",document.querySelector('#Desconto').value, document.querySelector('#percentDesc').value);
     const campoTotalVenda = document.querySelector('#totalGeralVda');
     const campoDesconto = document.querySelector('#Desconto');
     const campoPerCentDesc = document.querySelector('#percentDesc');
@@ -720,29 +821,21 @@ function aplicarDescontoEAcrescimo(input = null) {
     let valorAcrescimo = desformatarMoeda(campoAcrescimo?.value || '0');
     let perCentAcresc = parseFloat((campoPerCentAcresc?.value || '0').replace('%', '').replace(',', '.')) || 0;
 
-    // Se input for null, só calcula e mostra o valor final
-    if (input === null) {
-        const valorFinal = totalVenda - valorDesconto + valorAcrescimo;
-        if (campoValorCliente) {
-            campoValorCliente.value = formatarMoeda(valorFinal);
-        }
-        return;
-    }
-        
-    // Sincronizar desconto
-    if (input === campoDesconto && totalVenda > 0) {
+
+
+    if (campoDesconto && totalVenda > 0) {
         perCentDesc = (valorDesconto / totalVenda) * 100;
         campoPerCentDesc.value = perCentDesc.toFixed(2) + '%';
-    } else if (input === campoPerCentDesc && totalVenda > 0) {
+    } else if (campoPerCentDesc && totalVenda > 0) {
         valorDesconto = totalVenda * (perCentDesc / 100);
         campoDesconto.value = formatarMoeda(valorDesconto);
     }
 
     // Sincronizar acréscimo
-    if (input === campoAcrescimo && totalVenda > 0) {
+    if (campoAcrescimo && totalVenda > 0) {
         perCentAcresc = (valorAcrescimo / totalVenda) * 100;
         campoPerCentAcresc.value = perCentAcresc.toFixed(2) + '%';
-    } else if (input === campoPerCentAcresc && totalVenda > 0) {
+    } else if (campoPerCentAcresc && totalVenda > 0) {
         valorAcrescimo = totalVenda * (perCentAcresc / 100);
         campoAcrescimo.value = formatarMoeda(valorAcrescimo);
     }
@@ -754,17 +847,17 @@ function aplicarDescontoEAcrescimo(input = null) {
         campoValorCliente.value = formatarMoeda(valorFinal);
     }
 
-    calcularLucroReal();
+    
     calcularLucro();
+    calcularLucroReal();
 }
 
-
-document.getElementById("tabela").addEventListener("click", function (e) {
-    const botao = e.target.closest(".deleteBtn");
-    if (!botao) return;
-    const linha = botao.closest("tr");
-    if (linha) removerLinha(linha);
-});
+// document.getElementById("tabela").addEventListener("click", function (e) {
+//     const botao = e.target.closest(".deleteBtn");
+//     if (!botao) return;
+//     const linha = botao.closest("tr");
+//     if (linha) removerLinha(linha);
+// });
 // Exemplo de função para remover a linha
 function removerLinha(linha) {
     // Remove a linha da DOM
@@ -787,12 +880,10 @@ function adicionarLinhaOrc() {
         emptyRow.closest('tr').remove();
     }
 
-
-    let novaLinha = tabela.insertRow();
+    let novaLinha = tabela.insertRow();    
     
-    
-        novaLinha.innerHTML = `
-        <td style="display:none;"><input type="hidden" class="idItemOrcamento" value=""></td> <!-- Corrigido: de <th> para <td> e adicionado input hidden -->
+    novaLinha.innerHTML = `
+        <td style="display: none;"><input type="hidden" class="idItemOrcamento" style="display: none;" value=""></td> <!-- Corrigido: de <th> para <td> e adicionado input hidden -->
         <td class="Proposta">
             <div class="checkbox-wrapper-33" style="margin-top: 40px;">
                 <label class="checkbox">
@@ -809,7 +900,7 @@ function adicionarLinhaOrc() {
         <td class="Categoria"><input type="text" class="categoria-input" value=""></td> <!-- Adicionado input para edição -->
         <td class="qtdProduto">
             <div class="add-less">
-                <input type="number" class="qtdProduto" min="0" value="0" oninput="recalcularLinha(this.closest('tr'))">
+                <input type="number" class="qtdProduto" min="0" value="0">
                 <div class="Bt">
                     <button type="button" class="increment">+</button>
                     <button type="button" class="decrement">-</button>
@@ -819,7 +910,7 @@ function adicionarLinhaOrc() {
         <td class="produto"><input type="text" class="produto-input" value=""></td> <!-- Adicionado input para edição -->
         <td class="qtdDias">
             <div class="add-less">
-                <input type="number" readonly class="qtdDias" min="0" value="0" oninput="recalcularLinha(this.closest('tr'))">
+                <input type="number" readonly class="qtdDias" min="0" value="0">
             </div>
         </td>
         <td class="Periodo">
@@ -829,26 +920,26 @@ function adicionarLinhaOrc() {
         </td>
         <td class="desconto Moeda">
             <div class="Acres-Desc">
-                <input type="text" class="ValorInteiros" value="R$ 0,00" oninput="recalcularLinha(this.closest('tr'))">
-                <input type="text" class="valorPerCent" value="0%" oninput="recalcularLinha(this.closest('tr'))">
+                <input type="text" class="ValorInteiros" value="R$ 0,00">
+                <input type="text" class="valorPerCent" value="0%">
             </div>
         </td>
         <td class="Acrescimo Moeda">
             <div class="Acres-Desc">
-                <input type="text" class="ValorInteiros" value="R$ 0,00" oninput="recalcularLinha(this.closest('tr'))">
-                <input type="text" class="valorPerCent" value="0%" oninput="recalcularLinha(this.closest('tr'))">
+                <input type="text" class="ValorInteiros" value="R$ 0,00">
+                <input type="text" class="valorPerCent" value="0%">
             </div>
         </td>
-        <td class="vlrVenda Moeda">${formatarMoeda(0)}</td>
+        <td class="vlrVenda Moeda" data-original-venda="0">${formatarMoeda(0)}</td>
         <td class="totVdaDiaria Moeda">${formatarMoeda(0)}</td>
         <td class="vlrCusto Moeda">${formatarMoeda(0)}</td>
         <td class="totCtoDiaria Moeda">${formatarMoeda(0)}</td>
         <td class="ajdCusto Moeda">
             <div class="Acres-Desc">
                 <select class="tpAjdCusto-alimentacao">
-                    <option value="select" selected disabled>Alimentação</option>
-                    <option value="almoco">Almoço</option>
-                    <option value="janta">Jantar</option>
+                    <option value="select" selected>Alimentação</option>
+                    <option value="Almoco">Almoço</option>
+                    <option value="Janta">Jantar</option>
                     <option value="2alimentacao">Almoço + jantar</option>
                 </select>
             </div>
@@ -857,33 +948,32 @@ function adicionarLinhaOrc() {
         <td class="ajdCusto Moeda">
             <div class="Acres-Desc">
                 <select class="tpAjdCusto-transporte">
-                    <option value="select" selected disabled>Veiculo</option>
-                    <option value="Publico">Público</option>
-                    <option value="alugado">Alugado</option>
-                    <option value="Proprio">Próprio</option>
+                    <option value="select" selected>Veiculo</option>
+                    <option value="Público">Público</option>
+                    <option value="Alugado">Alugado</option>
+                    <option value="Próprio">Próprio</option>
                 </select>
             </div>
             <br><span class="valorbanco transporte">${formatarMoeda(0)}</span>
         </td>
         <td class="totAjdCusto Moeda">${formatarMoeda(0)}</td>
         <td class="extraCampo" style="display: none;">
-            <input type="text" class="hospedagem" value="0" min="0" step="0.01" oninput="recalcularLinha(this.closest('tr'))">
+            <input type="text" class="hospedagem">
         </td>
         <td class="extraCampo" style="display: none;">
-            <input type="text" class="transporte" value="0" min="0" step="0.01" oninput="recalcularLinha(this.closest('tr'))">
+            <input type="text" class="transporte">
         </td>
         <td class="totGeral Moeda">${formatarMoeda(0)}</td>
         <td>
             <div class="Acao">
-                <button class="deleteBtn" type="button">
+                <button class="btnApagar" type="button">
                     <svg class="delete-svgIcon" viewBox="0 0 448 512">
                         <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path>
                     </svg>
                 </button>
             </div>
         </td>
-    `;
-
+    `;  
     
     //Inicializa o Flatpickr para o campo de data na nova linha
     const novoInputData = novaLinha.querySelector('input[type="text"].datas');  
@@ -894,64 +984,148 @@ function adicionarLinhaOrc() {
         console.error("Erro: Novo input de data não encontrado na nova linha.");
     }
 
-    novaLinha.querySelector('.qtdProduto .increment')?.addEventListener('click', (event) => {
-        const input = event.target.closest("td").querySelector("input.qtdProduto");
-        if (input) {
-            input.value = parseInt(input.value || 0) + 1;
-            recalcularLinha(novaLinha);
-        }
-    });
-
-    novaLinha.querySelector('.qtdProduto .decrement')?.addEventListener('click', (event) => {
-        const input = event.target.closest("td").querySelector("input.qtdProduto");
-        if (input) {
-            const valorAtual = parseInt(input.value || 0);
-            input.value = Math.max(0, valorAtual - 1);
-            recalcularLinha(novaLinha);
-        }
-    });
-
-    // Adiciona event listener para o botão de excluir
-    novaLinha.querySelector('.deleteBtn').addEventListener('click', () => {
-        novaLinha.remove();
-        recalcularTotaisGerais();
-    });
     
-    // Adiciona event listeners para os selects de AjdCusto
-    novaLinha.querySelectorAll('.tpAjdCusto-alimentacao, .tpAjdCusto-transporte').forEach(select => {
-        select.addEventListener('change', () => {
-            recalcularLinha(novaLinha);
+    novaLinha.querySelector('.desconto .ValorInteiros')?.addEventListener('blur', function(event) { // MUDANÇA: 'input' para 'blur'
+        console.log("DEBUG: Blur no campo ValorInteiros de Desconto! Input:", this.value); // Adicione este log
+        recalcularDescontoAcrescimo(this, 'desconto', 'valor', this.closest('tr'));
+    });
+
+    novaLinha.querySelector('.desconto .valorPerCent')?.addEventListener('blur', function(event) { // MUDANÇA: 'input' para 'blur'
+        console.log("DEBUG: Blur no campo valorPerCent de Desconto! Input:", this.value); // Adicione este log
+        recalcularDescontoAcrescimo(this, 'desconto', 'percentual', this.closest('tr'));
+    });
+    novaLinha.querySelector('.Acrescimo .ValorInteiros')?.addEventListener('blur', function(event) { // MUDANÇA: 'input' para 'blur'
+        console.log("DEBUG: Blur no campo ValorInteiros de Acrescimo! Input:", this.value); // Adicione este log
+        recalcularDescontoAcrescimo(this, 'acrescimo', 'valor', this.closest('tr'));
+    });
+    novaLinha.querySelector('.Acrescimo .valorPerCent')?.addEventListener('blur', function(event) { // MUDANÇA: 'input' para 'blur'
+        console.log("DEBUG: Blur no campo valorPerCent de Acrescimo! Input:", this.value); // Adicione este log
+        recalcularDescontoAcrescimo(this, 'acrescimo', 'percentual', this.closest('tr'));
+    });
+
+    novaLinha.querySelector('.qtdProduto input')?.addEventListener('input', function() {
+        recalcularLinha(this.closest('tr'));
+    });
+    novaLinha.querySelector('.qtdDias input')?.addEventListener('input', function() {
+        recalcularLinha(this.closest('tr'));
+    });
+
+    // Event listeners para campos de ajuda de custo (selects)
+    novaLinha.querySelector('.tpAjdCusto-alimentacao')?.addEventListener('change', function() {
+        recalcularLinha(this.closest('tr'));
+    });
+    novaLinha.querySelector('.tpAjdCusto-transporte')?.addEventListener('change', function() {
+        recalcularLinha(this.closest('tr'));
+    });
+
+    // Event listeners para campos extras (hospedagem, transporte)
+    novaLinha.querySelector('.hospedagem')?.addEventListener('input', function() {
+        recalcularLinha(this.closest('tr'));
+    });
+    novaLinha.querySelector('.transporte')?.addEventListener('input', function() {
+        recalcularLinha(this.closest('tr'));
+        console.log("INPUT TRANSPORTE ALTERADO NO ADICIONARLINHAORC:", this.value);
+    });
+
+
+    const temPermissaoApagar = temPermissao("Orcamentos", "apagar");
+    const deleteButton = novaLinha.querySelector('.btnApagar');
+    const idItemInput = novaLinha.querySelector('input.idItemOrcamento'); // Obtém o input de ID
+
+    if (deleteButton) {
+        deleteButton.addEventListener('click', async function(event) {
+            event.preventDefault(); // Sempre previne o comportamento padrão inicial
+
+            const linhaParaRemover = this.closest('tr');
+            const idOrcamentoItem = idItemInput ? idItemInput.value : null; // Pega o ID na hora do clique
+
+            if (!idOrcamentoItem || idOrcamentoItem.trim() === '') {
+                // Se NÃO tem ID (linha nova/vazia), SEMPRE permite remoção local
+                console.log("DEBUG: Item sem ID. Permitindo exclusão local.");
+                Swal.fire({
+                    title: "Remover item?",
+                    text: "Este item ainda não foi salvo no banco de dados. Deseja apenas removê-lo da lista?",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: "#3085d6",
+                    cancelButtonColor: "#d33",
+                    confirmButtonText: "Sim, remover!",
+                    cancelButtonText: "Cancelar"
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        linhaParaRemover.remove();
+                        recalcularTotaisGerais();
+                        calcularLucro();
+                        Swal.fire("Removido!", "O item foi removido da lista.", "success");
+                    }
+                });
+            } else if (!temPermissaoApagar) {
+                // Se TEM ID, mas o usuário NÃO tem permissão para apagar
+                console.warn("Usuário não tem permissão para apagar itens de orçamento. Exibindo Swal.");
+                Swal.fire({
+                    title: "Acesso Negado!",
+                    text: "Você não tem permissão para apagar itens de orçamento que já estão salvos.",
+                    icon: "error",
+                    confirmButtonText: "Entendi"
+                });
+            } else {
+                // Se TEM ID E o usuário TEM permissão para apagar (lógica original)
+                let currentItemProduct = linhaParaRemover.querySelector('.produto-input')?.value || "este item";
+                if (!currentItemProduct || currentItemProduct.trim() === '') {
+                     const produtoCell = linhaParaRemover.querySelector('.produto');
+                     if (produtoCell) {
+                         currentItemProduct = produtoCell.textContent.trim();
+                     }
+                }
+                
+                const { isConfirmed } = await Swal.fire({
+                    title: `Tem Certeza que deseja EXCLUIR o item "${currentItemProduct}" ?`,
+                    text: "Você não poderá reverter esta ação!",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: "#3085d6",
+                    cancelButtonColor: "#d33",
+                    confirmButtonText: "Sim, deletar!",
+                    cancelButtonText: "Cancelar"
+                });
+
+                if (isConfirmed) {
+                    try {
+                        const idOrcamentoPrincipal = document.getElementById('idOrcamento').value;
+                        console.log("IDS ORCAMENTO:", idOrcamentoPrincipal, idOrcamentoItem);   
+                       await fetchComToken(`/orcamentos/${idOrcamentoPrincipal}/itens/${idOrcamentoItem}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });                        
+
+                        linhaParaRemover.remove(); 
+                        recalcularTotaisGerais(); 
+                        calcularLucro(); 
+
+                        Swal.fire("Deletado!", "O item foi removido com sucesso.", "success");
+
+                    } catch (error) {
+                        console.error("Erro ao deletar item:", error);
+                        Swal.fire("Erro!", `Não foi possível deletar o item: ${error.message}`, "error");
+                    }
+                }
+            }
         });
-    });
 
-    // Adiciona event listeners para inputs de texto/número que precisam de recalculo
-    novaLinha.querySelectorAll('input.categoria-input, input.produto-input, input.ValorInteiros, input.valorPerCent, input.qtdProduto, input.qtdDias, input.hospedagem, input.transporte').forEach(input => {
-        input.addEventListener('input', () => recalcularLinha(novaLinha));
-    });
+        // Aplica classe de desabilitado visualmente se não tiver permissão para apagar itens EXISTENTES
+        // Isso é feito FORA do listener, para que a aparência seja aplicada imediatamente
+        if (!temPermissaoApagar) {
+             // NÃO ADICIONE disabled=true AQUI, APENAS A CLASSE VISUAL
+            deleteButton.classList.add("btnDesabilitado");
+            deleteButton.title = "Você não tem permissão para apagar itens de orçamento que já estão salvos.";
+        }
+    }
+    recalcularTotaisGerais(); 
+    aplicarMascaraMoeda();   
+    //calcularLucro();
 
-    
-    // const qtdProdutoInput = novaLinha.querySelector('.qtdProduto input[type="number"]');
-    // const incrementBtnQtdProduto = novaLinha.querySelector('.qtdProduto .increment');
-    // const decrementBtnQtdProduto = novaLinha.querySelector('.qtdProduto .decrement');
-
-    // if (qtdProdutoInput && incrementBtnQtdProduto && decrementBtnQtdProduto) {
-    //     incrementBtnQtdProduto.addEventListener('click', () => {
-    //         qtdProdutoInput.value = parseInt(qtdProdutoInput.value) + 1;
-    //         // Chame sua função de cálculo aqui, se necessário, ou confie no oninput
-    //         // recalcularLinha(); // Se recalcularLinha() lida com a linha
-    //         const linhaDaQtd = qtdProdutoInput.closest('tr');
-    //         if (linhaDaQtd) { /* ... chamar função de cálculo específica da linha ... */ }
-    //     });
-    //     decrementBtnQtdProduto.addEventListener('click', () => {
-    //         const currentValue = parseInt(qtdProdutoInput.value);
-    //         if (currentValue > 0) {
-    //             qtdProdutoInput.value = currentValue - 1;
-    //             // calcularTotalOrc();
-    //             const linhaDaQtd = qtdProdutoInput.closest('tr');
-    //             if (linhaDaQtd) { /* ... chamar função de cálculo específica da linha ... */ }
-    //         }
-    //     });
-    // }
 
 }
 
@@ -960,8 +1134,8 @@ function adicionarLinhaAdicional() {
 
     let novaLinha = tabela.insertRow();
     novaLinha.classList.add("liberada");     // aplica nova cor
- novaLinha.innerHTML = `
-        <td style="display:none;" ><input type="hidden" class="idItemOrcamento" value=""></td> <!-- Corrigido: de <th> para <td> e adicionado input hidden -->
+    novaLinha.innerHTML = `
+        <td style="display: none;"><input type="hidden" class="idItemOrcamento" style="display: none;" value=""></td> <!-- Corrigido: de <th> para <td> e adicionado input hidden -->
         <td class="Proposta">
             <div class="checkbox-wrapper-33" style="margin-top: 40px;">
                 <label class="checkbox">
@@ -978,7 +1152,7 @@ function adicionarLinhaAdicional() {
         <td class="Categoria"><input type="text" class="categoria-input" value=""></td> <!-- Adicionado input para edição -->
         <td class="qtdProduto">
             <div class="add-less">
-                <input type="number" class="qtdProduto" min="0" value="0" oninput="recalcularLinha(this.closest('tr'))">
+                <input type="number" class="qtdProduto" min="0" value="0">
                 <div class="Bt">
                     <button type="button" class="increment">+</button>
                     <button type="button" class="decrement">-</button>
@@ -988,7 +1162,7 @@ function adicionarLinhaAdicional() {
         <td class="produto"><input type="text" class="produto-input" value=""></td> <!-- Adicionado input para edição -->
         <td class="qtdDias">
             <div class="add-less">
-                <input type="number" readonly class="qtdDias" min="0" value="0" oninput="recalcularLinha(this.closest('tr'))">
+                <input type="number" readonly class="qtdDias" min="0" value="0">
             </div>
         </td>
         <td class="Periodo">
@@ -998,26 +1172,26 @@ function adicionarLinhaAdicional() {
         </td>
         <td class="desconto Moeda">
             <div class="Acres-Desc">
-                <input type="text" class="ValorInteiros" value="R$ 0,00" oninput="recalcularLinha(this.closest('tr'))">
-                <input type="text" class="valorPerCent" value="0%" oninput="recalcularLinha(this.closest('tr'))">
+                <input type="text" class="ValorInteiros" value="R$ 0,00">
+                <input type="text" class="valorPerCent" value="0%">
             </div>
         </td>
         <td class="Acrescimo Moeda">
             <div class="Acres-Desc">
-                <input type="text" class="ValorInteiros" value="R$ 0,00" oninput="recalcularLinha(this.closest('tr'))">
-                <input type="text" class="valorPerCent" value="0%" oninput="recalcularLinha(this.closest('tr'))">
+                <input type="text" class="ValorInteiros" value="R$ 0,00">
+                <input type="text" class="valorPerCent" value="0%">
             </div>
         </td>
-        <td class="vlrVenda Moeda">${formatarMoeda(0)}</td>
+        <td class="vlrVenda Moeda" data-original-venda="0">${formatarMoeda(0)}</td>
         <td class="totVdaDiaria Moeda">${formatarMoeda(0)}</td>
         <td class="vlrCusto Moeda">${formatarMoeda(0)}</td>
         <td class="totCtoDiaria Moeda">${formatarMoeda(0)}</td>
         <td class="ajdCusto Moeda">
             <div class="Acres-Desc">
                 <select class="tpAjdCusto-alimentacao">
-                    <option value="select" selected disabled>Alimentação</option>
-                    <option value="almoco">Almoço</option>
-                    <option value="janta">Jantar</option>
+                    <option value="select" selected>Alimentação</option>
+                    <option value="Almoco">Almoço</option>
+                    <option value="Janta">Jantar</option>
                     <option value="2alimentacao">Almoço + jantar</option>
                 </select>
             </div>
@@ -1026,55 +1200,35 @@ function adicionarLinhaAdicional() {
         <td class="ajdCusto Moeda">
             <div class="Acres-Desc">
                 <select class="tpAjdCusto-transporte">
-                    <option value="select" selected disabled>Veiculo</option>
-                    <option value="Publico">Público</option>
-                    <option value="alugado">Alugado</option>
-                    <option value="Proprio">Próprio</option>
+                    <option value="select" selected>Veiculo</option>
+                    <option value="Público">Público</option>
+                    <option value="Alugado">Alugado</option>
+                    <option value="Próprio">Próprio</option>
                 </select>
             </div>
             <br><span class="valorbanco transporte">${formatarMoeda(0)}</span>
         </td>
         <td class="totAjdCusto Moeda">${formatarMoeda(0)}</td>
         <td class="extraCampo" style="display: none;">
-            <input type="text" class="hospedagem" value="0" min="0" step="0.01" oninput="recalcularLinha(this.closest('tr'))">
+            <input type="text" class="hospedagem">
         </td>
         <td class="extraCampo" style="display: none;">
-            <input type="text" class="transporte" value="0" min="0" step="0.01" oninput="recalcularLinha(this.closest('tr'))">
+            <input type="text" class="transporte">
         </td>
         <td class="totGeral Moeda">${formatarMoeda(0)}</td>
         <td>
             <div class="Acao">
-                <button class="deleteBtn" type="button">
+                <button class="btnApagar" type="button">
                     <svg class="delete-svgIcon" viewBox="0 0 448 512">
                         <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path>
                     </svg>
                 </button>
             </div>
         </td>
-    `;
-
-    // 1. Popula o select de FUNÇÃO da nova linha
-    const novoSelectFuncao = novaLinha.querySelector('.idFuncao');
-    if (novoSelectFuncao) {
-        novoSelectFuncao.innerHTML = ""; // Limpa antes de popular
-        let opcaoPadrao = document.createElement("option");
-        opcaoPadrao.setAttribute("value", ""); // Garanta que este value seja consistente
-        opcaoPadrao.textContent = "Selecione Função";
-        novoSelectFuncao.appendChild(opcaoPadrao);
-        funcoesDisponiveis.forEach(funcao => {
-            let option = document.createElement("option");
-            option.value = funcao.idfuncao;
-            option.textContent = funcao.descfuncao;
-            option.setAttribute("data-almoco", funcao.almoco || 0);
-            option.setAttribute("data-jantar", funcao.jantar || 0);
-            option.setAttribute("data-transporte", funcao.transporte || 0);
-            novoSelectFuncao.appendChild(option);
-        });
-    }
-
-    // Inicializa o Flatpickr para o campo de data na nova linha
-    const novoInputData = novaLinha.querySelector('input[type="text"].datas');
-   
+    `;  
+    
+    //Inicializa o Flatpickr para o campo de data na nova linha
+    const novoInputData = novaLinha.querySelector('input[type="text"].datas');  
     if (novoInputData) {
         flatpickr(novoInputData, commonFlatpickrOptionsTable);
         console.log("Flatpickr inicializado para nova linha adicionada:", novoInputData);
@@ -1082,33 +1236,146 @@ function adicionarLinhaAdicional() {
         console.error("Erro: Novo input de data não encontrado na nova linha.");
     }
 
-    // const qtdProdutoInput = novaLinha.querySelector('.qtdProduto input[type="number"]');
-    // const incrementBtnQtdProduto = novaLinha.querySelector('.qtdProduto .increment');
-    // const decrementBtnQtdProduto = novaLinha.querySelector('.qtdProduto .decrement');
+    
+    novaLinha.querySelector('.desconto .ValorInteiros')?.addEventListener('blur', function(event) { // MUDANÇA: 'input' para 'blur'
+        console.log("DEBUG: Blur no campo ValorInteiros de Desconto! Input:", this.value); // Adicione este log
+        recalcularDescontoAcrescimo(this, 'desconto', 'valor', this.closest('tr'));
+    });
 
-    // if (qtdProdutoInput && incrementBtnQtdProduto && decrementBtnQtdProduto) {
-    //     incrementBtnQtdProduto.addEventListener('click', () => {
-    //         qtdProdutoInput.value = parseInt(qtdProdutoInput.value) + 1;
-    //         // Chame sua função de cálculo aqui, se necessário, ou confie no oninput
-    //         // recalcularLinha(); // Se recalcularLinha() lida com a linha
-    //         const linhaDaQtd = qtdProdutoInput.closest('tr');
-    //         if (linhaDaQtd) { /* ... chamar função de cálculo específica da linha ... */ }
-    //     });
-    //     decrementBtnQtdProduto.addEventListener('click', () => {
-    //         const currentValue = parseInt(qtdProdutoInput.value);
-    //         if (currentValue > 0) {
-    //             qtdProdutoInput.value = currentValue - 1;
-    //             // calcularTotalOrc();
-    //             const linhaDaQtd = qtdProdutoInput.closest('tr');
-    //             if (linhaDaQtd) { /* ... chamar função de cálculo específica da linha ... */ }
-    //         }
-    //     });
-    // }
-    // Você também precisa de listeners para os inputs de valor (desconto, acrescimo) e os checkboxes.
-    // Sugiro ter funções como 'inicializarEventosLinha(novaLinha)' que encapsulem isso.
-    // E chamar essa função após 'novaLinha.innerHTML = ...'
-    // Exemplo:
-    // inicializarEventosLinha(novaLinha);
+    novaLinha.querySelector('.desconto .valorPerCent')?.addEventListener('blur', function(event) { // MUDANÇA: 'input' para 'blur'
+        console.log("DEBUG: Blur no campo valorPerCent de Desconto! Input:", this.value); // Adicione este log
+        recalcularDescontoAcrescimo(this, 'desconto', 'percentual', this.closest('tr'));
+    });
+    novaLinha.querySelector('.Acrescimo .ValorInteiros')?.addEventListener('blur', function(event) { // MUDANÇA: 'input' para 'blur'
+        console.log("DEBUG: Blur no campo ValorInteiros de Acrescimo! Input:", this.value); // Adicione este log
+        recalcularDescontoAcrescimo(this, 'acrescimo', 'valor', this.closest('tr'));
+    });
+    novaLinha.querySelector('.Acrescimo .valorPerCent')?.addEventListener('blur', function(event) { // MUDANÇA: 'input' para 'blur'
+        console.log("DEBUG: Blur no campo valorPerCent de Acrescimo! Input:", this.value); // Adicione este log
+        recalcularDescontoAcrescimo(this, 'acrescimo', 'percentual', this.closest('tr'));
+    });
+
+    novaLinha.querySelector('.qtdProduto input')?.addEventListener('input', function() {
+        recalcularLinha(this.closest('tr'));
+    });
+    novaLinha.querySelector('.qtdDias input')?.addEventListener('input', function() {
+        recalcularLinha(this.closest('tr'));
+    });
+
+    // Event listeners para campos de ajuda de custo (selects)
+    novaLinha.querySelector('.tpAjdCusto-alimentacao')?.addEventListener('change', function() {
+        recalcularLinha(this.closest('tr'));
+    });
+    novaLinha.querySelector('.tpAjdCusto-transporte')?.addEventListener('change', function() {
+        recalcularLinha(this.closest('tr'));
+    });
+
+    // Event listeners para campos extras (hospedagem, transporte)
+    novaLinha.querySelector('.hospedagem')?.addEventListener('input', function() {
+        recalcularLinha(this.closest('tr'));
+    });
+    novaLinha.querySelector('.transporte')?.addEventListener('input', function() {
+        recalcularLinha(this.closest('tr'));
+        console.log("INPUT TRANSPORTE ALTERADO NO ADICIONARLINHAORC:", this.value);
+    });
+
+
+    const temPermissaoApagar = temPermissao("Orcamentos", "apagar");
+    const deleteButton = novaLinha.querySelector('.btnApagar');
+    const idItemInput = novaLinha.querySelector('input.idItemOrcamento'); // Obtém o input de ID
+
+    if (deleteButton) {
+        deleteButton.addEventListener('click', async function(event) {
+            event.preventDefault(); // Sempre previne o comportamento padrão inicial
+
+            const linhaParaRemover = this.closest('tr');
+            const idOrcamentoItem = idItemInput ? idItemInput.value : null; // Pega o ID na hora do clique
+
+            if (!idOrcamentoItem || idOrcamentoItem.trim() === '') {
+                // Se NÃO tem ID (linha nova/vazia), SEMPRE permite remoção local
+                console.log("DEBUG: Item sem ID. Permitindo exclusão local.");
+                Swal.fire({
+                    title: "Remover item?",
+                    text: "Este item ainda não foi salvo no banco de dados. Deseja apenas removê-lo da lista?",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: "#3085d6",
+                    cancelButtonColor: "#d33",
+                    confirmButtonText: "Sim, remover!",
+                    cancelButtonText: "Cancelar"
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        linhaParaRemover.remove();
+                        recalcularTotaisGerais();
+                        calcularLucro();
+                        Swal.fire("Removido!", "O item foi removido da lista.", "success");
+                    }
+                });
+            } else if (!temPermissaoApagar) {
+                // Se TEM ID, mas o usuário NÃO tem permissão para apagar
+                console.warn("Usuário não tem permissão para apagar itens de orçamento. Exibindo Swal.");
+                Swal.fire({
+                    title: "Acesso Negado!",
+                    text: "Você não tem permissão para apagar itens de orçamento que já estão salvos.",
+                    icon: "error",
+                    confirmButtonText: "Entendi"
+                });
+            } else {
+                // Se TEM ID E o usuário TEM permissão para apagar (lógica original)
+                let currentItemProduct = linhaParaRemover.querySelector('.produto-input')?.value || "este item";
+                if (!currentItemProduct || currentItemProduct.trim() === '') {
+                     const produtoCell = linhaParaRemover.querySelector('.produto');
+                     if (produtoCell) {
+                         currentItemProduct = produtoCell.textContent.trim();
+                     }
+                }
+                
+                const { isConfirmed } = await Swal.fire({
+                    title: `Tem Certeza que deseja EXCLUIR o item "${currentItemProduct}" ?`,
+                    text: "Você não poderá reverter esta ação!",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: "#3085d6",
+                    cancelButtonColor: "#d33",
+                    confirmButtonText: "Sim, deletar!",
+                    cancelButtonText: "Cancelar"
+                });
+
+                if (isConfirmed) {
+                    try {
+                        const idOrcamentoPrincipal = document.getElementById('idOrcamento').value;
+                        console.log("IDS ORCAMENTO:", idOrcamentoPrincipal, idOrcamentoItem);   
+                       await fetchComToken(`/orcamentos/${idOrcamentoPrincipal}/itens/${idOrcamentoItem}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });                        
+
+                        linhaParaRemover.remove(); 
+                        recalcularTotaisGerais(); 
+                        calcularLucro(); 
+
+                        Swal.fire("Deletado!", "O item foi removido com sucesso.", "success");
+
+                    } catch (error) {
+                        console.error("Erro ao deletar item:", error);
+                        Swal.fire("Erro!", `Não foi possível deletar o item: ${error.message}`, "error");
+                    }
+                }
+            }
+        });
+
+        // Aplica classe de desabilitado visualmente se não tiver permissão para apagar itens EXISTENTES
+        // Isso é feito FORA do listener, para que a aparência seja aplicada imediatamente
+        if (!temPermissaoApagar) {
+             // NÃO ADICIONE disabled=true AQUI, APENAS A CLASSE VISUAL
+            deleteButton.classList.add("btnDesabilitado");
+            deleteButton.title = "Você não tem permissão para apagar itens de orçamento que já estão salvos.";
+        }
+    }
+    recalcularTotaisGerais(); 
+    aplicarMascaraMoeda();  
 }
 
 function removerLinhaOrc(botao) {
@@ -1118,7 +1385,7 @@ function removerLinhaOrc(botao) {
 
 
 function initializeAllFlatpickrsInModal() {
-    console.log("Inicializando Flatpickr para todos os campos de data no modal...");
+//    console.log("Inicializando Flatpickr para todos os campos de data no modal...");
 
     // 1. Inicializa os campos globais com a função já existente
     inicializarFlatpickrsGlobais(); // Chamamos a função que você já tinha
@@ -1136,7 +1403,7 @@ function initializeAllFlatpickrsInModal() {
 
 // Crie esta nova função
 function inicializarFlatpickrsGlobais() {
-console.log("Inicializando Flatpickr para todos os campos de data (globais)...");
+//console.log("Inicializando Flatpickr para todos os campos de data (globais)...");
     const dateInputIds = [
         'periodoInfraMontagem',
         'periodoMontagem',
@@ -1152,9 +1419,9 @@ console.log("Inicializando Flatpickr para todos os campos de data (globais)...")
             if (!element._flatpickr) { 
                 const picker = flatpickr(element, commonFlatpickrOptions);               
                 flatpickrInstances[id] = picker; 
-                console.log(`Flatpickr inicializado e salvo para campo global #${id}`);
+              //  console.log(`Flatpickr inicializado e salvo para campo global #${id}`);
             } else {
-                console.log(`Flatpickr para campo global #${id} já estava inicializado.`);
+            //    console.log(`Flatpickr para campo global #${id} já estava inicializado.`);
                
                 flatpickrInstances[id] = element._flatpickr; 
             }
@@ -1170,7 +1437,7 @@ console.log("Inicializando Flatpickr para todos os campos de data (globais)...")
 let linhaCounter = 0;
 
 function inicializarFlatpickr(inputElement, onDateChangeCallback = null) {
-    console.log("Inicializando Flatpickr para o input:", inputElement);
+  //  console.log("Inicializando Flatpickr para o input:", inputElement);
     if (!inputElement) {
         console.error("Elemento de input inválido para inicializar Flatpickr.");
         return;
@@ -1255,37 +1522,6 @@ function atualizarQtdDias(input, selectedDatesArray) {
     } else {
         console.warn("⚠️ Função recalcularLinha não está definida.");
     }
-
-//   if (datas.length === 2) {
-//     // Dois dias selecionados (intervalo)
-//     var partesInicio = datas[0].trim().split('/');
-//     var partesFim = datas[1].trim().split('/');
-//     var inicio = new Date(partesInicio[2], partesInicio[1] - 1, partesInicio[0]);
-//     var fim = new Date(partesFim[2], partesFim[1] - 1, partesFim[0]);
-
-//     if (fim >= inicio) {
-//       diffDias = Math.floor((fim - inicio) / (1000 * 60 * 60 * 24)) + 1;
-//     } else {
-//       diffDias = "-";
-//     }
-
-//   } else if (datas.length === 1 && datas[0].trim() !== '') {
-//     // Apenas um dia selecionado
-//     diffDias = 1;
-//   } else {
-//     diffDias = "-";
-//   }
-
-//   inputQtdDias.value = diffDias;
-//   console.log("📤 Valor final enviado para input.qtdDias:", inputQtdDias.value);
-
-//   // Atualiza a linha automaticamente
-//   if (typeof recalcularLinha === 'function') {
-//     console.log("🔁 Chamando recalcularLinha...");
-//     recalcularLinha(linha);
-//   } else {
-//     console.warn("⚠️ Função recalcularLinha não está definida.");
-//   }
 }
 
 
@@ -1347,6 +1583,9 @@ function atualizaProdutoOrc(event) {
     let vlrCusto = selectedOption.getAttribute("data-cto");
     let vlrVenda = selectedOption.getAttribute("data-vda");
 
+    const vlrCustoNumerico = parseFloat(vlrCusto) || 0;
+    const vlrVendaNumerico = parseFloat(vlrVenda) || 0;
+
     let tabela = document.getElementById("tabela");
     if (!tabela) return; // Se a tabela não existir, sai da função
 
@@ -1390,77 +1629,131 @@ function atualizaProdutoOrc(event) {
         console.log(" valor de Custo é:", vlrCusto);
 
         let celulaVlrVenda = ultimaLinha.querySelector(".vlrVenda");
-        if (celulaVlrVenda) celulaVlrVenda.textContent = vlrVenda;
-        console.log(" valor de Venda é:", vlrVenda);
+       // if (celulaVlrVenda) celulaVlrVenda.textContent = vlrVenda;
 
-        // let celulaAjdCusto = ultimaLinha.querySelector(".ajdCusto");
-        // if (celulaAjdCusto) celulaAjdCusto.textContent = vlrAjdCusto;
+        if (celulaVlrVenda) {
+            celulaVlrVenda.textContent = formatarMoeda(vlrVendaNumerico);
+            celulaVlrVenda.dataset.originalVenda = vlrVendaNumerico.toString();
+        }
+        console.log(" valor de Venda é:", vlrVendaNumerico);
+
+        //let celulaAjdCusto = ultimaLinha.querySelector(".ajdCusto");
+        //if (celulaAjdCusto) celulaAjdCusto.textContent = vlrAjdCusto;
         // console.log(" valor de AjdCusto é:", vlrAjdCusto);
     }
     recalcularLinha(ultimaLinha); //marcia   
 }
 
+// Sua função de atualização de valores (mantém-se a mesma)
 function atualizarValoresAjdCustoNaLinha(linha) {
+    // ... (sua implementação atual de atualizarValoresAjdCustoNaLinha) ...
     console.log("Chamando atualizarValoresAjdCustoNaLinha para:", linha);
 
-    const selectAlimentacao = linha.querySelector('.select-alimentacao');
-    const selectTransporte = linha.querySelector('.select-transporte');
-    const valorAlimentacaoDiv = linha.querySelector('.valor-alimentacao');
-    const valorTransporteDiv = linha.querySelector('.valor-transporte');
-    const totAjdCustoCell = linha.querySelector('.totAjdCusto'); // Célula do total de Ajuda de Custo da linha
+    const selectAlimentacao = linha.querySelector('.tpAjdCusto-alimentacao'); 
+    const selectTransporte = linha.querySelector('.tpAjdCusto-transporte');  
+    const selectFuncao = linha.querySelector('.idFuncao'); 
+    
+    const valorAlimentacaoSpan = linha.querySelector('.valorbanco.alimentacao'); 
+    const valorTransporteSpan = linha.querySelector('.valorbanco.transporte');   
+    
+    const totAjdCustoCell = linha.querySelector('.totAjdCusto');
 
     let totalAlimentacaoLinha = 0;
     let totalTransporteLinha = 0;
     let totalAjdCustoLinha = 0;
 
-    // Garante que os valores base existem (podem ser 0 se a função não foi selecionada)
-    const baseAlmoco = parseFloat(vlrAlmoco || 0);
-    const baseJantar = parseFloat(vlrJantar || 0);
-    const baseTransporte = parseFloat(vlrTransporte || 0); // Renomeei para evitar conflito
+    if (selectFuncao) {
+        const selectedOptionFuncao = selectFuncao.options[selectFuncao.selectedIndex];
+        if (selectedOptionFuncao && selectedOptionFuncao.value !== "") {
+            baseAlmoco = parseFloat(selectedOptionFuncao.getAttribute("data-almoco")) || 0;
+            baseJantar = parseFloat(selectedOptionFuncao.getAttribute("data-jantar")) || 0;
+            baseTransporte = parseFloat(selectedOptionFuncao.getAttribute("data-transporte")) || 0;
+        }
+    }
 
-    console.log(`Bases lidas do dataset: Almoco: ${baseAlmoco}, Jantar: ${baseJantar}, Transporte: ${baseTransporte}`);
+    const baseAlmoco = parseFloat(vlrAlmoco || 0); // Assumindo que vlrAlmoco está no window
+    const baseJantar = parseFloat(vlrJantar || 0); // Assumindo que vlrJantar está no window
+    const baseTransporte = parseFloat(vlrTransporte || 0); // Assumindo que vlrTransporte está no window
 
-    // === Lógica para Alimentação ===
-    if (selectAlimentacao && valorAlimentacaoDiv) {
-        
+    console.log(`Bases lidas (globais): Almoco: ${baseAlmoco}, Jantar: ${baseJantar}, Transporte: ${baseTransporte}`);
+
+    if (selectAlimentacao && valorAlimentacaoSpan) {
         const tipoAlimentacaoSelecionado = selectAlimentacao.value;
-        console.log("TIPO SELECIONADO", selectAlimentacao.value);
-        if (tipoAlimentacaoSelecionado === 'Almoco') {
+        console.log("Alimentação - TIPO SELECIONADO", tipoAlimentacaoSelecionado);
+        if (tipoAlimentacaoSelecionado === 'Almoco') { 
             totalAlimentacaoLinha = baseAlmoco;
-        } else if (tipoAlimentacaoSelecionado === 'Janta') {
+        } else if (tipoAlimentacaoSelecionado === 'Janta') { 
             totalAlimentacaoLinha = baseJantar;
-        } else if (tipoAlimentacaoSelecionado === '2alimentacao') {
+        } else if (tipoAlimentacaoSelecionado === '2alimentacao') { 
             totalAlimentacaoLinha = baseAlmoco + baseJantar;
         }
-        // Se for 'select' ou algo não mapeado, totalAlimentacaoLinha permanece 0
-        valorAlimentacaoDiv.textContent = formatarMoeda(totalAlimentacaoLinha);
+        valorAlimentacaoSpan.textContent = formatarMoeda(totalAlimentacaoLinha);
         console.log(`Alimentação: Tipo: ${tipoAlimentacaoSelecionado}, Valor Calculado: ${totalAlimentacaoLinha}`);
     }
 
-    // === Lógica para Transporte ===
-    if (selectTransporte && valorTransporteDiv) {
+    if (selectTransporte && valorTransporteSpan) {
         const tipoTransporteSelecionado = selectTransporte.value;
-        if (tipoTransporteSelecionado === 'Público' || tipoTransporteSelecionado === 'Alugado' || tipoTransporteSelecionado === 'Próprio') {
+        if (tipoTransporteSelecionado !== 'select') { 
             totalTransporteLinha = baseTransporte;
         }
-        // Se for 'select' ou algo não mapeado, totalTransporteLinha permanece 0
-        valorTransporteDiv.textContent = formatarMoeda(totalTransporteLinha);
+        valorTransporteSpan.textContent = formatarMoeda(totalTransporteLinha);
         console.log(`Transporte: Tipo: ${tipoTransporteSelecionado}, Valor Calculado: ${totalTransporteLinha}`);
     }
     
-    // === Cálculo do Total de Ajuda de Custo da Linha ===
     totalAjdCustoLinha = totalAlimentacaoLinha + totalTransporteLinha;
     
     if (totAjdCustoCell) {
         totAjdCustoCell.textContent = formatarMoeda(totalAjdCustoLinha);
         console.log(`Total Ajd Custo da Linha: ${totalAjdCustoLinha}`);
     }
-
-    // Nota: O `calcularTotaisOrc()` global deve ser chamado após o loop de atualização de todas as linhas
-    // ou após a atualização de uma única linha pelos listeners delegados de alimentação/transporte.
-    // Não é necessário chamar aqui dentro, a menos que você queira que os totais globais se atualizem
-    // a cada linha que é processada, o que pode ser ineficiente.
 }
+
+
+// --- NOVA FUNÇÃO PARA INICIALIZAR OS LISTENERS DE AJUDA DE CUSTO ---
+// Chame esta função SEMPRE que o conteúdo do modal for carregado/atualizado.
+function inicializarListenersAjdCustoTabela() {
+    console.log("Inicializando listeners de Ajuda de Custo para a tabela de orçamento.");
+
+    const tabelaBody = document.querySelector("#tabela tbody");
+
+    if (!tabelaBody) {
+        console.warn("Corpo da tabela de orçamento (#tabela tbody) não encontrado. Não é possível anexar listeners de ajuda de custo.");
+        return;
+    }
+
+    // Este listener delegado para 'change' nos selects de Ajuda de Custo
+    // deve ser adicionado apenas UMA VEZ ao 'tabelaBody'.
+    // Usaremos uma flag para garantir isso, mesmo que a função seja chamada múltiplas vezes.
+    if (!tabelaBody.dataset.hasAjdCustoChangeListener) { // Usamos um dataset na tabela para a flag
+        tabelaBody.addEventListener('change', async function(event) {
+            if (event.target.classList.contains('tpAjdCusto-alimentacao') || event.target.classList.contains('tpAjdCusto-transporte')) {
+                console.log("--- Evento CHANGE disparado por select de ajuda de custo (delegado) ---");
+                const linhaAtual = event.target.closest('tr');
+                if (!linhaAtual) {
+                    console.error("Erro: Não foi possível encontrar a linha (<tr>) pai para o select de ajuda de custo.");
+                    return;
+                }
+                
+                atualizarValoresAjdCustoNaLinha(linhaAtual);
+                recalcularLinha(linhaAtual); 
+                recalcularTotaisGerais(); 
+            }
+        });
+        tabelaBody.dataset.hasAjdCustoChangeListener = true; // Define a flag como true
+        console.log("Listener de Ajuda de Custo delegado anexado ao tbody.");
+    } else {
+        console.log("Listener de Ajuda de Custo delegado já está anexado ao tbody. Pulando.");
+    }
+
+    // Também recalcule os valores iniciais para todas as linhas já presentes na tabela
+    // (inclusive a primeira linha que vem do HTML ou as que foram carregadas do backend).
+    tabelaBody.querySelectorAll('tr').forEach(linha => {
+        atualizarValoresAjdCustoNaLinha(linha);
+        recalcularLinha(linha); 
+    });
+}
+
+
 
 function resetarOutrosSelectsOrc(select) {
     const selects = document.querySelectorAll('.idFuncao, .idEquipamento, .idSuprimento');
@@ -1488,6 +1781,7 @@ async function verificaOrcamento() {
 
    // inicializarFlatpickrsGlobais(); 
     initializeAllFlatpickrsInModal(); // Inicializa os campos de data globais
+    inicializarListenersAjdCustoTabela();
 
     configurarInfraCheckbox();
     
@@ -1623,6 +1917,32 @@ async function verificaOrcamento() {
     //     console.error("Botão 'Remover Linha' não encontrado.");
     // }
 
+    const descontoInput = document.getElementById('Desconto');
+    if(descontoInput){
+        descontoInput.addEventListener('blur', async function() {
+        console.log("BLUR Desconto");
+            aplicarDescontoEAcrescimo();
+
+        });
+    }
+    else{
+         console.log("ELSE Desconto");
+    }
+
+    const acrescimoInput = document.getElementById('Acrescimo');
+    if(acrescimoInput){
+        acrescimoInput.addEventListener('blur', async function() {
+        console.log("BLUR Desconto");
+            aplicarDescontoEAcrescimo();
+        });
+    }
+    else{
+         console.log("ELSE Acrescimo");
+    }
+
+    
+
+
     const btnEnviar = document.getElementById('Enviar');
     btnEnviar.addEventListener("click", async function (event) {
         event.preventDefault(); // Previne o envio padrão do formulário
@@ -1636,9 +1956,9 @@ async function verificaOrcamento() {
             const form = document.getElementById("form");
             const formData = new FormData(form);
 
-            const temPermissaoCadastrar = temPermissao("Funcionarios", "cadastrar");
-            const temPermissaoAlterar = temPermissao("Funcionarios", "alterar");
-
+            const temPermissaoCadastrar = temPermissao("Orcamentos", "cadastrar");
+            const temPermissaoAlterar = temPermissao("Orcamentos", "alterar");
+            
 
             const idOrcamentoExistenteValue = document.getElementById('idOrcamento')?.value;
             // --- Converte para número ou define como null de forma segura ---
@@ -1654,6 +1974,7 @@ async function verificaOrcamento() {
             if (orcamentoId && !temPermissaoAlterar) {
                 return Swal.fire("Acesso negado", "Você não tem permissão para alterar funcionários.", "error");
             }
+
         
             console.log("formData BTNSALVAR", formData);
 
@@ -2035,19 +2356,19 @@ function preencherFormularioComOrcamento(orcamento) {
         console.warn("Elemento com classe '.idMontagem' não encontrado.");
     }
 
-    console.log("Preenchendo campos de data com os valores do orçamento:", orcamento);
+  //  console.log("Preenchendo campos de data com os valores do orçamento:", orcamento);
     for (const id in flatpickrInstances) {
         const pickerInstance = flatpickrInstances[id];
         
-        console.log(`Verificando Flatpickr para ID: ${id}`); // Log para depuração
-        console.log(`Instância Flatpickr para ID ${id}:`, pickerInstance); //
+       // console.log(`Verificando Flatpickr para ID: ${id}`); // Log para depuração
+       // console.log(`Instância Flatpickr para ID ${id}:`, pickerInstance); //
         // Verificação robusta para a instância do Flatpickr
         if (pickerInstance && typeof pickerInstance.setDate === 'function' && pickerInstance.config) {
             let inicio = null;
             let fim = null;
             
-            console.log(`Preenchendo Flatpickr para ID: ${id}`); // Log para depuração
-            console.log(`Valores do orçamento para ${id}:`, orcamento);
+         //   console.log(`Preenchendo Flatpickr para ID: ${id}`); // Log para depuração
+         //   console.log(`Valores do orçamento para ${id}:`, orcamento);
             switch(id) {
                 case 'periodoInfraMontagem':
                     inicio = orcamento.dtiniinframontagem;
@@ -2078,8 +2399,8 @@ function preencherFormularioComOrcamento(orcamento) {
             const startDate = inicio ? new Date(inicio) : null;
             const endDate = fim ? new Date(fim) : null;
 
-            console.log(`Configurando Flatpickr para ${id}: Data Início = ${startDate}, Data Fim = ${endDate}`); 
-            console.log(`startDate isNaN: ${isNaN(startDate?.getTime())}, endDate isNaN: ${isNaN(endDate?.getTime())}`);          
+           // console.log(`Configurando Flatpickr para ${id}: Data Início = ${startDate}, Data Fim = ${endDate}`); 
+           // console.log(`startDate isNaN: ${isNaN(startDate?.getTime())}, endDate isNaN: ${isNaN(endDate?.getTime())}`);          
 
                     
             if (pickerInstance.config.mode === "range") {
@@ -2189,269 +2510,9 @@ function preencherFormularioComOrcamento(orcamento) {
 }
 
 
-// function preencherItensOrcamentoTabela(itens) {
-//     console.log("DEBUG FRONTEND: preencherItensOrcamentoTabela foi chamada com itens:", itens);
-
-//     const tabelaBody = document.querySelector("#tabela tbody");
-
-//     if (!tabelaBody) {
-//         console.warn("Corpo da tabela de itens (seletor #tabela tbody) não encontrado. Não é possível preencher os itens.");
-//         return;
-//     }
-
-//     tabelaBody.innerHTML = ''; // Limpa as linhas existentes
-
-//     if (!itens || itens.length === 0) {
-//         console.log("Nenhum item encontrado para este orçamento ou 'itens' está vazio.");
-//         const emptyRow = tabelaBody.insertRow();
-//         emptyRow.innerHTML = `<td colspan="20" style="text-align: center;">Nenhum item adicionado a este orçamento.</td>`;
-//         return;
-//     }
-
-//     // Variável global para controle de listener da tabela (para os botões de incremento/decremento)
-//     // Isso evita registrar o listener várias vezes na tabela inteira.
-//     if (!window.hasRegisteredTableClickListener) {
-//         document.querySelector("#tabela").addEventListener("click", function(event) {
-//             // Lógica para botões de incremento/decremento
-//             let input;
-//             let linha;
-
-//             if (event.target.classList.contains("increment")) {
-//                 input = event.target.closest(".add-less").querySelector("input[type='number']");
-//                 if (input) {
-//                     input.value = parseInt(input.value || 0) + 1;
-//                     linha = input.closest("tr");
-//                     if (linha) {
-//                         recalcularLinha(linha); 
-//                     }
-//                 }
-//             } else if (event.target.classList.contains("decrement")) {
-//                 input = event.target.closest(".add-less").querySelector("input[type='number']");
-//                 if (input) {
-//                     const valorAtual = parseInt(input.value || 0);
-//                     input.value = Math.max(0, valorAtual - 1);
-//                     linha = input.closest("tr");
-//                     if (linha) {
-//                         recalcularLinha(linha); 
-//                     }
-//                 }
-//             }
-//         });
-//         window.hasRegisteredTableClickListener = true; // Marca que o listener já foi adicionado
-//     }
-
-//     itens.forEach(item => {
-//         console.log("DEBUG FRONTEND: Adicionando item à tabela:", item);
-//         const newRow = tabelaBody.insertRow(); // Cria a linha DOM de uma vez
-
-//         // Formatação de datas para Flatpickr
-//         const inicioDiarias = item.periododiariasinicio;
-//         const fimDiarias = item.periododiariasfim;
-//         let valorInicialDoInputDiarias = '';
-//         const formattedInicio = formatarDataParaBR(inicioDiarias);
-//         const formattedFim = formatarDataParaBR(fimDiarias);
-
-//         if (formattedInicio && formattedFim) {
-//             valorInicialDoInputDiarias = `${formattedInicio} a ${formattedFim}`;
-//         } else if (formattedInicio) {
-//             valorInicialDoInputDiarias = formattedInicio;
-//         }
-
-//         // Construa o HTML de TODA a linha como uma única string
-//         newRow.innerHTML = `
-//             <td><input type="hidden" class="idItemOrcamento" value="${item.idorcamentoitem || ''}"></td>
-//             <td class="Proposta">
-//                 <div class="checkbox-wrapper-33" style="margin-top: 40px;">
-//                     <label class="checkbox">
-//                         <input class="checkbox__trigger visuallyhidden" type="checkbox" ${item.enviarnaproposta ? 'checked' : ''} />
-//                         <span class="checkbox__symbol">
-//                             <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-//                                 <path d="M4 14l8 7L24 7"></path>
-//                             </svg>
-//                         </span>
-//                         <p class="checkbox__textwrapper"></p>
-//                     </label>
-//                 </div>
-//             </td>
-//             <td class="Categoria">${item.categoria || ''}</td>
-//             <td class="qtdProduto">
-//                 <div class="add-less">
-//                     <input type="number" class="qtdProduto" min="0" value="${item.qtditens || 0}">
-//                     <div class="Bt">
-//                         <button type="button" class="increment">+</button>
-//                         <button type="button" class="decrement">-</button>
-//                     </div>
-//                 </div>
-//             </td>
-//             <td class="produto">${item.produto || ''}</td>
-//             <td class="qtdDias">
-//                 <div class="add-less">
-//                     <input type="number" readonly class="qtdDias" min="0" value="${item.qtddias || 0}">
-//                     <div class="Bt">
-//                         <button type="button" class="increment">+</button>
-//                         <button type="button" class="decrement">-</button>
-//                     </div>
-//                 </div>
-//             </td>
-//             <td class="Periodo">
-//                 <div class="flatpickr-container">
-//                     <input type="text" class="datas datas-item" data-input required readonly placeholder="Clique para Selecionar" value="${valorInicialDoInputDiarias}">
-//                 </div>
-//             </td>
-//             <td class="desconto Moeda">
-//                 <div class="Acres-Desc">
-//                     <input type="text" class="ValorInteiros" value="${formatarMoeda(item.descontoitem || 0)}">
-//                     <input type="text" class="valorPerCent" value="${parseFloat(item.percentdescontoitem || 0).toFixed(2)}%">
-//                 </div>
-//             </td>
-//             <td class="Acrescimo Moeda">
-//                 <div class="Acres-Desc">
-//                     <input type="text" class="ValorInteiros" value="${formatarMoeda(item.acrescimoitem || 0)}">
-//                     <input type="text" class="valorPerCent" value="${parseFloat(item.percentacrescimoitem || 0).toFixed(2)}%">
-//                 </div>
-//             </td>
-//             <td class="vlrVenda Moeda">${formatarMoeda(item.vlrdiaria || 0)}</td>
-//             <td class="totVdaDiaria Moeda">${formatarMoeda(item.totvdadiaria || 0)}</td>
-//             <td class="vlrCusto Moeda">${formatarMoeda(item.ctodiaria || 0)}</td>
-//             <td class="totCtoDiaria Moeda">${formatarMoeda(item.totctodiaria || 0)}</td>
-//             <td class="ajdCusto Moeda">
-//                 <div class="Acres-Desc">
-//                     <select class="tpAjdCusto-alimentacao">
-//                         <option value="select" ${item.tpajdctoalimentacao === '' || item.tpajdctoalimentacao === 'select' ? 'selected disabled' : ''}>Alimentação</option>
-//                         <option value="almoco" ${item.tpajdctoalimentacao === 'almoco' ? 'selected' : ''}>Almoço</option>
-//                         <option value="janta" ${item.tpajdctoalimentacao === 'janta' ? 'selected' : ''}>Jantar</option>
-//                         <option value="2alimentacao" ${item.tpajdctoalimentacao === '2alimentacao' ? 'selected' : ''}>Almoço + jantar</option>
-//                     </select>
-//                 </div>
-//                 <br><span class="valorbanco alimentacao">${formatarMoeda(item.vlrajdctoalimentacao || 0)}</span>
-//             </td>
-//             <td class="ajdCusto Moeda">
-//                 <div class="Acres-Desc">
-//                     <select class="tpAjdCusto-transporte">
-//                         <option value="select" ${item.tpajdctotransporte === '' || item.tpajdctotransporte === 'select' ? 'selected disabled' : ''}>Veiculo</option>
-//                         <option value="Publico" ${item.tpajdctotransporte === 'Publico' ? 'selected' : ''}>Publico</option>
-//                         <option value="alugado" ${item.tpajdctotransporte === 'alugado' ? 'selected' : ''}>alugado</option>
-//                         <option value="Proprio" ${item.tpajdctotransporte === 'Proprio' ? 'selected' : ''}>Proprio</option>
-//                     </select>
-//                 </div>
-//                 <br><span class="valorbanco transporte">${formatarMoeda(item.vlrajdctotransporte || 0)}</span>
-//             </td>
-//             <td class="totAjdCusto Moeda">${formatarMoeda(item.totajdctoitem || 0)}</td>
-//             <td class="extraCampo" style="display: none;">
-//                 <input type="text" class="hospedagem" value="${item.hospedagem || 0}" min="0" step="0.01">
-//             </td>
-//             <td class="extraCampo" style="display: none;">
-//                 <input type="text" class="transporte" value="${item.transporte || 0}" min="0" step="0.01">
-//             </td>
-//             <td class="totGeral Moeda">${formatarMoeda(item.totgeralitem || 0)}</td>
-//             <td>
-//                 <div class="Acao">
-//                     <button class="deleteBtn" type="button">
-//                         <svg class="delete-svgIcon" viewBox="0 0 448 512">
-//                             <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path>
-//                         </svg>
-//                     </button>
-//                 </div>
-//             </td>
-//         `;
-
-//         // Agora, adicione os event listeners aos elementos recém-criados DENTRO desta 'newRow'
-//         // NUNCA use 'oninput' no HTML gerado quando você vai adicionar listeners via JS.
-
-//         // Event listeners para inputs de desconto/acréscimo
-//         newRow.querySelector('.desconto .ValorInteiros')?.addEventListener('input', function() {
-//             recalcularLinha(this.closest('tr'));
-//         });
-//         newRow.querySelector('.desconto .valorPerCent')?.addEventListener('input', function() {
-//             recalcularLinha(this.closest('tr'));
-//         });
-//         newRow.querySelector('.Acrescimo .ValorInteiros')?.addEventListener('input', function() {
-//             recalcularLinha(this.closest('tr'));
-//         });
-//         newRow.querySelector('.Acrescimo .valorPerCent')?.addEventListener('input', function() {
-//             recalcularLinha(this.closest('tr'));
-//         });
-        
-//         // Event listeners para campos de ajuda de custo (selects)
-//         newRow.querySelector('.tpAjdCusto-alimentacao')?.addEventListener('change', function() {
-//             recalcularLinha(this.closest('tr'));
-//         });
-//         newRow.querySelector('.tpAjdCusto-transporte')?.addEventListener('change', function() {
-//             recalcularLinha(this.closest('tr'));
-//         });
-
-//         // Event listeners para campos extras (hospedagem, transporte)
-//         newRow.querySelector('.hospedagem')?.addEventListener('input', function() {
-//             recalcularLinha(this.closest('tr'));
-//         });
-//         newRow.querySelector('.transporte')?.addEventListener('input', function() {
-//             recalcularLinha(this.closest('tr'));
-//         });
-
-//         // Inicialização do Flatpickr
-//         const itemDateInput = newRow.querySelector(".Periodo .datas-item");
-//         if (itemDateInput) {
-//             const defaultDatesArray = [];
-//             if (inicioDiarias) {
-//                 defaultDatesArray.push(new Date(inicioDiarias));
-//             }
-//             if (fimDiarias) {
-//                 defaultDatesArray.push(new Date(fimDiarias));
-//             }
-
-//             flatpickr(itemDateInput, {
-//                 mode: "range",
-//                 dateFormat: "d/m/Y",
-//                 locale: flatpickr.l10ns.pt,
-//                 defaultDate: defaultDatesArray.length > 0 ? defaultDatesArray : [],
-//                 onChange: function(selectedDates, dateStr, instance) {
-//                     // Você pode querer chamar recalcularLinha aqui se a mudança de datas afeta cálculos
-//                     recalcularLinha(itemDateInput.closest('tr'));
-//                 }
-//             });
-//         }
-        
-//         // Event listener para o botão de excluir
-//         newRow.querySelector('.deleteBtn')?.addEventListener('click', async function() {
-//             const currentItemProduct = item.produto; // Captura o nome do produto para o SweetAlert
-//             const { isConfirmed } = await Swal.fire({
-//                 title: `Tem Certeza que deseja EXCLUIR o item "${currentItemProduct}" ?`,
-//                 text: "Você não poderá reverter esta ação!",
-//                 icon: "warning",
-//                 showCancelButton: true,
-//                 confirmButtonColor: "#3085d6",
-//                 cancelButtonColor: "#d33",
-//                 confirmButtonText: "Sim, deletar!",
-//                 cancelButtonText: "Cancelar"
-//             });
-
-//             if (isConfirmed) {
-//                 this.closest('tr').remove(); // 'this' se refere ao botão, closest('tr') pega a linha pai
-//                 recalcularTotaisGerais(); 
-//                 calcularLucro(); // Chame se necessário
-//                 Swal.fire(
-//                     "Deletado!",
-//                     "O item foi removido.",
-//                     "success"
-//                 );
-//             }
-//         });
-//     });
-
-//     // Recalcula os totais gerais após preencher todos os itens.
-//     recalcularTotaisGerais(); 
-//     aplicarMascaraMoeda(); // Se esta função aplica máscaras aos totais gerais, etc.
-//     aplicarDescontoEAcrescimo(); // Se esta função aplica máscaras ou outras coisas
-//     calcularLucro(); // Chame aqui se necessário
-// }
-
-// Importe as funções auxiliares que você usa aqui (formatarMoeda, etc.)
-// Ex: import { formatarMoeda } from './Formataçoes.js'; // ou onde estiver
-// import { formatarDatasParaInputPeriodo } from './seuarquivo.js'; // se estiver em um arquivo separado
-
 function preencherItensOrcamentoTabela(itens) {
      console.log("DEBUG FRONTEND: preencherItensOrcamentoTabela foi chamada com itens:", itens);
-
+   
     const tabelaBody = document.querySelector("#tabela tbody");
 
     if (!tabelaBody) {
@@ -2498,368 +2559,14 @@ function preencherItensOrcamentoTabela(itens) {
 
         window.hasRegisteredClickListener = true; // Marca que o listener já foi adicionado
     }
-
-
-
-    // itens.forEach(item => {
-    //     console.log("DEBUG FRONTEND: Adicionando item à tabela:", item);
-    //     const newRow = tabelaBody.insertRow();
-
-    //     // 1. ID do Item (oculto)
-    //     // Você não tem uma coluna <th> para isso, então o <td> abaixo será a primeira célula
-    //     newRow.innerHTML = `<td><input type="hidden" class="idItemOrcamento" value="${item.idorcamentoitem || ''}"></td>`;      
-
-    //     // 2. P/ Proposta (Checkbox com estilo complexo)
-    //     newRow.innerHTML += `
-    //         <td class="Proposta">
-    //             <div class="checkbox-wrapper-33" style="margin-top: 40px;">
-    //                 <label class="checkbox">
-    //                     <input class="checkbox__trigger visuallyhidden" type="checkbox" ${item.enviarnaproposta ? 'checked' : ''} />
-    //                     <span class="checkbox__symbol">
-    //                         <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-    //                             <path d="M4 14l8 7L24 7"></path>
-    //                         </svg>
-    //                     </span>
-    //                     <p class="checkbox__textwrapper"></p>
-    //                 </label>
-    //             </div>
-    //         </td>
-    //     `;
-
-    //     // 3. Categoria (Assumindo que é texto puro aqui, se for SELECT, precisa de mais lógica)
-    //     newRow.innerHTML += `<td class="Categoria">${item.categoria || ''}</td>`;
-
-    //     // 4. Qtd Itens (Com botões de incremento/decremento)
-    //     newRow.innerHTML += `
-    //         <td class="qtdProduto">
-    //             <div class="add-less">
-    //                 <input type="number" class="qtdProduto" min="0" value="${item.qtditens || 0}" oninput="recalcularLinha()">
-    //                 <div class="Bt">
-    //                     <button type="button" class="increment">+</button>
-    //                     <button type="button" class="decrement">-</button>
-    //                 </div>
-    //             </div>
-    //         </td>
-    //     `;
-
-    //     // 5. Produto (Assumindo que é texto puro, se for SELECT, precisa de mais lógica)
-    //     newRow.innerHTML += `<td class="produto">${item.produto || ''}</td>`; // Se for select, você teria que recriar o select e setar a opção
-
-    //     // 6. Qtd Dias (Com botões de incremento/decremento)
-    //     newRow.innerHTML += 
-    //        ` <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="${item.qtddias || 0}" oninput="recalcularTotaisGerais()"></td>
-    //     `;
-
-    //     // 7. Periodo das diárias (Flatpickr)
-    //     // Removido o ID fixo "seletorData" para evitar IDs duplicados
-    //     const inicioDiarias = item.periododiariasinicio; // Ex: "2025-03-25T03:00:00.000Z"
-    //     const fimDiarias = item.periododiariasfim;     // Ex: "2025-07-16T03:00:00.000Z" ou null
-
-    //     let valorInicialDoInputDiarias = ''; // Inicializa como string vazia
-
-    //     // Formata as datas individualmente
-    //     const formattedInicio = formatarDataParaBR(inicioDiarias);
-    //     const formattedFim = formatarDataParaBR(fimDiarias);
-
-    //     // Lógica para montar a string de exibição no input
-    //     if (formattedInicio && formattedFim) {
-    //         // Se ambas as datas são válidas e existem, exibe o range
-    //         valorInicialDoInputDiarias = `${formattedInicio} a ${formattedFim}`;
-    //     } else if (formattedInicio) {
-    //         // Se apenas a data de início é válida, exibe apenas ela
-    //         valorInicialDoInputDiarias = formattedInicio;
-    //     }
-    //     // Se formattedFim for o único válido ou ambos forem inválidos, valorInicialDoInputDiarias permanece ''
-
-    //     console.log(`DEBUG: Item ${item.idorcamentoitem} - inicioDiarias: "${inicioDiarias}", fimDiarias: "${fimDiarias}"`);
-    //     console.log(`DEBUG: Item ${item.idorcamentoitem} - formattedInicio: "${formattedInicio}", formattedFim: "${formattedFim}"`);
-    //     console.log(`DEBUG: Item ${item.idorcamentoitem} - valorInicialDoInputDiarias final: "${valorInicialDoInputDiarias}"`);
-
-
-    //     newRow.innerHTML += `
-    //         <td class="Periodo">
-    //             <div class="flatpickr-container">
-    //                 <input type="text" class="datas datas-item" data-input required readonly placeholder="Clique para Selecionar" value="${valorInicialDoInputDiarias}">
-    //             </div>
-    //         </td>
-    //     `;
-    //    // <input type="text" class="ValorInteiros" value="${formatarMoeda(item.descontoitem || 0)}">
-    //     // <input type="text" class="valorPerCent" value="${parseFloat(item.percentdescontoitem || 0).toFixed(2)}%">
-    //     // 8. Desconto (Valores e porcentagens)
-    //     newRow.innerHTML += `
-    //         <td class="desconto Moeda">
-    //             <div class="Acres-Desc">
-                   
-    //                 <input type="text" class="ValorInteiros" value="${formatarMoeda(item.descontoitem || 0)}">
-    //                <input type="text" class="valorPerCent" value="${parseFloat(item.percentdescontoitem || 0).toFixed(2)}%">
-    //             </div>
-    //         </td>
-    //     `;
-
-    //    const tbody = document.getElementById('tabela').querySelector('tbody'); 
-    //     // Se não tiver ID na tabela, e for a única tabela:
-    //     // const tbody = document.querySelector('table tbody'); 
-
-    //     // 2. Adicione a nova linha ao tbody
-    //     if (tbody) {
-    //         tbody.appendChild(newRow);
-    //     } else {
-    //         console.error("tbody não encontrado!");
-    //         return; // Sai da iteração se o tbody não for encontrado
-    //     }
-
-    //     // 3. AGORA, adicione os event listeners aos inputs DENTRO desta newRow
-    //     const inputValorInteiros = newRow.querySelector('.desconto .ValorInteiros');
-    //     const inputValorPerCent = newRow.querySelector('.desconto .valorPerCent');
-    //     const inputQtdProduto = newRow.querySelector('.qtdProduto input'); // Exemplo de outros inputs
-    //     const inputQtdDias = newRow.querySelector('.qtdDias input');
-    //     const selectAlimentacao = newRow.querySelector('.select-alimentacao');
-    //     const selectTransporte = newRow.querySelector('.select-transporte');
-    //     const inputHospedagem = newRow.querySelector('.hospedagem'); // Se existirem
-    //     const inputTransporte = newRow.querySelector('.transporte'); // Se existirem
-
-
-    //     if (inputValorInteiros) {
-    //         inputValorInteiros.addEventListener('input', function() {
-    //             recalcularLinha(this.closest('tr'));
-    //         });
-    //     }
-
-    //     if (inputValorPerCent) {
-    //         inputValorPerCent.addEventListener('input', function() {
-    //             recalcularLinha(this.closest('tr'));
-    //         });
-    //     }
-
-    //     // 9. Acrescimo (Valores e porcentagens)
-    //     newRow.innerHTML += `
-    //         <td class="Acrescimo Moeda">
-    //             <div class="Acres-Desc">
-    //                 <input type="text" class="ValorInteiros" value="${formatarMoeda(item.acrescimoitem || 0)}">
-    //                 <input type="text" class="valorPerCent" value="${parseFloat(item.percentacrescimoitem || 0).toFixed(2)}%">
-    //             </div>
-    //         </td>
-    //     `;
-
-    //     // 10. VlrDiaria (Exibição)
-    //     newRow.innerHTML += `<td class="vlrVenda Moeda">${formatarMoeda(item.vlrdiaria || 0)}</td>`;
-
-    //     // 11. Tot Venda Diaria (Exibição)
-    //     newRow.innerHTML += `<td class="totVdaDiaria Moeda">${formatarMoeda(item.totvdadiaria || 0)}</td>`;
-
-    //     // 12. CtoDiaria (Exibição)
-    //     newRow.innerHTML += `<td class="vlrCusto Moeda">${formatarMoeda(item.ctodiaria || 0)}</td>`;
-
-    //     // 13. Tot Custo Diaria (Exibição)
-    //     newRow.innerHTML += `<td class="totCtoDiaria Moeda">${formatarMoeda(item.totctodiaria || 0)}</td>`;
-
-    //     // 14. AjdCusto/alimentação (SELECT com valor selecionado e valor banco)
-    //     newRow.innerHTML += `
-    //         <td class="ajdCusto Moeda">
-    //             <div class="Acres-Desc">
-    //                 <select class="tpAjdCusto-alimentacao">
-    //                     <option value="select" ${item.tpajdctoalimentacao === '' || item.tpajdctoalimentacao === 'select' ? 'selected disabled' : ''}>Alimentação</option>
-    //                     <option value="almoco" ${item.tpajdctoalimentacao === 'almoco' ? 'selected' : ''}>Almoço</option>
-    //                     <option value="janta" ${item.tpajdctoalimentacao === 'janta' ? 'selected' : ''}>Jantar</option>
-    //                     <option value="2alimentacao" ${item.tpajdctoalimentacao === '2alimentacao' ? 'selected' : ''}>Almoço + jantar</option>
-    //                 </select>
-    //             </div>
-    //             <br><span class="valorbanco alimentacao">${formatarMoeda(item.vlrajdctoalimentacao || 0)}</span>
-    //         </td>
-    //     `;
-
-    //     // 15. AjdCusto/transporte (SELECT com valor selecionado e valor banco)
-    //     newRow.innerHTML += `
-    //         <td class="ajdCusto Moeda">
-    //             <div class="Acres-Desc">
-    //                 <select class="tpAjdCusto-transporte">
-    //                     <option value="select" ${item.tpajdctotransporte === '' || item.tpajdctotransporte === 'select' ? 'selected disabled' : ''}>Veiculo</option>
-    //                     <option value="Publico" ${item.tpajdctotransporte === 'Publico' ? 'selected' : ''}>Publico</option>
-    //                     <option value="alugado" ${item.tpajdctotransporte === 'alugado' ? 'selected' : ''}>alugado</option>
-    //                     <option value="Proprio" ${item.tpajdctotransporte === 'Proprio' ? 'selected' : ''}>Proprio</option>
-    //                 </select>
-    //             </div>
-    //             <br><span class="valorbanco transporte">${formatarMoeda(item.vlrajdctotransporte || 0)}</span>
-    //         </td>
-    //     `;
-
-    //     // 16. TotAjdCusto (Exibição)
-    //     newRow.innerHTML += `<td class="totAjdCusto Moeda">${formatarMoeda(item.totajdctoitem || 0)}</td>`;
-
-    //     // 17. Hospedagem (Campo extra, oculto por padrão)
-    //     newRow.innerHTML += `
-    //         <td class="extraCampo" style="display: none;">
-    //             <input type="text" class="hospedagem" value="${item.hospedagem || 0}" min="0" step="0.01" oninput="recalcularTotaisGerais()">
-    //         </td>
-    //     `;
-
-    //     // 18. Transporte (Campo extra, oculto por padrão)
-    //     newRow.innerHTML += `
-    //         <td class="extraCampo" style="display: none;">
-    //             <input type="text" class="transporte" value="${item.transporte || 0}" min="0" step="0.01" oninput="recalcularTotaisGerais()">
-    //         </td>
-    //     `;
-
-    //     // 19. TotGeral (Exibição)
-    //     newRow.innerHTML += `<td class="totGeral Moeda">${formatarMoeda(item.totgeralitem || 0)}</td>`;
-
-    //     // 20. Ação (Botão de excluir com SVG)
-    //     newRow.innerHTML += `
-    //         <td>
-    //             <div class="Acao">
-    //                 <button class="deleteBtn" type="button">
-    //                     <svg class="delete-svgIcon" viewBox="0 0 448 512">
-    //                         <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path>
-    //                     </svg>
-    //                 </button>
-    //             </div>
-    //         </td>
-    //     `;
-
-       
-    //     const itemDateInput = newRow.querySelector(".Periodo .datas-item");
-    //     if (itemDateInput) {
-    //         const defaultDatesArray = [];
-    //         // Adiciona as datas ao array APENAS se forem strings válidas e não nulas
-    //         if (inicioDiarias) {
-    //             defaultDatesArray.push(new Date(inicioDiarias)); // Converte para objeto Date
-    //         }
-    //         if (fimDiarias) {
-    //             defaultDatesArray.push(new Date(fimDiarias));   // Converte para objeto Date
-    //         }
-
-    //         flatpickr(itemDateInput, {
-    //             mode: "range",
-    //             dateFormat: "d/m/Y",
-    //             locale: flatpickr.l10ns.pt,
-    //             // Passa o array de objetos Date para o defaultDate
-    //             defaultDate: defaultDatesArray.length > 0 ? defaultDatesArray : [],
-    //         });
-    //     }
-
-    //     if (inputQtdProduto) {
-    //         inputQtdProduto.addEventListener('input', function() {
-    //             recalcularLinha(this.closest('tr'));
-    //         });
-    //         // Para os botões + e - (se existirem e afetarem o cálculo da linha)
-    //         newRow.querySelector('.qtdProduto .increment')?.addEventListener('click', function() {
-    //             const input = this.closest('.qtdProduto').querySelector('input');
-    //             input.value = parseInt(input.value) + 1;
-    //             recalcularLinha(this.closest('tr'));
-    //         });
-    //         newRow.querySelector('.qtdProduto .decrement')?.addEventListener('click', function() {
-    //             const input = this.closest('.qtdProduto').querySelector('input');
-    //             if (parseInt(input.value) > 0) {
-    //                 input.value = parseInt(input.value) - 1;
-    //             }
-    //             recalcularLinha(this.closest('tr'));
-    //         });
-    //     }
-
-    //     if (inputQtdDias) {
-    //         inputQtdDias.addEventListener('input', function() {
-    //             recalcularLinha(this.closest('tr'));
-    //         });
-    //         // Para os botões + e - (se existirem e afetarem o cálculo da linha)
-    //         newRow.querySelector('.qtdDias .increment')?.addEventListener('click', function() { // Supondo que tem botões similares
-    //             const input = this.closest('.qtdDias').querySelector('input');
-    //             input.value = parseInt(input.value) + 1;
-    //             recalcularLinha(this.closest('tr'));
-    //         });
-    //         newRow.querySelector('.qtdDias .decrement')?.addEventListener('click', function() {
-    //             const input = this.closest('.qtdDias').querySelector('input');
-    //             if (parseInt(input.value) > 0) {
-    //                 input.value = parseInt(input.value) - 1;
-    //             }
-    //             recalcularLinha(this.closest('tr'));
-    //         });
-    //     }
-        
-    //     if (selectAlimentacao) {
-    //         selectAlimentacao.addEventListener('change', function() { // Use 'change' para selects
-    //             recalcularLinha(this.closest('tr'));
-    //         });
-    //     }
-
-    //     if (selectTransporte) {
-    //         selectTransporte.addEventListener('change', function() { // Use 'change' para selects
-    //             recalcularLinha(this.closest('tr'));
-    //         });
-    //     }
-        
-    //     // Adicione listeners para os campos 'hospedagem' e 'transporte' se existirem
-    //     if (inputHospedagem) {
-    //         inputHospedagem.addEventListener('input', function() {
-    //             recalcularLinha(this.closest('tr'));
-    //         });
-    //     }
-    //     if (inputTransporte) {
-    //         inputTransporte.addEventListener('input', function() {
-    //             recalcularLinha(this.closest('tr'));
-    //         });
-    //     }
-
-    //     // Se você usa IMask ou outras máscaras para campos como Desconto/Acrescimo (ValorInteiros, valorPerCent)
-    //     // ou Hospedagem/Transporte, você precisará inicializá-los AQUI para os inputs DENTRO desta nova linha.
-    //     // Exemplo (se IMask estiver configurado):
-    //     // newRow.querySelectorAll('.ValorInteiros').forEach(input => {
-    //     //     IMask(input, { mask: 'R$ num', ... });
-    //     // });
-    //     // newRow.querySelectorAll('.valorPerCent').forEach(input => {
-    //     //     IMask(input, { mask: 'num%', ... });
-    //     // });
-
-        
-
-    //     // Adiciona event listener para o botão de excluir
-    //     // newRow.querySelector('.btn-excluir-item, .deleteBtn').addEventListener('click', () => {
-    //     //     newRow.remove(); // Remove a linha da tabela
-    //     //     recalcularTotaisGerais(); // Recalcula totais após exclusão
-    //     // });
-
-    //     newRow.querySelector('.btn-excluir-item, .deleteBtn').addEventListener('click', async () => { // Adicionado 'async' aqui
-    //         const { isConfirmed } = await Swal.fire({
-    //             title: `Tem Certeza que deseja EXCLUIR o item "${item.produto}" ?`,
-    //             text: "Você não poderá reverter esta ação!",
-    //             icon: "warning",
-    //             showCancelButton: true,
-    //             confirmButtonColor: "#3085d6",
-    //             cancelButtonColor: "#d33",
-    //             confirmButtonText: "Sim, deletar!",
-    //             cancelButtonText: "Cancelar"
-    //         });
-
-    //         if (isConfirmed) {
-    //             newRow.remove();
-    //             recalcularTotaisGerais(); // Alterado de calcularTotalOrc() para recalcularTotaisGerais()
-    //             Swal.fire(
-    //                 "Deletado!",
-    //                 "O item foi removido.",
-    //                 "success"
-    //             );
-    //         }
-    //     });
-        
-
-    //     // Adiciona event listeners para os selects de AjdCusto se eles precisam de lógica dinâmica
-    //     newRow.querySelector('.tpAjdCusto-alimentacao')?.addEventListener('change', (e) => {
-    //         // Lógica para atualizar o valor de alimentação com base na seleção
-    //         console.log('Alimentação selecionada:', e.target.value);
-    //         // Você pode precisar de dados de custo de alimentação para atualizar o valororbanco span
-    //         // Ex: atualizarAjdCustoAlimentacao(newRow, e.target.value);
-    //     });
-    //     newRow.querySelector('.tpAjdCusto-transporte')?.addEventListener('change', (e) => {
-    //         // Lógica para atualizar o valor de transporte com base na seleção
-    //         console.log('Transporte selecionado:', e.target.value);
-    //         // Ex: atualizarAjdCustoTransporte(newRow, e.target.value);
-    //     });
-    // });
-
+    
 
     itens.forEach(item => {
         console.log("DEBUG FRONTEND: Adicionando item à tabela:", item);
+        
+        console.log("DEBUG: item.vlrdiaria para esta linha:", item.vlrdiaria);
         const newRow = tabelaBody.insertRow(); // Cria a linha DOM de uma vez
-
+        newRow.dataset.idorcamentoitem = item.idorcamentoitem || '';
         // Formatação de datas para Flatpickr
         const inicioDiarias = item.periododiariasinicio;
         const fimDiarias = item.periododiariasfim;
@@ -2875,7 +2582,7 @@ function preencherItensOrcamentoTabela(itens) {
 
         // Construa o HTML de TODA a linha como uma única string
         newRow.innerHTML = `
-            <td><input type="hidden" class="idItemOrcamento" value="${item.idorcamentoitem || ''}"></td>
+            <td style="display: none;"><input type="hidden" class="idItemOrcamento" value="${item.idorcamentoitem || ''}"></td>
             <td class="Proposta">
                 <div class="checkbox-wrapper-33" style="margin-top: 40px;">
                     <label class="checkbox">
@@ -2926,16 +2633,17 @@ function preencherItensOrcamentoTabela(itens) {
                     <input type="text" class="valorPerCent" value="${parseFloat(item.percentacrescimoitem || 0).toFixed(2)}%">
                 </div>
             </td>
-            <td class="vlrVenda Moeda">${formatarMoeda(item.vlrdiaria || 0)}</td>
+          
+            <td class="vlrVenda Moeda" data-original-venda="${item.vlrdiaria || 0}">${formatarMoeda(item.vlrdiaria || 0)}</td>
             <td class="totVdaDiaria Moeda">${formatarMoeda(item.totvdadiaria || 0)}</td>
             <td class="vlrCusto Moeda">${formatarMoeda(item.ctodiaria || 0)}</td>
             <td class="totCtoDiaria Moeda">${formatarMoeda(item.totctodiaria || 0)}</td>
             <td class="ajdCusto Moeda">
                 <div class="Acres-Desc">
                     <select class="tpAjdCusto-alimentacao">
-                        <option value="select" ${item.tpajdctoalimentacao === '' || item.tpajdctoalimentacao === 'select' ? 'selected disabled' : ''}>Alimentação</option>
-                        <option value="almoco" ${item.tpajdctoalimentacao === 'almoco' ? 'selected' : ''}>Almoço</option>
-                        <option value="janta" ${item.tpajdctoalimentacao === 'janta' ? 'selected' : ''}>Jantar</option>
+                        <option value="select" ${item.tpajdctoalimentacao === '' || item.tpajdctoalimentacao === 'select' ? 'selected' : ''}>Alimentação</option>
+                        <option value="Almoco" ${item.tpajdctoalimentacao === 'Almoco' ? 'selected' : ''}>Almoço</option>
+                        <option value="Janta" ${item.tpajdctoalimentacao === 'Janta' ? 'selected' : ''}>Jantar</option>
                         <option value="2alimentacao" ${item.tpajdctoalimentacao === '2alimentacao' ? 'selected' : ''}>Almoço + jantar</option>
                     </select>
                 </div>
@@ -2944,25 +2652,25 @@ function preencherItensOrcamentoTabela(itens) {
             <td class="ajdCusto Moeda">
                 <div class="Acres-Desc">
                     <select class="tpAjdCusto-transporte">
-                        <option value="select" ${item.tpajdctotransporte === '' || item.tpajdctotransporte === 'select' ? 'selected disabled' : ''}>Veiculo</option>
-                        <option value="Publico" ${item.tpajdctotransporte === 'Publico' ? 'selected' : ''}>Publico</option>
-                        <option value="alugado" ${item.tpajdctotransporte === 'alugado' ? 'selected' : ''}>alugado</option>
-                        <option value="Proprio" ${item.tpajdctotransporte === 'Proprio' ? 'selected' : ''}>Proprio</option>
+                        <option value="select" ${item.tpajdctotransporte === '' || item.tpajdctotransporte === 'select' ? 'selected' : ''}>Veiculo</option>
+                        <option value="Público" ${item.tpajdctotransporte === 'Público' ? 'selected' : ''}>Público</option>
+                        <option value="Alugado" ${item.tpajdctotransporte === 'Alugado' ? 'selected' : ''}>Alugado</option>
+                        <option value="Próprio" ${item.tpajdctotransporte === 'Próprio' ? 'selected' : ''}>Próprio</option>
                     </select>
                 </div>
                 <br><span class="valorbanco transporte">${formatarMoeda(item.vlrajdctotransporte || 0)}</span>
             </td>
             <td class="totAjdCusto Moeda">${formatarMoeda(item.totajdctoitem || 0)}</td>
             <td class="extraCampo" style="display: none;">
-                <input type="text" class="hospedagem" value="${item.hospedagem || 0}" min="0" step="0.01">
+                <input type="text" class="hospedagem" value="${item.hospedagem || 0}">
             </td>
             <td class="extraCampo" style="display: none;">
-                <input type="text" class="transporte" value="${item.transporte || 0}" min="0" step="0.01">
+                <input type="text" class="transporte" value="${item.transporte || 0}">
             </td>
             <td class="totGeral Moeda">${formatarMoeda(item.totgeralitem || 0)}</td>
             <td>
                 <div class="Acao">
-                    <button class="deleteBtn" type="button">
+                    <button class="btnApagar" type="button">
                         <svg class="delete-svgIcon" viewBox="0 0 448 512">
                             <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path>
                         </svg>
@@ -2971,24 +2679,32 @@ function preencherItensOrcamentoTabela(itens) {
             </td>
         `;
 
-        // Agora, adicione os event listeners aos elementos recém-criados DENTRO desta 'newRow'
-        // NUNCA use 'oninput' no HTML gerado quando você vai adicionar listeners via JS.
-
-        // Event listeners para inputs de desconto/acréscimo
-        newRow.querySelector('.desconto .ValorInteiros')?.addEventListener('input', function() {
-           // aplicarMascaraMoeda();
-            recalcularLinha(this.closest('tr'));
+        
+        newRow.querySelector('.desconto .ValorInteiros')?.addEventListener('blur', function(event) { // MUDANÇA: 'input' para 'blur'
+            console.log("DEBUG: Blur no campo ValorInteiros de Desconto! Input:", this.value); // Adicione este log
+            recalcularDescontoAcrescimo(this, 'desconto', 'valor', this.closest('tr'));
         });
-        newRow.querySelector('.desconto .valorPerCent')?.addEventListener('input', function() {
-            recalcularLinha(this.closest('tr'));
+    
+        newRow.querySelector('.desconto .valorPerCent')?.addEventListener('blur', function(event) { // MUDANÇA: 'input' para 'blur'
+            console.log("DEBUG: Blur no campo valorPerCent de Desconto! Input:", this.value); // Adicione este log
+            recalcularDescontoAcrescimo(this, 'desconto', 'percentual', this.closest('tr'));
         });
-        newRow.querySelector('.Acrescimo .ValorInteiros')?.addEventListener('input', function() {
-            recalcularLinha(this.closest('tr'));
+        newRow.querySelector('.Acrescimo .ValorInteiros')?.addEventListener('blur', function(event) { // MUDANÇA: 'input' para 'blur'
+            console.log("DEBUG: Blur no campo ValorInteiros de Acrescimo! Input:", this.value); // Adicione este log
+            recalcularDescontoAcrescimo(this, 'acrescimo', 'valor', this.closest('tr'));
         });
-        newRow.querySelector('.Acrescimo .valorPerCent')?.addEventListener('input', function() {
-            recalcularLinha(this.closest('tr'));
+        newRow.querySelector('.Acrescimo .valorPerCent')?.addEventListener('blur', function(event) { // MUDANÇA: 'input' para 'blur'
+           console.log("DEBUG: Blur no campo valorPerCent de Acrescimo! Input:", this.value); // Adicione este log
+            recalcularDescontoAcrescimo(this, 'acrescimo', 'percentual', this.closest('tr'));
         });
         
+        newRow.querySelector('.qtdProduto input')?.addEventListener('input', function() {
+            recalcularLinha(this.closest('tr'));
+        });
+        newRow.querySelector('.qtdDias input')?.addEventListener('input', function() {
+            recalcularLinha(this.closest('tr'));
+        });
+
         // Event listeners para campos de ajuda de custo (selects)
         newRow.querySelector('.tpAjdCusto-alimentacao')?.addEventListener('change', function() {
             recalcularLinha(this.closest('tr'));
@@ -3001,10 +2717,13 @@ function preencherItensOrcamentoTabela(itens) {
         newRow.querySelector('.hospedagem')?.addEventListener('input', function() {
             recalcularLinha(this.closest('tr'));
         });
+
         newRow.querySelector('.transporte')?.addEventListener('input', function() {
             recalcularLinha(this.closest('tr'));
+            console.log("INPUT DO TRANSPORTE:", this.value); // Log para depuração
         });
-
+       
+        
         // Inicialização do Flatpickr
         const itemDateInput = newRow.querySelector(".Periodo .datas-item");
         if (itemDateInput) {
@@ -3026,314 +2745,109 @@ function preencherItensOrcamentoTabela(itens) {
                     recalcularLinha(itemDateInput.closest('tr'));
                 }
             });
-        }
-        
-        // Event listener para o botão de excluir
-        newRow.querySelector('.deleteBtn')?.addEventListener('click', async function() {
-            const currentItemProduct = item.produto; // Captura o nome do produto para o SweetAlert
-            const { isConfirmed } = await Swal.fire({
-                title: `Tem Certeza que deseja EXCLUIR o item "${currentItemProduct}" ?`,
-                text: "Você não poderá reverter esta ação!",
-                icon: "warning",
-                showCancelButton: true,
-                confirmButtonColor: "#3085d6",
-                cancelButtonColor: "#d33",
-                confirmButtonText: "Sim, deletar!",
-                cancelButtonText: "Cancelar"
+        } 
+
+        const temPermissaoApagar = temPermissao("Orcamentos", "apagar");
+        const deleteButton = newRow.querySelector('.btnApagar');
+        const idItemInput = newRow.querySelector('input.idItemOrcamento'); // Obtém o input de ID
+
+        if (deleteButton) {
+            deleteButton.addEventListener('click', async function(event) {
+                event.preventDefault(); // Sempre previne o comportamento padrão inicial
+
+                const linhaParaRemover = this.closest('tr');
+                const idOrcamentoItem = idItemInput ? idItemInput.value : null; // Pega o ID na hora do clique
+
+                if (!idOrcamentoItem || idOrcamentoItem.trim() === '') {
+                    // Se NÃO tem ID (linha nova/vazia), SEMPRE permite remoção local
+                    console.log("DEBUG: Item sem ID. Permitindo exclusão local.");
+                    Swal.fire({
+                        title: "Remover item?",
+                        text: "Este item ainda não foi salvo no banco de dados. Deseja apenas removê-lo da lista?",
+                        icon: "warning",
+                        showCancelButton: true,
+                        confirmButtonColor: "#3085d6",
+                        cancelButtonColor: "#d33",
+                        confirmButtonText: "Sim, remover!",
+                        cancelButtonText: "Cancelar"
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            linhaParaRemover.remove();
+                            recalcularTotaisGerais();
+                           // calcularLucro();
+                            Swal.fire("Removido!", "O item foi removido da lista.", "success");
+                        }
+                    });
+                } else if (!temPermissaoApagar) {
+                    // Se TEM ID, mas o usuário NÃO tem permissão para apagar
+                    console.warn("Usuário não tem permissão para apagar itens de orçamento. Exibindo Swal.");
+                    Swal.fire({
+                        title: "Acesso Negado!",
+                        text: "Você não tem permissão para apagar itens de orçamento que já estão salvos.",
+                        icon: "error",
+                        confirmButtonText: "Entendi"
+                    });
+                } else {
+                    // Se TEM ID E o usuário TEM permissão para apagar (lógica original)
+                    let currentItemProduct = linhaParaRemover.querySelector('.produto-input')?.value || "este item";
+                    if (!currentItemProduct || currentItemProduct.trim() === '') {
+                        const produtoCell = linhaParaRemover.querySelector('.produto');
+                        if (produtoCell) {
+                            currentItemProduct = produtoCell.textContent.trim();
+                        }
+                    }
+                    
+                    const { isConfirmed } = await Swal.fire({
+                        title: `Tem Certeza que deseja EXCLUIR o item "${currentItemProduct}" ?`,
+                        text: "Você não poderá reverter esta ação!",
+                        icon: "warning",
+                        showCancelButton: true,
+                        confirmButtonColor: "#3085d6",
+                        cancelButtonColor: "#d33",
+                        confirmButtonText: "Sim, deletar!",
+                        cancelButtonText: "Cancelar"
+                    });
+
+                    if (isConfirmed) {
+                        try {
+                            const idOrcamentoPrincipal = document.getElementById('idOrcamento').value;
+                            console.log("IDS ORCAMENTO:", idOrcamentoPrincipal, idOrcamentoItem);   
+                            await fetchComToken(`/orcamentos/${idOrcamentoPrincipal}/itens/${idOrcamentoItem}`, {
+                                method: 'DELETE',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                }
+                            });                            
+
+                            linhaParaRemover.remove(); 
+                            recalcularTotaisGerais(); 
+                           // calcularLucro(); 
+
+                            Swal.fire("Deletado!", "O item foi removido com sucesso.", "success");
+
+                        } catch (error) {
+                            console.error("Erro ao deletar item:", error);
+                            Swal.fire("Erro!", `Não foi possível deletar o item: ${error.message}`, "error");
+                        }
+                    }
+                }
             });
 
-            if (isConfirmed) {
-                this.closest('tr').remove(); // 'this' se refere ao botão, closest('tr') pega a linha pai
-                recalcularTotaisGerais(); 
-                calcularLucro(); // Chame se necessário
-                Swal.fire(
-                    "Deletado!",
-                    "O item foi removido.",
-                    "success"
-                );
+            // Aplica classe de desabilitado visualmente se não tiver permissão para apagar itens EXISTENTES
+            // Isso é feito FORA do listener, para que a aparência seja aplicada imediatamente
+            if (!temPermissaoApagar) {
+                // NÃO ADICIONE disabled=true AQUI, APENAS A CLASSE VISUAL
+                deleteButton.classList.add("btnDesabilitado");
+                deleteButton.title = "Você não tem permissão para apagar itens de orçamento que já estão salvos.";
             }
-        });
+        }
+       
     });
-
-
-    // Se você tem uma função para recalcular os totais gerais do orçamento
-    // chame-a aqui após preencher todos os itens.
-    recalcularTotaisGerais(); // Certifique-se que esta função existe e faz o que precisa.
-    aplicarMascaraMoeda();
-    aplicarDescontoEAcrescimo();
-    calcularLucro();
-
+    
+    recalcularTotaisGerais(); 
+    aplicarMascaraMoeda();   
+   // calcularLucro();
 }
-
-// function preencherItensOrcamentoTabela(itens) {
-//     console.log("DEBUG FRONTEND: preencherItensOrcamentoTabela foi chamada com itens:", itens);
-
-//     const tabelaBody = document.querySelector("#tabela tbody");
-
-//     if (!tabelaBody) {
-//         console.warn("Corpo da tabela de itens (seletor #tabela tbody) não encontrado. Não é possível preencher os itens.");
-//         return;
-//     }
-
-//     tabelaBody.innerHTML = ''; // Limpa as linhas existentes
-
-//     if (!itens || itens.length === 0) {
-//         console.log("Nenhum item encontrado para este orçamento ou 'itens' está vazio.");
-//         const emptyRow = tabelaBody.insertRow();
-//         emptyRow.innerHTML = `<td colspan="20" style="text-align: center;">Nenhum item adicionado a este orçamento.</td>`;
-//         return;
-//     }
-
-//     itens.forEach(item => {
-//         console.log("DEBUG FRONTEND: Adicionando item à tabela:", item);
-//         const newRow = tabelaBody.insertRow();
-
-//         // 1. ID do Item (oculto) - ESTA É A PRIMEIRA CÉLULA E CORRESPONDE AO <th> VAZIO NO THEAD
-//         newRow.innerHTML = `<td><input type="hidden" class="idItemOrcamento" value="${item.idorcamentoitem || ''}"></td>`;
-
-//         // 2. P/ Proposta (Checkbox com estilo complexo)
-//         newRow.innerHTML += `
-//             <td class="Proposta">
-//                 <div class="checkbox-wrapper-33" style="margin-top: 40px;">
-//                     <label class="checkbox">
-//                         <input class="checkbox__trigger visuallyhidden" type="checkbox" ${item.enviarnaproposta ? 'checked' : ''} />
-//                         <span class="checkbox__symbol">
-//                             <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-//                                 <path d="M4 14l8 7L24 7"></path>
-//                             </svg>
-//                         </span>
-//                         <p class="checkbox__textwrapper"></p>
-//                     </label>
-//                 </div>
-//             </td>
-//         `;
-
-//         // 3. Categoria (agora com input para edição)
-//        //newRow.innerHTML += `<td class="Categoria"><input type="text" class="categoria-input" value="${item.categoria || ''}"></td>`;
-//         newRow.innerHTML += `<td class="Categoria">${item.categoria || ''}</td>`;
-//         // 4. Qtd Itens (Com botões de incremento/decremento)
-//         newRow.innerHTML += `
-//             <td class="qtdProduto">
-//                 <div class="add-less">
-//                     <input type="number" class="qtdProduto" min="0" value="${item.qtditens || 0}" oninput="recalcularLinha(this.closest('tr'))">
-//                     <div class="Bt">
-//                         <button type="button" class="increment">+</button>
-//                         <button type="button" class="decrement">-</button>
-//                     </div>
-//                 </div>
-//             </td>
-//         `;
-
-//         // 5. Produto (agora com input para edição)
-//        // newRow.innerHTML += `<td class="produto"><input type="text" class="produto-input" value="${item.produto || ''}"></td>`;
-//         newRow.innerHTML += `<td class="produto">${item.produto || ''}</td>`;
-//         // 6. Qtd Dias (Com botões de incremento/decremento)
-//         newRow.innerHTML += 
-//             ` <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="${item.qtddias || 0}" oninput="recalcularLinha(this.closest('tr'))"></div></td>
-//         `;
-
-//         // 7. Periodo das diárias (Flatpickr)
-//         const inicioDiarias = item.periododiariasinicio;
-//         const fimDiarias = item.periododiariasfim;
-
-//         let valorInicialDoInputDiarias = '';
-//         const formattedInicio = formatarDataParaBR(inicioDiarias);
-//         const formattedFim = formatarDataParaBR(fimDiarias);
-
-//         if (formattedInicio && formattedFim) {
-//             valorInicialDoInputDiarias = `${formattedInicio} a ${formattedFim}`;
-//         } else if (formattedInicio) {
-//             valorInicialDoInputDiarias = formattedInicio;
-//         }
-
-//         console.log(`DEBUG: Item ${item.idorcamentoitem} - inicioDiarias: "${inicioDiarias}", fimDiarias: "${fimDiarias}"`);
-//         console.log(`DEBUG: Item ${item.idorcamentoitem} - formattedInicio: "${formattedInicio}", formattedFim: "${formattedFim}"`);
-//         console.log(`DEBUG: Item ${item.idorcamentoitem} - valorInicialDoInputDiarias final: "${valorInicialDoInputDiarias}"`);
-
-//         newRow.innerHTML += `
-//             <td class="Periodo">
-//                 <div class="flatpickr-container">
-//                     <input type="text" class="datas datas-item" data-input required readonly placeholder="Clique para Selecionar" value="${valorInicialDoInputDiarias}">
-//                 </div>
-//             </td>
-//         `;
-        
-//         // 8. Desconto (Valores e porcentagens)
-//         newRow.innerHTML += `
-//             <td class="desconto Moeda">
-//                 <div class="Acres-Desc">
-//                     <input type="text" class="ValorInteiros" value="${formatarMoeda(item.descontoitem || 0)}" oninput="recalcularLinha(this.closest('tr'))">
-//                     <input type="text" class="valorPerCent" value="${parseFloat(item.percentdescontoitem || 0).toFixed(2)}%" oninput="recalcularLinha(this.closest('tr'))">
-//                 </div>
-//             </td>
-//         `;
-
-//         // 9. Acrescimo (Valores e porcentagens)
-//         newRow.innerHTML += `
-//             <td class="Acrescimo Moeda">
-//                 <div class="Acres-Desc">
-//                     <input type="text" class="ValorInteiros" value="${formatarMoeda(item.acrescimoitem || 0)}" oninput="recalcularLinha(this.closest('tr'))">
-//                     <input type="text" class="valorPerCent" value="${parseFloat(item.percentacrescimoitem || 0).toFixed(2)}%" oninput="recalcularLinha(this.closest('tr'))">
-//                 </div>
-//             </td>
-//         `;
-
-//         // 10. VlrDiaria (Exibição)
-//         newRow.innerHTML += `<td class="vlrVenda Moeda">${formatarMoeda(item.vlrdiaria || 0)}</td>`;
-
-//         // 11. Tot Venda Diaria (Exibição)
-//         newRow.innerHTML += `<td class="totVdaDiaria Moeda">${formatarMoeda(item.totvdadiaria || 0)}</td>`;
-
-//         // 12. CtoDiaria (Exibição)
-//         newRow.innerHTML += `<td class="vlrCusto Moeda">${formatarMoeda(item.ctodiaria || 0)}</td>`;
-
-//         // 13. Tot Custo Diaria (Exibição)
-//         newRow.innerHTML += `<td class="totCtoDiaria Moeda">${formatarMoeda(item.totctodiaria || 0)}</td>`;
-
-//         // 14. AjdCusto/alimentação (SELECT com valor selecionado e valor banco)
-//         newRow.innerHTML += `
-//             <td class="ajdCusto Moeda">
-//                 <div class="Acres-Desc">
-//                     <select class="tpAjdCusto-alimentacao">
-//                         <option value="select" ${item.tpajdctoalimentacao === '' || item.tpajdctoalimentacao === 'select' ? 'selected disabled' : ''}>Alimentação</option>
-//                         <option value="almoco" ${item.tpajdctoalimentacao === 'almoco' ? 'selected' : ''}>Almoço</option>
-//                         <option value="janta" ${item.tpajdctoalimentacao === 'janta' ? 'selected' : ''}>Jantar</option>
-//                         <option value="2alimentacao" ${item.tpajdctoalimentacao === '2alimentacao' ? 'selected' : ''}>Almoço + jantar</option>
-//                     </select>
-//                 </div>
-//                 <br><span class="valorbanco alimentacao">${formatarMoeda(item.vlrajdctoalimentacao || 0)}</span>
-//             </td>
-//         `;
-
-//         // 15. AjdCusto/transporte (SELECT com valor selecionado e valor banco)
-//         newRow.innerHTML += `
-//             <td class="ajdCusto Moeda">
-//                 <div class="Acres-Desc">
-//                     <select class="tpAjdCusto-transporte">
-//                         <option value="select" ${item.tpajdctotransporte === '' || item.tpajdctotransporte === 'select' ? 'selected disabled' : ''}>Veiculo</option>
-//                         <option value="Publico" ${item.tpajdctotransporte === 'Publico' ? 'selected' : ''}>Publico</option>
-//                         <option value="alugado" ${item.tpajdctotransporte === 'alugado' ? 'selected' : ''}>alugado</option>
-//                         <option value="Proprio" ${item.tpajdctotransporte === 'Proprio' ? 'selected' : ''}>Proprio</option>
-//                     </select>
-//                 </div>
-//                 <br><span class="valorbanco transporte">${formatarMoeda(item.vlrajdctotransporte || 0)}</span>
-//             </td>
-//         `;
-
-//         // 16. TotAjdCusto (Exibição)
-//         newRow.innerHTML += `<td class="totAjdCusto Moeda">${formatarMoeda(item.totajdctoitem || 0)}</td>`;
-
-//         // 17. Hospedagem (Campo extra, oculto por padrão)
-//         newRow.innerHTML += `
-//             <td class="extraCampo" style="display: none;">
-//                 <input type="text" class="hospedagem" value="${item.hospedagem || 0}" min="0" step="0.01" oninput="recalcularLinha(this.closest('tr'))">
-//             </td>
-//         `;
-
-//         // 18. Transporte (Campo extra, oculto por padrão)
-//         newRow.innerHTML += `
-//             <td class="extraCampo" style="display: none;">
-//                 <input type="text" class="transporte" value="${item.transporte || 0}" min="0" step="0.01" oninput="recalcularLinha(this.closest('tr'))">
-//             </td>
-//         `;
-
-//         // 19. TotGeral (Exibição)
-//         newRow.innerHTML += `<td class="totGeral Moeda">${formatarMoeda(item.totgeralitem || 0)}</td>`;
-
-//         // 20. Ação (Botão de excluir com SVG)
-//         newRow.innerHTML += `
-//             <td>
-//                 <div class="Acao">
-//                     <button class="deleteBtn" type="button">
-//                         <svg class="delete-svgIcon" viewBox="0 0 448 512">
-//                             <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path>
-//                         </svg>
-//                     </button>
-//                 </div>
-//             </td>
-//         `;
-
-//         // --- Inicialização de funcionalidades para a nova linha ---
-
-//         // Inicializa Flatpickr para o campo "Periodo" da nova linha
-//         const itemDateInput = newRow.querySelector(".Periodo .datas-item");
-//         if (itemDateInput) {
-//             const defaultDatesArray = [];
-//             if (inicioDiarias) {
-//                 defaultDatesArray.push(new Date(inicioDiarias)); // Converte para objeto Date
-//             }
-//             if (fimDiarias) {
-//                 defaultDatesArray.push(new Date(fimDiarias));   // Converte para objeto Date
-//             }
-
-//             flatpickr(itemDateInput, {
-//                 mode: "range",
-//                 dateFormat: "d/m/Y",
-//                 locale: flatpickr.l10ns.pt,
-//                 defaultDate: defaultDatesArray.length > 0 ? defaultDatesArray : [],
-//             });
-//         }
-        
-//         // Adiciona event listeners para os botões de incremento/decremento (qtdProduto, qtdDias)
-//         // Removendo o listener global e aplicando por linha para consistência e clareza
-//         newRow.querySelector('.qtdProduto .increment')?.addEventListener('click', (event) => {
-//             const input = event.target.closest("td").querySelector("input.qtdProduto");
-//             if (input) {
-//                 input.value = parseInt(input.value || 0) + 1;
-//                 recalcularLinha(newRow); // Passa a linha atual
-//             }
-//         });
-
-//         newRow.querySelector('.qtdProduto .decrement')?.addEventListener('click', (event) => {
-//             const input = event.target.closest("td").querySelector("input.qtdProduto");
-//             if (input) {
-//                 const valorAtual = parseInt(input.value || 0);
-//                 input.value = Math.max(0, valorAtual - 1);
-//                 recalcularLinha(newRow); // Passa a linha atual
-//             }
-//         });
-
-//         // Adiciona event listener para o botão de excluir com confirmação Swal.fire
-//         newRow.querySelector('.deleteBtn').addEventListener('click', async () => { // Adicionado 'async' aqui
-//             const { isConfirmed } = await Swal.fire({
-//                 title: `Tem Certeza que deseja EXCLUIR o item "${item.produto || 'este item'}" ?`, // Adicionado nome do produto
-//                 text: "Você não poderá reverter esta ação!",
-//                 icon: "warning",
-//                 showCancelButton: true,
-//                 confirmButtonColor: "#3085d6",
-//                 cancelButtonColor: "#d33",
-//                 confirmButtonText: "Sim, deletar!",
-//                 cancelButtonText: "Cancelar"
-//             });
-
-//             if (isConfirmed) {
-//                 newRow.remove();
-//                 recalcularTotaisGerais();
-//                 Swal.fire(
-//                     "Deletado!",
-//                     "O item foi removido.",
-//                     "success"
-//                 );
-//             }
-//         });
-        
-//         // Adiciona event listeners para os selects de AjdCusto
-//         newRow.querySelectorAll('.tpAjdCusto-alimentacao, .tpAjdCusto-transporte').forEach(select => {
-//             select.addEventListener('change', () => {
-//                 recalcularLinha(newRow); // Passa a linha atual
-//             });
-//         });
-
-//         // Adiciona event listeners para inputs de texto/número que precisam de recalculo
-//         newRow.querySelectorAll('input.categoria-input, input.produto-input, input.ValorInteiros, input.valorPerCent, input.qtdProduto, input.qtdDias, input.hospedagem, input.transporte').forEach(input => {
-//             input.addEventListener('input', () => recalcularLinha(newRow)); // Passa a linha atual
-//         });
-//     });
-
-//     // Chamada para calcular totais gerais após preencher todos os itens
-//     recalcularTotaisGerais(); 
-// }
-
 
 function formatarDatasParaInputPeriodo(inicioStr, fimStr) {
     const formatarSimples = (data) => {
@@ -3538,8 +3052,14 @@ function formatarPercentual(valor) {
         console.warn(`Valor inválido para formatarPercentual: ${valor}. Retornando 0,00%.`);
         return '0,00%';
     }
+    const numeroFormatado = numero;
     // Usa toLocaleString para formatação com vírgula e 2 casas decimais, depois adiciona o '%'
-    return `${numero.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+    return `${numeroFormatado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+}
+
+function desformatarPercentual(texto) {
+    if (!texto) return 0;
+    return parseFloat(texto.replace('%', '').replace(',', '.').trim()) || 0;
 }
 
 //SALVANDO ORCAMENTO
@@ -3589,12 +3109,15 @@ function enviarOrcamento() {
 
 // -------------------------------------- input Desconto e Acrésimo -----------------------------------------------------------
 window.addEventListener('DOMContentLoaded', () => {
+ 
+    console.log("ENTROU NO ADD PARA APLICAR DESCONTO E ACRESCIMO");
     aplicarDescontoEAcrescimo(); // ✅ Atualiza o valor do cliente assim que a tela carregar
 
     // Seu listener existente
     document.body.addEventListener('blur', function (e) {
-        const input = e.target;
-
+        const input = e.target; 
+        const inputId = input.id || input.className;
+        console.log(`DEBUG: Evento blur disparado por: ${inputId}`);
         // Campos por linha
         if (
             input.matches('.desconto .ValorInteiros') ||
@@ -3611,9 +3134,9 @@ window.addEventListener('DOMContentLoaded', () => {
         // Campos gerais
         if (
             input.matches('#Desconto') ||
-            input.matches('#valorPerCentDesc') ||
+            input.matches('#percentDesc') ||
             input.matches('#Acrescimo') ||
-            input.matches('#valorPerCentAcresc')
+            input.matches('#percentAcresc')
         ) {
             aplicarDescontoEAcrescimo();
         }
@@ -3684,307 +3207,335 @@ function formatarMoeda(valor) {
     return numero.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+
 function recalcularLinha(linha) {
     if (!linha) return;
 
     try {
-        console.log("Linha recebida:", linha);
+        console.log("Linha recebida para recalcular:", linha);
 
+        // ... (código existente para qtdItens, qtdDias, celulaVenda, vlrVendaOriginal, vlrVenda, vlrCusto) ...
         let qtdItens = parseFloat(linha.querySelector('.qtdProduto input')?.value) || 0;
         let qtdDias = parseFloat(linha.querySelector('.qtdDias input')?.value) || 0;
 
         let celulaVenda = linha.querySelector('.vlrVenda');
-
-        // Salva o valor original da venda apenas uma vez
-        if (celulaVenda && !celulaVenda.dataset.vendaOriginal) {
-            celulaVenda.dataset.vendaOriginal = desformatarMoeda(celulaVenda.textContent);
-        }
-
-        // Usa o valor original salvo (se houver), senão tenta pegar do texto atual
-        let vlrVendaOriginal = parseFloat(celulaVenda?.dataset.vendaOriginal) || desformatarMoeda(celulaVenda?.textContent);
+        //let vlrVendaOriginal = desformatarMoeda(celulaVenda?.textContent) || 0; 
+        const vlrVendaOriginal = parseFloat(celulaVenda?.dataset.originalVenda) || 0; 
+        console.log("DEBUG - recalcularLinha: vlrVendaOriginal (Lido do data-attribute) =", vlrVendaOriginal);
         let vlrVenda = vlrVendaOriginal;
 
-        let vlrCusto = desformatarMoeda(linha.querySelector('.vlrCusto')?.textContent);
+        let vlrCusto = desformatarMoeda(linha.querySelector('.vlrCusto')?.textContent) || 0;
 
-        const selectAlimentacao = linha.querySelector('.select-alimentacao');
-        const selectTransporte = linha.querySelector('.select-transporte');
-        const valorAlimentacaoDiv = linha.querySelector('.valor-alimentacao');
-        const valorTransporteDiv = linha.querySelector('.valor-transporte');
-   //     const totAjdCustoCell = linha.querySelector('.totAjdCusto'); // Célula do total de Ajuda de Custo da linha
+        // ... (código para Alimentação e Transporte: selectAlimentacao, valorAlimentacaoSpan, etc.) ...
+        const selectAlimentacao = linha.querySelector('.tpAjdCusto-alimentacao');
+        const selectTransporte = linha.querySelector('.tpAjdCusto-transporte');
+
+        const valorAlimentacaoSpan =  linha.querySelector('.valorbanco.alimentacao');
+        const valorTransporteSpan = linha.querySelector('.valorbanco.transporte');       
+      
+        
+        const baseAlmoco = parseFloat(vlrAlmoco || 0);
+        const baseJantar = parseFloat(vlrJantar || 0);
+        const baseTransporte = parseFloat(vlrTransporte || 0);
 
         let totalAlimentacaoLinha = 0;
         let totalTransporteLinha = 0;
-  //      let totalAjdCustoLinha = 0;
 
-        // Garante que os valores base existem (podem ser 0 se a função não foi selecionada)
-        const baseAlmoco = parseFloat(vlrAlmoco || 0);
-        const baseJantar = parseFloat(vlrJantar || 0);
-        const baseTransporte = parseFloat(vlrTransporte || 0); // Renomeei para evitar conflito
-
-        console.log(`Bases lidas do dataset: Almoco: ${baseAlmoco}, Jantar: ${baseJantar}, Transporte: ${baseTransporte}`);
-
-        // === Lógica para Alimentação ===
-        if (selectAlimentacao && valorAlimentacaoDiv) {
-            
+        if (selectAlimentacao && valorAlimentacaoSpan) {
             const tipoAlimentacaoSelecionado = selectAlimentacao.value;
-            console.log("TIPO SELECIONADO", selectAlimentacao.value);
-            if (tipoAlimentacaoSelecionado === 'Almoco') {
-                totalAlimentacaoLinha = baseAlmoco;
-            } else if (tipoAlimentacaoSelecionado === 'Janta') {
-                totalAlimentacaoLinha = baseJantar;
-            } else if (tipoAlimentacaoSelecionado === '2alimentacao') {
-                totalAlimentacaoLinha = baseAlmoco + baseJantar;
-            }
-            // Se for 'select' ou algo não mapeado, totalAlimentacaoLinha permanece 0
-            valorAlimentacaoDiv.textContent = formatarMoeda(totalAlimentacaoLinha);
-            console.log(`Alimentação: Tipo: ${tipoAlimentacaoSelecionado}, Valor Calculado: ${totalAlimentacaoLinha}`);
+            if (tipoAlimentacaoSelecionado === 'Almoco') { totalAlimentacaoLinha = baseAlmoco; }
+            else if (tipoAlimentacaoSelecionado === 'Janta') { totalAlimentacaoLinha = baseJantar; }
+            else if (tipoAlimentacaoSelecionado === '2alimentacao') { totalAlimentacaoLinha = baseAlmoco + baseJantar; }
+            valorAlimentacaoSpan.textContent = totalAlimentacaoLinha.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            console.log("ALIMENTACAO", valorAlimentacaoSpan);
         }
 
-        // === Lógica para Transporte ===
-        if (selectTransporte && valorTransporteDiv) {
+        if (selectTransporte && valorTransporteSpan) {
             const tipoTransporteSelecionado = selectTransporte.value;
             if (tipoTransporteSelecionado === 'Público' || tipoTransporteSelecionado === 'Alugado' || tipoTransporteSelecionado === 'Próprio') {
                 totalTransporteLinha = baseTransporte;
             }
-            // Se for 'select' ou algo não mapeado, totalTransporteLinha permanece 0
-            valorTransporteDiv.textContent = formatarMoeda(totalTransporteLinha);
-            console.log(`Transporte: Tipo: ${tipoTransporteSelecionado}, Valor Calculado: ${totalTransporteLinha}`);
+            valorTransporteSpan.textContent = totalTransporteLinha.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
-    
-        // // === Cálculo do Total de Ajuda de Custo da Linha ===
-        let vlrAjdCusto = totalAlimentacaoLinha + totalTransporteLinha;
+
+        let hospedagemValor = parseFloat(linha.querySelector('input.hospedagem')?.value) || 0;
+        let transporteExtraValor = parseFloat(linha.querySelector('.extraCampo.transporte')?.value) || 0; 
+
+        console.log("HOSPEDAGEM E TRANSPORTE EXTRA:", hospedagemValor, transporteExtraValor);
+              
+
+        let vlrAjdCusto =  vlrCusto + totalAlimentacaoLinha + totalTransporteLinha + hospedagemValor;
         
-        // Pega os campos de valor e percentual para desconto e acréscimo
+        // --- LEITURA DOS VALORES DE DESCONTO E ACRÉSCIMO DA LINHA (NÃO FAÇA CÁLCULO DE SINCRONIZAÇÃO AQUI!) ---
         let campoDescValor = linha.querySelector('.desconto .ValorInteiros');
-        let campoDescPct = linha.querySelector('.desconto .valorPerCent');
-
         let campoAcrescValor = linha.querySelector('.Acrescimo .ValorInteiros');
-        let campoAcrescPct = linha.querySelector('.Acrescimo .valorPerCent');
 
-        let desconto = desformatarMoeda(campoDescValor?.value) || 0;
-        let perCentDesc = parseFloat(campoDescPct?.value) || 0;
+        let desconto = 0;
+        let acrescimo = 0;
 
-        let acrescimo = desformatarMoeda(campoAcrescValor?.value) || 0;
-        let perCentAcresc = parseFloat(campoAcrescPct?.value) || 0;
-
-        // Se o percentual de desconto/acréscimo foi preenchido, calcula o valor
-        if (perCentDesc > 0) {
-            desconto = vlrVenda * (perCentDesc / 100);
-            if (campoDescValor) campoDescValor.value = desconto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        } else if (desconto > 0) {
-            perCentDesc = (desconto / vlrVenda) * 100;
-            if (campoDescPct) campoDescPct.value = perCentDesc.toFixed(2);
+        if (campoDescValor && campoDescValor.mask) {
+            desconto = parseFloat(campoDescValor.mask.unmaskedValue) || 0;
+        } else if (campoDescValor) {
+            desconto = desformatarMoeda(campoDescValor.value);
         }
 
-        if (perCentAcresc > 0) {
-            acrescimo = vlrVenda * (perCentAcresc / 100);
-            if (campoAcrescValor) campoAcrescValor.value = acrescimo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        } else if (acrescimo > 0) {
-            perCentAcresc = (acrescimo / vlrVenda) * 100;
-            if (campoAcrescPct) campoAcrescPct.value = perCentAcresc.toFixed(2);
+        if (campoAcrescValor && campoAcrescValor.mask) {
+            acrescimo = parseFloat(campoAcrescValor.mask.unmaskedValue) || 0;
+        } else if (campoAcrescValor) {
+            acrescimo = desformatarMoeda(campoAcrescValor.value);
         }
 
-        // Calcula novo valor de venda com desconto e acréscimo
-        let vlrVendaCorrigido = vlrVenda - desconto + acrescimo;       
+        // --- CÁLCULO DO vlrVendaCorrigido USANDO OS VALORES LIDOS ---
+        let vlrVendaCorrigido = vlrVendaOriginal - desconto + acrescimo; 
 
+        // ... (resto dos seus cálculos de totalIntermediario, totalVenda, totalCusto, totalAjdCusto, totGeralCtoItem) ...
         let totalIntermediario = qtdItens * qtdDias;
         let totalVenda = totalIntermediario * vlrVendaCorrigido;
         let totalCusto = totalIntermediario * vlrCusto;
-        let totalAjdCusto = totalIntermediario * vlrAjdCusto;
-        let totGeralCtoItem = totalCusto + totalAjdCusto;
+        let totalAjdCusto = totalIntermediario * vlrAjdCusto + transporteExtraValor; 
+        let totGeralCtoItem = totalCusto + totalAjdCusto+ transporteExtraValor;
 
-        console.log("Ajuda Custo RECALCULAR LINHA", totalAjdCusto, totalIntermediario, vlrAjdCusto);
-        // Atualiza a DOM
-        let totalVendaCell = linha.querySelector('.totVdaDiaria');
-        if (totalVendaCell) {
-            totalVendaCell.textContent = totalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        }
+        console.log("Ajuda Custo RECALCULAR LINHA:", totalAjdCusto, "totalIntermediario:", totalIntermediario, "vlrAjdCusto:", vlrAjdCusto);
 
-        if (celulaVenda) {
-            celulaVenda.textContent = vlrVendaCorrigido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        }
+        // --- ATUALIZA A DOM (TDs da linha) ---
+        linha.querySelector('.valorbanco.alimentacao').textContent = totalAlimentacaoLinha.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        linha.querySelector('.valorbanco.transporte').textContent = totalTransporteLinha.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        
+        linha.querySelector('.totVdaDiaria').textContent = totalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        linha.querySelector('.vlrVenda').textContent = vlrVendaCorrigido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        linha.querySelector('.totCtoDiaria').textContent = totalCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        linha.querySelector('.totAjdCusto').textContent = totalAjdCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        linha.querySelector('.totGeral').textContent = totGeralCtoItem.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-        let totalCustoCell = linha.querySelector('.totCtoDiaria');
-        if (totalCustoCell) {
-            totalCustoCell.textContent = totalCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        }
-
-        let totalAjdCustoCell = linha.querySelector('.totAjdCusto');
-        if (totalAjdCustoCell) {
-            totalAjdCustoCell.textContent = totalAjdCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        }
-
-        let totalGeralCtoCell = linha.querySelector('.totGeral');
-        if (totalGeralCtoCell) {
-            totalGeralCtoCell.textContent = totGeralCtoItem.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        }
-
-        // Totais gerais
-        let totalCustoGeral = 0;
-        let totalVendaGeral = 0;
-        let totalAjdCustoGeral = 0;
-        let totalGeralCustoItem = 0;
-
-        document.querySelectorAll('.totCtoDiaria').forEach(cell => {
-            totalCustoGeral += desformatarMoeda(cell.textContent);
+        // --- CÁLCULO E ATUALIZAÇÃO DOS TOTAIS GERAIS (DA TELA) ---
+        // Este bloco aqui é que recalcula os totais globais, independentemente da função aplicarDescontoEAcrescimo
+        // pois esta função é chamada por CADA LINHA.
+        let allTotalCusto = 0;
+        document.querySelectorAll('#tabela tbody .totCtoDiaria').forEach(cell => {
+            allTotalCusto += desformatarMoeda(cell.textContent);
         });
+        document.querySelector('#totalGeralCto').value = allTotalCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-        document.querySelectorAll('.totVdaDiaria').forEach(cell => {
-            totalVendaGeral += desformatarMoeda(cell.textContent);
+        let allTotalVenda = 0;
+        document.querySelectorAll('#tabela tbody .totVdaDiaria').forEach(cell => {
+            allTotalVenda += desformatarMoeda(cell.textContent);
         });
+        document.querySelector('#totalGeralVda').value = allTotalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-        document.querySelectorAll('.totAjdCusto').forEach(cell => {
-            totalAjdCustoGeral += desformatarMoeda(cell.textContent);
+        let allTotalAjdCusto = 0;
+        document.querySelectorAll('#tabela tbody .totAjdCusto').forEach(cell => {
+            allTotalAjdCusto += desformatarMoeda(cell.textContent);
         });
+        document.querySelector('#totalAjdCusto').value = allTotalAjdCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-        document.querySelectorAll('.totGeral').forEach(cell => {
-            totalGeralCustoItem += desformatarMoeda(cell.textContent);
+        let allTotalGeral = 0;
+        document.querySelectorAll('#tabela tbody .totGeral').forEach(cell => {
+            allTotalGeral += desformatarMoeda(cell.textContent);
         });
+        document.querySelector('#totalGeral').value = allTotalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-        let inputTotalCusto = document.querySelector('#totalGeralCto');
-        if (inputTotalCusto) {
-            inputTotalCusto.value = totalCustoGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        }
-
-        let inputTotalVenda = document.querySelector('#totalGeralVda');
-        if (inputTotalVenda) {
-            inputTotalVenda.value = totalVendaGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        }
-
-        let inputTotalAjdCusto = document.querySelector('#totalAjdCusto');
-        if (inputTotalAjdCusto) {
-            inputTotalAjdCusto.value = totalAjdCustoGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        }
-
-        let inputTotalGeralCtoItem = document.querySelector('#totalGeral');
-        if (inputTotalGeralCtoItem) {
-            inputTotalGeralCtoItem.value = totalGeralCustoItem.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        }
-
-        console.log("Calculo desc e Acresc:", vlrVendaOriginal, "-", desconto, "+", acrescimo);
-        console.log("valor c/ desc e Acresc:", vlrVendaCorrigido);
-        console.log("Total Geral de Custo:", totalCustoGeral.toFixed(2));
-        console.log("Total Geral de Venda:", totalVendaGeral.toFixed(2));
-        console.log("Total Geral de AjdCusto:", totalAjdCustoGeral.toFixed(2));
-        console.log("Total Geral de Custo Item:", totalGeralCustoItem.toFixed(2));
-
-        aplicarMascaraMoeda();
-        aplicarDescontoEAcrescimo();///AQUI??
-        calcularLucro();
-        recalcularTotaisGerais();
-
+        // --- Chamadas Finais ---
+        console.log("Calculo desc e Acresc (final):", vlrVendaOriginal, "-", desconto, "+", acrescimo);
+        console.log("valor c/ desc e Acresc (final):", vlrVendaCorrigido);
+        // ... (outros logs) ...
+        
+       
+        
+        recalcularTotaisGerais(); // Recalcula os totais gerais da tabela
     } catch (error) {
         console.error("Erro no recalcularLinha:", error);
     }
 }
 
-// function aplicarMascaraMoeda() {
-//     // Formatar valores de <td> com a classe .Moeda
-//     document.querySelectorAll('td.Moeda').forEach(td => {
-//         let valor = parseFloat(td.textContent);
-//         console.log("valor1", valor);
-//         if (!isNaN(valor)) {
-//             td.textContent = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-//         }
-//     });
-
-//     // Formatar inputs somente se forem readonly (apenas visual)
-//     document.querySelectorAll('input.Moeda[readonly]').forEach(input => {
-//         let valor = parseFloat(input.value);
-//         console.log("valor2", valor)
-//         if (!isNaN(valor)) {
-//             input.dataset.valorOriginal = input.value; // guarda o valor real
-//             input.value = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-//         }
-//     });
-
+function recalcularDescontoAcrescimo(campoAlterado, tipoCampo, tipoValorAlterado, linha) {
     
-// }
+    if (!campoAlterado) {
+        console.warn("recalcularDescontoAcrescimo: Campo alterado inválido.", campoAlterado);
+        return;
+    }
+
+    const celulaVenda = linha.querySelector('.vlrVenda');
+    // Assume que vlrVendaOriginal é o valor base para cálculo de percentual
+    const vlrVendaOriginal = parseFloat(celulaVenda?.dataset.originalVenda || '0') || 0;
+   //let vlrVendaOriginal = desformatarMoeda(celulaVenda?.textContent) || 0; 
+    
+    console.log("DEBUG - recalcularDescontoAcrescimo - INÍCIO (SEM IMask.js)");
+    console.log("Campo Alterado:", campoAlterado.id || campoAlterado.className, "Tipo Campo:", tipoCampo, "Tipo Valor Alterado:", tipoValorAlterado);
+    console.log("Valor de Venda Original da Linha (dataset):", vlrVendaOriginal, celulaVenda.value);
+
+    let campoValor;      // Referência ao input de valor monetário (ex: R$ 10,00)
+    let campoPercentual; // Referência ao input de percentual (ex: 5%)
+
+    if (tipoCampo === 'desconto') {
+        campoValor = linha.querySelector('.desconto .ValorInteiros');
+        campoPercentual = linha.querySelector('.desconto .valorPerCent');
+    } else { // tipoCampo === 'acrescimo'
+        campoValor = linha.querySelector('.Acrescimo .ValorInteiros');
+        campoPercentual = linha.querySelector('.Acrescimo .valorPerCent');
+    }
+
+    // --- LEITURA DOS VALORES ATUAIS DOS CAMPOS ---
+    // Agora usando as funções de desformatação
+    let valorMonetarioAtual = desformatarMoeda(campoValor?.value || '0');
+    let percentualAtual = desformatarPercentual(campoPercentual?.value || '0');
+
+    console.log(`Valores lidos dos campos (monetário: ${valorMonetarioAtual}, percentual: ${percentualAtual})`);
+
+    console.log("tipoValorAlterado:", tipoValorAlterado, campoAlterado.value);
+
+    // --- Lógica de sincronização baseada no campo que foi alterado ---
+    if (tipoValorAlterado === 'valor') { // Se o campo monetário foi modificado
+        // O valor digitado já está em `valorMonetarioAtual` (desformatado)
+        // Atualiza o percentual
+        if (vlrVendaOriginal > 0) {
+            percentualAtual = (valorMonetarioAtual / vlrVendaOriginal) * 100;
+        } else {
+            percentualAtual = 0; // Se vlrVendaOriginal é 0, o percentual também é 0
+        }
+        // Atribui o novo percentual ao campo correspondente (formatado)
+        if (campoPercentual) {
+            campoPercentual.value = formatarPercentual(percentualAtual);
+            console.log(`Atualizando ${tipoCampo} Percentual para: ${campoPercentual.value}`);
+        }
+        
+    } else { // tipoValorAlterado === 'percentual' - Se o campo percentual foi modificado
+        // O percentual digitado já está em `percentualAtual` (desformatado)
+        // Atualiza o valor monetário
+        valorMonetarioAtual = vlrVendaOriginal * (percentualAtual / 100);
+        // Atribui o novo valor monetário ao campo correspondente (formatado)
+        if (campoValor) {
+            campoValor.value = formatarMoeda(valorMonetarioAtual);
+            console.log(`Atualizando ${tipoCampo} Valor para: ${campoValor.value}`);
+        }
+    }
+
+    // --- Lógica para zerar o campo "parceiro" se o campo alterado for zerado ---
+    // Agora lemos diretamente do campo.value e desformatamos para verificar se é zero
+    let valorDigitadoNoCampoAlterado;
+    if (tipoValorAlterado === 'valor') {
+        valorDigitadoNoCampoAlterado = desformatarMoeda(campoAlterado.value || '0');
+    } else {
+        valorDigitadoNoCampoAlterado = desformatarPercentual(campoAlterado.value || '0');
+    }
+
+    if (valorDigitadoNoCampoAlterado === 0) {
+        console.log("Campo alterado foi zerado. Zerando campo parceiro.");
+        if (tipoValorAlterado === 'valor' && campoPercentual) {
+            campoPercentual.value = formatarPercentual(0);
+        } else if (tipoValorAlterado === 'percentual' && campoValor) {
+            campoValor.value = formatarMoeda(0);
+        }
+    }
+
+    // Chama a função principal de recalcular a linha após as atualizações
+    recalcularLinha(linha);
+    
+    console.log("DEBUG - recalcularDescontoAcrescimo - FIM");
+}
 
 function aplicarMascaraMoeda() {
-    console.log("DEBUG: aplicarMascaraMoeda foi chamada.");
-
-    // --- Parte 1: Formatar valores de <td> com a classe .Moeda (para exibição) ---
-    // Isto formata células como 'vlrVenda', 'totVdaDiaria', 'vlrCusto', etc.
+    // Formatar valores de <td> com a classe .Moeda
     document.querySelectorAll('td.Moeda').forEach(td => {
-        // Exclui TDs que contêm inputs editáveis (porque esses terão IMask)
-        // E também exclui as TDs que contêm os spans de valorbanco, pois estes já vêm formatados
-        // ou serão atualizados dinamicamente pelo select.
-        if (!td.querySelector('input') && !td.classList.contains('ajdCusto')) { 
-            let valorTexto = td.textContent;
-            let valorNumerico = desformatarMoeda(valorTexto);
-
-            if (!isNaN(valorNumerico)) {
-                td.textContent = valorNumerico.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            }
-        }
-    });
-
-    // --- Parte 2: Aplicar IMask a inputs editáveis específicos ---
-    // Isso deve pegar todos os inputs que o usuário pode digitar valores monetários ou percentuais.
-    document.querySelectorAll('input.ValorInteiros, input.hospedagem, input.transporte').forEach(input => {
-        if (!input.mask) { 
-            const initialValue = desformatarMoeda(input.value);
-            
-            input.mask = IMask(input, {
-                mask: Number,
-                blocks: {
-                    num: {
-                        mask: Number,
-                        signed: false,
-                        thousandsSeparator: '.',
-                        padFractionalZeros: true,
-                        normalizeZeros: true,
-                        radix: ',', 
-                        scale: 2, 
-                        max: 99999999999.99 
-                    }
-                }
-            });
-            if (!isNaN(initialValue)) {
-                input.mask.value = initialValue.toString().replace('.', ',');
-            }
-        }
-    });
-
-    document.querySelectorAll('input.valorPerCent').forEach(input => {
-        if (!input.mask) {
-            const initialValue = desformatarMoeda(input.value.replace('%', ''));
-            
-            input.mask = IMask(input, {
-                mask: Number,
-                scale: 2,
-                signed: false,
-                thousandsSeparator: '',
-                padFractionalZeros: true,
-                normalizeZeros: true,
-                radix: ',',
-                suffix: '%' 
-            });
-            if (!isNaN(initialValue)) {
-                input.mask.value = initialValue.toString().replace('.', ',');
-            }
-        }
-    });
-
-    // --- Parte 3: REMOVER A FORMATAÇÃO MONETÁRIA DE QUALQUER INPUT READONLY QUE NÃO SEJA MONETÁRIO ---
-    // Se a intenção é que 'qtdDias' seja apenas um número de dias, ele não precisa de toLocaleString('currency').
-    // Se você tiver outros inputs readonly que DEVEM ser formatados como moeda (o que é raro), você os adicionaria aqui.
-    // Pelo seu HTML, 'qtdDias' é um campo de quantidade de dias.
-    // Então, esta seção não é mais necessária para QUASE NENHUM input readonly.
-    // Se você realmente tiver um input readonly que exiba moeda e não seja um td, você precisaria de um seletor específico para ele.
-
-    // Exemplo: Se você tivesse um input readonly chamado <input class="valorTotalFinalReadonly" readonly>
-    /*
-    document.querySelectorAll('input.valorTotalFinalReadonly[readonly]').forEach(input => {
-        let valor = parseFloat(input.value);
+        let valor = parseFloat(td.textContent);
+        console.log("valor1", valor);
         if (!isNaN(valor)) {
-            input.dataset.valorOriginal = input.value;
+            td.textContent = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+    });
+
+    // Formatar inputs somente se forem readonly (apenas visual)
+    document.querySelectorAll('input.Moeda[readonly]').forEach(input => {
+        let valor = parseFloat(input.value);
+        console.log("valor2", valor)
+        if (!isNaN(valor)) {
+            input.dataset.valorOriginal = input.value; // guarda o valor real
             input.value = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
-    });
-    */
+    });   
+
 }
+
+
+
+// function aplicarMascaraMoeda() {
+//     console.log("DEBUG: aplicarMascaraMoeda foi chamada.");
+
+//     // --- Parte 1: Formatar valores de <td> com a classe .Moeda (para exibição) ---
+//     document.querySelectorAll('td.Moeda').forEach(td => {
+//         if (!td.querySelector('input') && !td.classList.contains('ajdCusto')) {
+//             let valorTexto = td.textContent;
+//             let valorNumerico = desformatarMoeda(valorTexto);
+
+//             if (!isNaN(valorNumerico)) {
+//                 td.textContent = valorNumerico.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+//             }
+//         }
+//     });
+
+//     // --- Parte 2: Aplicar IMask a inputs editáveis de PERCENTUAL ---
+//     document.querySelectorAll(
+//         'input.valorPerCent, #percentDesc, #percentAcresc, #percentLucro' // Inclua todos os IDs de percentual aqui
+//     ).forEach(input => {
+//         if (!input.mask) {
+//             input.mask = IMask(input, {
+//                 mask: Number,
+//                 scale: 2,
+//                 signed: false,
+//                 thousandsSeparator: '',
+//                 padFractionalZeros: true,
+//                 normalizeZeros: true,
+//                 radix: ',',
+//                 mapToRadix: ['.'],
+//                 suffix: '%',
+//                 min: 0,
+//                 max: 100,
+//                 // Os pipes 'prepare' e 'unmask' geralmente não são necessários se 'mapToRadix' e 'radix' estiverem corretos.
+//                 // Mas se você ainda tem problemas com a interpretação, pode mantê-los.
+//                 // prepare: (str) => {
+//                 //     if (!str) return str;
+//                 //     if (str.includes(',') && !str.includes('.')) {
+//                 //         str = str.replace(',', '.');
+//                 //     }
+//                 //     return str;
+//                 // },
+//                 // unmask: (masked) => {
+//                 //     let val = masked.replace('%', '');
+//                 //     if (val.includes(',')) {
+//                 //         val = val.replace(',', '.');
+//                 //     }
+//                 //     return parseFloat(val);
+//                 // }
+//             });
+//             console.log("IMask PERCENTUAL aplicado a:", input.id || input.className);
+//         }
+//     });
+
+//     // --- Parte 3: Aplicar IMask a inputs editáveis de MOEDA (incluindo todos os globais) ---
+//     document.querySelectorAll(
+//         'input.ValorInteiros, input.hospedagem, input.transporte, ' +
+//         '#Desconto, #Acrescimo, #valorCliente, #totalGeralVda, #totalGeralCto, #totalAjdCusto, #totalGeral, #Lucro' // Inclua todos os IDs de moeda aqui
+//     ).forEach(input => {
+//         if (!input.mask) {
+//             input.mask = IMask(input, {
+//                 mask: Number,
+//                 signed: false,
+//                 thousandsSeparator: '.',
+//                 padFractionalZeros: true,
+//                 normalizeZeros: true,
+//                 radix: ',',
+//                 scale: 2,
+//                 mapToRadix: ['.'],
+//                 prefix: 'R$ ', // Confirme que está prefix: 'R$ '
+//                 max: 99999999999.99
+//             });
+//             console.log("IMask MOEDA aplicado a:", input.id || input.className);
+//         }
+//     });
+
+//     // --- Parte 4: REMOVER A SEÇÃO DE INPUTS READONLY SE NÃO HOUVER NECESSIDADE ---
+//     // Pelo seu comentário, esta seção não é mais necessária para quase nenhum input readonly.
+//     // Remova-a completamente se não houver inputs readonly que você precise formatar como moeda.
+// }
 
 // Caso precise reverter a formatação (ex: para enviar ao backend)
 function removerMascaraMoedaInputs() {
@@ -4544,9 +4095,8 @@ async function salvarOrcamento(event) {
 
 function configurarEventosOrcamento() {
     console.log("Configurando eventos Orcamento...");
-    verificaOrcamento(); // Carrega os Orcamentos ao abrir o modal
-   // adicionarEventoBlurOrcamento();
-   inicializarFlatpickrsGlobais(); // Inicializa os Flatpickrs globais
+    verificaOrcamento();   
+    inicializarFlatpickrsGlobais(); 
 
     console.log("Entrou configurar Orcamento no ORCAMENTO.js.");
 } 
@@ -4581,15 +4131,7 @@ function configurarEventosEspecificos(modulo) {
   
   if (modulo.trim().toLowerCase() === 'orcamentos') {
     
-    configurarEventosOrcamento();
-    //inicializarFlatpickrsGlobais(); 
-
-    // if (typeof inicializarFlatpickrsGlobais === 'function') {
-    //         inicializarFlatpickrsGlobais();
-    //         console.log("Flatpickrs globais inicializados para o módulo Orcamentos.");
-    // } else {
-    //         console.warn("⚠️ Função 'inicializarFlatpickrsGlobais' não encontrada. Verifique a ordem de carregamento dos scripts.");
-    // }
+    configurarEventosOrcamento();    
 
     if (typeof aplicarPermissoes === "function" && window.permissoes) {
       aplicarPermissoes(window.permissoes);

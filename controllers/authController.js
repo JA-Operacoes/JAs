@@ -8,11 +8,13 @@ const JWT_SECRET = process.env.JWT_SECRET;
 // Cadastro de usuário
 // controllers/authController.js
 async function verificarUsuarioExistente(req, res) {
-  const { nome, sobrenome, email, ativo, idempresadefault, empresas } = req.body;
+  //const { nome, sobrenome, email, ativo, idempresadefault, empresas } = req.body;
+  const { nome, sobrenome, email, ativo, idempresadefault } = req.body;
   console.log("verificarUsuarioExistente AuthController", req.body);
   try {
     // const { rows } = await db.query("SELECT * FROM usuarios WHERE nome = $1 AND sobrenome = $2 AND email = $3 AND ativo = $4", [nome, sobrenome, email, ativo, idempresadefault]);
-    const { rows } = await db.query("SELECT u.idusuario, u.nome, u.sobrenome, u.email, u.ativo, u.idempresadefault, e.nmfantasia AS empresadefaultnome FROM usuarios u LEFT JOIN empresas e ON u.idempresadefault = e.idempresa WHERE u.nome = $1 AND u.sobrenome = $2 AND u.email = $3 AND u.ativo = $4 AND u.idempresadefault = $5", [nome, sobrenome, email, ativo, idempresadefault, empresas]);
+    //const { rows } = await db.query("SELECT u.idusuario, u.nome, u.sobrenome, u.email, u.ativo, u.idempresadefault, e.nmfantasia AS empresadefaultnome FROM usuarios u LEFT JOIN empresas e ON u.idempresadefault = e.idempresa WHERE u.nome = $1 AND u.sobrenome = $2 AND u.email = $3 AND u.ativo = $4 AND u.idempresadefault = $5", [nome, sobrenome, email, ativo, idempresadefault, empresas]);
+    const { rows } = await db.query("SELECT u.idusuario, u.nome, u.sobrenome, u.email, u.ativo, u.idempresadefault, e.nmfantasia AS empresadefaultnome FROM usuarios u LEFT JOIN empresas e ON u.idempresadefault = e.idempresa WHERE u.nome = $1 AND u.sobrenome = $2 AND u.email = $3 AND u.ativo = $4 AND u.idempresadefault = $5", [nome, sobrenome, email, ativo, idempresadefault]);
     if (rows.length > 0) {
       return res.status(200).json({ usuarioExistente: true });
     } else {
@@ -420,7 +422,8 @@ async function listarPermissoes(req, res) {
         acesso   AS acessar,
         pesquisar AS pesquisar,
         cadastrar AS cadastrar,
-        alterar   AS alterar
+        alterar   AS alterar,
+        apagar    AS apagar
       FROM permissoes
       WHERE idusuario = $1 AND idempresa = $2
       `,
@@ -433,7 +436,8 @@ async function listarPermissoes(req, res) {
       pode_acessar: p.acessar,
       pode_pesquisar: p.pesquisar,
       pode_cadastrar: p.cadastrar,
-      pode_alterar: p.alterar
+      pode_alterar: p.alterar,
+      pode_apagar: p.apagar // Adiciona a propriedade de apagar, se existir
     }));
 
     res.json(permissoes);
