@@ -508,54 +508,54 @@ function configurarFormularioOrc() {
     
 }
 
-if (!window.hasRegisteredClickListener) {
-    document.querySelector("#tabela").addEventListener("click", function(event) {
-        if (event.target.classList.contains("increment")) {
-            const input = event.target.closest("td").querySelector("input.qtdProduto");
-            if (input) {
-                input.value = parseInt(input.value || 0) + 1;
-                const linha = input.closest("tr");
-                if (linha) {
-                    recalcularLinha(linha); // Chama aqui, dentro do clique
-                }
-            }
-        }
+// if (!window.hasRegisteredClickListener) {
+//     document.querySelector("#tabela").addEventListener("click", function(event) {
+//         if (event.target.classList.contains("increment")) {
+//             const input = event.target.closest("td").querySelector("input.qtdProduto");
+//             if (input) {
+//                 input.value = parseInt(input.value || 0) + 1;
+//                 const linha = input.closest("tr");
+//                 if (linha) {
+//                     recalcularLinha(linha); // Chama aqui, dentro do clique
+//                 }
+//             }
+//         }
 
-        if (event.target.classList.contains("decrement")) {
-            const input = event.target.closest("td").querySelector("input.qtdProduto");
-            if (input) {
-                const valorAtual = parseInt(input.value || 0);
-                input.value = Math.max(0, valorAtual - 1);
-                const linha = input.closest("tr");
-                if (linha) {
-                    recalcularLinha(linha); // Também aqui
-                }
-            }
-        }
-    });
+//         if (event.target.classList.contains("decrement")) {
+//             const input = event.target.closest("td").querySelector("input.qtdProduto");
+//             if (input) {
+//                 const valorAtual = parseInt(input.value || 0);
+//                 input.value = Math.max(0, valorAtual - 1);
+//                 const linha = input.closest("tr");
+//                 if (linha) {
+//                     recalcularLinha(linha); // Também aqui
+//                 }
+//             }
+//         }
+//     });
 
-    window.hasRegisteredClickListener = true; // Marca que o listener já foi adicionado
-}
+//     window.hasRegisteredClickListener = true; // Marca que o listener já foi adicionado
+// }
 
-if (!window.hasRegisteredChangeListenerForAjdCusto) {
-    document.addEventListener('change', async function(event) {
-        // Este 'if' verifica SE o evento 'change' veio de um select de alimentação ou transporte
-        if (event.target.classList.contains('select-alimentacao') || event.target.classList.contains('select-transporte')) {
-            console.log("--- Evento CHANGE disparado por select-alimentacao ou select-transporte ---");
-            const linhaAtual = event.target.closest('tr');
-            if (!linhaAtual) {
-                console.error("Erro: Não foi possível encontrar a linha (<tr>) pai para o select de ajuda de custo.");
-                return;
-            }
-            // Chama a função para recalcular e atualizar a exibição daquela linha específica
-            atualizarValoresAjdCustoNaLinha(linhaAtual);
+// if (!window.hasRegisteredChangeListenerForAjdCusto) {
+//     document.addEventListener('change', async function(event) {
+//         // Este 'if' verifica SE o evento 'change' veio de um select de alimentação ou transporte
+//         if (event.target.classList.contains('select-alimentacao') || event.target.classList.contains('select-transporte')) {
+//             console.log("--- Evento CHANGE disparado por select-alimentacao ou select-transporte ---");
+//             const linhaAtual = event.target.closest('tr');
+//             if (!linhaAtual) {
+//                 console.error("Erro: Não foi possível encontrar a linha (<tr>) pai para o select de ajuda de custo.");
+//                 return;
+//             }
+//             // Chama a função para recalcular e atualizar a exibição daquela linha específica
+//             atualizarValoresAjdCustoNaLinha(linhaAtual);
             
-            recalcularLinha(linhaAtual);
-            //calcularTotaisOrc(); // Recalcula os totais gerais da tabela após mudança em uma linha
-        }
-    });
-    window.hasRegisteredChangeListenerForAjdCusto = true;
-}
+//             recalcularLinha(linhaAtual);
+//             //calcularTotaisOrc(); // Recalcula os totais gerais da tabela após mudança em uma linha
+//         }
+//     });
+//     window.hasRegisteredChangeListenerForAjdCusto = true;
+// }
 
 function desformatarMoeda(valor) {
 
@@ -668,10 +668,12 @@ function calcularLucroReal() {
     let totalCustoGeral = 0;
     let totalAjdCusto = 0;
     let valorFinalCliente = 0;
+    let valorPercImposto = 0;
 
     const inputTotalGeral = document.querySelector('#totalGeralCto');
     const inputTotalAjdCusto= document.querySelector('#totalAjdCusto');
     const inputValorCliente = document.querySelector('#valorCliente');
+    const inputPercImposto = document.querySelector('#percentImposto');
 
     if (!inputTotalGeral || !inputValorCliente) {
         console.warn("⚠️ Campo(s) #totalGeral ou #valorCliente não encontrados. Lucro não pode ser calculado.");
@@ -682,11 +684,20 @@ function calcularLucroReal() {
     totalCustoGeral = desformatarMoeda(inputTotalGeral.value);    
     totalAjdCusto = desformatarMoeda(inputTotalAjdCusto.value);
     valorFinalCliente = desformatarMoeda(inputValorCliente.value);
+    valorPercImposto = desformatarMoeda(inputPercImposto.value);
 
-    console.log("TOTAL AJDCUSTO", totalCustoGeral, totalAjdCusto, valorFinalCliente);
+    console.log("TOTAL AJDCUSTO", totalCustoGeral, totalAjdCusto, valorFinalCliente, valorPercImposto);
+
+    
+    // Atualiza o campo de imposto com a formatação de moeda
+    let vlrImposto = valorFinalCliente > 0 
+        ? (valorFinalCliente * valorPercImposto / 100) 
+        : 0;
+
+    console.log('💰 Valor do Imposto calculado:', vlrImposto);
 
     // Calcula lucro
-    let lucroReal = valorFinalCliente - (totalCustoGeral+totalAjdCusto);
+    let lucroReal = valorFinalCliente - (totalCustoGeral+totalAjdCusto+vlrImposto);
     let porcentagemLucroReal = valorFinalCliente > 0
         ? (lucroReal / valorFinalCliente) * 100
         : 0;
@@ -707,6 +718,13 @@ function calcularLucroReal() {
         inputPorcentagemLucro.value = porcentagemLucroReal.toFixed(2) + '%';
     } else {
         console.warn("⚠️ Campo #percentReal não encontrado.");
+    }
+
+     const inputValorImposto = document.querySelector('#valorImposto');
+    if (inputValorImposto) {
+        inputValorImposto.value = formatarMoeda(vlrImposto);
+    } else {
+        console.warn("⚠️ Campo #valorImposto não encontrado.");
     }
 }
 
@@ -880,6 +898,22 @@ function adicionarLinhaOrc() {
         emptyRow.closest('tr').remove();
     }
 
+    const ufOrcamentoInput = document.getElementById('ufmontagem'); // Assumindo que você tem um input com o ID 'ufOrcamento'
+    let ufAtual = '';
+    if (ufOrcamentoInput) {
+        ufAtual = ufOrcamentoInput.value;
+    } else {
+        console.warn("Elemento 'ufOrcamento' não encontrado. Verifique se o ID está correto ou se a UF está sendo armazenada em outro lugar.");
+        // Se a UF não estiver facilmente acessível, você pode ter que buscá-la de outra forma,
+        // por exemplo, de uma variável global que armazena os dados do orçamento carregado.
+        // Ou, se o seu 'preencherItensOrcamentoTabela' já preenche um campo específico,
+        // use o seletor apropriado para esse campo.
+    }
+
+    const exibirCamposExtras = ufAtual.toUpperCase() !== 'SP'; // Lógica para exibir se UF for diferente de SP
+
+    // Defina o estilo inicial dos campos extras com base na UF
+    const displayStyle = exibirCamposExtras ? '' : 'none'; 
     let novaLinha = tabela.insertRow();    
     
     novaLinha.innerHTML = `
@@ -957,11 +991,11 @@ function adicionarLinhaOrc() {
             <br><span class="valorbanco transporte">${formatarMoeda(0)}</span>
         </td>
         <td class="totAjdCusto Moeda">${formatarMoeda(0)}</td>
-        <td class="extraCampo" style="display: none;">
-            <input type="text" class="hospedagem">
+        <td class="extraCampo" style="display: ${displayStyle};">
+            <input type="text" class="hospedagem Moeda" value=" R$ 0,00">
         </td>
-        <td class="extraCampo" style="display: none;">
-            <input type="text" class="transporte">
+        <td class="extraCampo" style="display: ${displayStyle};">
+            <input type="text" class="transporteExtraInput Moeda" value=" R$ 0,00">
         </td>
         <td class="totGeral Moeda">${formatarMoeda(0)}</td>
         <td>
@@ -984,6 +1018,28 @@ function adicionarLinhaOrc() {
         console.error("Erro: Novo input de data não encontrado na nova linha.");
     }
 
+    const incrementButton = novaLinha.querySelector('.qtdProduto .increment');
+    const decrementButton = novaLinha.querySelector('.qtdProduto .decrement');
+    const quantityInput = novaLinha.querySelector('.qtdProduto input[type="number"]');
+
+    if (incrementButton && quantityInput) {
+        incrementButton.addEventListener('click', function() {
+            quantityInput.value = parseInt(quantityInput.value) + 1;
+            // Chame sua função de recalcular a linha aqui também, se necessário
+            recalcularLinha(this.closest('tr'));
+        });
+    }
+
+    if (decrementButton && quantityInput) {
+        decrementButton.addEventListener('click', function() {
+            let currentValue = parseInt(quantityInput.value);
+            if (currentValue > 0) { // Garante que não decrementa abaixo de zero
+                quantityInput.value = currentValue - 1;
+                // Chame sua função de recalcular a linha aqui também, se necessário
+                recalcularLinha(this.closest('tr'));
+            }
+        });
+    }
     
     novaLinha.querySelector('.desconto .ValorInteiros')?.addEventListener('blur', function(event) { // MUDANÇA: 'input' para 'blur'
         console.log("DEBUG: Blur no campo ValorInteiros de Desconto! Input:", this.value); // Adicione este log
@@ -1022,7 +1078,7 @@ function adicionarLinhaOrc() {
     novaLinha.querySelector('.hospedagem')?.addEventListener('input', function() {
         recalcularLinha(this.closest('tr'));
     });
-    novaLinha.querySelector('.transporte')?.addEventListener('input', function() {
+    novaLinha.querySelector('.transporteExtraInput')?.addEventListener('input', function() {
         recalcularLinha(this.closest('tr'));
         console.log("INPUT TRANSPORTE ALTERADO NO ADICIONARLINHAORC:", this.value);
     });
@@ -1124,13 +1180,12 @@ function adicionarLinhaOrc() {
     }
     recalcularTotaisGerais(); 
     aplicarMascaraMoeda();   
-    //calcularLucro();
-
-
 }
 
 function adicionarLinhaAdicional() {
     let tabela = document.getElementById("tabela").getElementsByTagName("tbody")[0];
+
+
 
     let novaLinha = tabela.insertRow();
     novaLinha.classList.add("liberada");     // aplica nova cor
@@ -1210,10 +1265,10 @@ function adicionarLinhaAdicional() {
         </td>
         <td class="totAjdCusto Moeda">${formatarMoeda(0)}</td>
         <td class="extraCampo" style="display: none;">
-            <input type="text" class="hospedagem">
+            <input type="text" class="hospedagem" value=" R$ 0,00">
         </td>
         <td class="extraCampo" style="display: none;">
-            <input type="text" class="transporte">
+            <input type="text" class="transporteExtraInput" value=" R$ 0,00">
         </td>
         <td class="totGeral Moeda">${formatarMoeda(0)}</td>
         <td>
@@ -1258,6 +1313,30 @@ function adicionarLinhaAdicional() {
     novaLinha.querySelector('.qtdProduto input')?.addEventListener('input', function() {
         recalcularLinha(this.closest('tr'));
     });
+
+    const incrementButton = novaLinha.querySelector('.qtdProduto .increment');
+    const decrementButton = novaLinha.querySelector('.qtdProduto .decrement');
+    const quantityInput = novaLinha.querySelector('.qtdProduto input[type="number"]');
+
+    if (incrementButton && quantityInput) {
+        incrementButton.addEventListener('click', function() {
+            quantityInput.value = parseInt(quantityInput.value) + 1;
+            // Chame sua função de recalcular a linha aqui também, se necessário
+            recalcularLinha(this.closest('tr'));
+        });
+    }
+
+    if (decrementButton && quantityInput) {
+        decrementButton.addEventListener('click', function() {
+            let currentValue = parseInt(quantityInput.value);
+            if (currentValue > 0) { // Garante que não decrementa abaixo de zero
+                quantityInput.value = currentValue - 1;
+                // Chame sua função de recalcular a linha aqui também, se necessário
+                recalcularLinha(this.closest('tr'));
+            }
+        });
+    }
+    
     novaLinha.querySelector('.qtdDias input')?.addEventListener('input', function() {
         recalcularLinha(this.closest('tr'));
     });
@@ -1274,11 +1353,12 @@ function adicionarLinhaAdicional() {
     novaLinha.querySelector('.hospedagem')?.addEventListener('input', function() {
         recalcularLinha(this.closest('tr'));
     });
-    novaLinha.querySelector('.transporte')?.addEventListener('input', function() {
+    novaLinha.querySelector('.transporteExtraInput')?.addEventListener('input', function() {
         recalcularLinha(this.closest('tr'));
         console.log("INPUT TRANSPORTE ALTERADO NO ADICIONARLINHAORC:", this.value);
     });
 
+    
 
     const temPermissaoApagar = temPermissao("Orcamentos", "apagar");
     const deleteButton = novaLinha.querySelector('.btnApagar');
@@ -1777,11 +1857,15 @@ async function verificaOrcamento() {
     carregarSuprimentosOrc();
     configurarFormularioOrc();
 
+    // Adiciona a primeira linha de orçamento
+
     // Isso deve ser chamado depois que os selects estiverem carregados, se dependerem deles
 
    // inicializarFlatpickrsGlobais(); 
     initializeAllFlatpickrsInModal(); // Inicializa os campos de data globais
     inicializarListenersAjdCustoTabela();
+
+    adicionarLinhaOrc(); 
 
     configurarInfraCheckbox();
     
@@ -2032,9 +2116,10 @@ async function verificaOrcamento() {
                 acrescimo: parseFloat(formData.get("Acrescimo")),
                 percentAcrescimo: parsePercentValue(document.querySelector('#percentAcresc').value),
                 lucroReal: desformatarMoeda(document.querySelector('#lucroReal').value),
-                percentLucroReal: parsePercentValue(document.querySelector('#percentReal').value),
+                percentLucroReal: parsePercentValue(document.querySelector('#percentReal').value),               
                 vlrCliente: desformatarMoeda(document.querySelector('#valorCliente').value),
-            
+                vlrImposto: desformatarMoeda(document.querySelector('#valorImposto').value),
+                percentImposto: parsePercentValue(document.querySelector('#percentImposto').value),
             };
 
             const itensOrcamento = [];
@@ -2085,7 +2170,7 @@ async function verificaOrcamento() {
                     totajdctoitem: desformatarMoeda(linha.querySelector(".totAjdCusto.Moeda")?.textContent || '0'),
 
                     hospedagem: desformatarMoeda(linha.querySelector(".extraCampo .hospedagem")?.value || '0'),
-                    transporte: desformatarMoeda(linha.querySelector(".extraCampo .transporte")?.value || '0'),
+                    transporte: desformatarMoeda(linha.querySelector(".extraCampo .transporteExtraInput")?.value || '0'),                    
 
                     totgeralitem: desformatarMoeda(linha.querySelector(".totGeral")?.textContent || '0')
                 };
@@ -2274,8 +2359,10 @@ function limparOrcamento() {
     document.getElementById('percentDesc').value = '0%';
     document.getElementById('Acrescimo').value = 'R$ 0,00';
     document.getElementById('percentAcresc').value = '0%';
-    document.getElementById('lucroReal').value = 'R$ 0,00';
+    document.getElementById('lucroReal').value = 'R$ 0,00';    
     document.getElementById('percentReal').value = '0%';
+    document.getElementById('valorImposto').value = 'R$ 0,00';    
+    document.getElementById('percentImposto').value = '0%';
     document.getElementById('valorCliente').value = 'R$ 0,00';
 
     // Se você tiver máscaras (como IMask), pode precisar re-aplicá-las ou garantir que o valor seja resetado corretamente
@@ -2494,6 +2581,12 @@ function preencherFormularioComOrcamento(orcamento) {
     const percentRealInput = document.getElementById('percentReal');
     if (percentRealInput) percentRealInput.value = formatarPercentual(orcamento.percentlucroreal || 0);
 
+    const valorImpostoInput = document.getElementById('valorImposto');
+    if (valorImpostoInput) valorImpostoInput.value = formatarMoeda(orcamento.valorimposto || 0);
+
+    const percentImpostoInput = document.getElementById('percentImposto');
+    if (percentImpostoInput) percentImpostoInput.value = formatarPercentual(orcamento.percentimposto || 0);
+
     const valorClienteInput = document.getElementById('valorCliente');
     if (valorClienteInput) valorClienteInput.value = formatarMoeda(orcamento.vlrcliente || 0);
     
@@ -2520,7 +2613,7 @@ function preencherItensOrcamentoTabela(itens) {
         return;
     }
 
-    tabelaBody.innerHTML = ''; // Limpa as linhas existentes
+    tabelaBody.innerHTML = ''; // Limpa as linhas existentes    
 
     if (!itens || itens.length === 0) {
         console.log("Nenhum item encontrado para este orçamento ou 'itens' está vazio.");
@@ -2531,34 +2624,34 @@ function preencherItensOrcamentoTabela(itens) {
     }
 
     // Adiciona event listeners para os botões de incremento/decremento (qtdProduto, qtdDias)
-    if (!window.hasRegisteredClickListener) {
-        document.querySelector("#tabela").addEventListener("click", function(event) {
-            if (event.target.classList.contains("increment")) {
-                const input = event.target.closest("td").querySelector("input.qtdProduto");
-                if (input) {
-                    input.value = parseInt(input.value || 0) + 1;
-                    const linha = input.closest("tr");
-                    if (linha) {
-                        recalcularLinha(linha); // Chama aqui, dentro do clique
-                    }
-                }
-            }
+    // if (!window.hasRegisteredClickListener) {
+    //     document.querySelector("#tabela").addEventListener("click", function(event) {
+    //         if (event.target.classList.contains("increment")) {
+    //             const input = event.target.closest("td").querySelector("input.qtdProduto");
+    //             if (input) {
+    //                 input.value = parseInt(input.value || 0) + 1;
+    //                 const linha = input.closest("tr");
+    //                 if (linha) {
+    //                     recalcularLinha(linha); // Chama aqui, dentro do clique
+    //                 }
+    //             }
+    //         }
 
-            if (event.target.classList.contains("decrement")) {
-                const input = event.target.closest("td").querySelector("input.qtdProduto");
-                if (input) {
-                    const valorAtual = parseInt(input.value || 0);
-                    input.value = Math.max(0, valorAtual - 1);
-                    const linha = input.closest("tr");
-                    if (linha) {
-                        recalcularLinha(linha); // Também aqui
-                    }
-                }
-            }
-        });
+    //         if (event.target.classList.contains("decrement")) {
+    //             const input = event.target.closest("td").querySelector("input.qtdProduto");
+    //             if (input) {
+    //                 const valorAtual = parseInt(input.value || 0);
+    //                 input.value = Math.max(0, valorAtual - 1);
+    //                 const linha = input.closest("tr");
+    //                 if (linha) {
+    //                     recalcularLinha(linha); // Também aqui
+    //                 }
+    //             }
+    //         }
+    //     });
 
-        window.hasRegisteredClickListener = true; // Marca que o listener já foi adicionado
-    }
+    //     window.hasRegisteredClickListener = true; // Marca que o listener já foi adicionado
+    // }
     
 
     itens.forEach(item => {
@@ -2609,16 +2702,12 @@ function preencherItensOrcamentoTabela(itens) {
             <td class="produto">${item.produto || ''}</td>
             <td class="qtdDias">
                 <div class="add-less">
-                    <input type="number" readonly class="qtdDias" min="0" value="${item.qtddias || 0}">
-                    <div class="Bt">
-                        <button type="button" class="increment">+</button>
-                        <button type="button" class="decrement">-</button>
-                    </div>
+                    <input type="number" readonly class="qtdDias" min="0" value="${item.qtddias || 0}">                    
                 </div>
             </td>
             <td class="Periodo">
                 <div class="flatpickr-container">
-                    <input type="text" class="datas datas-item" data-input required readonly placeholder="Clique para Selecionar" value="${valorInicialDoInputDiarias}">
+                    <input type="text" class="datas datas-item" data-input required readonly placeholder="Clique para Selecionar">
                 </div>
             </td>
             <td class="desconto Moeda">
@@ -2661,11 +2750,11 @@ function preencherItensOrcamentoTabela(itens) {
                 <br><span class="valorbanco transporte">${formatarMoeda(item.vlrajdctotransporte || 0)}</span>
             </td>
             <td class="totAjdCusto Moeda">${formatarMoeda(item.totajdctoitem || 0)}</td>
-            <td class="extraCampo" style="display: none;">
+            <td class="extraCampo Moeda" style="display: none;">
                 <input type="text" class="hospedagem" value="${item.hospedagem || 0}">
             </td>
-            <td class="extraCampo" style="display: none;">
-                <input type="text" class="transporte" value="${item.transporte || 0}">
+            <td class="extraCampo Moeda" style="display: none;">
+                <input type="text" class="transporteExtraInput" value="${item.transporte || 0}">
             </td>
             <td class="totGeral Moeda">${formatarMoeda(item.totgeralitem || 0)}</td>
             <td>
@@ -2718,7 +2807,7 @@ function preencherItensOrcamentoTabela(itens) {
             recalcularLinha(this.closest('tr'));
         });
 
-        newRow.querySelector('.transporte')?.addEventListener('input', function() {
+        newRow.querySelector('.transporteExtraInput')?.addEventListener('input', function() {
             recalcularLinha(this.closest('tr'));
             console.log("INPUT DO TRANSPORTE:", this.value); // Log para depuração
         });
@@ -2747,6 +2836,29 @@ function preencherItensOrcamentoTabela(itens) {
             });
         } 
 
+        const incrementButton = newRow.querySelector('.qtdProduto .increment');
+        const decrementButton = newRow.querySelector('.qtdProduto .decrement');
+        const quantityInput = newRow.querySelector('.qtdProduto input[type="number"]');
+
+        if (incrementButton && quantityInput) {
+            incrementButton.addEventListener('click', function() {
+                quantityInput.value = parseInt(quantityInput.value) + 1;
+                // Chame sua função de recalcular a linha aqui também, se necessário
+                recalcularLinha(this.closest('tr'));
+            });
+        }
+
+        if (decrementButton && quantityInput) {
+            decrementButton.addEventListener('click', function() {
+                let currentValue = parseInt(quantityInput.value);
+                if (currentValue > 0) { // Garante que não decrementa abaixo de zero
+                    quantityInput.value = currentValue - 1;
+                    // Chame sua função de recalcular a linha aqui também, se necessário
+                    recalcularLinha(this.closest('tr'));
+                }
+            });
+        }
+        
         const temPermissaoApagar = temPermissao("Orcamentos", "apagar");
         const deleteButton = newRow.querySelector('.btnApagar');
         const idItemInput = newRow.querySelector('input.idItemOrcamento'); // Obtém o input de ID
@@ -3144,25 +3256,25 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 // --------------------------------------- botoes Quantidade-----------------------------------------
 
-if (!window.hasRegisteredClickListener) {
-    document.addEventListener('click', function(event) {
-    if (event.target.classList.contains('increment')) {
-        // console.log('Incrementando...');
-        const input = event.target.closest('.add-less').querySelector('input');
-        input.value = parseInt(input.value || 0) + 1;
-    }
+// if (!window.hasRegisteredClickListener) {
+//     document.addEventListener('click', function(event) {
+//     if (event.target.classList.contains('increment')) {
+//         // console.log('Incrementando...');
+//         const input = event.target.closest('.add-less').querySelector('input');
+//         input.value = parseInt(input.value || 0) + 1;
+//     }
 
-    if (event.target.classList.contains('decrement')) {
-        // console.log('Decrementando...');
-        const input = event.target.closest('.add-less').querySelector('input');
-        let currentValue = parseInt(input.value || 0);
-        if (currentValue > 0) {
-        input.value = currentValue - 1;
-        }
-    }
-    });
-    window.hasRegisteredClickListener = true;
-}
+//     if (event.target.classList.contains('decrement')) {
+//         // console.log('Decrementando...');
+//         const input = event.target.closest('.add-less').querySelector('input');
+//         let currentValue = parseInt(input.value || 0);
+//         if (currentValue > 0) {
+//         input.value = currentValue - 1;
+//         }
+//     }
+//     });
+//     window.hasRegisteredClickListener = true;
+// }
 
 
 // ------------------------------- Preenchimento automatico -------------------------
@@ -3258,8 +3370,8 @@ function recalcularLinha(linha) {
             valorTransporteSpan.textContent = totalTransporteLinha.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
 
-        let hospedagemValor = parseFloat(linha.querySelector('input.hospedagem')?.value) || 0;
-        let transporteExtraValor = parseFloat(linha.querySelector('.extraCampo.transporte')?.value) || 0; 
+        let hospedagemValor = parseFloat(linha.querySelector('.hospedagem')?.value) || 0;
+        let transporteExtraValor = parseFloat(linha.querySelector('.transporteExtraInput')?.value) || 0;
 
         console.log("HOSPEDAGEM E TRANSPORTE EXTRA:", hospedagemValor, transporteExtraValor);
               
@@ -3975,7 +4087,7 @@ function exportarParaExcel() {
 
     linha.push(tr.querySelector(".totAjdCusto")?.innerText.trim() || "0");
     linha.push(tr.querySelector("input.hospedagem")?.value || "");
-    linha.push(tr.querySelector("input.transporte")?.value || "");
+    linha.push(tr.querySelector("input.transporteExtraInput")?.value || "");
     linha.push(tr.querySelector(".totGeral")?.innerText.trim() || "0");
 
     dados.push(linha);
@@ -4028,70 +4140,70 @@ for (let R = range.s.r; R <= range.e.r; ++R) {
   XLSX.writeFile(wb, "orcamento_formatado.xlsx");
 }
 
-async function salvarOrcamento(event) {
-    event.preventDefault(); // evita o envio padrão do formulário
+// async function salvarOrcamento(event) {
+//     event.preventDefault(); // evita o envio padrão do formulário
 
-    const form = document.getElementById("form");
-    const formData = new FormData(form);
+//     const form = document.getElementById("form");
+//     const formData = new FormData(form);
 
-    // Você pode adicionar campos adicionais se forem calculados dinamicamente
-    // Por exemplo, valores da tabela ou campos que não estão no <form>
+//     // Você pode adicionar campos adicionais se forem calculados dinamicamente
+//     // Por exemplo, valores da tabela ou campos que não estão no <form>
 
-    const dados = {};
-    formData.forEach((value, key) => {
-        dados[key] = value;
-    });
+//     const dados = {};
+//     formData.forEach((value, key) => {
+//         dados[key] = value;
+//     });
 
-    // Exemplo de como capturar itens da tabela (ajuste conforme sua lógica)
-    const itens = [];
-    const linhas = document.querySelectorAll("#tabela tbody tr");
-    linhas.forEach((linha) => {
-        const item = {
-            categoria: linha.querySelector(".Categoria")?.textContent.trim(),
-            qtdProduto: linha.querySelector(".qtdProduto input")?.value,
-            produto: linha.querySelector(".produto")?.textContent.trim(),
-            qtdDias: linha.querySelector(".qtdDias input")?.value,
-            vlrVenda: linha.querySelector(".vlrVenda")?.textContent.trim(),
-            totVdaDiaria: linha.querySelector(".totVdaDiaria")?.textContent.trim(),
-            vlrCusto: linha.querySelector(".vlrCusto")?.textContent.trim(),
-            totCtoDiaria: linha.querySelector(".totCtoDiaria")?.textContent.trim(),
-            ajdCusto: linha.querySelector(".ajdCusto")?.textContent.trim(),
-            totAjdCusto: linha.querySelector(".totAjdCusto")?.textContent.trim(),
-            hospedagem: linha.querySelector(".hospedagem")?.value || "0",
-            transporte: linha.querySelector(".transporte")?.value || "0",
-            totGeral: linha.querySelector(".totGeral")?.textContent.trim()
-        };
-        itens.push(item);
-    });
+//     // Exemplo de como capturar itens da tabela (ajuste conforme sua lógica)
+//     const itens = [];
+//     const linhas = document.querySelectorAll("#tabela tbody tr");
+//     linhas.forEach((linha) => {
+//         const item = {
+//             categoria: linha.querySelector(".Categoria")?.textContent.trim(),
+//             qtdProduto: linha.querySelector(".qtdProduto input")?.value,
+//             produto: linha.querySelector(".produto")?.textContent.trim(),
+//             qtdDias: linha.querySelector(".qtdDias input")?.value,
+//             vlrVenda: linha.querySelector(".vlrVenda")?.textContent.trim(),
+//             totVdaDiaria: linha.querySelector(".totVdaDiaria")?.textContent.trim(),
+//             vlrCusto: linha.querySelector(".vlrCusto")?.textContent.trim(),
+//             totCtoDiaria: linha.querySelector(".totCtoDiaria")?.textContent.trim(),
+//             ajdCusto: linha.querySelector(".ajdCusto")?.textContent.trim(),
+//             totAjdCusto: linha.querySelector(".totAjdCusto")?.textContent.trim(),
+//             hospedagem: linha.querySelector(".hospedagem")?.value || "0",
+//             transporte: linha.querySelector(".transporteExtraInput")?.value || "0",
+//             totGeral: linha.querySelector(".totGeral")?.textContent.trim()
+//         };
+//         itens.push(item);
+//     });
 
-    // Inclui os itens no objeto principal
-    dados.itens = itens;
+//     // Inclui os itens no objeto principal
+//     dados.itens = itens;
 
-    console.log("DADOS ITENS", dados.itens);
+//     console.log("DADOS ITENS", dados.itens);
 
-    try {
-        const resposta = await fetchComToken(form.getAttribute('data-action'), {
-            method: 'POST',
-            // headers: {
-            //     'Content-Type': 'application/json',
-            //     'Authorization': `Bearer ${token}`
-            //     // 'x-id-empresa': idEmpresa
-            // },
-            body: JSON.stringify(dados)
-        });
+//     try {
+//         const resposta = await fetchComToken(form.getAttribute('data-action'), {
+//             method: 'POST',
+//             // headers: {
+//             //     'Content-Type': 'application/json',
+//             //     'Authorization': `Bearer ${token}`
+//             //     // 'x-id-empresa': idEmpresa
+//             // },
+//             body: JSON.stringify(dados)
+//         });
 
-        if (resposta.ok) {
-            const resultado = await resposta.json();
-            Swal.fire("Sucesso", "Orçamento salvo com sucesso!", "success");
-        } else {
-            const erro = await resposta.text();
-            Swal.fire("Erro", "Falha ao salvar orçamento: " + erro, "error");
-        }
-    } catch (err) {
-        console.error(err);
-        Swal.fire("Erro", "Erro inesperado ao salvar orçamento.", "error");
-    }
-}
+//         if (resposta.ok) {
+//             const resultado = await resposta.json();
+//             Swal.fire("Sucesso", "Orçamento salvo com sucesso!", "success");
+//         } else {
+//             const erro = await resposta.text();
+//             Swal.fire("Erro", "Falha ao salvar orçamento: " + erro, "error");
+//         }
+//     } catch (err) {
+//         console.error(err);
+//         Swal.fire("Erro", "Erro inesperado ao salvar orçamento.", "error");
+//     }
+// }
 
 function configurarEventosOrcamento() {
     console.log("Configurando eventos Orcamento...");
