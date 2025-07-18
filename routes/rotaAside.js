@@ -46,14 +46,14 @@ router.get('/orcamento', async (req, res) => {
 
   try {
     const query = `
-      SELECT DISTINCT idorcamento
+      SELECT idorcamento, nrorcamento, status
       FROM orcamentos
       WHERE idcliente = $1 AND idevento = $2 AND status = 'A'
       ORDER BY datacriacao DESC
     `;
     const { rows } = await pool.query(query, [clienteId, eventoId]);
 
-    console.log("🧾 Orçamentos encontrados:", rows.length);
+    console.log("🧾 Orçamentos encontrados:", rows);
 
     res.json(rows);
   } catch (err) {
