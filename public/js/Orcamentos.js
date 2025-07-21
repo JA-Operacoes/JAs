@@ -4213,6 +4213,29 @@ function configurarEventosOrcamento() {
     console.log("Entrou configurar Orcamento no ORCAMENTO.js.");
 } 
 
+window.pesquisaOrcamento = async function() {
+  const input = document.getElementById("nrOrcamento");
+  if (!input) {
+    console.warn("Campo nrOrcamento não encontrado.");
+    return;
+  }
+  
+  const nr = input.value.trim();
+  if (!nr) {
+    limparFormularioOrcamento(); // Se existir, para limpar o form
+    return;
+  }
+
+  try {
+    const orcamento = await fetchComToken(`orcamentos?nrOrcamento=${nr}`);
+    preencherFormularioComOrcamento(orcamento); // Sua função que preenche o form
+  } catch (error) {
+    console.error("Erro ao buscar orçamento:", error);
+    limparFormularioOrcamento(); // Limpa o formulário se erro
+    Swal.fire("Erro", `Não foi possível buscar o orçamento ${nr}.`, "error");
+  }
+};
+
 window.configurarEventosOrcamento = configurarEventosOrcamento;
 
 function configurarEventosEspecificos(modulo) {
@@ -4231,3 +4254,13 @@ function configurarEventosEspecificos(modulo) {
   }
 }
 window.configurarEventosEspecificos = configurarEventosEspecificos;
+
+
+  document.addEventListener("DOMContentLoaded", function () {
+    const orcamento = JSON.parse(sessionStorage.getItem("orcamentoSelecionado") || "{}");
+
+    if (orcamento?.nrorcamento) {
+      document.getElementById("nrOrcamento").textContent = orcamento.nrorcamento;
+      // ...adicione os campos necessários
+    }
+  });

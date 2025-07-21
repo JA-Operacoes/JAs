@@ -6,6 +6,47 @@ let nomeClienteSelecionado = '';
 let nomeEventoSelecionado = '';
 let eventoSelecionado = null; // ✅ NOVO
 
+document.addEventListener("DOMContentLoaded", async function () {
+  console.log("Entrou no DOM");
+
+  function temPermissao(modulo, acao) {
+    const permissoes = JSON.parse(sessionStorage.getItem("permissoesUsuario") || "[]");
+
+    console.log(`[Permissão] Verificando permissão: módulo="${modulo}", ação="${acao}"`);
+    console.log("[Permissão] Permissões disponíveis:", permissoes);
+
+    const resultado = permissoes.some(p => {
+      const ehModulo = p.modulo?.toLowerCase() === modulo.toLowerCase();
+      const temAcao = p[`pode_${acao}`] === true;
+
+      console.log(`[Permissão] Verificando módulo "${p.modulo}": `, {
+        ehModulo,
+        temAcao,
+        combinado: ehModulo && temAcao
+      });
+
+      return ehModulo && temAcao;
+    });
+
+    console.log(`[Permissão] Resultado da verificação para "${modulo}" / "${acao}":`, resultado);
+    return resultado;
+  }
+
+   const btn = document.getElementById("toggle-btn");
+  if (btn) {
+    btn.addEventListener("click", alternarMenu);
+  }
+
+  // Executa a função ao iniciar para garantir estado inicial correto
+  alternarMenu();
+
+  carregarClientes("clientes");
+  carregarDados("clientes");
+  aplicarCliqueNosClientes();
+});
+
+// Carregar dados ao carregar a página
+
 function mostrarPainel(tipo) {
   const paineis = document.querySelectorAll('.painel');
   const abas = document.querySelectorAll('.aba');
@@ -16,18 +57,98 @@ function mostrarPainel(tipo) {
   document.getElementById(`painel-${tipo}`)?.classList.add('ativo');
   document.getElementById(`aba-${tipo}`)?.classList.add('ativa');
 
-  if (tipo === 'eventos' && clienteSelecionado) {
-    carregarEventosDoCliente(clienteSelecionado);
-  } else if (tipo === 'orcamento') {
-    const info = document.getElementById('orcamento-selecionado');
-    if (clienteSelecionado && eventoSelecionado) {
-      carregarOrcamentos(clienteSelecionado, eventoSelecionado); // ✅ CORRETO
+  if (tipo === 'eventos') {
+    if (clienteSelecionado) {
+      carregarEventosDoCliente(clienteSelecionado);
+    } else {
+      Swal.fire("Atenção", "Selecione um cliente primeiro.", "warning");
+      return;
     }
-    if (info) {
-      info.textContent = `Cliente: ${nomeClienteSelecionado} | Evento: ${nomeEventoSelecionado}`;
+  }
+
+  if (tipo === 'orcamento') {
+    if (clienteSelecionado && eventoSelecionado) {
+      document.getElementById('orcamento-selecionado').textContent =
+        `Cliente: ${nomeClienteSelecionado} | Evento: ${nomeEventoSelecionado}`;
+      carregarOrcamentos(clienteSelecionado, eventoSelecionado);
+    } else {
+      Swal.fire("Atenção", "Selecione um evento primeiro.", "warning");
+      return;
     }
   }
 }
+
+window.navegarParaAba = function(tipo) {
+  // 🔄 Limpar seleções ao voltar
+  if (tipo === "clientes") {
+    // LIMPA CLIENTE
+    clienteSelecionado = null;
+    nomeClienteSelecionado = '';
+
+    // LIMPA EVENTO
+    eventoSelecionado = null;
+    nomeEventoSelecionado = '';
+
+    // LIMPA ORÇAMENTO
+    sessionStorage.removeItem("orcamentoSelecionado");
+
+    // LIMPA LISTAS DA TELA
+    const ulClientes = document.getElementById("lista-dados-clientes");
+    const ulEventos = document.getElementById("lista-dados-eventos");
+    const ulOrcamento = document.getElementById("lista-dados-orcamento");
+
+    if (ulClientes) ulClientes.innerHTML = "";
+    if (ulEventos) ulEventos.innerHTML = "";
+    if (ulOrcamento) ulOrcamento.innerHTML = "";
+  }
+
+  if (tipo === "eventos") {
+    eventoSelecionado = null;
+    nomeEventoSelecionado = '';
+    sessionStorage.removeItem("orcamentoSelecionado");
+
+    const ulOrcamento = document.getElementById("lista-dados-orcamento");
+    if (ulOrcamento) ulOrcamento.innerHTML = "";
+  }
+
+  // 🔒 Bloqueia todas as abas inicialmente
+  document.querySelectorAll(".aba").forEach(aba => {
+    aba.classList.add("desativada");
+    aba.style.pointerEvents = "none";
+  });
+
+  // ✅ Aba "Clientes" sempre ativa
+  document.getElementById("aba-clientes").classList.remove("desativada");
+  document.getElementById("aba-clientes").style.pointerEvents = "auto";
+
+  // ✅ Libera "Eventos" se cliente estiver selecionado
+  if (clienteSelecionado) {
+    document.getElementById("aba-eventos").classList.remove("desativada");
+    document.getElementById("aba-eventos").style.pointerEvents = "auto";
+  }
+
+  // ✅ Libera "Orçamento" se evento selecionado
+  if (clienteSelecionado && eventoSelecionado) {
+    document.getElementById("aba-orcamento").classList.remove("desativada");
+    document.getElementById("aba-orcamento").style.pointerEvents = "auto";
+  }
+
+  // Ativa painel e aba
+  document.querySelectorAll(".painel").forEach(p => p.classList.remove("ativo"));
+  document.querySelectorAll(".aba").forEach(a => a.classList.remove("ativa"));
+
+  document.getElementById(`painel-${tipo}`)?.classList.add("ativo");
+  document.getElementById(`aba-${tipo}`)?.classList.add("ativa");
+
+  // Carregamento específico
+  if (tipo === "clientes") carregarClientes();
+  if (tipo === "eventos") carregarEventosDoCliente(clienteSelecionado);
+  if (tipo === "orcamento") {
+    document.getElementById("orcamento-selecionado").textContent =
+      `Cliente: ${nomeClienteSelecionado} | Evento: ${nomeEventoSelecionado}`;
+    carregarOrcamentos(clienteSelecionado, eventoSelecionado);
+  }
+};
 
 async function carregarClientes() {
   try {
@@ -99,6 +220,7 @@ async function carregarEventosDoCliente(clienteId) {
 
       li.onclick = () => {
         nomeEventoSelecionado = evento.nmevento;
+        eventoSelecionado = evento.idevento; // ✅ SALVA o ID
         ativarAbaOrcamento();
         mostrarPainel('orcamento');
       };
@@ -111,12 +233,11 @@ async function carregarEventosDoCliente(clienteId) {
   }
 }
 
-async function carregarOrcamentos(clienteId, idevento) {
+async function carregarOrcamentos(clienteId, eventoId) {
   try {
-    const url = `/orcamentos?clienteId=${clienteId}&eventoId=${idevento}`;
-    const orcamentos = await fetchComToken(url);
+    const orcamentos = await fetchComToken(`aside/orcamento?clienteId=${clienteId}&eventoId=${eventoId}`);
 
-    const ul = document.getElementById('lista-dados-orcamentos');
+    const ul = document.getElementById('lista-dados-orcamento');
     ul.innerHTML = '';
 
     if (!Array.isArray(orcamentos) || orcamentos.length === 0) {
@@ -129,9 +250,32 @@ async function carregarOrcamentos(clienteId, idevento) {
       li.textContent = `Orçamento nº ${orc.nrorcamento} | Status: ${orc.status}`;
 
       li.onclick = () => {
-        // Aqui você pode definir ações, como preencher o formulário
-        preencherFormularioComOrcamento(orc);
-        mostrarPainel('orcamento');
+        // Salva o orçamento no sessionStorage para o modal acessar
+        sessionStorage.setItem("orcamentoSelecionado", JSON.stringify(orc));
+
+        // Simula o clique no link de menu que abre o modal
+        const linkModal = document.querySelector('.abrir-modal[data-modulo="Orcamentos"]');
+        if (linkModal) {
+          linkModal.click();
+
+          // Aguarda o modal abrir e preenche o input + chama a busca
+        setTimeout(async () => {
+          const input = document.getElementById("nrOrcamento");
+          if (input) {
+            input.value = orc.nrorcamento;
+
+            try {
+              const orcamento = await fetchComToken(`orcamentos?nrOrcamento=${orc.nrorcamento}`);
+              preencherFormularioComOrcamento(orcamento);
+            } catch (error) {
+              limparFormularioOrcamento();
+              Swal.fire("Erro", `Não foi possível buscar o orçamento ${orc.nrorcamento}.`, "error");
+            }
+          }
+        }, 300);// ⏱️ ajuste esse delay se necessário
+        } else {
+          Swal.fire("Erro", "Botão para abrir o modal não encontrado.", "error");
+        }
       };
 
       ul.appendChild(li);
@@ -198,9 +342,8 @@ function alternarMenu() {
   const wrapper = document.getElementById("wrapper");
   const btn = document.getElementById("toggle-btn");
 
-  wrapper.classList.toggle("menu-fechado");
-
-  btn.innerHTML = wrapper.classList.contains("menu-fechado") ? "»" : "«";
+  const estaFechado = wrapper.classList.toggle("menu-fechado");
+  btn.innerHTML = estaFechado ? "»" : "«";
 }
 
 function aplicarCliqueNosClientes() {
@@ -213,3 +356,5 @@ function aplicarCliqueNosClientes() {
     });
   }
 }
+
+
