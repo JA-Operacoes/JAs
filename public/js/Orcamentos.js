@@ -427,6 +427,17 @@ async function carregarSuprimentosOrc() {
     }
 }
 
+function limparSelects() {
+  const ids = ['selectFuncao', 'selectEquipamento', 'selectSuprimento'];
+
+  ids.forEach(function(id) {
+    const select = document.getElementById(id);
+    if (select) {
+      select.selectedIndex = 0; // Seleciona o primeiro item (geralmente uma opção vazia ou "Selecione...")
+    }
+  });
+}
+
 function configurarInfraCheckbox() {
     let checkbox = document.getElementById("ativo");
     let bloco = document.getElementById("blocoInfra");
@@ -472,38 +483,6 @@ function configurarFormularioOrc() {
             };
             orcamento.Pessoas.push(dados);
         }
-
-    //     fetchComToken('/orcamento', {
-    //         method: 'POST',
-    //         // headers: {
-    //         //             "Content-Type": "application/json",
-    //         //             'Authorization': `Bearer ${token}`
-    //         //             // 'x-id-empresa': idEmpresa
-    //         //         },
-    //         body: JSON.stringify(orcamento)
-    //     })
-    //     .then(response => response.json())
-    //     .then(data => {
-    //         alert("Orçamento salvo com sucesso!");
-    //         fecharModal();
-    //     })
-    //     .catch(error => console.error("Erro ao salvar:", error));
-    // });
-    //     fetchComToken('/orcamento', {
-    //         method: 'POST',
-    //         // headers: {
-    //         //             "Content-Type": "application/json",
-    //         //             'Authorization': `Bearer ${token}`
-    //         //             // 'x-id-empresa': idEmpresa
-    //         //         },
-    //         body: JSON.stringify(orcamento)
-    //     })
-    //     .then(response => response.json())
-    //     .then(data => {
-    //         alert("Orçamento salvo com sucesso!");
-    //         fecharModal();
-    //     })
-    //     .catch(error => console.error("Erro ao salvar:", error));
      });
     
 }
@@ -1175,7 +1154,8 @@ function adicionarLinhaOrc() {
         }
     }
     recalcularTotaisGerais(); 
-    aplicarMascaraMoeda();   
+    aplicarMascaraMoeda(); 
+    limparSelects();  
 }
 
 function adicionarLinhaAdicional() {
@@ -1459,7 +1439,8 @@ function adicionarLinhaAdicional() {
         }
     }
     recalcularTotaisGerais(); 
-    aplicarMascaraMoeda();  
+    aplicarMascaraMoeda();
+    limparSelects();  
 }
 
 function removerLinhaOrc(botao) {
@@ -2603,7 +2584,7 @@ function preencherFormularioComOrcamento(orcamento) {
 }
 
 
-function preencherItensOrcamentoTabela(itens) {
+ export function preencherItensOrcamentoTabela(itens) {
      console.log("DEBUG FRONTEND: preencherItensOrcamentoTabela foi chamada com itens:", itens);
    
     const tabelaBody = document.querySelector("#tabela tbody");
@@ -2964,6 +2945,56 @@ function formatarDatasParaInputPeriodo(inicioStr, fimStr) {
 
 // --- Função para Limpar o Formulário Principal ---
 
+export function limparFormularioOrcamento() {
+    document.getElementById('form').reset();
+    idOrcamentoInput.value = '';
+
+    // Limpar seleções de Flatpickr para todos os inputs
+    for (const id in flatpickrInstances) {
+        const pickerInstance = flatpickrInstances[id];
+        if (pickerInstance) {
+            pickerInstance.clear();
+        }
+    }
+
+    // Resetar selects para a opção padrão (Selecione...)
+    if (statusSelect) statusSelect.value = '';
+    if (clienteSelect) clienteSelect.value = '';
+    if (eventoSelect) eventoSelect.value = '';
+    if (localMontagemSelect) localMontagemSelect.value = '';
+
+    // TODO: Se você tiver uma função para limpar a tabela de itens, chame-a aqui
+    // Ex: limparItensOrcamentoTabela();
+}
+
+function getPeriodoDatas(inputValue) { // Recebe diretamente o valor do input
+   
+    console.log("Valor do input recebido:", inputValue);
+    
+    if (typeof inputValue !== 'string' || inputValue.trim() === '') {
+        // Se o input estiver vazio ou não for uma string, retorna null para as datas.
+        // Isso é exatamente o que você quer para campos opcionais não preenchidos.
+        return { inicio: null, fim: null };
+    }
+    const datas = inputValue.split(' até '); 
+
+    let dataInicial = null;
+    let dataFinal = null;
+
+    if (datas.length === 2) {
+        // Se há duas partes, é um período completo (início e fim)
+        dataInicial = formatarDataParaBackend(datas[0].trim()); // Trim para remover espaços extras
+        dataFinal = formatarDataParaBackend(datas[1].trim());
+    } else if (datas.length === 1) {
+        // Se há apenas uma parte, é uma única data selecionada
+        dataInicial = formatarDataParaBackend(datas[0].trim());
+        dataFinal = formatarDataParaBackend(datas[0].trim()); // Ou null, dependendo da sua regra para um único dia
+                                                              // Deixei como a mesma data para um período de 1 dia.
+    }
+    // Caso contrário (datas.length é 0, já tratado pela validação inicial)
+console.log("Datas retornadas:", { inicio: dataInicial, fim: dataFinal });
+    return { inicio: dataInicial, fim: dataFinal };
+}
 
 function formatarDataParaBackend(dataString) {
     if (!dataString) return null;
@@ -4193,3 +4224,9 @@ window.configurarEventosEspecificos = configurarEventosEspecificos;
       // ...adicione os campos necessários
     }
   });
+
+//   export{
+//     preencherFormularioComOrcamento,
+//     preencherItensOrcamentoTabela,
+//     limparFormularioOrcamento
+//   }

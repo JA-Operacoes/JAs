@@ -134,6 +134,38 @@
   flex: 1;
   overflow-y: auto;
   max-height: 100%; /* herda a altura do painel ajustado */
+
+    /* Máscara para criar o fade no topo e base da lista */
+  mask-image: linear-gradient(to bottom, transparent 0px, black 30px, black calc(100% - 30px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0px, black 30px, black calc(100% - 30px), transparent 100%);
+  mask-mode: match-source;
+
+  /* Aparência visual 3D */
+  background: transparent;
+  padding: 8px;
+  border-radius: 10px;
+  box-shadow:
+    inset 0 10px 10px -10px rgba(0, 0, 0, 0.15),
+    inset 0 -10px 10px -10px rgba(0, 0, 0, 0.15),
+    0 2px 10px rgba(0, 0, 0, 0.05);
+
+  /* Scrollbar refinada */
+  scrollbar-width: thin;
+  scrollbar-color: #888 transparent;
+  transition: all 0.3s ease;
+}
+
+.lista-scroll li {
+  padding: 10px 14px;
+  margin-bottom: 6px;
+  background: transparent;
+  border-radius: 8px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lista-scroll li:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
   
@@ -443,27 +475,41 @@
     background-color: #ffffff;
   }
 
-  .lista-scroll::-webkit-scrollbar {
+
+  /* .lista-scroll::-webkit-scrollbar {
     width: 6px;
-    height: 6px; /* Para o scrollbar horizontal */
+    height: 6px; /* Para o scrollbar horizontal 
   }
   
-  /* Estiliza a parte que você pode arrastar (thumb) */
+  /* Estiliza a parte que você pode arrastar (thumb) *
   .lista-scroll::-webkit-scrollbar-thumb {
     background-color: gray;
     border-radius: 10px;
   }
   
-  /* Estiliza a trilha do scrollbar (o fundo) */
+  /* Estiliza a trilha do scrollbar (o fundo) *
   .lista-scroll::-webkit-scrollbar-track {
     background-color: gray;
     border-radius: 5px;
   }
   
-  /* Adiciona um efeito de hover para o thumb */
+  /* Adiciona um efeito de hover para o thumb *
   .lista-scroll::-webkit-scrollbar-thumb:hover {
     background-color: #ffffff;
-  }
+  }  */
+
+
+.lista-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.lista-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.lista-scroll::-webkit-scrollbar-thumb {
+  background-color: #888;
+  border-radius: 6px;
+}
+
   
   /* ----------------------------------------------   RESPONSIVIDADE   --------------------------------------------------------- */
   @media(max-width: 767px){
