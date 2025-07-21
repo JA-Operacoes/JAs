@@ -691,7 +691,7 @@
   box-shadow: none; /* também remove o "brilho" do foco */
 }
 
-    .Acres-Desc input, .extraCampo input {
+    .Acres-Desc input, .extraCampo input, .setor input {
     display: flex;
     justify-content: center;
     align-items: center;
