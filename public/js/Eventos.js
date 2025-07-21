@@ -89,6 +89,9 @@ async function verificaEvento() {
             console.log("Enviando dados para o servidor:", dados, url, metodo);
             const respostaApi = await fetchComToken(url, {
                 method: metodo,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify(dados)
             });            
 

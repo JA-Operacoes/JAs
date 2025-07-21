@@ -93,21 +93,21 @@
                         <table id="eventsDataTable" style="width: 100%; border-collapse: collapse;">
                             <thead>
                                 <tr>
-                                    <th>ID Evento</th>
+                                    <td style="display: none;"><input type="hidden" class="idEvento" style="display: none;" value=""></td>
                                     <th>Função</th>
-                                    <th>Evento</th>
+                                    <th>Cliente</th>
+                                    <th>Evento</th>                                    
+                                    <th>Local Montagem</th>
+                                    <th>Pavilhão</th>
                                     <th>Período</th>
                                     <th>Cache</th>
                                     <th>Valor Bônus</th>
-                                    <th>Transporte</th>
+                                    <th>Desc.Bônus</th>
                                     <th>Almoço</th>
                                     <th>Jantar</th>
+                                    <th>Transporte</th>                                    
                                     <th>Caixinha</th>
-                                    <th>Benefícios</th>
-                                    <th>Local Montagem</th>
-                                    <th>Pavilhão</th>
-                                    <th>Cliente</th>
-                                    <th>Desc.Bônus</th>
+                                    <th>Benefícios</th>                                   
                                     <th>Total</th>
                                 </tr>
                             </thead>
@@ -170,8 +170,7 @@
         <p id="contadorDatas">Nenhuma data selecionada.</p>
       </div>
     </div>
-    <div class="form-2colunas">
-      <textarea name="bonus[]" id="bonus" placeholder="Bônus" required></textarea>
+    <div class="form-2colunas">     
       <div class="form2">
         <input type="text" class="preenchido moeda" value="R$ 0,00" id="vlrTotal" name="vlrTotal[]"  readonly required>
         <label>Valor Total</label>
@@ -197,10 +196,11 @@
         <div class="form2" id="campoExtra" style="display: none;">
           <input type="text" name="extra" id="extra">
           <label for="extra">Bônus</label>
-        </div>                    
+        </div> 
+        <textarea name="bonus[]" id="bonus" placeholder="Descritivo do Bônus" style="display: none;" required></textarea>                   
     </div>    
 
-    <div class="form-2colunas">
+    <!-- <div class="form-2colunas">
       <div class="form2">
         <input type="text" name="transporte" id="transporte" required>
         <label for="transporte">Transporte</label>
@@ -208,8 +208,8 @@
       <div class="form2" id="campoCaixinha" style="display: none;">
           <input type="text" name="caixinha" id="caixinha">
           <label for="caixinha">Caixinha</label>
-        </div>
-    </div>                    
+      </div>
+    </div>                     -->
         
       <div class="form-2colunas">
         <div class="form2">
@@ -219,11 +219,19 @@
         <div class="form2">
           <input type="text" name="jantar" id="jantar" required>
           <label for="jantar">Jantar</label>
-        </div>        
+        </div>   
+        <div class="form2">
+          <input type="text" name="transporte" id="transporte" required>
+          <label for="transporte">Transporte</label>
+        </div>
+        <div class="form2" id="campoCaixinha" style="display: none;">
+          <input type="text" name="caixinha" id="caixinha">
+          <label for="caixinha">Caixinha</label>
+        </div>     
       </div>    
       
       <div class="form2">
-        <textarea name="descBeneficio" id="descBeneficio" placeholder="Descritivo dos benefícios"  required></textarea>
+        <textarea name="descBeneficio" id="descBeneficio" placeholder="Descritivo dos Benefícios"  required></textarea>
       </div>
 
       

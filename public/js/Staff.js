@@ -119,8 +119,8 @@ const carregarDadosParaEditar = (eventData) => {
     console.log("Carregando dados para edição:", eventData);
 
     console.log("Valor de eventData.comppgtocache:", eventData.comppgtocache);
-console.log("Valor de eventData.comppgtoajdcusto:", eventData.comppgtoajdcusto);
-console.log("Valor de eventData.comppgtoextras:", eventData.comppgtoextras);
+    console.log("Valor de eventData.comppgtoajdcusto:", eventData.comppgtoajdcusto);
+    console.log("Valor de eventData.comppgtoextras:", eventData.comppgtoextras);
 
     idStaffInput.value = eventData.idstaff || ''; // idstaff da tabela staffeventos
     console.log("IDSTAFFINPUT", idStaffInput.value);
@@ -193,6 +193,15 @@ console.log("Valor de eventData.comppgtoextras:", eventData.comppgtoextras);
     if (extracheck && campoExtra) {
         extracheck.checked = (parseFloat(eventData.vlrextra || 0) > 0);
         campoExtra.style.display = extracheck.checked ? 'block' : 'none';
+
+        const bonusTextarea = document.getElementById('bonus');
+        if (bonusTextarea) {
+            bonusTextarea.style.display = extracheck.checked ? 'block' : 'none';
+            bonusTextarea.required = extracheck.checked; // Torna obrigatório apenas se visível
+            if (!extracheck.checked) {
+                bonusTextarea.value = ''; // Limpa o conteúdo se estiver sendo ocultado
+            }
+        }
     }
     if (caixinhacheck && campoCaixinha) {
         caixinhacheck.checked = (parseFloat(eventData.vlrcaixinha || 0) > 0);
@@ -323,9 +332,12 @@ console.log('Valor de eventData.periodo antes de exibir:', eventData.datasevento
                     // Adiciona o listener de duplo clique à linha
                     row.addEventListener('dblclick', () => carregarDadosParaEditar(eventData));
 
-                    row.insertCell().textContent = eventData.idevento || '';
+                  //  row.insertCell().textContent = eventData.idevento || '';
                     row.insertCell().textContent = eventData.nmfuncao || '';
+                    row.insertCell().textContent = eventData.nmcliente || '';
                     row.insertCell().textContent = eventData.nmevento || '';
+                    row.insertCell().textContent = eventData.nmlocalmontagem || '';
+                    row.insertCell().textContent = eventData.pavilhao || '';
                     row.insertCell().textContent = (eventData.datasevento && typeof eventData.datasevento === 'string')
                     
                     ? JSON.parse(eventData.datasevento) // Primeiro parseia a string JSON para um array
@@ -351,16 +363,16 @@ console.log('Valor de eventData.periodo antes de exibir:', eventData.datasevento
                     
                     row.insertCell().textContent = parseFloat(eventData.vlrcache || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     row.insertCell().textContent = parseFloat(eventData.vlrextra || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    row.insertCell().textContent = parseFloat(eventData.vlrtransporte || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    row.insertCell().textContent = eventData.descbonus || '';
                     row.insertCell().textContent = (eventData.vlralmoco === 1 ? 'Sim' : 'Não');
-                    row.insertCell().textContent = (eventData.vlrjantar === 1 ? 'Sim' : 'Não');
+                    row.insertCell().textContent = (eventData.vlrjantar === 1 ? 'Sim' : 'Não');                    
+                    row.insertCell().textContent = parseFloat(eventData.vlrtransporte || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    
                     row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     row.insertCell().textContent = eventData.beneficios || '';
-                    row.insertCell().textContent = eventData.nmlocalmontagem || '';
-                    row.insertCell().textContent = eventData.pavilhao || '';
-                    row.insertCell().textContent = eventData.nmcliente || '';
-                    row.insertCell().textContent = eventData.descbonus || '';
                     row.insertCell().textContent = parseFloat(eventData.vlrtotal || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    
+                    
                 });
             } else {
                 noResultsMessage.style.display = 'block';
@@ -476,6 +488,8 @@ async function verificaStaff() {
         const caixinhaAtivo = document.getElementById("Caixinhacheck")?.checked;
         const extraAtivo = document.getElementById("Extracheck")?.checked;
         const descBeneficioInput = document.getElementById("descBeneficio");
+        const descBonusInput = document.getElementById("bonus");
+        const descBonus = descBonusInput.value.trim() || "";
         const descBeneficio = descBeneficioInput?.value.trim() || "";
         
         // const datasEventoRawValue = document.querySelector("#datasEvento").value.trim();
@@ -505,7 +519,7 @@ async function verificaStaff() {
             return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Funcionário, Função, Cachê, Transportes, Alimentação, Cliente, Evento e Período do Evento.", "warning");
         }
 
-        if ((caixinhaAtivo || extraAtivo) && !descBeneficio) {
+        if ((caixinhaAtivo) && !descBeneficio) {
             // Coloca foco no campo de descrição (opcional)
             if (descBeneficioInput) {
                 descBeneficioInput.focus();
@@ -513,7 +527,20 @@ async function verificaStaff() {
             // Bloqueia envio e mostra aviso
             return Swal.fire(
                 "Campos obrigatórios!",
-                "Preencha a descrição do benefício (Caixinha ou Extra) antes de salvar.",
+                "Preencha a descrição do benefício (Caixinha) antes de salvar.",
+                "warning"
+            );
+        }
+
+        if ((extraAtivo) && !descBonus) {
+            // Coloca foco no campo de descrição (opcional)
+            if (descBonusInput) {
+                descBonusInput.focus();
+            }
+            // Bloqueia envio e mostra aviso
+            return Swal.fire(
+                "Campos obrigatórios!",
+                "Preencha a descrição do bônus antes de salvar.",
                 "warning"
             );
         }
@@ -646,22 +673,38 @@ async function verificaStaff() {
             console.log("Houve alteração Caixinha?", houveAlteracaoCaixinha);
 
             // Se houve alteração ativando extra ou caixinha, obrigar preenchimento de descBeneficio
-            if ((houveAlteracaoExtra && extraAtivoAtual) || (houveAlteracaoCaixinha && caixinhaAtivoAtual)) {
-            console.log("Extra ou Caixinha ativado e houve alteração, verificando descBeneficio...");
-            if (!descBeneficio || descBeneficio.length < 20) {
-                console.log("descBeneficio inválido - bloqueando salvamento");
-                if (descBeneficioInput) descBeneficioInput.focus();
-                return Swal.fire(
-                    "Campos obrigatórios!",
-                    "A descrição do benefício (Caixinha ou Extra) deve ter no mínimo 20 caracteres para salvar.",
-                    "warning"
-                );
+            if (houveAlteracaoCaixinha && caixinhaAtivoAtual) {            
+                console.log("Extra ou Caixinha ativado e houve alteração, verificando descBeneficio...");
+                if (!descBeneficio || descBeneficio.length < 20) {
+                    console.log("descBeneficio inválido - bloqueando salvamento");
+                    if (descBeneficioInput) descBeneficioInput.focus();
+                    return Swal.fire(
+                        "Campos obrigatórios!",
+                        "A descrição do benefício (Caixinha) deve ter no mínimo 20 caracteres para salvar.",
+                        "warning"
+                    );
+                } else {
+                    console.log("descBeneficio preenchido corretamente");
+                }
             } else {
-                console.log("descBeneficio preenchido corretamente");
+                console.log("Nenhuma alteração relevante em Caixinha que obrigue descBeneficio");
             }
 
+            if (houveAlteracaoExtra && extraAtivoAtual) {
+                console.log("Extra ou Caixinha ativado e houve alteração, verificando descBonus...");
+                if (!descBonus || descBonus.length < 20) {
+                    console.log("descBonus inválido - bloqueando salvamento");
+                    if (descBonus) descBonusInput.focus();
+                    return Swal.fire(
+                        "Campos obrigatórios!",
+                        "A descrição do Bônus deve ter no mínimo 20 caracteres para salvar.",
+                        "warning"
+                    );
+                } else {
+                    console.log("descBonus preenchido corretamente");
+                }
             } else {
-                console.log("Nenhuma alteração relevante em Extra ou Caixinha que obrigue descBeneficio");
+                console.log("Nenhuma alteração relevante em Bônusque obrigue descBonus");
             }
 
             formData.append('idstaff', currentEditingStaffEvent.idstaff || '');
@@ -1389,6 +1432,13 @@ function limparCamposStaff() {
         if (campoExtra) campoExtra.style.display = 'none';
         const inputExtra = document.getElementById('extra');
         if (inputExtra) inputExtra.value = '';
+
+        const bonusTextarea = document.getElementById('bonus');
+        if (bonusTextarea) {
+            bonusTextarea.style.display = 'none'; // Oculta o textarea
+            bonusTextarea.required = false;      // Remove a obrigatoriedade
+            bonusTextarea.value = '';            // Limpa o conteúdo
+        }
     }
     if (caixinhaCheck) {
         caixinhaCheck.checked = false;
@@ -1893,11 +1943,29 @@ function configurarEventosStaff() {
     // Inicializa o estado dos campos extra/caixinha no carregamento
     const extracheck = document.getElementById('Extracheck');
     const campoExtra = document.getElementById('campoExtra');
-    if (extracheck && campoExtra) {
+    if (extracheck && campoExtra && bonusTextarea) {
         extracheck.addEventListener('change', function() {
             campoExtra.style.display = this.checked ? 'block' : 'none';
+
+            bonusTextarea.style.display = this.checked ? 'block' : 'none';
+            bonusTextarea.required = this.checked;
+            if (!this.checked) {
+                if (inputExtra) inputExtra.value = ''; // Limpa o input 'extra' ao ocultar
+                bonusTextarea.value = '';               // Limpa o textarea 'bonus' ao ocultar
+            }
+
         });
+        
         campoExtra.style.display = extracheck.checked ? 'block' : 'none';
+
+        bonusTextarea.style.display = extracheck.checked ? 'block' : 'none';
+        bonusTextarea.required = extracheck.checked;
+        if (!extracheck.checked) {
+            if (inputExtra) inputExtra.value = '';
+            bonusTextarea.value = '';
+        }
+
+        
     }
 
     const caixinhacheck = document.getElementById('Caixinhacheck');

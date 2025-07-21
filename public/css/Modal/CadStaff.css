@@ -650,7 +650,7 @@ legend{
 
 textarea#bonus{
   font-family:"Abel",sans-serif;
-  width: 300px;
+  width: 390px;
   display: flex;
   justify-content: center;                  /* Faz os inputs ocuparem toda a largura */
   padding: 5px 50px; 

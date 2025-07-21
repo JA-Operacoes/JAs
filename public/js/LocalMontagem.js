@@ -56,19 +56,18 @@ function verificaMontagem() {
             }
         });
         // Permissões
-        const temPermissaoCadastrar = temPermissao("Locamontagem", "cadastrar");
+        const temPermissaoCadastrar = temPermissao("Localmontagem", "cadastrar");
         const temPermissaoAlterar = temPermissao("Localmontagem", "alterar");
 
         const metodo = idMontagem ? "PUT" : "POST";
-
     
 
         if (!idMontagem && !temPermissaoCadastrar) {
-            return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos eventos.", "error");
+            return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos locais de montagem.", "error");
         }
 
         if (idMontagem && !temPermissaoAlterar) {
-            return Swal.fire("Acesso negado", "Você não tem permissão para alterar eventos.", "error");
+            return Swal.fire("Acesso negado", "Você não tem permissão para alterar locais de montagem.", "error");
         }
 
        console.log(isNaN(qtdPavilhao), qtdPavilhao);
@@ -146,8 +145,11 @@ function verificaMontagem() {
             }
             
             console.log("Enviando dados para o servidor:", dados, url, metodo);
-            const respostaApi = await fetchComToken(url, {
+            const respostaApi = await fetchComToken(url, {                
                 method: metodo,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify(dados)
             });            
 
