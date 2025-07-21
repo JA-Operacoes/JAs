@@ -472,38 +472,6 @@ function configurarFormularioOrc() {
             };
             orcamento.Pessoas.push(dados);
         }
-
-    //     fetchComToken('/orcamento', {
-    //         method: 'POST',
-    //         // headers: {
-    //         //             "Content-Type": "application/json",
-    //         //             'Authorization': `Bearer ${token}`
-    //         //             // 'x-id-empresa': idEmpresa
-    //         //         },
-    //         body: JSON.stringify(orcamento)
-    //     })
-    //     .then(response => response.json())
-    //     .then(data => {
-    //         alert("Orçamento salvo com sucesso!");
-    //         fecharModal();
-    //     })
-    //     .catch(error => console.error("Erro ao salvar:", error));
-    // });
-    //     fetchComToken('/orcamento', {
-    //         method: 'POST',
-    //         // headers: {
-    //         //             "Content-Type": "application/json",
-    //         //             'Authorization': `Bearer ${token}`
-    //         //             // 'x-id-empresa': idEmpresa
-    //         //         },
-    //         body: JSON.stringify(orcamento)
-    //     })
-    //     .then(response => response.json())
-    //     .then(data => {
-    //         alert("Orçamento salvo com sucesso!");
-    //         fecharModal();
-    //     })
-    //     .catch(error => console.error("Erro ao salvar:", error));
      });
     
 }
@@ -2285,7 +2253,7 @@ function limparOrcamento() {
 }
 
 
-function preencherFormularioComOrcamento(orcamento) {
+export function preencherFormularioComOrcamento(orcamento) {
     if (!orcamento) {
         limparFormularioOrcamento();
         return;
@@ -2510,7 +2478,7 @@ function preencherFormularioComOrcamento(orcamento) {
 }
 
 
-function preencherItensOrcamentoTabela(itens) {
+ export function preencherItensOrcamentoTabela(itens) {
      console.log("DEBUG FRONTEND: preencherItensOrcamentoTabela foi chamada com itens:", itens);
    
     const tabelaBody = document.querySelector("#tabela tbody");
@@ -2875,7 +2843,7 @@ function formatarDatasParaInputPeriodo(inicioStr, fimStr) {
 }
 
 // --- Função para Limpar o Formulário Principal ---
-function limparFormularioOrcamento() {
+export function limparFormularioOrcamento() {
     document.getElementById('form').reset();
     idOrcamentoInput.value = '';
 
@@ -4101,28 +4069,28 @@ function configurarEventosOrcamento() {
     console.log("Entrou configurar Orcamento no ORCAMENTO.js.");
 } 
 
-window.pesquisaOrcamento = async function() {
-  const input = document.getElementById("nrOrcamento");
-  if (!input) {
-    console.warn("Campo nrOrcamento não encontrado.");
-    return;
-  }
+// window.pesquisaOrcamento = async function() {
+//   const input = document.getElementById("nrOrcamento");
+//   if (!input) {
+//     console.warn("Campo nrOrcamento não encontrado.");
+//     return;
+//   }
   
-  const nr = input.value.trim();
-  if (!nr) {
-    limparFormularioOrcamento(); // Se existir, para limpar o form
-    return;
-  }
+//   const nr = input.value.trim();
+//   if (!nr) {
+//     limparFormularioOrcamento(); // Se existir, para limpar o form
+//     return;
+//   }
 
-  try {
-    const orcamento = await fetchComToken(`orcamentos?nrOrcamento=${nr}`);
-    preencherFormularioComOrcamento(orcamento); // Sua função que preenche o form
-  } catch (error) {
-    console.error("Erro ao buscar orçamento:", error);
-    limparFormularioOrcamento(); // Limpa o formulário se erro
-    Swal.fire("Erro", `Não foi possível buscar o orçamento ${nr}.`, "error");
-  }
-};
+//   try {
+//     const orcamento = await fetchComToken(`orcamentos?nrOrcamento=${nr}`);
+//     preencherFormularioComOrcamento(orcamento); // Sua função que preenche o form
+//   } catch (error) {
+//     console.error("Erro ao buscar orçamento:", error);
+//     limparFormularioOrcamento(); // Limpa o formulário se erro
+//     Swal.fire("Erro", `Não foi possível buscar o orçamento ${nr}.`, "error");
+//   }
+// };
 
 window.configurarEventosOrcamento = configurarEventosOrcamento;
 
@@ -4152,3 +4120,9 @@ window.configurarEventosEspecificos = configurarEventosEspecificos;
       // ...adicione os campos necessários
     }
   });
+
+//   export{
+//     preencherFormularioComOrcamento,
+//     preencherItensOrcamentoTabela,
+//     limparFormularioOrcamento
+//   }
