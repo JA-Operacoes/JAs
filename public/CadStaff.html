@@ -75,7 +75,7 @@
                     
                           <div class="form2">
                             <select name="avaliacao" id="avaliacao" onchange="mostrarTarja()" required>
-                              <option value="" selected disabled>Avalie o Funcionario</option>
+                              <option value="" selected>Avalie o Funcionario</option>
                               <option value="muito_bom">Muito bom</option>
                               <option value="satisfatorio">Satisfatório</option>
                               <option value="regular">Regular</option>
@@ -93,21 +93,21 @@
                         <table id="eventsDataTable" style="width: 100%; border-collapse: collapse;">
                             <thead>
                                 <tr>
-                                    <th>ID Evento</th>
+                                    <td style="display: none;"><input type="hidden" class="idEvento" style="display: none;" value=""></td>
                                     <th>Função</th>
-                                    <th>Evento</th>
-                                    <th>Período</th>
-                                    <th>Cache</th>
-                                    <th>Extra</th>
-                                    <th>Transporte</th>
-                                    <th>Almoço</th>
-                                    <th>Jantar</th>
-                                    <th>Caixinha</th>
-                                    <th>Benefícios</th>
+                                    <th>Cliente</th>
+                                    <th>Evento</th>                                    
                                     <th>Local Montagem</th>
                                     <th>Pavilhão</th>
-                                    <th>Cliente</th>
-                                    <th>Bônus</th>
+                                    <th>Período</th>
+                                    <th>Cache</th>
+                                    <th>Valor Bônus</th>
+                                    <th>Desc.Bônus</th>
+                                    <th>Almoço</th>
+                                    <th>Jantar</th>
+                                    <th>Transporte</th>                                    
+                                    <th>Caixinha</th>
+                                    <th>Benefícios</th>                                   
                                     <th>Total</th>
                                 </tr>
                             </thead>
@@ -170,8 +170,7 @@
         <p id="contadorDatas">Nenhuma data selecionada.</p>
       </div>
     </div>
-    <div class="form-2colunas">
-      <textarea name="bonus[]" id="bonus" placeholder="Bônus" required></textarea>
+    <div class="form-2colunas">     
       <div class="form2">
         <input type="text" class="preenchido moeda" value="R$ 0,00" id="vlrTotal" name="vlrTotal[]"  readonly required>
         <label>Valor Total</label>
@@ -181,7 +180,7 @@
     <div class="checkbox">
       <div class="Vertical">
         <input id="Extracheck" type="checkbox" />
-        <label for="Extracheck">Extra</label>
+        <label for="Extracheck">Bônus</label>
       </div>
       <div class="Vertical">
         <input id="Caixinhacheck" type="checkbox" />
@@ -196,11 +195,12 @@
         </div>                              
         <div class="form2" id="campoExtra" style="display: none;">
           <input type="text" name="extra" id="extra">
-          <label for="extra">Extra</label>
-        </div>                    
+          <label for="extra">Bônus</label>
+        </div> 
+        <textarea name="bonus[]" id="bonus" placeholder="Descritivo do Bônus" style="display: none;" required></textarea>                   
     </div>    
 
-    <div class="form-2colunas">
+    <!-- <div class="form-2colunas">
       <div class="form2">
         <input type="text" name="transporte" id="transporte" required>
         <label for="transporte">Transporte</label>
@@ -208,8 +208,8 @@
       <div class="form2" id="campoCaixinha" style="display: none;">
           <input type="text" name="caixinha" id="caixinha">
           <label for="caixinha">Caixinha</label>
-        </div>
-    </div>                    
+      </div>
+    </div>                     -->
         
       <div class="form-2colunas">
         <div class="form2">
@@ -219,65 +219,99 @@
         <div class="form2">
           <input type="text" name="jantar" id="jantar" required>
           <label for="jantar">Jantar</label>
-        </div>        
+        </div>   
+        <div class="form2">
+          <input type="text" name="transporte" id="transporte" required>
+          <label for="transporte">Transporte</label>
+        </div>
+        <div class="form2" id="campoCaixinha" style="display: none;">
+          <input type="text" name="caixinha" id="caixinha">
+          <label for="caixinha">Caixinha</label>
+        </div>     
       </div>    
       
       <div class="form2">
-        <textarea name="descBeneficio" id="descBeneficio" placeholder="Descritivo dos benefícios"  required></textarea>
+        <textarea name="descBeneficio" id="descBeneficio" placeholder="Descritivo dos Benefícios"  required></textarea>
       </div>
 
       
 
-<div class="pdf">
-  <div class="collumn">
-    <h5>Comprovante de Cache</h5>
-    <div class="containerPDF">
-      <label for="fileCache" class="footerPDF" name="footerPDF[]">
-        <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
-          <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
-          <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
-        </svg>
-        <p id="fileNameCache" class="fileNamePDF">Nenhum arquivo selecionado</p>
-      </label>
-      <input id="fileCache" class="filePDFInput" type="file" name="filePDFCache" accept="application/pdf">
-      <input type="hidden" id="ComprovanteCache" class="hiddenPDF" name="foto[]" />
-    </div>
-  </div>
+      <div class="pdf">
+        <div class="collumn">
+          <h5>Comprovante de Cachê + Bônus</h5>      
+          <div class="containerPDF">
+            <label for="fileCache" class="footerPDF" name="footerPDF[]">
+              <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+                <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+                <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+              </svg>
+              <p id="fileNameCache" class="fileNamePDF">Nenhum arquivo selecionado</p>
+            </label>
+            <input id="fileCache" class="filePDFInput" type="file" name="comppgtocache" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/svg+xml"">
+            <!-- <input type="hidden" id="ComprovanteCache" class="hiddenPDF" name="foto[]" /> -->
+          </div>
+          <img id="previewCache" src="#" alt="Pré-visualização do Comprovante de Cache" style="display: none; max-width: 100%; margin-bottom: 10px; border-radius: 8px;" />
+          <!-- NOVO: Elemento para pré-visualização de PDF -->
+          <div id="pdfPreviewCache" style="display: none; margin-top: 10px;">
+              <a id="linkCache" href="#" target="_blank" class="btn btn-sm btn-info" style="padding: 8px 12px; border-radius: 5px; background-color: #17a2b8; color: white; text-decoration: none;">Ver PDF</a>
+          </div>
+          <div id="imagePreviewCache" style="display: none; margin-top: 10px;">
+              <a id="linkImageCache" href="#" target="_blank" class="btn btn-sm btn-info" style="padding: 8px 12px; border-radius: 5px; background-color: #28a745; color: white; text-decoration: none;">Ver Imagem</a>
+          </div>
+        </div>
 
-  <br>
+        <br>
 
-  <div class="collumn">
-    <h5>Comprovante de Ajuda de Custo</h5>
-    <div class="containerPDF">
-      <label for="fileAjdCusto" class="footerPDF" name="footerPDF[]">
-        <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
-          <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
-          <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
-        </svg>
-        <p id="fileNameAjdCusto" class="fileNamePDF">Nenhum arquivo selecionado</p>
-      </label>
-      <input id="fileAjdCusto" class="filePDFInput" type="file" name="filePDFAjdCusto" accept="application/pdf">
-      <input type="hidden" id="ComprovanteAjdCusto" class="hiddenPDF" name="foto[]" />
-    </div>
-  </div>
+        <div class="collumn">
+          <h5>Comprovante de Ajuda de Custo</h5>          
+          <div class="containerPDF">
+            <label for="fileAjdCusto" class="footerPDF" name="footerPDF[]">
+              <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+                <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+                <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+              </svg>
+              <p id="fileNameAjdCusto" class="fileNamePDF">Nenhum arquivo selecionado</p>
+            </label>
+            <input id="fileAjdCusto" class="filePDFInput" type="file" name="comppgtoajdcusto" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/svg+xml">
+            <!-- <input type="hidden" id="ComprovanteAjdCusto" class="hiddenPDF" name="foto[]" /> -->
+          </div>
 
-  <br>
+          
+          <img id="previewAjdCusto" src="#" alt="Pré-visualização do Comprovante de Ajuda de Custo" style="display: none; max-width: 100%; margin-bottom: 10px; border-radius: 8px;" />
+         
+          <div id="pdfPreviewAjdCusto" style="display: none; margin-top: 10px;">
+              <a id="linkAjdCusto" href="#" target="_blank" class="btn btn-sm btn-info" style="padding: 8px 12px; border-radius: 5px; background-color: #17a2b8; color: white; text-decoration: none;">Ver PDF</a>
+          </div>
+          <div id="imagePreviewAjdCusto" style="display: none; margin-top: 10px;">
+              <a id="linkImageAjdCusto" href="#" target="_blank" class="btn btn-sm btn-info" style="padding: 8px 12px; border-radius: 5px; background-color: #28a745; color: white; text-decoration: none;">Ver Imagem</a>
+          </div>
+        </div>
 
-  <div class="collumn">
-    <h5>Comprovante de Caixinha</h5>
-    <div class="containerPDF">
-      <label for="fileCaixinha" class="footerPDF" name="footerPDF[]">
-        <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
-          <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
-          <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
-        </svg>
-        <p id="fileNameCaixinha" class="fileNamePDF">Nenhum arquivo selecionado</p>
-      </label>
-      <input id="fileCaixinha" class="filePDFInput" type="file" name="filePDFCaixinha" accept="application/pdf">
-      <input type="hidden" id="ComprovanteCaixinha" class="hiddenPDF" name="foto[]" />
-    </div>
-  </div>
-</div>
+        <br>
+
+        <div class="collumn">
+          <h5>Comprovante de Caixinha</h5>
+          <div class="containerPDF">
+            <label for="fileCaixinha" class="footerPDF" name="footerPDF[]">
+              <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+                <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+                <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+              </svg>
+              <p id="fileNameCaixinha" class="fileNamePDF">Nenhum arquivo selecionado</p>
+            </label>
+            <input id="fileCaixinha" class="filePDFInput" type="file" name="comppgtoextras" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/svg+xml">
+            <!-- <input type="hidden" id="ComprovanteCaixinha" class="hiddenPDF" name="foto[]" /> -->
+          </div>
+          <img id="previewCaixinha" src="#" alt="Pré-visualização do Comprovante de Caixinha" style="display: none; max-width: 100%; margin-bottom: 10px; border-radius: 8px;" />
+        
+          <div id="pdfPreviewCaixinha" style="display: none; margin-top: 10px;">
+              <a id="linkCaixinha" href="#" target="_blank" class="btn btn-sm btn-info" style="padding: 8px 12px; border-radius: 5px; background-color: #17a2b8; color: white; text-decoration: none;">Ver PDF</a>
+          </div>
+          <div id="imagePreviewCaixinha" style="display: none; margin-top: 10px;">
+              <a id="linkImageCaixinha" href="#" target="_blank" class="btn btn-sm btn-info" style="padding: 8px 12px; border-radius: 5px; background-color: #28a745; color: white; text-decoration: none;">Ver Imagem</a>
+          </div>
+        </div>
+      </div>
     <br>
   </fieldset>
 </div>

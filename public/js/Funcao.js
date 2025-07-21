@@ -152,6 +152,9 @@ function verificaFuncao() {
                 
                 const resultJson = await fetchComToken(`/funcao/${idFuncao}`, {
                     method: "PUT",
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify(dados)
                 });
 
@@ -172,6 +175,9 @@ function verificaFuncao() {
                 
                 const resultJson = await fetchComToken("/funcao", {
                     method: "POST",
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify(dados) // Passe o objeto dados diretamente
                 });
             

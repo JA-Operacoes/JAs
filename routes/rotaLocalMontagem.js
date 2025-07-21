@@ -10,7 +10,7 @@ router.use(autenticarToken());
 router.use(contextoEmpresa);
 
 // GET todas ou por descrição
-router.get("/", verificarPermissao('Localmontagem', 'pesquisar'), async (req, res) => {
+router.get("/", verificarPermissao('localmontagem', 'pesquisar'), async (req, res) => {
   const { descmontagem } = req.query;
   const idempresa = req.idempresa;
   console.log("descmontagem na rota", descmontagem);
@@ -54,8 +54,8 @@ router.get("/", verificarPermissao('Localmontagem', 'pesquisar'), async (req, re
 
 // PUT atualizar
 router.put("/:id",
-    verificarPermissao('Localmontagem', 'alterar'),
-    logMiddleware('Localmontagem', {
+    verificarPermissao('localmontagem', 'alterar'),
+    logMiddleware('localmontagem', {
         buscarDadosAnteriores: async (req) => {
             const idMontagem = req.params.id;
             const idempresa = req.idempresa;
@@ -221,13 +221,15 @@ console.log("Valor de qtdpavilhao antes do UPDATE:", qtdPavilhao);
     }
 );
 // POST criar nova local montagem
-router.post("/", verificarPermissao('Localmontagem', 'cadastrar'), 
-  logMiddleware('Localmontagem', {
+router.post("/", verificarPermissao('localmontagem', 'cadastrar'), 
+  logMiddleware('localmontagem', {
         buscarDadosAnteriores: async (req) => {
             return { dadosanteriores: null, idregistroalterado: null };
         }
   }),
   async (req, res) => {
+
+    console.log("Requisição para criar novo local de montagem:", req.body);
   const { descMontagem, cidadeMontagem, ufMontagem, qtdPavilhao, pavilhoes } = req.body;
   const idempresa = req.idempresa;
   

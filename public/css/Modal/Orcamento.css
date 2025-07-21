@@ -189,30 +189,33 @@
     align-items: center;
     gap: 5px ;
   }
+
   select{
     font-family:  var(--Font-primary);
     display: flex;
-    height: 40px;
+    height: 25px;
     justify-content: center;
     align-items: center;
     gap: 10px ;
     border-radius: 6px;
-    font-size: 20px;
+    font-size: 15px;
     padding: 0 15px;
     border: 1px solid #000000;
     background: transparent;
     color: #000000;
     outline: none;
   }
+
   select.idMontagem {
-    width: 303px;
-    height: 40px;
+    width: 250px;
+    height: 25px;
   }
 
   select.selectFuncao {
     width: 250px;
     height: 40px;
   }
+  
   select#tpAjdCusto{
     width: 130px;
     height: 30px;
@@ -295,6 +298,7 @@
     color: #000000;
     outline: none;
   }
+
 
   .form3 label{
     display: flex;
@@ -692,7 +696,7 @@
     justify-content: center;
     align-items: center;
     width: 100px;
-    height: 30px;
+    height: 25px;
     margin: 5px auto;
     border: 1px solid black;
     font-size: 13px;

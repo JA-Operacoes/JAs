@@ -648,9 +648,22 @@ legend{
   padding: 3px;
 }
 
-textarea{
+textarea#bonus{
   font-family:"Abel",sans-serif;
-  width: 300px;
+  width: 390px;
+  display: flex;
+  justify-content: center;                  /* Faz os inputs ocuparem toda a largura */
+  padding: 5px 50px; 
+  margin: 5px 10px;
+  font-size: 17px;               /* Espaçamento interno nos campos */
+  border: 1px solid #000000;      /* Cor de borda */
+  border-radius: 8px;  
+  max-width: 100%;     /* Bordas arredondadas */
+}
+
+textarea#descBeneficio{
+  font-family:"Abel",sans-serif;
+  width: 800px;
   display: flex;
   justify-content: center;                  /* Faz os inputs ocuparem toda a largura */
   padding: 5px 50px; 
