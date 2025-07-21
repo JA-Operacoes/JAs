@@ -1,113 +1,7 @@
 import { fetchComToken, fetchHtmlComToken } from '../utils/utils.js';
 
-// async function fetchComToken(url, options = {}) {
-//   console.log("URL da requisição FETCHCOMTOKEN:", url);
-//   const token = localStorage.getItem("token");
-//   const idempresa = localStorage.getItem("idempresa");
 
-//   console.log("ID da empresa no localStorage:", idempresa);
-//   console.log("Token no localStorage:", token);
-
-//   if (!options.headers) options.headers = {};
-
-//   options.headers['Authorization'] = 'Bearer ' + token;
-//  // if (idempresa) options.headers['idempresa'] = idempresa;
-//  if (idempresa) {
-//         options.headers['idempresa'] = idempresa;
-//         options.headers['x-id-empresa'] = idempresa; // Boa prática para headers customizados
-//     }
-
-//   const resposta = await fetch(url, options);
-
-//   if (resposta.status === 401) {
-//     localStorage.clear();
-//     Swal.fire({
-//       icon: "warning",
-//       title: "Sessão expirada",
-//       text: "Por favor, faça login novamente."
-//     }).then(() => {
-//       window.location.href = "login.html"; // ajuste conforme necessário
-//     });
-//     //return;
-
-//     throw new Error('Sessão expirada'); 
-//   }
-  
-//  // return await resposta.json(); // Retorna o JSON já resolvido
-//  const data = await resposta.json();
-//     console.log("✅ [fetchComToken] Dados recebidos e parseados:", data);
-//     return data; // RETORNE OS DADOS PARSEADOS, NÃO O OBJETO 'response'
-// }
-
-// // fetchHtmlComToken retorna Response para controlar no chamador
-// async function fetchHtmlComToken(url, options = {}) {
-//   console.log("FETCH HTML", url, options);
-//   const token = localStorage.getItem("token");
-//   const idempresa = localStorage.getItem("idempresa");
-
-//   if (!options.headers) options.headers = {};
-//   options.headers["Authorization"] = "Bearer " + token;
-//   if (idempresa) options.headers["idempresa"] = idempresa;
-
-//   const resposta = await fetch(url, options);
-
-//   if (resposta.status === 401) {
-//     localStorage.clear();
-//     await Swal.fire({
-//       icon: "warning",
-//       title: "Sessão expirada",
-//       text: "Por favor, faça login novamente.",
-//     });
-//     window.location.href = "login.html";
-//     throw new Error("Sessão expirada");
-//   }
-
-//   if (!resposta.ok) {
-//     const textoErro = await resposta.text();
-//     throw new Error(`Erro ${resposta.status}: ${textoErro}`);
-//   }
-
-//   // Aqui quem chama decide se quer .text() ou .json()
-//   //return resposta.text();
-//   return await resposta.json();
-// }
-
-// // Expõe as funções globalmente
-// window.fetchComToken = fetchComToken;
-// window.fetchHtmlComToken = fetchHtmlComToken;
-
-document.addEventListener("DOMContentLoaded", async function () {
-  
-// let resp;
-//   try {
-//     resp = await fetchComToken("/auth/permissoes");
-//     //commentado para evitar erro de CORS
-//     // if (!resp.ok) {
-//     //   const textoErro = await resp.text();
-//     //   throw new Error(textoErro);
-//     // }
-//   } catch (erro) {
-//     console.error("Falha ao carregar permissões:", erro);
-//     await Swal.fire({
-//       icon: "error",
-//       title: "Erro",
-//       text: "Não foi possível carregar suas permissões.",
-//     });
-//     return;
-//   }
-//   const permissoes = resp; // Aqui assumimos que resp já é o JSON esperado
-//   // Se resp for um Response, descomente a linha abaixo:
-//   //commentado para evitar erro de CORS
-//  // const permissoes = await resp.json();
-//   window.permissoes = permissoes;
-
-//   // Função utilitária para verificar permissão
-//   window.temPermissao = function (modulo, acao) {
-//     if (!modulo) return false;
-//     const p = permissoes.find((x) => x.modulo.toLowerCase() === modulo.toLowerCase());
-//     return p && p[`pode_${acao}`];
-    
-//   };
+document.addEventListener("DOMContentLoaded", async function () { 
 
   let permissoesArray; // Renomeado para clareza
   let permissoesPromise;
@@ -268,11 +162,33 @@ async function abrirModal(url, modulo) {
   document.body.appendChild(script);
 
   const modal = document.querySelector("#modal-container .modal");
+  const modalContent = document.querySelector("#modal-container .modal-content");
   const overlay = document.getElementById("modal-overlay");
-  if (modal && overlay) {
+  if (modal && overlay && modalContent) {
     modal.style.display = "block";
     overlay.style.display = "block";
     document.body.classList.add("modal-open");
+    // Listener para o clique no overlay (fecha o modal)
+         overlay.addEventListener("mousedown", (event) => {
+            if (event.target === overlay) {
+                fecharModal(); 
+                console.log("Mousedown no overlay do modal detectado. Fechando modal.");
+            }
+        });
+
+        // Listener para o mousedown no conteúdo do modal (impede a propagação)
+        // Este listener agora roda na fase de CAPTURA (true como terceiro argumento)
+        // modalContent.addEventListener("mousedown", (event) => {
+        //     event.stopPropagation();
+        //     console.log("Mousedown dentro do modal-content detectado (CAPTURA). Propagação interrompida.");
+        // }, true); // <--- TRUE AQUI PARA FASE DE CAPTURA
+
+        // // Adicionar listener para mouseup no modalContent também (fase de CAPTURA)
+        // modalContent.addEventListener("mouseup", (event) => {
+        //     event.stopPropagation();
+        //     console.log("Mouseup dentro do modal-content detectado (CAPTURA). Propagação interrompida.");
+        // }, true);
+
     modal.querySelector(".close")?.addEventListener("click", fecharModal);
   }
 
@@ -291,7 +207,6 @@ function aplicarConfiguracoes(modulo) {
     document.querySelectorAll(".btnEditar").forEach((btn) => (btn.style.display = "none"));
   }
 }
-
 
 function fecharModal() {
   document.getElementById("modal-container").innerHTML = "";

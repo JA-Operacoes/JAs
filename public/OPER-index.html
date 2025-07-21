@@ -78,13 +78,13 @@
 
     <div id="wrapper"> 
         <aside id="sidebar">
-            <div id="toggle-btn" onclick="alternarMenu()">»</div>
+            <div id="toggle-btn">»</div>
         
             <section id="painel-container">
                 <div class="abas">
-                <div id="aba-clientes" class="aba ativa" onclick="mostrarPainel('clientes')">Clientes</div>
-                <div id="aba-eventos" class="aba desativada" onclick="mostrarPainel('eventos')">Eventos</div>
-                <div id="aba-orcamento" class="aba desativada" onclick="mostrarPainel('orcamento')">Orçamento</div>
+                <div id="aba-clientes" class="aba ativa" onclick="navegarParaAba('clientes')">Clientes</div>
+                <div id="aba-eventos" class="aba desativada" onclick="navegarParaAba('eventos')">Eventos</div>
+                <div id="aba-orcamento" class="aba desativada" onclick="navegarParaAba('orcamento')">Orçamento</div>
                 </div>
         
                 <div id="painel-clientes" class="painel ativo">
@@ -97,7 +97,7 @@
                 <div class="lista-scroll"><ul id="lista-dados-eventos"></ul></div>
                 </div>
         
-                <div id="painel-orcamentos" class="painel">
+                <div id="painel-orcamento" class="painel">
                 <div id="orcamento-selecionado" class="destaque">Nome do cliente / Evento</div>
                 <div class="lista-scroll"><ul id="lista-dados-orcamento"></ul></div>
                 </div>

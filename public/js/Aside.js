@@ -1,164 +1,51 @@
-import { fetchComToken} from '../../utils/utils.js';
-
-// let clienteSelecionado = null;
-// let nomeClienteSelecionado = '';
-// let nomeEventoSelecionado = '';
-
-// // Carregar dados ao carregar a página
-// window.onload = () => carregarDados('clientes');
-
-// function mostrarPainel(tipo) {
-//   const paineis = document.querySelectorAll('.painel');
-//   const abas = document.querySelectorAll('.aba');
-
-//   paineis.forEach(p => p.classList.remove('ativo'));
-//   abas.forEach(a => a.classList.remove('ativa'));
-
-//   document.getElementById(`painel-${tipo}`).classList.add('ativo');
-//   document.getElementById(`aba-${tipo}`).classList.add('ativa');
-
-//   if (tipo === 'eventos' && clienteSelecionado) {
-//     carregarEventosDoCliente(clienteSelecionado);
-//   } else if (tipo === 'orcamento') {
-//     const info = document.getElementById('orcamento-info');
-//     info.textContent = `Cliente: ${nomeClienteSelecionado} | Evento: ${nomeEventoSelecionado}`;
-//   }
-// }
-
-// async function carregarDados(tipo) {
-//   try {
-//     const resposta = await fetch(`http://localhost:3000/${tipo}`);
-//     const json = await resposta.json();
-//     console.log("Json", json);
-
-//     if (!Array.isArray(json) || json.length === 0) {
-//       console.error("Erro ao buscar dados: Nenhum dado encontrado");
-//       return;
-//     }
-
-//     const ul = document.getElementById(`lista-dados-${tipo}`);
-//     ul.innerHTML = '';
-
-//     json.forEach(item => {
-//       const li = document.createElement('li');
-
-//       if (tipo === 'clientes') {
-//         li.textContent = item.nmfantasia;
-//         li.onclick = () => {
-//           clienteSelecionado = item.idcliente;
-//           nomeClienteSelecionado = item.nmfantasia;
-
-//           // Exibir nome do cliente na aba de eventos
-//           document.getElementById('cliente-selecionado').textContent = `Eventos de ${nomeClienteSelecionado}`;
-
-//           // Habilitar aba de eventos
-//           document.getElementById('aba-eventos').classList.remove('desativada');
-
-//           // Mostrar aba de eventos e carregar os dados
-//           mostrarPainel('eventos');
-//         };
-//       } else {
-//         li.textContent = item.titulo;
-//         li.onclick = () => {
-//           nomeEventoSelecionado = item.titulo;
-//           ativarAbaOrcamento();
-//           mostrarPainel('orcamento');
-//         };
-//       }
-
-//       ul.appendChild(li);
-//     });
-//   } catch (error) {
-//     console.error("Erro ao buscar dados:", error);
-//   }
-// }
-
-// async function carregarEventosDoCliente(idCliente) {
-//   try {
-//     const resposta = await fetch(`http://localhost:3000/eventos?clienteId=${idCliente}`);
-//     const json = await resposta.json();
-//     console.log("Eventos:", json);
-
-//     const ul = document.getElementById('lista-dados-eventos');
-//     ul.innerHTML = '';
-
-//     if (!Array.isArray(json) || json.length === 0) {
-//       const li = document.createElement('li');
-//       li.textContent = 'Nenhum evento encontrado.';
-//       ul.appendChild(li);
-//       return;
-//     }
-
-//     json.forEach(evento => {
-//       const li = document.createElement('li');
-//       li.textContent = evento.titulo;
-//       li.onclick = () => {
-//         nomeEventoSelecionado = evento.titulo;
-//         ativarAbaOrcamento();
-//         mostrarPainel('orcamento');
-//       };
-//       ul.appendChild(li);
-//     });
-//   } catch (error) {
-//     console.error("Erro ao carregar eventos:", error);
-//   }
-// }
-
-// function ativarAbaOrcamento() {
-//   const abaOrcamento = document.getElementById('aba-orcamento');
-//   abaOrcamento.classList.remove('desativada');
-//   abaOrcamento.style.pointerEvents = 'auto';
-// }
-
-// // Função para alternar o menu lateral
-// function alternarMenu() {
-//   const wrapper = document.getElementById("wrapper");
-//   const btn = document.getElementById("toggle-btn");
-
-//   wrapper.classList.toggle("menu-fechado");
-
-//   if (wrapper.classList.contains("menu-fechado")) {
-//     btn.innerHTML = "»";
-//   } else {
-//     btn.innerHTML = "«";
-//   }
-// }
-
-// Adicione no topo do arquivo
-// function fetchComToken(url, options = {}) {
-//   const token = localStorage.getItem("token");
-//   return fetch(url, {
-//     ...options,
-//     headers: {
-//       "Authorization": `Bearer ${token}`,
-//       "Content-Type": "application/json",
-//       ...options.headers,
-//     },
-//   });
-// }
+import { fetchComToken } from '../../utils/utils.js';
+console.log("entrou✅");
 
 let clienteSelecionado = null;
 let nomeClienteSelecionado = '';
 let nomeEventoSelecionado = '';
+let eventoSelecionado = null; // ✅ NOVO
+
+document.addEventListener("DOMContentLoaded", async function () {
+  console.log("Entrou no DOM");
+
+  function temPermissao(modulo, acao) {
+    const permissoes = JSON.parse(sessionStorage.getItem("permissoesUsuario") || "[]");
+
+    console.log(`[Permissão] Verificando permissão: módulo="${modulo}", ação="${acao}"`);
+    console.log("[Permissão] Permissões disponíveis:", permissoes);
+
+    const resultado = permissoes.some(p => {
+      const ehModulo = p.modulo?.toLowerCase() === modulo.toLowerCase();
+      const temAcao = p[`pode_${acao}`] === true;
+
+      console.log(`[Permissão] Verificando módulo "${p.modulo}": `, {
+        ehModulo,
+        temAcao,
+        combinado: ehModulo && temAcao
+      });
+
+      return ehModulo && temAcao;
+    });
+
+    console.log(`[Permissão] Resultado da verificação para "${modulo}" / "${acao}":`, resultado);
+    return resultado;
+  }
+
+   const btn = document.getElementById("toggle-btn");
+  if (btn) {
+    btn.addEventListener("click", alternarMenu);
+  }
+
+  // Executa a função ao iniciar para garantir estado inicial correto
+  alternarMenu();
+
+  carregarClientes("clientes");
+  carregarDados("clientes");
+  aplicarCliqueNosClientes();
+});
 
 // Carregar dados ao carregar a página
-window.onload = () => {
-  const token = localStorage.getItem("token");
-  const permissoes = JSON.parse(sessionStorage.getItem("permissoesUsuario") || "[]");
-
-  const podePesquisarClientes = permissoes.some(p => p.modulo === "Clientes" && p.pesquisar);
-
-  if (token && podePesquisarClientes) {
-    carregarDados('clientes');
-  } else {
-    // Se não pode pesquisar, esconde a seção inteira do aside
-    const painelClientes = document.getElementById("painel-clientes");
-    const abaClientes = document.getElementById("aba-clientes");
-
-    if (painelClientes) painelClientes.style.display = "none";
-    if (abaClientes) abaClientes.style.display = "none";
-  }
-};
 
 function mostrarPainel(tipo) {
   const paineis = document.querySelectorAll('.painel');
@@ -167,30 +54,246 @@ function mostrarPainel(tipo) {
   paineis.forEach(p => p.classList.remove('ativo'));
   abas.forEach(a => a.classList.remove('ativa'));
 
-  document.getElementById(`painel-${tipo}`).classList.add('ativo');
-  document.getElementById(`aba-${tipo}`).classList.add('ativa');
+  document.getElementById(`painel-${tipo}`)?.classList.add('ativo');
+  document.getElementById(`aba-${tipo}`)?.classList.add('ativa');
 
-  if (tipo === 'eventos' && clienteSelecionado) {
-    carregarEventosDoCliente(clienteSelecionado);
-  } else if (tipo === 'orcamento') {
-    const info = document.getElementById('orcamento-info');
-    info.textContent = `Cliente: ${nomeClienteSelecionado} | Evento: ${nomeEventoSelecionado}`;
+  if (tipo === 'eventos') {
+    if (clienteSelecionado) {
+      carregarEventosDoCliente(clienteSelecionado);
+    } else {
+      Swal.fire("Atenção", "Selecione um cliente primeiro.", "warning");
+      return;
+    }
+  }
+
+  if (tipo === 'orcamento') {
+    if (clienteSelecionado && eventoSelecionado) {
+      document.getElementById('orcamento-selecionado').textContent =
+        `Cliente: ${nomeClienteSelecionado} | Evento: ${nomeEventoSelecionado}`;
+      carregarOrcamentos(clienteSelecionado, eventoSelecionado);
+    } else {
+      Swal.fire("Atenção", "Selecione um evento primeiro.", "warning");
+      return;
+    }
+  }
+}
+
+window.navegarParaAba = function(tipo) {
+  // 🔄 Limpar seleções ao voltar
+  if (tipo === "clientes") {
+    // LIMPA CLIENTE
+    clienteSelecionado = null;
+    nomeClienteSelecionado = '';
+
+    // LIMPA EVENTO
+    eventoSelecionado = null;
+    nomeEventoSelecionado = '';
+
+    // LIMPA ORÇAMENTO
+    sessionStorage.removeItem("orcamentoSelecionado");
+
+    // LIMPA LISTAS DA TELA
+    const ulClientes = document.getElementById("lista-dados-clientes");
+    const ulEventos = document.getElementById("lista-dados-eventos");
+    const ulOrcamento = document.getElementById("lista-dados-orcamento");
+
+    if (ulClientes) ulClientes.innerHTML = "";
+    if (ulEventos) ulEventos.innerHTML = "";
+    if (ulOrcamento) ulOrcamento.innerHTML = "";
+  }
+
+  if (tipo === "eventos") {
+    eventoSelecionado = null;
+    nomeEventoSelecionado = '';
+    sessionStorage.removeItem("orcamentoSelecionado");
+
+    const ulOrcamento = document.getElementById("lista-dados-orcamento");
+    if (ulOrcamento) ulOrcamento.innerHTML = "";
+  }
+
+  // 🔒 Bloqueia todas as abas inicialmente
+  document.querySelectorAll(".aba").forEach(aba => {
+    aba.classList.add("desativada");
+    aba.style.pointerEvents = "none";
+  });
+
+  // ✅ Aba "Clientes" sempre ativa
+  document.getElementById("aba-clientes").classList.remove("desativada");
+  document.getElementById("aba-clientes").style.pointerEvents = "auto";
+
+  // ✅ Libera "Eventos" se cliente estiver selecionado
+  if (clienteSelecionado) {
+    document.getElementById("aba-eventos").classList.remove("desativada");
+    document.getElementById("aba-eventos").style.pointerEvents = "auto";
+  }
+
+  // ✅ Libera "Orçamento" se evento selecionado
+  if (clienteSelecionado && eventoSelecionado) {
+    document.getElementById("aba-orcamento").classList.remove("desativada");
+    document.getElementById("aba-orcamento").style.pointerEvents = "auto";
+  }
+
+  // Ativa painel e aba
+  document.querySelectorAll(".painel").forEach(p => p.classList.remove("ativo"));
+  document.querySelectorAll(".aba").forEach(a => a.classList.remove("ativa"));
+
+  document.getElementById(`painel-${tipo}`)?.classList.add("ativo");
+  document.getElementById(`aba-${tipo}`)?.classList.add("ativa");
+
+  // Carregamento específico
+  if (tipo === "clientes") carregarClientes();
+  if (tipo === "eventos") carregarEventosDoCliente(clienteSelecionado);
+  if (tipo === "orcamento") {
+    document.getElementById("orcamento-selecionado").textContent =
+      `Cliente: ${nomeClienteSelecionado} | Evento: ${nomeEventoSelecionado}`;
+    carregarOrcamentos(clienteSelecionado, eventoSelecionado);
+  }
+};
+
+async function carregarClientes() {
+  try {
+    const clientes = await fetchComToken('/clientes');
+
+    if (!clientes || clientes.erro === "sessao_expirada") {
+      Swal.fire("Sessão expirada", "Por favor, faça login novamente.", "warning");
+      return;
+    }
+
+    if (!Array.isArray(clientes) || clientes.length === 0) {
+      console.warn("Nenhum cliente encontrado.");
+      const ul = document.getElementById("lista-dados-clientes");
+      ul.innerHTML = "<li>Nenhum cliente encontrado.</li>";
+      return;
+    }
+
+    const ul = document.getElementById("lista-dados-clientes");
+    ul.innerHTML = "";
+
+    clientes.forEach(cliente => {
+      const li = document.createElement("li");
+      li.textContent = cliente.nmfantasia;
+
+      // Adiciona o atributo data-cliente-id para ser usado depois
+      li.setAttribute('data-cliente-id', cliente.idcliente);
+
+      li.addEventListener("click", () => {
+        clienteSelecionado = cliente.idcliente;
+        nomeClienteSelecionado = cliente.nmfantasia;
+
+        // Visual: destaca cliente selecionado
+        ul.querySelectorAll("li").forEach(item => item.classList.remove("selecionado"));
+        li.classList.add("selecionado");
+
+        // Atualiza texto da aba Eventos
+        document.getElementById("cliente-selecionado").textContent = `Eventos de ${nomeClienteSelecionado}`;
+        document.getElementById("aba-eventos").classList.remove("desativada");
+
+        mostrarPainel("eventos");
+      });
+
+      ul.appendChild(li);
+    });
+
+  } catch (erro) {
+    console.error("Erro ao carregar clientes:", erro);
+    Swal.fire("Erro", "Não foi possível carregar os clientes.", "error");
+  }
+}
+
+async function carregarEventosDoCliente(clienteId) {
+  try {
+    console.log("ID cliente:", clienteId, clienteSelecionado);
+    const eventos = await fetchComToken(`aside/eventos?clienteId=${clienteId}`);
+
+
+    const ul = document.getElementById('lista-dados-eventos');
+    ul.innerHTML = '';
+
+    if (!Array.isArray(eventos) || eventos.length === 0) {
+      ul.innerHTML = '<li>Nenhum evento com orçamento em aberto</li>';
+      return;
+    }
+
+    eventos.forEach(evento => {
+      const li = document.createElement('li');
+      li.textContent = evento.nmevento;
+
+      li.onclick = () => {
+        nomeEventoSelecionado = evento.nmevento;
+        eventoSelecionado = evento.idevento; // ✅ SALVA o ID
+        ativarAbaOrcamento();
+        mostrarPainel('orcamento');
+      };
+
+      ul.appendChild(li);
+    });
+  } catch (erro) {
+    console.error("Erro ao carregar eventos do cliente:", erro);
+    Swal.fire("Erro", "Não foi possível carregar os eventos.", "error");
+  }
+}
+
+async function carregarOrcamentos(clienteId, eventoId) {
+  try {
+    const orcamentos = await fetchComToken(`aside/orcamento?clienteId=${clienteId}&eventoId=${eventoId}`);
+
+    const ul = document.getElementById('lista-dados-orcamento');
+    ul.innerHTML = '';
+
+    if (!Array.isArray(orcamentos) || orcamentos.length === 0) {
+      ul.innerHTML = '<li>Nenhum orçamento encontrado</li>';
+      return;
+    }
+
+    orcamentos.forEach(orc => {
+      const li = document.createElement('li');
+      li.textContent = `Orçamento nº ${orc.nrorcamento} | Status: ${orc.status}`;
+
+      li.onclick = () => {
+        // Salva o orçamento no sessionStorage para o modal acessar
+        sessionStorage.setItem("orcamentoSelecionado", JSON.stringify(orc));
+
+        // Simula o clique no link de menu que abre o modal
+        const linkModal = document.querySelector('.abrir-modal[data-modulo="Orcamentos"]');
+        if (linkModal) {
+          linkModal.click();
+
+          // Aguarda o modal abrir e preenche o input + chama a busca
+        setTimeout(async () => {
+          const input = document.getElementById("nrOrcamento");
+          if (input) {
+            input.value = orc.nrorcamento;
+
+            try {
+              const orcamento = await fetchComToken(`orcamentos?nrOrcamento=${orc.nrorcamento}`);
+              preencherFormularioComOrcamento(orcamento);
+            } catch (error) {
+              limparFormularioOrcamento();
+              Swal.fire("Erro", `Não foi possível buscar o orçamento ${orc.nrorcamento}.`, "error");
+            }
+          }
+        }, 300);// ⏱️ ajuste esse delay se necessário
+        } else {
+          Swal.fire("Erro", "Botão para abrir o modal não encontrado.", "error");
+        }
+      };
+
+      ul.appendChild(li);
+    });
+  } catch (erro) {
+    console.error("Erro ao carregar orçamentos:", erro);
+    Swal.fire("Erro", "Não foi possível carregar os orçamentos.", "error");
   }
 }
 
 async function carregarDados(tipo) {
   try {
-    
-    // const resposta = await fetchComToken(`http://localhost:3000/${tipo}`);
-     const resposta = await fetchComToken(`{tipo}`);
-    if (resposta.status === 401) {
-      mostrarErro("Sessão expirada", "Por favor, faça login novamente.");
+    const json = await fetchComToken(`/${tipo}`);
+
+    if (!Array.isArray(json) || json.length === 0) {
+      console.error("Erro ao buscar dados: Nenhum dado encontrado");
       return;
     }
-    
-
-    const json = await resposta.json();
-    console.log("Json", json);
 
     if (!Array.isArray(json) || json.length === 0) {
       console.error("Erro ao buscar dados: Nenhum dado encontrado");
@@ -229,45 +332,6 @@ async function carregarDados(tipo) {
   }
 }
 
-async function carregarEventosDoCliente(idCliente) {
-  try {
-    
-    // const resposta = await fetchComToken(`http://localhost:3000/eventos?clienteId=${idCliente}`);
-    const resposta = await fetchComToken(`/eventos?clienteId=${idCliente}`);
-    
-    if (resposta.status === 401) {
-      mostrarErro("Sessão expirada", "Por favor, faça login novamente.");
-      return;
-    }
-
-    const json = await resposta.json();
-    console.log("Eventos:", json);
-
-    const ul = document.getElementById('lista-dados-eventos');
-    ul.innerHTML = '';
-
-    if (!Array.isArray(json) || json.length === 0) {
-      const li = document.createElement('li');
-      li.textContent = 'Nenhum evento encontrado.';
-      ul.appendChild(li);
-      return;
-    }
-
-    json.forEach(evento => {
-      const li = document.createElement('li');
-      li.textContent = evento.titulo;
-      li.onclick = () => {
-        nomeEventoSelecionado = evento.titulo;
-        ativarAbaOrcamento();
-        mostrarPainel('orcamento');
-      };
-      ul.appendChild(li);
-    });
-  } catch (error) {
-    console.error("Erro ao carregar eventos:", error);
-  }
-}
-
 function ativarAbaOrcamento() {
   const abaOrcamento = document.getElementById('aba-orcamento');
   abaOrcamento.classList.remove('desativada');
@@ -278,55 +342,19 @@ function alternarMenu() {
   const wrapper = document.getElementById("wrapper");
   const btn = document.getElementById("toggle-btn");
 
-  wrapper.classList.toggle("menu-fechado");
-
-  btn.innerHTML = wrapper.classList.contains("menu-fechado") ? "»" : "«";
+  const estaFechado = wrapper.classList.toggle("menu-fechado");
+  btn.innerHTML = estaFechado ? "»" : "«";
 }
-
-// function carregarEventosDoCliente(clienteId) {
-//   var xhr = new XMLHttpRequest();
-//   xhr.open('GET', '/api/eventos?cliente_id=' + clienteId, true);
-
-//   xhr.onreadystatechange = function() {
-//     if (xhr.readyState === 4 && xhr.status === 200) {
-//       var eventos = JSON.parse(xhr.responseText);
-//       var lista = document.getElementById('lista-dados-eventos');
-//       lista.innerHTML = ''; // Limpa a lista
-
-//       if (eventos.length > 0) {
-//         for (var i = 0; i < eventos.length; i++) {
-//           var li = document.createElement('li');
-//           li.textContent = eventos[i].nome;
-//           li.setAttribute('data-evento-id', eventos[i].id);
-//           li.setAttribute('data-cliente-id', clienteId);
-//           lista.appendChild(li);
-//         }
-
-//         // Habilita a aba de eventos
-//         var abaEventos = document.querySelector('.aba[data-alvo="eventos"]');
-//         if (abaEventos) {
-//           abaEventos.classList.remove('desativada');
-//         }
-
-//       } else {
-//         var vazio = document.createElement('li');
-//         vazio.textContent = 'Nenhum evento cadastrado.';
-//         lista.appendChild(vazio);
-//       }
-//     }
-//   };
-
-//   xhr.send();
-// }
 
 function aplicarCliqueNosClientes() {
   var clientes = document.querySelectorAll('#lista-dados-clientes li');
 
   for (var i = 0; i < clientes.length; i++) {
-    clientes[i].addEventListener('click', function() {
+    clientes[i].addEventListener('click', function () {
       var clienteId = this.getAttribute('data-cliente-id');
       carregarEventosDoCliente(clienteId);
     });
   }
 }
+
 

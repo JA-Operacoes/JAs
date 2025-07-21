@@ -12,7 +12,7 @@
 }
 
 /* Estilo para o container do modal */
-#modal-container {
+ #modal-container {
   position: fixed;
   top: 50%; /* Alinha verticalmente ao centro */
   left: 50%; /* Alinha horizontalmente ao centro */
@@ -21,11 +21,13 @@
   padding: 5px;
   border-radius: 8px;
   box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
-  width: 80%; /* Ajuste o tamanho conforme necessário */
-  max-width: 700px; /* Largura máxima do modal */
+  width: 80%;/* Ajuste o tamanho conforme necessário */
+  max-width: 700px;/* Largura máxima do modal */
   display: none; /* Inicialmente invisível */
-  z-index: 1000; /* Fica acima do overlay */
-}
+  z-index: 1000; /* Fica acima do overlay */  
+} 
+
+
 
 /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
 .modal {
@@ -35,8 +37,8 @@
   transform: translate(-50%, -50%); /* Ajuste para o centro exato */
   background-color: #4d4d4d;
   padding: 5px;
-  width: 725px; /* Ajuste o tamanho conforme necessário */
-  height: 645px;
+  width: 1125px; /* Ajuste o tamanho conforme necessário */
+  height: 745px;
   font-size: 16px;
   z-index: 9999;
 }
@@ -73,7 +75,7 @@ body{
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-top: 390px;
+  margin-top: 620px;
 }
 
 #form-cargo {
@@ -82,9 +84,9 @@ body{
   flex-direction: column; 
   justify-content: center;
   background-color: rgb(0, 0, 0);
-  max-width: 700px;   
+  /* max-width: 700px;    */
   width: 100%;  
-  height: 550px;          /* Largura do formulário */
+  height: 670px;          /* Largura do formulário */
   margin: 0 auto;            /* Centraliza o formulário na tela */
   padding: 10px;                /* Espaçamento interno */
   background-color: #cacaca; 
@@ -94,6 +96,16 @@ body{
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
   overflow-y: auto;
   overflow-x: none;
+
+
+  
+  max-width: unset; /* Permite que ele use toda a largura disponível */
+}
+
+.gridPhoto{
+display: grid;
+grid-template-columns: 1fr 2fr; /* ou ajuste conforme necessidade */
+justify-content: center;
 }
 
 .grid-container {
@@ -101,11 +113,69 @@ body{
   grid-template-columns: 1fr 2fr; /* ou ajuste conforme necessidade */
   gap: 20px;
   align-items: start;
+  width: 590px;
 }
 .gridInput {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+/* .gridInputsColumn {
+    display: flex;
+    flex-direction: column;
+    gap: 20px; /* Ajuste o espaçamento conforme necessário entre os grupos de input/select /
+}
+
+/* Você pode querer ajustar a largura dos elementos .form2 dentro de gridInputsColumn
+   para garantir que eles se ajustem bem dentro do espaço de 2fr. Por exemplo: 
+.gridInputsColumn .form2 {
+    width: 179px; /* Garante que eles ocupem a largura total de sua coluna 
+} */
+
+/* Adicione este CSS diretamente no seu arquivo CadStaff.css ou em um novo para modais/tables */
+ 
+.table-container {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #ccc; /* Borda simples para o contêiner */
+    border-radius: 5px;
+    margin-top: 20px; /* Adicionado para espaçamento se não estiver lá */
+}
+
+#eventsDataTable {
+    width: 100%;
+    border-collapse: collapse; /* Isso remove o espaço duplo entre as bordas das células */
+    margin-top: 10px; /* Opcional: Adiciona um pequeno espaço acima da tabela */
+}
+
+/* Estilo para o cabeçalho e as células de dados */
+#eventsDataTable th,
+#eventsDataTable td {
+    border: 1px solid #ddd; /* Borda leve para todas as células */
+    padding: 8px; /* Espaçamento interno dentro das células */
+    text-align: left; /* Alinha o texto à esquerda (pode ajustar para center se preferir) */
+    font-size: 14px;
+}
+
+/* Opcional: Estilo para o cabeçalho para destacá-lo */
+#eventsDataTable th {
+    font-size: 16px;
+    background-color: #f2f2f2; /* Cor de fundo para o cabeçalho */
+    font-weight: bold; /* Deixa o texto do cabeçalho em negrito */
+    position: sticky; /* Fixa o cabeçalho ao rolar */
+    top: 0; /* Fixa no topo do contêiner de rolagem */
+    z-index: 1; /* Garante que o cabeçalho fique sobre o conteúdo ao rolar */
+}
+
+/* Opcional: Estilo para linhas alternadas para melhorar a legibilidade (zebra stripes) */
+#eventsDataTable tbody tr:nth-child(even) {
+    background-color: #f9f9f9; /* Cor mais clara para linhas pares */
+}
+
+/* Opcional: Estilo ao passar o mouse sobre as linhas */
+#eventsDataTable tbody tr:hover {
+    background-color: #e0e0e0; /* Cor de fundo ao passar o mouse */
 }
 
 .container {
@@ -114,12 +184,11 @@ body{
   border-radius: 10px;
   box-shadow: 4px 4px 30px rgba(0, 0, 0, .2);
   display: flex;
-  margin-top: 80px;
-  margin-left: 5px;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;  /* Mantém conteúdo no topo */
+  justify-content: center;  /* Mantém conteúdo no topo */
   padding: 10px;
+  margin: 0 auto;
   gap: 6px;
   background-color: rgba(0, 110, 255, 0.041);
 }
@@ -410,6 +479,7 @@ input[type="file"]{
   justify-content: center;
   margin: 12px;
   gap: 5px;
+  flex-wrap: wrap;
 }
 
 .form input {
@@ -423,22 +493,13 @@ input[type="file"]{
   background: transparent;
   color: #000000;
   outline: none;
+
+  width: 100%; /* Para garantir que ocupem o espaço disponível */
+  max-width: 350px; /* Mantém sua largura máxima desejada */
+  box-sizing: border-box; /* Garante que padding e border sejam incluídos na largura */
 }
 
-.form2 input {
-  flex: 1;
-  font-family: var(--Font-primary);
-  width: 270px;
-  height: 40px;
-  border-radius: 6px;
-  font-size: 15px;
-  padding: 0 20px;
-  border: 1px solid #000000;
-  background: transparent;
-  color: #000000;
-  outline: none;
-} 
-
+.form2 input,
 .form2 select {
   flex: 1;
   font-family: var(--Font-primary);
@@ -452,6 +513,21 @@ input[type="file"]{
   color: #000000;
   outline: none;
 } 
+
+/* .form2 select {
+  flex: 1;
+  font-family: var(--Font-primary);
+  width: 270px;
+  height: 40px;
+  border-radius: 6px;
+  font-size: 15px;
+  padding: 0 20px;
+  border: 1px solid #000000;
+  background: transparent;
+  color: #000000;
+  outline: none;
+}  */
+
 
  .form2 { 
   display: flex;
@@ -529,8 +605,14 @@ input#idStaff{
   width: 100px;
 }
 
-input#Transportes,#Alimentação,#Caixinha{
-  width: 145px;
+input#transporte,#almoco,#jantar,#caixinha, #vlrCusto, #extra{
+  /* width: 170px; */
+  width: 100%;
+}
+
+select#nmFuncionario, #descFuncao{
+  /* width: 270px; */
+  width: 100%;
 }
 
   .flatpickr-calendar {
@@ -546,21 +628,29 @@ input#Transportes,#Alimentação,#Caixinha{
     z-index: 99999 !important; /* Mantenha este z-index MUITO alto para garantir que ele apareça acima de tudo */
   }
 
+  .inputs{
+    width: 300px;
+  }
+
 
 
 fieldset{
-  max-width: 100px;
+  width: 100%;
   border-radius: 10px;
   border-color: #000000;
   margin: 0 auto;
+  padding: 15px; /* Adicione padding interno para que o conteúdo não cole nas bordas */
+  box-sizing: border-box; /* Garante que padding e border sejam incluídos na largura */
+
 }
 legend{
   margin-left: 10px;
   padding: 3px;
 }
-textarea{
+
+textarea#bonus{
   font-family:"Abel",sans-serif;
-  width: 100%;
+  width: 300px;
   display: flex;
   justify-content: center;                  /* Faz os inputs ocuparem toda a largura */
   padding: 5px 50px; 
@@ -568,9 +658,22 @@ textarea{
   font-size: 17px;               /* Espaçamento interno nos campos */
   border: 1px solid #000000;      /* Cor de borda */
   border-radius: 8px;  
-  flex: 1;      
-  max-width: 100%;        /* Bordas arredondadas */
+  max-width: 100%;     /* Bordas arredondadas */
 }
+
+textarea#descBeneficio{
+  font-family:"Abel",sans-serif;
+  width: 800px;
+  display: flex;
+  justify-content: center;                  /* Faz os inputs ocuparem toda a largura */
+  padding: 5px 50px; 
+  margin: 5px 10px;
+  font-size: 17px;               /* Espaçamento interno nos campos */
+  border: 1px solid #000000;      /* Cor de borda */
+  border-radius: 8px;  
+  max-width: 100%;     /* Bordas arredondadas */
+}
+
 
 input[type=date]{
   width: 170px;
@@ -698,9 +801,9 @@ button {
   display: none;
 }
 
-input#nmFuncionario, #descFuncao,#vlrCusto,#vlrBeneficio{
+/* input#nmFuncionario, #vlrCusto,#vlrBeneficio{
   width: 179px;
-}
+} */
 
 input.form-control.input {
     width: 500px;

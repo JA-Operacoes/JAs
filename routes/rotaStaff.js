@@ -10,22 +10,40 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs'); // Para manipulação de arquivos (apagar antigos)
 
-const uploadDir = path.join(__dirname, '../uploads/fotos_staff');
-
-// Garante que o diretório de uploads existe
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
+const comprovantesUploadDir = path.join(__dirname, '../uploads/staff_comprovantes');
+if (!fs.existsSync(comprovantesUploadDir)) {
+    fs.mkdirSync(comprovantesUploadDir, { recursive: true });
 }
 
-const storage = multer.diskStorage({
+const storageComprovantes = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, uploadDir);
+        cb(null, comprovantesUploadDir); // Multer salva aqui
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
     }
 });
+
+const fileFilterComprovantes = (req, file, cb) => {
+    // Permite imagens e PDFs
+    if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+        cb(null, true);
+    } else {
+        cb(new Error('Tipo de arquivo não suportado para comprovantes! Apenas imagens e PDFs são permitidos.'), false);
+    }
+};
+const uploadComprovantesMiddleware = multer({
+    storage: storageComprovantes,
+    fileFilter: fileFilterComprovantes,
+    limits: {
+        fileSize: 10 * 1024 * 1024 // Limite de 10MB para comprovantes (ajuste conforme necessário)
+    }
+}).fields([
+    { name: 'comppgtocache', maxCount: 1 },
+    { name: 'comppgtoajdcusto', maxCount: 1 },
+    { name: 'comppgtoextras', maxCount: 1 }
+]);
 
 const fileFilter = (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
@@ -35,314 +53,638 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-const upload = multer({
-    storage: storage,
-    fileFilter: fileFilter,
-    limits: {
-        fileSize: 5 * 1024 * 1024 // Limite de 5MB
-    }
-});
+
 // --- Fim da Configuração do Multer ---
 
+function deletarArquivoAntigo(relativePath) {
+    if (relativePath) {
+        // Constrói o caminho absoluto no servidor usando o diretório base do projeto
+        const absolutePath = path.join(__dirname, '..', relativePath);
 
-// Aplica autenticação em todas as rotas
-router.use(autenticarToken());
-router.use(contextoEmpresa);
+        if (fs.existsSync(absolutePath)) {
+            fs.unlink(absolutePath, (err) => {
+                if (err) console.error(`Erro ao deletar arquivo antigo: ${absolutePath}`, err);
+                else console.log(`Arquivo antigo deletado: ${absolutePath}`);
+            });
+        } else {
+            console.warn(`Tentativa de deletar arquivo que não existe: ${absolutePath}`);
+        }
+    }
+}
 
-// GET todas ou por descrição
-router.get("/", verificarPermissao('staff', 'pesquisar'), async (req, res) => {
-    const { nmFuncionario } = req.query;
+router.get('/funcao', async (req, res) => {
+  
+ console.log("🔥 Rota /staff/funcao acessada");
+
+  const idempresa = req.idempresa;
+
+  try {
+     
+    const resultado = await pool.query(`
+      SELECT f.*
+      FROM funcao f
+      INNER JOIN funcaoempresas fe ON fe.idfuncao = f.idfuncao
+      WHERE fe.idempresa = $1
+      ORDER BY f.descfuncao
+    `, [idempresa]);
+
+    res.json(resultado.rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: 'Erro ao buscar clientes' });
+  }
+
+});
+
+router.get("/funcionarios",  async (req, res) => { 
     const idempresa = req.idempresa;
 
-    try {
-        if (nmFuncionario) {
-            // Busca funcionário por nmFuncionario na empresa específica, limita 1
-            const result = await pool.query(
-                `SELECT func.* FROM staff func
-                 INNER JOIN staffempresas funce ON funce.idstaff = func.idstaff
-                 WHERE funce.idempresa = $1 AND func.nmFuncionario ILIKE $2 ORDER BY func.nmFuncionario ASC LIMIT 1`,
-                [idempresa, `%${nmFuncionario}%`] // Use % para pesquisa parcial se for o caso
-            );
-            return result.rows.length
-                ? res.json(result.rows[0])
-                : res.status(404).json({ message: "Funcionário não encontrado." });
-        } else {
+    try {        
             // Busca TODOS os funcionários associados à empresa do usuário logado
             const result = await pool.query(
-                `SELECT func.* FROM staff func
-                 INNER JOIN staffempresas funce ON funce.idstaff = func.idstaff
-                 WHERE funce.idempresa = $1 ORDER BY func.nmFuncionario ASC`,
+                `SELECT func.* FROM funcionarios func
+                 INNER JOIN funcionarioempresas funce ON funce.idfuncionario = func.idfuncionario
+                 WHERE funce.idempresa = $1 ORDER BY func.nome ASC`,
                 [idempresa]
             );
             return result.rows.length
                 ? res.json(result.rows)
                 : res.status(404).json({ message: "Nenhum funcionário encontrado para esta empresa." });
-        }
+        
     } catch (error) {
         console.error("Erro ao buscar funcionário:", error);
         res.status(500).json({ message: "Erro ao buscar funcionário." });
     }
 });
 
+router.get('/clientes', async (req, res) => {
+  
+  console.log("🔥 Rota /staff/clientes acessada");
 
-// PUT atualizar
-router.put("/:id",
+  const idempresa = req.idempresa;
+  
+  try {    
+      console.log("🔍 Buscando todos os clientes para a empresa:", idempresa);
+      const result = await pool.query(
+        `SELECT c.* 
+        FROM clientes c
+        INNER JOIN clienteempresas ce ON ce.idcliente = c.idcliente
+        WHERE ce.idempresa = $1 ORDER BY nmfantasia`
+        , [idempresa]);
+      console.log("✅ Consulta de todos os clientes retornou:", result.rows.length, "linhas.");
+      return result.rows.length
+        ? res.json(result.rows)
+        : res.status(404).json({ message: "Nenhum Cliente encontrado" });
+    
+  } catch (error) {
+    console.error("❌ Erro ao buscar clientes:", error);
+    res.status(500).json({ message: "Erro ao buscar nome fantasia" });
+  }
+});
+
+// GET /orcamento/eventos
+router.get('/eventos', async (req, res) => {
+  
+ console.log("🔥 Rota /staff/eventos acessada");
+
+  const idempresa = req.idempresa;
+
+  try {
+     
+    const resultado = await pool.query(`
+      SELECT e.*
+      FROM eventos e
+      INNER JOIN eventoempresas ee ON ee.idevento = e.idevento
+      WHERE ee.idempresa = $1
+      ORDER BY e.nmevento
+    `, [idempresa]);
+
+    res.json(resultado.rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: 'Erro ao buscar clientes' });
+  }
+});
+
+// GET /orcamento/localmontagem
+router.get('/localmontagem', async (req, res) => {
+  
+ console.log("🔥 Rota /staff/localmontagem acessada");
+
+  const idempresa = req.idempresa;
+
+  try {
+     
+    const resultado = await pool.query(`
+      SELECT l.*
+      FROM localmontagem l
+      INNER JOIN localmontempresas le ON le.idmontagem = l.idmontagem
+      WHERE le.idempresa = $1
+      ORDER BY l.descmontagem
+    `, [idempresa]);
+
+    res.json(resultado.rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: 'Erro ao buscar clientes' });
+  }
+
+});
+
+router.get('/pavilhao', async (req, res) => {
+  
+ console.log("🔥 Rota /staff/pavilhao acessada");
+
+  const idempresa = req.idempresa;
+  const idmontagem = req.query.idmontagem; 
+
+  console.log("IDMONTAGEM", idmontagem);
+
+  try {
+     
+    const resultado = await pool.query(`
+      SELECT p.nmpavilhao
+      FROM localmontpavilhao p      
+      WHERE p.idmontagem = $1
+      ORDER BY p.nmpavilhao
+    `, [idmontagem]);
+
+    console.log("PAVILHAO", resultado);
+    res.json(resultado.rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: 'Erro ao buscar clientes' });
+  }
+
+});
+
+//GET pesquisar
+router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
+    verificarPermissao('staff', 'pesquisar'), // Permissão para visualizar
+    async (req, res) => {
+        console.log("🔥 Rota /staff/eventos-por-funcionario/GET acessada");
+        const idempresa = req.idempresa;
+        const idFuncionarioParam = req.params.idFuncionario; // O ID do funcionário a ser pesquisado
+
+        let client;
+
+        // Validação básica do parâmetro
+        if (!idFuncionarioParam) {
+            return res.status(400).json({ message: "ID do funcionário é obrigatório para esta consulta." });
+        }
+
+        try {
+            client = await pool.connect();
+
+            // A consulta SQL ajustada para filtrar por idfuncionario
+            let query = `
+                SELECT
+                    se.idstaffevento,
+                    se.idfuncionario,
+                    se.nmfuncionario,
+                    se.idevento,
+                    se.nmevento,
+                    se.idcliente,
+                    se.nmcliente,
+                    se.idfuncao,
+                    se.nmfuncao,
+                    se.idmontagem,
+                    se.nmlocalmontagem,
+                    se.pavilhao,
+                    se.vlrcache,
+                    se.vlralmoco,
+                    se.vlrjantar,
+                    se.vlrtransporte,
+                    se.vlrextra,
+                    se.vlrcaixinha,
+                    se.descbonus,
+                    se.vlrtotal,
+                    se.datasevento,
+                    se.comppgtocache,
+                    se.comppgtoajdcusto,
+                    se.comppgtoextras,
+                    s.idstaff,
+                    s.avaliacao
+
+                    -- * ATENÇÃO AQUI: Como você armazena as datas do evento (período)? *
+                    -- Se 'datasevento' no seu POST é um array de datas ou um período,
+                    -- você precisa ter uma coluna correspondente em staffeventos ou eventos.
+                    -- Exemplo para um período (início e fim) se estiver na tabela 'eventos':
+                    -- CONCAT(TO_CHAR(e.data_inicio, 'DD/MM/YYYY'), ' - ', TO_CHAR(e.data_fim, 'DD/MM/YYYY')) AS periodo,
+                    -- JOIN eventos e ON se.idevento = e.idevento
+                    -- Por enquanto, mantenho como um placeholder, você deve buscar este campo.
+                    
+                    -- Calcula o "Total" somando os valores, tratando NULLs como 0
+                    --(se.vlrcache + COALESCE(se.vlralmoco, 0) + COALESCE(se.vlrjantar, 0) + COALESCE(se.vlrtransporte, 0) + COALESCE(se.vlrextra, 0) + COALESCE(se.vlrcaixinha, 0)) AS total
+                FROM
+                    staffeventos se
+                INNER JOIN
+                    staff s ON se.idstaff = s.idstaff
+                INNER JOIN
+                    staffEmpresas se_emp ON s.idstaff = se_emp.idstaff
+                WHERE
+                    se_emp.idEmpresa = $1 AND se.idfuncionario = $2
+                ORDER BY
+                    se.idevento DESC, se.idstaffevento DESC; -- Ordena por evento e depois pelo ID do registro de staffevento
+            `;
+            const queryParams = [idempresa, idFuncionarioParam];
+
+            const result = await client.query(query, queryParams);
+
+            // console.log(Foram encontrados ${result.rows.length} eventos para o funcionário ${idFuncionarioParam});
+
+            res.status(200).json(result.rows);
+
+        } catch (error) {
+            console.error("❌ Erro ao buscar eventos do funcionário:", error);
+            res.status(500).json({ error: "Erro ao buscar eventos do funcionário", details: error.message });
+        } finally {
+            if (client) {
+                client.release();
+            }
+            console.log('--- Fim da requisição GET /eventos-por-funcionario ---');
+        }
+    }
+);
+
+
+router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
     verificarPermissao('staff', 'alterar'),
-    upload.single('foto'), // Middleware do Multer para o campo 'foto'
-    logMiddleware('staff', {
+    // Removido: upload.single('foto') ou upload.none() - não é necessário se não houver campos de arquivo
+    //upload.none(),
+    uploadComprovantesMiddleware,
+    logMiddleware('staffeventos', {
         buscarDadosAnteriores: async (req) => {
-            const idstaff = req.params.id;
-            const idempresa = req.idempresa;
-            if (!idstaff) {
+            const idstaffEvento = req.params.idStaffEvento;
+            const idempresa = req.idempresa; // Captura o ID da empresa do contexto
+            if (!idstaffEvento) {
                 return { dadosanteriores: null, idregistroalterado: null };
             }
             try {
+                // Ajustar a query para buscar o registro de staffeventos
+                // Incluímos o JOIN com staffempresas para verificar a posse da empresa
                 const result = await pool.query(
-                    `SELECT func.* FROM staff func
-                     INNER JOIN staffempresas funce ON funce.idstaff = func.idstaff
-                     WHERE func.idstaff = $1 AND funce.idempresa = $2`,
-                    [idstaff, idempresa]
+                    `SELECT se.*, se.nmfuncionario AS nmfuncionario_principal,
+                            se.nmfuncao, se.nmcliente, se.nmevento, se.nmlocalmontagem
+                     FROM staffeventos se
+                     INNER JOIN staff s ON se.idfuncionario = s.idstaff
+                     INNER JOIN staffempresas sme ON sme.idstaff = s.idstaff                     
+                     WHERE se.idstaffevento = $1 AND sme.idempresa = $2`, // Verifica a empresa do staff
+                    [idstaffEvento, idempresa]
                 );
                 const linha = result.rows[0] || null;
                 return {
                     dadosanteriores: linha,
-                    idregistroalterado: linha?.idstaff || null
+                    idregistroalterado: linha?.idstaffevento || null
                 };
             } catch (error) {
-                console.error("Erro ao buscar dados anteriores do funcionário para log:", error);
+                console.error("Erro ao buscar dados anteriores do evento de staff para log:", error);
                 return { dadosanteriores: null, idregistroalterado: null };
             }
         }
     }),
     async (req, res) => {
-        const id = req.params.id;
-        const idempresa = req.idempresa;
-       
+        const idStaffEvento = req.params.idStaffEvento;
+        const idempresa = req.idempresa; // ID da empresa do token autenticado
+
+        // Desestruturar TODOS os campos enviados pelo FormData do frontend
         const {
-            foto, nmFuncionario, descFuncao, custo, extra, transporte,
-            alimentação, caixinha, beneficio
+            idfuncionario, nmfuncionario, idfuncao, nmfuncao, idcliente, nmcliente,
+            idevento, nmevento, idmontagem, nmlocalmontagem, pavilhao,
+            vlrcache, vlrextra, vlrtransporte, vlralmoco, vlrjantar, vlrcaixinha,
+            descbonus, datasevento, vlrtotal
         } = req.body;
 
-        let fotoPathParaBD = null;
-        let client; // Usaremos um cliente do pool para transação
+        const files = req.files;
+        const comprovanteCacheFile = files?.comppgtocache ? files.comppgtocache[0] : null;
+        const comprovanteAjdCustoFile = files?.comppgtoajdcusto ? files.comppgtoajdcusto[0] : null;
+        const comprovanteExtrasFile = files?.comppgtoextras ? files.comppgtoextras[0] : null;
+        console.log("BODY", req.body);
+
+        let client;
 
         try {
             client = await pool.connect();
             await client.query('BEGIN'); // Inicia a transação
 
-            // Adicione console.logs para depurar os valores recebidos
-            console.log('--- Início da requisição PUT ---');
+            console.log('--- Início da requisição PUT (StaffEvento) ---');
             console.log('req.body:', req.body);
-            console.log('req.file:', req.file);
-            console.log('ID do funcionário (param):', id);
+            console.log('ID do StaffEvento (param):', idStaffEvento);
+            console.log('ID do Funcionário (do body - associado ao evento):', idfuncionario);
             console.log('ID da empresa (req.idempresa):', idempresa);
-            console.log('Valor de "foto" após desestruturação:', foto);
 
-            // 1. Lógica para determinar o caminho da foto
-            if (req.file) {
-                // Se um novo arquivo foi enviado, use o caminho do novo arquivo
-                // E converta barras invertidas para barras normais para compatibilidade de caminho
-                fotoPathParaBD = path.join('uploads/fotos_staff', req.file.filename).replace(/\\/g, '/');
-
-                // Apagar foto antiga se uma nova for enviada
-                const resultFotoAntiga = await client.query( // Usar 'client' para manter na transação
-                    `SELECT foto FROM staff WHERE idstaff = $1`,
-                    [id]
-                );
-                if (resultFotoAntiga.rows.length > 0 && resultFotoAntiga.rows[0].foto) {
-                    const fotoAntigaPath = path.join(__dirname, '..', resultFotoAntiga.rows[0].foto);
-                    // Verifique se o arquivo existe antes de tentar apagar
-                    if (fs.existsSync(fotoAntigaPath)) {
-                        fs.unlink(fotoAntigaPath, (err) => {
-                            if (err) console.error("Erro ao apagar foto antiga:", err);
-                        });
+            // 1. Parsear o datasEvento (array de datas)
+            let datasEventoParsed = null;
+            if (datasevento) {
+                try {
+                    datasEventoParsed = JSON.parse(datasevento);
+                    if (!Array.isArray(datasEventoParsed)) {
+                        throw new Error("datasevento não é um array JSON válido.");
                     }
+                } catch (parseError) {
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({ message: "Formato de 'datasevento' inválido. Esperado um array JSON.", details: parseError.message });
                 }
-            } else {
-                // Se nenhum novo arquivo foi enviado, MANTENHA o caminho da foto existente no BD
-                // OU defina como NULL se a intenção for remover a foto sem upload de nova
-                const resultFotoExistente = await client.query( // Usar 'client' para manter na transação
-                    `SELECT foto FROM staff WHERE idstaff = $1`,
-                    [id]
-                );
-                fotoPathParaBD = resultFotoExistente.rows[0]?.foto || null;
+            }
+            console.log('Valor de "datasevento" após parse:', datasEventoParsed);
+
+            const oldRecordResult = await client.query(
+                `SELECT comppgtocache, comppgtoajdcusto, comppgtoextras
+                 FROM staffeventos se
+                 INNER JOIN staff s ON se.idstaff = s.idstaff
+                 INNER JOIN staffempresas sme ON sme.idstaff = s.idstaff
+                 WHERE se.idstaffevento = $1 AND sme.idempresa = $2`,
+                [idStaffEvento, idempresa]
+            );
+            const oldRecord = oldRecordResult.rows[0];
+            console.log("Old Record retrieved:", oldRecord); // Log para verificar o oldRecord
+
+            // 3. Determinar os novos caminhos dos comprovantes e deletar os antigos se houver substituição
+            let newComppgtoCachePath = oldRecord ? oldRecord.comppgtocache : null;
+            if (comprovanteCacheFile) {
+                deletarArquivoAntigo(oldRecord ? oldRecord.comppgtocache : null); // Chamada CORRETA
+                newComppgtoCachePath = `/uploads/staff_comprovantes/${comprovanteCacheFile.filename}`; // Caminho CORRETO para o BD
+            } else if (req.body.comppgtocache === '') { // Se o frontend enviou string vazia (limpou o campo)
+                deletarArquivoAntigo(oldRecord ? oldRecord.comppgtocache : null); // Chamada CORRETA
+                newComppgtoCachePath = null;
+            }
+            // else: Se nenhum novo arquivo foi enviado E o campo não foi explicitamente limpo,
+            // newComppgtoCachePath mantém o valor de oldRecord.comppgtocache (o arquivo existente é mantido).
+
+            let newComppgtoAjdCustoPath = oldRecord ? oldRecord.comppgtoajdcusto : null;
+            if (comprovanteAjdCustoFile) {
+                deletarArquivoAntigo(oldRecord ? oldRecord.comppgtoajdcusto : null); // Chamada CORRETA
+                newComppgtoAjdCustoPath = `/uploads/staff_comprovantes/${comprovanteAjdCustoFile.filename}`; // Caminho CORRETO para o BD
+            } else if (req.body.comppgtoajdcusto === '') {
+                deletarArquivoAntigo(oldRecord ? oldRecord.comppgtoajdcusto : null); // Chamada CORRETA
+                newComppgtoAjdCustoPath = null;
             }
 
-            // --- Validação do campo 'foto' ---
-            // Se 'foto' não é permitido ser nulo ou vazio no BD, force um erro aqui.
-            if (!foto || foto.trim() === '') {
-                // Se chegar aqui, significa que o frontend enviou um valor inválido,
-                // ou o Multer/Express o transformou em vazio/nulo.
-                // Reverter a transação e enviar erro 400.
-                if (req.file) { // Se um arquivo foi carregado, apaga ele antes de sair
-                    fs.unlink(req.file.path, (err) => {
-                        if (err) console.error("Erro ao apagar upload de PUT falho (foto inválido):", err);
-                    });
-                }
-                await client.query('ROLLBACK');
-                return res.status(400).json({ message: "O campo 'foto' é obrigatório e não pode ser vazio." });
+            let newComppgtoExtrasPath = oldRecord ? oldRecord.comppgtoextras : null;
+            if (comprovanteExtrasFile) {
+                deletarArquivoAntigo(oldRecord ? oldRecord.comppgtoextras : null); // Chamada CORRETA
+                newComppgtoExtrasPath = `/uploads/staff_comprovantes/${comprovanteExtrasFile.filename}`; // Caminho CORRETO para o BD
+            } else if (req.body.comppgtoextras === '') {
+                deletarArquivoAntigo(oldRecord ? oldRecord.comppgtoextras : null); // Chamada CORRETA
+                newComppgtoExtrasPath = null;
             }
 
 
-            // 2. Executa a atualização no banco de dados
-            const query = `
-                UPDATE staff func
-                SET foto = $1, foto = $2, nmFuncionario = $3, descFuncao = $4, custo = $5, fluencia = $6, transporte = $7,
-                    alimentação = $8, caixinha = $9, beneficio = $10, site = $11, codigobanco = $12,
-                    pix = $13, numeroconta = $14, digitoConta = $15, agencia = $16, digitoAgencia = $17, tipoconta = $18, cep = $19, rua = $20, numero = $21,
-                    complemento = $22, bairro = $23, cidade = $24, estado = $25, pais = $26
-                WHERE func.idstaff = $27
-                RETURNING func.idstaff, func.foto;
+            // 2. Executa a atualização no banco de dados (tabela staffeventos)
+            // IMPORTANTE: Adicionamos o JOIN com staffempresas e a condição de idempresa
+            // para garantir que apenas eventos de staffes pertencentes à empresa do usuário sejam atualizados.
+            const queryStaffEventos = `
+                UPDATE staffeventos se
+                SET idfuncionario = $1, nmfuncionario = $2, idfuncao = $3, nmfuncao = $4,
+                    idcliente = $5, nmcliente = $6, idevento = $7, nmevento = $8, idmontagem = $9,
+                    nmlocalmontagem = $10, pavilhao = $11, vlrcache = $12, vlrextra = $13, vlrtransporte = $14,
+                    vlralmoco = $15, vlrjantar = $16, vlrcaixinha = $17, descbonus = $18,
+                    datasevento = $19, vlrtotal = $20, comppgtocache = $21, comppgtoajdcusto = $22, comppgtoextras = $23                    
+                FROM staff s
+                INNER JOIN staffempresas sme ON sme.idstaff = s.idstaff
+                WHERE se.idstaff = s.idstaff -- Garante que estamos atualizando o staffevento do staff correto
+                  AND se.idstaffevento = $24
+                  AND sme.idempresa = $25
+                RETURNING se.idstaffevento, se.datasevento;
             `;
 
-            const values = [
-                foto, // O valor de 'foto' deve ser tratado como string
-                fotoPathParaBD,
-                nmFuncionario, descFuncao, custo, extra, transporte,
-                alimentação, caixinha, beneficio, site, codigoBanco, 
-                pix, numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero,
-                complemento, bairro, cidade, estado, pais,
-                id // ID do funcionário para a cláusula WHERE
+            const valuesStaffEventos = [
+                idfuncionario,
+                nmfuncionario,
+                idfuncao,
+                nmfuncao,
+                idcliente,
+                nmcliente,
+                idevento,
+                nmevento,
+                idmontagem,
+                nmlocalmontagem,
+                pavilhao,
+                parseFloat(String(vlrcache).replace(',', '.')),
+                parseFloat(String(vlrextra).replace(',', '.')),
+                parseFloat(String(vlrtransporte).replace(',', '.')),
+                parseFloat(String(vlralmoco).replace(',', '.')),
+                parseFloat(String(vlrjantar).replace(',', '.')),
+                parseFloat(String(vlrcaixinha).replace(',', '.')),
+                descbonus,               
+                JSON.stringify(datasEventoParsed),
+                parseFloat(String(vlrtotal).replace(',', '.')), 
+                newComppgtoCachePath, // Caminho do novo comprovante de cache
+                newComppgtoAjdCustoPath, // Caminho do novo comprovante de ajuda de custo
+                newComppgtoExtrasPath, // Caminho do novo comprovante de extras                           
+                idStaffEvento,
+                idempresa // Parâmetro para a verificação de idempresa
             ];
 
-            const result = await client.query(query, values); // Usa 'client' para a query
+            const resultStaffEventos = await client.query(queryStaffEventos, valuesStaffEventos);
 
-            if (result.rowCount) {
-                const staffAtualizadoId = result.rows[0].idstaff;
+            console.log("Resultado Eventos",resultStaffEventos);
+
+            if (resultStaffEventos.rowCount) {
+                const staffEventoAtualizadoId = resultStaffEventos.rows[0].idstaffevento;
 
                 await client.query('COMMIT'); // Confirma a transação
 
                 res.locals.acao = 'atualizou';
-                res.locals.idregistroalterado = staffAtualizadoId;
-                res.locals.idusuarioAlvo = null;
+                res.locals.idregistroalterado = staffEventoAtualizadoId;
+                res.locals.idusuarioAlvo = idfuncionario;
 
                 return res.json({
-                    message: "Funcionário atualizado com sucesso!",
-                    id: staffAtualizadoId,
-                    fotoPath: result.rows[0].foto // Retorna o caminho da foto que foi salvo
+                    message: "Evento de Staff atualizado com sucesso!",
+                    id: staffEventoAtualizadoId,
+                    datasEvento: resultStaffEventos.rows[0].datasevento
                 });
             } else {
-                // Se nenhum funcionário foi encontrado ou não pertence à empresa do usuário
-                if (req.file) { // Se houve upload mas a atualização falhou, apaga o arquivo
-                    fs.unlink(req.file.path, (err) => {
-                        if (err) console.error("Erro ao apagar arquivo de upload (PUT falho):", err);
-                    });
-                }
                 await client.query('ROLLBACK'); // Reverte a transação
-                return res.status(404).json({ message: "Funcionário não encontrado ou você não tem permissão para atualizá-lo." });
+                // A mensagem de 404 agora também cobre o caso de não pertencer à empresa
+                return res.status(404).json({ message: "Evento de Staff não encontrado ou você não tem permissão para atualizá-lo." });
             }
         } catch (error) {
             if (client) {
-                await client.query('ROLLBACK'); // Reverte a transação em caso de erro
+                await client.query('ROLLBACK');
             }
-            console.error("Erro ao atualizar funcionário:", error);
-            if (req.file) { // Se houve upload e erro, apaga o arquivo
-                fs.unlink(req.file.path, (err) => {
-                    if (err) console.error("Erro ao apagar arquivo de upload (PUT erro):", err);
-                });
+            console.error("Erro ao atualizar evento de Staff:", error);   
+          
+            if (comprovanteCacheFile) deletarArquivoAntigo(`/uploads/staff_comprovantes/${comprovanteCacheFile.filename}`);
+            if (comprovanteAjdCustoFile) deletarArquivoAntigo(`/uploads/staff_comprovantes/${comprovanteAjdCustoFile.filename}`);
+            if (comprovanteExtrasFile) deletarArquivoAntigo(`/uploads/staff_comprovantes/${comprovanteExtrasFile.filename}`);        
+
+            if (error.code === '23502') {
+                return res.status(400).json({ message: `Campo obrigatório faltando ou inválido: ${error.column}. Por favor, verifique os dados e tente novamente.`, details: error.message });
             }
-            // Mensagem de erro mais específica para não-nulo
-            if (error.code === '23502') { // PostgreSQL error code for not-null constraint violation
-                 return res.status(400).json({ message: `Campo obrigatório faltando ou inválido: ${error.column}. Por favor, verifique os dados e tente novamente.`, details: error.message });
+            // Adicionado tratamento para erro de formato de número/float
+            if (error.code === '22P02') { // Erro de sintaxe de entrada inválida (como texto em float)
+                 return res.status(400).json({
+                    message: "Um valor numérico inválido foi fornecido. Por favor, verifique os campos de custo, extra, transporte, alimentação, jantar e caixinha.",
+                    details: error.message
+                 });
             }
-            res.status(500).json({ message: "Erro ao atualizar funcionário.", details: error.message });
+            res.status(500).json({ message: "Erro ao atualizar evento de Staff.", details: error.message });
         } finally {
             if (client) {
-                client.release(); // Libera o cliente de volta para o pool
+                client.release();
             }
-            console.log('--- Fim da requisição PUT ---');
+      
         }
     }
 );
 
-// POST criar novo funcionário
-router.post("/",
-    verificarPermissao('staff', 'cadastrar'),
-    upload.single('foto'), // Middleware do Multer para o campo 'foto'
+
+router.post("/", autenticarToken(), contextoEmpresa,
+   verificarPermissao('staff', 'cadastrar'), 
+    //upload.none(), 
+    uploadComprovantesMiddleware,   
     logMiddleware('staff', {
         buscarDadosAnteriores: async (req) => {
+            console.log("BUSCA DADOS ANTERIORES STAFF");
             return { dadosanteriores: null, idregistroalterado: null };
         }
     }),
     async (req, res) => {
-        // req.body agora é preenchido pelo Multer para campos de texto
-        // Adicione 'banco' aqui e verifique 'extra'
+        console.log("🔥 Rota /staff/POST acessada");
         const {
-            foto, nmFuncionario, descFuncao, custo, extra, transporte, alimentação, caixinha,
-            nmCliente, nmEvento, dataevento , total} = req.body;
+            // Campos da tabela STAFF
+            idfuncionario, 
+            avaliacao,             
+
+            // Campos da tabela STAFFEVENTOS (para um único evento)
+            idevento, nmevento, idcliente, nmcliente,
+            idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
+            vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
+            vlrcaixinha, nmfuncionario, datasevento: datasEventoRaw,
+            descbonus
+        } = req.body;
+
+        const files = req.files;
+        const comprovanteCacheFile = files?.comppgtocache ? files.comppgtocache[0] : null;
+        const comprovanteAjdCustoFile = files?.comppgtoajdcusto ? files.comppgtoajdcusto[0] : null;
+        const comprovanteExtrasFile = files?.comppgtoextras ? files.comppgtoextras[0] : null;
 
         const idempresa = req.idempresa;
-        let client;
-        let fotoPathParaBD = null; // Inicializa com null
+        let client;        
 
-        // Adicione console.logs para depurar os valores recebidos
         console.log('--- Início da requisição POST ---');
         console.log('req.body:', req.body);
-        console.log('req.file:', req.file);
+        console.log('req.file (Multer upload):', req.file); // Será undefined se o input for disabled
         console.log('ID da empresa (req.idempresa):', idempresa);
-        console.log('Valor de "foto" após desestruturação:', foto);
 
-        if (req.file) {
-            // Se uma foto foi enviada, use o caminho gerado pelo Multer
-            fotoPathParaBD = path.join('uploads/fotos_staff', req.file.filename).replace(/\\/g, '/');
+        if (
+            !idfuncionario || !nmfuncionario || !avaliacao ||
+            !idevento || !nmevento || !idcliente || !nmcliente ||
+            !idfuncao || !nmfuncao || !idmontagem || !nmlocalmontagem ||
+            !vlrcache 
+        ) {
+            return res.status(400).json({
+                message: "Dados obrigatórios ausentes. Verifique os campos preenchidos e tente novamente."
+            });
         }
 
         try {
             client = await pool.connect();
-            await client.query('BEGIN');
+            await client.query('BEGIN'); // Inicia a transação           
 
-            // --- Validação do campo 'foto' para POST ---
-            if (!foto || foto.trim() === '') {
-                if (req.file) {
-                    fs.unlink(req.file.path, (err) => {
-                        if (err) console.error("Erro ao apagar upload de POST falho (foto inválido):", err);
+            // Parsear o datasEvento
+            let datasEventoParsed = null;
+            if (datasEventoRaw) {
+                try {
+                    datasEventoParsed = JSON.parse(datasEventoRaw);
+                    if (!Array.isArray(datasEventoParsed)) {
+                        throw new Error("datasevento não é um array válido.");
+                    }
+                } catch (parseError) {
+                    return res.status(400).json({
+                        message: "Formato de 'datasevento' inválido. Esperado um array JSON.",
+                        details: parseError.message
                     });
                 }
-                await client.query('ROLLBACK');
-                return res.status(400).json({ message: "O campo 'foto' é obrigatório e não pode ser vazio." });
             }
+            console.log('Valor de "datasEvento" após parse (POST):', datasEventoParsed);
 
-            const resultstaff = await client.query(
-                `INSERT INTO staff (
-                    foto, nmFuncionario, descFuncao, custo, extra, transporte, alimentação, caixinha, linkFoto
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-                RETURNING idstaff, foto`, // Retorna o ID e o caminho da foto para o frontend
-                [
-                    foto, fotoPathParaBD, nmFuncionario, descFuncao, custo, extra, transporte, // Use extra
-                    alimentação, caixinha, linkFoto
-                ]
-            );
-            const novostaff = resultstaff.rows[0];
-            const idNovostaff = novostaff.idstaff;
+            // --- INSERÇÃO NA TABELA STAFF ---
+            const staffInsertQuery = `
+                INSERT INTO staff (
+                    idfuncionario, avaliacao
+                ) VALUES ($1, $2)
+                RETURNING idstaff;
+            `;
 
+            const staffInsertValues = [ idfuncionario, avaliacao,  ];
+
+            const resultStaff = await client.query(staffInsertQuery, staffInsertValues);
+            const novoStaff = resultStaff.rows[0];
+            const idNovoStaff = novoStaff.idstaff;
+
+            // --- INSERÇÃO NA TABELA STAFFEMPRESAS ---
             await client.query(
                 "INSERT INTO staffEmpresas (idstaff, idEmpresa) VALUES ($1, $2)",
-                [idNovostaff, idempresa]
+                [idNovoStaff, idempresa]
             );
-            await client.query('COMMIT');
+
+            // --- INSERÇÃO NA TABELA STAFFEVENTOS (SE HOUVER DADOS) ---
+            console.log("VAI SALVAR STAFFEVENTOS", idfuncionario, idNovoStaff);
+            if (idfuncionario && idNovoStaff) {
+                const eventoInsertQuery = `
+                    INSERT INTO staffeventos (
+                        idstaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
+                        idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
+                        vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
+                        vlrcaixinha, descbonus, comppgtocache, comppgtoajdcusto, comppgtoextras
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+                    RETURNING idstaffevento;
+                `;
+                // const eventoInsertValues = [
+                //     idNovoStaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
+                //     idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
+                //     vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
+                //     vlrcaixinha, descbonus, comppgtocache, comppgtoajdcusto, comppgtoextras
+                const eventoInsertValues = [
+                    idNovoStaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
+                    idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
+                    parseFloat(String(vlrcache).replace(',', '.')),
+                    parseFloat(String(vlralmoco).replace(',', '.')),
+                    parseFloat(String(vlrjantar).replace(',', '.')),
+                    parseFloat(String(vlrtransporte).replace(',', '.')),
+                    parseFloat(String(vlrextra).replace(',', '.')),
+                    parseFloat(String(vlrcaixinha).replace(',', '.')),
+                    descbonus,
+                    JSON.stringify(datasEventoParsed),
+                    vlrtotalCalculado,
+                    // 🎉 CAMINHOS DOS ARQUIVOS SALVOS PELO MULTER 🎉
+                    comprovanteCacheFile ? `/uploads/staff_comprovantes/${comprovanteCacheFile.filename}` : null,
+                    comprovanteAjdCustoFile ? `/uploads/staff_comprovantes/${comprovanteAjdCustoFile.filename}` : null,
+                    comprovanteExtrasFile ? `/uploads/staff_comprovantes/${comprovanteExtrasFile.filename}` : null
+
+                ];
+                await client.query(eventoInsertQuery, eventoInsertValues);
+            } else {
+                console.log("Nenhum dado de evento suficiente fornecido para inserção em staffeventos.");
+            }
+
+            await client.query('COMMIT'); // Confirma a transação
 
             res.locals.acao = 'cadastrou';
-            res.locals.idregistroalterado = idNovostaff;
+            res.locals.idregistroalterado = idNovoStaff;
             res.locals.idusuarioAlvo = null;
 
             res.status(201).json({
-                message: "Funcionário salvo e associado à empresa com sucesso!",
-                id: idNovostaff,
-                fotoPath: novostaff.foto // Retorna o caminho da foto
+                message: "Staff e evento(s) salvos e associados à empresa com sucesso!",
+                id: idNovoStaff,
+                datasEvento: novoStaff.datasEvento
             });
         } catch (error) {
             if (client) {
                 await client.query('ROLLBACK');
             }
-            console.error("❌ Erro ao salvar funcionário e/ou associá-lo à empresa:", error);
-
-            // Se houve upload e o banco de dados falhou, apaga o arquivo
-            if (req.file && req.file.path && fs.existsSync(req.file.path)) {
-                fs.unlink(req.file.path, (err) => {
-                    if (err) console.error("Erro ao apagar arquivo de upload falho:", err);
-                });
-            }
-            // Mensagem de erro mais específica para não-nulo
+            console.error("❌ Erro ao salvar staff e/ou associá-lo à empresa:", error);
+            
+            // if (comprovanteCacheFile) deletarArquivoAntigo(comprovanteCacheFile.path);
+            // if (comprovanteAjdCustoFile) deletarArquivoAntigo(comprovanteAjdCustoFile.path);
+            // if (comprovanteExtrasFile) deletarArquivoAntigo(comprovanteExtrasFile.path);
+           
             if (error.code === '23502') {
                  return res.status(400).json({ message: `Campo obrigatório faltando ou inválido: ${error.column}. Por favor, verifique os dados e tente novamente.`, details: error.message });
             }
@@ -356,5 +698,5 @@ router.post("/",
     }
 );
 
-module.exports = router;
 
+module.exports = router;

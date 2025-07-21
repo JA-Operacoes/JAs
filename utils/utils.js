@@ -5,8 +5,17 @@ async function fetchComToken(url, options = {}) {
     if (!options.headers) options.headers = {};
     options.headers["Authorization"] = "Bearer " + token;
 
-    if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
-        options.headers['Content-Type'] = 'application/json'; // Adiciona Content-Type para JSON
+    // if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
+    //     options.headers['Content-Type'] = 'application/json'; // Adiciona Content-Type para JSON
+    // }
+
+    const isFormData = options.body instanceof FormData;
+
+    if (!isFormData) {
+        if (options.body && typeof options.body === 'object') {
+            options.headers["Content-Type"] = "application/json";
+            options.body = JSON.stringify(options.body);
+        }
     }
 
     if (!options.headers['idempresa']) { // Lógica MUITO mais inteligente para idempresa

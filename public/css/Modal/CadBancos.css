@@ -12,14 +12,14 @@
   top: 0;
   left: 0;
   width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5); /* Cor preta com transparência */
+  height: auto;
+  background-color: rgba(0, 0, 0, 0.24); /* Cor preta com transparência */
   display: none; /* Inicialmente invisível */
   z-index: 999; /* Fica acima de outros elementos */
 }
 
 /* Estilo para o container do modal */
-#modal-container {
+ #modal-container {
   position: fixed;
   top: 50%; /* Alinha verticalmente ao centro */
   left: 50%; /* Alinha horizontalmente ao centro */
@@ -28,11 +28,11 @@
   padding: 5px;
   border-radius: 8px;
   box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
-  width: 80%; /* Ajuste o tamanho conforme necessário */
-  max-width: 700px;  /* Largura máxima do modal */
-  display: none;  /* Inicialmente invisível */
-  z-index: 1000;  /* Fica acima do overlay */
-}
+  width: 80%;/* Ajuste o tamanho conforme necessário */
+  max-width: 700px;/* Largura máxima do modal */
+  display: none; /* Inicialmente invisível */
+  z-index: 1000; /* Fica acima do overlay */  
+} 
 
 /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
 .modal {

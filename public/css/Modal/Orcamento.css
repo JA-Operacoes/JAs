@@ -189,30 +189,33 @@
     align-items: center;
     gap: 5px ;
   }
+
   select{
     font-family:  var(--Font-primary);
     display: flex;
-    height: 40px;
+    height: 25px;
     justify-content: center;
     align-items: center;
     gap: 10px ;
     border-radius: 6px;
-    font-size: 20px;
+    font-size: 15px;
     padding: 0 15px;
     border: 1px solid #000000;
     background: transparent;
     color: #000000;
     outline: none;
   }
+
   select.idMontagem {
-    width: 303px;
-    height: 40px;
+    width: 250px;
+    height: 25px;
   }
 
   select.selectFuncao {
     width: 250px;
     height: 40px;
   }
+  
   select#tpAjdCusto{
     width: 130px;
     height: 30px;
@@ -295,6 +298,7 @@
     color: #000000;
     outline: none;
   }
+
 
   .form3 label{
     display: flex;
@@ -644,7 +648,7 @@
 /* incluido para teste */
   #table thead tr,
   #table tbody tr {
-  height: 40px; /* você pode ajustar conforme quiser */
+  height: 20px; /* você pode ajustar conforme quiser */
   vertical-align: middle;
 }
   table, th, td {
@@ -687,12 +691,12 @@
   box-shadow: none; /* também remove o "brilho" do foco */
 }
 
-    .Acres-Desc input {
+    .Acres-Desc input, .extraCampo input {
     display: flex;
     justify-content: center;
     align-items: center;
     width: 100px;
-    height: 30px;
+    height: 25px;
     margin: 5px auto;
     border: 1px solid black;
     font-size: 13px;
@@ -742,19 +746,20 @@
     width: 50px;
   }
 
-  td.extracampo input.hospedagem, td.extracampo input.transporte{
+  /* td.extracampo input.hospedagem, td.extracampo input.transporte{
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 50px;
-    height: 70px;
-    margin: 0 auto;
-    border: none;
-    font-size: 15px;
-  }
+    width: 100px;
+    height: 30px;
+    margin: 5px auto;
+    border: 1px solid black;
+    font-size: 13px;
+  } */
 
 
-  .deleteBtn {
+
+  .btnApagar {
     width: 40px;
     height: 40px;
     min-width: 40px;
@@ -781,7 +786,7 @@
     fill: white;
   }
   
-  .deleteBtn:hover {
+  .btnApagar:hover {
     width: 90px;
     min-width: 40px; 
     height: 40px; 
@@ -791,7 +796,7 @@
     align-items: center;
   }
   
-  .deleteBtn:hover .delete-svgIcon {
+  .btnApagar:hover .delete-svgIcon {
     width: 20px;
     transition-duration: 0.3s;
     transform: translateY(60%);
@@ -802,7 +807,7 @@
     transform: rotate(360deg);
   }
   
-  .deleteBtn::before {
+  .btnApagar::before {
     display: none;
     content: "Delete";
     color: white;
@@ -810,7 +815,7 @@
     font-size: 2px;
   }
   
-  .deleteBtn:hover::before {
+  .btnApagar:hover::before {
     display: block;
     padding-right: 10px;
     font-size: 13px;
@@ -884,8 +889,8 @@
     background-color: #6b6b6b; /* Cor de fundo diferenciada */
 }
 
-.linha-adicional{
-  background-color: #ffffff;
+.liberada{
+  background-color:#ffffff;
 }
 
 /* -------------------------------------- @medias ---------------------------------------- */

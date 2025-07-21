@@ -146,7 +146,8 @@
     width: 50%;
     text-align: center;
     cursor: pointer;
-    background-color: #525050;
+    background-color: var(--JA-Oper-dark);
+    color: white ;
     padding: 11px;
     float: left;
     font-weight: bold;
@@ -154,6 +155,10 @@
     transition: background 0.3s;
     cursor: pointer;
     font-size: 15px;
+  }
+  .aba:hover{
+    background: var(--JA-Oper);
+    color: white;
   }
   
   .aba.ativa {
@@ -300,7 +305,7 @@
     font-size: 16px;
     font-weight: bold;
     margin-bottom: 10px;
-    color: #333;
+    color: #ffffff;
     text-align: center;
   }
   
@@ -435,6 +440,28 @@
   
   /* Adiciona um efeito de hover para o thumb */
   ::-webkit-scrollbar-thumb:hover {
+    background-color: #ffffff;
+  }
+
+  .lista-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px; /* Para o scrollbar horizontal */
+  }
+  
+  /* Estiliza a parte que você pode arrastar (thumb) */
+  .lista-scroll::-webkit-scrollbar-thumb {
+    background-color: gray;
+    border-radius: 10px;
+  }
+  
+  /* Estiliza a trilha do scrollbar (o fundo) */
+  .lista-scroll::-webkit-scrollbar-track {
+    background-color: gray;
+    border-radius: 5px;
+  }
+  
+  /* Adiciona um efeito de hover para o thumb */
+  .lista-scroll::-webkit-scrollbar-thumb:hover {
     background-color: #ffffff;
   }
   

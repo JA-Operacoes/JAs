@@ -60,6 +60,8 @@ router.get(
             o.percentacrescimo,
             o.lucroreal,
             o.percentlucroreal,
+            o.vlrimposto,
+            o.percentimposto,
             o.vlrcliente
         FROM
             orcamentos o
@@ -141,7 +143,7 @@ router.get(
             vlrajdctotransporte,
             totajdctoitem,
             hospedagem,
-            transporte,
+            transporte,            
             totgeralitem
         FROM
             orcamentoitens
@@ -354,14 +356,14 @@ router.post(
     const client = await pool.connect();
     console.log("🔥 Rota /orcamentos acessada"); // Removido 'req' para evitar logar objeto grande
 
-    const { idStatus, idCliente, idEvento, idMontagem, // nrOrcamento será gerado pelo DB, não o desestruture daqui se for novo
+    const { status, idCliente, idEvento, idMontagem, // nrOrcamento será gerado pelo DB, não o desestruture daqui se for novo
             infraMontagem, dtiniInfraMontagem, dtfimInfraMontagem,
             dtIniMontagem, dtFimMontagem, dtIniMarcacao, dtFimMarcacao,
             dtIniRealizacao, dtFimRealizacao, dtIniDesmontagem, dtFimDesmontagem,
             dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
             totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
             desconto, percentDesconto, acrescimo, percentAcrescimo,
-            lucroReal, percentLucroReal, vlrCliente, itens } = req.body;
+            lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, itens } = req.body;
 
     const idempresa = req.idempresa; // ID da empresa do middleware 'contextoEmpresa'
 
@@ -380,27 +382,27 @@ router.post(
                     dtiniinfradesmontagem, dtfiminfradesmontagem, obsitens, obsproposta,
                     totgeralvda, totgeralcto, totajdcto, lucrobruto, percentlucro,
                     desconto, percentdesconto, acrescimo, percentacrescimo,
-                    lucroreal, percentlucroreal, vlrcliente
+                    lucroreal, percentlucroreal, vlrimposto, percentimposto, vlrcliente
                 ) VALUES (
                     $1, $2, $3, $4,
                     $5, $6, $7, $8, $9, $10, $11,
                     $12, $13, $14, $15, $16, $17, $18, $19,
                     $20, $21, $22, $23, $24,
                     $25, $26, $27, $28,
-                    $29, $30, $31
+                    $29, $30, $31, $32, $33
                 ) RETURNING idorcamento, nrorcamento; -- Adicionado nrorcamento aqui!
             `;
 
       // Os valores também precisam ser ajustados, removendo o nrOrcamento daqui
       const orcamentoValues = [
-        idStatus, idCliente, idEvento, idMontagem,
+        status, idCliente, idEvento, idMontagem,
         infraMontagem, dtiniInfraMontagem, dtfimInfraMontagem,
         dtIniMontagem, dtFimMontagem, dtIniMarcacao, dtFimMarcacao,
         dtIniRealizacao, dtFimRealizacao, dtIniDesmontagem, dtFimDesmontagem,
         dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
         totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
         desconto, percentDesconto, acrescimo, percentAcrescimo,
-        lucroReal, percentLucroReal, vlrCliente
+        lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente
       ];
 
       const resultOrcamento = await client.query(insertOrcamentoQuery, orcamentoValues);
@@ -465,7 +467,12 @@ router.post(
 );
 
 router.put(
-  "/:id", autenticarToken(), contextoEmpresa,
+  "/:id", 
+  (req, res, next) => {
+        console.log("DEBUG: req.body antes de middlewares:", req.body);
+        next();
+    },
+  autenticarToken(), contextoEmpresa,
   verificarPermissao("Orcamentos", "alterar"), // Permissão para editar
   logMiddleware("Orcamentos", {
     buscarDadosAnteriores: async (req) => {
@@ -500,14 +507,14 @@ router.put(
   async (req, res) => {
     const client = await pool.connect();
     const idOrcamento = req.params.id; // ID do orçamento a ser atualizado
-    const { idStatus, idCliente, idEvento, idMontagem, nrOrcamento, // nrOrcamento pode vir para validação, mas não será atualizado se for gerado
+    const { status, idCliente, idEvento, idMontagem, //nrOrcamento, // nrOrcamento pode vir para validação, mas não será atualizado se for gerado
             infraMontagem, dtiniInfraMontagem, dtfimInfraMontagem,
             dtIniMontagem, dtFimMontagem, dtIniMarcacao, dtFimMarcacao,
             dtIniRealizacao, dtFimRealizacao, dtIniDesmontagem, dtFimDesmontagem,
             dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
             totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
             desconto, percentDesconto, acrescimo, percentAcrescimo,
-            lucroReal, percentLucroReal, vlrCliente, itens } = req.body;
+            lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, itens } = req.body;
 
     const idempresa = req.idempresa; // ID da empresa do middleware 'contextoEmpresa'
 
@@ -526,19 +533,19 @@ router.put(
                     dtiniinfradesmontagem = $16, dtfiminfradesmontagem = $17, obsitens = $18, obsproposta = $19,
                     totgeralvda = $20, totgeralcto = $21, totajdcto = $22, lucrobruto = $23, percentlucro = $24,
                     desconto = $25, percentdesconto = $26, acrescimo = $27, percentacrescimo = $28,
-                    lucroreal = $29, percentlucroreal = $30, vlrcliente = $31
-                WHERE idorcamento = $32 AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $32) = $33;
+                    lucroreal = $29, percentlucroreal = $30, vlrimposto = $31, percentimposto = $32, vlrcliente = $33
+                WHERE idorcamento = $34 AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $34) = $35;
             `;
 
       const orcamentoValues = [
-        idStatus, idCliente, idEvento, idMontagem,
+        status, idCliente, idEvento, idMontagem,
         infraMontagem, dtiniInfraMontagem, dtfimInfraMontagem,
         dtIniMontagem, dtFimMontagem, dtIniMarcacao, dtFimMarcacao,
         dtIniRealizacao, dtFimRealizacao, dtIniDesmontagem, dtFimDesmontagem,
         dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
         totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
         desconto, percentDesconto, acrescimo, percentAcrescimo,
-        lucroReal, percentLucroReal, vlrCliente,
+        lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente,
         idOrcamento, // $32
         idempresa    // $33
       ];
@@ -612,14 +619,7 @@ router.put(
           ];
           await client.query(insertItemQuery, itemValues);
         }
-      }
-
-      // 3. Deletar itens que não foram enviados no payload (removidos pelo usuário)
-      const itemsToDelete = Array.from(existingItemIds).filter(id => !receivedItemIds.has(id));
-      if (itemsToDelete.length > 0) {
-          const deleteItemQuery = `DELETE FROM orcamentoitens WHERE idorcamentoitem = ANY($1) AND idorcamento = $2;`;
-          await client.query(deleteItemQuery, [itemsToDelete, idOrcamento]);
-      }
+      }      
 
       await client.query("COMMIT"); // Confirma a transação
       
@@ -639,8 +639,87 @@ router.put(
   }
 );
 
+router.delete(
+    "/:idorcamento/itens/:idorcamentoitem",
+    autenticarToken(),
+    contextoEmpresa,
+    verificarPermissao("Orcamentos", "apagar"), // Crie/verifique essa permissão
+    logMiddleware("OrcamentoItens", { // Nome da entidade para o log
+        buscarDadosAnteriores: async (req) => {
+            const { idorcamento, idorcamentoitem } = req.params;
+            const client = await pool.connect();
+            try {
+                const result = await client.query(
+                    `SELECT * FROM orcamentoitens WHERE idorcamento = $1 AND idorcamentoitem = $2;`,
+                    [idorcamento, idorcamentoitem]
+                );
+                return {
+                    dadosanteriores: result.rows[0] || null,
+                    idregistroalterado: idorcamentoitem
+                };
+            } catch (error) {
+                console.error("Erro ao buscar dados anteriores do item para log:", error);
+                return { dadosanteriores: null, idregistroalterado: idorcamentoitem };
+            } finally {
+                client.release();
+            }
+        },
+    }),
+    async (req, res) => {
+        const client = await pool.connect();
+        const { idorcamento, idorcamentoitem } = req.params;
+        const idempresa = req.idempresa; // ID da empresa do middleware
 
+        console.log(`🔥 Rota DELETE /orcamentos/${idorcamento}/itens/${idorcamentoitem} acessada.`);
 
+        try {
+            await client.query("BEGIN");
+
+            // 1. Verifique se o item pertence ao orçamento E se o orçamento pertence à empresa do usuário
+            const checkOwnershipQuery = `
+                SELECT 1
+                FROM orcamentoitens oi
+                JOIN orcamentoempresas oe ON oi.idorcamento = oe.idorcamento
+                WHERE oi.idorcamento = $1
+                AND oi.idorcamentoitem = $2
+                AND oe.idempresa = $3;
+            `;
+            const ownershipResult = await client.query(checkOwnershipQuery, [idorcamento, idorcamentoitem, idempresa]);
+
+            if (ownershipResult.rows.length === 0) {
+                await client.query("ROLLBACK");
+                return res.status(403).json({ error: "Permissão negada ou item não encontrado para este orçamento/empresa." });
+            }
+
+            // 2. Procede com a deleção do item
+            const deleteItemQuery = `
+                DELETE FROM orcamentoitens
+                WHERE idorcamento = $1 AND idorcamentoitem = $2;
+            `;
+            const result = await client.query(deleteItemQuery, [idorcamento, idorcamentoitem]);
+
+            if (result.rowCount === 0) {
+                await client.query("ROLLBACK");
+                return res.status(404).json({ error: "Item do orçamento não encontrado para deletar." });
+            }
+
+            await client.query("COMMIT");
+
+            res.locals.acao = 'deletou';
+            res.locals.idregistroalterado = idorcamentoitem;
+            res.locals.idusuarioAlvo = null; 
+
+            res.status(200).json({ message: "Item do orçamento deletado com sucesso." });
+
+        } catch (error) {
+            await client.query("ROLLBACK");
+            console.error("Erro ao deletar item do orçamento:", error);
+            res.status(500).json({ error: "Erro interno ao deletar item do orçamento.", detail: error.message });
+        } finally {
+            client.release();
+        }
+    }
+);
 
 
 module.exports = router;

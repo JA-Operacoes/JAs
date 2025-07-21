@@ -2,6 +2,7 @@
 // Autor: Marcia Lima
 
 
+
 require("dotenv").config();
 const express = require("express");
 const path = require("path");
@@ -16,6 +17,11 @@ const { autenticarToken, contextoEmpresa } = require('./middlewares/authMiddlewa
 // --- antes de app.use('/auth', authRoutes); e de todas as outras rotas:
 app.use(express.json());                 // lê JSON no corpo das requisições
 app.use(express.urlencoded({ extended: true })); // lê formulários URL-encoded
+
+app.use((req, res, next) => {
+  console.log(`📥 [${req.method}] ${req.originalUrl}`);
+  next();
+});
 
 app.use('/uploads', express.static('uploads'));
 
@@ -60,6 +66,7 @@ app.use("/staff", autenticarToken(), contextoEmpresa, require("./routes/rotaStaf
 app.use("/empresas", autenticarToken(), contextoEmpresa, require("./routes/rotaEmpresa"));
 app.use("/Bancos", autenticarToken(), contextoEmpresa, require("./routes/rotaBancos"));
 app.use("/modulos", autenticarToken(), require("./routes/rotaModulo"));
+app.use("/aside", autenticarToken(), require("./routes/rotaAside"));
 
 // Redireciona / para login.html (opcional)
 app.get("/", (req, res) => {
