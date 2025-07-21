@@ -10,22 +10,40 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs'); // Para manipulação de arquivos (apagar antigos)
 
-const uploadDir = path.join(__dirname, '../uploads/fotos_staff');
-
-// Garante que o diretório de uploads existe
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
+const comprovantesUploadDir = path.join(__dirname, '../uploads/staff_comprovantes');
+if (!fs.existsSync(comprovantesUploadDir)) {
+    fs.mkdirSync(comprovantesUploadDir, { recursive: true });
 }
 
-const storage = multer.diskStorage({
+const storageComprovantes = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, uploadDir);
+        cb(null, comprovantesUploadDir); // Multer salva aqui
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
     }
 });
+
+const fileFilterComprovantes = (req, file, cb) => {
+    // Permite imagens e PDFs
+    if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+        cb(null, true);
+    } else {
+        cb(new Error('Tipo de arquivo não suportado para comprovantes! Apenas imagens e PDFs são permitidos.'), false);
+    }
+};
+const uploadComprovantesMiddleware = multer({
+    storage: storageComprovantes,
+    fileFilter: fileFilterComprovantes,
+    limits: {
+        fileSize: 10 * 1024 * 1024 // Limite de 10MB para comprovantes (ajuste conforme necessário)
+    }
+}).fields([
+    { name: 'comppgtocache', maxCount: 1 },
+    { name: 'comppgtoajdcusto', maxCount: 1 },
+    { name: 'comppgtoextras', maxCount: 1 }
+]);
 
 const fileFilter = (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
@@ -35,16 +53,24 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-const upload = multer({
-    storage: storage,
-    fileFilter: fileFilter,
-    limits: {
-        fileSize: 5 * 1024 * 1024 // Limite de 5MB
-    }
-});
+
 // --- Fim da Configuração do Multer ---
 
+function deletarArquivoAntigo(relativePath) {
+    if (relativePath) {
+        // Constrói o caminho absoluto no servidor usando o diretório base do projeto
+        const absolutePath = path.join(__dirname, '..', relativePath);
 
+        if (fs.existsSync(absolutePath)) {
+            fs.unlink(absolutePath, (err) => {
+                if (err) console.error(`Erro ao deletar arquivo antigo: ${absolutePath}`, err);
+                else console.log(`Arquivo antigo deletado: ${absolutePath}`);
+            });
+        } else {
+            console.warn(`Tentativa de deletar arquivo que não existe: ${absolutePath}`);
+        }
+    }
+}
 
 router.get('/funcao', async (req, res) => {
   
@@ -238,6 +264,9 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
                     se.descbonus,
                     se.vlrtotal,
                     se.datasevento,
+                    se.comppgtocache,
+                    se.comppgtoajdcusto,
+                    se.comppgtoextras,
                     s.idstaff,
                     s.avaliacao
 
@@ -283,197 +312,11 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
 );
 
 
-// // PUT atualizar
-// router.put("/:idFuncionario", autenticarToken(), contextoEmpresa,
-//     verificarPermissao('staff', 'alterar'),
-
-//     logMiddleware('staff', {
-//         buscarDadosAnteriores: async (req) => {
-//             const idstaff = req.params.id;
-//             const idempresa = req.idempresa;
-//             if (!idstaff) {
-//                 return { dadosanteriores: null, idregistroalterado: null };
-//             }
-//             try {
-//                 const result = await pool.query(
-//                     `SELECT func.* FROM staff func
-//                      INNER JOIN staffempresas funce ON funce.idstaff = func.idstaff
-//                      WHERE func.idstaff = $1 AND funce.idempresa = $2`,
-//                     [idstaff, idempresa]
-//                 );
-//                 const linha = result.rows[0] || null;
-//                 return {
-//                     dadosanteriores: linha,
-//                     idregistroalterado: linha?.idstaff || null
-//                 };
-//             } catch (error) {
-//                 console.error("Erro ao buscar dados anteriores do funcionário para log:", error);
-//                 return { dadosanteriores: null, idregistroalterado: null };
-//             }
-//         }
-//     }),
-//     async (req, res) => {
-//         const id = req.params.id;
-//         const idempresa = req.idempresa;
-       
-//         const {
-//             nmFuncionario, descFuncao, custo, extra, transporte,
-//             alimentação, caixinha, beneficio, datasEvento,
-//             site, codigoBanco, 
-//             pix, numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero,
-//             complemento, bairro, cidade, estado, pais} = req.body;
-
-//         //let fotoPathParaBD = null;
-//         let client; // Usaremos um cliente do pool para transação
-
-//         try {
-//             client = await pool.connect();
-//             await client.query('BEGIN'); // Inicia a transação
-
-//             // Adicione console.logs para depurar os valores recebidos
-//             console.log('--- Início da requisição PUT ---');
-//             console.log('req.body:', req.body);
-//             console.log('req.file:', req.file);
-//             console.log('ID do funcionário (param):', id);
-//             console.log('ID da empresa (req.idempresa):', idempresa);
-//          //   console.log('Valor de "foto" após desestruturação:', foto);
-
-//             // 1. Lógica para determinar o caminho da foto
-//             // if (req.file) {
-//             //     // Se um novo arquivo foi enviado, use o caminho do novo arquivo
-//             //     // E converta barras invertidas para barras normais para compatibilidade de caminho
-//             //     fotoPathParaBD = path.join('uploads/fotos_staff', req.file.filename).replace(/\\/g, '/');
-
-//             //     // Apagar foto antiga se uma nova for enviada
-//             //     const resultFotoAntiga = await client.query( // Usar 'client' para manter na transação
-//             //         SELECT foto FROM staff WHERE idstaff = $1,
-//             //         [id]
-//             //     );
-//             //     if (resultFotoAntiga.rows.length > 0 && resultFotoAntiga.rows[0].foto) {
-//             //         const fotoAntigaPath = path.join(__dirname, '..', resultFotoAntiga.rows[0].foto);
-//             //         // Verifique se o arquivo existe antes de tentar apagar
-//             //         if (fs.existsSync(fotoAntigaPath)) {
-//             //             fs.unlink(fotoAntigaPath, (err) => {
-//             //                 if (err) console.error("Erro ao apagar foto antiga:", err);
-//             //             });
-//             //         }
-//             //     }
-//             // } else {
-//             //     // Se nenhum novo arquivo foi enviado, MANTENHA o caminho da foto existente no BD
-//             //     // OU defina como NULL se a intenção for remover a foto sem upload de nova
-//             //     const resultFotoExistente = await client.query( // Usar 'client' para manter na transação
-//             //         SELECT foto FROM staff WHERE idstaff = $1,
-//             //         [id]
-//             //     );
-//             //     fotoPathParaBD = resultFotoExistente.rows[0]?.foto || null;
-//             // }
-
-//             // // --- Validação do campo 'foto' ---
-//             // // Se 'foto' não é permitido ser nulo ou vazio no BD, force um erro aqui.
-//             // if (!foto || foto.trim() === '') {
-//             //     // Se chegar aqui, significa que o frontend enviou um valor inválido,
-//             //     // ou o Multer/Express o transformou em vazio/nulo.
-//             //     // Reverter a transação e enviar erro 400.
-//             //     if (req.file) { // Se um arquivo foi carregado, apaga ele antes de sair
-//             //         fs.unlink(req.file.path, (err) => {
-//             //             if (err) console.error("Erro ao apagar upload de PUT falho (foto inválido):", err);
-//             //         });
-//             //     }
-//             //     await client.query('ROLLBACK');
-//             //     return res.status(400).json({ message: "O campo 'foto' é obrigatório e não pode ser vazio." });
-//             // }
-
-//             let datasEventoParsed = null;
-//             if (datasEvento) {
-//                 try {
-//                     datasEventoParsed = JSON.parse(datasEvento);
-//                     // Opcional: Se precisar validar que é um array, e que os elementos são strings, etc.
-//                     if (!Array.isArray(datasEventoParsed)) {
-//                         throw new Error("datasEvento não é um array válido.");
-//                     }
-//                 } catch (parseError) {
-//                     await client.query('ROLLBACK');
-//                     // Se o frontend enviou um JSON inválido, retorna um erro 400
-//                     return res.status(400).json({ message: "Formato de 'datasEvento' inválido. Esperado um array JSON.", details: parseError.message });
-//                 }
-//             }
-//             console.log('Valor de "datasEvento" após parse:', datasEventoParsed);
-//             // 2. Executa a atualização no banco de dados
-//             const query = `
-//                 UPDATE staffeventos
-//                 SET nmFuncionario = $1, descFuncao = $2, custo = $3, fluencia = $4, transporte = $6,
-//                     alimentação = $7, caixinha = $8, beneficio = $9, site = $10, codigobanco = $11, pix = $12, numeroconta = $13,
-//                     digitoConta = $14, agencia = $15, digitoAgencia = $16, tipoconta = $17, cep = $18, rua = $19, numero = $20,
-//                     complemento = $21, bairro = $22, cidade = $23, estado = $24, pais = $25, datasEvento = $26
-//                 WHERE idstaff = $27
-//                 RETURNING idstaff, datasEvento;
-//             `;
-
-//             const values = [
-//         //        foto, // O valor de 'foto' deve ser tratado como string
-//         //        fotoPathParaBD,
-//                 nmFuncionario, descFuncao, custo, extra, transporte,
-//                 alimentação, caixinha, beneficio, site, codigoBanco, 
-//                 pix, numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero,
-//                 complemento, bairro, cidade, estado, pais, datasEventoParsed,
-//                 id // ID do funcionário para a cláusula WHERE
-//             ];
-
-//             const result = await client.query(query, values); // Usa 'client' para a query
-
-//             if (result.rowCount) {
-//                 const staffAtualizadoId = result.rows[0].idstaff;
-
-//                 await client.query('COMMIT'); // Confirma a transação
-
-//                 res.locals.acao = 'atualizou';
-//                 res.locals.idregistroalterado = staffAtualizadoId;
-//                 res.locals.idusuarioAlvo = null;
-
-//                 return res.json({
-//                     message: "Funcionário atualizado com sucesso!",
-//                     id: staffAtualizadoId,
-//         //            fotoPath: result.rows[0].foto, // Retorna o caminho da foto que foi salvo
-//                     datasEvento: staffAtualizado.datasevento 
-//                 });
-//             } else {
-//                 // Se nenhum funcionário foi encontrado ou não pertence à empresa do usuário
-//                 if (req.file) { // Se houve upload mas a atualização falhou, apaga o arquivo
-//                     fs.unlink(req.file.path, (err) => {
-//                         if (err) console.error("Erro ao apagar arquivo de upload (PUT falho):", err);
-//                     });
-//                 }
-//                 await client.query('ROLLBACK'); // Reverte a transação
-//                 return res.status(404).json({ message: "Funcionário não encontrado ou você não tem permissão para atualizá-lo." });
-//             }
-//         } catch (error) {
-//             if (client) {
-//                 await client.query('ROLLBACK'); // Reverte a transação em caso de erro
-//             }
-//             console.error("Erro ao atualizar funcionário:", error);
-//             if (req.file) { // Se houve upload e erro, apaga o arquivo
-//                 fs.unlink(req.file.path, (err) => {
-//                     if (err) console.error("Erro ao apagar arquivo de upload (PUT erro):", err);
-//                 });
-//             }
-//             // Mensagem de erro mais específica para não-nulo
-//             if (error.code === '23502') { // PostgreSQL error code for not-null constraint violation
-//                  return res.status(400).json({ message: Campo obrigatório faltando ou inválido: ${error.column}. Por favor, verifique os dados e tente novamente., details: error.message });
-//             }
-//             res.status(500).json({ message: "Erro ao atualizar funcionário.", details: error.message });
-//         } finally {
-//             if (client) {
-//                 client.release(); // Libera o cliente de volta para o pool
-//             }
-//             console.log('--- Fim da requisição PUT ---');
-//         }
-//     }
-// );
-
 router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
     verificarPermissao('staff', 'alterar'),
     // Removido: upload.single('foto') ou upload.none() - não é necessário se não houver campos de arquivo
-    upload.none(),
+    //upload.none(),
+    uploadComprovantesMiddleware,
     logMiddleware('staffeventos', {
         buscarDadosAnteriores: async (req) => {
             const idstaffEvento = req.params.idStaffEvento;
@@ -516,7 +359,10 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
             descbonus, datasevento, vlrtotal
         } = req.body;
 
-
+        const files = req.files;
+        const comprovanteCacheFile = files?.comppgtocache ? files.comppgtocache[0] : null;
+        const comprovanteAjdCustoFile = files?.comppgtoajdcusto ? files.comppgtoajdcusto[0] : null;
+        const comprovanteExtrasFile = files?.comppgtoextras ? files.comppgtoextras[0] : null;
         console.log("BODY", req.body);
 
         let client;
@@ -546,6 +392,48 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
             }
             console.log('Valor de "datasevento" após parse:', datasEventoParsed);
 
+            const oldRecordResult = await client.query(
+                `SELECT comppgtocache, comppgtoajdcusto, comppgtoextras
+                 FROM staffeventos se
+                 INNER JOIN staff s ON se.idstaff = s.idstaff
+                 INNER JOIN staffempresas sme ON sme.idstaff = s.idstaff
+                 WHERE se.idstaffevento = $1 AND sme.idempresa = $2`,
+                [idStaffEvento, idempresa]
+            );
+            const oldRecord = oldRecordResult.rows[0];
+            console.log("Old Record retrieved:", oldRecord); // Log para verificar o oldRecord
+
+            // 3. Determinar os novos caminhos dos comprovantes e deletar os antigos se houver substituição
+            let newComppgtoCachePath = oldRecord ? oldRecord.comppgtocache : null;
+            if (comprovanteCacheFile) {
+                deletarArquivoAntigo(oldRecord ? oldRecord.comppgtocache : null); // Chamada CORRETA
+                newComppgtoCachePath = `/uploads/staff_comprovantes/${comprovanteCacheFile.filename}`; // Caminho CORRETO para o BD
+            } else if (req.body.comppgtocache === '') { // Se o frontend enviou string vazia (limpou o campo)
+                deletarArquivoAntigo(oldRecord ? oldRecord.comppgtocache : null); // Chamada CORRETA
+                newComppgtoCachePath = null;
+            }
+            // else: Se nenhum novo arquivo foi enviado E o campo não foi explicitamente limpo,
+            // newComppgtoCachePath mantém o valor de oldRecord.comppgtocache (o arquivo existente é mantido).
+
+            let newComppgtoAjdCustoPath = oldRecord ? oldRecord.comppgtoajdcusto : null;
+            if (comprovanteAjdCustoFile) {
+                deletarArquivoAntigo(oldRecord ? oldRecord.comppgtoajdcusto : null); // Chamada CORRETA
+                newComppgtoAjdCustoPath = `/uploads/staff_comprovantes/${comprovanteAjdCustoFile.filename}`; // Caminho CORRETO para o BD
+            } else if (req.body.comppgtoajdcusto === '') {
+                deletarArquivoAntigo(oldRecord ? oldRecord.comppgtoajdcusto : null); // Chamada CORRETA
+                newComppgtoAjdCustoPath = null;
+            }
+
+            let newComppgtoExtrasPath = oldRecord ? oldRecord.comppgtoextras : null;
+            if (comprovanteExtrasFile) {
+                deletarArquivoAntigo(oldRecord ? oldRecord.comppgtoextras : null); // Chamada CORRETA
+                newComppgtoExtrasPath = `/uploads/staff_comprovantes/${comprovanteExtrasFile.filename}`; // Caminho CORRETO para o BD
+            } else if (req.body.comppgtoextras === '') {
+                deletarArquivoAntigo(oldRecord ? oldRecord.comppgtoextras : null); // Chamada CORRETA
+                newComppgtoExtrasPath = null;
+            }
+
+
             // 2. Executa a atualização no banco de dados (tabela staffeventos)
             // IMPORTANTE: Adicionamos o JOIN com staffempresas e a condição de idempresa
             // para garantir que apenas eventos de staffes pertencentes à empresa do usuário sejam atualizados.
@@ -555,12 +443,12 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
                     idcliente = $5, nmcliente = $6, idevento = $7, nmevento = $8, idmontagem = $9,
                     nmlocalmontagem = $10, pavilhao = $11, vlrcache = $12, vlrextra = $13, vlrtransporte = $14,
                     vlralmoco = $15, vlrjantar = $16, vlrcaixinha = $17, descbonus = $18,
-                    datasevento = $19, vlrtotal = $20
+                    datasevento = $19, vlrtotal = $20, comppgtocache = $21, comppgtoajdcusto = $22, comppgtoextras = $23                    
                 FROM staff s
                 INNER JOIN staffempresas sme ON sme.idstaff = s.idstaff
                 WHERE se.idstaff = s.idstaff -- Garante que estamos atualizando o staffevento do staff correto
-                  AND se.idstaffevento = $21
-                  AND sme.idempresa = $22
+                  AND se.idstaffevento = $24
+                  AND sme.idempresa = $25
                 RETURNING se.idstaffevento, se.datasevento;
             `;
 
@@ -582,9 +470,12 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
                 parseFloat(String(vlralmoco).replace(',', '.')),
                 parseFloat(String(vlrjantar).replace(',', '.')),
                 parseFloat(String(vlrcaixinha).replace(',', '.')),
-                descbonus,
+                descbonus,               
                 JSON.stringify(datasEventoParsed),
-                parseFloat(String(vlrtotal).replace(',', '.')),            
+                parseFloat(String(vlrtotal).replace(',', '.')), 
+                newComppgtoCachePath, // Caminho do novo comprovante de cache
+                newComppgtoAjdCustoPath, // Caminho do novo comprovante de ajuda de custo
+                newComppgtoExtrasPath, // Caminho do novo comprovante de extras                           
                 idStaffEvento,
                 idempresa // Parâmetro para a verificação de idempresa
             ];
@@ -616,7 +507,11 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
             if (client) {
                 await client.query('ROLLBACK');
             }
-            console.error("Erro ao atualizar evento de Staff:", error);
+            console.error("Erro ao atualizar evento de Staff:", error);   
+          
+            if (comprovanteCacheFile) deletarArquivoAntigo(`/uploads/staff_comprovantes/${comprovanteCacheFile.filename}`);
+            if (comprovanteAjdCustoFile) deletarArquivoAntigo(`/uploads/staff_comprovantes/${comprovanteAjdCustoFile.filename}`);
+            if (comprovanteExtrasFile) deletarArquivoAntigo(`/uploads/staff_comprovantes/${comprovanteExtrasFile.filename}`);        
 
             if (error.code === '23502') {
                 return res.status(400).json({ message: `Campo obrigatório faltando ou inválido: ${error.column}. Por favor, verifique os dados e tente novamente.`, details: error.message });
@@ -633,7 +528,7 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
             if (client) {
                 client.release();
             }
-            console.log('--- Fim da requisição PUT (StaffEvento) ---');
+      
         }
     }
 );
@@ -641,7 +536,8 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
 
 router.post("/", autenticarToken(), contextoEmpresa,
    verificarPermissao('staff', 'cadastrar'), 
-    upload.none(),    
+    //upload.none(), 
+    uploadComprovantesMiddleware,   
     logMiddleware('staff', {
         buscarDadosAnteriores: async (req) => {
             console.log("BUSCA DADOS ANTERIORES STAFF");
@@ -660,8 +556,13 @@ router.post("/", autenticarToken(), contextoEmpresa,
             idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
             vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
             vlrcaixinha, nmfuncionario, datasevento: datasEventoRaw,
-            descbonus, comppgtocache, comppgtoajdcusto, comppgtoextras
+            descbonus
         } = req.body;
+
+        const files = req.files;
+        const comprovanteCacheFile = files?.comppgtocache ? files.comppgtocache[0] : null;
+        const comprovanteAjdCustoFile = files?.comppgtoajdcusto ? files.comppgtoajdcusto[0] : null;
+        const comprovanteExtrasFile = files?.comppgtoextras ? files.comppgtoextras[0] : null;
 
         const idempresa = req.idempresa;
         let client;        
@@ -732,15 +633,31 @@ router.post("/", autenticarToken(), contextoEmpresa,
                         idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
                         vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
                         vlrcaixinha, descbonus, comppgtocache, comppgtoajdcusto, comppgtoextras
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
                     RETURNING idstaffevento;
                 `;
+                // const eventoInsertValues = [
+                //     idNovoStaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
+                //     idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
+                //     vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
+                //     vlrcaixinha, descbonus, comppgtocache, comppgtoajdcusto, comppgtoextras
                 const eventoInsertValues = [
                     idNovoStaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
                     idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
-                    vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
-                    vlrcaixinha, descbonus, comppgtocache, comppgtoajdcusto, comppgtoextras
-                    
+                    parseFloat(String(vlrcache).replace(',', '.')),
+                    parseFloat(String(vlralmoco).replace(',', '.')),
+                    parseFloat(String(vlrjantar).replace(',', '.')),
+                    parseFloat(String(vlrtransporte).replace(',', '.')),
+                    parseFloat(String(vlrextra).replace(',', '.')),
+                    parseFloat(String(vlrcaixinha).replace(',', '.')),
+                    descbonus,
+                    JSON.stringify(datasEventoParsed),
+                    vlrtotalCalculado,
+                    // 🎉 CAMINHOS DOS ARQUIVOS SALVOS PELO MULTER 🎉
+                    comprovanteCacheFile ? `/uploads/staff_comprovantes/${comprovanteCacheFile.filename}` : null,
+                    comprovanteAjdCustoFile ? `/uploads/staff_comprovantes/${comprovanteAjdCustoFile.filename}` : null,
+                    comprovanteExtrasFile ? `/uploads/staff_comprovantes/${comprovanteExtrasFile.filename}` : null
+
                 ];
                 await client.query(eventoInsertQuery, eventoInsertValues);
             } else {
@@ -763,7 +680,10 @@ router.post("/", autenticarToken(), contextoEmpresa,
                 await client.query('ROLLBACK');
             }
             console.error("❌ Erro ao salvar staff e/ou associá-lo à empresa:", error);
-
+            
+            // if (comprovanteCacheFile) deletarArquivoAntigo(comprovanteCacheFile.path);
+            // if (comprovanteAjdCustoFile) deletarArquivoAntigo(comprovanteAjdCustoFile.path);
+            // if (comprovanteExtrasFile) deletarArquivoAntigo(comprovanteExtrasFile.path);
            
             if (error.code === '23502') {
                  return res.status(400).json({ message: `Campo obrigatório faltando ou inválido: ${error.column}. Por favor, verifique os dados e tente novamente.`, details: error.message });

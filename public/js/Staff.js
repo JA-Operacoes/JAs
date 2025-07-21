@@ -112,155 +112,157 @@ let retornoDados = false;
 
 const carregarDadosParaEditar = (eventData) => {
     console.log("CARREGARDADOSPRAEDITAR", retornoDados);
-        retornoDados = true;
-        // Armazena os dados originais para comparação em um PUT
-        currentEditingStaffEvent = eventData;
+    retornoDados = true;
+    // Armazena os dados originais para comparação em um PUT
+    currentEditingStaffEvent = eventData;
 
-        console.log("Carregando dados para edição:", eventData);
-    
-        idStaffInput.value = eventData.idstaff || ''; // idstaff da tabela staffeventos
-        console.log("IDSTAFFINPUT", idStaffInput.value);
-        idFuncionarioHiddenInput.value = eventData.idfuncionario || ''; // idfuncionario do staffeventos
-        // Preenche os campos do evento
-        // Campos de SELECT:
-        if (descFuncaoSelect) descFuncaoSelect.value = eventData.idfuncao || '';        
-        if (nmClienteSelect) nmClienteSelect.value = eventData.idcliente || '';
-        if (nmEventoSelect) nmEventoSelect.value = eventData.idevento || '';
-        nmPavilhaoSelect.value = eventData.pavilhao || '';
+    console.log("Carregando dados para edição:", eventData);
 
-        if (nmLocalMontagemSelect) {
-            nmLocalMontagemSelect.value = eventData.idmontagem || '';              
-                
-            // Dispara o evento 'change' para que a lógica de carregamento dos pavilhões seja ativada
-            // (Assumindo que o listener para nmLocalMontagemSelect.change chama carregarPavilhaoStaff)
-            nmLocalMontagemSelect.dispatchEvent(new Event('change')); 
+    console.log("Valor de eventData.comppgtocache:", eventData.comppgtocache);
+console.log("Valor de eventData.comppgtoajdcusto:", eventData.comppgtoajdcusto);
+console.log("Valor de eventData.comppgtoextras:", eventData.comppgtoextras);
+
+    idStaffInput.value = eventData.idstaff || ''; // idstaff da tabela staffeventos
+    console.log("IDSTAFFINPUT", idStaffInput.value);
+    idFuncionarioHiddenInput.value = eventData.idfuncionario || ''; // idfuncionario do staffeventos
+    // Preenche os campos do evento
+    // Campos de SELECT:
+    if (descFuncaoSelect) descFuncaoSelect.value = eventData.idfuncao || '';        
+    if (nmClienteSelect) nmClienteSelect.value = eventData.idcliente || '';
+    if (nmEventoSelect) nmEventoSelect.value = eventData.idevento || '';
+    nmPavilhaoSelect.value = eventData.pavilhao || '';
+
+    if (nmLocalMontagemSelect) {
+        nmLocalMontagemSelect.value = eventData.idmontagem || '';              
             
-            // Reintroduz o setTimeout para aguardar a população assíncrona
-            setTimeout(() => {
-                if (nmPavilhaoSelect) {
-                    const historicalPavilhaoName = eventData.pavilhao || '';
-                    let selected = false;
-
-                    // Tenta encontrar a opção existente pelo textContent (nome)
-                    for (let i = 0; i < nmPavilhaoSelect.options.length; i++) {
-                        if (nmPavilhaoSelect.options[i].textContent.toUpperCase().trim() === historicalPavilhaoName.toUpperCase().trim()) {
-                            nmPavilhaoSelect.value = nmPavilhaoSelect.options[i].value; // Define o valor pelo ID da opção encontrada
-                            selected = true;
-                            console.log(`Pavilhão "${historicalPavilhaoName}" encontrado e selecionado pelo textContent.`);
-                            break;
-                        }
-                    }
-
-                    // Se a opção histórica não foi encontrada, adiciona-a temporariamente
-                    if (!selected && historicalPavilhaoName) {
-                        const tempOption = document.createElement('option');
-                        tempOption.value = historicalPavilhaoName; // O valor da opção temporária será o nome
-                        tempOption.textContent = `${historicalPavilhaoName} (Histórico)`; 
-                        nmPavilhaoSelect.prepend(tempOption); // Adiciona no início para ser facilmente visível
-                        nmPavilhaoSelect.value = historicalPavilhaoName; // Seleciona a opção temporária pelo seu valor (o nome)
-                        console.log(`Pavilhão "${historicalPavilhaoName}" adicionado como opção histórica e selecionado.`);
-                    } else if (!historicalPavilhaoName) {
-                        nmPavilhaoSelect.value = ''; // Garante que esteja vazio se não houver nome histórico
-                    }
-                }
-            }, 200); // Aumentei o tempo para 200ms para maior robustez na sincronização
-        } else {
-            // Fallback se nmLocalMontagemSelect não for encontrado
-            // Neste caso, o nmPavilhaoSelect não será populado dinamicamente, apenas tentará selecionar o valor direto
-            if (nmPavilhaoSelect) {
-                nmPavilhaoSelect.innerHTML = `<option value="${eventData.pavilhao || ''}">${eventData.pavilhao || 'Selecione Pavilhão'}</option>`;
-                nmPavilhaoSelect.value = eventData.pavilhao || '';
-            }
-        }
- 
-
-        // Campos de INPUT/TEXTAREA:
-        vlrCustoInput.value = parseFloat(eventData.vlrcache || 0).toFixed(2).replace('.', ','); // Formato para moeda
-        extraInput.value = parseFloat(eventData.vlrextra || 0).toFixed(2).replace('.', ',');
-        transporteInput.value = parseFloat(eventData.vlrtransporte || 0).toFixed(2).replace('.', ',');
-        almocoInput.value = parseFloat(eventData.vlralmoco || 0).toFixed(2).replace('.', ',');
-        jantarInput.value = parseFloat(eventData.vlrjantar || 0).toFixed(2).replace('.', ',');
-        caixinhaInput.value = parseFloat(eventData.vlrcaixinha || 0).toFixed(2).replace('.', ',');
-        descBeneficioTextarea.value = eventData.descbonus || ''; // Seu campo de bônus está como descbonus no backend
-        bonusTextarea.value = eventData.descbonus || ''; // Se você tem um campo 'bonus' no HTML
-        vlrTotalInput.value = parseFloat(eventData.total || 0).toFixed(2).replace('.', ',');
-
-        // Tratamento dos Checkboxes Extra/Caixinha
-        if (extracheck && campoExtra) {
-            extracheck.checked = (parseFloat(eventData.vlrextra || 0) > 0);
-            campoExtra.style.display = extracheck.checked ? 'block' : 'none';
-        }
-        if (caixinhacheck && campoCaixinha) {
-            caixinhacheck.checked = (parseFloat(eventData.vlrcaixinha || 0) > 0);
-            campoCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
-        }
+        // Dispara o evento 'change' para que a lógica de carregamento dos pavilhões seja ativada
+        // (Assumindo que o listener para nmLocalMontagemSelect.change chama carregarPavilhaoStaff)
+        nmLocalMontagemSelect.dispatchEvent(new Event('change')); 
         
-        if (eventData.datasevento) {
-            let periodoArrayStrings; // Este será o array de strings YYYY-MM-DD
-            let periodoArrayDateObjects = []; // Este será o array de objetos Date
+        // Reintroduz o setTimeout para aguardar a população assíncrona
+        setTimeout(() => {
+            if (nmPavilhaoSelect) {
+                const historicalPavilhaoName = eventData.pavilhao || '';
+                let selected = false;
 
-            if (Array.isArray(eventData.datasevento)) {
-                periodoArrayStrings = eventData.datasevento;
-                console.log("PERIODO (já array de strings):", periodoArrayStrings);
-            } else if (typeof eventData.datasevento === 'string') {
-                try {
-                    periodoArrayStrings = JSON.parse(eventData.datasevento);
-                    console.log("PERIODO (parseado de string para array de strings):", periodoArrayStrings);
-                } catch (e) {
-                    console.error("Erro ao parsear datasevento do evento:", e);
-                    periodoArrayStrings = [];
+                // Tenta encontrar a opção existente pelo textContent (nome)
+                for (let i = 0; i < nmPavilhaoSelect.options.length; i++) {
+                    if (nmPavilhaoSelect.options[i].textContent.toUpperCase().trim() === historicalPavilhaoName.toUpperCase().trim()) {
+                        nmPavilhaoSelect.value = nmPavilhaoSelect.options[i].value; // Define o valor pelo ID da opção encontrada
+                        selected = true;
+                        console.log(`Pavilhão "${historicalPavilhaoName}" encontrado e selecionado pelo textContent.`);
+                        break;
+                    }
                 }
-            } else {
+
+                // Se a opção histórica não foi encontrada, adiciona-a temporariamente
+                if (!selected && historicalPavilhaoName) {
+                    const tempOption = document.createElement('option');
+                    tempOption.value = historicalPavilhaoName; // O valor da opção temporária será o nome
+                    tempOption.textContent = `${historicalPavilhaoName} (Histórico)`; 
+                    nmPavilhaoSelect.prepend(tempOption); // Adiciona no início para ser facilmente visível
+                    nmPavilhaoSelect.value = historicalPavilhaoName; // Seleciona a opção temporária pelo seu valor (o nome)
+                    console.log(`Pavilhão "${historicalPavilhaoName}" adicionado como opção histórica e selecionado.`);
+                } else if (!historicalPavilhaoName) {
+                    nmPavilhaoSelect.value = ''; // Garante que esteja vazio se não houver nome histórico
+                }
+            }
+        }, 200); // Aumentei o tempo para 200ms para maior robustez na sincronização
+    } else {
+        // Fallback se nmLocalMontagemSelect não for encontrado
+        // Neste caso, o nmPavilhaoSelect não será populado dinamicamente, apenas tentará selecionar o valor direto
+        if (nmPavilhaoSelect) {
+            nmPavilhaoSelect.innerHTML = `<option value="${eventData.pavilhao || ''}">${eventData.pavilhao || 'Selecione Pavilhão'}</option>`;
+            nmPavilhaoSelect.value = eventData.pavilhao || '';
+        }
+    }
+
+
+    // Campos de INPUT/TEXTAREA:
+    vlrCustoInput.value = parseFloat(eventData.vlrcache || 0).toFixed(2).replace('.', ','); // Formato para moeda
+    extraInput.value = parseFloat(eventData.vlrextra || 0).toFixed(2).replace('.', ',');
+    transporteInput.value = parseFloat(eventData.vlrtransporte || 0).toFixed(2).replace('.', ',');
+    almocoInput.value = parseFloat(eventData.vlralmoco || 0).toFixed(2).replace('.', ',');
+    jantarInput.value = parseFloat(eventData.vlrjantar || 0).toFixed(2).replace('.', ',');
+    caixinhaInput.value = parseFloat(eventData.vlrcaixinha || 0).toFixed(2).replace('.', ',');
+    descBeneficioTextarea.value = eventData.descbonus || ''; // Seu campo de bônus está como descbonus no backend
+    bonusTextarea.value = eventData.descbonus || ''; // Se você tem um campo 'bonus' no HTML
+    vlrTotalInput.value = parseFloat(eventData.total || 0).toFixed(2).replace('.', ',');
+
+    // Tratamento dos Checkboxes Extra/Caixinha
+    if (extracheck && campoExtra) {
+        extracheck.checked = (parseFloat(eventData.vlrextra || 0) > 0);
+        campoExtra.style.display = extracheck.checked ? 'block' : 'none';
+    }
+    if (caixinhacheck && campoCaixinha) {
+        caixinhacheck.checked = (parseFloat(eventData.vlrcaixinha || 0) > 0);
+        campoCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
+    }
+    
+    if (eventData.datasevento) {
+        let periodoArrayStrings; // Este será o array de strings YYYY-MM-DD
+        let periodoArrayDateObjects = []; // Este será o array de objetos Date
+
+        if (Array.isArray(eventData.datasevento)) {
+            periodoArrayStrings = eventData.datasevento;
+            console.log("PERIODO (já array de strings):", periodoArrayStrings);
+        } else if (typeof eventData.datasevento === 'string') {
+            try {
+                periodoArrayStrings = JSON.parse(eventData.datasevento);
+                console.log("PERIODO (parseado de string para array de strings):", periodoArrayStrings);
+            } catch (e) {
+                console.error("Erro ao parsear datasevento do evento:", e);
                 periodoArrayStrings = [];
             }
-
-            // --- NOVA LÓGICA: CONVERTER STRINGS YYYY-MM-DD PARA OBJETOS DATE ---
-            periodoArrayDateObjects = periodoArrayStrings.map(dateStr => {
-                // Cria um objeto Date a partir da string YYYY-MM-DD
-                // Usar o construtor 'new Date(year, monthIndex, day)' é mais seguro
-                // para evitar problemas de fuso horário com strings como 'YYYY-MM-DD' em alguns ambientes.
-                const parts = dateStr.split('-').map(Number); // [Ano, Mês, Dia] como números
-                if (parts.length === 3) {
-                    // Mês em JavaScript é 0-indexed (Janeiro=0, Fevereiro=1, ..., Julho=6)
-                    return new Date(parts[0], parts[1] - 1, parts[2]); // parts[1] é o mês, subtrai 1
-                }
-                return null; // Retorna null para datas inválidas, que Flatpickr ignorará
-            }).filter(date => date !== null); // Filtra quaisquer datas inválidas
-
-            console.log("Datas como objetos Date para Flatpickr:", periodoArrayDateObjects);
-
-            const flatpickrForDatasEvento = window.flatpickrInstances['datasEvento']; 
-            
-            if (flatpickrForDatasEvento) {
-                // Use setDate com o array de objetos Date
-                flatpickrForDatasEvento.setDate(periodoArrayDateObjects, true); 
-                console.log("Flatpickr setDate chamado para #datasEvento com objetos Date:", periodoArrayDateObjects);
-            } else {
-                console.warn("Instância do Flatpickr para #datasEvento não encontrada. Preenchendo input diretamente.");
-                // Fallback (mantido para debugging)
-                const datasFormatadas = periodoArrayStrings.map(dateStr => {
-                    const parts = dateStr.split('-');
-                    if (parts.length === 3) {
-                        return `${parts[2]}/${parts[1]}/${parts[0]}`;
-                    }
-                    return dateStr;
-                });
-                datasEventoInput.value = datasFormatadas.join(', ');
-            }
         } else {
-            datasEventoInput.value = '';
-            const flatpickrForDatasEvento = window.flatpickrInstances['datasEvento'];
-            if (flatpickrForDatasEvento) {
-                flatpickrForDatasEvento.clear();
-                console.log("Flatpickr para #datasEvento limpo.");
-            }
+            periodoArrayStrings = [];
         }
 
-        if (fileInput) fileInput.value = ''; // Limpa o input de arquivo de foto
-        if (document.getElementById('filePDFCache')) document.getElementById('filePDFCache').value = '';
-        if (document.getElementById('filePDFAjuda')) document.getElementById('filePDFAjuda').value = '';
-        if (document.getElementById('filePDFCaixinha')) document.getElementById('filePDFCaixinha').value = '';
-    
+        // --- NOVA LÓGICA: CONVERTER STRINGS YYYY-MM-DD PARA OBJETOS DATE ---
+        periodoArrayDateObjects = periodoArrayStrings.map(dateStr => {
+            // Cria um objeto Date a partir da string YYYY-MM-DD
+            // Usar o construtor 'new Date(year, monthIndex, day)' é mais seguro
+            // para evitar problemas de fuso horário com strings como 'YYYY-MM-DD' em alguns ambientes.
+            const parts = dateStr.split('-').map(Number); // [Ano, Mês, Dia] como números
+            if (parts.length === 3) {
+                // Mês em JavaScript é 0-indexed (Janeiro=0, Fevereiro=1, ..., Julho=6)
+                return new Date(parts[0], parts[1] - 1, parts[2]); // parts[1] é o mês, subtrai 1
+            }
+            return null; // Retorna null para datas inválidas, que Flatpickr ignorará
+        }).filter(date => date !== null); // Filtra quaisquer datas inválidas
+
+        console.log("Datas como objetos Date para Flatpickr:", periodoArrayDateObjects);
+
+        const flatpickrForDatasEvento = window.flatpickrInstances['datasEvento']; 
+        
+        if (flatpickrForDatasEvento) {
+            // Use setDate com o array de objetos Date
+            flatpickrForDatasEvento.setDate(periodoArrayDateObjects, true); 
+            console.log("Flatpickr setDate chamado para #datasEvento com objetos Date:", periodoArrayDateObjects);
+        } else {
+            console.warn("Instância do Flatpickr para #datasEvento não encontrada. Preenchendo input diretamente.");
+            // Fallback (mantido para debugging)
+            const datasFormatadas = periodoArrayStrings.map(dateStr => {
+                const parts = dateStr.split('-');
+                if (parts.length === 3) {
+                    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                }
+                return dateStr;
+            });
+            datasEventoInput.value = datasFormatadas.join(', ');
+        }
+    } else {
+        datasEventoInput.value = '';
+        const flatpickrForDatasEvento = window.flatpickrInstances['datasEvento'];
+        if (flatpickrForDatasEvento) {
+            flatpickrForDatasEvento.clear();
+            console.log("Flatpickr para #datasEvento limpo.");
+        }
+    }
+
+    preencherComprovanteCampo(eventData.comppgtocache, 'fileNameCache', 'previewCache', 'pdfPreviewCache', 'linkCache', 'imagePreviewCache', 'linkImageCache');
+    preencherComprovanteCampo(eventData.comppgtoajdcusto, 'fileNameAjdCusto', 'previewAjdCusto', 'pdfPreviewAjdCusto', 'linkAjdCusto', 'imagePreviewAjdCusto', 'linkImageAjdCusto');
+    preencherComprovanteCampo(eventData.comppgtoextras, 'fileNameCaixinha', 'previewCaixinha', 'pdfPreviewCaixinha', 'linkCaixinha', 'imagePreviewCaixinha', 'linkImageCaixinha');
     
 };
 
@@ -302,6 +304,12 @@ const carregarTabelaStaff = async (funcionarioId) => {
                     document.getElementById("idFuncao").value = eventData.idfuncao;
                     document.getElementById("idCliente").value = eventData.idcliente;
                     document.getElementById("avaliacao").value = eventData.avaliacao;
+
+                    // preencherComprovanteCampo(eventData.comppgtocache, 'fileNameCache', 'ComprovanteCache');
+                    // preencherComprovanteCampo(eventData.comppgtoajdcusto, 'fileNameAjdCusto', 'ComprovanteAjdCusto');
+                    // preencherComprovanteCampo(eventData.comppgtoextras, 'fileNameCaixinha', 'ComprovanteCaixinha');
+
+                    
                     if (avaliacaoSelect) {
                         // Converte a avaliação do DB para o valor do select (ex: "MUITO BOM" -> "muito_bom")
                         const avaliacaoValue = (eventData.avaliacao || '').toLowerCase().replace(' ', '_');
@@ -319,6 +327,7 @@ console.log('Valor de eventData.periodo antes de exibir:', eventData.datasevento
                     row.insertCell().textContent = eventData.nmfuncao || '';
                     row.insertCell().textContent = eventData.nmevento || '';
                     row.insertCell().textContent = (eventData.datasevento && typeof eventData.datasevento === 'string')
+                    
                     ? JSON.parse(eventData.datasevento) // Primeiro parseia a string JSON para um array
                     .map(dateStr => { // Depois, mapeia cada string de data no array
                         const parts = dateStr.split('-'); // Divide a data (ex: ['2025', '07', '01'])
@@ -431,6 +440,10 @@ async function verificaStaff() {
         limparCamposStaff();
     });
 
+    setupComprovanteUpload('fileCache', 'fileNameCache', 'fileCache');
+    setupComprovanteUpload('fileAjdCusto', 'fileNameAjdCusto', 'fileAjdCusto');
+    setupComprovanteUpload('fileCaixinha', 'fileNameCaixinha', 'fileCaixinha');
+
     botaoEnviar.addEventListener("click", async (event) => {
       event.preventDefault(); // Previne o envio padrão do formulário
 
@@ -464,8 +477,6 @@ async function verificaStaff() {
         const extraAtivo = document.getElementById("Extracheck")?.checked;
         const descBeneficioInput = document.getElementById("descBeneficio");
         const descBeneficio = descBeneficioInput?.value.trim() || "";
-
-
         
         // const datasEventoRawValue = document.querySelector("#datasEvento").value.trim();
         // const periodoDoEvento = getPeriodoDatas(datasEventoRawValue);
@@ -473,62 +484,60 @@ async function verificaStaff() {
         const datasEventoRawValue = datasEventoInput.value.trim();
         const periodoDoEvento = getPeriodoDatas(datasEventoRawValue);
 
-    console.log("Array de datas do evento para envio:", periodoDoEvento);
+       console.log("Array de datas do evento para envio:", periodoDoEvento);
 
-    console.log("AVALIACAO", avaliacao);
-    if (periodoDoEvento.length === 0) {
-    return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias do evento.", "warning");
-    }
+        console.log("AVALIACAO", avaliacao);
+        if (periodoDoEvento.length === 0) {
+            return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias do evento.", "warning");
+        }
 
-    const vlrTotal = document.getElementById('vlrTotal').value; // "R$ 2.345,00"
-    const total = parseFloat(
-    vlrTotal
-        .replace('R$', '') // remove símbolo
-        .replace(/\./g, '') // remove milhares
-        .replace(',', '.') // troca vírgula por ponto
-        .trim()
-    ) || 0;
+        const vlrTotal = document.getElementById('vlrTotal').value; // "R$ 2.345,00"
+        const total = parseFloat(
+        vlrTotal
+            .replace('R$', '') // remove símbolo
+            .replace(/\./g, '') // remove milhares
+            .replace(',', '.') // troca vírgula por ponto
+            .trim()
+        ) || 0;
 
 
-    if(!nmFuncionario || !descFuncao || !vlrCusto || !transporte || !almoco || !jantar || !nmCliente || !nmEvento || !periodoDoEvento){
-        return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Funcionário, Função, Cachê, Transportes, Alimentação, Cliente, Evento e Período do Evento.", "warning");
-    }
+        if(!nmFuncionario || !descFuncao || !vlrCusto || !transporte || !almoco || !jantar || !nmCliente || !nmEvento || !periodoDoEvento){
+            return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Funcionário, Função, Cachê, Transportes, Alimentação, Cliente, Evento e Período do Evento.", "warning");
+        }
 
-// Validação condicional para benefício
-// 🔒 Se caixinha ou extra estiverem ativados, descBeneficio é obrigatório
-if ((caixinhaAtivo || extraAtivo) && !descBeneficio) {
-    // Coloca foco no campo de descrição (opcional)
-    if (descBeneficioInput) {
-        descBeneficioInput.focus();
-    }
-    // Bloqueia envio e mostra aviso
-    return Swal.fire(
-        "Campos obrigatórios!",
-        "Preencha a descrição do benefício (Caixinha ou Extra) antes de salvar.",
-        "warning"
-    );
-}
+        if ((caixinhaAtivo || extraAtivo) && !descBeneficio) {
+            // Coloca foco no campo de descrição (opcional)
+            if (descBeneficioInput) {
+                descBeneficioInput.focus();
+            }
+            // Bloqueia envio e mostra aviso
+            return Swal.fire(
+                "Campos obrigatórios!",
+                "Preencha a descrição do benefício (Caixinha ou Extra) antes de salvar.",
+                "warning"
+            );
+        }
         
       // Permissões
-    const temPermissaoCadastrar = temPermissao("Staff", "cadastrar");
-    const temPermissaoAlterar = temPermissao("Staff", "alterar");
+        const temPermissaoCadastrar = temPermissao("Staff", "cadastrar");
+        const temPermissaoAlterar = temPermissao("Staff", "alterar");
 
-    const isEditing = currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento; // Verifica se o objeto existe E se tem um ID de evento válido
-    const metodo = isEditing ? "PUT" : "POST";
-    const url = isEditing ? `/staff/${currentEditingStaffEvent.idstaffevento}` : "/staff";
+        const isEditing = currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento; // Verifica se o objeto existe E se tem um ID de evento válido
+        const metodo = isEditing ? "PUT" : "POST";
+        const url = isEditing ? `/staff/${currentEditingStaffEvent.idstaffevento}` : "/staff";
 
-    if (!idStaff && !temPermissaoCadastrar) {
-        return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novas funções.", "error");
-    }
+        if (!idStaff && !temPermissaoCadastrar) {
+            return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novas funções.", "error");
+        }
 
-    if (idStaff && !temPermissaoAlterar) {
-        return Swal.fire("Acesso negado", "Você não tem permissão para alterar funções.", "error");
-    }
+        if (idStaff && !temPermissaoAlterar) {
+            return Swal.fire("Acesso negado", "Você não tem permissão para alterar funções.", "error");
+        }
 
-        console.log("Preparando dados para envio:", {
-        nmFuncionario, descFuncao, nmLocalMontagem, nmCliente, nmEvento, vlrCusto, extra, transporte, almoco, jantar, caixinha,
-        periodoDoEvento, vlrTotal
-    });
+            console.log("Preparando dados para envio:", {
+            nmFuncionario, descFuncao, nmLocalMontagem, nmCliente, nmEvento, vlrCusto, extra, transporte, almoco, jantar, caixinha,
+            periodoDoEvento, vlrTotal
+        });
 
         const formData = new FormData();
         // Adiciona todos os campos de texto ao FormData
@@ -555,8 +564,37 @@ if ((caixinhaAtivo || extraAtivo) && !descBeneficio) {
         formData.append('datasevento', JSON.stringify(periodoDoEvento));
         formData.append('vlrtotal', total.toString()); 
 
+        const fileCacheInput = document.getElementById('fileCache');
+        if (fileCacheInput.files && fileCacheInput.files[0]) {
+            // Caso 1: O usuário selecionou um NOVO arquivo. Anexa o objeto File.
+            formData.append('comppgtocache', fileCacheInput.files[0]);
+        } else if (fileCacheInput.value === '') {
+            // Caso 2: O usuário limpou explicitamente o campo (o input.value está vazio).
+            // Envia uma string vazia para o backend para sinalizar a remoção.
+            formData.append('comppgtocache', '');
+        }
+        // Caso 3: Se NENHUM novo arquivo foi selecionado E o input.value NÃO é vazio,
+        // significa que o campo foi deixado como está (com um valor existente do banco ou vazio).
+        // NADA é anexado ao FormData para este campo. O backend irá PRESERVAR o valor antigo.
 
-    
+
+        // Comprovante de Ajuda de Custo
+        const fileAjdCustoInput = document.getElementById('fileAjdCusto');
+        if (fileAjdCustoInput.files && fileAjdCustoInput.files[0]) {
+            formData.append('comppgtoajdcusto', fileAjdCustoInput.files[0]);
+        } else if (fileAjdCustoInput.value === '') {
+            formData.append('comppgtoajdcusto', '');
+        }
+
+
+        // Comprovante de Caixinha (Extras)
+        const fileCaixinhaInput = document.getElementById('fileCaixinha');
+        if (fileCaixinhaInput.files && fileCaixinhaInput.files[0]) {
+            formData.append('comppgtoextras', fileCaixinhaInput.files[0]);
+        } else if (fileCaixinhaInput.value === '') {
+            formData.append('comppgtoextras', '');
+        }
+
 
 
         console.log("Preparando envio de FormData. Método:", metodo, "URL:", url, window.StaffOriginal);
@@ -570,107 +608,108 @@ if ((caixinhaAtivo || extraAtivo) && !descBeneficio) {
             // 🎯 LOG DO FORMDATA ANTES DO ENVIO 🎯
         console.log("Preparando envio de FormData. Método:", metodo, "URL:", url);
         console.log("Dados do FormData sendo enviados:");
+
         for (let pair of formData.entries()) {
             console.log(pair[0]+ ': ' + pair[1]); 
         }
 
 
-       if (metodo === "PUT") {
-    if (!isEditing) { // Use isEditing aqui também para ser consistente
-        console.log("Erro: Dados originais não encontrados para PUT");
-        return Swal.fire("Erro", "Dados originais não encontrados para comparação (ID ausente para PUT).", "error");
-    }
+        if (metodo === "PUT") {
+            if (!isEditing) { // Use isEditing aqui também para ser consistente
+                console.log("Erro: Dados originais não encontrados para PUT");
+                return Swal.fire("Erro", "Dados originais não encontrados para comparação (ID ausente para PUT).", "error");
+            }
 
-    // Valores originais dos checkboxes (considera ativo se valor numérico > 0)
-    const extraAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrextra || 0) > 0;
-    const caixinhaAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) > 0;
-    const extraValorOriginal = parseFloat(currentEditingStaffEvent.vlrextra || 0);
-    const caixinhaValorOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0);
+            // Valores originais dos checkboxes (considera ativo se valor numérico > 0)
+            const extraAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrextra || 0) > 0;
+            const caixinhaAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) > 0;
+            const extraValorOriginal = parseFloat(currentEditingStaffEvent.vlrextra || 0);
+            const caixinhaValorOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0);
 
-    console.log("Valores originais - Extra Ativo:", extraAtivoOriginal, "Extra Valor:", extraValorOriginal);
-    console.log("Valores originais - Caixinha Ativo:", caixinhaAtivoOriginal, "Caixinha Valor:", caixinhaValorOriginal);
+            console.log("Valores originais - Extra Ativo:", extraAtivoOriginal, "Extra Valor:", extraValorOriginal);
+            console.log("Valores originais - Caixinha Ativo:", caixinhaAtivoOriginal, "Caixinha Valor:", caixinhaValorOriginal);
 
-    // Valores atuais (checkboxes e inputs)
-    const extraAtivoAtual = extraAtivo;
-    const caixinhaAtivoAtual = caixinhaAtivo;
-    const extraValorAtual = parseFloat(extra.replace(',', '.') || 0);
-    const caixinhaValorAtual = parseFloat(caixinha.replace(',', '.') || 0);
+            // Valores atuais (checkboxes e inputs)
+            const extraAtivoAtual = extraAtivo;
+            const caixinhaAtivoAtual = caixinhaAtivo;
+            const extraValorAtual = parseFloat(extra.replace(',', '.') || 0);
+            const caixinhaValorAtual = parseFloat(caixinha.replace(',', '.') || 0);
 
-    console.log("Valores atuais - Extra Ativo:", extraAtivoAtual, "Extra Valor:", extraValorAtual);
-    console.log("Valores atuais - Caixinha Ativo:", caixinhaAtivoAtual, "Caixinha Valor:", caixinhaValorAtual);
+            console.log("Valores atuais - Extra Ativo:", extraAtivoAtual, "Extra Valor:", extraValorAtual);
+            console.log("Valores atuais - Caixinha Ativo:", caixinhaAtivoAtual, "Caixinha Valor:", caixinhaValorAtual);
 
-    // Detecta alterações em estado ou valor
-    const houveAlteracaoExtra = (extraAtivoOriginal !== extraAtivoAtual) || (extraValorOriginal !== extraValorAtual);
-    const houveAlteracaoCaixinha = (caixinhaAtivoOriginal !== caixinhaAtivoAtual) || (caixinhaValorOriginal !== caixinhaValorAtual);
+            // Detecta alterações em estado ou valor
+            const houveAlteracaoExtra = (extraAtivoOriginal !== extraAtivoAtual) || (extraValorOriginal !== extraValorAtual);
+            const houveAlteracaoCaixinha = (caixinhaAtivoOriginal !== caixinhaAtivoAtual) || (caixinhaValorOriginal !== caixinhaValorAtual);
 
-    console.log("Houve alteração Extra?", houveAlteracaoExtra);
-    console.log("Houve alteração Caixinha?", houveAlteracaoCaixinha);
+            console.log("Houve alteração Extra?", houveAlteracaoExtra);
+            console.log("Houve alteração Caixinha?", houveAlteracaoCaixinha);
 
-    // Se houve alteração ativando extra ou caixinha, obrigar preenchimento de descBeneficio
-    if ((houveAlteracaoExtra && extraAtivoAtual) || (houveAlteracaoCaixinha && caixinhaAtivoAtual)) {
-    console.log("Extra ou Caixinha ativado e houve alteração, verificando descBeneficio...");
-    if (!descBeneficio || descBeneficio.length < 20) {
-        console.log("descBeneficio inválido - bloqueando salvamento");
-        if (descBeneficioInput) descBeneficioInput.focus();
-        return Swal.fire(
-            "Campos obrigatórios!",
-            "A descrição do benefício (Caixinha ou Extra) deve ter no mínimo 20 caracteres para salvar.",
-            "warning"
-        );
-    } else {
-        console.log("descBeneficio preenchido corretamente");
-    }
+            // Se houve alteração ativando extra ou caixinha, obrigar preenchimento de descBeneficio
+            if ((houveAlteracaoExtra && extraAtivoAtual) || (houveAlteracaoCaixinha && caixinhaAtivoAtual)) {
+            console.log("Extra ou Caixinha ativado e houve alteração, verificando descBeneficio...");
+            if (!descBeneficio || descBeneficio.length < 20) {
+                console.log("descBeneficio inválido - bloqueando salvamento");
+                if (descBeneficioInput) descBeneficioInput.focus();
+                return Swal.fire(
+                    "Campos obrigatórios!",
+                    "A descrição do benefício (Caixinha ou Extra) deve ter no mínimo 20 caracteres para salvar.",
+                    "warning"
+                );
+            } else {
+                console.log("descBeneficio preenchido corretamente");
+            }
 
-    } else {
-        console.log("Nenhuma alteração relevante em Extra ou Caixinha que obrigue descBeneficio");
-    }
+            } else {
+                console.log("Nenhuma alteração relevante em Extra ou Caixinha que obrigue descBeneficio");
+            }
 
-    formData.append('idstaff', currentEditingStaffEvent.idstaff || '');
-    formData.append('idstaffevento', currentEditingStaffEvent.idstaffevento);
+            formData.append('idstaff', currentEditingStaffEvent.idstaff || '');
+            formData.append('idstaffevento', currentEditingStaffEvent.idstaffevento);
 
-    let houveAlteracao = false;
-    if (
-        currentEditingStaffEvent.idfuncionario != idFuncionario ||
-        currentEditingStaffEvent.nmfuncao.toUpperCase() != descFuncao ||
-        parseFloat(currentEditingStaffEvent.vlrcache || 0) != parseFloat(vlrCusto.replace(',', '.') || 0) ||
-        JSON.stringify(currentEditingStaffEvent.periodo || []) !== JSON.stringify(periodoDoEvento) ||
-        parseFloat(currentEditingStaffEvent.vlrextra || 0) != extraValorAtual ||
-        parseFloat(currentEditingStaffEvent.vlrtransporte || 0) != parseFloat(transporte.replace(',', '.') || 0) ||
-        (currentEditingStaffEvent.vlralmoco === 1 ? '1' : '0') != almoco ||
-        (currentEditingStaffEvent.vlrjantar === 1 ? '1' : '0') != jantar ||
-        parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) != caixinhaValorAtual ||
-        (currentEditingStaffEvent.descbonus || '').trim() != descBeneficio.trim() ||
-        currentEditingStaffEvent.idcliente != idCliente ||
-        currentEditingStaffEvent.idevento != idEvento ||
-        currentEditingStaffEvent.idmontagem != idMontagem ||
-        (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao
-    ) {
-        houveAlteracao = true;
-    }
+            let houveAlteracao = false;
+            if (
+                currentEditingStaffEvent.idfuncionario != idFuncionario ||
+                currentEditingStaffEvent.nmfuncao.toUpperCase() != descFuncao ||
+                parseFloat(currentEditingStaffEvent.vlrcache || 0) != parseFloat(vlrCusto.replace(',', '.') || 0) ||
+                JSON.stringify(currentEditingStaffEvent.periodo || []) !== JSON.stringify(periodoDoEvento) ||
+                parseFloat(currentEditingStaffEvent.vlrextra || 0) != extraValorAtual ||
+                parseFloat(currentEditingStaffEvent.vlrtransporte || 0) != parseFloat(transporte.replace(',', '.') || 0) ||
+                (currentEditingStaffEvent.vlralmoco === 1 ? '1' : '0') != almoco ||
+                (currentEditingStaffEvent.vlrjantar === 1 ? '1' : '0') != jantar ||
+                parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) != caixinhaValorAtual ||
+                (currentEditingStaffEvent.descbonus || '').trim() != descBeneficio.trim() ||
+                currentEditingStaffEvent.idcliente != idCliente ||
+                currentEditingStaffEvent.idevento != idEvento ||
+                currentEditingStaffEvent.idmontagem != idMontagem ||
+                (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao
+            ) {
+                houveAlteracao = true;
+            }
 
-    console.log("Houve alteração geral?", houveAlteracao);
+            console.log("Houve alteração geral?", houveAlteracao);
 
-    if (!houveAlteracao) {
-        console.log("Nenhuma alteração detectada, bloqueando salvamento.");
-        return Swal.fire("Nenhuma alteração detectada", "Faça alguma alteração antes de salvar.", "info");
-    }
+            if (!houveAlteracao) {
+                console.log("Nenhuma alteração detectada, bloqueando salvamento.");
+                return Swal.fire("Nenhuma alteração detectada", "Faça alguma alteração antes de salvar.", "info");
+            }
 
-    const { isConfirmed } = await Swal.fire({
-        title: "Deseja salvar as alterações?",
-        text: "Você está prestes a atualizar os dados do staff.",
-        icon: "question",
-        showCancelButton: true,
-        confirmButtonText: "Sim, salvar",
-        cancelButtonText: "Cancelar",
-        reverseButtons: true,
-        focusCancel: true
-    });
+            const { isConfirmed } = await Swal.fire({
+                title: "Deseja salvar as alterações?",
+                text: "Você está prestes a atualizar os dados do staff.",
+                icon: "question",
+                showCancelButton: true,
+                confirmButtonText: "Sim, salvar",
+                cancelButtonText: "Cancelar",
+                reverseButtons: true,
+                focusCancel: true
+            });
 
-    if (!isConfirmed) {
-        console.log("Alteração cancelada pelo usuário");
-        return;
-    }
-}
+            if (!isConfirmed) {
+                console.log("Alteração cancelada pelo usuário");
+                return;
+            }
+        }
 
         // --- EXECUTA O FETCH PARA POST OU PUT ---
         try {
@@ -682,16 +721,19 @@ if ((caixinhaAtivo || extraAtivo) && !descBeneficio) {
             });
 
             await Swal.fire("Sucesso!", respostaApi.message || "Staff salvo com sucesso.", "success");
-            limparCamposStaff();
-            window.StaffOriginal = null;
+                      
 
             await carregarTabelaStaff(idFuncionario);
+
+             window.StaffOriginal = null;
+             limparCamposStaff();
 
         } catch (error) {
             console.error("❌ Erro ao enviar dados do funcionário:", error);
             Swal.fire("Erro", error.message || "Erro ao salvar funcionário.", "error");
         }
     });
+    
 }
 
 
@@ -1357,13 +1399,37 @@ function limparCamposStaff() {
 
     const avaliacaoSelect = document.getElementById('avaliacao');
     if (avaliacaoSelect) {
-        avaliacaoSelect.value = '';
+        avaliacaoSelect.value = ''; // Define para o valor da opção vazia (se existir, ex: <option value="">Selecione...</option>)
+        // avaliacaoSelect.selectedIndex = 0; // Alternativa: seleciona a primeira opção
         const tarjaAvaliacao = document.getElementById('tarjaAvaliacao');
         if (tarjaAvaliacao) {
-            tarjaAvaliacao.className = 'tarja-avaliacao';
-            tarjaAvaliacao.textContent = '';
+            tarjaAvaliacao.className = 'tarja-avaliacao'; // Reseta para a classe padrão
+            tarjaAvaliacao.textContent = ''; // Limpa o texto
+            console.log("Campos de avaliação (select e tarja) limpos.");
         }
     }
+
+    const tabelaCorpo = document.getElementById("eventsDataTable").getElementsByTagName("tbody")[0];
+    if (tabelaCorpo) {
+        // Remove todas as linhas filhas do tbody
+        while (tabelaCorpo.firstChild) {
+            tabelaCorpo.removeChild(tabelaCorpo.firstChild);
+        }
+        console.log("Corpo da tabela (tabela) limpo.");
+
+        // Adiciona uma linha "vazia" de volta, se for o comportamento padrão desejado
+        let emptyRow = tabelaCorpo.insertRow();
+        let emptyCell = emptyRow.insertCell(0);
+        emptyCell.colSpan = 20; // Ajuste para o número total de colunas da sua tabela
+        emptyCell.textContent = "Nenhum item adicionado.";
+        emptyCell.style.textAlign = "center";
+        emptyCell.style.padding = "20px";
+        console.log("Linha vazia adicionada à tabela 'tabela'.");
+    } else {
+        console.warn("Tabela com ID 'tabela' ou seu tbody não encontrado para limpeza. Verifique se o ID está correto.");
+    }
+    
+    limparCamposComprovantes();
 
     // ✅ Limpa objeto em memória
     limparStaffOriginal();
@@ -1508,33 +1574,86 @@ function calcularValorTotal() {
 
 console.log("Ainda não Entrou no Previewpdf");
 
+// function configurarPreviewPDF() {
+//   const inputs = document.querySelectorAll('.filePDFInput');
+//   inputs.forEach(function(input) {
+//     input.addEventListener('change', function() {
+//       const container = this.closest('.containerPDF');
+//       const fileNamePDF = container.querySelector('.fileNamePDF');
+//       const hiddenPDF = container.querySelector('.hiddenPDF');
+//       const file = this.files[0];
+
+//       if (!file || file.type !== 'application/pdf') {
+//         if (fileNamePDF) fileNamePDF.textContent = 'Nenhum arquivo selecionado';
+//         if (hiddenPDF) hiddenPDF.value = '';
+//         return;
+//       }
+
+//       const reader = new FileReader();
+//       reader.onload = function(e) {
+//         if (fileNamePDF) fileNamePDF.textContent = file.name;
+//         if (hiddenPDF) hiddenPDF.value = e.target.result;
+//         console.log("Arquivo PDF carregado:", file.name);
+//       };
+//       reader.readAsDataURL(file);
+//     });
+//   });
+// }
+
 function configurarPreviewPDF() {
-  const inputs = document.querySelectorAll('.filePDFInput');
-  inputs.forEach(function(input) {
-    input.addEventListener('change', function() {
-      const container = this.closest('.containerPDF');
-      const fileNamePDF = container.querySelector('.fileNamePDF');
-      const hiddenPDF = container.querySelector('.hiddenPDF');
-      const file = this.files[0];
+    const inputs = document.querySelectorAll('.filePDFInput');
+    inputs.forEach(function(input) {
+        input.addEventListener('change', function() {
+            const container = this.closest('.containerPDF');
+            const fileNamePDF = container.querySelector('.fileNamePDF');
+            const hiddenPDF = container.querySelector('.hiddenPDF');
+            const file = this.files[0];
 
-      if (!file || file.type !== 'application/pdf') {
-        if (fileNamePDF) fileNamePDF.textContent = 'Nenhum arquivo selecionado';
-        if (hiddenPDF) hiddenPDF.value = '';
-        return;
-      }
+            // --- ALTERAÇÃO AQUI ---
+            // Se não houver arquivo, ou se o arquivo não for PDF E não for Imagem, então limpa.
+            if (!file || (file.type !== 'application/pdf' && !file.type.startsWith('image/'))) {
+                if (fileNamePDF) fileNamePDF.textContent = 'Nenhum arquivo selecionado';
+                if (hiddenPDF) hiddenPDF.value = '';
+                // Adicionalmente, se for imagem, esconde a prévia da imagem
+                const previewImg = container.querySelector('img[id^="preview"]'); // Tenta encontrar a img de prévia
+                if (previewImg) previewImg.style.display = 'none';
+                // E se for PDF, esconde o link de PDF
+                const pdfPreviewDiv = container.querySelector('div[id^="pdfPreview"]');
+                if (pdfPreviewDiv) pdfPreviewDiv.style.display = 'none';
+                return;
+            }
 
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        if (fileNamePDF) fileNamePDF.textContent = file.name;
-        if (hiddenPDF) hiddenPDF.value = e.target.result;
-        console.log("Arquivo PDF carregado:", file.name);
-      };
-      reader.readAsDataURL(file);
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                if (fileNamePDF) fileNamePDF.textContent = file.name;
+                if (hiddenPDF) hiddenPDF.value = e.target.result; // Ainda está salvando Base64 aqui, o que você não quer mais para o backend
+
+                // Lógica de pré-visualização (duplicada de setupComprovanteUpload)
+                const previewImg = container.querySelector('img[id^="preview"]');
+                const pdfPreviewDiv = container.querySelector('div[id^="pdfPreview"]');
+                const pdfLink = container.querySelector('a[id^="link"]');
+
+                if (file.type.startsWith('image/')) {
+                    if (previewImg) {
+                        previewImg.src = e.target.result;
+                        previewImg.style.display = 'block';
+                    }
+                    if (pdfPreviewDiv) pdfPreviewDiv.style.display = 'none';
+                } else if (file.type === 'application/pdf') {
+                    if (pdfLink) pdfLink.href = e.target.result;
+                    if (pdfPreviewDiv) pdfPreviewDiv.style.display = 'block';
+                    if (previewImg) previewImg.style.display = 'none';
+                }
+
+                console.log("Arquivo carregado por configurarPreviewPDF:", file.name);
+            };
+            reader.readAsDataURL(file);
+        });
     });
-  });
 }
 
 function configurarPreviewImagem() {
+  
 const inputImg = document.getElementById('file');
 const previewImg = document.getElementById('previewFoto');
 const fileNameImg = document.getElementById('fileName');
@@ -1583,6 +1702,182 @@ function mostrarTarja() {
     tarja.classList.add('regular');
     tarja.textContent = 'Funcionário Regular';
     tarja.style.display = 'block';
+    }
+}
+
+function setupComprovanteUpload(fileInputId, fileNameDisplayId, previewImgId, pdfPreviewDivId, pdfLinkId, imagePreviewDivId, linkImageId) {
+    const fileInput = document.getElementById(fileInputId);
+    const fileNameDisplay = document.getElementById(fileNameDisplayId);
+    const previewImg = document.getElementById(previewImgId); // A tag <img> que será sempre oculta
+    const pdfPreviewDiv = document.getElementById(pdfPreviewDivId);
+    const pdfLink = document.getElementById(pdfLinkId);
+    const imagePreviewDiv = document.getElementById(imagePreviewDivId); // Div do botão de imagem
+    const linkImage = document.getElementById(linkImageId); // Link do botão de imagem
+
+    // Verificação de elementos (importante para depuração)
+    if (!fileInput || !fileNameDisplay || !previewImg || !pdfPreviewDiv || !pdfLink || !imagePreviewDiv || !linkImage) {
+        console.warn(`[SETUP ERROR] Elementos não encontrados para o setup: Input=${fileInputId}, Nome=${fileNameDisplayId}, Img=${previewImgId}, PDFDiv=${pdfPreviewDivId}, PDFLink=${pdfLinkId}, ImgDiv=${imagePreviewDivId}, ImgLink=${linkImageId}`);
+        return;
+    }
+    console.log(`[SETUP SUCESSO] Todos os elementos encontrados para ${fileInputId}.`);
+
+    fileInput.addEventListener('change', function(event) {
+        console.log(`[EVENTO CHANGE] Evento 'change' disparado para ${fileInputId}.`);
+        const file = event.target.files[0];
+
+        console.log(`[EVENTO CHANGE] Objeto 'file' capturado:`, file);
+
+        // Esconde TODOS os previews por padrão ao selecionar um novo arquivo
+        previewImg.style.display = 'none'; // A tag <img> sempre oculta
+        pdfPreviewDiv.style.display = 'none';
+        pdfLink.href = '#';
+        imagePreviewDiv.style.display = 'none'; // Esconde o botão de imagem
+        linkImage.href = '#'; // Limpa o href do link da imagem
+
+        if (file) {
+            fileNameDisplay.textContent = `Arquivo selecionado: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+            console.log(`[PROCESSANDO ARQUIVO] Arquivo selecionado: ${file.name}, Tipo: ${file.type}`);
+
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const dataUrl = e.target.result;
+
+                const isImage = file.type.startsWith('image/');
+                const isPdf = file.type === 'application/pdf';
+
+                console.log(`[PREVIEW LOGIC] Tipo MIME detectado: ${file.type}. É Imagem? ${isImage}. É PDF? ${isPdf}.`);
+
+                if (isImage) {
+                    linkImage.href = dataUrl; // Define o Data URL como href para o botão de imagem
+                    imagePreviewDiv.style.display = 'block'; // Exibe o div do botão de imagem
+                    console.log(`[PREVIEW IMAGE] Exibindo botão de prévia de imagem. href definido para: ${linkImage.href.substring(0, 50)}...`);
+                } else if (isPdf) {
+                    pdfLink.href = dataUrl; // Define o Data URL como href para o botão de PDF
+                    pdfPreviewDiv.style.display = 'block'; // Exibe o div do botão de PDF
+                    console.log(`[PREVIEW PDF] Exibindo botão de PDF. href definido para: ${pdfLink.href.substring(0, 50)}...`);
+                } else {
+                    console.warn(`[PREVIEW WARNING] Tipo de arquivo não suportado para pré-visualização: ${file.type}`);
+                }
+                console.log(`[FINALIZADO] Comprovante para ${fileInputId} selecionado e processado.`);
+            };
+
+            reader.onerror = function(error) {
+                console.error(`[ERRO READER] Erro ao ler o arquivo para ${fileInputId}:`, error);
+                fileNameDisplay.textContent = "Erro ao ler o arquivo.";
+                previewImg.style.display = 'none';
+                pdfPreviewDiv.style.display = 'none';
+                pdfLink.href = '#';
+                imagePreviewDiv.style.display = 'none';
+                linkImage.href = '#';
+            };
+
+            reader.readAsDataURL(file);
+        } else {
+            fileNameDisplay.textContent = "Nenhum arquivo selecionado";
+            previewImg.style.display = 'none';
+            pdfPreviewDiv.style.display = 'none';
+            pdfLink.href = '#';
+            imagePreviewDiv.style.display = 'none';
+            linkImage.href = '#';
+            console.log(`[NENHUM ARQUIVO] Nenhum arquivo selecionado para ${fileInputId}.`);
+        }
+    });
+}
+
+
+function preencherComprovanteCampo(filePath, fileNameDisplayId, previewImgId, pdfPreviewDivId, pdfLinkId, imagePreviewDivId, linkImageId) {
+    const fileNameDisplay = document.getElementById(fileNameDisplayId);
+    const previewImg = document.getElementById(previewImgId);
+    const pdfPreviewDiv = document.getElementById(pdfPreviewDivId);
+    const pdfLink = document.getElementById(pdfLinkId);
+    const imagePreviewDiv = document.getElementById(imagePreviewDivId);
+    const linkImage = document.getElementById(linkImageId);
+    const fileInputId = fileNameDisplayId.replace('fileName', 'file');
+    const fileInput = document.getElementById(fileInputId);
+
+    if (!fileNameDisplay || !previewImg || !pdfPreviewDiv || !pdfLink || !imagePreviewDiv || !linkImage || !fileInput) {
+        console.warn(`[CARREGAR DO BANCO ERROR] Elementos não encontrados para preencher: ${fileNameDisplayId}, ${previewImgId}, ${pdfPreviewDivId}, ${pdfLinkId}, ${imagePreviewDivId}, ${linkImageId}, ${fileInputId}`);
+        return;
+    }
+
+    // Esconde TODOS os previews por padrão
+    previewImg.style.display = 'none';
+    pdfPreviewDiv.style.display = 'none';
+    pdfLink.href = '#';
+    imagePreviewDiv.style.display = 'none';
+    linkImage.href = '#';
+
+    if (filePath) {
+        const fileName = filePath.split('/').pop();
+        fileNameDisplay.textContent = fileName;
+
+        const isImageFile = filePath.match(/\.(jpeg|jpg|png|gif|webp|bmp|svg)$/i);
+        const isPdfFile = filePath.match(/\.pdf$/i);
+
+        if (isImageFile) {
+            linkImage.href = filePath;
+            imagePreviewDiv.style.display = 'block';
+        } else if (isPdfFile) {
+            pdfLink.href = filePath;
+            pdfPreviewDiv.style.display = 'block';
+        } else {
+            console.warn(`[CARREGAR DO BANCO WARNING] Tipo de arquivo desconhecido para pré-visualização: ${filePath}. Exibindo apenas nome.`);
+        }
+    } else {
+        fileNameDisplay.textContent = 'Nenhum arquivo selecionado';
+        fileInput.value = '';
+    }
+}
+
+
+// E na sua função de limpeza
+function limparCamposComprovantes() {
+    // Limpa Comprovante de Cache
+    document.getElementById('fileCache').value = '';
+    document.getElementById('fileNameCache').textContent = 'Nenhum arquivo selecionado';
+    document.getElementById('previewCache').src = '#';
+    document.getElementById('previewCache').style.display = 'none';
+    document.getElementById('linkCache').href = '#';
+    document.getElementById('pdfPreviewCache').style.display = 'none';
+    document.getElementById('linkImageCache').href = '#';
+    document.getElementById('imagePreviewCache').style.display = 'none';
+
+    // ... (repetir para Ajuda de Custo e Caixinha) ...
+
+    // Limpa Comprovante de Ajuda de Custo
+    document.getElementById('fileAjdCusto').value = '';
+    document.getElementById('fileNameAjdCusto').textContent = 'Nenhum arquivo selecionado';
+    document.getElementById('previewAjdCusto').src = '#';
+    document.getElementById('previewAjdCusto').style.display = 'none';
+    document.getElementById('linkAjdCusto').href = '#';
+    document.getElementById('pdfPreviewAjdCusto').style.display = 'none';
+    document.getElementById('linkImageAjdCusto').href = '#';
+    document.getElementById('imagePreviewAjdCusto').style.display = 'none';
+
+    // Limpa Comprovante de Caixinha
+    document.getElementById('fileCaixinha').value = '';
+    document.getElementById('fileNameCaixinha').textContent = 'Nenhum arquivo selecionado';
+    document.getElementById('previewCaixinha').src = '#';
+    document.getElementById('previewCaixinha').style.display = 'none';
+    document.getElementById('linkCaixinha').href = '#';
+    document.getElementById('pdfPreviewCaixinha').style.display = 'none';
+    document.getElementById('linkImageCaixinha').href = '#';
+    document.getElementById('imagePreviewCaixinha').style.display = 'none';
+
+    const mainFileInput = document.getElementById('file');
+    if (mainFileInput) {
+        mainFileInput.value = '';
+        const mainFileNameSpan = document.getElementById('fileName');
+        const mainPreviewFoto = document.getElementById('previewFoto');
+        const mainUploadHeader = document.getElementById('uploadHeader');
+
+        if (mainFileNameSpan) mainFileNameSpan.textContent = "Nenhum arquivo selecionado";
+        if (mainPreviewFoto) {
+            mainPreviewFoto.src = "#";
+            mainPreviewFoto.style.display = "none";
+        }
+        if (mainUploadHeader) mainUploadHeader.style.display = "block";
     }
 }
 
