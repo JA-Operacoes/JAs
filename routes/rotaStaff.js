@@ -268,6 +268,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
                     se.comppgtocache,
                     se.comppgtoajdcusto,
                     se.comppgtoextras,
+                    se.setor,
                     s.idstaff,
                     s.avaliacao
 
@@ -357,7 +358,7 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
             idfuncionario, nmfuncionario, idfuncao, nmfuncao, idcliente, nmcliente,
             idevento, nmevento, idmontagem, nmlocalmontagem, pavilhao,
             vlrcache, vlrextra, vlrtransporte, vlralmoco, vlrjantar, vlrcaixinha,
-            descbonus, datasevento, vlrtotal, descbeneficios
+            descbonus, datasevento, vlrtotal, descbeneficios, setor
         } = req.body;
 
         const files = req.files;
@@ -444,12 +445,12 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
                     idcliente = $5, nmcliente = $6, idevento = $7, nmevento = $8, idmontagem = $9,
                     nmlocalmontagem = $10, pavilhao = $11, vlrcache = $12, vlrextra = $13, vlrtransporte = $14,
                     vlralmoco = $15, vlrjantar = $16, vlrcaixinha = $17, descbonus = $18,
-                    datasevento = $19, vlrtotal = $20, comppgtocache = $21, comppgtoajdcusto = $22, comppgtoextras = $23, descbeneficios = $24                    
+                    datasevento = $19, vlrtotal = $20, comppgtocache = $21, comppgtoajdcusto = $22, comppgtoextras = $23, descbeneficios = $24, setor = $25                    
                 FROM staff s
                 INNER JOIN staffempresas sme ON sme.idstaff = s.idstaff
                 WHERE se.idstaff = s.idstaff -- Garante que estamos atualizando o staffevento do staff correto
-                  AND se.idstaffevento = $25
-                  AND sme.idempresa = $26
+                  AND se.idstaffevento = $26
+                  AND sme.idempresa = $27
                 RETURNING se.idstaffevento, se.datasevento;
             `;
 
@@ -477,7 +478,8 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
                 newComppgtoCachePath, // Caminho do novo comprovante de cache
                 newComppgtoAjdCustoPath, // Caminho do novo comprovante de ajuda de custo
                 newComppgtoExtrasPath, // Caminho do novo comprovante de extras    
-                descbeneficios, // Novo campo descbeneficios                       
+                descbeneficios,
+                setor, // Novo campo descbeneficios                       
                 idStaffEvento,
                 idempresa // Parâmetro para a verificação de idempresa
             ];
@@ -558,7 +560,7 @@ router.post("/", autenticarToken(), contextoEmpresa,
             idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
             vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
             vlrcaixinha, nmfuncionario, datasevento: datasEventoRaw,
-            descbonus, descbeneficios
+            descbonus, descbeneficios, setor
         } = req.body;
 
         const files = req.files;
@@ -634,8 +636,8 @@ router.post("/", autenticarToken(), contextoEmpresa,
                         idstaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
                         idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
                         vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
-                        vlrcaixinha, descbonus, comppgtocache, comppgtoajdcusto, comppgtoextras, descbeneficios
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+                        vlrcaixinha, descbonus, comppgtocache, comppgtoajdcusto, comppgtoextras, descbeneficios, setor
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
                     RETURNING idstaffevento;
                 `;
                 // const eventoInsertValues = [
@@ -659,7 +661,8 @@ router.post("/", autenticarToken(), contextoEmpresa,
                     comprovanteCacheFile ? `/uploads/staff_comprovantes/${comprovanteCacheFile.filename}` : null,
                     comprovanteAjdCustoFile ? `/uploads/staff_comprovantes/${comprovanteAjdCustoFile.filename}` : null,
                     comprovanteExtrasFile ? `/uploads/staff_comprovantes/${comprovanteExtrasFile.filename}` : null,
-                    descbeneficios
+                    descbeneficios,
+                    setor
 
                 ];
                 await client.query(eventoInsertQuery, eventoInsertValues);

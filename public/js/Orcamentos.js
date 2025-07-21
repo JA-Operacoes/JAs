@@ -96,14 +96,7 @@ if (selectSuprimento) {
     });
 }
 
-// const selectLocalMontagem = document.getElementById('selectMontagem');
-//     if (selectLocalMontagem) {
-        
-//         selectLocalMontagem.addEventListener('change', function() {
-//             atualizarUFOrc(this);
-//         });       
-//     }    
-// Atualiza texto no DOM
+
 function atualizarOuCriarCampoTexto(nmFantasia, texto) {
     const campo = document.getElementById(nmFantasia);
     if (campo) {
@@ -267,8 +260,17 @@ async function carregarLocalMontOrc() {
             });
             select.addEventListener("change", function () {
 
-                idMontagem = this.value; // O value agora é o ID
+                //idMontagem = this.value; // O value agora é o ID
+
+                const selectedOption = this.options[this.selectedIndex]; 
+              
+               document.getElementById("idMontagem").value = selectedOption.getAttribute("data-idMontagem");
+           
+
+               idMontagem = selectedOption.value;        
                 console.log("IDLOCALMONTAGEM selecionado:", idMontagem);
+
+                carregarPavilhaoOrc(idMontagem);
                 // const selectedOption = select.options[select.selectedIndex];
                 // idMontagem = selectedOption.getAttribute("data-idlocalmontagem") || "N/D";
                 // // console.log("IDLOCALMONTAGEM", idMontagem);
@@ -280,6 +282,42 @@ async function carregarLocalMontOrc() {
         console.error("Erro ao carregar localmontagem:", error);
     } 
 }
+
+async function carregarPavilhaoOrc(idMontagem) {
+    try{
+
+       const pavilhao = await fetchComToken(`/orcamentos/pavilhao?idmontagem=${idMontagem}`);
+        
+        let selects = document.querySelectorAll(".nmPavilhao");       
+        
+        
+        selects.forEach(select => {        
+           
+            select.innerHTML = '<option value="">Selecione o Pavilhão</option>'; // Adiciona a opção padrão
+            pavilhao.forEach(localpav => {
+          
+                let option = document.createElement("option");
+
+                option.value = localpav.idpavilhao;  // Atenção ao nome da propriedade (idMontagem)
+                option.textContent = localpav.nmpavilhao; 
+                option.setAttribute("data-idPavilhao", localpav.idpavilhao); 
+                option.setAttribute("data-nmPavilhao", localpav.nmPavilhao);
+                         
+                select.appendChild(option);
+           
+            });
+            select.addEventListener("change", function () {    
+                // document.getElementById("idPavilhao").value = selectedOption.getAttribute("data-idPavilhao"); 
+          
+                
+            });
+            
+        });
+    }catch(error){
+        console.error("Erro ao carregar pavilhao:", error);
+    } 
+}
+
 
 let Categoria = "";
 let vlrAlmoco = 0;
@@ -2268,7 +2306,7 @@ async function verificaOrcamento() {
     recalcularTotaisGerais();
 }
 
-function limparOrcamento() {
+export function limparOrcamento() {
     console.log("DEBUG: Limpando formulário de orçamento...");
 
     const form = document.getElementById("form");
@@ -2349,36 +2387,7 @@ function limparOrcamento() {
 
 
 
-function getPeriodoDatas(inputValue) { // Recebe diretamente o valor do input
-   
-    console.log("Valor do input recebido:", inputValue);
-    
-    if (typeof inputValue !== 'string' || inputValue.trim() === '') {
-        // Se o input estiver vazio ou não for uma string, retorna null para as datas.
-        // Isso é exatamente o que você quer para campos opcionais não preenchidos.
-        return { inicio: null, fim: null };
-    }
-    const datas = inputValue.split(' até '); 
-
-    let dataInicial = null;
-    let dataFinal = null;
-
-    if (datas.length === 2) {
-        // Se há duas partes, é um período completo (início e fim)
-        dataInicial = formatarDataParaBackend(datas[0].trim()); // Trim para remover espaços extras
-        dataFinal = formatarDataParaBackend(datas[1].trim());
-    } else if (datas.length === 1) {
-        // Se há apenas uma parte, é uma única data selecionada
-        dataInicial = formatarDataParaBackend(datas[0].trim());
-        dataFinal = formatarDataParaBackend(datas[0].trim()); // Ou null, dependendo da sua regra para um único dia
-                                                              // Deixei como a mesma data para um período de 1 dia.
-    }
-    // Caso contrário (datas.length é 0, já tratado pela validação inicial)
-console.log("Datas retornadas:", { inicio: dataInicial, fim: dataFinal });
-    return { inicio: dataInicial, fim: dataFinal };
-}
-
-function preencherFormularioComOrcamento(orcamento) {
+export function preencherFormularioComOrcamento(orcamento) {
     if (!orcamento) {
         limparOrcamento();
         return;
@@ -2945,27 +2954,7 @@ function formatarDatasParaInputPeriodo(inicioStr, fimStr) {
 
 // --- Função para Limpar o Formulário Principal ---
 
-export function limparFormularioOrcamento() {
-    document.getElementById('form').reset();
-    idOrcamentoInput.value = '';
 
-    // Limpar seleções de Flatpickr para todos os inputs
-    for (const id in flatpickrInstances) {
-        const pickerInstance = flatpickrInstances[id];
-        if (pickerInstance) {
-            pickerInstance.clear();
-        }
-    }
-
-    // Resetar selects para a opção padrão (Selecione...)
-    if (statusSelect) statusSelect.value = '';
-    if (clienteSelect) clienteSelect.value = '';
-    if (eventoSelect) eventoSelect.value = '';
-    if (localMontagemSelect) localMontagemSelect.value = '';
-
-    // TODO: Se você tiver uma função para limpar a tabela de itens, chame-a aqui
-    // Ex: limparItensOrcamentoTabela();
-}
 
 function getPeriodoDatas(inputValue) { // Recebe diretamente o valor do input
    

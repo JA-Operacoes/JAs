@@ -62,7 +62,8 @@ document.addEventListener("DOMContentLoaded", async function () {
     staff: "Staff",
     usuarios: "Usuarios",
     empresas: "Empresas",
-    bancos: "Bancos"
+    bancos: "Bancos",
+    aside: "Aside"
   };
 
   document.querySelectorAll(".abrir-modal").forEach((botao) => {
