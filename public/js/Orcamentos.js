@@ -427,6 +427,17 @@ async function carregarSuprimentosOrc() {
     }
 }
 
+function limparSelects() {
+  const ids = ['selectFuncao', 'selectEquipamento', 'selectSuprimento'];
+
+  ids.forEach(function(id) {
+    const select = document.getElementById(id);
+    if (select) {
+      select.selectedIndex = 0; // Seleciona o primeiro item (geralmente uma opção vazia ou "Selecione...")
+    }
+  });
+}
+
 function configurarInfraCheckbox() {
     let checkbox = document.getElementById("ativo");
     let bloco = document.getElementById("blocoInfra");
@@ -1147,7 +1158,8 @@ function adicionarLinhaOrc() {
         }
     }
     recalcularTotaisGerais(); 
-    aplicarMascaraMoeda();   
+    aplicarMascaraMoeda(); 
+    limparSelects();  
 }
 
 function adicionarLinhaAdicional() {
@@ -1423,7 +1435,8 @@ function adicionarLinhaAdicional() {
         }
     }
     recalcularTotaisGerais(); 
-    aplicarMascaraMoeda();  
+    aplicarMascaraMoeda();
+    limparSelects();  
 }
 
 function removerLinhaOrc(botao) {
