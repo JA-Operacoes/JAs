@@ -265,6 +265,35 @@ router.get('/localmontagem', async (req, res) => {
 
 });
 
+router.get('/pavilhao', async (req, res) => {
+  
+ console.log("🔥 Rota /orcamento/pavilhao acessada");
+
+  const idempresa = req.idempresa;
+  const idmontagem = req.query.idmontagem; 
+
+  console.log("IDMONTAGEM", idmontagem);
+
+  try {
+     
+    const resultado = await pool.query(`
+      SELECT p.nmpavilhao
+      FROM localmontpavilhao p      
+      WHERE p.idmontagem = $1
+      ORDER BY p.nmpavilhao
+    `, [idmontagem]);
+
+    console.log("PAVILHAO", resultado);
+    res.json(resultado.rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: 'Erro ao buscar clientes' });
+  }
+
+});
+
+
 // GET /orcamento/funcao
 router.get('/funcao', async (req, res) => {
   

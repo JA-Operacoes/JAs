@@ -67,7 +67,8 @@ if (typeof window.StaffOriginal === "undefined") {
         // 📎 Comprovantes PDF
         comprovanteCache: "",
         comprovanteAjdCusto: "",
-        comprovanteCaixinha: ""
+        comprovanteCaixinha: "",
+        setor: ""
     };
 }
 
@@ -106,6 +107,7 @@ const extracheck = document.getElementById('Extracheck');
 const campoExtra = document.getElementById('campoExtra');
 const caixinhacheck = document.getElementById('Caixinhacheck');
 const campoCaixinha = document.getElementById('campoCaixinha');
+const setorInput = document.getElementById('setor');
 
 // Variável para armazenar os dados originais do registro em edição
 let currentEditingStaffEvent = null;
@@ -189,6 +191,7 @@ const carregarDadosParaEditar = (eventData) => {
     descBeneficioTextarea.value = eventData.descbeneficios || ''; // Seu campo de bônus está como descbonus no backend
     bonusTextarea.value = eventData.descbonus || ''; // Se você tem um campo 'bonus' no HTML
     vlrTotalInput.value = parseFloat(eventData.total || 0).toFixed(2).replace('.', ',');
+    setorInput.value = eventData.setor || ''; // Setor do funcionário, se necessário
 
     // Tratamento dos Checkboxes Extra/Caixinha
     if (extracheck && campoExtra) {
@@ -207,10 +210,7 @@ const carregarDadosParaEditar = (eventData) => {
     if (caixinhacheck && campoCaixinha) {
         caixinhacheck.checked = (parseFloat(eventData.vlrcaixinha || 0) > 0);
         campoCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
-    }
-
-    
-    
+    }   
     
     if (eventData.datasevento) {
         let periodoArrayStrings; // Este será o array de strings YYYY-MM-DD
@@ -317,6 +317,7 @@ const carregarTabelaStaff = async (funcionarioId) => {
                     document.getElementById("idFuncao").value = eventData.idfuncao;
                     document.getElementById("idCliente").value = eventData.idcliente;
                     document.getElementById("avaliacao").value = eventData.avaliacao;
+                    document.getElementById("setor").value = eventData.setor;
 
                     // preencherComprovanteCampo(eventData.comppgtocache, 'fileNameCache', 'ComprovanteCache');
                     // preencherComprovanteCampo(eventData.comppgtoajdcusto, 'fileNameAjdCusto', 'ComprovanteAjdCusto');
@@ -338,6 +339,7 @@ console.log('Valor de eventData.periodo antes de exibir:', eventData.datasevento
 
                   //  row.insertCell().textContent = eventData.idevento || '';
                     row.insertCell().textContent = eventData.nmfuncao || '';
+                    row.insertCell().textContent = eventData.setor || '';
                     row.insertCell().textContent = eventData.nmcliente || '';
                     row.insertCell().textContent = eventData.nmevento || '';
                     row.insertCell().textContent = eventData.nmlocalmontagem || '';
@@ -391,6 +393,7 @@ console.log('Valor de eventData.periodo antes de exibir:', eventData.datasevento
             noResultsMessage.textContent = `Erro ao carregar dados: ${error.message}. Tente novamente.`;
         }
 };
+
 
 
 
@@ -497,16 +500,12 @@ async function verificaStaff() {
         const descBonusInput = document.getElementById("bonus");
         const descBonus = descBonusInput.value.trim() || "";
         const descBeneficio = descBeneficioInput?.value.trim() || "";
-        
-        // const datasEventoRawValue = document.querySelector("#datasEvento").value.trim();
-        // const periodoDoEvento = getPeriodoDatas(datasEventoRawValue);
+        const setor = document.querySelector("#setor").value; 
         
         const datasEventoRawValue = datasEventoInput.value.trim();
         const periodoDoEvento = getPeriodoDatas(datasEventoRawValue);
 
-       console.log("Array de datas do evento para envio:", periodoDoEvento);
-
-        console.log("AVALIACAO", avaliacao);
+      
         if (periodoDoEvento.length === 0) {
             return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias do evento.", "warning");
         }
@@ -625,6 +624,9 @@ async function verificaStaff() {
         
         formData.append('descbeneficios', beneficioTextarea.value.trim());
 
+        formData.append('setor', setor);
+
+
         console.log("Preparando envio de FormData. Método:", metodo, "URL:", url, window.StaffOriginal);
         console.log("Dados do FormData:", {
             nmFuncionario, descFuncao, vlrCusto, extra, transporte, almoco, jantar, caixinha,
@@ -722,7 +724,9 @@ async function verificaStaff() {
                 (currentEditingStaffEvent.vlralmoco === 1 ? '1' : '0') != almoco ||
                 (currentEditingStaffEvent.vlrjantar === 1 ? '1' : '0') != jantar ||
                 parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) != caixinhaValorAtual ||
-                (currentEditingStaffEvent.descbonus || '').trim() != descBeneficio.trim() ||
+                (currentEditingStaffEvent.descbonus || '').trim() != descBonus.trim() ||
+                (currentEditingStaffEvent.descbeneficios || '').trim() != descBeneficio.trim() ||
+                (currentEditingStaffEvent.setor || '').trim() != setor.trim() ||
                 currentEditingStaffEvent.idcliente != idCliente ||
                 currentEditingStaffEvent.idevento != idEvento ||
                 currentEditingStaffEvent.idmontagem != idMontagem ||
@@ -900,7 +904,8 @@ async function carregarStaffDescricao(desc, elementoAtual) {
             // 📎 Comprovantes PDF (se vierem do banco ou API)
             comprovanteCache: staff.comprovantecache || "",
             comprovanteAjdCusto: staff.comprovanteajdcusto || "",
-            comprovanteCaixinha: staff.comprovantecaixinha || ""
+            comprovanteCaixinha: staff.comprovantecaixinha || "",
+            setor: staff.setor || ""
         };
 
     } catch (error) {
@@ -975,7 +980,8 @@ function limparStaffOriginal() {
         // 📎 Comprovantes PDF
         comprovanteCache: "",
         comprovanteAjdCusto: "",
-        comprovanteCaixinha: ""
+        comprovanteCaixinha: "",
+        setor: ""
     };
 
     // Log dos campos limpados
@@ -1944,10 +1950,9 @@ function configurarEventosStaff() {
     adicionarEventoBlurStaff();
     inicializarFlatpickrsGlobais();
     limparStaffOriginal()
-
-
     
     // Inicializa o estado dos campos extra/caixinha no carregamento
+    const inputExtra = document.getElementById('extra');
     const extracheck = document.getElementById('Extracheck');
     const campoExtra = document.getElementById('campoExtra');
     if (extracheck && campoExtra && bonusTextarea) {
