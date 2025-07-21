@@ -173,19 +173,8 @@ async function  carregarClientesOrc() {
             select.addEventListener('change', function () {
                 idCliente = this.value; // O value agora é o ID
                 console.log("idCliente selecionado:", idCliente);
-               
-                // const nomeFantasia = this.value;
-                // const selectedOption = select.options[select.selectedIndex];
-                // idCliente = selectedOption.getAttribute("data-idCliente");
-                // console.log("idCliente", idCliente);
-                // if (nomeFantasia) {
-                //     buscarEExibirDadosClientePorNome(nomeFantasia);
-                // }
+            
             });
-
-            // if (nomeSelecionado) {
-            //     buscarEExibirDadosClientePorNome(nomeSelecionado);
-            // }
         });
     
     }
@@ -525,62 +514,8 @@ function configurarFormularioOrc() {
     
 }
 
-// if (!window.hasRegisteredClickListener) {
-//     document.querySelector("#tabela").addEventListener("click", function(event) {
-//         if (event.target.classList.contains("increment")) {
-//             const input = event.target.closest("td").querySelector("input.qtdProduto");
-//             if (input) {
-//                 input.value = parseInt(input.value || 0) + 1;
-//                 const linha = input.closest("tr");
-//                 if (linha) {
-//                     recalcularLinha(linha); // Chama aqui, dentro do clique
-//                 }
-//             }
-//         }
-
-//         if (event.target.classList.contains("decrement")) {
-//             const input = event.target.closest("td").querySelector("input.qtdProduto");
-//             if (input) {
-//                 const valorAtual = parseInt(input.value || 0);
-//                 input.value = Math.max(0, valorAtual - 1);
-//                 const linha = input.closest("tr");
-//                 if (linha) {
-//                     recalcularLinha(linha); // Também aqui
-//                 }
-//             }
-//         }
-//     });
-
-//     window.hasRegisteredClickListener = true; // Marca que o listener já foi adicionado
-// }
-
-// if (!window.hasRegisteredChangeListenerForAjdCusto) {
-//     document.addEventListener('change', async function(event) {
-//         // Este 'if' verifica SE o evento 'change' veio de um select de alimentação ou transporte
-//         if (event.target.classList.contains('select-alimentacao') || event.target.classList.contains('select-transporte')) {
-//             console.log("--- Evento CHANGE disparado por select-alimentacao ou select-transporte ---");
-//             const linhaAtual = event.target.closest('tr');
-//             if (!linhaAtual) {
-//                 console.error("Erro: Não foi possível encontrar a linha (<tr>) pai para o select de ajuda de custo.");
-//                 return;
-//             }
-//             // Chama a função para recalcular e atualizar a exibição daquela linha específica
-//             atualizarValoresAjdCustoNaLinha(linhaAtual);
-            
-//             recalcularLinha(linhaAtual);
-//             //calcularTotaisOrc(); // Recalcula os totais gerais da tabela após mudança em uma linha
-//         }
-//     });
-//     window.hasRegisteredChangeListenerForAjdCusto = true;
-// }
-
 function desformatarMoeda(valor) {
 
-    // console.log ("DESFORMATARMOEDA", valor);
-    // if (!valor) return 0;
-    // return parseFloat(valor.replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
-    
-    
    if (!valor) return 0;
 
     // Se for número, retorna direto
@@ -744,99 +679,6 @@ function calcularLucroReal() {
         console.warn("⚠️ Campo #valorImposto não encontrado.");
     }
 }
-
-// function aplicarDescontoEAcrescimo(input = null) { GU
-
-//     console.log ("DESCONTO NO APLICAR DESCONTO E ACRESCIMO",document.querySelector('#Desconto').value, document.querySelector('#percentDesc').value);
-//     const campoTotalVenda = document.querySelector('#totalGeralVda');
-//     const campoDesconto = document.querySelector('#Desconto');
-//     const campoPerCentDesc = document.querySelector('#percentDesc');
-//     const campoAcrescimo = document.querySelector('#Acrescimo');
-//     const campoPerCentAcresc = document.querySelector('#percentAcresc');
-//     const campoValorCliente = document.querySelector('#valorCliente');
-
-//     let totalVenda = desformatarMoeda(campoTotalVenda?.value || '0');
-//     if (isNaN(totalVenda)) totalVenda = 0;
-
-//     let valorDesconto = desformatarMoeda(campoDesconto?.value || '0');
-//     let perCentDesc = parseFloat((campoPerCentDesc?.value || '0').replace('%', '').replace(',', '.')) || 0;
-
-//     let valorAcrescimo = desformatarMoeda(campoAcrescimo?.value || '0');
-//     let perCentAcresc = parseFloat((campoPerCentAcresc?.value || '0').replace('%', '').replace(',', '.')) || 0;
-
-//     // Se input for null, só calcula e mostra o valor final
-//     if (input === null) {
-//         const valorFinal = totalVenda - valorDesconto + valorAcrescimo;
-//         if (campoValorCliente) {
-//             campoValorCliente.value = formatarMoeda(valorFinal);
-//         }
-//         return;
-//     }
-        
-//     // Sincronizar desconto
-//     //console.log("Desconto", campoDesconto, totalVenda);
-
-//     if (input === campoDesconto && totalVenda > 0) {
-//         perCentDesc = (valorDesconto / totalVenda) * 100;
-//         campoPerCentDesc.value = perCentDesc.toFixed(2) + '%';
-//     } else if (input === campoPerCentDesc && totalVenda > 0) {
-//         valorDesconto = totalVenda * (perCentDesc / 100);
-//         campoDesconto.value = formatarMoeda(valorDesconto);
-//     }
-
-//     // Sincronizar acréscimo
-//     if (input === campoAcrescimo && totalVenda > 0) {
-//         perCentAcresc = (valorAcrescimo / totalVenda) * 100;
-//         campoPerCentAcresc.value = perCentAcresc.toFixed(2) + '%';
-//     } else if (input === campoPerCentAcresc && totalVenda > 0) {
-//         valorAcrescimo = totalVenda * (perCentAcresc / 100);
-//         campoAcrescimo.value = formatarMoeda(valorAcrescimo);
-//     }
-
-//     // Calcular valor final para o cliente
-//     const valorFinal = totalVenda - valorDesconto + valorAcrescimo;
-
-//     if (campoValorCliente) {
-//         campoValorCliente.value = formatarMoeda(valorFinal);
-//     }
-
-//     calcularLucroReal();
-//     calcularLucro();
-// }
-
-
-// function calcularLucro() {
-//     let totalCustoGeral = 0;
-//     let totalVendaGeral = 0;
-
-//     // Extraímos os valores numéricos das células, desformatados de moeda
-//     totalCustoGeral = desformatarMoeda(document.querySelector('#totalGeralCto').value);
-//     totalVendaGeral = desformatarMoeda(document.querySelector('#totalGeralVda').value);
-
-//     // Calcula o lucro
-//     let lucro = totalVendaGeral - totalCustoGeral;
-
-//     let porcentagemLucro = 0;
-//     if (totalVendaGeral > 0) {
-//         porcentagemLucro = (lucro / totalVendaGeral) * 100;
-//     }
-
-//     // Exibe o lucro no console
-//     console.log('Lucro calculado:', lucro);
-//     console.log('Porcentagem de Lucro:', porcentagemLucro.toFixed(2) + '%');
-
-//     // Atualiza o campo de lucro com a formatação de moeda
-//     let inputLucro = document.querySelector('#Lucro');
-//     if (inputLucro) {
-//         inputLucro.value = formatarMoeda(lucro);
-//     }
-
-//     let inputPorcentagemLucro = document.querySelector('#percentLucro');
-//     if (inputPorcentagemLucro) {
-//         inputPorcentagemLucro.value = porcentagemLucro.toFixed(2) + '%';
-//     }
-// }
-
 
 function aplicarDescontoEAcrescimo() {
    console.log ("DESCONTO NO APLICAR DESCONTO E ACRESCIMO",document.querySelector('#Desconto').value, document.querySelector('#percentDesc').value);
@@ -2385,8 +2227,6 @@ export function limparOrcamento() {
     console.log("DEBUG: Formulário de orçamento limpo.");
 }
 
-
-
 export function preencherFormularioComOrcamento(orcamento) {
     if (!orcamento) {
         limparOrcamento();
@@ -3201,28 +3041,6 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }, true);
 });
-// --------------------------------------- botoes Quantidade-----------------------------------------
-
-// if (!window.hasRegisteredClickListener) {
-//     document.addEventListener('click', function(event) {
-//     if (event.target.classList.contains('increment')) {
-//         // console.log('Incrementando...');
-//         const input = event.target.closest('.add-less').querySelector('input');
-//         input.value = parseInt(input.value || 0) + 1;
-//     }
-
-//     if (event.target.classList.contains('decrement')) {
-//         // console.log('Decrementando...');
-//         const input = event.target.closest('.add-less').querySelector('input');
-//         let currentValue = parseInt(input.value || 0);
-//         if (currentValue > 0) {
-//         input.value = currentValue - 1;
-//         }
-//     }
-//     });
-//     window.hasRegisteredClickListener = true;
-// }
-
 
 // ------------------------------- Preenchimento automatico -------------------------
     document.querySelectorAll('.form2 input').forEach(input => {
@@ -3514,89 +3332,6 @@ function aplicarMascaraMoeda() {
 
 }
 
-
-
-// function aplicarMascaraMoeda() {
-//     console.log("DEBUG: aplicarMascaraMoeda foi chamada.");
-
-//     // --- Parte 1: Formatar valores de <td> com a classe .Moeda (para exibição) ---
-//     document.querySelectorAll('td.Moeda').forEach(td => {
-//         if (!td.querySelector('input') && !td.classList.contains('ajdCusto')) {
-//             let valorTexto = td.textContent;
-//             let valorNumerico = desformatarMoeda(valorTexto);
-
-//             if (!isNaN(valorNumerico)) {
-//                 td.textContent = valorNumerico.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-//             }
-//         }
-//     });
-
-//     // --- Parte 2: Aplicar IMask a inputs editáveis de PERCENTUAL ---
-//     document.querySelectorAll(
-//         'input.valorPerCent, #percentDesc, #percentAcresc, #percentLucro' // Inclua todos os IDs de percentual aqui
-//     ).forEach(input => {
-//         if (!input.mask) {
-//             input.mask = IMask(input, {
-//                 mask: Number,
-//                 scale: 2,
-//                 signed: false,
-//                 thousandsSeparator: '',
-//                 padFractionalZeros: true,
-//                 normalizeZeros: true,
-//                 radix: ',',
-//                 mapToRadix: ['.'],
-//                 suffix: '%',
-//                 min: 0,
-//                 max: 100,
-//                 // Os pipes 'prepare' e 'unmask' geralmente não são necessários se 'mapToRadix' e 'radix' estiverem corretos.
-//                 // Mas se você ainda tem problemas com a interpretação, pode mantê-los.
-//                 // prepare: (str) => {
-//                 //     if (!str) return str;
-//                 //     if (str.includes(',') && !str.includes('.')) {
-//                 //         str = str.replace(',', '.');
-//                 //     }
-//                 //     return str;
-//                 // },
-//                 // unmask: (masked) => {
-//                 //     let val = masked.replace('%', '');
-//                 //     if (val.includes(',')) {
-//                 //         val = val.replace(',', '.');
-//                 //     }
-//                 //     return parseFloat(val);
-//                 // }
-//             });
-//             console.log("IMask PERCENTUAL aplicado a:", input.id || input.className);
-//         }
-//     });
-
-//     // --- Parte 3: Aplicar IMask a inputs editáveis de MOEDA (incluindo todos os globais) ---
-//     document.querySelectorAll(
-//         'input.ValorInteiros, input.hospedagem, input.transporte, ' +
-//         '#Desconto, #Acrescimo, #valorCliente, #totalGeralVda, #totalGeralCto, #totalAjdCusto, #totalGeral, #Lucro' // Inclua todos os IDs de moeda aqui
-//     ).forEach(input => {
-//         if (!input.mask) {
-//             input.mask = IMask(input, {
-//                 mask: Number,
-//                 signed: false,
-//                 thousandsSeparator: '.',
-//                 padFractionalZeros: true,
-//                 normalizeZeros: true,
-//                 radix: ',',
-//                 scale: 2,
-//                 mapToRadix: ['.'],
-//                 prefix: 'R$ ', // Confirme que está prefix: 'R$ '
-//                 max: 99999999999.99
-//             });
-//             console.log("IMask MOEDA aplicado a:", input.id || input.className);
-//         }
-//     });
-
-//     // --- Parte 4: REMOVER A SEÇÃO DE INPUTS READONLY SE NÃO HOUVER NECESSIDADE ---
-//     // Pelo seu comentário, esta seção não é mais necessária para quase nenhum input readonly.
-//     // Remova-a completamente se não houver inputs readonly que você precise formatar como moeda.
-// }
-
-// Caso precise reverter a formatação (ex: para enviar ao backend)
 function removerMascaraMoedaInputs() {
     document.querySelectorAll('input.Moeda[readonly]').forEach(input => {
         if (input.dataset.valorOriginal) {
@@ -3968,26 +3703,6 @@ async function gerarPropostaPDF() {
         link.download = nomeArquivoSalvar;
         link.click();
     };
-
-    //     console.log("Enviando PDF para o backend");
-
-    //     const nomeArquivo = `${nomeEvento.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_')}_${dataFormatada}.pdf`;
-
-    //     const formData = new FormData();
-    //     formData.append('arquivo', pdfBlob, nomeArquivo);
-    //     formData.append('cliente', nomeCliente);
-    //     formData.append('evento', nomeEvento);
-
-    //     fetch("http://localhost:3000/enviar-pdf", {
-    //         method: "POST",
-    //         body: formData
-    //     })
-    //     .then(res => res.json())
-    //     .then(data => console.log("Resposta do servidor:", data))
-    //     .catch(err => console.error("Erro ao enviar PDF:", err));
-    // };
-
-
     img.src = 'img/Fundo Propostas.png';
 }
 
@@ -4089,71 +3804,6 @@ for (let R = range.s.r; R <= range.e.r; ++R) {
   XLSX.writeFile(wb, "orcamento_formatado.xlsx");
 }
 
-// async function salvarOrcamento(event) {
-//     event.preventDefault(); // evita o envio padrão do formulário
-
-//     const form = document.getElementById("form");
-//     const formData = new FormData(form);
-
-//     // Você pode adicionar campos adicionais se forem calculados dinamicamente
-//     // Por exemplo, valores da tabela ou campos que não estão no <form>
-
-//     const dados = {};
-//     formData.forEach((value, key) => {
-//         dados[key] = value;
-//     });
-
-//     // Exemplo de como capturar itens da tabela (ajuste conforme sua lógica)
-//     const itens = [];
-//     const linhas = document.querySelectorAll("#tabela tbody tr");
-//     linhas.forEach((linha) => {
-//         const item = {
-//             categoria: linha.querySelector(".Categoria")?.textContent.trim(),
-//             qtdProduto: linha.querySelector(".qtdProduto input")?.value,
-//             produto: linha.querySelector(".produto")?.textContent.trim(),
-//             qtdDias: linha.querySelector(".qtdDias input")?.value,
-//             vlrVenda: linha.querySelector(".vlrVenda")?.textContent.trim(),
-//             totVdaDiaria: linha.querySelector(".totVdaDiaria")?.textContent.trim(),
-//             vlrCusto: linha.querySelector(".vlrCusto")?.textContent.trim(),
-//             totCtoDiaria: linha.querySelector(".totCtoDiaria")?.textContent.trim(),
-//             ajdCusto: linha.querySelector(".ajdCusto")?.textContent.trim(),
-//             totAjdCusto: linha.querySelector(".totAjdCusto")?.textContent.trim(),
-//             hospedagem: linha.querySelector(".hospedagem")?.value || "0",
-//             transporte: linha.querySelector(".transporteExtraInput")?.value || "0",
-//             totGeral: linha.querySelector(".totGeral")?.textContent.trim()
-//         };
-//         itens.push(item);
-//     });
-
-//     // Inclui os itens no objeto principal
-//     dados.itens = itens;
-
-//     console.log("DADOS ITENS", dados.itens);
-
-//     try {
-//         const resposta = await fetchComToken(form.getAttribute('data-action'), {
-//             method: 'POST',
-//             // headers: {
-//             //     'Content-Type': 'application/json',
-//             //     'Authorization': `Bearer ${token}`
-//             //     // 'x-id-empresa': idEmpresa
-//             // },
-//             body: JSON.stringify(dados)
-//         });
-
-//         if (resposta.ok) {
-//             const resultado = await resposta.json();
-//             Swal.fire("Sucesso", "Orçamento salvo com sucesso!", "success");
-//         } else {
-//             const erro = await resposta.text();
-//             Swal.fire("Erro", "Falha ao salvar orçamento: " + erro, "error");
-//         }
-//     } catch (err) {
-//         console.error(err);
-//         Swal.fire("Erro", "Erro inesperado ao salvar orçamento.", "error");
-//     }
-// }
-
 function configurarEventosOrcamento() {
     console.log("Configurando eventos Orcamento...");
     verificaOrcamento();   
@@ -4161,29 +3811,6 @@ function configurarEventosOrcamento() {
 
     console.log("Entrou configurar Orcamento no ORCAMENTO.js.");
 } 
-
-// window.pesquisaOrcamento = async function() {
-//   const input = document.getElementById("nrOrcamento");
-//   if (!input) {
-//     console.warn("Campo nrOrcamento não encontrado.");
-//     return;
-//   }
-  
-//   const nr = input.value.trim();
-//   if (!nr) {
-//     limparOrcamento(); // Se existir, para limpar o form
-//     return;
-//   }
-
-//   try {
-//     const orcamento = await fetchComToken(`orcamentos?nrOrcamento=${nr}`);
-//     preencherFormularioComOrcamento(orcamento); // Sua função que preenche o form
-//   } catch (error) {
-//     console.error("Erro ao buscar orçamento:", error);
-//     limparFormularioOrcamento(); // Limpa o formulário se erro
-//     Swal.fire("Erro", `Não foi possível buscar o orçamento ${nr}.`, "error");
-//   }
-// };
 
 window.configurarEventosOrcamento = configurarEventosOrcamento;
 
@@ -4213,9 +3840,3 @@ window.configurarEventosEspecificos = configurarEventosEspecificos;
       // ...adicione os campos necessários
     }
   });
-
-//   export{
-//     preencherFormularioComOrcamento,
-//     preencherItensOrcamentoTabela,
-//     limparFormularioOrcamento
-//   }
