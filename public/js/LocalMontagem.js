@@ -153,12 +153,12 @@ function verificaMontagem() {
                 body: JSON.stringify(dados)
             });            
 
-            await Swal.fire("Sucesso!", respostaApi.message || "Suprimento salvo com sucesso.", "success");
+            await Swal.fire("Sucesso!", respostaApi.message || "Local Montagem salvo com sucesso.", "success");
             limparCamposMontagem();
 
         } catch (error) {
             console.error("Erro ao enviar dados:", error);
-            Swal.fire("Erro", error.message || "Erro ao salvar suprimento.", "error");
+            Swal.fire("Erro", error.message || "Erro ao salvar Local Montagem.", "error");
         }
     });
     

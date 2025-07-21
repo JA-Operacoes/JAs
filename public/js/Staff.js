@@ -99,6 +99,7 @@ const nmEventoSelect = document.getElementById('nmEvento');
 const datasEventoInput = document.getElementById('datasEvento'); // Input do Flatpickr
 const bonusTextarea = document.getElementById('bonus');
 const vlrTotalInput = document.getElementById('vlrTotal');
+const beneficioTextarea = document.getElementById('descBeneficio');
 
 // Checkboxes e seus campos relacionados
 const extracheck = document.getElementById('Extracheck');
@@ -185,7 +186,7 @@ const carregarDadosParaEditar = (eventData) => {
     almocoInput.value = parseFloat(eventData.vlralmoco || 0).toFixed(2).replace('.', ',');
     jantarInput.value = parseFloat(eventData.vlrjantar || 0).toFixed(2).replace('.', ',');
     caixinhaInput.value = parseFloat(eventData.vlrcaixinha || 0).toFixed(2).replace('.', ',');
-    descBeneficioTextarea.value = eventData.descbonus || ''; // Seu campo de bônus está como descbonus no backend
+    descBeneficioTextarea.value = eventData.descbeneficios || ''; // Seu campo de bônus está como descbonus no backend
     bonusTextarea.value = eventData.descbonus || ''; // Se você tem um campo 'bonus' no HTML
     vlrTotalInput.value = parseFloat(eventData.total || 0).toFixed(2).replace('.', ',');
 
@@ -207,6 +208,9 @@ const carregarDadosParaEditar = (eventData) => {
         caixinhacheck.checked = (parseFloat(eventData.vlrcaixinha || 0) > 0);
         campoCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
     }
+
+    
+    
     
     if (eventData.datasevento) {
         let periodoArrayStrings; // Este será o array de strings YYYY-MM-DD
@@ -364,12 +368,14 @@ console.log('Valor de eventData.periodo antes de exibir:', eventData.datasevento
                     row.insertCell().textContent = parseFloat(eventData.vlrcache || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     row.insertCell().textContent = parseFloat(eventData.vlrextra || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     row.insertCell().textContent = eventData.descbonus || '';
-                    row.insertCell().textContent = (eventData.vlralmoco === 1 ? 'Sim' : 'Não');
-                    row.insertCell().textContent = (eventData.vlrjantar === 1 ? 'Sim' : 'Não');                    
+                    row.insertCell().textContent = parseFloat(eventData.almoco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    row.insertCell().textContent = parseFloat(eventData.jantar || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    // row.insertCell().textContent = (eventData.vlralmoco === 1 ? 'Sim' : 'Não');
+                    // row.insertCell().textContent = (eventData.vlrjantar === 1 ? 'Sim' : 'Não');                    
                     row.insertCell().textContent = parseFloat(eventData.vlrtransporte || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    
+                    // row.insertCell().textContent = (eventData.vlrcaixinha === 1 ? 'Sim' : 'Não');                    row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    row.insertCell().textContent = eventData.beneficios || '';
+                    row.insertCell().textContent = eventData.descbeneficios || '';
                     row.insertCell().textContent = parseFloat(eventData.vlrtotal || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     
                     
@@ -600,11 +606,7 @@ async function verificaStaff() {
             // Envia uma string vazia para o backend para sinalizar a remoção.
             formData.append('comppgtocache', '');
         }
-        // Caso 3: Se NENHUM novo arquivo foi selecionado E o input.value NÃO é vazio,
-        // significa que o campo foi deixado como está (com um valor existente do banco ou vazio).
-        // NADA é anexado ao FormData para este campo. O backend irá PRESERVAR o valor antigo.
-
-
+      
         // Comprovante de Ajuda de Custo
         const fileAjdCustoInput = document.getElementById('fileAjdCusto');
         if (fileAjdCustoInput.files && fileAjdCustoInput.files[0]) {
@@ -613,7 +615,6 @@ async function verificaStaff() {
             formData.append('comppgtoajdcusto', '');
         }
 
-
         // Comprovante de Caixinha (Extras)
         const fileCaixinhaInput = document.getElementById('fileCaixinha');
         if (fileCaixinhaInput.files && fileCaixinhaInput.files[0]) {
@@ -621,8 +622,8 @@ async function verificaStaff() {
         } else if (fileCaixinhaInput.value === '') {
             formData.append('comppgtoextras', '');
         }
-
-
+        
+        formData.append('descbeneficios', beneficioTextarea.value.trim());
 
         console.log("Preparando envio de FormData. Método:", metodo, "URL:", url, window.StaffOriginal);
         console.log("Dados do FormData:", {
@@ -1447,6 +1448,12 @@ function limparCamposStaff() {
         if (inputCaixinha) inputCaixinha.value = '';
     }
 
+    const beneficioTextarea = document.getElementById('descBeneficio');
+    if (beneficioTextarea) {
+        beneficioTextarea.style.display = 'none'; // Oculta o textarea
+        beneficioTextarea.required = false;      // Remove a obrigatoriedade
+        beneficioTextarea.value = '';            // Limpa o conteúdo
+    }
     const avaliacaoSelect = document.getElementById('avaliacao');
     if (avaliacaoSelect) {
         avaliacaoSelect.value = ''; // Define para o valor da opção vazia (se existir, ex: <option value="">Selecione...</option>)

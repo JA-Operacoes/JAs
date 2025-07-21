@@ -62,7 +62,7 @@ router.get(
             o.percentlucroreal,
             o.vlrimposto,
             o.percentimposto,
-            o.vlrcliente
+            o.vlrcliente           
         FROM
             orcamentos o
         JOIN
@@ -144,7 +144,8 @@ router.get(
             totajdctoitem,
             hospedagem,
             transporte,            
-            totgeralitem
+            totgeralitem,
+            setor
         FROM
             orcamentoitens
         WHERE
@@ -425,14 +426,14 @@ router.post(
                             periododiariasfim, descontoitem, percentdescontoitem, acrescimoitem,
                             percentacrescimoitem, vlrdiaria, totvdadiaria, ctodiaria, totctodiaria,
                             tpajdctoalimentacao, vlrajdctoalimentacao, tpajdctotransporte, vlrajdctotransporte,
-                            totajdctoitem, hospedagem, transporte, totgeralitem
+                            totajdctoitem, hospedagem, transporte, totgeralitem, setor
                         ) VALUES (
                             $1, $2, $3, $4, $5,
                             $6, $7, $8, $9, $10,
                             $11, $12, $13, $14,
                             $15, $16, $17, $18, $19,
                             $20, $21, $22, $23,
-                            $24, $25, $26, $27
+                            $24, $25, $26, $27, $28
                         );
                     `;
           const itemValues = [
@@ -441,7 +442,7 @@ router.post(
             item.periododiariasfim, item.descontoitem, item.percentdescontoitem, item.acrescimoitem,
             item.percentacrescimoitem, item.vlrdiaria, item.totvdadiaria, item.ctodiaria, item.totctodiaria,
             item.tpajdctoalimentacao, item.vlrajdctoalimentacao, item.tpajdctotransporte, item.vlrajdctotransporte,
-            item.totajdctoitem, item.hospedagem, item.transporte, item.totgeralitem
+            item.totajdctoitem, item.hospedagem, item.transporte, item.totgeralitem, item.setor
           ];
           await client.query(insertItemQuery, itemValues);
         }
@@ -576,8 +577,8 @@ router.put(
                             periododiariasfim = $10, descontoitem = $11, percentdescontoitem = $12, acrescimoitem = $13,
                             percentacrescimoitem = $14, vlrdiaria = $15, totvdadiaria = $16, ctodiaria = $17, totctodiaria = $18,
                             tpajdctoalimentacao = $19, vlrajdctoalimentacao = $20, tpajdctotransporte = $21, vlrajdctotransporte = $22,
-                            totajdctoitem = $23, hospedagem = $24, transporte = $25, totgeralitem = $26
-                        WHERE idorcamentoitem = $27 AND idorcamento = $28;
+                            totajdctoitem = $23, hospedagem = $24, transporte = $25, totgeralitem = $26, setor = $27
+                        WHERE idorcamentoitem = $28 AND idorcamento = $29;
                     `;
           const itemValues = [
             item.enviarnaproposta, item.categoria, item.qtditens, item.idfuncao,
@@ -585,9 +586,9 @@ router.put(
             item.periododiariasfim, item.descontoitem, item.percentdescontoitem, item.acrescimoitem,
             item.percentacrescimoitem, item.vlrdiaria, item.totvdadiaria, item.ctodiaria, item.totctodiaria,
             item.tpajdctoalimentacao, item.vlrajdctoalimentacao, item.tpajdctotransporte, item.vlrajdctotransporte,
-            item.totajdctoitem, item.hospedagem, item.transporte, item.totgeralitem,
-            item.id, // $27 (idorcamentoitem)
-            idOrcamento // $28 (idorcamento)
+            item.totajdctoitem, item.hospedagem, item.transporte, item.totgeralitem, item.setor,
+            item.id, // $28 (idorcamentoitem)
+            idOrcamento // $29 (idorcamento)
           ];
           await client.query(updateItemQuery, itemValues);
         } else {
@@ -599,14 +600,14 @@ router.put(
                             periododiariasfim, descontoitem, percentdescontoitem, acrescimoitem,
                             percentacrescimoitem, vlrdiaria, totvdadiaria, ctodiaria, totctodiaria,
                             tpajdctoalimentacao, vlrajdctoalimentacao, tpajdctotransporte, vlrajdctotransporte,
-                            totajdctoitem, hospedagem, transporte, totgeralitem
+                            totajdctoitem, hospedagem, transporte, totgeralitem, setor
                         ) VALUES (
                             $1, $2, $3, $4, $5,
                             $6, $7, $8, $9, $10,
                             $11, $12, $13, $14,
                             $15, $16, $17, $18, $19,
                             $20, $21, $22, $23,
-                            $24, $25, $26, $27
+                            $24, $25, $26, $27, $28
                         );
                     `;
           const itemValues = [
@@ -615,7 +616,7 @@ router.put(
             item.periododiariasfim, item.descontoitem, item.percentdescontoitem, item.acrescimoitem,
             item.percentacrescimoitem, item.vlrdiaria, item.totvdadiaria, item.ctodiaria, item.totctodiaria,
             item.tpajdctoalimentacao, item.vlrajdctoalimentacao, item.tpajdctotransporte, item.vlrajdctotransporte,
-            item.totajdctoitem, item.hospedagem, item.transporte, item.totgeralitem
+            item.totajdctoitem, item.hospedagem, item.transporte, item.totgeralitem, item.setor
           ];
           await client.query(insertItemQuery, itemValues);
         }

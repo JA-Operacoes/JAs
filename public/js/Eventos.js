@@ -95,12 +95,12 @@ async function verificaEvento() {
                 body: JSON.stringify(dados)
             });            
 
-            await Swal.fire("Sucesso!", respostaApi.message || "Suprimento salvo com sucesso.", "success");
+            await Swal.fire("Sucesso!", respostaApi.message || "Evento salvo com sucesso.", "success");
             limparCamposEvento();
 
         } catch (error) {
             console.error("Erro ao enviar dados:", error);
-            Swal.fire("Erro", error.message || "Erro ao salvar suprimento.", "error");
+            Swal.fire("Erro", error.message || "Erro ao salvar evento.", "error");
         }
     });
 

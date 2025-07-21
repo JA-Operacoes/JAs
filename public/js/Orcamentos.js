@@ -903,15 +903,10 @@ function adicionarLinhaOrc() {
     if (ufOrcamentoInput) {
         ufAtual = ufOrcamentoInput.value;
     } else {
-        console.warn("Elemento 'ufOrcamento' não encontrado. Verifique se o ID está correto ou se a UF está sendo armazenada em outro lugar.");
-        // Se a UF não estiver facilmente acessível, você pode ter que buscá-la de outra forma,
-        // por exemplo, de uma variável global que armazena os dados do orçamento carregado.
-        // Ou, se o seu 'preencherItensOrcamentoTabela' já preenche um campo específico,
-        // use o seletor apropriado para esse campo.
+       ufAtual = 'SP'; // Defina um valor padrão ou trate o caso em que o elemento não é encontrado
     }
 
-    const exibirCamposExtras = ufAtual.toUpperCase() !== 'SP'; // Lógica para exibir se UF for diferente de SP
-
+    const exibirCamposExtras = ufAtual.toUpperCase() !== 'SP'; // Lógica para exibir se UF for diferente de SP    
     // Defina o estilo inicial dos campos extras com base na UF
     const displayStyle = exibirCamposExtras ? '' : 'none'; 
     let novaLinha = tabela.insertRow();    
@@ -942,6 +937,7 @@ function adicionarLinhaOrc() {
             </div>
         </td>
         <td class="produto"><input type="text" class="produto-input" value=""></td> <!-- Adicionado input para edição -->
+        <td class="setor"><input type="text" class="setor-input" value=""></td> <!-- Adicionado input para edição -->
         <td class="qtdDias">
             <div class="add-less">
                 <input type="number" readonly class="qtdDias" min="0" value="0">
@@ -1215,6 +1211,7 @@ function adicionarLinhaAdicional() {
             </div>
         </td>
         <td class="produto"><input type="text" class="produto-input" value=""></td> <!-- Adicionado input para edição -->
+        <td class="setor"><input type="text" class="setor-input" value=""></td> <!-- Adicionado input para edição -->
         <td class="qtdDias">
             <div class="add-less">
                 <input type="number" readonly class="qtdDias" min="0" value="0">
@@ -1281,8 +1278,15 @@ function adicionarLinhaAdicional() {
             </div>
         </td>
     `;  
-    
+    // --- ADICIONE ESTE LOG AQUI ---
+    const setorInputCheck = novaLinha.querySelector(".setor-input");
+    console.log(`DEBUG ADICIONAR LINHA: .setor-input na nova linha:`, setorInputCheck ? 'Encontrado!' : 'NÃO ENCONTRADO!');
+    if (setorInputCheck) {
+        console.log(`DEBUG ADICIONAR LINHA: HTML do td .setor:`, novaLinha.querySelector('td.setor').outerHTML);
+    }
+    // --- FIM DO LOG ---
     //Inicializa o Flatpickr para o campo de data na nova linha
+
     const novoInputData = novaLinha.querySelector('input[type="text"].datas');  
     if (novoInputData) {
         flatpickr(novoInputData, commonFlatpickrOptionsTable);
@@ -1930,7 +1934,7 @@ async function verificaOrcamento() {
 
             // Se o campo estiver vazio, limpa o formulário e sai
             if (!nrOrcamento) {
-                limparFormularioOrcamento(); // Implemente esta função para limpar o form
+                limparOrcamento(); // Implemente esta função para limpar o form
                 return;
             }
 
@@ -1953,13 +1957,13 @@ async function verificaOrcamento() {
                 let errorMessage = error.message;
                 if (error.message.includes("404")) { 
                     errorMessage = `Orçamento com o número ${nrOrcamento} não encontrado.`;
-                    limparFormularioOrcamento(); // Limpa o formulário se não encontrar
+                    limparOrcamento(); // Limpa o formulário se não encontrar
                 } else if (error.message.includes("400")) {
                      errorMessage = "Número do orçamento é inválido ou vazio.";
-                     limparFormularioOrcamento();
+                     limparOrcamento();
                 } else {
                     errorMessage = `Erro ao carregar orçamento: ${error.message}`;
-                    limparFormularioOrcamento();
+                    limparOrcamento();
                 }
                 
                 Swal.fire("Erro!", errorMessage, "error");
@@ -2022,9 +2026,7 @@ async function verificaOrcamento() {
     }
     else{
          console.log("ELSE Acrescimo");
-    }
-
-    
+    }   
 
 
     const btnEnviar = document.getElementById('Enviar');
@@ -2100,9 +2102,7 @@ async function verificaOrcamento() {
                 dtIniDesmontagem: desmontagemDatas.inicio,
                 dtFimDesmontagem: desmontagemDatas.fim,
                 dtIniDesmontagemInfra: desmontagemInfraDatas.inicio,
-                dtFimDesmontagemInfra: desmontagemInfraDatas.fim,
-                    
-                
+                dtFimDesmontagemInfra: desmontagemInfraDatas.fim,                 
             
                 obsItens: formData.get("obsItens"),
                 obsProposta: formData.get("obsProposta"),
@@ -2138,10 +2138,12 @@ async function verificaOrcamento() {
     //     // Você pode até lançar um erro aqui para parar a execução e inspecionar
     //     // throw new Error("Tabela de itens vazia ao tentar salvar.");
     // }
-
+        //console.log("Setor: ", document.querySelector(".setor")?.textContent.trim());
 
             linhas.forEach((linha) => {
+                
                 const item = {
+                    
                     id: parseInt(linha.querySelector(".idItemOrcamento")?.value) || null,
                     nrorcamento: parseInt(linha.querySelector(".nrOrcamento")?.value) || null,
                     enviarnaproposta: linha.querySelector('.Proposta input[type="checkbox"]')?.checked || false,
@@ -2151,6 +2153,8 @@ async function verificaOrcamento() {
                     idequipamento: parseInt(linha.querySelector(".idEquipamento")?.value) || null,
                     idsuprimento: parseInt(linha.querySelector(".idSuprimento")?.value) || null,
                     produto: linha.querySelector(".produto")?.textContent.trim(),
+                    setor: linha.querySelector(".setor-input")?.value?.trim() || null,
+                   
                     qtdDias: linha.querySelector(".qtdDias input")?.value || "0",
 
                     descontoitem: desformatarMoeda(linha.querySelector(".desconto.Moeda .ValorInteiros")?.value || '0'),
@@ -2273,7 +2277,7 @@ async function verificaOrcamento() {
     btnLimpar.addEventListener("click", async function (event) {
         event.preventDefault(); 
         if (btnLimpar) {
-            btnLimpar.addEventListener("click", limparOrcamento);
+            btnLimpar.addEventListener("click", limparOrcamento());
         } else {
             console.warn("Botão 'Limpar' com ID 'Limpar' não encontrado.");
         }
@@ -2282,6 +2286,7 @@ async function verificaOrcamento() {
 
     recalcularTotaisGerais();
 }
+
 function limparOrcamento() {
     console.log("DEBUG: Limpando formulário de orçamento...");
 
@@ -2291,23 +2296,21 @@ function limparOrcamento() {
         return;
     }
 
-    // Limpar campos de input de texto, número e textareas
+   
     form.querySelectorAll('input[type="text"], input[type="number"], textarea').forEach(input => {
-        // Ignorar campos readonly que não devem ser limpos manualmente (como nrOrcamento se for gerado)
-        // ou idOrcamento
+       
         if (!input.readOnly) {
             input.value = '';
         }
     });
 
-    // Limpar campos ocultos específicos que devem ser resetados (como idOrcamento)
+   
     document.getElementById('idOrcamento').value = '';
-    document.getElementById('nrOrcamento').value = ''; // Se nrOrcamento for gerado, pode querer deixar vazio ou null
+    document.getElementById('nrOrcamento').value = ''; 
 
-    // Resetar selects para a primeira opção ou uma opção padrão
+   
     form.querySelectorAll('select').forEach(select => {
-        // Encontra a primeira opção que não seja 'disabled' ou 'selected' por padrão,
-        // ou a primeira opção válida.
+       
         const defaultOption = select.querySelector('option[selected][disabled]') || select.querySelector('option:first-child');
         if (defaultOption) {
             select.value = defaultOption.value;
@@ -2317,19 +2320,11 @@ function limparOrcamento() {
         select.dispatchEvent(event);
     });
 
-    // Desmarcar checkboxes
+    
     form.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
         checkbox.checked = false;
     });
-
-    // Limpar instâncias do Flatpickr
-    // É crucial limpar as instâncias do Flatpickr, não apenas o valor do input
-    // Você precisa ter acesso às instâncias do Flatpickr que foram inicializadas.
-    // Se você as armazena em um array ou objeto global, pode iterar sobre elas aqui.
-    // Exemplo: se você tem um array `flatpickrInstances = []`
-    // flatpickrInstances.forEach(fp => fp.clear());
-
-    // Para os campos Flatpickr principais do formulário:
+   
     const mainFlatpickrIds = [
         "periodoInfraMontagem", "periodoMarcacao", "periodoMontagem",
         "periodoRealizacao", "periodoDesmontagem", "periodoDesmontagemInfra"
@@ -2372,9 +2367,39 @@ function limparOrcamento() {
 }
 
 
+
+function getPeriodoDatas(inputValue) { // Recebe diretamente o valor do input
+   
+    console.log("Valor do input recebido:", inputValue);
+    
+    if (typeof inputValue !== 'string' || inputValue.trim() === '') {
+        // Se o input estiver vazio ou não for uma string, retorna null para as datas.
+        // Isso é exatamente o que você quer para campos opcionais não preenchidos.
+        return { inicio: null, fim: null };
+    }
+    const datas = inputValue.split(' até '); 
+
+    let dataInicial = null;
+    let dataFinal = null;
+
+    if (datas.length === 2) {
+        // Se há duas partes, é um período completo (início e fim)
+        dataInicial = formatarDataParaBackend(datas[0].trim()); // Trim para remover espaços extras
+        dataFinal = formatarDataParaBackend(datas[1].trim());
+    } else if (datas.length === 1) {
+        // Se há apenas uma parte, é uma única data selecionada
+        dataInicial = formatarDataParaBackend(datas[0].trim());
+        dataFinal = formatarDataParaBackend(datas[0].trim()); // Ou null, dependendo da sua regra para um único dia
+                                                              // Deixei como a mesma data para um período de 1 dia.
+    }
+    // Caso contrário (datas.length é 0, já tratado pela validação inicial)
+console.log("Datas retornadas:", { inicio: dataInicial, fim: dataFinal });
+    return { inicio: dataInicial, fim: dataFinal };
+}
+
 function preencherFormularioComOrcamento(orcamento) {
     if (!orcamento) {
-        limparFormularioOrcamento();
+        limparOrcamento();
         return;
     }
     
@@ -2415,14 +2440,6 @@ function preencherFormularioComOrcamento(orcamento) {
         console.warn("Elemento com classe '.idEvento' não encontrado.");
     }
 
-    // const localMontagemSelect = document.querySelector('.idMontagem');
-    // if (localMontagemSelect) {      
-    //     localMontagemSelect.value = orcamento.idmontagem || '';         
-    // } else {
-    //     console.warn("Elemento com classe '.idMontagem' não encontrado.");
-    // }   
-
-
     const localMontagemSelect = document.querySelector('.idMontagem');
     if (localMontagemSelect) {
         localMontagemSelect.value = orcamento.idmontagem || '';
@@ -2433,29 +2450,20 @@ function preencherFormularioComOrcamento(orcamento) {
         } else {
             console.warn("Elemento com ID 'ufmontagem' não encontrado.");
         }
-        // Chamar atualizarUFOrc para garantir que a visibilidade das colunas extras seja ajustada
-        // e que o input 'ufmontagem' seja atualizado com base na opção selecionada.
-        // Se a função atualizarUFOrc espera o select, passamos ele.
+       
         atualizarUFOrc(localMontagemSelect); 
-        // Se atualizarUFOrc já lida com o input diretamente, podemos passar o valor da UF:
-        // atualizarUFOrc(orcamento.ufmontagem || ''); // Se atualizarUFOrc for adaptada para receber a UF diretamente.
+        
     } else {
         console.warn("Elemento com classe '.idMontagem' não encontrado.");
     }
-
-  //  console.log("Preenchendo campos de data com os valores do orçamento:", orcamento);
+ 
     for (const id in flatpickrInstances) {
-        const pickerInstance = flatpickrInstances[id];
-        
-       // console.log(`Verificando Flatpickr para ID: ${id}`); // Log para depuração
-       // console.log(`Instância Flatpickr para ID ${id}:`, pickerInstance); //
-        // Verificação robusta para a instância do Flatpickr
+        const pickerInstance = flatpickrInstances[id];        
+      
         if (pickerInstance && typeof pickerInstance.setDate === 'function' && pickerInstance.config) {
             let inicio = null;
             let fim = null;
-            
-         //   console.log(`Preenchendo Flatpickr para ID: ${id}`); // Log para depuração
-         //   console.log(`Valores do orçamento para ${id}:`, orcamento);
+                     
             switch(id) {
                 case 'periodoInfraMontagem':
                     inicio = orcamento.dtiniinframontagem;
@@ -2485,11 +2493,7 @@ function preencherFormularioComOrcamento(orcamento) {
             
             const startDate = inicio ? new Date(inicio) : null;
             const endDate = fim ? new Date(fim) : null;
-
-           // console.log(`Configurando Flatpickr para ${id}: Data Início = ${startDate}, Data Fim = ${endDate}`); 
-           // console.log(`startDate isNaN: ${isNaN(startDate?.getTime())}, endDate isNaN: ${isNaN(endDate?.getTime())}`);          
-
-                    
+          
             if (pickerInstance.config.mode === "range") {
                 // Adiciona verificação para datas válidas e tratamento para apenas uma data
                 if (startDate && endDate && !isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
@@ -2510,8 +2514,7 @@ function preencherFormularioComOrcamento(orcamento) {
             console.warn(`[preencherFormularioComOrcamento] Instância Flatpickr para ID '${id}' não encontrada ou inválida. Não foi possível preencher.`);
         }
     }
-    //console.log("Campos de data preenchidos com sucesso.");
-
+ 
     // Preencher campos de texto
      const obsItensInput = document.getElementById('Observacao'); 
     if (obsItensInput) {
@@ -2526,9 +2529,7 @@ function preencherFormularioComOrcamento(orcamento) {
     } else {
         console.warn("Elemento com ID 'ObservacaoProposta' (Observações sobre a Proposta) não encontrado.");
     }
-
-    // Preencher campos de valor formatados (adicionando verificações de null)
-    // Use `document.getElementById` se o elemento tiver ID, ou `document.querySelector` se for por classe.
+   
     const totalGeralVdaInput = document.getElementById('totalGeralVda');
     if (totalGeralVdaInput) totalGeralVdaInput.value = formatarMoeda(orcamento.totgeralvda || 0);
 
@@ -2573,7 +2574,6 @@ function preencherFormularioComOrcamento(orcamento) {
     } else {
         console.warn("Elemento com ID 'percentAcresc' não encontrado.");
     }
-
 
     const lucroRealInput = document.getElementById('lucroReal');
     if (lucroRealInput) lucroRealInput.value = formatarMoeda(orcamento.lucroreal || 0);
@@ -2622,36 +2622,6 @@ function preencherItensOrcamentoTabela(itens) {
         emptyRow.innerHTML = `<td colspan="20" style="text-align: center;">Nenhum item adicionado a este orçamento.</td>`;
         return;
     }
-
-    // Adiciona event listeners para os botões de incremento/decremento (qtdProduto, qtdDias)
-    // if (!window.hasRegisteredClickListener) {
-    //     document.querySelector("#tabela").addEventListener("click", function(event) {
-    //         if (event.target.classList.contains("increment")) {
-    //             const input = event.target.closest("td").querySelector("input.qtdProduto");
-    //             if (input) {
-    //                 input.value = parseInt(input.value || 0) + 1;
-    //                 const linha = input.closest("tr");
-    //                 if (linha) {
-    //                     recalcularLinha(linha); // Chama aqui, dentro do clique
-    //                 }
-    //             }
-    //         }
-
-    //         if (event.target.classList.contains("decrement")) {
-    //             const input = event.target.closest("td").querySelector("input.qtdProduto");
-    //             if (input) {
-    //                 const valorAtual = parseInt(input.value || 0);
-    //                 input.value = Math.max(0, valorAtual - 1);
-    //                 const linha = input.closest("tr");
-    //                 if (linha) {
-    //                     recalcularLinha(linha); // Também aqui
-    //                 }
-    //             }
-    //         }
-    //     });
-
-    //     window.hasRegisteredClickListener = true; // Marca que o listener já foi adicionado
-    // }
     
 
     itens.forEach(item => {
@@ -2672,6 +2642,8 @@ function preencherItensOrcamentoTabela(itens) {
         } else if (formattedInicio) {
             valorInicialDoInputDiarias = formattedInicio;
         }
+
+        console.log("DEBUG: SETOR", item.setor);
 
         // Construa o HTML de TODA a linha como uma única string
         newRow.innerHTML = `
@@ -2700,6 +2672,9 @@ function preencherItensOrcamentoTabela(itens) {
                 </div>
             </td>
             <td class="produto">${item.produto || ''}</td>
+            <td class="setor">
+                <input type="text" class="setor-input" value="${item.setor || ''}">
+            </td>
             <td class="qtdDias">
                 <div class="add-less">
                     <input type="number" readonly class="qtdDias" min="0" value="${item.qtddias || 0}">                    
@@ -2790,6 +2765,7 @@ function preencherItensOrcamentoTabela(itens) {
         newRow.querySelector('.qtdProduto input')?.addEventListener('input', function() {
             recalcularLinha(this.closest('tr'));
         });
+        
         newRow.querySelector('.qtdDias input')?.addEventListener('input', function() {
             recalcularLinha(this.closest('tr'));
         });
@@ -2987,56 +2963,7 @@ function formatarDatasParaInputPeriodo(inicioStr, fimStr) {
 }
 
 // --- Função para Limpar o Formulário Principal ---
-function limparFormularioOrcamento() {
-    document.getElementById('form').reset();
-    idOrcamentoInput.value = '';
 
-    // Limpar seleções de Flatpickr para todos os inputs
-    for (const id in flatpickrInstances) {
-        const pickerInstance = flatpickrInstances[id];
-        if (pickerInstance) {
-            pickerInstance.clear();
-        }
-    }
-
-    // Resetar selects para a opção padrão (Selecione...)
-    if (statusSelect) statusSelect.value = '';
-    if (clienteSelect) clienteSelect.value = '';
-    if (eventoSelect) eventoSelect.value = '';
-    if (localMontagemSelect) localMontagemSelect.value = '';
-
-    // TODO: Se você tiver uma função para limpar a tabela de itens, chame-a aqui
-    // Ex: limparItensOrcamentoTabela();
-}
-
-function getPeriodoDatas(inputValue) { // Recebe diretamente o valor do input
-   
-    console.log("Valor do input recebido:", inputValue);
-    
-    if (typeof inputValue !== 'string' || inputValue.trim() === '') {
-        // Se o input estiver vazio ou não for uma string, retorna null para as datas.
-        // Isso é exatamente o que você quer para campos opcionais não preenchidos.
-        return { inicio: null, fim: null };
-    }
-    const datas = inputValue.split(' até '); 
-
-    let dataInicial = null;
-    let dataFinal = null;
-
-    if (datas.length === 2) {
-        // Se há duas partes, é um período completo (início e fim)
-        dataInicial = formatarDataParaBackend(datas[0].trim()); // Trim para remover espaços extras
-        dataFinal = formatarDataParaBackend(datas[1].trim());
-    } else if (datas.length === 1) {
-        // Se há apenas uma parte, é uma única data selecionada
-        dataInicial = formatarDataParaBackend(datas[0].trim());
-        dataFinal = formatarDataParaBackend(datas[0].trim()); // Ou null, dependendo da sua regra para um único dia
-                                                              // Deixei como a mesma data para um período de 1 dia.
-    }
-    // Caso contrário (datas.length é 0, já tratado pela validação inicial)
-console.log("Datas retornadas:", { inicio: dataInicial, fim: dataFinal });
-    return { inicio: dataInicial, fim: dataFinal };
-}
 
 function formatarDataParaBackend(dataString) {
     if (!dataString) return null;
@@ -3909,6 +3836,7 @@ async function gerarPropostaPDF() {
 
             const qtdItens = linha.querySelector('.qtdProduto input')?.value?.trim();
             const produto = linha.querySelector('.produto')?.innerText?.trim();
+            const setor = linha.querySelector('.setor')?.innerText?.trim();
             const qtdDias = linha.querySelector('.qtdDias input')?.value?.trim();
             const categoria = linha.querySelector('.Categoria')?.innerText?.trim();
 
@@ -3917,7 +3845,7 @@ async function gerarPropostaPDF() {
 
             console.log(" datas",  datasRaw);
 
-            const itemDescricao = `• ${produto} — ${qtdItens} Item(s), ${qtdDias} Diária(s), de: ${datasRaw} `;
+            const itemDescricao = `• ${produto} - ${setor}— ${qtdItens} Item(s), ${qtdDias} Diária(s), de: ${datasRaw} `;
             const isLinhaAdicional = linha.classList.contains('linha-adicional');
 
             if (qtdItens !== '0' && qtdDias !== '0') {
@@ -4049,7 +3977,7 @@ function exportarParaExcel() {
 
   // Cabeçalhos
   const cabecalhos = [
-    "P/ Proposta", "Categoria", "Qtd Itens", "Produto", "Qtd Dias", "Período das diárias",
+    "P/ Proposta", "Categoria", "Qtd Itens", "Produto", "Setor", "Qtd Dias", "Período das diárias",
     "Desconto", "Acréscimo", "Vlr Diária", "Tot Venda Diária", "Cto Diária", "Tot Custo Diária",
     "AjdCusto Alimentação", "AjdCusto Transporte", "Tot AjdCusto", "Hospedagem", "Transporte", "Tot Geral"
   ];
@@ -4063,6 +3991,7 @@ function exportarParaExcel() {
     linha.push(tr.querySelector(".Categoria")?.innerText.trim() || "");
     linha.push(tr.querySelector(".qtdProduto input")?.value || "0");
     linha.push(tr.querySelector(".produto")?.innerText.trim() || "");
+    linha.push(tr.querySelector(".setor")?.innerText.trim() || "");
     linha.push(tr.querySelector(".qtdDias input")?.value || "0");
     linha.push(tr.querySelector(".datas")?.value || "");
 
@@ -4213,28 +4142,28 @@ function configurarEventosOrcamento() {
     console.log("Entrou configurar Orcamento no ORCAMENTO.js.");
 } 
 
-window.pesquisaOrcamento = async function() {
-  const input = document.getElementById("nrOrcamento");
-  if (!input) {
-    console.warn("Campo nrOrcamento não encontrado.");
-    return;
-  }
+// window.pesquisaOrcamento = async function() {
+//   const input = document.getElementById("nrOrcamento");
+//   if (!input) {
+//     console.warn("Campo nrOrcamento não encontrado.");
+//     return;
+//   }
   
-  const nr = input.value.trim();
-  if (!nr) {
-    limparFormularioOrcamento(); // Se existir, para limpar o form
-    return;
-  }
+//   const nr = input.value.trim();
+//   if (!nr) {
+//     limparOrcamento(); // Se existir, para limpar o form
+//     return;
+//   }
 
-  try {
-    const orcamento = await fetchComToken(`orcamentos?nrOrcamento=${nr}`);
-    preencherFormularioComOrcamento(orcamento); // Sua função que preenche o form
-  } catch (error) {
-    console.error("Erro ao buscar orçamento:", error);
-    limparFormularioOrcamento(); // Limpa o formulário se erro
-    Swal.fire("Erro", `Não foi possível buscar o orçamento ${nr}.`, "error");
-  }
-};
+//   try {
+//     const orcamento = await fetchComToken(`orcamentos?nrOrcamento=${nr}`);
+//     preencherFormularioComOrcamento(orcamento); // Sua função que preenche o form
+//   } catch (error) {
+//     console.error("Erro ao buscar orçamento:", error);
+//     limparFormularioOrcamento(); // Limpa o formulário se erro
+//     Swal.fire("Erro", `Não foi possível buscar o orçamento ${nr}.`, "error");
+//   }
+// };
 
 window.configurarEventosOrcamento = configurarEventosOrcamento;
 
