@@ -3123,7 +3123,7 @@ function recalcularLinha(linha) {
         console.log("HOSPEDAGEM E TRANSPORTE EXTRA:", hospedagemValor, transporteExtraValor);
               
 
-        let vlrAjdCusto =  vlrCusto + totalAlimentacaoLinha + totalTransporteLinha + hospedagemValor;
+        let vlrAjdCusto =  totalAlimentacaoLinha + totalTransporteLinha;
         
         // --- LEITURA DOS VALORES DE DESCONTO E ACRÉSCIMO DA LINHA (NÃO FAÇA CÁLCULO DE SINCRONIZAÇÃO AQUI!) ---
         let campoDescValor = linha.querySelector('.desconto .ValorInteiros');
@@ -3149,10 +3149,10 @@ function recalcularLinha(linha) {
 
         // ... (resto dos seus cálculos de totalIntermediario, totalVenda, totalCusto, totalAjdCusto, totGeralCtoItem) ...
         let totalIntermediario = qtdItens * qtdDias;
-        let totalVenda = totalIntermediario * vlrVendaCorrigido;
+        let totalVenda = (totalIntermediario * vlrVendaCorrigido) +(hospedagemValor * totalIntermediario) + transporteExtraValor;
         let totalCusto = totalIntermediario * vlrCusto;
-        let totalAjdCusto = totalIntermediario * vlrAjdCusto + transporteExtraValor; 
-        let totGeralCtoItem = totalCusto + totalAjdCusto+ transporteExtraValor;
+        let totalAjdCusto = totalIntermediario * vlrAjdCusto; 
+        let totGeralCtoItem = totalCusto + totalAjdCusto;
 
         console.log("Ajuda Custo RECALCULAR LINHA:", totalAjdCusto, "totalIntermediario:", totalIntermediario, "vlrAjdCusto:", vlrAjdCusto);
 
