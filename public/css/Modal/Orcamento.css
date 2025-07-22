@@ -189,6 +189,13 @@
     align-items: center;
     gap: 5px ;
   }
+  .selectColumn{
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+  }
 
   select{
     font-family:  var(--Font-primary);
@@ -385,6 +392,9 @@
   }
   input#dtIniMarcacao, input#dtFimMarcacao, input#dtInicioMontagem, input#dtFim, input#dtInicioRealizacao, input#dtFimRealizacao, input#dtIniDesmontagem, input#dtFimDesmontagem{
     width: 200px;
+  }
+  input#ufmontagem{
+    height: 25px;
   }
 
   .nrOrcamento{
