@@ -277,7 +277,7 @@ router.get('/pavilhao', async (req, res) => {
   try {
      
     const resultado = await pool.query(`
-      SELECT p.nmpavilhao
+      SELECT p.*
       FROM localmontpavilhao p      
       WHERE p.idmontagem = $1
       ORDER BY p.nmpavilhao
