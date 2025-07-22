@@ -33,6 +33,8 @@ router.get(
             e.nmevento AS nomeevento,
             o.idmontagem,
             lm.descmontagem AS nomelocalmontagem,
+            o.idpavilhao,
+            p.nmpavilhao AS nomepavilhao,
             o.nrorcamento,
             o.inframontagem,
             o.dtiniinframontagem,
@@ -73,6 +75,8 @@ router.get(
             eventos e ON o.idevento = e.idevento
         LEFT JOIN
             localmontagem lm ON o.idmontagem = lm.idmontagem
+        LEFT JOIN
+            localmontpavilhao p ON o.idpavilhao = p.idpavilhao
         WHERE
             oe.idempresa = $1 -- Sempre filtra pela empresa do usuário logado
       `;
@@ -384,7 +388,7 @@ router.post(
   
   async (req, res) => {
     const client = await pool.connect();
-    console.log("🔥 Rota /orcamentos acessada"); // Removido 'req' para evitar logar objeto grande
+    console.log("🔥 Rota /orcamentos acessada", req.body); // Removido 'req' para evitar logar objeto grande
 
     const { status, idCliente, idEvento, idMontagem, // nrOrcamento será gerado pelo DB, não o desestruture daqui se for novo
             infraMontagem, dtiniInfraMontagem, dtfimInfraMontagem,
@@ -393,7 +397,7 @@ router.post(
             dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
             totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
             desconto, percentDesconto, acrescimo, percentAcrescimo,
-            lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, itens } = req.body;
+            lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idPavilhao, itens } = req.body;
 
     const idempresa = req.idempresa; // ID da empresa do middleware 'contextoEmpresa'
 
@@ -412,14 +416,14 @@ router.post(
                     dtiniinfradesmontagem, dtfiminfradesmontagem, obsitens, obsproposta,
                     totgeralvda, totgeralcto, totajdcto, lucrobruto, percentlucro,
                     desconto, percentdesconto, acrescimo, percentacrescimo,
-                    lucroreal, percentlucroreal, vlrimposto, percentimposto, vlrcliente
+                    lucroreal, percentlucroreal, vlrimposto, percentimposto, vlrcliente, idpavilhao
                 ) VALUES (
                     $1, $2, $3, $4,
                     $5, $6, $7, $8, $9, $10, $11,
                     $12, $13, $14, $15, $16, $17, $18, $19,
                     $20, $21, $22, $23, $24,
                     $25, $26, $27, $28,
-                    $29, $30, $31, $32, $33
+                    $29, $30, $31, $32, $33, $34
                 ) RETURNING idorcamento, nrorcamento; -- Adicionado nrorcamento aqui!
             `;
 
@@ -432,7 +436,7 @@ router.post(
         dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
         totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
         desconto, percentDesconto, acrescimo, percentAcrescimo,
-        lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente
+        lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idPavilhao
       ];
 
       const resultOrcamento = await client.query(insertOrcamentoQuery, orcamentoValues);
@@ -544,7 +548,8 @@ router.put(
             dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
             totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
             desconto, percentDesconto, acrescimo, percentAcrescimo,
-            lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, itens } = req.body;
+            lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idPavilhao,
+            itens } = req.body;
 
     const idempresa = req.idempresa; // ID da empresa do middleware 'contextoEmpresa'
 
@@ -563,8 +568,9 @@ router.put(
                     dtiniinfradesmontagem = $16, dtfiminfradesmontagem = $17, obsitens = $18, obsproposta = $19,
                     totgeralvda = $20, totgeralcto = $21, totajdcto = $22, lucrobruto = $23, percentlucro = $24,
                     desconto = $25, percentdesconto = $26, acrescimo = $27, percentacrescimo = $28,
-                    lucroreal = $29, percentlucroreal = $30, vlrimposto = $31, percentimposto = $32, vlrcliente = $33
-                WHERE idorcamento = $34 AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $34) = $35;
+                    lucroreal = $29, percentlucroreal = $30, vlrimposto = $31, percentimposto = $32, vlrcliente = $33,
+                    idpavilhao = $34
+                WHERE idorcamento = $35 AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $35) = $36;
             `;
 
       const orcamentoValues = [
@@ -575,9 +581,9 @@ router.put(
         dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
         totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
         desconto, percentDesconto, acrescimo, percentAcrescimo,
-        lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente,
-        idOrcamento, // $32
-        idempresa    // $33
+        lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idPavilhao,
+        idOrcamento, // $35
+        idempresa    // $36
       ];
 
       const resultUpdateOrcamento = await client.query(updateOrcamentoQuery, orcamentoValues);
@@ -616,8 +622,8 @@ router.put(
             item.percentacrescimoitem, item.vlrdiaria, item.totvdadiaria, item.ctodiaria, item.totctodiaria,
             item.tpajdctoalimentacao, item.vlrajdctoalimentacao, item.tpajdctotransporte, item.vlrajdctotransporte,
             item.totajdctoitem, item.hospedagem, item.transporte, item.totgeralitem, item.setor,
-            item.id, // $28 (idorcamentoitem)
-            idOrcamento // $29 (idorcamento)
+            item.id, // $29 (idorcamentoitem)
+            idOrcamento // $30 (idorcamento)
           ];
           await client.query(updateItemQuery, itemValues);
         } else {
