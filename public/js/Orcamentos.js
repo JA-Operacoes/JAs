@@ -61,6 +61,7 @@ let idCliente;
 let idEvento;
 let idMontagem;
 let idFuncao;
+let idPavilhao;
 
 const idOrcamentoInput = document.getElementById('idOrcamento');
 //const nrOrcamentoInput = document.getElementById('nrOrcamento');
@@ -68,13 +69,14 @@ const clienteSelect = document.querySelector('.idCliente'); // Select do cliente
 const eventoSelect = document.querySelector('.idEvento');   // Select do evento no form principal
 const localMontagemSelect = document.querySelector('.idMontagem'); // Select do local no form principal
 const statusSelect = document.getElementById('Status');
+const pavilhaoSelect = document.querySelector('.idPavilhao');
 
 //console.log("ID LOCAL MONTAGEM", localMontagemSelect);
 
- let selects = document.querySelectorAll(".idFuncao, .idEquipamento, .idSuprimento");
-    selects.forEach(select => {
-        select.addEventListener("change", atualizaProdutoOrc);
-    });
+let selects = document.querySelectorAll(".idFuncao, .idEquipamento, .idSuprimento, .idPavilhao");
+selects.forEach(select => {
+    select.addEventListener("change", atualizaProdutoOrc);
+});
 
 // const selectFuncao = document.getElementById('selectFuncao');
 // if (selectFuncao) {
@@ -277,6 +279,7 @@ async function carregarPavilhaoOrc(idMontagem) {
 
        const pavilhao = await fetchComToken(`/orcamentos/pavilhao?idmontagem=${idMontagem}`);
         
+       console.log("Pavilhão recebido:", pavilhao);
         let selects = document.querySelectorAll(".nmPavilhao");       
         
         
@@ -289,15 +292,21 @@ async function carregarPavilhaoOrc(idMontagem) {
 
                 option.value = localpav.idpavilhao;  // Atenção ao nome da propriedade (idMontagem)
                 option.textContent = localpav.nmpavilhao; 
-                option.setAttribute("data-idPavilhao", localpav.idpavilhao); 
-                option.setAttribute("data-nmPavilhao", localpav.nmPavilhao);
+                option.setAttribute("data-idpavilhao", localpav.idpavilhao); 
+                option.setAttribute("data-nmpavilhao", localpav.nmpavilhao);
                          
                 select.appendChild(option);
            
             });
-            select.addEventListener("change", function () {    
-                // document.getElementById("idPavilhao").value = selectedOption.getAttribute("data-idPavilhao"); 
-          
+            select.addEventListener("change", function (event) {    
+                idPavilhao = this.value;   
+                const selectedOption = this.options[this.selectedIndex];    
+                
+                console.log("IDPAVILHAO selecionado:", selectedOption.value);               
+                
+                Categoria = "Pavilhao";
+                
+                atualizaProdutoOrc(event);         
                 
             });
             
@@ -797,6 +806,7 @@ function adicionarLinhaOrc() {
         </td>
         <td class="produto"><input type="text" class="produto-input" value=""></td> <!-- Adicionado input para edição -->
         <td class="setor"><input type="text" class="setor-input" value=""></td> <!-- Adicionado input para edição -->
+        <td class="pavilhao"><input type="text" class="pavilhao-input" value=""></td>
         <td class="qtdDias">
             <div class="add-less">
                 <input type="number" readonly class="qtdDias" min="0" value="0">
@@ -1071,7 +1081,8 @@ function adicionarLinhaAdicional() {
             </div>
         </td>
         <td class="produto"><input type="text" class="produto-input" value=""></td> <!-- Adicionado input para edição -->
-        <td class="setor"><input type="text" class="setor-input" value=""></td> <!-- Adicionado input para edição -->
+        <td class="setor"><input type="text" class="setor-input" value=""></td> <!-- Adicionado input para edição -->        
+        <td class="pavilhao"><input type="text" class="pavilhao-input" value=""></td>
         <td class="qtdDias">
             <div class="add-less">
                 <input type="number" readonly class="qtdDias" min="0" value="0">
@@ -1523,8 +1534,10 @@ function atualizaProdutoOrc(event) {
 
     // Obtém as informações do item selecionado
     let produtoSelecionado = selectedOption.getAttribute("data-descproduto");
+    let pavilhaoSelecionado = selectedOption.getAttribute("data-nmpavilhao");
 
     console.log("Produto selecionado:", produtoSelecionado); // Log do produto selecionado
+    console.log("Pavilhão selecionado:", pavilhaoSelecionado); // Log do pavilhão selecionado
     let vlrCusto = selectedOption.getAttribute("data-cto");
     let vlrVenda = selectedOption.getAttribute("data-vda");
 
@@ -1538,15 +1551,33 @@ function atualizaProdutoOrc(event) {
     if (ultimaLinha) {
         
         let celulaProduto = ultimaLinha.querySelector(".produto");
+        let celulaPavilhao = ultimaLinha.querySelector(".pavilhao");
         let celulaCategoria = ultimaLinha.querySelector(".Categoria");
-        if (celulaCategoria) celulaCategoria.textContent = Categoria;
+        
+        if (celulaCategoria && Categoria !== "Pavilhao") {
+            celulaCategoria.textContent = Categoria;
+        }
+
+        // if (Categoria !== "Pavilhao") { 
+        //     // Use "Função" se essa for a categoria exata definida na option
+        //     if (celulaCategoria) celulaCategoria.textContent = Categoria;
+        //     console.log("Categoria atualizada para:", Categoria);
+        // } 
+
         console.log(" A categoria é :", Categoria)
-        // Se a célula de produto estiver vazia OU se foi alterado um novo select, atualiza
+       
+
         if (celulaProduto && (celulaProduto.textContent === "" || select.classList.contains("idEquipamento") || select.classList.contains("idSuprimento") || select.classList.contains("idFuncao"))) {
             celulaProduto.textContent = produtoSelecionado;
             console.log(" produto escolhido foi:", produtoSelecionado)
         }
        
+        
+        if (celulaPavilhao && select.classList.contains("nmPavilhao")) { // Ou "idPavilhao" se for a classe principal que identifica o select de pavilhão
+            celulaPavilhao.textContent = pavilhaoSelecionado;
+            console.log("Pavilhão escolhido foi:", pavilhaoSelecionado);
+        }
+
         // Encontre os selects de alimentação e transporte dentro da nova linha
         const selectAlimentacao = ultimaLinha.querySelector('.select-alimentacao');
         const selectTransporte = ultimaLinha.querySelector('.select-transporte');
@@ -2504,6 +2535,9 @@ export function preencherFormularioComOrcamento(orcamento) {
             <td class="produto">${item.produto || ''}</td>
             <td class="setor">
                 <input type="text" class="setor-input" value="${item.setor || ''}">
+            </td>
+            <td class="pavilhao">
+                <input type="text" class="pavilhao-input" value="${item.pavilhao || ''}">
             </td>
             <td class="qtdDias">
                 <div class="add-less">
