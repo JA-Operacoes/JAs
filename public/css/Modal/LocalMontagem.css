@@ -28,7 +28,7 @@
 } 
 
 /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
-.modal {
+#cadModalLocalMontagem.modal {
   position: fixed;
   top: 50%; /* Alinha verticalmente ao centro */
   left: 50%; /* Alinha horizontalmente ao centro */   
@@ -44,11 +44,11 @@
 }
 
 
-.modal-content{
+#cadModalLocalMontagem.modal-content{
   height: 590px;
 }
 
-.modal-open{
+#cadModalLocalMontagem.modal-open{
   overflow: hidden;
   pointer-events: none;
 }

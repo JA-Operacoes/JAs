@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -14,343 +14,302 @@
     <title>OrÃ§amento</title>
     
 </head>
-<body data-modulo="Orcamentos">  
-    
-<div id="CadModal" class="modal">
+<body data-modulo="Orcamentos">   -->
+<link rel="stylesheet" href="css/Modal/Orcamento.css">
+<div id="cadModalOrcamentos" class="modal">
     <div class="modal-content">
         
-    <div id="modal-flatpickr-container"></div>
+        <div id="modal-flatpickr-container"></div>
         <div class="Close" ><button class="close" id="Close"> X </button></div>
         <div id ="form-orcamento">
         
-        <form id="form" name="form" autocomplete="off"><!-- data-action="http://localhost:3000/salvarOrcamento"> -->
-            
+            <form id="form" name="form" autocomplete="off"><!-- data-action="http://localhost:3000/salvarOrcamento"> -->
                 
-            <div class="title">
-                <h2>Orçamento</h2>
-            </div>
-
-                <div class="Norcamento">
-                    <div class="form2" >
-                        <input type="text" class="uppercase" class="preenchido" id="Status"  value="A" name="Status" maxlength="1" pattern="^[aAfF]$"
-                            title="A = Aberto | F = Fechado"   required spellcheck="false">
-                        <label for="Status">Status  (A/F)</label>
-                    </div>
-                    <div class="form">
-                        <input type="text" id="idOrcamento" name="idOrcamento" spellcheck="false" readonly >
-                        <label for="idOrcamento">Código</label>
-                    </div>
-                    <div class="form">
-                        <input type="text" id="nrOrcamento" name="nrOrcamento" spellcheck="false">
-                        <label for="nrOrcamento">N° do Orçamento</label>
-                    </div>
+                 
+                <div class="title">
+                    <h2>Orçamento</h2>
                 </div>
 
-
-                <div class="Selects">
-                    <div class="select">
-                        <label for="idCliente">Cliente:</label>
-                        <select class="idCliente" id="idCliente" required spellcheck="false"></select>
-                    </div>
-                    <div class="select">
-                        <label for="idEvento">Evento:</label>
-                        <select class="idEvento" id="idEvento" required spellcheck="false"></select>
-                    </div>
-                        <div class="select2">
-                            <label for="idMontagem">Local Montagem:</label>
-                                <select class="idMontagem"  id="idMontagem"></select>
-                                <!-- <input type="hidden" id="idPavilhaoLocal" name="idPavilhaoLocal"> -->
-                                <div class="form3">   
-                                    <input type="text" class="ufmontagem" id="ufmontagem" name="ufmontagem" required spellcheck="false">
-                                    <label  for="ufmontagem">UF</label>               
-                                </div>
-                                
-                                <select class="idPavilhao" name="idPavilhao" id="idPavilhao" required>
-                                    <option value="" selected>Selecione o Pavilhão</option>
-                                </select>
-                        <div class="checkbox-wrapper-33 checkbox-coluna">
-                            <p class="checkbox__textwrapper"> infra.</p>
-                            <label class="checkbox">
-                                <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo">
-                                <span class="checkbox__symbol">
-                                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M4 14l8 7L24 7"></path>
-                                    </svg>
-                                </span>
-                            </label>
+                    <div class="Norcamento">
+                        <div class="form2" >
+                            <input type="text" class="uppercase" class="preenchido" id="Status"  value="A" name="Status" maxlength="1" pattern="^[aAfF]$"
+                                title="A = Aberto | F = Fechado"   required spellcheck="false">
+                            <label for="Status">Status  (A/F)</label>
                         </div>
-                    </div>
-                </div>       
-            
-                <div class="periodoMontagem">
-                
-                    <div id="blocoInfra" class=" inativo-esquerda"  style="display: none;">
-                        <div class="dtInfra">
-                            <label class="miniTitle">Montagem de Infra.</label>                           
-                            <input type="text" id="periodoInfraMontagem" name="periodoInfraMontagem" required readonly placeholder="Clique para Selecionar" style="font-size: 5px;">
+                        <div class="form">
+                            <input type="text" id="idOrcamento" name="idOrcamento" spellcheck="false" readonly style="display: none;" >
+                            <!-- <label for="idOrcamento">Código</label> -->
+                        </div>
+                        <div class="form">
+                            <input type="text" id="nrOrcamento" name="nrOrcamento" spellcheck="false">
+                            <label for="nrOrcamento">N° do Orçamento</label>
                         </div>
                     </div>
 
-                    <div class="dtMarcacao">
-                        <label class="miniTitle">Período de Marcação</label>
-                        <input type="text" id="periodoMarcacao" name="periodoMarcacao" required readonly placeholder="Clique para Selecionar" style="font-size: 10px;" >
-                    </div>
-                    <div class="inicioMontagem">
-                        <label class="miniTitle">Período de Montagem</label>
-                        <input type="text" id="periodoMontagem" name="periodoMontagem" required readonly placeholder="Clique para Selecionar" style="font-size: 10px;" >
-                    </div>
-                    <div class="Realizacao">
-                        <label class="miniTitle">Período de Realização</label>
-                        <input type="text" id="periodoRealizacao" class="realizacao" name="periodoRealizacao" required readonly placeholder="Clique para Selecionar" style="font-size: 10px;"  >
-                    </div>
-                
-                    <div class="dtDesmontagem">
-                        <label class="miniTitle">Período de Desmontagem</label>
-                        <input type="text" id="periodoDesmontagem" name="periodoDesmontagem" required readonly placeholder="Clique para Selecionar"  style="font-size: 10px;" >
-                    </div>
 
-                    <div id="blocoInfra2" class="inativo-direita" style="display: none;">
-                        <div class="dtInfra">
-                            <label class="miniTitle">Desmontagem de Infra.</label>
-                        <input type="text" id="periodoDesmontagemInfra" name="periodoDesmontagemInfra" required readonly placeholder="Clique para Selecionar" style="font-size: 5px;" >
-
+                    <div class="Selects">
+                        <div class="select">
+                            <label for="idCliente">Cliente:</label>
+                            <select class="idCliente" id="idCliente" required spellcheck="false"></select>
                         </div>
-                    </div> 
-                </div>
-            
-
-            
-                <div class = 'Selects'>
-                
-                    <div class="select">
-                        <label for="idFuncao">Função:</label>
-                        <select class="idFuncao" id="selectFuncao"></select>
-                    </div>
-                    <div class="select">
-                        <label for="idEquipamento">Equipamento:</label>
-                        <select class="idEquipamento" id="selectEquipamento" ></select>
-                    </div>
-                    <div class="select">
-                        <label for="idSuprimento">Suprimento:</label>
-                        <select class="idSuprimento" id="selectSuprimento"></select>
-                    </div>
-                </div>
-                
-                <div class="table">
-                    <table id="tabela" >
-                        <thead>
-                            <tr>
-                                <th style="display: none;"></th>
-                                <th>P/ Proposta</th>
-                                <th>Categoria</th>
-                                <th>Qtd Itens</th>
-                                <th>Produto</th>
-                                <th>Setor</th>                               
-                                <th>Qtd Dias</th>
-                                <th>Periodo das diarias </th>
-                                <th>Desconto</th>
-                                <th>Acrescimo</th>
-                                <th>VlrDiaria</th>
-                                <th>Tot Venda Diaria</th>
-                                <th>CtoDiaria</th>
-                                <th>Tot Custo Diaria</th>
-                                <th>AjdCusto/alimentação</th>
-                                <th>AjdCusto/transporte</th>
-                                <th>TotAjdCusto</th>
-                                <th class="extraColuna" style="display: none;">Hospedagem</th>
-                                <th class="extraColuna" style="display: none;">Transporte</th>
-                                <!-- incluir campos hospegadem e transporte se for local montagem fora de SP -->
-                                <th>TotGeral</th>
-                                <th>Ação</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- <tr>
-                                <td class="Proposta"><div class="checkbox-wrapper-33" style="margin-top: 40px;"><label class="checkbox"><input class="checkbox__trigger visuallyhidden" type="checkbox" /><span class="checkbox__symbol"><svg aria-hidden="true" class="icon-checkbox"      width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg"><path d="M4 14l8 7L24 7"></path></svg></span><p class="checkbox__textwrapper"></p></label></div></td>
-                                <td class="Categoria"></td>
-                                <td class="qtdProduto"><div class="add-less"><input type="number" readonly class="qtdProduto" min="0" value="0" oninput="recalcularTotaisOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
-                                <td class="produto"><div class="Acres-Desc"><select id="Pavilhoes"><option value="select">Pavilhao de atuação </option></select></div><br><div class="valorbanco"></div></td>
-                                <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="0" oninput="recalcularTotaisOrc()"></td>
-
-                                
-                               <td class="Periodo"><div class="flatpickr-container"><input type="text" class="datas datas-item" id="seletorData" data-input required readonly placeholder="Clique para Selecionar"></div></td>
-
-                                
-                                <td class="desconto Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
-                                <td class="Acrescimo Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
-                                <td class="vlrVenda Moeda"></td>
-                                <td class="totVdaDiaria Moeda"></td>
-                                <td class="vlrCusto Moeda"></td>
-                                <td class="totCtoDiaria Moeda"></td>
-                           
-                                <td class="ajdCusto Moeda">
-                                    <div class="Acres-Desc">
-                                        <select id="tpAlimentacao" class="select-alimentacao">
-                                            <option value="select" selected disabled>Alimentação</option>
-                                            <option value="Almoco">Almoço</option>
-                                            <option value="Janta">Jantar</option>
-                                            <option value="2alimentacao">Almoço + jantar</option>
-                                        </select>
+                        <div class="select">
+                            <label for="idEvento">Evento:</label>
+                            <select class="idEvento" id="idEvento" required spellcheck="false"></select>
+                        </div>
+                            <div class="select2">
+                                <label for="idMontagem">Local Montagem:</label>
+                                    <select class="idMontagem"  id="idMontagem"></select>
+                                    <!-- <input type="hidden" id="idPavilhaoLocal" name="idPavilhaoLocal"> -->
+                                    <div class="form3">   
+                                        <input type="text" class="ufmontagem" id="ufmontagem" name="ufmontagem" required spellcheck="false">
+                                        <label  for="ufmontagem">UF</label>               
                                     </div>
-                                    <br><div class="valorbanco valor-alimentacao"></div>
-                                </td>
-                                <td class="ajdCusto Moeda">
-                                    <div class="Acres-Desc">
-                                        <select id="tpTransporte" class="select-transporte" >
-                                            <option value="select" selected disabled>Veiculo </option>
-                                            <option value="Público">Público</option>
-                                            <option value="Alugado">Alugado</option>
-                                            <option value="Próprio">Próprio</option>
-                                        </select>
-                                    </div>
-                                    <br><div class="valorbanco valor-transporte"></div>
-                                </td>
-                                <td class="totAjdCusto Moeda">0</td>
-                                <td class="extraCampo" style="display: none;">
-                                    <input type="text" class="hospedagem" min="0" step="0.01" oninput="recalcularLinha(this.closest('tr'))">
-                                </td>
-                                <td class="extraCampo" style="display: none;">
-                                    <input type="text" class="transporte" min="0" step="0.01" oninput="recalcularLinha(this.closest('tr'))">
-                                </td>
-                                <td class="totGeral">0</td>
-                                <td><div class="Acao"><button class="deleteBtn" id="removerLinha"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
-                            </tr> -->
-                        </tbody>
-                    </table>
-                </div>
-                <br>
-                <div class="addLinha"><button class="adicionar" id="adicionarLinha">Adicionar Linha</button></div>
-                <div class="addLinha"><button class="Adicional" id="adicionarLinhaAdicional" style="display: none;">Adicional</button></div>
-            
-                <div class = 'Selects'>
-                    <div class="Observacoes">
-                        <div class="Propostaobs1">
-                            <div class="checkbox-wrapper-33" style="margin-top: 40px; margin-right: 5px;">
+                                    
+                                    <select class="idPavilhao" name="idPavilhao" id="idPavilhao" required>
+                                        <option value="" selected>Selecione o Pavilhão</option>
+                                    </select>
+                            <div class="checkbox-wrapper-33 checkbox-coluna">
+                                <p class="checkbox__textwrapper"> infra.</p>
                                 <label class="checkbox">
-                                    <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo">
                                     <span class="checkbox__symbol">
-                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
                                             <path d="M4 14l8 7L24 7"></path>
                                         </svg>
                                     </span>
-                                    <p class="checkbox__textwrapper"></p>
                                 </label>
                             </div>
-                                <textarea class="PropostaobsTexto" name="Observacao" id="Observacao" placeholder="Observações sobre os Itens"></textarea>
+                        </div>
+                    </div>       
+                
+                    <div class="periodoMontagem">
+                    
+                        <div id="blocoInfra" class=" inativo-esquerda"  style="display: none;">
+                            <div class="dtInfra">
+                                <label class="miniTitle">Montagem de Infra.</label>                           
+                                <input type="text" id="periodoInfraMontagem" name="periodoInfraMontagem" required readonly placeholder="Clique para Selecionar" style="font-size: 5px;">
+                            </div>
                         </div>
 
-                        <div class="Propostaobs2">
-                            <div class="checkbox-wrapper-33">
-                                <label class="checkbox">
-                                    <input class="checkbox__trigger visuallyhidden" type="checkbox" />
-                                    <span class="checkbox__symbol">
-                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                                            <path d="M4 14l8 7L24 7"></path>
-                                        </svg>
-                                    </span>
-                                    <p class="checkbox__textwrapper"></p>
-                                </label>
-                            </div>
-                                <textarea class="PropostaobsTexto" name="ObservacaoProposta" id="ObservacaoProposta" placeholder="Observações sobre a Proposta"></textarea>
+                        <div class="dtMarcacao">
+                            <label class="miniTitle">Período de Marcação</label>
+                            <input type="text" id="periodoMarcacao" name="periodoMarcacao" required readonly placeholder="Clique para Selecionar" style="font-size: 10px;" >
                         </div>
-                    </div>
-                    <div>
-                            <div class="form2">
-                                <input type="text" class="Moeda preenchido" id="totalGeralVda" name="totalGeralVda" value=" R$ 0,00" required readonly style="font-size: 15px;" >
-                                <label for="totalGeralVda">Total Geral Venda:</label>
-                            </div>
-                            <div class="form2">
-                                <input type="text" class="Moeda preenchido" id="totalGeralCto" value=" R$ 0,00" name="totalGeralCto" required readonly style="font-size: 15px;" >
-                                <label for="totalGeralCto">Total Custo:</label>
-                            </div>
-                        
-                       
-                            <div class="form2">
-                                <input type="text" class="Moeda preenchido" id="totalAjdCusto" value=" R$ 0,00" required readonly style="font-size: 15px;" >
-                                <label for="totalAjdCto">Total Ajuda De Custo:</label>
-                            </div>
-
-                            <div class="form2">
-                                <input type="text" class="Moeda preenchido" id="totalGeral" value=" R$ 0,00" name="totalGeral" required readonly style="font-size: 15px;">
-                                <label for="totalGeral">Total Cto + Ajd Cto:</label>
-                            </div>
-                    </div>
-
-                    <div>
-                        <div class="lucroTot">
-                            <div class="form2">
-                                <input type="text" id="Lucro" value=" R$ 0,00" class="preenchido" readonly style="font-size: 15px;">
-                                <label for="Lucro">Lucro Bruto: </label>
-                            </div>
-                            <div class="form3">
-                                <input type="text"  id="percentLucro" class="preenchido" value="0%" name="percentLucro" required readonly style="font-size: 15px;">
-                                <label for="perCent"> % </label>
-                            </div>
-                        </div>                        
-                        <div class="lucroTot">
-                            <div class="form2">
-                                <input type="text" id="valorImposto"  class="preenchido" name="valorImposto" value=" R$ 0,00" required readonly style="font-size: 15px;">
-                                <label for="valorImposto">Imposto: </label>
-                            </div>
-                            <div class="form3">
-                                <input type="text" id="percentImposto" class="preenchido" value="24%" name="percentImposto" required  style="font-size: 15px;">
-                                <label for="percentImposto"> % </label>
-                            </div>
+                        <div class="inicioMontagem">
+                            <label class="miniTitle">Período de Montagem</label>
+                            <input type="text" id="periodoMontagem" name="periodoMontagem" required readonly placeholder="Clique para Selecionar" style="font-size: 10px;" >
                         </div>
-                        <div class="lucroTot">
-                            <div class="form2">
-                                <input type="text" id="lucroReal"  class="preenchido" name="LucroReal" value=" R$ 0,00" required readonly style="font-size: 15px;">
-                                <label for="LucroReal">Lucro Real: </label>
-                            </div>
-                            <div class="form3">
-                                <input type="text"  id="percentReal" class="preenchido" value="0%" name="percentReal" required readonly style="font-size: 15px;">
-                                <label for="percentReal"> % </label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>                        
-                        <div class="form-2colunas">
-                            <div class="form2">
-                                <input type="text" value="R$ 0,00" id="Desconto" min="0" class="ValorInteiros preenchido" name="Desconto"  required   style="font-size: 15px;" autocomplete="off" > <!--oninput="aplicarDescontoEAcrescimo(this)"-->
-                                <label for="Desconto">Desconto:</label>
-                            </div>
-                            <div class="form3">
-                                <input type="text" value="0% " id="percentDesc" min="0" class="valorPerCentDesc preenchido" name="percentDesc"    required style="font-size: 15px;" >
-                            </div>
-                        </div>
-                            <div class="form-2colunas">
-                                <div class="form2">
-                                    <input type="text"  value="R$ 0,00" min="0" id="Acrescimo" class="ValorInteiros preenchido" name="Acrescimo"  required   style="font-size: 15px;" autocomplete="off" >
-                                    <label for="Acrescimo">Acréscimo:</label>
-                                </div>
-                                <div class="form3">
-                                <input type="text" value="0%" min="0" id="percentAcresc"   class="valorPerCentAcresc preenchido" name="percentAcresc"  required style="font-size: 15px;" >
-                            </div>
+                        <div class="Realizacao">
+                            <label class="miniTitle">Período de Realização</label>
+                            <input type="text" id="periodoRealizacao" class="realizacao" name="periodoRealizacao" required readonly placeholder="Clique para Selecionar" style="font-size: 10px;"  >
                         </div>
                     
-
-                        <div class="form2">
-                            <input type="text" id="valorCliente" class="preenchido" name="valorCliente" readonly value="R$ 0,00" required style="font-size: 15px;">
-                            <label for="valorCliente"> Valor do Cliente</label>
+                        <div class="dtDesmontagem">
+                            <label class="miniTitle">Período de Desmontagem</label>
+                            <input type="text" id="periodoDesmontagem" name="periodoDesmontagem" required readonly placeholder="Clique para Selecionar"  style="font-size: 10px;" >
                         </div>
-                    </div>  
-            </div>
 
-            </div>
-            <div class="BTNs">
-                <button class="pesquisar" onclick="pesquisarOrcamento()">Pesquisar</button>
-                <button class="Limpar" id="Limpar" type="button" >Limpar</button>
-                <button class="Proposta" id="Proposta" onclick="gerarPropostaPDF()">Gerar Proposta</button>
-                <button class="Excel" onclick="exportarParaExcel()" style="display: none;">Exportar P/ Excel</button>
-                <button class="fecharOrc" id="fecharOrc">Fechar Orçamento</button>
-                <button class="btnEnviar" id="Enviar" type="button" >Salvar Orçamento</button>
-            </div>
-        </form>
-    </div>
+                        <div id="blocoInfra2" class="inativo-direita" style="display: none;">
+                            <div class="dtInfra">
+                                <label class="miniTitle">Desmontagem de Infra.</label>
+                            <input type="text" id="periodoDesmontagemInfra" name="periodoDesmontagemInfra" required readonly placeholder="Clique para Selecionar" style="font-size: 5px;" >
+
+                            </div>
+                        </div> 
+                    </div>
+                
+
+                
+                    <div class = 'Selects'>
+                    
+                        <div class="select">
+                            <label for="idFuncao">Função:</label>
+                            <select class="idFuncao" id="selectFuncao"></select>
+                        </div>
+                        <div class="select">
+                            <label for="idEquipamento">Equipamento:</label>
+                            <select class="idEquipamento" id="selectEquipamento" ></select>
+                        </div>
+                        <div class="select">
+                            <label for="idSuprimento">Suprimento:</label>
+                            <select class="idSuprimento" id="selectSuprimento"></select>
+                        </div>
+                    </div>
+
+                    <br>
+                    
+                    <div class="addLinha"><button class="adicionar" id="adicionarLinha">Adicionar Linha</button></div>
+                    <div class="addLinha"><button class="Adicional" id="adicionarLinhaAdicional" style="display: none;">Adicional</button></div>
+                   
+                    <div class="table">
+                        <table id="tabela" >
+                            <thead>
+                                <tr>
+                                    <th style="display: none;"></th>                                    
+                                    <th style="display: none;"></th>
+                                    <th style="display: none;"></th>
+                                    <th style="display: none;"></th>
+                                    <th>P/ Proposta</th>
+                                    <th>Categoria</th>
+                                    <th>Qtd Itens</th>
+                                    <th>Produto</th>
+                                    <th>Setor</th>                               
+                                    <th>Qtd Dias</th>
+                                    <th>Periodo das diarias </th>
+                                    <th>Desconto</th>
+                                    <th>Acrescimo</th>
+                                    <th>VlrDiaria</th>
+                                    <th>Tot Venda Diaria</th>
+                                    <th>CtoDiaria</th>
+                                    <th>Tot Custo Diaria</th>
+                                    <th>AjdCusto/alimentação</th>
+                                    <th>AjdCusto/transporte</th>
+                                    <th>TotAjdCusto</th>
+                                    <th class="extraColuna" style="display: none;">Hospedagem</th>
+                                    <th class="extraColuna" style="display: none;">Transporte</th>
+                                    <!-- incluir campos hospegadem e transporte se for local montagem fora de SP -->
+                                    <th>TotGeral</th>
+                                    <th>Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                
+                            </tbody>
+                        </table>
+                    </div>
+                    <br>
+                    <!-- <div class="addLinha"><button class="adicionar" id="adicionarLinha">Adicionar Linha</button></div>
+                    <div class="addLinha"><button class="Adicional" id="adicionarLinhaAdicional" style="display: none;">Adicional</button></div> -->
+                
+                    <div class = 'Selects'>
+                        <div class="Observacoes">
+                            <div class="Propostaobs1">
+                                <div class="checkbox-wrapper-33" style="margin-top: 40px; margin-right: 5px;">
+                                    <label class="checkbox">
+                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                                        <span class="checkbox__symbol">
+                                            <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M4 14l8 7L24 7"></path>
+                                            </svg>
+                                        </span>
+                                        <p class="checkbox__textwrapper"></p>
+                                    </label>
+                                </div>
+                                    <textarea class="PropostaobsTexto" name="Observacao" id="Observacao" placeholder="Observações sobre os Itens"></textarea>
+                            </div>
+
+                            <div class="Propostaobs2">
+                                <div class="checkbox-wrapper-33">
+                                    <label class="checkbox">
+                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                                        <span class="checkbox__symbol">
+                                            <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M4 14l8 7L24 7"></path>
+                                            </svg>
+                                        </span>
+                                        <p class="checkbox__textwrapper"></p>
+                                    </label>
+                                </div>
+                                    <textarea class="PropostaobsTexto" name="ObservacaoProposta" id="ObservacaoProposta" placeholder="Observações sobre a Proposta"></textarea>
+                            </div>
+                        </div>
+                        <div>
+                                <div class="form2">
+                                    <input type="text" class="Moeda preenchido" id="totalGeralVda" name="totalGeralVda" value=" R$ 0,00" required readonly style="font-size: 15px;" >
+                                    <label for="totalGeralVda">Total Geral Venda:</label>
+                                </div>
+                                <div class="form2">
+                                    <input type="text" class="Moeda preenchido" id="totalGeralCto" value=" R$ 0,00" name="totalGeralCto" required readonly style="font-size: 15px;" >
+                                    <label for="totalGeralCto">Total Custo:</label>
+                                </div>
+                            
+                        
+                                <div class="form2">
+                                    <input type="text" class="Moeda preenchido" id="totalAjdCusto" value=" R$ 0,00" required readonly style="font-size: 15px;" >
+                                    <label for="totalAjdCto">Total Ajuda De Custo:</label>
+                                </div>
+
+                                <div class="form2">
+                                    <input type="text" class="Moeda preenchido" id="totalGeral" value=" R$ 0,00" name="totalGeral" required readonly style="font-size: 15px;">
+                                    <label for="totalGeral">Total Cto + Ajd Cto:</label>
+                                </div>
+                        </div>
+
+                        <div>
+                            <div class="lucroTot">
+                                <div class="form2">
+                                    <input type="text" id="Lucro" value=" R$ 0,00" class="preenchido" readonly style="font-size: 15px;">
+                                    <label for="Lucro">Lucro Bruto: </label>
+                                </div>
+                                <div class="form3">
+                                    <input type="text"  id="percentLucro" class="preenchido" value="0%" name="percentLucro" required readonly style="font-size: 15px;">
+                                    <label for="perCent"> % </label>
+                                </div>
+                            </div>                        
+                            <div class="lucroTot">
+                                <div class="form2">
+                                    <input type="text" id="valorImposto"  class="preenchido" name="valorImposto" value=" R$ 0,00" required readonly style="font-size: 15px;">
+                                    <label for="valorImposto">Imposto: </label>
+                                </div>
+                                <div class="form3">
+                                    <input type="text" id="percentImposto" class="preenchido" value="24%" name="percentImposto" required  style="font-size: 15px;">
+                                    <label for="percentImposto"> % </label>
+                                </div>
+                            </div>
+                            <div class="lucroTot">
+                                <div class="form2">
+                                    <input type="text" id="lucroReal"  class="preenchido" name="LucroReal" value=" R$ 0,00" required readonly style="font-size: 15px;">
+                                    <label for="LucroReal">Lucro Real: </label>
+                                </div>
+                                <div class="form3">
+                                    <input type="text"  id="percentReal" class="preenchido" value="0%" name="percentReal" required readonly style="font-size: 15px;">
+                                    <label for="percentReal"> % </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>                        
+                            <div class="form-2colunas">
+                                <div class="form2">
+                                    <input type="text" value="R$ 0,00" id="Desconto" min="0" class="ValorInteiros preenchido" name="Desconto"  required   style="font-size: 15px;" autocomplete="off" > <!--oninput="aplicarDescontoEAcrescimo(this)"-->
+                                    <label for="Desconto">Desconto:</label>
+                                </div>
+                                <div class="form3">
+                                    <input type="text" value="0% " id="percentDesc" min="0" class="valorPerCentDesc preenchido" name="percentDesc"    required style="font-size: 15px;" >
+                                </div>
+                            </div>
+                                <div class="form-2colunas">
+                                    <div class="form2">
+                                        <input type="text"  value="R$ 0,00" min="0" id="Acrescimo" class="ValorInteiros preenchido" name="Acrescimo"  required   style="font-size: 15px;" autocomplete="off" >
+                                        <label for="Acrescimo">Acréscimo:</label>
+                                    </div>
+                                    <div class="form3">
+                                    <input type="text" value="0%" min="0" id="percentAcresc"   class="valorPerCentAcresc preenchido" name="percentAcresc"  required style="font-size: 15px;" >
+                                </div>
+                            </div>
+                        
+
+                            <div class="form2">
+                                <input type="text" id="valorCliente" class="preenchido" name="valorCliente" readonly value="R$ 0,00" required style="font-size: 15px;">
+                                <label for="valorCliente"> Valor do Cliente</label>
+                            </div>
+                        </div>  
+                </div>
+
+                </div>
+                <div class="BTNs">
+                    <button class="pesquisar" onclick="pesquisarOrcamento()">Pesquisar</button>
+                    <button class="Limpar" id="Limpar" type="button" >Limpar</button>
+                    <button class="Proposta" id="Proposta" onclick="gerarPropostaPDF()">Gerar Proposta</button>
+                    <button class="Excel" onclick="exportarParaExcel()" style="display: none;">Exportar P/ Excel</button>
+                    <button class="fecharOrc" id="fecharOrc">Fechar Orçamento</button>
+                    <button class="btnEnviar" id="Enviar" type="button" >Salvar Orçamento</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
-<script src="Orcamento.js" defer></script>
+<!-- <script src="Orcamento.js" defer></script>
 
 </body>
-</html>
+</html> -->

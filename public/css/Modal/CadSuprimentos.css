@@ -27,7 +27,7 @@
 } 
 
 /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
-.modal {
+#cadModalSuprimentos.modal {
   position: fixed;
   top: 50%; /* Alinha verticalmente ao centro */
   left: 50%; /* Alinha horizontalmente ao centro */   
@@ -41,11 +41,11 @@
   z-index: 9999;
 }
 
-.modal-content{
+#cadModalSuprimentos.modal-content{
   height: 590px;
 }
 
-.modal-open{
+#cadModalSuprimentos.modal-open{
   overflow: hidden;
   pointer-events: none;
 }

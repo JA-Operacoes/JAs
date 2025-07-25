@@ -30,7 +30,7 @@
 
 
 /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
-.modal {
+#cadModalStaff.modal {
   position: fixed;
   top: 50%; /* Alinha verticalmente ao centro */
   left: 50%; /* Alinha horizontalmente ao centro */   
@@ -38,12 +38,16 @@
   background-color: #4d4d4d;
   padding: 5px;
   width: 1125px; /* Ajuste o tamanho conforme necessário */
-  height: 745px;
+  height: 745px; 
   font-size: 16px;
   z-index: 9999;
 }
 
-.modal-open{
+ #cadModalFuncionarios.modal-content{
+    height: 590px;
+  }
+  
+#cadModalStaff.modal-open{
   overflow: hidden;
   pointer-events: none;
 }
@@ -75,19 +79,19 @@ body{
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-top: 620px;
+  margin-top: 730px;
 }
 
-#form-cargo {
+#form-content {
   font-family: "Abel", sans-serif;
   display: flex;                /* Define o modelo de layout Flexbox */
   flex-direction: column; 
   justify-content: center;
   background-color: rgb(0, 0, 0);
-  /* max-width: 700px;    */
+  max-width: 850px;   
   width: 100%;  
   height: 670px;          /* Largura do formulário */
-  margin: 0 auto;            /* Centraliza o formulário na tela */
+  margin: 0% auto;            /* Centraliza o formulário na tela */
   padding: 10px;                /* Espaçamento interno */
   background-color: #cacaca; 
   border: #ce0303;     /* Fundo branco */

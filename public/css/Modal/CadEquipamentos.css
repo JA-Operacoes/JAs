@@ -26,7 +26,7 @@
   z-index: 1000; /* Fica acima do overlay */  
 } 
 /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
-.modal {
+#cadModalEquipamentos.modal {
   position: fixed;
   top: 50%; /* Alinha verticalmente ao centro */
   left: 50%; /* Alinha horizontalmente ao centro */   
@@ -40,11 +40,10 @@
   z-index: 9999;
 }
 
-.modal-content{
+#cadModalEquipamentos.modal-content{
   height: 590px;
 }
-
-.modal-open{
+#cadModalEquipamentos.modal-open{
   overflow: hidden;
   pointer-events: none;
 }
