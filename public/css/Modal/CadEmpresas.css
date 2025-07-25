@@ -35,7 +35,7 @@
 } 
 
 /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
-.modal {
+#cadModalEmpresas.modal {
   position: fixed;
   top: 50%; /* Alinha verticalmente ao centro */
   left: 50%; /* Alinha horizontalmente ao centro */   
@@ -49,11 +49,11 @@
   z-index: 9999;
 }
 
-.modal-content{
+#cadModalEmpresas.modal-content{
   height: 590px;
 }
 
-.modal-open{
+#cadModalEmpresas.modal-open{
   /* overflow: visible; Permite a rolagem do modal */
   overflow: hidden;
   pointer-events: none;

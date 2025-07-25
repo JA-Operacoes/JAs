@@ -129,6 +129,7 @@ router.get(
             enviarnaproposta,
             categoria,
             produto,
+            idfuncao,
             qtditens,
             qtddias,
             periododiariasinicio,
@@ -297,6 +298,35 @@ router.get('/pavilhao', async (req, res) => {
 
 });
 
+router.get('/pavilhao/:id', async (req, res) => {
+    console.log("🔥 Rota /orcamentos/pavilhao/:id acessada");
+
+    const idempresa = req.idempresa; // Se idempresa for relevante para filtrar pavilhões individuais
+    const idpavilhao = req.params.id; // Pega o ID da URL como um parâmetro de rota
+
+    console.log("IDPAVILHAO", idpavilhao);
+
+    try {
+        const resultado = await pool.query(`
+            SELECT p.*
+            FROM localmontpavilhao p
+            WHERE p.idpavilhao = $1 -- Altere para filtrar pelo ID do pavilhão
+            ORDER BY p.nmpavilhao
+        `, [idpavilhao]);
+
+        if (resultado.rows.length > 0) {
+            console.log("PAVILHÃO ENCONTRADO", resultado.rows[0]);
+            res.json(resultado.rows[0]); // Retorna apenas o primeiro (e único) pavilhão encontrado
+        } else {
+            console.log("Nenhum pavilhão encontrado para o ID:", idpavilhao);
+            res.status(404).json({ erro: 'Pavilhão não encontrado' });
+        }
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ erro: 'Erro ao buscar pavilhão por ID' });
+    }
+});
 
 // GET /orcamento/funcao
 router.get('/funcao', async (req, res) => {
@@ -622,8 +652,8 @@ router.put(
             item.percentacrescimoitem, item.vlrdiaria, item.totvdadiaria, item.ctodiaria, item.totctodiaria,
             item.tpajdctoalimentacao, item.vlrajdctoalimentacao, item.tpajdctotransporte, item.vlrajdctotransporte,
             item.totajdctoitem, item.hospedagem, item.transporte, item.totgeralitem, item.setor,
-            item.id, // $29 (idorcamentoitem)
-            idOrcamento // $30 (idorcamento)
+            item.id, // $28 (idorcamentoitem)
+            idOrcamento // $29 (idorcamento)
           ];
           await client.query(updateItemQuery, itemValues);
         } else {

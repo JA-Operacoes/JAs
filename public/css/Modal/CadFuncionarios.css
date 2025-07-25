@@ -27,7 +27,7 @@
 } 
   
   /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
-  .modal {
+  #cadModalFuncionarios.modal {
     position: fixed;
     top: 50%; /* Alinha verticalmente ao centro */
     left: 50%; /* Alinha horizontalmente ao centro */   
@@ -40,12 +40,12 @@
     font-size: 16px;
     z-index: 9999;
   }
-  
-  .modal-content{
+
+  #cadModalFuncionarios.modal-content{
     height: 590px;
   }
-  
-  .modal-open{
+
+  #cadModalFuncionarios.modal-open{
     overflow: hidden;
     pointer-events: none;
   }
