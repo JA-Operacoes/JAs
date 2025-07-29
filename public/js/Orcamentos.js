@@ -2482,9 +2482,9 @@ async function verificaOrcamento() {
                 totAjdCusto: desformatarMoeda(document.querySelector('#totalAjdCusto').value),
                 lucroBruto: desformatarMoeda(document.querySelector('#Lucro').value),
                 percentLucro: parsePercentValue(document.querySelector('#percentLucro').value),
-                desconto: parseFloat(formData.get("Desconto")),
+                desconto: desformatarMoeda(document.querySelector('#Desconto').value),
                 percentDesconto: parsePercentValue(document.querySelector('#percentDesc').value),
-                acrescimo: parseFloat(formData.get("Acrescimo")),
+                acrescimo: desformatarMoeda(document.querySelector('#Acrescimo').value),
                 percentAcrescimo: parsePercentValue(document.querySelector('#percentAcresc').value),
                 lucroReal: desformatarMoeda(document.querySelector('#lucroReal').value),
                 percentLucroReal: parsePercentValue(document.querySelector('#percentReal').value),               
@@ -2916,7 +2916,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
      const descontoInput = document.getElementById('Desconto');
     if (descontoInput) {
         // Converte para número antes de toFixed
-        descontoInput.value = parseFloat(orcamento.descontoItem || 0).toFixed(2);
+        descontoInput.value = parseFloat(orcamento.desconto || 0).toFixed(2);
     } else {
         console.warn("Elemento com ID 'Desconto' não encontrado.");
     }
@@ -3407,11 +3407,9 @@ export async function preencherFormularioComOrcamento(orcamento) {
        
     });
 
-    tabelaBody.querySelectorAll('tr').forEach(row => {
-        recalcularLinha(row);
-    });
     
-    recalcularTotaisGerais(); 
+    
+   // recalcularTotaisGerais(); 
     aplicarMascaraMoeda();   
    // calcularLucro();
 }
