@@ -710,170 +710,357 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
 );
 
 
-router.post("/", autenticarToken(), contextoEmpresa,
-   verificarPermissao('staff', 'cadastrar'), 
-    //upload.none(), 
-    uploadComprovantesMiddleware,   
-    logMiddleware('staff', {
-        buscarDadosAnteriores: async (req) => {
-            console.log("BUSCA DADOS ANTERIORES STAFF");
-            return { dadosanteriores: null, idregistroalterado: null };
-        }
-    }),
-    async (req, res) => {
-        console.log("🔥 Rota /staff/POST acessada");
-        const {
-            // Campos da tabela STAFF
-            idfuncionario, 
-            avaliacao,             
+// router.post("/", autenticarToken(), contextoEmpresa,
+//    verificarPermissao('staff', 'cadastrar'), 
+//     //upload.none(), 
+//     uploadComprovantesMiddleware,   
+//     logMiddleware('staff', {
+//         buscarDadosAnteriores: async (req) => {
+//             console.log("BUSCA DADOS ANTERIORES STAFF");
+//             return { dadosanteriores: null, idregistroalterado: null };
+//         }
+//     }),
+//     async (req, res) => {
+//         console.log("🔥 Rota /staff/POST acessada");
+//         const {
+//             // Campos da tabela STAFF
+//             idfuncionario, 
+//             avaliacao,             
 
-            // Campos da tabela STAFFEVENTOS (para um único evento)
-            idevento, nmevento, idcliente, nmcliente,
+//             // Campos da tabela STAFFEVENTOS (para um único evento)
+//             idevento, nmevento, idcliente, nmcliente,
+//             idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
+//             vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
+//             vlrcaixinha, nmfuncionario, datasevento: datasEventoRaw,
+//             descbonus, descbeneficios, vlrtotal, setor
+//         } = req.body;
+
+//         const files = req.files;
+//         const comprovanteCacheFile = files?.comppgtocache ? files.comppgtocache[0] : null;
+//         const comprovanteAjdCustoFile = files?.comppgtoajdcusto ? files.comppgtoajdcusto[0] : null;
+//         const comprovanteExtrasFile = files?.comppgtoextras ? files.comppgtoextras[0] : null;
+
+//         const idempresa = req.idempresa;
+//         let client;        
+
+//         console.log('--- Início da requisição POST ---');
+//         console.log('req.body:', req.body);
+//         console.log('req.file (Multer upload):', req.file); // Será undefined se o input for disabled
+//         console.log('ID da empresa (req.idempresa):', idempresa);
+
+//         if (
+//             !idfuncionario || !nmfuncionario || !avaliacao ||
+//             !idevento || !nmevento || !idcliente || !nmcliente ||
+//             !idfuncao || !nmfuncao || !idmontagem || !nmlocalmontagem ||
+//             !vlrcache 
+//         ) {
+//             return res.status(400).json({
+//                 message: "Dados obrigatórios ausentes. Verifique os campos preenchidos e tente novamente."
+//             });
+//         }
+
+//         try {
+//             client = await pool.connect();
+//             await client.query('BEGIN'); // Inicia a transação           
+
+//             // Parsear o datasEvento
+//             let datasEventoParsed = null;
+//             if (datasEventoRaw) {
+//                 try {
+//                     datasEventoParsed = JSON.parse(datasEventoRaw);
+//                     if (!Array.isArray(datasEventoParsed)) {
+//                         throw new Error("datasevento não é um array válido.");
+//                     }
+//                 } catch (parseError) {
+//                     return res.status(400).json({
+//                         message: "Formato de 'datasevento' inválido. Esperado um array JSON.",
+//                         details: parseError.message
+//                     });
+//                 }
+//             }
+//             console.log('Valor de "datasEvento" após parse (POST):', datasEventoParsed);
+
+//             // --- INSERÇÃO NA TABELA STAFF ---
+//             const staffInsertQuery = `
+//                 INSERT INTO staff (
+//                     idfuncionario, avaliacao
+//                 ) VALUES ($1, $2)
+//                 RETURNING idstaff;
+//             `;
+
+//             const staffInsertValues = [ idfuncionario, avaliacao];
+
+//             const resultStaff = await client.query(staffInsertQuery, staffInsertValues);
+//             const novoStaff = resultStaff.rows[0];
+//             const idNovoStaff = novoStaff.idstaff;
+
+//             // --- INSERÇÃO NA TABELA STAFFEMPRESAS ---
+//             await client.query(
+//                 "INSERT INTO staffEmpresas (idstaff, idEmpresa) VALUES ($1, $2)",
+//                 [idNovoStaff, idempresa]
+//             );
+
+//             // --- INSERÇÃO NA TABELA STAFFEVENTOS (SE HOUVER DADOS) ---
+//             console.log("VAI SALVAR STAFFEVENTOS", idfuncionario, idNovoStaff);
+//             if (idfuncionario && idNovoStaff) {
+//                 const eventoInsertQuery = `
+//                     INSERT INTO staffeventos (
+//                         idstaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
+//                         idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
+//                         vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
+//                         vlrcaixinha, descbonus, datasevento, vlrtotal, comppgtocache, comppgtoajdcusto, comppgtoextras, descbeneficios, setor
+//                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+//                     RETURNING idstaffevento;
+//                 `;
+//                 // const eventoInsertValues = [
+//                 //     idNovoStaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
+//                 //     idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
+//                 //     vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
+//                 //     vlrcaixinha, descbonus, comppgtocache, comppgtoajdcusto, comppgtoextras
+//                 const eventoInsertValues = [
+//                     idNovoStaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
+//                     idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
+//                     parseFloat(String(vlrcache).replace(',', '.')),
+//                     parseFloat(String(vlralmoco).replace(',', '.')),
+//                     parseFloat(String(vlrjantar).replace(',', '.')),
+//                     parseFloat(String(vlrtransporte).replace(',', '.')),
+//                     parseFloat(String(vlrextra).replace(',', '.')),
+//                     parseFloat(String(vlrcaixinha).replace(',', '.')),
+//                     descbonus,
+//                     JSON.stringify(datasEventoParsed),
+//                     parseFloat(String(vlrtotal).replace(',', '.')), 
+//                     // 🎉 CAMINHOS DOS ARQUIVOS SALVOS PELO MULTER 🎉
+//                     comprovanteCacheFile ? `/uploads/staff_comprovantes/${comprovanteCacheFile.filename}` : null,
+//                     comprovanteAjdCustoFile ? `/uploads/staff_comprovantes/${comprovanteAjdCustoFile.filename}` : null,
+//                     comprovanteExtrasFile ? `/uploads/staff_comprovantes/${comprovanteExtrasFile.filename}` : null,
+//                     descbeneficios,
+//                     setor
+
+//                 ];
+//                 await client.query(eventoInsertQuery, eventoInsertValues);
+//             } else {
+//                 console.log("Nenhum dado de evento suficiente fornecido para inserção em staffeventos.");
+//             }
+
+//             await client.query('COMMIT'); // Confirma a transação
+
+//             res.locals.acao = 'cadastrou';
+//             res.locals.idregistroalterado = idNovoStaff;
+//             res.locals.idusuarioAlvo = null;
+
+//             res.status(201).json({
+//                 message: "Staff e evento(s) salvos e associados à empresa com sucesso!",
+//                 id: idNovoStaff,
+//                 datasEvento: novoStaff.datasEvento
+//             });
+//         } catch (error) {
+//             if (client) {
+//                 await client.query('ROLLBACK');
+//             }
+//             console.error("❌ Erro ao salvar staff e/ou associá-lo à empresa:", error);
+            
+//             // if (comprovanteCacheFile) deletarArquivoAntigo(comprovanteCacheFile.path);
+//             // if (comprovanteAjdCustoFile) deletarArquivoAntigo(comprovanteAjdCustoFile.path);
+//             // if (comprovanteExtrasFile) deletarArquivoAntigo(comprovanteExtrasFile.path);
+           
+//             if (error.code === '23502') {
+//                  return res.status(400).json({ message: `Campo obrigatório faltando ou inválido: ${error.column}. Por favor, verifique os dados e tente novamente.`, details: error.message });
+//             }
+//             res.status(500).json({ error: "Erro ao salvar funcionário", details: error.message });
+//         } finally {
+//             if (client) {
+//                 client.release();
+//             }
+//             console.log('--- Fim da requisição POST ---');
+//         }
+//     }
+// );
+
+
+router.post(
+  "/",
+  autenticarToken(),
+  contextoEmpresa,
+  verificarPermissao('staff', 'cadastrar'),
+  uploadComprovantesMiddleware,
+  logMiddleware('staff', {
+    buscarDadosAnteriores: async (req) => {
+      console.log("BUSCA DADOS ANTERIORES STAFF");
+      return { dadosanteriores: null, idregistroalterado: null };
+    }
+  }),
+  async (req, res) => {
+    console.log("🔥 Rota /staff/POST acessada");
+    const {
+      idfuncionario,
+      avaliacao,
+      idevento, nmevento, idcliente, nmcliente,
+      idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
+      vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
+      vlrcaixinha, nmfuncionario, datasevento: datasEventoRaw,
+      descbonus, descbeneficios, vlrtotal, setor
+    } = req.body;
+
+    const files = req.files;
+    const comprovanteCacheFile = files?.comppgtocache ? files.comppgtoacache[0] : null; // corrigir nome da prop aqui
+    const comprovanteAjdCustoFile = files?.comppgtoajdcusto ? files.comppgtoajdcusto[0] : null;
+    const comprovanteExtrasFile = files?.comppgtoextras ? files.comppgtoextras[0] : null;
+
+    const idempresa = req.idempresa;
+    let client;
+
+    console.log('--- Início da requisição POST ---');
+    console.log('req.body:', req.body);
+    console.log('req.file (Multer upload):', req.file);
+    console.log('ID da empresa (req.idempresa):', idempresa);
+
+    if (
+      !idfuncionario || !nmfuncionario || !avaliacao ||
+      !idevento || !nmevento || !idcliente || !nmcliente ||
+      !idfuncao || !nmfuncao || !idmontagem || !nmlocalmontagem ||
+      !vlrcache
+    ) {
+      return res.status(400).json({
+        message: "Dados obrigatórios ausentes. Verifique os campos preenchidos e tente novamente."
+      });
+    }
+
+    try {
+      client = await pool.connect();
+      await client.query('BEGIN');
+
+      // --- PASSO 1: VERIFICAÇÃO DE DUPLICIDADE DE idfuncionario PARA A EMPRESA ---
+      const checkDuplicateQuery = `
+        SELECT s.idstaff
+        FROM staff s
+        JOIN staffempresas se ON s.idstaff = se.idstaff
+        WHERE s.idfuncionario = $1 AND se.idempresa = $2;
+      `;
+      const duplicateResult = await client.query(checkDuplicateQuery, [idfuncionario, idempresa]);
+
+      if (duplicateResult.rows.length > 0) {
+        await client.query('ROLLBACK');
+        console.warn(`Tentativa de cadastrar idfuncionario '${idfuncionario}' duplicado para empresa '${idempresa}'.`);
+        return res.status(409).json({ // 409 Conflict é o status ideal para duplicidade
+          message: "Este ID de funcionário já está cadastrado para sua empresa.",
+          details: `O ID de funcionário '${idfuncionario}' já existe.`
+        });
+      }
+
+      // Parsear o datasEvento
+      let datasEventoParsed = null;
+      if (datasEventoRaw) {
+        try {
+          datasEventoParsed = JSON.parse(datasEventoRaw);
+          if (!Array.isArray(datasEventoParsed)) {
+            throw new Error("datasevento não é um array válido.");
+          }
+        } catch (parseError) {
+          // Se o JSON.parse falhar, é um erro do cliente, retorna 400
+          await client.query('ROLLBACK'); // Reverte qualquer coisa que tenha começado
+          return res.status(400).json({
+            message: "Formato de 'datasevento' inválido. Esperado um array JSON.",
+            details: parseError.message
+          });
+        }
+      }
+      console.log('Valor de "datasEvento" após parse (POST):', datasEventoParsed);
+
+
+      // --- PASSO 2: INSERÇÃO NA TABELA STAFF ---
+      const staffInsertQuery = `
+        INSERT INTO staff (
+          idfuncionario, avaliacao
+        ) VALUES ($1, $2)
+        RETURNING idstaff;
+      `;
+      const staffInsertValues = [idfuncionario, avaliacao];
+
+      const resultStaff = await client.query(staffInsertQuery, staffInsertValues);
+      const novoStaff = resultStaff.rows[0];
+      const idNovoStaff = novoStaff.idstaff;
+
+      // --- PASSO 3: INSERÇÃO NA TABELA STAFFEMPRESAS ---
+      await client.query(
+        "INSERT INTO staffEmpresas (idstaff, idEmpresa) VALUES ($1, $2)",
+        [idNovoStaff, idempresa]
+      );
+
+      // --- PASSO 4: INSERÇÃO NA TABELA STAFFEVENTOS (SE HOUVER DADOS) ---
+      console.log("VAI SALVAR STAFFEVENTOS", idfuncionario, idNovoStaff);
+      if (idfuncionario && idNovoStaff) { // Condição já existente
+        const eventoInsertQuery = `
+          INSERT INTO staffeventos (
+            idstaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
             idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
             vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
-            vlrcaixinha, nmfuncionario, datasevento: datasEventoRaw,
-            descbonus, descbeneficios, vlrtotal, setor
-        } = req.body;
+            vlrcaixinha, descbonus, datasevento, vlrtotal, comppgtocache, comppgtoajdcusto, comppgtoextras, descbeneficios, setor
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+          RETURNING idstaffevento;
+        `;
+        const eventoInsertValues = [
+          idNovoStaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
+          idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
+          parseFloat(String(vlrcache).replace(',', '.')),
+          parseFloat(String(vlralmoco).replace(',', '.')),
+          parseFloat(String(vlrjantar).replace(',', '.')),
+          parseFloat(String(vlrtransporte).replace(',', '.')),
+          parseFloat(String(vlrextra).replace(',', '.')),
+          parseFloat(String(vlrcaixinha).replace(',', '.')),
+          descbonus,
+          JSON.stringify(datasEventoParsed), // datasEventoParsed já é um array, transforma em JSON string
+          parseFloat(String(vlrtotal).replace(',', '.')),
+          comprovanteCacheFile ? `/uploads/staff_comprovantes/${comprovanteCacheFile.filename}` : null,
+          comprovanteAjdCustoFile ? `/uploads/staff_comprovantes/${comprovanteAjdCustoFile.filename}` : null,
+          comprovanteExtrasFile ? `/uploads/staff_comprovantes/${comprovanteExtrasFile.filename}` : null,
+          descbeneficios,
+          setor
+        ];
+        await client.query(eventoInsertQuery, eventoInsertValues);
+      } else {
+        console.log("Nenhum dado de evento suficiente fornecido para inserção em staffeventos.");
+      }
 
-        const files = req.files;
-        const comprovanteCacheFile = files?.comppgtocache ? files.comppgtocache[0] : null;
-        const comprovanteAjdCustoFile = files?.comppgtoajdcusto ? files.comppgtoajdcusto[0] : null;
-        const comprovanteExtrasFile = files?.comppgtoextras ? files.comppgtoextras[0] : null;
+      await client.query('COMMIT'); // Confirma a transação
 
-        const idempresa = req.idempresa;
-        let client;        
+      res.locals.acao = 'cadastrou';
+      res.locals.idregistroalterado = idNovoStaff;
+      res.locals.idusuarioAlvo = null;
 
-        console.log('--- Início da requisição POST ---');
-        console.log('req.body:', req.body);
-        console.log('req.file (Multer upload):', req.file); // Será undefined se o input for disabled
-        console.log('ID da empresa (req.idempresa):', idempresa);
+      res.status(201).json({
+        message: "Staff e evento(s) salvos e associados à empresa com sucesso!",
+        id: idNovoStaff,
+        datasEvento: novoStaff.datasEvento // Este campo 'datasEvento' não foi retornado da inserção de staff, verifique se deveria vir de staffeventos
+      });
+    } catch (error) {
+      if (client) {
+        await client.query('ROLLBACK');
+      }
+      console.error("❌ Erro ao salvar staff e/ou associá-lo à empresa:", error);
 
-        if (
-            !idfuncionario || !nmfuncionario || !avaliacao ||
-            !idevento || !nmevento || !idcliente || !nmcliente ||
-            !idfuncao || !nmfuncao || !idmontagem || !nmlocalmontagem ||
-            !vlrcache 
-        ) {
-            return res.status(400).json({
-                message: "Dados obrigatórios ausentes. Verifique os campos preenchidos e tente novamente."
-            });
+      // Você pode querer re-habilitar a deleção de arquivos em caso de erro,
+      // mas garanta que a função deletarArquivoAntigo esteja definida.
+      // if (comprovanteCacheFile) deletarArquivoAntigo(comprovanteCacheFile.path);
+      // if (comprovanteAjdCustoFile) deletarArquivoAntigo(comprovanteAjdCustoFile.path);
+      // if (comprovanteExtrasFile) deletarArquivoAntigo(comprovanteExtrasFile.path);
+
+      if (error.code === '23502') {
+        return res.status(400).json({ message: `Campo obrigatório faltando ou inválido: ${error.column}. Por favor, verifique os dados e tente novamente.`, details: error.message });
+      }
+      // Se for um erro de chave única (mas você já tratou isso acima com a checagem manual)
+      if (error.code === '23505') { // PostgreSQL unique violation error code
+        if (error.constraint === 'nome_da_constraint_de_unicidade_no_staff') { // Substitua pelo nome real da sua constraint
+          return res.status(409).json({ message: "Duplicidade de dados. Este funcionário já existe.", details: error.message });
         }
-
-        try {
-            client = await pool.connect();
-            await client.query('BEGIN'); // Inicia a transação           
-
-            // Parsear o datasEvento
-            let datasEventoParsed = null;
-            if (datasEventoRaw) {
-                try {
-                    datasEventoParsed = JSON.parse(datasEventoRaw);
-                    if (!Array.isArray(datasEventoParsed)) {
-                        throw new Error("datasevento não é um array válido.");
-                    }
-                } catch (parseError) {
-                    return res.status(400).json({
-                        message: "Formato de 'datasevento' inválido. Esperado um array JSON.",
-                        details: parseError.message
-                    });
-                }
-            }
-            console.log('Valor de "datasEvento" após parse (POST):', datasEventoParsed);
-
-            // --- INSERÇÃO NA TABELA STAFF ---
-            const staffInsertQuery = `
-                INSERT INTO staff (
-                    idfuncionario, avaliacao
-                ) VALUES ($1, $2)
-                RETURNING idstaff;
-            `;
-
-            const staffInsertValues = [ idfuncionario, avaliacao];
-
-            const resultStaff = await client.query(staffInsertQuery, staffInsertValues);
-            const novoStaff = resultStaff.rows[0];
-            const idNovoStaff = novoStaff.idstaff;
-
-            // --- INSERÇÃO NA TABELA STAFFEMPRESAS ---
-            await client.query(
-                "INSERT INTO staffEmpresas (idstaff, idEmpresa) VALUES ($1, $2)",
-                [idNovoStaff, idempresa]
-            );
-
-            // --- INSERÇÃO NA TABELA STAFFEVENTOS (SE HOUVER DADOS) ---
-            console.log("VAI SALVAR STAFFEVENTOS", idfuncionario, idNovoStaff);
-            if (idfuncionario && idNovoStaff) {
-                const eventoInsertQuery = `
-                    INSERT INTO staffeventos (
-                        idstaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
-                        idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
-                        vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
-                        vlrcaixinha, descbonus, datasevento, vlrtotal, comppgtocache, comppgtoajdcusto, comppgtoextras, descbeneficios, setor
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
-                    RETURNING idstaffevento;
-                `;
-                // const eventoInsertValues = [
-                //     idNovoStaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
-                //     idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
-                //     vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
-                //     vlrcaixinha, descbonus, comppgtocache, comppgtoajdcusto, comppgtoextras
-                const eventoInsertValues = [
-                    idNovoStaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
-                    idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
-                    parseFloat(String(vlrcache).replace(',', '.')),
-                    parseFloat(String(vlralmoco).replace(',', '.')),
-                    parseFloat(String(vlrjantar).replace(',', '.')),
-                    parseFloat(String(vlrtransporte).replace(',', '.')),
-                    parseFloat(String(vlrextra).replace(',', '.')),
-                    parseFloat(String(vlrcaixinha).replace(',', '.')),
-                    descbonus,
-                    JSON.stringify(datasEventoParsed),
-                    parseFloat(String(vlrtotal).replace(',', '.')), 
-                    // 🎉 CAMINHOS DOS ARQUIVOS SALVOS PELO MULTER 🎉
-                    comprovanteCacheFile ? `/uploads/staff_comprovantes/${comprovanteCacheFile.filename}` : null,
-                    comprovanteAjdCustoFile ? `/uploads/staff_comprovantes/${comprovanteAjdCustoFile.filename}` : null,
-                    comprovanteExtrasFile ? `/uploads/staff_comprovantes/${comprovanteExtrasFile.filename}` : null,
-                    descbeneficios,
-                    setor
-
-                ];
-                await client.query(eventoInsertQuery, eventoInsertValues);
-            } else {
-                console.log("Nenhum dado de evento suficiente fornecido para inserção em staffeventos.");
-            }
-
-            await client.query('COMMIT'); // Confirma a transação
-
-            res.locals.acao = 'cadastrou';
-            res.locals.idregistroalterado = idNovoStaff;
-            res.locals.idusuarioAlvo = null;
-
-            res.status(201).json({
-                message: "Staff e evento(s) salvos e associados à empresa com sucesso!",
-                id: idNovoStaff,
-                datasEvento: novoStaff.datasEvento
-            });
-        } catch (error) {
-            if (client) {
-                await client.query('ROLLBACK');
-            }
-            console.error("❌ Erro ao salvar staff e/ou associá-lo à empresa:", error);
-            
-            // if (comprovanteCacheFile) deletarArquivoAntigo(comprovanteCacheFile.path);
-            // if (comprovanteAjdCustoFile) deletarArquivoAntigo(comprovanteAjdCustoFile.path);
-            // if (comprovanteExtrasFile) deletarArquivoAntigo(comprovanteExtrasFile.path);
-           
-            if (error.code === '23502') {
-                 return res.status(400).json({ message: `Campo obrigatório faltando ou inválido: ${error.column}. Por favor, verifique os dados e tente novamente.`, details: error.message });
-            }
-            res.status(500).json({ error: "Erro ao salvar funcionário", details: error.message });
-        } finally {
-            if (client) {
-                client.release();
-            }
-            console.log('--- Fim da requisição POST ---');
-        }
+      }
+      res.status(500).json({ error: "Erro ao salvar funcionário", details: error.message });
+    } finally {
+      if (client) {
+        client.release();
+      }
+      console.log('--- Fim da requisição POST ---');
     }
+  }
 );
 
 module.exports = router;
