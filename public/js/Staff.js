@@ -2136,8 +2136,8 @@ function calcularValorTotal() {
     const match = contadorTexto.match(/\d+/);
     const numeroDias = match ? parseInt(match[0]) : 0;
 
-    const soma = cache + extra + transporte + almoco + jantar + caixinha;
-    const total = soma * numeroDias;
+    const soma = cache + transporte + almoco + jantar ;
+    const total = (soma * numeroDias) + extra + caixinha;
 
     const valorFormatado = 'R$ ' + total.toFixed(2).replace('.', ',');
     const valorLimpo = total.toFixed(2);
