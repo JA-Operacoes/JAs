@@ -39,6 +39,28 @@ const commonFlatpickrOptions = {
     }
 };
 
+let avaliacaoChangeListener = null;
+let limparStaffButtonListener = null;
+let enviarStaffButtonListener = null;
+let datasEventoFlatpickrInstance = null; // Para armazenar a instância do Flatpickr
+let nmFuncionarioChangeListener = null;
+let descFuncaoChangeListener = null;
+let nmClienteChangeListener = null;
+let nmEventoChangeListener = null;
+let nmLocalMontagemChangeListener = null;
+let qtdPavilhaoChangeListener = null; // Para o select de pavilhões, se for dinâmico
+let CaixinhacheckListener = null;
+let ExtracheckListener = null;
+let vlrCustoInputListener = null;
+let extraInputListener = null;
+let transporteInputListener = null;
+let almocoInputListener = null;
+let jantarInputListener = null;
+let caixinhaInputListener = null;
+let fileCacheChangeListener = null;
+let fileAjdCustoChangeListener = null;
+let fileCaixinhaChangeListener = null;
+
 if (typeof window.StaffOriginal === "undefined") {
     window.StaffOriginal = {
         idStaff: "",
@@ -71,6 +93,8 @@ if (typeof window.StaffOriginal === "undefined") {
         setor: ""
     };
 }
+
+let isFormLoadedFromDoubleClick = false;
 
 const eventsTableBody = document.querySelector('#eventsDataTable tbody');
 const noResultsMessage = document.getElementById('noResultsMessage');
@@ -119,7 +143,9 @@ const carregarDadosParaEditar = (eventData) => {
     // Armazena os dados originais para comparação em um PUT
     currentEditingStaffEvent = eventData;
 
-    console.log("Carregando dados para edição:", eventData);
+    isFormLoadedFromDoubleClick = true;
+
+    console.log("Carregando dados para edição:", eventData, currentEditingStaffEvent);
 
     console.log("Valor de eventData.comppgtocache:", eventData.comppgtocache);
     console.log("Valor de eventData.comppgtoajdcusto:", eventData.comppgtoajdcusto);
@@ -276,154 +302,176 @@ const carregarDadosParaEditar = (eventData) => {
     preencherComprovanteCampo(eventData.comppgtocache, 'fileNameCache', 'previewCache', 'pdfPreviewCache', 'linkCache', 'imagePreviewCache', 'linkImageCache');
     preencherComprovanteCampo(eventData.comppgtoajdcusto, 'fileNameAjdCusto', 'previewAjdCusto', 'pdfPreviewAjdCusto', 'linkAjdCusto', 'imagePreviewAjdCusto', 'linkImageAjdCusto');
     preencherComprovanteCampo(eventData.comppgtoextras, 'fileNameCaixinha', 'previewCaixinha', 'pdfPreviewCaixinha', 'linkCaixinha', 'imagePreviewCaixinha', 'linkImageCaixinha');
-    
+  
+console.log("CARREGADO DADOS PARA EDITAR ATRAVÉS DE DBLCLIQUE", isFormLoadedFromDoubleClick);
+   
 };
 
-
+let currentRowSelected = null;
 const carregarTabelaStaff = async (funcionarioId) => {
-        eventsTableBody.innerHTML = '';
-        noResultsMessage.style.display = 'none';
+    eventsTableBody.innerHTML = '';
+    noResultsMessage.style.display = 'none';
+    currentRowSelected = null;
+    isFormLoadedFromDoubleClick = false;
 
-        if (!funcionarioId) {
-            noResultsMessage.style.display = 'block';
-            noResultsMessage.textContent = 'Por favor, selecione um funcionário para pesquisar os eventos.';
-            return;
-        }
-
-        const url = `/staff/${funcionarioId}`; // Sua nova rota GET
-
-        try {
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + localStorage.getItem('token')
-                }
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Erro na requisição');
-            }
-
-            const data = await response.json();
-            console.log('Dados de eventos recebidos para o funcionário:', data);
-
-            if (data && data.length > 0) {
-                data.forEach(eventData => {
-
-                    document.getElementById("idStaff").value = eventData.idstaff;
-                    document.getElementById("idEvento").value = eventData.idevento;
-                    document.getElementById("idFuncao").value = eventData.idfuncao;
-                    document.getElementById("idCliente").value = eventData.idcliente;
-                    document.getElementById("avaliacao").value = eventData.avaliacao;
-                    document.getElementById("setor").value = eventData.setor;
-
-                    // preencherComprovanteCampo(eventData.comppgtocache, 'fileNameCache', 'ComprovanteCache');
-                    // preencherComprovanteCampo(eventData.comppgtoajdcusto, 'fileNameAjdCusto', 'ComprovanteAjdCusto');
-                    // preencherComprovanteCampo(eventData.comppgtoextras, 'fileNameCaixinha', 'ComprovanteCaixinha');
-
-                    
-                    if (avaliacaoSelect) {
-                        // Converte a avaliação do DB para o valor do select (ex: "MUITO BOM" -> "muito_bom")
-                        const avaliacaoValue = (eventData.avaliacao || '').toLowerCase().replace(' ', '_');
-                        avaliacaoSelect.value = avaliacaoValue;
-                        mostrarTarja(); // Atualiza a tarja visual
-                    }
-console.log('Valor de eventData.periodo antes de exibir:', eventData.datasevento);
-                console.log('Tipo de eventData.periodo antes de exibir:', typeof eventData.datasevento);
-
-                    const row = eventsTableBody.insertRow();                    
-                    // Adiciona o listener de duplo clique à linha
-                    row.addEventListener('dblclick', () => carregarDadosParaEditar(eventData));
-
-                  //  row.insertCell().textContent = eventData.idevento || '';
-                    row.insertCell().textContent = eventData.nmfuncao || '';
-                    row.insertCell().textContent = eventData.setor || '';
-                    row.insertCell().textContent = eventData.nmcliente || '';
-                    row.insertCell().textContent = eventData.nmevento || '';
-                    row.insertCell().textContent = eventData.nmlocalmontagem || '';
-                    row.insertCell().textContent = eventData.pavilhao || '';
-                    row.insertCell().textContent = (eventData.datasevento && typeof eventData.datasevento === 'string')
-                    
-                    ? JSON.parse(eventData.datasevento) // Primeiro parseia a string JSON para um array
-                    .map(dateStr => { // Depois, mapeia cada string de data no array
-                        const parts = dateStr.split('-'); // Divide a data (ex: ['2025', '07', '01'])
-                        if (parts.length === 3) {
-                            return `${parts[2]}/${parts[1]}/${parts[0]}`; // Reorganiza para DD/MM/YYYY
-                        }
-                        return dateStr; // Retorna a data original se não estiver no formato esperado
-                    })
-                    .join(', ') // Junta as datas formatadas com vírgula e espaço
-                    : (Array.isArray(eventData.datasevento) && eventData.datasevento.length > 0)
-                    ? eventData.datasevento // Se já for um array (do backend, por exemplo)
-                    .map(dateStr => {
-                        const parts = dateStr.split('-');
-                        if (parts.length === 3) {
-                            return `${parts[2]}/${parts[1]}/${parts[0]}`;
-                        }
-                        return dateStr;
-                    })
-                    .join(', ')
-                    : 'N/A';
-                    
-                    row.insertCell().textContent = parseFloat(eventData.vlrcache || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    row.insertCell().textContent = parseFloat(eventData.vlrextra || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    row.insertCell().textContent = eventData.descbonus || '';
-                    row.insertCell().textContent = parseFloat(eventData.almoco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    row.insertCell().textContent = parseFloat(eventData.jantar || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    // row.insertCell().textContent = (eventData.vlralmoco === 1 ? 'Sim' : 'Não');
-                    // row.insertCell().textContent = (eventData.vlrjantar === 1 ? 'Sim' : 'Não');                    
-                    row.insertCell().textContent = parseFloat(eventData.vlrtransporte || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    // row.insertCell().textContent = (eventData.vlrcaixinha === 1 ? 'Sim' : 'Não');                    row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    row.insertCell().textContent = eventData.descbeneficios || '';
-                    row.insertCell().textContent = parseFloat(eventData.vlrtotal || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    
-                    
-                });
-            } else {
-                noResultsMessage.style.display = 'block';
-                noResultsMessage.textContent = `Nenhum evento encontrado para o funcionário selecionado.`;
-            }
-
-        } catch (error) {
-            console.error('Erro ao buscar dados de eventos do funcionário:', error);
-            noResultsMessage.style.display = 'block';
-            noResultsMessage.textContent = `Erro ao carregar dados: ${error.message}. Tente novamente.`;
-        }
-};
-
-
-
-
-function toggleSectionVisibility(headerElement, contentClass, iconClassPrefix) {
-    const sectionContent = headerElement.nextElementSibling; // O conteúdo é o próximo irmão do cabeçalho
-    const toggleBtn = headerElement.querySelector('.toggle-arrow-btn');
-    const icon = toggleBtn ? toggleBtn.querySelector('i') : null;
-
-    if (!sectionContent || !sectionContent.classList.contains(contentClass)) {
-        console.warn("Elemento de conteúdo não encontrado ou classe incorreta para o cabeçalho:", headerElement);
+    console.log("CARREGOU TABELA STAFF", isFormLoadedFromDoubleClick);
+    if (!funcionarioId) {
+        noResultsMessage.style.display = 'block';
+        noResultsMessage.textContent = 'Por favor, selecione um funcionário para pesquisar os eventos.';
         return;
     }
 
-    const isCollapsed = sectionContent.classList.contains('collapsed');
+    const url = `/staff/${funcionarioId}`; // Sua nova rota GET
 
-    if (isCollapsed) {
-        sectionContent.classList.remove('collapsed');
-        if (icon) {
-            icon.classList.remove(`${iconClassPrefix}-down`);
-            icon.classList.add(`${iconClassPrefix}-up`);
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erro na requisição');
         }
-    } else {
-        sectionContent.classList.add('collapsed');
-        if (icon) {
-            icon.classList.remove(`${iconClassPrefix}-up`);
-            icon.classList.add(`${iconClassPrefix}-down`);
+
+        const data = await response.json();
+        console.log('Dados de eventos recebidos para o funcionário:', data);
+
+        if (data && data.length > 0) {
+            data.forEach(eventData => {
+                
+                document.getElementById("idStaff").value = eventData.idstaff;
+                document.getElementById("idStaffEvento").value = eventData.idstaffevento;
+
+           // console.log("IDSTAFF OU IDSTAFF EVENTO", eventData.idstaffevento, eventData.idstaff);
+                document.getElementById("idEvento").value = eventData.idevento;                
+                document.getElementById("idFuncao").value = eventData.idfuncao;
+                document.getElementById("idCliente").value = eventData.idcliente;
+                document.getElementById("avaliacao").value = eventData.avaliacao;
+                document.getElementById("setor").value = eventData.setor;
+
+                // preencherComprovanteCampo(eventData.comppgtocache, 'fileNameCache', 'ComprovanteCache');
+                // preencherComprovanteCampo(eventData.comppgtoajdcusto, 'fileNameAjdCusto', 'ComprovanteAjdCusto');
+                // preencherComprovanteCampo(eventData.comppgtoextras, 'fileNameCaixinha', 'ComprovanteCaixinha');
+
+                
+                if (avaliacaoSelect) {
+                    // Converte a avaliação do DB para o valor do select (ex: "MUITO BOM" -> "muito_bom")
+                    const avaliacaoValue = (eventData.avaliacao || '').toLowerCase().replace(' ', '_');
+                    avaliacaoSelect.value = avaliacaoValue;
+                    mostrarTarja(); // Atualiza a tarja visual
+                }
+            console.log('Valor de eventData.periodo antes de exibir:', eventData.datasevento);
+            console.log('Tipo de eventData.periodo antes de exibir:', typeof eventData.datasevento);
+
+                const row = eventsTableBody.insertRow();                    
+                row.dataset.eventData = JSON.stringify(eventData);
+                currentEditingStaffEvent = eventData;
+
+                row.addEventListener('dblclick', () => {
+                    isFormLoadedFromDoubleClick = true;
+                    if (currentRowSelected) {
+                        currentRowSelected.classList.remove('selected-row');
+                    }
+                    // Adiciona a classe 'selected-row' à linha clicada
+                    row.classList.add('selected-row');
+                    // Atualiza a referência da linha selecionada
+                    currentRowSelected = row;
+
+                    carregarDadosParaEditar(eventData)});
+                    
+                    
+
+                //  row.insertCell().textContent = eventData.idevento || '';
+                row.insertCell().textContent = eventData.nmfuncao || '';
+                row.insertCell().textContent = eventData.setor || '';
+                row.insertCell().textContent = eventData.nmcliente || '';
+                row.insertCell().textContent = eventData.nmevento || '';
+                row.insertCell().textContent = eventData.nmlocalmontagem || '';
+                row.insertCell().textContent = eventData.pavilhao || '';
+                row.insertCell().textContent = (eventData.datasevento && typeof eventData.datasevento === 'string')
+                
+                ? JSON.parse(eventData.datasevento) // Primeiro parseia a string JSON para um array
+                .map(dateStr => { // Depois, mapeia cada string de data no array
+                    const parts = dateStr.split('-'); // Divide a data (ex: ['2025', '07', '01'])
+                    if (parts.length === 3) {
+                        return `${parts[2]}/${parts[1]}/${parts[0]}`; // Reorganiza para DD/MM/YYYY
+                    }
+                    return dateStr; // Retorna a data original se não estiver no formato esperado
+                })
+                .join(', ') // Junta as datas formatadas com vírgula e espaço
+                : (Array.isArray(eventData.datasevento) && eventData.datasevento.length > 0)
+                ? eventData.datasevento // Se já for um array (do backend, por exemplo)
+                .map(dateStr => {
+                    const parts = dateStr.split('-');
+                    if (parts.length === 3) {
+                        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                    }
+                    return dateStr;
+                })
+                .join(', ')
+                : 'N/A';
+                
+                row.insertCell().textContent = parseFloat(eventData.vlrcache || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                row.insertCell().textContent = parseFloat(eventData.vlrextra || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                row.insertCell().textContent = eventData.descbonus || '';
+                row.insertCell().textContent = parseFloat(eventData.almoco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                row.insertCell().textContent = parseFloat(eventData.jantar || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                // row.insertCell().textContent = (eventData.vlralmoco === 1 ? 'Sim' : 'Não');
+                // row.insertCell().textContent = (eventData.vlrjantar === 1 ? 'Sim' : 'Não');                    
+                row.insertCell().textContent = parseFloat(eventData.vlrtransporte || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                // row.insertCell().textContent = (eventData.vlrcaixinha === 1 ? 'Sim' : 'Não');                    row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                row.insertCell().textContent = eventData.descbeneficios || '';
+                row.insertCell().textContent = parseFloat(eventData.vlrtotal || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                
+                
+            });
+        } else {
+            noResultsMessage.style.display = 'block';
+            noResultsMessage.textContent = `Nenhum evento encontrado para o funcionário selecionado.`;
         }
+
+    } catch (error) {
+        console.error('Erro ao buscar dados de eventos do funcionário:', error);
+        noResultsMessage.style.display = 'block';
+        noResultsMessage.textContent = `Erro ao carregar dados: ${error.message}. Tente novamente.`;
     }
-    // console.log(`Seção ${isCollapsed ? 'expandida' : 'colapsada'}.`); // Para depuração
-}
+};
+
+
+
+
+// function toggleSectionVisibility(headerElement, contentClass, iconClassPrefix) {
+//     const sectionContent = headerElement.nextElementSibling; // O conteúdo é o próximo irmão do cabeçalho
+//     const toggleBtn = headerElement.querySelector('.toggle-arrow-btn');
+//     const icon = toggleBtn ? toggleBtn.querySelector('i') : null;
+
+//     if (!sectionContent || !sectionContent.classList.contains(contentClass)) {
+//         console.warn("Elemento de conteúdo não encontrado ou classe incorreta para o cabeçalho:", headerElement);
+//         return;
+//     }
+
+//     const isCollapsed = sectionContent.classList.contains('collapsed');
+
+//     if (isCollapsed) {
+//         sectionContent.classList.remove('collapsed');
+//         if (icon) {
+//             icon.classList.remove(`${iconClassPrefix}-down`);
+//             icon.classList.add(`${iconClassPrefix}-up`);
+//         }
+//     } else {
+//         sectionContent.classList.add('collapsed');
+//         if (icon) {
+//             icon.classList.remove(`${iconClassPrefix}-up`);
+//             icon.classList.add(`${iconClassPrefix}-down`);
+//         }
+//     }
+//     // console.log(`Seção ${isCollapsed ? 'expandida' : 'colapsada'}.`); // Para depuração
+// }
 
 console.log("não carregou Verificar");
 async function verificaStaff() {
@@ -441,7 +489,6 @@ async function verificaStaff() {
     carregarLocalMontStaff();
 
     const botaoEnviar = document.querySelector("#Enviar");
- //   const botaoPesquisar = document.querySelector("#Pesquisar");
     const botaoLimpar = document.querySelector("#Limpar");
 
     const form = document.querySelector("#form");
@@ -468,6 +515,8 @@ async function verificaStaff() {
     botaoEnviar.addEventListener("click", async (event) => {
       event.preventDefault(); // Previne o envio padrão do formulário
 
+      
+
         const selectAvaliacao = document.getElementById("avaliacao");
         const avaliacao = selectAvaliacao.options[selectAvaliacao.selectedIndex]?.textContent.trim().toUpperCase() || '';
         const idStaff = document.querySelector("#idStaff").value.trim();
@@ -493,7 +542,7 @@ async function verificaStaff() {
         const selectLocalMontagem = document.getElementById("nmLocalMontagem");
         const nmLocalMontagem = selectLocalMontagem.options[selectLocalMontagem.selectedIndex].textContent.trim();
         const selectPavilhao = document.getElementById("nmPavilhao");
-        const pavilhao = selectPavilhao.options[selectPavilhao.selectedIndex]?.textContent.trim().toUpperCase() || '';
+        let pavilhao = selectPavilhao.options[selectPavilhao.selectedIndex]?.textContent.trim().toUpperCase() || '';
         const caixinhaAtivo = document.getElementById("Caixinhacheck")?.checked;
         const extraAtivo = document.getElementById("Extracheck")?.checked;
         const descBeneficioInput = document.getElementById("descBeneficio");
@@ -503,8 +552,9 @@ async function verificaStaff() {
         const setor = document.querySelector("#setor").value; 
         
         const datasEventoRawValue = datasEventoInput.value.trim();
-        const periodoDoEvento = getPeriodoDatas(datasEventoRawValue);
+        const periodoDoEvento = getPeriodoDatas(datasEventoRawValue);        
 
+        
       
         if (periodoDoEvento.length === 0) {
             return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias do evento.", "warning");
@@ -554,22 +604,221 @@ async function verificaStaff() {
         const temPermissaoCadastrar = temPermissao("Staff", "cadastrar");
         const temPermissaoAlterar = temPermissao("Staff", "alterar");
 
-        const isEditing = currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento; // Verifica se o objeto existe E se tem um ID de evento válido
-        const metodo = isEditing ? "PUT" : "POST";
-        const url = isEditing ? `/staff/${currentEditingStaffEvent.idstaffevento}` : "/staff";
+        //const isEditing = currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento; // Verifica se o objeto existe E se tem um ID de evento válido
+        // const metodo = isEditing ? "PUT" : "POST";
+        // const url = isEditing ? `/staff/${currentEditingStaffEvent.idstaffevento}` : "/staff";
+        
+        const idStaffEventoInput = parseInt(document.getElementById('idStaffEvento').value, 10);
 
-        if (!idStaff && !temPermissaoCadastrar) {
-            return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novas funções.", "error");
+        //const idStaffEventoInput = document.querySelector("#idStaffEvento").value; // Usaremos este para determinar o modo inicial
+        const isEditingInitial = currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento; // Estado inicial do formulário
+        const idEventoEmEdicao = isEditingInitial ? currentEditingStaffEvent.idstaffevento : null;
+
+        let metodo = isEditingInitial ? "PUT" : "POST"; // Método inicial
+        let url = isEditingInitial ? `/staff/${currentEditingStaffEvent.idstaffevento}` : "/staff";
+        
+        const idStaffEventoFromObject = currentEditingStaffEvent ? parseInt(currentEditingStaffEvent.idstaffevento, 10) : null;
+        //console.log("idSTAFFEVENTO", idStaffEventoInput, isFormLoadedFromDoubleClick, currentEditingStaffEvent, currentEditingStaffEvent.idstaffevento);
+        console.log("idSTAFFEVENTO", idStaffEventoInput, isFormLoadedFromDoubleClick, currentEditingStaffEvent, idStaffEventoFromObject);
+       
+        //if (idStaffEventoInput && isFormLoadedFromDoubleClick && currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento === idStaffEventoInput) {
+         
+        // Estamos em modo de edição de um evento específico
+        if (idStaffEventoInput && isFormLoadedFromDoubleClick && currentEditingStaffEvent && idStaffEventoFromObject === idStaffEventoInput) {
+            console.log("ENTROU NO METODO PUT");
+            metodo = "PUT";
+            url = `/staff/${idStaffEventoInput}`;
+            console.log("Modo de edição detectado via idstaffevento e flag. Método:", metodo, "URL:", url);
+        } else {
+            // Estamos em modo de cadastro ou foi uma tentativa de PUT sem os dados originais
+            metodo = "POST";
+            url = "/staff";
+            console.log("Modo de cadastro detectado. Método:", metodo, "URL:", url);
+            // Garante que estas variáveis estão resetadas para um POST
+            currentEditingStaffEvent = null;
+            isFormLoadedFromDoubleClick = false;
         }
 
-        if (idStaff && !temPermissaoAlterar) {
-            return Swal.fire("Acesso negado", "Você não tem permissão para alterar funções.", "error");
+        // if (idStaffEventoInput && isFormLoadedFromDoubleClick && currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento === idStaffEventoInput) {
+        //         metodo = "PUT";
+        //         url = `/staff/${idStaffEventoInput}`;
+        // } else {
+        //     metodo = "POST";
+        //     url = "/staff";
+        //     currentEditingStaffEvent = null; // Limpa para novo cadastro
+        //     isFormLoadedFromDoubleClick = false;
+        // }
+        
+
+        // if (!idStaff && !temPermissaoCadastrar) {
+        //     return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novas funções.", "error");
+        // }
+
+        // if (idStaff && !temPermissaoAlterar) {
+        //     return Swal.fire("Acesso negado", "Você não tem permissão para alterar funções.", "error");
+        // }
+
+        //     console.log("Preparando dados para envio:", {
+        //     nmFuncionario, descFuncao, nmLocalMontagem, nmCliente, nmEvento, vlrCusto, extra, transporte, almoco, jantar, caixinha,
+        //     periodoDoEvento, vlrTotal
+        // });
+
+        if (pavilhao === "SELECIONE O PAVILHÃO") {
+            pavilhao = ""; // Garante que seja uma string vazia. Isso é redundante se o value já é "", mas não prejudica.
+        } 
+
+        if (metodo === "POST" && !temPermissaoCadastrar) {
+            return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos staffs.", "error");
         }
 
-            console.log("Preparando dados para envio:", {
+        if (metodo === "PUT" && !temPermissaoAlterar) {
+            return Swal.fire("Acesso negado", "Você não tem permissão para alterar staffs.", "error");
+        }
+
+
+        console.log("--- INÍCIO handleFormSubmit ---");
+console.log("Método inicial:", metodo); // POST ou PUT
+console.log("Carregado por duplo clique (isFormLoadedFromDoubleClick):", isFormLoadedFromDoubleClick);
+console.log("currentEditingStaffEvent (antes da verificação):", currentEditingStaffEvent);
+
+        const idFuncionarioParaVerificacao = idFuncionario; // Use o idFuncionario capturado
+        // As datas do Flatpickr já estão em 'periodoDoEvento' mas como strings 'YYYY-MM-DD'.
+        // A função 'verificarDisponibilidadeStaff' espera um array de objetos Date.
+        // Você precisa ter acesso à instância do Flatpickr, assumindo que seja `flatpickrForDatasEvento`.
+        const flatpickrForDatasEvento = window.flatpickrInstances['datasEvento']; // Ou como você acessa sua instância do Flatpickr
+        const datasParaVerificacao = flatpickrForDatasEvento.selectedDates; // Isso retorna um array de objetos Date
+
+        const idStaffEventoParaVerificacao = currentEditingStaffEvent ? currentEditingStaffEvent.idstaffevento : null;
+
+        console.log("Iniciando verificação de disponibilidade do staff...");
+        const { isAvailable, conflictingEvent } = await verificarDisponibilidadeStaff(
+            idFuncionarioParaVerificacao,
+            datasParaVerificacao,
+            idEventoEmEdicao
+           // idStaffEventoParaVerificacao
+        );
+
+
+        console.log("Dados do formulário para verificação de duplicidade:", {
+            idFuncionario: idFuncionario,
+            nmFuncionario: nmFuncionario,
+            setor: setor,
+            nmlocalmontagem: nmLocalMontagem,
+            nmevento: nmEvento,
+            nmcliente: nmCliente,
+            datasevento: JSON.stringify(periodoDoEvento)
+        });
+
+        if (!isAvailable) {
+        // Usamos <strong> para negrito e `html: true` no Swal.fire
+            let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado para outra atividade `; 
+            if (conflictingEvent) {
+                msg += `no evento "<strong>${conflictingEvent.nmevento || 'N/A'}</strong>" do cliente "<strong>${conflictingEvent.nmcliente || 'N/A'}</strong>" `; 
+
+                const conflictingDates = typeof conflictingEvent.datasevento === 'string' ? JSON.parse(conflictingEvent.datasevento) : conflictingEvent.datasevento;
+                const intersection = datasParaVerificacao.map(d => d.toISOString().split('T')[0]).filter(date => conflictingDates.includes(date));
+                if (intersection.length > 0) {
+                    msg += `nas datas: <strong>${intersection.map(d => { 
+                        const parts = d.split('-');
+                        return `${parts[2]}/${parts[1]}/${parts[0]}`; // Formato DD/MM/AAAA para exibição
+                    }).join(', ')}</strong>.`;
+                } else {
+                    msg += `em datas conflitantes.`;
+                }
+            } else {
+                msg += `em datas conflitantes.`;
+            }
+            
+            // AQUI ESTÁ A MUDANÇA CRUCIAL: usar 'html: msg' em vez de 'text: msg' ou apenas 'msg'
+            Swal.fire({
+                title: "Conflito de Agendamento",
+                html: msg, // Use 'html' para renderizar as tags <strong>
+                icon: "warning"
+            }); 
+            return; // BLOQUEIA o envio do formulário
+        }
+
+        console.log("Preparando dados para envio:", {
             nmFuncionario, descFuncao, nmLocalMontagem, nmCliente, nmEvento, vlrCusto, extra, transporte, almoco, jantar, caixinha,
             periodoDoEvento, vlrTotal
         });
+
+        if (metodo === "POST" || (metodo === "PUT" && !isFormLoadedFromDoubleClick)) {
+            console.log("Iniciando verificação de duplicidade. Método Inicial:", metodo, "Carregado por duplo clique:", isFormLoadedFromDoubleClick);
+            try {
+                const checkDuplicateUrl = `/staff/check-duplicate?` + new URLSearchParams({
+                    idFuncionario: idFuncionario,
+                    nmFuncionario: nmFuncionario,
+                    setor: setor,
+                    nmlocalmontagem: nmLocalMontagem,
+                    nmevento: nmEvento,
+                    nmcliente: nmCliente,
+                    datasevento: JSON.stringify(periodoDoEvento)
+                }).toString();
+
+                const duplicateCheckResult = await fetchComToken(checkDuplicateUrl, {
+                    method: 'GET',
+                    // O header Content-Type é geralmente para 'body' no formato JSON,
+                    // para GET com query params, não é estritamente necessário,
+                    // mas não deve causar problemas.
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (duplicateCheckResult.isDuplicate) {
+
+                    const existingEventData = duplicateCheckResult.existingEvent;
+
+                    
+                    console.log("!!! DUPLICADO ENCONTRADO !!!");
+                    console.log("Evento duplicado retornado pelo backend:", existingEventData);
+                    console.log("Comparando:", currentEditingStaffEvent?.idstaffevento, "com", existingEventData?.idstaffevento);
+
+                    
+                    console.log("COMPARACAO", currentEditingStaffEvent, existingEventData);
+
+                    if (currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento === existingEventData.idstaffevento) {
+                       
+                        console.log("Evento existente detectado e em modo de edição. É o mesmo registro. Prosseguindo para verificação de alteração.");
+                        metodo = "PUT"; // Garante que o método continua PUT
+                        url = `/staff/${existingEventData.idstaffevento}`; // Garante a URL correta
+                        currentEditingStaffEvent = existingEventData; // Atualiza com os dados mais recentes do backend
+                        // isFormLoadedFromDoubleClick = true; // Já deveria ser true se chegou aqui por duplo clique
+                    } else {
+                        
+                        const { isConfirmed } = await Swal.fire({
+                            icon: "info",
+                            title: "Evento Duplicado!",
+                            html: `O evento para o funcionário <strong>${nmFuncionario}</strong> com as datas selecionadas já está cadastrado.<br><br>Deseja Atualizar o registro existente?`,
+                            showCancelButton: true,
+                            confirmButtonText: "Sim, atualizar",
+                            cancelButtonText: "Não, cancelar",
+                            reverseButtons: true
+                        });
+
+                        if (!isConfirmed) {
+                            console.log("Usuário optou por não atualizar o evento duplicado.");
+                            return; 
+                        }
+                        
+                        console.log("Usuário confirmou a atualização do evento duplicado. Alterando para modo PUT.");
+                        metodo = "PUT";
+                        url = `/staff/${existingEventData.idstaffevento}`; // Usa o ID do evento duplicado encontrado
+                        currentEditingStaffEvent = existingEventData; // Define o evento a ser editado como o duplicado
+                        isFormLoadedFromDoubleClick = true; // Marca como "carregado por duplo clique" para pular a verificação futura para este item
+                    }
+
+                } else {
+                    
+                    console.log("Nenhum evento duplicado encontrado. Prosseguindo com o método original:", metodo);
+                }
+            } catch (error) {
+                console.error("Erro na verificação de duplicidade:", error);
+                Swal.fire("Erro", error.message || "Não foi possível verificar duplicidade. Tente novamente.", "error");
+                return; // Bloqueia o envio se houver erro na verificação
+            }
+        } else {
+            console.log("Pulando verificação de duplicidade (modo de edição via duplo clique já está ativo).");
+        }
 
         const formData = new FormData();
         // Adiciona todos os campos de texto ao FormData
@@ -596,7 +845,15 @@ async function verificaStaff() {
         formData.append('datasevento', JSON.stringify(periodoDoEvento));
         formData.append('vlrtotal', total.toString()); 
 
+        let comppgtocacheDoForm = '';
         const fileCacheInput = document.getElementById('fileCache');
+        if (fileCacheInput && fileCacheInput.files.length > 0) {
+            comppgtocacheDoForm = fileCacheInput.files[0].name;
+        } else {
+            
+            comppgtocacheDoForm = currentEditingStaffEvent ? currentEditingStaffEvent.comppgtocache || '' : '';
+        }
+       
         if (fileCacheInput.files && fileCacheInput.files[0]) {
             // Caso 1: O usuário selecionou um NOVO arquivo. Anexa o objeto File.
             formData.append('comppgtocache', fileCacheInput.files[0]);
@@ -607,7 +864,14 @@ async function verificaStaff() {
         }
       
         // Comprovante de Ajuda de Custo
+        let comppgtoajdcustoDoForm = '';
         const fileAjdCustoInput = document.getElementById('fileAjdCusto');
+        if (fileAjdCustoInput && fileAjdCustoInput.files.length > 0) {
+            comppgtoajdcustoDoForm = fileAjdCustoInput.files[0].name;
+        } else {
+            comppgtoajdcustoDoForm = currentEditingStaffEvent ? currentEditingStaffEvent.comppgtoajdcusto || '' : '';
+        }
+        
         if (fileAjdCustoInput.files && fileAjdCustoInput.files[0]) {
             formData.append('comppgtoajdcusto', fileAjdCustoInput.files[0]);
         } else if (fileAjdCustoInput.value === '') {
@@ -615,7 +879,14 @@ async function verificaStaff() {
         }
 
         // Comprovante de Caixinha (Extras)
+        let comppgtoextrasDoForm = '';
         const fileCaixinhaInput = document.getElementById('fileCaixinha');
+        if (fileCaixinhaInput && fileCaixinhaInput.files.length > 0) {
+            comppgtoextrasDoForm = fileCaixinhaInput.files[0].name;
+        } else {
+            comppgtoextrasDoForm = currentEditingStaffEvent ? currentEditingStaffEvent.comppgtoextras || '' : '';
+        }
+        
         if (fileCaixinhaInput.files && fileCaixinhaInput.files[0]) {
             formData.append('comppgtoextras', fileCaixinhaInput.files[0]);
         } else if (fileCaixinhaInput.value === '') {
@@ -645,7 +916,7 @@ async function verificaStaff() {
 
 
         if (metodo === "PUT") {
-            if (!isEditing) { // Use isEditing aqui também para ser consistente
+            if (!isEditingInitial) { // Use isEditing aqui também para ser consistente
                 console.log("Erro: Dados originais não encontrados para PUT");
                 return Swal.fire("Erro", "Dados originais não encontrados para comparação (ID ausente para PUT).", "error");
             }
@@ -735,6 +1006,36 @@ async function verificaStaff() {
                 houveAlteracao = true;
             }
 
+            
+
+            const logAndCheck = (fieldName, originalValue, currentValue, condition) => {
+            const isDifferent = condition;
+                console.log(`[COMPARACAO] ${fieldName}: Original = '${originalValue}' | Atual = '${currentValue}' | Diferente = ${isDifferent}`);
+                return isDifferent;
+            };
+            houveAlteracao =
+                logAndCheck('ID Funcionário', currentEditingStaffEvent.idfuncionario, idFuncionario, currentEditingStaffEvent.idfuncionario != idFuncionario) ||
+                logAndCheck('Função', currentEditingStaffEvent.nmfuncao.toUpperCase(), descFuncao, currentEditingStaffEvent.nmfuncao.toUpperCase() != descFuncao) ||
+                logAndCheck('Valor Cache', parseFloat(currentEditingStaffEvent.vlrcache || 0), parseFloat(vlrCusto.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrcache || 0) != parseFloat(vlrCusto.replace(',', '.') || 0)) ||
+                logAndCheck('Datas Evento', JSON.stringify(currentEditingStaffEvent.datasevento || []), JSON.stringify(periodoDoEvento), JSON.stringify(currentEditingStaffEvent.datasevento || []) !== JSON.stringify(periodoDoEvento)) || // Use datasevento
+                logAndCheck('Valor Extra', parseFloat(currentEditingStaffEvent.vlrextra || 0), extraValorAtual, parseFloat(currentEditingStaffEvent.vlrextra || 0) != extraValorAtual) ||
+                logAndCheck('Valor Transporte', parseFloat(currentEditingStaffEvent.vlrtransporte || 0), parseFloat(transporte.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrtransporte || 0) != parseFloat(transporte.replace(',', '.') || 0)) ||
+                logAndCheck('Almoço', (currentEditingStaffEvent.vlralmoco === 1 ? '1' : '0'), almoco, (currentEditingStaffEvent.vlralmoco === 1 ? '1' : '0') != almoco) ||
+                logAndCheck('Jantar', (currentEditingStaffEvent.vlrjantar === 1 ? '1' : '0'), jantar, (currentEditingStaffEvent.vlrjantar === 1 ? '1' : '0') != jantar) ||
+                logAndCheck('Valor Caixinha', parseFloat(currentEditingStaffEvent.vlrcaixinha || 0), caixinhaValorAtual, parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) != caixinhaValorAtual) ||
+                logAndCheck('Descrição Bônus', (currentEditingStaffEvent.descbonus || '').trim(), descBonus.trim(), (currentEditingStaffEvent.descbonus || '').trim() != descBonus.trim()) ||
+                logAndCheck('Descrição Benefícios', (currentEditingStaffEvent.descbeneficios || '').trim(), descBeneficio.trim(), (currentEditingStaffEvent.descbeneficios || '').trim() != descBeneficio.trim()) ||
+                logAndCheck('Setor', (currentEditingStaffEvent.setor || '').trim(), setor.trim(), (currentEditingStaffEvent.setor || '').trim() != setor.trim()) ||
+                logAndCheck('ID Cliente', currentEditingStaffEvent.idcliente, idCliente, currentEditingStaffEvent.idcliente != idCliente) ||
+                logAndCheck('ID Evento', currentEditingStaffEvent.idevento, idEvento, currentEditingStaffEvent.idevento != idEvento) ||
+                logAndCheck('ID Montagem', currentEditingStaffEvent.idmontagem, idMontagem, currentEditingStaffEvent.idmontagem != idMontagem) ||
+                logAndCheck('Pavilhão', (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim(), pavilhao.toUpperCase().trim(), (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao.toUpperCase().trim());
+                logAndCheck('Comprovante Cache', currentEditingStaffEvent.comppgtocache, comppgtocacheDoForm, currentEditingStaffEvent.comppgtocache !== comppgtocacheDoForm) ||
+                logAndCheck('Comprovante Ajuda Custo', currentEditingStaffEvent.comppgtoajdcusto, comppgtoajdcustoDoForm, currentEditingStaffEvent.comppgtoajdcusto !== comppgtoajdcustoDoForm) ||
+                logAndCheck('Comprovante Extras', currentEditingStaffEvent.comppgtoextras, comppgtoextrasDoForm, currentEditingStaffEvent.comppgtoextras !== comppgtoextrasDoForm) ||
+
+
+
             console.log("Houve alteração geral?", houveAlteracao);
 
             if (!houveAlteracao) {
@@ -780,10 +1081,237 @@ async function verificaStaff() {
             console.error("❌ Erro ao enviar dados do funcionário:", error);
             Swal.fire("Erro", error.message || "Erro ao salvar funcionário.", "error");
         }
-    });
-    
+    });    
 }
 
+function desinicializarStaffModal() {
+    console.log("🧹 Desinicializando módulo Staff.js...");
+
+    const selectAvaliacao = document.querySelector("#avaliacao");
+    const botaoLimpar = document.querySelector("#Limpar");
+    const botaoEnviar = document.querySelector("#Enviar");
+    const datasEventoInput = document.querySelector("#datasEvento");
+    const selectFuncionario = document.querySelector("#nmFuncionario");
+    const selectFuncao = document.querySelector("#descFuncao");
+    const selectCliente = document.querySelector("#nmCliente");
+    const selectEvento = document.querySelector("#nmEvento");
+    const selectLocalMontagem = document.querySelector("#nmLocalMontagem");
+    const selectPavilhao = document.querySelector("#nmPavilhao"); // Pode não existir se não carregado
+    const Caixinhacheck = document.querySelector("#Caixinhacheck");
+    const Extracheck = document.querySelector("#Extracheck");
+    const vlrCustoInput = document.querySelector("#vlrCusto");
+    const extraInput = document.querySelector("#extra");
+    const transporteInput = document.querySelector("#transporte");
+    const almocoInput = document.querySelector("#almoco");
+    const jantarInput = document.querySelector("#jantar");
+    const caixinhaInput = document.querySelector("#caixinha");
+    const fileCacheInput = document.getElementById('fileCache');
+    const fileAjdCustoInput = document.getElementById('fileAjdCusto');
+    const fileCaixinhaInput = document.getElementById('fileCaixinha');
+
+
+    // 1. Remover listeners de eventos dos elementos
+    if (selectAvaliacao && avaliacaoChangeListener) {
+        selectAvaliacao.removeEventListener("change", avaliacaoChangeListener);
+        avaliacaoChangeListener = null;
+        console.log("Listener de change do Avaliação (Staff) removido.");
+    }
+    if (botaoLimpar && limparStaffButtonListener) {
+        botaoLimpar.removeEventListener("click", limparStaffButtonListener);
+        limparStaffButtonListener = null;
+        console.log("Listener de click do Limpar (Staff) removido.");
+    }
+    if (botaoEnviar && enviarStaffButtonListener) {
+        botaoEnviar.removeEventListener("click", enviarStaffButtonListener);
+        enviarStaffButtonListener = null;
+        console.log("Listener de click do Enviar (Staff) removido.");
+    }
+
+    // Remover listeners dos selects
+    if (selectFuncionario && nmFuncionarioChangeListener) {
+        selectFuncionario.removeEventListener("change", nmFuncionarioChangeListener);
+        nmFuncionarioChangeListener = null;
+    }
+    if (selectFuncao && descFuncaoChangeListener) {
+        selectFuncao.removeEventListener("change", descFuncaoChangeListener);
+        descFuncaoChangeListener = null;
+    }
+    if (selectCliente && nmClienteChangeListener) {
+        selectCliente.removeEventListener("change", nmClienteChangeListener);
+        nmClienteChangeListener = null;
+    }
+    if (selectEvento && nmEventoChangeListener) {
+        selectEvento.removeEventListener("change", nmEventoChangeListener);
+        nmEventoChangeListener = null;
+    }
+    if (selectLocalMontagem && nmLocalMontagemChangeListener) {
+        selectLocalMontagem.removeEventListener("change", nmLocalMontagemChangeListener);
+        nmLocalMontagemChangeListener = null;
+    }
+    if (selectPavilhao && qtdPavilhaoChangeListener) { // Remover apenas se existir
+        selectPavilhao.removeEventListener("change", qtdPavilhaoChangeListener);
+        qtdPavilhaoChangeListener = null;
+    }
+
+
+    // Remover listeners dos checkboxes
+    if (Caixinhacheck && CaixinhacheckListener) {
+        Caixinhacheck.removeEventListener("change", CaixinhacheckListener);
+        CaixinhacheckListener = null;
+    }
+    if (Extracheck && ExtracheckListener) {
+        Extracheck.removeEventListener("change", ExtracheckListener);
+        ExtracheckListener = null;
+    }
+
+    // Remover listeners dos campos de valor
+    if (vlrCustoInput && vlrCustoInputListener) {
+        vlrCustoInput.removeEventListener("input", vlrCustoInputListener);
+        vlrCustoInputListener = null;
+    }
+    if (extraInput && extraInputListener) {
+        extraInput.removeEventListener("input", extraInputListener);
+        extraInputListener = null;
+    }
+    if (transporteInput && transporteInputListener) {
+        transporteInput.removeEventListener("input", transporteInputListener);
+        transporteInputListener = null;
+    }
+    if (almocoInput && almocoInputListener) {
+        almocoInput.removeEventListener("input", almocoInputListener);
+        almocoInputListener = null;
+    }
+    if (jantarInput && jantarInputListener) {
+        jantarInput.removeEventListener("input", jantarInputListener);
+        jantarInputListener = null;
+    }
+    if (caixinhaInput && caixinhaInputListener) {
+        caixinhaInput.removeEventListener("input", caixinhaInputListener);
+        caixinhaInputListener = null;
+    }
+
+    // Remover listeners dos inputs de arquivo
+    if (fileCacheInput && fileCacheChangeListener) {
+        fileCacheInput.removeEventListener("change", fileCacheChangeListener);
+        fileCacheChangeListener = null;
+    }
+    if (fileAjdCustoInput && fileAjdCustoChangeListener) {
+        fileAjdCustoInput.removeEventListener("change", fileAjdCustoChangeListener);
+        fileAjdCustoChangeListener = null;
+    }
+    if (fileCaixinhaInput && fileCaixinhaChangeListener) {
+        fileCaixinhaInput.removeEventListener("change", fileCaixinhaChangeListener);
+        fileCaixinhaChangeListener = null;
+    }
+
+
+    // 2. Destruir instâncias de bibliotecas externas (Flatpickr)
+    if (datasEventoFlatpickrInstance) {
+        datasEventoFlatpickrInstance.destroy();
+        datasEventoFlatpickrInstance = null;
+        console.log("Flatpickr para #datasEvento destruído.");
+    }
+
+    // 3. Limpar o estado global e campos do formulário
+    window.StaffOriginal = null;
+    window.currentEditingStaffEvent = null;
+    limparCamposStaff();
+    document.querySelector("#form").reset(); // Garante que o formulário seja completamente resetado
+
+    console.log("✅ Módulo Staff.js desinicializado.");
+}
+
+// const verificarDisponibilidadeStaff = async (idFuncionario, novasDatasEvento, idStaffEventoAtual = null) => {
+//     if (!idFuncionario || novasDatasEvento.length === 0) {
+//         // Se não houver funcionário ou datas, consideramos disponível (ou tratamos como erro antes de chamar)
+//         return { isAvailable: true };
+//     }
+
+//     const url = `/staff/${idFuncionario}`; // Reutiliza a sua rota GET para pegar os eventos do funcionário
+
+//     try {
+//         const response = await fetch(url, {
+//             method: 'GET',
+//             headers: {
+//                 'Content-Type': 'application/json',
+//                 'Authorization': 'Bearer ' + localStorage.getItem('token')
+//             }
+//         });
+
+//         if (!response.ok) {
+//             const errorData = await response.json();
+//             throw new Error(errorData.message || 'Erro ao buscar eventos existentes do funcionário.');
+//         }
+
+//         const eventosExistentes = await response.json();
+//         console.log(`Eventos existentes para o funcionário ${idFuncionario}:`, eventosExistentes);
+
+//         // Normalize as novas datas para comparação (YYYY-MM-DD strings)
+//         const novasDatasString = novasDatasEvento.map(date => date.toISOString().split('T')[0]);
+
+//         for (const eventoExistente of eventosExistentes) {
+//             // Ignorar o próprio evento se estivermos em modo de edição
+//             if (idStaffEventoAtual && eventoExistente.idstaffevento == idStaffEventoAtual) {
+//                 continue;
+//             }
+
+//             let datasExistentesStrings = [];
+//             if (eventoExistente.datasevento) {
+//                 try {
+//                     // Tenta parsear se for uma string JSON, senão assume que já é um array
+//                     datasExistentesStrings = typeof eventoExistente.datasevento === 'string'
+//                         ? JSON.parse(eventoExistente.datasevento)
+//                         : eventoExistente.datasevento;
+//                 } catch (e) {
+//                     console.error("Erro ao parsear datas do evento existente:", eventoExistente.datasevento, e);
+//                     continue; // Pula este evento se as datas estiverem mal formatadas
+//                 }
+//             }
+
+//             // Converter todas as datas existentes para objetos Date (apenas se precisar de lógica de intervalo complexa)
+//             // Para verificação de datas exatas, strings YYYY-MM-DD já bastam.
+
+//             // Verifica sobreposição de datas exatas (dia a dia)
+//             for (const novaDataStr of novasDatasString) {
+//                 if (datasExistentesStrings.includes(novaDataStr)) {
+//                     console.log(`Conflito detectado para o funcionário ${idFuncionario} na data ${novaDataStr}`);
+//                     console.log('Evento Conflitante:', eventoExistente);
+//                     return { isAvailable: false, conflictingEvent: eventoExistente };
+//                 }
+//             }
+//         }
+
+//         return { isAvailable: true }; // Nenhuma sobreposição encontrada
+//     } catch (error) {
+//         console.error('Erro na verificação de disponibilidade do staff:', error);
+//         // Em caso de erro na API, por segurança, podemos bloquear ou permitir dependendo da política.
+//         // Aqui, vamos permitir com um aviso, para não bloquear por um erro técnico na verificação.
+//         Swal.fire('Erro na Verificação', `Não foi possível verificar a disponibilidade do funcionário devido a um erro: ${error.message}. Tentando prosseguir.`, 'warning');
+//         return { isAvailable: true };
+//     }
+// };
+
+async function verificarDisponibilidadeStaff(idFuncionario, datasAgendamento, idEventoIgnorar = null) {
+    try {
+        const data = await fetchComToken(`/staff/check-availability`, { // Certifique-se que o endpoint é este
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                idfuncionario: idFuncionario,
+                datas: datasAgendamento.map(d => d.toISOString().split('T')[0]), // Garante formato YYYY-MM-DD
+                idEventoIgnorar: idEventoIgnorar // <--- ISSO É CRUCIAL PARA O BACKEND
+            })
+        });
+        
+        return data; // Deve conter { isAvailable: boolean, conflictingEvent: {...} }
+    } catch (error) {
+        console.error("Erro na API de verificação de disponibilidade:", error);
+        Swal.fire("Erro na Verificação", "Não foi possível verificar a disponibilidade do funcionário.", "error");
+        return { isAvailable: false, conflictingEvent: null };
+    }
+}
 
 function inicializarFlatpickrsGlobais() {
 console.log("Inicializando Flatpickr para todos os campos de data (globais)...");
@@ -1293,14 +1821,14 @@ async function carregarLocalMontStaff() {
 async function carregarPavilhaoStaff(idMontagem) {
     try{
 
-       const pavilhao = await fetchComToken(`/staff/pavilhao?idmontagem=${idMontagem}`);
+       const pavilhaofetch = await fetchComToken(`/staff/pavilhao?idmontagem=${idMontagem}`);
         
         let selects = document.querySelectorAll(".nmPavilhao");      
         
         selects.forEach(select => {        
            
             select.innerHTML = '<option value="">Selecione o Pavilhão</option>'; // Adiciona a opção padrão
-            pavilhao.forEach(localpav => {
+            pavilhaofetch.forEach(localpav => {
           
                 let option = document.createElement("option");
 
@@ -1370,6 +1898,9 @@ function limparCamposStaff() {
             console.log(`Campo "${id}" limpo.`);
         }
     });
+
+    currentEditingStaffEvent = null; // Garanta que esta também seja limpa
+    isFormLoadedFromDoubleClick = false;
 
     const previewFoto = document.getElementById('previewFoto');
     const fileName = document.getElementById('fileName');
@@ -1849,14 +2380,58 @@ function setupComprovanteUpload(fileInputId, fileNameDisplayId, previewImgId, pd
 }
 
 
+// function preencherComprovanteCampo(filePath, fileNameDisplayId, previewImgId, pdfPreviewDivId, pdfLinkId, imagePreviewDivId, linkImageId) {
+//     const fileNameDisplay = document.getElementById(fileNameDisplayId);
+//     const previewImg = document.getElementById(previewImgId);
+//     const pdfPreviewDiv = document.getElementById(pdfPreviewDivId);
+//     const pdfLink = document.getElementById(pdfLinkId);
+//     const imagePreviewDiv = document.getElementById(imagePreviewDivId);
+//     const linkImage = document.getElementById(linkImageId);
+//     const fileInputId = fileNameDisplayId.replace('fileName', 'file');
+//     const fileInput = document.getElementById(fileInputId);
+
+//     if (!fileNameDisplay || !previewImg || !pdfPreviewDiv || !pdfLink || !imagePreviewDiv || !linkImage || !fileInput) {
+//         console.warn(`[CARREGAR DO BANCO ERROR] Elementos não encontrados para preencher: ${fileNameDisplayId}, ${previewImgId}, ${pdfPreviewDivId}, ${pdfLinkId}, ${imagePreviewDivId}, ${linkImageId}, ${fileInputId}`);
+//         return;
+//     }
+
+//     // Esconde TODOS os previews por padrão
+//     previewImg.style.display = 'none';
+//     pdfPreviewDiv.style.display = 'none';
+//     pdfLink.href = '#';
+//     imagePreviewDiv.style.display = 'none';
+//     linkImage.href = '#';
+
+//     if (filePath) {
+//         const fileName = filePath.split('/').pop();
+//         fileNameDisplay.textContent = fileName;
+
+//         const isImageFile = filePath.match(/\.(jpeg|jpg|png|gif|webp|bmp|svg)$/i);
+//         const isPdfFile = filePath.match(/\.pdf$/i);
+
+//         if (isImageFile) {
+//             linkImage.href = filePath;
+//             imagePreviewDiv.style.display = 'block';
+//         } else if (isPdfFile) {
+//             pdfLink.href = filePath;
+//             pdfPreviewDiv.style.display = 'block';
+//         } else {
+//             console.warn(`[CARREGAR DO BANCO WARNING] Tipo de arquivo desconhecido para pré-visualização: ${filePath}. Exibindo apenas nome.`);
+//         }
+//     } else {
+//         fileNameDisplay.textContent = 'Nenhum arquivo selecionado';
+//         fileInput.value = '';
+//     }
+// }
+
 function preencherComprovanteCampo(filePath, fileNameDisplayId, previewImgId, pdfPreviewDivId, pdfLinkId, imagePreviewDivId, linkImageId) {
     const fileNameDisplay = document.getElementById(fileNameDisplayId);
-    const previewImg = document.getElementById(previewImgId);
+    const previewImg = document.getElementById(previewImgId); // Este é o seu <img> tag
     const pdfPreviewDiv = document.getElementById(pdfPreviewDivId);
     const pdfLink = document.getElementById(pdfLinkId);
-    const imagePreviewDiv = document.getElementById(imagePreviewDivId);
-    const linkImage = document.getElementById(linkImageId);
-    const fileInputId = fileNameDisplayId.replace('fileName', 'file');
+    const imagePreviewDiv = document.getElementById(imagePreviewDivId); // Este é o div que contém a <img>
+    const linkImage = document.getElementById(linkImageId); // Este é o link que envolve a <img>
+    const fileInputId = fileNameDisplayId.replace('fileName', 'file'); // Assumindo padrão de nomenclatura
     const fileInput = document.getElementById(fileInputId);
 
     if (!fileNameDisplay || !previewImg || !pdfPreviewDiv || !pdfLink || !imagePreviewDiv || !linkImage || !fileInput) {
@@ -1865,11 +2440,13 @@ function preencherComprovanteCampo(filePath, fileNameDisplayId, previewImgId, pd
     }
 
     // Esconde TODOS os previews por padrão
-    previewImg.style.display = 'none';
+    previewImg.style.display = 'none'; // Esconde a imagem em si
     pdfPreviewDiv.style.display = 'none';
     pdfLink.href = '#';
-    imagePreviewDiv.style.display = 'none';
+    imagePreviewDiv.style.display = 'none'; // Esconde o div da imagem
     linkImage.href = '#';
+    fileNameDisplay.textContent = 'Nenhum arquivo selecionado'; // Reseta o nome do arquivo
+    fileInput.value = ''; // Limpa o input file
 
     if (filePath) {
         const fileName = filePath.split('/').pop();
@@ -1880,19 +2457,17 @@ function preencherComprovanteCampo(filePath, fileNameDisplayId, previewImgId, pd
 
         if (isImageFile) {
             linkImage.href = filePath;
-            imagePreviewDiv.style.display = 'block';
+            imagePreviewDiv.style.display = 'block'; // Mostra o div que contém a imagem
+            previewImg.src = filePath; // <<<< ADICIONE ESTA LINHA >>>>
+            previewImg.style.display = 'block'; // Mostra a imagem em si
         } else if (isPdfFile) {
             pdfLink.href = filePath;
             pdfPreviewDiv.style.display = 'block';
         } else {
             console.warn(`[CARREGAR DO BANCO WARNING] Tipo de arquivo desconhecido para pré-visualização: ${filePath}. Exibindo apenas nome.`);
         }
-    } else {
-        fileNameDisplay.textContent = 'Nenhum arquivo selecionado';
-        fileInput.value = '';
     }
 }
-
 
 // E na sua função de limpeza
 function limparCamposComprovantes() {
@@ -2014,3 +2589,9 @@ function configurarEventosEspecificos(modulo) {
   }
 }
 window.configurarEventosEspecificos = configurarEventosEspecificos;
+
+window.moduloHandlers = window.moduloHandlers || {};
+window.moduloHandlers['Staff'] = { // A chave 'Staff' deve corresponder ao seu Index.js
+    configurar: configurarEventosStaff,
+    desinicializar: desinicializarStaffModal
+};

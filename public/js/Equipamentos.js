@@ -1,5 +1,13 @@
 import { fetchComToken } from '../utils/utils.js';
 
+let descEquipBlurListener = null;
+let limparEquipamentoButtonListener = null;
+let enviarEquipamentoButtonListener = null;
+let pesquisarEquipamentoButtonListener = null;
+let selectEquipamentoChangeListener = null;
+let novoInputDescEquipBlurListener = null; // Para o blur do novo input de descrição
+let novoInputDescEquipInputListener = null;
+
 if (typeof window.EquipamentoOriginal === "undefined") {
     window.EquipamentoOriginal = {
         idEquip: "",
@@ -222,6 +230,125 @@ function verificaEquipamento() {
     
 
 }
+
+function adicionarListenersAoInputDescEquip(inputElement) {
+    // Remove listeners anteriores para evitar duplicidade
+    if (novoInputDescEquipInputListener) {
+        inputElement.removeEventListener("input", novoInputDescEquipInputListener);
+    }
+    if (novoInputDescEquipBlurListener) {
+        inputElement.removeEventListener("blur", novoInputDescEquipBlurListener);
+    }
+
+    novoInputDescEquipInputListener = function() {
+        this.value = this.value.toUpperCase();
+    };
+    inputElement.addEventListener("input", novoInputDescEquipInputListener);
+
+    novoInputDescEquipBlurListener = async function() {
+        if (!this.value.trim()) return;
+        await carregarEquipamentoDescricao(this.value, this);
+    };
+    inputElement.addEventListener("blur", novoInputDescEquipBlurListener);
+}
+
+
+function resetarCampoDescEquipParaInput() {
+    const descEquipCampo = document.getElementById("descEquip");
+    // Verifica se o campo atual é um select e o substitui por um input
+    if (descEquipCampo && descEquipCampo.tagName.toLowerCase() === "select") {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.id = "descEquip";
+        input.name = "descEquip";
+        input.value = ""; // Limpa o valor
+        input.placeholder = "Descrição do Equipamento";
+        input.className = "form";
+        input.classList.add('uppercase');
+        input.required = true;
+
+        // Remove o listener do select antes de substituí-lo
+        if (selectEquipamentoChangeListener) {
+            descEquipCampo.removeEventListener("change", selectEquipamentoChangeListener);
+            selectEquipamentoChangeListener = null;
+        }
+
+        descEquipCampo.parentNode.replaceChild(input, descEquipCampo);
+        adicionarListenersAoInputDescEquip(input); // Adiciona os listeners ao novo input
+
+        const label = document.querySelector('label[for="descEquip"]');
+        if (label) {
+            label.style.display = "block";
+            label.textContent = "Descrição do Equipamento";
+        }
+    }
+}
+
+
+// =============================================================================
+// Função de Desinicialização do Módulo Equipamentos
+// =============================================================================
+function desinicializarEquipamentoModal() {
+    console.log("🧹 Desinicializando módulo Equipamentos.js...");
+
+    const descEquipElement = document.querySelector("#descEquip");
+    const botaoEnviar = document.querySelector("#Enviar");
+    const botaoPesquisar = document.querySelector("#Pesquisar");
+    const botaoLimpar = document.querySelector("#Limpar");
+
+    // 1. Remover listeners de eventos dos elementos fixos
+    if (botaoLimpar && limparEquipamentoButtonListener) {
+        botaoLimpar.removeEventListener("click", limparEquipamentoButtonListener);
+        limparEquipamentoButtonListener = null;
+        console.log("Listener de click do Limpar (Equipamentos) removido.");
+    }
+    if (botaoEnviar && enviarEquipamentoButtonListener) {
+        botaoEnviar.removeEventListener("click", enviarEquipamentoButtonListener);
+        enviarEquipamentoButtonListener = null;
+        console.log("Listener de click do Enviar (Equipamentos) removido.");
+    }
+    if (botaoPesquisar && pesquisarEquipamentoButtonListener) {
+        botaoPesquisar.removeEventListener("click", pesquisarEquipamentoButtonListener);
+        pesquisarEquipamentoButtonListener = null;
+        console.log("Listener de click do Pesquisar (Equipamentos) removido.");
+    }
+
+    // 2. Remover listeners do campo descEquip (que pode ser input ou select)
+    if (descEquipElement) {
+        if (descEquipElement.tagName.toLowerCase() === "input") {
+            if (descEquipBlurListener) {
+                descEquipElement.removeEventListener("blur", descEquipBlurListener);
+                descEquipBlurListener = null;
+                console.log("Listener de blur do descEquip (input original) removido.");
+            }
+            if (novoInputDescEquipInputListener) {
+                descEquipElement.removeEventListener("input", novoInputDescEquipInputListener);
+                novoInputDescEquipInputListener = null;
+                console.log("Listener de input do descEquip (input dinâmico) removido.");
+            }
+            if (novoInputDescEquipBlurListener) {
+                descEquipElement.removeEventListener("blur", novoInputDescEquipBlurListener);
+                novoInputDescEquipBlurListener = null;
+                console.log("Listener de blur do descEquip (input dinâmico) removido.");
+            }
+
+        } else if (descEquipElement.tagName.toLowerCase() === "select" && selectEquipamentoChangeListener) {
+            descEquipElement.removeEventListener("change", selectEquipamentoChangeListener);
+            selectEquipamentoChangeListener = null;
+            console.log("Listener de change do select descEquip removido.");
+        }
+    }
+
+    // 3. Limpar o estado global e campos do formulário
+    window.EquipamentoOriginal = null; // Zera o objeto de equipamento original
+    limparCamposEquipamento(); // Limpa todos os campos visíveis do formulário
+   // document.querySelector("#form").reset(); // Garante que o formulário seja completamente resetado
+    document.querySelector("#idEquip").value = ""; // Limpa o ID oculto
+    resetarCampoDescEquipParaInput(); // Garante que o campo descEquip volte a ser um input padrão
+
+    console.log("✅ Módulo Equipamentos.js desinicializado.");
+}
+
 function criarSelectEquipamento(equipamentos) {
    
     const select = document.createElement("select");
@@ -593,3 +720,10 @@ function configurarEventosEspecificos(modulo) {
   }
 }
 window.configurarEventosEspecificos = configurarEventosEspecificos;
+
+window.moduloHandlers = window.moduloHandlers || {};
+
+window.moduloHandlers['Equipamentos'] = { // A chave 'Equipamentos' (com E maiúsculo) deve corresponder ao seu Index.js
+    configurar: configurarEventosEquipamento,
+    desinicializar: desinicializarEquipamentoModal
+};

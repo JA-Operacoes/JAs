@@ -1,9 +1,30 @@
 import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/flatpickr.min.js";
 import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/l10n/pt.js";
 
+
+//import "../js/flatpickr/l10n/pt.js";
+//import "../js/flatpickr/flatpickr.min.js";
+
+
 import { fetchComToken} from '../../utils/utils.js';
 
-
+let idMontagemChangeListener = null;
+let statusInputListener = null;
+let nrOrcamentoInputListener = null;
+let nrOrcamentoBlurListener = null;
+let btnAdicionarLinhaListener = null;
+let btnAdicionarLinhaAdicionalListener = null;
+let globalDescontoValorInputListener = null;
+let globalDescontoValorBlurListener = null;
+let globalDescontoPercentualInputListener = null;
+let globalDescontoPercentualBlurListener = null;
+let globalAcrescimoValorInputListener = null;
+let globalAcrescimoValorBlurListener = null;
+let globalAcrescimoPercentualInputListener = null;
+let globalAcrescimoPercentualBlurListener = null;
+let percentualImpostoInputListener = null;
+let btnEnviarListener = null;
+let btnLimparListener = null;
 //importado no inicio do js pois deve ser importado antes do restante do codigo
 
 
@@ -23,6 +44,8 @@ if (!currentLocale) {
 let locaisDeMontagem = [];
 
 let flatpickrInstances = {};
+
+let flatpickrInstancesOrcamento = []; 
 
 if (typeof window.hasRegisteredChangeListenerForAjdCusto === 'undefined') {
     window.hasRegisteredChangeListenerForAjdCusto = false;
@@ -261,6 +284,17 @@ async function carregarLocalMontOrc() {
 }
 
 async function carregarPavilhaoOrc(idMontagem) {
+    
+    if (!idMontagem || idMontagem.trim() === '') {
+        console.warn("ID da Montagem está vazio, não carregando pavilhões.");
+        // Opcional: Limpe o select de pavilhão aqui, se ele tiver opções antigas
+        const idPavilhaoSelect = document.querySelector(".idPavilhao");
+        if (idPavilhaoSelect) {
+            idPavilhaoSelect.innerHTML = '<option value="">Selecione um Pavilhão</option>';
+        }
+        return; // Não faça a requisição se idMontagem for vazio
+    }
+
     try{
 
        const pavilhao = await fetchComToken(`/orcamentos/pavilhao?idmontagem=${idMontagem}`);
@@ -930,7 +964,8 @@ function adicionarLinhaOrc() {
     let ufAtual = document.getElementById("ufmontagem")?.value || 'SP';
     const initialDisplayStyle = (!ufAtual || ufAtual.toUpperCase() === 'SP') ? "display: none;" : "display: table-cell;";
 
-    let novaLinha = tabela.insertRow();    
+   // let novaLinha = tabela.insertRow();    
+   let novaLinha = document.createElement('tr');
     // 
     novaLinha.innerHTML = `
         <td style="display: none;"><input type="hidden" class="idItemOrcamento" style="display: none;" value=""></td> <!-- Corrigido: de <th> para <td> e adicionado input hidden -->
@@ -1036,7 +1071,7 @@ function adicionarLinhaOrc() {
     // if (setorInputCheck) {
     //     console.log(`DEBUG ADICIONAR LINHA: HTML do td .setor:`, novaLinha.querySelector('td.setor').outerHTML);
     // }
-
+    tabela.insertBefore(novaLinha, tabela.firstChild);
 
     
     const descontoValorItem = novaLinha.querySelector('.descontoItem .ValorInteiros');
@@ -1679,19 +1714,82 @@ function removerLinhaOrc(botao) {
 function initializeAllFlatpickrsInModal() {
 //    console.log("Inicializando Flatpickr para todos os campos de data no modal...");
 
-    // 1. Inicializa os campos globais com a função já existente
-    inicializarFlatpickrsGlobais(); // Chamamos a função que você já tinha
+for (const id in flatpickrInstances) {
+        if (flatpickrInstances.hasOwnProperty(id)) {
+            const instance = flatpickrInstances[id];
+            if (instance && typeof instance.destroy === 'function') {
+                instance.destroy();
+                console.log(`Flatpickr global #${id} destruído.`);
+            }
+        }
+    }
+    flatpickrInstances = {}; // Zera o objeto após destruir
 
-    // 2. Inicializa Flatpickr para os inputs '.datas' que JÁ EXISTEM na tabela no carregamento inicial do modal
-    document.querySelectorAll(".datas").forEach(input => {
-        if (!input._flatpickr) { // Evita reinicialização
-            flatpickr(input, commonFlatpickrOptions);
-            console.log("Flatpickr inicializado para input da tabela (existente):", input);
+
+    // Destruir Flatpickrs das linhas da tabela (os que você gerencia em flatpickrInstancesOrcamento)
+    if (flatpickrInstancesOrcamento && flatpickrInstancesOrcamento.length > 0) {
+        flatpickrInstancesOrcamento.forEach(instance => {
+            if (instance && typeof instance.destroy === 'function') {
+                instance.destroy();
+                console.log("Flatpickr de linha da tabela destruído:", instance.element);
+            }
+        });
+        flatpickrInstancesOrcamento = []; // Zera o array após destruir
+    }
+
+
+    // --- PASSO 2: Inicializar/Recriar todas as instâncias Flatpickr ---
+
+    // Inicializa os campos globais
+    const dateInputIds = [
+        'periodoInfraMontagem', 'periodoMontagem', 'periodoMarcacao',
+        'periodoRealizacao', 'periodoDesmontagem', 'periodoDesmontagemInfra'
+    ];
+    dateInputIds.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            // Sempre crie uma nova instância aqui, pois as antigas foram destruídas
+            const picker = flatpickr(element, commonFlatpickrOptions);
+            flatpickrInstances[id] = picker;
+            console.log(`Flatpickr inicializado para campo global #${id}`);
         } else {
-            console.log("Flatpickr já está inicializado para input da tabela (existente), pulando.");
+            console.warn(`Elemento com ID '${id}' não encontrado para inicialização do Flatpickr.`);
         }
     });
+
+    // Inicializa Flatpickr para os inputs '.datas' que JÁ EXISTEM na tabela
+    // (Isso será executado quando o modal é aberto e a tabela já está renderizada com itens)
+    const tabela = document.getElementById("tabela");
+    if (tabela) {
+        // Seleciona os inputs type="text" visíveis, não os hidden que o Flatpickr pode criar
+        const dataInputs = tabela.querySelectorAll('input[type="text"].datas-item'); // Use '.datas-item' para ser mais específico
+        dataInputs.forEach(input => {
+            const fpInstance = flatpickr(input, commonFlatpickrOptionsTable); // Use commonFlatpickrOptionsTable
+            flatpickrInstancesOrcamento.push(fpInstance); // Adiciona a nova instância ao array
+            console.log("Flatpickr inicializado para input da tabela (existente):", input);
+        });
+    } else {
+        console.warn("Tabela de orçamento não encontrada para inicializar Flatpickrs de linha.");
+    }
+
+    console.log("✅ Todos os Flatpickrs no modal de orçamento inicializados/reinicializados.");
+
+
+
+    // // 1. Inicializa os campos globais com a função já existente
+    // inicializarFlatpickrsGlobais(); // Chamamos a função que você já tinha
+
+    // // 2. Inicializa Flatpickr para os inputs '.datas' que JÁ EXISTEM na tabela no carregamento inicial do modal
+    // document.querySelectorAll(".datas").forEach(input => {
+    //     if (!input._flatpickr) { // Evita reinicialização
+    //         flatpickr(input, commonFlatpickrOptions);
+    //         console.log("Flatpickr inicializado para input da tabela (existente):", input);
+    //     } else {
+    //         console.log("Flatpickr já está inicializado para input da tabela (existente), pulando.");
+    //     }
+    // });
 }
+initializeAllFlatpickrsInModal = initializeAllFlatpickrsInModal;
 
 // Crie esta nova função
 function inicializarFlatpickrsGlobais() {
@@ -1884,7 +1982,8 @@ function atualizaProdutoOrc(event) {
     let tabela = document.getElementById("tabela");
     if (!tabela) return; // Se a tabela não existir, sai da função
 
-    let ultimaLinha = tabela.querySelector("tbody tr:last-child");
+    //let ultimaLinha = tabela.querySelector("tbody tr:last-child");
+    let ultimaLinha = tabela.querySelector("tbody tr:first-child");
     if (ultimaLinha) {
 
         
@@ -2155,8 +2254,9 @@ function resetarOutrosSelectsOrc(select) {
 
 // Função para configurar eventos no modal de orçamento
 async function verificaOrcamento() {
+
     initializeAllFlatpickrsInModal();
-    // console.log("Função configurarEventosOrcamento CHAMADA");
+  
     carregarFuncaoOrc();
     carregarEventosOrc();
     carregarClientesOrc();
@@ -2164,22 +2264,13 @@ async function verificaOrcamento() {
     carregarEquipamentosOrc();
     carregarSuprimentosOrc();
     configurarFormularioOrc();
-
-    // Adiciona a primeira linha de orçamento
-
-    // Isso deve ser chamado depois que os selects estiverem carregados, se dependerem deles
-
-   // inicializarFlatpickrsGlobais(); 
-     // Inicializa os campos de data globais
+    
     inicializarListenersAjdCustoTabela();
 
     adicionarLinhaOrc(); 
 
     configurarInfraCheckbox();
-
-    // aplicarDescontoEAcrescimo('Desconto', true);
-    // aplicarDescontoEAcrescimo('Acrescimo', true);
-    
+        
     const selectElement = document.getElementById('idMontagem');
 
     if (selectElement) {       
@@ -2192,16 +2283,6 @@ async function verificaOrcamento() {
         console.error("Elemento 'idMontagem' não encontrado no DOM!");
     }   
 
-//    const periododtproduto = document.getElementById('seletorData');
-
-//     if (periododtproduto) {
-//         flatpickr(periododtproduto, commonFlatpickrOptionsTable);  
-    
-//         console.log("Flatpickr inicializado para o seletor de data de produto.");
-
-//     } else {
-//         console.error("Elemento 'seletorData' não encontrado no DOM!");
-//     }
     
     const statusInput = document.getElementById('Status');
     if(statusInput){
@@ -2248,22 +2329,18 @@ async function verificaOrcamento() {
             console.log(`Buscando orçamento com Nº: ${nrOrcamento}`);
 
             try {
-                // Monta a URL para a rota GET
-                const url = `orcamentos?nrOrcamento=${nrOrcamento}`;
-                
-                // Faz a requisição usando fetchComToken
-                const orcamento = await fetchComToken(url, { method: 'GET' });
-
-                // Se encontrou o orçamento, preenche o formulário               
+                const url = `orcamentos?nrOrcamento=${nrOrcamento}`;           
+       
+                const orcamento = await fetchComToken(url, { method: 'GET' });                     
                 preencherFormularioComOrcamento(orcamento);          
 
             } catch (error) {
                 console.error("Erro ao buscar orçamento:", error);
-                // Assume que 404 significa não encontrado, outros erros são falha.
+          
                 let errorMessage = error.message;
                 if (error.message.includes("404")) { 
                     errorMessage = `Orçamento com o número ${nrOrcamento} não encontrado.`;
-                    limparOrcamento(); // Limpa o formulário se não encontrar
+                    limparOrcamento(); 
                 } else if (error.message.includes("400")) {
                      errorMessage = "Número do orçamento é inválido ou vazio.";
                      limparOrcamento();
@@ -2299,17 +2376,7 @@ async function verificaOrcamento() {
     } else {
         console.error("Botão 'Adicionar Linha Adicional' não encontrado.");
     }   
-
-    // const btnRemoverLinha = document.getElementById('removerLinha');
-    // if (btnRemoverLinha) {
-    //     btnRemoverLinha.addEventListener('click', function() {
-    //         console.log("Botão 'Remover Linha' clicado");
-    //         // 
-    //         removerLinhaOrc(this); // Chama a função para remover a linha
-    //     });
-    // } else {
-    //     console.error("Botão 'Remover Linha' não encontrado.");
-    // }
+  
 
     const globalDescontoValor = document.getElementById('Desconto');
     const globalDescontoPercentual = document.getElementById('percentDesc');
@@ -2648,6 +2715,109 @@ async function verificaOrcamento() {
     recalcularTotaisGerais();
 }
 
+function desinicializarOrcamentosModal() {
+    console.log("🧹 Desinicializando módulo Orcamentos.js");
+
+    const selectElement = document.getElementById('idMontagem');
+    if (selectElement && idMontagemChangeListener) {
+        selectElement.removeEventListener('change', idMontagemChangeListener);
+        idMontagemChangeListener = null;
+    }
+
+    const statusInput = document.getElementById('Status');
+    if (statusInput && statusInputListener) {
+        statusInput.removeEventListener('input', statusInputListener);
+        statusInputListener = null;
+    }
+
+    const nrOrcamentoInput = document.getElementById('nrOrcamento');
+    if (nrOrcamentoInput && nrOrcamentoInputListener) {
+        nrOrcamentoInput.removeEventListener('input', nrOrcamentoInputListener);
+        nrOrcamentoInputListener = null;
+    }
+    if (nrOrcamentoInput && nrOrcamentoBlurListener) {
+        nrOrcamentoInput.removeEventListener('blur', nrOrcamentoBlurListener);
+        nrOrcamentoBlurListener = null;
+    }
+
+    const btnAdicionarLinha = document.getElementById('adicionarLinha');
+    if (btnAdicionarLinha && btnAdicionarLinhaListener) {
+        btnAdicionarLinha.removeEventListener('click', btnAdicionarLinhaListener);
+        btnAdicionarLinhaListener = null;
+    }
+
+    const btnAdicionarLinhaAdicional = document.getElementById('adicionarLinhaAdicional');
+    if (btnAdicionarLinhaAdicional && btnAdicionarLinhaAdicionalListener) {
+        btnAdicionarLinhaAdicional.removeEventListener('click', btnAdicionarLinhaAdicionalListener);
+        btnAdicionarLinhaAdicionalListener = null;
+    }
+
+    const globalDescontoValor = document.getElementById('Desconto');
+    if (globalDescontoValor && globalDescontoValorInputListener) {
+        globalDescontoValor.removeEventListener('input', globalDescontoValorInputListener);
+        globalDescontoValorInputListener = null;
+    }
+    if (globalDescontoValor && globalDescontoValorBlurListener) {
+        globalDescontoValor.removeEventListener('blur', globalDescontoValorBlurListener);
+        globalDescontoValorBlurListener = null;
+    }
+
+    const globalDescontoPercentual = document.getElementById('percentDesc');
+    if (globalDescontoPercentual && globalDescontoPercentualInputListener) {
+        globalDescontoPercentual.removeEventListener('input', globalDescontoPercentualInputListener);
+        globalDescontoPercentualInputListener = null;
+    }
+    if (globalDescontoPercentual && globalDescontoPercentualBlurListener) {
+        globalDescontoPercentual.removeEventListener('blur', globalDescontoPercentualBlurListener);
+        globalDescontoPercentualBlurListener = null;
+    }
+
+    const globalAcrescimoValor = document.getElementById('Acrescimo');
+    if (globalAcrescimoValor && globalAcrescimoValorInputListener) {
+        globalAcrescimoValor.removeEventListener('input', globalAcrescimoValorInputListener);
+        globalAcrescimoValorInputListener = null;
+    }
+    if (globalAcrescimoValor && globalAcrescimoValorBlurListener) {
+        globalAcrescimoValor.removeEventListener('blur', globalAcrescimoValorBlurListener);
+        globalAcrescimoValorBlurListener = null;
+    }
+
+    const globalAcrescimoPercentual = document.getElementById('percentAcresc');
+    if (globalAcrescimoPercentual && globalAcrescimoPercentualInputListener) {
+        globalAcrescimoPercentual.removeEventListener('input', globalAcrescimoPercentualInputListener);
+        globalAcrescimoPercentualInputListener = null;
+    }
+    if (globalAcrescimoPercentual && globalAcrescimoPercentualBlurListener) {
+        globalAcrescimoPercentual.removeEventListener('blur', globalAcrescimoPercentualBlurListener);
+        globalAcrescimoPercentualBlurListener = null;
+    }
+
+    const percentualImpostoInput = document.getElementById('percentImposto');
+    if (percentualImpostoInput && percentualImpostoInputListener) {
+        percentualImpostoInput.removeEventListener('input', percentualImpostoInputListener);
+        percentualImpostoInputListener = null;
+    }
+
+    const btnEnviar = document.getElementById('Enviar');
+    if (btnEnviar && btnEnviarListener) {
+        btnEnviar.removeEventListener("click", btnEnviarListener);
+        btnEnviarListener = null;
+    }
+
+    const btnLimpar = document.getElementById('Limpar');
+    if (btnLimpar && btnLimparListener) {
+        btnLimpar.removeEventListener("click", btnLimparListener);
+        btnLimparListener = null;
+    }
+    
+    // Resetar estados e limpar formulário (se aplicável)
+    limparOrcamento(); // Chame sua função de limpeza de formulário
+    
+    lastEditedGlobalFieldType = null;
+
+    console.log("✅ Módulo Orcamentos.js desinicializado.");
+}
+
 export function limparOrcamento() {
     console.log("DEBUG: Limpando formulário de orçamento...");
 
@@ -2907,13 +3077,29 @@ export async function preencherFormularioComOrcamento(orcamento) {
     const totalAjdCustoInput = document.getElementById('totalAjdCusto');
     if (totalAjdCustoInput) totalAjdCustoInput.value = formatarMoeda(orcamento.totajdcto || 0);
 
+    const totalGeralInput = document.getElementById('totalGeral');
+    if (totalGeralCtoInput && totalAjdCustoInput && totalGeralInput) {
+        // Obter os valores dos campos.
+        // Use uma função para remover a formatação de moeda e converter para número.
+        const valorGeralCto = desformatarMoeda(totalGeralCtoInput.value);
+        const valorAjdCusto = desformatarMoeda(totalAjdCustoInput.value);
+
+        // Realizar a soma
+        const somaTotal = valorGeralCto + valorAjdCusto;
+
+        // Formatar o resultado de volta para moeda e atribuir ao campo totalGeral
+        totalGeralInput.value = formatarMoeda(somaTotal);
+    } else {
+        console.warn("Um ou mais elementos de input (totalGeralCto, totalAjdCusto, totalGeral) não foram encontrados.");
+    }
+
     const lucroInput = document.getElementById('Lucro');
     if (lucroInput) lucroInput.value = formatarMoeda(orcamento.lucrobruto || 0);
 
     const percentLucroInput = document.getElementById('percentLucro');
     if (percentLucroInput) percentLucroInput.value = formatarPercentual(orcamento.percentlucro || 0);
 
-     const descontoInput = document.getElementById('Desconto');
+    const descontoInput = document.getElementById('Desconto');
     if (descontoInput) {
         // Converte para número antes de toFixed
         descontoInput.value = parseFloat(orcamento.desconto || 0).toFixed(2);
@@ -3207,25 +3393,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
             }, 0);
         });
     }    
-    
-        
-        // newRow.querySelector('.descontoItemItem .ValorInteiros')?.addEventListener('blur', function(event) { // MUDANÇA: 'input' para 'blur'
-        //     console.log("DEBUG: Blur no campo ValorInteiros de Desconto! Input:", this.value); // Adicione este log
-        //     recalcularDescontoAcrescimo(this, 'desconto', 'valor', this.closest('tr'));
-        // });
-    
-        // newRow.querySelector('.descontoItem .valorPerCent')?.addEventListener('blur', function(event) { // MUDANÇA: 'input' para 'blur'
-        //     console.log("DEBUG: Blur no campo valorPerCent de Desconto! Input:", this.value); // Adicione este log
-        //     recalcularDescontoAcrescimo(this, 'desconto', 'percentual', this.closest('tr'));
-        // });
-        // newRow.querySelector('.acrescimoItem .ValorInteiros')?.addEventListener('blur', function(event) { // MUDANÇA: 'input' para 'blur'
-        //     console.log("DEBUG: Blur no campo ValorInteiros de Acrescimo! Input:", this.value); // Adicione este log
-        //     recalcularDescontoAcrescimo(this, 'acrescimo', 'valor', this.closest('tr'));
-        // });
-        // newRow.querySelector('.acrescimoItem .valorPerCent')?.addEventListener('blur', function(event) { // MUDANÇA: 'input' para 'blur'
-        //    console.log("DEBUG: Blur no campo valorPerCent de Acrescimo! Input:", this.value); // Adicione este log
-        //     recalcularDescontoAcrescimo(this, 'acrescimo', 'percentual', this.closest('tr'));
-        // });
+          
         
         newRow.querySelector('.qtdProduto input')?.addEventListener('input', function() {
             recalcularLinha(this.closest('tr'));
@@ -3312,7 +3480,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
         const temPermissaoApagar = temPermissao("Orcamentos", "apagar");
         const deleteButton = newRow.querySelector('.btnApagar');
         const idItemInput = newRow.querySelector('input.idItemOrcamento'); // Obtém o input de ID
-        const idFuncaoInput = newRow.querySelector('input.idFuncao');
+       
 
         if (deleteButton) {
             deleteButton.addEventListener('click', async function(event) {
@@ -3407,9 +3575,11 @@ export async function preencherFormularioComOrcamento(orcamento) {
        
     });
 
+    tabelaBody.querySelectorAll('tr').forEach(row => {
+        recalcularLinha(row);
+    });
     
-    
-   // recalcularTotaisGerais(); 
+    recalcularTotaisGerais(); 
     aplicarMascaraMoeda();   
    // calcularLucro();
 }
@@ -4588,6 +4758,7 @@ function configurarEventosEspecificos(modulo) {
   console.log("⚙️ configurarEventosEspecificos recebeu:", modulo);
   
   if (modulo.trim().toLowerCase() === 'orcamentos') {
+    
     initializeAllFlatpickrsInModal();
     configurarEventosOrcamento();    
 
@@ -4609,3 +4780,12 @@ window.configurarEventosEspecificos = configurarEventosEspecificos;
       // ...adicione os campos necessários
     }
   });
+
+  window.moduloHandlers = window.moduloHandlers || {};
+
+window.moduloHandlers['Orcamentos'] = { // A chave 'Orcamentos' deve ser a mesma do seu mapaModulos no Index.js
+    configurar: verificaOrcamento,
+    desinicializar: desinicializarOrcamentosModal
+};
+
+console.log(`Módulo Orcamentos.js registrado em window.moduloHandlers`);

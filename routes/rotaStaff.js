@@ -222,6 +222,178 @@ router.get('/pavilhao', async (req, res) => {
 
 });
 
+router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, res) => {
+    console.log("🔥 Rota /staff/check-duplicate acessada");
+    let client; // Declarar client aqui para garantir que esteja acessível no finally
+    try {
+        const { idFuncionario, nmFuncionario, setor, nmlocalmontagem, nmevento, nmcliente, datasevento } = req.query;
+
+        if (!idFuncionario || !nmFuncionario || !nmlocalmontagem || !nmevento || !nmcliente || !datasevento) {
+            return res.status(400).json({ message: 'Campos obrigatórios (ID Funcionário, Nome Funcionário, Local Montagem, Evento, Cliente, Datas Evento) não foram fornecidos para verificar duplicidade.' });
+        }
+
+        let datasEventoArray;
+        try {
+            datasEventoArray = JSON.parse(datasevento);
+            if (!Array.isArray(datasEventoArray) || datasEventoArray.length === 0) {
+                return res.status(400).json({ message: 'Formato inválido para datasevento.' });
+            }
+        } catch (parseError) {
+            return res.status(400).json({ message: 'datasevento inválido: ' + parseError.message });
+        }
+
+        client = await pool.connect(); // Conectar ao pool
+
+        // Iniciar a query base
+        let query = `
+            SELECT se.idstaffevento, se.vlrcache, se.vlrextra, se.vlrtransporte, se.vlralmoco, se.vlrjantar, se.vlrcaixinha,
+                   se.descbonus, se.descbeneficios, se.setor, se.pavilhao, se.vlrtotal, se.comppgtocache, se.comppgtoajdcusto, se.comppgtoextras,
+                   se.idfuncionario, se.idfuncao, se.nmfuncao, se.idcliente, se.idevento, se.idmontagem, se.datasevento,
+                   se.nmfuncionario, se.nmcliente, se.nmevento, se.nmlocalmontagem,
+                   s.idstaff, s.avaliacao
+            FROM staffeventos se
+            INNER JOIN staff s ON se.idstaff = s.idstaff
+            WHERE se.idfuncionario = $1
+        `;
+
+        // Array para armazenar os valores dos parâmetros
+        const queryValues = [idFuncionario];
+        let paramIndex = 2; // Começa em 2 porque $1 já foi usado para idFuncionario
+
+        // Adicionar condição para setor dinamicamente
+        if (setor) { // Se setor foi fornecido (não é string vazia, null, undefined)
+            query += ` AND UPPER(se.setor) = UPPER($${paramIndex})`;
+            queryValues.push(setor);
+            paramIndex++;
+        } else { // Se setor está vazio/nulo
+            query += ` AND (se.setor IS NULL OR se.setor = '')`;
+            // Não adiciona nada a queryValues para esta condição
+        }
+
+        // Adicionar as demais condições
+        query += ` AND UPPER(se.nmlocalmontagem) = UPPER($${paramIndex})`;
+        queryValues.push(nmlocalmontagem);
+        paramIndex++;
+
+        query += ` AND UPPER(se.nmevento) = UPPER($${paramIndex})`;
+        queryValues.push(nmevento);
+        paramIndex++;
+
+        query += ` AND UPPER(se.nmcliente) = UPPER($${paramIndex})`;
+        queryValues.push(nmcliente);
+        paramIndex++;
+
+        query += ` AND se.datasevento::jsonb = $${paramIndex}::jsonb;`;
+        queryValues.push(JSON.stringify(datasEventoArray));
+
+        // Log da query e dos valores para depuração
+        console.log("QUERY DINÂMICA:", query);
+        console.log("VALUES DA QUERY:", queryValues);
+
+        const result = await client.query(query, queryValues);
+
+        if (result.rows.length > 0) {
+            return res.status(200).json({ isDuplicate: true, existingEvent: result.rows[0] });
+        } else {
+            return res.status(200).json({ isDuplicate: false, message: 'Nenhum evento duplicado encontrado.' });
+        }
+
+    } catch (error) {
+        console.error('Erro ao verificar duplicidade de evento:', error);
+        // Garante que o erro é capturado e retornado para o frontend
+        res.status(500).json({ message: 'Erro interno ao verificar duplicidade.', error: error.message });
+    } finally {
+        if (client) {
+            client.release(); // Libera o cliente de volta para o pool
+        }
+    }
+});
+
+// Exemplo da sua rota de verificação de disponibilidade (no seu arquivo de rotas, ex: rotaStaff.js)
+// staffRoutes.js (ou o nome do seu arquivo de rotas de staff)
+
+router.post('/check-availability', autenticarToken(), contextoEmpresa, async (req, res) => {
+    console.log("🔥 Rota /staff/check-availability (POST) acessada para verificação de disponibilidade");
+
+    const { idfuncionario, datas, idEventoIgnorar } = req.body;
+    const idEmpresa = req.idempresa;
+
+    if (!idfuncionario || !datas || !Array.isArray(datas) || datas.length === 0 || !idEmpresa) {
+        return res.status(400).json({ message: "Dados obrigatórios ausentes ou em formato incorreto para verificar disponibilidade (idfuncionario, datas, idempresa)." });
+    }
+
+    let client;
+    try {
+        client = await pool.connect();
+
+        // 1. Iniciar o array de parâmetros com idfuncionario e idEmpresa
+        let params = [idfuncionario, idEmpresa]; // Estes serão $1 e $2
+
+        // 2. Determinar o índice de início dos placeholders para as datas
+        // As datas começarão a partir do $3
+        const dateStartParamIndex = params.length + 1; 
+        const datePlaceholders = datas.map((_, i) => `$${dateStartParamIndex + i}`).join(', ');
+        
+        // 3. Adicionar as datas ao array de parâmetros
+        params = params.concat(datas); // As datas agora ocupam os placeholders a partir do $3
+
+        // 4. Determinar o placeholder para idEventoIgnorar (se existir)
+        // Ele será o próximo placeholder disponível após todas as datas
+        const idEventoIgnorarParamIndex = params.length + 1; 
+        
+        let query = `
+            SELECT 
+                se.nmevento, 
+                se.nmcliente, 
+                se.datasevento, 
+                se.idstaffevento
+            FROM 
+                staffeventos se
+            INNER JOIN 
+                staff s ON se.idstaff = s.idstaff
+            INNER JOIN 
+                staffEmpresas se_emp ON s.idstaff = se_emp.idstaff 
+            WHERE 
+                se.idfuncionario = $1
+                AND se_emp.idEmpresa = $2
+                -- CLÁUSULA PARA VERIFICAR SOBREPOSIÇÃO DE DATAS
+                AND EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements_text(se.datasevento) AS existing_date
+                    WHERE existing_date.value = ANY(ARRAY[${datePlaceholders}]::text[])
+                )
+        `;
+        
+        // 5. Adicionar a condição para IGNORAR o próprio evento em edição, se idEventoIgnorar for fornecido
+        if (idEventoIgnorar !== null) { // Use !== null para garantir que 0 (zero) seja considerado
+            query += ` AND se.idstaffevento != $${idEventoIgnorarParamIndex}`; 
+            params.push(idEventoIgnorar); // Adiciona o valor de idEventoIgnorar por último no array de parâmetros
+        }
+
+        console.log("Query de disponibilidade (com EXISTS, ajustado):", query);
+        console.log("Parâmetros de disponibilidade (com EXISTS, ajustado):", params);
+
+        const result = await client.query(query, params);
+
+        if (result.rows.length > 0) {
+            return res.json({
+                isAvailable: false,
+                conflictingEvent: result.rows[0] 
+            });
+        } else {
+            return res.json({ isAvailable: true, conflictingEvent: null });
+        }
+
+    } catch (error) {
+        console.error("❌ Erro no backend ao verificar disponibilidade:", error);
+        res.status(500).json({ message: "Erro interno do servidor ao verificar disponibilidade.", details: error.message });
+    } finally {
+        if (client) {
+            client.release();
+        }
+    }
+});
+
 //GET pesquisar
 router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
     verificarPermissao('staff', 'pesquisar'), // Permissão para visualizar
@@ -560,7 +732,7 @@ router.post("/", autenticarToken(), contextoEmpresa,
             idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
             vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
             vlrcaixinha, nmfuncionario, datasevento: datasEventoRaw,
-            descbonus, descbeneficios, setor
+            descbonus, descbeneficios, vlrtotal, setor
         } = req.body;
 
         const files = req.files;
@@ -616,7 +788,7 @@ router.post("/", autenticarToken(), contextoEmpresa,
                 RETURNING idstaff;
             `;
 
-            const staffInsertValues = [ idfuncionario, avaliacao,  ];
+            const staffInsertValues = [ idfuncionario, avaliacao];
 
             const resultStaff = await client.query(staffInsertQuery, staffInsertValues);
             const novoStaff = resultStaff.rows[0];
@@ -636,7 +808,7 @@ router.post("/", autenticarToken(), contextoEmpresa,
                         idstaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
                         idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
                         vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
-                        vlrcaixinha, descbonus, comppgtocache, comppgtoajdcusto, comppgtoextras, descbeneficios, setor
+                        vlrcaixinha, descbonus, datasevento, vlrtotal, comppgtocache, comppgtoajdcusto, comppgtoextras, descbeneficios, setor
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
                     RETURNING idstaffevento;
                 `;
@@ -656,7 +828,7 @@ router.post("/", autenticarToken(), contextoEmpresa,
                     parseFloat(String(vlrcaixinha).replace(',', '.')),
                     descbonus,
                     JSON.stringify(datasEventoParsed),
-                    vlrtotalCalculado,
+                    parseFloat(String(vlrtotal).replace(',', '.')), 
                     // 🎉 CAMINHOS DOS ARQUIVOS SALVOS PELO MULTER 🎉
                     comprovanteCacheFile ? `/uploads/staff_comprovantes/${comprovanteCacheFile.filename}` : null,
                     comprovanteAjdCustoFile ? `/uploads/staff_comprovantes/${comprovanteAjdCustoFile.filename}` : null,
@@ -703,6 +875,5 @@ router.post("/", autenticarToken(), contextoEmpresa,
         }
     }
 );
-
 
 module.exports = router;
