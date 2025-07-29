@@ -3575,11 +3575,9 @@ export async function preencherFormularioComOrcamento(orcamento) {
        
     });
 
-    tabelaBody.querySelectorAll('tr').forEach(row => {
-        recalcularLinha(row);
-    });
     
-    recalcularTotaisGerais(); 
+    
+   // recalcularTotaisGerais(); 
     aplicarMascaraMoeda();   
    // calcularLucro();
 }
