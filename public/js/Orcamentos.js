@@ -2542,8 +2542,8 @@ async function verificaOrcamento() {
                 dtIniDesmontagemInfra: desmontagemInfraDatas.inicio,
                 dtFimDesmontagemInfra: desmontagemInfraDatas.fim,                 
             
-                obsItens: formData.get("obsItens"),
-                obsProposta: formData.get("obsProposta"),
+                obsItens: formData.get("Observacao"),
+                obsProposta: formData.get("ObservacaoProposta"),
                 totGeralVda: desformatarMoeda(document.querySelector('#totalGeralVda').value),
                 totGeralCto: desformatarMoeda(document.querySelector('#totalGeralCto').value),
                 totAjdCusto: desformatarMoeda(document.querySelector('#totalAjdCusto').value),
@@ -2557,7 +2557,8 @@ async function verificaOrcamento() {
                 percentLucroReal: parsePercentValue(document.querySelector('#percentReal').value),               
                 vlrCliente: desformatarMoeda(document.querySelector('#valorCliente').value),
                 vlrImposto: desformatarMoeda(document.querySelector('#valorImposto').value),
-                percentImposto: parsePercentValue(document.querySelector('#percentImposto').value),
+                percentImposto: parsePercentValue(document.querySelector('#percentImposto').value)
+                
             };
 
             const itensOrcamento = [];
@@ -3142,6 +3143,8 @@ export async function preencherFormularioComOrcamento(orcamento) {
 
     const valorClienteInput = document.getElementById('valorCliente');
     if (valorClienteInput) valorClienteInput.value = formatarMoeda(orcamento.vlrcliente || 0);
+
+    console.log("VALOR DO CLIENTE VINDO DO BANCO", orcamento.vlrcliente || 0);
     
    // preencherItensOrcamentoTabela(orcamento.itens || []);
     
@@ -3445,8 +3448,8 @@ export async function preencherFormularioComOrcamento(orcamento) {
                 locale: flatpickr.l10ns.pt,
                 defaultDate: defaultDatesArray.length > 0 ? defaultDatesArray : [],
                 onChange: function(selectedDates, dateStr, instance) {
-                    // Você pode querer chamar recalcularLinha aqui se a mudança de datas afeta cálculos
-                    recalcularLinha(itemDateInput.closest('tr'));
+                    const input = instance.input;
+                    atualizarQtdDias(input, selectedDates);
                 }
             });
         } 
