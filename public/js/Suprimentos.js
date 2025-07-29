@@ -1,5 +1,13 @@
 import { fetchComToken } from '../utils/utils.js';
 
+let descSupBlurListener = null;
+let limparSuprimentoButtonListener = null;
+let enviarSuprimentoButtonListener = null;
+let pesquisarSuprimentoButtonListener = null;
+let selectSuprimentoChangeListener = null;
+let novoInputDescSupBlurListener = null; 
+let novoInputDescSupInputListener = null;
+
 if (typeof window.SuprimentoOriginal === "undefined") {
     window.SuprimentoOriginal = {
         idSup: "",
@@ -208,9 +216,124 @@ function verificaSuprimento() {
             });
         }
     });
-    
-
 }
+
+function adicionarListenersAoInputDescSup(inputElement) {
+    // Remove listeners anteriores para evitar duplicidade
+    if (novoInputDescSupInputListener) {
+        inputElement.removeEventListener("input", novoInputDescSupInputListener);
+    }
+    if (novoInputDescSupBlurListener) {
+        inputElement.removeEventListener("blur", novoInputDescSupBlurListener);
+    }
+
+    novoInputDescSupInputListener = function () {
+        this.value = this.value.toUpperCase();
+    };
+    inputElement.addEventListener("input", novoInputDescSupInputListener);
+
+    novoInputDescSupBlurListener = async function () {
+        if (!this.value.trim()) return;
+        console.log("Campo descSup procurado (blur dinâmico):", this.value);
+        await carregarSuprimentoDescricao(this.value, this);
+    };
+    inputElement.addEventListener("blur", novoInputDescSupBlurListener);
+}
+
+function resetarCampoDescSupParaInput() {
+    const descSupCampo = document.getElementById("descSup");
+    // Verifica se o campo atual é um select e o substitui por um input
+    if (descSupCampo && descSupCampo.tagName.toLowerCase() === "select") {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.id = "descSup";
+        input.name = "descSup";
+        input.value = ""; // Limpa o valor
+        input.placeholder = "Descrição do Suprimento";
+        input.className = "form";
+        input.classList.add('uppercase');
+        input.required = true;
+
+        // Remove o listener do select antes de substituí-lo
+        if (selectSuprimentoChangeListener) {
+            descSupCampo.removeEventListener("change", selectSuprimentoChangeListener);
+            selectSuprimentoChangeListener = null;
+        }
+
+        descSupCampo.parentNode.replaceChild(input, descSupCampo);
+        adicionarListenersAoInputDescSup(input); // Adiciona os listeners ao novo input
+
+        const label = document.querySelector('label[for="descSup"]');
+        if (label) {
+            label.style.display = "block";
+            label.textContent = "Descrição do Suprimento";
+        }
+    }
+}
+
+
+// =============================================================================
+// Função de Desinicialização do Módulo Suprimentos
+// =============================================================================
+function desinicializarSuprimentoModal() {
+    console.log("🧹 Desinicializando módulo Suprimentos.js...");
+
+    const descSupElement = document.querySelector("#descSup");
+    const botaoEnviar = document.querySelector("#Enviar");
+    const botaoPesquisar = document.querySelector("#Pesquisar");
+    const botaoLimpar = document.querySelector("#Limpar");
+
+    // 1. Remover listeners de eventos dos elementos fixos
+    if (botaoLimpar && limparSuprimentoButtonListener) {
+        botaoLimpar.removeEventListener("click", limparSuprimentoButtonListener);
+        limparSuprimentoButtonListener = null;
+        console.log("Listener de click do Limpar (Suprimentos) removido.");
+    }
+    if (botaoEnviar && enviarSuprimentoButtonListener) {
+        botaoEnviar.removeEventListener("click", enviarSuprimentoButtonListener);
+        enviarSuprimentoButtonListener = null;
+        console.log("Listener de click do Enviar (Suprimentos) removido.");
+    }
+    if (botaoPesquisar && pesquisarSuprimentoButtonListener) {
+        botaoPesquisar.removeEventListener("click", pesquisarSuprimentoButtonListener);
+        pesquisarSuprimentoButtonListener = null;
+        console.log("Listener de click do Pesquisar (Suprimentos) removido.");
+    }
+
+    // 2. Remover listeners do campo descSup (que pode ser input ou select)
+    if (descSupElement) {
+        if (descSupElement.tagName.toLowerCase() === "input") {
+            if (novoInputDescSupInputListener) { // Pode ser o listener do input dinâmico
+                descSupElement.removeEventListener("input", novoInputDescSupInputListener);
+                novoInputDescSupInputListener = null;
+                console.log("Listener de input do descSup (input) removido.");
+            }
+            if (novoInputDescSupBlurListener) { // Pode ser o listener do input dinâmico
+                descSupElement.removeEventListener("blur", novoInputDescSupBlurListener);
+                novoInputDescSupBlurListener = null;
+                console.log("Listener de blur do descSup (input) removido.");
+            }
+            // O descSupBlurListener original não existe mais se foi substituído pelo dinâmico
+            // Se você quiser ter certeza, poderia checar e remover, mas os dinâmicos já cobrem
+        } else if (descSupElement.tagName.toLowerCase() === "select" && selectSuprimentoChangeListener) {
+            descSupElement.removeEventListener("change", selectSuprimentoChangeListener);
+            selectSuprimentoChangeListener = null;
+            console.log("Listener de change do select descSup removido.");
+        }
+    }
+
+    // 3. Limpar o estado global e campos do formulário
+    window.SuprimentoOriginal = null; // Zera o objeto de suprimento original
+    limparCamposSuprimento(); // Limpa todos os campos visíveis do formulário
+    //document.querySelector("#form").reset(); // Garante que o formulário seja completamente resetado
+    document.querySelector("#idSup").value = ""; // Limpa o ID oculto
+    resetarCampoDescSupParaInput(); // Garante que o campo descSup volte a ser um input padrão
+
+    console.log("✅ Módulo Suprimentos.js desinicializado.");
+}
+
+
+
 function criarSelectSuprimento(suprimentos) {
    
     const select = document.createElement("select");
@@ -489,3 +612,11 @@ function configurarEventosEspecificos(modulo) {
   }
 }
 window.configurarEventosEspecificos = configurarEventosEspecificos;
+
+
+window.moduloHandlers = window.moduloHandlers || {};
+
+window.moduloHandlers['Suprimentos'] = { // A chave 'Suprimentos' (com S maiúsculo) deve corresponder ao seu Index.js
+    configurar: configurarEventosSuprimento,
+    desinicializar: desinicializarSuprimentoModal
+};

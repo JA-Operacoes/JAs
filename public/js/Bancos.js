@@ -1,11 +1,11 @@
 import { fetchComToken } from '../utils/utils.js';
 
-// let blurCodBancoListener = null;
-// let limparButtonListener = null;
-// let enviarButtonListener = null;
-// let pesquisarButtonListener = null;
-// let selectBancoChangeListener = null;
-// let inputNmBancoBlurListener = null;
+let blurCodBancoListener = null;
+let limparButtonListener = null;
+let enviarButtonListener = null;
+let pesquisarButtonListener = null;
+let selectBancoChangeListener = null;
+let inputNmBancoBlurListener = null;
 
 if (typeof window.BancoOriginal === "undefined") {
     window.BancoOriginal = {
@@ -445,10 +445,10 @@ function configurarEventosEspecificos(modulo) {
 window.configurarEventosEspecificos = configurarEventosEspecificos;
 
 
-// window.moduloHandlers = window.moduloHandlers || {};
+window.moduloHandlers = window.moduloHandlers || {};
 
-// // Registra as funções de configuração e desinicialização para este módulo
-// window.moduloHandlers['Bancos'] = { // Use 'Bancos' (com B maiúsculo) para corresponder ao seu mapaModulos no Index.js
-//     configurar: configurarbancosCadBanco(),
-//     desinicializar: desinicializarBancosModal
-// };
+// Registra as funções de configuração e desinicialização para este módulo
+window.moduloHandlers['Bancos'] = { // Use 'Bancos' (com B maiúsculo) para corresponder ao seu mapaModulos no Index.js
+    configurar: configurarbancosCadBanco,
+    desinicializar: desinicializarBancosModal
+};

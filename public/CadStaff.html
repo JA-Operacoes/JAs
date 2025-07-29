@@ -37,8 +37,8 @@
 
             <div class="form-2colunas">
               <div class="form">
-                <input type="text" id="idStaff" readonly required>
-                <label for="idStaff">Id Staff</label>
+                <input type="hidden" id="idStaff" readonly required>
+                <!-- <label for="idStaff">Id Staff</label> -->
               </div>
             </div>
               
@@ -68,6 +68,7 @@
                     <div class="gridInputsColumn"> 
                       <div class="form2"> 
                         <input type="hidden" id="idFuncionario" name="idFuncionario">
+                        <input type="hidden" id="idStaffEvento" name="idStaffEvento">
                         <select class="nmFuncionario" name="nmFuncionario" id="nmFuncionario">    
                           <option value="" selected disabled>Selecione o Funcionário</option>
                         </select>
@@ -99,6 +100,7 @@
                         <thead>
                             <tr>
                                 <td style="display: none;"><input type="hidden" class="idEvento" style="display: none;" value=""></td>
+                                <td style="display: none;"><input type="hidden" class="idStaffEvento" style="display: none;" value=""></td>
                                 <th>Função</th>
                                 <th>Setor</th>
                                 <th>Cliente</th>

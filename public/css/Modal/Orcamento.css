@@ -43,6 +43,7 @@
     z-index: 9999;    
     border-radius: 10px;
   }
+
   #cadModalOrcamentos.modal-open{
     overflow: hidden;
     pointer-events: none;
@@ -55,7 +56,7 @@
     pointer-events: auto; /* Torna visíveis o overlay e o modal */
   }
 
-  body .modal-open {
+  body.modal-open {
     overflow: hidden;
     pointer-events: none; /* Impede a rolagem da página */
   }

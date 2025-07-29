@@ -1,5 +1,11 @@
 import { fetchComToken } from '../utils/utils.js';
 
+let tpClienteInputListener = null;
+let btnEnviarListener = null;
+let btnLimparListener = null;
+let btnPesquisarListener = null;
+let selectClientesChangeListener = null;
+let nmFantasiaBlurListener = null;
 
 if (typeof window.clienteOriginal === "undefined") {
     window.clienteOriginal = {
@@ -377,6 +383,89 @@ function carregarClientes() {
     
  }
 
+ function desinicializarClientesModal() {
+    console.log("🧹 Desinicializando módulo Clientes.js");
+
+    const tpClienteInput = document.getElementById('tpcliente');
+    const btnEnviar = document.querySelector("#Enviar");
+    const btnLimpar = document.getElementById("Limpar");
+    const btnPesquisar = document.getElementById("Pesquisar");
+    const nmFantasiaElement = document.getElementById("nmFantasia"); // Pode ser input ou select
+
+    if (tpClienteInput && tpClienteInputListener) {
+        tpClienteInput.removeEventListener('input', tpClienteInputListener);
+        tpClienteInputListener = null;
+    }
+    if (btnEnviar && btnEnviarListener) {
+        btnEnviar.removeEventListener("click", btnEnviarListener);
+        btnEnviarListener = null;
+    }
+    if (btnLimpar && btnLimparListener) {
+        btnLimpar.removeEventListener("click", btnLimparListener);
+        btnLimparListener = null;
+    }
+    if (btnPesquisar && btnPesquisarListener) {
+        btnPesquisar.removeEventListener("click", btnPesquisarListener);
+        btnPesquisarListener = null;
+    }
+
+    // Remover listener do select (se o #nmFantasia for um select)
+    if (nmFantasiaElement && nmFantasiaElement.tagName === "SELECT" && selectClientesChangeListener) {
+        nmFantasiaElement.removeEventListener("change", selectClientesChangeListener);
+        selectClientesChangeListener = null;
+    }
+    // Remover listener do input #nmFantasia (se for um input)
+    if (nmFantasiaElement && nmFantasiaElement.tagName === "INPUT" && nmFantasiaBlurListener) {
+        nmFantasiaElement.removeEventListener("blur", nmFantasiaBlurListener);
+        nmFantasiaBlurListener = null;
+    }
+
+    // Limpar o estado original do cliente  
+    window.ClienteOriginal = { // <-- Acesse diretamente a variável do módulo
+        idCliente: "",
+        nmFantasia: "",
+        razaoSocial: "",
+        cnpj: "",
+        nmContato: "",
+        celContato: "",
+        emailCliente: "",
+        emailNfe: "",
+        emailContato: "",
+        site: "",
+        inscEstadual: "",
+        cep: "",
+        rua: "",
+        numero: "",
+        complemento: "",
+        bairro: "",
+        cidade: "",
+        estado: "",
+        pais: "",
+        ativo: "",
+        tpcliente: ""
+    };
+
+
+    if (maskCNPJ) {
+        maskCNPJ.destroy(); // Chama o método destroy da instância da máscara
+        maskCNPJ = null;
+    }
+    if (maskTelefone) {
+        maskTelefone.destroy();
+        maskTelefone = null;
+    }
+    if (maskCelContato) {
+        maskCelContato.destroy();
+        maskCelContato = null;
+    }
+    if (maskCEP) {
+        maskCEP.destroy();
+        maskCEP = null;
+    }
+
+ }
+
+
     
   /**
  * Retorna true se houver alguma diferença entre os dados atuais e clienteOriginal.
@@ -681,3 +770,13 @@ function configurarEventosEspecificos(modulo) {
   }
 }
 window.configurarEventosEspecificos = configurarEventosEspecificos;
+
+window.moduloHandlers = window.moduloHandlers || {};
+
+window.moduloHandlers['Clientes'] = { // A chave 'Clientes' deve ser a mesma do seu mapaModulos no Index.js
+    configurar: configurarEventosClientes,
+    desinicializar: desinicializarClientesModal
+};
+
+console.log(`Módulo Clientes.js registrado em window.moduloHandlers`);
+

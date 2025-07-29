@@ -211,11 +211,12 @@ function aplicarConfiguracoes(modulo) {
 
 function fecharModal() {
 
-  // const moduloQueEstaFechando = window.moduloAtual;
-  //   if (window.moduloHandlers[moduloQueEstaFechando] && typeof window.moduloHandlers[moduloQueEstaFechando].desinicializar === 'function') {
-  //       console.log(`Desinicializando módulo ${moduloQueEstaFechando} antes de fechar o modal.`);
-  //       window.moduloHandlers[moduloQueEstaFechando].desinicializar();
-  //   }
+  const moduloQueEstaFechando = window.moduloAtual;
+    if (window.moduloHandlers[moduloQueEstaFechando] && typeof window.moduloHandlers[moduloQueEstaFechando].desinicializar === 'function') {
+        console.log(`Desinicializando módulo ${moduloQueEstaFechando} antes de fechar o modal.`);
+        window.moduloHandlers[moduloQueEstaFechando].desinicializar();
+        window.location.reload();
+    }
 
   document.getElementById("modal-container").innerHTML = "";
   document.getElementById("modal-overlay").style.display = "none";

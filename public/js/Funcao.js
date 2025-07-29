@@ -1,6 +1,14 @@
 
 import { fetchComToken } from '../utils/utils.js';
 
+let limparFuncaoButtonListener = null;
+let enviarFuncaoButtonListener = null;
+let pesquisarFuncaoButtonListener = null;
+let selectFuncaoChangeListener = null;
+let inputDescFuncaoInputListener = null; 
+let inputDescFuncaoBlurListener = null;  
+let blurFuncaoCampoListener = null;
+
 if (typeof window.FuncaoOriginal === "undefined") {
     window.FuncaoOriginal = {
         idFuncao: "",
@@ -278,6 +286,7 @@ function verificaFuncao() {
     });
 }
 
+
 function criarSelectFuncao(funcoes) {
    
     const select = document.createElement("select");
@@ -545,3 +554,76 @@ function configurarEventosEspecificos(modulo) {
   }
 }
 window.configurarEventosEspecificos = configurarEventosEspecificos;
+
+
+function desinicializarFuncaoModal() { // Renomeado para seguir o padrão 'desinicializarBancosModal'
+    console.log("🧹 Desinicializando módulo Funcao.js...");
+
+    const botaoEnviar = document.querySelector("#Enviar");
+    const botaoPesquisar = document.querySelector("#Pesquisar");
+    const botaoLimpar = document.querySelector("#Limpar");
+    const descFuncaoElement = document.getElementById("descFuncao"); // Pode ser input ou select
+
+    // 1. Remover listeners de eventos dos botões fixos (usando as variáveis `let`)
+    if (botaoLimpar && limparFuncaoButtonListener) {
+        botaoLimpar.removeEventListener("click", limparFuncaoButtonListener);
+        limparFuncaoButtonListener = null; // Zera a referência
+        console.log("Listener de click do Limpar (Funcao) removido.");
+    }
+    if (botaoEnviar && enviarFuncaoButtonListener) {
+        botaoEnviar.removeEventListener("click", enviarFuncaoButtonListener);
+        enviarFuncaoButtonListener = null; // Zera a referência
+        console.log("Listener de click do Enviar (Funcao) removido.");
+    }
+    if (botaoPesquisar && pesquisarFuncaoButtonListener) {
+        botaoPesquisar.removeEventListener("click", pesquisarFuncaoButtonListener);
+        pesquisarFuncaoButtonListener = null; // Zera a referência
+        console.log("Listener de click do Pesquisar (Funcao) removido.");
+    }
+
+    // 2. Remover listeners de elementos dinâmicos (#descFuncao)
+    if (descFuncaoElement) {
+        if (descFuncaoElement.tagName.toLowerCase() === "select" && selectFuncaoChangeListener) {
+            descFuncaoElement.removeEventListener("change", selectFuncaoChangeListener);
+            selectFuncaoChangeListener = null;
+            console.log("Listener de change do select descFuncao removido.");
+        }
+        if (descFuncaoElement.tagName.toLowerCase() === "input") {
+            if (inputDescFuncaoInputListener) {
+                descFuncaoElement.removeEventListener("input", inputDescFuncaoInputListener);
+                inputDescFuncaoInputListener = null;
+                console.log("Listener de input do descFuncao (input) removido.");
+            }
+            if (inputDescFuncaoBlurListener) {
+                descFuncaoElement.removeEventListener("blur", inputDescFuncaoBlurListener);
+                inputDescFuncaoBlurListener = null;
+                console.log("Listener de blur do descFuncao (input) removido.");
+            }
+            // Se 'adicionarEventoBlurFuncao' adiciona um listener com uma referência que está em 'blurFuncaoCampoListener'
+            if (blurFuncaoCampoListener) {
+                 descFuncaoElement.removeEventListener("blur", blurFuncaoCampoListener);
+                 blurFuncaoCampoListener = null;
+                 console.log("Listener adicional de blur do descFuncao (input) removido.");
+            }
+        }
+    }
+    
+    // 3. Limpar o estado global FuncaoOriginal
+    // Assumindo que window.FuncaoOriginal existe, ou defina-o como um objeto vazio
+    window.FuncaoOriginal = { idFuncao: "", descFuncao: "", vlrCusto: 0, vlrVenda: 0, vlrTransporte: 0, obsFuncao: "", vlrAlmoco: 0, vlrJantar: 0 };
+    limparCamposFuncao(); // Chame a função que limpa os campos do formulário para garantir um estado limpo
+    document.getElementById('form').reset(); // Garante que o formulário seja resetado
+    document.querySelector("#idFuncao").value = ""; // Garante que o ID oculto seja limpo
+
+    console.log("✅ Módulo Funcao.js desinicializado.");
+}
+// Torna a função de desinicialização global para ser chamada pelo sistema de módulos
+
+
+window.moduloHandlers = window.moduloHandlers || {}; // Garante que o objeto existe
+
+// Registra as funções de configuração e desinicialização para o módulo 'Funcao'
+window.moduloHandlers['Funcao'] = { // Use 'Funcao' (com F maiúsculo) para corresponder ao seu mapaModulos no Index.js
+    configurar: configurarEventosFuncao, // Usa a nova função de inicialização
+    desinicializar: desinicializarFuncaoModal // Usa a nova função de desinicialização
+};
