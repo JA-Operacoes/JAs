@@ -41,13 +41,13 @@ document.getElementById("Registrar").addEventListener("submit", async function (
       return;
     }
 
-    if (empresasSelecionadas.length === 0) {
-      return Swal.fire({
-        icon: "warning",
-        title: "Atenção",
-        text: "Selecione pelo menos uma empresa."
-      });
-    }
+    // if (!empresaSelecionadaUnica || isNaN(empresaSelecionadaUnica) || parseInt(empresaSelecionadaUnica, 10) <= 0) {
+    //   return Swal.fire({
+    //     icon: "warning",
+    //     title: "Atenção",
+    //     text: "Selecione pelo menos uma empresa."
+    //   });
+    // }
     
     try {
       const dados = await fetchComToken("/auth/cadastro", {

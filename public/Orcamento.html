@@ -4,9 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <link rel="stylesheet" type="text/css" href="https://unpkg.com/flatpickr/dist/themes/material_red.css">    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.5/pizzip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docx@7.1.1/build/index.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
     <link rel="stylesheet" href="css/Modal/Orcamento.css">
     <link rel="stylesheet" href="css/Roots/Roots.css">
@@ -165,56 +170,6 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <!-- <tr>
-                                <td class="Proposta"><div class="checkbox-wrapper-33" style="margin-top: 40px;"><label class="checkbox"><input class="checkbox__trigger visuallyhidden" type="checkbox" /><span class="checkbox__symbol"><svg aria-hidden="true" class="icon-checkbox"      width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg"><path d="M4 14l8 7L24 7"></path></svg></span><p class="checkbox__textwrapper"></p></label></div></td>
-                                <td class="Categoria"></td>
-                                <td class="qtdProduto"><div class="add-less"><input type="number" readonly class="qtdProduto" min="0" value="0" oninput="recalcularTotaisOrc()"><div class="Bt"><button class="increment">+</button><button class="decrement">-</button></div></div></td>
-                                <td class="produto"><div class="Acres-Desc"><select id="Pavilhoes"><option value="select">Pavilhao de atuação </option></select></div><br><div class="valorbanco"></div></td>
-                                <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="0" oninput="recalcularTotaisOrc()"></td>
-
-                                
-                               <td class="Periodo"><div class="flatpickr-container"><input type="text" class="datas datas-item" id="seletorData" data-input required readonly placeholder="Clique para Selecionar"></div></td>
-
-                                
-                                <td class="desconto Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
-                                <td class="Acrescimo Moeda"><div class="Acres-Desc"><input type="text" class="ValorInteiros" value="R$ 0,00" id=""><input type="text" class="valorPerCent" value="0%" id=""></div></td>
-                                <td class="vlrVenda Moeda"></td>
-                                <td class="totVdaDiaria Moeda"></td>
-                                <td class="vlrCusto Moeda"></td>
-                                <td class="totCtoDiaria Moeda"></td>
-                           
-                                <td class="ajdCusto Moeda">
-                                    <div class="Acres-Desc">
-                                        <select id="tpAlimentacao" class="select-alimentacao">
-                                            <option value="select" selected disabled>Alimentação</option>
-                                            <option value="Almoco">Almoço</option>
-                                            <option value="Janta">Jantar</option>
-                                            <option value="2alimentacao">Almoço + jantar</option>
-                                        </select>
-                                    </div>
-                                    <br><div class="valorbanco valor-alimentacao"></div>
-                                </td>
-                                <td class="ajdCusto Moeda">
-                                    <div class="Acres-Desc">
-                                        <select id="tpTransporte" class="select-transporte" >
-                                            <option value="select" selected disabled>Veiculo </option>
-                                            <option value="Público">Público</option>
-                                            <option value="Alugado">Alugado</option>
-                                            <option value="Próprio">Próprio</option>
-                                        </select>
-                                    </div>
-                                    <br><div class="valorbanco valor-transporte"></div>
-                                </td>
-                                <td class="totAjdCusto Moeda">0</td>
-                                <td class="extraCampo" style="display: none;">
-                                    <input type="text" class="hospedagem" min="0" step="0.01" oninput="recalcularLinha(this.closest('tr'))">
-                                </td>
-                                <td class="extraCampo" style="display: none;">
-                                    <input type="text" class="transporte" min="0" step="0.01" oninput="recalcularLinha(this.closest('tr'))">
-                                </td>
-                                <td class="totGeral">0</td>
-                                <td><div class="Acao"><button class="deleteBtn" id="removerLinha"><svg class="delete-svgIcon" viewBox="0 0 448 512"> <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
-                            </tr> -->
                         </tbody>
                     </table>
                 </div>
@@ -252,6 +207,21 @@
                                 </label>
                             </div>
                                 <textarea class="PropostaobsTexto" name="ObservacaoProposta" id="ObservacaoProposta" placeholder="Observações sobre a Proposta"></textarea>
+                        </div>
+
+                        <div class="Propostaobs3">
+                            <div class="checkbox-wrapper-33">
+                                <label class="checkbox">
+                                    <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                                    <span class="checkbox__symbol">
+                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M4 14l8 7L24 7"></path>
+                                        </svg>
+                                    </span>
+                                    <p class="checkbox__textwrapper"></p>
+                                </label>
+                            </div>
+                                <textarea id="formaPagamento" rows="4" placeholder="Descreva a Forma de Pagamento                           (Exemplo: 10% na assinatura...)"></textarea>
                         </div>
                     </div>
                     <div>
@@ -341,7 +311,7 @@
             <div class="BTNs">
                 <button class="pesquisar" onclick="pesquisarOrcamento()">Pesquisar</button>
                 <button class="Limpar" id="Limpar" type="button" >Limpar</button>
-                <button class="Proposta" id="Proposta" onclick="gerarPropostaPDF()">Gerar Proposta</button>
+                <button class="Proposta" id="Proposta">Gerar Proposta</button>
                 <button class="Excel" onclick="exportarParaExcel()" style="display: none;">Exportar P/ Excel</button>
                 <button class="fecharOrc" id="fecharOrc">Fechar Orçamento</button>
                 <button class="btnEnviar" id="Enviar" type="button" >Salvar Orçamento</button>
@@ -350,7 +320,11 @@
     </div>
     </div>
 </div>
-<script src="Orcamento.js" defer></script>
+
+<script src="js/Orcamentos.js"></script>
+
+
+
 
 </body>
 </html>
