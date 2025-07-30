@@ -41,7 +41,7 @@ document.getElementById("Registrar").addEventListener("submit", async function (
       return;
     }
 
-    // if (!empresaSelecionadaUnica || isNaN(empresaSelecionadaUnica) || parseInt(empresaSelecionadaUnica, 10) <= 0) {
+    // if (empresasSelecionadas.length === 0) {
     //   return Swal.fire({
     //     icon: "warning",
     //     title: "Atenção",
@@ -287,7 +287,7 @@ async function verificarUsuarioExistenteFront() {
     const dados = await fetchComToken("/auth/verificarUsuario", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      // body: JSON.stringify({ nome, sobrenome, email, ativo, idempresaDefault: idempresaDefault, empresas: empresasSelecionadas }) // Envia idempresaDefault e empresas como array vazio,
+      //body: JSON.stringify({ nome, sobrenome, email, ativo, idempresaDefault: idempresaDefault, empresas: empresasSelecionadas }) // Envia idempresaDefault e empresas como array vazio,
       body: JSON.stringify({ nome, sobrenome, email, ativo, idempresaDefault: idempresaDefault, empresas: empresaSelecionada }) // Envia idempresaDefault e empresas como array vazio,
     });
 
@@ -1028,14 +1028,15 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
         Swal.fire("Atenção", "Selecione uma empresa válida para aplicar as permissões.", "warning");
         return;
     }
-  //const empresasSelecionadas = [empresaSelecionadaUnica];
+  
+ // const empresasSelecionadas = [empresaSelecionadaUnica];
   
   console.log("EMPRESA SELECIONADA BT SALVAR", empresaSelecionada);
 
-  if (!empresaSelecionada.length) {
-    Swal.fire("Atenção", "Selecione ao menos uma empresa.", "warning");
-    return;
-  }
+  // if (!empresaSelecionadas.length) {
+  //   Swal.fire("Atenção", "Selecione ao menos uma empresa.", "warning");
+  //   return;
+  // }
 
   // Permissões atuais
   const atuais = {

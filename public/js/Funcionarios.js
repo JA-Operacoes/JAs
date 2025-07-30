@@ -1,5 +1,16 @@
 import { fetchComToken } from '../utils/utils.js';
 
+let codBancoBlurListener = null;
+let selectLinguasChangeListener = null;
+let limparFuncionariosButtonListener = null;
+let enviarFuncionariosButtonListener = null;
+let pesquisarFuncionariosButtonListener = null;
+let selectNomeFuncionarioChangeListener = null; 
+let selectApelidoFuncionarioChangeListener = null; 
+let inputNomeFuncionarioBlurListener = null; 
+let inputApelidoFuncionarioBlurListener = null; 
+let inputNomeFuncionarioInputListener = null; 
+let inputApelidoFuncionarioInputListener = null; 
 
 if (typeof window.funcionarioOriginal === "undefined") {
     window.funcionarioOriginal = {
@@ -483,6 +494,188 @@ botaoEnviar.addEventListener("click", async (event) => {
     });
 
 }
+
+function adicionarListenersAoInputNomeFuncionario(inputElement) {
+    // Remove listeners anteriores para evitar duplicidade
+    if (inputNomeFuncionarioInputListener) {
+        inputElement.removeEventListener("input", inputNomeFuncionarioInputListener);
+    }
+    if (inputNomeFuncionarioBlurListener) {
+        inputElement.removeEventListener("blur", inputNomeFuncionarioBlurListener);
+    }
+
+    inputNomeFuncionarioInputListener = function() {
+        this.value = this.value.toUpperCase();
+    };
+    inputElement.addEventListener("input", inputNomeFuncionarioInputListener);
+
+    inputNomeFuncionarioBlurListener = async function() {
+        if (!this.value.trim()) return;
+        await carregarFuncionarioDescricao(this.value); // Carrega pelo nome
+    };
+    inputElement.addEventListener("blur", inputNomeFuncionarioBlurListener);
+}
+
+function adicionarListenersAoInputApelidoFuncionario(inputElement) {
+    // Remove listeners anteriores para evitar duplicidade
+    if (inputApelidoFuncionarioInputListener) {
+        inputElement.removeEventListener("input", inputApelidoFuncionarioInputListener);
+    }
+    if (inputApelidoFuncionarioBlurListener) {
+        inputElement.removeEventListener("blur", inputApelidoFuncionarioBlurListener);
+    }
+
+    inputApelidoFuncionarioInputListener = function() {
+        this.value = this.value.toUpperCase();
+    };
+    inputElement.addEventListener("input", inputApelidoFuncionarioInputListener);
+
+    inputApelidoFuncionarioBlurListener = async function() {
+        if (!this.value.trim()) return;
+        // Se o blur do apelido deve carregar o funcionário, chame a função com o apelido
+        // Pode ser necessário ajustar `carregarFuncionarioDescricao` para lidar com a busca por apelido
+        await carregarFuncionarioDescricao(null, this.value); // Exemplo: Carrega pelo apelido
+    };
+    inputElement.addEventListener("blur", inputApelidoFuncionarioBlurListener);
+}
+
+
+function resetarCamposNomeApelidoParaInput() {
+    const nomeCampo = document.getElementById("nome");
+    if (nomeCampo && nomeCampo.tagName.toLowerCase() === "select") {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.id = "nome";
+        input.name = "nome";
+        input.value = "";
+        input.placeholder = "Nome do Funcionário";
+        input.className = "form-2colunas";
+        input.classList.add('uppercase');
+        input.required = true;
+        nomeCampo.parentNode.replaceChild(input, nomeCampo);
+        adicionarListenersAoInputNomeFuncionario(input);
+        const label = document.querySelector('label[for="nome"]');
+        if (label) label.style.display = "block";
+    }
+
+    const apelidoCampo = document.getElementById("apelido");
+    if (apelidoCampo && apelidoCampo.tagName.toLowerCase() === "select") {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.id = "apelido";
+        input.name = "apelido";
+        input.value = "";
+        input.placeholder = "Apelido";
+        input.className = "form-2colunas";
+        input.classList.add('uppercase');
+        input.required = true;
+        apelidoCampo.parentNode.replaceChild(input, apelidoCampo);
+        adicionarListenersAoInputApelidoFuncionario(input);
+        const label = document.querySelector('label[for="apelido"]');
+        if (label) label.style.display = "block";
+    }
+}
+
+
+// =============================================================================
+// Função de Desinicialização do Módulo Funcionarios
+// =============================================================================
+function desinicializarFuncionariosModal() {
+    console.log("🧹 Desinicializando módulo Funcionarios.js...");
+
+    const botaoEnviar = document.querySelector("#Enviar");
+    const botaoPesquisar = document.querySelector("#Pesquisar");
+    const botaoLimpar = document.querySelector("#Limpar");
+    const codBancoInput = document.getElementById("codBanco");
+    const selectLinguas = document.getElementById('Linguas');
+    const inputNomeFuncionario = document.getElementById("nome"); // Pode ser input ou select
+    const inputApelido = document.getElementById("apelido"); // Pode ser input ou select
+
+
+    // 1. Remover listeners de eventos dos elementos fixos
+    if (codBancoInput && codBancoBlurListener) {
+        codBancoInput.removeEventListener("blur", codBancoBlurListener);
+        codBancoBlurListener = null;
+        console.log("Listener de blur do codBanco removido.");
+    }
+    if (selectLinguas && selectLinguasChangeListener) {
+        selectLinguas.removeEventListener("change", selectLinguasChangeListener);
+        selectLinguasChangeListener = null;
+        console.log("Listener de change do selectLinguas removido.");
+    }
+    if (botaoLimpar && limparFuncionariosButtonListener) {
+        botaoLimpar.removeEventListener("click", limparFuncionariosButtonListener);
+        limparFuncionariosButtonListener = null;
+        console.log("Listener de click do Limpar (Funcionarios) removido.");
+    }
+    if (botaoEnviar && enviarFuncionariosButtonListener) {
+        botaoEnviar.removeEventListener("click", enviarFuncionariosButtonListener);
+        enviarFuncionariosButtonListener = null;
+        console.log("Listener de click do Enviar (Funcionarios) removido.");
+    }
+    if (botaoPesquisar && pesquisarFuncionariosButtonListener) {
+        botaoPesquisar.removeEventListener("click", pesquisarFuncionariosButtonListener);
+        pesquisarFuncionariosButtonListener = null;
+        console.log("Listener de click do Pesquisar (Funcionarios) removido.");
+    }
+
+    // 2. Remover listeners de elementos dinâmicos (#nome e #apelido)
+    if (inputNomeFuncionario) {
+        if (inputNomeFuncionario.tagName.toLowerCase() === "select" && selectNomeFuncionarioChangeListener) {
+            inputNomeFuncionario.removeEventListener("change", selectNomeFuncionarioChangeListener);
+            selectNomeFuncionarioChangeListener = null;
+            console.log("Listener de change do select de nome de Funcionário removido.");
+        }
+        if (inputNomeFuncionario.tagName.toLowerCase() === "input") {
+            if (inputNomeFuncionarioInputListener) {
+                inputNomeFuncionario.removeEventListener("input", inputNomeFuncionarioInputListener);
+                inputNomeFuncionarioInputListener = null;
+                console.log("Listener de input do nome de Funcionário (input) removido.");
+            }
+            if (inputNomeFuncionarioBlurListener) {
+                inputNomeFuncionario.removeEventListener("blur", inputNomeFuncionarioBlurListener);
+                inputNomeFuncionarioBlurListener = null;
+                console.log("Listener de blur do nome de Funcionário (input) removido.");
+            }
+        }
+    }
+
+    if (inputApelido) {
+        if (inputApelido.tagName.toLowerCase() === "select" && selectApelidoFuncionarioChangeListener) {
+            inputApelido.removeEventListener("change", selectApelidoFuncionarioChangeListener);
+            selectApelidoFuncionarioChangeListener = null;
+            console.log("Listener de change do select de apelido de Funcionário removido.");
+        }
+        if (inputApelido.tagName.toLowerCase() === "input") {
+            if (inputApelidoFuncionarioInputListener) {
+                inputApelido.removeEventListener("input", inputApelidoFuncionarioInputListener);
+                inputApelidoFuncionarioInputListener = null;
+                console.log("Listener de input do apelido de Funcionário (input) removido.");
+            }
+            if (inputApelidoFuncionarioBlurListener) {
+                inputApelido.removeEventListener("blur", inputApelidoFuncionarioBlurListener);
+                inputApelidoFuncionarioBlurListener = null;
+                console.log("Listener de blur do apelido de Funcionário (input) removido.");
+            }
+        }
+    }
+
+    // Lógica para desinicializar 'configurarPreviewFoto()' se ela adicionar listeners
+    // Isso depende de como 'configurarPreviewFoto()' é implementada.
+    // Se ela adicionar um listener ao 'file' input, você precisaria de uma variável 'let' para isso.
+    // Ex: if (inputFileElement && previewFotoChangeListener) { inputFileElement.removeEventListener('change', previewFotoChangeListener); }
+
+
+    // 3. Limpar o estado global e campos do formulário
+    window.funcionarioOriginal = null; // Zera o objeto de funcionário original
+    limparCamposFuncionarios(); // Limpa todos os campos visíveis do formulário
+   // document.querySelector("#form-funcionario").reset(); // Garante que o formulário seja completamente resetado
+    document.querySelector("#idFuncionario").value = ""; // Limpa o ID oculto
+    resetarCamposNomeApelidoParaInput(); // Garante que nome e apelido voltem a ser inputs padrão
+
+    console.log("✅ Módulo Funcionarios.js desinicializado.");
+}
+
 
 if (!window.ultimoClique) {
     window.ultimoClique = null;
@@ -1176,3 +1369,10 @@ function limparCamposFuncionarios(){
   }
 }
 window.configurarEventosEspecificos = configurarEventosEspecificos;
+
+window.moduloHandlers = window.moduloHandlers || {};
+
+window.moduloHandlers['Funcionarios'] = { // A chave 'Funcionarios' (com F maiúsculo) deve corresponder ao seu Index.js
+    configurar: configurarEventosFuncionarios,
+    desinicializar: desinicializarFuncionariosModal
+};

@@ -1,5 +1,14 @@
 import { fetchComToken } from '../utils/utils.js';
 
+let nmEventoInputListener = null; 
+let nmEventoBlurListener = null; 
+let limparEventoButtonListener = null;
+let enviarEventoButtonListener = null;
+let pesquisarEventoButtonListener = null;
+let selectEventoChangeListener = null;
+let novoInputNmEventoInputListener = null; 
+let novoInputNmEventoBlurListener = null; 
+
 let EventoOriginal = {
     idEvento: "",
     nmEvento: ""
@@ -175,6 +184,119 @@ async function verificaEvento() {
         }
     });
 }
+
+function adicionarListenersAoInputNmEvento(inputElement) {
+    // Remove listeners anteriores para evitar duplicidade
+    if (novoInputNmEventoInputListener) { // Verifica se já existe um listener para 'input' no novo input
+        inputElement.removeEventListener("input", novoInputNmEventoInputListener);
+    }
+    if (novoInputNmEventoBlurListener) { // Verifica se já existe um listener para 'blur' no novo input
+        inputElement.removeEventListener("blur", novoInputNmEventoBlurListener);
+    }
+
+    nmEventoInputListener = function () { // Atribui à variável global para o listener 'input'
+        this.value = this.value.toUpperCase();
+    };
+    inputElement.addEventListener("input", nmEventoInputListener);
+
+    nmEventoBlurListener = async function () { // Atribui à variável global para o listener 'blur'
+        if (!this.value.trim()) return;
+        console.log("Campo nmEvento procurado (blur dinâmico):", this.value);
+        await carregarEventoDescricao(this.value, this);
+    };
+    inputElement.addEventListener("blur", nmEventoBlurListener);
+}
+
+function resetarCampoNmEventoParaInput() {
+    const nmEventoCampo = document.getElementById("nmEvento");
+    // Verifica se o campo atual é um select e o substitui por um input
+    if (nmEventoCampo && nmEventoCampo.tagName.toLowerCase() === "select") {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.id = "nmEvento";
+        input.name = "nmEvento";
+        input.value = ""; // Limpa o valor
+        input.placeholder = "Nome do Evento";
+        input.className = "form";
+        input.classList.add('uppercase');
+        input.required = true;
+
+        // Remove o listener do select antes de substituí-lo
+        if (selectEventoChangeListener) {
+            nmEventoCampo.removeEventListener("change", selectEventoChangeListener);
+            selectEventoChangeListener = null;
+        }
+
+        nmEventoCampo.parentNode.replaceChild(input, nmEventoCampo);
+        adicionarListenersAoInputNmEvento(input); // Adiciona os listeners ao novo input
+
+        const label = document.querySelector('label[for="nmEvento"]');
+        if (label) {
+            label.style.display = "block";
+            label.textContent = "Nome do Evento";
+        }
+    }
+}
+
+
+// =============================================================================
+// Função de Desinicialização do Módulo Eventos
+// =============================================================================
+function desinicializarEventoModal() {
+    console.log("🧹 Desinicializando módulo Eventos.js...");
+
+    const nmEventoElement = document.querySelector("#nmEvento");
+    const botaoEnviar = document.querySelector("#Enviar");
+    const botaoPesquisar = document.querySelector("#Pesquisar");
+    const botaoLimpar = document.querySelector("#Limpar");
+
+    // 1. Remover listeners de eventos dos elementos fixos
+    if (botaoLimpar && limparEventoButtonListener) {
+        botaoLimpar.removeEventListener("click", limparEventoButtonListener);
+        limparEventoButtonListener = null;
+        console.log("Listener de click do Limpar (Eventos) removido.");
+    }
+    if (botaoEnviar && enviarEventoButtonListener) {
+        botaoEnviar.removeEventListener("click", enviarEventoButtonListener);
+        enviarEventoButtonListener = null;
+        console.log("Listener de click do Enviar (Eventos) removido.");
+    }
+    if (botaoPesquisar && pesquisarEventoButtonListener) {
+        botaoPesquisar.removeEventListener("click", pesquisarEventoButtonListener);
+        pesquisarEventoButtonListener = null;
+        console.log("Listener de click do Pesquisar (Eventos) removido.");
+    }
+
+    // 2. Remover listeners do campo nmEvento (que pode ser input ou select)
+    if (nmEventoElement) {
+        if (nmEventoElement.tagName.toLowerCase() === "input") {
+            if (nmEventoInputListener) { // Listener para 'input' (toUpperCase)
+                nmEventoElement.removeEventListener("input", nmEventoInputListener);
+                nmEventoInputListener = null;
+                console.log("Listener de input do nmEvento (input) removido.");
+            }
+            if (nmEventoBlurListener) { // Listener para 'blur' (carregar descrição)
+                nmEventoElement.removeEventListener("blur", nmEventoBlurListener);
+                nmEventoBlurListener = null;
+                console.log("Listener de blur do nmEvento (input) removido.");
+            }
+        } else if (nmEventoElement.tagName.toLowerCase() === "select" && selectEventoChangeListener) {
+            nmEventoElement.removeEventListener("change", selectEventoChangeListener);
+            selectEventoChangeListener = null;
+            console.log("Listener de change do select nmEvento removido.");
+        }
+    }
+
+    // 3. Limpar o estado global e campos do formulário
+    window.EventoOriginal = null; // Zera o objeto de evento original
+    limparCamposEvento(); // Limpa todos os campos visíveis do formulário
+   // document.querySelector("#form").reset(); // Garante que o formulário seja completamente resetado
+    document.querySelector("#idEvento").value = ""; // Limpa o ID oculto
+    resetarCampoNmEventoParaInput(); // Garante que o campo nmEvento volte a ser um input padrão
+
+    console.log("✅ Módulo Eventos.js desinicializado.");
+}
+
 
 function criarSelectEvento(eventos) {
    
@@ -443,3 +565,11 @@ function configurarEventosEspecificos(modulo) {
   }
 }
 window.configurarEventosEspecificos = configurarEventosEspecificos;
+
+
+window.moduloHandlers = window.moduloHandlers || {};
+
+window.moduloHandlers['Eventos'] = { // A chave 'Eventos' (com E maiúsculo) deve corresponder ao seu Index.js
+    configurar: configurarEventosCadEvento,
+    desinicializar: desinicializarEventoModal
+};

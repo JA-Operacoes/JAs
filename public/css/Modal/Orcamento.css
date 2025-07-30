@@ -30,7 +30,7 @@
   }
 
   /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
-  .modal {
+  #cadModalOrcamentos.modal {
     position: fixed;
     top: 50%; /* Alinha verticalmente ao centro */
     left: 50%; /* Alinha horizontalmente ao centro */
@@ -43,7 +43,8 @@
     z-index: 9999;    
     border-radius: 10px;
   }
-  .modal-open{
+
+  #cadModalOrcamentos.modal-open{
     overflow: hidden;
     pointer-events: none;
   }
@@ -55,7 +56,7 @@
     pointer-events: auto; /* Torna visíveis o overlay e o modal */
   }
 
-  body .modal-open {
+  body.modal-open {
     overflow: hidden;
     pointer-events: none; /* Impede a rolagem da página */
   }
@@ -103,7 +104,7 @@
     background-color: rgb(0, 0, 0);
     max-width: 1600px;
     width: 100%;
-    height: 660px;          /* Largura do formulário */
+    height: 760px;          /* Largura do formulário */
     margin: 0% auto;
     background-color: #cacaca;
     border-radius: 8px;
@@ -269,8 +270,8 @@
   }
   .form input {
     font-family:  var(--Font-primary);
-    width: 300px;
-    height: 40px;
+    width: 150px;
+    height: 30px;
     border-radius: 6px;
     font-size: 13px;
     padding: 0 15px;
@@ -283,7 +284,7 @@
   .form2 input{
     font-family: var(--Font-primary);
     width: 120px;
-    height: 40px;
+    height: 30px;
     border-radius: 6px;
     font-size: 19px;
     padding: 0 20px;
@@ -405,7 +406,7 @@
   }
 
   input#idOrcamento{
-    width: 300px;
+    width: 150px;
   }
 
   input#idOrcamento:not([value=""]) ~ label {
@@ -646,7 +647,11 @@
 
   .table{
     border-collapse: collapse;
+    max-height: 350px;
+    overflow-x: scroll;
+    overflow-y: scroll;
   }
+  
   table {
     width: 100%;
     border-collapse: collapse;
@@ -661,6 +666,9 @@
   height: 20px; /* você pode ajustar conforme quiser */
   vertical-align: middle;
 }
+
+ 
+
   table, th, td {
       border: 1px solid black;
       text-align: center;
@@ -669,12 +677,26 @@
       /* incluidos para teste */
       vertical-align: middle;
       font-size: 12px; /* se quiser uniformizar também a fonte */
+
   }
 
   th, td {
     height: 100%;
     padding: 8px;
   }
+
+  #tabela thead th {
+    position: sticky; /* Torna o cabeçalho "grudento" */
+    top: 0; /* Fixa no topo do contêiner de scroll */
+    background-color: #efefef; /* MUITO IMPORTANTE: Defina uma cor de fundo! */
+                               /* Se não tiver, o conteúdo da tabela vai aparecer por trás ao rolar */
+    z-index: 10; /* Garante que o cabeçalho fique acima do conteúdo que rola */
+    border-bottom: 1px solid black; /* Mantém a borda inferior */
+    text-align: center;
+    padding: 8px;
+    white-space: nowrap; /* Impede que o texto do cabeçalho quebre linha, forçando o scroll horizontal se necessário */
+    border: 1px solid black;
+}
 
   /* incluido teste */
   #table input {
@@ -695,6 +717,36 @@
     border: none;
     font-size: 16px;
   }
+
+  /* estilos para barra de rolagem */
+  /* 1. Estilo para a barra de rolagem inteira */
+
+.table::-webkit-scrollbar {
+    width: 10px;  /* Largura do scrollbar vertical */
+    height: 10px; /* Altura do scrollbar horizontal */
+}
+
+/* 2. Estilo para o "fundo" da barra de rolagem (a trilha) */
+.table::-webkit-scrollbar-track {
+    background: #f1f1f1; /* Cor de fundo da trilha */
+    border-radius: 5px; /* Bordas arredondadas para a trilha */
+}
+
+/* 3. Estilo para o "polegar" ou "arrastador" da barra de rolagem */
+.table::-webkit-scrollbar-thumb {
+    background: #888; /* Cor do arrastador */
+    border-radius: 5px; /* Bordas arredondadas para o arrastador */
+}
+
+/* 4. Estilo para o "polegar" ao passar o mouse */
+.table::-webkit-scrollbar-thumb:hover {
+    background: #555; /* Cor do arrastador ao passar o mouse */
+}
+
+.table::-webkit-scrollbar-corner {
+    background: #cccccc; /* Cor do canto */
+}
+
   input.qtdDias:focus,input.qtdProduto:focus {
   outline: none;
   border: none;
@@ -949,11 +1001,9 @@
   }
   .table{
     overflow-x: scroll;
-  }
-}
 
-@media(max-width: 1628px){
-  .modal{
+  }
+   #cadModalOrcamentos.modal{
     position: fixed;
     top: 50%; 
     left: 50%;   
@@ -962,10 +1012,27 @@
     padding: 5px;
     margin-top: 10px;
     max-width: 1300px; 
-    height: 580px;
+    height: 730px;
     font-size: 16px;
     z-index: 9999;
   }
+}
+
+@media(max-width: 1628px){
+  #cadModalOrcamentos.modal{
+    position: fixed;
+    top: 50%; 
+    left: 50%;   
+    transform: translate(-50%, -50%); 
+    background-color: #4d4d4d;
+    padding: 5px;
+    margin-top: 10px;
+    max-width: 1300px; 
+    height: 730px;
+    font-size: 16px;
+    z-index: 9999;
+  }
+  
   
   form{
     overflow-y: auto;
@@ -988,14 +1055,14 @@
     background-color: rgb(0, 0, 0);
     max-width: 1600px;
     width: 100%;
-    height: 500px;          /* Largura do formulário */
+    height: 630px;          /* Largura do formulário */
     margin: 0% auto;
     background-color: #cacaca;
     border-radius: 8px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
   }
 
-     #form{
+  #form{
     font-family: "Abel", sans-serif;
     /* display: flex;                /* Define o modelo de layout Flexbox 
     flex-direction: column;
@@ -1066,7 +1133,7 @@
     width: 150px;
   }
   
-.Acresimo, .totG, .totGCTO, .lucro, .lucroReal, .percent, .valorCliente, .Desconto{
+  .Acresimo, .totG, .totGCTO, .lucro, .lucroReal, .percent, .valorCliente, .Desconto{
     display: flex;
     justify-content: center;
     align-items: center;
@@ -1075,13 +1142,13 @@
   }
 
 
-.percent label, .totG label, .totGCTO label, .lucro label, .lucroReal label, .percent label, .Desconto label, .Acresimo label, .valorCliente label{
+  .percent label, .totG label, .totGCTO label, .lucro label, .lucroReal label, .percent label, .Desconto label, .Acresimo label, .valorCliente label{
     font-size: 20px;
     margin: 0 5px;
   }
 
   .Desconto input, .Acresimo input, .totG input, .totGCTO input, .lucro input, .lucroReal input, .percent input, .valorCliente input{ 
-  width: 80px;
+    width: 80px;
   }
   .Close{
     height: 35px;
@@ -1095,10 +1162,6 @@
   .BTNs button, .Close button{
     width: 200px;
   }
-  .table{
-    overflow-x: scroll;
-  }
-  
 
 }
 
@@ -1106,6 +1169,20 @@
   .table{
     overflow-x: scroll;
   }
+   #cadModalOrcamentos.modal{
+    position: fixed;
+    top: 50%; 
+    left: 50%;   
+    transform: translate(-50%, -50%); 
+    background-color: #4d4d4d;
+    padding: 5px;
+    margin-top: 10px;
+    max-width: 1300px; 
+    height: 730px;
+    font-size: 16px;
+    z-index: 9999;
+  }
 }
+
 
 

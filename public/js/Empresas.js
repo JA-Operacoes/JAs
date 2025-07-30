@@ -1,5 +1,12 @@
 import { fetchComToken } from '../utils/utils.js';
 
+
+let tpEmpresaInputListener = null;
+let enviarEmpresaButtonListener = null;
+let limparEmpresaButtonListener = null;
+let pesquisarEmpresaButtonListener = null;
+let nmFantasiaSelectChangeListener = null;
+
 if (typeof window.empresaOriginal === "undefined") {
     window.empresaOriginal = {
         idEmpresa: "",
@@ -346,6 +353,69 @@ function carregarEmpresas() {
     
  }
 
+ function desinicializarEmpresasModal() {
+    console.log("🧹 Desinicializando módulo Empresas...");
+
+    const tpEmpresaInput = document.getElementById('tpempresa');
+    const btnEnviar = document.querySelector("#Enviar");
+    const btnLimpar = document.getElementById("Limpar");
+    const btnPesquisar = document.getElementById("Pesquisar");
+    const nmFantasiaSelect = document.getElementById("nmFantasia"); // Pode ser um input ou um select
+
+    // Remover listeners
+    if (tpEmpresaInput && tpEmpresaInputListener) {
+        tpEmpresaInput.removeEventListener('input', tpEmpresaInputListener);
+        tpEmpresaInputListener = null;
+        console.log("Listener de input para #tpempresa removido.");
+    }
+    if (btnEnviar && enviarEmpresaButtonListener) {
+        btnEnviar.removeEventListener("click", enviarEmpresaButtonListener);
+        enviarEmpresaButtonListener = null;
+        console.log("Listener de click para #Enviar (Empresas) removido.");
+    }
+    if (btnLimpar && limparEmpresaButtonListener) {
+        btnLimpar.removeEventListener("click", limparEmpresaButtonListener);
+        limparEmpresaButtonListener = null;
+        console.log("Listener de click para #Limpar (Empresas) removido.");
+    }
+    if (btnPesquisar && pesquisarEmpresaButtonListener) {
+        btnPesquisar.removeEventListener("click", pesquisarEmpresaButtonListener);
+        pesquisarEmpresaButtonListener = null;
+        console.log("Listener de click para #Pesquisar (Empresas) removido.");
+    }
+    if (nmFantasiaSelect && nmFantasiaSelect.tagName.toLowerCase() === "select" && nmFantasiaSelectChangeListener) {
+        nmFantasiaSelect.removeEventListener("change", nmFantasiaSelectChangeListener);
+        nmFantasiaSelectChangeListener = null;
+        console.log("Listener de change para #nmFantasia (select) removido.");
+    }
+
+    // Limpar o estado global e campos do formulário
+    limparFormulario();
+    document.querySelector("#form").reset(); // Garante que o formulário seja completamente resetado
+    empresaOriginal = null; // Garante que o estado original seja limpo
+
+    // Se o campo nmFantasia estiver como select, reconverte para input ao desinicializar
+    const campoNmFantasia = document.getElementById("nmFantasia");
+    if (campoNmFantasia && campoNmFantasia.tagName.toLowerCase() === "select") {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.id = "nmFantasia";
+        input.name = "nmFantasia";
+        input.className = "form-control";
+        input.required = true;
+        input.classList.add("uppercase");
+        campoNmFantasia.parentNode.replaceChild(input, campoNmFantasia);
+        const label = document.querySelector('label[for="nmFantasia"]');
+        if (label) label.style.display = "block";
+    }
+    // TODO: Adicionar o adicionarEventoBlurEmpresa() aqui, se ele deve ser sempre aplicado ao input
+    // Mas note que ao desinicializar, não há necessidade de um listener ativo.
+    // Ele será adicionado novamente na próxima chamada a configurarEmpresasModal.
+
+    console.log("✅ Módulo Empresas desinicializado.");
+}
+
+
     
   /**
  * Retorna true se houver alguma diferença entre os dados atuais e empresaOriginal.
@@ -596,82 +666,6 @@ function limparCamposEmpresa(){
     }
 }
 
-// async function fetchComToken(url, options = {}) {
-//   console.log("URL da requisição ORÇAMENTOS:", url);
-//   const token = localStorage.getItem("token");
-//   const idempresa = localStorage.getItem("idempresa");
-
-//   console.log("ID da empresa no localStorage:", idempresa);
-//   console.log("Token no localStorage:", token);
-
-//   if (!options.headers) options.headers = {};
-  
-//   if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
-//         options.headers['Content-Type'] = 'application/json';
-//   }else if (options.body && typeof options.body === 'object' && options.headers['Content-Type'] !== 'multipart/form-data') {
-       
-//         options.body = JSON.stringify(options.body);
-//         options.headers['Content-Type'] = 'application/json';
-//   }
-
-//   options.headers['Authorization'] = 'Bearer ' + token; 
-
-//   if (
-//       idempresa && 
-//       idempresa !== 'null' && 
-//       idempresa !== 'undefined' && 
-//       idempresa.trim() !== '' &&
-//       !isNaN(idempresa) && 
-//       Number(idempresa) > 0
-//   ) {
-//       options.headers['idempresa'] = idempresa;
-//       console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
-//   } else {
-//     console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
-//   }
-//   console.log("URL OPTIONS", url, options)
- 
-//   const resposta = await fetch(url, options);
-
-//   console.log("Resposta da requisição Empresas.js:", resposta);
-
-//   let responseBody = null;
-//   try {
-//       // Primeiro, tente ler como JSON, pois é o mais comum para APIs
-//       responseBody = await resposta.json();
-//   } catch (jsonError) {
-//       // Se falhar (não é JSON, ou resposta vazia, etc.), tente ler como texto
-//       try {
-//           responseBody = await resposta.text();
-//       } catch (textError) {
-//           // Se nem como texto conseguir, assume que não há corpo lido ou que é inválido
-//           responseBody = null;
-//       }
-//   }
-
-//   if (resposta.status === 401) {
-//     localStorage.clear();
-//     Swal.fire({
-//       icon: "warning",
-//       title: "Sessão expirada",
-//       text: "Por favor, faça login novamente."
-//     }).then(() => {
-//       window.location.href = "login.html"; // ajuste conforme necessário
-//     });
-//     //return;
-//     throw new Error('Sessão expirada'); 
-//   }
-
-//   if (!resposta.ok) {
-//         // Se a resposta NÃO foi bem-sucedida (status 4xx ou 5xx)
-//         // Use o responseBody já lido para obter a mensagem de erro
-//         const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
-//         throw new Error(`Erro na requisição: ${errorMessage}`);
-//   }
-
-//   return responseBody;
-// }
-
 document.addEventListener('DOMContentLoaded', () => {
     const inputCodigo = document.querySelector("#idEmpresa");
   
@@ -719,3 +713,10 @@ function configurarEventosEspecificos(modulo) {
   }
 }
 window.configurarEventosEspecificos = configurarEventosEspecificos;
+
+
+window.moduloHandlers = window.moduloHandlers || {};
+window.moduloHandlers['Empresas'] = { // A chave 'Empresas' deve corresponder ao seu Index.js
+    configurar: configurarEventosEmpresas,
+    desinicializar: desinicializarEmpresasModal
+};

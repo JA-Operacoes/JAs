@@ -30,7 +30,7 @@
 
 
 /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
-.modal {
+#cadModalStaff.modal {
   position: fixed;
   top: 50%; /* Alinha verticalmente ao centro */
   left: 50%; /* Alinha horizontalmente ao centro */   
@@ -38,12 +38,16 @@
   background-color: #4d4d4d;
   padding: 5px;
   width: 1125px; /* Ajuste o tamanho conforme necessário */
-  height: 745px;
+  height: 745px; 
   font-size: 16px;
   z-index: 9999;
 }
 
-.modal-open{
+ #cadModalFuncionarios.modal-content{
+    height: 590px;
+  }
+  
+#cadModalStaff.modal-open{
   overflow: hidden;
   pointer-events: none;
 }
@@ -75,19 +79,19 @@ body{
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-top: 620px;
+  margin-top: 730px;
 }
 
-#form-cargo {
+#form-content {
   font-family: "Abel", sans-serif;
   display: flex;                /* Define o modelo de layout Flexbox */
   flex-direction: column; 
   justify-content: center;
   background-color: rgb(0, 0, 0);
-  /* max-width: 700px;    */
+  max-width: 850px;   
   width: 100%;  
-  height: 670px;          /* Largura do formulário */
-  margin: 0 auto;            /* Centraliza o formulário na tela */
+  height: 780px;          /* Largura do formulário */
+  margin: 0% auto;            /* Centraliza o formulário na tela */
   padding: 10px;                /* Espaçamento interno */
   background-color: #cacaca; 
   border: #ce0303;     /* Fundo branco */
@@ -176,6 +180,16 @@ justify-content: center;
 /* Opcional: Estilo ao passar o mouse sobre as linhas */
 #eventsDataTable tbody tr:hover {
     background-color: #e0e0e0; /* Cor de fundo ao passar o mouse */
+}
+
+#eventsDataTable tbody tr.selected-row {
+    background-color: #e61111; /* Cor de fundo para a linha selecionada */
+    transition: background-color 0.3s ease; /* Suaviza a transição de cor */
+}
+
+/* Opcional: Efeito hover para as linhas da tabela */
+.events-table-body tr:hover {
+    background-color: #f0f0f0; /* Cor de fundo no hover */
 }
 
 .container {
@@ -615,24 +629,24 @@ select#nmFuncionario, #descFuncao{
   width: 100%;
 }
 
-  .flatpickr-calendar {
+.flatpickr-calendar {
   z-index: 1060 !important; /* alto o suficiente para ficar acima do modal */
   position: absolute !important;
 }
+
 .flatpickr-calendar.open {
-            opacity: 1 !important;
-            visibility: visible !important;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
-  body.modal-open .flatpickr-calendar {
-    pointer-events: auto !important; /* CRÍTICO: Reativa os cliques no calendário */
-    z-index: 99999 !important; /* Mantenha este z-index MUITO alto para garantir que ele apareça acima de tudo */
-  }
 
-  .inputs{
-    width: 300px;
-  }
+body.modal-open .flatpickr-calendar {
+  pointer-events: auto !important; /* CRÍTICO: Reativa os cliques no calendário */
+  z-index: 99999 !important; /* Mantenha este z-index MUITO alto para garantir que ele apareça acima de tudo */
+}
 
-
+.inputs{
+  width: 300px;
+}
 
 fieldset{
   width: 100%;
@@ -813,4 +827,5 @@ input.form-control.input {
 .flatpickr-calendar {
   z-index: 1000; /* Maior que o z-index do modal Bootstrap (1050) */
 }
+
 

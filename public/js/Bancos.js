@@ -1,5 +1,12 @@
 import { fetchComToken } from '../utils/utils.js';
 
+let blurCodBancoListener = null;
+let limparButtonListener = null;
+let enviarButtonListener = null;
+let pesquisarButtonListener = null;
+let selectBancoChangeListener = null;
+let inputNmBancoBlurListener = null;
+
 if (typeof window.BancoOriginal === "undefined") {
     window.BancoOriginal = {
         idBanco: "",
@@ -7,8 +14,6 @@ if (typeof window.BancoOriginal === "undefined") {
         codBanco: ""
     };
 }
-
-console.log("Entrou no js");
 
 async function verificaBanco() {
     console.log("Carregando Banco...");
@@ -174,6 +179,48 @@ async function verificaBanco() {
         }
     });   
     
+}
+
+function desinicializarBancosModal() {
+    console.log("🧹 Desinicializando módulo Bancos.js");
+
+    const inputCodBancoElement = document.querySelector("#codBanco");
+    const botaoEnviar = document.querySelector("#Enviar");
+    const botaoPesquisar = document.querySelector("#Pesquisar");
+    const botaoLimpar = document.querySelector("#Limpar");
+    const inputNmBanco = document.querySelector("#nmBanco"); // Pode ser input ou select
+
+    // Remover listeners que foram armazenados
+    if (inputCodBancoElement && blurCodBancoListener) {
+        inputCodBancoElement.removeEventListener("blur", blurCodBancoListener);
+        blurCodBancoListener = null;
+    }
+    if (botaoLimpar && limparButtonListener) {
+        botaoLimpar.removeEventListener("click", limparButtonListener);
+        limparButtonListener = null;
+    }
+    if (botaoEnviar && enviarButtonListener) {
+        botaoEnviar.removeEventListener("click", enviarButtonListener);
+        enviarButtonListener = null;
+    }
+    if (botaoPesquisar && pesquisarButtonListener) {
+        botaoPesquisar.removeEventListener("click", pesquisarButtonListener);
+        pesquisarButtonListener = null;
+    }
+    // Remover listener do select (se o #nmBanco for um select no momento da desinicialização)
+    if (inputNmBanco && inputNmBanco.tagName === "SELECT" && selectBancoChangeListener) {
+        inputNmBanco.removeEventListener("change", selectBancoChangeListener);
+        selectBancoChangeListener = null;
+    }
+    // Remover listener do input #nmBanco (se for um input no momento da desinicialização)
+    if (inputNmBanco && inputNmBanco.tagName === "INPUT" && inputNmBancoBlurListener) {
+        inputNmBanco.removeEventListener("blur", inputNmBancoBlurListener);
+        inputNmBancoBlurListener = null;
+    }
+    
+    // Limpar o estado global BancoOriginal
+    BancoOriginal = { idBanco: "", nmBanco: "", codBanco: "" };
+    console.log("✅ Módulo Bancos.js desinicializado.");
 }
 
 function criarSelectBanco(bancosEncontrados) {
@@ -396,3 +443,12 @@ function configurarEventosEspecificos(modulo) {
     }
 }
 window.configurarEventosEspecificos = configurarEventosEspecificos;
+
+
+window.moduloHandlers = window.moduloHandlers || {};
+
+// Registra as funções de configuração e desinicialização para este módulo
+window.moduloHandlers['Bancos'] = { // Use 'Bancos' (com B maiúsculo) para corresponder ao seu mapaModulos no Index.js
+    configurar: configurarbancosCadBanco,
+    desinicializar: desinicializarBancosModal
+};

@@ -5,7 +5,6 @@
   pointer-events: none;
   user-select: none;
 }
-
 /* Estilo para o fundo escuro (overlay) */
 #modal-overlay {
   position: fixed;
@@ -35,7 +34,7 @@
 } 
 
 /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
-.modal {
+#cadModalFuncao.modal {
   position: fixed;
   top: 50%;  /* Alinha verticalmente ao centro */
   left: 50%; /* Alinha horizontalmente ao centro */
@@ -50,11 +49,11 @@
   z-index: 9999;
 }
 
-.modal-content{
+#cadModalFuncao.modal-content{
   height: 590px;
 }
 
-.modal-open {
+#cadModalFuncao.modal-open {
   overflow: visible;
   pointer-events: none;
 }
@@ -71,7 +70,7 @@
 
 body .modal-open {
   overflow: hidden;
-    pointer-events: none;
+   pointer-events: none;
 }
 
 

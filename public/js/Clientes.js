@@ -1,5 +1,12 @@
 import { fetchComToken } from '../utils/utils.js';
 
+let tpClienteInputListener = null;
+let btnEnviarListener = null;
+let btnLimparListener = null;
+let btnPesquisarListener = null;
+let selectClientesChangeListener = null;
+let nmFantasiaBlurListener = null;
+
 if (typeof window.clienteOriginal === "undefined") {
     window.clienteOriginal = {
         idCliente: "",
@@ -27,7 +34,7 @@ if (typeof window.clienteOriginal === "undefined") {
 }
 
 
-let maskCNPJ, maskTelefone, maskCelContato, maskCEP;
+let maskCNPJ, maskTelefone, maskCelContato, maskCEP =null;
 
 
 function aplicarMascaras() {
@@ -376,6 +383,89 @@ function carregarClientes() {
     
  }
 
+ function desinicializarClientesModal() {
+    console.log("🧹 Desinicializando módulo Clientes.js");
+
+    const tpClienteInput = document.getElementById('tpcliente');
+    const btnEnviar = document.querySelector("#Enviar");
+    const btnLimpar = document.getElementById("Limpar");
+    const btnPesquisar = document.getElementById("Pesquisar");
+    const nmFantasiaElement = document.getElementById("nmFantasia"); // Pode ser input ou select
+
+    if (tpClienteInput && tpClienteInputListener) {
+        tpClienteInput.removeEventListener('input', tpClienteInputListener);
+        tpClienteInputListener = null;
+    }
+    if (btnEnviar && btnEnviarListener) {
+        btnEnviar.removeEventListener("click", btnEnviarListener);
+        btnEnviarListener = null;
+    }
+    if (btnLimpar && btnLimparListener) {
+        btnLimpar.removeEventListener("click", btnLimparListener);
+        btnLimparListener = null;
+    }
+    if (btnPesquisar && btnPesquisarListener) {
+        btnPesquisar.removeEventListener("click", btnPesquisarListener);
+        btnPesquisarListener = null;
+    }
+
+    // Remover listener do select (se o #nmFantasia for um select)
+    if (nmFantasiaElement && nmFantasiaElement.tagName === "SELECT" && selectClientesChangeListener) {
+        nmFantasiaElement.removeEventListener("change", selectClientesChangeListener);
+        selectClientesChangeListener = null;
+    }
+    // Remover listener do input #nmFantasia (se for um input)
+    if (nmFantasiaElement && nmFantasiaElement.tagName === "INPUT" && nmFantasiaBlurListener) {
+        nmFantasiaElement.removeEventListener("blur", nmFantasiaBlurListener);
+        nmFantasiaBlurListener = null;
+    }
+
+    // Limpar o estado original do cliente  
+    window.ClienteOriginal = { // <-- Acesse diretamente a variável do módulo
+        idCliente: "",
+        nmFantasia: "",
+        razaoSocial: "",
+        cnpj: "",
+        nmContato: "",
+        celContato: "",
+        emailCliente: "",
+        emailNfe: "",
+        emailContato: "",
+        site: "",
+        inscEstadual: "",
+        cep: "",
+        rua: "",
+        numero: "",
+        complemento: "",
+        bairro: "",
+        cidade: "",
+        estado: "",
+        pais: "",
+        ativo: "",
+        tpcliente: ""
+    };
+
+
+    if (maskCNPJ) {
+        maskCNPJ.destroy(); // Chama o método destroy da instância da máscara
+        maskCNPJ = null;
+    }
+    if (maskTelefone) {
+        maskTelefone.destroy();
+        maskTelefone = null;
+    }
+    if (maskCelContato) {
+        maskCelContato.destroy();
+        maskCelContato = null;
+    }
+    if (maskCEP) {
+        maskCEP.destroy();
+        maskCEP = null;
+    }
+
+ }
+
+
     
   /**
  * Retorna true se houver alguma diferença entre os dados atuais e clienteOriginal.
@@ -633,77 +723,6 @@ function limparCamposCliente(){
     }
 }
 
-// async function fetchComToken(url, options = {}) {
-//   console.log("URL da requisição ORÇAMENTOS:", url);
-//   const token = localStorage.getItem("token");
-//   const idempresa = localStorage.getItem("idempresa");
-
-//   console.log("ID da empresa no localStorage:", idempresa);
-//   console.log("Token no localStorage:", token);
-
-//   if (!options.headers) options.headers = {};
-  
-//   if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
-//         options.headers['Content-Type'] = 'application/json';
-//     }
-
-//   options.headers['Authorization'] = 'Bearer ' + token;
-//   if (idempresa) options.headers['idempresa'] = idempresa;
-
-// if (
-//     idempresa && 
-//     idempresa !== 'null' && 
-//     idempresa !== 'undefined' && 
-//     idempresa.trim() !== '' &&
-//     !isNaN(idempresa) && 
-//     Number(idempresa) > 0
-//   ) {
-//     options.headers['idempresa'] = idempresa;
-//     console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
-//   } else {
-//     console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
-//   }
-//   console.log("URL OPTIONS", url, options)
-
- 
-//   const resposta = await fetch(url, options);
-
-//   console.log("Resposta da requisição Clientes.js:", resposta);
-
-//   if (resposta.status === 401) {
-//     localStorage.clear();
-//     Swal.fire({
-//       icon: "warning",
-//       title: "Sessão expirada",
-//       text: "Por favor, faça login novamente."
-//     }).then(() => {
-//       window.location.href = "login.html"; // ajuste conforme necessário
-//     });
-//     //return;
-//     throw new Error('Sessão expirada'); 
-//   }
-
-
-//   let dados;
-
-//   try {
-//     // Tenta parsear JSON
-//     dados = await resposta.json();
-//   } catch {
-//     // Se não for JSON, tenta pegar texto puro
-//     const texto = await resposta.text();
-//     dados = texto || null;
-//   }
-
-//   if (!resposta.ok) {
-//     // lança erro com a mensagem retornada (se houver)
-//     const mensagemErro = (dados && dados.erro) || JSON.stringify(dados) || resposta.statusText;
-//     throw new Error(`Erro na requisição: ${mensagemErro}`);
-//   }
-
-//   return dados;
-// }
-
 document.addEventListener('DOMContentLoaded', () => {
     const inputCodigo = document.querySelector("#idCliente");
   
@@ -751,3 +770,13 @@ function configurarEventosEspecificos(modulo) {
   }
 }
 window.configurarEventosEspecificos = configurarEventosEspecificos;
+
+window.moduloHandlers = window.moduloHandlers || {};
+
+window.moduloHandlers['Clientes'] = { // A chave 'Clientes' deve ser a mesma do seu mapaModulos no Index.js
+    configurar: configurarEventosClientes,
+    desinicializar: desinicializarClientesModal
+};
+
+console.log(`Módulo Clientes.js registrado em window.moduloHandlers`);
+

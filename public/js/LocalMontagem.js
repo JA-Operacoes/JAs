@@ -1,5 +1,18 @@
 import { fetchComToken } from '../utils/utils.js';
 
+let descMontagemInputListener = null; 
+let descMontagemBlurListener = null; 
+let cidadeMontagemInputListener = null; 
+let ufMontagemInputListener = null; 
+let qtdPavilhaoChangeListener = null; 
+let limparMontagemButtonListener = null;
+let enviarMontagemButtonListener = null;
+let pesquisarMontagemButtonListener = null;
+let selectMontagemChangeListener = null; 
+let novoInputDescMontagemInputListener = null; 
+let novoInputDescMontagemBlurListener = null;  
+
+
 let MontagemOriginal = {
     idMontagem: "",
     descMontagem: "",
@@ -244,8 +257,155 @@ function verificaMontagem() {
             });
         }
     });
-    
+}
 
+function adicionarListenersAoInputDescMontagem(inputElement) {
+    // Remove listeners anteriores para evitar duplicidade
+    if (descMontagemInputListener) {
+        inputElement.removeEventListener("input", descMontagemInputListener);
+    }
+    if (descMontagemBlurListener) {
+        inputElement.removeEventListener("blur", descMontagemBlurListener);
+    }
+
+    descMontagemInputListener = function () {
+        this.value = this.value.toUpperCase();
+    };
+    inputElement.addEventListener("input", descMontagemInputListener);
+
+    descMontagemBlurListener = async function () {
+        if (!this.value.trim()) return;
+        console.log("Campo descMontagem procurado (blur dinâmico):", this.value);
+        // await carregarLocalMontagem(this.value, this); // Esta linha precisa ser reconsiderada aqui,
+        // pois o blur após a pesquisa não deve acionar o carregamento novamente,
+        // ele já foi carregado pelo 'change' do select.
+        // O blur é mais útil para um "novo" input que não veio de uma seleção.
+        // Mantenha apenas se a lógica de negócio exigir.
+    };
+    inputElement.addEventListener("blur", descMontagemBlurListener);
+}
+
+function resetarCampoDescMontagemParaInput() {
+    const descMontagemCampo = document.getElementById("descMontagem");
+    // Verifica se o campo atual é um select e o substitui por um input
+    if (descMontagemCampo && descMontagemCampo.tagName.toLowerCase() === "select") {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.id = "descMontagem";
+        input.name = "descMontagem";
+        input.value = ""; // Limpa o valor
+        input.placeholder = "Descrição do Local de Montagem";
+        input.className = "form";
+        input.classList.add('uppercase');
+        input.required = true;
+
+        // Remove o listener do select antes de substituí-lo
+        if (selectMontagemChangeListener) {
+            descMontagemCampo.removeEventListener("change", selectMontagemChangeListener);
+            selectMontagemChangeListener = null;
+        }
+
+        descMontagemCampo.parentNode.replaceChild(input, descMontagemCampo);
+        adicionarListenersAoInputDescMontagem(input); // Adiciona os listeners ao novo input
+
+        const label = document.querySelector('label[for="descMontagem"]');
+        if (label) {
+            label.style.display = "block";
+            label.textContent = "Local de Montagem";
+        }
+    }
+}
+
+
+// =============================================================================
+// Função de Desinicialização do Módulo Local Montagem
+// =============================================================================
+function desinicializarLocalMontagemModal() {
+    console.log("🧹 Desinicializando módulo Local Montagem.js...");
+
+    const descMontagemElement = document.querySelector("#descMontagem");
+    const cidadeMontagemElement = document.querySelector("#cidadeMontagem");
+    const ufMontagemElement = document.querySelector("#ufMontagem");
+    const qtdPavilhaoElement = document.querySelector("#qtdPavilhao");
+    const botaoLimpar = document.querySelector("#Limpar");
+    const botaoEnviar = document.querySelector("#Enviar");
+    const botaoPesquisar = document.querySelector("#Pesquisar");
+
+    // 1. Remover listeners de eventos dos elementos fixos
+    if (botaoLimpar && limparMontagemButtonListener) {
+        botaoLimpar.removeEventListener("click", limparMontagemButtonListener);
+        limparMontagemButtonListener = null;
+        console.log("Listener de click do Limpar (Local Montagem) removido.");
+    }
+    if (botaoEnviar && enviarMontagemButtonListener) {
+        botaoEnviar.removeEventListener("click", enviarMontagemButtonListener);
+        enviarMontagemButtonListener = null;
+        console.log("Listener de click do Enviar (Local Montagem) removido.");
+    }
+    if (botaoPesquisar && pesquisarMontagemButtonListener) {
+        botaoPesquisar.removeEventListener("click", pesquisarMontagemButtonListener);
+        pesquisarMontagemButtonListener = null;
+        console.log("Listener de click do Pesquisar (Local Montagem) removido.");
+    }
+
+    // 2. Remover listeners dos campos de input (que podem ser input ou select)
+    if (descMontagemElement) {
+        if (descMontagemElement.tagName.toLowerCase() === "input") {
+            if (descMontagemInputListener) { // Listener para 'input' (toUpperCase)
+                descMontagemElement.removeEventListener("input", descMontagemInputListener);
+                descMontagemInputListener = null;
+                console.log("Listener de input do descMontagem (input) removido.");
+            }
+            if (descMontagemBlurListener) { // Listener para 'blur' (carregar descrição)
+                descMontagemElement.removeEventListener("blur", descMontagemBlurListener);
+                descMontagemBlurListener = null;
+                console.log("Listener de blur do descMontagem (input) removido.");
+            }
+        } else if (descMontagemElement.tagName.toLowerCase() === "select" && selectMontagemChangeListener) {
+            descMontagemElement.removeEventListener("change", selectMontagemChangeListener);
+            selectMontagemChangeListener = null;
+            console.log("Listener de change do select descMontagem removido.");
+        }
+    }
+    if (cidadeMontagemElement && cidadeMontagemInputListener) {
+        cidadeMontagemElement.removeEventListener("input", cidadeMontagemInputListener);
+        cidadeMontagemInputListener = null;
+        console.log("Listener de input do cidadeMontagem removido.");
+    }
+    if (ufMontagemElement && ufMontagemInputListener) {
+        ufMontagemElement.removeEventListener("input", ufMontagemInputListener);
+        ufMontagemInputListener = null;
+        console.log("Listener de input do ufMontagem removido.");
+    }
+    if (qtdPavilhaoElement && qtdPavilhaoChangeListener) {
+        qtdPavilhaoElement.removeEventListener("change", qtdPavilhaoChangeListener);
+        qtdPavilhaoChangeListener = null;
+        console.log("Listener de change do qtdPavilhao removido.");
+    }
+
+    // Remover listeners dos inputs de pavilhões gerados dinamicamente
+    // Esta parte é um pouco mais complexa porque os listeners são anônimos
+    // ou não armazenados em variáveis globais facilmente removíveis individualmente.
+    // A melhor abordagem é limpar o container e resetar os campos.
+    document.querySelectorAll('#inputsPavilhoes input[name="nmPavilhao[]"]').forEach(input => {
+        // Se você adicionou um listener anônimo ou direto, não há como removê-lo facilmente.
+        // A estratégia de limpar o innerHTML do container #inputsPavilhoes já "destrói" os elementos
+        // e, consequentemente, remove seus listeners.
+        // O `uppercase-listener-added` foi apenas para evitar duplicidade na adição, não para remoção.
+    });
+
+
+    // 3. Limpar o estado global e campos do formulário
+    MontagemOriginal = null; // Zera o objeto de local de montagem original
+    limparCamposMontagem(); // Limpa todos os campos visíveis do formulário
+ //   document.querySelector("#form").reset(); // Garante que o formulário seja completamente resetado
+    document.querySelector("#idMontagem").value = ""; // Limpa o ID oculto
+    document.querySelector("#inputsPavilhoes").innerHTML = ''; // Garante que os inputs de pavilhões sejam removidos
+    document.querySelector("#qtdPavilhao").value = ''; // Reseta a quantidade de pavilhões
+    resetarCampoDescMontagemParaInput(); // Garante que o campo descMontagem volte a ser um input padrão
+
+
+    console.log("✅ Módulo Local Montagem.js desinicializado.");
 }
 
 function criarSelectMontagem(montagem) {
@@ -611,3 +771,9 @@ function configurarEventosEspecificos(modulo) {
   }
 }
 window.configurarEventosEspecificos = configurarEventosEspecificos;
+
+window.moduloHandlers = window.moduloHandlers || {};
+window.moduloHandlers['LocalMontagem'] = { // A chave 'LocalMontagem' (com L e M maiúsculos) deve corresponder ao seu Index.js
+    configurar: configurarEventosMontagem,
+    desinicializar: desinicializarLocalMontagemModal
+};
