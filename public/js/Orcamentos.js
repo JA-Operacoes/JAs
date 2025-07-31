@@ -282,6 +282,17 @@ async function carregarLocalMontOrc() {
         console.error("Erro ao carregar localmontagem:", error);
     } 
 }
+let selectedPavilhoes = [];
+function updatePavilhaoDisplayInputs() {
+    const listaPavilhaoDisplay = document.getElementById('listaPavilhaoDisplay');
+    const idsPavilhoesSelecionadosHidden = document.getElementById('idsPavilhoesSelecionados');
+
+    // Atualiza o input de texto visível com os nomes dos pavilhões
+    listaPavilhaoDisplay.value = selectedPavilhoes.map(p => p.name).join(', ');
+
+    // Atualiza o input hidden com os IDs em formato JSON (ideal para enviar ao backend)
+    idsPavilhoesSelecionadosHidden.value = JSON.stringify(selectedPavilhoes.map(p => p.id));
+}
 
 async function carregarPavilhaoOrc(idMontagem) {
     
@@ -292,67 +303,132 @@ async function carregarPavilhaoOrc(idMontagem) {
         if (idPavilhaoSelect) {
             idPavilhaoSelect.innerHTML = '<option value="">Selecione um Pavilhão</option>';
         }
+        selectedPavilhoes = [];
+        updatePavilhaoDisplayInputs();
         return; // Não faça a requisição se idMontagem for vazio
     }
 
-    try{
+    // try{
 
-       const pavilhao = await fetchComToken(`/orcamentos/pavilhao?idmontagem=${idMontagem}`);
+    //    const pavilhao = await fetchComToken(`/orcamentos/pavilhao?idmontagem=${idMontagem}`);
         
-       console.log("Pavilhão recebido:", pavilhao);
-        let selects = document.querySelectorAll(".idPavilhao");       
+    //    console.log("Pavilhão recebido:", pavilhao);
+    //     let selects = document.querySelectorAll(".idPavilhao");       
         
         
-        selects.forEach(select => {        
+    //     selects.forEach(select => {        
            
-            select.innerHTML = '<option value="">Selecione o Pavilhão</option>'; // Adiciona a opção padrão
-            pavilhao.forEach(localpav => {
+    //         select.innerHTML = '<option value="">Selecione Pavilhão</option>'; // Adiciona a opção padrão
+    //         pavilhao.forEach(localpav => {
           
-                let option = document.createElement("option");
+    //             let option = document.createElement("option");
 
-                option.value = localpav.idpavilhao;  // Atenção ao nome da propriedade (idMontagem)
-                option.textContent = localpav.nmpavilhao; 
-                option.setAttribute("data-idpavilhao", localpav.idpavilhao); 
-                option.setAttribute("data-nmpavilhao", localpav.nmpavilhao);
+    //             option.value = localpav.idpavilhao;  // Atenção ao nome da propriedade (idMontagem)
+    //             option.textContent = localpav.nmpavilhao; 
+    //             option.setAttribute("data-idpavilhao", localpav.idpavilhao); 
+    //             option.setAttribute("data-nmpavilhao", localpav.nmpavilhao);
                          
-                select.appendChild(option);
+    //             select.appendChild(option);
            
-            });
-            select.addEventListener("change", function (event) {    
-                idPavilhao = this.value;   
-                const selectedOption = this.options[this.selectedIndex];    
+    //         });
+    //         select.addEventListener("change", function (event) {    
+    //             idPavilhao = this.value;   
+    //             const selectedOption = this.options[this.selectedIndex];                               
                 
-                console.log("IDPAVILHAO selecionado:", selectedOption.value);    
-             
-            });
-            
-        });
-    }catch(error){
-        console.error("Erro ao carregar pavilhao:", error);
-    } 
-}
+    //             console.log("IDPAVILHAO selecionado:", selectedOption.value, selectedOption.getAttribute("data-nmpavilhao")); 
 
-async function carregarNomePavilhao(id) {
-    if (!id) {
-        console.warn("ID do pavilhão não fornecido para carregarNomePavilhao.");
-        return null; 
-    }
+                
+
+             
+    //         });
+            
+    //     });
+    // }catch(error){
+    //     console.error("Erro ao carregar pavilhao:", error);
+    // } 
+
     try {
-       
-        const procurapavilhao = await fetchComToken(`/orcamentos/pavilhao/${id}`);
-        
-        if (procurapavilhao && procurapavilhao.nmpavilhao) { // Ajuste 'nome' para a propriedade correta do seu objeto de pavilhão
-            return procurapavilhao.nmpavilhao; 
-        } else {
-            console.warn("Nenhum nome de pavilhão encontrado na resposta:", procurapavilhao);
-            return null;
+        const pavilhoes = await fetchComToken(`/orcamentos/pavilhao?idmontagem=${idMontagem}`);
+        console.log("Pavilhões recebido:", pavilhoes);
+
+        const selecionarPavilhaoSelect = document.getElementById("selecionarPavilhao"); // Use o ID correto do seu select
+        if (selecionarPavilhaoSelect) {
+            selecionarPavilhaoSelect.innerHTML = '<option value="">Selecione para Adicionar</option>'; // Adiciona a opção padrão
+            pavilhoes.forEach(localpav => {
+                let option = document.createElement("option");
+                option.value = localpav.idpavilhao;
+                option.textContent = localpav.nmpavilhao;
+                // Os data-attributes são úteis, mas para o que você quer, basta o value e textContent
+                // option.setAttribute("data-idpavilhao", localpav.idpavilhao);
+                // option.setAttribute("data-nmpavilhao", localpav.nmpavilhao);
+                selecionarPavilhaoSelect.appendChild(option);
+            });
+            // O event listener agora será adicionado uma vez, fora desta função, no DOMContentLoaded
         }
     } catch (error) {
-        console.error('Erro ao carregar nome do pavilhão:', error);
-        return null; 
+        console.error("Erro ao carregar pavilhao:", error);
+        Swal.fire("Erro", "Não foi possível carregar os pavilhões.", "error");
     }
-      
 }
+
+// async function carregarPavilhaoOrc(idMontagem) {
+//     // ... (seu código existente para verificar idMontagem e limpar o select) ...
+
+//     try {
+//         const pavilhoes = await fetchComToken(`/orcamentos/pavilhao?idmontagem=${idMontagem}`);
+//         console.log("Pavilhões recebidos:", pavilhoes);
+
+//         const nmPavilhaoSelect = document.getElementById("nmPavilhao");
+//         if (nmPavilhaoSelect) {
+//             // Limpa as opções existentes antes de adicionar novas
+//             $(nmPavilhaoSelect).empty(); // Use jQuery .empty() para Select2
+//             $(nmPavilhaoSelect).append('<option></option>'); // Opção vazia para placeholder se necessário
+
+//             pavilhoes.forEach(localpav => {
+//                 let option = new Option(localpav.nmpavilhao, localpav.idpavilhao, false, false);
+//                 $(nmPavilhaoSelect).append(option);
+//             });
+
+//             // Inicializa/Atualiza o Select2
+//             // Se já estiver inicializado, você pode usar $(nmPavilhaoSelect).val(null).trigger('change'); para resetar seleções
+//             // E depois re-selecionar ao carregar um orçamento existente para edição.
+//             // Ou destruir e recriar:
+//             if ($(nmPavilhaoSelect).data('select2')) {
+//                 $(nmPavilhaoSelect).select2('destroy');
+//             }
+//             $(nmPavilhaoSelect).select2({
+//                 placeholder: "Selecione um ou mais Pavilhões",
+//                 allowClear: true // Permite limpar todas as seleções
+//             });
+//         }
+
+//     } catch (error) {
+//         console.error("Erro ao carregar pavilhões:", error);
+//         Swal.fire("Erro", "Não foi possível carregar os pavilhões.", "error");
+//     }
+// }
+
+// async function carregarNomePavilhao(id) {
+//     if (!id) {
+//         console.warn("ID do pavilhão não fornecido para carregarNomePavilhao.");
+//         return null; 
+//     }
+//     try {
+       
+//         const procurapavilhao = await fetchComToken(`/orcamentos/pavilhao/${id}`);
+        
+//         if (procurapavilhao && procurapavilhao.nmpavilhao) { // Ajuste 'nome' para a propriedade correta do seu objeto de pavilhão
+//             return procurapavilhao.nmpavilhao; 
+//         } else {
+//             console.warn("Nenhum nome de pavilhão encontrado na resposta:", procurapavilhao);
+//             return null;
+//         }
+//     } catch (error) {
+//         console.error('Erro ao carregar nome do pavilhão:', error);
+//         return null; 
+//     }
+      
+// }
  
 
 //Função para carregar os Funcao
@@ -973,7 +1049,7 @@ function adicionarLinhaOrc() {
         <td style="display: none;"><input type="hidden" class="idEquipamento" value=""></td>
         <td style="display: none;"><input type="hidden" class="idSuprimento" value=""></td>
         <td class="Proposta">
-            <div class="checkbox-wrapper-33" style="margin-top: 40px;">
+            <div class="checkbox-wrapper-33">
                 <label class="checkbox">
                     <input class="checkbox__trigger visuallyhidden" type="checkbox" />
                     <span class="checkbox__symbol">
@@ -1335,7 +1411,7 @@ function adicionarLinhaAdicional() {
         <td style="display: none;"><input type="hidden" class="idEquipamento" value=""></td>
         <td style="display: none;"><input type="hidden" class="idSuprimento" value=""></td>
         <td class="Proposta">
-            <div class="checkbox-wrapper-33" style="margin-top: 40px;">
+            <div class="checkbox-wrapper-33">
                 <label class="checkbox">
                     <input class="checkbox__trigger visuallyhidden" type="checkbox" />
                     <span class="checkbox__symbol">
@@ -2271,18 +2347,57 @@ async function verificaOrcamento() {
 
     configurarInfraCheckbox();
         
-    const selectElement = document.getElementById('idMontagem');
+    // const selectElement = document.getElementById('idMontagem');
 
-    if (selectElement) {       
-        selectElement.addEventListener('change', function() {           
-            atualizarUFOrc(this);
+    // if (selectElement) {       
+    //     selectElement.addEventListener('change', function() {           
+    //         atualizarUFOrc(this);
+    //     });
+    //     console.log("Event listener adicionado ao idMontagem.");
+
+    // } else {
+    //     console.error("Elemento 'idMontagem' não encontrado no DOM!");
+    // }   
+
+
+    const selecionarPavilhaoSelect = document.getElementById('selecionarPavilhao');
+
+    if (selecionarPavilhaoSelect) {
+        selecionarPavilhaoSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const id = parseInt(selectedOption.value, 10);
+            const name = selectedOption.textContent;
+
+            // Verifica se um pavilhão válido foi selecionado e se ele já não está na lista
+            if (id && !selectedPavilhoes.some(p => p.id === id)) {
+                selectedPavilhoes.push({ id: id, name: name });
+                updatePavilhaoDisplayInputs(); // Atualiza o input de exibição
+                this.value = ""; // Reseta o select para "Selecione para Adicionar"
+            } else if (id && selectedPavilhoes.some(p => p.id === id)) {
+                Swal.fire("Atenção", `O pavilhão "${name}" já foi adicionado.`, "info");
+                this.value = ""; // Reseta o select mesmo se já estiver adicionado
+            }
         });
-        console.log("Event listener adicionado ao idMontagem.");
+    }
 
-    } else {
-        console.error("Elemento 'idMontagem' não encontrado no DOM!");
-    }   
+    // Event listener para a mudança do Local Montagem, para carregar os pavilhões
+    const idMontagemSelect = document.getElementById('idMontagem');
+    if (idMontagemSelect) {
+        idMontagemSelect.addEventListener('change', function() {
+            atualizarUFOrc(this);
+            carregarPavilhaoOrc(this.value);
+        });
+        // Se a página já carrega com um idMontagem selecionado, chame a função para carregar os pavilhões iniciais
+        if (idMontagemSelect.value) {
+            carregarPavilhaoOrc(idMontagemSelect.value);
+        }
+    }
 
+    
+
+    // Chame updatePavilhaoDisplayInputs() inicialmente para garantir que os campos estejam vazios
+    // ou preenchidos se o formulário for carregado para edição.
+    updatePavilhaoDisplayInputs();
     
     const statusInput = document.getElementById('Status');
     if(statusInput){
@@ -2518,6 +2633,23 @@ async function verificaOrcamento() {
             const desmontagemDatas = getPeriodoDatas(formData.get("periodoDesmontagem"));
             const desmontagemInfraDatas = getPeriodoDatas(formData.get("periodoDesmontagemInfra"));
 
+            const idsPavilhoesSelecionadosInput = document.getElementById('idsPavilhoesSelecionados');
+            let pavilhoesParaEnviar = [];
+            if (idsPavilhoesSelecionadosInput && idsPavilhoesSelecionadosInput.value) {
+                try {
+                    // Parseie a string JSON de volta para um array de IDs
+                    pavilhoesParaEnviar = JSON.parse(idsPavilhoesSelecionadosInput.value);
+                } catch (e) {
+                    console.error("Erro ao parsear IDs de pavilhões selecionados:", e);
+                    // Se o JSON estiver malformado, você pode querer retornar um erro aqui
+                    Swal.fire("Erro!", "Formato inválido para a lista de pavilhões.", "error");
+                    //btnEnviar.disabled = false;
+                    //btnEnviar.textContent = 'Salvar Orçamento';
+                    return;
+                }
+            }
+            console.log("Pavilhões para enviar:", pavilhoesParaEnviar);
+
             const dadosOrcamento = {
                 id: orcamentoId,
                 status: formData.get("Status"),
@@ -2525,8 +2657,8 @@ async function verificaOrcamento() {
                 idEvento: document.querySelector(".idEvento option:checked")?.value || null, // Se o campo for vazio, será null
                
                 idMontagem: document.querySelector(".idMontagem option:checked")?.value || null, // Se o campo for vazio, será null
-                idPavilhao: document.querySelector(".idPavilhao option:checked")?.value || null, // Se o campo for vazio, será null
-             
+                // idPavilhao: document.querySelector(".idPavilhao option:checked")?.value || null, // Se o campo for vazio, será null
+                idsPavilhoes: pavilhoesParaEnviar, 
                 infraMontagem: formData.get("infraMontagem"),
 
                 dtiniInfraMontagem: infraMontagemDatas.inicio,
@@ -2960,41 +3092,63 @@ export async function preencherFormularioComOrcamento(orcamento) {
         console.warn("Elemento com classe '.idMontagem' não encontrado.");
     }
 
-    const pavilhaoSelect = document.querySelector('.idPavilhao');
-    //console.log("PAVILHÃO:", pavilhaoSelect); // Vai mostrar o elemento <select>
-    if (pavilhaoSelect) {
+    // const pavilhaoSelect = document.querySelector('.idPavilhao');
+    // //console.log("PAVILHÃO:", pavilhaoSelect); // Vai mostrar o elemento <select>
+    // if (pavilhaoSelect) {
         
-        pavilhaoSelect.value = orcamento.idpavilhao || '';
-        console.log("PAVILHÃO selecionado por ID:", pavilhaoSelect.value); 
+    //     pavilhaoSelect.value = orcamento.idpavilhao || '';
+    //     console.log("PAVILHÃO selecionado por ID:", pavilhaoSelect.value); 
        
-        if (orcamento.idpavilhao && orcamento.nomepavilhao) {
-            let optionExistente = pavilhaoSelect.querySelector(`option[value="${orcamento.idpavilhao}"]`);
+    //     if (orcamento.idpavilhao && orcamento.nomepavilhao) {
+    //         let optionExistente = pavilhaoSelect.querySelector(`option[value="${orcamento.idpavilhao}"]`);
 
-            if (!optionExistente) {
-                // Se a opção não existe, crie-a
-                const newOption = document.createElement('option');
-                newOption.value = orcamento.idpavilhao;
-                newOption.textContent = orcamento.nomepavilhao; // Use o nome do pavilhão que veio do backend
-                pavilhaoSelect.appendChild(newOption);
-                console.log(`Opção para Pavilhão '${orcamento.nomepavilhao}' (ID: ${orcamento.idpavilhao}) adicionada dinamicamente.`);
-            } else {
-                // Se a opção já existe, apenas garanta que o texto esteja correto
-                optionExistente.textContent = orcamento.nomepavilhao;
-            }
-            // Garante que o valor esteja selecionado (pode ser redundante, mas não custa)
-            pavilhaoSelect.value = orcamento.idpavilhao;
-            console.log(`Pavilhão '${orcamento.nomepavilhao}' (ID: ${orcamento.idpavilhao}) definido no select.`);
+    //         if (!optionExistente) {
+    //             // Se a opção não existe, crie-a
+    //             const newOption = document.createElement('option');
+    //             newOption.value = orcamento.idpavilhao;
+    //             newOption.textContent = orcamento.nomepavilhao; // Use o nome do pavilhão que veio do backend
+    //             pavilhaoSelect.appendChild(newOption);
+    //             console.log(`Opção para Pavilhão '${orcamento.nomepavilhao}' (ID: ${orcamento.idpavilhao}) adicionada dinamicamente.`);
+    //         } else {
+    //             // Se a opção já existe, apenas garanta que o texto esteja correto
+    //             optionExistente.textContent = orcamento.nomepavilhao;
+    //         }
+    //         // Garante que o valor esteja selecionado (pode ser redundante, mas não custa)
+    //         pavilhaoSelect.value = orcamento.idpavilhao;
+    //         console.log(`Pavilhão '${orcamento.nomepavilhao}' (ID: ${orcamento.idpavilhao}) definido no select.`);
 
-        } else if (!orcamento.idpavilhao && !orcamento.nomepavilhao) {
-             // Se não houver ID nem nome, limpa o select
-             pavilhaoSelect.value = '';
-             console.log("Nenhum pavilhão para definir, select limpo.");
-        }
+    //     } else if (!orcamento.idpavilhao && !orcamento.nomepavilhao) {
+    //          // Se não houver ID nem nome, limpa o select
+    //          pavilhaoSelect.value = '';
+    //          console.log("Nenhum pavilhão para definir, select limpo.");
+    //     }
 
-    } else {
-        console.warn("Elemento com classe '.idPavilhao' não encontrado.");
-    }
+    // } else {
+    //     console.warn("Elemento com classe '.idPavilhao' não encontrado.");
+    // }
     
+    const listaPavilhaoDisplay = document.getElementById('listaPavilhaoDisplay');
+    const idsPavilhoesSelecionados = document.getElementById('idsPavilhoesSelecionados');
+
+    if (listaPavilhaoDisplay && idsPavilhoesSelecionados) {
+        if (orcamento.pavilhoes && orcamento.pavilhoes.length > 0) {
+            // Mapeia os nomes dos pavilhões para exibição
+            const nomes = orcamento.pavilhoes.map(p => p.nomepavilhao).join(', ');
+            // Mapeia os IDs dos pavilhões para o campo hidden
+            const ids = orcamento.pavilhoes.map(p => p.id).join(',');
+
+            listaPavilhaoDisplay.value = nomes;
+            idsPavilhoesSelecionados.value = ids;
+            console.log("Pavilhões preenchidos nos inputs:", nomes, "IDs:", ids);
+        } else {
+            listaPavilhaoDisplay.value = '';
+            idsPavilhoesSelecionados.value = '';
+            console.log("Nenhum pavilhão no orçamento, inputs de pavilhão limpos.");
+        }
+    } else {
+        console.warn("Um ou ambos os elementos de input para pavilhões (listaPavilhaoDisplay, idsPavilhoesSelecionados) não foram encontrados.");
+    }
+
     for (const id in flatpickrInstances) {
         const pickerInstance = flatpickrInstances[id];        
       
@@ -3208,7 +3362,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
             <td style="display: none;"><input type="hidden" class="idEquipamento" value="${item.idequipamento || ''}"></td>
             <td style="display: none;"><input type="hidden" class="idSuprimento" value="${item.idsuprimento || ''}"></td>
             <td class="Proposta">
-                <div class="checkbox-wrapper-33" style="margin-top: 40px;">
+                <div class="checkbox-wrapper-33">
                     <label class="checkbox">
                         <input class="checkbox__trigger visuallyhidden" type="checkbox" ${item.enviarnaproposta ? 'checked' : ''} />
                         <span class="checkbox__symbol">

@@ -90,7 +90,8 @@ if (typeof window.StaffOriginal === "undefined") {
         comprovanteCache: "",
         comprovanteAjdCusto: "",
         comprovanteCaixinha: "",
-        setor: ""
+        setor: "",
+        statusPgto: ""
     };
 }
 
@@ -132,6 +133,8 @@ const campoExtra = document.getElementById('campoExtra');
 const caixinhacheck = document.getElementById('Caixinhacheck');
 const campoCaixinha = document.getElementById('campoCaixinha');
 const setorInput = document.getElementById('setor');
+
+const statusPagtoInput = document.getElementById('statusPgto');
 
 // Variável para armazenar os dados originais do registro em edição
 let currentEditingStaffEvent = null;
@@ -218,6 +221,27 @@ const carregarDadosParaEditar = (eventData) => {
     bonusTextarea.value = eventData.descbonus || ''; // Se você tem um campo 'bonus' no HTML
     vlrTotalInput.value = parseFloat(eventData.total || 0).toFixed(2).replace('.', ',');
     setorInput.value = eventData.setor || ''; // Setor do funcionário, se necessário
+    statusPagtoInput.value = eventData.statuspgto.toUpperCase() || '';
+
+    
+
+    //const statusPgtoInput = document.getElementById('statusPgto');
+    if (statusPagtoInput.value) {
+        // 1. Defina o valor do input
+        //statusPgtoInput.value = statusPgto; // statusPgto é a variável que você calculou
+
+        // 2. Remova classes existentes para evitar conflito
+        
+        statusPagtoInput.classList.remove('pendente', 'pago');
+
+        // 3. Adicione a classe apropriada com base no status
+        if (statusPagtoInput.value === "PENDENTE") {
+            statusPagtoInput.classList.add('pendente');
+        } else if (statusPagtoInput.value === "PAGO") {
+            console.log("CARREGANDO STATUS", statusPagtoInput.value);
+            statusPagtoInput.classList.add('pago');
+        }
+    }
 
     // Tratamento dos Checkboxes Extra/Caixinha
     if (extracheck && campoExtra) {
@@ -413,8 +437,8 @@ const carregarTabelaStaff = async (funcionarioId) => {
                     return dateStr;
                 })
                 .join(', ')
-                : 'N/A';
-                
+                : 'N/A';                               
+
                 row.insertCell().textContent = parseFloat(eventData.vlrcache || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                 row.insertCell().textContent = parseFloat(eventData.vlrextra || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                 row.insertCell().textContent = eventData.descbonus || '';
@@ -427,7 +451,19 @@ const carregarTabelaStaff = async (funcionarioId) => {
                 row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                 row.insertCell().textContent = eventData.descbeneficios || '';
                 row.insertCell().textContent = parseFloat(eventData.vlrtotal || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                // row.insertCell().textContent = eventData.statuspgto || '';
                 
+                const statusCell = row.insertCell();             
+                const statusSpan = document.createElement('span');             
+                statusSpan.textContent = eventData.statuspgto || ''; 
+                console.log("statusSpan", statusSpan);      
+                const status = (eventData.statuspgto || '').toLowerCase();
+                if (status === "pendente") {
+                    statusSpan.classList.add('pendente');
+                } else if (status === "pago") {
+                    statusSpan.classList.add('pago');
+                }          
+                statusCell.appendChild(statusSpan);
                 
             });
         } else {
@@ -570,7 +606,7 @@ async function verificaStaff() {
         ) || 0;
 
 
-        if(!nmFuncionario || !descFuncao || !vlrCusto || !transporte || !almoco || !jantar || !nmCliente || !nmEvento || !periodoDoEvento){
+        if(!nmFuncionario || !descFuncao || !vlrCusto || !nmCliente || !nmEvento || !periodoDoEvento){
             return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Funcionário, Função, Cachê, Transportes, Alimentação, Cliente, Evento e Período do Evento.", "warning");
         }
 
@@ -897,6 +933,88 @@ console.log("currentEditingStaffEvent (antes da verificação):", currentEditing
 
         formData.append('setor', setor);
 
+        let statusPgto = "Pendente"; // Valor padrão
+
+            // --- Regras de Validação e Atribuição de statusPgto ---
+
+            // Condição 1: Tudo vazio, exceto valorCache (que é obrigatório), E comprovanteCache preenchido
+            console.log("VALORES CUSTOS ANTES", vlrCusto, extra, caixinha, almoco, jantar, transporte);
+            const custosVazios = extra === 0 && caixinha === 0 && almoco === 0 && jantar === 0 && transporte === 0;
+console.log("VALORES CUSTOS DEPOIS", vlrCusto, extra, caixinha, almoco, jantar, transporte, comppgtocacheDoForm, comppgtocacheDoForm, comppgtoextrasDoForm);
+
+            if ((parseFloat(vlrCusto)) > 0)
+            {
+                console.log("VLRCUSTO>0", vlrCusto);
+            }
+            else
+            {
+                console.log("VLRCUSTO else", vlrCusto);
+            }
+            if (comppgtocacheDoForm)
+            {
+                console.log("ComppgtocacheDoForm", comppgtocacheDoForm);
+            }
+            else
+            {
+                console.log("Comprovante Else", comppgtocacheDoForm);
+            }
+            if ((parseFloat(custosVazios)))
+            {
+                console.log("CUSTOSVAZIOS", custosVazios);
+            }
+            else
+            {
+                console.log("CUSTOSVAZIOS ELSE", custosVazios);
+            }
+
+            if ((parseFloat(vlrCusto)> 0 ) && comppgtocacheDoForm && !custosVazios) {
+                statusPgto = "Pago";
+            }
+            // Condição 2: Almoço OU Jantar OU Transporte preenchidos, E comprovanteAjdCusto E comprovanteCache preenchidos
+            else if (((parseFloat(almoco)> 0) || (parseFloat(jantar) > 0) || (parseFloat(transporte) > 0)) && comppgtoajdcustoDoForm && comppgtocacheDoForm) {
+                statusPgto = "Pago";
+            }
+            // Condição 3: Valor Caixinha preenchido, E comprovanteCaixinha E comprovanteCache preenchidos
+            else if ((parseFloat(caixinha) > 0) && comppgtoextrasDoForm && comppgtocacheDoForm) {
+                statusPgto = "Pago";
+            }
+            // Condição 4: Valor Extra preenchido, E comprovanteBonus E comprovanteCache preenchidos
+            // (Assumi que "bônus" no comprovante de bônus refere-se a "valor extra")
+           
+            // else if (valorExtra > 0 && comprovanteBonus && comprovanteCache) {
+            //     statusPgto = "Pago";
+            // }
+           
+            // Condição final: Qualquer valor preenchido SEM o comprovante correspondente, resulta em "Pendente"
+            // Esta condição já é o padrão se nenhuma das "Pago" for atendida, mas podemos ser explícitos para clareza
+            // e para casos de comprovantes faltando para valores existentes.
+            // Exemplos de "Pendente" (já cobertos pelo padrão, mas explicitados):
+            else {
+                 // Se comprovanteCache está faltando, mas valorCache > 0
+                if ((parseFloat(vlrCusto)> 0 ) && !comppgtocacheDoForm) {
+                    statusPgto = "Pendente";
+                }
+                // Se algum custo de ajuda estiver presente, mas comprovanteAjdCusto faltando
+                else if (((parseFloat(almoco)> 0) || (parseFloat(jantar) > 0) || (parseFloat(transporte) > 0)) && !comppgtoajdcustoDoForm) {
+                    statusPgto = "Pendente";
+                }
+                // Se valorCaixinha presente, mas comprovanteCaixinha faltando
+                else if ((parseFloat(caixinha) > 0) && !comppgtoextrasDoForm) {
+                    statusPgto = "Pendente";
+                }
+                // Se valorExtra presente, mas comprovanteBonus faltando
+                // else if (valorExtra > 0 && !comprovanteBonus) {
+                //     statusPgto = "Pendente";
+                // }
+                 // Caso contrário, se chegou aqui, e não se encaixou em Pago, é Pendente
+                 // A variável já começa como "Pendente", então esta ramificação pode ser omitida ou usada para logging.
+                // console.log("Nenhuma condição de 'Pago' atendida, statusPgto permanece 'Pendente'.");
+            }
+
+
+            console.log("Status de Pagamento Calculado:", statusPgto);
+
+        formData.append('statuspgto', statusPgto);
 
         console.log("Preparando envio de FormData. Método:", metodo, "URL:", url, window.StaffOriginal);
         console.log("Dados do FormData:", {
@@ -1001,12 +1119,11 @@ console.log("currentEditingStaffEvent (antes da verificação):", currentEditing
                 currentEditingStaffEvent.idcliente != idCliente ||
                 currentEditingStaffEvent.idevento != idEvento ||
                 currentEditingStaffEvent.idmontagem != idMontagem ||
-                (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao
+                (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao ||
+                (currentEditingStaffEvent.statuspgto || '').trim() != statusPgto.trim()
             ) {
                 houveAlteracao = true;
-            }
-
-            
+            }            
 
             const logAndCheck = (fieldName, originalValue, currentValue, condition) => {
             const isDifferent = condition;
@@ -1026,16 +1143,33 @@ console.log("currentEditingStaffEvent (antes da verificação):", currentEditing
                 logAndCheck('Descrição Bônus', (currentEditingStaffEvent.descbonus || '').trim(), descBonus.trim(), (currentEditingStaffEvent.descbonus || '').trim() != descBonus.trim()) ||
                 logAndCheck('Descrição Benefícios', (currentEditingStaffEvent.descbeneficios || '').trim(), descBeneficio.trim(), (currentEditingStaffEvent.descbeneficios || '').trim() != descBeneficio.trim()) ||
                 logAndCheck('Setor', (currentEditingStaffEvent.setor || '').trim(), setor.trim(), (currentEditingStaffEvent.setor || '').trim() != setor.trim()) ||
+                logAndCheck('StatusPgto', (currentEditingStaffEvent.statuspgto || '').trim(), statusPgto.trim(), (currentEditingStaffEvent.statuspgto || '').trim() != statusPgto.trim()) ||
                 logAndCheck('ID Cliente', currentEditingStaffEvent.idcliente, idCliente, currentEditingStaffEvent.idcliente != idCliente) ||
                 logAndCheck('ID Evento', currentEditingStaffEvent.idevento, idEvento, currentEditingStaffEvent.idevento != idEvento) ||
                 logAndCheck('ID Montagem', currentEditingStaffEvent.idmontagem, idMontagem, currentEditingStaffEvent.idmontagem != idMontagem) ||
                 logAndCheck('Pavilhão', (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim(), pavilhao.toUpperCase().trim(), (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao.toUpperCase().trim());
-                logAndCheck('Comprovante Cache', currentEditingStaffEvent.comppgtocache, comppgtocacheDoForm, currentEditingStaffEvent.comppgtocache !== comppgtocacheDoForm) ||
-                logAndCheck('Comprovante Ajuda Custo', currentEditingStaffEvent.comppgtoajdcusto, comppgtoajdcustoDoForm, currentEditingStaffEvent.comppgtoajdcusto !== comppgtoajdcustoDoForm) ||
-                logAndCheck('Comprovante Extras', currentEditingStaffEvent.comppgtoextras, comppgtoextrasDoForm, currentEditingStaffEvent.comppgtoextras !== comppgtoextrasDoForm) ||
+                // logAndCheck('Comprovante Cache', currentEditingStaffEvent.comppgtocache, comppgtocacheDoForm, currentEditingStaffEvent.comppgtocache !== comppgtocacheDoForm) ||
+                // logAndCheck('Comprovante Ajuda Custo', currentEditingStaffEvent.comppgtoajdcusto, comppgtoajdcustoDoForm, currentEditingStaffEvent.comppgtoajdcusto !== comppgtoajdcustoDoForm) ||
+                // logAndCheck('Comprovante Extras', currentEditingStaffEvent.comppgtoextras, comppgtoextrasDoForm, currentEditingStaffEvent.comppgtoextras !== comppgtoextrasDoForm) ||
 
-
-
+                logAndCheck(
+                    'Comprovante Cache',
+                    normalizeEmptyValue(currentEditingStaffEvent.comppgtocache), // Valor original normalizado
+                    normalizeEmptyValue(comppgtocacheDoForm),                 // Valor do formulário normalizado
+                    normalizeEmptyValue(currentEditingStaffEvent.comppgtocache) !== normalizeEmptyValue(comppgtocacheDoForm) // Comparação normalizada
+                ) ||
+                logAndCheck(
+                    'Comprovante Ajuda Custo',
+                    normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto),
+                    normalizeEmptyValue(comppgtoajdcustoDoForm),
+                    normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto) !== normalizeEmptyValue(comppgtoajdcustoDoForm)
+                ) ||
+                logAndCheck(
+                    'Comprovante Extras',
+                    normalizeEmptyValue(currentEditingStaffEvent.comppgtoextras),
+                    normalizeEmptyValue(comppgtoextrasDoForm),
+                    normalizeEmptyValue(currentEditingStaffEvent.comppgtoextras) !== normalizeEmptyValue(comppgtoextrasDoForm)
+                );
             console.log("Houve alteração geral?", houveAlteracao);
 
             if (!houveAlteracao) {
@@ -1221,6 +1355,13 @@ function desinicializarStaffModal() {
     console.log("✅ Módulo Staff.js desinicializado.");
 }
 
+function normalizeEmptyValue(value) {
+    // Se o valor é null, undefined, ou uma string vazia após trim, retorne null
+    if (value === null || typeof value === 'undefined' || (typeof value === 'string' && value.trim() === '')) {
+        return null;
+    }
+    return value;
+}
 // const verificarDisponibilidadeStaff = async (idFuncionario, novasDatasEvento, idStaffEventoAtual = null) => {
 //     if (!idFuncionario || novasDatasEvento.length === 0) {
 //         // Se não houver funcionário ou datas, consideramos disponível (ou tratamos como erro antes de chamar)
@@ -1433,7 +1574,8 @@ async function carregarStaffDescricao(desc, elementoAtual) {
             comprovanteCache: staff.comprovantecache || "",
             comprovanteAjdCusto: staff.comprovanteajdcusto || "",
             comprovanteCaixinha: staff.comprovantecaixinha || "",
-            setor: staff.setor || ""
+            setor: staff.setor || "",
+            statusPgto: staff.statuspgto || ""
         };
 
     } catch (error) {
@@ -1509,7 +1651,8 @@ function limparStaffOriginal() {
         comprovanteCache: "",
         comprovanteAjdCusto: "",
         comprovanteCaixinha: "",
-        setor: ""
+        setor: "",
+        statusPgto
     };
 
     // Log dos campos limpados
@@ -1888,7 +2031,7 @@ function limparCamposStaff() {
         "idStaff", "nmFuncionario", "apelidoFuncionario", "linkFotoFuncionarios", "descFuncao", "vlrCusto",
         "nmLocalMontagem", "nmPavilhao", "almoco", "jantar", "transporte", "vlrBeneficio", "descBeneficio",
         "nmCliente", "nmEvento", "vlrTotal", "vlrTotalHidden", "idFuncionario", "idFuncao", "idMontagem",
-        "idPavilhao", "idCliente", "idEvento"
+        "idPavilhao", "idCliente", "idEvento", "statusPgto"
     ];
 
     campos.forEach(id => {
@@ -2457,9 +2600,9 @@ function preencherComprovanteCampo(filePath, fileNameDisplayId, previewImgId, pd
 
         if (isImageFile) {
             linkImage.href = filePath;
-            imagePreviewDiv.style.display = 'block'; // Mostra o div que contém a imagem
-            previewImg.src = filePath; // <<<< ADICIONE ESTA LINHA >>>>
-            previewImg.style.display = 'block'; // Mostra a imagem em si
+            imagePreviewDiv.style.display = 'block'; 
+            previewImg.src = filePath; 
+          
         } else if (isPdfFile) {
             pdfLink.href = filePath;
             pdfPreviewDiv.style.display = 'block';
