@@ -307,7 +307,7 @@ async function carregarOrcamentos(clienteId, eventoId) {
 
 async function carregarDados(tipo) {
   try {
-    const json = await fetchComToken(`/${tipo}`);
+    const json = await fetchComToken(`/aside/${tipo}`);
 
     if (!Array.isArray(json) || json.length === 0) {
       console.error("Erro ao buscar dados: Nenhum dado encontrado");

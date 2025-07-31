@@ -4,6 +4,8 @@ const db = require('../db');
 
 
 router.get('/modulos', async (req, res) => {
+
+    console.log("ENTROU NA ROTA DE MODULOS PELO INDEX");
     try {        
         const modulos = await db.query('SELECT modulo FROM modulos ORDER BY modulo');        
       

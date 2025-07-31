@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   try {
       console.log("Buscando lista de módulos do banco de dados...");
-      const modulosDoBanco = await fetchComToken("/modulos"); // Chame seu novo endpoint
+      const modulosDoBanco = await fetchComToken("/index/modulos"); // Chame seu novo endpoint
       
       if (!Array.isArray(modulosDoBanco) || modulosDoBanco.length === 0) {
           console.warn("Nenhum módulo retornado do banco de dados ou formato inválido.", modulosDoBanco);

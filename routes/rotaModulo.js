@@ -8,7 +8,7 @@ const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 router.use(autenticarToken());
 router.use(contextoEmpresa);
 
-router.get('/', verificarPermissao('Usuarios', 'pesquisar'), async (req, res) => {
+router.get('/', verificarPermissao('Modulos', 'pesquisar'), async (req, res) => {
    console.log("✅ ROTA /modulos ACESSADA");
    const idempresa = req.idempresa;
   try {
