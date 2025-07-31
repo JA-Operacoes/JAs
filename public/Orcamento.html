@@ -4,9 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <link rel="stylesheet" type="text/css" href="https://unpkg.com/flatpickr/dist/themes/material_red.css">    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.5/pizzip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docx@7.1.1/build/index.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
     <link rel="stylesheet" href="css/Modal/Orcamento.css">
     <link rel="stylesheet" href="css/Roots/Roots.css">
@@ -15,7 +20,8 @@
     
 </head>
 <body data-modulo="Orcamentos">   -->
-    
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
 <link rel="stylesheet" href="css/Modal/Orcamento.css">
 <div id="cadModalOrcamentos" class="modal">
     <div class="modal-content">
@@ -57,18 +63,21 @@
                             <label for="idEvento">Evento:</label>
                             <select class="idEvento" id="idEvento" required spellcheck="false"></select>
                         </div>
-                            <div class="select2">
-                                <label for="idMontagem">Local Montagem:</label>
-                                    <select class="idMontagem"  id="idMontagem"></select>
-                                    <!-- <input type="hidden" id="idPavilhaoLocal" name="idPavilhaoLocal"> -->
-                                    <div class="form3">   
-                                        <input type="text" class="ufmontagem" id="ufmontagem" name="ufmontagem" required spellcheck="false">
-                                        <label  for="ufmontagem">UF</label>               
-                                    </div>
-                                    
-                                    <select class="idPavilhao" name="idPavilhao" id="idPavilhao" required>
-                                        <option value="" selected>Selecione o Pavilhão</option>
-                                    </select>
+                        <div class="select2">
+                            <label for="idMontagem">Local Montagem:</label>
+                            <select class="idMontagem"  id="idMontagem"></select>
+                            <!-- <input type="hidden" id="idPavilhaoLocal" name="idPavilhaoLocal"> -->
+                            <div class="form3">   
+                                <input type="text" class="ufmontagem" id="ufmontagem" name="ufmontagem" required spellcheck="false">
+                                <label  for="ufmontagem">UF</label>               
+                            </div>
+                            
+                            <!-- <select class="idPavilhao" name="idPavilhao" id="idPavilhao" required >
+                                <option value="" selected>Selecione o Pavilhão</option>                                    
+                            </select> -->
+                            <select class="idPavilhao" name="selecionarPavilhao" id="selecionarPavilhao" required>
+                                <option value="" selected>Selecione Pavilhão</option>
+                            </select>
                             <div class="checkbox-wrapper-33 checkbox-coluna">
                                 <p class="checkbox__textwrapper"> infra.</p>
                                 <label class="checkbox">
@@ -81,7 +90,22 @@
                                 </label>
                             </div>
                         </div>
-                    </div>       
+                        
+                    </div>  
+                    
+                    <!-- <div class="pavilhao">
+                        <label  for="listaPavilhao">Lista de Pavilhões Selecionados</label> 
+                        <input type="text" class="listaPavilhao" name="listaPavilhao" id="listaPavilhao" required>
+                        
+                    </div> -->
+                    <div class="pavilhao">
+                            <label for="listaPavilhaoDisplay" class="listaPavilhao">Lista de Pavilhões Selecionados</label>
+                            <input type="text" class="listaPavilhao" name="listaPavilhaoDisplay" id="listaPavilhaoDisplay" required>
+                            
+                            <input type="hidden" name="idsPavilhoesSelecionados" id="idsPavilhoesSelecionados">
+                            
+                            <!-- <button type="button" id="limparPavilhoesSelecionados">Limpar Seleção</button> -->
+                        </div>
                 
                     <div class="periodoMontagem">
                     
@@ -213,6 +237,21 @@
                                 </div>
                                     <textarea class="PropostaobsTexto" name="ObservacaoProposta" id="ObservacaoProposta" placeholder="Observações sobre a Proposta"></textarea>
                             </div>
+
+                        <div class="Propostaobs3">
+                            <div class="checkbox-wrapper-33">
+                                <label class="checkbox">
+                                    <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                                    <span class="checkbox__symbol">
+                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M4 14l8 7L24 7"></path>
+                                        </svg>
+                                    </span>
+                                    <p class="checkbox__textwrapper"></p>
+                                </label>
+                            </div>
+                                <textarea id="formaPagamento" rows="4" placeholder="Descreva a Forma de Pagamento                           (Exemplo: 10% na assinatura...)"></textarea>
+                        </div>
                         </div>
                         <div>
                                 <div class="form2">
@@ -297,20 +336,24 @@
                         </div>  
                 </div>
 
-                </div>
-                <div class="BTNs">
-                    <button class="pesquisar" onclick="pesquisarOrcamento()">Pesquisar</button>
-                    <button class="Limpar" id="Limpar" type="button" >Limpar</button>
-                    <button class="Proposta" id="Proposta" onclick="gerarPropostaPDF()">Gerar Proposta</button>
-                    <button class="Excel" onclick="exportarParaExcel()" style="display: none;">Exportar P/ Excel</button>
-                    <button class="fecharOrc" id="fecharOrc">Fechar Orçamento</button>
-                    <button class="btnEnviar" id="Enviar" type="button" >Salvar Orçamento</button>
-                </div>
-            </form>
-        </div>
+            </div>
+            <div class="BTNs">
+                <button class="pesquisar" onclick="pesquisarOrcamento()">Pesquisar</button>
+                <button class="Limpar" id="Limpar" type="button" >Limpar</button>
+                <button class="Proposta" id="Proposta">Gerar Proposta</button>
+                <button class="Excel" onclick="exportarParaExcel()" style="display: none;">Exportar P/ Excel</button>
+                <button class="fecharOrc" id="fecharOrc">Fechar Orçamento</button>
+                <button class="btnEnviar" id="Enviar" type="button" >Salvar Orçamento</button>
+            </div>
+        </form>
+    </div>
     </div>
 </div>
-<!-- <script src="Orcamento.js" defer></script>
+
+<script src="js/Orcamentos.js"></script>
+
+
+
 
 </body>
 </html> -->

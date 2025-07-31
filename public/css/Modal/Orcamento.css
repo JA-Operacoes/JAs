@@ -391,12 +391,64 @@
     height: 30px;
     font-size: 17px;
   }
+  
   input#dtIniMarcacao, input#dtFimMarcacao, input#dtInicioMontagem, input#dtFim, input#dtInicioRealizacao, input#dtFimRealizacao, input#dtIniDesmontagem, input#dtFimDesmontagem{
     width: 200px;
   }
+
   input#ufmontagem{
     height: 25px;
   }
+
+  input#statusPgto{
+     width: 170px;
+  }
+  /* input.listaPavilhao{
+    width: 350px;
+    height: 30px;
+    font-size: 15px;
+    margin-left: 900px;
+  } 
+  
+  label.listaPavilhao{
+    display: flex;
+    justify-content: center;
+    font-size: 15px;
+  }  */
+
+  .pavilhao {
+    display: flex; /* Coloca os filhos (label, input) na mesma linha */
+    align-items: center; /* Alinha verticalmente no centro (opcional) */
+    gap: 10px; /* Adiciona um espaço entre o label e o input (opcional, ajuste o valor) */
+    width: auto;
+    
+    /* === NOVO: Para alinhar à direita === */
+    /*justify-content: flex-end; Alinha os itens flexíveis (label e input) ao final do contêiner flex (direita) */
+    
+    /* Ajuste a largura do .pavilhao se necessário. Se ele for 100% da largura do form,
+       e você quer que eles fiquem perto da margem direita do form, isso já funcionará. */
+    /* width: 100%; ou max-width: alguma-largura; */
+}
+
+  .pavilhao label.listaPavilhao {
+    /* display: inline-block; /* Garante que o label se comporta como um bloco em linha */
+    /* width: 270px; Ajuste esta largura conforme necessário para o texto do label */
+    /* margin-right: 10px; Espaço entre o label e o input */
+    /* vertical-align: middle; Alinha o label e o input verticalmente */
+    font-size: 15px; 
+    flex-shrink: 0;
+}
+
+.pavilhao input[type="text"].listaPavilhao {
+    /* display: inline-block; 
+    width: calc(100% - 200px); 
+    vertical-align: middle;  */
+   
+    width: 350px;
+    height: 25px;
+    font-size: 15px;
+    /* margin-left: 900px; */
+}
 
   .nrOrcamento{
     display: flex;
@@ -429,7 +481,7 @@
     font-size: 20px;
     text-align: center;
     align-items: center;
-    gap: 50px;
+    /* gap: 50px; */
   }
 
   textarea{
@@ -886,12 +938,41 @@
     transition-duration: 0.3s;
   }
 
-  .Propostaobs1, .Propostaobs2{
+  .Propostaobs1, .Propostaobs2, .Propostaobs3{
     display: flex;
     justify-content: center;
     align-items: center;
     flex-direction: row;
   }
+
+.botao-pdf {
+    background-color: #c62828 !important;  /* vermelho forte */
+    color: white !important;
+    border: none !important;
+    font-weight: bold;
+}
+
+.botao-word {
+    background-color: #105DA1 !important;  /* azul word */
+    color: white !important;
+    border: none !important;
+    font-weight: bold;
+}
+
+.botao-word:hover{
+  background-color: white !important;
+  color: #105DA1 !important;
+}
+
+.botao-pdf:hover{
+  background-color: white !important;
+  color: #c62828 !important;
+}
+
+.swal2-popup .swal2-styled {
+    font-size: 16px;
+    padding: 8px 16px;
+}
 
   .modal-buttons {
       margin-top: 10px;

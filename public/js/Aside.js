@@ -154,7 +154,7 @@ window.navegarParaAba = function(tipo) {
 
 async function carregarClientes() {
   try {
-    const clientes = await fetchComToken('/clientes');
+    const clientes = await fetchComToken('/aside/clientes');
 
     if (!clientes || clientes.erro === "sessao_expirada") {
       Swal.fire("Sessão expirada", "Por favor, faça login novamente.", "warning");
