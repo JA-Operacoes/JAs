@@ -36,8 +36,8 @@
                         <legend>Cadastre a Função </legend>
 
                         <div class="form">
-                            <input type="text" name="idFuncao" id="idFuncao" readonly>
-                            <label for="idFuncao">Código</label>
+                            <input type="text" name="idFuncao" id="idFuncao" readonly style="display: none;" >
+                            <label for="idFuncao" style="display: none;">Código</label>
                         </div>
                         <div class="form">
                             <input type="text" class="uppercase" name="descFuncao" id="descFuncao" required>
@@ -72,9 +72,15 @@
                                 <label for="jantar"> Jantar </label>
                             </div>
                         </div>
-                            <div class="form2">
-                                <textarea name="ObsAjc" id="ObsAjc" style="padding-top: 0.7em;" required></textarea>
-                                <label for="ObsAjc"> Observação </label>
+                            <div class="form-2colunas">
+                                <div class="form2">
+                                    <textarea name="obsFuncao" id="obsFuncao" style="padding-top: 0.7em;" required></textarea>
+                                    <label for="obsFuncao"> Observação da Função </label>
+                                </div>
+                                <div class="form2">
+                                    <textarea name="obsProposta" id="obsProposta" style="padding-top: 0.7em;" required></textarea>
+                                    <label for="obsProposta"> Observação para Proposta </label>
+                                </div>
                             </div>
                     </fieldset>
                 </div>

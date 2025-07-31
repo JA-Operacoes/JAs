@@ -74,7 +74,8 @@ function verificaFuncao() {
         const vlrTransporte = document.querySelector("#transporte").value;
         const vlrAlmoco = document.querySelector("#almoco").value;
         const vlrJantar = document.querySelector("#jantar").value;
-        const obsfuncao = document.querySelector("#ObsAjc").value.trim();
+        const obsProposta = document.querySelector("#obsProposta").value.trim();
+        const obsFuncao = document.querySelector("#obsFuncao").value.trim();
     
         const custo = parseFloat(String(vlrCusto).replace(",", "."));
         const venda = parseFloat(String(vlrVenda).replace(",", "."));
@@ -99,7 +100,7 @@ function verificaFuncao() {
             return Swal.fire("Acesso negado", "Você não tem permissão para alterar funções.", "error");
         }
 
-        console.log("campos antes de salvar", idFuncao, descFuncao, custo, venda, obsfuncao, transporte, almoco, jantar);
+        console.log("campos antes de salvar", idFuncao, descFuncao, custo, venda, obsProposta, obsFuncao, transporte, almoco, jantar);
  
         if (!descFuncao || !vlrCusto || !vlrVenda) {
            
@@ -111,7 +112,7 @@ function verificaFuncao() {
             });
             return;
         }
-        console.log("Valores do Funcao:", idFuncao, descFuncao, custo, venda, transporte, obsfuncao, almoco, jantar);
+        console.log("Valores do Funcao:", idFuncao, descFuncao, custo, venda, transporte, obsProposta, obsFuncao, almoco, jantar);
         console.log("Valores do Funcao Original:", window.FuncaoOriginal.idFuncao, window.FuncaoOriginal.descFuncao, window.FuncaoOriginal.vlrCusto, window.FuncaoOriginal.vlrVenda, window.FuncaoOriginal.vlrTransporte, window.FuncaoOriginal.obsFuncao, window.FuncaoOriginal.vlrAlmoco, window.FuncaoOriginal.vlrJantar);
             
         // Comparar com os valores originais
@@ -123,7 +124,8 @@ function verificaFuncao() {
             Number(transporte).toFixed(2) === Number(window.FuncaoOriginal.vlrTransporte).toFixed(2) &&
             Number(almoco).toFixed(2) === Number(window.FuncaoOriginal.vlrAlmoco).toFixed(2) &&
             Number(jantar).toFixed(2) === Number(window.FuncaoOriginal.vlrJantar).toFixed(2) &&
-            obsfuncao === window.FuncaoOriginal.obsFuncao
+            obsProposta === window.FuncaoOriginal.obsProposta&&
+            obsFuncao === window.FuncaoOriginal.obsFuncao 
         ) {
             console.log("Nenhuma alteração detectada.");
             await Swal.fire({
@@ -135,7 +137,7 @@ function verificaFuncao() {
             return;
         }
 
-        const dados = { descFuncao, custo, venda, transporte, obsfuncao, almoco, jantar };
+        const dados = { descFuncao, custo, venda, transporte, obsProposta, obsFuncao, almoco, jantar };
         const token = localStorage.getItem('token');
         const idEmpresa = localStorage.getItem('idEmpresa');
 
@@ -376,7 +378,8 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
         document.querySelector("#transporte").value = funcao.transporte;
         document.querySelector("#almoco").value = funcao.almoco;
         document.querySelector("#jantar").value = funcao.jantar;
-        document.querySelector("#ObsAjc").value = funcao.obsfuncao;
+        document.querySelector("#obsProposta").value = funcao.obsproposta;
+        document.querySelector("#obsFuncao").value = funcao.obsfuncao;
         
         window.FuncaoOriginal = {
             idFuncao: funcao.idfuncao,
@@ -386,6 +389,7 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
             vlrTransporte: funcao.transporte,
             vlrAlmoco: funcao.almoco,
             vlrJantar: funcao.jantar,
+            obsProposta: funcao.obsproposta,
             obsFuncao: funcao.obsfuncao
         };
    
@@ -440,7 +444,8 @@ function limparFuncaoOriginal() {
         vlrTransporte: "",
         vlrAlmoco: "",
         vlrJantar: "",
-        obsFuncao:""
+        obsFuncao:"",
+        ObsAjc:""
     };
 }
 
