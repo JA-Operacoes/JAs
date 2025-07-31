@@ -492,6 +492,21 @@ input[type="file"]{
     color: green;
 }
 
+#statusPgto {
+    /* Pode ter estilos base aqui, como borda, padding, etc. */
+    font-weight: bold; /* Para destacar o texto */
+}
+
+/* Estilo para status Pendente (Vermelho) */
+#statusPgto.pendente {
+    color: red;
+}
+
+/* Estilo para status Pago (Verde) */
+#statusPgto.pago {
+    color: green;
+}
+
 .form-2colunas {
   display: flex;
   gap: 0.5px;  /* Espaço entre os inputs */
