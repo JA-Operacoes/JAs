@@ -450,6 +450,48 @@
     /* margin-left: 900px; */
 }
 
+/* Estilo para o contêiner principal que agrupa as tags e o select */
+.pavilhoes-secao {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 10px;
+}
+
+/* Contêiner onde as tags dos pavilhões selecionados serão exibidas */
+.pavilhoes-tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    min-height: 38px; /* Altura mínima para ficar alinhado com outros inputs */
+    align-items: center;
+}
+
+/* Estilo para a tag individual de pavilhão */
+.pavilhao-tag {
+    background-color: #e9ecef; /* Cor de fundo mais neutra */
+    border: 1px solid #ced4da;
+    border-radius: 20px; /* Borda mais arredondada para parecer um 'badge' */
+    padding: 4px 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px; /* Espaço entre o texto e o botão de remover */
+    font-size: 14px;
+}
+
+/* Estilo do botão de remover dentro da tag */
+.remover-pavilhao-btn {
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0;
+    color: #888;
+}
+
+.remover-pavilhao-btn:hover {
+    color: #dc3545; /* Cor de perigo ao passar o mouse */
+}
   .nrOrcamento{
     display: flex;
     justify-content: center;

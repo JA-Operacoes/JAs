@@ -278,21 +278,61 @@ async function carregarLocalMontOrc() {
         console.error("Erro ao carregar localmontagem:", error);
     } 
 }
+
 let selectedPavilhoes = [];
+// function updatePavilhaoDisplayInputs() {
+//     const listaPavilhaoDisplay = document.getElementById('listaPavilhaoDisplay');
+//     const idsPavilhoesSelecionadosHidden = document.getElementById('idsPavilhoesSelecionados');
+
+//     // Atualiza o input de texto visível com os nomes dos pavilhões
+//     listaPavilhaoDisplay.value = selectedPavilhoes.map(p => p.name).join(', ');
+
+//     // Atualiza o input hidden com os IDs em formato JSON (ideal para enviar ao backend)
+//     idsPavilhoesSelecionadosHidden.value = JSON.stringify(selectedPavilhoes.map(p => p.id));
+// }
+
 function updatePavilhaoDisplayInputs() {
-    const listaPavilhaoDisplay = document.getElementById('listaPavilhaoDisplay');
-    const idsPavilhoesSelecionadosHidden = document.getElementById('idsPavilhoesSelecionados');
+    const container = document.getElementById('pavilhoesSelecionadosContainer');
+    const idsInput = document.getElementById('idsPavilhoesSelecionados');
+    
+    // 1. Limpa o contêiner de tags
+    container.innerHTML = '';
+    
+    // 2. Preenche o contêiner e cria as tags
+    selectedPavilhoes.forEach(pavilhao => {
+        const tag = document.createElement('span');
+        tag.classList.add('pavilhao-tag');
+        tag.innerHTML = `
+            ${pavilhao.name}
+            <button type="button" class="remover-pavilhao-btn" data-id="${pavilhao.id}">&times;</button>
+        `;
+        container.appendChild(tag);
+    });
 
-    // Atualiza o input de texto visível com os nomes dos pavilhões
-    listaPavilhaoDisplay.value = selectedPavilhoes.map(p => p.name).join(', ');
+    // 3. Adiciona o listener de click para os botões de remover
+    const removerBotoes = container.querySelectorAll('.remover-pavilhao-btn');
+    removerBotoes.forEach(botao => {
+        botao.addEventListener('click', function(event) {
+            const idPavilhao = parseInt(event.target.dataset.id, 10);
+            
+            // Filtra o array selectedPavilhoes para remover o item clicado
+            selectedPavilhoes = selectedPavilhoes.filter(p => p.id !== idPavilhao);
+            
+            // Recarrega a exibição dos inputs
+            updatePavilhaoDisplayInputs();
+        });
+    });
 
-    // Atualiza o input hidden com os IDs em formato JSON (ideal para enviar ao backend)
-    idsPavilhoesSelecionadosHidden.value = JSON.stringify(selectedPavilhoes.map(p => p.id));
+    // 4. Atualiza o input hidden com a string JSON correta
+    const idsParaOInput = selectedPavilhoes.map(p => p.id);
+    idsInput.value = JSON.stringify(idsParaOInput);
 }
 
 async function carregarPavilhaoOrc(idMontagem) {
+    selectedPavilhoes = [];
+    updatePavilhaoDisplayInputs();
     
-    if (!idMontagem || idMontagem.trim() === '') {
+    if (!idMontagem || idMontagem === '') {
         console.warn("ID da Montagem está vazio, não carregando pavilhões.");
         // Opcional: Limpe o select de pavilhão aqui, se ele tiver opções antigas
         const idPavilhaoSelect = document.querySelector(".idPavilhao");
@@ -527,7 +567,7 @@ async function carregarEquipamentosOrc() {
                 option.setAttribute("data-descproduto", equipamentos.descequip);
                 option.setAttribute("data-cto", equipamentos.ctoequip);
                 option.setAttribute("data-vda", equipamentos.vdaequip);
-                option.setAttribute("data-categoria", "Equipamentos(s)");
+                option.setAttribute("data-categoria", "Equipamento(s)");
                 select.appendChild(option);
             });
             select.addEventListener("change", function (event) {
@@ -539,7 +579,7 @@ async function carregarEquipamentosOrc() {
             });
 
             
-            Categoria = "Equipamentos(s)"; // define padrão ao carregar
+            Categoria = "Equipamento(s)"; // define padrão ao carregar
         });
     }catch(error){
     console.error("Erro ao carregar equipamentos:", error);
@@ -1895,6 +1935,66 @@ function inicializarFlatpickrsGlobais() {
 
 // No seu Orcamentos.js
 
+async function gerarObservacoesProposta(linhas) {
+    const obsTextarea = document.getElementById("ObservacaoProposta");
+    if (!obsTextarea) return;
+
+    const textoAnterior = obsTextarea.value.trim(); // preserva o que já estava
+    const linhasProcessadas = new Set();
+
+    let novoTexto = "";
+
+    for (const linha of linhas) {
+        const produtoEl = linha.querySelector('.produto');
+        const produto = produtoEl?.innerText?.trim();
+        if (!produto) continue;
+
+        const qtdDias = linha.querySelector('.qtdDias input')?.value?.trim();
+        const qtdItens = linha.querySelector('.qtdProduto input')?.value?.trim();
+        const datasRaw = linha.querySelector('.datas')?.value?.trim().replace(" to ", " até: ") || "";
+
+        const idUnico = `${produto}_${qtdItens}_${qtdDias}_${datasRaw}`;
+        if (linhasProcessadas.has(idUnico)) {
+            console.log(`🔁 Linha duplicada detectada (${produto}). Pulando.`);
+            continue;
+        }
+        linhasProcessadas.add(idUnico);
+
+        console.log(`🔎 Verificando produto: ${produto}`);
+
+        let obs = "";
+        try {
+            const funcao = await fetchComToken(`/orcamentos/obsfuncao?nome=${encodeURIComponent(produto)}`);
+            obs = funcao?.obsfuncao?.trim();
+        } catch (erro) {
+            console.warn(`❌ Erro ao buscar observação da função '${produto}':`, erro);
+        }
+
+        if (!obs) continue;
+
+        let resumoTexto = "";
+        if (qtdItens !== '0') {
+            resumoTexto = `${qtdItens} ${produto}`;
+            if (qtdDias !== '0') {
+                resumoTexto += ` – atendimento por ${qtdDias} dias – iniciando de: ${datasRaw}`;
+            }
+        }
+
+        const textoFormatado = [
+            `${produto.toUpperCase()}`,
+            '',
+            obs,
+            '',
+            resumoTexto
+        ].join('\n');
+
+        novoTexto += textoFormatado + '\n\n';
+    }
+
+    // Junta o texto antigo + novo, separados por duas quebras se necessário
+    obsTextarea.value = [textoAnterior, novoTexto.trim()].filter(Boolean).join('\n\n');
+}
+
 // Certifique-se que linhaCounter está definida globalmente no topo do seu arquivo
 let linhaCounter = 0;
 
@@ -2137,7 +2237,9 @@ function atualizaProdutoOrc(event) {
 
         
     }
-    recalcularLinha(ultimaLinha); //marcia   
+    gerarObservacoesProposta([ultimaLinha]);
+    recalcularLinha(ultimaLinha);
+ //marcia   
 }
 
 // Sua função de atualização de valores (mantém-se a mesma)
@@ -2630,6 +2732,7 @@ async function verificaOrcamento() {
             const desmontagemInfraDatas = getPeriodoDatas(formData.get("periodoDesmontagemInfra"));
 
             const idsPavilhoesSelecionadosInput = document.getElementById('idsPavilhoesSelecionados');
+            console.log("PAVILHOES PARA ENVIAR", idsPavilhoesSelecionadosInput);
             let pavilhoesParaEnviar = [];
             if (idsPavilhoesSelecionadosInput && idsPavilhoesSelecionadosInput.value) {
                 try {
@@ -3083,6 +3186,12 @@ export async function preencherFormularioComOrcamento(orcamento) {
         }
        
         atualizarUFOrc(localMontagemSelect); 
+
+        if (orcamento.idmontagem) {
+             await carregarPavilhaoOrc(orcamento.idmontagem);
+        } else {
+             await carregarPavilhaoOrc(''); // Limpa o select se não houver montagem
+        }
         
     } else {
         console.warn("Elemento com classe '.idMontagem' não encontrado.");
@@ -3123,27 +3232,19 @@ export async function preencherFormularioComOrcamento(orcamento) {
     //     console.warn("Elemento com classe '.idPavilhao' não encontrado.");
     // }
     
-    const listaPavilhaoDisplay = document.getElementById('listaPavilhaoDisplay');
-    const idsPavilhoesSelecionados = document.getElementById('idsPavilhoesSelecionados');
-
-    if (listaPavilhaoDisplay && idsPavilhoesSelecionados) {
         if (orcamento.pavilhoes && orcamento.pavilhoes.length > 0) {
-            // Mapeia os nomes dos pavilhões para exibição
-            const nomes = orcamento.pavilhoes.map(p => p.nomepavilhao).join(', ');
-            // Mapeia os IDs dos pavilhões para o campo hidden
-            const ids = orcamento.pavilhoes.map(p => p.id).join(',');
-
-            listaPavilhaoDisplay.value = nomes;
-            idsPavilhoesSelecionados.value = ids;
-            console.log("Pavilhões preenchidos nos inputs:", nomes, "IDs:", ids);
-        } else {
-            listaPavilhaoDisplay.value = '';
-            idsPavilhoesSelecionados.value = '';
-            console.log("Nenhum pavilhão no orçamento, inputs de pavilhão limpos.");
-        }
+        // Popula a variável global `selectedPavilhoes`
+        // O `orcamento.pavilhoes` deve ser um array de objetos, ex: [{id: 8, nomepavilhao: "nome"}, ...]
+        selectedPavilhoes = orcamento.pavilhoes.map(p => ({
+            id: p.id, // Supondo que o ID é 'id'
+            name: p.nomepavilhao // E o nome é 'nomepavilhao'
+        }));
     } else {
-        console.warn("Um ou ambos os elementos de input para pavilhões (listaPavilhaoDisplay, idsPavilhoesSelecionados) não foram encontrados.");
+        selectedPavilhoes = [];
     }
+
+    // Chama a função que já sabe como preencher os inputs corretamente
+    updatePavilhaoDisplayInputs();
 
     for (const id in flatpickrInstances) {
         const pickerInstance = flatpickrInstances[id];        
@@ -4644,7 +4745,7 @@ console.log("🚀 Versão atualizada da função gerarPropostaPDF executada");
         const x = 25;
         const tituloFontSize = 15;
         const textoFontSize = 10;
-
+        
         let y = 50;
 
          function addNewPage() {
@@ -4696,6 +4797,7 @@ console.log("🚀 Versão atualizada da função gerarPropostaPDF executada");
         const dataAtual = new Date();
         const anoAtual = dataAtual.getFullYear();
         const valorProposta = document.getElementById('valorCliente')?.value?.trim() || "R$ XX";
+
         
 
         let dadosContato = { nmcontato: "N/D", celcontato: "N/D", emailcontato: "N/D" };
@@ -4732,7 +4834,7 @@ console.log("🚀 Versão atualizada da função gerarPropostaPDF executada");
 
         doc.setFontSize(tituloFontSize);
         doc.setTextColor("#FF0901");
-        doc.text("Proposta de Serviços", x, y);
+        doc.text("PROPOSTA DE SERVIÇOS", x, y);
         y += 50;
         doc.setTextColor(0, 0, 0);
 
@@ -4775,171 +4877,180 @@ console.log("🚀 Versão atualizada da função gerarPropostaPDF executada");
             1: { cellWidth: 'auto' },               // Coluna "Informação"
         },
         });
-
-        // adicionarLinha(`Cliente: ${nomeCliente}`, textoFontSize, false, lineHeight, false);
-        // adicionarLinha(`Responsável: ${dadosContato.nmcontato} - Celular: ${dadosContato.celcontato} - Email: ${dadosContato.emailcontato}`, textoFontSize, false, lineHeight, false);
-        // adicionarLinha(`Evento: ${nomeEvento} - Local: ${localEvento} - Pavilhão: ${nmPavilhao}`, textoFontSize, false, lineHeight, false);
-        // adicionarLinha(`Data de Marcação: ${inputMarcacao}`, textoFontSize, false, lineHeight, false); console.log("valor data", inputMarcacao);
-        // adicionarLinha(`Data de Montagem: ${inputMontagem}`, textoFontSize, false, lineHeight, false); console.log("valor data", inputMontagem);
-        // adicionarLinha(`Data de Realização: ${inputRealizacao}`, textoFontSize, false, lineHeight, false); console.log("valor data", inputRealizacao);
-        // adicionarLinha(`Data de Desmontagem: ${inputDesmontagem}`, textoFontSize, false, lineHeight, false); console.log("valor data", inputDesmontagem);
         y += 25;
 
         doc.setFontSize(tituloFontSize);
         adicionarLinha("Escopo da proposta:");
-        y += 5;
 
-        const tabela = document.getElementById('tabela');
-        const linhas = tabela?.querySelectorAll('tbody tr') || [];
-        const categoriasMap = {};
-        const adicionais = [];
+        function escreverLinhaComCapsEmBold(texto, posX, posY, larguraMaxima) {
+    const palavras = texto.split(" ");
+    let cursorX = posX;
+    const lineHeight = 4;
 
+    for (let i = 0; i < palavras.length; i++) {
+        const palavra = palavras[i];
+        const ehCapslock = palavra === palavra.toUpperCase() && palavra.match(/[A-Z]/);
 
-        console.log("🔍 Iniciando verificação das linhas para encontrar 'Produtos'...");
+        doc.setFont(undefined, ehCapslock ? "bold" : "normal");
+        const larguraPalavra = doc.getTextWidth(palavra + " ");
 
-            for (const [index, linha] of linhas.entries()) {
-        const produtoEl = linha.querySelector('.produto');
-        const produto = produtoEl?.innerText?.trim();
+        // Quebra de linha automática
+        if (cursorX + larguraPalavra > posX + larguraMaxima) {
+            posY += lineHeight;
+            cursorX = posX;
 
-        if (!produto) continue; // ignora linhas sem produto
-
-        console.log(`🔎 Verificando produto: ${produto}`);
-
-        let obs = "";
-        try {
-            const funcao = await fetchComToken(`/orcamentos/obsfuncao?nome=${encodeURIComponent(produto)}`);
-            obs = funcao?.obsfuncao?.trim();
-        } catch (erro) {
-            console.warn(`❌ Erro ao buscar observação da função '${produto}':`, erro);
+            // 🔥 VERIFICAÇÃO de espaço por linha
+            if (posY > limiteInferior) {
+                addNewPage();
+                posY = y; // Atualiza a coordenada y global após a nova página
+            }
         }
 
-        // Só continua se houver observação
-        if (!obs) {
-            console.log(`🚫 Produto "${produto}" sem observação. Pulando.`);
-            continue;
-        }
+        doc.text(palavra + " ", cursorX, posY);
+        cursorX += larguraPalavra;
+    }
 
-        const maxTextWidthObs = 150;
-        const linhasObs = doc.splitTextToSize(obs, maxTextWidthObs);
-        const estimatedBlockHeight = 10 + 7 + (linhasObs.length * 5) + 5 + 8; // Título (10+7), Obs (~5 por linha), Espaço (5), Resumo (8)
+    y = posY + lineHeight; // 🔁 Atualiza `y` global para a próxima chamada
+    return y;
+}
 
-        if (y + estimatedBlockHeight > limiteInferior) {
-            addNewPage();
-        }
+        // Observações sobre a Proposta
+        const propostaObs2 = document.querySelector('.Propostaobs2');
+        const checkboxProposta = propostaObs2?.querySelector('.checkbox__trigger');
+        const textoProposta = propostaObs2?.querySelector('.PropostaobsTexto')?.value?.trim();
 
-        // Título
-        y += 10;
-        doc.setFont(undefined, 'bold');
-        doc.setFontSize(11);
-        doc.text(`${produto.toUpperCase()}`, x, y); // título à esquerda
-        y += 7;
+        if (checkboxProposta?.checked && textoProposta) {
 
-        // Observação centralizada
-        doc.setFontSize(10);
-        doc.setFont(undefined, 'normal');
+            y += 10;
+            // adicionarLinha("Observações sobre a Proposta:", 12, true);
 
-        const maxTextWidth = 150;
-        // const linhasObs = doc.splitTextToSize(obs, maxTextWidth);
-        const xInicioBloco = (pageWidth - maxTextWidth) /2 ;
+            const linesToPrintProposta = doc.splitTextToSize(textoProposta, pageWidth - 2 * x);
+            const estimatedHeightProposta = linesToPrintProposta.length * 5 + 10;
 
-        linhasObs.forEach(linha => {
-            if (y + 5 > limiteInferior) { // Verifica espaço para cada linha da observação
+            if (y + estimatedHeightProposta > limiteInferior) {
                 addNewPage();
             }
-            doc.text(linha, xInicioBloco, y);
-            y += 5; // Altura da linha para observações
-        });
 
-        // Linha resumo
-        const qtdDias = linha.querySelector('.qtdDias input')?.value?.trim();
-        const qtdItens = linha.querySelector('.qtdProduto input')?.value?.trim();
-        const datasRaw = linha.querySelector('.datas')?.value?.trim().replace(" to ", " até: ") || "";
+            linesToPrintProposta.forEach(linha => {
+                if (y + 5 > limiteInferior) { // Verifica espaço para cada linha
+                    addNewPage();
+                }
+                doc.setFontSize(11);
 
-        let textoResumo = "";
-        // Só exibe se houver quantidade de itens
-        if (qtdItens !== '0') {
-            textoResumo = `${qtdItens} ${produto}`;
-            // Só adiciona info de dias se a qtdDias também for diferente de zero
-            if (qtdDias !== '0') {
-                textoResumo += ` – atendimento por ${qtdDias} dias – iniciando de: ${datasRaw}`;
-            }
+                // Usando a função que imprime palavras em capslock em negrito
+                y = escreverLinhaComCapsEmBold(linha, x, y, pageWidth - 2 * x);
+            });
         }
 
-        y += 5;
+        y += 10;
         if (y + 10 > limiteInferior) { // Verifica espaço para a linha de resumo
                 addNewPage();
         }
+
+        let textoResumo = "";
         doc.setFontSize(8);
         doc.setFont(undefined, 'normal');
         const textWidth = doc.getTextWidth(textoResumo);
         const xCentralizado = (pageWidth - textWidth) / 2;
         doc.text(textoResumo, xCentralizado, y);
         y += 10;
-    }
+    
 
     function capitalizarPalavras(texto) {
     return texto
         .toLowerCase()
         .replace(/\b\w/g, letra => letra.toUpperCase());
     }
+const tabela = document.getElementById('tabela');
+const linhas = tabela?.querySelectorAll('tbody tr') || [];
+const categoriasMap = {};
+const adicionais = [];
 
-    linhas.forEach(linha => {    
-            const checkbox = linha.querySelector('.Proposta input');
-            if (!checkbox || !checkbox.checked) return;
+// 1. Processa cada linha da tabela
+linhas.forEach(linha => {
+    const checkbox = linha.querySelector('.Proposta input');
+    if (!checkbox || !checkbox.checked) return;
 
-            const qtdItens = linha.querySelector('.qtdProduto input')?.value?.trim();
-            const produto = linha.querySelector('.produto')?.innerText?.trim();
-            const setor = linha.querySelector('.setor-input')?.value?.trim();
-            const qtdDias = linha.querySelector('.qtdDias input')?.value?.trim();
-            const categoria = linha.querySelector('.Categoria')?.innerText?.trim();
+    const qtdItens = linha.querySelector('.qtdProduto input')?.value?.trim();
+    const produto = linha.querySelector('.produto')?.innerText?.trim();
+    const setor = linha.querySelector('.setor-input')?.value?.trim();
+    const qtdDias = linha.querySelector('.qtdDias input')?.value?.trim();
+    let categoria = linha.querySelector('.Categoria')?.innerText?.trim();
 
-            const datasRaw = linha.querySelector('.datas')?.value?.trim().replace(" to ", " até: ") || "";
+    const datasRaw = linha.querySelector('.datas')?.value?.trim().replace(" to ", " até: ") || "";
 
-            console.log(" datas", datasRaw);
+    const produtoFormatado = capitalizarPalavras(produto);
+    let itemDescricao = `• ${qtdItens} ${produtoFormatado}`;
 
-            const produtoFormatado = capitalizarPalavras(produto);
-            let itemDescricao = `• ${qtdItens} ${produtoFormatado}`;
+    if (setor && setor.toLowerCase() !== 'null' && setor !== '') {
+        itemDescricao += `, (${setor})`;
+    }
 
+    if (qtdDias !== '0') {
+        itemDescricao += `, ${qtdDias} Diária(s), de: ${datasRaw}`;
+    }
 
-             if (setor && setor.toLowerCase() !== 'null' && setor !== '') {
-                itemDescricao += `, (${setor})`;
+    const isLinhaAdicional = linha.classList.contains('linha-adicional');
+
+    if (qtdItens !== '0') {
+        if (isLinhaAdicional) {
+            adicionais.push(itemDescricao);
+        } else {
+            // Renomeia apenas visualmente
+            if (categoria === "Produto(s)") {
+                categoria = "Equipe Operacional";
             }
 
-            if (qtdDias !== '0') {
-                itemDescricao += `, ${qtdDias} Diária(s), de: ${datasRaw}`;
+            const nomeCategoria = categoria || "Outros";
+            if (!categoriasMap[nomeCategoria]) categoriasMap[nomeCategoria] = [];
+            categoriasMap[nomeCategoria].push(itemDescricao);
+        }
+    }
+});
+
+        // 2. Ordem fixa desejada para exibir no PDF
+        const ordemCategorias = ["Equipe Operacional", "Equipamento(s)", "Suprimento(s)"];
+
+        // 3. Primeiro: renderiza categorias na ordem fixa
+        ordemCategorias.forEach(categoria => {
+            const itens = categoriasMap[categoria];
+            if (!itens) return;
+
+            const estimatedCategoryHeight = lineHeight + (itens.length * lineHeight) + 5;
+            if (y + estimatedCategoryHeight > limiteInferior) {
+                addNewPage();
             }
-            const isLinhaAdicional = linha.classList.contains('linha-adicional');
 
-            if (qtdItens !== '0') {
-                if (isLinhaAdicional) {
-                    adicionais.push(itemDescricao);
-                } else {
-                    const nomeCategoria = categoria || "Outros";
-                    if (!categoriasMap[nomeCategoria]) categoriasMap[nomeCategoria] = [];
-                    categoriasMap[nomeCategoria].push(itemDescricao);
-                }
-            }
-        }); // <- FECHA AQUI o forEach!
+            y += 10;
+            doc.setFont(undefined, 'bold');
+            doc.setFontSize(11);
+            doc.text(categoria.toUpperCase(), x, y);
+            y += 7;
 
-        // Agora sim: processa categorias e adicionais FORA do forEach acima
+            itens.forEach(item => adicionarLinha(item, textoFontSize, false, lineHeight, false));
+            y += 5;
 
+            delete categoriasMap[categoria]; // Remove já exibidos
+        });
+
+        // 4. Em seguida: exibe categorias restantes (extras, se houver)
         for (const [categoria, itens] of Object.entries(categoriasMap)) {
             const estimatedCategoryHeight = lineHeight + (itens.length * lineHeight) + 5;
             if (y + estimatedCategoryHeight > limiteInferior) {
                 addNewPage();
             }
 
-            // Título no mesmo padrão do produto
             y += 10;
             doc.setFont(undefined, 'bold');
             doc.setFontSize(11);
-            doc.text(categoria.toUpperCase(), x, y); // Categoria à esquerda
+            doc.text(categoria.toUpperCase(), x, y);
             y += 7;
 
             itens.forEach(item => adicionarLinha(item, textoFontSize, false, lineHeight, false));
             y += 5;
         }
 
+        // 5. Adicionais
         if (adicionais.length > 0) {
             y += 10;
             const estimatedAdicionaisHeight = lineHeight + (adicionais.length * lineHeight);
@@ -4954,9 +5065,8 @@ console.log("🚀 Versão atualizada da função gerarPropostaPDF executada");
 
             adicionais.forEach(item => adicionarLinha(item, textoFontSize, false, false));
         }
-    
 
-        // Observações sobre os Itens
+        // 6. Observações sobre os Itens
         const checkboxItens = document.querySelectorAll('.Propostaobs1 .checkbox__trigger')[0];
         const textoItens = document.querySelectorAll('.PropostaobsTexto')[0]?.value?.trim();
 
@@ -4964,54 +5074,24 @@ console.log("🚀 Versão atualizada da função gerarPropostaPDF executada");
             y += 10;
             adicionarLinha("Observações sobre os Itens:", 12, true);
 
-            const linesToPrintItens = doc.splitTextToSize(textoItens, pageWidth - 2 * x); // Usa largura total da área de escrita
-            const estimatedHeightItens = linesToPrintItens.length * 5; // Altura de linha 5 para observações
+            const linesToPrintItens = doc.splitTextToSize(textoItens, pageWidth - 2 * x);
+            const estimatedHeightItens = linesToPrintItens.length * 5;
 
             if (y + estimatedHeightItens > limiteInferior) {
                 addNewPage();
-            };
-
-            linesToPrintItens.forEach(linha => {
-                if (y + 5 > limiteInferior) { // Verifica espaço para cada linha
-                    addNewPage();
-                }
-                doc.setFontSize(textoFontSize);
-                doc.setFont('helvetica', 'normal');
-                doc.text(linha, x, y); // Alinhado à esquerda usando 'x'
-                y += 5;
-            });
-            y += 5; // Espaço após o bloco
-        }
-
-        // Observações sobre a Proposta
-        const propostaObs2 = document.querySelector('.Propostaobs2');
-        const checkboxProposta = propostaObs2?.querySelector('.checkbox__trigger');
-        const textoProposta = propostaObs2?.querySelector('.PropostaobsTexto')?.value?.trim();
-
-        if (checkboxProposta?.checked && textoProposta) {
-            y += 10;
-            adicionarLinha("Observações sobre a Proposta:", 12, true);
-
-             const linesToPrintProposta = doc.splitTextToSize(textoProposta, pageWidth - 2 * x); // Usa largura total da área de escrita
-            const estimatedHeightProposta = linesToPrintProposta.length * 5;
-
-            if (y + estimatedHeightProposta > limiteInferior) {
-                addNewPage();
             }
 
-            linesToPrintProposta.forEach(linha => {
-                if (y + 5 > limiteInferior) { // Verifica espaço para cada linha
+            linesToPrintItens.forEach(linha => {
+                if (y + 5 > limiteInferior) {
                     addNewPage();
                 }
                 doc.setFontSize(textoFontSize);
                 doc.setFont('helvetica', 'normal');
-                doc.text(linha, x, y); // Alinhado à esquerda usando 'x'
+                doc.text(linha, x, y);
                 y += 5;
             });
             y += 5;
         }
-    
-
         doc.addPage();
         doc.addImage(img, 'PNG', 0, 0, pageWidth, pageHeight);
         y = 50;
@@ -5090,291 +5170,7 @@ console.log("🚀 Versão atualizada da função gerarPropostaPDF executada");
         link.download = nomeArquivoSalvar;
         link.click();
     };
-    img.src = 'img/Fundo Propostas.png';
 }
-
-import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, AlignmentType, HeadingLevel, PageBreak } from "https://cdn.skypack.dev/docx";
-import { saveAs } from "https://cdn.skypack.dev/file-saver";
-
-export async function gerarPropostaWord() {
-    const clienteSelect = document.querySelector('.idCliente');
-    const nomeCliente = clienteSelect?.options[clienteSelect.selectedIndex]?.innerText || "N/D";
-    const eventoSelect = document.querySelector('.idEvento');
-    const nomeEvento = eventoSelect?.options[eventoSelect.selectedIndex]?.innerText || "N/D";
-    const montagemSelect = document.querySelector('.idMontagem');
-    const localEvento = montagemSelect?.options[montagemSelect.selectedIndex]?.innerText || "N/D";
-    const pavilhaoSelect = document.querySelector('.idPavilhao');
-    const nmPavilhao = pavilhaoSelect?.options[pavilhaoSelect.selectedIndex]?.innerText || "N/D";
-
-    const inputMarcacao = document.getElementById('periodoMarcacao')?.value?.trim().replace(" to ", " até ") || "N/D";
-    const inputMontagem = document.getElementById('periodoMontagem')?.value?.trim().replace(" to ", " até ") || "N/D";
-    const inputRealizacao = document.querySelector('.realizacao')?.value?.trim().replace(" to ", " até ") || "N/D";
-    const inputDesmontagem = document.getElementById('periodoDesmontagem')?.value?.trim().replace(" to ", " até ") || "N/D";
-
-    let dadosContato = { nmcontato: "N/D", celcontato: "N/D", emailcontato: "N/D" };
-    try {
-        const url = `clientes?nmfantasia=${encodeURIComponent(nomeCliente)}`;
-        const dados = await fetchComToken(url);
-        const cliente = Array.isArray(dados)
-            ? dados.find(c => c.nmfantasia.trim().toLowerCase() === nomeCliente.trim().toLowerCase())
-            : dados;
-        if (cliente) {
-            dadosContato = {
-                nmcontato: cliente.nmcontato || "N/D",
-                celcontato: cliente.celcontato || "N/D",
-                emailcontato: cliente.emailcontato || "N/D"
-            };
-        }
-    } catch (erro) {
-        console.warn("Erro ao buscar dados do cliente:", erro);
-    }
-
-    const linhas = document.querySelectorAll("#tabela tbody tr");
-    if (!linhas.length) {
-        alert("Nenhum item selecionado para gerar a proposta.");
-        return;
-    }
-
-    // aqui começa a parte de documento !!
-    const children = [];
-
-    // Cabeçalho
-    children.push(new Paragraph({
-        text: "Proposta Comercial",
-        heading: HeadingLevel.HEADING_1,
-        alignment: AlignmentType.left
-    }));
-
-    // Tabela de Informações
-    const tabelaInfo = new Table({
-        rows: [
-            new TableRow({
-                children: ["Descrição", "Detalhe"].map(header =>
-                    new TableCell({
-                        children: [new Paragraph({
-                            children: [new TextRun({ text: header, bold: true, color: "FFFFFF" })],
-                            alignment: AlignmentType.CENTER
-                        })],
-                        shading: { fill: "C00000" }
-                    })
-                )
-            }),
-            ...[
-                ["Cliente:", nomeCliente],
-                ["Responsável:", `${dadosContato.nmcontato} - Celular: ${dadosContato.celcontato} - Email: ${dadosContato.emailcontato}`],
-                ["Evento:", `${nomeEvento} - Local: ${localEvento} - Pavilhão: ${nmPavilhao}`],
-                ["Marcação:", inputMarcacao],
-                ["Montagem:", inputMontagem],
-                ["Realização:", inputRealizacao],
-                ["Desmontagem:", inputDesmontagem],
-            ].map(([descricao, detalhe]) =>
-                new TableRow({
-                    children: [
-                        new TableCell({
-                            children: [new Paragraph(descricao)],
-                            shading: { fill: "F2F2F2" }
-                        }),
-                        new TableCell({
-                            children: [new Paragraph(detalhe)],
-                        })
-                    ]
-                })
-            )
-        ]
-    });
-
-    children.push(
-    new Paragraph({
-        text: "Escopo da proposta:",
-        heading: HeadingLevel.HEADING_2,
-        spacing: { after: 200 },
-    })
-    );
-
-    // OBS DOS "SERVIÇOS"
-    const linhasDocx = [];
-
-    for (const [index, linha] of linhas.entries()) {
-        const produtoEl = linha.querySelector('.produto');
-        const produto = produtoEl?.innerText?.trim();
-
-        if (!produto) continue;
-
-        console.log(`🔎 Verificando produto: ${produto}`);
-
-        let obs = "";
-        try {
-            const funcao = await fetchComToken(`/orcamentos/obsfuncao?nome=${encodeURIComponent(produto)}`);
-            obs = funcao?.obsfuncao?.trim();
-        } catch (erro) {
-            console.warn(`❌ Erro ao buscar observação da função '${produto}':`, erro);
-        }
-
-        if (!obs) {
-            console.log(`🚫 Produto "${produto}" sem observação. Pulando.`);
-            continue;
-        }
-
-        // Título em negrito à esquerda
-        linhasDocx.push(
-            new Paragraph({
-                children: [
-                    new TextRun({
-                        text: produto.toUpperCase(),
-                        bold: true,
-                        size: 22,
-                    }),
-                ],
-                spacing: { after: 200 },
-                alignment: AlignmentType.LEFT,
-            })
-        );
-
-        // Observação centralizada
-        const obsParagrafos = obs.split('\n').map((linha) => new Paragraph({
-            children: [new TextRun({ text: linha, size: 20 })],
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 100 },
-        }));
-        linhasDocx.push(...obsParagrafos);
-
-        // Linha de resumo
-        const qtdDias = linha.querySelector('.qtdDias input')?.value?.trim();
-        const qtdItens = linha.querySelector('.qtdProduto input')?.value?.trim();
-        const datasRaw = linha.querySelector('.datas')?.value?.trim().replace(" to ", " até: ") || "";
-
-        let textoResumo = "";
-        if (qtdItens !== '0') {
-            textoResumo = `${qtdItens} ${produto}`;
-            if (qtdDias !== '0') {
-                textoResumo += ` – atendimento por ${qtdDias} dias – iniciando de: ${datasRaw}`;
-            }
-        }
-
-        if (textoResumo) {
-            linhasDocx.push(
-                new Paragraph({
-                    children: [new TextRun({ text: textoResumo, size: 16 })],
-                    alignment: AlignmentType.CENTER,
-                    spacing: { before: 100, after: 300 },
-                })
-            );
-        }
-
-        // Quebra de página após cada bloco, se quiser
-        linhasDocx.push(new Paragraph({ children: [new PageBreak()] }));
-    }
-    //  FIM OBS DOS "SERVIÇOS"
-
-    function capitalizarPalavras(texto) {
-    return texto
-        .toLowerCase()
-        .replace(/\b\w/g, letra => letra.toUpperCase());
-    }
-    
-    children.push(tabelaInfo);
-    children.push(new Paragraph({ text: "", spacing: { after: 200 } }));
-
-    // Tabela de Produtos
-    linhas.forEach(linha => {
-        const checkbox = linha.querySelector('.Proposta input');
-        if (!checkbox || !checkbox.checked) return;
-
-        const qtdItens = linha.querySelector('.qtdProduto input')?.value?.trim() || "";
-        const qtdDias = linha.querySelector('.qtdDias input')?.value?.trim() || "";
-        const produto = linha.querySelector('.produto')?.innerText?.trim() || "";
-        const obs = linha.querySelector('.obsProduto input')?.value?.trim() || "";
-        const adicionais = linha.querySelector('.adicionaisProduto input')?.value?.trim() || "";
-        const datasRaw = linha.querySelector('.datas')?.value?.trim().replace(" to ", " até: ") || "";
-        const categoria = linha.querySelector('.categoria')?.innerText?.trim() || "";
-
-        if (!produto) return;
-
-        const produtoFormatado = capitalizarPalavras(produto);
-
-    children.push(new Paragraph({
-        text: produtoFormatado,
-        heading: HeadingLevel.HEADING_2,
-        spacing: { after: 100 }
-    }));
-
-
-
-    if (obs) {
-        obs.split("\n").forEach(linhaObs => {
-            children.push(new Paragraph({
-                text: linhaObs.trim(),
-                spacing: { after: 100 },
-                italics: true
-            }));
-        });
-    }
-
-    const resumo = [
-        `• ${qtdItens} ${produtoFormatado} - ${qtdDias} dia(s) - Período: ${datasRaw}`
-    ];
-
-    children.push(new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: resumo.map((linha, index) => new TextRun({
-            text: linha,
-            bold: true,
-            break: index > 0 ? 1 : 0
-        })),
-        spacing: { after: 200 }
-    }));
-
-    if (categoria) {
-        children.push(new Paragraph({
-            text: `Categoria: ${categoria}`,
-            spacing: { after: 200 },
-            italics: true,
-            alignment: AlignmentType.RIGHT
-        }));
-    }
-
-    if (adicionais) {
-        const lista = adicionais.split("\n").filter(x => x.trim());
-        if (lista.length) {
-            children.push(new Paragraph({
-                text: "Adicionais:",
-                spacing: { before: 200, after: 100 },
-                bold: true
-            }));
-            lista.forEach(item => {
-                children.push(new Paragraph({
-                    text: item.trim(),
-                    bullet: { level: 0 }
-                }));
-            });
-        }
-    }
-
-    children.push(new Paragraph({ text: "", spacing: { after: 300 } }));
-
-
-    const doc = new Document({
-        sections: [
-            {
-                properties: {},
-                children
-            }
-        ]
-    });
-
-    const blob = Packer.toBlob(doc);
-    const filename = `Proposta_${new Date().toISOString().slice(0, 10)}.docx`;
-
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(link.href);
-
-    console.log("✅ Documento Word gerado com sucesso!");
-});
-}
-
 
 
 function exportarParaExcel() {
