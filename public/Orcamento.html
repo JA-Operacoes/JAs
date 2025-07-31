@@ -4,9 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <link rel="stylesheet" type="text/css" href="https://unpkg.com/flatpickr/dist/themes/material_red.css">    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.5/pizzip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docx@7.1.1/build/index.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
     <link rel="stylesheet" href="css/Modal/Orcamento.css">
     <link rel="stylesheet" href="css/Roots/Roots.css">
@@ -232,6 +237,21 @@
                                 </div>
                                     <textarea class="PropostaobsTexto" name="ObservacaoProposta" id="ObservacaoProposta" placeholder="Observações sobre a Proposta"></textarea>
                             </div>
+
+                        <div class="Propostaobs3">
+                            <div class="checkbox-wrapper-33">
+                                <label class="checkbox">
+                                    <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                                    <span class="checkbox__symbol">
+                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M4 14l8 7L24 7"></path>
+                                        </svg>
+                                    </span>
+                                    <p class="checkbox__textwrapper"></p>
+                                </label>
+                            </div>
+                                <textarea id="formaPagamento" rows="4" placeholder="Descreva a Forma de Pagamento                           (Exemplo: 10% na assinatura...)"></textarea>
+                        </div>
                         </div>
                         <div>
                                 <div class="form2">
@@ -316,20 +336,24 @@
                         </div>  
                 </div>
 
-                </div>
-                <div class="BTNs">
-                    <button class="pesquisar" onclick="pesquisarOrcamento()">Pesquisar</button>
-                    <button class="Limpar" id="Limpar" type="button" >Limpar</button>
-                    <button class="Proposta" id="Proposta" onclick="gerarPropostaPDF()">Gerar Proposta</button>
-                    <button class="Excel" onclick="exportarParaExcel()" style="display: none;">Exportar P/ Excel</button>
-                    <button class="fecharOrc" id="fecharOrc">Fechar Orçamento</button>
-                    <button class="btnEnviar" id="Enviar" type="button" >Salvar Orçamento</button>
-                </div>
-            </form>
-        </div>
+            </div>
+            <div class="BTNs">
+                <button class="pesquisar" onclick="pesquisarOrcamento()">Pesquisar</button>
+                <button class="Limpar" id="Limpar" type="button" >Limpar</button>
+                <button class="Proposta" id="Proposta">Gerar Proposta</button>
+                <button class="Excel" onclick="exportarParaExcel()" style="display: none;">Exportar P/ Excel</button>
+                <button class="fecharOrc" id="fecharOrc">Fechar Orçamento</button>
+                <button class="btnEnviar" id="Enviar" type="button" >Salvar Orçamento</button>
+            </div>
+        </form>
+    </div>
     </div>
 </div>
-<!-- <script src="Orcamento.js" defer></script>
+
+<script src="js/Orcamentos.js"></script>
+
+
+
 
 </body>
 </html> -->

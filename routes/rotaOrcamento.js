@@ -6,8 +6,8 @@ const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 const logMiddleware = require("../middlewares/logMiddleware");
 
 // Aplica autenticação em todas as rotas
-//router.use(autenticarToken);
-//router.use(contextoEmpresa);
+// router.use(autenticarToken);
+// router.use(contextoEmpresa);
 
 
 // GET todas ou por id
@@ -424,6 +424,39 @@ router.get('/suprimentos', async (req, res) => {
     res.status(500).json({ erro: 'Erro ao buscar clientes' });
   }
 
+});
+
+router.get('/obsfuncao', async (req, res) => {
+    const { nome } = req.query;
+    console.log("📥 Requisição recebida para /obsfuncao com nome:", nome);
+
+    if (!nome) {
+        console.warn("⚠️ Parâmetro 'nome' não fornecido");
+        return res.status(400).json({ erro: "Parâmetro 'nome' é obrigatório" });
+    }
+
+    try {
+        console.log("🔎 Iniciando consulta no banco de dados...");
+
+        const resultado = await pool.query(
+            'SELECT obsfuncao FROM funcao WHERE LOWER(descfuncao) = LOWER($1)',
+            [nome]
+        );
+
+        console.log("📊 Resultado da query:", resultado.rows);
+
+        if (resultado.rows.length === 0) {
+            console.warn("❌ Nenhum resultado encontrado para:", nome);
+            return res.status(404).json({ erro: "Função não encontrada" });
+        }
+
+        console.log("✅ Observação encontrada:", resultado.rows[0].obsfuncao);
+        return res.json({ obsfuncao: resultado.rows[0].obsfuncao });
+
+    } catch (err) {
+        console.error("💥 Erro ao buscar função:", err);
+        return res.status(500).json({ erro: "Erro interno" });
+    }
 });
 
 

@@ -77,10 +77,6 @@ const commonFlatpickrOptionsTable = {
     }
 };
 
-document.addEventListener("DOMContentLoaded", function () {  
-   
-});
-
 let idCliente;
 let idEvento;
 let idMontagem;
@@ -101,9 +97,9 @@ let lastEditedGlobalFieldType = null; // 'valor' ou 'percentual' para os campos 
 let isRecalculatingGlobalDiscountAcrescimo = false;
 
 let selects = document.querySelectorAll(".idFuncao, .idEquipamento, .idSuprimento, .idPavilhao");
-selects.forEach(select => {
-    select.addEventListener("change", atualizaProdutoOrc);
-});
+    selects.forEach(select => {
+        select.addEventListener("change", atualizaProdutoOrc);
+    });
 
 const selectFuncao = document.getElementById('selectFuncao');
 if (selectFuncao) {
@@ -1434,7 +1430,7 @@ function adicionarLinhaAdicional() {
             </div>
         </td>
         <td class="produto"><input type="text" class="produto-input" value=""></td> <!-- Adicionado input para edição -->
-        <td class="setor"><input type="text" class="setor-input" value=""></td> <!-- Adicionado input para edição -->        
+        <td class="setor"><input type="text" class="setor-input" value=""></td> <!-- Adicionado input para edição -->
        
         <td class="qtdDias">
             <div class="add-less">
@@ -2103,7 +2099,7 @@ function atualizaProdutoOrc(event) {
            // console.log(" produto escolhido foi:", produtoSelecionado, "Funcao: ", select.classList.contains("idFuncao"), "Equipamento: ", select.classList.contains("idEquipamento"), "Suprimento: ",select.classList.contains("idSuprimento"));
         }     
         
-        
+       
         // Encontre os selects de alimentação e transporte dentro da nova linha
         const selectAlimentacao = ultimaLinha.querySelector('.select-alimentacao');
         const selectTransporte = ultimaLinha.querySelector('.select-transporte');
@@ -2801,8 +2797,8 @@ async function verificaOrcamento() {
             const resultado = await fetchComToken(url, {
                 method: method,
                 headers: {
-                     'Content-Type': 'application/json',
-                 },
+                    'Content-Type': 'application/json',
+                },
                 body: JSON.stringify(dadosOrcamento)
             });
 
@@ -3727,9 +3723,11 @@ export async function preencherFormularioComOrcamento(orcamento) {
             }
         }
        
-    });    
+    });
+
     
- //   recalcularTotaisGerais(); 
+    
+   // recalcularTotaisGerais(); 
     aplicarMascaraMoeda();   
    // calcularLucro();
 }
@@ -3761,7 +3759,27 @@ function formatarDatasParaInputPeriodo(inicioStr, fimStr) {
 
 // --- Função para Limpar o Formulário Principal ---
 
+export function limparFormularioOrcamento() {
+    document.getElementById('form').reset();
+    idOrcamentoInput.value = '';
 
+    // Limpar seleções de Flatpickr para todos os inputs
+    for (const id in flatpickrInstances) {
+        const pickerInstance = flatpickrInstances[id];
+        if (pickerInstance) {
+            pickerInstance.clear();
+        }
+    }
+
+    // Resetar selects para a opção padrão (Selecione...)
+    if (statusSelect) statusSelect.value = '';
+    if (clienteSelect) clienteSelect.value = '';
+    if (eventoSelect) eventoSelect.value = '';
+    if (localMontagemSelect) localMontagemSelect.value = '';
+
+    // TODO: Se você tiver uma função para limpar a tabela de itens, chame-a aqui
+    // Ex: limparItensOrcamentoTabela();
+}
 
 function getPeriodoDatas(inputValue) { // Recebe diretamente o valor do input
    
@@ -4112,7 +4130,8 @@ function recalcularLinha(linha) {
         console.log("HOSPEDAGEM E TRANSPORTE EXTRA:", hospedagemValor, transporteExtraValor);
               
 
-        let vlrAjdCusto =  totalAlimentacaoLinha + totalTransporteLinha;
+        // let vlrAjdCusto =  vlrCusto + totalAlimentacaoLinha + totalTransporteLinha + hospedagemValor;
+        let vlrAjdCusto =  vlrCusto + totalAlimentacaoLinha + totalTransporteLinha + hospedagemValor;
         
         // --- LEITURA DOS VALORES DE DESCONTO E ACRÉSCIMO DA LINHA (NÃO FAÇA CÁLCULO DE SINCRONIZAÇÃO AQUI!) ---
         let campoDescValor = linha.querySelector('.descontoItem .ValorInteiros');
@@ -4137,6 +4156,12 @@ function recalcularLinha(linha) {
         let vlrVendaCorrigido = vlrVendaOriginal - desconto + acrescimo; 
 
         // ... (resto dos seus cálculos de totalIntermediario, totalVenda, totalCusto, totalAjdCusto, totGeralCtoItem) ...
+        // let totalIntermediario = qtdItens * qtdDias;
+        // let totalVenda = totalIntermediario * vlrVendaCorrigido;
+        // let totalCusto = totalIntermediario * vlrCusto;
+        // let totalAjdCusto = totalIntermediario * vlrAjdCusto + transporteExtraValor; 
+        // let totGeralCtoItem = totalCusto + totalAjdCusto+ transporteExtraValor;
+
         let totalIntermediario = qtdItens * qtdDias;
         let totalVenda = (totalIntermediario * vlrVendaCorrigido) +(hospedagemValor * totalIntermediario) + transporteExtraValor;
         let totalCusto = totalIntermediario * vlrCusto;
@@ -4570,13 +4595,33 @@ Swal.fire({
 
 document.getElementById('Proposta').addEventListener('click', function(event) {
     event.preventDefault();
-    gerarPropostaPDF();
+    WordOuPdf();
 });
 
+async function WordOuPdf() {
+  Swal.fire({
+    title: "Como deseja gerar o documento?",
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonText: `<i class="fa-regular fa-file-pdf" style="height: 20px; vertical-align: middle; margin-right: 5px;"></i> <b>Gerar PDF</b>`,
+    cancelButtonText: `<i class="fa-regular fa-file-word" style="height: 20px; vertical-align: middle; margin-right: 5px;"></i> <b>Gerar Word</b>`,
+    reverseButtons: true,
+    customClass: {
+      confirmButton: 'botao-pdf',
+      cancelButton: 'botao-word'
+    }
+  }).then((result) => {
+    if (result.isConfirmed) {
+      gerarPropostaPDF();
+    } else if (result.dismiss === Swal.DismissReason.cancel) {
+      gerarPropostaWord();
+    }
+  });
+}
 
 
 async function gerarPropostaPDF() {
-    console.log("Início da função gerarPropostaPDF");
+console.log("🚀 Versão atualizada da função gerarPropostaPDF executada");
 
     if (!window.jspdf || !window.jspdf.jsPDF) {
         console.error('jsPDF não carregado.');
@@ -4593,7 +4638,7 @@ async function gerarPropostaPDF() {
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
-        const margemRodape = 40;
+        const margemRodape = 15;
         const limiteInferior = pageHeight - margemRodape;
         const lineHeight = 7;
         const x = 25;
@@ -4602,21 +4647,30 @@ async function gerarPropostaPDF() {
 
         let y = 50;
 
-        function adicionarLinha(texto, fontSize = textoFontSize, bold = false) {
-            if (y + lineHeight > limiteInferior) {
-                doc.addPage();
-                doc.addImage(img, 'PNG', 0, 0, pageWidth, pageHeight);
-                y = 50;
-            }
-            doc.setFontSize(fontSize);
-            doc.setFont('helvetica', bold ? 'bold' : 'normal');
-            const textWidth = doc.getTextWidth(texto);
-            const centroX = (pageWidth - textWidth) / 2;
-            doc.text(texto, centroX, y);
-            y += lineHeight;
+         function addNewPage() {
+            doc.addPage();
+            doc.addImage(img, 'PNG', 0, 0, pageWidth, pageHeight);
+            y = 50; // Redefine a posição y para a nova página
         }
 
-      function formatarDataBR(dataStr) {
+        // --- Função auxiliar para adicionar linhas com verificação de quebra de página ---
+        function adicionarLinha(texto, fontSize = textoFontSize, bold = false, customLineHeight = lineHeight, alinhadoCentro = true) {
+            if (y + customLineHeight > limiteInferior) {
+                addNewPage();
+            }
+
+            doc.setFontSize(fontSize);
+            doc.setFont('helvetica', bold ? 'bold' : 'normal');
+
+            const posX = alinhadoCentro
+                ? (pageWidth - doc.getTextWidth(texto)) / 2
+                : x;
+
+            doc.text(texto, posX, y);
+            y += customLineHeight;
+        }
+
+    function formatarDataBR(dataStr) {
     if (!dataStr || dataStr.trim() === "") return "null";
     const [ano, mes, dia] = dataStr.split("-");
     if (!ano || !mes || !dia) return "null";
@@ -4635,34 +4689,101 @@ async function gerarPropostaPDF() {
         const localEvento = montagemSelect?.options[montagemSelect.selectedIndex]?.innerText || "N/D";
         const pavilhaoSelect = document.querySelector('.idPavilhao');
         const nmPavilhao = pavilhaoSelect?.options[pavilhaoSelect.selectedIndex]?.innerText || "N/D";
+        const inputMarcacao = document.getElementById('periodoMarcacao')?.value?.trim().replace(" to ", " até ") ||  "N/D" ; 
+        const inputMontagem = document.getElementById('periodoMontagem')?.value?.trim().replace(" to ", " até ") ||  "N/D" ; 
         const inputRealizacao = document.querySelector('.realizacao')?.value?.trim().replace(" to ", " até ") ||  "N/D" ; 
+        const inputDesmontagem = document.getElementById('periodoDesmontagem')?.value?.trim().replace(" to ", " até ") ||  "N/D" ; 
+        const dataAtual = new Date();
+        const anoAtual = dataAtual.getFullYear();
+        const valorProposta = document.getElementById('valorCliente')?.value?.trim() || "R$ XX";
+        
 
         let dadosContato = { nmcontato: "N/D", celcontato: "N/D", emailcontato: "N/D" };
+
         try {
-            console.log("Buscando dados do cliente via API");
-            const resposta = await fetch(`clientes?nmFantasia=${encodeURIComponent(nomeCliente)}`);
-            const dados = await resposta.json();
-            const cliente = Array.isArray(dados) ? dados[0] : dados;
+            console.log("🔍 Iniciando busca dos dados do cliente...");
+            console.log("➡️ Nome do cliente:", nomeCliente);
+
+            const url = `clientes?nmfantasia=${encodeURIComponent(nomeCliente)}`;
+            console.log("🌐 URL chamada:", url);
+
+            const dados = await fetchComToken(url); // ✅ Aqui está o fetch correto
+            console.log("🧾 JSON retornado:", dados);
+
+            const cliente = Array.isArray(dados)
+                ? dados.find(c => c.nmfantasia.trim().toLowerCase() === nomeCliente.trim().toLowerCase())
+                : dados;
+            console.log("👤 Cliente encontrado:", cliente);
+
             if (cliente) {
                 dadosContato = {
                     nmcontato: cliente.nmcontato || "N/D",
                     celcontato: cliente.celcontato || "N/D",
                     emailcontato: cliente.emailcontato || "N/D"
                 };
+                console.log("✅ Dados de contato definidos:", dadosContato);
+            } else {
+                console.warn("⚠️ Nenhum cliente correspondente encontrado.");
             }
+
         } catch (erro) {
-            console.warn("Erro ao buscar dados do cliente:", erro);
+            console.warn("❌ Erro ao buscar dados do cliente:", erro);
         }
 
         doc.setFontSize(tituloFontSize);
+        doc.setTextColor("#FF0901");
         doc.text("Proposta de Serviços", x, y);
-        y += 20;
+        y += 50;
+        doc.setTextColor(0, 0, 0);
 
-        adicionarLinha(`Cliente: ${nomeCliente}`);
-        adicionarLinha(`Responsável: ${dadosContato.nmcontato} - Celular: ${dadosContato.celcontato} - Email: ${dadosContato.emailcontato}`);
-        adicionarLinha(`Evento: ${nomeEvento} - Local: ${localEvento} - Pavilhão: ${nmPavilhao}`);
-        adicionarLinha(`Data de Realização: ${inputRealizacao}`); console.log( "valor data", inputRealizacao)
-        y += 10;
+        const cabecalho = [["Descrição", "Detalhe"]];
+
+        const dados = [
+        ["Cliente", nomeCliente],
+        ["Responsável", `${dadosContato.nmcontato} - Celular: ${dadosContato.celcontato} - Email: ${dadosContato.emailcontato}`],
+        ["Evento", `${nomeEvento} - Local: ${localEvento} - Pavilhão: ${nmPavilhao}`],
+        ["Marcação", inputMarcacao],
+        ["Montagem", inputMontagem],
+        ["Realização", inputRealizacao],
+        ["Desmontagem", inputDesmontagem],
+        ];
+
+        doc.autoTable({
+        startY: 60, // onde começa no PDF
+        head: cabecalho,
+        body: dados,
+        foot: [['\u200B', '\u200B']],
+
+        styles: {
+            fontSize: 10,
+            cellPadding: 1,
+            valign: 'middle',
+            fillColor: false,
+        },
+        headStyles: {
+            fillColor: [238, 47, 52],
+            textColor: 255,
+            fontStyle: 'bold',
+        },
+        footStyles: {
+            fillColor: [238, 47, 52],
+            cellPadding: { top: 1, bottom: 1, left: 1, right: 1 },
+            fontSize: 1,
+        },
+        columnStyles: {
+            0: { cellWidth: 50, fontStyle: 'bold' }, // Coluna "Campo"
+            1: { cellWidth: 'auto' },               // Coluna "Informação"
+        },
+        });
+
+        // adicionarLinha(`Cliente: ${nomeCliente}`, textoFontSize, false, lineHeight, false);
+        // adicionarLinha(`Responsável: ${dadosContato.nmcontato} - Celular: ${dadosContato.celcontato} - Email: ${dadosContato.emailcontato}`, textoFontSize, false, lineHeight, false);
+        // adicionarLinha(`Evento: ${nomeEvento} - Local: ${localEvento} - Pavilhão: ${nmPavilhao}`, textoFontSize, false, lineHeight, false);
+        // adicionarLinha(`Data de Marcação: ${inputMarcacao}`, textoFontSize, false, lineHeight, false); console.log("valor data", inputMarcacao);
+        // adicionarLinha(`Data de Montagem: ${inputMontagem}`, textoFontSize, false, lineHeight, false); console.log("valor data", inputMontagem);
+        // adicionarLinha(`Data de Realização: ${inputRealizacao}`, textoFontSize, false, lineHeight, false); console.log("valor data", inputRealizacao);
+        // adicionarLinha(`Data de Desmontagem: ${inputDesmontagem}`, textoFontSize, false, lineHeight, false); console.log("valor data", inputDesmontagem);
+        y += 25;
 
         doc.setFontSize(tituloFontSize);
         adicionarLinha("Escopo da proposta:");
@@ -4670,28 +4791,126 @@ async function gerarPropostaPDF() {
 
         const tabela = document.getElementById('tabela');
         const linhas = tabela?.querySelectorAll('tbody tr') || [];
-         const categoriasMap = {};
+        const categoriasMap = {};
         const adicionais = [];
 
-        linhas.forEach(linha => {
+
+        console.log("🔍 Iniciando verificação das linhas para encontrar 'Produtos'...");
+
+            for (const [index, linha] of linhas.entries()) {
+        const produtoEl = linha.querySelector('.produto');
+        const produto = produtoEl?.innerText?.trim();
+
+        if (!produto) continue; // ignora linhas sem produto
+
+        console.log(`🔎 Verificando produto: ${produto}`);
+
+        let obs = "";
+        try {
+            const funcao = await fetchComToken(`/orcamentos/obsfuncao?nome=${encodeURIComponent(produto)}`);
+            obs = funcao?.obsfuncao?.trim();
+        } catch (erro) {
+            console.warn(`❌ Erro ao buscar observação da função '${produto}':`, erro);
+        }
+
+        // Só continua se houver observação
+        if (!obs) {
+            console.log(`🚫 Produto "${produto}" sem observação. Pulando.`);
+            continue;
+        }
+
+        const maxTextWidthObs = 150;
+        const linhasObs = doc.splitTextToSize(obs, maxTextWidthObs);
+        const estimatedBlockHeight = 10 + 7 + (linhasObs.length * 5) + 5 + 8; // Título (10+7), Obs (~5 por linha), Espaço (5), Resumo (8)
+
+        if (y + estimatedBlockHeight > limiteInferior) {
+            addNewPage();
+        }
+
+        // Título
+        y += 10;
+        doc.setFont(undefined, 'bold');
+        doc.setFontSize(11);
+        doc.text(`${produto.toUpperCase()}`, x, y); // título à esquerda
+        y += 7;
+
+        // Observação centralizada
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+
+        const maxTextWidth = 150;
+        // const linhasObs = doc.splitTextToSize(obs, maxTextWidth);
+        const xInicioBloco = (pageWidth - maxTextWidth) /2 ;
+
+        linhasObs.forEach(linha => {
+            if (y + 5 > limiteInferior) { // Verifica espaço para cada linha da observação
+                addNewPage();
+            }
+            doc.text(linha, xInicioBloco, y);
+            y += 5; // Altura da linha para observações
+        });
+
+        // Linha resumo
+        const qtdDias = linha.querySelector('.qtdDias input')?.value?.trim();
+        const qtdItens = linha.querySelector('.qtdProduto input')?.value?.trim();
+        const datasRaw = linha.querySelector('.datas')?.value?.trim().replace(" to ", " até: ") || "";
+
+        let textoResumo = "";
+        // Só exibe se houver quantidade de itens
+        if (qtdItens !== '0') {
+            textoResumo = `${qtdItens} ${produto}`;
+            // Só adiciona info de dias se a qtdDias também for diferente de zero
+            if (qtdDias !== '0') {
+                textoResumo += ` – atendimento por ${qtdDias} dias – iniciando de: ${datasRaw}`;
+            }
+        }
+
+        y += 5;
+        if (y + 10 > limiteInferior) { // Verifica espaço para a linha de resumo
+                addNewPage();
+        }
+        doc.setFontSize(8);
+        doc.setFont(undefined, 'normal');
+        const textWidth = doc.getTextWidth(textoResumo);
+        const xCentralizado = (pageWidth - textWidth) / 2;
+        doc.text(textoResumo, xCentralizado, y);
+        y += 10;
+    }
+
+    function capitalizarPalavras(texto) {
+    return texto
+        .toLowerCase()
+        .replace(/\b\w/g, letra => letra.toUpperCase());
+    }
+
+    linhas.forEach(linha => {    
             const checkbox = linha.querySelector('.Proposta input');
             if (!checkbox || !checkbox.checked) return;
 
             const qtdItens = linha.querySelector('.qtdProduto input')?.value?.trim();
             const produto = linha.querySelector('.produto')?.innerText?.trim();
-            const setor = linha.querySelector('.setor')?.innerText?.trim();
+            const setor = linha.querySelector('.setor-input')?.value?.trim();
             const qtdDias = linha.querySelector('.qtdDias input')?.value?.trim();
             const categoria = linha.querySelector('.Categoria')?.innerText?.trim();
 
             const datasRaw = linha.querySelector('.datas')?.value?.trim().replace(" to ", " até: ") || "";
-            // const [dataInicioProdutoRaw, dataFimProdutoRaw] = datasRaw.split(" a ") || ["", ""];
 
-            console.log(" datas",  datasRaw);
+            console.log(" datas", datasRaw);
 
-            const itemDescricao = `• ${produto} - ${setor}— ${qtdItens} Item(s), ${qtdDias} Diária(s), de: ${datasRaw} `;
+            const produtoFormatado = capitalizarPalavras(produto);
+            let itemDescricao = `• ${qtdItens} ${produtoFormatado}`;
+
+
+             if (setor && setor.toLowerCase() !== 'null' && setor !== '') {
+                itemDescricao += `, (${setor})`;
+            }
+
+            if (qtdDias !== '0') {
+                itemDescricao += `, ${qtdDias} Diária(s), de: ${datasRaw}`;
+            }
             const isLinhaAdicional = linha.classList.contains('linha-adicional');
 
-            if (qtdItens !== '0' && qtdDias !== '0') {
+            if (qtdItens !== '0') {
                 if (isLinhaAdicional) {
                     adicionais.push(itemDescricao);
                 } else {
@@ -4700,21 +4919,42 @@ async function gerarPropostaPDF() {
                     categoriasMap[nomeCategoria].push(itemDescricao);
                 }
             }
-        });
+        }); // <- FECHA AQUI o forEach!
 
-        // Primeiro, itens agrupados por categoria
+        // Agora sim: processa categorias e adicionais FORA do forEach acima
+
         for (const [categoria, itens] of Object.entries(categoriasMap)) {
-            adicionarLinha(categoria + ":", 12, true);
-            itens.forEach(item => adicionarLinha(item));
+            const estimatedCategoryHeight = lineHeight + (itens.length * lineHeight) + 5;
+            if (y + estimatedCategoryHeight > limiteInferior) {
+                addNewPage();
+            }
+
+            // Título no mesmo padrão do produto
+            y += 10;
+            doc.setFont(undefined, 'bold');
+            doc.setFontSize(11);
+            doc.text(categoria.toUpperCase(), x, y); // Categoria à esquerda
+            y += 7;
+
+            itens.forEach(item => adicionarLinha(item, textoFontSize, false, lineHeight, false));
             y += 5;
         }
 
-        // Depois, itens adicionais
         if (adicionais.length > 0) {
             y += 10;
-            adicionarLinha("Adicionais:", 12, true);
-            adicionais.forEach(item => adicionarLinha(item));
+            const estimatedAdicionaisHeight = lineHeight + (adicionais.length * lineHeight);
+            if (y + estimatedAdicionaisHeight > limiteInferior) {
+                addNewPage();
+            }
+            y += 10;
+            doc.setFont(undefined, 'bold');
+            doc.setFontSize(11);
+            doc.text("ADICIONAIS:", x, y);
+            y += 7;
+
+            adicionais.forEach(item => adicionarLinha(item, textoFontSize, false, false));
         }
+    
 
         // Observações sobre os Itens
         const checkboxItens = document.querySelectorAll('.Propostaobs1 .checkbox__trigger')[0];
@@ -4724,11 +4964,23 @@ async function gerarPropostaPDF() {
             y += 10;
             adicionarLinha("Observações sobre os Itens:", 12, true);
 
-            const linhasItens = doc.splitTextToSize(textoItens, 180);
-            linhasItens.forEach(linha => {
-                adicionarLinha(linha);
+            const linesToPrintItens = doc.splitTextToSize(textoItens, pageWidth - 2 * x); // Usa largura total da área de escrita
+            const estimatedHeightItens = linesToPrintItens.length * 5; // Altura de linha 5 para observações
+
+            if (y + estimatedHeightItens > limiteInferior) {
+                addNewPage();
+            };
+
+            linesToPrintItens.forEach(linha => {
+                if (y + 5 > limiteInferior) { // Verifica espaço para cada linha
+                    addNewPage();
+                }
+                doc.setFontSize(textoFontSize);
+                doc.setFont('helvetica', 'normal');
+                doc.text(linha, x, y); // Alinhado à esquerda usando 'x'
                 y += 5;
             });
+            y += 5; // Espaço após o bloco
         }
 
         // Observações sobre a Proposta
@@ -4740,36 +4992,83 @@ async function gerarPropostaPDF() {
             y += 10;
             adicionarLinha("Observações sobre a Proposta:", 12, true);
 
-            const linhasProposta = doc.splitTextToSize(textoProposta, 180);
-            linhasProposta.forEach(linha => {
-                adicionarLinha(linha);
+             const linesToPrintProposta = doc.splitTextToSize(textoProposta, pageWidth - 2 * x); // Usa largura total da área de escrita
+            const estimatedHeightProposta = linesToPrintProposta.length * 5;
+
+            if (y + estimatedHeightProposta > limiteInferior) {
+                addNewPage();
+            }
+
+            linesToPrintProposta.forEach(linha => {
+                if (y + 5 > limiteInferior) { // Verifica espaço para cada linha
+                    addNewPage();
+                }
+                doc.setFontSize(textoFontSize);
+                doc.setFont('helvetica', 'normal');
+                doc.text(linha, x, y); // Alinhado à esquerda usando 'x'
                 y += 5;
             });
+            y += 5;
         }
+    
 
         doc.addPage();
         doc.addImage(img, 'PNG', 0, 0, pageWidth, pageHeight);
-        y = 40;
+        y = 50;
 
-        adicionarLinha("SUPORTE TÉCNICO", textoFontSize, true);
+            doc.setFont(undefined, 'bold');
+            doc.setFontSize(11);
+            doc.text("SUPORTE TÉCNICO", x, y); // Categoria à esquerda
+            y += 7;
+
         doc.splitTextToSize("Caso seja necessário suporte técnico para as impressoras, a diária adicional é de R$ XX.", pageWidth - 2 * x)
             .forEach(linha => adicionarLinha(linha));
         y += 10;
 
-        adicionarLinha("INVESTIMENTO", textoFontSize, true);
-        doc.splitTextToSize("O valor para a execução desta proposta é de R$ XX  Incluso no valor todos os custos referentes honorários de funcionários e prestadores de serviços, impostos fiscais devidos que deverão ser recolhidos pela JA Promoções e Eventos, arcando inclusive com as eventuais sanções legais oriundas do não cumprimento dessas obrigações.", pageWidth - 2 * x)
+            doc.setFont(undefined, 'bold');
+            doc.setFontSize(11);
+            doc.text("INVESTIMENTO", x, y);
+            y += 7;
+        doc.splitTextToSize(`O valor para a execução desta proposta para ${anoAtual} é de ${valorProposta}  Incluso no valor todos os custos referentes honorários de funcionários e prestadores de serviços, impostos fiscais devidos que deverão ser recolhidos pela JA Promoções e Eventos, arcando inclusive com as eventuais sanções legais oriundas do não cumprimento dessas obrigações.`, pageWidth - 2 * x)
             .forEach(linha => adicionarLinha(linha));
         y += 10;
 
-        adicionarLinha("FORMA DE PAGAMENTO", textoFontSize, true);
-        doc.splitTextToSize("Condições de pagamento a serem definidas...", pageWidth - 2 * x)
-            .forEach(linha => adicionarLinha(linha));
-        y += 15;
+        const propostaObs3 = document.querySelector('.Propostaobs3');
+        const checkboxPagamento = propostaObs3?.querySelector('.checkbox__trigger');
+        const textoPagamento = propostaObs3?.querySelector('#formaPagamento')?.value?.trim();
+
+        if (checkboxPagamento?.checked && textoPagamento) {
+            y += 10;
+            adicionarLinha("", textoFontSize, true);
+            doc.setFont(undefined, 'bold');
+            doc.setFontSize(11);
+            doc.text("FORMA DE PAGAMENTO", x, y);
+            y += 7;
+
+            const linhasPagamento = doc.splitTextToSize(textoPagamento, pageWidth - 2 * x);
+                const lineHeightOriginal = lineHeight;
+    const lineHeightReduzido = 5; // ou 4, se quiser ainda mais compacto
+    linhasPagamento.forEach(linha => {
+        if (y + lineHeightReduzido > limiteInferior) {
+            doc.addPage();
+            doc.addImage(img, 'PNG', 0, 0, pageWidth, pageHeight);
+            y = 50;
+        }
+        doc.setFontSize(textoFontSize);
+        doc.setFont('helvetica', 'normal');
+        const textWidth = doc.getTextWidth(linha);
+        const centroX = (pageWidth - textWidth) / 2;
+        doc.text(linha, centroX, y);
+        y += lineHeightReduzido;
+    });
+    y+= 10;
+}
+
 
         doc.setFontSize(10);
         adicionarLinha("*Prazos de pagamento sujeitos a alteração conforme necessidade e acordo. ");
 
-        const dataAtual = new Date();
+        
         const dataFormatada = dataAtual.toLocaleDateString('pt-BR', {
             day: '2-digit',
             month: 'long',
@@ -4793,6 +5092,290 @@ async function gerarPropostaPDF() {
     };
     img.src = 'img/Fundo Propostas.png';
 }
+
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, AlignmentType, HeadingLevel, PageBreak } from "https://cdn.skypack.dev/docx";
+import { saveAs } from "https://cdn.skypack.dev/file-saver";
+
+export async function gerarPropostaWord() {
+    const clienteSelect = document.querySelector('.idCliente');
+    const nomeCliente = clienteSelect?.options[clienteSelect.selectedIndex]?.innerText || "N/D";
+    const eventoSelect = document.querySelector('.idEvento');
+    const nomeEvento = eventoSelect?.options[eventoSelect.selectedIndex]?.innerText || "N/D";
+    const montagemSelect = document.querySelector('.idMontagem');
+    const localEvento = montagemSelect?.options[montagemSelect.selectedIndex]?.innerText || "N/D";
+    const pavilhaoSelect = document.querySelector('.idPavilhao');
+    const nmPavilhao = pavilhaoSelect?.options[pavilhaoSelect.selectedIndex]?.innerText || "N/D";
+
+    const inputMarcacao = document.getElementById('periodoMarcacao')?.value?.trim().replace(" to ", " até ") || "N/D";
+    const inputMontagem = document.getElementById('periodoMontagem')?.value?.trim().replace(" to ", " até ") || "N/D";
+    const inputRealizacao = document.querySelector('.realizacao')?.value?.trim().replace(" to ", " até ") || "N/D";
+    const inputDesmontagem = document.getElementById('periodoDesmontagem')?.value?.trim().replace(" to ", " até ") || "N/D";
+
+    let dadosContato = { nmcontato: "N/D", celcontato: "N/D", emailcontato: "N/D" };
+    try {
+        const url = `clientes?nmfantasia=${encodeURIComponent(nomeCliente)}`;
+        const dados = await fetchComToken(url);
+        const cliente = Array.isArray(dados)
+            ? dados.find(c => c.nmfantasia.trim().toLowerCase() === nomeCliente.trim().toLowerCase())
+            : dados;
+        if (cliente) {
+            dadosContato = {
+                nmcontato: cliente.nmcontato || "N/D",
+                celcontato: cliente.celcontato || "N/D",
+                emailcontato: cliente.emailcontato || "N/D"
+            };
+        }
+    } catch (erro) {
+        console.warn("Erro ao buscar dados do cliente:", erro);
+    }
+
+    const linhas = document.querySelectorAll("#tabela tbody tr");
+    if (!linhas.length) {
+        alert("Nenhum item selecionado para gerar a proposta.");
+        return;
+    }
+
+    // aqui começa a parte de documento !!
+    const children = [];
+
+    // Cabeçalho
+    children.push(new Paragraph({
+        text: "Proposta Comercial",
+        heading: HeadingLevel.HEADING_1,
+        alignment: AlignmentType.left
+    }));
+
+    // Tabela de Informações
+    const tabelaInfo = new Table({
+        rows: [
+            new TableRow({
+                children: ["Descrição", "Detalhe"].map(header =>
+                    new TableCell({
+                        children: [new Paragraph({
+                            children: [new TextRun({ text: header, bold: true, color: "FFFFFF" })],
+                            alignment: AlignmentType.CENTER
+                        })],
+                        shading: { fill: "C00000" }
+                    })
+                )
+            }),
+            ...[
+                ["Cliente:", nomeCliente],
+                ["Responsável:", `${dadosContato.nmcontato} - Celular: ${dadosContato.celcontato} - Email: ${dadosContato.emailcontato}`],
+                ["Evento:", `${nomeEvento} - Local: ${localEvento} - Pavilhão: ${nmPavilhao}`],
+                ["Marcação:", inputMarcacao],
+                ["Montagem:", inputMontagem],
+                ["Realização:", inputRealizacao],
+                ["Desmontagem:", inputDesmontagem],
+            ].map(([descricao, detalhe]) =>
+                new TableRow({
+                    children: [
+                        new TableCell({
+                            children: [new Paragraph(descricao)],
+                            shading: { fill: "F2F2F2" }
+                        }),
+                        new TableCell({
+                            children: [new Paragraph(detalhe)],
+                        })
+                    ]
+                })
+            )
+        ]
+    });
+
+    children.push(
+    new Paragraph({
+        text: "Escopo da proposta:",
+        heading: HeadingLevel.HEADING_2,
+        spacing: { after: 200 },
+    })
+    );
+
+    // OBS DOS "SERVIÇOS"
+    const linhasDocx = [];
+
+    for (const [index, linha] of linhas.entries()) {
+        const produtoEl = linha.querySelector('.produto');
+        const produto = produtoEl?.innerText?.trim();
+
+        if (!produto) continue;
+
+        console.log(`🔎 Verificando produto: ${produto}`);
+
+        let obs = "";
+        try {
+            const funcao = await fetchComToken(`/orcamentos/obsfuncao?nome=${encodeURIComponent(produto)}`);
+            obs = funcao?.obsfuncao?.trim();
+        } catch (erro) {
+            console.warn(`❌ Erro ao buscar observação da função '${produto}':`, erro);
+        }
+
+        if (!obs) {
+            console.log(`🚫 Produto "${produto}" sem observação. Pulando.`);
+            continue;
+        }
+
+        // Título em negrito à esquerda
+        linhasDocx.push(
+            new Paragraph({
+                children: [
+                    new TextRun({
+                        text: produto.toUpperCase(),
+                        bold: true,
+                        size: 22,
+                    }),
+                ],
+                spacing: { after: 200 },
+                alignment: AlignmentType.LEFT,
+            })
+        );
+
+        // Observação centralizada
+        const obsParagrafos = obs.split('\n').map((linha) => new Paragraph({
+            children: [new TextRun({ text: linha, size: 20 })],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 100 },
+        }));
+        linhasDocx.push(...obsParagrafos);
+
+        // Linha de resumo
+        const qtdDias = linha.querySelector('.qtdDias input')?.value?.trim();
+        const qtdItens = linha.querySelector('.qtdProduto input')?.value?.trim();
+        const datasRaw = linha.querySelector('.datas')?.value?.trim().replace(" to ", " até: ") || "";
+
+        let textoResumo = "";
+        if (qtdItens !== '0') {
+            textoResumo = `${qtdItens} ${produto}`;
+            if (qtdDias !== '0') {
+                textoResumo += ` – atendimento por ${qtdDias} dias – iniciando de: ${datasRaw}`;
+            }
+        }
+
+        if (textoResumo) {
+            linhasDocx.push(
+                new Paragraph({
+                    children: [new TextRun({ text: textoResumo, size: 16 })],
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 100, after: 300 },
+                })
+            );
+        }
+
+        // Quebra de página após cada bloco, se quiser
+        linhasDocx.push(new Paragraph({ children: [new PageBreak()] }));
+    }
+    //  FIM OBS DOS "SERVIÇOS"
+
+    function capitalizarPalavras(texto) {
+    return texto
+        .toLowerCase()
+        .replace(/\b\w/g, letra => letra.toUpperCase());
+    }
+    
+    children.push(tabelaInfo);
+    children.push(new Paragraph({ text: "", spacing: { after: 200 } }));
+
+    // Tabela de Produtos
+    linhas.forEach(linha => {
+        const checkbox = linha.querySelector('.Proposta input');
+        if (!checkbox || !checkbox.checked) return;
+
+        const qtdItens = linha.querySelector('.qtdProduto input')?.value?.trim() || "";
+        const qtdDias = linha.querySelector('.qtdDias input')?.value?.trim() || "";
+        const produto = linha.querySelector('.produto')?.innerText?.trim() || "";
+        const obs = linha.querySelector('.obsProduto input')?.value?.trim() || "";
+        const adicionais = linha.querySelector('.adicionaisProduto input')?.value?.trim() || "";
+        const datasRaw = linha.querySelector('.datas')?.value?.trim().replace(" to ", " até: ") || "";
+        const categoria = linha.querySelector('.categoria')?.innerText?.trim() || "";
+
+        if (!produto) return;
+
+        const produtoFormatado = capitalizarPalavras(produto);
+
+    children.push(new Paragraph({
+        text: produtoFormatado,
+        heading: HeadingLevel.HEADING_2,
+        spacing: { after: 100 }
+    }));
+
+
+
+    if (obs) {
+        obs.split("\n").forEach(linhaObs => {
+            children.push(new Paragraph({
+                text: linhaObs.trim(),
+                spacing: { after: 100 },
+                italics: true
+            }));
+        });
+    }
+
+    const resumo = [
+        `• ${qtdItens} ${produtoFormatado} - ${qtdDias} dia(s) - Período: ${datasRaw}`
+    ];
+
+    children.push(new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: resumo.map((linha, index) => new TextRun({
+            text: linha,
+            bold: true,
+            break: index > 0 ? 1 : 0
+        })),
+        spacing: { after: 200 }
+    }));
+
+    if (categoria) {
+        children.push(new Paragraph({
+            text: `Categoria: ${categoria}`,
+            spacing: { after: 200 },
+            italics: true,
+            alignment: AlignmentType.RIGHT
+        }));
+    }
+
+    if (adicionais) {
+        const lista = adicionais.split("\n").filter(x => x.trim());
+        if (lista.length) {
+            children.push(new Paragraph({
+                text: "Adicionais:",
+                spacing: { before: 200, after: 100 },
+                bold: true
+            }));
+            lista.forEach(item => {
+                children.push(new Paragraph({
+                    text: item.trim(),
+                    bullet: { level: 0 }
+                }));
+            });
+        }
+    }
+
+    children.push(new Paragraph({ text: "", spacing: { after: 300 } }));
+
+
+    const doc = new Document({
+        sections: [
+            {
+                properties: {},
+                children
+            }
+        ]
+    });
+
+    const blob = Packer.toBlob(doc);
+    const filename = `Proposta_${new Date().toISOString().slice(0, 10)}.docx`;
+
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+
+    console.log("✅ Documento Word gerado com sucesso!");
+});
+}
+
+
 
 function exportarParaExcel() {
   const linhas = document.querySelectorAll("#tabela tbody tr");
@@ -4923,7 +5506,7 @@ function configurarEventosEspecificos(modulo) {
 window.configurarEventosEspecificos = configurarEventosEspecificos;
 
   document.addEventListener("DOMContentLoaded", function () {
-    const orcamento = JSON.parse(sessionStorage.getItem("orcamentoSelecionado") || "{}");
+     const orcamento = JSON.parse(sessionStorage.getItem("orcamentoSelecionado") || "{}");
 
     if (orcamento?.nrorcamento) {
       document.getElementById("nrOrcamento").textContent = orcamento.nrorcamento;
