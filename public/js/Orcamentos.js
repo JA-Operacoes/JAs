@@ -278,21 +278,61 @@ async function carregarLocalMontOrc() {
         console.error("Erro ao carregar localmontagem:", error);
     } 
 }
+
 let selectedPavilhoes = [];
+// function updatePavilhaoDisplayInputs() {
+//     const listaPavilhaoDisplay = document.getElementById('listaPavilhaoDisplay');
+//     const idsPavilhoesSelecionadosHidden = document.getElementById('idsPavilhoesSelecionados');
+
+//     // Atualiza o input de texto visível com os nomes dos pavilhões
+//     listaPavilhaoDisplay.value = selectedPavilhoes.map(p => p.name).join(', ');
+
+//     // Atualiza o input hidden com os IDs em formato JSON (ideal para enviar ao backend)
+//     idsPavilhoesSelecionadosHidden.value = JSON.stringify(selectedPavilhoes.map(p => p.id));
+// }
+
 function updatePavilhaoDisplayInputs() {
-    const listaPavilhaoDisplay = document.getElementById('listaPavilhaoDisplay');
-    const idsPavilhoesSelecionadosHidden = document.getElementById('idsPavilhoesSelecionados');
+    const container = document.getElementById('pavilhoesSelecionadosContainer');
+    const idsInput = document.getElementById('idsPavilhoesSelecionados');
+    
+    // 1. Limpa o contêiner de tags
+    container.innerHTML = '';
+    
+    // 2. Preenche o contêiner e cria as tags
+    selectedPavilhoes.forEach(pavilhao => {
+        const tag = document.createElement('span');
+        tag.classList.add('pavilhao-tag');
+        tag.innerHTML = `
+            ${pavilhao.name}
+            <button type="button" class="remover-pavilhao-btn" data-id="${pavilhao.id}">&times;</button>
+        `;
+        container.appendChild(tag);
+    });
 
-    // Atualiza o input de texto visível com os nomes dos pavilhões
-    listaPavilhaoDisplay.value = selectedPavilhoes.map(p => p.name).join(', ');
+    // 3. Adiciona o listener de click para os botões de remover
+    const removerBotoes = container.querySelectorAll('.remover-pavilhao-btn');
+    removerBotoes.forEach(botao => {
+        botao.addEventListener('click', function(event) {
+            const idPavilhao = parseInt(event.target.dataset.id, 10);
+            
+            // Filtra o array selectedPavilhoes para remover o item clicado
+            selectedPavilhoes = selectedPavilhoes.filter(p => p.id !== idPavilhao);
+            
+            // Recarrega a exibição dos inputs
+            updatePavilhaoDisplayInputs();
+        });
+    });
 
-    // Atualiza o input hidden com os IDs em formato JSON (ideal para enviar ao backend)
-    idsPavilhoesSelecionadosHidden.value = JSON.stringify(selectedPavilhoes.map(p => p.id));
+    // 4. Atualiza o input hidden com a string JSON correta
+    const idsParaOInput = selectedPavilhoes.map(p => p.id);
+    idsInput.value = JSON.stringify(idsParaOInput);
 }
 
 async function carregarPavilhaoOrc(idMontagem) {
+    selectedPavilhoes = [];
+    updatePavilhaoDisplayInputs();
     
-    if (!idMontagem || idMontagem.trim() === '') {
+    if (!idMontagem || idMontagem === '') {
         console.warn("ID da Montagem está vazio, não carregando pavilhões.");
         // Opcional: Limpe o select de pavilhão aqui, se ele tiver opções antigas
         const idPavilhaoSelect = document.querySelector(".idPavilhao");
@@ -2630,6 +2670,7 @@ async function verificaOrcamento() {
             const desmontagemInfraDatas = getPeriodoDatas(formData.get("periodoDesmontagemInfra"));
 
             const idsPavilhoesSelecionadosInput = document.getElementById('idsPavilhoesSelecionados');
+            console.log("PAVILHOES PARA ENVIAR", idsPavilhoesSelecionadosInput);
             let pavilhoesParaEnviar = [];
             if (idsPavilhoesSelecionadosInput && idsPavilhoesSelecionadosInput.value) {
                 try {
@@ -3083,6 +3124,12 @@ export async function preencherFormularioComOrcamento(orcamento) {
         }
        
         atualizarUFOrc(localMontagemSelect); 
+
+        if (orcamento.idmontagem) {
+             await carregarPavilhaoOrc(orcamento.idmontagem);
+        } else {
+             await carregarPavilhaoOrc(''); // Limpa o select se não houver montagem
+        }
         
     } else {
         console.warn("Elemento com classe '.idMontagem' não encontrado.");
@@ -3123,27 +3170,19 @@ export async function preencherFormularioComOrcamento(orcamento) {
     //     console.warn("Elemento com classe '.idPavilhao' não encontrado.");
     // }
     
-    const listaPavilhaoDisplay = document.getElementById('listaPavilhaoDisplay');
-    const idsPavilhoesSelecionados = document.getElementById('idsPavilhoesSelecionados');
-
-    if (listaPavilhaoDisplay && idsPavilhoesSelecionados) {
         if (orcamento.pavilhoes && orcamento.pavilhoes.length > 0) {
-            // Mapeia os nomes dos pavilhões para exibição
-            const nomes = orcamento.pavilhoes.map(p => p.nomepavilhao).join(', ');
-            // Mapeia os IDs dos pavilhões para o campo hidden
-            const ids = orcamento.pavilhoes.map(p => p.id).join(',');
-
-            listaPavilhaoDisplay.value = nomes;
-            idsPavilhoesSelecionados.value = ids;
-            console.log("Pavilhões preenchidos nos inputs:", nomes, "IDs:", ids);
-        } else {
-            listaPavilhaoDisplay.value = '';
-            idsPavilhoesSelecionados.value = '';
-            console.log("Nenhum pavilhão no orçamento, inputs de pavilhão limpos.");
-        }
+        // Popula a variável global `selectedPavilhoes`
+        // O `orcamento.pavilhoes` deve ser um array de objetos, ex: [{id: 8, nomepavilhao: "nome"}, ...]
+        selectedPavilhoes = orcamento.pavilhoes.map(p => ({
+            id: p.id, // Supondo que o ID é 'id'
+            name: p.nomepavilhao // E o nome é 'nomepavilhao'
+        }));
     } else {
-        console.warn("Um ou ambos os elementos de input para pavilhões (listaPavilhaoDisplay, idsPavilhoesSelecionados) não foram encontrados.");
+        selectedPavilhoes = [];
     }
+
+    // Chama a função que já sabe como preencher os inputs corretamente
+    updatePavilhaoDisplayInputs();
 
     for (const id in flatpickrInstances) {
         const pickerInstance = flatpickrInstances[id];        

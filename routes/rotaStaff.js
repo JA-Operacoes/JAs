@@ -464,8 +464,13 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
                 WHERE
                     se_emp.idEmpresa = $1 AND se.idfuncionario = $2
                 ORDER BY
-                    se.idevento DESC, se.idstaffevento DESC; -- Ordena por evento e depois pelo ID do registro de staffevento
+                se.datasevento ->> (jsonb_array_length(se.datasevento) - 1) DESC,
+                se.nmcliente ASC,
+                se.nmevento ASC;
+                    
             `;
+
+            //se.idevento DESC, se.idstaffevento DESC; -- Ordena por evento e depois pelo ID do registro de staffevento
             const queryParams = [idempresa, idFuncionarioParam];
 
             const result = await client.query(query, queryParams);

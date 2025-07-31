@@ -368,18 +368,11 @@ const carregarTabelaStaff = async (funcionarioId) => {
             data.forEach(eventData => {
                 
                 document.getElementById("idStaff").value = eventData.idstaff;
-                document.getElementById("idStaffEvento").value = eventData.idstaffevento;
-
-           // console.log("IDSTAFF OU IDSTAFF EVENTO", eventData.idstaffevento, eventData.idstaff);
+                document.getElementById("idStaffEvento").value = eventData.idstaffevento;          
                 document.getElementById("idEvento").value = eventData.idevento;                
                 document.getElementById("idFuncao").value = eventData.idfuncao;
                 document.getElementById("idCliente").value = eventData.idcliente;
-                document.getElementById("avaliacao").value = eventData.avaliacao;
-                document.getElementById("setor").value = eventData.setor;
-
-                // preencherComprovanteCampo(eventData.comppgtocache, 'fileNameCache', 'ComprovanteCache');
-                // preencherComprovanteCampo(eventData.comppgtoajdcusto, 'fileNameAjdCusto', 'ComprovanteAjdCusto');
-                // preencherComprovanteCampo(eventData.comppgtoextras, 'fileNameCaixinha', 'ComprovanteCaixinha');
+                document.getElementById("avaliacao").value = eventData.avaliacao;         
 
                 
                 if (avaliacaoSelect) {
@@ -405,8 +398,7 @@ const carregarTabelaStaff = async (funcionarioId) => {
                     // Atualiza a referência da linha selecionada
                     currentRowSelected = row;
 
-                    carregarDadosParaEditar(eventData)});
-                    
+                    carregarDadosParaEditar(eventData)});                   
                     
 
                 //  row.insertCell().textContent = eventData.idevento || '';
@@ -443,26 +435,28 @@ const carregarTabelaStaff = async (funcionarioId) => {
                 row.insertCell().textContent = parseFloat(eventData.vlrextra || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                 row.insertCell().textContent = eventData.descbonus || '';
                 row.insertCell().textContent = parseFloat(eventData.almoco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                row.insertCell().textContent = parseFloat(eventData.jantar || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                // row.insertCell().textContent = (eventData.vlralmoco === 1 ? 'Sim' : 'Não');
-                // row.insertCell().textContent = (eventData.vlrjantar === 1 ? 'Sim' : 'Não');                    
+                row.insertCell().textContent = parseFloat(eventData.jantar || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });                                
                 row.insertCell().textContent = parseFloat(eventData.vlrtransporte || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                // row.insertCell().textContent = (eventData.vlrcaixinha === 1 ? 'Sim' : 'Não');                    row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });               
                 row.insertCell().textContent = eventData.descbeneficios || '';
                 row.insertCell().textContent = parseFloat(eventData.vlrtotal || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                 // row.insertCell().textContent = eventData.statuspgto || '';
                 
                 const statusCell = row.insertCell();             
-                const statusSpan = document.createElement('span');             
-                statusSpan.textContent = eventData.statuspgto || ''; 
-                console.log("statusSpan", statusSpan);      
+                
+
                 const status = (eventData.statuspgto || '').toLowerCase();
+                const statusSpan = document.createElement('span');
+                statusSpan.textContent = status.toUpperCase();
+
+                // Adicione a classe base
+                statusSpan.classList.add('status-pgto'); 
+
                 if (status === "pendente") {
                     statusSpan.classList.add('pendente');
                 } else if (status === "pago") {
                     statusSpan.classList.add('pago');
-                }          
+                }
                 statusCell.appendChild(statusSpan);
                 
             });
@@ -940,75 +934,93 @@ console.log("currentEditingStaffEvent (antes da verificação):", currentEditing
             // Condição 1: Tudo vazio, exceto valorCache (que é obrigatório), E comprovanteCache preenchido
             console.log("VALORES CUSTOS ANTES", vlrCusto, extra, caixinha, almoco, jantar, transporte);
             const custosVazios = extra === 0 && caixinha === 0 && almoco === 0 && jantar === 0 && transporte === 0;
-console.log("VALORES CUSTOS DEPOIS", vlrCusto, extra, caixinha, almoco, jantar, transporte, comppgtocacheDoForm, comppgtocacheDoForm, comppgtoextrasDoForm);
+            console.log("VALORES CUSTOS DEPOIS", vlrCusto, extra, caixinha, almoco, jantar, transporte, comppgtocacheDoForm, comppgtocacheDoForm, comppgtoextrasDoForm);
 
-            if ((parseFloat(vlrCusto)) > 0)
-            {
-                console.log("VLRCUSTO>0", vlrCusto);
-            }
-            else
-            {
-                console.log("VLRCUSTO else", vlrCusto);
-            }
-            if (comppgtocacheDoForm)
-            {
-                console.log("ComppgtocacheDoForm", comppgtocacheDoForm);
-            }
-            else
-            {
-                console.log("Comprovante Else", comppgtocacheDoForm);
-            }
-            if ((parseFloat(custosVazios)))
-            {
-                console.log("CUSTOSVAZIOS", custosVazios);
-            }
-            else
-            {
-                console.log("CUSTOSVAZIOS ELSE", custosVazios);
-            }
-
-            if ((parseFloat(vlrCusto)> 0 ) && comppgtocacheDoForm && !custosVazios) {
-                statusPgto = "Pago";
-            }
-            // Condição 2: Almoço OU Jantar OU Transporte preenchidos, E comprovanteAjdCusto E comprovanteCache preenchidos
-            else if (((parseFloat(almoco)> 0) || (parseFloat(jantar) > 0) || (parseFloat(transporte) > 0)) && comppgtoajdcustoDoForm && comppgtocacheDoForm) {
-                statusPgto = "Pago";
-            }
-            // Condição 3: Valor Caixinha preenchido, E comprovanteCaixinha E comprovanteCache preenchidos
-            else if ((parseFloat(caixinha) > 0) && comppgtoextrasDoForm && comppgtocacheDoForm) {
-                statusPgto = "Pago";
-            }
-            // Condição 4: Valor Extra preenchido, E comprovanteBonus E comprovanteCache preenchidos
-            // (Assumi que "bônus" no comprovante de bônus refere-se a "valor extra")
-           
-            // else if (valorExtra > 0 && comprovanteBonus && comprovanteCache) {
-            //     statusPgto = "Pago";
+            // if ((parseFloat(vlrCusto)) > 0)
+            // {
+            //     console.log("VLRCUSTO>0", vlrCusto);
             // }
-           
-            // Condição final: Qualquer valor preenchido SEM o comprovante correspondente, resulta em "Pendente"
-            // Esta condição já é o padrão se nenhuma das "Pago" for atendida, mas podemos ser explícitos para clareza
-            // e para casos de comprovantes faltando para valores existentes.
-            // Exemplos de "Pendente" (já cobertos pelo padrão, mas explicitados):
-            else {
-                 // Se comprovanteCache está faltando, mas valorCache > 0
-                if ((parseFloat(vlrCusto)> 0 ) && !comppgtocacheDoForm) {
-                    statusPgto = "Pendente";
-                }
-                // Se algum custo de ajuda estiver presente, mas comprovanteAjdCusto faltando
-                else if (((parseFloat(almoco)> 0) || (parseFloat(jantar) > 0) || (parseFloat(transporte) > 0)) && !comppgtoajdcustoDoForm) {
-                    statusPgto = "Pendente";
-                }
-                // Se valorCaixinha presente, mas comprovanteCaixinha faltando
-                else if ((parseFloat(caixinha) > 0) && !comppgtoextrasDoForm) {
-                    statusPgto = "Pendente";
-                }
-                // Se valorExtra presente, mas comprovanteBonus faltando
-                // else if (valorExtra > 0 && !comprovanteBonus) {
-                //     statusPgto = "Pendente";
-                // }
-                 // Caso contrário, se chegou aqui, e não se encaixou em Pago, é Pendente
-                 // A variável já começa como "Pendente", então esta ramificação pode ser omitida ou usada para logging.
-                // console.log("Nenhuma condição de 'Pago' atendida, statusPgto permanece 'Pendente'.");
+            // else
+            // {
+            //     console.log("VLRCUSTO else", vlrCusto);
+            // }
+            // if (comppgtocacheDoForm)
+            // {
+            //     console.log("ComppgtocacheDoForm", comppgtocacheDoForm);
+            // }
+            // else
+            // {
+            //     console.log("Comprovante Else", comppgtocacheDoForm);
+            // }
+            // if ((parseFloat(custosVazios)))
+            // {
+            //     console.log("CUSTOSVAZIOS", custosVazios);
+            // }
+            // else
+            // {
+            //     console.log("CUSTOSVAZIOS ELSE", custosVazios);
+            // }
+
+            // if ((parseFloat(vlrCusto)> 0 ) && comppgtocacheDoForm) {
+            //     statusPgto = "Pago";
+            // }else if ((parseFloat(almoco)> 0) || (parseFloat(jantar) > 0) || (parseFloat(transporte) > 0) && (parseFloat(vlrCusto)> 0 ) && comppgtoajdcustoDoForm && comppgtocacheDoForm) {
+            //         statusPgto = "Pago";
+            //     }else if ((parseFloat(caixinha) > 0) && comppgtoextrasDoForm) {
+            //         statusPgto = "Pago";
+            //     }
+
+            // else {
+            //      // Se comprovanteCache está faltando, mas valorCache > 0
+            //     if ((parseFloat(vlrCusto)> 0 ) && !comppgtocacheDoForm) {
+            //         statusPgto = "Pendente";
+            //     }
+            //     // Se algum custo de ajuda estiver presente, mas comprovanteAjdCusto faltando
+            //     else if ((parseFloat(almoco)> 0) || (parseFloat(jantar) > 0) || (parseFloat(transporte) > 0) && !comppgtoajdcustoDoForm) {
+            //         statusPgto = "Pendente";
+            //     }
+            //     // Se valorCaixinha presente, mas comprovanteCaixinha faltando
+            //     else if ((parseFloat(caixinha) > 0) && !comppgtoextrasDoForm) {
+            //         statusPgto = "Pendente";
+            //     }
+            //     // Se valorExtra presente, mas comprovanteBonus faltando
+            //     // else if (valorExtra > 0 && !comprovanteBonus) {
+            //     //     statusPgto = "Pendente";
+            //     // }
+            //      // Caso contrário, se chegou aqui, e não se encaixou em Pago, é Pendente
+            //      // A variável já começa como "Pendente", então esta ramificação pode ser omitida ou usada para logging.
+            //     // console.log("Nenhuma condição de 'Pago' atendida, statusPgto permanece 'Pendente'.");
+            // }
+
+            const vlrCache = parseFloat(vlrCusto); // Corrigindo a inconsistência de nomes
+            const vlrAlmoco = parseFloat(almoco);
+            const vlrJantar = parseFloat(jantar);
+            const vlrTransporte = parseFloat(transporte);
+            const vlrCaixinha = parseFloat(caixinha);
+
+            const temComprovanteCache = !!comppgtocacheDoForm;
+            const temComprovanteAjudaCusto = !!comppgtoajdcustoDoForm;
+            const temComprovanteExtras = !!comppgtoextrasDoForm;
+
+            // Lógica de Pagamento
+            const cachePago = (vlrCache > 0 && temComprovanteCache);
+            const ajudaCustoPaga = ((vlrAlmoco > 0 || vlrJantar > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto);
+            const extrasPagos = ((vlrCaixinha > 0) && temComprovanteExtras);
+
+            // A condição para o status ser 'Pago' é se *todas* as partes que têm valor > 0, 
+            // também têm o seu comprovante.
+            // Esta é a lógica mais segura e fácil de ler.
+            if (cachePago && ajudaCustoPaga && extrasPagos) {
+                // Se tudo que tem valor > 0 tem comprovante, então é "Pago"
+                statusPgto = "Pago";
+            } else if (
+                (vlrCache <= 0 || (vlrCache > 0 && temComprovanteCache)) && // Se o cache não precisa de comprovação ou está pago
+                ((vlrAlmoco <= 0 && vlrJantar <= 0 && vlrTransporte <= 0) || ((vlrAlmoco > 0 || vlrJantar > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto)) && // Mesma lógica para ajuda de custo
+                (vlrCaixinha <= 0 || (vlrCaixinha > 0 && temComprovanteExtras)) // Mesma lógica para extras
+            ) {
+                // Se tudo que tem valor > 0 tem comprovante, então é "Pago"
+                statusPgto = "Pago";
+            } else {
+                statusPgto = "Pendente";
             }
 
 
@@ -1110,8 +1122,10 @@ console.log("VALORES CUSTOS DEPOIS", vlrCusto, extra, caixinha, almoco, jantar, 
                 JSON.stringify(currentEditingStaffEvent.periodo || []) !== JSON.stringify(periodoDoEvento) ||
                 parseFloat(currentEditingStaffEvent.vlrextra || 0) != extraValorAtual ||
                 parseFloat(currentEditingStaffEvent.vlrtransporte || 0) != parseFloat(transporte.replace(',', '.') || 0) ||
-                (currentEditingStaffEvent.vlralmoco === 1 ? '1' : '0') != almoco ||
-                (currentEditingStaffEvent.vlrjantar === 1 ? '1' : '0') != jantar ||
+                parseFloat(currentEditingStaffEvent.vlralmoco || 0) != parseFloat(almoco.replace(',', '.') || 0) ||
+                parseFloat(currentEditingStaffEvent.vlrjantar || 0) != parseFloat(jantar.replace(',', '.') || 0) ||
+                // (currentEditingStaffEvent.vlralmoco === 1 ? '1' : '0') != almoco ||
+                // (currentEditingStaffEvent.vlrjantar === 1 ? '1' : '0') != jantar ||
                 parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) != caixinhaValorAtual ||
                 (currentEditingStaffEvent.descbonus || '').trim() != descBonus.trim() ||
                 (currentEditingStaffEvent.descbeneficios || '').trim() != descBeneficio.trim() ||
@@ -1136,9 +1150,9 @@ console.log("VALORES CUSTOS DEPOIS", vlrCusto, extra, caixinha, almoco, jantar, 
                 logAndCheck('Valor Cache', parseFloat(currentEditingStaffEvent.vlrcache || 0), parseFloat(vlrCusto.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrcache || 0) != parseFloat(vlrCusto.replace(',', '.') || 0)) ||
                 logAndCheck('Datas Evento', JSON.stringify(currentEditingStaffEvent.datasevento || []), JSON.stringify(periodoDoEvento), JSON.stringify(currentEditingStaffEvent.datasevento || []) !== JSON.stringify(periodoDoEvento)) || // Use datasevento
                 logAndCheck('Valor Extra', parseFloat(currentEditingStaffEvent.vlrextra || 0), extraValorAtual, parseFloat(currentEditingStaffEvent.vlrextra || 0) != extraValorAtual) ||
-                logAndCheck('Valor Transporte', parseFloat(currentEditingStaffEvent.vlrtransporte || 0), parseFloat(transporte.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrtransporte || 0) != parseFloat(transporte.replace(',', '.') || 0)) ||
-                logAndCheck('Almoço', (currentEditingStaffEvent.vlralmoco === 1 ? '1' : '0'), almoco, (currentEditingStaffEvent.vlralmoco === 1 ? '1' : '0') != almoco) ||
-                logAndCheck('Jantar', (currentEditingStaffEvent.vlrjantar === 1 ? '1' : '0'), jantar, (currentEditingStaffEvent.vlrjantar === 1 ? '1' : '0') != jantar) ||
+                logAndCheck('Valor Transporte', parseFloat(currentEditingStaffEvent.vlrtransporte || 0), parseFloat(almoco.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrtransporte || 0) != parseFloat(transporte.replace(',', '.') || 0)) ||
+                logAndCheck('Valor Transporte', parseFloat(currentEditingStaffEvent.vlralmoco || 0), parseFloat(transporte.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlralmoco || 0) != parseFloat(almoco.replace(',', '.') || 0)) ||
+                logAndCheck('Valor Transporte', parseFloat(currentEditingStaffEvent.vlrjantar || 0), parseFloat(jantar.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrjantar || 0) != parseFloat(jantar.replace(',', '.') || 0)) ||
                 logAndCheck('Valor Caixinha', parseFloat(currentEditingStaffEvent.vlrcaixinha || 0), caixinhaValorAtual, parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) != caixinhaValorAtual) ||
                 logAndCheck('Descrição Bônus', (currentEditingStaffEvent.descbonus || '').trim(), descBonus.trim(), (currentEditingStaffEvent.descbonus || '').trim() != descBonus.trim()) ||
                 logAndCheck('Descrição Benefícios', (currentEditingStaffEvent.descbeneficios || '').trim(), descBeneficio.trim(), (currentEditingStaffEvent.descbeneficios || '').trim() != descBeneficio.trim()) ||

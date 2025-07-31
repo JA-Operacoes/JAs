@@ -659,8 +659,7 @@ router.put(
                     dtiniinfradesmontagem = $16, dtfiminfradesmontagem = $17, obsitens = $18, obsproposta = $19,
                     totgeralvda = $20, totgeralcto = $21, totajdcto = $22, lucrobruto = $23, percentlucro = $24,
                     desconto = $25, percentdesconto = $26, acrescimo = $27, percentacrescimo = $28,
-                    lucroreal = $29, percentlucroreal = $30, vlrimposto = $31, percentimposto = $32, vlrcliente = $33--,
-                    --idpavilhao = $34
+                    lucroreal = $29, percentlucroreal = $30, vlrimposto = $31, percentimposto = $32, vlrcliente = $33
                 WHERE idorcamento = $34 AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $34) = $35;
             `;
 
