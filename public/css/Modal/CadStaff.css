@@ -38,7 +38,8 @@
   background-color: #4d4d4d;
   padding: 5px;
   width: 1125px; /* Ajuste o tamanho conforme necessário */
-  height: 745px; 
+  /* height: 745px; */
+  height: 850px;
   font-size: 16px;
   z-index: 9999;
 }
@@ -475,6 +476,36 @@ input[type="file"]{
   .regular {
     background-color: #dc3545; /* Vermelho */
   }
+
+#statusPgto {
+    /* Pode ter estilos base aqui, como borda, padding, etc. */
+    font-weight: bold; /* Para destacar o texto */
+}
+
+/* Estilo para status Pendente (Vermelho) */
+#statusPgto.pendente {
+    color: red;
+}
+
+/* Estilo para status Pago (Verde) */
+#statusPgto.pago {
+    color: green;
+}
+
+#statusPgto {
+    /* Pode ter estilos base aqui, como borda, padding, etc. */
+    font-weight: bold; /* Para destacar o texto */
+}
+
+/* Estilo para status Pendente (Vermelho) */
+#statusPgto.pendente {
+    color: red;
+}
+
+/* Estilo para status Pago (Verde) */
+#statusPgto.pago {
+    color: green;
+}
 
 .form-2colunas {
   display: flex;

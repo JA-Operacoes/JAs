@@ -33,8 +33,8 @@ router.get(
             e.nmevento AS nomeevento,
             o.idmontagem,
             lm.descmontagem AS nomelocalmontagem,
-            o.idpavilhao,
-            p.nmpavilhao AS nomepavilhao,
+           -- o.idpavilhao,
+           -- p.nmpavilhao AS nomepavilhao,
             o.nrorcamento,
             o.inframontagem,
             o.dtiniinframontagem,
@@ -75,8 +75,8 @@ router.get(
             eventos e ON o.idevento = e.idevento
         LEFT JOIN
             localmontagem lm ON o.idmontagem = lm.idmontagem
-        LEFT JOIN
-            localmontpavilhao p ON o.idpavilhao = p.idpavilhao
+        --LEFT JOIN
+        --    localmontpavilhao p ON o.idpavilhao = p.idpavilhao
         WHERE
             oe.idempresa = $1 -- Sempre filtra pela empresa do usuário logado
       `;
@@ -105,6 +105,8 @@ router.get(
       if (resultOrcamento.rows.length === 0) {
         return res.status(404).json({ message: "Orçamento não encontrado com o número fornecido." });
       }
+      
+
 
       // Retorna o primeiro (e único) orçamento encontrado
   //     res.status(200).json(resultOrcamento.rows[0]);
@@ -165,6 +167,24 @@ router.get(
 
       // --- PASSO CRUCIAL: ANEXAR OS ITENS AO OBJETO DO ORÇAMENTO ---
       orcamento.itens = itensDoOrcamento;
+
+      console.log("Buscando pavilhões para o orçamento com ID:", orcamento.idorcamento);
+
+      const queryPavilhoes = `
+        SELECT
+            op.idpavilhao AS id, -- Renomeado para 'id' para consistência
+            p.nmpavilhao AS nomepavilhao
+        FROM
+            orcamentopavilhoes op
+        JOIN
+            localmontpavilhao p ON op.idpavilhao = p.idpavilhao
+        WHERE
+            op.idorcamento = $1;
+      `;
+      const resultPavilhoes = await client.query(queryPavilhoes, [orcamento.idorcamento]);
+      orcamento.pavilhoes = resultPavilhoes.rows; // Anexa os pavilhões ao objeto do orçamento
+
+      console.log("Pavilhões encontrados para o orçamento:", orcamento.pavilhoes.length, "pavilhões.");
 
       // Retorna o orçamento completo, agora com os itens
       res.status(200).json(orcamento);
@@ -460,16 +480,13 @@ router.post(
             dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
             totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
             desconto, percentDesconto, acrescimo, percentAcrescimo,
-            lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idPavilhao, itens } = req.body;
+            lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idsPavilhoes, itens } = req.body;
 
-    const idempresa = req.idempresa; // ID da empresa do middleware 'contextoEmpresa'
+    const idempresa = req.idempresa; 
 
     try {
-      await client.query("BEGIN"); // Inicia a transação
-
-      // 1. Inserir na tabela 'orcamentos'
-      // Remova 'nrorcamento' da lista de colunas, o DB irá gerá-lo.
-      // E adicione 'nrorcamento' no RETURNING para capturá-lo.
+      await client.query("BEGIN"); 
+      
       const insertOrcamentoQuery = `
                 INSERT INTO orcamentos (
                     Status, idcliente, idevento, idmontagem,
@@ -479,14 +496,14 @@ router.post(
                     dtiniinfradesmontagem, dtfiminfradesmontagem, obsitens, obsproposta,
                     totgeralvda, totgeralcto, totajdcto, lucrobruto, percentlucro,
                     desconto, percentdesconto, acrescimo, percentacrescimo,
-                    lucroreal, percentlucroreal, vlrimposto, percentimposto, vlrcliente, idpavilhao
+                    lucroreal, percentlucroreal, vlrimposto, percentimposto, vlrcliente --, idpavilhao
                 ) VALUES (
                     $1, $2, $3, $4,
                     $5, $6, $7, $8, $9, $10, $11,
                     $12, $13, $14, $15, $16, $17, $18, $19,
                     $20, $21, $22, $23, $24,
                     $25, $26, $27, $28,
-                    $29, $30, $31, $32, $33, $34
+                    $29, $30, $31, $32, $33 --, $34
                 ) RETURNING idorcamento, nrorcamento; -- Adicionado nrorcamento aqui!
             `;
 
@@ -499,7 +516,7 @@ router.post(
         dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
         totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
         desconto, percentDesconto, acrescimo, percentAcrescimo,
-        lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idPavilhao
+        lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente //, idPavilhao
       ];
 
       const resultOrcamento = await client.query(insertOrcamentoQuery, orcamentoValues);
@@ -511,6 +528,17 @@ router.post(
                 VALUES ($1, $2);
             `;
       await client.query(insertOrcamentoEmpresasQuery, [idorcamento, idempresa]);
+
+      if (idsPavilhoes && Array.isArray(idsPavilhoes) && idsPavilhoes.length > 0) {
+        for (const idPavilhao of idsPavilhoes) {
+          const insertOrcamentoPavilhaoQuery = `
+            INSERT INTO orcamentopavilhoes (idorcamento, idpavilhao)
+            VALUES ($1, $2);
+          `;
+          await client.query(insertOrcamentoPavilhaoQuery, [idorcamento, idPavilhao]);
+        }
+      }
+
 
       // 3. Inserir os itens na tabela 'orcamentoitens'
       if (itens && itens.length > 0) {
@@ -611,7 +639,7 @@ router.put(
             dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
             totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
             desconto, percentDesconto, acrescimo, percentAcrescimo,
-            lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idPavilhao,
+            lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idsPavilhoes,
             itens } = req.body;
 
     const idempresa = req.idempresa; // ID da empresa do middleware 'contextoEmpresa'
@@ -631,9 +659,9 @@ router.put(
                     dtiniinfradesmontagem = $16, dtfiminfradesmontagem = $17, obsitens = $18, obsproposta = $19,
                     totgeralvda = $20, totgeralcto = $21, totajdcto = $22, lucrobruto = $23, percentlucro = $24,
                     desconto = $25, percentdesconto = $26, acrescimo = $27, percentacrescimo = $28,
-                    lucroreal = $29, percentlucroreal = $30, vlrimposto = $31, percentimposto = $32, vlrcliente = $33,
-                    idpavilhao = $34
-                WHERE idorcamento = $35 AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $35) = $36;
+                    lucroreal = $29, percentlucroreal = $30, vlrimposto = $31, percentimposto = $32, vlrcliente = $33--,
+                    --idpavilhao = $34
+                WHERE idorcamento = $34 AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $34) = $35;
             `;
 
       const orcamentoValues = [
@@ -644,7 +672,7 @@ router.put(
         dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
         totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
         desconto, percentDesconto, acrescimo, percentAcrescimo,
-        lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idPavilhao,
+        lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, //idsPavilhoes,
         idOrcamento, // $35
         idempresa    // $36
       ];
@@ -655,6 +683,36 @@ router.put(
           throw new Error('Orçamento não encontrado ou você não tem permissão para editá-lo.');
       }
 
+      const currentPavilhoesResult = await client.query(
+          `SELECT idpavilhao FROM orcamentopavilhoes WHERE idorcamento = $1;`,
+          [idOrcamento]
+      );
+      const currentPavilhaoIds = new Set(currentPavilhoesResult.rows.map(row => row.idpavilhao));
+      
+      // 2. Converta a lista de IDs recebida do frontend para um Set para comparação eficiente
+      const newPavilhaoIds = new Set(idsPavilhoes && Array.isArray(idsPavilhoes) ? idsPavilhoes : []);
+
+      // 3. Identificar pavilhões a serem REMOVIDOS (estão no DB mas não na nova lista)
+      const pavilhoesToRemove = [...currentPavilhaoIds].filter(id => !newPavilhaoIds.has(id));
+      if (pavilhoesToRemove.length > 0) {
+        for (const idPavilhao of pavilhoesToRemove) {
+          await client.query(
+            `DELETE FROM orcamentopavilhoes WHERE idorcamento = $1 AND idpavilhao = $2;`,
+            [idOrcamento, idPavilhao]
+          );
+        }
+      }
+
+      // 4. Identificar pavilhões a serem ADICIONADOS (estão na nova lista mas não no DB)
+      const pavilhoesToAdd = [...newPavilhaoIds].filter(id => !currentPavilhaoIds.has(id));
+      if (pavilhoesToAdd.length > 0) {
+        for (const idPavilhao of pavilhoesToAdd) {
+          await client.query(
+            `INSERT INTO orcamentopavilhoes (idorcamento, idpavilhao) VALUES ($1, $2);`,
+            [idOrcamento, idPavilhao]
+          );
+        }
+      }
       // 2. Lidar com os itens do orçamento (orcamentoitens)
       // Primeiro, busque os IDs dos itens existentes para este orçamento
       const existingItemsResult = await client.query(
@@ -663,6 +721,17 @@ router.put(
       );
       const existingItemIds = new Set(existingItemsResult.rows.map(row => row.idorcamentoitem));
       const receivedItemIds = new Set(itens.filter(item => item.id).map(item => item.id));
+
+// Identificar itens a serem deletados (estão no DB mas não foram recebidos no payload)
+      // const itemsToDelete = [...existingItemIds].filter(id => !receivedItemIds.has(id));
+      // if (itemsToDelete.length > 0) {
+      //     for (const itemId of itemsToDelete) {
+      //         await client.query(
+      //             `DELETE FROM orcamentoitens WHERE idorcamentoitem = $1 AND idorcamento = $2;`,
+      //             [itemId, idOrcamento]
+      //         );
+      //     }
+      // }
 
       // Iterar sobre os itens recebidos no payload
       for (const item of itens) {

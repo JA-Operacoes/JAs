@@ -62,4 +62,44 @@ router.get('/orcamento', async (req, res) => {
   }
 });
 
+router.get("/clientes", async (req, res) => {
+    
+  const { nmFantasia } = req.query;
+  const idempresa = req.idempresa;
+  console.log("nmFantasia na Rota:", nmFantasia); // Log do valor de nmFantasia
+  try {
+    if (nmFantasia) {
+      console.log("🔍 Buscando cliente por nmFantasia:", nmFantasia, idempresa);
+      const result = await pool.query(
+        `SELECT c.* 
+        FROM clientes c
+        INNER JOIN clienteempresas ce ON ce.idcliente = c.idcliente
+        WHERE ce.idempresa = $1 AND c.nmfantasia ILIKE $2
+        ORDER BY c.nmfantasia ASC LIMIT 1`,
+        [idempresa,`%${nmFantasia}%`]
+      );
+      console.log("✅ Consulta por nmFantasia retornou:", result.rows.length, "linhas.");
+      return result.rows.length
+        ? res.json(result.rows[0])
+        : res.status(404).json({ message: "Cliente não encontrado" });
+    } else {
+      console.log("🔍 Buscando todos os clientes para a empresa:", idempresa);
+      const result = await pool.query(
+        `SELECT c.* 
+        FROM clientes c
+        INNER JOIN clienteempresas ce ON ce.idcliente = c.idcliente
+        WHERE ce.idempresa = $1 ORDER BY nmfantasia`
+        , [idempresa]);
+      console.log("✅ Consulta de todos os clientes retornou:", result.rows.length, "linhas.");
+      return result.rows.length
+        ? res.json(result.rows)
+        : res.status(404).json({ message: "Nenhum Cliente encontrado" });
+    }
+  } catch (error) {
+    console.error("❌ Erro ao buscar clientes:", error);
+    res.status(500).json({ message: "Erro ao buscar nome fantasia" });
+  }
+});
+
+
 module.exports = router;

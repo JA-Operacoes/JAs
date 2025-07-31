@@ -117,6 +117,7 @@
                                 <th>Caixinha</th>
                                 <th>Benefícios</th>                                   
                                 <th>Total</th>
+                                <th>StatusPagto</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -237,17 +238,24 @@
                       <input type="text" name="transporte" id="transporte" required>
                       <label for="transporte">Transporte</label>
                     </div>
+
                     <div class="form2" id="campoCaixinha" style="display: none;">
                       <input type="text" name="caixinha" id="caixinha">
                       <label for="caixinha">Caixinha</label>
                     </div>     
-                  </div>    
+                  </div>  
+
                   
                   <div class="form2">
                     <textarea name="descBeneficio" id="descBeneficio" placeholder="Descritivo dos Benefícios"  required></textarea>
                   </div>
 
-                  
+                  <div class="form-2colunas">
+                      <div class="form2">
+                      <input type="text" name="statusPgto" id="statusPgto" required>
+                      <label for="statusPgto">Status do Pagamento</label>
+                    </div>  
+                  </div> 
 
                   <div class="pdf">
                     <div class="collumn">

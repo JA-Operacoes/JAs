@@ -368,6 +368,8 @@ async function login(req, res) {
     };
 
     const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '10h' });
+
+    //const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '1m' });
     
     console.log("Token gerado authController:", token);
    

@@ -154,7 +154,7 @@ window.navegarParaAba = function(tipo) {
 
 async function carregarClientes() {
   try {
-    const clientes = await fetchComToken('/clientes');
+    const clientes = await fetchComToken('/aside/clientes');
 
     if (!clientes || clientes.erro === "sessao_expirada") {
       Swal.fire("Sessão expirada", "Por favor, faça login novamente.", "warning");
@@ -307,7 +307,7 @@ async function carregarOrcamentos(clienteId, eventoId) {
 
 async function carregarDados(tipo) {
   try {
-    const json = await fetchComToken(`/${tipo}`);
+    const json = await fetchComToken(`/aside/${tipo}`);
 
     if (!Array.isArray(json) || json.length === 0) {
       console.error("Erro ao buscar dados: Nenhum dado encontrado");

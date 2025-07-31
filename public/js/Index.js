@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   let permissoesArray; // Renomeado para clareza
   let permissoesPromise;
+  let mapaModulos = {};
 
   try {
       // fetchComToken JÁ retorna o JSON. resp vai ser o ARRAY.
@@ -36,6 +37,24 @@ document.addEventListener("DOMContentLoaded", async function () {
   window.permissoes = permissoesArray; // <--- AGORA ESTÁ CORRETO
   console.log("Permissões carregadas e armazenadas em window.permissoes:", window.permissoes);
 
+  try {
+      console.log("Buscando lista de módulos do banco de dados...");
+      const modulosDoBanco = await fetchComToken("/index/modulos"); // Chame seu novo endpoint
+      
+      if (!Array.isArray(modulosDoBanco) || modulosDoBanco.length === 0) {
+          console.warn("Nenhum módulo retornado do banco de dados ou formato inválido.", modulosDoBanco);
+          // Poderia lançar um erro ou continuar com um mapa vazio, dependendo da sua necessidade
+      } else {
+          // Constrói o mapaModulos a partir dos dados do banco
+          modulosDoBanco.forEach(m => {
+              mapaModulos[m.modulo.toLowerCase()] = m.modulo; // Assumindo 'nome_modulo' é a chave e 'nome_exibicao' é o valor
+          });
+          console.log("Mapa de módulos carregado dinamicamente:", mapaModulos);
+      }
+  } catch (error) {
+      console.error("Falha ao carregar lista de módulos do banco de dados:", error);
+  }
+        
 
   // Função utilitária para verificar permissão
   window.temPermissao = function (modulo, acao) {
@@ -50,21 +69,21 @@ document.addEventListener("DOMContentLoaded", async function () {
       return p && p[`pode_${acao}`];
   };
 
-  const mapaModulos = {
-    orcamentos: "Orcamentos",
-    clientes: "Clientes",
-    funcao: "Funcao",
-    localmontagem: "Localmontagem",
-    eventos: "Eventos",
-    equipamentos: "Equipamentos",
-    suprimentos: "Suprimentos",
-    funcionarios: "Funcionarios",
-    staff: "Staff",
-    usuarios: "Usuarios",
-    empresas: "Empresas",
-    bancos: "Bancos",
-    aside: "Aside"
-  };
+  // const mapaModulos = {
+  //   orcamentos: "Orcamentos",
+  //   clientes: "Clientes",
+  //   funcao: "Funcao",
+  //   localmontagem: "Localmontagem",
+  //   eventos: "Eventos",
+  //   equipamentos: "Equipamentos",
+  //   suprimentos: "Suprimentos",
+  //   funcionarios: "Funcionarios",
+  //   staff: "Staff",
+  //   usuarios: "Usuarios",
+  //   empresas: "Empresas",
+  //   bancos: "Bancos",
+  //   aside: "Aside"
+  // };
 
   document.querySelectorAll(".abrir-modal").forEach((botao) => {
     const url = botao.dataset.url || "";
