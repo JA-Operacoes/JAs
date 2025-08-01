@@ -1422,7 +1422,7 @@ async function carregarModulos() {
     const idempresa = idEmpresaSelecionada;
 
     console.log("CARREGAR MODULO", idempresa);
-    const modulos = await fetchComToken('/modulos');
+    const modulos = await fetchComToken('/auth/usuarios/modulos');
     const selectModulo = document.getElementById('modulo');
     
     selectModulo.innerHTML = '<option value="choose" selected>Escolha o Módulo</option>';
