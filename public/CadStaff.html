@@ -130,45 +130,50 @@
             <div id="containerFieldsets">
               <fieldset>
                 <legend>Evento</legend>
-                <div class="form-2colunas">
-                  <div class="form2">                            
-                      <input type="hidden" id="idFuncao" name="idFuncao">
-                      <select class="descFuncao" name="descFuncao" id="descFuncao">       
-                        <option value="" selected disabled> Selecione a Função</option>
-                      </select>
+                <div class="Selects">
+                  <div class="field">
+                    <label for="descFuncao">Função:</label>
+                    <input type="hidden" id="idFuncao" name="idFuncao">
+                    <select class="descFuncao" name="descFuncao" id="descFuncao">       
+                      <option value="" selected disabled>Selecione a Função</option>
+                    </select>
                   </div>
-              
-                    <div class="form2">
-                      <input type="text" name="setor" id="setor" style="text-transform: uppercase;" required>
-                      <label for="setor">Setor</label>
-                    </div>
+
+                  <div class="form2">
+                    <input type="text" name="setor" id="setor" style="text-transform: uppercase;" required>
+                    <label for="setor">Setor</label> <!-- manter ao lado -->
+                  </div>
                 </div>
 
-                <div class="form-2colunas">
-                  <div class="form2">
-                      <input type="hidden" id="idMontagem" name="idMontagem">
-                        <select class="nmLocalMontagem" name="nmLocalMontagem" id="nmLocalMontagem" required>
-                          <option value="" selected disabled>Selecione o Local de Montagem</option>
-                        </select>
+                <div class="Selects">
+                  <div class="field">
+                    <label for="nmLocalMontagem">Local Montagem:</label>
+                    <input type="hidden" id="idMontagem" name="idMontagem">
+                    <select class="nmLocalMontagem" name="nmLocalMontagem" id="nmLocalMontagem" required>
+                      <option value="" selected disabled>Selecione o Local de Montagem</option>
+                    </select>
                   </div>
 
-                  <div class="form2">
+                  <div class="field">
+                    <label for="nmPavilhao">Pavilhão:</label>
                     <input type="hidden" id="idPavilhao" name="idPavilhao">
                     <select class="nmPavilhao" name="nmPavilhao" id="nmPavilhao" required>
                       <option value="" selected disabled>Selecione o Pavilhão</option>
                     </select>
-                  </div> 
+                  </div>
                 </div>
-                <div class="form-2colunas">
-                  <div class="form2">
-                  
+
+                <div class="Selects">
+                  <div class="field">
+                    <label for="nmCliente">Cliente:</label>
                     <input type="hidden" id="idCliente" name="idCliente">
                     <select class="nmCliente" name="nmCliente[]" id="nmCliente">       
                       <option value="" selected disabled>Cliente</option>
                     </select>
                   </div>
-                  <div class="form2">
-                    
+
+                  <div class="field">
+                    <label for="nmEvento">Evento:</label>
                     <input type="hidden" id="idEvento" name="idEvento">
                     <select class="nmEvento" name="nmEvento[]" id="nmEvento">       
                       <option value="" selected disabled>Evento</option>

@@ -416,81 +416,53 @@
     font-size: 15px;
   }  */
 
-  .pavilhao {
-    display: flex; /* Coloca os filhos (label, input) na mesma linha */
-    align-items: center; /* Alinha verticalmente no centro (opcional) */
-    gap: 10px; /* Adiciona um espaço entre o label e o input (opcional, ajuste o valor) */
-    width: auto;
-    
-    /* === NOVO: Para alinhar à direita === */
-    /*justify-content: flex-end; Alinha os itens flexíveis (label e input) ao final do contêiner flex (direita) */
-    
-    /* Ajuste a largura do .pavilhao se necessário. Se ele for 100% da largura do form,
-       e você quer que eles fiquem perto da margem direita do form, isso já funcionará. */
-    /* width: 100%; ou max-width: alguma-largura; */
-}
 
-  .pavilhao label.listaPavilhao {
-    /* display: inline-block; /* Garante que o label se comporta como um bloco em linha */
-    /* width: 270px; Ajuste esta largura conforme necessário para o texto do label */
-    /* margin-right: 10px; Espaço entre o label e o input */
-    /* vertical-align: middle; Alinha o label e o input verticalmente */
-    font-size: 15px; 
-    flex-shrink: 0;
-}
-
-.pavilhao input[type="text"].listaPavilhao {
-    /* display: inline-block; 
-    width: calc(100% - 200px); 
-    vertical-align: middle;  */
-   
-    width: 350px;
-    height: 25px;
-    font-size: 15px;
-    /* margin-left: 900px; */
-}
-
-/* Estilo para o contêiner principal que agrupa as tags e o select */
-.pavilhoes-secao {
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 10px;
-}
-
-/* Contêiner onde as tags dos pavilhões selecionados serão exibidas */
-.pavilhoes-tags-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    min-height: 38px; /* Altura mínima para ficar alinhado com outros inputs */
-    align-items: center;
-}
-
-/* Estilo para a tag individual de pavilhão */
-.pavilhao-tag {
-    background-color: #e9ecef; /* Cor de fundo mais neutra */
-    border: 1px solid #ced4da;
-    border-radius: 20px; /* Borda mais arredondada para parecer um 'badge' */
-    padding: 4px 10px;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px; /* Espaço entre o texto e o botão de remover */
+.select label {
+    font-weight: 600;
     font-size: 14px;
 }
 
-/* Estilo do botão de remover dentro da tag */
+/* Estilo do bloco visual onde ficam as tags dos pavilhões */
+.pavilhoes-secao {
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 10px;
+    background-color: transparent;
+    min-height: 42px;
+}
+
+/* Container das tags (chips) */
+.pavilhoes-tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+/* Estilo de cada tag */
+.pavilhao-tag {
+    background-color: #e9ecef;
+    border: 1px solid #3f3f3f;
+    border-radius: 20px;
+    padding: 4px 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+}
+
+/* Botão de remover a tag */
 .remover-pavilhao-btn {
     border: none;
     background: none;
     cursor: pointer;
     font-size: 16px;
-    line-height: 1;
     padding: 0;
     color: #888;
 }
 
 .remover-pavilhao-btn:hover {
-    color: #dc3545; /* Cor de perigo ao passar o mouse */
+    color: #dc3545;
 }
 
 
@@ -1082,7 +1054,7 @@
 
 /* -------------------------------------- @medias ---------------------------------------- */
 
-@media(max-width: 5674px){
+/* @media(max-width: 5674px){
   textarea{
       font-family: var(--Font-primary);
       width: 400px;
@@ -1112,9 +1084,98 @@
     font-size: 16px;
     z-index: 9999;
   }
+} */
+@media (min-width: 1987px){
+  #cadModalOrcamentos.modal{
+    position: fixed;
+    top: 50%; 
+    left: 50%;   
+    transform: translate(-50%, -50%); 
+    background-color: #4d4d4d;
+    padding: 5px;
+    margin-top: 10px;
+    max-width: 1800px; 
+    height: 740px;
+    font-size: 16px;
+    z-index: 9999;
+  }
+  
+  
+  form{
+    overflow-y: auto;
+  }
+  
+  .title{
+    font-family: "Abel", sans-serif;
+    font-size: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 0px;
+  }
+
+  #form-orcamento {
+    font-family: "Abel", sans-serif;
+    display: flex;                /* Define o modelo de layout Flexbox */
+    flex-direction: column;
+    justify-content: center;
+    background-color: rgb(0, 0, 0);
+    max-width: 1600px;
+    width: 100%;
+    height: 650px;          /* Largura do formulário */
+    margin: 0% auto;
+    background-color: #cacaca;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
+  }
 }
 
-@media(max-width: 1628px){
+ @media (max-width: 1767px){
+   #cadModalOrcamentos.modal{
+    position: fixed;
+    top: 50%; 
+    left: 50%;   
+    transform: translate(-50%, -50%); 
+    background-color: #4d4d4d;
+    padding: 5px;
+    margin-top: 10px;
+    max-width: 1400px; 
+    height: 730px;
+    font-size: 16px;
+    z-index: 9999;
+  }
+  
+  
+  form{
+    overflow-y: auto;
+  }
+  
+  .title{
+    font-family: "Abel", sans-serif;
+    font-size: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 0px;
+  }
+
+  #form-orcamento {
+    font-family: "Abel", sans-serif;
+    display: flex;                /* Define o modelo de layout Flexbox */
+    flex-direction: column;
+    justify-content: center;
+    background-color: rgb(0, 0, 0);
+    max-width: 1600px;
+    width: 100%;
+    height: 650px;          /* Largura do formulário */
+    margin: 0% auto;
+    background-color: #cacaca;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
+  }
+}
+
+@media(max-width: 1657px){
   #cadModalOrcamentos.modal{
     position: fixed;
     top: 50%; 
@@ -1277,6 +1338,51 @@
     height: 730px;
     font-size: 16px;
     z-index: 9999;
+  }
+}
+
+@media (max-width: 1326px){
+   #cadModalOrcamentos.modal{
+    position: fixed;
+    top: 50%; 
+    left: 50%;   
+    transform: translate(-50%, -50%); 
+    background-color: #4d4d4d;
+    padding: 5px;
+    margin-top: 10px;
+    max-width: 1300px; 
+    height: 630px;
+    font-size: 16px;
+    z-index: 9999;
+  }
+  
+  
+  form{
+    overflow-y: auto;
+  }
+  
+  .title{
+    font-family: "Abel", sans-serif;
+    font-size: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 0px;
+  }
+
+  #form-orcamento {
+    font-family: "Abel", sans-serif;
+    display: flex;                /* Define o modelo de layout Flexbox */
+    flex-direction: column;
+    justify-content: center;
+    background-color: rgb(0, 0, 0);
+    max-width: 1600px;
+    width: 100%;
+    height: 550px;          /* Largura do formulário */
+    margin: 0% auto;
+    background-color: #cacaca;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
   }
 }
 
