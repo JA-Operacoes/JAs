@@ -492,6 +492,8 @@
 .remover-pavilhao-btn:hover {
     color: #dc3545; /* Cor de perigo ao passar o mouse */
 }
+
+
   .nrOrcamento{
     display: flex;
     justify-content: center;
