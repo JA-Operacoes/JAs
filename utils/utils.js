@@ -91,6 +91,8 @@ async function fetchComToken(url, options = {}) {
 
     const resposta = await fetch(url, options);
 
+    console.log("FETCHCOMTOKEN", resposta.status);
+
     // --- Nova lógica para tratamento de token expirado/invalido ---
     if (resposta.status === 401 || resposta.status === 403) {
         console.warn("[fetchComToken] Erro de autenticação (401/403). Redirecionando para o login.");

@@ -4225,14 +4225,14 @@ function recalcularLinha(linha) {
         const totalTransporteLinha = desformatarMoeda(linha.querySelector('.valorbanco.transporte')?.textContent) || 0;
 
         console.log("ALIMENTACAO (lido do DOM):", linha.querySelector('.valorbanco.alimentacao')); // Mantém o log, agora deve mostrar o valor correto
-        let hospedagemValor = parseFloat(linha.querySelector('.hospedagem')?.value) || 0;
-        let transporteExtraValor = parseFloat(linha.querySelector('.transporteExtraInput')?.value) || 0;
+        let hospedagemValor = desformatarMoeda(linha.querySelector('.hospedagem')?.value) || 0;
+        let transporteExtraValor = desformatarMoeda(linha.querySelector('.transporteExtraInput')?.value) || 0;
 
         console.log("HOSPEDAGEM E TRANSPORTE EXTRA:", hospedagemValor, transporteExtraValor);
               
 
         // let vlrAjdCusto =  vlrCusto + totalAlimentacaoLinha + totalTransporteLinha + hospedagemValor;
-        let vlrAjdCusto =  vlrCusto + totalAlimentacaoLinha + totalTransporteLinha + hospedagemValor;
+        let vlrAjdCusto =  vlrCusto + totalAlimentacaoLinha + totalTransporteLinha;
         
         // --- LEITURA DOS VALORES DE DESCONTO E ACRÉSCIMO DA LINHA (NÃO FAÇA CÁLCULO DE SINCRONIZAÇÃO AQUI!) ---
         let campoDescValor = linha.querySelector('.descontoItem .ValorInteiros');
