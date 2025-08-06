@@ -268,7 +268,7 @@
                   </div> 
 
                   <div class="pdf">
-                    <div class="collumn">
+                    <!-- <div class="collumn">
                       <h5>Comprovante de Cachê + Bônus</h5>      
                       <div class="containerPDF">
                         <label for="fileCache" class="footerPDF" name="footerPDF[]">
@@ -279,10 +279,10 @@
                           <p id="fileNameCache" class="fileNamePDF">Nenhum arquivo selecionado</p>
                         </label>
                         <input id="fileCache" class="filePDFInput" type="file" name="comppgtocache" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/svg+xml"">
-                        <!-- <input type="hidden" id="ComprovanteCache" class="hiddenPDF" name="foto[]" /> -->
+                        
                       </div>
                       <img id="previewCache" src="#" alt="Pré-visualização do Comprovante de Cache" style="display: none; max-width: 100%; margin-bottom: 10px; border-radius: 8px;" />
-                      <!-- NOVO: Elemento para pré-visualização de PDF -->
+                      
                       <div id="pdfPreviewCache" style="display: none; margin-top: 10px;">
                           <a id="linkCache" href="#" target="_blank" class="btn btn-sm btn-info" style="padding: 8px 12px; border-radius: 5px; background-color: #17a2b8; color: white; text-decoration: none;">Ver PDF</a>
                       </div>
@@ -304,7 +304,7 @@
                           <p id="fileNameAjdCusto" class="fileNamePDF">Nenhum arquivo selecionado</p>
                         </label>
                         <input id="fileAjdCusto" class="filePDFInput" type="file" name="comppgtoajdcusto" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/svg+xml">
-                        <!-- <input type="hidden" id="ComprovanteAjdCusto" class="hiddenPDF" name="foto[]" /> -->
+                       
                       </div>
 
                       
@@ -331,7 +331,7 @@
                           <p id="fileNameCaixinha" class="fileNamePDF">Nenhum arquivo selecionado</p>
                         </label>
                         <input id="fileCaixinha" class="filePDFInput" type="file" name="comppgtoextras" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/svg+xml">
-                        <!-- <input type="hidden" id="ComprovanteCaixinha" class="hiddenPDF" name="foto[]" /> -->
+                        
                       </div>
                       <img id="previewCaixinha" src="#" alt="Pré-visualização do Comprovante de Caixinha" style="display: none; max-width: 100%; margin-bottom: 10px; border-radius: 8px;" />
                     
@@ -341,7 +341,69 @@
                       <div id="imagePreviewCaixinha" style="display: none; margin-top: 10px;">
                           <a id="linkImageCaixinha" href="#" target="_blank" class="btn btn-sm btn-info" style="padding: 8px 12px; border-radius: 5px; background-color: #28a745; color: white; text-decoration: none;">Ver Imagem</a>
                       </div>
+                    </div> -->
+                    <div class="collumn">
+                        <h5>Comprovante de Cachê + Bônus</h5>
+                        <div class="containerPDF">
+                            <label for="fileCache" class="footerPDF" name="footerPDF[]">
+                                <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+                                    <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+                                    <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+                                </svg>
+                                <p id="fileNameCache" class="fileNamePDF">Nenhum arquivo selecionado</p>
+                            </label>
+                            <input id="fileCache" class="filePDFInput" type="file" name="comppgtocache" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/svg+xml">
+                        </div>
+                        <div id="comprovanteCacheDisplay" style="display: none; margin-top: 10px;">
+                            <div id="linkContainerCache">
+                                </div>
+                        </div>
                     </div>
+
+                    <br>
+
+                    <div class="collumn">
+                        <h5>Comprovante de Ajuda de Custo</h5>
+                        <div class="containerPDF">
+                            <label for="fileAjdCusto" class="footerPDF" name="footerPDF[]">
+                                <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+                                    <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+                                    <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+                                </svg>
+                                <p id="fileNameAjdCusto" class="fileNamePDF">Nenhum arquivo selecionado</p>
+                            </label>
+                            <input id="fileAjdCusto" class="filePDFInput" type="file" name="comppgtoajdcusto" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/svg+xml">
+                        </div>
+                        <div id="comprovanteAjdCustoDisplay" style="display: none; margin-top: 10px;">
+                            <div id="linkContainerAjdCusto">
+                                </div>
+                        </div>
+                    </div>
+
+                    <br>
+
+                    <div class="collumn">
+                        <h5>Comprovante de Caixinha</h5>
+                        <div class="containerPDF">
+                            <label for="fileCaixinha" class="footerPDF" name="footerPDF[]">
+                                <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+                                    <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+                                    <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+                                </svg>
+                                <p id="fileNameCaixinha" class="fileNamePDF">Nenhum arquivo selecionado</p>
+                            </label>
+                            <input id="fileCaixinha" class="filePDFInput" type="file" name="comppgtocaixinha" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/svg+xml">
+                        </div>
+                        <div id="comprovanteCaixinhaDisplay" style="display: none; margin-top: 10px;">
+                            <div id="linkContainerCaixinha">
+                                </div>
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="limparComprovanteCache" id="limparComprovanteCache" value="false">
+                    <input type="hidden" name="limparComprovanteAjdCusto" id="limparComprovanteAjdCusto" value="false">
+                    <input type="hidden" name="limparComprovanteCaixinha" id="limparComprovanteCaixinha" value="false">
+
                   </div>
                 <br>
               </fieldset>

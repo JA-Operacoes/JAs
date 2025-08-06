@@ -358,6 +358,65 @@ display: none;
   flex-direction: row;
   gap: 20px ;
 }
+
+/* Adicione estas novas regras ao seu CSS */
+
+/* Estiliza o contêiner principal (agora mais discreto) */
+#comprovanteCacheDisplay,
+#comprovanteAjdCustoDisplay,
+#comprovanteExtrasDisplay {
+display: flex;
+flex-direction: row;
+align-items: center;
+gap: 10px; /* Espaço entre o link e o botão */
+margin-top: 5px; /* Reduz a margem*/
+padding: 5px; /* Reduz o padding */
+border: none; /* Remove a borda */
+background-color: transparent; /* Fundo transparente */
+}
+
+/* Estiliza o link "Ver PDF/Imagem" para ser mais discreto */
+.comprovante-salvo-link {
+flex-grow: 1;
+display: inline-block; /* Para ocupar apenas a largura do conteúdo */
+padding: 5px 8px;
+border-radius: 5px;
+text-decoration: none;
+color: #007bff; /* Cor azul padrão de link */
+font-size: 14px;
+font-weight: normal; /* Remove o negrito */
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+background-color: #e9ecef; /* Um fundo cinza claro */
+border: 1px solid #ced4da; /* Borda sutil */
+}
+
+.comprovante-salvo-link.btn-success {
+color: #198754;
+background-color: #d1e7dd;
+border-color: #c3e6cb;
+}
+
+.comprovante-salvo-link.btn-info {
+color: #0c5460;
+background-color: #d1ecf1;
+border-color: #bee5eb;
+}
+
+/* Mantém o estilo do botão remover */
+.remover-comprovante-btn {
+height: 30px; /* Reduz a altura do botão */
+padding: 0.2rem 0.5rem;
+font-size: 0.875rem;
+line-height: 1.5;
+border-radius: 0.2rem;
+flex-shrink: 0;
+background-color: #dc3545;
+color: white;
+border: 1px solid #dc3545;
+}
+
 .collumn{
   display: flex;
   justify-content: center;
