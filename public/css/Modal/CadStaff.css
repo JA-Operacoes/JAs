@@ -618,6 +618,7 @@ input[type="file"]{
   display: flex;
   justify-content: center;
   align-items: center;
+  gap: 5px;
 }
 
 .field {
@@ -821,6 +822,7 @@ input[type=date]{
 
 
 
+
 input::placeholder{
   font: bold;
   text-align: center;
@@ -944,7 +946,9 @@ button {
 } */
 
 input.form-control.input {
+  width: 300px;
     overflow-x: auto;
+    font-size: 10px;
 }
 
 .flatpickr-calendar {

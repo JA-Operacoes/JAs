@@ -139,11 +139,15 @@
                     </select>
                   </div>
 
-                  <div class="form2">
-                    <input type="text" name="setor" id="setor" style="text-transform: uppercase;" required>
-                    <label for="setor">Setor</label> <!-- manter ao lado -->
+                  <div class="field">
+                    <label for="setor">ㅤ</label>
+                    <div class="form2">
+                      <input type="text" name="setor" id="setor" style="text-transform: uppercase;" required>
+                      <label for="setor">Setor</label>
+                    </div>
                   </div>
                 </div>
+                <br>
 
                 <div class="Selects">
                   <div class="field">
@@ -162,6 +166,7 @@
                     </select>
                   </div>
                 </div>
+                <br>
 
                 <div class="Selects">
                   <div class="field">
@@ -184,9 +189,9 @@
                 <div class="form-2colunas">
                   <div class="form2"> 
                     <h3>Período do Evento:</h3>
-                    <input type="text" id="datasEvento" name="datasEvento[]" placeholder="Selecione os dias"  readonly required>
+                    <input type="text" id="datasEvento" name="datasEvento[]" placeholder="Nenhuma data selecionada"  readonly required>
                     <input type="hidden" id="vlrTotalHidden" name="vlrTotalHidden" value="0.00">
-                    <p id="contadorDatas">Nenhuma data selecionada.</p>
+                    <p id="contadorDatas"></p>
                   </div>
                 </div>
                 <div class="form-2colunas">     
