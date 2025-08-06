@@ -30,16 +30,31 @@
                 <form id="form" name="form" autocomplete="on">
                     <fieldset>
                         <legend>Cadastre Eventos </legend>
+                        <div class="form-2colunas">
+                            <div class="form2">
+                                <input type="text" name="idEvento" id="idEvento" readonly >
+                                <label for="idEvento">Código</label>
+                            </div>
+                            <div class="form2">
+                                <input type="text" class="uppercase" name="nmEvento" id="nmEvento" required>
+                                <label for="nmEvento"> Descrição do Evento </label>                           
+                            </div>
+                        </div>
+                        <div class="form-2colunas">
+                            <div class="form2">
+                                <input type="hidden" name="idCliente" id="idCliente" readonly>
+                                <select id="selectCliente" name="selectCliente" required>
+                                    <option value="">Selecione um Cliente</option>
+                                </select>
+                                <label for="selectCliente"> Clientes </label>
+                               
+                            </div>
+                            <!-- <div class="form2">
+                                <input type="text" class="uppercase" name="nmEvento" id="nmEvento" required>
+                                <label for="nmEvento"> Descrição do Evento </label>                           
+                            </div> -->
+                        </div>
 
-                        <div class="form">
-                            <input type="text" name="idEvento" id="idEvento" readonly >
-                            <label for="idEvento">Código</label>
-                        </div>
-                        <div class="form">
-                            <input type="text" class="uppercase" name="nmEvento" id="nmEvento" required>
-                            <label for="nmEvento"> Descrição do Evento </label>
-                           
-                        </div>
                         
                     </fieldset>
                    

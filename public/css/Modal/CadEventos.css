@@ -154,7 +154,7 @@ fieldset {
 .form2 input {
   flex: 1;
   font-family: var(--Font-primary);
-  width: 270px;
+  /* width: 270px; */
   height: 30px;
   border-radius: 6px;
   font-size: 12px;
@@ -164,6 +164,19 @@ fieldset {
   color: #000000;
   outline: none;
 } 
+
+#nmEvento{
+  width: 370px;
+  height: 30px;
+}
+
+#idEvento{
+   width: 150px;
+}
+
+#nmCliente{
+  width: 500px;
+}
 
  .form2 { 
   display: flex;
