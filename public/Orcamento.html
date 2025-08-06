@@ -38,22 +38,22 @@
                 </div>
 
                 <div class="Norcamento">
+                    <div class="form2" >
+                        <input type="text" class="uppercase" class="preenchido" id="Status"  value="A" name="Status" maxlength="1" pattern="^[aAfF]$"
+                            title="A = Aberto | F = Fechado"  readonly required spellcheck="false">
+                        <label for="Status">Status  (A/F)</label>
+                    </div>
                         <div class="form2">
-                            <input type="text" id="nomenclatura" name="nomenclatura" spellcheck="false" title="Defina a nomenclatura do Orçamento">
+                            <input type="text" class="preenchido" id="nomenclatura" name="nomenclatura" spellcheck="false" title="Defina a nomenclatura do Orçamento">
                             <label for="nomenclatura"> Nomenclatura </label>
                         </div>
                         <div class="form">
-                            <input type="text" id="idOrcamento" name="idOrcamento" spellcheck="false" readonly style="display: none;" >
-                            <!-- <label for="idOrcamento">Código</label> -->
-                        </div>
-                        <div class="form">
-                            <input type="text" id="nrOrcamento" name="nrOrcamento" spellcheck="false">
+                            <input type="text" class="preenchido" id="nrOrcamento" name="nrOrcamento" spellcheck="false">
                             <label for="nrOrcamento">N° do Orçamento</label>
                         </div>
-                        <div class="form2" >
-                            <input type="text" class="uppercase" class="preenchido" id="Status"  value="A" name="Status" maxlength="1" pattern="^[aAfF]$"
-                                title="A = Aberto | F = Fechado"   required spellcheck="false">
-                            <label for="Status">Status  (A/F)</label>
+                        <div class="form">
+                            <input type="text" class="preenchido" id="idOrcamento" name="idOrcamento" spellcheck="false" readonly style="display: none;" >
+                            <!-- <label for="idOrcamento">Código</label> -->
                         </div>
                     </div>
 
@@ -73,7 +73,7 @@
                             <label for="idMontagem">Local Montagem:</label>
                             <select class="idMontagem"  id="idMontagem"></select>
                             <div class="form3">   
-                                <input type="text" class="ufmontagem" id="ufmontagem" name="ufmontagem" required spellcheck="false">
+                                <input type="text" class="ufmontagem  preenchido" id="ufmontagem" name="ufmontagem" required spellcheck="false">
                                 <label  for="ufmontagem">UF</label>               
                             </div>
                             <select class="idPavilhao" name="selecionarPavilhao" id="selecionarPavilhao" required>
@@ -224,7 +224,7 @@
                     <div class = 'Selects'>
                         <div class="Observacoes">
                             <div class="Propostaobs1">
-                                <div class="checkbox-wrapper-33" style="margin-top: 40px; margin-right: 5px;">
+                                <div class="checkbox-wrapper-33">
                                     <label class="checkbox">
                                         <input class="checkbox__trigger visuallyhidden" type="checkbox" />
                                         <span class="checkbox__symbol">
@@ -235,8 +235,9 @@
                                         <p class="checkbox__textwrapper"></p>
                                     </label>
                                 </div>
-                                    <textarea class="PropostaobsTexto" name="Observacao" id="Observacao" placeholder="Observações sobre os Itens"></textarea>
+                                    <textarea class="PropostaobsTexto" name="Observacao" id="Observacao" placeholder="Observações sobre a Itens"></textarea>
                             </div>
+
 
                             <div class="Propostaobs2">
                                 <div class="checkbox-wrapper-33">

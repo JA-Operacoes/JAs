@@ -249,7 +249,13 @@ async function carregarOrcamentos(clienteId, eventoId) {
 
     orcamentos.forEach(orc => {
       const li = document.createElement('li');
-      li.textContent = `Orçamento nº ${orc.nrorcamento} | Status: ${orc.status}`;
+      li.innerHTML = `
+        Orçamento nº ${orc.nrorcamento}<br>
+        Status: ${orc.status}<br>
+        Nome: ${orc.nomenclatura}
+      `;
+
+      console.log("N° = ", orc.nrorcamento,"Status = ",orc.status, "nome = ",orc.nomenclatura);
 
       li.onclick = () => {
         console.log("🟢 Clique no orçamento:", orc.nrorcamento);

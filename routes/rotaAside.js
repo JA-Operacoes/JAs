@@ -46,7 +46,7 @@ router.get('/orcamento', async (req, res) => {
 
   try {
     const query = `
-      SELECT idorcamento, nrorcamento, status
+      SELECT idorcamento, nrorcamento, status, nomenclatura
       FROM orcamentos
       WHERE idcliente = $1 AND idevento = $2 AND status = 'A'
       ORDER BY datacriacao DESC

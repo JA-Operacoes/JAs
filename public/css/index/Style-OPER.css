@@ -247,7 +247,7 @@
   }
   
   #lista-dados-clientes, #lista-dados-eventos, #lista-dados-orcamento{
-    display: flex;
+    /* display: flex; */
     justify-content: center;
     align-items: center;
     list-style: none;
