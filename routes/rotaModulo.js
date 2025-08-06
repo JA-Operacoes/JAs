@@ -9,7 +9,7 @@ router.use(autenticarToken());
 router.use(contextoEmpresa);
 
 router.get('/', verificarPermissao('Modulos', 'pesquisar'), async (req, res) => {
-   console.log("✅ ROTA /modulos ACESSADA");
+   console.log("✅ ROTA MODULOS /modulos ACESSADA");
    const idempresa = req.idempresa;
   try {
     const { rows } = await db.query(`

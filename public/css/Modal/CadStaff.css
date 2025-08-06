@@ -44,7 +44,7 @@
   z-index: 9999;
 }
 
- #cadModalFuncionarios.modal-content{
+#cadModalFuncionarios.modal-content{
     height: 590px;
   }
   
@@ -100,10 +100,7 @@ body{
   border-bottom-left-radius: 8px;          /* Bordas arredondadas */
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
   overflow-y: auto;
-  overflow-x: none;
-
-
-  
+  overflow-x: none;  
   max-width: unset; /* Permite que ele use toda a largura disponível */
 }
 

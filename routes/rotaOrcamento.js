@@ -133,6 +133,8 @@ router.get(
             categoria,
             produto,
             idfuncao,
+            idequipamento,
+            idsuprimento,
             qtditens,
             qtddias,
             periododiariasinicio,

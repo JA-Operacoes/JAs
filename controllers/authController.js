@@ -477,10 +477,11 @@ async function buscarUsuarioPorEmail(req, res) {
   }
 }
 
-async function buscarModulos(req, res) {  
 
-   console.log("✅ ROTA USUARIOS /modulos ACESSADA");
-   const idempresa = req.idempresa;
+async function buscarModulos(req, res) {
+  
+  console.log("ENTROU NA ROTA DE MODULOS PELO INDEX");
+  const idempresa = req.idempresa;
   try {
     const { rows } = await db.query(`
       SELECT m.modulo 
@@ -495,9 +496,8 @@ async function buscarModulos(req, res) {
     console.error('Erro ao buscar módulos:', err);
     res.status(500).json({ erro: 'Erro ao buscar módulos' });
   }
+
 }
-
-
 
 module.exports = {
   listarEmpresasDoUsuario,
@@ -510,6 +510,8 @@ module.exports = {
   verificarNomeCompleto,
   login,
   listarPermissoes,
+  buscarUsuarioPorEmail,
+  buscarModulos
   buscarUsuarioPorEmail,
   buscarModulos
 };

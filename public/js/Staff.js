@@ -37,7 +37,19 @@ const commonFlatpickrOptions = {
             }
         }
     }
+    
 };
+
+flatpickr("#datasEvento", {
+    ...commonFlatpickrOptions, // Isso copia todas as opções comuns
+    // As opções específicas para este input
+    onClose: function(selectedDates) {
+        if (selectedDates.length > 0) {
+            // Apenas chame a sua função se houver datas selecionadas
+            debouncedOnCriteriosChanged();
+        }
+    }
+});
 
 let avaliacaoChangeListener = null;
 let limparStaffButtonListener = null;
@@ -60,6 +72,9 @@ let caixinhaInputListener = null;
 let fileCacheChangeListener = null;
 let fileAjdCustoChangeListener = null;
 let fileCaixinhaChangeListener = null;
+
+let orcamentoPorFuncao = {};
+let statusOrcamentoAtual;
 
 if (typeof window.StaffOriginal === "undefined") {
     window.StaffOriginal = {
@@ -160,29 +175,27 @@ const carregarDadosParaEditar = (eventData) => {
     console.log("Valor de eventData.comppgtocaixinha:", eventData.comppgtocaixinha);
 
     idStaffInput.value = eventData.idstaff || ''; // idstaff da tabela staffeventos
-    console.log("IDSTAFFINPUT", idStaffInput.value);
+   
     idStaffEventoInput.value = eventData.idstaffevento;
-    idFuncaoInput.value = eventData.idFuncao
-    idClienteInput.value = eventData.idCliente;
-    idEventoInput.value = eventData.idEvento;
+    idFuncaoInput.value = eventData.idfuncao
+    idClienteInput.value = eventData.idcliente;
+    idEventoInput.value = eventData.idevento;
+     console.log("IDSTAFFINPUT", idStaffInput.value, idFuncaoInput.value, idClienteInput.value, idEventoInput.value);
     idFuncionarioHiddenInput.value = eventData.idfuncionario || ''; // idfuncionario do staffeventos
+    
     // Preenche os campos do evento
     // Campos de SELECT:
     if (descFuncaoSelect) descFuncaoSelect.value = eventData.idfuncao || '';      
-    if (descFuncaoSelect) {
-        // Tente definir o valor e logue o resultado
-        descFuncaoSelect.value = eventData.idfuncao || '';
-        console.log("Valor do select de Função APÓS tentativa de preenchimento:", descFuncaoSelect.value);
-    }  
+    
     if (nmClienteSelect) nmClienteSelect.value = eventData.idcliente || '';
+   
     if (nmEventoSelect) nmEventoSelect.value = eventData.idevento || '';
     nmPavilhaoSelect.value = eventData.pavilhao || '';
 
     if (nmLocalMontagemSelect) {
         nmLocalMontagemSelect.value = eventData.idmontagem || '';              
             
-        // Dispara o evento 'change' para que a lógica de carregamento dos pavilhões seja ativada
-        // (Assumindo que o listener para nmLocalMontagemSelect.change chama carregarPavilhaoStaff)
+       
         nmLocalMontagemSelect.dispatchEvent(new Event('change')); 
         
         // Reintroduz o setTimeout para aguardar a população assíncrona
@@ -223,7 +236,6 @@ const carregarDadosParaEditar = (eventData) => {
         }
     }
 
-
     // Campos de INPUT/TEXTAREA:
     vlrCustoInput.value = parseFloat(eventData.vlrcache || 0).toFixed(2).replace('.', ','); // Formato para moeda
     extraInput.value = parseFloat(eventData.vlrextra || 0).toFixed(2).replace('.', ',');
@@ -234,7 +246,7 @@ const carregarDadosParaEditar = (eventData) => {
     descBeneficioTextarea.value = eventData.descbeneficios || ''; // Seu campo de bônus está como descbonus no backend
     bonusTextarea.value = eventData.descbonus || ''; // Se você tem um campo 'bonus' no HTML
     vlrTotalInput.value = parseFloat(eventData.total || 0).toFixed(2).replace('.', ',');
-    setorInput.value = eventData.setor || ''; // Setor do funcionário, se necessário
+    setorInput.value = eventData.setor.toUpperCase() || ''; // Setor do funcionário, se necessário
     statusPagtoInput.value = eventData.statuspgto.toUpperCase() || '';
 
     
@@ -562,10 +574,56 @@ async function verificaStaff() {
 
     //botaoEnviar.addEventListener("click", handleFormSubmit);
 
-    botaoEnviar.addEventListener("click", async (event) => {
-      event.preventDefault(); // Previne o envio padrão do formulário
+    //const uploadAjdCusto = document.getElementById('uploadAjdCusto');
+    //const uploadCaixinha = document.getElementById('uploadCaixinha');
 
-      
+    const labelFileAjdCusto = document.getElementById('labelFileAjdCusto');
+    //const fileAjdCustoInput = document.getElementById('fileAjdCusto');
+
+    const labelFileCaixinha = document.getElementById('labelFileCaixinha');
+    //const fileCaixinhaInput = document.getElementById('fileCaixinha');
+
+
+    // Lógica para o comprovante de Ajuda de Custo
+    labelFileAjdCusto.addEventListener('click', (event) => {
+        const vlrAlmoco = parseFloat(almocoInput.value.replace(',', '.') || 0);
+        const vlrJantar = parseFloat(jantarInput.value.replace(',', '.') || 0);
+        const vlrTransporte = parseFloat(transporteInput.value.replace(',', '.') || 0);
+
+        // Se os valores estiverem zerados, previne a ação e exibe o alerta
+        if (vlrAlmoco === 0 && vlrJantar === 0 && vlrTransporte === 0) {
+            event.preventDefault(); // Impede a abertura do modal de upload
+            Swal.fire({
+                icon: 'warning',
+                title: 'Não é possível inserir comprovante',
+                text: 'Os valores de Almoço, Jantar e Transporte devem ser maiores que zero para inserir um comprovante.',
+            });
+        }
+    });
+
+    // Lógica para o comprovante de Caixinha
+    labelFileCaixinha.addEventListener('click', (event) => {
+        const vlrCaixinha = parseFloat(caixinhaInput.value.replace(',', '.') || 0);
+
+        if (vlrCaixinha === 0) {
+            event.preventDefault(); // Impede a abertura do modal de upload
+            Swal.fire({
+                icon: 'warning',
+                title: 'Não é possível inserir comprovante',
+                text: 'O valor da Caixinha deve ser maior que zero para inserir um comprovante.',
+            });
+        }
+    });
+
+    nmEventoSelect.addEventListener('change', debouncedOnCriteriosChanged);
+    nmClienteSelect.addEventListener('change', debouncedOnCriteriosChanged);
+    nmLocalMontagemSelect.addEventListener('change', debouncedOnCriteriosChanged);
+    setorInput.addEventListener('change', debouncedOnCriteriosChanged);
+   // datasEventoInput.addEventListener('change', debouncedOnCriteriosChanged);
+    
+
+    botaoEnviar.addEventListener("click", async (event) => {
+      event.preventDefault(); // Previne o envio padrão do formulário      
 
         const selectAvaliacao = document.getElementById("avaliacao");
         const avaliacao = selectAvaliacao.options[selectAvaliacao.selectedIndex]?.textContent.trim().toUpperCase() || '';
@@ -599,12 +657,15 @@ async function verificaStaff() {
         const descBonusInput = document.getElementById("bonus");
         const descBonus = descBonusInput.value.trim() || "";
         const descBeneficio = descBeneficioInput?.value.trim() || "";
-        const setor = document.querySelector("#setor").value; 
+        const setor = document.querySelector("#setor").value.trim().toUpperCase(); 
         
         const datasEventoRawValue = datasEventoInput.value.trim();
         const periodoDoEvento = getPeriodoDatas(datasEventoRawValue);     
 
         
+
+    // Verifique se os IDs essenciais estão preenchidos antes de buscar
+    
       
         if (periodoDoEvento.length === 0) {
             return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias do evento.", "warning");
@@ -692,12 +753,12 @@ async function verificaStaff() {
         
           
 // Compare os IDs garantindo que ambos são do mesmo tipo (número)
-if (idStaffEventoFromObject === idStaffEventoNumero)
-{
-    console.log("IDS SÃO IGUAIS", idStaffEventoFromObject, idStaffEventoNumero);
-} else {
-    console.log("IDS SÃO DIFERENTES", idStaffEventoFromObject, idStaffEventoNumero);
-}
+            if (idStaffEventoFromObject === idStaffEventoNumero)
+            {
+                console.log("IDS SÃO IGUAIS", idStaffEventoFromObject, idStaffEventoNumero);
+            } else {
+                console.log("IDS SÃO DIFERENTES", idStaffEventoFromObject, idStaffEventoNumero);
+            }
 
         // Estamos em modo de edição de um evento específico
         if (idStaffEvento && isFormLoadedFromDoubleClick && currentEditingStaffEvent && idStaffEventoFromObject === idStaffEventoNumero) {
@@ -713,6 +774,15 @@ if (idStaffEventoFromObject === idStaffEventoNumero)
             // Garante que estas variáveis estão resetadas para um POST
             currentEditingStaffEvent = null;
             isFormLoadedFromDoubleClick = false;
+
+            if (statusOrcamentoAtual === 'A') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Impossível Cadastrar',
+                    text: 'Não é possível cadastrar staff em um orçamento que ainda não foi fechado.'
+                });
+                return; // O 'return' aqui vai, de fato, bloquear a função de cadastro
+            }
         }        
 
         if (pavilhao === "SELECIONE O PAVILHÃO") {
@@ -729,9 +799,9 @@ if (idStaffEventoFromObject === idStaffEventoNumero)
 
 
         console.log("--- INÍCIO handleFormSubmit ---");
-console.log("Método inicial:", metodo); // POST ou PUT
-console.log("Carregado por duplo clique (isFormLoadedFromDoubleClick):", isFormLoadedFromDoubleClick);
-console.log("currentEditingStaffEvent (antes da verificação):", currentEditingStaffEvent);
+        console.log("Método inicial:", metodo); // POST ou PUT
+        console.log("Carregado por duplo clique (isFormLoadedFromDoubleClick):", isFormLoadedFromDoubleClick);
+        console.log("currentEditingStaffEvent (antes da verificação):", currentEditingStaffEvent);
 
         const idFuncionarioParaVerificacao = idFuncionario; // Use o idFuncionario capturado
         // As datas do Flatpickr já estão em 'periodoDoEvento' mas como strings 'YYYY-MM-DD'.
@@ -794,6 +864,33 @@ console.log("currentEditingStaffEvent (antes da verificação):", currentEditing
             nmFuncionario, descFuncao, nmLocalMontagem, nmCliente, nmEvento, vlrCusto, extra, transporte, almoco, jantar, caixinha,
             periodoDoEvento, vlrTotal
         });
+
+        
+
+        if (metodo === "POST")
+        {
+            const datasSelecionadas = window.flatpickrInstances['datasEvento'].selectedDates.map(date => {
+                // Formata a data para a string 'YYYY-MM-DD'
+                return date.toISOString().split('T')[0];
+            });           
+
+            const criteriosDeVerificacao = {
+                nmFuncao: descFuncaoSelect.options[descFuncaoSelect.selectedIndex].text,
+                nmEvento: nmEventoSelect.options[nmEventoSelect.selectedIndex].text,
+                nmCliente: nmClienteSelect.options[nmClienteSelect.selectedIndex].text,
+                nmlocalMontagem: nmLocalMontagemSelect.options[nmLocalMontagemSelect.selectedIndex].text,
+                pavilhao: nmPavilhaoSelect.options[nmPavilhaoSelect.selectedIndex].text,
+                datasEvento: datasSelecionadas // Adicionado o array de datas
+            };
+            console.log("VERIFICAÇÃO CAMPOS", descFuncao, nmEvento, nmCliente, nmLocalMontagem, pavilhao, datasEvento);
+
+            // A verificação deve acontecer somente para novos cadastros
+            if (!isFormLoadedFromDoubleClick && !verificarLimiteDeFuncao(criteriosDeVerificacao)) {
+                // Se a verificação falhar, a execução é interrompida
+                return;
+            }
+
+        }
 
         if (metodo === "POST" || (metodo === "PUT" && !isFormLoadedFromDoubleClick)) {
             console.log("Iniciando verificação de duplicidade. Método Inicial:", metodo, "Carregado por duplo clique:", isFormLoadedFromDoubleClick);
@@ -897,54 +994,7 @@ console.log("currentEditingStaffEvent (antes da verificação):", currentEditing
         formData.append('datasevento', JSON.stringify(periodoDoEvento));
         formData.append('vlrtotal', total.toString()); 
 
-        // let comppgtocacheDoForm = '';
-        // const fileCacheInput = document.getElementById('fileCache');
-        // if (fileCacheInput && fileCacheInput.files.length > 0) {
-        //     comppgtocacheDoForm = fileCacheInput.files[0].name;
-        // } else {
-            
-        //     comppgtocacheDoForm = currentEditingStaffEvent ? currentEditingStaffEvent.comppgtocache || '' : '';
-        // }
-       
-        // if (fileCacheInput.files && fileCacheInput.files[0]) {
-        //     // Caso 1: O usuário selecionou um NOVO arquivo. Anexa o objeto File.
-        //     formData.append('comppgtocache', fileCacheInput.files[0]);
-        // } else if (fileCacheInput.value === '') {
-        //     // Caso 2: O usuário limpou explicitamente o campo (o input.value está vazio).
-        //     // Envia uma string vazia para o backend para sinalizar a remoção.
-        //     formData.append('comppgtocache', '');
-        // }
-      
-        // // Comprovante de Ajuda de Custo
-        // let comppgtoajdcustoDoForm = '';
-        // const fileAjdCustoInput = document.getElementById('fileAjdCusto');
-        // if (fileAjdCustoInput && fileAjdCustoInput.files.length > 0) {
-        //     comppgtoajdcustoDoForm = fileAjdCustoInput.files[0].name;
-        // } else {
-        //     comppgtoajdcustoDoForm = currentEditingStaffEvent ? currentEditingStaffEvent.comppgtoajdcusto || '' : '';
-        // }
         
-        // if (fileAjdCustoInput.files && fileAjdCustoInput.files[0]) {
-        //     formData.append('comppgtoajdcusto', fileAjdCustoInput.files[0]);
-        // } else if (fileAjdCustoInput.value === '') {
-        //     formData.append('comppgtoajdcusto', '');
-        // }
-
-        // // Comprovante de Caixinha (Extras)
-        // let comppgtocaixinhaDoForm = '';
-        // const fileCaixinhaInput = document.getElementById('fileCaixinha');
-        // if (fileCaixinhaInput && fileCaixinhaInput.files.length > 0) {
-        //     comppgtocaixinhaDoForm = fileCaixinhaInput.files[0].name;
-        // } else {
-        //     comppgtocaixinhaDoForm = currentEditingStaffEvent ? currentEditingStaffEvent.comppgtocaixinha || '' : '';
-        // }
-        
-        // if (fileCaixinhaInput.files && fileCaixinhaInput.files[0]) {
-        //     formData.append('comppgtocaixinha', fileCaixinhaInput.files[0]);
-        // } else if (fileCaixinhaInput.value === '') {
-        //     formData.append('comppgtocaixinha', '');
-        // }
-
 
         const fileCacheInput = document.getElementById('fileCache');
         const hiddenRemoverCacheInput = document.getElementById('limparComprovanteCache');
@@ -1181,7 +1231,7 @@ console.log("currentEditingStaffEvent (antes da verificação):", currentEditing
                 logAndCheck('Valor Caixinha', parseFloat(currentEditingStaffEvent.vlrcaixinha || 0), caixinhaValorAtual, parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) != caixinhaValorAtual) ||
                 logAndCheck('Descrição Bônus', (currentEditingStaffEvent.descbonus || '').trim(), descBonus.trim(), (currentEditingStaffEvent.descbonus || '').trim() != descBonus.trim()) ||
                 logAndCheck('Descrição Benefícios', (currentEditingStaffEvent.descbeneficios || '').trim(), descBeneficio.trim(), (currentEditingStaffEvent.descbeneficios || '').trim() != descBeneficio.trim()) ||
-                logAndCheck('Setor', (currentEditingStaffEvent.setor || '').trim(), setor.trim(), (currentEditingStaffEvent.setor || '').trim() != setor.trim()) ||
+                logAndCheck('Setor', (currentEditingStaffEvent.setor.toUpperCase() || '').trim(), setor.trim().toUpperCase(), (currentEditingStaffEvent.setor.toUpperCase() || '').trim() != setor.toUpperCase().trim()) ||
                 logAndCheck('StatusPgto', (currentEditingStaffEvent.statuspgto || '').trim(), statusPgto.trim(), (currentEditingStaffEvent.statuspgto || '').trim() != statusPgto.trim()) ||
                 logAndCheck('ID Cliente', currentEditingStaffEvent.idcliente, idCliente, currentEditingStaffEvent.idcliente != idCliente) ||
                 logAndCheck('ID Evento', currentEditingStaffEvent.idevento, idEvento, currentEditingStaffEvent.idevento != idEvento) ||
@@ -1259,653 +1309,781 @@ console.log("currentEditingStaffEvent (antes da verificação):", currentEditing
     });    
 }
 
-const handleFormSubmit = async (e) => {
-    // Agora toda a lógica está aqui dentro, de forma organizada
-    e.preventDefault(); // Previne o envio padrão do formulário      
+const debounce = (func, delay) => {
+  let timeoutId;
+  return (...args) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
+};
 
-        const selectAvaliacao = document.getElementById("avaliacao");
-        const avaliacao = selectAvaliacao.options[selectAvaliacao.selectedIndex]?.textContent.trim().toUpperCase() || '';
-        const idStaff = document.querySelector("#idStaff").value.trim();
-        const idFuncionario = document.querySelector("#idFuncionario").value;
-        const selectFuncionario = document.getElementById("nmFuncionario");
-        const nmFuncionario = selectFuncionario.options[selectFuncionario.selectedIndex]?.textContent.trim().toUpperCase() || '';
-        const idFuncao = document.querySelector("#idFuncao").value;
-        const selectFuncao = document.getElementById("descFuncao");
-        const descFuncao = selectFuncao.options[selectFuncao.selectedIndex]?.textContent.trim().toUpperCase() || '';
-        const vlrCusto = document.querySelector("#vlrCusto").value.trim() || '0';
-        const extra = document.querySelector("#extra").value.trim() || '0';
-        const transporte = document.querySelector("#transporte").value.trim() || '0';
-        const almoco = document.querySelector("#almoco").value.trim() || '0';
-        const jantar = document.querySelector("#jantar").value.trim() || '0';
-        const caixinha = document.querySelector("#caixinha").value.trim() || '0';
-        const idCliente = document.querySelector("#idCliente").value; 
-        const selectCliente = document.getElementById("nmCliente");
-        const nmCliente = selectCliente.options[selectCliente.selectedIndex]?.textContent.trim().toUpperCase() || '';
-        const idEvento = document.querySelector("#idEvento").value;       
-        const selectEvento = document.getElementById("nmEvento");
-        const nmEvento = selectEvento.options[selectEvento.selectedIndex]?.textContent.trim().toUpperCase() || '';
-        const idMontagem = document.querySelector("#idMontagem").value; // ID do local de montagem (FK)
-        const selectLocalMontagem = document.getElementById("nmLocalMontagem");
-        const nmLocalMontagem = selectLocalMontagem.options[selectLocalMontagem.selectedIndex].textContent.trim();
-        const selectPavilhao = document.getElementById("nmPavilhao");
-        let pavilhao = selectPavilhao.options[selectPavilhao.selectedIndex]?.textContent.trim().toUpperCase() || '';
-        const caixinhaAtivo = document.getElementById("Caixinhacheck")?.checked;
-        const extraAtivo = document.getElementById("Extracheck")?.checked;
-        const descBeneficioInput = document.getElementById("descBeneficio");
-        const descBonusInput = document.getElementById("bonus");
-        const descBonus = descBonusInput.value.trim() || "";
-        const descBeneficio = descBeneficioInput?.value.trim() || "";
-        const setor = document.querySelector("#setor").value; 
+const debouncedOnCriteriosChanged = debounce(() => {
+    const idEvento = nmEventoSelect.value;
+    const idCliente = nmClienteSelect.value;
+    const idLocalMontagem = nmLocalMontagemSelect.value;
+    const setorParaBusca = setorInput.value.toUpperCase();
+    const datasEventoRawValue = datasEventoInput.value.trim();
+    const periodoDoEvento = getPeriodoDatas(datasEventoRawValue);
+
+    // Apenas chame a API se os campos obrigatórios estiverem preenchidos
+    if (idEvento && idCliente && periodoDoEvento.length > 0) {
+      buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, setorParaBusca, periodoDoEvento);
+    }
+}, 500);
+
+// const onCriteriosChanged = () => {
+//         console.log("ENTROU NO ONCRITEIOSCHANGED ENVIAR");
+//         if (isFormLoadedFromDoubleClick) {
+//             console.log("É DUPLO CLICK ?", isFormLoadedFromDoubleClick);
+//            // return; // Sai da função imediatamente
+//         }
+//             const idEvento = nmEventoSelect.value;
+//             const idCliente = nmClienteSelect.value;
+//             const idLocalMontagem = nmLocalMontagemSelect.value;
+//             //const idPavilhao = nmPavilhaoSelect.value;
+//             const setorParaBusca = setor.value;
+            
+//             const datasEventoRawValue = datasEventoInput.value.trim();
+//             const periodoDoEvento = getPeriodoDatas(datasEventoRawValue);
+
+//             if (idEvento && idCliente) {
+//                 buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, setorParaBusca, periodoDoEvento);
+//             }
+//              console.log("VERIFICAÇÃO CRITÉRIOS", idEvento, idCliente, idLocalMontagem, setorParaBusca, periodoDoEvento );
+//         };
+       
+// const handleFormSubmit = async (e) => {
+//     // Agora toda a lógica está aqui dentro, de forma organizada
+//     e.preventDefault(); // Previne o envio padrão do formulário      
+
+//         const selectAvaliacao = document.getElementById("avaliacao");
+//         const avaliacao = selectAvaliacao.options[selectAvaliacao.selectedIndex]?.textContent.trim().toUpperCase() || '';
+//         const idStaff = document.querySelector("#idStaff").value.trim();
+//         const idFuncionario = document.querySelector("#idFuncionario").value;
+//         const selectFuncionario = document.getElementById("nmFuncionario");
+//         const nmFuncionario = selectFuncionario.options[selectFuncionario.selectedIndex]?.textContent.trim().toUpperCase() || '';
+//         const idFuncao = document.querySelector("#idFuncao").value;
+//         const selectFuncao = document.getElementById("descFuncao");
+//         const descFuncao = selectFuncao.options[selectFuncao.selectedIndex]?.textContent.trim().toUpperCase() || '';
+//         const vlrCusto = document.querySelector("#vlrCusto").value.trim() || '0';
+//         const extra = document.querySelector("#extra").value.trim() || '0';
+//         const transporte = document.querySelector("#transporte").value.trim() || '0';
+//         const almoco = document.querySelector("#almoco").value.trim() || '0';
+//         const jantar = document.querySelector("#jantar").value.trim() || '0';
+//         const caixinha = document.querySelector("#caixinha").value.trim() || '0';
+//         const idCliente = document.querySelector("#idCliente").value; 
+//         const selectCliente = document.getElementById("nmCliente");
+//         const nmCliente = selectCliente.options[selectCliente.selectedIndex]?.textContent.trim().toUpperCase() || '';
+//         const idEvento = document.querySelector("#idEvento").value;       
+//         const selectEvento = document.getElementById("nmEvento");
+//         const nmEvento = selectEvento.options[selectEvento.selectedIndex]?.textContent.trim().toUpperCase() || '';
+//         const idMontagem = document.querySelector("#idMontagem").value; // ID do local de montagem (FK)
+//         const selectLocalMontagem = document.getElementById("nmLocalMontagem");
+//         const nmLocalMontagem = selectLocalMontagem.options[selectLocalMontagem.selectedIndex].textContent.trim();
+//         const selectPavilhao = document.getElementById("nmPavilhao");
+//         let pavilhao = selectPavilhao.options[selectPavilhao.selectedIndex]?.textContent.trim().toUpperCase() || '';
+//         const caixinhaAtivo = document.getElementById("Caixinhacheck")?.checked;
+//         const extraAtivo = document.getElementById("Extracheck")?.checked;
+//         const descBeneficioInput = document.getElementById("descBeneficio");
+//         const descBonusInput = document.getElementById("bonus");
+//         const descBonus = descBonusInput.value.trim() || "";
+//         const descBeneficio = descBeneficioInput?.value.trim() || "";
+//         const setor = document.querySelector("#setor").value; 
         
-        const datasEventoRawValue = datasEventoInput.value.trim();
-        const periodoDoEvento = getPeriodoDatas(datasEventoRawValue);     
+//         const datasEventoRawValue = datasEventoInput.value.trim();
+//         const periodoDoEvento = getPeriodoDatas(datasEventoRawValue);     
 
         
       
-        if (periodoDoEvento.length === 0) {
-            return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias do evento.", "warning");
-        }
+//         if (periodoDoEvento.length === 0) {
+//             return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias do evento.", "warning");
+//         }
 
-        const vlrTotal = document.getElementById('vlrTotal').value; // "R$ 2.345,00"
-        const total = parseFloat(
-        vlrTotal
-            .replace('R$', '') // remove símbolo
-            .replace(/\./g, '') // remove milhares
-            .replace(',', '.') // troca vírgula por ponto
-            .trim()
-        ) || 0;
+//         const vlrTotal = document.getElementById('vlrTotal').value; // "R$ 2.345,00"
+//         const total = parseFloat(
+//         vlrTotal
+//             .replace('R$', '') // remove símbolo
+//             .replace(/\./g, '') // remove milhares
+//             .replace(',', '.') // troca vírgula por ponto
+//             .trim()
+//         ) || 0;
 
 
-        if(!nmFuncionario || !descFuncao || !vlrCusto || !nmCliente || !nmEvento || !periodoDoEvento){
-            return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Funcionário, Função, Cachê, Transportes, Alimentação, Cliente, Evento e Período do Evento.", "warning");
-        }
+//         if(!nmFuncionario || !descFuncao || !vlrCusto || !nmCliente || !nmEvento || !periodoDoEvento){
+//             return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Funcionário, Função, Cachê, Transportes, Alimentação, Cliente, Evento e Período do Evento.", "warning");
+//         }
 
-        if ((caixinhaAtivo) && !descBeneficio) {
-            // Coloca foco no campo de descrição (opcional)
-            if (descBeneficioInput) {
-                descBeneficioInput.focus();
-            }
-            // Bloqueia envio e mostra aviso
-            return Swal.fire(
-                "Campos obrigatórios!",
-                "Preencha a descrição do benefício (Caixinha) antes de salvar.",
-                "warning"
-            );
-        }
+//         if ((caixinhaAtivo) && !descBeneficio) {
+//             // Coloca foco no campo de descrição (opcional)
+//             if (descBeneficioInput) {
+//                 descBeneficioInput.focus();
+//             }
+//             // Bloqueia envio e mostra aviso
+//             return Swal.fire(
+//                 "Campos obrigatórios!",
+//                 "Preencha a descrição do benefício (Caixinha) antes de salvar.",
+//                 "warning"
+//             );
+//         }
 
-        if ((extraAtivo) && !descBonus) {
-            // Coloca foco no campo de descrição (opcional)
-            if (descBonusInput) {
-                descBonusInput.focus();
-            }
-            // Bloqueia envio e mostra aviso
-            return Swal.fire(
-                "Campos obrigatórios!",
-                "Preencha a descrição do bônus antes de salvar.",
-                "warning"
-            );
-        }
+//         if ((extraAtivo) && !descBonus) {
+//             // Coloca foco no campo de descrição (opcional)
+//             if (descBonusInput) {
+//                 descBonusInput.focus();
+//             }
+//             // Bloqueia envio e mostra aviso
+//             return Swal.fire(
+//                 "Campos obrigatórios!",
+//                 "Preencha a descrição do bônus antes de salvar.",
+//                 "warning"
+//             );
+//         }
         
-      // Permissões
-        const temPermissaoCadastrar = temPermissao("Staff", "cadastrar");
-        const temPermissaoAlterar = temPermissao("Staff", "alterar");
+//       // Permissões
+//         const temPermissaoCadastrar = temPermissao("Staff", "cadastrar");
+//         const temPermissaoAlterar = temPermissao("Staff", "alterar");
 
         
-        const idStaffEvento = document.querySelector("#idStaffEvento").value;
+//         const idStaffEvento = document.querySelector("#idStaffEvento").value;
 
        
-        // const isEditingInitial = currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento; // Estado inicial do formulário
-        // const idEventoEmEdicao = isEditingInitial ? currentEditingStaffEvent.idstaffevento : null;
+//         // const isEditingInitial = currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento; // Estado inicial do formulário
+//         // const idEventoEmEdicao = isEditingInitial ? currentEditingStaffEvent.idstaffevento : null;
 
-        // console.log("EM EDIÇÃO?",isEditingInitial, idEventoEmEdicao);
+//         // console.log("EM EDIÇÃO?",isEditingInitial, idEventoEmEdicao);
 
-        // let metodo = isEditingInitial ? "PUT" : "POST"; // Método inicial
-        // let url = isEditingInitial ? `/staff/${currentEditingStaffEvent.idstaffevento}` : "/staff";
+//         // let metodo = isEditingInitial ? "PUT" : "POST"; // Método inicial
+//         // let url = isEditingInitial ? `/staff/${currentEditingStaffEvent.idstaffevento}` : "/staff";
 
-        // Verifica se o formulário está em modo de edição
-        const isEditingInitial = !!(currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento);
+//         // Verifica se o formulário está em modo de edição
+//         const isEditingInitial = !!(currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento);
 
-        // Obtém o ID do evento em edição, se houver
-        const idEventoEmEdicao = isEditingInitial ? currentEditingStaffEvent.idstaffevento : null;
+//         // Obtém o ID do evento em edição, se houver
+//         const idEventoEmEdicao = isEditingInitial ? currentEditingStaffEvent.idstaffevento : null;
 
-        console.log("EM EDIÇÃO?", isEditingInitial, idEventoEmEdicao);
+//         console.log("EM EDIÇÃO?", isEditingInitial, idEventoEmEdicao);
 
-        let metodo = isEditingInitial ? "PUT" : "POST";
-        let url = isEditingInitial ? `/staff/${idEventoEmEdicao}` : "/staff";
+//         let metodo = isEditingInitial ? "PUT" : "POST";
+//         let url = isEditingInitial ? `/staff/${idEventoEmEdicao}` : "/staff";
         
-         const idStaffEventoFromObject = currentEditingStaffEvent ? currentEditingStaffEvent.idstaffevento : null;
+//          const idStaffEventoFromObject = currentEditingStaffEvent ? currentEditingStaffEvent.idstaffevento : null;
         
-        // console.log("idSTAFFEVENTO", idStaffEvento, isFormLoadedFromDoubleClick, currentEditingStaffEvent, idStaffEventoFromObject);
+//         // console.log("idSTAFFEVENTO", idStaffEvento, isFormLoadedFromDoubleClick, currentEditingStaffEvent, idStaffEventoFromObject);
             
-        // if (idStaffEventoFromObject === idStaffEvento)
-        // {
-        //     console.log("IDS SÃO IGUAIS",idStaffEventoFromObject, idStaffEvento );
-        // }else  {
-        //     console.log("IDS SÃO DIFERENTES",idStaffEventoFromObject, idStaffEvento );
-        // }
+//         // if (idStaffEventoFromObject === idStaffEvento)
+//         // {
+//         //     console.log("IDS SÃO IGUAIS",idStaffEventoFromObject, idStaffEvento );
+//         // }else  {
+//         //     console.log("IDS SÃO DIFERENTES",idStaffEventoFromObject, idStaffEvento );
+//         // }
 
 
-        const idStaffEventoNumero = parseInt(idStaffEvento, 10);
-        console.log("idSTAFFEVENTO", idStaffEvento, isFormLoadedFromDoubleClick, currentEditingStaffEvent, idStaffEventoFromObject);
+//         const idStaffEventoNumero = parseInt(idStaffEvento, 10);
+//         console.log("idSTAFFEVENTO", idStaffEvento, isFormLoadedFromDoubleClick, currentEditingStaffEvent, idStaffEventoFromObject);
           
-// Compare os IDs garantindo que ambos são do mesmo tipo (número)
-if (idStaffEventoFromObject === idStaffEventoNumero)
-{
-    console.log("IDS SÃO IGUAIS", idStaffEventoFromObject, idStaffEventoNumero);
-} else {
-    console.log("IDS SÃO DIFERENTES", idStaffEventoFromObject, idStaffEventoNumero);
-}
+// // Compare os IDs garantindo que ambos são do mesmo tipo (número)
+// if (idStaffEventoFromObject === idStaffEventoNumero)
+// {
+//     console.log("IDS SÃO IGUAIS", idStaffEventoFromObject, idStaffEventoNumero);
+// } else {
+//     console.log("IDS SÃO DIFERENTES", idStaffEventoFromObject, idStaffEventoNumero);
+// }
 
-        // Estamos em modo de edição de um evento específico
-        if (idStaffEvento && isFormLoadedFromDoubleClick && currentEditingStaffEvent && idStaffEventoFromObject === idStaffEventoNumero) {
-            console.log("ENTROU NO METODO PUT");
-            metodo = "PUT";
-            url = `/staff/${idStaffEvento}`;
-            console.log("Modo de edição detectado via idstaffevento e flag. Método:", metodo, "URL:", url);
-        } else {
-            // Estamos em modo de cadastro ou foi uma tentativa de PUT sem os dados originais
-            metodo = "POST";
-            url = "/staff";
-            console.log("Modo de cadastro detectado. Método:", metodo, "URL:", url);
-            // Garante que estas variáveis estão resetadas para um POST
-            currentEditingStaffEvent = null;
-            isFormLoadedFromDoubleClick = false;
-        }        
+//         // Estamos em modo de edição de um evento específico
+//         if (idStaffEvento && isFormLoadedFromDoubleClick && currentEditingStaffEvent && idStaffEventoFromObject === idStaffEventoNumero) {
+//             console.log("ENTROU NO METODO PUT");
+//             metodo = "PUT";
+//             url = `/staff/${idStaffEvento}`;
+//             console.log("Modo de edição detectado via idstaffevento e flag. Método:", metodo, "URL:", url);
+//         } else {
+//             // Estamos em modo de cadastro ou foi uma tentativa de PUT sem os dados originais
+//             metodo = "POST";
+//             url = "/staff";
+//             console.log("Modo de cadastro detectado. Método:", metodo, "URL:", url);
+//             // Garante que estas variáveis estão resetadas para um POST
+//             currentEditingStaffEvent = null;
+//             isFormLoadedFromDoubleClick = false;
+//         }        
 
-        if (pavilhao === "SELECIONE O PAVILHÃO") {
-            pavilhao = ""; // Garante que seja uma string vazia. Isso é redundante se o value já é "", mas não prejudica.
-        } 
+//         if (pavilhao === "SELECIONE O PAVILHÃO") {
+//             pavilhao = ""; // Garante que seja uma string vazia. Isso é redundante se o value já é "", mas não prejudica.
+//         } 
 
-        if (metodo === "POST" && !temPermissaoCadastrar) {
-            return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos staffs.", "error");
-        }
+//         if (metodo === "POST" && !temPermissaoCadastrar) {
+//             return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos staffs.", "error");
+//         }
 
-        if (metodo === "PUT" && !temPermissaoAlterar) {
-            return Swal.fire("Acesso negado", "Você não tem permissão para alterar staffs.", "error");
-        }
-
-
-        console.log("--- INÍCIO handleFormSubmit ---");
-console.log("Método inicial:", metodo); // POST ou PUT
-console.log("Carregado por duplo clique (isFormLoadedFromDoubleClick):", isFormLoadedFromDoubleClick);
-console.log("currentEditingStaffEvent (antes da verificação):", currentEditingStaffEvent);
-
-        const idFuncionarioParaVerificacao = idFuncionario; // Use o idFuncionario capturado
-        // As datas do Flatpickr já estão em 'periodoDoEvento' mas como strings 'YYYY-MM-DD'.
-        // A função 'verificarDisponibilidadeStaff' espera um array de objetos Date.
-        // Você precisa ter acesso à instância do Flatpickr, assumindo que seja `flatpickrForDatasEvento`.
-        const flatpickrForDatasEvento = window.flatpickrInstances['datasEvento']; // Ou como você acessa sua instância do Flatpickr
-        const datasParaVerificacao = flatpickrForDatasEvento.selectedDates; // Isso retorna um array de objetos Date
-
-        const idStaffEventoParaVerificacao = currentEditingStaffEvent ? currentEditingStaffEvent.idstaffevento : null;
-
-        console.log("Iniciando verificação de disponibilidade do staff...");
-        const { isAvailable, conflictingEvent } = await verificarDisponibilidadeStaff(
-            idFuncionarioParaVerificacao,
-            datasParaVerificacao,
-            idEventoEmEdicao
-           // idStaffEventoParaVerificacao
-        );
+//         if (metodo === "PUT" && !temPermissaoAlterar) {
+//             return Swal.fire("Acesso negado", "Você não tem permissão para alterar staffs.", "error");
+//         }
 
 
-        console.log("Dados do formulário para verificação de duplicidade:", {
-            idFuncionario: idFuncionario,
-            nmFuncionario: nmFuncionario,
-            setor: setor,
-            nmlocalmontagem: nmLocalMontagem,
-            nmevento: nmEvento,
-            nmcliente: nmCliente,
-            datasevento: JSON.stringify(periodoDoEvento)
-        });
+//         console.log("--- INÍCIO handleFormSubmit ---");
+// console.log("Método inicial:", metodo); // POST ou PUT
+// console.log("Carregado por duplo clique (isFormLoadedFromDoubleClick):", isFormLoadedFromDoubleClick);
+// console.log("currentEditingStaffEvent (antes da verificação):", currentEditingStaffEvent);
 
-        if (!isAvailable) {
-        // Usamos <strong> para negrito e `html: true` no Swal.fire
-            let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado para outra atividade `; 
-            if (conflictingEvent) {
-                msg += `no evento "<strong>${conflictingEvent.nmevento || 'N/A'}</strong>" do cliente "<strong>${conflictingEvent.nmcliente || 'N/A'}</strong>" `; 
+//         const idFuncionarioParaVerificacao = idFuncionario; // Use o idFuncionario capturado
+//         // As datas do Flatpickr já estão em 'periodoDoEvento' mas como strings 'YYYY-MM-DD'.
+//         // A função 'verificarDisponibilidadeStaff' espera um array de objetos Date.
+//         // Você precisa ter acesso à instância do Flatpickr, assumindo que seja `flatpickrForDatasEvento`.
+//         const flatpickrForDatasEvento = window.flatpickrInstances['datasEvento']; // Ou como você acessa sua instância do Flatpickr
+//         const datasParaVerificacao = flatpickrForDatasEvento.selectedDates; // Isso retorna um array de objetos Date
 
-                const conflictingDates = typeof conflictingEvent.datasevento === 'string' ? JSON.parse(conflictingEvent.datasevento) : conflictingEvent.datasevento;
-                const intersection = datasParaVerificacao.map(d => d.toISOString().split('T')[0]).filter(date => conflictingDates.includes(date));
-                if (intersection.length > 0) {
-                    msg += `nas datas: <strong>${intersection.map(d => { 
-                        const parts = d.split('-');
-                        return `${parts[2]}/${parts[1]}/${parts[0]}`; // Formato DD/MM/AAAA para exibição
-                    }).join(', ')}</strong>.`;
-                } else {
-                    msg += `em datas conflitantes.`;
-                }
-            } else {
-                msg += `em datas conflitantes.`;
-            }
+//         const idStaffEventoParaVerificacao = currentEditingStaffEvent ? currentEditingStaffEvent.idstaffevento : null;
+
+//         console.log("Iniciando verificação de disponibilidade do staff...");
+//         const { isAvailable, conflictingEvent } = await verificarDisponibilidadeStaff(
+//             idFuncionarioParaVerificacao,
+//             datasParaVerificacao,
+//             idEventoEmEdicao
+//            // idStaffEventoParaVerificacao
+//         );
+
+
+//         console.log("Dados do formulário para verificação de duplicidade:", {
+//             idFuncionario: idFuncionario,
+//             nmFuncionario: nmFuncionario,
+//             setor: setor,
+//             nmlocalmontagem: nmLocalMontagem,
+//             nmevento: nmEvento,
+//             nmcliente: nmCliente,
+//             datasevento: JSON.stringify(periodoDoEvento)
+//         });
+
+//         if (!isAvailable) {
+//         // Usamos <strong> para negrito e `html: true` no Swal.fire
+//             let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado para outra atividade `; 
+//             if (conflictingEvent) {
+//                 msg += `no evento "<strong>${conflictingEvent.nmevento || 'N/A'}</strong>" do cliente "<strong>${conflictingEvent.nmcliente || 'N/A'}</strong>" `; 
+
+//                 const conflictingDates = typeof conflictingEvent.datasevento === 'string' ? JSON.parse(conflictingEvent.datasevento) : conflictingEvent.datasevento;
+//                 const intersection = datasParaVerificacao.map(d => d.toISOString().split('T')[0]).filter(date => conflictingDates.includes(date));
+//                 if (intersection.length > 0) {
+//                     msg += `nas datas: <strong>${intersection.map(d => { 
+//                         const parts = d.split('-');
+//                         return `${parts[2]}/${parts[1]}/${parts[0]}`; // Formato DD/MM/AAAA para exibição
+//                     }).join(', ')}</strong>.`;
+//                 } else {
+//                     msg += `em datas conflitantes.`;
+//                 }
+//             } else {
+//                 msg += `em datas conflitantes.`;
+//             }
             
-            // AQUI ESTÁ A MUDANÇA CRUCIAL: usar 'html: msg' em vez de 'text: msg' ou apenas 'msg'
-            Swal.fire({
-                title: "Conflito de Agendamento",
-                html: msg, // Use 'html' para renderizar as tags <strong>
-                icon: "warning"
-            }); 
-            return; // BLOQUEIA o envio do formulário
-        }
+//             // AQUI ESTÁ A MUDANÇA CRUCIAL: usar 'html: msg' em vez de 'text: msg' ou apenas 'msg'
+//             Swal.fire({
+//                 title: "Conflito de Agendamento",
+//                 html: msg, // Use 'html' para renderizar as tags <strong>
+//                 icon: "warning"
+//             }); 
+//             return; // BLOQUEIA o envio do formulário
+//         }
 
-        console.log("Preparando dados para envio:", {
-            nmFuncionario, descFuncao, nmLocalMontagem, nmCliente, nmEvento, vlrCusto, extra, transporte, almoco, jantar, caixinha,
-            periodoDoEvento, vlrTotal
-        });
+//         console.log("Preparando dados para envio:", {
+//             nmFuncionario, descFuncao, nmLocalMontagem, nmCliente, nmEvento, vlrCusto, extra, transporte, almoco, jantar, caixinha,
+//             periodoDoEvento, vlrTotal
+//         });
 
-        if (metodo === "POST" || (metodo === "PUT" && !isFormLoadedFromDoubleClick)) {
-            console.log("Iniciando verificação de duplicidade. Método Inicial:", metodo, "Carregado por duplo clique:", isFormLoadedFromDoubleClick);
-            try {
-                const checkDuplicateUrl = `/staff/check-duplicate?` + new URLSearchParams({
-                    idFuncionario: idFuncionario,
-                    nmFuncionario: nmFuncionario,
-                    setor: setor,
-                    nmlocalmontagem: nmLocalMontagem,
-                    nmevento: nmEvento,
-                    nmcliente: nmCliente,
-                    datasevento: JSON.stringify(periodoDoEvento)
-                }).toString();
+//         if (metodo === "POST" || (metodo === "PUT" && !isFormLoadedFromDoubleClick)) {
+//             console.log("Iniciando verificação de duplicidade. Método Inicial:", metodo, "Carregado por duplo clique:", isFormLoadedFromDoubleClick);
+//             try {
+//                 const checkDuplicateUrl = `/staff/check-duplicate?` + new URLSearchParams({
+//                     idFuncionario: idFuncionario,
+//                     nmFuncionario: nmFuncionario,
+//                     setor: setor,
+//                     nmlocalmontagem: nmLocalMontagem,
+//                     nmevento: nmEvento,
+//                     nmcliente: nmCliente,
+//                     datasevento: JSON.stringify(periodoDoEvento)
+//                 }).toString();
 
-                const duplicateCheckResult = await fetchComToken(checkDuplicateUrl, {
-                    method: 'GET',
-                    // O header Content-Type é geralmente para 'body' no formato JSON,
-                    // para GET com query params, não é estritamente necessário,
-                    // mas não deve causar problemas.
-                    headers: { 'Content-Type': 'application/json' }
-                });
+//                 const duplicateCheckResult = await fetchComToken(checkDuplicateUrl, {
+//                     method: 'GET',
+//                     // O header Content-Type é geralmente para 'body' no formato JSON,
+//                     // para GET com query params, não é estritamente necessário,
+//                     // mas não deve causar problemas.
+//                     headers: { 'Content-Type': 'application/json' }
+//                 });
 
-                if (duplicateCheckResult.isDuplicate) {
+//                 if (duplicateCheckResult.isDuplicate) {
 
-                    const existingEventData = duplicateCheckResult.existingEvent;
-
-                    
-                    console.log("!!! DUPLICADO ENCONTRADO !!!");
-                    console.log("Evento duplicado retornado pelo backend:", existingEventData);
-                    console.log("Comparando:", currentEditingStaffEvent?.idstaffevento, "com", existingEventData?.idstaffevento);
+//                     const existingEventData = duplicateCheckResult.existingEvent;
 
                     
-                    console.log("COMPARACAO", currentEditingStaffEvent, existingEventData);
+//                     console.log("!!! DUPLICADO ENCONTRADO !!!");
+//                     console.log("Evento duplicado retornado pelo backend:", existingEventData);
+//                     console.log("Comparando:", currentEditingStaffEvent?.idstaffevento, "com", existingEventData?.idstaffevento);
 
-                    if (currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento === existingEventData.idstaffevento) {
+                    
+//                     console.log("COMPARACAO", currentEditingStaffEvent, existingEventData);
+
+//                     if (currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento === existingEventData.idstaffevento) {
                        
-                        console.log("Evento existente detectado e em modo de edição. É o mesmo registro. Prosseguindo para verificação de alteração.");
-                        metodo = "PUT"; // Garante que o método continua PUT
-                        url = `/staff/${existingEventData.idstaffevento}`; // Garante a URL correta
-                        currentEditingStaffEvent = existingEventData; // Atualiza com os dados mais recentes do backend
-                        // isFormLoadedFromDoubleClick = true; // Já deveria ser true se chegou aqui por duplo clique
-                    } else {
+//                         console.log("Evento existente detectado e em modo de edição. É o mesmo registro. Prosseguindo para verificação de alteração.");
+//                         metodo = "PUT"; // Garante que o método continua PUT
+//                         url = `/staff/${existingEventData.idstaffevento}`; // Garante a URL correta
+//                         currentEditingStaffEvent = existingEventData; // Atualiza com os dados mais recentes do backend
+//                         // isFormLoadedFromDoubleClick = true; // Já deveria ser true se chegou aqui por duplo clique
+//                     } else {
                         
-                        const { isConfirmed } = await Swal.fire({
-                            icon: "info",
-                            title: "Evento Duplicado!",
-                            html: `O evento para o funcionário <strong>${nmFuncionario}</strong> com as datas selecionadas já está cadastrado.<br><br>Deseja Atualizar o registro existente?`,
-                            showCancelButton: true,
-                            confirmButtonText: "Sim, atualizar",
-                            cancelButtonText: "Não, cancelar",
-                            reverseButtons: true
-                        });
+//                         const { isConfirmed } = await Swal.fire({
+//                             icon: "info",
+//                             title: "Evento Duplicado!",
+//                             html: `O evento para o funcionário <strong>${nmFuncionario}</strong> com as datas selecionadas já está cadastrado.<br><br>Deseja Atualizar o registro existente?`,
+//                             showCancelButton: true,
+//                             confirmButtonText: "Sim, atualizar",
+//                             cancelButtonText: "Não, cancelar",
+//                             reverseButtons: true
+//                         });
 
-                        if (!isConfirmed) {
-                            console.log("Usuário optou por não atualizar o evento duplicado.");
-                            return; 
-                        }
+//                         if (!isConfirmed) {
+//                             console.log("Usuário optou por não atualizar o evento duplicado.");
+//                             return; 
+//                         }
                         
-                        console.log("Usuário confirmou a atualização do evento duplicado. Alterando para modo PUT.");
-                        metodo = "PUT";
-                        url = `/staff/${existingEventData.idstaffevento}`; // Usa o ID do evento duplicado encontrado
-                        currentEditingStaffEvent = existingEventData; // Define o evento a ser editado como o duplicado
-                        isFormLoadedFromDoubleClick = true; // Marca como "carregado por duplo clique" para pular a verificação futura para este item
-                    }
+//                         console.log("Usuário confirmou a atualização do evento duplicado. Alterando para modo PUT.");
+//                         metodo = "PUT";
+//                         url = `/staff/${existingEventData.idstaffevento}`; // Usa o ID do evento duplicado encontrado
+//                         currentEditingStaffEvent = existingEventData; // Define o evento a ser editado como o duplicado
+//                         isFormLoadedFromDoubleClick = true; // Marca como "carregado por duplo clique" para pular a verificação futura para este item
+//                     }
 
-                } else {
+//                 } else {
                     
-                    console.log("Nenhum evento duplicado encontrado. Prosseguindo com o método original:", metodo);
-                }
-            } catch (error) {
-                console.error("Erro na verificação de duplicidade:", error);
-                Swal.fire("Erro", error.message || "Não foi possível verificar duplicidade. Tente novamente.", "error");
-                return; // Bloqueia o envio se houver erro na verificação
-            }
-        } else {
-            console.log("Pulando verificação de duplicidade (modo de edição via duplo clique já está ativo).");
-        }
+//                     console.log("Nenhum evento duplicado encontrado. Prosseguindo com o método original:", metodo);
+//                 }
+//             } catch (error) {
+//                 console.error("Erro na verificação de duplicidade:", error);
+//                 Swal.fire("Erro", error.message || "Não foi possível verificar duplicidade. Tente novamente.", "error");
+//                 return; // Bloqueia o envio se houver erro na verificação
+//             }
+//         } else {
+//             console.log("Pulando verificação de duplicidade (modo de edição via duplo clique já está ativo).");
+//         }
 
-        const formData = new FormData();
-        // Adiciona todos os campos de texto ao FormData
-        formData.append('avaliacao', avaliacao);
-        formData.append('idfuncionario', idFuncionario);
-        formData.append('nmfuncionario', nmFuncionario);
-        formData.append('idfuncao', idFuncao);
-        formData.append('nmfuncao', descFuncao);
-        formData.append('idcliente', idCliente);
-        formData.append('nmcliente', nmCliente);
-        formData.append('idevento', idEvento);
-        formData.append('nmevento', nmEvento);
-        formData.append('idmontagem', idMontagem);
-        formData.append('nmlocalmontagem', nmLocalMontagem);
-        formData.append('pavilhao', pavilhao); 
-        formData.append('vlrcache', vlrCusto);
-        formData.append('vlrextra', extra);
-        formData.append('vlrtransporte', transporte);
-        formData.append('vlralmoco', almoco);
-        formData.append('vlrjantar', jantar);
-        formData.append('vlrcaixinha', caixinha);
-        formData.append('descbonus', bonusTextarea.value.trim());       
-        formData.append('datasevento', JSON.stringify(periodoDoEvento));
-        formData.append('vlrtotal', total.toString());         
+//         const formData = new FormData();
+//         // Adiciona todos os campos de texto ao FormData
+//         formData.append('avaliacao', avaliacao);
+//         formData.append('idfuncionario', idFuncionario);
+//         formData.append('nmfuncionario', nmFuncionario);
+//         formData.append('idfuncao', idFuncao);
+//         formData.append('nmfuncao', descFuncao);
+//         formData.append('idcliente', idCliente);
+//         formData.append('nmcliente', nmCliente);
+//         formData.append('idevento', idEvento);
+//         formData.append('nmevento', nmEvento);
+//         formData.append('idmontagem', idMontagem);
+//         formData.append('nmlocalmontagem', nmLocalMontagem);
+//         formData.append('pavilhao', pavilhao); 
+//         formData.append('vlrcache', vlrCusto);
+//         formData.append('vlrextra', extra);
+//         formData.append('vlrtransporte', transporte);
+//         formData.append('vlralmoco', almoco);
+//         formData.append('vlrjantar', jantar);
+//         formData.append('vlrcaixinha', caixinha);
+//         formData.append('descbonus', bonusTextarea.value.trim());       
+//         formData.append('datasevento', JSON.stringify(periodoDoEvento));
+//         formData.append('vlrtotal', total.toString());         
 
-        const fileCacheInput = document.getElementById('fileCache');
-        const hiddenRemoverCacheInput = document.getElementById('limparComprovanteCache');
-        let comppgtocacheDoForm; // Variável para a lógica de status
+//         const fileCacheInput = document.getElementById('fileCache');
+//         const hiddenRemoverCacheInput = document.getElementById('limparComprovanteCache');
+//         let comppgtocacheDoForm; // Variável para a lógica de status
         
-        if (fileCacheInput.files && fileCacheInput.files[0]) {
-            // Caso 1: Novo arquivo selecionado.
-            formData.append('comppgtocache', fileCacheInput.files[0]);
-            comppgtocacheDoForm = 'novo-arquivo'; // Sinaliza a presença de um comprovante
-        } else if (hiddenRemoverCacheInput.value === 'true') {
-            // Caso 2: O usuário marcou para remover o arquivo existente.
-            formData.append('limparComprovanteCache', 'true');
-            comppgtocacheDoForm = ''; // Sinaliza a ausência de um comprovante
-        } else if (currentEditingStaffEvent && currentEditingStaffEvent.comppgtocache) {
-            // Caso 3: Nenhuma alteração foi feita, mas um arquivo já existe.
-            // Não adiciona nada ao formData para manter o valor no backend,
-            // mas define a variável para a validação do status.
-            comppgtocacheDoForm = currentEditingStaffEvent.comppgtocache;
-        } else {
-            // Caso 4: Nenhuma alteração e nenhum arquivo existente.
-            comppgtocacheDoForm = '';
-        }
+//         if (fileCacheInput.files && fileCacheInput.files[0]) {
+//             // Caso 1: Novo arquivo selecionado.
+//             formData.append('comppgtocache', fileCacheInput.files[0]);
+//             comppgtocacheDoForm = 'novo-arquivo'; // Sinaliza a presença de um comprovante
+//         } else if (hiddenRemoverCacheInput.value === 'true') {
+//             // Caso 2: O usuário marcou para remover o arquivo existente.
+//             formData.append('limparComprovanteCache', 'true');
+//             comppgtocacheDoForm = ''; // Sinaliza a ausência de um comprovante
+//         } else if (currentEditingStaffEvent && currentEditingStaffEvent.comppgtocache) {
+//             // Caso 3: Nenhuma alteração foi feita, mas um arquivo já existe.
+//             // Não adiciona nada ao formData para manter o valor no backend,
+//             // mas define a variável para a validação do status.
+//             comppgtocacheDoForm = currentEditingStaffEvent.comppgtocache;
+//         } else {
+//             // Caso 4: Nenhuma alteração e nenhum arquivo existente.
+//             comppgtocacheDoForm = '';
+//         }
 
-        // --- Comprovante de Ajuda de Custo ---
-        const fileAjdCustoInput = document.getElementById('fileAjdCusto');
-        const hiddenRemoverAjdCustoInput = document.getElementById('limparComprovanteAjdCusto');
-        let comppgtoajdcustoDoForm;
+//         // --- Comprovante de Ajuda de Custo ---
+//         const fileAjdCustoInput = document.getElementById('fileAjdCusto');
+//         const hiddenRemoverAjdCustoInput = document.getElementById('limparComprovanteAjdCusto');
+//         let comppgtoajdcustoDoForm;
         
-        if (fileAjdCustoInput.files && fileAjdCustoInput.files[0]) {
-            formData.append('comppgtoajdcusto', fileAjdCustoInput.files[0]);
-            comppgtoajdcustoDoForm = 'novo-arquivo';
-        } else if (hiddenRemoverAjdCustoInput.value === 'true') {
-            formData.append('limparComprovanteAjdCusto', 'true');
-            comppgtoajdcustoDoForm = '';
-        } else if (currentEditingStaffEvent && currentEditingStaffEvent.comppgtoajdcusto) {
-            comppgtoajdcustoDoForm = currentEditingStaffEvent.comppgtoajdcusto;
-        } else {
-            comppgtoajdcustoDoForm = '';
-        }
+//         if (fileAjdCustoInput.files && fileAjdCustoInput.files[0]) {
+//             formData.append('comppgtoajdcusto', fileAjdCustoInput.files[0]);
+//             comppgtoajdcustoDoForm = 'novo-arquivo';
+//         } else if (hiddenRemoverAjdCustoInput.value === 'true') {
+//             formData.append('limparComprovanteAjdCusto', 'true');
+//             comppgtoajdcustoDoForm = '';
+//         } else if (currentEditingStaffEvent && currentEditingStaffEvent.comppgtoajdcusto) {
+//             comppgtoajdcustoDoForm = currentEditingStaffEvent.comppgtoajdcusto;
+//         } else {
+//             comppgtoajdcustoDoForm = '';
+//         }
 
-        // --- Comprovante de Caixinha ---
-        const fileCaixinhaInput = document.getElementById('fileCaixinha');
-        const hiddenRemoverCaixinhaInput = document.getElementById('limparComprovanteCaixinha');
-        let comppgtocaixinhaDoForm;
+//         // --- Comprovante de Caixinha ---
+//         const fileCaixinhaInput = document.getElementById('fileCaixinha');
+//         const hiddenRemoverCaixinhaInput = document.getElementById('limparComprovanteCaixinha');
+//         let comppgtocaixinhaDoForm;
 
-        if (fileCaixinhaInput.files && fileCaixinhaInput.files[0]) {
-            formData.append('comppgtocaixinha', fileCaixinhaInput.files[0]);
-            comppgtocaixinhaDoForm = 'novo-arquivo';
-        } else if (hiddenRemoverCaixinhaInput.value === 'true') {
-            formData.append('limparComprovanteCaixinha', 'true');
-            comppgtocaixinhaDoForm = '';
-        } else if (currentEditingStaffEvent && currentEditingStaffEvent.comppgtocaixinha) {
-            comppgtocaixinhaDoForm = currentEditingStaffEvent.comppgtocaixinha;
-        } else {
-            comppgtocaixinhaDoForm = '';
-        }
+//         if (fileCaixinhaInput.files && fileCaixinhaInput.files[0]) {
+//             formData.append('comppgtocaixinha', fileCaixinhaInput.files[0]);
+//             comppgtocaixinhaDoForm = 'novo-arquivo';
+//         } else if (hiddenRemoverCaixinhaInput.value === 'true') {
+//             formData.append('limparComprovanteCaixinha', 'true');
+//             comppgtocaixinhaDoForm = '';
+//         } else if (currentEditingStaffEvent && currentEditingStaffEvent.comppgtocaixinha) {
+//             comppgtocaixinhaDoForm = currentEditingStaffEvent.comppgtocaixinha;
+//         } else {
+//             comppgtocaixinhaDoForm = '';
+//         }
         
-        formData.append('descbeneficios', beneficioTextarea.value.trim());
+//         formData.append('descbeneficios', beneficioTextarea.value.trim());
 
-        formData.append('setor', setor);
+//         formData.append('setor', setor);
 
-        let statusPgto = "Pendente"; // Valor padrão
+//         let statusPgto = "Pendente"; // Valor padrão
 
-            // --- Regras de Validação e Atribuição de statusPgto ---
+//             // --- Regras de Validação e Atribuição de statusPgto ---
 
-            // Condição 1: Tudo vazio, exceto valorCache (que é obrigatório), E comprovanteCache preenchido
-            console.log("VALORES CUSTOS ANTES", vlrCusto, extra, caixinha, almoco, jantar, transporte);
-            const custosVazios = extra === 0 && caixinha === 0 && almoco === 0 && jantar === 0 && transporte === 0;
-            console.log("VALORES CUSTOS DEPOIS", vlrCusto, extra, caixinha, almoco, jantar, transporte, comppgtocacheDoForm, comppgtocacheDoForm, comppgtocaixinhaDoForm);
+//             // Condição 1: Tudo vazio, exceto valorCache (que é obrigatório), E comprovanteCache preenchido
+//             console.log("VALORES CUSTOS ANTES", vlrCusto, extra, caixinha, almoco, jantar, transporte);
+//             const custosVazios = extra === 0 && caixinha === 0 && almoco === 0 && jantar === 0 && transporte === 0;
+//             console.log("VALORES CUSTOS DEPOIS", vlrCusto, extra, caixinha, almoco, jantar, transporte, comppgtocacheDoForm, comppgtocacheDoForm, comppgtocaixinhaDoForm);
 
             
-            const vlrCache = parseFloat(vlrCusto); // Corrigindo a inconsistência de nomes
-            const vlrAlmoco = parseFloat(almoco);
-            const vlrJantar = parseFloat(jantar);
-            const vlrTransporte = parseFloat(transporte);
-            const vlrCaixinha = parseFloat(caixinha);
+//             const vlrCache = parseFloat(vlrCusto); // Corrigindo a inconsistência de nomes
+//             const vlrAlmoco = parseFloat(almoco);
+//             const vlrJantar = parseFloat(jantar);
+//             const vlrTransporte = parseFloat(transporte);
+//             const vlrCaixinha = parseFloat(caixinha);
 
-            const temComprovanteCache = !!comppgtocacheDoForm;
-            const temComprovanteAjudaCusto = !!comppgtoajdcustoDoForm;
-            const temComprovanteCaixinha = !!comppgtocaixinhaDoForm;
-
-
-            console.log("TEM COMPROVANTES", temComprovanteAjudaCusto, temComprovanteCache, temComprovanteCaixinha);
-            // Lógica de Pagamento
-            const cachePago = (vlrCache > 0 && temComprovanteCache);
-            const ajudaCustoPaga = ((vlrAlmoco > 0 || vlrJantar > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto);
-            const caixinhasPagos = ((vlrCaixinha > 0) && temComprovanteCaixinha);
-
-            // A condição para o status ser 'Pago' é se *todas* as partes que têm valor > 0, 
-            // também têm o seu comprovante.
-            // Esta é a lógica mais segura e fácil de ler.
-            if (cachePago && ajudaCustoPaga && caixinhasPagos) {
-                // Se tudo que tem valor > 0 tem comprovante, então é "Pago"
-                statusPgto = "Pago";
-            } else if (
-                (vlrCache <= 0 || (vlrCache > 0 && temComprovanteCache)) && // Se o cache não precisa de comprovação ou está pago
-                ((vlrAlmoco <= 0 && vlrJantar <= 0 && vlrTransporte <= 0) || ((vlrAlmoco > 0 || vlrJantar > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto)) && // Mesma lógica para ajuda de custo
-                (vlrCaixinha <= 0 || (vlrCaixinha > 0 && temComprovanteCaixinha)) // Mesma lógica para extras
-            ) {
-                // Se tudo que tem valor > 0 tem comprovante, então é "Pago"
-                statusPgto = "Pago";
-            } else {
-                statusPgto = "Pendente";
-            }
+//             const temComprovanteCache = !!comppgtocacheDoForm;
+//             const temComprovanteAjudaCusto = !!comppgtoajdcustoDoForm;
+//             const temComprovanteCaixinha = !!comppgtocaixinhaDoForm;
 
 
-            console.log("Status de Pagamento Calculado:", statusPgto);
+//             console.log("TEM COMPROVANTES", temComprovanteAjudaCusto, temComprovanteCache, temComprovanteCaixinha);
+//             // Lógica de Pagamento
+//             const cachePago = (vlrCache > 0 && temComprovanteCache);
+//             const ajudaCustoPaga = ((vlrAlmoco > 0 || vlrJantar > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto);
+//             const caixinhasPagos = ((vlrCaixinha > 0) && temComprovanteCaixinha);
 
-        formData.append('statuspgto', statusPgto);
+//             // A condição para o status ser 'Pago' é se *todas* as partes que têm valor > 0, 
+//             // também têm o seu comprovante.
+//             // Esta é a lógica mais segura e fácil de ler.
+//             if (cachePago && ajudaCustoPaga && caixinhasPagos) {
+//                 // Se tudo que tem valor > 0 tem comprovante, então é "Pago"
+//                 statusPgto = "Pago";
+//             } else if (
+//                 (vlrCache <= 0 || (vlrCache > 0 && temComprovanteCache)) && // Se o cache não precisa de comprovação ou está pago
+//                 ((vlrAlmoco <= 0 && vlrJantar <= 0 && vlrTransporte <= 0) || ((vlrAlmoco > 0 || vlrJantar > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto)) && // Mesma lógica para ajuda de custo
+//                 (vlrCaixinha <= 0 || (vlrCaixinha > 0 && temComprovanteCaixinha)) // Mesma lógica para extras
+//             ) {
+//                 // Se tudo que tem valor > 0 tem comprovante, então é "Pago"
+//                 statusPgto = "Pago";
+//             } else {
+//                 statusPgto = "Pendente";
+//             }
 
-        console.log("Preparando envio de FormData. Método:", metodo, "URL:", url, window.StaffOriginal);
-        console.log("Dados do FormData:", {
-            nmFuncionario, descFuncao, vlrCusto, extra, transporte, almoco, jantar, caixinha,
-            nmCliente, nmEvento, periodoDoEvento, vlrTotal
-        });
 
-        console.log("METODO PARA ENVIAR",metodo, currentEditingStaffEvent);
+//             console.log("Status de Pagamento Calculado:", statusPgto);
 
-            // 🎯 LOG DO FORMDATA ANTES DO ENVIO 🎯
-        console.log("Preparando envio de FormData. Método:", metodo, "URL:", url);
-        console.log("Dados do FormData sendo enviados:");
+//         formData.append('statuspgto', statusPgto);
 
-        for (let pair of formData.entries()) {
-            console.log(pair[0]+ ': ' + pair[1]); 
-        }
+//         console.log("Preparando envio de FormData. Método:", metodo, "URL:", url, window.StaffOriginal);
+//         console.log("Dados do FormData:", {
+//             nmFuncionario, descFuncao, vlrCusto, extra, transporte, almoco, jantar, caixinha,
+//             nmCliente, nmEvento, periodoDoEvento, vlrTotal
+//         });
+
+//         console.log("METODO PARA ENVIAR",metodo, currentEditingStaffEvent);
+
+//             // 🎯 LOG DO FORMDATA ANTES DO ENVIO 🎯
+//         console.log("Preparando envio de FormData. Método:", metodo, "URL:", url);
+//         console.log("Dados do FormData sendo enviados:");
+
+//         for (let pair of formData.entries()) {
+//             console.log(pair[0]+ ': ' + pair[1]); 
+//         }
 
 
-        if (metodo === "PUT") {
-            if (!isEditingInitial) { // Use isEditing aqui também para ser consistente
-                console.log("Erro: Dados originais não encontrados para PUT");
-                return Swal.fire("Erro", "Dados originais não encontrados para comparação (ID ausente para PUT).", "error");
-            }
+//         if (metodo === "PUT") {
+//             if (!isEditingInitial) { // Use isEditing aqui também para ser consistente
+//                 console.log("Erro: Dados originais não encontrados para PUT");
+//                 return Swal.fire("Erro", "Dados originais não encontrados para comparação (ID ausente para PUT).", "error");
+//             }
 
-            // Valores originais dos checkboxes (considera ativo se valor numérico > 0)
-            const extraAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrextra || 0) > 0;
-            const caixinhaAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) > 0;
-            const extraValorOriginal = parseFloat(currentEditingStaffEvent.vlrextra || 0);
-            const caixinhaValorOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0);
+//             // Valores originais dos checkboxes (considera ativo se valor numérico > 0)
+//             const extraAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrextra || 0) > 0;
+//             const caixinhaAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) > 0;
+//             const extraValorOriginal = parseFloat(currentEditingStaffEvent.vlrextra || 0);
+//             const caixinhaValorOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0);
 
-            console.log("Valores originais - Extra Ativo:", extraAtivoOriginal, "Extra Valor:", extraValorOriginal);
-            console.log("Valores originais - Caixinha Ativo:", caixinhaAtivoOriginal, "Caixinha Valor:", caixinhaValorOriginal);
+//             console.log("Valores originais - Extra Ativo:", extraAtivoOriginal, "Extra Valor:", extraValorOriginal);
+//             console.log("Valores originais - Caixinha Ativo:", caixinhaAtivoOriginal, "Caixinha Valor:", caixinhaValorOriginal);
 
-            // Valores atuais (checkboxes e inputs)
-            const extraAtivoAtual = extraAtivo;
-            const caixinhaAtivoAtual = caixinhaAtivo;
-            const extraValorAtual = parseFloat(extra.replace(',', '.') || 0);
-            const caixinhaValorAtual = parseFloat(caixinha.replace(',', '.') || 0);
+//             // Valores atuais (checkboxes e inputs)
+//             const extraAtivoAtual = extraAtivo;
+//             const caixinhaAtivoAtual = caixinhaAtivo;
+//             const extraValorAtual = parseFloat(extra.replace(',', '.') || 0);
+//             const caixinhaValorAtual = parseFloat(caixinha.replace(',', '.') || 0);
 
-            console.log("Valores atuais - Extra Ativo:", extraAtivoAtual, "Extra Valor:", extraValorAtual);
-            console.log("Valores atuais - Caixinha Ativo:", caixinhaAtivoAtual, "Caixinha Valor:", caixinhaValorAtual);
+//             console.log("Valores atuais - Extra Ativo:", extraAtivoAtual, "Extra Valor:", extraValorAtual);
+//             console.log("Valores atuais - Caixinha Ativo:", caixinhaAtivoAtual, "Caixinha Valor:", caixinhaValorAtual);
 
-            // Detecta alterações em estado ou valor
-            const houveAlteracaoExtra = (extraAtivoOriginal !== extraAtivoAtual) || (extraValorOriginal !== extraValorAtual);
-            const houveAlteracaoCaixinha = (caixinhaAtivoOriginal !== caixinhaAtivoAtual) || (caixinhaValorOriginal !== caixinhaValorAtual);
+//             // Detecta alterações em estado ou valor
+//             const houveAlteracaoExtra = (extraAtivoOriginal !== extraAtivoAtual) || (extraValorOriginal !== extraValorAtual);
+//             const houveAlteracaoCaixinha = (caixinhaAtivoOriginal !== caixinhaAtivoAtual) || (caixinhaValorOriginal !== caixinhaValorAtual);
 
-            console.log("Houve alteração Extra?", houveAlteracaoExtra);
-            console.log("Houve alteração Caixinha?", houveAlteracaoCaixinha);
+//             console.log("Houve alteração Extra?", houveAlteracaoExtra);
+//             console.log("Houve alteração Caixinha?", houveAlteracaoCaixinha);
 
-            // Se houve alteração ativando extra ou caixinha, obrigar preenchimento de descBeneficio
-            if (houveAlteracaoCaixinha && caixinhaAtivoAtual) {            
-                console.log("Extra ou Caixinha ativado e houve alteração, verificando descBeneficio...");
-                if (!descBeneficio || descBeneficio.length < 20) {
-                    console.log("descBeneficio inválido - bloqueando salvamento");
-                    if (descBeneficioInput) descBeneficioInput.focus();
-                    return Swal.fire(
-                        "Campos obrigatórios!",
-                        "A descrição do benefício (Caixinha) deve ter no mínimo 20 caracteres para salvar.",
-                        "warning"
-                    );
-                } else {
-                    console.log("descBeneficio preenchido corretamente");
-                }
-            } else {
-                console.log("Nenhuma alteração relevante em Caixinha que obrigue descBeneficio");
-            }
+//             // Se houve alteração ativando extra ou caixinha, obrigar preenchimento de descBeneficio
+//             if (houveAlteracaoCaixinha && caixinhaAtivoAtual) {            
+//                 console.log("Extra ou Caixinha ativado e houve alteração, verificando descBeneficio...");
+//                 if (!descBeneficio || descBeneficio.length < 20) {
+//                     console.log("descBeneficio inválido - bloqueando salvamento");
+//                     if (descBeneficioInput) descBeneficioInput.focus();
+//                     return Swal.fire(
+//                         "Campos obrigatórios!",
+//                         "A descrição do benefício (Caixinha) deve ter no mínimo 20 caracteres para salvar.",
+//                         "warning"
+//                     );
+//                 } else {
+//                     console.log("descBeneficio preenchido corretamente");
+//                 }
+//             } else {
+//                 console.log("Nenhuma alteração relevante em Caixinha que obrigue descBeneficio");
+//             }
 
-            if (houveAlteracaoExtra && extraAtivoAtual) {
-                console.log("Extra ou Caixinha ativado e houve alteração, verificando descBonus...");
-                if (!descBonus || descBonus.length < 20) {
-                    console.log("descBonus inválido - bloqueando salvamento");
-                    if (descBonus) descBonusInput.focus();
-                    return Swal.fire(
-                        "Campos obrigatórios!",
-                        "A descrição do Bônus deve ter no mínimo 20 caracteres para salvar.",
-                        "warning"
-                    );
-                } else {
-                    console.log("descBonus preenchido corretamente");
-                }
-            } else {
-                console.log("Nenhuma alteração relevante em Bônusque obrigue descBonus");
-            }
+//             if (houveAlteracaoExtra && extraAtivoAtual) {
+//                 console.log("Extra ou Caixinha ativado e houve alteração, verificando descBonus...");
+//                 if (!descBonus || descBonus.length < 20) {
+//                     console.log("descBonus inválido - bloqueando salvamento");
+//                     if (descBonus) descBonusInput.focus();
+//                     return Swal.fire(
+//                         "Campos obrigatórios!",
+//                         "A descrição do Bônus deve ter no mínimo 20 caracteres para salvar.",
+//                         "warning"
+//                     );
+//                 } else {
+//                     console.log("descBonus preenchido corretamente");
+//                 }
+//             } else {
+//                 console.log("Nenhuma alteração relevante em Bônusque obrigue descBonus");
+//             }
 
-            formData.append('idstaff', currentEditingStaffEvent.idstaff || '');
-            formData.append('idstaffevento', currentEditingStaffEvent.idstaffevento);
+//             formData.append('idstaff', currentEditingStaffEvent.idstaff || '');
+//             formData.append('idstaffevento', currentEditingStaffEvent.idstaffevento);
 
-            let houveAlteracao = false;
-            if (
-                currentEditingStaffEvent.idfuncionario != idFuncionario ||
-                currentEditingStaffEvent.nmfuncao.toUpperCase() != descFuncao ||
-                parseFloat(currentEditingStaffEvent.vlrcache || 0) != parseFloat(vlrCusto.replace(',', '.') || 0) ||
-                JSON.stringify(currentEditingStaffEvent.periodo || []) !== JSON.stringify(periodoDoEvento) ||
-                parseFloat(currentEditingStaffEvent.vlrextra || 0) != extraValorAtual ||
-                parseFloat(currentEditingStaffEvent.vlrtransporte || 0) != parseFloat(transporte.replace(',', '.') || 0) ||
-                parseFloat(currentEditingStaffEvent.vlralmoco || 0) != parseFloat(almoco.replace(',', '.') || 0) ||
-                parseFloat(currentEditingStaffEvent.vlrjantar || 0) != parseFloat(jantar.replace(',', '.') || 0) ||
-                // (currentEditingStaffEvent.vlralmoco === 1 ? '1' : '0') != almoco ||
-                // (currentEditingStaffEvent.vlrjantar === 1 ? '1' : '0') != jantar ||
-                parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) != caixinhaValorAtual ||
-                (currentEditingStaffEvent.descbonus || '').trim() != descBonus.trim() ||
-                (currentEditingStaffEvent.descbeneficios || '').trim() != descBeneficio.trim() ||
-                (currentEditingStaffEvent.setor || '').trim() != setor.trim() ||
-                currentEditingStaffEvent.idcliente != idCliente ||
-                currentEditingStaffEvent.idevento != idEvento ||
-                currentEditingStaffEvent.idmontagem != idMontagem ||
-                (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao ||
-                (currentEditingStaffEvent.statuspgto || '').trim() != statusPgto.trim()
-            ) {
-                houveAlteracao = true;
-            }            
+//             let houveAlteracao = false;
+//             if (
+//                 currentEditingStaffEvent.idfuncionario != idFuncionario ||
+//                 currentEditingStaffEvent.nmfuncao.toUpperCase() != descFuncao ||
+//                 parseFloat(currentEditingStaffEvent.vlrcache || 0) != parseFloat(vlrCusto.replace(',', '.') || 0) ||
+//                 JSON.stringify(currentEditingStaffEvent.periodo || []) !== JSON.stringify(periodoDoEvento) ||
+//                 parseFloat(currentEditingStaffEvent.vlrextra || 0) != extraValorAtual ||
+//                 parseFloat(currentEditingStaffEvent.vlrtransporte || 0) != parseFloat(transporte.replace(',', '.') || 0) ||
+//                 parseFloat(currentEditingStaffEvent.vlralmoco || 0) != parseFloat(almoco.replace(',', '.') || 0) ||
+//                 parseFloat(currentEditingStaffEvent.vlrjantar || 0) != parseFloat(jantar.replace(',', '.') || 0) ||
+//                 // (currentEditingStaffEvent.vlralmoco === 1 ? '1' : '0') != almoco ||
+//                 // (currentEditingStaffEvent.vlrjantar === 1 ? '1' : '0') != jantar ||
+//                 parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) != caixinhaValorAtual ||
+//                 (currentEditingStaffEvent.descbonus || '').trim() != descBonus.trim() ||
+//                 (currentEditingStaffEvent.descbeneficios || '').trim() != descBeneficio.trim() ||
+//                 (currentEditingStaffEvent.setor || '').trim() != setor.trim() ||
+//                 currentEditingStaffEvent.idcliente != idCliente ||
+//                 currentEditingStaffEvent.idevento != idEvento ||
+//                 currentEditingStaffEvent.idmontagem != idMontagem ||
+//                 (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao ||
+//                 (currentEditingStaffEvent.statuspgto || '').trim() != statusPgto.trim()
+//             ) {
+//                 houveAlteracao = true;
+//             }            
 
-            const logAndCheck = (fieldName, originalValue, currentValue, condition) => {
-            const isDifferent = condition;
-                console.log(`[COMPARACAO] ${fieldName}: Original = '${originalValue}' | Atual = '${currentValue}' | Diferente = ${isDifferent}`);
-                return isDifferent;
-            };
-            houveAlteracao =
-                logAndCheck('ID Funcionário', currentEditingStaffEvent.idfuncionario, idFuncionario, currentEditingStaffEvent.idfuncionario != idFuncionario) ||
-                logAndCheck('Função', currentEditingStaffEvent.nmfuncao.toUpperCase(), descFuncao, currentEditingStaffEvent.nmfuncao.toUpperCase() != descFuncao) ||
-                logAndCheck('Valor Cache', parseFloat(currentEditingStaffEvent.vlrcache || 0), parseFloat(vlrCusto.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrcache || 0) != parseFloat(vlrCusto.replace(',', '.') || 0)) ||
-                logAndCheck('Datas Evento', JSON.stringify(currentEditingStaffEvent.datasevento || []), JSON.stringify(periodoDoEvento), JSON.stringify(currentEditingStaffEvent.datasevento || []) !== JSON.stringify(periodoDoEvento)) || // Use datasevento
-                logAndCheck('Valor Extra', parseFloat(currentEditingStaffEvent.vlrextra || 0), extraValorAtual, parseFloat(currentEditingStaffEvent.vlrextra || 0) != extraValorAtual) ||
-                logAndCheck('Valor Transporte', parseFloat(currentEditingStaffEvent.vlrtransporte || 0), parseFloat(almoco.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrtransporte || 0) != parseFloat(transporte.replace(',', '.') || 0)) ||
-                logAndCheck('Valor Almoço', parseFloat(currentEditingStaffEvent.vlralmoco || 0), parseFloat(transporte.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlralmoco || 0) != parseFloat(almoco.replace(',', '.') || 0)) ||
-                logAndCheck('Valor Jantar', parseFloat(currentEditingStaffEvent.vlrjantar || 0), parseFloat(jantar.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrjantar || 0) != parseFloat(jantar.replace(',', '.') || 0)) ||
-                logAndCheck('Valor Caixinha', parseFloat(currentEditingStaffEvent.vlrcaixinha || 0), caixinhaValorAtual, parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) != caixinhaValorAtual) ||
-                logAndCheck('Descrição Bônus', (currentEditingStaffEvent.descbonus || '').trim(), descBonus.trim(), (currentEditingStaffEvent.descbonus || '').trim() != descBonus.trim()) ||
-                logAndCheck('Descrição Benefícios', (currentEditingStaffEvent.descbeneficios || '').trim(), descBeneficio.trim(), (currentEditingStaffEvent.descbeneficios || '').trim() != descBeneficio.trim()) ||
-                logAndCheck('Setor', (currentEditingStaffEvent.setor || '').trim(), setor.trim(), (currentEditingStaffEvent.setor || '').trim() != setor.trim()) ||
-                logAndCheck('StatusPgto', (currentEditingStaffEvent.statuspgto || '').trim(), statusPgto.trim(), (currentEditingStaffEvent.statuspgto || '').trim() != statusPgto.trim()) ||
-                logAndCheck('ID Cliente', currentEditingStaffEvent.idcliente, idCliente, currentEditingStaffEvent.idcliente != idCliente) ||
-                logAndCheck('ID Evento', currentEditingStaffEvent.idevento, idEvento, currentEditingStaffEvent.idevento != idEvento) ||
-                logAndCheck('ID Montagem', currentEditingStaffEvent.idmontagem, idMontagem, currentEditingStaffEvent.idmontagem != idMontagem) ||
-                logAndCheck('Pavilhão', (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim(), pavilhao.toUpperCase().trim(), (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao.toUpperCase().trim()) ||
-                // logAndCheck('Comprovante Cache', currentEditingStaffEvent.comppgtocache, comppgtocacheDoForm, currentEditingStaffEvent.comppgtocache !== comppgtocacheDoForm) ||
-                // logAndCheck('Comprovante Ajuda Custo', currentEditingStaffEvent.comppgtoajdcusto, comppgtoajdcustoDoForm, currentEditingStaffEvent.comppgtoajdcusto !== comppgtoajdcustoDoForm) ||
-                // logAndCheck('Comprovante Extras', currentEditingStaffEvent.comppgtocaixinha, comppgtocaixinhaDoForm, currentEditingStaffEvent.comppgtocaixinha !== comppgtocaixinhaDoForm) ||
+//             const logAndCheck = (fieldName, originalValue, currentValue, condition) => {
+//             const isDifferent = condition;
+//                 console.log(`[COMPARACAO] ${fieldName}: Original = '${originalValue}' | Atual = '${currentValue}' | Diferente = ${isDifferent}`);
+//                 return isDifferent;
+//             };
+//             houveAlteracao =
+//                 logAndCheck('ID Funcionário', currentEditingStaffEvent.idfuncionario, idFuncionario, currentEditingStaffEvent.idfuncionario != idFuncionario) ||
+//                 logAndCheck('Função', currentEditingStaffEvent.nmfuncao.toUpperCase(), descFuncao, currentEditingStaffEvent.nmfuncao.toUpperCase() != descFuncao) ||
+//                 logAndCheck('Valor Cache', parseFloat(currentEditingStaffEvent.vlrcache || 0), parseFloat(vlrCusto.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrcache || 0) != parseFloat(vlrCusto.replace(',', '.') || 0)) ||
+//                 logAndCheck('Datas Evento', JSON.stringify(currentEditingStaffEvent.datasevento || []), JSON.stringify(periodoDoEvento), JSON.stringify(currentEditingStaffEvent.datasevento || []) !== JSON.stringify(periodoDoEvento)) || // Use datasevento
+//                 logAndCheck('Valor Extra', parseFloat(currentEditingStaffEvent.vlrextra || 0), extraValorAtual, parseFloat(currentEditingStaffEvent.vlrextra || 0) != extraValorAtual) ||
+//                 logAndCheck('Valor Transporte', parseFloat(currentEditingStaffEvent.vlrtransporte || 0), parseFloat(almoco.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrtransporte || 0) != parseFloat(transporte.replace(',', '.') || 0)) ||
+//                 logAndCheck('Valor Almoço', parseFloat(currentEditingStaffEvent.vlralmoco || 0), parseFloat(transporte.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlralmoco || 0) != parseFloat(almoco.replace(',', '.') || 0)) ||
+//                 logAndCheck('Valor Jantar', parseFloat(currentEditingStaffEvent.vlrjantar || 0), parseFloat(jantar.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrjantar || 0) != parseFloat(jantar.replace(',', '.') || 0)) ||
+//                 logAndCheck('Valor Caixinha', parseFloat(currentEditingStaffEvent.vlrcaixinha || 0), caixinhaValorAtual, parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) != caixinhaValorAtual) ||
+//                 logAndCheck('Descrição Bônus', (currentEditingStaffEvent.descbonus || '').trim(), descBonus.trim(), (currentEditingStaffEvent.descbonus || '').trim() != descBonus.trim()) ||
+//                 logAndCheck('Descrição Benefícios', (currentEditingStaffEvent.descbeneficios || '').trim(), descBeneficio.trim(), (currentEditingStaffEvent.descbeneficios || '').trim() != descBeneficio.trim()) ||
+//                 logAndCheck('Setor', (currentEditingStaffEvent.setor || '').trim(), setor.trim(), (currentEditingStaffEvent.setor || '').trim() != setor.trim()) ||
+//                 logAndCheck('StatusPgto', (currentEditingStaffEvent.statuspgto || '').trim(), statusPgto.trim(), (currentEditingStaffEvent.statuspgto || '').trim() != statusPgto.trim()) ||
+//                 logAndCheck('ID Cliente', currentEditingStaffEvent.idcliente, idCliente, currentEditingStaffEvent.idcliente != idCliente) ||
+//                 logAndCheck('ID Evento', currentEditingStaffEvent.idevento, idEvento, currentEditingStaffEvent.idevento != idEvento) ||
+//                 logAndCheck('ID Montagem', currentEditingStaffEvent.idmontagem, idMontagem, currentEditingStaffEvent.idmontagem != idMontagem) ||
+//                 logAndCheck('Pavilhão', (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim(), pavilhao.toUpperCase().trim(), (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao.toUpperCase().trim()) ||
+//                 // logAndCheck('Comprovante Cache', currentEditingStaffEvent.comppgtocache, comppgtocacheDoForm, currentEditingStaffEvent.comppgtocache !== comppgtocacheDoForm) ||
+//                 // logAndCheck('Comprovante Ajuda Custo', currentEditingStaffEvent.comppgtoajdcusto, comppgtoajdcustoDoForm, currentEditingStaffEvent.comppgtoajdcusto !== comppgtoajdcustoDoForm) ||
+//                 // logAndCheck('Comprovante Extras', currentEditingStaffEvent.comppgtocaixinha, comppgtocaixinhaDoForm, currentEditingStaffEvent.comppgtocaixinha !== comppgtocaixinhaDoForm) ||
 
-                logAndCheck(
-                    'Comprovante Cache',
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtocache), // Valor original normalizado
-                    normalizeEmptyValue(comppgtocacheDoForm),                 // Valor do formulário normalizado
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtocache) !== normalizeEmptyValue(comppgtocacheDoForm) // Comparação normalizada
-                ) ||
-                logAndCheck(
-                    'Comprovante Ajuda Custo',
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto),
-                    normalizeEmptyValue(comppgtoajdcustoDoForm),
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto) !== normalizeEmptyValue(comppgtoajdcustoDoForm)
-                ) ||
-                logAndCheck(
-                    'Comprovante Extras',
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtocaixinha),
-                    normalizeEmptyValue(comppgtocaixinhaDoForm),
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtocaixinha) !== normalizeEmptyValue(comppgtocaixinhaDoForm)
-                );
+//                 logAndCheck(
+//                     'Comprovante Cache',
+//                     normalizeEmptyValue(currentEditingStaffEvent.comppgtocache), // Valor original normalizado
+//                     normalizeEmptyValue(comppgtocacheDoForm),                 // Valor do formulário normalizado
+//                     normalizeEmptyValue(currentEditingStaffEvent.comppgtocache) !== normalizeEmptyValue(comppgtocacheDoForm) // Comparação normalizada
+//                 ) ||
+//                 logAndCheck(
+//                     'Comprovante Ajuda Custo',
+//                     normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto),
+//                     normalizeEmptyValue(comppgtoajdcustoDoForm),
+//                     normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto) !== normalizeEmptyValue(comppgtoajdcustoDoForm)
+//                 ) ||
+//                 logAndCheck(
+//                     'Comprovante Extras',
+//                     normalizeEmptyValue(currentEditingStaffEvent.comppgtocaixinha),
+//                     normalizeEmptyValue(comppgtocaixinhaDoForm),
+//                     normalizeEmptyValue(currentEditingStaffEvent.comppgtocaixinha) !== normalizeEmptyValue(comppgtocaixinhaDoForm)
+//                 );
 
-            console.log("Houve alteração geral?", houveAlteracao);
+//             console.log("Houve alteração geral?", houveAlteracao);
 
-            if (!houveAlteracao) {
-                console.log("Nenhuma alteração detectada, bloqueando salvamento.");
-                return Swal.fire("Nenhuma alteração detectada", "Faça alguma alteração antes de salvar.", "info");
-            }
+//             if (!houveAlteracao) {
+//                 console.log("Nenhuma alteração detectada, bloqueando salvamento.");
+//                 return Swal.fire("Nenhuma alteração detectada", "Faça alguma alteração antes de salvar.", "info");
+//             }
 
-            const { isConfirmed } = await Swal.fire({
-                title: "Deseja salvar as alterações?",
-                text: "Você está prestes a atualizar os dados do staff.",
-                icon: "question",
-                showCancelButton: true,
-                confirmButtonText: "Sim, salvar",
-                cancelButtonText: "Cancelar",
-                reverseButtons: true,
-                focusCancel: true
-            });
+//             const { isConfirmed } = await Swal.fire({
+//                 title: "Deseja salvar as alterações?",
+//                 text: "Você está prestes a atualizar os dados do staff.",
+//                 icon: "question",
+//                 showCancelButton: true,
+//                 confirmButtonText: "Sim, salvar",
+//                 cancelButtonText: "Cancelar",
+//                 reverseButtons: true,
+//                 focusCancel: true
+//             });
 
-            if (!isConfirmed) {
-                console.log("Alteração cancelada pelo usuário");
-                return;
-            }
-        }
+//             if (!isConfirmed) {
+//                 console.log("Alteração cancelada pelo usuário");
+//                 return;
+//             }
+//         }
 
-        // --- EXECUTA O FETCH PARA POST OU PUT ---
-        try {
-            console.log("ENTRANDO NO TRY. Método:", metodo);
+//         // --- EXECUTA O FETCH PARA POST OU PUT ---
+//         try {
+//             console.log("ENTRANDO NO TRY. Método:", metodo);
 
-            const respostaApi = await fetchComToken(url, {
-                method: metodo,
+//             const respostaApi = await fetchComToken(url, {
+//                 method: metodo,
   
-                body: formData,
-            });
+//                 body: formData,
+//             });
 
-            await Swal.fire("Sucesso!", respostaApi.message || "Staff salvo com sucesso.", "success");
+//             await Swal.fire("Sucesso!", respostaApi.message || "Staff salvo com sucesso.", "success");
                       
 
-            await carregarTabelaStaff(idFuncionario);
+//             await carregarTabelaStaff(idFuncionario);
 
-             window.StaffOriginal = null;
-             limparCamposStaff();
+//              window.StaffOriginal = null;
+//              limparCamposStaff();
 
-        } catch (error) {
-            console.error("❌ Erro ao enviar dados do funcionário:", error);
-            Swal.fire("Erro", error.message || "Erro ao salvar funcionário.", "error");
+//         } catch (error) {
+//             console.error("❌ Erro ao enviar dados do funcionário:", error);
+//             Swal.fire("Erro", error.message || "Erro ao salvar funcionário.", "error");
+//         }
+//     };    
+
+//     const onCriteriosChanged = () => {
+//         console.log("ENTROU NO ONCRITEIOSCHANGED handleFormSubmit");
+//     const idEvento = nmEventoSelect.value;
+//     const idCliente = nmClienteSelect.value;
+//     const idLocalMontagem = nmLocalMontagemSelect.value;
+//     const idPavilhao = nmPavilhaoSelect.value;
+
+//     // Verifique se os IDs essenciais estão preenchidos antes de buscar
+//     if (idEvento && idCliente) {
+//         buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idPavilhao);
+//     }
+// };
+
+// 
+async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, setorParaBusca, datasEvento) {
+    try {
+        console.log("Buscando orçamento com os seguintes IDs:", { idEvento, idCliente, idLocalMontagem, setorParaBusca });
+
+        const criteriosDeBusca = {
+            idEvento,
+            idCliente,
+            idLocalMontagem,
+            setor: setorParaBusca,
+            datasEvento: datasEvento || [],
+        };
+        console.log("Objeto enviado para o backend:", criteriosDeBusca);
+
+        const dadosDoOrcamento = await fetchComToken('/staff/orcamento/consultar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(criteriosDeBusca)
+        });
+
+        // Limpa a variável global antes de qualquer processamento
+        orcamentoPorFuncao = {};
+        
+        // **VALIDAÇÃO CORRIGIDA:** Garante que a resposta é um array válido e não vazio
+        if (!Array.isArray(dadosDoOrcamento) || dadosDoOrcamento.length === 0) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Nenhum Orçamento Encontrado',
+                text: 'Não foram encontrados orçamentos para os critérios de busca informados.'
+            });
+            // Opcional: define o status como nulo ou vazio
+            statusOrcamentoAtual = ''; 
+            return;
         }
-    };    
+
+        // **LÓGICA DO STATUS:** Agora que sabemos que o array não está vazio, podemos acessar a posição [0] com segurança
+        const statusDoOrcamento = dadosDoOrcamento[0].status;
+        statusOrcamentoAtual = statusDoOrcamento; // Define a variável global
+
+        if (statusDoOrcamento === 'A') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Orçamento Não Fechado',
+                text: 'O orçamento para os parâmetros solicitados ainda está em aberto. Não é possível ver os detalhes.'
+            });
+            return;
+        }
+
+        // **PROCESSAMENTO DOS DADOS:** Se o status não for 'A', o código continua aqui
+        dadosDoOrcamento.forEach(item => {
+            const chave = `${item.nmevento}-${item.nmcliente}-${item.nmlocalmontagem}-${item.setor}-${item.descfuncao}`;
+            
+            orcamentoPorFuncao[chave] = {
+                quantidadeOrcada: item.quantidade_orcada,
+                quantidadeEscalada: item.quantidade_escalada
+            };
+        });
+
+        console.log('Orçamento carregado:', orcamentoPorFuncao);
+
+    } catch (error) {
+        console.error("Erro ao carregar orçamento:", error);
+        orcamentoPorFuncao = {};
+        statusOrcamentoAtual = ''; // Limpa o status em caso de erro
+        Swal.fire({
+            icon: 'error',
+            title: 'Erro de Carregamento',
+            text: 'Não foi possível carregar o orçamento. Tente novamente mais tarde.'
+        });
+    }
+}
 
 function desinicializarStaffModal() {
     console.log("🧹 Desinicializando módulo Staff.js...");
@@ -2168,6 +2346,8 @@ console.log("Inicializando Flatpickr para todos os campos de data (globais)...")
         }
     });
 }
+
+
 
 
 console.log("ainda n adicionou Blur")
@@ -3179,176 +3359,88 @@ function mostrarTarja() {
     }
 }
 
-function setupComprovanteUpload(fileInputId, fileNameDisplayId, previewImgId, pdfPreviewDivId, pdfLinkId, imagePreviewDivId, linkImageId) {
-    const fileInput = document.getElementById(fileInputId);
-    const fileNameDisplay = document.getElementById(fileNameDisplayId);
-    const previewImg = document.getElementById(previewImgId); // A tag <img> que será sempre oculta
-    const pdfPreviewDiv = document.getElementById(pdfPreviewDivId);
-    const pdfLink = document.getElementById(pdfLinkId);
-    const imagePreviewDiv = document.getElementById(imagePreviewDivId); // Div do botão de imagem
-    const linkImage = document.getElementById(linkImageId); // Link do botão de imagem
-
-    // Verificação de elementos (importante para depuração)
-    if (!fileInput || !fileNameDisplay || !previewImg || !pdfPreviewDiv || !pdfLink || !imagePreviewDiv || !linkImage) {
-        console.warn(`[SETUP ERROR] Elementos não encontrados para o setup: Input=${fileInputId}, Nome=${fileNameDisplayId}, Img=${previewImgId}, PDFDiv=${pdfPreviewDivId}, PDFLink=${pdfLinkId}, ImgDiv=${imagePreviewDivId}, ImgLink=${linkImageId}`);
-        return;
-    }
-    console.log(`[SETUP SUCESSO] Todos os elementos encontrados para ${fileInputId}.`);
-
-    fileInput.addEventListener('change', function(event) {
-        console.log(`[EVENTO CHANGE] Evento 'change' disparado para ${fileInputId}.`);
-        const file = event.target.files[0];
-
-        console.log(`[EVENTO CHANGE] Objeto 'file' capturado:`, file);
-
-        // Esconde TODOS os previews por padrão ao selecionar um novo arquivo
-        previewImg.style.display = 'none'; // A tag <img> sempre oculta
-        pdfPreviewDiv.style.display = 'none';
-        pdfLink.href = '#';
-        imagePreviewDiv.style.display = 'none'; // Esconde o botão de imagem
-        linkImage.href = '#'; // Limpa o href do link da imagem
-
-        if (file) {
-            fileNameDisplay.textContent = `Arquivo selecionado: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
-            console.log(`[PROCESSANDO ARQUIVO] Arquivo selecionado: ${file.name}, Tipo: ${file.type}`);
-
-            const reader = new FileReader();
-
-            reader.onload = function(e) {
-                const dataUrl = e.target.result;
-
-                const isImage = file.type.startsWith('image/');
-                const isPdf = file.type === 'application/pdf';
-
-                console.log(`[PREVIEW LOGIC] Tipo MIME detectado: ${file.type}. É Imagem? ${isImage}. É PDF? ${isPdf}.`);
-
-                if (isImage) {
-                    linkImage.href = dataUrl; // Define o Data URL como href para o botão de imagem
-                    imagePreviewDiv.style.display = 'block'; // Exibe o div do botão de imagem
-                    console.log(`[PREVIEW IMAGE] Exibindo botão de prévia de imagem. href definido para: ${linkImage.href.substring(0, 50)}...`);
-                } else if (isPdf) {
-                    pdfLink.href = dataUrl; // Define o Data URL como href para o botão de PDF
-                    pdfPreviewDiv.style.display = 'block'; // Exibe o div do botão de PDF
-                    console.log(`[PREVIEW PDF] Exibindo botão de PDF. href definido para: ${pdfLink.href.substring(0, 50)}...`);
-                } else {
-                    console.warn(`[PREVIEW WARNING] Tipo de arquivo não suportado para pré-visualização: ${file.type}`);
-                }
-                console.log(`[FINALIZADO] Comprovante para ${fileInputId} selecionado e processado.`);
-            };
-
-            reader.onerror = function(error) {
-                console.error(`[ERRO READER] Erro ao ler o arquivo para ${fileInputId}:`, error);
-                fileNameDisplay.textContent = "Erro ao ler o arquivo.";
-                previewImg.style.display = 'none';
-                pdfPreviewDiv.style.display = 'none';
-                pdfLink.href = '#';
-                imagePreviewDiv.style.display = 'none';
-                linkImage.href = '#';
-            };
-
-            reader.readAsDataURL(file);
-        } else {
-            fileNameDisplay.textContent = "Nenhum arquivo selecionado";
-            previewImg.style.display = 'none';
-            pdfPreviewDiv.style.display = 'none';
-            pdfLink.href = '#';
-            imagePreviewDiv.style.display = 'none';
-            linkImage.href = '#';
-            console.log(`[NENHUM ARQUIVO] Nenhum arquivo selecionado para ${fileInputId}.`);
-        }
-    });
-}
-
-
-// function preencherComprovanteCampo(filePath, fileNameDisplayId, previewImgId, pdfPreviewDivId, pdfLinkId, imagePreviewDivId, linkImageId) {
+// function setupComprovanteUpload(fileInputId, fileNameDisplayId, previewImgId, pdfPreviewDivId, pdfLinkId, imagePreviewDivId, linkImageId) {
+//     const fileInput = document.getElementById(fileInputId);
 //     const fileNameDisplay = document.getElementById(fileNameDisplayId);
-//     const previewImg = document.getElementById(previewImgId); // Este é o seu <img> tag
+//     const previewImg = document.getElementById(previewImgId); // A tag <img> que será sempre oculta
 //     const pdfPreviewDiv = document.getElementById(pdfPreviewDivId);
 //     const pdfLink = document.getElementById(pdfLinkId);
-//     const imagePreviewDiv = document.getElementById(imagePreviewDivId); // Este é o div que contém a <img>
-//     const linkImage = document.getElementById(linkImageId); // Este é o link que envolve a <img>
-//     const fileInputId = fileNameDisplayId.replace('fileName', 'file'); // Assumindo padrão de nomenclatura
-//     const fileInput = document.getElementById(fileInputId);
+//     const imagePreviewDiv = document.getElementById(imagePreviewDivId); // Div do botão de imagem
+//     const linkImage = document.getElementById(linkImageId); // Link do botão de imagem
 
-//     if (!fileNameDisplay || !previewImg || !pdfPreviewDiv || !pdfLink || !imagePreviewDiv || !linkImage || !fileInput) {
-//         console.warn(`[CARREGAR DO BANCO ERROR] Elementos não encontrados para preencher: ${fileNameDisplayId}, ${previewImgId}, ${pdfPreviewDivId}, ${pdfLinkId}, ${imagePreviewDivId}, ${linkImageId}, ${fileInputId}`);
+//     // Verificação de elementos (importante para depuração)
+//     if (!fileInput || !fileNameDisplay || !previewImg || !pdfPreviewDiv || !pdfLink || !imagePreviewDiv || !linkImage) {
+//         console.warn(`[SETUP ERROR] Elementos não encontrados para o setup: Input=${fileInputId}, Nome=${fileNameDisplayId}, Img=${previewImgId}, PDFDiv=${pdfPreviewDivId}, PDFLink=${pdfLinkId}, ImgDiv=${imagePreviewDivId}, ImgLink=${linkImageId}`);
 //         return;
 //     }
+//     console.log(`[SETUP SUCESSO] Todos os elementos encontrados para ${fileInputId}.`);
 
-//     // Esconde TODOS os previews por padrão
-//     previewImg.style.display = 'none'; // Esconde a imagem em si
-//     pdfPreviewDiv.style.display = 'none';
-//     pdfLink.href = '#';
-//     imagePreviewDiv.style.display = 'none'; // Esconde o div da imagem
-//     linkImage.href = '#';
-//     fileNameDisplay.textContent = 'Nenhum arquivo selecionado'; // Reseta o nome do arquivo
-//     fileInput.value = ''; // Limpa o input file
+//     fileInput.addEventListener('change', function(event) {
+//         console.log(`[EVENTO CHANGE] Evento 'change' disparado para ${fileInputId}.`);
+//         const file = event.target.files[0];
 
-//     if (filePath) {
-//         const fileName = filePath.split('/').pop();
-//         fileNameDisplay.textContent = fileName;
+//         console.log(`[EVENTO CHANGE] Objeto 'file' capturado:`, file);
 
-//         const isImageFile = filePath.match(/\.(jpeg|jpg|png|gif|webp|bmp|svg)$/i);
-//         const isPdfFile = filePath.match(/\.pdf$/i);
+//         // Esconde TODOS os previews por padrão ao selecionar um novo arquivo
+//         previewImg.style.display = 'none'; // A tag <img> sempre oculta
+//         pdfPreviewDiv.style.display = 'none';
+//         pdfLink.href = '#';
+//         imagePreviewDiv.style.display = 'none'; // Esconde o botão de imagem
+//         linkImage.href = '#'; // Limpa o href do link da imagem
 
-//         if (isImageFile) {
-//             linkImage.href = filePath;
-//             imagePreviewDiv.style.display = 'block'; 
-//             previewImg.src = filePath; 
-          
-//         } else if (isPdfFile) {
-//             pdfLink.href = filePath;
-//             pdfPreviewDiv.style.display = 'block';
+//         if (file) {
+//             fileNameDisplay.textContent = `Arquivo selecionado: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+//             console.log(`[PROCESSANDO ARQUIVO] Arquivo selecionado: ${file.name}, Tipo: ${file.type}`);
+
+//             const reader = new FileReader();
+
+//             reader.onload = function(e) {
+//                 const dataUrl = e.target.result;
+
+//                 const isImage = file.type.startsWith('image/');
+//                 const isPdf = file.type === 'application/pdf';
+
+//                 console.log(`[PREVIEW LOGIC] Tipo MIME detectado: ${file.type}. É Imagem? ${isImage}. É PDF? ${isPdf}.`);
+
+//                 if (isImage) {
+//                     linkImage.href = dataUrl; // Define o Data URL como href para o botão de imagem
+//                     imagePreviewDiv.style.display = 'block'; // Exibe o div do botão de imagem
+//                     console.log(`[PREVIEW IMAGE] Exibindo botão de prévia de imagem. href definido para: ${linkImage.href.substring(0, 50)}...`);
+//                 } else if (isPdf) {
+//                     pdfLink.href = dataUrl; // Define o Data URL como href para o botão de PDF
+//                     pdfPreviewDiv.style.display = 'block'; // Exibe o div do botão de PDF
+//                     console.log(`[PREVIEW PDF] Exibindo botão de PDF. href definido para: ${pdfLink.href.substring(0, 50)}...`);
+//                 } else {
+//                     console.warn(`[PREVIEW WARNING] Tipo de arquivo não suportado para pré-visualização: ${file.type}`);
+//                 }
+//                 console.log(`[FINALIZADO] Comprovante para ${fileInputId} selecionado e processado.`);
+//             };
+
+//             reader.onerror = function(error) {
+//                 console.error(`[ERRO READER] Erro ao ler o arquivo para ${fileInputId}:`, error);
+//                 fileNameDisplay.textContent = "Erro ao ler o arquivo.";
+//                 previewImg.style.display = 'none';
+//                 pdfPreviewDiv.style.display = 'none';
+//                 pdfLink.href = '#';
+//                 imagePreviewDiv.style.display = 'none';
+//                 linkImage.href = '#';
+//             };
+
+//             reader.readAsDataURL(file);
 //         } else {
-//             console.warn(`[CARREGAR DO BANCO WARNING] Tipo de arquivo desconhecido para pré-visualização: ${filePath}. Exibindo apenas nome.`);
+//             fileNameDisplay.textContent = "Nenhum arquivo selecionado";
+//             previewImg.style.display = 'none';
+//             pdfPreviewDiv.style.display = 'none';
+//             pdfLink.href = '#';
+//             imagePreviewDiv.style.display = 'none';
+//             linkImage.href = '#';
+//             console.log(`[NENHUM ARQUIVO] Nenhum arquivo selecionado para ${fileInputId}.`);
 //         }
-//     }
+//     });
 // }
 
-// Função refatorada para preencher os campos de comprovante
-// export function preencherComprovanteCampo(filePath, campoNome) {
-//     const fileLabel = document.querySelector(`.collumn .containerPDF label[for="file${campoNome}"]`);
-//     const fileNameDisplay = document.getElementById(`fileName${campoNome}`);
-//     const fileInput = document.getElementById(`file${campoNome}`);
-//     const linkDisplayContainer = document.getElementById(`linkContainer${campoNome}`);
-//     const mainDisplayContainer = document.getElementById(`comprovante${campoNome}Display`);
-//     const hiddenRemoverInput = document.getElementById(`limparComprovante${campoNome}`);
 
-//     if (!fileLabel || !fileNameDisplay || !fileInput || !linkDisplayContainer || !mainDisplayContainer || !hiddenRemoverInput) {
-//         console.warn(`[PREENCHER-COMPROVANTE] Elementos não encontrados para o campo: ${campoNome}`);
-//         return;
-//     }
 
-//     fileLabel.style.display = 'flex';
-//     linkDisplayContainer.innerHTML = '';
-//     mainDisplayContainer.style.display = 'none';
-//     hiddenRemoverInput.value = 'false';
-//     fileNameDisplay.textContent = 'Nenhum arquivo selecionado';
-//     fileInput.value = '';
-
-//     if (filePath) {
-//         const fileName = filePath.split('/').pop(); // Extrai o nome do arquivo
-        
-//         fileLabel.style.display = 'none';
-//         mainDisplayContainer.style.display = 'block';
-
-//         let linkHtml = '';
-//         if (filePath.toLowerCase().match(/\.(jpeg|jpg|png|gif|webp|bmp|svg)$/i)) {
-//             // Adiciona o nome do arquivo no texto do link
-//             linkHtml = `<a href="${filePath}" target="_blank" class="comprovante-salvo-link btn-success">Ver Imagem: ${fileName}</a>`;
-//         } else if (filePath.toLowerCase().endsWith('.pdf')) {
-//             // Adiciona o nome do arquivo no texto do link
-//             linkHtml = `<a href="${filePath}" target="_blank" class="comprovante-salvo-link btn-info">Ver PDF: ${fileName}</a>`;
-//         }
-
-//         linkDisplayContainer.innerHTML = `
-//             ${linkHtml}
-//             <button type="button" class="btn btn-sm btn-danger remover-comprovante-btn" data-campo="${campoNome}">
-//                 <i class="fas fa-trash"></i> Remover
-//             </button>
-//         `;
-//     }
-// }
 export function preencherComprovanteCampo(filePath, campoNome) {
     const fileLabel = document.querySelector(`.collumn .containerPDF label[for="file${campoNome}"]`);
     const fileNameDisplay = document.getElementById(`fileName${campoNome}`);
@@ -3392,63 +3484,58 @@ export function preencherComprovanteCampo(filePath, campoNome) {
     }
 }
 
-// Adicione um event listener para lidar com o clique no botão de remover
-document.addEventListener('click', (e) => {
-    // Verifica se o elemento clicado tem a classe 'remover-comprovante-btn'
-    if (e.target.closest('.remover-comprovante-btn')) {
-        const removerBtn = e.target.closest('.remover-comprovante-btn');
-        const campoNome = removerBtn.getAttribute('data-campo');
 
-        // Exibe o SweetAlert de confirmação
-        Swal.fire({
-            title: `Tem certeza, que deseja REMOVER o comprovante de '${campoNome}'`,
-            text: "Você não poderá reverter esta ação!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33', // Cor do botão de exclusão
-            cancelButtonColor: '#3085d6', // Cor do botão de cancelamento
-            confirmButtonText: 'Sim, remover!',
-            cancelButtonText: 'Cancelar'
-        }).then((result) => {
-            // Se o usuário confirmar a exclusão
-            if (result.isConfirmed) {
-                // Lógica de remoção do comprovante (a que já havíamos discutido)
-                
-                const fileInput = document.getElementById(`file${campoNome}`);
-                const fileLabel = document.querySelector(`.collumn .containerPDF label[for="file${campoNome}"]`);
-                const fileNameDisplay = document.getElementById(`fileName${campoNome}`);
-                const linkDisplayContainer = document.getElementById(`linkContainer${campoNome}`);
-                const mainDisplayContainer = document.getElementById(`comprovante${campoNome}Display`);
-                const hiddenRemoverInput = document.getElementById(`limparComprovante${campoNome}`);
 
-                // Oculta a pré-visualização e o botão de remover
-                mainDisplayContainer.style.display = 'none';
-                
-                // Exibe o campo de upload de arquivo novamente
-                fileLabel.style.display = 'flex';
-                
-                // Limpa o nome do arquivo
-                fileNameDisplay.textContent = 'Nenhum arquivo selecionado';
-                
-                // Limpa o input de arquivo para que o arquivo não seja enviado novamente
-                fileInput.value = '';
+/**
+ * Verifica se a quantidade de funcionários para uma função excedeu o orçamento
+ * com base em múltiplos critérios, incluindo o período.
+ * @param {object} criterios - Objeto com os critérios (ex: {nmFuncao, nmEvento, datasEvento, ...}).
+ * @returns {boolean} - true se o limite não foi atingido, false caso contrário.
+ */
+function verificarLimiteDeFuncao(criterios) {
+    // 1. Construa a chave composta, igual à usada em buscarEPopularOrcamento
+    const chave = `${criterios.nmEvento}-${criterios.nmCliente}-${criterios.nmlocalMontagem}-${criterios.pavilhao}-${criterios.nmFuncao}`;
+    const dadosOrcamento = orcamentoPorFuncao[chave];
 
-                // Define o input oculto para 'true'
-                hiddenRemoverInput.value = 'true';
-
-                // Opcionalmente, pode-se mostrar um alerta de sucesso
-                // Swal.fire(
-                //     'Removido!',
-                //     'O comprovante foi marcado para remoção. Clique no botão ENVIAR, para salvar a alteração',
-                //     'success'
-                // );
-
-                console.log(`Comprovante do campo '${campoNome}' marcado para remoção.`);
-            }
-        });
+    // Se não houver dados de orçamento, não há limite
+    if (!dadosOrcamento) {
+        return true;
     }
-});
 
+    // 2. Conte quantos funcionários já foram inseridos na tabela com esses critérios
+    let countNaTabela = 0;
+    const linhasTabela = document.querySelectorAll('#eventsTableBody tr');
+    linhasTabela.forEach(linha => {
+        const eventDataNaLinha = JSON.parse(linha.dataset.eventData);
+        if (
+            eventDataNaLinha.nmfuncao.trim().toUpperCase() === criterios.nmFuncao.toUpperCase().trim() &&
+            eventDataNaLinha.nmevento.trim().toUpperCase() === criterios.nmEvento.toUpperCase().trim() &&
+            eventDataNaLinha.nmcliente.trim().toUpperCase() === criterios.nmCliente.toUpperCase().trim() &&
+            eventDataNaLinha.nmlocalmontagem.trim().toUpperCase() === criterios.nmlocalMontagem.toUpperCase().trim() &&
+            //eventDataNaLinha.pavilhao.trim().toUpperCase() === criterios.pavilhao.toUpperCase().trim()
+            eventDataNaLinha.setor.trim().toUpperCase() === criterios.setor.toUpperCase().trim()
+        ) {
+            countNaTabela++;
+        }
+    });
+
+    // 3. Combine a contagem do banco e da tabela
+    const totalEscalado = dadosOrcamento.quantidadeEscalada + countNaTabela;
+    const limite = dadosOrcamento.quantidadeOrcada;
+
+    console.log(`Verificando para a combinação '${chave}' - Total escalado: ${totalEscalado}, Limite: ${limite}`);
+
+    if (totalEscalado >= limite) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Limite atingido',
+            text: `O limite de ${limite} para esta função no período já foi alcançado. Existem ${dadosOrcamento.quantidadeEscalada} funcionários já salvos para este período neste setor e ${countNaTabela} adicionados na lista atual.`,
+        });
+        return false;
+    }
+
+    return true;
+}
 
 function limparCamposComprovantes() {
     
