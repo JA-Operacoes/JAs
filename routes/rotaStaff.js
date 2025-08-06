@@ -222,6 +222,121 @@ router.get('/pavilhao', async (req, res) => {
 
 });
 
+router.post("/orcamento/consultar",
+  async (req, res) => {
+    console.log("Dados recebidos no backend:", req.body);
+    const client = await pool.connect();
+    try {
+      const {
+        idEvento,
+        idCliente,
+        idLocalMontagem,
+        setor,
+        datasEvento = [],
+      } = req.body;
+
+      const idempresa = req.idempresa;
+      const setorParaBusca = setor === '' ? null : setor;
+
+      console.log("ORCAMENTO/CONSULTAR", req.body);
+
+      if (!idEvento || !idCliente || !idLocalMontagem) {
+        return res
+          .status(400)
+          .json({
+            error: "IDs de Evento, Cliente, Local de Montagem e Setor são obrigatórios.",
+          });
+      }
+
+      if (!Array.isArray(datasEvento) || datasEvento.length === 0) {
+        return res.status(400).json({ error: "O array de datas é obrigatório para a pesquisa." });
+      }
+
+      const query = `
+        WITH datas_orcamento AS (
+          SELECT
+            oi.idorcamentoitem,
+            ARRAY[gerar_periodo_diarias(oi.periododiariasinicio, oi.periododiariasfim)] AS periodos_disponiveis
+          FROM orcamentoitens oi
+          WHERE oi.idorcamentoitem IS NOT NULL
+        )
+        SELECT
+          o.status,
+          oi.qtditens AS quantidade_orcada,          
+          f.descfuncao,
+          e.nmevento,
+          c.nmfantasia AS nmcliente,
+          lm.descmontagem AS nmlocalmontagem,
+          oi.setor AS setor,
+          (
+            SELECT COUNT(DISTINCT se.idfuncionario)
+            FROM staffeventos se
+            WHERE
+              se.idevento = o.idevento
+              AND se.idcliente = o.idcliente
+              AND se.idmontagem = o.idmontagem
+              AND COALESCE(se.setor, '') = COALESCE(oi.setor, '') -- Corrigido para lidar com nulls
+              AND se.idfuncao = oi.idfuncao
+              AND se.datasevento @> to_jsonb($6::text[])
+          ) AS quantidade_escalada
+        FROM
+          orcamentoitens oi
+        JOIN
+          orcamentos o ON oi.idorcamento = o.idorcamento
+        JOIN
+          orcamentoempresas oe ON o.idorcamento = oe.idorcamento
+        LEFT JOIN
+          funcao f ON oi.idfuncao = f.idfuncao
+        LEFT JOIN
+          eventos e ON o.idevento = e.idevento
+        LEFT JOIN
+          clientes c ON o.idcliente = c.idcliente
+        LEFT JOIN
+          localmontagem lm ON o.idmontagem = lm.idmontagem
+        JOIN
+          datas_orcamento dto ON oi.idorcamentoitem = dto.idorcamentoitem
+        WHERE
+          oe.idempresa = $1
+          --AND o.status = 'F'
+          AND o.idevento = $2
+          AND o.idcliente = $3
+          AND o.idmontagem = $4
+          AND COALESCE(oi.setor, '') = COALESCE($5, '') -- Corrigido para lidar com nulls
+          AND oi.idfuncao IS NOT NULL
+          AND dto.periodos_disponiveis && $6::date[]
+        GROUP BY
+          oi.idorcamentoitem, f.descfuncao, e.nmevento, c.nmfantasia, lm.descmontagem, oi.setor, o.idevento, o.idcliente, o.idmontagem, oi.idfuncao, o.status
+        ORDER BY
+          oi.idorcamentoitem;
+      `;
+
+      console.log("QUERY", query);
+      const values = [
+        idempresa,
+        idEvento,
+        idCliente,
+        idLocalMontagem,
+        setorParaBusca,
+        datasEvento,
+      ];
+
+      const result = await client.query(query, values);
+      const orcamentoItems = result.rows;
+
+      res.status(200).json(orcamentoItems);
+    } catch (error) {
+      console.error("Erro ao buscar itens de orçamento por critérios:", error);
+      res.status(500).json({
+        error: "Erro ao buscar orçamento por critérios.",
+        detail: error.message,
+      });
+    } finally {
+      client.release();
+    }
+  }
+);
+
+
 router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, res) => {
     console.log("🔥 Rota /staff/check-duplicate acessada");
     let client; // Declarar client aqui para garantir que esteja acessível no finally
@@ -762,63 +877,35 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
             const oldRecord = oldRecordResult.rows[0];
             console.log("Old Record retrieved:", oldRecord);
 
-//             // (Restante da lógica para comprovantes...)
-//             let newComppgtoCachePath = oldRecord ? oldRecord.comppgtocache : null;
-//             if (comprovanteCacheFile) {
-//                 deletarArquivoAntigo(oldRecord ? oldRecord.comppgtocache : null);
-//                 newComppgtoCachePath = `/uploads/staff_comprovantes/${comprovanteCacheFile.filename}`;
-//             } else if (req.body.comppgtocache === '') {
-//                 deletarArquivoAntigo(oldRecord ? oldRecord.comppgtocache : null);
-//                 newComppgtoCachePath = null;
-//             }
-
-//             let newComppgtoAjdCustoPath = oldRecord ? oldRecord.comppgtoajdcusto : null;
-//             if (comprovanteAjdCustoFile) {
-//                 deletarArquivoAntigo(oldRecord ? oldRecord.comppgtoajdcusto : null);
-//                 newComppgtoAjdCustoPath = `/uploads/staff_comprovantes/${comprovanteAjdCustoFile.filename}`;
-//             } else if (req.body.comppgtoajdcusto === '') {
-//                 deletarArquivoAntigo(oldRecord ? oldRecord.comppgtoajdcusto : null);
-//                 newComppgtoAjdCustoPath = null;
-//             }
-
-//             let newComppgtoCaixinhaPath = oldRecord ? oldRecord.comppgtocaixinha : null;
-//             if (comprovanteCaixinhaFile) {
-//                 deletarArquivoAntigo(oldRecord ? oldRecord.comppgtocaixinha : null);
-//                 newComppgtoCaixinhaPath = `/uploads/staff_comprovantes/${comprovanteCaixinhaFile.filename}`;
-//             } else if (req.body.comppgtocaixinha === '') {
-//                 deletarArquivoAntigo(oldRecord ? oldRecord.comppgtocaixinha : null);
-//                 newComppgtoCaixinhaPath = null;
-//             }           
-
-              
-              let newComppgtoCachePath = oldRecord ? oldRecord.comppgtocache : null;
-              if (comprovanteCacheFile) {                 
-                  deletarArquivoAntigo(oldRecord?.comppgtocache);
-                  newComppgtoCachePath = `/uploads/staff_comprovantes/${comprovanteCacheFile.filename}`;
-              }              
-              else if (req.body.limparComprovanteCache === 'true') {                 
-                  console.log("Removendo comprovante de cache...");
-                  deletarArquivoAntigo(oldRecord?.comppgtocache);
-                  newComppgtoCachePath = null; 
-              }
-              
-              let newComppgtoAjdCustoPath = oldRecord ? oldRecord.comppgtoajdcusto : null;
-              if (comprovanteAjdCustoFile) {
+            
+            let newComppgtoCachePath = oldRecord ? oldRecord.comppgtocache : null;
+            if (comprovanteCacheFile) {                 
+                deletarArquivoAntigo(oldRecord?.comppgtocache);
+                newComppgtoCachePath = `/uploads/staff_comprovantes/${comprovanteCacheFile.filename}`;
+            }              
+            else if (req.body.limparComprovanteCache === 'true') {                 
+                console.log("Removendo comprovante de cache...");
+                deletarArquivoAntigo(oldRecord?.comppgtocache);
+                newComppgtoCachePath = null; 
+            }
+            
+            let newComppgtoAjdCustoPath = oldRecord ? oldRecord.comppgtoajdcusto : null;
+            if (comprovanteAjdCustoFile) {
+              deletarArquivoAntigo(oldRecord?.comppgtoajdcusto);
+              newComppgtoAjdCustoPath = `/uploads/staff_comprovantes/${comprovanteAjdCustoFile.filename}`;
+            } else if (req.body.limparComprovanteAjdCusto === 'true') {
                 deletarArquivoAntigo(oldRecord?.comppgtoajdcusto);
-                newComppgtoAjdCustoPath = `/uploads/staff_comprovantes/${comprovanteAjdCustoFile.filename}`;
-              } else if (req.body.limparComprovanteAjdCusto === 'true') {
-                  deletarArquivoAntigo(oldRecord?.comppgtoajdcusto);
-                  newComppgtoAjdCustoPath = null;
-              }
-             
-              let newComppgtoCaixinhaPath = oldRecord ? oldRecord.comppgtocaixinha : null;
-              if (comprovanteCaixinhaFile) {
-                  deletarArquivoAntigo(oldRecord?.comppgtocaixinha);
-                  newComppgtoCaixinhaPath = `/uploads/staff_comprovantes/${comprovanteCaixinhaFile.filename}`;
-              } else if (req.body.limparComprovanteCaixinha === 'true') {
-                  deletarArquivoAntigo(oldRecord?.comppgtocaixinha);
-                  newComppgtoCaixinhaPath = null;
-              }
+                newComppgtoAjdCustoPath = null;
+            }
+            
+            let newComppgtoCaixinhaPath = oldRecord ? oldRecord.comppgtocaixinha : null;
+            if (comprovanteCaixinhaFile) {
+                deletarArquivoAntigo(oldRecord?.comppgtocaixinha);
+                newComppgtoCaixinhaPath = `/uploads/staff_comprovantes/${comprovanteCaixinhaFile.filename}`;
+            } else if (req.body.limparComprovanteCaixinha === 'true') {
+                deletarArquivoAntigo(oldRecord?.comppgtocaixinha);
+                newComppgtoCaixinhaPath = null;
+            }
 
               
             const queryStaffEventos = `
@@ -1087,5 +1174,6 @@ router.post(
     }
   }
 );
+
 
 module.exports = router;
