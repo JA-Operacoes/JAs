@@ -395,6 +395,9 @@
   input#dtIniMarcacao, input#dtFimMarcacao, input#dtInicioMontagem, input#dtFim, input#dtInicioRealizacao, input#dtFimRealizacao, input#dtIniDesmontagem, input#dtFimDesmontagem{
     width: 200px;
   }
+  input#nomenclatura{
+    width: 300px;
+  }
 
   input#ufmontagem{
     height: 25px;

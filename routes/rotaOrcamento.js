@@ -64,7 +64,8 @@ router.get(
             o.percentlucroreal,
             o.vlrimposto,
             o.percentimposto,
-            o.vlrcliente           
+            o.vlrcliente,
+            o.nomenclatura          
         FROM
             orcamentos o
         JOIN
@@ -480,7 +481,7 @@ router.post(
             dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
             totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
             desconto, percentDesconto, acrescimo, percentAcrescimo,
-            lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idsPavilhoes, itens } = req.body;
+            lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, nomenclatura, itens } = req.body;
 
     const idempresa = req.idempresa; 
 
@@ -496,14 +497,14 @@ router.post(
                     dtiniinfradesmontagem, dtfiminfradesmontagem, obsitens, obsproposta,
                     totgeralvda, totgeralcto, totajdcto, lucrobruto, percentlucro,
                     desconto, percentdesconto, acrescimo, percentacrescimo,
-                    lucroreal, percentlucroreal, vlrimposto, percentimposto, vlrcliente --, idpavilhao
+                    lucroreal, percentlucroreal, vlrimposto, percentimposto, vlrcliente, nomenclatura
                 ) VALUES (
                     $1, $2, $3, $4,
                     $5, $6, $7, $8, $9, $10, $11,
                     $12, $13, $14, $15, $16, $17, $18, $19,
                     $20, $21, $22, $23, $24,
                     $25, $26, $27, $28,
-                    $29, $30, $31, $32, $33 --, $34
+                    $29, $30, $31, $32, $33, $34
                 ) RETURNING idorcamento, nrorcamento; -- Adicionado nrorcamento aqui!
             `;
 
@@ -516,7 +517,7 @@ router.post(
         dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
         totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
         desconto, percentDesconto, acrescimo, percentAcrescimo,
-        lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente //, idPavilhao
+        lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, nomenclatura
       ];
 
       const resultOrcamento = await client.query(insertOrcamentoQuery, orcamentoValues);
@@ -639,7 +640,7 @@ router.put(
             dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
             totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
             desconto, percentDesconto, acrescimo, percentAcrescimo,
-            lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idsPavilhoes,
+            lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idsPavilhoes, nomenclatura,
             itens } = req.body;
 
     const idempresa = req.idempresa; // ID da empresa do middleware 'contextoEmpresa'
@@ -659,8 +660,8 @@ router.put(
                     dtiniinfradesmontagem = $16, dtfiminfradesmontagem = $17, obsitens = $18, obsproposta = $19,
                     totgeralvda = $20, totgeralcto = $21, totajdcto = $22, lucrobruto = $23, percentlucro = $24,
                     desconto = $25, percentdesconto = $26, acrescimo = $27, percentacrescimo = $28,
-                    lucroreal = $29, percentlucroreal = $30, vlrimposto = $31, percentimposto = $32, vlrcliente = $33
-                WHERE idorcamento = $34 AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $34) = $35;
+                    lucroreal = $29, percentlucroreal = $30, vlrimposto = $31, percentimposto = $32, vlrcliente = $33, nomenclatura = $34
+                WHERE idorcamento = $35 AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $35) = $36;
             `;
 
       const orcamentoValues = [
@@ -671,7 +672,7 @@ router.put(
         dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
         totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
         desconto, percentDesconto, acrescimo, percentAcrescimo,
-        lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, //idsPavilhoes,
+        lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, nomenclatura,
         idOrcamento, // $35
         idempresa    // $36
       ];

@@ -37,11 +37,10 @@
                     <h2>Orçamento</h2>
                 </div>
 
-                    <div class="Norcamento">
-                        <div class="form2" >
-                            <input type="text" class="uppercase" class="preenchido" id="Status"  value="A" name="Status" maxlength="1" pattern="^[aAfF]$"
-                                title="A = Aberto | F = Fechado"   required spellcheck="false">
-                            <label for="Status">Status  (A/F)</label>
+                <div class="Norcamento">
+                        <div class="form2">
+                            <input type="text" id="nomenclatura" name="nomenclatura" spellcheck="false" title="Defina a nomenclatura do Orçamento">
+                            <label for="nomenclatura"> Nomenclatura </label>
                         </div>
                         <div class="form">
                             <input type="text" id="idOrcamento" name="idOrcamento" spellcheck="false" readonly style="display: none;" >
@@ -51,7 +50,14 @@
                             <input type="text" id="nrOrcamento" name="nrOrcamento" spellcheck="false">
                             <label for="nrOrcamento">N° do Orçamento</label>
                         </div>
+                        <div class="form2" >
+                            <input type="text" class="uppercase" class="preenchido" id="Status"  value="A" name="Status" maxlength="1" pattern="^[aAfF]$"
+                                title="A = Aberto | F = Fechado"   required spellcheck="false">
+                            <label for="Status">Status  (A/F)</label>
+                        </div>
                     </div>
+
+
 
 
                     <div class="Selects">

@@ -2751,6 +2751,7 @@ async function verificaOrcamento() {
 
             const dadosOrcamento = {
                 id: orcamentoId,
+                nomenclatura: document.querySelector("#nomenclatura")?.value,
                 status: formData.get("Status"),
                 idCliente: document.querySelector(".idCliente option:checked")?.value || null, // Se o campo for vazio, será null
                 idEvento: document.querySelector(".idEvento option:checked")?.value || null, // Se o campo for vazio, será null
@@ -3149,6 +3150,13 @@ export async function preencherFormularioComOrcamento(orcamento) {
         nrOrcamentoInput.value = orcamento.nrorcamento || '';
     } else {
         console.warn("Elemento com ID 'nrOrcamento' não encontrado.");
+    }
+
+    const nomenclaturaInput = document.getElementById('nomenclatura');
+    if (nomenclaturaInput) { // Adicionado if
+        nomenclaturaInput.value = orcamento.nomenclatura || '';
+    } else {
+        console.warn("Elemento 'nomenclatura' não encontrado.");
     }
     
     // Define os valores dos selects.
@@ -4225,14 +4233,14 @@ function recalcularLinha(linha) {
         const totalTransporteLinha = desformatarMoeda(linha.querySelector('.valorbanco.transporte')?.textContent) || 0;
 
         console.log("ALIMENTACAO (lido do DOM):", linha.querySelector('.valorbanco.alimentacao')); // Mantém o log, agora deve mostrar o valor correto
-        let hospedagemValor = parseFloat(linha.querySelector('.hospedagem')?.value) || 0;
-        let transporteExtraValor = parseFloat(linha.querySelector('.transporteExtraInput')?.value) || 0;
+        let hospedagemValor = desformatarMoeda(linha.querySelector('.hospedagem')?.value) || 0;
+        let transporteExtraValor = desformatarMoeda(linha.querySelector('.transporteExtraInput')?.value) || 0;
 
         console.log("HOSPEDAGEM E TRANSPORTE EXTRA:", hospedagemValor, transporteExtraValor);
               
 
         // let vlrAjdCusto =  vlrCusto + totalAlimentacaoLinha + totalTransporteLinha + hospedagemValor;
-        let vlrAjdCusto =  vlrCusto + totalAlimentacaoLinha + totalTransporteLinha + hospedagemValor;
+        let vlrAjdCusto =  vlrCusto + totalAlimentacaoLinha + totalTransporteLinha;
         
         // --- LEITURA DOS VALORES DE DESCONTO E ACRÉSCIMO DA LINHA (NÃO FAÇA CÁLCULO DE SINCRONIZAÇÃO AQUI!) ---
         let campoDescValor = linha.querySelector('.descontoItem .ValorInteiros');
