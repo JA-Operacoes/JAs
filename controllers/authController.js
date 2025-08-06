@@ -477,6 +477,7 @@ async function buscarUsuarioPorEmail(req, res) {
   }
 }
 
+
 async function buscarModulos(req, res) {
   
   console.log("ENTROU NA ROTA DE MODULOS PELO INDEX");
@@ -509,6 +510,8 @@ module.exports = {
   verificarNomeCompleto,
   login,
   listarPermissoes,
+  buscarUsuarioPorEmail,
+  buscarModulos
   buscarUsuarioPorEmail,
   buscarModulos
 };

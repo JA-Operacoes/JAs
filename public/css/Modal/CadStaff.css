@@ -37,14 +37,14 @@
   transform: translate(-50%, -50%); /* Ajuste para o centro exato */
   background-color: #4d4d4d;
   padding: 5px;
-  width: 1125px; /* Ajuste o tamanho conforme necessário */
+  width: 1325px; /* Ajuste o tamanho conforme necessário */
   /* height: 745px; */
   height: 850px;
   font-size: 16px;
   z-index: 9999;
 }
 
- #cadModalFuncionarios.modal-content{
+#cadModalFuncionarios.modal-content{
     height: 590px;
   }
   
@@ -80,7 +80,7 @@ body{
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-top: 730px;
+  margin-top: 500px;
 }
 
 #form-content {
@@ -100,10 +100,7 @@ body{
   border-bottom-left-radius: 8px;          /* Bordas arredondadas */
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
   overflow-y: auto;
-  overflow-x: none;
-
-
-  
+  overflow-x: none;  
   max-width: unset; /* Permite que ele use toda a largura disponível */
 }
 
@@ -358,6 +355,65 @@ display: none;
   flex-direction: row;
   gap: 20px ;
 }
+
+/* Adicione estas novas regras ao seu CSS */
+
+/* Estiliza o contêiner principal (agora mais discreto) */
+#comprovanteCacheDisplay,
+#comprovanteAjdCustoDisplay,
+#comprovanteExtrasDisplay {
+display: flex;
+flex-direction: row;
+align-items: center;
+gap: 10px; /* Espaço entre o link e o botão */
+margin-top: 5px; /* Reduz a margem*/
+padding: 5px; /* Reduz o padding */
+border: none; /* Remove a borda */
+background-color: transparent; /* Fundo transparente */
+}
+
+/* Estiliza o link "Ver PDF/Imagem" para ser mais discreto */
+.comprovante-salvo-link {
+flex-grow: 1;
+display: inline-block; /* Para ocupar apenas a largura do conteúdo */
+padding: 5px 8px;
+border-radius: 5px;
+text-decoration: none;
+color: #007bff; /* Cor azul padrão de link */
+font-size: 14px;
+font-weight: normal; /* Remove o negrito */
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+background-color: #e9ecef; /* Um fundo cinza claro */
+border: 1px solid #ced4da; /* Borda sutil */
+}
+
+.comprovante-salvo-link.btn-success {
+color: #198754;
+background-color: #d1e7dd;
+border-color: #c3e6cb;
+}
+
+.comprovante-salvo-link.btn-info {
+color: #0c5460;
+background-color: #d1ecf1;
+border-color: #bee5eb;
+}
+
+/* Mantém o estilo do botão remover */
+.remover-comprovante-btn {
+height: 30px; /* Reduz a altura do botão */
+padding: 0.2rem 0.5rem;
+font-size: 0.875rem;
+line-height: 1.5;
+border-radius: 0.2rem;
+flex-shrink: 0;
+background-color: #dc3545;
+color: white;
+border: 1px solid #dc3545;
+}
+
 .collumn{
   display: flex;
   justify-content: center;
@@ -558,19 +614,58 @@ input[type="file"]{
   outline: none;
 } 
 
-/* .form2 select {
-  flex: 1;
+.Selects {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 200px;
+}
+
+.field label {
+  font-weight: bold;
+  font-size: 14px;
+  display: flex;
+  justify-content: center;
+}
+
+select, input[type="text"] {
   font-family: var(--Font-primary);
+  height: 30px;
   width: 270px;
-  height: 40px;
-  border-radius: 6px;
+  padding: 0 10px;
   font-size: 15px;
-  padding: 0 20px;
+  border-radius: 6px;
   border: 1px solid #000000;
   background: transparent;
   color: #000000;
   outline: none;
-}  */
+
+}
+
+/* manter Setor como antes */
+.form2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.form2 input {
+  height: 30px;
+  width: 250px;
+  font-size: 15px;
+  padding: 0 10px;
+  border: 1px solid #000;
+  border-radius: 6px;
+  background: transparent;
+  color: #000;
+}
 
 
  .form2 { 
@@ -654,7 +749,7 @@ input#transporte,#almoco,#jantar,#caixinha, #vlrCusto, #extra{
   width: 100%;
 }
 
-select#nmFuncionario, #descFuncao{
+select#nmFuncionario{
   /* width: 270px; */
   width: 100%;
 }
@@ -724,6 +819,7 @@ input[type=date]{
   height: 30px;
   font-size: 17px;
 }
+
 
 
 
@@ -850,8 +946,9 @@ button {
 } */
 
 input.form-control.input {
-    width: 500px;
+  width: 300px;
     overflow-x: auto;
+    font-size: 10px;
 }
 
 .flatpickr-calendar {
@@ -859,3 +956,114 @@ input.form-control.input {
 }
 
 
+@media (max-width: 1657px){
+
+  #cadModalStaff.modal {
+  position: fixed;
+  top: 50%; /* Alinha verticalmente ao centro */
+  left: 50%; /* Alinha horizontalmente ao centro */   
+  transform: translate(-50%, -50%); /* Ajuste para o centro exato */
+  background-color: #4d4d4d;
+  padding: 5px;
+  width: 1325px; /* Ajuste o tamanho conforme necessário */
+  /* height: 745px; */
+  height: 700px;
+  font-size: 16px;
+  z-index: 9999;
+}
+
+ #cadModalFuncionarios.modal-content{
+    height: 590px;
+  }
+  
+#cadModalStaff.modal-open{
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.title{
+  font-family: "Abel", sans-serif;
+  font-size: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 640px;
+}
+
+#form-content {
+  font-family: "Abel", sans-serif;
+  display: flex;                /* Define o modelo de layout Flexbox */
+  flex-direction: column; 
+  justify-content: center;
+  background-color: rgb(0, 0, 0);
+  max-width: 850px;   
+  width: 100%;  
+  height: 625px;          /* Largura do formulário */
+  margin: 0% auto;            /* Centraliza o formulário na tela */
+  padding: 10px;                /* Espaçamento interno */
+  background-color: #cacaca; 
+  border: #ce0303;     /* Fundo branco */
+  border-bottom-right-radius: 8px;          /* Bordas arredondadas */
+  border-bottom-left-radius: 8px;          /* Bordas arredondadas */
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
+  overflow-y: auto;
+  overflow-x: none;
+  max-width: unset; /* Permite que ele use toda a largura disponível */
+}
+}
+
+@media (max-width: 1326px){
+
+  #cadModalStaff.modal {
+  position: fixed;
+  top: 50%; /* Alinha verticalmente ao centro */
+  left: 50%; /* Alinha horizontalmente ao centro */   
+  transform: translate(-50%, -50%); /* Ajuste para o centro exato */
+  background-color: #4d4d4d;
+  padding: 5px;
+  width: 1225px; /* Ajuste o tamanho conforme necessário */
+  /* height: 745px; */
+  height: 625px;
+  font-size: 16px;
+  z-index: 9999;
+}
+
+ #cadModalFuncionarios.modal-content{
+    height: 590px;
+  }
+  
+#cadModalStaff.modal-open{
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.title{
+  font-family: "Abel", sans-serif;
+  font-size: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 750px;
+}
+
+#form-content {
+  font-family: "Abel", sans-serif;
+  display: flex;                /* Define o modelo de layout Flexbox */
+  flex-direction: column; 
+  justify-content: center;
+  background-color: rgb(0, 0, 0);
+  max-width: 750px;   
+  width: 100%;  
+  height: 550px;          /* Largura do formulário */
+  margin: 0% auto;            /* Centraliza o formulário na tela */
+  padding: 10px;                /* Espaçamento interno */
+  background-color: #cacaca; 
+  border: #ce0303;     /* Fundo branco */
+  border-bottom-right-radius: 8px;          /* Bordas arredondadas */
+  border-bottom-left-radius: 8px;          /* Bordas arredondadas */
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
+  overflow-y: auto;
+  overflow-x: none;
+  max-width: unset; /* Permite que ele use toda a largura disponível */
+}
+}

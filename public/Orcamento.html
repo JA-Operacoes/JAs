@@ -37,11 +37,10 @@
                     <h2>Orçamento</h2>
                 </div>
 
-                    <div class="Norcamento">
-                        <div class="form2" >
-                            <input type="text" class="uppercase" class="preenchido" id="Status"  value="A" name="Status" maxlength="1" pattern="^[aAfF]$"
-                                title="A = Aberto | F = Fechado"   required spellcheck="false">
-                            <label for="Status">Status  (A/F)</label>
+                <div class="Norcamento">
+                        <div class="form2">
+                            <input type="text" id="nomenclatura" name="nomenclatura" spellcheck="false" title="Defina a nomenclatura do Orçamento">
+                            <label for="nomenclatura"> Nomenclatura </label>
                         </div>
                         <div class="form">
                             <input type="text" id="idOrcamento" name="idOrcamento" spellcheck="false" readonly style="display: none;" >
@@ -51,7 +50,14 @@
                             <input type="text" id="nrOrcamento" name="nrOrcamento" spellcheck="false">
                             <label for="nrOrcamento">N° do Orçamento</label>
                         </div>
+                        <div class="form2" >
+                            <input type="text" class="uppercase" class="preenchido" id="Status"  value="A" name="Status" maxlength="1" pattern="^[aAfF]$"
+                                title="A = Aberto | F = Fechado"   required spellcheck="false">
+                            <label for="Status">Status  (A/F)</label>
+                        </div>
                     </div>
+
+
 
 
                     <div class="Selects">
@@ -66,15 +72,10 @@
                         <div class="select2">
                             <label for="idMontagem">Local Montagem:</label>
                             <select class="idMontagem"  id="idMontagem"></select>
-                            <!-- <input type="hidden" id="idPavilhaoLocal" name="idPavilhaoLocal"> -->
                             <div class="form3">   
                                 <input type="text" class="ufmontagem" id="ufmontagem" name="ufmontagem" required spellcheck="false">
                                 <label  for="ufmontagem">UF</label>               
                             </div>
-                            
-                            <!-- <select class="idPavilhao" name="idPavilhao" id="idPavilhao" required >
-                                <option value="" selected>Selecione o Pavilhão</option>                                    
-                            </select> -->
                             <select class="idPavilhao" name="selecionarPavilhao" id="selecionarPavilhao" required>
                                 <option value="" selected>Selecione Pavilhão</option>
                             </select>
@@ -107,22 +108,19 @@
                             
                             <button type="button" id="limparPavilhoesSelecionados">Limpar Seleção</button> 
                     </div> -->
-                    <div class="row">
-                    <div class="col-md-6 form-group">
-                        <label for="pavilhoesContainer">Pavilhões Selecionados:</label>        
-                        <div id="pavilhoesContainer" class="pavilhoes-secao">            
-                        <div id="pavilhoesSelecionadosContainer" class="pavilhoes-tags-container">
+                    <div class="select">
+                        
+                        <label for="pavilhoesContainer">Pavilhões Selecionados:</label>
+
+                        <div id="pavilhoesContainer" class="pavilhoes-secao">
+                            <div id="pavilhoesSelecionadosContainer" class="pavilhoes-tags-container">
+                                <!-- As tags de pavilhões serão inseridas aqui via JavaScript -->
+                            </div>
+
+                            <!-- Campo oculto para enviar os IDs dos pavilhões selecionados -->
+                            <input type="hidden" name="idsPavilhoesSelecionados" id="idsPavilhoesSelecionados">
+                        </div>
                     </div>
-            
-            <!-- <select id="selecionarPavilhao" class="form-control mt-2">
-                <option value="">Selecione para Adicionar</option>
-                </select>
-             -->
-            <input type="hidden" name="idsPavilhoesSelecionados" id="idsPavilhoesSelecionados">
-            
-        </div>
-    </div>
-</div>
                 
                     <div class="periodoMontagem">
                     

@@ -1280,7 +1280,7 @@ function adicionarLinhaOrc() {
     const novoInputData = novaLinha.querySelector('input[type="text"].datas');  
     if (novoInputData) {
         flatpickr(novoInputData, commonFlatpickrOptionsTable);
-        console.log("Flatpickr inicializado para nova linha adicionada:", novoInputData);
+      //  console.log("Flatpickr inicializado para nova linha adicionada:", novoInputData);
     } else {
         console.error("Erro: Novo input de data não encontrado na nova linha.");
     }
@@ -1831,7 +1831,7 @@ for (const id in flatpickrInstances) {
             const instance = flatpickrInstances[id];
             if (instance && typeof instance.destroy === 'function') {
                 instance.destroy();
-                console.log(`Flatpickr global #${id} destruído.`);
+             //   console.log(`Flatpickr global #${id} destruído.`);
             }
         }
     }
@@ -1863,7 +1863,7 @@ for (const id in flatpickrInstances) {
             // Sempre crie uma nova instância aqui, pois as antigas foram destruídas
             const picker = flatpickr(element, commonFlatpickrOptions);
             flatpickrInstances[id] = picker;
-            console.log(`Flatpickr inicializado para campo global #${id}`);
+          //  console.log(`Flatpickr inicializado para campo global #${id}`);
         } else {
             console.warn(`Elemento com ID '${id}' não encontrado para inicialização do Flatpickr.`);
         }
@@ -2751,6 +2751,7 @@ async function verificaOrcamento() {
 
             const dadosOrcamento = {
                 id: orcamentoId,
+                nomenclatura: document.querySelector("#nomenclatura")?.value,
                 status: formData.get("Status"),
                 idCliente: document.querySelector(".idCliente option:checked")?.value || null, // Se o campo for vazio, será null
                 idEvento: document.querySelector(".idEvento option:checked")?.value || null, // Se o campo for vazio, será null
@@ -2813,11 +2814,11 @@ async function verificaOrcamento() {
                     enviarnaproposta: linha.querySelector('.Proposta input[type="checkbox"]')?.checked || false,
                     categoria: linha.querySelector(".Categoria")?.textContent.trim(),
                     qtditens: parseInt(linha.querySelector(".qtdProduto input")?.value) || 0,
-                    idfuncao: parseInt(linha.querySelector(".idFuncao")?.textContent) || null,
-                    idequipamento: parseInt(linha.querySelector(".idEquipamento")?.textContent) || null,
-                    idsuprimento: parseInt(linha.querySelector(".idSuprimento")?.textContent ) || null,
+                    idfuncao: parseInt(linha.querySelector(".idFuncao")?.value) || null,
+                    idequipamento: parseInt(linha.querySelector(".idEquipamento")?.value) || null,
+                    idsuprimento: parseInt(linha.querySelector(".idSuprimento")?.value) || null,
                     produto: linha.querySelector(".produto")?.textContent.trim(),
-                    setor: linha.querySelector(".setor-input")?.value?.trim() || null,
+                    setor: linha.querySelector(".setor-input")?.value?.trim().toUpperCase() || null,
                    
                     qtdDias: linha.querySelector(".qtdDias input")?.value || "0",
 
@@ -2874,6 +2875,8 @@ async function verificaOrcamento() {
                 // ATRIBUIÇÃO CORRETA:
                 item.periododiariasinicio = dataInicioFormatada;
                 item.periododiariasfim = dataFimFormatada; // <--- AGORA ESTAMOS ATRIBUINDO A DATA DE FIM SEPARADAMENTE
+
+                console.log("ITENS", item);
 
                 itensOrcamento.push(item);
                 // --- FIM DO NOVO TRECHO ---
@@ -2932,6 +2935,7 @@ async function verificaOrcamento() {
         }
 
     });
+
     const btnLimpar = document.getElementById('Limpar');
     btnLimpar.addEventListener("click", async function (event) {
         event.preventDefault(); 
@@ -3150,6 +3154,13 @@ export async function preencherFormularioComOrcamento(orcamento) {
     } else {
         console.warn("Elemento com ID 'nrOrcamento' não encontrado.");
     }
+
+    const nomenclaturaInput = document.getElementById('nomenclatura');
+    if (nomenclaturaInput) { // Adicionado if
+        nomenclaturaInput.value = orcamento.nomenclatura || '';
+    } else {
+        console.warn("Elemento 'nomenclatura' não encontrado.");
+    }
     
     // Define os valores dos selects.
     // Como os 'value' das options agora são os IDs, a atribuição direta funciona.
@@ -3232,9 +3243,9 @@ export async function preencherFormularioComOrcamento(orcamento) {
     //     console.warn("Elemento com classe '.idPavilhao' não encontrado.");
     // }
     
-        if (orcamento.pavilhoes && orcamento.pavilhoes.length > 0) {
-        // Popula a variável global `selectedPavilhoes`
-        // O `orcamento.pavilhoes` deve ser um array de objetos, ex: [{id: 8, nomepavilhao: "nome"}, ...]
+    if (orcamento.pavilhoes && orcamento.pavilhoes.length > 0) {
+    // Popula a variável global `selectedPavilhoes`
+    // O `orcamento.pavilhoes` deve ser um array de objetos, ex: [{id: 8, nomepavilhao: "nome"}, ...]
         selectedPavilhoes = orcamento.pavilhoes.map(p => ({
             id: p.id, // Supondo que o ID é 'id'
             name: p.nomepavilhao // E o nome é 'nomepavilhao'
@@ -3305,7 +3316,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
     }
  
     // Preencher campos de texto
-     const obsItensInput = document.getElementById('Observacao'); 
+    const obsItensInput = document.getElementById('Observacao'); 
     if (obsItensInput) {
         obsItensInput.value = orcamento.obsitens || '';
     } else {
@@ -3437,6 +3448,8 @@ export async function preencherFormularioComOrcamento(orcamento) {
         const newRow = tabelaBody.insertRow(); // Cria a linha DOM de uma vez
         newRow.dataset.idorcamentoitem = item.idorcamentoitem || '';
         newRow.dataset.idfuncao = item.idfuncao || '';
+        newRow.dataset.idequipamento = item.idequipamento || '';
+        newRow.dataset.idsuprimento = item.idsuprimento || '';
         // Formatação de datas para Flatpickr
         const inicioDiarias = item.periododiariasinicio;
         const fimDiarias = item.periododiariasfim;
@@ -3450,7 +3463,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
             valorInicialDoInputDiarias = formattedInicio;
         }
 
-        console.log("DEBUG: SETOR", item.setor);
+        console.log("DEBUG: SETOR", item.setor, "Funcao", item.idfuncao, "Equipamento", item.idequipamento, "Suprimento", item.idsuprimento);
 
         // Construa o HTML de TODA a linha como uma única string
         newRow.innerHTML = `
@@ -3554,96 +3567,96 @@ export async function preencherFormularioComOrcamento(orcamento) {
             </td>
         `;
 
-    const descontoValorItem = newRow.querySelector('.descontoItem .ValorInteiros');
-    if (descontoValorItem) {
-        descontoValorItem.addEventListener('input', function() {
-            console.log("EVENTO INPUT: Campo ValorInteiros de Desconto alterado.");
-            lastEditedFieldType = 'valor';
-            recalcularDescontoAcrescimo(this, 'desconto', 'valor', this.closest('tr'));
-        });
-        descontoValorItem.addEventListener('blur', function() {
-            console.log("EVENTO BLUR: Campo ValorInteiros de Desconto.");
-            this.value = formatarMoeda(desformatarMoeda(this.value));
-            // Adiciona um listener para o próximo tick, para verificar o foco.
-            // Se o foco não está no campo percentual ou em outro campo da mesma célula, zera.
-            setTimeout(() => {
-                const campoPercentual = this.closest('.descontoItem').querySelector('.valorPerCent');
-                // Se o foco não está no campo parceiro OU se o foco saiu da célula Acres-Desc
-                if (document.activeElement !== campoPercentual && !this.closest('.Acres-Desc').contains(document.activeElement)) {
-                    lastEditedFieldType = null;
-                    console.log("lastEditedFieldType resetado para null após blur do ValorInteiros.");
-                }
-            }, 0); // Pequeno atraso para o browser resolver o foco
-        });
-    }
+        const descontoValorItem = newRow.querySelector('.descontoItem .ValorInteiros');
+        if (descontoValorItem) {
+            descontoValorItem.addEventListener('input', function() {
+                console.log("EVENTO INPUT: Campo ValorInteiros de Desconto alterado.");
+                lastEditedFieldType = 'valor';
+                recalcularDescontoAcrescimo(this, 'desconto', 'valor', this.closest('tr'));
+            });
+            descontoValorItem.addEventListener('blur', function() {
+                console.log("EVENTO BLUR: Campo ValorInteiros de Desconto.");
+                this.value = formatarMoeda(desformatarMoeda(this.value));
+                // Adiciona um listener para o próximo tick, para verificar o foco.
+                // Se o foco não está no campo percentual ou em outro campo da mesma célula, zera.
+                setTimeout(() => {
+                    const campoPercentual = this.closest('.descontoItem').querySelector('.valorPerCent');
+                    // Se o foco não está no campo parceiro OU se o foco saiu da célula Acres-Desc
+                    if (document.activeElement !== campoPercentual && !this.closest('.Acres-Desc').contains(document.activeElement)) {
+                        lastEditedFieldType = null;
+                        console.log("lastEditedFieldType resetado para null após blur do ValorInteiros.");
+                    }
+                }, 0); // Pequeno atraso para o browser resolver o foco
+            });
+        }
 
-    // Campo Percentual de Desconto
-    const descontoPercentualItem = newRow.querySelector('.descontoItem .valorPerCent');
-    if (descontoPercentualItem) {
-        descontoPercentualItem.addEventListener('input', function() {
-            console.log("EVENTO INPUT: Campo valorPerCent de Desconto alterado.");
-            lastEditedFieldType = 'percentual';
-            recalcularDescontoAcrescimo(this, 'desconto', 'percentual', this.closest('tr'));
-        });
-        descontoPercentualItem.addEventListener('blur', function() {
-            console.log("EVENTO BLUR: Campo valorPerCent de Desconto.");
-            this.value = formatarPercentual(desformatarPercentual(this.value));
-            // Ao sair do percentual, podemos resetar o lastEditedFieldType
-            // já que o usuário provavelmente terminou a interação com este par de campos.
-            setTimeout(() => {
-                // Verifica se o foco não está dentro do mesmo grupo acres-desc
-                if (!this.closest('.Acres-Desc').contains(document.activeElement)) {
-                    lastEditedFieldType = null;
-                    console.log("lastEditedFieldType resetado para null após blur do valorPerCent.");
-                }
-            }, 0);
-        });
-    }
-    const acrescimoValorItem = newRow.querySelector('.acrescimoItem .ValorInteiros');
-    if (acrescimoValorItem) {
-        acrescimoValorItem.addEventListener('input', function() {
-            console.log("EVENTO INPUT: Campo ValorInteiros de Acréscimo alterado.");
-            lastEditedFieldType = 'valor';
-            recalcularDescontoAcrescimo(this, 'acrescimo', 'valor', this.closest('tr'));
-        });
-        acrescimoValorItem.addEventListener('blur', function() {
-            console.log("EVENTO BLUR: Campo ValorInteiros de Acréscimo.");
-            this.value = formatarMoeda(desformatarMoeda(this.value));
-            // Adiciona um listener para o próximo tick, para verificar o foco.
-            // Se o foco não está no campo percentual ou em outro campo da mesma célula, zera.
-            setTimeout(() => {
-                const campoPercentual = this.closest('.acrescimoItem').querySelector('.valorPerCent');
-                // Se o foco não está no campo parceiro OU se o foco saiu da célula Acres-Desc
-                if (document.activeElement !== campoPercentual && !this.closest('.Acres-Desc').contains(document.activeElement)) {
-                    lastEditedFieldType = null;
-                    console.log("lastEditedFieldType resetado para null após blur do ValorInteiros.");
-                }
-            }, 0); // Pequeno atraso para o browser resolver o foco
-        });
-    }
+        // Campo Percentual de Desconto
+        const descontoPercentualItem = newRow.querySelector('.descontoItem .valorPerCent');
+        if (descontoPercentualItem) {
+            descontoPercentualItem.addEventListener('input', function() {
+                console.log("EVENTO INPUT: Campo valorPerCent de Desconto alterado.");
+                lastEditedFieldType = 'percentual';
+                recalcularDescontoAcrescimo(this, 'desconto', 'percentual', this.closest('tr'));
+            });
+            descontoPercentualItem.addEventListener('blur', function() {
+                console.log("EVENTO BLUR: Campo valorPerCent de Desconto.");
+                this.value = formatarPercentual(desformatarPercentual(this.value));
+                // Ao sair do percentual, podemos resetar o lastEditedFieldType
+                // já que o usuário provavelmente terminou a interação com este par de campos.
+                setTimeout(() => {
+                    // Verifica se o foco não está dentro do mesmo grupo acres-desc
+                    if (!this.closest('.Acres-Desc').contains(document.activeElement)) {
+                        lastEditedFieldType = null;
+                        console.log("lastEditedFieldType resetado para null após blur do valorPerCent.");
+                    }
+                }, 0);
+            });
+        }
+        const acrescimoValorItem = newRow.querySelector('.acrescimoItem .ValorInteiros');
+        if (acrescimoValorItem) {
+            acrescimoValorItem.addEventListener('input', function() {
+                console.log("EVENTO INPUT: Campo ValorInteiros de Acréscimo alterado.");
+                lastEditedFieldType = 'valor';
+                recalcularDescontoAcrescimo(this, 'acrescimo', 'valor', this.closest('tr'));
+            });
+            acrescimoValorItem.addEventListener('blur', function() {
+                console.log("EVENTO BLUR: Campo ValorInteiros de Acréscimo.");
+                this.value = formatarMoeda(desformatarMoeda(this.value));
+                // Adiciona um listener para o próximo tick, para verificar o foco.
+                // Se o foco não está no campo percentual ou em outro campo da mesma célula, zera.
+                setTimeout(() => {
+                    const campoPercentual = this.closest('.acrescimoItem').querySelector('.valorPerCent');
+                    // Se o foco não está no campo parceiro OU se o foco saiu da célula Acres-Desc
+                    if (document.activeElement !== campoPercentual && !this.closest('.Acres-Desc').contains(document.activeElement)) {
+                        lastEditedFieldType = null;
+                        console.log("lastEditedFieldType resetado para null após blur do ValorInteiros.");
+                    }
+                }, 0); // Pequeno atraso para o browser resolver o foco
+            });
+        }
 
-    // Campo Percentual de Desconto
-    const acrescimoPercentualItem = newRow.querySelector('.acrescimoItem .valorPerCent');
-    if (acrescimoPercentualItem) {
-        acrescimoPercentualItem.addEventListener('input', function() {
-            console.log("EVENTO INPUT: Campo valorPerCent de Acréscimo alterado.");
-            lastEditedFieldType = 'percentual';
-            recalcularDescontoAcrescimo(this, 'acrescimo', 'percentual', this.closest('tr'));
-        });
-        acrescimoPercentualItem.addEventListener('blur', function() {
-            console.log("EVENTO BLUR: Campo valorPerCent de Acréscimo.");
-            this.value = formatarPercentual(desformatarPercentual(this.value));
-            // Ao sair do percentual, podemos resetar o lastEditedFieldType
-            // já que o usuário provavelmente terminou a interação com este par de campos.
-            setTimeout(() => {
-                // Verifica se o foco não está dentro do mesmo grupo acres-desc
-                if (!this.closest('.Acres-Desc').contains(document.activeElement)) {
-                    lastEditedFieldType = null;
-                    console.log("lastEditedFieldType resetado para null após blur do valorPerCent.");
-                }
-            }, 0);
-        });
-    }    
+        // Campo Percentual de Desconto
+        const acrescimoPercentualItem = newRow.querySelector('.acrescimoItem .valorPerCent');
+        if (acrescimoPercentualItem) {
+            acrescimoPercentualItem.addEventListener('input', function() {
+                console.log("EVENTO INPUT: Campo valorPerCent de Acréscimo alterado.");
+                lastEditedFieldType = 'percentual';
+                recalcularDescontoAcrescimo(this, 'acrescimo', 'percentual', this.closest('tr'));
+            });
+            acrescimoPercentualItem.addEventListener('blur', function() {
+                console.log("EVENTO BLUR: Campo valorPerCent de Acréscimo.");
+                this.value = formatarPercentual(desformatarPercentual(this.value));
+                // Ao sair do percentual, podemos resetar o lastEditedFieldType
+                // já que o usuário provavelmente terminou a interação com este par de campos.
+                setTimeout(() => {
+                    // Verifica se o foco não está dentro do mesmo grupo acres-desc
+                    if (!this.closest('.Acres-Desc').contains(document.activeElement)) {
+                        lastEditedFieldType = null;
+                        console.log("lastEditedFieldType resetado para null após blur do valorPerCent.");
+                    }
+                }, 0);
+            });
+        }    
           
         
         newRow.querySelector('.qtdProduto input')?.addEventListener('input', function() {
@@ -3802,8 +3815,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
                             });                            
 
                             linhaParaRemover.remove(); 
-                            recalcularTotaisGerais(); 
-                           // calcularLucro(); 
+                            recalcularTotaisGerais();                           
 
                             Swal.fire("Deletado!", "O item foi removido com sucesso.", "success");
 
@@ -3814,23 +3826,17 @@ export async function preencherFormularioComOrcamento(orcamento) {
                     }
                 }
             });
-
-            // Aplica classe de desabilitado visualmente se não tiver permissão para apagar itens EXISTENTES
-            // Isso é feito FORA do listener, para que a aparência seja aplicada imediatamente
-            if (!temPermissaoApagar) {
-                // NÃO ADICIONE disabled=true AQUI, APENAS A CLASSE VISUAL
+           
+            if (!temPermissaoApagar) {                
                 deleteButton.classList.add("btnDesabilitado");
                 deleteButton.title = "Você não tem permissão para apagar itens de orçamento que já estão salvos.";
             }
         }
        
-    });
+    });     
 
-    
-    
-   // recalcularTotaisGerais(); 
     aplicarMascaraMoeda();   
-   // calcularLucro();
+
 }
 
 function formatarDatasParaInputPeriodo(inicioStr, fimStr) {
@@ -4343,7 +4349,7 @@ function recalcularLinha(linha) {
 //     if (tipoCampo === 'desconto') {
 //         campoValor = linha.querySelector('.descontoItem .ValorInteiros');
 //         campoPercentual = linha.querySelector('.descontoItem .valorPerCent');
-//     } else { // tipoCampo === 'acrescimo'
+//     } else { // tipoCampo === 'acrescimo'('idFuncao')
 //         campoValor = linha.querySelector('.acrescimoItem .ValorInteiros');
 //         campoPercentual = linha.querySelector('.acrescimoItem .valorPerCent');
 //     }
