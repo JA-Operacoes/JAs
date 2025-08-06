@@ -28,7 +28,7 @@ let btnLimparListener = null;
 //importado no inicio do js pois deve ser importado antes do restante do codigo
 
 
-const fp = window.flatpickr; 
+const fp = window.flatpickr;
 const currentLocale = fp.l10ns.pt || fp.l10ns.default;
 
 if (!currentLocale) {
@@ -45,7 +45,7 @@ let locaisDeMontagem = [];
 
 let flatpickrInstances = {};
 
-let flatpickrInstancesOrcamento = []; 
+let flatpickrInstancesOrcamento = [];
 
 if (typeof window.hasRegisteredChangeListenerForAjdCusto === 'undefined') {
     window.hasRegisteredChangeListenerForAjdCusto = false;
@@ -59,7 +59,7 @@ const commonFlatpickrOptions = {
     //locale: flatpickr.l10ns.pt,
     locale: currentLocale,
     appendTo: document.body // Certifique-se de que 'modal-flatpickr-container' existe e é o elemento correto
-   
+
 };
 
 const commonFlatpickrOptionsTable = {
@@ -105,13 +105,13 @@ const selectFuncao = document.getElementById('selectFuncao');
 if (selectFuncao) {
    selectFuncao.addEventListener('change', function() {
     resetarOutrosSelectsOrc(selectFuncao); // Reseta outros selects quando este é alterado
-   });    
+   });
 }
 const selectEquipamento = document.getElementById('selectEquipamento');
 if (selectEquipamento) {
     selectEquipamento.addEventListener('change', function() {
         resetarOutrosSelectsOrc(selectEquipamento); // Reseta outros selects quando este é alterado
-    });   
+    });
 }
 const selectSuprimento = document.getElementById('selectSuprimento');
 if (selectSuprimento) {
@@ -160,40 +160,40 @@ if (selectSuprimento) {
 //     }
 // }
 
-async function  carregarClientesOrc() {  
+async function  carregarClientesOrc() {
 
     try{
 
         const clientes = await fetchComToken('orcamentos/clientes');
-    
+
         console.log('Clientes recebidos:', clientes);
 
         let selects = document.querySelectorAll(".idCliente");
 
         selects.forEach(select => {
-          
+
             const valorSelecionadoAtual = select.value;
             select.innerHTML = '<option value="">Selecione Cliente</option>';
 
             clientes.forEach(cliente => {
                 let option = document.createElement("option");
                 option.value = cliente.idcliente;
-                option.textContent = cliente.nmfantasia;           
+                option.textContent = cliente.nmfantasia;
 
                 select.appendChild(option);
             });
 
             if (valorSelecionadoAtual) {
-                select.value = String(valorSelecionadoAtual); 
+                select.value = String(valorSelecionadoAtual);
             }
-           
+
             select.addEventListener('change', function () {
                 idCliente = this.value; // O value agora é o ID
                 console.log("idCliente selecionado:", idCliente);
-            
+
             });
         });
-    
+
     }
     catch(error){
         console.error("Erro ao carregar clientes:", error);
@@ -202,21 +202,21 @@ async function  carregarClientesOrc() {
 
 
 async function carregarEventosOrc() {
-      
+
     try{
 
         const eventos = await fetchComToken('/orcamentos/eventos');
-        
+
         let selects = document.querySelectorAll(".idEvento");
-        
-        selects.forEach(select => {           
-                
+
+        selects.forEach(select => {
+
             select.innerHTML = '<option value="">Selecione Evento</option>'; // Adiciona a opção padrão
             eventos.forEach(evento => {
-                let option = document.createElement("option");   
-              
+                let option = document.createElement("option");
+
                 option.value = evento.idevento;  // Atenção ao nome da propriedade (idMontagem)
-                option.textContent = evento.nmevento; 
+                option.textContent = evento.nmevento;
                 option.setAttribute("data-nmevento", evento.nmevento);
                 option.setAttribute("data-idEvento", evento.idevento);
                 select.appendChild(option);
@@ -224,14 +224,14 @@ async function carregarEventosOrc() {
             });
 
             select.addEventListener('change', function () {
-                idEvento = this.value;               
-                  
+                idEvento = this.value;
+
             });
-            
+
         });
     }catch(error){
         console.error("Erro ao carregar eventos:", error);
-    }  
+    }
 
 }
 
@@ -239,20 +239,20 @@ async function carregarEventosOrc() {
 async function carregarLocalMontOrc() {
     try{
         const montagem = await fetchComToken('/orcamentos/localmontagem');
-        
+
         let selects = document.querySelectorAll(".idMontagem");
-        
-        selects.forEach(select => {           
+
+        selects.forEach(select => {
             // Adiciona as opções de Local de Montagem
             select.innerHTML = '<option value="">Selecione Local de Montagem</option>'; // Adiciona a opção padrão
             montagem.forEach(local => {
                 let option = document.createElement("option");
 
-                option.value = local.idmontagem;  
-                option.textContent = local.descmontagem; 
-                option.setAttribute("data-idMontagem", local.idmontagem); 
+                option.value = local.idmontagem;
+                option.textContent = local.descmontagem;
+                option.setAttribute("data-idMontagem", local.idmontagem);
                 option.setAttribute("data-descmontagem", local.descmontagem);
-                option.setAttribute("data-ufmontagem", local.ufmontagem); 
+                option.setAttribute("data-ufmontagem", local.ufmontagem);
                 select.appendChild(option);
 
                 locaisDeMontagem = montagem;
@@ -262,21 +262,21 @@ async function carregarLocalMontOrc() {
 
                 //idMontagem = this.value; // O value agora é o ID
 
-                const selectedOption = this.options[this.selectedIndex]; 
-              
-               document.getElementById("idMontagem").value = selectedOption.getAttribute("data-idMontagem");           
+                const selectedOption = this.options[this.selectedIndex];
 
-               idMontagem = selectedOption.value;        
+               document.getElementById("idMontagem").value = selectedOption.getAttribute("data-idMontagem");
+
+               idMontagem = selectedOption.value;
                console.log("IDLOCALMONTAGEM selecionado:", idMontagem);
 
-                carregarPavilhaoOrc(idMontagem);             
-                
+                carregarPavilhaoOrc(idMontagem);
+
             });
-            
+
         });
     }catch(error){
         console.error("Erro ao carregar localmontagem:", error);
-    } 
+    }
 }
 
 let selectedPavilhoes = [];
@@ -294,10 +294,10 @@ let selectedPavilhoes = [];
 function updatePavilhaoDisplayInputs() {
     const container = document.getElementById('pavilhoesSelecionadosContainer');
     const idsInput = document.getElementById('idsPavilhoesSelecionados');
-    
+
     // 1. Limpa o contêiner de tags
     container.innerHTML = '';
-    
+
     // 2. Preenche o contêiner e cria as tags
     selectedPavilhoes.forEach(pavilhao => {
         const tag = document.createElement('span');
@@ -314,10 +314,10 @@ function updatePavilhaoDisplayInputs() {
     removerBotoes.forEach(botao => {
         botao.addEventListener('click', function(event) {
             const idPavilhao = parseInt(event.target.dataset.id, 10);
-            
+
             // Filtra o array selectedPavilhoes para remover o item clicado
             selectedPavilhoes = selectedPavilhoes.filter(p => p.id !== idPavilhao);
-            
+
             // Recarrega a exibição dos inputs
             updatePavilhaoDisplayInputs();
         });
@@ -331,7 +331,7 @@ function updatePavilhaoDisplayInputs() {
 async function carregarPavilhaoOrc(idMontagem) {
     selectedPavilhoes = [];
     updatePavilhaoDisplayInputs();
-    
+
     if (!idMontagem || idMontagem === '') {
         console.warn("ID da Montagem está vazio, não carregando pavilhões.");
         // Opcional: Limpe o select de pavilhão aqui, se ele tiver opções antigas
@@ -347,41 +347,41 @@ async function carregarPavilhaoOrc(idMontagem) {
     // try{
 
     //    const pavilhao = await fetchComToken(`/orcamentos/pavilhao?idmontagem=${idMontagem}`);
-        
+
     //    console.log("Pavilhão recebido:", pavilhao);
-    //     let selects = document.querySelectorAll(".idPavilhao");       
-        
-        
-    //     selects.forEach(select => {        
-           
+    //     let selects = document.querySelectorAll(".idPavilhao");
+
+
+    //     selects.forEach(select => {
+
     //         select.innerHTML = '<option value="">Selecione Pavilhão</option>'; // Adiciona a opção padrão
     //         pavilhao.forEach(localpav => {
-          
+
     //             let option = document.createElement("option");
 
     //             option.value = localpav.idpavilhao;  // Atenção ao nome da propriedade (idMontagem)
-    //             option.textContent = localpav.nmpavilhao; 
-    //             option.setAttribute("data-idpavilhao", localpav.idpavilhao); 
+    //             option.textContent = localpav.nmpavilhao;
+    //             option.setAttribute("data-idpavilhao", localpav.idpavilhao);
     //             option.setAttribute("data-nmpavilhao", localpav.nmpavilhao);
-                         
+
     //             select.appendChild(option);
-           
-    //         });
-    //         select.addEventListener("change", function (event) {    
-    //             idPavilhao = this.value;   
-    //             const selectedOption = this.options[this.selectedIndex];                               
-                
-    //             console.log("IDPAVILHAO selecionado:", selectedOption.value, selectedOption.getAttribute("data-nmpavilhao")); 
 
-                
-
-             
     //         });
-            
+    //         select.addEventListener("change", function (event) {
+    //             idPavilhao = this.value;
+    //             const selectedOption = this.options[this.selectedIndex];
+
+    //             console.log("IDPAVILHAO selecionado:", selectedOption.value, selectedOption.getAttribute("data-nmpavilhao"));
+
+
+
+
+    //         });
+
     //     });
     // }catch(error){
     //     console.error("Erro ao carregar pavilhao:", error);
-    // } 
+    // }
 
     try {
         const pavilhoes = await fetchComToken(`/orcamentos/pavilhao?idmontagem=${idMontagem}`);
@@ -447,25 +447,25 @@ async function carregarPavilhaoOrc(idMontagem) {
 // async function carregarNomePavilhao(id) {
 //     if (!id) {
 //         console.warn("ID do pavilhão não fornecido para carregarNomePavilhao.");
-//         return null; 
+//         return null;
 //     }
 //     try {
-       
+
 //         const procurapavilhao = await fetchComToken(`/orcamentos/pavilhao/${id}`);
-        
+
 //         if (procurapavilhao && procurapavilhao.nmpavilhao) { // Ajuste 'nome' para a propriedade correta do seu objeto de pavilhão
-//             return procurapavilhao.nmpavilhao; 
+//             return procurapavilhao.nmpavilhao;
 //         } else {
 //             console.warn("Nenhum nome de pavilhão encontrado na resposta:", procurapavilhao);
 //             return null;
 //         }
 //     } catch (error) {
 //         console.error('Erro ao carregar nome do pavilhão:', error);
-//         return null; 
+//         return null;
 //     }
-      
+
 // }
- 
+
 
 //Função para carregar os Funcao
 async function carregarFuncaoOrc() {
@@ -490,27 +490,27 @@ async function carregarFuncaoOrc() {
                 option.setAttribute("data-descproduto", funcao.descfuncao);
                 option.setAttribute("data-cto", funcao.ctofuncao);
                 option.setAttribute("data-vda", funcao.vdafuncao);
-                // option.setAttribute("data-transporte", funcao.transporte);   
+                // option.setAttribute("data-transporte", funcao.transporte);
                 option.setAttribute("data-almoco", funcao.almoco || 0); // Certifique-se de que almoco/jantar estão aqui
                 option.setAttribute("data-jantar", funcao.jantar || 0);
-                option.setAttribute("data-transporte", funcao.transporte || 0);     
+                option.setAttribute("data-transporte", funcao.transporte || 0);
                 option.setAttribute("data-categoria", "Produto(s)");
                 select.appendChild(option);
             });
-            
-            select.addEventListener("change", function (event) {     
-                const linha = this.closest('tr');    
+
+            select.addEventListener("change", function (event) {
+                const linha = this.closest('tr');
                 idFuncao = this.value; // O value agora é o ID
                 console.log("IDFUNCAO selecionado change:", idFuncao);
 
                 const selectedOption = this.options[this.selectedIndex];
-                
-                const idFuncaoAtual = selectedOption.value;                
-                
+
+                const idFuncaoAtual = selectedOption.value;
+
                 if (linha) {
                     linha.dataset.idfuncao = idFuncaoAtual; // Atualiza o data-idfuncao na linha
                 }
-                
+
                 // Se a opção padrão "Selecione Função" for escolhida, zere os valores globais
                 if (selectedOption.value === "") {
                     vlrAlmoco = 0;
@@ -519,7 +519,7 @@ async function carregarFuncaoOrc() {
                     idFuncao = ""; // Limpa também o idFuncao global
                     Categoria = "Produto(s)"; // Reinicia a categoria se for relevante
                     console.log("Nenhuma função selecionada. Valores de almoço, jantar, transporte e ID limpos.");
-                    
+
                 } else {
                     // Pega o valor do ID da função selecionada
                     idFuncao = selectedOption.value;
@@ -531,11 +531,11 @@ async function carregarFuncaoOrc() {
                     vlrJantar = parseFloat(selectedOption.getAttribute("data-jantar")) || 0;
                     vlrTransporte = parseFloat(selectedOption.getAttribute("data-transporte")) || 0;
                     Categoria = selectedOption.getAttribute("data-categoria") || "N/D";
-                  
+
                     console.log(`Valores Globais Atualizados: Almoco: ${vlrAlmoco}, Jantar: ${vlrJantar}, Transporte: ${vlrTransporte}, Categoria: ${Categoria}`);
-                }                
+                }
                // Categoria = selectedOption.getAttribute("data-categoria") || "N/D";
-                
+
                 recalcularLinha(linha);
                 atualizaProdutoOrc(event);
             });
@@ -543,7 +543,7 @@ async function carregarFuncaoOrc() {
         });
     }catch(error){
     console.error("Erro ao carregar funcao:", error);
-    } 
+    }
 }
 
 
@@ -555,7 +555,7 @@ async function carregarEquipamentosOrc() {
         let selects = document.querySelectorAll(".idEquipamento"); //
         selects.forEach(select => {
             select.innerHTML = "";
-            
+
             let opcaoPadrao = document.createElement("option");
             opcaoPadrao.setAttribute("value", "");
             opcaoPadrao.textContent = "Selecione Equipamento";
@@ -573,26 +573,26 @@ async function carregarEquipamentosOrc() {
             select.addEventListener("change", function (event) {
                 const selectedOption = select.options[select.selectedIndex];
                 idEquipamento = this.value;
-                Categoria = selectedOption.getAttribute("data-categoria") || "N/D";               
-               
+                Categoria = selectedOption.getAttribute("data-categoria") || "N/D";
+
                 atualizaProdutoOrc(event);
             });
 
-            
+
             Categoria = "Equipamento(s)"; // define padrão ao carregar
         });
     }catch(error){
     console.error("Erro ao carregar equipamentos:", error);
     }
 }
-        
+
 
 // Função para carregar os suprimentos
 async function carregarSuprimentosOrc() {
    try{
         const suprimentos = await fetchComToken('/orcamentos/suprimentos');
         let selects = document.querySelectorAll(".idSuprimento");
-       
+
         selects.forEach(select => {
             select.innerHTML = '<option value="">Selecione Suprimento</option>';
             suprimentos.forEach(suprimentos => {
@@ -603,15 +603,15 @@ async function carregarSuprimentosOrc() {
                 option.setAttribute("data-cto", suprimentos.ctosup);
                 option.setAttribute("data-vda", suprimentos.vdasup);
                 option.setAttribute("data-categoria", "Suprimento(s)");
-                select.appendChild(option); 
+                select.appendChild(option);
 
             });
-            
+
             select.addEventListener("change", function (event) {
                 const selectedOption = select.options[select.selectedIndex];
                 idSuprimento = this.value;
                 Categoria = selectedOption.getAttribute("data-categoria") || "N/D";
-              
+
                 atualizaProdutoOrc(event);
             });
             Categoria = "Suprimento(s)"; // define padrão ao carregar
@@ -636,7 +636,7 @@ function configurarInfraCheckbox() {
     let checkbox = document.getElementById("ativo");
     let bloco = document.getElementById("blocoInfra");
     let bloco2 = document.getElementById("blocoInfra2");
- 
+
     if (!checkbox || !bloco || !bloco2) return;
 
 
@@ -678,7 +678,7 @@ function configurarFormularioOrc() {
             orcamento.Pessoas.push(dados);
         }
      });
-    
+
 }
 
 function desformatarMoeda(valor) {
@@ -734,7 +734,7 @@ function recalcularTotaisGerais() {
         currency: 'BRL'
     });
 
-    
+
 
     // Atualiza o valor do cliente com o valor total de venda
     const campoValorCliente = document.querySelector('#valorCliente');
@@ -745,7 +745,7 @@ function recalcularTotaisGerais() {
         });
     }
     console.log("RECALCULAR TOTAIS GERAIS", totalCustoGeral, totalVendaGeral, totalAjdCustoGeral);
-    
+
     calcularLucro();
     calcularLucroReal();
 }
@@ -785,7 +785,7 @@ function calcularLucro() {
 }
 
 function calcularLucroReal() {
-     
+
     let totalCustoGeral = 0;
     let totalAjdCusto = 0;
     let valorFinalCliente = 0;
@@ -802,17 +802,17 @@ function calcularLucroReal() {
     }
     console.log("CALCULAR LUCRO REAL", inputTotalGeral.value, inputValorCliente.value, inputTotalAjdCusto?.value);
     // Obtém os valores convertendo de moeda
-    totalCustoGeral = desformatarMoeda(inputTotalGeral.value);    
+    totalCustoGeral = desformatarMoeda(inputTotalGeral.value);
     totalAjdCusto = desformatarMoeda(inputTotalAjdCusto.value);
     valorFinalCliente = desformatarMoeda(inputValorCliente.value);
     valorPercImposto = desformatarMoeda(inputPercImposto.value);
 
     console.log("TOTAL AJDCUSTO", totalCustoGeral, totalAjdCusto, valorFinalCliente, valorPercImposto);
 
-    
+
     // Atualiza o campo de imposto com a formatação de moeda
-    let vlrImposto = valorFinalCliente > 0 
-        ? (valorFinalCliente * valorPercImposto / 100) 
+    let vlrImposto = valorFinalCliente > 0
+        ? (valorFinalCliente * valorPercImposto / 100)
         : 0;
 
     console.log('💰 Valor do Imposto calculado:', vlrImposto);
@@ -874,8 +874,8 @@ function calcularLucroReal() {
 //     } else if (campoPerCentDesc && totalVenda > 0) {
 //         valorDesconto = totalVenda * (perCentDesc / 100);
 //         campoDesconto.value = formatarMoeda(valorDesconto);
-//     }    
-    
+//     }
+
 //     // Sincronizar acréscimo
 //     if (campoAcrescimo && totalVenda > 0) {
 //         perCentAcresc = (valorAcrescimo / totalVenda) * 100;
@@ -883,7 +883,7 @@ function calcularLucroReal() {
 //     } else if (campoPerCentAcresc && totalVenda > 0) {
 //         valorAcrescimo = totalVenda * (perCentAcresc / 100);
 //         campoAcrescimo.value = formatarMoeda(valorAcrescimo);
-//     }    
+//     }
 
 //     // valorDesconto = desformatarMoeda(campoDesconto?.value || '0');
 //     // valorAcrescimo = desformatarMoeda(campoAcrescimo?.value || '0');
@@ -894,7 +894,7 @@ function calcularLucroReal() {
 //         campoValorCliente.value = formatarMoeda(valorFinal);
 //     }
 
-    
+
 //     calcularLucro();
 //     calcularLucroReal();
 // }
@@ -1008,9 +1008,9 @@ function aplicarDescontoEAcrescimo(changedInputId) { // Removendo forceFormat da
 
         const valorFinal = totalBaseParaCalculo - valorDesconto + valorAcrescimo;
 
-        console.log("DEBUG GLOBAL - aplicarDescontoEAcrescimo - Valor Final:", valorFinal, 
-            "Desconto:", valorDesconto, 
-            "Acréscimo:", valorAcrescimo, 
+        console.log("DEBUG GLOBAL - aplicarDescontoEAcrescimo - Valor Final:", valorFinal,
+            "Desconto:", valorDesconto,
+            "Acréscimo:", valorAcrescimo,
             "Total Base para Cálculo:", totalBaseParaCalculo);
 
         if (campoValorCliente) {
@@ -1057,7 +1057,7 @@ function removerLinha(linha) {
     linha.remove();
 
     // Recalcular os totais após a remoção
-    
+
     recalcularTotaisGerais();
   //  aplicarDescontoEAcrescimo();
     aplicarMascaraMoeda();
@@ -1067,18 +1067,18 @@ function removerLinha(linha) {
 
 function adicionarLinhaOrc() {
     let tabela = document.getElementById("tabela").getElementsByTagName("tbody")[0];
-    
+
     const emptyRow = tabela.querySelector('td[colspan="20"]');
     if (emptyRow) {
         emptyRow.closest('tr').remove();
-    } 
+    }
 
     let ufAtual = document.getElementById("ufmontagem")?.value || 'SP';
     const initialDisplayStyle = (!ufAtual || ufAtual.toUpperCase() === 'SP') ? "display: none;" : "display: table-cell;";
 
-   // let novaLinha = tabela.insertRow();    
+   // let novaLinha = tabela.insertRow();
    let novaLinha = document.createElement('tr');
-    // 
+    //
     novaLinha.innerHTML = `
         <td style="display: none;"><input type="hidden" class="idItemOrcamento" style="display: none;" value=""></td> <!-- Corrigido: de <th> para <td> e adicionado input hidden -->
         <td style="display: none;"><input type="hidden" class="idFuncao" value=""></td>
@@ -1107,10 +1107,10 @@ function adicionarLinhaOrc() {
                 </div>
             </div>
         </td>
-        
+
         <td class="produto"><input type="text" class="produto-input" value=""></td> <!-- Adicionado input para edição -->
         <td class="setor"><input type="text" class="setor-input" value=""></td> <!-- Adicionado input para edição -->
-     
+
         <td class="qtdDias">
             <div class="add-less">
                 <input type="number" readonly class="qtdDias" min="0" value="0">
@@ -1176,8 +1176,8 @@ function adicionarLinhaOrc() {
                 </button>
             </div>
         </td>
-    `;  
-    
+    `;
+
     // const setorInputCheck = novaLinha.querySelector(".setor-input");
     // console.log(`DEBUG ADICIONAR LINHA: .setor-input na nova linha:`, setorInputCheck ? 'Encontrado!' : 'NÃO ENCONTRADO!');
     // if (setorInputCheck) {
@@ -1185,7 +1185,7 @@ function adicionarLinhaOrc() {
     // }
     tabela.insertBefore(novaLinha, tabela.firstChild);
 
-    
+
     const descontoValorItem = novaLinha.querySelector('.descontoItem .ValorInteiros');
     if (descontoValorItem) {
         descontoValorItem.addEventListener('input', function() {
@@ -1265,7 +1265,7 @@ function adicionarLinhaOrc() {
         acrescimoPercentualItem.addEventListener('blur', function() {
             console.log("EVENTO BLUR: Campo valorPerCent de Acréscimo.");
             this.value = formatarPercentual(desformatarPercentual(this.value));
-         
+
             setTimeout(() => {
                 // Verifica se o foco não está dentro do mesmo grupo acres-desc
                 if (!this.closest('.Acres-Desc').contains(document.activeElement)) {
@@ -1277,7 +1277,7 @@ function adicionarLinhaOrc() {
     }
 
     //Inicializa o Flatpickr para o campo de data na nova linha
-    const novoInputData = novaLinha.querySelector('input[type="text"].datas');  
+    const novoInputData = novaLinha.querySelector('input[type="text"].datas');
     if (novoInputData) {
         flatpickr(novoInputData, commonFlatpickrOptionsTable);
       //  console.log("Flatpickr inicializado para nova linha adicionada:", novoInputData);
@@ -1306,8 +1306,8 @@ function adicionarLinhaOrc() {
                 recalcularLinha(this.closest('tr'));
             }
         });
-    }  
-    
+    }
+
 
     novaLinha.querySelector('.qtdProduto input')?.addEventListener('input', function() {
         recalcularLinha(this.closest('tr'));
@@ -1336,7 +1336,7 @@ function adicionarLinhaOrc() {
 
     const temPermissaoApagar = temPermissao("Orcamentos", "apagar");
     const deleteButton = novaLinha.querySelector('.btnApagar');
-    const idItemInput = novaLinha.querySelector('input.idItemOrcamento'); 
+    const idItemInput = novaLinha.querySelector('input.idItemOrcamento');
 
 
     if (deleteButton) {
@@ -1384,7 +1384,7 @@ function adicionarLinhaOrc() {
                          currentItemProduct = produtoCell.textContent.trim();
                      }
                 }
-                
+
                 const { isConfirmed } = await Swal.fire({
                     title: `Tem Certeza que deseja EXCLUIR o item "${currentItemProduct}" ?`,
                     text: "Você não poderá reverter esta ação!",
@@ -1399,17 +1399,17 @@ function adicionarLinhaOrc() {
                 if (isConfirmed) {
                     try {
                         const idOrcamentoPrincipal = document.getElementById('idOrcamento').value;
-                        console.log("IDS ORCAMENTO:", idOrcamentoPrincipal, idOrcamentoItem);   
+                        console.log("IDS ORCAMENTO:", idOrcamentoPrincipal, idOrcamentoItem);
                        await fetchComToken(`/orcamentos/${idOrcamentoPrincipal}/itens/${idOrcamentoItem}`, {
                             method: 'DELETE',
                             headers: {
                                 'Content-Type': 'application/json'
                             }
-                        });                        
+                        });
 
-                        linhaParaRemover.remove(); 
-                        recalcularTotaisGerais(); 
-                        calcularLucro(); 
+                        linhaParaRemover.remove();
+                        recalcularTotaisGerais();
+                        calcularLucro();
 
                         Swal.fire("Deletado!", "O item foi removido com sucesso.", "success");
 
@@ -1420,20 +1420,21 @@ function adicionarLinhaOrc() {
                 }
             }
         });
-        
-        if (!temPermissaoApagar) {        
+
+        if (!temPermissaoApagar) {
             deleteButton.classList.add("btnDesabilitado");
             deleteButton.title = "Você não tem permissão para apagar itens de orçamento que já estão salvos.";
         }
     }
-    
+
     recalcularLinha(novaLinha);
-    recalcularTotaisGerais(); 
-    aplicarMascaraMoeda(); 
-    limparSelects();  
+    recalcularTotaisGerais();
+    aplicarMascaraMoeda();
+    limparSelects();
 }
 
 function adicionarLinhaAdicional() {
+
     let tabela = document.getElementById("tabela").getElementsByTagName("tbody")[0];
 
     let ufAtual = document.getElementById("ufmontagem")?.value || 'SP';
@@ -1471,7 +1472,7 @@ function adicionarLinhaAdicional() {
         </td>
         <td class="produto"><input type="text" class="produto-input" value=""></td> <!-- Adicionado input para edição -->
         <td class="setor"><input type="text" class="setor-input" value=""></td> <!-- Adicionado input para edição -->
-       
+
         <td class="qtdDias">
             <div class="add-less">
                 <input type="number" readonly class="qtdDias" min="0" value="0">
@@ -1537,9 +1538,9 @@ function adicionarLinhaAdicional() {
                 </button>
             </div>
         </td>
-    `;  
+    `;
+    tabela.insertBefore(novaLinha, tabela.firstChild);
 
-    
     // // --- ADICIONE ESTE LOG AQUI ---
     // const setorInputCheck = novaLinha.querySelector(".setor-input");
     // console.log(`DEBUG ADICIONAR LINHA: .setor-input na nova linha:`, setorInputCheck ? 'Encontrado!' : 'NÃO ENCONTRADO!');
@@ -1640,7 +1641,7 @@ function adicionarLinhaAdicional() {
         });
     }
 
-    const novoInputData = novaLinha.querySelector('input[type="text"].datas');  
+    const novoInputData = novaLinha.querySelector('input[type="text"].datas');
     if (novoInputData) {
         flatpickr(novoInputData, commonFlatpickrOptionsTable);
         console.log("Flatpickr inicializado para nova linha adicionada:", novoInputData);
@@ -1670,7 +1671,7 @@ function adicionarLinhaAdicional() {
             }
         });
     }
-    
+
     // novaLinha.querySelector('.descontoItem .ValorInteiros')?.addEventListener('blur', function(event) { // MUDANÇA: 'input' para 'blur'
     //     console.log("DEBUG: Blur no campo ValorInteiros de Desconto! Input:", this.value); // Adicione este log
     //     recalcularDescontoAcrescimo(this, 'desconto', 'valor', this.closest('tr'));
@@ -1714,7 +1715,7 @@ function adicionarLinhaAdicional() {
     });
 
 
-    
+
 
     const temPermissaoApagar = temPermissao("Orcamentos", "apagar");
     const deleteButton = novaLinha.querySelector('.btnApagar');
@@ -1766,7 +1767,7 @@ function adicionarLinhaAdicional() {
                          currentItemProduct = produtoCell.textContent.trim();
                      }
                 }
-                
+
                 const { isConfirmed } = await Swal.fire({
                     title: `Tem Certeza que deseja EXCLUIR o item "${currentItemProduct}" ?`,
                     text: "Você não poderá reverter esta ação!",
@@ -1781,17 +1782,17 @@ function adicionarLinhaAdicional() {
                 if (isConfirmed) {
                     try {
                         const idOrcamentoPrincipal = document.getElementById('idOrcamento').value;
-                        console.log("IDS ORCAMENTO:", idOrcamentoPrincipal, idOrcamentoItem);   
+                        console.log("IDS ORCAMENTO:", idOrcamentoPrincipal, idOrcamentoItem);
                        await fetchComToken(`/orcamentos/${idOrcamentoPrincipal}/itens/${idOrcamentoItem}`, {
                             method: 'DELETE',
                             headers: {
                                 'Content-Type': 'application/json'
                             }
-                        });                        
+                        });
 
-                        linhaParaRemover.remove(); 
-                        recalcularTotaisGerais(); 
-                        calcularLucro(); 
+                        linhaParaRemover.remove();
+                        recalcularTotaisGerais();
+                        calcularLucro();
 
                         Swal.fire("Deletado!", "O item foi removido com sucesso.", "success");
 
@@ -1811,10 +1812,10 @@ function adicionarLinhaAdicional() {
             deleteButton.title = "Você não tem permissão para apagar itens de orçamento que já estão salvos.";
         }
     }
-   
-    recalcularTotaisGerais(); 
+
+    recalcularTotaisGerais();
     aplicarMascaraMoeda();
-    limparSelects();  
+    limparSelects();
 }
 
 function removerLinhaOrc(botao) {
@@ -1915,17 +1916,17 @@ function inicializarFlatpickrsGlobais() {
         'periodoDesmontagemInfra'
     ];
 
-    dateInputIds.forEach(id => { 
+    dateInputIds.forEach(id => {
         const element = document.getElementById(id);
         if (element) {
-            if (!element._flatpickr) { 
-                const picker = flatpickr(element, commonFlatpickrOptions);               
-                flatpickrInstances[id] = picker; 
+            if (!element._flatpickr) {
+                const picker = flatpickr(element, commonFlatpickrOptions);
+                flatpickrInstances[id] = picker;
               //  console.log(`Flatpickr inicializado e salvo para campo global #${id}`);
             } else {
             //    console.log(`Flatpickr para campo global #${id} já estava inicializado.`);
-               
-                flatpickrInstances[id] = element._flatpickr; 
+
+                flatpickrInstances[id] = element._flatpickr;
             }
         } else {
             console.warn(`Elemento com ID '${id}' não encontrado para inicialização do Flatpickr.`);
@@ -2093,26 +2094,26 @@ function atualizarUFOrc(selectLocalMontagem) {
 
     let selectedOption = selectLocalMontagem.options[selectLocalMontagem.selectedIndex]; // Obtém a opção selecionada
     let uf = selectedOption.getAttribute("data-ufmontagem"); // Obtém a UF
-   // let idLocal = selectLocalMontagem.value; 
+   // let idLocal = selectLocalMontagem.value;
 
     console.log("UF selecionada do atualizarUF:", uf); // Verifica se o valor está correto
-    
-    const ufSelecionada = uf; // Obtém o valor da UF selecionada
-    
-    let inputUF = document.getElementById("ufmontagem"); 
 
-    if (inputUF) {        
-        inputUF.value = uf; // Atualiza o campo de input    
-        
+    const ufSelecionada = uf; // Obtém o valor da UF selecionada
+
+    let inputUF = document.getElementById("ufmontagem");
+
+    if (inputUF) {
+        inputUF.value = uf; // Atualiza o campo de input
+
     } else {
         console.error("Campo 'ufmontagem' não encontrado!");
     }
 
     const colunasExtras = document.querySelectorAll(".extraColuna"); // Colunas do cabeçalho
     const camposExtras = document.querySelectorAll(".extraCampo"); // Campos na tabela
-    
+
     console.log("UF Selecionada.", ufSelecionada);
-    
+
     if (ufSelecionada !== "SP") {
         console.log("UF diferente de SP, exibindo campos extras.");
         colunasExtras.forEach(col => col.style.display = "table-cell"); // Exibe cabeçalho
@@ -2122,7 +2123,7 @@ function atualizarUFOrc(selectLocalMontagem) {
         colunasExtras.forEach(col => col.style.display = "none"); // Oculta cabeçalho
         camposExtras.forEach(campo => campo.style.display = "none"); // Oculta campos
     }
-   
+
 }
 
 function atualizaProdutoOrc(event) {
@@ -2136,12 +2137,9 @@ function atualizaProdutoOrc(event) {
     let valorSelecionado = selectedOption.value;
 
     console.log("Valor :", valorSelecionado);
-  
 
     // Obtém as informações do item selecionado
-    let produtoSelecionado = selectedOption.getAttribute("data-descproduto");
-    let idFuncaoSelecionado = idFuncao;
- 
+    let produtoSelecionado = selectedOption.getAttribute("data-descproduto"); 
 
     console.log("Produto selecionado:", produtoSelecionado); // Log do produto selecionado
     // Log do pavilhão selecionado
@@ -2158,55 +2156,72 @@ function atualizaProdutoOrc(event) {
     let ultimaLinha = tabela.querySelector("tbody tr:first-child");
     if (ultimaLinha) {
 
-        
         let celulaProduto = ultimaLinha.querySelector(".produto");
-        let celulaCategoria = ultimaLinha.querySelector(".Categoria");
-        let celulaIdFuncao = ultimaLinha.querySelector(".idFuncao");
-        let celulaIdEquipamento = ultimaLinha.querySelector(".idEquipamento");
-        let celulaIdSuprimento = ultimaLinha.querySelector(".idSuprimento");
+        let celulaCategoria = ultimaLinha.querySelector(".Categoria");       
+
+        let inputIdFuncao = ultimaLinha.querySelector("input.idFuncao");
+        let inputIdEquipamento = ultimaLinha.querySelector("input.idEquipamento");
+        let inputIdSuprimento = ultimaLinha.querySelector("input.idSuprimento");
+
+        if(inputIdFuncao) inputIdFuncao.value = '';
+        if(inputIdEquipamento) inputIdEquipamento.value = '';
+        if(inputIdSuprimento) inputIdSuprimento.value = '';
         
+        // Atribui o NOME do produto ao texto da célula
+        if (celulaProduto) {
+            // AQUI ESTÁ A CHAVE: o texto da célula recebe o NOME, e não o ID.
+            celulaProduto.textContent = produtoSelecionado;
+        }
+
         if (celulaCategoria && Categoria !== "Pavilhao") {
             celulaCategoria.textContent = Categoria;
-        }       
+        }
 
         console.log(" A categoria é :", Categoria)
-       
 
-        if (celulaProduto && (celulaProduto.textContent === "" || select.classList.contains("idEquipamento") || select.classList.contains("idSuprimento") || select.classList.contains("idFuncao"))) {
-            celulaProduto.textContent = produtoSelecionado;
-           
-            if (select.classList.contains("idFuncao"))
-            {
-                celulaIdFuncao.textContent = valorSelecionado;
-                console.log(" produto escolhido foi:", produtoSelecionado, "Funcao: ", select.classList.contains("idFuncao"), "Equipamento: ", select.classList.contains("idEquipamento"), "Suprimento: ",select.classList.contains("idSuprimento"), celulaIdFuncao);
-            }     
-            
-            if (select.classList.contains("idEquipamento"))
-            {
-                celulaIdEquipamento.textContent = valorSelecionado;
-                console.log(" produto escolhido foi:", produtoSelecionado, "Funcao: ", select.classList.contains("idFuncao"), "Equipamento: ", select.classList.contains("idEquipamento"), "Suprimento: ",select.classList.contains("idSuprimento"));
-            
-            }
-            if (select.classList.contains("idSuprimento"))
-            {
-                celulaIdSuprimento.textContent = valorSelecionado;
-                console.log(" produto escolhido foi:", produtoSelecionado, "Funcao: ", select.classList.contains("idFuncao"), "Equipamento: ", select.classList.contains("idEquipamento"), "Suprimento: ",select.classList.contains("idSuprimento"));
-            
-            }
-            
-           // celulaIdEquipamento.textContent = select.classList.contains("idEquipamento");
-            //celulaIdSuprimento.textContent = select.classList.contains("idSuprimento");
-           // console.log(" produto escolhido foi:", produtoSelecionado, "Funcao: ", select.classList.contains("idFuncao"), "Equipamento: ", select.classList.contains("idEquipamento"), "Suprimento: ",select.classList.contains("idSuprimento"));
-        }     
-        
-       
+        if (select.classList.contains("idFuncao")) {
+            inputIdFuncao.value = valorSelecionado;
+        } else if (select.classList.contains("idEquipamento")) {
+            inputIdEquipamento.value = valorSelecionado;
+        } else if (select.classList.contains("idSuprimento")) {
+            inputIdSuprimento.value = valorSelecionado;
+        }
+
+        // if (celulaProduto && (celulaProduto.textContent === "" || select.classList.contains("idEquipamento") || select.classList.contains("idSuprimento") || select.classList.contains("idFuncao"))) {
+        //     celulaProduto.textContent = produtoSelecionado;
+
+        //     if (select.classList.contains("idFuncao"))
+        //     {
+        //         celulaIdFuncao.textContent = valorSelecionado;
+        //         console.log(" produto escolhido foi:", produtoSelecionado, "Funcao: ", select.classList.contains("idFuncao"), "Equipamento: ", select.classList.contains("idEquipamento"), "Suprimento: ",select.classList.contains("idSuprimento"), celulaIdFuncao);
+        //     }
+
+        //     if (select.classList.contains("idEquipamento"))
+        //     {
+        //         celulaIdEquipamento.textContent = valorSelecionado;
+        //         console.log(" produto escolhido foi:", produtoSelecionado, "Funcao: ", select.classList.contains("idFuncao"), "Equipamento: ", select.classList.contains("idEquipamento"), "Suprimento: ",select.classList.contains("idSuprimento"));
+
+        //     }
+        //     if (select.classList.contains("idSuprimento"))
+        //     {
+        //         celulaIdSuprimento.textContent = valorSelecionado;
+        //         console.log(" produto escolhido foi:", produtoSelecionado, "Funcao: ", select.classList.contains("idFuncao"), "Equipamento: ", select.classList.contains("idEquipamento"), "Suprimento: ",select.classList.contains("idSuprimento"));
+
+        //     }
+
+        //    // celulaIdEquipamento.textContent = select.classList.contains("idEquipamento");
+        //     //celulaIdSuprimento.textContent = select.classList.contains("idSuprimento");
+        //    // console.log(" produto escolhido foi:", produtoSelecionado, "Funcao: ", select.classList.contains("idFuncao"), "Equipamento: ", select.classList.contains("idEquipamento"), "Suprimento: ",select.classList.contains("idSuprimento"));
+        // }
+
+
         // Encontre os selects de alimentação e transporte dentro da nova linha
         const selectAlimentacao = ultimaLinha.querySelector('.select-alimentacao');
         const selectTransporte = ultimaLinha.querySelector('.select-transporte');
 
         if (Categoria === "Produto(s)") { // Use "Função" se essa for a categoria exata definida na option
             if (selectAlimentacao) {
-                selectAlimentacao.disabled = false;               
+                selectAlimentacao.disabled = false;
             }
             if (selectTransporte) {
                 selectTransporte.disabled = false;
@@ -2235,11 +2250,11 @@ function atualizaProdutoOrc(event) {
         }
         console.log(" valor de Venda é:", vlrVendaNumerico);
 
-        
+
     }
     gerarObservacoesProposta([ultimaLinha]);
     recalcularLinha(ultimaLinha);
- //marcia   
+ //marcia
 }
 
 // Sua função de atualização de valores (mantém-se a mesma)
@@ -2247,20 +2262,20 @@ function atualizarValoresAjdCustoNaLinha(linha) {
     // ... (sua implementação atual de atualizarValoresAjdCustoNaLinha) ...
     console.log("Chamando atualizarValoresAjdCustoNaLinha para:", linha);
 
-    const selectAlimentacao = linha.querySelector('.tpAjdCusto-alimentacao'); 
-    const selectTransporte = linha.querySelector('.tpAjdCusto-transporte');  
-    const idFuncaoCell = linha.querySelector('.idFuncao'); 
-    
-    const valorAlimentacaoSpan = linha.querySelector('.valorbanco.alimentacao'); 
-    const valorTransporteSpan = linha.querySelector('.valorbanco.transporte');   
-    
+    const selectAlimentacao = linha.querySelector('.tpAjdCusto-alimentacao');
+    const selectTransporte = linha.querySelector('.tpAjdCusto-transporte');
+    const idFuncaoCell = linha.querySelector('.idFuncao');
+
+    const valorAlimentacaoSpan = linha.querySelector('.valorbanco.alimentacao');
+    const valorTransporteSpan = linha.querySelector('.valorbanco.transporte');
+
     const totAjdCustoCell = linha.querySelector('.totAjdCusto');
 
     let totalAlimentacaoLinha = 0;
     let totalTransporteLinha = 0;
     let totalAjdCustoLinha = 0;
 
-    
+
     const idFuncaoDaLinha = linha.dataset.idfuncao;
    // Atualiza o texto da célula com o ID da função
 
@@ -2341,11 +2356,11 @@ function atualizarValoresAjdCustoNaLinha(linha) {
     if (selectAlimentacao && valorAlimentacaoSpan) {
         const tipoAlimentacaoSelecionado = selectAlimentacao.value;
         console.log("Alimentação - TIPO SELECIONADO", tipoAlimentacaoSelecionado);
-        if (tipoAlimentacaoSelecionado === 'Almoco') { 
+        if (tipoAlimentacaoSelecionado === 'Almoco') {
             totalAlimentacaoLinha = baseAlmoco;
-        } else if (tipoAlimentacaoSelecionado === 'Janta') { 
+        } else if (tipoAlimentacaoSelecionado === 'Janta') {
             totalAlimentacaoLinha = baseJantar;
-        } else if (tipoAlimentacaoSelecionado === '2alimentacao') { 
+        } else if (tipoAlimentacaoSelecionado === '2alimentacao') {
             totalAlimentacaoLinha = baseAlmoco + baseJantar;
         }
         valorAlimentacaoSpan.textContent = formatarMoeda(totalAlimentacaoLinha);
@@ -2354,15 +2369,15 @@ function atualizarValoresAjdCustoNaLinha(linha) {
 
     if (selectTransporte && valorTransporteSpan) {
         const tipoTransporteSelecionado = selectTransporte.value;
-        if (tipoTransporteSelecionado !== 'select') { 
+        if (tipoTransporteSelecionado !== 'select') {
             totalTransporteLinha = baseTransporte;
         }
         valorTransporteSpan.textContent = formatarMoeda(totalTransporteLinha);
         console.log(`Transporte: Tipo: ${tipoTransporteSelecionado}, Valor Calculado: ${totalTransporteLinha}`);
     }
-    
+
     totalAjdCustoLinha = totalAlimentacaoLinha + totalTransporteLinha;
-    
+
     if (totAjdCustoCell) {
         totAjdCustoCell.textContent = formatarMoeda(totalAjdCustoLinha);
         console.log(`Total Ajd Custo da Linha: ${totalAjdCustoLinha}`);
@@ -2394,10 +2409,10 @@ function inicializarListenersAjdCustoTabela() {
                     console.error("Erro: Não foi possível encontrar a linha (<tr>) pai para o select de ajuda de custo.");
                     return;
                 }
-                
+
                 atualizarValoresAjdCustoNaLinha(linhaAtual);
-                recalcularLinha(linhaAtual); 
-                recalcularTotaisGerais(); 
+                recalcularLinha(linhaAtual);
+                recalcularTotaisGerais();
             }
         });
         tabelaBody.dataset.hasAjdCustoChangeListener = true; // Define a flag como true
@@ -2410,7 +2425,7 @@ function inicializarListenersAjdCustoTabela() {
     // (inclusive a primeira linha que vem do HTML ou as que foram carregadas do backend).
     tabelaBody.querySelectorAll('tr').forEach(linha => {
         atualizarValoresAjdCustoNaLinha(linha);
-        recalcularLinha(linha); 
+        recalcularLinha(linha);
     });
 }
 
@@ -2423,14 +2438,14 @@ function resetarOutrosSelectsOrc(select) {
         if (outroSelect !== select) {
             outroSelect.selectedIndex = 0;
         }
-    });   
+    });
 }
 
 // Função para configurar eventos no modal de orçamento
 async function verificaOrcamento() {
 
     initializeAllFlatpickrsInModal();
-  
+
     carregarFuncaoOrc();
     carregarEventosOrc();
     carregarClientesOrc();
@@ -2438,24 +2453,24 @@ async function verificaOrcamento() {
     carregarEquipamentosOrc();
     carregarSuprimentosOrc();
     configurarFormularioOrc();
-    
+
     inicializarListenersAjdCustoTabela();
 
-    adicionarLinhaOrc(); 
+    adicionarLinhaOrc();
 
     configurarInfraCheckbox();
-        
+
     // const selectElement = document.getElementById('idMontagem');
 
-    // if (selectElement) {       
-    //     selectElement.addEventListener('change', function() {           
+    // if (selectElement) {
+    //     selectElement.addEventListener('change', function() {
     //         atualizarUFOrc(this);
     //     });
     //     console.log("Event listener adicionado ao idMontagem.");
 
     // } else {
     //     console.error("Elemento 'idMontagem' não encontrado no DOM!");
-    // }   
+    // }
 
 
     const selecionarPavilhaoSelect = document.getElementById('selecionarPavilhao');
@@ -2491,12 +2506,12 @@ async function verificaOrcamento() {
         }
     }
 
-    
+
 
     // Chame updatePavilhaoDisplayInputs() inicialmente para garantir que os campos estejam vazios
     // ou preenchidos se o formulário for carregado para edição.
     updatePavilhaoDisplayInputs();
-    
+
     const statusInput = document.getElementById('Status');
     if(statusInput){
         statusInput.addEventListener('input', function(event) {
@@ -2522,13 +2537,13 @@ async function verificaOrcamento() {
             const permitido = /^[0-9]*$/.test(valor); // Permite apenas números
             if (!permitido) {
                 event.target.value = ''; // Limpa o campo se a entrada for inválida
-                Swal.fire({ 
+                Swal.fire({
                     title: 'Entrada Inválida',
                     text: 'Por favor, digite apenas números',
                     icon: 'warning',
                     confirmButtonText: 'Ok'
                 });
-            }            
+            }
         });
         nrOrcamentoInput.addEventListener('blur', async function() {
             const nrOrcamento = this.value.trim(); // Pega o valor do campo e remove espaços
@@ -2542,18 +2557,18 @@ async function verificaOrcamento() {
             console.log(`Buscando orçamento com Nº: ${nrOrcamento}`);
 
             try {
-                const url = `orcamentos?nrOrcamento=${nrOrcamento}`;           
-       
-                const orcamento = await fetchComToken(url, { method: 'GET' });                     
-                preencherFormularioComOrcamento(orcamento);          
+                const url = `orcamentos?nrOrcamento=${nrOrcamento}`;
+
+                const orcamento = await fetchComToken(url, { method: 'GET' });
+                preencherFormularioComOrcamento(orcamento);
 
             } catch (error) {
                 console.error("Erro ao buscar orçamento:", error);
-          
+
                 let errorMessage = error.message;
-                if (error.message.includes("404")) { 
+                if (error.message.includes("404")) {
                     errorMessage = `Orçamento com o número ${nrOrcamento} não encontrado.`;
-                    limparOrcamento(); 
+                    limparOrcamento();
                 } else if (error.message.includes("400")) {
                      errorMessage = "Número do orçamento é inválido ou vazio.";
                      limparOrcamento();
@@ -2561,18 +2576,18 @@ async function verificaOrcamento() {
                     errorMessage = `Erro ao carregar orçamento: ${error.message}`;
                     limparOrcamento();
                 }
-                
+
                 Swal.fire("Erro!", errorMessage, "error");
             }
         });
-    }    
+    }
 
     const btnAdicionarLinha = document.getElementById('adicionarLinha');
-    if (btnAdicionarLinha) {    
+    if (btnAdicionarLinha) {
         btnAdicionarLinha.addEventListener('click', function() {
-            console.log("Botão 'Adicionar Linha' clicado"); 
-            adicionarLinhaOrc(); // Chama a função para adicionar uma nova linha          
-            
+            console.log("Botão 'Adicionar Linha' clicado");
+            adicionarLinhaOrc(); // Chama a função para adicionar uma nova linha
+
         });
     } else {
         console.error("Botão 'Adicionar Linha' não encontrado.");
@@ -2584,12 +2599,12 @@ async function verificaOrcamento() {
         btnAdicionarLinhaAdicional.addEventListener('click', function() {
             console.log("Botão 'Adicionar Linha Adicional' clicado");
             adicionarLinhaAdicional(); // Chama a função para adicionar uma nova linha adicional
-            
+
         });
     } else {
         console.error("Botão 'Adicionar Linha Adicional' não encontrado.");
-    }   
-  
+    }
+
 
     const globalDescontoValor = document.getElementById('Desconto');
     const globalDescontoPercentual = document.getElementById('percentDesc');
@@ -2672,7 +2687,7 @@ async function verificaOrcamento() {
 
     const percentualImpostoInput = document.getElementById('percentImposto');
     if (percentualImpostoInput) {
-        percentualImpostoInput.addEventListener('input', function() {  
+        percentualImpostoInput.addEventListener('input', function() {
             const totalReferencia= desformatarMoeda(document.querySelector('#totalGeralVda').value || 0);
 
             calcularImposto(totalReferencia, this.value);
@@ -2694,15 +2709,15 @@ async function verificaOrcamento() {
 
             const temPermissaoCadastrar = temPermissao("Orcamentos", "cadastrar");
             const temPermissaoAlterar = temPermissao("Orcamentos", "alterar");
-            
+
 
             const idOrcamentoExistenteValue = document.getElementById('idOrcamento')?.value;
             // --- Converte para número ou define como null de forma segura ---
             const orcamentoId = idOrcamentoExistenteValue && !isNaN(parseInt(idOrcamentoExistenteValue)) && parseInt(idOrcamentoExistenteValue) > 0
                 ? parseInt(idOrcamentoExistenteValue)
                 : null;
-                
-                
+
+
             if (!orcamentoId && !temPermissaoCadastrar) {
                 return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos funcionários.", "error");
             }
@@ -2711,7 +2726,7 @@ async function verificaOrcamento() {
                 return Swal.fire("Acesso negado", "Você não tem permissão para alterar funcionários.", "error");
             }
 
-        
+
             console.log("formData BTNSALVAR", formData);
 
             console.log("Valor bruto de idOrcamentoExistenteValue:", idOrcamentoExistenteValue);
@@ -2755,15 +2770,15 @@ async function verificaOrcamento() {
                 status: formData.get("Status"),
                 idCliente: document.querySelector(".idCliente option:checked")?.value || null, // Se o campo for vazio, será null
                 idEvento: document.querySelector(".idEvento option:checked")?.value || null, // Se o campo for vazio, será null
-               
+
                 idMontagem: document.querySelector(".idMontagem option:checked")?.value || null, // Se o campo for vazio, será null
                 // idPavilhao: document.querySelector(".idPavilhao option:checked")?.value || null, // Se o campo for vazio, será null
-                idsPavilhoes: pavilhoesParaEnviar, 
+                idsPavilhoes: pavilhoesParaEnviar,
                 infraMontagem: formData.get("infraMontagem"),
 
                 dtiniInfraMontagem: infraMontagemDatas.inicio,
                 dtFimInfraMontagem: infraMontagemDatas.fim,
-                dtIniMontagem: montagemDatas.inicio, 
+                dtIniMontagem: montagemDatas.inicio,
                 dtFimMontagem: montagemDatas.fim,
                 dtIniMarcacao: marcacaoDatas.inicio,
                 dtFimMarcacao: marcacaoDatas.fim,
@@ -2772,8 +2787,8 @@ async function verificaOrcamento() {
                 dtIniDesmontagem: desmontagemDatas.inicio,
                 dtFimDesmontagem: desmontagemDatas.fim,
                 dtIniDesmontagemInfra: desmontagemInfraDatas.inicio,
-                dtFimDesmontagemInfra: desmontagemInfraDatas.fim,                 
-            
+                dtFimDesmontagemInfra: desmontagemInfraDatas.fim,
+
                 obsItens: formData.get("Observacao"),
                 obsProposta: formData.get("ObservacaoProposta"),
                 totGeralVda: desformatarMoeda(document.querySelector('#totalGeralVda').value),
@@ -2786,29 +2801,29 @@ async function verificaOrcamento() {
                 acrescimo: desformatarMoeda(document.querySelector('#Acrescimo').value),
                 percentAcrescimo: parsePercentValue(document.querySelector('#percentAcresc').value),
                 lucroReal: desformatarMoeda(document.querySelector('#lucroReal').value),
-                percentLucroReal: parsePercentValue(document.querySelector('#percentReal').value),               
+                percentLucroReal: parsePercentValue(document.querySelector('#percentReal').value),
                 vlrCliente: desformatarMoeda(document.querySelector('#valorCliente').value),
                 vlrImposto: desformatarMoeda(document.querySelector('#valorImposto').value),
                 percentImposto: parsePercentValue(document.querySelector('#percentImposto').value)
-                
+
             };
 
             const itensOrcamento = [];
         //    const linhas = document.querySelectorAll("#tabela tbody tr");
-            
+
             const tabelaBodyParaColeta = document.querySelector("#tabela tbody"); // Pegue o tbody novamente para garantir
 
     //console.log("DEBUG FRONTEND: HTML do tbody ANTES de coletar as linhas:", tabelaBodyParaColeta ? tabelaBodyParaColeta.innerHTML : "tbody não encontrado");
 
     const linhas = tabelaBodyParaColeta ? tabelaBodyParaColeta.querySelectorAll("tr") : []; // Use querySelectorAll no tbody específico
 
-    console.log("DEBUG FRONTEND: Quantidade de linhas encontradas por querySelectorAll:", linhas.length);
-   
+    console.log("DEBUG FRONTEND: Quantidade de linhas encontradas por querySelectorAll:", linhas.length, linhas);
+
 
             linhas.forEach((linha) => {
-                
+
                 const item = {
-                    
+
                     id: parseInt(linha.querySelector(".idItemOrcamento")?.value) || null,
                     nrorcamento: parseInt(linha.querySelector(".nrOrcamento")?.value) || null,
                     enviarnaproposta: linha.querySelector('.Proposta input[type="checkbox"]')?.checked || false,
@@ -2819,7 +2834,7 @@ async function verificaOrcamento() {
                     idsuprimento: parseInt(linha.querySelector(".idSuprimento")?.value) || null,
                     produto: linha.querySelector(".produto")?.textContent.trim(),
                     setor: linha.querySelector(".setor-input")?.value?.trim().toUpperCase() || null,
-                   
+
                     qtdDias: linha.querySelector(".qtdDias input")?.value || "0",
 
                     descontoitem: desformatarMoeda(linha.querySelector(".descontoItem.Moeda .ValorInteiros")?.value || '0'),
@@ -2830,9 +2845,9 @@ async function verificaOrcamento() {
                     vlrdiaria: desformatarMoeda(linha.querySelector(".vlrVenda.Moeda")?.textContent || '0'),
                     totvdadiaria: desformatarMoeda(linha.querySelector(".totVdaDiaria.Moeda")?.textContent || '0'),
                     ctodiaria: desformatarMoeda(linha.querySelector(".vlrCusto.Moeda")?.textContent || '0'),
-                    totctodiaria: desformatarMoeda(linha.querySelector(".totCtoDiaria.Moeda")?.textContent || '0'),          
-            
-            
+                    totctodiaria: desformatarMoeda(linha.querySelector(".totCtoDiaria.Moeda")?.textContent || '0'),
+
+
                     tpajdctoalimentacao: linha.querySelector('.tpAjdCusto-alimentacao')?.value || null,
                     vlrajdctoalimentacao: desformatarMoeda(linha.querySelector('.valorbanco.alimentacao')?.textContent || '0'),
                     tpajdctotransporte: linha.querySelector('.tpAjdCusto-transporte')?.value || null,
@@ -2840,14 +2855,16 @@ async function verificaOrcamento() {
                     totajdctoitem: desformatarMoeda(linha.querySelector(".totAjdCusto.Moeda")?.textContent || '0'),
 
                     hospedagem: desformatarMoeda(linha.querySelector(".extraCampo .hospedagem")?.value || '0'),
-                    transporte: desformatarMoeda(linha.querySelector(".extraCampo .transporteExtraInput")?.value || '0'),                    
+                    transporte: desformatarMoeda(linha.querySelector(".extraCampo .transporteExtraInput")?.value || '0'),
 
                     totgeralitem: desformatarMoeda(linha.querySelector(".totGeral")?.textContent || '0')
                 };
 
                 // 🎯 Aqui vem o tratamento correto dos períodos:
                 const campoPeriodo = linha.querySelector(".datas-item");
-                const valorPeriodoInput = campoPeriodo?.value?.trim() || "";               
+                const valorPeriodoInput = campoPeriodo?.value?.trim() || "";
+
+                console.log("valorPeriodoInput", valorPeriodoInput, item.idfuncao, item.idequipamento, item.idsuprimento);
 
                 let dataInicioFormatada = null;
                 let dataFimFormatada = null;
@@ -2865,10 +2882,14 @@ async function verificaOrcamento() {
                         // que converte "DD/MM/YYYY" para "YYYY-MM-DD"
                         dataInicioFormatada = formatarDataParaBackend(partes[0]);
                         dataFimFormatada = formatarDataParaBackend(partes[1]);
-                    } else {
-                        // Se houver apenas uma data, atribua-a ao início e o fim como null ou vazio
+                    }  else if (partes.length === 1) {
+                        // Única data: "DD/MM/YYYY"
                         dataInicioFormatada = formatarDataParaBackend(partes[0]);
-                        dataFimFormatada = null; // Ou '', dependendo da sua preferência para campos vazios
+                        dataFimFormatada = formatarDataParaBackend(partes[0]); // Corrigido aqui!
+                    } else {
+                        // Formato inválido ou inesperado
+                        dataInicioFormatada = null;
+                        dataFimFormatada = null;
                     }
                 }
 
@@ -2889,7 +2910,7 @@ async function verificaOrcamento() {
             });
 
 
-                
+
             dadosOrcamento.itens = itensOrcamento;
 
             console.log("Payload Final do Orçamento (sem id_empresa):", dadosOrcamento);
@@ -2918,7 +2939,7 @@ async function verificaOrcamento() {
                 if (resultado.nrOrcamento) {
                     document.getElementById('nrOrcamento').value = resultado.nrOrcamento; // Atualiza o campo no formulário
                 }
-            }       
+            }
 
         } catch (error) {
             console.error('Erro inesperado ao salvar orçamento:', error);
@@ -2938,13 +2959,13 @@ async function verificaOrcamento() {
 
     const btnLimpar = document.getElementById('Limpar');
     btnLimpar.addEventListener("click", async function (event) {
-        event.preventDefault(); 
+        event.preventDefault();
         if (btnLimpar) {
             btnLimpar.addEventListener("click", limparOrcamento());
         } else {
             console.warn("Botão 'Limpar' com ID 'Limpar' não encontrado.");
         }
-        
+
     });// Previne o envio padrão do formulário
 
     recalcularTotaisGerais();
@@ -3044,10 +3065,10 @@ function desinicializarOrcamentosModal() {
         btnLimpar.removeEventListener("click", btnLimparListener);
         btnLimparListener = null;
     }
-    
+
     // Resetar estados e limpar formulário (se aplicável)
     limparOrcamento(); // Chame sua função de limpeza de formulário
-    
+
     lastEditedGlobalFieldType = null;
 
     console.log("✅ Módulo Orcamentos.js desinicializado.");
@@ -3062,21 +3083,21 @@ export function limparOrcamento() {
         return;
     }
 
-   
+
     form.querySelectorAll('input[type="text"], input[type="number"], textarea').forEach(input => {
-       
+
         if (!input.readOnly) {
             input.value = '';
         }
     });
 
-   
-    document.getElementById('idOrcamento').value = '';
-    document.getElementById('nrOrcamento').value = ''; 
 
-   
+    document.getElementById('idOrcamento').value = '';
+    document.getElementById('nrOrcamento').value = '';
+
+
     form.querySelectorAll('select').forEach(select => {
-       
+
         const defaultOption = select.querySelector('option[selected][disabled]') || select.querySelector('option:first-child');
         if (defaultOption) {
             select.value = defaultOption.value;
@@ -3086,11 +3107,11 @@ export function limparOrcamento() {
         select.dispatchEvent(event);
     });
 
-    
+
     form.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
         checkbox.checked = false;
     });
-   
+
     const mainFlatpickrIds = [
         "periodoInfraMontagem", "periodoMarcacao", "periodoMontagem",
         "periodoRealizacao", "periodoDesmontagem", "periodoDesmontagemInfra"
@@ -3121,9 +3142,9 @@ export function limparOrcamento() {
     document.getElementById('percentDesc').value = '0%';
     document.getElementById('Acrescimo').value = 'R$ 0,00';
     document.getElementById('percentAcresc').value = '0%';
-    document.getElementById('lucroReal').value = 'R$ 0,00';    
+    document.getElementById('lucroReal').value = 'R$ 0,00';
     document.getElementById('percentReal').value = '0%';
-    document.getElementById('valorImposto').value = 'R$ 0,00';    
+    document.getElementById('valorImposto').value = 'R$ 0,00';
     document.getElementById('percentImposto').value = '0%';
     document.getElementById('valorCliente').value = 'R$ 0,00';
 
@@ -3140,7 +3161,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
         limparOrcamento();
         return;
     }
-    
+
     const idOrcamentoInput = document.getElementById('idOrcamento');
     if (idOrcamentoInput) { // Adicionado if para proteger o acesso a .value
         idOrcamentoInput.value = orcamento.idorcamento || '';
@@ -3161,18 +3182,24 @@ export async function preencherFormularioComOrcamento(orcamento) {
     } else {
         console.warn("Elemento 'nomenclatura' não encontrado.");
     }
-    
+
     // Define os valores dos selects.
     // Como os 'value' das options agora são os IDs, a atribuição direta funciona.
     const statusInput = document.getElementById('Status'); // Seu HTML mostra input type="text"
+
     if (statusInput) {
         statusInput.value = orcamento.status || '';
+        console.log("Status", statusInput.value);
+
+        if (statusInput.value === 'F'){
+            bloquearCamposSeFechado();
+        }
     } else {
         console.warn("Elemento com ID 'Status' não encontrado.");
     }
 
     const clienteSelect = document.querySelector('.idCliente');
-    if (clienteSelect) {     
+    if (clienteSelect) {
         clienteSelect.value = orcamento.idcliente || '';
     } else {
         console.warn("Elemento com classe '.idCliente' não encontrado.");
@@ -3195,15 +3222,15 @@ export async function preencherFormularioComOrcamento(orcamento) {
         } else {
             console.warn("Elemento com ID 'ufmontagem' não encontrado.");
         }
-       
-        atualizarUFOrc(localMontagemSelect); 
+
+        atualizarUFOrc(localMontagemSelect);
 
         if (orcamento.idmontagem) {
              await carregarPavilhaoOrc(orcamento.idmontagem);
         } else {
              await carregarPavilhaoOrc(''); // Limpa o select se não houver montagem
         }
-        
+
     } else {
         console.warn("Elemento com classe '.idMontagem' não encontrado.");
     }
@@ -3211,10 +3238,10 @@ export async function preencherFormularioComOrcamento(orcamento) {
     // const pavilhaoSelect = document.querySelector('.idPavilhao');
     // //console.log("PAVILHÃO:", pavilhaoSelect); // Vai mostrar o elemento <select>
     // if (pavilhaoSelect) {
-        
+
     //     pavilhaoSelect.value = orcamento.idpavilhao || '';
-    //     console.log("PAVILHÃO selecionado por ID:", pavilhaoSelect.value); 
-       
+    //     console.log("PAVILHÃO selecionado por ID:", pavilhaoSelect.value);
+
     //     if (orcamento.idpavilhao && orcamento.nomepavilhao) {
     //         let optionExistente = pavilhaoSelect.querySelector(`option[value="${orcamento.idpavilhao}"]`);
 
@@ -3242,7 +3269,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
     // } else {
     //     console.warn("Elemento com classe '.idPavilhao' não encontrado.");
     // }
-    
+
     if (orcamento.pavilhoes && orcamento.pavilhoes.length > 0) {
     // Popula a variável global `selectedPavilhoes`
     // O `orcamento.pavilhoes` deve ser um array de objetos, ex: [{id: 8, nomepavilhao: "nome"}, ...]
@@ -3258,12 +3285,12 @@ export async function preencherFormularioComOrcamento(orcamento) {
     updatePavilhaoDisplayInputs();
 
     for (const id in flatpickrInstances) {
-        const pickerInstance = flatpickrInstances[id];        
-      
+        const pickerInstance = flatpickrInstances[id];
+
         if (pickerInstance && typeof pickerInstance.setDate === 'function' && pickerInstance.config) {
             let inicio = null;
             let fim = null;
-                     
+
             switch(id) {
                 case 'periodoInfraMontagem':
                     inicio = orcamento.dtiniinframontagem;
@@ -3280,7 +3307,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
                 case 'periodoRealizacao':
                     inicio = orcamento.dtinirealizacao;
                     fim = orcamento.dtfimrealizacao;
-                    break; 
+                    break;
                 case 'periodoDesmontagem':
                     inicio = orcamento.dtinidesmontagem;
                     fim = orcamento.dtfimdesmontagem;
@@ -3290,10 +3317,10 @@ export async function preencherFormularioComOrcamento(orcamento) {
                     fim = orcamento.dtfiminfradesmontagem;
                     break;
             }
-            
+
             const startDate = inicio ? new Date(inicio) : null;
             const endDate = fim ? new Date(fim) : null;
-          
+
             if (pickerInstance.config.mode === "range") {
                 // Adiciona verificação para datas válidas e tratamento para apenas uma data
                 if (startDate && endDate && !isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
@@ -3314,9 +3341,9 @@ export async function preencherFormularioComOrcamento(orcamento) {
             console.warn(`[preencherFormularioComOrcamento] Instância Flatpickr para ID '${id}' não encontrada ou inválida. Não foi possível preencher.`);
         }
     }
- 
+
     // Preencher campos de texto
-    const obsItensInput = document.getElementById('Observacao'); 
+    const obsItensInput = document.getElementById('Observacao');
     if (obsItensInput) {
         obsItensInput.value = orcamento.obsitens || '';
     } else {
@@ -3329,7 +3356,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
     } else {
         console.warn("Elemento com ID 'ObservacaoProposta' (Observações sobre a Proposta) não encontrado.");
     }
-   
+
     const totalGeralVdaInput = document.getElementById('totalGeralVda');
     if (totalGeralVdaInput) totalGeralVdaInput.value = formatarMoeda(orcamento.totgeralvda || 0);
 
@@ -3407,9 +3434,9 @@ export async function preencherFormularioComOrcamento(orcamento) {
     if (valorClienteInput) valorClienteInput.value = formatarMoeda(orcamento.vlrcliente || 0);
 
     console.log("VALOR DO CLIENTE VINDO DO BANCO", orcamento.vlrcliente || 0);
-    
+
    // preencherItensOrcamentoTabela(orcamento.itens || []);
-    
+
     if (orcamento.itens && orcamento.itens.length > 0) {
         preencherItensOrcamentoTabela(orcamento.itens); // <--- ESTA CHAMADA É CRUCIAL
     } else {
@@ -3417,14 +3444,14 @@ export async function preencherFormularioComOrcamento(orcamento) {
         preencherItensOrcamentoTabela([]); // Limpa a tabela se não houver itens
     }
     if (localMontagemSelect) { // Verifica se o select existe antes de chamar
-        atualizarUFOrc(localMontagemSelect); 
+        atualizarUFOrc(localMontagemSelect);
     }
 }
 
 
  export function preencherItensOrcamentoTabela(itens) {
      console.log("DEBUG FRONTEND: preencherItensOrcamentoTabela foi chamada com itens:", itens);
-   
+
     const tabelaBody = document.querySelector("#tabela tbody");
 
     if (!tabelaBody) {
@@ -3432,7 +3459,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
         return;
     }
 
-    tabelaBody.innerHTML = ''; // Limpa as linhas existentes    
+    tabelaBody.innerHTML = ''; // Limpa as linhas existentes
 
     if (!itens || itens.length === 0) {
         console.log("Nenhum item encontrado para este orçamento ou 'itens' está vazio.");
@@ -3441,10 +3468,10 @@ export async function preencherFormularioComOrcamento(orcamento) {
         emptyRow.innerHTML = `<td colspan="20" style="text-align: center;">Nenhum item adicionado a este orçamento.</td>`;
         return;
     }
-    
+
 
     itens.forEach(item => {
-        console.log("DEBUG FRONTEND: Adicionando item à tabela:", item);     
+        console.log("DEBUG FRONTEND: Adicionando item à tabela:", item);
         const newRow = tabelaBody.insertRow(); // Cria a linha DOM de uma vez
         newRow.dataset.idorcamentoitem = item.idorcamentoitem || '';
         newRow.dataset.idfuncao = item.idfuncao || '';
@@ -3498,10 +3525,10 @@ export async function preencherFormularioComOrcamento(orcamento) {
             <td class="setor">
                 <input type="text" class="setor-input" value="${item.setor || ''}">
             </td>
-            
+
             <td class="qtdDias">
                 <div class="add-less">
-                    <input type="number" readonly class="qtdDias" min="0" value="${item.qtddias || 0}">                    
+                    <input type="number" readonly class="qtdDias" min="0" value="${item.qtddias || 0}">
                 </div>
             </td>
             <td class="Periodo">
@@ -3521,7 +3548,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
                     <input type="text" class="valorPerCent" value="${parseFloat(item.percentacrescimoitem || 0).toFixed(2)}%">
                 </div>
             </td>
-          
+
             <td class="vlrVenda Moeda" data-original-venda="${item.vlrdiaria || 0}">${formatarMoeda(item.vlrdiaria || 0)}</td>
             <td class="totVdaDiaria Moeda">${formatarMoeda(item.totvdadiaria || 0)}</td>
             <td class="vlrCusto Moeda">${formatarMoeda(item.ctodiaria || 0)}</td>
@@ -3656,13 +3683,13 @@ export async function preencherFormularioComOrcamento(orcamento) {
                     }
                 }, 0);
             });
-        }    
-          
-        
+        }
+
+
         newRow.querySelector('.qtdProduto input')?.addEventListener('input', function() {
             recalcularLinha(this.closest('tr'));
         });
-        
+
         newRow.querySelector('.qtdDias input')?.addEventListener('input', function() {
             recalcularLinha(this.closest('tr'));
         });
@@ -3684,7 +3711,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
             recalcularLinha(this.closest('tr'));
             console.log("INPUT DO TRANSPORTE:", this.value); // Log para depuração
         });
-        
+
         const selectAlimentacao = newRow.querySelector('.tpAjdCusto-alimentacao');
         if (selectAlimentacao && item.tpajdctoalimentacao) {
             selectAlimentacao.value = item.tpajdctoalimentacao;
@@ -3694,7 +3721,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
         if (selectTransporte && item.tpajdctotransporte) {
             selectTransporte.value = item.tpajdctotransporte;
         }
-        
+
         // Inicialização do Flatpickr
         const itemDateInput = newRow.querySelector(".Periodo .datas-item");
         if (itemDateInput) {
@@ -3716,7 +3743,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
                     atualizarQtdDias(input, selectedDates);
                 }
             });
-        } 
+        }
 
         const incrementButton = newRow.querySelector('.qtdProduto .increment');
         const decrementButton = newRow.querySelector('.qtdProduto .decrement');
@@ -3740,11 +3767,11 @@ export async function preencherFormularioComOrcamento(orcamento) {
                 }
             });
         }
-        
+
         const temPermissaoApagar = temPermissao("Orcamentos", "apagar");
         const deleteButton = newRow.querySelector('.btnApagar');
         const idItemInput = newRow.querySelector('input.idItemOrcamento'); // Obtém o input de ID
-       
+
 
         if (deleteButton) {
             deleteButton.addEventListener('click', async function(event) {
@@ -3791,7 +3818,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
                             currentItemProduct = produtoCell.textContent.trim();
                         }
                     }
-                    
+
                     const { isConfirmed } = await Swal.fire({
                         title: `Tem Certeza que deseja EXCLUIR o item "${currentItemProduct}" ?`,
                         text: "Você não poderá reverter esta ação!",
@@ -3806,16 +3833,16 @@ export async function preencherFormularioComOrcamento(orcamento) {
                     if (isConfirmed) {
                         try {
                             const idOrcamentoPrincipal = document.getElementById('idOrcamento').value;
-                            console.log("IDS ORCAMENTO:", idOrcamentoPrincipal, idOrcamentoItem);   
+                            console.log("IDS ORCAMENTO:", idOrcamentoPrincipal, idOrcamentoItem);
                             await fetchComToken(`/orcamentos/${idOrcamentoPrincipal}/itens/${idOrcamentoItem}`, {
                                 method: 'DELETE',
                                 headers: {
                                     'Content-Type': 'application/json'
                                 }
-                            });                            
+                            });
 
-                            linhaParaRemover.remove(); 
-                            recalcularTotaisGerais();                           
+                            linhaParaRemover.remove();
+                            recalcularTotaisGerais();
 
                             Swal.fire("Deletado!", "O item foi removido com sucesso.", "success");
 
@@ -3826,16 +3853,16 @@ export async function preencherFormularioComOrcamento(orcamento) {
                     }
                 }
             });
-           
-            if (!temPermissaoApagar) {                
+
+            if (!temPermissaoApagar) {
                 deleteButton.classList.add("btnDesabilitado");
                 deleteButton.title = "Você não tem permissão para apagar itens de orçamento que já estão salvos.";
             }
         }
-       
-    });     
 
-    aplicarMascaraMoeda();   
+    });
+
+    aplicarMascaraMoeda();
 
 }
 
@@ -3889,15 +3916,15 @@ export function limparFormularioOrcamento() {
 }
 
 function getPeriodoDatas(inputValue) { // Recebe diretamente o valor do input
-   
+
     console.log("Valor do input recebido:", inputValue);
-    
+
     if (typeof inputValue !== 'string' || inputValue.trim() === '') {
         // Se o input estiver vazio ou não for uma string, retorna null para as datas.
         // Isso é exatamente o que você quer para campos opcionais não preenchidos.
         return { inicio: null, fim: null };
     }
-    const datas = inputValue.split(' até '); 
+    const datas = inputValue.split(' até ');
 
     let dataInicial = null;
     let dataFinal = null;
@@ -3930,7 +3957,7 @@ function formatarDataParaBackend(dataString) {
         if (ano.length === 2) {
             const currentYear = new Date().getFullYear();
             const century = Math.floor(currentYear / 100) * 100; // Ex: 2000
-            
+
             // Heurística simples: se o ano de 2 dígitos for maior que o ano atual de 2 dígitos (ex: 95 para 2024),
             // assume século passado (19xx). Caso contrário, assume século atual (20xx).
             // A melhor prática é que o campo de data sempre retorne 4 dígitos do frontend.
@@ -3970,11 +3997,11 @@ function formatarRangeDataParaBackend(dataRange) {
 
 function formatarRangeParaInput(dataRangeISO) {
     console.log("DATAS", dataRangeISO);
-   
+
     if (dataRangeISO === null || dataRangeISO === undefined) {
         return ''; // Retorna uma string vazia se a data for nula
     }
-   
+
     if (!dataRangeISO.includes(' a ')) {
         return ''; // formato inválido
     }
@@ -4100,13 +4127,13 @@ function enviarOrcamento() {
 
 // -------------------------------------- input Desconto e Acrésimo -----------------------------------------------------------
 // window.addEventListener('DOMContentLoaded', () => {
- 
+
 //     console.log("ENTROU NO ADD PARA APLICAR DESCONTO E ACRESCIMO");
 //     aplicarDescontoEAcrescimo(); // ✅ Atualiza o valor do cliente assim que a tela carregar
 
 //     // Seu listener existente
 //     document.body.addEventListener('blur', function (e) {
-//         const input = e.target; 
+//         const input = e.target;
 //         const inputId = input.id || input.className;
 //         console.log(`DEBUG: Evento blur disparado por: ${inputId}`);
 //         // Campos por linha
@@ -4140,7 +4167,7 @@ function enviarOrcamento() {
         if (input.value.trim() !== '') {
         input.classList.add('preenchido');
         }
-    
+
         // Ao digitar ou colar algo
         input.addEventListener('input', () => {
         if (input.value.trim() !== '') {
@@ -4149,7 +4176,7 @@ function enviarOrcamento() {
         input.classList.remove('preenchido');
         }
         });
-    
+
         // Em caso de preenchimento via script
         input.addEventListener('blur', () => {
         if (input.value.trim() !== '') {
@@ -4188,8 +4215,8 @@ function recalcularLinha(linha) {
         let qtdDias = parseFloat(linha.querySelector('.qtdDias input')?.value) || 0;
 
         let celulaVenda = linha.querySelector('.vlrVenda');
-        //let vlrVendaOriginal = desformatarMoeda(celulaVenda?.textContent) || 0; 
-        const vlrVendaOriginal = parseFloat(celulaVenda?.dataset.originalVenda) || 0; 
+        //let vlrVendaOriginal = desformatarMoeda(celulaVenda?.textContent) || 0;
+        const vlrVendaOriginal = parseFloat(celulaVenda?.dataset.originalVenda) || 0;
         console.log("DEBUG - recalcularLinha: vlrVendaOriginal (Lido do data-attribute) =", vlrVendaOriginal);
         let vlrVenda = vlrVendaOriginal;
 
@@ -4200,9 +4227,9 @@ function recalcularLinha(linha) {
         const selectTransporte = linha.querySelector('.tpAjdCusto-transporte');
 
         const valorAlimentacaoSpan =  linha.querySelector('.valorbanco.alimentacao');
-        const valorTransporteSpan = linha.querySelector('.valorbanco.transporte');       
-      
-        
+        const valorTransporteSpan = linha.querySelector('.valorbanco.transporte');
+
+
         // const baseAlmoco = parseFloat(vlrAlmoco || 0);
         // const baseJantar = parseFloat(vlrJantar || 0);
         // const baseTransporte = parseFloat(vlrTransporte || 0);
@@ -4235,11 +4262,11 @@ function recalcularLinha(linha) {
         let transporteExtraValor = desformatarMoeda(linha.querySelector('.transporteExtraInput')?.value) || 0;
 
         console.log("HOSPEDAGEM E TRANSPORTE EXTRA:", hospedagemValor, transporteExtraValor);
-              
+
 
         // let vlrAjdCusto =  vlrCusto + totalAlimentacaoLinha + totalTransporteLinha + hospedagemValor;
         let vlrAjdCusto =  vlrCusto + totalAlimentacaoLinha + totalTransporteLinha;
-        
+
         // --- LEITURA DOS VALORES DE DESCONTO E ACRÉSCIMO DA LINHA (NÃO FAÇA CÁLCULO DE SINCRONIZAÇÃO AQUI!) ---
         let campoDescValor = linha.querySelector('.descontoItem .ValorInteiros');
         let campoAcrescValor = linha.querySelector('.acrescimoItem .ValorInteiros');
@@ -4260,19 +4287,19 @@ function recalcularLinha(linha) {
         }
 
         // --- CÁLCULO DO vlrVendaCorrigido USANDO OS VALORES LIDOS ---
-        let vlrVendaCorrigido = vlrVendaOriginal - desconto + acrescimo; 
+        let vlrVendaCorrigido = vlrVendaOriginal - desconto + acrescimo;
 
         // ... (resto dos seus cálculos de totalIntermediario, totalVenda, totalCusto, totalAjdCusto, totGeralCtoItem) ...
         // let totalIntermediario = qtdItens * qtdDias;
         // let totalVenda = totalIntermediario * vlrVendaCorrigido;
         // let totalCusto = totalIntermediario * vlrCusto;
-        // let totalAjdCusto = totalIntermediario * vlrAjdCusto + transporteExtraValor; 
+        // let totalAjdCusto = totalIntermediario * vlrAjdCusto + transporteExtraValor;
         // let totGeralCtoItem = totalCusto + totalAjdCusto+ transporteExtraValor;
 
         let totalIntermediario = qtdItens * qtdDias;
         let totalVenda = (totalIntermediario * vlrVendaCorrigido) +(hospedagemValor * totalIntermediario) + transporteExtraValor;
         let totalCusto = totalIntermediario * vlrCusto;
-        let totalAjdCusto = totalIntermediario * vlrAjdCusto; 
+        let totalAjdCusto = totalIntermediario * vlrAjdCusto;
         let totGeralCtoItem = totalCusto + totalAjdCusto;
 
         console.log("Ajuda Custo RECALCULAR LINHA:", totalAjdCusto, "totalIntermediario:", totalIntermediario, "vlrAjdCusto:", vlrAjdCusto);
@@ -4280,7 +4307,7 @@ function recalcularLinha(linha) {
         // --- ATUALIZA A DOM (TDs da linha) ---
         linha.querySelector('.valorbanco.alimentacao').textContent = totalAlimentacaoLinha.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         linha.querySelector('.valorbanco.transporte').textContent = totalTransporteLinha.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        
+
         linha.querySelector('.totVdaDiaria').textContent = totalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         linha.querySelector('.vlrVenda').textContent = vlrVendaCorrigido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         linha.querySelector('.totCtoDiaria').textContent = totalCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -4318,9 +4345,9 @@ function recalcularLinha(linha) {
         console.log("Calculo desc e Acresc (final):", vlrVendaOriginal, "-", desconto, "+", acrescimo);
         console.log("valor c/ desc e Acresc (final):", vlrVendaCorrigido);
         // ... (outros logs) ...
-        
-       
-        
+
+
+
         recalcularTotaisGerais(); // Recalcula os totais gerais da tabela
     } catch (error) {
         console.error("Erro no recalcularLinha:", error);
@@ -4328,7 +4355,7 @@ function recalcularLinha(linha) {
 }
 
 // function recalcularDescontoAcrescimo(campoAlterado, tipoCampo, tipoValorAlterado, linha) {
-    
+
 //     if (!campoAlterado) {
 //         console.warn("recalcularDescontoAcrescimo: Campo alterado inválido.", campoAlterado);
 //         return;
@@ -4337,8 +4364,8 @@ function recalcularLinha(linha) {
 //     const celulaVenda = linha.querySelector('.vlrVenda');
 //     // Assume que vlrVendaOriginal é o valor base para cálculo de percentual
 //     const vlrVendaOriginal = parseFloat(celulaVenda?.dataset.originalVenda || '0') || 0;
-//    //let vlrVendaOriginal = desformatarMoeda(celulaVenda?.textContent) || 0; 
-    
+//    //let vlrVendaOriginal = desformatarMoeda(celulaVenda?.textContent) || 0;
+
 //     console.log("DEBUG - recalcularDescontoAcrescimo - INÍCIO (SEM IMask.js)");
 //     console.log("Campo Alterado:", campoAlterado.id || campoAlterado.className, "Tipo Campo:", tipoCampo, "Tipo Valor Alterado:", tipoValorAlterado);
 //     console.log("Valor de Venda Original da Linha (dataset):", vlrVendaOriginal, celulaVenda.value);
@@ -4377,7 +4404,7 @@ function recalcularLinha(linha) {
 //             campoPercentual.value = formatarPercentual(percentualAtual);
 //             console.log(`Atualizando ${tipoCampo} Percentual para: ${campoPercentual.value}`);
 //         }
-        
+
 //     } else { // tipoValorAlterado === 'percentual' - Se o campo percentual foi modificado
 //         // O percentual digitado já está em `percentualAtual` (desformatado)
 //         // Atualiza o valor monetário
@@ -4409,7 +4436,7 @@ function recalcularLinha(linha) {
 
 //     // Chama a função principal de recalcular a linha após as atualizações
 //     recalcularLinha(linha);
-    
+
 //     console.log("DEBUG - recalcularDescontoAcrescimo - FIM");
 // }
 
@@ -4546,7 +4573,7 @@ function aplicarMascaraMoeda() {
             input.dataset.valorOriginal = input.value; // guarda o valor real
             input.value = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
-    });   
+    });
 
 }
 
@@ -4563,7 +4590,7 @@ aplicarMascaraMoeda();
 
 function bloquearCamposSeFechado() {
     const statusInput = document.getElementById('Status');
-    const fechado = statusInput?.value === 'Fechado';
+    const fechado = statusInput?.value === 'F';
 
     const idsPermitidos = ['Desconto', 'perCentDesc', 'Acrescimo', 'perCentAcresc', 'ObservacaoProposta', 'Observacao'];
 
@@ -4674,29 +4701,70 @@ document.getElementById('fecharOrc').addEventListener('click', function(event) {
 });
 
 function fecharOrcamento() {
-const statusInput = document.getElementById('Status');
+    const statusInput = document.getElementById('Status');
 
-if (statusInput.value === 'Fechado') {
-    Swal.fire('Orçamento fechado', 'Este orçamento está fechado e não pode ser alterado.', 'warning');
-    return;
-}
-
-Swal.fire({
-    title: 'Deseja realmente fechar este orçamento?',
-    text: "Você não poderá reabrir diretamente.",
-    icon: 'warning',
-    showCancelButton: true,
-    cancelButtonText: 'Cancelar',
-    confirmButtonText: 'Sim, fechar',
-    reverseButtons: true,
-    focusCancel:true
-}).then((result) => {
-    if (result.isConfirmed) {
-    statusInput.value = 'Fechado';
-    bloquearCamposSeFechado();
-    Swal.fire('Fechado!', 'O orçamento foi fechado com sucesso.', 'success');
+    if (statusInput.value === 'F') {
+        Swal.fire('Orçamento fechado', 'Este orçamento está fechado e não pode ser alterado.', 'warning');
+        return;
     }
-});
+
+
+    // Swal.fire({
+    //     title: 'Deseja realmente fechar este orçamento?',
+    //     text: "Você não poderá reabrir diretamente.",
+    //     icon: 'warning',
+    //     showCancelButton: true,
+    //     cancelButtonText: 'Cancelar',
+    //     confirmButtonText: 'Sim, fechar',
+    //     reverseButtons: true,
+    //     focusCancel:true
+    // }).then((result) => {
+    //     if (result.isConfirmed) {
+    //     statusInput.value = 'F';
+    //     bloquearCamposSeFechado();
+    //     Swal.fire('Fechado!', 'O orçamento foi fechado com sucesso.', 'success');
+    //     }
+    // });
+    Swal.fire({
+        title: 'Deseja realmente fechar este orçamento?',
+        text: "Você não poderá reabrir diretamente.",
+        icon: 'warning',
+        showCancelButton: true,
+        cancelButtonText: 'Cancelar',
+        confirmButtonText: 'Sim, fechar',
+        reverseButtons: true,
+        focusCancel:true
+    }).then(async (result) => { // Adicionado 'async' aqui para usar 'await'
+        if (result.isConfirmed) {
+            try {
+
+                const idOrcamento = document.getElementById('idOrcamento')?.value;
+                const orcamentoIdNumerico = parseInt(idOrcamento, 10);
+
+                if (!orcamentoIdNumerico || isNaN(orcamentoIdNumerico)) {
+                    Swal.fire('Erro!', 'ID do orçamento inválido. Salve-o antes de fechar.', 'error');
+                    return;
+                }
+                // 1. Prepare os dados para enviar ao backend
+                const resultado = await fetchComToken(`orcamentos/fechar/${orcamentoIdNumerico}`, {
+                    method: 'PUT',
+                    // Não precisa de body, o status 'F' é definido no backend
+                });
+
+                // Verifique a resposta e atualize a UI
+                if (resultado.message) {
+                    document.getElementById('Status').value = 'F'; // Atualiza o input localmente
+                    bloquearCamposSeFechado();
+                    Swal.fire('Fechado!', resultado.message, 'success');
+                }
+
+            } catch (error) {
+                console.error("Erro ao fechar o orçamento:", error);
+                let errorMessage = error.message || "Ocorreu um erro ao fechar o orçamento.";
+                Swal.fire('Erro!', errorMessage, 'error');
+            }
+        }
+    });
 }
 
 
@@ -4751,7 +4819,7 @@ console.log("🚀 Versão atualizada da função gerarPropostaPDF executada");
         const x = 25;
         const tituloFontSize = 15;
         const textoFontSize = 10;
-        
+
         let y = 50;
 
          function addNewPage() {
@@ -4796,15 +4864,15 @@ console.log("🚀 Versão atualizada da função gerarPropostaPDF executada");
         const localEvento = montagemSelect?.options[montagemSelect.selectedIndex]?.innerText || "N/D";
         const pavilhaoSelect = document.querySelector('.idPavilhao');
         const nmPavilhao = pavilhaoSelect?.options[pavilhaoSelect.selectedIndex]?.innerText || "N/D";
-        const inputMarcacao = document.getElementById('periodoMarcacao')?.value?.trim().replace(" to ", " até ") ||  "N/D" ; 
-        const inputMontagem = document.getElementById('periodoMontagem')?.value?.trim().replace(" to ", " até ") ||  "N/D" ; 
-        const inputRealizacao = document.querySelector('.realizacao')?.value?.trim().replace(" to ", " até ") ||  "N/D" ; 
-        const inputDesmontagem = document.getElementById('periodoDesmontagem')?.value?.trim().replace(" to ", " até ") ||  "N/D" ; 
+        const inputMarcacao = document.getElementById('periodoMarcacao')?.value?.trim().replace(" to ", " até ") ||  "N/D" ;
+        const inputMontagem = document.getElementById('periodoMontagem')?.value?.trim().replace(" to ", " até ") ||  "N/D" ;
+        const inputRealizacao = document.querySelector('.realizacao')?.value?.trim().replace(" to ", " até ") ||  "N/D" ;
+        const inputDesmontagem = document.getElementById('periodoDesmontagem')?.value?.trim().replace(" to ", " até ") ||  "N/D" ;
         const dataAtual = new Date();
         const anoAtual = dataAtual.getFullYear();
         const valorProposta = document.getElementById('valorCliente')?.value?.trim() || "R$ XX";
 
-        
+
 
         let dadosContato = { nmcontato: "N/D", celcontato: "N/D", emailcontato: "N/D" };
 
@@ -4960,7 +5028,7 @@ console.log("🚀 Versão atualizada da função gerarPropostaPDF executada");
         const xCentralizado = (pageWidth - textWidth) / 2;
         doc.text(textoResumo, xCentralizado, y);
         y += 10;
-    
+
 
     function capitalizarPalavras(texto) {
     return texto
@@ -5154,7 +5222,7 @@ linhas.forEach(linha => {
         doc.setFontSize(10);
         adicionarLinha("*Prazos de pagamento sujeitos a alteração conforme necessidade e acordo. ");
 
-        
+
         const dataFormatada = dataAtual.toLocaleDateString('pt-BR', {
             day: '2-digit',
             month: 'long',
@@ -5279,30 +5347,30 @@ for (let R = range.s.r; R <= range.e.r; ++R) {
 
 function configurarEventosOrcamento() {
     console.log("Configurando eventos Orcamento...");
-    //inicializarFlatpickrsGlobais(); 
+    //inicializarFlatpickrsGlobais();
     initializeAllFlatpickrsInModal();
-    verificaOrcamento();   
-    
+    verificaOrcamento();
+
 
     console.log("Entrou configurar Orcamento no ORCAMENTO.js.");
-} 
+}
 
 window.configurarEventosOrcamento = configurarEventosOrcamento;
 
 function configurarEventosEspecificos(modulo) {
   console.log("⚙️ configurarEventosEspecificos recebeu:", modulo);
-  
+
   if (modulo.trim().toLowerCase() === 'orcamentos') {
-    
+
     initializeAllFlatpickrsInModal();
-    configurarEventosOrcamento();    
+    configurarEventosOrcamento();
 
     if (typeof aplicarPermissoes === "function" && window.permissoes) {
       aplicarPermissoes(window.permissoes);
     } else {
       console.warn("⚠️ aplicarPermissoes ou window.permissoes ainda não estão disponíveis.");
     }
-  
+
   }
 }
 window.configurarEventosEspecificos = configurarEventosEspecificos;

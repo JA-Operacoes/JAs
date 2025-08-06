@@ -483,7 +483,7 @@ router.post(
             dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
             totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
             desconto, percentDesconto, acrescimo, percentAcrescimo,
-            lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, nomenclatura, itens } = req.body;
+            lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idsPavilhoes, nomenclatura, itens } = req.body;
 
     const idempresa = req.idempresa; 
 
@@ -593,6 +593,8 @@ router.post(
     }
   }
 );
+
+
 
 router.put(
   "/:id", 
@@ -805,6 +807,64 @@ router.put(
       res.status(500).json({ error: "Erro ao atualizar orçamento.", detail: error.message });
     } finally {
       client.release(); // Libera o cliente do pool
+    }
+  }
+);
+
+router.put(
+  "/fechar/:id", 
+  autenticarToken(), 
+  contextoEmpresa,
+  verificarPermissao("Orcamentos", "alterar"), // Reutiliza a permissão de alterar
+  logMiddleware("Orcamentos", {
+    buscarDadosAnteriores: async (req) => {
+      const idOrcamento = req.params.id;
+      const client = await pool.connect();
+      try {
+        const result = await client.query('SELECT status FROM orcamentos WHERE idorcamento = $1', [idOrcamento]);
+        return {
+          dadosanteriores: result.rows[0] ? { status: result.rows[0].status } : null,
+          idregistroalterado: idOrcamento
+        };
+      } finally {
+        client.release();
+      }
+    },
+  }),
+  async (req, res) => {
+    const client = await pool.connect();
+    const idOrcamento = req.params.id;
+    const idempresa = req.idempresa;
+
+    try {
+      await client.query("BEGIN");
+      
+      const updateQuery = `
+        UPDATE orcamentos
+        SET status = 'F'
+        WHERE idorcamento = $1
+        AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $1) = $2
+        AND status != 'F'
+        RETURNING idorcamento;
+      `;
+      const result = await client.query(updateQuery, [idOrcamento, idempresa]);
+
+      if (result.rowCount === 0) {
+        throw new Error('Orçamento não encontrado, já está fechado ou você não tem permissão para editá-lo.');
+      }
+      
+      await client.query("COMMIT");
+      
+      res.locals.acao = 'fechou'; // Nova ação para o log
+      res.locals.idregistroalterado = idOrcamento;
+
+      res.status(200).json({ message: "Orçamento fechado com sucesso!" });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      console.error("Erro ao fechar o orçamento:", error);
+      res.status(500).json({ error: "Erro ao fechar o orçamento.", detail: error.message });
+    } finally {
+      client.release();
     }
   }
 );
