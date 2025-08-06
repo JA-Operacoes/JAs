@@ -426,34 +426,110 @@ router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, r
 
 // Exemplo da sua rota de verificação de disponibilidade (no seu arquivo de rotas, ex: rotaStaff.js)
 // staffRoutes.js (ou o nome do seu arquivo de rotas de staff)
+//essa rota de verificaçao não permite cadastrar caso a data ja tenha sido preenchida
+// router.post('/check-availability', autenticarToken(), contextoEmpresa, async (req, res) => {
+//     console.log("🔥 Rota /staff/check-availability (POST) acessada para verificação de disponibilidade");
+
+//     const { idfuncionario, datas, idEventoIgnorar } = req.body;
+//     const idEmpresa = req.idempresa;
+
+//     if (!idfuncionario || !datas || !Array.isArray(datas) || datas.length === 0 || !idEmpresa) {
+//         return res.status(400).json({ message: "Dados obrigatórios ausentes ou em formato incorreto para verificar disponibilidade (idfuncionario, datas, idempresa)." });
+//     }
+
+//     let client;
+//     try {
+//         client = await pool.connect();
+
+//         // 1. Iniciar o array de parâmetros com idfuncionario e idEmpresa
+//         let params = [idfuncionario, idEmpresa]; // Estes serão $1 e $2
+
+//         // 2. Determinar o índice de início dos placeholders para as datas
+//         // As datas começarão a partir do $3
+//         const dateStartParamIndex = params.length + 1; 
+//         const datePlaceholders = datas.map((_, i) => `$${dateStartParamIndex + i}`).join(', ');
+        
+//         // 3. Adicionar as datas ao array de parâmetros
+//         params = params.concat(datas); // As datas agora ocupam os placeholders a partir do $3
+
+//         // 4. Determinar o placeholder para idEventoIgnorar (se existir)
+//         // Ele será o próximo placeholder disponível após todas as datas
+//         const idEventoIgnorarParamIndex = params.length + 1; 
+        
+//         let query = `
+//             SELECT 
+//                 se.nmevento, 
+//                 se.nmcliente, 
+//                 se.datasevento, 
+//                 se.idstaffevento
+//             FROM 
+//                 staffeventos se
+//             INNER JOIN 
+//                 staff s ON se.idstaff = s.idstaff
+//             INNER JOIN 
+//                 staffEmpresas se_emp ON s.idstaff = se_emp.idstaff 
+//             WHERE 
+//                 se.idfuncionario = $1
+//                 AND se_emp.idEmpresa = $2
+//                 -- CLÁUSULA PARA VERIFICAR SOBREPOSIÇÃO DE DATAS
+//                 AND EXISTS (
+//                     SELECT 1
+//                     FROM jsonb_array_elements_text(se.datasevento) AS existing_date
+//                     WHERE existing_date.value = ANY(ARRAY[${datePlaceholders}]::text[])
+//                 )
+//         `;
+        
+//         // 5. Adicionar a condição para IGNORAR o próprio evento em edição, se idEventoIgnorar for fornecido
+//         if (idEventoIgnorar !== null) { // Use !== null para garantir que 0 (zero) seja considerado
+//             query += ` AND se.idstaffevento != $${idEventoIgnorarParamIndex}`; 
+//             params.push(idEventoIgnorar); // Adiciona o valor de idEventoIgnorar por último no array de parâmetros
+//         }
+
+//         console.log("Query de disponibilidade (com EXISTS, ajustado):", query);
+//         console.log("Parâmetros de disponibilidade (com EXISTS, ajustado):", params);
+
+//         const result = await client.query(query, params);
+
+//         if (result.rows.length > 0) {
+//             return res.json({
+//                 isAvailable: false,
+//                 conflictingEvent: result.rows[0] 
+//             });
+//         } else {
+//             return res.json({ isAvailable: true, conflictingEvent: null });
+//         }
+
+//     } catch (error) {
+//         console.error("❌ Erro no backend ao verificar disponibilidade:", error);
+//         res.status(500).json({ message: "Erro interno do servidor ao verificar disponibilidade.", details: error.message });
+//     } finally {
+//         if (client) {
+//             client.release();
+//         }
+//     }
+// });
 
 router.post('/check-availability', autenticarToken(), contextoEmpresa, async (req, res) => {
     console.log("🔥 Rota /staff/check-availability (POST) acessada para verificação de disponibilidade");
 
-    const { idfuncionario, datas, idEventoIgnorar } = req.body;
+    // Adicionado idfuncao para a verificação
+    const { idfuncionario, datas, idEventoIgnorar, idfuncao } = req.body;
     const idEmpresa = req.idempresa;
 
-    if (!idfuncionario || !datas || !Array.isArray(datas) || datas.length === 0 || !idEmpresa) {
-        return res.status(400).json({ message: "Dados obrigatórios ausentes ou em formato incorreto para verificar disponibilidade (idfuncionario, datas, idempresa)." });
+    if (!idfuncionario || !datas || !Array.isArray(datas) || datas.length === 0 || !idEmpresa || !idfuncao) {
+        return res.status(400).json({ message: "Dados obrigatórios ausentes ou em formato incorreto para verificar disponibilidade." });
     }
 
     let client;
     try {
         client = await pool.connect();
 
-        // 1. Iniciar o array de parâmetros com idfuncionario e idEmpresa
-        let params = [idfuncionario, idEmpresa]; // Estes serão $1 e $2
-
-        // 2. Determinar o índice de início dos placeholders para as datas
-        // As datas começarão a partir do $3
-        const dateStartParamIndex = params.length + 1; 
+        let params = [idfuncionario, idEmpresa];
+        const dateStartParamIndex = params.length + 1;
         const datePlaceholders = datas.map((_, i) => `$${dateStartParamIndex + i}`).join(', ');
         
-        // 3. Adicionar as datas ao array de parâmetros
-        params = params.concat(datas); // As datas agora ocupam os placeholders a partir do $3
+        params = params.concat(datas);
 
-        // 4. Determinar o placeholder para idEventoIgnorar (se existir)
-        // Ele será o próximo placeholder disponível após todas as datas
         const idEventoIgnorarParamIndex = params.length + 1; 
         
         let query = `
@@ -461,7 +537,8 @@ router.post('/check-availability', autenticarToken(), contextoEmpresa, async (re
                 se.nmevento, 
                 se.nmcliente, 
                 se.datasevento, 
-                se.idstaffevento
+                se.idstaffevento,
+                se.idfuncao -- AQUI: Adicionamos o ID da função à query
             FROM 
                 staffeventos se
             INNER JOIN 
@@ -471,7 +548,6 @@ router.post('/check-availability', autenticarToken(), contextoEmpresa, async (re
             WHERE 
                 se.idfuncionario = $1
                 AND se_emp.idEmpresa = $2
-                -- CLÁUSULA PARA VERIFICAR SOBREPOSIÇÃO DE DATAS
                 AND EXISTS (
                     SELECT 1
                     FROM jsonb_array_elements_text(se.datasevento) AS existing_date
@@ -479,21 +555,20 @@ router.post('/check-availability', autenticarToken(), contextoEmpresa, async (re
                 )
         `;
         
-        // 5. Adicionar a condição para IGNORAR o próprio evento em edição, se idEventoIgnorar for fornecido
-        if (idEventoIgnorar !== null) { // Use !== null para garantir que 0 (zero) seja considerado
+        if (idEventoIgnorar !== null) {
             query += ` AND se.idstaffevento != $${idEventoIgnorarParamIndex}`; 
-            params.push(idEventoIgnorar); // Adiciona o valor de idEventoIgnorar por último no array de parâmetros
+            params.push(idEventoIgnorar);
         }
 
-        console.log("Query de disponibilidade (com EXISTS, ajustado):", query);
-        console.log("Parâmetros de disponibilidade (com EXISTS, ajustado):", params);
+        console.log("Query de disponibilidade (ajustada com idfuncao):", query);
+        console.log("Parâmetros de disponibilidade (ajustado com idfuncao):", params);
 
         const result = await client.query(query, params);
 
         if (result.rows.length > 0) {
             return res.json({
                 isAvailable: false,
-                conflictingEvent: result.rows[0] 
+                conflictingEvent: result.rows[0] // O objeto retornado agora terá o idfuncao
             });
         } else {
             return res.json({ isAvailable: true, conflictingEvent: null });

@@ -623,8 +623,9 @@ async function verificaStaff() {
     
 
     botaoEnviar.addEventListener("click", async (event) => {
-      event.preventDefault(); // Previne o envio padrão do formulário      
+      event.preventDefault(); // Previne o envio padrão do formulário    
 
+        statusOrcamentoAtual = document.getElementById("status");
         const selectAvaliacao = document.getElementById("avaliacao");
         const avaliacao = selectAvaliacao.options[selectAvaliacao.selectedIndex]?.textContent.trim().toUpperCase() || '';
         const idStaff = document.querySelector("#idStaff").value.trim();
@@ -770,19 +771,19 @@ async function verificaStaff() {
             // Estamos em modo de cadastro ou foi uma tentativa de PUT sem os dados originais
             metodo = "POST";
             url = "/staff";
-            console.log("Modo de cadastro detectado. Método:", metodo, "URL:", url);
+            console.log("Modo de cadastro detectado. Método:", metodo, "URL:", url, "Status Orcamento", statusOrcamentoAtual);
             // Garante que estas variáveis estão resetadas para um POST
             currentEditingStaffEvent = null;
             isFormLoadedFromDoubleClick = false;
 
-            if (statusOrcamentoAtual === 'A') {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Impossível Cadastrar',
-                    text: 'Não é possível cadastrar staff em um orçamento que ainda não foi fechado.'
-                });
-                return; // O 'return' aqui vai, de fato, bloquear a função de cadastro
-            }
+            // if (statusOrcamentoAtual === 'A') {
+            //     Swal.fire({
+            //         icon: 'warning',
+            //         title: 'Impossível Cadastrar',
+            //         text: 'Não é possível cadastrar staff em um orçamento que ainda não foi fechado.'
+            //     });
+            //     return; // O 'return' aqui vai, de fato, bloquear a função de cadastro
+            // }
         }        
 
         if (pavilhao === "SELECIONE O PAVILHÃO") {
@@ -804,6 +805,7 @@ async function verificaStaff() {
         console.log("currentEditingStaffEvent (antes da verificação):", currentEditingStaffEvent);
 
         const idFuncionarioParaVerificacao = idFuncionario; // Use o idFuncionario capturado
+        const idFuncaoDoFormulario = idFuncao;
         // As datas do Flatpickr já estão em 'periodoDoEvento' mas como strings 'YYYY-MM-DD'.
         // A função 'verificarDisponibilidadeStaff' espera um array de objetos Date.
         // Você precisa ter acesso à instância do Flatpickr, assumindo que seja `flatpickrForDatasEvento`.
@@ -816,6 +818,7 @@ async function verificaStaff() {
         const { isAvailable, conflictingEvent } = await verificarDisponibilidadeStaff(
             idFuncionarioParaVerificacao,
             datasParaVerificacao,
+            idFuncaoDoFormulario,
             idEventoEmEdicao
            // idStaffEventoParaVerificacao
         );
@@ -824,6 +827,7 @@ async function verificaStaff() {
         console.log("Dados do formulário para verificação de duplicidade:", {
             idFuncionario: idFuncionario,
             nmFuncionario: nmFuncionario,
+            idFuncao: idFuncao,
             setor: setor,
             nmlocalmontagem: nmLocalMontagem,
             nmevento: nmEvento,
@@ -831,33 +835,85 @@ async function verificaStaff() {
             datasevento: JSON.stringify(periodoDoEvento)
         });
 
-        if (!isAvailable) {
-        // Usamos <strong> para negrito e `html: true` no Swal.fire
-            let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado para outra atividade `; 
-            if (conflictingEvent) {
-                msg += `no evento "<strong>${conflictingEvent.nmevento || 'N/A'}</strong>" do cliente "<strong>${conflictingEvent.nmcliente || 'N/A'}</strong>" `; 
+        // if (!isAvailable) {
+        // // Usamos <strong> para negrito e `html: true` no Swal.fire
+        //     let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado para outra atividade `; 
+        //     if (conflictingEvent) {
+        //         msg += `no evento "<strong>${conflictingEvent.nmevento || 'N/A'}</strong>" do cliente "<strong>${conflictingEvent.nmcliente || 'N/A'}</strong>" `; 
 
+        //         const conflictingDates = typeof conflictingEvent.datasevento === 'string' ? JSON.parse(conflictingEvent.datasevento) : conflictingEvent.datasevento;
+        //         const intersection = datasParaVerificacao.map(d => d.toISOString().split('T')[0]).filter(date => conflictingDates.includes(date));
+        //         if (intersection.length > 0) {
+        //             msg += `nas datas: <strong>${intersection.map(d => { 
+        //                 const parts = d.split('-');
+        //                 return `${parts[2]}/${parts[1]}/${parts[0]}`; // Formato DD/MM/AAAA para exibição
+        //             }).join(', ')}</strong>.`;
+        //         } else {
+        //             msg += `em datas conflitantes.`;
+        //         }
+        //     } else {
+        //         msg += `em datas conflitantes.`;
+        //     }
+            
+        //     // AQUI ESTÁ A MUDANÇA CRUCIAL: usar 'html: msg' em vez de 'text: msg' ou apenas 'msg'
+        //     Swal.fire({
+        //         title: "Conflito de Agendamento",
+        //         html: msg, // Use 'html' para renderizar as tags <strong>
+        //         icon: "warning"
+        //     }); 
+        //     return; // BLOQUEIA o envio do formulário
+        // }
+
+        if (!isAvailable) {
+            // AQUI: A nova lógica de verificação de função
+            // Se a função do conflito for IGUAL à função do agendamento atual
+            if (conflictingEvent && String(conflictingEvent.idfuncao) === String(idFuncaoDoFormulario)) {
+                // CENA 1: Conflito de agendamento para a MESMA FUNÇÃO (BLOQUEANTE)
+                let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado para a <strong>mesma função</strong>`;
+                if (conflictingEvent) {
+                    msg += ` no evento "<strong>${conflictingEvent.nmevento || 'N/A'}</strong>" do cliente "<strong>${conflictingEvent.nmcliente || 'N/A'}</strong>"`;
+                }
+
+                Swal.fire({
+                    title: "Conflito de Agendamento",
+                    html: msg,
+                    icon: "error" // Use "error" para indicar que a operação não pode ser concluída
+                });
+                return; // BLOQUEIA o envio do formulário
+            } else {
+                // CENA 2: Conflito de agendamento para uma FUNÇÃO DIFERENTE (NÃO BLOQUEANTE)
+                let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado para uma <strong>função diferente</strong> `;
+                if (conflictingEvent) {
+                    msg += `no evento "<strong>${conflictingEvent.nmevento || 'N/A'}</strong>" do cliente "<strong>${conflictingEvent.nmcliente || 'N/A'}</strong>" `;
+                }
+                
+                // Esta parte do seu código já está pronta para mostrar as datas do conflito
                 const conflictingDates = typeof conflictingEvent.datasevento === 'string' ? JSON.parse(conflictingEvent.datasevento) : conflictingEvent.datasevento;
                 const intersection = datasParaVerificacao.map(d => d.toISOString().split('T')[0]).filter(date => conflictingDates.includes(date));
                 if (intersection.length > 0) {
                     msg += `nas datas: <strong>${intersection.map(d => { 
                         const parts = d.split('-');
-                        return `${parts[2]}/${parts[1]}/${parts[0]}`; // Formato DD/MM/AAAA para exibição
+                        return `${parts[2]}/${parts[1]}/${parts[0]}`;
                     }).join(', ')}</strong>.`;
                 } else {
                     msg += `em datas conflitantes.`;
                 }
-            } else {
-                msg += `em datas conflitantes.`;
+                
+                msg += `<br>Deseja continuar com o agendamento?`;
+
+                const { isConfirmed } = await Swal.fire({
+                    title: "Atenção: Conflito de Agendamento!",
+                    html: msg,
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonText: "Sim, continuar",
+                    cancelButtonText: "Não, cancelar",
+                });
+
+                if (!isConfirmed) {
+                    return; // O usuário cancelou, bloqueia o envio
+                }
             }
-            
-            // AQUI ESTÁ A MUDANÇA CRUCIAL: usar 'html: msg' em vez de 'text: msg' ou apenas 'msg'
-            Swal.fire({
-                title: "Conflito de Agendamento",
-                html: msg, // Use 'html' para renderizar as tags <strong>
-                icon: "warning"
-            }); 
-            return; // BLOQUEIA o envio do formulário
         }
 
         console.log("Preparando dados para envio:", {
@@ -2052,14 +2108,14 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, set
         const statusDoOrcamento = dadosDoOrcamento[0].status;
         statusOrcamentoAtual = statusDoOrcamento; // Define a variável global
 
-        if (statusDoOrcamento === 'A') {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Orçamento Não Fechado',
-                text: 'O orçamento para os parâmetros solicitados ainda está em aberto. Não é possível ver os detalhes.'
-            });
-            return;
-        }
+        // if (statusDoOrcamento === 'A') {
+        //     Swal.fire({
+        //         icon: 'warning',
+        //         title: 'Orçamento Não Fechado',
+        //         text: 'O orçamento para os parâmetros solicitados ainda está em aberto. Não é possível ver os detalhes.'
+        //     });
+        //     return;
+        // }
 
         // **PROCESSAMENTO DOS DADOS:** Se o status não for 'A', o código continua aqui
         dadosDoOrcamento.forEach(item => {
@@ -2229,97 +2285,53 @@ function normalizeEmptyValue(value) {
     }
     return value;
 }
-// const verificarDisponibilidadeStaff = async (idFuncionario, novasDatasEvento, idStaffEventoAtual = null) => {
-//     if (!idFuncionario || novasDatasEvento.length === 0) {
-//         // Se não houver funcionário ou datas, consideramos disponível (ou tratamos como erro antes de chamar)
-//         return { isAvailable: true };
-//     }
 
-//     const url = `/staff/${idFuncionario}`; // Reutiliza a sua rota GET para pegar os eventos do funcionário
-
+//essa verificacao não inclui funcao e não permite cadastras mesma data
+// async function verificarDisponibilidadeStaff(idFuncionario, datasAgendamento, idEventoIgnorar = null) {
 //     try {
-//         const response = await fetch(url, {
-//             method: 'GET',
+//         const data = await fetchComToken(`/staff/check-availability`, { // Certifique-se que o endpoint é este
+//             method: 'POST',
 //             headers: {
-//                 'Content-Type': 'application/json',
-//                 'Authorization': 'Bearer ' + localStorage.getItem('token')
-//             }
+//                 'Content-Type': 'application/json'
+//             },
+//             body: JSON.stringify({
+//                 idfuncionario: idFuncionario,
+//                 datas: datasAgendamento.map(d => d.toISOString().split('T')[0]), // Garante formato YYYY-MM-DD
+//                 idEventoIgnorar: idEventoIgnorar // <--- ISSO É CRUCIAL PARA O BACKEND
+//             })
 //         });
-
-//         if (!response.ok) {
-//             const errorData = await response.json();
-//             throw new Error(errorData.message || 'Erro ao buscar eventos existentes do funcionário.');
-//         }
-
-//         const eventosExistentes = await response.json();
-//         console.log(`Eventos existentes para o funcionário ${idFuncionario}:`, eventosExistentes);
-
-//         // Normalize as novas datas para comparação (YYYY-MM-DD strings)
-//         const novasDatasString = novasDatasEvento.map(date => date.toISOString().split('T')[0]);
-
-//         for (const eventoExistente of eventosExistentes) {
-//             // Ignorar o próprio evento se estivermos em modo de edição
-//             if (idStaffEventoAtual && eventoExistente.idstaffevento == idStaffEventoAtual) {
-//                 continue;
-//             }
-
-//             let datasExistentesStrings = [];
-//             if (eventoExistente.datasevento) {
-//                 try {
-//                     // Tenta parsear se for uma string JSON, senão assume que já é um array
-//                     datasExistentesStrings = typeof eventoExistente.datasevento === 'string'
-//                         ? JSON.parse(eventoExistente.datasevento)
-//                         : eventoExistente.datasevento;
-//                 } catch (e) {
-//                     console.error("Erro ao parsear datas do evento existente:", eventoExistente.datasevento, e);
-//                     continue; // Pula este evento se as datas estiverem mal formatadas
-//                 }
-//             }
-
-//             // Converter todas as datas existentes para objetos Date (apenas se precisar de lógica de intervalo complexa)
-//             // Para verificação de datas exatas, strings YYYY-MM-DD já bastam.
-
-//             // Verifica sobreposição de datas exatas (dia a dia)
-//             for (const novaDataStr of novasDatasString) {
-//                 if (datasExistentesStrings.includes(novaDataStr)) {
-//                     console.log(`Conflito detectado para o funcionário ${idFuncionario} na data ${novaDataStr}`);
-//                     console.log('Evento Conflitante:', eventoExistente);
-//                     return { isAvailable: false, conflictingEvent: eventoExistente };
-//                 }
-//             }
-//         }
-
-//         return { isAvailable: true }; // Nenhuma sobreposição encontrada
+        
+//         return data; // Deve conter { isAvailable: boolean, conflictingEvent: {...} }
 //     } catch (error) {
-//         console.error('Erro na verificação de disponibilidade do staff:', error);
-//         // Em caso de erro na API, por segurança, podemos bloquear ou permitir dependendo da política.
-//         // Aqui, vamos permitir com um aviso, para não bloquear por um erro técnico na verificação.
-//         Swal.fire('Erro na Verificação', `Não foi possível verificar a disponibilidade do funcionário devido a um erro: ${error.message}. Tentando prosseguir.`, 'warning');
-//         return { isAvailable: true };
+//         console.error("Erro na API de verificação de disponibilidade:", error);
+//         Swal.fire("Erro na Verificação", "Não foi possível verificar a disponibilidade do funcionário.", "error");
+//         return { isAvailable: false, conflictingEvent: null };
 //     }
-// };
+// }
 
-async function verificarDisponibilidadeStaff(idFuncionario, datasAgendamento, idEventoIgnorar = null) {
+async function verificarDisponibilidadeStaff(idFuncionario, datasAgendamento, idFuncao, idEventoIgnorar = null) {
     try {
-        const data = await fetchComToken(`/staff/check-availability`, { // Certifique-se que o endpoint é este
+        const data = await fetchComToken(`/staff/check-availability`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 idfuncionario: idFuncionario,
-                datas: datasAgendamento.map(d => d.toISOString().split('T')[0]), // Garante formato YYYY-MM-DD
-                idEventoIgnorar: idEventoIgnorar // <--- ISSO É CRUCIAL PARA O BACKEND
+                datas: datasAgendamento.map(d => d.toISOString().split('T')[0]),
+                idfuncao: idFuncao, // AQUI: Passamos o ID da função
+                idEventoIgnorar: idEventoIgnorar
             })
         });
         
-        return data; // Deve conter { isAvailable: boolean, conflictingEvent: {...} }
+        return data;
     } catch (error) {
         console.error("Erro na API de verificação de disponibilidade:", error);
         Swal.fire("Erro na Verificação", "Não foi possível verificar a disponibilidade do funcionário.", "error");
         return { isAvailable: false, conflictingEvent: null };
     }
 }
+
 
 function inicializarFlatpickrsGlobais() {
 console.log("Inicializando Flatpickr para todos os campos de data (globais)...");
