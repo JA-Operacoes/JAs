@@ -483,7 +483,7 @@ router.post(
             dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
             totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
             desconto, percentDesconto, acrescimo, percentAcrescimo,
-            lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, nomenclatura, itens } = req.body;
+            lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idsPavilhoes, nomenclatura, itens } = req.body;
 
     const idempresa = req.idempresa; 
 

@@ -512,6 +512,4 @@ module.exports = {
   listarPermissoes,
   buscarUsuarioPorEmail,
   buscarModulos
-  buscarUsuarioPorEmail,
-  buscarModulos
 };
