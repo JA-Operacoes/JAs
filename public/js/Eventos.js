@@ -16,13 +16,61 @@ let EventoOriginal = {
 };
 
 
+
+
 async function verificaEvento() {
     console.log("Carregando Evento...");
     
     const botaoEnviar = document.querySelector("#Enviar");
     const botaoPesquisar = document.querySelector("#Pesquisar");
     const botaoLimpar = document.querySelector("#Limpar");
-    const form = document.querySelector("#form");
+    const form = document.querySelector("#form");    
+
+
+    const clientesSelecionados = new Set(); // Use um Set para evitar clientes duplicados
+    const selectCliente = document.getElementById("selectCliente");
+    const clientesContainer = document.getElementById("clientesSelecionadosContainer");
+    const clientesInput = document.getElementById("clientesDoEvento");
+
+    carregarClientes();
+
+    selectCliente.addEventListener('change', (e) => {
+        const idCliente = e.target.value;
+        const nomeCliente = e.target.options[e.target.selectedIndex].text;
+
+        if (idCliente && !clientesSelecionados.has(idCliente)) {
+            clientesSelecionados.add(idCliente);
+            
+            const tag = document.createElement('span');
+            tag.className = 'cliente-tag';
+            tag.innerHTML = `${nomeCliente} <button type="button" class="remover-cliente" data-id="${idCliente}">x</button>`;
+            clientesContainer.appendChild(tag);
+
+            clientesInput.value = JSON.stringify(Array.from(clientesSelecionados));
+            
+            // ✅ Lógica de Remoção com Swal
+            tag.querySelector('.remover-cliente').addEventListener('click', async () => {
+                const { isConfirmed } = await Swal.fire({
+                    title: "Remover cliente?",
+                    text: `Deseja realmente remover o cliente "${nomeCliente}" deste evento?`,
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: "Sim, remover!",
+                    cancelButtonText: "Cancelar"
+                });
+                if (isConfirmed) {
+                    clientesSelecionados.delete(idCliente);
+                    tag.remove();
+                    clientesInput.value = JSON.stringify(Array.from(clientesSelecionados));
+                    botaoEnviar.click();
+                }
+            });
+        }
+        e.target.value = '';
+    });
+
 
     if (!botaoEnviar || !form) {
         console.error("Formulário ou botão não encontrado no DOM.");
@@ -34,12 +82,94 @@ async function verificaEvento() {
         limparCamposEvento();
     });
 
+    // botaoEnviar.addEventListener("click", async (e) => {
+    //     e.preventDefault();
+
+    //     const idEvento = document.querySelector("#idEvento").value.trim();
+    //     const nmEvento = document.querySelector("#nmEvento").value.toUpperCase().trim();
+        
+    //     // Permissões
+    //     const temPermissaoCadastrar = temPermissao("Eventos", "cadastrar");
+    //     const temPermissaoAlterar = temPermissao("Eventos", "alterar");
+
+    //     const metodo = idEvento ? "PUT" : "POST";
+
+    //     if (!idEvento && !temPermissaoCadastrar) {
+    //         return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos eventos.", "error");
+    //     }
+
+    //     if (idEvento && !temPermissaoAlterar) {
+    //         return Swal.fire("Acesso negado", "Você não tem permissão para alterar eventos.", "error");
+    //     }
+
+    //     if (!nmEvento) {
+    //         return Swal.fire("Campos obrigatórios!", "Preencha todos os campos antes de enviar.", "warning");
+    //     }
+
+    //     const dados = { nmEvento};        
+
+    //     if (parseInt(idEvento) === parseInt(window.EventoOriginal?.idEvento)) {
+    //         console.log("Evento não alterado, não será enviado.");
+    //     }
+    //     if (nmEvento === window.EventoOriginal?.nmEvento ) {
+    //         console.log("Evento não alterado, não será enviado.");
+    //     }
+    //     // Verifica alterações
+    //     if (
+            
+    //         parseInt(idEvento) === parseInt(window.EventoOriginal?.idEvento) &&
+    //         nmEvento === window.EventoOriginal?.nmEvento  
+    //     ) {
+    //         return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
+    //     }
+        
+    //     const url = idEvento
+    //         ? `/eventos/${idEvento}`
+    //         : "/eventos";
+        
+    //     try {
+    //         // Confirma alteração (PUT)
+    //         if (metodo === "PUT") {
+    //             const { isConfirmed } = await Swal.fire({
+    //                 title: "Deseja salvar as alterações?",
+    //                 text: "Você está prestes a atualizar os dados do Evento.",
+    //                 icon: "question",
+    //                 showCancelButton: true,
+    //                 confirmButtonText: "Sim, salvar",
+    //                 cancelButtonText: "Cancelar",
+    //                 reverseButtons: true,
+    //                 focusCancel: true
+    //             });
+    //             if (!isConfirmed) return;
+    //         }
+
+    //         console.log("Enviando dados para o servidor:", dados, url, metodo);
+    //         const respostaApi = await fetchComToken(url, {
+    //             method: metodo,
+    //             headers: {
+    //                 'Content-Type': 'application/json'
+    //             },
+    //             body: JSON.stringify(dados)
+    //         });            
+
+    //         await Swal.fire("Sucesso!", respostaApi.message || "Evento salvo com sucesso.", "success");
+    //         limparCamposEvento();
+
+    //     } catch (error) {
+    //         console.error("Erro ao enviar dados:", error);
+    //         Swal.fire("Erro", error.message || "Erro ao salvar evento.", "error");
+    //     }
+    // });
+
     botaoEnviar.addEventListener("click", async (e) => {
         e.preventDefault();
 
         const idEvento = document.querySelector("#idEvento").value.trim();
         const nmEvento = document.querySelector("#nmEvento").value.toUpperCase().trim();
-        
+        // ✅ Obter o array de clientes selecionados do campo oculto
+        const clientesDoEventoInput = document.querySelector("#clientesDoEvento");
+        const clientesDoEvento = clientesDoEventoInput.value ? JSON.parse(clientesDoEventoInput.value) : [];
+
         // Permissões
         const temPermissaoCadastrar = temPermissao("Eventos", "cadastrar");
         const temPermissaoAlterar = temPermissao("Eventos", "alterar");
@@ -54,31 +184,29 @@ async function verificaEvento() {
             return Swal.fire("Acesso negado", "Você não tem permissão para alterar eventos.", "error");
         }
 
-        if (!nmEvento) {
-            return Swal.fire("Campos obrigatórios!", "Preencha todos os campos antes de enviar.", "warning");
+        // ✅ Adicionar validação para o nome e a lista de clientes
+        if (!nmEvento || clientesDoEvento.length === 0) {
+            return Swal.fire("Campos obrigatórios!", "Preencha a descrição do evento e selecione pelo menos um cliente.", "warning");
         }
 
-        const dados = { nmEvento};        
+        // ✅ Incluir o array de clientes no objeto de dados
+        const dados = { nmEvento, clientesDoEvento };
 
-        if (parseInt(idEvento) === parseInt(window.EventoOriginal?.idEvento)) {
-            console.log("Evento não alterado, não será enviado.");
-        }
-        if (nmEvento === window.EventoOriginal?.nmEvento ) {
-            console.log("Evento não alterado, não será enviado.");
-        }
-        // Verifica alterações
-        if (
-            
-            parseInt(idEvento) === parseInt(window.EventoOriginal?.idEvento) &&
-            nmEvento === window.EventoOriginal?.nmEvento  
-        ) {
+        // ✅ Busca a lista original de clientes para a comparação de alteração
+        const clientesOriginais = window.EventoOriginal?.clientes || [];
+
+        // ✅ Verifica se houve alguma alteração (nome ou lista de clientes)
+        const nmEventoAlterado = nmEvento !== window.EventoOriginal?.nmEvento;
+        const clientesAlterados = JSON.stringify(clientesDoEvento.sort()) !== JSON.stringify(clientesOriginais.sort());
+
+        if (metodo === "PUT" && !nmEventoAlterado && !clientesAlterados) {
             return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
         }
-        
+
         const url = idEvento
             ? `/eventos/${idEvento}`
             : "/eventos";
-        
+
         try {
             // Confirma alteração (PUT)
             if (metodo === "PUT") {
@@ -102,7 +230,7 @@ async function verificaEvento() {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(dados)
-            });            
+            });
 
             await Swal.fire("Sucesso!", respostaApi.message || "Evento salvo com sucesso.", "success");
             limparCamposEvento();
@@ -159,7 +287,7 @@ async function verificaEvento() {
                     this.value = this.value.toUpperCase();
                 });
 
-                this.parentNode.replaceChild(novoInput, this);
+                // this.parentNode.replaceChild(novoInput, this);
                 adicionarEventoBlurEvento();
 
                 if (label) {
@@ -183,6 +311,26 @@ async function verificaEvento() {
             });
         }
     });
+}
+
+async function carregarClientes() {
+    try {
+        const clientes = await fetchComToken("/eventos/clientes");
+        const selectCliente = document.getElementById("selectCliente");
+
+        // Limpa as opções existentes
+        selectCliente.innerHTML = '<option value="">Selecione um Cliente</option>';
+
+        clientes.forEach(cliente => {
+        console.log("CLIENTES", clientes.nmfantasia)
+            const option = document.createElement("option");
+            option.value = cliente.idcliente; // Use o ID do cliente como valor
+            option.text = cliente.nmfantasia;
+            selectCliente.appendChild(option);
+        });
+    } catch (error) {
+        console.error("Erro ao carregar clientes:", error);
+    }
 }
 
 function adicionarListenersAoInputNmEvento(inputElement) {
@@ -366,56 +514,172 @@ function adicionarEventoBlurEvento() {
     });
 }
 
+// async function carregarEventoDescricao(desc, elementoAtual) {
+//     try {
+//         const eventos = await fetchComToken(`/eventos?nmEvento=${encodeURIComponent(desc)}`);
+//        // console.log("Resposta do servidor:", response);
+       
+//         document.querySelector("#idEvento").value = eventos.idevento;
+
+//         window.EventoOriginal = {
+//             idEvento: eventos.idevento,
+//             nmEvento: eventos.nmevento
+//         };
+
+//         console.log("Evento encontrado:", EventoOriginal);
+
+//     } catch (error) {
+//         console.warn("Evento não encontrado.");
+
+//         const inputIdEvento = document.querySelector("#idEvento");
+//         const podeCadastrarEvento = temPermissao("Eventos", "cadastrar");
+
+//        if (!inputIdEvento.value && podeCadastrarEvento) {
+//              const resultado = await Swal.fire({
+//                 icon: 'question',
+//                 title: `Deseja cadastrar "${desc.toUpperCase()}" como novo Evento?`,
+//                 text: `Evento "${desc.toUpperCase()}" não encontrado.`,
+//                 showCancelButton: true,
+//                 confirmButtonText: "Sim, cadastrar",
+//                 cancelButtonText: "Cancelar",
+//                 reverseButtons: true,
+//                 focusCancel: true
+//             });
+
+            
+//             if (!resultado.isConfirmed) {
+//                 console.log("Usuário cancelou o cadastro do Evento.");
+//                 elementoAtual.value = ""; // Limpa o campo se não for cadastrar
+//                 setTimeout(() => {
+//                     elementoAtual.focus();
+//                 }, 0);
+//                 return;
+//             }
+//         } else if (!podeCadastrarEvento) {
+//             Swal.fire({
+//                 icon: "info",
+//                 title: "Evento não cadastrado",
+//                 text: "Você não tem permissão para cadastrar eventos.",
+//                 confirmButtonText: "OK"
+//             });
+//         }
+        
+//     }
+// }
+
 async function carregarEventoDescricao(desc, elementoAtual) {
     try {
         const eventos = await fetchComToken(`/eventos?nmEvento=${encodeURIComponent(desc)}`);
-       // console.log("Resposta do servidor:", response);
-       
-        document.querySelector("#idEvento").value = eventos.idevento;
 
+        // Limpar o estado anterior antes de carregar o novo
+        limparCamposEvento();
+        
+        document.querySelector("#idEvento").value = eventos.idevento;
+        document.querySelector("#nmEvento").value = eventos.nmevento; // ✅ Certifique-se de preencher o input com o nome retornado
+        
         window.EventoOriginal = {
             idEvento: eventos.idevento,
-            nmEvento: eventos.nmevento
+            nmEvento: eventos.nmevento,
+            clientes: eventos.clientes // ✅ Armazena o array de clientes originais
         };
 
-        console.log("Evento encontrado:", EventoOriginal);
+        // ✅ Chamar uma função para carregar os clientes no container
+        await carregarClientesSelecionados(eventos.clientes);
+
+        console.log("Evento encontrado:", window.EventoOriginal);
 
     } catch (error) {
         console.warn("Evento não encontrado.");
 
         const inputIdEvento = document.querySelector("#idEvento");
         const podeCadastrarEvento = temPermissao("Eventos", "cadastrar");
+        
+        // Se o evento não for encontrado, garantimos que os campos estão limpos
+        limparCamposEvento();
 
-       if (!inputIdEvento.value && podeCadastrarEvento) {
-             const resultado = await Swal.fire({
-                icon: 'question',
-                title: `Deseja cadastrar "${desc.toUpperCase()}" como novo Evento?`,
-                text: `Evento "${desc.toUpperCase()}" não encontrado.`,
-                showCancelButton: true,
-                confirmButtonText: "Sim, cadastrar",
-                cancelButtonText: "Cancelar",
-                reverseButtons: true,
-                focusCancel: true
-            });
-
-            
-            if (!resultado.isConfirmed) {
-                console.log("Usuário cancelou o cadastro do Evento.");
-                elementoAtual.value = ""; // Limpa o campo se não for cadastrar
-                setTimeout(() => {
-                    elementoAtual.focus();
-                }, 0);
-                return;
-            }
-        } else if (!podeCadastrarEvento) {
+        if (!podeCadastrarEvento) {
             Swal.fire({
                 icon: "info",
                 title: "Evento não cadastrado",
                 text: "Você não tem permissão para cadastrar eventos.",
                 confirmButtonText: "OK"
             });
+            elementoAtual.value = "";
+            return;
         }
+
+        const resultado = await Swal.fire({
+            icon: 'question',
+            title: `Deseja cadastrar "${desc.toUpperCase()}" como novo Evento?`,
+            text: `Evento "${desc.toUpperCase()}" não encontrado.`,
+            showCancelButton: true,
+            confirmButtonText: "Sim, cadastrar",
+            cancelButtonText: "Cancelar",
+            reverseButtons: true,
+            focusCancel: true
+        });
+
+        if (!resultado.isConfirmed) {
+            console.log("Usuário cancelou o cadastro do Evento.");
+            elementoAtual.value = "";
+            setTimeout(() => {
+                elementoAtual.focus();
+            }, 0);
+        }
+    }
+}
+
+async function carregarClientesSelecionados(clientesIds) {
+    if (!clientesIds || clientesIds.length === 0) {
+        return;
+    }
+
+    const clientesContainer = document.getElementById("clientesSelecionadosContainer");
+    const clientesInput = document.getElementById("clientesDoEvento");
+    const clientesSelecionadosSet = new Set(clientesIds);
+    const botaoEnviar = document.getElementById("Enviar");
+    
+    clientesContainer.innerHTML = '';
+    clientesInput.value = JSON.stringify(clientesIds);
+
+    try {
+        const clientesDisponiveis = await fetchComToken('/clientes');
         
+        clientesIds.forEach(id => {
+            const cliente = clientesDisponiveis.find(c => c.idcliente === id);
+            if (cliente) {
+                // ✅ A variável 'tag' é criada aqui
+                const tag = document.createElement('span');
+                tag.className = 'cliente-tag';
+                const nomeCliente = cliente.nmfantasia;
+                const idCliente = cliente.idcliente;
+                tag.innerHTML = `${nomeCliente} <button type="button" class="remover-cliente" data-id="${idCliente}">x</button>`;
+                clientesContainer.appendChild(tag);
+                
+                // ✅ O event listener deve ser definido aqui, onde 'tag' está no escopo
+                tag.querySelector('.remover-cliente').addEventListener('click', async () => {
+                    const { isConfirmed } = await Swal.fire({
+                        title: "Remover cliente?",
+                        text: `Deseja realmente remover o cliente "${nomeCliente}" deste evento?`,
+                        icon: "warning",
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#3085d6',
+                        confirmButtonText: "Sim, remover!",
+                        cancelButtonText: "Cancelar"
+                    });
+                    if (isConfirmed) {
+                        const clientesSelecionadosSet = new Set(JSON.parse(clientesInput.value));
+                        clientesSelecionadosSet.delete(idCliente);
+                        tag.remove();
+                        clientesInput.value = JSON.stringify(Array.from(clientesSelecionadosSet));
+                        botaoEnviar.click();
+                    }
+                });
+            }
+        });
+    } catch (error) {
+        console.error("Erro ao carregar os clientes selecionados:", error);
     }
 }
 
@@ -423,8 +687,7 @@ async function carregarEventoDescricao(desc, elementoAtual) {
 function limparEventoOriginal() {
     EventoOriginal = {
         idEvento: "",
-        nmEvento: ""
-       
+        nmEvento: ""       
     };
 }
 
@@ -435,8 +698,19 @@ function limparCamposEvento() {
     const idEvent = document.getElementById("idEvento");
     const descEventEl = document.getElementById("nmEvento");
     
+    const clientesSelecionadosContainer = document.getElementById("clientesSelecionadosContainer"); // ✅
+    const clientesDoEventoInput = document.getElementById("clientesDoEvento"); // ✅
 
-    if (idEvent) idEvent.value = "";
+    if (idEvent) {idEvent.value = "";}
+
+    if (clientesSelecionadosContainer) {
+        clientesSelecionadosContainer.innerHTML = "";
+    }
+
+    // ✅ Zera o input oculto com os IDs dos clientes
+    if (clientesDoEventoInput) {
+        clientesDoEventoInput.value = "[]";
+    }
    
 
     if (descEventEl && descEventEl.tagName === "SELECT") {

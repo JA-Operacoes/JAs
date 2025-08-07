@@ -178,6 +178,7 @@
     flex-direction: row;
     margin: 5px;
   }
+  
   .select{
     display: flex;
     justify-content: center;
@@ -459,8 +460,9 @@
     border: none;
     background: none;
     cursor: pointer;
-    font-size: 16px;
+    /* font-size: 16px; */
     padding: 0;
+    font-weight: bold;
     color: #888;
 }
 
