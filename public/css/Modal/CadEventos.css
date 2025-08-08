@@ -174,8 +174,90 @@ fieldset {
    width: 150px;
 }
 
-#nmCliente{
-  width: 500px;
+select{
+    font-family:  var(--Font-primary);
+    display: flex;
+    height: 25px;
+    justify-content: center;
+    align-items: center;
+    gap: 10px ;
+    border-radius: 6px;
+    font-size: 15px;
+    padding: 0 15px;
+    border: 1px solid #000000;
+    background: transparent;
+    color: #000000;
+    outline: none;
+  }
+
+
+#selectCliente{ 
+
+  width: 550px; /* Ocupa a largura total */
+  padding: 8px;   
+
+  font-family:  var(--Font-primary);
+  display: flex;
+  height: 25px;
+  justify-content: center;
+  align-items: center;
+  gap: 10px ;
+  border-radius: 6px;
+  font-size: 15px;
+  padding: 0 15px;
+  border: 1px solid #000000;
+  background: transparent;
+  color: #000000;
+  outline: none;
+}
+
+.clientes-secao {
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 10px;
+    background-color: transparent;
+    min-height: 42px;
+}
+
+#clientesSelecionadosContainer {
+    display: flex; /* Ativa o Flexbox para organizar os filhos em linha */
+    flex-wrap: wrap; /* Permite que as tags quebrem para a próxima linha se não houver espaço */
+    gap: 6px; /* Adiciona um pequeno espaço entre cada tag */
+    /*margin-top: 10px; /* Adiciona um espaço acima do container para separá-lo do select */
+    padding: 8px;
+    margin-top: 5px;
+    border: 1px solid #ccc; /* Bordas visíveis, como na imagem */
+    border-radius: 4px;
+    min-height: 40px; /* Garante uma altura mínima, mesmo sem tags */
+    background-color: #fff;
+    max-height: 100px;
+     overflow-y: auto;
+}
+.cliente-tag {
+    background-color: #f1f1f1;
+    border-radius: 4px; /* Bordas levemente arredondadas */
+    padding: 1px 8px;
+    font-size: 12px;
+    line-height: 1.2;
+    color: #333;
+    display: flex;
+    align-items: center;
+    border: 1px solid #ddd;
+     
+}
+
+.remover-cliente {
+    background: none;
+    border: none;
+    cursor: pointer;
+    margin-left: 8px; /* Espaço entre o nome do cliente e o 'x' */
+    font-weight: bold;
+    color: #777;
+}
+
+.remover-cliente:hover {
+    /* color: #000; */
+    color: #dc3545;
 }
 
  .form2 { 

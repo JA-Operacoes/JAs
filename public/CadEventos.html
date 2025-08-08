@@ -40,20 +40,24 @@
                                 <label for="nmEvento"> Descrição do Evento </label>                           
                             </div>
                         </div>
-                        <div class="form-2colunas">
-                            <div class="form2">
-                                <input type="hidden" name="idCliente" id="idCliente" readonly>
-                                <select id="selectCliente" name="selectCliente" required>
+                        <!-- <div class="form-2colunas"> -->
+                            
+                            <div class="form2">                               
+
+                                <select id="selectCliente" name="selectCliente" class="selectCliente" required>
                                     <option value="">Selecione um Cliente</option>
-                                </select>
-                                <label for="selectCliente"> Clientes </label>
+                                </select>                               
                                
                             </div>
+                            <div><label for="clientesContainer">Clientes Selecionados:</label></div>
+                                <div id="clientesSelecionadosContainer" class="clientes-secao"></div>
+                                <input type="hidden" name="clientesDoEvento" id="clientesDoEvento">
+
                             <!-- <div class="form2">
                                 <input type="text" class="uppercase" name="nmEvento" id="nmEvento" required>
                                 <label for="nmEvento"> Descrição do Evento </label>                           
                             </div> -->
-                        </div>
+                        <!-- </div> -->
 
                         
                     </fieldset>
