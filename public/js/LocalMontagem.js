@@ -11,7 +11,7 @@ let pesquisarMontagemButtonListener = null;
 let selectMontagemChangeListener = null; 
 let novoInputDescMontagemInputListener = null; 
 let novoInputDescMontagemBlurListener = null;  
-
+let isSwalOpen = false;
 
 let MontagemOriginal = {
     idMontagem: "",
@@ -42,6 +42,230 @@ function verificaMontagem() {
         limparCamposMontagem();
 
     });
+
+document.querySelector("#qtdPavilhao").addEventListener("input", async function() {
+    if (isSwalOpen) return;
+
+    const novaQuantidade = parseInt(this.value);
+    const inputsAtuaisDivs = document.querySelectorAll('#inputsPavilhoes .form2');
+    
+    const pavilhoesOriginais = [];
+    inputsAtuaisDivs.forEach(div => {
+        const input = div.querySelector('input');
+        if (input) {
+            pavilhoesOriginais.push({
+                idpavilhao: input.dataset.idpavilhao || null,
+                nmpavilhao: input.value
+            });
+        }
+    });
+    const quantidadeOriginal = pavilhoesOriginais.length;
+
+    if (novaQuantidade >= quantidadeOriginal) {
+        criarInputsPavilhoes(novaQuantidade, pavilhoesOriginais);
+        return;
+    }
+
+    const pavilhoesParaManter = pavilhoesOriginais.slice(0, novaQuantidade);
+
+    // ✅ Lógica corrigida para encontrar os pavilhões existentes a serem removidos
+    const pavilhoesExistentesParaRemover = pavilhoesOriginais.filter(p => p.idpavilhao && !pavilhoesParaManter.some(pM => pM.idpavilhao === p.idpavilhao));
+    
+    // O console.log foi mantido aqui para depuração final
+    console.log("QUANTIDADES", {
+        novaQuantidade,
+        quantidadeOriginal,
+        pavilhoesOriginais,
+        pavilhoesParaManter,
+        pavilhoesExistentesParaRemover
+    });
+
+    if (pavilhoesExistentesParaRemover.length > 0) {
+        isSwalOpen = true;
+
+        try {
+            const idsParaVerificar = pavilhoesExistentesParaRemover.map(p => parseInt(p.idpavilhao));
+            const statusData = await fetchComToken('/localmontagem/pavilhoes-status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pavilhoesParaVerificar: pavilhoesExistentesParaRemover })
+            });
+            
+            // const pavilhoesRemoviveis = statusData.pavilhoesRemoviveis;
+            // const pavilhoesEmUso = statusData.pavilhoesEmUso;
+
+            // let swalTitle = "Reduzir Pavilhões?";
+            // let swalText = "";
+            // let confirmButtonText = "";
+
+            // if (pavilhoesEmUso.length > 0) {
+            //     const nomesPavilhoesEmUso = pavilhoesEmUso.map(p => `"${p.nmpavilhao}"`).join(', ');
+            //     swalText += `O(s) Pavilhão(ões) ${nomesPavilhoesEmUso} não pode(m) ser removido(s) por estar(em) associado(s) a um orçamento. `;
+            // }
+            
+            // if (pavilhoesRemoviveis.length > 0) {
+            //     const nomesPavilhoesRemoviveis = pavilhoesRemoviveis.map(p => `"${p.nmpavilhao}"`).join(', ');
+            //     swalText += `O(s) Pavilhão(ões) ${nomesPavilhoesRemoviveis} será(ão) removido(s). Deseja continuar?`;
+            //     confirmButtonText = "Sim, remover";
+            // } else {
+            //     swalTitle = "Operação Cancelada";
+            //     swalText = `Nenhum dos pavilhões selecionados pode ser removido.`;
+            //     confirmButtonText = "Ok";
+            // }
+
+            // const { isConfirmed } = await Swal.fire({
+            //     title: swalTitle,
+            //     text: swalText,
+            //     icon: "warning",
+            //     showCancelButton: (pavilhoesRemoviveis.length > 0),
+            //     confirmButtonText: confirmButtonText,
+            //     cancelButtonText: "Cancelar"
+            // });
+            // isSwalOpen = false;
+
+            const { pavilhoesRemoviveis, pavilhoesEmUso } = statusData;
+
+            let swalTitle = "Remover Pavilhões?";
+            let swalText = "";
+            let confirmButtonText = "";
+
+            // ✅ NOVO: Constrói a mensagem sobre os pavilhões que NÃO podem ser removidos.
+            if (pavilhoesEmUso.length > 0) {
+                const nomesPavilhoesEmUso = pavilhoesEmUso.map(p => `"${p.nmpavilhao}"`).join(', ');
+                swalText += `O(s) Pavilhão(ões) ${nomesPavilhoesEmUso} não pode(m) ser removido(s) por estar(em) associado(s) a um orçamento. `;
+            }
+
+            // ✅ Constrói a mensagem sobre os pavilhões que SERÃO removidos, se houver.
+            if (pavilhoesRemoviveis.length > 0) {
+                const nomesPavilhoesRemoviveis = pavilhoesRemoviveis.map(p => `"${p.nmpavilhao}"`).join(', ');
+                swalText += `O(s) Pavilhão(ões) ${nomesPavilhoesRemoviveis} será(ão) removido(s). Deseja continuar?`;
+                confirmButtonText = "Sim, remover";
+            } else {
+                // Caso não haja nada para remover, a ação será cancelada.
+                swalTitle = "Operação Cancelada";
+                confirmButtonText = "Ok";
+                if (swalText === "") { // Garante que a mensagem não fique vazia
+                    swalText = `Nenhum dos pavilhões selecionados pode ser removido.`;
+                }
+            }
+
+            isSwalOpen = true;
+            const { isConfirmed } = await Swal.fire({
+                title: swalTitle,
+                text: swalText,
+                icon: (pavilhoesRemoviveis.length > 0 ? "warning" : "info"),
+                showCancelButton: (pavilhoesRemoviveis.length > 0),
+                confirmButtonText: confirmButtonText,
+                cancelButtonText: "Cancelar"
+            });
+            isSwalOpen = false;
+
+            if (!isConfirmed || pavilhoesRemoviveis.length === 0) {
+                this.value = quantidadeOriginal;
+                criarInputsPavilhoes(quantidadeOriginal, pavilhoesOriginais);
+                return;
+            }
+
+            const idsPavilhoesParaManterFinal = pavilhoesParaManter.map(p => p.idpavilhao);
+            pavilhoesEmUso.forEach(p => {
+                if (!idsPavilhoesParaManterFinal.includes(p.idpavilhao)) {
+                    pavilhoesParaManter.push(p);
+                }
+            });
+
+            const novaQuantidadeFinal = pavilhoesParaManter.length;
+            this.value = novaQuantidadeFinal;
+            
+            const idMontagem = document.querySelector("#idMontagem").value;
+            if (idMontagem) {
+                const dadosFormulario = {
+                    descMontagem: document.querySelector("#descMontagem").value.trim().toUpperCase(),
+                    cidadeMontagem: document.querySelector("#cidadeMontagem").value.trim().toUpperCase(),
+                    ufMontagem: document.querySelector("#ufMontagem").value.trim().toUpperCase(),
+                    qtdPavilhao: novaQuantidadeFinal,
+                    pavilhoes: pavilhoesParaManter
+                };
+                
+                try {
+                    const result = await fetchComToken(`/localmontagem/${idMontagem}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(dadosFormulario)
+                    });
+                    
+                    criarInputsPavilhoes(result.localmontagem.qtdpavilhao, result.localmontagem.pavilhoes);
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Salvo!',
+                        text: 'A quantidade de pavilhões foi atualizada com sucesso.',
+                        showConfirmButton: false,
+                        timer: 1500
+                    });
+
+                } catch (error) {
+                    console.error("Erro ao salvar a redução de pavilhões:", error);
+                    this.value = quantidadeOriginal;
+                    criarInputsPavilhoes(quantidadeOriginal, pavilhoesOriginais);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Erro!',
+                        text: error.message,
+                    });
+                }
+            } else {
+                criarInputsPavilhoes(novaQuantidadeFinal, pavilhoesParaManter);
+            }
+
+        } catch (error) {
+            console.error("Erro ao verificar o status dos pavilhões:", error);
+            isSwalOpen = false;
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro!',
+                text: 'Não foi possível verificar o status dos pavilhões. Tente novamente.',
+            });
+            this.value = quantidadeOriginal;
+            criarInputsPavilhoes(quantidadeOriginal, pavilhoesOriginais);
+        }
+    } else {
+        // Se nenhum pavilhão existente será removido, a lógica é mais simples.
+        const idMontagem = document.querySelector("#idMontagem").value;
+        if (idMontagem) {
+            const dadosFormulario = {
+                descMontagem: document.querySelector("#descMontagem").value.trim().toUpperCase(),
+                cidadeMontagem: document.querySelector("#cidadeMontagem").value.trim().toUpperCase(),
+                ufMontagem: document.querySelector("#ufMontagem").value.trim().toUpperCase(),
+                qtdPavilhao: novaQuantidade,
+                pavilhoes: pavilhoesParaManter
+            };
+            try {
+                const result = await fetchComToken(`/localmontagem/${idMontagem}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dadosFormulario)
+                });
+                criarInputsPavilhoes(result.localmontagem.qtdpavilhao, result.localmontagem.pavilhoes);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Salvo!',
+                    text: 'A quantidade de pavilhões foi atualizada com sucesso.',
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+            } catch (error) {
+                console.error("Erro ao salvar a redução de pavilhões:", error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erro!',
+                    text: error.message,
+                });
+            }
+        } else {
+            criarInputsPavilhoes(novaQuantidade, pavilhoesParaManter);
+        }
+    }
+});
 
     botaoEnviar.addEventListener("click", async function (event) {
         event.preventDefault(); // Previne o envio padrão do formulário
@@ -257,6 +481,35 @@ function verificaMontagem() {
             });
         }
     });
+}
+async function salvarDadosMontagem(dados, idMontagem, metodo) {
+    const url = idMontagem ? `/localmontagem/${idMontagem}` : "/localmontagem";
+    try {
+        const respostaApi = await fetchComToken(url, {
+            method: metodo,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(dados)
+        });
+
+        if (!respostaApi.ok) {
+            const errorData = await respostaApi.json();
+            throw new Error(errorData.message || 'Erro ao salvar o Local de Montagem.');
+        }
+
+        const result = await respostaApi.json();
+
+        // Assume que `limparCamposMontagem` é uma função existente
+        limparCamposMontagem(); 
+
+        await Swal.fire("Sucesso!", result.message || "Local de Montagem salvo com sucesso.", "success");
+        return true; // Retorna true em caso de sucesso
+    } catch (error) {
+        console.error("Erro ao enviar dados:", error);
+        Swal.fire("Erro", error.message || "Erro ao salvar Local de Montagem.", "error");
+        return false; // Retorna false em caso de erro
+    }
 }
 
 function adicionarListenersAoInputDescMontagem(inputElement) {
@@ -501,7 +754,6 @@ async function carregarLocalMontagem(desc, elementoAtual) {
      
           
     }  catch (error) {
-
         
         console.warn("Local de Montagem não encontrado.");
 
@@ -522,11 +774,22 @@ async function carregarLocalMontagem(desc, elementoAtual) {
 
             if (resultado.isConfirmed) {                
                 console.log(`Usuário optou por cadastrar: ${desc}`);
+               
                 document.querySelector("#idMontagem").value = "";
+                document.querySelector("#cidadeMontagem").value = ""; // Limpa os outros campos, pois é um novo cadastro
+                document.querySelector("#ufMontagem").value = "";
                 document.querySelector("#qtdPavilhao").value = "";
                 criarInputsPavilhoes(0); 
-                MontagemOriginal.qtdPavilhao = ""; 
-                MontagemOriginal.pavilhoes = []; 
+                // MontagemOriginal.qtdPavilhao = ""; 
+                // MontagemOriginal.pavilhoes = []; 
+                MontagemOriginal = {
+                    idMontagem: null,
+                    descMontagem: desc.toUpperCase(),
+                    cidadeMontagem: "",
+                    ufMontagem: "",
+                    qtdPavilhao: 0,
+                    pavilhoes: []
+                };
             }
             if (!resultado.isConfirmed) {
                 console.log("Usuário cancelou o cadastro do Local de Montagem.");
@@ -535,7 +798,7 @@ async function carregarLocalMontagem(desc, elementoAtual) {
                 setTimeout(() => {
                     elementoAtual.focus();
                 }, 0);
-                limparCamposMontagem();
+               // limparCamposMontagem();
                 return;
             }
             
@@ -618,134 +881,125 @@ function limparCamposMontagem() {
     
 }
 
-// async function fetchComToken(url, options = {}) {
-//   console.log("URL da requisição:", url);
-//   const token = localStorage.getItem("token");
-//   const idempresa = localStorage.getItem("idempresa");
 
-//   console.log("ID da empresa no localStorage:", idempresa);
-//   console.log("Token no localStorage:", token);
 
-//   if (!options.headers) options.headers = {};
-  
-//   if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
-//         options.headers['Content-Type'] = 'application/json';
-//   }else if (options.body && typeof options.body === 'object' && options.headers['Content-Type'] !== 'multipart/form-data') {
-       
-//         options.body = JSON.stringify(options.body);
-//         options.headers['Content-Type'] = 'application/json';
+//antigo
+// function criarInputsPavilhoes(quantidade, pavilhoesExistentes = []) {
+//     const container = document.getElementById('inputsPavilhoes');
+//     container.innerHTML = ''; // Limpa inputs anteriores
+
+//     const numQuantidade = parseInt(quantidade);
+//     if (isNaN(numQuantidade) || numQuantidade <= 0) {
+//         return; // Não cria inputs se a quantidade for inválida ou zero
+//     }
+
+//     for (let i = 0; i < numQuantidade; i++) { // ✅ Loop de 0 a quantidade-1
+//         const div = document.createElement('div');
+//         div.classList.add('form2');
+
+//         const input = document.createElement('input');
+//         input.type = 'text';
+//         input.name = 'nmPavilhao[]';
+//         input.id = `nmPavilhao${i + 1}`; // ID começa em 1
+//         input.required = true;
+//         input.classList.add('uppercase');
+
+//         if (numQuantidade > 0) {
+//             input.required = true; 
+//         } else {
+//             input.required = false; // Garante que não é obrigatório se for 0
+//         }
+
+//         // Preenche com dados existentes se houver
+//         if (pavilhoesExistentes[i]) {
+//             input.value = pavilhoesExistentes[i].nmpavilhao;
+//             input.dataset.idpavilhao = pavilhoesExistentes[i].idpavilhao; // ✅ Guarda o ID do pavilhão no dataset
+//         }
+
+//         input.addEventListener("input", function() {
+//             this.value = this.value.toUpperCase();
+//         });
+
+
+//         const label = document.createElement('label');
+//         label.setAttribute('for', `nmPavilhao${i + 1}`);
+//         label.textContent = `Nome do Pavilhão ${i + 1}`; // Rótulo para cada pavilhão
+
+//         div.appendChild(input);
+//         div.appendChild(label);
+//         container.appendChild(div);
+//     }
 //   }
 
-//   options.headers['Authorization'] = 'Bearer ' + token; 
-
-//   if (
-//       idempresa && 
-//       idempresa !== 'null' && 
-//       idempresa !== 'undefined' && 
-//       idempresa.trim() !== '' &&
-//       !isNaN(idempresa) && 
-//       Number(idempresa) > 0
-//   ) {
-//       options.headers['idempresa'] = idempresa;
-//       console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
-//   } else {
-//     console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
-//   }
-//   console.log("URL OPTIONS", url, options)
- 
-//   const resposta = await fetch(url, options);
-
-//   console.log("Resposta da requisição LocalMontagem.js:", resposta);
-
-//   let responseBody = null;
-//   try {     
-//       responseBody = await resposta.json();
-//   } catch (jsonError) {    
-//       try {
-//           responseBody = await resposta.text();
-//       } catch (textError) {        
-//           responseBody = null;
-//       }
-//   }
-
-//   if (resposta.status === 401) {
-//     localStorage.clear();
-//     Swal.fire({
-//       icon: "warning",
-//       title: "Sessão expirada",
-//       text: "Por favor, faça login novamente."
-//     }).then(() => {
-//       window.location.href = "login.html"; 
-//     });
-   
-//     throw new Error('Sessão expirada'); 
-//   }
-
-//   if (!resposta.ok) {        
-//         const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
-//         throw new Error(`Erro na requisição: ${errorMessage}`);
-//   }
-
-//   return responseBody;
-// }
+//   document.querySelector("#qtdPavilhao").addEventListener("input", function() {
+//     // O evento 'input' é melhor para type="number" pois dispara a cada tecla
+//     const quantidade = parseInt(this.value);
+//     if (!isNaN(quantidade) && quantidade >= 0) { // Validação básica antes de chamar
+//         criarInputsPavilhoes(quantidade);
+//     } else if (this.value.trim() === '') { // Se o campo for esvaziado, também limpa os pavilhões
+//         criarInputsPavilhoes(0);
+//     }
+// });
 
 function criarInputsPavilhoes(quantidade, pavilhoesExistentes = []) {
     const container = document.getElementById('inputsPavilhoes');
-    container.innerHTML = ''; // Limpa inputs anteriores
+    container.innerHTML = ''; // Limpa todos os inputs anteriores para evitar duplicatas ou inconsistências
 
     const numQuantidade = parseInt(quantidade);
     if (isNaN(numQuantidade) || numQuantidade <= 0) {
-        return; // Não cria inputs se a quantidade for inválida ou zero
+        return; // Não faz nada se a quantidade for inválida ou zero
     }
 
-    for (let i = 0; i < numQuantidade; i++) { // ✅ Loop de 0 a quantidade-1
+    for (let i = 0; i < numQuantidade; i++) {
         const div = document.createElement('div');
         div.classList.add('form2');
 
         const input = document.createElement('input');
         input.type = 'text';
         input.name = 'nmPavilhao[]';
-        input.id = `nmPavilhao${i + 1}`; // ID começa em 1
+        input.id = `nmPavilhao${i + 1}`;
         input.required = true;
         input.classList.add('uppercase');
 
-        if (numQuantidade > 0) {
-            input.required = true; 
-        } else {
-            input.required = false; // Garante que não é obrigatório se for 0
-        }
-
-        // Preenche com dados existentes se houver
+        // ✅ Lógica para PREENCHER o input com os dados existentes
         if (pavilhoesExistentes[i]) {
             input.value = pavilhoesExistentes[i].nmpavilhao;
-            input.dataset.idpavilhao = pavilhoesExistentes[i].idpavilhao; // ✅ Guarda o ID do pavilhão no dataset
+            input.dataset.idpavilhao = pavilhoesExistentes[i].idpavilhao;
+            input.dataset.nomeOriginal = pavilhoesExistentes[i].nmpavilhao; // Armazena o nome original para a verificação
         }
 
         input.addEventListener("input", function() {
             this.value = this.value.toUpperCase();
         });
 
+        // Evento para verificar a alteração do nome com Swal (o que você já tinha)
+        input.addEventListener("blur", async function() {
+            if (this.dataset.idpavilhao && this.value !== this.dataset.nomeOriginal) {
+                const { isConfirmed } = await Swal.fire({
+                    title: "Alterar nome do Pavilhão?",
+                    text: "O nome deste pavilhão será alterado. Se ele estiver associado a um orçamento, a alteração será refletida em todos os orçamentos. Deseja continuar?",
+                    icon: "info",
+                    showCancelButton: true,
+                    confirmButtonText: "Sim, alterar",
+                    cancelButtonText: "Cancelar"
+                });
+                if (!isConfirmed) {
+                    this.value = this.dataset.nomeOriginal;
+                } else {
+                    this.dataset.nomeOriginal = this.value;
+                }
+            }
+        });
 
         const label = document.createElement('label');
         label.setAttribute('for', `nmPavilhao${i + 1}`);
-        label.textContent = `Nome do Pavilhão ${i + 1}`; // Rótulo para cada pavilhão
+        label.textContent = `Nome do Pavilhão ${i + 1}`;
 
         div.appendChild(input);
         div.appendChild(label);
         container.appendChild(div);
     }
-  }
-
-  document.querySelector("#qtdPavilhao").addEventListener("input", function() {
-    // O evento 'input' é melhor para type="number" pois dispara a cada tecla
-    const quantidade = parseInt(this.value);
-    if (!isNaN(quantidade) && quantidade >= 0) { // Validação básica antes de chamar
-        criarInputsPavilhoes(quantidade);
-    } else if (this.value.trim() === '') { // Se o campo for esvaziado, também limpa os pavilhões
-        criarInputsPavilhoes(0);
-    }
-});
-
+}
 
 function configurarEventosMontagem() {
     console.log("Configurando eventos Montagem...");

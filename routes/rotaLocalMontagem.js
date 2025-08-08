@@ -51,7 +51,53 @@ router.get("/", verificarPermissao('localmontagem', 'pesquisar'), async (req, re
   }
 });
 
+// Adicione esta nova rota ao seu router
+router.post("/pavilhoes-status", verificarPermissao('localmontagem', 'alterar'), async (req, res) => {
+    const { pavilhoesParaVerificar } = req.body;
+    const idempresa = req.idempresa;
+    let client;
+    try {
+        client = await pool.connect();
+        
+        // ✅ LOG DE DEPURAÇÃO: Mostra o payload recebido do frontend
+        console.log("DEBUG: Pavilhões recebidos para verificação:", pavilhoesParaVerificar);
+        
+        if (!pavilhoesParaVerificar || !Array.isArray(pavilhoesParaVerificar) || pavilhoesParaVerificar.length === 0) {
+            return res.json({ pavilhoesRemoviveis: [], pavilhoesEmUso: [] });
+        }
+        
+        const idsParaVerificar = pavilhoesParaVerificar.map(p => parseInt(p.idpavilhao));
+        // ✅ LOG DE DEPURAÇÃO: Mostra os IDs que serão usados na query
+        console.log("DEBUG: IDs a serem verificados:", idsParaVerificar);
+        
+        const pavilhoesEmUsoResult = await client.query(
+            `SELECT DISTINCT idpavilhao FROM orcamentopavilhoes WHERE idpavilhao = ANY($1::int[])`,
+            [idsParaVerificar]
+        );
+        
+        const idsEmUso = new Set(pavilhoesEmUsoResult.rows.map(row => row.idpavilhao));
+        // ✅ LOG DE DEPURAÇÃO: Mostra os IDs que o banco de dados retornou como em uso
+        console.log("DEBUG: IDs encontrados em uso no banco:", idsEmUso);
+        
+        const pavilhoesEmUsoComNomes = pavilhoesParaVerificar.filter(p => idsEmUso.has(parseInt(p.idpavilhao)));
+        const pavilhoesRemoviveis = pavilhoesParaVerificar.filter(p => !idsEmUso.has(parseInt(p.idpavilhao)));
+        
+        // ✅ LOG DE DEPURAÇÃO: Mostra a lista final de pavilhões em uso e removíveis
+        console.log("DEBUG: Pavilhões em uso:", pavilhoesEmUsoComNomes);
+        console.log("DEBUG: Pavilhões removíveis:", pavilhoesRemoviveis);
 
+        return res.json({
+            pavilhoesRemoviveis: pavilhoesRemoviveis,
+            pavilhoesEmUso: pavilhoesEmUsoComNomes
+        });
+
+    } catch (error) {
+        console.error("Erro ao verificar o status dos pavilhões:", error);
+        return res.status(500).json({ message: "Erro ao verificar o status dos pavilhões." });
+    } finally {
+        if (client) client.release();
+    }
+});
 // PUT atualizar
 router.put("/:id",
     verificarPermissao('localmontagem', 'alterar'),
@@ -98,14 +144,15 @@ router.put("/:id",
         try {
             client = await pool.connect();
             await client.query('BEGIN'); // Inicia a transação
-console.log("Valor de qtdpavilhao antes do UPDATE:", qtdPavilhao);
-            // 1. Atualiza o local de montagem, incluindo qtdpavilhao
+
+            console.log("Payload de pavilhões recebido do frontend:", pavilhoes);
+                        // 1. Atualiza o local de montagem, incluindo qtdpavilhao
             const resultUpdate = await client.query(
                 `UPDATE localmontagem lm
-                 SET descmontagem = $1, cidademontagem = $2, ufmontagem = $3, qtdpavilhao = $4
-                 FROM localmontempresas lme
-                 WHERE lm.idmontagem = $5 AND lme.idmontagem = lm.idmontagem AND lme.idempresa = $6
-                 RETURNING lm.idmontagem, lm.qtdpavilhao`,
+                SET descmontagem = $1, cidademontagem = $2, ufmontagem = $3, qtdpavilhao = $4
+                FROM localmontempresas lme
+                WHERE lm.idmontagem = $5 AND lme.idmontagem = lm.idmontagem AND lme.idempresa = $6
+                RETURNING lm.idmontagem, lm.qtdpavilhao`,
                 [descMontagem, cidadeMontagem, ufMontagem, qtdPavilhao, id, idempresa]
             );
 
@@ -118,41 +165,43 @@ console.log("Valor de qtdpavilhao antes do UPDATE:", qtdPavilhao);
 
             // 2. Sincroniza os pavilhões:
             //  // 2.1. Extrai IDs dos pavilhões que devem ser mantidos (aqueles que já têm um ID e vieram do frontend)
-            const pavilionIdsToKeep = pavilhoes
-             .filter(p => p.idpavilhao) // Filtra apenas pavilhões que já possuem um ID
-             .map(p => p.idpavilhao); // Extrai apenas o ID
+            // const pavilionIdsToKeep = pavilhoes
+            //  .filter(p => p.idpavilhao) // Filtra apenas pavilhões que já possuem um ID
+            //  .map(p => p.idpavilhao); // Extrai apenas o ID
 
             const existingDbPavilionIdsResult = await client.query(
                 `SELECT idpavilhao FROM localmontpavilhao WHERE idmontagem = $1`,
                 [idmontagemAtualizada]
             );
             const existingDbPavilionIds = new Set(existingDbPavilionIdsResult.rows.map(row => row.idpavilhao));
+
+            const allDbIds = Array.from(existingDbPavilionIds);
+    
+            // ✅ Adicione este log para ver o que está no banco antes da sincronização
+            console.log("IDs de pavilhões no banco de dados (antes da sincronização):", allDbIds);
             
             // Lista para os IDs que foram enviados no payload e que deveriam permanecer no DB
             const idsFromPayloadToKeep = new Set(); 
 
             for (const newPavilion of pavilhoes) {
-                if (newPavilion.idpavilhao) {
-                    // Se o pavilhão tem um ID, verifica se ele realmente existe para esta montagem
-                    if (existingDbPavilionIds.has(newPavilion.idpavilhao)) {
+                const idDoPavilhao = newPavilion.idpavilhao ? parseInt(newPavilion.idpavilhao, 10) : null;
+                
+                if (idDoPavilhao) {
+                    if (existingDbPavilionIds.has(idDoPavilhao)) {
                         // Se existe, atualiza
-                        console.log("Valor de qtdpavilhao antes do UPDATE LOCALMONTPAVILHAO:", qtdPavilhao);
                         await client.query(
                             `UPDATE localmontpavilhao
-                             SET nmpavilhao = $1
-                             WHERE idpavilhao = $2 AND idmontagem = $3`,
-                            [newPavilion.nmpavilhao, newPavilion.idpavilhao, idmontagemAtualizada]
+                            SET nmpavilhao = $1
+                            WHERE idpavilhao = $2 AND idmontagem = $3`,
+                            [newPavilion.nmpavilhao, idDoPavilhao, idmontagemAtualizada]
                         );
-                        idsFromPayloadToKeep.add(newPavilion.idpavilhao);
+                        // ✅ CORREÇÃO: Adiciona o ID como NÚMERO ao set.
+                        idsFromPayloadToKeep.add(idDoPavilhao);
                     } else {
-                        // ID foi fornecido, mas não existe ou não pertence a esta montagem.
-                        // O que fazer?
-                        // Opção A: Ignorar. Não fazemos nada. O item não é atualizado nem inserido.
-                        // Opção B: Inserir como novo.
                         console.warn(`ID de pavilhão ${newPavilion.idpavilhao} fornecido, mas não encontrado para montagem ${idmontagemAtualizada}. Inserindo como novo.`);
                         const insertResult = await client.query(
                             `INSERT INTO localmontpavilhao (idmontagem, nmpavilhao)
-                             VALUES ($1, $2) RETURNING idpavilhao`,
+                            VALUES ($1, $2) RETURNING idpavilhao`,
                             [idmontagemAtualizada, newPavilion.nmpavilhao]
                         );
                         idsFromPayloadToKeep.add(insertResult.rows[0].idpavilhao);
@@ -161,7 +210,7 @@ console.log("Valor de qtdpavilhao antes do UPDATE:", qtdPavilhao);
                     // Se não tem ID, é um novo pavilhão, insere
                     const insertResult = await client.query(
                         `INSERT INTO localmontpavilhao (idmontagem, nmpavilhao)
-                         VALUES ($1, $2) RETURNING idpavilhao`,
+                        VALUES ($1, $2) RETURNING idpavilhao`,
                         [idmontagemAtualizada, newPavilion.nmpavilhao]
                     );
                     idsFromPayloadToKeep.add(insertResult.rows[0].idpavilhao);
@@ -169,6 +218,27 @@ console.log("Valor de qtdpavilhao antes do UPDATE:", qtdPavilhao);
             }
 
             const finalIdsToKeep = Array.from(idsFromPayloadToKeep);
+            const idsToDelete = allDbIds.filter(id => !finalIdsToKeep.includes(id));
+            console.log("IDs de pavilhões que o backend vai tentar deletar:", idsToDelete);
+            
+            if (idsToDelete.length > 0) {
+                // Checa se algum dos pavilhões a serem excluídos está em orçamentos
+                const checkOrcamento = await client.query(
+                    `SELECT idpavilhao FROM orcamentopavilhoes WHERE idpavilhao = ANY($1::int[]) LIMIT 1`,
+                    [idsToDelete]
+                );
+
+                if (checkOrcamento.rowCount > 0) {
+                    // Encontrado um pavilhão em uso. Aborta a operação.
+                    await client.query('ROLLBACK');
+                    const idInUse = checkOrcamento.rows[0].idpavilhao;
+                    const pavilionInUse = await client.query(`SELECT nmpavilhao FROM localmontpavilhao WHERE idpavilhao = $1`, [idInUse]);
+                    const nomePavilhao = pavilionInUse.rows[0]?.nmpavilhao || `Pavilhão ${idInUse}`; 
+                    return res.status(409).json({ // 409 Conflict é um código apropriado
+                        message: `O pavilhão "${nomePavilhao}" não pode ser excluído porque está associado a um orçamento.`
+                    });
+                }
+            }
 
             if (finalIdsToKeep.length > 0) {
                 // Deleta os pavilhões que existiam no DB mas não foram enviados no payload
