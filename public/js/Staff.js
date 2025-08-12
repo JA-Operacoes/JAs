@@ -418,76 +418,86 @@ const carregarTabelaStaff = async (funcionarioId) => {
                 const row = eventsTableBody.insertRow();                    
                 row.dataset.eventData = JSON.stringify(eventData);             
 
-                row.addEventListener('dblclick', () => {
-                    isFormLoadedFromDoubleClick = true;
-                    if (currentRowSelected) {
-                        currentRowSelected.classList.remove('selected-row');
-                    }
-                    // Adiciona a classe 'selected-row' à linha clicada
-                    row.classList.add('selected-row');
-                    // Atualiza a referência da linha selecionada
-                    currentRowSelected = row;
+                if (eventData.status === "Pago"){
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Não é possível inserir dados para edição.',
+                        text: 'Evento deste funcionário já foi concluído e pago',
+                    });
+                    return;
 
-                    carregarDadosParaEditar(eventData)});                   
+                }else{
+                    row.addEventListener('dblclick', () => {
+                        isFormLoadedFromDoubleClick = true;
+                        if (currentRowSelected) {
+                            currentRowSelected.classList.remove('selected-row');
+                        }
+                        // Adiciona a classe 'selected-row' à linha clicada
+                        row.classList.add('selected-row');
+                        // Atualiza a referência da linha selecionada
+                        currentRowSelected = row;
+
+                        carregarDadosParaEditar(eventData)});                   
+                        
+
+                    //  row.insertCell().textContent = eventData.idevento || '';
+                    row.insertCell().textContent = eventData.nmfuncao || '';
+                    row.insertCell().textContent = eventData.setor || '';
+                    row.insertCell().textContent = eventData.nmcliente || '';
+                    row.insertCell().textContent = eventData.nmevento || '';
+                    row.insertCell().textContent = eventData.nmlocalmontagem || '';
+                    row.insertCell().textContent = eventData.pavilhao || '';
+                    row.insertCell().textContent = (eventData.datasevento && typeof eventData.datasevento === 'string')
+                    
+                    ? JSON.parse(eventData.datasevento) // Primeiro parseia a string JSON para um array
+                    .map(dateStr => { // Depois, mapeia cada string de data no array
+                        const parts = dateStr.split('-'); // Divide a data (ex: ['2025', '07', '01'])
+                        if (parts.length === 3) {
+                            return `${parts[2]}/${parts[1]}/${parts[0]}`; // Reorganiza para DD/MM/YYYY
+                        }
+                        return dateStr; // Retorna a data original se não estiver no formato esperado
+                    })
+                    .join(', ') // Junta as datas formatadas com vírgula e espaço
+                    : (Array.isArray(eventData.datasevento) && eventData.datasevento.length > 0)
+                    ? eventData.datasevento // Se já for um array (do backend, por exemplo)
+                    .map(dateStr => {
+                        const parts = dateStr.split('-');
+                        if (parts.length === 3) {
+                            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                        }
+                        return dateStr;
+                    })
+                    .join(', ')
+                    : 'N/A';                               
+
+                    row.insertCell().textContent = parseFloat(eventData.vlrcache || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    row.insertCell().textContent = parseFloat(eventData.vlrextra || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    row.insertCell().textContent = eventData.descbonus || '';
+                    row.insertCell().textContent = parseFloat(eventData.almoco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    row.insertCell().textContent = parseFloat(eventData.jantar || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });                                
+                    row.insertCell().textContent = parseFloat(eventData.vlrtransporte || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });               
+                    row.insertCell().textContent = eventData.descbeneficios || '';
+                    row.insertCell().textContent = parseFloat(eventData.vlrtotal || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    // row.insertCell().textContent = eventData.statuspgto || '';
+                    
+                    const statusCell = row.insertCell();             
                     
 
-                //  row.insertCell().textContent = eventData.idevento || '';
-                row.insertCell().textContent = eventData.nmfuncao || '';
-                row.insertCell().textContent = eventData.setor || '';
-                row.insertCell().textContent = eventData.nmcliente || '';
-                row.insertCell().textContent = eventData.nmevento || '';
-                row.insertCell().textContent = eventData.nmlocalmontagem || '';
-                row.insertCell().textContent = eventData.pavilhao || '';
-                row.insertCell().textContent = (eventData.datasevento && typeof eventData.datasevento === 'string')
-                
-                ? JSON.parse(eventData.datasevento) // Primeiro parseia a string JSON para um array
-                .map(dateStr => { // Depois, mapeia cada string de data no array
-                    const parts = dateStr.split('-'); // Divide a data (ex: ['2025', '07', '01'])
-                    if (parts.length === 3) {
-                        return `${parts[2]}/${parts[1]}/${parts[0]}`; // Reorganiza para DD/MM/YYYY
+                    const status = (eventData.statuspgto || '').toLowerCase();
+                    const statusSpan = document.createElement('span');
+                    statusSpan.textContent = status.toUpperCase();
+
+                    // Adicione a classe base
+                    statusSpan.classList.add('status-pgto'); 
+
+                    if (status === "pendente") {
+                        statusSpan.classList.add('pendente');
+                    } else if (status === "pago") {
+                        statusSpan.classList.add('pago');
                     }
-                    return dateStr; // Retorna a data original se não estiver no formato esperado
-                })
-                .join(', ') // Junta as datas formatadas com vírgula e espaço
-                : (Array.isArray(eventData.datasevento) && eventData.datasevento.length > 0)
-                ? eventData.datasevento // Se já for um array (do backend, por exemplo)
-                .map(dateStr => {
-                    const parts = dateStr.split('-');
-                    if (parts.length === 3) {
-                        return `${parts[2]}/${parts[1]}/${parts[0]}`;
-                    }
-                    return dateStr;
-                })
-                .join(', ')
-                : 'N/A';                               
-
-                row.insertCell().textContent = parseFloat(eventData.vlrcache || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                row.insertCell().textContent = parseFloat(eventData.vlrextra || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                row.insertCell().textContent = eventData.descbonus || '';
-                row.insertCell().textContent = parseFloat(eventData.almoco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                row.insertCell().textContent = parseFloat(eventData.jantar || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });                                
-                row.insertCell().textContent = parseFloat(eventData.vlrtransporte || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });               
-                row.insertCell().textContent = eventData.descbeneficios || '';
-                row.insertCell().textContent = parseFloat(eventData.vlrtotal || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                // row.insertCell().textContent = eventData.statuspgto || '';
-                
-                const statusCell = row.insertCell();             
-                
-
-                const status = (eventData.statuspgto || '').toLowerCase();
-                const statusSpan = document.createElement('span');
-                statusSpan.textContent = status.toUpperCase();
-
-                // Adicione a classe base
-                statusSpan.classList.add('status-pgto'); 
-
-                if (status === "pendente") {
-                    statusSpan.classList.add('pendente');
-                } else if (status === "pago") {
-                    statusSpan.classList.add('pago');
+                    statusCell.appendChild(statusSpan);
                 }
-                statusCell.appendChild(statusSpan);
                 
             });
         } else {
@@ -1117,45 +1127,45 @@ async function verificaStaff() {
             // --- Regras de Validação e Atribuição de statusPgto ---
 
             // Condição 1: Tudo vazio, exceto valorCache (que é obrigatório), E comprovanteCache preenchido
-            console.log("VALORES CUSTOS ANTES", vlrCusto, extra, caixinha, almoco, jantar, transporte);
-            const custosVazios = extra === 0 && caixinha === 0 && almoco === 0 && jantar === 0 && transporte === 0;
-            console.log("VALORES CUSTOS DEPOIS", vlrCusto, extra, caixinha, almoco, jantar, transporte, comppgtocacheDoForm, comppgtocacheDoForm, comppgtocaixinhaDoForm);
+        console.log("VALORES CUSTOS ANTES", vlrCusto, extra, caixinha, almoco, jantar, transporte);
+        const custosVazios = extra === 0 && caixinha === 0 && almoco === 0 && jantar === 0 && transporte === 0;
+        console.log("VALORES CUSTOS DEPOIS", vlrCusto, extra, caixinha, almoco, jantar, transporte, comppgtocacheDoForm, comppgtocacheDoForm, comppgtocaixinhaDoForm);
 
-            
-            const vlrCache = parseFloat(vlrCusto); // Corrigindo a inconsistência de nomes
-            const vlrAlmoco = parseFloat(almoco);
-            const vlrJantar = parseFloat(jantar);
-            const vlrTransporte = parseFloat(transporte);
-            const vlrCaixinha = parseFloat(caixinha);
+        
+        const vlrCache = parseFloat(vlrCusto); // Corrigindo a inconsistência de nomes
+        const vlrAlmoco = parseFloat(almoco);
+        const vlrJantar = parseFloat(jantar);
+        const vlrTransporte = parseFloat(transporte);
+        const vlrCaixinha = parseFloat(caixinha);
 
-            const temComprovanteCache = !!comppgtocacheDoForm;
-            const temComprovanteAjudaCusto = !!comppgtoajdcustoDoForm;
-            const temComprovanteCaixinha = !!comppgtocaixinhaDoForm;
+        const temComprovanteCache = !!comppgtocacheDoForm;
+        const temComprovanteAjudaCusto = !!comppgtoajdcustoDoForm;
+        const temComprovanteCaixinha = !!comppgtocaixinhaDoForm;
 
-            // Lógica de Pagamento
-            const cachePago = (vlrCache > 0 && temComprovanteCache);
-            const ajudaCustoPaga = ((vlrAlmoco > 0 || vlrJantar > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto);
-            const caixinhasPagos = ((vlrCaixinha > 0) && temComprovanteCaixinha);
+        // Lógica de Pagamento
+        const cachePago = (vlrCache > 0 && temComprovanteCache);
+        const ajudaCustoPaga = ((vlrAlmoco > 0 || vlrJantar > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto);
+        const caixinhasPagos = ((vlrCaixinha > 0) && temComprovanteCaixinha);
 
-            // A condição para o status ser 'Pago' é se *todas* as partes que têm valor > 0, 
-            // também têm o seu comprovante.
-            // Esta é a lógica mais segura e fácil de ler.
-            if (cachePago && ajudaCustoPaga && caixinhasPagos) {
-                // Se tudo que tem valor > 0 tem comprovante, então é "Pago"
-                statusPgto = "Pago";
-            } else if (
-                (vlrCache <= 0 || (vlrCache > 0 && temComprovanteCache)) && // Se o cache não precisa de comprovação ou está pago
-                ((vlrAlmoco <= 0 && vlrJantar <= 0 && vlrTransporte <= 0) || ((vlrAlmoco > 0 || vlrJantar > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto)) && // Mesma lógica para ajuda de custo
-                (vlrCaixinha <= 0 || (vlrCaixinha > 0 && temComprovanteCaixinha)) // Mesma lógica para extras
-            ) {
-                // Se tudo que tem valor > 0 tem comprovante, então é "Pago"
-                statusPgto = "Pago";
-            } else {
-                statusPgto = "Pendente";
-            }
+        // A condição para o status ser 'Pago' é se *todas* as partes que têm valor > 0, 
+        // também têm o seu comprovante.
+        // Esta é a lógica mais segura e fácil de ler.
+        if (cachePago && ajudaCustoPaga && caixinhasPagos) {
+            // Se tudo que tem valor > 0 tem comprovante, então é "Pago"
+            statusPgto = "Pago";
+        } else if (
+            (vlrCache <= 0 || (vlrCache > 0 && temComprovanteCache)) && // Se o cache não precisa de comprovação ou está pago
+            ((vlrAlmoco <= 0 && vlrJantar <= 0 && vlrTransporte <= 0) || ((vlrAlmoco > 0 || vlrJantar > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto)) && // Mesma lógica para ajuda de custo
+            (vlrCaixinha <= 0 || (vlrCaixinha > 0 && temComprovanteCaixinha)) // Mesma lógica para extras
+        ) {
+            // Se tudo que tem valor > 0 tem comprovante, então é "Pago"
+            statusPgto = "Pago";
+        } else {
+            statusPgto = "Pendente";
+        }
 
 
-            console.log("Status de Pagamento Calculado:", statusPgto);
+        console.log("Status de Pagamento Calculado:", statusPgto);
 
         formData.append('statuspgto', statusPgto);
 
