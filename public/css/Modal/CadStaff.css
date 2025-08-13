@@ -567,6 +567,7 @@ input[type="file"]{
   gap: 0.5px;  /* Espaço entre os inputs */
   max-width: 300; /* Garante que os elementos não ultrapassem o container */
   justify-content: center;
+  align-items: center;
 }
 
 
@@ -705,6 +706,10 @@ select, input[type="text"] {
   transition: 0.3s;
   left: 20px;
 }
+
+ #campoStatusCaixinha label{
+  font-size: 15px;
+ }
 
 .uppercase {
   text-transform: uppercase;

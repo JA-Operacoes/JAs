@@ -547,6 +547,13 @@ option{
   flex-direction: column;
 }
 
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* duas colunas iguais */
+    gap: 20px; /* espaço entre as colunas */
+    align-items: start; /* alinha o topo das duas colunas */
+}
+
 .Permissions {
   --_clr-primary: #666;
   --_clr-hover: #f33131;
@@ -619,7 +626,81 @@ option{
 .Permissions .categoria-titulo {
     font-size: 1.1em;
     font-weight: bold;
-    color: #b60303;
+    color: #ffffff;
+    margin-top: 15px;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+}
+.Permissions2 {
+  --_clr-primary: #666;
+  --_clr-hover: #f33131;
+  --_clr-checked: #ffffff;
+}
+.Permissions2 > div {
+  --_clr-current: var(--_clr-primary);
+
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.Permissions2 > div + div {
+  margin-block-start: 0.5rem;
+}
+.Permissions2 label {
+  cursor: pointer;
+  color: var(--_clr-current);
+  transition: color 150ms ease-in-out;
+}
+
+/* styled checkbox */
+.Permissions2 input[type="checkbox"] {
+  appearance: none;
+  outline: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  aspect-ratio: 1;
+  padding: 0.25rem;
+  background: transparent;
+  border: 1px solid var(--_clr-current);
+  border-radius: 2px;
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+}
+.Permissions2 input[type="checkbox"]::after {
+  content: "\2714";
+  opacity: 0;
+  transition: opacity 150ms ease-in-out;
+  color: var(--_clr-checked);
+  font-size: inherit;
+  font-family: inherit;
+}
+
+.Permissions2 label:hover,
+.Permissions2 input[type="checkbox"]:focus-visible,
+.Permissions2 input[type="checkbox"]:focus-visible + label,
+.Permissions2 input[type="checkbox"]:hover,
+.Permissions2 input[type="checkbox"]:hover + label {
+  --_clr-current: var(--_clr-hover);
+}
+.Permissions2 input[type="checkbox"]:focus-visible::after,
+.Permissions2 input[type="checkbox"]:hover::after {
+  opacity: 0.5;
+  color: var(--_clr-hover);
+}
+
+.Permissions2 input[type="checkbox"]:checked + label:not(:hover),
+.Permissions2 input[type="checkbox"]:checked:not(:hover) {
+  --_clr-current: var(--_clr-checked);
+}
+.Permissions2 input[type="checkbox"]:checked::after {
+  opacity: 1;
+}
+
+.Permissions2 .categoria-titulo {
+    font-size: 1.1em;
+    font-weight: bold;
+    color: #ffffff;
     margin-top: 15px;
     margin-bottom: 5px;
     text-transform: uppercase;
