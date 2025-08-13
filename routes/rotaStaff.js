@@ -632,6 +632,8 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
                     se.comppgtocaixinha,
                     se.setor,
                     se.statuspgto,
+                    se.statusbonus,
+                    se.statuscaixinha,
                     s.idstaff,
                     s.avaliacao
 
@@ -904,7 +906,7 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
             idfuncionario, nmfuncionario, idfuncao, nmfuncao, idcliente, nmcliente,
             idevento, nmevento, idmontagem, nmlocalmontagem, pavilhao,
             vlrcache, vlrextra, vlrtransporte, vlralmoco, vlrjantar, vlrcaixinha,
-            descbonus, datasevento, vlrtotal, descbeneficios, setor, statuspgto
+            descbonus, datasevento, vlrtotal, descbeneficios, setor, statuspgto, statusbonus, statuscaixinha
         } = req.body;
 
         const files = req.files;
@@ -989,12 +991,13 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
                     idcliente = $5, nmcliente = $6, idevento = $7, nmevento = $8, idmontagem = $9,
                     nmlocalmontagem = $10, pavilhao = $11, vlrcache = $12, vlrextra = $13, vlrtransporte = $14,
                     vlralmoco = $15, vlrjantar = $16, vlrcaixinha = $17, descbonus = $18,
-                    datasevento = $19, vlrtotal = $20, comppgtocache = $21, comppgtoajdcusto = $22, comppgtocaixinha = $23, descbeneficios = $24, setor = $25, statuspgto = $26                   
+                    datasevento = $19, vlrtotal = $20, comppgtocache = $21, comppgtoajdcusto = $22, comppgtocaixinha = $23, 
+                    descbeneficios = $24, setor = $25, statuspgto = $26, statusbonus = $27, statuscaixinha = $28                 
                 FROM staff s
                 INNER JOIN staffempresas sme ON sme.idstaff = s.idstaff
                 WHERE se.idstaff = s.idstaff -- Garante que estamos atualizando o staffevento do staff correto
-                  AND se.idstaffevento = $27
-                  AND sme.idempresa = $28
+                  AND se.idstaffevento = $29
+                  AND sme.idempresa = $30
                 RETURNING se.idstaffevento, se.datasevento;
             `;
 
@@ -1024,7 +1027,9 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
                 newComppgtoCaixinhaPath, // Caminho do novo comprovante de extras    
                 descbeneficios,
                 setor, // Novo campo descbeneficios 
-                statuspgto,                      
+                statuspgto,    
+                statusbonus,
+                statuscaixinha,                  
                 idStaffEvento,
                 idempresa // Parâmetro para a verificação de idempresa
             ];
@@ -1104,7 +1109,7 @@ router.post(
       idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
       vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
       vlrcaixinha, nmfuncionario, datasevento: datasEventoRaw,
-      descbonus, descbeneficios, vlrtotal, setor, statuspgto
+      descbonus, descbeneficios, vlrtotal, setor, statuspgto, statusbonus, statuscaixinha
     } = req.body;
 
     const files = req.files;
@@ -1183,8 +1188,9 @@ router.post(
             idstaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
             idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
             vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
-            vlrcaixinha, descbonus, datasevento, vlrtotal, comppgtocache, comppgtoajdcusto, comppgtocaixinha, descbeneficios, setor, statuspgto
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
+            vlrcaixinha, descbonus, datasevento, vlrtotal, comppgtocache, comppgtoajdcusto, comppgtocaixinha, descbeneficios, setor, statuspgto,
+            statusbonus, statuscaixinha
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29)
           RETURNING idstaffevento;
         `;
         const eventoInsertValues = [
@@ -1205,7 +1211,9 @@ router.post(
           comprovanteCaixinhaFile ? `/uploads/staff_comprovantes/${comprovanteCaixinhaFile.filename}` : null,
           descbeneficios,
           setor,
-          statuspgto
+          statuspgto,
+          statusbonus,
+          statuscaixinha
         ];
 
         await client.query(eventoInsertQuery, eventoInsertValues);

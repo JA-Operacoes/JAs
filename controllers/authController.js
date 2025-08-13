@@ -10,6 +10,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 async function verificarUsuarioExistente(req, res) {
   //const { nome, sobrenome, email, ativo, idempresadefault, empresas } = req.body;
   const { nome, sobrenome, email, ativo, idempresadefault } = req.body;
+  
   console.log("verificarUsuarioExistente AuthController", req.body);
   try {
     // const { rows } = await db.query("SELECT * FROM usuarios WHERE nome = $1 AND sobrenome = $2 AND email = $3 AND ativo = $4", [nome, sobrenome, email, ativo, idempresadefault]);
@@ -425,7 +426,9 @@ async function listarPermissoes(req, res) {
         pesquisar AS pesquisar,
         cadastrar AS cadastrar,
         alterar   AS alterar,
-        apagar    AS apagar
+        apagar    AS apagar,
+        master    AS master,
+        financeiro AS financeiro
       FROM permissoes
       WHERE idusuario = $1 AND idempresa = $2
       `,
@@ -439,7 +442,9 @@ async function listarPermissoes(req, res) {
       pode_pesquisar: p.pesquisar,
       pode_cadastrar: p.cadastrar,
       pode_alterar: p.alterar,
-      pode_apagar: p.apagar // Adiciona a propriedade de apagar, se existir
+      pode_apagar: p.apagar, // Adiciona a propriedade de apagar, se existir
+      pode_master: p.master,
+      pode_financeiro: p.financeiro
     }));
 
     res.json(permissoes);
