@@ -210,6 +210,14 @@
                     <input id="Caixinhacheck" type="checkbox" />
                     <label for="Caixinhacheck">Caixinha</label>
                   </div>
+                  <div class="Vertical">
+                    <input id="diariaDobradacheck" name="tipoDiaria" type="checkbox" value="Diaria Dobrada" />
+                    <label for="diariaDobradacheck">Diaria Dobrada</label>
+                  </div>
+                  <div class="Vertical">
+                    <input id="meiaDiariacheck" name="tipoDiaria" type="checkbox" value="Meia Diaria" />
+                    <label for="meiaDiariacheck">Meia Diaria</label>
+                  </div>
                 </div>
 
                 <div class="form-2colunas">
@@ -221,6 +229,14 @@
                       <input type="text" name="extra" id="extra">
                       <label for="extra">Bônus</label>
                     </div> 
+                    <div class="form2" id="campoDiariaDobrada" style="display: none;">
+                      <input type="text" class="preenchido" name="diariaDobrada" id="diariaDobrada" placeholder="Selecione a Data Dobrada">
+                    </div> 
+                    <div class="form2" id="campoMeiaDiaria" style="display: none;">
+                      <input type="text" class="preenchido" name="meiaDiaria" id="meiaDiaria" placeholder="Selecione a Data">
+                    </div> 
+
+                    
                     <textarea name="bonus[]" id="bonus" placeholder="Descritivo do Bônus" style="display: none;" required></textarea>                   
                 </div>    
 
