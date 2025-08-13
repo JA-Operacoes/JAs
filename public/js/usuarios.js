@@ -1,6 +1,61 @@
 
 import { fetchComToken } from '../../utils/utils.js';
 
+
+const acessoCheckbox = document.getElementById('Acesso');
+const listaEmpresas = document.getElementById('listaEmpresas');
+const moduloSelect = document.getElementById('modulo');
+
+// Obtém todas as outras checkboxes de permissões
+const outrasPermissoes = [
+    document.getElementById('Cadastrar'),
+    document.getElementById('Alterar'),
+    document.getElementById('Pesquisar'),
+    document.getElementById('Apagar'),
+    document.getElementById('Master'),
+    document.getElementById('Financeiro')
+];
+
+
+function verificarE_HabilitarPermissoes() {
+
+  console.log("ENTROU EM VERIFICARHABILITARPERMISSAO");
+    const empresaPreenchida = listaEmpresas.value !== '' && listaEmpresas.value !== 'Selecione Empresa';
+    const moduloPreenchido = moduloSelect.value !== '' && moduloSelect.value !== 'choose';
+       
+    const podeHabilitarAcesso = empresaPreenchida && moduloPreenchido;
+    acessoCheckbox.disabled = !podeHabilitarAcesso;
+
+    if (!podeHabilitarAcesso) {
+        acessoCheckbox.checked = false;
+    }    
+
+    const acessoMarcado = acessoCheckbox.checked;
+    outrasPermissoes.forEach(checkbox => {
+        checkbox.disabled = !acessoMarcado;
+        if (!acessoMarcado) {
+            checkbox.checked = false;
+        }
+    });
+}
+
+acessoCheckbox.addEventListener('change', verificarE_HabilitarPermissoes);
+listaEmpresas.addEventListener('change', verificarE_HabilitarPermissoes);
+moduloSelect.addEventListener('change', verificarE_HabilitarPermissoes);
+
+document.addEventListener('DOMContentLoaded', verificarE_HabilitarPermissoes);
+// Adiciona um evento para o clique na checkbox de acesso
+// acessoCheckbox.addEventListener('change', () => {
+//     const isChecked = acessoCheckbox.checked;
+
+//     outrasPermissoes.forEach(checkbox => {
+//         checkbox.disabled = !isChecked; // Habilita se estiver marcada, desabilita se não
+//         if (!isChecked) {
+//             checkbox.checked = false; // Desmarca as outras checkboxes se o acesso for revogado
+//         }
+//     });
+// });
+
 document.getElementById("Registrar").addEventListener("submit", async function (e) {
     e.preventDefault();
   
@@ -291,7 +346,7 @@ async function verificarUsuarioExistenteFront() {
       body: JSON.stringify({ nome, sobrenome, email, ativo, idempresaDefault: idempresaDefault, empresas: empresaSelecionada }) // Envia idempresaDefault e empresas como array vazio,
     });
 
-    //const dados = await resposta.json();
+    console.log("USUARIOEXISTENTE", dados.usuarioExistente);
 
     if (dados.usuarioExistente) {
       if (dados.usuarioExistente.ativo) {
@@ -839,8 +894,10 @@ async function carregarPermissoesEEmpresasDoUsuario(email) {
         `.modulo-container[data-modulo="${permissao.modulo}"] input[type="checkbox"][data-tipo="${permissao.tipo}"]`
       );
       if (checkbox) {
+        console.log("CHECKBOX", checkbox);
         checkbox.checked = true;
       }
+       
     });
 
     // Marca as empresas selecionadas
@@ -850,6 +907,8 @@ async function carregarPermissoesEEmpresasDoUsuario(email) {
     //     checkbox.checked = true;
     //   }
     // });
+
+   
 
   } catch (erro) {
     console.error("Erro ao carregar permissões e empresas:", erro);
@@ -1046,6 +1105,8 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
     alterar:   document.getElementById("Alterar").checked,
     pesquisar: document.getElementById("Pesquisar").checked,
     apagar:    document.getElementById("Apagar").checked,
+    master:    document.getElementById("Master").checked,
+    financeiro:document.getElementById("Financeiro").checked,
   };
 
   // Verifica se há mudança nas permissões
@@ -1073,9 +1134,12 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
     cadastrar: atuais.cadastrar,
     alterar: atuais.alterar,
     pesquisar: atuais.pesquisar,
-    apagar: atuais.apagar
-
+    apagar: atuais.apagar,
+    master: atuais.master,
+    financeiro: atuais.financeiro
   };
+
+  console.log("PAYLOAD", payload);
 
   try {
     const dados = await fetchComToken("/permissoes/cadastro", {
@@ -1170,6 +1234,8 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
   const chkAlterar   = document.getElementById("Alterar");
   const chkPesquisar = document.getElementById("Pesquisar");
   const chkApagar    = document.getElementById("Apagar");
+  const chkMaster    = document.getElementById("Master");
+  const chkFinanceiro= document.getElementById("Financeiro");
   
 
   try {
@@ -1205,7 +1271,10 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
       chkAlterar.checked    = Boolean(p.alterar);
       chkPesquisar.checked  = Boolean(p.pesquisar);
       chkApagar.checked     = Boolean(p.apagar);
-      
+      chkMaster.checked     = Boolean(p.master);
+      chkFinanceiro.checked = Boolean(p.financeiro);      
+
+      verificarE_HabilitarPermissoes();
 
       permissoesOriginais = {
         modulo: p.modulo,
@@ -1213,7 +1282,9 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
         cadastrar: Boolean(p.cadastrar),
         alterar: Boolean(p.alterar),
         pesquisar: Boolean(p.pesquisar),
-        apagar: Boolean(p.apagar)
+        apagar: Boolean(p.apagar),
+        master: Boolean(p.master),
+        financeiro: Boolean(p.financeiro)
        
       };
     } else {
@@ -1224,7 +1295,9 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
         cadastrar: false,
         alterar: false,
         pesquisar: false,
-        apagar: false
+        apagar: false,
+        master: false,
+        financeiro: false
       };
     }
     console.log("Permissões originais:", permissoesOriginais);

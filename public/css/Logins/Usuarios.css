@@ -614,6 +614,17 @@ option{
 }
 
 
+
+
+.Permissions .categoria-titulo {
+    font-size: 1.1em;
+    font-weight: bold;
+    color: #b60303;
+    margin-top: 15px;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+}
+
 .bts{
   display: flex;
   justify-content: center;

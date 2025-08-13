@@ -21,7 +21,7 @@ router.post('/cadastro', autenticarToken({ verificarEmpresa: false }),
 
             console.log('Buscando dados anteriores para:', { idusuario, modulo, idempresa }); // NOVO LOG
             const result = await db.query(
-                'SELECT acesso, modulo, cadastrar, alterar, pesquisar FROM permissoes WHERE idusuario = $1 AND modulo = $2 AND idempresa = $3',
+                'SELECT acesso, modulo, cadastrar, alterar, pesquisar, master, financeiro FROM permissoes WHERE idusuario = $1 AND modulo = $2 AND idempresa = $3',
                 [idusuario, modulo, idempresa]
             );
             const linha = result.rows[0] || null; // Se não encontrar, será null

@@ -185,9 +185,14 @@ const extracheck = document.getElementById('Extracheck');
 const campoExtra = document.getElementById('campoExtra');
 const caixinhacheck = document.getElementById('Caixinhacheck');
 const campoCaixinha = document.getElementById('campoCaixinha');
+const campoStatusCaixinha = document.getElementById('campoStatusCaixinha');
+const campoStatusBonus = document.getElementById('campoStatusBonus');
 const setorInput = document.getElementById('setor');
 
 const statusPagtoInput = document.getElementById('statusPgto');
+const statusBonusInput = document.getElementById('statusBonus');
+const statusCaixinhaInput = document.getElementById('statusCaixinha');
+
 
 const diariaDobradacheck = document.getElementById('diariaDobradacheck');
 const meiaDiariacheck = document.getElementById('meiaDiariacheck');
@@ -305,6 +310,8 @@ const carregarDadosParaEditar = (eventData) => {
     vlrTotalInput.value = parseFloat(eventData.total || 0).toFixed(2).replace('.', ',');
     setorInput.value = eventData.setor.toUpperCase() || ''; // Setor do funcionário, se necessário
     statusPagtoInput.value = eventData.statuspgto.toUpperCase() || '';
+    statusCaixinhaInput.value = eventData.statuscaixinha;
+    statusBonusInput.value = eventData.statusbonus;
 
     
 
@@ -331,18 +338,28 @@ const carregarDadosParaEditar = (eventData) => {
         extracheck.checked = (parseFloat(eventData.vlrextra || 0) > 0);
         campoExtra.style.display = extracheck.checked ? 'block' : 'none';
 
+        campoStatusBonus.style.display = extracheck.checked ? 'block' : 'none';
+
         const bonusTextarea = document.getElementById('bonus');
         if (bonusTextarea) {
             bonusTextarea.style.display = extracheck.checked ? 'block' : 'none';
             bonusTextarea.required = extracheck.checked; // Torna obrigatório apenas se visível
-            if (!extracheck.checked) {
-                bonusTextarea.value = ''; // Limpa o conteúdo se estiver sendo ocultado
-            }
+            // if (!extracheck.checked) {
+            //     bonusTextarea.value = ''; // Limpa o conteúdo se estiver sendo ocultado
+            // }
+            
         }
+
+        const statusBonus = document.getElementById('statusBonus');
+        if (statusBonus){
+
+        }
+        
     }
     if (caixinhacheck && campoCaixinha) {
         caixinhacheck.checked = (parseFloat(eventData.vlrcaixinha || 0) > 0);
         campoCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
+        campoStatusCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
     }   
     
     if (eventData.datasevento) {
@@ -496,76 +513,86 @@ const carregarTabelaStaff = async (funcionarioId) => {
                 const row = eventsTableBody.insertRow();                    
                 row.dataset.eventData = JSON.stringify(eventData);             
 
-                row.addEventListener('dblclick', () => {
-                    isFormLoadedFromDoubleClick = true;
-                    if (currentRowSelected) {
-                        currentRowSelected.classList.remove('selected-row');
-                    }
-                    // Adiciona a classe 'selected-row' à linha clicada
-                    row.classList.add('selected-row');
-                    // Atualiza a referência da linha selecionada
-                    currentRowSelected = row;
+                if (eventData.status === "Pago"){
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Não é possível inserir dados para edição.',
+                        text: 'Evento deste funcionário já foi concluído e pago',
+                    });
+                    return;
 
-                    carregarDadosParaEditar(eventData)});                   
+                }else{
+                    row.addEventListener('dblclick', () => {
+                        isFormLoadedFromDoubleClick = true;
+                        if (currentRowSelected) {
+                            currentRowSelected.classList.remove('selected-row');
+                        }
+                        // Adiciona a classe 'selected-row' à linha clicada
+                        row.classList.add('selected-row');
+                        // Atualiza a referência da linha selecionada
+                        currentRowSelected = row;
+
+                        carregarDadosParaEditar(eventData)});                   
+                        
+
+                    //  row.insertCell().textContent = eventData.idevento || '';
+                    row.insertCell().textContent = eventData.nmfuncao || '';
+                    row.insertCell().textContent = eventData.setor || '';
+                    row.insertCell().textContent = eventData.nmcliente || '';
+                    row.insertCell().textContent = eventData.nmevento || '';
+                    row.insertCell().textContent = eventData.nmlocalmontagem || '';
+                    row.insertCell().textContent = eventData.pavilhao || '';
+                    row.insertCell().textContent = (eventData.datasevento && typeof eventData.datasevento === 'string')
+                    
+                    ? JSON.parse(eventData.datasevento) // Primeiro parseia a string JSON para um array
+                    .map(dateStr => { // Depois, mapeia cada string de data no array
+                        const parts = dateStr.split('-'); // Divide a data (ex: ['2025', '07', '01'])
+                        if (parts.length === 3) {
+                            return `${parts[2]}/${parts[1]}/${parts[0]}`; // Reorganiza para DD/MM/YYYY
+                        }
+                        return dateStr; // Retorna a data original se não estiver no formato esperado
+                    })
+                    .join(', ') // Junta as datas formatadas com vírgula e espaço
+                    : (Array.isArray(eventData.datasevento) && eventData.datasevento.length > 0)
+                    ? eventData.datasevento // Se já for um array (do backend, por exemplo)
+                    .map(dateStr => {
+                        const parts = dateStr.split('-');
+                        if (parts.length === 3) {
+                            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                        }
+                        return dateStr;
+                    })
+                    .join(', ')
+                    : 'N/A';                               
+
+                    row.insertCell().textContent = parseFloat(eventData.vlrcache || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    row.insertCell().textContent = parseFloat(eventData.vlrextra || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    row.insertCell().textContent = eventData.descbonus || '';
+                    row.insertCell().textContent = parseFloat(eventData.almoco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    row.insertCell().textContent = parseFloat(eventData.jantar || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });                                
+                    row.insertCell().textContent = parseFloat(eventData.vlrtransporte || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });               
+                    row.insertCell().textContent = eventData.descbeneficios || '';
+                    row.insertCell().textContent = parseFloat(eventData.vlrtotal || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    // row.insertCell().textContent = eventData.statuspgto || '';
+                    
+                    const statusCell = row.insertCell();             
                     
 
-                //  row.insertCell().textContent = eventData.idevento || '';
-                row.insertCell().textContent = eventData.nmfuncao || '';
-                row.insertCell().textContent = eventData.setor || '';
-                row.insertCell().textContent = eventData.nmcliente || '';
-                row.insertCell().textContent = eventData.nmevento || '';
-                row.insertCell().textContent = eventData.nmlocalmontagem || '';
-                row.insertCell().textContent = eventData.pavilhao || '';
-                row.insertCell().textContent = (eventData.datasevento && typeof eventData.datasevento === 'string')
-                
-                ? JSON.parse(eventData.datasevento) // Primeiro parseia a string JSON para um array
-                .map(dateStr => { // Depois, mapeia cada string de data no array
-                    const parts = dateStr.split('-'); // Divide a data (ex: ['2025', '07', '01'])
-                    if (parts.length === 3) {
-                        return `${parts[2]}/${parts[1]}/${parts[0]}`; // Reorganiza para DD/MM/YYYY
+                    const status = (eventData.statuspgto || '').toLowerCase();
+                    const statusSpan = document.createElement('span');
+                    statusSpan.textContent = status.toUpperCase();
+
+                    // Adicione a classe base
+                    statusSpan.classList.add('status-pgto'); 
+
+                    if (status === "pendente") {
+                        statusSpan.classList.add('pendente');
+                    } else if (status === "pago") {
+                        statusSpan.classList.add('pago');
                     }
-                    return dateStr; // Retorna a data original se não estiver no formato esperado
-                })
-                .join(', ') // Junta as datas formatadas com vírgula e espaço
-                : (Array.isArray(eventData.datasevento) && eventData.datasevento.length > 0)
-                ? eventData.datasevento // Se já for um array (do backend, por exemplo)
-                .map(dateStr => {
-                    const parts = dateStr.split('-');
-                    if (parts.length === 3) {
-                        return `${parts[2]}/${parts[1]}/${parts[0]}`;
-                    }
-                    return dateStr;
-                })
-                .join(', ')
-                : 'N/A';                               
-
-                row.insertCell().textContent = parseFloat(eventData.vlrcache || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                row.insertCell().textContent = parseFloat(eventData.vlrextra || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                row.insertCell().textContent = eventData.descbonus || '';
-                row.insertCell().textContent = parseFloat(eventData.almoco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                row.insertCell().textContent = parseFloat(eventData.jantar || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });                                
-                row.insertCell().textContent = parseFloat(eventData.vlrtransporte || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });               
-                row.insertCell().textContent = eventData.descbeneficios || '';
-                row.insertCell().textContent = parseFloat(eventData.vlrtotal || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                // row.insertCell().textContent = eventData.statuspgto || '';
-                
-                const statusCell = row.insertCell();             
-                
-
-                const status = (eventData.statuspgto || '').toLowerCase();
-                const statusSpan = document.createElement('span');
-                statusSpan.textContent = status.toUpperCase();
-
-                // Adicione a classe base
-                statusSpan.classList.add('status-pgto'); 
-
-                if (status === "pendente") {
-                    statusSpan.classList.add('pendente');
-                } else if (status === "pago") {
-                    statusSpan.classList.add('pago');
+                    statusCell.appendChild(statusSpan);
                 }
-                statusCell.appendChild(statusSpan);
                 
             });
         } else {
@@ -700,6 +727,84 @@ async function verificaStaff() {
    // datasEventoInput.addEventListener('change', debouncedOnCriteriosChanged);
     
 
+  // Adicione um listener de `change` para o extraInput para garantir que o valor seja formatado corretamente.
+// --- AQUI ESTÁ O CÓDIGO CORRIGIDO ---
+
+// Adicione esta lógica no evento de `change` do extraInput
+    extraInput.addEventListener('change', () => {
+        let valor = extraInput.value.replace(',', '.');
+        if (!isNaN(parseFloat(valor))) {
+            extraInput.value = parseFloat(valor).toFixed(2).replace('.', ',');
+        } else {
+            extraInput.value = '0,00';
+        }
+    });
+
+    // A LÓGICA DO CHECKBOX CORRIGIDA
+    extracheck.addEventListener('change', (e) => {
+    // Definimos isChecked UMA ÚNICA VEZ antes do Swal, para a condição inicial
+    const isCheckedBeforeSwal = extracheck.checked;
+    const valorExtraOriginal = parseFloat(currentEditingStaffEvent.vlrextra || 0);
+
+    if (!isCheckedBeforeSwal && valorExtraOriginal > 0) {
+        
+        e.preventDefault(); 
+        
+        Swal.fire({
+            title: 'Atenção!',
+            text: 'Você tem um valor preenchido para o Extra. Desmarcar a caixa irá remover esse valor e a descrição. Deseja continuar?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Sim, continuar!',
+            cancelButtonText: 'Não, cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                extracheck.checked = false;
+                campoExtra.style.display = 'none';
+                bonusTextarea.style.display = 'none';
+                campoStatusBonus.style.display = 'none'; 
+                extraInput.value = '0,00';
+                bonusTextarea.value = '';
+                statusBonusInput.value = '';
+            } else {
+                // SE O USUÁRIO CANCELAR:
+                // 1. Reverte o estado do checkbox para true
+                extracheck.checked = true;
+                
+                // 2. RE-EXIBE OS CAMPOS com o estado atualizado do checkbox
+                campoExtra.style.display = 'block';
+                bonusTextarea.style.display = 'block';
+                // Agora, isChecked é true, então esta linha será executada
+                campoStatusBonus.style.setProperty('display', 'block', 'important'); 
+
+                if (currentEditingStaffEvent) {
+                    extraInput.value = valorExtraOriginal.toFixed(2).replace('.', ',');
+                    bonusTextarea.value = currentEditingStaffEvent.descbonus || '';
+                    statusBonusInput.value = currentEditingStaffEvent.statusbonus || 'Pendente';
+                }
+            }
+        });
+    } else {
+        // Lógica padrão
+        campoExtra.style.display = isCheckedBeforeSwal ? 'block' : 'none';
+        bonusTextarea.style.display = isCheckedBeforeSwal ? 'block' : 'none';
+        campoStatusBonus.style.display = isCheckedBeforeSwal ? 'block' : 'none';
+
+        if (isCheckedBeforeSwal) {
+            extraInput.value = valorExtraOriginal.toFixed(2).replace('.', ',');
+            bonusTextarea.value = currentEditingStaffEvent.descbonus || '';
+            statusBonusInput.value = currentEditingStaffEvent.statusbonus || 'Pendente';
+        } else {
+            extraInput.value = '0,00';
+            bonusTextarea.value = '';
+            statusBonusInput.value = '';
+        }
+    }
+});
+
+
     botaoEnviar.addEventListener("click", async (event) => {
       event.preventDefault(); // Previne o envio padrão do formulário    
 
@@ -737,11 +842,16 @@ async function verificaStaff() {
         const descBonus = descBonusInput.value.trim() || "";
         const descBeneficio = descBeneficioInput?.value.trim() || "";
         const setor = document.querySelector("#setor").value.trim().toUpperCase(); 
+
+        const statusCaixinha = document.getElementById("statusCaixinha").value;
+        const statusBonus = document.getElementById("statusBonus").value;
         
         const datasEventoRawValue = datasEventoInput.value.trim();
         const periodoDoEvento = getPeriodoDatas(datasEventoRawValue);     
         const diariaDobradaRawValue = diariaDobradaInput.value.trim();
-        const periodoDobrado = getPeriodoDatas(diariaDobradaRawValue);     
+        const periodoDobrado = getPeriodoDatas(diariaDobradaRawValue);       
+        
+        console.log("STATUS", statusCaixinha, statusBonus);
 
         
 
@@ -797,8 +907,7 @@ async function verificaStaff() {
         
       // Permissões
         const temPermissaoCadastrar = temPermissao("Staff", "cadastrar");
-        const temPermissaoAlterar = temPermissao("Staff", "alterar");
-
+        const temPermissaoAlterar = temPermissao("Staff", "alterar"); 
         
         const idStaffEvento = document.querySelector("#idStaffEvento").value;
 
@@ -1141,7 +1250,6 @@ async function verificaStaff() {
         // formData.append('Data de Evento:', dataevento);
         formData.append('datasevento', JSON.stringify(periodoDoEvento));
         formData.append('vlrtotal', total.toString()); 
-
         
 
         const fileCacheInput = document.getElementById('fileCache');
@@ -1209,47 +1317,49 @@ async function verificaStaff() {
             // --- Regras de Validação e Atribuição de statusPgto ---
 
             // Condição 1: Tudo vazio, exceto valorCache (que é obrigatório), E comprovanteCache preenchido
-            console.log("VALORES CUSTOS ANTES", vlrCusto, extra, caixinha, almoco, jantar, transporte);
-            const custosVazios = extra === 0 && caixinha === 0 && almoco === 0 && jantar === 0 && transporte === 0;
-            console.log("VALORES CUSTOS DEPOIS", vlrCusto, extra, caixinha, almoco, jantar, transporte, comppgtocacheDoForm, comppgtocacheDoForm, comppgtocaixinhaDoForm);
+        console.log("VALORES CUSTOS ANTES", vlrCusto, extra, caixinha, almoco, jantar, transporte);
+        const custosVazios = extra === 0 && caixinha === 0 && almoco === 0 && jantar === 0 && transporte === 0;
+        console.log("VALORES CUSTOS DEPOIS", vlrCusto, extra, caixinha, almoco, jantar, transporte, comppgtocacheDoForm, comppgtocacheDoForm, comppgtocaixinhaDoForm);
 
-            
-            const vlrCache = parseFloat(vlrCusto); // Corrigindo a inconsistência de nomes
-            const vlrAlmoco = parseFloat(almoco);
-            const vlrJantar = parseFloat(jantar);
-            const vlrTransporte = parseFloat(transporte);
-            const vlrCaixinha = parseFloat(caixinha);
+        
+        const vlrCache = parseFloat(vlrCusto); // Corrigindo a inconsistência de nomes
+        const vlrAlmoco = parseFloat(almoco);
+        const vlrJantar = parseFloat(jantar);
+        const vlrTransporte = parseFloat(transporte);
+        const vlrCaixinha = parseFloat(caixinha);
 
-            const temComprovanteCache = !!comppgtocacheDoForm;
-            const temComprovanteAjudaCusto = !!comppgtoajdcustoDoForm;
-            const temComprovanteCaixinha = !!comppgtocaixinhaDoForm;
+        const temComprovanteCache = !!comppgtocacheDoForm;
+        const temComprovanteAjudaCusto = !!comppgtoajdcustoDoForm;
+        const temComprovanteCaixinha = !!comppgtocaixinhaDoForm;
 
-            // Lógica de Pagamento
-            const cachePago = (vlrCache > 0 && temComprovanteCache);
-            const ajudaCustoPaga = ((vlrAlmoco > 0 || vlrJantar > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto);
-            const caixinhasPagos = ((vlrCaixinha > 0) && temComprovanteCaixinha);
+        // Lógica de Pagamento
+        const cachePago = (vlrCache > 0 && temComprovanteCache);
+        const ajudaCustoPaga = ((vlrAlmoco > 0 || vlrJantar > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto);
+        const caixinhasPagos = ((vlrCaixinha > 0) && temComprovanteCaixinha);
 
-            // A condição para o status ser 'Pago' é se *todas* as partes que têm valor > 0, 
-            // também têm o seu comprovante.
-            // Esta é a lógica mais segura e fácil de ler.
-            if (cachePago && ajudaCustoPaga && caixinhasPagos) {
-                // Se tudo que tem valor > 0 tem comprovante, então é "Pago"
-                statusPgto = "Pago";
-            } else if (
-                (vlrCache <= 0 || (vlrCache > 0 && temComprovanteCache)) && // Se o cache não precisa de comprovação ou está pago
-                ((vlrAlmoco <= 0 && vlrJantar <= 0 && vlrTransporte <= 0) || ((vlrAlmoco > 0 || vlrJantar > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto)) && // Mesma lógica para ajuda de custo
-                (vlrCaixinha <= 0 || (vlrCaixinha > 0 && temComprovanteCaixinha)) // Mesma lógica para extras
-            ) {
-                // Se tudo que tem valor > 0 tem comprovante, então é "Pago"
-                statusPgto = "Pago";
-            } else {
-                statusPgto = "Pendente";
-            }
+        // A condição para o status ser 'Pago' é se *todas* as partes que têm valor > 0, 
+        // também têm o seu comprovante.
+        // Esta é a lógica mais segura e fácil de ler.
+        if (cachePago && ajudaCustoPaga && caixinhasPagos) {
+            // Se tudo que tem valor > 0 tem comprovante, então é "Pago"
+            statusPgto = "Pago";
+        } else if (
+            (vlrCache <= 0 || (vlrCache > 0 && temComprovanteCache)) && // Se o cache não precisa de comprovação ou está pago
+            ((vlrAlmoco <= 0 && vlrJantar <= 0 && vlrTransporte <= 0) || ((vlrAlmoco > 0 || vlrJantar > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto)) && // Mesma lógica para ajuda de custo
+            (vlrCaixinha <= 0 || (vlrCaixinha > 0 && temComprovanteCaixinha)) // Mesma lógica para extras
+        ) {
+            // Se tudo que tem valor > 0 tem comprovante, então é "Pago"
+            statusPgto = "Pago";
+        } else {
+            statusPgto = "Pendente";
+        }
 
 
-            console.log("Status de Pagamento Calculado:", statusPgto);
+        console.log("Status de Pagamento Calculado:", statusPgto);
 
         formData.append('statuspgto', statusPgto);
+        formData.append('statusbonus', statusBonus);
+        formData.append('statuscaixinha', statusCaixinha);
 
         console.log("Preparando envio de FormData. Método:", metodo, "URL:", url, window.StaffOriginal);
         console.log("Dados do FormData:", {
@@ -1357,7 +1467,9 @@ async function verificaStaff() {
                 currentEditingStaffEvent.idevento != idEvento ||
                 currentEditingStaffEvent.idmontagem != idMontagem ||
                 (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao ||
-                (currentEditingStaffEvent.statuspgto || '').trim() != statusPgto.trim()
+                (currentEditingStaffEvent.statuspgto || '').trim() != statusPgto.trim() ||
+                (currentEditingStaffEvent.statusbonus || '').trim() != statusBonus.trim() ||
+                (currentEditingStaffEvent.statuscaixinha || '').trim() != statusCaixinha.trim()
             ) {
                 houveAlteracao = true;
             }            
@@ -1381,6 +1493,8 @@ async function verificaStaff() {
                 logAndCheck('Descrição Benefícios', (currentEditingStaffEvent.descbeneficios || '').trim(), descBeneficio.trim(), (currentEditingStaffEvent.descbeneficios || '').trim() != descBeneficio.trim()) ||
                 logAndCheck('Setor', (currentEditingStaffEvent.setor.toUpperCase() || '').trim(), setor.trim().toUpperCase(), (currentEditingStaffEvent.setor.toUpperCase() || '').trim() != setor.toUpperCase().trim()) ||
                 logAndCheck('StatusPgto', (currentEditingStaffEvent.statuspgto || '').trim(), statusPgto.trim(), (currentEditingStaffEvent.statuspgto || '').trim() != statusPgto.trim()) ||
+                logAndCheck('StatusBonus', (currentEditingStaffEvent.statusbonus || '').trim(), statusBonus.trim(), (currentEditingStaffEvent.statusbonus || '').trim() != statusBonus.trim()) ||
+                logAndCheck('StatusCaixinha', (currentEditingStaffEvent.statuscaixinha || '').trim(), statusCaixinha.trim(), (currentEditingStaffEvent.statuscaixinha || '').trim() != statusCaixinha.trim()) ||
                 logAndCheck('ID Cliente', currentEditingStaffEvent.idcliente, idCliente, currentEditingStaffEvent.idcliente != idCliente) ||
                 logAndCheck('ID Evento', currentEditingStaffEvent.idevento, idEvento, currentEditingStaffEvent.idevento != idEvento) ||
                 logAndCheck('ID Montagem', currentEditingStaffEvent.idmontagem, idMontagem, currentEditingStaffEvent.idmontagem != idMontagem) ||
@@ -3053,6 +3167,9 @@ function limparCamposEvento() {
     document.getElementById('bonus').value = '';
     document.getElementById('descBeneficio').value = '';
 
+    document.getElementById('statusCaixinha').value = '';
+    document.getElementById('statusBonus').value = '';
+
     // Garanta que os containers opcionais sejam ocultados
     document.getElementById('campoExtra').style.display = 'none';
     document.getElementById('campoCaixinha').style.display = 'none';
@@ -3068,7 +3185,7 @@ function limparCamposStaff() {
         "idStaff", "nmFuncionario", "apelidoFuncionario", "linkFotoFuncionarios", "descFuncao", "vlrCusto",
         "nmLocalMontagem", "nmPavilhao", "almoco", "jantar", "transporte", "vlrBeneficio", "descBeneficio",
         "nmCliente", "nmEvento", "vlrTotal", "vlrTotalHidden", "idFuncionario", "idFuncao", "idMontagem",
-        "idPavilhao", "idCliente", "idEvento", "statusPgto"
+        "idPavilhao", "idCliente", "idEvento", "statusPgto", "statusCaixinha", "statusBonus"
     ];
 
     campos.forEach(id => {
@@ -3151,6 +3268,8 @@ function limparCamposStaff() {
     const campoExtra = document.getElementById('campoExtra');
     const caixinhaCheck = document.getElementById('Caixinhacheck');
     const campoCaixinha = document.getElementById('campoCaixinha');
+    const campoStatusCaixinha = document.getElementById('campoStatusCaixinha');
+    const campoStatusBonus = document.getElementById('campoStatusBonus');
 
     if (extraCheck) {
         extraCheck.checked = false;
@@ -3163,14 +3282,32 @@ function limparCamposStaff() {
             bonusTextarea.style.display = 'none'; // Oculta o textarea
             bonusTextarea.required = false;      // Remove a obrigatoriedade
             bonusTextarea.value = '';            // Limpa o conteúdo
-        }
+        } 
+        
+        if (campoStatusBonus) campoStatusBonus.style.display = 'none';
+
     }
     if (caixinhaCheck) {
         caixinhaCheck.checked = false;
         if (campoCaixinha) campoCaixinha.style.display = 'none';
         const inputCaixinha = document.getElementById('caixinha');
-        if (inputCaixinha) inputCaixinha.value = '';
+        if (inputCaixinha) inputCaixinha.value = '';     
+        if (campoStatusCaixinha) campoStatusCaixinha.style.display = 'none';
     }
+
+    // const inputStatusBonus = document.getElementById('statusBonus');
+    // if (inputStatusBonus){
+    //     inputStatusBonus.style.display = 'none';
+    //     inputStatusBonus.required = false;
+    //     inputStatusBonus.value = '';
+    // }
+    
+    // const inputStatusCaixinha = document.getElementById('statusCaixinha');
+    // if (inputStatusCaixinha){
+    //     inputStatusCaixinha.style.display = 'none';
+    //     inputStatusCaixinha.required = false;
+    //     inputStatusCaixinha.value = '';
+    // }
 
     const beneficioTextarea = document.getElementById('descBeneficio');
     if (beneficioTextarea) {
@@ -3178,6 +3315,10 @@ function limparCamposStaff() {
         beneficioTextarea.required = false;      // Remove a obrigatoriedade
         beneficioTextarea.value = '';            // Limpa o conteúdo
     }
+
+    const statusPgto = document.getElementById('statuspgto');
+    if (statusPgto) statusPgto.value = '';
+
     const avaliacaoSelect = document.getElementById('avaliacao');
     if (avaliacaoSelect) {
         avaliacaoSelect.value = ''; // Define para o valor da opção vazia (se existir, ex: <option value="">Selecione...</option>)
@@ -3211,6 +3352,7 @@ function limparCamposStaff() {
     }
     
     limparCamposComprovantes();
+    limparFoto();
 
     // ✅ Limpa objeto em memória
     limparStaffOriginal();
@@ -3278,32 +3420,89 @@ function formatarDataParaBackend(dataString) {
 document.getElementById('Extracheck').addEventListener('change', function () {
   const campo = document.getElementById('campoExtra');
   const input = document.getElementById('extra');
+  const campoStatusBonus = document.getElementById('campoStatusBonus');
+  const inputStatusBonus = document.getElementById('statusBonus');
 
   if (this.checked) {
     campo.style.display = 'block';
     input.required = true;
     input.style.width = '100%'; // aplica largura total
+   
+    campoStatusBonus.style.display = 'block';
+    inputStatusBonus.required = true;    
+    inputStatusBonus.style.width = '100%';
+
   } else {
     campo.style.display = 'none';
     input.value = '';
     input.required = false;
+
+    campoStatusBonus.style.display = 'none';
+    inputStatusBonus.value = '';
+    inputStatusBonus.required = false;
   }
 
   calcularValorTotal();
+});
+
+document.getElementById('extra').addEventListener('change', function () {
+    
+    const valorBonus = document.getElementById('extra').value;
+   // const statusBonus = document.getElementById('statusBonus').value;
+    console.log("VALOR DO BONUS", valorBonus);
+    
+    const valorBonusNumerico = parseFloat(valorBonus.replace('R$', '').replace('.', '').replace(',', '.'));
+
+    if (valorBonusNumerico > 0) {
+        document.getElementById('statusBonus').value = 'Pendente';
+    } else {
+        // Se o valor for 0 ou negativo, limpa o status
+        document.getElementById('statusBonus').value = ''; 
+    }
+
+});
+
+document.getElementById('caixinha').addEventListener('change', function () {
+    
+    const valorCaixinha = document.getElementById('caixinha').value;
+   // const statusBonus = document.getElementById('statusBonus').value;
+    console.log("VALOR DA CAIXINHA", valorCaixinha);
+    
+    const valorCaixinhaNumerico = parseFloat(valorCaixinha.replace('R$', '').replace('.', '').replace(',', '.'));
+
+    if (valorCaixinhaNumerico > 0) {
+        document.getElementById('statusCaixinha').value = 'Pendente';
+    } else {
+        // Se o valor for 0 ou negativo, limpa o status
+        document.getElementById('statusCaixinha').value = ''; 
+    }
+
 });
 
 document.getElementById('Caixinhacheck').addEventListener('change', function () {
   const campo = document.getElementById('campoCaixinha');
   const input = document.getElementById('caixinha');
 
+  const campoStatusCaixinha = document.getElementById('campoStatusCaixinha');
+  const inputStatusCaixinha = document.getElementById('statusCaixinha');
+
+
   if (this.checked) {
     campo.style.display = 'block';
     input.required = true;
     input.style.width = '170px'; // aplica largura total
+   
+    campoStatusCaixinha.style.display = 'block';
+    inputStatusCaixinha.required = true;
+    inputStatusCaixinha.style.width = '170px'; 
   } else {
     campo.style.display = 'none';
     input.value = '';
     input.required = false;
+
+    campoStatusCaixinha.style.display = 'none';
+    inputStatusCaixinha.value = '';
+    inputStatusCaixinha.required = false;
   }
 
   calcularValorTotal();
@@ -3596,17 +3795,29 @@ export function preencherComprovanteCampo(filePath, campoNome) {
         mainDisplayContainer.style.display = 'block';
 
         let linkHtml = '';
-        if (filePath.toLowerCase().match(/\.(jpeg|jpg|png|gif|webp|bmp|svg)$/i)) {
+        if (filePath.toLowerCase().match(/\.(jpeg|jpg|png|gif|webp|bmp|svg|jfif)$/i)) {
             linkHtml = `<a href="${filePath}" target="_blank" class="comprovante-salvo-link btn-success">Ver Imagem: ${fileName}</a>`;
         } else if (filePath.toLowerCase().endsWith('.pdf')) {
             linkHtml = `<a href="${filePath}" target="_blank" class="comprovante-salvo-link btn-info">Ver PDF: ${fileName}</a>`;
         }
+        
+        let removerBtnHtml = ''; 
+        
+        const temPermissaoMaster = temPermissao("Staff", "master");
+
+        console.log("PERMISSAO", temPermissaoMaster);
+        if (temPermissaoMaster)
+        {
+            removerBtnHtml = `
+                <button type="button" class="btn btn-sm btn-danger remover-comprovante-btn" data-campo="${campoNome}">
+                    <i class="fas fa-trash"></i> Remover
+                </button>
+            `;
+        }
 
         linkDisplayContainer.innerHTML = `
             ${linkHtml}
-            <button type="button" class="btn btn-sm btn-danger remover-comprovante-btn" data-campo="${campoNome}">
-                <i class="fas fa-trash"></i> Remover
-            </button>
+            ${removerBtnHtml}
         `;
     }
 }
@@ -3674,20 +3885,66 @@ function limparCamposComprovantes() {
     if (mainFileInput) {
         mainFileInput.value = '';
         const mainFileNameSpan = document.getElementById('fileName');
-        const mainPreviewFoto = document.getElementById('previewFoto');
+      //  const mainPreviewFoto = document.getElementById('previewFoto');
         const mainUploadHeader = document.getElementById('uploadHeader');
 
         if (mainFileNameSpan) mainFileNameSpan.textContent = "Nenhum arquivo selecionado";
-        if (mainPreviewFoto) {
-            mainPreviewFoto.src = "#";
-            mainPreviewFoto.style.display = "none";
-        }
+        // if (mainPreviewFoto) {
+        //     mainPreviewFoto.src = "#";
+        //     mainPreviewFoto.style.display = "none";
+        // }
         if (mainUploadHeader) mainUploadHeader.style.display = "block";
     }
 }
 
+function limparFoto() {
+    const mainPreviewFoto = document.getElementById('previewFoto');
+    if (mainPreviewFoto) {
+        mainPreviewFoto.src = "#";
+        mainPreviewFoto.style.display = "none";
+    }
+}
+
+function ocultarCamposComprovantes(papelDoUsuario) {
+    // Condição para MOSTRAR os campos de comprovantes
+    const temPermissaoMaster = temPermissao("Staff", "master");
+    const temPermissaoFinanceiro = temPermissao("Staff", "financeiro");
+
+    const temPermissaoFinanceira = (temPermissaoMaster || temPermissaoFinanceiro);
+
+    // Se o usuário NÃO tiver a permissão, oculta o container.
+    // Caso contrário, ele permanece visível (ou é exibido).
+    if (!temPermissaoFinanceira) {
+        containerPDF.style.display = 'none';
+    } else {
+        containerPDF.style.display = ''; // Volta ao padrão
+    }
+}
+
+
 function configurarEventosStaff() {
     console.log("Configurando eventos Staff...");
+    
+    const containerPDF = document.querySelector('.pdf');
+
+    const temPermissaoMaster = temPermissao("Staff", "master");
+    const temPermissaoFinanceiro = temPermissao("Staff", "financeiro");
+
+    const temPermissaoFinanceira = (temPermissaoMaster || temPermissaoFinanceiro);
+
+
+    // Se o usuário NÃO tiver a permissão, oculta o container.
+    // Caso contrário, ele permanece visível (ou é exibido).
+    if (!temPermissaoFinanceira) {
+        containerPDF.style.display = 'none';
+    } else {
+        containerPDF.style.display = ''; // Volta ao padrão
+    }
+    
+
+    
+
+
     verificaStaff(); // Carrega os Staff ao abrir o modal
     adicionarEventoBlurStaff();
     inicializarFlatpickrsGlobais();
@@ -3697,6 +3954,7 @@ function configurarEventosStaff() {
     const inputExtra = document.getElementById('extra');
     const extracheck = document.getElementById('Extracheck');
     const campoExtra = document.getElementById('campoExtra');
+    
     if (extracheck && campoExtra && bonusTextarea) {
         extracheck.addEventListener('change', function() {
             campoExtra.style.display = this.checked ? 'block' : 'none';
