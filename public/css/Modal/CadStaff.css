@@ -533,6 +533,63 @@ input[type="file"]{
     background-color: #dc3545; /* Vermelho */
   }
 
+  /* Classes para o campo de status */
+
+
+
+/* Classes para o select de status */
+/* #selectStatusBonus option.status-Pendente, */
+#selectStatusBonus.status-Pendente {
+  background-color: #FFFF00; /* Amarelo */
+  color: #000000;          /* Preto */
+  font-weight: bold;
+  text-shadow: none;       /* Remove o contorno, caso ainda exista */
+}
+
+/* #selectStatusBonus option.status-Autorizado, */
+#selectStatusBonus.status-Autorizado {
+  background-color: #28A745; /* Verde */
+  color: #FFFFFF;          /* Branco */
+  font-weight: bold;
+  text-shadow: none;
+}
+
+/* 3. Estilos para o status "Rejeitado" (Fundo Vermelho, Fonte Branca) */
+/* #selectStatusBonus option.status-Rejeitado, */
+#selectStatusBonus.status-Rejeitado {
+  background-color: #DC3545; /* Vermelho */
+  color: #080808;          /* Branco */
+  font-weight: bold;
+  text-shadow: none;
+}
+
+
+/* colorindo selects caixinha */
+/* #selectStatusCaixinha option.status-Pendente, */
+#selectStatusCaixinha.status-Pendente {
+  background-color: #FFFF00; /* Amarelo */
+  color: #000000;          /* Preto */
+  font-weight: bold;
+  text-shadow: none;       /* Remove o contorno, caso ainda exista */
+}
+
+/* #selectStatusCaixinha option.status-Autorizado, */
+#selectStatusCaixinha.status-Autorizado {
+  background-color: #28A745; /* Verde */
+  color: #FFFFFF;          /* Branco */
+  font-weight: bold;
+  text-shadow: none;
+}
+
+/* 3. Estilos para o status "Rejeitado" (Fundo Vermelho, Fonte Branca) */
+/* #selectStatusCaixinha option.status-Rejeitado, */
+#selectStatusCaixinha.status-Rejeitado {
+  background-color: #DC3545; /* Vermelho */
+  color: #FFFFFF;          /* Branco */
+  font-weight: bold;
+  text-shadow: none;
+}
+
 #statusPgto {
     /* Pode ter estilos base aqui, como borda, padding, etc. */
     font-weight: bold; /* Para destacar o texto */
