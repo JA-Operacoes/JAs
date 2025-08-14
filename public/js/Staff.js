@@ -178,7 +178,7 @@ const datasEventoInput = document.getElementById('datasEvento'); // Input do Fla
 const diariaDobradaInput = document.getElementById('diariasDobrada'); // Input do Flatpickr
 const bonusTextarea = document.getElementById('bonus');
 const vlrTotalInput = document.getElementById('vlrTotal');
-const beneficioTextarea = document.getElementById('descBeneficio');
+//const beneficioTextarea = document.getElementById('descBeneficio');
 
 // Checkboxes e seus campos relacionados
 const extracheck = document.getElementById('Extracheck');
@@ -193,6 +193,7 @@ const statusPagtoInput = document.getElementById('statusPgto');
 const statusBonusInput = document.getElementById('statusBonus');
 const statusCaixinhaInput = document.getElementById('statusCaixinha');
 
+const temPermissaoMaster = temPermissao("Staff", "master");
 
 const diariaDobradacheck = document.getElementById('diariaDobradacheck');
 const meiaDiariacheck = document.getElementById('meiaDiariacheck');
@@ -313,6 +314,128 @@ const carregarDadosParaEditar = (eventData) => {
     statusCaixinhaInput.value = eventData.statuscaixinha;
     statusBonusInput.value = eventData.statusbonus;
 
+    //const temPermissaoMaster = temPermissao("Staff", "master");
+
+    if (temPermissaoMaster) {
+        // Se a senha for master, mostra o select e oculta o input de texto
+        document.getElementById('selectStatusBonus').style.display = 'block';
+        document.getElementById('statusBonus').style.display = 'none';
+        
+        const statusBonusFromDB = eventData.statusbonus || 'Pendente';
+        document.getElementById('selectStatusBonus').value = statusBonusFromDB;
+        document.getElementById('statusBonus').value = statusBonusFromDB; // Sincroniza o input oculto na carga
+        
+        document.getElementById('selectStatusCaixinha').style.display = 'block';
+        document.getElementById('statusCaixinha').style.display = 'none';
+        
+        const statusCaixinhaFromDB = eventData.statuscaixinha || 'Pendente';
+        document.getElementById('selectStatusCaixinha').value = statusCaixinhaFromDB;
+        document.getElementById('statusCaixinha').value = statusCaixinhaFromDB; // Sincroniza o input oculto na carga
+
+        function aplicarCoresAsOpcoes(selectElementId) {
+            const selectElement = document.getElementById(selectElementId);
+            if (selectElement) {
+                // Itera sobre cada opção do select
+                for (let i = 0; i < selectElement.options.length; i++) {
+                    const option = selectElement.options[i];
+                    // Remove qualquer classe de cor anterior
+                    option.classList.remove('status-Pendente', 'status-Autorizado', 'status-Rejeitado');
+
+                    // Adiciona a nova classe com base no valor da opção
+                    if (option.value) {
+                        option.classList.add('status-' + option.value);
+                    }
+                }
+            }
+        }
+
+        function aplicarCorNoSelect(selectElement) {
+            const statusAtual = selectElement.value;
+            selectElement.classList.remove('status-Pendente', 'status-Autorizado', 'status-Rejeitado');
+            if (statusAtual) {
+                selectElement.classList.add('status-' + statusAtual);
+            }
+        }
+
+        const selectStatusBonus = document.getElementById('selectStatusBonus');
+        const statusBonusInput = document.getElementById('statusBonus');
+
+        selectStatusBonus.value = statusBonusFromDB;
+        statusBonusInput.value = statusBonusFromDB;
+        
+        aplicarCoresAsOpcoes('selectStatusBonus'); // Aplica a cor em cada opção
+        aplicarCorNoSelect(selectStatusBonus); 
+
+        const selectStatusCaixinha = document.getElementById('selectStatusCaixinha');
+        const statusCaixinhaInput = document.getElementById('statusCaixinha');
+
+        selectStatusCaixinha.value = statusCaixinhaFromDB;
+        statusCaixinhaInput.value = statusCaixinhaFromDB;
+
+        aplicarCoresAsOpcoes('selectStatusCaixinha'); // Aplica a cor em cada opção
+        aplicarCorNoSelect(selectStatusCaixinha); 
+
+    
+
+        if (selectStatusBonus && statusBonusInput) {
+            const handleBonusChange = () => {
+                console.log("TROCOU SELECT BONUS");
+                // O select (visível) já atualiza o que o usuário vê. 
+                // Esta linha garante que o input oculto (para envio do form) tenha o mesmo valor.
+                statusBonusInput.value = selectStatusBonus.value;
+                aplicarCorNoSelect(selectStatusBonus);
+                console.log("TROCOU SELECT BONUS. Novo valor do input:", statusBonusInput.value);
+                 selectStatusBonus.style.borderColor = 'red';
+                setTimeout(() => {
+                    selectStatusBonus.style.borderColor = ''; // Volta a cor original depois de 1 segundo
+                }, 1000);
+            };
+            
+            // Remove o listener anterior para evitar duplicação antes de adicionar o novo
+            selectStatusBonus.removeEventListener('change', handleBonusChange);
+            selectStatusBonus.addEventListener('change', handleBonusChange);
+        }
+
+        
+        if (selectStatusCaixinha && statusCaixinhaInput) {
+            const handleCaixinhaChange = () => {
+                console.log("TROCOU SELECT CAIXINHA");
+                // O select (visível) já atualiza o que o usuário vê. 
+                // Esta linha garante que o input oculto (para envio do form) tenha o mesmo valor.
+                statusCaixinhaInput.value = selectStatusCaixinha.value;
+                aplicarCorNoSelect(selectStatusCaixinha);
+                console.log("TROCOU SELECT CAIXINHA. Novo valor do input:", statusCaixinhaInput.value);
+            };
+            
+            // Remove o listener anterior para evitar duplicação antes de adicionar o novo
+            selectStatusCaixinha.removeEventListener('change', handleCaixinhaChange);
+            selectStatusCaixinha.addEventListener('change', handleCaixinhaChange);
+        }
+    } else {
+
+        function aplicarCorStatusInput(elementoInput) {
+            elementoInput.classList.remove('status-Pendente', 'status-Autorizado', 'status-Rejeitado');
+            const statusAtual = elementoInput.value;
+            if (statusAtual) {
+                elementoInput.classList.add('status-' + statusAtual);
+            }
+        }
+        // Caso contrário, mostra o input de texto e oculta o select
+        document.getElementById('selectStatusBonus').style.display = 'none';
+        document.getElementById('statusBonus').style.display = 'block';
+        document.getElementById('statusBonus').value = eventData.statusbonus || 'Pendente';
+        aplicarCorStatusInput(document.getElementById('statusBonus'));
+
+        document.getElementById('selectStatusCaixinha').style.display = 'none';
+        document.getElementById('statusCaixinha').style.display = 'block';
+        document.getElementById('statusCaixinha').value = eventData.statuscaixinha || 'Pendente';
+        aplicarCorStatusInput(document.getElementById('statusCaixinha'));
+
+        
+    }
+
+
+
     
 
     //const statusPgtoInput = document.getElementById('statusPgto');
@@ -340,6 +463,22 @@ const carregarDadosParaEditar = (eventData) => {
 
         campoStatusBonus.style.display = extracheck.checked ? 'block' : 'none';
 
+        const statusAtual = campoStatusBonus.value;
+
+        // Remove todas as classes de status existentes para evitar conflito
+        campoStatusBonus.classList.remove('status-Pendente', 'status-Autorizado', 'status-Rejeitado');
+
+        console.log("campoStatusBonus", statusAtual);
+
+        // Adiciona a classe correta com base no valor do status
+        if (statusAtual === 'Pendente') {
+            campoStatusBonus.classList.add('status-Pendente');
+        } else if (statusAtual === 'Autorizado') {
+            campoStatusBonus.classList.add('status-Autorizado');
+        } else if (statusAtual === 'Rejeitado') {
+            campoStatusBonus.classList.add('status-Rejeitado');
+        }
+
         const bonusTextarea = document.getElementById('bonus');
         if (bonusTextarea) {
             bonusTextarea.style.display = extracheck.checked ? 'block' : 'none';
@@ -348,12 +487,7 @@ const carregarDadosParaEditar = (eventData) => {
             //     bonusTextarea.value = ''; // Limpa o conteúdo se estiver sendo ocultado
             // }
             
-        }
-
-        const statusBonus = document.getElementById('statusBonus');
-        if (statusBonus){
-
-        }
+        }       
         
     }
     if (caixinhacheck && campoCaixinha) {
@@ -361,6 +495,10 @@ const carregarDadosParaEditar = (eventData) => {
         campoCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
         campoStatusCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
     }   
+
+   
+
+
     
     if (eventData.datasevento) {
         let periodoArrayStrings; // Este será o array de strings YYYY-MM-DD
@@ -656,6 +794,8 @@ async function verificaStaff() {
     const botaoEnviar = document.querySelector("#Enviar");
     const botaoLimpar = document.querySelector("#Limpar");
 
+    
+
     const form = document.querySelector("#form");
     
     if (!botaoEnviar || !form) {
@@ -670,6 +810,7 @@ async function verificaStaff() {
 
     botaoLimpar.addEventListener("click", function (event) {
         event.preventDefault(); // Previne o envio padrão do formulário 
+        form.reset();
         limparCamposStaff();
     });
 
@@ -740,69 +881,194 @@ async function verificaStaff() {
         }
     });
 
-    // A LÓGICA DO CHECKBOX CORRIGIDA
-    extracheck.addEventListener('change', (e) => {
-    // Definimos isChecked UMA ÚNICA VEZ antes do Swal, para a condição inicial
-    const isCheckedBeforeSwal = extracheck.checked;
-    const valorExtraOriginal = parseFloat(currentEditingStaffEvent.vlrextra || 0);
 
-    if (!isCheckedBeforeSwal && valorExtraOriginal > 0) {
-        
-        e.preventDefault(); 
-        
-        Swal.fire({
-            title: 'Atenção!',
-            text: 'Você tem um valor preenchido para o Extra. Desmarcar a caixa irá remover esse valor e a descrição. Deseja continuar?',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Sim, continuar!',
-            cancelButtonText: 'Não, cancelar'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                extracheck.checked = false;
-                campoExtra.style.display = 'none';
-                bonusTextarea.style.display = 'none';
-                campoStatusBonus.style.display = 'none'; 
+    extracheck.addEventListener('change', (e) => {
+        const isCheckedBeforeSwal = extracheck.checked;
+        //const valorExtraOriginal = parseFloat(currentEditingStaffEvent.vlrextra || 0);
+        const valorExtraOriginal = (currentEditingStaffEvent && currentEditingStaffEvent.vlrextra) ? parseFloat(currentEditingStaffEvent.vlrextra) : 0;
+
+        // Adicionado para depuração - verifique o console para ver o que esta variável contém
+        console.log("statusBonusInput:", statusBonusInput);
+        console.log("currentEditingStaffEvent.statusbonus:", currentEditingStaffEvent?.statusbonus);
+
+        if (!currentEditingStaffEvent) {
+                console.warn('currentEditingStaffEvent não está definido. Verifique a lógica de carregamento dos dados.');
+                return; // Impede a execução do restante da função se o objeto não existir.
+        }
+
+        if (!isCheckedBeforeSwal) {
+            
+            // **Lógica Corrigida:** Verificamos o valor da fonte de dados original
+            const currentStatus = currentEditingStaffEvent.statusbonus || 'Pendente';
+
+            if (currentStatus !== 'Pendente') {
+                e.preventDefault();
+                Swal.fire({
+                    title: 'Atenção!',
+                    text: 'Não é possível remover o Bônus pois seu status não é "Pendente".',
+                    icon: 'error',
+                    confirmButtonColor: '#3085d6',
+                    confirmButtonText: 'Ok'
+                }).then(() => {
+                    extracheck.checked = true;
+                    campoExtra.style.display = 'block';
+                    bonusTextarea.style.display = 'block';
+                    campoStatusBonus.style.setProperty('display', 'block', 'important');
+                });
+
+            // Este bloco só será executado se o status for 'Pendente' e o valor for > 0
+            } else if (valorExtraOriginal > 0) {
+                e.preventDefault();
+                Swal.fire({
+                    title: 'Atenção!',
+                    text: 'Você tem um valor preenchido para o Bônus. Desmarcar a caixa irá remover esse valor e a descrição. Deseja continuar?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Sim, continuar!',
+                    cancelButtonText: 'Não, cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        extracheck.checked = false;
+                        campoExtra.style.display = 'none';
+                        bonusTextarea.style.display = 'none';
+                        campoStatusBonus.style.display = 'none'; 
+                        extraInput.value = '0,00';
+                        bonusTextarea.value = '';
+                        statusBonusInput.value = '';
+                    } else {
+                        extracheck.checked = true;
+                        campoExtra.style.display = 'block';
+                        bonusTextarea.style.display = 'block';
+                        campoStatusBonus.style.setProperty('display', 'block', 'important');
+                        if (currentEditingStaffEvent) {
+                            extraInput.value = valorExtraOriginal.toFixed(2).replace('.', ',');
+                            bonusTextarea.value = currentEditingStaffEvent.descbonus || '';
+                            statusBonusInput.value = currentEditingStaffEvent.statusbonus || 'Pendente';
+                        }
+                    }
+                });
+            }
+        } else {
+            // Lógica padrão quando o alerta não é necessário
+            campoExtra.style.display = isCheckedBeforeSwal ? 'block' : 'none';
+            bonusTextarea.style.display = isCheckedBeforeSwal ? 'block' : 'none';
+            
+            if (isCheckedBeforeSwal) {
+                campoStatusBonus.style.setProperty('display', 'block', 'important');
+            } else {
+                campoStatusBonus.style.display = 'none';
+            }
+            
+            if (isCheckedBeforeSwal) {
+                extraInput.value = valorExtraOriginal.toFixed(2).replace('.', ',');
+                bonusTextarea.value = currentEditingStaffEvent.descbonus || '';
+                statusBonusInput.value = currentEditingStaffEvent.statusbonus || 'Pendente';
+            } else {
                 extraInput.value = '0,00';
                 bonusTextarea.value = '';
                 statusBonusInput.value = '';
-            } else {
-                // SE O USUÁRIO CANCELAR:
-                // 1. Reverte o estado do checkbox para true
-                extracheck.checked = true;
-                
-                // 2. RE-EXIBE OS CAMPOS com o estado atualizado do checkbox
-                campoExtra.style.display = 'block';
-                bonusTextarea.style.display = 'block';
-                // Agora, isChecked é true, então esta linha será executada
-                campoStatusBonus.style.setProperty('display', 'block', 'important'); 
-
-                if (currentEditingStaffEvent) {
-                    extraInput.value = valorExtraOriginal.toFixed(2).replace('.', ',');
-                    bonusTextarea.value = currentEditingStaffEvent.descbonus || '';
-                    statusBonusInput.value = currentEditingStaffEvent.statusbonus || 'Pendente';
-                }
             }
-        });
-    } else {
-        // Lógica padrão
-        campoExtra.style.display = isCheckedBeforeSwal ? 'block' : 'none';
-        bonusTextarea.style.display = isCheckedBeforeSwal ? 'block' : 'none';
-        campoStatusBonus.style.display = isCheckedBeforeSwal ? 'block' : 'none';
-
-        if (isCheckedBeforeSwal) {
-            extraInput.value = valorExtraOriginal.toFixed(2).replace('.', ',');
-            bonusTextarea.value = currentEditingStaffEvent.descbonus || '';
-            statusBonusInput.value = currentEditingStaffEvent.statusbonus || 'Pendente';
-        } else {
-            extraInput.value = '0,00';
-            bonusTextarea.value = '';
-            statusBonusInput.value = '';
         }
-    }
-});
+    });
+
+    caixinhaInput.addEventListener('change', () => {
+        let valor = caixinhaInput.value.replace(',', '.');
+        if (!isNaN(parseFloat(valor))) {
+            caixinhaInput.value = parseFloat(valor).toFixed(2).replace('.', ',');
+        } else {
+            caixinhaInput.value = '0,00';
+        }
+    });
+
+
+    caixinhacheck.addEventListener('change', (e) => {
+        const isCheckedBeforeSwal = caixinhacheck.checked;
+        const valorCaixinhaOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0);
+
+        // Adicionado para depuração - verifique o console para ver o que esta variável contém
+        console.log("statusCaixinhaInput:", statusCaixinhaInput);
+        console.log("currentEditingStaffEvent.statuscaixinha:", currentEditingStaffEvent.statuscaixinha);
+
+        if (!isCheckedBeforeSwal) {
+            
+            // **Lógica Corrigida:** Verificamos o valor da fonte de dados original
+            const currentStatusCaixinha = currentEditingStaffEvent.statuscaixinha || 'Pendente';
+
+            if (currentStatusCaixinha !== 'Pendente') {
+                e.preventDefault();
+                Swal.fire({
+                    title: 'Atenção!',
+                    text: 'Não é possível remover a Caixinha pois seu status não é "Pendente".',
+                    icon: 'error',
+                    confirmButtonColor: '#3085d6',
+                    confirmButtonText: 'Ok'
+                }).then(() => {
+                    caixinhacheck.checked = true;
+                    campoCaixinha.style.display = 'block';
+                    descBeneficioTextarea.style.display = 'block';
+                    campoStatusCaixinha.style.setProperty('display', 'block', 'important');
+                });
+
+            // Este bloco só será executado se o status for 'Pendente' e o valor for > 0
+            } else if (valorCaixinhaOriginal > 0) {
+                e.preventDefault();
+                Swal.fire({
+                    title: 'Atenção!',
+                    text: 'Você tem um valor preenchido para o Caixinha. Desmarcar a caixa irá remover esse valor e a descrição. Deseja continuar?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Sim, continuar!',
+                    cancelButtonText: 'Não, cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        caixinhacheck.checked = false;
+                        campoCaixinha.style.display = 'none';
+                        descBeneficioTextarea.style.display = 'none';
+                        campoStatusCaixinha.style.display = 'none'; 
+                        caixinhaInput.value = '0,00';
+                        descBeneficioTextarea.value = '';
+                        statusCaixinhaInput.value = '';
+                    } else {
+                        caixinhacheck.checked = true;
+                        campoCaixinha.style.display = 'block';
+                        descBeneficioTextarea.style.display = 'block';
+                        campoStatusCaixinha.style.setProperty('display', 'block', 'important');
+                        if (currentEditingStaffEvent) {
+                            caixinhaInput.value = valorCaixinhaOriginal.toFixed(2).replace('.', ',');
+                            descBeneficioTextarea.value = currentEditingStaffEvent.descbeneficio || '';
+                            statusCaixinhaInput.value = currentEditingStaffEvent.statuscaixinha || 'Pendente';
+                        }
+                    }
+                });
+            }
+        } else {
+            // Lógica padrão quando o alerta não é necessário
+            campoCaixinha.style.display = isCheckedBeforeSwal ? 'block' : 'none';
+            descBeneficioTextarea.style.display = isCheckedBeforeSwal ? 'block' : 'none';
+            
+            if (isCheckedBeforeSwal) {
+                campoStatusCaixinha.style.setProperty('display', 'block', 'important');
+            } else {
+                campoStatusCaixinha.style.display = 'none';
+            }
+            
+            if (isCheckedBeforeSwal) {
+                caixinhaInput.value = valorCaixinhaOriginal.toFixed(2).replace('.', ',');
+                descBeneficioTextarea.value = currentEditingStaffEvent.descbeneficios || '';
+                statusCaixinhaInput.value = currentEditingStaffEvent.statuscaixinha || 'Pendente';
+            } else {
+                caixinhaInput.value = '0,00';
+                descBeneficioTextarea.value = '';
+                statusCaixinhaInput.value = '';
+            }
+        }
+    });   
+   
+
 
 
     botaoEnviar.addEventListener("click", async (event) => {
@@ -1308,7 +1574,7 @@ async function verificaStaff() {
             comppgtocaixinhaDoForm = '';
         }
         
-        formData.append('descbeneficios', beneficioTextarea.value.trim());
+        formData.append('descbeneficios', descBeneficioTextarea.value.trim());
 
         formData.append('setor', setor);
 
@@ -3132,7 +3398,7 @@ function limparCamposEvento() {
         "idStaff", "descFuncao", "vlrCusto", "extra", "transporte", "almoco", "jantar", "caixinha",
         "nmLocalMontagem", "nmPavilhao", "descBeneficio", "descBonus",
         "nmCliente", "nmEvento", "vlrTotal", "vlrTotalHidden", 
-        "idFuncao", "idMontagem", "idPavilhao", "idCliente", "idEvento", "statusPgto"
+        "idFuncao", "idMontagem", "idPavilhao", "idCliente", "idEvento", "statusPgto", "statusBonus", "statusCaixinha"
     ];
 
     camposEvento.forEach(id => {
@@ -3167,8 +3433,8 @@ function limparCamposEvento() {
     document.getElementById('bonus').value = '';
     document.getElementById('descBeneficio').value = '';
 
-    document.getElementById('statusCaixinha').value = '';
-    document.getElementById('statusBonus').value = '';
+    document.getElementById('statusCaixinha').value = 'Autorização da Caixinha';
+    document.getElementById('statusBonus').value = 'Autorização do Bônus';
 
     // Garanta que os containers opcionais sejam ocultados
     document.getElementById('campoExtra').style.display = 'none';
@@ -3318,6 +3584,12 @@ function limparCamposStaff() {
 
     const statusPgto = document.getElementById('statuspgto');
     if (statusPgto) statusPgto.value = '';
+
+    const statusBonus = document.getElementById('statusbonus');
+    if (statusBonus) statusBonus.value = 'Autorização do Bônus';
+
+    const statusCaixinha = document.getElementById('statuscaixinha');
+    if (statusCaixinha) statusCaixinha.value = 'Autorização da Caixinha';
 
     const avaliacaoSelect = document.getElementById('avaliacao');
     if (avaliacaoSelect) {
@@ -3803,7 +4075,7 @@ export function preencherComprovanteCampo(filePath, campoNome) {
         
         let removerBtnHtml = ''; 
         
-        const temPermissaoMaster = temPermissao("Staff", "master");
+        
 
         console.log("PERMISSAO", temPermissaoMaster);
         if (temPermissaoMaster)
@@ -3907,7 +4179,7 @@ function limparFoto() {
 
 function ocultarCamposComprovantes(papelDoUsuario) {
     // Condição para MOSTRAR os campos de comprovantes
-    const temPermissaoMaster = temPermissao("Staff", "master");
+    //const temPermissaoMaster = temPermissao("Staff", "master");
     const temPermissaoFinanceiro = temPermissao("Staff", "financeiro");
 
     const temPermissaoFinanceira = (temPermissaoMaster || temPermissaoFinanceiro);
@@ -3927,7 +4199,7 @@ function configurarEventosStaff() {
     
     const containerPDF = document.querySelector('.pdf');
 
-    const temPermissaoMaster = temPermissao("Staff", "master");
+    //const temPermissaoMaster = temPermissao("Staff", "master");
     const temPermissaoFinanceiro = temPermissao("Staff", "financeiro");
 
     const temPermissaoFinanceira = (temPermissaoMaster || temPermissaoFinanceiro);

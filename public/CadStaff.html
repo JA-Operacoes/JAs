@@ -233,8 +233,13 @@
                     <textarea name="bonus[]" id="bonus" placeholder="Descritivo do Bônus" style="display: none;" required></textarea>  
 
                     <div class="form2" id="campoStatusBonus" style="display: none;">
-                      <input type="text" id="statusBonus" name ="statusBonus" readonly required/>
-                      <label for="statusBonus">Autorização Bônus</label>
+                      <input type="text" id="statusBonus" name ="statusBonus"  readonly required/>
+                      <select id="selectStatusBonus" style="display:none;">
+                         <option value="" disabled selected>Autorização do Bônus</option>
+                         <option value="Pendente">Pendente</option>
+                         <option value="Autorizado">Autorizado</option>
+                         <option value="Rejeitado">Rejeitado</option>
+                      </select>                     
                     </div>  
 
                     <div class="form2" id="campoDiariaDobrada" style="display: none;">
@@ -267,7 +272,13 @@
                     
                     <div class="form2" id="campoStatusCaixinha" style="display: none;">
                       <input id="statusCaixinha" type="text" readonly required/>
-                      <label for="statusCaixinha">Autorização Caixinha</label>
+                      <select id="selectStatusCaixinha" style="display:none;">
+                        <option value="" disabled selected>Autorização da Caixinha</option>
+                        <option value="Pendente">Pendente</option>
+                        <option value="Autorizado">Autorizado</option>
+                        <option value="Rejeitado">Rejeitado</option>
+                      </select>
+                     
                     </div>    
                   </div>  
 
