@@ -15,39 +15,70 @@ if (!currentLocale) {
     });
     console.log("Flatpickr locale definido para Português.");
 }
-//fim do tratamento do flatpickr
+
+let datasEventoSelecionadas = []; // armazena as datas do primeiro calendário
 
 window.flatpickrInstances = {};
 
 const commonFlatpickrOptions = {
     mode: "multiple",
     dateFormat: "d/m/Y",
-    altInput: true, // Se quiser altInput para os da tabela também
+    altInput: true,
     altFormat: "d/m/Y",
-    //locale: flatpickr.l10ns.pt,
     locale: currentLocale,
-    appendTo: document.body, // Certifique-se de que 'modal-flatpickr-container' existe e é o elemento correto
-    onChange: function(selectedDates) {
-        const contador = document.getElementById('contadorDatas');
-        if (contador) {
-            if (selectedDates.length === 0) {
-                contador.innerText = 'Nenhuma data selecionada';
-            } else {
-                contador.innerText = `${selectedDates.length} ${selectedDates.length === 1 ? 'Diaria Selecionada' : 'Diarias'}`;
-            }
-        }
-    }
-    
+    appendTo: document.body
 };
 
-flatpickr("#datasEvento", {
-    ...commonFlatpickrOptions, // Isso copia todas as opções comuns
-    // As opções específicas para este input
-    onClose: function(selectedDates) {
-        if (selectedDates.length > 0) {
-            // Apenas chame a sua função se houver datas selecionadas
-            debouncedOnCriteriosChanged();
+// Inicializa todos os pickers primeiro
+const diariaDobradaPicker = flatpickr("#diariaDobrada", {
+    ...commonFlatpickrOptions,
+    enable: datasEventoSelecionadas, // começa vazio
+    onClose: selectedDates => {
+        if (selectedDates.length > 0) debouncedOnCriteriosChanged();
+    }
+});
+
+const meiaDiariaPicker = flatpickr("#meiaDiaria", {
+    ...commonFlatpickrOptions,
+    enable: datasEventoSelecionadas, // começa vazio
+    onClose: selectedDates => {
+        if (selectedDates.length > 0) debouncedOnCriteriosChanged();
+    }
+});
+
+// Agora sim o principal (#datasEvento)
+const datasEventoPicker = flatpickr("#datasEvento", {
+    ...commonFlatpickrOptions,
+    onChange: function(selectedDates) {
+        datasEventoSelecionadas = selectedDates;
+
+        const contador = document.getElementById('contadorDatas');
+        if (contador) {
+            contador.innerText = selectedDates.length === 0
+                ? 'Nenhuma data selecionada'
+                : `${selectedDates.length} ${selectedDates.length === 1 ? 'Diária Selecionada' : 'Diárias'}`;
         }
+
+        // Atualiza datas habilitadas
+        diariaDobradaPicker.set('enable', datasEventoSelecionadas);
+        meiaDiariaPicker.set('enable', datasEventoSelecionadas);
+
+        // Remove datas inválidas
+        diariaDobradaPicker.setDate(
+            diariaDobradaPicker.selectedDates.filter(date =>
+                datasEventoSelecionadas.some(d => d.getTime() === date.getTime())
+            ),
+            false
+        );
+        meiaDiariaPicker.setDate(
+            meiaDiariaPicker.selectedDates.filter(date =>
+                datasEventoSelecionadas.some(d => d.getTime() === date.getTime())
+            ),
+            false
+        );
+    },
+    onClose: selectedDates => {
+        if (selectedDates.length > 0) debouncedOnCriteriosChanged();
     }
 });
 
@@ -55,6 +86,7 @@ let avaliacaoChangeListener = null;
 let limparStaffButtonListener = null;
 let enviarStaffButtonListener = null;
 let datasEventoFlatpickrInstance = null; // Para armazenar a instância do Flatpickr
+let diariaDobradaFlatpickrInstance = null; // Para armazenar a instância do Flatpickr
 let nmFuncionarioChangeListener = null;
 let descFuncaoChangeListener = null;
 let nmClienteChangeListener = null;
@@ -97,6 +129,7 @@ if (typeof window.StaffOriginal === "undefined") {
         idLocalMontagem: "",
         nmLocalMontagem: "",
         datasEventos: "",
+        diariaDobrada: "",
         bonus: "",
         vlrTotal: "",
         nmPavilhao: "",
@@ -142,6 +175,7 @@ const nmClienteSelect = document.getElementById('nmCliente');
 const idEventoInput = document.getElementById('idEvento');
 const nmEventoSelect = document.getElementById('nmEvento');
 const datasEventoInput = document.getElementById('datasEvento'); // Input do Flatpickr
+const diariaDobradaInput = document.getElementById('diariasDobrada'); // Input do Flatpickr
 const bonusTextarea = document.getElementById('bonus');
 const vlrTotalInput = document.getElementById('vlrTotal');
 //const beneficioTextarea = document.getElementById('descBeneficio');
@@ -160,6 +194,29 @@ const statusBonusInput = document.getElementById('statusBonus');
 const statusCaixinhaInput = document.getElementById('statusCaixinha');
 
 const temPermissaoMaster = temPermissao("Staff", "master");
+
+const diariaDobradacheck = document.getElementById('diariaDobradacheck');
+const meiaDiariacheck = document.getElementById('meiaDiariacheck');
+
+diariaDobradacheck.addEventListener('change', () => {
+    if (diariaDobradacheck.checked) {
+        meiaDiariacheck.checked = false; // desmarca o outro
+        campoDiariaDobrada.style.display = 'block';
+        campoMeiaDiaria.style.display = 'none';
+    } else {
+        campoDiariaDobrada.style.display = 'none';
+    }
+});
+
+meiaDiariacheck.addEventListener('change', () => {
+    if (meiaDiariacheck.checked) {
+        diariaDobradacheck.checked = false; // desmarca o outro
+        campoMeiaDiaria.style.display = 'block';
+        campoDiariaDobrada.style.display = 'none';
+    } else {
+        campoMeiaDiaria.style.display = 'none';
+    }
+});
 
 // Variável para armazenar os dados originais do registro em edição
 let currentEditingStaffEvent = null;
@@ -503,6 +560,27 @@ const carregarDadosParaEditar = (eventData) => {
             console.log("Flatpickr para #datasEvento limpo.");
         }
     }
+
+    const flatpickrFordiariaDobrada = window.flatpickrInstances['diariaDobrada']; 
+        
+        if (flatpickrFordiariaDobrada) {
+            // Use setDate com o array de objetos Date
+            flatpickrFordiariaDobrada.setDate(periodoArrayDateObjects, true); 
+            console.log("Flatpickr setDate chamado para #diariaDobrada com objetos Date:", periodoArrayDateObjects);
+        } else {
+            console.warn("Instância do Flatpickr para #diariaDobrada não encontrada. Preenchendo input diretamente.");
+            // Fallback (mantido para debugging)
+            const datasFormatadas = periodoArrayStrings.map(dateStr => {
+                const parts = dateStr.split('-');
+                if (parts.length === 3) {
+                    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                }
+                return dateStr;
+            });
+            diariaDobradaInput.value = datasFormatadas.join(', ');
+            }
+
+
 
     // preencherComprovanteCampo(eventData.comppgtocache, 'fileNameCache', 'previewCache', 'pdfPreviewCache', 'linkCache', 'imagePreviewCache', 'linkImageCache');
     // preencherComprovanteCampo(eventData.comppgtoajdcusto, 'fileNameAjdCusto', 'previewAjdCusto', 'pdfPreviewAjdCusto', 'linkAjdCusto', 'imagePreviewAjdCusto', 'linkImageAjdCusto');
@@ -1035,7 +1113,9 @@ async function verificaStaff() {
         const statusBonus = document.getElementById("statusBonus").value;
         
         const datasEventoRawValue = datasEventoInput.value.trim();
-        const periodoDoEvento = getPeriodoDatas(datasEventoRawValue);  
+        const periodoDoEvento = getPeriodoDatas(datasEventoRawValue);     
+        const diariaDobradaRawValue = diariaDobradaInput.value.trim();
+        const periodoDobrado = getPeriodoDatas(diariaDobradaRawValue);       
         
         console.log("STATUS", statusCaixinha, statusBonus);
 
@@ -1046,6 +1126,9 @@ async function verificaStaff() {
       
         if (periodoDoEvento.length === 0) {
             return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias do evento.", "warning");
+        }
+        if (periodoDobrado.length === 0) {
+            return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias de Dobra no evento.", "warning");
         }
 
         const vlrTotal = document.getElementById('vlrTotal').value; // "R$ 2.345,00"
@@ -1186,6 +1269,8 @@ async function verificaStaff() {
         // Você precisa ter acesso à instância do Flatpickr, assumindo que seja `flatpickrForDatasEvento`.
         const flatpickrForDatasEvento = window.flatpickrInstances['datasEvento']; // Ou como você acessa sua instância do Flatpickr
         const datasParaVerificacao = flatpickrForDatasEvento.selectedDates; // Isso retorna um array de objetos Date
+        const flatpickrFordiariaDobrada = window.flatpickrInstances['diariaDobrada']; // Ou como você acessa sua instância do Flatpickr
+        const datasParaVerificacaoDobrada = flatpickrFordiariaDobrada.selectedDates; // Isso retorna um array de objetos Date
 
         const idStaffEventoParaVerificacao = currentEditingStaffEvent ? currentEditingStaffEvent.idstaffevento : null;
 
@@ -1193,6 +1278,7 @@ async function verificaStaff() {
         const { isAvailable, conflictingEvent } = await verificarDisponibilidadeStaff(
             idFuncionarioParaVerificacao,
             datasParaVerificacao,
+            datasParaVerificacaoDobrada,
             idFuncaoDoFormulario,
             idEventoEmEdicao
            // idStaffEventoParaVerificacao
@@ -1305,15 +1391,21 @@ async function verificaStaff() {
                 return date.toISOString().split('T')[0];
             });           
 
+            const datasDobradas = window.flatpickrInstances['diariaDobrada'].selectedDates.map(date => {
+                // Formata a data para a string 'YYYY-MM-DD'
+                return date.toISOString().split('T')[0];
+            });           
+
             const criteriosDeVerificacao = {
                 nmFuncao: descFuncaoSelect.options[descFuncaoSelect.selectedIndex].text,
                 nmEvento: nmEventoSelect.options[nmEventoSelect.selectedIndex].text,
                 nmCliente: nmClienteSelect.options[nmClienteSelect.selectedIndex].text,
                 nmlocalMontagem: nmLocalMontagemSelect.options[nmLocalMontagemSelect.selectedIndex].text,
                 pavilhao: nmPavilhaoSelect.options[nmPavilhaoSelect.selectedIndex].text,
-                datasEvento: datasSelecionadas // Adicionado o array de datas
+                datasEvento: datasSelecionadas, // Adicionado o array de datas
+                datasEventoDobradas: datasDobradas // Adicionado o array de datas
             };
-            console.log("VERIFICAÇÃO CAMPOS", descFuncao, nmEvento, nmCliente, nmLocalMontagem, pavilhao, datasEvento);
+            console.log("VERIFICAÇÃO CAMPOS", descFuncao, nmEvento, nmCliente, nmLocalMontagem, pavilhao, datasEvento, datasEventoDobradas);
 
             // A verificação deve acontecer somente para novos cadastros
             if (!isFormLoadedFromDoubleClick && !verificarLimiteDeFuncao(criteriosDeVerificacao)) {
@@ -1760,10 +1852,12 @@ const debouncedOnCriteriosChanged = debounce(() => {
     const setorParaBusca = setorInput.value.toUpperCase();
     const datasEventoRawValue = datasEventoInput.value.trim();
     const periodoDoEvento = getPeriodoDatas(datasEventoRawValue);
+    const diariaDobradaRawValue = diariaDobradaInput.value.trim();
+    const periodoDobrado = getPeriodoDatas(diariaDobradaRawValue);
 
     // Apenas chame a API se os campos obrigatórios estiverem preenchidos
     if (idEvento && idCliente && periodoDoEvento.length > 0) {
-      buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, setorParaBusca, periodoDoEvento);
+      buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, setorParaBusca, periodoDoEvento, periodoDobrado);
     }
 }, 500);
 
@@ -2450,7 +2544,7 @@ const debouncedOnCriteriosChanged = debounce(() => {
 // };
 
 // 
-async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, setorParaBusca, datasEvento) {
+async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, setorParaBusca, datasEvento, diariaDobrada) {
     try {
         console.log("Buscando orçamento com os seguintes IDs:", { idEvento, idCliente, idLocalMontagem, setorParaBusca });
 
@@ -2460,6 +2554,7 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, set
             idLocalMontagem,
             setor: setorParaBusca,
             datasEvento: datasEvento || [],
+            diariaDobrada: diariaDobrada || []
         };
         console.log("Objeto enviado para o backend:", criteriosDeBusca);
 
@@ -2528,6 +2623,7 @@ function desinicializarStaffModal() {
     const botaoLimpar = document.querySelector("#Limpar");
     const botaoEnviar = document.querySelector("#Enviar");
     const datasEventoInput = document.querySelector("#datasEvento");
+    const diariaDobradaInput = document.querySelector("#diariaDobrada");
     const selectFuncionario = document.querySelector("#nmFuncionario");
     const selectFuncao = document.querySelector("#descFuncao");
     const selectCliente = document.querySelector("#nmCliente");
@@ -2648,6 +2744,12 @@ function desinicializarStaffModal() {
         datasEventoFlatpickrInstance = null;
         console.log("Flatpickr para #datasEvento destruído.");
     }
+    // 2. Destruir instâncias de bibliotecas externas (Flatpickr)
+    if (diariaDobradaFlatpickrInstance) {
+        diariaDobradaFlatpickrInstance.destroy();
+        diariaDobradaFlatpickrInstance = null;
+        console.log("Flatpickr para #diariaDobrada destruído.");
+    }
 
     // 3. Limpar o estado global e campos do formulário
     window.StaffOriginal = null;
@@ -2716,7 +2818,7 @@ async function verificarDisponibilidadeStaff(idFuncionario, datasAgendamento, id
 function inicializarFlatpickrsGlobais() {
 console.log("Inicializando Flatpickr para todos os campos de data (globais)...");
     const dateInputIds = [
-        'datasEvento'
+        'datasEvento', 'diariaDobrada'
     ];
 
     dateInputIds.forEach(id => { // Este é o loop correto
@@ -2904,6 +3006,7 @@ function limparStaffOriginal() {
         idLocalMontagem: "",
         nmLocalMontagem: "",
         datasEventos: "",
+        diariaDobrada: "",
         bonus: "",
         vlrTotal: "",
         nmPavilhao: "",
@@ -3311,6 +3414,11 @@ function limparCamposEvento() {
     if (datasEventoInput && datasEventoInput._flatpickr) {
         datasEventoInput._flatpickr.clear();
     }
+
+    const diariaDobradaInput = document.getElementById('diariaDobrada');
+    if (diariaDobradaInput && diariaDobradaInput._flatpickr) {
+        diariaDobradaInput._flatpickr.clear();
+    }
     
     // Limpa os campos de comprovantes
     limparCamposComprovantes();
@@ -3396,6 +3504,13 @@ function limparCamposStaff() {
     }
     if (contadorDatas) {
         contadorDatas.textContent = "Nenhuma data selecionada.";
+    }
+
+    const diariaDobradaInput = document.getElementById('diariaDobrada');
+
+    if (diariaDobradaInput && diariaDobradaInput._flatpickr) {
+        diariaDobradaInput._flatpickr.clear();
+        console.log("Datas do evento limpas via Flatpickr.");
     }
 
     // ✅ Limpeza de PDFs por classe
@@ -4144,6 +4259,24 @@ function configurarEventosStaff() {
             campoCaixinha.style.display = this.checked ? 'block' : 'none';
         });
         campoCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
+    }
+
+    const diariaDobradacheck = document.getElementById('diariaDobradacheck');
+    const campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
+    if (diariaDobradacheck && campoDiariaDobrada) {
+        diariaDobradacheck.addEventListener('change', function() {
+            campoDiariaDobrada.style.display = this.checked ? 'block' : 'none';
+        });
+        campoDiariaDobrada.style.display = diariaDobradacheck.checked ? 'block' : 'none';
+    }
+
+    const meiaDiariacheck = document.getElementById('meiaDiariacheck');
+    const campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
+    if (meiaDiariacheck && campoMeiaDiaria) {
+        meiaDiariacheck.addEventListener('change', function() {
+            campoMeiaDiaria.style.display = this.checked ? 'block' : 'none';
+        });
+        campoMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
     }
 
     // Chama mostrarTarja() para inicializar a tarja com base no valor do select

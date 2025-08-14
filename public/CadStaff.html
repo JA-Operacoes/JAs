@@ -209,7 +209,15 @@
                   <div class="Vertical">
                     <input id="Caixinhacheck" type="checkbox" />
                     <label for="Caixinhacheck">Caixinha</label>
-                  </div>                  
+                  </div>
+                  <div class="Vertical">
+                    <input id="diariaDobradacheck" name="tipoDiaria" type="checkbox" value="Diaria Dobrada" />
+                    <label for="diariaDobradacheck">Diaria Dobrada</label>
+                  </div>
+                  <div class="Vertical">
+                    <input id="meiaDiariacheck" name="tipoDiaria" type="checkbox" value="Meia Diaria" />
+                    <label for="meiaDiariacheck">Meia Diaria</label>
+                  </div>
                 </div>
 
                 <div class="form-2colunas">
@@ -221,7 +229,9 @@
                       <input type="text" name="extra" id="extra" required>
                       <label for="extra">Bônus</label>
                     </div> 
-                    <textarea name="bonus[]" id="bonus" placeholder="Descritivo do Bônus" style="display: none;" required></textarea>                   
+
+                    <textarea name="bonus[]" id="bonus" placeholder="Descritivo do Bônus" style="display: none;" required></textarea>  
+
                     <div class="form2" id="campoStatusBonus" style="display: none;">
                       <input type="text" id="statusBonus" name ="statusBonus"  readonly required/>
                       <select id="selectStatusBonus" style="display:none;">
@@ -231,7 +241,15 @@
                          <option value="Rejeitado">Rejeitado</option>
                       </select>                     
                     </div>  
-                 </div>   
+
+                    <div class="form2" id="campoDiariaDobrada" style="display: none;">
+                      <input type="text" class="preenchido" name="diariaDobrada" id="diariaDobrada" placeholder="Selecione a Data Dobrada">
+                    </div> 
+
+                    <div class="form2" id="campoMeiaDiaria" style="display: none;">
+                      <input type="text" class="preenchido" name="meiaDiaria" id="meiaDiaria" placeholder="Selecione a Data">
+                    </div> 
+                </div>   
                     
                   <div class="form-2colunas">
                     <div class="form2">
@@ -251,6 +269,7 @@
                       <input type="text" name="caixinha" id="caixinha">
                       <label for="caixinha">Caixinha</label>
                     </div> 
+                    
                     <div class="form2" id="campoStatusCaixinha" style="display: none;">
                       <input id="statusCaixinha" type="text" readonly required/>
                       <select id="selectStatusCaixinha" style="display:none;">
