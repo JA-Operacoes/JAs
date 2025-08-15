@@ -205,6 +205,7 @@ const nmClienteSelect = document.getElementById('nmCliente');
 const idEventoInput = document.getElementById('idEvento');
 const nmEventoSelect = document.getElementById('nmEvento');
 const datasEventoInput = document.getElementById('datasEvento'); // Input do Flatpickr
+// Input do Flatpickr
 const diariaDobradaInput = document.getElementById('diariaDobrada'); // Input do Flatpickr
 const bonusTextarea = document.getElementById('bonus');
 const vlrTotalInput = document.getElementById('vlrTotal');
@@ -225,74 +226,14 @@ const temPermissaoMaster = temPermissao("Staff", "master");
 
 const diariaDobradacheck = document.getElementById('diariaDobradacheck');
 const meiaDiariacheck = document.getElementById('meiaDiariacheck');
+const campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
+const campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
 
-// diariaDobradacheck.addEventListener('change', () => {
-//     console.log("CLICOU EM DIARIA DOBRADA");
-//     if (diariaDobradacheck.checked) {
-//         meiaDiariacheck.checked = false; // desmarca o outro
-//         campoDiariaDobrada.style.display = 'block';
-//         campoMeiaDiaria.style.display = 'none';
-//     } else {
-//         campoDiariaDobrada.style.display = 'none';
-//     }
-// });
-
-// meiaDiariacheck.addEventListener('change', () => {
-//     console.log("CLICOU EM MEIA DIARIA");
-//     if (meiaDiariacheck.checked) {
-//         diariaDobradacheck.checked = false; // desmarca o outro
-//         campoMeiaDiaria.style.display = 'block';
-//         campoDiariaDobrada.style.display = 'none';
-//     } else {
-//         campoMeiaDiaria.style.display = 'none';
-//     }
-// });
-
-diariaDobradacheck.addEventListener('change', (e) => {
-    // Verifica se o usuário está TENTANDO MARCAR a Diária Dobrada
+diariaDobradacheck.addEventListener('change', () => {
     if (diariaDobradacheck.checked) {
-        
-        // Se a Meia Diária JÁ ESTIVER marcada, mostra o alerta de confirmação
-        if (meiaDiariacheck.checked) {
-            e.preventDefault(); // Impede que o checkbox seja marcado imediatamente
-            
-            Swal.fire({
-                title: 'Atenção!',
-                text: 'Você já selecionou Meia Diária. Se continuar, o valor e a data de Meia Diária serão removidos. Deseja prosseguir?',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Sim, continuar!',
-                cancelButtonText: 'Não, cancelar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    meiaDiariacheck.checked = false; // Desmarca a Meia Diária
-                    diariaDobradacheck.checked = true; // Marca a Diária Dobrada
-                    
-                    // Lógica para esconder/mostrar os campos
-                    campoMeiaDiaria.style.display = 'none';
-                    campoDiariaDobrada.style.display = 'block';
-
-                    // Aqui você também limparia o campo de Meia Diária se necessário
-                    // meiaDiariaInput.value = '0,00'; 
-
-                    // Recalcula o total
-                    calcularValorTotal();
-                } else {
-                    // Se o usuário cancelar, o checkbox de Diária Dobrada continua desmarcado
-                    diariaDobradacheck.checked = false;
-                }
-            });
-        } else {
-            // Se a Meia Diária não estiver marcada, apenas marca a Diária Dobrada
-            campoDiariaDobrada.style.display = 'block';
-            campoMeiaDiaria.style.display = 'none';
-            // Garante que o checkbox de meia diária esteja desmarcado
-            meiaDiariacheck.checked = false;
-            // E recalcula o total
-            calcularValorTotal();
-        }
+        meiaDiariacheck.checked = false;
+        campoDiariaDobrada.style.display = 'flex'; // volta com layout flex
+        campoMeiaDiaria.style.display = 'none';
     } else {
         // Se o usuário desmarcar a Diária Dobrada, oculta o campo e recalcula
         campoDiariaDobrada.style.display = 'none';
@@ -303,48 +244,9 @@ diariaDobradacheck.addEventListener('change', (e) => {
 meiaDiariacheck.addEventListener('change', (e) => {
     // Verifica se o usuário está TENTANDO MARCAR a Meia Diária
     if (meiaDiariacheck.checked) {
-        
-        // Se a Diária Dobrada JÁ ESTIVER marcada, mostra o alerta de confirmação
-        if (diariaDobradacheck.checked) {
-            e.preventDefault(); // Impede que o checkbox seja marcado imediatamente
-            
-            Swal.fire({
-                title: 'Atenção!',
-                text: 'Você já selecionou Diária Dobrada. Se continuar, o valor e data de Diária Dobrada serão removidos. Deseja prosseguir?',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Sim, continuar!',
-                cancelButtonText: 'Não, cancelar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    diariaDobradacheck.checked = false; // Desmarca a Diária Dobrada
-                    meiaDiariacheck.checked = true; // Marca a Meia Diária
-                    
-                    // Lógica para esconder/mostrar os campos
-                    campoDiariaDobrada.style.display = 'none';
-                    campoMeiaDiaria.style.display = 'block';
-
-                    // Aqui você também limparia o campo de Diária Dobrada se necessário
-                    // flatpickrFordiariaDobrada.clear(); 
-
-                    // Recalcula o total
-                    calcularValorTotal();
-                } else {
-                    // Se o usuário cancelar, o checkbox de Meia Diária continua desmarcado
-                    meiaDiariacheck.checked = false;
-                }
-            });
-        } else {
-            // Se a Diária Dobrada não estiver marcada, apenas marca a Meia Diária
-            campoMeiaDiaria.style.display = 'block';
-            campoDiariaDobrada.style.display = 'none';
-            // Garante que o checkbox de diária dobrada esteja desmarcado
-            diariaDobradacheck.checked = false;
-            // E recalcula o total
-            calcularValorTotal();
-        }
+        diariaDobradacheck.checked = false;
+        campoMeiaDiaria.style.display = 'flex';
+        campoDiariaDobrada.style.display = 'none';
     } else {
         // Se o usuário desmarcar a Meia Diária, oculta o campo e recalcula
         campoMeiaDiaria.style.display = 'none';
@@ -352,6 +254,38 @@ meiaDiariacheck.addEventListener('change', (e) => {
     }
 });
 
+const check50 = document.getElementById('check50');
+const check100 = document.getElementById('check100');
+
+// Containers reais que aparecem no layout
+const container1 = document.getElementById('labelFileAjdCusto').parentElement;
+const container2 = document.getElementById('labelFileAjdCusto2').parentElement;
+
+// Inicialmente escondemos ambos
+container1.style.display = 'none';
+container2.style.display = 'none';
+
+check50.addEventListener('change', () => {
+    if (check50.checked) {
+        check100.checked = false;   // desmarca o outro
+        container1.style.display = 'flex'; // mostra o primeiro
+        container2.style.display = 'flex'; // mostra o segundo
+    } else {
+        container1.style.display = 'none';
+        container2.style.display = 'none';
+    }
+});
+
+check100.addEventListener('change', () => {
+    if (check100.checked) {
+        check50.checked = false;    // desmarca o outro
+        container1.style.display = 'flex'; // mostra apenas o primeiro
+        container2.style.display = 'none'; // esconde o segundo
+    } else {
+        container1.style.display = 'none';
+        container2.style.display = 'none';
+    }
+});
 // Variável para armazenar os dados originais do registro em edição
 let currentEditingStaffEvent = null;
 let retornoDados = false;
@@ -1437,16 +1371,21 @@ async function verificaStaff() {
         const datasEventoRawValue = datasEventoInput ? datasEventoInput.value.trim() :'';
         const periodoDoEvento = getPeriodoDatas(datasEventoRawValue);     
         const diariaDobradaRawValue = diariaDobradaInput ? diariaDobradaInput.value.trim() : '';
-        const periodoDobrado = getPeriodoDatas(diariaDobradaRawValue);       
+        const periodoDobrado = getPeriodoDatas(diariaDobradaRawValue);  
+             
         
         console.log("STATUS", statusCaixinha, statusBonus, diariaDobradaInput, datasEventoInput);    
       
         if (periodoDoEvento.length === 0) {
             return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias do evento.", "warning");
         }
-        if (periodoDobrado.length === 0) {
-            return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias de Dobra no evento.", "warning");
-        }
+       if (diariaDobradacheck.checked && periodoDobrado.length === 0) {
+    return Swal.fire(
+        "Campo obrigatório!",
+        "Por favor, selecione os dias de Dobra no evento.",
+        "warning"
+    );
+}
 
         const vlrTotal = document.getElementById('vlrTotal').value; // "R$ 2.345,00"
         const total = parseFloat(
