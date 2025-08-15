@@ -37,24 +37,47 @@ document.addEventListener("DOMContentLoaded", async function () {
   window.permissoes = permissoesArray; // <--- AGORA ESTÁ CORRETO
   console.log("Permissões carregadas e armazenadas em window.permissoes:", window.permissoes);
 
+  // try {
+  //     console.log("Buscando lista de módulos do banco de dados...");
+  //     const modulosDoBanco = await fetchComToken("/index/modulos"); // Chame seu novo endpoint
+
+  //     console.log("MODULOS", modulosDoBanco.value);
+      
+  //     if (!Array.isArray(modulosDoBanco) || modulosDoBanco.length === 0) {
+  //         console.warn("Nenhum módulo retornado do banco de dados ou formato inválido.", modulosDoBanco);
+  //         // Poderia lançar um erro ou continuar com um mapa vazio, dependendo da sua necessidade
+  //     } else {
+  //         // Constrói o mapaModulos a partir dos dados do banco
+  //         modulosDoBanco.forEach(m => {
+  //             mapaModulos[m.modulo.toLowerCase()] = m.modulo; // Assumindo 'nome_modulo' é a chave e 'nome_exibicao' é o valor
+  //         });
+  //         console.log("Mapa de módulos carregado dinamicamente:", mapaModulos);
+  //     }
+  // } catch (error) {
+  //     console.error("Falha ao carregar lista de módulos do banco de dados:", error);
+  // }
+      
   try {
       console.log("Buscando lista de módulos do banco de dados...");
-      const modulosDoBanco = await fetchComToken("/index/modulos"); // Chame seu novo endpoint
-      
-      if (!Array.isArray(modulosDoBanco) || modulosDoBanco.length === 0) {
+      const modulosDoBanco = await fetchComToken("/index/modulos");
+
+      console.log("Resposta do banco de dados:", modulosDoBanco);
+
+      // CORREÇÃO: Acessar a propriedade 'rows' do objeto retornado.
+      if (!modulosDoBanco || !Array.isArray(modulosDoBanco.rows) || modulosDoBanco.rows.length === 0) {
           console.warn("Nenhum módulo retornado do banco de dados ou formato inválido.", modulosDoBanco);
-          // Poderia lançar um erro ou continuar com um mapa vazio, dependendo da sua necessidade
       } else {
-          // Constrói o mapaModulos a partir dos dados do banco
-          modulosDoBanco.forEach(m => {
-              mapaModulos[m.modulo.toLowerCase()] = m.modulo; // Assumindo 'nome_modulo' é a chave e 'nome_exibicao' é o valor
+          // Constrói o mapaModulos a partir dos dados da propriedade 'rows'
+          modulosDoBanco.rows.forEach(m => {
+              if (m.modulo && typeof m.modulo === 'string') {
+                  mapaModulos[m.modulo.toLowerCase()] = m.modulo;
+              }
           });
           console.log("Mapa de módulos carregado dinamicamente:", mapaModulos);
       }
   } catch (error) {
       console.error("Falha ao carregar lista de módulos do banco de dados:", error);
   }
-        
 
   // Função utilitária para verificar permissão
   window.temPermissao = function (modulo, acao) {

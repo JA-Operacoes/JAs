@@ -485,7 +485,7 @@ async function buscarUsuarioPorEmail(req, res) {
 
 async function buscarModulos(req, res) {
   
-  console.log("ENTROU NA ROTA DE MODULOS PELO INDEX");
+  console.log("ENTROU NA ROTA DE MODULOS PELO INDEX - AuthController");
   const idempresa = req.idempresa;
   try {
     const { rows } = await db.query(`

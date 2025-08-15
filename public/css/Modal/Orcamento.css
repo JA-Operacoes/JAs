@@ -30,7 +30,7 @@
   }
 
   /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
-  #cadModalOrcamentos.modal {
+  #Relatorios.modal {
     position: fixed;
     top: 50%; /* Alinha verticalmente ao centro */
     left: 50%; /* Alinha horizontalmente ao centro */
@@ -44,7 +44,7 @@
     border-radius: 10px;
   }
 
-  #cadModalOrcamentos.modal-open{
+  #Relatorios.modal-open{
     overflow: hidden;
     pointer-events: none;
   }
