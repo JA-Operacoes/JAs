@@ -28,7 +28,6 @@
 } 
 
 
-
 /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
 #cadModalStaff.modal {
   position: fixed;
@@ -533,12 +532,37 @@ input[type="file"]{
     background-color: #dc3545; /* Vermelho */
   }
 
-  /* Classes para o campo de status */
-
 
 
 /* Classes para o select de status */
 /* #selectStatusBonus option.status-Pendente, */
+#selectStatusBonus.status-none {
+  background-color: transparent;
+  color: #000000;          /* Preto */
+  font-weight: bold;
+  text-shadow: none;       /* Remove o contorno, caso ainda exista */
+}
+
+input#statusBonus.status-Pendente {
+    background: orange;
+  color: #000000;          /* Branco */
+  font-weight: bold;
+  text-shadow: none;
+}
+input#statusBonus.status-Autorizado {
+    background: #28A745;
+  color: #000000;          /* Branco */
+  font-weight: bold;
+  text-shadow: none;
+}
+input#statusBonus.status-Rejeitado {
+    background: #DC3545;
+  color: #000000;          /* Branco */
+  font-weight: bold;
+  text-shadow: none;
+}
+
+
 #selectStatusBonus.status-Pendente {
   background-color: #FFFF00; /* Amarelo */
   color: #000000;          /* Preto */
@@ -849,7 +873,8 @@ legend{
   padding: 3px;
 }
 
-textarea#bonus{
+
+textarea#bonus, #diariaDobrada,#meiaDiaria{
   font-family:"Abel",sans-serif;
   width: 390px;
   display: flex;
@@ -1007,11 +1032,20 @@ button {
   width: 179px;
 } */
 
-input.form-control.input {
-  width: 300px;
-    overflow-x: auto;
-    font-size: 10px;
+.row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
+
+input.datasEvento.form-control.input {
+    width: 700px;
+}
+
+input.diariaDobrada.form-control.input {
+    width: 300px;
+}
+
 
 .flatpickr-calendar {
   z-index: 1000; /* Maior que o z-index do modal Bootstrap (1050) */

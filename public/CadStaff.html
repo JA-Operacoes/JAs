@@ -189,7 +189,7 @@
                 <div class="form-2colunas">
                   <div class="form2"> 
                     <h3>Período do Evento:</h3>
-                    <input type="text" id="datasEvento" name="datasEvento[]" placeholder="Nenhuma data selecionada"  readonly required>
+                    <input type="text" class="datasEvento" id="datasEvento" name="datasEvento[]" placeholder="Nenhuma data selecionada"  readonly required>
                     <input type="hidden" id="vlrTotalHidden" name="vlrTotalHidden" value="0.00">
                     <p id="contadorDatas"></p>
                   </div>
@@ -225,32 +225,61 @@
                       <input type="text" name="vlrCusto" id="vlrCusto" required>
                       <label for="vlrCusto">Cache</label>
                     </div>                              
-                    <div class="form2" id="campoExtra" style="display: none;">
-                      <input type="text" name="extra" id="extra" required>
-                      <label for="extra">Bônus</label>
-                    </div> 
-
-                    <textarea name="bonus[]" id="bonus" placeholder="Descritivo do Bônus" style="display: none;" required></textarea>  
-
-                    <div class="form2" id="campoStatusBonus" style="display: none;">
-                      <input type="text" id="statusBonus" name ="statusBonus"  readonly required/>
-                      <select id="selectStatusBonus" style="display:none;">
-                         <option value="" disabled selected>Autorização do Bônus</option>
-                         <option value="Pendente">Pendente</option>
-                         <option value="Autorizado">Autorizado</option>
-                         <option value="Rejeitado">Rejeitado</option>
-                      </select>                     
-                    </div>  
-
-                    <div class="form2" id="campoDiariaDobrada" style="display: none;">
-                      <input type="text" class="preenchido" name="diariaDobrada" id="diariaDobrada" placeholder="Selecione a Data Dobrada">
-                    </div> 
-
-                    <div class="form2" id="campoMeiaDiaria" style="display: none;">
-                      <input type="text" class="preenchido" name="meiaDiaria" id="meiaDiaria" placeholder="Selecione a Data">
-                    </div> 
                 </div>   
+
+                    <div class="form-2colunas">
+                      <div class="form2" id="campoExtra" style="display: none;">
+                        <input type="text" name="extra" id="extra" required>
+                        <label for="extra">Bônus</label>
+                      </div>
+                      <textarea name="bonus[]" id="bonus" placeholder="Descritivo do Bônus" style="display: none;" required></textarea>
+                      <div class="form2" id="campoStatusBonus" style="display: none;">
+                        <input type="text" id="statusBonus" name ="statusBonus"  readonly required/>
+                        <select id="selectStatusBonus" style="display:none;">
+                          <option value="none" disabled selected>Autorização do Bônus</option>
+                          <option value="Pendente">Pendente</option>
+                          <option value="Autorizado">Autorizado</option>
+                          <option value="Rejeitado">Rejeitado</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div class="form-2colunas">
+                        <div id="campoDiariaDobrada" style="display: none;">
+                          <div class="row">
+                            <h3>Diaria Dobrada:</h3>
+                          <input type="text" class="preenchido diariaDobrada" name="diariaDobrada" id="diariaDobrada" placeholder="Selecione a Data Dobrada">
+                            <textarea name="diariaDobrada" id="diariaDobrada" placeholder="Observação da Diaria Dobrada"></textarea>
+                          </div>
+                        </div>
+                        
+                        <div class="form2" id="campoMeiaDiaria">
+                          <div class="row">
+                            <h3>Meia Diaria:</h3>
+                            <input type="text" class="preenchido diariaDobrada" name="meiaDiaria" id="meiaDiaria" placeholder="Selecione a Data">
+                            <textarea name="meiaDiaria" id="meiaDiaria" placeholder="Observação da Meia Diaria"></textarea>
+                          </div>
+                        </div>
+                    </div>
                     
+                    <div class="form-2colunas">
+                      <div class="form2" id="campoCaixinha" style="display: none;">
+                        <input type="text" name="caixinha" id="caixinha">
+                        <label for="caixinha">Caixinha</label>
+                      </div>
+                      
+                      <div class="form2" id="campoStatusCaixinha" style="display: none;">
+                        <input id="statusCaixinha" type="text" readonly required/>
+                        <select id="selectStatusCaixinha" style="display:none;">
+                          <option value="" disabled selected>Autorização da Caixinha</option>
+                          <option value="Pendente">Pendente</option>
+                          <option value="Autorizado">Autorizado</option>
+                          <option value="Rejeitado">Rejeitado</option>
+                        </select>
+                      </div>
+                      
+                    </div>
+
                   <div class="form-2colunas">
                     <div class="form2">
                       <input type="text" name="almoco" id="almoco" required>
@@ -265,21 +294,6 @@
                       <label for="transporte">Transporte</label>
                     </div>
 
-                    <div class="form2" id="campoCaixinha" style="display: none;">
-                      <input type="text" name="caixinha" id="caixinha">
-                      <label for="caixinha">Caixinha</label>
-                    </div> 
-                    
-                    <div class="form2" id="campoStatusCaixinha" style="display: none;">
-                      <input id="statusCaixinha" type="text" readonly required/>
-                      <select id="selectStatusCaixinha" style="display:none;">
-                        <option value="" disabled selected>Autorização da Caixinha</option>
-                        <option value="Pendente">Pendente</option>
-                        <option value="Autorizado">Autorizado</option>
-                        <option value="Rejeitado">Rejeitado</option>
-                      </select>
-                     
-                    </div>    
                   </div>  
 
                   
@@ -289,7 +303,7 @@
 
                   <div class="form-2colunas">
                       <div class="form2">
-                      <input type="text" name="statusPgto" id="statusPgto" required readonly >
+                      <input type="text" class="preenchido" name="statusPgto" id="statusPgto" required readonly >
                       <label for="statusPgto">Status do Pagamento</label>
                     </div>  
                   </div> 
@@ -316,7 +330,7 @@
                     <br>
 
                     <div class="collumn">
-                        <h5>Comprovante de Ajuda de Custo</h5>
+                      <h5>Comprovante de Ajuda de Custo</h5>
                         <div class="containerPDF">
                             <label for="fileAjdCusto" class="footerPDF" name="footerPDF[]" id="labelFileAjdCusto">
                                 <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
@@ -331,6 +345,30 @@
                             <div id="linkContainerAjdCusto">
                                 </div>
                         </div>
+                        <div class="containerPDF">
+                            <label for="fileAjdCusto2" class="footerPDF" name="footerPDF[]" id="labelFileAjdCusto2">
+                                <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+                                    <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+                                    <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+                                </svg>
+                                <p id="fileNameAjdCusto2" class="fileNamePDF">Nenhum arquivo selecionado</p>
+                            </label>
+                            <input id="fileAjdCusto2" class="filePDFInput2" type="file" name="comppgtoajdcusto2" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/svg+xml">
+                        </div>
+                        <div id="comprovanteAjdCusto2Display" style="display: none; margin-top: 10px;">
+                            <div id="linkContainerAjdCusto2">
+                                </div>
+                        </div>
+                    <div class="checkbox">
+                        <div class="Vertical">
+                          <input id="check50" type="checkbox" />
+                          <label for="check50">50%</label>
+                        </div>
+                        <div class="Vertical">
+                          <input id="check100" type="checkbox" />
+                          <label for="check100">100%</label>
+                        </div>
+                    </div>
                     </div>
 
                     <br>

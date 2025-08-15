@@ -175,7 +175,7 @@ const nmClienteSelect = document.getElementById('nmCliente');
 const idEventoInput = document.getElementById('idEvento');
 const nmEventoSelect = document.getElementById('nmEvento');
 const datasEventoInput = document.getElementById('datasEvento'); // Input do Flatpickr
-const diariaDobradaInput = document.getElementById('diariasDobrada'); // Input do Flatpickr
+const diariaDobradaInput = document.getElementById('diariaDobrada'); // Input do Flatpickr
 const bonusTextarea = document.getElementById('bonus');
 const vlrTotalInput = document.getElementById('vlrTotal');
 //const beneficioTextarea = document.getElementById('descBeneficio');
@@ -197,11 +197,13 @@ const temPermissaoMaster = temPermissao("Staff", "master");
 
 const diariaDobradacheck = document.getElementById('diariaDobradacheck');
 const meiaDiariacheck = document.getElementById('meiaDiariacheck');
+const campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
+const campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
 
 diariaDobradacheck.addEventListener('change', () => {
     if (diariaDobradacheck.checked) {
-        meiaDiariacheck.checked = false; // desmarca o outro
-        campoDiariaDobrada.style.display = 'block';
+        meiaDiariacheck.checked = false;
+        campoDiariaDobrada.style.display = 'flex'; // volta com layout flex
         campoMeiaDiaria.style.display = 'none';
     } else {
         campoDiariaDobrada.style.display = 'none';
@@ -210,14 +212,46 @@ diariaDobradacheck.addEventListener('change', () => {
 
 meiaDiariacheck.addEventListener('change', () => {
     if (meiaDiariacheck.checked) {
-        diariaDobradacheck.checked = false; // desmarca o outro
-        campoMeiaDiaria.style.display = 'block';
+        diariaDobradacheck.checked = false;
+        campoMeiaDiaria.style.display = 'flex';
         campoDiariaDobrada.style.display = 'none';
     } else {
         campoMeiaDiaria.style.display = 'none';
     }
 });
 
+const check50 = document.getElementById('check50');
+const check100 = document.getElementById('check100');
+
+// Containers reais que aparecem no layout
+const container1 = document.getElementById('labelFileAjdCusto').parentElement;
+const container2 = document.getElementById('labelFileAjdCusto2').parentElement;
+
+// Inicialmente escondemos ambos
+container1.style.display = 'none';
+container2.style.display = 'none';
+
+check50.addEventListener('change', () => {
+    if (check50.checked) {
+        check100.checked = false;   // desmarca o outro
+        container1.style.display = 'flex'; // mostra o primeiro
+        container2.style.display = 'flex'; // mostra o segundo
+    } else {
+        container1.style.display = 'none';
+        container2.style.display = 'none';
+    }
+});
+
+check100.addEventListener('change', () => {
+    if (check100.checked) {
+        check50.checked = false;    // desmarca o outro
+        container1.style.display = 'flex'; // mostra apenas o primeiro
+        container2.style.display = 'none'; // esconde o segundo
+    } else {
+        container1.style.display = 'none';
+        container2.style.display = 'none';
+    }
+});
 // Variável para armazenar os dados originais do registro em edição
 let currentEditingStaffEvent = null;
 let retornoDados = false;
@@ -1114,8 +1148,9 @@ async function verificaStaff() {
         
         const datasEventoRawValue = datasEventoInput.value.trim();
         const periodoDoEvento = getPeriodoDatas(datasEventoRawValue);     
-        const diariaDobradaRawValue = diariaDobradaInput.value.trim();
-        const periodoDobrado = getPeriodoDatas(diariaDobradaRawValue);       
+        const diariaDobradaRawValue = diariaDobradaInput ? diariaDobradaInput.value.trim() : '';
+        const periodoDobrado = getPeriodoDatas(diariaDobradaRawValue);  
+             
         
         console.log("STATUS", statusCaixinha, statusBonus);
 
@@ -1127,9 +1162,13 @@ async function verificaStaff() {
         if (periodoDoEvento.length === 0) {
             return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias do evento.", "warning");
         }
-        if (periodoDobrado.length === 0) {
-            return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias de Dobra no evento.", "warning");
-        }
+       if (diariaDobradacheck.checked && periodoDobrado.length === 0) {
+    return Swal.fire(
+        "Campo obrigatório!",
+        "Por favor, selecione os dias de Dobra no evento.",
+        "warning"
+    );
+}
 
         const vlrTotal = document.getElementById('vlrTotal').value; // "R$ 2.345,00"
         const total = parseFloat(
