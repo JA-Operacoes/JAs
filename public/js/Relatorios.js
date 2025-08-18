@@ -1,88 +1,54 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // Função para ler parâmetros da URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const tipoRelatorioInicial = urlParams.get('tipo');
+import { fetchComToken } from '../utils/utils.js';
+
+// Função para iniciar o módulo de relatórios
+function initRelatorios() {
+    // Busca os elementos do DOM
+    const reportDateInput = document.getElementById('reportDate');
+    const reportTypeSelect = document.getElementById('reportType');
+    const gerarRelatorioBtn = document.getElementById('gerarRelatorioBtn');
+    const printButton = document.getElementById('printButton');
+    const closeButton = document.querySelector('#Relatorios .close');
 
     // Define a data atual como valor padrão
     const today = new Date().toISOString().split('T')[0];
-    const reportDateInput = document.getElementById('reportDate');
     reportDateInput.value = today;
 
-    const reportTypeSelect = document.getElementById('reportType');
-    if (tipoRelatorioInicial && reportTypeSelect.querySelector(`option[value="${tipoRelatorioInicial}"]`)) {
-        // Se a URL tiver o parâmetro "tipo" e ele for válido, seleciona a opção
-        reportTypeSelect.value = tipoRelatorioInicial;
-        gerarRelatorio(); // Gera o relatório automaticamente
+    // Adiciona o event listener ao botão
+    if (gerarRelatorioBtn) {
+        gerarRelatorioBtn.addEventListener('click', gerarRelatorio);
     }
-});
+    
+    // Adiciona o event listener ao botão de imprimir
+    if (printButton) {
+        printButton.addEventListener('click', imprimirRelatorio);
+    }
 
+    // Adiciona o event listener ao botão de fechar para fechar o modal
+    if (closeButton) {
+        closeButton.addEventListener('click', () => {
+            const modal = document.getElementById('Relatorios');
+            modal.style.display = 'none';
+            document.body.classList.remove('modal-open');
+        });
+    }
+
+    // Lógica para ler parâmetros da URL e gerar relatório automaticamente, se necessário.
+    const urlParams = new URLSearchParams(window.location.search);
+    const tipoRelatorioInicial = urlParams.get('tipo');
+
+    if (tipoRelatorioInicial && reportTypeSelect.querySelector(`option[value="${tipoRelatorioInicial}"]`)) {
+        reportTypeSelect.value = tipoRelatorioInicial;
+        gerarRelatorio();
+    }
+}
+
+// Remova o mockApi completo. O código abaixo não precisa dele.
 // ====================================================================
-// === Mock de Backend (SIMULADO) =====================================
-// === Substitua esta parte pela sua chamada `fetch` real =========
-// ====================================================================
-const mockApi = {
-    ajuda_custo: () => new Promise(resolve => {
-        setTimeout(() => {
-            resolve([
-                {
-                    "Evento": "Evento Anual Corporativo",
-                    "Cliente": "Tech Solutions Inc.",
-                    "Percentual Pgto": "100%",
-                    "Nome do Funcionario": "João Silva",
-                    "Periodo": ["2025-07-30"],
-                    "Dados Bancarios": "001 - Banco do Brasil - 12345-6 - Corrente",
-                    "Valor Ajuda de Custo": 150.00
-                },
-                {
-                    "Evento": "Lançamento de Produto",
-                    "Cliente": "Innovate Marketing",
-                    "Percentual Pgto": "0%",
-                    "Nome do Funcionario": "Maria Oliveira",
-                    "Periodo": ["2025-07-30", "2025-07-31"],
-                    "Dados Bancarios": "237 - Bradesco - 98765-4 - Poupança",
-                    "Valor Ajuda de Custo": 200.00
-                },
-                {
-                    "Evento": "TOTAL GERAL",
-                    "Cliente": "",
-                    "Percentual Pgto": "",
-                    "Nome do Funcionario": "",
-                    "Periodo": "",
-                    "Dados Bancarios": "",
-                    "Valor Ajuda de Custo": 350.00
-                }
-            ]);
-        }, 500); // Simula um atraso de rede
-    }),
-    cache: () => new Promise(resolve => {
-        setTimeout(() => {
-            resolve([
-                {
-                    "Evento": "Lançamento de Produto",
-                    "Cliente": "Innovate Marketing",
-                    "Percentual Pgto": "100%",
-                    "Nome do Funcionario": "Maria Oliveira",
-                    "Periodo": ["2025-07-30", "2025-07-31"],
-                    "Dados Bancarios": "237 - Bradesco - 98765-4 - Poupança",
-                    "Valor do Cachê": 800.00
-                },
-                {
-                    "Evento": "TOTAL GERAL",
-                    "Cliente": "",
-                    "Percentual Pgto": "",
-                    "Nome do Funcionario": "",
-                    "Periodo": "",
-                    "Dados Bancarios": "",
-                    "Valor do Cachê": 800.00
-                }
-            ]);
-        }, 500); // Simula um atraso de rede
-    })
-};
-// ====================================================================
-// === FIM do Mock de Backend =========================================
+// === MOCK DE BACKEND (SIMULADO) =====================================
+// === ... REMOVA ESTE BLOCO INTEIRO ... =============================
 // ====================================================================
 
+// Funções principais
 async function gerarRelatorio() {
     const tipoRelatorio = document.getElementById('reportType').value;
     const dataSelecionada = document.getElementById('reportDate').value;
@@ -94,19 +60,30 @@ async function gerarRelatorio() {
         return;
     }
     
-    // Na implementação real, use:
-    // const url = `/api/relatorio-${tipoRelatorio}?data=${dataSelecionada}`;
-    // const response = await fetch(url);
-    // const dados = await response.json();
-    
-    // Na simulação, chamamos o mockApi
-    const apiCall = mockApi[tipoRelatorio];
+    // === NOVA CHAMADA DE API REAL ===
+    // Use a URL da sua rota de backend. Ajuste 'http://localhost:3000' se necessário.
+    const apiUrl = `/relatorios?tipo=${tipoRelatorio}&data=${dataSelecionada}`;
 
+    console.log("CAMINHO RELATORIO", apiUrl);
+    
     try {
         outputDiv.innerHTML = '<p>Carregando relatório...</p>';
-        const dados = await apiCall();
+        
+        const dados = await fetchComToken(apiUrl);
 
-        if (dados.length === 0) {
+        // if (!response.ok) {
+        //     // Se a resposta da rede não for ok, lança um erro para o bloco catch
+        //     throw new Error(`Erro na rede: ${response.status} ${response.statusText}`);
+        // }
+        
+        // const dados = await response.json();
+        console.log("Dados recebidos da API:", dados);
+
+        // Verifica se o relatório retornou apenas a linha de total
+        // Isso significa que não há registros, já que a API sempre retorna o total.
+        const temRegistros = dados.some(item => item.Evento !== 'TOTAL GERAL');
+
+        if (!temRegistros) {
             outputDiv.innerHTML = '<p>Nenhum registro encontrado para a data selecionada.</p>';
             printButton.style.display = 'none';
             return;
@@ -117,7 +94,8 @@ async function gerarRelatorio() {
 
     } catch (error) {
         console.error('Falha ao gerar o relatório:', error);
-        outputDiv.innerHTML = '<p style="color:red;">Ocorreu um erro ao carregar o relatório.</p>';
+        alert('Ocorreu um erro ao carregar o relatório.');
+        outputDiv.innerHTML = '';
         printButton.style.display = 'none';
     }
 }
@@ -131,7 +109,7 @@ function montarTabela(dados, container, tipoRelatorio) {
         "Nome do Funcionario": "Nome do Funcionário",
         "Periodo": "Período",
         "Dados Bancarios": "Dados Bancários",
-        [valorHeader]: valorHeader // Usa a variável como chave
+        [valorHeader]: valorHeader
     };
 
     let html = `
@@ -139,7 +117,6 @@ function montarTabela(dados, container, tipoRelatorio) {
             <thead>
                 <tr>
     `;
-    // Cria os cabeçalhos da tabela dinamicamente a partir do mapeamento
     for (const key in headerMapping) {
         if (headerMapping.hasOwnProperty(key)) {
             html += `<th>${headerMapping[key]}</th>`;
@@ -182,5 +159,24 @@ function montarTabela(dados, container, tipoRelatorio) {
 }
 
 function imprimirRelatorio() {
-    window.print();
+    console.log('Tentando imprimir...');
+    
+    // Armazena a classe atual do body
+    const originalBodyClass = document.body.className;
+
+    // Remove a classe que causa o conflito
+    document.body.classList.remove('modal-open');
+
+    // Usa um pequeno atraso para garantir que a classe foi removida antes de imprimir
+    setTimeout(() => {
+        window.print();
+        
+        // Retorna a classe original após um pequeno atraso, garantindo a impressão
+        setTimeout(() => {
+            document.body.className = originalBodyClass;
+        }, 100);
+    }, 100);
 }
+
+// Chame a função de inicialização
+initRelatorios();
