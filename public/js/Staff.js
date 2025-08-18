@@ -1664,7 +1664,7 @@ async function verificaStaff() {
                 datasEvento: datasSelecionadas, // Adicionado o array de datas
                 datasEventoDobradas: datasDobradas // Adicionado o array de datas
             };
-            console.log("VERIFICAÇÃO CAMPOS", descFuncao, nmEvento, nmCliente, nmLocalMontagem, pavilhao, datasEvento, datasEventoDobradas);
+            console.log("VERIFICAÇÃO CAMPOS", criteriosDeVerificacao);
 
             // A verificação deve acontecer somente para novos cadastros
             if (!isFormLoadedFromDoubleClick && !verificarLimiteDeFuncao(criteriosDeVerificacao)) {

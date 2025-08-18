@@ -42,6 +42,7 @@ const uploadComprovantesMiddleware = multer({
 }).fields([
     { name: 'comppgtocache', maxCount: 1 },
     { name: 'comppgtoajdcusto', maxCount: 1 },
+    { name: 'comppgtoajdcusto2', maxCount: 1 },
     { name: 'comppgtocaixinha', maxCount: 1 }
 ]);
 
@@ -362,7 +363,7 @@ router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, r
         // Iniciar a query base
         let query = `
             SELECT se.idstaffevento, se.vlrcache, se.vlrextra, se.vlrtransporte, se.vlralmoco, se.vlrjantar, se.vlrcaixinha,
-                   se.descbonus, se.descbeneficios, se.setor, se.pavilhao, se.vlrtotal, se.comppgtocache, se.comppgtoajdcusto, se.comppgtocaixinha,
+                   se.descbonus, se.descbeneficios, se.setor, se.pavilhao, se.vlrtotal, se.comppgtocache, se.comppgtoajdcusto, se.comppgtoajdcusto2, se.comppgtocaixinha,
                    se.idfuncionario, se.idfuncao, se.nmfuncao, se.idcliente, se.idevento, se.idmontagem, se.datasevento,
                    se.nmfuncionario, se.nmcliente, se.nmevento, se.nmlocalmontagem,
                    s.idstaff, s.avaliacao
@@ -629,6 +630,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
                     se.datasevento,
                     se.comppgtocache,
                     se.comppgtoajdcusto,
+                    se.comppgtoajdcusto2,
                     se.comppgtocaixinha,
                     se.setor,
                     se.statuspgto,
@@ -916,6 +918,7 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
         const files = req.files;
         const comprovanteCacheFile = files?.comppgtocache ? files.comppgtocache[0] : null;
         const comprovanteAjdCustoFile = files?.comppgtoajdcusto ? files.comppgtoajdcusto[0] : null;
+        const comprovanteAjdCusto2File = files?.comppgtoajdcusto2 ? files.comppgtoajdcusto2[0] : null;
         const comprovanteCaixinhaFile = files?.comppgtocaixinha ? files.comppgtocaixinha[0] : null;
         console.log("BODY", req.body);
 
@@ -949,7 +952,7 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
             console.log('Valor de "datasevento" após parse:', datasEventoParsed);
 
             const oldRecordResult = await client.query(            
-                `select  se.comppgtocache, se.comppgtoajdcusto, se.comppgtocaixinha from staffeventos se
+                `select  se.comppgtocache, se.comppgtoajdcusto, se.comppgtoajdcusto2, se.comppgtocaixinha from staffeventos se
                   inner join staff s ON se.idfuncionario = s.idfuncionario
                   inner join staffempresas semp on s.idstaff = semp.idstaff
                   where se.idstaffevento = $1 and semp.idempresa = $2`,
@@ -978,6 +981,14 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
                 deletarArquivoAntigo(oldRecord?.comppgtoajdcusto);
                 newComppgtoAjdCustoPath = null;
             }
+            let newComppgtoAjdCusto2Path = oldRecord ? oldRecord.comppgtoajdcusto2 : null;
+            if (comprovanteAjdCustoFile) {
+              deletarArquivoAntigo(oldRecord?.comppgtoajdcusto2);
+              newComppgtoAjdCusto2Path = `/uploads/staff_comprovantes/${comprovanteAjdCusto2File.filename}`;
+            } else if (req.body.limparComprovanteAjdCusto === 'true') {
+                deletarArquivoAntigo(oldRecord?.comppgtoajdcusto2);
+                newComppgtoAjdCusto2Path = null;
+            }
             
             let newComppgtoCaixinhaPath = oldRecord ? oldRecord.comppgtocaixinha : null;
             if (comprovanteCaixinhaFile) {
@@ -997,12 +1008,12 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
                     vlralmoco = $15, vlrjantar = $16, vlrcaixinha = $17, descbonus = $18,
                     datasevento = $19, vlrtotal = $20, comppgtocache = $21, comppgtoajdcusto = $22, comppgtocaixinha = $23, 
                     descbeneficios = $24, setor = $25, statuspgto = $26, statusbonus = $27, statuscaixinha = $28,
-                    diariadobrada = $29, meiadiaria = $30, dtdiariaextra = $31                 
+                    diariadobrada = $29, meiadiaria = $30, dtdiariaextra = $31, comppgtoajdcusto2 = $32                
                 FROM staff s
                 INNER JOIN staffempresas sme ON sme.idstaff = s.idstaff
                 WHERE se.idstaff = s.idstaff -- Garante que estamos atualizando o staffevento do staff correto
-                  AND se.idstaffevento = $32
-                  AND sme.idempresa = $33
+                  AND se.idstaffevento = $33
+                  AND sme.idempresa = $34
                 RETURNING se.idstaffevento, se.datasevento;
             `;
 
@@ -1029,6 +1040,7 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
                 parseFloat(String(vlrtotal).replace(',', '.')), 
                 newComppgtoCachePath, // Caminho do novo comprovante de cache
                 newComppgtoAjdCustoPath, // Caminho do novo comprovante de ajuda de custo
+                newComppgtoAjdCusto2Path, // Caminho do novo comprovante de ajuda de custo
                 newComppgtoCaixinhaPath, // Caminho do novo comprovante de extras    
                 descbeneficios,
                 setor, // Novo campo descbeneficios 
@@ -1124,6 +1136,7 @@ router.post(
     const files = req.files;
     const comprovanteCacheFile = files?.comppgtocache ? files.comppgtocache[0] : null;
     const comprovanteAjdCustoFile = files?.comppgtoajdcusto ? files.comppgtoajdcusto[0] : null;
+    const comprovanteAjdCustoFile2 = files?.comppgtoajdcusto2 ? files.comppgtoajdcusto2[0] : null;
     const comprovanteCaixinhaFile = files?.comppgtocaixinha ? files.comppgtocaixinha[0] : null;
 
     const idempresa = req.idempresa;
@@ -1198,9 +1211,9 @@ router.post(
             idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
             vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
             vlrcaixinha, descbonus, datasevento, vlrtotal, comppgtocache, comppgtoajdcusto, comppgtocaixinha, 
-            descbeneficios, setor, statuspgto, statusbonus, statuscaixinha, diariadobrada, meiadiaria, dtdiariaextra
+            descbeneficios, setor, statuspgto, statusbonus, statuscaixinha, diariadobrada, meiadiaria, dtdiariaextra, comppgtoajdcusto2
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22,
-            $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)
+            $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)
           RETURNING idstaffevento;
         `;
         const eventoInsertValues = [
@@ -1226,7 +1239,8 @@ router.post(
           statuscaixinha,
           diariadobrada,
           meiadiaria,
-          datadiariadobrada
+          datadiariadobrada,
+          comprovanteAjdCustoFile2 ? `/uploads/staff_comprovantes/${comprovanteAjdCustoFile2.filename}` : null
         ];
 
         await client.query(eventoInsertQuery, eventoInsertValues);
@@ -1256,6 +1270,7 @@ router.post(
       // const comprovanteCacheFile = files?.comppgtocache ? files.comppgtoacache[0] : null; -> files.comppgtocache[0]
       if (files?.comppgtocache?.[0]) deletarArquivoAntigo(files.comppgtocache[0].path);
       if (files?.comppgtoajdcusto?.[0]) deletarArquivoAntigo(files.comppgtoajdcusto[0].path);
+      if (files?.comppgtoajdcusto2?.[0]) deletarArquivoAntigo(files.comppgtoajdcusto2[0].path);
       if (files?.comppgtocaixinha?.[0]) deletarArquivoAntigo(files.comppgtocaixinha[0].path);
       
       if (error.code === '23502') {
