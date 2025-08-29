@@ -492,7 +492,7 @@ router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, r
 
 //         if (result.rows.length > 0) {
 //             return res.json({
-//                 isAvailable: false,
+//              isAvailable: false,
 //                 conflictingEvent: result.rows[0] 
 //             });
 //         } else {

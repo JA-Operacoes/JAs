@@ -3481,7 +3481,7 @@ export function preencherComprovanteCampo(filePath, campoNome) {
         mainDisplayContainer.style.display = 'block';
 
         let linkHtml = '';
-        if (filePath.toLowerCase().match(/\.(jpeg|jpg|png|gif|webp|bmp|svg)$/i)) {
+        if (filePath.toLowerCase().match(/\.(jpeg|jpg|png|gif|webp|bmp|svg|jfif)$/i)) {
             linkHtml = `<a href="${filePath}" target="_blank" class="comprovante-salvo-link btn-success">Ver Imagem: ${fileName}</a>`;
         } else if (filePath.toLowerCase().endsWith('.pdf')) {
             linkHtml = `<a href="${filePath}" target="_blank" class="comprovante-salvo-link btn-info">Ver PDF: ${fileName}</a>`;

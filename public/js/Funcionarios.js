@@ -913,8 +913,9 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
             document.getElementById("cpf").value = funcionario.cpf || '';
             document.getElementById("rg").value = funcionario.rg || '';
             document.getElementById("Linguas").value = funcionario.fluencia || '';
+            console.log("Linguas recebidas:", funcionario.fluencia);
             atualizarCamposLinguas();
-
+            console.log("Linguas atualizadas");
            // document.getElementById("idiomasContainer").value = funcionario.idiomasadicionais ? JSON.stringify(funcionario.idiomasadicionais) : '';
 
             if (funcionario.idiomasadicionais) {
