@@ -1,0 +1,215 @@
+<div id="Relatorios" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <main class="modal-content-report">
+            <h2>Gerador de Relatórios</h2>
+            <div class="controls">
+                <label for="reportType">Tipo de Relatório:</label>
+                <select id="reportType">
+                    <option value="ajuda_custo">Ajuda de Custo</option>
+                    <option value="cache">Cachê</option>
+                </select>
+                
+                <label for="reportDate">Selecione a Data:</label>
+                <input type="date" id="reportDate" required>
+                <button onclick="gerarRelatorio()">Gerar Relatório</button>
+                <button onclick="imprimirRelatorio()" style="display: none;" id="printButton">Imprimir</button>
+            </div>
+
+            <div id="reportOutput">
+                </div>
+        </main>
+        <style>
+            /* Estilos do relatório */
+            .modal-content-report h2 {
+                border-bottom: 2px solid #0056b3;
+                padding-bottom: 10px;
+                margin-top: 0;
+                color: #0056b3;
+            }
+            .controls {
+                display: flex;
+                gap: 15px;
+                align-items: center;
+                margin-bottom: 25px;
+                padding: 15px;
+                background-color: #e9ecef;
+                border-radius: 6px;
+            }
+            .report-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 20px;
+            }
+            .report-table th, .report-table td {
+                border: 1px solid #dee2e6;
+                padding: 12px;
+                text-align: left;
+            }
+            .report-table thead {
+                background-color: #007bff;
+                color: white;
+            }
+            .total-row {
+                font-weight: bold;
+                background-color: #f8f9fa;
+                border-top: 3px solid #000;
+            }
+            #reportOutput p {
+                font-style: italic;
+                color: #6c757d;
+            }
+            @media print {
+                body * {
+                    visibility: hidden;
+                }
+                .modal-content-report, .modal-content-report * {
+                    visibility: visible;
+                }
+                .modal-content-report {
+                    position: absolute;
+                    left: 0;
+                    top: 0;
+                    width: 100%;
+                    margin: 0;
+                    padding: 0;
+                }
+                .controls {
+                    display: none;
+                }
+                .report-table, .report-table th, .report-table td {
+                    border-color: #000;
+                }
+            }
+        </style>
+        <script>
+            // Este script deve ser o mesmo que eu te forneci anteriormente, 
+            // mas sem a parte de buscar o parâmetro da URL.
+            // Ele será carregado e executado quando o modal for aberto.
+            
+            document.addEventListener('DOMContentLoaded', () => {
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('reportDate').value = today;
+            });
+
+            // Mock de Backend (SIMULADO)
+            const mockApi = {
+                ajuda_custo: () => new Promise(resolve => {
+                    setTimeout(() => {
+                        const data = [
+                            { "Evento": "Evento A", "Cliente": "Cliente X", "Percentual Pgto": "80%", "Nome do Funcionario": "Funcionario 1", "Periodo": ["2024-05-15"], "Dados Bancarios": "001.1234-5", "Valor Ajuda de Custo": 1500 },
+                            { "Evento": "Evento B", "Cliente": "Cliente Y", "Percentual Pgto": "100%", "Nome do Funcionario": "Funcionario 2", "Periodo": ["2024-05-16"], "Dados Bancarios": "001.6789-0", "Valor Ajuda de Custo": 2000 },
+                            { "Evento": "TOTAL GERAL", "Cliente": "", "Percentual Pgto": "", "Nome do Funcionario": "", "Periodo": "", "Dados Bancarios": "", "Valor Ajuda de Custo": 3500 }
+                        ];
+                        resolve(data);
+                    }, 500);
+                }),
+                cache: () => new Promise(resolve => {
+                    setTimeout(() => {
+                        const data = [
+                            { "Evento": "Evento C", "Cliente": "Cliente Z", "Percentual Pgto": "50%", "Nome do Funcionario": "Funcionario 3", "Periodo": ["2024-05-17"], "Dados Bancarios": "104.1111-1", "Valor do Cachê": 3000 },
+                            { "Evento": "Evento D", "Cliente": "Cliente W", "Percentual Pgto": "100%", "Nome do Funcionario": "Funcionario 4", "Periodo": ["2024-05-18"], "Dados Bancarios": "104.2222-2", "Valor do Cachê": 4500 },
+                            { "Evento": "TOTAL GERAL", "Cliente": "", "Percentual Pgto": "", "Nome do Funcionario": "", "Periodo": "", "Dados Bancarios": "", "Valor do Cachê": 7500 }
+                        ];
+                        resolve(data);
+                    }, 500);
+                })
+            };
+
+            async function gerarRelatorio() {
+                const tipoRelatorio = document.getElementById('reportType').value;
+                const dataSelecionada = document.getElementById('reportDate').value;
+                const outputDiv = document.getElementById('reportOutput');
+                const printButton = document.getElementById('printButton');
+
+                if (!dataSelecionada) {
+                    Swal.fire('Atenção', 'Por favor, selecione uma data.', 'warning');
+                    return;
+                }
+                
+                const apiCall = mockApi[tipoRelatorio];
+
+                try {
+                    outputDiv.innerHTML = '<p>Carregando relatório...</p>';
+                    const dados = await apiCall();
+
+                    if (dados.length === 0) {
+                        outputDiv.innerHTML = '<p>Nenhum registro encontrado para a data selecionada.</p>';
+                        printButton.style.display = 'none';
+                        return;
+                    }
+
+                    montarTabela(dados, outputDiv, tipoRelatorio);
+                    printButton.style.display = 'inline-block';
+
+                } catch (error) {
+                    console.error('Falha ao gerar o relatório:', error);
+                    Swal.fire('Erro', 'Ocorreu um erro ao carregar o relatório.', 'error');
+                    outputDiv.innerHTML = '';
+                    printButton.style.display = 'none';
+                }
+            }
+
+            function montarTabela(dados, container, tipoRelatorio) {
+                const valorHeader = tipoRelatorio === 'ajuda_custo' ? 'Valor Ajuda de Custo' : 'Valor do Cachê';
+                const headerMapping = {
+                    "Evento": "Evento",
+                    "Cliente": "Cliente",
+                    "Percentual Pgto": "Percentual Pgto",
+                    "Nome do Funcionario": "Nome do Funcionário",
+                    "Periodo": "Período",
+                    "Dados Bancarios": "Dados Bancários",
+                    [valorHeader]: valorHeader
+                };
+
+                let html = `
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                `;
+                for (const key in headerMapping) {
+                    if (headerMapping.hasOwnProperty(key)) {
+                        html += `<th>${headerMapping[key]}</th>`;
+                    }
+                }
+                html += `
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                dados.forEach(row => {
+                    const isTotalRow = row.Evento === 'TOTAL GERAL';
+                    const rowClass = isTotalRow ? 'total-row' : '';
+
+                    const valor = tipoRelatorio === 'ajuda_custo' ? row["Valor Ajuda de Custo"] : row["Valor do Cachê"];
+                    const valorFormatado = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
+                    
+                    const periodoFormatado = Array.isArray(row.Periodo) ? row.Periodo.join(', ') : row.Periodo;
+
+                    html += `
+                        <tr class="${rowClass}">
+                            <td>${row.Evento}</td>
+                            <td>${row.Cliente}</td>
+                            <td>${row["Percentual Pgto"]}</td>
+                            <td>${row["Nome do Funcionario"]}</td>
+                            <td>${periodoFormatado}</td>
+                            <td>${row["Dados Bancarios"]}</td>
+                            <td>${valorFormatado}</td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                        </tbody>
+                    </table>
+                `;
+                container.innerHTML = html;
+            }
+
+            function imprimirRelatorio() {
+                window.print();
+            }
+        </script>
+    </div>
+</div>

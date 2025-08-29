@@ -65,7 +65,8 @@ router.get(
             o.vlrimposto,
             o.percentimposto,
             o.vlrcliente,
-            o.nomenclatura          
+            o.nomenclatura,
+            o.formapagamento          
         FROM
             orcamentos o
         JOIN
@@ -483,7 +484,7 @@ router.post(
             dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
             totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
             desconto, percentDesconto, acrescimo, percentAcrescimo,
-            lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idsPavilhoes, nomenclatura, itens } = req.body;
+            lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idsPavilhoes, nomenclatura, formaPagamento, itens } = req.body;
 
     const idempresa = req.idempresa; 
 
@@ -499,14 +500,14 @@ router.post(
                     dtiniinfradesmontagem, dtfiminfradesmontagem, obsitens, obsproposta,
                     totgeralvda, totgeralcto, totajdcto, lucrobruto, percentlucro,
                     desconto, percentdesconto, acrescimo, percentacrescimo,
-                    lucroreal, percentlucroreal, vlrimposto, percentimposto, vlrcliente, nomenclatura
+                    lucroreal, percentlucroreal, vlrimposto, percentimposto, vlrcliente, nomenclatura, formapagamento
                 ) VALUES (
                     $1, $2, $3, $4,
                     $5, $6, $7, $8, $9, $10, $11,
                     $12, $13, $14, $15, $16, $17, $18, $19,
                     $20, $21, $22, $23, $24,
                     $25, $26, $27, $28,
-                    $29, $30, $31, $32, $33, $34
+                    $29, $30, $31, $32, $33, $34, $35
                 ) RETURNING idorcamento, nrorcamento; -- Adicionado nrorcamento aqui!
             `;
 
@@ -519,7 +520,7 @@ router.post(
         dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
         totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
         desconto, percentDesconto, acrescimo, percentAcrescimo,
-        lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, nomenclatura
+        lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, nomenclatura, formaPagamento
       ];
 
       const resultOrcamento = await client.query(insertOrcamentoQuery, orcamentoValues);
@@ -594,7 +595,288 @@ router.post(
   }
 );
 
+const fs = require("fs");
+const path = require("path");
+const { spawn } = require("child_process");
 
+function capitalizarPalavras(texto) {
+    if (!texto) {
+        return "";
+    }
+    return texto
+        .toLowerCase()
+        .replace(/\b\w/g, letra => letra.toUpperCase());
+}
+
+router.get("/:nrOrcamento/contrato", 
+    autenticarToken(), 
+    contextoEmpresa,
+    verificarPermissao("Orcamentos", "pesquisar"),
+    async (req, res) => {
+        const client = await pool.connect();
+        try {
+            const { nrOrcamento } = req.params;
+            const idempresa = req.idempresa;
+
+            // ✅ Etapa 1: Busca dados do orçamento (incluindo o idorcamento)
+            const queryOrcamento = `
+                SELECT 
+                    o.idorcamento, o.nrorcamento, o.vlrcliente, o.nomenclatura AS nomenclatura,
+                    o.dtinirealizacao AS inicio_realizacao , o.dtfimrealizacao AS fim_realizacao, o.formapagamento AS forma_pagamento, o.obsproposta AS escopo_servicos,
+                    c.razaosocial AS cliente_nome, c.cnpj AS cliente_cnpj, c.inscestadual AS cliente_insc_estadual, c.nmcontato AS cliente_responsavel,
+                    c.rua AS cliente_rua, c.numero AS cliente_numero, c.complemento AS cliente_complemento, c.cep AS cliente_cep,
+                    e.nmevento AS evento_nome, lm.descmontagem AS local_montagem
+                FROM orcamentos o
+                JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
+                LEFT JOIN clientes c ON o.idcliente = c.idcliente
+                LEFT JOIN eventos e ON o.idevento = e.idevento
+                LEFT JOIN localmontagem lm ON o.idmontagem = lm.idmontagem
+                WHERE o.nrorcamento = $1 AND oe.idempresa = $2
+                LIMIT 1
+            `;
+
+            const resultOrcamento = await client.query(queryOrcamento, [nrOrcamento, idempresa]);
+
+            if (resultOrcamento.rows.length === 0) {
+                return res.status(404).json({ error: "Orçamento não encontrado" });
+            }
+
+            const dados = resultOrcamento.rows[0];
+            dados.data_assinatura = new Date().toLocaleDateString("pt-BR");
+            dados.nr_orcamento = nrOrcamento;
+            dados.valor_total = dados.vlrcliente;
+            dados.ano_atual = new Date().getFullYear();
+
+            // ✅ Etapa 2: Busca todos os itens do orçamento na tabela orcamentoitens
+            const queryItens = `
+                SELECT 
+                    oi.qtditens AS qtd_itens, 
+                    oi.produto AS produto, 
+                    oi.setor,
+                    oi.qtddias AS qtd_dias,
+                    oi.categoria AS categoria,
+                    oi.periododiariasinicio AS inicio_datas,
+                    oi.periododiariasfim AS fim_datas
+                FROM orcamentoitens oi
+                LEFT JOIN funcao f ON oi.idfuncao = f.idfuncao
+                WHERE oi.idorcamento = $1
+            `;
+            const resultItens = await client.query(queryItens, [dados.idorcamento]);
+
+            const categoriasMap = {};
+            const adicionais = [];
+
+            // ✅ Etapa 3: Processa e organiza os itens
+            resultItens.rows.forEach(item => {
+                let categoria = item.categoria || "Outros";
+                const isLinhaAdicional = item.is_adicional;
+
+                const datasFormatadas = (item.inicio_datas && item.fim_datas) 
+                    ? `de: ${new Date(item.inicio_datas).toLocaleDateString("pt-BR")} até: ${new Date(item.fim_datas).toLocaleDateString("pt-BR")}`
+                    : "";
+
+                let itemDescricao = `• ${item.qtd_itens} ${capitalizarPalavras(item.produto)}`;
+
+                if (item.setor && item.setor.toLowerCase() !== 'null' && item.setor !== '') {
+                    itemDescricao += `, (${item.setor})`;
+                }
+
+                if (item.qtd_dias !== '0' && datasFormatadas) {
+                    itemDescricao += `, ${item.qtd_dias} Diária(s), ${datasFormatadas}`;
+                }
+
+                if (item.qtd_itens > 0) {
+                    if (isLinhaAdicional) {
+                        adicionais.push(itemDescricao);
+                    } else {
+                        if (categoria === "Produto(s)") {
+                            categoria = "Equipe Operacional";
+                        }
+                        if (!categoriasMap[categoria]) categoriasMap[categoria] = [];
+                        categoriasMap[categoria].push(itemDescricao);
+                    }
+                }
+            });
+            
+            // ✅ Etapa 4: Adiciona os itens processados ao objeto de dados
+            dados.itens_categorias = [];
+            const ordemCategorias = ["Equipe Operacional", "Equipamento(s)", "Suprimento(s)"];
+            
+            // Primeiro, adiciona as categorias na ordem fixa
+            ordemCategorias.forEach(categoria => {
+                if (categoriasMap[categoria]) {
+                    dados.itens_categorias.push({ nome: categoria, itens: categoriasMap[categoria] });
+                    delete categoriasMap[categoria];
+                }
+            });
+            
+            // Em seguida, adiciona as categorias restantes
+            for (const categoria in categoriasMap) {
+                if (categoriasMap.hasOwnProperty(categoria)) {
+                    dados.itens_categorias.push({ nome: categoria, itens: categoriasMap[categoria] });
+                }
+            }
+            
+            dados.adicionais = adicionais;
+
+            console.log("📦 Dados enviados para o Python:", dados);
+
+            const pythonExecutable = "python";
+            const pythonScriptPath = path.join(__dirname, "../public/python/Contrato.py");
+
+            const python = spawn(pythonExecutable, [pythonScriptPath]);
+
+            let output = "";
+            let errorOutput = "";
+
+            python.stdin.write(JSON.stringify(dados));
+            python.stdin.end();
+
+            python.stdout.setEncoding("utf-8");
+            python.stderr.setEncoding("utf-8");
+
+            python.stdout.on("data", (data) => { output += data.toString(); });
+            python.stderr.on("data", (data) => { errorOutput += data.toString(); });
+
+            python.on("close", async (code) => {
+                if (code !== 0) {
+                    console.error("🐍 Erro Python:", errorOutput);
+                    return res.status(500).json({ error: "Erro ao gerar contrato (Python)", detail: errorOutput });
+                }
+
+                const filePath = output.trim();
+                console.log("📝 Saída do Python (output):", output);
+                console.log("📄 Caminho do arquivo processado:", filePath);
+
+                if (!fs.existsSync(filePath)) {
+                    console.error("❌ Erro: Arquivo do contrato não encontrado no caminho:", filePath);
+                    return res.status(500).json({ error: "Arquivo do contrato não encontrado" });
+                }
+
+                // ✅ NOVO: Etapa 4: Envia o contrato para o ClickSign e obtém o link de assinatura
+                 // ✅ Etapa 4: Envia o contrato para o ClickSign e obtém o link de assinatura
+                console.log("🚀 Enviando contrato para o ClickSign...");
+
+                // ✅ IMPORTANTE: Substitua esta chave pela sua chave de API válida do ClickSign
+                const apiKey = "067ad4b9-d536-414f-bce9-90d491d187c6"; 
+                const clicksignApiUrl = "https://sandbox.clicksign.com/api/v1/documents?access_token=067ad4b9-d536-414f-bce9-90d491d187c6";
+                
+                // ✅ NOVO LOGS: Para depuração do Access Token e do payload
+                console.log("🔑 Chave de API a ser utilizada:", apiKey);
+
+                const fileBase64 = fs.readFileSync(filePath, { encoding: "base64" });
+                const nomeArquivoDownload = `Contrato_${dados.nomenclatura}_${dados.evento_nome || 'Sem Evento'}.docx`;
+
+                const signers = [
+                    {
+                        email: "desenvolvedor1@japromocoes.com.br",
+                        auths: ["email"],
+                        sign_as: "sign",
+                        send_email: true,
+                        name: "JA Promoções"
+                    },
+                    {
+                        email: "desenvolvedor@japromocoes.com.br",
+                        auths: ["email"],
+                        sign_as: "sign",
+                        send_email: true,
+                        name: "desenvolvedor Padrao"
+                    }
+                ];
+
+                // if (dados.cliente_email) {
+                //     signers.push({
+                //         email: dados.cliente_email, 
+                //         auths: ["email"],
+                //         sign_as: "sign",
+                //         name: dados.cliente_responsavel || dados.cliente_nome || "Cliente"
+                //     });
+                // }
+                
+                const clicksignPayload = {
+                    document: {
+                        path:`/contratos/${nomeArquivoDownload}`,
+                        content_base64: `data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,${fileBase64}`,
+                        name: nomeArquivoDownload,
+                        auto_close: true,
+                        signers: signers
+                    }
+                };
+
+                console.log("📄 Payload enviado ao ClickSign:", JSON.stringify(clicksignPayload, null, 2));
+                
+                let clicksignResponse;
+                let clicksignResult;
+
+                try {
+                    clicksignResponse = await fetch(clicksignApiUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`
+                        },
+                        body: JSON.stringify(clicksignPayload)
+                    });
+                    
+                    clicksignResult = await clicksignResponse.json();
+
+                } catch (fetchError) {
+                    console.error("❌ Erro na requisição para o ClickSign:", fetchError);
+                    return res.status(500).json({ 
+                        error: "Erro na comunicação com a API do ClickSign.", 
+                        details: fetchError.message 
+                    });
+                }
+
+                if (!clicksignResponse.ok) {
+                    if (clicksignResponse.status === 401 || clicksignResponse.status === 403) {
+                         console.error("❌ Erro de autenticação da API do ClickSign:", `Status: ${clicksignResponse.status}, Erro: Token de acesso inválido.`);
+                         return res.status(clicksignResponse.status).json({
+                             error: "Erro de autenticação: Verifique se sua chave de API está correta e tem permissões para o ambiente de testes (sandbox).",
+                             details: clicksignResult.errors || 'Token de acesso inválido.'
+                         });
+                    }
+                    console.error("❌ Erro na API do ClickSign:", `Status: ${clicksignResponse.status}`, clicksignResult.errors);
+                    return res.status(clicksignResponse.status).json({ 
+                        error: "Erro na API do ClickSign", 
+                        details: clicksignResult.errors 
+                    });
+                }
+
+                const signingUrl = clicksignResult.document.signing_url;
+                const documentKey = clicksignResult.document?.key || null;
+
+                console.log("✅ Contrato enviado para o ClickSign. Link de assinatura:", signingUrl);
+
+                // Salva na tabela contratos_clicksign
+                await pool.query(
+                    `INSERT INTO contratos_clicksign (doc_key, nr_orcamento, cliente, evento, urlcontrato) 
+                    VALUES ($1, $2, $3, $4, $5)`,
+                    [documentKey, dados.nrorcamento, dados.cliente_nome, dados.evento_nome, signingUrl]
+                );
+
+                // ✅ Etapa 6: Retorna a URL para o frontend
+                res.status(200).json({
+                    success: true,
+                    message: "Contrato enviado para o ClickSign",
+                    signingUrl: signingUrl
+                });
+
+                // Limpeza: remove o arquivo local após o envio
+                fs.unlinkSync(filePath);
+            });
+            python.on("error", (err) => {
+                console.error("❌ Erro ao iniciar o processo Python:", err);
+            });
+
+        } catch (error) {
+            console.error("Erro ao gerar contrato:", error);
+            res.status(500).json({ error: "Erro ao gerar contrato", detail: error.message });
+        } finally {
+            client.release();
+        }
+    });
 
 router.put(
   "/:id", 
@@ -644,7 +926,7 @@ router.put(
             dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
             totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
             desconto, percentDesconto, acrescimo, percentAcrescimo,
-            lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idsPavilhoes, nomenclatura,
+            lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idsPavilhoes, nomenclatura, formaPagamento,
             itens } = req.body;
 
     const idempresa = req.idempresa; // ID da empresa do middleware 'contextoEmpresa'
@@ -664,8 +946,8 @@ router.put(
                     dtiniinfradesmontagem = $16, dtfiminfradesmontagem = $17, obsitens = $18, obsproposta = $19,
                     totgeralvda = $20, totgeralcto = $21, totajdcto = $22, lucrobruto = $23, percentlucro = $24,
                     desconto = $25, percentdesconto = $26, acrescimo = $27, percentacrescimo = $28,
-                    lucroreal = $29, percentlucroreal = $30, vlrimposto = $31, percentimposto = $32, vlrcliente = $33, nomenclatura = $34
-                WHERE idorcamento = $35 AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $35) = $36;
+                    lucroreal = $29, percentlucroreal = $30, vlrimposto = $31, percentimposto = $32, vlrcliente = $33, nomenclatura = $34, formapagamento = $35
+                WHERE idorcamento = $36 AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $36) = $37;
             `;
 
       const orcamentoValues = [
@@ -676,12 +958,13 @@ router.put(
         dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
         totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
         desconto, percentDesconto, acrescimo, percentAcrescimo,
-        lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, nomenclatura,
+        lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, nomenclatura, formaPagamento,
         idOrcamento, // $35
         idempresa    // $36
       ];
 
       const resultUpdateOrcamento = await client.query(updateOrcamentoQuery, orcamentoValues);
+      console.log("result",resultUpdateOrcamento);
 
       if (resultUpdateOrcamento.rowCount === 0) {
           throw new Error('Orçamento não encontrado ou você não tem permissão para editá-lo.');
@@ -835,6 +1118,7 @@ router.put(
     const client = await pool.connect();
     const idOrcamento = req.params.id;
     const idempresa = req.idempresa;
+    console.log("required", req.body);
 
     try {
       await client.query("BEGIN");

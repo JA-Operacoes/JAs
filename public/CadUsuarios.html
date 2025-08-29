@@ -160,29 +160,44 @@
         </div>
         
 
-        <div class="Permissions">
-          <div>
-            <input id="Acesso" type="checkbox" />
-            <label for="Acesso">Acesso ao Módulo</label>
-          </div>
-          <div>
-            <input id="Cadastrar" type="checkbox" />
-            <label for="Cadastrar">Cadastrar</label>
-          </div>
-          <div>
-            <input  id="Alterar" type="checkbox" />
-            <label for="Alterar">Alterar</label>
-          </div>
-          <div>
-            <input id="Pesquisar" type="checkbox" />
-            <label for="Pesquisar">Pesquisar</label>
-          </div>
-          <div>
-            <input id="Apagar" type="checkbox" />
-            <label for="Apagar">Apagar</label>
-          </div>
+        <div class="grid">
+          <div class="Permissions">
+            <div><h4 for="Acesso Padrão" class="categoria-titulo">ACESSOS PADRÕES</h4></div>
+            <div>
+              <input id="Acesso" type="checkbox" />
+              <label for="Acesso">Acesso ao Módulo</label>
+            </div>
+            <div>
+              <input id="Cadastrar" type="checkbox" disabled />
+              <label for="Cadastrar">Cadastrar</label>
+            </div>
+            <div>
+              <input  id="Alterar" type="checkbox" disabled />
+              <label for="Alterar">Alterar</label>
+            </div>
+            <div>
+              <input id="Pesquisar" type="checkbox" disabled />
+              <label for="Pesquisar">Pesquisar</label>
+            </div>
+            <div>
+              <input id="Apagar" type="checkbox" disabled />
+              <label for="Apagar">Apagar</label>
+            </div>
+                </div>
+            <div class="Permissions2">
+              <div><h4 for="Acesso Especial" class="categoria-titulo">ACESSOS ESPECIAIS</h4></div>
+              <div>
+                <input id="Master" type="checkbox" disabled />
+                <label for="Master">MASTER</label>
+              </div>
+              <div>
+                <input id="Financeiro" type="checkbox" disabled />
+                <label for="Financeiro">FINANCEIRO</label>
+              </div>
+            </div>
+        </div>
           
-        </div> 
+        
     
         <div class="bts">
           <a type="button" id="btnsalvarPermissao">SALVAR PERMISSÃO<span></span></a>

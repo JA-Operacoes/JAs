@@ -61,6 +61,8 @@ async function listarPermissoesPorUsuario(req, res) {
       pesquisar: !!row.pesquisar,
       acesso: !!row.acesso,
       apagar: !!row.apagar,
+      master: !!row.master,
+      financeiro: !!row.financeiro,
       idempresa: row.idempresa
     }));
     console.log("listarPermissoesPorUsuario FINAL", permissoes);
@@ -81,7 +83,9 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
     cadastrar,
     alterar,
     pesquisar,
-    apagar
+    apagar,
+    master,
+    financeiro
   } = req.body;
 
   const idempresa = req.headers.idempresa; 
@@ -114,10 +118,10 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
         // Atualiza
         const updateResult = await db.query(`
           UPDATE permissoes
-          SET cadastrar = $1, alterar = $2, pesquisar = $3, acesso = $4, apagar = $5
-          WHERE idusuario = $6 AND modulo = $7 AND idempresa = $8
+          SET cadastrar = $1, alterar = $2, pesquisar = $3, acesso = $4, apagar = $5, master = $6, financeiro = $7
+          WHERE idusuario = $8 AND modulo = $9 AND idempresa = $10
           RETURNING id;
-        `, [cadastrar, alterar, pesquisar, acesso, apagar, idusuario, moduloFormatado, idempresa]);
+        `, [cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, idusuario, moduloFormatado, idempresa]);
         
   
         idpermissao = updateResult.rows[0]?.id || null;
@@ -126,10 +130,10 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
       } else {
         // Insere nova permissão
         const insertResult = await db.query(`
-          INSERT INTO permissoes (idusuario, modulo, cadastrar, alterar, pesquisar, acesso, apagar, idempresa)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          INSERT INTO permissoes (idusuario, modulo, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, idempresa)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
           RETURNING id;
-        `, [idusuario, moduloFormatado, cadastrar, alterar, pesquisar, acesso, apagar, idempresa]);
+        `, [idusuario, moduloFormatado, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, idempresa]);
         idpermissao = insertResult.rows[0].id;
         acao = 'cadastrou';
       }

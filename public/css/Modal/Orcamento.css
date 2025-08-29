@@ -30,7 +30,7 @@
   }
 
   /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
-  #cadModalOrcamentos.modal {
+  #Relatorios.modal {
     position: fixed;
     top: 50%; /* Alinha verticalmente ao centro */
     left: 50%; /* Alinha horizontalmente ao centro */
@@ -44,7 +44,7 @@
     border-radius: 10px;
   }
 
-  #cadModalOrcamentos.modal-open{
+  #Relatorios.modal-open{
     overflow: hidden;
     pointer-events: none;
   }
@@ -183,7 +183,6 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 15px ;
   }
   .select2{
     display: flex;
@@ -218,6 +217,10 @@
   select.idMontagem {
     width: 250px;
     height: 25px;
+  }
+
+.idCliente, .idEvento{
+    width: 230px;
   }
 
   select.selectFuncao {
@@ -407,23 +410,13 @@
   input#statusPgto{
      width: 170px;
   }
-  /* input.listaPavilhao{
-    width: 350px;
-    height: 30px;
-    font-size: 15px;
-    margin-left: 900px;
-  } 
-  
-  label.listaPavilhao{
-    display: flex;
-    justify-content: center;
-    font-size: 15px;
-  }  */
 
-
-.select label {
+.select label, .select2 label {
     font-weight: 600;
     font-size: 14px;
+}
+select #idCliente, #idEvento{
+  width: 300px;
 }
 
 /* Estilo do bloco visual onde ficam as tags dos pavilhões */
@@ -1062,37 +1055,6 @@
 
 /* -------------------------------------- @medias ---------------------------------------- */
 
-/* @media(max-width: 5674px){
-  textarea{
-      font-family: var(--Font-primary);
-      width: 400px;
-      height: 90px;
-      border-radius: 6px;
-      font-size: 15px;
-      border: 1px solid #000000;
-      background: white;
-      color: #000000;
-      overflow-y: auto;
-      margin: 5px auto;
-  }
-  .table{
-    overflow-x: scroll;
-
-  }
-   #cadModalOrcamentos.modal{
-    position: fixed;
-    top: 50%; 
-    left: 50%;   
-    transform: translate(-50%, -50%); 
-    background-color: #4d4d4d;
-    padding: 5px;
-    margin-top: 10px;
-    max-width: 1300px; 
-    height: 730px;
-    font-size: 16px;
-    z-index: 9999;
-  }
-} */
 @media (min-width: 1987px){
   #cadModalOrcamentos.modal{
     position: fixed;

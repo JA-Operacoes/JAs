@@ -72,9 +72,9 @@
                         <div class="select2">
                             <label for="idMontagem">Local Montagem:</label>
                             <select class="idMontagem"  id="idMontagem"></select>
-                            <div class="form3">   
+                            <div class="form3">
                                 <input type="text" class="ufmontagem  preenchido" id="ufmontagem" name="ufmontagem" required spellcheck="false">
-                                <label  for="ufmontagem">UF</label>               
+                                <label  for="ufmontagem">UF</label>
                             </div>
                             <select class="idPavilhao" name="selecionarPavilhao" id="selecionarPavilhao" required>
                                 <option value="" selected>Selecione Pavilhão</option>
@@ -91,8 +91,12 @@
                                 </label>
                             </div>
                         </div>
-                        
                     </div>  
+
+                    <div class="Selects">
+                        
+                    </div>
+                    
                     
                     <!-- <div class="pavilhao">
                         <label  for="listaPavilhao">Lista de Pavilhões Selecionados</label> 
@@ -266,7 +270,7 @@
                                     <p class="checkbox__textwrapper"></p>
                                 </label>
                             </div>
-                                <textarea id="formaPagamento" rows="4" placeholder="Descreva a Forma de Pagamento                           (Exemplo: 10% na assinatura...)"></textarea>
+                                <textarea name="formaPagamento" id="formaPagamento" placeholder="Descreva a Forma de Pagamento                           (Exemplo: 10% na assinatura...)"></textarea>
                         </div>
                         </div>
                         <div>
@@ -357,6 +361,7 @@
                 <button class="pesquisar" onclick="pesquisarOrcamento()">Pesquisar</button>
                 <button class="Limpar" id="Limpar" type="button" >Limpar</button>
                 <button class="Proposta" id="Proposta">Gerar Proposta</button>
+                <button class="Contrato" id="Contrato" style="display: none;">Proposta/Contrato</button>
                 <button class="Excel" onclick="exportarParaExcel()" style="display: none;">Exportar P/ Excel</button>
                 <button class="fecharOrc" id="fecharOrc">Fechar Orçamento</button>
                 <button class="btnEnviar" id="Enviar" type="button" >Salvar Orçamento</button>

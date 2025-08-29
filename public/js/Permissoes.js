@@ -1,6 +1,6 @@
 // public/js/permissoes.js
 // Função para aplicar as permissões no DOM conforme o módulo atual
-import { fetchComToken, fetchHtmlComToken } from '../utils/utils.js';
+//import { fetchComToken, fetchHtmlComToken } from '../utils/utils.js';
 
 window.permissoesUsuario = [];
 
