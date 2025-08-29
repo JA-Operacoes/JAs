@@ -8,7 +8,7 @@ const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 // GET Relatório de Ajuda de Custo ou Cachê
 router.get("/", autenticarToken(), contextoEmpresa,
 verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
-    console.log("ENTROU NA ROTA PARA RELATORIO");
+    console.log("ENTROU NA ROTA PARA RELATORIOS");
     const { tipo, data } = req.query; 
     const idempresa = req.idempresa;
     

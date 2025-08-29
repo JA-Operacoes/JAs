@@ -47,6 +47,7 @@ function initRelatorios() {
 // === MOCK DE BACKEND (SIMULADO) =====================================
 // === ... REMOVA ESTE BLOCO INTEIRO ... =============================
 // ====================================================================
+//RELATORIO AJDCUSTO/CACHE
 
 // Funções principais
 async function gerarRelatorio() {
