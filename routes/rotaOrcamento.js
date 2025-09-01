@@ -4,6 +4,9 @@ const pool = require("../db/conexaoDB");
 const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlewares');
 const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 const logMiddleware = require("../middlewares/logMiddleware");
+const fs = require("fs");
+const path = require("path");
+const { spawn } = require("child_process");
 
 // Aplica autenticação em todas as rotas
 // router.use(autenticarToken);
@@ -595,9 +598,7 @@ router.post(
   }
 );
 
-const fs = require("fs");
-const path = require("path");
-const { spawn } = require("child_process");
+
 
 function capitalizarPalavras(texto) {
     if (!texto) {
@@ -732,9 +733,6 @@ router.get("/:nrOrcamento/contrato",
             python.stdin.write(JSON.stringify(dados));
             python.stdin.end();
 
-            python.stdout.setEncoding("utf-8");
-            python.stderr.setEncoding("utf-8");
-
             python.stdout.on("data", (data) => { output += data.toString(); });
             python.stderr.on("data", (data) => { errorOutput += data.toString(); });
 
@@ -745,129 +743,144 @@ router.get("/:nrOrcamento/contrato",
                 }
 
                 const filePath = output.trim();
+                const fileName = path.basename(filePath);
+                const downloadUrl = `/orcamentos/download/contrato/${encodeURIComponent(fileName)}`;
                 console.log("📝 Saída do Python (output):", output);
                 console.log("📄 Caminho do arquivo processado:", filePath);
 
                 if (!fs.existsSync(filePath)) {
-                    console.error("❌ Erro: Arquivo do contrato não encontrado no caminho:", filePath);
+                    console.error("❌ Arquivo do contrato não encontrado:", filePath);
                     return res.status(500).json({ error: "Arquivo do contrato não encontrado" });
                 }
 
-                // ✅ NOVO: Etapa 4: Envia o contrato para o ClickSign e obtém o link de assinatura
-                 // ✅ Etapa 4: Envia o contrato para o ClickSign e obtém o link de assinatura
-                console.log("🚀 Enviando contrato para o ClickSign...");
+                  
 
-                // ✅ IMPORTANTE: Substitua esta chave pela sua chave de API válida do ClickSign
-                const apiKey = "067ad4b9-d536-414f-bce9-90d491d187c6"; 
-                const clicksignApiUrl = "https://sandbox.clicksign.com/api/v1/documents?access_token=067ad4b9-d536-414f-bce9-90d491d187c6";
+            //     // ✅ NOVO: Etapa 4: Envia o contrato para o ClickSign e obtém o link de assinatura
+            //      // ✅ Etapa 4: Envia o contrato para o ClickSign e obtém o link de assinatura
+            //     console.log("🚀 Enviando contrato para o ClickSign...");
+
+            //     // ✅ IMPORTANTE: Substitua esta chave pela sua chave de API válida do ClickSign
+            //     const apiKey = "067ad4b9-d536-414f-bce9-90d491d187c6"; 
+            //     const clicksignApiUrl = "https://sandbox.clicksign.com/api/v1/documents?access_token=067ad4b9-d536-414f-bce9-90d491d187c6";
                 
-                // ✅ NOVO LOGS: Para depuração do Access Token e do payload
-                console.log("🔑 Chave de API a ser utilizada:", apiKey);
+            //     // ✅ NOVO LOGS: Para depuração do Access Token e do payload
+            //     console.log("🔑 Chave de API a ser utilizada:", apiKey);
 
-                const fileBase64 = fs.readFileSync(filePath, { encoding: "base64" });
-                const nomeArquivoDownload = `Contrato_${dados.nomenclatura}_${dados.evento_nome || 'Sem Evento'}.docx`;
+            //     const fileBase64 = fs.readFileSync(filePath, { encoding: "base64" });
+            //     const nomeArquivoDownload = `Contrato_${dados.nomenclatura}_${dados.evento_nome || 'Sem Evento'}.docx`;
 
-                const signers = [
-                    {
-                        email: "desenvolvedor1@japromocoes.com.br",
-                        auths: ["email"],
-                        sign_as: "sign",
-                        send_email: true,
-                        name: "JA Promoções"
-                    },
-                    {
-                        email: "desenvolvedor@japromocoes.com.br",
-                        auths: ["email"],
-                        sign_as: "sign",
-                        send_email: true,
-                        name: "desenvolvedor Padrao"
-                    }
-                ];
+            //     const signers = [
+            //         {
+            //             email: "desenvolvedor1@japromocoes.com.br",
+            //             auths: ["email"],
+            //             sign_as: "sign",
+            //             send_email: true,
+            //             name: "JA Promoções",
+            //             locale: "empresa_assinatura"
+            //         },
+            //         {
+            //             email: "testemunha_email@dominio.com", // Substitua pelo e-mail da testemunha
+            //             auths: ["email"],
+            //             sign_as: "witness",
+            //             send_email: true, // O tipo de assinatura para testemunha
+            //             name: "Carla Lima",
+            //             locale:"testemunhaJa_assinatura" // Substitua pelo nome da testemunha
+            //         },
+            //         {
+            //             email: "desenvolvedor@japromocoes.com.br",
+            //             auths: ["email"],
+            //             sign_as: "sign",
+            //             send_email: true,
+            //             name: "desenvolvedor Padrao",
+            //             locale: "cliente_assinatura"
+            //         }
+            //     ];
 
-                // if (dados.cliente_email) {
-                //     signers.push({
-                //         email: dados.cliente_email, 
-                //         auths: ["email"],
-                //         sign_as: "sign",
-                //         name: dados.cliente_responsavel || dados.cliente_nome || "Cliente"
-                //     });
-                // }
+            //     // if (dados.cliente_email) {
+            //     //     signers.push({
+            //     //         email: dados.cliente_email, 
+            //     //         auths: ["email"],
+            // //            send_email: true,
+            //     //         sign_as: "sign",
+            //     //         name: dados.cliente_responsavel || dados.cliente_nome || "Cliente"
+            //     //     });
+            //     // }
                 
-                const clicksignPayload = {
-                    document: {
-                        path:`/contratos/${nomeArquivoDownload}`,
-                        content_base64: `data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,${fileBase64}`,
-                        name: nomeArquivoDownload,
-                        auto_close: true,
-                        signers: signers
-                    }
-                };
+            //     const clicksignPayload = {
+            //         document: {
+            //             path:`/contratos/${nomeArquivoDownload}`,
+            //             content_base64: `data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,${fileBase64}`,
+            //             name: nomeArquivoDownload,
+            //             auto_close: true,
+            //             signers: signers
+            //         }
+            //     };
 
-                console.log("📄 Payload enviado ao ClickSign:", JSON.stringify(clicksignPayload, null, 2));
+            //     console.log("📄 Payload enviado ao ClickSign:", JSON.stringify(clicksignPayload, null, 2));
                 
-                let clicksignResponse;
-                let clicksignResult;
+            //     let clicksignResponse;
+            //     let clicksignResult;
 
-                try {
-                    clicksignResponse = await fetch(clicksignApiUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'Authorization': `Bearer ${apiKey}`
-                        },
-                        body: JSON.stringify(clicksignPayload)
-                    });
+            //     try {
+            //         clicksignResponse = await fetch(clicksignApiUrl, {
+            //             method: 'POST',
+            //             headers: {
+            //                 'Content-Type': 'application/json',
+            //                 'Accept': 'application/json',
+            //                 'Authorization': `Bearer ${apiKey}`
+            //             },
+            //             body: JSON.stringify(clicksignPayload)
+            //         });
                     
-                    clicksignResult = await clicksignResponse.json();
+            //         clicksignResult = await clicksignResponse.json();
 
-                } catch (fetchError) {
-                    console.error("❌ Erro na requisição para o ClickSign:", fetchError);
-                    return res.status(500).json({ 
-                        error: "Erro na comunicação com a API do ClickSign.", 
-                        details: fetchError.message 
-                    });
-                }
+            //     } catch (fetchError) {
+            //         console.error("❌ Erro na requisição para o ClickSign:", fetchError);
+            //         return res.status(500).json({ 
+            //             error: "Erro na comunicação com a API do ClickSign.", 
+            //             details: fetchError.message 
+            //         });
+            //     }
 
-                if (!clicksignResponse.ok) {
-                    if (clicksignResponse.status === 401 || clicksignResponse.status === 403) {
-                         console.error("❌ Erro de autenticação da API do ClickSign:", `Status: ${clicksignResponse.status}, Erro: Token de acesso inválido.`);
-                         return res.status(clicksignResponse.status).json({
-                             error: "Erro de autenticação: Verifique se sua chave de API está correta e tem permissões para o ambiente de testes (sandbox).",
-                             details: clicksignResult.errors || 'Token de acesso inválido.'
-                         });
-                    }
-                    console.error("❌ Erro na API do ClickSign:", `Status: ${clicksignResponse.status}`, clicksignResult.errors);
-                    return res.status(clicksignResponse.status).json({ 
-                        error: "Erro na API do ClickSign", 
-                        details: clicksignResult.errors 
-                    });
-                }
+            //     if (!clicksignResponse.ok) {
+            //         if (clicksignResponse.status === 401 || clicksignResponse.status === 403) {
+            //             console.error("❌ Erro de autenticação da API do ClickSign:", `Status: ${clicksignResponse.status}, Erro: Token de acesso inválido.`);
+            //             return res.status(clicksignResponse.status).json({
+            //                 error: "Erro de autenticação: Verifique se sua chave de API está correta e tem permissões para o ambiente de testes (sandbox).",
+            //                 details: clicksignResult.errors || 'Token de acesso inválido.'
+            //             });
+            //         }
+            //         console.error("❌ Erro na API do ClickSign:", `Status: ${clicksignResponse.status}`, clicksignResult.errors);
+            //         return res.status(clicksignResponse.status).json({ 
+            //             error: "Erro na API do ClickSign", 
+            //             details: clicksignResult.errors 
+            //         });
+            //     }
 
-                const signingUrl = clicksignResult.document.signing_url;
-                const documentKey = clicksignResult.document?.key || null;
+            //     const signingUrl = clicksignResult.document.signing_url|| null;
+            //     const documentKey = clicksignResult.document?.key || null;
 
-                console.log("✅ Contrato enviado para o ClickSign. Link de assinatura:", signingUrl);
+            //     console.log("✅ Contrato enviado para o ClickSign. Link de assinatura:", signingUrl);
 
-                // Salva na tabela contratos_clicksign
-                await pool.query(
-                    `INSERT INTO contratos_clicksign (doc_key, nr_orcamento, cliente, evento, urlcontrato) 
-                    VALUES ($1, $2, $3, $4, $5)`,
-                    [documentKey, dados.nrorcamento, dados.cliente_nome, dados.evento_nome, signingUrl]
-                );
+            //     // Salva na tabela contratos_clicksign
+            //     await pool.query(
+            //         `INSERT INTO contratos_clicksign (doc_key, nr_orcamento, cliente, evento, urlcontrato) 
+            //         VALUES ($1, $2, $3, $4, $5)`,
+            //         [documentKey, dados.nrorcamento, dados.cliente_nome, dados.evento_nome, signingUrl]
+            //     );
 
                 // ✅ Etapa 6: Retorna a URL para o frontend
-                res.status(200).json({
+                    res.status(200).json({
                     success: true,
-                    message: "Contrato enviado para o ClickSign",
-                    signingUrl: signingUrl
+                    message: "Contrato gerado com sucesso",
+                    // signingUrl: signingUrl,
+                    fileUrl: downloadUrl
+                    // clicksignResult: clicksignResult
                 });
-
-                // Limpeza: remove o arquivo local após o envio
-                fs.unlinkSync(filePath);
             });
             python.on("error", (err) => {
-                console.error("❌ Erro ao iniciar o processo Python:", err);
+                console.error("❌ Erro ao iniciar Python:", err);
+                res.status(500).json({ error: "Erro ao iniciar processo Python", detail: err.message });
             });
 
         } catch (error) {
@@ -876,7 +889,493 @@ router.get("/:nrOrcamento/contrato",
         } finally {
             client.release();
         }
+    }
+);
+
+// 🔽 Força o download do contrato
+router.get('/download/contrato/:fileName', autenticarToken(), async (req, res) => {
+    try {
+         const fileName = decodeURIComponent(req.params.fileName); // decodifica %20 para espaço
+        // caminho absoluto até a pasta upload/contratos (fora do public)
+        const filePath = path.join(__dirname, '../../upload/contratos', fileName);
+
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ error: 'Arquivo não encontrado' });
+        }
+
+        res.download(filePath, fileName); 
+    } catch (error) {
+        console.error('Erro no download do contrato:', error);
+        res.status(500).json({ error: 'Erro ao baixar o arquivo', detail: error.message });
+    }
+});
+      
+
+// router.get("/:nrOrcamento/contrato1", 
+//     autenticarToken(), 
+//     contextoEmpresa,
+//     verificarPermissao("Orcamentos", "pesquisar"),
+//     async (req, res) => {
+//         const client = await pool.connect();
+//         try {
+//             const { nrOrcamento } = req.params;
+//             const idempresa = req.idempresa;
+
+//             // ✅ Etapa 1: Busca dados do orçamento (incluindo o idorcamento)
+//             const queryOrcamento = `
+//                 SELECT 
+//                     o.idorcamento, o.nrorcamento, o.vlrcliente, o.nomenclatura AS nomenclatura,
+//                     o.dtinirealizacao AS inicio_realizacao , o.dtfimrealizacao AS fim_realizacao, o.formapagamento AS forma_pagamento, o.obsproposta AS escopo_servicos,
+//                     c.razaosocial AS cliente_nome, c.cnpj AS cliente_cnpj, c.inscestadual AS cliente_insc_estadual, c.nmcontato AS cliente_responsavel,
+//                     c.rua AS cliente_rua, c.numero AS cliente_numero, c.complemento AS cliente_complemento, c.cep AS cliente_cep,
+//                     e.nmevento AS evento_nome, lm.descmontagem AS local_montagem
+//                 FROM orcamentos o
+//                 JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
+//                 LEFT JOIN clientes c ON o.idcliente = c.idcliente
+//                 LEFT JOIN eventos e ON o.idevento = e.idevento
+//                 LEFT JOIN localmontagem lm ON o.idmontagem = lm.idmontagem
+//                 WHERE o.nrorcamento = $1 AND oe.idempresa = $2
+//                 LIMIT 1
+//             `;
+
+//             const resultOrcamento = await client.query(queryOrcamento, [nrOrcamento, idempresa]);
+
+//             if (resultOrcamento.rows.length === 0) {
+//                 return res.status(404).json({ error: "Orçamento não encontrado" });
+//             }
+
+//             const dados = resultOrcamento.rows[0];
+//             dados.data_assinatura = new Date().toLocaleDateString("pt-BR");
+//             dados.nr_orcamento = nrOrcamento;
+//             dados.valor_total = dados.vlrcliente;
+//             dados.ano_atual = new Date().getFullYear();
+
+//             // ✅ Etapa 2: Busca todos os itens do orçamento na tabela orcamentoitens
+//             const queryItens = `
+//                 SELECT 
+//                     oi.qtditens AS qtd_itens, 
+//                     oi.produto AS produto, 
+//                     oi.setor,
+//                     oi.qtddias AS qtd_dias,
+//                     oi.categoria AS categoria,
+//                     oi.periododiariasinicio AS inicio_datas,
+//                     oi.periododiariasfim AS fim_datas
+//                 FROM orcamentoitens oi
+//                 LEFT JOIN funcao f ON oi.idfuncao = f.idfuncao
+//                 WHERE oi.idorcamento = $1
+//             `;
+//             const resultItens = await client.query(queryItens, [dados.idorcamento]);
+
+//             const categoriasMap = {};
+//             const adicionais = [];
+
+//             // ✅ Etapa 3: Processa e organiza os itens
+//             resultItens.rows.forEach(item => {
+//                 let categoria = item.categoria || "Outros";
+//                 const isLinhaAdicional = item.is_adicional;
+
+//                 const datasFormatadas = (item.inicio_datas && item.fim_datas) 
+//                     ? `de: ${new Date(item.inicio_datas).toLocaleDateString("pt-BR")} até: ${new Date(item.fim_datas).toLocaleDateString("pt-BR")}`
+//                     : "";
+
+//                 let itemDescricao = `• ${item.qtd_itens} ${capitalizarPalavras(item.produto)}`;
+
+//                 if (item.setor && item.setor.toLowerCase() !== 'null' && item.setor !== '') {
+//                     itemDescricao += `, (${item.setor})`;
+//                 }
+
+//                 if (item.qtd_dias !== '0' && datasFormatadas) {
+//                     itemDescricao += `, ${item.qtd_dias} Diária(s), ${datasFormatadas}`;
+//                 }
+
+//                 if (item.qtd_itens > 0) {
+//                     if (isLinhaAdicional) {
+//                         adicionais.push(itemDescricao);
+//                     } else {
+//                         if (categoria === "Produto(s)") {
+//                             categoria = "Equipe Operacional";
+//                         }
+//                         if (!categoriasMap[categoria]) categoriasMap[categoria] = [];
+//                         categoriasMap[categoria].push(itemDescricao);
+//                     }
+//                 }
+//             });
+            
+//             // ✅ Etapa 4: Adiciona os itens processados ao objeto de dados
+//             dados.itens_categorias = [];
+//             const ordemCategorias = ["Equipe Operacional", "Equipamento(s)", "Suprimento(s)"];
+            
+//             // Primeiro, adiciona as categorias na ordem fixa
+//             ordemCategorias.forEach(categoria => {
+//                 if (categoriasMap[categoria]) {
+//                     dados.itens_categorias.push({ nome: categoria, itens: categoriasMap[categoria] });
+//                     delete categoriasMap[categoria];
+//                 }
+//             });
+            
+//             // Em seguida, adiciona as categorias restantes
+//             for (const categoria in categoriasMap) {
+//                 if (categoriasMap.hasOwnProperty(categoria)) {
+//                     dados.itens_categorias.push({ nome: categoria, itens: categoriasMap[categoria] });
+//                 }
+//             }
+            
+//             dados.adicionais = adicionais;
+
+//             console.log("📦 Dados enviados para o Python:", dados);
+
+//             const pythonExecutable = "python";
+//             const pythonScriptPath = path.join(__dirname, "../public/python/Contrato.py");
+
+//             const python = spawn(pythonExecutable, [pythonScriptPath]);
+
+//             let output = "";
+//             let errorOutput = "";
+
+//             python.stdin.write(JSON.stringify(dados));
+//             python.stdin.end();
+
+//             python.stdout.setEncoding("utf-8");
+//             python.stderr.setEncoding("utf-8");
+
+//             python.stdout.on("data", (data) => { output += data.toString(); });
+//             python.stderr.on("data", (data) => { errorOutput += data.toString(); });
+
+//             // ... 🔹 [tudo igual até gerar o arquivo pelo Python]
+
+//             python.on("close", async (code) => {
+//                 if (code !== 0) {
+//                     console.error("🐍 Erro Python:", errorOutput);
+//                     return res.status(500).json({ error: "Erro ao gerar contrato (Python)", detail: errorOutput });
+//                 }
+
+//                 const filePath = output.trim();
+//                 const fileName = path.basename(filePath);
+//                 const downloadUrl = `/orcamentos/download/contrato/${encodeURIComponent(fileName)}`;
+
+//                 if (!fs.existsSync(filePath)) {
+//                     return res.status(500).json({ error: "Arquivo do contrato não encontrado" });
+//                 }
+
+//                 // ✅ Apenas retorna o link do arquivo, sem ClickSign
+//                 res.status(200).json({
+//                     success: true,
+//                     message: "Contrato gerado com sucesso",
+//                     fileUrl: downloadUrl
+//                 });
+//             });
+
+//         } catch (error) {
+//             console.error("Erro ao gerar contrato:", error);
+//             res.status(500).json({ error: "Erro ao gerar contrato", detail: error.message });
+//         } finally {
+//             client.release();
+//         }
+//     }
+// );
+
+// router.post("/:nrOrcamento/enviar-clicksign", 
+//     autenticarToken(), 
+//     contextoEmpresa,
+//     verificarPermissao("Orcamentos", "alterar"),
+//     async (req, res) => {
+//         const client = await pool.connect();
+//         try {
+//             const { nrOrcamento } = req.params;
+
+//             // 🔹 Busca caminho do arquivo salvo
+//             const pastaContratos = path.join(__dirname, "../public/contratos"); 
+//             const files = fs.readdirSync(pastaContratos);
+//             const contratoFile = files.find(f => f.includes(nrOrcamento));
+
+//             if (!contratoFile) {
+//                 return res.status(404).json({ error: "Contrato não encontrado para este orçamento" });
+//             }
+
+//             const filePath = path.join(pastaContratos, contratoFile);
+//             const fileBase64 = fs.readFileSync(filePath, { encoding: "base64" });
+
+//             const nomeArquivoDownload = contratoFile;
+
+//             // 🔹 Aqui vai exatamente o mesmo payload/signers que você já usa
+//             const signers = [
+//                 {
+//                     email: "desenvolvedor1@japromocoes.com.br",
+//                     auths: ["email"],
+//                     sign_as: "sign",
+//                     send_email: true,
+//                     name: "JA Promoções",
+//                     locale: "empresa_assinatura"
+//                 },
+//                 {
+//                     email: "testemunha_email@dominio.com",
+//                     auths: ["email"],
+//                     sign_as: "witness",
+//                     send_email: true,
+//                     name: "Carla Lima",
+//                     locale:"testemunhaJa_assinatura"
+//                 },
+//                 {
+//                     email: "desenvolvedor@japromocoes.com.br",
+//                     auths: ["email"],
+//                     sign_as: "sign",
+//                     send_email: true,
+//                     name: "desenvolvedor Padrao",
+//                     locale: "cliente_assinatura"
+//                 }
+//             ];
+
+//             const clicksignPayload = {
+//                 document: {
+//                     path: `/contratos/${nomeArquivoDownload}`,
+//                     content_base64: `data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,${fileBase64}`,
+//                     name: nomeArquivoDownload,
+//                     auto_close: true,
+//                     signers: signers
+//                 }
+//             };
+
+//             const apiKey = "067ad4b9-d536-414f-bce9-90d491d187c6"; 
+//             const clicksignApiUrl = `https://sandbox.clicksign.com/api/v1/documents?access_token=${apiKey}`;
+
+//             const clicksignResponse = await fetch(clicksignApiUrl, {
+//                 method: 'POST',
+//                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+//                 body: JSON.stringify(clicksignPayload)
+//             });
+
+//             const clicksignResult = await clicksignResponse.json();
+
+//             if (!clicksignResponse.ok) {
+//                 return res.status(clicksignResponse.status).json({
+//                     error: "Erro ao enviar para ClickSign",
+//                     details: clicksignResult.errors
+//                 });
+//             }
+
+//             const signingUrl = clicksignResult.document.signing_url|| null;
+//             const documentKey = clicksignResult.document?.key || null;
+
+//             await pool.query(
+//                 `INSERT INTO contratos_clicksign (doc_key, nr_orcamento, urlcontrato) VALUES ($1, $2, $3)`,
+//                 [documentKey, nrOrcamento, signingUrl]
+//             );
+
+//             res.status(200).json({
+//                 success: true,
+//                 message: "Contrato enviado ao ClickSign com sucesso",
+//                 signingUrl,
+//                 clicksignResult
+//             });
+
+//         } catch (error) {
+//             console.error("Erro ao enviar contrato para ClickSign:", error);
+//             res.status(500).json({ error: "Erro ao enviar contrato", detail: error.message });
+//         } finally {
+//             client.release();
+//         }
+//     }
+// );
+
+router.get("/:nrOrcamento/proposta", 
+    autenticarToken(), 
+    contextoEmpresa,
+    verificarPermissao("Orcamentos", "pesquisar"),
+    async (req, res) => {
+        const client = await pool.connect();
+        try {
+            const { nrOrcamento } = req.params;
+            const idempresa = req.idempresa;
+
+            // ✅ Etapa 1: Busca dados do orçamento
+            const queryOrcamento = `
+                SELECT 
+                    o.idorcamento, o.nrorcamento, o.vlrcliente, o.nomenclatura AS nomenclatura,
+                    o.dtinirealizacao AS inicio_realizacao, o.dtfimrealizacao AS fim_realizacao, 
+                    o.dtinimarcacao AS inicio_marcacao, o.dtfimmarcacao AS fim_marcacao, 
+                    o.dtinimontagem AS inicio_montagem, o.dtfimmontagem AS fim_montagem, 
+                    o.dtinidesmontagem AS inicio_desmontagem, o.dtfimdesmontagem AS fim_desmontagem, 
+                    o.formapagamento AS forma_pagamento, o.obsproposta AS escopo_servicos,
+                    c.razaosocial AS cliente_nome, c.cnpj AS cliente_cnpj, c.inscestadual AS cliente_insc_estadual,
+                    c.nmcontato AS cliente_responsavel, c.celcontato AS cliente_celular, c.emailcontato AS cliente_email, c.rua AS cliente_rua, c.numero AS cliente_numero,
+                    c.complemento AS cliente_complemento, c.cep AS cliente_cep,
+                    e.nmevento AS evento_nome, lm.descmontagem AS local_montagem, STRING_AGG(lp.nmpavilhao, ', ') AS pavilhoes
+                FROM orcamentos o
+                JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
+                LEFT JOIN clientes c ON o.idcliente = c.idcliente
+                LEFT JOIN eventos e ON o.idevento = e.idevento
+                LEFT JOIN localmontagem lm ON o.idmontagem = lm.idmontagem
+                LEFT JOIN orcamentopavilhoes op ON o.idorcamento = op.idorcamento
+                LEFT JOIN localmontpavilhao lp ON op.idpavilhao = lp.idpavilhao
+                WHERE o.nrorcamento = $1 AND oe.idempresa = $2
+                GROUP BY 
+                o.idorcamento, o.nrorcamento, o.vlrcliente, o.nomenclatura,
+                o.dtinirealizacao, o.dtfimrealizacao, o.formapagamento, o.obsproposta,
+                c.razaosocial, c.cnpj, c.inscestadual, c.nmcontato, c.celcontato, 
+                c.emailcontato, c.rua, c.numero, c.complemento, c.cep,
+                e.nmevento, lm.descmontagem
+                LIMIT 1
+            `;
+
+            const resultOrcamento = await client.query(queryOrcamento, [nrOrcamento, idempresa]);
+
+            if (resultOrcamento.rows.length === 0) {
+                return res.status(404).json({ error: "Orçamento não encontrado" });
+            }
+
+            const dados = resultOrcamento.rows[0];
+            dados.data_assinatura = new Date().toLocaleDateString("pt-BR");
+            dados.nr_orcamento = nrOrcamento;
+            dados.valor_total = dados.vlrcliente;
+            dados.ano_atual = new Date().getFullYear();
+
+            // ✅ Etapa 2: Busca itens do orçamento
+            const queryItens = `
+                SELECT 
+                    oi.qtditens AS qtd_itens, 
+                    oi.produto AS produto, 
+                    oi.setor,
+                    oi.qtddias AS qtd_dias,
+                    oi.categoria AS categoria,
+                    oi.periododiariasinicio AS inicio_datas,
+                    oi.periododiariasfim AS fim_datas
+                FROM orcamentoitens oi
+                LEFT JOIN funcao f ON oi.idfuncao = f.idfuncao
+                WHERE oi.idorcamento = $1
+            `;
+            const resultItens = await client.query(queryItens, [dados.idorcamento]);
+
+            const categoriasMap = {};
+            const adicionais = [];
+
+            // ✅ Etapa 3: Processa itens
+            resultItens.rows.forEach(item => {
+                let categoria = item.categoria || "Outros";
+                const isLinhaAdicional = item.is_adicional;
+
+                const datasFormatadas = (item.inicio_datas && item.fim_datas) 
+                    ? `de: ${new Date(item.inicio_datas).toLocaleDateString("pt-BR")} até: ${new Date(item.fim_datas).toLocaleDateString("pt-BR")}`
+                    : "";
+
+                let itemDescricao = `• ${item.qtd_itens} ${capitalizarPalavras(item.produto)}`;
+
+                if (item.setor && item.setor.toLowerCase() !== 'null' && item.setor !== '') {
+                    itemDescricao += `, (${item.setor})`;
+                }
+
+                if (item.qtd_dias !== '0' && datasFormatadas) {
+                    itemDescricao += `, ${item.qtd_dias} Diária(s), ${datasFormatadas}`;
+                }
+
+                if (item.qtd_itens > 0) {
+                    if (isLinhaAdicional) {
+                        adicionais.push(itemDescricao);
+                    } else {
+                        if (categoria === "Produto(s)") categoria = "Equipe Operacional";
+                        if (!categoriasMap[categoria]) categoriasMap[categoria] = [];
+                        categoriasMap[categoria].push(itemDescricao);
+                    }
+                }
+            });
+
+            // ✅ Etapa 4: Adiciona itens ao objeto de dados
+            dados.itens_categorias = [];
+            const ordemCategorias = ["Equipe Operacional", "Equipamento(s)", "Suprimento(s)"];
+            ordemCategorias.forEach(categoria => {
+                if (categoriasMap[categoria]) {
+                    dados.itens_categorias.push({ nome: categoria, itens: categoriasMap[categoria] });
+                    delete categoriasMap[categoria];
+                }
+            });
+            for (const categoria in categoriasMap) {
+                if (categoriasMap.hasOwnProperty(categoria)) {
+                    dados.itens_categorias.push({ nome: categoria, itens: categoriasMap[categoria] });
+                }
+            }
+            dados.adicionais = adicionais;
+
+            console.log("📦 Dados enviados para o Python (Proposta):", dados);
+
+            // ✅ Etapa 5: Executa script Python
+            const pythonExecutable = "python";
+            const pythonScriptPath = path.join(__dirname, "../public/python/Proposta.py");
+            const python = spawn(pythonExecutable, [pythonScriptPath]);
+
+            let output = "";
+            let errorOutput = "";
+
+            python.stdin.write(JSON.stringify(dados));
+            python.stdin.end();
+
+            python.stdout.setEncoding("utf-8");
+            python.stderr.setEncoding("utf-8");
+
+            python.stdout.on("data", data => { output += data.toString(); });
+            python.stderr.on("data", data => { errorOutput += data.toString(); });
+
+            python.on("close", code => {
+                if (code !== 0) {
+                    console.error("🐍 Erro Python Proposta:", errorOutput);
+                    return res.status(500).json({ error: "Erro ao gerar proposta (Python)", detail: errorOutput });
+                }
+
+                const filePath = output.trim();
+                console.log("📝 Proposta gerada:", filePath);
+
+                if (!fs.existsSync(filePath)) {
+                    console.error("❌ Erro: Arquivo da proposta não encontrado:", filePath);
+                    return res.status(500).json({ error: "Arquivo da proposta não encontrado" });
+                }
+
+                const fileName = path.basename(filePath);
+                const downloadUrl = `/orcamentos/download/proposta/${encodeURIComponent(fileName)}`;
+
+                res.status(200).json({
+                    success: true,
+                    message: "Proposta gerada com sucesso",
+                    fileUrl: downloadUrl
+                });
+            });
+
+            python.on("error", err => {
+                console.error("❌ Erro ao iniciar o processo Python:", err);
+            });
+
+        } catch (error) {
+            console.error("Erro ao gerar proposta:", error);
+            res.status(500).json({ error: "Erro ao gerar proposta", detail: error.message });
+        } finally {
+            client.release();
+        }
     });
+
+    router.get("/download/proposta/:filename", autenticarToken(), contextoEmpresa, async (req, res) => {
+    try {
+        const { filename } = req.params;
+
+        // Caminho absoluto do arquivo
+        const filePath = path.join(__dirname, "..", "uploads", "Proposta", filename);
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ error: "Arquivo não encontrado" });
+        }
+
+        // Força download no navegador
+        res.download(filePath, filename, (err) => {
+            if (err) {
+                console.error("Erro ao enviar arquivo:", err);
+                return res.status(500).json({ error: "Erro ao enviar arquivo" });
+            }
+        });
+
+    } catch (error) {
+        console.error("Erro na rota de download:", error);
+        res.status(500).json({ error: "Erro interno no servidor" });
+    }
+});
+
+
 
 router.put(
   "/:id", 
@@ -1093,6 +1592,16 @@ router.put(
     }
   }
 );
+
+                // if (dados.cliente_email) {
+                //     signers.push({
+                //         email: dados.cliente_email, 
+                //         auths: ["email"],
+            //            send_email: true,
+                //         sign_as: "sign",
+                //         name: dados.cliente_responsavel || dados.cliente_nome || "Cliente"
+                //     });
+                // }
 
 router.put(
   "/fechar/:id", 
