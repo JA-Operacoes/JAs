@@ -1,0 +1,109 @@
+.flatpickr-calendar {
+  background: var(--background-color) !important;
+  color: var(--font-color) !important;
+  font-family: var(--Font-primary), sans-serif !important;
+}
+
+.flatpickr-months .flatpickr-month {
+  background: var(--primary-color) !important;
+  color: var(--font-color) !important;
+}
+
+/* Dias da semana (Dom, Seg, Ter...) */
+.flatpickr-weekdays {
+  background: var(--primary-color) !important;
+}
+.flatpickr-weekdays .flatpickr-weekday {
+  background: var(--primary-color) !important;
+  color: var(--font-color) !important;
+  font-weight: bold;
+}
+
+/* Botões de navegação (setas) */
+.flatpickr-months .flatpickr-prev-month,
+.flatpickr-months .flatpickr-next-month {
+  color: var(--font-color) !important;
+  fill: var(--font-color) !important;
+  background: var(--primary-color) !important;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.flatpickr-months .flatpickr-prev-month:hover,
+.flatpickr-months .flatpickr-next-month:hover {
+  background: var(--hover-color) !important;
+  color: var(--font-color) !important;
+  fill: var(--font-color) !important;
+}
+
+/* Barra superior do mês */
+.flatpickr-monthDropdown-months,
+.flatpickr-current-month {
+  background: var(--primary-color) !important;
+  color: var(--font-color) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px;
+  border-radius: 4px;
+}
+
+/* Select do mês */
+.flatpickr-monthDropdown-months select.flatpickr-monthDropdown-month {
+  background: var(--primary-color) !important;
+  color: var(--font-color) !important;
+  border: 1px solid #fff !important;
+  border-radius: 4px;
+  margin: 0 !important;
+  height: 32px !important;
+  box-sizing: border-box !important;
+}
+
+/* Campo do ano */
+.flatpickr-current-month .numInputWrapper,
+.flatpickr-current-month .numInput,
+.flatpickr-current-month .cur-year {
+  background: var(--primary-color) !important;
+  color: var(--font-color) !important;
+  border-radius: 4px;
+  margin: 0 !important;
+  height: 32px !important;
+  box-sizing: border-box !important;
+}
+
+/* Remove sombra interna do input do ano */
+.flatpickr-current-month .numInput {
+  box-shadow: none !important;
+}
+
+/* Dias selecionados, intervalo, etc */
+.flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange{
+  background: var(--primary-color) !important;
+  color: var(--font-color) !important;
+}
+.flatpickr-day.inRange {
+  background: var(--primary-color20) !important;
+  color: var(--font-color) !important;
+}
+
+.flatpickr-day.today {
+  border-color: var(--primary-color) !important;
+}
+
+.flatpickr-day:hover {
+  background: var(--hover-color) !important;
+  color: var(--font-color) !important;
+}
+
+.flatpickr-weekdays {
+  background: var(--primary-color) !important;
+}
+
+.dayContainer{
+  background: white !important;
+}
+
+.flatpickr-monthDropdown-months select.flatpickr-monthDropdown-month {
+  border: none !important;
+  box-shadow: none !important;
+}

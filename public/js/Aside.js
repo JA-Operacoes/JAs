@@ -1,7 +1,16 @@
-import { fetchComToken } from '../../utils/utils.js';
-// No arquivo aside.js
+import { fetchComToken, aplicarTema } from '../utils/utils.js';
 
-console.log("entrou✅");
+document.addEventListener("DOMContentLoaded", function () {
+    const idempresa = localStorage.getItem("idempresa");
+
+    if (idempresa) {
+        // Mapeamento direto de idempresa → tema
+        const temas = {1: "JA-Oper", 2: "ES", 3: "EA", 4: "EP", 5: "TSD", 6: "SN-FOODS"};
+        // Usa o tema correspondente ou um padrão
+        let tema = temas[idempresa];
+        aplicarTema(tema);
+    }
+});
 
 let clienteSelecionado = null;
 let nomeClienteSelecionado = '';
@@ -154,7 +163,7 @@ window.navegarParaAba = function(tipo) {
 
 async function carregarClientes() {
   try {
-    const clientes = await fetchComToken('/aside/clientes');
+    const clientes = await fetchComToken('/clientes');
 
     if (!clientes || clientes.erro === "sessao_expirada") {
       Swal.fire("Sessão expirada", "Por favor, faça login novamente.", "warning");

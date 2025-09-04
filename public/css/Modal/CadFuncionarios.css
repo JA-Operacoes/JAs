@@ -125,7 +125,7 @@
     flex-direction: column;
     width: 650px;
     background-color: transparent;
-    border-color: var(--dark-color);
+    border-color: var(--dark-base-color);
     margin: 0 auto;
   }
   legend{
@@ -183,7 +183,7 @@
 .header {
   flex: 1;
   width: 100%;
-  border: 2px dashed rgb(225, 65, 65);
+  border: 2px dashed var(--primary-color);
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -217,7 +217,7 @@
 
 .footer svg {
   height:25px;
-  fill: rgb(225, 65, 65);
+  fill: var(--primary-color);
   background-color: transparent;
   border-radius: 50%;
   padding: 2px;
@@ -340,7 +340,7 @@ display: none;
   }
 
   input:focus{
-    border: 2px solid #ce0303;
+    border: 2px solid var(--border-color);
   }
 
   .uppercase {
@@ -464,7 +464,7 @@ input#dataNasc:not([value=""]) ~ label {
   }
   
   .picture:hover{
-    color: #ce0303;
+    color: var(--hover-color);
   }
   
   .pictureImage{
@@ -476,10 +476,11 @@ input#dataNasc:not([value=""]) ~ label {
   
   button {
     font-family: "Abel", sans-serif;
+    font-weight: var(--font-weight);
     font-size: 20px;
-    background-color: #9e0505;
+    background-color: var(--primary-color);
     width: 25%;
-    color: white;
+    color: var(--font-color);
     border: none;
     border-radius: 10px;
     cursor: pointer;
@@ -643,7 +644,7 @@ input#dataNasc:not([value=""]) ~ label {
   .Enviar:hover,
   .Limpar:hover,
   .Pesquisar:hover{
-    background-color: #5f0101;
+    background-color: var(--hover-color);
   }
   
   

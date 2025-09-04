@@ -1,7 +1,46 @@
 import { fetchComToken, fetchHtmlComToken } from '../utils/utils.js';
 
-
 document.addEventListener("DOMContentLoaded", async function () { 
+
+    // --- INÍCIO: Controle de empresas permitidas ---
+  function getEmpresasDoUsuario() {
+    const token = localStorage.getItem("token");
+    if (!token) return [];
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.empresas || [];
+    } catch (e) {
+      console.warn("Token inválido ou sem empresas:", e);
+      return [];
+    }
+  }
+
+  // Mapeie os logotipos para seus IDs de empresa
+  const logos = [
+    { selector: '.logo-Oper', id: 1 },
+    { selector: '.logo-ES', id: 2 },
+    { selector: '.logo-EA', id: 3 },
+    { selector: '.logo-EP', id: 4 },
+    { selector: '.logo-SNFoods', id: 5 },
+    { selector: '.logo-TSD', id: 6 }
+  ];
+
+  const empresasPermitidas = getEmpresasDoUsuario();
+
+  logos.forEach(logo => {
+    const el = document.querySelector(logo.selector);
+    if (el) {
+      if (!empresasPermitidas.includes(logo.id)) {
+        el.style.display = 'none'; // Esconde se não tem permissão
+      } else {
+        el.setAttribute('data-idempresa', logo.id);
+        el.addEventListener('click', function() {
+          localStorage.setItem('idempresa', logo.id);
+          // O redirecionamento já acontece pelo href do <a>
+        });
+      }
+    }
+  });
 
   let permissoesArray; // Renomeado para clareza
   let permissoesPromise;

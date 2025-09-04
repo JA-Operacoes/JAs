@@ -358,7 +358,7 @@
   }
 
   input:focus{
-    border: 2px solid #ce0303;
+    border: 2px solid var(--border-color);
   }
   input:focus ~ label,
   input:valid ~ label{
@@ -681,10 +681,11 @@ select #idCliente, #idEvento{
 
   button {
     font-family: "Abel", sans-serif;
+    font-weight: var(--font-weight);
     font-size: 20px;
-    background-color: #9e0505;
+    background-color: var(--primary-color);
     width: 25%;
-    color: white;
+    color: var(--font-color);
     border: none;
     border-radius: 10px;
     cursor: pointer;
@@ -756,7 +757,6 @@ select #idCliente, #idEvento{
   #tabela thead th {
     position: sticky; /* Torna o cabeçalho "grudento" */
     top: 0; /* Fixa no topo do contêiner de scroll */
-    background-color: #efefef; /* MUITO IMPORTANTE: Defina uma cor de fundo! */
                                /* Se não tiver, o conteúdo da tabela vai aparecer por trás ao rolar */
     z-index: 10; /* Garante que o cabeçalho fique acima do conteúdo que rola */
     border-bottom: 1px solid black; /* Mantém a borda inferior */

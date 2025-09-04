@@ -1,5 +1,14 @@
 
-import { fetchComToken } from '../utils/utils.js';
+import { fetchComToken, aplicarTema } from '../utils/utils.js';
+
+
+document.addEventListener("DOMContentLoaded", function () {
+    const idempresa = localStorage.getItem("idempresa");
+    if (idempresa) {
+        let tema = idempresa == 1 ? "JA-Oper" : "ES";
+        aplicarTema(tema);
+    }
+});
 
 let limparFuncaoButtonListener = null;
 let enviarFuncaoButtonListener = null;

@@ -12,7 +12,7 @@
   header{
     width: 100%;
     /* background-color:  rgb(70, 67, 67); */
-    background: linear-gradient(to right, #942123, rgb(43, 42, 42)  );  
+    background: linear-gradient(to right,var(--SN-dark), rgb(43, 42, 42)  );  
     position: fixed; /* Mantém o header fixo no topo */
       top: 0;
       left: 0;
@@ -37,7 +37,7 @@
   }
   
   .logotipo img{
-    max-width: 90px;
+    max-width: 165px;
     height: auto;
     display: flex;
     justify-content: flex-start;
@@ -62,8 +62,7 @@
   span{
   gap: 3px;
 }
-  
-  
+
   nav { 
     transition: background 0.3s ease-in-out; /* Suaviza a troca de cor */
   }
@@ -93,12 +92,12 @@
   /* /borda muda de cor ao passar mouse/ */
   
   nav ul li a:hover{
-    background-color: #ff0000;
+    background-color: var(--SN-color);
     color: #ffffff;
     box-shadow: inset 0 0 8px #0000008a;
   
   }
-  
+
   #container {
     display: flex;
     flex-direction: row; /* padrão, mas ajuda a entender */
@@ -160,7 +159,7 @@
     width: 50%;
     text-align: center;
     cursor: pointer;
-    background-color: var(--hover-color);
+    background-color: var(--SN-dark);
     color: white ;
     padding: 11px;
     float: left;
@@ -171,12 +170,12 @@
     font-size: 15px;
   }
   .aba:hover{
-    background: var(--primary-color);
+    background: var(--SN-color);
     color: white;
   }
   
   .aba.ativa {
-    background: var(--primary-color);
+    background: var(--SN-color);
     color: white;
   }
   
@@ -243,7 +242,7 @@
     padding: 10px;
   }
   #lista-dados:hover{
-    background-color: var(--primary-color);
+    background-color: var(--SN-color);
     color: white;
     border: 2px solid black;
     border-radius: 10px;
@@ -296,7 +295,7 @@
   }
   
   #toggle-btn:hover{
-    background-color: var(--hover-color);
+    background-color: var(--SN-color);
     box-shadow: #000000;
   }
   
@@ -341,7 +340,7 @@
   }
   
   ul[id^="lista-dados"] li:hover {
-    background-color: var(--primary-color);
+    background-color: var(--SN-color);
     border: 2px solid black;
     border-radius: 10px;
   }
@@ -377,9 +376,9 @@
     list-style: none;
     font-family: var(--Font-primary) ;
   }
-  
-  /* menu --- nesta parte podemos poupar linhas de codigos adicionando as classes e dando a elas o mesmo padrao das outras, para as classes que n utilizam o . seguido de função , utilizando apenas a , para adicionar as classes que n utilição função  */
-  .Cadastro, 
+
+/* menu --- nesta parte podemos poupar linhas de codigos adicionando as classes e dando a elas o mesmo padrao das outras, para as classes que n utilizam o . seguido de função , utilizando apenas a , para adicionar as classes que n utilição função  */
+.Cadastro, 
   .Orçamento{
     position: relative;
     display: flex;
@@ -492,8 +491,8 @@
   border-radius: 6px;
 }
 
-  
-  /* ----------------------------------------------   RESPONSIVIDADE   --------------------------------------------------------- */
+
+ /* ----------------------------------------------   RESPONSIVIDADE   --------------------------------------------------------- */
   @media(max-width: 767px){
     .menu-hamburguer{
       display: block;

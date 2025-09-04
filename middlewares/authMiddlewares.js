@@ -104,19 +104,19 @@ function autenticarToken(options = {}) {
 
 function contextoEmpresa(req, res, next) {
   console.log("➡️ Entrou no contextoEmpresa. req.idempresa atual:", req.idempresa); // Log corrigido para mostrar o valor
- 
+
    // Se idempresa já veio do token em autenticarToken, use-o
     const idempresa = req.idempresa; 
 
     // Se não veio do token (raro para rotas protegidas), pode tentar de outros lugares
    if (!idempresa || isNaN(idempresa)) { // Adicionado isNaN para pegar o erro do NaN
-        console.warn("⚠️ ID da empresa é obrigatório ou inválido (NaN) para verificação de contexto.");
-        return res.status(400).json({ erro: "ID da empresa é obrigatório ou inválido." });
-    }
+    console.warn("⚠️ ID da empresa é obrigatório ou inválido (NaN) para verificação de contexto.");
+    return res.status(400).json({ erro: "ID da empresa é obrigatório ou inválido." });
+  }
 
    // req.idempresa = parseInt(idempresa); // Garante que é um número inteiro
     console.log("Contexto Empresa ok. req.idempresa:", req.idempresa);
-    next();
+  next();
 }
 
 

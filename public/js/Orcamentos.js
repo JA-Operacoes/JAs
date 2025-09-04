@@ -6,7 +6,15 @@ import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/l10n/pt.js";
 //import "../js/flatpickr/flatpickr.min.js";
 
 
-import { fetchComToken} from '../../utils/utils.js';
+import { fetchComToken, aplicarTema } from '../utils/utils.js';
+
+document.addEventListener("DOMContentLoaded", function () {
+    const idempresa = localStorage.getItem("idempresa");
+    if (idempresa) {
+        let tema = idempresa == 1 ? "JA-Oper" : "ES";
+        aplicarTema(tema);
+    }
+});
 
 let idMontagemChangeListener = null;
 let statusInputListener = null;

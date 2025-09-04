@@ -67,9 +67,9 @@ async function fetchComToken(url, options = {}) {
 
     if (!isFormData) {
         if (options.body && typeof options.body === 'object') {
-            options.headers["Content-Type"] = "application/json";
-            options.body = JSON.stringify(options.body);
-        }
+        options.headers["Content-Type"] = "application/json";
+        options.body = JSON.stringify(options.body);
+    }
     }
 
     if (!options.headers['idempresa']) {
@@ -162,5 +162,34 @@ async function fetchHtmlComToken(url, options = {}) {
   //return await resposta.json();
 }
 
+export function aplicarTema(empresa) {
+    // Remove qualquer classe que comece com "tema-"
+    document.body.classList.forEach(cls => {
+        if (cls.startsWith("tema-")) {
+            document.body.classList.remove(cls);
+        }
+    });
+    document.body.classList.add("tema-" + empresa);
+}
 
-export { fetchComToken, fetchHtmlComToken };
+export function aplicarTemaPorId(idempresa) {
+    // pode mapear o id para o nome da classe de tema
+    const mapIdParaTema = {
+        1: 'Oper',
+        2: 'ES',
+        3: 'EA',
+        4: 'EP',
+        5: 'SNFoods',
+        6: 'TSD'
+    };
+    const tema = mapIdParaTema[idempresa];
+    if (tema) {
+        aplicarTema(tema); // usa a função existente
+    } else {
+        console.warn("ID de empresa inválido para aplicarTemaPorId:", idempresa);
+    }
+}
+
+
+
+export { fetchComToken, fetchHtmlComToken};
