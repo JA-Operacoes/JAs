@@ -493,7 +493,7 @@ router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, r
 
 //         if (result.rows.length > 0) {
 //             return res.json({
-//                 isAvailable: false,
+//              isAvailable: false,
 //                 conflictingEvent: result.rows[0] 
 //             });
 //         } else {
@@ -1191,6 +1191,7 @@ router.post(
     const files = req.files;
     const comprovanteCacheFile = files?.comppgtocache ? files.comppgtocache[0] : null;
     const comprovanteAjdCustoFile = files?.comppgtoajdcusto ? files.comppgtoajdcusto[0] : null;
+    const comprovanteAjdCustoFile2 = files?.comppgtoajdcusto2 ? files.comppgtoajdcusto2[0] : null;
     const comprovanteCaixinhaFile = files?.comppgtocaixinha ? files.comppgtocaixinha[0] : null;
     const comprovanteAjdCusto50File = files?.comppgtoajdcusto50 ? files.comppgtoajdcusto50[0] : null;
 

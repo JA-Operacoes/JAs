@@ -38,7 +38,7 @@
 
 .swal2-confirm:hover {
   /* background-color: #218838 !important; */
-  background-color: #ce0303 !important;
+  background-color: #6d0101 !important;
   /* Vermelho para confirmar */
 }
 
@@ -50,4 +50,12 @@
 
 .swal2-cancel:hover {
   background-color: #5a6268 !important;
+}
+.swal2-cancel.Contrato {
+  background-color: #ce0303 !important; /* Azul exemplo */
+  color: #fff !important;
+}
+
+.swal2-cancel.Contrato:hover {
+  background-color: #6d0101 !important; /* Azul mais escuro no hover */
 }
