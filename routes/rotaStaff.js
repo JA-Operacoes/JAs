@@ -42,7 +42,8 @@ const uploadComprovantesMiddleware = multer({
 }).fields([
     { name: 'comppgtocache', maxCount: 1 },
     { name: 'comppgtoajdcusto', maxCount: 1 },
-    { name: 'comppgtocaixinha', maxCount: 1 }
+    { name: 'comppgtocaixinha', maxCount: 1 },
+    { name: 'comppgtoajdcusto50', maxCount: 1 }
 ]);
 
 const fileFilter = (req, file, cb) => {
@@ -231,12 +232,12 @@ router.post("/orcamento/consultar",
         idEvento,
         idCliente,
         idLocalMontagem,
-        setor,
+       // setor,
         datasEvento = [],
       } = req.body;
 
       const idempresa = req.idempresa;
-      const setorParaBusca = setor === '' ? null : setor;
+     // const setorParaBusca = setor === '' ? null : setor;
 
       console.log("ORCAMENTO/CONSULTAR", req.body);
 
@@ -275,9 +276,9 @@ router.post("/orcamento/consultar",
               se.idevento = o.idevento
               AND se.idcliente = o.idcliente
               AND se.idmontagem = o.idmontagem
-              AND COALESCE(se.setor, '') = COALESCE(oi.setor, '') -- Corrigido para lidar com nulls
+              --AND COALESCE(se.setor, '') = COALESCE(oi.setor, '') -- Corrigido para lidar com nulls
               AND se.idfuncao = oi.idfuncao
-              AND se.datasevento @> to_jsonb($6::text[])
+              AND se.datasevento @> to_jsonb($5::text[])
           ) AS quantidade_escalada
         FROM
           orcamentoitens oi
@@ -301,9 +302,9 @@ router.post("/orcamento/consultar",
           AND o.idevento = $2
           AND o.idcliente = $3
           AND o.idmontagem = $4
-          AND COALESCE(oi.setor, '') = COALESCE($5, '') -- Corrigido para lidar com nulls
+          --AND COALESCE(oi.setor, '') = COALESCE($5, '') -- Corrigido para lidar com nulls
           AND oi.idfuncao IS NOT NULL
-          AND dto.periodos_disponiveis && $6::date[]
+          AND dto.periodos_disponiveis && $5::date[]
         GROUP BY
           oi.idorcamentoitem, f.descfuncao, e.nmevento, c.nmfantasia, lm.descmontagem, oi.setor, o.idevento, o.idcliente, o.idmontagem, oi.idfuncao, o.status
         ORDER BY
@@ -316,7 +317,7 @@ router.post("/orcamento/consultar",
         idEvento,
         idCliente,
         idLocalMontagem,
-        setorParaBusca,
+       // setorParaBusca,
         datasEvento,
       ];
 
@@ -361,11 +362,11 @@ router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, r
 
         // Iniciar a query base
         let query = `
-            SELECT se.idstaffevento, se.vlrcache, se.vlrextra, se.vlrtransporte, se.vlralmoco, se.vlrjantar, se.vlrcaixinha,
-                   se.descbonus, se.descbeneficios, se.setor, se.pavilhao, se.vlrtotal, se.comppgtocache, se.comppgtoajdcusto, se.comppgtocaixinha,
+            SELECT se.idstaffevento, se.vlrcache, se.vlrajustecusto, se.vlrtransporte, se.vlralmoco, se.vlrjantar, se.vlrcaixinha,
+                   se.descajustecusto, se.descbeneficios, se.setor, se.pavilhao, se.vlrtotal, se.comppgtocache, se.comppgtoajdcusto, se.comppgtocaixinha,
                    se.idfuncionario, se.idfuncao, se.nmfuncao, se.idcliente, se.idevento, se.idmontagem, se.datasevento,
                    se.nmfuncionario, se.nmcliente, se.nmevento, se.nmlocalmontagem,
-                   s.idstaff, s.avaliacao
+                   s.idstaff, s.avaliacao, se.comppgtoajdcusto50
             FROM staffeventos se
             INNER JOIN staff s ON se.idstaff = s.idstaff
             WHERE se.idfuncionario = $1
@@ -605,64 +606,61 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
             // A consulta SQL ajustada para filtrar por idfuncionario
             let query = `
                 SELECT
-                    se.idstaffevento,
-                    se.idfuncionario,
-                    se.nmfuncionario,
-                    se.idevento,
-                    se.nmevento,
-                    se.idcliente,
-                    se.nmcliente,
-                    se.idfuncao,
-                    se.nmfuncao,
-                    se.idmontagem,
-                    se.nmlocalmontagem,
-                    se.pavilhao,
-                    se.vlrcache,
-                    se.vlralmoco,
-                    se.vlrjantar,
-                    se.vlrtransporte,
-                    se.vlrextra,
-                    se.vlrcaixinha,
-                    se.descbonus,
-                    se.descbeneficios,                
-                    se.vlrtotal,
-                    se.datasevento,
-                    se.comppgtocache,
-                    se.comppgtoajdcusto,
-                    se.comppgtocaixinha,
-                    se.setor,
-                    se.statuspgto,
-                    se.statusbonus,
-                    se.statuscaixinha,
-                    se.diariadobrada,
-                    se.meiadiaria,
-                    se.dtdiariaextra,
-                    s.idstaff,
-                    s.avaliacao
-
-                    -- * ATENÇÃO AQUI: Como você armazena as datas do evento (período)? *
-                    -- Se 'datasevento' no seu POST é um array de datas ou um período,
-                    -- você precisa ter uma coluna correspondente em staffeventos ou eventos.
-                    -- Exemplo para um período (início e fim) se estiver na tabela 'eventos':
-                    -- CONCAT(TO_CHAR(e.data_inicio, 'DD/MM/YYYY'), ' - ', TO_CHAR(e.data_fim, 'DD/MM/YYYY')) AS periodo,
-                    -- JOIN eventos e ON se.idevento = e.idevento
-                    -- Por enquanto, mantenho como um placeholder, você deve buscar este campo.
-                    
-                    -- Calcula o "Total" somando os valores, tratando NULLs como 0
-                    --(se.vlrcache + COALESCE(se.vlralmoco, 0) + COALESCE(se.vlrjantar, 0) + COALESCE(se.vlrtransporte, 0) + COALESCE(se.vlrextra, 0) + COALESCE(se.vlrcaixinha, 0)) AS total
-                FROM
-                    staffeventos se
-                INNER JOIN
-                    staff s ON se.idstaff = s.idstaff
-                INNER JOIN
-                    staffEmpresas se_emp ON s.idstaff = se_emp.idstaff
-                WHERE
-                    se_emp.idEmpresa = $1 AND se.idfuncionario = $2
-                ORDER BY
-                se.datasevento ->> (jsonb_array_length(se.datasevento) - 1) DESC,
-                se.nmcliente ASC,
-                se.nmevento ASC;
-                    
+                  se.idstaffevento,
+                  se.idfuncionario,
+                  se.nmfuncionario,
+                  se.idevento,
+                  se.nmevento,
+                  se.idcliente,
+                  se.nmcliente,
+                  se.idfuncao,
+                  se.nmfuncao,
+                  se.idmontagem,
+                  se.nmlocalmontagem,
+                  se.pavilhao,
+                  se.vlrcache,
+                  se.vlralmoco,
+                  se.vlrjantar,
+                  se.vlrtransporte,
+                  se.vlrajustecusto,
+                  se.vlrcaixinha,
+                  se.descajustecusto,
+                  se.descbeneficios,
+                  se.vlrtotal,
+                  se.datasevento,
+                  se.comppgtocache,
+                  se.comppgtoajdcusto,
+                  se.comppgtoajdcusto50,
+                  se.comppgtocaixinha,
+                  se.setor,
+                  se.statuspgto,
+                  se.statusajustecusto,
+                  se.statuscaixinha,
+                  se.dtdiariadobrada,
+                  se.dtmeiadiaria,
+                  se.statusdiariadobrada,
+                  se.statusmeiadiaria,
+                  se.desccaixinha,
+                  se.descmeiadiaria,
+                  se.descdiariadobrada,
+                  s.idstaff,
+                  s.avaliacao
+              FROM
+                  staffeventos se
+              INNER JOIN
+                  staff s ON se.idstaff = s.idstaff
+              INNER JOIN
+                  staffEmpresas se_emp ON s.idstaff = se_emp.idstaff
+              WHERE
+                  se_emp.idEmpresa = $1 AND se.idfuncionario = $2
+              ORDER BY
+                  COALESCE(
+                      (se.datasevento ->> 0)::date,
+                      (se.dtdiariadobrada ->> 0)::date,
+                      (se.dtmeiadiaria ->> 0)::date
+                  ) DESC NULLS LAST,
+                  se.nmcliente ASC,
+                  se.nmevento ASC;
             `;
 
             //se.idevento DESC, se.idstaffevento DESC; -- Ordena por evento e depois pelo ID do registro de staffevento
@@ -725,7 +723,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
 //             idfuncionario, nmfuncionario, idfuncao, nmfuncao, idcliente, nmcliente,
 //             idevento, nmevento, idmontagem, nmlocalmontagem, pavilhao,
 //             vlrcache, vlrextra, vlrtransporte, vlralmoco, vlrjantar, vlrcaixinha,
-//             descbonus, datasevento, vlrtotal, descbeneficios, setor, statuspgto
+//             descajustecusto, datasevento, vlrtotal, descbeneficios, setor, statuspgto
 //         } = req.body;
 
 //         const files = req.files;
@@ -797,7 +795,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
 //                  SET idfuncionario = $1, nmfuncionario = $2, idfuncao = $3, nmfuncao = $4,
 //                      idcliente = $5, nmcliente = $6, idevento = $7, nmevento = $8, idmontagem = $9,
 //                      nmlocalmontagem = $10, pavilhao = $11, vlrcache = $12, vlrextra = $13, vlrtransporte = $14,
-//                      vlralmoco = $15, vlrjantar = $16, vlrcaixinha = $17, descbonus = $18,
+//                      vlralmoco = $15, vlrjantar = $16, vlrcaixinha = $17, descajustecusto = $18,
 //                      datasevento = $19, vlrtotal = $20, comppgtocache = $21, comppgtoajdcusto = $22, comppgtocaixinha = $23, descbeneficios = $24, setor = $25, statuspgto = $26                   
 //                  FROM staff s
 //                  INNER JOIN staffempresas sme ON sme.idstaff = s.idstaff
@@ -825,7 +823,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
 //                 parseFloat(String(vlralmoco).replace(',', '.')),
 //                 parseFloat(String(vlrjantar).replace(',', '.')),
 //                 parseFloat(String(vlrcaixinha).replace(',', '.')),
-//                 descbonus,               
+//                 descajustecusto,               
 //                 JSON.stringify(datasEventoParsed),
 //                 parseFloat(String(vlrtotal).replace(',', '.')), 
 //                 newComppgtoCachePath, // Caminho do novo comprovante de cache
@@ -908,16 +906,50 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
         const {
             idfuncionario, nmfuncionario, idfuncao, nmfuncao, idcliente, nmcliente,
             idevento, nmevento, idmontagem, nmlocalmontagem, pavilhao,
-            vlrcache, vlrextra, vlrtransporte, vlralmoco, vlrjantar, vlrcaixinha,
-            descbonus, datasevento, vlrtotal, descbeneficios, setor, statuspgto, 
-            statusbonus, statuscaixinha, diariadobrada, meiadiaria, datadiariadobrada
+            vlrcache, vlrajustecusto, vlrtransporte, vlralmoco, vlrjantar, vlrcaixinha,
+            descajustecusto, datasevento, vlrtotal, descbeneficios, setor, statuspgto, 
+            statusajustecusto, statuscaixinha, statusdiariadobrada, statusmeiadiaria, datadiariadobrada, datameiadiaria,
+            desccaixinha, descdiariadobrada, descmeiadiaria
         } = req.body;
+
+        console.log("BACKEND", req.body);
+
+        // const dataDiariaDobradaCorrigida = (datadiariadobrada === '' || datadiariadobrada === '[]' || !datadiariadobrada) 
+        //   ? null 
+        //   : datadiariadobrada;
+
+        // const dataMeiaDiariaCorrigida = (datameiadiaria === '' || datameiadiaria === '[]' || !datameiadiaria) 
+        //   ? null 
+        //   : datameiadiaria;
+
+        // No início da função, após a desestruturação do 'req.body'
+
+
+        let datasDiariaDobradaParsed = null;
+        if (datadiariadobrada) {
+            try {
+                datasDiariaDobradaParsed = JSON.parse(datadiariadobrada);
+            } catch (parseError) {
+                console.error("Erro ao parsear datadiariadobrada:", parseError);
+            }
+        }
+
+        let datasMeiaDiariaParsed = null;
+        if (datameiadiaria) {
+            try {
+                datasMeiaDiariaParsed = JSON.parse(datameiadiaria);
+            } catch (parseError) {
+                console.error("Erro ao parsear datameiadiaria:", parseError);
+            }
+        }
 
         const files = req.files;
         const comprovanteCacheFile = files?.comppgtocache ? files.comppgtocache[0] : null;
         const comprovanteAjdCustoFile = files?.comppgtoajdcusto ? files.comppgtoajdcusto[0] : null;
+        const comprovanteAjdCusto50File = files?.comppgtoajdcusto50 ? files.comppgtoajdcusto50[0] : null;
         const comprovanteCaixinhaFile = files?.comppgtocaixinha ? files.comppgtocaixinha[0] : null;
-        console.log("BODY", req.body);
+     
+        console.log("BODY ROTA PUT", req.body);
 
         let client;
 
@@ -949,7 +981,7 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
             console.log('Valor de "datasevento" após parse:', datasEventoParsed);
 
             const oldRecordResult = await client.query(            
-                `select  se.comppgtocache, se.comppgtoajdcusto, se.comppgtocaixinha from staffeventos se
+                `select  se.comppgtocache, se.comppgtoajdcusto, se.comppgtocaixinha, se.comppgtoajdcusto50 from staffeventos se
                   inner join staff s ON se.idfuncionario = s.idfuncionario
                   inner join staffempresas semp on s.idstaff = semp.idstaff
                   where se.idstaffevento = $1 and semp.idempresa = $2`,
@@ -978,6 +1010,15 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
                 deletarArquivoAntigo(oldRecord?.comppgtoajdcusto);
                 newComppgtoAjdCustoPath = null;
             }
+
+            let newComppgtoAjdCusto50Path = oldRecord ? oldRecord.comppgtoajdcusto50 : null;
+            if (comprovanteAjdCusto50File) {
+              deletarArquivoAntigo(oldRecord?.comppgtoajdcusto50);
+              newComppgtoAjdCusto50Path = `/uploads/staff_comprovantes/${comprovanteAjdCusto50File.filename}`;
+            } else if (req.body.limparComprovanteAjdCusto50 === 'true') {
+                deletarArquivoAntigo(oldRecord?.comppgtoajdcusto50);
+                newComppgtoAjdCustoPath = null;
+            }
             
             let newComppgtoCaixinhaPath = oldRecord ? oldRecord.comppgtocaixinha : null;
             if (comprovanteCaixinhaFile) {
@@ -988,58 +1029,56 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
                 newComppgtoCaixinhaPath = null;
             }
 
+            //JSON.stringify(datasEventoParsed),
               
             const queryStaffEventos = `
                 UPDATE staffeventos se
-                SET idfuncionario = $1, nmfuncionario = $2, idfuncao = $3, nmfuncao = $4,
+                SET
+                    idfuncionario = $1, nmfuncionario = $2, idfuncao = $3, nmfuncao = $4,
                     idcliente = $5, nmcliente = $6, idevento = $7, nmevento = $8, idmontagem = $9,
-                    nmlocalmontagem = $10, pavilhao = $11, vlrcache = $12, vlrextra = $13, vlrtransporte = $14,
-                    vlralmoco = $15, vlrjantar = $16, vlrcaixinha = $17, descbonus = $18,
-                    datasevento = $19, vlrtotal = $20, comppgtocache = $21, comppgtoajdcusto = $22, comppgtocaixinha = $23, 
-                    descbeneficios = $24, setor = $25, statuspgto = $26, statusbonus = $27, statuscaixinha = $28,
-                    diariadobrada = $29, meiadiaria = $30, dtdiariaextra = $31                 
+                    nmlocalmontagem = $10, pavilhao = $11, vlrcache = $12, vlrajustecusto = $13, vlrtransporte = $14,
+                    vlralmoco = $15, vlrjantar = $16, vlrcaixinha = $17, descajustecusto = $18,
+                    datasevento = $19, vlrtotal = $20,
+                    descbeneficios = $21, setor = $22, statuspgto = $23, statusajustecusto = $24,
+                    statuscaixinha = $25, statusdiariadobrada = $26, statusmeiadiaria = $27,
+                    dtdiariadobrada = $28, dtmeiadiaria = $29,
+                    desccaixinha = $30, descdiariadobrada = $31, descmeiadiaria = $32,
+                    comppgtocache = $33, comppgtoajdcusto = $34, comppgtoajdcusto50 = $35, comppgtocaixinha = $36
                 FROM staff s
                 INNER JOIN staffempresas sme ON sme.idstaff = s.idstaff
-                WHERE se.idstaff = s.idstaff -- Garante que estamos atualizando o staffevento do staff correto
-                  AND se.idstaffevento = $32
-                  AND sme.idempresa = $33
+                WHERE se.idstaff = s.idstaff AND se.idstaffevento = $37 AND sme.idempresa = $38
                 RETURNING se.idstaffevento, se.datasevento;
+                
             `;
 
             const valuesStaffEventos = [
-                idfuncionario,
-                nmfuncionario,
-                idfuncao,
-                nmfuncao,
-                idcliente,
-                nmcliente,
-                idevento,
-                nmevento,
-                idmontagem,
-                nmlocalmontagem,
-                pavilhao,
-                parseFloat(String(vlrcache).replace(',', '.')),
-                parseFloat(String(vlrextra).replace(',', '.')),
-                parseFloat(String(vlrtransporte).replace(',', '.')),
-                parseFloat(String(vlralmoco).replace(',', '.')),
-                parseFloat(String(vlrjantar).replace(',', '.')),
-                parseFloat(String(vlrcaixinha).replace(',', '.')),
-                descbonus,               
+                // Campos de dados
+                idfuncionario, nmfuncionario, idfuncao, nmfuncao,
+                idcliente, nmcliente, idevento, nmevento, idmontagem,
+                nmlocalmontagem, pavilhao,
+                // Valores numéricos
+                parseFloat(String(vlrcache).replace(',', '.')) || 0,
+                parseFloat(String(vlrajustecusto).replace(',', '.')) || 0,
+                parseFloat(String(vlrtransporte).replace(',', '.')) || 0,
+                parseFloat(String(vlralmoco).replace(',', '.')) || 0,
+                parseFloat(String(vlrjantar).replace(',', '.')) || 0,
+                parseFloat(String(vlrcaixinha).replace(',', '.')) || 0,
+                // Descrições e JSON
+                descajustecusto,
                 JSON.stringify(datasEventoParsed),
-                parseFloat(String(vlrtotal).replace(',', '.')), 
-                newComppgtoCachePath, // Caminho do novo comprovante de cache
-                newComppgtoAjdCustoPath, // Caminho do novo comprovante de ajuda de custo
-                newComppgtoCaixinhaPath, // Caminho do novo comprovante de extras    
-                descbeneficios,
-                setor, // Novo campo descbeneficios 
-                statuspgto,    
-                statusbonus,
-                statuscaixinha, 
-                diariadobrada,
-                meiadiaria,
-                datadiariadobrada,                 
-                idStaffEvento,
-                idempresa // Parâmetro para a verificação de idempresa
+                parseFloat(String(vlrtotal).replace(',', '.')) || 0,
+                descbeneficios, setor,
+                // Status de pagamento
+                statuspgto, statusajustecusto, statuscaixinha,
+                statusdiariadobrada, statusmeiadiaria,
+                //dataDiariaDobradaCorrigida, dataMeiaDiariaCorrigida,
+                JSON.stringify(datasDiariaDobradaParsed), 
+                JSON.stringify(datasMeiaDiariaParsed),
+                desccaixinha, descdiariadobrada, descmeiadiaria,
+                // Caminhos dos comprovantes
+                newComppgtoCachePath, newComppgtoAjdCustoPath, newComppgtoAjdCusto50Path, newComppgtoCaixinhaPath,
+                // Parâmetros de identificação da linha
+                idStaffEvento, idempresa
             ];
 
             const resultStaffEventos = await client.query(queryStaffEventos, valuesStaffEventos);
@@ -1073,8 +1112,9 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
           
             if (comprovanteCacheFile) deletarArquivoAntigo(`/uploads/staff_comprovantes/${comprovanteCacheFile.filename}`);
             if (comprovanteAjdCustoFile) deletarArquivoAntigo(`/uploads/staff_comprovantes/${comprovanteAjdCustoFile.filename}`);
-            if (comprovanteCaixinhaFile) deletarArquivoAntigo(`/uploads/staff_comprovantes/${comprovanteCaixinhaFile.filename}`);        
-
+            if (comprovanteCaixinhaFile) deletarArquivoAntigo(`/uploads/staff_comprovantes/${comprovanteCaixinhaFile.filename}`);
+            if (comprovanteAjdCusto50File) deletarArquivoAntigo(`/uploads/staff_comprovantes/${comprovanteAjdCusto50File.filename}`);
+           
             if (error.code === '23502') {
                 return res.status(400).json({ message: `Campo obrigatório faltando ou inválido: ${error.column}. Por favor, verifique os dados e tente novamente.`, details: error.message });
             }
@@ -1115,16 +1155,44 @@ router.post(
       avaliacao,
       idevento, nmevento, idcliente, nmcliente,
       idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
-      vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
+      vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrajustecusto,
       vlrcaixinha, nmfuncionario, datasevento: datasEventoRaw,
-      descbonus, descbeneficios, vlrtotal, setor, statuspgto, statusbonus, statuscaixinha,
-      diariadobrada, meiadiaria, datadiariadobrada
+      descajustecusto, descbeneficios, vlrtotal, setor, statuspgto, statusajustecusto, statuscaixinha,
+      statusdiariadobrada, statusmeiadiaria, datadiariadobrada, datameiadiaria, desccaixinha, 
+      descdiariadobrada, descmeiadiaria
     } = req.body;
+
+    // const dataDiariaDobradaCorrigida = (datadiariadobrada === '' || datadiariadobrada === '[]' || !datadiariadobrada) 
+    //   ? null 
+    //   : datadiariadobrada;
+
+    // const dataMeiaDiariaCorrigida = (datameiadiaria === '' || datameiadiaria === '[]' || !datameiadiaria) 
+    //   ? null 
+    //   : datameiadiaria;
+
+    let datasDiariaDobradaParsed = null;
+    if (datadiariadobrada) {
+        try {
+            datasDiariaDobradaParsed = JSON.parse(datadiariadobrada);
+        } catch (parseError) {
+            // Trate o erro de parse se necessário
+        }
+    }
+
+    let datasMeiaDiariaParsed = null;
+    if (datameiadiaria) {
+        try {
+            datasMeiaDiariaParsed = JSON.parse(datameiadiaria);
+        } catch (parseError) {
+            // Trate o erro de parse se necessário
+        }
+    }
 
     const files = req.files;
     const comprovanteCacheFile = files?.comppgtocache ? files.comppgtocache[0] : null;
     const comprovanteAjdCustoFile = files?.comppgtoajdcusto ? files.comppgtoajdcusto[0] : null;
     const comprovanteCaixinhaFile = files?.comppgtocaixinha ? files.comppgtocaixinha[0] : null;
+    const comprovanteAjdCusto50File = files?.comppgtoajdcusto50 ? files.comppgtoajdcusto50[0] : null;
 
     const idempresa = req.idempresa;
     let client;
@@ -1196,11 +1264,12 @@ router.post(
           INSERT INTO staffeventos (
             idstaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
             idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
-            vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrextra,
-            vlrcaixinha, descbonus, datasevento, vlrtotal, comppgtocache, comppgtoajdcusto, comppgtocaixinha, 
-            descbeneficios, setor, statuspgto, statusbonus, statuscaixinha, diariadobrada, meiadiaria, dtdiariaextra
+            vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrajustecusto,
+            vlrcaixinha, descajustecusto, datasevento, vlrtotal, comppgtocache, comppgtoajdcusto, comppgtocaixinha, 
+            descbeneficios, setor, statuspgto, statusajustecusto, statuscaixinha, statusdiariadobrada, statusmeiadiaria, dtdiariadobrada,
+            comppgtoajdcusto50, dtmeiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22,
-            $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)
+            $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37)
           RETURNING idstaffevento;
         `;
         const eventoInsertValues = [
@@ -1210,9 +1279,9 @@ router.post(
           parseFloat(String(vlralmoco).replace(',', '.')),
           parseFloat(String(vlrjantar).replace(',', '.')),
           parseFloat(String(vlrtransporte).replace(',', '.')),
-          parseFloat(String(vlrextra).replace(',', '.')),
+          parseFloat(String(vlrajustecusto).replace(',', '.')),
           parseFloat(String(vlrcaixinha).replace(',', '.')),
-          descbonus,
+          descajustecusto,
           // Garanta que `datasEventoRaw` seja parseado corretamente aqui
           datasEventoRaw ? JSON.stringify(JSON.parse(datasEventoRaw)) : null,
           parseFloat(String(vlrtotal).replace(',', '.')),
@@ -1222,11 +1291,18 @@ router.post(
           descbeneficios,
           setor,
           statuspgto,
-          statusbonus,
+          statusajustecusto,
           statuscaixinha,
-          diariadobrada,
-          meiadiaria,
-          datadiariadobrada
+          statusdiariadobrada,
+          statusmeiadiaria,
+         // datadiariadobradaCorrigida,
+         JSON.stringify(datasDiariaDobradaParsed),    
+          comprovanteAjdCusto50File ? `/uploads/staff_comprovantes/${comprovanteAjdCusto50File.filename}` : null,
+         // dataMeiaDiariaCorrigida,
+         JSON.stringify(datasMeiaDiariaParsed),
+          desccaixinha,
+          descdiariadobrada,
+          descmeiadiaria
         ];
 
         await client.query(eventoInsertQuery, eventoInsertValues);
@@ -1256,6 +1332,7 @@ router.post(
       // const comprovanteCacheFile = files?.comppgtocache ? files.comppgtoacache[0] : null; -> files.comppgtocache[0]
       if (files?.comppgtocache?.[0]) deletarArquivoAntigo(files.comppgtocache[0].path);
       if (files?.comppgtoajdcusto?.[0]) deletarArquivoAntigo(files.comppgtoajdcusto[0].path);
+      if (files?.comppgtoajdcusto50?.[0]) deletarArquivoAntigo(files.comppgtoajdcusto50[0].path);
       if (files?.comppgtocaixinha?.[0]) deletarArquivoAntigo(files.comppgtocaixinha[0].path);
       
       if (error.code === '23502') {
