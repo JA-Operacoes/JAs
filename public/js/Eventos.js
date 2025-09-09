@@ -603,7 +603,7 @@ async function carregarEventoDescricao(desc, elementoAtual) {
         const podeCadastrarEvento = temPermissao("Eventos", "cadastrar");
         
         // Se o evento não for encontrado, garantimos que os campos estão limpos
-        // limparCamposEvento();
+      //  limparCamposEvento();
 
         if (!podeCadastrarEvento) {
             Swal.fire({

@@ -36,9 +36,8 @@
   transform: translate(-50%, -50%); /* Ajuste para o centro exato */
   background-color: #4d4d4d;
   padding: 5px;
-  width: 1325px; /* Ajuste o tamanho conforme necessário */
-  /* height: 745px; */
-  height: 850px;
+  width: 1800px; /* Ajuste o tamanho conforme necessário */
+  height: 980px;
   font-size: 16px;
   z-index: 9999;
 }
@@ -90,7 +89,7 @@ body{
   background-color: rgb(0, 0, 0);
   max-width: 850px;   
   width: 100%;  
-  height: 780px;          /* Largura do formulário */
+  height: 900px;          /* Largura do formulário */
   margin: 0% auto;            /* Centraliza o formulário na tela */
   padding: 10px;                /* Espaçamento interno */
   background-color: #cacaca; 
@@ -360,7 +359,7 @@ display: none;
 /* Estiliza o contêiner principal (agora mais discreto) */
 #comprovanteCacheDisplay,
 #comprovanteAjdCustoDisplay,
-#comprovanteExtrasDisplay {
+#comprovanteAjdCustoDisplay50 {
 display: flex;
 flex-direction: row;
 align-items: center;
@@ -428,6 +427,7 @@ border: 1px solid #dc3545;
  justify-content: center;
  align-items: center;
  flex-direction: row;
+
  margin-top: 10px;
   gap: 0.5rem 1rem; /* espaço entre linhas e colunas */
 
@@ -446,15 +446,17 @@ border: 1px solid #dc3545;
   justify-content: center;
   align-items: center;
   flex-direction: column;
+  
 }
 
 .checkbox label {
   cursor: pointer;
   color: var(--_clr-current);
   transition: color 150ms ease-in-out;
-      display: flex;
-    justify-content: center;
-    flex-direction: column;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  font-size: 15px;
 }
 
 
@@ -488,6 +490,7 @@ border: 1px solid #dc3545;
 .checkbox input[type="checkbox"]:hover,
 .checkbox input[type="checkbox"]:hover + label {
   --_clr-current: var(--_clr-hover);
+
 }
 .checkbox input[type="checkbox"]:focus-visible::after,
 .checkbox input[type="checkbox"]:hover::after {
@@ -503,6 +506,9 @@ border: 1px solid #dc3545;
   opacity: 1;
 }
 
+#apelidoFuncionario, #nmFuncionario.nmFuncionario {
+  width: 550px;
+}
 
 input[type="file"]{
   display: none;
@@ -533,85 +539,198 @@ input[type="file"]{
   }
 
 
+/* Estilos para o SELECT de status */
+#selectStatusAjusteCusto, #selectStatusCaixinha {
+    /* Garante que o fundo e a cor do texto do select sejam definidos */
+    background-color: transparent;
+    color: #000000;
+}
 
+/* 1. Estilos para o status "Pendente" (Fundo Amarelo, Fonte Preta) */
+#selectStatusAjusteCusto.status-Pendente,
+#selectStatusCaixinha.status-Pendente {
+    background-color: #FFC107; /* Amarelo */
+    color: #000000; /* Preto */
+}
+
+/* 2. Estilos para o status "Autorizado" (Fundo Verde, Fonte Branca) */
+#selectStatusAjusteCusto.status-Autorizado,
+#selectStatusCaixinha.status-Autorizado {
+    background-color: #28A745; /* Verde */
+    color: #FFFFFF; /* Branco */
+}
+
+/* 3. Estilos para o status "Rejeitado" (Fundo Vermelho, Fonte Branca) */
+#selectStatusAjusteCusto.status-Rejeitado,
+#selectStatusCaixinha.status-Rejeitado {
+    background-color: #DC3545; /* Vermelho */
+    color: #FFFFFF; /* Branco */
+}
+
+/* Estilos para o INPUT de status (se aplicável) */
+input#statusAjusteCusto.status-Pendente,
+input#statusCaixinha.status-Pendente {
+    background: #FFC107;
+    color: #000000;
+}
+
+input#statusAjusteCusto.status-Autorizado,
+input#statusCaixinha.status-Autorizado {
+    background: #28A745;
+    color: #FFFFFF;
+}
+
+input#statusAjusteCusto.status-Rejeitado,
+input#statusCaixinha.status-Rejeitado {
+    background: #DC3545;
+    color: #FFFFFF;
+}
+
+/*Diaria Dobrada */
 /* Classes para o select de status */
-/* #selectStatusBonus option.status-Pendente, */
-#selectStatusBonus.status-none {
+/* #selectStatusAjusteCusto option.status-Pendente, */
+
+input#statusDiairaDobrada.status-Pendente {
+  background: #FFC107;
+  color: #000000;          /* Branco */
+  /* font-weight: bold; */
+  text-shadow: none;
+}
+input#statusDiairaDobrada.status-Autorizado {
+  background: #28A745;
+  color: #FFFFFF;          /* Branco */
+  /* font-weight: bold; */
+  text-shadow: none;
+}
+input#statusDiairaDobrada.status-Rejeitado {
+  background: #DC3545;
+  color: #FFFFFF;          /* Branco */
+  /* font-weight: bold; */
+  text-shadow: none;
+}
+
+#selectStatusDiairaDobrada.status-none {
   background-color: transparent;
   color: #000000;          /* Preto */
   font-weight: bold;
   text-shadow: none;       /* Remove o contorno, caso ainda exista */
 }
 
-input#statusBonus.status-Pendente {
-    background: orange;
-  color: #000000;          /* Branco */
-  font-weight: bold;
-  text-shadow: none;
-}
-input#statusBonus.status-Autorizado {
-    background: #28A745;
-  color: #000000;          /* Branco */
-  font-weight: bold;
-  text-shadow: none;
-}
-input#statusBonus.status-Rejeitado {
-    background: #DC3545;
-  color: #000000;          /* Branco */
-  font-weight: bold;
-  text-shadow: none;
-}
-
-
-#selectStatusBonus.status-Pendente {
-  background-color: #FFFF00; /* Amarelo */
-  color: #000000;          /* Preto */
-  font-weight: bold;
+#selectStatusDiariaDobrada.status-Pendente {
+  background-color: #FFC107; /* Amarelo */
+  color:  #000000;          /* Preto */
+  /* font-weight: bold; */
   text-shadow: none;       /* Remove o contorno, caso ainda exista */
 }
 
-/* #selectStatusBonus option.status-Autorizado, */
-#selectStatusBonus.status-Autorizado {
+/* #selectStatusAjusteCusto option.status-Autorizado, */
+#selectStatusDiariaDobrada.status-Autorizado {
   background-color: #28A745; /* Verde */
   color: #FFFFFF;          /* Branco */
-  font-weight: bold;
+  /* font-weight: bold; */
   text-shadow: none;
 }
 
 /* 3. Estilos para o status "Rejeitado" (Fundo Vermelho, Fonte Branca) */
-/* #selectStatusBonus option.status-Rejeitado, */
-#selectStatusBonus.status-Rejeitado {
+/* #selectStatusAjusteCusto option.status-Rejeitado, */
+#selectStatusDiariaDobrada.status-Rejeitado {
   background-color: #DC3545; /* Vermelho */
-  color: #080808;          /* Branco */
-  font-weight: bold;
+  color: #FFFFFF;          /* Branco */
+  /* font-weight: bold; */
+  text-shadow: none;
+}
+
+/* MEIA DIARIA */
+input#statusMeiaDiaria.status-Pendente {
+    background: #FFC107;
+  color: #000000;          /* Branco */
+  /* font-weight: bold; */
+  text-shadow: none;
+}
+input#statusMeiaDiaria.status-Autorizado {
+  background: #28A745;
+  color: #FFFFFF;          /* Branco */
+  /* font-weight: bold; */
+  text-shadow: none;
+}
+input#statusMeiaDiaria.status-Rejeitado {
+  background: #DC3545;
+  color: #FFFFFF;          /* Branco */
+  /* font-weight: bold; */
   text-shadow: none;
 }
 
 
+#selectStatusMeiaDiaria.status-none {
+  background-color: transparent;
+  color: #FFFFFF;          /* Preto */
+  font-weight: bold;
+  text-shadow: none;       /* Remove o contorno, caso ainda exista */
+}
 /* colorindo selects caixinha */
 /* #selectStatusCaixinha option.status-Pendente, */
-#selectStatusCaixinha.status-Pendente {
-  background-color: #FFFF00; /* Amarelo */
+#selectStatusMeiaDiaria.status-Pendente {
+  background-color: #FFC107; /* Amarelo */
   color: #000000;          /* Preto */
-  font-weight: bold;
+  /* font-weight: bold; */
   text-shadow: none;       /* Remove o contorno, caso ainda exista */
 }
 
 /* #selectStatusCaixinha option.status-Autorizado, */
-#selectStatusCaixinha.status-Autorizado {
+#selectStatusMeiaDiaria.status-Autorizado {
   background-color: #28A745; /* Verde */
   color: #FFFFFF;          /* Branco */
-  font-weight: bold;
+  /* font-weight: bold; */
   text-shadow: none;
 }
 
 /* 3. Estilos para o status "Rejeitado" (Fundo Vermelho, Fonte Branca) */
 /* #selectStatusCaixinha option.status-Rejeitado, */
-#selectStatusCaixinha.status-Rejeitado {
+#selectStatusMeiaDiaria.status-Rejeitado {
   background-color: #DC3545; /* Vermelho */
   color: #FFFFFF;          /* Branco */
-  font-weight: bold;
+  /* font-weight: bold; */
   text-shadow: none;
+}
+
+/* */
+
+/* Assegura que datas selecionadas SEM status tenham uma cor neutra, por exemplo, azul padrão do flatpickr ou preto */
+.flatpickr-day.selected:not(.status-autorizado):not(.status-pendente):not(.status-rejeitado) {
+    background-color: #000000 !important; /* Preto para datas novas selecionadas */
+    color: #ffffff !important;
+    border-color: #000000 !important;
+}
+
+.flatpickr-day.selected:not(.status-autorizado):not(.status-pendente):not(.status-rejeitado):hover,
+.flatpickr-day.selected:not(.status-autorizado):not(.status-pendente):not(.status-rejeitado):focus {
+    background-color: #333333 !important; /* Tom um pouco mais claro para hover */
+    border-color: #333333 !important;
+}
+
+
+/* Regra para datas "Autorizadas" - Aumente a especificidade */
+.flatpickr-day.status-autorizado,
+.flatpickr-day.status-autorizado.selected { /* Adicionado .selected aqui */
+    background-color: #4CAF50 !important; /* Verde */
+    color: #ffffff !important;
+    border-color: #4CAF50 !important;
+}
+
+/* Regra para datas "Pendente" - Aumente a especificidade */
+.flatpickr-day.status-pendente,
+.flatpickr-day.status-pendente.selected { /* Adicionado .selected aqui */
+    background-color: #FFC107 !important; /* Amarelo */
+    color: #000000 !important;
+    border-color: #FFC107 !important;
+}
+
+/* Regra para datas "Rejeitadas" - Aumente a especificidade */
+.flatpickr-day.status-rejeitado,
+.flatpickr-day.status-rejeitado.selected { /* Adicionado .selected aqui */
+    background-color: #F44336 !important; /* Vermelho */
+    color: #ffffff !important;
+    border-color: #F44336 !important;
 }
 
 #statusPgto {
@@ -651,6 +770,14 @@ input#statusBonus.status-Rejeitado {
   align-items: center;
 }
 
+.form-2colunasDatas {
+  display: flex;
+  gap: 20.0px;  /* Espaço entre os inputs */
+  max-width: 300; /* Garante que os elementos não ultrapassem o container */
+  justify-content: center;
+  align-items: center;
+}
+
 
 .form,
 .form2,
@@ -685,8 +812,8 @@ input#statusBonus.status-Rejeitado {
 .form2 select {
   flex: 1;
   font-family: var(--Font-primary);
-  width: 270px;
-  height: 40px;
+  width: 150px;
+  height: 30px;
   border-radius: 6px;
   font-size: 15px;
   padding: 0 20px;
@@ -777,6 +904,7 @@ select, input[type="text"] {
 
 .form label,
 .form-2colunas label,
+.form-2colunasData label,
 .form2 label {
   position: absolute;
   top: 50%;
@@ -786,6 +914,25 @@ select, input[type="text"] {
   pointer-events: none;
   transition: 0.3s;
   left: 20px;
+}
+
+/* Estilo para o wrapper do rótulo */
+.form-label-wrapper {
+    flex-shrink: 0; /* Impede que o rótulo encolha */
+    width: 60px; /* Ajuste a largura conforme necessário para alinhar */
+    text-align: right; /* Alinha o texto à direita */
+}
+
+/* Deixa o texto do rótulo em negrito */
+.form-label-wrapper p {
+    font-weight: bold;
+}
+.form-title-wrapper {
+    flex-shrink: 0; /* Impede que o rótulo encolha */
+    width: 80px; /* Ajuste a largura para alinhar com os outros elementos */
+    text-align: right; /* Alinha o texto para a direita */
+    font-weight: bold; /* Deixa o texto em negrito */
+    color: #000000; /* Defina a cor do texto para combinar */
 }
 
  #campoStatusCaixinha label{
@@ -830,9 +977,14 @@ input#idStaff{
   width: 100px;
 }
 
-input#transporte,#almoco,#jantar,#caixinha, #vlrCusto, #extra{
+input#transporte,#almoco,#jantar,#lrCusto{
   /* width: 170px; */
   width: 100%;
+}
+
+input#caixinha, #ajusteCusto{
+  width: 170px;
+  /* width: 100%; */
 }
 
 select#nmFuncionario{
@@ -874,7 +1026,7 @@ legend{
 }
 
 
-textarea#bonus, #diariaDobrada,#meiaDiaria{
+textarea#descAjusteCusto, #descDiariaDobrada, #descMeiaDiaria, #descCaixinha {
   font-family:"Abel",sans-serif;
   width: 390px;
   display: flex;
@@ -1035,18 +1187,90 @@ button {
 
 .row {
   display: flex;
-  justify-content: center;
-  align-items: center;
+  justify-content: start;
+  align-items: center;  
 }
+
+
 
 input.datasEvento.form-control.input {
-    width: 700px;
+    width: 1300px;
 }
 
-input.diariaDobrada.form-control.input {
-    width: 300px;
+input.diariaDobrada.form-control.input, .meiaDiaria.form-control.input {
+    width: 900px;
 }
 
+#containerStatusDiariaDobrada,
+#containerStatusMeiaDiaria {
+    text-align: center;
+}
+
+/* Agrupa o label e a data, adiciona espaçamento para centralizar */
+.label-date-group {
+    display: flex;
+    font-weight: bold;
+    justify-content: center; /* Centraliza o conteúdo horizontalmente */
+    gap: 5px; /* Adiciona um pequeno espaço entre a label e a data */
+    align-items: center;
+    margin-bottom: 10px; /* Adiciona espaço entre o label e a lista de datas */
+}
+
+/* Container de cada linha de data/status */
+.date-status-item {
+    display: flex; /* Mantém os itens na mesma linha */
+    flex-wrap: wrap; 
+    align-items: center; 
+    gap: 10px; /* Mantém o espaçamento entre os elementos */
+    margin-top: 10px;
+
+    /* REMOVIDO: Borda, fundo, espaçamento interno e raio */
+    /* padding: 5px; */
+    /* border: 1px solid #ddd; */
+    /* border-radius: 5px; */
+    /* background-color: #f9f9f9; */
+}
+
+/* O restante do código pode ficar como está, pois ele se refere aos elementos internos. */
+.date-status-item label {
+    font-weight: bold;
+    color: #333;
+    white-space: nowrap;
+}
+
+.date-status-item span {
+    font-size: 14px;
+    font-weight: normal;
+    white-space: nowrap;
+}
+
+.date-status-item .status-select {
+    flex-grow: 1;
+    max-width: 150px;
+}
+
+.date-status-item .status-select.status-pendente {
+    background-color: #ffc107 !important;
+    color: #000 !important;
+}
+
+.date-status-item .status-select.status-autorizado {
+    background-color: #28a745 !important;
+    color: #fff !important;
+}
+
+.date-status-item .status-select.status-rejeitado {
+    background-color: #dc3545 !important;
+    color: #fff !important;
+}
+
+input.preenchido ~ label {
+    top: 0;
+    left: 5%;
+    font-size: 12px;
+    background: #cacaca;
+    margin-left: 10px;
+  }
 
 .flatpickr-calendar {
   z-index: 1000; /* Maior que o z-index do modal Bootstrap (1050) */
@@ -1056,59 +1280,59 @@ input.diariaDobrada.form-control.input {
 @media (max-width: 1657px){
 
   #cadModalStaff.modal {
-  position: fixed;
-  top: 50%; /* Alinha verticalmente ao centro */
-  left: 50%; /* Alinha horizontalmente ao centro */   
-  transform: translate(-50%, -50%); /* Ajuste para o centro exato */
-  background-color: #4d4d4d;
-  padding: 5px;
-  width: 1325px; /* Ajuste o tamanho conforme necessário */
-  /* height: 745px; */
-  height: 700px;
-  font-size: 16px;
-  z-index: 9999;
-}
+    position: fixed;
+    top: 50%; /* Alinha verticalmente ao centro */
+    left: 50%; /* Alinha horizontalmente ao centro */   
+    transform: translate(-50%, -50%); /* Ajuste para o centro exato */
+    background-color: #4d4d4d;
+    padding: 5px;
+    width: 1325px; /* Ajuste o tamanho conforme necessário */
+    /* height: 745px; */
+    height: 700px;
+    font-size: 16px;
+    z-index: 9999;
+  }
 
  #cadModalFuncionarios.modal-content{
     height: 590px;
   }
   
-#cadModalStaff.modal-open{
-  overflow: hidden;
-  pointer-events: none;
-}
+  #cadModalStaff.modal-open{
+    overflow: hidden;
+    pointer-events: none;
+  }
 
-.title{
-  font-family: "Abel", sans-serif;
-  font-size: 20px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: 640px;
-}
+  .title{
+    font-family: "Abel", sans-serif;
+    font-size: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 640px;
+  }
 
-#form-content {
-  font-family: "Abel", sans-serif;
-  display: flex;                /* Define o modelo de layout Flexbox */
-  flex-direction: column; 
-  justify-content: center;
-  background-color: rgb(0, 0, 0);
-  max-width: 850px;   
-  width: 100%;  
-  height: 625px;          /* Largura do formulário */
-  margin: 0% auto;            /* Centraliza o formulário na tela */
-  padding: 10px;                /* Espaçamento interno */
-  background-color: #cacaca; 
-  border: #ce0303;     /* Fundo branco */
-  border-bottom-right-radius: 8px;          /* Bordas arredondadas */
-  border-bottom-left-radius: 8px;          /* Bordas arredondadas */
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
-  overflow-y: auto;
-  overflow-x: none;
-  max-width: unset; /* Permite que ele use toda a largura disponível */
-}
-}
+  #form-content {
+    font-family: "Abel", sans-serif;
+    display: flex;                /* Define o modelo de layout Flexbox */
+    flex-direction: column; 
+    justify-content: center;
+    background-color: rgb(0, 0, 0);
+    max-width: 850px;   
+    width: 100%;  
+    height: 625px;          /* Largura do formulário */
+    margin: 0% auto;            /* Centraliza o formulário na tela */
+    padding: 10px;                /* Espaçamento interno */
+    background-color: #cacaca; 
+    border: #ce0303;     /* Fundo branco */
+    border-bottom-right-radius: 8px;          /* Bordas arredondadas */
+    border-bottom-left-radius: 8px;          /* Bordas arredondadas */
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
+    overflow-y: auto;
+    overflow-x: none;
+    max-width: unset; /* Permite que ele use toda a largura disponível */
+  }
 
+}
 @media (max-width: 1326px){
 
   #cadModalStaff.modal {

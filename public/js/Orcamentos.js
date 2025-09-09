@@ -288,16 +288,6 @@ async function carregarLocalMontOrc() {
 }
 
 let selectedPavilhoes = [];
-// function updatePavilhaoDisplayInputs() {
-//     const listaPavilhaoDisplay = document.getElementById('listaPavilhaoDisplay');
-//     const idsPavilhoesSelecionadosHidden = document.getElementById('idsPavilhoesSelecionados');
-
-//     // Atualiza o input de texto visível com os nomes dos pavilhões
-//     listaPavilhaoDisplay.value = selectedPavilhoes.map(p => p.name).join(', ');
-
-//     // Atualiza o input hidden com os IDs em formato JSON (ideal para enviar ao backend)
-//     idsPavilhoesSelecionadosHidden.value = JSON.stringify(selectedPavilhoes.map(p => p.id));
-// }
 
 function updatePavilhaoDisplayInputs() {
     const container = document.getElementById('pavilhoesSelecionadosContainer');
@@ -350,46 +340,7 @@ async function carregarPavilhaoOrc(idMontagem) {
         selectedPavilhoes = [];
         updatePavilhaoDisplayInputs();
         return; // Não faça a requisição se idMontagem for vazio
-    }
-
-    // try{
-
-    //    const pavilhao = await fetchComToken(`/orcamentos/pavilhao?idmontagem=${idMontagem}`);
-
-    //    console.log("Pavilhão recebido:", pavilhao);
-    //     let selects = document.querySelectorAll(".idPavilhao");
-
-
-    //     selects.forEach(select => {
-
-    //         select.innerHTML = '<option value="">Selecione Pavilhão</option>'; // Adiciona a opção padrão
-    //         pavilhao.forEach(localpav => {
-
-    //             let option = document.createElement("option");
-
-    //             option.value = localpav.idpavilhao;  // Atenção ao nome da propriedade (idMontagem)
-    //             option.textContent = localpav.nmpavilhao;
-    //             option.setAttribute("data-idpavilhao", localpav.idpavilhao);
-    //             option.setAttribute("data-nmpavilhao", localpav.nmpavilhao);
-
-    //             select.appendChild(option);
-
-    //         });
-    //         select.addEventListener("change", function (event) {
-    //             idPavilhao = this.value;
-    //             const selectedOption = this.options[this.selectedIndex];
-
-    //             console.log("IDPAVILHAO selecionado:", selectedOption.value, selectedOption.getAttribute("data-nmpavilhao"));
-
-
-
-
-    //         });
-
-    //     });
-    // }catch(error){
-    //     console.error("Erro ao carregar pavilhao:", error);
-    // }
+    }    
 
     try {
         const pavilhoes = await fetchComToken(`/orcamentos/pavilhao?idmontagem=${idMontagem}`);
@@ -415,144 +366,105 @@ async function carregarPavilhaoOrc(idMontagem) {
     }
 }
 
-// async function carregarPavilhaoOrc(idMontagem) {
-//     // ... (seu código existente para verificar idMontagem e limpar o select) ...
 
-//     try {
-//         const pavilhoes = await fetchComToken(`/orcamentos/pavilhao?idmontagem=${idMontagem}`);
-//         console.log("Pavilhões recebidos:", pavilhoes);
+async function carregarFuncaoOrc() {
 
-//         const nmPavilhaoSelect = document.getElementById("nmPavilhao");
-//         if (nmPavilhaoSelect) {
-//             // Limpa as opções existentes antes de adicionar novas
-//             $(nmPavilhaoSelect).empty(); // Use jQuery .empty() para Select2
-//             $(nmPavilhaoSelect).append('<option></option>'); // Opção vazia para placeholder se necessário
+    try{
 
-//             pavilhoes.forEach(localpav => {
-//                 let option = new Option(localpav.nmpavilhao, localpav.idpavilhao, false, false);
-//                 $(nmPavilhaoSelect).append(option);
-//             });
+        const funcaofetch = await fetchComToken('/orcamentos/funcao');
+        funcoesDisponiveis = funcaofetch;
 
-//             // Inicializa/Atualiza o Select2
-//             // Se já estiver inicializado, você pode usar $(nmPavilhaoSelect).val(null).trigger('change'); para resetar seleções
-//             // E depois re-selecionar ao carregar um orçamento existente para edição.
-//             // Ou destruir e recriar:
-//             if ($(nmPavilhaoSelect).data('select2')) {
-//                 $(nmPavilhaoSelect).select2('destroy');
-//             }
-//             $(nmPavilhaoSelect).select2({
-//                 placeholder: "Selecione um ou mais Pavilhões",
-//                 allowClear: true // Permite limpar todas as seleções
-//             });
-//         }
+        let selects = document.querySelectorAll(".idFuncao");
 
-//     } catch (error) {
-//         console.error("Erro ao carregar pavilhões:", error);
-//         Swal.fire("Erro", "Não foi possível carregar os pavilhões.", "error");
-//     }
-// }
+        selects.forEach(select => {
+            select.innerHTML = "";
+            // console.log('Funcao recebidos 2:', funcao); // Log das Funções recebidas
 
-// async function carregarNomePavilhao(id) {
-//     if (!id) {
-//         console.warn("ID do pavilhão não fornecido para carregarNomePavilhao.");
-//         return null;
-//     }
-//     try {
+            let opcaoPadrao = document.createElement("option");
+            opcaoPadrao.setAttribute("value", "");
+            opcaoPadrao.textContent = "Selecione Função";
+            select.appendChild(opcaoPadrao);
 
-//         const procurapavilhao = await fetchComToken(`/orcamentos/pavilhao/${id}`);
+            funcaofetch.forEach(funcao => {
+                let option = document.createElement("option");
+                option.value = funcao.idfuncao;
+                option.textContent = funcao.descfuncao;
+                option.setAttribute("data-descproduto", funcao.descfuncao);
+                option.setAttribute("data-cto", funcao.ctofuncao);
+                option.setAttribute("data-vda", funcao.vdafuncao);
 
-//         if (procurapavilhao && procurapavilhao.nmpavilhao) { // Ajuste 'nome' para a propriedade correta do seu objeto de pavilhão
-//             return procurapavilhao.nmpavilhao;
-//         } else {
-//             console.warn("Nenhum nome de pavilhão encontrado na resposta:", procurapavilhao);
-//             return null;
-//         }
-//     } catch (error) {
-//         console.error('Erro ao carregar nome do pavilhão:', error);
-//         return null;
-//     }
+                // option.setAttribute("data-transporte", funcao.transporte);
 
-// }
+                option.setAttribute("data-almoco", funcao.almoco || 0); // Certifique-se de que almoco/jantar estão aqui
+                option.setAttribute("data-jantar", funcao.jantar || 0);
+                option.setAttribute("data-transporte", funcao.transporte || 0);
+                option.setAttribute("data-categoria", "Produto(s)");
+                select.appendChild(option);
 
+            });
+
+
+            select.addEventListener("change", function (event) {
+                const linha = this.closest('tr');
+                idFuncao = this.value; // O value agora é o ID
+
+                console.log("IDFUNCAO selecionado change:", idFuncao);
+
+                const selectedOption = this.options[this.selectedIndex];
+
+                const idFuncaoAtual = selectedOption.value;
+
+                if (linha) {
+                    linha.dataset.idfuncao = idFuncaoAtual; // Atualiza o data-idfuncao na linha
+                }
+
+                // Se a opção padrão "Selecione Função" for escolhida, zere os valores globais
+
+                if (selectedOption.value === "") {
+                    vlrAlmoco = 0;
+                    vlrJantar = 0;
+                    vlrTransporte = 0;
+                    idFuncao = ""; // Limpa também o idFuncao global
+                    Categoria = "Produto(s)"; // Reinicia a categoria se for relevante
+                    console.log("Nenhuma função selecionada. Valores de almoço, jantar, transporte e ID limpos.");
+                } else {
+                    // Pega o valor do ID da função selecionada
+                    idFuncao = selectedOption.value;
+                    console.log("IDFUNCAO selecionado:", idFuncao);
+
+                    // Pega os valores dos atributos 'data-' e os armazena nas variáveis globais
+
+                    // Use parseFloat para garantir que são números para cálculos futuros
+
+                    vlrAlmoco = parseFloat(selectedOption.getAttribute("data-almoco")) || 0;
+                    vlrJantar = parseFloat(selectedOption.getAttribute("data-jantar")) || 0;
+                    vlrTransporte = parseFloat(selectedOption.getAttribute("data-transporte")) || 0;
+                    Categoria = selectedOption.getAttribute("data-categoria") || "N/D";
+
+                    console.log(`Valores Globais Atualizados: Almoco: ${vlrAlmoco}, Jantar: ${vlrJantar}, Transporte: ${vlrTransporte}, Categoria: ${Categoria}`);
+
+                }
+
+               // Categoria = selectedOption.getAttribute("data-categoria") || "N/D";
+                
+                recalcularLinha(linha);
+                atualizaProdutoOrc(event);
+                
+
+            });
+
+          //  Categoria = "Produto(s)"; // define padrão ao carregar
+
+        });
+
+    }catch(error){
+
+    console.error("Erro ao carregar funcao:", error);
+    }
+}
 
 //Função para carregar os Funcao
-async function carregarFuncaoOrc() {
-    try{
-        const funcaofetch = await fetchComToken('/orcamentos/funcao');
-        funcoesDisponiveis = funcaofetch;
-
-        let selects = document.querySelectorAll(".idFuncao");
-        selects.forEach(select => {
-            select.innerHTML = "";
-
-            // console.log('Funcao recebidos 2:', funcao); // Log das Funções recebidas
-            let opcaoPadrao = document.createElement("option");
-            opcaoPadrao.setAttribute("value", "");
-            opcaoPadrao.textContent = "Selecione Função";
-            select.appendChild(opcaoPadrao);
-
-            funcaofetch.forEach(funcao => {
-                let option = document.createElement("option");
-                option.value = funcao.idfuncao;
-                option.textContent = funcao.descfuncao;
-                option.setAttribute("data-descproduto", funcao.descfuncao);
-                option.setAttribute("data-cto", funcao.ctofuncao);
-                option.setAttribute("data-vda", funcao.vdafuncao);
-                // option.setAttribute("data-transporte", funcao.transporte);
-                option.setAttribute("data-almoco", funcao.almoco || 0); // Certifique-se de que almoco/jantar estão aqui
-                option.setAttribute("data-jantar", funcao.jantar || 0);
-                option.setAttribute("data-transporte", funcao.transporte || 0);
-                option.setAttribute("data-categoria", "Produto(s)");
-                select.appendChild(option);
-            });
-
-            select.addEventListener("change", function (event) {
-                const linha = this.closest('tr');
-                idFuncao = this.value; // O value agora é o ID
-                console.log("IDFUNCAO selecionado change:", idFuncao);
-
-                const selectedOption = this.options[this.selectedIndex];
-
-                const idFuncaoAtual = selectedOption.value;
-
-                if (linha) {
-                    linha.dataset.idfuncao = idFuncaoAtual; // Atualiza o data-idfuncao na linha
-                }
-
-                // Se a opção padrão "Selecione Função" for escolhida, zere os valores globais
-                if (selectedOption.value === "") {
-                    vlrAlmoco = 0;
-                    vlrJantar = 0;
-                    vlrTransporte = 0;
-                    idFuncao = ""; // Limpa também o idFuncao global
-                    Categoria = "Produto(s)"; // Reinicia a categoria se for relevante
-                    console.log("Nenhuma função selecionada. Valores de almoço, jantar, transporte e ID limpos.");
-
-                } else {
-                    // Pega o valor do ID da função selecionada
-                    idFuncao = selectedOption.value;
-                    console.log("IDFUNCAO selecionado:", idFuncao);
-
-                    // Pega os valores dos atributos 'data-' e os armazena nas variáveis globais
-                    // Use parseFloat para garantir que são números para cálculos futuros
-                    vlrAlmoco = parseFloat(selectedOption.getAttribute("data-almoco")) || 0;
-                    vlrJantar = parseFloat(selectedOption.getAttribute("data-jantar")) || 0;
-                    vlrTransporte = parseFloat(selectedOption.getAttribute("data-transporte")) || 0;
-                    Categoria = selectedOption.getAttribute("data-categoria") || "N/D";
-
-                    console.log(`Valores Globais Atualizados: Almoco: ${vlrAlmoco}, Jantar: ${vlrJantar}, Transporte: ${vlrTransporte}, Categoria: ${Categoria}`);
-                }
-               // Categoria = selectedOption.getAttribute("data-categoria") || "N/D";
-
-                recalcularLinha(linha);
-                atualizaProdutoOrc(event);
-            });
-          //  Categoria = "Produto(s)"; // define padrão ao carregar
-        });
-    }catch(error){
-    console.error("Erro ao carregar funcao:", error);
-    }
-}
+// A sua função carregarFuncaoOrc() corrigida.
 
 
 async function carregarEquipamentosOrc() {
@@ -1073,6 +985,202 @@ function removerLinha(linha) {
     calcularLucroReal();
 }
 
+function inicializarLinha(linha) {
+    // 1. Encontra o select de função na linha e o popula com as opções
+    const selectFuncao = linha.querySelector('.idFuncao');
+    if (selectFuncao) {
+        selectFuncao.innerHTML = "";
+        const opcaoPadrao = document.createElement("option");
+        opcaoPadrao.setAttribute("value", "");
+        opcaoPadrao.textContent = "Selecione Função";
+        selectFuncao.appendChild(opcaoPadrao);
+
+        if (window.funcoesDisponiveis) {
+            window.funcoesDisponiveis.forEach(funcao => {
+                let option = document.createElement("option");
+                option.value = funcao.idfuncao;
+                option.textContent = funcao.descfuncao;
+                option.setAttribute("data-descproduto", funcao.descfuncao);
+                option.setAttribute("data-cto", funcao.ctofuncao);
+                option.setAttribute("data-vda", funcao.vdafuncao);
+                option.setAttribute("data-almoco", funcao.almoco || 0);
+                option.setAttribute("data-jantar", funcao.jantar || 0);
+                option.setAttribute("data-transporte", funcao.transporte || 0);
+                option.setAttribute("data-categoria", "Produto(s)");
+                selectFuncao.appendChild(option);
+            });
+        }
+    }
+
+    // 2. Adiciona o listener de 'change' ao select de função
+    selectFuncao?.addEventListener('change', function(event) {
+        const linhaAtual = this.closest('tr');
+        if (linhaAtual) {
+            atualizaProdutoOrc(event, linhaAtual);
+            recalcularLinha(linhaAtual);
+        } else {
+            console.error("Erro: Não foi possível encontrar a linha (<tr>) pai para o select.");
+        }
+    });
+
+    // 3. Adiciona listeners para os campos de Desconto e Acréscimo
+    const descontoValorItem = linha.querySelector('.descontoItem .ValorInteiros');
+    if (descontoValorItem) {
+        descontoValorItem.addEventListener('input', function() {
+            console.log("EVENTO INPUT: Campo ValorInteiros de Desconto alterado.");
+            lastEditedFieldType = 'valor';
+            recalcularDescontoAcrescimo(this, 'desconto', 'valor', this.closest('tr'));
+        });
+        descontoValorItem.addEventListener('blur', function() {
+            console.log("EVENTO BLUR: Campo ValorInteiros de Desconto.");
+            this.value = formatarMoeda(desformatarMoeda(this.value));
+            setTimeout(() => {
+                const campoPercentual = this.closest('.descontoItem').querySelector('.valorPerCent');
+                if (document.activeElement !== campoPercentual && !this.closest('.Acres-Desc').contains(document.activeElement)) {
+                    lastEditedFieldType = null;
+                    console.log("lastEditedFieldType resetado para null após blur do ValorInteiros.");
+                }
+            }, 0);
+        });
+    }
+
+    const descontoPercentualItem = linha.querySelector('.descontoItem .valorPerCent');
+    if (descontoPercentualItem) {
+        descontoPercentualItem.addEventListener('input', function() {
+            console.log("EVENTO INPUT: Campo valorPerCent de Desconto alterado.");
+            lastEditedFieldType = 'percentual';
+            recalcularDescontoAcrescimo(this, 'desconto', 'percentual', this.closest('tr'));
+        });
+        descontoPercentualItem.addEventListener('blur', function() {
+            console.log("EVENTO BLUR: Campo valorPerCent de Desconto.");
+            this.value = formatarPercentual(desformatarPercentual(this.value));
+            setTimeout(() => {
+                if (!this.closest('.Acres-Desc').contains(document.activeElement)) {
+                    lastEditedFieldType = null;
+                    console.log("lastEditedFieldType resetado para null após blur do valorPerCent.");
+                }
+            }, 0);
+        });
+    }
+
+    const acrescimoValorItem = linha.querySelector('.acrescimoItem .ValorInteiros');
+    if (acrescimoValorItem) {
+        acrescimoValorItem.addEventListener('input', function() {
+            console.log("EVENTO INPUT: Campo ValorInteiros de Acréscimo alterado.");
+            lastEditedFieldType = 'valor';
+            recalcularDescontoAcrescimo(this, 'acrescimo', 'valor', this.closest('tr'));
+        });
+        acrescimoValorItem.addEventListener('blur', function() {
+            console.log("EVENTO BLUR: Campo ValorInteiros de Acréscimo.");
+            this.value = formatarMoeda(desformatarMoeda(this.value));
+            setTimeout(() => {
+                const campoPercentual = this.closest('.acrescimoItem').querySelector('.valorPerCent');
+                if (document.activeElement !== campoPercentual && !this.closest('.Acres-Desc').contains(document.activeElement)) {
+                    lastEditedFieldType = null;
+                    console.log("lastEditedFieldType resetado para null após blur do ValorInteiros.");
+                }
+            }, 0);
+        });
+    }
+
+    const acrescimoPercentualItem = linha.querySelector('.acrescimoItem .valorPerCent');
+    if (acrescimoPercentualItem) {
+        acrescimoPercentualItem.addEventListener('input', function() {
+            console.log("EVENTO INPUT: Campo valorPerCent de Acréscimo alterado.");
+            lastEditedFieldType = 'percentual';
+            recalcularDescontoAcrescimo(this, 'acrescimo', 'percentual', this.closest('tr'));
+        });
+        acrescimoPercentualItem.addEventListener('blur', function() {
+            console.log("EVENTO BLUR: Campo valorPerCent de Acréscimo.");
+            this.value = formatarPercentual(desformatarPercentual(this.value));
+            setTimeout(() => {
+                if (!this.closest('.Acres-Desc').contains(document.activeElement)) {
+                    lastEditedFieldType = null;
+                    console.log("lastEditedFieldType resetado para null após blur do valorPerCent.");
+                }
+            }, 0);
+        });
+    }
+
+    // 4. Inicializa o Flatpickr para o campo de data
+    const novoInputData = linha.querySelector('input[type="text"].datas');
+    if (novoInputData) {
+        flatpickr(novoInputData, commonFlatpickrOptionsTable);
+    } else {
+        console.error("Erro: Novo input de data não encontrado na nova linha.");
+    }
+
+    // 5. Adiciona listeners para os botões de quantidade e inputs de quantidade/dias
+    const incrementButton = linha.querySelector('.qtdProduto .increment');
+    const decrementButton = linha.querySelector('.qtdProduto .decrement');
+    const quantityInput = linha.querySelector('.qtdProduto input[type="number"]');
+
+    if (incrementButton && quantityInput) {
+        incrementButton.addEventListener('click', function() {
+            quantityInput.value = parseInt(quantityInput.value) + 1;
+            recalcularLinha(this.closest('tr'));
+        });
+    }
+
+    if (decrementButton && quantityInput) {
+        decrementButton.addEventListener('click', function() {
+            let currentValue = parseInt(quantityInput.value);
+            if (currentValue > 0) {
+                quantityInput.value = currentValue - 1;
+                recalcularLinha(this.closest('tr'));
+            }
+        });
+    }
+    linha.querySelector('.qtdProduto input')?.addEventListener('input', function() {
+        recalcularLinha(this.closest('tr'));
+    });
+    linha.querySelector('.qtdDias input')?.addEventListener('input', function() {
+        recalcularLinha(this.closest('tr'));
+    });
+
+    // 6. Event listeners para campos de ajuda de custo e extras
+    linha.querySelector('.tpAjdCusto-alimentacao')?.addEventListener('change', function() {
+        recalcularLinha(this.closest('tr'));
+    });
+    linha.querySelector('.tpAjdCusto-transporte')?.addEventListener('change', function() {
+        recalcularLinha(this.closest('tr'));
+    });
+    linha.querySelector('.hospedagem')?.addEventListener('input', function() {
+        recalcularLinha(this.closest('tr'));
+    });
+    linha.querySelector('.transporteExtraInput')?.addEventListener('input', function() {
+        recalcularLinha(this.closest('tr'));
+        console.log("INPUT TRANSPORTE ALTERADO NO ADICIONARLINHAORC:", this.value);
+    });
+
+    // 7. Adiciona listener para o botão de apagar
+    const temPermissaoApagar = temPermissao("Orcamentos", "apagar");
+    const deleteButton = linha.querySelector('.btnApagar');
+    const idItemInput = linha.querySelector('input.idItemOrcamento');
+
+    if (deleteButton) {
+        deleteButton.addEventListener('click', async function(event) {
+            event.preventDefault();
+            const linhaParaRemover = this.closest('tr');
+            const idOrcamentoItem = idItemInput ? idItemInput.value : null;
+
+            if (!idOrcamentoItem || idOrcamentoItem.trim() === '') {
+                // ... (lógica de exclusão local) ...
+            } else if (!temPermissaoApagar) {
+                // ... (lógica de permissão negada) ...
+            } else {
+                // ... (lógica de exclusão via API) ...
+            }
+        });
+
+        if (!temPermissaoApagar) {
+            deleteButton.classList.add("btnDesabilitado");
+            deleteButton.title = "Você não tem permissão para apagar itens de orçamento que já estão salvos.";
+        }
+    }
+}
+
+
 function adicionarLinhaOrc() {
     let tabela = document.getElementById("tabela").getElementsByTagName("tbody")[0];
 
@@ -1084,8 +1192,8 @@ function adicionarLinhaOrc() {
     let ufAtual = document.getElementById("ufmontagem")?.value || 'SP';
     const initialDisplayStyle = (!ufAtual || ufAtual.toUpperCase() === 'SP') ? "display: none;" : "display: table-cell;";
 
-   // let novaLinha = tabela.insertRow();
-   let novaLinha = document.createElement('tr');
+    let novaLinha = tabela.insertRow(0);
+   //let novaLinha = document.createElement('tr');
     //
     novaLinha.innerHTML = `
         <td style="display: none;"><input type="hidden" class="idItemOrcamento" style="display: none;" value=""></td> <!-- Corrigido: de <th> para <td> e adicionado input hidden -->
@@ -1193,6 +1301,7 @@ function adicionarLinhaOrc() {
     // }
     tabela.insertBefore(novaLinha, tabela.firstChild);
 
+    
 
     const descontoValorItem = novaLinha.querySelector('.descontoItem .ValorInteiros');
     if (descontoValorItem) {
@@ -1316,6 +1425,15 @@ function adicionarLinhaOrc() {
         });
     }
 
+    novaLinha.querySelector('.idFuncao').addEventListener('change', function(event) {
+        const linha = this.closest('tr');
+        if (linha) {
+            atualizaProdutoOrc(event, linha);
+            recalcularLinha(linha);
+        } else {
+            console.error("Erro: Não foi possível encontrar a linha (<tr>) pai para o select recém-adicionado.");
+        }
+    });
 
     novaLinha.querySelector('.qtdProduto input')?.addEventListener('input', function() {
         recalcularLinha(this.closest('tr'));
@@ -1440,6 +1558,8 @@ function adicionarLinhaOrc() {
     aplicarMascaraMoeda();
     limparSelects();
 }
+
+
 
 function adicionarLinhaAdicional() {
 
@@ -2264,6 +2384,7 @@ function atualizaProdutoOrc(event) {
     recalcularLinha(ultimaLinha);
  //marcia
 }
+
 
 // Sua função de atualização de valores (mantém-se a mesma)
 function atualizarValoresAjdCustoNaLinha(linha) {
@@ -4370,91 +4491,9 @@ function recalcularLinha(linha) {
     }
 }
 
-// function recalcularDescontoAcrescimo(campoAlterado, tipoCampo, tipoValorAlterado, linha) {
 
-//     if (!campoAlterado) {
-//         console.warn("recalcularDescontoAcrescimo: Campo alterado inválido.", campoAlterado);
-//         return;
-//     }
 
-//     const celulaVenda = linha.querySelector('.vlrVenda');
-//     // Assume que vlrVendaOriginal é o valor base para cálculo de percentual
-//     const vlrVendaOriginal = parseFloat(celulaVenda?.dataset.originalVenda || '0') || 0;
-//    //let vlrVendaOriginal = desformatarMoeda(celulaVenda?.textContent) || 0;
 
-//     console.log("DEBUG - recalcularDescontoAcrescimo - INÍCIO (SEM IMask.js)");
-//     console.log("Campo Alterado:", campoAlterado.id || campoAlterado.className, "Tipo Campo:", tipoCampo, "Tipo Valor Alterado:", tipoValorAlterado);
-//     console.log("Valor de Venda Original da Linha (dataset):", vlrVendaOriginal, celulaVenda.value);
-
-//     let campoValor;      // Referência ao input de valor monetário (ex: R$ 10,00)
-//     let campoPercentual; // Referência ao input de percentual (ex: 5%)
-
-//     if (tipoCampo === 'desconto') {
-//         campoValor = linha.querySelector('.descontoItem .ValorInteiros');
-//         campoPercentual = linha.querySelector('.descontoItem .valorPerCent');
-//     } else { // tipoCampo === 'acrescimo'('idFuncao')
-//         campoValor = linha.querySelector('.acrescimoItem .ValorInteiros');
-//         campoPercentual = linha.querySelector('.acrescimoItem .valorPerCent');
-//     }
-
-//     // --- LEITURA DOS VALORES ATUAIS DOS CAMPOS ---
-//     // Agora usando as funções de desformatação
-//     let valorMonetarioAtual = desformatarMoeda(campoValor?.value || '0');
-//     let percentualAtual = desformatarPercentual(campoPercentual?.value || '0');
-
-//     console.log(`Valores lidos dos campos (monetário: ${valorMonetarioAtual}, percentual: ${percentualAtual})`);
-
-//     console.log("tipoValorAlterado:", tipoValorAlterado, campoAlterado.value);
-
-//     // --- Lógica de sincronização baseada no campo que foi alterado ---
-//     if (tipoValorAlterado === 'valor') { // Se o campo monetário foi modificado
-//         // O valor digitado já está em `valorMonetarioAtual` (desformatado)
-//         // Atualiza o percentual
-//         if (vlrVendaOriginal > 0) {
-//             percentualAtual = (valorMonetarioAtual / vlrVendaOriginal) * 100;
-//         } else {
-//             percentualAtual = 0; // Se vlrVendaOriginal é 0, o percentual também é 0
-//         }
-//         // Atribui o novo percentual ao campo correspondente (formatado)
-//         if (campoPercentual) {
-//             campoPercentual.value = formatarPercentual(percentualAtual);
-//             console.log(`Atualizando ${tipoCampo} Percentual para: ${campoPercentual.value}`);
-//         }
-
-//     } else { // tipoValorAlterado === 'percentual' - Se o campo percentual foi modificado
-//         // O percentual digitado já está em `percentualAtual` (desformatado)
-//         // Atualiza o valor monetário
-//         valorMonetarioAtual = vlrVendaOriginal * (percentualAtual / 100);
-//         // Atribui o novo valor monetário ao campo correspondente (formatado)
-//         if (campoValor) {
-//             campoValor.value = formatarMoeda(valorMonetarioAtual);
-//             console.log(`Atualizando ${tipoCampo} Valor para: ${campoValor.value}`);
-//         }
-//     }
-
-//     // --- Lógica para zerar o campo "parceiro" se o campo alterado for zerado ---
-//     // Agora lemos diretamente do campo.value e desformatamos para verificar se é zero
-//     let valorDigitadoNoCampoAlterado;
-//     if (tipoValorAlterado === 'valor') {
-//         valorDigitadoNoCampoAlterado = desformatarMoeda(campoAlterado.value || '0');
-//     } else {
-//         valorDigitadoNoCampoAlterado = desformatarPercentual(campoAlterado.value || '0');
-//     }
-
-//     if (valorDigitadoNoCampoAlterado === 0) {
-//         console.log("Campo alterado foi zerado. Zerando campo parceiro.");
-//         if (tipoValorAlterado === 'valor' && campoPercentual) {
-//             campoPercentual.value = formatarPercentual(0);
-//         } else if (tipoValorAlterado === 'percentual' && campoValor) {
-//             campoValor.value = formatarMoeda(0);
-//         }
-//     }
-
-//     // Chama a função principal de recalcular a linha após as atualizações
-//     recalcularLinha(linha);
-
-//     console.log("DEBUG - recalcularDescontoAcrescimo - FIM");
-// }
 
 function recalcularDescontoAcrescimo(campoAlterado, tipoCampo, tipoValorAlterado, linha) {
     if (isRecalculatingDiscountAcrescimo) {

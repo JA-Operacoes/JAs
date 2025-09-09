@@ -1,187 +1,189 @@
+/* --- ESTILOS DO OVERLAY E MODAL PRINCIPAL --- */
 
 #modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
-    height: auto;
-   
-    background-color: rgba(0, 0, 0, 0.5); /* Cor preta com transparência */
-    display: none; /* Inicialmente invisível */
-    z-index: 1040; /* Fica acima de outros elementos */
-  }
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5); 
+    display: none; 
+    z-index: 1000;
+}
 
-  /* Estilo para o container do modal */
-  #modal-container {
+#Relatorios {
     position: fixed;
-    top: 50%; /* Alinha verticalmente ao centro */
-    left: 50%; /* Alinha horizontalmente ao centro */
-    transform: translate(-50%, -50%); /* Ajuste para o centro exato */
-    background-color: rgba(255, 255, 255, 0.356);
-    padding: 5px;
-    border-radius: 8px;
-    box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
-    width: 80%; /* Ajuste o tamanho conforme necessário */
-    max-width: 700px;
-    height: 500px; /* Largura máxima do modal */
-    display: none; /* Inicialmente invisível */
-    z-index: 1000; /* Fica acima do overlay */
-  }
-
-  /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
-  #cadModalOrcamentos.modal {
-    position: fixed;
-    top: 50%; /* Alinha verticalmente ao centro */
-    left: 50%; /* Alinha horizontalmente ao centro */
-    transform: translate(-50%, -50%); /* Ajuste para o centro exato */
-    background-color: #4d4d4d;
-    margin-top: 10px;
-    width: 1625px; /* Ajuste o tamanho conforme necessário */
-    height: 730px;
-    font-size: 16px;
-    z-index: 9999;    
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #ffffff; 
+    padding: 30px;
     border-radius: 10px;
-  }
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+    width: 95%; 
+    max-width: 1400px;
+    height: auto; /* NOVO: A altura se adapta ao conteúdo */
+    max-height: none; /* NOVO: Remove o limite de altura máxima */
+    overflow-y: visible; /* NOVO: Impede a barra de rolagem */
+    display: none; 
+    z-index: 1001;
+}
 
-  #Relatorios.modal-open{
-    overflow: hidden;
-    pointer-events: none;
-  }
+/* --- ESTILOS DO CONTEÚDO DENTRO DO MODAL --- */
 
-  /* Quando o modal estiver visível */
-  .modal-open #modal-overlay,
-  .modal-open #modal-container {
-    display: block;
-    pointer-events: auto; /* Torna visíveis o overlay e o modal */
-  }
-
-  body.modal-open {
-    overflow: hidden;
-    pointer-events: none; /* Impede a rolagem da página */
-  }
-
-  body.modal-open .flatpickr-calendar {
-    pointer-events: auto !important; /* CRÍTICO: Reativa os cliques no calendário */
-    z-index: 99999 !important; /* Mantenha este z-index MUITO alto para garantir que ele apareça acima de tudo */
-  }
-
-
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f4f7f9;
-    color: #333;
-    margin: 0;
+.modal-content {
+    width: 100%;
+    margin: 0; 
     padding: 0;
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
 }
 
-header {
-    background-color: #007bff;
-    color: white;
-    padding: 20px;
-    text-align: center;
-}
-header h1 {
-    margin: 0;
-    font-size: 24px;
-}
-header nav a {
-    color: white;
-    text-decoration: none;
-    margin: 0 15px;
+.close {
+    color: #aaa;
+    float: right; 
+    font-size: 28px;
     font-weight: bold;
+    cursor: pointer;
+    align-self: flex-end; 
+    margin: -20px -20px 0 0; /* Ajustado para melhor posicionamento no canto */
 }
 
-.report-container {
-    max-width: 1200px;
-    margin: 20px auto;
-    padding: 20px;
-    background-color: white;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
+.close:hover,
+.close:focus {
+    color: black;
+    text-decoration: none;
 }
-.report-container h2 {
-    margin-top: 0;
-    color: #0056b3;
-    border-bottom: 2px solid #0056b3;
+
+.modal-content-report {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 30px; /* Aumentado o espaçamento entre as seções */
+}
+
+h2 {
+    text-align: center;
+    color: #333;
+    border-bottom: 2px solid #ddd;
     padding-bottom: 10px;
+    margin-bottom: 0; /* Resetado para usar o gap do pai */
+    width: 100%; 
 }
 
+/* Contêiner dos filtros (Tipo, Data, Botões) */
 .controls {
     display: flex;
-    gap: 15px;
-    align-items: center;
-    margin-bottom: 25px;
-    padding: 15px;
-    background-color: #e9ecef;
-    border-radius: 6px;
+    flex-wrap: wrap; 
+    justify-content: center;
+    align-items: flex-end; /* Alinha os itens pela base, útil para inputs de tamanhos diferentes */
+    gap: 20px; 
+    margin-bottom: 0; /* Resetado para usar o gap do pai */
+    padding: 20px;
+    background-color: #f8f9fa; 
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    width: 95%; 
+    max-width: 900px; 
 }
+
 .controls label {
-    font-weight: bold;
+    font-weight: 600;
+    color: #495057;
 }
-.controls input, .controls select, .controls button {
-    padding: 8px 12px;
-    border-radius: 4px;
+
+.controls input, 
+.controls select, 
+.controls button {
+    padding: 10px 15px;
+    border-radius: 5px;
     border: 1px solid #ced4da;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
 }
+
 .controls button {
     background-color: #007bff;
     color: white;
-    cursor: pointer;
+    font-weight: bold;
     border: none;
 }
+
 .controls button:hover {
     background-color: #0056b3;
+}
+
+/* --- ESTILOS DA TABELA DE RELATÓRIO --- */
+
+#reportOutput {
+    width: 100%;
+    margin-top: 0; /* Resetado para usar o gap do pai */
+    padding: 0;
 }
 
 .report-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 20px;
+    font-size: 0.9rem;
+    border-radius: 8px; 
+    overflow: hidden; 
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
-.report-table th, .report-table td {
-    border: 1px solid #dee2e6;
+
+.report-table th, 
+.report-table td {
+    border: 1px solid #e0e0e0; 
     padding: 12px;
     text-align: left;
+    vertical-align: top;
+    white-space: nowrap; 
 }
+
 .report-table thead {
     background-color: #007bff;
     color: white;
 }
-.total-row {
-    font-weight: bold;
-    background-color: #f8f9fa;
-    border-top: 3px solid #000;
-}
-#reportOutput p {
-    font-style: italic;
-    color: #6c757d;
+
+.report-table th {
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background-color: #007bff;
+    color: white;
 }
 
-/* Estilos para impressão */
-@media print {
-    body {
-        margin: 0;
-        padding: 0;
-    }
-    header, .controls {
-        display: none; /* Oculta o menu e os controles na impressão */
-    }
-    .report-container {
-        box-shadow: none;
-        margin: 0;
-        padding: 0;
-        width: 100%;
-    }
-    .report-container h2 {
-        text-align: center;
-        border-bottom: 1px solid #000;
-    }
-    .report-table {
-        border: 1px solid #000;
-    }
-    .report-table th, .report-table td {
-        border-color: #000;
-        font-size: 10px;
-        padding: 5px;
-    }
+.report-table tbody tr:nth-child(even) {
+    background-color: #f8f9fa; 
 }
+
+.report-table tbody tr:hover {
+    background-color: #e9ecef; 
+}
+
+.total-row {
+    font-weight: bold;
+    background-color: #d1e7dd; 
+    border-top: 3px solid #155724; 
+}
+
+#reportOutput p {
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    margin-top: 30px;
+    padding: 10px;
+    border: 1px dashed #ced4da;
+    border-radius: 5px;
+    background-color: #f0f0f0;
+}
+
+.logo-ja {
+    max-width: 50px;
+    height: auto;
+    margin-left: 20px;
+}
+
+

@@ -22,9 +22,13 @@ if (typeof window.FuncaoOriginal === "undefined") {
     window.FuncaoOriginal = {
         idFuncao: "",
         descFuncao: "",
-        vlrCusto: "",
+        vlrCustoSenior: "",
+        vlrCustoPleno: "",
+        vlrCustoJunior: "",
+        vlrCustoBase: "",
         vlrVenda: "",
         vlrTransporte: "",
+        vlrTransporteSenior: "",
         vlrAlmoco: "",
         vlrJantar: "",
         obsFuncao: ""
@@ -78,17 +82,25 @@ function verificaFuncao() {
 
         const idFuncao = document.querySelector("#idFuncao").value;
         const descFuncao = document.querySelector("#descFuncao").value.toUpperCase().trim();
-        const vlrCusto = document.querySelector("#Custo").value;
+        const vlrCustoSenior = document.querySelector("#CustoSenior").value;
+        const vlrCustoPleno = document.querySelector("#CustoPleno").value;
+        const vlrCustoJunior = document.querySelector("#CustoJunior").value;
+        const vlrCustoBase = document.querySelector("#CustoBase").value;
         const vlrVenda = document.querySelector("#Venda").value;
         const vlrTransporte = document.querySelector("#transporte").value;
+        const vlrTransporteSenior = document.querySelector("#TranspSenior").value;
         const vlrAlmoco = document.querySelector("#almoco").value;
         const vlrJantar = document.querySelector("#jantar").value;
         const obsProposta = document.querySelector("#obsProposta").value.trim();
         const obsFuncao = document.querySelector("#obsFuncao").value.trim();
     
-        const custo = parseFloat(String(vlrCusto).replace(",", "."));
+        const custoSenior = parseFloat(String(vlrCustoSenior).replace(",", "."));
+        const custoPleno = parseFloat(String(vlrCustoPleno).replace(",", "."));
+        const custoJunior = parseFloat(String(vlrCustoJunior).replace(",", "."));
+        const custoBase = parseFloat(String(vlrCustoBase).replace(",", "."));
         const venda = parseFloat(String(vlrVenda).replace(",", "."));
         const transporte = parseFloat(String(vlrTransporte).replace(",", "."));
+        const transporteSenior = parseFloat(String(vlrTransporteSenior).replace(",", "."));
         const almoco = parseFloat(String(vlrAlmoco).replace(",", "."));
         const jantar = parseFloat(String(vlrJantar).replace(",", "."));
 
@@ -109,10 +121,10 @@ function verificaFuncao() {
             return Swal.fire("Acesso negado", "Você não tem permissão para alterar funções.", "error");
         }
 
-        console.log("campos antes de salvar", idFuncao, descFuncao, custo, venda, obsProposta, obsFuncao, transporte, almoco, jantar);
- 
-        if (!descFuncao || !vlrCusto || !vlrVenda) {
-           
+        console.log("campos antes de salvar", idFuncao, descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda,  transporte, transporteSenior, obsProposta, obsFuncao, almoco, jantar);
+
+        if (!descFuncao ||  !custoBase || !venda || !transporte) {
+
             Swal.fire({
                 icon: 'warning',
                 title: 'Campos obrigatórios!',
@@ -121,20 +133,26 @@ function verificaFuncao() {
             });
             return;
         }
-        console.log("Valores do Funcao:", idFuncao, descFuncao, custo, venda, transporte, obsProposta, obsFuncao, almoco, jantar);
-        console.log("Valores do Funcao Original:", window.FuncaoOriginal.idFuncao, window.FuncaoOriginal.descFuncao, window.FuncaoOriginal.vlrCusto, window.FuncaoOriginal.vlrVenda, window.FuncaoOriginal.vlrTransporte, window.FuncaoOriginal.obsFuncao, window.FuncaoOriginal.vlrAlmoco, window.FuncaoOriginal.vlrJantar);
+        console.log("Valores do Funcao:", idFuncao, descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsProposta, obsFuncao, almoco, jantar);
+        console.log("Valores do Funcao Original:", window.FuncaoOriginal.idFuncao, window.FuncaoOriginal.descFuncao, window.FuncaoOriginal.vlrCusto, window.FuncaoOriginal.vlrCustoSenior,
+            window.FuncaoOriginal.vlrCustoPleno, window.FuncaoOriginal.vlrCustoJunior, window.FuncaoOriginal.vlrBase, window.FuncaoOriginal.vlrVenda, window.FuncaoOriginal.vlrTransporte, 
+            window.FuncaoOriginal.vlrTransporteSenior, window.FuncaoOriginal.obsFuncao, window.FuncaoOriginal.vlrAlmoco, window.FuncaoOriginal.vlrJantar);
             
         // Comparar com os valores originais
         if (
             parseInt(idFuncao) === parseInt(window.FuncaoOriginal.idFuncao) && 
             descFuncao === window.FuncaoOriginal.descFuncao && 
-            Number(custo).toFixed(2) === Number(window.FuncaoOriginal.vlrCusto).toFixed(2) &&
+            Number(custoSenior).toFixed(2) === Number(window.FuncaoOriginal.vlrCustoSenior).toFixed(2) &&
+            Number(custoPleno).toFixed(2) === Number(window.FuncaoOriginal.vlrCustoPleno).toFixed(2) &&
+            Number(custoJunior).toFixed(2) === Number(window.FuncaoOriginal.vlrCustoJunior).toFixed(2) &&
+            Number(custoBase).toFixed(2) === Number(window.FuncaoOriginal.vlrBase).toFixed(2) &&
             Number(venda).toFixed(2) === Number(window.FuncaoOriginal.vlrVenda).toFixed(2) &&
             Number(transporte).toFixed(2) === Number(window.FuncaoOriginal.vlrTransporte).toFixed(2) &&
+            Number(transporteSenior).toFixed(2) === Number(window.FuncaoOriginal.vlrTransporteSenior).toFixed(2) &&
             Number(almoco).toFixed(2) === Number(window.FuncaoOriginal.vlrAlmoco).toFixed(2) &&
             Number(jantar).toFixed(2) === Number(window.FuncaoOriginal.vlrJantar).toFixed(2) &&
-            obsProposta === window.FuncaoOriginal.obsProposta&&
-            obsFuncao === window.FuncaoOriginal.obsFuncao 
+            obsProposta === window.FuncaoOriginal.obsProposta &&
+            obsFuncao === window.FuncaoOriginal.obsFuncao
         ) {
             console.log("Nenhuma alteração detectada.");
             await Swal.fire({
@@ -146,7 +164,7 @@ function verificaFuncao() {
             return;
         }
 
-        const dados = { descFuncao, custo, venda, transporte, obsProposta, obsFuncao, almoco, jantar };
+        const dados = { descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsProposta, obsFuncao, almoco, jantar };
         const token = localStorage.getItem('token');
         const idEmpresa = localStorage.getItem('idEmpresa');
 
@@ -381,21 +399,30 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
        if (!funcao || !funcao.idfuncao) throw new Error("Função não encontrada");
      
         document.querySelector("#idFuncao").value = funcao.idfuncao;
-        document.querySelector("#Custo").value = funcao.ctofuncao;
-        document.querySelector("#Venda").value = funcao.vdafuncao;
-        console.log("Valores da Função carregada:", funcao.ctofuncao, funcao.vdafuncao, funcao.transporte, funcao.almoco, funcao.jantar);
+        document.querySelector("#CustoSenior").value = funcao.ctofuncaosenior;
+        document.querySelector("#CustoPleno").value = funcao.ctofuncaopleno;
+        document.querySelector("#CustoJunior").value = funcao.ctofuncaojunior;
+        document.querySelector("#CustoBase").value = funcao.ctofuncaobase;
+        document.querySelector("#Venda").value = funcao.vdafuncao;        
         document.querySelector("#transporte").value = funcao.transporte;
+        document.querySelector("#transporteSenior").value = funcao.transpsenior;
         document.querySelector("#almoco").value = funcao.almoco;
         document.querySelector("#jantar").value = funcao.jantar;
         document.querySelector("#obsProposta").value = funcao.obsproposta;
         document.querySelector("#obsFuncao").value = funcao.obsfuncao;
+
+        console.log("Valores da Função carregada:", funcao.ctofuncaosenior, funcao.ctofuncaopleno, funcao.ctofuncaojunior, funcao.ctofuncaobase, funcao.vdafuncao, funcao.transporte, funcao.almoco, funcao.jantar);
         
         window.FuncaoOriginal = {
             idFuncao: funcao.idfuncao,
             descFuncao: funcao.descfuncao,
-            vlrCusto: funcao.ctofuncao,
+            vlrCustoSenior: funcao.ctofuncaosenior,
+            vlrCustoPleno: funcao.ctofuncaopleno,
+            vlrCustoJunior: funcao.ctofuncaojunior,
+            vlrCustoBase: funcao.ctofuncaobase,
             vlrVenda: funcao.vdafuncao,
             vlrTransporte: funcao.transporte,
+            vlrTransporteSenior: funcao.transpSenior,
             vlrAlmoco: funcao.almoco,
             vlrJantar: funcao.jantar,
             obsProposta: funcao.obsproposta,
@@ -448,9 +475,10 @@ function limparFuncaoOriginal() {
     window.FuncaoOriginal = {
         idFuncao: "",
         descFuncao: "",
-        vlrCusto: "",
+        vlrCustoSe: "",
         vlrVenda: "",
         vlrTransporte: "",
+        vlrTransporteSenior: "",
         vlrAlmoco: "",
         vlrJantar: "",
         obsFuncao:"",
@@ -459,90 +487,13 @@ function limparFuncaoOriginal() {
 }
 
 function limparCamposFuncao() {
-    const campos = ["idFuncao", "descFuncao","Custo", "Venda", "transporte", "almoco", "jantar", "ObsAjc"];
+    const campos = ["idFuncao", "descFuncao","CustoSenior", "CustoPleno", "CustoJunior", "CustoBase", "Venda", "transporte", "transporteSenior", "almoco", "jantar", "ObsAjc"];
     campos.forEach(id => {
         const campo = document.getElementById(id);
         if (campo) campo.value = "";
     });
     
 }
-
-// async function fetchComToken(url, options = {}) {
-//   console.log("URL da requisição:", url);
-//   const token = localStorage.getItem("token");
-//   const idempresa = localStorage.getItem("idempresa");
-
-//   console.log("ID da empresa no localStorage:", idempresa);
-//   console.log("Token no localStorage:", token);
-
-//   if (!options.headers) options.headers = {};
-  
-//   if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
-//         options.headers['Content-Type'] = 'application/json';
-//   }else if (options.body && typeof options.body === 'object' && options.headers['Content-Type'] !== 'multipart/form-data') {
-       
-//         options.body = JSON.stringify(options.body);
-//         options.headers['Content-Type'] = 'application/json';
-//   }
-
-//   options.headers['Authorization'] = 'Bearer ' + token; 
-
-//   if (
-//       idempresa && 
-//       idempresa !== 'null' && 
-//       idempresa !== 'undefined' && 
-//       idempresa.trim() !== '' &&
-//       !isNaN(idempresa) && 
-//       Number(idempresa) > 0
-//   ) {
-//       options.headers['idempresa'] = idempresa;
-//       console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
-//   } else {
-//     console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
-//   }
-//   console.log("URL OPTIONS", url, options)
- 
-//   const resposta = await fetch(url, options);
-
-//   console.log("Resposta da requisição Funcao.js:", resposta);
-
-//   let responseBody = null;
-//   try {
-//       // Primeiro, tente ler como JSON, pois é o mais comum para APIs
-//       responseBody = await resposta.json();
-//   } catch (jsonError) {
-//       // Se falhar (não é JSON, ou resposta vazia, etc.), tente ler como texto
-//       try {
-//           responseBody = await resposta.text();
-//       } catch (textError) {
-//           // Se nem como texto conseguir, assume que não há corpo lido ou que é inválido
-//           responseBody = null;
-//       }
-//   }
-
-//   if (resposta.status === 401) {
-//     localStorage.clear();
-//     Swal.fire({
-//       icon: "warning",
-//       title: "Sessão expirada",
-//       text: "Por favor, faça login novamente."
-//     }).then(() => {
-//       window.location.href = "login.html"; // ajuste conforme necessário
-//     });
-//     //return;
-//     throw new Error('Sessão expirada'); 
-//   }
-
-//   if (!resposta.ok) {
-//         // Se a resposta NÃO foi bem-sucedida (status 4xx ou 5xx)
-//         // Use o responseBody já lido para obter a mensagem de erro
-//         const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
-//         throw new Error(`Erro na requisição: ${errorMessage}`);
-//   }
-
-//   return responseBody;
-// }
-
 
 function configurarEventosFuncao() {
     console.log("Configurando eventos Funcao...");
@@ -624,7 +575,7 @@ function desinicializarFuncaoModal() { // Renomeado para seguir o padrão 'desin
     
     // 3. Limpar o estado global FuncaoOriginal
     // Assumindo que window.FuncaoOriginal existe, ou defina-o como um objeto vazio
-    window.FuncaoOriginal = { idFuncao: "", descFuncao: "", vlrCusto: 0, vlrVenda: 0, vlrTransporte: 0, obsFuncao: "", vlrAlmoco: 0, vlrJantar: 0 };
+    window.FuncaoOriginal = { idFuncao: "", descFuncao: "", vlrCustoSenior: 0, vlrCustoPleno: 0, vlrCustoJunior: 0, vlrCustoBase: 0, vlrVenda: 0, vlrTransporte: 0, vlrTransporteSenior: 0, obsFuncao: "", vlrAlmoco: 0, vlrJantar: 0 };
     limparCamposFuncao(); // Chame a função que limpa os campos do formulário para garantir um estado limpo
     document.getElementById('form').reset(); // Garante que o formulário seja resetado
     document.querySelector("#idFuncao").value = ""; // Garante que o ID oculto seja limpo

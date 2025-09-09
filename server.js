@@ -67,6 +67,7 @@ app.use("/empresas", autenticarToken(), contextoEmpresa, require("./routes/rotaE
 app.use("/Bancos", autenticarToken(), contextoEmpresa, require("./routes/rotaBancos"));
 
 app.use("/modulos", autenticarToken(), contextoEmpresa, require("./routes/rotaModulo"));
+app.use("/relatorios", autenticarToken(), contextoEmpresa, require("./routes/rotaRelatorio"));
 
 app.use("/Contrato",require("./routes/rotaContrato"));
 

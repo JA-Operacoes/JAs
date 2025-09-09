@@ -767,7 +767,7 @@ async function carregarLocalMontagem(desc, elementoAtual) {
 
         const inputIdMontagem = document.querySelector("#idMontagem");
         const podeCadastrarMontagem = temPermissao("Localmontagem", "cadastrar");
-
+        console.log("podeCadastrarMontagem", podeCadastrarMontagem, inputIdMontagem.value);
        if (!inputIdMontagem.value && podeCadastrarMontagem) {
              const resultado = await Swal.fire({
                 icon: 'question',
@@ -779,7 +779,7 @@ async function carregarLocalMontagem(desc, elementoAtual) {
                 reverseButtons: true,
                 focusCancel: true
             });
-
+            console.log("resultado", resultado);
             if (resultado.isConfirmed) {                
                 console.log(`Usuário optou por cadastrar: ${desc}`);
                
