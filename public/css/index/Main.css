@@ -1,0 +1,289 @@
+/* -------------------- Main.css -------------------- */
+
+/* Reset básico */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Abel', sans-serif;
+}
+
+main#conteudo {
+    flex: 1;
+    padding: 20px;
+    background-color: #d1d1d1;
+    overflow-y: auto;
+}
+
+/* Container geral do dashboard */
+.dashboard-container {
+    display: flex;           /* deixa o painel um flex container */
+    flex-direction: column;  /* mantém p e h3 em coluna */
+    justify-content: center;  /* centraliza verticalmente */
+    align-items: center;      /* centraliza horizontalmente */
+    width: 1900px;
+    align-items: center;
+    margin: 100px 10px;
+    gap: 20px;
+}
+
+/* Painel de detalhes */
+.detalhes-panel {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    background-color: #f4f4f4;
+    border-radius: 10px;
+    padding: 20px;
+    align-items: center;
+    min-width: 1000px;
+    flex-direction: column;
+    height: 100%;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+}
+
+.detalhes-panel p, .detalhes-panel h3 {
+  font-size: 16px;
+  color: #333;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+/* -------------------- Cards de resumo -------------------- */
+.cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin: 100px 0;
+  overflow-x: auto; 
+  padding-left: 5px;
+}
+
+.card {
+    flex: 1 1 200px;
+    background-color: #a7a6a6; /* cor padrão */
+    border-radius: 10px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s, color 0.2s;
+    cursor: pointer;
+    color: black; /* cor padrão do texto */
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    border: 2px solid var(--border-color);
+    background-color: var(--hover-color); /* cor de fundo no hover */
+    color: var(--font-color); /* cor do texto no hover */
+    font-weight: var(--font-weight);
+    font-family: var(--Font-primary);
+}
+
+.card div {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.card span {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.card i {
+    font-size: 28px;
+    margin-left: 10px;
+}
+
+.card-orcamentos, .card-eventos, .card-atividades, .card-financeiro {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 100%;
+}
+
+/* Linha do título + total */
+.orc-header, .evt-header, .ativ-header, .fin-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.orc-total, .ativ-total ,.ativ-title, .fin-total, .fin-title {
+  font-size: 22px;
+  font-weight: bold;
+}
+
+/* Linha com abertos + emoji + fechados */
+.orc-body, .evt-body, .fin-body {
+  display: flex;
+  flex-direction: column; /* coloca os itens em coluna */
+  gap: 8px; /* espaço entre as linhas */
+  font-size: 16px;
+}
+
+.orc-body, .evt-body, .ativ-body,.fin-body span {
+  display: flex;
+  justify-content: space-between; /* label de um lado e número do outro */
+  font-weight: 500;
+}
+
+#proximoEventoNome {
+  font-weight: bold;
+  color: #222;
+}
+
+#proximoEventoTempo {
+  font-size: 14px;
+  color: #555;
+}
+
+
+.ativ-body ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ativ-body li {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  border-bottom: 1px solid #ddd;
+  font-size: 14px;
+  color: #333;
+}
+
+/* ===================== NOVO: filtro de data e scroll ===================== */
+#filtroData {
+  width: 100%;
+  padding: 5px 8px;
+  border-radius: 5px;
+  border: 1px solid #aaa;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.ativ-body {
+  max-height: 200px;
+  overflow-y: auto; /* scroll se tiver muitas atividades */
+}
+
+.ativ-body li span:first-child {
+  flex: 1; /* deixa a ação ocupar mais espaço */
+}
+
+.ativ-body li span:last-child {
+  flex-shrink: 0; /* data não encolhe */
+  text-align: right;
+  color: #555;
+  font-size: 13px;
+}
+
+/* -------------------- Tabela de Atividades -------------------- */
+h2 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #222;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 30px;
+    background-color: #fff;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.05);
+}
+
+table thead {
+    background-color: #007BFF;
+    color: #fff;
+}
+
+table th, table td {
+    padding: 12px 15px;
+    text-align: left;
+    font-size: 14px;
+    border-bottom: 1px solid #ddd;
+}
+
+table tr:hover {
+    background-color: #f1f1f1;
+}
+
+/* -------------------- Notificações Financeiras -------------------- */
+.notificacoes {
+    background-color: #fff3cd;
+    border-left: 5px solid #ffeeba;
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.notificacoes h3 {
+    font-size: 18px;
+    margin-bottom: 10px;
+    color: #856404;
+}
+
+#listaNotificacoes {
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+#listaNotificacoes div {
+    padding: 8px;
+    border-bottom: 1px solid #ffeeba;
+    font-size: 14px;
+    color: #856404;
+}
+
+/* -------------------- Mensagens / Dicas -------------------- */
+.mensagens {
+    background-color: #e2e3e5;
+    border-left: 5px solid #d6d8db;
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.mensagens h3 {
+    font-size: 18px;
+    margin-bottom: 10px;
+    color: #495057;
+}
+
+.mensagens ul {
+    list-style-type: disc;
+    padding-left: 20px;
+}
+
+.mensagens li {
+    font-size: 14px;
+    color: #495057;
+    margin-bottom: 5px;
+}
+
+.mensagens span {
+    font-weight: bold;
+    color: #212529;
+}
+
+/* -------------------- Responsivo -------------------- */
+@media (max-width: 768px) {
+    .cards {
+        flex-direction: column;
+    }
+    .card {
+        justify-content: space-between;
+    }
+}
