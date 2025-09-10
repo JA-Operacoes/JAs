@@ -1,17 +1,16 @@
-
+// Evento de submit do formulário de login
 document.getElementById("Login").addEventListener("submit", async function (e) {
   e.preventDefault();
 
-   const email= document.getElementById("emailusuario").value.trim();
-   const password = document.getElementById("senha").value;
-   
+  const email = document.getElementById("emailusuario").value.trim();
+  const password = document.getElementById("senha").value;
 
-   if (!email || !password) {
-     alert("Por favor, preencha todos os campos.");
-     return;
-   }
+  if (!email || !password) {
+    alert("Por favor, preencha todos os campos.");
+    return;
+  }
 
-try {
+  try {
     const response = await fetch("/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -24,22 +23,40 @@ try {
     }
 
     const dados = await response.json();
-        
     const { token, idusuario, empresas, idempresaDefault } = dados;
-    console.log("token, idusuario", token, idusuario, empresas);
+
+    console.log("token, idusuario", token, idusuario);
+
+    // Limpa storage e salva dados do usuário
     localStorage.clear();
     localStorage.setItem("token", token);
     localStorage.setItem("idusuario", idusuario);    
     localStorage.setItem("empresas", JSON.stringify(empresas));
-   
+
     if (idempresaDefault) {
       localStorage.setItem("idempresa", idempresaDefault);  
-
     } else {
       localStorage.removeItem("idempresa"); 
-      localStorage.removeItem('permissoes');
+      localStorage.removeItem("permissoes");
     }
-      
+
+    // 🔹 Mapeamento de idempresa → página
+    const paginas = {
+      1: "OPER-index.html",
+      2: "ES-index.html",
+      3: "EA-index.html",
+      4: "EP-index.html",
+      5: "SNFOODS-index.html",
+      6: "TSD-index.html"
+    };
+
+    // Se a empresa for válida, abre a página correspondente
+    if (idempresaDefault && paginas[idempresaDefault]) {
+      window.location.href = paginas[idempresaDefault];
+      return;
+    }
+
+    // Caso não tenha empresa default ou não esteja mapeada → página padrão
     window.location.href = "OPER-index.html";
 
   } catch (err) {
@@ -48,8 +65,9 @@ try {
   }
 });
 
-
+// Botão de login alternativo
 document.getElementById("btnEntrar").addEventListener("click", function (e) {
   e.preventDefault();
   document.getElementById("btnEntrarReal").click();
 });
+

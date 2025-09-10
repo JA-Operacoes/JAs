@@ -4,14 +4,84 @@
     --Font-primary:"Abel", sans serif;
 
 /*  cores principais */
-    --dark-color: black;
+    --dark-base-color: black;
+    --background-base-color: #cacaca;
+    --light-base-color: white;
 
-    --light-color: white;
+    --JA-Oper-color:#942123;
+    --JA-dark:#641516;
 
+    --ES-color:#80cd3b;
+    --ES-dark:#326902;
 
-    --JA-Oper: #942123;
-    --JA-Oper-dark:#641516;
+    --EA-color:#554aa8;
+    --EA-dark:#302961;
 
+    --EP-color: #a4a5a2;
+    --EP-dark: #6e6e6e;
+    --EP-full-dark: #000000;
+
+    --SN-color:#ea5b19;
+    --SN-dark:#a53603;
+
+    --TSD-color:#303030;
+    --TSD-dark:#000000;
 }
+
+.tema-JA-Oper{
+    --primary-color: #942123;
+    --primary-color20: #9421237c;
+    --border-color:#ce0303;
+    --hover-color: #641516;
+    --background-color: #942123;
+    --font-color: #ffffff;
+    --font-weight: none;
+}
+.tema-ES{
+    --primary-color: #80cd3b;
+    --primary-color20: #80cd3b7c;
+    --hover-color: #326902;
+    --background-color: #80cd3b;
+    --font-color: #000000;
+    --font-weight: bold;
+    --border-color:#4ece03;
+}
+.tema-EA{
+    --primary-color: #554aa8;
+    --primary-color20: #554aa87c;
+    --hover-color: #302961;
+    --background-color: #554aa8;
+    --font-color: #ffffff;
+    --font-weight: none;
+    --border-color:#2e3192;
+}
+.tema-EP{
+    --primary-color: #a4a5a2;
+    --primary-color20: #a4a5a27c;
+    --hover-color: #6e6e6e;
+    --background-color: #a4a5a2;
+    --font-color: #000000;
+    --font-weight: none;
+    --border-color:#696969;
+}
+.tema-SN-FOODS{
+    --primary-color: #ea5b19;
+    --primary-color20: #ea5b197c;
+    --hover-color: #a53603;
+    --background-color: #ea5b1;
+    --font-color: #000000;
+    --font-weight: none;
+    --border-color:#b34918;
+}
+.tema-TSD{
+    --primary-color: #303030;
+    --primary-color20: #3030307c;
+    --hover-color: #000000;
+    --background-color: #303030;
+    --font-color: #ffffff;
+    --font-weight: none;
+    --border-color:#2c2a2a;
+}
+
 
 

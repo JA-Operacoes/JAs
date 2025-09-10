@@ -1,3 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Abel&display=swap');
+
+
 /* === Estilos personalizados para SweetAlert2 === */
 .swal2-container {
   z-index: 100000 !important;
@@ -5,7 +8,7 @@
 
 .swal2-popup .swal2-styled {
   all: initial;
-  font-family: inherit;
+  font-family: 'Abel', sans-serif !important;
   font-size: 1rem;
   padding: 0.625em 1.5em;
   border: none;
@@ -18,7 +21,7 @@
 
 .swal2-confirm,
 .swal2-cancel {
-  font-family: "Abel", sans-serif;
+  font-family: 'Abel', sans-serif !important;
   font-size: 16px;
   padding: 10px 24px !important;
   border-radius: 12px !important;
@@ -31,14 +34,14 @@
 
 .swal2-confirm {
   /* background-color: #28a745 !important;  Verde para confirmar */
-  background-color: #ce0303 !important;
+  background-color: var(--primary-color)!important;
   /* Vermelho para confirmar */
   color: #ffffff !important;
 }
 
 .swal2-confirm:hover {
   /* background-color: #218838 !important; */
-  background-color: #6d0101 !important;
+  background-color: var(--hover-color) !important;
   /* Vermelho para confirmar */
 }
 
@@ -52,10 +55,66 @@
   background-color: #5a6268 !important;
 }
 .swal2-cancel.Contrato {
-  background-color: #ce0303 !important; /* Azul exemplo */
+  background-color: var(--primary-color) !important; /* Azul exemplo */
   color: #fff !important;
 }
 
 .swal2-cancel.Contrato:hover {
-  background-color: #6d0101 !important; /* Azul mais escuro no hover */
+  background-color: var(--hover-color) !important; /* Azul mais escuro no hover */
 }
+
+/* Garantir que o loader fique centralizado dentro do Swal */
+.swal2-html-container {
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* O seu loader */
+#page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px; /* dá um espaço fixo dentro do swal */
+}
+
+#container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+#h1 {
+  color: rgb(0, 0, 0);
+  font-family: 'Abel', sans-serif !important;
+  font-size: 40px;
+  font-weight: bold;
+  position: relative;
+  z-index: 10;
+}
+
+#ring {
+  width: 130px;
+  height: 130px;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  position: absolute;
+}
+
+#ring:nth-child(1) { border-bottom: 5px solid red;    animation: rotate1 2s linear infinite; }
+#ring:nth-child(2) { border-bottom: 5px solid orange; animation: rotate2 2s linear infinite; }
+#ring:nth-child(3) { border-bottom: 5px solid lime;   animation: rotate3 2s linear infinite; }
+#ring:nth-child(4) { border-bottom: 5px solid aqua;   animation: rotate4 2s linear infinite; }
+#ring:nth-child(5) { border-bottom: 5px solid purple; animation: rotate5 2s linear infinite; }
+#ring:nth-child(6) { border-bottom: 5px solid #a35e4e;animation: rotate6 2s linear infinite; }
+
+@keyframes rotate1 { from { transform: rotateX(50deg) rotateZ(110deg);} to {transform: rotateX(50deg) rotateZ(470deg);} }
+@keyframes rotate2 { from { transform: rotateX(20deg) rotateY(50deg) rotateZ(20deg);} to {transform: rotateX(20deg) rotateY(50deg) rotateZ(380deg);} }
+@keyframes rotate3 { from { transform: rotateX(40deg) rotateY(130deg) rotateZ(450deg);} to {transform: rotateX(40deg) rotateY(130deg) rotateZ(90deg);} }
+@keyframes rotate4 { from { transform: rotateX(70deg) rotateZ(270deg);} to {transform: rotateX(70deg) rotateZ(630deg);} }
+@keyframes rotate5 { from { transform: rotateX(50deg) rotateY(150deg) rotateZ(100deg);} to {transform: rotateX(50deg) rotateY(150deg) rotateZ(460deg);} }
+@keyframes rotate6 { from { transform: rotateX(190deg) rotateY(150deg) rotateZ(100deg);} to {transform: rotateX(190deg) rotateY(150deg) rotateZ(460deg);} }

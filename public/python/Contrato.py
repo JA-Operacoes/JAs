@@ -120,10 +120,12 @@ def gerar_contrato(dados):
         "data_assinatura": formatar_data(dados.get("data_assinatura", dia_atual)),
         "ano_atual": to_unicode(ano_atual),
         "dia_atual": to_unicode(dia_atual),
-        # ✅ NOVO: Adiciona as listas de itens categorizados e adicionais
         "itens_categorias": dados.get("itens_categorias", []),
         "adicionais": dados.get("adicionais", []),
-        "nomenclatura": to_unicode(dados.get("nomenclatura"))
+        "nomenclatura": to_unicode(dados.get("nomenclatura")),
+        "cliente_assinatura": "",
+        "empresa_assinatura": "",
+        "testemunhaJa_assinatura": ""
     }
 
     doc.render(context)
@@ -131,7 +133,7 @@ def gerar_contrato(dados):
     pasta_saida = os.path.join(os.path.dirname(pasta_script), "..", "uploads", "contratos")
     os.makedirs(pasta_saida, exist_ok=True)
 
-    nome_arquivo = f"Contrato_{to_unicode(dados.get("nomenclatura"))}_{to_unicode(dados.get('evento_nome', 'Sem Evento'))}_.docx"
+    nome_arquivo = f"Contrato_{to_unicode(dados.get('nomenclatura'))}_{to_unicode(dados.get('evento_nome', 'Sem Evento'))}.docx"
     caminho_saida = os.path.join(pasta_saida, nome_arquivo)
 
     doc.save(caminho_saida)

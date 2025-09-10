@@ -179,7 +179,7 @@ justify-content: center;
 }
 
 #eventsDataTable tbody tr.selected-row {
-    background-color: #e61111; /* Cor de fundo para a linha selecionada */
+    background-color: var(--primary-color); /* Cor de fundo para a linha selecionada */
     transition: background-color 0.3s ease; /* Suaviza a transição de cor */
 }
 
@@ -206,7 +206,7 @@ justify-content: center;
 .header {
   flex: 1;
   width: 100%;
-  border: 2px dashed rgb(225, 65, 65);
+  border: 2px dashed var(--primary-color);
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -240,7 +240,7 @@ justify-content: center;
 
 .footer svg {
   height:25px;
-  fill: rgb(225, 65, 65);
+  fill: var(--primary-color);
   background-color: transparent;
   border-radius: 50%;
   padding: 2px;
@@ -284,7 +284,7 @@ display: none;
 .headerPDF {
   flex: 1;
   width: 100%;
-  border: 2px dashed rgb(225, 65, 65);
+  border: 2px dashed var(--primary-color);
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -318,7 +318,7 @@ display: none;
 
 .footerPDF svg {
   height:25px;
-  fill: rgb(225, 65, 65);
+  fill: var(--primary-color);
   background-color: transparent;
   border-radius: 50%;
   padding: 2px;
@@ -856,7 +856,7 @@ select, input[type="text"] {
 }
 
 input:focus, textarea:focus {
-  border: 2px solid #ce0303;
+  border: 2px solid var(--border-color);
 }
 
 input:focus~label,
@@ -989,10 +989,11 @@ label {
 
 button {
   font-family: "Abel", sans-serif;
+  font-weight: var(--font-weigth);
   font-size: 20px;
-  background-color: #9e0505;
+  background-color: var(--primary-color);
   width: 25%;
-  color: white;
+  color: var(--font-color);
   border: none;
   border-radius: 10px;
   cursor: pointer;
@@ -1021,7 +1022,7 @@ button {
 .Enviar:hover,
 .Limpar:hover,
 .Pesquisar:hover{
-  background-color: #5f0101;
+  background-color: var(--hover-color);
 }
 
 .Files {
@@ -1042,7 +1043,7 @@ button {
 .Corpo {
   flex: 1;
   width: 100%;
-  border: 2px dashed rgb(225, 65, 65);
+  border: 2px dashed var(--primary-color);
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -1075,7 +1076,7 @@ button {
 
 .arquivo svg {
   height: 35px;
-  fill: rgb(225, 65, 65);
+  fill: var(--primary-color);
   background-color: rgba(70, 66, 66, 0.103);
   border-radius: 50%;
   padding: 2px;

@@ -117,7 +117,7 @@ fieldset {
   display: flex;
   flex-direction: column;
   background-color: transparent;
-  border-color: var(--dark-color);
+  border-color: var(--dark-base-color);
 }
 
 legend{
@@ -214,7 +214,7 @@ select{
 }
 
 input:focus{
-  border: 2px solid #ce0303;
+  border: 2px solid var(--border-color);
 }
 input:focus ~ label,
 input:valid ~ label{
@@ -228,10 +228,11 @@ input:valid ~ label{
 
 button {
   font-family: "Abel", sans-serif;
+  font-weight: var(--font-weight);
   font-size: 20px;
-  background-color: #9e0505;
+  background-color: var(--primary-color);
   width: 25%;
-  color: white;
+  color: var(--font-color);
   border: none;
   border-radius: 10px;
   cursor: pointer;
@@ -261,7 +262,7 @@ button.Close {
 }
 
 .Enviar:hover, .Limpar:hover, .Pesquisar:hover, .close:hover{
-  background-color: #5f0101;
+  background-color: var(--hover-color);
 }
 
 

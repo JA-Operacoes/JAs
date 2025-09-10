@@ -1,0 +1,566 @@
+*{
+    margin:0;
+    padding:0;
+    box-sizing: border-box;
+    font-family:'Abel', sans-serif ;
+  }
+  
+  body{
+    width: 100%;
+  }
+  
+  header{
+    width: 100%;
+    /* background-color:  rgb(70, 67, 67); */
+    background: linear-gradient(to right,var(--SN-dark), rgb(43, 42, 42)  );  
+    position: fixed; /* Mantém o header fixo no topo */
+      top: 0;
+      left: 0;
+      z-index: 1000;
+  }
+  
+  .interface{
+    max-width: 2560px;
+    max-height: 90px;
+    padding: 0 ;
+    margin: 0 ;
+    display: flex;
+    align-items:center;
+    justify-content: space-between;
+  }
+  .logotipo{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding:5px 10px;
+    gap:10px;
+  }
+  
+  .logotipo img{
+    max-width: 165px;
+    height: auto;
+    display: flex;
+    justify-content: flex-start;
+    object-fit: contain;
+  }
+  
+  .minilogos{
+    display: flex;
+    align-items: center;
+  }
+  
+  .minilogos img{
+    max-width: 25px;
+    height: auto;
+    display: flex;
+    justify-content: flex-start;
+    object-fit: contain;
+    align-items: center;
+  
+  }
+
+  span{
+  gap: 3px;
+}
+
+  nav { 
+    transition: background 0.3s ease-in-out; /* Suaviza a troca de cor */
+  }
+  
+  
+  nav ul{
+  width: 100%;
+  margin: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    list-style-type: none;
+  }
+  
+  /*personalização dos itens menu */
+  
+  nav ul li a{
+    color: #fff;
+    padding: 20px 40px;
+    text-decoration: none;
+    font-weight: 700;
+    display: flex;
+    justify-content: center;
+    transition: .2s;
+  }
+  
+  /* /borda muda de cor ao passar mouse/ */
+  
+  nav ul li a:hover{
+    background-color: var(--SN-color);
+    color: #ffffff;
+    box-shadow: inset 0 0 8px #0000008a;
+  
+  }
+
+  #container {
+    display: flex;
+    flex-direction: row; /* padrão, mas ajuda a entender */
+  }
+  #painel-container {
+    position: relative;
+    width: 210px;
+    height: calc(100vh - 200px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .lista-scroll {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 100%; /* herda a altura do painel ajustado */
+
+    /* Máscara para criar o fade no topo e base da lista */
+  mask-image: linear-gradient(to bottom, transparent 0px, black 30px, black calc(100% - 30px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0px, black 30px, black calc(100% - 30px), transparent 100%);
+  mask-mode: match-source;
+
+  /* Aparência visual 3D */
+  background: transparent;
+  padding: 8px;
+  border-radius: 10px;
+  box-shadow:
+    inset 0 10px 10px -10px rgba(0, 0, 0, 0.15),
+    inset 0 -10px 10px -10px rgba(0, 0, 0, 0.15),
+    0 2px 10px rgba(0, 0, 0, 0.05);
+
+  /* Scrollbar refinada */
+  scrollbar-width: thin;
+  scrollbar-color: #888 transparent;
+  transition: all 0.3s ease;
+}
+
+.lista-scroll li {
+  padding: 10px 14px;
+  margin-bottom: 6px;
+  background: transparent;
+  border-radius: 8px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lista-scroll li:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+  
+  .abas{
+    display: flex;
+    justify-content:center;
+  }
+  
+  .aba {
+    width: 50%;
+    text-align: center;
+    cursor: pointer;
+    background-color: var(--SN-dark);
+    color: white ;
+    padding: 11px;
+    float: left;
+    font-weight: bold;
+    z-index: 2;
+    transition: background 0.3s;
+    cursor: pointer;
+    font-size: 15px;
+  }
+  .aba:hover{
+    background: var(--SN-color);
+    color: white;
+  }
+  
+  .aba.ativa {
+    background: var(--SN-color);
+    color: white;
+  }
+  
+  .aba.desativada {
+    background: #a8a8a8;
+    color: #9b9b9b;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+  
+  .painel {
+    position: absolute;
+    top: 40px;
+    width: 100%;
+    height: calc(100% - 40px);
+    background: gray;
+    transform: translateX(100%);
+    transition: transform 0.5s ease-in-out;
+    padding: 20px;
+    box-sizing: border-box;
+    border-radius: 0 0 20px 20px;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .painel.ativo {
+    transform: translateX(0%);
+    z-index: 1;
+   
+  }
+  
+  #lista-dados-clientes, #lista-dados-eventos, #lista-dados-orcamentos{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction:column ;
+    
+   
+  }
+  
+  #painel-clientes.ativo ~ #painel-eventos, #painel-eventos.ativo ~ #painel-clientes {
+    transform: translateX(100%);
+  }
+  
+  .destaque {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #000000;
+  }
+  
+  #lista-dados-clientes, #lista-dados-eventos, #lista-dados-orcamento{
+    /* display: flex; */
+    justify-content: center;
+    align-items: center;
+    list-style: none;
+    transition: background 2ms ease-in-out;
+
+  }
+  
+  #lista-dados-clientes li, #lista-dados-eventos li, #lista-dados-orcamentos li{
+    width: 100%;
+    max-width: 180px;
+    padding: 10px;
+  }
+  #lista-dados:hover{
+    background-color: var(--SN-color);
+    color: white;
+    border: 2px solid black;
+    border-radius: 10px;
+  }
+  
+  /* Container principal */
+  #wrapper {
+    display: flex; 
+    transition: margin-left 0.3s ease;
+  }
+  
+  #wrapper.menu-fechado #sidebar {
+    transform: translateX(-100%);
+  }
+  
+  #wrapper.menu-fechado #conteudo {
+    margin-left: 0;
+  }
+  
+  /* Sidebar (menu lateral) */
+  #sidebar {
+    width: 210px;
+    height: calc(100vh - 200px);
+    background: gray;
+    position: fixed;
+    left: 0;
+    transition: transform 0.3s ease;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    z-index: 10;
+    margin-top: 90px;
+   
+  }
+  
+  /* Botão em forma de seta para abrir/fechar */
+  #toggle-btn {
+    position: absolute;
+    top: 100px;
+    right: -20px;
+    background: #2e2e2e;
+    opacity: 60%;
+    color: white;
+    width: 20px;
+    height: 40px;
+    text-align: center;
+    line-height: 40px;
+    border-radius: 0 5px 5px 0;
+    cursor: pointer;
+    font-weight: bold;
+    z-index: 20;
+  }
+  
+  #toggle-btn:hover{
+    background-color: var(--SN-color);
+    box-shadow: #000000;
+  }
+  
+  
+  .painel.ativo {
+    transform: translateX(0%);
+    z-index: 1;
+  }
+  
+  #painel-clientes.ativo ~ #painel-eventos {
+    transform: translateX(100%);
+  }
+  
+  #painel-eventos.ativo ~ #painel-clientes {
+    transform: translateX(-100%);
+  }
+  
+  /* Título em destaque */
+  .destaque {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #ffffff;
+    text-align: center;
+  }
+  
+  /* Lista de dados */
+  ul[id^="lista-dados"] {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  ul[id^="lista-dados"] li {
+    padding: 8px;
+    margin: 4px 0;
+    background: #eaeaea;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.2s, border 0.2s;
+  }
+  
+  ul[id^="lista-dados"] li:hover {
+    background-color: var(--SN-color);
+    border: 2px solid black;
+    border-radius: 10px;
+  }
+  
+  main {
+    flex: 1;
+    position: fixed;
+    background-color: #fff;
+    height: 70vh;
+    display: flex;
+    justify-content: center;
+    font-family: var(--Font-primary);
+    width: 100%;
+    height: 100%;
+  }
+  
+  #conteudos{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+  }
+  
+  #painel-infos{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    font-size: 25px;
+  
+  }
+  .infos-lista {
+    list-style: none;
+    font-family: var(--Font-primary) ;
+  }
+
+/* menu --- nesta parte podemos poupar linhas de codigos adicionando as classes e dando a elas o mesmo padrao das outras, para as classes que n utilizam o . seguido de função , utilizando apenas a , para adicionar as classes que n utilição função  */
+.Cadastro, 
+  .Orçamento{
+    position: relative;
+    display: flex;
+    justify-content: center;
+    color: #fff;
+  }
+  
+  /* /submenu/ */
+  .Cadastro .drop,
+  .Orçamento .drop{
+    position:absolute;
+    max-height: none;
+    background-color:#65636b;
+    width: 100%;
+    height: 0;
+    overflow: hidden;
+    overflow-y: auto;
+    transition: .2s;
+  }
+  
+  /* /submenu/ */
+  .Cadastro .drop a,
+  .Orçamento .drop a{
+  padding: 20px;
+  
+  }
+  .Cadastro:hover .drop,
+  .Orçamento:hover .drop{
+    height: 300px;
+  }
+  
+  /* NAV vertical para mobile */
+  nav ul {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    text-align: center;
+    padding: 0;
+    margin: 0;
+  }
+  .menu-hamburguer{
+    display: none;
+    background-color: transparent;
+    border: none;
+    font-size: 30px;
+    color: white;
+    cursor: pointer;
+  }
+  
+  button .menu-hamburguer{
+    padding: 0 ;
+  }
+  
+  
+  /* Estiliza a largura do scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px; /* Para o scrollbar horizontal */
+  }
+  
+  /* Estiliza a parte que você pode arrastar (thumb) */
+  ::-webkit-scrollbar-thumb {
+    background-color: #5c5c5c;
+    border-radius: 10px;
+  }
+  
+  /* Estiliza a trilha do scrollbar (o fundo) */
+  ::-webkit-scrollbar-track {
+    background-color: #5c5c5c;
+    border-radius: 5px;
+  }
+  
+  /* Adiciona um efeito de hover para o thumb */
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #ffffff;
+  }
+
+
+  /* .lista-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px; /* Para o scrollbar horizontal 
+  }
+  
+  /* Estiliza a parte que você pode arrastar (thumb) *
+  .lista-scroll::-webkit-scrollbar-thumb {
+    background-color: gray;
+    border-radius: 10px;
+  }
+  
+  /* Estiliza a trilha do scrollbar (o fundo) *
+  .lista-scroll::-webkit-scrollbar-track {
+    background-color: gray;
+    border-radius: 5px;
+  }
+  
+  /* Adiciona um efeito de hover para o thumb *
+  .lista-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: #ffffff;
+  }  */
+
+
+.lista-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.lista-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.lista-scroll::-webkit-scrollbar-thumb {
+  background-color: #888;
+  border-radius: 6px;
+}
+
+
+ /* ----------------------------------------------   RESPONSIVIDADE   --------------------------------------------------------- */
+  @media(max-width: 767px){
+    .menu-hamburguer{
+      display: block;
+    }
+    nav ul {
+      display: none;
+      flex-direction: column;
+      position: absolute;
+      top: 60px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+    }
+    nav ul li a{
+      width: 100%;
+      padding: 15px;
+    }
+    
+    .menu-hamburguer{
+      display: block;
+    }
+    nav ul.open{
+      display: flex;
+      flex-direction: column; /* Deixa os itens em coluna */
+      background-color: #474646; /* Cor de fundo */
+      padding: 10px 0; /* Espaçamento */
+      position: absolute;
+      top: 60px; /* Ajusta para aparecer E abaixo do header */
+      left: 0;
+      width: 100%;
+      z-index: 1000;
+    }
+    nav ul li {
+      padding: 10px;
+  
+  }
+    .logotipo img{
+      max-width: 70px;
+    }
+    .minilogos img{
+      max-width: 20px;
+      align-items: center;
+    }
+    .Cadastro .drop,
+    .Orçamento .drop{
+      position: static;
+      width: 100%;
+      height: auto;
+      display: flex;
+    }
+    #painel-container,
+    #sidebar {
+    width: 100vw;
+    height: calc(100vh - 200px);
+    position: relative;
+  }
+}
+  
+  @media(min-width: 768px){
+    nav ul{
+      flex-direction: row;
+      justify-content: space-between;
+      width: auto;
+    }
+    nav ul li a{
+      padding: 20px 40px;
+    }
+    .menu-hamburguer{
+      display: none;
+    }
+  }

@@ -115,7 +115,7 @@ fieldset {
   flex-direction: column;
   width: 650px;
   background-color: transparent;
-  border-color: var(--dark-color);
+  border-color: var(--dark-base-color);
   margin: 0 auto;
   border-radius: 10px;
 }
@@ -210,7 +210,7 @@ fieldset {
 }
 
 input:focus {
-  border: 2px solid #ce0303;
+  border: 2px solid var(--border-color);
 }
 
 input:focus~label,
@@ -231,10 +231,11 @@ input#idBanco:not([value=""]) ~ label {
 
 button {
   font-family: "Abel", sans-serif;
+  font-weight: var(--font-weight);
   font-size: 20px;
-  background-color: #9e0505;
+  background-color: var(--primary-color);
   width: 25%;
-  color: white;
+  color: var(--font-color);
   border: none;
   border-radius: 10px;
   cursor: pointer;
@@ -270,6 +271,6 @@ button.close {
 .Enviar:hover,
 .Limpar:hover,
 .Pesquisar:hover {
-  background-color: #5f0101;
+  background-color: var(--hover-color);
 }
 

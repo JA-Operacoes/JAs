@@ -73,6 +73,7 @@ app.use("/Contrato",require("./routes/rotaContrato"));
 
 app.use("/index", autenticarToken(), require("./routes/rotaIndex"));
 app.use("/aside", autenticarToken(), require("./routes/rotaAside"));
+app.use("/Main", autenticarToken(), require("./routes/rotaMain"));
 
 // Redireciona / para login.html (opcional)
 app.get("/", (req, res) => {
