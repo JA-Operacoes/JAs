@@ -341,6 +341,7 @@ function configurarFlatpickrs() {
             }
         },
         onChange: function(selectedDates, dateStr, instance) {
+            datasEventoSelecionadas = selectedDates; 
             
             const previouslySelectedDates = instance._prevSelectedDates || [];
             const datesAttemptedToRemove = previouslySelectedDates.filter(prevDate => 
@@ -482,26 +483,6 @@ function inicializarFlatpickrsGlobais(datasDoEvento = []) {
     }
 }
 
-// const getStatus = (campo) => {
-//     // Verifique se o objeto currentEditingStaffEvent existe
-//     if (!currentEditingStaffEvent) {
-//         return 'Pendente'; // Retorna pendente se não houver um evento em edição
-//     }
-
-//     // Acessa a propriedade correta baseada no nome do campo
-//     if (campo === 'diariaDobrada') {
-//         return currentEditingStaffEvent.statusdiariadobrada;
-//     }
-
-//     if (campo === 'meiaDiaria') {
-//         return currentEditingStaffEvent.statusmeiadiaria;
-//     }
-
-//     // Retorna pendente por padrão, caso o campo não seja reconhecido
-//     return 'Pendente';
-// };
-
-
 
 let avaliacaoChangeListener = null;
 let limparStaffButtonListener = null;
@@ -545,6 +526,8 @@ let vlrAlmocoFuncao = 0;
 let vlrJantarFuncao = 0;
 let vlrTransporteFuncao = 0;
 let vlrTransporteSeniorFuncao = 0;
+let vlrAlmocoDobra =0;
+let vlrJantarDobra =0;
 
 if (typeof window.StaffOriginal === "undefined") {
     window.StaffOriginal = {
@@ -579,7 +562,7 @@ if (typeof window.StaffOriginal === "undefined") {
         comprovanteCaixinha: "",
         setor: "",
         statusPgto: "",
-        nivelexperiencia: ""
+        nivelExperiencia: ""
     };
 }
 
@@ -730,7 +713,24 @@ const carregarDadosParaEditar = (eventData) => {
         containerStatusMeiaDiaria.style.display = 'block';
     }
 
-    if (descFuncaoSelect) descFuncaoSelect.value = eventData.idfuncao || '';
+  //  if (descFuncaoSelect) descFuncaoSelect.value = eventData.idfuncao || '';
+
+    if (descFuncaoSelect) {
+        descFuncaoSelect.value = eventData.idfuncao || '';
+        
+        // --- NOVO PASSO: Garante que os valores de almoço e jantar sejam carregados na edição ---
+        // Pega a opção selecionada no dropdown de função
+        const selectedOption = descFuncaoSelect.options[descFuncaoSelect.selectedIndex];
+
+        // Se uma opção válida for encontrada, atualiza as variáveis globais
+        if (selectedOption) {
+            vlrAlmocoDobra = parseFloat(selectedOption.getAttribute("data-almoco")) || 0;
+            vlrJantarDobra = parseFloat(selectedOption.getAttribute("data-jantar")) || 0;
+            console.log("Valores de Almoço e Jantar carregados para edição:", vlrAlmocoDobra, vlrJantarDobra);
+        }
+    }
+
+
     if (nmClienteSelect) nmClienteSelect.value = eventData.idcliente || '';
     if (nmEventoSelect) nmEventoSelect.value = eventData.idevento || '';
 
@@ -831,6 +831,33 @@ const carregarDadosParaEditar = (eventData) => {
         }
     }
 
+    switch(eventData.nivelexperiencia) {
+        case "Base":
+            baseCheck.checked = true;
+            break;
+        case "Junior":
+            juniorCheck.checked = true;
+            break;
+        case "Pleno":
+            plenoCheck.checked = true;
+            break;
+        case "Senior":
+            seniorCheck.checked = true;
+            break;
+    }
+    if (eventData.vlralmoco > 0) {
+        almocoCheck.checked = true;
+    } else {
+        almocoCheck.checked = false; // opcional, caso queira desmarcar se for 0
+    }
+
+    // Marcar jantar se houver valor
+    if (eventData.vlrjantar > 0) {
+        jantarCheck.checked = true;
+    } else {
+        jantarCheck.checked = false; // opcional
+    }
+
     preencherComprovanteCampo(eventData.comppgtocache, 'Cache');
     preencherComprovanteCampo(eventData.comppgtoajdcusto, 'AjdCusto');
     preencherComprovanteCampo(eventData.comppgtoajdcusto50, 'AjdCusto2');
@@ -871,6 +898,8 @@ function inicializarEPreencherCampos(eventData) {
     const datesEvento = getDatesForFlatpickr(eventData.datasevento);
     const datesDiariaDobrada = getDatesForFlatpickr(datasDobrada);
     const datesMeiaDiaria = getDatesForFlatpickr(datasMeiaDiaria);
+
+    datasEventoSelecionadas = datesEvento;
 
     datasEventoPicker.setDate(datesEvento, false);
     diariaDobradaPicker.set('enable', datesEvento);
@@ -1015,7 +1044,19 @@ function inicializarEPreencherCampos(eventData) {
     //     if (containerStatusMeiaDiaria) containerStatusMeiaDiaria.style.display = 'none';
     // }
 
-    if (temPermissaoTotal) {        
+    if (temPermissaoTotal) {    
+        document.getElementById('selectStatusAjusteCusto').style.display = 'block';
+        statusAjusteCustoInput.style.display = 'none';
+        document.getElementById('selectStatusAjusteCusto').value = eventData.statusajustecusto || 'Pendente';
+        aplicarCoresAsOpcoes('selectStatusAjusteCusto');
+        aplicarCorNoSelect(document.getElementById('selectStatusAjusteCusto'));
+
+        document.getElementById('selectStatusCaixinha').style.display = 'block';
+        statusCaixinhaInput.style.display = 'none';
+        document.getElementById('selectStatusCaixinha').value = eventData.statuscaixinha || 'Pendente';
+        aplicarCoresAsOpcoes('selectStatusCaixinha');
+        aplicarCorNoSelect(document.getElementById('selectStatusCaixinha'));
+        
         // Exibe os grupos (label + container)
         document.getElementById('grupoDiariaDobrada').style.display = 'block';
         document.getElementById('grupoMeiaDiaria').style.display = 'block';
@@ -1034,6 +1075,17 @@ function inicializarEPreencherCampos(eventData) {
         renderDatesWithStatus(datasMeiaDiaria, 'containerStatusMeiaDiaria', 'meia');
 
     } else {
+
+        document.getElementById('selectStatusAjusteCusto').style.display = 'none';
+        statusAjusteCustoInput.style.display = 'block';
+        statusAjusteCustoInput.value = eventData.statusAjusteCusto || 'Pendente';
+        aplicarCorStatusInput(statusAjusteCustoInput);
+
+        document.getElementById('selectStatusCaixinha').style.display = 'none';
+        statusCaixinhaInput.style.display = 'block';
+        statusCaixinhaInput.value = eventData.statuscaixinha || 'Pendente';
+        aplicarCorStatusInput(statusCaixinhaInput);
+
         // Esconde os grupos (label + container)
         document.getElementById('grupoDiariaDobrada').style.display = 'none';
         document.getElementById('grupoMeiaDiaria').style.display = 'none';
@@ -1211,15 +1263,15 @@ const carregarTabelaStaff = async (funcionarioId) => {
                     .join(', ')
                     : 'N/A';
 
-                    row.insertCell().textContent = parseFloat(eventData.vlrcache || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    row.insertCell().textContent = parseFloat(eventData.vlrajustecusto || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    row.insertCell().textContent = parseFloat(eventData.vlrcache || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    row.insertCell().textContent = parseFloat(eventData.vlrajustecusto || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     row.insertCell().textContent = eventData.descajustecusto || '';
-                    row.insertCell().textContent = parseFloat(eventData.almoco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    row.insertCell().textContent = parseFloat(eventData.jantar || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    row.insertCell().textContent = parseFloat(eventData.vlrtransporte || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    row.insertCell().textContent = parseFloat(eventData.vlralmoco || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    row.insertCell().textContent = parseFloat(eventData.vlrjantar || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    row.insertCell().textContent = parseFloat(eventData.vlrtransporte || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     row.insertCell().textContent = eventData.descbeneficios || '';
-                    row.insertCell().textContent = parseFloat(eventData.vlrtotal || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    row.insertCell().textContent = parseFloat(eventData.vlrtotal || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     // row.insertCell().textContent = eventData.statuspgto || '';
 
                     const statusCell = row.insertCell();
@@ -1331,9 +1383,9 @@ async function verificaStaff() {
 
     // Lógica para o comprovante de Ajuda de Custo
     labelFileAjdCusto.addEventListener('click', (event) => {
-        const vlrAlmoco = parseFloat(almocoInput.value.replace(',', '.') || 0);
-        const vlrJantar = parseFloat(jantarInput.value.replace(',', '.') || 0);
-        const vlrTransporte = parseFloat(transporteInput.value.replace(',', '.') || 0);
+        const vlrAlmoco = parseFloat(almocoInput.value.replace(',', '.') || 0.00);
+        const vlrJantar = parseFloat(jantarInput.value.replace(',', '.') || 0.00);
+        const vlrTransporte = parseFloat(transporteInput.value.replace(',', '.') || 0.00);
 
         // Se os valores estiverem zerados, previne a ação e exibe o alerta
         if (vlrAlmoco === 0 && vlrJantar === 0 && vlrTransporte === 0) {
@@ -1348,7 +1400,7 @@ async function verificaStaff() {
 
     // Lógica para o comprovante de Caixinha
     labelFileCaixinha.addEventListener('click', (event) => {
-        const vlrCaixinha = parseFloat(caixinhaInput.value.replace(',', '.') || 0);
+        const vlrCaixinha = parseFloat(caixinhaInput.value.replace(',', '.') || 0.00);
 
         if (vlrCaixinha === 0) {
             event.preventDefault(); // Impede a abertura do modal de upload
@@ -1425,7 +1477,7 @@ async function verificaStaff() {
 
         // Se estiver em modo de edição, sobrescreve com os valores originais
         if (currentEditingStaffEvent) {
-            valorAjusteCustoOriginal = parseFloat(currentEditingStaffEvent.vlrajustecusto || 0);
+            valorAjusteCustoOriginal = parseFloat(currentEditingStaffEvent.vlrajustecusto || 0.00);
             descAjusteCustoOriginal = currentEditingStaffEvent.descajustecusto || '';
             statusAjusteCustoOriginal = currentEditingStaffEvent.statusajustecusto || 'Pendente';
         }
@@ -1548,7 +1600,7 @@ async function verificaStaff() {
 
         // Se estiver em modo de edição, sobrescreve com os valores originais
         if (currentEditingStaffEvent) {
-            valorCaixinhaOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0);
+            valorCaixinhaOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0.00);
             descCaixinhaOriginal = currentEditingStaffEvent.desccaixinha || '';
             statusCaixinhaOriginal = currentEditingStaffEvent.statuscaixinha || 'Pendente';
         }
@@ -1725,9 +1777,15 @@ async function verificaStaff() {
         const diariaDobrada = document.getElementById("diariaDobradacheck")?.checked;
         const meiaDiaria = document.getElementById("meiaDiariacheck")?.checked;
         let statusDiariaDobrada = document.getElementById("statusDiariaDobrada").value;
-
-
         let statusMeiaDiaria = document.getElementById("statusMeiaDiaria").value;
+
+        const seniorCheck = document.getElementById('Seniorcheck');
+        const plenoCheck = document.getElementById('Plenocheck');
+        const juniorCheck = document.getElementById('Juniorcheck');
+        const baseCheck = document.getElementById('Basecheck');
+
+        const almocoCheck = document.getElementById('Almococheck');
+        const jantarCheck = document.getElementById('Jantarcheck');
 
         console.log("Status Ajuste de Custo", statusAjusteCusto);
 
@@ -1757,11 +1815,19 @@ async function verificaStaff() {
                 .replace(/\./g, '')
                 .replace(',', '.')
                 .trim()
-            ) || 0;
+            ) || 0.00;
 
 
             if(!nmFuncionario || !descFuncao || !vlrCusto || !nmCliente || !nmEvento || !periodoDoEvento){
                 return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Funcionário, Função, Cachê, Transportes, Alimentação, Cliente, Evento e Período do Evento.", "warning");
+            }
+
+            if (!seniorCheck.checked &&  !plenoCheck.checked &&  !juniorCheck.checked &&  !baseCheck.checked) {
+                return Swal.fire(
+                    "Nível de Experiência não selecionado!",
+                    "Por favor, selecione pelo menos um nível de experiência: Sênior, Pleno, Júnior ou Base.",
+                    "warning"
+                );
             }
 
             if ((caixinhaAtivo) && !descCaixinha) {
@@ -2191,6 +2257,31 @@ async function verificaStaff() {
             formData.append('descdiariadobrada', descDiariaDobradaTextarea.value.trim());
             formData.append('descmeiadiaria', descMeiaDiariaTextarea.value.trim());
             formData.append('desccaixinha', descCaixinhaTextarea.value.trim());
+           
+           
+            let nivelExperienciaSelecionado ="";
+
+            if (seniorCheck.checked) {
+                nivelExperienciaSelecionado =  "Senior";
+            } 
+            if (plenoCheck.checked) {
+                nivelExperienciaSelecionado =  "Pleno";
+            } 
+            if (juniorCheck.checked) {
+                nivelExperienciaSelecionado =  "Junior";
+            } 
+            if (baseCheck.checked) {
+                nivelExperienciaSelecionado =  "Base";
+            }
+
+            formData.append('nivelexperiencia', nivelExperienciaSelecionado);
+
+            if (statusDiariaDobrada === "Autorização da Diária Dobrada"){
+                statusDiariaDobrada = "Pendente";
+            }
+            if (statusMeiaDiaria === "Autorização da Meia Diária"){
+                statusMeiaDiaria = "Pendente";
+            }
 
             let dadosDiariaDobrada = [];
             if (periodoDobrado && periodoDobrado.length > 0) {
@@ -2223,7 +2314,7 @@ async function verificaStaff() {
         console.log("Preparando envio de FormData. Método:", metodo, "URL:", url, window.StaffOriginal);
         console.log("Dados do FormData:", {
             nmFuncionario, descFuncao, vlrCusto, ajusteCusto, transporte, almoco, jantar, caixinha,
-            nmCliente, nmEvento, periodoDoEvento, vlrTotal, diariaDobrada, meiaDiaria,
+            nmCliente, nmEvento, periodoDoEvento, vlrTotal, diariaDobrada, meiaDiaria, nivelExperienciaSelecionado
         });
 
         console.log("METODO PARA ENVIAR",metodo, currentEditingStaffEvent);
@@ -2242,10 +2333,10 @@ async function verificaStaff() {
                 return Swal.fire("Erro", "Dados originais não encontrados para comparação (ID ausente para PUT).", "error");
             }
 
-            const ajusteCustoAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrajustecusto || 0) > 0;
-            const caixinhaAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) > 0;
+            const ajusteCustoAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrajustecusto || 0.00) > 0;
+            const caixinhaAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0.00) > 0;
             const ajusteCustoValorOriginal = parseFloat(currentEditingStaffEvent.vlrajustecusto || 0);
-            const caixinhaValorOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0);
+            const caixinhaValorOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0.00);
 
             const diariaDobradaOriginal = currentEditingStaffEvent.diariadobrada || false;
             const meiaDiariaOriginal = currentEditingStaffEvent.meiadiaria || false;
@@ -2254,18 +2345,22 @@ async function verificaStaff() {
 
             const dataMeiaDiariaOriginal = currentEditingStaffEvent.dtmeiadiaria || [];
 
+            const nivelExperienciaOriginal = currentEditingStaffEvent.nivelexperiencia || "";
+
             console.log("Valores originais - ajusteCusto Ativo:", ajusteCustoAtivoOriginal, "ajusteCusto Valor:", ajusteCustoValorOriginal);
             console.log("Valores originais - Caixinha Ativo:", caixinhaAtivoOriginal, "Caixinha Valor:", caixinhaValorOriginal);
 
             const ajusteCustoAtivoAtual = ajusteCustoAtivo;
             const caixinhaAtivoAtual = caixinhaAtivo;
-            const ajusteCustoValorAtual = parseFloat(ajusteCusto.replace(',', '.') || 0);
-            const caixinhaValorAtual = parseFloat(caixinha.replace(',', '.') || 0);
+            const ajusteCustoValorAtual = parseFloat(ajusteCusto.replace(',', '.') || 0.00);
+            const caixinhaValorAtual = parseFloat(caixinha.replace(',', '.') || 0.00);
 
             const diariaDobradaAtual = diariaDobradacheck.checked;
             const meiaDiariaAtual = meiaDiariacheck.checked;
             const dataDiariaDobradaAtual = periodoDobrado;
             const dataMeiaDiariaAtual = periodoMeiaDiaria;
+
+            const nivelExperienciaAtual = nivelExperienciaSelecionado;
 
             const houveAlteracaoAjusteCusto = (ajusteCustoAtivoOriginal !== ajusteCustoAtivoAtual) || (ajusteCustoValorOriginal !== ajusteCustoValorAtual);
             const houveAlteracaoCaixinha = (caixinhaAtivoOriginal !== caixinhaAtivoAtual) || (caixinhaValorOriginal !== caixinhaValorAtual);
@@ -2342,13 +2437,13 @@ async function verificaStaff() {
             if (
                 currentEditingStaffEvent.idfuncionario != idFuncionario ||
                 currentEditingStaffEvent.nmfuncao.toUpperCase() != descFuncao ||
-                parseFloat(currentEditingStaffEvent.vlrcache || 0) != parseFloat(vlrCusto.replace(',', '.') || 0) ||
+                parseFloat(currentEditingStaffEvent.vlrcache || 0.00) != parseFloat(vlrCusto.replace(',', '.') || 0.00) ||
                 JSON.stringify(currentEditingStaffEvent.periodo || []) !== JSON.stringify(periodoDoEvento) ||
-                parseFloat(currentEditingStaffEvent.vlrajustecusto || 0) != ajusteCustoValorAtual ||
-                parseFloat(currentEditingStaffEvent.vlrtransporte || 0) != parseFloat(transporte.replace(',', '.') || 0) ||
-                parseFloat(currentEditingStaffEvent.vlralmoco || 0) != parseFloat(almoco.replace(',', '.') || 0) ||
-                parseFloat(currentEditingStaffEvent.vlrjantar || 0) != parseFloat(jantar.replace(',', '.') || 0) ||
-                parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) != caixinhaValorAtual ||
+                parseFloat(currentEditingStaffEvent.vlrajustecusto || 0.00) != ajusteCustoValorAtual ||
+                parseFloat(currentEditingStaffEvent.vlrtransporte || 0.00) != parseFloat(transporte.replace(',', '.') || 0.00) ||
+                parseFloat(currentEditingStaffEvent.vlralmoco || 0.00) != parseFloat(almoco.replace(',', '.') || 0.00) ||
+                parseFloat(currentEditingStaffEvent.vlrjantar || 0.00) != parseFloat(jantar.replace(',', '.') || 0.00) ||
+                parseFloat(currentEditingStaffEvent.vlrcaixinha || 0.00) != caixinhaValorAtual ||
                 (currentEditingStaffEvent.descajustecusto || '').trim() != descAjusteCusto.trim() ||
                 (currentEditingStaffEvent.descbeneficios || '').trim() != descBeneficio.trim() ||
                 (currentEditingStaffEvent.desccaixinha || '').trim() != descCaixinha.trim() ||
@@ -2361,7 +2456,10 @@ async function verificaStaff() {
                 (currentEditingStaffEvent.statusajustecusto || '').trim() != statusAjusteCusto.trim() ||
                 (currentEditingStaffEvent.statuscaixinha || '').trim() != statusCaixinha.trim() ||
                 (currentEditingStaffEvent.statusdiariadobrada || '').trim() != statusDiariaDobrada.trim() ||
-                (currentEditingStaffEvent.statusmeiadiaria || '').trim() != statusMeiaDiaria.trim()
+                (currentEditingStaffEvent.statusmeiadiaria || '').trim() != statusMeiaDiaria.trim() ||
+                currentEditingStaffEvent.diariadobrada != diariaDobradaAtual ||
+                currentEditingStaffEvent.meiadiaria != meiaDiariaAtual ||
+                currentEditingStaffEvent.nivelexperiencia != nivelExperienciaAtual
             ) {
                 houveAlteracao = true;
             }
@@ -2422,9 +2520,10 @@ async function verificaStaff() {
                 logAndCheck('Datas Meia Diária', JSON.stringify(dataMeiaDiariaOriginal), JSON.stringify(dataMeiaDiariaAtual), JSON.stringify(dataMeiaDiariaOriginal) !== JSON.stringify(dataMeiaDiariaAtual)) ||
 
                 logAndCheck('Status Diária Dobrada', (currentEditingStaffEvent.statusdiariadobrada || '').trim(), statusDiariaDobrada.trim(), (currentEditingStaffEvent.statusdiariadobrada || '').trim() != statusDiariaDobrada.trim()) ||
-                logAndCheck('Status Meia Diária', (currentEditingStaffEvent.statusmeiadiaria || '').trim(), statusMeiaDiaria.trim(), (currentEditingStaffEvent.statusmeiadiaria || '').trim() != statusMeiaDiaria.trim());
-
-            console.log("Houve alteração geral?", houveAlteracao);
+                logAndCheck('Status Meia Diária', (currentEditingStaffEvent.statusmeiadiaria || '').trim(), statusMeiaDiaria.trim(), (currentEditingStaffEvent.statusmeiadiaria || '').trim() != statusMeiaDiaria.trim()) ||
+                logAndCheck('Nível Experiência', (currentEditingStaffEvent.nivelexperiencia || '').trim(), nivelExperienciaAtual.trim(), (currentEditingStaffEvent.nivelexperiencia || '').trim() != nivelExperienciaAtual.trim());
+           
+                console.log("Houve alteração geral?", houveAlteracao);
 
             if (!houveAlteracao) {
                 console.log("Nenhuma alteração detectada, bloqueando salvamento.");
@@ -2942,7 +3041,7 @@ function limparStaffOriginal() {
 async function carregarFuncaoStaff() {
     try{
         const funcaofetch = await fetchComToken('/staff/funcao');
-        console.log("ENTROU NO CARREGARFUNCAOORC", funcaofetch);
+        console.log("ENTROU NO CARREGARFUNCAOSTAFF", funcaofetch);
 
         let selects = document.querySelectorAll(".descFuncao");
         selects.forEach(select => {
@@ -2984,8 +3083,10 @@ async function carregarFuncaoStaff() {
                 document.getElementById("Plenocheck").checked = false;
                 document.getElementById("Juniorcheck").checked = false;
                 document.getElementById("Basecheck").checked = false;
+                
 
                 const selectedOption = this.options[this.selectedIndex];
+             
 
                 document.getElementById("idFuncao").value = selectedOption.getAttribute("data-idFuncao");
               //  document.getElementById("nmFuncao").value = selectedOption.getAttribute("data-nmFuncao");
@@ -3003,7 +3104,7 @@ async function carregarFuncaoStaff() {
                 vlrJantarFuncao = parseFloat(selectedOption.getAttribute("data-jantar")) || 0;
                 vlrTransporteFuncao = parseFloat(selectedOption.getAttribute("data-transporte")) || 0;
                 vlrTransporteSeniorFuncao = parseFloat(selectedOption.getAttribute("data-transpsenior")) || 0;
-
+                
             });
 
         });
@@ -3391,6 +3492,18 @@ function limparCamposEvento() {
     const diariaDobradacheck = document.getElementById('diariaDobradacheck');
     if (diariaDobradacheck) diariaDobradacheck.checked = false;
 
+    const seniorCheck = document.getElementById('Seniorcheck');
+    if (seniorCheck) seniorCheck.checked = false;
+
+    const plenoCheck = document.getElementById('Plenocheck');
+    if (plenoCheck) plenoCheck.checked = false;
+
+    const juniorCheck = document.getElementById('Juniorcheck');
+    if (juniorCheck) juniorCheck.checked = false;
+
+    const baseCheck = document.getElementById('Basecheck');
+    if (baseCheck) baseCheck.checked = false;
+
     const containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
     const containerStatusMeiaDiaria = document.getElementById('containerStatusMeiaDiaria');
 
@@ -3578,6 +3691,18 @@ function limparCamposStaff() {
     if (check100) {
         check100.checked = false;
     }
+
+    const seniorCheck = document.getElementById('Seniorcheck');
+    if (seniorCheck) seniorCheck.checked = false;
+
+    const plenoCheck = document.getElementById('Plenocheck');
+    if (plenoCheck) plenoCheck.checked = false;
+
+    const juniorCheck = document.getElementById('Juniorcheck');
+    if (juniorCheck) juniorCheck.checked = false;
+
+    const baseCheck = document.getElementById('Basecheck');
+    if (baseCheck) baseCheck.checked = false;
 
     const beneficioTextarea = document.getElementById('descBeneficio');
     if (beneficioTextarea) {
@@ -3950,13 +4075,18 @@ function calcularValorTotal() {
     const caixinha = parseFloat(document.getElementById('caixinha').value.replace(',', '.')) || 0;
     const perfilFuncionario = document.getElementById("perfilFuncionario").value;
 
+    if (isFormLoadedFromDoubleClick)
+    {
+        console.log("VALORES PARA RECALCULAR", vlrAlmocoDobra, vlrJantarDobra);
+    }
+
     // Pega o número de diárias selecionadas
     const contadorTexto = document.getElementById('contadorDatas').innerText;
     const match = contadorTexto.match(/\d+/);
     const numeroDias = match ? parseInt(match[0]) : 0;
 
     // Conta apenas o número de datas do evento
-    console.log("Número de diárias:", contadorTexto, match, numeroDias, cache, ajusteCusto, transporte, almoco, jantar, caixinha);
+    console.log("Número de diárias:", contadorTexto, match, numeroDias, cache, ajusteCusto, transporte, almoco, jantar, caixinha, datasEventoSelecionadas);
 
     // Inicializa o valor total com os itens que são sempre calculados
    // let total = (cache + transporte + almoco + jantar) * numeroDias;
@@ -4000,10 +4130,38 @@ function calcularValorTotal() {
     }
 
     // 3. Verificação de Diárias Dobradas
+    // if (diariaDobradacheck.checked && datasDobrada && datasDobrada.length > 0) {
+    //     const diariasDobradasAutorizadas = datasDobrada.filter(item => item.status === 'Autorizado');
+    //     if (diariasDobradasAutorizadas.length > 0) {
+    //         const valorDiariaDobrada = (cache + transporte + jantar) * diariasDobradasAutorizadas.length;
+    //         total += valorDiariaDobrada;
+    //         console.log(`Diárias Dobradas Autorizadas: ${diariasDobradasAutorizadas.length}. Adicionando: ${valorDiariaDobrada.toFixed(2)}`);
+    //     }
+    // }
+
+    // // 4. Verificação de Meias Diárias
+    // if (meiaDiariacheck.checked && datasMeiaDiaria && datasMeiaDiaria.length > 0) {
+    //     const meiasDiariasAutorizadas = datasMeiaDiaria.filter(item => item.status === 'Autorizado');
+    //     if (meiasDiariasAutorizadas.length > 0) {
+    //         const valorMeiaDiaria = ((cache / 2)+ transporte) * meiasDiariasAutorizadas.length;
+    //         total += valorMeiaDiaria;
+    //         console.log(`Meias Diárias Autorizadas: ${meiasDiariasAutorizadas.length}. Adicionando: ${valorMeiaDiaria.toFixed(2)}`);
+    //     }
+    // }
+
+    // 3. Verificação de Diárias Dobradas
     if (diariaDobradacheck.checked && datasDobrada && datasDobrada.length > 0) {
         const diariasDobradasAutorizadas = datasDobrada.filter(item => item.status === 'Autorizado');
         if (diariasDobradasAutorizadas.length > 0) {
-            const valorDiariaDobrada = (cache + transporte + jantar) * diariasDobradasAutorizadas.length;
+            let valorDiariaDobrada = cache; // base é o cache
+            
+            // Ajuste conforme checkboxes
+            if (almocoCheck.checked) valorDiariaDobrada += vlrJantarDobra;   // somar jantar se almoço estiver marcado
+            if (jantarCheck.checked) valorDiariaDobrada += vlrAlmocoDobra;   // somar almoço se jantar estiver marcado
+            
+            // transporte não entra no cálculo
+            valorDiariaDobrada *= diariasDobradasAutorizadas.length;
+            
             total += valorDiariaDobrada;
             console.log(`Diárias Dobradas Autorizadas: ${diariasDobradasAutorizadas.length}. Adicionando: ${valorDiariaDobrada.toFixed(2)}`);
         }
@@ -4013,11 +4171,22 @@ function calcularValorTotal() {
     if (meiaDiariacheck.checked && datasMeiaDiaria && datasMeiaDiaria.length > 0) {
         const meiasDiariasAutorizadas = datasMeiaDiaria.filter(item => item.status === 'Autorizado');
         if (meiasDiariasAutorizadas.length > 0) {
-            const valorMeiaDiaria = ((cache / 2)+ transporte) * meiasDiariasAutorizadas.length;
+            let valorMeiaDiaria = cache / 2; // base é metade do cache
+
+            console.log("ALIMENTACAO", jantar, almoco);
+            
+            // Ajuste conforme checkboxes
+            if (almocoCheck.checked) valorMeiaDiaria += vlrJantarDobra;   // somar jantar se almoço estiver marcado
+            if (jantarCheck.checked) valorMeiaDiaria += vlrAlmocoDobra;   // somar almoço se jantar estiver marcado
+            
+            // transporte não entra no cálculo
+            valorMeiaDiaria *= meiasDiariasAutorizadas.length;
+            
             total += valorMeiaDiaria;
             console.log(`Meias Diárias Autorizadas: ${meiasDiariasAutorizadas.length}. Adicionando: ${valorMeiaDiaria.toFixed(2)}`);
         }
     }
+
 
     // Formatação e atualização dos campos
     const valorFormatado = 'R$ ' + total.toFixed(2).replace('.', ',');

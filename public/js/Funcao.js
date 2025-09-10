@@ -114,7 +114,7 @@ function verificaFuncao() {
 
         console.log("campos antes de salvar", idFuncao, descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda,  transporte, transporteSenior, obsProposta, obsFuncao, almoco, jantar);
 
-        if (!descFuncao ||  !custoBase || !venda || !transporte) {
+        if (!descFuncao ||  !custoBase || !venda) {
 
             Swal.fire({
                 icon: 'warning',

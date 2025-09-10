@@ -540,7 +540,7 @@ input[type="file"]{
 
 
 /* Estilos para o SELECT de status */
-#selectStatusAjusteCusto, #selectStatusCaixinha {
+#selectStatusAjusteCusto, #selectStatusCaixinha, #selectStatusDiariaDobrada, #selectStatusMeiaDiaria {
     /* Garante que o fundo e a cor do texto do select sejam definidos */
     background-color: transparent;
     color: #000000;
@@ -548,152 +548,64 @@ input[type="file"]{
 
 /* 1. Estilos para o status "Pendente" (Fundo Amarelo, Fonte Preta) */
 #selectStatusAjusteCusto.status-Pendente,
-#selectStatusCaixinha.status-Pendente {
+#selectStatusCaixinha.status-Pendente,
+#selectStatusDiariaDobrada.status-Pendente,
+#selectStatusMeiaDiaria.status-Pendente {
     background-color: #FFC107; /* Amarelo */
     color: #000000; /* Preto */
 }
 
 /* 2. Estilos para o status "Autorizado" (Fundo Verde, Fonte Branca) */
 #selectStatusAjusteCusto.status-Autorizado,
-#selectStatusCaixinha.status-Autorizado {
+#selectStatusCaixinha.status-Autorizado,
+#selectStatusDiariaDobrada.status-Autorizado,
+#selectStatusMeiaDiaria.status-Autorizado {
     background-color: #28A745; /* Verde */
     color: #FFFFFF; /* Branco */
 }
 
 /* 3. Estilos para o status "Rejeitado" (Fundo Vermelho, Fonte Branca) */
 #selectStatusAjusteCusto.status-Rejeitado,
-#selectStatusCaixinha.status-Rejeitado {
+#selectStatusCaixinha.status-Rejeitado,
+#selectStatusDiariaDobrada.status-Rejeitado,
+#selectStatusMeiaDiaria.status-Rejeitado {
     background-color: #DC3545; /* Vermelho */
     color: #FFFFFF; /* Branco */
 }
 
 /* Estilos para o INPUT de status (se aplicável) */
 input#statusAjusteCusto.status-Pendente,
-input#statusCaixinha.status-Pendente {
+input#statusCaixinha.status-Pendente,
+input#statusDiariaDobrada.status-Pendente,
+input#statusMeiaDiaria.status-Pendente {
     background: #FFC107;
     color: #000000;
 }
 
 input#statusAjusteCusto.status-Autorizado,
-input#statusCaixinha.status-Autorizado {
+input#statusCaixinha.status-Autorizado,
+input#statusDiariaDobrada.status-Autorizado,
+input#statusMeiaDiaria.status-Autorizado {
     background: #28A745;
     color: #FFFFFF;
 }
 
 input#statusAjusteCusto.status-Rejeitado,
-input#statusCaixinha.status-Rejeitado {
+input#statusCaixinha.status-Rejeitado,
+input#statusDiariaDobrada.status-Rejeitado
+input#statusMeiaDiaria.status-Rejeitado {
     background: #DC3545;
     color: #FFFFFF;
 }
 
-/*Diaria Dobrada */
-/* Classes para o select de status */
-/* #selectStatusAjusteCusto option.status-Pendente, */
 
-input#statusDiairaDobrada.status-Pendente {
-  background: #FFC107;
-  color: #000000;          /* Branco */
-  /* font-weight: bold; */
-  text-shadow: none;
-}
-input#statusDiairaDobrada.status-Autorizado {
-  background: #28A745;
-  color: #FFFFFF;          /* Branco */
-  /* font-weight: bold; */
-  text-shadow: none;
-}
-input#statusDiairaDobrada.status-Rejeitado {
-  background: #DC3545;
-  color: #FFFFFF;          /* Branco */
-  /* font-weight: bold; */
-  text-shadow: none;
-}
-
-#selectStatusDiairaDobrada.status-none {
+/* #selectStatusDiariaDobrada.status-none {
   background-color: transparent;
-  color: #000000;          /* Preto */
+  color: #000000;         
   font-weight: bold;
-  text-shadow: none;       /* Remove o contorno, caso ainda exista */
-}
+  text-shadow: none;      
+} */
 
-#selectStatusDiariaDobrada.status-Pendente {
-  background-color: #FFC107; /* Amarelo */
-  color:  #000000;          /* Preto */
-  /* font-weight: bold; */
-  text-shadow: none;       /* Remove o contorno, caso ainda exista */
-}
-
-/* #selectStatusAjusteCusto option.status-Autorizado, */
-#selectStatusDiariaDobrada.status-Autorizado {
-  background-color: #28A745; /* Verde */
-  color: #FFFFFF;          /* Branco */
-  /* font-weight: bold; */
-  text-shadow: none;
-}
-
-/* 3. Estilos para o status "Rejeitado" (Fundo Vermelho, Fonte Branca) */
-/* #selectStatusAjusteCusto option.status-Rejeitado, */
-#selectStatusDiariaDobrada.status-Rejeitado {
-  background-color: #DC3545; /* Vermelho */
-  color: #FFFFFF;          /* Branco */
-  /* font-weight: bold; */
-  text-shadow: none;
-}
-
-/* MEIA DIARIA */
-input#statusMeiaDiaria.status-Pendente {
-    background: #FFC107;
-  color: #000000;          /* Branco */
-  /* font-weight: bold; */
-  text-shadow: none;
-}
-input#statusMeiaDiaria.status-Autorizado {
-  background: #28A745;
-  color: #FFFFFF;          /* Branco */
-  /* font-weight: bold; */
-  text-shadow: none;
-}
-input#statusMeiaDiaria.status-Rejeitado {
-  background: #DC3545;
-  color: #FFFFFF;          /* Branco */
-  /* font-weight: bold; */
-  text-shadow: none;
-}
-
-
-#selectStatusMeiaDiaria.status-none {
-  background-color: transparent;
-  color: #FFFFFF;          /* Preto */
-  font-weight: bold;
-  text-shadow: none;       /* Remove o contorno, caso ainda exista */
-}
-/* colorindo selects caixinha */
-/* #selectStatusCaixinha option.status-Pendente, */
-#selectStatusMeiaDiaria.status-Pendente {
-  background-color: #FFC107; /* Amarelo */
-  color: #000000;          /* Preto */
-  /* font-weight: bold; */
-  text-shadow: none;       /* Remove o contorno, caso ainda exista */
-}
-
-/* #selectStatusCaixinha option.status-Autorizado, */
-#selectStatusMeiaDiaria.status-Autorizado {
-  background-color: #28A745; /* Verde */
-  color: #FFFFFF;          /* Branco */
-  /* font-weight: bold; */
-  text-shadow: none;
-}
-
-/* 3. Estilos para o status "Rejeitado" (Fundo Vermelho, Fonte Branca) */
-/* #selectStatusCaixinha option.status-Rejeitado, */
-#selectStatusMeiaDiaria.status-Rejeitado {
-  background-color: #DC3545; /* Vermelho */
-  color: #FFFFFF;          /* Branco */
-  /* font-weight: bold; */
-  text-shadow: none;
-}
-
-/* */
 
 /* Assegura que datas selecionadas SEM status tenham uma cor neutra, por exemplo, azul padrão do flatpickr ou preto */
 .flatpickr-day.selected:not(.status-autorizado):not(.status-pendente):not(.status-rejeitado) {
