@@ -74,58 +74,47 @@ const formatInputTextWithStatus = (instance, dataArray) => {
 
 function configurarFlatpickrs() {
     console.log("Configurando Flatpickrs...");
-    diariaDobradaPicker = flatpickr("#diariaDobrada", {
+
+    // Inicialização da Diária Dobrada
+    window.diariaDobradaPicker = flatpickr(document.querySelector("#diariaDobrada"), {
         ...commonFlatpickrOptions,
         enable: [],
         altInput: true,
         altFormat: "d/m/Y",
-
+        locale: currentLocale,
+        appendTo: document.body,
         onDayCreate: (dObj, dStr, fp, dayElement) => {
             const dataDia = flatpickr.formatDate(dayElement.dateObj, "Y-m-d");
             const statusData = datasDobrada.find(item => item.data === dataDia);
-
             if (statusData) {
                 dayElement.classList.add(`status-${statusData.status.toLowerCase()}`);
-
-                // Se o status NÃO é 'Pendente', adiciona um evento de clique
-                // que impede a desmarcação
                 if (statusData.status.toLowerCase() !== 'pendente') {
                     dayElement.addEventListener('click', (e) => {
-                        // Impede o clique de ser processado pelo Flatpickr
                         e.preventDefault();
                         e.stopPropagation();
-
                         Swal.fire({
                             title: 'Atenção!',
                             text: `Esta data já foi processada e não pode ser desmarcada.`,
                             icon: 'warning',
                             confirmButtonText: 'OK'
                         });
-                    }, true); // O 'true' garante que este evento seja capturado primeiro
+                    }, true);
                 }
             }
         },
-
         onReady: (selectedDates, dateStr, instance) => {
-            // Garante que o texto seja formatado corretamente na carga inicial.
-            setTimeout(() => {
-                formatInputTextWithStatus(instance, datasMeiaDiaria);
-            }, 0);
+            setTimeout(() => formatInputTextWithStatus(instance, datasDobrada), 0);
         },
         onChange: (selectedDates, dateStr, instance) => {
-            // Lógica de verificação de duplicatas
             let duplicateDates = [];
-            if (selectedDates.length > 0) {
-                const datesMeiaDiaria = meiaDiariaPicker.selectedDates;
+            if (selectedDates.length > 0 && window.meiaDiariaPicker) {
+                const datesMeiaDiaria = window.meiaDiariaPicker.selectedDates;
                 for (let i = 0; i < selectedDates.length; i++) {
                     const dataSelecionada = flatpickr.formatDate(selectedDates[i], "Y-m-d");
-                    const dataExisteEmMeiaDiaria = datesMeiaDiaria.some(d => flatpickr.formatDate(d, "Y-m-d") === dataSelecionada);
-                    if (dataExisteEmMeiaDiaria) {
-                        duplicateDates.push(selectedDates[i]);
-                    }
+                    const existe = datesMeiaDiaria.some(d => flatpickr.formatDate(d, "Y-m-d") === dataSelecionada);
+                    if (existe) duplicateDates.push(selectedDates[i]);
                 }
             }
-            
             if (duplicateDates.length > 0) {
                 Swal.fire({
                     title: 'Atenção!',
@@ -133,43 +122,42 @@ function configurarFlatpickrs() {
                     icon: 'warning',
                     confirmButtonText: 'OK'
                 });
-                
-                const newSelectedDates = instance.selectedDates.filter(date =>
-                    !duplicateDates.some(dupDate => dupDate.getTime() === date.getTime())
+                const newSelected = instance.selectedDates.filter(date =>
+                    !duplicateDates.some(dup => dup.getTime() === date.getTime())
                 );
-                instance.setDate(newSelectedDates, false);
+                instance.setDate(newSelected, false);
                 return;
             }
-
-            // Se a validação passou, atualize a variável para o próximo ciclo
             instance._prevSelectedDates = [...selectedDates];
             formatInputTextWithStatus(instance, datasDobrada);
         },
-
         onClose: function(selectedDates, dateStr, instance) {
             setTimeout(() => {
                 formatInputTextWithStatus(instance, datasDobrada);
-                formatInputTextWithStatus(meiaDiariaPicker, datasMeiaDiaria);
-            }, 0); 
-            diariaDobradacheck.checked = instance.selectedDates.length > 0;
+                if (window.meiaDiariaPicker) {
+                    formatInputTextWithStatus(window.meiaDiariaPicker, datasMeiaDiaria);
+                }
+            }, 0);
+            if (typeof diariaDobradacheck !== "undefined" && diariaDobradacheck)
+                diariaDobradacheck.checked = instance.selectedDates.length > 0;
             updateDisabledDates();
             calcularValorTotal();
         },
     });
 
     // Inicialização da Meia Diária
-    meiaDiariaPicker = flatpickr("#meiaDiaria", {
+    window.meiaDiariaPicker = flatpickr(document.querySelector("#meiaDiaria"), {
         ...commonFlatpickrOptions,
         enable: [],
-        altInput: true, // Habilita o campo de entrada alternativo
-        altFormat: "d/m/Y", // Formato padrão para o altInput
+        altInput: true,
+        altFormat: "d/m/Y",
+        locale: currentLocale,
+        appendTo: document.body,
         onDayCreate: (dObj, dStr, fp, dayElement) => {
             const dataDia = flatpickr.formatDate(dayElement.dateObj, "Y-m-d");
             const statusData = datasMeiaDiaria.find(item => item.data === dataDia);
-            
             if (statusData) {
                 dayElement.classList.add(`status-${statusData.status.toLowerCase()}`);
-                
                 if (statusData.status.toLowerCase() !== 'pendente') {
                     dayElement.addEventListener('click', (e) => {
                         e.preventDefault();
@@ -185,25 +173,18 @@ function configurarFlatpickrs() {
             }
         },
         onReady: (selectedDates, dateStr, instance) => {
-            // Garante que o texto seja formatado corretamente na carga inicial.
-            setTimeout(() => {
-                formatInputTextWithStatus(instance, datasMeiaDiaria);
-            }, 0);
+            setTimeout(() => formatInputTextWithStatus(instance, datasMeiaDiaria), 0);
         },
         onChange: (selectedDates, dateStr, instance) => {
-            // Garante que o texto seja formatado corretamente após uma seleção.
-           let duplicateDates = [];
-            if (selectedDates.length > 0) {
-                const datesDiariaDobrada = diariaDobradaPicker.selectedDates;
+            let duplicateDates = [];
+            if (selectedDates.length > 0 && window.diariaDobradaPicker) {
+                const datesDiariaDobrada = window.diariaDobradaPicker.selectedDates;
                 for (let i = 0; i < selectedDates.length; i++) {
                     const dataSelecionada = flatpickr.formatDate(selectedDates[i], "Y-m-d");
-                    const dataExisteEmDiariaDobrada = datesDiariaDobrada.some(d => flatpickr.formatDate(d, "Y-m-d") === dataSelecionada);
-                    if (dataExisteEmDiariaDobrada) {
-                        duplicateDates.push(selectedDates[i]);
-                    }
+                    const existe = datesDiariaDobrada.some(d => flatpickr.formatDate(d, "Y-m-d") === dataSelecionada);
+                    if (existe) duplicateDates.push(selectedDates[i]);
                 }
             }
-            
             if (duplicateDates.length > 0) {
                 Swal.fire({
                     title: 'Atenção!',
@@ -211,120 +192,39 @@ function configurarFlatpickrs() {
                     icon: 'warning',
                     confirmButtonText: 'OK'
                 });
-                
-                const newSelectedDates = instance.selectedDates.filter(date =>
-                    !duplicateDates.some(dupDate => dupDate.getTime() === date.getTime())
+                const newSelected = instance.selectedDates.filter(date =>
+                    !duplicateDates.some(dup => dup.getTime() === date.getTime())
                 );
-                
-                instance.setDate(newSelectedDates, false);
+                instance.setDate(newSelected, false);
                 return;
             }
-
-            // --- Adicione também a lógica de prevenção de remoção para o Meia Diária ---
-            // Se a validação passou, atualize a variável para o próximo ciclo
-            const previouslySelectedDates = instance._prevSelectedDates || [];
-            const datesAttemptedToRemove = previouslySelectedDates.filter(prevDate => 
-                !selectedDates.some(newDate => prevDate.getTime() === newDate.getTime())
-            );
-
-            const unauthorizedRemovals = datesAttemptedToRemove.filter(removedDate =>
-                datasMeiaDiaria.some(d => 
-                    d.status.toLowerCase() !== 'pendente' && 
-                    flatpickr.formatDate(new Date(d.data), 'Y-m-d') === flatpickr.formatDate(removedDate, 'Y-m-d')
-                )
-            );
-
-            if (unauthorizedRemovals.length > 0) {
-                Swal.fire({
-                    title: 'Atenção!',
-                    text: `As seguintes datas já foram processadas e não podem ser desmarcadas: ${unauthorizedRemovals.map(d => flatpickr.formatDate(d, 'd/m/Y')).join(', ')}.`,
-                    icon: 'warning',
-                    confirmButtonText: 'OK'
-                });
-                
-                instance.setDate(previouslySelectedDates, false);
-                return;
-            }
-
-            // Se a validação passou, atualize a variável para o próximo ciclo
             instance._prevSelectedDates = [...selectedDates];
             formatInputTextWithStatus(instance, datasMeiaDiaria);
-
         },
         onClose: function(selectedDates, dateStr, instance) {
-            // Garante que o texto seja formatado corretamente após o fechamento do calendário.
             setTimeout(() => {
                 formatInputTextWithStatus(instance, datasMeiaDiaria);
-                // ADIÇÃO: Força a atualização do input do Diária Dobrada
-                formatInputTextWithStatus(diariaDobradaPicker, datasDobrada);
-            }, 0);
-
-            // CORREÇÃO: Itera sobre todas as datas selecionadas para verificar duplicação
-            let duplicateDates = [];
-            if (selectedDates.length > 0) {
-                const datesDiariaDobrada = diariaDobradaPicker.selectedDates;
-                for (let i = 0; i < selectedDates.length; i++) {
-                    const dataSelecionada = flatpickr.formatDate(selectedDates[i], "Y-m-d");
-                    const dataExisteEmDiariaDobrada = datesDiariaDobrada.some(d => flatpickr.formatDate(d, "Y-m-d") === dataSelecionada);
-                    if (dataExisteEmDiariaDobrada) {
-                        // Adiciona a data formatada à lista de duplicatas
-                       // duplicateDates.push(flatpickr.formatDate(selectedDates[i], "d/m/Y"));
-                       duplicateDates.push(selectedDates[i]);
-                    }
+                if (window.diariaDobradaPicker) {
+                    formatInputTextWithStatus(window.diariaDobradaPicker, datasDobrada);
                 }
-            }
-
-            if (duplicateDates.length > 0) {
-                Swal.fire({
-                    title: 'Atenção!',
-                    // Inclui as datas duplicadas na mensagem
-                    //text: `Uma ou mais datas selecionadas já estão em "Diária Dobrada": ${duplicateDates.join(', ')}. Por favor, desmarque-as antes de selecioná-las aqui.`,
-                    text: `Uma ou mais datas selecionadas já estão em "Diária Dobrada": ${duplicateDates.map(d => flatpickr.formatDate(d, 'd/m/Y')).join(', ')}. Não é possível selecioná-las aqui.`,
-                    icon: 'warning',
-                    confirmButtonText: 'OK'
-                });
-               // instance.clear();
-               const newSelectedDates = instance.selectedDates.filter(date =>
-                    !duplicateDates.some(dupDate => dupDate.getTime() === date.getTime())
-                );
-
-                // Atualiza o Flatpickr com as datas restantes, mantendo as que não eram duplicadas
-                instance.setDate(newSelectedDates, false);
-            }
-
-            meiaDiariacheck.checked = instance.selectedDates.length > 0;
+            }, 0);
+            if (typeof meiaDiariacheck !== "undefined" && meiaDiariacheck)
+                meiaDiariacheck.checked = instance.selectedDates.length > 0;
             updateDisabledDates();
             calcularValorTotal();
         },
     });
 
-    // Inicialização do Picker Principal (datasEvento)
-    datasEventoPicker = flatpickr("#datasEvento", {
+    // Inicialização do Picker Principal
+    window.datasEventoPicker = flatpickr(document.querySelector("#datasEvento"), {
         ...commonFlatpickrOptions,
         onDayCreate: (dObj, dStr, fp, dayElement) => {
             const dataDia = flatpickr.formatDate(dayElement.dateObj, "Y-m-d");
-            
-            // Verifica o status em ambas as listas de dados
-            const statusDataDobrada = datasDobrada.find(d => d.data === dataDia);
-            const statusDataMeiaDiaria = datasMeiaDiaria.find(d => d.data === dataDia);
+            const statusDobrada = datasDobrada.find(d => d.data === dataDia);
+            const statusMeia = datasMeiaDiaria.find(d => d.data === dataDia);
 
-            if (statusDataDobrada) {
-                const status = statusDataDobrada.status.toLowerCase();
-                dayElement.classList.add(`status-${status}`);
-                if (status !== 'pendente') {
-                    dayElement.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        Swal.fire({
-                            title: 'Atenção!',
-                            text: `Esta data já foi processada e não pode ser desmarcada.`,
-                            icon: 'warning',
-                            confirmButtonText: 'OK'
-                        });
-                    }, true);
-                }
-            } else if (statusDataMeiaDiaria) {
-                const status = statusDataMeiaDiaria.status.toLowerCase();
+            if (statusDobrada || statusMeia) {
+                const status = (statusDobrada || statusMeia).status.toLowerCase();
                 dayElement.classList.add(`status-${status}`);
                 if (status !== 'pendente') {
                     dayElement.addEventListener('click', (e) => {
@@ -341,68 +241,73 @@ function configurarFlatpickrs() {
             }
         },
         onChange: function(selectedDates, dateStr, instance) {
-            
-            const previouslySelectedDates = instance._prevSelectedDates || [];
-            const datesAttemptedToRemove = previouslySelectedDates.filter(prevDate => 
-                !selectedDates.some(newDate => prevDate.getTime() === newDate.getTime())
-            );
-
-            const unauthorizedRemovals = datesAttemptedToRemove.filter(removedDate => {
-                const dataDiaRemovida = flatpickr.formatDate(removedDate, 'Y-m-d');
-                const statusDobrada = datasDobrada.find(d => d.data === dataDiaRemovida);
-                const statusMeiaDiaria = datasMeiaDiaria.find(d => d.data === dataDiaRemovida);
-                
-                return (statusDobrada && statusDobrada.status.toLowerCase() !== 'pendente') ||
-                    (statusMeiaDiaria && statusMeiaDiaria.status.toLowerCase() !== 'pendente');
+            const prev = instance._prevSelectedDates || [];
+            const removed = prev.filter(p => !selectedDates.some(n => p.getTime() === n.getTime()));
+            const bloqueadas = removed.filter(d => {
+                const dataDia = flatpickr.formatDate(d, 'Y-m-d');
+                const statusD = datasDobrada.find(x => x.data === dataDia);
+                const statusM = datasMeiaDiaria.find(x => x.data === dataDia);
+                return (statusD && statusD.status.toLowerCase() !== 'pendente') ||
+                       (statusM && statusM.status.toLowerCase() !== 'pendente');
             });
-
-            if (unauthorizedRemovals.length > 0) {
+            if (bloqueadas.length > 0) {
                 Swal.fire({
                     title: 'Atenção!',
-                    text: `As seguintes datas já foram processadas e não podem ser desmarcadas: ${unauthorizedRemovals.map(d => flatpickr.formatDate(d, 'd/m/Y')).join(', ')}.`,
+                    text: `As seguintes datas já foram processadas e não podem ser desmarcadas: ${bloqueadas.map(d => flatpickr.formatDate(d, 'd/m/Y')).join(', ')}.`,
                     icon: 'warning',
                     confirmButtonText: 'OK'
                 });
-                
-                // Restaura a seleção anterior e impede a remoção
-                instance.setDate(previouslySelectedDates, false);
+                instance.setDate(prev, false);
                 return;
             }
-            
-            // Se a validação passou, atualiza a variável para o próximo ciclo
             instance._prevSelectedDates = [...selectedDates];
-            
-            // --- Sua lógica existente ---
             datasEventoSelecionadas = selectedDates;
+
             const contador = document.getElementById('contadorDatas');
             if (contador) {
                 contador.innerText = selectedDates.length === 0
                     ? 'Nenhuma data selecionada'
                     : `${selectedDates.length} ${selectedDates.length === 1 ? 'Diária Selecionada' : 'Diárias'}`;
             }
-            
-            // ... restante da sua lógica de setDate para os outros pickers ...
-            diariaDobradaPicker.set('enable', datasEventoSelecionadas);
-            meiaDiariaPicker.set('enable', datasEventoSelecionadas);
-            diariaDobradaPicker.setDate(
-                diariaDobradaPicker.selectedDates.filter(date => datasEventoSelecionadas.some(d => d.getTime() === date.getTime())),
-                false
-            );
-            meiaDiariaPicker.setDate(
-                meiaDiariaPicker.selectedDates.filter(date => datasEventoSelecionadas.some(d => d.getTime() === date.getTime())),
-                false
-            );
+
+            if (window.diariaDobradaPicker && typeof window.diariaDobradaPicker.set === "function") {
+                window.diariaDobradaPicker.set('enable', datasEventoSelecionadas);
+                window.diariaDobradaPicker.setDate(
+                    window.diariaDobradaPicker.selectedDates.filter(d =>
+                        datasEventoSelecionadas.some(sel => sel.getTime() === d.getTime())
+                    ), false
+                );
+            }
+            if (window.meiaDiariaPicker && typeof window.meiaDiariaPicker.set === "function") {
+                window.meiaDiariaPicker.set('enable', datasEventoSelecionadas);
+                window.meiaDiariaPicker.setDate(
+                    window.meiaDiariaPicker.selectedDates.filter(d =>
+                        datasEventoSelecionadas.some(sel => sel.getTime() === d.getTime())
+                    ), false
+                );
+            }
         },
         onClose: selectedDates => {
             if (selectedDates.length > 0) debouncedOnCriteriosChanged();
-            //updateDisabledDates();
-
-            console.log("Datas selecionadas:", selectedDates);
             calcularValorTotal();
-        }        
-    });   
-}
+        }
+    });
 
+    // 🔒 Garantir que nunca fiquem como array
+    if (Array.isArray(window.datasEventoPicker)) window.datasEventoPicker = window.datasEventoPicker[0];
+    if (Array.isArray(window.diariaDobradaPicker)) window.diariaDobradaPicker = window.diariaDobradaPicker[0];
+    if (Array.isArray(window.meiaDiariaPicker)) window.meiaDiariaPicker = window.meiaDiariaPicker[0];
+
+    // Fallback: pegar instância do próprio input
+    window.datasEventoPicker = window.datasEventoPicker || document.querySelector('#datasEvento')._flatpickr;
+    window.diariaDobradaPicker = window.diariaDobradaPicker || document.querySelector('#diariaDobrada')._flatpickr;
+    window.meiaDiariaPicker = window.meiaDiariaPicker || document.querySelector('#meiaDiaria')._flatpickr;
+
+    // Variáveis locais também
+    datasEventoPicker = window.datasEventoPicker;
+    diariaDobradaPicker = window.diariaDobradaPicker;
+    meiaDiariaPicker = window.meiaDiariaPicker;
+}
 
 const atualizarContadorEDatas = (selectedDates) => {
     const contador = document.getElementById('contadorDatas');
@@ -712,14 +617,22 @@ const carregarDadosParaEditar = (eventData) => {
     currentEditingStaffEvent = eventData;
     isFormLoadedFromDoubleClick = true;
 
-    // Carregando dados básicos nos inputs do formulário.
+    // --- PONTO IMPORTANTE: Oculta upload para não aparecer embaixo da foto ---
+    const uploadHeaderDiv = document.getElementById('uploadHeader');
+    const uploadContainer = document.querySelector("#upload-container");
+    const fileInput = document.getElementById('file');
+
+    if (uploadHeaderDiv) uploadHeaderDiv.style.display = 'none';
+    if (uploadContainer) uploadContainer.style.display = 'none';
+    if (fileInput) fileInput.disabled = true;
+
+    // --- Carregando dados básicos nos inputs do formulário ---
     idStaffInput.value = eventData.idstaff || '';
     idStaffEventoInput.value = eventData.idstaffevento;
     idFuncaoInput.value = eventData.idfuncao;
     idClienteInput.value = eventData.idcliente;
     idEventoInput.value = eventData.idevento;
     idFuncionarioHiddenInput.value = eventData.idfuncionario || '';   
-
 
     if (containerDiariaDobradaCheck) {
         containerDiariaDobradaCheck.style.display = 'block';
@@ -734,7 +647,7 @@ const carregarDadosParaEditar = (eventData) => {
     if (nmClienteSelect) nmClienteSelect.value = eventData.idcliente || '';
     if (nmEventoSelect) nmEventoSelect.value = eventData.idevento || '';
 
-    // Lógica para preencher Local de Montagem e Pavilhão.
+    // Local de Montagem e Pavilhão
     if (nmLocalMontagemSelect) {
         nmLocalMontagemSelect.value = eventData.idmontagem || '';
         nmLocalMontagemSelect.dispatchEvent(new Event('change'));
@@ -768,7 +681,7 @@ const carregarDadosParaEditar = (eventData) => {
         }
     }
 
-    // Preenchendo campos financeiros e de custo.
+    // Campos financeiros
     vlrCustoInput.value = parseFloat(eventData.vlrcache || 0).toFixed(2).replace('.', ',');
     transporteInput.value = parseFloat(eventData.vlrtransporte || 0).toFixed(2).replace('.', ',');
     almocoInput.value = parseFloat(eventData.vlralmoco || 0).toFixed(2).replace('.', ',');
@@ -789,13 +702,9 @@ const carregarDadosParaEditar = (eventData) => {
     setorInput.value = eventData.setor.toUpperCase() || '';
     statusPagtoInput.value = eventData.statuspgto.toUpperCase() || '';
 
-
-    // Lógica para checkboxes de Bônus e Caixinha
+    // Checkboxes de Bônus e Caixinha
     if (ajusteCustocheck) {
         ajusteCustocheck.checked = parseFloat(eventData.vlrajustecusto || 0);
-
-        console.log("AJUSTE DE CUSTO", ajusteCustocheck, eventData.vlrajustecusto);
-
         campoAjusteCusto.style.display = ajusteCustocheck.checked ? 'block' : 'none';
         campoStatusajusteCusto.style.display = ajusteCustocheck.checked ? 'block' : 'none';
         ajusteCustoTextarea.style.display = ajusteCustocheck.checked ? 'block' : 'none';
@@ -811,7 +720,7 @@ const carregarDadosParaEditar = (eventData) => {
         descCaixinhaTextarea.value = eventData.desccaixinha || '';
     }
 
-    // Lógica para Comprovantes 50% e 100%
+    // Comprovantes 50% e 100%
     if (temPermissaoTotal) {
         const comp50Preenchido = eventData.comppgtoajdcusto50 && eventData.comppgtoajdcusto50.length > 0;
         const comp100Preenchido = eventData.comppgtoajdcusto && eventData.comppgtoajdcusto.length > 0;
@@ -836,10 +745,12 @@ const carregarDadosParaEditar = (eventData) => {
     preencherComprovanteCampo(eventData.comppgtoajdcusto50, 'AjdCusto2');
     preencherComprovanteCampo(eventData.comppgtocaixinha, 'Caixinha');
 
-    // --- PONTO CHAVE: Chama a nova função para lidar com os Flatpickrs ---
+    // Flatpickrs e contador de datas
     inicializarEPreencherCampos(eventData);
     atualizarContadorDatas();
+
 };
+
 
 
 /**
@@ -851,102 +762,83 @@ const carregarDadosParaEditar = (eventData) => {
 function inicializarEPreencherCampos(eventData) {
     console.log("Inicializando Flatpickrs com dados de evento...");
 
-    // **PASSO 1: DESTRUIR INSTÂNCIAS ANTERIORES**
-    // Isso evita que eventos e configurações dupliquem ao recarregar o formulário.
-    if (diariaDobradaPicker) diariaDobradaPicker.destroy();
-    if (meiaDiariaPicker) meiaDiariaPicker.destroy();
-    if (datasEventoPicker) datasEventoPicker.destroy();
+    // PASSO 1: DESTRUIR INSTÂNCIAS ANTERIORES
+    if (diariaDobradaPicker && typeof diariaDobradaPicker.destroy === "function") diariaDobradaPicker.destroy();
+    if (meiaDiariaPicker && typeof meiaDiariaPicker.destroy === "function") meiaDiariaPicker.destroy();
+    if (datasEventoPicker && typeof datasEventoPicker.destroy === "function") datasEventoPicker.destroy();
 
     configurarFlatpickrs();
 
-     // Pega as datas e status dos dados do evento
-     datasDobrada = parseDatesWithStatus(eventData.dtdiariadobrada);
-     datasMeiaDiaria = parseDatesWithStatus(eventData.dtmeiadiaria);
+    // Atualiza as variáveis locais com as instâncias globais
+    datasEventoPicker = window.datasEventoPicker;
+    diariaDobradaPicker = window.diariaDobradaPicker;
+    meiaDiariaPicker = window.meiaDiariaPicker;
 
-     // **PASSO 3: INICIALIZAR AS NOVAS INSTÂNCIAS COM AS CONFIGURAÇÕES CORRETAS**
-
-    
-
-    // **PASSO 4: PREENCHER AS NOVAS INSTÂNCIAS COM OS DADOS CARREGADOS E PREENCHER O ALTINPUT**
+    // PASSO 4: Preencher as novas instâncias com os dados carregados
     const datesEvento = getDatesForFlatpickr(eventData.datasevento);
     const datesDiariaDobrada = getDatesForFlatpickr(datasDobrada);
     const datesMeiaDiaria = getDatesForFlatpickr(datasMeiaDiaria);
 
-    datasEventoPicker.setDate(datesEvento, false);
-    diariaDobradaPicker.set('enable', datesEvento);
-    meiaDiariaPicker.set('enable', datesEvento);
-
-    diariaDobradaPicker.setDate(datesDiariaDobrada, true);//estava false
-    formatInputTextWithStatus(diariaDobradaPicker, datasDobrada);
-
-    meiaDiariaPicker.setDate(datesMeiaDiaria, true);//estava false
-    formatInputTextWithStatus(meiaDiariaPicker, datasMeiaDiaria);
-
-    
-    // Adicione um setTimeout para garantir que a formatação do input seja feita após a renderização
-    setTimeout(() => {
+    if (datasEventoPicker && typeof datasEventoPicker.setDate === "function") {
+        // Mude o segundo parâmetro para 'true' para disparar o evento onChange
+        datasEventoPicker.setDate(datesEvento, true); 
+    }
+    if (diariaDobradaPicker && typeof diariaDobradaPicker.set === "function") {
+        diariaDobradaPicker.set('enable', datesEvento);
+        diariaDobradaPicker.setDate(datesDiariaDobrada, true);
         formatInputTextWithStatus(diariaDobradaPicker, datasDobrada);
+    }
+    if (meiaDiariaPicker && typeof meiaDiariaPicker.set === "function") {
+        meiaDiariaPicker.set('enable', datesEvento);
+        meiaDiariaPicker.setDate(datesMeiaDiaria, true);
         formatInputTextWithStatus(meiaDiariaPicker, datasMeiaDiaria);
+    }
+
+    setTimeout(() => {
+        if (diariaDobradaPicker) formatInputTextWithStatus(diariaDobradaPicker, datasDobrada);
+        if (meiaDiariaPicker) formatInputTextWithStatus(meiaDiariaPicker, datasMeiaDiaria);
     }, 0);
 
-    // **PASSO 6: LÓGICA DO CHECKBOX**
-    // Evento de alteração do checkbox de Diária Dobrada
+    // PASSO 6: Lógica dos checkboxes
     diariaDobradacheck.addEventListener('change', (e) => {
         if (e.target.checked) {
-            // Se o usuário MARCOU o checkbox, exibe o campo
             campoDiariaDobrada.style.display = 'block';
             campoStatusDiariaDobrada.style.display = 'block';
             containerStatusDiariaDobrada.style.display = 'block';
         } else {
-            // Se o usuário DESMARCOU o checkbox, oculta o campo e limpa o Flatpickr
             campoDiariaDobrada.style.display = 'none';
             campoStatusDiariaDobrada.style.display = 'none';
             containerStatusDiariaDobrada.style.display = 'none';
-            diariaDobradaPicker.clear();
+            if (diariaDobradaPicker && typeof diariaDobradaPicker.clear === "function") diariaDobradaPicker.clear();
         }
-
-        // ADIÇÃO: Força a atualização do input do outro campo após a alteração do checkbox
         setTimeout(() => {
-          formatInputTextWithStatus(meiaDiariaPicker, datasMeiaDiaria);
+            if (meiaDiariaPicker) formatInputTextWithStatus(meiaDiariaPicker, datasMeiaDiaria);
         }, 0);
-
-        // A lógica de desabilitar/habilitar datas no outro picker
-        // e o cálculo do total são chamados independentemente
-        // do estado do checkbox.
         updateDisabledDates();
         calcularValorTotal();
     });
 
-    // Evento de alteração do checkbox de Meia Diária
     meiaDiariacheck.addEventListener('change', (e) => {
         if (e.target.checked) {
-            // Se o usuário MARCOU o checkbox, exibe o campo
             campoMeiaDiaria.style.display = 'block';
             campoStatusMeiaDiaria.style.display = 'block';
             containerStatusMeiaDiaria.style.display = 'block';
         } else {
-            // Se o usuário DESMARCOU o checkbox, oculta o campo e limpa o Flatpickr
             campoMeiaDiaria.style.display = 'none';
             campoStatusMeiaDiaria.style.display = 'none';
             containerStatusMeiaDiaria.style.display = 'none';
-            meiaDiariaPicker.clear();
+            if (meiaDiariaPicker && typeof meiaDiariaPicker.clear === "function") meiaDiariaPicker.clear();
         }
-
-        // ADIÇÃO: Força a atualização do input do outro campo após a alteração do checkbox
         setTimeout(() => {
-          formatInputTextWithStatus(diariaDobradaPicker, datasDobrada);
+            if (diariaDobradaPicker) formatInputTextWithStatus(diariaDobradaPicker, datasDobrada);
         }, 0);
-
-        // A lógica de desabilitar/habilitar datas no outro picker
-        // e o cálculo do total são chamados independentemente
-        // do estado do checkbox.
         updateDisabledDates();
         calcularValorTotal();
     });
 
-    // ... (restante do seu código para checkboxes e status) ...
-    descDiariaDobradaTextarea.value = eventData.descdiariadobrada || '';
-    descMeiaDiariaTextarea.value = eventData.descmeiadiaria || '';
+    // Preenche descrições
+    if (descDiariaDobradaTextarea) descDiariaDobradaTextarea.value = eventData.descdiariadobrada || '';
+    if (descMeiaDiariaTextarea) descMeiaDiariaTextarea.value = eventData.descmeiadiaria || '';
 
     diariaDobradacheck.checked = datesDiariaDobrada.length > 0;
     campoDiariaDobrada.style.display = diariaDobradacheck.checked ? 'block' : 'none';
@@ -957,70 +849,11 @@ function inicializarEPreencherCampos(eventData) {
     campoMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
     campoStatusMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
     containerStatusMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
-    
 
-    // if (temPermissaoTotal) {        
-    //     document.getElementById('selectStatusAjusteCusto').style.display = 'block';
-    //     statusAjusteCustoInput.style.display = 'none';
-    //     document.getElementById('selectStatusAjusteCusto').value = eventData.statusajustecusto || 'Pendente';
-    //     aplicarCoresAsOpcoes('selectStatusAjusteCusto');
-    //     aplicarCorNoSelect(document.getElementById('selectStatusAjusteCusto'));
-
-    //     document.getElementById('selectStatusCaixinha').style.display = 'block';
-    //     statusCaixinhaInput.style.display = 'none';
-    //     document.getElementById('selectStatusCaixinha').value = eventData.statuscaixinha || 'Pendente';
-    //     aplicarCoresAsOpcoes('selectStatusCaixinha');
-    //     aplicarCorNoSelect(document.getElementById('selectStatusCaixinha'));
-
-    //     // NOVO: Oculta os campos de status único e exibe os novos contêineres
-    //     document.getElementById('selectStatusDiariaDobrada').style.display = 'none';
-    //     statusDiariaDobradaInput.style.display = 'none';
-    //     campoStatusDiariaDobrada.style.display = 'none'; // Oculta o div pai do status único
-    //     if (containerStatusDiariaDobrada) containerStatusDiariaDobrada.style.display = 'block';
-
-    //     document.getElementById('selectStatusMeiaDiaria').style.display = 'none';
-    //     statusMeiaDiariaInput.style.display = 'none';
-    //     campoStatusMeiaDiaria.style.display = 'none'; // Oculta o div pai do status único
-    //     if (containerStatusMeiaDiaria) containerStatusMeiaDiaria.style.display = 'block';
-
-    //     // NOVO: Chama a função de renderização para popular os novos contêineres
-    //     renderDatesWithStatus(datasDobrada, 'containerStatusDiariaDobrada', 'dobrada');
-    //     renderDatesWithStatus(datasMeiaDiaria, 'containerStatusMeiaDiaria', 'meia');
-
-    // } else {
-    //     // MODIFICADO: Lógica para usuários SEM permissão
-    //     document.getElementById('selectStatusAjusteCusto').style.display = 'none';
-    //     statusAjusteCustoInput.style.display = 'block';
-    //     statusAjusteCustoInput.value = eventData.statusAjusteCusto || 'Pendente';
-    //     aplicarCorStatusInput(statusAjusteCustoInput);
-
-    //     document.getElementById('selectStatusCaixinha').style.display = 'none';
-    //     statusCaixinhaInput.style.display = 'block';
-    //     statusCaixinhaInput.value = eventData.statuscaixinha || 'Pendente';
-    //     aplicarCorStatusInput(statusCaixinhaInput);
-
-    //     // MODIFICADO: Exibe os campos de status único
-    //     document.getElementById('selectStatusDiariaDobrada').style.display = 'none';
-    //     statusDiariaDobradaInput.style.display = 'block';
-    //     statusDiariaDobradaInput.value = eventData.statusdiariadobrada || 'Pendente';
-    //     aplicarCorStatusInput(statusDiariaDobradaInput);
-
-    //     document.getElementById('selectStatusMeiaDiaria').style.display = 'none';
-    //     statusMeiaDiariaInput.style.display = 'block';
-    //     statusMeiaDiariaInput.value = eventData.statusmeiadiaria || 'Pendente';
-    //     aplicarCorStatusInput(statusMeiaDiariaInput);
-
-    //     // NOVO: Oculta os novos contêineres para usuários sem permissão
-    //     if (containerStatusDiariaDobrada) containerStatusDiariaDobrada.style.display = 'none';
-    //     if (containerStatusMeiaDiaria) containerStatusMeiaDiaria.style.display = 'none';
-    // }
-
-    if (temPermissaoTotal) {        
-        // Exibe os grupos (label + container)
+    if (temPermissaoTotal) {
         document.getElementById('grupoDiariaDobrada').style.display = 'block';
         document.getElementById('grupoMeiaDiaria').style.display = 'block';
 
-        // Oculta selects e inputs antigos
         document.getElementById('selectStatusDiariaDobrada').style.display = 'none';
         statusDiariaDobradaInput.style.display = 'none';
         campoStatusDiariaDobrada.style.display = 'none';
@@ -1029,16 +862,12 @@ function inicializarEPreencherCampos(eventData) {
         statusMeiaDiariaInput.style.display = 'none';
         campoStatusMeiaDiaria.style.display = 'none';
 
-        // Renderiza os novos containers
         renderDatesWithStatus(datasDobrada, 'containerStatusDiariaDobrada', 'dobrada');
         renderDatesWithStatus(datasMeiaDiaria, 'containerStatusMeiaDiaria', 'meia');
-
     } else {
-        // Esconde os grupos (label + container)
         document.getElementById('grupoDiariaDobrada').style.display = 'none';
         document.getElementById('grupoMeiaDiaria').style.display = 'none';
 
-        // Mostra os inputs antigos
         document.getElementById('selectStatusDiariaDobrada').style.display = 'none';
         statusDiariaDobradaInput.style.display = 'block';
         statusDiariaDobradaInput.value = eventData.statusdiariadobrada || 'Pendente';
@@ -1069,19 +898,28 @@ function atualizarContadorDatas() {
     // Chama o cálculo logo após a atualização.
     // Isso é o que elimina a necessidade do MutationObserver
     calcularValorTotal();
+    
 }
 
 function updateDisabledDates() {
-    const datesDobrada = diariaDobradaPicker.selectedDates;
-    const datesMeiaDiaria = meiaDiariaPicker.selectedDates;
+    if (!diariaDobradaPicker || !meiaDiariaPicker) {
+        console.warn("Pickers não inicializados corretamente");
+        return;
+    }
+
+    if (typeof diariaDobradaPicker.set !== "function" || typeof meiaDiariaPicker.set !== "function") {
+        console.error("Um dos pickers não é instância do Flatpickr:", diariaDobradaPicker, meiaDiariaPicker);
+        return;
+    }
+
+    const datesDobrada = diariaDobradaPicker.selectedDates || [];
+    const datesMeiaDiaria = meiaDiariaPicker.selectedDates || [];
 
     console.log("DATAS SELECIONADAS", datesDobrada, datesMeiaDiaria);
 
-    // Use o método formatDate do Flatpickr para garantir o formato correto
     const datesDobradaStrings = datesDobrada.map(d => flatpickr.formatDate(d, "Y-m-d"));
     const datesMeiaDiariaStrings = datesMeiaDiaria.map(d => flatpickr.formatDate(d, "Y-m-d"));
 
-    // Desabilita as datas já selecionadas no outro picker
     meiaDiariaPicker.set('disable', datesDobradaStrings);
     diariaDobradaPicker.set('disable', datesMeiaDiariaStrings);
 }
@@ -2192,6 +2030,8 @@ async function verificaStaff() {
             formData.append('descmeiadiaria', descMeiaDiariaTextarea.value.trim());
             formData.append('desccaixinha', descCaixinhaTextarea.value.trim());
 
+
+
             let dadosDiariaDobrada = [];
             if (periodoDobrado && periodoDobrado.length > 0) {
                 dadosDiariaDobrada = periodoDobrado.map(data => {
@@ -2304,7 +2144,7 @@ async function verificaStaff() {
 
             if (houveAlteracaoDiariaDobrada && diariaDobradaAtual) {
                 const descDiariaDobradaInput = document.getElementById("descDiariaDobrada");
-                const descDiariaDobrada = descDiariaDobradaInput.value.trim();
+                const descDiariaDobrada = descDiariaDobradaInput ? descDiariaDobradaInput.value.trim() : "";
 
                 if (!descDiariaDobrada || descDiariaDobrada.length < 15) {
                     if (descDiariaDobradaInput) {
@@ -2321,7 +2161,7 @@ async function verificaStaff() {
 
             if (houveAlteracaoMeiaDiaria && meiaDiariaAtual) {
                 const descMeiaDiariaInput = document.getElementById("descMeiaDiaria");
-                const descMeiaDiaria = descMeiaDiariaInput.value.trim();
+                const descMeiaDiaria = descMeiaDiariaInput ? descMeiaDiariaInput.value.trim() : "";
 
                 if (!descMeiaDiaria || descMeiaDiaria.length < 15) {
                     if (descMeiaDiariaInput) {
@@ -3112,41 +2952,40 @@ async function carregarFuncionarioStaff() {
                 const fileInput = document.getElementById('file'); // Referência ao input type="file"
 
                 // --- Lógica para exibir a foto ---
-                if (previewFotoImg) {
-                    console.log("Preview",nomeFuncionarioInput );
-                    if (fotoPathFromData) {
+if (previewFotoImg) {
+    console.log("Preview", nomeFuncionarioInput);
 
-                        previewFotoImg.src = `/${fotoPathFromData}`;
-                        previewFotoImg.alt = `Foto de ${nomeFuncionarioInput || 'funcionário'}`; // Alt text para acessibilidade
-                        previewFotoImg.style.display = 'block'; // Mostra a imagem
+    if (fotoPathFromData) {
+        // Mostra a foto
+        previewFotoImg.src = `/${fotoPathFromData}`;
+        previewFotoImg.alt = `Foto de ${nomeFuncionarioInput.value || 'funcionário'}`;
+        previewFotoImg.style.display = 'block';
 
-                        if (fileInput) {
-                            fileInput.value = '';
-                        }
+        if (fileInput) fileInput.disabled = true;
+        if (uploadHeaderDiv) uploadHeaderDiv.style.display = 'none';
+        if (fileNameSpan) fileNameSpan.textContent = fotoPathFromData.split('/').pop() || 'Foto carregada';
+        const fileLabel = document.querySelector("label[for='file']");
+        if (fileLabel) fileLabel.style.display = "none";
+        const uploadContainer = document.querySelector("#upload-container");
+        if (uploadContainer) uploadContainer.style.display = "none";
 
-                        if (uploadHeaderDiv) {
-                            uploadHeaderDiv.style.display = 'none'; // Esconde o cabeçalho de upload
-                        }
-                        if (fileNameSpan) {
-                            // Pega o nome do arquivo da URL (última parte após a última barra)
-                            const fileName = fotoPathFromData.split('/').pop();
-                            fileNameSpan.textContent = fileName || 'Foto carregada';
-                        }
-                    } else {
-                        // Se não há foto (fotoPathFromData é nulo ou vazio), reseta e esconde os elementos
-                        previewFotoImg.src = '#'; // Reseta o src
-                        previewFotoImg.alt = 'Sem foto';
-                        previewFotoImg.style.display = 'none'; // Esconde a imagem
+    } else {
+        // Não tem foto → oculta tudo
+        previewFotoImg.src = '#';
+        previewFotoImg.alt = 'Sem foto';
+        previewFotoImg.style.display = 'none';
 
-                        if (uploadHeaderDiv) {
-                            uploadHeaderDiv.style.display = 'block'; // Mostra o cabeçalho de upload
-                        }
-                        if (fileNameSpan) {
-                            fileNameSpan.textContent = 'Nenhum arquivo selecionado';
-                        }
-                    }
-                }
-                carregarTabelaStaff(idFuncionarioSelecionado);
+        if (fileInput) fileInput.disabled = false;
+        if (uploadHeaderDiv) uploadHeaderDiv.style.display = 'none';
+        if (fileNameSpan) fileNameSpan.textContent = '';
+        const fileLabel = document.querySelector("label[for='file']");
+        if (fileLabel) fileLabel.style.display = "none ";
+        const uploadContainer = document.querySelector("#upload-container");
+        if (uploadContainer) uploadContainer.style.display = "none";
+    }
+}
+
+carregarTabelaStaff(idFuncionarioSelecionado);
 
             });
 
@@ -3408,17 +3247,29 @@ function limparCamposEvento() {
     document.getElementById('ajusteCusto').value = '';
     document.getElementById('descBeneficio').value = '';
 
-    document.getElementById('statusCaixinha').value = 'Autorização da Caixinha';
+    const statusCaixinhaEl = document.getElementById('statusCaixinha');
+    if (statusCaixinhaEl) statusCaixinhaEl.value = 'Autorização da Caixinha';
 
-    document.getElementById('statusAjusteCusto').value = 'Autorização do Ajuste de Custo';
+    const statusAjusteCustoEl = document.getElementById('statusAjusteCusto');
+    if (statusAjusteCustoEl) statusAjusteCustoEl.value = 'Autorização do Ajuste de Custo';
 
-    document.getElementById('statusDiariaDobrada').value = 'Autorização da Diária Dobrada';
-    document.getElementById('descDiariaDobrada').value = '';
-    document.getElementById('campoStatusDiariaDobrada').style.display = 'none';
+    const statusDiariaDobradaEl = document.getElementById('statusDiariaDobrada');
+    if (statusDiariaDobradaEl) statusDiariaDobradaEl.value = 'Autorização da Diária Dobrada';
 
-    document.getElementById('statusMeiaDiaria').value = 'Autorização da Meia Diária';
-    document.getElementById('descMeiaDiaria').value = '';
-    document.getElementById('campoStatusMeiaDiaria').style.display = 'none';
+    const descDiariaDobradaEl = document.getElementById('descDiariaDobrada');
+    if (descDiariaDobradaEl) descDiariaDobradaEl.value = '';
+    
+    const campoStatusDiariaDobradaEl = document.getElementById('campoStatusDiariaDobrada');
+    if (campoStatusDiariaDobradaEl) campoStatusDiariaDobradaEl.style.display = 'none';
+
+    const statusMeiaDiariaEl = document.getElementById('statusMeiaDiaria');
+    if (statusMeiaDiariaEl) statusMeiaDiariaEl.value = 'Autorização da Meia Diária';
+
+    const descMeiaDiariaEl = document.getElementById('descMeiaDiaria');
+    if (descMeiaDiariaEl) descMeiaDiariaEl.value = '';
+
+    const campoStatusMeiaDiariaEl = document.getElementById('campoStatusMeiaDiaria');
+    if (campoStatusMeiaDiariaEl) campoStatusMeiaDiariaEl.style.display = 'none';
 
     // Garanta que os containers opcionais sejam ocultados
     document.getElementById('campoAjusteCusto').style.display = 'none';
@@ -3772,7 +3623,13 @@ document.getElementById('ajusteCusto').addEventListener('change', function () {
 
 document.getElementById('caixinha').addEventListener('change', function () {
 
-    const valorCaixinha = document.getElementById('caixinha').value;
+    const valorCaixinha = document.getElementById('caixinha');
+        if(caixinhaInput){
+            const valorCaixinha = caixinhaInput.value;
+            console.log("VALOR DO caixinhaInput", valorCaixinha);
+        }else{
+            console.warn("caixinhaInput não encontrado");
+        }
 
     console.log("VALOR DA CAIXINHA", valorCaixinha);
 

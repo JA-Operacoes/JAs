@@ -128,7 +128,7 @@ main#conteudo {
   font-size: 16px;
 }
 
-.orc-body, .evt-body, .ativ-body,.fin-body span {
+.evt-body span , .ativ-body span,.fin-body span, .orc-body span {
   display: flex;
   justify-content: space-between; /* label de um lado e número do outro */
   font-weight: 500;
@@ -187,38 +187,7 @@ main#conteudo {
 }
 
 /* -------------------- Tabela de Atividades -------------------- */
-h2 {
-    font-size: 20px;
-    font-weight: 600;
-    margin-bottom: 10px;
-    color: #222;
-}
 
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 30px;
-    background-color: #fff;
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.05);
-}
-
-table thead {
-    background-color: #007BFF;
-    color: #fff;
-}
-
-table th, table td {
-    padding: 12px 15px;
-    text-align: left;
-    font-size: 14px;
-    border-bottom: 1px solid #ddd;
-}
-
-table tr:hover {
-    background-color: #f1f1f1;
-}
 
 /* -------------------- Notificações Financeiras -------------------- */
 .notificacoes {

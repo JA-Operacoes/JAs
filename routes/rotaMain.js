@@ -16,29 +16,29 @@ router.get('/', async (req, res) => {
       'SELECT COUNT(*)::int AS total FROM orcamentoempresas WHERE idempresa = $1',
       [idempresa]
     );
-    const { rows: eventos } = await pool.query(
-      'SELECT COUNT(*)::int AS total FROM eventos WHERE idempresa = $1',
-      [idempresa]
-    );
-    const { rows: clientes } = await pool.query(
-      'SELECT COUNT(*)::int AS total FROM clientes WHERE idempresa = $1',
-      [idempresa]
-    );
-    const { rows: pedidos } = await pool.query(
-      'SELECT COUNT(*)::int AS total FROM pedidos WHERE idempresa = $1',
-      [idempresa]
-    );
-    const { rows: pedidosPendentes } = await pool.query(
-      "SELECT COUNT(*)::int AS total FROM pedidos WHERE idempresa = $1 AND status = 'pendente'",
-      [idempresa]
-    );
+    // const { rows: eventos } = await pool.query(
+    //   'SELECT COUNT(*)::int AS total FROM eventos WHERE idempresa = $1',
+    //   [idempresa]
+    // );
+    // const { rows: clientes } = await pool.query(
+    //   'SELECT COUNT(*)::int AS total FROM clientes WHERE idempresa = $1',
+    //   [idempresa]
+    // );
+    // const { rows: pedidos } = await pool.query(
+    //   'SELECT COUNT(*)::int AS total FROM pedidos WHERE idempresa = $1',
+    //   [idempresa]
+    // );
+    // const { rows: pedidosPendentes } = await pool.query(
+    //   "SELECT COUNT(*)::int AS total FROM pedidos WHERE idempresa = $1 AND status = 'pendente'",
+    //   [idempresa]
+    // );
 
     res.json({
       orcamentos: orcamentos[0].total,
-      eventos: eventos[0].total,
-      clientes: clientes[0].total,
-      pedidos: pedidos[0].total,
-      pedidosPendentes: pedidosPendentes[0].total
+      // eventos: eventos[0].total,
+      // clientes: clientes[0].total,
+      // pedidos: pedidos[0].total,
+      // pedidosPendentes: pedidosPendentes[0].total
     });
   } catch (err) {
     console.error('Erro ao buscar resumo:', err);

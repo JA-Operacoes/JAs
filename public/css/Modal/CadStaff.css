@@ -78,12 +78,12 @@ body{
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-top: 500px;
+  /* margin-top: 500px; */
 }
 
 #form-content {
   font-family: "Abel", sans-serif;
-  display: flex;                /* Define o modelo de layout Flexbox */
+  display: block;                /* Define o modelo de layout Flexbox */
   flex-direction: column; 
   justify-content: center;
   background-color: rgb(0, 0, 0);
@@ -180,6 +180,7 @@ justify-content: center;
 
 #eventsDataTable tbody tr.selected-row {
     background-color: var(--primary-color); /* Cor de fundo para a linha selecionada */
+    color: var(--font-color);
     transition: background-color 0.3s ease; /* Suaviza a transição de cor */
 }
 
@@ -190,7 +191,7 @@ justify-content: center;
 
 .container {
   height: auto;                  /* Remova altura fixa */
-  width: 140px;
+  width: 220px;
   border-radius: 10px;
   box-shadow: 4px 4px 30px rgba(0, 0, 0, .2);
   display: flex;
@@ -427,8 +428,6 @@ border: 1px solid #dc3545;
  justify-content: center;
  align-items: center;
  flex-direction: row;
-
- margin-top: 10px;
   gap: 0.5rem 1rem; /* espaço entre linhas e colunas */
 
 }
@@ -745,7 +744,7 @@ input#statusMeiaDiaria.status-Rejeitado {
 
 /* Estilo para status Pago (Verde) */
 #statusPgto.pago {
-    color: green;
+    color: rgb(0, 255, 0);
 }
 
 .status-pgto {
@@ -835,6 +834,21 @@ input#statusMeiaDiaria.status-Rejeitado {
   flex-direction: column;
   gap: 6px;
   min-width: 200px;
+}
+
+.field.Alimentação {
+    display: flex;
+    flex-direction: row;
+    gap: 0px;
+    margin-left: 470px;
+}
+
+.field.Alimentação label {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 1px 10px;
+    gap: 10px;
 }
 
 .field label {
@@ -1276,8 +1290,7 @@ input.preenchido ~ label {
   z-index: 1000; /* Maior que o z-index do modal Bootstrap (1050) */
 }
 
-
-@media (max-width: 1657px){
+@media (min-width: 1656px){
 
   #cadModalStaff.modal {
     position: fixed;
@@ -1286,7 +1299,7 @@ input.preenchido ~ label {
     transform: translate(-50%, -50%); /* Ajuste para o centro exato */
     background-color: #4d4d4d;
     padding: 5px;
-    width: 1325px; /* Ajuste o tamanho conforme necessário */
+    width: 1395px; /* Ajuste o tamanho conforme necessário */
     /* height: 745px; */
     height: 700px;
     font-size: 16px;
@@ -1308,12 +1321,11 @@ input.preenchido ~ label {
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-top: 640px;
   }
 
   #form-content {
     font-family: "Abel", sans-serif;
-    display: flex;                /* Define o modelo de layout Flexbox */
+    display: block;                /* Define o modelo de layout Flexbox */
     flex-direction: column; 
     justify-content: center;
     background-color: rgb(0, 0, 0);
@@ -1332,7 +1344,222 @@ input.preenchido ~ label {
     max-width: unset; /* Permite que ele use toda a largura disponível */
   }
 
+  .form-2colunas.Funcionario {
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      margin-left: 0;
+  }
+  #apelidoFuncionario, #nmFuncionario.nmFuncionario {
+    width: 300px;
 }
+
+}
+
+@media (max-width: 1657px){
+
+  #cadModalStaff.modal {
+  position: fixed;
+  top: 50%; /* Alinha verticalmente ao centro */
+  left: 50%; /* Alinha horizontalmente ao centro */   
+  transform: translate(-50%, -50%); /* Ajuste para o centro exato */
+  background-color: #4d4d4d;
+  padding: 5px;
+  width: 1225px; /* Ajuste o tamanho conforme necessário */
+  /* height: 745px; */
+  height: 625px;
+  font-size: 16px;
+  z-index: 9999;
+}
+
+ #cadModalFuncionarios.modal-content{
+    height: 590px;
+  }
+  
+#cadModalStaff.modal-open{
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.title{
+  font-family: "Abel", sans-serif;
+  font-size: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  .table-container{
+  max-width: 13000px;
+}
+
+.Selects{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+}
+
+
+.Selects + .field,
+.Selects + .field + .field {
+display: inline-flex;
+  width: calc(30% - 10px);
+  vertical-align: top;
+  margin-bottom: 15px;
+  justify-content: center;
+  align-items: anchor-center;
+  margin-left: 150px;
+}
+
+.form-2colunas {
+  display: inline-table; /* empilha tudo */
+  margin-left: 150px;
+}
+
+.form-2colunas .form2 {
+  display: inline-block;
+  width: calc(20% -0px);
+  vertical-align: top;
+  margin-bottom: 15px;
+}
+
+.form-2colunas.valores{
+  display: flex;
+  justify-content: center;
+}
+.form-2colunas.Funcionario{
+  display: flex;
+  justify-content: center;
+  margin-left: 0;
+}
+
+/* força textarea ocupar linha toda */
+.form-2colunas textarea {
+  display: block;
+  width: 100%;
+} 
+
+input.datasEvento.form-control.input {
+width: 820px;
+}
+
+.gridInputsColumn.form-2colunas{
+  display: flex;
+} 
+}
+
+#form-content {
+  font-family: "Abel", sans-serif;
+  display: block;                /* Define o modelo de layout Flexbox */
+  flex-direction: column; 
+  justify-content: center;
+  background-color: rgb(0, 0, 0);
+  max-width: 750px;   
+  width: 100%;  
+  height: 550px;          /* Largura do formulário */
+  margin: 0% auto;            /* Centraliza o formulário na tela */
+  padding: 10px;                /* Espaçamento interno */
+  background-color: #cacaca; 
+  border: #ce0303;     /* Fundo branco */
+  border-bottom-right-radius: 8px;          /* Bordas arredondadas */
+  border-bottom-left-radius: 8px;          /* Bordas arredondadas */
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
+  overflow-y: auto;
+  overflow-x: none;
+  max-width: unset; /* Permite que ele use toda a largura disponível */
+}
+#apelidoFuncionario, #nmFuncionario.nmFuncionario {
+    width: 300px;
+}
+
+.table-container{
+  max-width: 13000px;
+}
+
+.Selects{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+}
+
+
+.Selects + .field,
+.Selects + .field + .field {
+display: inline-flex;
+  width: calc(30% - 10px);
+  vertical-align: top;
+  margin-bottom: 15px;
+  justify-content: center;
+  align-items: anchor-center;
+  margin-left: 150px;
+}
+
+.form-2colunas {
+  display: inline-table; /* empilha tudo */
+  margin-left: 150px;
+}
+
+.form-2colunas .form2 {
+  display: inline-block;
+  width: calc(20% -0px);
+  vertical-align: top;
+  margin-bottom: 15px;
+}
+
+.form-2colunas.valores{
+  display: flex;
+  justify-content: center;
+  margin-left: 10px;
+}
+.form-2colunas.Funcionario{
+  display: flex;
+  justify-content: center;
+  margin-left: 0;
+}
+
+.form-2colunas.ajusteCusto, .form-2colunas.caixinha{
+  display: flex;
+  justify-content: center;
+  flex-direction: row;
+  margin-left: 0;
+}
+
+/* força textarea ocupar linha toda */
+.form-2colunas textarea {
+  display: block;
+  width: 100%;
+} 
+
+input.datasEvento.form-control.input {
+width: 820px;
+}
+
+.gridInputsColumn.form-2colunas{
+  display: flex;
+} 
+#eventsDataTable th {
+    font-size: 13px; 
+    background-color: #f2f2f2;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+#eventsDataTable td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+    font-size: 10px;
+}
+.row {
+    display: flex;
+    justify-content: start;
+    align-items: center;
+    max-width: 1000px;
+}
+}
+
 @media (max-width: 1326px){
 
   #cadModalStaff.modal {
@@ -1364,12 +1591,71 @@ input.preenchido ~ label {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-top: 750px;
+
+
+  .table-container{
+  max-width: 13000px;
+}
+
+.Selects{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+}
+
+
+.Selects + .field,
+.Selects + .field + .field {
+display: inline-flex;
+  width: calc(30% - 10px);
+  vertical-align: top;
+  margin-bottom: 15px;
+  justify-content: center;
+  align-items: anchor-center;
+  margin-left: 150px;
+}
+
+.form-2colunas {
+  display: inline-table; /* empilha tudo */
+  margin-left: 150px;
+}
+
+.form-2colunas .form2 {
+  display: inline-block;
+  width: calc(20% -0px);
+  vertical-align: top;
+  margin-bottom: 15px;
+}
+
+.form-2colunas.valores{
+  display: flex;
+  justify-content: center;
+}
+.form-2colunas.Funcionario{
+  display: flex;
+  justify-content: center;
+  margin-left: 0;
+}
+
+/* força textarea ocupar linha toda */
+.form-2colunas textarea {
+  display: block;
+  width: 100%;
+} 
+
+input.datasEvento.form-control.input {
+width: 820px;
+}
+
+.gridInputsColumn.form-2colunas{
+  display: flex;
+} 
 }
 
 #form-content {
   font-family: "Abel", sans-serif;
-  display: flex;                /* Define o modelo de layout Flexbox */
+  display: block;                /* Define o modelo de layout Flexbox */
   flex-direction: column; 
   justify-content: center;
   background-color: rgb(0, 0, 0);
@@ -1386,5 +1672,96 @@ input.preenchido ~ label {
   overflow-y: auto;
   overflow-x: none;
   max-width: unset; /* Permite que ele use toda a largura disponível */
+}
+#apelidoFuncionario, #nmFuncionario.nmFuncionario {
+    width: 300px;
+}
+
+.table-container{
+  max-width: 13000px;
+}
+
+.Selects{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+}
+
+
+.Selects + .field,
+.Selects + .field + .field {
+display: inline-flex;
+  width: calc(30% - 10px);
+  vertical-align: top;
+  margin-bottom: 15px;
+  justify-content: center;
+  align-items: anchor-center;
+  margin-left: 150px;
+}
+
+.form-2colunas {
+  display: inline-table; /* empilha tudo */
+  margin-left: 150px;
+}
+
+.form-2colunas .form2 {
+  display: inline-block;
+  width: calc(20% -0px);
+  vertical-align: top;
+  margin-bottom: 15px;
+}
+
+.form-2colunas.valores{
+  display: flex;
+  justify-content: center;
+  margin-left: 10px;
+}
+.form-2colunas.Funcionario{
+  display: flex;
+  justify-content: center;
+  margin-left: 0;
+}
+.form-2colunas.ajusteCusto, .form-2colunas.caixinha{
+  display: flex;
+  justify-content: center;
+  flex-direction: row;
+  margin-left: 0;
+}
+
+
+/* força textarea ocupar linha toda */
+.form-2colunas textarea {
+  display: block;
+  width: 100%;
+} 
+
+input.datasEvento.form-control.input {
+width: 820px;
+}
+
+.gridInputsColumn.form-2colunas{
+  display: flex;
+} 
+#eventsDataTable th {
+    font-size: 10px; 
+    background-color: #f2f2f2;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+#eventsDataTable td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+    font-size: 10px;
+}
+
+.row {
+    display: flex;
+    justify-content: start;
+    align-items: center;
+    max-width: 1000px;
 }
 }
