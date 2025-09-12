@@ -181,8 +181,11 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
         // para buscar da sua tabela de orçamentos se for o caso. O exemplo abaixo está com a lógica que você forneceu.
         const queryUtilizacaoDiarias = `
             SELECT
-                SUM((COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlrjantar, 0) + COALESCE(tse.vlrtransporte, 0)) * jsonb_array_length(tse.datasevento)) AS "DIARIAS_EM_USO",
-                SUM(orc.totajdcto) AS "DIARIAS_CONTRATADAS" -- Soma dos totais de ajuda de custo do orcamento
+                tse.nmfuncao AS "INFORMAÇÕES EM PROPOSTA",
+                COUNT(tse.idfuncionario) AS "QTD PROFISSIONAIS",
+                SUM(orc.totajdcto) AS "DIÁRIAS CONTRATADAS",
+                SUM(jsonb_array_length(tse.datasevento)) AS "DIÁRIAS UTILIZADAS",
+                SUM(orc.totajdcto) - SUM(jsonb_array_length(tse.datasevento)) AS "SALDO"
             FROM
                 staffeventos tse
             JOIN
@@ -190,7 +193,10 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
             JOIN 
                 staffempresas semp ON tse.idstaff = semp.idstaff
             WHERE
-                semp.idempresa = $1 AND tse.datasevento @> $2::jsonb;
+                semp.idempresa = $1 
+                AND tse.datasevento @> $2::jsonb
+            GROUP BY
+                tse.nmfuncao;
         `;
         const resultUtilizacaoDiarias = await pool.query(queryUtilizacaoDiarias, [idempresa, dataFormatadaParaJson]);
         relatorio.utilizacaoDiarias = resultUtilizacaoDiarias.rows[0];
@@ -199,15 +205,26 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
         // Esta query agrega os dados de contingência.
         const queryContingencia = `
             SELECT
-                tse.dtdiariadobrada AS "Diária Dobrada",
-                tse.dtmeiadiaria AS "Meia Diária"
+                tbf.nome AS "Profissional",
+                CASE
+                    WHEN tse.dtdiariadobrada IS NOT NULL THEN 'Diária Dobrada' 
+                    WHEN tse.dtmeiadiaria IS NOT NULL THEN 'Meia Diária' 
+                   
+                ELSE NULL
+                END AS "Informacao",
+            
+                '' AS "Observacao"
             FROM
                 staffeventos tse
+            JOIN
+                funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
             JOIN 
                 staffempresas semp ON tse.idstaff = semp.idstaff
             WHERE
-                semp.idempresa = $1 AND tse.datasevento @> $2::jsonb;
+                semp.idempresa = $1 AND tse.datasevento @> $2::jsonb AND
+                (tse.dtdiariadobrada IS NOT NULL OR tse.dtmeiadiaria IS NOT NULL);
         `;
+
         const resultContingencia = await pool.query(queryContingencia, [idempresa, dataFormatadaParaJson]);
         relatorio.contingencia = resultContingencia.rows[0];
 
