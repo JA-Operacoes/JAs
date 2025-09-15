@@ -120,6 +120,139 @@
 // module.exports = router;
 
 
+// const express = require("express");
+// const router = express.Router();
+// const pool = require("../db/conexaoDB"); // Seu pool de conexão com o PostgreSQL
+// const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlewares');
+// const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
+
+// router.get("/", autenticarToken(), contextoEmpresa,
+// verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
+//     console.log("ENTROU NA ROTA PARA RELATORIOS");
+//     //const { tipo, data } = req.query; 
+//     const { tipo, dataInicio, dataFim } = req.query; 
+//     const idempresa = req.idempresa;
+    
+//     // if (!tipo || !data) {
+//     //     return res.status(400).json({ error: 'Parâmetros tipo e data são obrigatórios.' });
+//     // }
+
+//     if (!tipo || !dataInicio || !dataFim) {
+//         return res.status(400).json({ error: 'Parâmetros tipo, dataInicio e dataFim são obrigatórios.' });
+//     }
+    
+//     const tiposPermitidos = ['ajuda_custo', 'cache'];
+//     if (!tiposPermitidos.includes(tipo)) {
+//         return res.status(400).json({ error: 'Tipo de relatório inválido.' });
+//     }
+
+//     try {
+//         // Objeto para consolidar todos os resultados do relatório
+//         const relatorio = {};
+//         //const dataFormatadaParaJson = `[${JSON.stringify(data)}]`;
+
+//         const wherePeriodo = `
+//             AND EXISTS (
+//                 SELECT 1
+//                 FROM jsonb_array_elements_text(tse.datasevento) AS event_date
+//                 WHERE event_date::date >= $2::date
+//                 AND event_date::date <= $3::date
+//             )`;
+        
+//         // **1. Query para a Seção Principal: FECHAMENTO CACHÊ**
+//         // A sua query já estava bem estruturada. Apenas a ajustamos para o layout da imagem.
+//         const queryFechamentoCache = `
+//             SELECT
+//                 tse.nmevento AS "nomeEvento",
+//                 tse.nmfuncao AS "FUNÇÃO",
+//                 tbf.nome AS "NOME",
+//                 tbf.pix AS "PIX",
+//                 jsonb_array_element(tse.datasevento, 0) AS "INÍCIO",
+//                 jsonb_array_element(tse.datasevento, jsonb_array_length(tse.datasevento) - 1) AS "TÉRMINO",
+//                 (
+//                     COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0 END, 0) +
+//                     COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' THEN tse.vlrcaixinha ELSE 0 END, 0)
+//                 ) AS "VLR ADICIONAL",
+//                 (COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlrjantar, 0) + COALESCE(tse.vlrtransporte, 0)) AS "VLR DIÁRIA",
+//                 jsonb_array_length(tse.datasevento) AS "QTD",
+//                 (COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlrjantar, 0) + COALESCE(tse.vlrtransporte, 0)) * jsonb_array_length(tse.datasevento) AS "TOTAL DIÁRIAS",
+//                 tse.statuspgto AS "STATUS PAGAMENTO"
+//             FROM
+//                 staffeventos tse
+//             JOIN
+//                 funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
+//             JOIN 
+//                 staffempresas semp ON tse.idstaff = semp.idstaff
+//             WHERE
+//                 semp.idempresa = $1 ${wherePeriodo} --AND tse.datasevento @> $2::jsonb;
+//         `;
+//         const resultFechamentoCache = await pool.query(queryFechamentoCache, [idempresa, dataFormatadaParaJson]);
+//         relatorio.fechamentoCache = resultFechamentoCache.rows;
+        
+//         // **2. Query para a Seção: RELATÓRIO UTILIZAÇÃO DE DIÁRIAS**
+//         // Esta query resume o uso de diárias e contratação. Você precisará ajustar a lógica de DIÁRIAS CONTRATADAS
+//         // para buscar da sua tabela de orçamentos se for o caso. O exemplo abaixo está com a lógica que você forneceu.
+//         const queryUtilizacaoDiarias = `
+//             SELECT
+//                 tse.nmfuncao AS "INFORMAÇÕES EM PROPOSTA",
+//                 COUNT(tse.idfuncionario) AS "QTD PROFISSIONAIS",
+//                 SUM(orc.totajdcto) AS "DIÁRIAS CONTRATADAS",
+//                 SUM(jsonb_array_length(tse.datasevento)) AS "DIÁRIAS UTILIZADAS",
+//                 SUM(orc.totajdcto) - SUM(jsonb_array_length(tse.datasevento)) AS "SALDO"
+//             FROM
+//                 staffeventos tse
+//             JOIN
+//                 orcamentos orc ON tse.idcliente = orc.idcliente
+//             JOIN 
+//                 staffempresas semp ON tse.idstaff = semp.idstaff
+//             WHERE
+//                 semp.idempresa = $1 ${wherePeriodo}
+//                 --AND tse.datasevento @> $2::jsonb
+//             GROUP BY
+//                 tse.nmfuncao;
+//         `;
+//         const resultUtilizacaoDiarias = await pool.query(queryUtilizacaoDiarias, [idempresa, dataFormatadaParaJson]);
+//         relatorio.utilizacaoDiarias = resultUtilizacaoDiarias.rows[0];
+        
+//         // **3. Query para a Seção: CONTINGÊNCIA**
+//         // Esta query agrega os dados de contingência.
+//         const queryContingencia = `
+//             SELECT
+//                 tbf.nome AS "Profissional",
+//                 CASE
+//                     WHEN tse.dtdiariadobrada IS NOT NULL THEN 'Diária Dobrada' 
+//                     WHEN tse.dtmeiadiaria IS NOT NULL THEN 'Meia Diária' 
+                   
+//                 ELSE NULL
+//                 END AS "Informacao",
+            
+//                 '' AS "Observacao"
+//             FROM
+//                 staffeventos tse
+//             JOIN
+//                 funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
+//             JOIN 
+//                 staffempresas semp ON tse.idstaff = semp.idstaff
+//             WHERE
+//                 semp.idempresa = $1 ${wherePeriodo} --AND tse.datasevento @> $2::jsonb AND
+//                 (tse.dtdiariadobrada IS NOT NULL OR tse.dtmeiadiaria IS NOT NULL);
+//         `;
+
+//         const resultContingencia = await pool.query(queryContingencia, [idempresa, dataFormatadaParaJson]);
+//         relatorio.contingencia = resultContingencia.rows;
+
+//         // **Retorna o objeto JSON completo com todas as seções**
+//         return res.json(relatorio);
+        
+//     } catch (error) {
+//         console.error("❌ Erro ao buscar relatório:", error);
+//         return res.status(500).json({ error: error.message || "Erro ao gerar relatório" });
+//     }
+// });
+
+// module.exports = router;
+
+
 const express = require("express");
 const router = express.Router();
 const pool = require("../db/conexaoDB"); // Seu pool de conexão com o PostgreSQL
@@ -129,11 +262,11 @@ const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 router.get("/", autenticarToken(), contextoEmpresa,
 verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
     console.log("ENTROU NA ROTA PARA RELATORIOS");
-    const { tipo, data } = req.query; 
+    const { tipo, dataInicio, dataFim } = req.query; 
     const idempresa = req.idempresa;
     
-    if (!tipo || !data) {
-        return res.status(400).json({ error: 'Parâmetros tipo e data são obrigatórios.' });
+    if (!tipo || !dataInicio || !dataFim) {
+        return res.status(400).json({ error: 'Parâmetros tipo, dataInicio e dataFim são obrigatórios.' });
     }
     
     const tiposPermitidos = ['ajuda_custo', 'cache'];
@@ -142,12 +275,18 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
     }
 
     try {
-        // Objeto para consolidar todos os resultados do relatório
         const relatorio = {};
-        const dataFormatadaParaJson = `[${JSON.stringify(data)}]`;
+
+        // Condição WHERE para o período de datas.
+        const wherePeriodo = `
+            AND EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements_text(tse.datasevento) AS event_date
+                WHERE event_date::date >= $2::date
+                AND event_date::date <= $3::date
+            )`;
         
         // **1. Query para a Seção Principal: FECHAMENTO CACHÊ**
-        // A sua query já estava bem estruturada. Apenas a ajustamos para o layout da imagem.
         const queryFechamentoCache = `
             SELECT
                 tse.nmevento AS "nomeEvento",
@@ -157,13 +296,13 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                 jsonb_array_element(tse.datasevento, 0) AS "INÍCIO",
                 jsonb_array_element(tse.datasevento, jsonb_array_length(tse.datasevento) - 1) AS "TÉRMINO",
                 (
-                    COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0 END, 0) +
-                    COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' THEN tse.vlrcaixinha ELSE 0 END, 0)
+                    COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0.00 END, 0.00) +
+                    COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' THEN tse.vlrcaixinha ELSE 0.00 END, 0.00)
                 ) AS "VLR ADICIONAL",
                 (COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlrjantar, 0) + COALESCE(tse.vlrtransporte, 0)) AS "VLR DIÁRIA",
                 jsonb_array_length(tse.datasevento) AS "QTD",
                 (COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlrjantar, 0) + COALESCE(tse.vlrtransporte, 0)) * jsonb_array_length(tse.datasevento) AS "TOTAL DIÁRIAS",
-                tse.statuspgto AS "STATUS PAGAMENTO"
+                tse.statuspgto AS "STATUS PGTO"
             FROM
                 staffeventos tse
             JOIN
@@ -171,14 +310,15 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
             JOIN 
                 staffempresas semp ON tse.idstaff = semp.idstaff
             WHERE
-                semp.idempresa = $1 AND tse.datasevento @> $2::jsonb;
+                semp.idempresa = $1 ${wherePeriodo}
+            ORDER BY
+                tse.nmevento,
+                tse.nmcliente;
         `;
-        const resultFechamentoCache = await pool.query(queryFechamentoCache, [idempresa, dataFormatadaParaJson]);
+        const resultFechamentoCache = await pool.query(queryFechamentoCache, [idempresa, dataInicio, dataFim]);
         relatorio.fechamentoCache = resultFechamentoCache.rows;
         
         // **2. Query para a Seção: RELATÓRIO UTILIZAÇÃO DE DIÁRIAS**
-        // Esta query resume o uso de diárias e contratação. Você precisará ajustar a lógica de DIÁRIAS CONTRATADAS
-        // para buscar da sua tabela de orçamentos se for o caso. O exemplo abaixo está com a lógica que você forneceu.
         const queryUtilizacaoDiarias = `
             SELECT
                 tse.nmfuncao AS "INFORMAÇÕES EM PROPOSTA",
@@ -193,26 +333,23 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
             JOIN 
                 staffempresas semp ON tse.idstaff = semp.idstaff
             WHERE
-                semp.idempresa = $1 
-                AND tse.datasevento @> $2::jsonb
+                semp.idempresa = $1 ${wherePeriodo}
             GROUP BY
                 tse.nmfuncao;
         `;
-        const resultUtilizacaoDiarias = await pool.query(queryUtilizacaoDiarias, [idempresa, dataFormatadaParaJson]);
-        relatorio.utilizacaoDiarias = resultUtilizacaoDiarias.rows[0];
+        const resultUtilizacaoDiarias = await pool.query(queryUtilizacaoDiarias, [idempresa, dataInicio, dataFim]);
+        // Alteração: Retorna o array completo
+        relatorio.utilizacaoDiarias = resultUtilizacaoDiarias.rows;
         
         // **3. Query para a Seção: CONTINGÊNCIA**
-        // Esta query agrega os dados de contingência.
         const queryContingencia = `
             SELECT
                 tbf.nome AS "Profissional",
                 CASE
                     WHEN tse.dtdiariadobrada IS NOT NULL THEN 'Diária Dobrada' 
                     WHEN tse.dtmeiadiaria IS NOT NULL THEN 'Meia Diária' 
-                   
                 ELSE NULL
                 END AS "Informacao",
-            
                 '' AS "Observacao"
             FROM
                 staffeventos tse
@@ -221,18 +358,17 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
             JOIN 
                 staffempresas semp ON tse.idstaff = semp.idstaff
             WHERE
-                semp.idempresa = $1 AND tse.datasevento @> $2::jsonb AND
+                semp.idempresa = $1 ${wherePeriodo} AND
                 (tse.dtdiariadobrada IS NOT NULL OR tse.dtmeiadiaria IS NOT NULL);
         `;
+        const resultContingencia = await pool.query(queryContingencia, [idempresa, dataInicio, dataFim]);
+        relatorio.contingencia = resultContingencia.rows;
 
-        const resultContingencia = await pool.query(queryContingencia, [idempresa, dataFormatadaParaJson]);
-        relatorio.contingencia = resultContingencia.rows[0];
-
-        // **Retorna o objeto JSON completo com todas as seções**
         return res.json(relatorio);
         
     } catch (error) {
         console.error("❌ Erro ao buscar relatório:", error);
+        // O cliente agora receberá uma resposta de erro JSON completa, o que facilitará a depuração
         return res.status(500).json({ error: error.message || "Erro ao gerar relatório" });
     }
 });
