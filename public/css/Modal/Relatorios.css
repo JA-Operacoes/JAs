@@ -264,6 +264,12 @@ h2 {
         background-color: orange; /* Fundo cinza */
         text-align: center;
         border-bottom: 2px solid #777; /* Adiciona uma borda na parte de baixo */
+
+        vertical-align: middle; /* Centraliza verticalmente o texto */
+        display: table-cell; /* Garante que ele se comporte como célula de tabela */
+        height: auto; /* Permite que a altura se ajuste automaticamente */
+        padding-top: 5px; /* Ajuste o padding conforme necessário */
+        padding-bottom: 5px; /* Ajuste o padding conforme necessário */
     }
 
     .report-table {

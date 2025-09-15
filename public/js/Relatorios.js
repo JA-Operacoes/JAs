@@ -83,12 +83,11 @@ function formatarData(dataString) {
 
 
 // Sua função para montar a tabela
-function montarTabela(dados, colunas) {
+function montarTabela(dados, colunas, alinhamentosPorColuna = {}) {
     if (!dados) {
         return '<p>Nenhum dado para exibir.</p>';
     }
 
-    // Se os dados não são um array, mas um objeto, crie um array com ele.
     const dadosArray = Array.isArray(dados) ? dados : [dados];
 
     if (dadosArray.length === 0) {
@@ -99,21 +98,24 @@ function montarTabela(dados, colunas) {
         <table class="report-table">
             <thead>
                 <tr>
-                    ${colunas.map(col => `<th>${col}</th>`).join('')}
+                    ${colunas.map(col => {
+                        const alignClass = alinhamentosPorColuna[col] || '';
+                        return `<th class="${alignClass}">${col}</th>`;
+                    }).join('')}
                 </tr>
             </thead>
             <tbody>
                 ${dadosArray.map(item => `
                     <tr>
                         ${colunas.map(col => {
-                            // Verifica se a coluna é "INÍCIO" ou "TÉRMINO"
+                            let valorCelula = item[col];
+                            // Aplica a sua função formatarData para 'INÍCIO' ou 'TÉRMINO'
                             if (col === 'INÍCIO' || col === 'TÉRMINO') {
-                                // Aplica a sua função formatarData
-                                return `<td>${formatarData(item[col])}</td>`;
-                            } else {
-                                // Caso contrário, exibe o valor normalmente
-                                return `<td>${item[col]}</td>`;
+                                valorCelula = formatarData(item[col]);
                             }
+
+                            const alignClass = alinhamentosPorColuna[col] || '';
+                            return `<td class="${alignClass}">${valorCelula || ''}</td>`;
                         }).join('')}
                     </tr>
                 `).join('')}
@@ -147,7 +149,20 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, d
             </p>
         `;
         
-        html += montarTabela(dadosFechamento, ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'VALOR ADICIONAL', 'VLR DIÁRIA', 'QTD', 'TOTAL DIÁRIAS', 'STATUS PAGAMENTO']);
+        //html += montarTabela(dadosFechamento, ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'QTD', 'VLR DIÁRIA', 'VLR ADICIONAL', 'TOTAL DIÁRIAS', 'STATUS PGTO']);
+        const alinhamentosFechamento = {
+            'FUNÇÃO': 'text-left',
+            'NOME': 'text-left',
+            'PIX': 'text-left',
+            'INÍCIO': 'text-left',
+            'TÉRMINO': 'text-left',
+            'VLR ADICIONAL': 'text-right',
+            'VLR DIÁRIA': 'text-right',
+            'QTD': 'text-center',
+            'TOTAL DIÁRIAS': 'text-right',
+            'STATUS PGTO': 'text-center'
+        };
+        html += montarTabela(dadosFechamento, ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'VLR ADICIONAL', 'VLR DIÁRIA', 'QTD', 'TOTAL DIÁRIAS', 'STATUS PGTO'], alinhamentosFechamento);
     } else {
         html += '<p>Nenhum dado de fechamento de cachê encontrado.</p>';
     }
@@ -440,6 +455,15 @@ function imprimirRelatorio(conteudoRelatorio) {
             background-color: silver;
             margin-bottom: 20px;
         }
+        .text-left {
+            text-align: left !important;
+        }
+        .text-center {
+            text-align: center !important;
+        }
+        .text-right {
+            text-align: right !important;
+        }
         .logo-ja {
             max-width: 50px;
             height: auto;
@@ -456,18 +480,42 @@ function imprimirRelatorio(conteudoRelatorio) {
         .header-group-row {
             font-weight: bold;
             text-transform: uppercase;
+            height: auto;
         }
 
-        .header-group {   
-            background-color: orange; /* Fundo cinza */
+        // .header-group {   
+        //     background-color: orange; /* Fundo cinza */
+        //     text-align: center;
+        //     border-bottom: 2px solid #777; /* Adiciona uma borda na parte de baixo */    
+   
+        //     vertical-align: middle; /* Centraliza verticalmente o texto */
+        //     display: table-cell; /* Garante que ele se comporte como célula de tabela */
+        //     height: auto; /* Permite que a altura se ajuste automaticamente */
+        //     padding-top: 5px; /* Ajuste o padding conforme necessário */
+        //     padding-bottom: 5px; /* Ajuste o padding conforme necessário */
+
+        // }
+
+        .header-group {
+            background-color: #a8a8a8ff; /* Fundo cinza */
+            color: black; /* Cor do texto */
             text-align: center;
-            border-bottom: 2px solid #777; /* Adiciona uma borda na parte de baixo */
+            vertical-align: middle; /* Centraliza verticalmente o texto */
+            border-bottom: 2px solid #777;
+            padding: 8px 12px; /* Adicionado padding para espaço interno */
+            
+            /* ******** PROPRIEDADES CRUCIAIS AQUI ******** */
+            white-space: normal; /* Permite que o texto quebre para a próxima linha */
+            word-wrap: break-word; /* Força a quebra de palavras longas */
+            box-sizing: border-box; /* Garante que padding e border sejam incluídos na largura/altura */
+            height: auto; /* Permite que a altura da célula se ajuste ao conteúdo */
+            line-height: 1.2; /* Pode ajudar a controlar o espaçamento entre linhas */
         }
 
         .report-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 10px;
+            font-size: 9px;
         }
         .report-table th, .report-table td {
             border: 1px solid #000;
@@ -476,10 +524,23 @@ function imprimirRelatorio(conteudoRelatorio) {
             word-wrap: break-word;
             overflow: hidden;
         }
+        .report-table th {
+            white-space: normal; /* MUITO IMPORTANTE: Garante que o texto quebre */
+            word-wrap: break-word; /* Força quebra de palavras longas */
+            height: auto; /* Garante que a altura da célula se adapte ao conteúdo */
+            vertical-align: middle; /* Centraliza verticalmente o texto */
+        }
         .report-table thead {
             background-color: #a8a8a8ff;
             color: black;
         }
+
+        .report-table thead, 
+        .report-table thead tr {
+            height: auto;
+        }
+
+
         .relatorio-resumo-container {
             display: flex;
             gap: 20px;
@@ -499,6 +560,7 @@ function imprimirRelatorio(conteudoRelatorio) {
         .tabela-resumo .report-table {
             font-size: 8px;
             background-color: white; /* O fundo da tabela é branco */
+            height: auto;
         }
         .utilizacao-diarias-header {
             background-color: #a8a8a8ff; /* Fundo cinza para o título */
