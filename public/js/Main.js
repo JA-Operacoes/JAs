@@ -137,10 +137,11 @@ function getIdEmpresa() {
 
 // Função para buscar resumo dos cards
 async function buscarResumo() {
-  const resposta = await fetchComToken(`/Main`, {
-    headers: { idempresa: getIdEmpresa() }
-  });
-  return resposta.json();
+  const resposta = await fetch("/main"); 
+  if (!resposta.ok) {
+    throw new Error("Erro ao buscar resumo: " + resposta.status);
+  }
+  return await resposta.json(); 
 }
 
 // Função para buscar atividades recentes

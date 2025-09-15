@@ -67,7 +67,7 @@
                     </div>
                   
                     <div class="gridInputsColumn"> 
-                      <div class="form-2colunas"> 
+                      <div class="form-2colunas Funcionario"> 
                         <div class="form2"> 
                           <input type="hidden" id="idFuncionario" name="idFuncionario">
                           <input type="hidden" id="idStaffEvento" name="idStaffEvento">
@@ -145,6 +145,8 @@
               <fieldset>
                 <legend>Evento</legend>
                 <div class="Selects">
+                  
+                  
                   <div class="field">
                     <label for="descFuncao">Função:</label>
                     <input type="hidden" id="idFuncao" name="idFuncao">
@@ -152,7 +154,7 @@
                       <option value="" selected disabled>Selecione a Função</option>
                     </select>
                   </div>
-                  
+
                   <div class="field">
                     <label for="categoria">Nível de Experiência:</label>
                     <div class="checkbox">
@@ -175,20 +177,7 @@
                       </div>
                     </div>
                   </div>
-                 
-                  <div class="field">
-                    <label for="tpalimentacao">Alimentação:</label>
-                    <div class="checkbox">                      
-                      <div class="Vertical">
-                        <input id="Almococheck" type="checkbox" />
-                        <label for="Almococheck">Almoço</label>
-                      </div>
-                      <div class="Vertical">
-                        <input id="Jantarcheck" type="checkbox" />
-                        <label for="Jantarcheck">Jantar</label>
-                      </div>                      
-                    </div>
-                  </div>
+                  
                 </div>
               
 
@@ -219,71 +208,40 @@
                     </select>
                   </div>
 
-                  <div class="field">
-                    <label for="nmCliente">Cliente:</label>
-                    <input type="hidden" id="idCliente" name="idCliente">
-                    <select class="nmCliente" name="nmCliente[]" id="nmCliente">       
-                      <option value="" selected disabled>Cliente</option>
-                    </select>
-                  </div>
-
-                  <div class="field">
-                    <label for="nmEvento">Evento:</label>
-                    <input type="hidden" id="idEvento" name="idEvento">
-                    <select class="nmEvento" name="nmEvento[]" id="nmEvento">       
-                      <option value="" selected disabled>Evento</option>
-                    </select>
-                  </div>              
                 </div>
+
+                  <div class="Selects">
+                    <div class="field">
+                      <label for="nmCliente">Cliente:</label>
+                      <input type="hidden" id="idCliente" name="idCliente">
+                      <select class="nmCliente" name="nmCliente[]" id="nmCliente">
+                        <option value="" selected disabled>Cliente</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="nmEvento">Evento:</label>
+                      <input type="hidden" id="idEvento" name="idEvento">
+                      <select class="nmEvento" name="nmEvento[]" id="nmEvento">
+                        <option value="" selected disabled>Evento</option>
+                      </select>
+                    </div>
+                  </div>        
                 <br>
 
-
-
-                <!-- <div class="Selects">
-                  <div class="field">
-                    <label for="nmLocalMontagem">Local Montagem:</label>
-                    <input type="hidden" id="idMontagem" name="idMontagem">
-                    <select class="nmLocalMontagem" name="nmLocalMontagem" id="nmLocalMontagem" required>
-                      <option value="" selected disabled>Selecione o Local de Montagem</option>
-                    </select>
+                <div class="field Alimentação">
+                    <label for="tpalimentacao">Alimentação:</label>
+                    <div class="checkbox">                      
+                      <div class="Vertical">
+                        <input id="Almococheck" type="checkbox" />
+                        <label for="Almococheck">Almoço</label>
+                      </div>
+                      <div class="Vertical">
+                        <input id="Jantarcheck" type="checkbox" />
+                        <label for="Jantarcheck">Jantar</label>
+                      </div>                      
+                    </div>
                   </div>
 
-                  <div class="field">
-                    <label for="nmPavilhao">Pavilhão:</label>
-                    <input type="hidden" id="idPavilhao" name="idPavilhao">
-                    <select class="nmPavilhao" name="nmPavilhao" id="nmPavilhao" required>
-                      <option value="" selected disabled>Selecione o Pavilhão</option>
-                    </select>
-                  </div>
-                </div>
-                <br> -->
-
-                <!-- <div class="Selects">
-                  <div class="field">
-                    <label for="nmCliente">Cliente:</label>
-                    <input type="hidden" id="idCliente" name="idCliente">
-                    <select class="nmCliente" name="nmCliente[]" id="nmCliente">       
-                      <option value="" selected disabled>Cliente</option>
-                    </select>
-                  </div>
-
-                  <div class="field">
-                    <label for="nmEvento">Evento:</label>
-                    <input type="hidden" id="idEvento" name="idEvento">
-                    <select class="nmEvento" name="nmEvento[]" id="nmEvento">       
-                      <option value="" selected disabled>Evento</option>
-                    </select>
-                  </div>
-                </div> -->
-
-                <!-- <div class="form-2colunas">
-                  <div class="form2"> 
-                    <h3>Período do Evento:</h3>
-                    <input type="text" class="datasEvento" id="datasEvento" name="datasEvento[]" placeholder="Nenhuma data selecionada"  readonly required>
-                    <input type="hidden" id="vlrTotalHidden" name="vlrTotalHidden" value="0.00">
-                    <p id="contadorDatas"></p>
-                  </div>
-                </div> -->
                 <div class="form-2colunas">   
                   <div class="form2">
                       <input type="text" name="vlrCusto" id="vlrCusto" class="preenchido" readonly required>
@@ -313,7 +271,7 @@
                   </div>
                 </div>
                   
-                <div class="form-2colunas"> 
+                <div class="form-2colunas valores"> 
                   <div class="form2">
                     <input type="text" class="preenchido moeda" value="R$ 0,00" id="vlrTotal" name="vlrTotal[]"  readonly required>
                     <label>Valor Total</label>
@@ -354,7 +312,7 @@
                     </div>                              
                 </div>    -->
 
-                    <div class="form-2colunas">
+                    <div class="form-2colunas ajusteCusto">
                       <div class="form2" id="campoAjusteCusto" style="display: none;">
                         <input type="text" name="ajusteCusto" id="ajusteCusto" required>
                         <label for="ajusteCusto">Ajuste de Custo</label>
@@ -371,30 +329,13 @@
                       </div>
                     </div>
 
-                    <div class="form-2colunas">
-                        <div id="campoDiariaDobrada" style="display: none;">
-                          <div class="row">
-                            <h3>Diaria Dobrada:</h3>
-                          <input type="text" class="preenchido diariaDobrada" name="diariaDobrada" id="diariaDobrada" placeholder="Selecione a Data Dobrada">
-                            <textarea name="diariaDobrada"  placeholder="Observação da Diaria Dobrada"></textarea>
-                          </div>
-                        </div>
-                        
-                        <div class="form2" id="campoMeiaDiaria">
-                          <div class="row">
-                            <h3>Meia Diaria:</h3>
-                            <input type="text" class="preenchido diariaDobrada" name="meiaDiaria" id="meiaDiaria" placeholder="Selecione a Data">
-                            <textarea name="meiaDiaria"  placeholder="Observação da Meia Diaria"></textarea>
-                          </div>
-                        </div>
-                    </div>
-                    
-                    <div class="form-2colunas">
+                    <div class="form-2colunas caixinha">
                       <div class="form2" id="campoCaixinha" style="display: none;">
                         <input type="text" name="caixinha" id="caixinha">
                         <label for="caixinha">Caixinha</label>
                       </div>
                       <textarea name="caixinha[]" id="descCaixinha" placeholder="Descritivo da Caixinha" style="display: none;" required></textarea>
+
                       <div class="form2" id="campoStatusCaixinha" style="display: none;">
                         <input id="statusCaixinha" type="text" readonly required/>
                         <select id="selectStatusCaixinha" style="display:none;">
@@ -408,16 +349,24 @@
 
                     <div class="form-2colunas">
                         <div id="campoDiariaDobrada" style="display: none;">
-                          <!-- <div class="diaria-field"> -->
+                          <h3>Diaria Dobrada:</h3>
                           <div class="row">
-                            <h3>Diaria Dobrada:</h3>
-                            <!-- <label for="diariaDobrada">Diária Dobrada:</label> -->
-                            <input type="text" class="preenchido diariaDobrada" name="diariaDobrada[]" id="diariaDobrada" placeholder="Selecione a Data Dobrada">
-                            <textarea name="diariaDobrada" id="descDiariaDobrada" placeholder="Observação da Diária Dobrada"></textarea>
+                          <input type="text" class="preenchido diariaDobrada" name="diariaDobrada" id="diariaDobrada" placeholder="Selecione a Data Dobrada">
+                            <textarea id="descDiariaDobrada" name="diariaDobrada"  placeholder="Observação da Diaria Dobrada"></textarea>
                           </div>
-                        </div> 
-                                               
+                        </div>
+                        
+                        <div id="campoMeiaDiaria" style="display: none;">
+                          <h3>Meia Diaria:</h3>
+                          <div class="row">
+                            <input type="text" class="preenchido diariaDobrada" name="meiaDiaria" id="meiaDiaria" placeholder="Selecione a Data">
+                            <textarea  name="descMeiaDiaria" id="descMeiaDiaria"  placeholder="Observação da Meia Diaria"></textarea>
+                          </div>
+                        </div>
+                    </div>
+                    
 
+                    <div class="form-2colunas">
                         <div class="form2" id="campoStatusDiariaDobrada" style="display: none;">
                           <input type="text" id="statusDiariaDobrada" name ="statusdiariaDobrada" readonly required/>
                           <select id="selectStatusDiariaDobrada" style="display:none;">
@@ -428,17 +377,8 @@
                           </select>
                         </div>
                     </div>
+
                     <div class="form-2colunas">    
-                        <div class="form2" id="campoMeiaDiaria">
-                          <!-- <div class="diaria-field"> -->
-                          <div class="row">
-                            <h3>Meia Diaria:</h3>
-                            <!-- <label for="meiaDiaria">Meia Diária:</label> -->
-                            <input type="text" class="preenchido meiaDiaria" name="meiaDiaria" id="meiaDiaria" placeholder="Selecione a Data">
-                            <textarea name="meiaDiaria" id="descMeiaDiaria" placeholder="Observação da Meia Diária"></textarea>
-                          </div>
-                        </div>
-                        
                         <div class="form2" id="campoStatusMeiaDiaria" style="display: none;">
                           <input type="text" id="statusMeiaDiaria" name ="statusMeiaDiaria" readonly required/>
                           <select id="selectStatusMeiaDiaria" style="display:none;">
@@ -449,17 +389,8 @@
                           </select>
                         </div>
                     </div>
+
                     <div class="form-2colunasDatas">
-                      <!-- <div id="containerStatusDiariaDobrada" class="status-container" >
-                          <div class="label-date-group">
-                              <label>Diária Dobrada</label>
-                          </div>
-                      </div>
-                      <div id="containerStatusMeiaDiaria" class="status-container">
-                          <div class="label-date-group">
-                              <label>Meia Diária</label>
-                          </div>
-                      </div> -->
                       <div id="grupoDiariaDobrada" class="status-group">
                           <label><strong>Diária Dobrada</strong></label>
                           <div id="containerStatusDiariaDobrada" class="status-container"></div>

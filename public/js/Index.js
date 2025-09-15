@@ -43,7 +43,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   });
 
   let permissoesArray; // Renomeado para clareza
-  let permissoesPromise;
+  let permissoesPromise; 
   let mapaModulos = {};
 
   try {
