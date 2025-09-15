@@ -1265,7 +1265,54 @@ input.preenchido ~ label {
   #apelidoFuncionario, #nmFuncionario.nmFuncionario {
     width: 300px;
 }
+.form-2colunas {
+  display: inline-table; /* empilha tudo */
+  margin-left: 220px;
+}
 
+.form-2colunas .form2 {
+  display: inline-block;
+  width: calc(20% -0px);
+  vertical-align: top;
+  margin-bottom: 15px;
+}
+
+.form-2colunas.valores{
+  display: flex;
+  justify-content: center;
+  margin-left: 0px;
+}
+.form-2colunas.Funcionario{
+  display: flex;
+  justify-content: center;
+  margin-left: 0;
+}
+.form-2colunas.ajusteCusto, .form-2colunas.caixinha{
+  display: flex;
+  justify-content: center;
+  flex-direction: row;
+  margin-left: 0;
+}
+
+/* força textarea ocupar linha toda */
+.form-2colunas textarea {
+  display: block;
+  width: 100%;
+} 
+
+input.datasEvento.form-control.input {
+width: 820px;
+}
+
+.gridInputsColumn.form-2colunas{
+  display: flex;
+} 
+.row {
+    display: flex;
+    justify-content: start;
+    align-items: center;
+    max-width: 1000px;
+}
 }
 
 @media (max-width: 1657px){
