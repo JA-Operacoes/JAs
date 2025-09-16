@@ -2030,6 +2030,29 @@ async function verificaStaff() {
             formData.append('descmeiadiaria', descMeiaDiariaTextarea.value.trim());
             formData.append('desccaixinha', descCaixinhaTextarea.value.trim());
 
+            let nivelExperienciaSelecionado ="";
+
+            if (seniorCheck.checked) {
+                nivelExperienciaSelecionado =  "Senior";
+            } 
+            if (plenoCheck.checked) {
+                nivelExperienciaSelecionado =  "Pleno";
+            } 
+            if (juniorCheck.checked) {
+                nivelExperienciaSelecionado =  "Junior";
+            } 
+            if (baseCheck.checked) {
+                nivelExperienciaSelecionado =  "Base";
+            }
+
+            formData.append('nivelexperiencia', nivelExperienciaSelecionado);
+
+            if (statusDiariaDobrada === "Autorização da Diária Dobrada"){
+                statusDiariaDobrada = "Pendente";
+            }
+            if (statusMeiaDiaria === "Autorização da Meia Diária"){
+                statusMeiaDiaria = "Pendente";
+            }
 
 
             let dadosDiariaDobrada = [];
