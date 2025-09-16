@@ -2,7 +2,6 @@ import { fetchComToken } from '../utils/utils.js';
 
 // Função para iniciar o módulo de relatórios
 function initRelatorios() {
-    //const reportDateInput = document.getElementById('reportDate');
     const reportStartDateInput = document.getElementById('reportStartDate');
     const reportEndDateInput = document.getElementById('reportEndDate');
     const reportTypeSelect = document.getElementById('reportType');
@@ -11,24 +10,34 @@ function initRelatorios() {
     const closeButton = document.querySelector('#Relatorios .close');
 
     const today = new Date().toISOString().split('T')[0];
-    //reportDateInput.value = today;
     reportStartDateInput.value = today;
     reportEndDateInput.value = today;
 
+    // 👉 Guardar referências dos listeners
+    window.gerarRelatorioClickListener = function () {
+        gerarRelatorio();
+    };
+
+    window.printButtonClickListener = function () {
+        imprimirRelatorio();
+    };
+
+    window.closeButtonClickListener = function () {
+        const modal = document.getElementById('Relatorios');
+        modal.style.display = 'none';
+        document.body.classList.remove('modal-open');
+    };
+
     if (gerarRelatorioBtn) {
-        gerarRelatorioBtn.addEventListener('click', gerarRelatorio);
+        gerarRelatorioBtn.addEventListener('click', window.gerarRelatorioClickListener);
     }
-    
+
     if (printButton) {
-        printButton.addEventListener('click', imprimirRelatorio);
+        printButton.addEventListener('click', window.printButtonClickListener);
     }
 
     if (closeButton) {
-        closeButton.addEventListener('click', () => {
-            const modal = document.getElementById('Relatorios');
-            modal.style.display = 'none';
-            document.body.classList.remove('modal-open');
-        });
+        closeButton.addEventListener('click', window.closeButtonClickListener);
     }
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -38,6 +47,8 @@ function initRelatorios() {
         reportTypeSelect.value = tipoRelatorioInicial;
         gerarRelatorio();
     }
+
+    console.log("⚙️ Relatórios inicializado.");
 }
 
 // A sua função para formatar a data, se a string for yyyy-mm-dd
@@ -80,6 +91,33 @@ function formatarData(dataString) {
 //     `;
 //     return html;
 // }
+
+function preencherEventosPeriodo() {
+    const startDate = document.getElementById('reportStartDate').value;
+    const endDate = document.getElementById('reportEndDate').value;
+    const eventSelect = document.getElementById('eventSelect');
+    if (!startDate || !endDate) return;
+
+    // Chame sua API que retorna eventos do período
+fetchComToken(`/relatorios/eventos?inicio=${startDate}&fim=${endDate}`)
+    .then(eventos => {
+        eventSelect.innerHTML = '<option value="">Selecione um Evento</option>';
+        eventos.forEach(ev => {
+            const opt = document.createElement('option');
+            opt.value = ev.idevento;
+            opt.textContent = ev.nmevento;
+            eventSelect.appendChild(opt);
+        });
+    })
+    .catch(() => {
+        eventSelect.innerHTML = '<option value="">Nenhum evento encontrado</option>';
+    });
+}
+
+// Adicione listeners para atualizar o select quando as datas mudarem
+document.getElementById('reportStartDate').addEventListener('change', preencherEventosPeriodo);
+document.getElementById('reportEndDate').addEventListener('change', preencherEventosPeriodo);
+
 
 
 // Sua função para montar a tabela
@@ -262,16 +300,17 @@ async function gerarRelatorio() {
     const tipo = document.getElementById('reportType').value;
     const dataInicio = document.getElementById('reportStartDate').value;
     const dataFim = document.getElementById('reportEndDate').value;
+    const evento = document.getElementById('eventSelect').value;
     const nomeRelatorio = document.getElementById('reportType').options[document.getElementById('reportType').selectedIndex].text;
 
-    if (!tipo || !dataInicio || !dataFim) {
-        alert('Por favor, preencha todos os campos.');
-        gerarRelatorioBtn.disabled = false;
-        return;
-    }
+    if (!tipo || !dataInicio || !dataFim || !evento) {
+    alert('Por favor, preencha todos os campos.');
+    gerarRelatorioBtn.disabled = false;
+    return;
+}
 
     try {
-        const url = `/relatorios?tipo=${tipo}&dataInicio=${dataInicio}&dataFim=${dataFim}`;
+        const url = `/relatorios?tipo=${tipo}&dataInicio=${dataInicio}&dataFim=${dataFim}&evento=${evento}`;
         const dados = await fetchComToken(url);
 
         let relatorioHtmlCompleto = '';
@@ -637,6 +676,34 @@ function imprimirRelatorio(conteudoRelatorio) {
         }, 100);
     }, 500);
 }
+function desinicializarRelatoriosModal() {
+    console.log("🧹 Desinicializando módulo Relatórios...");
+
+    const gerarRelatorioBtn = document.getElementById('gerarRelatorioBtn');
+    const printButton = document.getElementById('printButton');
+    const closeButton = document.querySelector('#Relatorios .close');
+
+    if (gerarRelatorioBtn && window.gerarRelatorioClickListener) {
+        gerarRelatorioBtn.removeEventListener('click', window.gerarRelatorioClickListener);
+        window.gerarRelatorioClickListener = null;
+    }
+
+    if (printButton && window.printButtonClickListener) {
+        printButton.removeEventListener('click', window.printButtonClickListener);
+        window.printButtonClickListener = null;
+    }
+
+    if (closeButton && window.closeButtonClickListener) {
+        closeButton.removeEventListener('click', window.closeButtonClickListener);
+        window.closeButtonClickListener = null;
+    }
+
+    console.log("✅ Relatórios desinicializado.");
+}
 
 
-initRelatorios();
+window.moduloHandlers = window.moduloHandlers || {};
+window.moduloHandlers['Relatorios'] = { // A chave 'Relatorios' deve corresponder ao que o Index.js usa
+    configurar: initRelatorios,          // ou configurarEventosRelatorios, se esse for o nome
+    desinicializar: desinicializarRelatoriosModal
+};

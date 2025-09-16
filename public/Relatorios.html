@@ -1,36 +1,52 @@
 <!-- HTML DO RELATORIO AJDCUSTO/CACHE -->
 <link rel="stylesheet" href="css/Modal/Relatorios.css">
+<link rel="stylesheet" href= "css/Roots/Roots.css">
 
 <div id="Relatorios" class="modal">
-    <div class="modal-content">
-        <span class="close">&times;</span>
-        <main class="modal-content-report">
-            <h2>Gerador de Relatórios</h2>
-            <div class="controls">
-                <label for="reportType">Tipo de Relatório:</label>
-                <select id="reportType">
-                    <option value="ajuda_custo">Ajuda de Custo</option>
-                    <option value="cache">Cachê</option>
-                </select>
-                
-<!--                 <label for="reportDate">Selecione a Data:</label>
-                <input type="date" id="reportDate" required> -->
+  <div class="modal-content">
+    <div class="Close"><button class="close" id="Fechar"> X </button></div>
+  <div id ="form-cargo"> 
+    <div class="title">
+      <h1>Gerador de Relatórios</h1>
+    </div>
+    <div class="controls">
+      <div class="tpRelatorio">
+        <label for="reportType">Tipo de Relatório:</label>
+        <select id="reportType">
+          <option value="ajuda_custo">Ajuda de Custo</option>
+          <option value="cache">Cachê</option>
+        </select>
+      </div>
 
-                <label for="reportStartDate">Data de Início:</label>
-                <input type="date" id="reportStartDate" required>
+      <div class="Eventos">
+        <label for="eventSelect">Evento:</label>
+        <select id="eventSelect">
+          <option value="">Selecione um Evento</option>
+        </select>
+      </div>
 
-                <label for="reportEndDate">Data de Término:</label>
-                <input type="date" id="reportEndDate" required>
+      <div class="init">
+        <label for="reportStartDate">Data de Início:</label>
+        <input type="date" id="reportStartDate" required>
+      </div>
 
-                <button id="gerarRelatorioBtn">Gerar Relatório</button>
-                <button style="display: none;" id="printButton">Imprimir</button>
-            </div>
+      <div class="end">
+        <label for="reportEndDate">Data de Término:</label>
+        <input type="date" id="reportEndDate" required>
+      </div>
+    </div>
 
-            <div id="reportOutput">
-                </div>
-        </main>    
+    <div class="BTNs">
+      <button id="gerarRelatorioBtn">Gerar Relatório</button>
+      <button style="display: none;" id="printButton">Imprimir</button>
+    </div>
 
-    </div>
+    <div id="reportOutput">
+  </div>
+ 
+
+  </div>
+</div>
 </div>
 <iframe id="printIframe" style="display:none;"></iframe>
 
