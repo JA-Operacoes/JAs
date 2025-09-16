@@ -1,18 +1,17 @@
 const express = require("express");
 const router = express.Router();
-const pool = require("../db/conexaoDB");
+const pool = require("../db/conexaoDB"); // Seu pool de conexão com o PostgreSQL
 const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlewares');
 const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 
-// ROTA PRINCIPAL DE RELATÓRIOS
 router.get("/", autenticarToken(), contextoEmpresa,
 verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
     console.log("ENTROU NA ROTA PARA RELATORIOS");
-    const { tipo, dataInicio, dataFim, evento } = req.query; 
+    const { tipo, dataInicio, dataFim } = req.query; 
     const idempresa = req.idempresa;
     
-    if (!tipo || !dataInicio || !dataFim || !evento) {
-        return res.status(400).json({ error: 'Parâmetros tipo, dataInicio, dataFim e evento são obrigatórios.' });
+    if (!tipo || !dataInicio || !dataFim) {
+        return res.status(400).json({ error: 'Parâmetros tipo, dataInicio e dataFim são obrigatórios.' });
     }
     
     const tiposPermitidos = ['ajuda_custo', 'cache'];
@@ -30,8 +29,7 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                 FROM jsonb_array_elements_text(tse.datasevento) AS event_date
                 WHERE event_date::date >= $2::date
                 AND event_date::date <= $3::date
-            ) AND tse.idevento = $4
-        `;
+            )`;
         
         // **1. Query para a Seção Principal: FECHAMENTO CACHÊ**
         // const queryFechamentoCache = `
@@ -376,7 +374,8 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                 o.nrorcamento,
                 oi.produto;
         `;
-        const resultUtilizacaoDiarias = await pool.query(queryUtilizacaoDiarias, [idempresa, dataInicio, dataFim, evento]);
+
+        const resultUtilizacaoDiarias = await pool.query(queryUtilizacaoDiarias, [idempresa, dataInicio, dataFim]);
         relatorio.utilizacaoDiarias = resultUtilizacaoDiarias.rows;
         
         const queryContingencia = `
@@ -452,46 +451,15 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
             ORDER BY
                 idevento, "Profissional", "Informacao";
         `;
-        const resultContingencia = await pool.query(queryContingencia, [idempresa, dataInicio, dataFim, evento]);
+        const resultContingencia = await pool.query(queryContingencia, [idempresa, dataInicio, dataFim]);
         relatorio.contingencia = resultContingencia.rows;
 
         return res.json(relatorio);
         
     } catch (error) {
         console.error("❌ Erro ao buscar relatório:", error);
+        // O cliente agora receberá uma resposta de erro JSON completa, o que facilitará a depuração
         return res.status(500).json({ error: error.message || "Erro ao gerar relatório" });
-    }
-});
-
-// ROTA PARA BUSCAR EVENTOS NO PERÍODO
-router.get('/eventos', verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
-    try {
-        const { inicio, fim } = req.query;
-        if (!inicio || !fim) {
-            return res.status(400).json({ error: "Parâmetros inicio e fim são obrigatórios." });
-        }
-
-        const query = `
-            SELECT e.idevento, e.nmevento
-            FROM eventos e
-            JOIN orcamentos o ON o.idevento = e.idevento
-            WHERE (
-                (o.dtinimontagem IS NOT NULL AND o.dtinimontagem <= $2 AND o.dtfimmontagem >= $1)
-            OR (o.dtinirealizacao IS NOT NULL AND o.dtinirealizacao <= $2 AND o.dtfimrealizacao >= $1)
-            OR (o.dtinidesmontagem IS NOT NULL AND o.dtinidesmontagem <= $2 AND o.dtfimdesmontagem >= $1)
-            OR (o.dtiniinframontagem IS NOT NULL AND o.dtiniinframontagem <= $2 AND o.dtfiminframontagem >= $1)
-            OR (o.dtiniinfradesmontagem IS NOT NULL AND o.dtiniinfradesmontagem <= $2 AND o.dtfiminfradesmontagem >= $1)
-            OR (o.dtinimarcacao IS NOT NULL AND o.dtinimarcacao <= $2 AND o.dtfimmarcacao >= $1)
-            )
-            GROUP BY e.idevento, e.nmevento
-            ORDER BY e.nmevento;
-        `;
-
-        const { rows } = await pool.query(query, [inicio, fim]);
-        return res.json(rows);
-    } catch (err) {
-        console.error("❌ Erro ao buscar eventos:", err);
-        return res.status(500).json({ error: err.message });
     }
 });
 
