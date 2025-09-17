@@ -135,100 +135,6 @@ function montarTabela(dados, colunas, alinhamentosPorColuna = {}) {
     return html;
 }
 
-//A sua função que monta o relatório de Fechamento de Cachê por evento
-// function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, dadosUtilizacao, dadosContingencia) {
-//     let html = `
-//         <div class="relatorio-evento">
-//             <div class="print-header-top">
-//                 <img src="http://localhost:3000/img/JA_Oper.png" alt="Logo JA" class="logo-ja">
-//                 <div class="header-title-container">
-//                     <h1 class="header-title">${nomeEvento}</h1>
-//                 </div>  
-//             </div>
-//             <h2>FECHAMENTO ${nomeRelatorio.toUpperCase()}</h2>
-//     `;
-    
-//     if (dadosFechamento && dadosFechamento.length > 0) {
-//         const dataInicio = formatarData(dadosFechamento[0].INÍCIO);
-//         const dataTermino = formatarData(dadosFechamento[0].TÉRMINO);
-    
-//         html += `
-//             <p>
-//                 <span class="data-relatorio">Data de Início: ${dataInicio}</span>
-//                 <span class="data-relatorio">Data Final: ${dataTermino}</span>
-//             </p>
-//         `;
-        
-//         //html += montarTabela(dadosFechamento, ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'QTD', 'VLR DIÁRIA', 'VLR ADICIONAL', 'TOTAL DIÁRIAS', 'STATUS PGTO']);
-//         const alinhamentosFechamento = {
-//             'FUNÇÃO': 'text-left',
-//             'NOME': 'text-left',
-//             'PIX': 'text-left',
-//             'INÍCIO': 'text-left',
-//             'TÉRMINO': 'text-left',
-//             'VLR ADICIONAL': 'text-right',
-//             'VLR DIÁRIA': 'text-right',
-//             'QTD': 'text-center',
-//             'TOTAL DIÁRIAS': 'text-right',
-//             'STATUS PGTO': 'text-center'
-//         };
-//         html += montarTabela(dadosFechamento, ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'VLR ADICIONAL', 'VLR DIÁRIA', 'QTD', 'TOTAL DIÁRIAS', 'STATUS PGTO'], alinhamentosFechamento);
-//     } else {
-//         html += '<p>Nenhum dado de fechamento de cachê encontrado.</p>';
-//     }
-
-//     // Container para as tabelas de resumo lado a lado
-//     html += `<div class="relatorio-resumo-container">`;
-    
-//     // if (dadosUtilizacao) {
-//     //     html += `
-//     //         <div class="tabela-resumo diarias">
-//     //         <h2 class="utilizacao-diarias-header">RELATÓRIO UTILIZAÇÃO DE DIÁRIAS</h2>
-//     //             ${montarTabela(dadosUtilizacao, ['INFORMAÇÕES EM PROPOSTA', 'QTD PROFISSIONAIS', 'DIÁRIAS CONTRATADAS', 'DIÁRIAS UTILIZADAS', 'SALDO'])}
-//     //         </div>
-//     //     `;
-//     // }
-//     if (dadosUtilizacao) {
-//         html += `
-//             <div class="tabela-resumo diarias">
-//                 <h2 class="utilizacao-diarias-header">RELATÓRIO DE UTILIZAÇÃO DE DIÁRIAS</h2>
-//                 <table class="report-table">
-//                     <thead>
-//                         <tr class="header-group-row">
-//                             <th colspan="3" class="header-group">DIÁRIAS CONTRATADAS</th>
-//                             <th colspan="2" class="header-group">RESUMO DE USO</th>
-//                         </tr>
-//                         <tr>
-//                             <th>INFORMAÇÕES EM PROPOSTA</th>
-//                             <th>QTD PROFISSIONAIS</th>
-//                             <th>DIÁRIAS CONTRATADAS</th>
-//                             <th>DIÁRIAS UTILIZADAS</th>
-//                             <th>SALDO</th>
-//                         </tr>
-//                     </thead>
-//                     <tbody>
-//                         ${montarTabelaBody(dadosUtilizacao)}
-//                     </tbody>
-//                 </table>
-//             </div>
-//         `;
-//     }
-
-//     if (dadosContingencia) {
-//         html += `
-//             <div class="tabela-resumo contingencia">
-//                 <h2 class="contingencia-header">CONTINGÊNCIA</h2>
-//                 ${montarTabela(dadosContingencia, ['Profissional', 'Informacao', 'Observacao'])}
-//             </div>
-//         `;
-//     }
-
-//     html += `</div>`; // Fechando o container Flexbox
-    
-//     html += `</div>`;
-//     return html;
-// }
-
 // A sua função que monta o relatório de Fechamento de Cachê por evento
 function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, dadosUtilizacao, dadosContingencia, totaisFechamentoCache) { // <<-- MODIFICAÇÃO: Adicionado totaisFechamentoCache
     // Função auxiliar para formatar moeda (adicione ela aqui ou mantenha global se já tiver)
@@ -407,27 +313,47 @@ async function gerarRelatorio() {
     const tipo = document.getElementById('reportType').value;
     const dataInicio = document.getElementById('reportStartDate').value;
     const dataFim = document.getElementById('reportEndDate').value;
-    const evento = document.getElementById('eventSelect').value;
+    let evento = document.getElementById('eventSelect').value;
     const nomeRelatorio = document.getElementById('reportType').options[document.getElementById('reportType').selectedIndex].text;
 
-    if (!tipo || !dataInicio || !dataFim || !evento) {
-    alert('Por favor, preencha todos os campos.');
-    gerarRelatorioBtn.disabled = false;
-    return;
-}
+    if (!tipo || !dataInicio || !dataFim) {
+        alert('Por favor, preencha todos os campos.');
+        gerarRelatorioBtn.disabled = false;
+        return;
+    }
+
+    // Permite gerar relatório de todos os eventos se nenhum for selecionado
+    if (!evento) {
+        const escolha = await Swal.fire({
+            title: 'Nenhum evento selecionado',
+            text: "Você deseja escolher um evento ou gerar o relatório de TODOS os eventos do período?",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Gerar de todos',
+            cancelButtonText: 'Escolher evento'
+        });
+
+        if (escolha.isConfirmed) {
+            evento = "todos"; // Gera relatório para todos os eventos
+        } else {
+            gerarRelatorioBtn.disabled = false;
+            return; // Apenas fecha o Swal e não gera nada
+        }
+    }
 
     try {
         const url = `/relatorios?tipo=${tipo}&dataInicio=${dataInicio}&dataFim=${dataFim}&evento=${evento}`;
         const dados = await fetchComToken(url);
+        console.log('Dados recebidos do backend:', dados);
 
-        let relatorioHtmlCompleto = '';       
+        let relatorioHtmlCompleto = '';
 
         const dadosAgrupadosPorEvento = {};
 
         // 1. Agrupar dados de Fechamento de Cachê
         if (dados.fechamentoCache && dados.fechamentoCache.length > 0) {
             dados.fechamentoCache.forEach(item => {
-                const eventoId = item.idevento; // Adicione idevento na sua query de cache
+                const eventoId = item.idevento;
                 if (!dadosAgrupadosPorEvento[eventoId]) {
                     dadosAgrupadosPorEvento[eventoId] = {
                         nomeEvento: item.nomeEvento,
@@ -439,28 +365,26 @@ async function gerarRelatorio() {
                 dadosAgrupadosPorEvento[eventoId].fechamentoCache.push(item);
             });
         }
-        
+
         // 2. Agrupar dados de Utilização de Diárias
         if (dados.utilizacaoDiarias && dados.utilizacaoDiarias.length > 0) {
             dados.utilizacaoDiarias.forEach(item => {
-                const eventoId = item.idevento; // o idevento já vem da sua query de diárias
-                if (dadosAgrupadosPorEvento[eventoId]) { // Garante que o evento existe
+                const eventoId = item.idevento;
+                if (dadosAgrupadosPorEvento[eventoId]) {
                     dadosAgrupadosPorEvento[eventoId].utilizacaoDiarias.push(item);
                 }
             });
         }
-        
-        // 3. Agrupar dados de Contingência (se necessário)
-        // Se a sua query de contingência retorna idevento, você pode agrupá-la aqui
-        
+
+        // 3. Agrupar dados de Contingência
         if (dados.contingencia && dados.contingencia.length > 0) {
             dados.contingencia.forEach(item => {
-                const eventoId = item.idevento; 
-                if (dadosAgrupadosPorEvento[eventoId]) { 
+                const eventoId = item.idevento;
+                if (dadosAgrupadosPorEvento[eventoId]) {
                     dadosAgrupadosPorEvento[eventoId].contingencia.push(item);
-                }else {
-                     // Se um evento tiver apenas contingência e não fechamentoCache, ele não será criado.
-                     // Considere criar o evento aqui também se for um cenário válido.
+                } else {
+                    // Se um evento tiver apenas contingência e não fechamentoCache, ele não será criado.
+                    // Considere criar o evento aqui também se for um cenário válido.
                     console.warn(`Evento ${eventoId} de Contingência não encontrado em Fechamento de Cachê.`);
                 }
             });
@@ -471,35 +395,23 @@ async function gerarRelatorio() {
             return a.nomeEvento.localeCompare(b.nomeEvento);
         });
 
-        // eventosOrdenados.forEach(evento => {
-        //     relatorioHtmlCompleto += montarRelatorioHtmlEvento(
-        //         evento.fechamentoCache, 
-        //         evento.nomeEvento, 
-        //         nomeRelatorio, 
-        //         evento.utilizacaoDiarias, 
-        //         evento.contingencia
-        //     );
-        // });
-
         eventosOrdenados.forEach(evento => {
             // AQUI PEGAMOS OS TOTAIS DO EVENTO ESPECÍFICO
             const eventoIdParaTotal = evento.fechamentoCache.length > 0 ? evento.fechamentoCache[0].idevento : null;
-            const totaisDoEventoAtual = eventoIdParaTotal && dados.fechamentoCacheTotaisPorEvento ? 
-                                       (dados.fechamentoCacheTotaisPorEvento[eventoIdParaTotal] || { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0 }) : 
-                                       { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0 };
-            
+            const totaisDoEventoAtual = eventoIdParaTotal && dados.fechamentoCacheTotaisPorEvento ?
+                (dados.fechamentoCacheTotaisPorEvento[eventoIdParaTotal] || { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0 }) :
+                { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0 };
+
             relatorioHtmlCompleto += montarRelatorioHtmlEvento(
                 evento.fechamentoCache,
                 evento.nomeEvento,
                 nomeRelatorio,
                 evento.utilizacaoDiarias,
                 evento.contingencia,
-                totaisDoEventoAtual // Passa os totais para a função
+                totaisDoEventoAtual
             );
         });
 
-        
-        
         // Chamamos a função de impressão passando o HTML gerado
         imprimirRelatorio(relatorioHtmlCompleto);
 
@@ -511,115 +423,6 @@ async function gerarRelatorio() {
         gerarRelatorioBtn.disabled = false;
     }
 }
-
-// function renderizarRelatorioNaTela(dadosDoRelatorio) {
-//     const outputDiv = document.getElementById('reportOutput');
-//     // Limpa o conteúdo anterior para evitar duplicidade
-//     outputDiv.innerHTML = '';
-
-//     // Verifica se há dados na seção de fechamento de cachê
-//     if (dadosDoRelatorio.fechamentoCache && dadosDoRelatorio.fechamentoCache.length > 0) {
-//         outputDiv.innerHTML += '<h3>FECHAMENTO CACHÊ</h3>';
-//         const tabelaCache = document.createElement('table');        
-        
-//         // --- COLOQUE O CÓDIGO AQUI DENTRO ---
-//         tabelaCache.innerHTML = `
-//             <thead>
-//                 <tr>
-//                     <th>Nome do Evento</th>
-//                     <th>Função</th>
-//                     <th>Nome</th>
-//                     <th>PIX</th>
-//                     <th>Início</th>
-//                     <th>Término</th>
-//                     <th>Vlr Diária</th>
-//                     <th>Vlr Adicional</th>                    
-//                     <th>Qtd</th>
-//                     <th>Total Diárias</th>
-//                     <th>Status Pagamento</th>
-//                 </tr>
-//             </thead>
-//             <tbody>
-//                 ${dadosDoRelatorio.fechamentoCache.map(row => `
-//                     <tr>
-//                         <td>${row.nomeEvento}</td>
-//                         <td>${row['FUNÇÃO']}</td>
-//                         <td>${row.NOME}</td>
-//                         <td>${row.PIX}</td>
-//                         <td>${row['INÍCIO']}</td>
-//                         <td>${row['TÉRMINO']}</td>
-//                         <td>${row['VLR DIÁRIA']}</td>
-//                         <td>${row['VLR ADICIONAL']}</td>                       
-//                         <td>${row.QTD}</td>
-//                         <td>${row['TOTAL DIÁRIAS']}</td>
-//                         <td>${row['STATUS PAGAMENTO']}</td>
-//                     </tr>
-//                 `).join('')}
-//             </tbody>
-//         `;
-//         // --- FIM DO TRECHO ---
-//         outputDiv.appendChild(tabelaCache);
-//     }
-
-//     // Verifica se há dados na seção de utilização de diárias
-//     if (dadosDoRelatorio.utilizacaoDiarias && dadosDoRelatorio.utilizacaoDiarias.length > 0) {
-//         outputDiv.innerHTML += '<h3>RELATÓRIO UTILIZAÇÃO DE DIÁRIAS</h3>';
-//         const tabelaDiarias = document.createElement('table');
-//         tabelaDiarias.innerHTML = `
-//             <thead>
-//                 <tr>
-//                     <th>Informações em Proposta</th>
-//                     <th>Qtd Profissionais</th>
-//                     <th>Diárias Contratadas</th>
-//                     <th>Diárias Utilizadas</th>
-//                     <th>Saldo</th>
-//                 </tr>
-//             </thead>
-//             <tbody>
-//                 ${dadosDoRelatorio.utilizacaoDiarias.map(row => `
-//                     <tr>
-//                         <td>${row['INFORMAÇÕES EM PROPOSTA']}</td>
-//                         <td>${row['QTD PROFISSIONAIS']}</td>
-//                         <td>${row['DIÁRIAS CONTRATADAS']}</td>
-//                         <td>${row['DIÁRIAS UTILIZADAS']}</td>
-//                         <td>${row.SALDO}</td>
-//                     </tr>
-//                 `).join('')}
-//             </tbody>
-//         `;
-        
-//         outputDiv.appendChild(tabelaDiarias);
-//     }
-    
-//     // Verifica se há dados na seção de contingência
-//     if (dadosDoRelatorio.contingencia && dadosDoRelatorio.contingencia.length > 0) {
-//         outputDiv.innerHTML += '<h3>CONTINGÊNCIA</h3>';
-//         const tabelaContingencia = document.createElement('table');
-//         tabelaContingencia.innerHTML = `
-//             <thead>
-//                 <tr>
-//                     <th>Profissional</th>
-//                     <th>Informação</th>
-//                     <th>Observação</th>
-//                 </tr>
-//             </thead>
-//             <tbody>
-//                 ${dadosDoRelatorio.contingencia.map(row => `
-//                     <tr>
-//                         <td>${row.Profissional}</td>
-//                         <td>${row.Informacao}</td>
-//                         <td>${row.Observacao}</td>
-//                     </tr>
-//                 `).join('')}
-//             </tbody>
-//         `;     
-//         outputDiv.appendChild(tabelaContingencia);
-//     }
-
-//     // Agora que as tabelas foram geradas, a função pode prosseguir
-//     //window.print();
-// }
-
 
 function imprimirRelatorio(conteudoRelatorio) {
     if (!conteudoRelatorio) {
@@ -868,6 +671,7 @@ function desinicializarRelatoriosModal() {
     console.log("✅ Relatórios desinicializado.");
 }
 
+initRelatorios();
 
 window.moduloHandlers = window.moduloHandlers || {};
 window.moduloHandlers['Relatorios'] = { // A chave 'Relatorios' deve corresponder ao que o Index.js usa
