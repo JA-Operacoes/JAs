@@ -10,6 +10,7 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
     console.log("ENTROU NA ROTA PARA RELATORIOS");
     const { tipo, dataInicio, dataFim, evento } = req.query; 
     const idempresa = req.idempresa;
+    const eventoEhTodos = evento === "todos";
     
     if (!tipo || !dataInicio || !dataFim || !evento) {
         return res.status(400).json({ error: 'Parâmetros tipo, dataInicio, dataFim e evento são obrigatórios.' });
@@ -23,8 +24,7 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
     try {
         const relatorio = {};
 
-        // Condição WHERE para o período de datas.
-        const wherePeriodo = `
+        let wherePeriodo = `
             EXISTS (
                 SELECT 1
                 FROM jsonb_array_elements_text(tse.datasevento) AS event_date
@@ -37,7 +37,6 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
         
         // **LÓGICA CONDICIONAL PARA O TIPO DE RELATÓRIO PRINCIPAL**
         if (tipo === 'ajuda_custo') {
-            // Query para "Ajuda de Custo" (usa vlrAlmoco, vlrJantar, vlrTransporte)
             queryFechamentoPrincipal = `
                 SELECT
                     tse.idevento AS "idevento",
@@ -203,10 +202,18 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
             return item;
         });
         
+        // Parâmetros para fechamento principal
+        const paramsFechamento = eventoEhTodos
+            ? [idempresa, dataInicio, dataFim]
+            : [idempresa, dataInicio, dataFim, evento];
+
+        const resultFechamentoPrincipal = await pool.query(queryFechamentoPrincipal, paramsFechamento);
+        const fechamentoCache = resultFechamentoPrincipal.rows; 
+        relatorio.fechamentoCache = fechamentoCache;
+
         // --- CALCULA TOTAIS PARA FECHAMENTO CACHÊ / AJUDA DE CUSTO POR EVENTO ---
         const totaisPorEvento = {};
-
-        relatorio.fechamentoCache.forEach(item => {
+        fechamentoCache.forEach(item => {
             const eventoId = item.idevento;
             if (!totaisPorEvento[eventoId]) {
                 totaisPorEvento[eventoId] = {
@@ -214,8 +221,6 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                     totalVlrDiarias:0,
                     totalTotalDiarias: 0,
                     totalTotalPagar: 0
-                    // Aqui não somamos "VLR DIÁRIA" (que é o valor unitário),
-                    // mas sim "TOTAL DIÁRIAS" que já é VLR_UNITARIO * QTD
                 };
             }
             totaisPorEvento[eventoId].totalVlrAdicional += parseFloat(item["VLR ADICIONAL"] || 0);
@@ -223,11 +228,9 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
             totaisPorEvento[eventoId].totalTotalDiarias += parseFloat(item["TOT DIÁRIAS"] || 0);
             totaisPorEvento[eventoId].totalTotalPagar += parseFloat(item["TOT PAGAR"] || 0);
         });
-
-        // Adiciona os totais calculados por evento ao objeto de relatório
         relatorio.fechamentoCacheTotaisPorEvento = totaisPorEvento;
 
-
+        // Utilização de Diárias (não filtra por evento)
         const queryUtilizacaoDiarias = `
             SELECT
                 o.idevento,
@@ -289,7 +292,12 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
         `;
         const resultUtilizacaoDiarias = await pool.query(queryUtilizacaoDiarias, [idempresa, dataInicio, dataFim]);
         relatorio.utilizacaoDiarias = resultUtilizacaoDiarias.rows;
-        
+
+        // Contingência
+        const paramsContingencia = eventoEhTodos
+            ? [idempresa, dataInicio, dataFim]
+            : [idempresa, dataInicio, dataFim, evento];
+
         const queryContingencia = `
             SELECT
                 tse.idevento,
@@ -363,7 +371,7 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
             ORDER BY
                 idevento, "Profissional", "Informacao";
         `;
-        const resultContingencia = await pool.query(queryContingencia, [idempresa, dataInicio, dataFim, evento]);
+        const resultContingencia = await pool.query(queryContingencia, paramsContingencia);
         relatorio.contingencia = resultContingencia.rows;
 
         return res.json(relatorio);

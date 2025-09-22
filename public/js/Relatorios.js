@@ -454,7 +454,7 @@ async function gerarRelatorio() {
     const tipo = document.getElementById('reportType').value;
     const dataInicio = document.getElementById('reportStartDate').value;
     const dataFim = document.getElementById('reportEndDate').value;
-    const evento = document.getElementById('eventSelect').value;
+    let evento = document.getElementById('eventSelect').value;
     const nomeRelatorio = document.getElementById('reportType').options[document.getElementById('reportType').selectedIndex].text;
 
     if (!tipo || !dataInicio || !dataFim || !evento) {
@@ -470,69 +470,76 @@ async function gerarRelatorio() {
     try {
         const url = `/relatorios?tipo=${tipo}&dataInicio=${dataInicio}&dataFim=${dataFim}&evento=${evento}`;
         const dados = await fetchComToken(url);
-        
-        // Salva os dados na variável global
-        ultimoRelatorioGerado = dados;
+        console.log('Dados recebidos do backend:', dados);
 
-        // Após a busca, exibe o modal de escolha
-        Swal.fire({
-            title: 'Relatório Gerado!',
-            text: 'Escolha uma opção para continuar:',
-            showDenyButton: true,
-            showCancelButton: true,
-            confirmButtonText: 'Visualizar / Imprimir',
-            denyButtonText: `Gerar XLS`,
-            cancelButtonText: `Fechar`,
-            allowOutsideClick: false,
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Opção 1: Visualizar / Imprimir
-                let relatorioHtmlCompleto = '';
-                const dadosAgrupadosPorEvento = {};
-                
-                // 1. Agrupar dados de Fechamento de Cachê
-                if (dados.fechamentoCache && dados.fechamentoCache.length > 0) {
-                    dados.fechamentoCache.forEach(item => {
-                        const eventoId = item.idevento;
-                        if (!dadosAgrupadosPorEvento[eventoId]) {
-                            dadosAgrupadosPorEvento[eventoId] = {
-                                nomeEvento: item.nomeEvento,
-                                fechamentoCache: [],
-                                utilizacaoDiarias: [],
-                                contingencia: []
-                            };
-                        }
-                        dadosAgrupadosPorEvento[eventoId].fechamentoCache.push(item);
-                    });
-                }
-                
-                // 2. Agrupar dados de Utilização de Diárias
-                if (dados.utilizacaoDiarias && dados.utilizacaoDiarias.length > 0) {
-                    dados.utilizacaoDiarias.forEach(item => {
-                        const eventoId = item.idevento;
-                        if (dadosAgrupadosPorEvento[eventoId]) {
-                            dadosAgrupadosPorEvento[eventoId].utilizacaoDiarias.push(item);
-                        }
-                    });
-                }
-                
-                // 3. Agrupar dados de Contingência
-                if (dados.contingencia && dados.contingencia.length > 0) {
-                    dados.contingencia.forEach(item => {
-                        const eventoId = item.idevento;
-                        if (dadosAgrupadosPorEvento[eventoId]) {
-                            dadosAgrupadosPorEvento[eventoId].contingencia.push(item);
-                        } else {
-                            console.warn(`Evento ${eventoId} de Contingência não encontrado em Fechamento de Cachê.`);
-                        }
-                    });
-                }
+        let relatorioHtmlCompleto = '';
 
-                // Agora, iteramos sobre os eventos agrupados e geramos o HTML para cada um
-                const eventosOrdenados = Object.values(dadosAgrupadosPorEvento).sort((a, b) => {
-                    return a.nomeEvento.localeCompare(b.nomeEvento);
-                });
+        const dadosAgrupadosPorEvento = {};
 
+        // 1. Agrupar dados de Fechamento de Cachê
+        if (dados.fechamentoCache && dados.fechamentoCache.length > 0) {
+            dados.fechamentoCache.forEach(item => {
+                const eventoId = item.idevento;
+                if (!dadosAgrupadosPorEvento[eventoId]) {
+                    dadosAgrupadosPorEvento[eventoId] = {
+                        nomeEvento: item.nomeEvento,
+                        fechamentoCache: [],
+                        utilizacaoDiarias: [],
+                        contingencia: []
+                    };
+                }
+                dadosAgrupadosPorEvento[eventoId].fechamentoCache.push(item);
+            });
+        }
+
+        // 2. Agrupar dados de Utilização de Diárias
+        if (dados.utilizacaoDiarias && dados.utilizacaoDiarias.length > 0) {
+            dados.utilizacaoDiarias.forEach(item => {
+                const eventoId = item.idevento;
+                if (dadosAgrupadosPorEvento[eventoId]) {
+                    dadosAgrupadosPorEvento[eventoId].utilizacaoDiarias.push(item);
+                }
+            });
+        }
+
+        // 3. Agrupar dados de Contingência
+        if (dados.contingencia && dados.contingencia.length > 0) {
+            dados.contingencia.forEach(item => {
+                const eventoId = item.idevento;
+                if (dadosAgrupadosPorEvento[eventoId]) {
+                    dadosAgrupadosPorEvento[eventoId].contingencia.push(item);
+                } else {
+                    // Se um evento tiver apenas contingência e não fechamentoCache, ele não será criado.
+                    // Considere criar o evento aqui também se for um cenário válido.
+                    console.warn(`Evento ${eventoId} de Contingência não encontrado em Fechamento de Cachê.`);
+                }
+            });
+        }
+
+        // Agora, iteramos sobre os eventos agrupados e geramos o HTML para cada um
+        const eventosOrdenados = Object.values(dadosAgrupadosPorEvento).sort((a, b) => {
+            return a.nomeEvento.localeCompare(b.nomeEvento);
+        });
+
+        eventosOrdenados.forEach(evento => {
+            // AQUI PEGAMOS OS TOTAIS DO EVENTO ESPECÍFICO
+            const eventoIdParaTotal = evento.fechamentoCache.length > 0 ? evento.fechamentoCache[0].idevento : null;
+            const totaisDoEventoAtual = eventoIdParaTotal && dados.fechamentoCacheTotaisPorEvento ?
+                (dados.fechamentoCacheTotaisPorEvento[eventoIdParaTotal] || { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0 }) :
+                { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0 };
+
+            relatorioHtmlCompleto += montarRelatorioHtmlEvento(
+                evento.fechamentoCache,
+                evento.nomeEvento,
+                nomeRelatorio,
+                evento.utilizacaoDiarias,
+                evento.contingencia,
+                totaisDoEventoAtual
+            );
+        });
+
+        // Chamamos a função de impressão passando o HTML gerado
+        imprimirRelatorio(relatorioHtmlCompleto);
                 eventosOrdenados.forEach(evento => {
                     const eventoIdParaTotal = evento.fechamentoCache.length > 0 ? evento.fechamentoCache[0].idevento : null;
                     const totaisDoEventoAtual = eventoIdParaTotal && dados.fechamentoCacheTotaisPorEvento ? 
