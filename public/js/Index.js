@@ -16,31 +16,82 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   // Mapeie os logotipos para seus IDs de empresa
-  const logos = [
-    { selector: '.logo-Oper', id: 1 },
-    { selector: '.logo-ES', id: 2 },
-    { selector: '.logo-EA', id: 3 },
-    { selector: '.logo-EP', id: 4 },
-    { selector: '.logo-SNFoods', id: 5 },
-    { selector: '.logo-TSD', id: 6 }
-  ];
+  // const logos = [
+  //   { selector: '.logo-Oper', id: 1 },
+  //   { selector: '.logo-ES', id: 2 },
+  //   { selector: '.logo-EA', id: 3 },
+  //   { selector: '.logo-EP', id: 4 },
+  //   { selector: '.logo-SNFoods', id: 5 },
+  //   { selector: '.logo-TSD', id: 6 }
+  // ];
 
-  const empresasPermitidas = getEmpresasDoUsuario();
+  // const empresasPermitidas = getEmpresasDoUsuario();
 
-  logos.forEach(logo => {
-    const el = document.querySelector(logo.selector);
-    if (el) {
-      if (!empresasPermitidas.includes(logo.id)) {
-        el.style.display = 'none'; // Esconde se não tem permissão
-      } else {
-        el.setAttribute('data-idempresa', logo.id);
-        el.addEventListener('click', function() {
-          localStorage.setItem('idempresa', logo.id);
-          // O redirecionamento já acontece pelo href do <a>
+  // logos.forEach(logo => {
+  //   const el = document.querySelector(logo.selector);
+  //   if (el) {
+  //     if (!empresasPermitidas.includes(logo.id)) {
+  //       el.style.display = 'none'; // Esconde se não tem permissão
+  //     } else {
+  //       el.setAttribute('data-idempresa', logo.id);
+  //       el.addEventListener('click', function() {
+  //         localStorage.setItem('idempresa', logo.id);
+  //         // O redirecionamento já acontece pelo href do <a>
+  //       });
+  //     }
+  //   }
+  // });
+
+
+  try {
+        // 1. Pega a lista de empresas permitidas do token do usuário.
+        const empresasPermitidas = getEmpresasDoUsuario();
+
+        // 2. Busca a lista de todas as empresas do backend (usando a nova rota /empresas).
+        const empresasDoBackend = await fetchComToken("/index/empresas"); 
+
+        console.log("Empresas do backend:", empresasDoBackend);
+        
+        // 3. Mapeia as empresas para uma lista de logos com os IDs e seletores corretos.
+        //    O nome fantasia deve ser limpo para corresponder ao seletor CSS.
+        const logos = empresasDoBackend.map(empresa => {
+            const nmfantasiaLower = empresa.nmfantasia.toLowerCase().replace(/ /g, '');
+            return {
+                selector: `.logo-${nmfantasiaLower}`,
+                id: empresa.idempresa
+            };
         });
-      }
+
+        // 4. Itera sobre a nova lista de logos dinâmica para mostrar/esconder.
+        logos.forEach(logo => {
+          console.log("Processando logo:", logo);
+            const el = document.querySelector(logo.selector);
+            console.log(`el: ${el} para seletor ${logo.selector}`);
+            if (el) {
+               
+                // Se o ID da empresa do backend não estiver na lista do token, esconde o logo.
+                if (!empresasPermitidas.includes(logo.id)) {                 
+                    el.style.display = 'none';
+                } else {
+                    // Se o usuário tem permissão, mostra o logo e configura o evento de clique.
+                    el.setAttribute('data-idempresa', logo.id);
+                    
+                    el.addEventListener('click', function() {
+                      console.log(`Empresa selecionada: ${logo.id}`);
+                        localStorage.setItem('idempresa', logo.id);
+                        // O redirecionamento já acontece pelo href do <a>
+                        window.location.reload(); // Recarrega a página para aplicar o tema
+                        
+                    });
+                }
+                console.log(`PROCESSADO LOGO: ${logo.selector} PARA EMPRESA ID: ${logo.id}`);
+            }
+        });
+
+    } catch (error) {
+        console.error("Falha ao carregar a lista de empresas do backend:", error);
+        // Exibe um SweetAlert de erro ou lide com a situação
     }
-  });
 
   let permissoesArray; // Renomeado para clareza
   let permissoesPromise; 

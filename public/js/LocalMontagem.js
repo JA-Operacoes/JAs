@@ -392,9 +392,7 @@ document.querySelector("#qtdPavilhao").addEventListener("input", async function(
             console.log("Enviando dados para o servidor:", dados, url, metodo);
             const respostaApi = await fetchComToken(url, {                
                 method: metodo,
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dados)
             });            
 
@@ -423,6 +421,15 @@ document.querySelector("#qtdPavilhao").addEventListener("input", async function(
         try {
             const montagem = await fetchComToken("/localmontagem"); // ajuste a rota conforme sua API
            
+            if (!montagem || montagem.length === 0) {
+                return Swal.fire({
+                    icon: 'info',
+                    title: 'Nenhum local de montagem cadastrado',
+                    text: 'Não foi encontrado nenhum local de montagem no sistema.',
+                    confirmButtonText: 'Ok'
+                });
+            }
+
             const select = criarSelectMontagem(montagem);
             limparCamposMontagem();
 
@@ -495,9 +502,7 @@ async function salvarDadosMontagem(dados, idMontagem, metodo) {
     try {
         const respostaApi = await fetchComToken(url, {
             method: metodo,
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(dados)
         });
 

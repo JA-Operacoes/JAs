@@ -121,12 +121,13 @@
                                 <th>Evento</th>                                    
                                 <th>Local Montagem</th>
                                 <th>Pavilhão</th>
+                                <th id="qtdPessoasHeader" style="display: none;">Qtd Pessoas</th>
                                 <th>Período</th>
                                 <th>Cache</th>
                                 <th>Vlr Ajuste Cto</th>
                                 <th>Obs.Ajuste Cto</th>
-                                <th>Almoço</th>
-                                <th>Jantar</th>
+                                <!-- <th>Almoço</th> -->
+                                <th>Alimentação</th>
                                 <th>Transporte</th>                                    
                                 <th>Caixinha</th>
                                 <th>Obs.Benefícios</th>                                   
@@ -178,10 +179,15 @@
                     </div>
                   </div>
                   
-                </div>
-              
-
-                
+                  <div class="field" style="display: none;">
+                    <label for="lote">Qtd Pessoas do Lote:</label>
+                    <div class="checkbox">                      
+                      <div class="Vertical">
+                        <input id="qtdPessoas" type="text" />                        
+                      </div>
+                    </div>
+                  </div>
+                </div> 
 
                 <div class="Selects">
                   <div class="field">
@@ -228,7 +234,7 @@
                   </div>        
                 <br>
 
-                <div class="field Alimentação">
+                <!-- <div class="field Alimentação">
                     <label for="tpalimentacao">Alimentação:</label>
                     <div class="checkbox">                      
                       <div class="Vertical">
@@ -240,20 +246,20 @@
                         <label for="Jantarcheck">Jantar</label>
                       </div>                      
                     </div>
-                  </div>
+                </div> -->
 
                 <div class="form-2colunas">   
                   <div class="form2">
                       <input type="text" name="vlrCusto" id="vlrCusto" class="preenchido" readonly required>
                       <label for="vlrCusto">Cache</label>
                   </div> 
-                  <div class="form2">
+                  <!-- <div class="form2">
                     <input type="text" name="almoco" id="almoco" class="preenchido" readonly required>
                     <label for="almoco">Almoço</label>
-                  </div>                              
+                  </div>                               -->
                   <div class="form2">
-                    <input type="text" name="jantar" id="jantar" class="preenchido" readonly required>
-                    <label for="jantar">Jantar</label>
+                    <input type="text" name="alimentacao" id="alimentacao" class="preenchido" readonly required>
+                    <label for="alimentacao">Alimentação</label>
                   </div>   
                   <div class="form2">
                     <input type="text" name="transporte" id="transporte" class="preenchido" readonly required>

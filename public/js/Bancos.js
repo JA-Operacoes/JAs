@@ -1,21 +1,41 @@
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
 
+// document.addEventListener("DOMContentLoaded", function () {
+//     const idempresa = String(localStorage.getItem("idempresa")); // garante string
+
+//     if (idempresa) {
+//         // Mapeamento direto de idempresa → tema
+//         const temas = {
+//             "1": "JA-Oper",
+//             "2": "ES",
+//             "3": "EA",
+//             "4": "EP",
+//             "5": "SN-FOODS",
+//             "6": "TSD"
+           
+//         };
+
+//         const tema = temas[idempresa] || "default";
+//         aplicarTema(tema);
+//     }
+// });
+
 document.addEventListener("DOMContentLoaded", function () {
-    const idempresa = String(localStorage.getItem("idempresa")); // garante string
+    const idempresa = localStorage.getItem("idempresa");
 
     if (idempresa) {
-        // Mapeamento direto de idempresa → tema
-        const temas = {
-            "1": "JA-Oper",
-            "2": "ES",
-            "3": "EA",
-            "4": "EP",
-            "5": "TSD",
-            "6": "SN-FOODS"
-        };
+        const apiUrl = `/empresas/${idempresa}`; // Verifique o caminho da sua API
 
-        const tema = temas[idempresa] || "default";
-        aplicarTema(tema);
+        fetchComToken(apiUrl)
+            .then(empresa => {
+                // Usa o nome fantasia como tema
+                const tema = empresa.nmfantasia;
+                aplicarTema(tema);
+            })
+            .catch(error => {
+                console.error("❌ Erro ao buscar dados da empresa para o tema:", error);
+                // aplicarTema('default');
+            });
     }
 });
 
@@ -117,6 +137,7 @@ async function verificaBanco() {
             console.log("Enviando dados para o servidor:", dados, url, metodo);
             const respostaApi = await fetchComToken(url, {
                 method: metodo,
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dados)
             });
 
@@ -141,6 +162,14 @@ async function verificaBanco() {
         try {
             const bancosEncontrados = await fetchComToken("/bancos"); // Use /bancos (minúsculo) conforme sua rota adaptada
 
+            if (!bancosEncontrados || bancosEncontrados.length === 0) {
+                return Swal.fire({
+                    icon: 'info',
+                    title: 'Nenhum banco cadastrado',
+                    text: 'Não foi encontrado nenhum banco no sistema.',
+                    confirmButtonText: 'Ok'
+                });
+            }
             const select = criarSelectBanco(bancosEncontrados);
         
             console.log("Bancos encontrados da API:", bancosEncontrados); // Log mais descritivo

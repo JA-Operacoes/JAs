@@ -312,9 +312,7 @@ function carregarClientes() {
 
             const respostaApi = await fetchComToken(url, {                
                 method: metodo,
-                headers: {
-                     'Content-Type': 'application/json',
-                 },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dados)
             });            
 
@@ -363,7 +361,16 @@ function carregarClientes() {
             try {
                 console.log("CarregarClientes");
                 const clientes = await fetchComToken("/clientes");
-                
+
+                if (!clientes || clientes.length === 0) {
+                    return Swal.fire({
+                        icon: 'info',
+                        title: 'Nenhum cliente cadastrado',
+                        text: 'Não foi encontrado nenhum cliente no sistema.',
+                        confirmButtonText: 'Ok'
+                    });
+                }
+
                 const input = getCampo("nmFantasia");
 
                 const select = criarSelectClientes(clientes);

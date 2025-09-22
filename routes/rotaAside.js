@@ -1,12 +1,55 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db'); // ajuste o caminho conforme seu projeto
+const db = require('../db'); // ajuste o caminho conforme seu projeto
 const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlewares');
 const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 const logMiddleware = require('../middlewares/logMiddleware');
 
+
+// router.get('/empresasTema/:idempresa', async (req, res) => {
+//   const { idempresa } = req.params;
+//   console.log(`🔍 Buscando empresa por ID na Rota Aside: ${idempresa}`);
+
+//   try {
+//     const result = await db.query(
+//       `SELECT * FROM empresas WHERE idempresa = $1`,
+//       [idempresa]
+//     );
+
+//     if (result.rows.length === 0) {
+//       return res.status(404).json({ message: "Empresa não encontrada" });
+//     }
+
+//     res.json(result.rows[0]);
+//   } catch (error) {
+//     console.error("❌ Erro ao buscar empresa por ID:", error);
+//     res.status(500).json({ message: "Erro ao buscar empresa" });
+//   }
+// });
+
 router.use(autenticarToken());
 router.use(contextoEmpresa);
+
+router.get('/empresasTema/:idempresa', async (req, res) => {
+  const { idempresa } = req.params;
+  console.log(`🔍 Buscando empresa por ID na Rota Aside: ${idempresa}`);
+
+  try {
+    const result = await db.query(
+      `SELECT * FROM empresas WHERE idempresa = $1`,
+      [idempresa]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "Empresa não encontrada" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("❌ Erro ao buscar empresa por ID:", error);
+    res.status(500).json({ message: "Erro ao buscar empresa" });
+  }
+});
 
 router.get('/eventos', async (req, res) => {
   const { clienteId } = req.query;
@@ -24,7 +67,7 @@ router.get('/eventos', async (req, res) => {
       JOIN eventos e ON e.idevento = o.idevento
       WHERE o.idcliente = $1 AND o.status = 'A'
     `;
-    const { rows } = await pool.query(query, [clienteId]);
+    const { rows } = await db.query(query, [clienteId]);
 
     console.log("evento:", rows);
 
@@ -51,7 +94,7 @@ router.get('/orcamento', async (req, res) => {
       WHERE idcliente = $1 AND idevento = $2 AND status = 'A'
       ORDER BY datacriacao DESC
     `;
-    const { rows } = await pool.query(query, [clienteId, eventoId]);
+    const { rows } = await db.query(query, [clienteId, eventoId]);
 
     console.log("🧾 Orçamentos encontrados:", rows);
 
@@ -70,7 +113,7 @@ router.get("/clientes", async (req, res) => {
   try {
     if (nmFantasia) {
       console.log("🔍 Buscando cliente por nmFantasia:", nmFantasia, idempresa);
-      const result = await pool.query(
+      const result = await db.query(
         `SELECT c.* 
         FROM clientes c
         INNER JOIN clienteempresas ce ON ce.idcliente = c.idcliente
@@ -84,7 +127,7 @@ router.get("/clientes", async (req, res) => {
         : res.status(404).json({ message: "Cliente não encontrado" });
     } else {
       console.log("🔍 Buscando todos os clientes para a empresa:", idempresa);
-      const result = await pool.query(
+      const result = await db.query(
         `SELECT c.* 
         FROM clientes c
         INNER JOIN clienteempresas ce ON ce.idcliente = c.idcliente
@@ -100,6 +143,66 @@ router.get("/clientes", async (req, res) => {
     res.status(500).json({ message: "Erro ao buscar nome fantasia" });
   }
 });
+
+
+router.get('/empresas', async (req, res) => {
+  console.log('✅ [GET /empresas] Rota Empresa do Aside acessada com sucesso');
+  const { nmFantasia } = req.query;  
+  
+  try {
+    if (nmFantasia) {
+      console.log("🔍 Buscando empresa por nmFantasia:", nmFantasia);
+      const result = await db.query(
+        `SELECT * 
+        FROM empresas        
+        WHERE nmfantasia ILIKE $1
+        ORDER BY nmfantasia ASC LIMIT 1`,
+        [`%${nmFantasia}%`]
+      );
+      console.log("✅ Consulta por nmFantasia retornou:", result.rows.length, "linhas.");
+      return result.rows.length
+        ? res.json(result.rows[0])
+        : res.status(404).json({ message: "Empresa não encontrada" });
+    } else {
+      
+      console.log("🔍 Buscando todas as empresas:");
+      const result = await db.query(
+        `SELECT * 
+        FROM empresas        
+        ORDER BY nmfantasia`
+        );
+      console.log("✅ Consulta de todos as empresas retornou:", result.rows.length, "linhas.");
+      return result.rows.length
+        ? res.json(result.rows)
+        : res.status(404).json({ message: "Nenhuma Empresa encontrada" });
+    }
+  } catch (error) {
+    console.error("❌ Erro ao buscar empresas:", error);
+    res.status(500).json({ message: "Erro ao buscar nome fantasia" });
+  }
+});
+
+// router.get('/empresas/:idempresa', async (req, res) => {
+//   const { idempresa } = req.params;
+//   console.log(`🔍 Buscando empresa por ID na Rota Aside: ${idempresa}`);
+
+//   try {
+//     const result = await db.query(
+//       `SELECT * FROM empresas WHERE idempresa = $1`,
+//       [idempresa]
+//     );
+
+//     if (result.rows.length === 0) {
+//       return res.status(404).json({ message: "Empresa não encontrada" });
+//     }
+
+//     res.json(result.rows[0]);
+//   } catch (error) {
+//     console.error("❌ Erro ao buscar empresa por ID:", error);
+//     res.status(500).json({ message: "Erro ao buscar empresa" });
+//   }
+// });
+
 
 
 module.exports = router;

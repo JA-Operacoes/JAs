@@ -128,85 +128,85 @@
 // // }
 
 
-// import { fetchComToken, aplicarTema } from '/utils/utils.js';
+import { fetchComToken, aplicarTema } from '../utils/utils.js';
 
-// // Função para obter o idempresa do localStorage
-// function getIdEmpresa() {
-//   return localStorage.getItem("idempresa");
-// }
+// Função para obter o idempresa do localStorage
+function getIdEmpresa() {
+  return localStorage.getItem("idempresa");
+}
 
-// // Função para buscar resumo dos cards
-// async function buscarResumo() {
-//   const resposta = await fetchComToken("/main"); 
-//   if (!resposta.ok) {
-//     throw new Error("Erro ao buscar resumo: " + resposta.status);
-//   }
-//   return await resposta.json(); 
-// }
+// Função para buscar resumo dos cards
+async function buscarResumo() {
+  // const resposta = await fetchComToken("/main"); 
+  // if (!resposta.ok) {
+  //   throw new Error("Erro ao buscar resumo: " + resposta.status);
+  // }
+  // return await resposta.json(); 
+}
 
-// // Função para buscar atividades recentes
-// async function buscarAtividadesRecentes() {
-//   const resposta = await fetchComToken(`/Main/atividades-recentes`, {
-//     headers: { idempresa: getIdEmpresa() }
-//   });
-//   return resposta.json();
-// }
+// Função para buscar atividades recentes
+async function buscarAtividadesRecentes() {
+  // const resposta = await fetchComToken(`/Main/atividades-recentes`, {
+  //   headers: { idempresa: getIdEmpresa() }
+  // });
+  // return resposta.json();
+}
 
-// // Função para buscar notificações financeiras
-// async function buscarNotificacoesFinanceiras() {
-//   const resposta = await fetchComToken(`/Main/notificacoes-financeiras`, {
-//     headers: { idempresa: getIdEmpresa() }
-//   });
-//   return resposta.json();
-// }
+// Função para buscar notificações financeiras
+async function buscarNotificacoesFinanceiras() {
+  // const resposta = await fetchComToken(`/Main/notificacoes-financeiras`, {
+  //   headers: { idempresa: getIdEmpresa() }
+  // });
+  // return resposta.json();
+}
 
-// // Atualiza cards de resumo
-// async function atualizarResumo() {
-//   const dadosResumo = await buscarResumo();
-//   document.getElementById("orcamentos").textContent = dadosResumo.orcamentos;
-//   document.getElementById("eventos").textContent = dadosResumo.eventos;
-//   document.getElementById("clientes").textContent = dadosResumo.clientes;
-//   document.getElementById("pedidos").textContent = dadosResumo.pedidos;
-//   document.getElementById("pedidosPendentes").textContent = dadosResumo.pedidosPendentes;
-// }
+// Atualiza cards de resumo
+async function atualizarResumo() {
+  const dadosResumo = await buscarResumo();
+  // document.getElementById("orcamentos").textContent = dadosResumo.orcamentos;
+  // document.getElementById("eventos").textContent = dadosResumo.eventos;
+  // document.getElementById("clientes").textContent = dadosResumo.clientes;
+  // document.getElementById("pedidos").textContent = dadosResumo.pedidos;
+  // document.getElementById("pedidosPendentes").textContent = dadosResumo.pedidosPendentes;
+}
 
-// // Preenche tabela de atividades
-// async function atualizarAtividades() {
-//   const atividades = await buscarAtividadesRecentes();
-//   const lista = document.getElementById("listaAtividadesUsuario");
-//   lista.innerHTML = "";
-//   atividades.forEach(ativ => {
-//     const li = document.createElement("li");
-//     li.innerHTML = `<span>${ativ.acao}</span><span>${new Date(ativ.data).toLocaleString()}</span>`;
-//     lista.appendChild(li);
-//   });
-// }
+// Preenche tabela de atividades
+async function atualizarAtividades() {
+  // const atividades = await buscarAtividadesRecentes();
+  // const lista = document.getElementById("listaAtividadesUsuario");
+  // lista.innerHTML = "";
+  // atividades.forEach(ativ => {
+  //   const li = document.createElement("li");
+  //   li.innerHTML = `<span>${ativ.acao}</span><span>${new Date(ativ.data).toLocaleString()}</span>`;
+  //   lista.appendChild(li);
+  // });
+}
 
-// // Notificações financeiras
-// async function atualizarNotificacoesFinanceiras() {
-//   const usuario = JSON.parse(localStorage.getItem("usuario"));
-//   if (usuario.permissoes.includes("financeiro") || usuario.permissoes.includes("master")) {
-//     document.getElementById("notificacoesFinanceiras").style.display = "block";
-//     const notificacoes = await buscarNotificacoesFinanceiras();
-//     const lista = document.getElementById("listaNotificacoes");
-//     lista.innerHTML = "";
-//     notificacoes.forEach(n => {
-//       const div = document.createElement("div");
-//       div.className = "notificacao";
-//       div.innerHTML = `<span>${n.descricao}</span>
-//                        <div>
-//                          <button class="aprovar">Aprovar</button>
-//                          <button class="rejeitar">Rejeitar</button>
-//                        </div>`;
-//       lista.appendChild(div);
-//     });
-//   }
-// }
+// Notificações financeiras
+async function atualizarNotificacoesFinanceiras() {
+  // const usuario = JSON.parse(localStorage.getItem("usuario"));
+  // if (usuario.permissoes.includes("financeiro") || usuario.permissoes.includes("master")) {
+  //   document.getElementById("notificacoesFinanceiras").style.display = "block";
+  //   const notificacoes = await buscarNotificacoesFinanceiras();
+  //   const lista = document.getElementById("listaNotificacoes");
+  //   lista.innerHTML = "";
+  //   notificacoes.forEach(n => {
+  //     const div = document.createElement("div");
+  //     div.className = "notificacao";
+  //     div.innerHTML = `<span>${n.descricao}</span>
+  //                      <div>
+  //                        <button class="aprovar">Aprovar</button>
+  //                        <button class="rejeitar">Rejeitar</button>
+  //                      </div>`;
+  //     lista.appendChild(div);
+  //   });
+  // }
+}
 
-// // Inicialização
-// document.addEventListener("DOMContentLoaded", async function () {
-//   await atualizarResumo();
-//   await atualizarAtividades();
-//   await atualizarNotificacoesFinanceiras();
-//   // ... outras inicializações ...
-// });
+// Inicialização
+document.addEventListener("DOMContentLoaded", async function () {
+  await atualizarResumo();
+  await atualizarAtividades();
+  await atualizarNotificacoesFinanceiras();
+  // ... outras inicializações ...
+});
