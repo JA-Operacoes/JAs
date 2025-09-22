@@ -35,6 +35,7 @@
     --hover-color: #641516;
     --background-color: #942123;
     --font-color: #ffffff;
+    --black-color: black;
     --font-weight: none;
 }
 .tema-ES{
@@ -44,6 +45,7 @@
     --background-color: #80cd3b;
     --font-color: #000000;
     --font-weight: bold;
+    --black-color: black;
     --border-color:#4ece03;
 }
 .tema-EA{
@@ -53,6 +55,7 @@
     --background-color: #554aa8;
     --font-color: #ffffff;
     --font-weight: none;
+    --black-color: black;
     --border-color:#2e3192;
 }
 .tema-EP{
@@ -62,6 +65,7 @@
     --background-color: #a4a5a2;
     --font-color: #000000;
     --font-weight: none;
+    --black-color: black;
     --border-color:#696969;
 }
 .tema-SN-FOODS{
@@ -71,6 +75,7 @@
     --background-color: #ea5b1;
     --font-color: #000000;
     --font-weight: none;
+    --black-color: black;
     --border-color:#b34918;
 }
 .tema-TSD{
@@ -80,6 +85,7 @@
     --background-color: #303030;
     --font-color: #ffffff;
     --font-weight: none;
+    --black-color: black;
     --border-color:#2c2a2a;
 }
 

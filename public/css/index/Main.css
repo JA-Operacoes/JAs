@@ -31,7 +31,7 @@ main#conteudo {
 .detalhes-panel {
     flex: 1;
     display: flex;
-    justify-content: center;
+    /* justify-content: center; */
     background-color: #f4f4f4;
     border-radius: 10px;
     padding: 20px;
@@ -49,6 +49,13 @@ main#conteudo {
   justify-content: center;
   align-items: center;
   text-align: center;
+}
+#conteudoDetalhes {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    margin-top: 150px;
 }
 
 /* -------------------- Cards de resumo -------------------- */
@@ -84,6 +91,7 @@ main#conteudo {
     font-weight: var(--font-weight);
     font-family: var(--Font-primary);
 }
+
 
 .card div {
     font-size: 16px;
@@ -128,21 +136,22 @@ main#conteudo {
   font-size: 16px;
 }
 
-.evt-body span , .ativ-body span,.fin-body span, .orc-body span {
+.evt-body span , .ativ-body span,.fin-body span, .orc-body span{
   display: flex;
   justify-content: space-between; /* label de um lado e número do outro */
   font-weight: 500;
 }
 
-#proximoEventoNome {
+/* #proximoEventoNome {
   font-weight: bold;
   color: #222;
-}
+}*/
 
-#proximoEventoTempo {
+#proximoEventoTempo::hover {
   font-size: 14px;
-  color: #555;
-}
+  color: #ffffff;
+} 
+
 
 
 .ativ-body ul {
@@ -188,33 +197,194 @@ main#conteudo {
 
 /* -------------------- Tabela de Atividades -------------------- */
 
+.tabela-atividades {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.tabela-atividades thead {
+  background-color: var(--primary-color);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.tabela-atividades th, 
+.tabela-atividades td {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  vertical-align: top;
+  text-align: left;
+}
+
+.tabela-atividades th {
+  color: var(--font-color);
+  font-weight: var(--font-weight);
+}
+
+.tabela-atividades tbody {
+  display: block;
+  max-height: 350px; /* altura máxima visível */
+  overflow-y: auto;
+}
+
+.tabela-atividades thead, 
+.tabela-atividades tbody tr {
+  display: table;
+  width: 100%;
+  table-layout: fixed; /* para alinhar colunas */
+}
+
+.tabela-atividades pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: inherit;
+  font-size: 13px;
+}
 
 /* -------------------- Notificações Financeiras -------------------- */
-.notificacoes {
-    background-color: #fff3cd;
-    border-left: 5px solid #ffeeba;
-    padding: 15px 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
+
+.titulo-pedidos {
+    display: flex;
+    justify-content: center;
+    background-color: var(--primary-color);
+    color: var(--font-color);
+    font-weight: var(--font-weight);
+    width: 100%;
+    padding: 10px 16px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    font-size: 20px;
+    top: 0;
 }
 
-.notificacoes h3 {
-    font-size: 18px;
-    margin-bottom: 10px;
-    color: #856404;
+
+.funcionario {
+  border-radius: 8px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  transition: transform 0.2s;
 }
 
-#listaNotificacoes {
-    max-height: 150px;
-    overflow-y: auto;
+.funcionario:hover {
+  transform: translateY(-2px);
 }
 
-#listaNotificacoes div {
-    padding: 8px;
-    border-bottom: 1px solid #ffeeba;
-    font-size: 14px;
-    color: #856404;
+.funcionario-header {
+  background: linear-gradient(to right, #f3f4f6, #e5e7eb);
+  width: 800px;
+  padding: 14px 16px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 15px;
+  color: #1f2937; /* texto escuro */
+  border-bottom: 1px solid #d1d5db;
+  transition: background 0.2s, color 0.2s;
 }
+
+.funcionario-header:hover {
+  background: var(--hover-color);
+  border-color: var(--black-color);
+  color: var(--font-color);
+}
+
+/* Badge de quantidade de pedidos */
+.funcionario-header span {
+  background-color: var(--primary-color);
+  color: var(--font-color);
+  font-weight: var(--font-weight);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Container interno */
+.funcionario-body {
+  padding: 12px;
+  background-color: #f9fafb;
+  max-height: 300px;
+  overflow-y: auto;
+  transition: all 0.3s ease;
+  border-top: 1px solid #d1d5db;
+}
+
+/* Mini-card de cada campo */
+.pedido-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 10px;
+  background-color: #ffffff;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+/* Botões Aprovar / Negar */
+.pedido-card button {
+  cursor: pointer;
+  font-weight: bold;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  transition: opacity 0.2s;
+}
+
+.pedido-card button.aprovar {
+  background-color: #16a34a; /* verde */
+  color: white;
+}
+
+.pedido-card button.aprovar:hover {
+  opacity: 0.8;
+}
+
+.pedido-card button.negar {
+  background-color: #dc2626; /* vermelho */
+  color: white;
+}
+
+.pedido-card button.negar:hover {
+  opacity: 0.8;
+}
+
+/* Pequenos ajustes de texto */
+.pedido-card strong {
+  text-transform: capitalize;
+}
+
+.pedido-card p {
+  margin: 2px 0;
+}
+
+/* Classe para esconder */
+.hidden {
+  display: none;
+}
+
+.quadrado-arredondado {
+  width: 100px;           
+  height: 100px;          
+  background-color: #4f46e5; 
+  border-top-right-radius: 20px;   
+  border-bottom-right-radius: 20px;
+}
+
+
+
+
+
+
+
 
 /* -------------------- Mensagens / Dicas -------------------- */
 .mensagens {
