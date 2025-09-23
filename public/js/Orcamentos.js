@@ -10,12 +10,22 @@ import { fetchComToken, aplicarTema } from '../utils/utils.js';
 
 document.addEventListener("DOMContentLoaded", function () {
     const idempresa = localStorage.getItem("idempresa");
+
     if (idempresa) {
-        let tema = idempresa == 1 ? "JA-Oper" : "ES";
-        aplicarTema(tema);
+        const apiUrl = `/empresas/${idempresa}`; // Verifique o caminho da sua API
+
+        fetchComToken(apiUrl)
+            .then(empresa => {
+                // Usa o nome fantasia como tema
+                const tema = empresa.nmfantasia;
+                aplicarTema(tema);
+            })
+            .catch(error => {
+                console.error("❌ Erro ao buscar dados da empresa para o tema:", error);
+                // aplicarTema('default');
+            });
     }
 });
-
 let idMontagemChangeListener = null;
 let statusInputListener = null;
 let nrOrcamentoInputListener = null;

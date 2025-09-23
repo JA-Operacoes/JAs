@@ -1,4 +1,23 @@
-import { fetchComToken } from '../utils/utils.js';
+import { fetchComToken, aplicarTema  } from '../utils/utils.js';
+
+document.addEventListener("DOMContentLoaded", function () {
+    const idempresa = localStorage.getItem("idempresa");
+
+    if (idempresa) {
+        const apiUrl = `/empresas/${idempresa}`; // Verifique o caminho da sua API
+
+        fetchComToken(apiUrl)
+            .then(empresa => {
+                // Usa o nome fantasia como tema
+                const tema = empresa.nmfantasia;
+                aplicarTema(tema);
+            })
+            .catch(error => {
+                console.error("❌ Erro ao buscar dados da empresa para o tema:", error);
+                // aplicarTema('default');
+            });
+    }
+});
 
 //importado no inicio do js pois deve ser importado antes do restante do codigo
 import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/flatpickr.min.js";

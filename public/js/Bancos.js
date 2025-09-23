@@ -1,25 +1,5 @@
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
 
-// document.addEventListener("DOMContentLoaded", function () {
-//     const idempresa = String(localStorage.getItem("idempresa")); // garante string
-
-//     if (idempresa) {
-//         // Mapeamento direto de idempresa → tema
-//         const temas = {
-//             "1": "JA-Oper",
-//             "2": "ES",
-//             "3": "EA",
-//             "4": "EP",
-//             "5": "SN-FOODS",
-//             "6": "TSD"
-           
-//         };
-
-//         const tema = temas[idempresa] || "default";
-//         aplicarTema(tema);
-//     }
-// });
-
 document.addEventListener("DOMContentLoaded", function () {
     const idempresa = localStorage.getItem("idempresa");
 

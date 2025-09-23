@@ -1,4 +1,23 @@
-import { fetchComToken } from '../utils/utils.js';
+import { fetchComToken, aplicarTema } from '../utils/utils.js';
+
+document.addEventListener("DOMContentLoaded", function () {
+    const idempresa = localStorage.getItem("idempresa");
+
+    if (idempresa) {
+        const apiUrl = `/empresas/${idempresa}`; // Verifique o caminho da sua API
+
+        fetchComToken(apiUrl)
+            .then(empresa => {
+                // Usa o nome fantasia como tema
+                const tema = empresa.nmfantasia;
+                aplicarTema(tema);
+            })
+            .catch(error => {
+                console.error("❌ Erro ao buscar dados da empresa para o tema:", error);
+                // aplicarTema('default');
+            });
+    }
+});
 
 let todosOsDadosDoPeriodo = null;
 let eventoSelecionadoId = null;
@@ -1211,6 +1230,19 @@ function imprimirRelatorio(conteudoRelatorio) {
         }, 100);
     }, 500);
 }
+
+
+  document.querySelectorAll('input[type="radio"]').forEach(radio => {
+    radio.addEventListener('mousedown', function(e) {
+      if (e.button !== 0) return; // ignora clique que não seja o esquerdo
+      if (this.checked) {
+        e.preventDefault(); // previne seleção normal
+        this.checked = false; // desmarca
+      }
+    });
+  });
+
+
 function desinicializarRelatoriosModal() {
     console.log("🧹 Desinicializando módulo Relatórios...");
 
@@ -1235,6 +1267,7 @@ function desinicializarRelatoriosModal() {
 
     console.log("✅ Relatórios desinicializado.");
 }
+
 
 initRelatorios();
 
