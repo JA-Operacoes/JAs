@@ -362,7 +362,7 @@ router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, r
 
         // Iniciar a query base
         let query = `
-            SELECT se.idstaffevento, se.vlrcache, se.vlrajustecusto, se.vlrtransporte, se.vlralmoco, se.vlrjantar, se.vlrcaixinha,
+            SELECT se.idstaffevento, se.vlrcache, se.vlrajustecusto, se.vlrtransporte, se.vlralimentacao, se.vlrcaixinha,
                    se.descajustecusto, se.descbeneficios, se.setor, se.pavilhao, se.vlrtotal, se.comppgtocache, se.comppgtoajdcusto, se.comppgtocaixinha,
                    se.idfuncionario, se.idfuncao, se.nmfuncao, se.idcliente, se.idevento, se.idmontagem, se.datasevento,
                    se.nmfuncionario, se.nmcliente, se.nmevento, se.nmlocalmontagem,
@@ -604,65 +604,136 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
             client = await pool.connect();
 
             // A consulta SQL ajustada para filtrar por idfuncionario
-            let query = `
-                SELECT
-                  se.idstaffevento,
-                  se.idfuncionario,
-                  se.nmfuncionario,
-                  se.idevento,
-                  se.nmevento,
-                  se.idcliente,
-                  se.nmcliente,
-                  se.idfuncao,
-                  se.nmfuncao,
-                  se.idmontagem,
-                  se.nmlocalmontagem,
-                  se.pavilhao,
-                  se.vlrcache,
-                  se.vlralmoco,
-                  se.vlrjantar,
-                  se.vlrtransporte,
-                  se.vlrajustecusto,
-                  se.vlrcaixinha,
-                  se.descajustecusto,
-                  se.descbeneficios,
-                  se.vlrtotal,
-                  se.datasevento,
-                  se.comppgtocache,
-                  se.comppgtoajdcusto,
-                  se.comppgtoajdcusto50,
-                  se.comppgtocaixinha,
-                  se.setor,
-                  se.statuspgto,
-                  se.statusajustecusto,
-                  se.statuscaixinha,
-                  se.dtdiariadobrada,
-                  se.dtmeiadiaria,
-                  se.statusdiariadobrada,
-                  se.statusmeiadiaria,
-                  se.desccaixinha,
-                  se.descmeiadiaria,
-                  se.descdiariadobrada,
-                  se.nivelexperiencia,
-                  s.idstaff,
-                  s.avaliacao
-              FROM
-                  staffeventos se
-              INNER JOIN
-                  staff s ON se.idstaff = s.idstaff
-              INNER JOIN
-                  staffEmpresas se_emp ON s.idstaff = se_emp.idstaff
-              WHERE
-                  se_emp.idEmpresa = $1 AND se.idfuncionario = $2
-              ORDER BY
-                  COALESCE(
-                      (se.datasevento ->> 0)::date,
-                      (se.dtdiariadobrada ->> 0)::date,
-                      (se.dtmeiadiaria ->> 0)::date
-                  ) DESC NULLS LAST,
-                  se.nmcliente ASC,
-                  se.nmevento ASC;
-            `;
+            // let query = `
+            //     SELECT
+            //       se.idstaffevento,
+            //       se.idfuncionario,
+            //       se.nmfuncionario,
+            //       se.idevento,
+            //       se.nmevento,
+            //       se.idcliente,
+            //       se.nmcliente,
+            //       se.idfuncao,
+            //       se.nmfuncao,
+            //       se.idmontagem,
+            //       se.nmlocalmontagem,
+            //       se.pavilhao,
+            //       se.vlrcache,
+            //       se.vlralmoco,
+            //       se.vlralimentacao,
+            //       se.vlrtransporte,
+            //       se.vlrajustecusto,
+            //       se.vlrcaixinha,
+            //       se.descajustecusto,
+            //       se.descbeneficios,
+            //       se.vlrtotal,
+            //       se.datasevento,
+            //       se.comppgtocache,
+            //       se.comppgtoajdcusto,
+            //       se.comppgtoajdcusto50,
+            //       se.comppgtocaixinha,
+            //       se.setor,
+            //       se.statuspgto,
+            //       se.statusajustecusto,
+            //       se.statuscaixinha,
+            //       se.dtdiariadobrada,
+            //       se.dtmeiadiaria,
+            //       se.statusdiariadobrada,
+            //       se.statusmeiadiaria,
+            //       se.desccaixinha,
+            //       se.descmeiadiaria,
+            //       se.descdiariadobrada,
+            //       se.nivelexperiencia,
+            //       s.idstaff,
+            //       s.avaliacao
+            //   FROM
+            //       staffeventos se
+            //   INNER JOIN
+            //       staff s ON se.idstaff = s.idstaff
+            //   INNER JOIN
+            //       staffEmpresas se_emp ON s.idstaff = se_emp.idstaff
+            //   WHERE
+            //       se_emp.idEmpresa = $1 AND se.idfuncionario = $2
+            //   ORDER BY
+            //       COALESCE(
+            //           (se.datasevento ->> 0)::date,
+            //           (se.dtdiariadobrada ->> 0)::date,
+            //           (se.dtmeiadiaria ->> 0)::date
+            //       ) DESC NULLS LAST,
+            //       se.nmcliente ASC,
+            //       se.nmevento ASC;
+            // `;
+
+            let query = `SELECT
+                            se.idstaffevento,
+                            se.idfuncionario,
+                            se.nmfuncionario,
+                            se.idevento,
+                            se.nmevento,
+                            se.idcliente,
+                            se.nmcliente,
+                            se.idfuncao,
+                            se.nmfuncao,
+                            se.idmontagem,
+                            se.nmlocalmontagem,
+                            se.pavilhao,
+                            se.vlrcache,
+                            se.vlralimentacao,
+                            se.vlrtransporte,
+                            se.vlrajustecusto,
+                            se.vlrcaixinha,
+                            se.descajustecusto,
+                            se.descbeneficios,
+                            se.vlrtotal,
+                            se.datasevento,
+                            se.comppgtocache,
+                            se.comppgtoajdcusto,
+                            se.comppgtoajdcusto50,
+                            se.comppgtocaixinha,
+                            se.setor,
+                            se.statuspgto,
+                            se.statusajustecusto,
+                            se.statuscaixinha,
+                            se.dtdiariadobrada,
+                            se.dtmeiadiaria,
+                            se.statusdiariadobrada,
+                            se.statusmeiadiaria,
+                            se.desccaixinha,
+                            se.descmeiadiaria,
+                            se.descdiariadobrada,
+                            se.nivelexperiencia,
+                            se.qtdpessoaslote,
+                            s.idstaff,
+                            s.avaliacao,
+                            (
+                                SELECT jsonb_agg(elem ORDER BY elem::date)
+                                FROM jsonb_array_elements_text(se.datasevento) elem
+                            ) AS datasevento,
+                            (
+                                SELECT jsonb_agg(elem ORDER BY (elem->>'data')::date)
+                                FROM jsonb_array_elements(se.dtdiariadobrada) elem
+                            ) AS dtdiariadobrada,
+                            (
+                                SELECT jsonb_agg(elem ORDER BY (elem->>'data')::date)
+                                FROM jsonb_array_elements(se.dtmeiadiaria) elem
+                            ) AS dtmeiadiaria
+                        FROM staffeventos se
+                        INNER JOIN staff s 
+                            ON se.idstaff = s.idstaff
+                        INNER JOIN staffEmpresas se_emp 
+                            ON s.idstaff = se_emp.idstaff
+                        WHERE
+                            se_emp.idEmpresa = $1
+                            AND se.idfuncionario = $2
+                        ORDER BY
+                            GREATEST(
+                                COALESCE((SELECT MAX(elem::date) FROM jsonb_array_elements_text(se.datasevento) elem), '0001-01-01'),
+                                COALESCE((SELECT MAX((elem->>'data')::date) FROM jsonb_array_elements(se.dtdiariadobrada) elem), '0001-01-01'),
+                                COALESCE((SELECT MAX((elem->>'data')::date) FROM jsonb_array_elements(se.dtmeiadiaria) elem), '0001-01-01')
+                            ) DESC,
+                            se.nmcliente ASC,
+                            se.nmevento ASC
+                        `;
 
             //se.idevento DESC, se.idstaffevento DESC; -- Ordena por evento e depois pelo ID do registro de staffevento
             const queryParams = [idempresa, idFuncionarioParam];
@@ -685,6 +756,13 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
     }
 );
 
+function ordenarDatas(datas) {
+    if (!datas || datas.length === 0) {
+        return [];
+    }
+    // Supondo que as datas estejam no formato 'YYYY-MM-DD'
+    return datas.sort((a, b) => new Date(a) - new Date(b));
+}
 
 router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
     verificarPermissao('staff', 'alterar'),
@@ -729,10 +807,10 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
         const {
             idfuncionario, nmfuncionario, idfuncao, nmfuncao, idcliente, nmcliente,
             idevento, nmevento, idmontagem, nmlocalmontagem, pavilhao,
-            vlrcache, vlrajustecusto, vlrtransporte, vlralmoco, vlrjantar, vlrcaixinha,
+            vlrcache, vlrajustecusto, vlrtransporte, vlralimentacao, vlrcaixinha,
             descajustecusto, datasevento, vlrtotal, descbeneficios, setor, statuspgto, 
             statusajustecusto, statuscaixinha, statusdiariadobrada, statusmeiadiaria, datadiariadobrada, datameiadiaria,
-            desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia
+            desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoas
         } = req.body;
 
         console.log("BACKEND", req.body);
@@ -752,6 +830,9 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
         if (datadiariadobrada) {
             try {
                 datasDiariaDobradaParsed = JSON.parse(datadiariadobrada);
+                if (Array.isArray(datasDiariaDobradaParsed)) {
+                  datasDiariaDobradaParsed = ordenarDatas(datasDiariaDobradaParsed);
+                }
             } catch (parseError) {
                 console.error("Erro ao parsear datadiariadobrada:", parseError);
             }
@@ -761,6 +842,9 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
         if (datameiadiaria) {
             try {
                 datasMeiaDiariaParsed = JSON.parse(datameiadiaria);
+                if (Array.isArray(datasMeiaDiariaParsed)) {
+                  datasMeiaDiariaParsed = ordenarDatas(datasMeiaDiariaParsed);
+                }
             } catch (parseError) {
                 console.error("Erro ao parsear datameiadiaria:", parseError);
             }
@@ -790,16 +874,44 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
 
             // 1. Parsear o datasEvento (array de datas)
             let datasEventoParsed = null;
+            // if (datasevento) {
+            //     try {
+            //         datasEventoParsed = JSON.parse(datasevento);
+            //         if (!Array.isArray(datasEventoParsed)) {
+            //             throw new Error("datasevento não é um array JSON válido.");
+            //         }
+            //     } catch (parseError) {
+            //         await client.query('ROLLBACK');
+            //         return res.status(400).json({ message: "Formato de 'datasevento' inválido. Esperado um array JSON.", details: parseError.message });
+            //     }
+            // }
+
+            // if (datasEventoRaw) {
+            //   try {
+            //     datasEventoParsed = JSON.parse(datasEventoRaw);
+            //     if (!Array.isArray(datasEventoParsed)) {
+            //       throw new Error("datasevento não é um array JSON válido.");
+            //     }
+            //     // === ADICIONADO AQUI ===
+            //     datasEventoParsed = ordenarDatas(datasEventoParsed);
+            //   } catch (parseError) {
+            //     await client.query('ROLLBACK');
+            //     return res.status(400).json({ message: "Formato de 'datasevento' inválido. Esperado um array JSON.", details: parseError.message });
+            //   }
+            // }
+
             if (datasevento) {
-                try {
-                    datasEventoParsed = JSON.parse(datasevento);
-                    if (!Array.isArray(datasEventoParsed)) {
-                        throw new Error("datasevento não é um array JSON válido.");
-                    }
-                } catch (parseError) {
-                    await client.query('ROLLBACK');
-                    return res.status(400).json({ message: "Formato de 'datasevento' inválido. Esperado um array JSON.", details: parseError.message });
+              try {
+                datasEventoParsed = JSON.parse(datasevento);
+                if (!Array.isArray(datasEventoParsed)) {
+                  throw new Error("datasevento não é um array JSON válido.");
                 }
+                // === ADICIONADO AQUI ===
+                datasEventoParsed = ordenarDatas(datasEventoParsed);
+              } catch (parseError) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ message: "Formato de 'datasevento' inválido. Esperado um array JSON.", details: parseError.message });
+              }
             }
             console.log('Valor de "datasevento" após parse:', datasEventoParsed);
 
@@ -860,13 +972,14 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
                     idfuncionario = $1, nmfuncionario = $2, idfuncao = $3, nmfuncao = $4,
                     idcliente = $5, nmcliente = $6, idevento = $7, nmevento = $8, idmontagem = $9,
                     nmlocalmontagem = $10, pavilhao = $11, vlrcache = $12, vlrajustecusto = $13, vlrtransporte = $14,
-                    vlralmoco = $15, vlrjantar = $16, vlrcaixinha = $17, descajustecusto = $18,
-                    datasevento = $19, vlrtotal = $20,
-                    descbeneficios = $21, setor = $22, statuspgto = $23, statusajustecusto = $24,
-                    statuscaixinha = $25, statusdiariadobrada = $26, statusmeiadiaria = $27,
-                    dtdiariadobrada = $28, dtmeiadiaria = $29,
-                    desccaixinha = $30, descdiariadobrada = $31, descmeiadiaria = $32,
-                    comppgtocache = $33, comppgtoajdcusto = $34, comppgtoajdcusto50 = $35, comppgtocaixinha = $36, nivelexperiencia = $37
+                    vlralimentacao = $15, vlrcaixinha = $16, descajustecusto = $17,
+                    datasevento = $18, vlrtotal = $19,
+                    descbeneficios = $20, setor = $21, statuspgto = $22, statusajustecusto = $23,
+                    statuscaixinha = $24, statusdiariadobrada = $25, statusmeiadiaria = $26,
+                    dtdiariadobrada = $27, dtmeiadiaria = $28,
+                    desccaixinha = $29, descdiariadobrada = $30, descmeiadiaria = $31,
+                    comppgtocache = $32, comppgtoajdcusto = $33, comppgtoajdcusto50 = $34, comppgtocaixinha = $35, 
+                    nivelexperiencia = $36, qtdpessoaslote = $37
                 FROM staff s
                 INNER JOIN staffempresas sme ON sme.idstaff = s.idstaff
                 WHERE se.idstaff = s.idstaff AND se.idstaffevento = $38 AND sme.idempresa = $39
@@ -883,8 +996,7 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
                 parseFloat(String(vlrcache).replace(',', '.')) || 0,
                 parseFloat(String(vlrajustecusto).replace(',', '.')) || 0,
                 parseFloat(String(vlrtransporte).replace(',', '.')) || 0,
-                parseFloat(String(vlralmoco).replace(',', '.')) || 0,
-                parseFloat(String(vlrjantar).replace(',', '.')) || 0,
+                parseFloat(String(vlralimentacao).replace(',', '.')) || 0,
                 parseFloat(String(vlrcaixinha).replace(',', '.')) || 0,
                 // Descrições e JSON
                 descajustecusto,
@@ -900,7 +1012,7 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
                 desccaixinha, descdiariadobrada, descmeiadiaria,
                 // Caminhos dos comprovantes
                 newComppgtoCachePath, newComppgtoAjdCustoPath, newComppgtoAjdCusto50Path, newComppgtoCaixinhaPath,
-                nivelexperiencia,
+                nivelexperiencia, qtdpessoas,
                 // Parâmetros de identificação da linha
                 idStaffEvento, idempresa
             ];
@@ -945,7 +1057,7 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
             // Adicionado tratamento para erro de formato de número/float
             if (error.code === '22P02') { // Erro de sintaxe de entrada inválida (como texto em float)
                  return res.status(400).json({
-                    message: "Um valor numérico inválido foi fornecido. Por favor, verifique os campos de custo, extra, transporte, alimentação, jantar e caixinha.",
+                    message: "Um valor numérico inválido foi fornecido. Por favor, verifique os campos de custo, extra, transporte, alimentação, alimentacao e caixinha.",
                     details: error.message
                  });
             }
@@ -959,6 +1071,13 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
     }
 );
 
+function ordenarDatas(datas) {
+    if (!datas || datas.length === 0) {
+        return [];
+    }
+    // Supondo que as datas estejam no formato 'YYYY-MM-DD'
+    return datas.sort((a, b) => new Date(a) - new Date(b));
+}
 
 router.post(
   "/",
@@ -973,17 +1092,18 @@ router.post(
     }
   }),
   async (req, res) => {
-    console.log("🔥 Rota /staff/POST acessada");
+    console.log("🔥 Rota /staff/POST acessada", req.body);
+    
     const {
       idfuncionario,
       avaliacao,
       idevento, nmevento, idcliente, nmcliente,
       idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
-      vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrajustecusto,
+      vlrcache, vlralimentacao, vlrtransporte, vlrajustecusto,
       vlrcaixinha, nmfuncionario, datasevento: datasEventoRaw,
       descajustecusto, descbeneficios, vlrtotal, setor, statuspgto, statusajustecusto, statuscaixinha,
       statusdiariadobrada, statusmeiadiaria, datadiariadobrada, datameiadiaria, desccaixinha, 
-      descdiariadobrada, descmeiadiaria, nivelexperiencia
+      descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoas
     } = req.body;
 
     // const dataDiariaDobradaCorrigida = (datadiariadobrada === '' || datadiariadobrada === '[]' || !datadiariadobrada) 
@@ -994,10 +1114,15 @@ router.post(
     //   ? null 
     //   : datameiadiaria;
 
+   
+
     let datasDiariaDobradaParsed = null;
     if (datadiariadobrada) {
         try {
             datasDiariaDobradaParsed = JSON.parse(datadiariadobrada);
+            if (Array.isArray(datasDiariaDobradaParsed)) {
+              datasDiariaDobradaParsed = ordenarDatas(datasDiariaDobradaParsed);
+            }
         } catch (parseError) {
             // Trate o erro de parse se necessário
         }
@@ -1007,9 +1132,28 @@ router.post(
     if (datameiadiaria) {
         try {
             datasMeiaDiariaParsed = JSON.parse(datameiadiaria);
+            if (Array.isArray(datasMeiaDiariaParsed)) {
+              datasMeiaDiariaParsed = ordenarDatas(datasMeiaDiariaParsed);
+            }
         } catch (parseError) {
             // Trate o erro de parse se necessário
         }
+    }
+
+
+    let datasEventoParsed = null;
+    if (datasEventoRaw) {
+      try {
+        datasEventoParsed = JSON.parse(datasEventoRaw);
+        if (!Array.isArray(datasEventoParsed)) {
+          throw new Error("datasevento não é um array JSON válido.");
+        }
+        // === ADICIONADO AQUI ===
+        datasEventoParsed = ordenarDatas(datasEventoParsed);
+      } catch (parseError) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ message: "Formato de 'datasevento' inválido. Esperado um array JSON.", details: parseError.message });
+      }
     }
 
     const files = req.files;
@@ -1089,26 +1233,26 @@ router.post(
           INSERT INTO staffeventos (
             idstaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
             idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
-            vlrcache, vlralmoco, vlrjantar, vlrtransporte, vlrajustecusto,
+            vlrcache, vlralimentacao, vlrtransporte, vlrajustecusto,
             vlrcaixinha, descajustecusto, datasevento, vlrtotal, comppgtocache, comppgtoajdcusto, comppgtocaixinha, 
             descbeneficios, setor, statuspgto, statusajustecusto, statuscaixinha, statusdiariadobrada, statusmeiadiaria, dtdiariadobrada,
-            comppgtoajdcusto50, dtmeiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia
+            comppgtoajdcusto50, dtmeiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoaslote
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22,
-            $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38)
+            $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39)
           RETURNING idstaffevento;
         `;
         const eventoInsertValues = [
           idstaffExistente, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
           idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
           parseFloat(String(vlrcache).replace(',', '.')),
-          parseFloat(String(vlralmoco).replace(',', '.')),
-          parseFloat(String(vlrjantar).replace(',', '.')),
+          parseFloat(String(vlralimentacao).replace(',', '.')),
           parseFloat(String(vlrtransporte).replace(',', '.')),
           parseFloat(String(vlrajustecusto).replace(',', '.')),
           parseFloat(String(vlrcaixinha).replace(',', '.')),
           descajustecusto,
           // Garanta que `datasEventoRaw` seja parseado corretamente aqui
-          datasEventoRaw ? JSON.stringify(JSON.parse(datasEventoRaw)) : null,
+       //   datasEventoRaw ? JSON.stringify(JSON.parse(datasEventoRaw)) : null,
+          JSON.stringify(datasEventoParsed),
           parseFloat(String(vlrtotal).replace(',', '.')),
           comprovanteCacheFile ? `/uploads/staff_comprovantes/${comprovanteCacheFile.filename}` : null,
           comprovanteAjdCustoFile ? `/uploads/staff_comprovantes/${comprovanteAjdCustoFile.filename}` : null,
@@ -1128,7 +1272,8 @@ router.post(
           desccaixinha,
           descdiariadobrada,
           descmeiadiaria,
-          nivelexperiencia
+          nivelexperiencia,
+          qtdpessoas
         ];
 
         await client.query(eventoInsertQuery, eventoInsertValues);

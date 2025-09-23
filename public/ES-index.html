@@ -4,42 +4,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width", initial-scale="1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-    
+    <link rel="stylesheet" href="css/index/Main.css">    
+    <link rel="stylesheet" href="css/index/Style-ES.css">
+    <link rel="stylesheet" href="css/Footer/Footer-ES.css">    
     <link rel="stylesheet" href="css/Roots/Roots.css">
+    
     <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">   
-    <link rel="stylesheet" href="Css/index/Style-ES.css">
-    <link rel="stylesheet" href="css/Footer/Footer-ES.css">
-    <link rel="shortcut icon" href="img/icons/ESfavicon.ico" type="image/x-icon">
+    
+    <link rel="stylesheet" href="css/scroolbar/scroolbar.css">
+    
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/material_red.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>      
+   
     <title>Home - Sistema Grupo JA</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+    <link rel="shortcut icon" href="img/icons/ESfavicon.ico" type="image/x-icon">
+    <script src="https://cdn.jsdelivr.net/npm/imask" defer></script>
   
 </head>
 
 <body class="tema-ES">
 
 <header>      
-<div class="interface">
-    <div class="logotipo">
-        <div class="logo-ES"><a href="ES-index.html" ><img src= "img/JA_ES.png" alt="JA_ES"></a></div>
-        <div class="logo-Oper"><a class="minilogos" href="OPER-index.html"><img src= "img/JA_Oper.png" alt="JA_Oper"></a></div>
-        <div class="logo-EA"><a class="minilogos" href="EA-index.html" ><img src= "img/JA_EA.png" alt="JA_EA"></a></div>
-        <div class="logo-EP"><a class="minilogos" href="EP-index.html" ><img src= "img/JA_EP.png" alt="JA_EP"></a></div>
-        <div class="logo-SNFoods"><a class="minilogos" href="SNFoods-index.html" ><img src= "img/SN_Foods.png" alt="SN_Foods"></a></div>
-        <div class="logo-TSD"><a class="minilogos" href="TSD-index.html" ><img src= "img/logo-tsd.png" alt="TSD"></a></div>
-        <!-- <div class="logo-ED"><a class="minilogos" ><img src= "img/JA_ED.png" alt="JA_ED"></a></div> -->
-        <!-- <div class="logo-expo"><a class="minilogos"><img src= "img/JA_Expo.png" alt="JA_EXPO"></a></div> -->
-    </div>
+    <div class="interface">
+        <div class="logotipo">
+            <div class="logo-es"><a href="ES-index.html" ><img src= "img/JA_ES.png" alt="JA_ES"></a></div>
+            <div class="logo-ja-oper"><a class="minilogos" href="OPER-index.html"><img src= "img/JA_Oper.png" alt="JA_Oper"></a></div>
+            <div class="logo-ea"><a class="minilogos" href="EA-index.html" ><img src= "img/JA_EA.png" alt="JA_EA"></a></div>
+            <div class="logo-ed"><a class="minilogos" ><img src= "img/JA_ED.png" alt="JA_ED"></a></div>
+            <div class="logo-ep"><a class="minilogos" href="EP-index.html" ><img src= "img/JA_EP.png" alt="JA_EP"></a></div>            
+            <!-- <div class="logo-expo"><a class="minilogos"><img src= "img/JA_Expo.png" alt="JA_EXPO"></a></div> -->
+            <div class="logo-sn-foods"><a class="minilogos" href="SNFoods-index.html" ><img src= "img/SN_Foods.png" alt="SN_Foods"></a></div>
+            <div class="logo-tsd"><a class="minilogos" href="TSD-index.html" ><img src= "img/logo-tsd.png" alt="TSD"></a></div>
+            
+           
+        </div>
 
 
-      <div class="interface">
+        <div class="interface">
             <nav>
                 <ul id = "menu-horizontal">
                     <li class="Cadastro"> 
                         <a href="#">Cadastros</a>
                         <div class ="drop">
                             <div class ="drop-content">
-                                <a href="#" class="abrir-modal ES" data-modulo="Clientes" data-url="CadClientes.html">Clientes</a>
+                                <a href="#" class="abrir-modal" data-modulo="Clientes" data-url="CadClientes.html">Clientes</a>
                                 <a href="#" class="abrir-modal" data-modulo="Funcao" data-url="CadFuncao.html">Funções</a>
                                 <a href="#" class="abrir-modal" data-modulo="Funcionarios" data-url="CadFuncionarios.html">Funcionários</a>
                                 <a href="#" class="abrir-modal" data-modulo="Equipamentos" data-url="CadEquipamentos.html">Equipamentos</a>
@@ -54,13 +67,13 @@
                         </div>
                     </li>
                     <li class="Relatorios">
-                        <a href="#">Relatórios</a>
-                        <div class="drop">
-                            <div class="drop-content">
-                                <a href="#" class="abrir-modal" data-modulo="Relatorios" data-url="Relatorios.html" data-tipo="ajuda_custo">Ajuda de Custo</a>
-                                <a href="#" class="abrir-modal" data-modulo="Relatorios" data-url="Relatorios.html" data-tipo="cache">Cachê</a>
-                            </div>
-                        </div>
+                        <!-- <a href="#">Relatórios</a> -->
+                        <!-- <div class="drop"> -->
+                            <!-- <div class="drop-content"> -->
+                                <a href="#" class="abrir-modal" data-modulo="Relatorios" data-url="Relatorios.html" data-tipo="ajuda_custo">Relatórios</a>
+                                <!-- <a href="#" class="abrir-modal" data-modulo="Relatorios" data-url="Relatorios.html" data-tipo="cache">Cachê</a> -->
+                            <!-- </div> -->
+                        <!-- </div> -->
                     </li>
                     <li class="Orcamento">
                         <a href="#" class="abrir-modal" data-modulo="Orcamentos" data-url="Orcamento.html">Orçamento</a>
@@ -72,7 +85,7 @@
             </nav>
         </div>
     </div>
-    </header>
+</header>
 
     <div id="modal-overlay" class="moda-overlay" ></div>
     <div id="modal-container"></div>
@@ -155,7 +168,6 @@
             2025 Todos os Direitos Reservados
         </div>
     </footer>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/smooth-scrollbar/8.3.1/smooth-scrollbar.min.js"></script>
@@ -166,9 +178,9 @@
     <script src="js/Index.js" type="module" defer ></script>
     <script src="js/Aside.js" type="module" defer></script>
     <script src="js/Formataçoes.js" type="module" defer ></script>
-    <script src="js/tema.js" type="module" defer></script>
+    <!-- <script src="js/Main.js" type="module" defer></script> -->
+    <script src="js/tema.js" type="module" defer></script> 
 
-   
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>

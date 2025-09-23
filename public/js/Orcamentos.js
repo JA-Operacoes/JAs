@@ -1528,9 +1528,7 @@ function adicionarLinhaOrc() {
                         console.log("IDS ORCAMENTO:", idOrcamentoPrincipal, idOrcamentoItem);
                        await fetchComToken(`/orcamentos/${idOrcamentoPrincipal}/itens/${idOrcamentoItem}`, {
                             method: 'DELETE',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            }
+                            headers: { 'Content-Type': 'application/json' },
                         });
 
                         linhaParaRemover.remove();
@@ -1913,9 +1911,7 @@ function adicionarLinhaAdicional() {
                         console.log("IDS ORCAMENTO:", idOrcamentoPrincipal, idOrcamentoItem);
                        await fetchComToken(`/orcamentos/${idOrcamentoPrincipal}/itens/${idOrcamentoItem}`, {
                             method: 'DELETE',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            }
+                            headers: { 'Content-Type': 'application/json' },
                         });
 
                         linhaParaRemover.remove();
@@ -3053,9 +3049,7 @@ async function verificaOrcamento() {
             // 3. Enviar os dados para o backend usando fetchComToken
             const resultado = await fetchComToken(url, {
                 method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dadosOrcamento)
             });
 
@@ -3973,9 +3967,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
                             console.log("IDS ORCAMENTO:", idOrcamentoPrincipal, idOrcamentoItem);
                             await fetchComToken(`/orcamentos/${idOrcamentoPrincipal}/itens/${idOrcamentoItem}`, {
                                 method: 'DELETE',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                }
+                                headers: { 'Content-Type': 'application/json' },
                             });
 
                             linhaParaRemover.remove();

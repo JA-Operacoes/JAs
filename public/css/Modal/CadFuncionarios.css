@@ -136,7 +136,7 @@
   /* Grid Principal */
   .Perfil {
     display: grid;
-    grid-template-columns: repeat(4, 1fr); /* 2 colunas */
+    grid-template-columns: repeat(5, 1fr); /* 2 colunas */
     align-items: center;
     gap: 20px;
     margin-bottom: 20;

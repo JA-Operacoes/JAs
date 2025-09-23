@@ -528,6 +528,8 @@ let vlrTransporteFuncao = 0;
 let vlrTransporteSeniorFuncao = 0;
 let vlrAlmocoDobra =0;
 let vlrJantarDobra =0;
+let isLote = false;
+let temOrcamento = false;
 
 if (typeof window.StaffOriginal === "undefined") {
     window.StaffOriginal = {
@@ -658,6 +660,8 @@ const baseCheck = document.getElementById('Basecheck');
 const almocoCheck = document.getElementById('Almococheck');
 const jantarCheck = document.getElementById('Jantarcheck');
 
+const qtdPessoasInput = document.getElementById('qtdPessoas');
+
 window.flatpickrInstances = {
     diariaDobrada: diariaDobradaPicker,
     meiaDiaria: meiaDiariaPicker,
@@ -767,6 +771,9 @@ const carregarDadosParaEditar = (eventData) => {
             nmPavilhaoSelect.value = eventData.pavilhao || '';
         }
     }
+
+
+    qtdPessoasInput.value = parseInt(eventData.qtdpessoaslote || 0);
 
     // Preenchendo campos financeiros e de custo.
     vlrCustoInput.value = parseFloat(eventData.vlrcache || 0).toFixed(2).replace('.', ',');
@@ -985,64 +992,8 @@ function inicializarEPreencherCampos(eventData) {
     meiaDiariacheck.checked = datesMeiaDiaria.length > 0;
     campoMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
     campoStatusMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
-    containerStatusMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
-    
+    containerStatusMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';    
 
-    // if (temPermissaoTotal) {        
-    //     document.getElementById('selectStatusAjusteCusto').style.display = 'block';
-    //     statusAjusteCustoInput.style.display = 'none';
-    //     document.getElementById('selectStatusAjusteCusto').value = eventData.statusajustecusto || 'Pendente';
-    //     aplicarCoresAsOpcoes('selectStatusAjusteCusto');
-    //     aplicarCorNoSelect(document.getElementById('selectStatusAjusteCusto'));
-
-    //     document.getElementById('selectStatusCaixinha').style.display = 'block';
-    //     statusCaixinhaInput.style.display = 'none';
-    //     document.getElementById('selectStatusCaixinha').value = eventData.statuscaixinha || 'Pendente';
-    //     aplicarCoresAsOpcoes('selectStatusCaixinha');
-    //     aplicarCorNoSelect(document.getElementById('selectStatusCaixinha'));
-
-    //     // NOVO: Oculta os campos de status único e exibe os novos contêineres
-    //     document.getElementById('selectStatusDiariaDobrada').style.display = 'none';
-    //     statusDiariaDobradaInput.style.display = 'none';
-    //     campoStatusDiariaDobrada.style.display = 'none'; // Oculta o div pai do status único
-    //     if (containerStatusDiariaDobrada) containerStatusDiariaDobrada.style.display = 'block';
-
-    //     document.getElementById('selectStatusMeiaDiaria').style.display = 'none';
-    //     statusMeiaDiariaInput.style.display = 'none';
-    //     campoStatusMeiaDiaria.style.display = 'none'; // Oculta o div pai do status único
-    //     if (containerStatusMeiaDiaria) containerStatusMeiaDiaria.style.display = 'block';
-
-    //     // NOVO: Chama a função de renderização para popular os novos contêineres
-    //     renderDatesWithStatus(datasDobrada, 'containerStatusDiariaDobrada', 'dobrada');
-    //     renderDatesWithStatus(datasMeiaDiaria, 'containerStatusMeiaDiaria', 'meia');
-
-    // } else {
-    //     // MODIFICADO: Lógica para usuários SEM permissão
-    //     document.getElementById('selectStatusAjusteCusto').style.display = 'none';
-    //     statusAjusteCustoInput.style.display = 'block';
-    //     statusAjusteCustoInput.value = eventData.statusAjusteCusto || 'Pendente';
-    //     aplicarCorStatusInput(statusAjusteCustoInput);
-
-    //     document.getElementById('selectStatusCaixinha').style.display = 'none';
-    //     statusCaixinhaInput.style.display = 'block';
-    //     statusCaixinhaInput.value = eventData.statuscaixinha || 'Pendente';
-    //     aplicarCorStatusInput(statusCaixinhaInput);
-
-    //     // MODIFICADO: Exibe os campos de status único
-    //     document.getElementById('selectStatusDiariaDobrada').style.display = 'none';
-    //     statusDiariaDobradaInput.style.display = 'block';
-    //     statusDiariaDobradaInput.value = eventData.statusdiariadobrada || 'Pendente';
-    //     aplicarCorStatusInput(statusDiariaDobradaInput);
-
-    //     document.getElementById('selectStatusMeiaDiaria').style.display = 'none';
-    //     statusMeiaDiariaInput.style.display = 'block';
-    //     statusMeiaDiariaInput.value = eventData.statusmeiadiaria || 'Pendente';
-    //     aplicarCorStatusInput(statusMeiaDiariaInput);
-
-    //     // NOVO: Oculta os novos contêineres para usuários sem permissão
-    //     if (containerStatusDiariaDobrada) containerStatusDiariaDobrada.style.display = 'none';
-    //     if (containerStatusMeiaDiaria) containerStatusMeiaDiaria.style.display = 'none';
-    // }
 
     if (temPermissaoTotal) {    
         document.getElementById('selectStatusAjusteCusto').style.display = 'block';
@@ -1194,8 +1145,14 @@ const carregarTabelaStaff = async (funcionarioId) => {
         const data = await response.json();
         console.log('Dados de eventos recebidos para o funcionário:', data);
 
+        document.getElementById('qtdPessoasHeader').style.display = 'none';
 
-        if (data && data.length > 0) {
+
+        if (data && data.length > 0) {           
+
+            if (isLote) {
+                document.getElementById('qtdPessoasHeader').style.display = 'table-cell';
+            }
             data.forEach(eventData => {
 
                 const row = eventsTableBody.insertRow();
@@ -1240,6 +1197,15 @@ const carregarTabelaStaff = async (funcionarioId) => {
                     row.insertCell().textContent = eventData.nmevento || '';
                     row.insertCell().textContent = eventData.nmlocalmontagem || '';
                     row.insertCell().textContent = eventData.pavilhao || '';
+              
+                    const qtdPessoasCell = row.insertCell();
+                    if (isLote) {
+                        qtdPessoasCell.textContent = eventData.qtdpessoaslote || '0';
+                        qtdPessoasCell.style.display = 'table-cell';
+                    } else {
+                        qtdPessoasCell.style.display = 'none';
+                    }
+
                     row.insertCell().textContent = (eventData.datasevento && typeof eventData.datasevento === 'string')
 
                     ? JSON.parse(eventData.datasevento) // Primeiro parseia a string JSON para um array
@@ -1710,8 +1676,17 @@ async function verificaStaff() {
 
 
 
-    botaoEnviar.addEventListener("click", async (event) => {
+    botaoEnviar.addEventListener("click", async (event) => {        
         event.preventDefault(); // Previne o envio padrão do formulário
+
+        // if (!temOrcamento){
+        //     Swal.fire({
+        //         icon: 'warning',
+        //         title: 'Não permitido Salvar esse Staff, ORÇAMENTO não foi gerado.',
+        //         text: 'Por favor, verifique os parâmetros e tente novamente.'
+        //     });
+        //     return;
+        // }
 
         const datasEventoRawValue = datasEventoPicker?.selectedDates || [];
         const periodoDoEvento = datasEventoRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
@@ -1787,9 +1762,11 @@ async function verificaStaff() {
         const almocoCheck = document.getElementById('Almococheck');
         const jantarCheck = document.getElementById('Jantarcheck');
 
-        console.log("Status Ajuste de Custo", statusAjusteCusto);
+        const qtdPessoas = parseInt(document.getElementById('qtdPessoas').value, 10) || 0;
 
-        console.log("STATUS", statusCaixinha, statusAjusteCusto, diariaDobradaInput, datasEventoInput);
+        console.log("QTD PESSOAS", qtdPessoas);
+
+        console.log("STATUS CAIXINHA, AJUSTECUSTO, DIARIADOBRADAINPUT, DATASEVENTOINPUT", statusCaixinha, statusAjusteCusto, diariaDobradaInput, datasEventoInput);
 
         if (periodoDoEvento.length === 0) {
             return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias do evento.", "warning");
@@ -2275,6 +2252,9 @@ async function verificaStaff() {
             }
 
             formData.append('nivelexperiencia', nivelExperienciaSelecionado);
+            formData.append('qtdpessoas', qtdPessoas.toString());
+
+            console.log("Status Diaria Dobrada", statusDiariaDobrada, statusMeiaDiaria);
 
             if (statusDiariaDobrada === "Autorização da Diária Dobrada"){
                 statusDiariaDobrada = "Pendente";
@@ -2306,8 +2286,8 @@ async function verificaStaff() {
         }
 
 
-        formData.append('statusdiariadobrada', statusDiariaDobrada);
-        formData.append('statusmeiadiaria', statusMeiaDiaria);
+        formData.append('statusdiariadobrada', statusDiariaDobrada); //aqui remover não usa mais apenas dentro da data
+        formData.append('statusmeiadiaria', statusMeiaDiaria); //aqui remover não usa mais apenas dentro da data
         formData.append('datadiariadobrada', JSON.stringify(dadosDiariaDobrada));
         formData.append('datameiadiaria', JSON.stringify(dadosMeiaDiaria));
 
@@ -2361,6 +2341,7 @@ async function verificaStaff() {
             const dataMeiaDiariaAtual = periodoMeiaDiaria;
 
             const nivelExperienciaAtual = nivelExperienciaSelecionado;
+            const qtdPessoasAtual = qtdPessoas;
 
             const houveAlteracaoAjusteCusto = (ajusteCustoAtivoOriginal !== ajusteCustoAtivoAtual) || (ajusteCustoValorOriginal !== ajusteCustoValorAtual);
             const houveAlteracaoCaixinha = (caixinhaAtivoOriginal !== caixinhaAtivoAtual) || (caixinhaValorOriginal !== caixinhaValorAtual);
@@ -2459,7 +2440,8 @@ async function verificaStaff() {
                 (currentEditingStaffEvent.statusmeiadiaria || '').trim() != statusMeiaDiaria.trim() ||
                 currentEditingStaffEvent.diariadobrada != diariaDobradaAtual ||
                 currentEditingStaffEvent.meiadiaria != meiaDiariaAtual ||
-                currentEditingStaffEvent.nivelexperiencia != nivelExperienciaAtual
+                currentEditingStaffEvent.nivelexperiencia != nivelExperienciaAtual ||
+                currentEditingStaffEvent.qtdpessoas != qtdPessoasAtual 
             ) {
                 houveAlteracao = true;
             }
@@ -2521,7 +2503,8 @@ async function verificaStaff() {
 
                 logAndCheck('Status Diária Dobrada', (currentEditingStaffEvent.statusdiariadobrada || '').trim(), statusDiariaDobrada.trim(), (currentEditingStaffEvent.statusdiariadobrada || '').trim() != statusDiariaDobrada.trim()) ||
                 logAndCheck('Status Meia Diária', (currentEditingStaffEvent.statusmeiadiaria || '').trim(), statusMeiaDiaria.trim(), (currentEditingStaffEvent.statusmeiadiaria || '').trim() != statusMeiaDiaria.trim()) ||
-                logAndCheck('Nível Experiência', (currentEditingStaffEvent.nivelexperiencia || '').trim(), nivelExperienciaAtual.trim(), (currentEditingStaffEvent.nivelexperiencia || '').trim() != nivelExperienciaAtual.trim());
+                logAndCheck('Nível Experiência', (currentEditingStaffEvent.nivelexperiencia || '').trim(), nivelExperienciaAtual.trim(), (currentEditingStaffEvent.nivelexperiencia || '').trim() != nivelExperienciaAtual.trim()) ||
+                logAndCheck('Qtd Pessoas', currentEditingStaffEvent.qtdpessoas || 0, qtdPessoasAtual || 0, (currentEditingStaffEvent.qtdpessoas || 0) != (qtdPessoasAtual || 0));
            
                 console.log("Houve alteração geral?", houveAlteracao);
 
@@ -2553,8 +2536,8 @@ async function verificaStaff() {
 
             const respostaApi = await fetchComToken(url, {
                 method: metodo,
-
-                body: formData,
+                //headers: { 'Content-Type': 'application/json' },
+                body: formData
             });
 
             await Swal.fire("Sucesso!", respostaApi.message || "Staff salvo com sucesso.", "success");
@@ -2624,14 +2607,18 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, set
 
         // **VALIDAÇÃO CORRIGIDA:** Garante que a resposta é um array válido e não vazio
         if (!Array.isArray(dadosDoOrcamento) || dadosDoOrcamento.length === 0) {
+            temOrcamento = false;
             Swal.fire({
                 icon: 'info',
                 title: 'Nenhum Orçamento Encontrado',
-                text: 'Não foram encontrados orçamentos para os critérios de busca informados.'
+                text: 'Não foram encontrados orçamentos para os critérios de busca informados. Por favor, verifique os parâmetros e tente novamente.'
             });
             // Opcional: define o status como nulo ou vazio
             statusOrcamentoAtual = '';
             return;
+        }
+        else {
+            temOrcamento = true;
         }
 
         // **LÓGICA DO STATUS:** Agora que sabemos que o array não está vazio, podemos acessar a posição [0] com segurança
@@ -2756,6 +2743,9 @@ function desinicializarStaffModal() {
     const fileCaixinhaInput = document.getElementById('fileCaixinha');
     const fileAjdCusto2Input = document.getElementById('fileAjdCusto2');
     const hiddenRemoverAjdCusto2Input = document.getElementById('limparComprovanteAjdCusto2');
+    const qtdPessoasInput = document.getElementById('qtdPessoas');
+    const descAjusteCustoInput = document.getElementById('descAjusteCusto');
+    const descBeneficioInput = document.getElementById('descBeneficio');    
 
 
     // 1. Remover listeners de eventos dos elementos
@@ -2999,8 +2989,13 @@ function limparStaffOriginal() {
         nmFuncionario: "",
         descFuncao: "",
         vlrCusto: "",
+        vlrCustoBaseFuncao: "",
+        vlrCustoJuniorFuncao: "",
+        vlrCustoPlenoFuncao: "",
         ajusteCusto: "",
         transporte: "",
+        vlrTransporteSeniorFuncao: "",
+        vlrTransporteFuncao: "",
         almoco: "",
         jantar: "",
         caixinha: "",
@@ -3028,7 +3023,11 @@ function limparStaffOriginal() {
         descMeiaDiaria: "",
 
         descAjusteCusto: "",
-        descCaixinha: ""
+        descCaixinha: "",
+        statusAjusteCusto: "",
+        statusCaixinha: "",
+        nivelexperiencia: "",
+        qtdpessoas: ""
     };
 
     // Log dos campos limpados
@@ -3186,22 +3185,39 @@ async function carregarFuncionarioStaff() {
 
                 const perfilSelecionado = selectedOption.getAttribute("data-perfil");
                 const labelFuncionario = document.getElementById("labelFuncionario");
-
+                const qtdPessoasDiv = document.querySelector('label[for="lote"]').closest('.field');
                 console.log("Perfil selecionado:", perfilSelecionado);
 
                 // Se não for freelancer, mostra label em verde
                 if (perfilSelecionado) {
-                    labelFuncionario.style.display = "block"; // sempre visível
+                    labelFuncionario.style.display = "block"; // sempre visível                    
+                    
                     if (perfilSelecionado.toLowerCase() === "freelancer") {
+                        isLote = false;
                         labelFuncionario.textContent = "FREE-LANCER";
                         labelFuncionario.style.color = "red";
-                    } else {
+                    } if (perfilSelecionado.toLowerCase() === "funcionário") {
+                        isLote = false;
                         labelFuncionario.textContent = "FUNCIONÁRIO";
                         labelFuncionario.style.color = "green";
+                    }else if (perfilSelecionado.toLowerCase() === "lote") {
+                        isLote = true;
+                        labelFuncionario.textContent = "LOTE";
+                        labelFuncionario.style.color = "blue";                    
                     }
                 } else {
-                labelFuncionario.style.display = "none"; // se não tiver perfil
+                    labelFuncionario.style.display = "none"; // se não tiver perfil
                 }
+
+                if (perfilSelecionado && perfilSelecionado.toLowerCase() === 'lote') {
+                    qtdPessoasDiv.style.display = 'block';
+                } else {
+                    qtdPessoasDiv.style.display = 'none';
+                    // Limpa o valor do input quando ele é escondido
+                    document.getElementById('qtdPessoas').value = '';
+                }
+
+                
 
                 const fotoPathFromData = selectedOption.getAttribute("data-foto"); // Este é o caminho real da foto
 
@@ -3455,7 +3471,7 @@ function limparCamposEvento() {
         "nmLocalMontagem", "nmPavilhao", "descBeneficio", "descAjusteCusto", "nmCliente", "nmEvento", "vlrTotal",
         "vlrTotalHidden", "idFuncao", "idMontagem", "idPavilhao", "idCliente", "idEvento", "statusPgto",
         "statusAjusteCusto", "statusCaixinha", "statusDiariaDobrada", "descDiariaDobrada", "statusMeiaDiaria",
-        "descMeiaDiaria"
+        "descMeiaDiaria", "qtdPessoas"
     ];
 
     camposEvento.forEach(id => {
@@ -3504,6 +3520,12 @@ function limparCamposEvento() {
     const baseCheck = document.getElementById('Basecheck');
     if (baseCheck) baseCheck.checked = false;
 
+    const almocoCheckbaseCheck = document.getElementById('Almococheck');
+    if (almocoCheckbaseCheck) almocoCheckbaseCheck.checked = false;
+
+    const jantarCheck = document.getElementById('Jantarcheck');
+    if (jantarCheck) jantarCheck.checked = false;
+   
     const containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
     const containerStatusMeiaDiaria = document.getElementById('containerStatusMeiaDiaria');
 
@@ -3552,7 +3574,7 @@ function limparCamposStaff() {
         "nmLocalMontagem", "nmPavilhao", "almoco", "jantar", "transporte", "vlrBeneficio", "descBeneficio",
         "nmCliente", "nmEvento", "vlrTotal", "vlrTotalHidden", "idFuncionario", "idFuncao", "idMontagem",
         "idPavilhao", "idCliente", "idEvento", "statusPgto", "statusCaixinha", "statusAjusteCusto", "statusDiariaDobrada",
-        "descDiariaDobrada", "statusMeiaDiaria", "descMeiaDiaria", "labelFuncionario", "perfilFuncionario"
+        "descDiariaDobrada", "statusMeiaDiaria", "descMeiaDiaria", "labelFuncionario", "perfilFuncionario", "qtdPessoas"
     ];
 
     campos.forEach(id => {
@@ -4074,6 +4096,7 @@ function calcularValorTotal() {
     const ajusteCusto = parseFloat(document.getElementById('ajusteCusto').value.replace(',', '.')) || 0;
     const caixinha = parseFloat(document.getElementById('caixinha').value.replace(',', '.')) || 0;
     const perfilFuncionario = document.getElementById("perfilFuncionario").value;
+    const qtdpessoas = parseInt(document.getElementById("qtdPessoas").value) || 0;
 
     if (isFormLoadedFromDoubleClick)
     {
@@ -4097,6 +4120,16 @@ function calcularValorTotal() {
 
         if (perfilFuncionario === "Freelancer") {
             total += cache + transporte + almoco + jantar;
+        } else if (perfilFuncionario === "Lote") {
+             if (qtdpessoas <= 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Atenção',
+                    text: "Perfil 'Lote' selecionado, o preenchimento da quantidade de pessoas é OBRIGATÓRIO."
+                });
+             }
+             total += (cache + transporte + almoco + jantar) * qtdpessoas;
+             console.log(`Perfil 'Lote' detectado. Diária (${data.toLocaleDateString()}) para ${qtdpessoas} pessoas: ${total.toFixed(2)}`);
         } else {
             if (isFinalDeSemanaOuFeriado(data)) {
                 total += cache + transporte + almoco + jantar;
@@ -4105,6 +4138,8 @@ function calcularValorTotal() {
                 console.log(`Data ${data.toLocaleDateString()} não é fim de semana nem feriado. Cachê não adicionado.`);
             }
         }
+       
+        
     });
 
     console.log("Total inicial (sem adicionais):", total.toFixed(2));

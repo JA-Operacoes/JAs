@@ -12,7 +12,7 @@ let inputApelidoFuncionarioBlurListener = null;
 let inputNomeFuncionarioInputListener = null; 
 let inputApelidoFuncionarioInputListener = null; 
 
-if (typeof window.funcionarioOriginal === "undefined") {
+if (typeof window.funcionarioriginal === "undefined") {
     window.funcionarioOriginal = {
         idfuncionario: "",
         perfil: "",
@@ -138,7 +138,7 @@ botaoEnviar.addEventListener("click", async (event) => {
         //     return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Perfil, Nome, Data de Nascimento, CPF, RG, Celular Pessoal, Celular Contato, Nome do Contato, E-mail, CEP, Rua, Número, Bairro, Cidade, Estado e País.", "warning");
         // }
         
-        if (!nome || !cpf || !rg || !celularPessoal || !perfil) {
+        if (!nome || !cpf || !rg || !celularPessoal || !perfil || !dataNascimento) {
         console.log("VALIDACAO", "nome", nome, "cpf", cpf, "rg", rg, "celularPessoal", celularPessoal, "cep", cep,  "rua", rua,  "numero", numero, "bairro", bairro, "cidade", cidade, "estado", estado, "pais", pais, "perfil", perfil, "celularFamiliar", celularFamiliar, "nomeFamiliar", nomeFamiliar, "apelido", apelido )
             return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Perfil, Nome, Data de Nascimento, CPF, RG, Celular Pessoal, Celular Contato, Nome do Contato, E-mail, CEP, Rua, Número, Bairro, Cidade, Estado e País.", "warning");
         }
@@ -288,6 +288,7 @@ botaoEnviar.addEventListener("click", async (event) => {
             // --- CHAMADA FETCH COM FORMDATA ---
             const respostaApi = await fetchComToken(url, {
                 method: metodo,
+                //headers: { 'Content-Type': 'application/json' },
                 body: formData, // ENVIA O FORMDATA AQUI
                 // O fetchComToken deve ser ajustado para NÃO adicionar Content-Type: application/json
                 // quando o body é um FormData. O navegador cuida disso automaticamente.
@@ -317,7 +318,16 @@ botaoEnviar.addEventListener("click", async (event) => {
 
       try {
           const funcionarios = await fetchComToken("/funcionarios"); // Busca todos os funcionários
-          
+
+          if (!funcionarios || funcionarios.length === 0) {
+              return Swal.fire({
+                  icon: 'info',
+                  title: 'Nenhum funcionário cadastrado',
+                  text: 'Não foi encontrado nenhum funcionário no sistema.',
+                  confirmButtonText: 'Ok'
+              });
+          }
+
           // Verifica se há funcionários para criar o select
           if (funcionarios && funcionarios.length > 0) {
               const select = criarSelectFuncionario(funcionarios);
@@ -387,10 +397,10 @@ botaoEnviar.addEventListener("click", async (event) => {
                         if (campoApelido.tagName === "SELECT") {
                             const input = document.createElement("input");
                             input.type = "text";
-                            input.id = "nome";
-                            input.name = "nome";
+                            input.id = "apelido";
+                            input.name = "apelido";
                             input.className = "form-2colunas";
-                            input.value = "Nome"; 
+                            input.value = "Apelido"; 
                             input.classList.add("uppercase");
                             input.required = true;
                             campoApelido.parentNode.replaceChild(input, campoApelido);
@@ -437,7 +447,7 @@ botaoEnviar.addEventListener("click", async (event) => {
                             input.id = "nome";
                             input.name = "nome";
                             input.className = "form-2colunas";
-                            input.value = "Nome"; 
+                            input.value = "Nome do Funcionário"; 
                             input.classList.add("uppercase");
                             input.required = true;
                             campoNome.parentNode.replaceChild(input, campoNome);
@@ -735,9 +745,7 @@ async function salvarFuncionario(dados) {
             try {
                 const response = await fetchComToken(`/funcionarios/${idFuncionario}`, {
                     method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(dados)
                 });
 
@@ -762,9 +770,7 @@ async function salvarFuncionario(dados) {
     try {
         const response = await fetchComToken("/funcionarios", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(dados)
         });
 
@@ -1043,7 +1049,7 @@ async function preencherDadosBancoPeloCodigo() {
 
     try {
         const codBanco = document.getElementById("codBanco").value;
-        const url = `/bancos?codBanco=${encodeURIComponent(codBanco)}`;
+        const url = `/funcionarios/bancos?codBanco=${encodeURIComponent(codBanco)}`;
         const nomeBanco = await fetchComToken(url);            
         
         if (nomeBanco && nomeBanco.codbanco) { 
@@ -1327,7 +1333,7 @@ function limparCamposFuncionarios(){
         input.id = "nome";
         input.name = "nome";
         input.className = "form";
-        input.value = "Nome"; 
+        input.value = "Nome do Funcionário"; 
         input.classList.add("uppercase");
         input.required = true;
         campoNome.parentNode.replaceChild(input, campoNome);
@@ -1340,7 +1346,7 @@ function limparCamposFuncionarios(){
         input.id = "apelido";
         input.name = "apelido";
         input.className = "form";
-        input.value = "Nome"; 
+        input.value = "Apelido"; 
         input.classList.add("uppercase");
         input.required = true;
         campoApelido.parentNode.replaceChild(input, campoApelido);

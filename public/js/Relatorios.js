@@ -1,13 +1,16 @@
 import { fetchComToken } from '../utils/utils.js';
 
+let ultimoRelatorioGerado = null;
+
 // Função para iniciar o módulo de relatórios
 function initRelatorios() {
     const reportStartDateInput = document.getElementById('reportStartDate');
     const reportEndDateInput = document.getElementById('reportEndDate');
     const reportTypeSelect = document.getElementById('reportType');
     const gerarRelatorioBtn = document.getElementById('gerarRelatorioBtn');
-    const printButton = document.getElementById('printButton');
+    //const printButton = document.getElementById('printButton');
     const closeButton = document.querySelector('#Relatorios .close');
+   
 
     const today = new Date().toISOString().split('T')[0];
     reportStartDateInput.value = today;
@@ -16,11 +19,11 @@ function initRelatorios() {
     // 👉 Guardar referências dos listeners
     window.gerarRelatorioClickListener = function () {
         gerarRelatorio();
-    };
-
-    window.printButtonClickListener = function () {
-        imprimirRelatorio();
-    };
+    };    
+    
+    // window.printButtonClickListener = function () {
+    //     imprimirRelatorio();
+    // };
 
     window.closeButtonClickListener = function () {
         const modal = document.getElementById('Relatorios');
@@ -28,6 +31,7 @@ function initRelatorios() {
         document.body.classList.remove('modal-open');
     };
 
+    
     if (gerarRelatorioBtn) {
         gerarRelatorioBtn.addEventListener('click', window.gerarRelatorioClickListener);
     }
@@ -120,7 +124,7 @@ function montarTabela(dados, colunas, alinhamentosPorColuna = {}) {
                             // Aplica a sua função formatarData para 'INÍCIO' ou 'TÉRMINO'
                             if (col === 'INÍCIO' || col === 'TÉRMINO') {
                                 valorCelula = formatarData(item[col]);
-                            }else if (['VLR ADICIONAL', 'VLR DIÁRIA', 'TOTAL DIÁRIAS'].includes(col) && typeof item[col] === 'number') {
+                            }else if (['VLR ADICIONAL', 'VLR DIÁRIA', 'TOT DIÁRIAS'].includes(col) && typeof item[col] === 'number') {
                                     valorCelula = formatarMoeda(item[col]);
                             }
 
@@ -135,12 +139,26 @@ function montarTabela(dados, colunas, alinhamentosPorColuna = {}) {
     return html;
 }
 
+
 // A sua função que monta o relatório de Fechamento de Cachê por evento
 function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, dadosUtilizacao, dadosContingencia, totaisFechamentoCache) { // <<-- MODIFICAÇÃO: Adicionado totaisFechamentoCache
     // Função auxiliar para formatar moeda (adicione ela aqui ou mantenha global se já tiver)
     const formatarMoeda = (valor) => {
         return (valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     };
+
+    const obterClasseStatus = (status) => {
+        switch (status) {
+            case 'Pago 100%':
+                return 'status-pago-100';
+            case 'Pago 50%':
+                return 'status-pago-50';
+            default: // Para "Pendente" ou qualquer outro status
+                return 'status-pendente';
+        }
+    };
+
+    console.log("StatusClass", obterClasseStatus("Pago 100%")); // Teste rápido
 
     let html = `
         <div class="relatorio-evento">
@@ -152,11 +170,14 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, d
             </div>
             <h2>FECHAMENTO ${nomeRelatorio.toUpperCase()}</h2>
     `;
-    
+    const dataInicioSelecionada = document.getElementById('reportStartDate').value;
+    const dataFimSelecionada = document.getElementById('reportEndDate').value;
+
     if (dadosFechamento && dadosFechamento.length > 0) {
-        const dataInicio = formatarData(dadosFechamento[0].INÍCIO);
-        const dataTermino = formatarData(dadosFechamento[0].TÉRMINO);        
-        
+       // const dataInicio = formatarData(dadosFechamento[0].INÍCIO);
+      //  const dataTermino = formatarData(dadosFechamento[0].TÉRMINO);        
+        const dataInicio = formatarData(dataInicioSelecionada);
+        const dataTermino = formatarData(dataFimSelecionada);
     
         html += `
             <p>
@@ -174,11 +195,12 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, d
             'VLR DIÁRIA': 'text-right',
             'VLR ADICIONAL': 'text-right',            
             'QTD': 'text-center',
-            'TOTAL DIÁRIAS': 'text-right',
-            'STATUS PGTO': 'text-center'
+            'TOT DIÁRIAS': 'text-right',
+            'STATUS PGTO': 'text-center',
+            'TOT PAGAR': 'text-right' 
         };
 
-        const colunasFechamento = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'VLR DIÁRIA', 'VLR ADICIONAL',  'QTD', 'TOTAL DIÁRIAS', 'STATUS PGTO'];
+        const colunasFechamento = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'VLR DIÁRIA', 'VLR ADICIONAL',  'QTD', 'TOT DIÁRIAS', 'STATUS PGTO', 'TOT PAGAR'];
 
         // <<-- MODIFICAÇÃO PRINCIPAL AQUI: Reconstrução da tabela de fechamento para adicionar a linha de total
         let tabelaFechamentoHtml = `
@@ -192,7 +214,11 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, d
                     </tr>
                 </thead>
                 <tbody>
-                    ${dadosFechamento.map(item => `
+                    ${dadosFechamento.map(item => {
+                        const statusClass = obterClasseStatus(item["STATUS PGTO"]);
+                        console.log('Status:', item["STATUS PGTO"], 'Classe gerada:', statusClass); // <-- Adicione esta linha de log
+
+                        return `
                         <tr>
                             <td class="${alinhamentosFechamento['FUNÇÃO'] || ''}">${item.FUNÇÃO || ''}</td>
                             <td class="${alinhamentosFechamento['NOME'] || ''}">${item.NOME || ''}</td>
@@ -202,16 +228,19 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, d
                             <td class="${alinhamentosFechamento['VLR DIÁRIA'] || ''}">${formatarMoeda(item["VLR DIÁRIA"])}</td>
                             <td class="${alinhamentosFechamento['VLR ADICIONAL'] || ''}">${formatarMoeda(item["VLR ADICIONAL"])}</td>                            
                             <td class="${alinhamentosFechamento['QTD'] || ''}">${item.QTD || ''}</td>
-                            <td class="${alinhamentosFechamento['TOTAL DIÁRIAS'] || ''}">${formatarMoeda(item["TOTAL DIÁRIAS"])}</td>
-                            <td class="${alinhamentosFechamento['STATUS PGTO'] || ''}">${item["STATUS PGTO"] || ''}</td>
+                            <td class="${alinhamentosFechamento['TOT DIÁRIAS'] || ''}">${formatarMoeda(item["TOT DIÁRIAS"])}</td>
+                            <td class="${alinhamentosFechamento['STATUS PGTO'] || ''} ${statusClass}">${item["STATUS PGTO"] || ''}</td>
+                            <td class="${alinhamentosFechamento['TOT PAGAR'] || ''}">${formatarMoeda(item["TOT PAGAR"])}</td>
                         </tr>
-                    `).join('')}
+                    `}).join('')}
                     <tr>
                         <td colspan="5" style="text-align: right; font-weight: bold;">TOTAL GERAL DO EVENTO:</td>
                         <td class="${alinhamentosFechamento['VLR DIÁRIA'] || ''}" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrDiarias)}</td>
                         <td class="${alinhamentosFechamento['VLR ADICIONAL'] || ''}" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrAdicional)}</td> 
-                        <td></td> <td class="${alinhamentosFechamento['TOTAL DIÁRIAS'] || ''}" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalDiarias)}</td>
-                        <td></td> </tr>
+                        <td></td> <td class="${alinhamentosFechamento['TOT DIÁRIAS'] || ''}" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalDiarias)}</td>
+                        <td></td>                       
+                        <td class="${alinhamentosFechamento['TOT PAGAR'] || ''}" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalPagar)}</td>
+                    </tr>
                 </tbody>
             </table>
         `;
@@ -298,16 +327,128 @@ function mostrarAlerta(mensagem, tipo) {
     // adicione o código aqui para mostrá-lo.
 }
 
+// async function gerarRelatorio() {
+//     console.log('Iniciando a geração do relatório...');
+
+//     // Desabilita o botão para evitar cliques múltiplos
+//     const gerarRelatorioBtn = document.getElementById('gerarRelatorioBtn');
+//     gerarRelatorioBtn.disabled = true;
+
+//     // Oculta a div do relatório para que ele não seja visível na tela
+//     const outputDiv = document.getElementById('reportOutput');
+//     outputDiv.style.display = 'none';
+
+//     // Obtém os dados dos campos
+//     const tipo = document.getElementById('reportType').value;
+//     const dataInicio = document.getElementById('reportStartDate').value;
+//     const dataFim = document.getElementById('reportEndDate').value;
+//     const evento = document.getElementById('eventSelect').value;
+//     const nomeRelatorio = document.getElementById('reportType').options[document.getElementById('reportType').selectedIndex].text;
+
+//     if (!tipo || !dataInicio || !dataFim || !evento) {
+//     alert('Por favor, preencha todos os campos.');
+//     gerarRelatorioBtn.disabled = false;
+//     return;
+// }
+
+//     try {
+//         const url = `/relatorios?tipo=${tipo}&dataInicio=${dataInicio}&dataFim=${dataFim}&evento=${evento}`;
+//         const dados = await fetchComToken(url);
+
+//         window.ultimoRelatorioGerado = dados;
+
+        
+
+//         let relatorioHtmlCompleto = '';       
+
+//         const dadosAgrupadosPorEvento = {};
+
+//         // 1. Agrupar dados de Fechamento de Cachê
+//         if (dados.fechamentoCache && dados.fechamentoCache.length > 0) {
+//             dados.fechamentoCache.forEach(item => {
+//                 const eventoId = item.idevento; // Adicione idevento na sua query de cache
+//                 if (!dadosAgrupadosPorEvento[eventoId]) {
+//                     dadosAgrupadosPorEvento[eventoId] = {
+//                         nomeEvento: item.nomeEvento,
+//                         fechamentoCache: [],
+//                         utilizacaoDiarias: [],
+//                         contingencia: []
+//                     };
+//                 }
+//                 dadosAgrupadosPorEvento[eventoId].fechamentoCache.push(item);
+//             });
+//         }
+        
+//         // 2. Agrupar dados de Utilização de Diárias
+//         if (dados.utilizacaoDiarias && dados.utilizacaoDiarias.length > 0) {
+//             dados.utilizacaoDiarias.forEach(item => {
+//                 const eventoId = item.idevento; // o idevento já vem da sua query de diárias
+//                 if (dadosAgrupadosPorEvento[eventoId]) { // Garante que o evento existe
+//                     dadosAgrupadosPorEvento[eventoId].utilizacaoDiarias.push(item);
+//                 }
+//             });
+//         }
+        
+//         // 3. Agrupar dados de Contingência (se necessário)
+//         // Se a sua query de contingência retorna idevento, você pode agrupá-la aqui
+        
+//         if (dados.contingencia && dados.contingencia.length > 0) {
+//             dados.contingencia.forEach(item => {
+//                 const eventoId = item.idevento; 
+//                 if (dadosAgrupadosPorEvento[eventoId]) { 
+//                     dadosAgrupadosPorEvento[eventoId].contingencia.push(item);
+//                 }else {
+//                      // Se um evento tiver apenas contingência e não fechamentoCache, ele não será criado.
+//                      // Considere criar o evento aqui também se for um cenário válido.
+//                     console.warn(`Evento ${eventoId} de Contingência não encontrado em Fechamento de Cachê.`);
+//                 }
+//             });
+//         }
+
+//         // Agora, iteramos sobre os eventos agrupados e geramos o HTML para cada um
+//         const eventosOrdenados = Object.values(dadosAgrupadosPorEvento).sort((a, b) => {
+//             return a.nomeEvento.localeCompare(b.nomeEvento);
+//         });
+
+        
+
+//         eventosOrdenados.forEach(evento => {
+//             // AQUI PEGAMOS OS TOTAIS DO EVENTO ESPECÍFICO
+//             const eventoIdParaTotal = evento.fechamentoCache.length > 0 ? evento.fechamentoCache[0].idevento : null;
+//             const totaisDoEventoAtual = eventoIdParaTotal && dados.fechamentoCacheTotaisPorEvento ? 
+//                                        (dados.fechamentoCacheTotaisPorEvento[eventoIdParaTotal] || { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0 }) : 
+//                                        { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0 };
+            
+//             relatorioHtmlCompleto += montarRelatorioHtmlEvento(
+//                 evento.fechamentoCache,
+//                 evento.nomeEvento,
+//                 nomeRelatorio,
+//                 evento.utilizacaoDiarias,
+//                 evento.contingencia,
+//                 totaisDoEventoAtual // Passa os totais para a função
+//             );
+//         });
+
+        
+        
+//         // Chamamos a função de impressão passando o HTML gerado
+//         imprimirRelatorio(relatorioHtmlCompleto);
+
+//     } catch (error) {
+//         console.error('Falha ao gerar o relatório:', error.message || error);
+//         alert('Ocorreu um erro ao carregar o relatório.');
+//     } finally {
+//         // Habilita o botão novamente após a conclusão
+//         gerarRelatorioBtn.disabled = false;
+//     }
+// }
+
 async function gerarRelatorio() {
     console.log('Iniciando a geração do relatório...');
 
     // Desabilita o botão para evitar cliques múltiplos
     const gerarRelatorioBtn = document.getElementById('gerarRelatorioBtn');
     gerarRelatorioBtn.disabled = true;
-
-    // Oculta a div do relatório para que ele não seja visível na tela
-    const outputDiv = document.getElementById('reportOutput');
-    outputDiv.style.display = 'none';
 
     // Obtém os dados dos campos
     const tipo = document.getElementById('reportType').value;
@@ -316,29 +457,14 @@ async function gerarRelatorio() {
     let evento = document.getElementById('eventSelect').value;
     const nomeRelatorio = document.getElementById('reportType').options[document.getElementById('reportType').selectedIndex].text;
 
-    if (!tipo || !dataInicio || !dataFim) {
-        alert('Por favor, preencha todos os campos.');
+    if (!tipo || !dataInicio || !dataFim || !evento) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Campos obrigatórios',
+            text: 'Por favor, preencha todos os campos.',
+        });
         gerarRelatorioBtn.disabled = false;
         return;
-    }
-
-    // Permite gerar relatório de todos os eventos se nenhum for selecionado
-    if (!evento) {
-        const escolha = await Swal.fire({
-            title: 'Nenhum evento selecionado',
-            text: "Você deseja escolher um evento ou gerar o relatório de TODOS os eventos do período?",
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Gerar de todos',
-            cancelButtonText: 'Escolher evento'
-        });
-
-        if (escolha.isConfirmed) {
-            evento = "todos"; // Gera relatório para todos os eventos
-        } else {
-            gerarRelatorioBtn.disabled = false;
-            return; // Apenas fecha o Swal e não gera nada
-        }
     }
 
     try {
@@ -414,14 +540,90 @@ async function gerarRelatorio() {
 
         // Chamamos a função de impressão passando o HTML gerado
         imprimirRelatorio(relatorioHtmlCompleto);
+                eventosOrdenados.forEach(evento => {
+                    const eventoIdParaTotal = evento.fechamentoCache.length > 0 ? evento.fechamentoCache[0].idevento : null;
+                    const totaisDoEventoAtual = eventoIdParaTotal && dados.fechamentoCacheTotaisPorEvento ? 
+                                                (dados.fechamentoCacheTotaisPorEvento[eventoIdParaTotal] || { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0, totalTotalPagar: 0 }) : 
+                                                { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0, totalTotalPagar: 0 };
+                    
+                    relatorioHtmlCompleto += montarRelatorioHtmlEvento(
+                        evento.fechamentoCache,
+                        evento.nomeEvento,
+                        nomeRelatorio,
+                        evento.utilizacaoDiarias,
+                        evento.contingencia,
+                        totaisDoEventoAtual 
+                    );
+                });
+                
+                // Chamamos a função de impressão passando o HTML gerado
+                imprimirRelatorio(relatorioHtmlCompleto);
+                
+            } else if (result.isDenied) {
+                // Opção 2: Gerar XLS
+                //exportarParaXls();
+                const nomeDoArquivoGerado = exportarParaXls();
+                
+                // Exibe o SweetAlert de sucesso
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Relatório XLS Gerado!',
+                    html: `O arquivo <strong>"${nomeDoArquivoGerado}"</strong> foi gerado com sucesso e está na sua pasta de <strong>DOWNLOADS</strong>.`, 
+                    confirmButtonText: 'Entendido'
+                });
+            }
+        });
 
     } catch (error) {
         console.error('Falha ao gerar o relatório:', error.message || error);
-        alert('Ocorreu um erro ao carregar o relatório.');
+        Swal.fire({
+            icon: 'error',
+            title: 'Erro',
+            text: 'Ocorreu um erro ao carregar o relatório.',
+        });
     } finally {
         // Habilita o botão novamente após a conclusão
         gerarRelatorioBtn.disabled = false;
     }
+}
+
+// Nova função para exportar os dados para um arquivo Excel
+function exportarParaXls() {
+    if (!ultimoRelatorioGerado) {
+        // Esta parte já está funcionando
+        alert('Por favor, gere um relatório primeiro.');
+        return;
+    }
+
+    const { fechamentoCache, utilizacaoDiarias, contingencia } = ultimoRelatorioGerado;
+    const nomeEvento = fechamentoCache[0]?.nomeEvento || 'Relatorio';
+    
+    // Constrói o nome final do arquivo
+    const nomeArquivo = `${nomeEvento}_Fechamento.xlsx`;
+
+    // Cria o workbook e as abas... (seu código aqui)
+    const wb = XLSX.utils.book_new();
+
+    if (fechamentoCache && fechamentoCache.length > 0) {
+        const wsFechamento = XLSX.utils.json_to_sheet(fechamentoCache);
+        XLSX.utils.book_append_sheet(wb, wsFechamento, 'Fechamento de Cachê');
+    }
+
+    if (utilizacaoDiarias && utilizacaoDiarias.length > 0) {
+        const wsUtilizacao = XLSX.utils.json_to_sheet(utilizacaoDiarias);
+        XLSX.utils.book_append_sheet(wb, wsUtilizacao, 'Utilização de Diárias');
+    }
+
+    if (contingencia && contingencia.length > 0) {
+        const wsContingencia = XLSX.utils.json_to_sheet(contingencia);
+        XLSX.utils.book_append_sheet(wb, wsContingencia, 'Contingência');
+    }
+    
+    // Escreve o arquivo e força o download
+    XLSX.writeFile(wb, nomeArquivo);
+
+    // Retorna o nome do arquivo para ser usado no SweetAlert
+    return nomeArquivo;
 }
 
 function imprimirRelatorio(conteudoRelatorio) {
@@ -491,20 +693,7 @@ function imprimirRelatorio(conteudoRelatorio) {
             text-transform: uppercase;
             height: auto;
         }
-
-        // .header-group {   
-        //     background-color: orange; /* Fundo cinza */
-        //     text-align: center;
-        //     border-bottom: 2px solid #777; /* Adiciona uma borda na parte de baixo */    
-   
-        //     vertical-align: middle; /* Centraliza verticalmente o texto */
-        //     display: table-cell; /* Garante que ele se comporte como célula de tabela */
-        //     height: auto; /* Permite que a altura se ajuste automaticamente */
-        //     padding-top: 5px; /* Ajuste o padding conforme necessário */
-        //     padding-bottom: 5px; /* Ajuste o padding conforme necessário */
-
-        // }
-
+       
         .header-group {
             background-color: #a8a8a8ff; /* Fundo cinza */
             color: black; /* Cor do texto */
@@ -554,6 +743,21 @@ function imprimirRelatorio(conteudoRelatorio) {
             display: flex;
             gap: 20px;
             margin-top: 20px;
+        }
+        
+        .status-pago-100 {
+            color: green;
+            font-weight: bold;
+        }
+
+        .status-pago-50 {
+        color: orange;
+        font-weight: bold;
+        }
+
+        .status-pendente {
+        color: red;
+        font-weight: bold;
         }
 
         /* --- REGRAS PARA A SEÇÃO DE RESUMO DE DIÁRIAS --- */
@@ -652,11 +856,11 @@ function desinicializarRelatoriosModal() {
     const gerarRelatorioBtn = document.getElementById('gerarRelatorioBtn');
     const printButton = document.getElementById('printButton');
     const closeButton = document.querySelector('#Relatorios .close');
-
+  
     if (gerarRelatorioBtn && window.gerarRelatorioClickListener) {
         gerarRelatorioBtn.removeEventListener('click', window.gerarRelatorioClickListener);
         window.gerarRelatorioClickListener = null;
-    }
+    }   
 
     if (printButton && window.printButtonClickListener) {
         printButton.removeEventListener('click', window.printButtonClickListener);

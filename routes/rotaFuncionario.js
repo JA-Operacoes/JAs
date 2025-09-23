@@ -45,6 +45,44 @@ const upload = multer({
 // --- Fim da Configuração do Multer ---
 
 
+router.get("/bancos", verificarPermissao('Bancos', 'pesquisar'), async (req, res) => {
+  const { nmBanco, codBanco } = req.query;
+  const idempresa = req.idempresa;
+  console.log("nmBanco NA ROTA FUNCIONARIOS", nmBanco, codBanco, idempresa);
+  try {
+    let result;
+
+        if (codBanco) { // Priorize a busca por código do banco se ele existir
+            result = await pool.query(
+                `SELECT b.idbanco, b.codbanco, b.nmbanco
+                 FROM bancos b
+                 INNER JOIN bancoempresas be ON be.idbanco = b.idbanco
+                 WHERE be.idempresa = $1 AND b.codbanco = $2`, // Use = para correspondência exata do código
+                [idempresa, codBanco]
+            );
+            console.log("RESULTADO QUERY POR CODIGO", result.rows);
+            return result.rows.length > 0
+                ? res.json(result.rows[0]) // Retorna o primeiro encontrado, já que o código deve ser único
+                : res.status(404).json({ message: "Banco não encontrado com o código fornecido para esta empresa." });
+        } else if (nmBanco) { // Se não tem codBanco, verifica nmBanco
+            result = await pool.query(
+                `SELECT b.idbanco, b.codbanco, b.nmbanco
+                 FROM bancos b
+                 INNER JOIN bancoempresas be ON be.idbanco = b.idbanco
+                 WHERE be.idempresa = $1 AND b.nmbanco ILIKE $2 LIMIT 1`,
+                [idempresa, `%${nmBanco}%`]
+            );
+            console.log("RESULTADO QUERY POR NOME", result.rows);
+            return result.rows.length > 0
+                ? res.json(result.rows[0])
+                : res.status(404).json({ message: "Banco não encontrado com o nome fornecido para esta empresa." });
+        } 
+    } catch (error) {
+        console.error("❌ Erro ao buscar bancos:", error);
+        return res.status(500).json({ error: error.message || "Erro ao buscar bancos" });
+    }
+});
+
 // Aplica autenticação em todas as rotas
 router.use(autenticarToken());
 router.use(contextoEmpresa);
@@ -364,25 +402,64 @@ router.post("/",
                 });
             }
             // Mensagem de erro mais específica para não-nulo
-            if (error.code === '23502') {
-                 return res.status(400).json({ message: `Campo obrigatório faltando ou inválido: ${error.column}. Por favor, verifique os dados e tente novamente.`, details: error.message });
-            }
-            if (error.code === '23505' && error.constraint === 'funcionarios_cpf_key') {
+            // if (error.code === '23502') {
+            //      return res.status(400).json({ message: `Campo obrigatório faltando ou inválido: ${error.column}. Por favor, verifique os dados e tente novamente.`, details: error.message });
+            // }
+            // if (error.code === '23505' && error.constraint === 'funcionarios_cpf_key') {
+            //     if (error.constraint === 'funcionarios_cpf_key') {
+            //     // Erro de CPF duplicado
+            //     return res.status(409).json({ message: 'Erro ao salvar funcionário: Já existe um funcionário cadastrado com este CPF.' });
+            //     } else if (error.constraint === 'funcionarios_email_key') {
+            //     // Erro de e-mail duplicado
+            //     return res.status(409).json({ message: 'Erro ao salvar funcionário: Já existe um funcionário cadastrado com este e-mail.' });
+            //     }
+            // }
+            // if (error.code === '22007') { // Código PostgreSQL para sintaxe de data inválida
+            //     return res.status(400).json({
+            //         message: "A Data de Nascimento é obrigatória ou está em um formato inválido. Por favor, verifique.",
+            //         field: "dataNascimento", // Adiciona um campo para identificar qual input
+            //         details: error.message
+            //     });
+            // }
+
+            if (error.code === '23505') { // '23505' é o código para restrição de unicidade
+                if (error.constraint === 'funcionarios_email_key') {
+                    return res.status(409).json({
+                        message: 'Já existe um funcionário cadastrado com este e-mail.',
+                        field: 'email'
+                    });
+                }
                 if (error.constraint === 'funcionarios_cpf_key') {
-                // Erro de CPF duplicado
-                return res.status(409).json({ message: 'Erro ao salvar funcionário: Já existe um funcionário cadastrado com este CPF.' });
-                } else if (error.constraint === 'funcionarios_email_key') {
-                // Erro de e-mail duplicado
-                return res.status(409).json({ message: 'Erro ao salvar funcionário: Já existe um funcionário cadastrado com este e-mail.' });
+                    return res.status(409).json({
+                        message: 'Já existe um funcionário cadastrado com este CPF.',
+                        field: 'cpf'
+                    });
+                }
+                if (error.constraint === 'funcionarios_rg_key') {
+                    return res.status(409).json({
+                        message: 'Já existe um funcionário cadastrado com este RG.',
+                        field: 'rg'
+                    });
                 }
             }
-            if (error.code === '22007') { // Código PostgreSQL para sintaxe de data inválida
+            
+            // Tratamento de erros de campos obrigatórios
+            if (error.code === '23502') {
                 return res.status(400).json({
-                    message: "A Data de Nascimento é obrigatória ou está em um formato inválido. Por favor, verifique.",
-                    field: "dataNascimento", // Adiciona um campo para identificar qual input
+                    message: `Campo obrigatório faltando ou inválido: ${error.column}.`,
                     details: error.message
                 });
             }
+
+            // Tratamento de erro de data inválida
+            if (error.code === '22007') {
+                return res.status(400).json({
+                    message: "A Data de Nascimento está em um formato inválido.",
+                    field: "dataNascimento",
+                    details: error.message
+                });
+            }
+
             res.status(500).json({ error: "Erro ao salvar funcionário", details: error.message });
         } finally {
             if (client) {

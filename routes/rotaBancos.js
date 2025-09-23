@@ -12,7 +12,7 @@ router.use(contextoEmpresa);
 router.get("/", verificarPermissao('Bancos', 'pesquisar'), async (req, res) => {
   const { nmBanco, codBanco } = req.query;
   const idempresa = req.idempresa;
-  console.log("nmBanco NA ROTA", nmBanco, codBanco, idempresa);
+  console.log("nmBanco NA ROTA BANCOS", nmBanco, codBanco, idempresa);
   try {
     let result;
 

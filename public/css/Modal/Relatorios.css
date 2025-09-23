@@ -246,142 +246,184 @@ button:hover {
         overflow: visible;
     }
 
-    /* Estilos do cabeçalho de impressão (topo) */
-    .print-header-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 0;
-        background-color: silver;
-        margin-bottom: 20px;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
+    .relatorio-evento {
+            page-break-after: always;
+        }
+        .relatorio-evento:last-child {
+            page-break-after: auto;
+        }
+        .print-header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            background-color: silver;
+            margin-bottom: 20px;
+        }
+        .text-left {
+            text-align: left !important;
+        }
+        .text-center {
+            text-align: center !important;
+        }
+        .text-right {
+            text-align: right !important;
+        }
+        .logo-ja {
+            max-width: 50px;
+            height: auto;
+            margin-left: 20px;
+        }
+        .header-title-container {
+            text-align: center;
+            flex-grow: 1;
+        }
+        .header-title {
+            font-size: 24px;
+            color: #333;
+        }
+        .header-group-row {
+            font-weight: bold;
+            text-transform: uppercase;
+            height: auto;
+        }
+       
+        .header-group {
+            background-color: #a8a8a8ff; /* Fundo cinza */
+            color: black; /* Cor do texto */
+            text-align: center;
+            vertical-align: middle; /* Centraliza verticalmente o texto */
+            border-bottom: 2px solid #777;
+            padding: 8px 12px; /* Adicionado padding para espaço interno */
+            
+            /* ******** PROPRIEDADES CRUCIAIS AQUI ******** */
+            white-space: normal; /* Permite que o texto quebre para a próxima linha */
+            word-wrap: break-word; /* Força a quebra de palavras longas */
+            box-sizing: border-box; /* Garante que padding e border sejam incluídos na largura/altura */
+            height: auto; /* Permite que a altura da célula se ajuste ao conteúdo */
+            line-height: 1.2; /* Pode ajudar a controlar o espaçamento entre linhas */
+        }
 
-    /* Estilos do logo e título no cabeçalho */
-    .logo-ja {
-        max-width: 50px;
-        height: auto;
-        margin-left: 20px;
-    }
-    .header-title-container {
-        text-align: center;
-        flex-grow: 1;
-    }
-    .header-title {
-        font-size: 24px;
-        color: #333;
-    }
-    .header-group-row {
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9px;
+        }
+        .report-table th, .report-table td {
+            border: 1px solid #000;
+            padding: 4px 6px;
+            white-space: normal;
+            word-wrap: break-word;
+            overflow: hidden;
+        }
+        .report-table th {
+            white-space: normal; /* MUITO IMPORTANTE: Garante que o texto quebre */
+            word-wrap: break-word; /* Força quebra de palavras longas */
+            height: auto; /* Garante que a altura da célula se adapte ao conteúdo */
+            vertical-align: middle; /* Centraliza verticalmente o texto */
+        }
+        .report-table thead {
+            background-color: #a8a8a8ff;
+            color: black;
+        }
+
+        .report-table thead, 
+        .report-table thead tr {
+            height: auto;
+        }
+        .relatorio-resumo-container {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .status-pago-100 {
+            color: green;
+            font-weight: bold;
+        }
+
+        .status-pago-50 {
+        color: orange;
         font-weight: bold;
-        text-transform: uppercase;
-    }
+        }
 
-    .header-group {   
-        background-color: orange; /* Fundo cinza */
-        text-align: center;
-        border-bottom: 2px solid #777; /* Adiciona uma borda na parte de baixo */
-
-        vertical-align: middle; /* Centraliza verticalmente o texto */
-        display: table-cell; /* Garante que ele se comporte como célula de tabela */
-        height: auto; /* Permite que a altura se ajuste automaticamente */
-        padding-top: 5px; /* Ajuste o padding conforme necessário */
-        padding-bottom: 5px; /* Ajuste o padding conforme necessário */
-    }
-
-    .report-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 10px;
-    }
-    .report-table th, .report-table td {
-        border: 1px solid #000;
-        padding: 4px 6px;
-        white-space: normal;
-        word-wrap: break-word;
-        overflow: hidden;
-    }
-    .report-table thead {
-        background-color: #a8a8a8ff;
-        color: black;
-    }
-    .relatorio-resumo-container {
-        display: flex;
-        gap: 20px;
-        margin-top: 20px;
-    }
-
-    /* --- REGRAS PARA A SEÇÃO DE RESUMO DE DIÁRIAS --- */
-
-    .tabela-resumo.diarias {
-        /* O contêiner principal para a seção, incluindo bordas e padding */
-        width: 50%;
-        border: 1px solid #777;
-        border-radius: 5px;
-        background-color: white; /* O fundo do contêiner é branco */
-        padding: 0; /* O espaçamento interno será controlado pelo H2 e pela tabela */
-    }
-    .tabela-resumo .report-table {
-        font-size: 8px;
-        background-color: white; /* O fundo da tabela é branco */
-    }
-    .utilizacao-diarias-header {
-        background-color: #a8a8a8ff; /* Fundo cinza para o título */
-        color: black;
-        padding: 8px 12px;
-        margin: 0; /* Remove a margem para encostar na borda */
-        font-size: 16px;
-        text-align: center;
-        border-top-left-radius: 5px; /* Bordas arredondadas no topo */
-        border-top-right-radius: 5px;
-    }
-
-    /* O estilo do cabeçalho da tabela de diárias, que permanece laranja */
-    .utilizacao-diarias-header + .report-table thead {
-        background-color: orange;
-    }
-
-    /* Estilos para a seção de Contingência */
-    .tabela-resumo.contingencia {
-        /* Mesmo estilo do contêiner de diárias */
-        width: 50%;
-        border: 1px solid #777;
-        border-radius: 5px;
-        background-color: white; 
-        padding: 0; 
-    }
-
-    .contingencia-header {
-        background-color: #a8a8a8ff; /* Fundo cinza para o título */
-        color: black;
-        padding: 8px 12px;
-        margin: 0;
-        font-size: 16px;
-        text-align: center; 
-        border-top-left-radius: 5px;
-        border-top-right-radius: 5px;
-    }
-    h2 {
-        page-break-before: auto;
-        font-size: 16px;
-        margin-top: 20px;
-        text-align: left;
-        color: #333;
-        border-bottom: 2px solid #ddd;
-        padding-bottom: 10px;
-        margin-bottom: 15px;
-    }
-    p {
-        margin: 5px 0;
-        text-align: left;
-    }
-    .data-relatorio {
-        margin-right: 20px;
+        .status-pendente {
+        color: red;
         font-weight: bold;
-        background-color: orange;
-        padding: 2px 5px;
-        border-radius: 3px;
-        display: inline-block;
-        color: #333;
-    }
+        }
+
+        /* --- REGRAS PARA A SEÇÃO DE RESUMO DE DIÁRIAS --- */
+
+        .tabela-resumo.diarias {
+            /* O contêiner principal para a seção, incluindo bordas e padding */
+            width: 50%;
+            border: 1px solid #777;
+            border-radius: 5px;
+            background-color: white; /* O fundo do contêiner é branco */
+            padding: 0; /* O espaçamento interno será controlado pelo H2 e pela tabela */
+        }
+        .tabela-resumo .report-table {
+            font-size: 8px;
+            background-color: white; /* O fundo da tabela é branco */
+            height: auto;
+        }
+        .utilizacao-diarias-header {
+            background-color: #a8a8a8ff; /* Fundo cinza para o título */
+            color: black;
+            padding: 8px 12px;
+            margin: 0; /* Remove a margem para encostar na borda */
+            font-size: 16px;
+            text-align: center;
+            border-top-left-radius: 5px; /* Bordas arredondadas no topo */
+            border-top-right-radius: 5px;
+        }
+
+        /* O estilo do cabeçalho da tabela de diárias, que permanece laranja */
+        .utilizacao-diarias-header + .report-table thead {
+            background-color: orange;
+        }
+
+        /* Estilos para a seção de Contingência */
+        .tabela-resumo.contingencia {
+            /* Mesmo estilo do contêiner de diárias */
+            width: 50%;
+            border: 1px solid #777;
+            border-radius: 5px;
+            background-color: white; 
+            padding: 0; 
+        }
+
+        .contingencia-header {
+            background-color: #a8a8a8ff; /* Fundo cinza para o título */
+            color: black;
+            padding: 8px 12px;
+            margin: 0;
+            font-size: 16px;
+            text-align: center; 
+            border-top-left-radius: 5px;
+            border-top-right-radius: 5px;
+        }
+        h2 {
+            page-break-before: auto;
+            font-size: 16px;
+            margin-top: 20px;
+            text-align: left;
+            color: #333;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        p {
+            margin: 5px 0;
+            text-align: left;
+        }
+        .data-relatorio {
+            margin-right: 20px;
+            font-weight: bold;
+            background-color: orange;
+            padding: 2px 5px;
+            border-radius: 3px;
+            display: inline-block;
+            color: #333;
+        }
 }

@@ -136,9 +136,7 @@ function verificaEquipamento() {
 
             const respostaApi = await fetchComToken(url, {
                 method: metodo,
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dados)
             });            
 
@@ -169,7 +167,16 @@ function verificaEquipamento() {
     }
 
     try {
-        const equipamentos = await fetchComToken("/equipamentos");        
+        const equipamentos = await fetchComToken("/equipamentos");
+
+        if (!equipamentos || equipamentos.length === 0) {
+            return Swal.fire({
+                icon: 'info',
+                title: 'Nenhum equipamento cadastrado',
+                text: 'Não foi encontrado nenhum equipamento no sistema.',
+                confirmButtonText: 'Ok'
+            });
+        }
 
         console.log("Equipamentos encontrados:", equipamentos);
 

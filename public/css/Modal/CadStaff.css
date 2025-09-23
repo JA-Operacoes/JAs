@@ -525,7 +525,7 @@ input[type="file"]{
   }
 
   .muito-bom {
-    background-color: #28a745; /* Verde */
+    background-color: #198754; /* Verde */
   }
 
   .satisfatorio {
@@ -559,7 +559,7 @@ input[type="file"]{
 #selectStatusCaixinha.status-Autorizado,
 #selectStatusDiariaDobrada.status-Autorizado,
 #selectStatusMeiaDiaria.status-Autorizado {
-    background-color: #28A745; /* Verde */
+    background-color: #198754; /* Verde */
     color: #FFFFFF; /* Branco */
 }
 
@@ -585,7 +585,7 @@ input#statusAjusteCusto.status-Autorizado,
 input#statusCaixinha.status-Autorizado,
 input#statusDiariaDobrada.status-Autorizado,
 input#statusMeiaDiaria.status-Autorizado {
-    background: #28A745;
+    background: #198754;
     color: #FFFFFF;
 }
 
@@ -623,9 +623,9 @@ input#statusMeiaDiaria.status-Rejeitado {
 /* Regra para datas "Autorizadas" - Aumente a especificidade */
 .flatpickr-day.status-autorizado,
 .flatpickr-day.status-autorizado.selected { /* Adicionado .selected aqui */
-    background-color: #4CAF50 !important; /* Verde */
+    background-color: #198754 !important; /* Verde */
     color: #ffffff !important;
-    border-color: #4CAF50 !important;
+    border-color: #198754 !important;
 }
 
 /* Regra para datas "Pendente" - Aumente a especificidade */
@@ -656,7 +656,7 @@ input#statusMeiaDiaria.status-Rejeitado {
 
 /* Estilo para status Pago (Verde) */
 #statusPgto.pago {
-    color: rgb(0, 255, 0);
+    color: #198754;
 }
 
 .status-pgto {

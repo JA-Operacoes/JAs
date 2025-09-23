@@ -1,16 +1,46 @@
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
 
-document.addEventListener("DOMContentLoaded", function () {
-    const idempresa = localStorage.getItem("idempresa");
+// document.addEventListener("DOMContentLoaded", function () {
+//     const idempresa = localStorage.getItem("idempresa");
 
-    if (idempresa) {
-        // Mapeamento direto de idempresa → tema
-        const temas = {1: "JA-Oper", 2: "ES", 3: "EA", 4: "EP", 5: "TSD", 6: "SN-FOODS"};
-        // Usa o tema correspondente ou um padrão
-        let tema = temas[idempresa];
-        aplicarTema(tema);
-    }
-});
+//     if (idempresa) {
+//         // Mapeamento direto de idempresa → tema
+//         const temas = {1: "JA-Oper", 2: "ES", 3: "EA", 4: "EP", 5: "SN-FOODS", 6: "TSD"};
+//         // Usa o tema correspondente ou um padrão
+//         let tema = temas[idempresa];
+//         aplicarTema(tema);
+//     }
+// });
+
+// document.addEventListener("DOMContentLoaded", function () {
+//     const idempresa = localStorage.getItem("idempresa");
+
+//     if (idempresa) {
+//         // Nova lógica: usa a API para buscar o nome fantasia da empresa
+//         const apiUrl = `/empresasTema/${idempresa}`; // Ajuste o caminho se necessário (ex: '/api/empresas/')
+//         console.log("Buscando dados da empresa para tema:", apiUrl, idempresa);
+//         // Usamos a sua função fetchComToken, que já gerencia o token e headers
+//         fetchComToken(apiUrl)
+//             .then(empresa => {
+//                 // Sua API retorna um objeto com os dados da empresa.
+//                 // O nome do tema será o `nmfantasia` (Nome Fantasia) ou a coluna que você quer usar.
+//                 // A sua rota de backend já está pronta para isso.
+//                 console.log("Dados da empresa recebidos para tema:", empresa);
+//                 const tema = empresa.nmfantasia; 
+                
+//                 // Aplica o tema usando a função que já existe e está correta
+//                 aplicarTema(tema);
+//             })
+//             .catch(error => {
+//                 console.error("❌ Erro ao buscar dados da empresa para o tema:", error);
+//                 // Opcional: aplique um tema padrão em caso de erro na requisição
+//                 // aplicarTema('default');
+//             });
+//     }
+
+// });
+
+
 
 let clienteSelecionado = null;
 let nomeClienteSelecionado = '';
@@ -19,6 +49,32 @@ let eventoSelecionado = null; // ✅ NOVO
 
 document.addEventListener("DOMContentLoaded", async function () {
   console.log("Entrou no DOM");
+
+  const idempresa = localStorage.getItem("idempresa");
+
+    if (idempresa) {
+        // Nova lógica: usa a API para buscar o nome fantasia da empresa
+        const apiUrl = `/aside/empresasTema/${idempresa}`; // Ajuste o caminho se necessário (ex: '/api/empresas/')
+        console.log("Buscando dados da empresa para tema:", apiUrl, idempresa);
+        // Usamos a sua função fetchComToken, que já gerencia o token e headers
+        
+        fetchComToken(apiUrl)
+            .then(empresa => {
+                // Sua API retorna um objeto com os dados da empresa.
+                // O nome do tema será o `nmfantasia` (Nome Fantasia) ou a coluna que você quer usar.
+                // A sua rota de backend já está pronta para isso.
+                console.log("Dados da empresa recebidos para tema:", empresa);
+                const tema = empresa.nmfantasia; 
+                
+                // Aplica o tema usando a função que já existe e está correta
+                aplicarTema(tema);
+            })
+            .catch(error => {
+                console.error("❌ Erro ao buscar dados da empresa para o tema:", error);
+                // Opcional: aplique um tema padrão em caso de erro na requisição
+                // aplicarTema('default');
+            });
+    }
 
   function temPermissao(modulo, acao) {
     const permissoes = JSON.parse(sessionStorage.getItem("permissoesUsuario") || "[]");
@@ -163,22 +219,28 @@ window.navegarParaAba = function(tipo) {
 
 async function carregarClientes() {
   try {
-    const clientes = await fetchComToken('/clientes');
+    const clientes = await fetchComToken('/aside/clientes');
 
     if (!clientes || clientes.erro === "sessao_expirada") {
       Swal.fire("Sessão expirada", "Por favor, faça login novamente.", "warning");
       return;
     }
 
-    if (!Array.isArray(clientes) || clientes.length === 0) {
-      console.warn("Nenhum cliente encontrado.");
-      const ul = document.getElementById("lista-dados-clientes");
-      ul.innerHTML = "<li>Nenhum cliente encontrado.</li>";
-      return;
-    }
+    // if (!Array.isArray(clientes) || clientes.length === 0) {
+    //   console.warn("Nenhum cliente encontrado.");
+    //   const ul = document.getElementById("lista-dados-clientes");
+    //   ul.innerHTML = "<li>Nenhum cliente encontrado.</li>";
+    //   return;
+    // }
 
     const ul = document.getElementById("lista-dados-clientes");
     ul.innerHTML = "";
+
+    if (!Array.isArray(clientes) || clientes.length === 0) {
+        console.warn("Nenhum cliente encontrado.");
+        ul.innerHTML = "<li>Nenhum cliente encontrado.</li>";
+        return clientes; // Retorna a lista vazia para uso posterior
+    }
 
     clientes.forEach(cliente => {
       const li = document.createElement("li");
@@ -207,7 +269,7 @@ async function carregarClientes() {
 
   } catch (erro) {
     console.error("Erro ao carregar clientes:", erro);
-    Swal.fire("Erro", "Não foi possível carregar os clientes.", "error");
+   // Swal.fire("Erro", "Não foi possível carregar os clientes.", "error");
   }
 }
 

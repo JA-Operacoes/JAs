@@ -234,9 +234,7 @@ async function verificaEvento() {
             console.log("Enviando dados para o servidor:", dados, url, metodo);
             const respostaApi = await fetchComToken(url, {
                 method: metodo,
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dados)
             });
 
@@ -264,7 +262,16 @@ async function verificaEvento() {
 
         try {
             const eventos = await fetchComToken("/eventos");
-           
+
+            if (!eventos || eventos.length === 0) {
+                return Swal.fire({
+                    icon: 'info',
+                    title: 'Nenhum evento cadastrado',
+                    text: 'Não foi encontrado nenhum evento no sistema.',
+                    confirmButtonText: 'Ok'
+                });
+            }
+
             const select = criarSelectEvento(eventos);
 
             limparCamposEvento();

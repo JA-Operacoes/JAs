@@ -107,24 +107,57 @@ const setCampo = (key, value) => {
     }
 };
 
+// const preencherFormulario = (empresa) => {
+//     console.log("PREENCHER FORMULARIO", empresa);
+//     Object.entries(campos).forEach(([key]) => {
+//         if (key === "telefone") maskTelefone.value = empresa.telefone || '';
+//         else if (key === "cnpj") maskCNPJ.value = empresa.cnpj || '';
+//         else if (key === "cep") maskCEP.value = empresa.cep || '';
+//         else setCampo(key, empresa[key.toLowerCase()]);
+//     });
+
+//     window.empresaOriginal = {
+//         idEmpresa: empresa.idempresa || "",
+//         nmFantasia: empresa.nmfantasia || "",
+//         razaoSocial: empresa.razaosocial || "",
+//         cnpj: empresa.cnpj || "",   
+//         emailEmpresa: empresa.emailempresa || "",
+//         emailNfe: empresa.emailnfe || "",     
+//         site: empresa.site || "",
+//         inscEstadual: empresa.inscricaoestadual || "",
+//         cep: empresa.cep || "",
+//         rua: empresa.rua || "",
+//         numero: empresa.numero || "",
+//         complemento: empresa.complemento || "",
+//         bairro: empresa.bairro || "",
+//         cidade: empresa.cidade || "",
+//         estado: empresa.estado || "",
+//         pais: empresa.pais || "",
+//         ativo: empresa.ativo || false
+//     };
+
+//     console.log("Empresa original CarregarEmpresa:", window.empresaOriginal);
+
+//     const campoCodigo = getCampo("idEmpresa");
+//     if (campoCodigo && campoCodigo.value.trim()) {
+//         campoCodigo.classList.add("has-value");
+//     }
+//     campoCodigo.readOnly = true; // bloqueia o campo
+// };
+
 const preencherFormulario = (empresa) => {
     console.log("PREENCHER FORMULARIO", empresa);
-    Object.entries(campos).forEach(([key]) => {
-        if (key === "telefone") maskTelefone.value = empresa.telefone || '';
-        else if (key === "cnpj") maskCNPJ.value = empresa.cnpj || '';
-        else if (key === "cep") maskCEP.value = empresa.cep || '';
-        else setCampo(key, empresa[key.toLowerCase()]);
-    });
 
-    window.empresaOriginal = {
+    // 1. Mapeia os dados da API para um objeto com os nomes dos seus campos
+    const dadosMapeados = {
         idEmpresa: empresa.idempresa || "",
         nmFantasia: empresa.nmfantasia || "",
         razaoSocial: empresa.razaosocial || "",
-        cnpj: empresa.cnpj || "",   
+        cnpj: empresa.cnpj || "",   
         emailEmpresa: empresa.emailempresa || "",
-        emailNfe: empresa.emailnfe || "",     
+        emailNfe: empresa.emailnfe || "",     
         site: empresa.site || "",
-        inscEstadual: empresa.inscestadual || "",
+        inscEstadual: empresa.inscricaoestadual || "", // CORREÇÃO APLICADA AQUI
         cep: empresa.cep || "",
         rua: empresa.rua || "",
         numero: empresa.numero || "",
@@ -136,13 +169,29 @@ const preencherFormulario = (empresa) => {
         ativo: empresa.ativo || false
     };
 
+    // 2. Itera sobre os dados mapeados para preencher o formulário
+    Object.entries(dadosMapeados).forEach(([key, value]) => {
+        if (key === "telefone") {
+            if (maskTelefone) maskTelefone.value = value;
+        } else if (key === "cnpj") {
+            if (maskCNPJ) maskCNPJ.value = value;
+        } else if (key === "cep") {
+            if (maskCEP) maskCEP.value = value;
+        } else {
+            setCampo(key, value);
+        }
+    });
+
+    // 3. Usa os mesmos dados mapeados para o objeto de estado
+    window.empresaOriginal = dadosMapeados;
+
     console.log("Empresa original CarregarEmpresa:", window.empresaOriginal);
 
     const campoCodigo = getCampo("idEmpresa");
     if (campoCodigo && campoCodigo.value.trim()) {
         campoCodigo.classList.add("has-value");
     }
-    campoCodigo.readOnly = true; // bloqueia o campo
+    campoCodigo.readOnly = true;
 };
 
 const limparFormulario = () => {
@@ -155,6 +204,7 @@ const limparFormulario = () => {
 
 const obterDadosFormulario = () => {
     const valor = (key) => getCampo(key)?.value?.trim() || "";
+    
     const rawIE = valor("inscEstadual");
     const inscEstadual = rawIE.toUpperCase() === "ISENTO" ? "ISENTO" : rawIE.replace(/\D/g, '');  // só números
     const dados = {
@@ -226,6 +276,8 @@ function carregarEmpresas() {
 
         const metodo = valorIdEmpresa ? "PUT" : "POST";
 
+        console.log("Dados", dados)
+
         // Bloqueia tentativa de cadastro se não tem permissão
         if (!valorIdEmpresa && !temPermissaoCadastrar) {
             return Swal.fire({
@@ -277,6 +329,7 @@ function carregarEmpresas() {
 
             const respostaApi = await fetchComToken(url, {
                 method: metodo,
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dados)
             });            
 
@@ -325,6 +378,15 @@ function carregarEmpresas() {
             try {
                 console.log("CarregarEmpresas");
                 const empresas = await fetchComToken("/empresas");
+
+                if (!empresas || empresas.length === 0) {
+                    return Swal.fire({
+                        icon: 'info',
+                        title: 'Nenhuma empresa cadastrada',
+                        text: 'Não foi encontrado nenhuma empresa no sistema.',
+                        confirmButtonText: 'Ok'
+                    });
+                }
                 
                 const input = getCampo("nmFantasia");
 
@@ -552,7 +614,7 @@ async function carregarEmpresasNmFantasia(desc, elementoAtual) {
         document.querySelector("#nmFantasia").value = empresa.nmfantasia || "";
         document.querySelector("#razaoSocial").value = empresa.razaosocial || "";
         maskCNPJ.value = empresa.cnpj || '';
-        document.querySelector("#inscEstadual").value = empresa.inscestadual || "";
+        document.querySelector("#inscEstadual").value = empresa.inscricaoestadual || "";
         document.querySelector("#emailEmpresa").value = empresa.emailempresa || "";
         document.querySelector("#emailNfe").value = empresa.emailnfe || "";
         document.querySelector("#site").value = empresa.site || "";
