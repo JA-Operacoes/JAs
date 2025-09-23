@@ -62,10 +62,11 @@ router.get('/eventos', async (req, res) => {
 
   try {
     const query = `
-      SELECT DISTINCT e.idevento, e.nmevento
-      FROM orcamentos o
-      JOIN eventos e ON e.idevento = o.idevento
-      WHERE o.idcliente = $1 AND o.status = 'A'
+    SELECT DISTINCT e.idevento, e.nmevento, o.status
+    FROM orcamentos o
+    JOIN eventos e ON e.idevento = o.idevento
+    WHERE o.idcliente = $1
+      AND o.status IN ('A', 'F');
     `;
     const { rows } = await db.query(query, [clienteId]);
 
@@ -91,7 +92,7 @@ router.get('/orcamento', async (req, res) => {
     const query = `
       SELECT idorcamento, nrorcamento, status, nomenclatura
       FROM orcamentos
-      WHERE idcliente = $1 AND idevento = $2 AND status = 'A'
+      WHERE idcliente = $1 AND idevento = $2 AND status IN ('A', 'F')
       ORDER BY datacriacao DESC
     `;
     const { rows } = await db.query(query, [clienteId, eventoId]);

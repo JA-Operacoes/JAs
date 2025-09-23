@@ -744,7 +744,7 @@ router.get("/:nrOrcamento/contrato",
 
                 const filePath = output.trim();
                 const fileName = path.basename(filePath);
-                const downloadUrl = `/orcamentos/download/contrato/${encodeURIComponent(fileName)}`;
+                const downloadUrl = `/orcamentos/download/contratos/${encodeURIComponent(fileName)}`;
                 console.log("📝 Saída do Python (output):", output);
                 console.log("📄 Caminho do arquivo processado:", filePath);
 
@@ -895,18 +895,30 @@ router.get("/:nrOrcamento/contrato",
 // 🔽 Força o download do contrato
 router.get('/download/contrato/:fileName', autenticarToken(), async (req, res) => {
     try {
-         const fileName = decodeURIComponent(req.params.fileName); // decodifica %20 para espaço
-        // caminho absoluto até a pasta upload/contratos (fora do public)
-        const filePath = path.join(__dirname, '../../upload/contratos', fileName);
+        // Decodifica %20 e outros caracteres especiais
+        const fileName = decodeURIComponent(req.params.fileName);
 
+        // Caminho absoluto até a pasta upload/contratos
+        const filePath = path.resolve(__dirname, '../../uploads/contratos', fileName);
+
+        console.log('📂 Procurando arquivo em:', filePath);
 
         if (!fs.existsSync(filePath)) {
+            console.warn('⚠️ Arquivo não encontrado:', filePath);
             return res.status(404).json({ error: 'Arquivo não encontrado' });
         }
 
-        res.download(filePath, fileName); 
+        // Força download com o nome correto
+        res.download(filePath, fileName, (err) => {
+            if (err) {
+                console.error('❌ Erro ao enviar arquivo:', err);
+                res.status(500).json({ error: 'Erro ao baixar o arquivo', detail: err.message });
+            } else {
+                console.log('✅ Arquivo enviado com sucesso:', fileName);
+            }
+        });
     } catch (error) {
-        console.error('Erro no download do contrato:', error);
+        console.error('❌ Erro no download do contrato:', error);
         res.status(500).json({ error: 'Erro ao baixar o arquivo', detail: error.message });
     }
 });

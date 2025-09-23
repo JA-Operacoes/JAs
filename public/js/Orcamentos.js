@@ -4992,7 +4992,7 @@ async function gerarContrato() {
             showConfirmButton: false,
         });
 
-        // Faz a requisição
+        // Faz a requisição para gerar o contrato
         const result = await fetchComToken(`/orcamentos/${nrOrcamento}/contrato`, {
             method: "GET",
         });
@@ -5013,29 +5013,31 @@ async function gerarContrato() {
             }).then(async (res) => {
                 if (res.isConfirmed) {
                     try {
-                        const fileUrl = result.fileUrl;
+                        const fileName = result.fileName || decodeURIComponent(result.fileUrl.split("/").pop());
+                        const fileUrl = `/uploads/contratos/${encodeURIComponent(fileName)}`;
+                        const token = localStorage.getItem("token");
 
-                        // Faz a requisição para obter o arquivo
                         const response = await fetch(fileUrl, {
+                            method: "GET",
                             headers: {
-                                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                                "Authorization": `Bearer ${token}`
                             }
                         });
 
-                        if (!response.ok) throw new Error("Erro ao baixar o contrato");
+                        if (!response.ok) throw new Error("Não autorizado ou arquivo não encontrado");
 
                         const blob = await response.blob();
-                        const fileName = decodeURIComponent(fileUrl.split("/").pop());
 
                         // Cria link temporário invisível para download
                         const link = document.createElement("a");
-                        link.href = window.URL.createObjectURL(blob);
+                        link.href = URL.createObjectURL(blob);
                         link.download = fileName;
                         document.body.appendChild(link);
-                        link.click(); // dispara o download
+                        link.click();
                         document.body.removeChild(link);
-                        window.URL.revokeObjectURL(link.href);
+                        URL.revokeObjectURL(link.href);
 
+                        console.log("📥 Download iniciado:", fileName);
                     } catch (downloadErr) {
                         console.error("❌ Erro no download do contrato:", downloadErr);
                         Swal.fire("Erro", "Não foi possível baixar o contrato", "error");
