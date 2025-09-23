@@ -1255,7 +1255,7 @@ const carregarTabelaStaff = async (funcionarioId) => {
 };
 
 function aplicarCoresAsOpcoes(selectElementId) {
-    console.log("Aplicando cores às opções do select:", selectElementId);
+  //  console.log("Aplicando cores às opções do select:", selectElementId);
     const selectElement = document.getElementById(selectElementId);
     if (selectElement) {
         for (let i = 0; i < selectElement.options.length; i++) {
@@ -1270,7 +1270,7 @@ function aplicarCoresAsOpcoes(selectElementId) {
 }
 
 function aplicarCorNoSelect(selectElement) {
-    console.log("Aplicando cores no select:", selectElement.id);
+   // console.log("Aplicando cores no select:", selectElement.id);
     const statusAtual = selectElement.value;
     selectElement.classList.remove('status-Pendente', 'status-Autorizado', 'status-Rejeitado');
     if (statusAtual) {
@@ -1279,7 +1279,7 @@ function aplicarCorNoSelect(selectElement) {
     }
 }
 function aplicarCorStatusInput(elementoInput) {
-    console.log("Aplicando cores no input:", elementoInput.id);
+   // console.log("Aplicando cores no input:", elementoInput.id);
     elementoInput.classList.remove('status-Pendente', 'status-Autorizado', 'status-Rejeitado');
     const statusAtual = elementoInput.value;
     if (statusAtual) {
@@ -4393,8 +4393,57 @@ export function preencherComprovanteCampo(filePath, campoNome) {
     }
 }
 
+document.addEventListener('click', function(e) {
+    // Verifica se o clique foi em um botão com a classe 'remover-comprovante-btn'
+    if (e.target.classList.contains('remover-comprovante-btn') || e.target.closest('.remover-comprovante-btn')) {
+        const removerBtn = e.target.closest('.remover-comprovante-btn');
+        const campoNome = removerBtn.getAttribute('data-campo');
 
+        // Exibe o pop-up de confirmação antes de apagar
+        Swal.fire({
+            title: 'Você tem certeza que quer remover este comprovante?',
+            text: "Esta ação irá remover o comprovante. Você não poderá desfazê-la!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Sim, remover!',
+            cancelButtonText: 'Não, cancelar'
+        }).then((result) => {
+            // Se o usuário confirmou a remoção
+            if (result.isConfirmed) {
+                // Obter referências aos elementos do campo específico
+                const fileLabel = document.querySelector(`.collumn .containerPDF label[for="file${campoNome}"]`);
+                const linkDisplayContainer = document.getElementById(`linkContainer${campoNome}`);
+                const mainDisplayContainer = document.getElementById(`comprovante${campoNome}Display`);
+                const hiddenRemoverInput = document.getElementById(`limparComprovante${campoNome}`);
+                const fileInput = document.getElementById(`file${campoNome}`);
+                const fileNameDisplay = document.getElementById(`fileName${campoNome}`);
+                
+                // Oculta a área do link/botão de remoção
+                if (mainDisplayContainer) mainDisplayContainer.style.display = 'none';
+                if (linkDisplayContainer) linkDisplayContainer.innerHTML = '';
+                
+                // Mostra a área de upload de arquivo
+                if (fileLabel) fileLabel.style.display = 'block';
+                
+                // Limpa o input do arquivo e o texto exibido
+                if (fileInput) fileInput.value = '';
+                if (fileNameDisplay) fileNameDisplay.textContent = 'Nenhum arquivo selecionado';
+                
+                // Seta o input hidden para indicar que o comprovante deve ser removido no servidor
+                if (hiddenRemoverInput) hiddenRemoverInput.value = 'true';
 
+                // Opcional: Mostra uma mensagem de sucesso após a remoção
+                // Swal.fire(
+                //     'Removido!',
+                //     'O comprovante foi marcado para remoção.',
+                //     'success'
+                // );
+            }
+        });
+    }
+});
 /**
  * Verifica se a quantidade de funcionários para uma função excedeu o orçamento
  * com base em múltiplos critérios, incluindo o período.

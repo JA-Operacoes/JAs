@@ -355,7 +355,8 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                 staffempresas semp ON tse.idstaff = semp.idstaff
             WHERE
                 semp.idempresa = $1 AND ${wherePeriodo}
-                AND tse.dtdiariadobrada IS NOT NULL
+                --AND tse.dtdiariadobrada IS NOT NULL
+                WHERE jsonb_array_length(tse.dtdiariadobrada) > 0
             
             UNION ALL
             
@@ -372,7 +373,8 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                 staffempresas semp ON tse.idstaff = semp.idstaff
             WHERE
                 semp.idempresa = $1 AND ${wherePeriodo}
-                AND tse.dtmeiadiaria IS NOT NULL
+                --AND tse.dtmeiadiaria IS NOT NULL 
+                WHERE jsonb_array_length(tse.dtmeiadiaria) > 0
 
             UNION ALL
             
