@@ -4,13 +4,15 @@ const pool = require("../db/conexaoDB");
 const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlewares');
 const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 
+
 // ROTA PRINCIPAL DE RELATÓRIOS
 router.get("/", autenticarToken(), contextoEmpresa,
 verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
     console.log("ENTROU NA ROTA PARA RELATORIOS");
-    const { tipo, dataInicio, dataFim, evento } = req.query; 
+    const { tipo, dataInicio, dataFim, evento, cliente } = req.query; 
     const idempresa = req.idempresa;
     const eventoEhTodos = evento === "todos";
+   // const clienteEhTodos = !cliente || cliente === "todos";
     
     if (!tipo || !dataInicio || !dataFim || !evento) {
         return res.status(400).json({ error: 'Parâmetros tipo, dataInicio, dataFim e evento são obrigatórios.' });
@@ -23,15 +25,37 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
 
     try {
         const relatorio = {};
-
+        let paramCount = 4; // Começa a contagem para os parâmetros dinâmicos
+        const params = [idempresa, dataInicio, dataFim];
         let wherePeriodo = `
             EXISTS (
                 SELECT 1
                 FROM jsonb_array_elements_text(tse.datasevento) AS event_date
                 WHERE event_date::date >= $2::date
                 AND event_date::date <= $3::date
-            ) AND tse.idevento = $4
-        `;          
+            )
+        `;
+
+        if (evento && evento !== "todos") {
+            wherePeriodo += ` AND tse.idevento = $4`;
+            params.push(evento);
+            paramCount++;
+        } 
+
+        if (cliente && cliente !== "todos") {
+            wherePeriodo += ` AND tse.idcliente = $${paramCount}`;
+            params.push(cliente);
+            paramCount++;
+        }
+
+        // let wherePeriodo = `
+        //     EXISTS (
+        //         SELECT 1
+        //         FROM jsonb_array_elements_text(tse.datasevento) AS event_date
+        //         WHERE event_date::date >= $2::date
+        //         AND event_date::date <= $3::date
+        //     ) AND tse.idevento = $4
+        // `;          
 
         let queryFechamentoPrincipal = ''; // Variável para armazenar a query principal
         
@@ -58,7 +82,7 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                         (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
                          WHERE s.date_value::date >= $2::date AND s.date_value::date <= $3::date)
                     ) AS "QTD",
-                    (COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * jsonb_array_length(
+                    (COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0))  * COALESCE(tse.qtdpessoaslote, 1) * jsonb_array_length(
                         (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
                          WHERE s.date_value::date >= $2::date AND s.date_value::date <= $3::date)
                     ) AS "TOT DIÁRIAS",
@@ -67,7 +91,20 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                         WHEN tse.comppgtoajdcusto IS NOT NULL AND tse.comppgtoajdcusto != '' THEN 'Pago 100%'
                         WHEN tse.comppgtoajdcusto50 IS NOT NULL AND tse.comppgtoajdcusto50 != '' THEN 'Pago 50%'
                         ELSE tse.statuspgto
-                    END AS "STATUS PGTO"
+                    END AS "STATUS PGTO",
+                    CASE
+                        WHEN tse.comppgtoajdcusto IS NOT NULL AND tse.comppgtoajdcusto != '' THEN 0.00
+                        WHEN tse.comppgtoajdcusto50 IS NOT NULL AND tse.comppgtoajdcusto50 != '' THEN 
+                            (COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0))  * COALESCE(tse.qtdpessoaslote, 1) *jsonb_array_length(
+                                (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
+                                WHERE s.date_value::date >= $2::date AND s.date_value::date <= $3::date)
+                            ) / 2
+                        ELSE 
+                            (COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * COALESCE(tse.qtdpessoaslote, 1)  * jsonb_array_length(
+                                (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
+                                WHERE s.date_value::date >= $2::date AND s.date_value::date <= $3::date)
+                            )
+                    END AS "TOT PAGAR"
                 FROM
                     staffeventos tse
                 JOIN
@@ -94,15 +131,13 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                         staffempresas semp ON tse.idstaff = semp.idstaff
                     WHERE
                         semp.idempresa = $1 AND ${wherePeriodo}
-                        -- AND EXISTS (
-                        --     SELECT 1
-                        --     FROM jsonb_array_elements_text(tse.datasevento) AS event_date
-                        --     WHERE event_date::date >= $2::date AND event_date::date <= $3::date
-                        -- )
+                        )
                 )
                 SELECT
                     "idevento",
                     "nomeEvento",
+                    "idcliente",
+                    "nomeCliente",
                     "FUNÇÃO",
                     "NOME",
                     "PIX",
@@ -111,65 +146,69 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                     "VLR ADICIONAL",
                     "VLR DIÁRIA",
                     "QTD",
+                    "QTDPESSOAS",
                     "TOT DIÁRIAS",
                     CAST(("TOT DIÁRIAS" + "VLR ADICIONAL") AS NUMERIC(10, 2)) AS "TOTAL GERAL",
                     "STATUS PGTO",
                     "TOT PAGAR"
                 FROM
                     (
-                    SELECT
-                        tse.idevento AS "idevento",
-                        tse.nmevento AS "nomeEvento",
-                        tse.nmfuncao AS "FUNÇÃO",
-                        tbf.nome AS "NOME",
-                        tbf.pix AS "PIX",
-                        jsonb_array_element_text(tse.datasevento, 0) AS "INÍCIO",
-                        jsonb_array_element_text(tse.datasevento, jsonb_array_length(tse.datasevento) - 1) AS "TÉRMINO",
-                        CAST(
-                            (
-                                COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0.00 END, 0.00) +
-                                COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' THEN tse.vlrcaixinha ELSE 0.00 END, 0.00) +
-                                (COALESCE(tse.vlrcache, 0) + COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(da.qtd_diarias_dobradas_autorizadas, 0) +
-                                ((COALESCE(tse.vlrcache, 0) / 2) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(da.qtd_meias_diarias_autorizadas, 0)
-                            ) AS NUMERIC(10, 2)
-                        ) AS "VLR ADICIONAL",
-                        COALESCE(tse.vlrcache, 0) AS "VLR DIÁRIA",
-                        jsonb_array_length(
-                            (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
-                            WHERE s.date_value::date >= $2::date AND s.date_value::date <= $3::date)
-                        ) AS "QTD",
-                        (COALESCE(tse.vlrcache, 0) * jsonb_array_length(
-                            (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
-                            WHERE s.date_value::date >= $2::date AND s.date_value::date <= $3::date)
-                        )) AS "TOT DIÁRIAS",
-                        CASE
-                            WHEN tse.comppgtoajdcusto IS NOT NULL AND tse.comppgtoajdcusto != '' THEN 'Pago 100%'
-                            WHEN tse.comppgtoajdcusto50 IS NOT NULL AND tse.comppgtoajdcusto50 != '' THEN 'Pago 50%'
-                            ELSE tse.statuspgto
-                        END AS "STATUS PGTO",
-                        CASE
-                            WHEN (tse.comppgtoajdcusto50 IS NOT NULL AND tse.comppgtoajdcusto50 != '') AND (tse.comppgtoajdcusto IS NULL OR tse.comppgtoajdcusto = '') 
-                                THEN ((COALESCE(tse.vlrcache, 0) * jsonb_array_length( (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
-                                    WHERE s.date_value::date >= $2::date AND s.date_value::date <= $3::date) )) + CAST( (COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' 
-                                        THEN tse.vlrajustecusto ELSE 0.00 END, 0.00) + COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' 
-                                        THEN tse.vlrcaixinha ELSE 0.00 END, 0.00) + (COALESCE(tse.vlrcache, 0) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(da.qtd_diarias_dobradas_autorizadas, 0) + ((COALESCE(tse.vlrcache, 0) / 2) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(da.qtd_meias_diarias_autorizadas, 0) ) AS NUMERIC(10, 2)) ) * 0.50
-                            WHEN (tse.comppgtoajdcusto IS NULL OR tse.comppgtoajdcusto = '') AND (tse.comppgtoajdcusto50 IS NULL OR tse.comppgtoajdcusto50 = '') 
-                                THEN ((COALESCE(tse.vlrcache, 0) * jsonb_array_length( (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value) 
-                                    WHERE s.date_value::date >= $2::date AND s.date_value::date <= $3::date) )) + CAST( (COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' 
-                                       THEN tse.vlrajustecusto ELSE 0.00 END, 0.00) + COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' 
-                                       THEN tse.vlrcaixinha ELSE 0.00 END, 0.00) + (COALESCE(tse.vlrcache, 0) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(da.qtd_diarias_dobradas_autorizadas, 0) + ((COALESCE(tse.vlrcache, 0) / 2) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(da.qtd_meias_diarias_autorizadas, 0) ) AS NUMERIC(10, 2)) )
-                            ELSE 0.00
-                        END AS "TOT PAGAR"
-                    FROM
-                        staffeventos tse
-                    JOIN
-                        funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
-                    JOIN
-                        staffempresas semp ON tse.idstaff = semp.idstaff
-                    JOIN
-                        diarias_autorizadas da ON tse.idstaffevento = da.idstaffevento
-                    WHERE
-                        semp.idempresa = $1 AND ${wherePeriodo}
+                        SELECT
+                            tse.idevento AS "idevento",
+                            tse.nmevento AS "nomeEvento",
+                            tse.idcliente AS "idcliente",
+                            tse.nmcliente AS "nomeCliente",
+                            tse.qtdpessoaslote AS "QTDPESSOAS",
+                            tse.nmfuncao AS "FUNÇÃO",
+                            tbf.nome AS "NOME",
+                            tbf.pix AS "PIX",
+                            jsonb_array_element_text(tse.datasevento, 0) AS "INÍCIO",
+                            jsonb_array_element_text(tse.datasevento, jsonb_array_length(tse.datasevento) - 1) AS "TÉRMINO",
+                            CAST(
+                                (
+                                    COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0.00 END, 0.00) +
+                                    COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' THEN tse.vlrcaixinha ELSE 0.00 END, 0.00) +
+                                    (COALESCE(tse.vlrcache, 0) + COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(da.qtd_diarias_dobradas_autorizadas, 0) +
+                                    ((COALESCE(tse.vlrcache, 0) / 2) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(da.qtd_meias_diarias_autorizadas, 0)
+                                ) AS NUMERIC(10, 2)
+                            ) AS "VLR ADICIONAL",
+                            COALESCE(tse.vlrcache, 0) AS "VLR DIÁRIA",
+                            jsonb_array_length(
+                                (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
+                                WHERE s.date_value::date >= $2::date AND s.date_value::date <= $3::date)
+                            ) AS "QTD",
+                            (COALESCE(tse.vlrcache, 0) * COALESCE(tse.qtdpessoaslote, 1) * jsonb_array_length(
+                                (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
+                                WHERE s.date_value::date >= $2::date AND s.date_value::date <= $3::date)
+                            )) AS "TOT DIÁRIAS",
+                            CASE
+                                WHEN (tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '') THEN 'Pago'
+                                ELSE tse.statuspgto
+                            END AS "STATUS PGTO",
+                            CAST(
+                                (
+                                    (CASE WHEN tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '' THEN 0.00 ELSE (COALESCE(tse.vlrcache, 0) * COALESCE(tse.qtdpessoaslote, 1) * jsonb_array_length((SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value) WHERE s.date_value::date >= $2::date AND s.date_value::date <= $3::date))) END)
+                                    +
+                                    (CASE WHEN tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '' THEN 0.00 ELSE COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0.00 END, 0.00) END)
+                                    +
+                                    (CASE WHEN tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '' THEN 0.00 ELSE COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' THEN tse.vlrcaixinha ELSE 0.00 END, 0.00) END)
+                                    +
+                                    (CASE WHEN tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '' THEN 0.00 ELSE (COALESCE(tse.vlrcache, 0) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(da.qtd_diarias_dobradas_autorizadas, 0) END)
+                                    +
+                                    (CASE WHEN tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '' THEN 0.00 ELSE ((COALESCE(tse.vlrcache, 0) / 2) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(da.qtd_meias_diarias_autorizadas, 0) END)
+                                ) AS NUMERIC(10, 2)
+                            ) AS "TOT PAGAR"
+                        FROM
+                            staffeventos tse
+                        JOIN
+                            funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
+                        JOIN
+                            staffempresas semp ON tse.idstaff = semp.idstaff
+                        JOIN
+                            diarias_autorizadas da ON tse.idstaffevento = da.idstaffevento
+                        WHERE
+                            semp.idempresa = $1 AND ${wherePeriodo}
+                            )
                     ) AS subquery
                 ORDER BY
                     "nomeEvento",
@@ -177,37 +216,38 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
             `;
         }
 
-        const resultFechamentoPrincipal = await pool.query(queryFechamentoPrincipal, [idempresa, dataInicio, dataFim, evento]);
-       // relatorio.fechamentoCache = resultFechamentoPrincipal.rows; 
-         relatorio.fechamentoCache = resultFechamentoPrincipal.rows.map(item => {
-            if (item.datasevento && typeof item.datasevento === 'string') {
-                try {
-                    // 1. Converte a string JSON para um array JavaScript
-                    const datasArray = JSON.parse(item.datasevento);
+    //     const resultFechamentoPrincipal = await pool.query(queryFechamentoPrincipal, [idempresa, dataInicio, dataFim, evento]);
+    //    // relatorio.fechamentoCache = resultFechamentoPrincipal.rows; 
+    //      relatorio.fechamentoCache = resultFechamentoPrincipal.rows.map(item => {
+    //         if (item.datasevento && typeof item.datasevento === 'string') {
+    //             try {
+    //                 // 1. Converte a string JSON para um array JavaScript
+    //                 const datasArray = JSON.parse(item.datasevento);
                     
-                    // 2. Filtra e ordena as datas
-                    // Filtra para garantir que são strings de data válidas antes de ordenar
-                    const datasOrdenadas = datasArray
-                        .filter(dateStr => /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) // Regex simples para 'YYYY-MM-DD'
-                        .sort((a, b) => new Date(a) - new Date(b)); // Ordena em ordem crescente
+    //                 // 2. Filtra e ordena as datas
+    //                 // Filtra para garantir que são strings de data válidas antes de ordenar
+    //                 const datasOrdenadas = datasArray
+    //                     .filter(dateStr => /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) // Regex simples para 'YYYY-MM-DD'
+    //                     .sort((a, b) => new Date(a) - new Date(b)); // Ordena em ordem crescente
 
-                    item.datasevento = JSON.stringify(datasOrdenadas); // Opcional: converte de volta para JSON string
-                                                                       // Ou você pode deixar como array de JS
-                } catch (e) {
-                    console.error("Erro ao fazer parse ou ordenar datasevento:", e, item.datasevento);
-                    // Deixa como estava se houver erro ou seta para um default
-                    item.datasevento = '[]'; 
-                }
-            }
-            return item;
-        });
+    //                 item.datasevento = JSON.stringify(datasOrdenadas); // Opcional: converte de volta para JSON string
+    //                                                                    // Ou você pode deixar como array de JS
+    //             } catch (e) {
+    //                 console.error("Erro ao fazer parse ou ordenar datasevento:", e, item.datasevento);
+    //                 // Deixa como estava se houver erro ou seta para um default
+    //                 item.datasevento = '[]'; 
+    //             }
+    //         }
+    //         return item;
+    //     });
         
         // Parâmetros para fechamento principal
         const paramsFechamento = eventoEhTodos
             ? [idempresa, dataInicio, dataFim]
             : [idempresa, dataInicio, dataFim, evento];
 
-        const resultFechamentoPrincipal = await pool.query(queryFechamentoPrincipal, paramsFechamento);
+      //  const resultFechamentoPrincipal = await pool.query(queryFechamentoPrincipal, paramsFechamento);
+        const resultFechamentoPrincipal = await pool.query(queryFechamentoPrincipal, params);
         const fechamentoCache = resultFechamentoPrincipal.rows; 
         relatorio.fechamentoCache = fechamentoCache;
 
@@ -280,6 +320,8 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                     AND inner_tse.idcliente = o.idcliente
                     AND inner_event_date::date >= $2::date
                     AND inner_event_date::date <= $3::date
+                    ${evento && evento !== "todos" ? `AND inner_tse.idevento = $${params.indexOf(evento) + 1}` : ''}
+                    ${cliente && cliente !== "todos" ? `AND inner_tse.idcliente = $${params.indexOf(cliente) + 1}` : ''}
                 )
             GROUP BY
                 o.idevento,
@@ -290,7 +332,8 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                 o.nrorcamento,
                 oi.produto;
         `;
-        const resultUtilizacaoDiarias = await pool.query(queryUtilizacaoDiarias, [idempresa, dataInicio, dataFim]);
+        //const resultUtilizacaoDiarias = await pool.query(queryUtilizacaoDiarias, [idempresa, dataInicio, dataFim]);
+        const resultUtilizacaoDiarias = await pool.query(queryUtilizacaoDiarias, params);
         relatorio.utilizacaoDiarias = resultUtilizacaoDiarias.rows;
 
         // Contingência
@@ -371,7 +414,8 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
             ORDER BY
                 idevento, "Profissional", "Informacao";
         `;
-        const resultContingencia = await pool.query(queryContingencia, paramsContingencia);
+       // const resultContingencia = await pool.query(queryContingencia, paramsContingencia);
+       const resultContingencia = await pool.query(queryContingencia, params);
         relatorio.contingencia = resultContingencia.rows;
 
         return res.json(relatorio);
@@ -391,9 +435,10 @@ router.get('/eventos', verificarPermissao('Relatorios', 'pesquisar'), async (req
         }
 
         const query = `
-            SELECT e.idevento, e.nmevento
-            FROM eventos e
-            JOIN orcamentos o ON o.idevento = e.idevento
+            SELECT o.idevento, e.nmevento, o.idcliente, c.nmfantasia AS cliente
+            FROM orcamentos o
+            JOIN clientes c ON o.idcliente = c.idcliente
+            JOIN eventos e ON o.idevento = e.idevento
             WHERE (
                 (o.dtinimontagem IS NOT NULL AND o.dtinimontagem <= $2 AND o.dtfimmontagem >= $1)
             OR (o.dtinirealizacao IS NOT NULL AND o.dtinirealizacao <= $2 AND o.dtfimrealizacao >= $1)
@@ -402,7 +447,7 @@ router.get('/eventos', verificarPermissao('Relatorios', 'pesquisar'), async (req
             OR (o.dtiniinfradesmontagem IS NOT NULL AND o.dtiniinfradesmontagem <= $2 AND o.dtfiminfradesmontagem >= $1)
             OR (o.dtinimarcacao IS NOT NULL AND o.dtinimarcacao <= $2 AND o.dtfimmarcacao >= $1)
             )
-            GROUP BY e.idevento, e.nmevento
+            GROUP BY o.idevento, e.nmevento, o.idcliente, c.nmfantasia
             ORDER BY e.nmevento;
         `;
 

@@ -61,6 +61,7 @@ h1 {
 .controls {
     display: flex;
     /* flex-wrap: wrap;  */
+    flex-direction: column;
     justify-content: center;
     align-items: center; /* Alinha os itens pela base, útil para inputs de tamanhos diferentes */
     gap: 20px; 
@@ -70,7 +71,7 @@ h1 {
     border-radius: 8px;
     border: 1px solid #e9ecef;
     width: 100%; 
-    max-width: 900px; 
+    max-width: 1300px; 
 }
 
 .controls label {
@@ -86,6 +87,20 @@ h1 {
     font-size: 1rem;
     cursor: pointer;
     transition: all 0.2s ease-in-out;
+}
+
+.form-2colunas {
+  display: flex;
+  gap: 0.5px;  /* Espaço entre os inputs */
+  max-width: 300; /* Garante que os elementos não ultrapassem o container */
+  justify-content: center;
+}
+
+.filtros {
+    display: flex;
+    gap: 20px; /* Espaço entre os campos */
+    align-items: center;  /* aqui é o segredo do alinhamento */
+    justify-content: center;
 }
 
   .Close{

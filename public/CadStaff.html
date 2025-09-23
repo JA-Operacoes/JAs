@@ -145,16 +145,22 @@
             <div id="containerFieldsets">
               <fieldset>
                 <legend>Evento</legend>
-                <div class="Selects">
-                  
-                  
+                <div class="Selects">  
+                  <div class="field">
+                    <label for="descEquipe">Equipe:</label>
+                    <input type="hidden" id="idEquipe" name="idEquipe">
+                    <select class="nmEquipe" name="nmEquipe" id="nmEquipe">       
+                      <option value="" selected disabled>Selecione a Equipe</option>                     
+                    </select>
+                  </div>                 
                   <div class="field">
                     <label for="descFuncao">Função:</label>
                     <input type="hidden" id="idFuncao" name="idFuncao">
                     <select class="descFuncao" name="descFuncao" id="descFuncao">       
                       <option value="" selected disabled>Selecione a Função</option>
                     </select>
-                  </div>
+                  </div>              
+                  
 
                   <div class="field">
                     <label for="categoria">Nível de Experiência:</label>

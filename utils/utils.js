@@ -60,7 +60,7 @@ async function fetchComToken(url, options = {}) {
     const token = localStorage.getItem("token");
     const idempresaLocalStorage = localStorage.getItem("idempresa");
 
-    console.log("Token a ser usado na requisição:", token, idempresaLocalStorage);
+    //console.log("Token a ser usado na requisição:", token, idempresaLocalStorage);
 
     if (!options.headers) options.headers = {};
   //  options.headers["Authorization"] = "Bearer " + token;

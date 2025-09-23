@@ -7,34 +7,59 @@
     <div class="Close"><button class="close" id="Fechar"> X </button></div>
   <div id ="form-cargo"> 
     <div class="title">
-      <h1>Gerador de Relatórios</h1>
+      <h1>Gerador de Relatórios de Fechamento</h1>
     </div>
     <div class="controls">
       <div class="tpRelatorio">
         <label for="reportType">Tipo de Relatório:</label>
-        <select id="reportType">
+        <!-- <select id="reportType">
           <option value="ajuda_custo">Ajuda de Custo</option>
           <option value="cache">Cachê</option>
-        </select>
+        </select> -->
+        <div></div>
+        <input type="radio" id="ajudaCustoRadio" name="reportType" value="ajuda_custo" checked>
+        <label for="ajudaCustoRadio">Ajuda de Custo</label>
+        <div></div>
+        <input type="radio" id="cacheRadio" name="reportType" value="cache">
+        <label for="cacheRadio">Cachê</label>
+      </div>
+      
+      <div class="filtros">
+        <!-- <div class="form-2colunas"> -->
+          <div class="init">
+            <label for="reportStartDate">Data de Início:</label>
+            <input type="date" id="reportStartDate" required>
+          </div>
+        
+          <div class="end">
+            <label for="reportEndDate">Data de Término:</label>
+            <input type="date" id="reportEndDate" required>
+          </div>
+        <!-- </div> -->
+        
+        <div class="Eventos">
+          <label for="eventSelect">Evento:</label>
+          <select id="eventSelect">
+            <option value="">Selecione um Evento</option>
+          </select>
+        </div>
+      
+        <div class="Clientes">
+          <label for="clientSelect">Cliente:</label>
+          <select id="clientSelect">
+            <option value="">Selecione um Cliente</option>
+          </select>
+        </div>
+
+        <div class="Equipes">
+          <label for="equipeSelect">Equipe:</label>
+          <select id="equipeSelect">
+            <option value="">Selecione uma Equipe</option>
+          </select>
+        </div>
       </div>
 
       
-      <div class="init">
-        <label for="reportStartDate">Data de Início:</label>
-        <input type="date" id="reportStartDate" required>
-      </div>
-      
-      <div class="end">
-        <label for="reportEndDate">Data de Término:</label>
-        <input type="date" id="reportEndDate" required>
-      </div>
-      
-      <div class="Eventos">
-        <label for="eventSelect">Evento:</label>
-        <select id="eventSelect">
-          <option value="">Selecione um Evento</option>
-        </select>
-      </div>
     </div>
 
     <div class="BTNs">

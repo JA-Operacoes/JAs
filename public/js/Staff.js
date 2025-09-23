@@ -521,8 +521,7 @@ let vlrCustoSeniorFuncao = 0;
 let vlrCustoPlenoFuncao = 0;
 let vlrCustoJuniorFuncao = 0;
 let vlrCustoBaseFuncao = 0;
-let vlrAlmocoFuncao = 0;
-let vlrJantarFuncao = 0;
+let vlrAlimentacaoFuncao = 0;
 let vlrTransporteFuncao = 0;
 let vlrTransporteSeniorFuncao = 0;
 let vlrAlimentacaoDobra =0;
@@ -546,7 +545,7 @@ if (typeof window.StaffOriginal === "undefined") {
         idCliente: "",
         nmCliente: "",
         idEvento: "",
-        nmEvento: "",
+        nmEvento: "",        
         idLocalMontagem: "",
         nmLocalMontagem: "",
         datasEventos: "",
@@ -561,7 +560,9 @@ if (typeof window.StaffOriginal === "undefined") {
         comprovanteCaixinha: "",
         setor: "",
         statusPgto: "",
-        nivelExperiencia: ""
+        nivelExperiencia: "",
+        idequipe: "",
+        nmequipe: ""
     };
 }
 
@@ -655,6 +656,9 @@ const baseCheck = document.getElementById('Basecheck');
 
 const qtdPessoasInput = document.getElementById('qtdPessoas');
 
+const idEquipeInput = document.getElementById('idEquipe');
+const nmEquipeSelect = document.getElementById('nmEquipe'); // Select de Equipe
+
 window.flatpickrInstances = {
     diariaDobrada: diariaDobradaPicker,
     meiaDiaria: meiaDiariaPicker,
@@ -696,6 +700,7 @@ const carregarDadosParaEditar = (eventData) => {
     idClienteInput.value = eventData.idcliente;
     idEventoInput.value = eventData.idevento;
     idFuncionarioHiddenInput.value = eventData.idfuncionario || '';   
+    idEquipeInput.value = eventData.idequipe || '';
 
 
     if (containerDiariaDobradaCheck) {
@@ -727,6 +732,8 @@ const carregarDadosParaEditar = (eventData) => {
 
     if (nmClienteSelect) nmClienteSelect.value = eventData.idcliente || '';
     if (nmEventoSelect) nmEventoSelect.value = eventData.idevento || '';
+    console.log("ID da Equipe:", eventData.idequipe);
+    if (nmEquipeSelect) nmEquipeSelect.value = eventData.idequipe || '';
 
     // Lógica para preencher Local de Montagem e Pavilhão.
     if (nmLocalMontagemSelect) {
@@ -1290,7 +1297,8 @@ async function verificaStaff() {
     configurarPreviewPDF();
     configurarPreviewImagem();
     inicializarFlatpickrsGlobais();
-
+    
+    carregarEquipeStaff();
     carregarFuncaoStaff();
     carregarFuncionarioStaff();
     carregarClientesStaff();
@@ -1694,6 +1702,10 @@ async function verificaStaff() {
         const idEvento = document.querySelector("#idEvento").value;
         const selectEvento = document.getElementById("nmEvento");
         const nmEvento = selectEvento.options[selectEvento.selectedIndex]?.textContent.trim().toUpperCase() || '';
+        const idEquipe = document.querySelector("#idEquipe").value;
+        const selectEquipe = document.getElementById("nmEquipe");
+        const nmEquipe = selectEquipe.options[selectEquipe.selectedIndex]?.textContent.trim().toUpperCase() || '';
+
         const idMontagem = document.querySelector("#idMontagem").value; // ID do local de montagem (FK)
         const selectLocalMontagem = document.getElementById("nmLocalMontagem");
         const nmLocalMontagem = selectLocalMontagem.options[selectLocalMontagem.selectedIndex].textContent.trim();
@@ -2179,7 +2191,7 @@ async function verificaStaff() {
             const temComprovanteCaixinha = !!comppgtocaixinhaDoForm;
 
             const cachePago = (vlrCache > 0 && temComprovanteCache);
-            const ajudaCustoPaga = ((vlrAlmoco > 0 || vlrJantar > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto);
+            const ajudaCustoPaga = ((vlrAlimentacao > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto);
             const caixinhasPagos = ((vlrCaixinha > 0) && temComprovanteCaixinha);
 
 
@@ -2188,7 +2200,7 @@ async function verificaStaff() {
                 statusPgto = "Pago";
             } else if (
                 (vlrCache <= 0 || (vlrCache > 0 && temComprovanteCache)) && // Se o cache não precisa de comprovação ou está pago
-                ((vlrAlmoco <= 0 && vlrJantar <= 0 && vlrTransporte <= 0) || ((vlrAlmoco > 0 || vlrJantar > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto)) && // Mesma lógica para ajuda de custo
+                ((vlrAlimentacao <= 0 && vlrTransporte <= 0) || ((vlrAlimentacao > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto)) && // Mesma lógica para ajuda de custo
                 (vlrCaixinha <= 0 || (vlrCaixinha > 0 && temComprovanteCaixinha))
             ) {
 
@@ -2223,6 +2235,10 @@ async function verificaStaff() {
 
             formData.append('nivelexperiencia', nivelExperienciaSelecionado);
             formData.append('qtdpessoas', qtdPessoas.toString());
+
+            console.log("ENVIANDO ID E NOME EQUIPE", idEquipe, nmEquipe);
+            formData.append('idequipe', idEquipe);
+            formData.append('nmequipe', nmEquipe);
 
             console.log("Status Diaria Dobrada", statusDiariaDobrada, statusMeiaDiaria);
 
@@ -2260,6 +2276,7 @@ async function verificaStaff() {
         formData.append('statusmeiadiaria', statusMeiaDiaria); //aqui remover não usa mais apenas dentro da data
         formData.append('datadiariadobrada', JSON.stringify(dadosDiariaDobrada));
         formData.append('datameiadiaria', JSON.stringify(dadosMeiaDiaria));
+
 
         console.log("Preparando envio de FormData. Método:", metodo, "URL:", url, window.StaffOriginal);
         console.log("Dados do FormData:", {
@@ -2401,6 +2418,7 @@ async function verificaStaff() {
                 currentEditingStaffEvent.idcliente != idCliente ||
                 currentEditingStaffEvent.idevento != idEvento ||
                 currentEditingStaffEvent.idmontagem != idMontagem ||
+                currentEditingStaffEvent.idequipe != idEquipe ||
                 (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao ||
                 (currentEditingStaffEvent.statuspgto || '').trim() != statusPgto.trim() ||
                 (currentEditingStaffEvent.statusajustecusto || '').trim() != statusAjusteCusto.trim() ||
@@ -2421,6 +2439,8 @@ async function verificaStaff() {
                 return isDifferent;
             };
             houveAlteracao =
+                 logAndCheck('ID Equipe', currentEditingStaffEvent.idequipe, idEquipe, currentEditingStaffEvent.idequipe != idEquipe) ||
+                logAndCheck('Equipe', currentEditingStaffEvent.nmequipe.toUpperCase(), nmEquipe, currentEditingStaffEvent.nmequipe.toUpperCase() != nmEquipe) ||
                 logAndCheck('ID Funcionário', currentEditingStaffEvent.idfuncionario, idFuncionario, currentEditingStaffEvent.idfuncionario != idFuncionario) ||
                 logAndCheck('Função', currentEditingStaffEvent.nmfuncao.toUpperCase(), descFuncao, currentEditingStaffEvent.nmfuncao.toUpperCase() != descFuncao) ||
                 logAndCheck('Valor Cache', parseFloat(currentEditingStaffEvent.vlrcache || 0), parseFloat(vlrCusto.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrcache || 0) != parseFloat(vlrCusto.replace(',', '.') || 0)) ||
@@ -3000,6 +3020,44 @@ function limparStaffOriginal() {
     });
 }
 
+async function carregarEquipeStaff() {
+
+    try{
+        const equipes = await fetchComToken('/staff/equipe');
+        console.log("ENTROU NO CARREGAREQUIPESTAFF", equipes);
+        let selects = document.querySelectorAll(".nmEquipe");
+
+        selects.forEach(select => {     // Log das equipes recebidas
+
+            select.innerHTML = '<option value="">Selecione a Equipe</option>'; // Adiciona a opção padrão
+            console.log('Equipes recebidas:', equipes);
+            equipes.forEach(equipe => {
+                let option = document.createElement("option");
+
+                option.value = equipe.idequipe;  // Atenção ao nome da propriedade (idMontagem)
+                option.textContent = equipe.nmequipe;
+                option.setAttribute("data-nmEquipe", equipe.nmequipe);
+                option.setAttribute("data-idEquipe", equipe.idequipe);
+                select.appendChild(option);
+
+            });
+
+            select.addEventListener('change', function () {
+
+                const selectedOption = select.options[select.selectedIndex];
+
+                document.getElementById("idEquipe").value = selectedOption.getAttribute("data-idEquipe");
+
+
+            });
+
+        });
+    }catch(error){
+        console.error("Erro ao carregar equipes:", error);
+    }
+
+}
+
 async function carregarFuncaoStaff() {
     try{
         const funcaofetch = await fetchComToken('/staff/funcao');
@@ -3067,6 +3125,7 @@ async function carregarFuncaoStaff() {
 
 async function carregarFuncionarioStaff() {
     try{
+        
         const funcionariofetch = await fetchComToken('/staff/funcionarios');
         console.log("ENTROU NO CARREGAR FUNCIONARIO STAFF", funcionariofetch);
 
@@ -3095,6 +3154,7 @@ async function carregarFuncionarioStaff() {
             });
 
             select.addEventListener("change", function () {
+               limparCamposEvento();
 
             const selectedOption = this.options[this.selectedIndex];
 
@@ -3424,7 +3484,7 @@ function limparCamposEvento() {
         "nmLocalMontagem", "nmPavilhao", "descBeneficio", "descAjusteCusto", "nmCliente", "nmEvento", "vlrTotal",
         "vlrTotalHidden", "idFuncao", "idMontagem", "idPavilhao", "idCliente", "idEvento", "statusPgto",
         "statusAjusteCusto", "statusCaixinha", "statusDiariaDobrada", "descDiariaDobrada", "statusMeiaDiaria",
-        "descMeiaDiaria", "qtdPessoas"
+        "descMeiaDiaria", "qtdPessoas","idequipe","nmEquipe"
     ];
 
     camposEvento.forEach(id => {
@@ -3472,7 +3532,13 @@ function limparCamposEvento() {
 
     const baseCheck = document.getElementById('Basecheck');
     if (baseCheck) baseCheck.checked = false;
-   
+
+    const check50 = document.getElementById('check50');
+    if (check50) check50.checked = false;
+
+    const check100 = document.getElementById('check100');
+    if (check100) check100.checked = false;
+
     const containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
     const containerStatusMeiaDiaria = document.getElementById('containerStatusMeiaDiaria');
 
@@ -3521,7 +3587,8 @@ function limparCamposStaff() {
         "nmLocalMontagem", "nmPavilhao", "alimentacao", "transporte", "vlrBeneficio", "descBeneficio",
         "nmCliente", "nmEvento", "vlrTotal", "vlrTotalHidden", "idFuncionario", "idFuncao", "idMontagem",
         "idPavilhao", "idCliente", "idEvento", "statusPgto", "statusCaixinha", "statusAjusteCusto", "statusDiariaDobrada",
-        "descDiariaDobrada", "statusMeiaDiaria", "descMeiaDiaria", "labelFuncionario", "perfilFuncionario", "qtdPessoas"
+        "descDiariaDobrada", "statusMeiaDiaria", "descMeiaDiaria", "labelFuncionario", "perfilFuncionario", "qtdPessoas",
+        "idequipe","nmEquipe"
     ];
 
     campos.forEach(id => {
@@ -3915,7 +3982,7 @@ document.getElementById('Seniorcheck').addEventListener('change', function () {
         juniorCheck.checked = false;
         baseCheck.checked = false;
 
-        console.log("Valores para Senior - Custo:", vlrCustoSeniorFuncao, "Almoço:", vlrAlmocoFuncao, "Jantar:", vlrJantarFuncao, "Transporte:", vlrTransporteSeniorFuncao);
+        console.log("Valores para Senior - Custo:", vlrCustoSeniorFuncao, "Alimentação:", vlrAlimentacaoSeniorFuncao, "Transporte:", vlrTransporteSeniorFuncao);
 
        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoSeniorFuncao) || 0).toFixed(2); 
        document.getElementById("transporte").value = (parseFloat(vlrTransporteSeniorFuncao) || 0).toFixed(2);

@@ -50,7 +50,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         // 2. Busca a lista de todas as empresas do backend (usando a nova rota /empresas).
         const empresasDoBackend = await fetchComToken("/index/empresas"); 
 
-        console.log("Empresas do backend:", empresasDoBackend);
+        console.log("Empresas do backend e empresas permitidas:", empresasDoBackend, empresasPermitidas);
         
         // 3. Mapeia as empresas para uma lista de logos com os IDs e seletores corretos.
         //    O nome fantasia deve ser limpo para corresponder ao seletor CSS.
@@ -64,9 +64,9 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         // 4. Itera sobre a nova lista de logos dinâmica para mostrar/esconder.
         logos.forEach(logo => {
-          console.log("Processando logo:", logo);
+        //  console.log("Processando logo:", logo);
             const el = document.querySelector(logo.selector);
-            console.log(`el: ${el} para seletor ${logo.selector}`);
+          //  console.log(`el: ${el} para seletor ${logo.selector}`);
             if (el) {
                
                 // Se o ID da empresa do backend não estiver na lista do token, esconde o logo.
@@ -84,7 +84,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                         
                     });
                 }
-                console.log(`PROCESSADO LOGO: ${logo.selector} PARA EMPRESA ID: ${logo.id}`);
+              //  console.log(`PROCESSADO LOGO: ${logo.selector} PARA EMPRESA ID: ${logo.id}`);
             }
         });
 

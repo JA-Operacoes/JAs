@@ -73,6 +73,31 @@ function deletarArquivoAntigo(relativePath) {
     }
 }
 
+
+router.get('/equipe', async (req, res) => {
+  
+ console.log("🔥 Rota /staff/equipe acessada");
+  const idempresa = req.idempresa;
+
+  try {
+     
+    const resultado = await pool.query(`
+      SELECT e.*
+      FROM equipe e
+      INNER JOIN equipeempresas ee ON ee.idequipe = e.idequipe
+      WHERE ee.idempresa = $1
+      ORDER BY e.nmequipe
+    `, [idempresa]);
+
+    res.json(resultado.rows);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: 'Erro ao buscar clientes' });
+  }
+
+});
+
 router.get('/funcao', async (req, res) => {
   
  console.log("🔥 Rota /staff/funcao acessada");
@@ -810,7 +835,7 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
             vlrcache, vlrajustecusto, vlrtransporte, vlralimentacao, vlrcaixinha,
             descajustecusto, datasevento, vlrtotal, descbeneficios, setor, statuspgto, 
             statusajustecusto, statuscaixinha, statusdiariadobrada, statusmeiadiaria, datadiariadobrada, datameiadiaria,
-            desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoas
+            desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoas, idequipe, nmequipe
         } = req.body;
 
         console.log("BACKEND", req.body);
@@ -979,10 +1004,10 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
                     dtdiariadobrada = $27, dtmeiadiaria = $28,
                     desccaixinha = $29, descdiariadobrada = $30, descmeiadiaria = $31,
                     comppgtocache = $32, comppgtoajdcusto = $33, comppgtoajdcusto50 = $34, comppgtocaixinha = $35, 
-                    nivelexperiencia = $36, qtdpessoaslote = $37
+                    nivelexperiencia = $36, qtdpessoaslote = $37, idequipe = $38, nmequipe = $39
                 FROM staff s
                 INNER JOIN staffempresas sme ON sme.idstaff = s.idstaff
-                WHERE se.idstaff = s.idstaff AND se.idstaffevento = $38 AND sme.idempresa = $39
+                WHERE se.idstaff = s.idstaff AND se.idstaffevento = $40 AND sme.idempresa = $41
                 RETURNING se.idstaffevento, se.datasevento;
                 
             `;
@@ -1012,7 +1037,7 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
                 desccaixinha, descdiariadobrada, descmeiadiaria,
                 // Caminhos dos comprovantes
                 newComppgtoCachePath, newComppgtoAjdCustoPath, newComppgtoAjdCusto50Path, newComppgtoCaixinhaPath,
-                nivelexperiencia, qtdpessoas,
+                nivelexperiencia, qtdpessoas, idequipe, nmequipe,
                 // Parâmetros de identificação da linha
                 idStaffEvento, idempresa
             ];
@@ -1103,7 +1128,7 @@ router.post(
       vlrcaixinha, nmfuncionario, datasevento: datasEventoRaw,
       descajustecusto, descbeneficios, vlrtotal, setor, statuspgto, statusajustecusto, statuscaixinha,
       statusdiariadobrada, statusmeiadiaria, datadiariadobrada, datameiadiaria, desccaixinha, 
-      descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoas
+      descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoas, idequipe, nmequipe
     } = req.body;
 
     // const dataDiariaDobradaCorrigida = (datadiariadobrada === '' || datadiariadobrada === '[]' || !datadiariadobrada) 
@@ -1236,9 +1261,9 @@ router.post(
             vlrcache, vlralimentacao, vlrtransporte, vlrajustecusto,
             vlrcaixinha, descajustecusto, datasevento, vlrtotal, comppgtocache, comppgtoajdcusto, comppgtocaixinha, 
             descbeneficios, setor, statuspgto, statusajustecusto, statuscaixinha, statusdiariadobrada, statusmeiadiaria, dtdiariadobrada,
-            comppgtoajdcusto50, dtmeiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoaslote
+            comppgtoajdcusto50, dtmeiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoaslote, idequipe, nmequipe
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22,
-            $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39)
+            $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41)
           RETURNING idstaffevento;
         `;
         const eventoInsertValues = [
@@ -1273,7 +1298,8 @@ router.post(
           descdiariadobrada,
           descmeiadiaria,
           nivelexperiencia,
-          qtdpessoas
+          qtdpessoas,
+          idequipe, nmequipe
         ];
 
         await client.query(eventoInsertQuery, eventoInsertValues);

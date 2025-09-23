@@ -1,6 +1,7 @@
 import { fetchComToken } from '../utils/utils.js';
 
-let ultimoRelatorioGerado = null;
+let todosOsDadosDoPeriodo = null;
+let eventoSelecionadoId = null;
 
 // Função para iniciar o módulo de relatórios
 function initRelatorios() {
@@ -66,31 +67,143 @@ function formatarData(dataString) {
 
 
 
-function preencherEventosPeriodo() {
+// function preencherEventosPeriodo() {
+//     const startDate = document.getElementById('reportStartDate').value;
+//     const endDate = document.getElementById('reportEndDate').value;
+//     const eventSelect = document.getElementById('eventSelect');
+//     if (!startDate || !endDate) return;
+
+//     // Chame sua API que retorna eventos do período
+//     fetchComToken(`/relatorios/eventos?inicio=${startDate}&fim=${endDate}`)
+//     .then(eventos => {
+//         eventSelect.innerHTML = '<option value="">Selecione um Evento</option>';
+//         eventos.forEach(ev => {
+//             const opt = document.createElement('option');
+//             opt.value = ev.idevento;
+//             opt.textContent = ev.nmevento;
+//             eventSelect.appendChild(opt);
+//         });
+//     })
+//     .catch(() => {
+//         eventSelect.innerHTML = '<option value="">Nenhum evento encontrado</option>';
+//     });
+// }
+
+
+async function preencherEventosPeriodo() {
     const startDate = document.getElementById('reportStartDate').value;
     const endDate = document.getElementById('reportEndDate').value;
     const eventSelect = document.getElementById('eventSelect');
-    if (!startDate || !endDate) return;
+    const clientSelect = document.getElementById('clientSelect'); // Supondo que você tenha um select de clientes
 
-    // Chame sua API que retorna eventos do período
-fetchComToken(`/relatorios/eventos?inicio=${startDate}&fim=${endDate}`)
-    .then(eventos => {
+    if (!startDate || !endDate) {
         eventSelect.innerHTML = '<option value="">Selecione um Evento</option>';
-        eventos.forEach(ev => {
+        clientSelect.innerHTML = '<option value="">Selecione um Cliente</option>';
+        return;
+    }
+
+    try {
+        // Altere a rota da sua API para retornar todos os eventos e seus clientes
+        // para o período selecionado.
+        const url = `/relatorios/eventos?inicio=${startDate}&fim=${endDate}`;
+        const dados = await fetchComToken(url);
+
+        const dadosAgrupados = {};
+
+        dados.forEach(item => {
+            if (!dadosAgrupados[item.idevento]) {
+                dadosAgrupados[item.idevento] = {
+                    idevento: item.idevento,
+                    nmevento: item.nmevento,
+                    clientes: []
+                };
+            }
+            dadosAgrupados[item.idevento].clientes.push({
+                idcliente: item.idcliente,
+                nomeCliente: item.cliente
+            });
+        });
+
+        // Converte o objeto de volta para um array para facilitar a iteração
+        todosOsDadosDoPeriodo = Object.values(dadosAgrupados);
+        
+        // Armazena os dados em uma variável global
+      //  todosOsDadosDoPeriodo = dados;
+        console.log('Dados AGRUPADOS para o período:', todosOsDadosDoPeriodo);
+        // 1. Preencher o select de Eventos
+        eventSelect.innerHTML = '<option value="">Todos os Eventos</option>';
+        dados.forEach(evento => {
             const opt = document.createElement('option');
-            opt.value = ev.idevento;
-            opt.textContent = ev.nmevento;
+            opt.value = evento.idevento;
+            opt.textContent = evento.nmevento;
             eventSelect.appendChild(opt);
         });
-    })
-    .catch(() => {
+
+        // 2. Preencher o select de Clientes com todos os clientes
+        preencherClientesEvento();
+
+    } catch (error) {
+        console.error('Erro ao carregar dados:', error);
         eventSelect.innerHTML = '<option value="">Nenhum evento encontrado</option>';
-    });
+        clientSelect.innerHTML = '<option value="">Nenhum cliente encontrado</option>';
+    }
 }
+
+function preencherClientesEvento() {
+    const eventSelect = document.getElementById('eventSelect');
+    const clientSelect = document.getElementById('clientSelect');
+    const eventoId = eventSelect.value;
+
+     console.log('Dados carregados para o período no PREENCHER CLIENTES:', todosOsDadosDoPeriodo);
+    
+    // Reseta o select de clientes
+    clientSelect.innerHTML = '<option value="">Todos os Clientes</option>';
+
+    if (!todosOsDadosDoPeriodo) {
+        return; // Não há dados para preencher
+    }
+
+    // Se um evento específico foi selecionado
+    if (eventoId) {
+        console.log('Evento selecionado:', eventoId);
+        const eventoIdNum = parseInt(eventoId, 10);
+       // const eventoSelecionado = todosOsDadosDoPeriodo.find(ev => ev.idevento === eventoId);
+       const eventoSelecionado = todosOsDadosDoPeriodo.find(ev => ev.idevento === eventoIdNum);
+        if (eventoSelecionado && eventoSelecionado.clientes) {
+            eventoSelecionado.clientes.forEach(cliente => {
+                const opt = document.createElement('option');
+                opt.value = cliente.idcliente;
+                opt.textContent = cliente.nomeCliente;
+                clientSelect.appendChild(opt);
+            });
+        }
+    } else {
+        // Se nenhum evento foi selecionado, carrega todos os clientes de todos os eventos
+        const clientesUnicos = new Set();
+        todosOsDadosDoPeriodo.forEach(evento => {
+            if (evento.clientes) {
+                evento.clientes.forEach(cliente => {
+                    clientesUnicos.add(JSON.stringify({ id: cliente.idcliente, nome: cliente.nomeCliente }));
+                });
+            }
+        });
+        
+        const clientesArray = Array.from(clientesUnicos).map(c => JSON.parse(c)).sort((a, b) => a.nome.localeCompare(b.nome));
+        clientesArray.forEach(cliente => {
+            const opt = document.createElement('option');
+            opt.value = cliente.id;
+            opt.textContent = cliente.nome;
+            clientSelect.appendChild(opt);
+        });
+    }
+}
+
 
 // Adicione listeners para atualizar o select quando as datas mudarem
 document.getElementById('reportStartDate').addEventListener('change', preencherEventosPeriodo);
 document.getElementById('reportEndDate').addEventListener('change', preencherEventosPeriodo);
+
+document.getElementById('eventSelect').addEventListener('change', preencherClientesEvento);
 
 
 
@@ -149,6 +262,8 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, d
 
     const obterClasseStatus = (status) => {
         switch (status) {
+            case 'Pago':
+                return 'status-pago-100';
             case 'Pago 100%':
                 return 'status-pago-100';
             case 'Pago 50%':
@@ -251,7 +366,15 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, d
 
     // Container para as tabelas de resumo lado a lado
     html += `<div class="relatorio-resumo-container">`;
-    
+
+    const alinhamentosUtilizacao = {
+        'INFORMAÇÕES EM PROPOSTA': 'text-left',
+        'QTD PROFISSIONAIS': 'text-center',
+        'DIÁRIAS CONTRATADAS': 'text-center',
+        'DIÁRIAS UTILIZADAS': 'text-center',
+        'SALDO': 'text-right',
+    };
+    // 
     if (dadosUtilizacao && dadosUtilizacao.length > 0) { // <<-- MODIFICAÇÃO: Adicionada verificação de length
         const nroOrcamento = dadosUtilizacao[0].nrorcamento || 'N/A'; 
         html += `
@@ -268,11 +391,11 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, d
                             <th>QTD PROFISSIONAIS</th>
                             <th>DIÁRIAS CONTRATADAS</th>
                             <th>DIÁRIAS UTILIZADAS</th>
-                            <th>SALDO</th>
+                            <th>SALDO</th>                    
                         </tr>
                     </thead>
                     <tbody>
-                        ${montarTabelaBody(dadosUtilizacao)}
+                        ${montarTabelaBody(dadosUtilizacao, alinhamentosUtilizacao)}
                     </tbody>
                 </table>
             </div>
@@ -299,22 +422,49 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, d
     return html;
 }
 
-function montarTabelaBody(dados) {
+// function montarTabelaBody(dados) {
+//     if (!dados || dados.length === 0) {
+//         return '<tr><td colspan="5">Nenhum dado disponível.</td></tr>';
+//     }
+
+//     let html = '';
+//     dados.forEach(item => {
+//         html += `
+//             <tr>
+//                 <td>${item['INFORMAÇÕES EM PROPOSTA'] || ''}</td>
+//                 <td>${item['QTD PROFISSIONAIS'] || ''}</td>
+//                 <td>${item['DIÁRIAS CONTRATADAS'] || ''}</td>
+//                 <td>${item['DIÁRIAS UTILIZADAS'] || ''}</td>
+//                 <td>${item.SALDO || ''}</td>
+//             </tr>
+//         `;
+//     });
+//     return html;
+// }
+
+function montarTabelaBody(dados, alinhamentosPorColuna = {}) {
     if (!dados || dados.length === 0) {
         return '<tr><td colspan="5">Nenhum dado disponível.</td></tr>';
     }
 
+    const colunas = Object.keys(alinhamentosPorColuna);
+
     let html = '';
     dados.forEach(item => {
-        html += `
-            <tr>
-                <td>${item['INFORMAÇÕES EM PROPOSTA'] || ''}</td>
-                <td>${item['QTD PROFISSIONAIS'] || ''}</td>
-                <td>${item['DIÁRIAS CONTRATADAS'] || ''}</td>
-                <td>${item['DIÁRIAS UTILIZADAS'] || ''}</td>
-                <td>${item.SALDO || ''}</td>
-            </tr>
-        `;
+        html += `<tr>`;
+        colunas.forEach(col => {
+            const alignClass = alinhamentosPorColuna[col] || '';
+            let valorCelula = item[col];
+            
+            // Lógica de formatação, se necessário
+            if (['SALDO', 'DIÁRIAS CONTRATADAS', 'DIÁRIAS UTILIZADAS'].includes(col) && typeof valorCelula === 'number') {
+                // Exemplo de formatação:
+                // valorCelula = valorCelula.toLocaleString('pt-BR');
+            }
+
+            html += `<td class="${alignClass}">${valorCelula || ''}</td>`;
+        });
+        html += `</tr>`;
     });
     return html;
 }
@@ -443,6 +593,149 @@ function mostrarAlerta(mensagem, tipo) {
 //     }
 // }
 
+// async function gerarRelatorio() {
+//     console.log('Iniciando a geração do relatório...');
+
+//     // Desabilita o botão para evitar cliques múltiplos
+//     const gerarRelatorioBtn = document.getElementById('gerarRelatorioBtn');
+//     gerarRelatorioBtn.disabled = true;
+
+//     // Obtém os dados dos campos
+//     const tipo = document.getElementById('reportType').value;
+//     const dataInicio = document.getElementById('reportStartDate').value;
+//     const dataFim = document.getElementById('reportEndDate').value;
+//     let evento = document.getElementById('eventSelect').value;
+//     const nomeRelatorio = document.getElementById('reportType').options[document.getElementById('reportType').selectedIndex].text;
+
+//     if (!tipo || !dataInicio || !dataFim || !evento) {
+//         Swal.fire({
+//             icon: 'warning',
+//             title: 'Campos obrigatórios',
+//             text: 'Por favor, preencha todos os campos.',
+//         });
+//         gerarRelatorioBtn.disabled = false;
+//         return;
+//     }
+
+//     try {
+//         const url = `/relatorios?tipo=${tipo}&dataInicio=${dataInicio}&dataFim=${dataFim}&evento=${evento}`;
+//         const dados = await fetchComToken(url);
+//         console.log('Dados recebidos do backend:', dados);
+
+//         let relatorioHtmlCompleto = '';
+
+//         const dadosAgrupadosPorEvento = {};
+
+//         // 1. Agrupar dados de Fechamento de Cachê
+//         if (dados.fechamentoCache && dados.fechamentoCache.length > 0) {
+//             dados.fechamentoCache.forEach(item => {
+//                 const eventoId = item.idevento;
+//                 if (!dadosAgrupadosPorEvento[eventoId]) {
+//                     dadosAgrupadosPorEvento[eventoId] = {
+//                         nomeEvento: item.nomeEvento,
+//                         fechamentoCache: [],
+//                         utilizacaoDiarias: [],
+//                         contingencia: []
+//                     };
+//                 }
+//                 dadosAgrupadosPorEvento[eventoId].fechamentoCache.push(item);
+//             });
+//         }
+
+//         // 2. Agrupar dados de Utilização de Diárias
+//         if (dados.utilizacaoDiarias && dados.utilizacaoDiarias.length > 0) {
+//             dados.utilizacaoDiarias.forEach(item => {
+//                 const eventoId = item.idevento;
+//                 if (dadosAgrupadosPorEvento[eventoId]) {
+//                     dadosAgrupadosPorEvento[eventoId].utilizacaoDiarias.push(item);
+//                 }
+//             });
+//         }
+
+//         // 3. Agrupar dados de Contingência
+//         if (dados.contingencia && dados.contingencia.length > 0) {
+//             dados.contingencia.forEach(item => {
+//                 const eventoId = item.idevento;
+//                 if (dadosAgrupadosPorEvento[eventoId]) {
+//                     dadosAgrupadosPorEvento[eventoId].contingencia.push(item);
+//                 } else {
+//                     // Se um evento tiver apenas contingência e não fechamentoCache, ele não será criado.
+//                     // Considere criar o evento aqui também se for um cenário válido.
+//                     console.warn(`Evento ${eventoId} de Contingência não encontrado em Fechamento de Cachê.`);
+//                 }
+//             });
+//         }
+
+//         // Agora, iteramos sobre os eventos agrupados e geramos o HTML para cada um
+//         const eventosOrdenados = Object.values(dadosAgrupadosPorEvento).sort((a, b) => {
+//             return a.nomeEvento.localeCompare(b.nomeEvento);
+//         });
+
+//         eventosOrdenados.forEach(evento => {
+//             // AQUI PEGAMOS OS TOTAIS DO EVENTO ESPECÍFICO
+//             const eventoIdParaTotal = evento.fechamentoCache.length > 0 ? evento.fechamentoCache[0].idevento : null;
+//             const totaisDoEventoAtual = eventoIdParaTotal && dados.fechamentoCacheTotaisPorEvento ?
+//                 (dados.fechamentoCacheTotaisPorEvento[eventoIdParaTotal] || { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0 }) :
+//                 { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0 };
+
+//             relatorioHtmlCompleto += montarRelatorioHtmlEvento(
+//                 evento.fechamentoCache,
+//                 evento.nomeEvento,
+//                 nomeRelatorio,
+//                 evento.utilizacaoDiarias,
+//                 evento.contingencia,
+//                 totaisDoEventoAtual
+//             );
+//         });
+
+//         // Chamamos a função de impressão passando o HTML gerado
+//         imprimirRelatorio(relatorioHtmlCompleto);
+//                 eventosOrdenados.forEach(evento => {
+//                     const eventoIdParaTotal = evento.fechamentoCache.length > 0 ? evento.fechamentoCache[0].idevento : null;
+//                     const totaisDoEventoAtual = eventoIdParaTotal && dados.fechamentoCacheTotaisPorEvento ? 
+//                                                 (dados.fechamentoCacheTotaisPorEvento[eventoIdParaTotal] || { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0, totalTotalPagar: 0 }) : 
+//                                                 { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0, totalTotalPagar: 0 };
+                    
+//                     relatorioHtmlCompleto += montarRelatorioHtmlEvento(
+//                         evento.fechamentoCache,
+//                         evento.nomeEvento,
+//                         nomeRelatorio,
+//                         evento.utilizacaoDiarias,
+//                         evento.contingencia,
+//                         totaisDoEventoAtual 
+//                     );
+//                 });
+                
+//                 // Chamamos a função de impressão passando o HTML gerado
+//                 imprimirRelatorio(relatorioHtmlCompleto);
+                
+//             } else if (result.isDenied) {
+//                 // Opção 2: Gerar XLS
+//                 //exportarParaXls();
+//                 const nomeDoArquivoGerado = exportarParaXls();
+                
+//                 // Exibe o SweetAlert de sucesso
+//                 Swal.fire({
+//                     icon: 'success',
+//                     title: 'Relatório XLS Gerado!',
+//                     html: `O arquivo <strong>"${nomeDoArquivoGerado}"</strong> foi gerado com sucesso e está na sua pasta de <strong>DOWNLOADS</strong>.`, 
+//                     confirmButtonText: 'Entendido'
+//                 });
+//             }
+//         });
+
+//     } catch (error) {
+//         console.error('Falha ao gerar o relatório:', error.message || error);
+//         Swal.fire({
+//             icon: 'error',
+//             title: 'Erro',
+//             text: 'Ocorreu um erro ao carregar o relatório.',
+//         });
+//     } finally {
+//         // Habilita o botão novamente após a conclusão
+//         gerarRelatorioBtn.disabled = false;
+//     }
+// }
 async function gerarRelatorio() {
     console.log('Iniciando a geração do relatório...');
 
@@ -451,13 +744,18 @@ async function gerarRelatorio() {
     gerarRelatorioBtn.disabled = true;
 
     // Obtém os dados dos campos
-    const tipo = document.getElementById('reportType').value;
+    //const tipo = document.getElementById('reportType').value;
+    const tipo = document.querySelector('input[name="reportType"]:checked').value;
     const dataInicio = document.getElementById('reportStartDate').value;
     const dataFim = document.getElementById('reportEndDate').value;
     let evento = document.getElementById('eventSelect').value;
-    const nomeRelatorio = document.getElementById('reportType').options[document.getElementById('reportType').selectedIndex].text;
+    //const nomeRelatorio = document.getElementById('reportType').options[document.getElementById('reportType').selectedIndex].text;
+    const nomeRelatorio = document.querySelector('input[name="reportType"]:checked').nextElementSibling.textContent;
 
-    if (!tipo || !dataInicio || !dataFim || !evento) {
+    const eventoId = document.getElementById('eventSelect').value;
+    const clienteId = document.getElementById('clientSelect').value;
+
+    if (!tipo || !dataInicio || !dataFim ) {
         Swal.fire({
             icon: 'warning',
             title: 'Campos obrigatórios',
@@ -467,13 +765,31 @@ async function gerarRelatorio() {
         return;
     }
 
+    if (!evento) {
+        const escolha = await Swal.fire({
+            title: 'Nenhum evento selecionado',
+            text: "Você deseja escolher um evento ou gerar o relatório de TODOS os eventos do período?",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Gerar de todos',
+            cancelButtonText: 'Escolher evento'
+        });
+
+        if (escolha.isConfirmed) {
+            evento = "todos"; // Gera relatório para todos os eventos
+        } else {
+            gerarRelatorioBtn.disabled = false;
+            return; // Apenas fecha o Swal e não gera nada
+        }
+    }
+
     try {
-        const url = `/relatorios?tipo=${tipo}&dataInicio=${dataInicio}&dataFim=${dataFim}&evento=${evento}`;
+      //  const url = `/relatorios?tipo=${tipo}&dataInicio=${dataInicio}&dataFim=${dataFim}&evento=${evento}`;
+       const url = `/relatorios?tipo=${tipo}&dataInicio=${dataInicio}&dataFim=${dataFim}&evento=${evento}&cliente=${clienteId}`;
         const dados = await fetchComToken(url);
         console.log('Dados recebidos do backend:', dados);
 
-        let relatorioHtmlCompleto = '';
-
+        // Agrupar dados por evento
         const dadosAgrupadosPorEvento = {};
 
         // 1. Agrupar dados de Fechamento de Cachê
@@ -509,66 +825,72 @@ async function gerarRelatorio() {
                 if (dadosAgrupadosPorEvento[eventoId]) {
                     dadosAgrupadosPorEvento[eventoId].contingencia.push(item);
                 } else {
-                    // Se um evento tiver apenas contingência e não fechamentoCache, ele não será criado.
-                    // Considere criar o evento aqui também se for um cenário válido.
-                    console.warn(`Evento ${eventoId} de Contingência não encontrado em Fechamento de Cachê.`);
+                    // Adiciona o evento de contingência mesmo que não haja fechamento de cachê
+                    dadosAgrupadosPorEvento[eventoId] = {
+                        nomeEvento: 'Evento não encontrado', // Ou outro nome padrão
+                        fechamentoCache: [],
+                        utilizacaoDiarias: [],
+                        contingencia: [item]
+                    };
+                    console.warn(`Evento ${eventoId} de Contingência não encontrado em Fechamento de Cachê. Criando novo grupo.`);
                 }
             });
         }
 
-        // Agora, iteramos sobre os eventos agrupados e geramos o HTML para cada um
-        const eventosOrdenados = Object.values(dadosAgrupadosPorEvento).sort((a, b) => {
-            return a.nomeEvento.localeCompare(b.nomeEvento);
-        });
+        // Abrir a caixa de diálogo para escolher o formato
+        Swal.fire({
+            title: 'Gerar Relatório',
+            text: 'Em qual formato você deseja gerar o relatório?',
+            icon: 'question',
+            showDenyButton: true,
+            confirmButtonText: 'PDF (Visualizar/Imprimir)',
+            denyButtonText: 'XLS (Excel)',
+            confirmButtonColor: '#3085d6',
+            denyButtonColor: '#28a745',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Opção 1: Gerar HTML para impressão
+                let relatorioHtmlCompleto = '';
 
-        eventosOrdenados.forEach(evento => {
-            // AQUI PEGAMOS OS TOTAIS DO EVENTO ESPECÍFICO
-            const eventoIdParaTotal = evento.fechamentoCache.length > 0 ? evento.fechamentoCache[0].idevento : null;
-            const totaisDoEventoAtual = eventoIdParaTotal && dados.fechamentoCacheTotaisPorEvento ?
-                (dados.fechamentoCacheTotaisPorEvento[eventoIdParaTotal] || { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0 }) :
-                { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0 };
+                const eventosOrdenados = Object.values(dadosAgrupadosPorEvento).sort((a, b) => {
+                    return a.nomeEvento.localeCompare(b.nomeEvento);
+                });
 
-            relatorioHtmlCompleto += montarRelatorioHtmlEvento(
-                evento.fechamentoCache,
-                evento.nomeEvento,
-                nomeRelatorio,
-                evento.utilizacaoDiarias,
-                evento.contingencia,
-                totaisDoEventoAtual
-            );
-        });
-
-        // Chamamos a função de impressão passando o HTML gerado
-        imprimirRelatorio(relatorioHtmlCompleto);
                 eventosOrdenados.forEach(evento => {
                     const eventoIdParaTotal = evento.fechamentoCache.length > 0 ? evento.fechamentoCache[0].idevento : null;
-                    const totaisDoEventoAtual = eventoIdParaTotal && dados.fechamentoCacheTotaisPorEvento ? 
-                                                (dados.fechamentoCacheTotaisPorEvento[eventoIdParaTotal] || { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0, totalTotalPagar: 0 }) : 
-                                                { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0, totalTotalPagar: 0 };
-                    
+                    const totaisDoEventoAtual = eventoIdParaTotal && dados.fechamentoCacheTotaisPorEvento ?
+                        (dados.fechamentoCacheTotaisPorEvento[eventoIdParaTotal] || { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0, totalTotalPagar: 0 }) :
+                        { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0, totalTotalPagar: 0 };
+
                     relatorioHtmlCompleto += montarRelatorioHtmlEvento(
                         evento.fechamentoCache,
                         evento.nomeEvento,
                         nomeRelatorio,
                         evento.utilizacaoDiarias,
                         evento.contingencia,
-                        totaisDoEventoAtual 
+                        totaisDoEventoAtual
                     );
                 });
-                
-                // Chamamos a função de impressão passando o HTML gerado
+
                 imprimirRelatorio(relatorioHtmlCompleto);
-                
+
             } else if (result.isDenied) {
                 // Opção 2: Gerar XLS
-                //exportarParaXls();
-                const nomeDoArquivoGerado = exportarParaXls();
-                
-                // Exibe o SweetAlert de sucesso
+               // const nomeDoArquivoGerado = exportarParaXls(dados, nomeRelatorio); // Certifique-se de que exportarParaXls() aceita os dados
+                  const nomesDosArquivosGerados = exportarParaXls(dadosAgrupadosPorEvento, nomeRelatorio);
+                  
+                // Swal.fire({
+                //     icon: 'success',
+                //     title: 'Relatório XLS Gerado!',
+                //     html: `O arquivo <strong>"${nomeDoArquivoGerado}"</strong> foi gerado com sucesso e está na sua pasta de <strong>DOWNLOADS</strong>.`,
+                //     confirmButtonText: 'Entendido'
+                // });
+
                 Swal.fire({
                     icon: 'success',
-                    title: 'Relatório XLS Gerado!',
-                    html: `O arquivo <strong>"${nomeDoArquivoGerado}"</strong> foi gerado com sucesso e está na sua pasta de <strong>DOWNLOADS</strong>.`, 
+                    title: 'Relatórios XLS Gerados!',
+                    html: `Os arquivos foram gerados com sucesso e estão na sua pasta de <strong>DOWNLOADS</strong>.<br><br>
+                           Arquivos gerados: <ul><li>${nomesDosArquivosGerados.join('</li><li>')}</li></ul>`,
                     confirmButtonText: 'Entendido'
                 });
             }
@@ -588,43 +910,82 @@ async function gerarRelatorio() {
 }
 
 // Nova função para exportar os dados para um arquivo Excel
-function exportarParaXls() {
-    if (!ultimoRelatorioGerado) {
-        // Esta parte já está funcionando
-        alert('Por favor, gere um relatório primeiro.');
-        return;
-    }
+// function exportarParaXls(dadosDoRelatorio, nomeRelatorio) {
+//     // if (!ultimoRelatorioGerado) {
+//     //     // Esta parte já está funcionando
+//     //     alert('Por favor, gere um relatório primeiro.');
+//     //     return;
+//     // }
 
-    const { fechamentoCache, utilizacaoDiarias, contingencia } = ultimoRelatorioGerado;
-    const nomeEvento = fechamentoCache[0]?.nomeEvento || 'Relatorio';
+//     const { fechamentoCache, utilizacaoDiarias, contingencia } = dadosDoRelatorio;
+//     const nomeEvento = fechamentoCache[0]?.nomeEvento || 'Relatorio';
     
-    // Constrói o nome final do arquivo
-    const nomeArquivo = `${nomeEvento}_Fechamento.xlsx`;
+//     // Constrói o nome final do arquivo
+//    // const nomeArquivo = `${nomeEvento}_Fechamento.xlsx`;
+//    const nomeArquivo = `${nomeRelatorio}_${dadosDoRelatorio.fechamentoCache[0]?.nomeEvento || 'Relatorio'}.xlsx`;
 
-    // Cria o workbook e as abas... (seu código aqui)
-    const wb = XLSX.utils.book_new();
+//     // Cria o workbook e as abas... (seu código aqui)
+//     const wb = XLSX.utils.book_new();
 
-    if (fechamentoCache && fechamentoCache.length > 0) {
-        const wsFechamento = XLSX.utils.json_to_sheet(fechamentoCache);
-        XLSX.utils.book_append_sheet(wb, wsFechamento, 'Fechamento de Cachê');
-    }
+//     if (fechamentoCache && fechamentoCache.length > 0) {
+//         const wsFechamento = XLSX.utils.json_to_sheet(fechamentoCache);
+//         XLSX.utils.book_append_sheet(wb, wsFechamento, 'Fechamento de Cachê');
+//     }
 
-    if (utilizacaoDiarias && utilizacaoDiarias.length > 0) {
-        const wsUtilizacao = XLSX.utils.json_to_sheet(utilizacaoDiarias);
-        XLSX.utils.book_append_sheet(wb, wsUtilizacao, 'Utilização de Diárias');
-    }
+//     if (utilizacaoDiarias && utilizacaoDiarias.length > 0) {
+//         const wsUtilizacao = XLSX.utils.json_to_sheet(utilizacaoDiarias);
+//         XLSX.utils.book_append_sheet(wb, wsUtilizacao, 'Utilização de Diárias');
+//     }
 
-    if (contingencia && contingencia.length > 0) {
-        const wsContingencia = XLSX.utils.json_to_sheet(contingencia);
-        XLSX.utils.book_append_sheet(wb, wsContingencia, 'Contingência');
-    }
+//     if (contingencia && contingencia.length > 0) {
+//         const wsContingencia = XLSX.utils.json_to_sheet(contingencia);
+//         XLSX.utils.book_append_sheet(wb, wsContingencia, 'Contingência');
+//     }
     
-    // Escreve o arquivo e força o download
-    XLSX.writeFile(wb, nomeArquivo);
+//     // Escreve o arquivo e força o download
+//     XLSX.writeFile(wb, nomeArquivo);
 
-    // Retorna o nome do arquivo para ser usado no SweetAlert
-    return nomeArquivo;
+//     // Retorna o nome do arquivo para ser usado no SweetAlert
+//     return nomeArquivo;
+// }
+
+function exportarParaXls(dadosAgrupadosPorEvento, nomeRelatorio) {
+    const nomesDosArquivos = [];
+
+    // Itera sobre cada evento agrupado
+    for (const eventoId in dadosAgrupadosPorEvento) {
+        if (dadosAgrupadosPorEvento.hasOwnProperty(eventoId)) {
+            const evento = dadosAgrupadosPorEvento[eventoId];
+            const nomeEvento = evento.nomeEvento || 'Relatorio';
+            const nomeArquivo = `${nomeRelatorio}_${nomeEvento}.xlsx`;
+            
+            const wb = XLSX.utils.book_new();
+
+            if (evento.fechamentoCache && evento.fechamentoCache.length > 0) {
+                const wsFechamento = XLSX.utils.json_to_sheet(evento.fechamentoCache);
+                XLSX.utils.book_append_sheet(wb, wsFechamento, 'Fechamento de Cache');
+            }
+
+            if (evento.utilizacaoDiarias && evento.utilizacaoDiarias.length > 0) {
+                const wsUtilizacao = XLSX.utils.json_to_sheet(evento.utilizacaoDiarias);
+                XLSX.utils.book_append_sheet(wb, wsUtilizacao, 'Utilização de Diárias');
+            }
+
+            if (evento.contingencia && evento.contingencia.length > 0) {
+                const wsContingencia = XLSX.utils.json_to_sheet(evento.contingencia);
+                XLSX.utils.book_append_sheet(wb, wsContingencia, 'Contingência');
+            }
+            
+            // Escreve o arquivo e força o download
+            XLSX.writeFile(wb, nomeArquivo);
+            nomesDosArquivos.push(nomeArquivo);
+        }
+    }
+
+    // Retorna a lista de nomes dos arquivos gerados para a mensagem de sucesso
+    return nomesDosArquivos;
 }
+
 
 function imprimirRelatorio(conteudoRelatorio) {
     if (!conteudoRelatorio) {
