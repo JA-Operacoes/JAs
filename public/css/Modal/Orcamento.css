@@ -187,6 +187,23 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    flex-direction: column;
+  }
+    .select.edicao{
+    width: 50px;
+    }
+
+  .select.ufmontagem{
+    width: 90px;
+  }
+  .select.pav{
+    width: 160px;
+  }
+  .select label{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 230px;
   }
   .select2{
     display: flex;
@@ -225,6 +242,10 @@
 
 .idCliente, .idEvento{
     width: 230px;
+  }
+
+  .edicao, .ufmontagem{
+    width: 100px;
   }
 
   select.selectFuncao {
@@ -535,7 +556,6 @@ select #idCliente, #idEvento{
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  margin-bottom: 20px;
 }
 
 

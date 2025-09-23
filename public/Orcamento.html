@@ -71,16 +71,26 @@
                             <label for="idEvento">Evento:</label>
                             <select class="idEvento" id="idEvento" required spellcheck="false"></select>
                         </div>
+                        <div class="select edicao">
+                            <label for="edicao">Edição:</label>
+                            <input class="edicao" id="edicao" required spellcheck="false"></input>
+                        </div>
                         <div class="select2">
-                            <label for="idMontagem">Local Montagem:</label>
-                            <select class="idMontagem"  id="idMontagem"></select>
-                            <div class="form3">
-                                <input type="text" class="ufmontagem  preenchido" id="ufmontagem" name="ufmontagem" required spellcheck="false">
-                                <label  for="ufmontagem">UF</label>
+                            <div class="select">
+                                <label for="idMontagem">Local Montagem:</label>
+                                <select class="idMontagem"  id="idMontagem"></select>
                             </div>
-                            <select class="idPavilhao" name="selecionarPavilhao" id="selecionarPavilhao" required>
-                                <option value="" selected>Selecione Pavilhão</option>
-                            </select>
+                            <div class="select ufmontagem">
+                                <!-- <label for="#">ㅤ</label> -->
+                                <label  for="ufmontagem">UF</label>
+                                    <input type="text" class="ufmontagem  preenchido" id="ufmontagem" name="ufmontagem" required spellcheck="false">
+                            </div>
+                            <div class="select pav">
+                                <label for="#">ㅤ</label>
+                                <select class="idPavilhao" name="selecionarPavilhao" id="selecionarPavilhao" required>
+                                    <option value="" selected>Selecione Pavilhão</option>
+                                </select>
+                            </div>
                             <div class="checkbox-wrapper-33 checkbox-coluna">
                                 <p class="checkbox__textwrapper"> infra.</p>
                                 <label class="checkbox">
@@ -99,21 +109,7 @@
                         
                     </div>
                     
-                    
-                    <!-- <div class="pavilhao">
-                        <label  for="listaPavilhao">Lista de Pavilhões Selecionados</label> 
-                        <input type="text" class="listaPavilhao" name="listaPavilhao" id="listaPavilhao" required>
-                        
-                    </div> -->
 
-                    <!-- <div class="pavilhao">
-                            <label for="listaPavilhaoDisplay" class="listaPavilhao">Lista de Pavilhões Selecionados</label>
-                            <input type="text" class="listaPavilhao" name="listaPavilhaoDisplay" id="listaPavilhaoDisplay" required>
-                            <div id="pavilhoesSelecionadosContainer" class="pavilhoes-tags-container"></div>
-                            <input type="hidden" name="idsPavilhoesSelecionados" id="idsPavilhoesSelecionados">
-                            
-                            <button type="button" id="limparPavilhoesSelecionados">Limpar Seleção</button> 
-                    </div> -->
                     <div class="select">
                         
                         <label for="pavilhoesContainer">Pavilhões Selecionados:</label>
