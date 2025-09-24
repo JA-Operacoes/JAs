@@ -75,14 +75,56 @@ async function atualizarAtividades() {
       return;
     }
 
-    // Monta tabela
+    // Função auxiliar para renderizar dados
+    function renderizarDados(dados) {
+      if (!dados) return "<em>Vazio</em>";
+
+      // Se for array de objetos
+      if (Array.isArray(dados)) {
+        if (dados.length === 0) return "<em>Array vazio</em>";
+
+        // Se os elementos forem objetos -> mostrar em mini tabela
+        if (typeof dados[0] === "object") {
+          let html = "<table class='mini-tabela'>";
+          html += "<thead><tr>";
+          Object.keys(dados[0]).forEach(key => {
+            html += `<th>${key}</th>`;
+          });
+          html += "</tr></thead><tbody>";
+
+          dados.forEach(obj => {
+            html += "<tr>";
+            Object.values(obj).forEach(val => {
+              html += `<td>${val !== null && val !== undefined ? val : ""}</td>`;
+            });
+            html += "</tr>";
+          });
+
+          html += "</tbody></table>";
+          return html;
+        }
+
+        // Se for array simples (ex: [1,2,3])
+        return `<pre>${JSON.stringify(dados, null, 2)}</pre>`;
+      }
+
+      // Se for objeto simples
+      if (typeof dados === "object") {
+        return `<pre>${JSON.stringify(dados, null, 2)}</pre>`;
+      }
+
+      // Se for string ou outro tipo primitivo
+      return `<pre>${dados}</pre>`;
+    }
+
+    // Monta tabela principal
     const tabela = document.createElement("table");
     tabela.classList.add("tabela-atividades");
 
     tabela.innerHTML = `
-    <thead>
-    <tr>
-    <th>Módulo</th>
+      <thead>
+        <tr>
+          <th>Módulo</th>
           <th>Ação</th>
           <th>Data</th>
           <th>Antes</th>
@@ -100,8 +142,8 @@ async function atualizarAtividades() {
         <td>${ativ.modulo}</td>
         <td>${ativ.acao}</td>
         <td>${new Date(ativ.criado_em).toLocaleString()}</td>
-        <td><pre>${ativ.dadosanteriores}</pre></td>
-        <td><pre>${ativ.dadosnovos }</pre></td>
+        <td>${renderizarDados(ativ.dadosanteriores)}</td>
+        <td>${renderizarDados(ativ.dadosnovos)}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -275,6 +317,11 @@ async function mostrarPedidosUsuario() {
     return;
   }
 
+  // Wrapper para rolagem dos funcionários
+  const listaFuncionarios = document.createElement("div");
+  listaFuncionarios.className = "lista-funcionarios";
+  lista.appendChild(listaFuncionarios);
+
   // Agrupa pedidos por funcionário
   const funcionariosMap = {};
   pedidos.forEach(p => {
@@ -285,9 +332,18 @@ async function mostrarPedidosUsuario() {
   Object.keys(funcionariosMap).forEach(funcNome => {
     const pedidosFunc = funcionariosMap[funcNome];
 
-    // Contar número total de categorias
+    // Filtra apenas os pedidos que tiveram atualização
+    const pedidosComAtualizacao = pedidosFunc.filter(p => {
+      const campos = ["statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada"];
+      return campos.some(campo => p[campo]); // só entra se tiver algum campo com valor
+    });
+
+    // Se não tiver nenhum pedido atualizado, pula esse funcionário
+    if (pedidosComAtualizacao.length === 0) return;
+
+    // Contar número total de categorias realmente atualizadas
     let totalCategorias = 0;
-    pedidosFunc.forEach(p => {
+    pedidosComAtualizacao.forEach(p => {
       const campos = ["statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada"];
       campos.forEach(campo => {
         if (p[campo]) totalCategorias++;
@@ -306,11 +362,11 @@ async function mostrarPedidosUsuario() {
     const container = document.createElement("div");
     container.className = "funcionario-body p-2 hidden";
 
-    pedidosFunc.forEach(pedido => {
+    pedidosComAtualizacao.forEach(pedido => {
       const campos = ["statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada"];
 
       campos.forEach(campo => {
-        if (!pedido[campo]) return;
+        if (!pedido[campo]) return; // só exibe se realmente tiver atualização
 
         const card = document.createElement("div");
         card.className = "pedido-card border rounded p-2 mb-2 bg-gray-50 flex justify-between items-start";
@@ -360,7 +416,7 @@ async function mostrarPedidosUsuario() {
 
     divFuncionario.appendChild(header);
     divFuncionario.appendChild(container);
-    lista.appendChild(divFuncionario);
+    listaFuncionarios.appendChild(divFuncionario);
   });
 }
 

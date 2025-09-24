@@ -93,9 +93,9 @@ router.get("/atividades-recentes", async (req, res) => {
 
         const { rows } = await pool.query(
             `SELECT acao, modulo, idregistroalterado, dadosanteriores, dadosnovos, criado_em
-             FROM logs
-             WHERE idexecutor = $1
-             ORDER BY criado_em DESC`,
+            FROM logs
+            WHERE idexecutor = $1
+            ORDER BY criado_em DESC`,
             [idexecutor]
         );
 
@@ -223,55 +223,6 @@ router.get('/notificacoes-financeiras', async (req, res) => {
     res.status(500).json({ error: 'Erro ao buscar notificações financeiras' });
   }
 });
-
-// router.get('/notificacoes-financeiras', async (req, res) => {
-//   try {
-//     const idempresa = req.idempresa;
-
-//     const { rows } = await pool.query(`
-//       SELECT 
-//         id,
-//         idusuario_solicitante,
-//         funcionario,
-//         tipo_pedido,
-//         status,
-//         criado_em,
-//         dados_jsonb,
-//         aprovado_por,
-//         aprovado_em,
-//         rejeitado_por,
-//         rejeitado_em,
-//         motivo_rejeicao
-//       FROM staffeventos
-//       WHERE idempresa = $1
-//       ORDER BY criado_em DESC
-//     `, [idempresa]);
-
-//     // Processa JSONB para facilitar frontend
-//     const pedidos = rows.map(r => ({
-//       idpedido: r.id,
-//       solicitante: r.idusuario_solicitante,
-//       funcionario: r.funcionario,
-//       tipopedido: r.tipo_pedido,
-//       status: r.status,
-//       criado_em: r.criado_em,
-//       datas: r.dados_jsonb?.periodo || '-',
-//       quantidade: r.dados_jsonb?.quantidade || 1,
-//       descricao: r.dados_jsonb?.descricao || '-',
-//       aprovado_por: r.aprovado_por,
-//       aprovado_em: r.aprovado_em,
-//       rejeitado_por: r.rejeitado_por,
-//       rejeitado_em: r.rejeitado_em,
-//       motivo_rejeicao: r.motivo_rejeicao
-//     }));
-
-//     res.json(pedidos);
-
-//   } catch (err) {
-//     console.error('Erro ao buscar notificações financeiras:', err.stack || err);
-//     res.status(500).json({ error: 'Erro ao buscar notificações financeiras' });
-//   }
-// });
 
 /**
  * POST /notificacoes-financeiras/:id/aprovar

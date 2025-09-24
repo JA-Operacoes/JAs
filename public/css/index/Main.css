@@ -310,7 +310,7 @@ main#conteudo {
 .funcionario-body {
   padding: 12px;
   background-color: #f9fafb;
-  max-height: 300px;
+  max-height: 400px;  /* aumentei para mais espaço de rolagem */
   overflow-y: auto;
   transition: all 0.3s ease;
   border-top: 1px solid #d1d5db;
@@ -366,6 +366,12 @@ main#conteudo {
   margin: 2px 0;
 }
 
+.lista-funcionarios {
+  max-height: 500px; /* controla altura total */
+  overflow-y: auto;
+  padding-right: 6px; /* espaço pro scroll não colar */
+}
+
 /* Classe para esconder */
 .hidden {
   display: none;
@@ -415,6 +421,17 @@ main#conteudo {
 .mensagens span {
     font-weight: bold;
     color: #212529;
+}
+
+/*--------------------- Scrool-------------------------*/
+::-webkit-scrollbar {
+  display: none;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+display: none;
 }
 
 /* -------------------- Responsivo -------------------- */
