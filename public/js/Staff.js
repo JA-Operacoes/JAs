@@ -712,6 +712,14 @@ const carregarDadosParaEditar = (eventData) => {
     currentEditingStaffEvent = eventData;
     isFormLoadedFromDoubleClick = true;
 
+    const uploadHeaderDiv = document.getElementById('uploadHeader');
+    const uploadContainer = document.querySelector("#upload-container");
+    const fileInput = document.getElementById('file');
+
+    if (uploadHeaderDiv) uploadHeaderDiv.style.display = 'none';
+    if (uploadContainer) uploadContainer.style.display = 'none';
+    if (fileInput) fileInput.disabled = true;
+
     // Carregando dados básicos nos inputs do formulário.
     idStaffInput.value = eventData.idstaff || '';
     idStaffEventoInput.value = eventData.idstaffevento;
@@ -4001,7 +4009,7 @@ document.getElementById('Seniorcheck').addEventListener('change', function () {
         juniorCheck.checked = false;
         baseCheck.checked = false;
 
-        console.log("Valores para Senior - Custo:", vlrCustoSeniorFuncao, "Alimentação:", vlrAlimentacaoSeniorFuncao, "Transporte:", vlrTransporteSeniorFuncao);
+        console.log("Valores para Senior - Custo:", vlrCustoSeniorFuncao, "Alimentação:", vlrAlimentacao, "Transporte:", vlrTransporteSeniorFuncao);
 
        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoSeniorFuncao) || 0).toFixed(2); 
        document.getElementById("transporte").value = (parseFloat(vlrTransporteSeniorFuncao) || 0).toFixed(2);
