@@ -4,7 +4,7 @@ const pool = require("../db/conexaoDB");
 
 router.get("/", async (req, res) => {
     const idempresa = req.headers.idempresa || req.query.idempresa;
-    console.log("ROTA MAIN - idempresa recebido:", idempresa);
+    console.log("idempresa recebido:", idempresa);
 
     // Total de orçamentos
     const { rows: orcamentosTotal } = await pool.query(

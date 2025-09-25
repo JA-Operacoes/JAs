@@ -9,7 +9,7 @@ const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 router.get("/", autenticarToken(), contextoEmpresa,
 verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
     console.log("ENTROU NA ROTA PARA RELATORIOS");
-    const { tipo, dataInicio, dataFim, evento, cliente } = req.query; 
+    const { tipo, dataInicio, dataFim, evento, cliente, equipe } = req.query;
     const idempresa = req.idempresa;
     const eventoEhTodos = evento === "todos";
    // const clienteEhTodos = !cliente || cliente === "todos";
@@ -48,6 +48,12 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
             paramCount++;
         }
 
+        if (equipe && equipe !== "todos") {
+            wherePeriodo += ` AND tse.idequipe = $${paramCount}`;
+            params.push(equipe);
+            paramCount++; // Incrementa o contador para o próximo parâmetro
+        }
+
         // let wherePeriodo = `
         //     EXISTS (
         //         SELECT 1
@@ -66,6 +72,10 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                     tse.idevento AS "idevento",
                     tse.nmevento AS "nomeEvento",
                     tse.nmfuncao AS "FUNÇÃO",
+                    tse.idcliente AS "idcliente",
+                    tse.nmcliente AS "nomeCliente",
+                    tse.idequipe AS "idequipe",
+                    tse.nmequipe AS "nmequipe",
                     tbf.nome AS "NOME",
                     tbf.pix AS "PIX",
                     --jsonb_array_element_text(tse.datasevento, 0) AS "INÍCIO",
@@ -130,14 +140,15 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                     JOIN
                         staffempresas semp ON tse.idstaff = semp.idstaff
                     WHERE
-                        semp.idempresa = $1 AND ${wherePeriodo}
-                        )
+                        semp.idempresa = $1 AND ${wherePeriodo}                        
                 )
                 SELECT
                     "idevento",
                     "nomeEvento",
                     "idcliente",
                     "nomeCliente",
+                    "idequipe",
+                    "nmequipe",
                     "FUNÇÃO",
                     "NOME",
                     "PIX",
@@ -158,6 +169,8 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                             tse.nmevento AS "nomeEvento",
                             tse.idcliente AS "idcliente",
                             tse.nmcliente AS "nomeCliente",
+                            tse.idequipe AS "idequipe",
+                            tse.nmequipe AS "nmequipe",
                             tse.qtdpessoaslote AS "QTDPESSOAS",
                             tse.nmfuncao AS "FUNÇÃO",
                             tbf.nome AS "NOME",
@@ -208,45 +221,14 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                             diarias_autorizadas da ON tse.idstaffevento = da.idstaffevento
                         WHERE
                             semp.idempresa = $1 AND ${wherePeriodo}
-                            )
+                            
                     ) AS subquery
                 ORDER BY
                     "nomeEvento",
                     "NOME";
             `;
         }
-
-    //     const resultFechamentoPrincipal = await pool.query(queryFechamentoPrincipal, [idempresa, dataInicio, dataFim, evento]);
-    //    // relatorio.fechamentoCache = resultFechamentoPrincipal.rows; 
-    //      relatorio.fechamentoCache = resultFechamentoPrincipal.rows.map(item => {
-    //         if (item.datasevento && typeof item.datasevento === 'string') {
-    //             try {
-    //                 // 1. Converte a string JSON para um array JavaScript
-    //                 const datasArray = JSON.parse(item.datasevento);
-                    
-    //                 // 2. Filtra e ordena as datas
-    //                 // Filtra para garantir que são strings de data válidas antes de ordenar
-    //                 const datasOrdenadas = datasArray
-    //                     .filter(dateStr => /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) // Regex simples para 'YYYY-MM-DD'
-    //                     .sort((a, b) => new Date(a) - new Date(b)); // Ordena em ordem crescente
-
-    //                 item.datasevento = JSON.stringify(datasOrdenadas); // Opcional: converte de volta para JSON string
-    //                                                                    // Ou você pode deixar como array de JS
-    //             } catch (e) {
-    //                 console.error("Erro ao fazer parse ou ordenar datasevento:", e, item.datasevento);
-    //                 // Deixa como estava se houver erro ou seta para um default
-    //                 item.datasevento = '[]'; 
-    //             }
-    //         }
-    //         return item;
-    //     });
-        
-        // Parâmetros para fechamento principal
-        const paramsFechamento = eventoEhTodos
-            ? [idempresa, dataInicio, dataFim]
-            : [idempresa, dataInicio, dataFim, evento];
-
-      //  const resultFechamentoPrincipal = await pool.query(queryFechamentoPrincipal, paramsFechamento);
+    
         const resultFechamentoPrincipal = await pool.query(queryFechamentoPrincipal, params);
         const fechamentoCache = resultFechamentoPrincipal.rows; 
         relatorio.fechamentoCache = fechamentoCache;
@@ -263,10 +245,12 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                     totalTotalPagar: 0
                 };
             }
+            
             totaisPorEvento[eventoId].totalVlrAdicional += parseFloat(item["VLR ADICIONAL"] || 0);
             totaisPorEvento[eventoId].totalVlrDiarias += parseFloat(item["VLR DIÁRIA"] || 0);
             totaisPorEvento[eventoId].totalTotalDiarias += parseFloat(item["TOT DIÁRIAS"] || 0);
             totaisPorEvento[eventoId].totalTotalPagar += parseFloat(item["TOT PAGAR"] || 0);
+            console.log('Item:', totaisPorEvento[eventoId]);
         });
         relatorio.fechamentoCacheTotaisPorEvento = totaisPorEvento;
 
@@ -303,6 +287,10 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                         SELECT 1 FROM jsonb_array_elements_text(tse.datasevento) AS s_check(date_value_check)
                         WHERE s_check.date_value_check::date >= $2::date AND s_check.date_value_check::date <= $3::date
                     )
+                    ${evento && evento !== "todos" ? `AND tse.idevento = $${params.indexOf(evento) + 1}` : ''}
+                    ${cliente && cliente !== "todos" ? `AND tse.idcliente = $${params.indexOf(cliente) + 1}` : ''}
+                    ${equipe && equipe !== "todos" ? `AND tse.idequipe = $${params.indexOf(equipe) + 1}` : ''}
+
                 GROUP BY
                     tse.idevento, tse.idcliente, semp.idempresa, tse.nmfuncao
             ) AS td ON td.idevento = o.idevento
@@ -322,6 +310,8 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                     AND inner_event_date::date <= $3::date
                     ${evento && evento !== "todos" ? `AND inner_tse.idevento = $${params.indexOf(evento) + 1}` : ''}
                     ${cliente && cliente !== "todos" ? `AND inner_tse.idcliente = $${params.indexOf(cliente) + 1}` : ''}
+                    ${equipe && equipe !== "todos" ? `AND inner_tse.idequipe = $${params.indexOf(equipe) + 1}` : ''}
+                
                 )
             GROUP BY
                 o.idevento,
@@ -341,11 +331,98 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
             ? [idempresa, dataInicio, dataFim]
             : [idempresa, dataInicio, dataFim, evento];
 
+            // SELECT
+            //     tse.idevento,
+            //     tbf.nome AS "Profissional",
+            //     'Diária Dobrada - R$' || CAST(ca.valor_dobrada AS TEXT) || ' (' || CAST(jsonb_array_length(tse.dtdiariadobrada) AS TEXT)|| ' dia(s) autorizado(s))' AS "Informacao",
+            //     tse.descdiariadobrada AS "Observacao"
+            // FROM
+            //     staffeventos tse
+            // JOIN
+            //     funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
+            // JOIN 
+            //     staffempresas semp ON tse.idstaff = semp.idstaff
+            // WHERE
+            //     semp.idempresa = $1 AND ${wherePeriodo}
+            //     --AND tse.dtdiariadobrada IS NOT NULL                
+            //     AND jsonb_array_length(tse.dtdiariadobrada) > 0
+            
+            // UNION ALL
+            
+            // SELECT
+            //     tse.idevento,
+            //     tbf.nome AS "Profissional",
+            //     'Meia Diária - R$' || CAST(ca.valor_meia_diaria AS TEXT) || ' (' ||CAST(jsonb_array_length(tse.dtmeiadiaria) AS TEXT) || ' dia(s) autorizado(s))' AS "Informacao",
+            //     tse.descmeiadiaria AS "Observacao"
+            // FROM
+            //     staffeventos tse
+            // JOIN
+            //     funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
+            // JOIN 
+            //     staffempresas semp ON tse.idstaff = semp.idstaff
+            // WHERE
+            //     semp.idempresa = $1 AND ${wherePeriodo}
+            //     --AND tse.dtmeiadiaria IS NOT NULL 
+            //     AND jsonb_array_length(tse.dtmeiadiaria) > 0
+
+            // UNION ALL
+            
+            // SELECT
+            //     tse.idevento,
+            //     tbf.nome AS "Profissional",
+            //     'Ajuste de Custo - R$' || CAST(tse.vlrajustecusto AS TEXT) AS "Informacao",
+            //     tse.descajustecusto AS "Observacao"
+            // FROM
+            //     staffeventos tse
+            // JOIN
+            //     funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
+            // JOIN 
+            //     staffempresas semp ON tse.idstaff = semp.idstaff
+            // WHERE
+            //     semp.idempresa = $1 AND ${wherePeriodo}
+            //     AND tse.statusajustecusto = 'Autorizado' 
+            //     AND tse.vlrajustecusto IS NOT NULL 
+            //     AND tse.vlrajustecusto > 0
+
+            // UNION ALL
+            
+            // SELECT
+            //     tse.idevento,
+            //     tbf.nome AS "Profissional",
+            //     'Caixinha - R$' || CAST(tse.vlrcaixinha AS TEXT) AS "Informacao",
+            //     tse.desccaixinha AS "Observacao"
+            // FROM
+            //     staffeventos tse
+            // JOIN
+            //     funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
+            // JOIN 
+            //     staffempresas semp ON semp.idstaff = tse.idstaff
+            // WHERE
+            //     semp.idempresa = $1 AND ${wherePeriodo}
+            //     AND tse.statuscaixinha = 'Autorizado' 
+            //     AND tse.vlrcaixinha IS NOT NULL 
+            //     AND tse.vlrcaixinha > 0
+            // ORDER BY
+            //     idevento, "Profissional", "Informacao";
+
         const queryContingencia = `
+            WITH calculos_adicionais AS (
+                SELECT
+                    tse.idstaffevento,
+                    tse.idfuncionario,
+                    (COALESCE(tse.vlrcache, 0) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(jsonb_array_length(tse.dtdiariadobrada), 0) AS valor_dobrada,
+                    ((COALESCE(tse.vlrcache, 0) / 2) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(jsonb_array_length(tse.dtmeiadiaria), 0) AS valor_meia_diaria
+                FROM
+                    staffeventos tse
+                JOIN
+                    staffempresas semp ON tse.idstaff = semp.idstaff
+                WHERE
+                    semp.idempresa = $1 AND ${wherePeriodo}
+            )
             SELECT
                 tse.idevento,
                 tbf.nome AS "Profissional",
-                'Diária Dobrada' AS "Informacao",
+                'Diária Dobrada - R$' || CAST(ca.valor_dobrada AS TEXT) || ' (' || CAST(jsonb_array_length(tse.dtdiariadobrada) AS TEXT)|| ' dia(s) autorizado(s))' AS "Informacao",
                 tse.descdiariadobrada AS "Observacao"
             FROM
                 staffeventos tse
@@ -353,17 +430,18 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                 funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
             JOIN 
                 staffempresas semp ON tse.idstaff = semp.idstaff
+            JOIN
+                calculos_adicionais ca ON ca.idstaffevento = tse.idstaffevento
             WHERE
                 semp.idempresa = $1 AND ${wherePeriodo}
-                --AND tse.dtdiariadobrada IS NOT NULL
-                WHERE jsonb_array_length(tse.dtdiariadobrada) > 0
+                AND jsonb_array_length(tse.dtdiariadobrada) > 0
             
             UNION ALL
             
             SELECT
                 tse.idevento,
                 tbf.nome AS "Profissional",
-                'Meia Diária' AS "Informacao",
+                'Meia Diária - R$' || CAST(ca.valor_meia_diaria AS TEXT) || ' (' ||CAST(jsonb_array_length(tse.dtmeiadiaria) AS TEXT) || ' dia(s) autorizado(s))' AS "Informacao",
                 tse.descmeiadiaria AS "Observacao"
             FROM
                 staffeventos tse
@@ -371,17 +449,18 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                 funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
             JOIN 
                 staffempresas semp ON tse.idstaff = semp.idstaff
+            JOIN
+                calculos_adicionais ca ON ca.idstaffevento = tse.idstaffevento
             WHERE
                 semp.idempresa = $1 AND ${wherePeriodo}
-                --AND tse.dtmeiadiaria IS NOT NULL 
-                WHERE jsonb_array_length(tse.dtmeiadiaria) > 0
+                AND jsonb_array_length(tse.dtmeiadiaria) > 0
 
             UNION ALL
             
             SELECT
                 tse.idevento,
                 tbf.nome AS "Profissional",
-                'Ajuste de Custo' AS "Informacao",
+                'Ajuste de Custo - R$' || CAST(tse.vlrajustecusto AS TEXT) AS "Informacao",
                 tse.descajustecusto AS "Observacao"
             FROM
                 staffeventos tse
@@ -400,7 +479,7 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
             SELECT
                 tse.idevento,
                 tbf.nome AS "Profissional",
-                'Caixinha' AS "Informacao",
+                'Caixinha - R$' || CAST(tse.vlrcaixinha AS TEXT) AS "Informacao",
                 tse.desccaixinha AS "Observacao"
             FROM
                 staffeventos tse
@@ -429,19 +508,20 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
 });
 
 // ROTA PARA BUSCAR EVENTOS NO PERÍODO
-router.get('/eventos', verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
+router.get('/eventos', autenticarToken(), async (req, res) => {
     try {
         const { inicio, fim } = req.query;
         if (!inicio || !fim) {
             return res.status(400).json({ error: "Parâmetros inicio e fim são obrigatórios." });
         }
-
+        const idempresa = req.idempresa;
         const query = `
             SELECT o.idevento, e.nmevento, o.idcliente, c.nmfantasia AS cliente
             FROM orcamentos o
+            JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
             JOIN clientes c ON o.idcliente = c.idcliente
             JOIN eventos e ON o.idevento = e.idevento
-            WHERE (
+            WHERE  oe.idempresa = $3 AND (
                 (o.dtinimontagem IS NOT NULL AND o.dtinimontagem <= $2 AND o.dtfimmontagem >= $1)
             OR (o.dtinirealizacao IS NOT NULL AND o.dtinirealizacao <= $2 AND o.dtfimrealizacao >= $1)
             OR (o.dtinidesmontagem IS NOT NULL AND o.dtinidesmontagem <= $2 AND o.dtfimdesmontagem >= $1)
@@ -453,7 +533,28 @@ router.get('/eventos', verificarPermissao('Relatorios', 'pesquisar'), async (req
             ORDER BY e.nmevento;
         `;
 
-        const { rows } = await pool.query(query, [inicio, fim]);
+        const { rows } = await pool.query(query, [inicio, fim, idempresa]);
+        return res.json(rows);
+    } catch (err) {
+        console.error("❌ Erro ao buscar eventos:", err);
+        return res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/equipe', autenticarToken(), async (req, res) => {
+    try {
+        
+        const idempresa = req.idempresa;
+
+        const query = `
+            SELECT e.idequipe, e.nmequipe
+            FROM equipe e
+            JOIN equipeempresas ee ON e.idequipe = ee.idequipe
+            WHERE  ee.idempresa = $1             
+            ORDER BY e.nmequipe;
+        `;
+        const { rows } = await pool.query(query, [idempresa]);
+        console.log("rows:", rows);
         return res.json(rows);
     } catch (err) {
         console.error("❌ Erro ao buscar eventos:", err);

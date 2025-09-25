@@ -3,6 +3,10 @@ import { fetchComToken } from '../utils/utils.js';
 let todosOsDadosDoPeriodo = null;
 let eventoSelecionadoId = null;
 
+let nomeEquipe = null; 
+let equipeId = null; // Variável global para armazenar o ID da equipe selecionada
+
+
 // Função para iniciar o módulo de relatórios
 function initRelatorios() {
     const reportStartDateInput = document.getElementById('reportStartDate');
@@ -106,7 +110,7 @@ async function preencherEventosPeriodo() {
         // Altere a rota da sua API para retornar todos os eventos e seus clientes
         // para o período selecionado.
         const url = `/relatorios/eventos?inicio=${startDate}&fim=${endDate}`;
-        const dados = await fetchComToken(url);
+        const dados = await fetchComToken(url);       
 
         const dadosAgrupados = {};
 
@@ -114,7 +118,7 @@ async function preencherEventosPeriodo() {
             if (!dadosAgrupados[item.idevento]) {
                 dadosAgrupados[item.idevento] = {
                     idevento: item.idevento,
-                    nmevento: item.nmevento,
+                    nmevento: item.nmevento,               
                     clientes: []
                 };
             }
@@ -141,6 +145,9 @@ async function preencherEventosPeriodo() {
 
         // 2. Preencher o select de Clientes com todos os clientes
         preencherClientesEvento();
+
+
+        preencherEquipesEvento();
 
     } catch (error) {
         console.error('Erro ao carregar dados:', error);
@@ -198,12 +205,39 @@ function preencherClientesEvento() {
     }
 }
 
+async function preencherEquipesEvento() {
+    
+    const equipeSelect = document.getElementById('equipeSelect');
+    equipeSelect.innerHTML = '<option value="">Todas as Equipes</option>';
+    // Reseta o select de equipes
+
+    try {
+        // Altere a rota da sua API para retornar todos os eventos e seus clientes
+        // para o período selecionado.
+        const url = `/relatorios/equipe`;
+        const equipes = await fetchComToken(url);       
+
+        equipes.forEach(equipe => {
+            const opt = document.createElement('option');
+            opt.value = equipe.idequipe;
+            opt.textContent = equipe.nmequipe;
+            equipeSelect.appendChild(opt);
+        });
+
+    } catch (error) {
+        console.error('Erro ao carregar dados:', error);        
+        equipeSelect.innerHTML = '<option value="">Nenhuma equipe encontrada</option>';
+    }
+    
+}
+
 
 // Adicione listeners para atualizar o select quando as datas mudarem
 document.getElementById('reportStartDate').addEventListener('change', preencherEventosPeriodo);
 document.getElementById('reportEndDate').addEventListener('change', preencherEventosPeriodo);
 
 document.getElementById('eventSelect').addEventListener('change', preencherClientesEvento);
+//document.getElementById('equipeSelect').addEventListener('change', preencherEquipesEvento);
 
 
 
@@ -254,7 +288,7 @@ function montarTabela(dados, colunas, alinhamentosPorColuna = {}) {
 
 
 // A sua função que monta o relatório de Fechamento de Cachê por evento
-function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, dadosUtilizacao, dadosContingencia, totaisFechamentoCache) { // <<-- MODIFICAÇÃO: Adicionado totaisFechamentoCache
+function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, nomeCliente, dadosUtilizacao, dadosContingencia, totaisFechamentoCache) { // <<-- MODIFICAÇÃO: Adicionado totaisFechamentoCache
     // Função auxiliar para formatar moeda (adicione ela aqui ou mantenha global se já tiver)
     const formatarMoeda = (valor) => {
         return (valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -275,6 +309,20 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, d
 
     console.log("StatusClass", obterClasseStatus("Pago 100%")); // Teste rápido
 
+ 
+    const equipeSelectElement = document.getElementById('equipeSelect');   
+    const equipeId = equipeSelectElement.value; // 'todos' ou o ID numérico
+
+    let nomeEquipe = ''; // Inicializa a variável para ser usada mais tarde
+    
+    const selectedIndex = equipeSelectElement.selectedIndex;
+
+    if (selectedIndex >= 0) {
+        nomeEquipe = ` - Equipe: ${equipeSelectElement.options[selectedIndex].text}`;
+    } else {
+        nomeEquipe = '';
+    }
+
     let html = `
         <div class="relatorio-evento">
             <div class="print-header-top">
@@ -283,7 +331,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, d
                     <h1 class="header-title">${nomeEvento}</h1>
                 </div>  
             </div>
-            <h2>FECHAMENTO ${nomeRelatorio.toUpperCase()}</h2>
+            <h2>FECHAMENTO ${nomeRelatorio.toUpperCase()} - Cliente: ${nomeCliente} ${nomeEquipe}</h2>
     `;
     const dataInicioSelecionada = document.getElementById('reportStartDate').value;
     const dataFimSelecionada = document.getElementById('reportEndDate').value;
@@ -477,265 +525,7 @@ function mostrarAlerta(mensagem, tipo) {
     // adicione o código aqui para mostrá-lo.
 }
 
-// async function gerarRelatorio() {
-//     console.log('Iniciando a geração do relatório...');
 
-//     // Desabilita o botão para evitar cliques múltiplos
-//     const gerarRelatorioBtn = document.getElementById('gerarRelatorioBtn');
-//     gerarRelatorioBtn.disabled = true;
-
-//     // Oculta a div do relatório para que ele não seja visível na tela
-//     const outputDiv = document.getElementById('reportOutput');
-//     outputDiv.style.display = 'none';
-
-//     // Obtém os dados dos campos
-//     const tipo = document.getElementById('reportType').value;
-//     const dataInicio = document.getElementById('reportStartDate').value;
-//     const dataFim = document.getElementById('reportEndDate').value;
-//     const evento = document.getElementById('eventSelect').value;
-//     const nomeRelatorio = document.getElementById('reportType').options[document.getElementById('reportType').selectedIndex].text;
-
-//     if (!tipo || !dataInicio || !dataFim || !evento) {
-//     alert('Por favor, preencha todos os campos.');
-//     gerarRelatorioBtn.disabled = false;
-//     return;
-// }
-
-//     try {
-//         const url = `/relatorios?tipo=${tipo}&dataInicio=${dataInicio}&dataFim=${dataFim}&evento=${evento}`;
-//         const dados = await fetchComToken(url);
-
-//         window.ultimoRelatorioGerado = dados;
-
-        
-
-//         let relatorioHtmlCompleto = '';       
-
-//         const dadosAgrupadosPorEvento = {};
-
-//         // 1. Agrupar dados de Fechamento de Cachê
-//         if (dados.fechamentoCache && dados.fechamentoCache.length > 0) {
-//             dados.fechamentoCache.forEach(item => {
-//                 const eventoId = item.idevento; // Adicione idevento na sua query de cache
-//                 if (!dadosAgrupadosPorEvento[eventoId]) {
-//                     dadosAgrupadosPorEvento[eventoId] = {
-//                         nomeEvento: item.nomeEvento,
-//                         fechamentoCache: [],
-//                         utilizacaoDiarias: [],
-//                         contingencia: []
-//                     };
-//                 }
-//                 dadosAgrupadosPorEvento[eventoId].fechamentoCache.push(item);
-//             });
-//         }
-        
-//         // 2. Agrupar dados de Utilização de Diárias
-//         if (dados.utilizacaoDiarias && dados.utilizacaoDiarias.length > 0) {
-//             dados.utilizacaoDiarias.forEach(item => {
-//                 const eventoId = item.idevento; // o idevento já vem da sua query de diárias
-//                 if (dadosAgrupadosPorEvento[eventoId]) { // Garante que o evento existe
-//                     dadosAgrupadosPorEvento[eventoId].utilizacaoDiarias.push(item);
-//                 }
-//             });
-//         }
-        
-//         // 3. Agrupar dados de Contingência (se necessário)
-//         // Se a sua query de contingência retorna idevento, você pode agrupá-la aqui
-        
-//         if (dados.contingencia && dados.contingencia.length > 0) {
-//             dados.contingencia.forEach(item => {
-//                 const eventoId = item.idevento; 
-//                 if (dadosAgrupadosPorEvento[eventoId]) { 
-//                     dadosAgrupadosPorEvento[eventoId].contingencia.push(item);
-//                 }else {
-//                      // Se um evento tiver apenas contingência e não fechamentoCache, ele não será criado.
-//                      // Considere criar o evento aqui também se for um cenário válido.
-//                     console.warn(`Evento ${eventoId} de Contingência não encontrado em Fechamento de Cachê.`);
-//                 }
-//             });
-//         }
-
-//         // Agora, iteramos sobre os eventos agrupados e geramos o HTML para cada um
-//         const eventosOrdenados = Object.values(dadosAgrupadosPorEvento).sort((a, b) => {
-//             return a.nomeEvento.localeCompare(b.nomeEvento);
-//         });
-
-        
-
-//         eventosOrdenados.forEach(evento => {
-//             // AQUI PEGAMOS OS TOTAIS DO EVENTO ESPECÍFICO
-//             const eventoIdParaTotal = evento.fechamentoCache.length > 0 ? evento.fechamentoCache[0].idevento : null;
-//             const totaisDoEventoAtual = eventoIdParaTotal && dados.fechamentoCacheTotaisPorEvento ? 
-//                                        (dados.fechamentoCacheTotaisPorEvento[eventoIdParaTotal] || { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0 }) : 
-//                                        { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0 };
-            
-//             relatorioHtmlCompleto += montarRelatorioHtmlEvento(
-//                 evento.fechamentoCache,
-//                 evento.nomeEvento,
-//                 nomeRelatorio,
-//                 evento.utilizacaoDiarias,
-//                 evento.contingencia,
-//                 totaisDoEventoAtual // Passa os totais para a função
-//             );
-//         });
-
-        
-        
-//         // Chamamos a função de impressão passando o HTML gerado
-//         imprimirRelatorio(relatorioHtmlCompleto);
-
-//     } catch (error) {
-//         console.error('Falha ao gerar o relatório:', error.message || error);
-//         alert('Ocorreu um erro ao carregar o relatório.');
-//     } finally {
-//         // Habilita o botão novamente após a conclusão
-//         gerarRelatorioBtn.disabled = false;
-//     }
-// }
-
-// async function gerarRelatorio() {
-//     console.log('Iniciando a geração do relatório...');
-
-//     // Desabilita o botão para evitar cliques múltiplos
-//     const gerarRelatorioBtn = document.getElementById('gerarRelatorioBtn');
-//     gerarRelatorioBtn.disabled = true;
-
-//     // Obtém os dados dos campos
-//     const tipo = document.getElementById('reportType').value;
-//     const dataInicio = document.getElementById('reportStartDate').value;
-//     const dataFim = document.getElementById('reportEndDate').value;
-//     let evento = document.getElementById('eventSelect').value;
-//     const nomeRelatorio = document.getElementById('reportType').options[document.getElementById('reportType').selectedIndex].text;
-
-//     if (!tipo || !dataInicio || !dataFim || !evento) {
-//         Swal.fire({
-//             icon: 'warning',
-//             title: 'Campos obrigatórios',
-//             text: 'Por favor, preencha todos os campos.',
-//         });
-//         gerarRelatorioBtn.disabled = false;
-//         return;
-//     }
-
-//     try {
-//         const url = `/relatorios?tipo=${tipo}&dataInicio=${dataInicio}&dataFim=${dataFim}&evento=${evento}`;
-//         const dados = await fetchComToken(url);
-//         console.log('Dados recebidos do backend:', dados);
-
-//         let relatorioHtmlCompleto = '';
-
-//         const dadosAgrupadosPorEvento = {};
-
-//         // 1. Agrupar dados de Fechamento de Cachê
-//         if (dados.fechamentoCache && dados.fechamentoCache.length > 0) {
-//             dados.fechamentoCache.forEach(item => {
-//                 const eventoId = item.idevento;
-//                 if (!dadosAgrupadosPorEvento[eventoId]) {
-//                     dadosAgrupadosPorEvento[eventoId] = {
-//                         nomeEvento: item.nomeEvento,
-//                         fechamentoCache: [],
-//                         utilizacaoDiarias: [],
-//                         contingencia: []
-//                     };
-//                 }
-//                 dadosAgrupadosPorEvento[eventoId].fechamentoCache.push(item);
-//             });
-//         }
-
-//         // 2. Agrupar dados de Utilização de Diárias
-//         if (dados.utilizacaoDiarias && dados.utilizacaoDiarias.length > 0) {
-//             dados.utilizacaoDiarias.forEach(item => {
-//                 const eventoId = item.idevento;
-//                 if (dadosAgrupadosPorEvento[eventoId]) {
-//                     dadosAgrupadosPorEvento[eventoId].utilizacaoDiarias.push(item);
-//                 }
-//             });
-//         }
-
-//         // 3. Agrupar dados de Contingência
-//         if (dados.contingencia && dados.contingencia.length > 0) {
-//             dados.contingencia.forEach(item => {
-//                 const eventoId = item.idevento;
-//                 if (dadosAgrupadosPorEvento[eventoId]) {
-//                     dadosAgrupadosPorEvento[eventoId].contingencia.push(item);
-//                 } else {
-//                     // Se um evento tiver apenas contingência e não fechamentoCache, ele não será criado.
-//                     // Considere criar o evento aqui também se for um cenário válido.
-//                     console.warn(`Evento ${eventoId} de Contingência não encontrado em Fechamento de Cachê.`);
-//                 }
-//             });
-//         }
-
-//         // Agora, iteramos sobre os eventos agrupados e geramos o HTML para cada um
-//         const eventosOrdenados = Object.values(dadosAgrupadosPorEvento).sort((a, b) => {
-//             return a.nomeEvento.localeCompare(b.nomeEvento);
-//         });
-
-//         eventosOrdenados.forEach(evento => {
-//             // AQUI PEGAMOS OS TOTAIS DO EVENTO ESPECÍFICO
-//             const eventoIdParaTotal = evento.fechamentoCache.length > 0 ? evento.fechamentoCache[0].idevento : null;
-//             const totaisDoEventoAtual = eventoIdParaTotal && dados.fechamentoCacheTotaisPorEvento ?
-//                 (dados.fechamentoCacheTotaisPorEvento[eventoIdParaTotal] || { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0 }) :
-//                 { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0 };
-
-//             relatorioHtmlCompleto += montarRelatorioHtmlEvento(
-//                 evento.fechamentoCache,
-//                 evento.nomeEvento,
-//                 nomeRelatorio,
-//                 evento.utilizacaoDiarias,
-//                 evento.contingencia,
-//                 totaisDoEventoAtual
-//             );
-//         });
-
-//         // Chamamos a função de impressão passando o HTML gerado
-//         imprimirRelatorio(relatorioHtmlCompleto);
-//                 eventosOrdenados.forEach(evento => {
-//                     const eventoIdParaTotal = evento.fechamentoCache.length > 0 ? evento.fechamentoCache[0].idevento : null;
-//                     const totaisDoEventoAtual = eventoIdParaTotal && dados.fechamentoCacheTotaisPorEvento ? 
-//                                                 (dados.fechamentoCacheTotaisPorEvento[eventoIdParaTotal] || { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0, totalTotalPagar: 0 }) : 
-//                                                 { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0, totalTotalPagar: 0 };
-                    
-//                     relatorioHtmlCompleto += montarRelatorioHtmlEvento(
-//                         evento.fechamentoCache,
-//                         evento.nomeEvento,
-//                         nomeRelatorio,
-//                         evento.utilizacaoDiarias,
-//                         evento.contingencia,
-//                         totaisDoEventoAtual 
-//                     );
-//                 });
-                
-//                 // Chamamos a função de impressão passando o HTML gerado
-//                 imprimirRelatorio(relatorioHtmlCompleto);
-                
-//             } else if (result.isDenied) {
-//                 // Opção 2: Gerar XLS
-//                 //exportarParaXls();
-//                 const nomeDoArquivoGerado = exportarParaXls();
-                
-//                 // Exibe o SweetAlert de sucesso
-//                 Swal.fire({
-//                     icon: 'success',
-//                     title: 'Relatório XLS Gerado!',
-//                     html: `O arquivo <strong>"${nomeDoArquivoGerado}"</strong> foi gerado com sucesso e está na sua pasta de <strong>DOWNLOADS</strong>.`, 
-//                     confirmButtonText: 'Entendido'
-//                 });
-//             }
-//         });
-
-//     } catch (error) {
-//         console.error('Falha ao gerar o relatório:', error.message || error);
-//         Swal.fire({
-//             icon: 'error',
-//             title: 'Erro',
-//             text: 'Ocorreu um erro ao carregar o relatório.',
-//         });
-//     } finally {
-//         // Habilita o botão novamente após a conclusão
-//         gerarRelatorioBtn.disabled = false;
-//     }
-// }
 async function gerarRelatorio() {
     console.log('Iniciando a geração do relatório...');
 
@@ -754,6 +544,20 @@ async function gerarRelatorio() {
 
     const eventoId = document.getElementById('eventSelect').value;
     const clienteId = document.getElementById('clientSelect').value;
+
+    const equipeSelectElement = document.getElementById('equipeSelect');
+    const equipeId = equipeSelectElement ? equipeSelectElement.value : 'todos'; // ID ou 'todos'
+    let nomeEquipe = '';
+
+    // Obtém o nome da equipe se o elemento existir e houver uma seleção
+    if (equipeSelectElement && equipeSelectElement.selectedIndex >= 0) {
+        nomeEquipe = equipeSelectElement.options[equipeSelectElement.selectedIndex].text;
+    }
+    // Opcional: Se a opção for 'Todos' mas o texto estiver vazio
+    if (equipeId === 'todos' && !nomeEquipe) {
+        nomeEquipe = 'Todas';
+    }
+   
 
     if (!tipo || !dataInicio || !dataFim ) {
         Swal.fire({
@@ -785,9 +589,23 @@ async function gerarRelatorio() {
 
     try {
       //  const url = `/relatorios?tipo=${tipo}&dataInicio=${dataInicio}&dataFim=${dataFim}&evento=${evento}`;
-       const url = `/relatorios?tipo=${tipo}&dataInicio=${dataInicio}&dataFim=${dataFim}&evento=${evento}&cliente=${clienteId}`;
+        const url = `/relatorios?tipo=${tipo}&dataInicio=${dataInicio}&dataFim=${dataFim}&evento=${evento}&cliente=${clienteId}&equipe=${equipeId}`;
         const dados = await fetchComToken(url);
         console.log('Dados recebidos do backend:', dados);
+
+        const temFechamento = dados.fechamentoCache && dados.fechamentoCache.length > 0;
+        const temDiarias = dados.utilizacaoDiarias && dados.utilizacaoDiarias.length > 0;
+        const temContingencia = dados.contingencia && dados.contingencia.length > 0;
+
+        if (!temFechamento && !temDiarias && !temContingencia) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Nenhum Resultado Encontrado',
+                text: 'Não foram encontrados dados para os filtros e período selecionados.',
+            });
+            // IMPORTANTE: O bloco 'finally' lida com o re-habilitação do botão, então basta o 'return'
+            return; 
+        }
 
         // Agrupar dados por evento
         const dadosAgrupadosPorEvento = {};
@@ -799,6 +617,7 @@ async function gerarRelatorio() {
                 if (!dadosAgrupadosPorEvento[eventoId]) {
                     dadosAgrupadosPorEvento[eventoId] = {
                         nomeEvento: item.nomeEvento,
+                        nomeCliente: item.nomeCliente,
                         fechamentoCache: [],
                         utilizacaoDiarias: [],
                         contingencia: []
@@ -861,11 +680,12 @@ async function gerarRelatorio() {
                     const totaisDoEventoAtual = eventoIdParaTotal && dados.fechamentoCacheTotaisPorEvento ?
                         (dados.fechamentoCacheTotaisPorEvento[eventoIdParaTotal] || { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0, totalTotalPagar: 0 }) :
                         { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0, totalTotalPagar: 0 };
-
+                    console.log('Totais do evento atual:', totaisDoEventoAtual); // Log para verificar os totais
                     relatorioHtmlCompleto += montarRelatorioHtmlEvento(
                         evento.fechamentoCache,
                         evento.nomeEvento,
                         nomeRelatorio,
+                        evento.nomeCliente,                        
                         evento.utilizacaoDiarias,
                         evento.contingencia,
                         totaisDoEventoAtual

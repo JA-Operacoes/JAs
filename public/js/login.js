@@ -35,58 +35,91 @@ document.getElementById("Login").addEventListener("submit", async function (e) {
     localStorage.setItem("idusuario", idusuario);    
     localStorage.setItem("empresas", JSON.stringify(empresas));
 
-    if (idempresaDefault) {
-      localStorage.setItem("idempresa", idempresaDefault);  
-    } else {
-      localStorage.removeItem("idempresa"); 
-      localStorage.removeItem("permissoes");
-      window.location.href = "OPER-index.html";
-        return;
-    }
+        // 📌 Encontra a empresa padrão na lista de empresas do usuário
+    const empresaDefaultInfo = empresas.find(emp => emp.id === idempresaDefault);
 
-    // 🔹 Mapeamento de idempresa → página
-    // const paginas = {
-    //   1: "OPER-index.html",
-    //   2: "ES-index.html",
-    //   3: "EA-index.html",
-    //   4: "EP-index.html",
-    //   5: "SNFOODS-index.html",
-    //   6: "TSD-index.html"
-    // };
-    console.log("IDEmpresaDefault:", idempresaDefault);
-    const empresaDefaultResponse = await fetchComToken(`/aside/empresasTema/${idempresaDefault}`);
-    //   method: "GET",
-    //   headers: {
-    //     "Content-Type": "application/json",
-    //     "Authorization": `Bearer ${token}` // Passa o token na requisição
-    //   }
-    // });
-   
-    // // Se a empresa for válida, abre a página correspondente
-    // if (idempresaDefault && paginas[idempresaDefault]) {
-    //   window.location.href = paginas[idempresaDefault];
-    //   return;
+    // 📌 Verifica se a empresa padrão existe e se está ativa
+    if (empresaDefaultInfo && empresaDefaultInfo.ativo) {
+      localStorage.setItem("idempresa", idempresaDefault);
+
+      // Requisição para buscar o tema da empresa, usando o `idempresaDefault`
+      const empresaDefaultResponse = await fetchComToken(`/aside/empresasTema/${idempresaDefault}`);
+    
+      if (!empresaDefaultResponse.ok) {
+          console.error("Não foi possível buscar os dados da empresa padrão.");
+          // Em caso de falha, redireciona para a página de seleção
+          window.location.href = "OPER-index.html"; 
+          return;
+      }
+    
+      const empresaDefaultData = await empresaDefaultResponse.json();
+      const nmfantasia = empresaDefaultData.nmfantasia;
+
+      // Constrói a URL dinamicamente e redireciona
+      const pagina = `${nmfantasia.replace(/ /g, '').toUpperCase()}-index.html`;
+      window.location.href = pagina;
+    } else {
+      // Se a empresa padrão não existir ou estiver inativa, limpa o localStorage
+      // e redireciona para a página de seleção.
+      localStorage.removeItem("idempresa"); 
+      localStorage.removeItem("permissoes");
+      console.log("Empresa padrão não encontrada ou inativa. Redirecionando para página de seleção.");
+      window.location.href = "OPER-index.html";
+    }
+
+    // if (idempresaDefault) {
+    //   localStorage.setItem("idempresa", idempresaDefault);  
+    // } else {
+    //   localStorage.removeItem("idempresa"); 
+    //   localStorage.removeItem("permissoes");
+    //   window.location.href = "OPER-index.html";
+    //     return;
     // }
 
-    // // Caso não tenha empresa default ou não esteja mapeada → página padrão
-    // window.location.href = "OPER-index.html";
-    console.log("Empresa default response:", empresaDefaultResponse);
 
-    if (!empresaDefaultResponse.ok) {
-        console.error("Não foi possível buscar os dados da empresa default.");
-        // Em caso de falha, redireciona para uma página genérica
-        window.location.href = "OPER-index.html";
-        return;
-    }
+    // // 🔹 Mapeamento de idempresa → página
+    // // const paginas = {
+    // //   1: "OPER-index.html",
+    // //   2: "ES-index.html",
+    // //   3: "EA-index.html",
+    // //   4: "EP-index.html",
+    // //   5: "SNFOODS-index.html",
+    // //   6: "TSD-index.html"
+    // // };
+    // console.log("IDEmpresaDefault:", idempresaDefault);
+    // const empresaDefaultResponse = await fetchComToken(`/aside/empresasTema/${idempresaDefault}`);
+    // //   method: "GET",
+    // //   headers: {
+    // //     "Content-Type": "application/json",
+    // //     "Authorization": `Bearer ${token}` // Passa o token na requisição
+    // //   }
+    // // });
+   
+    // // // Se a empresa for válida, abre a página correspondente
+    // // if (idempresaDefault && paginas[idempresaDefault]) {
+    // //   window.location.href = paginas[idempresaDefault];
+    // //   return;
+    // // }
+
+    // // // Caso não tenha empresa default ou não esteja mapeada → página padrão
+    // // window.location.href = "OPER-index.html";
+    // console.log("Empresa default response:", empresaDefaultResponse);
+
+    // if (!empresaDefaultResponse.ok) {
+    //     console.error("Não foi possível buscar os dados da empresa default.");
+    //     // Em caso de falha, redireciona para uma página genérica
+    //     window.location.href = "OPER-index.html";
+    //     return;
+    // }
     
-    const empresaDefaultData = await empresaDefaultResponse.json();
-    const nmfantasia = empresaDefaultData.nmfantasia;
+    // const empresaDefaultData = await empresaDefaultResponse.json();
+    // const nmfantasia = empresaDefaultData.nmfantasia;
 
-    // ✅ CONSTRUÇÃO DINÂMICA DA URL
-    const pagina = `${nmfantasia.replace(/ /g, '').toUpperCase()}-index.html`;
+    // // ✅ CONSTRUÇÃO DINÂMICA DA URL
+    // const pagina = `${nmfantasia.replace(/ /g, '').toUpperCase()}-index.html`;
 
-    console.log(`Redirecionando para: ${pagina}`);
-    window.location.href = pagina;
+    // console.log(`Redirecionando para: ${pagina}`);
+    // window.location.href = pagina;
 
   
 

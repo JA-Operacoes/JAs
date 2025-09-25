@@ -1156,7 +1156,7 @@ const carregarTabelaStaff = async (funcionarioId) => {
                         if (eventData.statuspgto === "Pago" && !temPermissaoTotal) {
                             Swal.fire({
                                 icon: 'warning',
-                                title: 'Sem permissão para editar.',
+                                title: 'STAFF PAGO! Sem permissão para editar.',
                                 text: 'Este evento já foi pago não possibilitando a edição.'
                             });
                             return; // Impede que o restante do código do dblclick seja executado

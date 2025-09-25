@@ -65,7 +65,7 @@
           <!-- Checkbox -->
           <div class="checkbox-wrapper-33 checkbox-coluna">
             <label class="checkbox">
-              <p class="checkbox__textwrapper">User Ativo</p>
+              <p class="checkbox__textwrapper">Usuário Ativo</p>
               <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo">
               <span class="checkbox__symbol">
                 <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
@@ -135,17 +135,31 @@
           <label for="nome_usuario"> Usuário:</label>    
         </div>
      
-        <div class="user-box dupla select">       
-          <div class="user-box-select">
-            <label for="listaEmpresas">Empresa:</label>
+        <div class = "form-3colunas">
+          <div class="user-box dupla select">       
+            <div class="user-box-select">
+              <label for="listaEmpresas">Empresa:</label>
+            </div>
+            <div class="user-box">
+              <select id="listaEmpresas">
+                <option value="" selected disabled>Selecione Empresa</option>                
+                <!-- <option value="all">Todas as empresas</option> -->
+                <!-- Empresas serão adicionadas aqui via JavaScript -->                
+              </select>
+            </div>     
+                
           </div>
-          <div class="user-box">
-            <select id="listaEmpresas">
-              <option value="" selected disabled>Selecione Empresa</option>                
-              <!-- <option value="all">Todas as empresas</option> -->
-              <!-- Empresas serão adicionadas aqui via JavaScript -->                
-            </select>
-          </div>         
+          <div class="checkbox-wrapper-33 checkbox-coluna">
+              <label class="checkbox">
+                <p class="checkbox__textwrapper">Empresa Ativa</p>
+                <input class="checkbox__trigger visuallyhidden" type="checkbox" id="empresaAtiva" name="empresaAtiva">
+                <span class="checkbox__symbol">
+                  <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 14l8 7L24 7"></path>
+                  </svg>
+                </span>              
+              </label>
+            </div>     
         </div>
 
         <div class="user-box dupla select">

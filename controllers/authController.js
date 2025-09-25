@@ -127,6 +127,28 @@ async function cadastrarOuAtualizarUsuario(req, res) {
       //   }
       // }
 
+      if (Array.isArray(empresas)) {
+          // Pega a lista atual de empresas associadas ao usuário
+          const empresasAtuais = await db.query('SELECT idempresa, ativo FROM usuarioempresas WHERE idusuario = $1', [usuario.idusuario]);
+          
+          // Verifica se a lista de empresas ou o status foram alterados
+          const alteracaoEmpresas = JSON.stringify(empresasAtuais.rows.map(row => ({ idempresa: row.idempresa, ativo: row.ativo }))) !== JSON.stringify(empresas);
+
+          console.log("Empresas atuais do usuário:", empresasAtuais.rows);
+          console.log("Empresas enviadas na atualização:", empresas);
+          console.log("Houve alteração nas empresas ou status?", alteracaoEmpresas);
+          if (alteracaoEmpresas) {
+              // Deleta todas as associações existentes para o usuário
+              await db.query('DELETE FROM usuarioempresas WHERE idusuario = $1', [usuario.idusuario]);
+              
+              // Insere as novas associações, incluindo o status
+              for (const empresa of empresas) {
+                  await db.query('INSERT INTO usuarioempresas (idusuario, idempresa, ativo) VALUES ($1, $2, $3)', [usuario.idusuario, empresa.idempresa, empresa.ativo]);
+              }
+          }
+      }
+
+
 
       return res.status(200).json({ mensagem: 'Usuário atualizado com sucesso.' }); 
 
@@ -150,11 +172,20 @@ async function cadastrarOuAtualizarUsuario(req, res) {
       
       const usuarioId = result.rows[0].idusuario;
 
+      // if (Array.isArray(empresas)) {
+      //   for (const idempresa of empresas) {
+      //     await db.query(`INSERT INTO usuarioempresas (idusuario, idempresa) VALUES ($1, $2) RETURNING *`, [usuarioId, idempresa]);
+      //   }
+      // }
+
       if (Array.isArray(empresas)) {
-        for (const idempresa of empresas) {
-          await db.query(`INSERT INTO usuarioempresas (idusuario, idempresa) VALUES ($1, $2) RETURNING *`, [usuarioId, idempresa]);
-        }
+        // CADASTRO - Insere as associações, incluindo o status
+          for (const empresa of empresas) {
+              // Adicionado o campo 'status' na sua query de INSERT
+              await db.query(`INSERT INTO usuarioempresas (idusuario, idempresa, ativo) VALUES ($1, $2, $3)`, [usuarioId, empresa.idempresa, empresa.ativo]);
+          }
       }
+
       res.locals.insertedId = result.rows[0].idusuario;
       return res.status(201).json({ mensagem: 'Usuário cadastrado com sucesso.' });
     }
@@ -169,10 +200,11 @@ async function cadastrarOuAtualizarUsuario(req, res) {
 async function getEmpresasDoUsuario(idusuario) {
   console.log("getEmpresasDoUsuario AuthController", idusuario);
   const { rows } = await db.query(`
-    SELECT idempresa 
+    SELECT idempresa, ativo 
     FROM usuarioempresas 
     WHERE idusuario = $1`, [idusuario]);
-  return rows.map(row => row.idempresa);
+  return rows.map(row => ({ idempresa: row.idempresa, ativo: row.ativo }));
+  
 }
 
 // Listar empresas do usuário controllers/authController.js
@@ -181,7 +213,7 @@ async function listarEmpresasDoUsuario(req, res) {
   const { id } = req.params;
   try {
     const empresasQuery = await db.query(`
-      SELECT ue.idusuario, ue.idempresa, e.nmfantasia AS nome_empresa
+      SELECT ue.idusuario, ue.idempresa, e.nmfantasia AS nome_empresa, ue.ativo
       FROM usuarioempresas ue
       JOIN empresas e ON ue.idempresa = e.idempresa
       WHERE ue.idusuario = $1
@@ -319,7 +351,7 @@ async function login(req, res) {
 
     // Buscar empresas associadas
     const queryEmpresas = `
-      SELECT e.idempresa
+      SELECT e.idempresa, ue.ativo
       FROM usuarioempresas ue
       JOIN empresas e ON ue.idempresa = e.idempresa
       WHERE ue.idusuario = $1 `;
@@ -332,7 +364,17 @@ async function login(req, res) {
       return res.status(403).json({ erro: "Usuário não está vinculado a nenhuma empresa. Contate o administrador." });
     }
 
-    console.log("Empresas encontradas:", resultEmpresas.rows);
+    const empresasParaToken = resultEmpresas.rows.map(row => ({
+      id: row.idempresa,
+      ativo: row.ativo
+    }));
+
+    if (empresasParaToken.length === 0) {
+      return res.status(403).json({ erro: "Usuário não está vinculado a nenhuma empresa. Contate o administrador." });
+    }
+
+    console.log("Empresas encontradas:", empresasParaToken); // Este log agora terá o ativo!
+
 
     
     // const idempresaDefault = empresas.length > 0 ? empresas[0] : null;   
@@ -360,13 +402,17 @@ async function login(req, res) {
         // Ou apenas usar a primeira empresa como a "selecionada" para esta sessão.
     }
 
+    console.log("Empresas encontradas:", resultEmpresas.rows);
+
     const tokenPayload = {
         idusuario: usuario.idusuario,
         email: usuario.email,
-        empresas, // array de IDs das empresas que o usuário tem acesso
+        empresas: empresasParaToken, // array de IDs das empresas que o usuário tem acesso
         // Passe a idempresadefault do usuário para o token
         idempresaDefault: usuarioIdEmpresaDefault || (empresas.length > 0 ? empresas[0] : null) 
     };
+
+    console.log("Payload do token:", tokenPayload);
 
     const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '10h' });
 
@@ -386,7 +432,7 @@ async function login(req, res) {
         token,
         idusuario: usuario.idusuario,
         nome: usuario.nome,
-        empresas, // Todas as empresas que ele pode acessar
+        empresas: empresasParaToken, // Todas as empresas que ele pode acessar
         idempresaDefault: usuarioIdEmpresaDefault // A empresa padrão configurada para o usuário
     });
 
@@ -420,7 +466,7 @@ async function listarPermissoes(req, res) {
   
     const { rows } = await db.query(
       `
-      SELECT
+      SELECT    
         modulo,
         acesso   AS acessar,
         pesquisar AS pesquisar,

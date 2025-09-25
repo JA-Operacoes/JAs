@@ -85,8 +85,13 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
     pesquisar,
     apagar,
     master,
-    financeiro
+    financeiro    
   } = req.body;
+
+  const ativo = req.body.ativo !== undefined ? req.body.ativo : false; // Padrão para true se não fornecido
+
+  console.log("ATIVO", ativo);
+  
 
   const idempresa = req.headers.idempresa; 
 
@@ -144,11 +149,25 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
         [idusuario, idempresa]
       );
 
+      // if (rowCount === 0) {
+      //   await db.query(
+      //     'INSERT INTO usuarioempresas (idusuario, idempresa) VALUES ($1, $2)',
+      //     [idusuario, idempresa]
+      //   );
+      // }
+      console.log('rowCount', rowCount, idusuario, idempresa, ativo);
       if (rowCount === 0) {
-        await db.query(
-          'INSERT INTO usuarioempresas (idusuario, idempresa) VALUES ($1, $2)',
-          [idusuario, idempresa]
-        );
+            // Se o vínculo não existe, insere com o status recebido
+            await db.query(
+                'INSERT INTO usuarioempresas (idusuario, idempresa, ativo) VALUES ($1, $2, $3)',
+                [idusuario, idempresa, ativo]
+            );
+      } else {
+          // Se o vínculo já existe, apenas atualiza o status
+          await db.query(
+              'UPDATE usuarioempresas SET ativo = $1 WHERE idusuario = $2 AND idempresa = $3',
+              [ativo, idusuario, idempresa]
+          );
       }
     //}
     res.locals.acao = acao;

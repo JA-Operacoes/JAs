@@ -10,7 +10,7 @@ function autenticarToken(options = {}) {
 
     return (req, res, next) => { // ESTE É O MIDDLEWARE REAL
       console.log("➡️ Entrou no autenticarToken");
-      console.log("Todos os headers recebidos AUTENTICAR TOKEN:", req.headers);
+   //   console.log("Todos os headers recebidos AUTENTICAR TOKEN:", req.headers);
    
       const authHeader = req.headers['authorization'];
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -28,7 +28,7 @@ function autenticarToken(options = {}) {
               return res.status(401).json({ erro: 'Token não fornecido. Acesso não autorizado.' });
       }
 
-      console.log("Todos os headers recebidos AUTENTICAR TOKEN:", req.headers);
+    //  console.log("Todos os headers recebidos AUTENTICAR TOKEN:", req.headers);
   
       const idempresaFromHeader = req.get('x-id-empresa') || req.get('idempresa');    
   
@@ -53,15 +53,32 @@ function autenticarToken(options = {}) {
             // Prioriza o cabeçalho se fornecido e válido
             if (idempresaFromHeader) {
                 const parsedHeaderId = parseInt(idempresaFromHeader, 10);
-                // Certifica-se de que é um número válido e que o usuário tem acesso a essa empresa
-                if (!isNaN(parsedHeaderId) && decoded.empresas && decoded.empresas.includes(parsedHeaderId)) {
-                        currentIdEmpresa = parsedHeaderId;
-                        console.log("Empresa selecionada do cabeçalho e validada:", currentIdEmpresa);
-                } else if (!isNaN(parsedHeaderId) && decoded.empresas && !decoded.empresas.includes(parsedHeaderId)) {
-                    // O usuário tentou acessar uma empresa à qual não tem permissão
+
+                empresaDoToken = decoded.empresas.find(emp => emp.id === parsedHeaderId);
+
+                // Verifica se a empresa foi encontrada e se está ativa
+                if (empresaDoToken && empresaDoToken.ativo === true) {
+                    currentIdEmpresa = parsedHeaderId;
+                    console.log("Empresa selecionada do cabeçalho e validada:", currentIdEmpresa);
+                } else if (empresaDoToken) {
+                    // A empresa existe no token, mas não está ativa
+                    console.warn(`⚠️ Usuário ${decoded.idusuario} tentou acessar empresa inativa ${parsedHeaderId}.`);
+                    return res.status(403).json({ erro: 'Acesso negado: Empresa inativa.' });
+                } else {
+                    // A empresa do cabeçalho não foi encontrada no token do usuário
                     console.warn(`⚠️ Usuário ${decoded.idusuario} tentou acessar empresa ${parsedHeaderId} sem permissão.`);
                     return res.status(403).json({ erro: 'Acesso negado à empresa especificada.' });
                 }
+
+                // Certifica-se de que é um número válido e que o usuário tem acesso a essa empresa
+                // if (!isNaN(parsedHeaderId) && decoded.empresas && decoded.empresas.includes(parsedHeaderId)) {
+                //         currentIdEmpresa = parsedHeaderId;
+                //         console.log("Empresa selecionada do cabeçalho e validada:", currentIdEmpresa);
+                // } else if (!isNaN(parsedHeaderId) && decoded.empresas && !decoded.empresas.includes(parsedHeaderId)) {
+                //     // O usuário tentou acessar uma empresa à qual não tem permissão
+                //     console.warn(`⚠️ Usuário ${decoded.idusuario} tentou acessar empresa ${parsedHeaderId} sem permissão.`);
+                //     return res.status(403).json({ erro: 'Acesso negado à empresa especificada.' });
+                // }
             }
             
             // Retorna para idempresaDefault do token se não houver ID de cabeçalho válido ou se o cabeçalho não foi fornecido

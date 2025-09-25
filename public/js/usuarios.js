@@ -602,6 +602,8 @@ listaUsuariosContainer.addEventListener('click', async (e) => {
   try {
     // Buscar empresas vinculadas
     const empresas = await fetchComToken(`/auth/usuarios/${idusuario}/empresas`);
+
+    console.log("Empresas vinculadas ao usuário:", empresas);
    
     const [primeiroNome, ...resto] = item.dataset.nome.split(' ');
     document.querySelector('#nome').value = primeiroNome;
@@ -618,6 +620,7 @@ listaUsuariosContainer.addEventListener('click', async (e) => {
       // Já possui vínculos, marcar checkboxes correspondentes
       empresas.forEach(emp => {
        // const checkbox = document.querySelector(`.empresa-checkbox[data-idempresa="${emp.idempresa}"]`);
+       console.log("ID Empresa no forEach:", emp );
        const checkbox = document.querySelector(`input[type="checkbox"][data-idempresa="${emp.idempresa}"]`);
 
         if (checkbox) checkbox.checked = true;
@@ -785,6 +788,7 @@ console.log("Valor de idEmpresaDefaultDoLi antes de chamar preencherEmpresaDefau
         return;
       }
 
+      console.log("EMPRESAS VINCULADAS AO USUARIO:", empresas);
       if (empresas.length === 0) {
         // Nenhuma empresa vinculada → vira flipbox
         document.querySelector('.flip-container').classList.add('flip');
@@ -792,14 +796,26 @@ console.log("Valor de idEmpresaDefaultDoLi antes de chamar preencherEmpresaDefau
       } else {
         // Marca checkboxes das empresas vinculadas
         empresas.forEach(emp => {
+          console.log("ID Empresa no forEach de PERMISSAO:", emp.idempresa, emp.ativo );
           const checkbox = document.querySelector(`.empresa-checkbox[data-idempresa="${emp.idempresa}"]`);
+          
           if (checkbox) checkbox.checked = true;
+          //if (checkbox) checkbox.checked = emp.ativo;
+          console.log("Checkbox encontrado para empresa ID:", emp.idempresa, checkbox);
         });
 
         // Mostra o lado de permissões
         document.querySelector('.flip-container').classList.add('flip');
    
       }
+//       empresas.forEach(emp => {
+//       const checkbox = document.querySelector(`.empresa-checkbox[data-idempresa="${emp.idempresa}"]`);
+//       if (checkbox) {
+//         // Define se o checkbox é marcado com base no campo `status` da resposta
+//         checkbox.checked = emp.ativo;
+//       }
+//     });
+
       await carregarPermissoesUsuario(idusuario); //novo 02/06/2025
     } catch (erro) {
       console.error('Erro ao buscar empresas do usuário:', erro);
@@ -918,10 +934,7 @@ async function carregarPermissoesEEmpresasDoUsuario(email) {
 async function preencherUsuarioPeloEmail(email) {
   try {
     const dados = await fetchComToken(`/auth/email/${encodeURIComponent(email)}`);
-  //  if (!resposta.ok) throw new Error('Usuário não encontrado - Preencher Usuário pelo Email'); // verificar se funciona com isso comentado
-
-   // const dados = await resposta.json(); // verificar se funciona com isso comentado
-
+ 
     const campoUsuario = document.getElementById('nome_usuario');
     campoUsuario.value = `${dados.nome} ${dados.sobrenome}`; // mostra nome e sobrenome
 
@@ -959,11 +972,12 @@ let permissoesOriginais = {
   alterar:  false,
   pesquisar:false
 };
+
 let empresasOriginais = []; // Variável global para armazenar as empresas originais
 
 async function flipBox() {
-   var container = document.getElementById("flip-container");
-   container.classList.toggle("flipped");
+  var container = document.getElementById("flip-container");
+  container.classList.toggle("flipped");
 
   const idusuario = document.getElementById("idusuario").value;
   const nomeUsuarioDisplay = document.getElementById("nome_usuario"); // O campo de exibição do nome do usuário no verso
@@ -973,84 +987,79 @@ async function flipBox() {
 
 // Preenche o nome do usuário no verso
   if (container.classList.contains("flipped")) {
-      if (nomeUsuarioDisplay && nomeUsuarioFrente) {
-          nomeUsuarioDisplay.value = nomeUsuarioFrente;
-          nomeUsuarioDisplay.readOnly = true; // Torna somente leitura para não ser editado
-      } 
-      
-      ////inserido para teste
-if (idusuario) {
-    console.log("Vai entrar em carregarEmpresasUsuario IdUsuario",idusuario);
-     
+    if (nomeUsuarioDisplay && nomeUsuarioFrente) {
+        nomeUsuarioDisplay.value = nomeUsuarioFrente;
+        nomeUsuarioDisplay.readOnly = true; // Torna somente leitura para não ser editado
+    } 
 
-            console.log("Vai entrar em carregarEmpresasUsuario IdUsuario", idusuario);
-            // AGORA COM AWAIT DIRETO NA FUNÇÃO ASYNC flipBox
-            await carregarEmpresasUsuario(idusuario); // Espere aqui
-            console.log("carregarEmpresasUsuario CONCLUÍDO. Empresas Originais:", empresasOriginais);
+    ////inserido para teste
+    if (idusuario) {
+      console.log("Vai entrar em carregarEmpresasUsuario IdUsuario", idusuario);
+          // AGORA COM AWAIT DIRETO NA FUNÇÃO ASYNC flipBox
+      await carregarEmpresasUsuario(idusuario); // Espere aqui
+      console.log("carregarEmpresasUsuario CONCLUÍDO. Empresas Originais:", empresasOriginais);
 
-            // Agora que empresasOriginais está preenchida, e o select está (ou deveria estar) atualizado
-            const selectModuloElement = document.getElementById("modulo");
-            const selectEmpresaElement = document.getElementById("listaEmpresas");
+      // Agora que empresasOriginais está preenchida, e o select está (ou deveria estar) atualizado
+      const selectModuloElement = document.getElementById("modulo");
+      const selectEmpresaElement = document.getElementById("listaEmpresas");
 
+      if (!selectModuloElement || !selectEmpresaElement) {
+          console.error("Elementos de select (modulo ou listaEmpresas) não encontrados no DOM.");
+          return;
+      }
+                  
+      const empresaAlvoAtual = selectEmpresaElement.value;
+      let moduloAtual = "";
 
+      console.log("Modulo Atual para carregarPermissoes:", moduloAtual);
+      console.log("Empresa Alvo Atual para carregarPermissoes:", empresaAlvoAtual);
 
-            if (!selectModuloElement || !selectEmpresaElement) {
-                console.error("Elementos de select (modulo ou listaEmpresas) não encontrados no DOM.");
-                return;
-            }
-                        
-            const empresaAlvoAtual = selectEmpresaElement.value;
-            const moduloAtual = "";
+      if (selectModuloElement.options.length > 1) { // Mais de uma opção (além do "choose")
+          moduloAtual = selectModuloElement.options[1].value; // Pega o valor do primeiro módulo real
+          selectModuloElement.value = moduloAtual; // Pré-seleciona
+      } else {
+          // Caso não haja módulos carregados ainda (menos provável se DOMContentLoaded já chamou carregarModulos)
+          console.warn("Nenhum módulo real disponível para seleção inicial.");
+      }
+      console.log("Módulo Atual (APÓS AJUSTE) para carregarPermissoes:", moduloAtual);
+      console.log("Empresa Alvo Atual (APÓS AJUSTE) para carregarPermissoes:", empresaAlvoAtual);
 
-            console.log("Modulo Atual para carregarPermissoes:", moduloAtual);
-            console.log("Empresa Alvo Atual para carregarPermissoes:", empresaAlvoAtual);
+      // Agora, chame carregarPermissoesUsuario com os valores que *tentamos* pré-selecionar.
+      // A condição agora verifica se temos valores válidos.
+      if (moduloAtual && moduloAtual !== 'choose' && empresaAlvoAtual && empresaAlvoAtual !== '' && empresaAlvoAtual !== 'Selecione') {
+          // Seu backend espera o NOME do módulo, não o value, certo?
+          const nomeModuloParaAPI = selectModuloElement.options[selectModuloElement.selectedIndex].textContent;
+          await carregarPermissoesUsuario(idusuario, empresaAlvoAtual, nomeModuloParaAPI);
+          console.log("carregarPermissoesUsuario CONCLUÍDO.");
+      } else {
+          console.warn("Ainda sem dados suficientes para carregar permissões iniciais. Módulo:", moduloAtual, "Empresa:", empresaAlvoAtual);
+          permissoesOriginais = { modulo: null, acesso: false, cadastrar: false, alterar: false, pesquisar: false, apagar: false };
+      }
+    } else {
+        console.warn("ID de usuário não encontrado ao virar para o verso para carregar permissões/empresas.");
+        empresasOriginais = [];
+        permissoesOriginais = { modulo: null, acesso: false, cadastrar: false, alterar: false, pesquisar: false, apagar: false };
+    }
 
-            if (selectModuloElement.options.length > 1) { // Mais de uma opção (além do "choose")
-                moduloAtual = selectModuloElement.options[1].value; // Pega o valor do primeiro módulo real
-                selectModuloElement.value = moduloAtual; // Pré-seleciona
-            } else {
-                // Caso não haja módulos carregados ainda (menos provável se DOMContentLoaded já chamou carregarModulos)
-                console.warn("Nenhum módulo real disponível para seleção inicial.");
-            }
-            console.log("Módulo Atual (APÓS AJUSTE) para carregarPermissoes:", moduloAtual);
-            console.log("Empresa Alvo Atual (APÓS AJUSTE) para carregarPermissoes:", empresaAlvoAtual);
-
-            // Agora, chame carregarPermissoesUsuario com os valores que *tentamos* pré-selecionar.
-            // A condição agora verifica se temos valores válidos.
-            if (moduloAtual && moduloAtual !== 'choose' && empresaAlvoAtual && empresaAlvoAtual !== '' && empresaAlvoAtual !== 'Selecione') {
-                // Seu backend espera o NOME do módulo, não o value, certo?
-                const nomeModuloParaAPI = selectModuloElement.options[selectModuloElement.selectedIndex].textContent;
-                await carregarPermissoesUsuario(idusuario, empresaAlvoAtual, nomeModuloParaAPI);
-                console.log("carregarPermissoesUsuario CONCLUÍDO.");
-            } else {
-                console.warn("Ainda sem dados suficientes para carregar permissões iniciais. Módulo:", moduloAtual, "Empresa:", empresaAlvoAtual);
-                permissoesOriginais = { modulo: null, acesso: false, cadastrar: false, alterar: false, pesquisar: false, apagar: false };
-            }
-        } else {
-            console.warn("ID de usuário não encontrado ao virar para o verso para carregar permissões/empresas.");
-            empresasOriginais = [];
-            permissoesOriginais = { modulo: null, acesso: false, cadastrar: false, alterar: false, pesquisar: false, apagar: false };
-        }
-
-        // Removi selectModulo.disabled = true; daqui. É melhor habilitar/desabilitar baseado na seleção
-        // da empresa e módulo, talvez no `change` listener.
-        console.log("Entrou no flipBox - Flipped.");
-      ///fim
+    // Removi selectModulo.disabled = true; daqui. É melhor habilitar/desabilitar baseado na seleção
+    // da empresa e módulo, talvez no `change` listener.
+    console.log("Entrou no flipBox - Flipped.");
+    ///fim
 
 
       selectModulo.disabled = true;
       //carregarModulos();     
-    } else {
-      // Se virou para a frente (cadastro de usuário)
-      console.log("Voltou para a frente do cadastro de usuário.");
-      // Opcional: Limpar campos do verso ao voltar, se necessário.
-      limparListaEmpresas(); // Se essa função limpa o HTML do container de empresas
-        empresasOriginais = []; // E garante que a variável global esteja vazia
-        permissoesOriginais = { modulo: null, acesso: false, cadastrar: false, alterar: false, pesquisar: false, apagar: false };
-        limparCheckboxesPermissao(); // Limpa os checkboxes de permissão
-    }
-   console.log("Entrou no flipBox");
-  
+  } else {
+    // Se virou para a frente (cadastro de usuário)
+    console.log("Voltou para a frente do cadastro de usuário.");
+    // Opcional: Limpar campos do verso ao voltar, se necessário.
+    limparListaEmpresas(); // Se essa função limpa o HTML do container de empresas
+      empresasOriginais = []; // E garante que a variável global esteja vazia
+      permissoesOriginais = { modulo: null, acesso: false, cadastrar: false, alterar: false, pesquisar: false, apagar: false };
+      limparCheckboxesPermissao(); // Limpa os checkboxes de permissão
+  }
+  console.log("Entrou no flipBox");
+    
 }
 
 
@@ -1068,11 +1077,16 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
 
   const idusuario = document.getElementById("idusuario").value;
   const modulo = document.getElementById("modulo").value;
-   
+  
   const empresaSelecionada = document.getElementById("listaEmpresas");
   const idEmpresaAtual = empresaSelecionada.value;
-  const empresasAtualmenteSelecionadas = [idEmpresaAtual];
+  //const empresasAtualmenteSelecionadas = [idEmpresaAtual];
+  const empresaAtiva = document.getElementById("empresaAtiva").checked;
 
+  const empresasAtualmenteSelecionadas = [{
+    idempresa: String(idEmpresaAtual), // Use idempresa para ser consistente com o backend
+    ativo: empresaAtiva
+  }];
   
   if (!idusuario) {
         Swal.fire("Atenção", "Selecione um usuário primeiro.", "warning");
@@ -1106,7 +1120,7 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
     pesquisar: document.getElementById("Pesquisar").checked,
     apagar:    document.getElementById("Apagar").checked,
     master:    document.getElementById("Master").checked,
-    financeiro:document.getElementById("Financeiro").checked,
+    financeiro:document.getElementById("Financeiro").checked    
   };
 
   // Verifica se há mudança nas permissões
@@ -1116,8 +1130,16 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
     console.log("Permissões Originais:", permissoesOriginais);
     console.log("Permissões Atuais:", atuais);
 
+  // const semAlteracaoEmpresas = empresasOriginais.length === empresasAtualmenteSelecionadas.length &&
+  //                              empresasOriginais.every(empId => empresasAtualmenteSelecionadas.includes(empId));
+
   const semAlteracaoEmpresas = empresasOriginais.length === empresasAtualmenteSelecionadas.length &&
-                               empresasOriginais.every(empId => empresasAtualmenteSelecionadas.includes(empId));
+    empresasOriginais.every(empOriginal => {
+            const empAtual = empresasAtualmenteSelecionadas.find(
+            emp => emp.idempresa === empOriginal.idempresa
+        );                
+        return empAtual && empAtual.ativo === empOriginal.ativo;
+    });
 
   console.log("Empresas Originais:", empresasOriginais);
   console.log("Empresas Atualmente Selecionadas:", empresasAtualmenteSelecionadas);
@@ -1136,9 +1158,11 @@ document.getElementById("btnsalvarPermissao").addEventListener("click", async fu
     pesquisar: atuais.pesquisar,
     apagar: atuais.apagar,
     master: atuais.master,
-    financeiro: atuais.financeiro
+    financeiro: atuais.financeiro,
+    ativo: empresaAtiva
   };
 
+  
   console.log("PAYLOAD", payload);
 
   try {
@@ -1189,7 +1213,11 @@ async function carregarEmpresasUsuario(idusuario) {
 
         if (Array.isArray(empresasDoUsuario)) {
             // Mapeie apenas os IDs das empresas que o usuário já possui
-            empresasOriginais = empresasDoUsuario.map(emp => String(emp.id)); // Converte para string para consistência com `value` do select
+            //empresasOriginais = empresasDoUsuario.map(emp => String(emp.idusuario, emp.ativo)); // Converte para string para consistência com `value` do select
+            empresasOriginais = empresasDoUsuario.map(emp => ({ 
+                idempresa: String(emp.idempresa), 
+                ativo: emp.ativo 
+            }));
             console.log("empresasOriginais inicializada com:", empresasOriginais);
 
             // Opcional: Se você quiser que o select 'listaEmpresas' (o que tem TODAS as empresas)
@@ -1197,7 +1225,7 @@ async function carregarEmpresasUsuario(idusuario) {
             if (empresasOriginais.length > 0) {
                 const selectEmpresa = document.getElementById("listaEmpresas");
                 if (selectEmpresa) {
-                    selectEmpresa.value = empresasOriginais[0]; // Seleciona a primeira empresa do usuário como padrão
+                  //  selectEmpresa.value = empresasOriginais[0]; // Seleciona a primeira empresa do usuário como padrão
                     // Dispare um evento 'change' para acionar a lógica de carregar módulos/permissões se necessário
                     selectEmpresa.dispatchEvent(new Event('change'));
                 }
@@ -1465,6 +1493,23 @@ document.getElementById('listaEmpresas').addEventListener('change', function () 
 
   console.log("EMPRESA SELECIONADA NO SELECT PERMISSOES", idEmpresaSelecionada);
   const selectModulos = document.getElementById('modulo');
+
+
+  const empresasDoUsuario = JSON.parse(localStorage.getItem('empresas'));
+    const empresaInfo = empresasDoUsuario.find(emp => String(emp.id) === idempresa);
+    
+    // 📌 PASSO 2: Acessa o checkbox 'ativo' no formulário
+    const ativoCheckbox = document.getElementById('empresaAtiva');
+
+    // 📌 PASSO 3: Verifica e atualiza o estado do checkbox
+    if (ativoCheckbox && empresaInfo) {
+        ativoCheckbox.checked = empresaInfo.ativo;
+        console.log(`Checkbox 'ativo' para a empresa ${empresaInfo.id} setado como: ${empresaInfo.ativo}`);
+    } else if (ativoCheckbox) {
+        // Se a empresa não for encontrada (o que não deveria acontecer se a lista estiver correta),
+        // desmarca o checkbox por segurança.
+        ativoCheckbox.checked = false;
+    }
 
   let moduloAnteriorSelecionado = selectModulos.value;
   if (idempresa && idempresa !== 'all') {
