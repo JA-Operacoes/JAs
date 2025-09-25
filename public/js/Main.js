@@ -165,6 +165,7 @@ document.addEventListener("DOMContentLoaded", function () {
     card.addEventListener("click", atualizarAtividades);
   }
 });
+
 async function atualizarProximoEvento() {
     const resposta = await fetchComToken("/main/proximo-evento", {
         headers: { idempresa: getIdEmpresa() }
@@ -267,6 +268,174 @@ async function atualizarProximoEvento() {
         }
     }
 }
+
+document.addEventListener("DOMContentLoaded", function () {
+    const cardEventos = document.querySelector(".card-eventos");
+
+    if (cardEventos) {
+        cardEventos.addEventListener("click", function () {
+            mostrarCalendarioEventos(); // renderiza só ao clicar
+        });
+    }
+});
+
+async function mostrarCalendarioEventos() {
+    const lista = document.getElementById("painelDetalhes");
+    lista.innerHTML = "";
+
+    // Container
+    const container = document.createElement("div");
+    container.className = "calendario-container";
+
+
+    // ======= CALENDÁRIO =======
+    const calendario = document.createElement("div");
+    calendario.className = "calendario";
+
+    // ======= HEADER =======
+    const header = document.createElement("div");
+    header.className = "calendario-header";
+
+    // Bloco de controles (ano/mês)
+    const controles = document.createElement("div");
+    controles.className = "calendario-controles";
+    controles.innerHTML = `
+        <label>Ano: <select id="anoSelect"></select></label>
+        <label>Mês: <select id="mesSelect"></select></label>
+    `;
+
+    // ======= LEGENDA =======
+    const legenda = document.createElement("div");
+    legenda.className = "legenda";
+    legenda.innerHTML = `
+        <h3><strong>Legenda</strong></h3>
+        <div class="items">
+          <div class="legenda-item"><div class="legenda-cor" style="background:#FFC657"></div> Montagem infra</div>
+          <div class="legenda-item"><div class="legenda-cor" style="background:#73757A"></div> Marcação</div>
+          <div class="legenda-item"><div class="legenda-cor" style="background:#F5E801"></div> Montagem</div>
+          <div class="legenda-item"><div class="legenda-cor" style="background:#F46251"></div> Realização</div>
+          <div class="legenda-item"><div class="legenda-cor" style="background:#23821F"></div> Desmontagem</div>
+          <div class="legenda-item"><div class="legenda-cor" style="background:#FFB549"></div> Desmontagem Infra</div>
+          <div class="legenda-item"><div class="legenda-cor" style="background:#5B0F85"></div> Feriado</div>
+        </div>
+    `;
+
+    // Monta o header corretamente
+    header.appendChild(controles);
+    header.appendChild(legenda);
+
+    // Adiciona header dentro do calendário
+    calendario.appendChild(header);
+
+    // Grid
+    const grid = document.createElement("div");
+    grid.className = "calendario-grid";
+    calendario.appendChild(grid);
+
+    container.appendChild(calendario);
+    lista.appendChild(container);
+
+    // ======= POPULAR SELECTS =======
+    const anoSelect = header.querySelector("#anoSelect");
+    const mesSelect = header.querySelector("#mesSelect");
+    const anoAtual = new Date().getFullYear();
+
+    for (let a = anoAtual - 2; a <= anoAtual + 2; a++) {
+        const opt = document.createElement("option");
+        opt.value = a;
+        opt.textContent = a;
+        if (a === anoAtual) opt.selected = true;
+        anoSelect.appendChild(opt);
+    }
+
+    const nomesMeses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+    nomesMeses.forEach((nome, idx) => {
+        const opt = document.createElement("option");
+        opt.value = idx + 1; // enviamos mês de 1 a 12 para o backend
+        opt.textContent = nome;
+        if (idx === new Date().getMonth()) opt.selected = true;
+        mesSelect.appendChild(opt);
+    });
+
+    // ======= FUNÇÃO DE RENDER =======
+    async function renderCalendario(ano, mes) {
+        grid.innerHTML = "";
+        
+        // Cabeçalho dias da semana
+        ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].forEach(d => {
+          const el = document.createElement("div");
+          el.className = "header-dias"; // adiciona a classe
+          el.innerHTML = `<strong>${d}</strong>`;
+          grid.appendChild(el);
+      });
+        // Busca eventos via API
+        try {
+            const idempresa = getIdEmpresa();
+            const data = await fetchComToken(`/main/eventos-calendario?idempresa=${idempresa}&ano=${ano}&mes=${mes}`);
+            const eventos = data.eventos || [];
+
+            const primeiroDia = new Date(ano, mes - 1, 1);
+            const ultimoDia = new Date(ano, mes, 0).getDate();
+            const diaSemanaInicio = primeiroDia.getDay();
+
+            // Espaços antes
+            for (let i = 0; i < diaSemanaInicio; i++) {
+                grid.appendChild(document.createElement("div"));
+            }
+
+            // Dias do mês
+            for (let dia = 1; dia <= ultimoDia; dia++) {
+                const cell = document.createElement("div");
+                cell.innerHTML = `<span class="numero-dia">${dia}</span>`;
+
+                const dataStr = `${ano}-${String(mes).padStart(2,"0")}-${String(dia).padStart(2,"0")}`;
+                const eventosDia = eventos.filter(ev => {
+                    return dataStr >= ev.inicio && dataStr <= ev.fim;
+                });
+
+                eventosDia.forEach(ev => {
+                    const evEl = document.createElement("span");
+                    evEl.className = "evento";
+                    evEl.style.background = getCorPeriodo(ev.tipo);
+                    evEl.textContent = ev.nome;
+                    if (ev.tipo === "Feriado") evEl.style.color = "#fff";
+                    cell.appendChild(evEl);
+                });
+
+                grid.appendChild(cell);
+            }
+
+        } catch (err) {
+            console.error("Erro ao carregar eventos do calendário:", err);
+        }
+    }
+
+    function getCorPeriodo(tipo) {
+        switch (tipo) {
+            case "Montagem Infra": return "#FFC657";
+            case "Marcação": return "#73757A";
+            case "Montagem": return "#F5E801";
+            case "Realização": return "#F46251";
+            case "Desmontagem": return "#23821F";
+            case "Desmontagem Infra": return "#FFB549";
+            case "Feriado": return "#5B0F85";
+            default: return "#ccc";
+        }
+    }
+
+    // Render inicial
+    renderCalendario(parseInt(anoSelect.value), parseInt(mesSelect.value));
+
+    anoSelect.addEventListener("change", () => {
+        renderCalendario(parseInt(anoSelect.value), parseInt(mesSelect.value));
+    });
+    mesSelect.addEventListener("change", () => {
+        renderCalendario(parseInt(anoSelect.value), parseInt(mesSelect.value));
+    });
+}
+
+
+
 
 // Função para buscar pedidos do usuário logado
 // Busca pedidos financeiros do usuário logado

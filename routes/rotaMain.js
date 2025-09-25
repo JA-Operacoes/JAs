@@ -84,6 +84,94 @@ router.get("/proximo-evento", async (req, res) => {
     }
 });
 
+router.get("/eventos-calendario", async (req, res) => {
+    try {
+        const idempresa = req.headers.idempresa || req.query.idempresa;
+        const ano = req.query.ano;
+        const mes = req.query.mes;
+
+        if (!idempresa) return res.status(400).json({ error: "idempresa não fornecido" });
+        if (!ano || !mes) return res.status(400).json({ error: "ano e mes são obrigatórios" });
+
+        // Busca todos os eventos do mês/ano informado
+        const { rows: eventos } = await pool.query(
+            `SELECT 
+                e.nmevento, 
+                o.dtiniinframontagem, o.dtfiminframontagem,
+                o.dtinimarcacao, o.dtfimmarcacao,
+                o.dtinimontagem, o.dtfimmontagem,
+                o.dtinirealizacao, o.dtfimrealizacao,
+                o.dtinidesmontagem, o.dtfimdesmontagem,
+                o.dtiniinfradesmontagem, o.dtfiminfradesmontagem
+            FROM orcamentos o
+            JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+            JOIN eventos e ON e.idevento = o.idevento
+            WHERE oe.idempresa = $1
+              AND (
+                    -- Montagem Infra
+                    (EXTRACT(YEAR FROM o.dtiniinframontagem) = $2 AND EXTRACT(MONTH FROM o.dtiniinframontagem) = $3) OR
+                    (EXTRACT(YEAR FROM o.dtfiminframontagem) = $2 AND EXTRACT(MONTH FROM o.dtfiminframontagem) = $3) OR
+                    
+                    -- Marcação
+                    (EXTRACT(YEAR FROM o.dtinimarcacao) = $2 AND EXTRACT(MONTH FROM o.dtinimarcacao) = $3) OR
+                    (EXTRACT(YEAR FROM o.dtfimmarcacao) = $2 AND EXTRACT(MONTH FROM o.dtfimmarcacao) = $3) OR
+                    
+                    -- Montagem
+                    (EXTRACT(YEAR FROM o.dtinimontagem) = $2 AND EXTRACT(MONTH FROM o.dtinimontagem) = $3) OR
+                    (EXTRACT(YEAR FROM o.dtfimmontagem) = $2 AND EXTRACT(MONTH FROM o.dtfimmontagem) = $3) OR
+                    
+                    -- Realização
+                    (EXTRACT(YEAR FROM o.dtinirealizacao) = $2 AND EXTRACT(MONTH FROM o.dtinirealizacao) = $3) OR
+                    (EXTRACT(YEAR FROM o.dtfimrealizacao) = $2 AND EXTRACT(MONTH FROM o.dtfimrealizacao) = $3) OR
+                    
+                    -- Desmontagem
+                    (EXTRACT(YEAR FROM o.dtinidesmontagem) = $2 AND EXTRACT(MONTH FROM o.dtinidesmontagem) = $3) OR
+                    (EXTRACT(YEAR FROM o.dtfimdesmontagem) = $2 AND EXTRACT(MONTH FROM o.dtfimdesmontagem) = $3) OR
+                    
+                    -- Desmontagem Infra
+                    (EXTRACT(YEAR FROM o.dtiniinfradesmontagem) = $2 AND EXTRACT(MONTH FROM o.dtiniinfradesmontagem) = $3) OR
+                    (EXTRACT(YEAR FROM o.dtfiminfradesmontagem) = $2 AND EXTRACT(MONTH FROM o.dtfiminfradesmontagem) = $3)
+                )
+            ORDER BY o.dtinimontagem;`,
+            [idempresa, ano, mes]
+        );
+
+        if (!eventos || eventos.length === 0) {
+            return res.json({ eventos: [] });
+        }
+
+        const resposta = [];
+
+        eventos.forEach(ev => {
+            const fases = [
+                { tipo: "Montagem Infra", inicio: ev.dtiniinframontagem, fim: ev.dtfiminframontagem },
+                { tipo: "Marcação",        inicio: ev.dtinimarcacao,  fim: ev.dtfimmarcacao },
+                { tipo: "Montagem",        inicio: ev.dtinimontagem,  fim: ev.dtfimmontagem },
+                { tipo: "Realização",      inicio: ev.dtinirealizacao, fim: ev.dtfimrealizacao },
+                { tipo: "Desmontagem",     inicio: ev.dtinidesmontagem, fim: ev.dtfimdesmontagem },
+                { tipo: "Desmontagem Infra", inicio: ev.dtiniinfradesmontagem, fim: ev.dtfiminfradesmontagem },
+            ];
+
+            fases.forEach(f => {
+                if (f.inicio) { // só adiciona se tiver data
+                    resposta.push({
+                        nome: ev.nmevento,
+                        inicio: f.inicio.toISOString().split("T")[0],
+                        fim: f.fim ? f.fim.toISOString().split("T")[0] : f.inicio.toISOString().split("T")[0],
+                        tipo: f.tipo
+                    });
+                }
+            });
+        });
+
+        res.json({ eventos: resposta });
+
+    } catch (err) {
+        console.error("Erro em /eventos-calendario:", err);
+        res.status(500).json({ error: "Erro interno do servidor" });
+    }
+});
+
 router.get("/atividades-recentes", async (req, res) => {
     try {
         const idexecutor = req.headers.idexecutor || req.query.idexecutor;
