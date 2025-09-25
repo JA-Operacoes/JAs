@@ -1,4 +1,23 @@
-import { fetchComToken } from '../utils/utils.js';
+import { fetchComToken, aplicarTema  } from '../utils/utils.js';
+
+document.addEventListener("DOMContentLoaded", function () {
+    const idempresa = localStorage.getItem("idempresa");
+
+    if (idempresa) {
+        const apiUrl = `/empresas/${idempresa}`; // Verifique o caminho da sua API
+
+        fetchComToken(apiUrl)
+            .then(empresa => {
+                // Usa o nome fantasia como tema
+                const tema = empresa.nmfantasia;
+                aplicarTema(tema);
+            })
+            .catch(error => {
+                console.error("❌ Erro ao buscar dados da empresa para o tema:", error);
+                // aplicarTema('default');
+            });
+    }
+});
 
 //importado no inicio do js pois deve ser importado antes do restante do codigo
 import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/flatpickr.min.js";
@@ -692,6 +711,14 @@ const carregarDadosParaEditar = (eventData) => {
     limparCamposEvento();
     currentEditingStaffEvent = eventData;
     isFormLoadedFromDoubleClick = true;
+
+    const uploadHeaderDiv = document.getElementById('uploadHeader');
+    const uploadContainer = document.querySelector("#upload-container");
+    const fileInput = document.getElementById('file');
+
+    if (uploadHeaderDiv) uploadHeaderDiv.style.display = 'none';
+    if (uploadContainer) uploadContainer.style.display = 'none';
+    if (fileInput) fileInput.disabled = true;
 
     // Carregando dados básicos nos inputs do formulário.
     idStaffInput.value = eventData.idstaff || '';
@@ -3982,7 +4009,7 @@ document.getElementById('Seniorcheck').addEventListener('change', function () {
         juniorCheck.checked = false;
         baseCheck.checked = false;
 
-        console.log("Valores para Senior - Custo:", vlrCustoSeniorFuncao, "Alimentação:", vlrAlimentacaoSeniorFuncao, "Transporte:", vlrTransporteSeniorFuncao);
+        console.log("Valores para Senior - Custo:", vlrCustoSeniorFuncao, "Alimentação:", vlrAlimentacao, "Transporte:", vlrTransporteSeniorFuncao);
 
        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoSeniorFuncao) || 0).toFixed(2); 
        document.getElementById("transporte").value = (parseFloat(vlrTransporteSeniorFuncao) || 0).toFixed(2);

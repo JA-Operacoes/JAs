@@ -901,31 +901,6 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
 
             // 1. Parsear o datasEvento (array de datas)
             let datasEventoParsed = null;
-            // if (datasevento) {
-            //     try {
-            //         datasEventoParsed = JSON.parse(datasevento);
-            //         if (!Array.isArray(datasEventoParsed)) {
-            //             throw new Error("datasevento não é um array JSON válido.");
-            //         }
-            //     } catch (parseError) {
-            //         await client.query('ROLLBACK');
-            //         return res.status(400).json({ message: "Formato de 'datasevento' inválido. Esperado um array JSON.", details: parseError.message });
-            //     }
-            // }
-
-            // if (datasEventoRaw) {
-            //   try {
-            //     datasEventoParsed = JSON.parse(datasEventoRaw);
-            //     if (!Array.isArray(datasEventoParsed)) {
-            //       throw new Error("datasevento não é um array JSON válido.");
-            //     }
-            //     // === ADICIONADO AQUI ===
-            //     datasEventoParsed = ordenarDatas(datasEventoParsed);
-            //   } catch (parseError) {
-            //     await client.query('ROLLBACK');
-            //     return res.status(400).json({ message: "Formato de 'datasevento' inválido. Esperado um array JSON.", details: parseError.message });
-            //   }
-            // }
 
             if (datasevento) {
               try {
@@ -1084,7 +1059,7 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
             // Adicionado tratamento para erro de formato de número/float
             if (error.code === '22P02') { // Erro de sintaxe de entrada inválida (como texto em float)
                  return res.status(400).json({
-                    message: "Um valor numérico inválido foi fornecido. Por favor, verifique os campos de custo, extra, transporte, alimentação, alimentacao e caixinha.",
+                    message: "Um valor numérico inválido foi fornecido. Por favor, verifique os campos de custo, extra, transporte, alimentação, equipe e caixinha.",
                     details: error.message
                  });
             }

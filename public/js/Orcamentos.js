@@ -34,7 +34,6 @@ document.addEventListener("DOMContentLoaded", function () {
             });
     }
 });
-
 let idMontagemChangeListener = null;
 let statusInputListener = null;
 let nrOrcamentoInputListener = null;

@@ -1,7 +1,5 @@
 import { fetchComToken, aplicarTema } from '/utils/utils.js';
 
-
-
 // Função para obter o idempresa do localStorage
 function getIdEmpresa() {
   return localStorage.getItem("idempresa");
@@ -77,14 +75,56 @@ async function atualizarAtividades() {
       return;
     }
 
-    // Monta tabela
+    // Função auxiliar para renderizar dados
+    function renderizarDados(dados) {
+      if (!dados) return "<em>Vazio</em>";
+
+      // Se for array de objetos
+      if (Array.isArray(dados)) {
+        if (dados.length === 0) return "<em>Array vazio</em>";
+
+        // Se os elementos forem objetos -> mostrar em mini tabela
+        if (typeof dados[0] === "object") {
+          let html = "<table class='mini-tabela'>";
+          html += "<thead><tr>";
+          Object.keys(dados[0]).forEach(key => {
+            html += `<th>${key}</th>`;
+          });
+          html += "</tr></thead><tbody>";
+
+          dados.forEach(obj => {
+            html += "<tr>";
+            Object.values(obj).forEach(val => {
+              html += `<td>${val !== null && val !== undefined ? val : ""}</td>`;
+            });
+            html += "</tr>";
+          });
+
+          html += "</tbody></table>";
+          return html;
+        }
+
+        // Se for array simples (ex: [1,2,3])
+        return `<pre>${JSON.stringify(dados, null, 2)}</pre>`;
+      }
+
+      // Se for objeto simples
+      if (typeof dados === "object") {
+        return `<pre>${JSON.stringify(dados, null, 2)}</pre>`;
+      }
+
+      // Se for string ou outro tipo primitivo
+      return `<pre>${dados}</pre>`;
+    }
+
+    // Monta tabela principal
     const tabela = document.createElement("table");
     tabela.classList.add("tabela-atividades");
 
     tabela.innerHTML = `
-    <thead>
-    <tr>
-    <th>Módulo</th>
+      <thead>
+        <tr>
+          <th>Módulo</th>
           <th>Ação</th>
           <th>Data</th>
           <th>Antes</th>
@@ -102,8 +142,8 @@ async function atualizarAtividades() {
         <td>${ativ.modulo}</td>
         <td>${ativ.acao}</td>
         <td>${new Date(ativ.criado_em).toLocaleString()}</td>
-        <td><pre>${ativ.dadosanteriores}</pre></td>
-        <td><pre>${ativ.dadosnovos }</pre></td>
+        <td>${renderizarDados(ativ.dadosanteriores)}</td>
+        <td>${renderizarDados(ativ.dadosnovos)}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -125,6 +165,7 @@ document.addEventListener("DOMContentLoaded", function () {
     card.addEventListener("click", atualizarAtividades);
   }
 });
+
 async function atualizarProximoEvento() {
     const resposta = await fetchComToken("/main/proximo-evento", {
         headers: { idempresa: getIdEmpresa() }
@@ -228,6 +269,174 @@ async function atualizarProximoEvento() {
     }
 }
 
+document.addEventListener("DOMContentLoaded", function () {
+    const cardEventos = document.querySelector(".card-eventos");
+
+    if (cardEventos) {
+        cardEventos.addEventListener("click", function () {
+            mostrarCalendarioEventos(); // renderiza só ao clicar
+        });
+    }
+});
+
+async function mostrarCalendarioEventos() {
+    const lista = document.getElementById("painelDetalhes");
+    lista.innerHTML = "";
+
+    // Container
+    const container = document.createElement("div");
+    container.className = "calendario-container";
+
+
+    // ======= CALENDÁRIO =======
+    const calendario = document.createElement("div");
+    calendario.className = "calendario";
+
+    // ======= HEADER =======
+    const header = document.createElement("div");
+    header.className = "calendario-header";
+
+    // Bloco de controles (ano/mês)
+    const controles = document.createElement("div");
+    controles.className = "calendario-controles";
+    controles.innerHTML = `
+        <label>Ano: <select id="anoSelect"></select></label>
+        <label>Mês: <select id="mesSelect"></select></label>
+    `;
+
+    // ======= LEGENDA =======
+    const legenda = document.createElement("div");
+    legenda.className = "legenda";
+    legenda.innerHTML = `
+        <h3><strong>Legenda</strong></h3>
+        <div class="items">
+          <div class="legenda-item"><div class="legenda-cor" style="background:#FFC657"></div> Montagem infra</div>
+          <div class="legenda-item"><div class="legenda-cor" style="background:#73757A"></div> Marcação</div>
+          <div class="legenda-item"><div class="legenda-cor" style="background:#F5E801"></div> Montagem</div>
+          <div class="legenda-item"><div class="legenda-cor" style="background:#F46251"></div> Realização</div>
+          <div class="legenda-item"><div class="legenda-cor" style="background:#23821F"></div> Desmontagem</div>
+          <div class="legenda-item"><div class="legenda-cor" style="background:#FFB549"></div> Desmontagem Infra</div>
+          <div class="legenda-item"><div class="legenda-cor" style="background:#5B0F85"></div> Feriado</div>
+        </div>
+    `;
+
+    // Monta o header corretamente
+    header.appendChild(controles);
+    header.appendChild(legenda);
+
+    // Adiciona header dentro do calendário
+    calendario.appendChild(header);
+
+    // Grid
+    const grid = document.createElement("div");
+    grid.className = "calendario-grid";
+    calendario.appendChild(grid);
+
+    container.appendChild(calendario);
+    lista.appendChild(container);
+
+    // ======= POPULAR SELECTS =======
+    const anoSelect = header.querySelector("#anoSelect");
+    const mesSelect = header.querySelector("#mesSelect");
+    const anoAtual = new Date().getFullYear();
+
+    for (let a = anoAtual - 2; a <= anoAtual + 2; a++) {
+        const opt = document.createElement("option");
+        opt.value = a;
+        opt.textContent = a;
+        if (a === anoAtual) opt.selected = true;
+        anoSelect.appendChild(opt);
+    }
+
+    const nomesMeses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+    nomesMeses.forEach((nome, idx) => {
+        const opt = document.createElement("option");
+        opt.value = idx + 1; // enviamos mês de 1 a 12 para o backend
+        opt.textContent = nome;
+        if (idx === new Date().getMonth()) opt.selected = true;
+        mesSelect.appendChild(opt);
+    });
+
+    // ======= FUNÇÃO DE RENDER =======
+    async function renderCalendario(ano, mes) {
+        grid.innerHTML = "";
+        
+        // Cabeçalho dias da semana
+        ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].forEach(d => {
+          const el = document.createElement("div");
+          el.className = "header-dias"; // adiciona a classe
+          el.innerHTML = `<strong>${d}</strong>`;
+          grid.appendChild(el);
+      });
+        // Busca eventos via API
+        try {
+            const idempresa = getIdEmpresa();
+            const data = await fetchComToken(`/main/eventos-calendario?idempresa=${idempresa}&ano=${ano}&mes=${mes}`);
+            const eventos = data.eventos || [];
+
+            const primeiroDia = new Date(ano, mes - 1, 1);
+            const ultimoDia = new Date(ano, mes, 0).getDate();
+            const diaSemanaInicio = primeiroDia.getDay();
+
+            // Espaços antes
+            for (let i = 0; i < diaSemanaInicio; i++) {
+                grid.appendChild(document.createElement("div"));
+            }
+
+            // Dias do mês
+            for (let dia = 1; dia <= ultimoDia; dia++) {
+                const cell = document.createElement("div");
+                cell.innerHTML = `<span class="numero-dia">${dia}</span>`;
+
+                const dataStr = `${ano}-${String(mes).padStart(2,"0")}-${String(dia).padStart(2,"0")}`;
+                const eventosDia = eventos.filter(ev => {
+                    return dataStr >= ev.inicio && dataStr <= ev.fim;
+                });
+
+                eventosDia.forEach(ev => {
+                    const evEl = document.createElement("span");
+                    evEl.className = "evento";
+                    evEl.style.background = getCorPeriodo(ev.tipo);
+                    evEl.textContent = ev.nome;
+                    if (ev.tipo === "Feriado") evEl.style.color = "#fff";
+                    cell.appendChild(evEl);
+                });
+
+                grid.appendChild(cell);
+            }
+
+        } catch (err) {
+            console.error("Erro ao carregar eventos do calendário:", err);
+        }
+    }
+
+    function getCorPeriodo(tipo) {
+        switch (tipo) {
+            case "Montagem Infra": return "#FFC657";
+            case "Marcação": return "#73757A";
+            case "Montagem": return "#F5E801";
+            case "Realização": return "#F46251";
+            case "Desmontagem": return "#23821F";
+            case "Desmontagem Infra": return "#FFB549";
+            case "Feriado": return "#5B0F85";
+            default: return "#ccc";
+        }
+    }
+
+    // Render inicial
+    renderCalendario(parseInt(anoSelect.value), parseInt(mesSelect.value));
+
+    anoSelect.addEventListener("change", () => {
+        renderCalendario(parseInt(anoSelect.value), parseInt(mesSelect.value));
+    });
+    mesSelect.addEventListener("change", () => {
+        renderCalendario(parseInt(anoSelect.value), parseInt(mesSelect.value));
+    });
+}
+
+
+
+
 // Função para buscar pedidos do usuário logado
 // Busca pedidos financeiros do usuário logado
 async function buscarPedidosUsuario() {
@@ -277,6 +486,11 @@ async function mostrarPedidosUsuario() {
     return;
   }
 
+  // Wrapper para rolagem dos funcionários
+  const listaFuncionarios = document.createElement("div");
+  listaFuncionarios.className = "lista-funcionarios";
+  lista.appendChild(listaFuncionarios);
+
   // Agrupa pedidos por funcionário
   const funcionariosMap = {};
   pedidos.forEach(p => {
@@ -287,9 +501,18 @@ async function mostrarPedidosUsuario() {
   Object.keys(funcionariosMap).forEach(funcNome => {
     const pedidosFunc = funcionariosMap[funcNome];
 
-    // Contar número total de categorias
+    // Filtra apenas os pedidos que tiveram atualização
+    const pedidosComAtualizacao = pedidosFunc.filter(p => {
+      const campos = ["statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada"];
+      return campos.some(campo => p[campo]); // só entra se tiver algum campo com valor
+    });
+
+    // Se não tiver nenhum pedido atualizado, pula esse funcionário
+    if (pedidosComAtualizacao.length === 0) return;
+
+    // Contar número total de categorias realmente atualizadas
     let totalCategorias = 0;
-    pedidosFunc.forEach(p => {
+    pedidosComAtualizacao.forEach(p => {
       const campos = ["statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada"];
       campos.forEach(campo => {
         if (p[campo]) totalCategorias++;
@@ -308,11 +531,11 @@ async function mostrarPedidosUsuario() {
     const container = document.createElement("div");
     container.className = "funcionario-body p-2 hidden";
 
-    pedidosFunc.forEach(pedido => {
+    pedidosComAtualizacao.forEach(pedido => {
       const campos = ["statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada"];
 
       campos.forEach(campo => {
-        if (!pedido[campo]) return;
+        if (!pedido[campo]) return; // só exibe se realmente tiver atualização
 
         const card = document.createElement("div");
         card.className = "pedido-card border rounded p-2 mb-2 bg-gray-50 flex justify-between items-start";
@@ -362,7 +585,7 @@ async function mostrarPedidosUsuario() {
 
     divFuncionario.appendChild(header);
     divFuncionario.appendChild(container);
-    lista.appendChild(divFuncionario);
+    listaFuncionarios.appendChild(divFuncionario);
   });
 }
 

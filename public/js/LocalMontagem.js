@@ -26,7 +26,6 @@ document.addEventListener("DOMContentLoaded", function () {
             });
     }
 });
-
 let descMontagemInputListener = null; 
 let descMontagemBlurListener = null; 
 let cidadeMontagemInputListener = null; 

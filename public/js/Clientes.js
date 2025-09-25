@@ -25,7 +25,6 @@ document.addEventListener("DOMContentLoaded", function () {
             });
     }
 });
-
 let tpClienteInputListener = null;
 let btnEnviarListener = null;
 let btnLimparListener = null;
