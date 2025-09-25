@@ -424,13 +424,23 @@ main#conteudo {
 }
 
 /*--------------------- Scrool-------------------------*/
-::-webkit-scrollbar {
+.lista-funcionarios::-webkit-scrollbar {
   display: none;
 }
-::-webkit-scrollbar-track {
+.lista-funcionarios::-webkit-scrollbar-track {
   background: transparent;
 }
-::-webkit-scrollbar-thumb {
+.lista-funcionarios::-webkit-scrollbar-thumb {
+display: none;
+}
+
+.funcionario-body.p-2::-webkit-scrollbar {
+  display: none;
+}
+.funcionario-body.p-2::-webkit-scrollbar-track {
+  background: transparent;
+}
+.funcionario-body.p-2::-webkit-scrollbar-thumb {
 display: none;
 }
 
