@@ -300,19 +300,10 @@
     box-shadow: #000000;
   }
   
-  
-  .painel.ativo {
-    transform: translateX(0%);
-    z-index: 1;
-  }
-  
-  #painel-clientes.ativo ~ #painel-eventos {
+  #painel-eventos.ativo ~#painel-clientes  {
     transform: translateX(100%);
   }
   
-  #painel-eventos.ativo ~ #painel-clientes {
-    transform: translateX(-100%);
-  }
   
   /* Título em destaque */
   .destaque {
