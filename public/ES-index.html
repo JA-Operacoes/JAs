@@ -93,47 +93,91 @@
     <div id="wrapper"> 
         <aside id="sidebar">
             <div id="toggle-btn">»</div>
-        
+
             <section id="painel-container">
                 <div class="abas">
-                <div id="aba-clientes" class="aba ativa" onclick="navegarParaAba('clientes')">Clientes</div>
-                <div id="aba-eventos" class="aba desativada" onclick="navegarParaAba('eventos')">Eventos</div>
-                <div id="aba-orcamento" class="aba desativada" onclick="navegarParaAba('orcamento')">Orçamento</div>
+                    <div id="aba-eventos" class="aba ativa" onclick="navegarParaAba('eventos')">Eventos</div>
+                    <div id="aba-clientes" class="aba desativada" onclick="navegarParaAba('clientes')">Clientes</div>
+                    <div id="aba-orcamento" class="aba desativada" onclick="navegarParaAba('orcamento')">Orçamentos</div>
                 </div>
-        
-                <div id="painel-clientes" class="painel ativo">
-                <div class="destaque">Selecione o Cliente:</div>
-                <div class="lista-scroll"><ul id="lista-dados-clientes"></ul></div>
+
+                <div id="painel-eventos" class="painel ativo">
+                    <div class="destaque">Selecione o Evento:</div>
+                    <div class="lista-scroll"><ul id="lista-dados-eventos"></ul></div>
                 </div>
-        
-                <div id="painel-eventos" class="painel">
-                <div id="cliente-selecionado" class="destaque">Nome do cliente</div>
-                <div class="lista-scroll"><ul id="lista-dados-eventos"></ul></div>
+
+                <div id="painel-clientes" class="painel">
+                    <div id="evento-selecionado" class="destaque">Nome do evento</div>
+                    <div class="lista-scroll"><ul id="lista-dados-clientes"></ul></div>
                 </div>
-        
+
                 <div id="painel-orcamento" class="painel">
-                <div id="orcamento-selecionado" class="destaque">Nome do cliente / Evento</div>
-                <div class="lista-scroll"><ul id="lista-dados-orcamento"></ul></div>
+                    <div id="orcamento-selecionado" class="destaque">Evento / Cliente</div>
+                    <div class="lista-scroll"><ul id="lista-dados-orcamento"></ul></div>
                 </div>
             </section>
-        </aside> 
+        </aside>
+        
+        <main id="conteudo"> 
+            <div class="dashboard-container">
+                <div class="detalhes-panel" id="painelDetalhes">
+                    <div id="conteudoDetalhes">
+                        <h3>Detalhes</h3>
+                        <p>Selecione um card para ver mais informações.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cards">
+                <div class="card ">  
+                    <div class="card-orcamentos">
+                        <div class="orc-header">
+                        <span class="orc-title">Orçamentos</span>
+                        <span id="orcamentosTotal" class="orc-total">0</span>
+                        </div>
+                        <div class="orc-body">
+                        <span>Abertos: <span id="orcamentosPendentes">0</span></span>
+                        <span>Fechados: <span id="orcamentosFechados">0</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                    <div class="card">
+                        <div class="card-eventos">
+                            <div class="evt-header">
+                            <span class="evt-title">Próximo Evento</span>
+                            </div>
+                            <div class="evt-body">
+                            <span id="proximoEventoNome"></span>
+                            <small id="proximoEventoTempo">--</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" id="card-atividades">
+                        <div class="card-atividades">
+                            <div class="ativ-header">
+                                <span class="ativ-title">Minhas Atividades</span>
+                            </div>
+                            <div class="ativ-body"><ul id="listaAtividadesUsuario"></ul></div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-financeiro">
+                            <div class="fin-header">
+                            <span class="fin-title">Pedidos a visualizar</span>
+                            </div>
+                            <div class="fin-body">
+                            <span>Autorizados: <span id="pedidosAutorizados">0</span></span>
+                            <span>Pendentes: <span id="pedidosPendentes">0</span></span>
+                            <span>Recusados: <span id="pedidosRecusados">0</span></span>
+                            </div>
+                        </div>
+                    </div>
+            </div>
+
+        </main>
     </div>
-
-<main id="conteudo"> 
-        <section id="painel-infos">
-            <h2>Informações do Sistema</h2>
-            <ul class="infos-lista">
-                <li><strong>Nome do sistema:</strong> JAS </li>
-                <li><strong>Versão:</strong> 1.0.0 ALPHA </li>
-                <li><strong>Última atualização:</strong> Abril de 2025</li>
-                <li><strong>Desenvolvedor:</strong> JA Developers </li>
-                <li><strong>Contato:</strong> contato@seudominio.com</li>
-            </ul>
-        </section>
-</main>
-
-
-
     <footer id="footer-content">
 
         <div id="grid">
