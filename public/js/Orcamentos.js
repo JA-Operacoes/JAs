@@ -36,6 +36,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 let idMontagemChangeListener = null;
 let statusInputListener = null;
+let edicaoInputListener = null;
 let nrOrcamentoInputListener = null;
 let nrOrcamentoBlurListener = null;
 let btnAdicionarLinhaListener = null;
@@ -2935,6 +2936,7 @@ async function verificaOrcamento() {
                 obsItens: formData.get("Observacao"),
                 obsProposta: formData.get("ObservacaoProposta"),
                 formaPagamento: formData.get("formaPagamento"),
+                edicao: document.querySelector("#edicao")?.value,
                 totGeralVda: desformatarMoeda(document.querySelector('#totalGeralVda').value),
                 totGeralCto: desformatarMoeda(document.querySelector('#totalGeralCto').value),
                 totAjdCusto: desformatarMoeda(document.querySelector('#totalAjdCusto').value),
@@ -3126,6 +3128,12 @@ function desinicializarOrcamentosModal() {
     if (statusInput && statusInputListener) {
         statusInput.removeEventListener('input', statusInputListener);
         statusInputListener = null;
+    }
+
+    const edicaoInput = document.getElementById('edicao');
+    if (edicaoInput && edicaoInputListener) {
+        edicaoInput.removeEventListener('input', edicaoInputListener);
+        edicaoInputListener = null;
     }
 
     const nrOrcamentoInput = document.getElementById('nrOrcamento');
@@ -3340,6 +3348,13 @@ export async function preencherFormularioComOrcamento(orcamento) {
         console.warn("Elemento com ID 'Status' não encontrado.");
     }
 
+    if (edicaoInput) {
+        edicaoInput.value = orcamento.edicao || '';
+        console.log("Edição", edicaoInput.value);        
+    } else {
+        console.warn("Elemento com ID 'Edição' não encontrado.");
+    }
+
     const clienteSelect = document.querySelector('.idCliente');
     if (clienteSelect) {
         clienteSelect.value = orcamento.idcliente || '';
@@ -3504,6 +3519,13 @@ export async function preencherFormularioComOrcamento(orcamento) {
         formaPagamentoInput.value = orcamento.formapagamento || '';
     } else {
         console.warn("Elemento com ID 'FormaPagamento' (Forma Pagamento) não encontrado.");
+    }
+
+    const edicaoInput = document.getElementById('edicao');
+    if (edicaoInput) {
+        edicaoInput.value = orcamento.edicao || '';
+    } else {
+        console.warn("Elemento com ID 'edicao' (Edição) não encontrado.");
     }
 
     const totalGeralVdaInput = document.getElementById('totalGeralVda');

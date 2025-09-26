@@ -59,6 +59,10 @@
   
   }
 
+  [class^="logo-"] {
+    display: none !important; /* Esconde todos os logos por padrão */
+  }
+
   span{
   gap: 3px;
 }

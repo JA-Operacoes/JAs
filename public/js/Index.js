@@ -98,6 +98,9 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         console.log("Permissões do usuário:", permissoesArray);
 
+        console.log("Lista dinâmica de logos mapeada e Empresas Ativas:", logos, empresasAtivas);
+
+
         // 4. Itera sobre a nova lista de logos dinâmica para mostrar/esconder.
         logos.forEach(logo => {
         //  console.log("Processando logo:", logo);
@@ -109,6 +112,9 @@ document.addEventListener("DOMContentLoaded", async function () {
                     el.style.display = 'none';
                 } else {
                     // Se o usuário tem permissão, mostra o logo e configura o evento de clique.
+                    el.style.display = 'block'; 
+                    el.style.display = 'inline-block'; 
+                    
                     el.setAttribute('data-idempresa', logo.id);
                     
                     el.addEventListener('click', function() {
