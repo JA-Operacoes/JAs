@@ -95,44 +95,48 @@ router.get("/eventos-calendario", async (req, res) => {
 
         // Busca todos os eventos do mês/ano informado
         const { rows: eventos } = await pool.query(
-            `SELECT 
-                e.nmevento, 
-                o.dtiniinframontagem, o.dtfiminframontagem,
-                o.dtinimarcacao, o.dtfimmarcacao,
-                o.dtinimontagem, o.dtfimmontagem,
-                o.dtinirealizacao, o.dtfimrealizacao,
-                o.dtinidesmontagem, o.dtfimdesmontagem,
-                o.dtiniinfradesmontagem, o.dtfiminfradesmontagem
-            FROM orcamentos o
-            JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-            JOIN eventos e ON e.idevento = o.idevento
-            WHERE oe.idempresa = $1
-              AND (
-                    -- Montagem Infra
-                    (EXTRACT(YEAR FROM o.dtiniinframontagem) = $2 AND EXTRACT(MONTH FROM o.dtiniinframontagem) = $3) OR
-                    (EXTRACT(YEAR FROM o.dtfiminframontagem) = $2 AND EXTRACT(MONTH FROM o.dtfiminframontagem) = $3) OR
-                    
-                    -- Marcação
-                    (EXTRACT(YEAR FROM o.dtinimarcacao) = $2 AND EXTRACT(MONTH FROM o.dtinimarcacao) = $3) OR
-                    (EXTRACT(YEAR FROM o.dtfimmarcacao) = $2 AND EXTRACT(MONTH FROM o.dtfimmarcacao) = $3) OR
-                    
-                    -- Montagem
-                    (EXTRACT(YEAR FROM o.dtinimontagem) = $2 AND EXTRACT(MONTH FROM o.dtinimontagem) = $3) OR
-                    (EXTRACT(YEAR FROM o.dtfimmontagem) = $2 AND EXTRACT(MONTH FROM o.dtfimmontagem) = $3) OR
-                    
-                    -- Realização
-                    (EXTRACT(YEAR FROM o.dtinirealizacao) = $2 AND EXTRACT(MONTH FROM o.dtinirealizacao) = $3) OR
-                    (EXTRACT(YEAR FROM o.dtfimrealizacao) = $2 AND EXTRACT(MONTH FROM o.dtfimrealizacao) = $3) OR
-                    
-                    -- Desmontagem
-                    (EXTRACT(YEAR FROM o.dtinidesmontagem) = $2 AND EXTRACT(MONTH FROM o.dtinidesmontagem) = $3) OR
-                    (EXTRACT(YEAR FROM o.dtfimdesmontagem) = $2 AND EXTRACT(MONTH FROM o.dtfimdesmontagem) = $3) OR
-                    
-                    -- Desmontagem Infra
-                    (EXTRACT(YEAR FROM o.dtiniinfradesmontagem) = $2 AND EXTRACT(MONTH FROM o.dtiniinfradesmontagem) = $3) OR
-                    (EXTRACT(YEAR FROM o.dtfiminfradesmontagem) = $2 AND EXTRACT(MONTH FROM o.dtfiminfradesmontagem) = $3)
-                )
-            ORDER BY o.dtinimontagem;`,
+          `SELECT DISTINCT ON (e.idevento, o.dtiniinframontagem, o.dtfiminframontagem,
+                            o.dtinimarcacao, o.dtfimmarcacao,
+                            o.dtinimontagem, o.dtfimmontagem,
+                            o.dtinirealizacao, o.dtfimrealizacao,
+                            o.dtinidesmontagem, o.dtfimdesmontagem,
+                            o.dtiniinfradesmontagem, o.dtfiminfradesmontagem)
+      e.nmevento || 
+      CASE 
+          WHEN COUNT(*) OVER (PARTITION BY e.idevento, o.dtiniinframontagem, o.dtfiminframontagem,
+                              o.dtinimarcacao, o.dtfimmarcacao,
+                              o.dtinimontagem, o.dtfimmontagem,
+                              o.dtinirealizacao, o.dtfimrealizacao,
+                              o.dtinidesmontagem, o.dtfimdesmontagem,
+                              o.dtiniinfradesmontagem, o.dtfiminfradesmontagem) > 1 
+          THEN ' - ' || COALESCE(o.nomenclatura, '') 
+          ELSE '' 
+      END AS evento_nome,
+      o.dtiniinframontagem, o.dtfiminframontagem,
+      o.dtinimarcacao, o.dtfimmarcacao,
+      o.dtinimontagem, o.dtfimmontagem,
+      o.dtinirealizacao, o.dtfimrealizacao,
+      o.dtinidesmontagem, o.dtfimdesmontagem,
+      o.dtiniinfradesmontagem, o.dtfiminfradesmontagem
+FROM orcamentos o
+JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+JOIN eventos e ON e.idevento = o.idevento
+WHERE oe.idempresa = $1
+AND (
+      (EXTRACT(YEAR FROM o.dtiniinframontagem) = $2 AND EXTRACT(MONTH FROM o.dtiniinframontagem) = $3) OR
+      (EXTRACT(YEAR FROM o.dtfiminframontagem) = $2 AND EXTRACT(MONTH FROM o.dtfiminframontagem) = $3) OR
+      (EXTRACT(YEAR FROM o.dtinimarcacao) = $2 AND EXTRACT(MONTH FROM o.dtinimarcacao) = $3) OR
+      (EXTRACT(YEAR FROM o.dtfimmarcacao) = $2 AND EXTRACT(MONTH FROM o.dtfimmarcacao) = $3) OR
+      (EXTRACT(YEAR FROM o.dtinimontagem) = $2 AND EXTRACT(MONTH FROM o.dtinimontagem) = $3) OR
+      (EXTRACT(YEAR FROM o.dtfimmontagem) = $2 AND EXTRACT(MONTH FROM o.dtfimmontagem) = $3) OR
+      (EXTRACT(YEAR FROM o.dtinirealizacao) = $2 AND EXTRACT(MONTH FROM o.dtinirealizacao) = $3) OR
+      (EXTRACT(YEAR FROM o.dtfimrealizacao) = $2 AND EXTRACT(MONTH FROM o.dtfimrealizacao) = $3) OR
+      (EXTRACT(YEAR FROM o.dtinidesmontagem) = $2 AND EXTRACT(MONTH FROM o.dtinidesmontagem) = $3) OR
+      (EXTRACT(YEAR FROM o.dtfimdesmontagem) = $2 AND EXTRACT(MONTH FROM o.dtfimdesmontagem) = $3) OR
+      (EXTRACT(YEAR FROM o.dtiniinfradesmontagem) = $2 AND EXTRACT(MONTH FROM o.dtiniinfradesmontagem) = $3) OR
+      (EXTRACT(YEAR FROM o.dtfiminfradesmontagem) = $2 AND EXTRACT(MONTH FROM o.dtfiminfradesmontagem) = $3)
+    )
+ORDER BY e.idevento, o.dtiniinframontagem, o.dtinimarcacao;`,
             [idempresa, ano, mes]
         );
 
@@ -155,7 +159,7 @@ router.get("/eventos-calendario", async (req, res) => {
             fases.forEach(f => {
                 if (f.inicio) { // só adiciona se tiver data
                     resposta.push({
-                        nome: ev.nmevento,
+                        nome: ev.evento_nome,
                         inicio: f.inicio.toISOString().split("T")[0],
                         fim: f.fim ? f.fim.toISOString().split("T")[0] : f.inicio.toISOString().split("T")[0],
                         tipo: f.tipo

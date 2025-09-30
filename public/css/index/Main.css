@@ -445,10 +445,11 @@ main#conteudo {
     gap: 4px;
   }
   .calendario-grid div {
-    height: 100px;
+    height: 75px;
     font-size: 12px;
     position: relative;
     overflow-y: auto;
+    margin: 2px 0;
   }
   .calendario-grid .header-dias{
     height: 30px;
@@ -485,8 +486,31 @@ main#conteudo {
     color: #000;
   }
 
+  .calendario-controles {
+    display: flex;
+    flex-direction: row;
+}
+label {
+    display: flex;
+    margin: 5px;
+    font-weight: bold;
+}
+select#mesSelect, select#anoSelect {
+    font-family: var(--Font-primary);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 6px;
+    font-size: 15px;
+    padding: 0 15px;
+    border: 1px solid #000000;
+    background: transparent;
+    color: #000000;
+    outline: none;
+}
+
 .legenda {
-    width: 180px;
+    /* width: 180px; */
     display: flex;
     justify-content: flex-end;
     font-size: 13px;
@@ -511,6 +535,24 @@ main#conteudo {
     border-radius: 4px;
     margin-right: 8px;
   }
+
+.dia-anterior,
+.dia-proximo {
+  opacity: 0.4;
+  pointer-events: none; /* impede clique nesses dias */
+}
+
+
+
+/* @media (max-width: 1472px) {
+    .calendario-grid div {
+    height: 65px;
+    font-size: 12px;
+    position: relative;
+    overflow-y: auto;
+    margin: 2px 0;
+  }
+} */
 
 
 /*--------------------- Scrool-------------------------*/
@@ -545,6 +587,128 @@ display: none;
 }
 
 /* -------------------- Responsivo -------------------- */
+/* Até 1324px */
+@media (max-width: 1324px) {
+  .calendario-grid div {
+    height: 55px;
+    font-size: 12px;
+    position: relative;
+    overflow-y: auto;
+    margin: 2px 0;
+  }
+  .calendario-grid .header-dias {
+    height: 15px;
+    display: flex;
+    justify-content: center;
+    flex-direction: row;
+    background-color: var(--primary-color);
+    color: var(--font-color);
+    text-align: center;
+  }
+  .calendario-grid .numero-dia {
+    font-weight: bold;
+    font-size: 10px;
+    margin-bottom: 2px;
+    display: block;
+  }
+}
+
+/* De 1325px até 1472px */
+@media (min-width: 1325px) and (max-width: 1472px) {
+  .calendario-grid div {
+    height: 70px;
+    font-size: 12px;
+    position: relative;
+    overflow-y: auto;
+    margin: 2px 0;
+  }
+  .calendario-grid .header-dias {
+    height: 15px;
+    display: flex;
+    justify-content: center;
+    flex-direction: row;
+    background-color: var(--primary-color);
+    color: var(--font-color);
+    text-align: center;
+  }
+  .calendario-grid .numero-dia {
+    font-weight: bold;
+    font-size: 10px;
+    margin-bottom: 2px;
+    display: block;
+  }
+  .tabela-atividades tbody {
+      display: block;
+      max-height: 415px;
+      overflow-y: auto;
+  }
+}
+
+/* De 1473px até 1656px */
+@media (min-width: 1473px) and (max-width: 1656px) {
+  .calendario-grid div {
+    height: 85px;
+    font-size: 12px;
+    position: relative;
+    overflow-y: auto;
+    margin: 2px 0;
+  }
+  .tabela-atividades tbody {
+      display: block;
+      max-height: 500px;
+      overflow-y: auto;
+  }
+}
+
+/* De 1657px até 1766px */
+@media (min-width: 1657px) and (max-width: 1766px) {
+  .calendario-grid div {
+    height: 95px;
+    font-size: 12px;
+    position: relative;
+    overflow-y: auto;
+    margin: 2px 0;
+  }
+    .tabela-atividades tbody {
+      display: block;
+      max-height: 560px;
+      overflow-y: auto;
+  }
+}
+
+/* De 1767px até 1987px */
+@media (min-width: 1767px) and (max-width: 1987px) {
+  .calendario-grid div {
+    height: 120px;
+    font-size: 12px;
+    position: relative;
+    overflow-y: auto;
+    margin: 2px 0;
+  }
+    .tabela-atividades tbody {
+      display: block;
+      max-height: 650px;
+      overflow-y: auto;
+  }
+}
+
+/* De 1988px até 2649px */
+@media (min-width: 1988px) and (max-width: 2649px) {
+  .calendario-grid div {
+    height: 115px;
+    font-size: 12px;
+    position: relative;
+    overflow-y: auto;
+    margin: 2px 0;
+  }
+    .tabela-atividades tbody {
+      display: block;
+      max-height: 980px;
+      overflow-y: auto;
+  }
+}
+
+
 @media (max-width: 768px) {
     .cards {
         flex-direction: column;
@@ -553,6 +717,7 @@ display: none;
         justify-content: space-between;
     }
 }
+
 
 @media (min-width: 1988px) {
 .dashboard-container {

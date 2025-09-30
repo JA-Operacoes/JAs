@@ -287,7 +287,6 @@ async function mostrarCalendarioEventos() {
     const container = document.createElement("div");
     container.className = "calendario-container";
 
-
     // ======= CALENDÁRIO =======
     const calendario = document.createElement("div");
     calendario.className = "calendario";
@@ -315,16 +314,13 @@ async function mostrarCalendarioEventos() {
           <div class="legenda-item"><div class="legenda-cor" style="background:#F5E801"></div> Montagem</div>
           <div class="legenda-item"><div class="legenda-cor" style="background:#F46251"></div> Realização</div>
           <div class="legenda-item"><div class="legenda-cor" style="background:#23821F"></div> Desmontagem</div>
-          <div class="legenda-item"><div class="legenda-cor" style="background:#FFB549"></div> Desmontagem Infra</div>
+          <div class="legenda-item"><div class="legenda-cor" style="background:#704300ff"></div> Desmontagem Infra</div>
           <div class="legenda-item"><div class="legenda-cor" style="background:#5B0F85"></div> Feriado</div>
         </div>
     `;
 
-    // Monta o header corretamente
     header.appendChild(controles);
     header.appendChild(legenda);
-
-    // Adiciona header dentro do calendário
     calendario.appendChild(header);
 
     // Grid
@@ -351,7 +347,7 @@ async function mostrarCalendarioEventos() {
     const nomesMeses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
     nomesMeses.forEach((nome, idx) => {
         const opt = document.createElement("option");
-        opt.value = idx + 1; // enviamos mês de 1 a 12 para o backend
+        opt.value = idx + 1;
         opt.textContent = nome;
         if (idx === new Date().getMonth()) opt.selected = true;
         mesSelect.appendChild(opt);
@@ -360,40 +356,105 @@ async function mostrarCalendarioEventos() {
     // ======= FUNÇÃO DE RENDER =======
     async function renderCalendario(ano, mes) {
         grid.innerHTML = "";
-        
+
         // Cabeçalho dias da semana
         ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].forEach(d => {
-          const el = document.createElement("div");
-          el.className = "header-dias"; // adiciona a classe
-          el.innerHTML = `<strong>${d}</strong>`;
-          grid.appendChild(el);
-      });
-        // Busca eventos via API
+            const el = document.createElement("div");
+            el.className = "header-dias";
+            el.innerHTML = `<strong>${d}</strong>`;
+            grid.appendChild(el);
+        });
+
         try {
             const idempresa = getIdEmpresa();
             const data = await fetchComToken(`/main/eventos-calendario?idempresa=${idempresa}&ano=${ano}&mes=${mes}`);
             const eventos = data.eventos || [];
 
+            // ======== Mapear eventos por data para performance ========
+            const mapaEventos = {};
+            eventos.forEach(ev => {
+                const inicio = new Date(ev.inicio);
+                const fim = new Date(ev.fim);
+                for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
+                    const key = d.toISOString().split("T")[0];
+                    if (!mapaEventos[key]) mapaEventos[key] = [];
+                    mapaEventos[key].push(ev);
+                }
+            });
+
+            const hoje = new Date();
+            const hojeStr = hoje.toISOString().split("T")[0];
+
             const primeiroDia = new Date(ano, mes - 1, 1);
             const ultimoDia = new Date(ano, mes, 0).getDate();
             const diaSemanaInicio = primeiroDia.getDay();
 
-            // Espaços antes
-            for (let i = 0; i < diaSemanaInicio; i++) {
-                grid.appendChild(document.createElement("div"));
+            const ultimoDiaMesAnterior = new Date(ano, mes - 1, 0).getDate();
+            let mesAnterior = mes - 1;
+            let anoAnterior = ano;
+            if (mesAnterior === 0) { mesAnterior = 12; anoAnterior -= 1; }
+
+            // ===== Dias do mês anterior =====
+            for (let i = diaSemanaInicio - 1; i >= 0; i--) {
+                const dia = ultimoDiaMesAnterior - i;
+                const dataStr = `${anoAnterior}-${String(mesAnterior).padStart(2,"0")}-${String(dia).padStart(2,"0")}`;
+                const cell = document.createElement("div");
+                cell.classList.add("dia-anterior");
+                cell.style.opacity = "0.4";
+                cell.innerHTML = `<span class="numero-dia">${dia}</span>`;
+
+                if (dataStr === hojeStr) { cell.style.border = "2px solid var(--primary-color)"; cell.style.borderRadius = "6px"; }
+
+                (mapaEventos[dataStr] || []).forEach(ev => {
+                    const evEl = document.createElement("span");
+                    evEl.className = "evento";
+                    evEl.style.background = getCorPeriodo(ev.tipo);
+                    evEl.textContent = ev.nome;
+                    if (ev.tipo === "Feriado") evEl.style.color = "#fff";
+                    cell.appendChild(evEl);
+                });
+
+                grid.appendChild(cell);
             }
 
-            // Dias do mês
+            // ===== Dias do mês atual =====
             for (let dia = 1; dia <= ultimoDia; dia++) {
+                const dataStr = `${ano}-${String(mes).padStart(2,"0")}-${String(dia).padStart(2,"0")}`;
                 const cell = document.createElement("div");
                 cell.innerHTML = `<span class="numero-dia">${dia}</span>`;
 
-                const dataStr = `${ano}-${String(mes).padStart(2,"0")}-${String(dia).padStart(2,"0")}`;
-                const eventosDia = eventos.filter(ev => {
-                    return dataStr >= ev.inicio && dataStr <= ev.fim;
+                if (dataStr === hojeStr) { cell.style.border = "2px solid var(--primary-color)"; cell.style.borderRadius = "6px"; }
+
+                (mapaEventos[dataStr] || []).forEach(ev => {
+                    const evEl = document.createElement("span");
+                    evEl.className = "evento";
+                    evEl.style.background = getCorPeriodo(ev.tipo);
+                    evEl.textContent = ev.nome;
+                    if (ev.tipo === "Feriado") evEl.style.color = "#fff";
+                    cell.appendChild(evEl);
                 });
 
-                eventosDia.forEach(ev => {
+                grid.appendChild(cell);
+            }
+
+            // ===== Dias do próximo mês =====
+            const totalCelulas = grid.children.length;
+            const linhasCompletas = Math.ceil(totalCelulas / 7) * 7;
+            const diasProximoMes = linhasCompletas - totalCelulas;
+            let mesProximo = mes + 1;
+            let anoProximo = ano;
+            if (mesProximo === 13) { mesProximo = 1; anoProximo += 1; }
+
+            for (let i = 1; i <= diasProximoMes; i++) {
+                const dataStr = `${anoProximo}-${String(mesProximo).padStart(2,"0")}-${String(i).padStart(2,"0")}`;
+                const cell = document.createElement("div");
+                cell.classList.add("dia-proximo");
+                cell.style.opacity = "0.4";
+                cell.innerHTML = `<span class="numero-dia">${i}</span>`;
+
+                if (dataStr === hojeStr) { cell.style.border = "2px solid var(--primary-color)"; cell.style.borderRadius = "6px"; }
+
+                (mapaEventos[dataStr] || []).forEach(ev => {
                     const evEl = document.createElement("span");
                     evEl.className = "evento";
                     evEl.style.background = getCorPeriodo(ev.tipo);
@@ -412,12 +473,12 @@ async function mostrarCalendarioEventos() {
 
     function getCorPeriodo(tipo) {
         switch (tipo) {
-            case "Montagem Infra": return "#FFC657";
+            case "Montagem Infra": return "#f8a500ff";
             case "Marcação": return "#73757A";
             case "Montagem": return "#F5E801";
             case "Realização": return "#F46251";
             case "Desmontagem": return "#23821F";
-            case "Desmontagem Infra": return "#FFB549";
+            case "Desmontagem Infra": return "#704300ff";
             case "Feriado": return "#5B0F85";
             default: return "#ccc";
         }
