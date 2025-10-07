@@ -40,6 +40,8 @@ router.get(
            -- p.nmpavilhao AS nomepavilhao,
             o.nrorcamento,
             o.inframontagem,
+            o.dtinipreevento,
+            o.dtfimpreevento,
             o.dtiniinframontagem,
             o.dtfiminframontagem,
             o.dtinimarcacao,
@@ -52,6 +54,8 @@ router.get(
             o.dtfimdesmontagem,
             o.dtiniinfradesmontagem,
             o.dtfiminfradesmontagem,
+            o.dtiniposevento,
+            o.dtfimposevento,
             o.obsitens,
             o.obsproposta,
             o.totgeralvda,
@@ -70,7 +74,8 @@ router.get(
             o.vlrcliente,
             o.nomenclatura,
             o.formapagamento,
-            o.edicao         
+            o.edicao,
+            o.geradoanoposterior     
         FROM
             orcamentos o
         JOIN
@@ -482,16 +487,36 @@ router.post(
     console.log("🔥 Rota /orcamentos acessada", req.body); // Removido 'req' para evitar logar objeto grande
 
     const { status, idCliente, idEvento, idMontagem, // nrOrcamento será gerado pelo DB, não o desestruture daqui se for novo
-            infraMontagem, dtiniInfraMontagem, dtfimInfraMontagem,
+            infraMontagem, dtIniInfraMontagem, dtFimInfraMontagem,
             dtIniMontagem, dtFimMontagem, dtIniMarcacao, dtFimMarcacao,
             dtIniRealizacao, dtFimRealizacao, dtIniDesmontagem, dtFimDesmontagem,
             dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
             totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
             desconto, percentDesconto, acrescimo, percentAcrescimo,
             lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idsPavilhoes, nomenclatura, 
-            formaPagamento, edicao, itens } = req.body;
+            formaPagamento, edicao, geradoAnoPosterior, dtIniPreEvento, dtFimPreEvento, dtIniPosEvento, dtFimPosEvento,
+            itens } = req.body;
 
     const idempresa = req.idempresa; 
+
+    if (!idCliente) {
+      return res.status(400).json({ 
+        error: "Erro de validação.", 
+        detail: "O campo 'Cliente' é obrigatório e não pode ser nulo." 
+      });
+    }
+    if (!idEvento) {
+      return res.status(400).json({ 
+        error: "Erro de validação.", 
+        detail: "O campo 'Evento' é obrigatório e não pode ser nulo." 
+      });
+    }
+    if (!idMontagem) {
+      return res.status(400).json({ 
+        error: "Erro de validação.", 
+        detail: "O campo 'Montagem' é obrigatório e não pode ser nulo." 
+      });
+    }
 
     try {
       await client.query("BEGIN"); 
@@ -506,28 +531,28 @@ router.post(
                     totgeralvda, totgeralcto, totajdcto, lucrobruto, percentlucro,
                     desconto, percentdesconto, acrescimo, percentacrescimo,
                     lucroreal, percentlucroreal, vlrimposto, percentimposto, vlrcliente, nomenclatura, 
-                    formapagamento, edicao
+                    formapagamento, edicao, geradoanoposterior, dtinipreevento, dtfimpreevento, dtiniposevento, dtfimposevento
                 ) VALUES (
                     $1, $2, $3, $4,
                     $5, $6, $7, $8, $9, $10, $11,
                     $12, $13, $14, $15, $16, $17, $18, $19,
                     $20, $21, $22, $23, $24,
                     $25, $26, $27, $28,
-                    $29, $30, $31, $32, $33, $34, $35, $36
+                    $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41
                 ) RETURNING idorcamento, nrorcamento; -- Adicionado nrorcamento aqui!
             `;
 
       // Os valores também precisam ser ajustados, removendo o nrOrcamento daqui
       const orcamentoValues = [
         status, idCliente, idEvento, idMontagem,
-        infraMontagem, dtiniInfraMontagem, dtfimInfraMontagem,
+        infraMontagem, dtIniInfraMontagem, dtFimInfraMontagem,
         dtIniMontagem, dtFimMontagem, dtIniMarcacao, dtFimMarcacao,
         dtIniRealizacao, dtFimRealizacao, dtIniDesmontagem, dtFimDesmontagem,
         dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
         totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
         desconto, percentDesconto, acrescimo, percentAcrescimo,
         lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, nomenclatura, 
-        formaPagamento, edicao
+        formaPagamento, edicao, geradoAnoPosterior, dtIniPreEvento, dtFimPreEvento, dtIniPosEvento, dtFimPosEvento
       ];
 
       const resultOrcamento = await client.query(insertOrcamentoQuery, orcamentoValues);
@@ -1435,14 +1460,14 @@ router.put(
     const client = await pool.connect();
     const idOrcamento = req.params.id; // ID do orçamento a ser atualizado
     const { status, idCliente, idEvento, idMontagem, //nrOrcamento, // nrOrcamento pode vir para validação, mas não será atualizado se for gerado
-            infraMontagem, dtiniInfraMontagem, dtfimInfraMontagem,
+            infraMontagem, dtIniInfraMontagem, dtFimInfraMontagem,
             dtIniMontagem, dtFimMontagem, dtIniMarcacao, dtFimMarcacao,
             dtIniRealizacao, dtFimRealizacao, dtIniDesmontagem, dtFimDesmontagem,
             dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
             totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
             desconto, percentDesconto, acrescimo, percentAcrescimo,
             lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idsPavilhoes, nomenclatura, 
-            formaPagamento, edicao, itens } = req.body;
+            formaPagamento, edicao, geradoAnoPosterior, dtIniPreEvento, dtFimPreEvento, dtIniPosEvento, dtFimPosEvento, itens } = req.body;
 
     const idempresa = req.idempresa; // ID da empresa do middleware 'contextoEmpresa'
 
@@ -1462,20 +1487,21 @@ router.put(
                     totgeralvda = $20, totgeralcto = $21, totajdcto = $22, lucrobruto = $23, percentlucro = $24,
                     desconto = $25, percentdesconto = $26, acrescimo = $27, percentacrescimo = $28,
                     lucroreal = $29, percentlucroreal = $30, vlrimposto = $31, percentimposto = $32, vlrcliente = $33, 
-                    nomenclatura = $34, formapagamento = $35, edicao = $36
-                WHERE idorcamento = $37 AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $37) = $38;
+                    nomenclatura = $34, formapagamento = $35, edicao = $36, geradoanoposterior = $37, dtinipreevento = $38, 
+                    dtfimpreevento = $39, dtiniposevento = $40, dtfimposevento = $41
+                WHERE idorcamento = $42 AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $42) = $43;
             `;
 
       const orcamentoValues = [
         status, idCliente, idEvento, idMontagem,
-        infraMontagem, dtiniInfraMontagem, dtfimInfraMontagem,
+        infraMontagem, dtIniInfraMontagem, dtFimInfraMontagem,
         dtIniMontagem, dtFimMontagem, dtIniMarcacao, dtFimMarcacao,
         dtIniRealizacao, dtFimRealizacao, dtIniDesmontagem, dtFimDesmontagem,
         dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
         totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
         desconto, percentDesconto, acrescimo, percentAcrescimo,
         lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, nomenclatura,
-        formaPagamento, edicao,
+        formaPagamento, edicao, geradoAnoPosterior, dtIniPreEvento, dtFimPreEvento, dtIniPosEvento, dtFimPosEvento,
         idOrcamento, // $36
         idempresa    // $37
       ];
@@ -1762,5 +1788,78 @@ router.delete(
     }
 );
 
+
+router.patch(
+    "/:idorcamento/update-status-espelho",
+    autenticarToken(),
+    contextoEmpresa,
+    verificarPermissao("Orcamentos", "alterar"),
+    logMiddleware,
+    async (req, res) => {
+        const client = await pool.connect();
+        try {
+            const idempresa = req.idempresa;
+            const idorcamento = parseInt(req.params.idorcamento);
+            
+            // Espera que o corpo da requisição contenha o valor a ser atualizado
+            const { geradoAnoPosterior } = req.body; 
+
+            // Validação básica do ID e do valor
+            if (isNaN(idorcamento) || idorcamento <= 0) {
+                return res.status(400).json({ error: "ID do Orçamento inválido." });
+            }
+            if (typeof geradoAnoPosterior !== 'boolean') {
+                return res.status(400).json({ error: "Valor 'geradoanoposterior' deve ser booleano (true/false)." });
+            }
+
+            await client.query("BEGIN");
+
+            // 1. Verifica se o orçamento existe e pertence à empresa
+            const checkQuery = `
+                SELECT idorcamento 
+                FROM orcamento 
+                WHERE idorcamento = $1 AND idempresa = $2;
+            `;
+            const checkResult = await client.query(checkQuery, [idorcamento, idempresa]);
+
+            if (checkResult.rows.length === 0) {
+                await client.query("ROLLBACK");
+                return res.status(404).json({ error: "Orçamento não encontrado ou permissão negada." });
+            }
+
+            // 2. Atualiza o campo específico
+            const updateQuery = `
+                UPDATE orcamento
+                SET geradoanoposterior = $1,
+                    dtatualizacao = NOW()
+                WHERE idorcamento = $2 AND idempresa = $3;
+            `;
+            const result = await client.query(updateQuery, [geradoAnoPosterior, idorcamento, idempresa]);
+
+            if (result.rowCount === 0) {
+                // Isso só deve acontecer se algo der muito errado, pois já checamos a existência
+                await client.query("ROLLBACK");
+                return res.status(404).json({ error: "Orçamento não foi atualizado." });
+            }
+
+            await client.query("COMMIT");
+
+            // Configuração para o log (se o logMiddleware estiver ativo)
+            res.locals.acao = 'alterou';
+            res.locals.idregistroalterado = idorcamento;
+            res.locals.informacao = `Marcou o orçamento como espelhado para o próximo ano.`;
+            res.locals.idusuarioAlvo = null; 
+
+            res.status(200).json({ message: "Status de espelhamento do orçamento atualizado com sucesso." });
+
+        } catch (error) {
+            await client.query("ROLLBACK");
+            console.error("Erro ao atualizar status de espelhamento do orçamento:", error);
+            res.status(500).json({ error: "Erro interno ao atualizar status do orçamento.", detail: error.message });
+        } finally {
+            client.release();
+        }
+    }
+);
 
 module.exports = router;

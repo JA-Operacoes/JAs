@@ -79,6 +79,7 @@ h1 {
     justify-content: center;
     align-items: center;
     flex-direction: row;
+    gap: 20px;
 }
 
 .tpRelatorio{
@@ -374,6 +375,16 @@ button:hover {
     margin-left: 20px;
 }
 
+legend{
+    margin-left: 25px;
+}
+
+fieldset{
+    border-radius: 10px;
+    border: 1px solid black;
+    
+}
+
 
 /* Estilos de impressão */
 @media print {
@@ -494,18 +505,38 @@ button:hover {
             vertical-align: middle; /* Centraliza verticalmente o texto */
         }
         .report-table thead {
-            background-color: #a8a8a8ff;
-            color: black;
+            /* background-color: #a8a8a8ff; */
+            /* color: black; */
+            display: table-header-group;
         }
 
         .report-table thead, 
         .report-table thead tr {
             height: auto;
         }
+
+        .report-table thead tr th {
+            /* Garante que todas as células do cabeçalho tenham a cor de texto padrão */
+            color: black;
+        }
+
+        .report-table thead tr:not(:first-child) th {
+            /* Aplica a cor laranja a todas as linhas do thead, EXCETO a primeira (o título cinza) */
+            background-color: orange;
+            color: white; /* Cor do texto branco para o fundo laranja */
+        }
         .relatorio-resumo-container {
             display: flex;
             gap: 20px;
             margin-top: 20px;
+            flex-direction: column;
+        }
+
+        .resumo-par-orcamento {
+            display: flex;
+            flex-direction: row; /* CHAVE: Coloca as tabelas lado a lado */
+            gap: 20px; /* Espaço entre as duas tabelas */
+            width: 100%;
         }
         
         .status-pago-100 {

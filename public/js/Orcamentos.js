@@ -112,8 +112,7 @@ let idPavilhao;
 let Categoria = "";
 let idEquipamento = "";
 let idSuprimento = "";
-let vlrAlmoco = 0;
-let vlrJantar = 0;
+let vlrAlimentacao = 0;
 let vlrTransporte = 0;
 let funcoesDisponiveis = [];
 
@@ -122,6 +121,11 @@ let isRecalculatingDiscountAcrescimo = false;
 
 let lastEditedGlobalFieldType = null; // 'valor' ou 'percentual' para os campos globais
 let isRecalculatingGlobalDiscountAcrescimo = false;
+
+let bProximoAno = false;
+let idOrcamentoOriginalParaAtualizar = null; 
+let anoProximoOrcamento = null;
+
 
 let selects = document.querySelectorAll(".idFuncao, .idEquipamento, .idSuprimento, .idPavilhao");
     selects.forEach(select => {
@@ -397,7 +401,7 @@ async function carregarFuncaoOrc() {
 
         selects.forEach(select => {
             select.innerHTML = "";
-            // console.log('Funcao recebidos 2:', funcao); // Log das Funções recebidas
+            console.log('Funcao recebidos 2:', funcaofetch); // Log das Funções recebidas
 
             let opcaoPadrao = document.createElement("option");
             opcaoPadrao.setAttribute("value", "");
@@ -409,19 +413,30 @@ async function carregarFuncaoOrc() {
                 option.value = funcao.idfuncao;
                 option.textContent = funcao.descfuncao;
                 option.setAttribute("data-descproduto", funcao.descfuncao);
-                option.setAttribute("data-cto", funcao.ctofuncao);
+                if (funcao.ctofuncaobase > 0){
+                    option.setAttribute("data-cto", funcao.ctofuncaobase);
+                }else if (funcao.ctofuncaojunior > 0){
+                    option.setAttribute("data-cto", funcao.ctofuncaojunior);
+                }else if (funcao.ctofuncaopleno > 0){
+                    option.setAttribute("data-cto", funcao.ctofuncaopleno);
+                }else if (funcao.ctofuncaosenior > 0){
+                    option.setAttribute("data-cto", funcao.ctofuncaosenior);
+                }else{
+                    option.setAttribute("data-cto", 0);
+                }
+               
+                //base, junior, pleno ou senior????
                 option.setAttribute("data-vda", funcao.vdafuncao);
 
                 // option.setAttribute("data-transporte", funcao.transporte);
 
-                option.setAttribute("data-almoco", funcao.almoco || 0); // Certifique-se de que almoco/jantar estão aqui
-                option.setAttribute("data-jantar", funcao.jantar || 0);
+                //option.setAttribute("data-almoco", funcao.almoco || 0); // Certifique-se de que almoco/jantar estão aqui
+                option.setAttribute("data-alimentacao", funcao.alimentacao || 0);
                 option.setAttribute("data-transporte", funcao.transporte || 0);
                 option.setAttribute("data-categoria", "Produto(s)");
                 select.appendChild(option);
 
             });
-
 
             select.addEventListener("change", function (event) {
                 const linha = this.closest('tr');
@@ -440,8 +455,7 @@ async function carregarFuncaoOrc() {
                 // Se a opção padrão "Selecione Função" for escolhida, zere os valores globais
 
                 if (selectedOption.value === "") {
-                    vlrAlmoco = 0;
-                    vlrJantar = 0;
+                    vlrAlimentacao = 0;                   
                     vlrTransporte = 0;
                     idFuncao = ""; // Limpa também o idFuncao global
                     Categoria = "Produto(s)"; // Reinicia a categoria se for relevante
@@ -455,12 +469,12 @@ async function carregarFuncaoOrc() {
 
                     // Use parseFloat para garantir que são números para cálculos futuros
 
-                    vlrAlmoco = parseFloat(selectedOption.getAttribute("data-almoco")) || 0;
-                    vlrJantar = parseFloat(selectedOption.getAttribute("data-jantar")) || 0;
+                   // vlrAlmoco = parseFloat(selectedOption.getAttribute("data-almoco")) || 0;
+                    vlrAlimentacao = parseFloat(selectedOption.getAttribute("data-alimentacao")) || 0;
                     vlrTransporte = parseFloat(selectedOption.getAttribute("data-transporte")) || 0;
                     Categoria = selectedOption.getAttribute("data-categoria") || "N/D";
 
-                    console.log(`Valores Globais Atualizados: Almoco: ${vlrAlmoco}, Jantar: ${vlrJantar}, Transporte: ${vlrTransporte}, Categoria: ${Categoria}`);
+                    console.log(`Valores Globais Atualizados: Alimentação: ${vlrAlimentacao}, Transporte: ${vlrTransporte}, Categoria: ${Categoria}`);
 
                 }
 
@@ -588,6 +602,26 @@ function configurarInfraCheckbox() {
 // console.log("entrou na função");
     // Opcional: já configura o estado inicial com base no checkbox
     atualizarVisibilidade();
+}
+
+
+function configurarPrePosCheckbox() {
+    let checkbox = document.getElementById("prepos");
+    let blocoPre = document.getElementById("blocoPre");
+    let blocoPos = document.getElementById("blocoPos");
+
+    if (!checkbox || !blocoPre || !blocoPos) return;
+
+
+    function atualizarVisibilidadePrePos() {
+        blocoPre.style.display = checkbox.checked ? "block" : "none";
+        blocoPos.style.display = checkbox.checked ? "block" : "none";
+    }
+
+    checkbox.addEventListener("change", atualizarVisibilidadePrePos);
+// console.log("entrou na função");
+    // Opcional: já configura o estado inicial com base no checkbox
+    atualizarVisibilidadePrePos();
 }
 
 
@@ -1022,8 +1056,8 @@ function inicializarLinha(linha) {
                 option.setAttribute("data-descproduto", funcao.descfuncao);
                 option.setAttribute("data-cto", funcao.ctofuncao);
                 option.setAttribute("data-vda", funcao.vdafuncao);
-                option.setAttribute("data-almoco", funcao.almoco || 0);
-                option.setAttribute("data-jantar", funcao.jantar || 0);
+               // option.setAttribute("data-almoco", funcao.almoco || 0);
+                option.setAttribute("data-alimentacao", funcao.alimentacao || 0);
                 option.setAttribute("data-transporte", funcao.transporte || 0);
                 option.setAttribute("data-categoria", "Produto(s)");
                 selectFuncao.appendChild(option);
@@ -1214,6 +1248,14 @@ function adicionarLinhaOrc() {
     let novaLinha = tabela.insertRow(0);
    //let novaLinha = document.createElement('tr');
     //
+
+    // <td class="ajdCusto Moeda alimentacao">
+    //         <input type="text" class="vlralimentacao-input Moeda" value="${formatarMoeda(0)}" data-original-ajdcusto readonly>
+    //     </td>    
+    //     <td class="ajdCusto Moeda transporte">
+    //         <input type="text" class="vlrtransporte-input Moeda" value="${formatarMoeda(0)}" data-original-ajdcusto readonly>
+    //     </td>
+
     novaLinha.innerHTML = `
         <td style="display: none;"><input type="hidden" class="idItemOrcamento" style="display: none;" value=""></td> <!-- Corrigido: de <th> para <td> e adicionado input hidden -->
         <td style="display: none;"><input type="hidden" class="idFuncao" value=""></td>
@@ -1271,29 +1313,13 @@ function adicionarLinhaOrc() {
         <td class="vlrVenda Moeda" data-original-venda="0">${formatarMoeda(0)}</td>
         <td class="totVdaDiaria Moeda">${formatarMoeda(0)}</td>
         <td class="vlrCusto Moeda">${formatarMoeda(0)}</td>
-        <td class="totCtoDiaria Moeda">${formatarMoeda(0)}</td>
-        <td class="ajdCusto Moeda">
-            <div class="Acres-Desc">
-                <select class="tpAjdCusto-alimentacao">
-                    <option value="select" selected>Alimentação</option>
-                    <option value="Almoco">Almoço</option>
-                    <option value="Janta">Jantar</option>
-                    <option value="2alimentacao">Almoço + jantar</option>
-                </select>
-            </div>
-            <br><span class="valorbanco alimentacao">${formatarMoeda(0)}</span>
+        <td class="totCtoDiaria Moeda">${formatarMoeda(0)}</td>          
+        <td class="ajdCusto Moeda alimentacao" data-original-ajdcusto="0">
+            <span class="vlralimentacao-display">${formatarMoeda(0)}</span>
         </td>
-        <td class="ajdCusto Moeda">
-            <div class="Acres-Desc">
-                <select class="tpAjdCusto-transporte">
-                    <option value="select" selected>Veiculo</option>
-                    <option value="Público">Público</option>
-                    <option value="Alugado">Alugado</option>
-                    <option value="Próprio">Próprio</option>
-                </select>
-            </div>
-            <br><span class="valorbanco transporte">${formatarMoeda(0)}</span>
-        </td>
+        <td class="ajdCusto Moeda transporte" data-original-ajdcusto="0">
+            <span class="vlrtransporte-display">${formatarMoeda(0)}</span>
+        </td> 
         <td class="totAjdCusto Moeda">${formatarMoeda(0)}</td>
         <td class="extraCampo" style="${initialDisplayStyle}">
             <input type="text" class="hospedagem Moeda" value=" R$ 0,00">
@@ -1462,10 +1488,18 @@ function adicionarLinhaOrc() {
     });
 
     // Event listeners para campos de ajuda de custo (selects)
-    novaLinha.querySelector('.tpAjdCusto-alimentacao')?.addEventListener('change', function() {
+    // novaLinha.querySelector('.tpAjdCusto-alimentacao')?.addEventListener('change', function() {
+    //     recalcularLinha(this.closest('tr'));
+    // });
+    // novaLinha.querySelector('.tpAjdCusto-transporte')?.addEventListener('change', function() {
+    //     recalcularLinha(this.closest('tr'));
+    // });
+
+    novaLinha.querySelector('.vlralimentacao-input')?.addEventListener('input', function() {
         recalcularLinha(this.closest('tr'));
     });
-    novaLinha.querySelector('.tpAjdCusto-transporte')?.addEventListener('change', function() {
+    // Usa a nova classe .vlrtransporte-input e o evento 'input'
+    novaLinha.querySelector('.vlrtransporte-input')?.addEventListener('input', function() {
         recalcularLinha(this.closest('tr'));
     });
 
@@ -1580,10 +1614,20 @@ function adicionarLinhaOrc() {
 
 function adicionarLinhaAdicional() {
 
+    liberarSelectsParaAdicional();
+
     let tabela = document.getElementById("tabela").getElementsByTagName("tbody")[0];
 
     let ufAtual = document.getElementById("ufmontagem")?.value || 'SP';
     const initialDisplayStyle = (!ufAtual || ufAtual.toUpperCase() === 'SP') ? "display: none;" : "display: table-cell;";
+
+    //PARA ALIMENTACAO E TRANSPORTE EDITÁVEL
+    // <td class="ajdCusto Moeda alimentacao">
+    //         <input type="text" class="vlralimentacao-input Moeda" value="${formatarMoeda(0)}" data-original-ajdcusto>
+    //     </td>    
+    //     <td class="ajdCusto Moeda transporte">
+    //         <input type="text" class="vlrtransporte-input Moeda" value="${formatarMoeda(0)}" data-original-ajdcusto>
+    //     </td> 
 
     let novaLinha = tabela.insertRow();
     novaLinha.classList.add("liberada");     // aplica nova cor
@@ -1644,27 +1688,11 @@ function adicionarLinhaAdicional() {
         <td class="totVdaDiaria Moeda">${formatarMoeda(0)}</td>
         <td class="vlrCusto Moeda">${formatarMoeda(0)}</td>
         <td class="totCtoDiaria Moeda">${formatarMoeda(0)}</td>
-        <td class="ajdCusto Moeda">
-            <div class="Acres-Desc">
-                <select class="tpAjdCusto-alimentacao">
-                    <option value="select" selected>Alimentação</option>
-                    <option value="Almoco">Almoço</option>
-                    <option value="Janta">Jantar</option>
-                    <option value="2alimentacao">Almoço + jantar</option>
-                </select>
-            </div>
-            <br><span class="valorbanco alimentacao">${formatarMoeda(0)}</span>
-        </td>
-        <td class="ajdCusto Moeda">
-            <div class="Acres-Desc">
-                <select class="tpAjdCusto-transporte">
-                    <option value="select" selected>Veiculo</option>
-                    <option value="Público">Público</option>
-                    <option value="Alugado">Alugado</option>
-                    <option value="Próprio">Próprio</option>
-                </select>
-            </div>
-            <br><span class="valorbanco transporte">${formatarMoeda(0)}</span>
+        <td class="ajdCusto Moeda alimentacao" data-original-ajdcusto="0">
+            <span class="vlralimentacao-display">${formatarMoeda(0)}</span>
+        </td>    
+        <td class="ajdCusto Moeda transporte" data-original-ajdcusto="0">
+            <span class="vlrtransporte-display">${formatarMoeda(0)}</span>
         </td>
         <td class="totAjdCusto Moeda">${formatarMoeda(0)}</td>
         <td class="extraCampo" style="display: none;">
@@ -1842,13 +1870,22 @@ function adicionarLinhaAdicional() {
         recalcularLinha(this.closest('tr'));
     });
 
-    // Event listeners para campos de ajuda de custo (selects)
-    novaLinha.querySelector('.tpAjdCusto-alimentacao')?.addEventListener('change', function() {
+    // // Event listeners para campos de ajuda de custo (selects)
+    // novaLinha.querySelector('.tpAjdCusto-alimentacao')?.addEventListener('change', function() {
+    //     recalcularLinha(this.closest('tr'));
+    // });
+    // novaLinha.querySelector('.tpAjdCusto-transporte')?.addEventListener('change', function() {
+    //     recalcularLinha(this.closest('tr'));
+    // });
+
+    novaLinha.querySelector('.vlralimentacao-input')?.addEventListener('input', function() {
         recalcularLinha(this.closest('tr'));
     });
-    novaLinha.querySelector('.tpAjdCusto-transporte')?.addEventListener('change', function() {
+    // Usa a nova classe .vlrtransporte-input e o evento 'input'
+    novaLinha.querySelector('.vlrtransporte-input')?.addEventListener('input', function() {
         recalcularLinha(this.closest('tr'));
     });
+
 
     // Event listeners para campos extras (hospedagem, transporte)
     novaLinha.querySelector('.hospedagem')?.addEventListener('input', function() {
@@ -1998,8 +2035,8 @@ for (const id in flatpickrInstances) {
 
     // Inicializa os campos globais
     const dateInputIds = [
-        'periodoInfraMontagem', 'periodoMontagem', 'periodoMarcacao',
-        'periodoRealizacao', 'periodoDesmontagem', 'periodoDesmontagemInfra'
+        'periodoPreEvento','periodoInfraMontagem', 'periodoMontagem', 'periodoMarcacao',
+        'periodoRealizacao', 'periodoDesmontagem', 'periodoDesmontagemInfra', 'periodoPosEvento'
     ];
     dateInputIds.forEach(id => {
         const element = document.getElementById(id);
@@ -2051,12 +2088,14 @@ initializeAllFlatpickrsInModal = initializeAllFlatpickrsInModal;
 function inicializarFlatpickrsGlobais() {
 //console.log("Inicializando Flatpickr para todos os campos de data (globais)...");
     const dateInputIds = [
+        'periodoPreEvento',
         'periodoInfraMontagem',
         'periodoMontagem',
         'periodoMarcacao',
         'periodoRealizacao',
         'periodoDesmontagem',
-        'periodoDesmontagemInfra'
+        'periodoDesmontagemInfra',
+        'periodoPosEvento'
     ];
 
     dateInputIds.forEach(id => {
@@ -2330,54 +2369,58 @@ function atualizaProdutoOrc(event) {
             inputIdSuprimento.value = valorSelecionado;
         }
 
-        // if (celulaProduto && (celulaProduto.textContent === "" || select.classList.contains("idEquipamento") || select.classList.contains("idSuprimento") || select.classList.contains("idFuncao"))) {
-        //     celulaProduto.textContent = produtoSelecionado;
 
-        //     if (select.classList.contains("idFuncao"))
-        //     {
-        //         celulaIdFuncao.textContent = valorSelecionado;
-        //         console.log(" produto escolhido foi:", produtoSelecionado, "Funcao: ", select.classList.contains("idFuncao"), "Equipamento: ", select.classList.contains("idEquipamento"), "Suprimento: ",select.classList.contains("idSuprimento"), celulaIdFuncao);
+        // // Encontre os selects de alimentação e transporte dentro da nova linha
+        // const selectAlimentacao = ultimaLinha.querySelector('.select-alimentacao');
+        // const selectTransporte = ultimaLinha.querySelector('.select-transporte');
+
+        // if (Categoria === "Produto(s)") { // Use "Função" se essa for a categoria exata definida na option
+        //     if (selectAlimentacao) {
+        //         selectAlimentacao.disabled = false;
         //     }
-
-        //     if (select.classList.contains("idEquipamento"))
-        //     {
-        //         celulaIdEquipamento.textContent = valorSelecionado;
-        //         console.log(" produto escolhido foi:", produtoSelecionado, "Funcao: ", select.classList.contains("idFuncao"), "Equipamento: ", select.classList.contains("idEquipamento"), "Suprimento: ",select.classList.contains("idSuprimento"));
-
+        //     if (selectTransporte) {
+        //         selectTransporte.disabled = false;
         //     }
-        //     if (select.classList.contains("idSuprimento"))
-        //     {
-        //         celulaIdSuprimento.textContent = valorSelecionado;
-        //         console.log(" produto escolhido foi:", produtoSelecionado, "Funcao: ", select.classList.contains("idFuncao"), "Equipamento: ", select.classList.contains("idEquipamento"), "Suprimento: ",select.classList.contains("idSuprimento"));
-
+        // } else {
+        //     if (selectAlimentacao) {
+        //         selectAlimentacao.disabled = true;
+        //         selectAlimentacao.value = ""; // Opcional: Reseta o valor
         //     }
-
-        //    // celulaIdEquipamento.textContent = select.classList.contains("idEquipamento");
-        //     //celulaIdSuprimento.textContent = select.classList.contains("idSuprimento");
-        //    // console.log(" produto escolhido foi:", produtoSelecionado, "Funcao: ", select.classList.contains("idFuncao"), "Equipamento: ", select.classList.contains("idEquipamento"), "Suprimento: ",select.classList.contains("idSuprimento"));
+        //     if (selectTransporte) {
+        //         selectTransporte.disabled = true;
+        //         selectTransporte.value = ""; // Opcional: Reseta o valor
+        //     }
         // }
 
 
-        // Encontre os selects de alimentação e transporte dentro da nova linha
-        const selectAlimentacao = ultimaLinha.querySelector('.select-alimentacao');
-        const selectTransporte = ultimaLinha.querySelector('.select-transporte');
+        //TRECHO PARA ALIMENTAÇÃO E TRANSPORTE EDITÁVEL
+        // const inputAlimentacao = ultimaLinha.querySelector('.vlralimentacao-input');
+        // const inputTransporte = ultimaLinha.querySelector('.vlrtransporte-input');
 
-        if (Categoria === "Produto(s)") { // Use "Função" se essa for a categoria exata definida na option
-            if (selectAlimentacao) {
-                selectAlimentacao.disabled = false;
-            }
-            if (selectTransporte) {
-                selectTransporte.disabled = false;
-            }
-        } else {
-            if (selectAlimentacao) {
-                selectAlimentacao.disabled = true;
-                selectAlimentacao.value = ""; // Opcional: Reseta o valor
-            }
-            if (selectTransporte) {
-                selectTransporte.disabled = true;
-                selectTransporte.value = ""; // Opcional: Reseta o valor
-            }
+        // // Assume que vlrAlimentacao e vlrTransporte são globais e foram setados em carregarFuncaoOrc
+        // if (inputAlimentacao) {
+        //     inputAlimentacao.value = formatarMoeda(vlrAlimentacao);
+        //     inputAlimentacao.dataset.originalAjdcusto = vlrAlimentacao.toString();
+        // }
+        // if (inputTransporte) {
+        //     inputTransporte.value = formatarMoeda(vlrTransporte);
+        //     inputTransporte.dataset.originalAjdcusto = vlrTransporte.toString();
+        // }
+
+        //TRECHO PARA ALIMENTAÇÃO E TRANSPORTE NÃO EDITÁVEL
+        const spanAlimentacao = ultimaLinha.querySelector('.vlralimentacao-display');
+        const spanTransporte = ultimaLinha.querySelector('.vlrtransporte-display');
+
+        // Atualizamos o texto do span (o display na tabela)
+        if (spanAlimentacao) {
+            spanAlimentacao.textContent = formatarMoeda(vlrAlimentacao);
+            // Atualiza o data-attribute na própria célula <td> (opcional, mas bom para referência)
+            ultimaLinha.querySelector('.ajdCusto.alimentacao').dataset.originalAjdcusto = vlrAlimentacao.toString();
+        }
+        if (spanTransporte) {
+            spanTransporte.textContent = formatarMoeda(vlrTransporte);
+            // Atualiza o data-attribute na própria célula <td>
+            ultimaLinha.querySelector('.ajdCusto.transporte').dataset.originalAjdcusto = vlrTransporte.toString();
         }
 
         let celulaVlrCusto = ultimaLinha.querySelector(".vlrCusto");
@@ -2406,12 +2449,15 @@ function atualizarValoresAjdCustoNaLinha(linha) {
     // ... (sua implementação atual de atualizarValoresAjdCustoNaLinha) ...
     console.log("Chamando atualizarValoresAjdCustoNaLinha para:", linha);
 
-    const selectAlimentacao = linha.querySelector('.tpAjdCusto-alimentacao');
-    const selectTransporte = linha.querySelector('.tpAjdCusto-transporte');
+    //const selectAlimentacao = linha.querySelector('.tpAjdCusto-alimentacao');
+   // const selectTransporte = linha.querySelector('.tpAjdCusto-transporte');
     const idFuncaoCell = linha.querySelector('.idFuncao');
 
-    const valorAlimentacaoSpan = linha.querySelector('.valorbanco.alimentacao');
-    const valorTransporteSpan = linha.querySelector('.valorbanco.transporte');
+   // const valorAlimentacaoSpan = linha.querySelector('.valorbanco.alimentacao');
+   // const valorTransporteSpan = linha.querySelector('.valorbanco.transporte');
+
+   const celulaAlimentacao = linha.querySelector('.ajdCusto.alimentacao'); 
+   const celulaTransporte = linha.querySelector('.ajdCusto.transporte');
 
     const totAjdCustoCell = linha.querySelector('.totAjdCusto');
 
@@ -2425,99 +2471,50 @@ function atualizarValoresAjdCustoNaLinha(linha) {
 
     console.log("ID da função na linha:", idFuncaoDaLinha);
 
-    let baseAlmoco = 0;
-    let baseJantar = 0;
+    let baseAlimentacao = 0;   
     let baseTransporte = 0;
-
-    // const baseAlmoco = parseFloat(vlrAlmoco || 0); // Assumindo que vlrAlmoco está no window
-    // const baseJantar = parseFloat(vlrJantar || 0); // Assumindo que vlrJantar está no window
-    // const baseTransporte = parseFloat(vlrTransporte || 0); // Assumindo que vlrTransporte está no window
-
-    // if (selectFuncao) {
-    //     const selectedOptionFuncao = selectFuncao.options[selectFuncao.selectedIndex];
-    //     if (selectedOptionFuncao && selectedOptionFuncao.value !== "") {
-    //         baseAlmoco = parseFloat(selectedOptionFuncao.getAttribute("data-almoco")) || 0;
-    //         baseJantar = parseFloat(selectedOptionFuncao.getAttribute("data-jantar")) || 0;
-    //         baseTransporte = parseFloat(selectedOptionFuncao.getAttribute("data-transporte")) || 0;
-    //     }
-    // }
-
-    // if (idFuncaoDaLinha && funcoesDisponiveis && funcoesDisponiveis.length > 0) {
-    //     const funcaoCorrespondente = funcoesDisponiveis.find(f => String(f.idfuncao) === idFuncaoDaLinha);
-    //     if (funcaoCorrespondente) {
-    //         baseAlmoco = parseFloat(funcaoCorrespondente.almoco || 0);
-    //         baseJantar = parseFloat(funcaoCorrespondente.jantar || 0);
-    //         baseTransporte = parseFloat(funcaoCorrespondente.transporte || 0);
-    //     } else {
-    //         console.warn(`Função com ID ${idFuncaoDaLinha} não encontrada em funcoesDisponiveis.`);
-    //     }
-    // } else {
-    //     console.log("idFuncaoDaLinha não encontrado ou funcoesDisponiveis vazio.");
-    // }
 
     if (idFuncaoDaLinha && funcoesDisponiveis && funcoesDisponiveis.length > 0) {
         const funcaoCorrespondente = funcoesDisponiveis.find(f => String(f.idfuncao) === idFuncaoDaLinha);
         if (funcaoCorrespondente) {
-            baseAlmoco = parseFloat(funcaoCorrespondente.almoco || 0);
-            baseJantar = parseFloat(funcaoCorrespondente.jantar || 0);
+          //  baseAlmoco = parseFloat(funcaoCorrespondente.almoco || 0);
+            baseAlimentacao = parseFloat(funcaoCorrespondente.alimentaao || 0);
             baseTransporte = parseFloat(funcaoCorrespondente.transporte || 0);
-            console.log(`Bases lidas (da linha ${idFuncaoDaLinha}): Almoco: ${baseAlmoco}, Jantar: ${baseJantar}, Transporte: ${baseTransporte}`);
+            console.log(`Bases lidas (da linha ${idFuncaoDaLinha}): Alimentação: ${baseAlimentacao}, Transporte: ${baseTransporte}`);
         } else {
             // Se idFuncaoDaLinha existe mas a função não foi encontrada, usa os globais como fallback
             console.warn(`Função com ID ${idFuncaoDaLinha} não encontrada em funcoesDisponiveis. Usando valores globais.`);
-            baseAlmoco = parseFloat(vlrAlmoco || 0); // Use o valor global aqui
-            baseJantar = parseFloat(vlrJantar || 0); // Use o valor global aqui
+            //baseAlmoco = parseFloat(vlrAlmoco || 0); // Use o valor global aqui
+            baseAlimentacao = parseFloat(vlrAlimentacao || 0); // Use o valor global aqui
             baseTransporte = parseFloat(vlrTransporte || 0); // Use o valor global aqui
         }
     } else {
         // Se idFuncaoDaLinha não existe (para novas linhas) ou funcoesDisponiveis está vazio,
         // usa os valores globais como padrão.
         console.log("idFuncaoDaLinha não encontrado ou funcoesDisponiveis vazio. Usando valores globais.");
-        baseAlmoco = parseFloat(vlrAlmoco || 0); // Use o valor global aqui
-        baseJantar = parseFloat(vlrJantar || 0); // Use o valor global aqui
+        baseAlimentacao = parseFloat(vlrAlimentacao || 0); // Use o valor global aqui       
         baseTransporte = parseFloat(vlrTransporte || 0); // Use o valor global aqui
     }
 
 
     console.log(`Bases lidas (da linha ${idFuncaoDaLinha}): Almoco: ${baseAlmoco}, Jantar: ${baseJantar}, Transporte: ${baseTransporte}`);
 
-    if (selectAlimentacao && valorAlimentacaoSpan) {
-        const tipoAlimentacaoSelecionado = selectAlimentacao.value;
-        console.log("Alimentação - TIPO SELECIONADO", tipoAlimentacaoSelecionado);
-        if (tipoAlimentacaoSelecionado === 'Almoco') {
-            totalAlimentacaoLinha = baseAlmoco;
-        } else if (tipoAlimentacaoSelecionado === 'Janta') {
-            totalAlimentacaoLinha = baseJantar;
-        } else if (tipoAlimentacaoSelecionado === '2alimentacao') {
-            totalAlimentacaoLinha = baseAlmoco + baseJantar;
-        }
-        valorAlimentacaoSpan.textContent = formatarMoeda(totalAlimentacaoLinha);
-        console.log(`Alimentação: Tipo: ${tipoAlimentacaoSelecionado}, Valor Calculado: ${totalAlimentacaoLinha}`);
+    
+    totalAlimentacaoLinha = baseAlimentacao;
+    totalTransporteLinha = baseTransporte;
+
+    // Atualiza o display e o data-attribute (necessário para recalcularTotaisGerais)
+
+    // Se você está usando as variáveis celulaAlimentacao / celulaTransporte do Passo 3.1:
+    if (celulaAlimentacao) {
+        celulaAlimentacao.textContent = formatarMoeda(totalAlimentacaoLinha);
+        // Garante que o valor bruto fica acessível para recalculo e exportação
+        celulaAlimentacao.dataset.originalAjdcusto = totalAlimentacaoLinha;
     }
 
-    console.log(`Bases lidas (globais): Almoco: ${baseAlmoco}, Jantar: ${baseJantar}, Transporte: ${baseTransporte}`);
-
-    if (selectAlimentacao && valorAlimentacaoSpan) {
-        const tipoAlimentacaoSelecionado = selectAlimentacao.value;
-        console.log("Alimentação - TIPO SELECIONADO", tipoAlimentacaoSelecionado);
-        if (tipoAlimentacaoSelecionado === 'Almoco') {
-            totalAlimentacaoLinha = baseAlmoco;
-        } else if (tipoAlimentacaoSelecionado === 'Janta') {
-            totalAlimentacaoLinha = baseJantar;
-        } else if (tipoAlimentacaoSelecionado === '2alimentacao') {
-            totalAlimentacaoLinha = baseAlmoco + baseJantar;
-        }
-        valorAlimentacaoSpan.textContent = formatarMoeda(totalAlimentacaoLinha);
-        console.log(`Alimentação: Tipo: ${tipoAlimentacaoSelecionado}, Valor Calculado: ${totalAlimentacaoLinha}`);
-    }
-
-    if (selectTransporte && valorTransporteSpan) {
-        const tipoTransporteSelecionado = selectTransporte.value;
-        if (tipoTransporteSelecionado !== 'select') {
-            totalTransporteLinha = baseTransporte;
-        }
-        valorTransporteSpan.textContent = formatarMoeda(totalTransporteLinha);
-        console.log(`Transporte: Tipo: ${tipoTransporteSelecionado}, Valor Calculado: ${totalTransporteLinha}`);
+    if (celulaTransporte) {
+        celulaTransporte.textContent = formatarMoeda(totalTransporteLinha);
+        celulaTransporte.dataset.originalAjdcusto = totalTransporteLinha;
     }
 
     totalAjdCustoLinha = totalAlimentacaoLinha + totalTransporteLinha;
@@ -2544,23 +2541,51 @@ function inicializarListenersAjdCustoTabela() {
     // Este listener delegado para 'change' nos selects de Ajuda de Custo
     // deve ser adicionado apenas UMA VEZ ao 'tabelaBody'.
     // Usaremos uma flag para garantir isso, mesmo que a função seja chamada múltiplas vezes.
-    if (!tabelaBody.dataset.hasAjdCustoChangeListener) { // Usamos um dataset na tabela para a flag
-        tabelaBody.addEventListener('change', async function(event) {
-            if (event.target.classList.contains('tpAjdCusto-alimentacao') || event.target.classList.contains('tpAjdCusto-transporte')) {
-                console.log("--- Evento CHANGE disparado por select de ajuda de custo (delegado) ---");
+    // if (!tabelaBody.dataset.hasAjdCustoChangeListener) { // Usamos um dataset na tabela para a flag
+    //     tabelaBody.addEventListener('change', async function(event) {
+    //         if (event.target.classList.contains('tpAjdCusto-alimentacao') || event.target.classList.contains('tpAjdCusto-transporte')) {
+    //             console.log("--- Evento CHANGE disparado por select de ajuda de custo (delegado) ---");
+    //             const linhaAtual = event.target.closest('tr');
+    //             if (!linhaAtual) {
+    //                 console.error("Erro: Não foi possível encontrar a linha (<tr>) pai para o select de ajuda de custo.");
+    //                 return;
+    //             }
+
+    //             atualizarValoresAjdCustoNaLinha(linhaAtual);
+    //             recalcularLinha(linhaAtual);
+    //             recalcularTotaisGerais();
+    //         }
+    //     });
+    //     tabelaBody.dataset.hasAjdCustoChangeListener = true; // Define a flag como true
+    //     console.log("Listener de Ajuda de Custo delegado anexado ao tbody.");
+    // } else {
+    //     console.log("Listener de Ajuda de Custo delegado já está anexado ao tbody. Pulando.");
+    // }
+
+    if (!tabelaBody.dataset.hasAjdCustoInputListener) { 
+        
+        // ⚠️ MUDANÇA 1: O evento agora é 'input' para recalcular enquanto o usuário digita
+        tabelaBody.addEventListener('input', async function(event) {
+            
+            // ⚠️ MUDANÇA 2: As classes de destino são os novos inputs de Ajuda de Custo
+            if (event.target.classList.contains('vlralimentacao-input') || event.target.classList.contains('vlrtransporte-input')) {
+                console.log("--- Evento INPUT disparado por campo de ajuda de custo (delegado) ---");
+                
                 const linhaAtual = event.target.closest('tr');
                 if (!linhaAtual) {
-                    console.error("Erro: Não foi possível encontrar a linha (<tr>) pai para o select de ajuda de custo.");
+                    console.error("Erro: Não foi possível encontrar a linha (<tr>) pai para o input de ajuda de custo.");
                     return;
                 }
 
-                atualizarValoresAjdCustoNaLinha(linhaAtual);
+                // Não precisamos mais de 'atualizarValoresAjdCustoNaLinha' porque o valor já está no input.
+                atualizarValoresAjdCustoNaLinha(linhaAtual);//remover????
                 recalcularLinha(linhaAtual);
                 recalcularTotaisGerais();
             }
         });
-        tabelaBody.dataset.hasAjdCustoChangeListener = true; // Define a flag como true
-        console.log("Listener de Ajuda de Custo delegado anexado ao tbody.");
+        
+        tabelaBody.dataset.hasAjdCustoInputListener = true; // Define a nova flag
+        console.log("Listener de Ajuda de Custo delegado anexado ao tbody para eventos 'input'.");
     } else {
         console.log("Listener de Ajuda de Custo delegado já está anexado ao tbody. Pulando.");
     }
@@ -2568,7 +2593,7 @@ function inicializarListenersAjdCustoTabela() {
     // Também recalcule os valores iniciais para todas as linhas já presentes na tabela
     // (inclusive a primeira linha que vem do HTML ou as que foram carregadas do backend).
     tabelaBody.querySelectorAll('tr').forEach(linha => {
-        atualizarValoresAjdCustoNaLinha(linha);
+        atualizarValoresAjdCustoNaLinha(linha);//remover????
         recalcularLinha(linha);
     });
 }
@@ -2604,18 +2629,9 @@ async function verificaOrcamento() {
 
     configurarInfraCheckbox();
 
-    // const selectElement = document.getElementById('idMontagem');
+    configurarPrePosCheckbox();
 
-    // if (selectElement) {
-    //     selectElement.addEventListener('change', function() {
-    //         atualizarUFOrc(this);
-    //     });
-    //     console.log("Event listener adicionado ao idMontagem.");
-
-    // } else {
-    //     console.error("Elemento 'idMontagem' não encontrado no DOM!");
-    // }
-
+    
 
     const selecionarPavilhaoSelect = document.getElementById('selecionarPavilhao');
 
@@ -2748,6 +2764,17 @@ async function verificaOrcamento() {
     } else {
         console.error("Botão 'Adicionar Linha Adicional' não encontrado.");
     }
+
+    const btnGerarProximoAno = document.getElementById('GerarProximoAno');
+    if (btnGerarProximoAno) {
+        btnGerarProximoAno.addEventListener('click', function() {
+            console.log("Botão 'Gerar Próximo Ano' clicado");
+            gerarProximoAno(); // Chama a função para adicionar uma nova linha adicional
+        });
+    } else {
+        console.error("Botão 'Gerar Próximo Ano' não encontrado.");
+    }
+
 
 
     const globalDescontoValor = document.getElementById('Desconto');
@@ -2883,12 +2910,14 @@ async function verificaOrcamento() {
             for (const pair of formData.entries()) {
                 console.log(`formData entry: ${pair[0]}, ${pair[1]}`);
             }
+            const preEventoDatas = getPeriodoDatas(formData.get("periodoPreEvento"));
             const marcacaoDatas = getPeriodoDatas(formData.get("periodoMarcacao"));
             console.log("marcacaoDatas BTNSALVAR", marcacaoDatas);
             const montagemDatas = getPeriodoDatas(formData.get("periodoMontagem"));
             const realizacaoDatas = getPeriodoDatas(formData.get("periodoRealizacao"));
             const desmontagemDatas = getPeriodoDatas(formData.get("periodoDesmontagem"));
             const desmontagemInfraDatas = getPeriodoDatas(formData.get("periodoDesmontagemInfra"));
+            const posEventoDatas = getPeriodoDatas(formData.get("periodoPosEvento"));
 
             const idsPavilhoesSelecionadosInput = document.getElementById('idsPavilhoesSelecionados');
             console.log("PAVILHOES PARA ENVIAR", idsPavilhoesSelecionadosInput);
@@ -2920,7 +2949,9 @@ async function verificaOrcamento() {
                 idsPavilhoes: pavilhoesParaEnviar,
                 infraMontagem: formData.get("infraMontagem"),
 
-                dtiniInfraMontagem: infraMontagemDatas.inicio,
+                dtIniPreEvento: preEventoDatas.inicio,
+                dtFimPreEvento: preEventoDatas.fim,
+                dtIniInfraMontagem: infraMontagemDatas.inicio,
                 dtFimInfraMontagem: infraMontagemDatas.fim,
                 dtIniMontagem: montagemDatas.inicio,
                 dtFimMontagem: montagemDatas.fim,
@@ -2932,11 +2963,14 @@ async function verificaOrcamento() {
                 dtFimDesmontagem: desmontagemDatas.fim,
                 dtIniDesmontagemInfra: desmontagemInfraDatas.inicio,
                 dtFimDesmontagemInfra: desmontagemInfraDatas.fim,
+                dtIniPosEvento: posEventoDatas.inicio,
+                dtFimPosEvento: posEventoDatas.fim,
 
                 obsItens: formData.get("Observacao"),
                 obsProposta: formData.get("ObservacaoProposta"),
                 formaPagamento: formData.get("formaPagamento"),
                 edicao: document.querySelector("#edicao")?.value,
+                geradoAnoPosterior: false,
                 totGeralVda: desformatarMoeda(document.querySelector('#totalGeralVda').value),
                 totGeralCto: desformatarMoeda(document.querySelector('#totalGeralCto').value),
                 totAjdCusto: desformatarMoeda(document.querySelector('#totalAjdCusto').value),
@@ -3085,6 +3119,24 @@ async function verificaOrcamento() {
                 }
             }
 
+            if (bProximoAno === true && idOrcamentoOriginalParaAtualizar !== null) {
+                console.log(`Iniciando atualização do Orçamento Original: ${idOrcamentoOriginalParaAtualizar}`);
+                
+                // Faz a segunda chamada de API para atualizar apenas o campo 'geradoanoposterior'
+                const updateOriginal = await atualizarCampoGeradoAnoPosterior(idOrcamentoOriginalParaAtualizar, true);
+
+                if (updateOriginal) {
+                    console.log("Orçamento Original marcado com sucesso como espelhado.");
+                    // Limpa o estado após o sucesso
+                    bProximoAno = false; 
+                    idOrcamentoOriginalParaAtualizar = null;
+                } else {
+                    // Alerta que o novo foi salvo, mas o original não foi marcado
+                    Swal.fire("Atenção Crítica", "O novo orçamento foi salvo, mas **NÃO** foi possível marcar o orçamento original.", "warning");
+                    // Mantenha bproximoano = true para possível retentativa ou log
+                }
+            }
+
         } catch (error) {
             console.error('Erro inesperado ao salvar orçamento:', error);
                 let errorMessage = "Ocorreu um erro inesperado ao salvar o orçamento.";
@@ -3113,6 +3165,24 @@ async function verificaOrcamento() {
     });// Previne o envio padrão do formulário
 
     recalcularTotaisGerais();
+}
+
+async function atualizarCampoGeradoAnoPosterior(idOrcamento, valor) {
+    // ESTA FUNÇÃO PRECISA SER IMPLEMENTADA PARA SE COMUNICAR COM SEU BACKEND
+    try {
+        const response = await fetchComToken(`orcamentos/${idOrcamento}/update-status-espelho`, {
+            method: 'PATCH', // PATCH é ideal para atualizar apenas um campo
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ geradoAnoPosterior: valor })
+        });
+
+        // fetchComToken já deve lançar um erro se response.ok for false.
+        // Se retornar, consideramos sucesso.
+        return true; 
+    } catch (error) {
+        console.error('Falha ao atualizar campo geradoanoposterior:', error);
+        return false;
+    }
 }
 
 function desinicializarOrcamentosModal() {
@@ -3263,8 +3333,8 @@ export function limparOrcamento() {
     });
 
     const mainFlatpickrIds = [
-        "periodoInfraMontagem", "periodoMarcacao", "periodoMontagem",
-        "periodoRealizacao", "periodoDesmontagem", "periodoDesmontagemInfra"
+        "periodoPreEvento","periodoInfraMontagem", "periodoMarcacao", "periodoMontagem",
+        "periodoRealizacao", "periodoDesmontagem", "periodoDesmontagemInfra", "periodoPosEvento"
     ];
     mainFlatpickrIds.forEach(id => {
         const input = document.getElementById(id);
@@ -3311,6 +3381,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
         limparOrcamento();
         return;
     }
+    window.orcamentoAtual = orcamento; 
 
     const idOrcamentoInput = document.getElementById('idOrcamento');
     if (idOrcamentoInput) { // Adicionado if para proteger o acesso a .value
@@ -3341,13 +3412,14 @@ export async function preencherFormularioComOrcamento(orcamento) {
         statusInput.value = orcamento.status || '';
         console.log("Status", statusInput.value);
 
-        if (statusInput.value === 'F'){
+        if (statusInput.value === 'F'){           
             bloquearCamposSeFechado();
         }
     } else {
         console.warn("Elemento com ID 'Status' não encontrado.");
     }
 
+    const edicaoInput = document.getElementById('edicao');
     if (edicaoInput) {
         edicaoInput.value = orcamento.edicao || '';
         console.log("Edição", edicaoInput.value);        
@@ -3391,41 +3463,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
     } else {
         console.warn("Elemento com classe '.idMontagem' não encontrado.");
     }
-
-    // const pavilhaoSelect = document.querySelector('.idPavilhao');
-    // //console.log("PAVILHÃO:", pavilhaoSelect); // Vai mostrar o elemento <select>
-    // if (pavilhaoSelect) {
-
-    //     pavilhaoSelect.value = orcamento.idpavilhao || '';
-    //     console.log("PAVILHÃO selecionado por ID:", pavilhaoSelect.value);
-
-    //     if (orcamento.idpavilhao && orcamento.nomepavilhao) {
-    //         let optionExistente = pavilhaoSelect.querySelector(`option[value="${orcamento.idpavilhao}"]`);
-
-    //         if (!optionExistente) {
-    //             // Se a opção não existe, crie-a
-    //             const newOption = document.createElement('option');
-    //             newOption.value = orcamento.idpavilhao;
-    //             newOption.textContent = orcamento.nomepavilhao; // Use o nome do pavilhão que veio do backend
-    //             pavilhaoSelect.appendChild(newOption);
-    //             console.log(`Opção para Pavilhão '${orcamento.nomepavilhao}' (ID: ${orcamento.idpavilhao}) adicionada dinamicamente.`);
-    //         } else {
-    //             // Se a opção já existe, apenas garanta que o texto esteja correto
-    //             optionExistente.textContent = orcamento.nomepavilhao;
-    //         }
-    //         // Garante que o valor esteja selecionado (pode ser redundante, mas não custa)
-    //         pavilhaoSelect.value = orcamento.idpavilhao;
-    //         console.log(`Pavilhão '${orcamento.nomepavilhao}' (ID: ${orcamento.idpavilhao}) definido no select.`);
-
-    //     } else if (!orcamento.idpavilhao && !orcamento.nomepavilhao) {
-    //          // Se não houver ID nem nome, limpa o select
-    //          pavilhaoSelect.value = '';
-    //          console.log("Nenhum pavilhão para definir, select limpo.");
-    //     }
-
-    // } else {
-    //     console.warn("Elemento com classe '.idPavilhao' não encontrado.");
-    // }
+   
 
     if (orcamento.pavilhoes && orcamento.pavilhoes.length > 0) {
     // Popula a variável global `selectedPavilhoes`
@@ -3449,6 +3487,10 @@ export async function preencherFormularioComOrcamento(orcamento) {
             let fim = null;
 
             switch(id) {
+                case 'periodoPreEvento':
+                    inicio = orcamento.dtinipreevento;
+                    fim = orcamento.dtfimpreevento;
+                    break;
                 case 'periodoInfraMontagem':
                     inicio = orcamento.dtiniinframontagem;
                     fim = orcamento.dtfiminframontagem;
@@ -3472,6 +3514,10 @@ export async function preencherFormularioComOrcamento(orcamento) {
                 case 'periodoDesmontagemInfra':
                     inicio = orcamento.dtiniinfradesmontagem;
                     fim = orcamento.dtfiminfradesmontagem;
+                    break;
+                case 'periodoPosEvento':
+                    inicio = orcamento.dtiniposevento;
+                    fim = orcamento.dtfimposevento;
                     break;
             }
 
@@ -3520,13 +3566,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
     } else {
         console.warn("Elemento com ID 'FormaPagamento' (Forma Pagamento) não encontrado.");
     }
-
-    const edicaoInput = document.getElementById('edicao');
-    if (edicaoInput) {
-        edicaoInput.value = orcamento.edicao || '';
-    } else {
-        console.warn("Elemento com ID 'edicao' (Edição) não encontrado.");
-    }
+    
 
     const totalGeralVdaInput = document.getElementById('totalGeralVda');
     if (totalGeralVdaInput) totalGeralVdaInput.value = formatarMoeda(orcamento.totgeralvda || 0);
@@ -3596,7 +3636,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
     if (percentRealInput) percentRealInput.value = formatarPercentual(orcamento.percentlucroreal || 0);
 
     const valorImpostoInput = document.getElementById('valorImposto');
-    if (valorImpostoInput) valorImpostoInput.value = formatarMoeda(orcamento.valorimposto || 0);
+    if (valorImpostoInput) valorImpostoInput.value = formatarMoeda(orcamento.vlrimposto || 0);
 
     const percentImpostoInput = document.getElementById('percentImposto');
     if (percentImpostoInput) percentImpostoInput.value = formatarPercentual(orcamento.percentimposto || 0);
@@ -3724,28 +3764,10 @@ export async function preencherFormularioComOrcamento(orcamento) {
             <td class="totVdaDiaria Moeda">${formatarMoeda(item.totvdadiaria || 0)}</td>
             <td class="vlrCusto Moeda">${formatarMoeda(item.ctodiaria || 0)}</td>
             <td class="totCtoDiaria Moeda">${formatarMoeda(item.totctodiaria || 0)}</td>
-            <td class="ajdCusto Moeda">
-                <div class="Acres-Desc">
-                    <select class="tpAjdCusto-alimentacao">
-                        <option value="select" ${item.tpajdctoalimentacao === '' || item.tpajdctoalimentacao === 'select' ? 'selected' : ''}>Alimentação</option>
-                        <option value="Almoco" ${item.tpajdctoalimentacao === 'Almoco' ? 'selected' : ''}>Almoço</option>
-                        <option value="Janta" ${item.tpajdctoalimentacao === 'Janta' ? 'selected' : ''}>Jantar</option>
-                        <option value="2alimentacao" ${item.tpajdctoalimentacao === '2alimentacao' ? 'selected' : ''}>Almoço + jantar</option>
-                    </select>
-                </div>
-                <br><span class="valorbanco alimentacao">${formatarMoeda(item.vlrajdctoalimentacao || 0)}</span>
-            </td>
-            <td class="ajdCusto Moeda">
-                <div class="Acres-Desc">
-                    <select class="tpAjdCusto-transporte">
-                        <option value="select" ${item.tpajdctotransporte === '' || item.tpajdctotransporte === 'select' ? 'selected' : ''}>Veiculo</option>
-                        <option value="Público" ${item.tpajdctotransporte === 'Público' ? 'selected' : ''}>Público</option>
-                        <option value="Alugado" ${item.tpajdctotransporte === 'Alugado' ? 'selected' : ''}>Alugado</option>
-                        <option value="Próprio" ${item.tpajdctotransporte === 'Próprio' ? 'selected' : ''}>Próprio</option>
-                    </select>
-                </div>
-                <br><span class="valorbanco transporte">${formatarMoeda(item.vlrajdctotransporte || 0)}</span>
-            </td>
+                      
+            <td class="ajdCusto Moeda alimentacao">${formatarMoeda(item.vlrajdctoalimentacao || 0)}</td>
+            <td class="ajdCusto Moeda transporte">${formatarMoeda(item.vlrajdctotransporte || 0)}</td>
+
             <td class="totAjdCusto Moeda">${formatarMoeda(item.totajdctoitem || 0)}</td>
             <td class="extraCampo Moeda" style="display: none;">
                 <input type="text" class="hospedagem" value="${item.hospedagem || 0}">
@@ -4378,13 +4400,11 @@ function recalcularLinha(linha) {
 
     try {
         console.log("Linha recebida para recalcular:", linha);
-
-        // ... (código existente para qtdItens, qtdDias, celulaVenda, vlrVendaOriginal, vlrVenda, vlrCusto) ...
+        
         let qtdItens = parseFloat(linha.querySelector('.qtdProduto input')?.value) || 0;
         let qtdDias = parseFloat(linha.querySelector('.qtdDias input')?.value) || 0;
 
-        let celulaVenda = linha.querySelector('.vlrVenda');
-        //let vlrVendaOriginal = desformatarMoeda(celulaVenda?.textContent) || 0;
+        let celulaVenda = linha.querySelector('.vlrVenda');   
         const vlrVendaOriginal = parseFloat(celulaVenda?.dataset.originalVenda) || 0;
         console.log("DEBUG - recalcularLinha: vlrVendaOriginal (Lido do data-attribute) =", vlrVendaOriginal);
         let vlrVenda = vlrVendaOriginal;
@@ -4392,11 +4412,11 @@ function recalcularLinha(linha) {
         let vlrCusto = desformatarMoeda(linha.querySelector('.vlrCusto')?.textContent) || 0;
 
         // ... (código para Alimentação e Transporte: selectAlimentacao, valorAlimentacaoSpan, etc.) ...
-        const selectAlimentacao = linha.querySelector('.tpAjdCusto-alimentacao');
-        const selectTransporte = linha.querySelector('.tpAjdCusto-transporte');
+        //const selectAlimentacao = linha.querySelector('.tpAjdCusto-alimentacao');
+       // const selectTransporte = linha.querySelector('.tpAjdCusto-transporte');
 
-        const valorAlimentacaoSpan =  linha.querySelector('.valorbanco.alimentacao');
-        const valorTransporteSpan = linha.querySelector('.valorbanco.transporte');
+        //const valorAlimentacaoSpan =  linha.querySelector('.valorbanco.alimentacao');
+        //const valorTransporteSpan = linha.querySelector('.valorbanco.transporte');
 
 
         // const baseAlmoco = parseFloat(vlrAlmoco || 0);
@@ -4423,10 +4443,21 @@ function recalcularLinha(linha) {
         //     valorTransporteSpan.textContent = totalTransporteLinha.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         // }
 
-        const totalAlimentacaoLinha = desformatarMoeda(linha.querySelector('.valorbanco.alimentacao')?.textContent) || 0;
-        const totalTransporteLinha = desformatarMoeda(linha.querySelector('.valorbanco.transporte')?.textContent) || 0;
+       // const vlrAlimentacaoDiaria = desformatarMoeda(linha.querySelector('.vlralimentacao-input')?.value) || 0; //para ser editavel
+       // const vlrTransporteDiaria = desformatarMoeda(linha.querySelector('.vlrtransporte-input')?.value) || 0; //para ser editavel
 
-        console.log("ALIMENTACAO (lido do DOM):", linha.querySelector('.valorbanco.alimentacao')); // Mantém o log, agora deve mostrar o valor correto
+        const vlrAlimentacaoDiaria = desformatarMoeda(linha.querySelector('.vlralimentacao-display')?.textContent) || 
+                             desformatarMoeda(linha.querySelector('.ajdCusto.alimentacao')?.textContent) || 0;
+        const vlrTransporteDiaria = desformatarMoeda(linha.querySelector('.vlrtransporte-display')?.textContent) ||
+                            desformatarMoeda(linha.querySelector('.ajdCusto.transporte')?.textContent) || 0;
+
+        const totalAlimentacaoLinha = vlrAlimentacaoDiaria;
+        const totalTransporteLinha = vlrTransporteDiaria;
+
+        //const totalAlimentacaoLinha = desformatarMoeda(linha.querySelector('.valorbanco.alimentacao')?.textContent) || 0;
+        //const totalTransporteLinha = desformatarMoeda(linha.querySelector('.valorbanco.transporte')?.textContent) || 0;
+
+        console.log("ALIMENTACAO (lido do DOM):", linha.querySelector('.vlralimentacao-input'), vlrAlimentacaoDiaria); // Mantém o log, agora deve mostrar o valor correto
         let hospedagemValor = desformatarMoeda(linha.querySelector('.hospedagem')?.value) || 0;
         let transporteExtraValor = desformatarMoeda(linha.querySelector('.transporteExtraInput')?.value) || 0;
 
@@ -4434,7 +4465,8 @@ function recalcularLinha(linha) {
 
 
         // let vlrAjdCusto =  vlrCusto + totalAlimentacaoLinha + totalTransporteLinha + hospedagemValor;
-        let vlrAjdCusto =  vlrCusto + totalAlimentacaoLinha + totalTransporteLinha;
+        //let vlrAjdCusto =  vlrCusto + totalAlimentacaoLinha + totalTransporteLinha;
+        let vlrAjdCusto =  totalAlimentacaoLinha + totalTransporteLinha;
 
         // --- LEITURA DOS VALORES DE DESCONTO E ACRÉSCIMO DA LINHA (NÃO FAÇA CÁLCULO DE SINCRONIZAÇÃO AQUI!) ---
         let campoDescValor = linha.querySelector('.descontoItem .ValorInteiros');
@@ -4474,10 +4506,17 @@ function recalcularLinha(linha) {
         console.log("Ajuda Custo RECALCULAR LINHA:", totalAjdCusto, "totalIntermediario:", totalIntermediario, "vlrAjdCusto:", vlrAjdCusto);
 
         // --- ATUALIZA A DOM (TDs da linha) ---
-        linha.querySelector('.valorbanco.alimentacao').textContent = totalAlimentacaoLinha.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        linha.querySelector('.valorbanco.transporte').textContent = totalTransporteLinha.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        //linha.querySelector('.valorbanco.alimentacao').textContent = totalAlimentacaoLinha.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        //linha.querySelector('.valorbanco.transporte').textContent = totalTransporteLinha.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+        linha.querySelector('.vlralimentacao-display').value = vlrAlimentacaoDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        linha.querySelector('.vlrtransporte-display').value = vlrTransporteDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+       
         linha.querySelector('.totVdaDiaria').textContent = totalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        // const celulaTotalVenda = linha.querySelector('.totVdaDiaria');
+        // if (celulaTotalVenda) { // <-- A checagem de existência é crucial
+        //     celulaTotalVenda.textContent =  totalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        // }
         linha.querySelector('.vlrVenda').textContent = vlrVendaCorrigido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         linha.querySelector('.totCtoDiaria').textContent = totalCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         linha.querySelector('.totAjdCusto').textContent = totalAjdCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -4679,6 +4718,9 @@ function bloquearCamposSeFechado() {
     const statusInput = document.getElementById('Status');
     const fechado = statusInput?.value === 'F';
 
+    const orcamentoAtual = getOrcamentoAtualCarregado();
+    const bProximoAnoCarregado = orcamentoAtual?.geradoanoposterior === true; 
+
     const idsPermitidos = ['Desconto', 'perCentDesc', 'Acrescimo', 'perCentAcresc', 'ObservacaoProposta', 'Observacao'];
 
     const tabela = document.querySelector('table');
@@ -4690,10 +4732,10 @@ function bloquearCamposSeFechado() {
             const dentroDeAdicional = campo.closest('.linhaAdicional');
 
             // NÃO bloquear se estiver em linha adicional ou for permitido
-            if (
-                campo.classList.contains('idFuncao') ||
-                campo.classList.contains('idEquipamento') ||
-                campo.classList.contains('idSuprimento') ||
+            if (                
+              //  campo.classList.contains('idFuncao') || //criado function para liberar se houver Adicional
+              //  campo.classList.contains('idEquipamento') ||
+              //  campo.classList.contains('idSuprimento') ||
                 idsPermitidos.includes(id) ||
                 dentroDeAdicional
             ) return;
@@ -4709,7 +4751,7 @@ function bloquearCamposSeFechado() {
             const id = botao.id || '';
             const classes = botao.classList;
 
-     const deveContinuarAtivo =
+            const deveContinuarAtivo =
                 id === 'btnSalvar' ||
                 id === 'Close' ||
                 classes.contains('Close') ||
@@ -4718,17 +4760,37 @@ function bloquearCamposSeFechado() {
                 classes.contains('Excel') ||
                 classes.contains('Contrato') ;
 
-            if (id === 'fecharOrc' || id ==='Excel' || classes ==='Contrato' || id === 'adicionarLinha') {
+            if (id === 'GerarProximoAno') {
+                botao.style.display = 'inline-block'; // Mostra o botão no status 'F'
+                
+                if (bProximoAnoCarregado) {
+                    // DESABILITA se JÁ foi gerado
+                    botao.disabled = true; 
+                    botao.textContent = 'Próximo Ano JÁ Gerado';
+                    botao.title = 'Um orçamento para o ano seguinte já foi gerado a partir deste.';
+                } else {
+                    // HABILITA se NÃO foi gerado
+                    botao.disabled = false;
+                    botao.textContent = 'Gerar Próximo Ano';
+                    botao.title = 'Clique para espelhar este orçamento para o próximo ano.';
+                }
+            } 
+            // ====================================================
+            
+            else if (id === 'fecharOrc' || id ==='Excel' || classes ==='Contrato' || id === 'adicionarLinha') {
                 botao.style.display = 'none';
             } else if (deveContinuarAtivo) {
                 botao.style.display = 'inline-block';
                 botao.disabled = false;
             } else {
+                // Outros botões ficam desabilitados
                 botao.disabled = true;
             }
+            
+            // ... (Seu código para Proposta)
             if (id === 'Proposta' || classes.contains('Proposta')) {
-            botao.disabled = true;
-            botao.style.display = 'none'; // ou só desabilita se preferir
+                botao.disabled = true;
+                botao.style.display = 'none';
             }
         });
 
@@ -4739,24 +4801,24 @@ function bloquearCamposSeFechado() {
         }
 
         // Adiciona alerta ao tentar editar manualmente (exceto os permitidos ou da linha adicional)
-        const elementosEditaveis = document.querySelectorAll('input, select, textarea, .Proposta input');
-        elementosEditaveis.forEach(el => {
-            const id = el.id;
-            const dentroDeAdicional = el.closest('.linhaAdicional');
+        // const elementosEditaveis = document.querySelectorAll('input, select, textarea, .Proposta input');
+        // elementosEditaveis.forEach(el => {
+        //     const id = el.id;
+        //     const dentroDeAdicional = el.closest('.linhaAdicional');
 
-            if (
-                el.classList.contains('idFuncao') ||
-                el.classList.contains('idEquipamento') ||
-                el.classList.contains('idSuprimento') ||
-                idsPermitidos.includes(id) ||
-                dentroDeAdicional
-            ) return;
+        //     if (
+        //         el.classList.contains('idFuncao') ||
+        //         el.classList.contains('idEquipamento') ||
+        //         el.classList.contains('idSuprimento') ||
+        //         idsPermitidos.includes(id) ||
+        //         dentroDeAdicional
+        //     ) return;
 
-            el.addEventListener('focus', () => {
-                Swal.fire('Orçamento fechado', 'Este orçamento está fechado. Não é possível fazer alterações, apenas inserir adicionais.', 'warning');
-                el.blur();
-            });
-        });
+        //     el.addEventListener('focus', () => {
+        //         Swal.fire('Orçamento fechado', 'Este orçamento está fechado. Não é possível fazer alterações, apenas inserir adicionais.', 'warning');
+        //         el.blur();
+        //     });
+        // });
 
     } else {
         // Desbloqueia todos os campos
@@ -4768,17 +4830,48 @@ function bloquearCamposSeFechado() {
         });
 
         // Botão de fechar visível e habilitado
-        const btnFechar = document.getElementById('fecharOrc');
-        if (btnFechar) {
-            btnFechar.style.display = 'inline-block';
-            btnFechar.disabled = false;
-        }
+        // const btnFechar = document.getElementById('fecharOrc');
+        // if (btnFechar) {
+        //     btnFechar.style.display = 'inline-block';
+        //     btnFechar.disabled = false;
+        // }
 
-        // Oculta botões adicionais (caso algum deva sumir com status "aberto")
-        const btnAdicional = document.querySelectorAll('.Adicional');
-        btnAdicional.forEach(btn => {
-            btn.style.display = 'none';
+        // // Oculta botões adicionais (caso algum deva sumir com status "aberto")
+        // const btnAdicional = document.querySelectorAll('.Adicional');
+        // btnAdicional.forEach(btn => {
+        //     btn.style.display = 'none';
+        // });
+
+        const botoes = document.querySelectorAll('button');
+        botoes.forEach(botao => {
+            const id = botao.id || '';
+            const classes = botao.classList;
+           
+            if (id === 'GerarProximoAno') {
+                botao.style.display = 'none'; // Oculta o botão se o status NÃO é 'F'
+                return; // Pula o resto da verificação para este botão
+            } 
+            // ====================================================
+
+            // Oculta botões que SÓ aparecem quando o orçamento está fechado
+            if (classes.contains('Excel') || classes.contains('Contrato') || classes.contains('Adicional')) {
+                botao.style.display = 'none';
+            } 
+            
+            // Reexibe e habilita os botões de AÇÃO
+            else if (id === 'fecharOrc' || id === 'Enviar' || id === 'Limpar' || id === 'Proposta' || id === 'adicionarLinha') {
+                botao.style.display = 'inline-block';
+                botao.disabled = false;
+            } 
+            
+            // Garante que botões de controle estejam visíveis e ativos
+            else if (classes.contains('pesquisar') || classes.contains('Close')) {
+                botao.style.display = 'inline-block';
+                botao.disabled = false;
+            }
+            // Se houver outros botões, eles manterão seu estado de exibição padrão.
         });
+
 
         // Remove o visual de bloqueio da tabela
         if (tabela) {
@@ -4786,6 +4879,58 @@ function bloquearCamposSeFechado() {
         }
     }
 }
+
+function liberarSelectsParaAdicional() {
+    const selectsParaLiberar = [
+        document.getElementById('selectFuncao'),
+        document.getElementById('selectEquipamento'),
+        document.getElementById('selectSuprimento')
+        // Adicione aqui os IDs/elementos reais dos seus selects externos
+    ];
+
+    selectsParaLiberar.forEach(select => {
+        if (select) {
+            select.disabled = false;
+            select.classList.remove('bloqueado');
+            // Nota: Se você usar readOnly para selects, use: select.readOnly = false;
+        }
+    });
+
+    // Você também pode liberar o botão de 'Adicionar Item' aqui se ele estiver bloqueado
+    // const btnAddItem = document.getElementById('adicionarLinha'); 
+    // if (btnAddItem) {
+    //     btnAddItem.disabled = false;
+    // }
+}
+
+function handleCampoFocus(event) {
+    const statusInput = document.getElementById('Status');
+    const fechado = statusInput?.value === 'F';
+    const campo = event.currentTarget;
+
+    // Campos permitidos para edição mesmo se fechado (Desconto, Acrescimo, etc.)
+    const idsPermitidos = ['Desconto', 'perCentDesc', 'Acrescimo', 'perCentAcresc', 'ObservacaoProposta', 'Observacao'];
+    const dentroDeAdicional = campo.closest('.linhaAdicional');
+
+    // Se estiver fechado E NÃO for campo permitido (como as datas)
+    if (fechado && 
+        !campo.classList.contains('idFuncao') &&
+        !campo.classList.contains('idEquipamento') &&
+        !campo.classList.contains('idSuprimento') &&
+        !idsPermitidos.includes(campo.id) &&
+        !dentroDeAdicional
+    ) {
+        Swal.fire('Orçamento fechado', 'Este orçamento está fechado. Não é possível fazer alterações, apenas inserir adicionais.', 'warning');
+        campo.blur(); // Tira o foco
+    }
+}
+// Adicione isto na sua função de inicialização de eventos, fora da bloquearCamposSeFechado
+
+const elementosEditaveis = document.querySelectorAll('input, select, textarea, .Proposta input');
+elementosEditaveis.forEach(el => {
+    // Adiciona o listener uma única vez
+    el.addEventListener('focus', handleCampoFocus); 
+});
 
 document.getElementById('fecharOrc').addEventListener('click', function(event) {
     event.preventDefault();
@@ -4857,6 +5002,520 @@ function fecharOrcamento() {
             }
         }
     });
+}
+
+
+/**
+ * Gera um novo orçamento para o ano seguinte (Edição + 1), espelhando
+ * todos os dados do orçamento atual, exceto ID, Status e Datas.
+ * Assume que 'orcamentoAtual' é um objeto global ou que os dados
+ * do orçamento fechado já estão carregados.
+ */
+function gerarProximoAno() {
+    // 1. Obter o orçamento atual (ajuste esta linha se a fonte dos dados for diferente)
+    const orcamentoFechado = getOrcamentoAtualCarregado(); // Função hipotética para pegar o objeto
+
+    if (!orcamentoFechado) {
+        Swal.fire('Erro', 'Nenhum orçamento atual encontrado para espelhamento.', 'error');
+        return;
+    }    
+    
+    idOrcamentoOriginalParaAtualizar = orcamentoFechado.idorcamento;
+    bProximoAno = true;
+
+    const anoCorrente = new Date().getFullYear();
+    anoProximoOrcamento = anoCorrente + 1;
+
+    console.log("PROXIMO ANO", anoProximoOrcamento);
+    
+    // 2. Chama a função que destrói e recria os calendários com a nova opção
+    
+
+    // 2. Criar o objeto para o novo orçamento
+    const novoOrcamento = { ...orcamentoFechado };
+    
+    // 3. Limpar/Atualizar campos de controle
+    
+    // a. IDs e Status (Deve ser um novo orçamento)
+    novoOrcamento.idorcamento = null;
+    novoOrcamento.nrorcamento = ''; // O número deve ser gerado na hora de salvar
+    novoOrcamento.status = 'A'; // 'A' de Aberto (novo orçamento)
+
+    // b. Incrementar a Edição (Ano)
+    let anoAtual = parseInt(orcamentoFechado.edicao);
+    if (!isNaN(anoAtual) && anoAtual > 0) {
+        novoOrcamento.edicao = (anoAtual + 1).toString();
+        // Opcional: Atualizar a nomenclatura (ex: 'Evento 2025' -> 'Evento 2026')
+        if (orcamentoFechado.nomenclatura) {
+             novoOrcamento.nomenclatura = orcamentoFechado.nomenclatura.replace(anoAtual.toString(), novoOrcamento.edicao);
+        }
+    } else {
+         Swal.fire('Atenção', 'Não foi possível determinar a Edição (Ano) para o próximo orçamento. Defina manualmente.', 'warning');
+         // Mantém a edição original ou define como vazio
+         novoOrcamento.edicao = ''; 
+    }
+    
+    // c. Limpar Datas (Devem ser preenchidas manualmente)
+    const camposDeData = [
+        'dtinipremontagem','dtfimpremontagem','dtiniinframontagem', 'dtfiminframontagem', 'dtinimontagem', 'dtfimmontagem',
+        'dtinimarcacao', 'dtfimmarcacao', 'dtinirealizacao', 'dtfimrealizacao',
+        'dtinidesmontagem', 'dtfiminfradesmontagem', 'dtfiminfradesmontagem', 'dtfiminfradesmontagem',
+        'dtiniposmontagem','dtfimposmontagem'
+    ];
+    camposDeData.forEach(campo => {
+        novoOrcamento[campo] = null;
+    });
+
+    atualizarFlatpickrParaProximoAno();
+
+    // 4. Limpar Desconto/Acréscimo para um novo cálculo (OPCIONAL, mas recomendado)
+    // Se o cálculo for automático, é melhor começar "limpo"
+ //   novoOrcamento.desconto = 0;
+ //   novoOrcamento.percentdesconto = 0;
+ //   novoOrcamento.acrescimo = 0;
+ //   novoOrcamento.percentacrescimo = 0;
+    
+    // 5. Chamar a função de preenchimento com o novo objeto
+    // (Você precisará adaptar sua função preencherFormularioComOrcamento para aceitar esse 'novo' objeto, o que parece que ela já faz.)
+    preencherFormularioComOrcamentoParaProximoAno(novoOrcamento);
+
+    // 6. Alerta de sucesso e foco na edição
+    Swal.fire({
+        title: 'Orçamento Espelhado!',
+        html: `O novo orçamento foi criado com sucesso. **Edição: ${novoOrcamento.edicao}**. <br>Por favor, preencha as novas datas.`,
+        icon: 'success'
+    });
+    
+    // 7. Foco no campo Edição (ou Datas, para guiar o usuário)
+    const edicaoInput = document.getElementById('edicao');
+    if (edicaoInput) edicaoInput.focus();
+}
+
+
+/**
+ * Função adaptada para o espelhamento. É quase idêntica à original,
+ * mas tem o papel de limpar os campos que não queremos preencher.
+ */
+async function preencherFormularioComOrcamentoParaProximoAno(orcamento) {
+
+    console.log("ENTROU EM PREENCHERFORMULARIOCOMORCAMENTOPARAPROXIMOANO", orcamento);
+    // 1. CHAMA LIMPAR ORÇAMENTO (se existir)
+    if (typeof limparOrcamento === 'function') {
+        limparOrcamento(); // Garante que todos os campos e a tabela estão limpos
+    }
+
+    // 2. Preenche os campos espelhados (usa a mesma lógica da sua função original)
+    // ... (copie e cole todo o conteúdo da sua função 'preencherFormularioComOrcamento(orcamento)' aqui) ...
+    const idOrcamentoInput = document.getElementById('idOrcamento');
+    if (idOrcamentoInput) { // Adicionado if para proteger o acesso a .value
+        idOrcamentoInput.value = orcamento.idorcamento || '';
+    } else {
+        console.warn("Elemento com ID 'idOrcamento' não encontrado.");
+    }
+
+    const nrOrcamentoInput = document.getElementById('nrOrcamento');
+    if (nrOrcamentoInput) { // Adicionado if
+        nrOrcamentoInput.value = orcamento.nrorcamento || '';
+    } else {
+        console.warn("Elemento com ID 'nrOrcamento' não encontrado.");
+    }
+
+    const nomenclaturaInput = document.getElementById('nomenclatura');
+    if (nomenclaturaInput) { // Adicionado if
+        nomenclaturaInput.value = orcamento.nomenclatura || '';
+    } else {
+        console.warn("Elemento 'nomenclatura' não encontrado.");
+    }
+
+    // Define os valores dos selects.
+    // Como os 'value' das options agora são os IDs, a atribuição direta funciona.
+    const statusInputNovo = document.getElementById('Status'); // Seu HTML mostra input type="text"
+
+    if (statusInputNovo) {
+        statusInputNovo.value = orcamento.status || '';
+        console.log("Status", statusInputNovo.value);
+
+        if (statusInputNovo.value === 'F'){
+            bloquearCamposSeFechado();
+        }
+    } else {
+        console.warn("Elemento com ID 'Status' não encontrado.");
+    }
+
+    const edicaoInput = document.getElementById('edicao');
+    if (edicaoInput) {
+        edicaoInput.value = orcamento.edicao || '';
+        console.log("Edição", edicaoInput.value);        
+    } else {
+        console.warn("Elemento com ID 'Edição' não encontrado.");
+    }
+
+    const clienteSelect = document.querySelector('.idCliente');
+    if (clienteSelect) {
+        clienteSelect.value = orcamento.idcliente || '';
+    } else {
+        console.warn("Elemento com classe '.idCliente' não encontrado.");
+    }
+
+    const eventoSelect = document.querySelector('.idEvento');
+    if (eventoSelect) {
+        eventoSelect.value = orcamento.idevento || '';
+    } else {
+        console.warn("Elemento com classe '.idEvento' não encontrado.");
+    }
+
+    const localMontagemSelect = document.querySelector('.idMontagem');
+    if (localMontagemSelect) {
+        localMontagemSelect.value = orcamento.idmontagem || '';
+        // --- NOVO: Preencher o campo UF da montagem e atualizar visibilidade ---
+        const ufMontagemInput = document.getElementById('ufmontagem');
+        if (ufMontagemInput) {
+            ufMontagemInput.value = orcamento.ufmontagem || '';
+        } else {
+            console.warn("Elemento com ID 'ufmontagem' não encontrado.");
+        }
+
+        atualizarUFOrc(localMontagemSelect);
+
+        if (orcamento.idmontagem) {
+             await carregarPavilhaoOrc(orcamento.idmontagem);
+        } else {
+             await carregarPavilhaoOrc(''); // Limpa o select se não houver montagem
+        }
+
+    } else {
+        console.warn("Elemento com classe '.idMontagem' não encontrado.");
+    }
+   
+
+    if (orcamento.pavilhoes && orcamento.pavilhoes.length > 0) {
+    // Popula a variável global `selectedPavilhoes`
+    // O `orcamento.pavilhoes` deve ser um array de objetos, ex: [{id: 8, nomepavilhao: "nome"}, ...]
+        selectedPavilhoes = orcamento.pavilhoes.map(p => ({
+            id: p.id, // Supondo que o ID é 'id'
+            name: p.nomepavilhao // E o nome é 'nomepavilhao'
+        }));
+    } else {
+        selectedPavilhoes = [];
+    }
+
+    // Chama a função que já sabe como preencher os inputs corretamente
+    updatePavilhaoDisplayInputs();
+
+    for (const id in flatpickrInstances) {
+        const pickerInstance = flatpickrInstances[id];
+
+        if (pickerInstance && typeof pickerInstance.setDate === 'function' && pickerInstance.config) {
+            let inicio = null;
+            let fim = null;
+
+            switch(id) {
+                case 'periodoPreEvento':
+                    inicio = orcamento.dtinipreevento;
+                    fim = orcamento.dtfimpreevento;
+                    break;
+                case 'periodoInfraMontagem':
+                    inicio = orcamento.dtiniinframontagem;
+                    fim = orcamento.dtfiminframontagem;
+                    break;
+                case 'periodoMontagem':
+                    inicio = orcamento.dtinimontagem;
+                    fim = orcamento.dtfimmontagem;
+                    break;
+                case 'periodoMarcacao':
+                    inicio = orcamento.dtinimarcacao;
+                    fim = orcamento.dtfimmarcacao;
+                    break;
+                case 'periodoRealizacao':
+                    inicio = orcamento.dtinirealizacao;
+                    fim = orcamento.dtfimrealizacao;
+                    break;
+                case 'periodoDesmontagem':
+                    inicio = orcamento.dtinidesmontagem;
+                    fim = orcamento.dtfimdesmontagem;
+                    break;
+                case 'periodoDesmontagemInfra':
+                    inicio = orcamento.dtiniinfradesmontagem;
+                    fim = orcamento.dtfiminfradesmontagem;
+                    break;
+                case 'periodoPosEvento':
+                    inicio = orcamento.dtiniposevento;
+                    fim = orcamento.dtfimposevento;
+                    break;
+            }
+
+            const startDate = inicio ? new Date(inicio) : null;
+            const endDate = fim ? new Date(fim) : null;
+
+            if (pickerInstance.config.mode === "range") {
+                // Adiciona verificação para datas válidas e tratamento para apenas uma data
+                if (startDate && endDate && !isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+                    pickerInstance.setDate([startDate, endDate], true);
+                } else if (startDate && !isNaN(startDate.getTime())) { // Se apenas a data de início for fornecida
+                     pickerInstance.setDate(startDate, true);
+                } else {
+                    pickerInstance.clear();
+                }
+            } else { // Para modo de data única
+                if (startDate && !isNaN(startDate.getTime())) {
+                    pickerInstance.setDate(startDate, true);
+                } else {
+                    pickerInstance.clear();
+                }
+            }
+        } else {
+            console.warn(`[preencherFormularioComOrcamento] Instância Flatpickr para ID '${id}' não encontrada ou inválida. Não foi possível preencher.`);
+        }
+    }
+
+    // Preencher campos de texto
+    const obsItensInput = document.getElementById('Observacao');
+    if (obsItensInput) {
+        obsItensInput.value = orcamento.obsitens || '';
+    } else {
+        console.warn("Elemento com ID 'Observacao' (Observações sobre os Itens) não encontrado.");
+    }
+
+    const obsPropostaInput = document.getElementById('ObservacaoProposta');
+    if (obsPropostaInput) {
+        obsPropostaInput.value = orcamento.obsproposta || '';
+    } else {
+        console.warn("Elemento com ID 'ObservacaoProposta' (Observações sobre a Proposta) não encontrado.");
+    }
+
+    const formaPagamentoInput = document.getElementById('formaPagamento');
+    if (formaPagamentoInput) {
+        formaPagamentoInput.value = orcamento.formapagamento || '';
+    } else {
+        console.warn("Elemento com ID 'FormaPagamento' (Forma Pagamento) não encontrado.");
+    }
+    
+
+    const totalGeralVdaInput = document.getElementById('totalGeralVda');
+    if (totalGeralVdaInput) totalGeralVdaInput.value = formatarMoeda(orcamento.totgeralvda || 0);
+
+    const totalGeralCtoInput = document.getElementById('totalGeralCto');
+    if (totalGeralCtoInput) totalGeralCtoInput.value = formatarMoeda(orcamento.totgeralcto || 0);
+
+    const totalAjdCustoInput = document.getElementById('totalAjdCusto');
+    if (totalAjdCustoInput) totalAjdCustoInput.value = formatarMoeda(orcamento.totajdcto || 0);
+
+    const totalGeralInput = document.getElementById('totalGeral');
+    if (totalGeralCtoInput && totalAjdCustoInput && totalGeralInput) {
+        // Obter os valores dos campos.
+        // Use uma função para remover a formatação de moeda e converter para número.
+        const valorGeralCto = desformatarMoeda(totalGeralCtoInput.value);
+        const valorAjdCusto = desformatarMoeda(totalAjdCustoInput.value);
+
+        // Realizar a soma
+        const somaTotal = valorGeralCto + valorAjdCusto;
+
+        // Formatar o resultado de volta para moeda e atribuir ao campo totalGeral
+        totalGeralInput.value = formatarMoeda(somaTotal);
+    } else {
+        console.warn("Um ou mais elementos de input (totalGeralCto, totalAjdCusto, totalGeral) não foram encontrados.");
+    }
+
+    const lucroInput = document.getElementById('Lucro');
+    if (lucroInput) lucroInput.value = formatarMoeda(orcamento.lucrobruto || 0);
+
+    const percentLucroInput = document.getElementById('percentLucro');
+    if (percentLucroInput) percentLucroInput.value = formatarPercentual(orcamento.percentlucro || 0);
+
+    const descontoInput = document.getElementById('Desconto');
+    if (descontoInput) {
+        // Converte para número antes de toFixed
+        descontoInput.value = parseFloat(orcamento.desconto || 0).toFixed(2);
+    } else {
+        console.warn("Elemento com ID 'Desconto' não encontrado.");
+    }
+
+    const percentDescInput = document.getElementById('percentDesc');
+    if (percentDescInput) {
+        percentDescInput.value = formatarPercentual(parseFloat(orcamento.percentdesconto || 0));
+    } else {
+        console.warn("Elemento com ID 'percentDesc' não encontrado.");
+    }
+
+    const acrescimoInput = document.getElementById('Acrescimo');
+    if (acrescimoInput) {
+        // Converte para número antes de toFixed
+        acrescimoInput.value = parseFloat(orcamento.acrescimo || 0).toFixed(2);
+    } else {
+        console.warn("Elemento com ID 'Acrescimo' não encontrado.");
+    }
+
+    const percentAcrescInput = document.getElementById('percentAcresc');
+    if (percentAcrescInput) {
+        percentAcrescInput.value = formatarPercentual(parseFloat(orcamento.percentacrescimo || 0));
+    } else {
+        console.warn("Elemento com ID 'percentAcresc' não encontrado.");
+    }
+
+    const lucroRealInput = document.getElementById('lucroReal');
+    if (lucroRealInput) lucroRealInput.value = formatarMoeda(orcamento.lucroreal || 0);
+
+    const percentRealInput = document.getElementById('percentReal');
+    if (percentRealInput) percentRealInput.value = formatarPercentual(orcamento.percentlucroreal || 0);
+
+    const valorImpostoInput = document.getElementById('valorImposto');
+    if (valorImpostoInput) valorImpostoInput.value = formatarMoeda(orcamento.vlrimposto || 0);
+
+    const percentImpostoInput = document.getElementById('percentImposto');
+    if (percentImpostoInput) percentImpostoInput.value = formatarPercentual(orcamento.percentimposto || 0);
+
+    const valorClienteInput = document.getElementById('valorCliente');
+    if (valorClienteInput) valorClienteInput.value = formatarMoeda(orcamento.vlrcliente || 0);
+
+    console.log("VALOR DO CLIENTE VINDO DO BANCO", orcamento.vlrcliente || 0);
+
+   // preencherItensOrcamentoTabela(orcamento.itens || []);
+
+    if (orcamento.itens && orcamento.itens.length > 0) {
+        preencherItensOrcamentoTabela(orcamento.itens); // <--- ESTA CHAMADA É CRUCIAL
+    } else {
+        console.log("Orçamento carregado não possui itens ou array de itens está vazio.");
+        preencherItensOrcamentoTabela([]); // Limpa a tabela se não houver itens
+    }
+    if (localMontagemSelect) { // Verifica se o select existe antes de chamar
+        atualizarUFOrc(localMontagemSelect);
+    }
+
+    
+    // *** AJUSTE CRUCIAL: Limpar os campos de data no formulário ***
+    // Dentro da nova função, adicione a lógica de limpeza de datas AQUI (usando flatpickrInstances)
+    // for (const id in flatpickrInstances) {
+    //     const pickerInstance = flatpickrInstances[id];
+    //     // Note que o 'orcamento' passado aqui terá 'null' nas datas, então o 'pickerInstance.clear()' será chamado
+    //     if (pickerInstance && typeof pickerInstance.clear === 'function') {
+    //          pickerInstance.clear();
+    //     }
+    // }
+    
+    // 3. DESBLOQUEAR CAMPOS (NOVO ORÇAMENTO ESTÁ ABERTO)
+    // Se o status for 'A' (aberto), 'bloquearCamposSeFechado()' não fará nada, mas é bom chamar 'desbloquear' explicitamente
+    if (typeof desbloquearTodosOsCampos === 'function') {
+         desbloquearTodosOsCampos(); // Assumindo que você tem uma função que inverte o 'bloquearCamposSeFechado'
+    } else {
+        // Se não tiver, chame a sua função de bloqueio e deixe que o 'else' dela resolva
+        bloquearCamposSeFechado();
+    }
+    
+    // Por fim, ajuste o Status para 'A' no formulário
+    const statusInput = document.getElementById('Status');
+    if (statusInput) statusInput.value = 'A';
+}
+
+// function atualizarFlatpickrParaProximoAno() {
+//     // A data de referência é o 01/01 do próximo ano
+//     const dataReferencia = anoProximoOrcamento ? `01/01/${anoProximoOrcamento}` : null;
+
+//     // 1. DESTROI as instâncias Flatpickr existentes (se houver)
+//     // Você precisa de uma forma de rastrear os inputs do formulário principal
+//     const idsInputsData = [
+//         'periodoInfraMontagem',
+//         'periodoMarcacao',
+//         'periodoMontagem',
+//         'periodoRealizacao',
+//         'periodoDesmontagem',
+//         'periodoDesmontagemInfra'
+//     ];
+    
+//     idsInputsData.forEach(id => {
+//         const input = document.getElementById(id);
+//         if (input && input._flatpickr) {
+//             input._flatpickr.destroy();
+//         }
+//     });
+
+//     // 2. RECria o Flatpickr com a nova opção defaultDate
+//     const newOptions = {
+//         ...commonFlatpickrOptions, // Inclui as opções básicas que você já tem
+//         defaultDate: dataReferencia // Define a data de referência para o calendário
+//     };
+
+//     idsInputsData.forEach(id => {
+//         const input = document.getElementById(id);
+//         if (input) {
+//             // Re-inicializa o Flatpickr. Ele usará newOptions, que contém defaultDate.
+//             flatpickrInstancesOrcamento.push(flatpickr(input, newOptions));
+//         }
+//     });
+    
+//     // OPCIONAL: Abrir o primeiro calendário automaticamente (ex: Marcacao)
+//     const inputMarcacao = document.getElementById('periodoMarcacao');
+//     if (inputMarcacao && inputMarcacao._flatpickr) {
+//          // Limpa o valor (pois o espelhamento não deve copiar datas)
+//          inputMarcacao.value = ""; 
+//          // Abre o calendário para o usuário selecionar a nova data
+//          inputMarcacao._flatpickr.open(); 
+//     }
+// }
+
+function atualizarFlatpickrParaProximoAno() {
+    // 1. OBTÉM DATA DE REFERÊNCIA
+    const dataReferencia = anoProximoOrcamento ? `01/01/${anoProximoOrcamento}` : null;
+
+    const idsInputsData = [
+        'periodoPreEvento',
+        'periodoInfraMontagem',
+        'periodoMarcacao',
+        'periodoMontagem',
+        'periodoRealizacao',
+        'periodoDesmontagem',
+        'periodoDesmontagemInfra',
+        'periodoPosEvento'
+    ];
+
+    // 2. DESTROI E LIMPA OS VALORES
+    idsInputsData.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            // Se houver uma instância Flatpickr antiga, DESTRÓI
+            if (input._flatpickr) {
+                input._flatpickr.destroy(); 
+            }
+            // LIMPA o valor do campo DOM explicitamente, garantindo que não há valor a ser copiado
+            input.value = ""; 
+        }
+    });
+
+    // 3. RECria o Flatpickr com a nova opção defaultDate
+    const newOptions = {
+        ...commonFlatpickrOptions,
+        defaultDate: dataReferencia 
+    };
+
+    // Limpa o array de instâncias global para armazenar apenas as novas
+    flatpickrInstancesOrcamento = []; 
+
+    idsInputsData.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            flatpickrInstancesOrcamento.push(flatpickr(input, newOptions));
+        }
+    });
+    
+    // 4. ABRE O CALENDÁRIO para o usuário
+    const inputMarcacao = document.getElementById('periodoMarcacao');
+    // Verifica se a nova instância foi criada antes de tentar abrir
+    if (inputMarcacao && inputMarcacao._flatpickr) { 
+         inputMarcacao._flatpickr.open(); 
+    }
+}
+
+// OBTENHA OS DADOS DO ORÇAMENTO ATUAL:
+// Você deve garantir que tem uma forma de buscar o objeto 'orcamento' que está na tela
+function getOrcamentoAtualCarregado() {
+    // Exemplo: se você armazena o orçamento em uma variável global
+    // return window.orcamentoAtual || null; 
+    
+    // Ou, se precisar buscar novamente no banco usando o idOrcamento da tela
+    // const id = document.getElementById('idOrcamento').value;
+    // return buscarDadosOrcamento(id); // Chamada AJAX / Promise
+    
+    // Por enquanto, use a variável global que armazena os dados
+    return window.orcamentoAtual || null; 
 }
 
 async function PropostaouContrato() {
@@ -5138,11 +5797,14 @@ function exportarParaExcel() {
     linha.push(tr.querySelector(".vlrCusto")?.innerText.trim() || "");
     linha.push(tr.querySelector(".totCtoDiaria")?.innerText.trim() || "");
 
-    const selectAlim = tr.querySelectorAll(".ajdCusto select")[0];
-    linha.push(selectAlim?.value || "");
+    // const selectAlim = tr.querySelectorAll(".ajdCusto select")[0];
+    // linha.push(selectAlim?.value || "");
 
-    const selectTrans = tr.querySelectorAll(".ajdCusto select")[1];
-    linha.push(selectTrans?.value || "");
+    // const selectTrans = tr.querySelectorAll(".ajdCusto select")[1];
+    // linha.push(selectTrans?.value || "");
+
+    linha.push(tr.querySelector(".ajdCusto.alimentacao")?.innerText.trim() || "");
+    linha.push(tr.querySelector(".ajdCusto.transporte")?.innerText.trim() || "");
 
     linha.push(tr.querySelector(".totAjdCusto")?.innerText.trim() || "0");
     linha.push(tr.querySelector("input.hospedagem")?.value || "");

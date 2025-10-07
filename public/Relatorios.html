@@ -11,132 +11,181 @@
     </div>
     <div class="controls">
       <div class="opcoesRelatorios">
-        <div class="tpRelatorio">
-          <div class="titulo">
-          <label>Tipo de Relatório:</label>
-        </div>
-          <div class="coluna">
-            <div class="checkbox-wrapper-33">
-              <label class="checkbox">
-                <input class="checkbox__trigger visuallyhidden" type="radio" id="ajudaCustoRadio" name="reportType" value="ajuda_custo" checked />
-                <span class="checkbox__symbol">
-                  <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4 14l8 7L24 7"></path>
-                  </svg>
-                </span>
-                <p class="checkbox__textwrapper">Ajuda de Custo</p>
-              </label>
+        <fieldset>
+          <legend>Tipo de Relatório</legend>
+          <br>
+          <div class="tpRelatorio">
+            <div class="titulo">            
+            <!-- <label>Tipo de Relatório:</label> -->
             </div>
-            <!-- <label><input type="radio" id="ajudaCustoRadio" name="reportType" value="ajuda_custo" checked>Ajuda de Custo</label> -->
-             
-            <div class="checkbox-wrapper-33">
-              <label class="checkbox">
-                <input class="checkbox__trigger visuallyhidden" type="radio" id="cacheRadio" name="reportType" value="cache" />
-                <span class="checkbox__symbol">
-                  <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4 14l8 7L24 7"></path>
-                  </svg>
-                </span>
-                <p class="checkbox__textwrapper">Cachê</p>
-              </label>
+            <div class="coluna">
+              <div class="checkbox-wrapper-33">
+                <label class="checkbox">
+                  <input class="checkbox__trigger visuallyhidden" type="radio" id="ajudaCustoRadio" name="reportType" value="ajuda_custo" checked />
+                  <span class="checkbox__symbol">
+                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M4 14l8 7L24 7"></path>
+                    </svg>
+                  </span>
+                  <p class="checkbox__textwrapper">Ajuda de Custo</p>
+                </label>
+              </div>
+              <!-- <label><input type="radio" id="ajudaCustoRadio" name="reportType" value="ajuda_custo" checked>Ajuda de Custo</label> -->
+          
+              <div class="checkbox-wrapper-33">
+                <label class="checkbox">
+                  <input class="checkbox__trigger visuallyhidden" type="radio" id="cacheRadio" name="reportType" value="cache" />
+                  <span class="checkbox__symbol">
+                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M4 14l8 7L24 7"></path>
+                    </svg>
+                  </span>
+                  <p class="checkbox__textwrapper">Cachê</p>
+                </label>
+              </div>
+              <!-- <label><input type="radio" id="cacheRadio" name="reportType" value="cache">Cachê</label> -->
             </div>
-            <!-- <label><input type="radio" id="cacheRadio" name="reportType" value="cache">Cachê</label> -->
           </div>
-        </div>
-        <div class="tpRelatorio">
-        <div class="titulo">
-          <label>Datas a Pegar :</label>
-        </div>
-        <div class="gridopt">
-          <div class="coluna">
+          <br>
+        </fieldset>
 
-            <div class="checkbox-wrapper-33">
-              <label class="checkbox">
-                <input class="checkbox__trigger visuallyhidden" type="checkbox" />
-                <span class="checkbox__symbol">
-                  <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4 14l8 7L24 7"></path>
-                  </svg>
-                </span>
-                <p class="checkbox__textwrapper">Montagem Infra</p>
-              </label>
+        <fieldset>
+          <legend>Filtrar por Fase Específica do Evento:</legend>
+          <br>
+          <div class="tpRelatorio">
+            <div class="titulo">
+              <!-- <label>Selecione Datas específicas ou Nenhuma para Todos:</label> -->
             </div>
-
-            <div class="checkbox-wrapper-33">
-              <label class="checkbox">
-                <input class="checkbox__trigger visuallyhidden" type="checkbox" />
-                <span class="checkbox__symbol">
-                  <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4 14l8 7L24 7"></path>
-                  </svg>
-                </span>
-                <p class="checkbox__textwrapper">Desmontagem Infra</p>
-              </label>
+            <div class="gridopt">
+              <div class="coluna">
+                <div class="checkbox-wrapper-33">
+                  <label class="checkbox">
+                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="checkMontagemInfra" value="montageminfra" name="phaseFilter"/>
+                    <span class="checkbox__symbol">
+                      <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 14l8 7L24 7"></path>
+                      </svg>
+                    </span>
+                    <p class="checkbox__textwrapper">Montagem Infra</p>
+                  </label>
+                </div>
+                <div class="checkbox-wrapper-33">
+                  <label class="checkbox">
+                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="checkMontagem" value="montagem" name="phaseFilter"/>
+                    <span class="checkbox__symbol">
+                      <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 14l8 7L24 7"></path>
+                      </svg>
+                    </span>
+                    <p class="checkbox__textwrapper">Montagem</p>
+                  </label>
+                </div>
+              </div>
+              <div class="coluna">
+                <div class="checkbox-wrapper-33">
+                  <label class="checkbox">
+                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="checkMarcacao" value="marcacao" name="phaseFilter"/>
+                    <span class="checkbox__symbol">
+                      <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 14l8 7L24 7"></path>
+                      </svg>
+                    </span>
+                    <p class="checkbox__textwrapper">Marcação</p>
+                  </label>
+                </div>
+                <div class="checkbox-wrapper-33">
+                  <label class="checkbox">
+                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="checkDesmontagem" value="desmontagem" name="phaseFilter"/>
+                    <span class="checkbox__symbol">
+                      <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 14l8 7L24 7"></path>
+                      </svg>
+                    </span>
+                    <p class="checkbox__textwrapper">Desmontagem</p>
+                  </label>
+                </div>
+              </div>
+              <div class="coluna">
+                <div class="checkbox-wrapper-33">
+                  <label class="checkbox">
+                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="checkRealizacao" value="realizacao" name="phaseFilter"/>
+                    <span class="checkbox__symbol">
+                      <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 14l8 7L24 7"></path>
+                      </svg>
+                    </span>
+                    <p class="checkbox__textwrapper">Realização</p>
+                  </label>
+                </div>
+                <div class="checkbox-wrapper-33">
+                  <label class="checkbox">
+                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="checkDesmontagemInfra" value="desmontagemInfra" name="phaseFilter" />
+                    <span class="checkbox__symbol">
+                      <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 14l8 7L24 7"></path>
+                      </svg>
+                    </span>
+                    <p class="checkbox__textwrapper">Desmontagem Infra</p>
+                  </label>
+                </div>
+              </div>
             </div>
-
           </div>
-
-          <div class="coluna">
-
-            <div class="checkbox-wrapper-33">
-              <label class="checkbox">
-                <input class="checkbox__trigger visuallyhidden" type="checkbox" />
-                <span class="checkbox__symbol">
-                  <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4 14l8 7L24 7"></path>
-                  </svg>
-                </span>
-                <p class="checkbox__textwrapper">Marcação</p>
-              </label>
+          <br>
+        </fieldset>
+          
+        <fieldset>
+          <legend>Opções:</legend>
+          <br>
+          <div class="tpRelatorio">
+            <div class="titulo">
+              <!-- <label>Opções:</label> -->
             </div>
-
-
-            <div class="checkbox-wrapper-33">
-              <label class="checkbox">
-                <input class="checkbox__trigger visuallyhidden" type="checkbox" />
-                <span class="checkbox__symbol">
-                  <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4 14l8 7L24 7"></path>
-                  </svg>
-                </span>
-                <p class="checkbox__textwrapper">Montagem</p>
-              </label>
+            <div class="coluna">
+              <div class="checkbox-wrapper-33">
+                <label class="checkbox">
+                  <input class="checkbox__trigger visuallyhidden" type="checkbox" id="checkPendentes" name="reportType" value="pendentes" />
+                  <span class="checkbox__symbol">
+                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M4 14l8 7L24 7"></path>
+                    </svg>
+                  </span>
+                  <p class="checkbox__textwrapper">Pendentes</p>
+                </label>
+              </div>
+              <!-- <label><input type="radio" id="ajudaCustoRadio" name="reportType" value="ajuda_custo" checked>Ajuda de Custo</label> -->
+          
+              <div class="checkbox-wrapper-33">
+                <label class="checkbox">
+                  <input class="checkbox__trigger visuallyhidden" type="checkbox" id="checkPagos" name="reportType" value="pagos" />
+                  <span class="checkbox__symbol">
+                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M4 14l8 7L24 7"></path>
+                    </svg>
+                  </span>
+                  <p class="checkbox__textwrapper">Pagos</p>
+                </label>
+              </div>
+              <!-- <label><input type="radio" id="cacheRadio" name="reportType" value="cache">Cachê</label> -->
             </div>
-
           </div>
-
-          <div class="coluna">
-
-            <div class="checkbox-wrapper-33">
-              <label class="checkbox">
-                <input class="checkbox__trigger visuallyhidden" type="checkbox" />
-                <span class="checkbox__symbol">
-                  <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4 14l8 7L24 7"></path>
-                  </svg>
-                </span>
-                <p class="checkbox__textwrapper">Realização</p>
-              </label>
-            </div>
-
-          </div>
-        </div>
-        </div>
+          <br>
+        </fieldset>          
       </div>
+        
       
       <div class="filtros">
-        <!-- <div class="form-2colunas"> -->
-          <div class="init">
-            <label for="reportStartDate">Data de Início:</label>
-            <input type="date" id="reportStartDate" required>
-          </div>
-        
-          <div class="end">
-            <label for="reportEndDate">Data de Término:</label>
-            <input type="date" id="reportEndDate" required>
-          </div>
-        <!-- </div> -->
-        
+        <div class="init">
+          <label for="reportStartDate">Data de Início:</label>
+          <input type="date" id="reportStartDate" required>
+        </div>
+      
+        <div class="end">
+          <label for="reportEndDate">Data de Término:</label>
+          <input type="date" id="reportEndDate" required>
+        </div>
+
+      
         <div class="Eventos">
           <label for="eventSelect">Evento:</label>
           <select id="eventSelect">
@@ -157,9 +206,7 @@
             <option value="">Selecione uma Equipe</option>
           </select>
         </div>
-      </div>
-
-      
+      </div>      
     </div>
 
     <div class="BTNs">

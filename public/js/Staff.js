@@ -3236,10 +3236,12 @@ async function carregarFuncionarioStaff() {
                         isLote = false;
                         labelFuncionario.textContent = "FREE-LANCER";
                         labelFuncionario.style.color = "red";
-                    } if (perfilSelecionado.toLowerCase() === "funcionário") {
+                    } if ((perfilSelecionado.toLowerCase() === "interno") || (perfilSelecionado.toLowerCase() === "externo")) {
                         isLote = false;
                         labelFuncionario.textContent = "FUNCIONÁRIO";
-                        labelFuncionario.style.color = "green";
+                        labelFuncionario.style.color = "green"
+                        descBeneficioTextarea.value = "Cachê é pago se escala cair em Fim de Semana ou Feriado";
+
                     }else if (perfilSelecionado.toLowerCase() === "lote") {
                         isLote = true;
                         labelFuncionario.textContent = "LOTE";
@@ -4022,8 +4024,10 @@ document.getElementById('Plenocheck').addEventListener('change', function () {
         seniorCheck.checked = false;
         juniorCheck.checked = false;
         baseCheck.checked = false;
-
+        
+        
         document.getElementById("vlrCusto").value = (parseFloat(vlrCustoPlenoFuncao) || 0).toFixed(2);   
+        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
         document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
     }
 });
@@ -4035,7 +4039,8 @@ document.getElementById('Juniorcheck').addEventListener('change', function () {
         plenoCheck.checked = false;
         baseCheck.checked = false;
 
-        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoJuniorFuncao) || 0).toFixed(2);   
+        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoJuniorFuncao) || 0).toFixed(2); 
+        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);  
         document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
     }
 });
@@ -4047,7 +4052,8 @@ document.getElementById('Basecheck').addEventListener('change', function () {
         plenoCheck.checked = false;
         juniorCheck.checked = false;
 
-        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoBaseFuncao) || 0).toFixed(2);   
+        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoBaseFuncao) || 0).toFixed(2);
+        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);   
         document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
     }
 });
@@ -4111,7 +4117,8 @@ function calcularValorTotal() {
     const ajusteCusto = parseFloat(document.getElementById('ajusteCusto').value.replace(',', '.')) || 0;
     const caixinha = parseFloat(document.getElementById('caixinha').value.replace(',', '.')) || 0;
     const perfilFuncionario = document.getElementById("perfilFuncionario").value;
-    const qtdpessoas = parseInt(document.getElementById("qtdPessoas").value) || 0;
+    const qtdpessoas = parseInt(document.getElementById("qtdPessoas").value) || 1;
+
 
     if (isFormLoadedFromDoubleClick)
     {

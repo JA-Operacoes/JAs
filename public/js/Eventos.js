@@ -606,8 +606,10 @@ async function carregarEventoDescricao(desc, elementoAtual) {
         const eventos = await fetchComToken(`/eventos?nmEvento=${encodeURIComponent(desc)}`);
 
         // Limpar o estado anterior antes de carregar o novo
-        limparCamposEvento();
+        //limparCamposEvento();
         
+        if (!eventos || !eventos.idevento) throw new Error("Evento não encontrado");
+
         document.querySelector("#idEvento").value = eventos.idevento;
         document.querySelector("#nmEvento").value = eventos.nmevento; // ✅ Certifique-se de preencher o input com o nome retornado
         

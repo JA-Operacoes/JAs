@@ -148,7 +148,7 @@
     
   }
 
-  .inicioMontagem, .Realizacao, .dtMarcacao, .dtDesmontagem, .dtInfra{
+  .inicioMontagem, .Realizacao, .dtMarcacao, .dtDesmontagem, .dtInfra, .dtPre, .dtPos{
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -189,28 +189,33 @@
     align-items: center;
     flex-direction: column;
   }
-    .select.edicao{
+  
+  .select.edicao{
     width: 50px;
-    }
+  }
 
   .select.ufmontagem{
     width: 90px;
   }
+
   .select.pav{
     width: 160px;
   }
+
   .select label{
     display: flex;
     justify-content: center;
     align-items: center;
     width: 230px;
   }
+
   .select2{
     display: flex;
     justify-content: center;
     align-items: center;
     gap: 5px ;
   }
+
   .selectColumn{
     display: flex;
     justify-content: center;
@@ -259,23 +264,39 @@
     font-size: 13px;
     margin: 0 auto;
   }
-    .ajdContainer {
+
+  .ajdCusto {
+    font-size: 12px;   
+    text-align: center; 
+  }
+
+ 
+  .ajdCusto input {
+      font-size: 12px; 
+      width: 100%;   
+      text-align: right; 
+      box-sizing: border-box; 
+      padding: 2px;
+  }
+
+  .ajdContainer {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    }
-    option{
-      color: #ffffff;
-      background-color: #555;
-    }
+  }
 
+  option{
+    color: #ffffff;
+    background-color: #555;
+  }
 
   .Norcamento{
     display: flex;
     justify-content: center;
     margin: 0 auto;
   }
+
   .form-2colunas{
     display: flex;
     flex-direction: row;
@@ -284,6 +305,7 @@
     max-height: 60px; /* Garante que os elementos não ultrapassem o container */
     justify-content: center;
   }
+
   .form, .form2{
     position: relative;
     display: flex;
@@ -291,12 +313,14 @@
     margin: 12px;
     gap:3px;
   }
+
   .form3{
     position: relative;
     display: flex;
     justify-content: center;
     align-items: center;
   }
+
   .form input {
     font-family:  var(--Font-primary);
     width: 150px;
@@ -335,7 +359,6 @@
     color: #000000;
     outline: none;
   }
-
 
   .form3 label{
     display: flex;
@@ -421,7 +444,9 @@
     font-size: 17px;
   }
   
-  input#dtIniMarcacao, input#dtFimMarcacao, input#dtInicioMontagem, input#dtFim, input#dtInicioRealizacao, input#dtFimRealizacao, input#dtIniDesmontagem, input#dtFimDesmontagem{
+  input#dtIniMarcacao, input#dtFimMarcacao, input#dtInicioMontagem, input#dtFim, 
+  input#dtInicioRealizacao, input#dtFimRealizacao, input#dtIniDesmontagem, input#dtFimDesmontagem,
+  input#dtIniPreEvento, input#dtFimPreEvento, input#dtIniPosEvento, input#dtFimPosEvento{
     width: 200px;
   }
   input#nomenclatura{
@@ -1240,7 +1265,7 @@ select #idCliente, #idEvento{
   }
 
   
-  .inicioMontagem, .Realizacao, .dtMarcacao, .dtDesmontagem, .dtInfra{
+  .inicioMontagem, .Realizacao, .dtMarcacao, .dtDesmontagem, .dtInfra, .dtPre, .dtPos{
     display: flex;
     justify-content: space-around;
     align-items: center;

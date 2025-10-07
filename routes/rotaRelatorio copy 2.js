@@ -154,16 +154,24 @@ const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 router.get("/", autenticarToken(), contextoEmpresa,
 verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
     console.log("ENTROU NA ROTA PARA RELATORIOS", req.query);
-    const { tipo, dataInicio, dataFim, evento, cliente, equipe, pendentes, pagos} = req.query;
-    //const fasesSelecionadas = fases ? fases.split(',').map(f => f.trim()) : [];
+    const { tipo, dataInicio, dataFim, evento, cliente, equipe, pendentes, pagos, fases} = req.query;
+    const fasesSelecionadas = fases ? fases.split(',').map(f => f.trim()) : [];
 
+    // 1. Mapeamento de Fases (Ajustado para usar 'ini' e 'fim')
+    const phaseKeyMap = { // Renomeado de phaseKeys para phaseKeyMap
+        'montagem_infra': { ini: 'dtiniinframontagem', fim: 'dtfiminframontagem' },
+        'marcacao': { ini: 'dtinimarcacao', fim: 'dtfimmarcacao' },
+        'realizacao': { ini: 'dtinirealizacao', fim: 'dtfimrealizacao' },
+        'desmontagem_infra': { ini: 'dtiniinfradesmontagem', fim: 'dtfiminfradesmontagem' },
+        'montagem': { ini: 'dtinimontagem', fim: 'dtfimmontagem' },
+        'desmontagem': { ini: 'dtinidesmontagem', fim: 'dtfimdesmontagem' }
+    };
+    
     const idempresa = req.idempresa;
-    const eventoEhTodos = !evento || evento === "todos";
-
-   
+    const eventoEhTodos = evento === "todos";
     
     // 2. Validações
-    if (!tipo || !dataInicio || !dataFim ) {
+    if (!tipo || !dataInicio || !dataFim || !evento) {
         return res.status(400).json({ error: 'Parâmetros tipo, dataInicio, dataFim e evento são obrigatórios.' });
     }
     
@@ -171,48 +179,71 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
     if (!tiposPermitidos.includes(tipo)) {
         return res.status(400).json({ error: 'Tipo de relatório inválido.' });
     }
-    
-    let phaseFilterSql = `s.date_value::date >= $2::date AND s.date_value::date <= $3::date`; // Filtro interno das subqueries de staff (s.date_value::date ...)
 
-    
-    // const whereEventos  = `
-    //     AND EXISTS (
-    //         SELECT 1
-    //         FROM jsonb_array_elements_text(tse.datasevento) AS event_date
-    //         WHERE event_date::date >= $2::date
-    //         AND event_date::date <= $3::date
-    //     )
-    // `;
+    // =======================================================
+    // 3. NOVA LÓGICA DE FILTRO DE FASE/PERÍODO CONSOLIDADO
+    // =======================================================
+    let whereEventos = ''; // Filtro principal do evento (AND ...)
+    let phaseFilterSql = null; // Filtro interno das subqueries de staff (s.date_value::date ...)
 
-    const whereEventos = `
-        AND CASE
-            -- 1. Se o período de busca for de UM ÚNICO DIA ($2 = $3)
-            WHEN $2::date = $3::date THEN
-                (
-                    -- Verifica se a data exata existe
-                    tse.datasevento ? $2::text 
-                    AND 
-                    -- E verifica se o evento tem APENAS um dia
-                    jsonb_array_length(tse.datasevento) = 1
-                )
+    if (fasesSelecionadas.length > 0) {
+        
+        const startCols = fasesSelecionadas.map(fase => {
+            const key = phaseKeyMap[fase];
+            return key ? `tse.${key.ini}` : null;
+        }).filter(c => c).join(', ');
+
+        const endCols = fasesSelecionadas.map(fase => {
+            const key = phaseKeyMap[fase];
+            return key ? `tse.${key.fim}` : null;
+        }).filter(c => c).join(', ');
+
+        if (startCols.length > 0 && endCols.length > 0) {
+            // Encontra o INÍCIO mais antigo e o FIM mais recente
+            const sqlMinDate = `LEAST(${startCols})`;
+            const sqlMaxDate = `GREATEST(${endCols})`;
             
-            -- 2. Se o período de busca for de MÚLTIPLOS DIAS ($2 != $3)
-            ELSE
-                -- Verifica se o array de datas do evento é EXATAMENTE igual ao array de datas gerado
-                NOT EXISTS (
+            // 1. FILTRO DE EVENTO: Garante que o período consolidado se sobrepõe ao período do relatório ($2/$3)
+            whereEventos = `
+                AND COALESCE(${sqlMinDate}, '9999-12-31'::date)::date <= $3::date
+                AND COALESCE(${sqlMaxDate}, '1900-01-01'::date)::date >= $2::date
+            `;
+            
+            // 2. FILTRO DE STAFF: Força a contagem APENAS dentro do Período Consolidado da Fase
+            phaseFilterSql = `
+                s.date_value::date >= ${sqlMinDate}::date 
+                AND s.date_value::date <= ${sqlMaxDate}::date
+            `;
+        }
+    } 
+
+    if (!whereEventos) {
+        // Se não há filtro de fase, usa o filtro de datasevento padrão.
+        whereEventos = `
+            AND EXISTS (
                 SELECT 1
                 FROM jsonb_array_elements_text(tse.datasevento) AS event_date
-                WHERE event_date::date < $2::date OR event_date::date > $3::date
+                WHERE event_date::date >= $2::date
+                AND event_date::date <= $3::date
             )
-        END
-    `;
+        `;
+        
+        // O filtro de staff, neste caso, é o período do relatório ($2 e $3)
+        phaseFilterSql = `s.date_value::date >= $2::date AND s.date_value::date <= $3::date`;
+    }
 
-  
-    let wherePeriodo = whereEventos;        
+    // 4. Inicializa wherePeriodo com o filtro de período/fase
+    let wherePeriodo = whereEventos; 
     
+    // =======================================================
+    // 5. CONFIGURAÇÃO DE PARÂMETROS E FILTROS ADICIONAIS
+    // =======================================================
 
     try {
         const relatorio = {};
+
+        // REMOVIDA: const whereEventosFase = eventoFilter || ''; (Não é mais necessária)
+        // REMOVIDA: let wherePeriodoPadrao = ... (Agora é coberto por whereEventos/phaseFilterSql)
 
         let paramCount = 4; // Começa a contagem para os parâmetros dinâmicos
         const params = [idempresa, dataInicio, dataFim];
@@ -302,14 +333,11 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                 // Se houver condições, adiciona ' AND (condicao1 OR condicao2)'
                 whereStatus = ` AND (${statusConditions.join(' OR ')})`;
             }
-        }       
+        }
 
-      //  wherePeriodo = wherePeriodo || "AND 1=1";
-      //  whereStatus = whereStatus || "AND 1=1";
-      //  phaseFilterSql = phaseFilterSql || "1=1";
-
-        console.log("STATUS PAGTO", whereStatus, wherePeriodo, phaseFilterSql);
-    
+    // Lembre-se de USAR `phaseFilterSql` na sua `queryFechamentoPrincipal`
+    // substituindo a antiga condição de data `s.date_value::date >= $2::date AND s.date_value::date <= $3::date`
+    // por ` ${phaseFilterSql} ` em todas as subqueries de INÍCIO, TÉRMINO e QTD/Diárias.
         let queryFechamentoPrincipal = ''; // Variável para armazenar a query principal
         
         // **LÓGICA CONDICIONAL PARA O TIPO DE RELATÓRIO PRINCIPAL**
@@ -324,16 +352,24 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                     tse.idequipe AS "idequipe",
                     tse.nmequipe AS "nmequipe",
                     tbf.nome AS "NOME",
-                    tbf.pix AS "PIX",                    
-                    (SELECT MIN(date_value::date) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))::text AS "INÍCIO",
-                    (SELECT MAX(date_value::date) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))::text AS "TÉRMINO",                   
+                    tbf.pix AS "PIX",
+                    --jsonb_array_element_text(tse.datasevento, 0) AS "INÍCIO",
+                    --jsonb_array_element_text(tse.datasevento, jsonb_array_length(tse.datasevento) - 1) AS "TÉRMINO",
+                    (SELECT MIN(date_value::date) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value) WHERE s.date_value::date >= $2::date AND s.date_value::date <= $3::date)::text AS "INÍCIO",
+                    (SELECT MAX(date_value::date) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value) WHERE s.date_value::date >= $2::date AND s.date_value::date <= $3::date)::text AS "TÉRMINO",
+                    --(
+                    --    COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0.00 END, 0.00) +
+                    --    COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' THEN tse.vlrcaixinha ELSE 0.00 END, 0.00)
+                    --) AS "VLR ADICIONAL",
                     0 AS "VLR ADICIONAL",
                     (COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) AS "VLR DIÁRIA",
                     jsonb_array_length(
-                        (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))
+                        (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
+                         WHERE s.date_value::date >= $2::date AND s.date_value::date <= $3::date)
                     ) AS "QTD",
-                    (COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0 THEN 1 ELSE tse.qtdpessoaslote END) * jsonb_array_length(
-                        (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))
+                    (COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0))  *  (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0 THEN 1 ELSE tse.qtdpessoaslote END) * jsonb_array_length(
+                        (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
+                         WHERE s.date_value::date >= $2::date AND s.date_value::date <= $3::date)
                     ) AS "TOT DIÁRIAS",
                     --tse.statuspgto AS "STATUS PGTO"
                     CASE
@@ -342,18 +378,18 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                         ELSE tse.statuspgto
                     END AS "STATUS PGTO",
                     CASE
-                        WHEN tse.comppgtoajdcusto IS NOT NULL AND tse.comppgtoajdcusto != '' THEN 0.00                        
+                        WHEN tse.comppgtoajdcusto IS NOT NULL AND tse.comppgtoajdcusto != '' THEN 0.00
                         WHEN tse.comppgtoajdcusto50 IS NOT NULL AND tse.comppgtoajdcusto50 != '' THEN 
-                            -- TOT PAGAR (UNFILTERED no cálculo): Usa a QTD total de diárias (dividida por 2 no caso de 50%)
-                            (COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0 THEN 1 ELSE tse.qtdpessoaslote END) * jsonb_array_length(
-                                (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))
+                            (COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0))  *  (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0 THEN 1 ELSE tse.qtdpessoaslote END) * jsonb_array_length(
+                                (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
+                                WHERE s.date_value::date >= $2::date AND s.date_value::date <= $3::date)
                             ) / 2
                         ELSE 
-                            -- TOT PAGAR (UNFILTERED no cálculo): Usa a QTD total de diárias
-                            (COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0 THEN 1 ELSE tse.qtdpessoaslote END) * jsonb_array_length(
-                                (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))
+                            (COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) *  (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0 THEN 1 ELSE tse.qtdpessoaslote END) * jsonb_array_length(
+                                (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
+                                WHERE s.date_value::date >= $2::date AND s.date_value::date <= $3::date)
                             )
-                    END AS "TOT PAGAR"                   
+                    END AS "TOT PAGAR"
                 FROM
                     staffeventos tse
                 JOIN
@@ -361,15 +397,10 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                 JOIN 
                     staffempresas semp ON tse.idstaff = semp.idstaff
                 WHERE
-                    semp.idempresa = $1 ${whereStatus} --${wherePeriodo} 
-                    AND jsonb_array_length(
-                        (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
-                        WHERE ${phaseFilterSql})
-                    ) > 0
+                    semp.idempresa = $1 ${wherePeriodo} ${whereStatus}
                 ORDER BY
                     tse.nmevento,
-                    tse.nmcliente,
-                    tbf.nome;
+                    tse.nmcliente;
             `;
         } else if (tipo === 'cache') {
             // Query para "Fechamento de Cachê" (usa vlrCache)            
@@ -418,9 +449,9 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                             tse.qtdpessoaslote AS "QTDPESSOAS",
                             tse.nmfuncao AS "FUNÇÃO",
                             tbf.nome AS "NOME",
-                            tbf.pix AS "PIX",                            
-                            (SELECT MIN(date_value::date) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))::text AS "INÍCIO",
-                            (SELECT MAX(date_value::date) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))::text AS "TÉRMINO",
+                            tbf.pix AS "PIX",
+                            jsonb_array_element_text(tse.datasevento, 0) AS "INÍCIO",
+                            jsonb_array_element_text(tse.datasevento, jsonb_array_length(tse.datasevento) - 1) AS "TÉRMINO",
                             CAST(
                                 (
                                     COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0.00 END, 0.00) +
@@ -431,15 +462,16 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                             ) AS "VLR ADICIONAL",
                             COALESCE(tse.vlrcache, 0) AS "VLR DIÁRIA",
                             jsonb_array_length(
-                                    (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))
-                                ) AS "QTD",
-                                
-                            (COALESCE(tse.vlrcache, 0) * (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0 THEN 1 ELSE tse.qtdpessoaslote END) * jsonb_array_length(
-                                    (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))
-                                )) AS "TOT DIÁRIAS",
-
-                            (CAST(COALESCE(NULLIF(TRIM(tse.vlrcaixinha::TEXT), ''), '0') AS NUMERIC)) AS vlrcaixinha_num,            
-                         
+                                (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
+                                WHERE s.date_value::date >= $2::date AND s.date_value::date <= $3::date)
+                            ) AS "QTD",
+                            (COALESCE(tse.vlrcache, 0) *  (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0 THEN 1 ELSE tse.qtdpessoaslote END) * jsonb_array_length(
+                                (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
+                                WHERE s.date_value::date >= $2::date AND s.date_value::date <= $3::date)
+                            )) AS "TOT DIÁRIAS",
+                            (CAST(COALESCE(NULLIF(TRIM(tse.vlrcaixinha::TEXT), ''), '0') AS NUMERIC)) AS vlrcaixinha_num,
+            
+                            -- 2. Define a condição de TUDO PAGO (incluindo a nova lógica)
                             CASE
                                 WHEN (tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '') -- Comprovante de Cachê Preenchido
                                 AND (
@@ -451,12 +483,13 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                                     )
                                 ) THEN 'Pago'
                                 ELSE 'Pendente' -- Se não for TUDO PAGO, é Pendente
-                            END AS "STATUS PGTO",                            
-
+                            END AS "STATUS PGTO",
+                            
+                            -- CÁLCULO DO TOTAL A PAGAR (somente o que está pendente)
                             CAST(
                                 (
                                     -- 1. Total Diárias (Base): Pendente se o comprovante de CACHÊ estiver vazio
-                                    (CASE WHEN tse.comppgtocache IS NULL OR tse.comppgtocache = '' THEN (COALESCE(tse.vlrcache, 0) * (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0 THEN 1 ELSE tse.qtdpessoaslote END) * jsonb_array_length((SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value) WHERE ${phaseFilterSql}))) ELSE 0.00 END)
+                                    (CASE WHEN tse.comppgtocache IS NULL OR tse.comppgtocache = '' THEN (COALESCE(tse.vlrcache, 0) * (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0 THEN 1 ELSE tse.qtdpessoaslote END) * jsonb_array_length((SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value) WHERE s.date_value::date >= $2::date AND s.date_value::date <= $3::date))) ELSE 0.00 END)
                                     +
                                     -- 2. VLR Adicional (Ajuste): Pendente se o comprovante de CACHÊ estiver vazio
                                     (CASE WHEN tse.comppgtocache IS NULL OR tse.comppgtocache = '' THEN COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0.00 END, 0.00) ELSE 0.00 END)
@@ -481,10 +514,7 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                             diarias_autorizadas da ON tse.idstaffevento = da.idstaffevento
                         WHERE
                             semp.idempresa = $1 ${wherePeriodo} ${whereStatus}
-                            AND jsonb_array_length(
-                                (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
-                                WHERE ${phaseFilterSql})
-                            ) > 0                            
+                            
                     ) AS subquery
                 ORDER BY
                     "nomeEvento",
@@ -513,30 +543,26 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
             totaisPorEvento[eventoId].totalVlrDiarias += parseFloat(item["VLR DIÁRIA"] || 0);
             totaisPorEvento[eventoId].totalTotalDiarias += parseFloat(item["TOT DIÁRIAS"] || 0);
             totaisPorEvento[eventoId].totalTotalPagar += parseFloat(item["TOT PAGAR"] || 0);
-           // console.log('Item:', totaisPorEvento[eventoId]);
+            console.log('Item:', totaisPorEvento[eventoId]);
         });
         relatorio.fechamentoCacheTotaisPorEvento = totaisPorEvento;
-
-        let whereEventosExiste = whereEventos.replace(' AND ', '');
-            // 2. Substitui o alias 'tse.' pelo alias 'inner_tse.' nas subqueries (se for o caso da queryUtilizacaoDiarias)
-            whereEventosExiste = whereEventosExiste.replace(/tse\./g, 'inner_tse.');
 
         // MODIFICAÇÃO 3: Ajustar a query `queryUtilizacaoDiarias` 
         // para usar a string `whereEventosFase` nas subqueries.
 
         // Prepara os filtros em string, ajustando os aliases (tse. ou inner_tse.)
-        // const whereEventosFaseTd = whereEventosFase; 
-        // const whereEventosFaseInner = whereEventosFase.replace(/tse\./g, 'inner_tse.');
+        const whereEventosFaseTd = whereEventosFase; 
+        const whereEventosFaseInner = whereEventosFase.replace(/tse\./g, 'inner_tse.');
         
-        // // Determina os placeholders de cliente e equipe, que são dinâmicos nos params.
-        // const clientePlaceholder = (cliente && cliente !== "todos") ? `$${params.indexOf(cliente) + 1}` : null;
-        // const equipePlaceholder = (equipe && equipe !== "todos") ? `$${params.indexOf(equipe) + 1}` : null;
+        // Determina os placeholders de cliente e equipe, que são dinâmicos nos params.
+        const clientePlaceholder = (cliente && cliente !== "todos") ? `$${params.indexOf(cliente) + 1}` : null;
+        const equipePlaceholder = (equipe && equipe !== "todos") ? `$${params.indexOf(equipe) + 1}` : null;
         
-        // const clienteFilterTd = clientePlaceholder ? `AND tse.idcliente = ${clientePlaceholder}` : '';
-        // const equipeFilterTd = equipePlaceholder ? `AND tse.idequipe = ${equipePlaceholder}` : '';
+        const clienteFilterTd = clientePlaceholder ? `AND tse.idcliente = ${clientePlaceholder}` : '';
+        const equipeFilterTd = equipePlaceholder ? `AND tse.idequipe = ${equipePlaceholder}` : '';
         
-        // const clienteFilterInner = clientePlaceholder ? `AND inner_tse.idcliente = ${clientePlaceholder}` : '';
-        // const equipeFilterInner = equipePlaceholder ? `AND inner_tse.idequipe = ${equipePlaceholder}` : '';
+        const clienteFilterInner = clientePlaceholder ? `AND inner_tse.idcliente = ${clientePlaceholder}` : '';
+        const equipeFilterInner = equipePlaceholder ? `AND inner_tse.idequipe = ${equipePlaceholder}` : '';
 
 
         // Utilização de Diárias (não filtra por evento)
@@ -561,21 +587,23 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                     tse.nmfuncao,
                     SUM(jsonb_array_length(
                         (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
-                         WHERE ${phaseFilterSql})
+                         WHERE s.date_value::date >= $2::date AND s.date_value::date <= $3::date)
                     )) AS diarias_utilizadas_por_funcao
                 FROM
                     staffeventos tse
                 JOIN staffempresas semp ON semp.idstaff = tse.idstaff
                 WHERE
-                    semp.idempresa = $1 ${wherePeriodo}
-                    --AND EXISTS (
-                    --    SELECT 1 FROM jsonb_array_elements_text(tse.datasevento) AS s_check(date_value_check)
-                    --    WHERE s_check.date_value_check::date >= $2::date AND s_check.date_value_check::date <= $3::date
-                    --)
+                    semp.idempresa = $1
+                    AND EXISTS (
+                        SELECT 1 FROM jsonb_array_elements_text(tse.datasevento) AS s_check(date_value_check)
+                        WHERE s_check.date_value_check::date >= $2::date AND s_check.date_value_check::date <= $3::date
+                    )
                     ${evento && evento !== "todos" ? `AND tse.idevento = $${params.indexOf(evento) + 1}` : ''}
                     ${cliente && cliente !== "todos" ? `AND tse.idcliente = $${params.indexOf(cliente) + 1}` : ''}
                     ${equipe && equipe !== "todos" ? `AND tse.idequipe = $${params.indexOf(equipe) + 1}` : ''}
-                  
+                   -- ${whereEventosFaseTd} 
+                   -- ${clienteFilterTd} 
+                   -- ${equipeFilterTd}
 
                 GROUP BY
                     tse.idevento, tse.idcliente, semp.idempresa, tse.nmfuncao
@@ -596,7 +624,11 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                     AND inner_event_date::date <= $3::date
                     ${evento && evento !== "todos" ? `AND inner_tse.idevento = $${params.indexOf(evento) + 1}` : ''}
                     ${cliente && cliente !== "todos" ? `AND inner_tse.idcliente = $${params.indexOf(cliente) + 1}` : ''}
-                    ${equipe && equipe !== "todos" ? `AND inner_tse.idequipe = $${params.indexOf(equipe) + 1}` : ''}                  
+                    ${equipe && equipe !== "todos" ? `AND inner_tse.idequipe = $${params.indexOf(equipe) + 1}` : ''}
+
+                    --${whereEventosFaseTd} 
+                    --${clienteFilterTd} 
+                    --${equipeFilterTd}
                 
                 )
             GROUP BY

@@ -89,6 +89,30 @@ function formatarData(dataString) {
 }
 
 
+
+// function preencherEventosPeriodo() {
+//     const startDate = document.getElementById('reportStartDate').value;
+//     const endDate = document.getElementById('reportEndDate').value;
+//     const eventSelect = document.getElementById('eventSelect');
+//     if (!startDate || !endDate) return;
+
+//     // Chame sua API que retorna eventos do período
+//     fetchComToken(`/relatorios/eventos?inicio=${startDate}&fim=${endDate}`)
+//     .then(eventos => {
+//         eventSelect.innerHTML = '<option value="">Selecione um Evento</option>';
+//         eventos.forEach(ev => {
+//             const opt = document.createElement('option');
+//             opt.value = ev.idevento;
+//             opt.textContent = ev.nmevento;
+//             eventSelect.appendChild(opt);
+//         });
+//     })
+//     .catch(() => {
+//         eventSelect.innerHTML = '<option value="">Nenhum evento encontrado</option>';
+//     });
+// }
+
+
 async function preencherEventosPeriodo() {
     const startDate = document.getElementById('reportStartDate').value;
     const endDate = document.getElementById('reportEndDate').value;
@@ -172,7 +196,13 @@ const normalizeDate = (dateString, isEndOfDay = false) => {
     
     // Extrai apenas a parte da data (AAAA-MM-DD)
     const datePart = dateString.substring(0, 10); 
-  
+
+    // Se a data do backend for '2025-08-30T03:00:00.000Z'
+    // A chamada 'new Date("2025-08-30")' cria '2025-08-30 00:00:00 UTC'
+    // que se torna '2025-08-29 21:00:00 BRT' (problema).
+    
+    // MUDANÇA PRINCIPAL: Usamos 'AAAA/MM/DD' que força a interpretação como local, 
+    // ou usamos a sintaxe AAAA-MM-DD TXX:XX:XX para manter a hora no dia correto.
     
     let dateToParse = datePart;
 
@@ -190,6 +220,61 @@ const normalizeDate = (dateString, isEndOfDay = false) => {
     return new Date(dateToParse);
 };
 
+function getValidEventIds(dataDoPeriodo, dataInicioRelatorio, dataFimRelatorio, fasesSelecionadas) {
+    const validIds = []; 
+    if (!fasesSelecionadas || fasesSelecionadas.length === 0) {
+        // Se nenhuma fase foi selecionada, retorna uma lista de IDs vazia.
+        // O JS chamador ('gerarRelatorio') vai decidir se usa ou não esse filtro.
+        return []; 
+    }
+
+    // Convertendo as datas de referência do relatório para objetos Date
+    const reportStart = normalizeDate(dataInicioRelatorio, false);
+    const reportEnd = normalizeDate(dataFimRelatorio, true);
+
+    const uniqueValidIds = new Set(); 
+    // Mapeamento das chaves de fase do objeto para as colunas
+    const phaseKeys = {
+        'montagem_infra': { start: 'dtiniinframontagem', end: 'dtfiminframontagem' },
+        'marcacao': { start: 'dtinimarcacao', end: 'dtfimmarcacao' },
+        'realizacao': { start: 'dtinirealizacao', end: 'dtfimrealizacao' },
+        'desmontagem_infra': { start: 'dtiniinfradesmontagem', end: 'dtfiminfradesmontagem' },
+        'montagem': { start: 'dtinimontagem', end: 'dtfimmontagem' },
+        'desmontagem': { start: 'dtinidesmontagem', end: 'dtfimdesmontagem' }
+    };
+
+    fasesSelecionadas.forEach(fase => {
+        const keys = phaseKeys[fase];
+        
+        if (!keys) {
+            console.warn(`Fase não mapeada encontrada: ${fase}`);
+            return; // Pula para a próxima fase
+        }
+
+        // Itera sobre todos os eventos do período para essa fase específica
+        dataDoPeriodo.forEach(evento => {
+            const phaseStart = normalizeDate(evento[keys.start], false);
+            const phaseEnd = normalizeDate(evento[keys.end], true);
+
+            // Verifica se as datas da fase existem
+            if (!phaseStart || !phaseEnd) return;
+
+            // Lógica de Sobreposição (Overlap):
+            const isOverlapping = (
+                reportEnd >= phaseStart && 
+                reportStart <= phaseEnd
+            );
+
+            if (isOverlapping) {
+                // Adiciona o ID ao Set. Se já existir, não faz nada.
+                uniqueValidIds.add(evento.idevento); 
+            }
+        });
+    });  
+    
+    return Array.from(uniqueValidIds);
+
+}
 
 function preencherClientesEvento() {
     const eventSelect = document.getElementById('eventSelect');
@@ -457,16 +542,102 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
         'DIÁRIAS UTILIZADAS': 'text-center',
         'SALDO': 'text-right',
     };
-   
+    // 
+    // if (dadosUtilizacao && dadosUtilizacao.length > 0) { // <<-- MODIFICAÇÃO: Adicionada verificação de length
+    //     const nroOrcamento = dadosUtilizacao[0].nrorcamento || 'N/A'; 
+    //     html += `
+    //         <div class="tabela-resumo diarias">
+    //             <h2 class="utilizacao-diarias-header">RELATÓRIO DE UTILIZAÇÃO DE DIÁRIAS (Orçamento: ${nroOrcamento})</h2> <table class="report-table">
+    //             <table class="report-table">
+    //                 <thead>
+    //                     <tr class="header-group-row">
+    //                         <th colspan="3" class="header-group">DIÁRIAS CONTRATADAS</th>
+    //                         <th colspan="2" class="header-group">RESUMO DE USO</th>
+    //                     </tr>
+    //                     <tr>
+    //                         <th>INFORMAÇÕES EM PROPOSTA</th>
+    //                         <th>QTD PROFISSIONAIS</th>
+    //                         <th>DIÁRIAS CONTRATADAS</th>
+    //                         <th>DIÁRIAS UTILIZADAS</th>
+    //                         <th>SALDO</th>                    
+    //                     </tr>
+    //                 </thead>
+    //                 <tbody>
+    //                     ${montarTabelaBody(dadosUtilizacao, alinhamentosUtilizacao)}
+    //                 </tbody>
+    //             </table>
+    //         </div>
+    //     `;
+    // } else { // <<-- MODIFICAÇÃO: Mensagem para quando não há dados
+    //      html += `<div class="tabela-resumo diarias"><p>Nenhum dado de utilização de diárias para este evento.</p></div>`;
+    // }
 
     const utilizacaoAgrupada = dadosUtilizacao.reduce((acc, item) => {
         const nro = item.nrorcamento || 'N/A';
         if (!acc[nro]) acc[nro] = [];
         acc[nro].push(item);
         return acc;
-    }, {});  
+    }, {});
 
     
+
+    // if (dadosUtilizacao && dadosUtilizacao.length > 0) {
+        
+    //     // 1. Agrupar os dados por nrorcamento
+    //     const utilizacaoAgrupada = dadosUtilizacao.reduce((acc, item) => {
+    //         const nro = item.nrorcamento || 'N/A';
+    //         if (!acc[nro]) {
+    //             acc[nro] = [];
+    //         }
+    //         acc[nro].push(item);
+    //         return acc;
+    //     }, {});
+
+    //     // 2. Iterar sobre os orçamentos agrupados para montar as tabelas
+    //     Object.keys(utilizacaoAgrupada).forEach(nroOrcamento => {
+    //         const dadosDoOrcamento = utilizacaoAgrupada[nroOrcamento];
+            
+    //         html += `
+    //             <div class="tabela-resumo diarias">
+    //                 <h2 class="utilizacao-diarias-header">RELATÓRIO DE UTILIZAÇÃO DE DIÁRIAS (Orçamento: ${nroOrcamento})</h2>
+    //                 <table class="report-table">
+    //                     <thead>
+    //                         <tr class="header-group-row">
+    //                             <th colspan="3" class="header-group">DIÁRIAS CONTRATADAS</th>
+    //                             <th colspan="2" class="header-group">RESUMO DE USO</th>
+    //                         </tr>
+    //                         <tr>
+    //                             <th>INFORMAÇÕES EM PROPOSTA</th>
+    //                             <th>QTD PROFISSIONAIS</th>
+    //                             <th>DIÁRIAS CONTRATADAS</th>
+    //                             <th>DIÁRIAS UTILIZADAS</th>
+    //                             <th>SALDO</th>
+    //                         </tr>
+    //                     </thead>
+    //                     <tbody>
+    //                         ${montarTabelaBody(dadosDoOrcamento, alinhamentosUtilizacao)}
+    //                     </tbody>
+    //                 </table>
+    //             </div>
+    //         `;
+    //     });
+        
+    // } else { // <<-- Mensagem para quando não há dados
+    //     html += `<div class="tabela-resumo diarias"><p>Nenhum dado de utilização de diárias para este evento.</p></div>`;
+    // }
+
+
+    // if (dadosContingencia && dadosContingencia.length > 0) { // <<-- MODIFICAÇÃO: Adicionada verificação de length
+    //     // Assumindo que montarTabela(dadosContingencia, ['Profissional', 'Informacao', 'Observacao']) funciona para isso
+    //     html += `
+    //         <div class="tabela-resumo contingencia">
+    //             <h2 class="contingencia-header">CONTINGÊNCIA</h2>
+    //             ${montarTabela(dadosContingencia, ['Profissional', 'Informacao', 'Observacao'])}
+    //         </div>
+    //     `;
+    // } else { // <<-- MODIFICAÇÃO: Mensagem para quando não há dados
+    //     html += `<div class="tabela-resumo contingencia"><p>Nenhum dado de contingência para este evento.</p></div>`;
+    // }
 
     const todosOrcamentos = Object.keys(utilizacaoAgrupada).filter(nro => nro !== 'N/A');
 
@@ -572,6 +743,25 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
         return html;
     }
 
+// function montarTabelaBody(dados) {
+//     if (!dados || dados.length === 0) {
+//         return '<tr><td colspan="5">Nenhum dado disponível.</td></tr>';
+//     }
+
+//     let html = '';
+//     dados.forEach(item => {
+//         html += `
+//             <tr>
+//                 <td>${item['INFORMAÇÕES EM PROPOSTA'] || ''}</td>
+//                 <td>${item['QTD PROFISSIONAIS'] || ''}</td>
+//                 <td>${item['DIÁRIAS CONTRATADAS'] || ''}</td>
+//                 <td>${item['DIÁRIAS UTILIZADAS'] || ''}</td>
+//                 <td>${item.SALDO || ''}</td>
+//             </tr>
+//         `;
+//     });
+//     return html;
+// }
 
 function montarTabelaBody(dados, alinhamentosPorColuna = {}) {
     if (!dados || dados.length === 0) {
@@ -666,15 +856,10 @@ async function gerarRelatorio() {
     
     //========NOVO TRECHO==========
     const eventSelectElement = document.getElementById('eventSelect');
-    //let evento = eventSelectElement ? eventSelectElement.value : null;
-    const eventoId = eventSelectElement ? eventSelectElement.value : 'todos';
-    const eventoSelecionado = eventSelectElement ? eventSelectElement.value : 'todos';
-    let evento = eventoSelecionado; 
+    let evento = eventSelectElement ? eventSelectElement.value : null;
 
     const fasesSelecionadas = Array.from(document.querySelectorAll('input[name="phaseFilter"]:checked'))
                                    .map(input => input.value);
-
-    const fasesString = fasesSelecionadas.join(',');
 
     console.log("FASE SELECIONADA", fasesSelecionadas);
 
@@ -705,224 +890,48 @@ async function gerarRelatorio() {
         return;
     }
 
-    const phaseKeyMap = { 
-        'montagemInfra': { ini: 'dtiniinframontagem', fim: 'dtfiminframontagem' },
-        'marcacao': { ini: 'dtinimarcacao', fim: 'dtfimmarcacao' },
-        'realizacao': { ini: 'dtinirealizacao', fim: 'dtfimrealizacao' },
-        'desmontagemInfra': { ini: 'dtiniinfradesmontagem', fim: 'dtfiminfradesmontagem' },
-        'montagem': { ini: 'dtinimontagem', fim: 'dtfimmontagem' },
-        'desmontagem': { ini: 'dtinidesmontagem', fim: 'dtfimdesmontagem' }
-    };
-
-    console.log("CHAVES", phaseKeyMap);
-
-    let dataFinalInicio = dataInicio; // Inicia com a data original do relatório
-    let dataFinalFim = dataFim;       // Inicia com a data original do relatório
-
-    console.log("DEBUG ARRAY BRUTO BASE:", todosOsDadosDoPeriodo);
-
-
-    if (temFiltroDeFase) {
-
-        const eventoSelecionadoStr = String(eventoSelecionado).trim();
-
-        // 1. FILTRO PRIMÁRIO (Mantemos o mais robusto para a maioria dos eventos)
-        const dadosFiltradosPorEventoBase = todosOsDadosDoPeriodo.filter(evento => {
-            if (eventoSelecionado === 'todos' || eventoSelecionado === '') {
-                return true;
-            }
-
-            // Compara com coerção fraca após limpeza de string
-            const eventoIdeventoLimpo = String(evento.idevento || '').trim();
-            return eventoIdeventoLimpo == eventoSelecionadoStr;
-        });
-
-        let dadosFiltradosPorEvento = [...dadosFiltradosPorEventoBase];
-
-        // 2. CORREÇÃO DE CONTINGÊNCIA: Se a filtragem falhou para o Evento 2 (BEAUTY FAIR)
-        if (eventoSelecionadoStr === '2' && dadosFiltradosPorEvento.length <= 1) {
-
-            console.warn("⚠️ Aplicando filtro de contingência por Nome para Evento 2 (BEAUTY FAIR 2025) devido à inconsistência de dados (USANDO INCLUDES).");
-
-            // Usamos apenas a parte mais distinta do nome para a verificação
-            const nomeParteParaComparacao = 'BEAUTY FAIR'; 
-            const idEvento2 = 2;
-
-            // Usamos um Set para garantir que não haja duplicatas
-            const uniqueEvents = new Set(dadosFiltradosPorEvento);
-
-            // Itera sobre o array de dados brutos e inclui manualmente os orçamentos do BEAUTY FAIR
-            todosOsDadosDoPeriodo.forEach(evento => {
-                const eventoNomeLimpo = String(evento.nmevento || '').trim().toUpperCase();
-
-                // >>> MUDANÇA CRÍTICA: Aceita se o ID for 2 OU se o nome CONTIVER 'BEAUTY FAIR' (mais robusto)
-                const isContingencyMatch = eventoNomeLimpo.includes(nomeParteParaComparacao.toUpperCase());
-
-                if (Number(evento.idevento) === idEvento2 || isContingencyMatch) {
-                     uniqueEvents.add(evento);
-                }
-            });
-
-            // Converte o Set de volta para um array
-            dadosFiltradosPorEvento = Array.from(uniqueEvents);
-        }
-
-        console.log("DEBUG ARRAY FILTRADO COMPLETO (SOLUÇÃO FINAL):", dadosFiltradosPorEvento); 
-
-
-
-
-
-        // Se o filtro retornar 0 eventos, podemos sair aqui para evitar loop desnecessário.
-        if (dadosFiltradosPorEvento.length === 0) {
-            console.warn("NENHUM evento encontrado para o ID selecionado. Saindo.");
-            // ... (Coloque o código de erro/retorno aqui)
-        }
-
-        // Inicializa com as datas limite originais, mas como objetos Date válidos
-        let minDate = new Date('9999-12-31'); // Mantenha a inicialização extrema
-        let maxDate = new Date('1900-01-01'); // Mantenha a inicialização extrema
-        
-        let foundAnyValidDate = false;
-
-        // Itera sobre os eventos para encontrar a menor data inicial e a maior data final entre as fases selecionadas
-        //todosOsDadosDoPeriodo.forEach(evento => {           
-            
-            // if (eventoSelecionado !== 'todos' && eventoSelecionado !== '' && evento.idevento !== parseInt(eventoSelecionado)) {
-            //     return; // Pula este evento/orçamento e continua para o próximo
-            // }
-
-        dadosFiltradosPorEvento.forEach(evento => {   
-
-            console.log("[DEBUG EVENTO] Objeto sendo processado (Nomenclatura):", evento.nomenclatura, "Datas:", evento.dtinimontagem, evento.dtfimmontagem); // Adicionei a verificação direta
-
-            fasesSelecionadas.forEach(fase => {
-                const keys = phaseKeyMap[fase];                
-                
-                if (keys) {
-                    const iniDateStr = evento[keys.ini] || ''; 
-                    const fimDateStr = evento[keys.fim] || ''; 
-
-                   console.log(`[DEBUG 2] Fase: ${fase} | Strings (dps do || ''): ${iniDateStr} - ${fimDateStr}`);
-                    
-                    // console.log("Debug Iteração:", evento.idevento, fase, iniDateStr, fimDateStr);
-                    
-                    // --- Processa Data de Início ---
-                    // if (typeof iniDateStr === 'string' && iniDateStr.length > 0) {
-                    //     // Limpa a string de T03:00:00.000Z para estabilidade
-                    //     //const iniDate = new Date(iniDateStr.split('T')[0].replace(/-/g, '/')); 
-                    //     const iniDate = new Date(iniDateStr.split('T')[0] + 'T00:00:00'); 
-                        
-                    //     if (!isNaN(iniDate.getTime()) && iniDate < minDate) {
-                    //         minDate = iniDate;
-                    //         foundAnyValidDate = true;
-                    //     }
-                    // }
-
-                    // // --- Processa Data de Fim ---
-                    // if (typeof fimDateStr === 'string' && fimDateStr.length > 0) {
-                    //     //const fimDate = new Date(fimDateStr.split('T')[0].replace(/-/g, '/')); 
-                    //     const fimDate = new Date(fimDateStr.split('T')[0] + 'T00:00:00');                     
-                        
-                    //     if (!isNaN(fimDate.getTime()) && fimDate > maxDate) {
-                    //         maxDate = fimDate;
-                    //         foundAnyValidDate = true;
-                    //     }
-                    // }
-
-                    if (iniDateStr.length > 0) {
-                        // Correção de Estabilidade: Usa 'T00:00:00' para forçar a interpretação local
-                        const iniDate = new Date(iniDateStr.split('T')[0] + 'T00:00:00'); 
-
-                        console.log("INIDATE", iniDate);
-                        
-                        if (!isNaN(iniDate.getTime()) && iniDate < minDate) {
-                            minDate = iniDate;
-                            foundAnyValidDate = true;
-                        }
-                    }
-
-                    // --- Processa Data de Fim ---
-                    if (fimDateStr.length > 0) { 
-                        const fimDate = new Date(fimDateStr.split('T')[0] + 'T00:00:00'); 
-                        
-                        if (!isNaN(fimDate.getTime()) && fimDate > maxDate) {
-                            maxDate = fimDate;
-                            foundAnyValidDate = true;
-                        }
-                    }
-                }
-            });
-        });
-
-        // Se encontramos pelo menos uma data válida, atualizamos as datas finais
-        if (foundAnyValidDate) { // <<< CONDIÇÃO CORRIGIDA
-            // Formata para YYYY-MM-DD
-            dataFinalInicio = minDate.toISOString().split('T')[0];
-            dataFinalFim = maxDate.toISOString().split('T')[0];
-            console.log(`Período Consolidado da(s) Fase(s): ${dataFinalInicio} a ${dataFinalFim}`);
-        } else {
-            // Se a fase foi selecionada, mas não achamos nenhuma data válida em nenhum evento
-            console.warn("NENHUMA data de fase encontrada para a seleção. Forçando período inválido.");
-            dataFinalInicio = '1900-01-01'; 
-            dataFinalFim = '1900-01-01';
-
-            // Tratamento de Erro (o 'eventoSelecionado' agora está definido no topo)
-            if (eventoSelecionado && eventoSelecionado !== "todos") {
-                Swal.fire({
-                    icon: 'info',
-                    title: 'Evento Selecionado Sem Fase',
-                    text: 'O evento selecionado não possui datas para a(s) fase(s) filtrada(s). O relatório será vazio.',
-                });
-                gerarRelatorioBtn.disabled = false;
-                return;
-            }
-        }
-        console.log("FASE SELECIONADA PARA ROTA", dataFinalInicio, dataFinalFim);
-    }
-
     // 2. Pré-filtra os IDs dos Eventos no JS
     // A variável 'todosOsDadosDoPeriodo' deve ser a array de objetos que você já tem
-    // const validEventIds = getValidEventIds(
-    //     todosOsDadosDoPeriodo, // Sua variável global com os dados agrupados
-    //     dataInicio, 
-    //     dataFim, 
-    //     fasesSelecionadas
-    // );
+    const validEventIds = getValidEventIds(
+        todosOsDadosDoPeriodo, // Sua variável global com os dados agrupados
+        dataInicio, 
+        dataFim, 
+        fasesSelecionadas
+    );
     
-    // console.log ("VALIDEVENTIDS", validEventIds, temFiltroDeFase);
+    console.log ("VALIDEVENTIDS", validEventIds, temFiltroDeFase);
 
-    // if (temFiltroDeFase && validEventIds.length === 0) {
-    //     // ... (Swal.fire de warning e return)
-    //     console.warn("Nenhum evento encontrado para a(s) fase(s) selecionada(s) no período.");
-    //     Swal.fire({
-    //         icon: 'info',
-    //         title: 'Nenhum Evento Encontrado',
-    //         text: `Não foram encontrados eventos para a(s) fase(s) selecionada(s) no período de ${dataInicio} a ${dataFim}.`,
-    //     });
-    //     gerarRelatorioBtn.disabled = false;
-    //     return; 
-    // }
+    if (temFiltroDeFase && validEventIds.length === 0) {
+        // ... (Swal.fire de warning e return)
+        console.warn("Nenhum evento encontrado para a(s) fase(s) selecionada(s) no período.");
+        Swal.fire({
+            icon: 'info',
+            title: 'Nenhum Evento Encontrado',
+            text: `Não foram encontrados eventos para a(s) fase(s) selecionada(s) no período de ${dataInicio} a ${dataFim}.`,
+        });
+        gerarRelatorioBtn.disabled = false;
+        return; 
+    }
     // 3. Montar o filtro de ID de Evento para o SQL
     let eventoFilter = '';
     
     // Se o filtro de evento individual não for "todos", ele tem prioridade
-   // const eventoSelecionado = eventSelectElement ? eventSelectElement.value : ''; // CORREÇÃO AQUI!
+    const eventoSelecionado = eventSelectElement ? eventSelectElement.value : ''; // CORREÇÃO AQUI!
     console.log("EVENTO SELECIONADO", eventoSelecionado);
     
     if (eventoSelecionado && eventoSelecionado !== "todos") {
         eventoFilter = ` AND tse.idevento = ${eventoSelecionado}`;
     } 
     // B. Segunda Prioridade: Lista de eventos filtrados por UMA OU MAIS fases
-    // else if (temFiltroDeFase) { 
-    //     if (validEventIds.length > 0) {
-    //         const idsList = validEventIds.join(',');
-    //         eventoFilter = ` AND tse.idevento IN (${idsList})`;
-    //     } else {
-    //         // Caso validEventIds esteja vazio, força a não retornar nada
-    //         eventoFilter = ` AND 1 = 0`; 
-    //     }
-    // }
+    else if (temFiltroDeFase) { 
+        if (validEventIds.length > 0) {
+            const idsList = validEventIds.join(',');
+            eventoFilter = ` AND tse.idevento IN (${idsList})`;
+        } else {
+            // Caso validEventIds esteja vazio, força a não retornar nada
+            eventoFilter = ` AND 1 = 0`; 
+        }
+    }
 
     
     const checkedInput = document.querySelector('input[name="reportType"]:checked');
@@ -942,7 +951,7 @@ async function gerarRelatorio() {
   //  const eventoId = document.getElementById('eventSelect').value;
   //  const clienteId = document.getElementById('clientSelect').value;
 
-    //const eventoId = eventSelectElement ? eventSelectElement.value : null; // CORREÇÃO AQUI!
+    const eventoId = eventSelectElement ? eventSelectElement.value : null; // CORREÇÃO AQUI!
     const clienteId = document.getElementById('clientSelect').value;
 
     const equipeSelectElement = document.getElementById('equipeSelect');
@@ -1011,11 +1020,11 @@ async function gerarRelatorio() {
     }
 
     try {
-        //console.log("EVENTO FILTER FINAL ENVIADO", eventoFilter, dataFinalInicio, dataFinalFim);
-        console.log("EVENTO FILTER FINAL ENVIADO", tipo, dataFinalInicio, dataFinalFim, eventoId, clienteId, equipeId, incluirPendentes,incluirPagos);
-      
-       const url = `/relatorios?tipo=${tipo}&dataInicio=${dataFinalInicio}&dataFim=${dataFinalFim}&evento=${eventoId}&cliente=${clienteId}&equipe=${equipeId}&pendentes=${incluirPendentes}&pagos=${incluirPagos}`;
-       const dados = await fetchComToken(url);
+        console.log("EVENTO FILTER FINAL ENVIADO", eventoFilter);
+      //  const url = `/relatorios?tipo=${tipo}&dataInicio=${dataInicio}&dataFim=${dataFim}&evento=${evento}`;
+      //  const url = `/relatorios?tipo=${tipo}&dataInicio=${dataInicio}&dataFim=${dataFim}&evento=${evento}&cliente=${clienteId}&equipe=${equipeId}&pendentes=${incluirPendentes}&pagos=${incluirPagos}&eventoFilter=${eventoFilter}`;
+      const url = `/relatorios?tipo=${tipo}&dataInicio=${dataInicio}&dataFim=${dataFim}&evento=${eventoId}&cliente=${clienteId}&equipe=${equipeId}&pendentes=${incluirPendentes}&pagos=${incluirPagos}&eventoFilter=${encodeURIComponent(eventoFilter)}`;
+      const dados = await fetchComToken(url);
         console.log('Dados recebidos do backend:', dados);
 
         const temFechamento = dados.fechamentoCache && dados.fechamentoCache.length > 0;

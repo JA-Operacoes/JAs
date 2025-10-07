@@ -112,8 +112,9 @@ document.addEventListener("DOMContentLoaded", async function () {
                     el.style.display = 'none';
                 } else {
                     // Se o usuário tem permissão, mostra o logo e configura o evento de clique.
-                    el.style.display = 'block'; 
-                    el.style.display = 'inline-block'; 
+                    //el.style.display = 'block'; 
+                    //el.style.display = 'inline-block'; 
+                    el.style.setProperty('display', 'block', 'important'); 
                     
                     el.setAttribute('data-idempresa', logo.id);
                     
