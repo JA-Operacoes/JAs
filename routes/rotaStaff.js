@@ -1101,7 +1101,7 @@ router.post(
       avaliacao,
       idevento, nmevento, idcliente, nmcliente,
       idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
-      vlrcache, vlralimentacao, vlrtransporte, vlrajustecusto,
+      vlrcache, vlralmoco, vlralimentacao, vlrtransporte, vlrajustecusto,
       vlrcaixinha, nmfuncionario, datasevento: datasEventoRaw,
       descajustecusto, descbeneficios, vlrtotal, setor, statuspgto, statusajustecusto, statuscaixinha,
       statusdiariadobrada, statusmeiadiaria, datadiariadobrada, datameiadiaria, desccaixinha, 
@@ -1235,7 +1235,7 @@ router.post(
           INSERT INTO staffeventos (
             idstaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
             idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
-            vlrcache, vlralimentacao, vlrtransporte, vlrajustecusto,
+            vlrcache, vlralmoco, vlralimentacao, vlrtransporte, vlrajustecusto,
             vlrcaixinha, descajustecusto, datasevento, vlrtotal, comppgtocache, comppgtoajdcusto, comppgtocaixinha, 
             descbeneficios, setor, statuspgto, statusajustecusto, statuscaixinha, statusdiariadobrada, statusmeiadiaria, dtdiariadobrada,
             comppgtoajdcusto50, dtmeiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoaslote, idequipe, nmequipe
@@ -1247,6 +1247,7 @@ router.post(
           idstaffExistente, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
           idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
           parseFloat(String(vlrcache).replace(',', '.')),
+          parseFloat(String(vlralmoco).replace(',', '.')),
           parseFloat(String(vlralimentacao).replace(',', '.')),
           parseFloat(String(vlrtransporte).replace(',', '.')),
           parseFloat(String(vlrajustecusto).replace(',', '.')),

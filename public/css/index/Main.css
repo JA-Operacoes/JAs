@@ -49,6 +49,7 @@ main#conteudo {
   justify-content: center;
   align-items: center;
   text-align: center;
+  margin-bottom: 30px;
 }
 #conteudoDetalhes {
     display: flex;
@@ -451,6 +452,7 @@ main#conteudo {
     overflow-y: auto;
     margin: 2px 0;
   }
+
   .calendario-grid .header-dias{
     height: 30px;
     display: flex;
@@ -542,17 +544,640 @@ select#mesSelect, select#anoSelect {
   pointer-events: none; /* impede clique nesses dias */
 }
 
+/* Popup de Evento */
+.popup-evento {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    width: 320px;
+    max-width: 90%;
+    z-index: 9999;
+    font-family: 'Abel', sans-serif;
+    overflow: hidden;
+    cursor: move; /* indica que pode arrastar */
+    animation: fadeIn 0.3s ease-out;
+}
 
+/* Cabeçalho */
+.popup-evento .popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background-color: #333;
+    color: #fff;
+    cursor: move; /* arrastar pelo cabeçalho */
+}
 
-/* @media (max-width: 1472px) {
-    .calendario-grid div {
-    height: 65px;
-    font-size: 12px;
-    position: relative;
+/* Botão de fechar */
+.popup-evento .popup-close {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.popup-evento .popup-close:hover {
+    transform: rotate(90deg);
+}
+
+/* Corpo */
+.popup-evento .popup-body {
+    padding: 16px;
+    max-height: 400px;
     overflow-y: auto;
-    margin: 2px 0;
-  }
-} */
+}
+
+.popup-evento .popup-body ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.popup-evento .popup-body li {
+    padding: 6px 0;
+    border-bottom: 1px solid #eee;
+}
+
+/* Animação */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translate(-50%, -55%); }
+    to   { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+.mini-calendario .eventos-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #aaa transparent;
+}
+.mini-calendario .eventos-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.mini-calendario .eventos-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+}
+
+/* =========================
+   CONTAINER PRINCIPAL
+========================= *
+.calendario-container {
+  display: flex;
+  width: 100%;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.calendario {
+  flex: 1;
+}
+
+/* =========================
+   HEADER
+========================= *
+.calendario-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.calendario-controles {
+  display: flex;
+  flex-direction: row;
+}
+
+label {
+  display: flex;
+  margin: 5px;
+  font-weight: bold;
+}
+
+select#mesSelect, 
+select#anoSelect, 
+select#trimestreSelect, 
+select#semestreSelect, 
+select#visaoSelect {
+  font-family: var(--Font-primary);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 6px;
+  font-size: 15px;
+  padding: 0 15px;
+  border: 1px solid #000000;
+  background: transparent;
+  color: #000000;
+  outline: none;
+  margin-left: 8px;
+}
+
+/* =========================
+   GRID PADRÃO
+========================= *
+.calendario-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+/* Cabeçalho dos dias *
+.calendario-grid .header-dias {
+  height: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--primary-color);
+  color: var(--font-color);
+  text-align: center;
+  font-weight: bold;
+}
+
+/* Dia comum *
+.calendario-grid div {
+  font-size: 12px;
+  position: relative;
+  overflow-y: auto;   /* scroll dentro da célula do dia *
+  margin: 2px 0;
+  border-radius: 4px;
+  padding: 2px;
+}
+
+/* Número do dia *
+.calendario-grid .numero-dia {
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 2px;
+  display: block;
+}
+
+/* Fora do mês *
+.dia-anterior,
+.dia-proximo {
+  opacity: 0.5;
+  pointer-events: none;
+  background-color: #f9f9f9;
+  color: #757575;
+}
+
+/* =========================
+   VISUALIZAÇÕES
+========================= *
+
+/* Semanal *
+.calendario-grid.semana {
+  grid-template-columns: repeat(7, 1fr);
+}
+.calendario-grid.semana div {
+  height: 120px;
+}
+
+/* Mensal *
+.calendario-grid.mes {
+  grid-template-columns: repeat(7, 1fr);
+}
+.calendario-grid.mes div {
+  height: 75px;
+}
+
+/* Trimestral → 3 meses (lado a lado) *
+.calendario-grid.trimestre {
+  grid-template-columns: repeat(21, 1fr);
+}
+.calendario-grid.trimestre div {
+  height: 90px;
+  font-size: 11px;
+}
+
+/* Semestral → 6 meses *
+.calendario-grid.semestre {
+  grid-template-columns: repeat(42, 1fr);
+}
+.calendario-grid.semestre div {
+  height: 80px;
+  font-size: 11px;
+}
+
+/* Anual → 12 meses *
+.calendario-grid.ano {
+  grid-template-columns: repeat(84, 1fr);
+}
+.calendario-grid.ano div {
+  height: 70px;
+  font-size: 10px;
+  overflow-y: auto;
+  text-overflow: ellipsis;
+}
+
+/* =========================
+   EVENTOS
+========================= *
+.evento {
+  display: block;
+  margin: 2px 0;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #000;
+  background: #e8e8e8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* =========================
+   LEGENDA
+========================= *
+.legenda {
+  display: flex;
+  justify-content: flex-end;
+  font-size: 13px;
+}
+
+.items {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0 5px;
+}
+
+.legenda-item {
+  display: flex;
+  align-items: center;
+  margin: 6px;
+}
+
+.legenda-cor {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  margin-right: 8px;
+}
+
+/* =========================
+   POPUP EVENTO (móvel)
+========================= *
+.popup-evento {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  width: 320px;
+  max-width: 90%;
+  z-index: 9999;
+  font-family: 'Abel', sans-serif;
+  overflow: hidden;
+  cursor: move; /* popup arrastável *
+  animation: fadeIn 0.3s ease-out;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Cabeçalho popup *
+.popup-evento .popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: #333;
+  color: #fff;
+  cursor: move;
+}
+
+.popup-evento .popup-close {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 1.2em;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.popup-evento .popup-close:hover {
+  transform: rotate(90deg);
+}
+
+/* Corpo popup *
+.popup-evento .popup-body {
+  flex: 1;
+  padding: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* Animação 
+@keyframes fadeIn {
+  from { opacity: 0; transform: translate(-50%, -55%); }
+  to   { opacity: 1; transform: translate(-50%, -50%); }
+}*/
+
+
+/* ====== AGENDA ====== */
+#agenda-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  gap: 20px;
+  padding: 20px;
+  background: #f5f5f5;
+  border-radius: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  animation: aparecerAgenda 0.4s ease-in-out;
+}
+
+@keyframes aparecerAgenda {
+  from {opacity: 0; transform: translateY(20px);}
+  to {opacity: 1; transform: translateY(0);}
+}
+
+.hidden {
+  display: none;
+}
+
+.agenda-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.agenda-header h2 {
+  font-size: 1.5em;
+  margin: 0;
+}
+
+.btn-voltar {
+  border: none;
+  background: none;
+  font-size: 1.4em;
+  cursor: pointer;
+}
+
+.conteudo-geral {
+  display: flex;
+  flex-direction: row;
+  gap: 15px;
+  width: 100%;
+  height: 100%;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.agenda-calendario {
+  width: 300px;
+  background: white;
+  border-radius: 15px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  height: 265px;
+  padding: 10px;
+  border: 1px solid #ddd;
+}
+
+.agenda-calendario div.dia {
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.agenda-calendario div.dia:hover {
+  background: var(--primary-color);
+  color: var(--font-color);
+}
+
+.agenda-calendario div.dia.selecionado {
+  background: var(--primary-color);
+  color: var(--font-color);
+}
+
+.agenda-conteudo {
+  flex: 1;
+  background: white;
+  border-radius: 15px;
+  padding: 35px;
+  border: 1px solid #ddd;
+}
+
+.btn-adicionar {
+  margin: 10px 204px;
+  padding: 8px 15px;
+  background: var(--primary-color);
+  color: var(--font-color);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.btn-adicionar:hover {
+  background: var(--hover-color);
+}
+
+.select-mes {
+  width: 100%;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  margin-bottom: 10px;
+  font-size: 14px;
+  cursor: pointer;
+  background-color: #f9f9f9;
+}
+.select-mes:hover {
+  background-color: #f1f1f1;
+}
+
+
+/* ===== POPUP DE NOVO EVENTO ===== */
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.popup-agenda {
+  background: white;
+  border-radius: 15px;
+  padding: 20px;
+  width: 320px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  animation: popupFade 0.3s ease-in-out;
+}
+
+@keyframes popupFade {
+  from {opacity: 0; transform: translateY(-20px);}
+  to {opacity: 1; transform: translateY(0);}
+}
+
+.popup-agenda h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.popup-agenda label {
+  display: block;
+  margin-top: 10px;
+  font-weight: bold;
+}
+
+.popup-agenda input,
+.popup-agenda select,
+.popup-agenda textarea {
+  width: 100%;
+  padding: 8px;
+  margin-top: 5px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 0.95em;
+}
+
+.popup-agenda textarea {
+  resize: none;
+  height: 70px;
+}
+
+.popup-botoes {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 15px;
+}
+
+.popup-botoes button {
+  flex: 1;
+  margin: 0 5px;
+  padding: 8px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+#btnSalvarEvento {
+  background: var(--primary-color);
+  color: var(--font-color);
+}
+
+#btnSalvarEvento:hover {
+  background: var(--hover-color);
+}
+
+#btnCancelarEvento {
+  background: #ccc;
+}
+
+#btnCancelarEvento:hover {
+  background: #999;
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+  vertical-align: middle;
+  margin-right: 6px;
+  color: #000; /* preto padrão */
+}
+
+.evento-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.evento-info {
+  line-height: 1.2;
+}
+
+.evento-item:hover .icon {
+  transform: scale(1.05);
+  transition: transform 0.1s ease;
+}
+
+.dark-mode .icon {
+  color: #fff; /* se usar tema escuro */
+}
+
+/* ======= CALENDÁRIO MENSAL ======= */
+.grade-calendario {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  font-size: x-small;
+}
+
+.dia {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background: #f7f7f7;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-weight: 500;
+  transition: 0.2s;
+}
+
+.dia:hover {
+  background: #eaeaea;
+}
+
+.dia.vazio {
+  background: transparent;
+  cursor: default;
+}
+
+.dia.selecionado {
+  border: 2px solid var(--primary-color);
+  background: #e3f2fd;
+}
+
+.dia-atual {
+  border: 2px solid var(--primary-color);
+}
+
+.indicador-evento {
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  background: var(--primary-color);
+  border-radius: 50%;
+}
+
+/* opcional: adaptar cores para modo escuro */
+body.dark .dia {
+  background: #222;
+  color: #fff;
+}
+body.dark .dia:hover {
+  background: #333;
+}
+body.dark .indicador-evento {
+  background: #fff;
+}
+
+
+
 
 
 /*--------------------- Scrool-------------------------*/

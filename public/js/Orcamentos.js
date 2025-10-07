@@ -3347,7 +3347,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
     } else {
         console.warn("Elemento com ID 'Status' não encontrado.");
     }
-
+    const edicaoInput = document.getElementById('edicao');
     if (edicaoInput) {
         edicaoInput.value = orcamento.edicao || '';
         console.log("Edição", edicaoInput.value);        
@@ -3521,7 +3521,6 @@ export async function preencherFormularioComOrcamento(orcamento) {
         console.warn("Elemento com ID 'FormaPagamento' (Forma Pagamento) não encontrado.");
     }
 
-    const edicaoInput = document.getElementById('edicao');
     if (edicaoInput) {
         edicaoInput.value = orcamento.edicao || '';
     } else {
