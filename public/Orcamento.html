@@ -228,7 +228,7 @@
                                     <th>TotAjdCusto</th>
                                     <th class="extraColuna" style="display: none;">Hospedagem</th>
                                     <th class="extraColuna" style="display: none;">Transporte</th>
-                                    <!-- incluir campos hospegadem e transporte se for local montagem fora de SP -->
+                                    <!-- incluir form2s hospegadem e transporte se for local montagem fora de SP -->
                                     <th>TotGeral</th>
                                     <th>Ação</th>
                                 </tr>
@@ -290,88 +290,74 @@
                                 <textarea name="formaPagamento" id="formaPagamento" placeholder="Descreva a Forma de Pagamento                           (Exemplo: 10% na assinatura...)"></textarea>
                         </div>
                         </div>
-                        <div>
+                        <div class="totais-grid">
+                            <!-- Coluna 1 -->
+                            <div class="coluna">
                                 <div class="form2">
-                                    <input type="text" class="Moeda preenchido" id="totalGeralVda" name="totalGeralVda" value=" R$ 0,00" required readonly style="font-size: 15px;" >
+                                    <input type="text" id="totalGeralVda" class="Moeda preenchido" readonly value="R$ 0,00">
                                     <label for="totalGeralVda">Total Geral Venda:</label>
                                 </div>
+
                                 <div class="form2">
-                                    <input type="text" class="Moeda preenchido" id="totalGeralCto" value=" R$ 0,00" name="totalGeralCto" required readonly style="font-size: 15px;" >
+                                    <input type="text" id="totalGeralCto" class="Moeda preenchido" readonly value="R$ 0,00">
                                     <label for="totalGeralCto">Total Custo:</label>
                                 </div>
-                            
-                        
+
                                 <div class="form2">
-                                    <input type="text" class="Moeda preenchido" id="totalAjdCusto" value=" R$ 0,00" required readonly style="font-size: 15px;" >
-                                    <label for="totalAjdCto">Total Ajuda De Custo:</label>
+                                    <input type="text" id="totalAjdCusto" class="Moeda preenchido" readonly value="R$ 0,00">
+                                    <label for="totalAjdCusto">Total Ajuda de Custo:</label>
                                 </div>
 
                                 <div class="form2">
-                                    <input type="text" class="Moeda preenchido" id="totalGeral" value=" R$ 0,00" name="totalGeral" required readonly style="font-size: 15px;">
+                                    <input type="text" id="totalGeral" class="Moeda preenchido" readonly value="R$ 0,00">
                                     <label for="totalGeral">Total Cto + Ajd Cto:</label>
                                 </div>
-                        </div>
+                            </div>
 
-                        <div>
-                            <div class="lucroTot">
+                            <!-- Coluna 2 -->
+                            <div class="coluna">
                                 <div class="form2">
-                                    <input type="text" id="Lucro" value=" R$ 0,00" class="preenchido" readonly style="font-size: 15px;">
-                                    <label for="Lucro">Lucro Bruto: </label>
+                                    <input type="text" id="Lucro" class="preenchido" readonly value="R$ 0,00">
+                                    <label for="Lucro">Lucro Bruto:</label>
+                                <input type="text" id="percentLucro" class="preenchido pequeno" readonly value="0%">
                                 </div>
-                                <div class="form3">
-                                    <input type="text"  id="percentLucro" class="preenchido" value="0%" name="percentLucro" required readonly style="font-size: 15px;">
-                                    <label for="perCent"> % </label>
-                                </div>
-                            </div>                        
-                            <div class="lucroTot">
+
                                 <div class="form2">
-                                    <input type="text" id="valorImposto"  class="preenchido" name="valorImposto" value=" R$ 0,00" required readonly style="font-size: 15px;">
-                                    <label for="valorImposto">Imposto: </label>
+                                    <input type="text" id="valorImposto" class="preenchido" readonly value="R$ 0,00">
+                                    <label for="valorImposto">Imposto:</label>
+                                <input type="text" id="percentImposto" class="preenchido pequeno" value="24%">
                                 </div>
-                                <div class="form3">
-                                    <input type="text" id="percentImposto" class="preenchido" value="24%" name="percentImposto" required  style="font-size: 15px;">
-                                    <label for="percentImposto"> % </label>
+
+                                <div class="form2">
+                                    <input type="text" id="lucroReal" class="preenchido" readonly value="R$ 0,00">
+                                    <label for="lucroReal">Lucro Real:</label>
+                                <input type="text" id="percentReal" class="preenchido pequeno" readonly value="0%">
                                 </div>
                             </div>
-                            <div class="lucroTot">
-                                <div class="form2">
-                                    <input type="text" id="lucroReal"  class="preenchido" name="LucroReal" value=" R$ 0,00" required readonly style="font-size: 15px;">
-                                    <label for="LucroReal">Lucro Real: </label>
-                                </div>
-                                <div class="form3">
-                                    <input type="text"  id="percentReal" class="preenchido" value="0%" name="percentReal" required readonly style="font-size: 15px;">
-                                    <label for="percentReal"> % </label>
-                                </div>
-                            </div>
-                        </div>
 
-                        <div>                        
-                            <div class="form-2colunas">
+                            <!-- Coluna 3 -->
+                            <div class="coluna">
                                 <div class="form2">
-                                    <input type="text" value="R$ 0,00" id="Desconto" min="0" class="ValorInteiros preenchido" name="Desconto"  required   style="font-size: 15px;" autocomplete="off" > <!--oninput="aplicarDescontoEAcrescimo(this)"-->
+                                    <input type="text" id="Desconto" class="preenchido" value="R$ 0,00">
                                     <label for="Desconto">Desconto:</label>
+                                <input type="text" id="percentDesc" class="preenchido pequeno" value="0%">
                                 </div>
-                                <div class="form3">
-                                    <input type="text" value="0% " id="percentDesc" min="0" class="valorPerCentDesc preenchido" name="percentDesc"    required style="font-size: 15px;" >
-                                </div>
-                            </div>
-                                <div class="form-2colunas">
-                                    <div class="form2">
-                                        <input type="text"  value="R$ 0,00" min="0" id="Acrescimo" class="ValorInteiros preenchido" name="Acrescimo"  required   style="font-size: 15px;" autocomplete="off" >
-                                        <label for="Acrescimo">Acréscimo:</label>
-                                    </div>
-                                    <div class="form3">
-                                    <input type="text" value="0%" min="0" id="percentAcresc"   class="valorPerCentAcresc preenchido" name="percentAcresc"  required style="font-size: 15px;" >
-                                </div>
-                            </div>
-                        
 
-                            <div class="form2">
-                                <input type="text" id="valorCliente" class="preenchido" name="valorCliente" readonly value="R$ 0,00" required style="font-size: 15px;">
-                                <label for="valorCliente"> Valor do Cliente</label>
+                                <div class="form2">
+                                    <input type="text" id="Acrescimo" class="preenchido" value="R$ 0,00">
+                                    <label for="Acrescimo">Acréscimo:</label>
+                                <input type="text" id="percentAcresc" class="preenchido pequeno" value="0%">
+                                </div>
+
+                                <div class="form2">
+                                    <input type="text" id="valorCliente" class="preenchido" readonly value="R$ 0,00">
+                                    <label for="valorCliente">Valor do Cliente:</label>
+                                </div>
                             </div>
-                        </div>  
-                </div>
+                            </div>
+                    </div>
+
+
 
             </div>
             <div class="BTNs">

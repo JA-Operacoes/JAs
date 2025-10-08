@@ -139,22 +139,29 @@
     font-size: 15px;
   }
 
-  .periodoMontagem{
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-direction: row;
-    width: 100%;
-    
-  }
+.periodoMontagem {
+  display: flex;
+  flex-wrap: wrap;              /* permite quebrar linha */
+  justify-content: center;      /* centraliza os blocos */
+  align-items: flex-start;      /* alinha pelo topo */
+  gap: 10px;                    /* espaço entre blocos */
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 0;
+}
 
-  .inicioMontagem, .Realizacao, .dtMarcacao, .dtDesmontagem, .dtInfra, .dtPre, .dtPos{
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-direction: column;
-    margin: 5px 10px;
-  }
+.inicioMontagem,.Realizacao,.dtMarcacao,.dtDesmontagem,.dtInfra,.dtPre,.dtPos {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 180px;              /* ocupa no mínimo 180px e pode crescer */
+  min-width: 160px;             /* tamanho mínimo por campo */
+  max-width: 250px;             /* opcional, para não ficar muito largo */         /* só pra visualização, pode tirar */
+  padding: 8px;
+  border-radius: 6px;
+}
+
 
 .Acresimo, .totG, .totGCTO, .lucro, .percent, .lucroReal, .valorCliente, .Desconto{
     display: flex;
@@ -188,14 +195,19 @@
     justify-content: center;
     align-items: center;
     flex-direction: column;
+    margin: 0 3px;
   }
   
   .select.edicao{
     width: 50px;
+    margin-right: -40px;
+    margin-left: -40px;
   }
 
   .select.ufmontagem{
-    width: 90px;
+    width: 50px;
+    margin-right: 10px;
+    margin-left: -5px;
   }
 
   .select.pav{
@@ -250,7 +262,8 @@
   }
 
   .edicao, .ufmontagem{
-    width: 100px;
+    width: 50px;
+    font-size: medium;
   }
 
   select.selectFuncao {
@@ -290,6 +303,47 @@
     color: #ffffff;
     background-color: #555;
   }
+  .totais-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 25px;
+  width: 100%;
+  justify-content: center;
+  align-items: start;
+  padding: 10px;
+}
+
+.coluna {
+  display: flex;
+  flex-direction: column;
+}
+
+.campo, .campo-duplo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.campo label, .campo-duplo label {
+  font-size: 13px;
+  font-weight: 500;
+  flex: 1;
+}
+
+.campo input, .campo-duplo input {
+  flex: 1;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 3px 6px;
+  text-align: center;
+  font-size: 15px;
+  background: transparent;
+}
+
+.campo-duplo input.pequeno {
+  flex: 0.3;
+}
 
   .Norcamento{
     display: flex;
@@ -313,6 +367,7 @@
     margin: 12px;
     gap:3px;
   }
+
 
   .form3{
     position: relative;
@@ -339,7 +394,7 @@
     width: 120px;
     height: 30px;
     border-radius: 6px;
-    font-size: 19px;
+    font-size: 12px;
     padding: 0 20px;
     border: 1px solid #000000;
     background: transparent;
@@ -418,7 +473,7 @@
   }
 
   input.preenchido ~ label {
-    top: 0;
+    top: -3px;
     left: 5%;
     font-size: 12px;
     background: #cacaca;
@@ -622,6 +677,7 @@ select #idCliente, #idEvento{
   justify-content: center;
   color: rgb(0, 0, 0);
   flex-direction: column;
+  margin-top: 15px;
 }
 
 .checkbox-wrapper-33 .checkbox + .checkbox {
