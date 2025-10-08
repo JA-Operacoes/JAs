@@ -125,7 +125,11 @@ let isRecalculatingGlobalDiscountAcrescimo = false;
 let bProximoAno = false;
 let idOrcamentoOriginalParaAtualizar = null; 
 let anoProximoOrcamento = null;
+let GLOBAL_PERCENTUAL_GERAL = 0; // Para Custo/Venda
+let GLOBAL_PERCENTUAL_AJUDA = 0; // Para Alimentação/Transporte
 
+let nrOrcamentoOriginal= '';
+let mensagemReajuste = '';
 
 let selects = document.querySelectorAll(".idFuncao, .idEquipamento, .idSuprimento, .idPavilhao");
     selects.forEach(select => {
@@ -585,44 +589,94 @@ function limparSelects() {
   });
 }
 
-function configurarInfraCheckbox() {
-    let checkbox = document.getElementById("ativo");
+
+export function atualizarVisibilidadeInfra() { // Renomeada de 'atualizarVisibilidade'
+    let checkbox = document.getElementById("ativo"); // Use o ID correto
     let bloco = document.getElementById("blocoInfra");
-    let bloco2 = document.getElementById("blocoInfra2");
+    let bloco2 = document.getElementById("blocoInfra2"); // Se você precisar de dois blocos
 
-    if (!checkbox || !bloco || !bloco2) return;
+    if (!checkbox || !bloco) return;
+    
+    const isChecked = checkbox.checked;
 
-
-    function atualizarVisibilidade() {
-        bloco.style.display = checkbox.checked ? "block" : "none";
-        bloco2.style.display = checkbox.checked ? "block" : "none";
+    bloco.style.display = isChecked ? "block" : "none";
+    if (bloco2) {
+        bloco2.style.display = isChecked ? "block" : "none";
     }
-
-    checkbox.addEventListener("change", atualizarVisibilidade);
-// console.log("entrou na função");
-    // Opcional: já configura o estado inicial com base no checkbox
-    atualizarVisibilidade();
 }
 
-
-function configurarPrePosCheckbox() {
-    let checkbox = document.getElementById("prepos");
+// Função para Pré/Pós Evento
+export function atualizarVisibilidadePrePos() {
+    let checkbox = document.getElementById("prepos"); // Use o ID correto
     let blocoPre = document.getElementById("blocoPre");
     let blocoPos = document.getElementById("blocoPos");
 
     if (!checkbox || !blocoPre || !blocoPos) return;
 
+    const isChecked = checkbox.checked;
 
-    function atualizarVisibilidadePrePos() {
-        blocoPre.style.display = checkbox.checked ? "block" : "none";
-        blocoPos.style.display = checkbox.checked ? "block" : "none";
-    }
+    blocoPre.style.display = isChecked ? "block" : "none";
+    blocoPos.style.display = isChecked ? "block" : "none";
+}
 
+function configurarInfraCheckbox() {
+    let checkbox = document.getElementById("ativo"); // Ajuste o ID
+    if (!checkbox) return;
+    
+    // Anexa o listener à função global
+    checkbox.addEventListener("change", atualizarVisibilidadeInfra);
+    // Chama a função global para estado inicial
+    atualizarVisibilidadeInfra();
+}
+
+function configurarPrePosCheckbox() {
+    let checkbox = document.getElementById("prepos"); // Ajuste o ID
+    if (!checkbox) return;
+    
+    // Anexa o listener à função global
     checkbox.addEventListener("change", atualizarVisibilidadePrePos);
-// console.log("entrou na função");
-    // Opcional: já configura o estado inicial com base no checkbox
+    // Chama a função global para estado inicial
     atualizarVisibilidadePrePos();
 }
+
+// function configurarInfraCheckbox() {
+//     let checkbox = document.getElementById("ativo");
+//     let bloco = document.getElementById("blocoInfra");
+//     let bloco2 = document.getElementById("blocoInfra2");
+
+//     if (!checkbox || !bloco || !bloco2) return;
+
+
+//     function atualizarVisibilidade() {
+//         bloco.style.display = checkbox.checked ? "block" : "none";
+//         bloco2.style.display = checkbox.checked ? "block" : "none";
+//     }
+
+//     checkbox.addEventListener("change", atualizarVisibilidade);
+// // console.log("entrou na função");
+//     // Opcional: já configura o estado inicial com base no checkbox
+//     atualizarVisibilidade();
+// }
+
+
+// function configurarPrePosCheckbox() {
+//     let checkbox = document.getElementById("prepos");
+//     let blocoPre = document.getElementById("blocoPre");
+//     let blocoPos = document.getElementById("blocoPos");
+
+//     if (!checkbox || !blocoPre || !blocoPos) return;
+
+
+//     function atualizarVisibilidadePrePos() {
+//         blocoPre.style.display = checkbox.checked ? "block" : "none";
+//         blocoPos.style.display = checkbox.checked ? "block" : "none";
+//     }
+
+//     checkbox.addEventListener("change", atualizarVisibilidadePrePos);
+// // console.log("entrou na função");
+//     // Opcional: já configura o estado inicial com base no checkbox
+//     atualizarVisibilidadePrePos();
+// }
 
 
 function configurarFormularioOrc() {
@@ -681,6 +735,7 @@ function recalcularTotaisGerais() {
     let totalCustoGeral = 0;
     let totalVendaGeral = 0;
     let totalAjdCustoGeral = 0;
+    let totalAjdGeralCustoGeral = 0;  
 
     // Soma os custos
     document.querySelectorAll('.totCtoDiaria').forEach(cell => {
@@ -696,6 +751,8 @@ function recalcularTotaisGerais() {
         totalAjdCustoGeral += desformatarMoeda(cell.textContent);
     });
 
+    totalAjdGeralCustoGeral = totalCustoGeral + totalAjdCustoGeral;
+
     // Atualiza campos visuais
     document.querySelector('#totalGeralCto').value = totalCustoGeral.toLocaleString('pt-BR', {
         style: 'currency',
@@ -707,6 +764,15 @@ function recalcularTotaisGerais() {
         currency: 'BRL'
     });
 
+    document.querySelector('#totalAjdCusto').value = totalAjdCustoGeral.toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    });
+
+    document.querySelector('#totalGeral').value = totalAjdGeralCustoGeral.toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    });
 
 
     // Atualiza o valor do cliente com o valor total de venda
@@ -717,7 +783,8 @@ function recalcularTotaisGerais() {
             currency: 'BRL'
         });
     }
-    console.log("RECALCULAR TOTAIS GERAIS", totalCustoGeral, totalVendaGeral, totalAjdCustoGeral);
+
+    console.log("RECALCULO TOTAIS GERAIS", totalCustoGeral, totalVendaGeral, totalAjdCustoGeral);
 
     calcularLucro();
     calcularLucroReal();
@@ -3376,6 +3443,10 @@ export function limparOrcamento() {
     console.log("DEBUG: Formulário de orçamento limpo.");
 }
 
+let prePosAtivo = false;
+let montagemInfraAtivo = false;
+
+
 export async function preencherFormularioComOrcamento(orcamento) {
     if (!orcamento) {
         limparOrcamento();
@@ -3391,6 +3462,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
     }
 
     const nrOrcamentoInput = document.getElementById('nrOrcamento');
+    nrOrcamentoOriginal = nrOrcamentoInput.value;
     if (nrOrcamentoInput) { // Adicionado if
         nrOrcamentoInput.value = orcamento.nrorcamento || '';
     } else {
@@ -3486,16 +3558,21 @@ export async function preencherFormularioComOrcamento(orcamento) {
             let inicio = null;
             let fim = null;
 
+            let isRelevantToPrePos = false; // Garante que seja redefinida em cada loop
+            let isRelevantToMontagemInfra = false; // Garante que seja redefinida em cada loop
+
             switch(id) {
                 case 'periodoPreEvento':
                     inicio = orcamento.dtinipreevento;
                     fim = orcamento.dtfimpreevento;
+                    isRelevantToPrePos = true;
                     break;
                 case 'periodoInfraMontagem':
                     inicio = orcamento.dtiniinframontagem;
                     fim = orcamento.dtfiminframontagem;
+                    isRelevantToMontagemInfra = true;
                     break;
-                case 'periodoMontagem':
+                case 'periodoMontagem':                    
                     inicio = orcamento.dtinimontagem;
                     fim = orcamento.dtfimmontagem;
                     break;
@@ -3518,11 +3595,14 @@ export async function preencherFormularioComOrcamento(orcamento) {
                 case 'periodoPosEvento':
                     inicio = orcamento.dtiniposevento;
                     fim = orcamento.dtfimposevento;
+                    isRelevantToPrePos = true;
                     break;
             }
 
             const startDate = inicio ? new Date(inicio) : null;
             const endDate = fim ? new Date(fim) : null;
+
+            const hasValidDates = (startDate && !isNaN(startDate.getTime())) || (endDate && !isNaN(endDate.getTime()));
 
             if (pickerInstance.config.mode === "range") {
                 // Adiciona verificação para datas válidas e tratamento para apenas uma data
@@ -3540,8 +3620,44 @@ export async function preencherFormularioComOrcamento(orcamento) {
                     pickerInstance.clear();
                 }
             }
+
+            if (hasValidDates) {
+                if (isRelevantToPrePos) {
+                    prePosAtivo = true;
+                }
+                if (isRelevantToMontagemInfra) {
+                    montagemInfraAtivo = true;
+                }
+            }
+
         } else {
             console.warn(`[preencherFormularioComOrcamento] Instância Flatpickr para ID '${id}' não encontrada ou inválida. Não foi possível preencher.`);
+        }
+    }
+
+    const checkPrePos = document.getElementById('prepos');
+    const checkMontagemInfra = document.getElementById('ativo'); // Assuma este ID
+
+    console.log("CHECKS PARA ATIVAR", checkPrePos, checkMontagemInfra);
+
+    // 1. Pré/Pós Evento
+    if (checkPrePos) {
+        checkPrePos.checked = prePosAtivo;
+        // Se você tiver uma função que atualiza a visibilidade, chame-a aqui
+        // Ex: toggleFieldVisibility('checkPrePos', 'periodoPrePosContainer', prePosAtivo);
+        // Ou chame a função que é ativada no evento 'change' do checkbox:
+        if (typeof atualizarVisibilidadePrePos === 'function') {
+             atualizarVisibilidadePrePos(); // A função deve ler o .checked e agir
+        }
+    }
+
+    // 2. Montagem/Desmontagem Infra
+    if (checkMontagemInfra) {
+        checkMontagemInfra.checked = montagemInfraAtivo;
+        // Ex: toggleFieldVisibility('checkMontagemInfra', 'periodoMontagemInfraContainer', montagemInfraAtivo);
+        // Ou chame a função de atualização de visibilidade:
+        if (typeof atualizarVisibilidadeInfra === 'function') {
+            atualizarVisibilidadeInfra();
         }
     }
 
@@ -3567,6 +3683,12 @@ export async function preencherFormularioComOrcamento(orcamento) {
         console.warn("Elemento com ID 'FormaPagamento' (Forma Pagamento) não encontrado.");
     }
     
+    const avisoReajusteInput = document.getElementById('aviso');
+    if (avisoReajusteInput) {
+        avisoReajusteInput.value = orcamento.indicesaplicados || '';
+    } else {
+        console.warn("Elemento com ID 'FormaPagamento' (Forma Pagamento) não encontrado.");
+    }
 
     const totalGeralVdaInput = document.getElementById('totalGeralVda');
     if (totalGeralVdaInput) totalGeralVdaInput.value = formatarMoeda(orcamento.totgeralvda || 0);
@@ -3660,7 +3782,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
 }
 
 
- export function preencherItensOrcamentoTabela(itens) {
+ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
      console.log("DEBUG FRONTEND: preencherItensOrcamentoTabela foi chamada com itens:", itens);
 
     const tabelaBody = document.querySelector("#tabela tbody");
@@ -3680,9 +3802,89 @@ export async function preencherFormularioComOrcamento(orcamento) {
         return;
     }
 
+     // =======================================================
+    // LÓGICA DE REAJUSTE DE PERCENTUAIS
+    // =======================================================
+    const aplicarReajuste = isNewYearBudget && (GLOBAL_PERCENTUAL_GERAL > 0 || GLOBAL_PERCENTUAL_AJUDA > 0);
+
+    console.log("APLICAR REAJUSTE", aplicarReajuste, isNewYearBudget, GLOBAL_PERCENTUAL_AJUDA, GLOBAL_PERCENTUAL_GERAL);
+    
+    const fatorGeral = aplicarReajuste && GLOBAL_PERCENTUAL_GERAL > 0 
+        ? (1 + GLOBAL_PERCENTUAL_GERAL / 100) 
+        : 1;
+    
+    const fatorAjuda = aplicarReajuste && GLOBAL_PERCENTUAL_AJUDA > 0 
+        ? (1 + GLOBAL_PERCENTUAL_AJUDA / 100) 
+        : 1;
+    
+    // =======================================================
+    // FIM LÓGICA DE REAJUSTE
+    // =======================================================
+
 
     itens.forEach(item => {
         console.log("DEBUG FRONTEND: Adicionando item à tabela:", item);
+
+
+        let vlrDiaria = parseFloat(item.vlrdiaria || 0);
+        let ctoDiaria = parseFloat(item.ctodiaria || 0);
+        let vlrAjdAlimentacao = parseFloat(item.vlrajdctoalimentacao || 0);
+        let vlrAjdTransporte = parseFloat(item.vlrajdctotransporte || 0);
+        
+        let itemOrcamentoID = item.idorcamentoitem;
+
+        const qtdItens = item.qtditens || 0;
+        const qtdDias = item.qtddias || 0;
+
+        let totVdaDiaria = parseFloat(item.totvdadiaria || 0);
+        let totCtoDiaria = parseFloat(item.totctodiaria || 0);
+        let totAjuda = parseFloat(item.totajdctoitem || 0);
+
+        let descontoItem = parseFloat(item.descontoitem || 0);
+        let acrescimoItem = parseFloat(item.acrescimoitem || 0); 
+
+        // Calcule o total geral com os novos valores reajustados
+        let totGeralItem = parseFloat(item.totgeralitem || 0);
+
+
+        console.log("VALORES RECALCULADOS PARA APLICAR REAJUSTE fatorGeral:", fatorGeral,  "fatorAjuda:", fatorAjuda, "vlrAjdAlimentacao:", vlrAjdAlimentacao, "vlrAjdTransporte:", vlrAjdTransporte);
+        
+        if (aplicarReajuste) {
+            // Aplica fator geral em Custo e Venda
+            vlrDiaria *= fatorGeral;
+            ctoDiaria *= fatorGeral;
+            
+            // Aplica fator de ajuda em Alimentação e Transporte
+            vlrAjdAlimentacao *= fatorAjuda;
+            vlrAjdTransporte *= fatorAjuda;
+
+            // ZERA o ID do item para garantir que ele seja INSERIDO como novo no SAVE (Backend)
+            itemOrcamentoID = ''; 
+
+            const percentualGeral = GLOBAL_PERCENTUAL_GERAL || 0;
+            const percentualAjuda = GLOBAL_PERCENTUAL_AJUDA || 0;
+
+            mensagemReajuste = `
+                Aplicado índice de ${percentualGeral.toFixed(2)}% para Custo e Venda e 
+                índice de ${percentualAjuda.toFixed(2)}% para ajuda de custo (Alimentação e Transporte), 
+                sobre o valor do orçamento ${nrOrcamentoOriginal}.
+            `;           
+
+          
+           totVdaDiaria = (vlrDiaria * qtdItens * qtdDias)  + acrescimoItem - descontoItem;
+           totCtoDiaria = ctoDiaria * qtdItens * qtdDias;
+           totAjuda = (vlrAjdAlimentacao + vlrAjdTransporte) * qtdItens * qtdDias;           
+          
+
+            //Calcule o total geral com os novos valores reajustados
+           totGeralItem = totAjuda + totCtoDiaria;
+
+           console.log("VALORES RECALCULADOS NO APLICAR REAJUSTE totVdaDiaria:", totVdaDiaria, "totCtoDiaria:", totCtoDiaria, "totAjuda:", totAjuda, "totGeralItem:", totGeralItem); 
+
+           
+        }     
+        
+
         const newRow = tabelaBody.insertRow(); // Cria a linha DOM de uma vez
         newRow.dataset.idorcamentoitem = item.idorcamentoitem || '';
         newRow.dataset.idfuncao = item.idfuncao || '';
@@ -3702,6 +3904,17 @@ export async function preencherFormularioComOrcamento(orcamento) {
         }
 
         console.log("DEBUG: SETOR", item.setor, "Funcao", item.idfuncao, "Equipamento", item.idequipamento, "Suprimento", item.idsuprimento);
+
+// --<td class="vlrVenda Moeda" data-original-venda="${item.vlrdiaria || 0}">${formatarMoeda(item.vlrdiaria || 0)}</td>
+            //<td class="totVdaDiaria Moeda">${formatarMoeda(item.totvdadiaria || 0)}</td>
+            //<td class="vlrCusto Moeda">${formatarMoeda(item.ctodiaria || 0)}</td>
+            //<td class="totCtoDiaria Moeda">${formatarMoeda(item.totctodiaria || 0)}</td>
+                      
+            //<td class="ajdCusto Moeda alimentacao">${formatarMoeda(item.vlrajdctoalimentacao || 0)}</td>
+            //<td class="ajdCusto Moeda transporte">${formatarMoeda(item.vlrajdctotransporte || 0)}</td>
+
+            //<td class="totAjdCusto Moeda">${formatarMoeda(item.totajdctoitem || 0)}</td>
+            //<td class="totGeral Moeda">${formatarMoeda(item.totgeralitem || 0)}</td>
 
         // Construa o HTML de TODA a linha como uma única string
         newRow.innerHTML = `
@@ -3758,24 +3971,27 @@ export async function preencherFormularioComOrcamento(orcamento) {
                     <input type="text" class="ValorInteiros" value="${formatarMoeda(item.acrescimoitem || 0)}">
                     <input type="text" class="valorPerCent" value="${parseFloat(item.percentacrescimoitem || 0).toFixed(2)}%">
                 </div>
-            </td>
+            </td>            
 
-            <td class="vlrVenda Moeda" data-original-venda="${item.vlrdiaria || 0}">${formatarMoeda(item.vlrdiaria || 0)}</td>
-            <td class="totVdaDiaria Moeda">${formatarMoeda(item.totvdadiaria || 0)}</td>
-            <td class="vlrCusto Moeda">${formatarMoeda(item.ctodiaria || 0)}</td>
-            <td class="totCtoDiaria Moeda">${formatarMoeda(item.totctodiaria || 0)}</td>
-                      
-            <td class="ajdCusto Moeda alimentacao">${formatarMoeda(item.vlrajdctoalimentacao || 0)}</td>
-            <td class="ajdCusto Moeda transporte">${formatarMoeda(item.vlrajdctotransporte || 0)}</td>
+            <td class="vlrVenda Moeda" data-original-venda="${vlrDiaria.toFixed(2)}">${formatarMoeda(vlrDiaria)}</td>
+            <td class="totVdaDiaria Moeda">${formatarMoeda(totVdaDiaria)}</td>
+            <td class="vlrCusto Moeda">${formatarMoeda(ctoDiaria)}</td>
+            <td class="totCtoDiaria Moeda">${formatarMoeda(totCtoDiaria)}</td>
+                    
+            <td class="ajdCusto Moeda alimentacao">${formatarMoeda(vlrAjdAlimentacao)}</td>
+            <td class="ajdCusto Moeda transporte">${formatarMoeda(vlrAjdTransporte)}</td>
 
-            <td class="totAjdCusto Moeda">${formatarMoeda(item.totajdctoitem || 0)}</td>
+            <td class="totAjdCusto Moeda">${formatarMoeda(totAjuda)}</td>
+           
+
             <td class="extraCampo Moeda" style="display: none;">
                 <input type="text" class="hospedagem" value="${item.hospedagem || 0}">
             </td>
             <td class="extraCampo Moeda" style="display: none;">
                 <input type="text" class="transporteExtraInput" value="${item.transporte || 0}">
             </td>
-            <td class="totGeral Moeda">${formatarMoeda(item.totgeralitem || 0)}</td>
+           
+             <td class="totGeral Moeda">${formatarMoeda(totGeralItem)}</td>
             <td>
                 <div class="Acao">
                     <button class="btnApagar" type="button">
@@ -3905,15 +4121,15 @@ export async function preencherFormularioComOrcamento(orcamento) {
             console.log("INPUT DO TRANSPORTE:", this.value); // Log para depuração
         });
 
-        const selectAlimentacao = newRow.querySelector('.tpAjdCusto-alimentacao');
-        if (selectAlimentacao && item.tpajdctoalimentacao) {
-            selectAlimentacao.value = item.tpajdctoalimentacao;
-        }
+        // const selectAlimentacao = newRow.querySelector('.tpAjdCusto-alimentacao');
+        // if (selectAlimentacao && item.tpajdctoalimentacao) {
+        //     selectAlimentacao.value = item.tpajdctoalimentacao;
+        // }
 
-        const selectTransporte = newRow.querySelector('.tpAjdCusto-transporte');
-        if (selectTransporte && item.tpajdctotransporte) {
-            selectTransporte.value = item.tpajdctotransporte;
-        }
+        // const selectTransporte = newRow.querySelector('.tpAjdCusto-transporte');
+        // if (selectTransporte && item.tpajdctotransporte) {
+        //     selectTransporte.value = item.tpajdctotransporte;
+        // }
 
         // Inicialização do Flatpickr
         const itemDateInput = newRow.querySelector(".Periodo .datas-item");
@@ -4053,8 +4269,47 @@ export async function preencherFormularioComOrcamento(orcamento) {
 
     });
 
-    aplicarMascaraMoeda();
+    if (aplicarReajuste)
+    {
+        document.getElementById('avisoReajuste').textContent = mensagemReajuste.trim();
+        recalcularTotaisGerais();
 
+        const globalDescontoValor = document.getElementById('Desconto');
+        const globalAcrescimoValor = document.getElementById('Acrescimo');
+
+        if (globalDescontoValor && orcamentoAtual.desconto) {
+            globalDescontoValor.value = formatarMoeda(orcamentoAtual.desconto);
+        }
+        if (globalAcrescimoValor && orcamentoAtual.acrescimo) {
+            globalAcrescimoValor.value = formatarMoeda(orcamentoAtual.acrescimo);
+        }
+        
+        console.log("APLICAR REAJUSTE VALOR DESCONTO/ACRESCIMO", globalDescontoValor.value, globalAcrescimoValor.value);
+
+        if (globalDescontoValor || globalAcrescimoValor) {
+            console.log("INICIALIZANDO DESCONTO/ACRÉSCIMO GLOBAL com valores do item.");
+            const descValor = desformatarMoeda(globalDescontoValor?.value || '0');
+            const acrescValor = desformatarMoeda(globalAcrescimoValor?.value || '0');
+
+            if (descValor > 0) {
+                lastEditedGlobalFieldType = 'valorDesconto';
+                aplicarDescontoEAcrescimo('Desconto');
+            } else if (acrescValor > 0) {
+                lastEditedGlobalFieldType = 'valorAcrescimo';
+                aplicarDescontoEAcrescimo('Acrescimo');
+            } else {
+                // Caso não haja desconto/acréscimo global inicial, mas queira 
+                // atualizar o valorCliente de qualquer forma.
+                aplicarDescontoEAcrescimo('Desconto'); 
+            }
+
+            // Reseta após a inicialização
+            lastEditedGlobalFieldType = null;
+        }       
+
+    }     
+
+    aplicarMascaraMoeda();
 }
 
 function formatarDatasParaInputPeriodo(inicioStr, fimStr) {
@@ -4524,36 +4779,35 @@ function recalcularLinha(linha) {
 
         // --- CÁLCULO E ATUALIZAÇÃO DOS TOTAIS GERAIS (DA TELA) ---
         // Este bloco aqui é que recalcula os totais globais, independentemente da função aplicarDescontoEAcrescimo
-        // pois esta função é chamada por CADA LINHA.
-        let allTotalCusto = 0;
-        document.querySelectorAll('#tabela tbody .totCtoDiaria').forEach(cell => {
-            allTotalCusto += desformatarMoeda(cell.textContent);
-        });
-        document.querySelector('#totalGeralCto').value = allTotalCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        // pois esta função é chamada por CADA LINHA. REPETIDO POIS JÁ TEM EM RECALCULARTOTAISGERAIS
+        // let allTotalCusto = 0;
+        // document.querySelectorAll('#tabela tbody .totCtoDiaria').forEach(cell => {
+        //     allTotalCusto += desformatarMoeda(cell.textContent);
+        // });
+        // document.querySelector('#totalGeralCto').value = allTotalCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-        let allTotalVenda = 0;
-        document.querySelectorAll('#tabela tbody .totVdaDiaria').forEach(cell => {
-            allTotalVenda += desformatarMoeda(cell.textContent);
-        });
-        document.querySelector('#totalGeralVda').value = allTotalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        // let allTotalVenda = 0;
+        // document.querySelectorAll('#tabela tbody .totVdaDiaria').forEach(cell => {
+        //     allTotalVenda += desformatarMoeda(cell.textContent);
+        // });
+        // document.querySelector('#totalGeralVda').value = allTotalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-        let allTotalAjdCusto = 0;
-        document.querySelectorAll('#tabela tbody .totAjdCusto').forEach(cell => {
-            allTotalAjdCusto += desformatarMoeda(cell.textContent);
-        });
-        document.querySelector('#totalAjdCusto').value = allTotalAjdCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        // let allTotalAjdCusto = 0;
+        // document.querySelectorAll('#tabela tbody .totAjdCusto').forEach(cell => {
+        //     allTotalAjdCusto += desformatarMoeda(cell.textContent);
+        // });
+        // document.querySelector('#totalAjdCusto').value = allTotalAjdCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-        let allTotalGeral = 0;
-        document.querySelectorAll('#tabela tbody .totGeral').forEach(cell => {
-            allTotalGeral += desformatarMoeda(cell.textContent);
-        });
-        document.querySelector('#totalGeral').value = allTotalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        // let allTotalGeral = 0;
+        // document.querySelectorAll('#tabela tbody .totGeral').forEach(cell => {
+        //     allTotalGeral += desformatarMoeda(cell.textContent);
+        // });
+        // document.querySelector('#totalGeral').value = allTotalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
         // --- Chamadas Finais ---
         console.log("Calculo desc e Acresc (final):", vlrVendaOriginal, "-", desconto, "+", acrescimo);
         console.log("valor c/ desc e Acresc (final):", vlrVendaCorrigido);
         // ... (outros logs) ...
-
 
 
         recalcularTotaisGerais(); // Recalcula os totais gerais da tabela
@@ -5005,13 +5259,8 @@ function fecharOrcamento() {
 }
 
 
-/**
- * Gera um novo orçamento para o ano seguinte (Edição + 1), espelhando
- * todos os dados do orçamento atual, exceto ID, Status e Datas.
- * Assume que 'orcamentoAtual' é um objeto global ou que os dados
- * do orçamento fechado já estão carregados.
- */
-function gerarProximoAno() {
+
+async function gerarProximoAno() {
     // 1. Obter o orçamento atual (ajuste esta linha se a fonte dos dados for diferente)
     const orcamentoFechado = getOrcamentoAtualCarregado(); // Função hipotética para pegar o objeto
 
@@ -5020,6 +5269,56 @@ function gerarProximoAno() {
         return;
     }    
     
+
+    const { value: formValues } = await Swal.fire({
+        title: 'Reajuste para o Próximo Ano',
+        html: 
+            '<div style="text-align: left;">' +
+            // Campo de Percentual Geral (tabindex="1")
+            '  <label for="swal-percentual-geral" style="display: block; margin-top: 10px; font-weight: bold;">Percentual Geral (%) (Custo/Venda):</label>' +
+            '  <input id="swal-percentual-geral" type="number" step="0.01" min="0" class="swal2-input" tabindex="1" placeholder="Ex: 10.50">' + 
+            '  <small style="display: block; margin-top: -10px; color: #777;">Será aplicado ao valor unitário de todos os itens (venda e custo).</small>' +
+            
+            // Campo de Percentual Ajuda de Custo (tabindex="2")
+            '  <label for="swal-percentual-ajuda" style="display: block; margin-top: 20px; font-weight: bold;">Percentual Ajuda de Custo (%) (Diárias):</label>' +
+            '  <input id="swal-percentual-ajuda" type="number" step="0.01" min="0" class="swal2-input" tabindex="2" placeholder="Ex: 5.00">' + 
+            '  <small style="display: block; margin-top: -10px; color: #777;">Será aplicado à Alimentação e Transporte.</small>' +
+            '</div>',
+        
+               
+        focusConfirm: false,
+        allowOutsideClick: false, // Impede fechamento por clique externo
+        allowEscapeKey: false,   
+        showCancelButton: true,
+        confirmButtonText: 'Aplicar Reajuste',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+            const geral = parseFloat(document.getElementById('swal-percentual-geral').value.replace(',', '.') || '0');
+            const ajuda = parseFloat(document.getElementById('swal-percentual-ajuda').value.replace(',', '.') || '0');
+
+            if (isNaN(geral) || isNaN(ajuda)) {
+                Swal.showValidationMessage('Por favor, insira valores numéricos válidos.');
+                return false;
+            }
+            return { percentualGeral: geral, percentualAjuda: ajuda };
+        }
+    });
+
+    // Se o usuário cancelou ou a validação falhou, interrompe
+    if (!formValues) {
+        return;
+    }
+
+    // =======================================================
+    // 2. ARMAZENAMENTO E LÓGICA DE ESPELHAMENTO
+    // =======================================================
+    
+    // Armazena os percentuais globalmente
+    GLOBAL_PERCENTUAL_GERAL = formValues.percentualGeral;
+    GLOBAL_PERCENTUAL_AJUDA = formValues.percentualAjuda;
+
+
+
     idOrcamentoOriginalParaAtualizar = orcamentoFechado.idorcamento;
     bProximoAno = true;
 
@@ -5372,7 +5671,7 @@ async function preencherFormularioComOrcamentoParaProximoAno(orcamento) {
    // preencherItensOrcamentoTabela(orcamento.itens || []);
 
     if (orcamento.itens && orcamento.itens.length > 0) {
-        preencherItensOrcamentoTabela(orcamento.itens); // <--- ESTA CHAMADA É CRUCIAL
+        preencherItensOrcamentoTabela(orcamento.itens, true); // <--- ESTA CHAMADA É CRUCIAL
     } else {
         console.log("Orçamento carregado não possui itens ou array de itens está vazio.");
         preencherItensOrcamentoTabela([]); // Limpa a tabela se não houver itens
@@ -5405,52 +5704,6 @@ async function preencherFormularioComOrcamentoParaProximoAno(orcamento) {
     const statusInput = document.getElementById('Status');
     if (statusInput) statusInput.value = 'A';
 }
-
-// function atualizarFlatpickrParaProximoAno() {
-//     // A data de referência é o 01/01 do próximo ano
-//     const dataReferencia = anoProximoOrcamento ? `01/01/${anoProximoOrcamento}` : null;
-
-//     // 1. DESTROI as instâncias Flatpickr existentes (se houver)
-//     // Você precisa de uma forma de rastrear os inputs do formulário principal
-//     const idsInputsData = [
-//         'periodoInfraMontagem',
-//         'periodoMarcacao',
-//         'periodoMontagem',
-//         'periodoRealizacao',
-//         'periodoDesmontagem',
-//         'periodoDesmontagemInfra'
-//     ];
-    
-//     idsInputsData.forEach(id => {
-//         const input = document.getElementById(id);
-//         if (input && input._flatpickr) {
-//             input._flatpickr.destroy();
-//         }
-//     });
-
-//     // 2. RECria o Flatpickr com a nova opção defaultDate
-//     const newOptions = {
-//         ...commonFlatpickrOptions, // Inclui as opções básicas que você já tem
-//         defaultDate: dataReferencia // Define a data de referência para o calendário
-//     };
-
-//     idsInputsData.forEach(id => {
-//         const input = document.getElementById(id);
-//         if (input) {
-//             // Re-inicializa o Flatpickr. Ele usará newOptions, que contém defaultDate.
-//             flatpickrInstancesOrcamento.push(flatpickr(input, newOptions));
-//         }
-//     });
-    
-//     // OPCIONAL: Abrir o primeiro calendário automaticamente (ex: Marcacao)
-//     const inputMarcacao = document.getElementById('periodoMarcacao');
-//     if (inputMarcacao && inputMarcacao._flatpickr) {
-//          // Limpa o valor (pois o espelhamento não deve copiar datas)
-//          inputMarcacao.value = ""; 
-//          // Abre o calendário para o usuário selecionar a nova data
-//          inputMarcacao._flatpickr.open(); 
-//     }
-// }
 
 function atualizarFlatpickrParaProximoAno() {
     // 1. OBTÉM DATA DE REFERÊNCIA

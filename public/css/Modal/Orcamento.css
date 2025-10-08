@@ -461,6 +461,11 @@
      width: 170px;
   }
 
+  .aviso{
+    font-size: 18px;
+    justify-content: center;
+  }
+
 .select label, .select2 label {
     font-weight: 600;
     font-size: 14px;
