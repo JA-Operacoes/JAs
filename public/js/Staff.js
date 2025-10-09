@@ -3121,21 +3121,26 @@ async function carregarFuncaoStaff() {
             select.appendChild(opcaoPadrao);
 
             funcaofetch.forEach(funcao => {
-                let option = document.createElement("option");
-                option.value = funcao.idfuncao;
-                option.textContent = funcao.descfuncao;
-                option.setAttribute("data-idFuncao", funcao.idfuncao);
-                option.setAttribute("data-descproduto", funcao.descfuncao);
-                option.setAttribute("data-ctosenior", funcao.ctofuncaosenior);
-                option.setAttribute("data-ctopleno", funcao.ctofuncaopleno);
-                option.setAttribute("data-ctojunior", funcao.ctofuncaojunior);
-                option.setAttribute("data-ctobase", funcao.ctofuncaobase);
-                option.setAttribute("data-vda", funcao.vdafuncao);   
-                option.setAttribute("data-alimentacao", funcao.alimentacao || 0);
-                option.setAttribute("data-transporte", funcao.transporte || 0);
-                option.setAttribute("data-transpsenior", funcao.transpsenior || 0);
-                option.setAttribute("data-categoria", "Produto(s)");
-                select.appendChild(option);
+                if (funcao.ativo === true || funcao.ativo === "true" || funcao.ativo === 1) {
+                    let option = document.createElement("option");
+                    option.value = funcao.idfuncao;
+                    option.textContent = funcao.descfuncao;
+                    option.setAttribute("data-idFuncao", funcao.idfuncao);
+                    option.setAttribute("data-descproduto", funcao.descfuncao);
+                    option.setAttribute("data-ctosenior", funcao.ctofuncaosenior);
+                    option.setAttribute("data-ctopleno", funcao.ctofuncaopleno);
+                    option.setAttribute("data-ctojunior", funcao.ctofuncaojunior);
+                    option.setAttribute("data-ctobase", funcao.ctofuncaobase);
+                    option.setAttribute("data-vda", funcao.vdafuncao);   
+                    option.setAttribute("data-alimentacao", funcao.alimentacao || 0);
+                    option.setAttribute("data-transporte", funcao.transporte || 0);
+                    option.setAttribute("data-transpsenior", funcao.transpsenior || 0);
+                    option.setAttribute("data-categoria", "Produto(s)");
+                    select.appendChild(option);
+                }else {
+                    // Opcional: Log para saber quais funções foram filtradas.
+                    console.log(`Função inativa ignorada: ${funcao.descfuncao}`);
+                }
             });
 
             select.addEventListener("change", function (event) {

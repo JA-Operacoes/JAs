@@ -79,10 +79,27 @@ router.put("/:id", autenticarToken({ verificarEmpresa: false }),
     console.log("Rota de função acessada - PUT", req.query);
     const id = req.params.id;
     const idempresa = req.idempresa;
+    const body = req.body || {};
 
+    const toNumeric = (val) => {
+        // Converte para Number, e se for NaN (ex: Number(undefined), Number("")), retorna 0.
+        const num = Number(val);
+        return isNaN(num) ? 0 : num;
+    };
     
     const ativo = req.body.ativo !== undefined ? req.body.ativo : false; 
-    const { descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsProposta, alimentacao, obsFuncao} = req.body;
+   // const { descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsProposta, alimentacao, obsFuncao} = req.body;
+const { descFuncao, obsProposta, obsFuncao } = body; 
+const custoSenior = toNumeric(body.custoSenior);
+const custoPleno = toNumeric(body.custoPleno);
+const custoJunior = toNumeric(body.custoJunior);
+const custoBase = toNumeric(body.custoBase);
+const venda = toNumeric(body.venda);
+const transporte = toNumeric(body.transporte);
+const transporteSenior = toNumeric(body.transporteSenior);
+const alimentacao = toNumeric(body.alimentacao);
+
+    console.log("ESTÁ NA ROTA PUT");
 
     try {
       const result = await pool.query(
@@ -122,8 +139,28 @@ router.post("/", autenticarToken({ verificarEmpresa: false }),
   
    console.log("Rota de função acessada - POST", req.query);
     const ativo = req.body.ativo !== undefined ? req.body.ativo : false; 
-    const { descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsFuncao, alimentacao, obsProposta } = req.body;
+   // const { descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsFuncao, alimentacao, obsProposta } = req.body;
     const idempresa = req.idempresa;
+    
+    const body = req.body || {};
+
+    const toNumeric = (val) => {
+        // Converte para Number, e se for NaN (ex: Number(undefined), Number("")), retorna 0.
+        const num = Number(val);
+        return isNaN(num) ? 0 : num;
+    };
+
+    const { descFuncao, obsProposta, obsFuncao } = body; 
+    const custoSenior = toNumeric(body.custoSenior);
+    const custoPleno = toNumeric(body.custoPleno);
+    const custoJunior = toNumeric(body.custoJunior);
+    const custoBase = toNumeric(body.custoBase);
+    const venda = toNumeric(body.venda);
+    const transporte = toNumeric(body.transporte);
+    const transporteSenior = toNumeric(body.transporteSenior);
+    const alimentacao = toNumeric(body.alimentacao);
+
+
 
     let client;
     try {
@@ -132,7 +169,7 @@ router.post("/", autenticarToken({ verificarEmpresa: false }),
        
         const resultFuncao = await client.query(
             "INSERT INTO funcao (descFuncao, ctofuncaosenior, ctofuncaopleno, ctofuncaojunior, ctofuncaobase, vdafuncao, transporte, transpsenior, obsFuncao, alimentacao, obsProposta, ativo) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING idFuncao, descFuncao", // ✅ Retorna idFuncao
-            [descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsFuncao, alimentacao, obsProposta]
+            [descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsFuncao, alimentacao, obsProposta, ativo]
         );
 
         const novaFuncao = resultFuncao.rows[0];

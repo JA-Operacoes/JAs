@@ -422,6 +422,11 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
        console.log("Resposta da busca de Função:", funcao);
 
        //if (!funcao || !funcao.idfuncao) throw new Error("Função não encontrada");
+
+       if (!funcao || funcao.length === 0 || !funcao.idfuncao) {
+            // Lançamos o erro para forçar a entrada no bloco 'catch'
+            throw new Error("Função não encontrada ou resposta inválida.");
+        }
      
          document.querySelector("#idFuncao").value = funcao.idfuncao;
          document.querySelector("#CustoSenior").value = funcao.ctofuncaosenior || 0.00;
