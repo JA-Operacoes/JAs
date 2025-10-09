@@ -185,16 +185,20 @@ legend{
   outline: none;
 }
 
-.form label, .form-2colunas label, .form2 label{
+.form label,
+.form-2colunas label,
+.form2 label {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+  transform: translateY(-70%);
   color: #000000;
-  font-size: 19px;
-  pointer-events: none; 
+  font-size: 12px;
+  pointer-events: none;
   transition: 0.3s;
- 
+  align-items: center;
+  background: #cecece;
+  padding: 0 5px;
 }
+
 .uppercase {
   text-transform: uppercase;
 }

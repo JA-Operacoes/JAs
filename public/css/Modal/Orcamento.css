@@ -303,19 +303,33 @@
     color: #ffffff;
     background-color: #555;
   }
-  .totais-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 25px;
-  width: 100%;
-  justify-content: center;
-  align-items: start;
-  padding: 10px;
+.totais-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* 3 colunas fixas */
+    gap: 25px;
+    width: 100%;
+    justify-content: start; /* Alinha à esquerda */
+    align-items: start;
+    padding: 10px;
 }
+
 
 .coluna {
   display: flex;
   flex-direction: column;
+}
+.conteudo-lateral {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.Observacoes {
+    flex: 1;
+}
+
+.totais-container {
+    flex: 1;
 }
 
 .campo, .campo-duplo {
@@ -618,10 +632,10 @@ select #idCliente, #idEvento{
     background: white;
     color: #000000;
     overflow-y: auto;
-    margin: 0 auto;
     margin-left: 15px;
     gap: 5px;
   }
+
 
   .Observacoes{
     display: flex;
@@ -1096,10 +1110,62 @@ select #idCliente, #idEvento{
   color: #c62828 !important;
 }
 
-.swal2-popup .swal2-styled {
-    font-size: 16px;
-    padding: 8px 16px;
+/* Container geral do conteúdo dentro do Swal */
+.swal-container {
+  text-align: left;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
+
+/* Labels */
+.swal-container label {
+  display: inline-block;
+  width: 100%;
+  min-width: 260px; /* controla o tamanho visual dos labels */
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #000000;
+  margin-top: 8px;
+  letter-spacing: 0.3px;
+}
+
+/* Inputs */
+.swal-container input[type="number"] {
+  border-radius: 8px;
+  border: 1px solid #555;
+  background-color: transparent;
+  color: #f5f5f5;
+  font-size: 0.95rem;
+  padding: 10px;
+  width: 100px;
+  box-sizing: border-box;
+  transition: 0.3s;
+}
+
+
+.swal-container input[type="number"]:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 6px var(--primary-color);
+}
+
+/* Placeholders */
+.swal-container input::placeholder {
+  color: #999;
+  font-style: italic;
+}
+
+/* Textos explicativos */
+.swal-container small {
+  color: #aaaaaa;
+  font-size: 0.8rem;
+  margin-top: -6px;
+  display: flex;
+  justify-content: center;
+}
+
 
   .modal-buttons {
       margin-top: 10px;

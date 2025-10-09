@@ -252,8 +252,8 @@ input:valid ~ label{
 }
 
 input:not([value=""]) ~ label {
-  top: 0;
-  left: 25%;
+  top: -5px;
+  left: 2%;
   font-size: 15px;
   padding: 0 2px;
   background: #cacaca; /* Certifique-se que esta cor corresponde ao background do seu #form-content ou fieldset */
