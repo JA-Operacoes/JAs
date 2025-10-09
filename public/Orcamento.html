@@ -242,121 +242,135 @@
                     <!-- <div class="addLinha"><button class="adicionar" id="adicionarLinha">Adicionar Linha</button></div>
                     <div class="addLinha"><button class="Adicional" id="adicionarLinhaAdicional" style="display: none;">Adicional</button></div> -->
                     
-                    <div class = 'Selects'>
-                        <div class="Observacoes">
-                            <div class="Propostaobs1">
-                                <div class="checkbox-wrapper-33">
-                                    <label class="checkbox">
-                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" />
-                                        <span class="checkbox__symbol">
-                                            <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M4 14l8 7L24 7"></path>
-                                            </svg>
-                                        </span>
-                                        <p class="checkbox__textwrapper"></p>
-                                    </label>
-                                </div>
-                                    <textarea class="PropostaobsTexto" name="Observacao" id="Observacao" placeholder="Observações sobre a Itens"></textarea>
-                            </div>
+                    <div class="Selects">
 
+    <!-- CONTAINER PRINCIPAL LADO A LADO -->
+    <div class="conteudo-lateral" style="display: flex; gap: 20px; align-items: flex-start;">
 
-                            <div class="Propostaobs2">
-                                <div class="checkbox-wrapper-33">
-                                    <label class="checkbox">
-                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" />
-                                        <span class="checkbox__symbol">
-                                            <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M4 14l8 7L24 7"></path>
-                                            </svg>
-                                        </span>
-                                        <p class="checkbox__textwrapper"></p>
-                                    </label>
-                                </div>
-                                    <textarea class="PropostaobsTexto" name="ObservacaoProposta" id="ObservacaoProposta" placeholder="Observações sobre a Proposta"></textarea>
-                            </div>
-
-                        <div class="Propostaobs3">
-                            <div class="checkbox-wrapper-33">
-                                <label class="checkbox">
-                                    <input class="checkbox__trigger visuallyhidden" type="checkbox" />
-                                    <span class="checkbox__symbol">
-                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                                            <path d="M4 14l8 7L24 7"></path>
-                                        </svg>
-                                    </span>
-                                    <p class="checkbox__textwrapper"></p>
-                                </label>
-                            </div>
-                                <textarea name="formaPagamento" id="formaPagamento" placeholder="Descreva a Forma de Pagamento                           (Exemplo: 10% na assinatura...)"></textarea>
-                            </div>
-                        </div>
-                        <div class="totais-grid">
-                            <!-- Coluna 1 -->
-                            <div class="coluna">
-                                <div class="form2">
-                                    <input type="text" id="totalGeralVda" class="Moeda preenchido" readonly value="R$ 0,00">
-                                    <label for="totalGeralVda">Total Geral Venda:</label>
-                                </div>
-
-                                <div class="form2">
-                                    <input type="text" id="totalGeralCto" class="Moeda preenchido" readonly value="R$ 0,00">
-                                    <label for="totalGeralCto">Total Custo:</label>
-                                </div>
-
-                                <div class="form2">
-                                    <input type="text" id="totalAjdCusto" class="Moeda preenchido" readonly value="R$ 0,00">
-                                    <label for="totalAjdCusto">Total Ajuda de Custo:</label>
-                                </div>
-
-                                <div class="form2">
-                                    <input type="text" id="totalGeral" class="Moeda preenchido" readonly value="R$ 0,00">
-                                    <label for="totalGeral">Total Cto + Ajd Cto:</label>
-                                </div>
-                            </div>
-
-                            <!-- Coluna 2 -->
-                            <div class="coluna">
-                                <div class="form2">
-                                    <input type="text" id="Lucro" class="preenchido" readonly value="R$ 0,00">
-                                    <label for="Lucro">Lucro Bruto:</label>
-                                <input type="text" id="percentLucro" class="preenchido pequeno" readonly value="0%">
-                                </div>
-
-                                <div class="form2">
-                                    <input type="text" id="valorImposto" class="preenchido" readonly value="R$ 0,00">
-                                    <label for="valorImposto">Imposto:</label>
-                                <input type="text" id="percentImposto" class="preenchido pequeno" value="24%">
-                                </div>
-
-                                <div class="form2">
-                                    <input type="text" id="lucroReal" class="preenchido" readonly value="R$ 0,00">
-                                    <label for="lucroReal">Lucro Real:</label>
-                                <input type="text" id="percentReal" class="preenchido pequeno" readonly value="0%">
-                                </div>
-                            </div>
-
-                            <!-- Coluna 3 -->
-                            <div class="coluna">
-                                <div class="form2">
-                                    <input type="text" id="Desconto" class="preenchido" value="R$ 0,00">
-                                    <label for="Desconto">Desconto:</label>
-                                <input type="text" id="percentDesc" class="preenchido pequeno" value="0%">
-                                </div>
-
-                                <div class="form2">
-                                    <input type="text" id="Acrescimo" class="preenchido" value="R$ 0,00">
-                                    <label for="Acrescimo">Acréscimo:</label>
-                                <input type="text" id="percentAcresc" class="preenchido pequeno" value="0%">
-                                </div>
-
-                                <div class="form2">
-                                    <input type="text" id="valorCliente" class="preenchido" readonly value="R$ 0,00">
-                                    <label for="valorCliente">Valor do Cliente:</label>
-                                </div>
-                            </div>
-                            </div>
-                        </div>  
+        <!-- LADO ESQUERDO: OBSERVAÇÕES -->
+        <div class="Observacoes" style="flex: 1;">
+            <div class="Propostaobs1">
+                <div class="checkbox-wrapper-33">
+                    <label class="checkbox">
+                        <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                        <span class="checkbox__symbol">
+                            <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 14l8 7L24 7"></path>
+                            </svg>
+                        </span>
+                        <p class="checkbox__textwrapper"></p>
+                    </label>
                 </div>
+                <textarea class="PropostaobsTexto" name="Observacao" id="Observacao" placeholder="Observações sobre os Itens"></textarea>
+            </div>
+
+            <div class="Propostaobs2">
+                <div class="checkbox-wrapper-33">
+                    <label class="checkbox">
+                        <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                        <span class="checkbox__symbol">
+                            <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 14l8 7L24 7"></path>
+                            </svg>
+                        </span>
+                        <p class="checkbox__textwrapper"></p>
+                    </label>
+                </div>
+                <textarea class="PropostaobsTexto" name="ObservacaoProposta" id="ObservacaoProposta" placeholder="Observações sobre a Proposta"></textarea>
+            </div>
+
+            <div class="Propostaobs3">
+                <div class="checkbox-wrapper-33">
+                    <label class="checkbox">
+                        <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                        <span class="checkbox__symbol">
+                            <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 14l8 7L24 7"></path>
+                            </svg>
+                        </span>
+                        <p class="checkbox__textwrapper"></p>
+                    </label>
+                </div>
+                <textarea name="formaPagamento" id="formaPagamento" placeholder="Descreva a Forma de Pagamento (Ex: 10% na assinatura...)"></textarea>
+            </div>
+        </div>
+
+        <!-- LADO DIREITO: AVISO + TOTAIS -->
+        <div class="totais-container" style="flex: 1;">
+            
+            <!-- AVISO ACIMA DO TOTAIS -->
+            <div class="aviso-container" style="margin-bottom: 10px;">
+                <div class="aviso" id="avisoReajuste" style="color: rgb(168,4,4); font-weight:bold; font-size:15px;">
+                    <!-- Mensagem de aviso será inserida aqui via JS -->
+                </div>
+            </div>
+
+            <!-- TOTAIS -->
+            <div class="totais-grid">
+                <!-- Coluna 1 -->
+                <div class="coluna">
+                    <div class="form2">
+                        <input type="text" id="totalGeralVda" class="Moeda preenchido" readonly value="R$ 0,00">
+                        <label for="totalGeralVda">Total Geral Venda:</label>
+                    </div>
+                    <div class="form2">
+                        <input type="text" id="totalGeralCto" class="Moeda preenchido" readonly value="R$ 0,00">
+                        <label for="totalGeralCto">Total Custo:</label>
+                    </div>
+                    <div class="form2">
+                        <input type="text" id="totalAjdCusto" class="Moeda preenchido" readonly value="R$ 0,00">
+                        <label for="totalAjdCusto">Total Ajuda de Custo:</label>
+                    </div>
+                    <div class="form2">
+                        <input type="text" id="totalGeral" class="Moeda preenchido" readonly value="R$ 0,00">
+                        <label for="totalGeral">Total Cto + Ajd Cto:</label>
+                    </div>
+                </div>
+
+                <!-- Coluna 2 -->
+                <div class="coluna">
+                    <div class="form2">
+                        <input type="text" id="Lucro" class="preenchido" readonly value="R$ 0,00">
+                        <label for="Lucro">Lucro Bruto:</label>
+                        <input type="text" id="percentLucro" class="preenchido pequeno" readonly value="0%">
+                    </div>
+                    <div class="form2">
+                        <input type="text" id="valorImposto" class="preenchido" readonly value="R$ 0,00">
+                        <label for="valorImposto">Imposto:</label>
+                        <input type="text" id="percentImposto" class="preenchido pequeno" value="24%">
+                    </div>
+                    <div class="form2">
+                        <input type="text" id="lucroReal" class="preenchido" readonly value="R$ 0,00">
+                        <label for="lucroReal">Lucro Real:</label>
+                        <input type="text" id="percentReal" class="preenchido pequeno" readonly value="0%">
+                    </div>
+                </div>
+
+                <!-- Coluna 3 -->
+                <div class="coluna">
+                    <div class="form2">
+                        <input type="text" id="Desconto" class="preenchido" value="R$ 0,00">
+                        <label for="Desconto">Desconto:</label>
+                        <input type="text" id="percentDesc" class="preenchido pequeno" value="0%">
+                    </div>
+                    <div class="form2">
+                        <input type="text" id="Acrescimo" class="preenchido" value="R$ 0,00">
+                        <label for="Acrescimo">Acréscimo:</label>
+                        <input type="text" id="percentAcresc" class="preenchido pequeno" value="0%">
+                    </div>
+                    <div class="form2">
+                        <input type="text" id="valorCliente" class="preenchido" readonly value="R$ 0,00">
+                        <label for="valorCliente">Valor do Cliente:</label>
+                    </div>
+                </div>
+
+            </div> <!-- fim totais-grid -->
+
+        </div> <!-- fim totais-container -->
+
+    </div> <!-- fim conteudo-lateral -->
+
+</div> <!-- fim Selects -->
 
             </div>
             <div class="BTNs">

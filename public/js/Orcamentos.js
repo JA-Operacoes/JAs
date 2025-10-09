@@ -5273,25 +5273,35 @@ async function gerarProximoAno() {
     const { value: formValues } = await Swal.fire({
         title: 'Reajuste para o Próximo Ano',
         html: 
-            '<div style="text-align: left;">' +
-            // Campo de Percentual Geral (tabindex="1")
-            '  <label for="swal-percentual-geral" style="display: block; margin-top: 10px; font-weight: bold;">Percentual Geral (%) (Custo/Venda):</label>' +
-            '  <input id="swal-percentual-geral" type="number" step="0.01" min="0" class="swal2-input" tabindex="1" placeholder="Ex: 10.50">' + 
-            '  <small style="display: block; margin-top: -10px; color: #777;">Será aplicado ao valor unitário de todos os itens (venda e custo).</small>' +
-            
-            // Campo de Percentual Ajuda de Custo (tabindex="2")
-            '  <label for="swal-percentual-ajuda" style="display: block; margin-top: 20px; font-weight: bold;">Percentual Ajuda de Custo (%) (Diárias):</label>' +
-            '  <input id="swal-percentual-ajuda" type="number" step="0.01" min="0" class="swal2-input" tabindex="2" placeholder="Ex: 5.00">' + 
-            '  <small style="display: block; margin-top: -10px; color: #777;">Será aplicado à Alimentação e Transporte.</small>' +
+            '<div class="swal-container">' +
+            '  <label for="swal-percentual-geral">Percentual Geral (%) (Custo/Venda):</label>' +
+            '  <input id="swal-percentual-geral" type="number" step="0.01" min="0" tabindex="1" placeholder="Ex: 10.50">' +
+            '  <small>Será aplicado ao valor unitário de todos os itens (venda e custo).</small>' +
+
+            '  <label for="swal-percentual-ajuda">Percentual Ajuda de Custo (%) (Diárias):</label>' +
+            '  <input id="swal-percentual-ajuda" type="number" step="0.01" min="0" tabindex="2" placeholder="Ex: 5.00">' +
+            '  <small>Será aplicado à Alimentação e Transporte.</small>' +
             '</div>',
         
-               
+        
         focusConfirm: false,
         allowOutsideClick: false, // Impede fechamento por clique externo
         allowEscapeKey: false,   
         showCancelButton: true,
         confirmButtonText: 'Aplicar Reajuste',
         cancelButtonText: 'Cancelar',
+
+         didOpen: (popup) => {
+        const inputs = popup.querySelectorAll('input');
+        inputs.forEach(input => {
+            input.removeAttribute('readonly');
+            input.style.pointerEvents = 'auto';
+        });
+
+        // Coloca o foco no primeiro campo
+        inputs[0].focus();
+    },
+    
         preConfirm: () => {
             const geral = parseFloat(document.getElementById('swal-percentual-geral').value.replace(',', '.') || '0');
             const ajuda = parseFloat(document.getElementById('swal-percentual-ajuda').value.replace(',', '.') || '0');
