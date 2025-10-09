@@ -17,8 +17,8 @@
     
     <div id="CadModal" class="modal">
         <div class="modal-content"> -->
-            <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <link rel="stylesheet" href="css/Modal/CadFuncao.css">
 <link rel="stylesheet" href="css/Roots/Roots.css">
@@ -41,11 +41,27 @@
                             <input type="text" name="idFuncao" id="idFuncao" readonly style="display: none;" >
                             <label for="idFuncao" style="display: none;">Código</label>
                         </div>
-                        <div class="form">
-                            <input type="text" class="uppercase" name="descFuncao" id="descFuncao" required>
-                            <label for="descFuncao"> Descrição da Função </label>
-                            <!-- <select id="selectFuncao" hidden required></select> -->
-                        </div>
+                       
+                            <div class="form">
+                                <input type="text" class="uppercase" name="descFuncao" id="descFuncao" required>
+                                <label for="descFuncao"> Descrição da Função </label>
+                                <!-- <select id="selectFuncao" hidden required></select> -->
+                                
+                            </div>
+                            <div class="checkbox-wrapper-33">
+                                <label class="checkbox" for="funcaoAtiva">
+                                    <p class="checkbox__textwrapper">Função Ativa</p>
+                                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="funcaoAtiva" name="funcaoAtiva" />
+                                    <span class="checkbox__symbol">
+                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28"
+                                        version="1" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M4 14l8 7L24 7"></path>
+                                        </svg>
+                                    </span>
+                                </label>
+                            </div>
+              
+                        <br>
                         <div class="form-2colunas">
                             <div class="form-label-wrapper">
                                 <span><b>Senior</b></span>

@@ -673,6 +673,21 @@ input#statusMeiaDiaria.status-Rejeitado {
     color: green;
 }
 
+.btnEnviar {
+    /* (Seus estilos de cor azul, etc.) */
+    cursor: pointer;
+}
+
+/* Estilo quando o botão está desabilitado */
+.btnEnviar:disabled {
+    /* Altera a cor para cinza para indicar que está inativo */
+    background-color: #ccc; 
+    /* Garante que o cursor mude */
+    cursor: not-allowed; 
+    /* Escurece o texto para contraste */
+    color: #666; 
+}
+
 .form-2colunas {
   display: flex;
   gap: 0.5px;  /* Espaço entre os inputs */

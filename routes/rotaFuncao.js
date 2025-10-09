@@ -52,7 +52,7 @@ router.put("/:id", autenticarToken({ verificarEmpresa: false }),
     buscarDadosAnteriores: async (req) => {
       const idFuncao = req.params.id; 
       const idempresa = req.idempresa; 
-
+     
       if (!idFuncao) {
           return { dadosanteriores: null, idregistroalterado: null };
       }
@@ -79,16 +79,20 @@ router.put("/:id", autenticarToken({ verificarEmpresa: false }),
     console.log("Rota de função acessada - PUT", req.query);
     const id = req.params.id;
     const idempresa = req.idempresa;
-    const { descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsProposta, alimentacao, obsFuncao } = req.body;
+
+    
+    const ativo = req.body.ativo !== undefined ? req.body.ativo : false; 
+    const { descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsProposta, alimentacao, obsFuncao} = req.body;
 
     try {
       const result = await pool.query(
         `UPDATE Funcao f
-         SET descFuncao = $1, ctofuncaosenior = $2, ctofuncaopleno = $3, ctofuncaojunior = $4, ctofuncaobase = $5, vdafuncao = $6, transporte = $7, transpsenior = $8, obsFuncao = $9, alimentacao = $10, obsProposta = $11
+         SET descFuncao = $1, ctofuncaosenior = $2, ctofuncaopleno = $3, ctofuncaojunior = $4, ctofuncaobase = $5, vdafuncao = $6, transporte = $7, 
+              transpsenior = $8, obsFuncao = $9, alimentacao = $10, obsProposta = $11, ativo = $12
          FROM funcaoempresas fe
-         WHERE f.idFuncao = $12 AND fe.idfuncao = f.idFuncao AND fe.idempresa = $13
+         WHERE f.idFuncao = $13 AND fe.idfuncao = f.idFuncao AND fe.idempresa = $14
          RETURNING f.idFuncao`,
-        [descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsFuncao, alimentacao, obsProposta, id, idempresa]
+        [descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsFuncao, alimentacao, obsProposta, ativo, id, idempresa]
       );
 
      if (result.rowCount) {
@@ -117,6 +121,7 @@ router.post("/", autenticarToken({ verificarEmpresa: false }),
   async (req, res) => {
   
    console.log("Rota de função acessada - POST", req.query);
+    const ativo = req.body.ativo !== undefined ? req.body.ativo : false; 
     const { descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsFuncao, alimentacao, obsProposta } = req.body;
     const idempresa = req.idempresa;
 
@@ -126,7 +131,7 @@ router.post("/", autenticarToken({ verificarEmpresa: false }),
         await client.query('BEGIN');
        
         const resultFuncao = await client.query(
-            "INSERT INTO funcao (descFuncao, ctofuncaosenior, ctofuncaopleno, ctofuncaojunior, ctofuncaobase, vdafuncao, transporte, transpsenior, obsFuncao, alimentacao, obsProposta) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING idFuncao, descFuncao", // ✅ Retorna idFuncao
+            "INSERT INTO funcao (descFuncao, ctofuncaosenior, ctofuncaopleno, ctofuncaojunior, ctofuncaobase, vdafuncao, transporte, transpsenior, obsFuncao, alimentacao, obsProposta, ativo) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING idFuncao, descFuncao", // ✅ Retorna idFuncao
             [descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsFuncao, alimentacao, obsProposta]
         );
 

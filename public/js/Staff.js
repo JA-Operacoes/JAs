@@ -2618,11 +2618,12 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, set
         });
 
         // Limpa a variável global antes de qualquer processamento
-        orcamentoPorFuncao = {};
+        orcamentoPorFuncao = {};        
 
         // **VALIDAÇÃO CORRIGIDA:** Garante que a resposta é um array válido e não vazio
         if (!Array.isArray(dadosDoOrcamento) || dadosDoOrcamento.length === 0) {
             temOrcamento = false;
+            controlarBotaoSalvarStaff(false); 
             Swal.fire({
                 icon: 'info',
                 title: 'Nenhum Orçamento Encontrado',
@@ -2634,6 +2635,7 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, set
         }
         else {
             temOrcamento = true;
+            controlarBotaoSalvarStaff(true);
         }
 
         // **LÓGICA DO STATUS:** Agora que sabemos que o array não está vazio, podemos acessar a posição [0] com segurança
@@ -2670,6 +2672,24 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, set
             title: 'Erro de Carregamento',
             text: 'Não foi possível carregar o orçamento. Tente novamente mais tarde.'
         });
+    }
+}
+
+function controlarBotaoSalvarStaff(temOrcamento) {
+    const btnSalvar = document.getElementById('Enviar'); // Use o ID correto do seu botão
+
+    console.log("TEM ORCAMENTO", temOrcamento);
+
+    if (btnSalvar) {
+        if (temOrcamento) {
+            btnSalvar.disabled = false;
+            btnSalvar.textContent = 'Enviar'
+            btnSalvar.title = 'Pronto para Salvar';
+        } else {
+            btnSalvar.disabled = true;
+            btnSalvar.textContent = 'Não existe orçamento válido.'
+            btnSalvar.title = 'É necessário ter um orçamento válido para salvar o Staff.'; 
+        }
     }
 }
 

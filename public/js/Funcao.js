@@ -49,8 +49,9 @@ if (typeof window.FuncaoOriginal === "undefined") {
         vlrTransporte: "",
         vlrTransporteSenior: "",
         vlrAlmoco: "",
-        vlrJantar: "",
-        obsFuncao: ""
+        vlrAlimentacao: "",
+        obsFuncao: "",
+        ativo:""
     }
 };
 
@@ -108,7 +109,7 @@ function verificaFuncao() {
         const vlrVenda = document.querySelector("#Venda").value || 0.00;
         const vlrTransporte = document.querySelector("#transporte").value || 0.00;
         const vlrTransporteSenior = document.querySelector("#TranspSenior").value || 0.00;      
-        const vlrJantar = document.querySelector("#alimentacao").value || 0.00;
+        const vlrAlimentacao = document.querySelector("#alimentacao").value || 0.00;
         const obsProposta = document.querySelector("#obsProposta").value.trim();
         const obsFuncao = document.querySelector("#obsFuncao").value.trim();
     
@@ -120,7 +121,8 @@ function verificaFuncao() {
         const transporte = parseFloat(String(vlrTransporte).replace(",", "."));
         const transporteSenior = parseFloat(String(vlrTransporteSenior).replace(",", "."));
      
-        const alimentacao = parseFloat(String(vlrJantar).replace(",", "."));
+        const alimentacao = parseFloat(String(vlrAlimentacao).replace(",", "."));
+        const ativo = document.getElementById('funcaoAtiva').checked;
 
        // Permissões
         const temPermissaoCadastrar = temPermissao("Funcao", "cadastrar");
@@ -139,7 +141,7 @@ function verificaFuncao() {
             return Swal.fire("Acesso negado", "Você não tem permissão para alterar funções.", "error");
         }
 
-        console.log("campos antes de salvar", idFuncao, descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda,  transporte, transporteSenior, obsProposta, obsFuncao, alimentacao);
+        console.log("campos antes de salvar", idFuncao, descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda,  transporte, transporteSenior, obsProposta, obsFuncao, alimentacao, ativo);
 
         if (!descFuncao ||  !custoBase || !venda) {
 
@@ -151,10 +153,10 @@ function verificaFuncao() {
             });
             return;
         }
-        console.log("Valores do Funcao:", idFuncao, descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsProposta, obsFuncao, alimentacao);
+        console.log("Valores do Funcao:", idFuncao, descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsProposta, obsFuncao, alimentacao, ativo);
         console.log("Valores do Funcao Original:", window.FuncaoOriginal.idFuncao, window.FuncaoOriginal.descFuncao, window.FuncaoOriginal.vlrCusto, window.FuncaoOriginal.vlrCustoSenior,
             window.FuncaoOriginal.vlrCustoPleno, window.FuncaoOriginal.vlrCustoJunior, window.FuncaoOriginal.vlrBase, window.FuncaoOriginal.vlrVenda, window.FuncaoOriginal.vlrTransporte, 
-            window.FuncaoOriginal.vlrTransporteSenior, window.FuncaoOriginal.obsFuncao, window.FuncaoOriginal.vlrAlmoco, window.FuncaoOriginal.vlrJantar);
+            window.FuncaoOriginal.vlrTransporteSenior, window.FuncaoOriginal.obsFuncao, window.FuncaoOriginal.vlrAlmoco, window.FuncaoOriginal.vlrAlimentacao, window.ativo);
             
         // Comparar com os valores originais
         if (
@@ -167,7 +169,7 @@ function verificaFuncao() {
             Number(venda).toFixed(2) === Number(window.FuncaoOriginal.vlrVenda).toFixed(2) &&
             Number(transporte).toFixed(2) === Number(window.FuncaoOriginal.vlrTransporte).toFixed(2) &&
             Number(transporteSenior).toFixed(2) === Number(window.FuncaoOriginal.vlrTransporteSenior).toFixed(2) &&         
-            Number(alimentacao).toFixed(2) === Number(window.FuncaoOriginal.vlrJantar).toFixed(2) &&
+            Number(alimentacao).toFixed(2) === Number(window.FuncaoOriginal.vlrAlimentacao).toFixed(2) &&
             obsProposta === window.FuncaoOriginal.obsProposta &&
             obsFuncao === window.FuncaoOriginal.obsFuncao
         ) {
@@ -181,7 +183,7 @@ function verificaFuncao() {
             return;
         }
 
-        const dados = { descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsProposta, obsFuncao, alimentacao };
+        const dados = { descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsProposta, obsFuncao, alimentacao, ativo };
         const token = localStorage.getItem('token');
         const idEmpresa = localStorage.getItem('idEmpresa');
 
@@ -432,8 +434,8 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
          document.querySelector("#alimentacao").value = funcao.alimentacao || 0.00;
          document.querySelector("#obsProposta").value = funcao.obsproposta || "";
          document.querySelector("#obsFuncao").value = funcao.obsfuncao || "";
-
-       
+         document.querySelector("#funcaoAtiva").checked =
+            funcao.ativo === true || funcao.ativo === "true" || funcao.ativo === 1;       
 
         console.log("Valores da Função carregada:", funcao.ctofuncaosenior, funcao.ctofuncaopleno, funcao.ctofuncaojunior, funcao.ctofuncaobase, funcao.vdafuncao, funcao.transporte, funcao.alimentacao);
         
@@ -447,9 +449,10 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
             vlrVenda: funcao.vdafuncao,
             vlrTransporte: funcao.transporte,
             vlrTransporteSenior: funcao.transpsenior,
-            vlrJantar: funcao.alimentacao,
+            vlrAlimentacao: funcao.alimentacao,
             obsProposta: funcao.obsproposta,
-            obsFuncao: funcao.obsfuncao
+            obsFuncao: funcao.obsfuncao,
+            ativo: funcao.ativo
         };
    
        
@@ -506,9 +509,10 @@ function limparFuncaoOriginal() {
         vlrTransporte: "",
         vlrTransporteSenior: "",
         vlrAlmoco: "",
-        vlrJantar: "",
+        vlrAlimentacao: "",
         obsFuncao:"",
-        ObsAjc:""
+        ObsAjc:"",
+        ativo:""
     };
 }
 
@@ -516,8 +520,20 @@ function limparCamposFuncao() {
     const campos = ["idFuncao", "descFuncao","CustoSenior", "CustoPleno", "CustoJunior", "CustoBase", "Venda", "transporte", "transporteSenior",  "alimentacao", "ObsAjc"];
     campos.forEach(id => {
         const campo = document.getElementById(id);
-        if (campo) campo.value = "";
+        if (campo) {
+            if (campo.type === "checkbox") {
+                campo.checked = false;
+            } else {
+                campo.value = "";
+            }
+        }
     });
+
+    // Garante que o campo "ativo" (checkbox) seja desmarcado
+    const campoAtivo = document.getElementById("funcaoAtiva");
+    if (campoAtivo && campoAtivo.type === "checkbox") {
+        campoAtivo.checked = false;
+    }
     
 }
 
@@ -601,7 +617,7 @@ function desinicializarFuncaoModal() { // Renomeado para seguir o padrão 'desin
     
     // 3. Limpar o estado global FuncaoOriginal
     // Assumindo que window.FuncaoOriginal existe, ou defina-o como um objeto vazio
-    window.FuncaoOriginal = { idFuncao: "", descFuncao: "", vlrCustoSenior: 0.00, vlrCustoPleno: 0.00, vlrCustoJunior: 0.00, vlrCustoBase: 0.00, vlrVenda: 0.00, vlrTransporte: 0.00, vlrTransporteSenior: 0.00, obsFuncao: "", vlrAlmoco: 0.00, vlrJantar: 0.00 };
+    window.FuncaoOriginal = { idFuncao: "", descFuncao: "", vlrCustoSenior: 0.00, vlrCustoPleno: 0.00, vlrCustoJunior: 0.00, vlrCustoBase: 0.00, vlrVenda: 0.00, vlrTransporte: 0.00, vlrTransporteSenior: 0.00, obsFuncao: "", vlrAlmoco: 0.00, vlrAliemntacao: 0.00 };
     limparCamposFuncao(); // Chame a função que limpa os campos do formulário para garantir um estado limpo
     document.getElementById('form').reset(); // Garante que o formulário seja resetado
     document.querySelector("#idFuncao").value = ""; // Garante que o ID oculto seja limpo
