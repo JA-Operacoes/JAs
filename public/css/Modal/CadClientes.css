@@ -210,17 +210,18 @@ fieldset {
   color: #000000;
   outline: none;
 }
-.form label, .form-2colunas label, .form2 label{
+.form label,
+.form-2colunas label,
+.form2 label {
   position: absolute;
-  top: 50%;
   transform: translateY(-50%);
   color: #000000;
-  font-size: 19px;
+  font-size: 12px;
   pointer-events: none;
   transition: 0.3s;
-  left: 20%;
- 
+  align-items: center;
 }
+
 .form3 label{
   position: absolute;
   top: 50%;
@@ -248,8 +249,8 @@ input:not([value=""]) ~ label{
   background: #cacaca;
 }
 input:not([value=""]) ~ label {
-  top: 0;
-  left: 25%;
+  top: -5px;
+  left: 2%;
   font-size: 15px;
   padding: 0 2px;
   background: #cacaca; /* Certifique-se que esta cor corresponde ao background do seu #form-content ou fieldset */

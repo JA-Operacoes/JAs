@@ -238,16 +238,18 @@ fieldset {
   outline: none;
 }
 
-.form label, .form-2colunas label, .form2 label{
+.form label,
+.form-2colunas label,
+.form2 label {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+  transform: translateY(-70%);
   color: #000000;
-  font-size: 19px;
+  font-size: 12px;
   pointer-events: none;
   transition: 0.3s;
-  left: 20%;
+  align-items: center;
 }
+
 
 .uppercase {
   text-transform: uppercase;

@@ -197,7 +197,7 @@ fieldset {
   justify-content: center;
   align-items: center;
   position: absolute;
-  top: 50%;
+  top: 35%;
   transform: translateY(-50%);
   color: #000000;
   font-size: 19px;
@@ -215,19 +215,12 @@ input:focus {
 
 input:focus~label,
 input:valid~label{
-  top: 0;
+  top: -5px;
   left: 30%;
   font-size: 12px;
   padding: 0 2px;
   background: #cacaca;
 }
-
-input#idBanco:not([value=""]) ~ label {
-    top: 0;
-    left: 25px;
-    font-size: 12px;
-    background: #cacaca;
-  }
 
 button {
   font-family: "Abel", sans-serif;
