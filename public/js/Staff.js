@@ -796,7 +796,6 @@ const carregarDadosParaEditar = (eventData) => {
         }
     }
 
-
     qtdPessoasInput.value = parseInt(eventData.qtdpessoaslote || 0);
 
     // Preenchendo campos financeiros e de custo.
@@ -3121,7 +3120,7 @@ async function carregarFuncaoStaff() {
             select.appendChild(opcaoPadrao);
 
             funcaofetch.forEach(funcao => {
-                if (funcao.ativo === true || funcao.ativo === "true" || funcao.ativo === 1) {
+               // if (funcao.ativo === true || funcao.ativo === "true" || funcao.ativo === 1) {
                     let option = document.createElement("option");
                     option.value = funcao.idfuncao;
                     option.textContent = funcao.descfuncao;
@@ -3137,10 +3136,10 @@ async function carregarFuncaoStaff() {
                     option.setAttribute("data-transpsenior", funcao.transpsenior || 0);
                     option.setAttribute("data-categoria", "Produto(s)");
                     select.appendChild(option);
-                }else {
-                    // Opcional: Log para saber quais funções foram filtradas.
-                    console.log(`Função inativa ignorada: ${funcao.descfuncao}`);
-                }
+               // }else {
+               //     // Opcional: Log para saber quais funções foram filtradas.
+               //     console.log(`Função inativa ignorada: ${funcao.descfuncao}`);
+               // }
             });
 
             select.addEventListener("change", function (event) {

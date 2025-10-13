@@ -34,7 +34,7 @@
 } 
 
 /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
-#cadModalFuncao.modal {
+#cadModalCatFuncao.modal {
   position: fixed;
   top: 50%;  /* Alinha verticalmente ao centro */
   left: 50%; /* Alinha horizontalmente ao centro */
@@ -49,11 +49,11 @@
   z-index: 9999;
 }
 
-#cadModalFuncao.modal-content{
+#cadModalCatFuncao.modal-content{
   height: 590px;
 }
 
-#cadModalFuncao.modal-open {
+#cadModalCatFuncao.modal-open {
   overflow: visible;
   pointer-events: none;
 }
@@ -91,7 +91,7 @@ body {
   margin-top: 5px;
 }
 
-#form-funcao {
+#form-catfuncao {
   font-family: "Abel", sans-serif;
   display: flex;  /* Define o modelo de layout Flexbox */
   flex-direction: column;
@@ -217,27 +217,6 @@ textarea{
   pointer-events: none;
   transition: 0.3s;
   align-items: center;
-}
-
-.form-row-inline {
-    display: flex;   
-    align-items: flex-start;    
-    gap: 20px;    
-    width: 100%;     
-    margin-bottom: 20px; 
-}
-
-
-.form-row-inline .funcao-desc {   
-    flex-grow: 3;   
-    min-width: 65%; 
-}
-
-
-.form-row-inline .funcao-ativa {   
-    flex-grow: 1;    
-    margin: 0; 
-    padding-top: 5px; 
 }
 
 .uppercase {
@@ -412,7 +391,7 @@ button.close {
 }
 
 .checkbox-wrapper-33 .checkbox__textwrapper {
-  margin: 10px;
+  margin: 0;
 }
 
 .checkbox-wrapper-33 .checkbox__trigger:checked + .checkbox__symbol:after {

@@ -2475,8 +2475,8 @@ function atualizaProdutoOrc(event) {
         // }
 
         //TRECHO PARA ALIMENTAÇÃO E TRANSPORTE NÃO EDITÁVEL
-        const spanAlimentacao = ultimaLinha.querySelector('.vlralimentacao-display');
-        const spanTransporte = ultimaLinha.querySelector('.vlrtransporte-display');
+        const spanAlimentacao = ultimaLinha.querySelector('.vlralimentacao-input');
+        const spanTransporte = ultimaLinha.querySelector('.vlrtransporte-input');
 
         // Atualizamos o texto do span (o display na tabela)
         if (spanAlimentacao) {
@@ -2974,6 +2974,9 @@ async function verificaOrcamento() {
             console.log("idMontagem BTNSALVAR", document.querySelector(".idMontagem option:checked")?.value || null);
 
             const infraMontagemDatas = getPeriodoDatas(formData.get("periodoInfraMontagem"));
+
+            const textoAviso = document.getElementById('avisoReajusteMensagem')?.textContent.trim() || null;
+          
             for (const pair of formData.entries()) {
                 console.log(`formData entry: ${pair[0]}, ${pair[1]}`);
             }
@@ -2984,7 +2987,27 @@ async function verificaOrcamento() {
             const realizacaoDatas = getPeriodoDatas(formData.get("periodoRealizacao"));
             const desmontagemDatas = getPeriodoDatas(formData.get("periodoDesmontagem"));
             const desmontagemInfraDatas = getPeriodoDatas(formData.get("periodoDesmontagemInfra"));
-            const posEventoDatas = getPeriodoDatas(formData.get("periodoPosEvento"));
+            const posEventoDatas = getPeriodoDatas(formData.get("periodoPosEvento"));            
+
+            if ((!marcacaoDatas.inicio) || (!marcacaoDatas.fim)) {
+                Swal.fire("Atenção!", "O campo de Datas de Marcação é obrigatório e não pode ser deixado em branco.", "warning");
+                btnEnviar.disabled = false;
+                btnEnviar.textContent = 'Salvar Orçamento';
+                return; // Interrompe o envio
+            }
+            if ((!montagemDatas.inicio) || (!montagemDatas.fim)) {
+                Swal.fire("Atenção!", "O campo de Datas de Realização é obrigatório e não pode ser deixado em branco.", "warning");
+                btnEnviar.disabled = false;
+                btnEnviar.textContent = 'Salvar Orçamento';
+                return; // Interrompe o envio
+            }
+            if ((!realizacaoDatas.inicio) || (!realizacaoDatas.fim)) {
+                Swal.fire("Atenção!", "O campo de Datas de Realização é obrigatório e não pode ser deixado em branco.", "warning");
+                btnEnviar.disabled = false;
+                btnEnviar.textContent = 'Salvar Orçamento';
+                return; // Interrompe o envio
+            }
+           
 
             const idsPavilhoesSelecionadosInput = document.getElementById('idsPavilhoesSelecionados');
             console.log("PAVILHOES PARA ENVIAR", idsPavilhoesSelecionadosInput);
@@ -3036,8 +3059,8 @@ async function verificaOrcamento() {
                 obsItens: formData.get("Observacao"),
                 obsProposta: formData.get("ObservacaoProposta"),
                 formaPagamento: formData.get("formaPagamento"),
-                edicao: document.querySelector("#edicao")?.value,
-                geradoAnoPosterior: false,
+                edicao: document.querySelector("#edicao")?.value,           
+                avisoReajusteTexto: textoAviso,
                 totGeralVda: desformatarMoeda(document.querySelector('#totalGeralVda').value),
                 totGeralCto: desformatarMoeda(document.querySelector('#totalGeralCto').value),
                 totAjdCusto: desformatarMoeda(document.querySelector('#totalAjdCusto').value),
@@ -3051,7 +3074,8 @@ async function verificaOrcamento() {
                 percentLucroReal: parsePercentValue(document.querySelector('#percentReal').value),
                 vlrCliente: desformatarMoeda(document.querySelector('#valorCliente').value),
                 vlrImposto: desformatarMoeda(document.querySelector('#valorImposto').value),
-                percentImposto: parsePercentValue(document.querySelector('#percentImposto').value)
+                percentImposto: parsePercentValue(document.querySelector('#percentImposto').value),
+                nrOrcamentoOriginal: nrOrcamentoOriginal
 
             };
 
@@ -3156,8 +3180,6 @@ async function verificaOrcamento() {
 
             });
 
-
-
             dadosOrcamento.itens = itensOrcamento;
 
             console.log("Payload Final do Orçamento (sem id_empresa):", dadosOrcamento);
@@ -3178,6 +3200,8 @@ async function verificaOrcamento() {
             //if (response.ok) {
             //    const resultado = await response.json();
             Swal.fire("Sucesso!", resultado.message || "Orçamento salvo com sucesso!", "success");
+            btnEnviar.disabled = false;
+            btnEnviar.textContent = 'Salvo';
             // Se for uma criação e o backend retornar o ID, atualize o formulário
             if (!isUpdate && resultado.id) {
                 document.getElementById('idOrcamento').value = resultado.id;
@@ -3185,7 +3209,7 @@ async function verificaOrcamento() {
                     document.getElementById('nrOrcamento').value = resultado.nrOrcamento; // Atualiza o campo no formulário
                 }
             }
-
+            console.log("PROXIMO ANO", bProximoAno, idOrcamentoOriginalParaAtualizar);
             if (bProximoAno === true && idOrcamentoOriginalParaAtualizar !== null) {
                 console.log(`Iniciando atualização do Orçamento Original: ${idOrcamentoOriginalParaAtualizar}`);
                 
@@ -3206,13 +3230,45 @@ async function verificaOrcamento() {
 
         } catch (error) {
             console.error('Erro inesperado ao salvar orçamento:', error);
+                // let errorMessage = "Ocorreu um erro inesperado ao salvar o orçamento.";
+                // if (error.message) {
+                //     errorMessage = error.message; // Pega a mensagem do erro lançada por fetchComToken
+                // } else if (typeof error === 'string') {
+                //     errorMessage = error; // Caso o erro seja uma string simples
+                // }
+                // Swal.fire("Erro!", "Falha ao salvar orçamento: " + errorMessage, "error");
                 let errorMessage = "Ocorreu um erro inesperado ao salvar o orçamento.";
-                if (error.message) {
-                    errorMessage = error.message; // Pega a mensagem do erro lançada por fetchComToken
-                } else if (typeof error === 'string') {
-                    errorMessage = error; // Caso o erro seja uma string simples
+            let swalTitle = "Erro!";
+            
+            // Tentativa 1: Pegar a mensagem de erro da API (se for um objeto Error)
+            if (error.message) {
+                errorMessage = error.message; // Ex: "Erro na requisição: [object Object]"
+
+                // Tentativa 2: Tentar extrair o detalhe do PostgreSQL se estiver em formato de string no erro
+                // O erro do PG que você viu é: 'error: o valor nulo na coluna "dtinimarcacao"...'
+                if (errorMessage.includes('o valor nulo na coluna')) {
+                    swalTitle = "Erro de Dados Faltantes";
+                    // Tenta simplificar a mensagem do PG para ser mais amigável
+                    errorMessage = errorMessage.replace(/(\r\n|\n|\r)/gm, " ") // Remove quebras de linha
+                                                .match(/o valor nulo na coluna "([^"]+)"/i);
+                    
+                    if (errorMessage && errorMessage[1]) {
+                        const coluna = errorMessage[1].toUpperCase();
+                        errorMessage = `Atenção: O campo de data **${coluna}** não pode ficar em branco. Por favor, preencha o campo de Marcação.`;
+                    } else {
+                        errorMessage = "Um campo obrigatório (data) está faltando. Verifique as datas de Marcação, Montagem, etc.";
+                    }
                 }
-                Swal.fire("Erro!", "Falha ao salvar orçamento: " + errorMessage, "error");
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            }
+            // --- FIM DA LÓGICA DE EXTRAÇÃO ---
+
+            Swal.fire({
+                title: swalTitle,
+                html: `Falha ao salvar orçamento:<br><br><strong>${errorMessage}</strong>`,
+                icon: "error"
+            });
         } finally {
             btnEnviar.disabled = false;
             btnEnviar.textContent = 'Salvar Orçamento';
@@ -3234,21 +3290,32 @@ async function verificaOrcamento() {
     recalcularTotaisGerais();
 }
 
-async function atualizarCampoGeradoAnoPosterior(idOrcamento, valor) {
-    // ESTA FUNÇÃO PRECISA SER IMPLEMENTADA PARA SE COMUNICAR COM SEU BACKEND
+async function atualizarCampoGeradoAnoPosterior(idorcamento, geradoAnoPosterior) {
+    console.log(`[ATUALIZAR_ORIGINAL] Tentando atualizar Orçamento ID: ${idorcamento}, Valor: ${geradoAnoPosterior}`);
     try {
-        const response = await fetchComToken(`orcamentos/${idOrcamento}/update-status-espelho`, {
-            method: 'PATCH', // PATCH é ideal para atualizar apenas um campo
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ geradoAnoPosterior: valor })
-        });
+        const url = `/orcamentos/${idorcamento}/update-status-espelho`;
+        
+        const options = {
+            method: 'PATCH', // Método HTTP para atualização parcial
+            headers: { 
+                'Content-Type': 'application/json' 
+            },
+            // Envia o JSON { "geradoAnoPosterior": true } para o backend
+            body: JSON.stringify({ geradoAnoPosterior: geradoAnoPosterior }) 
+        };
 
-        // fetchComToken já deve lançar um erro se response.ok for false.
-        // Se retornar, consideramos sucesso.
+        // Usa a sua função utilitária para enviar a requisição
+        const resposta = await fetchComToken(url, options); 
+        
+        // Se fetchComToken não lançou erro, a requisição foi um sucesso (200)
+        console.log(`[ATUALIZAR_ORIGINAL] Sucesso na API para ID ${idorcamento}.`);
         return true; 
+        
     } catch (error) {
-        console.error('Falha ao atualizar campo geradoanoposterior:', error);
-        return false;
+        // Se houve qualquer erro (rede, 4xx, 5xx), ele será capturado aqui.
+        console.error(`[ATUALIZAR_ORIGINAL] FALHA Crítica ao atualizar o Orçamento Original ${idorcamento}:`, error);
+        // Retorna FALSE para que o bloco 'if (updateOriginal)' no frontend falhe.
+        return false; 
     }
 }
 
@@ -3434,6 +3501,8 @@ export function limparOrcamento() {
     document.getElementById('valorImposto').value = 'R$ 0,00';
     document.getElementById('percentImposto').value = '0%';
     document.getElementById('valorCliente').value = 'R$ 0,00';
+
+    
 
     // Se você tiver máscaras (como IMask), pode precisar re-aplicá-las ou garantir que o valor seja resetado corretamente
     // Ex: IMask(document.getElementById('Desconto'), { mask: 'R$ num', ... }).value = 'R$ 0,00';
@@ -3683,11 +3752,12 @@ export async function preencherFormularioComOrcamento(orcamento) {
         console.warn("Elemento com ID 'FormaPagamento' (Forma Pagamento) não encontrado.");
     }
     
-    const avisoReajusteInput = document.getElementById('aviso');
+    console.log("AVISO", orcamento.indicesaplicados);
+    const avisoReajusteInput = document.getElementById('avisoReajusteMensagem');
     if (avisoReajusteInput) {
-        avisoReajusteInput.value = orcamento.indicesaplicados || '';
+         avisoReajusteInput.textContent = orcamento.indicesaplicados || '';
     } else {
-        console.warn("Elemento com ID 'FormaPagamento' (Forma Pagamento) não encontrado.");
+        console.warn("Elemento com ID 'avisoReajusteMensagem' não encontrado.");
     }
 
     const totalGeralVdaInput = document.getElementById('totalGeralVda');
@@ -4271,7 +4341,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
 
     if (aplicarReajuste)
     {
-        document.getElementById('avisoReajuste').textContent = mensagemReajuste.trim();
+        document.getElementById('avisoReajusteMensagem').textContent = mensagemReajuste.trim();
         recalcularTotaisGerais();
 
         const globalDescontoValor = document.getElementById('Desconto');
@@ -4359,6 +4429,23 @@ export function limparFormularioOrcamento() {
 
     // TODO: Se você tiver uma função para limpar a tabela de itens, chame-a aqui
     // Ex: limparItensOrcamentoTabela();
+
+    const avisoMensagem = document.getElementById('avisoReajusteMensagem');
+    if (avisoMensagem) {
+        avisoMensagem.textContent = ''; // Limpa o texto da mensagem
+    }
+    
+    // 2. Reseta o input hidden de status (se for o caso)
+    const avisoStatusInput = document.getElementById('inputAvisoReajusteStatus');
+    if (avisoStatusInput) {
+        avisoStatusInput.value = 'false';
+    }
+    
+    // 3. Limpa o input hidden de texto (se você o estiver usando)
+    const avisoTextoInput = document.getElementById('avisoReajusteTexto');
+    if (avisoTextoInput) {
+        avisoTextoInput.value = '';
+    }
 }
 
 function getPeriodoDatas(inputValue) { // Recebe diretamente o valor do input
@@ -4701,9 +4788,9 @@ function recalcularLinha(linha) {
        // const vlrAlimentacaoDiaria = desformatarMoeda(linha.querySelector('.vlralimentacao-input')?.value) || 0; //para ser editavel
        // const vlrTransporteDiaria = desformatarMoeda(linha.querySelector('.vlrtransporte-input')?.value) || 0; //para ser editavel
 
-        const vlrAlimentacaoDiaria = desformatarMoeda(linha.querySelector('.vlralimentacao-display')?.textContent) || 
+        const vlrAlimentacaoDiaria = desformatarMoeda(linha.querySelector('.vlralimentacao-input')?.textContent) || 
                              desformatarMoeda(linha.querySelector('.ajdCusto.alimentacao')?.textContent) || 0;
-        const vlrTransporteDiaria = desformatarMoeda(linha.querySelector('.vlrtransporte-display')?.textContent) ||
+        const vlrTransporteDiaria = desformatarMoeda(linha.querySelector('.vlrtransporte-input')?.textContent) ||
                             desformatarMoeda(linha.querySelector('.ajdCusto.transporte')?.textContent) || 0;
 
         const totalAlimentacaoLinha = vlrAlimentacaoDiaria;
@@ -4764,9 +4851,24 @@ function recalcularLinha(linha) {
         //linha.querySelector('.valorbanco.alimentacao').textContent = totalAlimentacaoLinha.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         //linha.querySelector('.valorbanco.transporte').textContent = totalTransporteLinha.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-        linha.querySelector('.vlralimentacao-display').value = vlrAlimentacaoDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        linha.querySelector('.vlrtransporte-display').value = vlrTransporteDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        //linha.querySelector('.vlralimentacao-display').value = vlrAlimentacaoDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        //linha.querySelector('.vlrtransporte-display').value = vlrTransporteDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
        
+        const campoAlimentacao = linha.querySelector('.vlralimentacao-input');
+        if (campoAlimentacao) {
+            campoAlimentacao.value = vlrAlimentacaoDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        } else {
+            console.warn("Campo '.vlralimentacao-input' não encontrado na linha do orçamento.");
+        }
+
+        // Próxima linha corrigida
+        const campoTransporte = linha.querySelector('.vlrtransporte-input');
+        if (campoTransporte) {
+            campoTransporte.value = vlrTransporteDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        } else {
+            console.warn("Campo '.vlrtransporte-input' não encontrado na linha do orçamento.");
+        }
+
         linha.querySelector('.totVdaDiaria').textContent = totalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         // const celulaTotalVenda = linha.querySelector('.totVdaDiaria');
         // if (celulaTotalVenda) { // <-- A checagem de existência é crucial
@@ -5335,7 +5437,7 @@ async function gerarProximoAno() {
     const anoCorrente = new Date().getFullYear();
     anoProximoOrcamento = anoCorrente + 1;
 
-    console.log("PROXIMO ANO", anoProximoOrcamento);
+    console.log("PROXIMO ANO EM GERARPROXIMOANO", anoProximoOrcamento);
     
     // 2. Chama a função que destrói e recria os calendários com a nova opção
     

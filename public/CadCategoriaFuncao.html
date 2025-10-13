@@ -1,0 +1,118 @@
+<!-- <!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="css/Modal/CadFuncao.css">
+    <link rel="stylesheet" href="css/Roots/Roots.css">
+    <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+    
+    <title>Modal</title>
+    
+</head>
+
+<body data-modulo="Funcao">
+    
+    <div id="CadModal" class="modal">
+        <div class="modal-content"> -->
+<link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<link rel="stylesheet" href="css/Modal/CadCategoriaFuncao.css">
+<link rel="stylesheet" href="css/Roots/Roots.css">
+
+<div id="cadModalCatFuncao" class="modal">
+    <div class="modal-content">      
+            
+        <div class="Close"><button class="close" id="Fechar"> X </button></div>
+        <div id="form-catfuncao">
+
+                <div class="title">
+                    <h1>Cadastro de Categorias de Funções</h1>
+                </div>
+
+                <form id="form" name="form" autocomplete="on">
+                    <fieldset>
+                        <legend>Cadastre a Categoria da Função </legend>
+
+                        <div class="form">
+                            <input type="text" name="idCatFuncao" id="idCatFuncao" readonly style="display: none;" >
+                            <label for="idCatFuncao" style="display: none;">Código</label>
+                        </div>
+
+                        <div class="form">
+                            <input type="text" class="uppercase" name="descCatFuncao" id="descCatFuncao" required>
+                            <label for="descCatFuncao">Descrição da Categoria da Função</label>
+                        </div>                     
+
+
+                        <br>
+                        <div class="form-2colunas">
+                            <div class="form-label-wrapper">
+                                <span><b>Senior</b></span>
+                            </div>
+                            <div class="form2">                                
+                                <input type="text" name="CustoSenior" id="CustoSenior" required>
+                                <label for="CustoSenior"> Custo Senior</label>
+                            </div>                            
+                            <div class="form2">                                
+                                <input type="text" name="TranspSenior" id="TranspSenior" required>
+                                <label for="TranspSenior"> Transporte Senior </label>
+                            </div>
+                        </div>
+                        <div class="form-2colunas">
+                             <div class="form-label-wrapper">
+                                <span><b>Pleno</b></span>
+                            </div>
+                            <div class="form2">                                
+                                <input type="text" name="CustoPleno" id="CustoPleno" required>
+                                <label for="CustoPleno"> Custo Pleno</label>
+                            </div>  
+                            <div class="form-label-wrapper">
+                                <span><b>Junior</b></span>
+                            </div>
+                            <div class="form2">                                
+                                <input type="text" name="CustoJunior" id="CustoJunior" required>
+                                <label for="CustoJunior"> Custo Junior</label>
+                            </div>
+                            <div class="form-label-wrapper">
+                                <span><b>Base</b></span>
+                            </div>
+                            <div class="form2">                                
+                                <input type="text" name="CustoBase" id="CustoBase" required>
+                                <label for="CustoBase"> Custo Base </label>
+                            </div>                                                      
+                        </div>
+
+                        <div class="form-2colunas">
+                            <div class="form2">
+
+                                <input type="text" name="transporte" id="transporte" required>
+                                <label for="transporte"> Transporte </label>
+                            </div>                           
+                            <div class="form2">
+                                <input type="text" name="alimentacao" id="alimentacao" required>
+                                <label for="alimentacao"> Alimentação </label>
+                            </div>
+                            <div class="form2">                                
+                                <input type="text" name="Venda" id="Venda" required>
+                                <label for="Venda"> Venda </label>
+                            </div>
+                        </div>                            
+                    </fieldset>
+                </div>
+            <div class="BTNs">
+                <button class="btnPesquisar" id="Pesquisar" type="button">Pesquisar</button>
+                <button class="btnLimpar" id="Limpar" type="button">Limpar</button>
+                <button class="btnEnviar" id="Enviar" type="button">Enviar</button>
+            </div>
+        </form>
+    </div>
+</div>
+ 
+ 
+<!-- </body>
+
+</html> -->
