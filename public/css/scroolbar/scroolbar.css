@@ -2,6 +2,7 @@
   /* Estiliza a largura do scrollbar */
   ::-webkit-scrollbar {
     width: 8px;
+    scrollbar-width: thin;
     height: 8px; /* Para o scrollbar horizontal */
   }
   

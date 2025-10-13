@@ -3852,7 +3852,7 @@ export async function preencherFormularioComOrcamento(orcamento) {
 }
 
 
- export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
+export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
      console.log("DEBUG FRONTEND: preencherItensOrcamentoTabela foi chamada com itens:", itens);
 
     const tabelaBody = document.querySelector("#tabela tbody");
@@ -4382,6 +4382,85 @@ export async function preencherFormularioComOrcamento(orcamento) {
     aplicarMascaraMoeda();
 }
 
+// =============================
+// VERIFICA LINHAS PELO PERÍODO
+// =============================
+function inicializarControleDatasELinhas() {
+    const anoAtual = new Date().getFullYear();
+    const linhas = document.querySelectorAll("tbody tr");
+
+    linhas.forEach(linha => {
+        const inputPeriodo = linha.querySelector("input.datas-item");
+
+        if (!inputPeriodo) return;
+
+        // Inicializa Flatpickr se ainda não tiver
+        if (!inputPeriodo._flatpickr) {
+            let inicio = linha.dataset.inicio ? new Date(linha.dataset.inicio) : null;
+            let fim = linha.dataset.fim ? new Date(linha.dataset.fim) : null;
+            let defaultDates = [];
+            if (inicio) defaultDates.push(inicio);
+            if (fim) defaultDates.push(fim);
+
+            flatpickr(inputPeriodo, {
+                mode: "range",
+                dateFormat: "d/m/Y",
+                locale: flatpickr.l10ns.pt,
+                defaultDate: defaultDates.length ? defaultDates : [],
+                onChange: function(selectedDates, dateStr, instance) {
+                    const input = instance.input;
+
+                    // Atualiza quantidade de dias
+                    atualizarQtdDias(input, selectedDates);
+
+                    // Atualiza cor da linha
+                    atualizarCorLinha(input.closest("tr"));
+
+                    // Recalcula valores da linha
+                    recalcularLinha(input.closest("tr"));
+                }
+            });
+        }
+
+        // Atualiza cor da linha no carregamento
+        atualizarCorLinha(linha);
+    });
+
+    // =========================================
+    // Função para atualizar a cor da linha
+    // =========================================
+    function atualizarCorLinha(linha) {
+        const input = linha.querySelector("input.datas-item.flatpickr-input");
+        if (!input || !input.value) {
+            linha.classList.remove("linha-vermelha");
+            return;
+        }
+
+        const partes = input.value.split(" a ");
+        if (partes.length === 2) {
+            const anoInicio = parseInt(partes[0].split("/")[2], 10);
+            const anoFim = parseInt(partes[1].split("/")[2], 10);
+
+            if (anoInicio <= anoAtual || anoFim <= anoAtual) {
+                linha.classList.add("linha-vermelha");
+            } else {
+                linha.classList.remove("linha-vermelha");
+            }
+        } else {
+            linha.classList.remove("linha-vermelha");
+        }
+    }
+}
+
+// EXECUÇÃO AO CARREGAR PÁGINA
+document.addEventListener("DOMContentLoaded", function() {
+    inicializarControleDatasELinhas();
+});
+
+
+
+
+
 function formatarDatasParaInputPeriodo(inicioStr, fimStr) {
     const formatarSimples = (data) => {
         if (!data) return '';
@@ -4753,41 +4832,6 @@ function recalcularLinha(linha) {
 
         let vlrCusto = desformatarMoeda(linha.querySelector('.vlrCusto')?.textContent) || 0;
 
-        // ... (código para Alimentação e Transporte: selectAlimentacao, valorAlimentacaoSpan, etc.) ...
-        //const selectAlimentacao = linha.querySelector('.tpAjdCusto-alimentacao');
-       // const selectTransporte = linha.querySelector('.tpAjdCusto-transporte');
-
-        //const valorAlimentacaoSpan =  linha.querySelector('.valorbanco.alimentacao');
-        //const valorTransporteSpan = linha.querySelector('.valorbanco.transporte');
-
-
-        // const baseAlmoco = parseFloat(vlrAlmoco || 0);
-        // const baseJantar = parseFloat(vlrJantar || 0);
-        // const baseTransporte = parseFloat(vlrTransporte || 0);
-
-        // let totalAlimentacaoLinha = 0;
-        // let totalTransporteLinha = 0;
-
-        // if (selectAlimentacao && valorAlimentacaoSpan) {
-        //     const tipoAlimentacaoSelecionado = selectAlimentacao.value;
-        //     if (tipoAlimentacaoSelecionado === 'Almoco') { totalAlimentacaoLinha = baseAlmoco; }
-        //     else if (tipoAlimentacaoSelecionado === 'Janta') { totalAlimentacaoLinha = baseJantar; }
-        //     else if (tipoAlimentacaoSelecionado === '2alimentacao') { totalAlimentacaoLinha = baseAlmoco + baseJantar; }
-        //     valorAlimentacaoSpan.textContent = totalAlimentacaoLinha.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        //     console.log("ALIMENTACAO", valorAlimentacaoSpan);
-        // }
-
-        // if (selectTransporte && valorTransporteSpan) {
-        //     const tipoTransporteSelecionado = selectTransporte.value;
-        //     if (tipoTransporteSelecionado === 'Público' || tipoTransporteSelecionado === 'Alugado' || tipoTransporteSelecionado === 'Próprio') {
-        //         totalTransporteLinha = baseTransporte;
-        //     }
-        //     valorTransporteSpan.textContent = totalTransporteLinha.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        // }
-
-       // const vlrAlimentacaoDiaria = desformatarMoeda(linha.querySelector('.vlralimentacao-input')?.value) || 0; //para ser editavel
-       // const vlrTransporteDiaria = desformatarMoeda(linha.querySelector('.vlrtransporte-input')?.value) || 0; //para ser editavel
-
         const vlrAlimentacaoDiaria = desformatarMoeda(linha.querySelector('.vlralimentacao-input')?.textContent) || 
                              desformatarMoeda(linha.querySelector('.ajdCusto.alimentacao')?.textContent) || 0;
         const vlrTransporteDiaria = desformatarMoeda(linha.querySelector('.vlrtransporte-input')?.textContent) ||
@@ -4796,21 +4840,15 @@ function recalcularLinha(linha) {
         const totalAlimentacaoLinha = vlrAlimentacaoDiaria;
         const totalTransporteLinha = vlrTransporteDiaria;
 
-        //const totalAlimentacaoLinha = desformatarMoeda(linha.querySelector('.valorbanco.alimentacao')?.textContent) || 0;
-        //const totalTransporteLinha = desformatarMoeda(linha.querySelector('.valorbanco.transporte')?.textContent) || 0;
+        console.log("ALIMENTACAO (lido do DOM):", linha.querySelector('.vlralimentacao-input'), vlrAlimentacaoDiaria);
 
-        console.log("ALIMENTACAO (lido do DOM):", linha.querySelector('.vlralimentacao-input'), vlrAlimentacaoDiaria); // Mantém o log, agora deve mostrar o valor correto
         let hospedagemValor = desformatarMoeda(linha.querySelector('.hospedagem')?.value) || 0;
         let transporteExtraValor = desformatarMoeda(linha.querySelector('.transporteExtraInput')?.value) || 0;
-
         console.log("HOSPEDAGEM E TRANSPORTE EXTRA:", hospedagemValor, transporteExtraValor);
 
+        let vlrAjdCusto = totalAlimentacaoLinha + totalTransporteLinha;
 
-        // let vlrAjdCusto =  vlrCusto + totalAlimentacaoLinha + totalTransporteLinha + hospedagemValor;
-        //let vlrAjdCusto =  vlrCusto + totalAlimentacaoLinha + totalTransporteLinha;
-        let vlrAjdCusto =  totalAlimentacaoLinha + totalTransporteLinha;
-
-        // --- LEITURA DOS VALORES DE DESCONTO E ACRÉSCIMO DA LINHA (NÃO FAÇA CÁLCULO DE SINCRONIZAÇÃO AQUI!) ---
+        // --- Leitura de Desconto e Acréscimo ---
         let campoDescValor = linha.querySelector('.descontoItem .ValorInteiros');
         let campoAcrescValor = linha.querySelector('.acrescimoItem .ValorInteiros');
 
@@ -4829,94 +4867,46 @@ function recalcularLinha(linha) {
             acrescimo = desformatarMoeda(campoAcrescValor.value);
         }
 
-        // --- CÁLCULO DO vlrVendaCorrigido USANDO OS VALORES LIDOS ---
+        // --- Cálculo do valor de venda corrigido ---
         let vlrVendaCorrigido = vlrVendaOriginal - desconto + acrescimo;
 
-        // ... (resto dos seus cálculos de totalIntermediario, totalVenda, totalCusto, totalAjdCusto, totGeralCtoItem) ...
-        // let totalIntermediario = qtdItens * qtdDias;
-        // let totalVenda = totalIntermediario * vlrVendaCorrigido;
-        // let totalCusto = totalIntermediario * vlrCusto;
-        // let totalAjdCusto = totalIntermediario * vlrAjdCusto + transporteExtraValor;
-        // let totGeralCtoItem = totalCusto + totalAjdCusto+ transporteExtraValor;
-
+        // --- Totais intermediários ---
         let totalIntermediario = qtdItens * qtdDias;
-        let totalVenda = (totalIntermediario * vlrVendaCorrigido) +(hospedagemValor * totalIntermediario) + transporteExtraValor;
+        let totalVenda = (totalIntermediario * vlrVendaCorrigido) + (hospedagemValor * totalIntermediario) + transporteExtraValor;
         let totalCusto = totalIntermediario * vlrCusto;
         let totalAjdCusto = totalIntermediario * vlrAjdCusto;
         let totGeralCtoItem = totalCusto + totalAjdCusto;
 
         console.log("Ajuda Custo RECALCULAR LINHA:", totalAjdCusto, "totalIntermediario:", totalIntermediario, "vlrAjdCusto:", vlrAjdCusto);
 
-        // --- ATUALIZA A DOM (TDs da linha) ---
-        //linha.querySelector('.valorbanco.alimentacao').textContent = totalAlimentacaoLinha.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        //linha.querySelector('.valorbanco.transporte').textContent = totalTransporteLinha.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-        //linha.querySelector('.vlralimentacao-display').value = vlrAlimentacaoDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        //linha.querySelector('.vlrtransporte-display').value = vlrTransporteDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-       
-        const campoAlimentacao = linha.querySelector('.vlralimentacao-input');
-        if (campoAlimentacao) {
-            campoAlimentacao.value = vlrAlimentacaoDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        } else {
-            console.warn("Campo '.vlralimentacao-input' não encontrado na linha do orçamento.");
+        // --- Atualização da DOM (protegendo null) ---
+        function setValueIfExists(selector, valor, isInput = false) {
+            const el = linha.querySelector(selector);
+            if (el) {
+                if (isInput) el.value = valor;
+                else el.textContent = valor;
+            }
         }
 
-        // Próxima linha corrigida
-        const campoTransporte = linha.querySelector('.vlrtransporte-input');
-        if (campoTransporte) {
-            campoTransporte.value = vlrTransporteDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        } else {
-            console.warn("Campo '.vlrtransporte-input' não encontrado na linha do orçamento.");
-        }
+        setValueIfExists('.vlralimentacao-display', vlrAlimentacaoDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), true);
+        setValueIfExists('.vlrtransporte-display', vlrTransporteDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), true);
+        setValueIfExists('.totVdaDiaria', totalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
+        setValueIfExists('.vlrVenda', vlrVendaCorrigido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
+        setValueIfExists('.totCtoDiaria', totalCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
+        setValueIfExists('.totAjdCusto', totalAjdCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
+        setValueIfExists('.totGeral', totGeralCtoItem.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
 
-        linha.querySelector('.totVdaDiaria').textContent = totalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        // const celulaTotalVenda = linha.querySelector('.totVdaDiaria');
-        // if (celulaTotalVenda) { // <-- A checagem de existência é crucial
-        //     celulaTotalVenda.textContent =  totalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        // }
-        linha.querySelector('.vlrVenda').textContent = vlrVendaCorrigido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        linha.querySelector('.totCtoDiaria').textContent = totalCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        linha.querySelector('.totAjdCusto').textContent = totalAjdCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        linha.querySelector('.totGeral').textContent = totGeralCtoItem.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-        // --- CÁLCULO E ATUALIZAÇÃO DOS TOTAIS GERAIS (DA TELA) ---
-        // Este bloco aqui é que recalcula os totais globais, independentemente da função aplicarDescontoEAcrescimo
-        // pois esta função é chamada por CADA LINHA. REPETIDO POIS JÁ TEM EM RECALCULARTOTAISGERAIS
-        // let allTotalCusto = 0;
-        // document.querySelectorAll('#tabela tbody .totCtoDiaria').forEach(cell => {
-        //     allTotalCusto += desformatarMoeda(cell.textContent);
-        // });
-        // document.querySelector('#totalGeralCto').value = allTotalCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-        // let allTotalVenda = 0;
-        // document.querySelectorAll('#tabela tbody .totVdaDiaria').forEach(cell => {
-        //     allTotalVenda += desformatarMoeda(cell.textContent);
-        // });
-        // document.querySelector('#totalGeralVda').value = allTotalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-        // let allTotalAjdCusto = 0;
-        // document.querySelectorAll('#tabela tbody .totAjdCusto').forEach(cell => {
-        //     allTotalAjdCusto += desformatarMoeda(cell.textContent);
-        // });
-        // document.querySelector('#totalAjdCusto').value = allTotalAjdCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-        // let allTotalGeral = 0;
-        // document.querySelectorAll('#tabela tbody .totGeral').forEach(cell => {
-        //     allTotalGeral += desformatarMoeda(cell.textContent);
-        // });
-        // document.querySelector('#totalGeral').value = allTotalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-        // --- Chamadas Finais ---
+        // --- Logs finais ---
         console.log("Calculo desc e Acresc (final):", vlrVendaOriginal, "-", desconto, "+", acrescimo);
         console.log("valor c/ desc e Acresc (final):", vlrVendaCorrigido);
-        // ... (outros logs) ...
 
-
-        recalcularTotaisGerais(); // Recalcula os totais gerais da tabela
+        // --- Recalcula totais gerais ---
+        recalcularTotaisGerais();
     } catch (error) {
         console.error("Erro no recalcularLinha:", error);
     }
 }
+
 
 
 
@@ -5403,7 +5393,7 @@ async function gerarProximoAno() {
         // Coloca o foco no primeiro campo
         inputs[0].focus();
     },
-    
+        
         preConfirm: () => {
             const geral = parseFloat(document.getElementById('swal-percentual-geral').value.replace(',', '.') || '0');
             const ajuda = parseFloat(document.getElementById('swal-percentual-ajuda').value.replace(',', '.') || '0');
@@ -5516,32 +5506,28 @@ async function preencherFormularioComOrcamentoParaProximoAno(orcamento) {
     }
 
     // 2. Preenche os campos espelhados (usa a mesma lógica da sua função original)
-    // ... (copie e cole todo o conteúdo da sua função 'preencherFormularioComOrcamento(orcamento)' aqui) ...
     const idOrcamentoInput = document.getElementById('idOrcamento');
-    if (idOrcamentoInput) { // Adicionado if para proteger o acesso a .value
+    if (idOrcamentoInput) { 
         idOrcamentoInput.value = orcamento.idorcamento || '';
     } else {
         console.warn("Elemento com ID 'idOrcamento' não encontrado.");
     }
 
     const nrOrcamentoInput = document.getElementById('nrOrcamento');
-    if (nrOrcamentoInput) { // Adicionado if
+    if (nrOrcamentoInput) { 
         nrOrcamentoInput.value = orcamento.nrorcamento || '';
     } else {
         console.warn("Elemento com ID 'nrOrcamento' não encontrado.");
     }
 
     const nomenclaturaInput = document.getElementById('nomenclatura');
-    if (nomenclaturaInput) { // Adicionado if
+    if (nomenclaturaInput) { 
         nomenclaturaInput.value = orcamento.nomenclatura || '';
     } else {
         console.warn("Elemento 'nomenclatura' não encontrado.");
     }
 
-    // Define os valores dos selects.
-    // Como os 'value' das options agora são os IDs, a atribuição direta funciona.
-    const statusInputNovo = document.getElementById('Status'); // Seu HTML mostra input type="text"
-
+    const statusInputNovo = document.getElementById('Status'); 
     if (statusInputNovo) {
         statusInputNovo.value = orcamento.status || '';
         console.log("Status", statusInputNovo.value);
@@ -5578,7 +5564,6 @@ async function preencherFormularioComOrcamentoParaProximoAno(orcamento) {
     const localMontagemSelect = document.querySelector('.idMontagem');
     if (localMontagemSelect) {
         localMontagemSelect.value = orcamento.idmontagem || '';
-        // --- NOVO: Preencher o campo UF da montagem e atualizar visibilidade ---
         const ufMontagemInput = document.getElementById('ufmontagem');
         if (ufMontagemInput) {
             ufMontagemInput.value = orcamento.ufmontagem || '';
@@ -5591,31 +5576,26 @@ async function preencherFormularioComOrcamentoParaProximoAno(orcamento) {
         if (orcamento.idmontagem) {
              await carregarPavilhaoOrc(orcamento.idmontagem);
         } else {
-             await carregarPavilhaoOrc(''); // Limpa o select se não houver montagem
+             await carregarPavilhaoOrc('');
         }
 
     } else {
         console.warn("Elemento com classe '.idMontagem' não encontrado.");
     }
-   
 
     if (orcamento.pavilhoes && orcamento.pavilhoes.length > 0) {
-    // Popula a variável global `selectedPavilhoes`
-    // O `orcamento.pavilhoes` deve ser um array de objetos, ex: [{id: 8, nomepavilhao: "nome"}, ...]
         selectedPavilhoes = orcamento.pavilhoes.map(p => ({
-            id: p.id, // Supondo que o ID é 'id'
-            name: p.nomepavilhao // E o nome é 'nomepavilhao'
+            id: p.id,
+            name: p.nomepavilhao
         }));
     } else {
         selectedPavilhoes = [];
     }
 
-    // Chama a função que já sabe como preencher os inputs corretamente
     updatePavilhaoDisplayInputs();
 
     for (const id in flatpickrInstances) {
         const pickerInstance = flatpickrInstances[id];
-
         if (pickerInstance && typeof pickerInstance.setDate === 'function' && pickerInstance.config) {
             let inicio = null;
             let fim = null;
@@ -5659,15 +5639,14 @@ async function preencherFormularioComOrcamentoParaProximoAno(orcamento) {
             const endDate = fim ? new Date(fim) : null;
 
             if (pickerInstance.config.mode === "range") {
-                // Adiciona verificação para datas válidas e tratamento para apenas uma data
                 if (startDate && endDate && !isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
                     pickerInstance.setDate([startDate, endDate], true);
-                } else if (startDate && !isNaN(startDate.getTime())) { // Se apenas a data de início for fornecida
+                } else if (startDate && !isNaN(startDate.getTime())) {
                      pickerInstance.setDate(startDate, true);
                 } else {
                     pickerInstance.clear();
                 }
-            } else { // Para modo de data única
+            } else { 
                 if (startDate && !isNaN(startDate.getTime())) {
                     pickerInstance.setDate(startDate, true);
                 } else {
@@ -5675,32 +5654,24 @@ async function preencherFormularioComOrcamentoParaProximoAno(orcamento) {
                 }
             }
         } else {
-            console.warn(`[preencherFormularioComOrcamento] Instância Flatpickr para ID '${id}' não encontrada ou inválida. Não foi possível preencher.`);
+            console.warn(`[preencherFormularioComOrcamento] Instância Flatpickr para ID '${id}' não encontrada ou inválida.`);
         }
     }
 
-    // Preencher campos de texto
     const obsItensInput = document.getElementById('Observacao');
     if (obsItensInput) {
         obsItensInput.value = orcamento.obsitens || '';
-    } else {
-        console.warn("Elemento com ID 'Observacao' (Observações sobre os Itens) não encontrado.");
     }
 
     const obsPropostaInput = document.getElementById('ObservacaoProposta');
     if (obsPropostaInput) {
         obsPropostaInput.value = orcamento.obsproposta || '';
-    } else {
-        console.warn("Elemento com ID 'ObservacaoProposta' (Observações sobre a Proposta) não encontrado.");
     }
 
     const formaPagamentoInput = document.getElementById('formaPagamento');
     if (formaPagamentoInput) {
         formaPagamentoInput.value = orcamento.formapagamento || '';
-    } else {
-        console.warn("Elemento com ID 'FormaPagamento' (Forma Pagamento) não encontrado.");
     }
-    
 
     const totalGeralVdaInput = document.getElementById('totalGeralVda');
     if (totalGeralVdaInput) totalGeralVdaInput.value = formatarMoeda(orcamento.totgeralvda || 0);
@@ -5713,18 +5684,9 @@ async function preencherFormularioComOrcamentoParaProximoAno(orcamento) {
 
     const totalGeralInput = document.getElementById('totalGeral');
     if (totalGeralCtoInput && totalAjdCustoInput && totalGeralInput) {
-        // Obter os valores dos campos.
-        // Use uma função para remover a formatação de moeda e converter para número.
         const valorGeralCto = desformatarMoeda(totalGeralCtoInput.value);
         const valorAjdCusto = desformatarMoeda(totalAjdCustoInput.value);
-
-        // Realizar a soma
-        const somaTotal = valorGeralCto + valorAjdCusto;
-
-        // Formatar o resultado de volta para moeda e atribuir ao campo totalGeral
-        totalGeralInput.value = formatarMoeda(somaTotal);
-    } else {
-        console.warn("Um ou mais elementos de input (totalGeralCto, totalAjdCusto, totalGeral) não foram encontrados.");
+        totalGeralInput.value = formatarMoeda(valorGeralCto + valorAjdCusto);
     }
 
     const lucroInput = document.getElementById('Lucro');
@@ -5735,32 +5697,22 @@ async function preencherFormularioComOrcamentoParaProximoAno(orcamento) {
 
     const descontoInput = document.getElementById('Desconto');
     if (descontoInput) {
-        // Converte para número antes de toFixed
         descontoInput.value = parseFloat(orcamento.desconto || 0).toFixed(2);
-    } else {
-        console.warn("Elemento com ID 'Desconto' não encontrado.");
     }
 
     const percentDescInput = document.getElementById('percentDesc');
     if (percentDescInput) {
         percentDescInput.value = formatarPercentual(parseFloat(orcamento.percentdesconto || 0));
-    } else {
-        console.warn("Elemento com ID 'percentDesc' não encontrado.");
     }
 
     const acrescimoInput = document.getElementById('Acrescimo');
     if (acrescimoInput) {
-        // Converte para número antes de toFixed
         acrescimoInput.value = parseFloat(orcamento.acrescimo || 0).toFixed(2);
-    } else {
-        console.warn("Elemento com ID 'Acrescimo' não encontrado.");
     }
 
     const percentAcrescInput = document.getElementById('percentAcresc');
     if (percentAcrescInput) {
         percentAcrescInput.value = formatarPercentual(parseFloat(orcamento.percentacrescimo || 0));
-    } else {
-        console.warn("Elemento com ID 'percentAcresc' não encontrado.");
     }
 
     const lucroRealInput = document.getElementById('lucroReal');
@@ -5780,41 +5732,60 @@ async function preencherFormularioComOrcamentoParaProximoAno(orcamento) {
 
     console.log("VALOR DO CLIENTE VINDO DO BANCO", orcamento.vlrcliente || 0);
 
-   // preencherItensOrcamentoTabela(orcamento.itens || []);
-
     if (orcamento.itens && orcamento.itens.length > 0) {
-        preencherItensOrcamentoTabela(orcamento.itens, true); // <--- ESTA CHAMADA É CRUCIAL
+        preencherItensOrcamentoTabela(orcamento.itens, true);
     } else {
-        console.log("Orçamento carregado não possui itens ou array de itens está vazio.");
-        preencherItensOrcamentoTabela([]); // Limpa a tabela se não houver itens
+        preencherItensOrcamentoTabela([]);
     }
-    if (localMontagemSelect) { // Verifica se o select existe antes de chamar
+
+    if (localMontagemSelect) {
         atualizarUFOrc(localMontagemSelect);
     }
 
-    
-    // *** AJUSTE CRUCIAL: Limpar os campos de data no formulário ***
-    // Dentro da nova função, adicione a lógica de limpeza de datas AQUI (usando flatpickrInstances)
-    // for (const id in flatpickrInstances) {
-    //     const pickerInstance = flatpickrInstances[id];
-    //     // Note que o 'orcamento' passado aqui terá 'null' nas datas, então o 'pickerInstance.clear()' será chamado
-    //     if (pickerInstance && typeof pickerInstance.clear === 'function') {
-    //          pickerInstance.clear();
-    //     }
-    // }
-    
-    // 3. DESBLOQUEAR CAMPOS (NOVO ORÇAMENTO ESTÁ ABERTO)
-    // Se o status for 'A' (aberto), 'bloquearCamposSeFechado()' não fará nada, mas é bom chamar 'desbloquear' explicitamente
     if (typeof desbloquearTodosOsCampos === 'function') {
-         desbloquearTodosOsCampos(); // Assumindo que você tem uma função que inverte o 'bloquearCamposSeFechado'
+        desbloquearTodosOsCampos();
     } else {
-        // Se não tiver, chame a sua função de bloqueio e deixe que o 'else' dela resolva
         bloquearCamposSeFechado();
     }
-    
-    // Por fim, ajuste o Status para 'A' no formulário
+
     const statusInput = document.getElementById('Status');
     if (statusInput) statusInput.value = 'A';
+
+function verificarLinhasPorPeriodo() {
+    const anoAtual = new Date().getFullYear();
+    const inputs = document.querySelectorAll('tbody input.datas.datas-item.flatpickr-input');
+
+    inputs.forEach(input => {
+        const linha = input.closest('tr');
+        if (!linha) return;
+
+        const valor = input.value.trim();
+        if (!valor) {
+            linha.classList.remove('linha-vermelha');
+            return;
+        }
+
+        const anos = (valor.match(/\b\d{4}\b/g) || []).map(a => parseInt(a, 10));
+        if (anos.length === 0) {
+            linha.classList.remove('linha-vermelha');
+            return;
+        }
+
+        const maiorAno = Math.max(...anos);
+        if (maiorAno <= anoAtual) {
+            linha.classList.add('linha-vermelha');
+        } else {
+            linha.classList.remove('linha-vermelha');
+        }
+    });
+}
+setTimeout(verificarLinhasPorPeriodo, 400);
+
+document.addEventListener('change', function (e) {
+    if (e.target.classList.contains('flatpickr-input')) {
+        verificarLinhasPorPeriodo();
+    }
+});
 }
 
 function atualizarFlatpickrParaProximoAno() {
