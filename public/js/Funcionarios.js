@@ -896,7 +896,8 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
         console.log("nome:", nome);
         const funcionario = await fetchComToken(`/funcionarios?nome=${encodeURIComponent(nome)}`);
         
-        if (funcionario) {
+        if (!funcionario || !funcionario.idfuncionario) throw new Error("Evento não encontrado");
+        //if (funcionario) {
 
             //window.funcionarioOriginal = { ...funcionario }; // Salva o estado original
             document.getElementById("idFuncionario").value = funcionario.idfuncionario || '';
@@ -961,49 +962,49 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
 
             console.log("Dados recebidos no Back:", funcionario);
 
-document.getElementById("dataNasc").value = funcionario.datanascimento?.split('T')[0] || '';
-console.log("dataNascimento recebida:", funcionario.datanascimento);
+            document.getElementById("dataNasc").value = funcionario.datanascimento?.split('T')[0] || '';
+            console.log("dataNascimento recebida:", funcionario.datanascimento);
 
-document.getElementById("celularPessoal").value = funcionario.celularpessoal || '';
-document.getElementById("celularFamiliar").value = funcionario.celularfamiliar || '';
-document.getElementById("email").value = funcionario.email || '';
-document.getElementById("site").value = funcionario.site || '';
+            document.getElementById("celularPessoal").value = funcionario.celularpessoal || '';
+            document.getElementById("celularFamiliar").value = funcionario.celularfamiliar || '';
+            document.getElementById("email").value = funcionario.email || '';
+            document.getElementById("site").value = funcionario.site || '';
 
-document.getElementById("codBanco").value = funcionario.codigobanco || '';
-const inputCodBanco = document.getElementById("codBanco");
-if (inputCodBanco) {
-    console.log("[Funcionarios.js] Elemento 'codigobanco' encontrado no DOM. Preenchendo automaticamente o banco.");
-    preencherDadosBancoPeloCodigo();
-} else {
-    console.warn("[Funcionarios.js] Elemento 'codigobanco' não encontrado no DOM.");
-}
+            document.getElementById("codBanco").value = funcionario.codigobanco || '';
+            const inputCodBanco = document.getElementById("codBanco");
+            if (inputCodBanco) {
+                console.log("[Funcionarios.js] Elemento 'codigobanco' encontrado no DOM. Preenchendo automaticamente o banco.");
+                preencherDadosBancoPeloCodigo();
+            } else {
+                console.warn("[Funcionarios.js] Elemento 'codigobanco' não encontrado no DOM.");
+            }
 
-document.getElementById("pix").value = funcionario.pix || '';
-document.getElementById("agencia").value = funcionario.agencia || '';
-document.getElementById("digitoAgencia").value = funcionario.digitoagencia || '';
-document.getElementById("nConta").value = funcionario.numeroconta || '';
-document.getElementById("digitoConta").value = funcionario.digitoconta || '';
+            document.getElementById("pix").value = funcionario.pix || '';
+            document.getElementById("agencia").value = funcionario.agencia || '';
+            document.getElementById("digitoAgencia").value = funcionario.digitoagencia || '';
+            document.getElementById("nConta").value = funcionario.numeroconta || '';
+            document.getElementById("digitoConta").value = funcionario.digitoconta || '';
 
-const selectTipoConta = document.getElementById('tpConta');
-if (selectTipoConta) {
-    selectTipoConta.value = funcionario.tipoconta || 'selecionado';
-}
+            const selectTipoConta = document.getElementById('tpConta');
+            if (selectTipoConta) {
+                selectTipoConta.value = funcionario.tipoconta || 'selecionado';
+            }
 
-document.getElementById("cep").value = funcionario.cep || '';
-document.getElementById("rua").value = funcionario.rua || '';
-document.getElementById("numero").value = funcionario.numero || '';
-document.getElementById("complemento").value = funcionario.complemento || '';
-document.getElementById("bairro").value = funcionario.bairro || '';
-document.getElementById("cidade").value = funcionario.cidade || '';
-document.getElementById("estado").value = funcionario.estado || '';
-document.getElementById("pais").value = funcionario.pais || '';
+            document.getElementById("cep").value = funcionario.cep || '';
+            document.getElementById("rua").value = funcionario.rua || '';
+            document.getElementById("numero").value = funcionario.numero || '';
+            document.getElementById("complemento").value = funcionario.complemento || '';
+            document.getElementById("bairro").value = funcionario.bairro || '';
+            document.getElementById("cidade").value = funcionario.cidade || '';
+            document.getElementById("estado").value = funcionario.estado || '';
+            document.getElementById("pais").value = funcionario.pais || '';
 
-document.getElementById("nomeFamiliar").value = funcionario.nomefamiliar || '';
-document.getElementById("apelido").value = funcionario.apelido || '';
-console.log("nomeFamiliar recebido:", funcionario.nomefamiliar);
+            document.getElementById("nomeFamiliar").value = funcionario.nomefamiliar || '';
+            document.getElementById("apelido").value = funcionario.apelido || '';
+            console.log("nomeFamiliar recebido:", funcionario.nomefamiliar);
 
-// Armazena o estado original, se necessário
-window.funcionarioOriginal = { ...funcionario };
+            // Armazena o estado original, se necessário
+            window.funcionarioOriginal = { ...funcionario };
            
             const selectLinguas = document.getElementById('Linguas'); 
             if (selectLinguas) {
@@ -1012,8 +1013,9 @@ window.funcionarioOriginal = { ...funcionario };
            
             const formInputs = document.querySelectorAll('#formFuncionarios input, #formFuncionarios select, #formFuncionarios textarea');
             formInputs.forEach(input => input.removeAttribute('disabled'));            
-         } 
+        //} 
     } catch (error) {
+       console.log("CATCH, FUNCIONARIO NÃO ENCONTRADO");
        console.warn("Funcionário não encontrado.");
 
         const inputIdFuncionario = document.querySelector("#idFuncionario");
