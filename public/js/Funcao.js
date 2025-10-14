@@ -39,6 +39,7 @@ let blurFuncaoCampoListener = null;
 
 if (typeof window.FuncaoOriginal === "undefined") {
     window.FuncaoOriginal = {
+        idCategoriaFuncao: "",
         idFuncao: "",
         descFuncao: "",
         vlrCustoSenior: "",
@@ -51,11 +52,18 @@ if (typeof window.FuncaoOriginal === "undefined") {
         vlrAlmoco: "",
         vlrAlimentacao: "",
         obsFuncao: "",
+        ObsAjc:"",
         ativo:""
     }
 };
 
+
+
+
 function verificaFuncao() {
+
+    console.log("Carregando Categoria Funcao...");
+    carregarCategoriasFuncao();
 
     console.log("Carregando Funcao...");
        
@@ -102,27 +110,28 @@ function verificaFuncao() {
 
         const idFuncao = document.querySelector("#idFuncao").value;
         const descFuncao = document.querySelector("#descFuncao").value.toUpperCase().trim();
-        const vlrCustoSenior = document.querySelector("#CustoSenior").value || 0.00;
-        const vlrCustoPleno = document.querySelector("#CustoPleno").value || 0.00;
-        const vlrCustoJunior = document.querySelector("#CustoJunior").value || 0.00;
-        const vlrCustoBase = document.querySelector("#CustoBase").value || 0.00;
-        const vlrVenda = document.querySelector("#Venda").value || 0.00;
-        const vlrTransporte = document.querySelector("#transporte").value || 0.00;
-        const vlrTransporteSenior = document.querySelector("#TranspSenior").value || 0.00;      
-        const vlrAlimentacao = document.querySelector("#alimentacao").value || 0.00;
+        // const vlrCustoSenior = document.querySelector("#CustoSenior").value || 0.00;
+        // const vlrCustoPleno = document.querySelector("#CustoPleno").value || 0.00;
+        // const vlrCustoJunior = document.querySelector("#CustoJunior").value || 0.00;
+         const vlrCustoBase = document.querySelector("#CustoBase").value || 0.00;
+         const vlrVenda = document.querySelector("#Venda").value || 0.00;
+        // const vlrTransporte = document.querySelector("#transporte").value || 0.00;
+        // const vlrTransporteSenior = document.querySelector("#TranspSenior").value || 0.00;      
+        // const vlrAlimentacao = document.querySelector("#alimentacao").value || 0.00;
         const obsProposta = document.querySelector("#obsProposta").value.trim();
         const obsFuncao = document.querySelector("#obsFuncao").value.trim();
     
-        const custoSenior = parseFloat(String(vlrCustoSenior).replace(",", "."));
-        const custoPleno = parseFloat(String(vlrCustoPleno).replace(",", "."));
-        const custoJunior = parseFloat(String(vlrCustoJunior).replace(",", "."));
-        const custoBase = parseFloat(String(vlrCustoBase).replace(",", "."));
-        const venda = parseFloat(String(vlrVenda).replace(",", "."));
-        const transporte = parseFloat(String(vlrTransporte).replace(",", "."));
-        const transporteSenior = parseFloat(String(vlrTransporteSenior).replace(",", "."));
+        // const custoSenior = parseFloat(String(vlrCustoSenior).replace(",", "."));
+        // const custoPleno = parseFloat(String(vlrCustoPleno).replace(",", "."));
+        // const custoJunior = parseFloat(String(vlrCustoJunior).replace(",", "."));
+         const custoBase = parseFloat(String(vlrCustoBase).replace(",", "."));
+         const venda = parseFloat(String(vlrVenda).replace(",", "."));
+        // const transporte = parseFloat(String(vlrTransporte).replace(",", "."));
+        // const transporteSenior = parseFloat(String(vlrTransporteSenior).replace(",", "."));
      
-        const alimentacao = parseFloat(String(vlrAlimentacao).replace(",", "."));
+        // const alimentacao = parseFloat(String(vlrAlimentacao).replace(",", "."));
         const ativo = document.getElementById('funcaoAtiva').checked;
+        const idCatFuncao = document.querySelector("#idCatFuncao").value;
 
        // Permissões
         const temPermissaoCadastrar = temPermissao("Funcao", "cadastrar");
@@ -141,9 +150,9 @@ function verificaFuncao() {
             return Swal.fire("Acesso negado", "Você não tem permissão para alterar funções.", "error");
         }
 
-        console.log("campos antes de salvar", idFuncao, descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda,  transporte, transporteSenior, obsProposta, obsFuncao, alimentacao, ativo);
+        console.log("campos antes de salvar", idFuncao, descFuncao, obsProposta, obsFuncao,  ativo);
 
-        if (!descFuncao ||  !custoBase || !venda) {
+        if (!descFuncao ||  !custoBase || !venda || !idCatFuncao) {
 
             Swal.fire({
                 icon: 'warning',
@@ -153,7 +162,7 @@ function verificaFuncao() {
             });
             return;
         }
-        console.log("Valores do Funcao:", idFuncao, descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsProposta, obsFuncao, alimentacao, ativo);
+        console.log("Valores do Funcao:", idFuncao, descFuncao, obsProposta, obsFuncao, ativo);
         console.log("Valores do Funcao Original:", window.FuncaoOriginal.idFuncao, window.FuncaoOriginal.descFuncao, window.FuncaoOriginal.vlrCusto, window.FuncaoOriginal.vlrCustoSenior,
             window.FuncaoOriginal.vlrCustoPleno, window.FuncaoOriginal.vlrCustoJunior, window.FuncaoOriginal.vlrBase, window.FuncaoOriginal.vlrVenda, window.FuncaoOriginal.vlrTransporte, 
             window.FuncaoOriginal.vlrTransporteSenior, window.FuncaoOriginal.obsFuncao, window.FuncaoOriginal.vlrAlmoco, window.FuncaoOriginal.vlrAlimentacao, window.ativo);
@@ -162,16 +171,17 @@ function verificaFuncao() {
         if (
             parseInt(idFuncao) === parseInt(window.FuncaoOriginal.idFuncao) && 
             descFuncao === window.FuncaoOriginal.descFuncao && 
-            Number(custoSenior).toFixed(2) === Number(window.FuncaoOriginal.vlrCustoSenior).toFixed(2) &&
-            Number(custoPleno).toFixed(2) === Number(window.FuncaoOriginal.vlrCustoPleno).toFixed(2) &&
-            Number(custoJunior).toFixed(2) === Number(window.FuncaoOriginal.vlrCustoJunior).toFixed(2) &&
-            Number(custoBase).toFixed(2) === Number(window.FuncaoOriginal.vlrBase).toFixed(2) &&
-            Number(venda).toFixed(2) === Number(window.FuncaoOriginal.vlrVenda).toFixed(2) &&
-            Number(transporte).toFixed(2) === Number(window.FuncaoOriginal.vlrTransporte).toFixed(2) &&
-            Number(transporteSenior).toFixed(2) === Number(window.FuncaoOriginal.vlrTransporteSenior).toFixed(2) &&         
-            Number(alimentacao).toFixed(2) === Number(window.FuncaoOriginal.vlrAlimentacao).toFixed(2) &&
+        //    // Number(custoSenior).toFixed(2) === Number(window.FuncaoOriginal.vlrCustoSenior).toFixed(2) &&
+        //     Number(custoPleno).toFixed(2) === Number(window.FuncaoOriginal.vlrCustoPleno).toFixed(2) &&
+        //     Number(custoJunior).toFixed(2) === Number(window.FuncaoOriginal.vlrCustoJunior).toFixed(2) &&
+        //     Number(custoBase).toFixed(2) === Number(window.FuncaoOriginal.vlrBase).toFixed(2) &&
+        //     Number(venda).toFixed(2) === Number(window.FuncaoOriginal.vlrVenda).toFixed(2) &&
+        //     Number(transporte).toFixed(2) === Number(window.FuncaoOriginal.vlrTransporte).toFixed(2) &&
+        //     Number(transporteSenior).toFixed(2) === Number(window.FuncaoOriginal.vlrTransporteSenior).toFixed(2) &&         
+        //     Number(alimentacao).toFixed(2) === Number(window.FuncaoOriginal.vlrAlimentacao).toFixed(2) &&
             obsProposta === window.FuncaoOriginal.obsProposta &&
-            obsFuncao === window.FuncaoOriginal.obsFuncao
+            obsFuncao === window.FuncaoOriginal.obsFuncao &&
+            ativo === window.FuncaoOriginal.ativo
         ) {
             console.log("Nenhuma alteração detectada.");
             await Swal.fire({
@@ -183,7 +193,8 @@ function verificaFuncao() {
             return;
         }
 
-        const dados = { descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsProposta, obsFuncao, alimentacao, ativo };
+       //  const dados = { descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsProposta, obsFuncao, alimentacao, ativo };
+        const dados = { descFuncao, obsProposta, obsFuncao, ativo, idCatFuncao };
         const token = localStorage.getItem('token');
         const idEmpresa = localStorage.getItem('idEmpresa');
 
@@ -339,6 +350,96 @@ function verificaFuncao() {
     });
 }
 
+let categoriasComDetalhes = {}; 
+async function carregarCategoriasFuncao() {
+    const selectElement = document.getElementById('idCatFuncao');
+    // Limpa as opções anteriores, exceto a primeira (placeholder)
+    categoriasComDetalhes = {}; 
+    while (selectElement.options.length > 1) {
+        selectElement.remove(1);
+    }
+
+    try {
+        // Assume que a URL é a rota que busca todas as categorias sem filtro
+        const url = '/funcao/categoriafuncao'; 
+        
+        // Use sua função de fetch
+        const categorias = await fetchComToken(url); 
+        console.log("CATEGORIAS", categorias);
+        
+        //if (response.ok) {
+            //const categorias = await response.json();
+            
+            if (categorias && categorias.length > 0) {
+                categorias.forEach(categoria => {
+                    const option = document.createElement('option');                    
+                    option.value = categoria.idcategoriafuncao;                   
+                    option.textContent = categoria.nmcategoriafuncao; 
+                    selectElement.appendChild(option);
+
+                    categoriasComDetalhes[categoria.idcategoriafuncao] = categoria;
+                });
+                selectElement.addEventListener('change', preencherCustosPorCategoria);
+            } else {               
+                console.warn("Nenhuma categoria função encontrada.");
+                // O SweetAlert pode ser usado aqui, mas pode ser intrusivo
+                Swal.fire({ icon: 'warning', title: 'Atenção', text: 'Nenhuma categoria função cadastrada.' });
+            }
+        
+    } catch (error) {
+        console.error("Erro ao carregar categorias de função:", error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Erro de Carregamento',
+            text: 'Não foi possível carregar as categorias de função.',
+        });
+    }
+}
+function preencherCustosPorCategoria() {
+    const selectElement = document.getElementById('idCatFuncao');
+    const idSelecionado = selectElement.value;
+    
+    // Verifica se um ID válido foi selecionado (não a opção placeholder)
+    if (!idSelecionado) {
+        // Opcional: Limpar os campos se for deselecionado ou se for o placeholder
+        limparCamposDeCusto(); 
+        return;
+    }
+    
+    // Busca os detalhes da categoria no objeto armazenado
+    const categoria = categoriasComDetalhes[idSelecionado];
+
+    if (categoria) {
+        // Preenche os campos com os valores da categoria selecionada
+        document.querySelector("#CustoSenior").value = categoria.ctofuncaosenior || 0.00;
+        document.querySelector("#CustoPleno").value = categoria.ctofuncaopleno || 0.00;
+        document.querySelector("#CustoJunior").value = categoria.ctofuncaojunior || 0.00;
+        document.querySelector("#CustoBase").value = categoria.ctofuncaobase || 0.00;
+        document.querySelector("#Venda").value = categoria.vdafuncao || 0.00;
+        document.querySelector("#transporte").value = categoria.transporte || 0.00;
+        document.querySelector("#TranspSenior").value = categoria.transpsenior || 0.00;      
+        document.querySelector("#alimentacao").value = categoria.alimentacao || 0.00;
+        
+        console.log(`Custos preenchidos com base na Categoria ID: ${idSelecionado}`);
+    } else {
+        console.warn(`Detalhes não encontrados para a Categoria ID: ${idSelecionado}`);
+        limparCamposDeCusto();
+    }
+}
+
+
+
+// Função auxiliar para limpar os campos, se necessário
+function limparCamposDeCusto() {
+    document.querySelector("#CustoSenior").value = "";
+    document.querySelector("#CustoPleno").value = "";
+    document.querySelector("#CustoJunior").value = "";
+    document.querySelector("#CustoBase").value = "";
+    document.querySelector("#Venda").value = "";
+    document.querySelector("#transporte").value = "";
+    document.querySelector("#TranspSenior").value = "";
+    document.querySelector("#alimentacao").value = "";
+}
 
 function criarSelectFuncao(funcoes) {
    
@@ -428,6 +529,7 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
             throw new Error("Função não encontrada ou resposta inválida.");
         }
      
+         document.querySelector("#idCatFuncao").value = funcao.idcategoriafuncao;
          document.querySelector("#idFuncao").value = funcao.idfuncao;
          document.querySelector("#CustoSenior").value = funcao.ctofuncaosenior || 0.00;
          document.querySelector("#CustoPleno").value = funcao.ctofuncaopleno || 0.00;
@@ -447,14 +549,14 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
         window.FuncaoOriginal = {
             idFuncao: funcao.idfuncao,
             descFuncao: funcao.descfuncao,
-            vlrCustoSenior: funcao.ctofuncaosenior,
-            vlrCustoPleno: funcao.ctofuncaopleno,
-            vlrCustoJunior: funcao.ctofuncaojunior,
-            vlrCustoBase: funcao.ctofuncaobase,
-            vlrVenda: funcao.vdafuncao,
-            vlrTransporte: funcao.transporte,
-            vlrTransporteSenior: funcao.transpsenior,
-            vlrAlimentacao: funcao.alimentacao,
+            // vlrCustoSenior: funcao.ctofuncaosenior,
+            // vlrCustoPleno: funcao.ctofuncaopleno,
+            // vlrCustoJunior: funcao.ctofuncaojunior,
+            // vlrCustoBase: funcao.ctofuncaobase,
+            // vlrVenda: funcao.vdafuncao,
+            // vlrTransporte: funcao.transporte,
+            // vlrTransporteSenior: funcao.transpsenior,
+            // vlrAlimentacao: funcao.alimentacao,
             obsProposta: funcao.obsproposta,
             obsFuncao: funcao.obsfuncao,
             ativo: funcao.ativo
@@ -504,6 +606,7 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
 
 function limparFuncaoOriginal() {
     window.FuncaoOriginal = {
+        idCategoriaFuncao: "",
         idFuncao: "",
         descFuncao: "",
         vlrCustoBase: "",
@@ -540,6 +643,11 @@ function limparCamposFuncao() {
         campoAtivo.checked = false;
     }
     
+    const selectCatFuncao = document.getElementById("idCatFuncao");
+    if (selectCatFuncao) {
+        // Reseta o valor do select para a primeira opção (placeholder, que geralmente tem value="" ou é a primeira)
+        selectCatFuncao.value = ""; 
+    }
 }
 
 function configurarEventosFuncao() {

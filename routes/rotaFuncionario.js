@@ -91,7 +91,7 @@ router.use(contextoEmpresa);
 router.get("/", verificarPermissao('Funcionarios', 'pesquisar'), async (req, res) => {
     const { nome } = req.query;
     const idempresa = req.idempresa;
-
+    console.log("ROTA FUNCIONARIOS", nome, idempresa);
     try {
         if (nome) {
             // Busca funcionário por nome na empresa específica, limita 1

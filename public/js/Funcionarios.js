@@ -1017,12 +1017,13 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
     } catch (error) {
        console.log("CATCH, FUNCIONARIO NÃO ENCONTRADO");
        console.warn("Funcionário não encontrado.");
+       console.log("CATCH FUNCIONARIO NÃO ENCONTRADO");
 
         const inputIdFuncionario = document.querySelector("#idFuncionario");
         const podeCadastrarFuncionario = temPermissao("Funcionarios", "cadastrar");
 
         console.log("Verificando se pode cadastrar funcionário:", podeCadastrarFuncionario, inputIdFuncionario.value);
-       if (!inputIdFuncionario.value && podeCadastrarFuncionario) {
+        if (!inputIdFuncionario.value && podeCadastrarFuncionario) {
              const resultado = await Swal.fire({
                 icon: 'question',
                 title: `Deseja cadastrar "${nome.toUpperCase()}" como novo Funcionário?`,

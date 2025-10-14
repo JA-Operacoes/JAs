@@ -300,11 +300,11 @@
             
             <!-- AVISO ACIMA DO TOTAIS -->
             <div class="aviso-container" style="margin-bottom: 10px;">
-                <div class="aviso" id="avisoReajuste" style="color: rgb(168,4,4); font-weight:bold; font-size:15px;">
-                    <!-- Mensagem de aviso será inserida aqui via JS -->
-                </div>
+                <div class="aviso" id="avisoReajusteMensagem" style="color: rgb(168,4,4); font-weight:bold; font-size:15px;">
+                    </div>
+                
+                <input type="hidden" id="inputAvisoReajuste" name="avisoReajuste" value="false"> 
             </div>
-
             <!-- TOTAIS -->
             <div class="totais-grid">
                 <!-- Coluna 1 -->
@@ -338,6 +338,11 @@
                         <input type="text" id="valorImposto" class="preenchido" readonly value="R$ 0,00">
                         <label for="valorImposto">Imposto:</label>
                         <input type="text" id="percentImposto" class="preenchido pequeno" value="24%">
+                    </div>
+                    <div class="form2">
+                        <input type="text" id="valorCustoFixo" class="preenchido" readonly value="R$ 0,00">
+                        <label for="valorCustoFixo">Custo Fixo:</label>
+                        <input type="text" id="percentCustoFixo" class="preenchido pequeno" value="12%">
                     </div>
                     <div class="form2">
                         <input type="text" id="lucroReal" class="preenchido" readonly value="R$ 0,00">

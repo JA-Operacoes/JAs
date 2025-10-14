@@ -107,8 +107,10 @@ router.get('/funcao', async (req, res) => {
   try {
      
     const resultado = await pool.query(`
-      SELECT f.*
+      SELECT f.idcategoriafuncao, f.idfuncao, f.descfuncao, f.ativo, f.obsproposta, f.obsfuncao,
+       cf.*
       FROM funcao f
+      INNER JOIN categoriafuncao cf ON f.idcategoriafuncao = cf.idcategoriafuncao
       INNER JOIN funcaoempresas fe ON fe.idfuncao = f.idfuncao
       WHERE fe.idempresa = $1
       ORDER BY f.descfuncao
@@ -542,6 +544,9 @@ router.post('/check-availability', autenticarToken(), contextoEmpresa, async (re
     const { idfuncionario, datas, idEventoIgnorar, idfuncao } = req.body;
     const idEmpresa = req.idempresa;
 
+    // **ASSUMA QUE VOCÊ TENHA OS IDS DE FUNÇÃO DE EXCEÇÃO DISPONÍVEIS AQUI:**
+    const FUNCOES_FISCAL_IDS = [6]; //ID DE FISCAL NOTURNO
+
     if (!idfuncionario || !datas || !Array.isArray(datas) || datas.length === 0 || !idEmpresa || !idfuncao) {
         return res.status(400).json({ message: "Dados obrigatórios ausentes ou em formato incorreto para verificar disponibilidade." });
     }
@@ -555,6 +560,16 @@ router.post('/check-availability', autenticarToken(), contextoEmpresa, async (re
         const datePlaceholders = datas.map((_, i) => `$${dateStartParamIndex + i}`).join(', ');
         
         params = params.concat(datas);
+
+        //TRECHO DA COMPARAÇÃO DO ID DO FISCAL NOTURNO
+        const fiscalIdStartParamIndex = params.length + 1;
+        const fiscalIdPlaceholders = FUNCOES_FISCAL_IDS.map((_, i) => `$${fiscalIdStartParamIndex + i}`).join(', '); 
+        params = params.concat(FUNCOES_FISCAL_IDS);        
+
+        // Adiciona o idfuncao (função agendada) aos parâmetros
+        const idFuncaoParamIndex = params.length + 1;
+        params.push(idfuncao);
+        //FIM DO TRECHO
 
         const idEventoIgnorarParamIndex = params.length + 1; 
         
@@ -578,6 +593,11 @@ router.post('/check-availability', autenticarToken(), contextoEmpresa, async (re
                     SELECT 1
                     FROM jsonb_array_elements_text(se.datasevento) AS existing_date
                     WHERE existing_date.value = ANY(ARRAY[${datePlaceholders}]::text[])
+                )
+                -- NOVA CONDIÇÃO: Ignora o conflito se o evento conflitante E o evento atual forem funções FISCAIS.
+                AND NOT (
+                    se.idfuncao = ANY(ARRAY[${fiscalIdPlaceholders}]::int[])
+                    AND $${idFuncaoParamIndex} = ANY(ARRAY[${fiscalIdPlaceholders}]::int[])
                 )
         `;
         

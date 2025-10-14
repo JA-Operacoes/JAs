@@ -796,7 +796,6 @@ const carregarDadosParaEditar = (eventData) => {
         }
     }
 
-
     qtdPessoasInput.value = parseInt(eventData.qtdpessoaslote || 0);
 
     // Preenchendo campos financeiros e de custo.
@@ -1907,6 +1906,8 @@ async function verificaStaff() {
             const flatpickrForDatasEvento = window.flatpickrInstances['datasEvento'];
             const datasParaVerificacao = flatpickrForDatasEvento?.selectedDates || [];
             
+             //PARA EXCEÇÃO DE BLOQUEIO QUANDO A FUNÇÃO FOR FISCAL NOTURNO MESMA DATA EVENTOS DIFERENTES
+           
 
             const isDiariaDobradaChecked = diariaDobradacheck.checked;
 
@@ -1926,6 +1927,11 @@ async function verificaStaff() {
 
             );
 
+            const FUNCOES_EXCECAO_IDS = ['6'] //FISCAL NOTURNO ID 6, 'ID_FISCAL_DIURNO', 'ID_FISCAL_LOGISTICA']; // Substitua pelos IDs reais
+           // const idFuncaoConflitante = conflictingEvent?.idfuncao; 
+            const isFuncaoExcecao = FUNCOES_EXCECAO_IDS.includes(String(idFuncaoDoFormulario)) || FUNCOES_EXCECAO_IDS.includes(String(idFuncaoConflitante));
+            const isFuncaoAtualFiscal = FUNCOES_EXCECAO_IDS.includes(String(idFuncaoDoFormulario));
+            const isFuncaoConflitanteFiscal = conflictingEvent ? FUNCOES_EXCECAO_IDS.includes(String(conflictingEvent.idfuncao)) : false;
 
             console.log("Dados do formulário para verificação de duplicidade:", {
                 idFuncionario: idFuncionario,
@@ -1941,7 +1947,38 @@ async function verificaStaff() {
 
             if (!isAvailable) {
 
-                if (conflictingEvent && String(conflictingEvent.idfuncao) === String(idFuncaoDoFormulario) && !isDiariaDobradaChecked) {
+                // **SE FOR UMA FUNÇÃO DE EXCEÇÃO, IGNORAR O BLOQUEIO E PROSSEGUIR**
+                if (isFuncaoExcecao) {
+                    console.log("A função agendada ou conflitante é uma função de FISCAL.");
+                    let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado em outra atividade na mesma data.`;
+        
+                    if (conflictingEvent) {
+                        msg += `<br>Evento Conflitante: "<strong>${conflictingEvent.nmevento || 'N/A'}</strong>" (Função ID ${conflictingEvent.idfuncao}).`;
+                    }
+                    
+                    msg += `<br><br><strong>Motivo do Prosseguimento:</strong>`;
+    
+                    if (isFuncaoAtualFiscal && isFuncaoConflitanteFiscal) {
+                        msg += ` Ambas as atividades (a atual e a conflitante) são Funções de Fiscal, permitindo a sobreposição.`;
+                    } else if (isFuncaoAtualFiscal) {
+                        msg += ` A função <strong>atual</strong> (${idFuncaoDoFormulario}) é uma Função de Fiscal.`;
+                    } else if (isFuncaoConflitanteFiscal) {
+                        msg += ` A função <strong>conflitante</strong> (${conflictingEvent.idfuncao}) é uma Função de Fiscal.`;
+                    } else {
+                        // Fallback, embora a lógica isFuncaoExcecao deva evitar este path se foi bem definida
+                        msg += ` Conflito ignorado devido à regra de exceção da Função de Fiscal.`;
+                    }
+
+                    await Swal.fire({
+                        title: "Aviso: Conflito Ignorado (Fiscal)",
+                        html: msg,
+                        icon: "info", // Informativo
+                        confirmButtonText: "Prosseguir"
+                    });
+                    // Apenas prossegue com o restante da submissão (sai do bloco !isAvailable)
+                } else if (conflictingEvent && String(conflictingEvent.idfuncao) === String(idFuncaoDoFormulario) && !isDiariaDobradaChecked) {
+
+                //if (conflictingEvent && String(conflictingEvent.idfuncao) === String(idFuncaoDoFormulario) && !isDiariaDobradaChecked) {
 
                     let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado para a <strong>mesma função</strong>`;
                     if (conflictingEvent) {
@@ -2646,9 +2683,10 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, set
         //     Swal.fire({
         //         icon: 'warning',
         //         title: 'Orçamento Não Fechado',
-        //         text: 'O orçamento para os parâmetros solicitados ainda está em aberto. Não é possível ver os detalhes.'
+        //         text: 'O orçamento para os parâmetros solicitados ainda está em aberto. Não é possível cadastrar o Staff.'
         //     });
         //     return;
+
         // }
 
         // **PROCESSAMENTO DOS DADOS:** Se o status não for 'A', o código continua aqui
@@ -3121,7 +3159,7 @@ async function carregarFuncaoStaff() {
             select.appendChild(opcaoPadrao);
 
             funcaofetch.forEach(funcao => {
-                if (funcao.ativo === true || funcao.ativo === "true" || funcao.ativo === 1) {
+               // if (funcao.ativo === true || funcao.ativo === "true" || funcao.ativo === 1) {
                     let option = document.createElement("option");
                     option.value = funcao.idfuncao;
                     option.textContent = funcao.descfuncao;
@@ -3137,10 +3175,10 @@ async function carregarFuncaoStaff() {
                     option.setAttribute("data-transpsenior", funcao.transpsenior || 0);
                     option.setAttribute("data-categoria", "Produto(s)");
                     select.appendChild(option);
-                }else {
-                    // Opcional: Log para saber quais funções foram filtradas.
-                    console.log(`Função inativa ignorada: ${funcao.descfuncao}`);
-                }
+               // }else {
+               //     // Opcional: Log para saber quais funções foram filtradas.
+               //     console.log(`Função inativa ignorada: ${funcao.descfuncao}`);
+               // }
             });
 
             select.addEventListener("change", function (event) {
