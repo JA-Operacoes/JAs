@@ -1,0 +1,52 @@
+<link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
+<link rel="stylesheet" href="css/Modal/CadIndices.css">
+<link rel="stylesheet" href="css/Roots/Roots.css">
+
+<div id="cadModalIndices" class="modal">
+  <div class="modal-content"> 
+        
+        <div class="Close"><button class="close" id="Fechar"> X </button></div>
+
+        <div id ="form-cargo"> 
+            
+            <div class = "title">
+                <h1>Cadastro de Indices</h1>
+            </div>
+
+            <form  method="post"  id="form" name="form" autocomplete="on">
+    
+                <fieldset>
+                    <div class="form">
+                        <input type="text" name="idEquip" id="idEquip" readonly spellcheck="false">
+                        <label for ="idEquip">Codigo</label>
+                    </div>
+                    <legend>Cadastre os Indices</legend>
+                    <div class ="form">
+                        <input type="text" class="uppercase" name="descEquip" id="descEquip"  required spellcheck="false">
+                        <label for = "descEquip"> Custo e Vendas </label>
+                    </div>
+                    <div class ="form-2colunas">
+                        <div class="form2">
+                            <input type="text" name="ctoEquip" id="ctoEquip"  required spellcheck="false">
+                            <label for = "ctoEquip"> Alimentação </label>
+                        </div>
+                        <div class="form2">         
+                            <input type="text" name="vdaEquip" id="vdaEquip" required spellcheck="false">
+                            <label for ="vdaEquip"> Transporte </label>
+                        </div>
+                    </div>
+                </fieldset>
+            </form>
+        </div>
+        <div class="BTNs">
+            <button class="bntPesquisar" id="Pesquisar" type="button">Pesquisar</button>
+            <button class="bntLimpar"  id="Limpar" type="button">Limpar</button>
+            <button class="btnEnviar" id="Enviar" type="button">Enviar</button>
+        </div>
+    </div>
+</div>
+
+<!-- </body>
+</html> -->
