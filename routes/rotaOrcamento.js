@@ -76,7 +76,9 @@ router.get(
             o.formapagamento,
             o.edicao,
             o.geradoanoposterior,
-            o.indicesaplicados    
+            o.indicesaplicados,
+            o.vlrctofixo,
+            o.percentctofixo    
         FROM
             orcamentos o
         JOIN
@@ -496,7 +498,7 @@ router.post(
             desconto, percentDesconto, acrescimo, percentAcrescimo,
             lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idsPavilhoes, nomenclatura, 
             formaPagamento, edicao, geradoAnoPosterior, dtIniPreEvento, dtFimPreEvento, dtIniPosEvento, dtFimPosEvento,
-            avisoReajusteTexto, nrOrcamentoOriginal, itens } = req.body;
+            avisoReajusteTexto, nrOrcamentoOriginal, vlrCtoFixo, percentCtoFixo, itens } = req.body;
 
     const idempresa = req.idempresa; 
 
@@ -533,13 +535,13 @@ router.post(
                     desconto, percentdesconto, acrescimo, percentacrescimo,
                     lucroreal, percentlucroreal, vlrimposto, percentimposto, vlrcliente, nomenclatura, 
                     formapagamento, edicao, geradoanoposterior, dtinipreevento, dtfimpreevento, dtiniposevento,
-                    dtfimposevento, indicesAplicados, nrorcamentooriginal
+                    dtfimposevento, indicesAplicados, nrorcamentooriginal, vlrctofixo, percentctofixo
                 ) VALUES (
                     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                     $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
                     $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, 
                     $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, 
-                    $41, $42, $43
+                    $41, $42, $43, $44, $45
                 ) RETURNING idorcamento, nrorcamento; -- Adicionado nrorcamento aqui!
             `;
 
@@ -554,7 +556,7 @@ router.post(
         desconto, percentDesconto, acrescimo, percentAcrescimo,
         lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, nomenclatura, 
         formaPagamento, edicao, geradoAnoPosterior, dtIniPreEvento, dtFimPreEvento, dtIniPosEvento, 
-        dtFimPosEvento, avisoReajusteTexto, nrOrcamentoOriginal || null
+        dtFimPosEvento, avisoReajusteTexto, nrOrcamentoOriginal || null, vlrCtoFixo, percentCtoFixo
       ];
 
       const resultOrcamento = await client.query(insertOrcamentoQuery, orcamentoValues);
@@ -1494,7 +1496,7 @@ router.put(
             desconto, percentDesconto, acrescimo, percentAcrescimo,
             lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idsPavilhoes, nomenclatura, 
             formaPagamento, edicao, geradoAnoPosterior, dtIniPreEvento, dtFimPreEvento, dtIniPosEvento, 
-            dtFimPosEvento, avisoReajusteTexto, itens } = req.body;
+            dtFimPosEvento, avisoReajusteTexto, vlrCtoFixo, percentCtoFixo, itens } = req.body;
 
     const idempresa = req.idempresa; // ID da empresa do middleware 'contextoEmpresa'
 
@@ -1515,8 +1517,9 @@ router.put(
                     desconto = $25, percentdesconto = $26, acrescimo = $27, percentacrescimo = $28,
                     lucroreal = $29, percentlucroreal = $30, vlrimposto = $31, percentimposto = $32, vlrcliente = $33, 
                     nomenclatura = $34, formapagamento = $35, edicao = $36, geradoanoposterior = $37, dtinipreevento = $38, 
-                    dtfimpreevento = $39, dtiniposevento = $40, dtfimposevento = $41, indicesaplicados = $42
-                WHERE idorcamento = $43 AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $43) = $44;
+                    dtfimpreevento = $39, dtiniposevento = $40, dtfimposevento = $41, indicesaplicados = $42, vlrctofixo = $43,
+                    percentctofixo = $44
+                WHERE idorcamento = $45 AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $45) = $46;
             `;
 
       const orcamentoValues = [
@@ -1529,7 +1532,7 @@ router.put(
         desconto, percentDesconto, acrescimo, percentAcrescimo,
         lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, nomenclatura,
         formaPagamento, edicao, geradoAnoPosterior, dtIniPreEvento, dtFimPreEvento, dtIniPosEvento, dtFimPosEvento,
-        avisoReajusteTexto,
+        avisoReajusteTexto, vlrCtoFixo, percentCtoFixo,
         idOrcamento, // $36
         idempresa    // $37
       ];

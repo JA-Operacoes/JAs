@@ -52,6 +52,7 @@ let globalAcrescimoPercentualBlurListener = null;
 let percentualImpostoInputListener = null;
 let btnEnviarListener = null;
 let btnLimparListener = null;
+let percentualCtoFixoInputListener = null;
 //importado no inicio do js pois deve ser importado antes do restante do codigo
 
 
@@ -796,7 +797,8 @@ function calcularLucro() {
     let totalVendaGeral = 0;
 
     // Extraímos os valores numéricos das células, desformatados de moeda
-    totalCustoGeral = desformatarMoeda(document.querySelector('#totalGeralCto').value);
+    //totalCustoGeral = desformatarMoeda(document.querySelector('#totalGeralCto').value);
+    totalCustoGeral = desformatarMoeda(document.querySelector('#totalGeral').value);
     totalVendaGeral = desformatarMoeda(document.querySelector('#totalGeralVda').value);
 
     console.log("CALCULAR LUCRO", totalCustoGeral, totalVendaGeral);
@@ -830,11 +832,14 @@ function calcularLucroReal() {
     let totalAjdCusto = 0;
     let valorFinalCliente = 0;
     let valorPercImposto = 0;
+    let valorPercCtoFixo = 0;
+
 
     const inputTotalGeral = document.querySelector('#totalGeralCto');
     const inputTotalAjdCusto= document.querySelector('#totalAjdCusto');
     const inputValorCliente = document.querySelector('#valorCliente');
     const inputPercImposto = document.querySelector('#percentImposto');
+    const inputPercCtoFixo = document.querySelector('#percentCustoFixo');
 
     if (!inputTotalGeral || !inputValorCliente) {
         console.warn("⚠️ Campo(s) #totalGeral ou #valorCliente não encontrados. Lucro não pode ser calculado.");
@@ -846,8 +851,9 @@ function calcularLucroReal() {
     totalAjdCusto = desformatarMoeda(inputTotalAjdCusto.value);
     valorFinalCliente = desformatarMoeda(inputValorCliente.value);
     valorPercImposto = desformatarMoeda(inputPercImposto.value);
+    valorPercCtoFixo = desformatarMoeda(inputPercCtoFixo.value);
 
-    console.log("TOTAL AJDCUSTO", totalCustoGeral, totalAjdCusto, valorFinalCliente, valorPercImposto);
+    console.log("TOTAL AJDCUSTO", totalCustoGeral, totalAjdCusto, valorFinalCliente, valorPercImposto, valorPercCtoFixo);
 
 
     // Atualiza o campo de imposto com a formatação de moeda
@@ -857,8 +863,14 @@ function calcularLucroReal() {
 
     console.log('💰 Valor do Imposto calculado:', vlrImposto);
 
+    let vlrCtoFixo = valorFinalCliente > 0
+        ? (valorFinalCliente * valorPercCtoFixo / 100)
+        : 0;
+
+    console.log('💰 Valor do Custo Fixo:', vlrCtoFixo);
+
     // Calcula lucro
-    let lucroReal = valorFinalCliente - (totalCustoGeral+totalAjdCusto+vlrImposto);
+    let lucroReal = valorFinalCliente - (totalCustoGeral+totalAjdCusto+vlrImposto+vlrCtoFixo);
     let porcentagemLucroReal = valorFinalCliente > 0
         ? (lucroReal / valorFinalCliente) * 100
         : 0;
@@ -881,11 +893,18 @@ function calcularLucroReal() {
         console.warn("⚠️ Campo #percentReal não encontrado.");
     }
 
-     const inputValorImposto = document.querySelector('#valorImposto');
+    const inputValorImposto = document.querySelector('#valorImposto');
     if (inputValorImposto) {
         inputValorImposto.value = formatarMoeda(vlrImposto);
     } else {
         console.warn("⚠️ Campo #valorImposto não encontrado.");
+    }
+
+    const inputValorCtoFixo = document.querySelector('#valorCustoFixo');
+    if (inputValorCtoFixo) {
+        inputValorCtoFixo.value = formatarMoeda(vlrCtoFixo);
+    } else {
+        console.warn("⚠️ Campo #valorCustoFixo não encontrado.");
     }
 }
 
@@ -1075,14 +1094,37 @@ function calcularImposto(totalDeReferencia, percentualImposto) {
     const campoValorImposto = document.querySelector('#valorImposto'); // Supondo que você terá um campo com id 'valorImposto'
     const campoPercentualImposto = document.querySelector('#percentImposto'); // Supondo que você terá um campo com id 'percentualImposto'
 
+    
     let valorTotal = parseFloat(totalDeReferencia) || 0;
     let percImposto = parseFloat((percentualImposto || '0').replace('%', '').replace(',', '.')) || 0;
-
-    let valorCalculadoImposto = valorTotal * (percImposto / 100);
+    
+    let valorCalculadoImposto = valorTotal * (percImposto / 100);   
 
     if (campoValorImposto) {
         campoValorImposto.value = formatarMoeda(valorCalculadoImposto);
     }
+
+
+    calcularLucroReal(); // Recalcula o lucro real após calcular o imposto
+}
+
+
+function calcularCustoFixo(totalDeReferencia, percentualCtoFixo) {
+    console.log("CALCULAR CUSTO FIXO", totalDeReferencia, percentualCtoFixo);   
+
+    const campoCtoFixo = document.querySelector('#valorCustoFixo'); // Supondo que você terá um campo com id 'valorImposto'
+    const campoPercentualCtoFixo = document.querySelector('#percentCustoFixo'); // Supondo que você terá um campo com id 'percentualImposto'
+
+    let valorTotal = parseFloat(totalDeReferencia) || 0;
+    let percCtoFixo = parseFloat((percentualCtoFixo || '0').replace('%', '').replace(',', '.')) || 0;
+
+    let valorCalculadoCtoFixo = valorTotal * (percCtoFixo / 100);
+
+    if (campoCtoFixo) {
+        campoCtoFixo.value = formatarMoeda(valorCalculadoCtoFixo);
+    }
+
+
     calcularLucroReal(); // Recalcula o lucro real após calcular o imposto
 }
 // document.getElementById("tabela").addEventListener("click", function (e) {
@@ -1382,10 +1424,10 @@ function adicionarLinhaOrc() {
         <td class="vlrCusto Moeda">${formatarMoeda(0)}</td>
         <td class="totCtoDiaria Moeda">${formatarMoeda(0)}</td>          
         <td class="ajdCusto Moeda alimentacao" data-original-ajdcusto="0">
-            <span class="vlralimentacao-display">${formatarMoeda(0)}</span>
+            <span class="vlralimentacao-input">${formatarMoeda(0)}</span>
         </td>
         <td class="ajdCusto Moeda transporte" data-original-ajdcusto="0">
-            <span class="vlrtransporte-display">${formatarMoeda(0)}</span>
+            <span class="vlrtransporte-input">${formatarMoeda(0)}</span>
         </td> 
         <td class="totAjdCusto Moeda">${formatarMoeda(0)}</td>
         <td class="extraCampo" style="${initialDisplayStyle}">
@@ -1756,10 +1798,10 @@ function adicionarLinhaAdicional() {
         <td class="vlrCusto Moeda">${formatarMoeda(0)}</td>
         <td class="totCtoDiaria Moeda">${formatarMoeda(0)}</td>
         <td class="ajdCusto Moeda alimentacao" data-original-ajdcusto="0">
-            <span class="vlralimentacao-display">${formatarMoeda(0)}</span>
+            <span class="vlralimentacao-input">${formatarMoeda(0)}</span>
         </td>    
         <td class="ajdCusto Moeda transporte" data-original-ajdcusto="0">
-            <span class="vlrtransporte-display">${formatarMoeda(0)}</span>
+            <span class="vlrtransporte-input">${formatarMoeda(0)}</span>
         </td>
         <td class="totAjdCusto Moeda">${formatarMoeda(0)}</td>
         <td class="extraCampo" style="display: none;">
@@ -2697,7 +2739,6 @@ async function verificaOrcamento() {
     configurarInfraCheckbox();
 
     configurarPrePosCheckbox();
-
     
 
     const selecionarPavilhaoSelect = document.getElementById('selecionarPavilhao');
@@ -2843,7 +2884,6 @@ async function verificaOrcamento() {
     }
 
 
-
     const globalDescontoValor = document.getElementById('Desconto');
     const globalDescontoPercentual = document.getElementById('percentDesc');
 
@@ -2929,6 +2969,15 @@ async function verificaOrcamento() {
             const totalReferencia= desformatarMoeda(document.querySelector('#totalGeralVda').value || 0);
 
             calcularImposto(totalReferencia, this.value);
+        });
+    }
+
+    const percentualCtoFixoInput = document.getElementById('percentCustoFixo');
+    if (percentualCtoFixoInput) {
+        percentualCtoFixoInput.addEventListener('input', function() {
+            const totalReferencia= desformatarMoeda(document.querySelector('#totalGeralVda').value || 0);
+
+            calcularCustoFixo(totalReferencia, this.value);
         });
     }
 
@@ -3075,6 +3124,8 @@ async function verificaOrcamento() {
                 vlrCliente: desformatarMoeda(document.querySelector('#valorCliente').value),
                 vlrImposto: desformatarMoeda(document.querySelector('#valorImposto').value),
                 percentImposto: parsePercentValue(document.querySelector('#percentImposto').value),
+                vlrCtoFixo: desformatarMoeda(document.querySelector('#valorCustoFixo').value),
+                percentCtoFixo: parsePercentValue(document.querySelector('#percentCustoFixo').value),
                 nrOrcamentoOriginal: nrOrcamentoOriginal
 
             };
@@ -3213,7 +3264,8 @@ async function verificaOrcamento() {
             if (bProximoAno === true && idOrcamentoOriginalParaAtualizar !== null) {
                 console.log(`Iniciando atualização do Orçamento Original: ${idOrcamentoOriginalParaAtualizar}`);
                 
-                // Faz a segunda chamada de API para atualizar apenas o campo 'geradoanoposterior'
+                // Faz a segunda chamada de API para atualizar apenas o campo 
+                // 'geradoanoposterior'
                 const updateOriginal = await atualizarCampoGeradoAnoPosterior(idOrcamentoOriginalParaAtualizar, true);
 
                 if (updateOriginal) {
@@ -3408,6 +3460,12 @@ function desinicializarOrcamentosModal() {
         percentualImpostoInputListener = null;
     }
 
+    const percentualCtoFixoInput = document.getElementById('percentCustoFixo');
+    if (percentualCtoFixoInput && percentualCtoFixoInputListener) {
+        percentualCtoFixoInput.removeEventListener('input', percentualCtoFixoInputListener);
+        percentualCtoFixoInputListener = null;
+    }
+
     const btnEnviar = document.getElementById('Enviar');
     if (btnEnviar && btnEnviarListener) {
         btnEnviar.removeEventListener("click", btnEnviarListener);
@@ -3500,8 +3558,9 @@ export function limparOrcamento() {
     document.getElementById('percentReal').value = '0%';
     document.getElementById('valorImposto').value = 'R$ 0,00';
     document.getElementById('percentImposto').value = '0%';
+    document.getElementById('valorCustoFixo').value = 'R$ 0,00';
+    document.getElementById('percentCustoFixo').value = '0%';
     document.getElementById('valorCliente').value = 'R$ 0,00';
-
     
 
     // Se você tiver máscaras (como IMask), pode precisar re-aplicá-las ou garantir que o valor seja resetado corretamente
@@ -3829,14 +3888,20 @@ export async function preencherFormularioComOrcamento(orcamento) {
 
     const valorImpostoInput = document.getElementById('valorImposto');
     if (valorImpostoInput) valorImpostoInput.value = formatarMoeda(orcamento.vlrimposto || 0);
-
+  
     const percentImpostoInput = document.getElementById('percentImposto');
     if (percentImpostoInput) percentImpostoInput.value = formatarPercentual(orcamento.percentimposto || 0);
+
+    const valorCtoFixoInput = document.getElementById('valorCustoFixo');
+    if (valorCtoFixoInput) valorCtoFixoInput.value = formatarMoeda(orcamento.vlrctofixo || 0);
+
+    const percentCtoFixoInput = document.getElementById('percentCustoFixo');
+    if (percentCtoFixoInput) percentCtoFixoInput.value = formatarPercentual(orcamento.percentctofixo || 0);
 
     const valorClienteInput = document.getElementById('valorCliente');
     if (valorClienteInput) valorClienteInput.value = formatarMoeda(orcamento.vlrcliente || 0);
 
-    console.log("VALOR DO CLIENTE VINDO DO BANCO", orcamento.vlrcliente || 0);
+    console.log("VALOR DO CLIENTE VINDO DO BANCO", orcamento.vlrcliente || 0, orcamento.vlrctofixo, orcamento.percentctofixo);
 
    // preencherItensOrcamentoTabela(orcamento.itens || []);
 
@@ -3900,6 +3965,8 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
         let ctoDiaria = parseFloat(item.ctodiaria || 0);
         let vlrAjdAlimentacao = parseFloat(item.vlrajdctoalimentacao || 0);
         let vlrAjdTransporte = parseFloat(item.vlrajdctotransporte || 0);
+        let vlrHospedagem = parseFloat(item.hospedagem || 0);
+        let vlrTransporte = parseFloat(item.transporte || 0);
         
         let itemOrcamentoID = item.idorcamentoitem;
 
@@ -3927,6 +3994,9 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
             // Aplica fator de ajuda em Alimentação e Transporte
             vlrAjdAlimentacao *= fatorAjuda;
             vlrAjdTransporte *= fatorAjuda;
+
+            vlrHospedagem *= fatorGeral;
+            vlrTransporte *= fatorGeral;
 
             // ZERA o ID do item para garantir que ele seja INSERIDO como novo no SAVE (Backend)
             itemOrcamentoID = ''; 
@@ -4055,10 +4125,10 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
            
 
             <td class="extraCampo Moeda" style="display: none;">
-                <input type="text" class="hospedagem" value="${item.hospedagem || 0}">
+                <input type="text" class="hospedagem" value="${vlrHospedagem || 0}">
             </td>
             <td class="extraCampo Moeda" style="display: none;">
-                <input type="text" class="transporteExtraInput" value="${item.transporte || 0}">
+                <input type="text" class="transporteExtraInput" value="${vlrTransporte || 0}">
             </td>
            
              <td class="totGeral Moeda">${formatarMoeda(totGeralItem)}</td>
@@ -4888,8 +4958,8 @@ function recalcularLinha(linha) {
             }
         }
 
-        setValueIfExists('.vlralimentacao-display', vlrAlimentacaoDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), true);
-        setValueIfExists('.vlrtransporte-display', vlrTransporteDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), true);
+        setValueIfExists('.vlralimentacao-input', vlrAlimentacaoDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), true);
+        setValueIfExists('.vlrtransporte-input', vlrTransporteDiaria.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), true);
         setValueIfExists('.totVdaDiaria', totalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
         setValueIfExists('.vlrVenda', vlrVendaCorrigido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
         setValueIfExists('.totCtoDiaria', totalCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
@@ -5419,8 +5489,6 @@ async function gerarProximoAno() {
     GLOBAL_PERCENTUAL_GERAL = formValues.percentualGeral;
     GLOBAL_PERCENTUAL_AJUDA = formValues.percentualAjuda;
 
-
-
     idOrcamentoOriginalParaAtualizar = orcamentoFechado.idorcamento;
     bProximoAno = true;
 
@@ -5726,6 +5794,12 @@ async function preencherFormularioComOrcamentoParaProximoAno(orcamento) {
 
     const percentImpostoInput = document.getElementById('percentImposto');
     if (percentImpostoInput) percentImpostoInput.value = formatarPercentual(orcamento.percentimposto || 0);
+
+    const valorCtoFixoInput = document.getElementById('valorCustoFixo');
+    if (valorCtoFixoInput) valorCtoFixoInput.value = formatarMoeda(orcamento.vlrctofixo || 0);
+
+    const percentCtoFixoInput = document.getElementById('percentCustoFixo');
+    if (percentCtoFixoInput) percentCtoFixoInput.value = formatarPercentual(orcamento.percentctofixo || 0);
 
     const valorClienteInput = document.getElementById('valorCliente');
     if (valorClienteInput) valorClienteInput.value = formatarMoeda(orcamento.vlrcliente || 0);
