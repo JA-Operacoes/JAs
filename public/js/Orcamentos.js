@@ -3486,7 +3486,7 @@ function desinicializarOrcamentosModal() {
     console.log("✅ Módulo Orcamentos.js desinicializado.");
 }
 
-export function limparOrcamento() {
+export async function limparOrcamento() {
     console.log("DEBUG: Limpando formulário de orçamento...");
 
     const form = document.getElementById("form");
@@ -3495,30 +3495,23 @@ export function limparOrcamento() {
         return;
     }
 
-
     form.querySelectorAll('input[type="text"], input[type="number"], textarea').forEach(input => {
-
         if (!input.readOnly) {
             input.value = '';
         }
     });
 
-
     document.getElementById('idOrcamento').value = '';
     document.getElementById('nrOrcamento').value = '';
 
-
     form.querySelectorAll('select').forEach(select => {
-
         const defaultOption = select.querySelector('option[selected][disabled]') || select.querySelector('option:first-child');
         if (defaultOption) {
             select.value = defaultOption.value;
         }
-        // Disparar evento 'change' para que outros listeners reajam (ex: Select2)
         const event = new Event('change');
         select.dispatchEvent(event);
     });
-
 
     form.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
         checkbox.checked = false;
@@ -3530,21 +3523,20 @@ export function limparOrcamento() {
     ];
     mainFlatpickrIds.forEach(id => {
         const input = document.getElementById(id);
-        if (input && input._flatpickr) { // Verifica se a instância do Flatpickr existe
+        if (input && input._flatpickr) {
             input._flatpickr.clear();
         } else if (input) {
-            input.value = ''; // Se não for Flatpickr, limpa o valor do input
+            input.value = '';
         }
     });
 
     // Limpar a tabela de itens
     const tabelaBody = document.querySelector("#tabela tbody");
     if (tabelaBody) {
-       // tabelaBody.innerHTML = `<td colspan="20" style="text-align: center;">Nenhum item adicionado a este orçamento.</td>`;
         tabelaBody.innerHTML = '';
     }
 
-    // Resetar campos de totais e valores monetários/percentuais para seus valores padrão
+    // Resetar totais e percentuais
     document.getElementById('totalGeralVda').value = 'R$ 0,00';
     document.getElementById('totalGeralCto').value = 'R$ 0,00';
     document.getElementById('totalAjdCusto').value = 'R$ 0,00';
@@ -3561,14 +3553,53 @@ export function limparOrcamento() {
     document.getElementById('valorCustoFixo').value = 'R$ 0,00';
     document.getElementById('percentCustoFixo').value = '0%';
     document.getElementById('valorCliente').value = 'R$ 0,00';
-    
-
-    // Se você tiver máscaras (como IMask), pode precisar re-aplicá-las ou garantir que o valor seja resetado corretamente
-    // Ex: IMask(document.getElementById('Desconto'), { mask: 'R$ num', ... }).value = 'R$ 0,00';
 
     adicionarLinhaAdicional();
 
-    console.log("DEBUG: Formulário de orçamento limpo.");
+    // ✅ Sempre alterar o status para "A" (Aberto)
+    const statusInput = document.getElementById('Status');
+    if (statusInput) {
+        statusInput.value = 'A';
+    }
+
+    // ✅ Desbloquear todos os campos e botões automaticamente
+    console.log("DEBUG: Desbloqueando campos e botões...");
+    const campos = document.querySelectorAll('input, select, textarea');
+    campos.forEach(campo => {
+        campo.classList.remove('bloqueado');
+        campo.readOnly = false;
+        campo.disabled = false;
+    });
+
+    const botoes = document.querySelectorAll('button');
+    botoes.forEach(botao => {
+        const id = botao.id || '';
+        const classes = botao.classList;
+
+        // Exibe e habilita botões principais
+        if (id === 'fecharOrc' || id === 'Enviar' || id === 'Limpar' || id === 'Proposta' || id === 'adicionarLinha') {
+            botao.style.display = 'inline-block';
+            botao.disabled = false;
+        } 
+        // Oculta botões que só aparecem quando fechado
+        else if (id === 'GerarProximoAno' || classes.contains('Excel') || classes.contains('Contrato') || classes.contains('Adicional')) {
+            botao.style.display = 'none';
+            botao.disabled = true;
+        } 
+        // Garante visibilidade dos de navegação e pesquisa
+        else if (classes.contains('pesquisar') || classes.contains('Close')) {
+            botao.style.display = 'inline-block';
+            botao.disabled = false;
+        }
+    });
+
+    // ✅ Remover o visual de bloqueio da tabela
+    const tabela = document.querySelector('table');
+    if (tabela) {
+        tabela.classList.remove('bloqueada');
+    }
+
+    console.log("DEBUG: Formulário de orçamento limpo, desbloqueado e status alterado para 'A'.");
 }
 
 let prePosAtivo = false;
@@ -5170,6 +5201,7 @@ function bloquearCamposSeFechado() {
             const deveContinuarAtivo =
                 id === 'btnSalvar' ||
                 id === 'Close' ||
+                id === 'Limpar' ||
                 classes.contains('Close') ||
                 classes.contains('pesquisar') ||
                 classes.contains('Adicional') ||

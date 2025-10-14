@@ -1,0 +1,384 @@
+/* Estilo para o fundo escuro (overlay) */
+#modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  background-color: rgba(0, 0, 0, 0.5); /* Cor preta com transparência */
+  display: none; /* Inicialmente invisível */
+  z-index: 999; /* Fica acima de outros elementos */
+}
+
+/* Estilo para o container do modal */
+ #modal-container {
+  position: fixed;
+  top: 50%; /* Alinha verticalmente ao centro */
+  left: 50%; /* Alinha horizontalmente ao centro */
+  transform: translate(-50%, -50%); /* Ajuste para o centro exato */
+  background-color: rgba(255, 255, 255, 0.356);
+  padding: 5px;
+  border-radius: 8px;
+  box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.3);
+  width: 80%;/* Ajuste o tamanho conforme necessário */
+  max-width: 700px;/* Largura máxima do modal */
+  display: none; /* Inicialmente invisível */
+  z-index: 1000; /* Fica acima do overlay */  
+} 
+/* Estilo opcional para o modal (você pode personalizar conforme necessário) */
+#cadModalIndices.modal {
+  position: fixed;
+  top: 50%; /* Alinha verticalmente ao centro */
+  left: 50%; /* Alinha horizontalmente ao centro */   
+  transform: translate(-50%, -50%); /* Ajuste para o centro exato */
+  background-color: #4d4d4d;
+  padding: 5px;
+  margin-top: 10px;
+  width: 725px; /* Ajuste o tamanho conforme necessário */
+  height: 430px;
+  font-size: 16px;
+  z-index: 9999;
+}
+
+#cadModalIndices.modal-content{
+  height: 590px;
+}
+#cadModalIndices.modal-open{
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Quando o modal estiver visível */
+.modal-open #modal-overlay, 
+.modal-open #modal-container {
+  display: block;
+  pointer-events: auto; /* Torna visíveis o overlay e o modal */
+}
+
+body .modal-open {
+  overflow: hidden;
+  pointer-events: none; /* Impede a rolagem da página */
+}
+
+body{
+  font-family: "Abel", sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto;
+}
+
+.title{
+  font-family: "Abel", sans-serif;
+    font-size: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+
+#form-cargo {
+  font-family: "Abel", sans-serif;
+  display: flex;                
+  flex-direction: column; 
+  justify-content: center;
+  background-color: white;
+  max-width: 700px;   
+  width: 100%;  
+  height: 330px; 
+  margin: 0 auto;         
+  padding: 10px;                
+  background-color: #cacaca; 
+  border: #ce0303;    
+  border-bottom-right-radius: 8px;          
+  border-bottom-left-radius: 8px;         
+  overflow-y: auto;
+  position: relative;
+}
+
+.Documentos{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-direction: column;
+}
+
+textarea{
+  font-family:"Abel",sans-serif;
+  width: 100%;
+  display: flex;
+  justify-content: center;                  /* Faz os inputs ocuparem toda a largura */
+  padding: 5px 50px; 
+  margin: 5px 10px;
+  font-size: 17px;               /* Espaçamento interno nos campos */
+  border: 1px solid #000000;      /* Cor de borda */
+  border-radius: 8px;  
+  flex: 1;      
+  max-width: 100%;        /* Bordas arredondadas */
+}
+
+fieldset {
+  display: flex;
+  flex-direction: column;
+  width: 650px;
+  background-color: transparent;
+  border-color: var(--dark-base-color);
+}
+
+/* Grid Principal */
+.Perfil {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* 2 colunas */
+  align-items: center;
+  gap: 20px;
+}
+
+/* Área das opções */
+.perfil-radios {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center; 
+  gap: 10px;  
+}
+
+.perfil-radios label {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  font-size: 16px;
+  width: 90px;
+}
+
+.perfil-radios input {
+  display: flex;
+  justify-self: center; /* Centraliza os radios abaixo dos labels */
+}
+
+/* Estilização da área de upload */
+.perfil-foto {
+  display: flex;
+  justify-content: end;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 30px;
+}
+
+.picture {
+  cursor: pointer;
+  font-size: 14px;
+  padding: 5px;
+}
+
+
+
+.form-2colunas{
+  display: flex;
+  gap: 0.5px; /* Espaço entre os inputs */
+  max-width: 300; /* Garante que os elementos não ultrapassem o container */
+  justify-content: center;
+}
+.form, .form2{
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin: 12px;
+  gap:5px;
+}
+.form input{
+  font-family:  var(--Font-primary);
+  width: 350px;
+  height: 30px;
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 0 15px;
+  border: 1px solid #000000;
+  background: transparent;
+  color: #000000;
+  outline: none;
+}
+
+.form2 input{
+  font-family: var(--Font-primary);
+  width: 270px;
+  height: 30px;
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 0 15px;
+  border: 1px solid #000000;
+  background: transparent;
+  color: #000000;
+  outline: none;
+}
+
+.form2 { 
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px; /* espaço entre os campos */
+  align-items: center;  /* aqui é o segredo do alinhamento */
+ }
+
+.form select {
+  border-radius: 5px;
+  flex: 1;
+  font-family: var(--Font-primary);
+  width: 350px;
+  min-width: 350px;
+  max-width: 350px;
+  height: 30px;
+  border-radius: 6px;
+  font-size: 13px;
+  padding: 0 8px;
+  margin-top: -1px;
+  border: 1px solid #000000;
+  background: transparent;
+  color: #000000;
+  outline: none;
+}
+
+.form label,
+.form-2colunas label,
+.form2 label {
+  position: absolute;
+  transform: translateY(-70%);
+  color: #000000;
+  font-size: 12px;
+  pointer-events: none;
+  transition: 0.3s;
+  align-items: center;
+}
+
+
+.uppercase {
+  text-transform: uppercase;
+}
+
+input:focus{
+  border: 2px solid var(--border-color);
+}
+
+input:focus ~ label,
+input:valid ~ label,
+input:not([value=""]) ~ label{
+  top: 0;
+  left: 25%;
+  font-size: 10px;
+  padding: 0 2px;
+  background: #cacaca;
+}
+
+input:not([value=""]) ~ label {
+  top: 0;
+  left: 25%;
+  font-size: 15px;
+  padding: 0 2px;
+  background: #cacaca; /* Certifique-se que esta cor corresponde ao background do seu #form-content ou fieldset */
+}
+
+#idEquip.has-value + label,
+#idEquip:focus + label {
+  top: 0;
+  left: 25%;
+  font-size: 15px;
+  padding: 0 2px;
+  background: #cacaca;
+}
+
+.fileUpload{
+  font-family: "Abel", sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+
+input[type=date]{
+  width: 111px;
+  height: 30px;
+  font-size: 17px;
+}
+
+input[type=file]{
+  display: none;
+}
+
+.perfil{
+  display: flex;
+  justify-content: center;
+  width: 300px;
+}
+
+
+.picture{
+width: 120px;  
+height: 160px;
+background-color: rgb(146, 146, 146);
+color: rgb(0, 0, 0);
+border: 2px dashed;
+display: flex;
+justify-content: center;
+align-items: center;
+margin: 0 auto;
+cursor: pointer;
+transition: color 300ms ease-in-out;
+overflow: hidden;
+}
+
+.picture:hover{
+  color: var(--hover-color);
+}
+
+.pictureImage{
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover;
+}
+
+
+button {
+  font-family: "Abel", sans-serif;
+  font-weight: var(--font-weight);
+  font-size: 20px;
+  background-color: var(--primary-color);
+  width: 25%;
+  color: var(--font-color);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;  
+  transition: 5%;
+}
+
+button.Close {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+  width: 600px;
+  margin: 5px 15%;
+}
+
+.Close{
+  display: flex;
+  justify-content: center;
+}
+
+.BTNs{
+  display: flex;
+  text-align: center;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.Enviar:hover,
+.Limpar:hover,
+.Pesquisar:hover{
+  background-color: var(--hover-color);
+}
+
