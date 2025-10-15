@@ -895,11 +895,9 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
     try {
         console.log("nome:", nome);
         const funcionario = await fetchComToken(`/funcionarios?nome=${encodeURIComponent(nome)}`);
-        console.log("FUNCIONARIO", funcionario);
-
-        if (!funcionario || !funcionario.idfuncionario) throw new Error("Funcionário não encontrado");
         
-       // if (funcionario && funcionario.length > 0) {
+        if (!funcionario || !funcionario.idfuncionario) throw new Error("Evento não encontrado");
+        //if (funcionario) {
 
             //window.funcionarioOriginal = { ...funcionario }; // Salva o estado original
             document.getElementById("idFuncionario").value = funcionario.idfuncionario || '';
@@ -1015,11 +1013,9 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
            
             const formInputs = document.querySelectorAll('#formFuncionarios input, #formFuncionarios select, #formFuncionarios textarea');
             formInputs.forEach(input => input.removeAttribute('disabled'));            
-       // }
-        
-        
-
+        //} 
     } catch (error) {
+       console.log("CATCH, FUNCIONARIO NÃO ENCONTRADO");
        console.warn("Funcionário não encontrado.");
        console.log("CATCH FUNCIONARIO NÃO ENCONTRADO");
 
