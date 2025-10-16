@@ -1080,67 +1080,71 @@ async function mostrarPedidosUsuario() {
       container.className = "funcionario-body p-2 hidden";
 
       pedidosComAtualizacao.forEach(pedido => {
-        ["statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada"].forEach(campo => {
-          const info = pedido[campo];
-          if (!info) return;
-          const valorAlterado = info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao;
-          if (!valorAlterado) return;
+  ["statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada"].forEach(campo => {
+    const info = pedido[campo];
+    if (!info) return;
 
-          const card = document.createElement("div");
-          card.className = "pedido-card border rounded p-2 mb-2 bg-gray-50 flex justify-between items-start";
+    const valorAlterado = info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao;
+    if (!valorAlterado) return;
 
-          let corQuadrado = "#facc15"; // pendente
-          if (info.status?.toLowerCase() === "Autorizado") corQuadrado = "#16a34a";
-          if (info.status?.toLowerCase() === "Rejeitado") corQuadrado = "#dc2626";
+    const statusAtual = (info.status || "Pendente").toLowerCase();
 
-          let innerHTML = `<div>
-            <strong>${campo.replace("status", "").replace(/([A-Z])/g, ' $1')}</strong><br>`;
+    const card = document.createElement("div");
+    card.className = "pedido-card border rounded p-2 mb-2 bg-gray-50 flex justify-between items-start";
 
-          if (pedido.evento) {
-            innerHTML += `<strong>Evento:</strong> ${pedido.evento}<br>`;
-          }
+    let corQuadrado = "#facc15"; // padrão = pendente
+    if (statusAtual === "autorizado") corQuadrado = "#16a34a";
+    if (statusAtual === "rejeitado") corQuadrado = "#dc2626";
 
-          if (info.valor !== undefined) {
-            innerHTML += `Valor: R$ ${info.valor} - <span class="status-text">${info.status || "Pendente"}</span><br>`;
-          } else if (info.datas) {
-            innerHTML += `Datas: ${info.datas.map(d => d.data).join(", ")} - <span class="status-text">${info.status || "Pendente"}</span><br>`;
-          }
+    let innerHTML = `<div>
+      <strong>${campo.replace("status", "").replace(/([A-Z])/g, ' $1')}</strong><br>`;
 
-          if (info.descricao) {
-            innerHTML += `Descrição: ${info.descricao}<br>`;
-          }
+    if (pedido.evento) {
+      innerHTML += `<strong>Evento:</strong> ${pedido.evento}<br>`;
+    }
 
-          // 🔹 Botões apenas para usuários master
-          if (pedido.ehMasterStaff) {
-            innerHTML += `
-              <div class="flex gap-2 mt-1">
-                <button class="aprovar bg-green-500 text-white px-2 py-1 rounded">Autorizar</button>
-                <button class="negar bg-red-500 text-white px-2 py-1 rounded">Rejeitar</button>
-              </div>
-            `;
-          }
+    if (info.valor !== undefined) {
+      innerHTML += `Valor: R$ ${info.valor} - <span class="status-text">${info.status || "Pendente"}</span><br>`;
+    } else if (info.datas) {
+      innerHTML += `Datas: ${info.datas.map(d => d.data).join(", ")} - <span class="status-text">${info.status || "Pendente"}</span><br>`;
+    }
 
-          innerHTML += `</div>`;
-          innerHTML += `<div class="quadrado-arredondado w-4 h-4 rounded" style="background-color: ${corQuadrado};"></div>`;
+    if (info.descricao) {
+      innerHTML += `Descrição: ${info.descricao}<br>`;
+    }
 
-          card.innerHTML = innerHTML;
-          container.appendChild(card);
+    // 🔹 Só mostra botões se for Master e o status ainda for pendente
+    if (pedido.ehMasterStaff && statusAtual === "pendente") {
+      innerHTML += `
+        <div class="flex gap-2 mt-1">
+          <button class="aprovar bg-green-500 text-white px-2 py-1 rounded">Autorizar</button>
+          <button class="negar bg-red-500 text-white px-2 py-1 rounded">Rejeitar</button>
+        </div>
+      `;
+    }
 
-          // 🔹 Eventos dos botões
-          if (pedido.ehMasterStaff) {
-            const aprovarBtn = card.querySelector(".aprovar");
-            const negarBtn = card.querySelector(".negar");
+    innerHTML += `</div>`;
+    innerHTML += `<div class="quadrado-arredondado w-4 h-4 rounded" style="background-color: ${corQuadrado};"></div>`;
 
-            aprovarBtn?.addEventListener("click", async () => {
-              await atualizarStatusPedido(pedido.idpedido, campo, "Autorizado", card);
-            });
+    card.innerHTML = innerHTML;
+    container.appendChild(card);
 
-            negarBtn?.addEventListener("click", async () => {
-              await atualizarStatusPedido(pedido.idpedido, campo, "Rejeitado", card);
-            });
-          }
-        });
+    // 🔹 Adiciona eventos somente se status for pendente
+    if (pedido.ehMasterStaff && statusAtual === "pendente") {
+      const aprovarBtn = card.querySelector(".aprovar");
+      const negarBtn = card.querySelector(".negar");
+
+      aprovarBtn?.addEventListener("click", async () => {
+        await atualizarStatusPedido(pedido.idpedido, campo, "Autorizado", card);
       });
+
+      negarBtn?.addEventListener("click", async () => {
+        await atualizarStatusPedido(pedido.idpedido, campo, "Rejeitado", card);
+      });
+    }
+  });
+});
+
 
       header.addEventListener("click", () => {
         container.classList.toggle("hidden");
@@ -1265,7 +1269,7 @@ async function atualizarResumoPedidos() {
 }
 
 // Atualiza automaticamente a cada 10 segundos
-setInterval(atualizarResumoPedidos, 10000);
+setInterval(atualizarResumoPedidos, 1000);
 
 // Chamada inicial ao carregar a página
 atualizarResumoPedidos();

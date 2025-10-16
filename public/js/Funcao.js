@@ -49,7 +49,6 @@ if (typeof window.FuncaoOriginal === "undefined") {
         vlrVenda: "",
         vlrTransporte: "",
         vlrTransporteSenior: "",
-        vlrAlmoco: "",
         vlrAlimentacao: "",
         obsFuncao: "",
         ObsAjc:"",
@@ -150,7 +149,7 @@ function verificaFuncao() {
             return Swal.fire("Acesso negado", "Você não tem permissão para alterar funções.", "error");
         }
 
-        console.log("campos antes de salvar", idFuncao, descFuncao, obsProposta, obsFuncao,  ativo);
+        console.log("campos antes de salvar", idFuncao, descFuncao, venda, obsProposta, obsFuncao,  ativo);
 
         if (!descFuncao ||  !custoBase || !venda || !idCatFuncao) {
 
@@ -162,10 +161,10 @@ function verificaFuncao() {
             });
             return;
         }
-        console.log("Valores do Funcao:", idFuncao, descFuncao, obsProposta, obsFuncao, ativo);
+        console.log("Valores do Funcao:", idFuncao, descFuncao, venda, obsProposta, obsFuncao, ativo);
         console.log("Valores do Funcao Original:", window.FuncaoOriginal.idFuncao, window.FuncaoOriginal.descFuncao, window.FuncaoOriginal.vlrCusto, window.FuncaoOriginal.vlrCustoSenior,
             window.FuncaoOriginal.vlrCustoPleno, window.FuncaoOriginal.vlrCustoJunior, window.FuncaoOriginal.vlrBase, window.FuncaoOriginal.vlrVenda, window.FuncaoOriginal.vlrTransporte, 
-            window.FuncaoOriginal.vlrTransporteSenior, window.FuncaoOriginal.obsFuncao, window.FuncaoOriginal.vlrAlmoco, window.FuncaoOriginal.vlrAlimentacao, window.ativo);
+            window.FuncaoOriginal.vlrTransporteSenior, window.FuncaoOriginal.obsFuncao, window.FuncaoOriginal.vlrAlimentacao, window.ativo);
             
         // Comparar com os valores originais
         if (
@@ -175,7 +174,7 @@ function verificaFuncao() {
         //     Number(custoPleno).toFixed(2) === Number(window.FuncaoOriginal.vlrCustoPleno).toFixed(2) &&
         //     Number(custoJunior).toFixed(2) === Number(window.FuncaoOriginal.vlrCustoJunior).toFixed(2) &&
         //     Number(custoBase).toFixed(2) === Number(window.FuncaoOriginal.vlrBase).toFixed(2) &&
-        //     Number(venda).toFixed(2) === Number(window.FuncaoOriginal.vlrVenda).toFixed(2) &&
+            Number(venda).toFixed(2) === Number(window.FuncaoOriginal.vlrVenda).toFixed(2) &&
         //     Number(transporte).toFixed(2) === Number(window.FuncaoOriginal.vlrTransporte).toFixed(2) &&
         //     Number(transporteSenior).toFixed(2) === Number(window.FuncaoOriginal.vlrTransporteSenior).toFixed(2) &&         
         //     Number(alimentacao).toFixed(2) === Number(window.FuncaoOriginal.vlrAlimentacao).toFixed(2) &&
@@ -194,7 +193,7 @@ function verificaFuncao() {
         }
 
        //  const dados = { descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsProposta, obsFuncao, alimentacao, ativo };
-        const dados = { descFuncao, obsProposta, obsFuncao, ativo, idCatFuncao };
+        const dados = { descFuncao, venda, obsProposta, obsFuncao, ativo, idCatFuncao };
         const token = localStorage.getItem('token');
         const idEmpresa = localStorage.getItem('idEmpresa');
 
@@ -286,7 +285,7 @@ function verificaFuncao() {
             }
 
             const select = criarSelectFuncao(funcoes);
-            limparCamposFuncao();
+            //limparCamposFuncao();
             
                
             if (input && input.parentNode) {
@@ -414,8 +413,7 @@ function preencherCustosPorCategoria() {
         document.querySelector("#CustoSenior").value = categoria.ctofuncaosenior || 0.00;
         document.querySelector("#CustoPleno").value = categoria.ctofuncaopleno || 0.00;
         document.querySelector("#CustoJunior").value = categoria.ctofuncaojunior || 0.00;
-        document.querySelector("#CustoBase").value = categoria.ctofuncaobase || 0.00;
-        document.querySelector("#Venda").value = categoria.vdafuncao || 0.00;
+        document.querySelector("#CustoBase").value = categoria.ctofuncaobase || 0.00;       
         document.querySelector("#transporte").value = categoria.transporte || 0.00;
         document.querySelector("#TranspSenior").value = categoria.transpsenior || 0.00;      
         document.querySelector("#alimentacao").value = categoria.alimentacao || 0.00;
@@ -529,20 +527,20 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
             throw new Error("Função não encontrada ou resposta inválida.");
         }
      
-         document.querySelector("#idCatFuncao").value = funcao.idcategoriafuncao;
-         document.querySelector("#idFuncao").value = funcao.idfuncao;
-         document.querySelector("#CustoSenior").value = funcao.ctofuncaosenior || 0.00;
-         document.querySelector("#CustoPleno").value = funcao.ctofuncaopleno || 0.00;
-         document.querySelector("#CustoJunior").value = funcao.ctofuncaojunior || 0.00;
-         document.querySelector("#CustoBase").value = funcao.ctofuncaobase || 0.00;
-         document.querySelector("#Venda").value = funcao.vdafuncao || 0.00;
-         document.querySelector("#transporte").value = funcao.transporte || 0.00;
-         document.querySelector("#TranspSenior").value = funcao.transpsenior || 0.00;      
-         document.querySelector("#alimentacao").value = funcao.alimentacao || 0.00;
-         document.querySelector("#obsProposta").value = funcao.obsproposta || "";
-         document.querySelector("#obsFuncao").value = funcao.obsfuncao || "";
-         document.querySelector("#funcaoAtiva").checked =
-            funcao.ativo === true || funcao.ativo === "true" || funcao.ativo === 1;       
+        document.querySelector("#idCatFuncao").value = funcao.idcategoriafuncao;
+        document.querySelector("#idFuncao").value = funcao.idfuncao;
+        document.querySelector("#CustoSenior").value = funcao.ctofuncaosenior || 0.00;
+        document.querySelector("#CustoPleno").value = funcao.ctofuncaopleno || 0.00;
+        document.querySelector("#CustoJunior").value = funcao.ctofuncaojunior || 0.00;
+        document.querySelector("#CustoBase").value = funcao.ctofuncaobase || 0.00;
+        document.querySelector("#Venda").value = funcao.vdafuncao || 0.00;
+        document.querySelector("#transporte").value = funcao.transporte || 0.00;
+        document.querySelector("#TranspSenior").value = funcao.transpsenior || 0.00;      
+        document.querySelector("#alimentacao").value = funcao.alimentacao || 0.00;
+        document.querySelector("#obsProposta").value = funcao.obsproposta || "";
+        document.querySelector("#obsFuncao").value = funcao.obsfuncao || "";
+        document.querySelector("#funcaoAtiva").checked =
+         funcao.ativo === true || funcao.ativo === "true" || funcao.ativo === 1;       
 
         console.log("Valores da Função carregada:", funcao.ctofuncaosenior, funcao.ctofuncaopleno, funcao.ctofuncaojunior, funcao.ctofuncaobase, funcao.vdafuncao, funcao.transporte, funcao.alimentacao);
         
@@ -553,15 +551,14 @@ async function carregarFuncaoDescricao(desc, elementoAtual) {
             // vlrCustoPleno: funcao.ctofuncaopleno,
             // vlrCustoJunior: funcao.ctofuncaojunior,
             // vlrCustoBase: funcao.ctofuncaobase,
-            // vlrVenda: funcao.vdafuncao,
+            vlrVenda: funcao.vdafuncao,
             // vlrTransporte: funcao.transporte,
             // vlrTransporteSenior: funcao.transpsenior,
             // vlrAlimentacao: funcao.alimentacao,
             obsProposta: funcao.obsproposta,
             obsFuncao: funcao.obsfuncao,
             ativo: funcao.ativo
-        };
-   
+        };  
        
 
     } catch (error) {
@@ -616,7 +613,6 @@ function limparFuncaoOriginal() {
         vlrVenda: "",
         vlrTransporte: "",
         vlrTransporteSenior: "",
-        vlrAlmoco: "",
         vlrAlimentacao: "",
         obsFuncao:"",
         ObsAjc:"",
@@ -730,7 +726,7 @@ function desinicializarFuncaoModal() { // Renomeado para seguir o padrão 'desin
     
     // 3. Limpar o estado global FuncaoOriginal
     // Assumindo que window.FuncaoOriginal existe, ou defina-o como um objeto vazio
-    window.FuncaoOriginal = { idFuncao: "", descFuncao: "", vlrCustoSenior: 0.00, vlrCustoPleno: 0.00, vlrCustoJunior: 0.00, vlrCustoBase: 0.00, vlrVenda: 0.00, vlrTransporte: 0.00, vlrTransporteSenior: 0.00, obsFuncao: "", vlrAlmoco: 0.00, vlrAliemntacao: 0.00 };
+    window.FuncaoOriginal = { idFuncao: "", descFuncao: "", vlrCustoSenior: 0.00, vlrCustoPleno: 0.00, vlrCustoJunior: 0.00, vlrCustoBase: 0.00, vlrVenda: 0.00, vlrTransporte: 0.00, vlrTransporteSenior: 0.00, obsFuncao: "", vlrAliemntacao: 0.00 };
     limparCamposFuncao(); // Chame a função que limpa os campos do formulário para garantir um estado limpo
     document.getElementById('form').reset(); // Garante que o formulário seja resetado
     document.querySelector("#idFuncao").value = ""; // Garante que o ID oculto seja limpo

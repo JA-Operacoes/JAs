@@ -31,6 +31,7 @@
 .tema-JA-OPER{
     --primary-color: #942123;
     --primary-color20: #9421237c;
+    --primary-color10: #9421235d;
     --border-color:#ce0303;
     --hover-color: #641516;
     --background-color: #942123;
@@ -41,6 +42,7 @@
 .tema-ES{
     --primary-color: #80cd3b;
     --primary-color20: #80cd3b7c;
+    --primary-color10: #7fcd3b3f;
     --hover-color: #326902;
     --background-color: #80cd3b;
     --font-color: #000000;
@@ -51,6 +53,7 @@
 .tema-EA{
     --primary-color: #554aa8;
     --primary-color20: #554aa87c;
+    --primary-color10: #554aa859;
     --hover-color: #302961;
     --background-color: #554aa8;
     --font-color: #ffffff;
@@ -61,6 +64,7 @@
 .tema-EP{
     --primary-color: #a4a5a2;
     --primary-color20: #a4a5a27c;
+    --primary-color10: #a4a5a25b;
     --hover-color: #6e6e6e;
     --background-color: #a4a5a2;
     --font-color: #000000;
@@ -71,6 +75,7 @@
 .tema-SN-FOODS{
     --primary-color: #ea5b19;
     --primary-color20: #ea5b197c;
+    --primary-color10: #ea5b194f;
     --hover-color: #a53603;
     --background-color: #ea5b1;
     --font-color: #000000;
@@ -81,6 +86,7 @@
 .tema-TSD{
     --primary-color: #303030;
     --primary-color20: #3030307c;
+    --primary-color10: #30303044;
     --hover-color: #000000;
     --background-color: #303030;
     --font-color: #ffffff;
