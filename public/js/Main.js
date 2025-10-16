@@ -1005,8 +1005,18 @@ async function mostrarPedidosUsuario() {
   if (!lista) return;
 
   try {
-    const pedidos = await buscarPedidosUsuario(); // já retorna todos os pedidos que o usuário pode ver
+    let pedidos = await buscarPedidosUsuario(); // já retorna todos os pedidos que o usuário pode ver
     lista.innerHTML = "";
+
+    // 🔹 Remove duplicados (mesmo funcionário, evento, valor e tipo)
+    const vistos = new Set();
+    pedidos = pedidos.filter(p => {
+      const chave =
+        `${p.funcionario || ""}|${p.evento || ""}|${p.valor || ""}|${p.statusajustecusto?.valor || ""}|${p.statuscaixinha?.valor || ""}|${p.statusmeiadiaria?.valor || ""}|${p.statusdiariadobrada?.valor || ""}`;
+      if (vistos.has(chave)) return false;
+      vistos.add(chave);
+      return true;
+    });
 
     const titulo = document.createElement("div");
     titulo.className = "titulo-pedidos font-bold text-lg mb-3";
@@ -1059,7 +1069,6 @@ async function mostrarPedidosUsuario() {
         });
       });
 
-
       const divFuncionario = document.createElement("div");
       divFuncionario.className = "funcionario border rounded mb-3";
 
@@ -1081,71 +1090,70 @@ async function mostrarPedidosUsuario() {
       container.className = "funcionario-body p-2 hidden";
 
       pedidosComAtualizacao.forEach(pedido => {
-  ["statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada"].forEach(campo => {
-    const info = pedido[campo];
-    if (!info) return;
+        ["statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada"].forEach(campo => {
+          const info = pedido[campo];
+          if (!info) return;
 
-    const valorAlterado = info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao;
-    if (!valorAlterado) return;
+          const valorAlterado = info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao;
+          if (!valorAlterado) return;
 
-    const statusAtual = (info.status || "Pendente").toLowerCase();
+          const statusAtual = (info.status || "Pendente").toLowerCase();
 
-    const card = document.createElement("div");
-    card.className = "pedido-card border rounded p-2 mb-2 bg-gray-50 flex justify-between items-start";
+          const card = document.createElement("div");
+          card.className = "pedido-card border rounded p-2 mb-2 bg-gray-50 flex justify-between items-start";
 
-    let corQuadrado = "#facc15"; // padrão = pendente
-    if (statusAtual === "autorizado") corQuadrado = "#16a34a";
-    if (statusAtual === "rejeitado") corQuadrado = "#dc2626";
+          let corQuadrado = "#facc15"; // padrão = pendente
+          if (statusAtual === "autorizado") corQuadrado = "#16a34a";
+          if (statusAtual === "rejeitado") corQuadrado = "#dc2626";
 
-    let innerHTML = `<div>
-      <strong>${campo.replace("status", "").replace(/([A-Z])/g, ' $1')}</strong><br>`;
+          let innerHTML = `<div>
+            <strong>${campo.replace("status", "").replace(/([A-Z])/g, ' $1')}</strong><br>`;
 
-    if (pedido.evento) {
-      innerHTML += `<strong>Evento:</strong> ${pedido.evento}<br>`;
-    }
+          if (pedido.evento) {
+            innerHTML += `<strong>Evento:</strong> ${pedido.evento}<br>`;
+          }
 
-    if (info.valor !== undefined) {
-      innerHTML += `Valor: R$ ${info.valor} - <span class="status-text">${info.status || "Pendente"}</span><br>`;
-    } else if (info.datas) {
-      innerHTML += `Datas: ${info.datas.map(d => d.data).join(", ")} - <span class="status-text">${info.status || "Pendente"}</span><br>`;
-    }
+          if (info.valor !== undefined) {
+            innerHTML += `Valor: R$ ${info.valor} - <span class="status-text">${info.status || "Pendente"}</span><br>`;
+          } else if (info.datas) {
+            innerHTML += `Datas: ${info.datas.map(d => d.data).join(", ")} - <span class="status-text">${info.status || "Pendente"}</span><br>`;
+          }
 
-    if (info.descricao) {
-      innerHTML += `Descrição: ${info.descricao}<br>`;
-    }
+          if (info.descricao) {
+            innerHTML += `Descrição: ${info.descricao}<br>`;
+          }
 
-    // 🔹 Só mostra botões se for Master e o status ainda for pendente
-    if (pedido.ehMasterStaff && statusAtual === "pendente") {
-      innerHTML += `
-        <div class="flex gap-2 mt-1">
-          <button class="aprovar bg-green-500 text-white px-2 py-1 rounded">Autorizar</button>
-          <button class="negar bg-red-500 text-white px-2 py-1 rounded">Rejeitar</button>
-        </div>
-      `;
-    }
+          // 🔹 Só mostra botões se for Master e o status ainda for pendente
+          if (pedido.ehMasterStaff && statusAtual === "pendente") {
+            innerHTML += `
+              <div class="flex gap-2 mt-1">
+                <button class="aprovar bg-green-500 text-white px-2 py-1 rounded">Autorizar</button>
+                <button class="negar bg-red-500 text-white px-2 py-1 rounded">Rejeitar</button>
+              </div>
+            `;
+          }
 
-    innerHTML += `</div>`;
-    innerHTML += `<div class="quadrado-arredondado w-4 h-4 rounded" style="background-color: ${corQuadrado};"></div>`;
+          innerHTML += `</div>`;
+          innerHTML += `<div class="quadrado-arredondado w-4 h-4 rounded" style="background-color: ${corQuadrado};"></div>`;
 
-    card.innerHTML = innerHTML;
-    container.appendChild(card);
+          card.innerHTML = innerHTML;
+          container.appendChild(card);
 
-    // 🔹 Adiciona eventos somente se status for pendente
-    if (pedido.ehMasterStaff && statusAtual === "pendente") {
-      const aprovarBtn = card.querySelector(".aprovar");
-      const negarBtn = card.querySelector(".negar");
+          // 🔹 Adiciona eventos somente se status for pendente
+          if (pedido.ehMasterStaff && statusAtual === "pendente") {
+            const aprovarBtn = card.querySelector(".aprovar");
+            const negarBtn = card.querySelector(".negar");
 
-      aprovarBtn?.addEventListener("click", async () => {
-        await atualizarStatusPedido(pedido.idpedido, campo, "Autorizado", card);
+            aprovarBtn?.addEventListener("click", async () => {
+              await atualizarStatusPedido(pedido.idpedido, campo, "Autorizado", card);
+            });
+
+            negarBtn?.addEventListener("click", async () => {
+              await atualizarStatusPedido(pedido.idpedido, campo, "Rejeitado", card);
+            });
+          }
+        });
       });
-
-      negarBtn?.addEventListener("click", async () => {
-        await atualizarStatusPedido(pedido.idpedido, campo, "Rejeitado", card);
-      });
-    }
-  });
-});
-
 
       header.addEventListener("click", () => {
         container.classList.toggle("hidden");
@@ -1160,6 +1168,7 @@ async function mostrarPedidosUsuario() {
     console.error("Erro ao mostrar pedidos:", err);
   }
 }
+
 
 
 // Função para atualizar status via fetch
