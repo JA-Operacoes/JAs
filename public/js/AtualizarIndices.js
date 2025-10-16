@@ -20,15 +20,15 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 let descEquipBlurListener = null;
-let limparAtualizarindiceButtonListener = null;
-let enviarAtualizarindiceButtonListener = null;
-let pesquisarAtualizarindiceButtonListener = null;
-let selectAtualizarindiceChangeListener = null;
+let limparAtualizarIndiceButtonListener = null;
+let enviarAtualizarIndiceButtonListener = null;
+let pesquisarAtualizarIndiceButtonListener = null;
+let selectAtualizarIndiceChangeListener = null;
 let novoInputDescEquipBlurListener = null; // Para o blur do novo input de descrição
 let novoInputDescEquipInputListener = null;
 
-if (typeof window.AtualizarindiceOriginal === "undefined") {
-    window.AtualizarindiceOriginal = {
+if (typeof window.AtualizarIndiceOriginal === "undefined") {
+    window.AtualizarIndiceOriginal = {
         idEquip: "",
         descEquip: "",
         vlrCusto: "",
@@ -36,9 +36,9 @@ if (typeof window.AtualizarindiceOriginal === "undefined") {
     };
 }
 
-function verificaAtualizarindice() {
+function verificaAtualizarIndice() {
 
-    console.log("Carregando Atualizarindice...");
+    console.log("Carregando AtualizarIndice...");
     
     document.querySelector("#descEquip").addEventListener("blur", async function () {
         const desc = this.value.trim();
@@ -55,8 +55,8 @@ function verificaAtualizarindice() {
 
             console.log("Selecionado:", desc);
 
-            await carregarAtualizarindiceDescricao(desc, this);
-            console.log("Função selecionado depois de carregarAtualizarindiceDescricao:", this.value);
+            await carregarAtualizarIndiceDescricao(desc, this);
+            console.log("Função selecionado depois de carregarAtualizarIndiceDescricao:", this.value);
          
 
         } catch (error) {
@@ -78,7 +78,7 @@ function verificaAtualizarindice() {
     botaoLimpar.addEventListener("click", function (event) {
         event.preventDefault(); // Previne o envio padrão do formulário 
 
-        limparCamposAtualizarindice();
+        limparCamposAtualizarIndice();
 
     });
 
@@ -95,8 +95,8 @@ function verificaAtualizarindice() {
         const venda = parseFloat(vlrVenda.replace(",", "."));
 
         // Permissões
-        const temPermissaoCadastrar = temPermissao("Atualizarindices", "cadastrar");
-        const temPermissaoAlterar = temPermissao("Atualizarindices", "alterar");
+        const temPermissaoCadastrar = temPermissao("AtualizarIndices", "cadastrar");
+        const temPermissaoAlterar = temPermissao("AtualizarIndices", "alterar");
 
         const metodo = idEquip ? "PUT" : "POST";
 
@@ -117,10 +117,10 @@ function verificaAtualizarindice() {
         // Verifica alterações
         if (
             idEquip &&
-            parseInt(idEquip) === parseInt(window.AtualizarindiceOriginal?.idEquip) &&
-            descEquip === window.AtualizarindiceOriginal?.descEquip &&
-            Number(custo).toFixed(2) === Number(window.AtualizarindiceOriginal?.vlrCusto).toFixed(2) &&
-            Number(venda).toFixed(2) === Number(window.AtualizarindiceOriginal?.vlrVenda).toFixed(2)
+            parseInt(idEquip) === parseInt(window.AtualizarIndiceOriginal?.idEquip) &&
+            descEquip === window.AtualizarIndiceOriginal?.descEquip &&
+            Number(custo).toFixed(2) === Number(window.AtualizarIndiceOriginal?.vlrCusto).toFixed(2) &&
+            Number(venda).toFixed(2) === Number(window.AtualizarIndiceOriginal?.vlrVenda).toFixed(2)
         ) {
             return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
         }
@@ -151,8 +151,8 @@ function verificaAtualizarindice() {
                 body: JSON.stringify(dados)
             });            
 
-            await Swal.fire("Sucesso!", respostaApi.message || "Atualizarindice salvo com sucesso.", "success");
-            limparCamposAtualizarindice();
+            await Swal.fire("Sucesso!", respostaApi.message || "AtualizarIndice salvo com sucesso.", "success");
+            limparCamposAtualizarIndice();
 
         } catch (error) {
             console.error("Erro ao enviar dados:", error);
@@ -162,12 +162,12 @@ function verificaAtualizarindice() {
 
     botaoPesquisar.addEventListener("click", async function (event) {
     event.preventDefault();
-    limparCamposAtualizarindice();
+    limparCamposAtualizarIndice();
 
-    console.log("Pesquisando Atualizarindice...");
+    console.log("Pesquisando AtualizarIndice...");
 
     // Verifica permissão
-    const temPermissaoPesquisar = temPermissao("Atualizarindices", "pesquisar");
+    const temPermissaoPesquisar = temPermissao("AtualizarIndices", "pesquisar");
 
     if (!temPermissaoPesquisar) {
         return Swal.fire(
@@ -189,10 +189,10 @@ function verificaAtualizarindice() {
             });
         }
 
-        console.log("Atualizarindices encontrados:", equipamentos);
+        console.log("AtualizarIndices encontrados:", equipamentos);
 
-        const select = criarSelectAtualizarindice(equipamentos);
-        limparCamposAtualizarindice();
+        const select = criarSelectAtualizarIndice(equipamentos);
+        limparCamposAtualizarIndice();
 
         const input = document.querySelector("#descEquip");
 
@@ -214,7 +214,7 @@ function verificaAtualizarindice() {
                 return;
             }
 
-            await carregarAtualizarindiceDescricao(desc, this);
+            await carregarAtualizarIndiceDescricao(desc, this);
 
             const novoInput = document.createElement("input");
             novoInput.type = "text";
@@ -229,21 +229,21 @@ function verificaAtualizarindice() {
             });
 
             this.parentNode.replaceChild(novoInput, this);
-            adicionarEventoBlurAtualizarindice();
+            adicionarEventoBlurAtualizarIndice();
 
             if (label) {
                 label.style.display = "block";
-                label.textContent = "Descrição do Atualizarindice";
+                label.textContent = "Descrição do AtualizarIndice";
             }
 
             novoInput.addEventListener("blur", async function () {
                 if (!this.value.trim()) return;
-                await carregarAtualizarindiceDescricao(this.value, this);
+                await carregarAtualizarIndiceDescricao(this.value, this);
             });
         });
 
     } catch (error) {
-        console.error("Erro ao carregar Atualizarindices:", error);
+        console.error("Erro ao carregar AtualizarIndices:", error);
         Swal.fire({
             icon: 'error',
             title: 'Erro',
@@ -273,7 +273,7 @@ function adicionarListenersAoInputDescEquip(inputElement) {
 
     novoInputDescEquipBlurListener = async function() {
         if (!this.value.trim()) return;
-        await carregarAtualizarindiceDescricao(this.value, this);
+        await carregarAtualizarIndiceDescricao(this.value, this);
     };
     inputElement.addEventListener("blur", novoInputDescEquipBlurListener);
 }
@@ -288,15 +288,15 @@ function resetarCampoDescEquipParaInput() {
         input.id = "descEquip";
         input.name = "descEquip";
         input.value = ""; // Limpa o valor
-        input.placeholder = "Descrição do Atualizarindice";
+        input.placeholder = "Descrição do AtualizarIndice";
         input.className = "form";
         input.classList.add('uppercase');
         input.required = true;
 
         // Remove o listener do select antes de substituí-lo
-        if (selectAtualizarindiceChangeListener) {
-            descEquipCampo.removeEventListener("change", selectAtualizarindiceChangeListener);
-            selectAtualizarindiceChangeListener = null;
+        if (selectAtualizarIndiceChangeListener) {
+            descEquipCampo.removeEventListener("change", selectAtualizarIndiceChangeListener);
+            selectAtualizarIndiceChangeListener = null;
         }
 
         descEquipCampo.parentNode.replaceChild(input, descEquipCampo);
@@ -305,17 +305,17 @@ function resetarCampoDescEquipParaInput() {
         const label = document.querySelector('label[for="descEquip"]');
         if (label) {
             label.style.display = "block";
-            label.textContent = "Descrição do Atualizarindice";
+            label.textContent = "Descrição do AtualizarIndice";
         }
     }
 }
 
 
 // =============================================================================
-// Função de Desinicialização do Módulo Atualizarindices
+// Função de Desinicialização do Módulo AtualizarIndices
 // =============================================================================
-function desinicializarAtualizarindiceModal() {
-    console.log("🧹 Desinicializando módulo Atualizarindices.js...");
+function desinicializarAtualizarIndiceModal() {
+    console.log("🧹 Desinicializando módulo AtualizarIndices.js...");
 
     const descEquipElement = document.querySelector("#descEquip");
     const botaoEnviar = document.querySelector("#Enviar");
@@ -323,20 +323,20 @@ function desinicializarAtualizarindiceModal() {
     const botaoLimpar = document.querySelector("#Limpar");
 
     // 1. Remover listeners de eventos dos elementos fixos
-    if (botaoLimpar && limparAtualizarindiceButtonListener) {
-        botaoLimpar.removeEventListener("click", limparAtualizarindiceButtonListener);
-        limparAtualizarindiceButtonListener = null;
-        console.log("Listener de click do Limpar (Atualizarindices) removido.");
+    if (botaoLimpar && limparAtualizarIndiceButtonListener) {
+        botaoLimpar.removeEventListener("click", limparAtualizarIndiceButtonListener);
+        limparAtualizarIndiceButtonListener = null;
+        console.log("Listener de click do Limpar (AtualizarIndices) removido.");
     }
-    if (botaoEnviar && enviarAtualizarindiceButtonListener) {
-        botaoEnviar.removeEventListener("click", enviarAtualizarindiceButtonListener);
-        enviarAtualizarindiceButtonListener = null;
-        console.log("Listener de click do Enviar (Atualizarindices) removido.");
+    if (botaoEnviar && enviarAtualizarIndiceButtonListener) {
+        botaoEnviar.removeEventListener("click", enviarAtualizarIndiceButtonListener);
+        enviarAtualizarIndiceButtonListener = null;
+        console.log("Listener de click do Enviar (AtualizarIndices) removido.");
     }
-    if (botaoPesquisar && pesquisarAtualizarindiceButtonListener) {
-        botaoPesquisar.removeEventListener("click", pesquisarAtualizarindiceButtonListener);
-        pesquisarAtualizarindiceButtonListener = null;
-        console.log("Listener de click do Pesquisar (Atualizarindices) removido.");
+    if (botaoPesquisar && pesquisarAtualizarIndiceButtonListener) {
+        botaoPesquisar.removeEventListener("click", pesquisarAtualizarIndiceButtonListener);
+        pesquisarAtualizarIndiceButtonListener = null;
+        console.log("Listener de click do Pesquisar (AtualizarIndices) removido.");
     }
 
     // 2. Remover listeners do campo descEquip (que pode ser input ou select)
@@ -358,24 +358,24 @@ function desinicializarAtualizarindiceModal() {
                 console.log("Listener de blur do descEquip (input dinâmico) removido.");
             }
 
-        } else if (descEquipElement.tagName.toLowerCase() === "select" && selectAtualizarindiceChangeListener) {
-            descEquipElement.removeEventListener("change", selectAtualizarindiceChangeListener);
-            selectAtualizarindiceChangeListener = null;
+        } else if (descEquipElement.tagName.toLowerCase() === "select" && selectAtualizarIndiceChangeListener) {
+            descEquipElement.removeEventListener("change", selectAtualizarIndiceChangeListener);
+            selectAtualizarIndiceChangeListener = null;
             console.log("Listener de change do select descEquip removido.");
         }
     }
 
     // 3. Limpar o estado global e campos do formulário
-    window.AtualizarindiceOriginal = null; // Zera o objeto de equipamento original
-    limparCamposAtualizarindice(); // Limpa todos os campos visíveis do formulário
+    window.AtualizarIndiceOriginal = null; // Zera o objeto de equipamento original
+    limparCamposAtualizarIndice(); // Limpa todos os campos visíveis do formulário
    // document.querySelector("#form").reset(); // Garante que o formulário seja completamente resetado
     document.querySelector("#idEquip").value = ""; // Limpa o ID oculto
     resetarCampoDescEquipParaInput(); // Garante que o campo descEquip volte a ser um input padrão
 
-    console.log("✅ Módulo Atualizarindices.js desinicializado.");
+    console.log("✅ Módulo AtualizarIndices.js desinicializado.");
 }
 
-function criarSelectAtualizarindice(equipamentos) {
+function criarSelectAtualizarIndice(equipamentos) {
    
     const select = document.createElement("select");
     select.id = "descEquip";
@@ -387,7 +387,7 @@ function criarSelectAtualizarindice(equipamentos) {
     // Adicionar opções
     const defaultOption = document.createElement("option");
     defaultOption.value = "";
-    defaultOption.text = "Selecione um Atualizarindice...";
+    defaultOption.text = "Selecione um AtualizarIndice...";
     defaultOption.disabled = true;
     defaultOption.selected = true;
     select.appendChild(defaultOption);
@@ -412,7 +412,7 @@ document.addEventListener("mousedown", (e) => {
     window.ultimoClique = e.target;
 });
 
-function adicionarEventoBlurAtualizarindice() {
+function adicionarEventoBlurAtualizarIndice() {
     const input = document.querySelector("#descEquip");
     if (!input) return;   
     
@@ -435,25 +435,25 @@ function adicionarEventoBlurAtualizarindice() {
         if (!desc) return;
 
         try {
-            await carregarAtualizarindiceDescricao(desc, this);
-            console.log("Atualizarindice selecionado depois de carregarAtualizarindiceDescricao:", this.value);
+            await carregarAtualizarIndiceDescricao(desc, this);
+            console.log("AtualizarIndice selecionado depois de carregarAtualizarIndiceDescricao:", this.value);
         } catch (error) {
-            console.error("Erro ao buscar Atualizarindice:", error);
+            console.error("Erro ao buscar AtualizarIndice:", error);
         }
     });
 }
 
-async function carregarAtualizarindiceDescricao(desc, elementoAtual) {
+async function carregarAtualizarIndiceDescricao(desc, elementoAtual) {
     try {
         const equipamentos = await fetchComToken(`/equipamentos?descEquip=${encodeURIComponent(desc)}`);
        
-        if (!equipamentos || !equipamentos.idequip) throw new Error("Atualizarindice não encontrada");
+        if (!equipamentos || !equipamentos.idequip) throw new Error("AtualizarIndice não encontrada");
      
         document.querySelector("#idEquip").value = equipamentos.idequip;
         document.querySelector("#ctoEquip").value = equipamentos.ctoequip;
         document.querySelector("#vdaEquip").value = equipamentos.vdaequip;
 
-        window.AtualizarindiceOriginal = {
+        window.AtualizarIndiceOriginal = {
             idEquip: equipamentos.idequip,
             descEquip: equipamentos.descequip,
             vlrCusto: equipamentos.ctoequip,
@@ -463,8 +463,8 @@ async function carregarAtualizarindiceDescricao(desc, elementoAtual) {
     } catch (error) {
         //console.warn("Erro ao buscar equipamento:", error);
 
-        const temPermissaoCadastrar = temPermissao("Atualizarindices", "cadastrar");
-        const temPermissaoAlterar = temPermissao("Atualizarindices", "alterar");
+        const temPermissaoCadastrar = temPermissao("AtualizarIndices", "cadastrar");
+        const temPermissaoAlterar = temPermissao("AtualizarIndices", "alterar");
 
         const metodo = idEquip ? "PUT" : "POST";
 
@@ -482,17 +482,17 @@ async function carregarAtualizarindiceDescricao(desc, elementoAtual) {
 
         const dados = { descEquip };        
 
-        if (parseInt(idEquip) === parseInt(window.AtualizarindiceOriginal?.idEquip)) {
-            console.log("Atualizarindice não alterado, não será enviado.");
+        if (parseInt(idEquip) === parseInt(window.AtualizarIndiceOriginal?.idEquip)) {
+            console.log("AtualizarIndice não alterado, não será enviado.");
         }
-        if (descEquip === window.AtualizarindiceOriginal?.descEquip) {
-            console.log("Atualizarindice não alterado, não será enviado.");
+        if (descEquip === window.AtualizarIndiceOriginal?.descEquip) {
+            console.log("AtualizarIndice não alterado, não será enviado.");
         }
         // Verifica alterações
         if (
 
-            parseInt(idEquip) === parseInt(window.AtualizarindiceOriginal?.idEquip) &&
-            descEquip === window.AtualizarindiceOriginal?.descEquip
+            parseInt(idEquip) === parseInt(window.AtualizarIndiceOriginal?.idEquip) &&
+            descEquip === window.AtualizarIndiceOriginal?.descEquip
         ) {
             return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
         }
@@ -506,7 +506,7 @@ async function carregarAtualizarindiceDescricao(desc, elementoAtual) {
             if (metodo === "PUT") {
                 const { isConfirmed } = await Swal.fire({
                     title: "Deseja salvar as alterações?",
-                    text: "Você está prestes a atualizar os dados do Atualizarindice.",
+                    text: "Você está prestes a atualizar os dados do AtualizarIndice.",
                     icon: "question",
                     showCancelButton: true,
                     confirmButtonText: "Sim, salvar",
@@ -526,8 +526,8 @@ async function carregarAtualizarindiceDescricao(desc, elementoAtual) {
                 body: JSON.stringify(dados)
             });            
 
-            await Swal.fire("Sucesso!", respostaApi.message || "Atualizarindice salvo com sucesso.", "success");
-            limparCamposAtualizarindice();
+            await Swal.fire("Sucesso!", respostaApi.message || "AtualizarIndice salvo com sucesso.", "success");
+            limparCamposAtualizarIndice();
 
         } catch (error) {
             console.error("Erro ao enviar dados:", error);
@@ -537,8 +537,8 @@ async function carregarAtualizarindiceDescricao(desc, elementoAtual) {
 }
 
 
-function limparAtualizarindiceOriginal() {
-    window.AtualizarindiceOriginal = {
+function limparAtualizarIndiceOriginal() {
+    window.AtualizarIndiceOriginal = {
         idEquip: "",
         descEquip: "",
         vlrCusto: "",
@@ -546,7 +546,7 @@ function limparAtualizarindiceOriginal() {
     };
 }
 
-function limparCamposAtualizarindice() {
+function limparCamposAtualizarIndice() {
     const campos = ["idEquip", "descEquip","ctoEquip", "vdaEquip" ];
     campos.forEach(id => {
         const campo = document.getElementById(id);
@@ -555,20 +555,20 @@ function limparCamposAtualizarindice() {
     
 }
 
-function configurarEventosAtualizarindice() {
-    console.log("Configurando eventos Atualizarindice...");
-    verificaAtualizarindice(); // Carrega os Atualizarindice ao abrir o modal
-    adicionarEventoBlurAtualizarindice();
-    console.log("Entrou configurar Atualizarindice no EQUIPAMENTO.js.");
+function configurarEventosAtualizarIndice() {
+    console.log("Configurando eventos AtualizarIndice...");
+    verificaAtualizarIndice(); // Carrega os AtualizarIndice ao abrir o modal
+    adicionarEventoBlurAtualizarIndice();
+    console.log("Entrou configurarAtualizarIndice no ATUALIZARINDICE.js.");
     
 
 } 
-window.configurarEventosAtualizarindice = configurarEventosAtualizarindice;
+window.configurarEventosAtualizarIndice = configurarEventosAtualizarIndice;
 
 function configurarEventosEspecificos(modulo) {
   console.log("⚙️ configurarEventosEspecificos recebeu:", modulo);
   if (modulo.trim().toLowerCase() === 'atualizarindices') {
-    configurarEventosAtualizarindice();
+    configurarEventosAtualizarIndice();
     
     if (typeof aplicarPermissoes === "function" && window.permissoes) {
       aplicarPermissoes(window.permissoes);
@@ -581,7 +581,7 @@ window.configurarEventosEspecificos = configurarEventosEspecificos;
 
 window.moduloHandlers = window.moduloHandlers || {};
 
-window.moduloHandlers['Atualizarindices'] = { // A chave 'Atualizarindices' (com E maiúsculo) deve corresponder ao seu Index.js
-    configurar: configurarEventosAtualizarindice,
-    desinicializar: desinicializarAtualizarindiceModal
+window.moduloHandlers['AtualizarIndices'] = { // A chave 'AtualizarIndices' (com E maiúsculo) deve corresponder ao seu Index.js
+    configurar: configurarEventosAtualizarIndice,
+    desinicializar: desinicializarAtualizarIndiceModal
 };

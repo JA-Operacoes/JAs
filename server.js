@@ -23,7 +23,17 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use('/uploads', express.static('uploads'));
+//app.use('/uploads', express.static('uploads'));
+
+const uploadsPath = path.join(__dirname, 'uploads');
+app.use('/uploads', express.static(uploadsPath, {
+  setHeaders: (res, filePath) => {
+    if (filePath.toLowerCase().endsWith('.jfif')) {
+      console.log('Servindo JFIF como image/jpeg:', filePath);
+      res.setHeader('Content-Type', 'image/jpeg');
+    }
+  }
+}));
 
 // const authRoutes = require('./routes/auth');
 // app.use('/auth', authRoutes);

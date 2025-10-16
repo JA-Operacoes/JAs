@@ -4019,15 +4019,15 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
         
         if (aplicarReajuste) {
             // Aplica fator geral em Custo e Venda
-            vlrDiaria *= fatorGeral;
-            ctoDiaria *= fatorGeral;
+            vlrDiaria = Math.round(vlrDiaria * fatorGeral);
+            ctoDiaria = Math.round(ctoDiaria * fatorGeral);
             
             // Aplica fator de ajuda em Alimentação e Transporte
-            vlrAjdAlimentacao *= fatorAjuda;
-            vlrAjdTransporte *= fatorAjuda;
+            vlrAjdAlimentacao = Math.round(vlrAjdAlimentacao * fatorAjuda);
+            vlrAjdTransporte = Math.round(vlrAjdTransporte * fatorAjuda);
 
-            vlrHospedagem *= fatorGeral;
-            vlrTransporte *= fatorGeral;
+            vlrHospedagem = Math.round(vlrHospedagem * fatorGeral);
+            vlrTransporte = Math.round(vlrTransporte * fatorGeral);
 
             // ZERA o ID do item para garantir que ele seja INSERIDO como novo no SAVE (Backend)
             itemOrcamentoID = ''; 

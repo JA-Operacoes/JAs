@@ -546,9 +546,9 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                 o.nrorcamento,
                 oi.produto AS "INFORMAÇÕES EM PROPOSTA",
                 SUM(oi.qtditens) AS "QTD PROFISSIONAIS",
-                SUM(oi.qtddias) AS "DIÁRIAS CONTRATADAS",
+                SUM(oi.qtditens * oi.qtddias) AS "DIÁRIAS CONTRATADAS",
                 COALESCE(MAX(td.diarias_utilizadas_por_funcao), 0) AS "DIÁRIAS UTILIZADAS",
-                SUM(oi.qtddias) - COALESCE(MAX(td.diarias_utilizadas_por_funcao), 0) AS "SALDO"
+                SUM(oi.qtditens * oi.qtddias) - COALESCE(MAX(td.diarias_utilizadas_por_funcao), 0) AS "SALDO"
             FROM
                 orcamentos o
             JOIN orcamentoitens oi ON oi.idorcamento = o.idorcamento
