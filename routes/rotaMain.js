@@ -99,7 +99,7 @@ router.get("/eventos-calendario", async (req, res) => {
             SELECT DISTINCT ON (e.idevento, o.dtiniinframontagem, o.dtfiminframontagem,
                                o.dtinimarcacao, o.dtfimmarcacao,
                                o.dtinimontagem, o.dtfimmontagem,
-                               o.dtinirealizacao, o.dtfimrealizacao,
+                               o.dtinirealizacao, o.dtfimdesmontagem,
                                o.dtinidesmontagem, o.dtfimdesmontagem,
                                o.dtiniinfradesmontagem, o.dtfiminfradesmontagem)
                    e.idevento,
@@ -108,7 +108,7 @@ router.get("/eventos-calendario", async (req, res) => {
                        WHEN COUNT(*) OVER (PARTITION BY e.idevento, o.dtiniinframontagem, o.dtfiminframontagem,
                                            o.dtinimarcacao, o.dtfimmarcacao,
                                            o.dtinimontagem, o.dtfimmontagem,
-                                           o.dtinirealizacao, o.dtfimrealizacao,
+                                           o.dtinirealizacao, o.dtfimdesmontagem,
                                            o.dtinidesmontagem, o.dtfimdesmontagem,
                                            o.dtiniinfradesmontagem, o.dtfiminfradesmontagem) > 1 
                        THEN ' - ' || COALESCE(o.nomenclatura, '') 
@@ -117,7 +117,7 @@ router.get("/eventos-calendario", async (req, res) => {
                    o.dtiniinframontagem, o.dtfiminframontagem,
                    o.dtinimarcacao, o.dtfimmarcacao,
                    o.dtinimontagem, o.dtfimmontagem,
-                   o.dtinirealizacao, o.dtfimrealizacao,
+                   o.dtinirealizacao, o.dtfimdesmontagem,
                    o.dtinidesmontagem, o.dtfimdesmontagem,
                    o.dtiniinfradesmontagem, o.dtfiminfradesmontagem
             FROM orcamentos o
@@ -132,7 +132,7 @@ router.get("/eventos-calendario", async (req, res) => {
                   (EXTRACT(YEAR FROM o.dtinimontagem) = $2 AND EXTRACT(MONTH FROM o.dtinimontagem) = $3) OR
                   (EXTRACT(YEAR FROM o.dtfimmontagem) = $2 AND EXTRACT(MONTH FROM o.dtfimmontagem) = $3) OR
                   (EXTRACT(YEAR FROM o.dtinirealizacao) = $2 AND EXTRACT(MONTH FROM o.dtinirealizacao) = $3) OR
-                  (EXTRACT(YEAR FROM o.dtfimrealizacao) = $2 AND EXTRACT(MONTH FROM o.dtfimrealizacao) = $3) OR
+                  (EXTRACT(YEAR FROM o.dtfimdesmontagem) = $2 AND EXTRACT(MONTH FROM o.dtfimdesmontagem) = $3) OR
                   (EXTRACT(YEAR FROM o.dtinidesmontagem) = $2 AND EXTRACT(MONTH FROM o.dtinidesmontagem) = $3) OR
                   (EXTRACT(YEAR FROM o.dtfimdesmontagem) = $2 AND EXTRACT(MONTH FROM o.dtfimdesmontagem) = $3) OR
                   (EXTRACT(YEAR FROM o.dtiniinfradesmontagem) = $2 AND EXTRACT(MONTH FROM o.dtiniinfradesmontagem) = $3) OR
@@ -150,7 +150,7 @@ router.get("/eventos-calendario", async (req, res) => {
                 { tipo: "Montagem Infra", inicio: ev.dtiniinframontagem, fim: ev.dtfiminframontagem },
                 { tipo: "Marcação",        inicio: ev.dtinimarcacao,  fim: ev.dtfimmarcacao },
                 { tipo: "Montagem",        inicio: ev.dtinimontagem,  fim: ev.dtfimmontagem },
-                { tipo: "Realização",      inicio: ev.dtinirealizacao, fim: ev.dtfimrealizacao },
+                { tipo: "Realização",      inicio: ev.dtinirealizacao, fim: ev.dtfimdesmontagem },
                 { tipo: "Desmontagem",     inicio: ev.dtinidesmontagem, fim: ev.dtfimdesmontagem },
                 { tipo: "Desmontagem Infra", inicio: ev.dtiniinfradesmontagem, fim: ev.dtfiminfradesmontagem },
             ];
@@ -259,52 +259,50 @@ router.get('/notificacoes-financeiras', async (req, res) => {
     // Busca logs (trazendo também status atuais da tabela staffeventos e dtfim das "ordens")
     const { rows } = await pool.query(`
       SELECT 
-        l.idregistroalterado AS id,
-        l.idexecutor,
-        l.idusuarioalvo,
-        f.nome AS nomefuncionario,
-        (u.nome || ' ' || u.sobrenome) AS nomesolicitante,
-        l.dadosnovos,
-        l.dadosnovos->>'datasevento' AS datasevento,
-        l.dadosnovos->>'vlrcaixinha' AS vlrcaixinha,
-        l.dadosnovos->>'desccaixinha' AS desccaixinha,
-        l.dadosnovos->>'vlrajustecusto' AS vlrajustecusto,
-        l.dadosnovos->>'descajustecusto' AS descajustecusto,
-        l.dadosnovos->>'datameiadiaria' AS vlrmeiadiaria,
-        l.dadosnovos->>'descmeiadiaria' AS descmeiadiaria,
-        l.dadosnovos->>'datadiariadobrada' AS vlrdiariadobrada,
-        l.dadosnovos->>'descdiariadobrada' AS descdiariadobrada,
+      l.idregistroalterado AS id,
+      l.idexecutor,
+      -- pega idusuarioalvo: primeiro da tabela, senão do JSON
+      COALESCE(l.idusuarioalvo, (l.dadosnovos->>'idfuncionario')::int) AS idusuarioalvo,
+      -- pega nomefuncionario: primeiro da tabela, senão do JSON
+      COALESCE(f.nome, l.dadosnovos->>'nmfuncionario') AS nomefuncionario,
+      (u.nome || ' ' || u.sobrenome) AS nomesolicitante,
+      l.dadosnovos,
+      l.dadosnovos->>'datasevento' AS datasevento,
+      l.dadosnovos->>'vlrcaixinha' AS vlrcaixinha,
+      l.dadosnovos->>'desccaixinha' AS desccaixinha,
+      l.dadosnovos->>'vlrajustecusto' AS vlrajustecusto,
+      l.dadosnovos->>'descajustecusto' AS descajustecusto,
+      l.dadosnovos->>'datameiadiaria' AS vlrmeiadiaria,
+      l.dadosnovos->>'descmeiadiaria' AS descmeiadiaria,
+      l.dadosnovos->>'datadiariadobrada' AS vlrdiariadobrada,
+      l.dadosnovos->>'descdiariadobrada' AS descdiariadobrada,
 
-        -- pega o status mais atual: primeiro do staffeventos (se), senão do dadosnovos (logs)
-        COALESCE(se.statuscaixinha::text, l.dadosnovos->>'statuscaixinha') AS statuscaixinha,
-        COALESCE(se.statusajustecusto::text, l.dadosnovos->>'statusajustecusto') AS statusajustecusto,
-        COALESCE(se.statusmeiadiaria::text, l.dadosnovos->>'statusmeiadiaria') AS statusmeiadiaria,
-        COALESCE(se.statusdiariadobrada::text, l.dadosnovos->>'statusdiariadobrada') AS statusdiariadobrada,
+      -- status mais atual
+      COALESCE(se.statuscaixinha::text, l.dadosnovos->>'statuscaixinha') AS statuscaixinha,
+      COALESCE(se.statusajustecusto::text, l.dadosnovos->>'statusajustecusto') AS statusajustecusto,
+      COALESCE(se.statusmeiadiaria::text, l.dadosnovos->>'statusmeiadiaria') AS statusmeiadiaria,
+      COALESCE(se.statusdiariadobrada::text, l.dadosnovos->>'statusdiariadobrada') AS statusdiariadobrada,
 
-        e.nmevento AS evento,
-        -- pega dt fim conforme sua regra: prefere o.dtfiminfradesmontagem, se null usa o.dtfimdesmontagem
-        COALESCE(o.dtfiminfradesmontagem, o.dtfimdesmontagem) AS dtfimrealizacao,
-        l.criado_em
-      FROM logs l
-      LEFT JOIN funcionarios f ON f.idfuncionario = l.idusuarioalvo
-      LEFT JOIN usuarios u ON u.idusuario = l.idexecutor
-      LEFT JOIN eventos e ON e.idevento = NULLIF(l.dadosnovos->>'idevento','')::int
-      LEFT JOIN staffeventos se ON se.idstaffevento = l.idregistroalterado
-
-      -- <<== ATENÇÃO: substitua 'ordens' e a condição abaixo pela tabela/coluna correta do seu esquema que contém
-      -- dtfiminfradesmontagem / dtfimdesmontagem. Eu usei "ordens" como exemplo.
-      LEFT JOIN orcamentos o ON o.idevento = e.idevento
-
-      WHERE l.idempresa = $1
-        AND l.modulo = 'staffeventos'
-        AND ($2 = TRUE OR l.idexecutor = $3)
-      ORDER BY l.criado_em DESC
+      e.nmevento AS evento,
+      COALESCE(o.dtfiminfradesmontagem, o.dtfimdesmontagem) AS dtfimrealizacao,
+      l.criado_em,
+      l.modulo
+  FROM logs l
+  LEFT JOIN funcionarios f ON f.idfuncionario = l.idusuarioalvo
+  LEFT JOIN usuarios u ON u.idusuario = l.idexecutor
+  LEFT JOIN eventos e ON e.idevento = NULLIF(l.dadosnovos->>'idevento','')::int
+  LEFT JOIN staffeventos se ON se.idstaffevento = l.idregistroalterado
+  LEFT JOIN orcamentos o ON o.idevento = e.idevento
+  WHERE l.idempresa = $1
+    AND l.modulo IN ('staffeventos','staff')
+    AND ($2 = TRUE OR l.idexecutor = $3)
+  ORDER BY l.criado_em DESC;
     `, [idempresa, ehMasterStaff, idusuario]);
 
     // Monta os pedidos
     const pedidos = rows.map(r => {
       let dados = {};
-      try { dados = JSON.parse(r.dadosnovos); } catch { /* ignore */ }
+      try { dados = JSON.parse(r.dadosnovos); } catch { /* ignore */ }    
 
       function parseValor(v) {
         if (!v) return 0;
@@ -345,7 +343,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
         tipopedido: 'Financeiro',
         criado_em: r.criado_em,
         datasevento: r.datasevento || dados.datasevento || '-',
-        dtfimrealizacao: r.dtfimrealizacao || dados.dtfimrealizacao || null,
+        dtfimdesmontagem: r.dtfimdesmontagem || dados.dtfimdesmontagem || null,
         quantidade: r.quantidade || dados.quantidade || 1,
         vlrtotal: parseValor(r.vlrtotal || dados.vlrtotal),
         descricao: r.desccaixinha || r.descmeiadiaria || dados.desccaixinha || dados.descmeiadiaria || '-',
@@ -356,6 +354,8 @@ router.get('/notificacoes-financeiras', async (req, res) => {
         statusmeiadiaria: montarCampo(r.statusmeiadiaria || dados.statusmeiadiaria, null, r.descmeiadiaria || dados.descmeiadiaria, r.vlrmeiadiaria || dados.vlrmeiadiaria)
       };
     })
+
+    
     .filter(p => {
       const campos = ['statuscaixinha','statusajustecusto','statusdiariadobrada','statusmeiadiaria'];
       // mantém apenas se tiver algum campo relevante
@@ -369,18 +369,21 @@ router.get('/notificacoes-financeiras', async (req, res) => {
       });
       if (jaFinalizado) return false;
 
-      // se existe dtfimrealizacao, remove 2 dias após fim do evento
-      if (p.dtfimrealizacao) {
-        const fim = new Date(p.dtfimrealizacao);
-        if (!isNaN(fim.getTime())) {
-          const limite = new Date(fim);
-          limite.setDate(fim.getDate() + 10);
-          if (new Date() > limite) return false; // passou 2 dias depois do fim -> remove
-        }
+      // se existe dtfimdesmontagem, remove 2 dias após fim do evento
+      if (p.dtfiminfradesmontagem || p.dtfimdesmontagem) {
+      const fim = new Date(p.dtfiminfradesmontagem || p.dtfimdesmontagem);
+
+      if (!isNaN(fim.getTime())) {
+        const limite = new Date(fim);
+        limite.setDate(fim.getDate() + 10); // mantém o prazo de 10 dias após o fim
+
+        if (new Date() > limite) return false; // passou do prazo -> remove
       }
+  }
+
 
       return true;
-    });
+    });    
 
     res.json(pedidos);
 
@@ -389,6 +392,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
     res.status(500).json({ error: 'Erro ao buscar notificações financeiras' });
   }
 });
+
 router.post('/notificacoes-financeiras/atualizar-status', 
   logMiddleware('main', {
     buscarDadosAnteriores: async (req) => {
