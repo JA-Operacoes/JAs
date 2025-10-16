@@ -125,6 +125,12 @@ fieldset {
   border-color: var(--dark-base-color);
 }
 
+legend{
+  display: flex;
+  margin-left: 20px;
+  padding: 0 5px;
+}
+
 /* Grid Principal */
 .Perfil {
   display: grid;
@@ -189,7 +195,7 @@ fieldset {
 }
 .form input{
   font-family:  var(--Font-primary);
-  width: 350px;
+  width: 150px;
   height: 30px;
   border-radius: 6px;
   font-size: 12px;
@@ -202,7 +208,7 @@ fieldset {
 
 .form2 input{
   font-family: var(--Font-primary);
-  width: 270px;
+  width: 150px;
   height: 30px;
   border-radius: 6px;
   font-size: 12px;
@@ -262,20 +268,21 @@ input:focus{
 input:focus ~ label,
 input:valid ~ label,
 input:not([value=""]) ~ label{
-  top: 0;
-  left: 25%;
+  top: -2px;
+  left: 44%;
   font-size: 10px;
   padding: 0 2px;
   background: #cacaca;
 }
 
 input:not([value=""]) ~ label {
-  top: 0;
-  left: 25%;
-  font-size: 15px;
+  top: -2px;
+  left: 25px;
+  font-size: 10px;
   padding: 0 2px;
   background: #cacaca; /* Certifique-se que esta cor corresponde ao background do seu #form-content ou fieldset */
 }
+
 
 #idEquip.has-value + label,
 #idEquip:focus + label {
