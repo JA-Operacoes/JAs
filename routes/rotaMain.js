@@ -304,7 +304,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
     // Monta os pedidos
     const pedidos = rows.map(r => {
       let dados = {};
-      try { dados = JSON.parse(r.dadosnovos); } catch { /* ignore */ }
+      try { dados = JSON.parse(r.dadosnovos); } catch { /* ignore */ }    
 
       function parseValor(v) {
         if (!v) return 0;
@@ -356,6 +356,8 @@ router.get('/notificacoes-financeiras', async (req, res) => {
         statusmeiadiaria: montarCampo(r.statusmeiadiaria || dados.statusmeiadiaria, null, r.descmeiadiaria || dados.descmeiadiaria, r.vlrmeiadiaria || dados.vlrmeiadiaria)
       };
     })
+
+    
     .filter(p => {
       const campos = ['statuscaixinha','statusajustecusto','statusdiariadobrada','statusmeiadiaria'];
       // mantém apenas se tiver algum campo relevante
@@ -380,7 +382,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
       }
 
       return true;
-    });
+    });    
 
     res.json(pedidos);
 
@@ -389,6 +391,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
     res.status(500).json({ error: 'Erro ao buscar notificações financeiras' });
   }
 });
+
 router.post('/notificacoes-financeiras/atualizar-status', 
   logMiddleware('main', {
     buscarDadosAnteriores: async (req) => {

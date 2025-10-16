@@ -680,7 +680,7 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                 semp.idempresa = $1 ${wherePeriodo}
                 AND tse.statusajustecusto = 'Autorizado' 
                 AND tse.vlrajustecusto IS NOT NULL 
-                AND tse.vlrajustecusto > 0
+                AND tse.vlrajustecusto != 0
 
             UNION ALL
             
