@@ -53,7 +53,7 @@ router.put("/:id", autenticarToken({ verificarEmpresa: false }), verificarPermis
       const idCatFuncao = req.params.id; 
       const idempresa = req.idempresa; 
      
-      if (!idFuncao) {
+      if (!idCatFuncao) {
           return { dadosanteriores: null, idregistroalterado: null };
       }
       
@@ -61,7 +61,7 @@ router.put("/:id", autenticarToken({ verificarEmpresa: false }), verificarPermis
           const result = await pool.query(
               `SELECT cf.* FROM categoriafuncao cf
                 INNER JOIN categoriafuncaoempresas cfe ON cfe.idcategoriafuncao = cf.idcategoriafuncao
-                WHERE cf.idcatFuncao = $1 AND cfe.idempresa = $2`,
+                WHERE cf.idcategoriafuncao = $1 AND cfe.idempresa = $2`,
               [idCatFuncao, idempresa]
           );
           const linha = result.rows[0] || null;
@@ -104,10 +104,10 @@ router.put("/:id", autenticarToken({ verificarEmpresa: false }), verificarPermis
     try {
       const result = await pool.query(
         `UPDATE categoriafuncao cf
-         SET nmcategoriafunca = $1, ctofuncaosenior = $2, ctofuncaopleno = $3, ctofuncaojunior = $4, ctofuncaobase = $5, vdafuncao = $6, transporte = $7, 
-              transpsenior = $8, alimentacao = $10
+         SET nmcategoriafuncao = $1, ctofuncaosenior = $2, ctofuncaopleno = $3, ctofuncaojunior = $4, ctofuncaobase = $5, vdafuncao = $6, transporte = $7, 
+              transpsenior = $8, alimentacao = $9
          FROM categoriafuncaoempresas cfe
-         WHERE cf.idcatFuncao = $11 AND cfe.idcategoriafuncao = cf.idcategoriafuncao AND cfe.idempresa = $12
+         WHERE cf.idcategoriafuncao = $10 AND cfe.idcategoriafuncao = cf.idcategoriafuncao AND cfe.idempresa = $11
          RETURNING cf.idcategoriafuncao`,
         [descCatFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, alimentacao, id, idempresa]
       );

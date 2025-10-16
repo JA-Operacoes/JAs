@@ -478,7 +478,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
             const dadosUtilizacaoDoOrcamento = utilizacaoAgrupada[nroOrcamento] || [];
             
             // Se for o PRIMEIRO orçamento, ele pode ter a Contingência ao lado
-            const deveIncluirContingencia = (index === 0 && nomeRelatorio.toUpperCase() === 'CACHÊ');
+            const deveIncluirContingencia = (index === 0 && (nomeRelatorio.toUpperCase() === 'CACHÊ' || nomeRelatorio.toUpperCase() === 'AJUDA DE CUSTO'));
 
             // INÍCIO DO WRAPPER: .resumo-par-orcamento (Lado a Lado)
             // O wrapper só precisa de duas colunas, então se só tiver Utilização, ele continua lado a lado
@@ -548,7 +548,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                         ` : `<p>Nenhum dado de contingência para este evento.</p>`}
                     </div>
                 `;
-            } else if (index === 0 && nomeRelatorio.toUpperCase() !== 'CACHÊ') {
+            } else if (index === 0 && (nomeRelatorio.toUpperCase() !== 'CACHÊ' || nomeRelatorio.toUpperCase() !== 'AJUDA DE CUSTO')) {
                 // Garante que o espaço seja ocupado pela Utilização se não for relatório de Cachê
                 html += `<div class="tabela-resumo contingencia" style="visibility: hidden;"></div>`;
             } else if (index > 0) {
