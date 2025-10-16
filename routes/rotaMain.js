@@ -374,7 +374,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
         const fim = new Date(p.dtfimrealizacao);
         if (!isNaN(fim.getTime())) {
           const limite = new Date(fim);
-          limite.setDate(fim.getDate() + 2);
+          limite.setDate(fim.getDate() + 10);
           if (new Date() > limite) return false; // passou 2 dias depois do fim -> remove
         }
       }
