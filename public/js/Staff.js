@@ -2679,6 +2679,7 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, set
         const statusDoOrcamento = dadosDoOrcamento[0].status;
         statusOrcamentoAtual = statusDoOrcamento; // Define a variável global
 
+        //ORCAMENTO ABERTO
         // if (statusDoOrcamento === 'A') {
         //     Swal.fire({
         //         icon: 'warning',

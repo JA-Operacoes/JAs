@@ -367,15 +367,17 @@ router.get('/pavilhao/:id', async (req, res) => {
 // GET /orcamento/funcao
 router.get('/funcao', async (req, res) => {
   
- console.log("🔥 Rota /orcamentos/funcao acessada");
+  console.log("🔥 Rota /orcamentos/funcao acessada");
 
   const idempresa = req.idempresa;
 
   try {
      
     const resultado = await pool.query(`
-      SELECT f.*
+      SELECT f.idcategoriafuncao, f.idfuncao, f.descfuncao, f.ativo, f.vdafuncao, f.obsproposta, f.obsfuncao,
+       cf.ctofuncaobase, cf.ctofuncaojunior, cf.ctofuncaopleno, cf.ctofuncaosenior, cf.transporte, cf.transpsenior, cf.alimentacao
       FROM funcao f
+      INNER JOIN categoriafuncao cf ON f.idcategoriafuncao = cf.idcategoriafuncao
       INNER JOIN funcaoempresas fe ON fe.idfuncao = f.idfuncao
       WHERE fe.idempresa = $1
       ORDER BY f.descfuncao
