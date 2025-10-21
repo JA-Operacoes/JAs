@@ -10,39 +10,114 @@ const logMiddleware = require('../middlewares/logMiddleware');
 router.use(autenticarToken());
 router.use(contextoEmpresa);
 
-router.get('/', verificarPermissao('Modulos', 'pesquisar'), async (req, res) => {
-   console.log("✅ ROTA MODULOS /modulos ACESSADA");
-   const { nmModulo } = req.query;
-   const idempresa = req.idempresa;
-  try {
+// router.get('/', verificarPermissao('Modulos', 'pesquisar'), async (req, res) => {
+//    console.log("✅ ROTA MODULOS /modulos ACESSADA");
+//    const { nmModulo } = req.query;
+//    const idempresa = req.idempresa;
+//   try {
     
-      if (nmModulo) {
-        const result = await pool.query(
-          `SELECT m.modulo 
-          FROM modulos m
-          INNER JOIN moduloempresas me ON m.idmodulo = me.idmodulo
-          WHERE me.idempresa = $1 AND m.modulo ILIKE $2 LIMIT 1`,
-          [idempresa, `%${nmModulo}%`]
-      );
-      return result.rows.length
-        ? res.json(result.rows[0])
-        : res.status(404).json({ message: "Equipamento não encontrada" });
-    } else {
-      const result = await pool.query(`SELECT m.modulo 
-        FROM modulos m
-        INNER JOIN moduloempresas me ON m.idmodulo = me.idmodulo
-        WHERE me.idempresa = $1
-        ORDER BY modulo`, [idempresa]);
+//       if (nmModulo) {
+//         const result = await pool.query(
+//           `SELECT m.modulo 
+//           FROM modulos m
+//           INNER JOIN moduloempresas me ON m.idmodulo = me.idmodulo
+//           WHERE me.idempresa = $1 AND m.modulo ILIKE $2 LIMIT 1`,
+//           [idempresa, `%${nmModulo}%`]
+//       );
+//       return result.rows.length
+//         ? res.json(result.rows[0])
+//         : res.status(404).json({ message: "Equipamento não encontrada" });
+//     } else {
+//       const result = await pool.query(`SELECT m.modulo 
+//         FROM modulos m
+//         INNER JOIN moduloempresas me ON m.idmodulo = me.idmodulo
+//         WHERE me.idempresa = $1
+//         ORDER BY modulo`, [idempresa]);
 
-      return result.rows.length
-        ? res.json(result.rows)
-        : res.status(404).json({ message: "Nenhuma Módulo encontrado" });
-    }
+//       return result.rows.length
+//         ? res.json(result.rows)
+//         : res.status(404).json({ message: "Nenhuma Módulo encontrado" });
+//     }
    
-  } catch (err) {
-    console.error('Erro ao buscar módulos:', err);
-    res.status(500).json({ erro: 'Erro ao buscar módulos' });
-  }
+//   } catch (err) {
+//     console.error('Erro ao buscar módulos:', err);
+//     res.status(500).json({ erro: 'Erro ao buscar módulos' });
+//   }
+// });
+
+router.get('/', verificarPermissao('Modulos', 'pesquisar'), async (req, res) => {
+    console.log("✅ ROTA MODULOS /modulos ACESSADA");
+    const { nmModulo, idModuloPesquisa } = req.query; // Adicionamos idModuloPesquisa (caso precise buscar um único módulo por ID)
+    const idempresa = req.idempresa; // ID da empresa principal do usuário logado
+
+    try {
+        let result;
+        let queryBase = `
+            SELECT 
+                m.idmodulo,
+                m.modulo AS "nmModulo",
+                ARRAY_AGG(me.idempresa ORDER BY me.idempresa) AS empresas
+            FROM modulos m
+            INNER JOIN moduloempresas me ON m.idmodulo = me.idmodulo
+        `;
+        let whereClauses = [];
+        let queryParams = [];
+        let paramIndex = 1;
+
+        // 1. FILTRO DE EMPRESA (Garantir que apenas módulos associados à empresa do usuário sejam vistos)
+        // Isso é crucial se você quiser que a listagem geral filtre pelo ID da empresa principal
+        whereClauses.push(`me.idempresa = $${paramIndex++}`);
+        queryParams.push(idempresa);
+
+        // 2. FILTRO POR NOME DO MÓDULO (Pesquisa ILIKE)
+        if (nmModulo) {
+            // Se estiver pesquisando por nome, filtramos por nome e limitamos a 1, mas AINDA precisamos do ID da empresa na lista
+            whereClauses.push(`m.modulo ILIKE $${paramIndex++}`);
+            queryParams.push(`%${nmModulo}%`);
+        }
+        
+        // 3. FILTRO POR ID DO MÓDULO (Para carregar dados de edição)
+        if (idModuloPesquisa) {
+            whereClauses.push(`m.idmodulo = $${paramIndex++}`);
+            queryParams.push(idModuloPesquisa);
+        }
+        
+        // Constrói a cláusula WHERE
+        if (whereClauses.length > 0) {
+            queryBase += ` WHERE ${whereClauses.join(' AND ')}`;
+        }
+        
+        // 4. AGRUPAMENTO e ORDENAÇÃO
+        queryBase += ` 
+            GROUP BY m.idmodulo, m.modulo
+            ORDER BY m.modulo
+        `;
+
+        // Se estiver pesquisando por nome (e for uma busca de campo único), limitamos a 1
+        if (nmModulo && !idModuloPesquisa) {
+            queryBase += ` LIMIT 1`;
+        }
+
+        result = await pool.query(queryBase, queryParams);
+
+        // --- Tratamento da Resposta ---
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "Nenhum Módulo encontrado." });
+        }
+        
+        // Se a busca for por nmModulo (busca de um único item), retorna o primeiro item
+        if (nmModulo && !idModuloPesquisa) {
+            return res.json(result.rows[0]);
+        } 
+        
+        // Caso contrário, retorna a lista completa (ou o item único se for por ID)
+        return res.json(result.rows);
+
+    } catch (err) {
+        console.error('Erro ao buscar módulos:', err);
+        res.status(500).json({ erro: 'Erro ao buscar módulos', detail: err.message });
+    }
 });
 
 router.put("/:id", 
@@ -115,10 +190,14 @@ router.post("/", verificarPermissao('Modulos', 'cadastrar'),
       }
   }),
   async (req, res) => {
-  const { nmModulo } = req.body;
+  const { nmModulo, empresas } = req.body;
   const idempresa = req.idempresa;
 
   let client; // Variável para a conexão de transação
+
+  if (!empresas || empresas.length === 0) {
+      return res.status(400).json({ erro: "Pelo menos uma empresa deve ser selecionada para o módulo." });
+  }
 
   console.log("Dados recebidos:", req.body);
   try {
@@ -127,18 +206,32 @@ router.post("/", verificarPermissao('Modulos', 'cadastrar'),
 
       // 1. Insere o novo equipamento na tabela 'equipamentos'
       const resultModulo = await client.query(
-          "INSERT INTO modulos (descModulo) VALUES ($1) RETURNING idmodulo, descModulo",
+          "INSERT INTO modulos (modulo) VALUES ($1) RETURNING idmodulo, modulo",
           [nmModulo]
       );
 
       const novoModulo = resultModulo.rows[0];
       const idmodulo = novoModulo.idmodulo;
 
-      // 2. Insere a associação na tabela 'moduloempresas'
-      await client.query(
-          "INSERT INTO moduloempresas (idmodulo, idempresa) VALUES ($1, $2)",
-          [idmodulo, idempresa]
-      );
+      // // 2. Insere a associação na tabela 'moduloempresas'
+      // await client.query(
+      //     "INSERT INTO moduloempresas (idmodulo, idempresa) VALUES ($1, $2)",
+      //     [idmodulo, idempresa]
+      // );
+
+      const insertPromises = empresas.map(id => {
+          // Garante que o ID é um número (segurança)
+          const idEmpresaNum = parseInt(id); 
+          if (isNaN(idEmpresaNum)) return null; 
+
+          return client.query(
+              "INSERT INTO moduloempresas (idmodulo, idempresa) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+              [idmodulo, idEmpresaNum]
+          );
+      }).filter(p => p !== null); // Remove promessas nulas (se o ID não for válido)
+
+      // Executa todas as inserções
+      await Promise.all(insertPromises);
 
       await client.query('COMMIT'); // Confirma a transação
 
