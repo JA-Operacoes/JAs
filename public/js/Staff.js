@@ -1009,6 +1009,7 @@ function inicializarEPreencherCampos(eventData) {
         document.getElementById('selectStatusAjusteCusto').style.display = 'block';
         statusAjusteCustoInput.style.display = 'none';
         document.getElementById('selectStatusAjusteCusto').value = eventData.statusajustecusto || 'Pendente';
+        console.log("VALOR DO STATUS AJUSTE CUSTO:", eventData.statusajustecusto);
         aplicarCoresAsOpcoes('selectStatusAjusteCusto');
         aplicarCorNoSelect(document.getElementById('selectStatusAjusteCusto'));
 
