@@ -1010,6 +1010,7 @@ function inicializarEPreencherCampos(eventData) {
         statusAjusteCustoInput.style.display = 'none';
         console.log("STATUS AJUSTE CUSTO TEM PERMISSAO TOTAL", eventData.statusajustecusto);
         document.getElementById('selectStatusAjusteCusto').value = eventData.statusajustecusto || 'Pendente';
+        console.log("VALOR DO STATUS AJUSTE CUSTO:", eventData.statusajustecusto);
         aplicarCoresAsOpcoes('selectStatusAjusteCusto');
         aplicarCorNoSelect(document.getElementById('selectStatusAjusteCusto'));
 
