@@ -1,31 +1,31 @@
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
 
-document.addEventListener("DOMContentLoaded", function () {
-    const idempresa = localStorage.getItem("idempresa");
+// document.addEventListener("DOMContentLoaded", function () {
+//     const idempresa = localStorage.getItem("idempresa");
 
-    if (idempresa) {
-        const apiUrl = `/empresas/${idempresa}`; // Verifique o caminho da sua API
+//     if (idempresa) {
+//         const apiUrl = `/empresas/${idempresa}`; // Verifique o caminho da sua API
 
-        fetchComToken(apiUrl)
-            .then(empresa => {
-                // Usa o nome fantasia como tema
-                const tema = empresa.nmfantasia;
-                aplicarTema(tema);
-            })
-            .catch(error => {
-                console.error("❌ Erro ao buscar dados da empresa para o tema:", error);
-                // aplicarTema('default');
-            });
-    }
-});
+//         fetchComToken(apiUrl)
+//             .then(empresa => {
+//                 // Usa o nome fantasia como tema
+//                 const tema = empresa.nmfantasia;
+//                 aplicarTema(tema);
+//             })
+//             .catch(error => {
+//                 console.error("❌ Erro ao buscar dados da empresa para o tema:", error);
+//                 // aplicarTema('default');
+//             });
+//     }
+// });
 
 let nmModuloBlurListener = null;
 let limparModulosButtonListener = null;
 let enviarModulosButtonListener = null;
 let pesquisarModulosButtonListener = null;
 let selectModulosChangeListener = null;
-let novoInputDescEquipBlurListener = null; // Para o blur do novo input de descrição
-let novoInputDescEquipInputListener = null;
+let novoInputDescModuloBlurListener = null; // Para o blur do novo input de descrição
+let novoInputDescModuloInputListener = null;
 
 if (typeof window.ModulosOriginal === "undefined") {
     window.ModulosOriginal = {
@@ -36,7 +36,7 @@ if (typeof window.ModulosOriginal === "undefined") {
 
 function verificaModulos() {
 
-    console.log("Carregando Modulos...");
+    console.log("Carregando Módulos...");
     
     document.querySelector("#nmModulo").addEventListener("blur", async function () {
         const desc = this.value.trim();
@@ -125,7 +125,7 @@ function verificaModulos() {
             if (metodo === "PUT") {
                 const { isConfirmed } = await Swal.fire({
                     title: "Deseja salvar as alterações?",
-                    text: "Você está prestes a atualizar os dados do equipamento.",
+                    text: "Você está prestes a atualizar os dados de módulos.",
                     icon: "question",
                     showCancelButton: true,
                     confirmButtonText: "Sim, salvar",
@@ -175,7 +175,7 @@ function verificaModulos() {
             return Swal.fire({
                 icon: 'info',
                 title: 'Nenhum equipamento cadastrado',
-                text: 'Não foi encontrado nenhum equipamento no sistema.',
+                text: 'Não foi encontrado nenhum módulo no sistema.',
                 confirmButtonText: 'Ok'
             });
         }
@@ -238,7 +238,7 @@ function verificaModulos() {
         Swal.fire({
             icon: 'error',
             title: 'Erro',
-            text: error.message || 'Não foi possível carregar os modulos.',
+            text: error.message || 'Não foi possível carregar os módulos.',
             confirmButtonText: 'Ok'
         });
     }
@@ -248,29 +248,29 @@ function verificaModulos() {
 
 }
 
-function adicionarListenersAoInputDescEquip(inputElement) {
+function adicionarListenersAoInputDescModulo(inputElement) {
     // Remove listeners anteriores para evitar duplicidade
-    if (novoInputDescEquipInputListener) {
-        inputElement.removeEventListener("input", novoInputDescEquipInputListener);
+    if (novoInputDescModuloInputListener) {
+        inputElement.removeEventListener("input", novoInputDescModuloInputListener);
     }
-    if (novoInputDescEquipBlurListener) {
-        inputElement.removeEventListener("blur", novoInputDescEquipBlurListener);
+    if (novoInputDescModuloBlurListener) {
+        inputElement.removeEventListener("blur", novoInputDescModuloBlurListener);
     }
 
-    novoInputDescEquipInputListener = function() {
+    novoInputDescModuloInputListener = function() {
         this.value = this.value.toUpperCase();
     };
-    inputElement.addEventListener("input", novoInputDescEquipInputListener);
+    inputElement.addEventListener("input", novoInputDescModuloInputListener);
 
-    novoInputDescEquipBlurListener = async function() {
+    novoInputDescModuloBlurListener = async function() {
         if (!this.value.trim()) return;
         await carregarModulosDescricao(this.value, this);
     };
-    inputElement.addEventListener("blur", novoInputDescEquipBlurListener);
+    inputElement.addEventListener("blur", novoInputDescModuloBlurListener);
 }
 
 
-function resetarCampoDescEquipParaInput() {
+function resetarCampoDescModuloParaInput() {
     const nmModuloCampo = document.getElementById("nmModulo");
     // Verifica se o campo atual é um select e o substitui por um input
     if (nmModuloCampo && nmModuloCampo.tagName.toLowerCase() === "select") {
@@ -291,7 +291,7 @@ function resetarCampoDescEquipParaInput() {
         }
 
         nmModuloCampo.parentNode.replaceChild(input, nmModuloCampo);
-        adicionarListenersAoInputDescEquip(input); // Adiciona os listeners ao novo input
+        adicionarListenersAoInputDescModulo(input); // Adiciona os listeners ao novo input
 
         const label = document.querySelector('label[for="nmModulo"]');
         if (label) {
@@ -338,14 +338,14 @@ function desinicializarModulosModal() {
                 nmModuloBlurListener = null;
                 console.log("Listener de blur do nmModulo (input original) removido.");
             }
-            if (novoInputDescEquipInputListener) {
-                nmModuloElement.removeEventListener("input", novoInputDescEquipInputListener);
-                novoInputDescEquipInputListener = null;
+            if (novoInputDescModuloInputListener) {
+                nmModuloElement.removeEventListener("input", novoInputDescModuloInputListener);
+                novoInputDescModuloInputListener = null;
                 console.log("Listener de input do nmModulo (input dinâmico) removido.");
             }
-            if (novoInputDescEquipBlurListener) {
-                nmModuloElement.removeEventListener("blur", novoInputDescEquipBlurListener);
-                novoInputDescEquipBlurListener = null;
+            if (novoInputDescModuloBlurListener) {
+                nmModuloElement.removeEventListener("blur", novoInputDescModuloBlurListener);
+                novoInputDescModuloBlurListener = null;
                 console.log("Listener de blur do nmModulo (input dinâmico) removido.");
             }
 
@@ -361,7 +361,7 @@ function desinicializarModulosModal() {
     limparCamposModulos(); // Limpa todos os campos visíveis do formulário
    // document.querySelector("#form").reset(); // Garante que o formulário seja completamente resetado
     document.querySelector("#idModulo").value = ""; // Limpa o ID oculto
-    resetarCampoDescEquipParaInput(); // Garante que o campo nmModulo volte a ser um input padrão
+    resetarCampoDescModuloParaInput(); // Garante que o campo nmModulo volte a ser um input padrão
 
     console.log("✅ Módulo Modulos.js desinicializado.");
 }

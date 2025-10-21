@@ -258,45 +258,45 @@ router.get('/notificacoes-financeiras', async (req, res) => {
 
     // Busca logs (trazendo também status atuais da tabela staffeventos e dtfim das "ordens")
     const { rows } = await pool.query(`
-      SELECT 
-      l.idregistroalterado AS id,
-      l.idexecutor,
-      -- pega idusuarioalvo: primeiro da tabela, senão do JSON
-      COALESCE(l.idusuarioalvo, (l.dadosnovos->>'idfuncionario')::int) AS idusuarioalvo,
-      -- pega nomefuncionario: primeiro da tabela, senão do JSON
-      COALESCE(f.nome, l.dadosnovos->>'nmfuncionario') AS nomefuncionario,
-      (u.nome || ' ' || u.sobrenome) AS nomesolicitante,
-      l.dadosnovos,
-      l.dadosnovos->>'datasevento' AS datasevento,
-      l.dadosnovos->>'vlrcaixinha' AS vlrcaixinha,
-      l.dadosnovos->>'desccaixinha' AS desccaixinha,
-      l.dadosnovos->>'vlrajustecusto' AS vlrajustecusto,
-      l.dadosnovos->>'descajustecusto' AS descajustecusto,
-      l.dadosnovos->>'datameiadiaria' AS vlrmeiadiaria,
-      l.dadosnovos->>'descmeiadiaria' AS descmeiadiaria,
-      l.dadosnovos->>'datadiariadobrada' AS vlrdiariadobrada,
-      l.dadosnovos->>'descdiariadobrada' AS descdiariadobrada,
+          SELECT
+    l.idregistroalterado AS id,
+    l.idexecutor,
+    -- pega idusuarioalvo: primeiro da tabela, senão do JSON
+    COALESCE(l.idusuarioalvo, (l.dadosnovos->>'idfuncionario')::int) AS idusuarioalvo,
+    -- pega nomefuncionario: primeiro da tabela, senão do JSON
+    COALESCE(f.nome, l.dadosnovos->>'nmfuncionario') AS nomefuncionario,
+    (u.nome || ' ' || u.sobrenome) AS nomesolicitante,
+    l.dadosnovos,
+    l.dadosnovos->>'datasevento' AS datasevento,
+    l.dadosnovos->>'vlrcaixinha' AS vlrcaixinha,
+    l.dadosnovos->>'desccaixinha' AS desccaixinha,
+    l.dadosnovos->>'vlrajustecusto' AS vlrajustecusto,
+    l.dadosnovos->>'descajustecusto' AS descajustecusto,
+    l.dadosnovos->>'datameiadiaria' AS vlrmeiadiaria,
+    l.dadosnovos->>'descmeiadiaria' AS descmeiadiaria,
+    l.dadosnovos->>'datadiariadobrada' AS vlrdiariadobrada,
+    l.dadosnovos->>'descdiariadobrada' AS descdiariadobrada,
 
-      -- status mais atual
-      COALESCE(se.statuscaixinha::text, l.dadosnovos->>'statuscaixinha') AS statuscaixinha,
-      COALESCE(se.statusajustecusto::text, l.dadosnovos->>'statusajustecusto') AS statusajustecusto,
-      COALESCE(se.statusmeiadiaria::text, l.dadosnovos->>'statusmeiadiaria') AS statusmeiadiaria,
-      COALESCE(se.statusdiariadobrada::text, l.dadosnovos->>'statusdiariadobrada') AS statusdiariadobrada,
+    -- status mais atual
+    COALESCE(se.statuscaixinha::text, l.dadosnovos->>'statuscaixinha') AS statuscaixinha,
+    COALESCE(se.statusajustecusto::text, l.dadosnovos->>'statusajustecusto') AS statusajustecusto,
+    COALESCE(se.statusmeiadiaria::text, l.dadosnovos->>'statusmeiadiaria') AS statusmeiadiaria,
+    COALESCE(se.statusdiariadobrada::text, l.dadosnovos->>'descdiariadobrada') AS statusdiariadobrada,
 
-      e.nmevento AS evento,
-      COALESCE(o.dtfiminfradesmontagem, o.dtfimdesmontagem) AS dtfimrealizacao,
-      l.criado_em,
-      l.modulo
-  FROM logs l
-  LEFT JOIN funcionarios f ON f.idfuncionario = l.idusuarioalvo
-  LEFT JOIN usuarios u ON u.idusuario = l.idexecutor
-  LEFT JOIN eventos e ON e.idevento = NULLIF(l.dadosnovos->>'idevento','')::int
-  LEFT JOIN staffeventos se ON se.idstaffevento = l.idregistroalterado
-  LEFT JOIN orcamentos o ON o.idevento = e.idevento
-  WHERE l.idempresa = $1
+    e.nmevento AS evento,
+    COALESCE(o.dtfiminfradesmontagem, o.dtfimdesmontagem) AS dtfimrealizacao,
+    l.criado_em,
+    l.modulo
+FROM logs l
+LEFT JOIN funcionarios f ON f.idfuncionario = l.idusuarioalvo
+LEFT JOIN usuarios u ON u.idusuario = l.idexecutor
+LEFT JOIN eventos e ON e.idevento = NULLIF(l.dadosnovos->>'idevento','')::int
+LEFT JOIN staffeventos se ON se.idstaffevento = l.idregistroalterado
+LEFT JOIN orcamentos o ON o.idevento = e.idevento
+WHERE l.idempresa = $1
     AND l.modulo IN ('staffeventos','staff')
     AND ($2 = TRUE OR l.idexecutor = $3)
-  ORDER BY l.criado_em DESC;
+ORDER BY l.criado_em DESC;
     `, [idempresa, ehMasterStaff, idusuario]);
 
     // Monta os pedidos
