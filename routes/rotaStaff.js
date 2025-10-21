@@ -1101,21 +1101,24 @@ function ordenarDatas(datas) {
     return datas.sort((a, b) => new Date(a) - new Date(b));
 }
 
+// ...existing code...
+
 router.post(
   "/",
   autenticarToken(),
   contextoEmpresa,
   verificarPermissao('staff', 'cadastrar'),
   uploadComprovantesMiddleware,
-  logMiddleware('staff', {
+  // Registrar o log como 'staffeventos' para refletir corretamente o insert em staffeventos
+  logMiddleware('staffeventos', {
     buscarDadosAnteriores: async (req) => {
-      console.log("BUSCA DADOS ANTERIORES STAFF");
+      console.log("BUSCA DADOS ANTERIORES STAFFEVENTOS (POST)");
       return { dadosanteriores: null, idregistroalterado: null };
     }
   }),
   async (req, res) => {
     console.log("🔥 Rota /staff/POST acessada", req.body);
-    
+
     const {
       idfuncionario,
       avaliacao,
@@ -1124,56 +1127,45 @@ router.post(
       vlrcache, vlralmoco, vlralimentacao, vlrtransporte, vlrajustecusto,
       vlrcaixinha, nmfuncionario, datasevento: datasEventoRaw,
       descajustecusto, descbeneficios, vlrtotal, setor, statuspgto, statusajustecusto, statuscaixinha,
-      statusdiariadobrada, statusmeiadiaria, datadiariadobrada, datameiadiaria, desccaixinha, 
+      statusdiariadobrada, statusmeiadiaria, datadiariadobrada, datameiadiaria, desccaixinha,
       descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoas, idequipe, nmequipe
     } = req.body;
 
-    // const dataDiariaDobradaCorrigida = (datadiariadobrada === '' || datadiariadobrada === '[]' || !datadiariadobrada) 
-    //   ? null 
-    //   : datadiariadobrada;
-
-    // const dataMeiaDiariaCorrigida = (datameiadiaria === '' || datameiadiaria === '[]' || !datameiadiaria) 
-    //   ? null 
-    //   : datameiadiaria;
-
-   
-
+    // Parse opcionais de datas (sem rollback aqui, só validação)
     let datasDiariaDobradaParsed = null;
     if (datadiariadobrada) {
-        try {
-            datasDiariaDobradaParsed = JSON.parse(datadiariadobrada);
-            if (Array.isArray(datasDiariaDobradaParsed)) {
-              datasDiariaDobradaParsed = ordenarDatas(datasDiariaDobradaParsed);
-            }
-        } catch (parseError) {
-            // Trate o erro de parse se necessário
+      try {
+        datasDiariaDobradaParsed = JSON.parse(datadiariadobrada);
+        if (Array.isArray(datasDiariaDobradaParsed)) {
+          datasDiariaDobradaParsed = ordenarDatas(datasDiariaDobradaParsed);
         }
+      } catch (parseError) {
+        console.warn("Aviso: datadiariadobrada inválido:", parseError.message);
+      }
     }
 
     let datasMeiaDiariaParsed = null;
     if (datameiadiaria) {
-        try {
-            datasMeiaDiariaParsed = JSON.parse(datameiadiaria);
-            if (Array.isArray(datasMeiaDiariaParsed)) {
-              datasMeiaDiariaParsed = ordenarDatas(datasMeiaDiariaParsed);
-            }
-        } catch (parseError) {
-            // Trate o erro de parse se necessário
+      try {
+        datasMeiaDiariaParsed = JSON.parse(datameiadiaria);
+        if (Array.isArray(datasMeiaDiariaParsed)) {
+          datasMeiaDiariaParsed = ordenarDatas(datasMeiaDiariaParsed);
         }
+      } catch (parseError) {
+        console.warn("Aviso: datameiadiaria inválido:", parseError.message);
+      }
     }
 
-
+    // datasevento precisa ser um array JSON válido se fornecido
     let datasEventoParsed = null;
     if (datasEventoRaw) {
       try {
         datasEventoParsed = JSON.parse(datasEventoRaw);
         if (!Array.isArray(datasEventoParsed)) {
-          throw new Error("datasevento não é um array JSON válido.");
+          return res.status(400).json({ message: "Formato de 'datasevento' inválido. Esperado um array JSON." });
         }
-        // === ADICIONADO AQUI ===
         datasEventoParsed = ordenarDatas(datasEventoParsed);
       } catch (parseError) {
-        await client.query('ROLLBACK');
         return res.status(400).json({ message: "Formato de 'datasevento' inválido. Esperado um array JSON.", details: parseError.message });
       }
     }
@@ -1181,15 +1173,13 @@ router.post(
     const files = req.files;
     const comprovanteCacheFile = files?.comppgtocache ? files.comppgtocache[0] : null;
     const comprovanteAjdCustoFile = files?.comppgtoajdcusto ? files.comppgtoajdcusto[0] : null;
-    const comprovanteAjdCustoFile2 = files?.comppgtoajdcusto2 ? files.comppgtoajdcusto2[0] : null;
     const comprovanteCaixinhaFile = files?.comppgtocaixinha ? files.comppgtocaixinha[0] : null;
     const comprovanteAjdCusto50File = files?.comppgtoajdcusto50 ? files.comppgtoajdcusto50[0] : null;
 
     const idempresa = req.idempresa;
     let client;
-    let idstaffExistente = null; // Variável para armazenar o ID do staff se ele já existir
 
-    console.log('--- Início da requisição POST ---');
+    console.log('--- Início da requisição POST /staff ---');
 
     if (
       !idfuncionario || !nmfuncionario ||
@@ -1215,24 +1205,18 @@ router.post(
       `;
       const staffResult = await client.query(checkStaffQuery, [idfuncionario, idempresa]);
 
+      let idstaffExistente;
       if (staffResult.rows.length > 0) {
-        // Funcionário já existe, apenas pegamos o idstaff para usar depois
         idstaffExistente = staffResult.rows[0].idstaff;
         console.log(`idfuncionario ${idfuncionario} já existe. Usando idstaff existente: ${idstaffExistente}`);
 
-        // AQUI VOCÊ PODE ADICIONAR LÓGICA PARA ATUALIZAR 'avaliacao' se for o caso
         if (avaliacao) {
-          const updateAvaliacaoQuery = `
-            UPDATE staff SET avaliacao = $1 WHERE idstaff = $2
-          `;
+          const updateAvaliacaoQuery = `UPDATE staff SET avaliacao = $1 WHERE idstaff = $2`;
           await client.query(updateAvaliacaoQuery, [avaliacao, idstaffExistente]);
           console.log(`Avaliação do staff ${idstaffExistente} atualizada.`);
         }
-        
       } else {
-        // Funcionário NÃO existe, então criamos um novo registro em 'staff' e 'staffEmpresas'
         console.log(`idfuncionario ${idfuncionario} não encontrado. Criando novo staff.`);
-        
         const staffInsertQuery = `
           INSERT INTO staff (idfuncionario, avaliacao)
           VALUES ($1, $2)
@@ -1240,108 +1224,110 @@ router.post(
         `;
         const resultStaff = await client.query(staffInsertQuery, [idfuncionario, avaliacao]);
         idstaffExistente = resultStaff.rows[0].idstaff;
-
-        await client.query(
-          "INSERT INTO staffEmpresas (idstaff, idEmpresa) VALUES ($1, $2)",
-          [idstaffExistente, idempresa]
-        );
+        await client.query("INSERT INTO staffEmpresas (idstaff, idEmpresa) VALUES ($1, $2)", [idstaffExistente, idempresa]);
         console.log(`Novo staff ${idstaffExistente} criado e associado à empresa ${idempresa}.`);
       }
 
       // --- PASSO 2: INSERÇÃO NA TABELA STAFFEVENTOS ---
-      // Esta parte agora usa o idstaffExistente, que será o novo ID ou o ID pré-existente
-      if (idstaffExistente) {
-        const eventoInsertQuery = `
-          INSERT INTO staffeventos (
-            idstaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
-            idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
-            vlrcache, vlralmoco, vlralimentacao, vlrtransporte, vlrajustecusto,
-            vlrcaixinha, descajustecusto, datasevento, vlrtotal, comppgtocache, comppgtoajdcusto, comppgtocaixinha, 
-            descbeneficios, setor, statuspgto, statusajustecusto, statuscaixinha, statusdiariadobrada, statusmeiadiaria, dtdiariadobrada,
-            comppgtoajdcusto50, dtmeiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoaslote, idequipe, nmequipe
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22,
-            $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41)
-          RETURNING idstaffevento;
-        `;
-        const eventoInsertValues = [
-          idstaffExistente, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
-          idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
-          parseFloat(String(vlrcache).replace(',', '.')),
-          parseFloat(String(vlralmoco).replace(',', '.')),
-          parseFloat(String(vlralimentacao).replace(',', '.')),
-          parseFloat(String(vlrtransporte).replace(',', '.')),
-          parseFloat(String(vlrajustecusto).replace(',', '.')),
-          parseFloat(String(vlrcaixinha).replace(',', '.')),
-          descajustecusto,
-          // Garanta que `datasEventoRaw` seja parseado corretamente aqui
-       //   datasEventoRaw ? JSON.stringify(JSON.parse(datasEventoRaw)) : null,
-          JSON.stringify(datasEventoParsed),
-          parseFloat(String(vlrtotal).replace(',', '.')),
-          comprovanteCacheFile ? `/uploads/staff_comprovantes/${comprovanteCacheFile.filename}` : null,
-          comprovanteAjdCustoFile ? `/uploads/staff_comprovantes/${comprovanteAjdCustoFile.filename}` : null,
-          comprovanteCaixinhaFile ? `/uploads/staff_comprovantes/${comprovanteCaixinhaFile.filename}` : null,
-          descbeneficios,
-          setor,
-          statuspgto,
-          statusajustecusto,
-          statuscaixinha,
-          statusdiariadobrada,
-          statusmeiadiaria,
-         // datadiariadobradaCorrigida,
-         JSON.stringify(datasDiariaDobradaParsed),    
-          comprovanteAjdCusto50File ? `/uploads/staff_comprovantes/${comprovanteAjdCusto50File.filename}` : null,
-         // dataMeiaDiariaCorrigida,
-         JSON.stringify(datasMeiaDiariaParsed),
-          desccaixinha,
-          descdiariadobrada,
-          descmeiadiaria,
-          nivelexperiencia,
-          qtdpessoas,
-          idequipe, nmequipe
-        ];
+      if (!idstaffExistente) throw new Error("Falha lógica: idstaff não foi determinado para a inserção do evento.");
 
-        await client.query(eventoInsertQuery, eventoInsertValues);
-        console.log(`Novo evento para o staff ${idstaffExistente} inserido em staffeventos.`);
-      } else {
-        throw new Error("Falha lógica: idstaff não foi determinado para a inserção do evento.");
-      }
+      const eventoInsertQuery = `
+        INSERT INTO staffeventos (
+          idstaff, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
+          idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
+          vlrcache, vlralmoco, vlralimentacao, vlrtransporte, vlrajustecusto,
+          vlrcaixinha, descajustecusto, datasevento, vlrtotal, comppgtocache, comppgtoajdcusto, comppgtocaixinha,
+          descbeneficios, setor, statuspgto, statusajustecusto, statuscaixinha, statusdiariadobrada, statusmeiadiaria, dtdiariadobrada,
+          comppgtoajdcusto50, dtmeiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoaslote, idequipe, nmequipe
+        ) VALUES (
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41
+        )
+        RETURNING idstaffevento;
+      `;
+
+      const parseFloatOrNull = v => {
+        if (v === undefined || v === null || v === '') return null;
+        const n = parseFloat(String(v).replace(',', '.'));
+        return Number.isNaN(n) ? null : n;
+      };
+
+      const eventoInsertValues = [
+        idstaffExistente, idfuncionario, nmfuncionario, idevento, nmevento, idcliente, nmcliente,
+        idfuncao, nmfuncao, idmontagem, nmlocalmontagem, pavilhao,
+        parseFloatOrNull(vlrcache),
+        parseFloatOrNull(vlralmoco),
+        parseFloatOrNull(vlralimentacao),
+        parseFloatOrNull(vlrtransporte),
+        parseFloatOrNull(vlrajustecusto),
+        parseFloatOrNull(vlrcaixinha),
+        descajustecusto,
+        JSON.stringify(datasEventoParsed),
+        parseFloatOrNull(vlrtotal),
+        comprovanteCacheFile ? `/uploads/staff_comprovantes/${comprovanteCacheFile.filename}` : null,
+        comprovanteAjdCustoFile ? `/uploads/staff_comprovantes/${comprovanteAjdCustoFile.filename}` : null,
+        comprovanteCaixinhaFile ? `/uploads/staff_comprovantes/${comprovanteCaixinhaFile.filename}` : null,
+        descbeneficios,
+        setor,
+        statuspgto,
+        statusajustecusto,
+        statuscaixinha,
+        statusdiariadobrada,
+        statusmeiadiaria,
+        JSON.stringify(datasDiariaDobradaParsed),
+        comprovanteAjdCusto50File ? `/uploads/staff_comprovantes/${comprovanteAjdCusto50File.filename}` : null,
+        JSON.stringify(datasMeiaDiariaParsed),
+        desccaixinha,
+        descdiariadobrada,
+        descmeiadiaria,
+        nivelexperiencia,
+        qtdpessoas,
+        idequipe, nmequipe
+      ];
+
+      const insertResult = await client.query(eventoInsertQuery, eventoInsertValues);
+      const novoIdStaffEvento = insertResult.rows?.[0]?.idstaffevento || null;
+      console.log(`Novo evento para o staff ${idstaffExistente} inserido em staffeventos. idstaffevento=${novoIdStaffEvento}`);
 
       await client.query('COMMIT');
 
+      // Ajusta log/res.locals para indicar o id do registro criado (staffeventos)
       res.locals.acao = 'cadastrou';
-      res.locals.idregistroalterado = idstaffExistente;
-      res.locals.idusuarioAlvo = null;
+      res.locals.idregistroalterado = novoIdStaffEvento || idstaffExistente;
+      res.locals.idusuarioAlvo = idfuncionario;
 
-      res.status(201).json({
+      return res.status(201).json({
         message: "Evento(s) salvo(s) e associado(s) ao staff com sucesso!",
-        id: idstaffExistente,
+        idstaff: idstaffExistente,
+        idstaffevento: novoIdStaffEvento
       });
 
     } catch (error) {
       if (client) {
-        await client.query('ROLLBACK');
+        try { await client.query('ROLLBACK'); } catch (e) { console.error('Erro ao ROLLBACK:', e); }
       }
       console.error("❌ Erro ao salvar staff ou evento:", error);
 
-      // Lembre-se de corrigir a propriedade do arquivo de cache aqui
-      // const comprovanteCacheFile = files?.comppgtocache ? files.comppgtoacache[0] : null; -> files.comppgtocache[0]
+      // elimina arquivos temporários enviados em caso de erro
       if (files?.comppgtocache?.[0]) deletarArquivoAntigo(files.comppgtocache[0].path);
       if (files?.comppgtoajdcusto?.[0]) deletarArquivoAntigo(files.comppgtoajdcusto[0].path);
       if (files?.comppgtoajdcusto50?.[0]) deletarArquivoAntigo(files.comppgtoajdcusto50[0].path);
       if (files?.comppgtocaixinha?.[0]) deletarArquivoAntigo(files.comppgtocaixinha[0].path);
-      
+
       if (error.code === '23502') {
-        return res.status(400).json({ message: `Campo obrigatório faltando ou inválido: ${error.column}. Por favor, verifique os dados e tente novamente.`, details: error.message });
+        return res.status(400).json({ message: `Campo obrigatório faltando ou inválido: ${error.column}.`, details: error.message });
       }
-      res.status(500).json({ error: "Erro ao salvar funcionário", details: error.message });
+      if (error.code === '22P02') {
+        return res.status(400).json({ message: "Valor numérico inválido. Verifique os campos de valor.", details: error.message });
+      }
+      return res.status(500).json({ error: "Erro ao salvar funcionário/evento", details: error.message });
     } finally {
-      if (client) {
-        client.release();
-      }
-      console.log('--- Fim da requisição POST ---');
+      if (client) client.release();
+      console.log('--- Fim da requisição POST /staff ---');
     }
   }
 );
+
+ // ...existing code...
 
 
 module.exports = router;
