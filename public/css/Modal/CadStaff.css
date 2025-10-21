@@ -389,7 +389,7 @@ border: 1px solid #ced4da; /* Borda sutil */
 }
 
 .comprovante-salvo-link.btn-success {
-color: #198754;
+color: green;
 background-color: #d1e7dd;
 border-color: #c3e6cb;
 }
@@ -525,7 +525,7 @@ input[type="file"]{
   }
 
   .muito-bom {
-    background-color: #198754; /* Verde */
+    background-color: green; /* Verde */
   }
 
   .satisfatorio {
@@ -559,7 +559,7 @@ input[type="file"]{
 #selectStatusCaixinha.status-Autorizado,
 #selectStatusDiariaDobrada.status-Autorizado,
 #selectStatusMeiaDiaria.status-Autorizado {
-    background-color: #198754; /* Verde */
+    background-color: green; /* Verde */
     color: #FFFFFF; /* Branco */
 }
 
@@ -585,7 +585,7 @@ input#statusAjusteCusto.status-Autorizado,
 input#statusCaixinha.status-Autorizado,
 input#statusDiariaDobrada.status-Autorizado,
 input#statusMeiaDiaria.status-Autorizado {
-    background: #198754;
+    background: green;
     color: #FFFFFF;
 }
 
@@ -597,6 +597,29 @@ input#statusMeiaDiaria.status-Rejeitado {
     color: #FFFFFF;
 }
 
+.status-custom {
+    /* Define a fonte como negrito para destaque (opcional) */
+    font-weight: bold; 
+    /* Garante que o span fique alinhado corretamente (opcional) */
+    display: inline-block; 
+    margin-left: 5px; /* Espaço entre o valor e o status */
+}
+
+/* Cor da Fonte para "Pendente" (Amarelo/Laranja) */
+.status-custom.status-Pendente {
+    color: #FFC107; /* Cor do seu CSS de fundo Pendente */
+    font-weight: normal; /* Geralmente Pendente é menos destacado */
+}
+
+/* Cor da Fonte para "Autorizado" (Verde) */
+.status-custom.status-Autorizado {
+    color: green; /* Cor do seu CSS de fundo Autorizado #198754 */
+}
+
+/* Cor da Fonte para "Rejeitado" (Vermelho) */
+.status-custom.status-Rejeitado {
+    color: #DC3545; /* Cor do seu CSS de fundo Rejeitado */
+}
 
 /* #selectStatusDiariaDobrada.status-none {
   background-color: transparent;
@@ -623,9 +646,9 @@ input#statusMeiaDiaria.status-Rejeitado {
 /* Regra para datas "Autorizadas" - Aumente a especificidade */
 .flatpickr-day.status-autorizado,
 .flatpickr-day.status-autorizado.selected { /* Adicionado .selected aqui */
-    background-color: #198754 !important; /* Verde */
+    background-color: green !important; /* Verde #198754*/ 
     color: #ffffff !important;
-    border-color: #198754 !important;
+    border-color: green !important;
 }
 
 /* Regra para datas "Pendente" - Aumente a especificidade */
@@ -656,7 +679,7 @@ input#statusMeiaDiaria.status-Rejeitado {
 
 /* Estilo para status Pago (Verde) */
 #statusPgto.pago {
-    color: #198754;
+    color: green;
 }
 
 .status-pgto {
