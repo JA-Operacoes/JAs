@@ -931,6 +931,7 @@ async function abrirPopupEvento(idevento) {
 
 // Função para buscar pedidos do usuário logado
 // Busca pedidos financeiros do usuário logado
+// Função para buscar pedidos do usuário logado
 async function buscarPedidosUsuario() {
   const idusuario = getIdExecutor(); // pega do token
   try {
@@ -956,24 +957,33 @@ async function buscarPedidosUsuario() {
     }
 
     // Normaliza status: sempre retorna objeto { status: 'pendente' | 'autorizado' | 'rejeitado', ...outrosCampos }
-    function normalizarStatus(info) {
-      if (!info) return { status: "pendente" };
-      if (typeof info === "string") return { status: info.toLowerCase() };
-      if (typeof info === "object" && info.status) return { ...info, status: info.status.toLowerCase() };
+    function normalizarCampoJSON(campo) {
+      if (!campo) return { status: "pendente" };
+      if (typeof campo === "string") {
+        try {
+          const parsed = JSON.parse(campo);
+          return { ...parsed, status: parsed.status?.toLowerCase() || "pendente" };
+        } catch {
+          return { status: campo.toLowerCase() };
+        }
+      }
+      if (typeof campo === "object") {
+        return { ...campo, status: campo.status?.toLowerCase() || "pendente" };
+      }
       return { status: "pendente" };
     }
 
-    // Aplica normalização para todos os campos de status do pedido
     function normalizarPedido(p) {
       return {
         ...p,
-        statuscaixinha: normalizarStatus(p.statuscaixinha),
-        statusajustecusto: normalizarStatus(p.statusajustecusto),
-        statusdiariadobrada: normalizarStatus(p.statusdiariadobrada),
-        statusmeiadiaria: normalizarStatus(p.statusmeiadiaria)
+        statuscaixinha: normalizarCampoJSON(p.statuscaixinha),
+        statusajustecusto: normalizarCampoJSON(p.statusajustecusto),
+        statusdiariadobrada: normalizarCampoJSON(p.statusdiariadobrada),
+        statusmeiadiaria: normalizarCampoJSON(p.statusmeiadiaria)
       };
     }
 
+    // Mapeia todos os pedidos
     let pedidosProcessados = resposta.map(p => normalizarPedido(preencherSolicitante(p)));
 
     if (ehMasterStaff) {
@@ -995,6 +1005,7 @@ async function buscarPedidosUsuario() {
     return [];
   }
 }
+
 
 
 
@@ -1069,6 +1080,7 @@ async function mostrarPedidosUsuario() {
         });
       });
 
+
       const divFuncionario = document.createElement("div");
       divFuncionario.className = "funcionario border rounded mb-3";
 
@@ -1090,70 +1102,71 @@ async function mostrarPedidosUsuario() {
       container.className = "funcionario-body p-2 hidden";
 
       pedidosComAtualizacao.forEach(pedido => {
-        ["statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada"].forEach(campo => {
-          const info = pedido[campo];
-          if (!info) return;
+  ["statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada"].forEach(campo => {
+    const info = pedido[campo];
+    if (!info) return;
 
-          const valorAlterado = info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao;
-          if (!valorAlterado) return;
+    const valorAlterado = info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao;
+    if (!valorAlterado) return;
 
-          const statusAtual = (info.status || "Pendente").toLowerCase();
+    const statusAtual = (info.status || "Pendente").toLowerCase();
 
-          const card = document.createElement("div");
-          card.className = "pedido-card border rounded p-2 mb-2 bg-gray-50 flex justify-between items-start";
+    const card = document.createElement("div");
+    card.className = "pedido-card border rounded p-2 mb-2 bg-gray-50 flex justify-between items-start";
 
-          let corQuadrado = "#facc15"; // padrão = pendente
-          if (statusAtual === "autorizado") corQuadrado = "#16a34a";
-          if (statusAtual === "rejeitado") corQuadrado = "#dc2626";
+    let corQuadrado = "#facc15"; // padrão = pendente
+    if (statusAtual === "autorizado") corQuadrado = "#16a34a";
+    if (statusAtual === "rejeitado") corQuadrado = "#dc2626";
 
-          let innerHTML = `<div>
-            <strong>${campo.replace("status", "").replace(/([A-Z])/g, ' $1')}</strong><br>`;
+    let innerHTML = `<div>
+      <strong>${campo.replace("status", "").replace(/([A-Z])/g, ' $1')}</strong><br>`;
 
-          if (pedido.evento) {
-            innerHTML += `<strong>Evento:</strong> ${pedido.evento}<br>`;
-          }
+    if (pedido.evento) {
+      innerHTML += `<strong>Evento:</strong> ${pedido.evento}<br>`;
+    }
 
-          if (info.valor !== undefined) {
-            innerHTML += `Valor: R$ ${info.valor} - <span class="status-text">${info.status || "Pendente"}</span><br>`;
-          } else if (info.datas) {
-            innerHTML += `Datas: ${info.datas.map(d => d.data).join(", ")} - <span class="status-text">${info.status || "Pendente"}</span><br>`;
-          }
+    if (info.valor !== undefined) {
+      innerHTML += `Valor: R$ ${info.valor} - <span class="status-text">${info.status || "Pendente"}</span><br>`;
+    } else if (info.datas) {
+      innerHTML += `Datas: ${info.datas.map(d => d.data).join(", ")} - <span class="status-text">${info.status || "Pendente"}</span><br>`;
+    }
 
-          if (info.descricao) {
-            innerHTML += `Descrição: ${info.descricao}<br>`;
-          }
+    if (info.descricao) {
+      innerHTML += `Descrição: ${info.descricao}<br>`;
+    }
 
-          // 🔹 Só mostra botões se for Master e o status ainda for pendente
-          if (pedido.ehMasterStaff && statusAtual === "pendente") {
-            innerHTML += `
-              <div class="flex gap-2 mt-1">
-                <button class="aprovar bg-green-500 text-white px-2 py-1 rounded">Autorizar</button>
-                <button class="negar bg-red-500 text-white px-2 py-1 rounded">Rejeitar</button>
-              </div>
-            `;
-          }
+    // 🔹 Só mostra botões se for Master e o status ainda for pendente
+    if (pedido.ehMasterStaff && statusAtual === "pendente") {
+      innerHTML += `
+        <div class="flex gap-2 mt-1">
+          <button class="aprovar bg-green-500 text-white px-2 py-1 rounded">Autorizar</button>
+          <button class="negar bg-red-500 text-white px-2 py-1 rounded">Rejeitar</button>
+        </div>
+      `;
+    }
 
-          innerHTML += `</div>`;
-          innerHTML += `<div class="quadrado-arredondado w-4 h-4 rounded" style="background-color: ${corQuadrado};"></div>`;
+    innerHTML += `</div>`;
+    innerHTML += `<div class="quadrado-arredondado w-4 h-4 rounded" style="background-color: ${corQuadrado};"></div>`;
 
-          card.innerHTML = innerHTML;
-          container.appendChild(card);
+    card.innerHTML = innerHTML;
+    container.appendChild(card);
 
-          // 🔹 Adiciona eventos somente se status for pendente
-          if (pedido.ehMasterStaff && statusAtual === "pendente") {
-            const aprovarBtn = card.querySelector(".aprovar");
-            const negarBtn = card.querySelector(".negar");
+    // 🔹 Adiciona eventos somente se status for pendente
+    if (pedido.ehMasterStaff && statusAtual === "pendente") {
+      const aprovarBtn = card.querySelector(".aprovar");
+      const negarBtn = card.querySelector(".negar");
 
-            aprovarBtn?.addEventListener("click", async () => {
-              await atualizarStatusPedido(pedido.idpedido, campo, "Autorizado", card);
-            });
-
-            negarBtn?.addEventListener("click", async () => {
-              await atualizarStatusPedido(pedido.idpedido, campo, "Rejeitado", card);
-            });
-          }
-        });
+      aprovarBtn?.addEventListener("click", async () => {
+        await atualizarStatusPedido(pedido.idpedido, campo, "Autorizado", card);
       });
+
+      negarBtn?.addEventListener("click", async () => {
+        await atualizarStatusPedido(pedido.idpedido, campo, "Rejeitado", card);
+      });
+    }
+  });
+});
+
 
       header.addEventListener("click", () => {
         container.classList.toggle("hidden");
@@ -1168,7 +1181,6 @@ async function mostrarPedidosUsuario() {
     console.error("Erro ao mostrar pedidos:", err);
   }
 }
-
 
 
 // Função para atualizar status via fetch
@@ -1281,7 +1293,7 @@ async function atualizarResumoPedidos() {
 }
 
 // Atualiza automaticamente a cada 10 segundos
-setInterval(atualizarResumoPedidos, 1000);
+setInterval(atualizarResumoPedidos, 10000);
 
 // Chamada inicial ao carregar a página
 atualizarResumoPedidos();
