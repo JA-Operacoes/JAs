@@ -4,153 +4,6 @@ const pool = require("../db/conexaoDB");
 const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlewares');
 const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 
-
-// ROTA PRINCIPAL DE RELATÓRIOS
-// router.get("/", autenticarToken(), contextoEmpresa,
-// verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
-//     console.log("ENTROU NA ROTA PARA RELATORIOS", req.query);
-//     const { tipo, dataInicio, dataFim, evento, cliente, equipe, pendentes, pagos, eventoFilter} = req.query;
-//     const idempresa = req.idempresa;
-//     const eventoEhTodos = evento === "todos";
-//    // const clienteEhTodos = !cliente || cliente === "todos";
-    
-//     if (!tipo || !dataInicio || !dataFim || !evento) {
-//         return res.status(400).json({ error: 'Parâmetros tipo, dataInicio, dataFim e evento são obrigatórios.' });
-//     }
-    
-//     const tiposPermitidos = ['ajuda_custo', 'cache'];
-//     if (!tiposPermitidos.includes(tipo)) {
-//         return res.status(400).json({ error: 'Tipo de relatório inválido.' });
-//     }
-
-//     try {
-//         const relatorio = {};
-
-//         const whereEventosFase = eventoFilter || ''; // Contém: ` AND tse.idevento IN (id1, id2, ...)` ou ''
-
-//         let paramCount = 4; // Começa a contagem para os parâmetros dinâmicos
-//         const params = [idempresa, dataInicio, dataFim];
-//         let wherePeriodoPadrao = `
-//             EXISTS (
-//                 SELECT 1
-//                 FROM jsonb_array_elements_text(tse.datasevento) AS event_date
-//                 WHERE event_date::date >= $2::date
-//                 AND event_date::date <= $3::date
-//             )
-//         `;
-
-//         // let wherePeriodo = ` AND ${wherePeriodoPadrao}`; // Filtro padrão de datasevento
-//         // wherePeriodo += whereEventosFase;
-
-//         let wherePeriodo = ` AND ${wherePeriodoPadrao}`; 
-//         // 2. Aplica o filtro de Evento:
-//         if (evento && evento !== "todos") {
-//             // Prioridade 1: Se um evento individual foi selecionado, filtra por ele.
-//             // NOTE: Este bloco NÃO usa whereEventosFase (lista de fases)
-//             wherePeriodo += ` AND tse.idevento = $${paramCount}`;
-//             params.push(evento);
-//             paramCount++;
-//         } else if (whereEventosFase) {
-//             // Prioridade 2: Se 'Todos' está selecionado, mas o JS enviou a lista de IDs de fases, aplica essa lista.
-//             wherePeriodo += whereEventosFase;
-//         }     
-
-
-//         // if (evento && evento !== "todos") {
-//         //     wherePeriodo += ` AND tse.idevento = $4`;
-//         //     params.push(evento);
-//         //     paramCount++;
-//         // } 
-
-//         if (cliente && cliente !== "todos") {
-//             wherePeriodo += ` AND tse.idcliente = $${paramCount}`;
-//             params.push(cliente);
-//             paramCount++;
-//         }
-
-//         if (equipe && equipe !== "todos") {
-//             wherePeriodo += ` AND tse.idequipe = $${paramCount}`;
-//             params.push(equipe);
-//             paramCount++; // Incrementa o contador para o próximo parâmetro
-//         }
-
-//         console.log("ATENÇÃO PAGOS/PENDENTES",pagos, pendentes)
-
-//         let whereStatus = '';
-//         const incluirPendentes = pendentes === 'true';
-//         const incluirPagos = pagos === 'true';
-
-//         if (incluirPendentes || incluirPagos) {
-//             let statusConditions = [];
-
-//             if (tipo === 'ajuda_custo') {
-//                 // Filtro de Ajuda de Custo usa comppgtoajdcusto (100%) e comppgtoajdcusto50 (50%)
-//                 if (incluirPagos) {
-//                     // Pago: Se houver comprovante de 100% OU 50%
-//                     statusConditions.push(`(tse.comppgtoajdcusto IS NOT NULL AND tse.comppgtoajdcusto != '') OR (tse.comppgtoajdcusto50 IS NOT NULL AND tse.comppgtoajdcusto50 != '')`);
-//                 }
-//                 if (incluirPendentes) {
-//                     // Pendente: Se NÃO houver comprovante de 100% E NÃO houver de 50%
-//                     statusConditions.push(`(tse.comppgtoajdcusto IS NULL OR tse.comppgtoajdcusto = '') AND (tse.comppgtoajdcusto50 IS NULL OR tse.comppgtoajdcusto50 = '')`);
-//                 }
-//             } else if (tipo === 'cache') {
-//                 // CORREÇÃO: Forçar a conversão para TEXT (::TEXT) antes do TRIM().
-//                 // Isso resolve o erro "função pg_catalog.btrim(numeric) não existe".
-//                 const vlrcaixinhaNumericoSeguro = `CAST(COALESCE(NULLIF(TRIM(tse.vlrcaixinha::TEXT), ''), '0') AS NUMERIC)`;
-                
-//                 // Condição para vlrcaixinha ser "Devido" (Valor > 0)
-//                 const vlrcaixinhaDevido = `(${vlrcaixinhaNumericoSeguro} > 0)`;
-//                 // Condição para vlrcaixinha ser "Não Devido" (Valor <= 0 ou vazio/nulo/com espaços)
-//                 const vlrcaixinhaNaoDevido = `(${vlrcaixinhaNumericoSeguro} <= 0)`;
-
-//                 const comprovanteCachePreenchido = `(tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '')`;
-//                 const comprovanteCachePendente = `(tse.comppgtocache IS NULL OR tse.comppgtocache = '')`;
-                
-//                 const comprovanteCaixinhaPreenchido = `(tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '')`;
-//                 const comprovanteCaixinhaPendente = `(tse.comppgtocaixinha IS NULL OR tse.comppgtocaixinha = '')`;
-
-//                 if (incluirPagos) {
-//                     // PAGO: Se o cachê está pago E a caixinha está paga (ou não é devida).
-//                     const condicaoPago = `(
-//                         ${comprovanteCachePreenchido} 
-//                         AND 
-//                         (
-//                             ${vlrcaixinhaNaoDevido} 
-//                             OR 
-//                             (${vlrcaixinhaDevido} AND ${comprovanteCaixinhaPreenchido})
-//                         )
-//                     )`;
-//                     statusConditions.push(condicaoPago);
-//                 }
-                
-//                 if (incluirPendentes) {
-//                     // PENDENTE: Se o cachê está pendente OU a caixinha é devida E está pendente.
-//                     const condicaoPendente = `(
-//                         ${comprovanteCachePendente} 
-//                         OR 
-//                         (${vlrcaixinhaDevido} AND ${comprovanteCaixinhaPendente})
-//                     )`;
-//                     statusConditions.push(condicaoPendente);
-//                 }
-//             }
-//             
-//             console.log("CONDICAO STATUS", statusConditions);
-//             if (statusConditions.length > 0) {
-//                 // Se houver condições, adiciona ' AND (condicao1 OR condicao2)'
-//                 whereStatus = ` AND (${statusConditions.join(' OR ')})`;
-//             }
-//         }
-        
-
-//         // let wherePeriodo = `
-//         //     EXISTS (
-//         //         SELECT 1
-//         //         FROM jsonb_array_elements_text(tse.datasevento) AS event_date
-//         //         WHERE event_date::date >= $2::date
-//         //         AND event_date::date <= $3::date
-//         //     ) AND tse.idevento = $4
-//         // `;          
-
 router.get("/", autenticarToken(), contextoEmpresa,
 verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
     console.log("ENTROU NA ROTA PARA RELATORIOS", req.query);
@@ -158,9 +11,7 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
     //const fasesSelecionadas = fases ? fases.split(',').map(f => f.trim()) : [];
 
     const idempresa = req.idempresa;
-    const eventoEhTodos = !evento || evento === "todos";
-
-   
+    const eventoEhTodos = !evento || evento === "todos";  
     
     // 2. Validações
     if (!tipo || !dataInicio || !dataFim ) {
@@ -173,16 +24,6 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
     }
     
     let phaseFilterSql = `s.date_value::date >= $2::date AND s.date_value::date <= $3::date`; // Filtro interno das subqueries de staff (s.date_value::date ...)
-
-    
-    // const whereEventos  = `
-    //     AND EXISTS (
-    //         SELECT 1
-    //         FROM jsonb_array_elements_text(tse.datasevento) AS event_date
-    //         WHERE event_date::date >= $2::date
-    //         AND event_date::date <= $3::date
-    //     )
-    // `;
 
     const whereEventos = `
         AND CASE
@@ -240,24 +81,24 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
         console.log("ATENÇÃO PAGOS/PENDENTES",pagos, pendentes)
 
         let whereStatus = '';
-        const incluirPendentes = pendentes === 'true';
-        const incluirPagos = pagos === 'true';
+        const incluirPendentes = pendentes === 'true';
+        const incluirPagos = pagos === 'true';
 
-        if (incluirPendentes || incluirPagos) {
-            let statusConditions = [];
+        if (incluirPendentes || incluirPagos) {
+            let statusConditions = [];
 
-            if (tipo === 'ajuda_custo') {
-                // Filtro de Ajuda de Custo usa comppgtoajdcusto (100%) e comppgtoajdcusto50 (50%)
-                if (incluirPagos) {
-                    // Pago: Se houver comprovante de 100% OU 50%
-                    statusConditions.push(`(tse.comppgtoajdcusto IS NOT NULL AND tse.comppgtoajdcusto != '') OR (tse.comppgtoajdcusto50 IS NOT NULL AND tse.comppgtoajdcusto50 != '')`);
-                }
-                if (incluirPendentes) {
-                    // Pendente: Se NÃO houver comprovante de 100% E NÃO houver de 50%
-                    statusConditions.push(`(tse.comppgtoajdcusto IS NULL OR tse.comppgtoajdcusto = '') AND (tse.comppgtoajdcusto50 IS NULL OR tse.comppgtoajdcusto50 = '')`);
-                }
-            } else if (tipo === 'cache') {
-                // CORREÇÃO: Forçar a conversão para TEXT (::TEXT) antes do TRIM().
+            if (tipo === 'ajuda_custo') {
+            // Filtro de Ajuda de Custo usa comppgtoajdcusto (100%) e comppgtoajdcusto50 (50%)
+                if (incluirPagos) {
+            // Pago: Se houver comprovante de 100% OU 50%
+                    statusConditions.push(`(tse.comppgtoajdcusto IS NOT NULL AND tse.comppgtoajdcusto != '') OR (tse.comppgtoajdcusto50 IS NOT NULL AND tse.comppgtoajdcusto50 != '')`);
+                }
+                if (incluirPendentes) {
+            // Pendente: Se NÃO houver comprovante de 100% E NÃO houver de 50%
+                    statusConditions.push(`(tse.comppgtoajdcusto IS NULL OR tse.comppgtoajdcusto = '') AND (tse.comppgtoajdcusto50 IS NULL OR tse.comppgtoajdcusto50 = '')`);
+                }
+            } else if (tipo === 'cache') {
+                    // CORREÇÃO: Forçar a conversão para TEXT (::TEXT) antes do TRIM().
                 // Isso resolve o erro "função pg_catalog.btrim(numeric) não existe".
                 const vlrcaixinhaNumericoSeguro = `CAST(COALESCE(NULLIF(TRIM(tse.vlrcaixinha::TEXT), ''), '0') AS NUMERIC)`;
                 
