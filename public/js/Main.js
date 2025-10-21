@@ -938,7 +938,7 @@ async function buscarPedidosUsuario() {
     const resposta = await fetchComToken(`/main/notificacoes-financeiras`, {
       headers: { idempresa: getIdEmpresa() }
     });
-
+   
     const ehMasterStaff = usuarioTemPermissao();
     console.log("Usuário é Master no Staff?", ehMasterStaff);
     console.log("Resposta bruta do fetch:", resposta);
@@ -989,6 +989,7 @@ async function buscarPedidosUsuario() {
     if (ehMasterStaff) {
       console.log("✅ Usuário é MASTER → vendo todos os pedidos.");
       pedidosProcessados = pedidosProcessados.map(p => ({ ...p, ehMasterStaff: true }));
+      console.log("PEDIDOS PROCESSADOS", pedidosProcessados);
     } else {
       // Usuário comum → vê apenas os próprios pedidos
       pedidosProcessados = pedidosProcessados
@@ -1260,6 +1261,8 @@ async function atualizarResumoPedidos() {
     let autorizados = 0;
     let pendentes = 0;
     let rejeitados = 0;
+
+    console.log("PEDIDOS ATUALIZAR RESUMO", pedidos);
 
     pedidos.forEach(p => {
       ["statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada"].forEach(campo => {

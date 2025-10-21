@@ -342,7 +342,7 @@ ORDER BY
     // Monta os pedidos
     const pedidos = rows.map(r => {
       let dados = {};
-      try { dados = JSON.parse(r.dadosnovos); } catch { /* ignore */ }
+      try { dados = JSON.parse(r.dadosnovos); } catch { /* ignore */ }    
 
       function parseValor(v) {
         if (!v) return 0;
@@ -394,6 +394,8 @@ ORDER BY
         statusmeiadiaria: montarCampo(r.statusmeiadiaria || dados.statusmeiadiaria, null, r.descmeiadiaria || dados.descmeiadiaria, r.vlrmeiadiaria || dados.vlrmeiadiaria)
       };
     })
+
+    
     .filter(p => {
       const campos = ['statuscaixinha','statusajustecusto','statusdiariadobrada','statusmeiadiaria'];
       // mantém apenas se tiver algum campo relevante
@@ -421,7 +423,7 @@ ORDER BY
 
 
       return true;
-    });
+    });    
 
     res.json(pedidos);
 
@@ -430,8 +432,8 @@ ORDER BY
     res.status(500).json({ error: 'Erro ao buscar notificações financeiras' });
   }
 });
-router.post(
-  '/notificacoes-financeiras/atualizar-status',
+
+router.post('/notificacoes-financeiras/atualizar-status', 
   logMiddleware('main', {
     buscarDadosAnteriores: async (req) => {
       const { idpedido } = req.body;

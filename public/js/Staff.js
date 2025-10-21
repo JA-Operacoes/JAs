@@ -1008,7 +1008,9 @@ function inicializarEPreencherCampos(eventData) {
     if (temPermissaoTotal) {    
         document.getElementById('selectStatusAjusteCusto').style.display = 'block';
         statusAjusteCustoInput.style.display = 'none';
+        console.log("STATUS AJUSTE CUSTO TEM PERMISSAO TOTAL", eventData.statusajustecusto);
         document.getElementById('selectStatusAjusteCusto').value = eventData.statusajustecusto || 'Pendente';
+        console.log("VALOR DO STATUS AJUSTE CUSTO:", eventData.statusajustecusto);
         aplicarCoresAsOpcoes('selectStatusAjusteCusto');
         aplicarCorNoSelect(document.getElementById('selectStatusAjusteCusto'));
 
@@ -1039,6 +1041,7 @@ function inicializarEPreencherCampos(eventData) {
 
         document.getElementById('selectStatusAjusteCusto').style.display = 'none';
         statusAjusteCustoInput.style.display = 'block';
+        console.log("STATUS AJUSTE CUSTO SEM PERMISSAO TOTAL", eventData.statusajustecusto);
         statusAjusteCustoInput.value = eventData.statusAjusteCusto || 'Pendente';
         aplicarCorStatusInput(statusAjusteCustoInput);
 
@@ -1240,17 +1243,72 @@ const carregarTabelaStaff = async (funcionarioId) => {
                     : 'N/A';
 
                     row.insertCell().textContent = parseFloat(eventData.vlrcache || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    row.insertCell().textContent = parseFloat(eventData.vlrajustecusto || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                   // row.insertCell().textContent = parseFloat(eventData.vlrajustecusto || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    const vlrAjusteCustoCell = row.insertCell();
+                    const vlrAjusteCustoFormatado = parseFloat(eventData.vlrajustecusto || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    vlrAjusteCustoCell.textContent = vlrAjusteCustoFormatado; // Insere o valor em preto
+
+                    const statusAjusteCusto = (eventData.statusajustecusto || '').trim();
+
+                    if (statusAjusteCusto) {
+                        const statusSpan = document.createElement('span');
+                        statusSpan.textContent = ` (${statusAjusteCusto})`;
+                        statusSpan.classList.add('status-custom');
+                        
+                        // Formata o status para "Pendente", "Autorizado", etc.
+                        // Garante que o status para a classe seja Capitalizado
+                        const statusCapitalized = statusAjusteCusto.charAt(0).toUpperCase() + statusAjusteCusto.slice(1).toLowerCase();
+                        
+                        // Adiciona a classe de cor correta
+                        statusSpan.classList.add(`status-${statusCapitalized}`); 
+                        
+                        vlrAjusteCustoCell.appendChild(statusSpan);
+                    }
+
                     row.insertCell().textContent = eventData.descajustecusto || '';                   
                     row.insertCell().textContent = parseFloat(eventData.vlralimentacao || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     row.insertCell().textContent = parseFloat(eventData.vlrtransporte || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                   // row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    const vlrCaixinhaCell = row.insertCell();
+                    const vlrCaixinhaFormatado = parseFloat(eventData.vlrcaixinha || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    vlrCaixinhaCell.textContent = vlrCaixinhaFormatado; // Valor em preto
+
+                    const statusCaixinha = (eventData.statuscaixinha || '').trim();
+
+                    if (statusCaixinha) {
+                        const statusSpan = document.createElement('span');
+                        statusSpan.textContent = ` (${statusCaixinha})`;
+                        statusSpan.classList.add('status-custom');
+
+                        // Formata o status para "Pendente", "Autorizado", etc.
+                        // Garante que o status para a classe seja Capitalizado
+                        const statusCapitalized = statusCaixinha.charAt(0).toUpperCase() + statusCaixinha.slice(1).toLowerCase();
+
+                        // Adiciona a classe de cor correta
+                        statusSpan.classList.add(`status-${statusCapitalized}`);
+
+                        vlrCaixinhaCell.appendChild(statusSpan);
+                    }
                     row.insertCell().textContent = eventData.descbeneficios || '';
-                    row.insertCell().textContent = parseFloat(eventData.vlrtotal || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+                    //row.insertCell().textContent = parseFloat(eventData.vlrtotal || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                     // row.insertCell().textContent = eventData.statuspgto || '';
 
-                    const statusCell = row.insertCell();
+                    let valorTotalCalculado = parseFloat(eventData.vlrtotal || 0.00);
 
+                    // Adiciona vlrcaixinha se statuscaixinha for 'Autorizado'
+                    if (eventData.statuscaixinha && eventData.statuscaixinha.toLowerCase() === 'autorizado') {
+                        valorTotalCalculado += parseFloat(eventData.vlrcaixinha || 0.00);
+                    }
+
+                    // Adiciona vlrajustecusto se statusajustecusto for 'Autorizado'
+                    if (eventData.statusajustecusto && eventData.statusajustecusto.toLowerCase() === 'autorizado') {
+                        valorTotalCalculado += parseFloat(eventData.vlrajustecusto || 0.00);
+                    }
+                    
+                    row.insertCell().textContent = valorTotalCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+                    const statusCell = row.insertCell();
 
                     const status = (eventData.statuspgto || '').toLowerCase();
                     const statusSpan = document.createElement('span');
