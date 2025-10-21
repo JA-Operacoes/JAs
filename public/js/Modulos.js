@@ -30,7 +30,8 @@ let novoInputDescModuloInputListener = null;
 if (typeof window.ModulosOriginal === "undefined") {
     window.ModulosOriginal = {
         idModulo: "",
-        nmModulo: ""
+        nmModulo: "",
+        empresas: []
     };
 }
 
@@ -87,6 +88,14 @@ function verificaModulos() {
         const idModulo = document.querySelector("#idModulo").value.trim();
         const nmModulo = document.querySelector("#nmModulo").value.toUpperCase().trim();
 
+        const empresasSelecionadas = Array.from(document.querySelectorAll('input[name="empresa"]:checked'))
+        .map(checkbox => checkbox.value);
+
+        if (empresasSelecionadas.length === 0) {
+        // Isso só deve acontecer se o HTML estiver incorreto ou o script falhar
+        return Swal.fire("Empresas Obrigatórias", "Pelo menos a empresa principal deve estar selecionada para salvar o módulo.", "error");
+    }
+
         // Permissões
         const temPermissaoCadastrar = temPermissao("Modulos", "cadastrar");
         const temPermissaoAlterar = temPermissao("Modulos", "alterar");
@@ -105,7 +114,13 @@ function verificaModulos() {
             return Swal.fire("Campos obrigatórios!", "Preencha todos os campos antes de enviar.", "warning");
         }
 
-        const dados = { idModulo, nmModulo };
+        //const dados = { idModulo, nmModulo };
+
+        const dados = { 
+            idModulo, 
+            nmModulo, 
+            empresas: empresasSelecionadas // <--- NOVO
+        };
 
         // Verifica alterações
         if (
