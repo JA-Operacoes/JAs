@@ -1,4 +1,330 @@
-import { fetchComToken, aplicarTema } from '/utils/utils.js';
+import { fetchComToken, aplicarTema, fetchHtmlComToken  } from '/utils/utils.js';
+
+
+async function abrirModalLocal(url, modulo) {
+  if (!modulo) modulo = window.moduloAtual || "Staff";
+  console.log("[abrirModalLocal] iniciar:", { modulo, url });
+
+  let html;
+  try {
+    console.log("[abrirModalLocal] fetchHtmlComToken ->", url);
+    html = await fetchHtmlComToken(url);
+    console.log("[abrirModalLocal] HTML recebido, tamanho:", html ? html.length : 0);
+  } catch (err) {
+    console.error("[abrirModalLocal] Erro ao carregar modal (local):", err);
+    return;
+  }
+
+  const container = document.getElementById("modal-container");
+  if (!container) {
+    console.error("[abrirModalLocal] modal-container não encontrado no DOM.");
+    return;
+  }
+
+  // injeta HTML do modal
+  container.innerHTML = html;
+  console.log("[abrirModalLocal] HTML injetado no #modal-container");
+
+  // remove script anterior se existir
+  const scriptId = 'scriptModuloDinamico';
+  const scriptAntigo = document.getElementById(scriptId);
+  if (scriptAntigo) {
+    scriptAntigo.remove();
+    console.log("[abrirModalLocal] script anterior removido");
+  }
+
+  // carrega script do módulo (Staff.js por exemplo)
+  const scriptName = modulo.charAt(0).toUpperCase() + modulo.slice(1) + ".js";
+  const scriptSrc = `js/${scriptName}`;
+
+  // cria promise para aguardar load / execução do módulo
+  await new Promise((resolve, reject) => {
+    console.log("[abrirModalLocal] carregando script do módulo:", scriptSrc);
+    const script = document.createElement("script");
+    script.id = scriptId;
+    script.src = scriptSrc;
+    script.defer = true;
+    script.type = "module";
+
+    script.onload = () => {
+      // aguarda um tick para garantir execução de exports/global assignments
+      setTimeout(() => {
+        console.log(`[abrirModalLocal] Script ${scriptName} carregado e executado.`);
+        resolve();
+      }, 50);
+    };
+    script.onerror = (e) => {
+      console.error(`[abrirModalLocal] Erro ao carregar script ${scriptSrc}`, e);
+      reject(new Error(`Erro ao carregar script ${scriptSrc}`));
+    };
+    document.body.appendChild(script);
+  }).catch(err => {
+    console.error("[abrirModalLocal] falha ao carregar script do módulo:", err);
+    return;
+  });
+
+  // mostra modal (espera elemento modal injetado)
+  const modal = document.querySelector("#modal-container .modal");
+  const overlay = document.getElementById("modal-overlay");
+  if (modal && overlay) {
+    modal.style.display = "block";
+    overlay.style.display = "block";
+    document.body.classList.add("modal-open");
+    console.log("[abrirModalLocal] modal exibido");
+
+    // fechar por overlay
+    overlay.addEventListener("mousedown", (event) => {
+      if (event.target === overlay) {
+        console.log("[abrirModalLocal] overlay clicado -> fechar");
+        if (typeof fecharModal === "function") fecharModal();
+        else {
+          overlay.style.display = "none";
+          container.innerHTML = "";
+          document.body.classList.remove("modal-open");
+        }
+      }
+    });
+
+    modal.querySelector(".close")?.addEventListener("click", () => {
+      console.log("[abrirModalLocal] fechar (botão X)");
+      if (typeof fecharModal === "function") fecharModal();
+      else {
+        overlay.style.display = "none";
+        container.innerHTML = "";
+        document.body.classList.remove("modal-open");
+      }
+    });
+  } else {
+    console.warn("[abrirModalLocal] estrutura de modal não encontrada após injeção do HTML.");
+  }
+
+  // --- Inicializa o módulo carregado ---
+  try {
+    console.log("[abrirModalLocal] inicializando módulo:", modulo);
+
+    // 1) preferencial: handler registrado pelo módulo (window.moduloHandlers)
+    if (window.moduloHandlers && window.moduloHandlers[modulo] && typeof window.moduloHandlers[modulo].configurar === "function") {
+      console.log("[abrirModalLocal] chamando window.moduloHandlers[...] .configurar");
+      window.moduloHandlers[modulo].configurar();
+    } else if (typeof window.configurarEventosEspecificos === "function") {
+      console.log("[abrirModalLocal] chamando window.configurarEventosEspecificos");
+      window.configurarEventosEspecificos(modulo);
+    } else if (typeof window.configurarEventosStaff === "function" && modulo.toLowerCase() === "staff") {
+      console.log("[abrirModalLocal] chamando window.configurarEventosStaff");
+      window.configurarEventosStaff();
+    } else {
+      console.log("[abrirModalLocal] nenhuma função de configuração detectada");
+    }
+
+    // 4) tenta aplicar prefill imediato (se o módulo já injetou selects/inputs)
+    setTimeout(() => {
+      try {
+        console.log("[abrirModalLocal] tentando applyModalPrefill imediato");
+        if (typeof window.applyModalPrefill === "function") {
+          const ok = window.applyModalPrefill(window.__modalInitialParams || "");
+          console.log("[abrirModalLocal] applyModalPrefill retornou:", ok);
+        } else {
+          const evt = new CustomEvent("modal:prefill", { detail: window.__modalInitialParams || "" });
+          document.dispatchEvent(evt);
+          console.log("[abrirModalLocal] evento modal:prefill disparado");
+        }
+      } catch (e) {
+        console.warn("[abrirModalLocal] prefill falhou", e);
+      }
+    }, 80);
+
+    // pequena garantia: re-tentar inicialização caso o módulo popule DOM com atraso
+    setTimeout(() => {
+      try {
+        if (window.moduloHandlers && window.moduloHandlers[modulo] && typeof window.moduloHandlers[modulo].configurar === "function") {
+          console.log("[abrirModalLocal] re-executando moduloHandlers.configurar (retry)");
+          window.moduloHandlers[modulo].configurar();
+        }
+      } catch (e) { console.warn("[abrirModalLocal] retry configurar falhou", e); }
+    }, 400);
+  } catch (err) {
+    console.warn("[abrirModalLocal] inicialização do módulo apresentou erro", err);
+  }
+}
+
+window.applyModalPrefill = function(rawParams) {
+  try {
+    console.log("[applyModalPrefill] iniciar. rawParams:", rawParams);
+    const raw = rawParams || window.__modalInitialParams || (window.location.search ? window.location.search.replace(/^\?/,'') : "");
+    console.log("[applyModalPrefill] raw usado:", raw);
+    if (!raw) {
+      console.log("[applyModalPrefill] sem params, abortando");
+      return false;
+    }
+    const params = new URLSearchParams(raw);
+
+    // leitura dos valores esperados
+    const prefill = {
+      idevento: params.get("idevento"),
+      idfuncao: params.get("idfuncao"),
+      idequipe: params.get("idequipe"),
+      idcliente: params.get("idcliente"),
+      idmontagem: params.get("idmontagem"),
+      nmequipe: params.get("nmequipe") || params.get("idequipe_nome"),
+      nmfuncao: params.get("nmfuncao"),
+      nmevento: params.get("nmevento"),
+      nmcliente: params.get("nmcliente"),
+      nmlocalmontagem: params.get("nmlocalmontagem")
+    };
+    console.log("[applyModalPrefill] prefill parseado:", prefill);
+
+    // expõe para uso posterior (Staff.js ou observers)
+    window.__modalDesiredPrefill = prefill;
+
+    // helper: tenta aplicar em hidden/input simples
+    function setHidden(id, value) {
+      if (!value) return;
+      const el = document.getElementById(id);
+      if (el) {
+        el.value = value;
+        console.log(`[applyModalPrefill] setHidden ${id}=${value}`);
+      } else {
+        console.log(`[applyModalPrefill] hidden ${id} não encontrado`);
+      }
+    }
+
+    setHidden("idEvento", prefill.idevento);
+    setHidden("idStaffEvento", prefill.idevento);
+    setHidden("idEquipe", prefill.idequipe);
+    setHidden("idFuncao", prefill.idfuncao);
+    setHidden("idCliente", prefill.idcliente);
+    setHidden("idMontagem", prefill.idmontagem);
+
+    // helper: tenta selecionar option existente — NÃO cria option para evitar sobrescrever listas carregadas depois
+    function trySelectIfExists(selectId, value, text) {
+      if (!value && !text) return false;
+      const sel = document.getElementById(selectId);
+      if (!sel) {
+        console.log(`[applyModalPrefill] select ${selectId} não existe ainda`);
+        return false;
+      }
+      const options = Array.from(sel.options || []);
+      // tenta por value primeiro
+      let opt = options.find(o => String(o.value) === String(value));
+      if (!opt && text) {
+        opt = options.find(o => (o.textContent || o.text || "").trim() === String(text).trim());
+      }
+      if (opt) {
+        sel.value = opt.value;
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+        console.log(`[applyModalPrefill] selecionado ${selectId} -> value:${opt.value} text:${opt.text}`);
+        return true;
+      }
+      console.log(`[applyModalPrefill] opção não encontrada em ${selectId} para value:${value} text:${text}`);
+      return false;
+    }
+
+    // Observador que aguarda opções serem adicionadas a um <select> e então tenta aplicar
+    function observeSelectUntilPopulated(selectId, value, text, timeout = 3000) {
+      const sel = document.getElementById(selectId);
+      if (!sel) {
+        console.log(`[applyModalPrefill] observe: select ${selectId} não existe, pulando`);
+        return;
+      }
+      if (trySelectIfExists(selectId, value, text)) return;
+
+      console.log(`[applyModalPrefill] observando select ${selectId} até popular (timeout ${timeout}ms)`);
+      const mo = new MutationObserver((mutations) => {
+        if (trySelectIfExists(selectId, value, text)) {
+          try { mo.disconnect(); } catch(e) {}
+          console.log(`[applyModalPrefill] observe: option aplicada em ${selectId}`);
+        }
+      });
+
+      mo.observe(sel, { childList: true, subtree: true });
+
+      setTimeout(() => {
+        try { mo.disconnect(); } catch (e) {}
+        const still = document.getElementById(selectId);
+        if (still && (still.options.length === 0 || !trySelectIfExists(selectId, value, text))) {
+          console.log(`[applyModalPrefill] timeout atingido para ${selectId}. Criando option fallback (se tiver texto).`);
+          if (text || value) {
+            const opt = document.createElement("option");
+            opt.value = value || text || "";
+            opt.text = text || value || "Selecionado";
+            opt.selected = true;
+            still.appendChild(opt);
+            still.dispatchEvent(new Event('change', { bubbles: true }));
+            console.log(`[applyModalPrefill] option fallback criado em ${selectId} value:${opt.value}`);
+          }
+        }
+      }, timeout);
+    }
+
+    // Campos para tentar aplicar agora / observar
+    const selectsToTry = [
+      { id: "nmEvento", val: prefill.idevento, txt: prefill.nmevento },
+      { id: "nmCliente", val: prefill.idcliente, txt: prefill.nmcliente },
+      { id: "nmLocalMontagem", val: prefill.idmontagem, txt: prefill.nmlocalmontagem },
+      { id: "nmEquipe", val: prefill.idequipe, txt: prefill.nmequipe },
+      { id: "descFuncao", val: prefill.idfuncao, txt: prefill.nmfuncao }
+    ];
+
+    // tenta aplicar imediatamente, senão observa
+    selectsToTry.forEach(s => {
+      console.log("[applyModalPrefill] tentativa imediata select:", s.id, s.val, s.txt);
+      if (!trySelectIfExists(s.id, s.val, s.txt)) {
+        observeSelectUntilPopulated(s.id, s.val, s.txt, 3000);
+      }
+    });
+
+    // Quando o usuário escolher um funcionário, aplicar campos dependentes (equipe/função/evento/cliente/local)
+    const nmFuncionario = document.getElementById("nmFuncionario");
+    if (nmFuncionario) {
+      console.log("[applyModalPrefill] nmFuncionario existe -> adicionando listener para aplicar dependentes quando escolhido");
+      nmFuncionario.addEventListener("change", function handler() {
+        console.log("[applyModalPrefill] nmFuncionario change detectado, aplicando dependentes");
+        selectsToTry.forEach(s => {
+          const el = document.getElementById(s.id);
+          const userSelected = el && el.value && el.value !== "" && Array.from(el.options || []).some(o => o.value === el.value);
+          if (!userSelected) trySelectIfExists(s.id, s.val, s.txt);
+        });
+        nmFuncionario.removeEventListener("change", handler);
+      }, { once: true });
+    } else {
+      console.log("[applyModalPrefill] nmFuncionario não existe ainda -> observando DOM para adicioná-lo");
+      const bodyObs = new MutationObserver((mut, obs) => {
+        const sel = document.getElementById("nmFuncionario");
+        if (sel) {
+          console.log("[applyModalPrefill] nmFuncionario injetado -> adicionando listener");
+          sel.addEventListener("change", function handler() {
+            console.log("[applyModalPrefill] nmFuncionario change detectado (via observer)");
+            selectsToTry.forEach(s => {
+              const el = document.getElementById(s.id);
+              const userSelected = el && el.value && el.value !== "" && Array.from(el.options || []).some(o => o.value === el.value);
+              if (!userSelected) trySelectIfExists(s.id, s.val, s.txt);
+            });
+            sel.removeEventListener("change", handler);
+          }, { once: true });
+          obs.disconnect();
+        }
+      });
+      bodyObs.observe(document.body, { childList: true, subtree: true });
+    }
+
+    
+
+    // notifica listeners que o prefill foi registrado (módulo pode reagir)
+    console.log("[applyModalPrefill] prefill registrado, dispatching prefill:registered");
+    document.dispatchEvent(new CustomEvent("prefill:registered", { detail: { prefill } }));
+
+    // limpa var global inicial, mantemos __modalDesiredPrefill para possíveis usos posteriores
+    try { delete window.__modalInitialParams; } catch(e) { window.__modalInitialParams = null; }
+
+    return true;
+  } catch (err) {
+    console.error("[applyModalPrefill] erro:", err);
+    return false;
+  }
+};
+
+
+
 
 // Função para obter o idempresa do localStorage
 function getIdEmpresa() {
@@ -31,9 +357,27 @@ async function atualizarResumo() {
   document.getElementById("orcamentosFechados").textContent = dadosResumo.orcamentosFechados;
 }
 
+function usuarioTemPermissao() {
+  if (!window.permissoes || !Array.isArray(window.permissoes)) return false;
+console.log("Usuário tem permissão master no staff");
+  const permissaoStaff = window.permissoes.find(p => p.modulo?.toLowerCase() === "staff");
+  if (!permissaoStaff) return false;
 
+  return !!permissaoStaff.pode_master; 
+}
 
-// Atualiza cards de resumo
+// Evento no card financeiro
+const cardFinanceiro = document.querySelector(".card-financeiro");
+if (cardFinanceiro) {
+  cardFinanceiro.addEventListener("click", async () => {
+    await mostrarPedidosUsuario();
+  });
+}
+
+// =========================
+//         Atividades
+// =========================
+
 
 function getIdExecutor() {
   const token = localStorage.getItem("token");
@@ -160,6 +504,10 @@ document.addEventListener("DOMContentLoaded", function () {
     card.addEventListener("click", atualizarAtividades);
   }
 });
+
+// =========================
+//          Eventos 
+// =========================
 
 async function atualizarProximoEvento() {
     const resposta = await fetchComToken("/main/proximo-evento", {
@@ -925,13 +1273,869 @@ async function abrirPopupEvento(idevento) {
     }
 }
 
+document.addEventListener("DOMContentLoaded", function () {
+    const cardEventos = document.querySelector(".card-eventos-em-abertos");
+
+    if (cardEventos) {
+        cardEventos.addEventListener("click", function () {
+            mostrarEventosEmAberto(); // renderiza só ao clicar
+        });
+    }
+});
+
+async function atualizarEventosEmAberto() {
+  const qtdSpan = document.getElementById("qtdEventosAbertos");
+  const lista = document.querySelector(".card-eventos-em-abertos .evt-body");
+  const footer = document.querySelector(".card-eventos-em-abertos .evt-footer");
+
+  if (!qtdSpan || !lista || !footer) {
+    console.warn("Elementos de eventos em aberto não encontrados no DOM.");
+    return;
+  }
+
+  try {
+    const idempresa = getIdEmpresa();
+    const resposta = await fetchComToken("/main/eventos-abertos", {
+      headers: { idempresa }
+    });
+
+    if (!resposta || !resposta.length) {
+      qtdSpan.textContent = "0";
+      lista.innerHTML = `<div class="evento-vazio">Nenhum evento em aberto 🎉</div>`;
+      footer.style.display = "none";
+      return;
+    }
+
+    // Função utilitária para converter data local
+    function parseDateLocal(dateStr) {
+      if (typeof dateStr === "string") {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+          const [y, m, d] = dateStr.split("-").map(Number);
+          return new Date(y, m - 1, d);
+        }
+        return new Date(dateStr);
+      }
+      return new Date(dateStr);
+    }
+
+    // Ordena pelo evento mais próximo
+    resposta.sort((a, b) => new Date(a.data_referencia) - new Date(b.data_referencia));
+
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    lista.innerHTML = "";
+    qtdSpan.textContent = resposta.length;
+
+    // Mostra apenas o evento mais próximo
+    const primeiroEvento = resposta[0];
+    const dataEvento = parseDateLocal(primeiroEvento.data_referencia);
+    const diffDias = Math.ceil((dataEvento - hoje) / (1000 * 60 * 60 * 24));
+
+    let statusTexto = "";
+    let statusClasse = "";
+
+    if (primeiroEvento.fim_evento && new Date(primeiroEvento.fim_evento) < hoje) {
+      statusTexto = "✔ Realizado com sucesso";
+      statusClasse = "status-realizado";
+    } else if (diffDias <= 5 && diffDias >= 0) {
+      statusTexto = `⚠ Sem staff - faltam ${diffDias} dia${diffDias > 1 ? "s" : ""} p/ Realizar`;
+      statusClasse = "status-urgente";
+    } else if (diffDias > 5) {
+      statusTexto = "Sem staff definido";
+      statusClasse = "status-pendente";
+    } else {
+      statusTexto = "Em andamento";
+      statusClasse = "status-andamento";
+    }
+
+    const item = `
+        <div class="evento-nome"> Evento: ${primeiroEvento.nmevento}</div>
+        <div class="evento-local">Local: ${primeiroEvento.nmlocalmontagem || "Local não informado"}</div>
+        <div class="evento-status ${statusClasse}">status: ${statusTexto}</div>
+    `;
+
+    lista.insertAdjacentHTML("beforeend", item);
+
+    // Mostra "clique para ver mais" se houver outros eventos
+    if (resposta.length > 1) {
+      footer.style.display = "block";
+      footer.innerHTML = `<span class="verMais"> Clique para ver mais (${resposta.length - 1} outros)</span>`;
+    } else {
+      footer.style.display = "none";
+    }
+
+  } catch (err) {
+    console.error("Erro ao carregar eventos em aberto:", err);
+    lista.innerHTML = `<div class="evento-erro">Erro ao carregar eventos ⚠</div>`;
+    qtdSpan.textContent = "–";
+    footer.style.display = "none";
+  }
+}
+
+
+async function mostrarEventosEmAberto() {
+ const painel = document.getElementById("painelDetalhes");
+ if (!painel) return;
+
+ painel.innerHTML = "";
+
+ // ======= CONTAINER PRINCIPAL =======
+ const container = document.createElement("div");
+ container.className = "painel-eventos-em-aberto";
+
+ // ======= HEADER =======
+ const header = document.createElement("div");
+ header.className = "header-eventos-em-aberto";
+ header.textContent = "⚠ Eventos em Aberto";
+ container.appendChild(header);
+
+ // ======= ABAS =======
+ const abas = document.createElement("div");
+ abas.className = "abas-eventos";
+ abas.innerHTML = `
+  <div class="aba ativo" data-target="abertos">Abertos</div>
+  <div class="aba" data-target="finalizados">Encerrados</div>
+ `;
+ container.appendChild(abas);
+
+ // ======= CONTEÚDOS DAS ABAS =======
+ const conteudos = document.createElement("div");
+ conteudos.className = "conteudos-abas";
+
+ const abaAbertos = document.createElement("div");
+ abaAbertos.className = "conteudo-aba ativo";
+ abaAbertos.id = "abertos";
+
+ const abaFinalizados = document.createElement("div");
+ abaFinalizados.className = "conteudo-aba";
+ abaFinalizados.id = "finalizados";
+
+ conteudos.appendChild(abaAbertos);
+ conteudos.appendChild(abaFinalizados);
+ container.appendChild(conteudos);
+ painel.appendChild(container);
+
+ // ------------------------------------------------------------------
+ // ======= EVENTO DE TROCA DE ABAS - CORRIGIDO =======
+ // ------------------------------------------------------------------
+abas.querySelectorAll(".aba").forEach(btn => {
+  btn.addEventListener("click", async () => {
+    // 1. Identifica os elementos
+    const target = btn.dataset.target; // 'abertos' ou 'finalizados'
+    const targetEl = document.getElementById(target);
+    const idempresa = getIdEmpresa(); // Obtemos idempresa uma vez
+
+    // 2. Troca visual de aba ativa (MANTIDO)
+    abas.querySelectorAll(".aba").forEach(b => b.classList.remove("ativo"));
+    btn.classList.add("ativo");
+
+    // 3. Esconde conteúdos e mostra o alvo (MANTIDO)
+    conteudos.querySelectorAll(".conteudo-aba").forEach(c => c.classList.remove("ativo"));
+    targetEl.classList.add("ativo");
+
+    // 4. FORÇA O RECARREGAMENTO e mostra o loading
+    targetEl.innerHTML = `<div class="loading-spinner">Carregando eventos ${target}...</div>`;
+
+    let rota;
+    try {
+      if (target === "finalizados") {
+        rota = "eventos-fechados";
+        
+        // **ROTA 1: EVENTOS FECHADOS**
+        const resp = await fetchComToken(`/main/eventos-fechados`, { headers: { idempresa } });
+        const eventos = resp && typeof resp.json === 'function' ? await resp.json() : resp;
+        
+        renderizarEventos(targetEl, eventos);
+
+      } else { // target === "abertos"
+        rota = "eventos-abertos";
+        
+        // **ROTA 2: EVENTOS ABERTOS**
+        const resp = await fetchComToken(`/main/eventos-abertos`, { headers: { idempresa } });
+        const eventos = resp && typeof resp.json === 'function' ? await resp.json() : resp;
+
+        renderizarEventos(targetEl, eventos);
+      }
+      
+    } catch (err) {
+      // 5. Tratamento de erro detalhado
+      console.error(`Falha ao carregar a rota ${rota}:`, err);
+      targetEl.innerHTML = `<div class="erro-carregar">Erro ao carregar eventos de ${target} (Rota: <b>/main/${rota}</b>). Verifique o console.</div>`;
+    }
+  });
+});
+
+// FUNÇÃO AUXILIAR PARA EVITAR DUPLICAÇÃO DE CÓDIGO DE RENDERIZAÇÃO
+function renderizarEventos(targetEl, eventos) {
+    if (!Array.isArray(eventos) || eventos.length === 0) {
+        targetEl.innerHTML = `<div class="nenhum-evento">Nenhum evento encontrado</div>`;
+        return;
+    }
+
+    targetEl.innerHTML = ""; // Limpa o loading
+
+    eventos.map(evt => normalizarEvento(evt)).forEach((evt, index) => {
+        const card = criarCard(evt);
+        card.style.setProperty('--index', index);
+        targetEl.appendChild(card);
+    });
+}
+ // ------------------------------------------------------------------
+ // ======= CARREGAMENTO INICIAL - CORRIGIDO =======
+ // ------------------------------------------------------------------
+ // REMOVIDAS as declarações eventosAbertos/Finalizados vazias
+
+ try {
+  const idempresa = localStorage.getItem("idempresa");
+  // URL CORRIGIDA PARA A NOVA ROTA ESPECÍFICA
+  const resp = await fetchComToken(`/main/eventos-abertos`, { headers: { idempresa } });
+  const eventos = resp?.ok ? await resp.json() : resp;
+
+  if (!Array.isArray(eventos)) {
+   abaAbertos.innerHTML = `<span class="erro-carregar">Erro ao carregar eventos</span>`;
+   console.error("Erro backend: resposta inesperada", eventos);
+   return;
+  }
+
+  if (!eventos.length) {
+   abaAbertos.innerHTML = `<span class="nenhum-evento">Nenhum evento em aberto 🎉</span>`;
+   abaAbertos.dataset.populado = "1";
+   return;
+  }
+
+  // Transforma eventos para o formato UI e preenche
+  eventos.map(evt => normalizarEvento(evt)).forEach(evt => {
+   abaAbertos.appendChild(criarCard(evt));
+  });
+  
+  abaAbertos.dataset.populado = "1"; // Marca como populado
+
+ } catch (err) {
+  console.error("Erro ao carregar eventos em aberto:", err);
+  abaAbertos.innerHTML = `<span class="erro-carregar">Erro ao buscar eventos</span>`;
+ }
+
+
+ // ------------------------------------------------------------------
+ // ======= FUNÇÕES AUXILIARES - REORGANIZADAS/SIMPLIFICADAS =======
+ // ------------------------------------------------------------------
+
+ // Movida a lógica de mapeamento para uma função separada para reuso
+ function normalizarEvento(ev) {
+  const inicio_realizacao = ev.dtinirealizacao || ev.dtinimontagem || ev.dtinimarcacao;
+  const fim_realizacao = ev.dtfimrealizacao || ev.dtfimdesmontagem || ev.dtfimmontagem;
+  const data_referencia = ev.dtinimontagem || ev.dtinirealizacao || ev.dtinimarcacao;
+  const fim_evento = ev.dtfimdesmontagem || ev.dtfimrealizacao;
+
+  // O backend já está retornando equipes_detalhes, vamos usá-lo se disponível
+  let equipesDetalhes = Array.isArray(ev.equipes_detalhes) ? ev.equipes_detalhes : [];
+  
+  return {
+   ...ev,
+   data_referencia,
+   inicio_realizacao,
+   fim_realizacao,
+   fim_evento,
+   total_staff: ev.total_staff ?? ev.totalStaff ?? 0,
+   equipes_detalhes: equipesDetalhes // Garante que o campo existe
+  };
+ }
+
+ function parseDateLocal(dataISO) {
+  if (!dataISO) return "";
+  const data = new Date(dataISO);
+  if (isNaN(data)) return dataISO; // se não for uma data válida
+  // Usa o toLocaleDateString com fuso horário UTC para evitar problemas de offset
+  return data.toLocaleDateString("pt-BR", { timeZone: "UTC" }); 
+ }
+ 
+ // Ajuste para criarCard para aceitar o formato de data no cálculo de dias
+ function parseDateForComparison(dateStr) {
+  if (!dateStr) return null;
+  if (typeof dateStr === "string") {
+   // Regex simples para ISO date sem time
+   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    // Cria a data no fuso zero (meia-noite UTC)
+    return new Date(Date.UTC(y, m - 1, d)); 
+   }
+   // Tenta criar a data normal, mas ajusta para meia-noite local para comparação
+   const d = new Date(dateStr);
+   if (isNaN(d)) return null;
+   d.setHours(0, 0, 0, 0);
+   return d;
+  }
+  if (dateStr instanceof Date) {
+   dateStr.setHours(0, 0, 0, 0);
+   return dateStr;
+  }
+  return null;
+ }
+
+
+ // ======= Função para criar card de evento =======
+ // MANTIDA A LÓGICA DE ALERTA, MAS USANDO FUNÇÕES CORRIGIDAS PARA DATA
+function normalizarEvento(ev) {
+    const inicio_realizacao = ev.dtinirealizacao || ev.dtinimontagem || ev.dtinimarcacao;
+    const fim_realizacao = ev.dtfimrealizacao || ev.dtfimdesmontagem || ev.dtfimmontagem;
+    const data_referencia = ev.dtinimontagem || ev.dtinirealizacao || ev.dtinimarcacao;
+    const fim_evento = ev.dtfimdesmontagem || ev.dtfimrealizacao;
+
+    let equipesDetalhes = Array.isArray(ev.equipes_detalhes) ? ev.equipes_detalhes : [];
+    
+    // 🛑 CORREÇÃO DE DADOS: Recalcula totais a partir dos detalhes das equipes para garantir consistência
+    const totalVagasCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.total_vagas || 0), 0);
+    const totalStaffCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.preenchidas || 0), 0);
+    const vagasRestantesCalculado = totalVagasCalculado - totalStaffCalculado;
+    
+    return {
+        ...ev,
+        data_referencia,
+        inicio_realizacao,
+        fim_realizacao,
+        fim_evento,
+        
+        // 🛑 Usa os totais calculados para o status principal
+        total_vagas: totalVagasCalculado,
+        total_staff: totalStaffCalculado,
+        vagas_restantes: vagasRestantesCalculado,
+        
+        total_staff_api: ev.total_staff, // Mantém o valor original do backend para referência (opcional)
+        equipes_detalhes: equipesDetalhes
+    };
+}
+
+function criarCard(evt) {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0); // Zera hora para comparação de dia
+
+    const dataRef = parseDateForComparison(evt.data_referencia);
+    const dataFimDesmontagem = parseDateForComparison(evt.fim_evento);
+    const inicioRealizacao = parseDateForComparison(evt.inicio_realizacao);
+    const fimRealizacao = parseDateForComparison(evt.fim_realizacao);
+
+    // === Cálculo de percentual de staff preenchido ===
+    // Estes valores agora são consistentes graças à normalizarEvento
+    const total = evt.total_vagas || 0;
+    const preenchido = evt.total_staff || 0;
+    const percentual = total > 0 ? Math.round((preenchido / total) * 100) : 0;
+
+    let diasFaltam = null;
+    if (dataRef) diasFaltam = Math.ceil((dataRef.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+
+    let alertaTexto = "";
+    let alertaClasse = "";
+
+    // === EVENTO FINALIZADO ===
+    if (dataFimDesmontagem && dataFimDesmontagem < hoje) {
+        if (percentual === 0) {
+            alertaTexto = "✔ Realizado sem staff";
+            alertaClasse = "status-realizado-vermelho";
+        } else if (percentual < 100) {
+            alertaTexto = `✔ Realizado - Staff parcial (${percentual}%)`;
+            alertaClasse = "status-realizado-amarelo";
+        } else { // >= 100%
+            alertaTexto = "✔ Realizado - Staff OK";
+            alertaClasse = "status-realizado-verde";
+        }
+
+    // === EVENTO EM REALIZAÇÃO (Usa a data do backend para exibição) ===
+    } else if (inicioRealizacao && fimRealizacao && hoje >= inicioRealizacao && hoje <= fimRealizacao) {
+        if (percentual === 0) {
+            alertaTexto = "🚨 Sem staff — Realizando";
+            alertaClasse = "status-realizando-vermelho";
+        } else if (percentual < 100) {
+            alertaTexto = `⚠️ Staff faltando - Realizando (${percentual}%)`;
+            alertaClasse = "status-realizando-amarelo";
+        } else { // >= 100%
+            alertaTexto = "✅ Staff OK - Realizando";
+            alertaClasse = "status-realizando-verde";
+        }
+
+    // === EVENTO PRÓXIMO (faltam poucos dias) ===
+    } else if (diasFaltam !== null && diasFaltam <= 5 && diasFaltam >= 0) {
+        const diasText = `${diasFaltam} dia${diasFaltam !== 1 ? "s" : ""}`;
+
+        if (percentual === 0) {
+            alertaTexto = `🚨 Sem staff — faltam ${diasText}`;
+            alertaClasse = "status-urgente-vermelho";
+        } else if (percentual < 100) {
+            // Percentual adicionado no alerta amarelo, como solicitado
+            alertaTexto = `⚠️ Staff faltando (${percentual}%) — faltam ${diasText} p/ realização`;
+            alertaClasse = "status-urgente-amarelo";
+        } else { // >= 100%
+            alertaTexto = `✅ Staff OK — faltam ${diasText}`;
+            alertaClasse = "status-urgente-verde";
+        }
+
+    // === EVENTO FUTURO SEM URGÊNCIA ===
+    } else {
+        if (percentual === 0) {
+            alertaTexto = "🚨 Sem staff";
+            alertaClasse = "status-pendente-vermelho";
+        } else if (percentual < 100) {
+            alertaTexto = `⚠️ Staff faltando (${percentual}%)`;
+            alertaClasse = "status-pendente-amarelo";
+        } else { // >= 100%
+            alertaTexto = "✅ Staff OK";
+            alertaClasse = "status-pendente-verde";
+        }
+    }
+
+    // Converte a data para exibição (string formatada)
+    const dataExibicaoFimDesmontagem = evt.fim_evento ? parseDateLocal(evt.fim_evento) : null;
+
+    const nomeEvento = (dataFimDesmontagem && dataFimDesmontagem < hoje)
+        ? `<del>${evt.nmevento || evt.nome || "Evento"}</del>`
+        : `<strong>${evt.nmevento || evt.nome || "Evento"}</strong>`;
+
+    const localEvento = evt.nmlocalmontagem || evt.local || "Local não informado";
+
+    // ======= Resumo das equipes/funções em uma linha =======
+    const equipes = evt.equipes_detalhes || [];
+    const resumoEquipes = equipes.length
+        ? equipes.map(f => {
+            const total = f.total_vagas || 0;
+            const preenchido = f.preenchidas || 0;
+            const restante = total - preenchido;
+            let cor = "🟢";
+            if (restante === total) cor = "🔴"; // 0 preenchido
+            else if (restante > 0) cor = "🟡"; // Parcialmente preenchido
+            // else (restante <= 0) é 🟢 (Preenchido ou excedente.
+            return `${f.equipe}: ${cor} ${preenchido}/${total}`;
+        }).join(" | ")
+        : "Nenhuma equipe cadastrada";
+
+
+    const card = document.createElement("div");
+    card.className = "evento-card";
+
+    const headerEvt = document.createElement("div");
+    headerEvt.className = "evento-header";
+    headerEvt.innerHTML = `
+        <div class="evt-info">
+            <div class="evento-nome">${nomeEvento}</div>
+            <div class="evento-local">📍 ${localEvento}</div>
+        </div>
+        <span class="evento-status ${alertaClasse}">${alertaTexto}</span>
+    `;
+
+    const bodyEvt = document.createElement("div");
+    bodyEvt.className = "evento-body";
+
+    const resumoDiv = document.createElement("div");
+    resumoDiv.className = "equipes-resumo";
+    resumoDiv.textContent = resumoEquipes;
+    bodyEvt.appendChild(resumoDiv);
+
+    headerEvt.addEventListener("click", () => {
+        bodyEvt.classList.toggle("open");
+    });
+
+    resumoDiv.addEventListener("click", () => {
+        // Assumindo que abrirTelaEquipesEvento está disponível no escopo global
+        if (typeof abrirTelaEquipesEvento === 'function') {
+            abrirTelaEquipesEvento(evt);
+        } else {
+            console.warn("Função 'abrirTelaEquipesEvento' não está definida.");
+        }
+    });
+
+    card.appendChild(headerEvt);
+    card.appendChild(bodyEvt);
+    return card;
+}
+}
+
+// ...existing code...
+async function abrirTelaEquipesEvento(evento) {
+  const painel = document.getElementById("painelDetalhes");
+  if (!painel) return;
+  painel.innerHTML = "";
+
+  const container = document.createElement("div");
+  container.className = "painel-equipes-evento";
+
+  // ===== HEADER =====
+  const header = document.createElement("div");
+  header.className = "header-equipes-evento";
+  header.innerHTML = `
+    <button class="btn-voltar" title="Voltar">←</button>
+    <div class="info-evento">
+      <h2>${evento.nmevento || "Evento sem nome"}</h2>
+      <p>📍 ${evento.local || evento.nmlocalmontagem || "Local não informado"}</p>
+      <p>📅 ${formatarPeriodo(evento.inicio_realizacao, evento.fim_realizacao)}</p>
+    </div>
+  `;
+  container.appendChild(header);
+
+  // ===== CORPO (LISTA DE EQUIPES) =====
+  const corpo = document.createElement("div");
+  corpo.className = "corpo-equipes";
+  corpo.innerHTML = `<div class="loading">Carregando equipes…</div>`;
+  container.appendChild(corpo);
+
+  // rodapé / controles
+  const rodape = document.createElement("div");
+  rodape.className = "rodape-equipes";
+  rodape.innerHTML = `
+    <button class="btn-voltar-rodape"> ← Voltar</button>
+    <button class="btn-relatorio">📄 Gerar Relatório</button>
+  `;
+  container.appendChild(rodape);
+
+  painel.appendChild(container);
+
+  // eventos de navegação
+  container.querySelector(".btn-voltar")?.addEventListener("click", mostrarEventosEmAberto);
+  container.querySelector(".btn-voltar-rodape")?.addEventListener("click", mostrarEventosEmAberto);
+  container.querySelector(".btn-relatorio")?.addEventListener("click", () => {
+    alert("Função de relatório ainda em desenvolvimento.");
+  });
+
+  // helper local
+  function formatarPeriodo(inicio, fim) {
+    const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+    return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
+  }
+
+  try {
+    const idevento = evento.idevento || evento.id || evento.id_evento;
+    const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
+
+    if (!idevento || !idempresa) {
+      console.error("ID do evento ou empresa não encontrado:", { idevento, idempresa });
+      corpo.innerHTML = `<p class="erro">Erro: evento ou empresa não identificados.</p>`;
+      return;
+    }
+
+    const resp = await fetchComToken(`/main/detalhes-eventos-abertos?idevento=${idevento}&idempresa=${idempresa}`);
+
+    // tratar formatos possíveis do retorno (fetchComToken já retorna JSON)
+    let dados;
+    if (resp && typeof resp === "object" && (Array.isArray(resp) || resp.equipes !== undefined)) {
+      dados = resp;
+    } else if (resp && typeof resp === "object" && "ok" in resp) {
+      if (!resp.ok) throw new Error("Erro ao buscar detalhes das equipes.");
+      dados = await resp.json();
+    } else {
+      console.error("Resposta inválida ao buscar detalhes das equipes:", resp);
+      corpo.innerHTML = `<p class="erro">Erro ao carregar detalhes das equipes.</p>`;
+      return;
+    }
+
+    // normaliza array de equipes: suportar {equipes: [...] } ou array direto
+    const equipesRaw = Array.isArray(dados.equipes) ? dados.equipes : (Array.isArray(dados) ? dados : []);
+
+    if (!equipesRaw.length) {
+      corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe cadastrada para este evento.</p>`;
+      return;
+    }
+
+    // converte cada item para formato esperado: { equipe, idequipe, funcoes: [{ idfuncao, nome, total, preenchidas, concluido }] }
+    const equipes = equipesRaw.map(item => {
+      // se veio com funcoes já montadas (compatível com rota atual)
+      if (item.funcoes && Array.isArray(item.funcoes)) {
+        return {
+          equipe: item.equipe || item.nmequipe || item.nome || (`Equipe ${item.idequipe ?? ""}`),
+          idequipe: item.idequipe,
+          funcoes: item.funcoes.map(f => {
+            const total = Number(f.qtd_orcamento ?? f.qtd_orcamento ?? f.total_vagas ?? f.total ?? f.qtditens ?? 0);
+            const preenchidas = Number(f.qtd_cadastrada ?? f.qtd_cadastrada ?? f.preenchidas ?? f.preenchidos ?? f.preenchidos ?? 0);
+            return {
+              idfuncao: f.idfuncao ?? f.idFuncao ?? null,
+              nome: f.nome ?? f.descfuncao ?? f.categoria ?? f.nmfuncao ?? "Função",
+              total,
+              preenchidas,
+              concluido: total > 0 && preenchidas >= total
+            };
+          })
+        };
+      }
+
+      // se veio como categorias agregadas (campo 'categorias' do backend)
+      if (item.categorias && Array.isArray(item.categorias)) {
+        return {
+          equipe: item.nmequipe || item.equipe || item.categoria || (`Equipe ${item.idequipe ?? ""}`),
+          idequipe: item.idequipe,
+          funcoes: item.categorias.map(c => {
+            const total = Number(c.total_vagas ?? c.total ?? c.qtd_orcamento ?? 0);
+            const preenchidas = Number(c.preenchidos ?? c.qtd_cadastrada ?? 0);
+            return {
+              idfuncao: c.idfuncao ?? null,
+              nome: c.categoria || c.nmfuncao || "Função",
+              total,
+              preenchidas,
+              concluido: total > 0 && preenchidas >= total
+            };
+          })
+        };
+      }
+
+      // item vindo como categoria direta
+      if (item.categoria) {
+        const total = Number(item.total_vagas ?? item.total ?? item.qtd_orcamento ?? 0);
+        const preenchidas = Number(item.preenchidos ?? item.qtd_cadastrada ?? 0);
+        return {
+          equipe: item.nmequipe || item.equipe || item.categoria || (`Equipe ${item.idequipe ?? ""}`),
+          idequipe: item.idequipe,
+          funcoes: [{
+            idfuncao: item.idfuncao ?? null,
+            nome: item.categoria,
+            total,
+            preenchidas,
+            concluido: total > 0 && preenchidas >= total
+          }]
+        };
+      }
+
+      // fallback genérico
+      return {
+        equipe: item.equipe || item.nmequipe || item.nome || ("Equipe " + (item.idequipe ?? "")),
+        idequipe: item.idequipe,
+        funcoes: Array.isArray(item.funcoes) ? item.funcoes.map(f => ({
+          idfuncao: f.idfuncao ?? null,
+          nome: f.nome || f.nmfuncao || f.categoria || "Função",
+          total: Number(f.total ?? f.qtditens ?? 0),
+          preenchidas: Number(f.preenchidos ?? 0),
+          concluido: Number(f.preenchidos ?? 0) >= Number(f.total ?? 0)
+        })) : []
+      };
+    });
+
+    // renderiza lista mantendo o visual atual mas usando total/preenchidas corretos
+    corpo.innerHTML = "";
+    equipes.forEach(eq => {
+      const equipeBox = document.createElement("div");
+      equipeBox.className = "equipe-box";
+
+      const totalFuncoes = eq.funcoes?.length || 0;
+      const concluidas = eq.funcoes?.filter(f => f.concluido)?.length || 0;
+      const perc = totalFuncoes > 0 ? Math.round((concluidas / totalFuncoes) * 100) : 0;
+
+      // resumo de vagas por função (compacto) usando total/preenchidas
+      const resumo = eq.funcoes?.map(f => {
+        const preench = Number(f.preenchidas ?? 0);
+        const total = Number(f.total ?? 0);
+        let cor = "🟢";
+        if (total === 0) cor = "⚪";
+        else if (preench === 0) cor = "🔴";
+        else if (preench < total) cor = "🟡";
+        return `${f.nome}: ${cor} ${preench}/${total}`;
+      }).join(" | ");
+
+      equipeBox.innerHTML = `
+        <div class="equipe-header" role="button" tabindex="0">
+          <span class="equipe-nome">${escapeHtml(eq.equipe || "Equipe")}</span>
+          <span class="equipe-status">${concluidas}/${totalFuncoes} concluídas</span>
+        </div>
+        <div class="barra-progresso">
+          <div class="progresso" style="width:${perc}%;"></div>
+        </div>
+        <div class="equipe-resumo">${escapeHtml(resumo || "Nenhuma função cadastrada")}</div>
+      `;
+
+      // clique / tecla Enter abre detalhes (passa evento original e equipe transformada)
+      const headerBtn = equipeBox.querySelector(".equipe-header");
+      headerBtn.addEventListener("click", () => abrirDetalhesEquipe(eq, evento));
+      headerBtn.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") abrirDetalhesEquipe(eq, evento);
+      });
+
+      corpo.appendChild(equipeBox);
+    });
+
+  } catch (err) {
+    console.error("Erro ao buscar detalhes das equipes.", err);
+    const msg = (err && err.message) ? err.message : "Erro ao carregar detalhes das equipes.";
+    corpo.innerHTML = `<p class="erro">${escapeHtml(msg)}</p>`;
+  }
+
+  // utilitário simples para escapar texto antes de inserir no innerHTML
+  function escapeHtml(str) {
+    if (!str && str !== 0) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+}
+// ...existing code...
+
+// ...existing code...
+function abrirDetalhesEquipe(equipe, evento) {
+  const painel = document.getElementById("painelDetalhes");
+  if (!painel) return;
+  painel.innerHTML = "";
+
+  const container = document.createElement("div");
+  container.className = "painel-equipes-evento";
+
+  const totalFuncoes = equipe.funcoes?.length || 0;
+  const concluidas = equipe.funcoes?.filter(f => f.concluido)?.length || 0;
+
+  // ===== HEADER =====
+  const header = document.createElement("div");
+  header.className = "header-equipes-evento";
+  header.innerHTML = `
+    <button class="btn-voltar" title="Voltar">←</button>
+    <div class="info-evento">
+      <h2>${escapeHtml(equipe.equipe || equipe.nome || "Equipe")}</h2>
+      <p>${escapeHtml(evento.nmevento || "Evento sem nome")} — ${concluidas}/${totalFuncoes} concluídas</p>
+      <p>📍 ${escapeHtml(evento.nmlocalmontagem || evento.local || "Local não informado")}</p>
+      <p>👤 Cliente: ${escapeHtml(evento.nmfantasia || evento.cliente || "")}</p>
+    </div>
+  `;
+  container.appendChild(header);
+
+  // ===== LISTA DE FUNÇÕES =====
+  const lista = document.createElement("ul");
+  lista.className = "funcoes-lista";
+
+  (equipe.funcoes || []).forEach(func => {
+    const total = Number(func.total ?? func.total_vagas ?? func.qtd_orcamento ?? 0);
+    const preenchidas = Number(func.preenchidas ?? func.qtd_cadastrada ?? 0);
+    const concluido = total > 0 && preenchidas >= total;
+
+    const li = document.createElement("li");
+    li.className = "funcao-item";
+    if (concluido) li.classList.add("concluido");
+    li.setAttribute("role", "button");
+    li.tabIndex = 0;
+
+    const nomeSpan = document.createElement("div");
+    nomeSpan.className = "func-nome";
+    nomeSpan.textContent = func.nome || func.nmfuncao || "Função";
+
+    const estadoSpan = document.createElement("div");
+    estadoSpan.className = "func-estado";
+    estadoSpan.textContent = `${preenchidas}/${total}`;
+    
+    const detalhesSpan = document.createElement("div");
+    detalhesSpan.className = "func-detalhes";
+
+    if (concluido) {
+      detalhesSpan.textContent = "✅ Completa";
+    } else {
+      const botao = document.createElement("button");
+      botao.className = "btn-abrir-staff status-urgente-vermelho";
+      botao.textContent = "⏳ Abrir staff";
+
+      botao.addEventListener("click", (e) => {
+        e.stopPropagation(); // evita conflito com o clique no <li>
+        abrirStaffModal();
+      });
+
+      detalhesSpan.appendChild(botao);
+    }
+
+    // Abre modal do staff utilizando a mesma lógica do Index.js (abrirModal)
+    function abrirStaffModal() {
+    // A variável 'concluido' é definida no escopo externo (função abrirDetalhesEquipe)
+    if (concluido) return; // não abre se já concluído
+
+    const params = new URLSearchParams();
+
+    // 1. Atualizando para usar os campos do cliente (nmfantasia e idcliente)
+    params.set("idevento", evento.idevento);
+    params.set("nmevento", evento.nmevento);
+    
+    // Usar idcliente (assumindo que já está no objeto evento)
+    params.set("idcliente", evento.idcliente || ""); 
+    // Usar nmfantasia como nome do cliente
+    params.set("nmcliente", evento.nmfantasia || evento.cliente || ""); 
+    
+    params.set("idmontagem", evento.idmontagem);
+    params.set("nmlocalmontagem", evento.nmlocalmontagem);
+    params.set("idequipe", equipe.idequipe);
+    params.set("nmequipe", equipe.equipe);
+    params.set("idfuncao", func.idfuncao ?? func.idFuncao);
+    params.set("nmfuncao", func.nome ?? func.nmfuncao);
+
+    console.log("Abrindo modal Staff com parâmetros:", Object.fromEntries(params.entries()));
+
+    // guarda os parâmetros globais para o prefill do modal
+    window.__modalInitialParams = params.toString();
+    window.moduloAtual = "Staff";
+
+    const targetUrl = `CadStaff.html?${params.toString()}`;
+
+    // 2. Remove o fallback problemático que criava um elemento <a> e duplicava o clique.
+    if (typeof abrirModalLocal === "function") {
+        abrirModalLocal(targetUrl, "Staff");
+    } else if (typeof abrirModal === "function") {
+        abrirModal(targetUrl, "Staff");
+    } else {
+        // Alerta simples caso as funções globais não existam.
+        console.error("ERRO FATAL: Nenhuma função global para abrir o modal foi encontrada.");
+        // Você pode adicionar um 'alert()' aqui se preferir.
+    }
+}
+
+
+    li.addEventListener("click", abrirStaffModal);
+    li.addEventListener("keypress", (e) => { if (e.key === "Enter") abrirStaffModal(); });
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "func-wrapper";
+    wrapper.appendChild(nomeSpan);
+    wrapper.appendChild(estadoSpan);
+    wrapper.appendChild(detalhesSpan);
+
+    li.appendChild(wrapper);
+    lista.appendChild(li);
+  });
+
+  container.appendChild(lista);
+
+  // ===== RODAPÉ =====
+  const rodape = document.createElement("div");
+  rodape.className = "rodape-equipes";
+  rodape.innerHTML = `
+    <button class="btn-voltar-rodape">← Voltar</button>
+    <span class="status-texto">${concluidas === totalFuncoes ? "✅ Finalizado" : "⏳ Em andamento"}</span>
+  `;
+  container.appendChild(rodape);
+
+  painel.appendChild(container);
+
+  // eventos de navegação
+  container.querySelector(".btn-voltar")?.addEventListener("click", () => abrirTelaEquipesEvento(evento));
+  container.querySelector(".btn-voltar-rodape")?.addEventListener("click", () => abrirTelaEquipesEvento(evento));
+
+  // utilitário local para escapar
+  function escapeHtml(str) {
+    if (!str && str !== 0) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+}
 
 
 
 
-// Função para buscar pedidos do usuário logado
-// Busca pedidos financeiros do usuário logado
-// Função para buscar pedidos do usuário logado
+
+
+
+
+
+
+
+
+
+
+
+// =========================
+//    Pedidos Financeiros 
+// =========================
+
 async function buscarPedidosUsuario() {
   const idusuario = getIdExecutor(); // pega do token
   try {
@@ -1005,11 +2209,6 @@ async function buscarPedidosUsuario() {
     return [];
   }
 }
-
-
-
-
-
 // Atualiza o painelDetalhes com os pedidos
 async function mostrarPedidosUsuario() {
   const lista = document.getElementById("painelDetalhes");
@@ -1182,7 +2381,6 @@ async function mostrarPedidosUsuario() {
   }
 }
 
-
 // Função para atualizar status via fetch
 async function atualizarStatusPedido(idpedido, categoria, acao, cardElement) {
   try {
@@ -1299,22 +2497,7 @@ setInterval(atualizarResumoPedidos, 10000);
 atualizarResumoPedidos();
 
 
-function usuarioTemPermissao() {
-  if (!window.permissoes || !Array.isArray(window.permissoes)) return false;
-console.log("Usuário tem permissão master no staff");
-  const permissaoStaff = window.permissoes.find(p => p.modulo?.toLowerCase() === "staff");
-  if (!permissaoStaff) return false;
 
-  return !!permissaoStaff.pode_master; 
-}
-
-// Evento no card financeiro
-const cardFinanceiro = document.querySelector(".card-financeiro");
-if (cardFinanceiro) {
-  cardFinanceiro.addEventListener("click", async () => {
-    await mostrarPedidosUsuario();
-  });
-}
 
 // ======================
 // ABRIR AGENDA
@@ -1715,8 +2898,7 @@ async function carregarAgendaUsuario() {
 // Chame na inicialização:
 document.addEventListener("DOMContentLoaded", async function () {
   await atualizarResumo();
-  // await atualizarAtividades();
-  // await mostrarPedidosUsuario();
+  await atualizarEventosEmAberto();
   await atualizarProximoEvento();
 });
 

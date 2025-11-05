@@ -49,14 +49,14 @@ main#conteudo {
   justify-content: center;
   align-items: center;
   text-align: center;
-  margin-bottom: 30px;
 }
+
 #conteudoDetalhes {
     display: flex;
     justify-content: center;
     align-items: center;
     flex-direction: column;
-    margin-top: 150px;
+    margin: auto;
 }
 
 /* -------------------- Cards de resumo -------------------- */
@@ -83,7 +83,7 @@ main#conteudo {
     color: black; /* cor padrão do texto */
 }
 
-.card:hover {
+.card:hover  {
     transform: translateY(-3px);
     box-shadow: 0 6px 12px rgba(0,0,0,0.15);
     border: 2px solid var(--border-color);
@@ -109,7 +109,7 @@ main#conteudo {
     margin-left: 10px;
 }
 
-.card-orcamentos, .card-eventos, .card-atividades, .card-financeiro {
+.card-orcamentos, .card-eventos, .card-atividades, .card-financeiro, .card-eventos-em-abertos {
   display: flex;
   flex-direction: column;
   gap: 15px;
@@ -623,260 +623,450 @@ select#mesSelect, select#anoSelect {
   border-radius: 3px;
 }
 
-/* =========================
-   CONTAINER PRINCIPAL
-========================= *
-.calendario-container {
-  display: flex;
+
+/* ============================
+   PAINEL DE EVENTOS EM ABERTO
+============================ */
+.painel-eventos-em-aberto {
   width: 100%;
-  gap: 20px;
-  align-items: flex-start;
+  height: 100%;
+  padding: 8px;
+  overflow-y: auto;
+  font-family: "Abel", sans-serif;
 }
 
-.calendario {
-  flex: 1;
-}
-
-/* =========================
-   HEADER
-========================= *
-.calendario-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.calendario-controles {
-  display: flex;
-  flex-direction: row;
-}
-
-label {
-  display: flex;
-  margin: 5px;
-  font-weight: bold;
-}
-
-select#mesSelect, 
-select#anoSelect, 
-select#trimestreSelect, 
-select#semestreSelect, 
-select#visaoSelect {
-  font-family: var(--Font-primary);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: 6px;
-  font-size: 15px;
-  padding: 0 15px;
-  border: 1px solid #000000;
-  background: transparent;
-  color: #000000;
-  outline: none;
-  margin-left: 8px;
-}
-
-/* =========================
-   GRID PADRÃO
-========================= *
-.calendario-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
-}
-
-/* Cabeçalho dos dias *
-.calendario-grid .header-dias {
-  height: 30px;
+/* ===== HEADER ===== */
+.header-eventos-em-aberto {
   display: flex;
   justify-content: center;
   align-items: center;
   background-color: var(--primary-color);
   color: var(--font-color);
-  text-align: center;
-  font-weight: bold;
-}
-
-/* Dia comum *
-.calendario-grid div {
-  font-size: 12px;
-  position: relative;
-  overflow-y: auto;   /* scroll dentro da célula do dia *
-  margin: 2px 0;
-  border-radius: 4px;
-  padding: 2px;
-}
-
-/* Número do dia *
-.calendario-grid .numero-dia {
-  font-weight: bold;
-  font-size: 14px;
-  margin-bottom: 2px;
-  display: block;
-}
-
-/* Fora do mês *
-.dia-anterior,
-.dia-proximo {
-  opacity: 0.5;
-  pointer-events: none;
-  background-color: #f9f9f9;
-  color: #757575;
-}
-
-/* =========================
-   VISUALIZAÇÕES
-========================= *
-
-/* Semanal *
-.calendario-grid.semana {
-  grid-template-columns: repeat(7, 1fr);
-}
-.calendario-grid.semana div {
-  height: 120px;
-}
-
-/* Mensal *
-.calendario-grid.mes {
-  grid-template-columns: repeat(7, 1fr);
-}
-.calendario-grid.mes div {
-  height: 75px;
-}
-
-/* Trimestral → 3 meses (lado a lado) *
-.calendario-grid.trimestre {
-  grid-template-columns: repeat(21, 1fr);
-}
-.calendario-grid.trimestre div {
-  height: 90px;
-  font-size: 11px;
-}
-
-/* Semestral → 6 meses *
-.calendario-grid.semestre {
-  grid-template-columns: repeat(42, 1fr);
-}
-.calendario-grid.semestre div {
-  height: 80px;
-  font-size: 11px;
-}
-
-/* Anual → 12 meses *
-.calendario-grid.ano {
-  grid-template-columns: repeat(84, 1fr);
-}
-.calendario-grid.ano div {
-  height: 70px;
-  font-size: 10px;
-  overflow-y: auto;
-  text-overflow: ellipsis;
-}
-
-/* =========================
-   EVENTOS
-========================= *
-.evento {
-  display: block;
-  margin: 2px 0;
-  padding: 2px 4px;
-  border-radius: 4px;
-  font-size: 11px;
-  color: #000;
-  background: #e8e8e8;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* =========================
-   LEGENDA
-========================= *
-.legenda {
-  display: flex;
-  justify-content: flex-end;
-  font-size: 13px;
-}
-
-.items {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 0 5px;
-}
-
-.legenda-item {
-  display: flex;
-  align-items: center;
-  margin: 6px;
-}
-
-.legenda-cor {
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  margin-right: 8px;
-}
-
-/* =========================
-   POPUP EVENTO (móvel)
-========================= *
-.popup-evento {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background-color: #fff;
+  font-weight: var(--font-weight);
+  width: 100%;
+  padding: 12px 18px;
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-  width: 320px;
-  max-width: 90%;
-  z-index: 9999;
-  font-family: 'Abel', sans-serif;
-  overflow: hidden;
-  cursor: move; /* popup arrastável *
-  animation: fadeIn 0.3s ease-out;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  font-size: 20px;
+}
+
+/* ===== CORPO ===== */
+.evt-body {
   display: flex;
   flex-direction: column;
+  gap: 10px;
 }
 
-/* Cabeçalho popup *
-.popup-evento .popup-header {
+/* ============================
+   CARD DE EVENTO
+============================ */
+.evento-card {
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.evento-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+/* ===== HEADER DO EVENTO ===== */
+.evento-header {
+  background: linear-gradient(to right, #f9fafb, #eef2f7);
+  padding: 12px 16px;
+  cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-weight: 600;
+  color: #1f2937;
+  border-bottom: 1px solid #d1d5db;
+  transition: background 0.2s, color 0.2s;
+}
+
+.evento-header:hover {
+  background: var(--hover-color);
+  color: var(--font-color);
+}
+
+/* ===== NOME E LOCAL ===== */
+.evento-nome {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.evento-local {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+/* ===== STATUS ===== */
+.evento-status {
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 12px;
+  text-align: center;
+  min-width: 140px;
+}
+
+/* ===========================
+   EVENTO PENDENTE
+=========================== */
+.status-pendente-vermelho {
+  background-color: #f91616; /* vermelho */
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.status-pendente-amarelo {
+  background-color: #ffcc00; /* amarelo */
+  color: #000000;
+  font-weight: bold;
+}
+
+.status-pendente-verde {
+  background-color: #16a34a; /* verde */
+  color: #ffffff;
+  font-weight: bold;
+}
+
+/* ===========================
+   EVENTO URGENTE (PULSANTE)
+=========================== */
+.status-urgente-vermelho {
+  background-color: #f91616; /* vermelho */
+  color: #ffffff;
+  font-weight: bold;
+  animation: pulsar-vermelho 1.5s infinite ease-in-out;
+}
+
+.status-urgente-amarelo {
+  background-color: #ffcc00; /* amarelo */
+  color: #000000;
+  font-weight: bold;
+  animation: pulsar-amarelo 1.5s infinite ease-in-out;
+}
+
+.status-urgente-verde {
+  background-color: #16a34a; /* verde */
+  color: #ffffff;
+  font-weight: bold;
+  animation: pulsar-verde 1.5s infinite ease-in-out;
+}
+
+/* ===========================
+   EVENTO REALIZANDO
+=========================== */
+.status-realizando-vermelho {
+  background-color: #f91616; /* vermelho */
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.status-realizando-amarelo {
+  background-color: #ffcc00; /* amarelo */
+  color: #000000;
+  font-weight: bold;
+}
+
+.status-realizando-verde {
+  background-color: #16a34a; /* verde */
+  color: #ffffff;
+  font-weight: bold;
+}
+
+/* ===========================
+   EVENTO FINALIZADO
+=========================== */
+.status-realizado-vermelho {
+  background-color: #f91616; /* vermelho */
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.status-realizado-amarelo {
+  background-color: #ffcc00; /* amarelo */
+  color: #000000;
+  font-weight: bold;
+}
+
+.status-realizado-verde {
+  background-color: #16a34a; /* verde */
+  color: #ffffff;
+  font-weight: bold;
+}
+
+/* ===========================
+   ANIMAÇÕES PULSAR POR COR
+=========================== */
+@keyframes pulsar-vermelho {
+  0% { box-shadow: 0 0 0 0 rgba(249, 22, 22, 0.6); }
+  70% { box-shadow: 0 0 0 10px rgba(249, 22, 22, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(249, 22, 22, 0); }
+}
+
+@keyframes pulsar-amarelo {
+  0% { box-shadow: 0 0 0 0 rgba(255, 204, 0, 0.6); }
+  70% { box-shadow: 0 0 0 10px rgba(255, 204, 0, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 204, 0, 0); }
+}
+
+@keyframes pulsar-verde {
+  0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.6); }
+  70% { box-shadow: 0 0 0 10px rgba(22, 163, 74, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+}
+
+
+/* ===== CORPO (DETALHES) ===== */
+.evento-body {
+  max-height: 0;
+  overflow: hidden;
+  background-color: #f9fafb;
+  border-top: 1px solid #d1d5db;
+  transition: max-height 0.35s ease, padding 0.25s ease;
+  padding: 0 16px;
+}
+
+.evento-body.open {
   padding: 12px 16px;
-  background-color: #333;
-  color: #fff;
-  cursor: move;
+  max-height: 500px; /* controla expansão */
 }
 
-.popup-evento .popup-close {
-  background: transparent;
-  border: none;
-  color: #fff;
-  font-size: 1.2em;
-  cursor: pointer;
-  transition: transform 0.2s;
+/* ===== LINHAS DE EQUIPE ===== */
+.equipe-linha {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  font-size: 0.9rem;
 }
 
-.popup-evento .popup-close:hover {
-  transform: rotate(90deg);
+.equipe-linha .faltam {
+  font-size: 0.85rem;
+  color: #b91c1c;
+  font-weight: 500;
 }
 
-/* Corpo popup *
-.popup-evento .popup-body {
-  flex: 1;
+
+/* ===== TEXTOS DE ERRO / VAZIO ===== */
+span.erro-carregar,
+span.nenhum-evento {
+  display: block;
+  text-align: center;
+  color: #9ca3af;
+  font-style: italic;
   padding: 16px;
-  max-height: 400px;
-  overflow-y: auto;
 }
 
-/* Animação 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translate(-50%, -55%); }
-  to   { opacity: 1; transform: translate(-50%, -50%); }
-}*/
+/* ===== AJUSTES ===== */
+.hidden {
+  display: none !important;
+}
+  
+.aba {
+  width: 50%;
+  text-align: center;
+  cursor: pointer;
+  background-color: var(--hover-color);
+  color: white ;
+  padding: 11px;
+  float: left;
+  font-weight: bold;
+  z-index: 2;
+  transition: background 0.3s;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.aba:hover{
+  background: var(--primary-color);
+  color: white;
+}
+
+
+.aba.ativo {
+    background-color: var(--primary-color);
+    color: var(--font-color);
+}
+
+
+.conteudo-aba.ativo {
+    opacity: 1;
+    max-height: 5000px; /* Ou um valor grande o suficiente para o seu conteúdo */
+}
+
+/* Sugestão: Transição no conteúdo interno (os cards) */
+.conteudo-aba.ativo .card {
+    transition: transform 0.5s ease, opacity 0.5s ease;
+    transform: translateY(10px);
+    opacity: 0;
+}
+
+.conteudo-aba.ativo .card:nth-child(n) {
+    /* Pequeno atraso para dar um efeito cascata */
+    transition-delay: calc(0.05s * var(--index)); /* Use CSS variable se possível */
+    transform: translateY(0);
+    opacity: 1;
+}
+
+  /* ====== TELA EQUIPES ====== */
+.painel-equipes-evento {
+  display: flex;
+  height: 100%; 
+  width: 100%;
+  flex-direction: column;
+  gap: 15px;
+  animation: fadeIn 0.3s ease-in-out;
+  padding: 15px;
+}
+
+.header-equipes-evento {
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  gap: 10px;
+}
+
+.header-equipes-evento h2 {
+  margin: 0;
+  font-size: 1.4em;
+}
+
+.btn-voltar {
+  background: none;
+  border: none;
+  font-size: 1.5em;
+  cursor: pointer;
+}
+
+.corpo-equipes {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.equipe-box {
+  background: var(--primary-color);
+  color: var(--font-color);
+  border-radius: 10px;
+  padding: 10px 15px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.equipe-header {
+  display: flex;
+  justify-content: space-between;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+
+.barra-progresso {
+  background: #b9b9b9;
+  border-radius: 6px;
+  height: 6px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.barra-progresso .progresso {
+  background: #16a34a;
+  height: 100%;
+  width: 0;
+  transition: width 0.4s ease;
+}
+
+.funcoes-lista {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.funcao-item {
+    display: flex;
+    align-items: center;
+    margin: 4px 0;
+    justify-content: space-around;
+    width: 100%;
+}
+
+.func-wrapper {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.func-nome {
+    display: flex;
+    width: 250px;
+}
+
+.func-estado {
+    margin-right: 90px;
+}
+
+.funcao-item.concluido {
+  cursor: default;
+  opacity: 0.7;
+}
+.funcao-item:not(.concluido) {
+  cursor: pointer;
+}
+
+
+.funcao-item.concluido span {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.rodape-equipes {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.btn-voltar-rodape, .btn-relatorio {
+  background: var(--primary-color);
+  color: var(--font-color);
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.btn-voltar-rodape:hover, .btn-relatorio:hover {
+  background: var(--primary-color);
+}
+
+.info-evento {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  gap: 30px;
+}
+
+button.btn-abrir-staff {
+    border-radius: 10px;
+    width: 100px;
+    height: 20px;
+    border: none;
+}
+
+
+
+
 
 
 /* ====== AGENDA ====== */
