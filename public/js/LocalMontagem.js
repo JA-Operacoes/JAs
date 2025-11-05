@@ -765,11 +765,9 @@ async function carregarLocalMontagem(desc, elementoAtual) {
     try {
         const montagem = await fetchComToken(`/localmontagem?descmontagem=${encodeURIComponent(desc.trim())}`);
 
-        if(!montagem || !montagem.idmontagem) {
-            throw new Error("Local de Montagem não encontrado.");
-        }
+        if (!montagem || !montagem.idmontagem) throw new Error("Montagem não encontrada");
         
-             console.log("Dados da montagem recebidos no frontend:", montagem);  
+        console.log("Dados da montagem recebidos no frontend:", montagem);
         document.querySelector("#idMontagem").value = montagem.idmontagem;
         document.querySelector("#descMontagem").value = montagem.descmontagem;
         document.querySelector("#cidadeMontagem").value = montagem.cidademontagem;

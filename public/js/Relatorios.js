@@ -1,23 +1,46 @@
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
 
-document.addEventListener("DOMContentLoaded", function () {
+let empresaLogoPath = 'http://localhost:3000/img/JA_Oper.png';
+
+function inicializarDadosEmpresa() {
     const idempresa = localStorage.getItem("idempresa");
 
+    console.log("ID da empresa obtido do localStorage:", idempresa);
+
     if (idempresa) {
-        const apiUrl = `/empresas/${idempresa}`; // Verifique o caminho da sua API
+        const apiUrl = `/empresas/${idempresa}`;
 
         fetchComToken(apiUrl)
             .then(empresa => {
-                // Usa o nome fantasia como tema
                 const tema = empresa.nmfantasia;
                 aplicarTema(tema);
+
+                console.log("Tema da empresa obtido:", tema);
+
+                // Lógica de construção do caminho do logo
+                const nomeArquivoLogo = tema.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+                // IMPORTANTE: Aqui definimos a variável global
+                empresaLogoPath = `http://localhost:3000/img/${nomeArquivoLogo}.png`;
+                
+                console.log("Caminho do logo definido:", empresaLogoPath);
             })
             .catch(error => {
-                console.error("❌ Erro ao buscar dados da empresa para o tema:", error);
-                // aplicarTema('default');
+                console.error("❌ Erro ao buscar dados da empresa para o tema/logo:", error);
+                // Em caso de erro, o logo usa o caminho de fallback
             });
     }
-});
+}
+
+// Verifica o estado do DOM e executa a função
+if (document.readyState === "loading") {
+    // O DOM ainda está carregando, então ouvimos o evento
+    document.addEventListener("DOMContentLoaded", inicializarDadosEmpresa);
+} else {
+    // O DOM já está pronto (readyState é 'interactive' ou 'complete'), executa imediatamente
+    console.log("DOM já carregado, executando inicializarDadosEmpresa imediatamente.");
+    inicializarDadosEmpresa();
+}
+
 
 let todosOsDadosDoPeriodo = null;
 let eventoSelecionadoId = null;
@@ -306,7 +329,7 @@ function montarTabela(dados, colunas, alinhamentosPorColuna = {}) {
                             // Aplica a sua função formatarData para 'INÍCIO' ou 'TÉRMINO'
                             if (col === 'INÍCIO' || col === 'TÉRMINO') {
                                 valorCelula = formatarData(item[col]);
-                            }else if (['VLR ADICIONAL', 'VLR DIÁRIA', 'TOT DIÁRIAS'].includes(col) && typeof item[col] === 'number') {
+                            }else if (['VLR ADICIONAL', 'VLR DIÁRIA', 'TOT DIÁRIAS', 'TOT GERAL'].includes(col) && typeof item[col] === 'number') {
                                     valorCelula = formatarMoeda(item[col]);
                             }
 
@@ -361,7 +384,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
     let html = `
         <div class="relatorio-evento">
             <div class="print-header-top">
-                <img src="http://localhost:3000/img/JA_Oper.png" alt="Logo JA" class="logo-ja">
+                <img src= "${empresaLogoPath}" alt="Logo Empresa" class="logo-ja">
                 <div class="header-title-container">
                     <h1 class="header-title">${nomeEvento}</h1>
                 </div>  
@@ -394,11 +417,12 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
             'VLR ADICIONAL': 'text-right',            
             'QTD': 'text-center',
             'TOT DIÁRIAS': 'text-right',
+            'TOT GERAL': 'text-right',
             'STATUS PGTO': 'text-center',
             'TOT PAGAR': 'text-right' 
         };
 
-        const colunasFechamento = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'VLR DIÁRIA', 'VLR ADICIONAL',  'QTD', 'TOT DIÁRIAS', 'STATUS PGTO', 'TOT PAGAR'];
+        const colunasFechamento = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'VLR DIÁRIA', 'VLR ADICIONAL',  'QTD', 'TOT DIÁRIAS', 'TOT GERAL', 'STATUS PGTO', 'TOT PAGAR'];
 
         // <<-- MODIFICAÇÃO PRINCIPAL AQUI: Reconstrução da tabela de fechamento para adicionar a linha de total
         let tabelaFechamentoHtml = `
@@ -427,6 +451,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                             <td class="${alinhamentosFechamento['VLR ADICIONAL'] || ''}">${formatarMoeda(item["VLR ADICIONAL"])}</td>                            
                             <td class="${alinhamentosFechamento['QTD'] || ''}">${item.QTD || ''}</td>
                             <td class="${alinhamentosFechamento['TOT DIÁRIAS'] || ''}">${formatarMoeda(item["TOT DIÁRIAS"])}</td>
+                            <td class="${alinhamentosFechamento['TOT GERAL'] || ''}">${formatarMoeda(item["TOT GERAL"])}</td>
                             <td class="${alinhamentosFechamento['STATUS PGTO'] || ''} ${statusClass}">${item["STATUS PGTO"] || ''}</td>
                             <td class="${alinhamentosFechamento['TOT PAGAR'] || ''}">${formatarMoeda(item["TOT PAGAR"])}</td>
                         </tr>
@@ -436,6 +461,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                         <td class="${alinhamentosFechamento['VLR DIÁRIA'] || ''}" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrDiarias)}</td>
                         <td class="${alinhamentosFechamento['VLR ADICIONAL'] || ''}" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrAdicional)}</td> 
                         <td></td> <td class="${alinhamentosFechamento['TOT DIÁRIAS'] || ''}" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalDiarias)}</td>
+                        <td class="${alinhamentosFechamento['TOT GERAL'] || ''}" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalGeral)}</td>
                         <td></td>                       
                         <td class="${alinhamentosFechamento['TOT PAGAR'] || ''}" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalPagar)}</td>
                     </tr>
@@ -565,12 +591,11 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
         html += `<p>Nenhum dado de resumo ou contingência para este evento e período.</p>`;
     }
 
-
-        html += `</div>`; // Fechando o container Flexbox
-        
-        html += `</div>`; // Fechando o relatorio-evento
-        return html;
-    }
+    html += `</div>`; // Fechando o container Flexbox
+    
+    html += `</div>`; // Fechando o relatorio-evento
+    return html;
+}
 
 
 function montarTabelaBody(dados, alinhamentosPorColuna = {}) {
@@ -780,14 +805,8 @@ async function gerarRelatorio() {
         let minDate = new Date('9999-12-31'); // Mantenha a inicialização extrema
         let maxDate = new Date('1900-01-01'); // Mantenha a inicialização extrema
         
-        let foundAnyValidDate = false;
-
-        // Itera sobre os eventos para encontrar a menor data inicial e a maior data final entre as fases selecionadas
-        //todosOsDadosDoPeriodo.forEach(evento => {           
-            
-            // if (eventoSelecionado !== 'todos' && eventoSelecionado !== '' && evento.idevento !== parseInt(eventoSelecionado)) {
-            //     return; // Pula este evento/orçamento e continua para o próximo
-            // }
+        let foundAnyValidDate = false; // Flag para verificar se encontramos alguma data válida
+      
 
         dadosFiltradosPorEvento.forEach(evento => {   
 
@@ -801,31 +820,8 @@ async function gerarRelatorio() {
                     const fimDateStr = evento[keys.fim] || ''; 
 
                    console.log(`[DEBUG 2] Fase: ${fase} | Strings (dps do || ''): ${iniDateStr} - ${fimDateStr}`);
+           
                     
-                    // console.log("Debug Iteração:", evento.idevento, fase, iniDateStr, fimDateStr);
-                    
-                    // --- Processa Data de Início ---
-                    // if (typeof iniDateStr === 'string' && iniDateStr.length > 0) {
-                    //     // Limpa a string de T03:00:00.000Z para estabilidade
-                    //     //const iniDate = new Date(iniDateStr.split('T')[0].replace(/-/g, '/')); 
-                    //     const iniDate = new Date(iniDateStr.split('T')[0] + 'T00:00:00'); 
-                        
-                    //     if (!isNaN(iniDate.getTime()) && iniDate < minDate) {
-                    //         minDate = iniDate;
-                    //         foundAnyValidDate = true;
-                    //     }
-                    // }
-
-                    // // --- Processa Data de Fim ---
-                    // if (typeof fimDateStr === 'string' && fimDateStr.length > 0) {
-                    //     //const fimDate = new Date(fimDateStr.split('T')[0].replace(/-/g, '/')); 
-                    //     const fimDate = new Date(fimDateStr.split('T')[0] + 'T00:00:00');                     
-                        
-                    //     if (!isNaN(fimDate.getTime()) && fimDate > maxDate) {
-                    //         maxDate = fimDate;
-                    //         foundAnyValidDate = true;
-                    //     }
-                    // }
 
                     if (iniDateStr.length > 0) {
                         // Correção de Estabilidade: Usa 'T00:00:00' para forçar a interpretação local
@@ -878,49 +874,16 @@ async function gerarRelatorio() {
         console.log("FASE SELECIONADA PARA ROTA", dataFinalInicio, dataFinalFim);
     }
 
-    // 2. Pré-filtra os IDs dos Eventos no JS
-    // A variável 'todosOsDadosDoPeriodo' deve ser a array de objetos que você já tem
-    // const validEventIds = getValidEventIds(
-    //     todosOsDadosDoPeriodo, // Sua variável global com os dados agrupados
-    //     dataInicio, 
-    //     dataFim, 
-    //     fasesSelecionadas
-    // );
     
-    // console.log ("VALIDEVENTIDS", validEventIds, temFiltroDeFase);
-
-    // if (temFiltroDeFase && validEventIds.length === 0) {
-    //     // ... (Swal.fire de warning e return)
-    //     console.warn("Nenhum evento encontrado para a(s) fase(s) selecionada(s) no período.");
-    //     Swal.fire({
-    //         icon: 'info',
-    //         title: 'Nenhum Evento Encontrado',
-    //         text: `Não foram encontrados eventos para a(s) fase(s) selecionada(s) no período de ${dataInicio} a ${dataFim}.`,
-    //     });
-    //     gerarRelatorioBtn.disabled = false;
-    //     return; 
-    // }
-    // 3. Montar o filtro de ID de Evento para o SQL
     let eventoFilter = '';
     
-    // Se o filtro de evento individual não for "todos", ele tem prioridade
-   // const eventoSelecionado = eventSelectElement ? eventSelectElement.value : ''; // CORREÇÃO AQUI!
+   
     console.log("EVENTO SELECIONADO", eventoSelecionado);
     
     if (eventoSelecionado && eventoSelecionado !== "todos") {
         eventoFilter = ` AND tse.idevento = ${eventoSelecionado}`;
     } 
-    // B. Segunda Prioridade: Lista de eventos filtrados por UMA OU MAIS fases
-    // else if (temFiltroDeFase) { 
-    //     if (validEventIds.length > 0) {
-    //         const idsList = validEventIds.join(',');
-    //         eventoFilter = ` AND tse.idevento IN (${idsList})`;
-    //     } else {
-    //         // Caso validEventIds esteja vazio, força a não retornar nada
-    //         eventoFilter = ` AND 1 = 0`; 
-    //     }
-    // }
-
+    
     
     const checkedInput = document.querySelector('input[name="reportType"]:checked');
     let nomeRelatorio = ""; // Inicializa a variável
@@ -1102,8 +1065,8 @@ async function gerarRelatorio() {
                 eventosOrdenados.forEach(evento => {
                     const eventoIdParaTotal = evento.fechamentoCache.length > 0 ? evento.fechamentoCache[0].idevento : null;
                     const totaisDoEventoAtual = eventoIdParaTotal && dados.fechamentoCacheTotaisPorEvento ?
-                        (dados.fechamentoCacheTotaisPorEvento[eventoIdParaTotal] || { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0, totalTotalPagar: 0 }) :
-                        { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0, totalTotalPagar: 0 };
+                        (dados.fechamentoCacheTotaisPorEvento[eventoIdParaTotal] || { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0, totalTotalGeral: 0, totalTotalPagar: 0 }) :
+                        { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0, totalTotalGeral: 0, totalTotalPagar: 0 };
                     console.log('Totais do evento atual:', totaisDoEventoAtual); // Log para verificar os totais
                     relatorioHtmlCompleto += montarRelatorioHtmlEvento(
                         evento.fechamentoCache,
@@ -1299,7 +1262,7 @@ function imprimirRelatorio(conteudoRelatorio) {
         .report-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 9px;
+            font-size: 8px;
         }
         .report-table th, .report-table td {
             border: 1px solid #000;

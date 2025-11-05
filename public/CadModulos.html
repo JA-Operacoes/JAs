@@ -17,21 +17,21 @@
                 <form id="modulos" name="form" autocomplete="off"> 
 
                     <fieldset>
-                        <legend>Cadastre Modulos </legend>
+                        <legend>Cadastre Modulos</legend>
                         <div class ="form">
                             <input type="text" name="idModulo" id="idModulo" readonly spellcheck="false">
-                            <label for = "idModulo">ID Modulos</label>
+                            <label for="idModulo">ID Modulos</label>
                         </div>
                         <div class="form">
                             <input type="text" id="nmModulo" required>
                             <label for="nmModulo">Nomes dos Modulos</label>
                         </div>
 
-                        <div class=" checkbox">
+                        <!-- <div class=" checkbox">
                             <div class="Vertical">
                                 <div class="checkbox-wrapper-33">
                                     <label class="checkbox">
-                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" id ="JA OPER" name="empresasSelecionadas" value="1"/>
                                         <span class="checkbox__symbol">
                                             <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
                                                 <path d="M4 14l8 7L24 7"></path>
@@ -45,7 +45,7 @@
                             <div class="Vertical">
                                 <div class="checkbox-wrapper-33">
                                     <label class="checkbox">
-                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" id = "JA EXPO" name="empresasSelecionadas" value="2" />
                                         <span class="checkbox__symbol">
                                             <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
                                                 <path d="M4 14l8 7L24 7"></path>
@@ -59,7 +59,7 @@
                             <div  class="Vertical">
                                 <div class="checkbox-wrapper-33">
                                     <label class="checkbox">
-                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" id = "EA" name="empresasSelecionadas" value="3"/>
                                         <span class="checkbox__symbol">
                                             <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
                                                 <path d="M4 14l8 7L24 7"></path>
@@ -73,7 +73,7 @@
                             <div  class="Vertical">
                                 <div class="checkbox-wrapper-33">
                                     <label class="checkbox">
-                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" id = "ED" name="empresasSelecionadas" value="4"/>
                                         <span class="checkbox__symbol">
                                             <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
                                                 <path d="M4 14l8 7L24 7"></path>
@@ -87,7 +87,7 @@
                             <div  class="Vertical">
                                 <div class="checkbox-wrapper-33">
                                     <label class="checkbox">
-                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" id = "EP" name="empresasSelecionadas" value="5"/>
                                         <span class="checkbox__symbol">
                                             <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
                                                 <path d="M4 14l8 7L24 7"></path>
@@ -101,7 +101,7 @@
                             <div  class="Vertical">
                                 <div class="checkbox-wrapper-33">
                                     <label class="checkbox">
-                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" id = "ES" name="empresasSelecionadas" value="6"/>
                                         <span class="checkbox__symbol">
                                             <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
                                                 <path d="M4 14l8 7L24 7"></path>
@@ -115,7 +115,7 @@
                             <div  class="Vertical">
                                 <div class="checkbox-wrapper-33">
                                     <label class="checkbox">
-                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" id = "SN FOODS" name="empresasSelecionadas" value="7"/>
                                         <span class="checkbox__symbol">
                                             <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
                                                 <path d="M4 14l8 7L24 7"></path>
@@ -129,7 +129,7 @@
                             <div  class="Vertical">
                                 <div class="checkbox-wrapper-33">
                                     <label class="checkbox">
-                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                                        <input class="checkbox__trigger visuallyhidden" type="checkbox" id = "TSD" name="empresasSelecionadas" value="8"/>
                                         <span class="checkbox__symbol">
                                             <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
                                                 <path d="M4 14l8 7L24 7"></path>
@@ -139,7 +139,8 @@
                                     </label>
                                 </div>
                                 <label for="TSD">TSD</label>
-                            </div>
+                            </div> -->
+                            <select id="empresas-select-multiplo" name="empresasSelecionadas" multiple size="5" class="form"></select>
                     </fieldset>
 
                 </div>

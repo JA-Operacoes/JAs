@@ -44,6 +44,29 @@ router.get("/categoriafuncao",  async (req, res) => {
 });
 
 
+router.get("/equipe",  async (req, res) => {
+  console.log("Rota de equipe acessada em ROTA FUNCAO - GET", req.query);
+  const idempresa = req.idempresa;
+ 
+  try {    
+      const result = await pool.query(`
+        SELECT e.* 
+        FROM equipe e
+        INNER JOIN equipeempresas ee ON e.idequipe = ee.idequipe
+        WHERE ee.idempresa = $1
+        ORDER BY e.nmequipe ASC`,
+        [idempresa]
+      );
+      return result.rows.length
+        ? res.json(result.rows)
+        : res.status(404).json({ message: "Nenhuma equipe encontrada" });
+  } catch (error) {
+    console.error("Erro ao buscar equipe:", error);
+    res.status(500).json({ message: "Erro ao buscar equipe" });
+  }
+});
+
+
 // Aplica autenticação em todas as rotas
 router.use(autenticarToken());
 router.use(contextoEmpresa);
@@ -57,11 +80,14 @@ router.get("/", verificarPermissao('Funcao', 'pesquisar'), async (req, res) => {
   try {
     if (descFuncao) {
       const result = await pool.query(
-        `SELECT f.idfuncao, f.descfuncao, f.vdafuncao, f.obsfuncao, f.obsproposta, f.ativo, f.idcategoriafuncao, 
-        cf.idcategoriafuncao, cf.ctofuncaobase, cf.ctofuncaojunior, cf.ctofuncaopleno, cf.ctofuncaosenior, cf.transporte, cf.transpsenior
+        `SELECT f.idfuncao, f.descfuncao, f.vdafuncao, f.obsfuncao, f.obsproposta, f.ativo, f.idcategoriafuncao, f.idequipe,
+         e.nmequipe,
+         cf.idcategoriafuncao, cf.ctofuncaobase, cf.ctofuncaojunior, cf.ctofuncaopleno, cf.ctofuncaosenior,
+         cf.transporte, cf.transpsenior, cf.alimentacao
         FROM funcao f
         INNER JOIN categoriafuncao cf ON f.idcategoriafuncao = cf.idcategoriafuncao
-        INNER JOIN funcaoempresas fe ON f.idfuncao = fe.idfuncao        
+        INNER JOIN funcaoempresas fe ON f.idfuncao = fe.idfuncao 
+        INNER JOIN equipe e ON f.idequipe = e.idequipe       
         WHERE fe.idempresa = $1 AND descFuncao ILIKE $2 LIMIT 1`, 
         [idempresa, descFuncao]
       );
@@ -70,10 +96,11 @@ router.get("/", verificarPermissao('Funcao', 'pesquisar'), async (req, res) => {
         : res.status(404).json({ message: "Funcao não encontrada" });
     } else {
       const result = await pool.query(`
-        SELECT f.*, cf.* 
+        SELECT f.*, cf.*, e.*
         FROM funcao f
         INNER JOIN categoriafuncao cf ON f.idcategoriafuncao = cf.idcategoriafuncao
-        INNER JOIN funcaoempresas fe ON f.idfuncao = fe.idfuncao       
+        INNER JOIN funcaoempresas fe ON f.idfuncao = fe.idfuncao
+        INNER JOIN equipe e ON f.idequipe = e.idequipe
         WHERE fe.idempresa = $1
         ORDER BY descFuncao ASC`,
         [idempresa]
@@ -130,36 +157,22 @@ router.put("/:id", autenticarToken({ verificarEmpresa: false }),
     };
     
     const ativo = req.body.ativo !== undefined ? req.body.ativo : false; 
-   // const { descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsProposta, alimentacao, obsFuncao} = req.body;
-    const { descFuncao, obsProposta, obsFuncao, idCatFuncao } = body; 
-// const custoSenior = toNumeric(body.custoSenior);
-// const custoPleno = toNumeric(body.custoPleno);
-// const custoJunior = toNumeric(body.custoJunior);
-// const custoBase = toNumeric(body.custoBase);
+  
+    const { descFuncao, obsProposta, obsFuncao, idCatFuncao, idEquipe } = body; 
+
     const venda = toNumeric(body.venda);
-// const transporte = toNumeric(body.transporte);
-// const transporteSenior = toNumeric(body.transporteSenior);
-// const alimentacao = toNumeric(body.alimentacao);
 
     console.log("ESTÁ NA ROTA PUT");
 
     try {
-      // const result = await pool.query(
-      //   `UPDATE Funcao f
-      //    SET descFuncao = $1, ctofuncaosenior = $2, ctofuncaopleno = $3, ctofuncaojunior = $4, ctofuncaobase = $5, vdafuncao = $6, transporte = $7, 
-      //         transpsenior = $8, obsFuncao = $9, alimentacao = $10, obsProposta = $11, ativo = $12
-      //    FROM funcaoempresas fe
-      //    WHERE f.idFuncao = $13 AND fe.idfuncao = f.idFuncao AND fe.idempresa = $14
-      //    RETURNING f.idFuncao`,
-      //   [descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsFuncao, alimentacao, obsProposta, ativo, id, idempresa]
-      // );
+      
       const result = await pool.query(
         `UPDATE Funcao f
-         SET descFuncao = $1, vdafuncao = $2, obsFuncao = $3, obsProposta = $4, ativo = $5, idcategoriafuncao = $6
+         SET descFuncao = $1, vdafuncao = $2, obsFuncao = $3, obsProposta = $4, ativo = $5, idcategoriafuncao = $6, idequipe = $7 
          FROM funcaoempresas fe
-         WHERE f.idFuncao = $7 AND fe.idfuncao = f.idFuncao AND fe.idempresa = $8
+         WHERE f.idFuncao = $8 AND fe.idfuncao = f.idFuncao AND fe.idempresa = $9
          RETURNING f.idFuncao`,
-        [descFuncao, venda, obsFuncao, obsProposta, ativo, idCatFuncao, id, idempresa]
+        [descFuncao, venda, obsFuncao, obsProposta, ativo, idCatFuncao, idEquipe,  id, idempresa]
       );
 
      if (result.rowCount) {
@@ -200,15 +213,10 @@ router.post("/", autenticarToken({ verificarEmpresa: false }),
         return isNaN(num) ? 0 : num;
     };
 
-    const { descFuncao, obsProposta, obsFuncao, idCatFuncao } = body; 
-    // const custoSenior = toNumeric(body.custoSenior);
-    // const custoPleno = toNumeric(body.custoPleno);
-    // const custoJunior = toNumeric(body.custoJunior);
-    // const custoBase = toNumeric(body.custoBase);
+    const { descFuncao, obsProposta, obsFuncao, idCatFuncao, idEquipe } = body; 
+    
     const venda = toNumeric(body.venda);
-    // const transporte = toNumeric(body.transporte);
-    // const transporteSenior = toNumeric(body.transporteSenior);
-    // const alimentacao = toNumeric(body.alimentacao);
+    
 
 
     let client;
@@ -216,14 +224,11 @@ router.post("/", autenticarToken({ verificarEmpresa: false }),
       client = await pool.connect(); 
         await client.query('BEGIN');
        
-        // const resultFuncao = await client.query(
-        //     "INSERT INTO funcao (descFuncao, ctofuncaosenior, ctofuncaopleno, ctofuncaojunior, ctofuncaobase, vdafuncao, transporte, transpsenior, obsFuncao, alimentacao, obsProposta, ativo) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING idFuncao, descFuncao", // ✅ Retorna idFuncao
-        //     [descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsFuncao, alimentacao, obsProposta, ativo]
-        // );
+        
 
         const resultFuncao = await client.query(
-            "INSERT INTO funcao (descFuncao, vdafuncao, obsFuncao, obsProposta, ativo, idcategoriafuncao) VALUES ($1, $2, $3, $4, $5, $6) RETURNING idFuncao, descFuncao", // ✅ Retorna idFuncao
-            [descFuncao, venda, obsFuncao, obsProposta, ativo, idCatFuncao]
+            "INSERT INTO funcao (descFuncao, vdafuncao, obsFuncao, obsProposta, ativo, idcategoriafuncao, idequipe) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING idFuncao, descFuncao", // ✅ Retorna idFuncao
+            [descFuncao, venda, obsFuncao, obsProposta, ativo, idCatFuncao, idEquipe]
         );
         const novaFuncao = resultFuncao.rows[0];
         const idfuncao = novaFuncao.idfuncao;

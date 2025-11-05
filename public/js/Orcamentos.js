@@ -3968,6 +3968,25 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
         return;
     }
 
+    //arredonda para baixo com precisão de 10 centavos
+    // const floorToTenCents = (valor, fator) => {                
+    //             // Correção Importante: O divisor deve ser 10, não 100.
+    //             // A lógica de dividir por 0.10 é o mesmo que multiplicar por 10.
+    //             // Se quisermos 76.59 -> 76.50, usamos 10.
+    //             return Math.floor(valor * fator * 10) / 10;
+    // };
+
+    //arredonda para cima com precisão de 10 centavos
+    const ceilToTenCents = (valor, fator) => {
+        // 1. Aplica o fator
+        const valorReajustado = valor * fator;
+        
+        // 2. Multiplica por 10 (para mover o decimal uma casa)
+        // 3. Usa Math.ceil para arredondar para cima (ex: 76.59 * 10 = 765.9 -> 766)
+        // 4. Divide por 10 (para mover o decimal de volta)
+        return Math.ceil(valorReajustado * 10) / 10;
+    };
+
      // =======================================================
     // LÓGICA DE REAJUSTE DE PERCENTUAIS
     // =======================================================
@@ -4016,18 +4035,31 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
 
 
         console.log("VALORES RECALCULADOS PARA APLICAR REAJUSTE fatorGeral:", fatorGeral,  "fatorAjuda:", fatorAjuda, "vlrAjdAlimentacao:", vlrAjdAlimentacao, "vlrAjdTransporte:", vlrAjdTransporte);
-        
+ 
         if (aplicarReajuste) {
             // Aplica fator geral em Custo e Venda
-            vlrDiaria = Math.round(vlrDiaria * fatorGeral);
-            ctoDiaria = Math.round(ctoDiaria * fatorGeral);
+            // vlrDiaria = Math.round(vlrDiaria * fatorGeral);
+            // ctoDiaria = Math.round(ctoDiaria * fatorGeral);
             
-            // Aplica fator de ajuda em Alimentação e Transporte
-            vlrAjdAlimentacao = Math.round(vlrAjdAlimentacao * fatorAjuda);
-            vlrAjdTransporte = Math.round(vlrAjdTransporte * fatorAjuda);
+            // // Aplica fator de ajuda em Alimentação e Transporte
+            // vlrAjdAlimentacao = Math.round(vlrAjdAlimentacao * fatorAjuda);
+            // vlrAjdTransporte = Math.round(vlrAjdTransporte * fatorAjuda);
 
-            vlrHospedagem = Math.round(vlrHospedagem * fatorGeral);
-            vlrTransporte = Math.round(vlrTransporte * fatorGeral);
+            // vlrHospedagem = Math.round(vlrHospedagem * fatorGeral);
+            // vlrTransporte = Math.round(vlrTransporte * fatorGeral);
+
+            
+            
+            // Aplica fator geral em Custo e Venda
+            vlrDiaria = ceilToTenCents(vlrDiaria, fatorGeral);
+            ctoDiaria = ceilToTenCents(ctoDiaria, fatorGeral);
+
+            // Aplica fator de ajuda em Alimentação e Transporte
+            vlrAjdAlimentacao = ceilToTenCents(vlrAjdAlimentacao, fatorAjuda);
+            vlrAjdTransporte = ceilToTenCents(vlrAjdTransporte, fatorAjuda);
+
+            vlrHospedagem = ceilToTenCents(vlrHospedagem, fatorGeral);
+            vlrTransporte = ceilToTenCents(vlrTransporte, fatorGeral);
 
             // ZERA o ID do item para garantir que ele seja INSERIDO como novo no SAVE (Backend)
             itemOrcamentoID = ''; 

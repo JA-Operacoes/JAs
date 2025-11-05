@@ -1,0 +1,558 @@
+/* ============================================== */
+/* GERAL E CONFIGURAÇÕES DE PÁGINA PARA IMPRESSÃO */
+/* ============================================== */
+#modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5); 
+    display: none; 
+    z-index: 1000;
+}
+
+#RelIndices {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #ffffff; 
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+    width: 95%; 
+    max-width: 1400px;
+    height: auto; /* NOVO: A altura se adapta ao conteúdo */
+    max-height: none; /* NOVO: Remove o limite de altura máxima */
+    overflow-y: visible; /* NOVO: Impede a barra de rolagem */
+    display: none; 
+    z-index: 1001;
+}
+
+/* --- ESTILOS DO CONTEÚDO DENTRO DO MODAL --- */
+
+.modal-content {
+    width: 100%;
+    margin: 0; 
+    padding: 0;
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+}
+
+.modal-content-report {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 30px; /* Aumentado o espaçamento entre as seções */
+}
+
+
+@page {
+    /* Define o tamanho do papel como A4 e a orientação como paisagem */
+    size: A4 landscape;
+    margin: 1cm; /* Margem da página */
+}
+
+
+body {
+    font-family: Arial, sans-serif;
+    font-size: 10pt; /* Tamanho da fonte padrão para o corpo do relatório */
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible;
+    /* MUITO IMPORTANTE: Garante que cores de fundo e texto sejam impressas */
+    -webkit-print-color-adjust: exact !important; 
+    print-color-adjust: exact !important;
+}
+
+body > *:first-child {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+/* Quebra de página para separar relatórios de múltiplos eventos (caso aplicável) */
+.relatorio-evento {
+    page-break-after: always;
+}
+.relatorio-evento:last-child {
+    page-break-after: auto;
+}
+
+
+/* Garante que títulos e seções não quebrem no meio */
+h1, h2, h3, h4, table, .print-header-top {
+    page-break-inside: avoid;
+    page-break-before: auto !important;
+    page-break-after: avoid;
+}
+
+h1 {
+    font-size: 20px;
+    text-align: center;
+    margin-bottom: 10px;
+    margin-top: 0 !important;
+    page-break-before: auto !important;
+}
+
+h2 {
+    font-size: 16px;
+    margin-top: 0px;
+    text-align: left;
+    color: #333;
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+    page-break-before: auto;
+}
+
+p {
+    margin: 5px 0;
+    text-align: left;
+}
+
+/* ============================================== */
+/* CABEÇALHO DO RELATÓRIO (Topo da Página) */
+/* ============================================== */
+
+.print-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #f0f0f0; /* Cinza claro */
+    border-bottom: 1px solid #ccc;
+    margin-bottom: 20px;
+   
+    margin-top: 0 !important;
+    /* padding-top: 0 !important; */
+    page-break-before: auto !important;
+    page-break-inside: avoid;
+    page-break-after: avoid;
+
+    width: 100% !important; /* MANTENHA: Garante que o bloco ocupe todo o espaço */
+    clear: both !important;
+
+    margin-top: 0 !important;
+   
+    padding-top: 0 !important;
+    margin-block-start: 0 !important; /* Para navegadores modernos */
+    
+    /* IMPEDE QUEBRA DE PÁGINA ANTES OU DEPOIS DO CABEÇALHO */
+    page-break-before: avoid !important;
+    page-break-after: avoid !important; 
+    page-break-inside: avoid;
+}
+
+.header-title-container {
+    text-align: center;
+    flex-grow: 1; /* Ocupa o espaço central */
+}
+
+.header-title {
+    font-size: 24px;
+    color: #333;
+    font-weight: bold;
+}
+
+.logo-ja {
+    max-width: 50px;
+    height: auto;
+    margin-left: 20px;
+}
+
+.data-relatorio {
+    margin-right: 20px;
+    font-weight: bold;
+    background-color: orange;
+    padding: 2px 5px;
+    border-radius: 3px;
+    display: inline-block;
+    color: #333;
+}
+
+@media print {
+    /* ---------------------------------------------------- */
+    /* 1. CONFIGURAÇÕES DE FLUXO (REMOVENDO FIXED) */
+    /* ---------------------------------------------------- */
+    
+    @page {
+        size: A4 landscape;
+        margin: 1cm;
+    }
+    
+    /* 🛑 AÇÃO CRÍTICA: REMOVE O POSITION: FIXED E ZERA MARGENS DESNECESSÁRIAS */
+    .print-header-top,
+    .cabecalho-relatorio-repetivel {
+        position: static !important; /* Volta ao fluxo normal do documento */
+        width: 100% !important; 
+        padding: 0 !important; /* Zera o padding aqui */
+        margin: 0 !important; /* Zera a margem aqui */
+        page-break-after: avoid !important;
+        page-break-before: auto !important;
+        page-break-inside: avoid !important;
+        z-index: auto !important; 
+        top: auto !important;
+        left: auto !important;
+    }
+    
+    /* Aplica as margens e padding APENAS aos blocos internos, não ao contêiner de fluxo */
+    .print-header-top {
+        padding: 10px 1cm 10px 1cm !important; /* Padding do topo */
+        margin-bottom: 15px !important; /* Espaçamento após o cabeçalho */
+    }
+
+    .info-percentuais-relatorio {
+        margin-top: 0 !important;
+        margin-bottom: 20px !important; /* Espaçamento após as informações */
+        padding: 0 1cm !important; /* Padding lateral */
+    }
+    
+    /* ZERA QUALQUER MARGEM DE COMPENSAÇÃO */
+    .report-scroll-container,
+    .report-table { 
+        margin-top: 0px !important; 
+        max-height: none !important; 
+        overflow: visible !important;
+        padding: 0 !important;
+        border-collapse: collapse !important;
+    }
+    
+    /* Esconde o H2 solto */
+    h2:not(.tabela-resumo h2) { /* Garante que só esconde o H2 solto */
+        display: none !important; 
+    }
+    
+    /* ---------------------------------------------------- */
+    /* 2. REPETIÇÃO DO CABEÇALHO DA TABELA (ULTRA-CRÍTICO) */
+    /* ---------------------------------------------------- */
+    .report-table {
+        table-layout: auto !important; 
+        width: 100% !important;
+        page-break-inside: auto !important;
+        margin-bottom: 20px; /* Adiciona margem após a tabela para quebra */
+    }
+    
+    /* FORÇA A REPETIÇÃO DO THEAD */
+    .report-table thead {
+        display: table-header-group !important; 
+        page-break-inside: avoid !important;
+        page-break-after: avoid !important; 
+        background-color: white !important; /* Fundo branco para a repetição */
+        page-break-before: avoid !important; 
+    }
+
+    /* Garante que TODAS as linhas e células do cabeçalho se exibam e tenham cor */
+    .report-table thead tr,
+    .report-table thead th {
+        -webkit-print-color-adjust: exact !important; 
+        print-color-adjust: exact !important;
+        color: black !important;
+    }
+    
+    /* CRÍTICO: Garante que as linhas de cabeçalho se comportem como cabeçalho */
+    .header-section-title-row, 
+    .header-group-row {
+        display: table-row !important;
+        page-break-inside: avoid !important;
+    }
+
+    /* Força a exibição de todas as células */
+    .report-table thead th {
+        display: table-cell !important;
+    }
+
+    /* REFORÇA AS CORES: Mantenha as regras de cor explícitas aqui ou mova para fora do @media print, usando !important */
+
+    .report-table thead .table-section-title-header {
+        background-color: #d0d0d0 !important; 
+    }
+
+    /* Altera a regra para a linha de grupos (2ª linha) para garantir que seja CINZA */
+    .header-group-row th {
+        background-color: #a8a8a8ff !important;
+        color: black !important;
+    }
+
+    /* A 3ª linha (títulos das colunas) deve continuar laranja */
+    .report-table thead tr:not(.header-section-title-row):not(.header-group-row) th {
+        background-color: orange !important;
+        color: black !important;
+    }
+}
+/* ============================================== */
+/* ESTILOS DE TABELA (Garantindo quebra de texto) */
+/* ============================================== */
+
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8pt; /* Fonte menor para caber mais dados */
+    table-layout: fixed; /* Ajuda a gerenciar larguras de coluna */
+}
+
+.report-table th, .report-table td {
+    border: 1px solid #000;
+    padding: 4px 6px;
+    /* Propriedades cruciais para quebra de texto: */
+    white-space: normal; 
+    word-wrap: break-word;
+    overflow: hidden;
+    height: auto;
+    vertical-align: middle; /* Alinhamento vertical centralizado */
+}
+
+.report-table thead {
+    background-color: #a8a8a8ff; /* Fundo cinza padrão para o cabeçalho */
+    display: table-header-group; /* Importante para repetir o cabeçalho em novas páginas */
+}
+
+/* Garante que o texto em todas as células do cabeçalho seja preto, a não ser que seja laranja */
+.report-table thead tr th {
+    color: black;
+    font-weight: bold;
+    text-align: center;
+}
+
+/* Cor Laranja para o cabeçalho da tabela (se houver mais de uma linha de cabeçalho) */
+/* Se sua tabela tem um título cinza e uma segunda linha de títulos laranja, use esta regra */
+.report-table thead tr:not(:first-child) th {
+    background-color: orange;
+    color: black; 
+}
+
+
+
+/* Estilo para a linha que contém apenas títulos de grupo */
+.header-group-row {
+    font-weight: bold;
+    text-transform: uppercase;
+    height: auto;
+    background-color: #a8a8a8ff; 
+    color: black; 
+    text-align: center;
+    border-bottom: 2px solid #777;
+    padding: 8px 12px;
+    white-space: normal;
+}
+
+
+/* ============================================== */
+/* ESTILOS DE TÍTULOS DE SEÇÃO DE TABELA */
+/* ============================================== */
+
+/* Título de seção dentro da tabela (ex: diárias, contingência) */
+.table-title-header {
+    background-color: #a8a8a8ff; 
+    color: black;
+    padding: 8px 12px;
+    font-size: 14px;
+    text-align: center;
+    border-bottom: 2px solid #999; 
+    page-break-inside: avoid; 
+}
+
+/* ============================================== */
+/* ALINHAMENTO E STATUS (Substituindo classes do Bootstrap) */
+/* ============================================== */
+
+.text-left {
+    text-align: left !important;
+}
+.text-center {
+    text-align: center !important;
+}
+.text-right {
+    text-align: right !important;
+}
+
+/* Classes de status (cores) */
+.status-pago-100 {
+    color: green;
+    font-weight: bold;
+}
+.status-pago-50 {
+    color: orange;
+    font-weight: bold;
+}
+.status-pendente {
+    color: red;
+    font-weight: bold;
+}
+
+
+
+/* ============================================== */
+/* RESUMO LATERAL (Flexbox para tabelas lado a lado) */
+/* ============================================== */
+
+.relatorio-resumo-container {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+    flex-direction: column; /* Em tela, empilha */
+}
+
+.resumo-par-orcamento {
+    display: flex;
+    flex-direction: row; /* Coloca as tabelas lado a lado */
+    gap: 20px;
+    width: 100%;
+}
+
+.tabela-resumo {
+    width: 50%; /* Cada tabela resumo ocupa metade da largura */
+    border: 1px solid #777;
+    border-radius: 5px;
+    background-color: white; 
+    padding: 0;
+}
+
+/* Estilo para o H2 dentro dos contêineres de resumo */
+.tabela-resumo h2 {
+    background-color: #a8a8a8ff; 
+    color: black;
+    padding: 8px 12px;
+    margin: 0; 
+    font-size: 16px;
+    text-align: center;
+    border-bottom: none; /* Remove a borda padrão do H2 */
+    border-top-left-radius: 5px; 
+    border-top-right-radius: 5px;
+}
+button#gerarRelatorioBtn {
+  width: 200px;
+  padding: 5px 10px;
+  margin-left: 10px;
+}
+
+button#btnImprimirNovamente {
+  width: 200px;
+  padding: 5px 10px;
+  margin-left: 10px;
+}
+
+button.close {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 30px;
+    width: 200px;
+}
+
+.BTNs{
+    display: flex;
+    text-align: center;
+    justify-content: center;
+    position: relative;
+    margin-top: 10px;
+}
+
+button {
+  font-family: "Abel", sans-serif;
+  font-weight: var(--font-weight);
+  font-size: 17px;
+  background-color: var(--primary-color);
+  width: 30px;
+  color: var(--font-color);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;  
+  transition: 5%;
+}
+
+button:disabled, button[disabled] {
+    /* Mudar a cor de fundo para cinza claro */
+    background-color: #cccccc !important; 
+    /* Mudar a cor do texto para cinza escuro */
+    color: #666666 !important; 
+    /* Mudar o cursor para indicar que não é clicável */
+    cursor: not-allowed !important; 
+    /* Adicionar um sombreamento suave para dar profundidade (opcional) */
+    box-shadow: none !important; 
+    /* Reduzir a opacidade para um efeito visual de desabilitado */
+    opacity: 0.7;
+    /* Remover qualquer efeito de hover ou transição */
+    transition: none; 
+}
+
+.icon-espaco {
+    margin-right: 5px; /* Ajuste o valor conforme sua necessidade (ex: 8px, 10px) */
+}
+
+.info-percentuais-relatorio {
+    /* Mantenha suas regras de estilo aqui */
+    
+    /* MANTENHA margin-bottom: 20px, mas garanta que a margem superior é 0 */
+    margin-top: 0 !important;
+    
+    /* Garante que o bloco não quebre de forma indesejada */
+    page-break-before: avoid !important;
+    page-break-inside: avoid;
+    page-break-after: avoid; 
+}
+
+.report-scroll-container {
+    max-height: 60vh; /* Define a altura máxima para o contêiner. Ajuste o 60vh conforme sua tela */
+    overflow-y: auto;  /* Adiciona a barra de rolagem vertical apenas se o conteúdo exceder a altura máxima */
+    padding: 10px;
+    border: 1px solid #e0e0e0;
+    margin-top: 15px;
+}
+
+table.relatorio-solido {
+    width: 100%;
+    border-collapse: collapse; /* Essencial para que as bordas se unam perfeitamente */
+    border: 1px solid #999; /* Borda externa da tabela */
+}
+
+/* 2. BORDAS SÓLIDAS EM TODAS AS CÉLULAS (Linhas e Colunas Contínuas) */
+table.relatorio-solido th, 
+table.relatorio-solido td {
+    border: 1px solid #ddd; /* Borda SÓLIDA de 1px entre todas as células */
+    padding: 8px;
+    text-align: left;
+}
+
+/* 3. LINHAS ZEBRADAS (Alternando cores no corpo da tabela) */
+/* Aplica um fundo cinza muito claro para todas as linhas ímpares do corpo */
+table.relatorio-solido tbody tr:nth-child(odd) {
+    background-color: #f9f9f9; 
+}
+
+/* 4. CABEÇALHO (Opcional: Destaca a linha de título) */
+table.relatorio-solido thead th {
+    background-color: #e0e0e0; /* Fundo mais escuro para o cabeçalho */
+    color: #333;
+    border-bottom: 2px solid #ddd;
+}
+
+.report-table thead .table-section-title-header {
+    background-color: #d0d0d0 !important; 
+    font-size: 16px !important;
+    text-align: center !important;
+    padding: 10px 0 !important;
+    color: black !important;
+    font-weight: bold;
+    display: table-cell !important; /* CRÍTICO: Garante que o TH se exiba */
+    border-bottom: 2px solid #777 !important;
+}
+
+/* O header-group-row (2ª linha) já é cinza na sua regra de .table-title-header, mas pode ser sobreescrito pelo laranja.
+   Vamos forçar o cinza para o header-group-row e o laranja para a 3ª linha. */
+
+/* Altera a regra para a linha de grupos (2ª linha) para garantir que seja CINZA */
+.header-group-row th {
+    background-color: #a8a8a8ff !important;
+    color: black !important;
+}
+
+/* A 3ª linha (títulos das colunas) deve continuar laranja, conforme sua regra original: */
+.report-table thead tr:not(:first-child) th:not(.table-title-header) {
+    /* Esta regra original provavelmente deixava a 3ª linha laranja */
+    background-color: orange;
+    color: black;
+}

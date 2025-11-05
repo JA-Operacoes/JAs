@@ -548,6 +548,7 @@ let vlrTransporteSeniorFuncao = 0;
 let vlrAlimentacaoDobra =0;
 let isLote = false;
 let temOrcamento = false;
+let bForaSP = false;
 
 if (typeof window.StaffOriginal === "undefined") {
     window.StaffOriginal = {
@@ -679,6 +680,9 @@ const qtdPessoasInput = document.getElementById('qtdPessoas');
 
 const idEquipeInput = document.getElementById('idEquipe');
 const nmEquipeSelect = document.getElementById('nmEquipe'); // Select de Equipe
+
+const DescViagem1 = "[Viagem Fora SP] Valor Alimentação referente a Almoço e Jantar por ser fora de São Paulo"; 
+const DescViagem2 = "[Viagem Fora SP] Valor Alimentação referente a Café da Manhã, Almoço e Jantar por ser fora de São Paulo"; 
 
 window.flatpickrInstances = {
     diariaDobrada: diariaDobradaPicker,
@@ -1299,14 +1303,14 @@ const carregarTabelaStaff = async (funcionarioId) => {
                     let valorTotalCalculado = parseFloat(eventData.vlrtotal || 0.00);
 
                     // Adiciona vlrcaixinha se statuscaixinha for 'Autorizado'
-                    if (eventData.statuscaixinha && eventData.statuscaixinha.toLowerCase() === 'autorizado') {
-                        valorTotalCalculado += parseFloat(eventData.vlrcaixinha || 0.00);
-                    }
+//                     if (eventData.statuscaixinha && eventData.statuscaixinha.toLowerCase() === 'autorizado') {
+//                         valorTotalCalculado += parseFloat(eventData.vlrcaixinha || 0.00);
+//                     }
 
-                    // Adiciona vlrajustecusto se statusajustecusto for 'Autorizado'
-                    if (eventData.statusajustecusto && eventData.statusajustecusto.toLowerCase() === 'autorizado') {
-                        valorTotalCalculado += parseFloat(eventData.vlrajustecusto || 0.00);
-                    }
+//                     // Adiciona vlrajustecusto se statusajustecusto for 'Autorizado'
+//                     if (eventData.statusajustecusto && eventData.statusajustecusto.toLowerCase() === 'autorizado') {
+//                         valorTotalCalculado += parseFloat(eventData.vlrajustecusto || 0.00);
+//                     }
                     
                     row.insertCell().textContent = valorTotalCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -1835,31 +1839,32 @@ if (botaoEnviarOriginal) {
             const diariaMeiaRawValue = meiaDiariaPicker?.selectedDates || [];
             const periodoMeiaDiaria = diariaMeiaRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
 
-            statusOrcamentoAtual = document.getElementById("status");
-            const selectAvaliacao = document.getElementById("avaliacao");
-            const avaliacao = selectAvaliacao.options[selectAvaliacao.selectedIndex]?.textContent.trim().toUpperCase() || '';
-            const idStaff = document.querySelector("#idStaff").value.trim();
-            const idFuncionario = document.querySelector("#idFuncionario").value;
-            const selectFuncionario = document.getElementById("nmFuncionario");
-            const nmFuncionario = selectFuncionario.options[selectFuncionario.selectedIndex]?.textContent.trim().toUpperCase() || '';
-            const idFuncao = document.querySelector("#idFuncao").value;
-            const selectFuncao = document.getElementById("descFuncao");
-            const descFuncao = selectFuncao.options[selectFuncao.selectedIndex]?.textContent.trim().toUpperCase() || '';
-            const vlrCusto = document.querySelector("#vlrCusto").value.trim() || '0';
-            const ajusteCusto = document.querySelector("#ajusteCusto").value.trim() || '0';
-            const transporte = document.querySelector("#transporte").value.trim() || '0';
-    
-            const alimentacao = document.querySelector("#alimentacao").value.trim() || '0';
-            const caixinha = document.querySelector("#caixinha").value.trim() || '0';
-            const idCliente = document.querySelector("#idCliente").value;
-            const selectCliente = document.getElementById("nmCliente");
-            const nmCliente = selectCliente.options[selectCliente.selectedIndex]?.textContent.trim().toUpperCase() || '';
-            const idEvento = document.querySelector("#idEvento").value;
-            const selectEvento = document.getElementById("nmEvento");
-            const nmEvento = selectEvento.options[selectEvento.selectedIndex]?.textContent.trim().toUpperCase() || '';
-            const idEquipe = document.querySelector("#idEquipe").value;
-            const selectEquipe = document.getElementById("nmEquipe");
-            const nmEquipe = selectEquipe.options[selectEquipe.selectedIndex]?.textContent.trim().toUpperCase() || '';
+        statusOrcamentoAtual = document.getElementById("status");
+        const selectAvaliacao = document.getElementById("avaliacao");
+        const avaliacao = selectAvaliacao.options[selectAvaliacao.selectedIndex]?.textContent.trim().toUpperCase() || '';
+        const idStaff = document.querySelector("#idStaff").value.trim();
+        const idFuncionario = document.querySelector("#idFuncionario").value;
+        const selectFuncionario = document.getElementById("nmFuncionario");
+        const nmFuncionario = selectFuncionario.options[selectFuncionario.selectedIndex]?.textContent.trim().toUpperCase() || '';
+        const idFuncao = document.querySelector("#idFuncao").value;
+        const selectFuncao = document.getElementById("descFuncao");
+        const descFuncao = selectFuncao.options[selectFuncao.selectedIndex]?.textContent.trim().toUpperCase() || '';
+        const vlrCusto = document.querySelector("#vlrCusto").value.trim() || '0';
+        const ajusteCusto = document.querySelector("#ajusteCusto").value.trim() || '0';
+        const transporte = document.querySelector("#transporte").value.trim() || '0';
+   
+        const alimentacao = document.querySelector("#alimentacao").value.trim() || '0';
+        const caixinha = document.querySelector("#caixinha").value.trim() || '0';
+        const idCliente = document.querySelector("#idCliente").value;
+        const selectCliente = document.getElementById("nmCliente");
+        const nmCliente = selectCliente.options[selectCliente.selectedIndex]?.textContent.trim().toUpperCase() || '';
+        const idEvento = document.querySelector("#idEvento").value;
+        const selectEvento = document.getElementById("nmEvento");
+        const nmEvento = selectEvento.options[selectEvento.selectedIndex]?.textContent.trim().toUpperCase() || '';
+        const idEquipe = document.querySelector("#idEquipe").value;
+        const nmEquipe = document.querySelector("#nmEquipe").value.trim().toUpperCase();
+       // const selectEquipe = document.getElementById("nmEquipe");
+       // const nmEquipe = selectEquipe.options[selectEquipe.selectedIndex]?.textContent.trim().toUpperCase() || '';
 
             const idMontagem = document.querySelector("#idMontagem").value; // ID do local de montagem (FK)
             const selectLocalMontagem = document.getElementById("nmLocalMontagem");
@@ -1871,10 +1876,9 @@ if (botaoEnviarOriginal) {
             const descBeneficioInput = document.getElementById("descBeneficio");
             const descBeneficio = descBeneficioInput?.value.trim() || "";
 
-            const descAjusteCustoInput = document.getElementById("descAjusteCusto");
-            const descAjusteCusto = descAjusteCustoInput.value.trim() || "";
-            //const statusAjusteCusto = document.getElementById("statusAjusteCusto").value;
-        
+        const descAjusteCustoInput = document.getElementById("descAjusteCusto");
+        const descAjusteCusto = descAjusteCustoInput.value.trim() || "";
+        //const statusAjusteCusto = document.getElementById("statusAjusteCusto").value;     
 
             const setor = document.querySelector("#setor").value.trim().toUpperCase();
 
@@ -1882,14 +1886,14 @@ if (botaoEnviarOriginal) {
             const descCaixinha = descCaixinhaInput?.value.trim() || "";
             //const statusCaixinha = document.getElementById("statusCaixinha").value;
 
-            const selectStatusAjusteCusto = document.getElementById("statusAjusteCusto");
-            console.log("Elemento `statusAjusteCusto`:", selectStatusAjusteCusto);
-            const statusAjusteCusto = selectStatusAjusteCusto?.value?.trim() || '';
+        const selectStatusAjusteCusto = document.getElementById("statusAjusteCusto");
+        console.log("Elemento `statusAjusteCusto`:", selectStatusAjusteCusto);
+        let statusAjusteCusto = selectStatusAjusteCusto?.value?.trim() || '';
 
             console.log("Valor `statusAjusteCusto`:", statusAjusteCusto);
 
-            const selectStatusCaixinha = document.getElementById("statusCaixinha");
-            const statusCaixinha = selectStatusCaixinha?.value?.trim() || '';
+        const selectStatusCaixinha = document.getElementById("statusCaixinha");
+        let statusCaixinha = selectStatusCaixinha?.value?.trim() || '';
 
             const diariaDobrada = document.getElementById("diariaDobradacheck")?.checked;
             const meiaDiaria = document.getElementById("meiaDiariacheck")?.checked;
@@ -2180,15 +2184,16 @@ if (botaoEnviarOriginal) {
 
                     const periodoDoEvento = [...datasSelecionadas, ...datasDobradas];
 
-                    const criteriosDeVerificacao = {
-                        nmFuncao: descFuncaoSelect.options[descFuncaoSelect.selectedIndex].text,
-                        nmEvento: nmEventoSelect.options[nmEventoSelect.selectedIndex].text,
-                        nmCliente: nmClienteSelect.options[nmClienteSelect.selectedIndex].text,
-                        nmlocalMontagem: nmLocalMontagemSelect.options[nmLocalMontagemSelect.selectedIndex].text,
-                        pavilhao: nmPavilhaoSelect.options[nmPavilhaoSelect.selectedIndex].text,
-                        datasEvento: datasSelecionadas,
-                        datasEventoDobradas: datasDobradas
-                    };
+                const criteriosDeVerificacao = {
+                    
+                    nmEvento: nmEventoSelect.options[nmEventoSelect.selectedIndex].text,
+                    nmCliente: nmClienteSelect.options[nmClienteSelect.selectedIndex].text,
+                    nmlocalMontagem: nmLocalMontagemSelect.options[nmLocalMontagemSelect.selectedIndex].text,
+                    nmFuncao: descFuncaoSelect.options[descFuncaoSelect.selectedIndex].text,
+                    pavilhao: nmPavilhaoSelect.options[nmPavilhaoSelect.selectedIndex].text,
+                    datasEvento: datasSelecionadas,
+                    datasEventoDobradas: datasDobradas
+                };
 
                     if (!isFormLoadedFromDoubleClick && !verificarLimiteDeFuncao(criteriosDeVerificacao)) {
 
@@ -2402,6 +2407,12 @@ if (botaoEnviarOriginal) {
                     statusPgto = "Pendente";
                 }
 
+            if (statusCaixinha === 'Autorização da Caixinha' && vlrCaixinha === 0) { 
+                statusCaixinha = '';  
+            }
+            if (statusAjusteCusto === 'Autorização do Ajuste de Custo' && vlrAjusteCusto === 0) { 
+                statusAjusteCusto = '';  
+            }
 
                 formData.append('statuspgto', statusPgto);
                 formData.append('statusajustecusto', statusAjusteCusto);
@@ -2435,12 +2446,18 @@ if (botaoEnviarOriginal) {
 
                 console.log("Status Diaria Dobrada", statusDiariaDobrada, statusMeiaDiaria);
 
-                if (statusDiariaDobrada === "Autorização da Diária Dobrada"){
-                    statusDiariaDobrada = "Pendente";
-                }
-                if (statusMeiaDiaria === "Autorização da Meia Diária"){
-                    statusMeiaDiaria = "Pendente";
-                }
+            if (statusDiariaDobrada === "Autorização da Diária Dobrada" && diariaDobrada === true){
+                statusDiariaDobrada = "Pendente";
+            }
+            if(statusDiariaDobrada === "Autorização da Diária Dobrada" && diariaDobrada === false){
+                statusDiariaDobrada = "";
+            }
+            if (statusMeiaDiaria === "Autorização da Meia Diária" && meiaDiaria === true){
+                statusMeiaDiaria = "Pendente";
+            }
+            if (statusMeiaDiaria === "Autorização da Meia Diária" && meiaDiaria === false){
+                statusMeiaDiaria = "";
+            }
 
                 let dadosDiariaDobrada = [];
                 if (periodoDobrado && periodoDobrado.length > 0) {
@@ -2824,14 +2841,14 @@ const debouncedOnCriteriosChanged = debounce(() => {
 
     // Apenas chame a API se os campos obrigatórios estiverem preenchidos
     if (idEvento && idCliente && periodoDoEvento.length > 0) {
-      buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, setorParaBusca, periodoDoEvento);
+      buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, periodoDoEvento);
     }
 }, 500);
 
 
-async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, setorParaBusca, datasEvento, diariaDobrada) {
+async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, datasEvento) {
     try {
-        console.log("Buscando orçamento com os seguintes IDs:", { idEvento, idCliente, idLocalMontagem, setorParaBusca });
+        console.log("Buscando orçamento com os seguintes IDs:", { idEvento, idCliente,  idLocalMontagem });
 
         const criteriosDeBusca = {
             idEvento,
@@ -2885,9 +2902,12 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, set
         // }
 
         // **PROCESSAMENTO DOS DADOS:** Se o status não for 'A', o código continua aqui
-        dadosDoOrcamento.forEach(item => {
-            const chave = `${item.nmevento}-${item.nmcliente}-${item.nmlocalmontagem}-${item.setor}-${item.descfuncao}`;
 
+
+    
+        dadosDoOrcamento.forEach(item => {
+            //const chave = `${item.nmevento}-${item.nmcliente}-${item.nmlocalmontagem}-${item.pavilhao}-${item.descfuncao}`;
+            const chave = `${item.nmevento}-${item.nmcliente}-${item.nmlocalmontagem}-${item.descfuncao}`;
             orcamentoPorFuncao[chave] = {
                 quantidadeOrcada: item.quantidade_orcada,
                 quantidadeEscalada: item.quantidade_escalada
@@ -3339,9 +3359,13 @@ async function carregarEquipeStaff() {
 async function carregarFuncaoStaff() {
     try{
         const funcaofetch = await fetchComToken('/staff/funcao');
-        console.log("ENTROU NO CARREGARFUNCAOSTAFF", funcaofetch);
+        console.log("ENTROU NO CARREGARFUNCAOSTAFF", funcaofetch);        
 
         let selects = document.querySelectorAll(".descFuncao");
+
+        const inputIdEquipe = document.getElementById("idEquipe");
+        const inputNmEquipe = document.getElementById("nmEquipe");
+
         selects.forEach(select => {
             select.innerHTML = "";
 
@@ -3366,6 +3390,8 @@ async function carregarFuncaoStaff() {
                     option.setAttribute("data-alimentacao", funcao.alimentacao || 0);
                     option.setAttribute("data-transporte", funcao.transporte || 0);
                     option.setAttribute("data-transpsenior", funcao.transpsenior || 0);
+                    option.setAttribute("data-idequipe", funcao.idequipe || '');
+                    option.setAttribute("data-nmequipe", funcao.nmequipe || '');
                     option.setAttribute("data-categoria", "Produto(s)");
                     select.appendChild(option);
                // }else {
@@ -3383,12 +3409,21 @@ async function carregarFuncaoStaff() {
                 document.getElementById("Plenocheck").checked = false;
                 document.getElementById("Juniorcheck").checked = false;
                 document.getElementById("Basecheck").checked = false;
-                
+                inputIdEquipe.value = '';
+                inputNmEquipe.value = '';
 
                 const selectedOption = this.options[this.selectedIndex];
              
 
-                document.getElementById("idFuncao").value = selectedOption.getAttribute("data-idFuncao");            
+                document.getElementById("idFuncao").value = selectedOption.getAttribute("data-idFuncao"); 
+                const idEquipeSelecionado = selectedOption.getAttribute("data-idequipe");
+                const nmEquipeSelecionado = selectedOption.getAttribute("data-nmequipe");
+                
+                if (idEquipeSelecionado) {
+                    inputIdEquipe.value = idEquipeSelecionado;
+                    inputNmEquipe.value = nmEquipeSelecionado;
+                    console.log(`Equipe preenchida: ID ${idEquipeSelecionado}, Nome ${nmEquipeSelecionado}`);
+                }           
 
                 vlrCustoSeniorFuncao = parseFloat(selectedOption.getAttribute("data-ctosenior")) || 0;
                 vlrCustoPlenoFuncao = parseFloat(selectedOption.getAttribute("data-ctopleno")) || 0;
@@ -3663,6 +3698,13 @@ async function carregarLocalMontStaff() {
 
         let selects = document.querySelectorAll(".nmLocalMontagem");
 
+        const containerViagens = document.getElementById("containerViagens");
+        
+        // Oculta o container por padrão ao carregar a função
+        if (containerViagens) {
+            containerViagens.style.display = 'none';
+        }
+
         selects.forEach(select => {
 
             select.innerHTML = '<option value="">Selecione Local de Montagem</option>';
@@ -3682,6 +3724,30 @@ async function carregarLocalMontStaff() {
 
                document.getElementById("idMontagem").value = selectedOption.getAttribute("data-idMontagem");
 
+               if(selectedOption.value === "") {
+                   console.log("Nenhum local de montagem selecionado.");
+                   if (containerViagens) {
+                        containerViagens.style.display = 'none';
+                    }
+                   
+               } else {   
+                    console.log("Local de montagem selecionado:", selectedOption.textContent);                
+                   if (selectedOption.getAttribute("data-ufmontagem") !== "SP") {
+                        //Swal.fire("Atenção", "O local de montagem selecionado está fora do estado de SP. Verifique os custos adicionais de deslocamento.", "warning");
+                        bForaSP = true;
+                        if (containerViagens) {
+                            containerViagens.style.display = 'block'; // Mostra o container
+                        }
+
+                   }else {
+                        bForaSP = false;
+                        if (containerViagens) {
+                            containerViagens.style.display = 'none'; // Oculta o container
+                        }
+                        document.getElementById('viagem1Check').checked = false; 
+                        document.getElementById('viagem2Check').checked = false;
+                   }
+               }
 
                idMontagemSelecionado = selectedOption.value;
 
@@ -4269,8 +4335,8 @@ document.getElementById('Seniorcheck').addEventListener('change', function () {
 
         //console.log("Valores para Senior - Custo:", vlrCustoSeniorFuncao, "Alimentação:", vlrAlimentacao, "Transporte:", vlrTransporteSeniorFuncao);
         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-       document.getElementById("vlrCusto").value = (parseFloat(vlrCustoSeniorFuncao) || 0).toFixed(2); 
-       document.getElementById("transporte").value = (parseFloat(vlrTransporteSeniorFuncao) || 0).toFixed(2);
+        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoSeniorFuncao) || 0).toFixed(2); 
+        document.getElementById("transporte").value = (parseFloat(vlrTransporteSeniorFuncao) || 0).toFixed(2);
     }
 });
 
@@ -4314,6 +4380,133 @@ document.getElementById('Basecheck').addEventListener('change', function () {
     }
 });
 
+function criarRegexRemocao(textoPuro) {
+    const textoEscapado = textoPuro.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    // Encontra (opcional \n\n) + o texto
+    return new RegExp("(\\n\\n)?" + textoEscapado, 'g');
+}
+
+// Regex para cada descrição
+const REGEX_REMOCAO1 = criarRegexRemocao(DescViagem1);
+const REGEX_REMOCAO2 = criarRegexRemocao(DescViagem2);
+
+document.getElementById('viagem1Check').addEventListener('change', function () { 
+    let vlrAlimentacaoViagem = vlrAlimentacaoFuncao; 
+    let descBeneficioAtual = descBeneficioTextarea.value;  
+    descBeneficioAtual = limparDescricoesViagem(descBeneficioAtual);
+    if (viagem1Check.checked) {
+        // Lógica para quando o checkbox de Viagem 1 estiver marcado
+        viagem2Check.checked = false;
+        vlrAlimentacaoViagem = vlrAlimentacaoViagem * 2 ;
+        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoViagem) || 0).toFixed(2);
+
+        console.log("Descrição atual antes da modificação:", descBeneficioTextarea.value);        
+
+        if (descBeneficioAtual) {
+            descBeneficioAtual = descBeneficioAtual.trim();
+        }
+        if (descBeneficioAtual.includes(DescViagem1)) {
+            descBeneficioAtual = descBeneficioAtual.replace(DescViagem1, "").trim();
+        }
+        let separador = "";
+        if (descBeneficioAtual.length > 0) {
+            // Se houver texto remanescente, adicione o separador \n\n
+            separador = "\n\n";
+        }
+        // 2. Adiciona a descrição de viagem ao texto
+        descBeneficioTextarea.value = descBeneficioAtual + separador + DescViagem1;
+
+    }else {
+        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
+
+        // let descBeneficioAtual = descBeneficioTextarea.value;
+    
+        // // Escapa o texto para uso seguro no Regex
+        // const DescViagem1Escapada = DescViagem1.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        
+        // // Regex para remover (duas quebras de linha opcionais) + o texto da viagem
+        // const regexRemover = new RegExp("(\\n\\n)?" + DescViagem1Escapada, 'g');
+
+        // if (descBeneficioAtual.includes(DescViagem1)) {
+            
+        //     // Remove o texto e o separador que o precede (se existir)
+        //     descBeneficioAtual = descBeneficioAtual.replace(regexRemover, "").trim();
+            
+        //     // **PASSO ESSENCIAL:** Atribui o texto limpo de volta à textarea
+        //     descBeneficioTextarea.value = descBeneficioAtual;
+        // }
+        descBeneficioTextarea.value = descBeneficioAtual;
+    }
+    //console.log("Valores para Senior - Custo:", vlrCustoSeniorFuncao, "Alimentação:", vlrAlimentacao, "Transporte:", vlrTransporteSeniorFuncao);
+ 
+});
+
+document.getElementById('viagem2Check').addEventListener('change', function () { 
+    let vlrAlimentacaoViagem = vlrAlimentacaoFuncao;  
+    let descBeneficioAtual = descBeneficioTextarea.value;
+
+    descBeneficioAtual = limparDescricoesViagem(descBeneficioAtual);
+    if (viagem2Check.checked) {
+        // Lógica para quando o checkbox de Viagem 2 estiver marcado
+        viagem1Check.checked = false;
+        vlrAlimentacaoViagem = (vlrAlimentacaoViagem * 2) + (vlrAlimentacaoViagem / 2) ;
+        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoViagem) || 0).toFixed(2);
+
+        
+        if (descBeneficioAtual) {
+            descBeneficioAtual = descBeneficioAtual.trim();
+        }
+        if (descBeneficioAtual.includes(DescViagem2)) {
+            descBeneficioAtual = descBeneficioAtual.replace(DescViagem2, "").trim();
+        }
+        let separador = "";
+        if (descBeneficioAtual.length > 0) {
+            // Se houver texto remanescente, adicione o separador \n\n
+            separador = "\n\n";
+        }
+
+        // 2. Adiciona a descrição de viagem ao texto
+        descBeneficioTextarea.value = descBeneficioAtual + separador +DescViagem2;
+
+    }else {
+        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
+
+        
+        // // Escapa o texto para uso seguro no Regex
+        // const DescViagem2Escapada = DescViagem2.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');        
+        // // Regex para remover (duas quebras de linha opcionais) + o texto da viagem
+        // const regexRemover = new RegExp("(\\n\\n)?" + DescViagem2Escapada, 'g');
+        // if (descBeneficioAtual.includes(DescViagem2)) {
+        //     // Remove o texto e o separador que o precede (se existir)
+        //     descBeneficioAtual = descBeneficioAtual.replace(regexRemover, "").trim();            
+        //     // **PASSO ESSENCIAL:** Atribui o texto limpo de volta à textarea
+        //     descBeneficioTextarea.value = descBeneficioAtual;
+        // }
+
+        descBeneficioTextarea.value = descBeneficioAtual;
+    }
+    
+    //console.log("Valores para Senior - Custo:", vlrCustoSeniorFuncao, "Alimentação:", vlrAlimentacao, "Transporte:", vlrTransporteSeniorFuncao);
+   
+    
+   
+});
+
+function limparDescricoesViagem(textoAtual) {
+    let textoLimpo = textoAtual;
+
+    // Remove a Viagem 1, se existir
+    if (textoLimpo.includes(DescViagem1)) {
+        textoLimpo = textoLimpo.replace(REGEX_REMOCAO1, "").trim();
+    }
+    
+    // Remove a Viagem 2, se existir
+    if (textoLimpo.includes(DescViagem2)) {
+        textoLimpo = textoLimpo.replace(REGEX_REMOCAO2, "").trim();
+    }
+
+    return textoLimpo;
+}
 
 function calcularPascoa(ano) {
     const f = Math.floor,
@@ -4741,9 +4934,14 @@ document.addEventListener('click', function(e) {
  * @returns {boolean} - true se o limite não foi atingido, false caso contrário.
  */
 function verificarLimiteDeFuncao(criterios) {
+
     // 1. Construa a chave composta, igual à usada em buscarEPopularOrcamento
-    const chave = `${criterios.nmEvento}-${criterios.nmCliente}-${criterios.nmlocalMontagem}-${criterios.pavilhao}-${criterios.nmFuncao}`;
+    //const chave = `${criterios.nmEvento}-${criterios.nmCliente}-${criterios.nmlocalMontagem}-${criterios.pavilhao}-${criterios.nmFuncao}`;
+    const chave = `${criterios.nmEvento}-${criterios.nmCliente}-${criterios.nmlocalMontagem}-${criterios.nmFuncao}`;
+  
     const dadosOrcamento = orcamentoPorFuncao[chave];
+
+    console.log("Verificando limite para a chave:", chave, dadosOrcamento);
 
     // Se não houver dados de orçamento, não há limite
     if (!dadosOrcamento) {
@@ -4759,9 +4957,9 @@ function verificarLimiteDeFuncao(criterios) {
             eventDataNaLinha.nmfuncao.trim().toUpperCase() === criterios.nmFuncao.toUpperCase().trim() &&
             eventDataNaLinha.nmevento.trim().toUpperCase() === criterios.nmEvento.toUpperCase().trim() &&
             eventDataNaLinha.nmcliente.trim().toUpperCase() === criterios.nmCliente.toUpperCase().trim() &&
-            eventDataNaLinha.nmlocalmontagem.trim().toUpperCase() === criterios.nmlocalMontagem.toUpperCase().trim() &&
-            //eventDataNaLinha.pavilhao.trim().toUpperCase() === criterios.pavilhao.toUpperCase().trim()
-            eventDataNaLinha.setor.trim().toUpperCase() === criterios.setor.toUpperCase().trim()
+            eventDataNaLinha.nmlocalmontagem.trim().toUpperCase() === criterios.nmlocalMontagem.toUpperCase().trim() 
+            //eventDataNaLinha.pavilhao.trim().toUpperCase() === criterios.pavilhao.toUpperCase().trim() &&
+            //eventDataNaLinha.setor.trim().toUpperCase() === criterios.setor.toUpperCase().trim()
         ) {
             countNaTabela++;
         }
@@ -4777,7 +4975,7 @@ function verificarLimiteDeFuncao(criterios) {
         Swal.fire({
             icon: 'warning',
             title: 'Limite atingido',
-            text: `O limite de ${limite} para esta função no período já foi alcançado. Existem ${dadosOrcamento.quantidadeEscalada} funcionários já salvos para este período neste setor e ${countNaTabela} adicionados na lista atual.`,
+            text: `O limite de ${limite} para esta função no período já foi alcançado. Existem ${dadosOrcamento.quantidadeEscalada} funcionários já salvos para este período e ${countNaTabela} adicionados na lista atual.`,
         });
         return false;
     }

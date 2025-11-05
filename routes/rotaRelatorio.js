@@ -177,6 +177,9 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                         (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))
                     ) AS "TOT DIÁRIAS",
                     --tse.statuspgto AS "STATUS PGTO"
+                    (COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0 THEN 1 ELSE tse.qtdpessoaslote END) * jsonb_array_length(
+                        (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))
+                    ) AS "TOT GERAL",
                     CASE
                         WHEN tse.comppgtoajdcusto IS NOT NULL AND tse.comppgtoajdcusto != '' THEN 'Pago 100%'
                         WHEN tse.comppgtoajdcusto50 IS NOT NULL AND tse.comppgtoajdcusto50 != '' THEN 'Pago 50%'
@@ -244,7 +247,7 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                     "QTD",
                     "QTDPESSOAS",
                     "TOT DIÁRIAS",
-                    CAST(("TOT DIÁRIAS" + "VLR ADICIONAL") AS NUMERIC(10, 2)) AS "TOTAL GERAL",
+                    CAST(("TOT DIÁRIAS" + "VLR ADICIONAL") AS NUMERIC(10, 2)) AS "TOT GERAL",
                     "STATUS PGTO",
                     "TOT PAGAR"
                 FROM
@@ -292,7 +295,7 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                                     )
                                 ) THEN 'Pago'
                                 ELSE 'Pendente' -- Se não for TUDO PAGO, é Pendente
-                            END AS "STATUS PGTO",                            
+                            END AS "STATUS PGTO",  
 
                             CAST(
                                 (
@@ -346,6 +349,7 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                     totalVlrAdicional: 0,
                     totalVlrDiarias:0,
                     totalTotalDiarias: 0,
+                    totalTotalGeral: 0,
                     totalTotalPagar: 0
                 };
             }
@@ -353,6 +357,7 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
             totaisPorEvento[eventoId].totalVlrAdicional += parseFloat(item["VLR ADICIONAL"] || 0);
             totaisPorEvento[eventoId].totalVlrDiarias += parseFloat(item["VLR DIÁRIA"] || 0);
             totaisPorEvento[eventoId].totalTotalDiarias += parseFloat(item["TOT DIÁRIAS"] || 0);
+            totaisPorEvento[eventoId].totalTotalGeral += parseFloat(item["TOT GERAL"] || 0);
             totaisPorEvento[eventoId].totalTotalPagar += parseFloat(item["TOT PAGAR"] || 0);
            // console.log('Item:', totaisPorEvento[eventoId]);
         });
