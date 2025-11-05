@@ -1,12 +1,5 @@
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
 
-// document.addEventListener("DOMContentLoaded", function () {
-//     const idempresa = localStorage.getItem("idempresa");
-//     if (idempresa) {
-//         let tema = idempresa == 1 ? "JA-Oper" : "ES";
-//         aplicarTema(tema);
-//     }
-// });
 
 document.addEventListener("DOMContentLoaded", function () {
     const idempresa = localStorage.getItem("idempresa");
@@ -48,31 +41,6 @@ function verificaEquipamento() {
 
     console.log("Carregando Equipamento...");
     
-    document.querySelector("#descEquip").addEventListener("blur", async function () {
-        const desc = this.value.trim();
-
-        console.log("Campo descEquip procurado:", desc);
-    
-        if (desc === "") return;
-    
-        try {
-            if (!desc) {
-                console.warn("Valor do select está vazio ou indefinido.");
-                return;
-            }
-
-            console.log("Selecionado:", desc);
-
-            await carregarEquipamentoDescricao(desc, this);
-            console.log("Função selecionado depois de carregarEquipamentoDescricao:", this.value);
-         
-
-        } catch (error) {
-            console.error("Erro ao buscar Função:", error);
-        }
-
-    });
-
     const botaoEnviar = document.querySelector("#Enviar");
     const botaoPesquisar = document.querySelector("#Pesquisar");
     const form = document.querySelector("#form");
@@ -471,123 +439,123 @@ async function carregarEquipamentoDescricao(desc, elementoAtual) {
     } catch (error) {
         //console.warn("Erro ao buscar equipamento:", error);
 
-        const temPermissaoCadastrar = temPermissao("Equipamentos", "cadastrar");
-        const temPermissaoAlterar = temPermissao("Equipamentos", "alterar");
+        //const temPermissaoCadastrar = temPermissao("Equipamentos", "cadastrar");
+        //const temPermissaoAlterar = temPermissao("Equipamentos", "alterar");
 
-        const metodo = idEquip ? "PUT" : "POST";
+        // const metodo = idEquip ? "PUT" : "POST";
 
-        if (!idEquip && !temPermissaoCadastrar) {
-            return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos equipamentos.", "error");
-        }
-
-        if (idEquip && !temPermissaoAlterar) {
-            return Swal.fire("Acesso negado", "Você não tem permissão para alterar equipamentos.", "error");
-        }
-
-        if (!descEquip) {
-            return Swal.fire("Campos obrigatórios!", "Preencha todos os campos antes de enviar.", "warning");
-        }
-
-        const dados = { descEquip };        
-
-        if (parseInt(idEquip) === parseInt(window.EquipamentoOriginal?.idEquip)) {
-            console.log("Equipamento não alterado, não será enviado.");
-        }
-        if (descEquip === window.EquipamentoOriginal?.descEquip) {
-            console.log("Equipamento não alterado, não será enviado.");
-        }
-        // Verifica alterações
-        if (
-
-            parseInt(idEquip) === parseInt(window.EquipamentoOriginal?.idEquip) &&
-            descEquip === window.EquipamentoOriginal?.descEquip
-        ) {
-            return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
-        }
-
-        const url = idEquip
-            ? `/equipamentos/${idEquip}`
-            : "/equipamentos";
-
-        try {
-            // Confirma alteração (PUT)
-            if (metodo === "PUT") {
-                const { isConfirmed } = await Swal.fire({
-                    title: "Deseja salvar as alterações?",
-                    text: "Você está prestes a atualizar os dados do Equipamento.",
-                    icon: "question",
-                    showCancelButton: true,
-                    confirmButtonText: "Sim, salvar",
-                    cancelButtonText: "Cancelar",
-                    reverseButtons: true,
-                    focusCancel: true
-                });
-                if (!isConfirmed) return;
-            }
-
-            console.log("Enviando dados para o servidor:", dados, url, metodo);
-            const respostaApi = await fetchComToken(url, {
-                method: metodo,
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(dados)
-            });            
-
-            await Swal.fire("Sucesso!", respostaApi.message || "Equipamento salvo com sucesso.", "success");
-            limparCamposEquipamento();
-
-        } catch (error) {
-            console.error("Erro ao enviar dados:", error);
-            Swal.fire("Erro", error.message || "Erro ao salvar equipamento.", "error");
-        }
-
-        // const inputIdEquip = document.querySelector("#idEquip");
-        // const podeCadastrar = temPermissao("Equipamentos", "cadastrar");
-
-        // console.log("Valor de inputIdEquip.value:", inputIdEquip.value, podeCadastrar);
-        // if (!inputIdEquip.value) {
-        //     console.log("Detectado Equipamento não encontrado e usuário tem permissão para cadastrar.");
-        //     const resultado = await Swal.fire({
-        //         icon: 'question',
-        //         title: `Deseja cadastrar "${desc.toUpperCase()}" como novo Equipamento?`,
-        //         text: `Equipamento "${desc.toUpperCase()}" não encontrado.`,
-        //         showCancelButton: true,
-        //         confirmButtonText: "Sim, cadastrar",
-        //         cancelButtonText: "Cancelar",
-        //         reverseButtons: true,
-        //         focusCancel: true
-        //     });
-
-        //     console.log("Resultado bruto do Swal.fire:", resultado);
-        //     if (resultado.isConfirmed) {
-        //         console.log("DEBUG: Swal.fire CONFIRMADO! Prosseguindo...");
-        //         console.log("Valor de elementoAtual.value APÓS CONFIRMAÇÃO (deve ser o digitado):", elementoAtual.value); // Log após confirmação
-        //         // Nenhuma ação de limpeza aqui. O campo deve permanecer com o valor.
-        //     } else { // Usuário clicou em Cancelar ou descartou o modal
-        //         console.log("DEBUG: Swal.fire CANCELADO ou DISMISSADO. Detalhes:", resultado);
-        //         console.log("DEBUG: Limpando elementoAtual.value, pois não foi confirmado o cadastro."); // Log antes de limpar
-        //         elementoAtual.value = ""; // Limpa o campo se não for cadastrar
-        //         setTimeout(() => {
-        //             elementoAtual.focus();
-        //         }, 0);
-        //         return; // Sai da função carregarEquipamentoDescricao
-        //     }
-        // } else if (!podeCadastrar) {
-        //     console.log("Equipamento não encontrado, mas usuário NÃO tem permissão para cadastrar.");
-        //     Swal.fire({
-        //         icon: "info",
-        //         title: "Equipamento não cadastrado",
-        //         text: "Você não tem permissão para cadastrar equipamentos.",
-        //         confirmButtonText: "OK"
-        //     });
-        //     // Se não tem permissão e não encontrou, limpa o campo também para evitar confusão.
-        //     elementoAtual.value = ""; 
-        //     setTimeout(() => {
-        //         elementoAtual.focus();
-        //     }, 0);
-        //     return; // Sai da função carregarEquipamentoDescricao
+        // if (!idEquip && !temPermissaoCadastrar) {
+        //     return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos equipamentos.", "error");
         // }
+
+        // if (idEquip && !temPermissaoAlterar) {
+        //     return Swal.fire("Acesso negado", "Você não tem permissão para alterar equipamentos.", "error");
+        // }
+
+        // if (!descEquip) {
+        //     return Swal.fire("Campos obrigatórios!", "Preencha todos os campos antes de enviar.", "warning");
+        // }
+
+        // const dados = { descEquip };        
+
+        // if (parseInt(idEquip) === parseInt(window.EquipamentoOriginal?.idEquip)) {
+        //     console.log("Equipamento não alterado, não será enviado.");
+        // }
+        // if (descEquip === window.EquipamentoOriginal?.descEquip) {
+        //     console.log("Equipamento não alterado, não será enviado.");
+        // }
+        // // Verifica alterações
+        // if (
+
+        //     parseInt(idEquip) === parseInt(window.EquipamentoOriginal?.idEquip) &&
+        //     descEquip === window.EquipamentoOriginal?.descEquip
+        // ) {
+        //     return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
+        // }
+
+        // const url = idEquip
+        //     ? `/equipamentos/${idEquip}`
+        //     : "/equipamentos";
+
+        // try {
+        //     // Confirma alteração (PUT)
+        //     if (metodo === "PUT") {
+        //         const { isConfirmed } = await Swal.fire({
+        //             title: "Deseja salvar as alterações?",
+        //             text: "Você está prestes a atualizar os dados do Equipamento.",
+        //             icon: "question",
+        //             showCancelButton: true,
+        //             confirmButtonText: "Sim, salvar",
+        //             cancelButtonText: "Cancelar",
+        //             reverseButtons: true,
+        //             focusCancel: true
+        //         });
+        //         if (!isConfirmed) return;
+        //     }
+
+        //     console.log("Enviando dados para o servidor:", dados, url, metodo);
+        //     const respostaApi = await fetchComToken(url, {
+        //         method: metodo,
+        //         headers: {
+        //             'Content-Type': 'application/json'
+        //         },
+        //         body: JSON.stringify(dados)
+        //     });            
+
+        //     await Swal.fire("Sucesso!", respostaApi.message || "Equipamento salvo com sucesso.", "success");
+        //     limparCamposEquipamento();
+
+        // } catch (error) {
+        //     console.error("Erro ao enviar dados:", error);
+        //     Swal.fire("Erro", error.message || "Erro ao salvar equipamento.", "error");
+        // }
+
+        const inputIdEquip = document.querySelector("#idEquip");
+        const podeCadastrar = temPermissao("Equipamentos", "cadastrar");
+
+        console.log("Valor de inputIdEquip.value:", inputIdEquip.value, podeCadastrar);
+        if (!inputIdEquip.value) {
+            console.log("Detectado Equipamento não encontrado e usuário tem permissão para cadastrar.");
+            const resultado = await Swal.fire({
+                icon: 'question',
+                title: `Deseja cadastrar "${desc.toUpperCase()}" como novo Equipamento?`,
+                text: `Equipamento "${desc.toUpperCase()}" não encontrado.`,
+                showCancelButton: true,
+                confirmButtonText: "Sim, cadastrar",
+                cancelButtonText: "Cancelar",
+                reverseButtons: true,
+                focusCancel: true
+            });
+
+            console.log("Resultado bruto do Swal.fire:", resultado);
+            if (resultado.isConfirmed) {
+                console.log("DEBUG: Swal.fire CONFIRMADO! Prosseguindo...");
+                console.log("Valor de elementoAtual.value APÓS CONFIRMAÇÃO (deve ser o digitado):", elementoAtual.value); // Log após confirmação
+                // Nenhuma ação de limpeza aqui. O campo deve permanecer com o valor.
+            } else { // Usuário clicou em Cancelar ou descartou o modal
+                console.log("DEBUG: Swal.fire CANCELADO ou DISMISSADO. Detalhes:", resultado);
+                console.log("DEBUG: Limpando elementoAtual.value, pois não foi confirmado o cadastro."); // Log antes de limpar
+                elementoAtual.value = ""; // Limpa o campo se não for cadastrar
+                setTimeout(() => {
+                    elementoAtual.focus();
+                }, 0);
+                return; // Sai da função carregarEquipamentoDescricao
+            }
+        } else if (!podeCadastrar) {
+            console.log("Equipamento não encontrado, mas usuário NÃO tem permissão para cadastrar.");
+            Swal.fire({
+                icon: "info",
+                title: "Equipamento não cadastrado",
+                text: "Você não tem permissão para cadastrar equipamentos.",
+                confirmButtonText: "OK"
+            });
+            // Se não tem permissão e não encontrou, limpa o campo também para evitar confusão.
+            elementoAtual.value = ""; 
+            setTimeout(() => {
+                elementoAtual.focus();
+            }, 0);
+            return; // Sai da função carregarEquipamentoDescricao
+        }
     }
 }
 
@@ -749,7 +717,7 @@ function configurarEventosEspecificos(modulo) {
     if (typeof aplicarPermissoes === "function" && window.permissoes) {
       aplicarPermissoes(window.permissoes);
     } else {
-      console.warn("⚠️ aplicarPermissoes ou window.permissoes ainda não estão disponíveis para LocalMontagem.");
+      console.warn("⚠️ aplicarPermissoes ou window.permissoes ainda não estão disponíveis para Equipamentos.");
     }
   }
 }

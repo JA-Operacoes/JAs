@@ -1,0 +1,49 @@
+
+<link rel="stylesheet" href="css/Modal/RelIndices.css">
+<link rel="stylesheet" href="css/Roots/Roots.css">
+
+<div id="RelIndices" class="modal">
+    <div class="modal-content">
+        <div class="Close">
+            <button class="close" id="Fechar"> X </button>
+        </div>
+        
+        <div id ="form-indice-rel"> 
+            <div class="title">
+                <h1>Gerador de Relatório de Índices Anuais</h1>
+            </div>
+            
+            <div class="controls">
+                <div class="opcoesRelatorios">
+                    <fieldset>
+                        <legend>Seleção do Índice</legend>
+                        <br>
+                        <div class="tpRelatorio">
+                            <div class="coluna" style="width: 100%;">
+                                <label for="selectIndiceRelatorio">Selecione o Índice Anual:</label>
+                                <select id="selectIndiceRelatorio" style="width: 100%;">
+                                    <option value="">Carregando Índices...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <br>
+                    </fieldset>
+                </div>
+            </div>
+
+            <div class="BTNs">
+                <button id="gerarRelatorioBtn">Gerar Relatório</button>
+                <button id="btnImprimirNovamente" >
+                    <i class="fas fa-print icon-espaco"></i> Imprimir Relatório
+                </button>
+            </div>
+<!-- class="btn btn-secondary mt-3" -->
+            <div id="reportOutput" class="report-scroll-container">
+                </div>
+        </div>
+    </div>
+</div>
+
+<iframe id="printIframe" style="display:none;"></iframe>
+
+<script src="js/RelIndices.js" type="module"></script>

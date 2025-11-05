@@ -1,24 +1,5 @@
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
 
-// document.addEventListener("DOMContentLoaded", function () {
-//     const idempresa = localStorage.getItem("idempresa");
-
-//     if (idempresa) {
-//         const apiUrl = `/empresas/${idempresa}`; // Verifique o caminho da sua API
-
-//         fetchComToken(apiUrl)
-//             .then(empresa => {
-//                 // Usa o nome fantasia como tema
-//                 const tema = empresa.nmfantasia;
-//                 aplicarTema(tema);
-//             })
-//             .catch(error => {
-//                 console.error("❌ Erro ao buscar dados da empresa para o tema:", error);
-//                 // aplicarTema('default');
-//             });
-//     }
-// });
-
 let nmModuloBlurListener = null;
 let limparModulosButtonListener = null;
 let enviarModulosButtonListener = null;
@@ -39,35 +20,12 @@ function verificaModulos() {
 
     console.log("Carregando Módulos...");
     
-    document.querySelector("#nmModulo").addEventListener("blur", async function () {
-        const desc = this.value.trim();
-
-        console.log("Campo nmModulo procurado:", desc);
-    
-        if (desc === "") return;
-    
-        try {
-            if (!desc) {
-                console.warn("Valor do select está vazio ou indefinido.");
-                return;
-            }
-
-            console.log("Selecionado:", desc);
-
-            await carregarModulosDescricao(desc, this);
-            console.log("Função selecionado depois de carregarModulosDescricao:", this.value);
-         
-
-        } catch (error) {
-            console.error("Erro ao buscar Função:", error);
-        }
-
-    });
-
-    const botaoEnviar = document.querySelector("#Enviar");
-    const botaoPesquisar = document.querySelector("#Pesquisar");
     const form = document.querySelector("#modulos");
+    const botaoEnviar = document.querySelector("#Enviar");
+    const botaoPesquisar = document.querySelector("#Pesquisar");    
     const botaoLimpar = document.querySelector("#Limpar");
+
+    carregarEExibirEmpresasSelect();
 
     if (!botaoEnviar || !form) {
         console.error("Formulário ou botão não encontrado no DOM.");
@@ -85,16 +43,19 @@ function verificaModulos() {
     botaoEnviar.addEventListener("click", async (event) => {
         event.preventDefault();
 
-        const idModulo = document.querySelector("#idModulo").value.trim();
-        const nmModulo = document.querySelector("#nmModulo").value.toUpperCase().trim();
+        const idModulo = document.querySelector("#idModulo")?.value.trim();
+        const nmModulo = document.querySelector("#nmModulo")?.value.toUpperCase().trim();
 
-        const empresasSelecionadas = Array.from(document.querySelectorAll('input[name="empresa"]:checked'))
-        .map(checkbox => checkbox.value);
+        //const idModulo = document.querySelector("#idModulo")?.value; 
+        //const nmModulo = document.querySelector("#nmModulo")?.value;
 
-        if (empresasSelecionadas.length === 0) {
-        // Isso só deve acontecer se o HTML estiver incorreto ou o script falhar
-        return Swal.fire("Empresas Obrigatórias", "Pelo menos a empresa principal deve estar selecionada para salvar o módulo.", "error");
-    }
+        // const empresasSelecionadas = Array.from(document.querySelectorAll('input[name="empresa"]:checked'))
+        // .map(checkbox => checkbox.value);
+
+        // if (empresasSelecionadas.length === 0) {
+        //     // Isso só deve acontecer se o HTML estiver incorreto ou o script falhar
+        //     return Swal.fire("Empresas Obrigatórias", "Pelo menos a empresa principal deve estar selecionada para salvar o módulo.", "error");
+        // }
 
         // Permissões
         const temPermissaoCadastrar = temPermissao("Modulos", "cadastrar");
@@ -115,6 +76,9 @@ function verificaModulos() {
         }
 
         //const dados = { idModulo, nmModulo };
+        const empresasSelecionadas = coletarEmpresasSelecionadas();
+
+        console.log("Empresas selecionadas para o módulo:", empresasSelecionadas);
 
         const dados = { 
             idModulo, 
@@ -130,6 +94,9 @@ function verificaModulos() {
         ) {
             return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
         }
+
+        //const isUpdate = !isNaN(idModulo); // Verdadeiro apenas se for um número válido
+
 
         const url = idModulo
             ? `/modulos/${idModulo}`
@@ -162,105 +129,220 @@ function verificaModulos() {
 
         } catch (error) {
             console.error("Erro ao enviar dados:", error);
-            Swal.fire("Erro", error.message || "Erro ao salvar equipamento.", "error");
+            Swal.fire("Erro", error.message || "Erro ao salvar modulos.", "error");
         }
     });
 
     botaoPesquisar.addEventListener("click", async function (event) {
-    event.preventDefault();
-    limparCamposModulos();
+        event.preventDefault();
+        limparCamposModulos();
 
-    console.log("Pesquisando Modulos...");
+        console.log("Pesquisando Modulos...");
 
-    // Verifica permissão
-    const temPermissaoPesquisar = temPermissao("Modulos", "pesquisar");
+        // Verifica permissão
+        const temPermissaoPesquisar = temPermissao("Modulos", "pesquisar");
 
-    if (!temPermissaoPesquisar) {
-        return Swal.fire(
-            "Acesso negado",
-            "Você não tem permissão para pesquisar modulos.",
-            "error"
-        );
-    }
+        if (!temPermissaoPesquisar) {
+            return Swal.fire(
+                "Acesso negado",
+                "Você não tem permissão para pesquisar modulos.",
+                "error"
+            );
+        }
 
-    try {
-        const modulos = await fetchComToken("/modulos");
+        try {
+            const modulos = await fetchComToken("/modulos");
 
-        if (!modulos || modulos.length === 0) {
-            return Swal.fire({
-                icon: 'info',
-                title: 'Nenhum equipamento cadastrado',
-                text: 'Não foi encontrado nenhum módulo no sistema.',
+            if (!modulos || modulos.length === 0) {
+                return Swal.fire({
+                    icon: 'info',
+                    title: 'Nenhum Módulo cadastrado',
+                    text: 'Não foi encontrado nenhum módulo no sistema.',
+                    confirmButtonText: 'Ok'
+                });
+            }
+
+            console.log("Modulos encontrados:", modulos);
+
+            const select = criarSelectModulos(modulos);
+            limparCamposModulos();
+
+            const input = document.querySelector("#nmModulo");
+
+            if (input && input.parentNode) {
+                input.parentNode.replaceChild(select, input);
+            }
+
+            const label = document.querySelector('label[for="nmModulo"]');
+            if (label) {
+                label.style.display = "none";
+            }
+
+            // Evento ao escolher um modulo
+            select.addEventListener("change", async function () {
+                const desc = this.value?.trim();
+
+                if (!desc) {
+                    console.warn("Valor do select está vazio ou indefinido.");
+                    return;
+                }
+
+                await carregarModulosDescricao(desc, this);
+
+                const novoInput = document.createElement("input");
+                novoInput.type = "text";
+                novoInput.id = "nmModulo";
+                novoInput.name = "nmModulo";
+                novoInput.required = true;
+                novoInput.className = "form";
+                novoInput.value = desc;
+
+                novoInput.addEventListener("input", function () {
+                    this.value = this.value.toUpperCase();
+                });
+
+                this.parentNode.replaceChild(novoInput, this);
+                adicionarEventoBlurModulos();
+
+                if (label) {
+                    label.style.display = "block";
+                    label.textContent = "Descrição do Modulos";
+                }
+
+                novoInput.addEventListener("blur", async function () {
+                    if (!this.value.trim()) return;
+                    await carregarModulosDescricao(this.value, this);
+                });
+            });
+
+        } catch (error) {
+            console.error("Erro ao carregar Modulos:", error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro',
+                text: error.message || 'Não foi possível carregar os módulos.',
                 confirmButtonText: 'Ok'
             });
         }
+    });   
+}
 
-        console.log("Modulos encontrados:", modulos);
+// function coletarEmpresasSelecionadas() {
+//     const checkboxes = document.querySelectorAll('.checkbox__trigger:checked');
+    
+//     // Mapeia os elementos DOM para seus respectivos valores (IDs numéricos)
+//     const idsEmpresas = Array.from(checkboxes).map(checkbox => checkbox.value);
 
-        const select = criarSelectModulos(modulos);
-        limparCamposModulos();
+//     console.log("IDs das empresas selecionadas:", idsEmpresas);
+    
+//     return idsEmpresas; // Retorna um array de strings ['1', '2', '3']
+// }
 
-        const input = document.querySelector("#nmModulo");
+function coletarEmpresasSelecionadas() {
+    const select = document.getElementById('empresas-select-multiplo');
+    if (!select) return [];
 
-        if (input && input.parentNode) {
-            input.parentNode.replaceChild(select, input);
-        }
+    // Filtra apenas as opções que estão "selected" e mapeia para o valor (ID)
+    const idsEmpresas = Array.from(select.options)
+        .filter(option => option.selected)
+        .map(option => option.value); // Pega o ID da empresa
 
-        const label = document.querySelector('label[for="nmModulo"]');
-        if (label) {
-            label.style.display = "none";
-        }
+    console.log("IDs das empresas selecionadas:", idsEmpresas);
+    return idsEmpresas; // Retorna o array de IDs ['1', '2', '3']
+}
 
-        // Evento ao escolher um equipamento
-        select.addEventListener("change", async function () {
-            const desc = this.value?.trim();
+function aplicarSelecaoEmpresas(idsEmpresas) {
+    const select = document.getElementById('empresas-select-multiplo');
+    if (!select) return;
 
-            if (!desc) {
-                console.warn("Valor do select está vazio ou indefinido.");
-                return;
-            }
+    // Converte todos os IDs para string para comparação
+    const idsParaMarcar = new Set(idsEmpresas.map(String));
 
-            await carregarModulosDescricao(desc, this);
+    // Itera sobre as opções e marca as que correspondem
+    Array.from(select.options).forEach(option => {
+        // Verifica se o valor da opção está no conjunto de IDs para marcar
+        option.selected = idsParaMarcar.has(option.value);
+    });
+}
 
-            const novoInput = document.createElement("input");
-            novoInput.type = "text";
-            novoInput.id = "nmModulo";
-            novoInput.name = "nmModulo";
-            novoInput.required = true;
-            novoInput.className = "form";
-            novoInput.value = desc;
+let todasAsEmpresas = []; 
 
-            novoInput.addEventListener("input", function () {
-                this.value = this.value.toUpperCase();
-            });
+async function carregarEExibirEmpresas() {
+    const container = document.getElementById('container-empresas'); // Crie este <div> no seu HTML
+    if (!container) return console.error("Container de empresas não encontrado.");
+    
+    try {
+        // 1. Busque a lista de empresas (API - Ajuste a URL se necessário)
+        const empresasApi = await fetchComToken("/empresas"); 
+        
+        todasAsEmpresas = Array.isArray(empresasApi) ? empresasApi : [];
+        container.innerHTML = ''; // Limpa o container antes de popular
 
-            this.parentNode.replaceChild(novoInput, this);
-            adicionarEventoBlurModulos();
+        // 2. Gere o HTML de cada checkbox dinamicamente
+        todasAsEmpresas.forEach(empresa => {
+            const htmlEmpresa = `
+                <div class="Vertical">
+                    <div class="checkbox-wrapper-33">
+                        <label class="checkbox">
+                            <input 
+                                class="checkbox__trigger visuallyhidden empresa-checkbox" 
+                                type="checkbox" 
+                                id="empresa-${empresa.idempresa}" 
+                                name="empresasSelecionadas" 
+                                value="${empresa.idempresa}"
+                            />
+                            <span class="checkbox__symbol">
+                                <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M4 14l8 7L24 7"></path>
+                                </svg>
+                            </span>
+                            <p class="checkbox__textwrapper"></p>
+                        </label>
+                    </div>
+                    <label for="empresa-${empresa.idempresa}">${empresa.nmfantasia || empresa.nome}</label> 
+                </div>
+            `;
+            container.innerHTML += htmlEmpresa;
+        });
+        
+    } catch (error) {
+        console.error("Erro ao carregar lista de empresas:", error);
+    }
+}
 
-            if (label) {
-                label.style.display = "block";
-                label.textContent = "Descrição do Modulos";
-            }
+async function carregarEExibirEmpresasSelect() {
+    const select = document.getElementById('empresas-select-multiplo');
+    if (!select) return; // Garante que o elemento existe
 
-            novoInput.addEventListener("blur", async function () {
-                if (!this.value.trim()) return;
-                await carregarModulosDescricao(this.value, this);
-            });
+    try {
+        // Altere a URL/Endpoint conforme a sua API
+        const empresasApi = await fetchComToken("/empresas"); 
+        const empresas = Array.isArray(empresasApi) ? empresasApi : [];
+
+        // Limpa opções antigas
+        select.innerHTML = ''; 
+
+        // Cria a opção padrão (opcional)
+        const defaultOption = document.createElement("option");
+        defaultOption.text = "Selecione as Empresas (Ctrl/Cmd + Clique)";
+        defaultOption.value = "";
+        defaultOption.disabled = true;
+        select.appendChild(defaultOption);
+
+        // Popula o select com os dados da API
+        empresas.forEach(empresa => {
+            const option = document.createElement('option');
+            // IMPORTANTE: o value deve ser o ID da empresa para enviar ao backend
+            option.value = empresa.idempresa; 
+            option.text = empresa.nmfantasia || empresa.nome; // Exibe o nome fantasia ou nome
+            select.appendChild(option);
         });
 
     } catch (error) {
-        console.error("Erro ao carregar Modulos:", error);
-        Swal.fire({
-            icon: 'error',
-            title: 'Erro',
-            text: error.message || 'Não foi possível carregar os módulos.',
-            confirmButtonText: 'Ok'
-        });
+        console.error("Erro ao carregar lista de empresas:", error);
+        // Exiba um alerta ao usuário, se apropriado
+        Swal.fire("Erro ao Carregar", "Não foi possível carregar a lista de empresas.", "error");
     }
-});
-
-    
-
 }
 
 function adicionarListenersAoInputDescModulo(inputElement) {
@@ -372,7 +454,7 @@ function desinicializarModulosModal() {
     }
 
     // 3. Limpar o estado global e campos do formulário
-    window.ModulosOriginal = null; // Zera o objeto de equipamento original
+    window.ModulosOriginal = null; // Zera o objeto de modulo original
     limparCamposModulos(); // Limpa todos os campos visíveis do formulário
    // document.querySelector("#form").reset(); // Garante que o formulário seja completamente resetado
     document.querySelector("#idModulo").value = ""; // Limpa o ID oculto
@@ -402,8 +484,8 @@ function criarSelectModulos(modulos) {
 
     modulos.forEach(modulosachado => {
         const option = document.createElement("option");
-        option.value = modulosachado.descequip;
-        option.text = modulosachado.descequip;
+        option.value = modulosachado.modulo;
+        option.text = modulosachado.modulo;
         select.appendChild(option);
     });
  
@@ -438,11 +520,14 @@ function adicionarEventoBlurModulos() {
         const desc = this.value.trim();
         console.log("Campo nmModulo procurado:", desc);
 
-        if (!desc) return;
+        if (!desc) { // <- Aqui ele deve retornar, mas o código segue
+            console.warn("Valor do select está vazio ou indefinido."); // <- Log confuso
+            return; // <- Este return provavelmente não está sendo executado no momento certo.
+        }
 
         try {
             await carregarModulosDescricao(desc, this);
-            console.log("Modulos selecionado depois de carregarModulosDescricao:", this.value);
+            console.log("Modulos selecionados depois de carregarModulosDescricao:", desc, this.value);
         } catch (error) {
             console.error("Erro ao buscar Modulos:", error);
         }
@@ -452,93 +537,75 @@ function adicionarEventoBlurModulos() {
 async function carregarModulosDescricao(desc, elementoAtual) {
     try {
         const modulos = await fetchComToken(`/modulos?nmModulo=${encodeURIComponent(desc)}`);
-       
-        if (!modulos || !modulos.idequip) throw new Error("Modulos não encontrada");
-     
-        document.querySelector("#idModulo").value = modulos.idequip;
-        document.querySelector("#ctoEquip").value = modulos.ctoequip;
-        document.querySelector("#vdaEquip").value = modulos.vdaequip;
 
+        console.log("DESC", desc, "MODULOS", modulos);
+       
+        if (!modulos || !modulos.idmodulo) throw new Error("Modulos não encontrada");        
+
+        document.querySelector("#idModulo").value = modulos.idmodulo;
+     
         window.ModulosOriginal = {
-            idModulo: modulos.idequip,
-            nmModulo: modulos.descequip,
-            vlrCusto: modulos.ctoequip,
-            vlrVenda: modulos.vdaequip
+            idModulo: modulos.idmodulo,
+            nmModulo: modulos.modulo,
+            empresas: modulos.empresas || []
         };
 
+        return;
+
     } catch (error) {
-        //console.warn("Erro ao buscar equipamento:", error);
+       
+        const inputIdModulo = document.querySelector("#idModulo");
+        const podeCadastrarModulos = temPermissao("Modulos", "cadastrar");
 
-        const temPermissaoCadastrar = temPermissao("Modulos", "cadastrar");
-        const temPermissaoAlterar = temPermissao("Modulos", "alterar");
-
-        const metodo = idModulo ? "PUT" : "POST";
-
-        if (!idModulo && !temPermissaoCadastrar) {
-            return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos modulos.", "error");
+        if (inputIdModulo.value) {
+            console.error("Erro ao buscar módulo existente. Não limpar campo.");
+            return; // Sai sem alterar o campo de descrição.
         }
 
-        if (idModulo && !temPermissaoAlterar) {
-            return Swal.fire("Acesso negado", "Você não tem permissão para alterar modulos.", "error");
+        if  (!podeCadastrarModulos) {
+            Swal.fire({
+                icon: "info",
+                title: "Módulo não cadastrado",
+                text: "Você não tem permissão para cadastrar módulo.",
+                confirmButtonText: "OK"
+            });
+            elementoAtual.value = "";
+            return;
+        } 
+
+        const resultado = await Swal.fire({
+            icon: 'question',
+            title: `Deseja cadastrar "${desc.toUpperCase()}" como novo Módulo?`,
+            text: `Módulo "${desc.toUpperCase()}" não encontrado`,
+            showCancelButton: true,
+            confirmButtonText: "Sim, cadastrar",
+            cancelButtonText: "Cancelar",
+            reverseButtons: true,
+            focusCancel: true
+        });
+
+        console.log("Resultado do Swal:", resultado);
+        console.log("isConfirmed é:", resultado.isConfirmed); // Adicione este log
+
+        if (!resultado.isConfirmed) {
+            console.log("Usuário cancelou o cadastro do Módulo.");
+            elementoAtual.value = ""; // Limpa o campo se não for cadastrar
+            setTimeout(() => {
+                elementoAtual.focus();
+            }, 0);              
         }
-
-        if (!nmModulo) {
-            return Swal.fire("Campos obrigatórios!", "Preencha todos os campos antes de enviar.", "warning");
-        }
-
-        const dados = { nmModulo };        
-
-        if (parseInt(idModulo) === parseInt(window.ModulosOriginal?.idModulo)) {
-            console.log("Modulos não alterado, não será enviado.");
-        }
-        if (nmModulo === window.ModulosOriginal?.nmModulo) {
-            console.log("Modulos não alterado, não será enviado.");
-        }
-        // Verifica alterações
-        if (
-
-            parseInt(idModulo) === parseInt(window.ModulosOriginal?.idModulo) &&
-            nmModulo === window.ModulosOriginal?.nmModulo
-        ) {
-            return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
-        }
-
-        const url = idModulo
-            ? `/modulos/${idModulo}`
-            : "/modulos";
-
-        try {
-            // Confirma alteração (PUT)
-            if (metodo === "PUT") {
-                const { isConfirmed } = await Swal.fire({
-                    title: "Deseja salvar as alterações?",
-                    text: "Você está prestes a atualizar os dados do Modulos.",
-                    icon: "question",
-                    showCancelButton: true,
-                    confirmButtonText: "Sim, salvar",
-                    cancelButtonText: "Cancelar",
-                    reverseButtons: true,
-                    focusCancel: true
-                });
-                if (!isConfirmed) return;
-            }
-
-            console.log("Enviando dados para o servidor:", dados, url, metodo);
-            const respostaApi = await fetchComToken(url, {
-                method: metodo,
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(dados)
-            });            
-
-            await Swal.fire("Sucesso!", respostaApi.message || "Modulos salvo com sucesso.", "success");
-            limparCamposModulos();
-
-        } catch (error) {
-            console.error("Erro ao enviar dados:", error);
-            Swal.fire("Erro", error.message || "Erro ao salvar equipamento.", "error");
-        }
+        if (resultado.isConfirmed) {
+            // AÇÃO: Usuário CONFIRMOU o cadastro. MANTÉM O CAMPO PREENCHIDO
+            
+            document.querySelector("#idModulo").value = ""; 
+            // IMPORTANTE: Se tiver a função limparModulosOriginal(), chame aqui.
+            limparModulosOriginal(); 
+            
+            //Swal.fire('Atenção!', `"${desc.toUpperCase()}" pronto para cadastro. Clique em "Enviar" para salvar.`, 'info');
+            
+            return; // <-- SAI DA FUNÇÃO, MANTENDO O VALOR
+        }        
+        
     }
 }
 
@@ -546,7 +613,8 @@ async function carregarModulosDescricao(desc, elementoAtual) {
 function limparModulosOriginal() {
     window.ModulosOriginal = {
         idModulo: "",
-        nmModulo: ""
+        nmModulo: "",
+        empresas: []
     };
 }
 
@@ -563,7 +631,7 @@ function configurarEventosModulos() {
     console.log("Configurando eventos Modulos...");
     verificaModulos(); // Carrega os Modulos ao abrir o modal
     adicionarEventoBlurModulos();
-    console.log("Entrou configurar Modulos no EQUIPAMENTO.js.");
+    console.log("Entrou configurar Modulos no Modulos.js.");
     
 
 } 
@@ -577,7 +645,7 @@ function configurarEventosEspecificos(modulo) {
     if (typeof aplicarPermissoes === "function" && window.permissoes) {
       aplicarPermissoes(window.permissoes);
     } else {
-      console.warn("⚠️ aplicarPermissoes ou window.permissoes ainda não estão disponíveis para LocalMontagem.");
+      console.warn("⚠️ aplicarPermissoes ou window.permissoes ainda não estão disponíveis para Modulos.");
     }
   }
 }

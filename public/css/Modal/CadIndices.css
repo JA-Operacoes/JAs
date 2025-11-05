@@ -351,7 +351,7 @@ overflow: hidden;
 button {
   font-family: "Abel", sans-serif;
   font-weight: var(--font-weight);
-  font-size: 20px;
+  font-size: 17px;
   background-color: var(--primary-color);
   width: 25%;
   color: var(--font-color);
@@ -369,6 +369,18 @@ button.Close {
   text-align: center;
   width: 600px;
   margin: 5px 15%;
+}
+
+.btn-secondary {
+    /* Cor de fundo cinza */
+    background-color: #6c757d; 
+    /* Cor do texto, geralmente branco para contraste */
+    color: white; 
+    /* Borda cinza */
+    border-color: #6c757d; 
+    /* Opcional: Efeito que simula o botão desabilitado */
+    opacity: 0.65; 
+    cursor: not-allowed;
 }
 
 .Close{
@@ -389,3 +401,8 @@ button.Close {
   background-color: var(--hover-color);
 }
 
+.logo-ja {
+    max-width: 50px;
+    height: auto;
+    margin-left: 20px;
+}

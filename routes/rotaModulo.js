@@ -7,6 +7,28 @@ const logMiddleware = require('../middlewares/logMiddleware');
 
 // Aplica autenticação em todas as rotas
 
+router.get('/empresas',  verificarPermissao('Empresas', 'pesquisar'), async (req, res) => {
+  console.log('✅ [GET /empresas] Rota acessada com sucesso');
+  const { nmFantasia } = req.query;  
+  
+  try { 
+      
+      console.log("🔍 Buscando todas as empresas:");
+      const result = await pool.query(
+        `SELECT * 
+        FROM empresas        
+        ORDER BY nmfantasia`
+        );
+      console.log("✅ Consulta de todos as empresas retornou:", result.rows.length, "linhas.");
+      return result.rows.length
+        ? res.json(result.rows)
+        : res.status(404).json({ message: "Nenhuma Empresa encontrada" });
+  } catch (error) {
+    console.error("❌ Erro ao buscar empresas:", error);
+    res.status(500).json({ message: "Erro ao buscar empresas" });
+  }
+});
+
 router.use(autenticarToken());
 router.use(contextoEmpresa);
 
@@ -124,7 +146,7 @@ router.put("/:id",
   verificarPermissao('Modulos', 'alterar'),
   logMiddleware('Modulos', { // ✅ Módulo 'Modulos' para o log
       buscarDadosAnteriores: async (req) => {
-          const idModulo = req.params.id; // O ID do módulo vem do parâmetro da URL
+          const idModulo = parseInt(req.params.id); // O ID do módulo vem do parâmetro da URL
           const idempresa = req.idempresa;
 
           if (!idModulo) {
@@ -155,10 +177,14 @@ router.put("/:id",
   const idempresa = req.idempresa;
   const { nmModulo} = req.body;
 
+  if (isNaN(id)) {
+      return res.status(400).json({ message: "ID do módulo inválido. Por favor, corrija o front-end." });
+  }
+
   try {
       const result = await pool.query(
         `UPDATE modulos m
-          SET descModulo = $1
+          SET modulo = $1
           FROM moduloempresas me
           WHERE m.idmodulo = $2 AND me.idmodulo = m.idmodulo AND me.idempresa = $3
           RETURNING m.idmodulo`, 
@@ -166,10 +192,10 @@ router.put("/:id",
       );
 
       if (result.rowCount) {
-        const equipamentoAtualizadoId = result.rows[0].idequip; 
+        const moduloAtualizadoId = result.rows[0].idmodulo; 
         
         res.locals.acao = 'atualizou';
-        res.locals.idregistroalterado = equipamentoAtualizadoId; 
+        res.locals.idregistroalterado = moduloAtualizadoId; 
         res.locals.idusuarioAlvo = null; 
 
         return res.json({ message: "Módulo atualizado com sucesso!", modulos: result.rows[0] });
