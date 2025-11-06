@@ -241,20 +241,27 @@ window.applyModalPrefill = function(rawParams) {
       setTimeout(() => {
         try { mo.disconnect(); } catch (e) {}
         const still = document.getElementById(selectId);
-        if (still && (still.options.length === 0 || !trySelectIfExists(selectId, value, text))) {
-          console.log(`[applyModalPrefill] timeout atingido para ${selectId}. Criando option fallback (se tiver texto).`);
-          if (text || value) {
-            const opt = document.createElement("option");
-            opt.value = value || text || "";
-            opt.text = text || value || "Selecionado";
-            opt.selected = true;
-            still.appendChild(opt);
-            still.dispatchEvent(new Event('change', { bubbles: true }));
-            console.log(`[applyModalPrefill] option fallback criado em ${selectId} value:${opt.value}`);
-          }
+        
+        // LINHA 244 ATUALIZADA (CORREÇÃO DO PRIMEIRO TypeError: reading 'length')
+        if (still && still.options && (still.options.length === 0 || !trySelectIfExists(selectId, value, text))) { 
+            console.log(`[applyModalPrefill] timeout atingido para ${selectId}. Criando option fallback (se tiver texto).`);
+            if (text || value) {
+                const opt = document.createElement("option");
+                opt.value = value || text || "";
+                opt.text = text || value || "Selecionado";
+                opt.selected = true;
+                still.appendChild(opt);
+
+                // NOVA LINHA (CORREÇÃO DO SEGUNDO TypeError em Staff.js:3345)
+                still.value = opt.value; 
+                
+                // LINHA 252 ATUALIZADA (agora mais segura)
+                still.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log(`[applyModalPrefill] option fallback criado em ${selectId} value:${opt.value}`);
+            }
         }
-      }, timeout);
-    }
+    }, timeout);
+}
 
     // Campos para tentar aplicar agora / observar
     const selectsToTry = [
@@ -1468,17 +1475,33 @@ abas.querySelectorAll(".aba").forEach(btn => {
 
 // FUNÇÃO AUXILIAR PARA EVITAR DUPLICAÇÃO DE CÓDIGO DE RENDERIZAÇÃO
 function renderizarEventos(targetEl, eventos) {
-    if (!Array.isArray(eventos) || eventos.length === 0) {
+    // 🛑 CORREÇÃO PARA O TypeError: Adiciona a checagem '!eventos'
+    // Se for null/undefined, a condição é satisfeita e retorna a mensagem de erro.
+    if (!eventos || !Array.isArray(eventos) || eventos.length === 0) {
         targetEl.innerHTML = `<div class="nenhum-evento">Nenhum evento encontrado</div>`;
         return;
     }
 
     targetEl.innerHTML = ""; // Limpa o loading
 
-    eventos.map(evt => normalizarEvento(evt)).forEach((evt, index) => {
-        const card = criarCard(evt);
-        card.style.setProperty('--index', index);
-        targetEl.appendChild(card);
+    // 🛠️ Melhoria: Usamos forEach com try...catch para isolar a renderização de cada evento.
+    // Isso impede que um evento com dados malformados quebre o loop e a lista inteira (o seu problema dos 4->3).
+    eventos.forEach((evt, index) => {
+        try {
+            // Mapeamos e criamos o card dentro do try/catch
+            const eventoNormalizado = normalizarEvento(evt);
+            const card = criarCard(eventoNormalizado);
+            
+            card.style.setProperty('--index', index);
+            targetEl.appendChild(card);
+        } catch (error) {
+            // Caso um evento específico falhe (ex: JSON truncado), loga o erro e insere um alerta.
+            console.error(`❌ Erro crítico ao renderizar evento ID ${evt.idevento || 'desconhecido'} (${evt.nmevento || 'Sem Nome'}).`, error);
+            const erroCard = document.createElement("div");
+            erroCard.className = "evento-card erro-render";
+            erroCard.innerHTML = `⚠️ Erro ao carregar o evento <b>${evt.nmevento || 'Desconhecido'}</b> (ID: ${evt.idevento || '??'}).`;
+            targetEl.appendChild(erroCard);
+        }
     });
 }
  // ------------------------------------------------------------------
@@ -1800,6 +1823,17 @@ async function abrirTelaEquipesEvento(evento) {
     return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
   }
 
+  // utilitário simples para escapar texto antes de inserir no innerHTML
+  function escapeHtml(str) {
+    if (!str && str !== 0) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
   try {
     const idevento = evento.idevento || evento.id || evento.id_evento;
     const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
@@ -1828,85 +1862,105 @@ async function abrirTelaEquipesEvento(evento) {
     // normaliza array de equipes: suportar {equipes: [...] } ou array direto
     const equipesRaw = Array.isArray(dados.equipes) ? dados.equipes : (Array.isArray(dados) ? dados : []);
 
+    // CONSOLE 1: Dados Brutos do Backend
+    console.log("=================================================");
+    console.log(`[${evento.nmevento}] Dados Brutos (equipesRaw) do Backend:`);
+    console.log(equipesRaw);
+    console.log("=================================================");
+
     if (!equipesRaw.length) {
       corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe cadastrada para este evento.</p>`;
       return;
     }
+    
+    // NOVO HELPER: Mapeia e filtra funções sem vagas no orçamento e sem staff alocado.
+    const mapFuncoes = (funcoesArray) => {
+        if (!Array.isArray(funcoesArray)) return [];
 
-    // converte cada item para formato esperado: { equipe, idequipe, funcoes: [{ idfuncao, nome, total, preenchidas, concluido }] }
-    const equipes = equipesRaw.map(item => {
-      // se veio com funcoes já montadas (compatível com rota atual)
-      if (item.funcoes && Array.isArray(item.funcoes)) {
-        return {
-          equipe: item.equipe || item.nmequipe || item.nome || (`Equipe ${item.idequipe ?? ""}`),
-          idequipe: item.idequipe,
-          funcoes: item.funcoes.map(f => {
+        return funcoesArray.map(f => {
+            // Mapeamento dos campos de Total e Preenchidas
             const total = Number(f.qtd_orcamento ?? f.qtd_orcamento ?? f.total_vagas ?? f.total ?? f.qtditens ?? 0);
             const preenchidas = Number(f.qtd_cadastrada ?? f.qtd_cadastrada ?? f.preenchidas ?? f.preenchidos ?? f.preenchidos ?? 0);
-            return {
-              idfuncao: f.idfuncao ?? f.idFuncao ?? null,
-              nome: f.nome ?? f.descfuncao ?? f.categoria ?? f.nmfuncao ?? "Função",
-              total,
-              preenchidas,
-              concluido: total > 0 && preenchidas >= total
-            };
-          })
-        };
-      }
+            
+            // Filtro: Se não tem vaga NO ORÇAMENTO E não tem staff PREENCHIDO, ignora.
+            if (total === 0 && preenchidas === 0) {
+                return null;
+            }
 
+            return {
+                idfuncao: f.idfuncao ?? f.idFuncao ?? null,
+                nome: f.nome ?? f.descfuncao ?? f.categoria ?? f.nmfuncao ?? "Função",
+                total,
+                preenchidas,
+                concluido: total > 0 && preenchidas >= total
+            };
+        }).filter(f => f !== null); // Remove as funções que retornaram null (0/0)
+    };
+
+
+    // converte e normaliza cada item
+    let equipes = equipesRaw.map(item => {
+      // Obter nome e ID da equipe
+      const equipeNome = item.equipe || item.nmequipe || item.nome || item.categoria || (`Equipe ${item.idequipe ?? ""}`);
+      const equipeId = item.idequipe;
+      let funcoesResult = [];
+      
+      // se veio com funcoes já montadas (compatível com rota atual)
+      if (item.funcoes && Array.isArray(item.funcoes)) {
+        funcoesResult = mapFuncoes(item.funcoes);
+      }
       // se veio como categorias agregadas (campo 'categorias' do backend)
-      if (item.categorias && Array.isArray(item.categorias)) {
-        return {
-          equipe: item.nmequipe || item.equipe || item.categoria || (`Equipe ${item.idequipe ?? ""}`),
-          idequipe: item.idequipe,
-          funcoes: item.categorias.map(c => {
-            const total = Number(c.total_vagas ?? c.total ?? c.qtd_orcamento ?? 0);
-            const preenchidas = Number(c.preenchidos ?? c.qtd_cadastrada ?? 0);
-            return {
-              idfuncao: c.idfuncao ?? null,
-              nome: c.categoria || c.nmfuncao || "Função",
-              total,
-              preenchidas,
-              concluido: total > 0 && preenchidas >= total
-            };
-          })
-        };
+      else if (item.categorias && Array.isArray(item.categorias)) {
+        funcoesResult = mapFuncoes(item.categorias);
       }
-
       // item vindo como categoria direta
-      if (item.categoria) {
+      else if (item.categoria) {
         const total = Number(item.total_vagas ?? item.total ?? item.qtd_orcamento ?? 0);
         const preenchidas = Number(item.preenchidos ?? item.qtd_cadastrada ?? 0);
-        return {
-          equipe: item.nmequipe || item.equipe || item.categoria || (`Equipe ${item.idequipe ?? ""}`),
-          idequipe: item.idequipe,
-          funcoes: [{
-            idfuncao: item.idfuncao ?? null,
-            nome: item.categoria,
-            total,
-            preenchidas,
-            concluido: total > 0 && preenchidas >= total
-          }]
-        };
+        
+        // Cria função apenas se houver vagas/staff
+        if (total > 0 || preenchidas > 0) { 
+             funcoesResult = [{
+                idfuncao: item.idfuncao ?? null,
+                nome: item.categoria || "Função",
+                total,
+                preenchidas,
+                concluido: total > 0 && preenchidas >= total
+            }];
+        }
       }
-
-      // fallback genérico
+      // fallback genérico (usando funcoes original, se houver)
+      else if (Array.isArray(item.funcoes)) {
+          funcoesResult = mapFuncoes(item.funcoes);
+      }
+      
       return {
-        equipe: item.equipe || item.nmequipe || item.nome || ("Equipe " + (item.idequipe ?? "")),
-        idequipe: item.idequipe,
-        funcoes: Array.isArray(item.funcoes) ? item.funcoes.map(f => ({
-          idfuncao: f.idfuncao ?? null,
-          nome: f.nome || f.nmfuncao || f.categoria || "Função",
-          total: Number(f.total ?? f.qtditens ?? 0),
-          preenchidas: Number(f.preenchidos ?? 0),
-          concluido: Number(f.preenchidos ?? 0) >= Number(f.total ?? 0)
-        })) : []
+          equipe: equipeNome,
+          idequipe: equipeId,
+          funcoes: funcoesResult
       };
-    });
+    })
+    // 🛑 NOVO FILTRO DE NOME: Remove o item que vem nomeado explicitamente como "Sem equipe"
+    .filter(eq => eq.equipe.toLowerCase() !== "sem equipe")
+    // FILTRO FINAL: Remove equipes que não contêm NENHUMA função relevante
+    .filter(eq => eq.funcoes && eq.funcoes.length > 0);
+
+    // CONSOLE 2: Dados Filtrados e Normalizados para Renderização
+    console.log("=================================================");
+    console.log(`[${evento.nmevento}] Dados Filtrados e Prontos (equipes):`);
+    console.log(equipes);
+    console.log("=================================================");
+
+
+    if (!equipes.length) {
+      corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe com vagas (Produto(s)) cadastrada para este evento.</p>`;
+      return;
+    }
 
     // renderiza lista mantendo o visual atual mas usando total/preenchidas corretos
     corpo.innerHTML = "";
     equipes.forEach(eq => {
+      // ... (Restante do código de renderização permanece o mesmo)
       const equipeBox = document.createElement("div");
       equipeBox.className = "equipe-box";
 
@@ -1950,17 +2004,6 @@ async function abrirTelaEquipesEvento(evento) {
     console.error("Erro ao buscar detalhes das equipes.", err);
     const msg = (err && err.message) ? err.message : "Erro ao carregar detalhes das equipes.";
     corpo.innerHTML = `<p class="erro">${escapeHtml(msg)}</p>`;
-  }
-
-  // utilitário simples para escapar texto antes de inserir no innerHTML
-  function escapeHtml(str) {
-    if (!str && str !== 0) return "";
-    return String(str)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
   }
 }
 // ...existing code...
