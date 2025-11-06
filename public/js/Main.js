@@ -189,7 +189,7 @@ window.applyModalPrefill = function(rawParams) {
     }
 
     setHidden("idEvento", prefill.idevento);
-    setHidden("idStaffEvento", prefill.idevento);
+    //setHidden("idStaffEvento", prefill.idstaffevento);
     setHidden("idEquipe", prefill.idequipe);
     setHidden("idFuncao", prefill.idfuncao);
     setHidden("idCliente", prefill.idcliente);
@@ -242,6 +242,7 @@ window.applyModalPrefill = function(rawParams) {
         try { mo.disconnect(); } catch (e) {}
         const still = document.getElementById(selectId);
         if (still && (still.options.length === 0 || !trySelectIfExists(selectId, value, text))) {
+        //if (still && still.options && (still.options.length === 0 || !trySelectIfExists(selectId, value, text))) {
           console.log(`[applyModalPrefill] timeout atingido para ${selectId}. Criando option fallback (se tiver texto).`);
           if (text || value) {
             const opt = document.createElement("option");
@@ -1419,334 +1420,610 @@ async function mostrarEventosEmAberto() {
  // ------------------------------------------------------------------
  // ======= EVENTO DE TROCA DE ABAS - CORRIGIDO =======
  // ------------------------------------------------------------------
-abas.querySelectorAll(".aba").forEach(btn => {
-  btn.addEventListener("click", async () => {
-    // 1. Identifica os elementos
-    const target = btn.dataset.target; // 'abertos' ou 'finalizados'
-    const targetEl = document.getElementById(target);
-    const idempresa = getIdEmpresa(); // Obtemos idempresa uma vez
+  abas.querySelectorAll(".aba").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      // 1. Identifica os elementos
+      const target = btn.dataset.target; // 'abertos' ou 'finalizados'
+      const targetEl = document.getElementById(target);
+      const idempresa = getIdEmpresa(); // Obtemos idempresa uma vez
 
-    // 2. Troca visual de aba ativa (MANTIDO)
-    abas.querySelectorAll(".aba").forEach(b => b.classList.remove("ativo"));
-    btn.classList.add("ativo");
+      // 2. Troca visual de aba ativa (MANTIDO)
+      abas.querySelectorAll(".aba").forEach(b => b.classList.remove("ativo"));
+      btn.classList.add("ativo");
 
-    // 3. Esconde conteúdos e mostra o alvo (MANTIDO)
-    conteudos.querySelectorAll(".conteudo-aba").forEach(c => c.classList.remove("ativo"));
-    targetEl.classList.add("ativo");
+      // 3. Esconde conteúdos e mostra o alvo (MANTIDO)
+      conteudos.querySelectorAll(".conteudo-aba").forEach(c => c.classList.remove("ativo"));
+      targetEl.classList.add("ativo");
 
-    // 4. FORÇA O RECARREGAMENTO e mostra o loading
-    targetEl.innerHTML = `<div class="loading-spinner">Carregando eventos ${target}...</div>`;
+      // 4. FORÇA O RECARREGAMENTO e mostra o loading
+      targetEl.innerHTML = `<div class="loading-spinner">Carregando eventos ${target}...</div>`;
 
-    let rota;
-    try {
-      if (target === "finalizados") {
-        rota = "eventos-fechados";
+      let rota;
+      try {
+        if (target === "finalizados") {
+          rota = "eventos-fechados";
+          
+          // **ROTA 1: EVENTOS FECHADOS**
+          const resp = await fetchComToken(`/main/eventos-fechados`, { headers: { idempresa } });
+          const eventos = resp && typeof resp.json === 'function' ? await resp.json() : resp;
+          
+          renderizarEventos(targetEl, eventos);
+
+        } else { // target === "abertos"
+          rota = "eventos-abertos";
+          
+          // **ROTA 2: EVENTOS ABERTOS**
+          const resp = await fetchComToken(`/main/eventos-abertos`, { headers: { idempresa } });
+          const eventos = resp && typeof resp.json === 'function' ? await resp.json() : resp;
+
+          renderizarEventos(targetEl, eventos);
+        }
         
-        // **ROTA 1: EVENTOS FECHADOS**
-        const resp = await fetchComToken(`/main/eventos-fechados`, { headers: { idempresa } });
-        const eventos = resp && typeof resp.json === 'function' ? await resp.json() : resp;
-        
-        renderizarEventos(targetEl, eventos);
-
-      } else { // target === "abertos"
-        rota = "eventos-abertos";
-        
-        // **ROTA 2: EVENTOS ABERTOS**
-        const resp = await fetchComToken(`/main/eventos-abertos`, { headers: { idempresa } });
-        const eventos = resp && typeof resp.json === 'function' ? await resp.json() : resp;
-
-        renderizarEventos(targetEl, eventos);
+      } catch (err) {
+        // 5. Tratamento de erro detalhado
+        console.error(`Falha ao carregar a rota ${rota}:`, err);
+        targetEl.innerHTML = `<div class="erro-carregar">Erro ao carregar eventos de ${target} (Rota: <b>/main/${rota}</b>). Verifique o console.</div>`;
       }
-      
-    } catch (err) {
-      // 5. Tratamento de erro detalhado
-      console.error(`Falha ao carregar a rota ${rota}:`, err);
-      targetEl.innerHTML = `<div class="erro-carregar">Erro ao carregar eventos de ${target} (Rota: <b>/main/${rota}</b>). Verifique o console.</div>`;
-    }
   });
 });
 
 // FUNÇÃO AUXILIAR PARA EVITAR DUPLICAÇÃO DE CÓDIGO DE RENDERIZAÇÃO
-function renderizarEventos(targetEl, eventos) {
-    if (!Array.isArray(eventos) || eventos.length === 0) {
-        targetEl.innerHTML = `<div class="nenhum-evento">Nenhum evento encontrado</div>`;
-        return;
+  function renderizarEventos(targetEl, eventos) {
+      if (!Array.isArray(eventos) || eventos.length === 0) {
+          targetEl.innerHTML = `<div class="nenhum-evento">Nenhum evento encontrado</div>`;
+          return;
+      }
+
+      targetEl.innerHTML = ""; // Limpa o loading
+
+      eventos.map(evt => normalizarEvento(evt)).forEach((evt, index) => {
+          const card = criarCard(evt);
+          card.style.setProperty('--index', index);
+          targetEl.appendChild(card);
+      });
+  }
+  // ------------------------------------------------------------------
+  // ======= CARREGAMENTO INICIAL - CORRIGIDO =======
+  // ------------------------------------------------------------------
+  // REMOVIDAS as declarações eventosAbertos/Finalizados vazias
+
+  try {
+    const idempresa = localStorage.getItem("idempresa");
+    // URL CORRIGIDA PARA A NOVA ROTA ESPECÍFICA
+    const resp = await fetchComToken(`/main/eventos-abertos`, { headers: { idempresa } });
+    const eventos = resp?.ok ? await resp.json() : resp;
+
+    if (!Array.isArray(eventos)) {
+    abaAbertos.innerHTML = `<span class="erro-carregar">Erro ao carregar eventos</span>`;
+    console.error("Erro backend: resposta inesperada", eventos);
+    return;
     }
 
-    targetEl.innerHTML = ""; // Limpa o loading
+    if (!eventos.length) {
+    abaAbertos.innerHTML = `<span class="nenhum-evento">Nenhum evento em aberto 🎉</span>`;
+    abaAbertos.dataset.populado = "1";
+    return;
+    }
 
-    eventos.map(evt => normalizarEvento(evt)).forEach((evt, index) => {
-        const card = criarCard(evt);
-        card.style.setProperty('--index', index);
-        targetEl.appendChild(card);
+    // Transforma eventos para o formato UI e preenche
+    eventos.map(evt => normalizarEvento(evt)).forEach(evt => {
+    abaAbertos.appendChild(criarCard(evt));
     });
-}
- // ------------------------------------------------------------------
- // ======= CARREGAMENTO INICIAL - CORRIGIDO =======
- // ------------------------------------------------------------------
- // REMOVIDAS as declarações eventosAbertos/Finalizados vazias
+    
+    abaAbertos.dataset.populado = "1"; // Marca como populado
 
- try {
-  const idempresa = localStorage.getItem("idempresa");
-  // URL CORRIGIDA PARA A NOVA ROTA ESPECÍFICA
-  const resp = await fetchComToken(`/main/eventos-abertos`, { headers: { idempresa } });
-  const eventos = resp?.ok ? await resp.json() : resp;
-
-  if (!Array.isArray(eventos)) {
-   abaAbertos.innerHTML = `<span class="erro-carregar">Erro ao carregar eventos</span>`;
-   console.error("Erro backend: resposta inesperada", eventos);
-   return;
+  } catch (err) {
+    console.error("Erro ao carregar eventos em aberto:", err);
+    abaAbertos.innerHTML = `<span class="erro-carregar">Erro ao buscar eventos</span>`;
   }
 
-  if (!eventos.length) {
-   abaAbertos.innerHTML = `<span class="nenhum-evento">Nenhum evento em aberto 🎉</span>`;
-   abaAbertos.dataset.populado = "1";
-   return;
-  }
 
-  // Transforma eventos para o formato UI e preenche
-  eventos.map(evt => normalizarEvento(evt)).forEach(evt => {
-   abaAbertos.appendChild(criarCard(evt));
-  });
-  
-  abaAbertos.dataset.populado = "1"; // Marca como populado
+  // ------------------------------------------------------------------
+  // ======= FUNÇÕES AUXILIARES - REORGANIZADAS/SIMPLIFICADAS =======
+  // ------------------------------------------------------------------
 
- } catch (err) {
-  console.error("Erro ao carregar eventos em aberto:", err);
-  abaAbertos.innerHTML = `<span class="erro-carregar">Erro ao buscar eventos</span>`;
- }
-
-
- // ------------------------------------------------------------------
- // ======= FUNÇÕES AUXILIARES - REORGANIZADAS/SIMPLIFICADAS =======
- // ------------------------------------------------------------------
-
- // Movida a lógica de mapeamento para uma função separada para reuso
- function normalizarEvento(ev) {
-  const inicio_realizacao = ev.dtinirealizacao || ev.dtinimontagem || ev.dtinimarcacao;
-  const fim_realizacao = ev.dtfimrealizacao || ev.dtfimdesmontagem || ev.dtfimmontagem;
-  const data_referencia = ev.dtinimontagem || ev.dtinirealizacao || ev.dtinimarcacao;
-  const fim_evento = ev.dtfimdesmontagem || ev.dtfimrealizacao;
-
-  // O backend já está retornando equipes_detalhes, vamos usá-lo se disponível
-  let equipesDetalhes = Array.isArray(ev.equipes_detalhes) ? ev.equipes_detalhes : [];
-  
-  return {
-   ...ev,
-   data_referencia,
-   inicio_realizacao,
-   fim_realizacao,
-   fim_evento,
-   total_staff: ev.total_staff ?? ev.totalStaff ?? 0,
-   equipes_detalhes: equipesDetalhes // Garante que o campo existe
-  };
- }
-
- function parseDateLocal(dataISO) {
-  if (!dataISO) return "";
-  const data = new Date(dataISO);
-  if (isNaN(data)) return dataISO; // se não for uma data válida
-  // Usa o toLocaleDateString com fuso horário UTC para evitar problemas de offset
-  return data.toLocaleDateString("pt-BR", { timeZone: "UTC" }); 
- }
- 
- // Ajuste para criarCard para aceitar o formato de data no cálculo de dias
- function parseDateForComparison(dateStr) {
-  if (!dateStr) return null;
-  if (typeof dateStr === "string") {
-   // Regex simples para ISO date sem time
-   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    const [y, m, d] = dateStr.split("-").map(Number);
-    // Cria a data no fuso zero (meia-noite UTC)
-    return new Date(Date.UTC(y, m - 1, d)); 
-   }
-   // Tenta criar a data normal, mas ajusta para meia-noite local para comparação
-   const d = new Date(dateStr);
-   if (isNaN(d)) return null;
-   d.setHours(0, 0, 0, 0);
-   return d;
-  }
-  if (dateStr instanceof Date) {
-   dateStr.setHours(0, 0, 0, 0);
-   return dateStr;
-  }
-  return null;
- }
-
-
- // ======= Função para criar card de evento =======
- // MANTIDA A LÓGICA DE ALERTA, MAS USANDO FUNÇÕES CORRIGIDAS PARA DATA
-function normalizarEvento(ev) {
+  // Movida a lógica de mapeamento para uma função separada para reuso
+  function normalizarEvento(ev) {
     const inicio_realizacao = ev.dtinirealizacao || ev.dtinimontagem || ev.dtinimarcacao;
     const fim_realizacao = ev.dtfimrealizacao || ev.dtfimdesmontagem || ev.dtfimmontagem;
     const data_referencia = ev.dtinimontagem || ev.dtinirealizacao || ev.dtinimarcacao;
     const fim_evento = ev.dtfimdesmontagem || ev.dtfimrealizacao;
 
+    // O backend já está retornando equipes_detalhes, vamos usá-lo se disponível
     let equipesDetalhes = Array.isArray(ev.equipes_detalhes) ? ev.equipes_detalhes : [];
     
-    // 🛑 CORREÇÃO DE DADOS: Recalcula totais a partir dos detalhes das equipes para garantir consistência
-    const totalVagasCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.total_vagas || 0), 0);
-    const totalStaffCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.preenchidas || 0), 0);
-    const vagasRestantesCalculado = totalVagasCalculado - totalStaffCalculado;
-    
     return {
-        ...ev,
-        data_referencia,
-        inicio_realizacao,
-        fim_realizacao,
-        fim_evento,
-        
-        // 🛑 Usa os totais calculados para o status principal
-        total_vagas: totalVagasCalculado,
-        total_staff: totalStaffCalculado,
-        vagas_restantes: vagasRestantesCalculado,
-        
-        total_staff_api: ev.total_staff, // Mantém o valor original do backend para referência (opcional)
-        equipes_detalhes: equipesDetalhes
+    ...ev,
+    data_referencia,
+    inicio_realizacao,
+    fim_realizacao,
+    fim_evento,
+    total_staff: ev.total_staff ?? ev.totalStaff ?? 0,
+    equipes_detalhes: equipesDetalhes // Garante que o campo existe
     };
-}
+  }
 
-function criarCard(evt) {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0); // Zera hora para comparação de dia
-
-    const dataRef = parseDateForComparison(evt.data_referencia);
-    const dataFimDesmontagem = parseDateForComparison(evt.fim_evento);
-    const inicioRealizacao = parseDateForComparison(evt.inicio_realizacao);
-    const fimRealizacao = parseDateForComparison(evt.fim_realizacao);
-
-    // === Cálculo de percentual de staff preenchido ===
-    // Estes valores agora são consistentes graças à normalizarEvento
-    const total = evt.total_vagas || 0;
-    const preenchido = evt.total_staff || 0;
-    const percentual = total > 0 ? Math.round((preenchido / total) * 100) : 0;
-
-    let diasFaltam = null;
-    if (dataRef) diasFaltam = Math.ceil((dataRef.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
-
-    let alertaTexto = "";
-    let alertaClasse = "";
-
-    // === EVENTO FINALIZADO ===
-    if (dataFimDesmontagem && dataFimDesmontagem < hoje) {
-        if (percentual === 0) {
-            alertaTexto = "✔ Realizado sem staff";
-            alertaClasse = "status-realizado-vermelho";
-        } else if (percentual < 100) {
-            alertaTexto = `✔ Realizado - Staff parcial (${percentual}%)`;
-            alertaClasse = "status-realizado-amarelo";
-        } else { // >= 100%
-            alertaTexto = "✔ Realizado - Staff OK";
-            alertaClasse = "status-realizado-verde";
-        }
-
-    // === EVENTO EM REALIZAÇÃO (Usa a data do backend para exibição) ===
-    } else if (inicioRealizacao && fimRealizacao && hoje >= inicioRealizacao && hoje <= fimRealizacao) {
-        if (percentual === 0) {
-            alertaTexto = "🚨 Sem staff — Realizando";
-            alertaClasse = "status-realizando-vermelho";
-        } else if (percentual < 100) {
-            alertaTexto = `⚠️ Staff faltando - Realizando (${percentual}%)`;
-            alertaClasse = "status-realizando-amarelo";
-        } else { // >= 100%
-            alertaTexto = "✅ Staff OK - Realizando";
-            alertaClasse = "status-realizando-verde";
-        }
-
-    // === EVENTO PRÓXIMO (faltam poucos dias) ===
-    } else if (diasFaltam !== null && diasFaltam <= 5 && diasFaltam >= 0) {
-        const diasText = `${diasFaltam} dia${diasFaltam !== 1 ? "s" : ""}`;
-
-        if (percentual === 0) {
-            alertaTexto = `🚨 Sem staff — faltam ${diasText}`;
-            alertaClasse = "status-urgente-vermelho";
-        } else if (percentual < 100) {
-            // Percentual adicionado no alerta amarelo, como solicitado
-            alertaTexto = `⚠️ Staff faltando (${percentual}%) — faltam ${diasText} p/ realização`;
-            alertaClasse = "status-urgente-amarelo";
-        } else { // >= 100%
-            alertaTexto = `✅ Staff OK — faltam ${diasText}`;
-            alertaClasse = "status-urgente-verde";
-        }
-
-    // === EVENTO FUTURO SEM URGÊNCIA ===
-    } else {
-        if (percentual === 0) {
-            alertaTexto = "🚨 Sem staff";
-            alertaClasse = "status-pendente-vermelho";
-        } else if (percentual < 100) {
-            alertaTexto = `⚠️ Staff faltando (${percentual}%)`;
-            alertaClasse = "status-pendente-amarelo";
-        } else { // >= 100%
-            alertaTexto = "✅ Staff OK";
-            alertaClasse = "status-pendente-verde";
-        }
+  function parseDateLocal(dataISO) {
+    if (!dataISO) return "";
+    const data = new Date(dataISO);
+    if (isNaN(data)) return dataISO; // se não for uma data válida
+    // Usa o toLocaleDateString com fuso horário UTC para evitar problemas de offset
+    return data.toLocaleDateString("pt-BR", { timeZone: "UTC" }); 
+  }
+  
+  // Ajuste para criarCard para aceitar o formato de data no cálculo de dias
+  function parseDateForComparison(dateStr) {
+    if (!dateStr) return null;
+    if (typeof dateStr === "string") {
+    // Regex simples para ISO date sem time
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [y, m, d] = dateStr.split("-").map(Number);
+      // Cria a data no fuso zero (meia-noite UTC)
+      return new Date(Date.UTC(y, m - 1, d)); 
     }
-
-    // Converte a data para exibição (string formatada)
-    const dataExibicaoFimDesmontagem = evt.fim_evento ? parseDateLocal(evt.fim_evento) : null;
-
-    const nomeEvento = (dataFimDesmontagem && dataFimDesmontagem < hoje)
-        ? `<del>${evt.nmevento || evt.nome || "Evento"}</del>`
-        : `<strong>${evt.nmevento || evt.nome || "Evento"}</strong>`;
-
-    const localEvento = evt.nmlocalmontagem || evt.local || "Local não informado";
-
-    // ======= Resumo das equipes/funções em uma linha =======
-    const equipes = evt.equipes_detalhes || [];
-    const resumoEquipes = equipes.length
-        ? equipes.map(f => {
-            const total = f.total_vagas || 0;
-            const preenchido = f.preenchidas || 0;
-            const restante = total - preenchido;
-            let cor = "🟢";
-            if (restante === total) cor = "🔴"; // 0 preenchido
-            else if (restante > 0) cor = "🟡"; // Parcialmente preenchido
-            // else (restante <= 0) é 🟢 (Preenchido ou excedente.
-            return `${f.equipe}: ${cor} ${preenchido}/${total}`;
-        }).join(" | ")
-        : "Nenhuma equipe cadastrada";
+    // Tenta criar a data normal, mas ajusta para meia-noite local para comparação
+    const d = new Date(dateStr);
+    if (isNaN(d)) return null;
+    d.setHours(0, 0, 0, 0);
+    return d;
+    }
+    if (dateStr instanceof Date) {
+    dateStr.setHours(0, 0, 0, 0);
+    return dateStr;
+    }
+    return null;
+  }
 
 
-    const card = document.createElement("div");
-    card.className = "evento-card";
+  // ======= Função para criar card de evento =======
+  // MANTIDA A LÓGICA DE ALERTA, MAS USANDO FUNÇÕES CORRIGIDAS PARA DATA
+  function normalizarEvento(ev) {
+      const inicio_realizacao = ev.dtinirealizacao || ev.dtinimontagem || ev.dtinimarcacao;
+      const fim_realizacao = ev.dtfimrealizacao || ev.dtfimdesmontagem || ev.dtfimmontagem;
+      const data_referencia = ev.dtinimontagem || ev.dtinirealizacao || ev.dtinimarcacao;
+      const fim_evento = ev.dtfimdesmontagem || ev.dtfimrealizacao;
 
-    const headerEvt = document.createElement("div");
-    headerEvt.className = "evento-header";
-    headerEvt.innerHTML = `
-        <div class="evt-info">
-            <div class="evento-nome">${nomeEvento}</div>
-            <div class="evento-local">📍 ${localEvento}</div>
-        </div>
-        <span class="evento-status ${alertaClasse}">${alertaTexto}</span>
-    `;
+      let equipesDetalhes = Array.isArray(ev.equipes_detalhes) ? ev.equipes_detalhes : [];
+      
+      // 🛑 CORREÇÃO DE DADOS: Recalcula totais a partir dos detalhes das equipes para garantir consistência
+      const totalVagasCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.total_vagas || 0), 0);
+      const totalStaffCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.preenchidas || 0), 0);
+      const vagasRestantesCalculado = totalVagasCalculado - totalStaffCalculado;
+      
+      return {
+          ...ev,
+          data_referencia,
+          inicio_realizacao,
+          fim_realizacao,
+          fim_evento,
+          
+          // 🛑 Usa os totais calculados para o status principal
+          total_vagas: totalVagasCalculado,
+          total_staff: totalStaffCalculado,
+          vagas_restantes: vagasRestantesCalculado,
+          
+          total_staff_api: ev.total_staff, // Mantém o valor original do backend para referência (opcional)
+          equipes_detalhes: equipesDetalhes
+      };
+  }
 
-    const bodyEvt = document.createElement("div");
-    bodyEvt.className = "evento-body";
+  function criarCard(evt) {
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0); // Zera hora para comparação de dia
 
-    const resumoDiv = document.createElement("div");
-    resumoDiv.className = "equipes-resumo";
-    resumoDiv.textContent = resumoEquipes;
-    bodyEvt.appendChild(resumoDiv);
+      const dataRef = parseDateForComparison(evt.data_referencia);
+      const dataFimDesmontagem = parseDateForComparison(evt.fim_evento);
+      const inicioRealizacao = parseDateForComparison(evt.inicio_realizacao);
+      const fimRealizacao = parseDateForComparison(evt.fim_realizacao);
 
-    headerEvt.addEventListener("click", () => {
-        bodyEvt.classList.toggle("open");
-    });
+      // === Cálculo de percentual de staff preenchido ===
+      // Estes valores agora são consistentes graças à normalizarEvento
+      const total = evt.total_vagas || 0;
+      const preenchido = evt.total_staff || 0;
+      const percentual = total > 0 ? Math.round((preenchido / total) * 100) : 0;
 
-    resumoDiv.addEventListener("click", () => {
-        // Assumindo que abrirTelaEquipesEvento está disponível no escopo global
-        if (typeof abrirTelaEquipesEvento === 'function') {
-            abrirTelaEquipesEvento(evt);
-        } else {
-            console.warn("Função 'abrirTelaEquipesEvento' não está definida.");
-        }
-    });
+      let diasFaltam = null;
+      if (dataRef) diasFaltam = Math.ceil((dataRef.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
 
-    card.appendChild(headerEvt);
-    card.appendChild(bodyEvt);
-    return card;
+      let alertaTexto = "";
+      let alertaClasse = "";
+
+      // === EVENTO FINALIZADO ===
+      if (dataFimDesmontagem && dataFimDesmontagem < hoje) {
+          if (percentual === 0) {
+              alertaTexto = "✔ Realizado sem staff";
+              alertaClasse = "status-realizado-vermelho";
+          } else if (percentual < 100) {
+              alertaTexto = `✔ Realizado - Staff parcial (${percentual}%)`;
+              alertaClasse = "status-realizado-amarelo";
+          } else { // >= 100%
+              alertaTexto = "✔ Realizado - Staff OK";
+              alertaClasse = "status-realizado-verde";
+          }
+
+      // === EVENTO EM REALIZAÇÃO (Usa a data do backend para exibição) ===
+      } else if (inicioRealizacao && fimRealizacao && hoje >= inicioRealizacao && hoje <= fimRealizacao) {
+          if (percentual === 0) {
+              alertaTexto = "🚨 Sem staff — Realizando";
+              alertaClasse = "status-realizando-vermelho";
+          } else if (percentual < 100) {
+              alertaTexto = `⚠️ Staff faltando - Realizando (${percentual}%)`;
+              alertaClasse = "status-realizando-amarelo";
+          } else { // >= 100%
+              alertaTexto = "✅ Staff OK - Realizando";
+              alertaClasse = "status-realizando-verde";
+          }
+
+      // === EVENTO PRÓXIMO (faltam poucos dias) ===
+      } else if (diasFaltam !== null && diasFaltam <= 5 && diasFaltam >= 0) {
+          const diasText = `${diasFaltam} dia${diasFaltam !== 1 ? "s" : ""}`;
+
+          if (percentual === 0) {
+              alertaTexto = `🚨 Sem staff — faltam ${diasText}`;
+              alertaClasse = "status-urgente-vermelho";
+          } else if (percentual < 100) {
+              // Percentual adicionado no alerta amarelo, como solicitado
+              alertaTexto = `⚠️ Staff faltando (${percentual}%) — faltam ${diasText} p/ realização`;
+              alertaClasse = "status-urgente-amarelo";
+          } else { // >= 100%
+              alertaTexto = `✅ Staff OK — faltam ${diasText}`;
+              alertaClasse = "status-urgente-verde";
+          }
+
+      // === EVENTO FUTURO SEM URGÊNCIA ===
+      } else {
+          if (percentual === 0) {
+              alertaTexto = "🚨 Sem staff";
+              alertaClasse = "status-pendente-vermelho";
+          } else if (percentual < 100) {
+              alertaTexto = `⚠️ Staff faltando (${percentual}%)`;
+              alertaClasse = "status-pendente-amarelo";
+          } else { // >= 100%
+              alertaTexto = "✅ Staff OK";
+              alertaClasse = "status-pendente-verde";
+          }
+      }
+
+      // Converte a data para exibição (string formatada)
+      const dataExibicaoFimDesmontagem = evt.fim_evento ? parseDateLocal(evt.fim_evento) : null;
+
+      const nomeEvento = (dataFimDesmontagem && dataFimDesmontagem < hoje)
+          ? `<del>${evt.nmevento || evt.nome || "Evento"}</del>`
+          : `<strong>${evt.nmevento || evt.nome || "Evento"}</strong>`;
+
+      const localEvento = evt.nmlocalmontagem || evt.local || "Local não informado";
+
+      // ======= Resumo das equipes/funções em uma linha =======
+      const equipes = evt.equipes_detalhes || [];
+      const resumoEquipes = equipes.length
+          ? equipes.map(f => {
+              const total = f.total_vagas || 0;
+              const preenchido = f.preenchidas || 0;
+              const restante = total - preenchido;
+              let cor = "🟢";
+              if (restante === total) cor = "🔴"; // 0 preenchido
+              else if (restante > 0) cor = "🟡"; // Parcialmente preenchido
+              // else (restante <= 0) é 🟢 (Preenchido ou excedente.
+              return `${f.equipe}: ${cor} ${preenchido}/${total}`;
+          }).join(" | ")
+          : "Nenhuma equipe cadastrada";
+
+
+      const card = document.createElement("div");
+      card.className = "evento-card";
+
+      const headerEvt = document.createElement("div");
+      headerEvt.className = "evento-header";
+      headerEvt.innerHTML = `
+          <div class="evt-info">
+              <div class="evento-nome">${nomeEvento}</div>
+              <div class="evento-local">📍 ${localEvento}</div>
+          </div>
+          <span class="evento-status ${alertaClasse}">${alertaTexto}</span>
+      `;
+
+      const bodyEvt = document.createElement("div");
+      bodyEvt.className = "evento-body";
+
+      const resumoDiv = document.createElement("div");
+      resumoDiv.className = "equipes-resumo";
+      resumoDiv.textContent = resumoEquipes;
+      bodyEvt.appendChild(resumoDiv);
+
+      headerEvt.addEventListener("click", () => {
+          bodyEvt.classList.toggle("open");
+      });
+
+      resumoDiv.addEventListener("click", () => {
+          // Assumindo que abrirTelaEquipesEvento está disponível no escopo global
+          if (typeof abrirTelaEquipesEvento === 'function') {
+              abrirTelaEquipesEvento(evt);
+          } else {
+              console.warn("Função 'abrirTelaEquipesEvento' não está definida.");
+          }
+      });
+
+      card.appendChild(headerEvt);
+      card.appendChild(bodyEvt);
+      return card;
+  }
 }
-}
+
+
+// async function mostrarEventosEmAberto() {
+//     const painel = document.getElementById("painelDetalhes");
+//     if (!painel) return;
+
+//     painel.innerHTML = "";
+
+//     // ======= CONTAINER PRINCIPAL (Montagem do DOM) =======
+//     const container = document.createElement("div");
+//     container.className = "painel-eventos-em-aberto";
+
+//     const header = document.createElement("div");
+//     header.className = "header-eventos-em-aberto";
+//     header.textContent = "⚠ Eventos em Aberto";
+//     container.appendChild(header);
+
+//     const abas = document.createElement("div");
+//     abas.className = "abas-eventos";
+//     abas.innerHTML = `
+//       <div class="aba ativo" data-target="abertos">Abertos</div>
+//       <div class="aba" data-target="finalizados">Encerrados</div>
+//     `;
+//     container.appendChild(abas);
+
+//     const conteudos = document.createElement("div");
+//     conteudos.className = "conteudos-abas";
+
+//     const abaAbertos = document.createElement("div");
+//     abaAbertos.className = "conteudo-aba ativo";
+//     abaAbertos.id = "abertos";
+//     abaAbertos.innerHTML = `<div class="loading-spinner">Carregando eventos abertos...</div>`; // Loading inicial
+
+//     const abaFinalizados = document.createElement("div");
+//     abaFinalizados.className = "conteudo-aba";
+//     abaFinalizados.id = "finalizados";
+
+//     conteudos.appendChild(abaAbertos);
+//     conteudos.appendChild(abaFinalizados);
+//     container.appendChild(conteudos);
+//     painel.appendChild(container);
+
+
+//     // ------------------------------------------------------------------
+//     // FUNÇÃO UNIFICADA: Contém a lógica de limpeza, fetch e renderização
+//     // ------------------------------------------------------------------
+
+//     async function carregarConteudoAba(target, targetEl, abasEl, conteudosEl) {
+//         // 1. Obtém o ID da empresa (usando o método que funciona no clique)
+//         const idempresa = getIdEmpresa();
+        
+//         // 2. TROCA VISUAL REFORÇADA (Garantir que a aba correta esteja ativa)
+//         abasEl.querySelectorAll(".aba").forEach(b => b.classList.remove("ativo"));
+//         abasEl.querySelector(`.aba[data-target="${target}"]`).classList.add("ativo");
+
+//         // Esta é a linha CRÍTICA que garante que apenas o alvo esteja visível
+//         conteudosEl.querySelectorAll(".conteudo-aba").forEach(c => c.classList.remove("ativo"));
+//         targetEl.classList.add("ativo");
+
+//         // 3. LIMPEZA / LOADING
+//         targetEl.innerHTML = `<div class="loading-spinner">Carregando eventos ${target}...</div>`;
+
+//         let rota;
+//         try {
+//             if (!idempresa) {
+//                  targetEl.innerHTML = `<div class="erro-carregar">Erro: ID da Empresa não disponível. Falha ao buscar dados.</div>`;
+//                  console.error("ID da Empresa inválida/vazia na chamada de fetch.");
+//                  return;
+//             }
+
+//             // 4. Lógica de FETCH
+//             rota = (target === "finalizados") ? "eventos-fechados" : "eventos-abertos";
+
+//             const resp = await fetchComToken(`/main/${rota}`, { headers: { idempresa } });
+//             const eventos = resp && typeof resp.json === 'function' ? await resp.json() : resp;
+            
+//             // 5. Renderização (sua função auxiliar)
+//             renderizarEventos(targetEl, eventos);
+            
+//         } catch (err) {
+//             console.error(`Falha ao carregar a rota ${rota}:`, err);
+//             targetEl.innerHTML = `<div class="erro-carregar">Erro ao carregar eventos de ${target} (Rota: <b>/main/${rota}</b>). Verifique o console.</div>`;
+//         }
+//     }
+
+
+//     // ------------------------------------------------------------------
+//     // EVENTO DE TROCA DE ABAS (Simplificado)
+//     // ------------------------------------------------------------------
+//     abas.querySelectorAll(".aba").forEach(btn => {
+//         btn.addEventListener("click", () => { 
+//             const target = btn.dataset.target;
+//             const targetEl = document.getElementById(target);
+            
+//             // Chama a função que contém toda a lógica
+//             carregarConteudoAba(target, targetEl, abas, conteudos);
+//         });
+//     });
+
+//     // ------------------------------------------------------------------
+//     // CARREGAMENTO INICIAL (Chama a função unificada para a primeira aba)
+//     // ------------------------------------------------------------------
+//     setTimeout(() => {
+//         carregarConteudoAba("abertos", abaAbertos, abas, conteudos);
+//     }, 50); 
+    
+//     // ------------------------------------------------------------------
+//     // FUNÇÕES AUXILIARES (Inalteradas, mas definidas dentro do escopo)
+//     // ------------------------------------------------------------------
+
+//     function renderizarEventos(targetEl, eventos) {
+//         if (!Array.isArray(eventos) || eventos.length === 0) {
+//             targetEl.innerHTML = `<div class="nenhum-evento">Nenhum evento encontrado</div>`;
+//             return;
+//         }
+
+//         targetEl.innerHTML = ""; // Limpa o loading
+
+//         eventos.map(evt => normalizarEvento(evt)).forEach((evt, index) => {
+//             const card = criarCard(evt);
+//             card.style.setProperty('--index', index);
+//             targetEl.appendChild(card);
+//         });
+//     }
+
+//     function parseDateLocal(dataISO) {
+//         if (!dataISO) return "";
+//         const data = new Date(dataISO);
+//         if (isNaN(data)) return dataISO; 
+//         return data.toLocaleDateString("pt-BR", { timeZone: "UTC" }); 
+//     }
+    
+//     function parseDateForComparison(dateStr) {
+//         if (!dateStr) return null;
+//         if (typeof dateStr === "string") {
+//             if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+//                 const [y, m, d] = dateStr.split("-").map(Number);
+//                 return new Date(Date.UTC(y, m - 1, d)); 
+//             }
+//             const d = new Date(dateStr);
+//             if (isNaN(d)) return null;
+//             d.setHours(0, 0, 0, 0);
+//             return d;
+//         }
+//         if (dateStr instanceof Date) {
+//             dateStr.setHours(0, 0, 0, 0);
+//             return dateStr;
+//         }
+//         return null;
+//     }
+
+
+//     function normalizarEvento(ev) {
+//         const inicio_realizacao = ev.dtinirealizacao || ev.dtinimontagem || ev.dtinimarcacao;
+//         const fim_realizacao = ev.dtfimrealizacao || ev.dtfimdesmontagem || ev.dtfimmontagem;
+//         const data_referencia = ev.dtinimontagem || ev.dtinirealizacao || ev.dtinimarcacao;
+//         const fim_evento = ev.dtfimdesmontagem || ev.dtfimrealizacao;
+
+//         let equipesDetalhes = Array.isArray(ev.equipes_detalhes) ? ev.equipes_detalhes : [];
+        
+//         const totalVagasCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.total_vagas || 0), 0);
+//         const totalStaffCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.preenchidas || 0), 0);
+//         const vagasRestantesCalculado = totalVagasCalculado - totalStaffCalculado;
+        
+//         return {
+//             ...ev,
+//             data_referencia,
+//             inicio_realizacao,
+//             fim_realizacao,
+//             fim_evento,
+            
+//             total_vagas: totalVagasCalculado,
+//             total_staff: totalStaffCalculado,
+//             vagas_restantes: vagasRestantesCalculado,
+            
+//             total_staff_api: ev.total_staff, 
+//             equipes_detalhes: equipesDetalhes
+//         };
+//     }
+
+//     function criarCard(evt) {
+//         const hoje = new Date();
+//         hoje.setHours(0, 0, 0, 0); 
+
+//         const dataRef = parseDateForComparison(evt.data_referencia);
+//         const dataFimDesmontagem = parseDateForComparison(evt.fim_evento);
+//         const inicioRealizacao = parseDateForComparison(evt.inicio_realizacao);
+//         const fimRealizacao = parseDateForComparison(evt.fim_realizacao);
+
+//         const total = evt.total_vagas || 0;
+//         const preenchido = evt.total_staff || 0;
+//         const percentual = total > 0 ? Math.round((preenchido / total) * 100) : 0;
+
+//         let diasFaltam = null;
+//         if (dataRef) diasFaltam = Math.ceil((dataRef.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+
+//         let alertaTexto = "";
+//         let alertaClasse = "";
+
+//         // Lógica de status
+//         if (dataFimDesmontagem && dataFimDesmontagem < hoje) {
+//             if (percentual === 0) { alertaTexto = "✔ Realizado sem staff"; alertaClasse = "status-realizado-vermelho"; } 
+//             else if (percentual < 100) { alertaTexto = `✔ Realizado - Staff parcial (${percentual}%)`; alertaClasse = "status-realizado-amarelo"; } 
+//             else { alertaTexto = "✔ Realizado - Staff OK"; alertaClasse = "status-realizado-verde"; }
+//         } else if (inicioRealizacao && fimRealizacao && hoje >= inicioRealizacao && hoje <= fimRealizacao) {
+//             if (percentual === 0) { alertaTexto = "🚨 Sem staff — Realizando"; alertaClasse = "status-realizando-vermelho"; } 
+//             else if (percentual < 100) { alertaTexto = `⚠️ Staff faltando - Realizando (${percentual}%)`; alertaClasse = "status-realizando-amarelo"; } 
+//             else { alertaTexto = "✅ Staff OK - Realizando"; alertaClasse = "status-realizando-verde"; }
+//         } else if (diasFaltam !== null && diasFaltam <= 5 && diasFaltam >= 0) {
+//             const diasText = `${diasFaltam} dia${diasFaltam !== 1 ? "s" : ""}`;
+//             if (percentual === 0) { alertaTexto = `🚨 Sem staff — faltam ${diasText}`; alertaClasse = "status-urgente-vermelho"; } 
+//             else if (percentual < 100) { alertaTexto = `⚠️ Staff faltando (${percentual}%) — faltam ${diasText} p/ realização`; alertaClasse = "status-urgente-amarelo"; } 
+//             else { alertaTexto = `✅ Staff OK — faltam ${diasText}`; alertaClasse = "status-urgente-verde"; }
+//         } else {
+//             if (percentual === 0) { alertaTexto = "🚨 Sem staff"; alertaClasse = "status-pendente-vermelho"; } 
+//             else if (percentual < 100) { alertaTexto = `⚠️ Staff faltando (${percentual}%)`; alertaClasse = "status-pendente-amarelo"; } 
+//             else { alertaTexto = "✅ Staff OK"; alertaClasse = "status-pendente-verde"; }
+//         }
+
+//         const dataExibicaoFimDesmontagem = evt.fim_evento ? parseDateLocal(evt.fim_evento) : null;
+//         const nomeEvento = (dataFimDesmontagem && dataFimDesmontagem < hoje)
+//             ? `<del>${evt.nmevento || evt.nome || "Evento"}</del>`
+//             : `<strong>${evt.nmevento || evt.nome || "Evento"}</strong>`;
+//         const localEvento = evt.nmlocalmontagem || evt.local || "Local não informado";
+
+//         const equipes = evt.equipes_detalhes || [];
+//         const resumoEquipes = equipes.length
+//             ? equipes.map(f => {
+//                 const total = f.total_vagas || 0;
+//                 const preenchido = f.preenchidas || 0;
+//                 const restante = total - preenchido;
+//                 let cor = "🟢";
+//                 if (restante === total) cor = "🔴"; 
+//                 else if (restante > 0) cor = "🟡"; 
+//                 return `${f.equipe}: ${cor} ${preenchido}/${total}`;
+//             }).join(" | ")
+//             : "Nenhuma equipe cadastrada";
+
+//         const card = document.createElement("div");
+//         card.className = "evento-card";
+
+//         const headerEvt = document.createElement("div");
+//         headerEvt.className = "evento-header";
+//         headerEvt.innerHTML = `
+//             <div class="evt-info">
+//                 <div class="evento-nome">${nomeEvento}</div>
+//                 <div class="evento-local">📍 ${localEvento}</div>
+//             </div>
+//             <span class="evento-status ${alertaClasse}">${alertaTexto}</span>
+//         `;
+
+//         const bodyEvt = document.createElement("div");
+//         bodyEvt.className = "evento-body";
+
+//         const resumoDiv = document.createElement("div");
+//         resumoDiv.className = "equipes-resumo";
+//         resumoDiv.textContent = resumoEquipes;
+//         bodyEvt.appendChild(resumoDiv);
+
+//         headerEvt.addEventListener("click", () => {
+//             bodyEvt.classList.toggle("open");
+//         });
+
+//         resumoDiv.addEventListener("click", () => {
+//             if (typeof abrirTelaEquipesEvento === 'function') {
+//                 abrirTelaEquipesEvento(evt);
+//             } else {
+//                 console.warn("Função 'abrirTelaEquipesEvento' não está definida.");
+//             }
+//         });
+
+//         card.appendChild(headerEvt);
+//         card.appendChild(bodyEvt);
+//         return card;
+//     }
+// }
 
 // ...existing code...
 async function abrirTelaEquipesEvento(evento) {

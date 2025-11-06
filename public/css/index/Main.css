@@ -907,18 +907,75 @@ span.nenhum-evento {
 }
 
 /* Sugestão: Transição no conteúdo interno (os cards) */
-.conteudo-aba.ativo .card {
+/* .conteudo-aba.ativo .card {
     transition: transform 0.5s ease, opacity 0.5s ease;
     transform: translateY(10px);
     opacity: 0;
 }
 
 .conteudo-aba.ativo .card:nth-child(n) {
-    /* Pequeno atraso para dar um efeito cascata */
-    transition-delay: calc(0.05s * var(--index)); /* Use CSS variable se possível */
+    /* Pequeno atraso para dar um efeito cascata
+    transition-delay: calc(0.05s * var(--index)); /* Use CSS variable se possível 
     transform: translateY(0);
     opacity: 1;
+    
+} */
+
+.conteudos-abas .conteudo-aba {
+    /* Esconde por padrão todos os conteúdos da aba */
+    display: block;
+    padding: 15px;
 }
+
+/* Regra para mostrar APENAS o conteúdo que tem a classe 'ativo' */
+.conteudos-abas .conteudo-aba.ativo {
+    /* Mostra o conteúdo ativo (pode ser block, flex, grid, etc.) */
+    display: block !important; 
+   
+    gap: 20px;       /* Adiciona espaçamento entre os cards */
+
+    height: auto !important; 
+    max-height: none !important;
+    overflow-y: visible !important; /* Permite que o conteúdo completo apareça */
+    
+    opacity: 1;
+}
+
+.conteudos-abas .conteudo-aba:not(.ativo) {
+    display: none !important; /* Força o elemento a sumir se não tiver a classe 'ativo' */
+}
+
+/* Opcional, mas comum: para o botão */
+.abas-eventos .aba.ativo {
+    font-weight: bold;
+    border-bottom: 2px solid #3085d6; /* Exemplo visual */
+}
+
+.conteudos-abas {
+    width: 100%; /* Garante que a div pai se expanda */
+}
+
+.evento-card {
+    /* 1. Define 100% da largura do container */
+    width: 100%; 
+    
+    /* 2. Garante que os cards empilhados tenham um espaçamento entre si */
+    margin-bottom: 15px; 
+    
+    /* 3. **REMOVE:** flex: 0 0 calc(...) e min-width (pois agora ele é 100%) */
+    
+    /* Seu estilo original */
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.evento-card:last-child {
+    margin-bottom: 0;
+}
+
 
   /* ====== TELA EQUIPES ====== */
 .painel-equipes-evento {
@@ -1303,6 +1360,8 @@ button.btn-abrir-staff {
 .dark-mode .icon {
   color: #fff; /* se usar tema escuro */
 }
+
+
 
 /* ======= CALENDÁRIO MENSAL ======= */
 .grade-calendario {

@@ -3762,6 +3762,13 @@ async function carregarLocalMontStaff() {
 }
 
 async function carregarPavilhaoStaff(idMontagem) {
+
+    // if (!idMontagem || idMontagem === "") {
+    //     console.warn("carregarPavilhaoStaff: idMontagem vazio, abortando requisição.");
+    //     // Pode ser necessário limpar o select de Pavilhão aqui, se ele existir.
+    //     return [];
+    // }
+
     try{
 
        const pavilhaofetch = await fetchComToken(`/staff/pavilhao?idmontagem=${idMontagem}`);
