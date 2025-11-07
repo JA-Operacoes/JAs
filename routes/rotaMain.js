@@ -235,6 +235,7 @@ router.get("/eventos-abertos", async (req, res) => {
                 SELECT 
                     o.idevento,
                     lm.descmontagem AS nmlocalmontagem,
+                    o.idmontagem,
                     MAX(o.nrorcamento) AS nrorcamento,
                     SUM(i.qtditens) AS total_vagas,
                     MIN(o.dtinimarcacao) AS dtinimarcacao,
@@ -264,6 +265,7 @@ router.get("/eventos-abertos", async (req, res) => {
                             WHERE o2.idevento = o.idevento
                             -- ✅ FILTRO CORRIGIDO: i2.categoria = 'Produto(s)' (SUBQUERY)
                             AND i2.categoria = 'Produto(s)' 
+                            --GROUP BY eq2.nmequipe, lm.descmontagem, o.idmontagem
                             GROUP BY eq2.nmequipe
                         ) AS t
                     ) AS equipes_detalhes_base
@@ -278,7 +280,7 @@ router.get("/eventos-abertos", async (req, res) => {
                     AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
                     -- ✅ FILTRO CORRIGIDO: i.categoria = 'Produto(s)' (MAIN QUERY)
                     AND i.categoria = 'Produto(s)' 
-                GROUP BY o.idevento, lm.descmontagem
+                GROUP BY o.idevento, lm.descmontagem, o.idmontagem
             ),
             staff_contagem AS (
                 SELECT 
@@ -323,6 +325,7 @@ router.get("/eventos-abertos", async (req, res) => {
                 e.idevento,
                 e.nmevento,
                 vo.nmlocalmontagem,
+                vo.idmontagem,
                 vo.nrorcamento,
                 ci.idcliente,      
                 ci.nmfantasia,     
@@ -544,7 +547,7 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
 
     // 1️⃣ Busca orçamento vinculado
     const { rows: orcamentos } = await pool.query(
-      `SELECT o.nrorcamento, o.idcliente
+      `SELECT o.nrorcamento, o.idcliente, o.idmontagem
        FROM orcamentos o
        JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
        WHERE o.idevento = $1 AND oe.idempresa = $2
@@ -556,7 +559,9 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
       return res.status(200).json({ equipes: [] });
     }
 
-    const { nrorcamento, idcliente } = orcamentos[0];
+    const { nrorcamento, idcliente, idmontagem } = orcamentos[0];
+
+
 
     // 2️⃣ Busca equipes e funções previstas
     const { rows: itensOrcamento } = await pool.query(
@@ -593,29 +598,69 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
     );
 
     // 4️⃣ Agrupa por equipe
+    // const equipesMap = {};
+    // for (const item of itensOrcamento) {
+    //   const equipeNome = item.equipe || "Sem equipe";
+    //   if (!equipesMap[equipeNome]) equipesMap[equipeNome] = [];
+
+    //   const cadastrado = staff.find(s => s.idfuncao === item.idfuncao);
+    //   const qtd_cadastrada = cadastrado ? Number(cadastrado.qtd_cadastrada) : 0;
+
+    //   equipesMap[equipeNome].push({
+    //     nome: item.funcao,
+    //     qtd_orcamento: Number(item.qtd_orcamento) || 0,
+    //     qtd_cadastrada,
+    //     concluido: qtd_cadastrada >= (Number(item.qtd_orcamento) || 0)
+    //   });
+    // }
+
+    // // 5️⃣ Monta retorno final
+    // const equipesDetalhes = Object.entries(equipesMap).map(([nome, funcoes]) => ({
+    //   equipe: nome,
+    //   funcoes
+    // }));
+
+    // res.status(200).json({ equipes: equipesDetalhes });
+
+
+
+    // 4️⃣ Agrupa por equipe
+    // 🚨 CORREÇÃO: Usar idequipe como chave e preservar idfuncao
     const equipesMap = {};
     for (const item of itensOrcamento) {
-      const equipeNome = item.equipe || "Sem equipe";
-      if (!equipesMap[equipeNome]) equipesMap[equipeNome] = [];
+        const idequipe = item.idequipe; // Objeto item tem idequipe (do SELECT)
+        const idequipeKey = idequipe || "SEM_EQUIPE"; // Chave de agrupamento robusta
 
-      const cadastrado = staff.find(s => s.idfuncao === item.idfuncao);
-      const qtd_cadastrada = cadastrado ? Number(cadastrado.qtd_cadastrada) : 0;
+        // 1. Inicializa o objeto de equipe se ainda não existir
+        if (!equipesMap[idequipeKey]) {
+            equipesMap[idequipeKey] = {
+                equipe: item.equipe || "Sem equipe",
+                idequipe: idequipe, // ✅ idequipe incluído
+                funcoes: [],
+            };
+        }
 
-      equipesMap[equipeNome].push({
-        nome: item.funcao,
-        qtd_orcamento: Number(item.qtd_orcamento) || 0,
-        qtd_cadastrada,
-        concluido: qtd_cadastrada >= (Number(item.qtd_orcamento) || 0)
-      });
+        // 2. Encontra a quantidade de staff já cadastrada
+        const cadastrado = staff.find(s => String(s.idfuncao) === String(item.idfuncao)); 
+        const qtd_cadastrada = cadastrado ? Number(cadastrado.qtd_cadastrada) : 0;
+
+        // 3. Adiciona a função, PRESERVANDO o ID
+        equipesMap[idequipeKey].funcoes.push({
+            idfuncao: item.idfuncao, // ✅ idfuncao incluído
+            nome: item.funcao,
+            qtd_orcamento: Number(item.qtd_orcamento) || 0,
+            qtd_cadastrada,
+            concluido: qtd_cadastrada >= (Number(item.qtd_orcamento) || 0)
+        });
     }
 
     // 5️⃣ Monta retorno final
-    const equipesDetalhes = Object.entries(equipesMap).map(([nome, funcoes]) => ({
-      equipe: nome,
-      funcoes
-    }));
+    // Usa Object.values para obter a lista de equipes já com idequipe
+    const equipesDetalhes = Object.values(equipesMap);
 
-    res.status(200).json({ equipes: equipesDetalhes });
+    // 6️⃣ Retorna o objeto completo com os IDs
+    res.status(200).json({ equipes: equipesDetalhes, idmontagem });
+    // // ...
 
   } catch (err) {
     console.error("Erro ao buscar detalhes dos eventos abertos:", err);

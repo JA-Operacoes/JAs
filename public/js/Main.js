@@ -85,15 +85,31 @@ async function abrirModalLocal(url, modulo) {
       }
     });
 
+    // modal.querySelector(".close")?.addEventListener("click", () => {
+    //   console.log("[abrirModalLocal] fechar (botão X)");
+    //   if (typeof fecharModal === "function") fecharModal();
+    //   else {
+    //     overlay.style.display = "none";
+    //     container.innerHTML = "";
+    //     document.body.classList.remove("modal-open");
+    //   }
+    // });
+
     modal.querySelector(".close")?.addEventListener("click", () => {
-      console.log("[abrirModalLocal] fechar (botão X)");
-      if (typeof fecharModal === "function") fecharModal();
-      else {
-        overlay.style.display = "none";
-        container.innerHTML = "";
-        document.body.classList.remove("modal-open");
-      }
-    });
+      console.log("[abrirModalLocal] fechar (botão X)");
+
+      if (typeof fecharModal === "function") {
+        fecharModal();
+      } else {
+        overlay.style.display = "none";
+        container.innerHTML = "";
+        document.body.classList.remove("modal-open");
+      }
+
+      // 🚀 AÇÃO CORRETIVA: Força o refresh da página principal após fechar o modal
+      window.location.reload(); 
+      console.log("Página será recarregada após fechar o modal.");
+    });
   } else {
     console.warn("[abrirModalLocal] estrutura de modal não encontrada após injeção do HTML.");
   }
@@ -131,7 +147,7 @@ async function abrirModalLocal(url, modulo) {
       } catch (e) {
         console.warn("[abrirModalLocal] prefill falhou", e);
       }
-    }, 80);
+    }, 800); //80
 
     // pequena garantia: re-tentar inicialização caso o módulo popule DOM com atraso
     setTimeout(() => {
@@ -158,6 +174,8 @@ window.applyModalPrefill = function(rawParams) {
     }
     const params = new URLSearchParams(raw);
 
+    console.log("[applyModalPrefill ABRIRMODALLOCAL] URLSearchParams:", Array.from(params.entries()));
+
     // leitura dos valores esperados
     const prefill = {
       idevento: params.get("idevento"),
@@ -169,7 +187,7 @@ window.applyModalPrefill = function(rawParams) {
       nmfuncao: params.get("nmfuncao"),
       nmevento: params.get("nmevento"),
       nmcliente: params.get("nmcliente"),
-      nmlocalmontagem: params.get("nmlocalmontagem")
+      nmlocalmontagem: params.get("nmlocalmontagem") || params.get("idmontagem_nome")
     };
     console.log("[applyModalPrefill] prefill parseado:", prefill);
 
@@ -272,14 +290,52 @@ window.applyModalPrefill = function(rawParams) {
       { id: "descFuncao", val: prefill.idfuncao, txt: prefill.nmfuncao }
     ];
 
-    // tenta aplicar imediatamente, senão observa
-    selectsToTry.forEach(s => {
-      console.log("[applyModalPrefill] tentativa imediata select:", s.id, s.val, s.txt);
-      if (!trySelectIfExists(s.id, s.val, s.txt)) {
-        observeSelectUntilPopulated(s.id, s.val, s.txt, 3000);
-      }
-    });
+    console.log("[applyModalPrefill] selectsToTry:", selectsToTry);
 
+    // tenta aplicar imediatamente, senão observa
+    // selectsToTry.forEach(s => {
+    //   console.log("[applyModalPrefill] tentativa imediata select:", s.id, s.val, s.txt);
+    //   if (!trySelectIfExists(s.id, s.val, s.txt)) {
+    //     observeSelectUntilPopulated(s.id, s.val, s.txt, 3000);
+    //   }
+    // });
+
+    // selectsToTry.forEach(s => {
+    //     console.log("[applyModalPrefill] tentativa imediata select:", s.id, s.val, s.txt);
+    //     if (!trySelectIfExists(s.id, s.val, s.txt)) {
+    //         // Para os campos dependentes (Equipe e Função), adicione um delay
+    //         // Isso dá tempo para Evento/Cliente/Local serem selecionados e dispararem o carregamento das listas subsequentes.
+    //         if (s.id === "nmEquipe" || s.id === "descFuncao") {
+    //             // 💡 CORREÇÃO: Adiciona um pequeno delay antes de iniciar a observação para Equipe e Função.
+    //             // O Evento e o Cliente precisam de tempo para carregar as Equipes.
+    //             setTimeout(() => {
+    //                 observeSelectUntilPopulated(s.id, s.val, s.txt, 3000);
+    //             }, 500); // 500ms é um delay seguro para a maioria dos carregamentos assíncronos.
+    //         } else {
+    //             // Campos independentes (Evento, Cliente, LocalMontagem) observam imediatamente
+    //             observeSelectUntilPopulated(s.id, s.val, s.txt, 3000);
+    //         }
+    //     }
+    // });
+
+    selectsToTry.forEach(s => {
+        console.log("[applyModalPrefill] tentativa imediata select:", s.id, s.val, s.txt);
+        
+        if (!trySelectIfExists(s.id, s.val, s.txt)) {
+            // Se a seleção imediata falhar, inicie a observação para *todos* os campos.
+            // Atrasamos o início da observação na função abrirModalLocal (Passo 1), o que é suficiente.
+            observeSelectUntilPopulated(s.id, s.val, s.txt, 3000);
+        }
+    });
+  
+// No Main.js, no bloco selectsToTry.forEach(...)
+
+
+
+// Nota: Com esta abordagem, você pode APAGAR a função observeSelectUntilPopulated
+// (ou pelo menos remover as chamadas a ela), pois não estamos mais usando o MutationObserver,
+// mas sim o retry forçado via setTimeout.
+    
     // Quando o usuário escolher um funcionário, aplicar campos dependentes (equipe/função/evento/cliente/local)
     const nmFuncionario = document.getElementById("nmFuncionario");
     if (nmFuncionario) {
@@ -2358,21 +2414,25 @@ function abrirDetalhesEquipe(equipe, evento) {
 
     const params = new URLSearchParams();
 
-    // 1. Atualizando para usar os campos do cliente (nmfantasia e idcliente)
-    params.set("idevento", evento.idevento);
-    params.set("nmevento", evento.nmevento);
     
-    // Usar idcliente (assumindo que já está no objeto evento)
-    params.set("idcliente", evento.idcliente || ""); 
-    // Usar nmfantasia como nome do cliente
-    params.set("nmcliente", evento.nmfantasia || evento.cliente || ""); 
-    
-    params.set("idmontagem", evento.idmontagem);
-    params.set("nmlocalmontagem", evento.nmlocalmontagem);
-    params.set("idequipe", equipe.idequipe);
-    params.set("nmequipe", equipe.equipe);
+
     params.set("idfuncao", func.idfuncao ?? func.idFuncao);
     params.set("nmfuncao", func.nome ?? func.nmfuncao);
+    params.set("idequipe", equipe.idequipe || "");
+    params.set("nmequipe", equipe.equipe || "");
+    params.set("idmontagem", evento.idmontagem || "");
+    params.set("nmlocalmontagem", evento.nmlocalmontagem || "");
+    params.set("idcliente", evento.idcliente || "");   
+    params.set("nmcliente", evento.nmfantasia || evento.cliente || ""); 
+    params.set("idevento", evento.idevento || "");
+    params.set("nmevento", evento.nmevento || "");
+    
+    // Usar idcliente (assumindo que já está no objeto evento)
+    
+    
+    
+    
+   
 
     console.log("Abrindo modal Staff com parâmetros:", Object.fromEntries(params.entries()));
 

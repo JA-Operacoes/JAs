@@ -1379,12 +1379,60 @@ function aplicarCorStatusInput(elementoInput) {
 }
 
 async function limparCamposStaffParcial() {
+
+    currentEditingStaffEvent = null; // Garanta que esta também seja limpa
+    isFormLoadedFromDoubleClick = false;
+
+    const previewFoto = document.getElementById('previewFoto');
+    const fileName = document.getElementById('fileName');
+    const fileInput = document.getElementById('file');
+    const uploadHeader = document.getElementById('uploadHeader');
+    const linkFotoFuncionarios = document.getElementById('linkFotoFuncionarios');
+    const nomeFuncionarioExibido = document.getElementById('nomeFuncionarioExibido');
+    const labelFuncionario = document.getElementById('labelFuncionario');
+
+    if (labelFuncionario) {
+        labelFuncionario.style.display = "none"; // esconde
+        labelFuncionario.textContent = "";       // limpa o texto
+        labelFuncionario.style.color = "";       // reseta cor
+        console.log("Label Funcionário limpo.");
+    }
+
+    if (previewFoto) {
+        previewFoto.src = "#";
+        previewFoto.style.display = "none";
+        console.log("Preview da foto limpo.");
+    }
+    if (fileName) {
+        fileName.textContent = "Nenhum arquivo selecionado";
+    }
+    if (fileInput) {
+        fileInput.value = "";
+    }
+    if (uploadHeader) {
+        uploadHeader.style.display = "block";
+    }
+    if (linkFotoFuncionarios) {
+        linkFotoFuncionarios.value = "";
+    }
+    if (nomeFuncionarioExibido) {
+        nomeFuncionarioExibido.textContent = "";
+    }
+
     // 1. Limpeza de IDs e Nome do Staff/Funcionário
     document.querySelector("#idStaff").value = '';
     document.querySelector("#idFuncionario").value = '';
     const nmFuncionario = document.getElementById("nmFuncionario");
     if (nmFuncionario) nmFuncionario.value = ''; 
-    
+
+    document.querySelector("#apelidoFuncionario").value = '';
+    const apelido = document.getElementById("apelidoFuncionario");
+    if (apelido) apelido.value = '';
+
+    document.querySelector("#perfilFuncionario").value = '';
+    const perfil = document.getElementById("perfilFuncionario");
+    if (perfil) perfil.value = '';
+
     // 2. Limpeza de valores financeiros
     document.querySelector("#vlrCusto").value = ''; // Cachê
     document.querySelector("#transporte").value = '';
@@ -1440,6 +1488,109 @@ async function limparCamposStaffParcial() {
         ajusteCustoCheck.checked = false;
     }
 
+    // ✅ Limpeza de PDFs por classe
+    const fileNamesPDF = document.querySelectorAll('.fileNamePDF');
+    const fileInputsPDF = document.querySelectorAll('.filePDFInput');
+    const hiddenInputsPDF = document.querySelectorAll('.hiddenPDF');
+
+    fileNamesPDF.forEach(p => {
+        p.textContent = "Nenhum arquivo selecionado";
+    });
+    fileInputsPDF.forEach(input => {
+        input.value = "";
+    });
+    hiddenInputsPDF.forEach(input => {
+        input.value = "";
+    });
+    console.log("Campos de arquivos PDF limpos.");
+
+
+    const beneficioTextarea = document.getElementById('descBeneficio');
+    if (beneficioTextarea) {
+        beneficioTextarea.style.display = 'none'; // Oculta o textarea
+        beneficioTextarea.required = false;      // Remove a obrigatoriedade
+        beneficioTextarea.value = '';            // Limpa o conteúdo
+    }
+
+    const ajusteCustoTextarea = document.getElementById('descAjusteCusto');
+    if (ajusteCustoTextarea) {
+        ajusteCustoTextarea.style.display = 'none'; // Oculta o textarea
+        ajusteCustoTextarea.required = false;      // Remove a obrigatoriedade
+        ajusteCustoTextarea.value = '';            // Limpa o conteúdo
+    }
+
+    const descCaixinhaTextarea = document.getElementById('descCaixinha');
+    if (descCaixinhaTextarea) {
+        descCaixinhaTextarea.style.display = 'none'; // Oculta o textarea
+        descCaixinhaTextarea.required = false;      // Remove a obrigatoriedade
+        descCaixinhaTextarea.value = '';            // Limpa o conteúdo
+    }
+
+    const statusMeiaDiaria = document.getElementById('statusMeiaDiaria');
+    if (statusMeiaDiaria) statusMeiaDiaria.value = 'Autorização da Meia Diária';
+
+    const statusDiariaDobrada = document.getElementById('statusDiariaDobrada');
+    if (statusDiariaDobrada) statusDiariaDobrada.value = 'Autorização da Diária Dobrada';
+
+    const statusPgto = document.getElementById('statuspgto');
+    if (statusPgto) statusPgto.value = '';
+
+    const statusAjusteCusto = document.getElementById('statusAjusteCusto');
+    if (statusAjusteCusto) statusAjusteCusto.value = 'Autorização do Ajuste de Custo';
+
+    const statusCaixinha = document.getElementById('statuscaixinha');
+    if (statusCaixinha) statusCaixinha.value = 'Autorização da Caixinha';
+
+    const containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
+    const containerStatusMeiaDiaria = document.getElementById('containerStatusMeiaDiaria');
+
+    if (containerStatusDiariaDobrada) {
+        containerStatusDiariaDobrada.innerHTML = '';
+        containerStatusDiariaDobrada.style.display = 'none';
+    }
+
+    if (containerStatusMeiaDiaria) {
+        containerStatusMeiaDiaria.innerHTML = '';
+        containerStatusMeiaDiaria.style.display = 'none';
+    }
+
+    const avaliacaoSelect = document.getElementById('avaliacao');
+    if (avaliacaoSelect) {
+        avaliacaoSelect.value = ''; // Define para o valor da opção vazia (se existir, ex: <option value="">Selecione...</option>)
+        // avaliacaoSelect.selectedIndex = 0; // Alternativa: seleciona a primeira opção
+        const tarjaAvaliacao = document.getElementById('tarjaAvaliacao');
+        if (tarjaAvaliacao) {
+            tarjaAvaliacao.className = 'tarja-avaliacao'; // Reseta para a classe padrão
+            tarjaAvaliacao.textContent = ''; // Limpa o texto
+            console.log("Campos de avaliação (select e tarja) limpos.");
+        }
+    }
+
+    const tabelaCorpo = document.getElementById("eventsDataTable").getElementsByTagName("tbody")[0];
+    if (tabelaCorpo) {
+        // Remove todas as linhas filhas do tbody
+        while (tabelaCorpo.firstChild) {
+            tabelaCorpo.removeChild(tabelaCorpo.firstChild);
+        }
+        console.log("Corpo da tabela (tabela) limpo.");
+
+        // Adiciona uma linha "vazia" de volta, se for o comportamento padrão desejado
+        let emptyRow = tabelaCorpo.insertRow();
+        let emptyCell = emptyRow.insertCell(0);
+        emptyCell.colSpan = 20; // Ajuste para o número total de colunas da sua tabela
+        emptyCell.textContent = "Nenhum item adicionado.";
+        emptyCell.style.textAlign = "center";
+        emptyCell.style.padding = "20px";
+        console.log("Linha vazia adicionada à tabela 'tabela'.");
+    } else {
+        console.warn("Tabela com ID 'tabela' ou seu tbody não encontrado para limpeza. Verifique se o ID está correto.");
+    }
+
+
+    limparCamposComprovantes();
+    limparFoto();
+
+
     // 6. Notifica o usuário
     Swal.fire({
         title: "Pronto para o próximo!",
@@ -1448,6 +1599,8 @@ async function limparCamposStaffParcial() {
         timer: 2000,
         showConfirmButton: false
     });
+
+
 }
 
 console.log("não carregou Verificar");
@@ -1818,6 +1971,7 @@ async function verificaStaff() {
         });
     }
 
+    
 
 
         const botaoEnviarOriginal = document.getElementById("Enviar");
@@ -2407,12 +2561,12 @@ if (botaoEnviarOriginal) {
                     statusPgto = "Pendente";
                 }
 
-            if (statusCaixinha === 'Autorização da Caixinha' && vlrCaixinha === 0) { 
-                statusCaixinha = '';  
-            }
-            if (statusAjusteCusto === 'Autorização do Ajuste de Custo' && vlrAjusteCusto === 0) { 
-                statusAjusteCusto = '';  
-            }
+                if (statusCaixinha === 'Autorização da Caixinha' && vlrCaixinha === 0) { 
+                    statusCaixinha = '';  
+                }
+                if (statusAjusteCusto === 'Autorização do Ajuste de Custo' && vlrAjusteCusto === 0) { 
+                    statusAjusteCusto = '';  
+                }
 
                 formData.append('statuspgto', statusPgto);
                 formData.append('statusajustecusto', statusAjusteCusto);
@@ -2446,16 +2600,16 @@ if (botaoEnviarOriginal) {
 
                 console.log("Status Diaria Dobrada", statusDiariaDobrada, statusMeiaDiaria);
 
-            if (statusDiariaDobrada === "Autorização da Diária Dobrada" && diariaDobrada === true){
+            if (statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === true){
                 statusDiariaDobrada = "Pendente";
             }
-            if(statusDiariaDobrada === "Autorização da Diária Dobrada" && diariaDobrada === false){
+            if(statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === false){
                 statusDiariaDobrada = "";
             }
-            if (statusMeiaDiaria === "Autorização da Meia Diária" && meiaDiaria === true){
+            if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === true){
                 statusMeiaDiaria = "Pendente";
             }
-            if (statusMeiaDiaria === "Autorização da Meia Diária" && meiaDiaria === false){
+            if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === false){
                 statusMeiaDiaria = "";
             }
 
@@ -2792,6 +2946,7 @@ if (botaoEnviarOriginal) {
                 // Chama a função global para fechar a modal
                 if (typeof fecharModal === "function") {
                     fecharModal();
+                    window.location.reload();
                 } else {
                     // Fallback (se a fecharModal não estiver no escopo)
                     document.getElementById("modal-overlay").style.display = "none";
@@ -2905,15 +3060,34 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, dat
 
 
     
-        dadosDoOrcamento.forEach(item => {
-            //const chave = `${item.nmevento}-${item.nmcliente}-${item.nmlocalmontagem}-${item.pavilhao}-${item.descfuncao}`;
-            const chave = `${item.nmevento}-${item.nmcliente}-${item.nmlocalmontagem}-${item.descfuncao}`;
-            orcamentoPorFuncao[chave] = {
-                quantidadeOrcada: item.quantidade_orcada,
-                quantidadeEscalada: item.quantidade_escalada
-            };
-        });
+        // dadosDoOrcamento.forEach(item => {
+        //     //const chave = `${item.nmevento}-${item.nmcliente}-${item.nmlocalmontagem}-${item.pavilhao}-${item.descfuncao}`;
+        //     const chave = `${item.nmevento}-${item.nmcliente}-${item.nmlocalmontagem}-${item.descfuncao}`;
+        //     orcamentoPorFuncao[chave] = {
+        //         quantidadeOrcada: item.quantidade_orcada,
+        //         quantidadeEscalada: item.quantidade_escalada
+        //     };
+        // });
 
+        dadosDoOrcamento.forEach(item => {
+            const chave = `${item.nmevento}-${item.nmcliente}-${item.nmlocalmontagem}-${item.descfuncao}`;
+            
+            // Se a chave não existir, inicializa e define as quantidades
+            if (!orcamentoPorFuncao[chave]) {
+                orcamentoPorFuncao[chave] = {
+                    // Converte para número e define os valores iniciais
+                    quantidadeOrcada: Number(item.quantidade_orcada), 
+                    quantidadeEscalada: Number(item.quantidade_escalada) 
+                };
+            } else {
+                // Se a chave já existir, SOMENTE SOMA a quantidade Orçada
+                // O valor de quantidadeEscalada (total de escalados no DB) já foi definido 
+                // na primeira iteração e é o mesmo para todas as linhas de orçamento.
+                orcamentoPorFuncao[chave].quantidadeOrcada += Number(item.quantidade_orcada);
+                
+                // Importante: Não some orcamentoPorFuncao[chave].quantidadeEscalada novamente!
+            }
+        });
         console.log('Orçamento carregado:', orcamentoPorFuncao);
 
     } catch (error) {
@@ -4973,12 +5147,20 @@ function verificarLimiteDeFuncao(criterios) {
     });
 
     // 3. Combine a contagem do banco e da tabela
-    const totalEscalado = dadosOrcamento.quantidadeEscalada + countNaTabela;
-    const limite = dadosOrcamento.quantidadeOrcada;
+    // const totalEscalado = dadosOrcamento.quantidadeEscalada + countNaTabela;
+    // const limite = dadosOrcamento.quantidadeOrcada;
 
-    console.log(`Verificando para a combinação '${chave}' - Total escalado: ${totalEscalado}, Limite: ${limite}`);
+    // console.log(`Verificando para a combinação '${chave}' - Total escalado: ${totalEscalado}, Limite: ${limite}`);
 
-    if (totalEscalado >= limite) {
+    const totalJaOcupado = Number(dadosOrcamento.quantidadeEscalada) + countNaTabela;
+    const limite = dadosOrcamento.quantidadeOrcada;
+
+    // Calcule o total proposto: slots ocupados + 1 (o item que está sendo submetido)
+    const totalProposto = totalJaOcupado + 1; // 💡 CORREÇÃO CRÍTICA AQUI
+
+    console.log(`Verificando para a combinação '${chave}' - Ocupado: ${totalJaOcupado}, Limite: ${limite}, Proposto: ${totalProposto}`);
+
+    if (totalProposto > limite) {
         Swal.fire({
             icon: 'warning',
             title: 'Limite atingido',
