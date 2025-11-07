@@ -732,7 +732,7 @@ const carregarDadosParaEditar = (eventData) => {
     idFuncaoInput.value = eventData.idfuncao;
     idClienteInput.value = eventData.idcliente;
     idEventoInput.value = eventData.idevento;
-    idFuncionarioHiddenInput.value = eventData.idfuncionario || '';   
+    idFuncionarioHiddenInput.value = eventData.idfuncionario || '';   
     idEquipeInput.value = eventData.idequipe || '';
 
 
@@ -745,7 +745,7 @@ const carregarDadosParaEditar = (eventData) => {
         containerStatusMeiaDiaria.style.display = 'block';
     }
 
-  //  if (descFuncaoSelect) descFuncaoSelect.value = eventData.idfuncao || '';
+  //  if (descFuncaoSelect) descFuncaoSelect.value = eventData.idfuncao || '';
 
     if (descFuncaoSelect) {
         descFuncaoSelect.value = eventData.idfuncao || '';
@@ -765,8 +765,21 @@ const carregarDadosParaEditar = (eventData) => {
 
     if (nmClienteSelect) nmClienteSelect.value = eventData.idcliente || '';
     if (nmEventoSelect) nmEventoSelect.value = eventData.idevento || '';
-    console.log("ID da Equipe:", eventData.idequipe);
-    if (nmEquipeSelect) nmEquipeSelect.value = eventData.idequipe || '';
+    
+    // 🌟 CORREÇÃO: LÓGICA DA EQUIPE PARA INPUT READONLY
+    const equipeId = eventData.idequipe || '';
+    // Assumimos que o nome da equipe está em eventData.nmequipe no objeto de dados.
+    const nomeEquipe = eventData.nmequipe || 'Equipe não informada'; 
+    
+    if (nmEquipeSelect) {
+        // Agora, o input readonly nmEquipeSelect recebe o NOME (string) para exibição.
+        nmEquipeSelect.value = nomeEquipe; 
+    }
+    
+    // Atualiza os console.logs para exibir o nome.
+    console.log("ID da Equipe:", equipeId);
+    console.log("Nome da Equipe (nmEquipe):", nomeEquipe); 
+    // 🌟 FIM DA CORREÇÃO
 
     // Lógica para preencher Local de Montagem e Pavilhão.
     if (nmLocalMontagemSelect) {
@@ -806,7 +819,7 @@ const carregarDadosParaEditar = (eventData) => {
 
     // Preenchendo campos financeiros e de custo.
     vlrCustoInput.value = parseFloat(eventData.vlrcache || 0).toFixed(2).replace('.', ',');
-    transporteInput.value = parseFloat(eventData.vlrtransporte || 0).toFixed(2).replace('.', ',');  
+    transporteInput.value = parseFloat(eventData.vlrtransporte || 0).toFixed(2).replace('.', ',');  
     alimentacaoInput.value = parseFloat(eventData.vlralimentacao || 0).toFixed(2).replace('.', ',');
     descBeneficioTextarea.value = eventData.descbeneficios || '';
 
@@ -879,7 +892,7 @@ const carregarDadosParaEditar = (eventData) => {
         case "Senior":
             seniorCheck.checked = true;
             break;
-    }        
+    }        
 
     preencherComprovanteCampo(eventData.comppgtocache, 'Cache');
     preencherComprovanteCampo(eventData.comppgtoajdcusto, 'AjdCusto');
@@ -1616,7 +1629,6 @@ async function verificaStaff() {
     configurarPreviewImagem();
     inicializarFlatpickrsGlobais();
     
-    carregarEquipeStaff();
     carregarFuncaoStaff();
     carregarFuncionarioStaff();
     carregarClientesStaff();
