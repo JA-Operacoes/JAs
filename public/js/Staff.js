@@ -1011,7 +1011,7 @@ function inicializarEPreencherCampos(eventData) {
     containerStatusMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';    
 
 
-    if (temPermissaoTotal) {    
+    if (temPermissaoMaster) {    
         document.getElementById('selectStatusAjusteCusto').style.display = 'block';
         statusAjusteCustoInput.style.display = 'none';
         console.log("STATUS AJUSTE CUSTO TEM PERMISSAO TOTAL", eventData.statusajustecusto);
@@ -1133,174 +1133,178 @@ function getDadosFormulario() {
 
 
 const carregarTabelaStaff = async (funcionarioId) => {
-    eventsTableBody.innerHTML = '';
-    noResultsMessage.style.display = 'none';
-    currentRowSelected = null;
-    isFormLoadedFromDoubleClick = false;
+    eventsTableBody.innerHTML = '';
+    noResultsMessage.style.display = 'none';
+    currentRowSelected = null;
+    isFormLoadedFromDoubleClick = false;
 
-    console.log("CARREGOU TABELA STAFF", isFormLoadedFromDoubleClick);
-    if (!funcionarioId) {
-        noResultsMessage.style.display = 'block';
-        noResultsMessage.textContent = 'Por favor, selecione um funcionário para pesquisar os eventos.';
-        return;
-    }
+    console.log("CARREGOU TABELA STAFF", isFormLoadedFromDoubleClick);
+    
+    // 💡 CORREÇÃO ROBUSTA para evitar o erro /null
+    // Verifica se o ID é falsy (vazio, undefined, etc.) OU se é a string "null" (que é truthy)
+    if (!funcionarioId || (typeof funcionarioId === 'string' && (funcionarioId.toLowerCase() === 'null' || funcionarioId.trim() === ''))) {
+        noResultsMessage.style.display = 'block';
+        noResultsMessage.textContent = 'Por favor, selecione um funcionário para pesquisar os eventos.';
+        return;
+    }
 
-    const url = `/staff/${funcionarioId}`; // Sua nova rota GET
+    // Agora, a URL só será construída se funcionarioId for um valor válido (ex: "123")
+    const url = `/staff/${funcionarioId}`; // Sua nova rota GET
 
-    try {
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + localStorage.getItem('token')
-            }
-        });
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            }
+        });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Erro na requisição');
-        }
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erro na requisição');
+        }
 
-        const data = await response.json();
-        console.log('Dados de eventos recebidos para o funcionário:', data);
+        const data = await response.json();
+        console.log('Dados de eventos recebidos para o funcionário:', data);
 
-        document.getElementById('qtdPessoasHeader').style.display = 'none';
-
-
-        if (data && data.length > 0) {           
-
-            if (isLote) {
-                document.getElementById('qtdPessoasHeader').style.display = 'table-cell';
-            }
-            data.forEach(eventData => {
-
-                const row = eventsTableBody.insertRow();
-                row.dataset.eventData = JSON.stringify(eventData);
-
-                if (eventData.status === "Pago"){
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Não é possível inserir dados para edição.',
-                        text: 'Evento deste funcionário já foi concluído e pago',
-                    });
-                    return;
-
-                }else{
-                    row.addEventListener('dblclick', () => {
-
-                        if (eventData.statuspgto === "Pago" && !temPermissaoTotal) {
-                            Swal.fire({
-                                icon: 'warning',
-                                title: 'STAFF PAGO! Sem permissão para editar.',
-                                text: 'Este evento já foi pago não possibilitando a edição.'
-                            });
-                            return; // Impede que o restante do código do dblclick seja executado
-                        }
-
-                        isFormLoadedFromDoubleClick = true;
-                        if (currentRowSelected) {
-                            currentRowSelected.classList.remove('selected-row');
-                        }
-
-                        row.classList.add('selected-row');
-
-                        currentRowSelected = row;
-
-                        carregarDadosParaEditar(eventData)
-                    });
+        document.getElementById('qtdPessoasHeader').style.display = 'none';
 
 
-                    row.insertCell().textContent = eventData.nmfuncao || '';
-                    row.insertCell().textContent = eventData.setor || '';
-                    row.insertCell().textContent = eventData.nmcliente || '';
-                    row.insertCell().textContent = eventData.nmevento || '';
-                    row.insertCell().textContent = eventData.nmlocalmontagem || '';
-                    row.insertCell().textContent = eventData.pavilhao || '';
-              
-                    const qtdPessoasCell = row.insertCell();
-                    if (isLote) {
-                        qtdPessoasCell.textContent = eventData.qtdpessoaslote || '0';
-                        qtdPessoasCell.style.display = 'table-cell';
-                    } else {
-                        qtdPessoasCell.style.display = 'none';
-                    }
+        if (data && data.length > 0) {           
 
-                    row.insertCell().textContent = (eventData.datasevento && typeof eventData.datasevento === 'string')
+            if (isLote) {
+                document.getElementById('qtdPessoasHeader').style.display = 'table-cell';
+            }
+            data.forEach(eventData => {
 
-                    ? JSON.parse(eventData.datasevento) // Primeiro parseia a string JSON para um array
-                    .map(dateStr => { // Depois, mapeia cada string de data no array
-                        const parts = dateStr.split('-'); // Divide a data (ex: ['2025', '07', '01'])
-                        if (parts.length === 3) {
-                            return `${parts[2]}/${parts[1]}/${parts[0]}`; // Reorganiza para DD/MM/YYYY
-                        }
-                        return dateStr; // Retorna a data original se não estiver no formato esperado
-                    })
-                    .join(', ') // Junta as datas formatadas com vírgula e espaço
-                    : (Array.isArray(eventData.datasevento) && eventData.datasevento.length > 0)
-                    ? eventData.datasevento // Se já for um array (do backend, por exemplo)
-                    .map(dateStr => {
-                        const parts = dateStr.split('-');
-                        if (parts.length === 3) {
-                            return `${parts[2]}/${parts[1]}/${parts[0]}`;
-                        }
-                        return dateStr;
-                    })
-                    .join(', ')
-                    : 'N/A';
+                const row = eventsTableBody.insertRow();
+                row.dataset.eventData = JSON.stringify(eventData);
 
-                    row.insertCell().textContent = parseFloat(eventData.vlrcache || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                   // row.insertCell().textContent = parseFloat(eventData.vlrajustecusto || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    const vlrAjusteCustoCell = row.insertCell();
-                    const vlrAjusteCustoFormatado = parseFloat(eventData.vlrajustecusto || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    vlrAjusteCustoCell.textContent = vlrAjusteCustoFormatado; // Insere o valor em preto
+                if (eventData.status === "Pago"){
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Não é possível inserir dados para edição.',
+                        text: 'Evento deste funcionário já foi concluído e pago',
+                    });
+                    return;
 
-                    const statusAjusteCusto = (eventData.statusajustecusto || '').trim();
+                }else{
+                    row.addEventListener('dblclick', () => {
 
-                    if (statusAjusteCusto) {
-                        const statusSpan = document.createElement('span');
-                        statusSpan.textContent = ` (${statusAjusteCusto})`;
-                        statusSpan.classList.add('status-custom');
-                        
-                        // Formata o status para "Pendente", "Autorizado", etc.
-                        // Garante que o status para a classe seja Capitalizado
-                        const statusCapitalized = statusAjusteCusto.charAt(0).toUpperCase() + statusAjusteCusto.slice(1).toLowerCase();
-                        
-                        // Adiciona a classe de cor correta
-                        statusSpan.classList.add(`status-${statusCapitalized}`); 
-                        
-                        vlrAjusteCustoCell.appendChild(statusSpan);
-                    }
+                        if (eventData.statuspgto === "Pago" && !temPermissaoTotal) {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'STAFF PAGO! Sem permissão para editar.',
+                                text: 'Este evento já foi pago não possibilitando a edição.'
+                            });
+                            return; // Impede que o restante do código do dblclick seja executado
+                        }
 
-                    row.insertCell().textContent = eventData.descajustecusto || '';                   
-                    row.insertCell().textContent = parseFloat(eventData.vlralimentacao || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    row.insertCell().textContent = parseFloat(eventData.vlrtransporte || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                   // row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    const vlrCaixinhaCell = row.insertCell();
-                    const vlrCaixinhaFormatado = parseFloat(eventData.vlrcaixinha || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    vlrCaixinhaCell.textContent = vlrCaixinhaFormatado; // Valor em preto
+                        isFormLoadedFromDoubleClick = true;
+                        if (currentRowSelected) {
+                            currentRowSelected.classList.remove('selected-row');
+                        }
 
-                    const statusCaixinha = (eventData.statuscaixinha || '').trim();
+                        row.classList.add('selected-row');
 
-                    if (statusCaixinha) {
-                        const statusSpan = document.createElement('span');
-                        statusSpan.textContent = ` (${statusCaixinha})`;
-                        statusSpan.classList.add('status-custom');
+                        currentRowSelected = row;
 
-                        // Formata o status para "Pendente", "Autorizado", etc.
-                        // Garante que o status para a classe seja Capitalizado
-                        const statusCapitalized = statusCaixinha.charAt(0).toUpperCase() + statusCaixinha.slice(1).toLowerCase();
+                        carregarDadosParaEditar(eventData)
+                    });
 
-                        // Adiciona a classe de cor correta
-                        statusSpan.classList.add(`status-${statusCapitalized}`);
 
-                        vlrCaixinhaCell.appendChild(statusSpan);
-                    }
-                    row.insertCell().textContent = eventData.descbeneficios || '';
+                    row.insertCell().textContent = eventData.nmfuncao || '';
+                    row.insertCell().textContent = eventData.setor || '';
+                    row.insertCell().textContent = eventData.nmcliente || '';
+                    row.insertCell().textContent = eventData.nmevento || '';
+                    row.insertCell().textContent = eventData.nmlocalmontagem || '';
+                    row.insertCell().textContent = eventData.pavilhao || '';
+              
+                    const qtdPessoasCell = row.insertCell();
+                    if (isLote) {
+                        qtdPessoasCell.textContent = eventData.qtdpessoaslote || '0';
+                        qtdPessoasCell.style.display = 'table-cell';
+                    } else {
+                        qtdPessoasCell.style.display = 'none';
+                    }
 
-                    //row.insertCell().textContent = parseFloat(eventData.vlrtotal || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    // row.insertCell().textContent = eventData.statuspgto || '';
+                    row.insertCell().textContent = (eventData.datasevento && typeof eventData.datasevento === 'string')
 
-                    let valorTotalCalculado = parseFloat(eventData.vlrtotal || 0.00);
+                    ? JSON.parse(eventData.datasevento) // Primeiro parseia a string JSON para um array
+                    .map(dateStr => { // Depois, mapeia cada string de data no array
+                        const parts = dateStr.split('-'); // Divide a data (ex: ['2025', '07', '01'])
+                        if (parts.length === 3) {
+                            return `${parts[2]}/${parts[1]}/${parts[0]}`; // Reorganiza para DD/MM/YYYY
+                        }
+                        return dateStr; // Retorna a data original se não estiver no formato esperado
+                    })
+                    .join(', ') // Junta as datas formatadas com vírgula e espaço
+                    : (Array.isArray(eventData.datasevento) && eventData.datasevento.length > 0)
+                    ? eventData.datasevento // Se já for um array (do backend, por exemplo)
+                    .map(dateStr => {
+                        const parts = dateStr.split('-');
+                        if (parts.length === 3) {
+                            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                        }
+                        return dateStr;
+                    })
+                    .join(', ')
+                    : 'N/A';
+
+                    row.insertCell().textContent = parseFloat(eventData.vlrcache || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                   // row.insertCell().textContent = parseFloat(eventData.vlrajustecusto || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    const vlrAjusteCustoCell = row.insertCell();
+                    const vlrAjusteCustoFormatado = parseFloat(eventData.vlrajustecusto || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    vlrAjusteCustoCell.textContent = vlrAjusteCustoFormatado; // Insere o valor em preto
+
+                    const statusAjusteCusto = (eventData.statusajustecusto || '').trim();
+
+                    if (statusAjusteCusto) {
+                        const statusSpan = document.createElement('span');
+                        statusSpan.textContent = ` (${statusAjusteCusto})`;
+                        statusSpan.classList.add('status-custom');
+                        
+                        // Formata o status para "Pendente", "Autorizado", etc.
+                        // Garante que o status para a classe seja Capitalizado
+                        const statusCapitalized = statusAjusteCusto.charAt(0).toUpperCase() + statusAjusteCusto.slice(1).toLowerCase();
+                        
+                        // Adiciona a classe de cor correta
+                        statusSpan.classList.add(`status-${statusCapitalized}`); 
+                        
+                        vlrAjusteCustoCell.appendChild(statusSpan);
+                    }
+
+                    row.insertCell().textContent = eventData.descajustecusto || '';                   
+                    row.insertCell().textContent = parseFloat(eventData.vlralimentacao || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    row.insertCell().textContent = parseFloat(eventData.vlrtransporte || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                   // row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    const vlrCaixinhaCell = row.insertCell();
+                    const vlrCaixinhaFormatado = parseFloat(eventData.vlrcaixinha || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    vlrCaixinhaCell.textContent = vlrCaixinhaFormatado; // Valor em preto
+
+                    const statusCaixinha = (eventData.statuscaixinha || '').trim();
+
+                    if (statusCaixinha) {
+                        const statusSpan = document.createElement('span');
+                        statusSpan.textContent = ` (${statusCaixinha})`;
+                        statusSpan.classList.add('status-custom');
+
+                        // Formata o status para "Pendente", "Autorizado", etc.
+                        // Garante que o status para a classe seja Capitalizado
+                        const statusCapitalized = statusCaixinha.charAt(0).toUpperCase() + statusCaixinha.slice(1).toLowerCase();
+
+                        // Adiciona a classe de cor correta
+                        statusSpan.classList.add(`status-${statusCapitalized}`);
+
+                        vlrCaixinhaCell.appendChild(statusSpan);
+                    }
+                    row.insertCell().textContent = eventData.descbeneficios || '';
+
+                    //row.insertCell().textContent = parseFloat(eventData.vlrtotal || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    // row.insertCell().textContent = eventData.statuspgto || '';
+
+                    let valorTotalCalculado = parseFloat(eventData.vlrtotal || 0.00);
 
                     // Adiciona vlrcaixinha se statuscaixinha for 'Autorizado'
 //                     if (eventData.statuscaixinha && eventData.statuscaixinha.toLowerCase() === 'autorizado') {
@@ -1314,34 +1318,34 @@ const carregarTabelaStaff = async (funcionarioId) => {
                     
                     row.insertCell().textContent = valorTotalCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-                    const statusCell = row.insertCell();
+                    const statusCell = row.insertCell();
 
-                    const status = (eventData.statuspgto || '').toLowerCase();
-                    const statusSpan = document.createElement('span');
-                    statusSpan.textContent = status.toUpperCase();
+                    const status = (eventData.statuspgto || '').toLowerCase();
+                    const statusSpan = document.createElement('span');
+                    statusSpan.textContent = status.toUpperCase();
 
-                    // Adicione a classe base
-                    statusSpan.classList.add('status-pgto');
+                    // Adicione a classe base
+                    statusSpan.classList.add('status-pgto');
 
-                    if (status === "pendente") {
-                        statusSpan.classList.add('pendente');
-                    } else if (status === "pago") {
-                        statusSpan.classList.add('pago');
-                    }
-                    statusCell.appendChild(statusSpan);
-                }
+                    if (status === "pendente") {
+                        statusSpan.classList.add('pendente');
+                    } else if (status === "pago") {
+                        statusSpan.classList.add('pago');
+                    }
+                    statusCell.appendChild(statusSpan);
+                }
 
-            });
-        } else {
-            noResultsMessage.style.display = 'block';
-            noResultsMessage.textContent = `Nenhum evento encontrado para o funcionário selecionado.`;
-        }
+            });
+        } else {
+            noResultsMessage.style.display = 'block';
+            noResultsMessage.textContent = `Nenhum evento encontrado para o funcionário selecionado.`;
+        }
 
-    } catch (error) {
-        console.error('Erro ao buscar dados de eventos do funcionário:', error);
-        noResultsMessage.style.display = 'block';
-        noResultsMessage.textContent = `Erro ao carregar dados: ${error.message}. Tente novamente.`;
-    }
+    } catch (error) {
+        console.error('Erro ao buscar dados de eventos do funcionário:', error);
+        noResultsMessage.style.display = 'block';
+        noResultsMessage.textContent = `Erro ao carregar dados: ${error.message}. Tente novamente.`;
+    }
 };
 
 function aplicarCoresAsOpcoes(selectElementId) {
@@ -5116,35 +5120,36 @@ document.addEventListener('click', function(e) {
  */
 function verificarLimiteDeFuncao(criterios) {
 
-    // 1. Construa a chave composta, igual à usada em buscarEPopularOrcamento
-    //const chave = `${criterios.nmEvento}-${criterios.nmCliente}-${criterios.nmlocalMontagem}-${criterios.pavilhao}-${criterios.nmFuncao}`;
-    const chave = `${criterios.nmEvento}-${criterios.nmCliente}-${criterios.nmlocalMontagem}-${criterios.nmFuncao}`;
-  
-    const dadosOrcamento = orcamentoPorFuncao[chave];
+    // 1. Construa a chave composta, garantindo que a GRANULARIDADE corresponda ao orçamento.
+    // Usamos '|| '' ' para garantir que a chave seja construída mesmo se Pavilhão ou Setor for null/undefined.
+    const chave = `${criterios.nmEvento}-${criterios.nmCliente}-${criterios.nmlocalMontagem}-${criterios.pavilhao || ''}-${criterios.nmFuncao}-${criterios.setor || ''}`;
+  
+    const dadosOrcamento = orcamentoPorFuncao[chave];
 
-    console.log("Verificando limite para a chave:", chave, dadosOrcamento);
+    console.log("Verificando limite para a chave:", chave, dadosOrcamento);
 
-    // Se não houver dados de orçamento, não há limite
-    if (!dadosOrcamento) {
-        return true;
-    }
+    // Se não houver dados de orçamento para ESTA COMBINAÇÃO ÚNICA, não há limite
+    if (!dadosOrcamento) {
+        return true;
+    }
 
-    // 2. Conte quantos funcionários já foram inseridos na tabela com esses critérios
-    let countNaTabela = 0;
-    const linhasTabela = document.querySelectorAll('#eventsTableBody tr');
-    linhasTabela.forEach(linha => {
-        const eventDataNaLinha = JSON.parse(linha.dataset.eventData);
-        if (
-            eventDataNaLinha.nmfuncao.trim().toUpperCase() === criterios.nmFuncao.toUpperCase().trim() &&
-            eventDataNaLinha.nmevento.trim().toUpperCase() === criterios.nmEvento.toUpperCase().trim() &&
-            eventDataNaLinha.nmcliente.trim().toUpperCase() === criterios.nmCliente.toUpperCase().trim() &&
-            eventDataNaLinha.nmlocalmontagem.trim().toUpperCase() === criterios.nmlocalMontagem.toUpperCase().trim() 
-            //eventDataNaLinha.pavilhao.trim().toUpperCase() === criterios.pavilhao.toUpperCase().trim() &&
-            //eventDataNaLinha.setor.trim().toUpperCase() === criterios.setor.toUpperCase().trim()
-        ) {
-            countNaTabela++;
-        }
-    });
+    // 2. Conte quantos funcionários já foram inseridos na tabela com EXATAMENTE esses critérios
+    let countNaTabela = 0;
+    const linhasTabela = document.querySelectorAll('#eventsTableBody tr');
+    linhasTabela.forEach(linha => {
+        const eventDataNaLinha = JSON.parse(linha.dataset.eventData);
+        if (
+            eventDataNaLinha.nmfuncao.trim().toUpperCase() === criterios.nmFuncao.toUpperCase().trim() &&
+            eventDataNaLinha.nmevento.trim().toUpperCase() === criterios.nmEvento.toUpperCase().trim() &&
+            eventDataNaLinha.nmcliente.trim().toUpperCase() === criterios.nmCliente.toUpperCase().trim() &&
+            eventDataNaLinha.nmlocalmontagem.trim().toUpperCase() === criterios.nmlocalMontagem.toUpperCase().trim() &&
+            // Incluindo Pavilhão e Setor na contagem, assim como na chave
+             (eventDataNaLinha.pavilhao || '').trim().toUpperCase() === (criterios.pavilhao || '').toUpperCase().trim() &&
+            (eventDataNaLinha.setor || '').trim().toUpperCase() === (criterios.setor || '').toUpperCase().trim()
+        ) {
+            countNaTabela++;
+        }
+    });
 
     // 3. Combine a contagem do banco e da tabela
     // const totalEscalado = dadosOrcamento.quantidadeEscalada + countNaTabela;
@@ -5169,7 +5174,7 @@ function verificarLimiteDeFuncao(criterios) {
         return false;
     }
 
-    return true;
+    return true;
 }
 
 function limparCamposComprovantes() {
@@ -5220,204 +5225,106 @@ function limparFoto() {
 
 
 function configurarEventosStaff() {
-    console.log("Configurando eventos Staff...");
+    console.log("Configurando eventos Staff...");
 
-    const containerPDF = document.querySelector('.pdf');
+    const containerPDF = document.querySelector('.pdf');
 
-    // Se o usuário NÃO tiver a permissão, oculta o container.
-    // Caso contrário, ele permanece visível (ou é exibido).
-    if (!temPermissaoTotal) {
-        containerPDF.style.display = 'none';
-    } else {
-        containerPDF.style.display = ''; // Volta ao padrão
-    }
+    // Se o usuário NÃO tiver a permissão Master, oculta o container.
+    if (!temPermissaoMaster) {
+        containerPDF.style.display = 'none';
+    } else {
+        containerPDF.style.display = ''; // Volta ao padrão
+    }
 
-    verificaStaff(); // Carrega os Staff ao abrir o modal
-    adicionarEventoBlurStaff();
-    inicializarFlatpickrsGlobais();
-    limparStaffOriginal()
+    verificaStaff(); // Carrega os Staff ao abrir o modal
+    adicionarEventoBlurStaff();
+    inicializarFlatpickrsGlobais();
+    limparStaffOriginal()
 
-    // Inicializa o estado dos campos extra/caixinha no carregamento
-    const inputAjusteCusto = document.getElementById('ajusteCusto');
-    const ajusteCustocheck = document.getElementById('ajusteCustocheck');
-    const campoAjusteCusto = document.getElementById('campoAjusteCusto');
+    // Inicializa o estado dos campos extra/caixinha no carregamento
+    const inputAjusteCusto = document.getElementById('ajusteCusto');
+    const ajusteCustocheck = document.getElementById('ajusteCustocheck');
+    const campoAjusteCusto = document.getElementById('campoAjusteCusto');
 
-    if (ajusteCustocheck && campoAjusteCusto && ajusteCustoTextarea) {
-        ajusteCustocheck.addEventListener('change', function() {
-            campoAjusteCusto.style.display = this.checked ? 'block' : 'none';
+    if (ajusteCustocheck && campoAjusteCusto && ajusteCustoTextarea) {
+        ajusteCustocheck.addEventListener('change', function() {
+            campoAjusteCusto.style.display = this.checked ? 'block' : 'none';
 
-            ajusteCustoTextarea.style.display = this.checked ? 'block' : 'none';
-            ajusteCustoTextarea.required = this.checked;
-            if (!this.checked) {
-                if (inputAjusteCusto) inputAjusteCusto.value = ''; // Limpa o input 'ajusteCusto' ao ocultar
-                ajusteCustoTextarea.value = '';               // Limpa o textarea 'ajusteCusto' ao ocultar
-            }
+            ajusteCustoTextarea.style.display = this.checked ? 'block' : 'none';
+            ajusteCustoTextarea.required = this.checked;
+            if (!this.checked) {
+                if (inputAjusteCusto) inputAjusteCusto.value = ''; // Limpa o input 'ajusteCusto' ao ocultar
+                ajusteCustoTextarea.value = '';               // Limpa o textarea 'ajusteCusto' ao ocultar
+            }
 
-        });
+        });
 
-        campoAjusteCusto.style.display = ajusteCustocheck.checked ? 'block' : 'none';
+        campoAjusteCusto.style.display = ajusteCustocheck.checked ? 'block' : 'none';
 
-        ajusteCustoTextarea.style.display = ajusteCustocheck.checked ? 'block' : 'none';
-        ajusteCustoTextarea.required = ajusteCustocheck.checked;
-        if (!ajusteCustocheck.checked) {
-            if (inputAjusteCusto) inputAjusteCusto.value = '';
-            ajusteCustoTextarea.value = '';
+        ajusteCustoTextarea.style.display = ajusteCustocheck.checked ? 'block' : 'none';
+        ajusteCustoTextarea.required = ajusteCustocheck.checked;
+        if (!ajusteCustocheck.checked) {
+            if (inputAjusteCusto) inputAjusteCusto.value = '';
+            ajusteCustoTextarea.value = '';
+        }
+    }
+
+    const caixinhacheck = document.getElementById('Caixinhacheck');
+    const campoCaixinha = document.getElementById('campoCaixinha');
+
+    if (caixinhacheck && campoCaixinha) {
+        caixinhacheck.addEventListener('change', function() {
+            campoCaixinha.style.display = this.checked ? 'block' : 'none';
+        });
+        campoCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
+    }
+
+    const diariaDobradacheck = document.getElementById('diariaDobradacheck');
+    const campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
+    if (diariaDobradacheck && campoDiariaDobrada) {
+        diariaDobradacheck.addEventListener('change', function() {
+            campoDiariaDobrada.style.display = this.checked ? 'block' : 'none';
+
+        });
+        campoDiariaDobrada.style.display = diariaDobradacheck.checked ? 'block' : 'none';
+
+    }
+
+    const meiaDiariacheck = document.getElementById('meiaDiariacheck');
+    const campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
+    if (meiaDiariacheck && campoMeiaDiaria) {
+        meiaDiariacheck.addEventListener('change', function() {
+            campoMeiaDiaria.style.display = this.checked ? 'block' : 'none';
+         });
+        campoMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
+    }
+
+    // Chama mostrarTarja() para inicializar a tarja com base no valor do select
+    if (typeof mostrarTarja === 'function') {
+        mostrarTarja();
+    }
+    
+    // 📢 NOVO BLOCO: Restrição de edição dos campos de Status
+    const statusAjusteCustoInput = document.getElementById('statusAjusteCusto');
+    const statusCaixinhaInput = document.getElementById('statusCaixinha');
+
+    if (statusAjusteCustoInput && statusCaixinhaInput) {
+        if (!temPermissaoMaster) {
+            // Desabilita os campos se o usuário NÃO for Master
+            statusAjusteCustoInput.disabled = true;
+            statusCaixinhaInput.disabled = true;
+            console.log("Status de Ajuste/Caixinha desabilitados: Permissão Master requerida.");
+        } else {
+            // Garante que os campos estão habilitados se o usuário for Master
+            statusAjusteCustoInput.disabled = false;
+            statusCaixinhaInput.disabled = false;
         }
     }
+    // 📢 FIM DO NOVO BLOCO
 
-    const caixinhacheck = document.getElementById('Caixinhacheck');
-    const campoCaixinha = document.getElementById('campoCaixinha');
-
-    if (caixinhacheck && campoCaixinha) {
-        caixinhacheck.addEventListener('change', function() {
-            campoCaixinha.style.display = this.checked ? 'block' : 'none';
-        });
-        campoCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
-    }
-
-    const diariaDobradacheck = document.getElementById('diariaDobradacheck');
-    const campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
-    if (diariaDobradacheck && campoDiariaDobrada) {
-        diariaDobradacheck.addEventListener('change', function() {
-            campoDiariaDobrada.style.display = this.checked ? 'block' : 'none';
-
-        });
-        campoDiariaDobrada.style.display = diariaDobradacheck.checked ? 'block' : 'none';
-
-    }
-
-    const meiaDiariacheck = document.getElementById('meiaDiariacheck');
-    const campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
-    if (meiaDiariacheck && campoMeiaDiaria) {
-        meiaDiariacheck.addEventListener('change', function() {
-            campoMeiaDiaria.style.display = this.checked ? 'block' : 'none';
-         });
-        campoMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
-    }
-
-    // Chama mostrarTarja() para inicializar a tarja com base no valor do select
-    if (typeof mostrarTarja === 'function') {
-        mostrarTarja();
-    }
-
-    console.log("Entrou configurar Staff no STAFF.js.");
+    console.log("Entrou configurar Staff no STAFF.js.");
 
 }
-
-// (function setupCadStaffPrefill() {
-//   const TARGET_IDS = [
-//     "idEvento","idStaffEvento","idEquipe","idFuncao","idCliente","idMontagem",
-//     "nmEvento","nmCliente","nmLocalMontagem","nmEquipe","descFuncao","nomeFuncionarioExibido"
-//   ];
-
-//   function getRawParams() {
-//     const rawGlobal = window.__modalInitialParams;
-//     if (rawGlobal) return rawGlobal;
-//     const s = window.location.search || "";
-//     return s.replace(/^\?/,'');
-//   }
-
-//   function setSelectOrHidden(selectId, hiddenId, value, text) {
-//     try {
-//       if (!value && !text) return;
-//       const sel = document.getElementById(selectId);
-//       const hid = document.getElementById(hiddenId);
-//       if (hid && value !== undefined) hid.value = value;
-//       if (!sel) return;
-//       const optByValue = Array.from(sel.options || []).find(o => String(o.value) === String(value));
-//       if (optByValue) {
-//         sel.value = optByValue.value;
-//       } else {
-//         const displayText = text || value || "Selecionado";
-//         const opt = document.createElement("option");
-//         opt.value = value || displayText;
-//         opt.text = displayText;
-//         opt.selected = true;
-//         sel.appendChild(opt);
-//       }
-//     } catch (err) {
-//       console.warn("Prefill CadStaff: erro ao setar select/hidden", selectId, err);
-//     }
-//   }
-
-//   function applyPrefillOnce() {
-//     const raw = getRawParams();
-//     if (!raw) return false;
-//     const params = new URLSearchParams(raw);
-
-//     // verifica se já existe algum dos campos alvo no DOM
-//     const found = TARGET_IDS.some(id => document.getElementById(id));
-//     if (!found) return false;
-
-//     // lê parâmetros
-//     const idevento = params.get("idevento");
-//     const idfuncao = params.get("idfuncao");
-//     const idequipe = params.get("idequipe");
-//     const idcliente = params.get("idcliente");
-//     const idmontagem = params.get("idmontagem");
-//     const nmfuncao = params.get("nmfuncao");
-//     const nmevento = params.get("nmevento");
-//     const nmcliente = params.get("nmcliente");
-//     const nmlocalmontagem = params.get("nmlocalmontagem");
-
-//     // campos hidden
-//     if (idevento) {
-//       const hid = document.getElementById("idEvento") || document.getElementById("idStaffEvento");
-//       if (hid) hid.value = idevento;
-//     }
-//     if (idequipe) {
-//       const hid = document.getElementById("idEquipe");
-//       if (hid) hid.value = idequipe;
-//     }
-//     if (idfuncao) {
-//       const hid = document.getElementById("idFuncao");
-//       if (hid) hid.value = idfuncao;
-//     }
-//     if (idcliente) {
-//       const hid = document.getElementById("idCliente");
-//       if (hid) hid.value = idcliente;
-//     }
-//     if (idmontagem) {
-//       const hid = document.getElementById("idMontagem");
-//       if (hid) hid.value = idmontagem;
-//     }
-
-//     // selects visíveis / exibição
-//     setSelectOrHidden("nmEvento", "idEvento", idevento, nmevento);
-//     setSelectOrHidden("nmCliente", "idCliente", idcliente, nmcliente);
-//     setSelectOrHidden("nmLocalMontagem", "idMontagem", idmontagem, nmlocalmontagem);
-//     setSelectOrHidden("nmEquipe", "idEquipe", idequipe, (params.get("idequipe_nome") || ("Equipe " + (idequipe||""))));
-//     setSelectOrHidden("descFuncao", "idFuncao", idfuncao, nmfuncao);
-
-//     const nomeFuncionarioExibido = document.getElementById("nomeFuncionarioExibido");
-//     if (nomeFuncionarioExibido && nmcliente) nomeFuncionarioExibido.textContent = nmcliente;
-
-//     // limpa global (evita reuso)
-//     try { delete window.__modalInitialParams; } catch(e) { window.__modalInitialParams = null; }
-
-//     return true;
-//   }
-
-//   // tenta aplicar imediatamente (caso modal já injetado)
-//   if (applyPrefillOnce()) return;
-
-//   // MutationObserver para detectar injeção do conteúdo do modal (CadStaff)
-//   const obs = new MutationObserver((mutations, observer) => {
-//     if (applyPrefillOnce()) {
-//       observer.disconnect();
-//       return;
-//     }
-//   });
-
-//   obs.observe(document.body, { childList: true, subtree: true });
-
-//   // garantias: tenta várias vezes caso populações aconteçam com atraso
-//   const retries = [200, 600, 1500];
-//   retries.forEach(t => setTimeout(() => {
-//     if (applyPrefillOnce()) obs.disconnect();
-//   }, t));
-// })();
-
 
 window.configurarEventosStaff = configurarEventosStaff;
 
