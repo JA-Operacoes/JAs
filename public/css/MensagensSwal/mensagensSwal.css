@@ -20,7 +20,7 @@
 }
 
 .swal2-confirm,
-.swal2-cancel {
+.swal2-cancel, .swal2-deny {
   font-family: 'Abel', sans-serif !important;
   font-size: 16px;
   padding: 10px 24px !important;
@@ -73,7 +73,16 @@
   justify-content: center;
 }
 
-/* O seu loader */
+/* --------------------------------------------------------------------------------
+                        3 campos de swal
+-------------------------------------------------------------------------------- */
+.swal2-popup.swal2-modal.swal2-icon-question.swal2-show {
+    width: 700px;
+}
+
+/* --------------------------------------------------------------------------------
+                        Loader personalizado
+-----------------------------------------------------------------------------------*/
 #page {
   display: flex;
   justify-content: center;

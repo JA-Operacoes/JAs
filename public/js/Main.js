@@ -1629,146 +1629,154 @@ function renderizarEventos(targetEl, eventos) {
       };
   }
 
-  function criarCard(evt) {
-      const hoje = new Date();
-      hoje.setHours(0, 0, 0, 0); // Zera hora para comparação de dia
+function criarCard(evt) {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0); // Zera hora para comparação de dia
 
-      const dataRef = parseDateForComparison(evt.data_referencia);
-      const dataFimDesmontagem = parseDateForComparison(evt.fim_evento);
-      const inicioRealizacao = parseDateForComparison(evt.inicio_realizacao);
-      const fimRealizacao = parseDateForComparison(evt.fim_realizacao);
+    const dataRef = parseDateForComparison(evt.data_referencia);
+    const dataFimDesmontagem = parseDateForComparison(evt.fim_evento); // Usado para status
+    const inicioRealizacao = parseDateForComparison(evt.inicio_realizacao);
+    const fimRealizacao = parseDateForComparison(evt.fim_realizacao);
 
-      // === Cálculo de percentual de staff preenchido ===
-      // Estes valores agora são consistentes graças à normalizarEvento
-      const total = evt.total_vagas || 0;
-      const preenchido = evt.total_staff || 0;
-      const percentual = total > 0 ? Math.round((preenchido / total) * 100) : 0;
+    // === Cálculo de percentual de staff preenchido ===
+    const total = evt.total_vagas || 0;
+    const preenchido = evt.total_staff || 0;
+    const percentual = total > 0 ? Math.round((preenchido / total) * 100) : 0;
 
-      let diasFaltam = null;
-      if (dataRef) diasFaltam = Math.ceil((dataRef.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+    let diasFaltam = null;
+    if (dataRef) diasFaltam = Math.ceil((dataRef.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
 
-      let alertaTexto = "";
-      let alertaClasse = "";
+    let alertaTexto = "";
+    let alertaClasse = "";
 
-      // === EVENTO FINALIZADO ===
-      if (dataFimDesmontagem && dataFimDesmontagem < hoje) {
-          if (percentual === 0) {
-              alertaTexto = "✔ Realizado sem staff";
-              alertaClasse = "status-realizado-vermelho";
-          } else if (percentual < 100) {
-              alertaTexto = `✔ Realizado - Staff parcial (${percentual}%)`;
-              alertaClasse = "status-realizado-amarelo";
-          } else { // >= 100%
-              alertaTexto = "✔ Realizado - Staff OK";
-              alertaClasse = "status-realizado-verde";
-          }
+    // === Lógica de Status do Evento (Sem alteração) ===
+    if (dataFimDesmontagem && dataFimDesmontagem < hoje) {
+        if (percentual === 0) {
+            alertaTexto = "✔ Realizado sem staff";
+            alertaClasse = "status-realizado-vermelho";
+        } else if (percentual < 100) {
+            alertaTexto = `✔ Realizado - Staff parcial (${percentual}%)`;
+            alertaClasse = "status-realizado-amarelo";
+        } else { // >= 100%
+            alertaTexto = "✔ Realizado - Staff OK";
+            alertaClasse = "status-realizado-verde";
+        }
 
-      // === EVENTO EM REALIZAÇÃO (Usa a data do backend para exibição) ===
-      } else if (inicioRealizacao && fimRealizacao && hoje >= inicioRealizacao && hoje <= fimRealizacao) {
-          if (percentual === 0) {
-              alertaTexto = "🚨 Sem staff — Realizando";
-              alertaClasse = "status-realizando-vermelho";
-          } else if (percentual < 100) {
-              alertaTexto = `⚠️ Staff faltando - Realizando (${percentual}%)`;
-              alertaClasse = "status-realizando-amarelo";
-          } else { // >= 100%
-              alertaTexto = "✅ Staff OK - Realizando";
-              alertaClasse = "status-realizando-verde";
-          }
+    } else if (inicioRealizacao && fimRealizacao && hoje >= inicioRealizacao && hoje <= fimRealizacao) {
+        if (percentual === 0) {
+            alertaTexto = "🚨 Sem staff — Realizando";
+            alertaClasse = "status-realizando-vermelho";
+        } else if (percentual < 100) {
+            alertaTexto = `⚠️ Staff faltando - Realizando (${percentual}%)`;
+            alertaClasse = "status-realizando-amarelo";
+        } else { // >= 100%
+            alertaTexto = "✅ Staff OK - Realizando";
+            alertaClasse = "status-realizando-verde";
+        }
 
-      // === EVENTO PRÓXIMO (faltam poucos dias) ===
-      } else if (diasFaltam !== null && diasFaltam <= 5 && diasFaltam >= 0) {
-          const diasText = `${diasFaltam} dia${diasFaltam !== 1 ? "s" : ""}`;
+    } else if (diasFaltam !== null && diasFaltam <= 5 && diasFaltam >= 0) {
+        const diasText = `${diasFaltam} dia${diasFaltam !== 1 ? "s" : ""}`;
 
-          if (percentual === 0) {
-              alertaTexto = `🚨 Sem staff — faltam ${diasText}`;
-              alertaClasse = "status-urgente-vermelho";
-          } else if (percentual < 100) {
-              // Percentual adicionado no alerta amarelo, como solicitado
-              alertaTexto = `⚠️ Staff faltando (${percentual}%) — faltam ${diasText} p/ realização`;
-              alertaClasse = "status-urgente-amarelo";
-          } else { // >= 100%
-              alertaTexto = `✅ Staff OK — faltam ${diasText}`;
-              alertaClasse = "status-urgente-verde";
-          }
+        if (percentual === 0) {
+            alertaTexto = `🚨 Sem staff — faltam ${diasText}`;
+            alertaClasse = "status-urgente-vermelho";
+        } else if (percentual < 100) {
+            alertaTexto = `⚠️ Staff faltando (${percentual}%) — faltam ${diasText} p/ realização`;
+            alertaClasse = "status-urgente-amarelo";
+        } else { // >= 100%
+            alertaTexto = `✅ Staff OK — faltam ${diasText}`;
+            alertaClasse = "status-urgente-verde";
+        }
 
-      // === EVENTO FUTURO SEM URGÊNCIA ===
-      } else {
-          if (percentual === 0) {
-              alertaTexto = "🚨 Sem staff";
-              alertaClasse = "status-pendente-vermelho";
-          } else if (percentual < 100) {
-              alertaTexto = `⚠️ Staff faltando (${percentual}%)`;
-              alertaClasse = "status-pendente-amarelo";
-          } else { // >= 100%
-              alertaTexto = "✅ Staff OK";
-              alertaClasse = "status-pendente-verde";
-          }
-      }
+    } else {
+        if (percentual === 0) {
+            alertaTexto = "🚨 Sem staff";
+            alertaClasse = "status-pendente-vermelho";
+        } else if (percentual < 100) {
+            alertaTexto = `⚠️ Staff faltando (${percentual}%)`;
+            alertaClasse = "status-pendente-amarelo";
+        } else { // >= 100%
+            alertaTexto = "✅ Staff OK";
+            alertaClasse = "status-pendente-verde";
+        }
+    }
 
-      // Converte a data para exibição (string formatada)
-      const dataExibicaoFimDesmontagem = evt.fim_evento ? parseDateLocal(evt.fim_evento) : null;
+    // Converte a data de Fim de Desmontagem para exibição (string formatada)
+    const dataExibicaoFimDesmontagem = evt.fim_evento ? parseDateLocal(evt.fim_evento) : null;
 
-      const nomeEvento = (dataFimDesmontagem && dataFimDesmontagem < hoje)
-          ? `<del>${evt.nmevento || evt.nome || "Evento"}</del>`
-          : `<strong>${evt.nmevento || evt.nome || "Evento"}</strong>`;
+    const nomeEvento = (dataFimDesmontagem && dataFimDesmontagem < hoje)
+        ? `<del>${evt.nmevento || evt.nome || "Evento"}</del>`
+        : `<strong>${evt.nmevento || evt.nome || "Evento"}</strong>`;
 
-      const localEvento = evt.nmlocalmontagem || evt.local || "Local não informado";
+    const localEvento = evt.nmlocalmontagem || evt.local || "Local não informado";
 
-      // ======= Resumo das equipes/funções em uma linha =======
-      const equipes = evt.equipes_detalhes || [];
-      const resumoEquipes = equipes.length
-          ? equipes.map(f => {
+    // 🌟 BLOCO DE PERÍODO ATUALIZADO: Montagem (Marcação) a Desmontagem
+    let periodoTexto = "Período não definido";
+    
+    const inicioMarcacao = evt.dtinimarcacao ? parseDateLocal(evt.dtinimarcacao) : 'ND';
+    const inicioRealizacaoFormatado = evt.dtinirealizacao ? parseDateLocal(evt.dtinirealizacao) : 'ND';
+    const fimRealizacaoFormatado = evt.dtfimrealizacao ? parseDateLocal(evt.dtfimrealizacao) : 'ND';
+    const fimDesmontagem = evt.dtfimdesmontagem ? parseDateLocal(evt.dtfimdesmontagem) : (evt.fim_evento ? parseDateLocal(evt.fim_evento) : 'ND');
+
+    if (inicioMarcacao !== 'ND' || fimDesmontagem !== 'ND') {
+        periodoTexto = `🗓️ Marcação: ${inicioMarcacao} | Realização: ${inicioRealizacaoFormatado} a ${fimRealizacaoFormatado} | Desmontagem: ${fimDesmontagem}`;
+    }
+    // 🌟 FIM DO BLOCO DE PERÍODO ATUALIZADO
+    
+    // ======= Resumo das equipes/funções em uma linha (Sem alteração) =======
+    const equipes = evt.equipes_detalhes || [];
+    const resumoEquipes = equipes.length
+        ? equipes.map(f => {
               const total = f.total_vagas || 0;
               const preenchido = f.preenchidas || 0;
               const restante = total - preenchido;
               let cor = "🟢";
               if (restante === total) cor = "🔴"; // 0 preenchido
               else if (restante > 0) cor = "🟡"; // Parcialmente preenchido
-              // else (restante <= 0) é 🟢 (Preenchido ou excedente.
               return `${f.equipe}: ${cor} ${preenchido}/${total}`;
           }).join(" | ")
-          : "Nenhuma equipe cadastrada";
+        : "Nenhuma equipe cadastrada";
 
 
-      const card = document.createElement("div");
-      card.className = "evento-card";
+    const card = document.createElement("div");
+    card.className = "evento-card";
 
-      const headerEvt = document.createElement("div");
-      headerEvt.className = "evento-header";
-      headerEvt.innerHTML = `
-          <div class="evt-info">
-              <div class="evento-nome">${nomeEvento}</div>
-              <div class="evento-local">📍 ${localEvento}</div>
-          </div>
-          <span class="evento-status ${alertaClasse}">${alertaTexto}</span>
-      `;
+    const headerEvt = document.createElement("div");
+    headerEvt.className = "evento-header";
+    headerEvt.innerHTML = `
+        <div class="evt-info">
+            <div class="evento-nome">${nomeEvento}</div>
+            <div class="evento-local">📍 ${localEvento}</div>
+            <span class="evento-status ${alertaClasse}">${alertaTexto}</span>
+        </div>
+        <div class="evt-periodo"><div class="evento-periodo">${periodoTexto}</div></div>
+        `;
 
-      const bodyEvt = document.createElement("div");
-      bodyEvt.className = "evento-body";
+    const bodyEvt = document.createElement("div");
+    bodyEvt.className = "evento-body";
 
-      const resumoDiv = document.createElement("div");
-      resumoDiv.className = "equipes-resumo";
-      resumoDiv.textContent = resumoEquipes;
-      bodyEvt.appendChild(resumoDiv);
+    const resumoDiv = document.createElement("div");
+    resumoDiv.className = "equipes-resumo";
+    resumoDiv.textContent = resumoEquipes;
+    bodyEvt.appendChild(resumoDiv);
 
-      headerEvt.addEventListener("click", () => {
-          bodyEvt.classList.toggle("open");
-      });
+    headerEvt.addEventListener("click", () => {
+        bodyEvt.classList.toggle("open");
+    });
 
-      resumoDiv.addEventListener("click", () => {
-          // Assumindo que abrirTelaEquipesEvento está disponível no escopo global
-          if (typeof abrirTelaEquipesEvento === 'function') {
-              abrirTelaEquipesEvento(evt);
-          } else {
-              console.warn("Função 'abrirTelaEquipesEvento' não está definida.");
-          }
-      });
+    resumoDiv.addEventListener("click", () => {
+        // Assumindo que abrirTelaEquipesEvento está disponível no escopo global
+        if (typeof abrirTelaEquipesEvento === 'function') {
+            abrirTelaEquipesEvento(evt);
+        } else {
+            console.warn("Função 'abrirTelaEquipesEvento' não está definida.");
+        }
+    });
 
-      card.appendChild(headerEvt);
-      card.appendChild(bodyEvt);
-      return card;
-  }
+    card.appendChild(headerEvt);
+    card.appendChild(bodyEvt);
+    return card;
+}
 }
 
 
