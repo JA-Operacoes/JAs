@@ -1005,7 +1005,7 @@ function inicializarEPreencherCampos(eventData) {
     containerStatusMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';    
 
 
-    if (temPermissaoTotal) {    
+    if (temPermissaoMaster) {    //trocar para permissao Master!
         document.getElementById('selectStatusAjusteCusto').style.display = 'block';
         statusAjusteCustoInput.style.display = 'none';
         console.log("STATUS AJUSTE CUSTO TEM PERMISSAO TOTAL", eventData.statusajustecusto);
@@ -1296,15 +1296,15 @@ const carregarTabelaStaff = async (funcionarioId) => {
 
                     let valorTotalCalculado = parseFloat(eventData.vlrtotal || 0.00);
 
-                    // Adiciona vlrcaixinha se statuscaixinha for 'Autorizado'
-                    if (eventData.statuscaixinha && eventData.statuscaixinha.toLowerCase() === 'autorizado') {
-                        valorTotalCalculado += parseFloat(eventData.vlrcaixinha || 0.00);
-                    }
+//                     // Adiciona vlrcaixinha se statuscaixinha for 'Autorizado'
+//                     if (eventData.statuscaixinha && eventData.statuscaixinha.toLowerCase() === 'autorizado') {
+//                         valorTotalCalculado += parseFloat(eventData.vlrcaixinha || 0.00);
+//                     }
 
-                    // Adiciona vlrajustecusto se statusajustecusto for 'Autorizado'
-                    if (eventData.statusajustecusto && eventData.statusajustecusto.toLowerCase() === 'autorizado') {
-                        valorTotalCalculado += parseFloat(eventData.vlrajustecusto || 0.00);
-                    }
+//                     // Adiciona vlrajustecusto se statusajustecusto for 'Autorizado'
+//                     if (eventData.statusajustecusto && eventData.statusajustecusto.toLowerCase() === 'autorizado') {
+//                         valorTotalCalculado += parseFloat(eventData.vlrajustecusto || 0.00);
+//                     }
                     
                     row.insertCell().textContent = valorTotalCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -2331,6 +2331,12 @@ async function verificaStaff() {
                 statusPgto = "Pendente";
             }
 
+            if (statusCaixinha === "Autorização da Caixinha" && vlrCaixinha === 0){
+                statusCaixinha = "";
+            }
+            if (statusAjusteCusto === "Autorização do Ajuste de Custo" && vlrAjusteCusto === 0){
+                statusAjusteCusto = "";
+            }
 
             formData.append('statuspgto', statusPgto);
             formData.append('statusajustecusto', statusAjusteCusto);
@@ -2391,6 +2397,20 @@ async function verificaStaff() {
                     status: statusData ? statusData.status : statusMeiaDiaria
                 };
             });
+        }
+
+        if (statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === true){
+            statusDiariaDobrada = "Pendente";
+        }
+        if (statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === false){
+            statusDiariaDobrada = "";
+        }
+
+        if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === true){
+            statusMeiaDiaria = "Pendente";
+        }
+        if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === false){
+            statusMeiaDiaria = "";
         }
 
 

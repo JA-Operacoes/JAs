@@ -139,7 +139,7 @@ function verificaCatFuncao() {
 
         console.log("campos antes de salvar", idCatFuncao, descCatFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda,  transporte, transporteSenior, alimentacao);
 
-        if (!descCatFuncao ||  !custoBase || !venda) {
+        if (!descCatFuncao || !venda) {
 
             Swal.fire({
                 icon: 'warning',
