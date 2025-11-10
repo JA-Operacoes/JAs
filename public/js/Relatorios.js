@@ -1,23 +1,46 @@
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
 
-document.addEventListener("DOMContentLoaded", function () {
+let empresaLogoPath = 'http://localhost:3000/img/JA_Oper.png';
+
+function inicializarDadosEmpresa() {
     const idempresa = localStorage.getItem("idempresa");
 
+    console.log("ID da empresa obtido do localStorage:", idempresa);
+
     if (idempresa) {
-        const apiUrl = `/empresas/${idempresa}`; // Verifique o caminho da sua API
+        const apiUrl = `/empresas/${idempresa}`;
 
         fetchComToken(apiUrl)
             .then(empresa => {
-                // Usa o nome fantasia como tema
                 const tema = empresa.nmfantasia;
                 aplicarTema(tema);
+
+                console.log("Tema da empresa obtido:", tema);
+
+                // Lógica de construção do caminho do logo
+                const nomeArquivoLogo = tema.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+                // IMPORTANTE: Aqui definimos a variável global
+                empresaLogoPath = `http://localhost:3000/img/${nomeArquivoLogo}.png`;
+                
+                console.log("Caminho do logo definido:", empresaLogoPath);
             })
             .catch(error => {
-                console.error("❌ Erro ao buscar dados da empresa para o tema:", error);
-                // aplicarTema('default');
+                console.error("❌ Erro ao buscar dados da empresa para o tema/logo:", error);
+                // Em caso de erro, o logo usa o caminho de fallback
             });
     }
-});
+}
+
+// Verifica o estado do DOM e executa a função
+if (document.readyState === "loading") {
+    // O DOM ainda está carregando, então ouvimos o evento
+    document.addEventListener("DOMContentLoaded", inicializarDadosEmpresa);
+} else {
+    // O DOM já está pronto (readyState é 'interactive' ou 'complete'), executa imediatamente
+    console.log("DOM já carregado, executando inicializarDadosEmpresa imediatamente.");
+    inicializarDadosEmpresa();
+}
+
 
 let todosOsDadosDoPeriodo = null;
 let eventoSelecionadoId = null;
@@ -361,7 +384,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
     let html = `
         <div class="relatorio-evento">
             <div class="print-header-top">
-                <img src="http://localhost:3000/img/JA_Oper.png" alt="Logo JA" class="logo-ja">
+                <img src= "${empresaLogoPath}" alt="Logo Empresa" class="logo-ja">
                 <div class="header-title-container">
                     <h1 class="header-title">${nomeEvento}</h1>
                 </div>  

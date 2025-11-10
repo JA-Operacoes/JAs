@@ -144,21 +144,24 @@
             <div id="containerFieldsets">
               <fieldset>
                 <legend>Evento</legend>
-                <div class="Selects">  
-                  <div class="field">
-                    <label for="descEquipe">Equipe:</label>
-                    <input type="hidden" id="idEquipe" name="idEquipe">
-                    <select class="nmEquipe" name="nmEquipe" id="nmEquipe">       
-                      <option value="" selected disabled>Selecione a Equipe</option>                     
-                    </select>
-                  </div>                 
+                <div class="Selects">                                  
                   <div class="field">
                     <label for="descFuncao">Função:</label>
                     <input type="hidden" id="idFuncao" name="idFuncao">
                     <select class="descFuncao" name="descFuncao" id="descFuncao">       
                       <option value="" selected disabled>Selecione a Função</option>
                     </select>
-                  </div>              
+                  </div>  
+                  <div class="field">
+                    <!-- <label for="descEquipe">Equipe:</label>
+                    <input type="hidden" id="idEquipe" name="idEquipe">
+                    <select class="nmEquipe" name="nmEquipe" id="nmEquipe">       
+                      <option value="" selected disabled>Selecione a Equipe</option>                     
+                    </select> -->
+                    <label for="nmEquipe">Equipe:</label>
+                    <input type="hidden" id="idEquipe" name="idEquipe">
+                    <input type="text" id="nmEquipe" name="nmEquipe" class="nmEquipe" readonly>
+                  </div>               
                   
 
                   <div class="field">
@@ -252,8 +255,22 @@
                       </div>                      
                     </div>
                 </div> -->
+                <div id="containerViagens">
+                  <div class="checkbox">
+                      <div class="Vertical">
+                        <label for="viagem1Check">Alimentação Viagem  (1 - Almoço+Jantar)</label>
+                        <input id="viagem1Check" type="checkbox" title="AJUDA DE CUSTO COM ALMOÇO + JANTAR"/>
+                        
+                      </div>
+                      <div class="Vertical">
+                        <label for="viagem2Check"> (2 - Café da Manhã+Almoço+Jantar)</label>
+                        <input id="viagem2Check" type="checkbox" title="AJUDA DE CUSTO COM CAFÉ MANHÃ + ALMOÇO + JANTAR"/>
+                        
+                      </div>
+                  </div>
+                </div>
+                <div class="form-2colunas">              
 
-                <div class="form-2colunas">   
                   <div class="form2">
                       <input type="text" name="vlrCusto" id="vlrCusto" class="preenchido" readonly required>
                       <label for="vlrCusto">Cache</label>
@@ -261,13 +278,14 @@
                   <!-- <div class="form2">
                     <input type="text" name="almoco" id="almoco" class="preenchido" readonly required>
                     <label for="almoco">Almoço</label>
-                  </div>                               -->
+                  </div>  -->                  
+
                   <div class="form2">
-                    <input type="text" name="alimentacao" id="alimentacao" class="preenchido" required>
+                    <input type="text" name="alimentacao" id="alimentacao" class="preenchido"  readonly required>
                     <label for="alimentacao">Alimentação</label>
                   </div>   
                   <div class="form2">
-                    <input type="text" name="transporte" id="transporte" class="preenchido" required>
+                    <input type="text" name="transporte" id="transporte" class="preenchido"  readonly required>
                     <label for="transporte">Transporte</label>
                   </div>
                   <textarea name="descBeneficio" id="descBeneficio" placeholder="Descritivo dos Benefícios"  required></textarea>
@@ -381,7 +399,7 @@
                         <div class="form2" id="campoStatusDiariaDobrada" style="display: none;">
                           <input type="text" id="statusDiariaDobrada" name ="statusdiariaDobrada" readonly required/>
                           <select id="selectStatusDiariaDobrada" style="display:none;">
-                            <option value="none" disabled selected>Autorização de Diária Dobrada/Meia Diária</option>
+                            <option value="none" disabled selected>Autorização de Diária Dobrada</option>
                             <option value="Pendente">Pendente</option>
                             <option value="Autorizado">Autorizado</option>
                             <option value="Rejeitado">Rejeitado</option>
@@ -393,7 +411,7 @@
                         <div class="form2" id="campoStatusMeiaDiaria" style="display: none;">
                           <input type="text" id="statusMeiaDiaria" name ="statusMeiaDiaria" readonly required/>
                           <select id="selectStatusMeiaDiaria" style="display:none;">
-                            <option value="none" disabled selected>Autorização de Diária Dobrada/Meia Diária</option>
+                            <option value="none" disabled selected>Autorização de Meia Diária</option>
                             <option value="Pendente">Pendente</option>
                             <option value="Autorizado">Autorizado</option>
                             <option value="Rejeitado">Rejeitado</option>

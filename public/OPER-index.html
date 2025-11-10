@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="css/index/Main.css">
     <link rel="stylesheet" href="css/index/Style-OPER.css">
@@ -15,7 +16,9 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/material_red.css">
     <link rel="shortcut icon" href="img/icons/favicon.ico" type="image/x-icon">
+
     
+       
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>      
 
     <title>Home - Sistema Grupo JA</title>
@@ -62,7 +65,7 @@
                                 <a href="#" class="abrir-modal" data-modulo="Bancos" data-url="CadBancos.html">Bancos</a>
                                 <a href="#" class="abrir-modal" data-modulo="Modulos" data-url="CadModulos.html">Módulos</a>
                                 <a href="#" class="abrir-modal" data-modulo="Categoriafuncao" data-url="CadCategoriaFuncao.html">Categoria Função</a>
-                                <a href="#" class="abrir-modal" data-modulo="Atualizarindice" data-url="CadIndices.html">Atualizar Indices</a>
+                                <a href="#" class="abrir-modal" data-modulo="Indiceanual" data-url="CadIndices.html">Cadastro/Atualização Índices</a>
                             </div>
                         </div>
                     </li>
@@ -71,7 +74,8 @@
                         <div class="drop"> 
                             <div class="drop-content">
                                 <a href="#" class="abrir-modal" data-modulo="Relatorios" data-url="Relatorios.html" data-tipo="ajuda_custo">Relatório de Fechamento</a>
-                                <!-- <a href="#" class="abrir-modal" data-modulo="Relatorios" data-url="Relatorios.html" data-tipo="cache">Cachê</a> -->
+                                
+                                 <a href="#" class="abrir-modal" data-modulo="RelIndices" data-url="RelIndices.html">Relatório de Índices Aplicados</a>
                             </div>
                         </div>
                     </li>
@@ -160,6 +164,21 @@
                             <div class="evt-body">
                             <span id="proximoEventoNome"></span>
                             <small id="proximoEventoTempo">--</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-eventos-em-abertos">
+                            <div class="evt-header">
+                                <span class="evt-title">Eventos em Aberto</span>
+                                <span class="evt-total" id="qtdEventosAbertos">0</span>
+                            </div>
+                            <div class="evt-body">
+                                <span>Nenhum evento em aberto 🎉</span>
+                            </div>
+                            <div class="evt-footer" style="display: none;">
+                                <span>Clique para ver mais em aberto</span>
                             </div>
                         </div>
                     </div>

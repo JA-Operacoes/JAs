@@ -78,6 +78,7 @@ router.get('/equipe', async (req, res) => {
   
  console.log("🔥 Rota /staff/equipe acessada");
   const idempresa = req.idempresa;
+  const idequipe = req.query.idequipe;
 
   try {
      
@@ -85,9 +86,9 @@ router.get('/equipe', async (req, res) => {
       SELECT e.*
       FROM equipe e
       INNER JOIN equipeempresas ee ON ee.idequipe = e.idequipe
-      WHERE ee.idempresa = $1
+      WHERE ee.idempresa = $1 AND e.idequipe = $2
       ORDER BY e.nmequipe
-    `, [idempresa]);
+    `, [idempresa, idequipe]);
 
     res.json(resultado.rows);
 
@@ -108,9 +109,11 @@ router.get('/funcao', async (req, res) => {
      
     const resultado = await pool.query(`
       SELECT f.idcategoriafuncao, f.idfuncao, f.descfuncao, f.ativo, f.vdafuncao, f.obsproposta, f.obsfuncao,
+       e.idequipe, e.nmequipe,
        cf.ctofuncaobase, cf.ctofuncaojunior, cf.ctofuncaopleno, cf.ctofuncaosenior, cf.transporte, cf.transpsenior, cf.alimentacao
       FROM funcao f
       INNER JOIN categoriafuncao cf ON f.idcategoriafuncao = cf.idcategoriafuncao
+      INNER JOIN equipe e ON f.idequipe = e.idequipe
       INNER JOIN funcaoempresas fe ON fe.idfuncao = f.idfuncao
       WHERE fe.idempresa = $1
       ORDER BY f.descfuncao

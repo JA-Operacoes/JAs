@@ -1,5 +1,7 @@
 import { fetchComToken, aplicarTema  } from '../utils/utils.js';
 
+
+
 document.addEventListener("DOMContentLoaded", function () {
     const idempresa = localStorage.getItem("idempresa");
 
@@ -546,6 +548,7 @@ let vlrTransporteSeniorFuncao = 0;
 let vlrAlimentacaoDobra =0;
 let isLote = false;
 let temOrcamento = false;
+let bForaSP = false;
 
 if (typeof window.StaffOriginal === "undefined") {
     window.StaffOriginal = {
@@ -678,6 +681,9 @@ const qtdPessoasInput = document.getElementById('qtdPessoas');
 const idEquipeInput = document.getElementById('idEquipe');
 const nmEquipeSelect = document.getElementById('nmEquipe'); // Select de Equipe
 
+const DescViagem1 = "[Viagem Fora SP] Valor Alimentação referente a Almoço e Jantar por ser fora de São Paulo"; 
+const DescViagem2 = "[Viagem Fora SP] Valor Alimentação referente a Café da Manhã, Almoço e Jantar por ser fora de São Paulo"; 
+
 window.flatpickrInstances = {
     diariaDobrada: diariaDobradaPicker,
     meiaDiaria: meiaDiariaPicker,
@@ -726,7 +732,7 @@ const carregarDadosParaEditar = (eventData) => {
     idFuncaoInput.value = eventData.idfuncao;
     idClienteInput.value = eventData.idcliente;
     idEventoInput.value = eventData.idevento;
-    idFuncionarioHiddenInput.value = eventData.idfuncionario || '';   
+    idFuncionarioHiddenInput.value = eventData.idfuncionario || '';   
     idEquipeInput.value = eventData.idequipe || '';
 
 
@@ -739,7 +745,7 @@ const carregarDadosParaEditar = (eventData) => {
         containerStatusMeiaDiaria.style.display = 'block';
     }
 
-  //  if (descFuncaoSelect) descFuncaoSelect.value = eventData.idfuncao || '';
+  //  if (descFuncaoSelect) descFuncaoSelect.value = eventData.idfuncao || '';
 
     if (descFuncaoSelect) {
         descFuncaoSelect.value = eventData.idfuncao || '';
@@ -759,8 +765,21 @@ const carregarDadosParaEditar = (eventData) => {
 
     if (nmClienteSelect) nmClienteSelect.value = eventData.idcliente || '';
     if (nmEventoSelect) nmEventoSelect.value = eventData.idevento || '';
-    console.log("ID da Equipe:", eventData.idequipe);
-    if (nmEquipeSelect) nmEquipeSelect.value = eventData.idequipe || '';
+    
+    // 🌟 CORREÇÃO: LÓGICA DA EQUIPE PARA INPUT READONLY
+    const equipeId = eventData.idequipe || '';
+    // Assumimos que o nome da equipe está em eventData.nmequipe no objeto de dados.
+    const nomeEquipe = eventData.nmequipe || 'Equipe não informada'; 
+    
+    if (nmEquipeSelect) {
+        // Agora, o input readonly nmEquipeSelect recebe o NOME (string) para exibição.
+        nmEquipeSelect.value = nomeEquipe; 
+    }
+    
+    // Atualiza os console.logs para exibir o nome.
+    console.log("ID da Equipe:", equipeId);
+    console.log("Nome da Equipe (nmEquipe):", nomeEquipe); 
+    // 🌟 FIM DA CORREÇÃO
 
     // Lógica para preencher Local de Montagem e Pavilhão.
     if (nmLocalMontagemSelect) {
@@ -800,7 +819,7 @@ const carregarDadosParaEditar = (eventData) => {
 
     // Preenchendo campos financeiros e de custo.
     vlrCustoInput.value = parseFloat(eventData.vlrcache || 0).toFixed(2).replace('.', ',');
-    transporteInput.value = parseFloat(eventData.vlrtransporte || 0).toFixed(2).replace('.', ',');  
+    transporteInput.value = parseFloat(eventData.vlrtransporte || 0).toFixed(2).replace('.', ',');  
     alimentacaoInput.value = parseFloat(eventData.vlralimentacao || 0).toFixed(2).replace('.', ',');
     descBeneficioTextarea.value = eventData.descbeneficios || '';
 
@@ -873,7 +892,7 @@ const carregarDadosParaEditar = (eventData) => {
         case "Senior":
             seniorCheck.checked = true;
             break;
-    }        
+    }        
 
     preencherComprovanteCampo(eventData.comppgtocache, 'Cache');
     preencherComprovanteCampo(eventData.comppgtoajdcusto, 'AjdCusto');
@@ -1005,7 +1024,7 @@ function inicializarEPreencherCampos(eventData) {
     containerStatusMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';    
 
 
-    if (temPermissaoMaster) {    //trocar para permissao Master!
+    if (temPermissaoMaster) {    
         document.getElementById('selectStatusAjusteCusto').style.display = 'block';
         statusAjusteCustoInput.style.display = 'none';
         console.log("STATUS AJUSTE CUSTO TEM PERMISSAO TOTAL", eventData.statusajustecusto);
@@ -1127,176 +1146,180 @@ function getDadosFormulario() {
 
 
 const carregarTabelaStaff = async (funcionarioId) => {
-    eventsTableBody.innerHTML = '';
-    noResultsMessage.style.display = 'none';
-    currentRowSelected = null;
-    isFormLoadedFromDoubleClick = false;
+    eventsTableBody.innerHTML = '';
+    noResultsMessage.style.display = 'none';
+    currentRowSelected = null;
+    isFormLoadedFromDoubleClick = false;
 
-    console.log("CARREGOU TABELA STAFF", isFormLoadedFromDoubleClick);
-    if (!funcionarioId) {
-        noResultsMessage.style.display = 'block';
-        noResultsMessage.textContent = 'Por favor, selecione um funcionário para pesquisar os eventos.';
-        return;
-    }
+    console.log("CARREGOU TABELA STAFF", isFormLoadedFromDoubleClick);
+    
+    // 💡 CORREÇÃO ROBUSTA para evitar o erro /null
+    // Verifica se o ID é falsy (vazio, undefined, etc.) OU se é a string "null" (que é truthy)
+    if (!funcionarioId || (typeof funcionarioId === 'string' && (funcionarioId.toLowerCase() === 'null' || funcionarioId.trim() === ''))) {
+        noResultsMessage.style.display = 'block';
+        noResultsMessage.textContent = 'Por favor, selecione um funcionário para pesquisar os eventos.';
+        return;
+    }
 
-    const url = `/staff/${funcionarioId}`; // Sua nova rota GET
+    // Agora, a URL só será construída se funcionarioId for um valor válido (ex: "123")
+    const url = `/staff/${funcionarioId}`; // Sua nova rota GET
 
-    try {
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + localStorage.getItem('token')
-            }
-        });
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            }
+        });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Erro na requisição');
-        }
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erro na requisição');
+        }
 
-        const data = await response.json();
-        console.log('Dados de eventos recebidos para o funcionário:', data);
+        const data = await response.json();
+        console.log('Dados de eventos recebidos para o funcionário:', data);
 
-        document.getElementById('qtdPessoasHeader').style.display = 'none';
-
-
-        if (data && data.length > 0) {           
-
-            if (isLote) {
-                document.getElementById('qtdPessoasHeader').style.display = 'table-cell';
-            }
-            data.forEach(eventData => {
-
-                const row = eventsTableBody.insertRow();
-                row.dataset.eventData = JSON.stringify(eventData);
-
-                if (eventData.status === "Pago"){
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Não é possível inserir dados para edição.',
-                        text: 'Evento deste funcionário já foi concluído e pago',
-                    });
-                    return;
-
-                }else{
-                    row.addEventListener('dblclick', () => {
-
-                        if (eventData.statuspgto === "Pago" && !temPermissaoTotal) {
-                            Swal.fire({
-                                icon: 'warning',
-                                title: 'STAFF PAGO! Sem permissão para editar.',
-                                text: 'Este evento já foi pago não possibilitando a edição.'
-                            });
-                            return; // Impede que o restante do código do dblclick seja executado
-                        }
-
-                        isFormLoadedFromDoubleClick = true;
-                        if (currentRowSelected) {
-                            currentRowSelected.classList.remove('selected-row');
-                        }
-
-                        row.classList.add('selected-row');
-
-                        currentRowSelected = row;
-
-                        carregarDadosParaEditar(eventData)
-                    });
+        document.getElementById('qtdPessoasHeader').style.display = 'none';
 
 
-                    row.insertCell().textContent = eventData.nmfuncao || '';
-                    row.insertCell().textContent = eventData.setor || '';
-                    row.insertCell().textContent = eventData.nmcliente || '';
-                    row.insertCell().textContent = eventData.nmevento || '';
-                    row.insertCell().textContent = eventData.nmlocalmontagem || '';
-                    row.insertCell().textContent = eventData.pavilhao || '';
-              
-                    const qtdPessoasCell = row.insertCell();
-                    if (isLote) {
-                        qtdPessoasCell.textContent = eventData.qtdpessoaslote || '0';
-                        qtdPessoasCell.style.display = 'table-cell';
-                    } else {
-                        qtdPessoasCell.style.display = 'none';
-                    }
+        if (data && data.length > 0) {           
 
-                    row.insertCell().textContent = (eventData.datasevento && typeof eventData.datasevento === 'string')
+            if (isLote) {
+                document.getElementById('qtdPessoasHeader').style.display = 'table-cell';
+            }
+            data.forEach(eventData => {
 
-                    ? JSON.parse(eventData.datasevento) // Primeiro parseia a string JSON para um array
-                    .map(dateStr => { // Depois, mapeia cada string de data no array
-                        const parts = dateStr.split('-'); // Divide a data (ex: ['2025', '07', '01'])
-                        if (parts.length === 3) {
-                            return `${parts[2]}/${parts[1]}/${parts[0]}`; // Reorganiza para DD/MM/YYYY
-                        }
-                        return dateStr; // Retorna a data original se não estiver no formato esperado
-                    })
-                    .join(', ') // Junta as datas formatadas com vírgula e espaço
-                    : (Array.isArray(eventData.datasevento) && eventData.datasevento.length > 0)
-                    ? eventData.datasevento // Se já for um array (do backend, por exemplo)
-                    .map(dateStr => {
-                        const parts = dateStr.split('-');
-                        if (parts.length === 3) {
-                            return `${parts[2]}/${parts[1]}/${parts[0]}`;
-                        }
-                        return dateStr;
-                    })
-                    .join(', ')
-                    : 'N/A';
+                const row = eventsTableBody.insertRow();
+                row.dataset.eventData = JSON.stringify(eventData);
 
-                    row.insertCell().textContent = parseFloat(eventData.vlrcache || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                   // row.insertCell().textContent = parseFloat(eventData.vlrajustecusto || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    const vlrAjusteCustoCell = row.insertCell();
-                    const vlrAjusteCustoFormatado = parseFloat(eventData.vlrajustecusto || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    vlrAjusteCustoCell.textContent = vlrAjusteCustoFormatado; // Insere o valor em preto
+                if (eventData.status === "Pago"){
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Não é possível inserir dados para edição.',
+                        text: 'Evento deste funcionário já foi concluído e pago',
+                    });
+                    return;
 
-                    const statusAjusteCusto = (eventData.statusajustecusto || '').trim();
+                }else{
+                    row.addEventListener('dblclick', () => {
 
-                    if (statusAjusteCusto) {
-                        const statusSpan = document.createElement('span');
-                        statusSpan.textContent = ` (${statusAjusteCusto})`;
-                        statusSpan.classList.add('status-custom');
-                        
-                        // Formata o status para "Pendente", "Autorizado", etc.
-                        // Garante que o status para a classe seja Capitalizado
-                        const statusCapitalized = statusAjusteCusto.charAt(0).toUpperCase() + statusAjusteCusto.slice(1).toLowerCase();
-                        
-                        // Adiciona a classe de cor correta
-                        statusSpan.classList.add(`status-${statusCapitalized}`); 
-                        
-                        vlrAjusteCustoCell.appendChild(statusSpan);
-                    }
+                        if (eventData.statuspgto === "Pago" && !temPermissaoTotal) {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'STAFF PAGO! Sem permissão para editar.',
+                                text: 'Este evento já foi pago não possibilitando a edição.'
+                            });
+                            return; // Impede que o restante do código do dblclick seja executado
+                        }
 
-                    row.insertCell().textContent = eventData.descajustecusto || '';                   
-                    row.insertCell().textContent = parseFloat(eventData.vlralimentacao || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    row.insertCell().textContent = parseFloat(eventData.vlrtransporte || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                   // row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    const vlrCaixinhaCell = row.insertCell();
-                    const vlrCaixinhaFormatado = parseFloat(eventData.vlrcaixinha || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    vlrCaixinhaCell.textContent = vlrCaixinhaFormatado; // Valor em preto
+                        isFormLoadedFromDoubleClick = true;
+                        if (currentRowSelected) {
+                            currentRowSelected.classList.remove('selected-row');
+                        }
 
-                    const statusCaixinha = (eventData.statuscaixinha || '').trim();
+                        row.classList.add('selected-row');
 
-                    if (statusCaixinha) {
-                        const statusSpan = document.createElement('span');
-                        statusSpan.textContent = ` (${statusCaixinha})`;
-                        statusSpan.classList.add('status-custom');
+                        currentRowSelected = row;
 
-                        // Formata o status para "Pendente", "Autorizado", etc.
-                        // Garante que o status para a classe seja Capitalizado
-                        const statusCapitalized = statusCaixinha.charAt(0).toUpperCase() + statusCaixinha.slice(1).toLowerCase();
+                        carregarDadosParaEditar(eventData)
+                    });
 
-                        // Adiciona a classe de cor correta
-                        statusSpan.classList.add(`status-${statusCapitalized}`);
 
-                        vlrCaixinhaCell.appendChild(statusSpan);
-                    }
-                    row.insertCell().textContent = eventData.descbeneficios || '';
+                    row.insertCell().textContent = eventData.nmfuncao || '';
+                    row.insertCell().textContent = eventData.setor || '';
+                    row.insertCell().textContent = eventData.nmcliente || '';
+                    row.insertCell().textContent = eventData.nmevento || '';
+                    row.insertCell().textContent = eventData.nmlocalmontagem || '';
+                    row.insertCell().textContent = eventData.pavilhao || '';
+              
+                    const qtdPessoasCell = row.insertCell();
+                    if (isLote) {
+                        qtdPessoasCell.textContent = eventData.qtdpessoaslote || '0';
+                        qtdPessoasCell.style.display = 'table-cell';
+                    } else {
+                        qtdPessoasCell.style.display = 'none';
+                    }
 
-                    //row.insertCell().textContent = parseFloat(eventData.vlrtotal || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    // row.insertCell().textContent = eventData.statuspgto || '';
+                    row.insertCell().textContent = (eventData.datasevento && typeof eventData.datasevento === 'string')
 
-                    let valorTotalCalculado = parseFloat(eventData.vlrtotal || 0.00);
+                    ? JSON.parse(eventData.datasevento) // Primeiro parseia a string JSON para um array
+                    .map(dateStr => { // Depois, mapeia cada string de data no array
+                        const parts = dateStr.split('-'); // Divide a data (ex: ['2025', '07', '01'])
+                        if (parts.length === 3) {
+                            return `${parts[2]}/${parts[1]}/${parts[0]}`; // Reorganiza para DD/MM/YYYY
+                        }
+                        return dateStr; // Retorna a data original se não estiver no formato esperado
+                    })
+                    .join(', ') // Junta as datas formatadas com vírgula e espaço
+                    : (Array.isArray(eventData.datasevento) && eventData.datasevento.length > 0)
+                    ? eventData.datasevento // Se já for um array (do backend, por exemplo)
+                    .map(dateStr => {
+                        const parts = dateStr.split('-');
+                        if (parts.length === 3) {
+                            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                        }
+                        return dateStr;
+                    })
+                    .join(', ')
+                    : 'N/A';
 
-//                     // Adiciona vlrcaixinha se statuscaixinha for 'Autorizado'
+                    row.insertCell().textContent = parseFloat(eventData.vlrcache || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                   // row.insertCell().textContent = parseFloat(eventData.vlrajustecusto || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    const vlrAjusteCustoCell = row.insertCell();
+                    const vlrAjusteCustoFormatado = parseFloat(eventData.vlrajustecusto || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    vlrAjusteCustoCell.textContent = vlrAjusteCustoFormatado; // Insere o valor em preto
+
+                    const statusAjusteCusto = (eventData.statusajustecusto || '').trim();
+
+                    if (statusAjusteCusto) {
+                        const statusSpan = document.createElement('span');
+                        statusSpan.textContent = ` (${statusAjusteCusto})`;
+                        statusSpan.classList.add('status-custom');
+                        
+                        // Formata o status para "Pendente", "Autorizado", etc.
+                        // Garante que o status para a classe seja Capitalizado
+                        const statusCapitalized = statusAjusteCusto.charAt(0).toUpperCase() + statusAjusteCusto.slice(1).toLowerCase();
+                        
+                        // Adiciona a classe de cor correta
+                        statusSpan.classList.add(`status-${statusCapitalized}`); 
+                        
+                        vlrAjusteCustoCell.appendChild(statusSpan);
+                    }
+
+                    row.insertCell().textContent = eventData.descajustecusto || '';                   
+                    row.insertCell().textContent = parseFloat(eventData.vlralimentacao || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    row.insertCell().textContent = parseFloat(eventData.vlrtransporte || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                   // row.insertCell().textContent = parseFloat(eventData.vlrcaixinha || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    const vlrCaixinhaCell = row.insertCell();
+                    const vlrCaixinhaFormatado = parseFloat(eventData.vlrcaixinha || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    vlrCaixinhaCell.textContent = vlrCaixinhaFormatado; // Valor em preto
+
+                    const statusCaixinha = (eventData.statuscaixinha || '').trim();
+
+                    if (statusCaixinha) {
+                        const statusSpan = document.createElement('span');
+                        statusSpan.textContent = ` (${statusCaixinha})`;
+                        statusSpan.classList.add('status-custom');
+
+                        // Formata o status para "Pendente", "Autorizado", etc.
+                        // Garante que o status para a classe seja Capitalizado
+                        const statusCapitalized = statusCaixinha.charAt(0).toUpperCase() + statusCaixinha.slice(1).toLowerCase();
+
+                        // Adiciona a classe de cor correta
+                        statusSpan.classList.add(`status-${statusCapitalized}`);
+
+                        vlrCaixinhaCell.appendChild(statusSpan);
+                    }
+                    row.insertCell().textContent = eventData.descbeneficios || '';
+
+                    //row.insertCell().textContent = parseFloat(eventData.vlrtotal || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    // row.insertCell().textContent = eventData.statuspgto || '';
+
+                    let valorTotalCalculado = parseFloat(eventData.vlrtotal || 0.00);
+
+                    // Adiciona vlrcaixinha se statuscaixinha for 'Autorizado'
 //                     if (eventData.statuscaixinha && eventData.statuscaixinha.toLowerCase() === 'autorizado') {
 //                         valorTotalCalculado += parseFloat(eventData.vlrcaixinha || 0.00);
 //                     }
@@ -1308,34 +1331,34 @@ const carregarTabelaStaff = async (funcionarioId) => {
                     
                     row.insertCell().textContent = valorTotalCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-                    const statusCell = row.insertCell();
+                    const statusCell = row.insertCell();
 
-                    const status = (eventData.statuspgto || '').toLowerCase();
-                    const statusSpan = document.createElement('span');
-                    statusSpan.textContent = status.toUpperCase();
+                    const status = (eventData.statuspgto || '').toLowerCase();
+                    const statusSpan = document.createElement('span');
+                    statusSpan.textContent = status.toUpperCase();
 
-                    // Adicione a classe base
-                    statusSpan.classList.add('status-pgto');
+                    // Adicione a classe base
+                    statusSpan.classList.add('status-pgto');
 
-                    if (status === "pendente") {
-                        statusSpan.classList.add('pendente');
-                    } else if (status === "pago") {
-                        statusSpan.classList.add('pago');
-                    }
-                    statusCell.appendChild(statusSpan);
-                }
+                    if (status === "pendente") {
+                        statusSpan.classList.add('pendente');
+                    } else if (status === "pago") {
+                        statusSpan.classList.add('pago');
+                    }
+                    statusCell.appendChild(statusSpan);
+                }
 
-            });
-        } else {
-            noResultsMessage.style.display = 'block';
-            noResultsMessage.textContent = `Nenhum evento encontrado para o funcionário selecionado.`;
-        }
+            });
+        } else {
+            noResultsMessage.style.display = 'block';
+            noResultsMessage.textContent = `Nenhum evento encontrado para o funcionário selecionado.`;
+        }
 
-    } catch (error) {
-        console.error('Erro ao buscar dados de eventos do funcionário:', error);
-        noResultsMessage.style.display = 'block';
-        noResultsMessage.textContent = `Erro ao carregar dados: ${error.message}. Tente novamente.`;
-    }
+    } catch (error) {
+        console.error('Erro ao buscar dados de eventos do funcionário:', error);
+        noResultsMessage.style.display = 'block';
+        noResultsMessage.textContent = `Erro ao carregar dados: ${error.message}. Tente novamente.`;
+    }
 };
 
 function aplicarCoresAsOpcoes(selectElementId) {
@@ -1372,6 +1395,230 @@ function aplicarCorStatusInput(elementoInput) {
     }
 }
 
+async function limparCamposStaffParcial() {
+
+    currentEditingStaffEvent = null; // Garanta que esta também seja limpa
+    isFormLoadedFromDoubleClick = false;
+
+    const previewFoto = document.getElementById('previewFoto');
+    const fileName = document.getElementById('fileName');
+    const fileInput = document.getElementById('file');
+    const uploadHeader = document.getElementById('uploadHeader');
+    const linkFotoFuncionarios = document.getElementById('linkFotoFuncionarios');
+    const nomeFuncionarioExibido = document.getElementById('nomeFuncionarioExibido');
+    const labelFuncionario = document.getElementById('labelFuncionario');
+
+    if (labelFuncionario) {
+        labelFuncionario.style.display = "none"; // esconde
+        labelFuncionario.textContent = "";       // limpa o texto
+        labelFuncionario.style.color = "";       // reseta cor
+        console.log("Label Funcionário limpo.");
+    }
+
+    if (previewFoto) {
+        previewFoto.src = "#";
+        previewFoto.style.display = "none";
+        console.log("Preview da foto limpo.");
+    }
+    if (fileName) {
+        fileName.textContent = "Nenhum arquivo selecionado";
+    }
+    if (fileInput) {
+        fileInput.value = "";
+    }
+    if (uploadHeader) {
+        uploadHeader.style.display = "block";
+    }
+    if (linkFotoFuncionarios) {
+        linkFotoFuncionarios.value = "";
+    }
+    if (nomeFuncionarioExibido) {
+        nomeFuncionarioExibido.textContent = "";
+    }
+
+    // 1. Limpeza de IDs e Nome do Staff/Funcionário
+    document.querySelector("#idStaff").value = '';
+    document.querySelector("#idFuncionario").value = '';
+    const nmFuncionario = document.getElementById("nmFuncionario");
+    if (nmFuncionario) nmFuncionario.value = ''; 
+
+    document.querySelector("#apelidoFuncionario").value = '';
+    const apelido = document.getElementById("apelidoFuncionario");
+    if (apelido) apelido.value = '';
+
+    document.querySelector("#perfilFuncionario").value = '';
+    const perfil = document.getElementById("perfilFuncionario");
+    if (perfil) perfil.value = '';
+
+    // 2. Limpeza de valores financeiros
+    document.querySelector("#vlrCusto").value = ''; // Cachê
+    document.querySelector("#transporte").value = '';
+    document.querySelector("#alimentacao").value = '';
+    document.querySelector("#caixinha").value = '';
+    document.getElementById('vlrTotal').value = '';
+
+    // 3. Limpeza de Níveis de Experiência (Checkboxes)
+    document.getElementById('Seniorcheck').checked = false;
+    document.getElementById('Plenocheck').checked = false;
+    document.getElementById('Juniorcheck').checked = false;
+    document.getElementById('Basecheck').checked = false;
+    
+    // 4. 🛑 LIMPEZA TOTAL DE DATAS (Flatpickr)
+    // Usamos o método clear() em todas as instâncias do flatpickr.
+    
+    // Período do Evento
+    if (typeof datasEventoPicker !== 'undefined' && datasEventoPicker && typeof datasEventoPicker.clear === 'function') {
+        datasEventoPicker.clear();
+        console.log("Datas do Evento (Flatpickr) limpas.");
+    }
+
+    // Diária Dobrada
+    const diariaDobradaCheck = document.getElementById("diariaDobradacheck");
+    if (typeof diariaDobradaPicker !== 'undefined' && diariaDobradaPicker && typeof diariaDobradaPicker.clear === 'function') {
+        diariaDobradaPicker.clear();
+    }
+    if (diariaDobradaCheck) {
+        diariaDobradaCheck.checked = false; // Desmarca o checkbox
+        // 💡 Opcional: Se existir, esconde o campo relacionado à diária dobrada
+        // document.getElementById("diariaDobradaDiv").style.display = 'none'; 
+    }
+    
+    // Meia Diária
+    const meiaDiariaCheck = document.getElementById("meiaDiariacheck");
+    if (typeof meiaDiariaPicker !== 'undefined' && meiaDiariaPicker && typeof meiaDiariaPicker.clear === 'function') {
+        meiaDiariaPicker.clear();
+    }
+    if (meiaDiariaCheck) {
+        meiaDiariaCheck.checked = false; // Desmarca o checkbox
+        // 💡 Opcional: Se existir, esconde o campo relacionado à meia diária
+        // document.getElementById("meiaDiariaDiv").style.display = 'none'; 
+    }
+
+    // 5. ⚠️ Limpeza de outros Checkboxes (Caixinha/AjusteCusto)
+    const caixinhaCheck = document.getElementById("Caixinhacheck");
+    if (caixinhaCheck) {
+        caixinhaCheck.checked = false;
+    }
+    
+    const ajusteCustoCheck = document.getElementById("ajusteCustocheck");
+    if (ajusteCustoCheck) {
+        ajusteCustoCheck.checked = false;
+    }
+
+    // ✅ Limpeza de PDFs por classe
+    const fileNamesPDF = document.querySelectorAll('.fileNamePDF');
+    const fileInputsPDF = document.querySelectorAll('.filePDFInput');
+    const hiddenInputsPDF = document.querySelectorAll('.hiddenPDF');
+
+    fileNamesPDF.forEach(p => {
+        p.textContent = "Nenhum arquivo selecionado";
+    });
+    fileInputsPDF.forEach(input => {
+        input.value = "";
+    });
+    hiddenInputsPDF.forEach(input => {
+        input.value = "";
+    });
+    console.log("Campos de arquivos PDF limpos.");
+
+
+    const beneficioTextarea = document.getElementById('descBeneficio');
+    if (beneficioTextarea) {
+        beneficioTextarea.style.display = 'none'; // Oculta o textarea
+        beneficioTextarea.required = false;      // Remove a obrigatoriedade
+        beneficioTextarea.value = '';            // Limpa o conteúdo
+    }
+
+    const ajusteCustoTextarea = document.getElementById('descAjusteCusto');
+    if (ajusteCustoTextarea) {
+        ajusteCustoTextarea.style.display = 'none'; // Oculta o textarea
+        ajusteCustoTextarea.required = false;      // Remove a obrigatoriedade
+        ajusteCustoTextarea.value = '';            // Limpa o conteúdo
+    }
+
+    const descCaixinhaTextarea = document.getElementById('descCaixinha');
+    if (descCaixinhaTextarea) {
+        descCaixinhaTextarea.style.display = 'none'; // Oculta o textarea
+        descCaixinhaTextarea.required = false;      // Remove a obrigatoriedade
+        descCaixinhaTextarea.value = '';            // Limpa o conteúdo
+    }
+
+    const statusMeiaDiaria = document.getElementById('statusMeiaDiaria');
+    if (statusMeiaDiaria) statusMeiaDiaria.value = 'Autorização da Meia Diária';
+
+    const statusDiariaDobrada = document.getElementById('statusDiariaDobrada');
+    if (statusDiariaDobrada) statusDiariaDobrada.value = 'Autorização da Diária Dobrada';
+
+    const statusPgto = document.getElementById('statuspgto');
+    if (statusPgto) statusPgto.value = '';
+
+    const statusAjusteCusto = document.getElementById('statusAjusteCusto');
+    if (statusAjusteCusto) statusAjusteCusto.value = 'Autorização do Ajuste de Custo';
+
+    const statusCaixinha = document.getElementById('statuscaixinha');
+    if (statusCaixinha) statusCaixinha.value = 'Autorização da Caixinha';
+
+    const containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
+    const containerStatusMeiaDiaria = document.getElementById('containerStatusMeiaDiaria');
+
+    if (containerStatusDiariaDobrada) {
+        containerStatusDiariaDobrada.innerHTML = '';
+        containerStatusDiariaDobrada.style.display = 'none';
+    }
+
+    if (containerStatusMeiaDiaria) {
+        containerStatusMeiaDiaria.innerHTML = '';
+        containerStatusMeiaDiaria.style.display = 'none';
+    }
+
+    const avaliacaoSelect = document.getElementById('avaliacao');
+    if (avaliacaoSelect) {
+        avaliacaoSelect.value = ''; // Define para o valor da opção vazia (se existir, ex: <option value="">Selecione...</option>)
+        // avaliacaoSelect.selectedIndex = 0; // Alternativa: seleciona a primeira opção
+        const tarjaAvaliacao = document.getElementById('tarjaAvaliacao');
+        if (tarjaAvaliacao) {
+            tarjaAvaliacao.className = 'tarja-avaliacao'; // Reseta para a classe padrão
+            tarjaAvaliacao.textContent = ''; // Limpa o texto
+            console.log("Campos de avaliação (select e tarja) limpos.");
+        }
+    }
+
+    const tabelaCorpo = document.getElementById("eventsDataTable").getElementsByTagName("tbody")[0];
+    if (tabelaCorpo) {
+        // Remove todas as linhas filhas do tbody
+        while (tabelaCorpo.firstChild) {
+            tabelaCorpo.removeChild(tabelaCorpo.firstChild);
+        }
+        console.log("Corpo da tabela (tabela) limpo.");
+
+        // Adiciona uma linha "vazia" de volta, se for o comportamento padrão desejado
+        let emptyRow = tabelaCorpo.insertRow();
+        let emptyCell = emptyRow.insertCell(0);
+        emptyCell.colSpan = 20; // Ajuste para o número total de colunas da sua tabela
+        emptyCell.textContent = "Nenhum item adicionado.";
+        emptyCell.style.textAlign = "center";
+        emptyCell.style.padding = "20px";
+        console.log("Linha vazia adicionada à tabela 'tabela'.");
+    } else {
+        console.warn("Tabela com ID 'tabela' ou seu tbody não encontrado para limpeza. Verifique se o ID está correto.");
+    }
+
+
+    limparCamposComprovantes();
+    limparFoto();
+
+
+    // 6. Notifica o usuário
+    Swal.fire({
+        title: "Pronto para o próximo!",
+        text: "Campos de funcionário/cachê e datas limpos. Prossiga com o novo cadastro.",
+        icon: "info",
+        timer: 2000,
+        showConfirmButton: false
+    });
+
+
+}
 
 console.log("não carregou Verificar");
 async function verificaStaff() {
@@ -1382,7 +1629,6 @@ async function verificaStaff() {
     configurarPreviewImagem();
     inicializarFlatpickrsGlobais();
     
-    carregarEquipeStaff();
     carregarFuncaoStaff();
     carregarFuncionarioStaff();
     carregarClientesStaff();
@@ -1741,28 +1987,27 @@ async function verificaStaff() {
         });
     }
 
+    
 
 
-    botaoEnviar.addEventListener("click", async (event) => {        
-        event.preventDefault(); // Previne o envio padrão do formulário
+        const botaoEnviarOriginal = document.getElementById("Enviar");
+if (botaoEnviarOriginal) {
+  const BotaoEnviar = botaoEnviarOriginal.cloneNode(true); // Clona o botão, removendo listeners antigos
+  botaoEnviarOriginal.parentNode.replaceChild(BotaoEnviar, botaoEnviarOriginal);
+  console.log("[botaoEnviar] Listener antigo removido para evitar salvamento duplicado.");
 
-        // if (!temOrcamento){
-        //     Swal.fire({
-        //         icon: 'warning',
-        //         title: 'Não permitido Salvar esse Staff, ORÇAMENTO não foi gerado.',
-        //         text: 'Por favor, verifique os parâmetros e tente novamente.'
-        //     });
-        //     return;
-        // }
+  // Agora usa o novo botão clonado na função existente:
+    BotaoEnviar.addEventListener("click", async (event) => {
+        event.preventDefault();      
+            
+            const datasEventoRawValue = datasEventoPicker?.selectedDates || [];
+            const periodoDoEvento = datasEventoRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
 
-        const datasEventoRawValue = datasEventoPicker?.selectedDates || [];
-        const periodoDoEvento = datasEventoRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
+            const diariaDobradaRawValue = diariaDobradaPicker?.selectedDates || [];
+            const periodoDobrado = diariaDobradaRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
 
-        const diariaDobradaRawValue = diariaDobradaPicker?.selectedDates || [];
-        const periodoDobrado = diariaDobradaRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
-
-        const diariaMeiaRawValue = meiaDiariaPicker?.selectedDates || [];
-        const periodoMeiaDiaria = diariaMeiaRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
+            const diariaMeiaRawValue = meiaDiariaPicker?.selectedDates || [];
+            const periodoMeiaDiaria = diariaMeiaRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
 
         statusOrcamentoAtual = document.getElementById("status");
         const selectAvaliacao = document.getElementById("avaliacao");
@@ -1787,608 +2032,615 @@ async function verificaStaff() {
         const selectEvento = document.getElementById("nmEvento");
         const nmEvento = selectEvento.options[selectEvento.selectedIndex]?.textContent.trim().toUpperCase() || '';
         const idEquipe = document.querySelector("#idEquipe").value;
-        const selectEquipe = document.getElementById("nmEquipe");
-        const nmEquipe = selectEquipe.options[selectEquipe.selectedIndex]?.textContent.trim().toUpperCase() || '';
+        const nmEquipe = document.querySelector("#nmEquipe").value.trim().toUpperCase();
+       // const selectEquipe = document.getElementById("nmEquipe");
+       // const nmEquipe = selectEquipe.options[selectEquipe.selectedIndex]?.textContent.trim().toUpperCase() || '';
 
-        const idMontagem = document.querySelector("#idMontagem").value; // ID do local de montagem (FK)
-        const selectLocalMontagem = document.getElementById("nmLocalMontagem");
-        const nmLocalMontagem = selectLocalMontagem.options[selectLocalMontagem.selectedIndex].textContent.trim();
-        const selectPavilhao = document.getElementById("nmPavilhao");
-        let pavilhao = selectPavilhao.options[selectPavilhao.selectedIndex]?.textContent.trim().toUpperCase() || '';
-        const caixinhaAtivo = document.getElementById("Caixinhacheck")?.checked;
-        const ajusteCustoAtivo = document.getElementById("ajusteCustocheck")?.checked;
-        const descBeneficioInput = document.getElementById("descBeneficio");
-        const descBeneficio = descBeneficioInput?.value.trim() || "";
+            const idMontagem = document.querySelector("#idMontagem").value; // ID do local de montagem (FK)
+            const selectLocalMontagem = document.getElementById("nmLocalMontagem");
+            const nmLocalMontagem = selectLocalMontagem.options[selectLocalMontagem.selectedIndex].textContent.trim();
+            const selectPavilhao = document.getElementById("nmPavilhao");
+            let pavilhao = selectPavilhao.options[selectPavilhao.selectedIndex]?.textContent.trim().toUpperCase() || '';
+            const caixinhaAtivo = document.getElementById("Caixinhacheck")?.checked;
+            const ajusteCustoAtivo = document.getElementById("ajusteCustocheck")?.checked;
+            const descBeneficioInput = document.getElementById("descBeneficio");
+            const descBeneficio = descBeneficioInput?.value.trim() || "";
 
         const descAjusteCustoInput = document.getElementById("descAjusteCusto");
         const descAjusteCusto = descAjusteCustoInput.value.trim() || "";
-        //const statusAjusteCusto = document.getElementById("statusAjusteCusto").value;
-     
+        //const statusAjusteCusto = document.getElementById("statusAjusteCusto").value;     
 
-        const setor = document.querySelector("#setor").value.trim().toUpperCase();
+            const setor = document.querySelector("#setor").value.trim().toUpperCase();
 
-        const descCaixinhaInput = document.getElementById("descCaixinha");
-        const descCaixinha = descCaixinhaInput?.value.trim() || "";
-        //const statusCaixinha = document.getElementById("statusCaixinha").value;
+            const descCaixinhaInput = document.getElementById("descCaixinha");
+            const descCaixinha = descCaixinhaInput?.value.trim() || "";
+            //const statusCaixinha = document.getElementById("statusCaixinha").value;
 
         const selectStatusAjusteCusto = document.getElementById("statusAjusteCusto");
         console.log("Elemento `statusAjusteCusto`:", selectStatusAjusteCusto);
-        const statusAjusteCusto = selectStatusAjusteCusto?.value?.trim() || '';
+        let statusAjusteCusto = selectStatusAjusteCusto?.value?.trim() || '';
 
-        console.log("Valor `statusAjusteCusto`:", statusAjusteCusto);
+            console.log("Valor `statusAjusteCusto`:", statusAjusteCusto);
 
         const selectStatusCaixinha = document.getElementById("statusCaixinha");
-        const statusCaixinha = selectStatusCaixinha?.value?.trim() || '';
+        let statusCaixinha = selectStatusCaixinha?.value?.trim() || '';
 
-        const diariaDobrada = document.getElementById("diariaDobradacheck")?.checked;
-        const meiaDiaria = document.getElementById("meiaDiariacheck")?.checked;
-        let statusDiariaDobrada = document.getElementById("statusDiariaDobrada").value;
-        let statusMeiaDiaria = document.getElementById("statusMeiaDiaria").value;
+            const diariaDobrada = document.getElementById("diariaDobradacheck")?.checked;
+            const meiaDiaria = document.getElementById("meiaDiariacheck")?.checked;
+            let statusDiariaDobrada = document.getElementById("statusDiariaDobrada").value;
+            let statusMeiaDiaria = document.getElementById("statusMeiaDiaria").value;
 
-        const seniorCheck = document.getElementById('Seniorcheck');
-        const plenoCheck = document.getElementById('Plenocheck');
-        const juniorCheck = document.getElementById('Juniorcheck');
-        const baseCheck = document.getElementById('Basecheck');       
+            const seniorCheck = document.getElementById('Seniorcheck');
+            const plenoCheck = document.getElementById('Plenocheck');
+            const juniorCheck = document.getElementById('Juniorcheck');
+            const baseCheck = document.getElementById('Basecheck');       
 
-        const qtdPessoas = parseInt(document.getElementById('qtdPessoas').value, 10) || 0;
+            const qtdPessoas = parseInt(document.getElementById('qtdPessoas').value, 10) || 0;
 
-        console.log("QTD PESSOAS", qtdPessoas);
+            console.log("QTD PESSOAS", qtdPessoas);
 
-        console.log("STATUS CAIXINHA, AJUSTECUSTO, DIARIADOBRADAINPUT, DATASEVENTOINPUT", statusCaixinha, statusAjusteCusto, diariaDobradaInput, datasEventoInput);
+            console.log("STATUS CAIXINHA, AJUSTECUSTO, DIARIADOBRADAINPUT, DATASEVENTOINPUT", statusCaixinha, statusAjusteCusto, diariaDobradaInput, datasEventoInput);
 
-        if (periodoDoEvento.length === 0) {
-            return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias do evento.", "warning");
-        }
-        if (diariaDobradacheck.checked && periodoDobrado.length === 0) {
-            return Swal.fire(
-                "Campo obrigatório!",
-                "Por favor, selecione os dias de Dobra no evento.",
-                "warning"
-            );
-        }
-        if (meiaDiariacheck.checked && periodoMeiaDiaria.length === 0) {
-            return Swal.fire(
-                "Campo obrigatório!",
-                "Por favor, selecione os dias de Dobra no evento.",
-                "warning"
-            );
-        }   
-            const vlrTotal = document.getElementById('vlrTotal').value;
-            const total = parseFloat(
-            vlrTotal
-                .replace('R$', '')
-                .replace(/\./g, '')
-                .replace(',', '.')
-                .trim()
-            ) || 0.00;
-
-
-            if(!nmFuncionario || !descFuncao || !vlrCusto || !nmCliente || !nmEvento || !periodoDoEvento){
-                return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Funcionário, Função, Cachê, Transportes, Alimentação, Cliente, Evento e Período do Evento.", "warning");
+            if (periodoDoEvento.length === 0) {
+                return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias do evento.", "warning");
             }
-
-            if (!seniorCheck.checked &&  !plenoCheck.checked &&  !juniorCheck.checked &&  !baseCheck.checked) {
+            if (diariaDobradacheck.checked && periodoDobrado.length === 0) {
                 return Swal.fire(
-                    "Nível de Experiência não selecionado!",
-                    "Por favor, selecione pelo menos um nível de experiência: Sênior, Pleno, Júnior ou Base.",
+                    "Campo obrigatório!",
+                    "Por favor, selecione os dias de Dobra no evento.",
                     "warning"
                 );
             }
+            if (meiaDiariacheck.checked && periodoMeiaDiaria.length === 0) {
+                return Swal.fire(
+                    "Campo obrigatório!",
+                    "Por favor, selecione os dias de Dobra no evento.",
+                    "warning"
+                );
+            }   
+                const vlrTotal = document.getElementById('vlrTotal').value;
+                const total = parseFloat(
+                vlrTotal
+                    .replace('R$', '')
+                    .replace(/\./g, '')
+                    .replace(',', '.')
+                    .trim()
+                ) || 0.00;
 
-            if ((caixinhaAtivo) && !descCaixinha) {
 
-                if (descCaixinhaInput) {
-                    descCaixinhaInput.focus();
+                if(!nmFuncionario || !descFuncao || !vlrCusto || !nmCliente || !nmEvento || !periodoDoEvento){
+                    return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Funcionário, Função, Cachê, Transportes, Alimentação, Cliente, Evento e Período do Evento.", "warning");
                 }
 
-                return Swal.fire(
-                    "Campos obrigatórios!",
-                    "Preencha a descrição do benefício (Caixinha) antes de salvar.",
-                    "warning"
-                );
-            }
-
-            if ((ajusteCustoAtivo) && !descAjusteCusto) {
-
-                if (descAjusteCustoInput) {
-                    descAjusteCustoInput.focus();
+                if (!seniorCheck.checked &&  !plenoCheck.checked &&  !juniorCheck.checked &&  !baseCheck.checked) {
+                    return Swal.fire(
+                        "Nível de Experiência não selecionado!",
+                        "Por favor, selecione pelo menos um nível de experiência: Sênior, Pleno, Júnior ou Base.",
+                        "warning"
+                    );
                 }
 
-                return Swal.fire(
-                    "Campos obrigatórios!",
-                    "Preencha a descrição do bônus antes de salvar.",
-                    "warning"
-                );
-            }
+                if ((caixinhaAtivo) && !descCaixinha) {
 
-            const temPermissaoCadastrar = temPermissao("Staff", "cadastrar");
-            const temPermissaoAlterar = temPermissao("Staff", "alterar");
+                    if (descCaixinhaInput) {
+                        descCaixinhaInput.focus();
+                    }
 
-            const idStaffEvento = document.querySelector("#idStaffEvento").value;
+                    return Swal.fire(
+                        "Campos obrigatórios!",
+                        "Preencha a descrição do benefício (Caixinha) antes de salvar.",
+                        "warning"
+                    );
+                }
 
-            const isEditingInitial = !!(currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento);
+                if ((ajusteCustoAtivo) && !descAjusteCusto) {
 
-            const idEventoEmEdicao = isEditingInitial ? currentEditingStaffEvent.idstaffevento : null;
+                    if (descAjusteCustoInput) {
+                        descAjusteCustoInput.focus();
+                    }
 
-            console.log("EM EDIÇÃO?", isEditingInitial, idEventoEmEdicao);
+                    return Swal.fire(
+                        "Campos obrigatórios!",
+                        "Preencha a descrição do bônus antes de salvar.",
+                        "warning"
+                    );
+                }
 
-            let metodo = isEditingInitial ? "PUT" : "POST";
-            let url = isEditingInitial ? `/staff/${idEventoEmEdicao}` : "/staff";
+                const temPermissaoCadastrar = temPermissao("Staff", "cadastrar");
+                const temPermissaoAlterar = temPermissao("Staff", "alterar");
 
-            const idStaffEventoFromObject = currentEditingStaffEvent ? currentEditingStaffEvent.idstaffevento : null;
+                const idStaffEvento = document.querySelector("#idStaffEvento").value;
 
-            const idStaffEventoNumero = parseInt(idStaffEvento, 10);
+                const isEditingInitial = !!(currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento);
 
-            if (idStaffEventoFromObject === idStaffEventoNumero)
-            {
-                console.log("IDS SÃO IGUAIS", idStaffEventoFromObject, idStaffEventoNumero);
-            } else {
-                console.log("IDS SÃO DIFERENTES", idStaffEventoFromObject, idStaffEventoNumero);
-            }
+                const idEventoEmEdicao = isEditingInitial ? currentEditingStaffEvent.idstaffevento : null;
 
-            if (idStaffEvento && isFormLoadedFromDoubleClick && currentEditingStaffEvent && idStaffEventoFromObject === idStaffEventoNumero) {
-                console.log("ENTROU NO METODO PUT");
-                metodo = "PUT";
-                url = `/staff/${idStaffEvento}`;
-                console.log("Modo de edição detectado via idstaffevento e flag. Método:", metodo, "URL:", url);
-            } else {
+                console.log("EM EDIÇÃO?", isEditingInitial, idEventoEmEdicao);
 
-                metodo = "POST";
-                url = "/staff";
-                console.log("Modo de cadastro detectado. Método:", metodo, "URL:", url, "Status Orcamento", statusOrcamentoAtual);
+                let metodo = isEditingInitial ? "PUT" : "POST";
+                let url = isEditingInitial ? `/staff/${idEventoEmEdicao}` : "/staff";
 
-                currentEditingStaffEvent = null;
-                isFormLoadedFromDoubleClick = false;
-            }
+                const idStaffEventoFromObject = currentEditingStaffEvent ? currentEditingStaffEvent.idstaffevento : null;
 
-            if (pavilhao === "SELECIONE O PAVILHÃO") {
-                pavilhao = "";
-            }
+                const idStaffEventoNumero = parseInt(idStaffEvento, 10);
 
-            if (metodo === "POST" && !temPermissaoCadastrar) {
-                return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos staffs.", "error");
-            }
+                if (idStaffEventoFromObject === idStaffEventoNumero)
+                {
+                    console.log("IDS SÃO IGUAIS", idStaffEventoFromObject, idStaffEventoNumero);
+                } else {
+                    console.log("IDS SÃO DIFERENTES", idStaffEventoFromObject, idStaffEventoNumero);
+                }
 
-            if (metodo === "PUT" && !temPermissaoAlterar) {
-                return Swal.fire("Acesso negado", "Você não tem permissão para alterar staffs.", "error");
-            }
+                if (idStaffEvento && isFormLoadedFromDoubleClick && currentEditingStaffEvent && idStaffEventoFromObject === idStaffEventoNumero) {
+                    console.log("ENTROU NO METODO PUT");
+                    metodo = "PUT";
+                    url = `/staff/${idStaffEvento}`;
+                    console.log("Modo de edição detectado via idstaffevento e flag. Método:", metodo, "URL:", url);
+                } else {
 
-            console.log("--- INÍCIO handleFormSubmit ---");
-            console.log("Método inicial:", metodo); // POST ou PUT
-            console.log("Carregado por duplo clique (isFormLoadedFromDoubleClick):", isFormLoadedFromDoubleClick);
-            console.log("currentEditingStaffEvent (antes da verificação):", currentEditingStaffEvent);
+                    metodo = "POST";
+                    url = "/staff";
+                    console.log("Modo de cadastro detectado. Método:", metodo, "URL:", url, "Status Orcamento", statusOrcamentoAtual);
 
-            const idFuncionarioParaVerificacao = idFuncionario; 
-            const idFuncaoDoFormulario = idFuncao;         
+                    currentEditingStaffEvent = null;
+                    isFormLoadedFromDoubleClick = false;
+                }
 
-            const flatpickrForDatasEvento = window.flatpickrInstances['datasEvento'];
-            const datasParaVerificacao = flatpickrForDatasEvento?.selectedDates || [];
+                if (pavilhao === "SELECIONE O PAVILHÃO") {
+                    pavilhao = "";
+                }
+
+                if (metodo === "POST" && !temPermissaoCadastrar) {
+                    return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos staffs.", "error");
+                }
+
+                if (metodo === "PUT" && !temPermissaoAlterar) {
+                    return Swal.fire("Acesso negado", "Você não tem permissão para alterar staffs.", "error");
+                }
+
+                console.log("--- INÍCIO handleFormSubmit ---");
+                console.log("Método inicial:", metodo); // POST ou PUT
+                console.log("Carregado por duplo clique (isFormLoadedFromDoubleClick):", isFormLoadedFromDoubleClick);
+                console.log("currentEditingStaffEvent (antes da verificação):", currentEditingStaffEvent);
+
+                const idFuncionarioParaVerificacao = idFuncionario; 
+                const idFuncaoDoFormulario = idFuncao;         
+
+                const flatpickrForDatasEvento = window.flatpickrInstances['datasEvento'];
+                const datasParaVerificacao = flatpickrForDatasEvento?.selectedDates || [];
+                
+                //PARA EXCEÇÃO DE BLOQUEIO QUANDO A FUNÇÃO FOR FISCAL NOTURNO MESMA DATA EVENTOS DIFERENTES
             
-             //PARA EXCEÇÃO DE BLOQUEIO QUANDO A FUNÇÃO FOR FISCAL NOTURNO MESMA DATA EVENTOS DIFERENTES
-           
 
-            const isDiariaDobradaChecked = diariaDobradacheck.checked;
+                const isDiariaDobradaChecked = diariaDobradacheck.checked;
 
-            console.log("Parâmetros para verificarDisponibilidadeStaff:", {
-            idFuncionarioParaVerificacao,   
-            periodoDoEvento,
-            idFuncaoDoFormulario,
-            idEventoEmEdicao
-        });
-
-            console.log("Iniciando verificação de disponibilidade do staff...");
-            const { isAvailable, conflictingEvent } = await verificarDisponibilidadeStaff(
-                idFuncionarioParaVerificacao,               
+                console.log("Parâmetros para verificarDisponibilidadeStaff:", {
+                idFuncionarioParaVerificacao,   
                 periodoDoEvento,
                 idFuncaoDoFormulario,
                 idEventoEmEdicao
-
-            );
-
-            const FUNCOES_EXCECAO_IDS = ['6'] //FISCAL NOTURNO ID 6, 'ID_FISCAL_DIURNO', 'ID_FISCAL_LOGISTICA']; // Substitua pelos IDs reais
-            const idFuncaoConflitante = conflictingEvent?.idfuncao; 
-            const isFuncaoExcecao = FUNCOES_EXCECAO_IDS.includes(String(idFuncaoDoFormulario)) || FUNCOES_EXCECAO_IDS.includes(String(idFuncaoConflitante));
-            const isFuncaoAtualFiscal = FUNCOES_EXCECAO_IDS.includes(String(idFuncaoDoFormulario));
-            const isFuncaoConflitanteFiscal = conflictingEvent ? FUNCOES_EXCECAO_IDS.includes(String(conflictingEvent.idfuncao)) : false;
-
-            console.log("Dados do formulário para verificação de duplicidade:", {
-                idFuncionario: idFuncionario,
-                nmFuncionario: nmFuncionario,
-                idFuncao: idFuncao,
-                setor: setor,
-                nmlocalmontagem: nmLocalMontagem,
-                nmevento: nmEvento,
-                nmcliente: nmCliente,
-                datasevento: JSON.stringify(periodoDoEvento)
             });
 
+                console.log("Iniciando verificação de disponibilidade do staff...");
+                const { isAvailable, conflictingEvent } = await verificarDisponibilidadeStaff(
+                    idFuncionarioParaVerificacao,               
+                    periodoDoEvento,
+                    idFuncaoDoFormulario,
+                    idEventoEmEdicao
 
-            if (!isAvailable) {
+                );
 
-                // **SE FOR UMA FUNÇÃO DE EXCEÇÃO, IGNORAR O BLOQUEIO E PROSSEGUIR**
-                if (isFuncaoExcecao) {
-                    console.log("A função agendada ou conflitante é uma função de FISCAL.");
-                    let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado em outra atividade na mesma data.`;
+                const FUNCOES_EXCECAO_IDS = ['6'] //FISCAL NOTURNO ID 6, 'ID_FISCAL_DIURNO', 'ID_FISCAL_LOGISTICA']; // Substitua pelos IDs reais
+                const idFuncaoConflitante = conflictingEvent?.idfuncao; 
+                const isFuncaoExcecao = FUNCOES_EXCECAO_IDS.includes(String(idFuncaoDoFormulario)) || FUNCOES_EXCECAO_IDS.includes(String(idFuncaoConflitante));
+                const isFuncaoAtualFiscal = FUNCOES_EXCECAO_IDS.includes(String(idFuncaoDoFormulario));
+                const isFuncaoConflitanteFiscal = conflictingEvent ? FUNCOES_EXCECAO_IDS.includes(String(conflictingEvent.idfuncao)) : false;
+
+                console.log("Dados do formulário para verificação de duplicidade:", {
+                    idFuncionario: idFuncionario,
+                    nmFuncionario: nmFuncionario,
+                    idFuncao: idFuncao,
+                    setor: setor,
+                    nmlocalmontagem: nmLocalMontagem,
+                    nmevento: nmEvento,
+                    nmcliente: nmCliente,
+                    datasevento: JSON.stringify(periodoDoEvento)
+                });
+
+
+                if (!isAvailable) {
+
+                    // **SE FOR UMA FUNÇÃO DE EXCEÇÃO, IGNORAR O BLOQUEIO E PROSSEGUIR**
+                    if (isFuncaoExcecao) {
+                        console.log("A função agendada ou conflitante é uma função de FISCAL.");
+                        let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado em outra atividade na mesma data.`;
+            
+                        if (conflictingEvent) {
+                            msg += `<br>Evento Conflitante: "<strong>${conflictingEvent.nmevento || 'N/A'}</strong>" (Função ID ${conflictingEvent.idfuncao}).`;
+                        }
+                        
+                        msg += `<br><br><strong>Motivo do Prosseguimento:</strong>`;
         
-                    if (conflictingEvent) {
-                        msg += `<br>Evento Conflitante: "<strong>${conflictingEvent.nmevento || 'N/A'}</strong>" (Função ID ${conflictingEvent.idfuncao}).`;
-                    }
-                    
-                    msg += `<br><br><strong>Motivo do Prosseguimento:</strong>`;
-    
-                    if (isFuncaoAtualFiscal && isFuncaoConflitanteFiscal) {
-                        msg += ` Ambas as atividades (a atual e a conflitante) são Funções de Fiscal, permitindo a sobreposição.`;
-                    } else if (isFuncaoAtualFiscal) {
-                        msg += ` A função <strong>atual</strong> (${idFuncaoDoFormulario}) é uma Função de Fiscal.`;
-                    } else if (isFuncaoConflitanteFiscal) {
-                        msg += ` A função <strong>conflitante</strong> (${conflictingEvent.idfuncao}) é uma Função de Fiscal.`;
-                    } else {
-                        // Fallback, embora a lógica isFuncaoExcecao deva evitar este path se foi bem definida
-                        msg += ` Conflito ignorado devido à regra de exceção da Função de Fiscal.`;
-                    }
+                        if (isFuncaoAtualFiscal && isFuncaoConflitanteFiscal) {
+                            msg += ` Ambas as atividades (a atual e a conflitante) são Funções de Fiscal, permitindo a sobreposição.`;
+                        } else if (isFuncaoAtualFiscal) {
+                            msg += ` A função <strong>atual</strong> (${idFuncaoDoFormulario}) é uma Função de Fiscal.`;
+                        } else if (isFuncaoConflitanteFiscal) {
+                            msg += ` A função <strong>conflitante</strong> (${conflictingEvent.idfuncao}) é uma Função de Fiscal.`;
+                        } else {
+                            // Fallback, embora a lógica isFuncaoExcecao deva evitar este path se foi bem definida
+                            msg += ` Conflito ignorado devido à regra de exceção da Função de Fiscal.`;
+                        }
 
-                    await Swal.fire({
-                        title: "Aviso: Conflito Ignorado (Fiscal)",
-                        html: msg,
-                        icon: "info", // Informativo
-                        confirmButtonText: "Prosseguir"
-                    });
-                    // Apenas prossegue com o restante da submissão (sai do bloco !isAvailable)
-                } else if (conflictingEvent && String(conflictingEvent.idfuncao) === String(idFuncaoDoFormulario) && !isDiariaDobradaChecked) {
+                        await Swal.fire({
+                            title: "Aviso: Conflito Ignorado (Fiscal)",
+                            html: msg,
+                            icon: "info", // Informativo
+                            confirmButtonText: "Prosseguir"
+                        });
+                        // Apenas prossegue com o restante da submissão (sai do bloco !isAvailable)
+                    } else if (conflictingEvent && String(conflictingEvent.idfuncao) === String(idFuncaoDoFormulario) && !isDiariaDobradaChecked) {
 
-                //if (conflictingEvent && String(conflictingEvent.idfuncao) === String(idFuncaoDoFormulario) && !isDiariaDobradaChecked) {
+                    //if (conflictingEvent && String(conflictingEvent.idfuncao) === String(idFuncaoDoFormulario) && !isDiariaDobradaChecked) {
 
-                    let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado para a <strong>mesma função</strong>`;
-                    if (conflictingEvent) {
-                        msg += ` no evento "<strong>${conflictingEvent.nmevento || 'N/A'}</strong>" do cliente "<strong>${conflictingEvent.nmcliente || 'N/A'}</strong>"`;
-                    }
+                        let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado para a <strong>mesma função</strong>`;
+                        if (conflictingEvent) {
+                            msg += ` no evento "<strong>${conflictingEvent.nmevento || 'N/A'}</strong>" do cliente "<strong>${conflictingEvent.nmcliente || 'N/A'}</strong>"`;
+                        }
 
-                    Swal.fire({
-                        title: "Conflito de Agendamento",
-                        html: msg,
-                        icon: "error"
-                    });
-                    return;
-
-                } else {
-
-                    let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado para uma <strong>função diferente</strong> `;
-
-
-                    if (isDiariaDobradaChecked) {
-                        msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado em <strong>outra atividade</strong> na(s) data(s) conflitante(s).`;
-                    }
-
-                    if (conflictingEvent) {
-                        msg += `no evento "<strong>${conflictingEvent.nmevento || 'N/A'}</strong>" do cliente "<strong>${conflictingEvent.nmcliente || 'N/A'}</strong>" `;
-                    }
-
-                    const conflictingDates = typeof conflictingEvent.datasevento === 'string' ? JSON.parse(conflictingEvent.datasevento) : conflictingEvent.datasevento;
-                    const intersection = datasParaVerificacao.map(d => d.toISOString().split('T')[0]).filter(date => conflictingDates.includes(date));
-                    if (intersection.length > 0) {
-                        msg += `nas datas: <strong>${intersection.map(d => {
-                            const parts = d.split('-');
-                            return `${parts[2]}/${parts[1]}/${parts[0]}`;
-                        }).join(', ')}</strong>.`;
-                    } else {
-                        msg += `em datas conflitantes.`;
-                    }
-
-                    msg += `<br>Deseja continuar com o agendamento?`;
-
-                    const { isConfirmed } = await Swal.fire({
-                        title: "Atenção: Conflito de Agendamento!",
-                        html: msg,
-                        icon: "warning",
-                        showCancelButton: true,
-                        confirmButtonText: "Sim, continuar",
-                        cancelButtonText: "Não, cancelar",
-                    });
-
-                    if (!isConfirmed) {
+                        Swal.fire({
+                            title: "Conflito de Agendamento",
+                            html: msg,
+                            icon: "error"
+                        });
                         return;
+
+                    } else {
+
+                        let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado para uma <strong>função diferente</strong> `;
+
+
+                        if (isDiariaDobradaChecked) {
+                            msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado em <strong>outra atividade</strong> na(s) data(s) conflitante(s).`;
+                        }
+
+                        if (conflictingEvent) {
+                            msg += `no evento "<strong>${conflictingEvent.nmevento || 'N/A'}</strong>" do cliente "<strong>${conflictingEvent.nmcliente || 'N/A'}</strong>" `;
+                        }
+
+                        const conflictingDates = typeof conflictingEvent.datasevento === 'string' ? JSON.parse(conflictingEvent.datasevento) : conflictingEvent.datasevento;
+                        const intersection = datasParaVerificacao.map(d => d.toISOString().split('T')[0]).filter(date => conflictingDates.includes(date));
+                        if (intersection.length > 0) {
+                            msg += `nas datas: <strong>${intersection.map(d => {
+                                const parts = d.split('-');
+                                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                            }).join(', ')}</strong>.`;
+                        } else {
+                            msg += `em datas conflitantes.`;
+                        }
+
+                        msg += `<br>Deseja continuar com o agendamento?`;
+
+                        const { isConfirmed } = await Swal.fire({
+                            title: "Atenção: Conflito de Agendamento!",
+                            html: msg,
+                            icon: "warning",
+                            showCancelButton: true,
+                            confirmButtonText: "Sim, continuar",
+                            cancelButtonText: "Não, cancelar",
+                        });
+
+                        if (!isConfirmed) {
+                            return;
+                        }
                     }
                 }
-            }
 
-            console.log("Preparando dados para envio:", {
-                nmFuncionario, descFuncao, nmLocalMontagem, nmCliente, nmEvento, vlrCusto, ajusteCusto, transporte, alimentacao, caixinha,
-                periodoDoEvento, vlrTotal
-            });
+                console.log("Preparando dados para envio:", {
+                    nmFuncionario, descFuncao, nmLocalMontagem, nmCliente, nmEvento, vlrCusto, ajusteCusto, transporte, alimentacao, caixinha,
+                    periodoDoEvento, vlrTotal
+                });
 
-            if (metodo === "POST")
-             {
-                const datasSelecionadas = window.flatpickrInstances['datasEvento']?.selectedDates.map(date => {
-                    return date.toISOString().split('T')[0];
-                }) || []; // Adicione um fallback para um array vazio
+                if (metodo === "POST")
+                {
+                    const datasSelecionadas = window.flatpickrInstances['datasEvento']?.selectedDates.map(date => {
+                        return date.toISOString().split('T')[0];
+                    }) || []; // Adicione um fallback para um array vazio
 
-                // Corrija a linha para usar o 'chaining opcional' e um fallback
-                const datasDobradas = window.flatpickrInstances['diariaDobrada']?.selectedDates.map(date => {
-                    return date.toISOString().split('T')[0];
-                }) || []; 
+                    // Corrija a linha para usar o 'chaining opcional' e um fallback
+                    const datasDobradas = window.flatpickrInstances['diariaDobrada']?.selectedDates.map(date => {
+                        return date.toISOString().split('T')[0];
+                    }) || []; 
 
-                const periodoDoEvento = [...datasSelecionadas, ...datasDobradas];
+                    const periodoDoEvento = [...datasSelecionadas, ...datasDobradas];
 
                 const criteriosDeVerificacao = {
-                    nmFuncao: descFuncaoSelect.options[descFuncaoSelect.selectedIndex].text,
+                    
                     nmEvento: nmEventoSelect.options[nmEventoSelect.selectedIndex].text,
                     nmCliente: nmClienteSelect.options[nmClienteSelect.selectedIndex].text,
                     nmlocalMontagem: nmLocalMontagemSelect.options[nmLocalMontagemSelect.selectedIndex].text,
+                    nmFuncao: descFuncaoSelect.options[descFuncaoSelect.selectedIndex].text,
                     pavilhao: nmPavilhaoSelect.options[nmPavilhaoSelect.selectedIndex].text,
                     datasEvento: datasSelecionadas,
                     datasEventoDobradas: datasDobradas
                 };
 
-                if (!isFormLoadedFromDoubleClick && !verificarLimiteDeFuncao(criteriosDeVerificacao)) {
+                    if (!isFormLoadedFromDoubleClick && !verificarLimiteDeFuncao(criteriosDeVerificacao)) {
 
-                    return;
+                        return;
+                    }
+
                 }
 
-            }
+                if (metodo === "POST" || (metodo === "PUT" && !isFormLoadedFromDoubleClick)) {
+                    console.log("Iniciando verificação de duplicidade. Método Inicial:", metodo, "Carregado por duplo clique:", isFormLoadedFromDoubleClick);
+                    try {
+                        const checkDuplicateUrl = `/staff/check-duplicate?` + new URLSearchParams({
+                            idFuncionario: idFuncionario,
+                            nmFuncionario: nmFuncionario,
+                            setor: setor,
+                            nmlocalmontagem: nmLocalMontagem,
+                            nmevento: nmEvento,
+                            nmcliente: nmCliente,
+                            datasevento: JSON.stringify(periodoDoEvento)
+                        }).toString();
 
-            if (metodo === "POST" || (metodo === "PUT" && !isFormLoadedFromDoubleClick)) {
-                console.log("Iniciando verificação de duplicidade. Método Inicial:", metodo, "Carregado por duplo clique:", isFormLoadedFromDoubleClick);
-                try {
-                    const checkDuplicateUrl = `/staff/check-duplicate?` + new URLSearchParams({
-                        idFuncionario: idFuncionario,
-                        nmFuncionario: nmFuncionario,
-                        setor: setor,
-                        nmlocalmontagem: nmLocalMontagem,
-                        nmevento: nmEvento,
-                        nmcliente: nmCliente,
-                        datasevento: JSON.stringify(periodoDoEvento)
-                    }).toString();
+                        const duplicateCheckResult = await fetchComToken(checkDuplicateUrl, {
+                            method: 'GET',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
 
-                    const duplicateCheckResult = await fetchComToken(checkDuplicateUrl, {
-                        method: 'GET',
-                        headers: { 'Content-Type': 'application/json' }
-                    });
+                        if (duplicateCheckResult.isDuplicate) {
 
-                    if (duplicateCheckResult.isDuplicate) {
+                            const existingEventData = duplicateCheckResult.existingEvent;
 
-                        const existingEventData = duplicateCheckResult.existingEvent;
-
-                        console.log("!!! DUPLICADO ENCONTRADO !!!");
-                        console.log("Evento duplicado retornado pelo backend:", existingEventData);
-                        console.log("Comparando:", currentEditingStaffEvent?.idstaffevento, "com", existingEventData?.idstaffevento);
+                            console.log("!!! DUPLICADO ENCONTRADO !!!");
+                            console.log("Evento duplicado retornado pelo backend:", existingEventData);
+                            console.log("Comparando:", currentEditingStaffEvent?.idstaffevento, "com", existingEventData?.idstaffevento);
 
 
-                        console.log("COMPARACAO", currentEditingStaffEvent, existingEventData);
+                            console.log("COMPARACAO", currentEditingStaffEvent, existingEventData);
 
-                        if (currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento === existingEventData.idstaffevento) {
+                            if (currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento === existingEventData.idstaffevento) {
 
-                            console.log("Evento existente detectado e em modo de edição. É o mesmo registro. Prosseguindo para verificação de alteração.");
-                            metodo = "PUT"; // Garante que o método continua PUT
-                            url = `/staff/${existingEventData.idstaffevento}`; // Garante a URL correta
-                            currentEditingStaffEvent = existingEventData; // Atualiza com os dados mais recentes do backend
-                            // isFormLoadedFromDoubleClick = true; // Já deveria ser true se chegou aqui por duplo clique
-                        } else {
+                                console.log("Evento existente detectado e em modo de edição. É o mesmo registro. Prosseguindo para verificação de alteração.");
+                                metodo = "PUT"; // Garante que o método continua PUT
+                                url = `/staff/${existingEventData.idstaffevento}`; // Garante a URL correta
+                                currentEditingStaffEvent = existingEventData; // Atualiza com os dados mais recentes do backend
+                                // isFormLoadedFromDoubleClick = true; // Já deveria ser true se chegou aqui por duplo clique
+                            } else {
 
-                            const { isConfirmed } = await Swal.fire({
-                                icon: "info",
-                                title: "Evento Duplicado!",
-                                html: `O evento para o funcionário <strong>${nmFuncionario}</strong> com as datas selecionadas já está cadastrado.<br><br>Deseja Atualizar o registro existente?`,
-                                showCancelButton: true,
-                                confirmButtonText: "Sim, atualizar",
-                                cancelButtonText: "Não, cancelar",
-                                reverseButtons: true
-                            });
+                                const { isConfirmed } = await Swal.fire({
+                                    icon: "info",
+                                    title: "Evento Duplicado!",
+                                    html: `O evento para o funcionário <strong>${nmFuncionario}</strong> com as datas selecionadas já está cadastrado.<br><br>Deseja Atualizar o registro existente?`,
+                                    showCancelButton: true,
+                                    confirmButtonText: "Sim, atualizar",
+                                    cancelButtonText: "Não, cancelar",
+                                    reverseButtons: true
+                                });
 
-                            if (!isConfirmed) {
-                                console.log("Usuário optou por não atualizar o evento duplicado.");
-                                return;
+                                if (!isConfirmed) {
+                                    console.log("Usuário optou por não atualizar o evento duplicado.");
+                                    return;
+                                }
+
+                                console.log("Usuário confirmou a atualização do evento duplicado. Alterando para modo PUT.");
+                                metodo = "PUT";
+                                url = `/staff/${existingEventData.idstaffevento}`; // Usa o ID do evento duplicado encontrado
+                                currentEditingStaffEvent = existingEventData; // Define o evento a ser editado como o duplicado
+                                isFormLoadedFromDoubleClick = true; // Marca como "carregado por duplo clique" para pular a verificação futura para este item
                             }
 
-                            console.log("Usuário confirmou a atualização do evento duplicado. Alterando para modo PUT.");
-                            metodo = "PUT";
-                            url = `/staff/${existingEventData.idstaffevento}`; // Usa o ID do evento duplicado encontrado
-                            currentEditingStaffEvent = existingEventData; // Define o evento a ser editado como o duplicado
-                            isFormLoadedFromDoubleClick = true; // Marca como "carregado por duplo clique" para pular a verificação futura para este item
+                        } else {
+
+                            console.log("Nenhum evento duplicado encontrado. Prosseguindo com o método original:", metodo);
                         }
-
-                    } else {
-
-                        console.log("Nenhum evento duplicado encontrado. Prosseguindo com o método original:", metodo);
+                    } catch (error) {
+                        console.error("Erro na verificação de duplicidade:", error);
+                        Swal.fire("Erro", error.message || "Não foi possível verificar duplicidade. Tente novamente.", "error");
+                        return; // Bloqueia o envio se houver erro na verificação
                     }
-                } catch (error) {
-                    console.error("Erro na verificação de duplicidade:", error);
-                    Swal.fire("Erro", error.message || "Não foi possível verificar duplicidade. Tente novamente.", "error");
-                    return; // Bloqueia o envio se houver erro na verificação
+                } else {
+                    console.log("Pulando verificação de duplicidade (modo de edição via duplo clique já está ativo).");
                 }
-            } else {
-                console.log("Pulando verificação de duplicidade (modo de edição via duplo clique já está ativo).");
-            }
 
-            const formData = new FormData();
-            // Adiciona todos os campos de texto ao FormData
-            formData.append('avaliacao', avaliacao);
-            formData.append('idfuncionario', idFuncionario);
-            formData.append('nmfuncionario', nmFuncionario);
-            formData.append('idfuncao', idFuncao);
-            formData.append('nmfuncao', descFuncao);
-            formData.append('idcliente', idCliente);
-            formData.append('nmcliente', nmCliente);
-            formData.append('idevento', idEvento);
-            formData.append('nmevento', nmEvento);
-            formData.append('idmontagem', idMontagem);
-            formData.append('nmlocalmontagem', nmLocalMontagem);
-            formData.append('pavilhao', pavilhao);
-            formData.append('vlrcache', vlrCusto);
-            formData.append('vlrajustecusto', ajusteCusto);
-            formData.append('vlrtransporte', transporte);     
-            formData.append('vlralimentacao', alimentacao);
-            formData.append('vlrcaixinha', caixinha);
-            formData.append('descajustecusto', ajusteCustoTextarea.value.trim());
-            formData.append('datasevento', JSON.stringify(periodoDoEvento));
-            formData.append('vlrtotal', total.toString());
+                const formData = new FormData();
+                // Adiciona todos os campos de texto ao FormData
+                formData.append('avaliacao', avaliacao);
+                formData.append('idfuncionario', idFuncionario);
+                formData.append('nmfuncionario', nmFuncionario);
+                formData.append('idfuncao', idFuncao);
+                formData.append('nmfuncao', descFuncao);
+                formData.append('idcliente', idCliente);
+                formData.append('nmcliente', nmCliente);
+                formData.append('idevento', idEvento);
+                formData.append('nmevento', nmEvento);
+                formData.append('idmontagem', idMontagem);
+                formData.append('nmlocalmontagem', nmLocalMontagem);
+                formData.append('pavilhao', pavilhao);
+                formData.append('vlrcache', vlrCusto);
+                formData.append('vlrajustecusto', ajusteCusto);
+                formData.append('vlrtransporte', transporte);     
+                formData.append('vlralimentacao', alimentacao);
+                formData.append('vlrcaixinha', caixinha);
+                formData.append('descajustecusto', ajusteCustoTextarea.value.trim());
+                formData.append('datasevento', JSON.stringify(periodoDoEvento));
+                formData.append('vlrtotal', total.toString());
 
 
-            const fileCacheInput = document.getElementById('fileCache');
-            const hiddenRemoverCacheInput = document.getElementById('limparComprovanteCache');
-            let comppgtocacheDoForm;
+                const fileCacheInput = document.getElementById('fileCache');
+                const hiddenRemoverCacheInput = document.getElementById('limparComprovanteCache');
+                let comppgtocacheDoForm;
 
-            if (fileCacheInput.files && fileCacheInput.files[0]) {
+                if (fileCacheInput.files && fileCacheInput.files[0]) {
 
-                formData.append('comppgtocache', fileCacheInput.files[0]);
-                comppgtocacheDoForm = 'novo-arquivo';
-            } else if (hiddenRemoverCacheInput.value === 'true') {
+                    formData.append('comppgtocache', fileCacheInput.files[0]);
+                    comppgtocacheDoForm = 'novo-arquivo';
+                } else if (hiddenRemoverCacheInput.value === 'true') {
 
-                formData.append('limparComprovanteCache', 'true');
-                comppgtocacheDoForm = '';
-            } else if (currentEditingStaffEvent && currentEditingStaffEvent.comppgtocache) {
+                    formData.append('limparComprovanteCache', 'true');
+                    comppgtocacheDoForm = '';
+                } else if (currentEditingStaffEvent && currentEditingStaffEvent.comppgtocache) {
 
-                comppgtocacheDoForm = currentEditingStaffEvent.comppgtocache;
-            } else {
+                    comppgtocacheDoForm = currentEditingStaffEvent.comppgtocache;
+                } else {
 
-                comppgtocacheDoForm = '';
-            }
-
-
-            const fileAjdCustoInput = document.getElementById('fileAjdCusto');
-            const hiddenRemoverAjdCustoInput = document.getElementById('limparComprovanteAjdCusto');
-
-            const fileAjdCusto2Input = document.getElementById('fileAjdCusto2');
-            const hiddenRemoverAjdCusto2Input = document.getElementById('limparComprovanteAjdCusto2');
-            let comppgtoajdcustoDoForm;
-            let comppgtoajdcusto50DoForm;
-
-            if (fileAjdCustoInput.files && fileAjdCustoInput.files[0]) {
-                formData.append('comppgtoajdcusto', fileAjdCustoInput.files[0]);
-                comppgtoajdcustoDoForm = 'novo-arquivo';
-            } else if (hiddenRemoverAjdCustoInput.value === 'true') {
-                formData.append('limparComprovanteAjdCusto', 'true');
-                comppgtoajdcustoDoForm = '';
-            } else if (currentEditingStaffEvent && currentEditingStaffEvent.comppgtoajdcusto) {
-                comppgtoajdcustoDoForm = currentEditingStaffEvent.comppgtoajdcusto;
-            } else {
-                comppgtoajdcustoDoForm = '';
-            }
-
-            if (fileAjdCusto2Input.files && fileAjdCusto2Input.files[0]) {
-                formData.append('comppgtoajdcusto50', fileAjdCusto2Input.files[0]);
-                comppgtoajdcusto50DoForm = 'novo-arquivo';
-            } else if (hiddenRemoverAjdCusto2Input.value === 'true') {
-                formData.append('limparComprovanteAjdCusto2', 'true');
-                comppgtoajdcusto50DoForm = '';
-            } else if (currentEditingStaffEvent && currentEditingStaffEvent.comppgtoajdcusto50) {
-                comppgtoajdcusto50DoForm = currentEditingStaffEvent.comppgtoajdcusto50;
-            } else {
-                comppgtoajdcusto50DoForm = '';
-            }
-
-            const fileCaixinhaInput = document.getElementById('fileCaixinha');
-            const hiddenRemoverCaixinhaInput = document.getElementById('limparComprovanteCaixinha');
-            let comppgtocaixinhaDoForm;
-
-            if (fileCaixinhaInput.files && fileCaixinhaInput.files[0]) {
-                formData.append('comppgtocaixinha', fileCaixinhaInput.files[0]);
-                comppgtocaixinhaDoForm = 'novo-arquivo';
-            } else if (hiddenRemoverCaixinhaInput.value === 'true') {
-                formData.append('limparComprovanteCaixinha', 'true');
-                comppgtocaixinhaDoForm = '';
-            } else if (currentEditingStaffEvent && currentEditingStaffEvent.comppgtocaixinha) {
-                comppgtocaixinhaDoForm = currentEditingStaffEvent.comppgtocaixinha;
-            } else {
-                comppgtocaixinhaDoForm = '';
-            }
-
-            formData.append('descbeneficios', descBeneficioTextarea.value.trim());
-            formData.append('setor', setor);
-
-            let statusPgto = "Pendente"; // Valor padrão
-
-            console.log("VALORES CUSTOS ANTES", vlrCusto, ajusteCusto, caixinha, alimentacao, transporte);
-            const custosVazios = ajusteCusto === 0 && caixinha === 0 && alimentacao === 0 && transporte === 0;
-            console.log("VALORES CUSTOS DEPOIS", vlrCusto, ajusteCusto, caixinha, alimentacao, transporte, comppgtocacheDoForm, comppgtocacheDoForm, comppgtocaixinhaDoForm);
-
-            const vlrAjusteCusto = parseFloat(ajusteCusto);
-            const vlrCache = parseFloat(vlrCusto);
-            const vlrAlimentacao = parseFloat(alimentacao);
-            const vlrTransporte = parseFloat(transporte);
-            const vlrCaixinha = parseFloat(caixinha);
-
-            const temComprovanteCache = !!comppgtocacheDoForm;
-            const temComprovanteAjudaCusto = !!comppgtoajdcustoDoForm;
-            const temComprovanteAjudaCusto50 = !!comppgtoajdcusto50DoForm;
-            const temComprovanteCaixinha = !!comppgtocaixinhaDoForm;
-
-            const cachePago = (vlrCache > 0 && temComprovanteCache);
-            const ajudaCustoPaga = ((vlrAlimentacao > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto);
-            const caixinhasPagos = ((vlrCaixinha > 0) && temComprovanteCaixinha);
+                    comppgtocacheDoForm = '';
+                }
 
 
-            if (cachePago && ajudaCustoPaga && caixinhasPagos) {
+                const fileAjdCustoInput = document.getElementById('fileAjdCusto');
+                const hiddenRemoverAjdCustoInput = document.getElementById('limparComprovanteAjdCusto');
 
-                statusPgto = "Pago";
-            } else if (
-                (vlrCache <= 0 || (vlrCache > 0 && temComprovanteCache)) && // Se o cache não precisa de comprovação ou está pago
-                ((vlrAlimentacao <= 0 && vlrTransporte <= 0) || ((vlrAlimentacao > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto)) && // Mesma lógica para ajuda de custo
-                (vlrCaixinha <= 0 || (vlrCaixinha > 0 && temComprovanteCaixinha))
-            ) {
+                const fileAjdCusto2Input = document.getElementById('fileAjdCusto2');
+                const hiddenRemoverAjdCusto2Input = document.getElementById('limparComprovanteAjdCusto2');
+                let comppgtoajdcustoDoForm;
+                let comppgtoajdcusto50DoForm;
 
-                statusPgto = "Pago";
-            } else {
-                statusPgto = "Pendente";
-            }
+                if (fileAjdCustoInput.files && fileAjdCustoInput.files[0]) {
+                    formData.append('comppgtoajdcusto', fileAjdCustoInput.files[0]);
+                    comppgtoajdcustoDoForm = 'novo-arquivo';
+                } else if (hiddenRemoverAjdCustoInput.value === 'true') {
+                    formData.append('limparComprovanteAjdCusto', 'true');
+                    comppgtoajdcustoDoForm = '';
+                } else if (currentEditingStaffEvent && currentEditingStaffEvent.comppgtoajdcusto) {
+                    comppgtoajdcustoDoForm = currentEditingStaffEvent.comppgtoajdcusto;
+                } else {
+                    comppgtoajdcustoDoForm = '';
+                }
 
-            if (statusCaixinha === "Autorização da Caixinha" && vlrCaixinha === 0){
-                statusCaixinha = "";
-            }
-            if (statusAjusteCusto === "Autorização do Ajuste de Custo" && vlrAjusteCusto === 0){
-                statusAjusteCusto = "";
-            }
+                if (fileAjdCusto2Input.files && fileAjdCusto2Input.files[0]) {
+                    formData.append('comppgtoajdcusto50', fileAjdCusto2Input.files[0]);
+                    comppgtoajdcusto50DoForm = 'novo-arquivo';
+                } else if (hiddenRemoverAjdCusto2Input.value === 'true') {
+                    formData.append('limparComprovanteAjdCusto2', 'true');
+                    comppgtoajdcusto50DoForm = '';
+                } else if (currentEditingStaffEvent && currentEditingStaffEvent.comppgtoajdcusto50) {
+                    comppgtoajdcusto50DoForm = currentEditingStaffEvent.comppgtoajdcusto50;
+                } else {
+                    comppgtoajdcusto50DoForm = '';
+                }
 
-            formData.append('statuspgto', statusPgto);
-            formData.append('statusajustecusto', statusAjusteCusto);
-            formData.append('statuscaixinha', statusCaixinha);
-            formData.append('descdiariadobrada', descDiariaDobradaTextarea.value.trim());
-            formData.append('descmeiadiaria', descMeiaDiariaTextarea.value.trim());
-            formData.append('desccaixinha', descCaixinhaTextarea.value.trim());
-           
-           
-            let nivelExperienciaSelecionado ="";
+                const fileCaixinhaInput = document.getElementById('fileCaixinha');
+                const hiddenRemoverCaixinhaInput = document.getElementById('limparComprovanteCaixinha');
+                let comppgtocaixinhaDoForm;
 
-            if (seniorCheck.checked) {
-                nivelExperienciaSelecionado =  "Senior";
-            } 
-            if (plenoCheck.checked) {
-                nivelExperienciaSelecionado =  "Pleno";
-            } 
-            if (juniorCheck.checked) {
-                nivelExperienciaSelecionado =  "Junior";
-            } 
-            if (baseCheck.checked) {
-                nivelExperienciaSelecionado =  "Base";
-            }
+                if (fileCaixinhaInput.files && fileCaixinhaInput.files[0]) {
+                    formData.append('comppgtocaixinha', fileCaixinhaInput.files[0]);
+                    comppgtocaixinhaDoForm = 'novo-arquivo';
+                } else if (hiddenRemoverCaixinhaInput.value === 'true') {
+                    formData.append('limparComprovanteCaixinha', 'true');
+                    comppgtocaixinhaDoForm = '';
+                } else if (currentEditingStaffEvent && currentEditingStaffEvent.comppgtocaixinha) {
+                    comppgtocaixinhaDoForm = currentEditingStaffEvent.comppgtocaixinha;
+                } else {
+                    comppgtocaixinhaDoForm = '';
+                }
 
-            formData.append('nivelexperiencia', nivelExperienciaSelecionado);
-            formData.append('qtdpessoas', qtdPessoas.toString());
+                formData.append('descbeneficios', descBeneficioTextarea.value.trim());
+                formData.append('setor', setor);
 
-            console.log("ENVIANDO ID E NOME EQUIPE", idEquipe, nmEquipe);
-            formData.append('idequipe', idEquipe);
-            formData.append('nmequipe', nmEquipe);
+                let statusPgto = "Pendente"; // Valor padrão
 
-            console.log("Status Diaria Dobrada", statusDiariaDobrada, statusMeiaDiaria);
+                console.log("VALORES CUSTOS ANTES", vlrCusto, ajusteCusto, caixinha, alimentacao, transporte);
+                const custosVazios = ajusteCusto === 0 && caixinha === 0 && alimentacao === 0 && transporte === 0;
+                console.log("VALORES CUSTOS DEPOIS", vlrCusto, ajusteCusto, caixinha, alimentacao, transporte, comppgtocacheDoForm, comppgtocacheDoForm, comppgtocaixinhaDoForm);
 
-            if (statusDiariaDobrada === "Autorização da Diária Dobrada"){
+                const vlrAjusteCusto = parseFloat(ajusteCusto);
+                const vlrCache = parseFloat(vlrCusto);
+                const vlrAlimentacao = parseFloat(alimentacao);
+                const vlrTransporte = parseFloat(transporte);
+                const vlrCaixinha = parseFloat(caixinha);
+
+                const temComprovanteCache = !!comppgtocacheDoForm;
+                const temComprovanteAjudaCusto = !!comppgtoajdcustoDoForm;
+                const temComprovanteAjudaCusto50 = !!comppgtoajdcusto50DoForm;
+                const temComprovanteCaixinha = !!comppgtocaixinhaDoForm;
+
+                const cachePago = (vlrCache > 0 && temComprovanteCache);
+                const ajudaCustoPaga = ((vlrAlimentacao > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto);
+                const caixinhasPagos = ((vlrCaixinha > 0) && temComprovanteCaixinha);
+
+
+                if (cachePago && ajudaCustoPaga && caixinhasPagos) {
+
+                    statusPgto = "Pago";
+                } else if (
+                    (vlrCache <= 0 || (vlrCache > 0 && temComprovanteCache)) && // Se o cache não precisa de comprovação ou está pago
+                    ((vlrAlimentacao <= 0 && vlrTransporte <= 0) || ((vlrAlimentacao > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto)) && // Mesma lógica para ajuda de custo
+                    (vlrCaixinha <= 0 || (vlrCaixinha > 0 && temComprovanteCaixinha))
+                ) {
+
+                    statusPgto = "Pago";
+                } else {
+                    statusPgto = "Pendente";
+                }
+
+                if (statusCaixinha === 'Autorização da Caixinha' && vlrCaixinha === 0) { 
+                    statusCaixinha = '';  
+                }
+                if (statusAjusteCusto === 'Autorização do Ajuste de Custo' && vlrAjusteCusto === 0) { 
+                    statusAjusteCusto = '';  
+                }
+
+                formData.append('statuspgto', statusPgto);
+                formData.append('statusajustecusto', statusAjusteCusto);
+                formData.append('statuscaixinha', statusCaixinha);
+                formData.append('descdiariadobrada', descDiariaDobradaTextarea.value.trim());
+                formData.append('descmeiadiaria', descMeiaDiariaTextarea.value.trim());
+                formData.append('desccaixinha', descCaixinhaTextarea.value.trim());
+            
+            
+                let nivelExperienciaSelecionado ="";
+
+                if (seniorCheck.checked) {
+                    nivelExperienciaSelecionado =  "Senior";
+                } 
+                if (plenoCheck.checked) {
+                    nivelExperienciaSelecionado =  "Pleno";
+                } 
+                if (juniorCheck.checked) {
+                    nivelExperienciaSelecionado =  "Junior";
+                } 
+                if (baseCheck.checked) {
+                    nivelExperienciaSelecionado =  "Base";
+                }
+
+                formData.append('nivelexperiencia', nivelExperienciaSelecionado);
+                formData.append('qtdpessoas', qtdPessoas.toString());
+
+                console.log("ENVIANDO ID E NOME EQUIPE", idEquipe, nmEquipe);
+                formData.append('idequipe', idEquipe);
+                formData.append('nmequipe', nmEquipe);
+
+                console.log("Status Diaria Dobrada", statusDiariaDobrada, statusMeiaDiaria);
+
+            if (statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === true){
                 statusDiariaDobrada = "Pendente";
             }
-            if (statusMeiaDiaria === "Autorização da Meia Diária"){
+            if(statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === false){
+                statusDiariaDobrada = "";
+            }
+            if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === true){
                 statusMeiaDiaria = "Pendente";
             }
+            if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === false){
+                statusMeiaDiaria = "";
+            }
 
-            let dadosDiariaDobrada = [];
-            if (periodoDobrado && periodoDobrado.length > 0) {
-                dadosDiariaDobrada = periodoDobrado.map(data => {
-                const statusData = datasDobrada.find(item => item.data === data);
-                return {
-                    data: data,
-                    status: statusData ? statusData.status : statusDiariaDobrada
-                };
-            });
-        }
+                let dadosDiariaDobrada = [];
+                if (periodoDobrado && periodoDobrado.length > 0) {
+                    dadosDiariaDobrada = periodoDobrado.map(data => {
+                    const statusData = datasDobrada.find(item => item.data === data);
+                    return {
+                        data: data,
+                        status: statusData ? statusData.status : statusDiariaDobrada
+                    };
+                });
+            }
 
-        let dadosMeiaDiaria = [];
+           let dadosMeiaDiaria = [];
         if (periodoMeiaDiaria && periodoMeiaDiaria.length > 0) {
             dadosMeiaDiaria = periodoMeiaDiaria.map(data => {
                 const statusData = datasMeiaDiaria.find(item => item.data === data);
@@ -2413,255 +2665,269 @@ async function verificaStaff() {
             statusMeiaDiaria = "";
         }
 
+        if (statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === true){
+            statusDiariaDobrada = "Pendente";
+        }
+        if (statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === false){
+            statusDiariaDobrada = "";
+        }
 
-        formData.append('statusdiariadobrada', statusDiariaDobrada); //aqui remover não usa mais apenas dentro da data
-        formData.append('statusmeiadiaria', statusMeiaDiaria); //aqui remover não usa mais apenas dentro da data
-        formData.append('datadiariadobrada', JSON.stringify(dadosDiariaDobrada));
-        formData.append('datameiadiaria', JSON.stringify(dadosMeiaDiaria));
-
-
-        console.log("Preparando envio de FormData. Método:", metodo, "URL:", url, window.StaffOriginal);
-        console.log("Dados do FormData:", {
-            nmFuncionario, descFuncao, vlrCusto, ajusteCusto, transporte, alimentacao, caixinha,
-            nmCliente, nmEvento, periodoDoEvento, vlrTotal, diariaDobrada, meiaDiaria, nivelExperienciaSelecionado
-        });
-
-        console.log("METODO PARA ENVIAR",metodo, currentEditingStaffEvent);
-
-        console.log("Preparando envio de FormData. Método:", metodo, "URL:", url);
-        console.log("Dados do FormData sendo enviados:");
-
-        for (let pair of formData.entries()) {
-            console.log(pair[0]+ ': ' + pair[1]);
+        if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === true){
+            statusMeiaDiaria = "Pendente";
+        }
+        if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === false){
+            statusMeiaDiaria = "";
         }
 
 
-        if (metodo === "PUT") {
-            if (!isEditingInitial) {
-                console.log("Erro: Dados originais não encontrados para PUT");
-                return Swal.fire("Erro", "Dados originais não encontrados para comparação (ID ausente para PUT).", "error");
-            }
-
-            const ajusteCustoAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrajustecusto || 0.00) > 0;
-            const caixinhaAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0.00) > 0;
-            const ajusteCustoValorOriginal = parseFloat(currentEditingStaffEvent.vlrajustecusto || 0);
-            const caixinhaValorOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0.00);
-
-            const diariaDobradaOriginal = currentEditingStaffEvent.diariadobrada || false;
-            const meiaDiariaOriginal = currentEditingStaffEvent.meiadiaria || false;
-
-            const dataDiariaDobradaOriginal = currentEditingStaffEvent.dtdiariadobrada || [];
-
-            const dataMeiaDiariaOriginal = currentEditingStaffEvent.dtmeiadiaria || [];
-
-            const nivelExperienciaOriginal = currentEditingStaffEvent.nivelexperiencia || "";
-
-            console.log("Valores originais - ajusteCusto Ativo:", ajusteCustoAtivoOriginal, "ajusteCusto Valor:", ajusteCustoValorOriginal);
-            console.log("Valores originais - Caixinha Ativo:", caixinhaAtivoOriginal, "Caixinha Valor:", caixinhaValorOriginal);
-
-            const ajusteCustoAtivoAtual = ajusteCustoAtivo;
-            const caixinhaAtivoAtual = caixinhaAtivo;
-            const ajusteCustoValorAtual = parseFloat(ajusteCusto.replace(',', '.') || 0.00);
-            const caixinhaValorAtual = parseFloat(caixinha.replace(',', '.') || 0.00);
-
-            const diariaDobradaAtual = diariaDobradacheck.checked;
-            const meiaDiariaAtual = meiaDiariacheck.checked;
-            const dataDiariaDobradaAtual = periodoDobrado;
-            const dataMeiaDiariaAtual = periodoMeiaDiaria;
-
-            const nivelExperienciaAtual = nivelExperienciaSelecionado;
-            const qtdPessoasAtual = qtdPessoas;
-
-            const houveAlteracaoAjusteCusto = (ajusteCustoAtivoOriginal !== ajusteCustoAtivoAtual) || (ajusteCustoValorOriginal !== ajusteCustoValorAtual);
-            const houveAlteracaoCaixinha = (caixinhaAtivoOriginal !== caixinhaAtivoAtual) || (caixinhaValorOriginal !== caixinhaValorAtual);
-
-            const houveAlteracaoDiariaDobrada = (diariaDobradaOriginal !== diariaDobradaAtual) || (dataDiariaDobradaOriginal.toString() !== dataDiariaDobradaAtual.toString());
-            const houveAlteracaoMeiaDiaria = (meiaDiariaOriginal !== meiaDiariaAtual) || (dataMeiaDiariaOriginal.toString() !== dataMeiaDiariaAtual.toString());
-
-            console.log("Houve alteração ajusteCusto?", houveAlteracaoAjusteCusto);
-            console.log("Houve alteração Caixinha?", houveAlteracaoCaixinha);
-            console.log("Houve alteração Diária Dobrada?", houveAlteracaoDiariaDobrada);
-            console.log("Houve alteração Meia Diária?", houveAlteracaoMeiaDiaria);
+            formData.append('statusdiariadobrada', statusDiariaDobrada); //aqui remover não usa mais apenas dentro da data
+            formData.append('statusmeiadiaria', statusMeiaDiaria); //aqui remover não usa mais apenas dentro da data
+            formData.append('datadiariadobrada', JSON.stringify(dadosDiariaDobrada));
+            formData.append('datameiadiaria', JSON.stringify(dadosMeiaDiaria));
 
 
-            if (houveAlteracaoCaixinha && caixinhaAtivoAtual) {
-                if (!descCaixinha || descCaixinha.length < 15) {
-                    if (descCaixinhaInput) descCaixinhaInput.focus();
-                    return Swal.fire(
-                        "Campos obrigatórios!",
-                        "A descrição do benefício (Caixinha) deve ter no mínimo 15 caracteres para salvar.",
-                        "warning"
-                    );
-                }
-            }
-
-            if (houveAlteracaoAjusteCusto && ajusteCustoAtivoAtual) {
-                if (!descAjusteCusto || descAjusteCusto.length < 15) {
-                    if (descAjusteCusto) descAjusteCustoInput.focus();
-                    return Swal.fire(
-                        "Campos obrigatórios!",
-                        "A descrição do Bônus deve ter no mínimo 15 caracteres para salvar.",
-                        "warning"
-                    );
-                }
-            }
-
-
-            if (houveAlteracaoDiariaDobrada && diariaDobradaAtual) {
-                const descDiariaDobradaInput = document.getElementById("descDiariaDobrada");
-                const descDiariaDobrada = descDiariaDobradaInput.value.trim();
-
-                if (!descDiariaDobrada || descDiariaDobrada.length < 15) {
-                    if (descDiariaDobradaInput) {
-                        descDiariaDobradaInput.focus();
-                    }
-                    return Swal.fire(
-                        "Campo obrigatório!",
-                        "A descrição da Diária Dobrada deve ter no mínimo 15 caracteres para salvar.",
-                        "warning"
-                    );
-                }
-            }
-
-
-            if (houveAlteracaoMeiaDiaria && meiaDiariaAtual) {
-                const descMeiaDiariaInput = document.getElementById("descMeiaDiaria");
-                const descMeiaDiaria = descMeiaDiariaInput.value.trim();
-
-                if (!descMeiaDiaria || descMeiaDiaria.length < 15) {
-                    if (descMeiaDiariaInput) {
-                        descMeiaDiariaInput.focus();
-                    }
-                    return Swal.fire(
-                        "Campo obrigatório!",
-                        "A descrição da Meia Diária deve ter no mínimo 15 caracteres para salvar.",
-                        "warning"
-                    );
-                }
-            }
-
-            formData.append('idstaff', currentEditingStaffEvent.idstaff || '');
-            formData.append('idstaffevento', currentEditingStaffEvent.idstaffevento);
-
-            let houveAlteracao = false;
-            if (
-                currentEditingStaffEvent.idfuncionario != idFuncionario ||
-                currentEditingStaffEvent.nmfuncao.toUpperCase() != descFuncao ||
-                parseFloat(currentEditingStaffEvent.vlrcache || 0.00) != parseFloat(vlrCusto.replace(',', '.') || 0.00) ||
-                JSON.stringify(currentEditingStaffEvent.periodo || []) !== JSON.stringify(periodoDoEvento) ||
-                parseFloat(currentEditingStaffEvent.vlrajustecusto || 0.00) != ajusteCustoValorAtual ||
-                parseFloat(currentEditingStaffEvent.vlrtransporte || 0.00) != parseFloat(transporte.replace(',', '.') || 0.00) ||               
-                parseFloat(currentEditingStaffEvent.vlralimentacao || 0.00) != parseFloat(alimentacao.replace(',', '.') || 0.00) ||
-                parseFloat(currentEditingStaffEvent.vlrcaixinha || 0.00) != caixinhaValorAtual ||
-                (currentEditingStaffEvent.descajustecusto || '').trim() != descAjusteCusto.trim() ||
-                (currentEditingStaffEvent.descbeneficios || '').trim() != descBeneficio.trim() ||
-                (currentEditingStaffEvent.desccaixinha || '').trim() != descCaixinha.trim() ||
-                (currentEditingStaffEvent.setor || '').trim() != setor.trim() ||
-                currentEditingStaffEvent.idcliente != idCliente ||
-                currentEditingStaffEvent.idevento != idEvento ||
-                currentEditingStaffEvent.idmontagem != idMontagem ||
-                currentEditingStaffEvent.idequipe != idEquipe ||
-                (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao ||
-                (currentEditingStaffEvent.statuspgto || '').trim() != statusPgto.trim() ||
-                (currentEditingStaffEvent.statusajustecusto || '').trim() != statusAjusteCusto.trim() ||
-                (currentEditingStaffEvent.statuscaixinha || '').trim() != statusCaixinha.trim() ||
-                (currentEditingStaffEvent.statusdiariadobrada || '').trim() != statusDiariaDobrada.trim() ||
-                (currentEditingStaffEvent.statusmeiadiaria || '').trim() != statusMeiaDiaria.trim() ||
-                currentEditingStaffEvent.diariadobrada != diariaDobradaAtual ||
-                currentEditingStaffEvent.meiadiaria != meiaDiariaAtual ||
-                currentEditingStaffEvent.nivelexperiencia != nivelExperienciaAtual ||
-                currentEditingStaffEvent.qtdpessoas != qtdPessoasAtual 
-            ) {
-                houveAlteracao = true;
-            }
-
-            const logAndCheck = (fieldName, originalValue, currentValue, condition) => {
-            const isDifferent = condition;
-                console.log(`[COMPARACAO] ${fieldName}: Original = '${originalValue}' | Atual = '${currentValue}' | Diferente = ${isDifferent}`);
-                return isDifferent;
-            };
-            houveAlteracao =
-                 logAndCheck('ID Equipe', currentEditingStaffEvent.idequipe, idEquipe, currentEditingStaffEvent.idequipe != idEquipe) ||
-                logAndCheck('Equipe', currentEditingStaffEvent.nmequipe.toUpperCase(), nmEquipe, currentEditingStaffEvent.nmequipe.toUpperCase() != nmEquipe) ||
-                logAndCheck('ID Funcionário', currentEditingStaffEvent.idfuncionario, idFuncionario, currentEditingStaffEvent.idfuncionario != idFuncionario) ||
-                logAndCheck('Função', currentEditingStaffEvent.nmfuncao.toUpperCase(), descFuncao, currentEditingStaffEvent.nmfuncao.toUpperCase() != descFuncao) ||
-                logAndCheck('Valor Cache', parseFloat(currentEditingStaffEvent.vlrcache || 0), parseFloat(vlrCusto.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrcache || 0) != parseFloat(vlrCusto.replace(',', '.') || 0)) ||
-                logAndCheck('Datas Evento', JSON.stringify(currentEditingStaffEvent.datasevento || []), JSON.stringify(periodoDoEvento), JSON.stringify(currentEditingStaffEvent.datasevento || []) !== JSON.stringify(periodoDoEvento)) || // Use datasevento
-                logAndCheck('Valor AjusteCusto', parseFloat(currentEditingStaffEvent.vlrajustecusto || 0), ajusteCustoValorAtual, parseFloat(currentEditingStaffEvent.vlrajustecusto || 0) != ajusteCustoValorAtual) ||
-                logAndCheck('Valor Transporte', parseFloat(currentEditingStaffEvent.vlrtransporte || 0), parseFloat(transporte.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrtransporte || 0) != parseFloat(transporte.replace(',', '.') || 0)) ||
-                logAndCheck('Valor Alimentação', parseFloat(currentEditingStaffEvent.vlralimentacao || 0), parseFloat(alimentacao.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlralimentacao || 0) != parseFloat(alimentacao.replace(',', '.') || 0)) ||
-                logAndCheck('Valor Caixinha', parseFloat(currentEditingStaffEvent.vlrcaixinha || 0), caixinhaValorAtual, parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) != caixinhaValorAtual) ||
-                logAndCheck('Descrição Bônus', (currentEditingStaffEvent.descajustecusto || '').trim(), descAjusteCusto.trim(), (currentEditingStaffEvent.descajustecusto || '').trim() != descAjusteCusto.trim()) ||
-                logAndCheck('Descrição Benefícios', (currentEditingStaffEvent.descbeneficios || '').trim(), descBeneficio.trim(), (currentEditingStaffEvent.descbeneficios || '').trim() != descBeneficio.trim()) ||
-                logAndCheck('Descrição Caixinha', (currentEditingStaffEvent.desccaixinha || '').trim(), descCaixinha.trim(), (currentEditingStaffEvent.desccaixinha || '').trim() != descCaixinha.trim()) ||
-                logAndCheck('Setor', (currentEditingStaffEvent.setor.toUpperCase() || '').trim(), setor.trim().toUpperCase(), (currentEditingStaffEvent.setor.toUpperCase() || '').trim() != setor.toUpperCase().trim()) ||
-                logAndCheck('StatusPgto', (currentEditingStaffEvent.statuspgto || '').trim(), statusPgto.trim(), (currentEditingStaffEvent.statuspgto || '').trim() != statusPgto.trim()) ||
-                logAndCheck('StatusAjusteCusto', (currentEditingStaffEvent.statusajustecusto || '').trim(), statusAjusteCusto.trim(), (currentEditingStaffEvent.statusajustecusto || '').trim() != statusAjusteCusto.trim()) ||
-                logAndCheck('StatusCaixinha', (currentEditingStaffEvent.statuscaixinha || '').trim(), statusCaixinha.trim(), (currentEditingStaffEvent.statuscaixinha || '').trim() != statusCaixinha.trim()) ||
-                logAndCheck('ID Cliente', currentEditingStaffEvent.idcliente, idCliente, currentEditingStaffEvent.idcliente != idCliente) ||
-                logAndCheck('ID Evento', currentEditingStaffEvent.idevento, idEvento, currentEditingStaffEvent.idevento != idEvento) ||
-                logAndCheck('ID Montagem', currentEditingStaffEvent.idmontagem, idMontagem, currentEditingStaffEvent.idmontagem != idMontagem) ||
-                logAndCheck('Pavilhão', (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim(), pavilhao.toUpperCase().trim(), (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao.toUpperCase().trim()) ||
-
-                logAndCheck(
-                    'Comprovante Cache',
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtocache), // Valor original normalizado
-                    normalizeEmptyValue(comppgtocacheDoForm),                 // Valor do formulário normalizado
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtocache) !== normalizeEmptyValue(comppgtocacheDoForm) // Comparação normalizada
-                ) ||
-                logAndCheck(
-                    'Comprovante Ajuda Custo',
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto),
-                    normalizeEmptyValue(comppgtoajdcustoDoForm),
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto) !== normalizeEmptyValue(comppgtoajdcustoDoForm)
-                ) ||
-                logAndCheck(
-                    'Comprovante Ajuda Custo 50',
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto50),
-                    normalizeEmptyValue(comppgtoajdcusto50DoForm),
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto50) !== normalizeEmptyValue(comppgtoajdcusto50DoForm)
-                ) ||
-                logAndCheck(
-                    'Comprovante Caixinha',
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtocaixinha),
-                    normalizeEmptyValue(comppgtocaixinhaDoForm),
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtocaixinha) !== normalizeEmptyValue(comppgtocaixinhaDoForm)
-                ) ||
-
-                logAndCheck('Datas Diária Dobrada', JSON.stringify(dataDiariaDobradaOriginal), JSON.stringify(dataDiariaDobradaAtual), JSON.stringify(dataDiariaDobradaOriginal) !== JSON.stringify(dataDiariaDobradaAtual)) ||
-                logAndCheck('Datas Meia Diária', JSON.stringify(dataMeiaDiariaOriginal), JSON.stringify(dataMeiaDiariaAtual), JSON.stringify(dataMeiaDiariaOriginal) !== JSON.stringify(dataMeiaDiariaAtual)) ||
-
-                logAndCheck('Status Diária Dobrada', (currentEditingStaffEvent.statusdiariadobrada || '').trim(), statusDiariaDobrada.trim(), (currentEditingStaffEvent.statusdiariadobrada || '').trim() != statusDiariaDobrada.trim()) ||
-                logAndCheck('Status Meia Diária', (currentEditingStaffEvent.statusmeiadiaria || '').trim(), statusMeiaDiaria.trim(), (currentEditingStaffEvent.statusmeiadiaria || '').trim() != statusMeiaDiaria.trim()) ||
-                logAndCheck('Nível Experiência', (currentEditingStaffEvent.nivelexperiencia || '').trim(), nivelExperienciaAtual.trim(), (currentEditingStaffEvent.nivelexperiencia || '').trim() != nivelExperienciaAtual.trim()) ||
-                logAndCheck('Qtd Pessoas', currentEditingStaffEvent.qtdpessoas || 0, qtdPessoasAtual || 0, (currentEditingStaffEvent.qtdpessoas || 0) != (qtdPessoasAtual || 0));
-           
-                console.log("Houve alteração geral?", houveAlteracao);
-
-            if (!houveAlteracao) {
-                console.log("Nenhuma alteração detectada, bloqueando salvamento.");
-                return Swal.fire("Nenhuma alteração detectada", "Faça alguma alteração antes de salvar.", "info");
-            }
-
-            const { isConfirmed } = await Swal.fire({
-                title: "Deseja salvar as alterações?",
-                text: "Você está prestes a atualizar os dados do staff.",
-                icon: "question",
-                showCancelButton: true,
-                confirmButtonText: "Sim, salvar",
-                cancelButtonText: "Cancelar",
-                reverseButtons: true,
-                focusCancel: true
+            console.log("Preparando envio de FormData. Método:", metodo, "URL:", url, window.StaffOriginal);
+            console.log("Dados do FormData:", {
+                nmFuncionario, descFuncao, vlrCusto, ajusteCusto, transporte, alimentacao, caixinha,
+                nmCliente, nmEvento, periodoDoEvento, vlrTotal, diariaDobrada, meiaDiaria, nivelExperienciaSelecionado
             });
 
-            if (!isConfirmed) {
-                console.log("Alteração cancelada pelo usuário");
-                return;
-            }
-        }
+            console.log("METODO PARA ENVIAR",metodo, currentEditingStaffEvent);
 
-        // --- EXECUTA O FETCH PARA POST OU PUT ---
-        try {
+            console.log("Preparando envio de FormData. Método:", metodo, "URL:", url);
+            console.log("Dados do FormData sendo enviados:");
+
+            for (let pair of formData.entries()) {
+                console.log(pair[0]+ ': ' + pair[1]);
+            }
+
+
+            if (metodo === "PUT") {
+                if (!isEditingInitial) {
+                    console.log("Erro: Dados originais não encontrados para PUT");
+                    return Swal.fire("Erro", "Dados originais não encontrados para comparação (ID ausente para PUT).", "error");
+                }
+
+                const ajusteCustoAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrajustecusto || 0.00) > 0;
+                const caixinhaAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0.00) > 0;
+                const ajusteCustoValorOriginal = parseFloat(currentEditingStaffEvent.vlrajustecusto || 0);
+                const caixinhaValorOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0.00);
+
+                const diariaDobradaOriginal = currentEditingStaffEvent.diariadobrada || false;
+                const meiaDiariaOriginal = currentEditingStaffEvent.meiadiaria || false;
+
+                const dataDiariaDobradaOriginal = currentEditingStaffEvent.dtdiariadobrada || [];
+
+                const dataMeiaDiariaOriginal = currentEditingStaffEvent.dtmeiadiaria || [];
+
+                const nivelExperienciaOriginal = currentEditingStaffEvent.nivelexperiencia || "";
+
+                console.log("Valores originais - ajusteCusto Ativo:", ajusteCustoAtivoOriginal, "ajusteCusto Valor:", ajusteCustoValorOriginal);
+                console.log("Valores originais - Caixinha Ativo:", caixinhaAtivoOriginal, "Caixinha Valor:", caixinhaValorOriginal);
+
+                const ajusteCustoAtivoAtual = ajusteCustoAtivo;
+                const caixinhaAtivoAtual = caixinhaAtivo;
+                const ajusteCustoValorAtual = parseFloat(ajusteCusto.replace(',', '.') || 0.00);
+                const caixinhaValorAtual = parseFloat(caixinha.replace(',', '.') || 0.00);
+
+                const diariaDobradaAtual = diariaDobradacheck.checked;
+                const meiaDiariaAtual = meiaDiariacheck.checked;
+                const dataDiariaDobradaAtual = periodoDobrado;
+                const dataMeiaDiariaAtual = periodoMeiaDiaria;
+
+                const nivelExperienciaAtual = nivelExperienciaSelecionado;
+                const qtdPessoasAtual = qtdPessoas;
+
+                const houveAlteracaoAjusteCusto = (ajusteCustoAtivoOriginal !== ajusteCustoAtivoAtual) || (ajusteCustoValorOriginal !== ajusteCustoValorAtual);
+                const houveAlteracaoCaixinha = (caixinhaAtivoOriginal !== caixinhaAtivoAtual) || (caixinhaValorOriginal !== caixinhaValorAtual);
+
+                const houveAlteracaoDiariaDobrada = (diariaDobradaOriginal !== diariaDobradaAtual) || (dataDiariaDobradaOriginal.toString() !== dataDiariaDobradaAtual.toString());
+                const houveAlteracaoMeiaDiaria = (meiaDiariaOriginal !== meiaDiariaAtual) || (dataMeiaDiariaOriginal.toString() !== dataMeiaDiariaAtual.toString());
+
+                console.log("Houve alteração ajusteCusto?", houveAlteracaoAjusteCusto);
+                console.log("Houve alteração Caixinha?", houveAlteracaoCaixinha);
+                console.log("Houve alteração Diária Dobrada?", houveAlteracaoDiariaDobrada);
+                console.log("Houve alteração Meia Diária?", houveAlteracaoMeiaDiaria);
+
+
+                if (houveAlteracaoCaixinha && caixinhaAtivoAtual) {
+                    if (!descCaixinha || descCaixinha.length < 15) {
+                        if (descCaixinhaInput) descCaixinhaInput.focus();
+                        return Swal.fire(
+                            "Campos obrigatórios!",
+                            "A descrição do benefício (Caixinha) deve ter no mínimo 15 caracteres para salvar.",
+                            "warning"
+                        );
+                    }
+                }
+
+                if (houveAlteracaoAjusteCusto && ajusteCustoAtivoAtual) {
+                    if (!descAjusteCusto || descAjusteCusto.length < 15) {
+                        if (descAjusteCusto) descAjusteCustoInput.focus();
+                        return Swal.fire(
+                            "Campos obrigatórios!",
+                            "A descrição do Bônus deve ter no mínimo 15 caracteres para salvar.",
+                            "warning"
+                        );
+                    }
+                }
+
+
+                if (houveAlteracaoDiariaDobrada && diariaDobradaAtual) {
+                    const descDiariaDobradaInput = document.getElementById("descDiariaDobrada");
+                    const descDiariaDobrada = descDiariaDobradaInput.value.trim();
+
+                    if (!descDiariaDobrada || descDiariaDobrada.length < 15) {
+                        if (descDiariaDobradaInput) {
+                            descDiariaDobradaInput.focus();
+                        }
+                        return Swal.fire(
+                            "Campo obrigatório!",
+                            "A descrição da Diária Dobrada deve ter no mínimo 15 caracteres para salvar.",
+                            "warning"
+                        );
+                    }
+                }
+
+
+                if (houveAlteracaoMeiaDiaria && meiaDiariaAtual) {
+                    const descMeiaDiariaInput = document.getElementById("descMeiaDiaria");
+                    const descMeiaDiaria = descMeiaDiariaInput.value.trim();
+
+                    if (!descMeiaDiaria || descMeiaDiaria.length < 15) {
+                        if (descMeiaDiariaInput) {
+                            descMeiaDiariaInput.focus();
+                        }
+                        return Swal.fire(
+                            "Campo obrigatório!",
+                            "A descrição da Meia Diária deve ter no mínimo 15 caracteres para salvar.",
+                            "warning"
+                        );
+                    }
+                }
+
+                formData.append('idstaff', currentEditingStaffEvent.idstaff || '');
+                formData.append('idstaffevento', currentEditingStaffEvent.idstaffevento);
+
+                let houveAlteracao = false;
+                if (
+                    currentEditingStaffEvent.idfuncionario != idFuncionario ||
+                    currentEditingStaffEvent.nmfuncao.toUpperCase() != descFuncao ||
+                    parseFloat(currentEditingStaffEvent.vlrcache || 0.00) != parseFloat(vlrCusto.replace(',', '.') || 0.00) ||
+                    JSON.stringify(currentEditingStaffEvent.periodo || []) !== JSON.stringify(periodoDoEvento) ||
+                    parseFloat(currentEditingStaffEvent.vlrajustecusto || 0.00) != ajusteCustoValorAtual ||
+                    parseFloat(currentEditingStaffEvent.vlrtransporte || 0.00) != parseFloat(transporte.replace(',', '.') || 0.00) ||               
+                    parseFloat(currentEditingStaffEvent.vlralimentacao || 0.00) != parseFloat(alimentacao.replace(',', '.') || 0.00) ||
+                    parseFloat(currentEditingStaffEvent.vlrcaixinha || 0.00) != caixinhaValorAtual ||
+                    (currentEditingStaffEvent.descajustecusto || '').trim() != descAjusteCusto.trim() ||
+                    (currentEditingStaffEvent.descbeneficios || '').trim() != descBeneficio.trim() ||
+                    (currentEditingStaffEvent.desccaixinha || '').trim() != descCaixinha.trim() ||
+                    (currentEditingStaffEvent.setor || '').trim() != setor.trim() ||
+                    currentEditingStaffEvent.idcliente != idCliente ||
+                    currentEditingStaffEvent.idevento != idEvento ||
+                    currentEditingStaffEvent.idmontagem != idMontagem ||
+                    currentEditingStaffEvent.idequipe != idEquipe ||
+                    (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao ||
+                    (currentEditingStaffEvent.statuspgto || '').trim() != statusPgto.trim() ||
+                    (currentEditingStaffEvent.statusajustecusto || '').trim() != statusAjusteCusto.trim() ||
+                    (currentEditingStaffEvent.statuscaixinha || '').trim() != statusCaixinha.trim() ||
+                    (currentEditingStaffEvent.statusdiariadobrada || '').trim() != statusDiariaDobrada.trim() ||
+                    (currentEditingStaffEvent.statusmeiadiaria || '').trim() != statusMeiaDiaria.trim() ||
+                    currentEditingStaffEvent.diariadobrada != diariaDobradaAtual ||
+                    currentEditingStaffEvent.meiadiaria != meiaDiariaAtual ||
+                    currentEditingStaffEvent.nivelexperiencia != nivelExperienciaAtual ||
+                    currentEditingStaffEvent.qtdpessoas != qtdPessoasAtual 
+                ) {
+                    houveAlteracao = true;
+                }
+
+                const logAndCheck = (fieldName, originalValue, currentValue, condition) => {
+                const isDifferent = condition;
+                    console.log(`[COMPARACAO] ${fieldName}: Original = '${originalValue}' | Atual = '${currentValue}' | Diferente = ${isDifferent}`);
+                    return isDifferent;
+                };
+                houveAlteracao =
+                    logAndCheck('ID Equipe', currentEditingStaffEvent.idequipe, idEquipe, currentEditingStaffEvent.idequipe != idEquipe) ||
+                    logAndCheck('Equipe', currentEditingStaffEvent.nmequipe.toUpperCase(), nmEquipe, currentEditingStaffEvent.nmequipe.toUpperCase() != nmEquipe) ||
+                    logAndCheck('ID Funcionário', currentEditingStaffEvent.idfuncionario, idFuncionario, currentEditingStaffEvent.idfuncionario != idFuncionario) ||
+                    logAndCheck('Função', currentEditingStaffEvent.nmfuncao.toUpperCase(), descFuncao, currentEditingStaffEvent.nmfuncao.toUpperCase() != descFuncao) ||
+                    logAndCheck('Valor Cache', parseFloat(currentEditingStaffEvent.vlrcache || 0), parseFloat(vlrCusto.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrcache || 0) != parseFloat(vlrCusto.replace(',', '.') || 0)) ||
+                    logAndCheck('Datas Evento', JSON.stringify(currentEditingStaffEvent.datasevento || []), JSON.stringify(periodoDoEvento), JSON.stringify(currentEditingStaffEvent.datasevento || []) !== JSON.stringify(periodoDoEvento)) || // Use datasevento
+                    logAndCheck('Valor AjusteCusto', parseFloat(currentEditingStaffEvent.vlrajustecusto || 0), ajusteCustoValorAtual, parseFloat(currentEditingStaffEvent.vlrajustecusto || 0) != ajusteCustoValorAtual) ||
+                    logAndCheck('Valor Transporte', parseFloat(currentEditingStaffEvent.vlrtransporte || 0), parseFloat(transporte.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrtransporte || 0) != parseFloat(transporte.replace(',', '.') || 0)) ||
+                    logAndCheck('Valor Alimentação', parseFloat(currentEditingStaffEvent.vlralimentacao || 0), parseFloat(alimentacao.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlralimentacao || 0) != parseFloat(alimentacao.replace(',', '.') || 0)) ||
+                    logAndCheck('Valor Caixinha', parseFloat(currentEditingStaffEvent.vlrcaixinha || 0), caixinhaValorAtual, parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) != caixinhaValorAtual) ||
+                    logAndCheck('Descrição Bônus', (currentEditingStaffEvent.descajustecusto || '').trim(), descAjusteCusto.trim(), (currentEditingStaffEvent.descajustecusto || '').trim() != descAjusteCusto.trim()) ||
+                    logAndCheck('Descrição Benefícios', (currentEditingStaffEvent.descbeneficios || '').trim(), descBeneficio.trim(), (currentEditingStaffEvent.descbeneficios || '').trim() != descBeneficio.trim()) ||
+                    logAndCheck('Descrição Caixinha', (currentEditingStaffEvent.desccaixinha || '').trim(), descCaixinha.trim(), (currentEditingStaffEvent.desccaixinha || '').trim() != descCaixinha.trim()) ||
+                    logAndCheck('Setor', (currentEditingStaffEvent.setor.toUpperCase() || '').trim(), setor.trim().toUpperCase(), (currentEditingStaffEvent.setor.toUpperCase() || '').trim() != setor.toUpperCase().trim()) ||
+                    logAndCheck('StatusPgto', (currentEditingStaffEvent.statuspgto || '').trim(), statusPgto.trim(), (currentEditingStaffEvent.statuspgto || '').trim() != statusPgto.trim()) ||
+                    logAndCheck('StatusAjusteCusto', (currentEditingStaffEvent.statusajustecusto || '').trim(), statusAjusteCusto.trim(), (currentEditingStaffEvent.statusajustecusto || '').trim() != statusAjusteCusto.trim()) ||
+                    logAndCheck('StatusCaixinha', (currentEditingStaffEvent.statuscaixinha || '').trim(), statusCaixinha.trim(), (currentEditingStaffEvent.statuscaixinha || '').trim() != statusCaixinha.trim()) ||
+                    logAndCheck('ID Cliente', currentEditingStaffEvent.idcliente, idCliente, currentEditingStaffEvent.idcliente != idCliente) ||
+                    logAndCheck('ID Evento', currentEditingStaffEvent.idevento, idEvento, currentEditingStaffEvent.idevento != idEvento) ||
+                    logAndCheck('ID Montagem', currentEditingStaffEvent.idmontagem, idMontagem, currentEditingStaffEvent.idmontagem != idMontagem) ||
+                    logAndCheck('Pavilhão', (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim(), pavilhao.toUpperCase().trim(), (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao.toUpperCase().trim()) ||
+
+                    logAndCheck(
+                        'Comprovante Cache',
+                        normalizeEmptyValue(currentEditingStaffEvent.comppgtocache), // Valor original normalizado
+                        normalizeEmptyValue(comppgtocacheDoForm),                 // Valor do formulário normalizado
+                        normalizeEmptyValue(currentEditingStaffEvent.comppgtocache) !== normalizeEmptyValue(comppgtocacheDoForm) // Comparação normalizada
+                    ) ||
+                    logAndCheck(
+                        'Comprovante Ajuda Custo',
+                        normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto),
+                        normalizeEmptyValue(comppgtoajdcustoDoForm),
+                        normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto) !== normalizeEmptyValue(comppgtoajdcustoDoForm)
+                    ) ||
+                    logAndCheck(
+                        'Comprovante Ajuda Custo 50',
+                        normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto50),
+                        normalizeEmptyValue(comppgtoajdcusto50DoForm),
+                        normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto50) !== normalizeEmptyValue(comppgtoajdcusto50DoForm)
+                    ) ||
+                    logAndCheck(
+                        'Comprovante Caixinha',
+                        normalizeEmptyValue(currentEditingStaffEvent.comppgtocaixinha),
+                        normalizeEmptyValue(comppgtocaixinhaDoForm),
+                        normalizeEmptyValue(currentEditingStaffEvent.comppgtocaixinha) !== normalizeEmptyValue(comppgtocaixinhaDoForm)
+                    ) ||
+
+                    logAndCheck('Datas Diária Dobrada', JSON.stringify(dataDiariaDobradaOriginal), JSON.stringify(dataDiariaDobradaAtual), JSON.stringify(dataDiariaDobradaOriginal) !== JSON.stringify(dataDiariaDobradaAtual)) ||
+                    logAndCheck('Datas Meia Diária', JSON.stringify(dataMeiaDiariaOriginal), JSON.stringify(dataMeiaDiariaAtual), JSON.stringify(dataMeiaDiariaOriginal) !== JSON.stringify(dataMeiaDiariaAtual)) ||
+
+                    logAndCheck('Status Diária Dobrada', (currentEditingStaffEvent.statusdiariadobrada || '').trim(), statusDiariaDobrada.trim(), (currentEditingStaffEvent.statusdiariadobrada || '').trim() != statusDiariaDobrada.trim()) ||
+                    logAndCheck('Status Meia Diária', (currentEditingStaffEvent.statusmeiadiaria || '').trim(), statusMeiaDiaria.trim(), (currentEditingStaffEvent.statusmeiadiaria || '').trim() != statusMeiaDiaria.trim()) ||
+                    logAndCheck('Nível Experiência', (currentEditingStaffEvent.nivelexperiencia || '').trim(), nivelExperienciaAtual.trim(), (currentEditingStaffEvent.nivelexperiencia || '').trim() != nivelExperienciaAtual.trim()) ||
+                    logAndCheck('Qtd Pessoas', currentEditingStaffEvent.qtdpessoas || 0, qtdPessoasAtual || 0, (currentEditingStaffEvent.qtdpessoas || 0) != (qtdPessoasAtual || 0));
+            
+                    console.log("Houve alteração geral?", houveAlteracao);
+
+                if (!houveAlteracao) {
+                    console.log("Nenhuma alteração detectada, bloqueando salvamento.");
+                    return Swal.fire("Nenhuma alteração detectada", "Faça alguma alteração antes de salvar.", "info");
+                }
+
+                const { isConfirmed } = await Swal.fire({
+                    title: "Deseja salvar as alterações?",
+                    text: "Você está prestes a atualizar os dados do staff.",
+                    icon: "question",
+                    showCancelButton: true,
+                    confirmButtonText: "Sim, salvar",
+                    cancelButtonText: "Cancelar",
+                    reverseButtons: true,
+                    focusCancel: true
+                });
+
+                if (!isConfirmed) {
+                    console.log("Alteração cancelada pelo usuário");
+                    return;
+                }
+            }
+
+            // --- EXECUTA O FETCH PARA POST OU PUT ---
+            try {
             console.log("ENTRANDO NO TRY. Método:", metodo);
 
             const respostaApi = await fetchComToken(url, {
@@ -2670,21 +2936,87 @@ async function verificaStaff() {
                 body: formData
             });
 
+            // 🛑 Reabilita o botão após o sucesso do FETCH
+            const botaoEnviar = document.getElementById("botaoEnviar");
+            if (botaoEnviar) {
+                botaoEnviar.disabled = false;
+                botaoEnviar.textContent = 'Salvar'; 
+            }
+
             await Swal.fire("Sucesso!", respostaApi.message || "Staff salvo com sucesso.", "success");
 
-
+            // 1. RECUPERAÇÃO DO ESTADO ORIGINAL:
             await carregarTabelaStaff(idFuncionario);
+            window.StaffOriginal = null;
 
-             window.StaffOriginal = null;
-             limparCamposStaff();
+            // =========================================================================
+            // 🛑 NOVO BLOCO DE PERGUNTA (Substituindo o antigo limparCamposStaff())
+            // =========================================================================
+
+            const result = await Swal.fire({
+                title: "Deseja continuar?",
+                text: "O cadastro foi concluído. Quer cadastrar mais um funcionário para o mesmo evento/função ou finalizar?",
+                icon: "question",
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: "Cadastrar mais um (Manter dados)",
+                cancelButtonText: "Finalizar e Sair", // Opção de fechar a modal
+                denyButtonText: "Cadastrar novo staff (Limpar tudo)", // Opção de cadastrar outro staff (limpar tudo)
+                reverseButtons: true,
+                focusCancel: true
+            });
+            
+            if (result.isConfirmed) {
+                // Se escolheu "Cadastrar mais um (Manter dados)"
+                console.log("Usuário escolheu: Cadastrar mais um (Manter evento/função)");
+                
+                // Chama a nova função de limpeza parcial
+                if (typeof limparCamposStaffParcial === "function") {
+                    limparCamposStaffParcial();
+                } else {
+                    console.error("limparCamposStaffParcial não está definida. Limpando tudo.");
+                    limparCamposStaff(); // Fallback para limpeza total
+                }
+
+            } else if (result.isDenied) {
+                // Se escolheu "Cadastrar novo staff (Limpar tudo)"
+                console.log("Usuário escolheu: Cadastrar novo staff (Limpar tudo)");
+                limparCamposStaff(); // Sua função de limpeza total
+
+            } else if (result.dismiss === Swal.DismissReason.cancel) {
+                // Se escolheu "Finalizar e Sair"
+                console.log("Usuário escolheu: Finalizar e Sair");
+                
+                // Chama a função global para fechar a modal
+                if (typeof fecharModal === "function") {
+                    fecharModal();
+                    window.location.reload();
+                } else {
+                    // Fallback (se a fecharModal não estiver no escopo)
+                    document.getElementById("modal-overlay").style.display = "none";
+                    document.getElementById("modal-container").innerHTML = "";
+                    document.body.classList.remove("modal-open");
+                }
+            }
+            
+            // =========================================================================
 
         } catch (error) {
             console.error("❌ Erro ao enviar dados do funcionário:", error);
+            
+            // ❌ Reabilita o botão após o erro
+            const botaoEnviar = document.getElementById("botaoEnviar");
+            if (botaoEnviar) {
+                botaoEnviar.disabled = false;
+                botaoEnviar.textContent = 'Salvar'; 
+            }
+            
             Swal.fire("Erro", error.message || "Erro ao salvar funcionário.", "error");
         }
-    });
+    })
+    }
 }
-
+  
 const debounce = (func, delay) => {
   let timeoutId;
   return (...args) => {
@@ -2708,14 +3040,14 @@ const debouncedOnCriteriosChanged = debounce(() => {
 
     // Apenas chame a API se os campos obrigatórios estiverem preenchidos
     if (idEvento && idCliente && periodoDoEvento.length > 0) {
-      buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, setorParaBusca, periodoDoEvento);
+      buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, periodoDoEvento);
     }
 }, 500);
 
 
-async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, setorParaBusca, datasEvento, diariaDobrada) {
+async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, datasEvento) {
     try {
-        console.log("Buscando orçamento com os seguintes IDs:", { idEvento, idCliente, idLocalMontagem, setorParaBusca });
+        console.log("Buscando orçamento com os seguintes IDs:", { idEvento, idCliente,  idLocalMontagem });
 
         const criteriosDeBusca = {
             idEvento,
@@ -2769,15 +3101,37 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, set
         // }
 
         // **PROCESSAMENTO DOS DADOS:** Se o status não for 'A', o código continua aqui
+
+
+    
+        // dadosDoOrcamento.forEach(item => {
+        //     //const chave = `${item.nmevento}-${item.nmcliente}-${item.nmlocalmontagem}-${item.pavilhao}-${item.descfuncao}`;
+        //     const chave = `${item.nmevento}-${item.nmcliente}-${item.nmlocalmontagem}-${item.descfuncao}`;
+        //     orcamentoPorFuncao[chave] = {
+        //         quantidadeOrcada: item.quantidade_orcada,
+        //         quantidadeEscalada: item.quantidade_escalada
+        //     };
+        // });
+
         dadosDoOrcamento.forEach(item => {
-            const chave = `${item.nmevento}-${item.nmcliente}-${item.nmlocalmontagem}-${item.setor}-${item.descfuncao}`;
-
-            orcamentoPorFuncao[chave] = {
-                quantidadeOrcada: item.quantidade_orcada,
-                quantidadeEscalada: item.quantidade_escalada
-            };
-        });
-
+            const chave = `${item.nmevento}-${item.nmcliente}-${item.nmlocalmontagem}-${item.descfuncao}`;
+            
+            // Se a chave não existir, inicializa e define as quantidades
+            if (!orcamentoPorFuncao[chave]) {
+                orcamentoPorFuncao[chave] = {
+                    // Converte para número e define os valores iniciais
+                    quantidadeOrcada: Number(item.quantidade_orcada), 
+                    quantidadeEscalada: Number(item.quantidade_escalada) 
+                };
+            } else {
+                // Se a chave já existir, SOMENTE SOMA a quantidade Orçada
+                // O valor de quantidadeEscalada (total de escalados no DB) já foi definido 
+                // na primeira iteração e é o mesmo para todas as linhas de orçamento.
+                orcamentoPorFuncao[chave].quantidadeOrcada += Number(item.quantidade_orcada);
+                
+                // Importante: Não some orcamentoPorFuncao[chave].quantidadeEscalada novamente!
+            }
+        });
         console.log('Orçamento carregado:', orcamentoPorFuncao);
 
     } catch (error) {
@@ -3097,8 +3451,6 @@ async function verificarDisponibilidadeStaff(idFuncionario, datasAgendamento, id
 //     });
 // }
 
-
-console.log("ainda n adicionou Blur")
 function adicionarEventoBlurStaff() {
     const input = document.querySelector("#nmFuncionario");
     if (!input) return;
@@ -3225,9 +3577,13 @@ async function carregarEquipeStaff() {
 async function carregarFuncaoStaff() {
     try{
         const funcaofetch = await fetchComToken('/staff/funcao');
-        console.log("ENTROU NO CARREGARFUNCAOSTAFF", funcaofetch);
+        console.log("ENTROU NO CARREGARFUNCAOSTAFF", funcaofetch);        
 
         let selects = document.querySelectorAll(".descFuncao");
+
+        const inputIdEquipe = document.getElementById("idEquipe");
+        const inputNmEquipe = document.getElementById("nmEquipe");
+
         selects.forEach(select => {
             select.innerHTML = "";
 
@@ -3252,6 +3608,8 @@ async function carregarFuncaoStaff() {
                     option.setAttribute("data-alimentacao", funcao.alimentacao || 0);
                     option.setAttribute("data-transporte", funcao.transporte || 0);
                     option.setAttribute("data-transpsenior", funcao.transpsenior || 0);
+                    option.setAttribute("data-idequipe", funcao.idequipe || '');
+                    option.setAttribute("data-nmequipe", funcao.nmequipe || '');
                     option.setAttribute("data-categoria", "Produto(s)");
                     select.appendChild(option);
                // }else {
@@ -3269,12 +3627,21 @@ async function carregarFuncaoStaff() {
                 document.getElementById("Plenocheck").checked = false;
                 document.getElementById("Juniorcheck").checked = false;
                 document.getElementById("Basecheck").checked = false;
-                
+                inputIdEquipe.value = '';
+                inputNmEquipe.value = '';
 
                 const selectedOption = this.options[this.selectedIndex];
              
 
-                document.getElementById("idFuncao").value = selectedOption.getAttribute("data-idFuncao");            
+                document.getElementById("idFuncao").value = selectedOption.getAttribute("data-idFuncao"); 
+                const idEquipeSelecionado = selectedOption.getAttribute("data-idequipe");
+                const nmEquipeSelecionado = selectedOption.getAttribute("data-nmequipe");
+                
+                if (idEquipeSelecionado) {
+                    inputIdEquipe.value = idEquipeSelecionado;
+                    inputNmEquipe.value = nmEquipeSelecionado;
+                    console.log(`Equipe preenchida: ID ${idEquipeSelecionado}, Nome ${nmEquipeSelecionado}`);
+                }           
 
                 vlrCustoSeniorFuncao = parseFloat(selectedOption.getAttribute("data-ctosenior")) || 0;
                 vlrCustoPlenoFuncao = parseFloat(selectedOption.getAttribute("data-ctopleno")) || 0;
@@ -3323,7 +3690,7 @@ async function carregarFuncionarioStaff() {
             });
 
             select.addEventListener("change", function () {
-               limparCamposEvento();
+            //    limparCamposEvento();
 
             const selectedOption = this.options[this.selectedIndex];
 
@@ -3549,6 +3916,13 @@ async function carregarLocalMontStaff() {
 
         let selects = document.querySelectorAll(".nmLocalMontagem");
 
+        const containerViagens = document.getElementById("containerViagens");
+        
+        // Oculta o container por padrão ao carregar a função
+        if (containerViagens) {
+            containerViagens.style.display = 'none';
+        }
+
         selects.forEach(select => {
 
             select.innerHTML = '<option value="">Selecione Local de Montagem</option>';
@@ -3568,6 +3942,30 @@ async function carregarLocalMontStaff() {
 
                document.getElementById("idMontagem").value = selectedOption.getAttribute("data-idMontagem");
 
+               if(selectedOption.value === "") {
+                   console.log("Nenhum local de montagem selecionado.");
+                   if (containerViagens) {
+                        containerViagens.style.display = 'none';
+                    }
+                   
+               } else {   
+                    console.log("Local de montagem selecionado:", selectedOption.textContent);                
+                   if (selectedOption.getAttribute("data-ufmontagem") !== "SP") {
+                        //Swal.fire("Atenção", "O local de montagem selecionado está fora do estado de SP. Verifique os custos adicionais de deslocamento.", "warning");
+                        bForaSP = true;
+                        if (containerViagens) {
+                            containerViagens.style.display = 'block'; // Mostra o container
+                        }
+
+                   }else {
+                        bForaSP = false;
+                        if (containerViagens) {
+                            containerViagens.style.display = 'none'; // Oculta o container
+                        }
+                        document.getElementById('viagem1Check').checked = false; 
+                        document.getElementById('viagem2Check').checked = false;
+                   }
+               }
 
                idMontagemSelecionado = selectedOption.value;
 
@@ -3582,6 +3980,13 @@ async function carregarLocalMontStaff() {
 }
 
 async function carregarPavilhaoStaff(idMontagem) {
+
+    // if (!idMontagem || idMontagem === "") {
+    //     console.warn("carregarPavilhaoStaff: idMontagem vazio, abortando requisição.");
+    //     // Pode ser necessário limpar o select de Pavilhão aqui, se ele existir.
+    //     return [];
+    // }
+
     try{
 
        const pavilhaofetch = await fetchComToken(`/staff/pavilhao?idmontagem=${idMontagem}`);
@@ -4155,8 +4560,8 @@ document.getElementById('Seniorcheck').addEventListener('change', function () {
 
         //console.log("Valores para Senior - Custo:", vlrCustoSeniorFuncao, "Alimentação:", vlrAlimentacao, "Transporte:", vlrTransporteSeniorFuncao);
         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-       document.getElementById("vlrCusto").value = (parseFloat(vlrCustoSeniorFuncao) || 0).toFixed(2); 
-       document.getElementById("transporte").value = (parseFloat(vlrTransporteSeniorFuncao) || 0).toFixed(2);
+        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoSeniorFuncao) || 0).toFixed(2); 
+        document.getElementById("transporte").value = (parseFloat(vlrTransporteSeniorFuncao) || 0).toFixed(2);
     }
 });
 
@@ -4200,6 +4605,133 @@ document.getElementById('Basecheck').addEventListener('change', function () {
     }
 });
 
+function criarRegexRemocao(textoPuro) {
+    const textoEscapado = textoPuro.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    // Encontra (opcional \n\n) + o texto
+    return new RegExp("(\\n\\n)?" + textoEscapado, 'g');
+}
+
+// Regex para cada descrição
+const REGEX_REMOCAO1 = criarRegexRemocao(DescViagem1);
+const REGEX_REMOCAO2 = criarRegexRemocao(DescViagem2);
+
+document.getElementById('viagem1Check').addEventListener('change', function () { 
+    let vlrAlimentacaoViagem = vlrAlimentacaoFuncao; 
+    let descBeneficioAtual = descBeneficioTextarea.value;  
+    descBeneficioAtual = limparDescricoesViagem(descBeneficioAtual);
+    if (viagem1Check.checked) {
+        // Lógica para quando o checkbox de Viagem 1 estiver marcado
+        viagem2Check.checked = false;
+        vlrAlimentacaoViagem = vlrAlimentacaoViagem * 2 ;
+        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoViagem) || 0).toFixed(2);
+
+        console.log("Descrição atual antes da modificação:", descBeneficioTextarea.value);        
+
+        if (descBeneficioAtual) {
+            descBeneficioAtual = descBeneficioAtual.trim();
+        }
+        if (descBeneficioAtual.includes(DescViagem1)) {
+            descBeneficioAtual = descBeneficioAtual.replace(DescViagem1, "").trim();
+        }
+        let separador = "";
+        if (descBeneficioAtual.length > 0) {
+            // Se houver texto remanescente, adicione o separador \n\n
+            separador = "\n\n";
+        }
+        // 2. Adiciona a descrição de viagem ao texto
+        descBeneficioTextarea.value = descBeneficioAtual + separador + DescViagem1;
+
+    }else {
+        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
+
+        // let descBeneficioAtual = descBeneficioTextarea.value;
+    
+        // // Escapa o texto para uso seguro no Regex
+        // const DescViagem1Escapada = DescViagem1.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        
+        // // Regex para remover (duas quebras de linha opcionais) + o texto da viagem
+        // const regexRemover = new RegExp("(\\n\\n)?" + DescViagem1Escapada, 'g');
+
+        // if (descBeneficioAtual.includes(DescViagem1)) {
+            
+        //     // Remove o texto e o separador que o precede (se existir)
+        //     descBeneficioAtual = descBeneficioAtual.replace(regexRemover, "").trim();
+            
+        //     // **PASSO ESSENCIAL:** Atribui o texto limpo de volta à textarea
+        //     descBeneficioTextarea.value = descBeneficioAtual;
+        // }
+        descBeneficioTextarea.value = descBeneficioAtual;
+    }
+    //console.log("Valores para Senior - Custo:", vlrCustoSeniorFuncao, "Alimentação:", vlrAlimentacao, "Transporte:", vlrTransporteSeniorFuncao);
+ 
+});
+
+document.getElementById('viagem2Check').addEventListener('change', function () { 
+    let vlrAlimentacaoViagem = vlrAlimentacaoFuncao;  
+    let descBeneficioAtual = descBeneficioTextarea.value;
+
+    descBeneficioAtual = limparDescricoesViagem(descBeneficioAtual);
+    if (viagem2Check.checked) {
+        // Lógica para quando o checkbox de Viagem 2 estiver marcado
+        viagem1Check.checked = false;
+        vlrAlimentacaoViagem = (vlrAlimentacaoViagem * 2) + (vlrAlimentacaoViagem / 2) ;
+        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoViagem) || 0).toFixed(2);
+
+        
+        if (descBeneficioAtual) {
+            descBeneficioAtual = descBeneficioAtual.trim();
+        }
+        if (descBeneficioAtual.includes(DescViagem2)) {
+            descBeneficioAtual = descBeneficioAtual.replace(DescViagem2, "").trim();
+        }
+        let separador = "";
+        if (descBeneficioAtual.length > 0) {
+            // Se houver texto remanescente, adicione o separador \n\n
+            separador = "\n\n";
+        }
+
+        // 2. Adiciona a descrição de viagem ao texto
+        descBeneficioTextarea.value = descBeneficioAtual + separador +DescViagem2;
+
+    }else {
+        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
+
+        
+        // // Escapa o texto para uso seguro no Regex
+        // const DescViagem2Escapada = DescViagem2.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');        
+        // // Regex para remover (duas quebras de linha opcionais) + o texto da viagem
+        // const regexRemover = new RegExp("(\\n\\n)?" + DescViagem2Escapada, 'g');
+        // if (descBeneficioAtual.includes(DescViagem2)) {
+        //     // Remove o texto e o separador que o precede (se existir)
+        //     descBeneficioAtual = descBeneficioAtual.replace(regexRemover, "").trim();            
+        //     // **PASSO ESSENCIAL:** Atribui o texto limpo de volta à textarea
+        //     descBeneficioTextarea.value = descBeneficioAtual;
+        // }
+
+        descBeneficioTextarea.value = descBeneficioAtual;
+    }
+    
+    //console.log("Valores para Senior - Custo:", vlrCustoSeniorFuncao, "Alimentação:", vlrAlimentacao, "Transporte:", vlrTransporteSeniorFuncao);
+   
+    
+   
+});
+
+function limparDescricoesViagem(textoAtual) {
+    let textoLimpo = textoAtual;
+
+    // Remove a Viagem 1, se existir
+    if (textoLimpo.includes(DescViagem1)) {
+        textoLimpo = textoLimpo.replace(REGEX_REMOCAO1, "").trim();
+    }
+    
+    // Remove a Viagem 2, se existir
+    if (textoLimpo.includes(DescViagem2)) {
+        textoLimpo = textoLimpo.replace(REGEX_REMOCAO2, "").trim();
+    }
+
+    return textoLimpo;
+}
 
 function calcularPascoa(ano) {
     const f = Math.floor,
@@ -4627,48 +5159,62 @@ document.addEventListener('click', function(e) {
  * @returns {boolean} - true se o limite não foi atingido, false caso contrário.
  */
 function verificarLimiteDeFuncao(criterios) {
-    // 1. Construa a chave composta, igual à usada em buscarEPopularOrcamento
-    const chave = `${criterios.nmEvento}-${criterios.nmCliente}-${criterios.nmlocalMontagem}-${criterios.pavilhao}-${criterios.nmFuncao}`;
-    const dadosOrcamento = orcamentoPorFuncao[chave];
 
-    // Se não houver dados de orçamento, não há limite
-    if (!dadosOrcamento) {
-        return true;
-    }
+    // 1. Construa a chave composta, garantindo que a GRANULARIDADE corresponda ao orçamento.
+    // Usamos '|| '' ' para garantir que a chave seja construída mesmo se Pavilhão ou Setor for null/undefined.
+    const chave = `${criterios.nmEvento}-${criterios.nmCliente}-${criterios.nmlocalMontagem}-${criterios.pavilhao || ''}-${criterios.nmFuncao}-${criterios.setor || ''}`;
+  
+    const dadosOrcamento = orcamentoPorFuncao[chave];
 
-    // 2. Conte quantos funcionários já foram inseridos na tabela com esses critérios
-    let countNaTabela = 0;
-    const linhasTabela = document.querySelectorAll('#eventsTableBody tr');
-    linhasTabela.forEach(linha => {
-        const eventDataNaLinha = JSON.parse(linha.dataset.eventData);
-        if (
-            eventDataNaLinha.nmfuncao.trim().toUpperCase() === criterios.nmFuncao.toUpperCase().trim() &&
-            eventDataNaLinha.nmevento.trim().toUpperCase() === criterios.nmEvento.toUpperCase().trim() &&
-            eventDataNaLinha.nmcliente.trim().toUpperCase() === criterios.nmCliente.toUpperCase().trim() &&
-            eventDataNaLinha.nmlocalmontagem.trim().toUpperCase() === criterios.nmlocalMontagem.toUpperCase().trim() &&
-            //eventDataNaLinha.pavilhao.trim().toUpperCase() === criterios.pavilhao.toUpperCase().trim()
-            eventDataNaLinha.setor.trim().toUpperCase() === criterios.setor.toUpperCase().trim()
-        ) {
-            countNaTabela++;
-        }
-    });
+    console.log("Verificando limite para a chave:", chave, dadosOrcamento);
+
+    // Se não houver dados de orçamento para ESTA COMBINAÇÃO ÚNICA, não há limite
+    if (!dadosOrcamento) {
+        return true;
+    }
+
+    // 2. Conte quantos funcionários já foram inseridos na tabela com EXATAMENTE esses critérios
+    let countNaTabela = 0;
+    const linhasTabela = document.querySelectorAll('#eventsTableBody tr');
+    linhasTabela.forEach(linha => {
+        const eventDataNaLinha = JSON.parse(linha.dataset.eventData);
+        if (
+            eventDataNaLinha.nmfuncao.trim().toUpperCase() === criterios.nmFuncao.toUpperCase().trim() &&
+            eventDataNaLinha.nmevento.trim().toUpperCase() === criterios.nmEvento.toUpperCase().trim() &&
+            eventDataNaLinha.nmcliente.trim().toUpperCase() === criterios.nmCliente.toUpperCase().trim() &&
+            eventDataNaLinha.nmlocalmontagem.trim().toUpperCase() === criterios.nmlocalMontagem.toUpperCase().trim() &&
+            // Incluindo Pavilhão e Setor na contagem, assim como na chave
+             (eventDataNaLinha.pavilhao || '').trim().toUpperCase() === (criterios.pavilhao || '').toUpperCase().trim() &&
+            (eventDataNaLinha.setor || '').trim().toUpperCase() === (criterios.setor || '').toUpperCase().trim()
+        ) {
+            countNaTabela++;
+        }
+    });
 
     // 3. Combine a contagem do banco e da tabela
-    const totalEscalado = dadosOrcamento.quantidadeEscalada + countNaTabela;
-    const limite = dadosOrcamento.quantidadeOrcada;
+    // const totalEscalado = dadosOrcamento.quantidadeEscalada + countNaTabela;
+    // const limite = dadosOrcamento.quantidadeOrcada;
 
-    console.log(`Verificando para a combinação '${chave}' - Total escalado: ${totalEscalado}, Limite: ${limite}`);
+    // console.log(`Verificando para a combinação '${chave}' - Total escalado: ${totalEscalado}, Limite: ${limite}`);
 
-    if (totalEscalado >= limite) {
+    const totalJaOcupado = Number(dadosOrcamento.quantidadeEscalada) + countNaTabela;
+    const limite = dadosOrcamento.quantidadeOrcada;
+
+    // Calcule o total proposto: slots ocupados + 1 (o item que está sendo submetido)
+    const totalProposto = totalJaOcupado + 1; // 💡 CORREÇÃO CRÍTICA AQUI
+
+    console.log(`Verificando para a combinação '${chave}' - Ocupado: ${totalJaOcupado}, Limite: ${limite}, Proposto: ${totalProposto}`);
+
+    if (totalProposto > limite) {
         Swal.fire({
             icon: 'warning',
             title: 'Limite atingido',
-            text: `O limite de ${limite} para esta função no período já foi alcançado. Existem ${dadosOrcamento.quantidadeEscalada} funcionários já salvos para este período neste setor e ${countNaTabela} adicionados na lista atual.`,
+            text: `O limite de ${limite} para esta função no período já foi alcançado. Existem ${dadosOrcamento.quantidadeEscalada} funcionários já salvos para este período e ${countNaTabela} adicionados na lista atual.`,
         });
         return false;
     }
 
-    return true;
+    return true;
 }
 
 function limparCamposComprovantes() {
@@ -4719,90 +5265,106 @@ function limparFoto() {
 
 
 function configurarEventosStaff() {
-    console.log("Configurando eventos Staff...");
+    console.log("Configurando eventos Staff...");
 
-    const containerPDF = document.querySelector('.pdf');
+    const containerPDF = document.querySelector('.pdf');
 
-    // Se o usuário NÃO tiver a permissão, oculta o container.
-    // Caso contrário, ele permanece visível (ou é exibido).
-    if (!temPermissaoTotal) {
-        containerPDF.style.display = 'none';
-    } else {
-        containerPDF.style.display = ''; // Volta ao padrão
-    }
+    // Se o usuário NÃO tiver a permissão Master, oculta o container.
+    if (!temPermissaoMaster) {
+        containerPDF.style.display = 'none';
+    } else {
+        containerPDF.style.display = ''; // Volta ao padrão
+    }
 
-    verificaStaff(); // Carrega os Staff ao abrir o modal
-    adicionarEventoBlurStaff();
-    inicializarFlatpickrsGlobais();
-    limparStaffOriginal()
+    verificaStaff(); // Carrega os Staff ao abrir o modal
+    adicionarEventoBlurStaff();
+    inicializarFlatpickrsGlobais();
+    limparStaffOriginal()
 
-    // Inicializa o estado dos campos extra/caixinha no carregamento
-    const inputAjusteCusto = document.getElementById('ajusteCusto');
-    const ajusteCustocheck = document.getElementById('ajusteCustocheck');
-    const campoAjusteCusto = document.getElementById('campoAjusteCusto');
+    // Inicializa o estado dos campos extra/caixinha no carregamento
+    const inputAjusteCusto = document.getElementById('ajusteCusto');
+    const ajusteCustocheck = document.getElementById('ajusteCustocheck');
+    const campoAjusteCusto = document.getElementById('campoAjusteCusto');
 
-    if (ajusteCustocheck && campoAjusteCusto && ajusteCustoTextarea) {
-        ajusteCustocheck.addEventListener('change', function() {
-            campoAjusteCusto.style.display = this.checked ? 'block' : 'none';
+    if (ajusteCustocheck && campoAjusteCusto && ajusteCustoTextarea) {
+        ajusteCustocheck.addEventListener('change', function() {
+            campoAjusteCusto.style.display = this.checked ? 'block' : 'none';
 
-            ajusteCustoTextarea.style.display = this.checked ? 'block' : 'none';
-            ajusteCustoTextarea.required = this.checked;
-            if (!this.checked) {
-                if (inputAjusteCusto) inputAjusteCusto.value = ''; // Limpa o input 'ajusteCusto' ao ocultar
-                ajusteCustoTextarea.value = '';               // Limpa o textarea 'ajusteCusto' ao ocultar
-            }
+            ajusteCustoTextarea.style.display = this.checked ? 'block' : 'none';
+            ajusteCustoTextarea.required = this.checked;
+            if (!this.checked) {
+                if (inputAjusteCusto) inputAjusteCusto.value = ''; // Limpa o input 'ajusteCusto' ao ocultar
+                ajusteCustoTextarea.value = '';               // Limpa o textarea 'ajusteCusto' ao ocultar
+            }
 
-        });
+        });
 
-        campoAjusteCusto.style.display = ajusteCustocheck.checked ? 'block' : 'none';
+        campoAjusteCusto.style.display = ajusteCustocheck.checked ? 'block' : 'none';
 
-        ajusteCustoTextarea.style.display = ajusteCustocheck.checked ? 'block' : 'none';
-        ajusteCustoTextarea.required = ajusteCustocheck.checked;
-        if (!ajusteCustocheck.checked) {
-            if (inputAjusteCusto) inputAjusteCusto.value = '';
-            ajusteCustoTextarea.value = '';
+        ajusteCustoTextarea.style.display = ajusteCustocheck.checked ? 'block' : 'none';
+        ajusteCustoTextarea.required = ajusteCustocheck.checked;
+        if (!ajusteCustocheck.checked) {
+            if (inputAjusteCusto) inputAjusteCusto.value = '';
+            ajusteCustoTextarea.value = '';
+        }
+    }
+
+    const caixinhacheck = document.getElementById('Caixinhacheck');
+    const campoCaixinha = document.getElementById('campoCaixinha');
+
+    if (caixinhacheck && campoCaixinha) {
+        caixinhacheck.addEventListener('change', function() {
+            campoCaixinha.style.display = this.checked ? 'block' : 'none';
+        });
+        campoCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
+    }
+
+    const diariaDobradacheck = document.getElementById('diariaDobradacheck');
+    const campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
+    if (diariaDobradacheck && campoDiariaDobrada) {
+        diariaDobradacheck.addEventListener('change', function() {
+            campoDiariaDobrada.style.display = this.checked ? 'block' : 'none';
+
+        });
+        campoDiariaDobrada.style.display = diariaDobradacheck.checked ? 'block' : 'none';
+
+    }
+
+    const meiaDiariacheck = document.getElementById('meiaDiariacheck');
+    const campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
+    if (meiaDiariacheck && campoMeiaDiaria) {
+        meiaDiariacheck.addEventListener('change', function() {
+            campoMeiaDiaria.style.display = this.checked ? 'block' : 'none';
+         });
+        campoMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
+    }
+
+    // Chama mostrarTarja() para inicializar a tarja com base no valor do select
+    if (typeof mostrarTarja === 'function') {
+        mostrarTarja();
+    }
+    
+    // 📢 NOVO BLOCO: Restrição de edição dos campos de Status
+    const statusAjusteCustoInput = document.getElementById('statusAjusteCusto');
+    const statusCaixinhaInput = document.getElementById('statusCaixinha');
+
+    if (statusAjusteCustoInput && statusCaixinhaInput) {
+        if (!temPermissaoMaster) {
+            // Desabilita os campos se o usuário NÃO for Master
+            statusAjusteCustoInput.disabled = true;
+            statusCaixinhaInput.disabled = true;
+            console.log("Status de Ajuste/Caixinha desabilitados: Permissão Master requerida.");
+        } else {
+            // Garante que os campos estão habilitados se o usuário for Master
+            statusAjusteCustoInput.disabled = false;
+            statusCaixinhaInput.disabled = false;
         }
     }
+    // 📢 FIM DO NOVO BLOCO
 
-    const caixinhacheck = document.getElementById('Caixinhacheck');
-    const campoCaixinha = document.getElementById('campoCaixinha');
-
-    if (caixinhacheck && campoCaixinha) {
-        caixinhacheck.addEventListener('change', function() {
-            campoCaixinha.style.display = this.checked ? 'block' : 'none';
-        });
-        campoCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
-    }
-
-    const diariaDobradacheck = document.getElementById('diariaDobradacheck');
-    const campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
-    if (diariaDobradacheck && campoDiariaDobrada) {
-        diariaDobradacheck.addEventListener('change', function() {
-            campoDiariaDobrada.style.display = this.checked ? 'block' : 'none';
-
-        });
-        campoDiariaDobrada.style.display = diariaDobradacheck.checked ? 'block' : 'none';
-
-    }
-
-    const meiaDiariacheck = document.getElementById('meiaDiariacheck');
-    const campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
-    if (meiaDiariacheck && campoMeiaDiaria) {
-        meiaDiariacheck.addEventListener('change', function() {
-            campoMeiaDiaria.style.display = this.checked ? 'block' : 'none';
-         });
-        campoMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
-    }
-
-    // Chama mostrarTarja() para inicializar a tarja com base no valor do select
-    if (typeof mostrarTarja === 'function') {
-        mostrarTarja();
-    }
-
-    console.log("Entrou configurar Staff no STAFF.js.");
+    console.log("Entrou configurar Staff no STAFF.js.");
 
 }
-
 
 window.configurarEventosStaff = configurarEventosStaff;
 

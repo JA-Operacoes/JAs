@@ -12,29 +12,30 @@
         <div id ="form-indices"> 
             
             <div class = "title">
-        <h1>Cadastro de Índices</h1>
+                <h1>Cadastro de Índices</h1>
             </div>
 
             <form  method="post"  id="form" name="form" autocomplete="on">
     
                 <fieldset>
                     <div class="form">
-                        <input type="text" name="anoIndice" id="anoIndice" readonly spellcheck="false">
-                        <label for ="anoIndice">Ano</label>
+                        <input hidden="text" name="idIndice" id="idIndice" required spellcheck="false">
+                        <input type="text" name="anoIndice" id="anoIndice" required spellcheck="false">
+                        <label for ="anoIndice">Ano Referência</label>
                     </div>
-                    <legend>Cadastre os Indices</legend>
+                    <legend>Cadastro/Atualização de Índice Anual</legend>
                     <div class="form-2colunas">
                         <div class ="form2">
-                            <input type="text" class="uppercase" name="descEquip" id="descEquip"  required spellcheck="false">
-                            <label for = "descEquip"> Custo e Vendas </label>
+                            <input type="text" class="uppercase" name="percentCtoVda" id="percentCtoVda"  required spellcheck="false">
+                            <label for = "percentCtoVda">% Custo e Vendas </label>
                         </div>
                             <div class="form2">
-                                <input type="text" name="ctoEquip" id="ctoEquip"  required spellcheck="false">
-                                <label for = "ctoEquip"> Alimentação </label>
+                                <input type="text" name="percentAlimentacao" id="percentAlimentacao"  required spellcheck="false">
+                                <label for = "percentAlimentacao">% Alimentação </label>
                             </div>
                             <div class="form2">
-                                <input type="text" name="vdaEquip" id="vdaEquip" required spellcheck="false">
-                                <label for ="vdaEquip"> Transporte </label>
+                                <input type="text" name="percentTransporte" id="percentTransporte" required spellcheck="false">
+                                <label for ="percentTransporte">% Transporte </label>
                             </div>
                     </div>
                 </div>
@@ -44,7 +45,9 @@
         <div class="BTNs">
             <button class="bntPesquisar" id="Pesquisar" type="button">Pesquisar</button>
             <button class="bntLimpar"  id="Limpar" type="button">Limpar</button>
-            <button class="btnEnviar" id="Enviar" type="button">Enviar</button>
+            <button class="btnEnviar" id="Enviar" type="button">Salvar</button>
+            <button class="btnAtualizar" id="Atualizar" type="button">Atualizar Índices</button> 
+            <button class="btnReverter" id="Reverter" type="button">Reverter Índices</button>
         </div>
     </div>
 </div>
