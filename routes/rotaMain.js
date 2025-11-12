@@ -252,6 +252,7 @@ router.get("/eventos-abertos", async (req, res) => {
                     MAX(o.dtfiminfradesmontagem) AS dtfiminfradesmontagem,
                     array_agg(DISTINCT f.idequipe) FILTER (WHERE f.idequipe IS NOT NULL) AS equipes_ids,
                     array_agg(DISTINCT eq.nmequipe) FILTER (WHERE eq.nmequipe IS NOT NULL) AS equipes_nomes,
+                    array_agg(DISTINCT p.nmpavilhao) FILTER (WHERE p.nmpavilhao IS NOT NULL) AS pavilhoes_nomes,
                     (
                         SELECT json_agg(row_to_json(t))
                         FROM (
@@ -275,6 +276,8 @@ router.get("/eventos-abertos", async (req, res) => {
                 LEFT JOIN localmontagem lm ON lm.idmontagem = o.idmontagem
                 LEFT JOIN funcao f ON f.idfuncao = i.idfuncao
                 LEFT JOIN equipe eq ON eq.idequipe = f.idequipe
+                LEFT JOIN orcamentopavilhoes op ON op.idorcamento = o.idorcamento
+                LEFT JOIN localmontpavilhao p ON p.idpavilhao = op.idpavilhao
                 WHERE o.idevento IS NOT NULL
                     AND oe.idempresa = $1 
                     AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
@@ -328,7 +331,8 @@ router.get("/eventos-abertos", async (req, res) => {
                 vo.idmontagem,
                 vo.nrorcamento,
                 ci.idcliente,      
-                ci.nmfantasia,     
+                ci.nmfantasia,
+                COALESCE(vo.pavilhoes_nomes, ARRAY[]::text[]) AS pavilhoes_nomes,    
                 COALESCE(vo.dtinirealizacao, CURRENT_DATE) AS dtinirealizacao,
                 COALESCE(vo.dtfimrealizacao, CURRENT_DATE) AS dtfimrealizacao,
                 COALESCE(vo.dtinimarcacao, CURRENT_DATE) AS dtinimarcacao,
@@ -359,7 +363,6 @@ router.get("/eventos-abertos", async (req, res) => {
         // CLÁUSULA WHERE para eventos ABERTOS (data futura OU vagas restantes)
         const whereClause = `
             WHERE (vo.dtfimdesmontagem IS NULL OR vo.dtfimdesmontagem >= CURRENT_DATE) 
-              AND (COALESCE(vo.total_vagas, 0) > COALESCE(sc.total_staff, 0))
         `;
 
         // Ordem crescente para próximos eventos
@@ -412,6 +415,7 @@ router.get("/eventos-fechados", async (req, res) => {
                     MAX(o.dtfiminfradesmontagem) AS dtfiminfradesmontagem,
                     array_agg(DISTINCT f.idequipe) FILTER (WHERE f.idequipe IS NOT NULL) AS equipes_ids,
                     array_agg(DISTINCT eq.nmequipe) FILTER (WHERE eq.nmequipe IS NOT NULL) AS equipes_nomes,
+                    array_agg(DISTINCT p.nmpavilhao) FILTER (WHERE p.nmpavilhao IS NOT NULL) AS pavilhoes_nomes,
                     (
                         SELECT json_agg(row_to_json(t))
                         FROM (
@@ -434,6 +438,8 @@ router.get("/eventos-fechados", async (req, res) => {
                 LEFT JOIN localmontagem lm ON lm.idmontagem = o.idmontagem
                 LEFT JOIN funcao f ON f.idfuncao = i.idfuncao
                 LEFT JOIN equipe eq ON eq.idequipe = f.idequipe
+                LEFT JOIN orcamentopavilhoes op ON op.idorcamento = o.idorcamento
+                LEFT JOIN localmontpavilhao p ON p.idpavilhao = op.idpavilhao
                 WHERE o.idevento IS NOT NULL
                     AND oe.idempresa = $1
                     AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
@@ -486,7 +492,9 @@ router.get("/eventos-fechados", async (req, res) => {
                 vo.nmlocalmontagem,
                 vo.nrorcamento,
                 ci.idcliente,      
-                ci.nmfantasia,     
+                ci.nmfantasia,
+                COALESCE(vo.pavilhoes_nomes, ARRAY[]::text[]) AS pavilhoes_nomes,
+                COALESCE(vo.pavilhoes_nomes, ARRAY[]::text[]) AS pavilhoes_nomes,     
                 COALESCE(vo.dtinirealizacao, CURRENT_DATE) AS dtinirealizacao,
                 COALESCE(vo.dtfimrealizacao, CURRENT_DATE) AS dtfimrealizacao,
                 COALESCE(vo.dtinimarcacao, CURRENT_DATE) AS dtinimarcacao,
@@ -519,7 +527,6 @@ router.get("/eventos-fechados", async (req, res) => {
         const whereClause = `
             -- Eventos com data de desmontagem anterior à data atual OU eventos com vagas completas
             WHERE (vo.dtfimdesmontagem IS NOT NULL AND vo.dtfimdesmontagem < CURRENT_DATE) 
-              OR (COALESCE(vo.total_vagas, 0) <= COALESCE(sc.total_staff, 0))
           `;
 
         // Ordem decrescente para eventos mais recentes
@@ -535,6 +542,8 @@ router.get("/eventos-fechados", async (req, res) => {
         res.status(500).json({ error: "Erro interno ao buscar eventos fechados." });
     }
 });
+
+
 
 router.get("/detalhes-eventos-abertos", async (req, res) => {
   try {
@@ -668,6 +677,73 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
   }
 });
 
+
+router.get("/ListarFuncionarios", async (req, res) => {
+
+  console.log("entrou na ListarFuncionarios");
+    
+    // 🛑 ATUALIZAÇÃO 1: Coleta IDs de Evento/Equipe de req.query (como o frontend envia)
+    const { idEvento, idEquipe } = req.query;
+
+    // 🛑 ATUALIZAÇÃO 2: Coleta idempresa de forma flexível (como o /eventos-fechados)
+    // Prioriza o que vem do middleware (req.idempresa) ou, em fallback, da query string.
+    const idempresa = req.idempresa || req.query.idempresa; 
+
+    if (!idEvento || !idEquipe || !idempresa) {
+        return res.status(400).json({ erro: 'IDs de Evento, Equipe e Empresa são obrigatórios.' });
+    }
+
+    console.log("IDs recebidos - Evento:", idEvento, "Equipe:", idEquipe, "Empresa:", idempresa);
+
+    // Conversão para inteiro e validação de segurança
+    const ideventoNum = parseInt(idEvento);
+    const idequipeNum = parseInt(idEquipe);
+    const idempresaNum = parseInt(idempresa);
+    
+    if (isNaN(ideventoNum) || isNaN(idequipeNum) || isNaN(idempresaNum)) {
+        return res.status(400).json({ erro: 'Um ou mais IDs fornecidos não são válidos (devem ser numéricos).' });
+    }
+
+    try {
+        // idevento é $1, idequipe é $2, idempresa é $3
+        const query = `
+            SELECT 
+                se.idstaffevento,
+                se.idfuncionario,
+                se.nmfuncionario AS nome,
+                se.nmevento AS evento,
+                se.nmequipe AS equipe,
+                se.nmfuncao AS funcao,    
+                se.nivelexperiencia,
+                se.vlrtotal,
+                se.statuspgto AS status_pagamento, 
+                se.setor,
+                se.qtdpessoaslote
+            FROM 
+                public.staffeventos se
+            
+            INNER JOIN 
+                orcamentos o ON o.idevento = se.idevento
+            INNER JOIN
+                orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+            
+            WHERE 
+                se.idevento = $1   
+                AND se.idequipe = $2   
+                AND oe.idempresa = $3  
+            ORDER BY 
+                se.nmfuncao, se.nmfuncionario; 
+        `;
+        
+        const { rows } = await pool.query(query, [ideventoNum, idequipeNum, idempresaNum]);
+
+        res.status(200).json(rows);
+
+    } catch (erro) {
+        console.error('❌ Erro ao buscar funcionários por equipe:', erro);
+        res.status(500).json({ erro: 'Erro interno ao listar funcionários da equipe.' });
+    }
+});
 
 
 

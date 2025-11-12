@@ -1711,7 +1711,7 @@ function criarCard(evt) {
             alertaTexto = "✔ Realizado sem staff";
             alertaClasse = "status-realizado-vermelho";
         } else if (percentual < 100) {
-            alertaTexto = `✔ Realizado - Staff parcial (${percentual}%)`;
+            alertaTexto = `✔ Realizado - Staff parcial (${percentual}% Cadastrado)`;
             alertaClasse = "status-realizado-amarelo";
         } else { // >= 100%
             alertaTexto = "✔ Realizado - Staff OK";
@@ -1737,7 +1737,7 @@ function criarCard(evt) {
             alertaTexto = `🚨 Sem staff — faltam ${diasText}`;
             alertaClasse = "status-urgente-vermelho";
         } else if (percentual < 100) {
-            alertaTexto = `⚠️ Staff faltando (${percentual}%) — faltam ${diasText} p/ realização`;
+            alertaTexto = `⚠️ Staff faltando (${percentual}% Cadastrado) — faltam ${diasText} p/ realização`;
             alertaClasse = "status-urgente-amarelo";
         } else { // >= 100%
             alertaTexto = `✅ Staff OK — faltam ${diasText}`;
@@ -1749,7 +1749,7 @@ function criarCard(evt) {
             alertaTexto = "🚨 Sem staff";
             alertaClasse = "status-pendente-vermelho";
         } else if (percentual < 100) {
-            alertaTexto = `⚠️ Staff faltando (${percentual}%)`;
+            alertaTexto = `⚠️ Staff faltando (${percentual}% Cadastrado)`;
             alertaClasse = "status-pendente-amarelo";
         } else { // >= 100%
             alertaTexto = "✅ Staff OK";
@@ -1765,6 +1765,16 @@ function criarCard(evt) {
         : `<strong>${evt.nmevento || evt.nome || "Evento"}</strong>`;
 
     const localEvento = evt.nmlocalmontagem || evt.local || "Local não informado";
+
+    const pavilhoes = evt.pavilhoes_nomes || [];
+    let pavilhoesTexto = "Pavilhões não informados";
+
+    if (pavilhoes.length > 0) {
+        pavilhoesTexto = pavilhoes.join(", ");
+    } else {
+        // Se a lista de pavilhões estiver vazia, usa o local de montagem principal como fallback
+        pavilhoesTexto = localEvento;
+    }
 
     // 🌟 BLOCO DE PERÍODO ATUALIZADO: Montagem (Marcação) a Desmontagem
     let periodoTexto = "Período não definido";
@@ -1802,8 +1812,11 @@ function criarCard(evt) {
     headerEvt.innerHTML = `
         <div class="evt-info">
             <div class="evento-nome">${nomeEvento}</div>
-            <div class="evento-local">📍 ${localEvento}</div>
             <span class="evento-status ${alertaClasse}">${alertaTexto}</span>
+        </div>
+        <div class="evt-local-periodo">
+            <div class="evento-local">📍 ${localEvento}</div>
+            <div class="evento-local">Pavilhões: ${pavilhoesTexto}</div>
         </div>
         <div class="evt-periodo"><div class="evento-periodo">${periodoTexto}</div></div>
         `;
@@ -1836,282 +1849,6 @@ function criarCard(evt) {
 }
 
 
-// async function mostrarEventosEmAberto() {
-//     const painel = document.getElementById("painelDetalhes");
-//     if (!painel) return;
-
-//     painel.innerHTML = "";
-
-//     // ======= CONTAINER PRINCIPAL (Montagem do DOM) =======
-//     const container = document.createElement("div");
-//     container.className = "painel-eventos-em-aberto";
-
-//     const header = document.createElement("div");
-//     header.className = "header-eventos-em-aberto";
-//     header.textContent = "⚠ Eventos em Aberto";
-//     container.appendChild(header);
-
-//     const abas = document.createElement("div");
-//     abas.className = "abas-eventos";
-//     abas.innerHTML = `
-//       <div class="aba ativo" data-target="abertos">Abertos</div>
-//       <div class="aba" data-target="finalizados">Encerrados</div>
-//     `;
-//     container.appendChild(abas);
-
-//     const conteudos = document.createElement("div");
-//     conteudos.className = "conteudos-abas";
-
-//     const abaAbertos = document.createElement("div");
-//     abaAbertos.className = "conteudo-aba ativo";
-//     abaAbertos.id = "abertos";
-//     abaAbertos.innerHTML = `<div class="loading-spinner">Carregando eventos abertos...</div>`; // Loading inicial
-
-//     const abaFinalizados = document.createElement("div");
-//     abaFinalizados.className = "conteudo-aba";
-//     abaFinalizados.id = "finalizados";
-
-//     conteudos.appendChild(abaAbertos);
-//     conteudos.appendChild(abaFinalizados);
-//     container.appendChild(conteudos);
-//     painel.appendChild(container);
-
-
-//     // ------------------------------------------------------------------
-//     // FUNÇÃO UNIFICADA: Contém a lógica de limpeza, fetch e renderização
-//     // ------------------------------------------------------------------
-
-//     async function carregarConteudoAba(target, targetEl, abasEl, conteudosEl) {
-//         // 1. Obtém o ID da empresa (usando o método que funciona no clique)
-//         const idempresa = getIdEmpresa();
-        
-//         // 2. TROCA VISUAL REFORÇADA (Garantir que a aba correta esteja ativa)
-//         abasEl.querySelectorAll(".aba").forEach(b => b.classList.remove("ativo"));
-//         abasEl.querySelector(`.aba[data-target="${target}"]`).classList.add("ativo");
-
-//         // Esta é a linha CRÍTICA que garante que apenas o alvo esteja visível
-//         conteudosEl.querySelectorAll(".conteudo-aba").forEach(c => c.classList.remove("ativo"));
-//         targetEl.classList.add("ativo");
-
-//         // 3. LIMPEZA / LOADING
-//         targetEl.innerHTML = `<div class="loading-spinner">Carregando eventos ${target}...</div>`;
-
-//         let rota;
-//         try {
-//             if (!idempresa) {
-//                  targetEl.innerHTML = `<div class="erro-carregar">Erro: ID da Empresa não disponível. Falha ao buscar dados.</div>`;
-//                  console.error("ID da Empresa inválida/vazia na chamada de fetch.");
-//                  return;
-//             }
-
-//             // 4. Lógica de FETCH
-//             rota = (target === "finalizados") ? "eventos-fechados" : "eventos-abertos";
-
-//             const resp = await fetchComToken(`/main/${rota}`, { headers: { idempresa } });
-//             const eventos = resp && typeof resp.json === 'function' ? await resp.json() : resp;
-            
-//             // 5. Renderização (sua função auxiliar)
-//             renderizarEventos(targetEl, eventos);
-            
-//         } catch (err) {
-//             console.error(`Falha ao carregar a rota ${rota}:`, err);
-//             targetEl.innerHTML = `<div class="erro-carregar">Erro ao carregar eventos de ${target} (Rota: <b>/main/${rota}</b>). Verifique o console.</div>`;
-//         }
-//     }
-
-
-//     // ------------------------------------------------------------------
-//     // EVENTO DE TROCA DE ABAS (Simplificado)
-//     // ------------------------------------------------------------------
-//     abas.querySelectorAll(".aba").forEach(btn => {
-//         btn.addEventListener("click", () => { 
-//             const target = btn.dataset.target;
-//             const targetEl = document.getElementById(target);
-            
-//             // Chama a função que contém toda a lógica
-//             carregarConteudoAba(target, targetEl, abas, conteudos);
-//         });
-//     });
-
-//     // ------------------------------------------------------------------
-//     // CARREGAMENTO INICIAL (Chama a função unificada para a primeira aba)
-//     // ------------------------------------------------------------------
-//     setTimeout(() => {
-//         carregarConteudoAba("abertos", abaAbertos, abas, conteudos);
-//     }, 50); 
-    
-//     // ------------------------------------------------------------------
-//     // FUNÇÕES AUXILIARES (Inalteradas, mas definidas dentro do escopo)
-//     // ------------------------------------------------------------------
-
-//     function renderizarEventos(targetEl, eventos) {
-//         if (!Array.isArray(eventos) || eventos.length === 0) {
-//             targetEl.innerHTML = `<div class="nenhum-evento">Nenhum evento encontrado</div>`;
-//             return;
-//         }
-
-//         targetEl.innerHTML = ""; // Limpa o loading
-
-//         eventos.map(evt => normalizarEvento(evt)).forEach((evt, index) => {
-//             const card = criarCard(evt);
-//             card.style.setProperty('--index', index);
-//             targetEl.appendChild(card);
-//         });
-//     }
-
-//     function parseDateLocal(dataISO) {
-//         if (!dataISO) return "";
-//         const data = new Date(dataISO);
-//         if (isNaN(data)) return dataISO; 
-//         return data.toLocaleDateString("pt-BR", { timeZone: "UTC" }); 
-//     }
-    
-//     function parseDateForComparison(dateStr) {
-//         if (!dateStr) return null;
-//         if (typeof dateStr === "string") {
-//             if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-//                 const [y, m, d] = dateStr.split("-").map(Number);
-//                 return new Date(Date.UTC(y, m - 1, d)); 
-//             }
-//             const d = new Date(dateStr);
-//             if (isNaN(d)) return null;
-//             d.setHours(0, 0, 0, 0);
-//             return d;
-//         }
-//         if (dateStr instanceof Date) {
-//             dateStr.setHours(0, 0, 0, 0);
-//             return dateStr;
-//         }
-//         return null;
-//     }
-
-
-//     function normalizarEvento(ev) {
-//         const inicio_realizacao = ev.dtinirealizacao || ev.dtinimontagem || ev.dtinimarcacao;
-//         const fim_realizacao = ev.dtfimrealizacao || ev.dtfimdesmontagem || ev.dtfimmontagem;
-//         const data_referencia = ev.dtinimontagem || ev.dtinirealizacao || ev.dtinimarcacao;
-//         const fim_evento = ev.dtfimdesmontagem || ev.dtfimrealizacao;
-
-//         let equipesDetalhes = Array.isArray(ev.equipes_detalhes) ? ev.equipes_detalhes : [];
-        
-//         const totalVagasCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.total_vagas || 0), 0);
-//         const totalStaffCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.preenchidas || 0), 0);
-//         const vagasRestantesCalculado = totalVagasCalculado - totalStaffCalculado;
-        
-//         return {
-//             ...ev,
-//             data_referencia,
-//             inicio_realizacao,
-//             fim_realizacao,
-//             fim_evento,
-            
-//             total_vagas: totalVagasCalculado,
-//             total_staff: totalStaffCalculado,
-//             vagas_restantes: vagasRestantesCalculado,
-            
-//             total_staff_api: ev.total_staff, 
-//             equipes_detalhes: equipesDetalhes
-//         };
-//     }
-
-//     function criarCard(evt) {
-//         const hoje = new Date();
-//         hoje.setHours(0, 0, 0, 0); 
-
-//         const dataRef = parseDateForComparison(evt.data_referencia);
-//         const dataFimDesmontagem = parseDateForComparison(evt.fim_evento);
-//         const inicioRealizacao = parseDateForComparison(evt.inicio_realizacao);
-//         const fimRealizacao = parseDateForComparison(evt.fim_realizacao);
-
-//         const total = evt.total_vagas || 0;
-//         const preenchido = evt.total_staff || 0;
-//         const percentual = total > 0 ? Math.round((preenchido / total) * 100) : 0;
-
-//         let diasFaltam = null;
-//         if (dataRef) diasFaltam = Math.ceil((dataRef.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
-
-//         let alertaTexto = "";
-//         let alertaClasse = "";
-
-//         // Lógica de status
-//         if (dataFimDesmontagem && dataFimDesmontagem < hoje) {
-//             if (percentual === 0) { alertaTexto = "✔ Realizado sem staff"; alertaClasse = "status-realizado-vermelho"; } 
-//             else if (percentual < 100) { alertaTexto = `✔ Realizado - Staff parcial (${percentual}%)`; alertaClasse = "status-realizado-amarelo"; } 
-//             else { alertaTexto = "✔ Realizado - Staff OK"; alertaClasse = "status-realizado-verde"; }
-//         } else if (inicioRealizacao && fimRealizacao && hoje >= inicioRealizacao && hoje <= fimRealizacao) {
-//             if (percentual === 0) { alertaTexto = "🚨 Sem staff — Realizando"; alertaClasse = "status-realizando-vermelho"; } 
-//             else if (percentual < 100) { alertaTexto = `⚠️ Staff faltando - Realizando (${percentual}%)`; alertaClasse = "status-realizando-amarelo"; } 
-//             else { alertaTexto = "✅ Staff OK - Realizando"; alertaClasse = "status-realizando-verde"; }
-//         } else if (diasFaltam !== null && diasFaltam <= 5 && diasFaltam >= 0) {
-//             const diasText = `${diasFaltam} dia${diasFaltam !== 1 ? "s" : ""}`;
-//             if (percentual === 0) { alertaTexto = `🚨 Sem staff — faltam ${diasText}`; alertaClasse = "status-urgente-vermelho"; } 
-//             else if (percentual < 100) { alertaTexto = `⚠️ Staff faltando (${percentual}%) — faltam ${diasText} p/ realização`; alertaClasse = "status-urgente-amarelo"; } 
-//             else { alertaTexto = `✅ Staff OK — faltam ${diasText}`; alertaClasse = "status-urgente-verde"; }
-//         } else {
-//             if (percentual === 0) { alertaTexto = "🚨 Sem staff"; alertaClasse = "status-pendente-vermelho"; } 
-//             else if (percentual < 100) { alertaTexto = `⚠️ Staff faltando (${percentual}%)`; alertaClasse = "status-pendente-amarelo"; } 
-//             else { alertaTexto = "✅ Staff OK"; alertaClasse = "status-pendente-verde"; }
-//         }
-
-//         const dataExibicaoFimDesmontagem = evt.fim_evento ? parseDateLocal(evt.fim_evento) : null;
-//         const nomeEvento = (dataFimDesmontagem && dataFimDesmontagem < hoje)
-//             ? `<del>${evt.nmevento || evt.nome || "Evento"}</del>`
-//             : `<strong>${evt.nmevento || evt.nome || "Evento"}</strong>`;
-//         const localEvento = evt.nmlocalmontagem || evt.local || "Local não informado";
-
-//         const equipes = evt.equipes_detalhes || [];
-//         const resumoEquipes = equipes.length
-//             ? equipes.map(f => {
-//                 const total = f.total_vagas || 0;
-//                 const preenchido = f.preenchidas || 0;
-//                 const restante = total - preenchido;
-//                 let cor = "🟢";
-//                 if (restante === total) cor = "🔴"; 
-//                 else if (restante > 0) cor = "🟡"; 
-//                 return `${f.equipe}: ${cor} ${preenchido}/${total}`;
-//             }).join(" | ")
-//             : "Nenhuma equipe cadastrada";
-
-//         const card = document.createElement("div");
-//         card.className = "evento-card";
-
-//         const headerEvt = document.createElement("div");
-//         headerEvt.className = "evento-header";
-//         headerEvt.innerHTML = `
-//             <div class="evt-info">
-//                 <div class="evento-nome">${nomeEvento}</div>
-//                 <div class="evento-local">📍 ${localEvento}</div>
-//             </div>
-//             <span class="evento-status ${alertaClasse}">${alertaTexto}</span>
-//         `;
-
-//         const bodyEvt = document.createElement("div");
-//         bodyEvt.className = "evento-body";
-
-//         const resumoDiv = document.createElement("div");
-//         resumoDiv.className = "equipes-resumo";
-//         resumoDiv.textContent = resumoEquipes;
-//         bodyEvt.appendChild(resumoDiv);
-
-//         headerEvt.addEventListener("click", () => {
-//             bodyEvt.classList.toggle("open");
-//         });
-
-//         resumoDiv.addEventListener("click", () => {
-//             if (typeof abrirTelaEquipesEvento === 'function') {
-//                 abrirTelaEquipesEvento(evt);
-//             } else {
-//                 console.warn("Função 'abrirTelaEquipesEvento' não está definida.");
-//             }
-//         });
-
-//         card.appendChild(headerEvt);
-//         card.appendChild(bodyEvt);
-//         return card;
-//     }
-// }
-
-// ...existing code...
 async function abrirTelaEquipesEvento(evento) {
   const painel = document.getElementById("painelDetalhes");
   if (!painel) return;
@@ -2119,6 +1856,8 @@ async function abrirTelaEquipesEvento(evento) {
 
   const container = document.createElement("div");
   container.className = "painel-equipes-evento";
+
+  // ... (código do HEADER, CORPO e RODAPÉ permanece o mesmo) ...
 
   // ===== HEADER =====
   const header = document.createElement("div");
@@ -2260,13 +1999,13 @@ async function abrirTelaEquipesEvento(evento) {
         
         // Cria função apenas se houver vagas/staff
         if (total > 0 || preenchidas > 0) { 
-             funcoesResult = [{
-                idfuncao: item.idfuncao ?? null,
-                nome: item.categoria || "Função",
-                total,
-                preenchidas,
-                concluido: total > 0 && preenchidas >= total
-            }];
+               funcoesResult = [{
+                 idfuncao: item.idfuncao ?? null,
+                 nome: item.categoria || "Função",
+                 total,
+                 preenchidas,
+                 concluido: total > 0 && preenchidas >= total
+             }];
         }
       }
       // fallback genérico (usando funcoes original, se houver)
@@ -2328,6 +2067,11 @@ async function abrirTelaEquipesEvento(evento) {
           <div class="progresso" style="width:${perc}%;"></div>
         </div>
         <div class="equipe-resumo">${escapeHtml(resumo || "Nenhuma função cadastrada")}</div>
+        <div class="equipe-actions">
+          <button type="button" class="ver-funcionarios-btn">
+            <i class="fas fa-users"></i> Funcionários
+          </button>
+        </div>
       `;
 
       // clique / tecla Enter abre detalhes (passa evento original e equipe transformada)
@@ -2336,7 +2080,18 @@ async function abrirTelaEquipesEvento(evento) {
       headerBtn.addEventListener("keypress", (e) => {
         if (e.key === "Enter") abrirDetalhesEquipe(eq, evento);
       });
-
+      
+      // 🛑 NOVO LISTENER: Botão 'Funcionários'
+      const funcionariosBtn = equipeBox.querySelector(".ver-funcionarios-btn");
+      if (funcionariosBtn) {
+          // Passa o objeto equipe (eq) e o objeto evento (evento) para a função
+          funcionariosBtn.addEventListener("click", (e) => {
+              e.stopPropagation(); // Evita que o clique no botão ative o clique do header
+              abrirListaFuncionarios(eq, evento); 
+          });
+      }
+      // 🛑 FIM NOVO LISTENER
+      
       corpo.appendChild(equipeBox);
     });
 
@@ -2346,9 +2101,176 @@ async function abrirTelaEquipesEvento(evento) {
     corpo.innerHTML = `<p class="erro">${escapeHtml(msg)}</p>`;
   }
 }
-// ...existing code...
 
-// ...existing code...
+
+
+/**
+ * Abre a tela de lista de funcionários de uma equipe específica no painelDetalhes.
+ * Substitui o Modal pela visualização integrada.
+ * @param {object} equipe - Objeto da equipe com 'equipe' e 'idequipe'.
+ * @param {object} evento - Objeto do evento com 'nmevento' e 'idevento'.
+ */
+async function abrirListaFuncionarios(equipe, evento) {
+    const painel = document.getElementById("painelDetalhes");
+    if (!painel) return;
+    painel.innerHTML = ""; // Limpa o painel
+
+    const container = document.createElement("div");
+    container.className = "painel-lista-funcionarios";
+
+    // --- Helpers Locais (Para consistência) ---
+    // Você precisa garantir que esta função escapeHtml esteja acessível (global ou definida aqui).
+    function escapeHtml(str) {
+        if (!str && str !== 0) return "";
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
+    // Helper para agrupar (Se a função não for global, defina-a aqui)
+    const agruparFuncionariosPorFuncao = (lista) => {
+        return lista.reduce((grupos, funcionario) => {
+            const funcao = funcionario.funcao || 'Não Classificado';
+            if (!grupos[funcao]) {
+                grupos[funcao] = [];
+            }
+            grupos[funcao].push(funcionario);
+            return grupos;
+        }, {});
+    };
+
+     function formatarPeriodo(inicio, fim) {
+    const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+    return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
+  }
+  
+    // ------------------------------------------
+    
+    // ===== HEADER (Adaptado) =====
+    const header = document.createElement("div");
+    header.className = "header-equipes-evento"; // Reutilizando a classe CSS
+    header.innerHTML = `
+        <button class="btn-voltar-detalhe" title="Voltar para Detalhe da Equipe">←</button>
+        <div class="info-evento">
+            <h2>${escapeHtml(equipe.equipe || "Equipe")}</h2>
+            <p><strong>Evento:</strong> ${escapeHtml(evento.nmevento || "Evento")}</p>
+            <p>📍 ${evento.local || evento.nmlocalmontagem || "Local não informado"}</p>
+            <p>📅 ${formatarPeriodo(evento.inicio_realizacao, evento.fim_realizacao)}</p>
+        </div>
+    `;
+    container.appendChild(header);
+
+    // ===== CORPO (Conteúdo Dinâmico - Funcionários) =====
+    const corpo = document.createElement("div");
+    corpo.className = "corpo-funcionarios";
+    corpo.innerHTML = `<div class="loading">Carregando funcionários...</div>`;
+    container.appendChild(corpo);
+
+    // ===== RODAPÉ (Adaptado) =====
+    const rodape = document.createElement("div");
+    rodape.className = "rodape-equipes"; // Reutilizando a classe CSS
+    rodape.innerHTML = `
+        <button class="btn-voltar-rodape-detalhe"> ← Voltar</button>
+        <button class="btn-exportar-lista">📥 Exportar Lista</button>
+    `;
+    container.appendChild(rodape);
+
+    painel.appendChild(container);
+
+    // === Eventos de Navegação ===
+    // O clique deve voltar para a tela de detalhes da equipe (abrirDetalhesEquipe)
+    const voltarParaDetalhesEquipe = () => abrirTelaEquipesEvento(evento); 
+    container.querySelector(".btn-voltar-detalhe")?.addEventListener("click", voltarParaDetalhesEquipe);
+    container.querySelector(".btn-voltar-rodape-detalhe")?.addEventListener("click", voltarParaDetalhesEquipe);
+    
+    container.querySelector(".btn-exportar-lista")?.addEventListener("click", () => {
+        alert(`Função de exportação da lista de ${equipe.equipe} em desenvolvimento.`);
+    });
+
+
+    // === Carregamento de Dados ===
+    try {
+        const idevento = evento.idevento || evento.id || evento.id_evento;
+        const idequipe = equipe.idequipe;
+        const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
+
+        if (!idevento || !idequipe || !idempresa) {
+            corpo.innerHTML = `<p class="erro">Erro: IDs de evento, equipe ou empresa não identificados.</p>`;
+            return;
+        }
+
+        // Chamada da Rota do Backend
+        const url = `/main/ListarFuncionarios?idEvento=${idevento}&idEquipe=${idequipe}`;
+        const funcionarios = await fetchComToken(url);
+        
+        // Verificação de Erros
+        if (!Array.isArray(funcionarios)) {
+             throw new Error("Resposta inválida ou vazia do servidor.");
+        }
+        
+        if (funcionarios.length === 0) {
+            corpo.innerHTML = `<p class="sem-funcionarios-msg">Nenhum funcionário cadastrado nesta equipe para este evento.</p>`;
+            return;
+        }
+
+        // --- Renderização da Lista de Funcionários ---
+        const gruposPorFuncao = agruparFuncionariosPorFuncao(funcionarios);
+        let conteudoAgrupadoHtml = '';
+
+        for (const funcao in gruposPorFuncao) {
+            if (gruposPorFuncao.hasOwnProperty(funcao)) {
+                const funcionariosDaFuncao = gruposPorFuncao[funcao];
+                
+                // Header do Grupo
+                conteudoAgrupadoHtml += `
+                    <div class="funcionario-grupo-header">
+                        <h4 class="grupo-titulo">${escapeHtml(funcao)}</h4>
+                        <span class="grupo-badge">${funcionariosDaFuncao.length} Pessoa(s)</span>
+                    </div>
+                    <div class="grupo-divisor"></div>
+                `;
+
+                // Lista de Funcionários
+                let listaFuncionariosHtml = '<ul class="funcionario-lista">';
+                
+                funcionariosDaFuncao.forEach(f => {
+                    let statusClass = 'status-pendente';
+                    const statusTexto = f.status_pagamento || 'Pendente';
+                    
+                    if (statusTexto === 'Pago') {
+                        statusClass = 'status-pago'; 
+                    } else if (statusTexto) {
+                        statusClass = 'status-atencao'; // Para Pendente, Parcial, etc.
+                    }
+                    
+                    // Renderização do item - Aplicando escapeHtml
+                    listaFuncionariosHtml += `
+                        <li class="funcionario-item">
+                            <span class="funcionario-nome">${escapeHtml(f.nome)}</span>
+                            <span class="funcionario-status-badge ${statusClass}">
+                                ${escapeHtml(statusTexto)}
+                            </span>
+                        </li>
+                    `;
+                });
+                
+                listaFuncionariosHtml += '</ul>';
+                conteudoAgrupadoHtml += listaFuncionariosHtml;
+            }
+        }
+        
+        corpo.innerHTML = conteudoAgrupadoHtml; // Injeta o HTML gerado no corpo.
+
+    } catch (err) {
+        console.error("Erro ao buscar lista de funcionários:", err);
+        const msg = (err && err.message) ? err.message : "Erro interno ao carregar a lista de funcionários.";
+        corpo.innerHTML = `<p class="erro">${escapeHtml(msg)}</p>`;
+    }
+}
+
 function abrirDetalhesEquipe(equipe, evento) {
   const painel = document.getElementById("painelDetalhes");
   if (!painel) return;

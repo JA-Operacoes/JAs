@@ -643,7 +643,7 @@ const statusPagtoInput = document.getElementById('statusPgto');
 
 const temPermissaoMaster = temPermissao("Staff", "master");
 const temPermissaoFinanceiro = temPermissao("Staff", "financeiro");
-const temPermissaoTotal = (temPermissaoMaster || temPermissaoFinanceiro);
+const temPermissaoTotal = (temPermissaoMaster && temPermissaoFinanceiro);
 
 const diariaDobradaInput = document.getElementById('diariaDobrada');
 const diariaDobradacheck = document.getElementById('diariaDobradacheck');
@@ -860,7 +860,7 @@ const carregarDadosParaEditar = (eventData) => {
     }
 
     // Lógica para Comprovantes 50% e 100%
-    if (temPermissaoTotal) {
+    if (temPermissaoFinanceiro ) {
         const comp50Preenchido = eventData.comppgtoajdcusto50 && eventData.comppgtoajdcusto50.length > 0;
         const comp100Preenchido = eventData.comppgtoajdcusto && eventData.comppgtoajdcusto.length > 0;
 
@@ -1023,6 +1023,15 @@ function inicializarEPreencherCampos(eventData) {
     campoStatusMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
     containerStatusMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';    
 
+    const containerPDF = document.querySelector('.pdf');
+
+    if (containerPDF) {
+        if (temPermissaoFinanceiro) {
+            containerPDF.style.display = 'flex'; // 🚫 Oculta tudo para quem não tem Master/Financeiro
+        } else {            
+            containerPDF.style.display = 'none'; // 👁️ Mostra tudo para Master e Financeiro
+        }
+    }
 
     if (temPermissaoMaster) {    
         document.getElementById('selectStatusAjusteCusto').style.display = 'block';
@@ -5056,8 +5065,8 @@ export function preencherComprovanteCampo(filePath, campoNome) {
 
         let removerBtnHtml = '';
 
-        console.log("PERMISSAO", temPermissaoTotal);
-        if (temPermissaoTotal)
+        console.log("PERMISSAO", temPermissaoMaster);
+        if (temPermissaoMaster)
         {
             removerBtnHtml = `
                 <button type="button" class="btn btn-sm btn-danger remover-comprovante-btn" data-campo="${campoNome}">
