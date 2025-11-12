@@ -2649,16 +2649,44 @@ if (botaoEnviarOriginal) {
                 });
             }
 
-            let dadosMeiaDiaria = [];
-            if (periodoMeiaDiaria && periodoMeiaDiaria.length > 0) {
-                dadosMeiaDiaria = periodoMeiaDiaria.map(data => {
-                    const statusData = datasMeiaDiaria.find(item => item.data === data);
-                    return {
-                        data: data,
-                        status: statusData ? statusData.status : statusMeiaDiaria
-                    };
-                });
-            }
+           let dadosMeiaDiaria = [];
+        if (periodoMeiaDiaria && periodoMeiaDiaria.length > 0) {
+            dadosMeiaDiaria = periodoMeiaDiaria.map(data => {
+                const statusData = datasMeiaDiaria.find(item => item.data === data);
+                return {
+                    data: data,
+                    status: statusData ? statusData.status : statusMeiaDiaria
+                };
+            });
+        }
+
+        if (statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === true){
+            statusDiariaDobrada = "Pendente";
+        }
+        if (statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === false){
+            statusDiariaDobrada = "";
+        }
+
+        if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === true){
+            statusMeiaDiaria = "Pendente";
+        }
+        if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === false){
+            statusMeiaDiaria = "";
+        }
+
+        if (statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === true){
+            statusDiariaDobrada = "Pendente";
+        }
+        if (statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === false){
+            statusDiariaDobrada = "";
+        }
+
+        if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === true){
+            statusMeiaDiaria = "Pendente";
+        }
+        if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === false){
+            statusMeiaDiaria = "";
+        }
 
 
             formData.append('statusdiariadobrada', statusDiariaDobrada); //aqui remover não usa mais apenas dentro da data
