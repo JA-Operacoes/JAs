@@ -7,6 +7,7 @@ const logMiddleware = require("../middlewares/logMiddleware");
 const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
+const multer = require('multer');
 
 // Aplica autenticação em todas as rotas
 // router.use(autenticarToken);
@@ -981,273 +982,104 @@ router.get('/download/contrato/:fileName', autenticarToken(), async (req, res) =
         res.status(500).json({ error: 'Erro ao baixar o arquivo', detail: error.message });
     }
 });
-      
 
-// router.get("/:nrOrcamento/contrato1", 
-//     autenticarToken(), 
-//     contextoEmpresa,
-//     verificarPermissao("Orcamentos", "pesquisar"),
-//     async (req, res) => {
-//         const client = await pool.connect();
-//         try {
-//             const { nrOrcamento } = req.params;
-//             const idempresa = req.idempresa;
 
-//             // ✅ Etapa 1: Busca dados do orçamento (incluindo o idorcamento)
-//             const queryOrcamento = `
-//                 SELECT 
-//                     o.idorcamento, o.nrorcamento, o.vlrcliente, o.nomenclatura AS nomenclatura,
-//                     o.dtinirealizacao AS inicio_realizacao , o.dtfimrealizacao AS fim_realizacao, o.formapagamento AS forma_pagamento, o.obsproposta AS escopo_servicos,
-//                     c.razaosocial AS cliente_nome, c.cnpj AS cliente_cnpj, c.inscestadual AS cliente_insc_estadual, c.nmcontato AS cliente_responsavel,
-//                     c.rua AS cliente_rua, c.numero AS cliente_numero, c.complemento AS cliente_complemento, c.cep AS cliente_cep,
-//                     e.nmevento AS evento_nome, lm.descmontagem AS local_montagem
-//                 FROM orcamentos o
-//                 JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
-//                 LEFT JOIN clientes c ON o.idcliente = c.idcliente
-//                 LEFT JOIN eventos e ON o.idevento = e.idevento
-//                 LEFT JOIN localmontagem lm ON o.idmontagem = lm.idmontagem
-//                 WHERE o.nrorcamento = $1 AND oe.idempresa = $2
-//                 LIMIT 1
-//             `;
 
-//             const resultOrcamento = await client.query(queryOrcamento, [nrOrcamento, idempresa]);
+const uploadDir = path.join(__dirname, '..', '..', 'uploads', 'contratos');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
 
-//             if (resultOrcamento.rows.length === 0) {
-//                 return res.status(404).json({ error: "Orçamento não encontrado" });
-//             }
+// Configuração do armazenamento do Multer
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, uploadDir); 
+    },
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname);
+        const nrOrcamento = req.query.orcamento || 'desconhecido';
+        const safeFileName = `contrato_${nrOrcamento}_${Date.now()}${ext}`;
+        cb(null, safeFileName);
+    }
+});
 
-//             const dados = resultOrcamento.rows[0];
-//             dados.data_assinatura = new Date().toLocaleDateString("pt-BR");
-//             dados.nr_orcamento = nrOrcamento;
-//             dados.valor_total = dados.vlrcliente;
-//             dados.ano_atual = new Date().getFullYear();
+// Configuração do Upload (filtros e limites)
+const upload = multer({
+    storage: storage,
+    limits: { 
+        fileSize: 10 * 1024 * 1024 // Limite de 10MB
+    },
+    fileFilter: (req, file, cb) => {
+        const allowedMimes = [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' // .docx
+        ];
+        if (allowedMimes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            // Rejeita o arquivo, lançando um erro que será pego pelo router.use
+            cb(new Error("Tipo de arquivo inválido. Apenas PDF, DOC ou DOCX são permitidos."), false);
+        }
+    }
+});
 
-//             // ✅ Etapa 2: Busca todos os itens do orçamento na tabela orcamentoitens
-//             const queryItens = `
-//                 SELECT 
-//                     oi.qtditens AS qtd_itens, 
-//                     oi.produto AS produto, 
-//                     oi.setor,
-//                     oi.qtddias AS qtd_dias,
-//                     oi.categoria AS categoria,
-//                     oi.periododiariasinicio AS inicio_datas,
-//                     oi.periododiariasfim AS fim_datas
-//                 FROM orcamentoitens oi
-//                 LEFT JOIN funcao f ON oi.idfuncao = f.idfuncao
-//                 WHERE oi.idorcamento = $1
-//             `;
-//             const resultItens = await client.query(queryItens, [dados.idorcamento]);
+// ========================================================
+// 🛑 ROTA EM MODO DE TESTE (Passo 2: Apenas Multer)
+// ========================================================
+router.post('/uploadContratoManual', 
+    
+    // **Middlewares de Auth/Permissão REMOVIDOS TEMPORARIAMENTE**
+    // ⚠️ Removido: autenticarToken()
+    // ⚠️ Removido: contextoEmpresa
+    // ⚠️ Removido: verificarPermissao("Orcamentos", "alterar")
+    
+    // 🔑 Multer processa o campo 'contrato' do FormData
+    upload.single('contrato'), 
+    
+    async (req, res) => {
+        const nrOrcamento = req.query.orcamento;
+        const file = req.file;
 
-//             const categoriasMap = {};
-//             const adicionais = [];
+        console.log('✅ ROTA /orcamentos/uploadContratoManual ATINGIDA (Teste Multer)');
 
-//             // ✅ Etapa 3: Processa e organiza os itens
-//             resultItens.rows.forEach(item => {
-//                 let categoria = item.categoria || "Outros";
-//                 const isLinhaAdicional = item.is_adicional;
+        if (!file) {
+            // Se o Multer terminou sem erro, mas não salvou o arquivo.
+            return res.status(400).json({ 
+                success: false, 
+                message: "Nenhum arquivo enviado ou erro no campo 'contrato'."
+            });
+        }
+        
+        // **⚠️ LÓGICA DE NEGÓCIO DE CONEXÃO COM DB REMOVIDA PARA TESTE**
+        // Substitua pelo seu código real quando o teste for concluído.
+        
+        console.log(`✅ TESTE: Contrato Manual SALVO (na pasta) como: ${file.filename} para Orçamento ${nrOrcamento}`);
 
-//                 const datasFormatadas = (item.inicio_datas && item.fim_datas) 
-//                     ? `de: ${new Date(item.inicio_datas).toLocaleDateString("pt-BR")} até: ${new Date(item.fim_datas).toLocaleDateString("pt-BR")}`
-//                     : "";
+        // ✅ Resposta de Sucesso para o Frontend
+        return res.status(200).json({
+            success: true,
+            message: "Upload do contrato concluído com sucesso (Teste Multer OK).",
+            fileName: file.filename, 
+            filePath: file.path
+        });
+    }
+);
 
-//                 let itemDescricao = `• ${item.qtd_itens} ${capitalizarPalavras(item.produto)}`;
+// ✅ Tratamento de erros do Multer
+router.use((err, req, res, next) => {
+    if (err instanceof multer.MulterError) {
+        // Erros do Multer (ex: FILE_TOO_LARGE)
+        return res.status(400).json({ success: false, message: `Erro no upload: ${err.message}` });
+    } else if (err) {
+        // Erros do fileFilter ou outros erros lançados
+        return res.status(400).json({ success: false, message: `Erro no upload: ${err.message || 'Erro desconhecido.'}` });
+    }
+    next();
+});
 
-//                 if (item.setor && item.setor.toLowerCase() !== 'null' && item.setor !== '') {
-//                     itemDescricao += `, (${item.setor})`;
-//                 }
 
-//                 if (item.qtd_dias !== '0' && datasFormatadas) {
-//                     itemDescricao += `, ${item.qtd_dias} Diária(s), ${datasFormatadas}`;
-//                 }
 
-//                 if (item.qtd_itens > 0) {
-//                     if (isLinhaAdicional) {
-//                         adicionais.push(itemDescricao);
-//                     } else {
-//                         if (categoria === "Produto(s)") {
-//                             categoria = "Equipe Operacional";
-//                         }
-//                         if (!categoriasMap[categoria]) categoriasMap[categoria] = [];
-//                         categoriasMap[categoria].push(itemDescricao);
-//                     }
-//                 }
-//             });
-            
-//             // ✅ Etapa 4: Adiciona os itens processados ao objeto de dados
-//             dados.itens_categorias = [];
-//             const ordemCategorias = ["Equipe Operacional", "Equipamento(s)", "Suprimento(s)"];
-            
-//             // Primeiro, adiciona as categorias na ordem fixa
-//             ordemCategorias.forEach(categoria => {
-//                 if (categoriasMap[categoria]) {
-//                     dados.itens_categorias.push({ nome: categoria, itens: categoriasMap[categoria] });
-//                     delete categoriasMap[categoria];
-//                 }
-//             });
-            
-//             // Em seguida, adiciona as categorias restantes
-//             for (const categoria in categoriasMap) {
-//                 if (categoriasMap.hasOwnProperty(categoria)) {
-//                     dados.itens_categorias.push({ nome: categoria, itens: categoriasMap[categoria] });
-//                 }
-//             }
-            
-//             dados.adicionais = adicionais;
-
-//             console.log("📦 Dados enviados para o Python:", dados);
-
-//             const pythonExecutable = "python";
-//             const pythonScriptPath = path.join(__dirname, "../public/python/Contrato.py");
-
-//             const python = spawn(pythonExecutable, [pythonScriptPath]);
-
-//             let output = "";
-//             let errorOutput = "";
-
-//             python.stdin.write(JSON.stringify(dados));
-//             python.stdin.end();
-
-//             python.stdout.setEncoding("utf-8");
-//             python.stderr.setEncoding("utf-8");
-
-//             python.stdout.on("data", (data) => { output += data.toString(); });
-//             python.stderr.on("data", (data) => { errorOutput += data.toString(); });
-
-//             // ... 🔹 [tudo igual até gerar o arquivo pelo Python]
-
-//             python.on("close", async (code) => {
-//                 if (code !== 0) {
-//                     console.error("🐍 Erro Python:", errorOutput);
-//                     return res.status(500).json({ error: "Erro ao gerar contrato (Python)", detail: errorOutput });
-//                 }
-
-//                 const filePath = output.trim();
-//                 const fileName = path.basename(filePath);
-//                 const downloadUrl = `/orcamentos/download/contrato/${encodeURIComponent(fileName)}`;
-
-//                 if (!fs.existsSync(filePath)) {
-//                     return res.status(500).json({ error: "Arquivo do contrato não encontrado" });
-//                 }
-
-//                 // ✅ Apenas retorna o link do arquivo, sem ClickSign
-//                 res.status(200).json({
-//                     success: true,
-//                     message: "Contrato gerado com sucesso",
-//                     fileUrl: downloadUrl
-//                 });
-//             });
-
-//         } catch (error) {
-//             console.error("Erro ao gerar contrato:", error);
-//             res.status(500).json({ error: "Erro ao gerar contrato", detail: error.message });
-//         } finally {
-//             client.release();
-//         }
-//     }
-// );
-
-// router.post("/:nrOrcamento/enviar-clicksign", 
-//     autenticarToken(), 
-//     contextoEmpresa,
-//     verificarPermissao("Orcamentos", "alterar"),
-//     async (req, res) => {
-//         const client = await pool.connect();
-//         try {
-//             const { nrOrcamento } = req.params;
-
-//             // 🔹 Busca caminho do arquivo salvo
-//             const pastaContratos = path.join(__dirname, "../public/contratos"); 
-//             const files = fs.readdirSync(pastaContratos);
-//             const contratoFile = files.find(f => f.includes(nrOrcamento));
-
-//             if (!contratoFile) {
-//                 return res.status(404).json({ error: "Contrato não encontrado para este orçamento" });
-//             }
-
-//             const filePath = path.join(pastaContratos, contratoFile);
-//             const fileBase64 = fs.readFileSync(filePath, { encoding: "base64" });
-
-//             const nomeArquivoDownload = contratoFile;
-
-//             // 🔹 Aqui vai exatamente o mesmo payload/signers que você já usa
-//             const signers = [
-//                 {
-//                     email: "desenvolvedor1@japromocoes.com.br",
-//                     auths: ["email"],
-//                     sign_as: "sign",
-//                     send_email: true,
-//                     name: "JA Promoções",
-//                     locale: "empresa_assinatura"
-//                 },
-//                 {
-//                     email: "testemunha_email@dominio.com",
-//                     auths: ["email"],
-//                     sign_as: "witness",
-//                     send_email: true,
-//                     name: "Carla Lima",
-//                     locale:"testemunhaJa_assinatura"
-//                 },
-//                 {
-//                     email: "desenvolvedor@japromocoes.com.br",
-//                     auths: ["email"],
-//                     sign_as: "sign",
-//                     send_email: true,
-//                     name: "desenvolvedor Padrao",
-//                     locale: "cliente_assinatura"
-//                 }
-//             ];
-
-//             const clicksignPayload = {
-//                 document: {
-//                     path: `/contratos/${nomeArquivoDownload}`,
-//                     content_base64: `data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,${fileBase64}`,
-//                     name: nomeArquivoDownload,
-//                     auto_close: true,
-//                     signers: signers
-//                 }
-//             };
-
-//             const apiKey = "067ad4b9-d536-414f-bce9-90d491d187c6"; 
-//             const clicksignApiUrl = `https://sandbox.clicksign.com/api/v1/documents?access_token=${apiKey}`;
-
-//             const clicksignResponse = await fetch(clicksignApiUrl, {
-//                 method: 'POST',
-//                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-//                 body: JSON.stringify(clicksignPayload)
-//             });
-
-//             const clicksignResult = await clicksignResponse.json();
-
-//             if (!clicksignResponse.ok) {
-//                 return res.status(clicksignResponse.status).json({
-//                     error: "Erro ao enviar para ClickSign",
-//                     details: clicksignResult.errors
-//                 });
-//             }
-
-//             const signingUrl = clicksignResult.document.signing_url|| null;
-//             const documentKey = clicksignResult.document?.key || null;
-
-//             await pool.query(
-//                 `INSERT INTO contratos_clicksign (doc_key, nr_orcamento, urlcontrato) VALUES ($1, $2, $3)`,
-//                 [documentKey, nrOrcamento, signingUrl]
-//             );
-
-//             res.status(200).json({
-//                 success: true,
-//                 message: "Contrato enviado ao ClickSign com sucesso",
-//                 signingUrl,
-//                 clicksignResult
-//             });
-
-//         } catch (error) {
-//             console.error("Erro ao enviar contrato para ClickSign:", error);
-//             res.status(500).json({ error: "Erro ao enviar contrato", detail: error.message });
-//         } finally {
-//             client.release();
-//         }
-//     }
-// );
 
 router.get("/:nrOrcamento/proposta", 
     autenticarToken(), 

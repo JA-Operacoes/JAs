@@ -632,8 +632,12 @@ select#mesSelect, select#anoSelect {
   height: 100%;
   padding: 8px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #494848 transparent;
   font-family: "Abel", sans-serif;
 }
+
+
 
 /* ===== HEADER ===== */
 .header-eventos-em-aberto {
@@ -720,7 +724,12 @@ select#mesSelect, select#anoSelect {
 
 .evento-local {
   font-size: 0.9rem;
-  color: #555;
+}
+
+.evt-local-periodo {
+  width: 100%;
+  display: flex;
+  gap: 50px;
 }
 
 .evento-status.status-andamento {
@@ -1057,6 +1066,15 @@ span.nenhum-evento {
   margin-bottom: 5px;
 }
 
+button.ver-funcionarios-btn {
+  width: 100px;
+  height: 40px;
+  border-radius: 10px;
+  border-color: var(--border-color);
+  background: var(--border-color);
+  color: var(--font-color);
+  cursor: pointer;
+}
 
 .barra-progresso {
   background: #b9b9b9;
@@ -1148,6 +1166,75 @@ button.btn-abrir-staff {
     width: 100px;
     height: 20px;
     border: none;
+}
+
+/*  ===========  TELA FUNCIONARIOS  ======== */
+.painel-lista-funcionarios {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.btn-voltar-detalhe {
+  background: none;
+  border: none;
+  font-size: 1.5em;
+  cursor: pointer;
+}
+
+.btn-voltar-rodape-detalhe, .btn-exportar-lista {
+  background: var(--primary-color);
+  color: var(--font-color);
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.btn-voltar-rodape:hover, .btn-relatorio:hover {
+  background: var(--primary-color);
+}
+
+.funcionario-grupo-header {
+  display: flex;
+  justify-content: start;
+  gap: 30px;
+  background-color: var(--primary-color);
+  color: var(--font-color);
+  font-weight: var(--font-weigth);
+  width: 100%;
+  border-radius: 10px;
+}
+
+ul.funcionario-lista {
+  margin: 0 0 0 60px;
+}
+
+h4.grupo-titulo {
+  font-weight: var(--font-weight);
+  margin-left: 50px;
+}
+
+
+span.funcionario-status-badge.status-pago {
+    background-color: #14c11dd9;
+}
+span.funcionario-status-badge.status-atencao {
+    background-color: #fce517d9;
+}
+
+span.funcionario-status-badge {
+    text-align: center;
+    align-items: center;
+    border-radius: 10px;
+    width: 100px;
+}
+
+li.funcionario-item {
+  display: flex;
+  justify-content: space-between;
+  margin: 5px 40px;
 }
 
 

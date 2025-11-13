@@ -860,7 +860,7 @@ const carregarDadosParaEditar = (eventData) => {
     }
 
     // Lógica para Comprovantes 50% e 100%
-    if (temPermissaoTotal) {
+    if (temPermissaoFinanceiro ) {
         const comp50Preenchido = eventData.comppgtoajdcusto50 && eventData.comppgtoajdcusto50.length > 0;
         const comp100Preenchido = eventData.comppgtoajdcusto && eventData.comppgtoajdcusto.length > 0;
 
@@ -2657,16 +2657,16 @@ if (botaoEnviarOriginal) {
                 });
             }
 
-            let dadosMeiaDiaria = [];
-            if (periodoMeiaDiaria && periodoMeiaDiaria.length > 0) {
-                dadosMeiaDiaria = periodoMeiaDiaria.map(data => {
-                    const statusData = datasMeiaDiaria.find(item => item.data === data);
-                    return {
-                        data: data,
-                        status: statusData ? statusData.status : statusMeiaDiaria
-                    };
-                });
-            }
+           let dadosMeiaDiaria = [];
+        if (periodoMeiaDiaria && periodoMeiaDiaria.length > 0) {
+            dadosMeiaDiaria = periodoMeiaDiaria.map(data => {
+                const statusData = datasMeiaDiaria.find(item => item.data === data);
+                return {
+                    data: data,
+                    status: statusData ? statusData.status : statusMeiaDiaria
+                };
+            });
+        }
 
             // if (statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === true){
             //     statusDiariaDobrada = "Pendente";
@@ -5101,8 +5101,8 @@ export function preencherComprovanteCampo(filePath, campoNome) {
 
         let removerBtnHtml = '';
 
-        console.log("PERMISSAO", temPermissaoTotal);
-        if (temPermissaoTotal)
+        console.log("PERMISSAO", temPermissaoMaster);
+        if (temPermissaoMaster)
         {
             removerBtnHtml = `
                 <button type="button" class="btn btn-sm btn-danger remover-comprovante-btn" data-campo="${campoNome}">
