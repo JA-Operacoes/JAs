@@ -1930,4 +1930,80 @@ console.log("[BACKEND PATCH] Query Bruta (sem espaços):", updateQuery.replace(/
     }
 );
 
+
+router.patch(
+    // Novo endpoint: /orcamentos/:idorcamento/status
+    "/:idorcamento/status",
+    autenticarToken(),
+    contextoEmpresa,
+    verificarPermissao("Orcamentos", "alterar"),
+    logMiddleware("Orcamentos", {
+        buscarDadosAnteriores: async (req) => {
+            const idOrcamento = req.params.idorcamento;
+            const client = await pool.connect();
+            try {
+                // Busca o status anterior para o log
+                const result = await client.query('SELECT status FROM orcamentos WHERE idorcamento = $1', [idOrcamento]);
+                return {
+                    dadosanteriores: result.rows[0] ? { status: result.rows[0].status } : null,
+                    idregistroalterado: idOrcamento
+                };
+            } finally {
+                client.release();
+            }
+        },
+    }),
+    async (req, res) => {
+        const client = await pool.connect();
+        const idempresa = req.idempresa;
+        const idorcamento = parseInt(req.params.idorcamento);
+        // Recebe o novo status do corpo da requisição
+        const { status } = req.body; 
+
+        console.log(`[BACKEND PATCH] Tentando atualizar o status do Orçamento ${idorcamento} para: ${status}`);
+
+        try {
+            if (isNaN(idorcamento) || idorcamento <= 0) {
+                return res.status(400).json({ error: "ID do Orçamento inválido." });
+            }
+            if (!status || typeof status !== 'string') {
+                return res.status(400).json({ error: "O campo 'status' é obrigatório e deve ser uma string." });
+            }
+
+            await client.query("BEGIN");
+            
+            // Query para atualizar APENAS o campo status.
+            // A condição de subconsulta garante que o orçamento pertence à empresa do usuário.
+            const updateQuery = `
+                UPDATE orcamentos
+                SET status = $1
+                WHERE idorcamento = $2
+                AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $2) = $3
+                RETURNING idorcamento;
+            `;
+            
+            const result = await client.query(updateQuery, [status, idorcamento, idempresa]);
+
+            if (result.rowCount === 0) {
+                await client.query("ROLLBACK");
+                return res.status(404).json({ error: "Orçamento não encontrado ou permissão negada." });
+            }
+
+            await client.query("COMMIT");
+            
+            // Configuração para o log (logMiddleware)
+            res.locals.acao = 'alterou o status';
+            res.locals.idregistroalterado = idorcamento;
+
+            res.status(200).json({ success: true, message: `Status do orçamento atualizado para '${status}' com sucesso.` });
+
+        } catch (error) {
+            await client.query("ROLLBACK");
+            console.error("❌ Erro ao atualizar o status do orçamento:", error.message);
+            res.status(500).json({ error: "Erro interno ao atualizar o status do orçamento.", detail: error.message });
+        } finally {
+            client.release();
+        }
+    }
+);
 module.exports = router;

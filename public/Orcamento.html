@@ -42,8 +42,8 @@
                 <div class="Norcamento">
                     <div class="form2" >
                         <input type="text" class="uppercase" class="preenchido" id="Status"  value="A" name="Status" maxlength="1" pattern="^[aAfF]$"
-                            title="A = Aberto | F = Fechado"  readonly required spellcheck="false">
-                        <label for="Status">Status  (A/F)</label>
+                            title="A = Aberto | P = Proposta | E = Em Fechamento | F = Fechado | R = Reprovado"  readonly required spellcheck="false">
+                        <label for="Status">Status  (A/P/E/F/R)</label>
                     </div>
                         <div class="form2">
                             <input type="text" class="preenchido" id="nomenclatura" name="nomenclatura" spellcheck="false" title="Defina a nomenclatura do Orçamento">
@@ -383,6 +383,8 @@
                 <button class="Limpar" id="Limpar" type="button" >Limpar</button>
                 <button class="Proposta" id="Proposta">Gerar Proposta</button>
                 <button class="Contrato" id="Contrato" style="display: none;">Proposta/Contrato</button>
+                <button class="AprovarProposta" id="AprovarProposta" style="display: none;">Aprovar Proposta</button>
+                <button class="ReprovarProposta" id="ReprovarProposta" style="display: none;">Reprovar Proposta</button>
                 <button class="Excel" onclick="exportarParaExcel()" style="display: none;">Exportar P/ Excel</button>
                 <button class="fecharOrc" id="fecharOrc">Fechar Orçamento</button>
                 <button class="GerarProximoAno" id="GerarProximoAno" style="display: none;">Gerar Próximo Ano</button>

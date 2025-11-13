@@ -643,7 +643,7 @@ const statusPagtoInput = document.getElementById('statusPgto');
 
 const temPermissaoMaster = temPermissao("Staff", "master");
 const temPermissaoFinanceiro = temPermissao("Staff", "financeiro");
-const temPermissaoTotal = (temPermissaoMaster || temPermissaoFinanceiro);
+const temPermissaoTotal = (temPermissaoMaster && temPermissaoFinanceiro);
 
 const diariaDobradaInput = document.getElementById('diariaDobrada');
 const diariaDobradacheck = document.getElementById('diariaDobradacheck');
@@ -766,9 +766,9 @@ const carregarDadosParaEditar = (eventData) => {
     if (nmClienteSelect) nmClienteSelect.value = eventData.idcliente || '';
     if (nmEventoSelect) nmEventoSelect.value = eventData.idevento || '';
     
-    // 🌟 CORREÇÃO: LÓGICA DA EQUIPE PARA INPUT READONLY
+    
     const equipeId = eventData.idequipe || '';
-    // Assumimos que o nome da equipe está em eventData.nmequipe no objeto de dados.
+    
     const nomeEquipe = eventData.nmequipe || 'Equipe não informada'; 
     
     if (nmEquipeSelect) {
@@ -1023,8 +1023,22 @@ function inicializarEPreencherCampos(eventData) {
     campoStatusMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
     containerStatusMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';    
 
+    console.log("TEM PERMISSÃO MASTER:", temPermissaoMaster);
+    console.log("TEM PERMISSÃO FINANCEIRO:", temPermissaoFinanceiro);    
+    console.log("TEM PERMISSÃO TOTAL:", temPermissaoTotal);
+   
+    const containerPDF = document.querySelector('.pdf');
 
-    if (temPermissaoMaster) {    
+    if (containerPDF) {
+        if (temPermissaoFinanceiro) {
+            containerPDF.style.display = 'block'; // 🚫 Oculta tudo para quem não tem Master/Financeiro
+        } else {            
+            containerPDF.style.display = 'none'; // 👁️ Mostra tudo para Master e Financeiro
+        }
+    }
+
+    if (temPermissaoTotal) {   
+        console.log("É FINANCEIRO"); 
         document.getElementById('selectStatusAjusteCusto').style.display = 'block';
         statusAjusteCustoInput.style.display = 'none';
         console.log("STATUS AJUSTE CUSTO TEM PERMISSAO TOTAL", eventData.statusajustecusto);
@@ -1056,8 +1070,9 @@ function inicializarEPreencherCampos(eventData) {
         renderDatesWithStatus(datasDobrada, 'containerStatusDiariaDobrada', 'dobrada');
         renderDatesWithStatus(datasMeiaDiaria, 'containerStatusMeiaDiaria', 'meia');
 
-    } else {
-
+     } else {      
+           
+        console.log("NÃO É FINANCEIRO");
         document.getElementById('selectStatusAjusteCusto').style.display = 'none';
         statusAjusteCustoInput.style.display = 'block';
         console.log("STATUS AJUSTE CUSTO SEM PERMISSAO TOTAL", eventData.statusajustecusto);
@@ -1083,7 +1098,11 @@ function inicializarEPreencherCampos(eventData) {
         statusMeiaDiariaInput.style.display = 'block';
         statusMeiaDiariaInput.value = eventData.statusmeiadiaria || 'Pendente';
         aplicarCorStatusInput(statusMeiaDiariaInput);
-    }
+        
+     }
+
+    // Assuma que 'temPermissaoFinanceiro' é uma variável booleana definida em outro local
+
     updateDisabledDates();
 }
 
@@ -1990,7 +2009,7 @@ async function verificaStaff() {
     
 
 
-        const botaoEnviarOriginal = document.getElementById("Enviar");
+    const botaoEnviarOriginal = document.getElementById("Enviar");
 if (botaoEnviarOriginal) {
   const BotaoEnviar = botaoEnviarOriginal.cloneNode(true); // Clona o botão, removendo listeners antigos
   botaoEnviarOriginal.parentNode.replaceChild(BotaoEnviar, botaoEnviarOriginal);
@@ -2000,14 +2019,14 @@ if (botaoEnviarOriginal) {
     BotaoEnviar.addEventListener("click", async (event) => {
         event.preventDefault();      
             
-            const datasEventoRawValue = datasEventoPicker?.selectedDates || [];
-            const periodoDoEvento = datasEventoRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
+        const datasEventoRawValue = datasEventoPicker?.selectedDates || [];
+        const periodoDoEvento = datasEventoRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
 
-            const diariaDobradaRawValue = diariaDobradaPicker?.selectedDates || [];
-            const periodoDobrado = diariaDobradaRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
+        const diariaDobradaRawValue = diariaDobradaPicker?.selectedDates || [];
+        const periodoDobrado = diariaDobradaRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
 
-            const diariaMeiaRawValue = meiaDiariaPicker?.selectedDates || [];
-            const periodoMeiaDiaria = diariaMeiaRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
+        const diariaMeiaRawValue = meiaDiariaPicker?.selectedDates || [];
+        const periodoMeiaDiaria = diariaMeiaRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
 
         statusOrcamentoAtual = document.getElementById("status");
         const selectAvaliacao = document.getElementById("avaliacao");
@@ -2577,11 +2596,21 @@ if (botaoEnviarOriginal) {
                     statusPgto = "Pendente";
                 }
 
-                if (statusCaixinha === 'Autorização da Caixinha' && vlrCaixinha === 0) { 
-                    statusCaixinha = '';  
+                // if (statusCaixinha === 'Autorização da Caixinha' && vlrCaixinha === 0) { 
+                //     statusCaixinha = '';  
+                // }
+                // if (statusAjusteCusto === 'Autorização do Ajuste de Custo' && vlrAjusteCusto === 0) { 
+                //     statusAjusteCusto = '';  
+                // }
+
+                if (vlrCaixinha === 0) { 
+                    // Se não tem valor, o status deve ser vazio, conforme solicitado.
+                    statusCaixinha = '';  
                 }
-                if (statusAjusteCusto === 'Autorização do Ajuste de Custo' && vlrAjusteCusto === 0) { 
-                    statusAjusteCusto = '';  
+
+                if (vlrAjusteCusto === 0) { 
+                    // Se não tem valor, o status deve ser vazio, conforme solicitado.
+                    statusAjusteCusto = '';  
                 }
 
                 formData.append('statuspgto', statusPgto);
@@ -2616,19 +2645,7 @@ if (botaoEnviarOriginal) {
 
                 console.log("Status Diaria Dobrada", statusDiariaDobrada, statusMeiaDiaria);
 
-            if (statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === true){
-                statusDiariaDobrada = "Pendente";
-            }
-            if(statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === false){
-                statusDiariaDobrada = "";
-            }
-            if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === true){
-                statusMeiaDiaria = "Pendente";
-            }
-            if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === false){
-                statusMeiaDiaria = "";
-            }
-
+            
                 let dadosDiariaDobrada = [];
                 if (periodoDobrado && periodoDobrado.length > 0) {
                     dadosDiariaDobrada = periodoDobrado.map(data => {
@@ -2650,6 +2667,35 @@ if (botaoEnviarOriginal) {
                     };
                 });
             }
+
+            // if (statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === true){
+            //     statusDiariaDobrada = "Pendente";
+            // }
+            // if(statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === false){
+            //     statusDiariaDobrada = "";
+            // }
+            // if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === true){
+            //     statusMeiaDiaria = "Pendente";
+            // }
+            // if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === false){
+            //     statusMeiaDiaria = "";
+            // }
+
+            if (diariaDobrada === false) {
+                // Se não está ativa, o status deve ser vazio, independentemente do status anterior.
+                statusDiariaDobrada = "";
+            } else if (statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === true){
+                statusDiariaDobrada = "Pendente";
+            }
+
+            if (meiaDiaria === false){
+                // Se não está ativa, o status deve ser vazio, independentemente do status anterior.
+                statusMeiaDiaria = "";
+            } else if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === true){
+                statusMeiaDiaria = "Pendente";
+            }
+
+            console.log("STATUS CAIXINHA, AJUSTECUSTO, DIARIADOBRADAINPUT, DATASEVENTOINPUT", statusCaixinha, statusAjusteCusto, statusDiariaDobrada, statusMeiaDiaria, periodoDobrado, periodoMeiaDiaria);
 
 
             formData.append('statusdiariadobrada', statusDiariaDobrada); //aqui remover não usa mais apenas dentro da data
@@ -3061,16 +3107,15 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, dat
         const statusDoOrcamento = dadosDoOrcamento[0].status;
         statusOrcamentoAtual = statusDoOrcamento; // Define a variável global
 
-        //ORCAMENTO ABERTO
-        // if (statusDoOrcamento === 'A') {
-        //     Swal.fire({
-        //         icon: 'warning',
-        //         title: 'Orçamento Não Fechado',
-        //         text: 'O orçamento para os parâmetros solicitados ainda está em aberto. Não é possível cadastrar o Staff.'
-        //     });
-        //     return;
-
-        // }
+        //ORCAMENTO ABERTO E SEM PROPOSTA ENVIADA
+        if (statusDoOrcamento === 'A') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Orçamento Sem Proposta Enviada',
+                text: 'O orçamento para os parâmetros solicitados ainda está em aberto. Não é possível cadastrar o Staff.'
+            });
+            return;
+        }
 
         // **PROCESSAMENTO DOS DADOS:** Se o status não for 'A', o código continua aqui
 
