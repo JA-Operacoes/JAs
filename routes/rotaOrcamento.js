@@ -79,7 +79,8 @@ router.get(
             o.geradoanoposterior,
             o.indicesaplicados,
             o.vlrctofixo,
-            o.percentctofixo    
+            o.percentctofixo,
+            o.contratourl   
         FROM
             orcamentos o
         JOIN
@@ -984,100 +985,108 @@ router.get('/download/contrato/:fileName', autenticarToken(), async (req, res) =
 });
 
 
-
-const uploadDir = path.join(__dirname, '..', '..', 'uploads', 'contratos');
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
+const contratosUploadDir = path.join(__dirname, '../uploads/contratos');
+if (!fs.existsSync(contratosUploadDir)) {
+    fs.mkdirSync(contratosUploadDir, { recursive: true });
 }
 
-// Configuração do armazenamento do Multer
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, uploadDir); 
-    },
+if (!fs.existsSync(contratosUploadDir)) fs.mkdirSync(contratosUploadDir, { recursive: true });
+
+
+const storageContratos = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, contratosUploadDir),
     filename: (req, file, cb) => {
-        const ext = path.extname(file.originalname);
-        const nrOrcamento = req.query.orcamento || 'desconhecido';
-        const safeFileName = `contrato_${nrOrcamento}_${Date.now()}${ext}`;
-        cb(null, safeFileName);
+        const nomeLimpo = file.originalname
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            .replace(/\s+/g, '_')
+            .replace(/[^\w.-]/g, '');
+        cb(null, nomeLimpo);
     }
 });
 
-// Configuração do Upload (filtros e limites)
-const upload = multer({
-    storage: storage,
-    limits: { 
-        fileSize: 10 * 1024 * 1024 // Limite de 10MB
-    },
-    fileFilter: (req, file, cb) => {
-        const allowedMimes = [
-            'application/pdf',
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' // .docx
-        ];
-        if (allowedMimes.includes(file.mimetype)) {
-            cb(null, true);
-        } else {
-            // Rejeita o arquivo, lançando um erro que será pego pelo router.use
-            cb(new Error("Tipo de arquivo inválido. Apenas PDF, DOC ou DOCX são permitidos."), false);
-        }
-    }
-});
+const fileFilterContratos = (req, file, cb) => {
+    const tiposPermitidos = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    if (tiposPermitidos.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Apenas arquivos PDF, DOC e DOCX são permitidos.'), false);
+};
 
-// ========================================================
-// 🛑 ROTA EM MODO DE TESTE (Passo 2: Apenas Multer)
-// ========================================================
-router.post('/uploadContratoManual', 
-    
-    // **Middlewares de Auth/Permissão REMOVIDOS TEMPORARIAMENTE**
-    // ⚠️ Removido: autenticarToken()
-    // ⚠️ Removido: contextoEmpresa
-    // ⚠️ Removido: verificarPermissao("Orcamentos", "alterar")
-    
-    // 🔑 Multer processa o campo 'contrato' do FormData
-    upload.single('contrato'), 
-    
-    async (req, res) => {
-        const nrOrcamento = req.query.orcamento;
-        const file = req.file;
+const uploadContratosMiddleware = multer({
+    storage: storageContratos,
+    fileFilter: fileFilterContratos,
+    limits: { fileSize: 10 * 1024 * 1024 }
+}).fields([{ name: 'contrato', maxCount: 1 }]);
 
-        console.log('✅ ROTA /orcamentos/uploadContratoManual ATINGIDA (Teste Multer)');
+router.post('/uploadContratoManual', (req, res) => {
+    uploadContratosMiddleware(req, res, async (err) => {
+        try {
+            if (err) {
+                if (err instanceof multer.MulterError)
+                    return res.status(400).json({ success: false, message: `Erro do Multer: ${err.message}` });
+                return res.status(400).json({ success: false, message: err.message });
+            }
 
-        if (!file) {
-            // Se o Multer terminou sem erro, mas não salvou o arquivo.
-            return res.status(400).json({ 
-                success: false, 
-                message: "Nenhum arquivo enviado ou erro no campo 'contrato'."
+            if (!req.files || !req.files.contrato)
+                return res.status(400).json({ success: false, message: 'Nenhum arquivo enviado.' });
+
+            const arquivo = req.files.contrato[0];
+            const idOrcamento = req.query.orcamento;
+
+            if (!idOrcamento)
+                return res.status(400).json({ success: false, message: 'Número do orçamento não informado.' });
+
+            // URL pública do arquivo
+            const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+            const contratourl = `${baseUrl}/uploads/contratos/${arquivo.filename}`;
+
+            console.log(`📁 Contrato "${arquivo.filename}" salvo para orçamento ${idOrcamento}`);
+
+            // 🔹 Atualiza no banco de dados
+            await pool.query(
+                `UPDATE orcamentos 
+                 SET contratourl = $1, dataatualizacao = NOW()
+                 WHERE nrorcamento = $2`,
+                [contratourl, idOrcamento]
+            );
+
+            // 🔹 Retorno JSON
+            res.setHeader('Content-Type', 'application/json');
+            return res.status(200).json({
+                success: true,
+                message: 'Contrato enviado e salvo com sucesso!',
+                fileName: arquivo.filename,
+                contratourl
             });
+
+        } catch (error) {
+            console.error('Erro ao processar upload:', error);
+            return res.status(500).json({ success: false, message: 'Erro ao processar upload ou salvar no banco.' });
         }
-        
-        // **⚠️ LÓGICA DE NEGÓCIO DE CONEXÃO COM DB REMOVIDA PARA TESTE**
-        // Substitua pelo seu código real quando o teste for concluído.
-        
-        console.log(`✅ TESTE: Contrato Manual SALVO (na pasta) como: ${file.filename} para Orçamento ${nrOrcamento}`);
-
-        // ✅ Resposta de Sucesso para o Frontend
-        return res.status(200).json({
-            success: true,
-            message: "Upload do contrato concluído com sucesso (Teste Multer OK).",
-            fileName: file.filename, 
-            filePath: file.path
-        });
-    }
-);
-
-// ✅ Tratamento de erros do Multer
-router.use((err, req, res, next) => {
-    if (err instanceof multer.MulterError) {
-        // Erros do Multer (ex: FILE_TOO_LARGE)
-        return res.status(400).json({ success: false, message: `Erro no upload: ${err.message}` });
-    } else if (err) {
-        // Erros do fileFilter ou outros erros lançados
-        return res.status(400).json({ success: false, message: `Erro no upload: ${err.message || 'Erro desconhecido.'}` });
-    }
-    next();
+    });
 });
 
+router.post("/salvarContratoUrl", async (req, res) => {
+    try {
+        const { idorcamento, contratourl } = req.body;
+
+        if (!idorcamento || !contratourl) {
+            return res.status(400).json({ success: false, message: "Dados incompletos." });
+        }
+
+        await pool.query(
+            "UPDATE orcamentos SET contratourl = $1, dataatualizacao = NOW() WHERE nrorcamento = $2",
+            [contratourl, idorcamento]
+        );
+
+        return res.json({ success: true, message: "Contrato vinculado com sucesso!" });
+    } catch (error) {
+        console.error("Erro ao salvar contratourl:", error);
+        res.status(500).json({ success: false, message: "Erro ao salvar contratourl no banco." });
+    }
+});
 
 
 

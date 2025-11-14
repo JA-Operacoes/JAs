@@ -1373,7 +1373,7 @@ function adicionarLinhaOrc() {
         <td class="Proposta">
             <div class="checkbox-wrapper-33">
                 <label class="checkbox">
-                    <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                    <input class="checkbox__trigger visuallyhidden" type="checkbox" checked /> 
                     <span class="checkbox__symbol">
                         <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
                             <path d="M4 14l8 7L24 7"></path>
@@ -1739,7 +1739,7 @@ function adicionarLinhaAdicional() {
     //     </td> 
 
     let novaLinha = tabela.insertRow();
-    novaLinha.classList.add("liberada");     // aplica nova cor
+    novaLinha.classList.add("liberada", "linhaAdicional");     // aplica nova cor
     novaLinha.innerHTML = `
         <td style="display: none;"><input type="hidden" class="idItemOrcamento" style="display: none;" value=""></td> <!-- Corrigido: de <th> para <td> e adicionado input hidden -->
         <td style="display: none;"><input type="hidden" class="idFuncao" value=""></td>
@@ -1748,7 +1748,7 @@ function adicionarLinhaAdicional() {
         <td class="Proposta">
             <div class="checkbox-wrapper-33">
                 <label class="checkbox">
-                    <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                    <input class="checkbox__trigger visuallyhidden" type="checkbox" checked /> 
                     <span class="checkbox__symbol">
                         <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
                             <path d="M4 14l8 7L24 7"></path>
@@ -1823,14 +1823,6 @@ function adicionarLinhaAdicional() {
     `;
     tabela.insertBefore(novaLinha, tabela.firstChild);
 
-    // // --- ADICIONE ESTE LOG AQUI ---
-    // const setorInputCheck = novaLinha.querySelector(".setor-input");
-    // console.log(`DEBUG ADICIONAR LINHA: .setor-input na nova linha:`, setorInputCheck ? 'Encontrado!' : 'NÃO ENCONTRADO!');
-    // if (setorInputCheck) {
-    //     console.log(`DEBUG ADICIONAR LINHA: HTML do td .setor:`, novaLinha.querySelector('td.setor').outerHTML);
-    // }
-    // // --- FIM DO LOG ---
-    // //Inicializa o Flatpickr para o campo de data na nova linha
 
     const descontoValorItem = novaLinha.querySelector('.descontoItem .ValorInteiros');
     if (descontoValorItem) {
@@ -5200,7 +5192,7 @@ function bloquearCamposSeFechado() {
     const orcamentoAtual = getOrcamentoAtualCarregado();
     const bProximoAnoCarregado = orcamentoAtual?.geradoanoposterior === true; 
 
-    const idsPermitidos = ['Desconto', 'perCentDesc', 'Acrescimo', 'perCentAcresc', 'ObservacaoProposta', 'Observacao'];
+    const idsPermitidos = ['ObservacaoProposta', 'Observacao'];
 
     const tabela = document.querySelector('table');
 
@@ -5992,32 +5984,124 @@ function getOrcamentoAtualCarregado() {
     return window.orcamentoAtual || null; 
 }
 
+
+
 async function PropostaouContrato() {
+    let orcamentoValue = nrOrcamento; 
+    
+    // 🛑 CORREÇÃO OBRIGATÓRIA: Verifica e extrai o valor se a variável for um objeto HTML
+    if (typeof orcamentoValue === 'object' && orcamentoValue !== null && orcamentoValue.value !== undefined) {
+        console.log("[CORREÇÃO DEBUG] Variável nrOrcamento detectada como objeto HTML. Extraindo .value...");
+        orcamentoValue = orcamentoValue.value;
+    }
+    
+    // Garante que o valor final é uma string limpa
+    const nrOrcamentoStr = String(orcamentoValue).trim(); 
+
+    if (!nrOrcamentoStr || nrOrcamentoStr.length === 0) {
+        Swal.fire('Erro', 'Número do Orçamento inválido ou não encontrado.', 'error');
+        return;
+    }
+    
+    // 🔑 CONSOLE 1: Início da função com o valor corrigido
+    console.log(`[PROPOSTA/CONTRATO DEBUG] 1. Início de PropostaouContrato para Orçamento (CORRIGIDO): ${nrOrcamentoStr}`);
+
+
+    // --- 1. VERIFICAÇÃO INICIAL DE CONTRATO EXISTENTE ---
+    try {
+        const fetchOrcamentoUrl = `/orcamentos?nrOrcamento=${nrOrcamentoStr}`;
+        
+        // 🔑 CONSOLE 2: Antes de fazer a requisição GET
+        console.log(`[FRONTEND DEBUG] 2. Buscando dados do orçamento em: ${fetchOrcamentoUrl}`);
+
+        const orcamentoData = await fetchComToken(fetchOrcamentoUrl, { method: 'GET' });
+        
+        // ✅ CORREÇÃO APLICADA: Assume que a resposta é o objeto de orçamento (e não um array).
+        const orcamento = orcamentoData || null;
+
+        // 🔑 CONSOLE 3: Resultado da requisição GET
+        console.log(`[FRONTEND DEBUG] 3. Dados do Orçamento (Resultado GET):`, orcamento);
+
+        if (!orcamento) {
+            Swal.fire('Erro', 'Orçamento não encontrado para verificação.', 'error');
+            return;
+        }
+
+        const contratoExistenteUrl = orcamento.contratourl;
+        
+        // 🔑 CONSOLE 4: Valor do campo contratourl no DB
+        console.log(`[FRONTEND DEBUG] 4. Valor de contratourl no DB:`, contratoExistenteUrl);
+
+        // 🛑 LÓGICA DE VERIFICAÇÃO: Se o contrato existe, exibe Visualizar e retorna
+        if (contratoExistenteUrl && contratoExistenteUrl.trim() !== '') {
+            // Este bloco será executado
+            // 🔑 CONSOLE 5: Entrou no fluxo de CONTRATO EXISTENTE
+            console.log(`[FRONTEND DEBUG] 5. CONTRATO EXISTE. Exibindo alerta de visualização.`);
+            
+            const filename = contratoExistenteUrl.substring(contratoExistenteUrl.lastIndexOf('/') + 1);
+
+            Swal.fire({
+                title: 'Contrato Vinculado!',
+                html: `Já existe um contrato (${filename}) vinculado ao orçamento <b>${nrOrcamentoStr}</b>.`,
+                icon: 'warning',
+                showCancelButton: true,
+                denyButtonText: "Gerar Proposta", // Botão para Gerar Proposta
+                cancelButtonText: "Fechar",
+                confirmButtonText: "Visualizar Contrato",
+                reverseButtons: true,
+            }).then((res) => {
+                // Ação 1: Visualizar Contrato (Botão Confirm)
+                if (res.isConfirmed) {
+                    window.open(contratoExistenteUrl, '_blank');
+                } 
+                // ✅ CORREÇÃO APLICADA: Ação 2: Gerar Proposta (Botão Deny)
+                else if (res.isDenied) {
+                    console.log("[FLUXO CONTRATO EXISTENTE] Ação selecionada: Gerar Proposta."); 
+                    gerarPropostaPDF(); // Chama a função que gera o PDF
+                }
+                // Ação 3: Fechar (Botão Cancel) - A função não faz nada, pois o return já interrompe
+            });
+            
+            return; // Interrompe a função PropostaouContrato após exibir/tratar o alerta
+        }
+    } catch (error) {
+        console.error("[PROPOSTA/CONTRATO DEBUG] ERRO durante a verificação inicial. Prosseguindo para o seletor.", error);
+    }
+    // Fim da verificação.
+
+    // 🔑 CONSOLE 6: Entrou no fluxo de seleção normal
+    console.log(`[PROPOSTA/CONTRATO DEBUG] 6. Contrato não encontrado. Exibindo seletor de ações.`);
+
+
+    // --- 2. SELETOR DE AÇÕES (Se o contrato não existir) ---
     Swal.fire({
         title: "Selecione a ação com o documento",
         text: "Escolha qual ação deseja realizar para este orçamento.",
         icon: "question",
-        showCancelButton: true, // Botão Gerar Contrato
-        showDenyButton: true,   // Botão Incluir Contrato (Novo)
-        confirmButtonText: "Gerar Proposta", // Confirmed
-        cancelButtonText: "Gerar Contrato",  // Cancel
-        denyButtonText: "Incluir Contrato",   // Denied (Novo)
-        reverseButtons: false, // Ordem padrão: Deny | Cancel | Confirm
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonText: "Gerar Proposta",
+        cancelButtonText: "Gerar Contrato",
+        denyButtonText: "Incluir Contrato",
+        reverseButtons: false,
         customClass: {
             confirmButton: 'Proposta', 
             cancelButton: 'Contrato', 
-            denyButton: 'IncluirContrato' // Nova classe
+            denyButton: 'IncluirContrato'
         }
     }).then((result) => {
         if (result.isConfirmed) {
             // Clicou no botão CONFIRM (Gerar Proposta)
+            console.log("[FLUXO SELETOR] Ação selecionada: Gerar Proposta."); 
             gerarPropostaPDF();
         } else if (result.dismiss === Swal.DismissReason.cancel) {
             // Clicou no botão CANCEL (Gerar Contrato)
-            gerarContrato(nrOrcamento);
+            console.log("[FLUXO SELETOR] Ação selecionada: Gerar Contrato.");
+            gerarContrato(nrOrcamentoStr);
         } else if (result.isDenied) {
             // Clicou no botão DENY (Incluir Contrato)
-            incluirContrato(nrOrcamento); // 🛑 NOVA FUNÇÃO A SER CHAMADA
+            console.log("[FLUXO SELETOR] Ação selecionada: Incluir Contrato. Chamando incluirContrato(nrOrcamento)...");
+            incluirContrato(nrOrcamentoStr); 
         }
     });
 }
@@ -6241,85 +6325,81 @@ async function gerarContrato() {
     }
 }
 
+    
+
 /**
  * Abre um SweetAlert2 com campo de upload para incluir o arquivo do contrato.
- * O upload é feito para a rota que deve salvar o arquivo em /uploads/contratos/,
- * replicando a estabilidade da função gerarProximoAno.
- * * @param {string} nrOrcamento - O número do orçamento para vincular o contrato.
+ * Se já houver contrato vinculado, mostra a opção de visualizá-lo.
+ * @param {string|object} nrOrcamento - O número do orçamento para vincular o contrato.
  */
 async function incluirContrato(nrOrcamento) {
-    if (typeof nrOrcamento === 'object' && nrOrcamento !== null && nrOrcamento.value !== undefined) {
+    if (typeof nrOrcamento === 'object' && nrOrcamento?.value !== undefined) {
         nrOrcamento = nrOrcamento.value;
     }
-    
-    // Converte para string se ainda não for
+
     nrOrcamento = String(nrOrcamento);
-    const titulo = `Incluir Contrato para Orçamento ${nrOrcamento}`;
-    const uploadUrl = `/orcamentos/uploadContratoManual?orcamento=${nrOrcamento}`; 
+    const uploadUrl = `/orcamentos/uploadContratoManual?orcamento=${nrOrcamento}`;
 
+    // 🔑 CONSOLE 1: Início da função e valor do orçamento
+    console.log(`[FRONTEND DEBUG] 1. Início de incluirContrato para Orçamento: ${nrOrcamento}`);
+
+    // 2. LÓGICA DE UPLOAD
     const { value: uploadResult } = await Swal.fire({
-        title: titulo,
-        
-        // 🛑 HTML do Upload Customizado
+        title: `Incluir Contrato para Orçamento ${nrOrcamento}`,
+
         html: `
-            <p>Selecione o arquivo do contrato (PDF ou Word). Clique em qualquer parte da área abaixo.</p>
+            <p style="margin-bottom: 15px;">Selecione o arquivo do contrato (PDF ou Word). Máx: 10MB.</p>
 
-            <input id="file" type="file" accept=".pdf, .doc, .docx" required style="display: none;"> 
+            <input id="file" type="file" name="contrato" accept=".pdf, .doc, .docx" required style="display: none;"> 
 
-            <label for="file" class="upload-area-wrapper">
-                <div class="container"> 
-                    
-                    <div class="header" id="uploadHeader">
-                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M7 10V9C7 6.23858 9.23858 4 12 4C14.7614 4 17 6.23858 17 9V10C19.2091 10 21 11.7909 21 14C21 15.4806 20.1956 16.8084 19 17.5M7 10C4.79086 10 3 11.7909 3 14C3 15.4806 3.8044 16.8084 5 17.5M7 10C7.43285 10 7.84965 10.0688 8.24006 10.1959M12 12V21M12 12L15 15M12 12L9 15" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                        <p>Clique para upload!</p>
-                    </div> 
+            <div class="container">
 
-                    <div class="footer"> 
-                        <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
-                            <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
-                        </svg>
-                        <p id="fileName">Nenhum arquivo selecionado</p>
-                    </div>
-                </div>
-            </label>
-        `,
-        icon: 'info',
-        showCancelButton: true,
-        confirmButtonText: 'Fazer Upload e Salvar',
-        cancelButtonText: 'Cancelar',
+                <label for="file" class="header" id="uploadHeader" style="cursor: pointer;"> 
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M7 10V9C7 6.23858 9.23858 4 12 4C14.7614 4 17 6.23858 17 9V10C19.2091 10 21 11.7909 21 14C21 15.4806 20.1956 16.8084 19 17.5M7 10C4.79086 10 3 11.7909 3 14C3 15.4806 3.8044 16.8084 5 17.5M7 10C7.43285 10 7.84965 10.0688 8.24006 10.1959M12 12V21M12 12L15 15M12 12L9 15" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <p>Clique para upload!</p>
+                </label><label for="file" class="footer" style="cursor: pointer;">
+                <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+                        <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+                    </svg>
+                    <p id="fileName">Nenhum arquivo selecionado</p>
+                </label>
+            </div>`,
         
-        // 🛑 CONFIGURAÇÕES DE ESTABILIDADE:
-        focusConfirm: false,
-        allowOutsideClick: false, 
-        allowEscapeKey: false,    
-        backdrop: false,          
-        showLoaderOnConfirm: true, 
-        
-        // 🛑 Gerenciamento de Foco:
+        // 🛑 Gerenciamento de Foco e Listener de Mudança de Arquivo (didOpen)
         didOpen: (popup) => {
             const inputFile = popup.querySelector('#file'); 
             const fileNameDisplay = popup.querySelector('#fileName');
             const uploadHeader = popup.querySelector('#uploadHeader');
+            const label = popup.querySelector('.upload-area-wrapper');
 
             if (inputFile) {
-                // Adiciona listener para atualizar o nome do arquivo ao selecionar
                 inputFile.addEventListener('change', function() {
                     if (this.files.length > 0) {
-                        // Atualiza o nome do arquivo no elemento <p>
                         fileNameDisplay.textContent = this.files[0].name;
-                        uploadHeader.style.borderColor = '#28a745'; 
+                        label.style.borderColor = '#28a745'; // Cor de sucesso
+                        uploadHeader.style.color = '#28a745';
                     } else {
                         fileNameDisplay.textContent = 'Nenhum arquivo selecionado';
-                        uploadHeader.style.borderColor = 'var(--primary-color)';
+                        label.style.borderColor = '#007bff'; 
+                        uploadHeader.style.color = '#007bff';
                     }
                 });
             }
         },
-        
-        // 🛑 Lógica de Validação e Envio (preConfirm):
+
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonText: 'Fazer Upload e Salvar',
+        cancelButtonText: 'Cancelar',
+        focusConfirm: false,
+        allowOutsideClick: false, 
+        allowEscapeKey: false, 
+        backdrop: false, 
+        showLoaderOnConfirm: true, 
+
         preConfirm: () => {
             const inputFile = document.getElementById('file');
             const file = inputFile.files[0];
@@ -6328,105 +6408,62 @@ async function incluirContrato(nrOrcamento) {
                 Swal.showValidationMessage('Por favor, selecione um arquivo.');
                 return false;
             }
-            
-            return new Promise((resolve, reject) => {
-                const formData = new FormData();
-                // O nome 'contrato' aqui DEVE ser o mesmo usado no Multer no backend.
-                formData.append('contrato', file);
-                
-                fetchComToken(uploadUrl, {
-                    method: 'POST',
-                    body: formData,
+
+            const formData = new FormData();
+            formData.append('contrato', file);
+            // 🔑 CONSOLE 8: Antes de fazer a requisição POST de upload
+            console.log(`[FRONTEND DEBUG] 8. Iniciando upload POST para: ${uploadUrl} com arquivo: ${file.name}`);
+
+            return fetchComToken(uploadUrl, { method: 'POST', body: formData })
+                .then((data) => {
+                    // 🔑 CONSOLE 9: Upload POST bem-sucedido
+                    console.log(`[FRONTEND DEBUG] 9. Upload POST SUCESSO. Resposta do Backend:`, data);
+                    if (!data.success) throw new Error(data.message || 'Falha no upload.');
+                    return data;
                 })
-                .then(async response => { 
-                    // Trata erros HTTP (4xx, 5xx)
-                    if (!response.ok) {
-                        let errorMessage = `Erro ${response.status}: ${response.statusText || 'Falha no servidor'}`;
-                        
-                        // Tenta ler o corpo da resposta JSON para obter a mensagem detalhada do backend
-                        try {
-                            const errorData = await response.json(); 
-                            // Se o JSON tiver uma propriedade 'message' e 'success: false' (padrão do nosso backend)
-                            if (errorData.message) {
-                                errorMessage = errorData.message;
-                            }
-                        } catch (e) {
-                            // Se a resposta não for JSON (ex: erro no servidor antes do Multer)
-                            console.warn("Resposta de erro não é JSON, usando status text.");
-                        }
-                        
-                        // Lança o erro com a mensagem mais detalhada
-                        throw new Error(errorMessage);
-                    }
-                    // Se for OK (2xx), continua a ler o JSON de sucesso
-                    return response.json();
-                })
-                .then(data => {
-                    // Espera que o backend retorne { success: true, fileName: "..." }
-                    if (!data.success) {
-                        // Isso trata casos de erro 200 OK, mas com sucesso: false
-                        throw new Error(data.message || "Erro no servidor ao salvar o contrato.");
-                    }
-                    resolve(data); // Retorna 'data' que se torna 'uploadResult'
-                })
-                .catch(error => {
-                    console.error('Erro durante o upload:', error);
-                    // Passa a mensagem de erro detalhada para o SweetAlert para exibição
-                    reject(String(error.message || error)); 
+
+                .catch((error) => {
+                    // 🔑 CONSOLE 10: Upload POST com falha
+                    console.error(`[FRONTEND DEBUG] 10. Upload POST FALHA. Mensagem:`, error.message || error);
+                    Swal.showValidationMessage(error.message || 'Falha no upload.');
+                    return false;
                 });
-            });
         }
     });
 
-    // =======================================================
-    // 2. LÓGICA PÓS-UPLOAD (Sucesso)
-    // =======================================================
-    
     if (!uploadResult) {
+        // 🔑 CONSOLE 11: Upload cancelado ou falhou no preConfirm
+        console.log("[FRONTEND DEBUG] 11. Upload cancelado ou bloqueado por validação.");
         return;
     }
 
+    // 3. MENSAGEM FINAL DE SUCESSO
     const uploadedFileName = uploadResult.fileName;
+    const finalFileUrl = uploadResult.contratourl;
+
+    // 🔑 CONSOLE 12: URL Final para Visualização
+    console.log(`[FRONTEND DEBUG] 12. Finalizado. URL para visualização: ${finalFileUrl}`);
 
     Swal.fire({
-        title: 'Contrato Incluído!',
-        html: `O arquivo **${uploadedFileName}** foi salvo com sucesso em <code>/uploads/contratos/</code> e vinculado ao orçamento **${nrOrcamento}**.`,
+        title: 'Contrato Vinculado!',
+        html: `O arquivo <b>${uploadedFileName}</b> foi salvo e vinculado ao orçamento <b>${nrOrcamento}</b>.`,
         icon: 'success',
         showCancelButton: true,
-        confirmButtonText: "📥 Baixar Contrato",
-        cancelButtonText: "OK",
+        confirmButtonText: "Visualizar Contrato",
+        cancelButtonText: "Fechar",
         reverseButtons: true,
-    }).then(async (res) => {
+    }).then((res) => {
         if (res.isConfirmed) {
-             // Lógica de download
-             try {
-                // ROTA CORRIGIDA para o endpoint de download autenticado
-                const fileUrl = `/download/contrato/${encodeURIComponent(uploadedFileName)}`; 
-                
-                const token = localStorage.getItem("token");
-
-                // Note que o download é feito pela rota do backend que exige token
-                const response = await fetch(fileUrl, {
-                    method: "GET",
-                    headers: { "Authorization": `Bearer ${token}` }
-                });
-
-                if (!response.ok) throw new Error("Não autorizado ou arquivo não encontrado");
-
-                const blob = await response.blob();
-                const link = document.createElement("a");
-                link.href = URL.createObjectURL(blob);
-                link.download = uploadedFileName;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(link.href);
-             } catch (downloadErr) {
-                 Swal.fire("Erro", "Não foi possível baixar o contrato", "error");
-             }
+            window.open(finalFileUrl, '_blank');
         }
     });
 }
+
+
+
+
+
+
 
 
 function exportarParaExcel() {

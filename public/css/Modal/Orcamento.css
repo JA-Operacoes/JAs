@@ -1119,7 +1119,7 @@ select #idCliente, #idEvento{
 }
 
 .header svg {
-  height: 100px;
+  height: 50px;
 }
 
 .header p {
