@@ -2,7 +2,9 @@ import sys
 import json
 import os
 from datetime import datetime
-from docxtpl import DocxTemplate
+# Importações necessárias para inserir imagens no Word
+from docxtpl import DocxTemplate, InlineImage
+from docx.shared import Cm 
 from num2words import num2words
 from dateutil import parser
 import io
@@ -11,30 +13,26 @@ import io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
 
+# --- Funções Auxiliares ---
+
 def capitalizar_palavras(texto):
-    """
-    Capitaliza a primeira letra de cada palavra em uma string.
-    """
+    """ Capitaliza a primeira letra de cada palavra em uma string. """
     if not texto:
         return ""
     return ' '.join(word.capitalize() for word in texto.lower().split())
 
 def to_unicode(valor):
-    """
-    Converte qualquer valor para string Unicode segura.
-    """
+    """ Converte qualquer valor para string Unicode segura. """
     if valor is None:
         return ""
     if isinstance(valor, str):
-            return valor
+        return valor
     if isinstance(valor, (int, float)):
         return str(valor)
     return str(valor)
 
 def formatar_data(data):
-    """
-    Converte datas ISO ou objetos datetime para DD/MM/YYYY.
-    """
+    """ Converte datas ISO ou objetos datetime para DD/MM/YYYY. """
     if not data:
         return "N/D"
     try:
@@ -46,10 +44,7 @@ def formatar_data(data):
         return str(data)
 
 def formatar_escopo_servicos(escopo):
-    """
-    Formata o texto do escopo de serviços para adicionar espaçamento
-    entre os tópicos principais, usando uma quebra de linha dupla.
-    """
+    """ Formata o texto do escopo de serviços para adicionar espaçamento. """
     if not escopo:
         return ""
     
@@ -68,6 +63,15 @@ def formatar_escopo_servicos(escopo):
 def gerar_contrato(dados):
     pasta_script = os.path.dirname(os.path.abspath(__file__))
 
+    # ⭐ CORREÇÃO: Altera o diretório de trabalho para o diretório do script.
+    # Isso resolve o erro 'Permission denied: .' ao garantir que o CWD
+    # tenha permissão de escrita para arquivos temporários.
+    try:
+        os.chdir(pasta_script)
+    except Exception as e:
+        # Registra um aviso se a mudança de CWD falhar, mas permite que o script continue
+        print(f"⚠️ Aviso: Não foi possível alterar o CWD para {pasta_script}. {e}", file=sys.stderr)
+        
     caminho_base = os.path.join(
         os.path.dirname(os.path.dirname(pasta_script)),
         "models",
@@ -81,6 +85,35 @@ def gerar_contrato(dados):
 
     doc = DocxTemplate(caminho_base)
 
+    # --- Carregamento e Inserção das Imagens de Assinatura ---
+    
+    # 1. CAMINHO PARA ASSINATURA JA (EMPRESA)
+    # O 'r' (raw string) é importante para caminhos do Windows.
+    caminho_assinatura_ja = r"C:\Users\JA Promoções\JAs\JAs\public\img\assinaturas\manuscript_26 set 2025, 10-35-11.png"
+    
+    # 2. CAMINHO PARA ASSINATURA CARLA (TESTEMUNHA) - AJUSTE SE NECESSÁRIO
+    caminho_assinatura_carla = r"C:\Users\JA Promoções\JAs\JAs\public\img\assinaturas\assinatura_carla.png" 
+
+    assinatura_ja = ""
+    # Usa normpath para padronizar as barras de caminho
+    caminho_ja_norm = os.path.normpath(caminho_assinatura_ja) 
+
+    if os.path.exists(caminho_ja_norm):
+        # Inicia o objeto InlineImage (5 cm de largura)
+        assinatura_ja = InlineImage(doc, caminho_ja_norm, width=Cm(5)) 
+    else:
+        print(f"⚠️ Imagem de assinatura JA não encontrada: {caminho_ja_norm}", file=sys.stderr)
+
+    assinatura_carla = ""
+    caminho_carla_norm = os.path.normpath(caminho_assinatura_carla)
+    if os.path.exists(caminho_carla_norm):
+        # Inicia o objeto InlineImage (4 cm de largura)
+        assinatura_carla = InlineImage(doc, caminho_carla_norm, width=Cm(4)) 
+    else:
+        print(f"⚠️ Imagem de assinatura Carla não encontrada: {caminho_carla_norm}", file=sys.stderr)
+    # --------------------------------------------------------
+
+    # --- Geração de Contexto ---
     inicio_realizacao = formatar_data(dados.get("inicio_realizacao"))
     fim_realizacao = formatar_data(dados.get("fim_realizacao"))
     periodo_realizacao = f"DE: {inicio_realizacao} ATÉ: {fim_realizacao}" \
@@ -123,14 +156,18 @@ def gerar_contrato(dados):
         "itens_categorias": dados.get("itens_categorias", []),
         "adicionais": dados.get("adicionais", []),
         "nomenclatura": to_unicode(dados.get("nomenclatura")),
+        
+        # Passa os objetos InlineImage para o template
         "cliente_assinatura": "",
-        "empresa_assinatura": "",
-        "testemunhaJa_assinatura": ""
+        "empresa_assinatura": assinatura_ja, 
+        "testemunhaJa_assinatura": assinatura_carla 
     }
 
     doc.render(context)
 
-    pasta_saida = os.path.join(os.path.dirname(pasta_script), "..", "uploads", "contratos")
+    # --- Salvamento do Arquivo ---
+    # Constroi o caminho da pasta de saída de forma absoluta
+    pasta_saida = os.path.join(os.path.dirname(os.path.dirname(pasta_script)), "uploads", "contratos")
     os.makedirs(pasta_saida, exist_ok=True)
 
     nome_arquivo = f"Contrato_{to_unicode(dados.get('nomenclatura'))}_{to_unicode(dados.get('evento_nome', 'Sem Evento'))}.docx"

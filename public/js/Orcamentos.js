@@ -3599,344 +3599,357 @@ let montagemInfraAtivo = false;
 
 
 export async function preencherFormularioComOrcamento(orcamento) {
-    if (!orcamento) {
-        limparOrcamento();
-        return;
+    if (!orcamento) {
+        limparOrcamento();
+        return;
+    }
+    window.orcamentoAtual = orcamento; 
+
+    const idOrcamentoInput = document.getElementById('idOrcamento');
+    if (idOrcamentoInput) {
+        idOrcamentoInput.value = orcamento.idorcamento || '';
+    } else {
+        console.warn("Elemento com ID 'idOrcamento' não encontrado.");
+    }
+
+    const nrOrcamentoInput = document.getElementById('nrOrcamento');
+    nrOrcamentoOriginal = nrOrcamentoInput.value;
+    if (nrOrcamentoInput) {
+        nrOrcamentoInput.value = orcamento.nrorcamento || '';
+    } else {
+        console.warn("Elemento com ID 'nrOrcamento' não encontrado.");
+    }
+
+    const nomenclaturaInput = document.getElementById('nomenclatura');
+    if (nomenclaturaInput) {
+        nomenclaturaInput.value = orcamento.nomenclatura || '';
+    } else {
+        console.warn("Elemento 'nomenclatura' não encontrado.");
+    }
+
+    // Define os valores dos selects.
+    const statusInput = document.getElementById('Status'); 
+    if (statusInput) {
+        statusInput.value = orcamento.status || '';
+        console.log("Status", statusInput.value);
+
+        // REMOVIDO: A chamada de bloqueio daqui foi removida
+        // if (statusInput.value === 'F'){           
+        //     bloquearCamposSeFechado();
+        // }
+    } else {
+        console.warn("Elemento com ID 'Status' não encontrado.");
+    }
+
+    const edicaoInput = document.getElementById('edicao');
+    // ... (O restante da função é preenchimento de campos estáticos)
+    if (edicaoInput) {
+        edicaoInput.value = orcamento.edicao || '';
+        console.log("Edição", edicaoInput.value);        
+    } else {
+        console.warn("Elemento com ID 'Edição' não encontrado.");
+    }
+
+    const clienteSelect = document.querySelector('.idCliente');
+    if (clienteSelect) {
+        clienteSelect.value = orcamento.idcliente || '';
+    } else {
+        console.warn("Elemento com classe '.idCliente' não encontrado.");
+    }
+
+    const eventoSelect = document.querySelector('.idEvento');
+    if (eventoSelect) {
+        eventoSelect.value = orcamento.idevento || '';
+    } else {
+        console.warn("Elemento com classe '.idEvento' não encontrado.");
+    }
+
+    const localMontagemSelect = document.querySelector('.idMontagem');
+    if (localMontagemSelect) {
+        localMontagemSelect.value = orcamento.idmontagem || '';
+        // --- NOVO: Preencher o campo UF da montagem e atualizar visibilidade ---
+        const ufMontagemInput = document.getElementById('ufmontagem');
+        if (ufMontagemInput) {
+            ufMontagemInput.value = orcamento.ufmontagem || '';
+        } else {
+            console.warn("Elemento com ID 'ufmontagem' não encontrado.");
+        }
+
+        atualizarUFOrc(localMontagemSelect);
+
+        if (orcamento.idmontagem) {
+             await carregarPavilhaoOrc(orcamento.idmontagem);
+        } else {
+             await carregarPavilhaoOrc(''); // Limpa o select se não houver montagem
+        }
+
+    } else {
+        console.warn("Elemento com classe '.idMontagem' não encontrado.");
+    }
+   
+
+    if (orcamento.pavilhoes && orcamento.pavilhoes.length > 0) {
+    // Popula a variável global `selectedPavilhoes`
+    // O `orcamento.pavilhoes` deve ser um array de objetos, ex: [{id: 8, nomepavilhao: "nome"}, ...]
+        selectedPavilhoes = orcamento.pavilhoes.map(p => ({
+            id: p.id, // Supondo que o ID é 'id'
+            name: p.nomepavilhao // E o nome é 'nomepavilhao'
+        }));
+    } else {
+        selectedPavilhoes = [];
+    }
+
+    // Chama a função que já sabe como preencher os inputs corretamente
+    updatePavilhaoDisplayInputs();
+
+    for (const id in flatpickrInstances) {
+        // ... (todo o código do flatpickr permanece aqui)
+        const pickerInstance = flatpickrInstances[id];
+
+        if (pickerInstance && typeof pickerInstance.setDate === 'function' && pickerInstance.config) {
+            let inicio = null;
+            let fim = null;
+
+            let isRelevantToPrePos = false; // Garante que seja redefinida em cada loop
+            let isRelevantToMontagemInfra = false; // Garante que seja redefinida em cada loop
+
+            switch(id) {
+                case 'periodoPreEvento':
+                    inicio = orcamento.dtinipreevento;
+                    fim = orcamento.dtfimpreevento;
+                    isRelevantToPrePos = true;
+                    break;
+                case 'periodoInfraMontagem':
+                    inicio = orcamento.dtiniinframontagem;
+                    fim = orcamento.dtfiminframontagem;
+                    isRelevantToMontagemInfra = true;
+                    break;
+                case 'periodoMontagem':                    
+                    inicio = orcamento.dtinimontagem;
+                    fim = orcamento.dtfimmontagem;
+                    break;
+                case 'periodoMarcacao':
+                    inicio = orcamento.dtinimarcacao;
+                    fim = orcamento.dtfimmarcacao;
+                    break;
+                case 'periodoRealizacao':
+                    inicio = orcamento.dtinirealizacao;
+                    fim = orcamento.dtfimrealizacao;
+                    break;
+                case 'periodoDesmontagem':
+                    inicio = orcamento.dtinidesmontagem;
+                    fim = orcamento.dtfimdesmontagem;
+                    break;
+                case 'periodoDesmontagemInfra':
+                    inicio = orcamento.dtiniinfradesmontagem;
+                    fim = orcamento.dtfiminfradesmontagem;
+                    break;
+                case 'periodoPosEvento':
+                    inicio = orcamento.dtiniposevento;
+                    fim = orcamento.dtfimposevento;
+                    isRelevantToPrePos = true;
+                    break;
+            }
+
+            const startDate = inicio ? new Date(inicio) : null;
+            const endDate = fim ? new Date(fim) : null;
+
+            const hasValidDates = (startDate && !isNaN(startDate.getTime())) || (endDate && !isNaN(endDate.getTime()));
+
+            if (pickerInstance.config.mode === "range") {
+                // Adiciona verificação para datas válidas e tratamento para apenas uma data
+                if (startDate && endDate && !isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+                    pickerInstance.setDate([startDate, endDate], true);
+                } else if (startDate && !isNaN(startDate.getTime())) { // Se apenas a data de início for fornecida
+                     pickerInstance.setDate(startDate, true);
+                } else {
+                    pickerInstance.clear();
+                }
+            } else { // Para modo de data única
+                if (startDate && !isNaN(startDate.getTime())) {
+                    pickerInstance.setDate(startDate, true);
+                } else {
+                    pickerInstance.clear();
+                }
+            }
+
+            if (hasValidDates) {
+                if (isRelevantToPrePos) {
+                    prePosAtivo = true;
+                }
+                if (isRelevantToMontagemInfra) {
+                    montagemInfraAtivo = true;
+                }
+            }
+
+        } else {
+            console.warn(`[preencherFormularioComOrcamento] Instância Flatpickr para ID '${id}' não encontrada ou inválida. Não foi possível preencher.`);
+        }
+    }
+
+    const checkPrePos = document.getElementById('prepos');
+    const checkMontagemInfra = document.getElementById('ativo'); // Assuma este ID
+
+    console.log("CHECKS PARA ATIVAR", checkPrePos, checkMontagemInfra);
+
+    // 1. Pré/Pós Evento
+    if (checkPrePos) {
+        checkPrePos.checked = prePosAtivo;
+        // Se você tiver uma função que atualiza a visibilidade, chame-a aqui
+        // Ex: toggleFieldVisibility('checkPrePos', 'periodoPrePosContainer', prePosAtivo);
+        // Ou chame a função que é ativada no evento 'change' do checkbox:
+        if (typeof atualizarVisibilidadePrePos === 'function') {
+             atualizarVisibilidadePrePos(); // A função deve ler o .checked e agir
+        }
+    }
+
+    // 2. Montagem/Desmontagem Infra
+    if (checkMontagemInfra) {
+        checkMontagemInfra.checked = montagemInfraAtivo;
+        // Ex: toggleFieldVisibility('checkMontagemInfra', 'periodoMontagemInfraContainer', montagemInfraAtivo);
+        // Ou chame a função de atualização de visibilidade:
+        if (typeof atualizarVisibilidadeInfra === 'function') {
+            atualizarVisibilidadeInfra();
+        }
+    }
+
+    // Preencher campos de texto
+    const obsItensInput = document.getElementById('Observacao');
+    if (obsItensInput) {
+        obsItensInput.value = orcamento.obsitens || '';
+    } else {
+        console.warn("Elemento com ID 'Observacao' (Observações sobre os Itens) não encontrado.");
+    }
+
+    const obsPropostaInput = document.getElementById('ObservacaoProposta');
+    if (obsPropostaInput) {
+        obsPropostaInput.value = orcamento.obsproposta || '';
+    } else {
+        console.warn("Elemento com ID 'ObservacaoProposta' (Observações sobre a Proposta) não encontrado.");
+    }
+
+    const formaPagamentoInput = document.getElementById('formaPagamento');
+    if (formaPagamentoInput) {
+        formaPagamentoInput.value = orcamento.formapagamento || '';
+    } else {
+        console.warn("Elemento com ID 'FormaPagamento' (Forma Pagamento) não encontrado.");
+    }
+    
+    console.log("AVISO", orcamento.indicesaplicados);
+    const avisoReajusteInput = document.getElementById('avisoReajusteMensagem');
+    if (avisoReajusteInput) {
+         avisoReajusteInput.textContent = orcamento.indicesaplicados || '';
+    } else {
+        console.warn("Elemento com ID 'avisoReajusteMensagem' não encontrado.");
+    }
+
+    const totalGeralVdaInput = document.getElementById('totalGeralVda');
+    if (totalGeralVdaInput) totalGeralVdaInput.value = formatarMoeda(orcamento.totgeralvda || 0);
+
+    const totalGeralCtoInput = document.getElementById('totalGeralCto');
+    if (totalGeralCtoInput) totalGeralCtoInput.value = formatarMoeda(orcamento.totgeralcto || 0);
+
+    const totalAjdCustoInput = document.getElementById('totalAjdCusto');
+    if (totalAjdCustoInput) totalAjdCustoInput.value = formatarMoeda(orcamento.totajdcto || 0);
+
+    const totalGeralInput = document.getElementById('totalGeral');
+    if (totalGeralCtoInput && totalAjdCustoInput && totalGeralInput) {
+        // Obter os valores dos campos.
+        // Use uma função para remover a formatação de moeda e converter para número.
+        const valorGeralCto = desformatarMoeda(totalGeralCtoInput.value);
+        const valorAjdCusto = desformatarMoeda(totalAjdCustoInput.value);
+
+        // Realizar a soma
+        const somaTotal = valorGeralCto + valorAjdCusto;
+
+        // Formatar o resultado de volta para moeda e atribuir ao campo totalGeral
+        totalGeralInput.value = formatarMoeda(somaTotal);
+    } else {
+        console.warn("Um ou mais elementos de input (totalGeralCto, totalAjdCusto, totalGeral) não foram encontrados.");
+    }
+
+    const lucroInput = document.getElementById('Lucro');
+    if (lucroInput) lucroInput.value = formatarMoeda(orcamento.lucrobruto || 0);
+
+    const percentLucroInput = document.getElementById('percentLucro');
+    if (percentLucroInput) percentLucroInput.value = formatarPercentual(orcamento.percentlucro || 0);
+
+    const descontoInput = document.getElementById('Desconto');
+    if (descontoInput) {
+        // Converte para número antes de toFixed
+        descontoInput.value = parseFloat(orcamento.desconto || 0).toFixed(2);
+    } else {
+        console.warn("Elemento com ID 'Desconto' não encontrado.");
+    }
+
+    const percentDescInput = document.getElementById('percentDesc');
+    if (percentDescInput) {
+        percentDescInput.value = formatarPercentual(parseFloat(orcamento.percentdesconto || 0));
+    } else {
+        console.warn("Elemento com ID 'percentDesc' não encontrado.");
+    }
+
+    const acrescimoInput = document.getElementById('Acrescimo');
+    if (acrescimoInput) {
+        // Converte para número antes de toFixed
+        acrescimoInput.value = parseFloat(orcamento.acrescimo || 0).toFixed(2);
+    } else {
+        console.warn("Elemento com ID 'Acrescimo' não encontrado.");
+    }
+
+    const percentAcrescInput = document.getElementById('percentAcresc');
+    if (percentAcrescInput) {
+        percentAcrescInput.value = formatarPercentual(parseFloat(orcamento.percentacrescimo || 0));
+    } else {
+        console.warn("Elemento com ID 'percentAcresc' não encontrado.");
+    }
+
+    const lucroRealInput = document.getElementById('lucroReal');
+    if (lucroRealInput) lucroRealInput.value = formatarMoeda(orcamento.lucroreal || 0);
+
+    const percentRealInput = document.getElementById('percentReal');
+    if (percentRealInput) percentRealInput.value = formatarPercentual(orcamento.percentlucroreal || 0);
+
+    const valorImpostoInput = document.getElementById('valorImposto');
+    if (valorImpostoInput) valorImpostoInput.value = formatarMoeda(orcamento.vlrimposto || 0);
+  
+    const percentImpostoInput = document.getElementById('percentImposto');
+    if (percentImpostoInput) percentImpostoInput.value = formatarPercentual(orcamento.percentimposto || 0);
+
+    const valorCtoFixoInput = document.getElementById('valorCustoFixo');
+    if (valorCtoFixoInput) valorCtoFixoInput.value = formatarMoeda(orcamento.vlrctofixo || 0);
+
+    const percentCtoFixoInput = document.getElementById('percentCustoFixo');
+    if (percentCtoFixoInput) percentCtoFixoInput.value = formatarPercentual(orcamento.percentctofixo || 0);
+
+    const valorClienteInput = document.getElementById('valorCliente');
+    if (valorClienteInput) valorClienteInput.value = formatarMoeda(orcamento.vlrcliente || 0);
+
+    console.log("VALOR DO CLIENTE VINDO DO BANCO", orcamento.vlrcliente || 0, orcamento.vlrctofixo, orcamento.percentctofixo);
+
+   // preencherItensOrcamentoTabela(orcamento.itens || []);
+
+    if (orcamento.itens && orcamento.itens.length > 0) {
+        preencherItensOrcamentoTabela(orcamento.itens); // Chamada crucial que gera os inputs
+    } else {
+        console.log("Orçamento carregado não possui itens ou array de itens está vazio.");
+        preencherItensOrcamentoTabela([]); // Limpa a tabela se não houver itens
+    }
+    
+    if (localMontagemSelect) { // Verifica se o select existe antes de chamar
+        atualizarUFOrc(localMontagemSelect);
+    }
+
+    // ========================================================
+    // ⭐ NOVO BLOCO DE BLOQUEIO NO FINAL (SOLUÇÃO) ⭐
+    // O status é verificado novamente após todos os campos estarem preenchidos/criados.
+    // ========================================================
+    const statusFinal = document.getElementById('Status')?.value;
+    if (statusFinal === 'F') {
+        console.log("Status 'F' detectado no final da carga. Bloqueando campos.");
+        bloquearCamposSeFechado(); 
     }
-    window.orcamentoAtual = orcamento; 
-
-    const idOrcamentoInput = document.getElementById('idOrcamento');
-    if (idOrcamentoInput) { // Adicionado if para proteger o acesso a .value
-        idOrcamentoInput.value = orcamento.idorcamento || '';
-    } else {
-        console.warn("Elemento com ID 'idOrcamento' não encontrado.");
-    }
-
-    const nrOrcamentoInput = document.getElementById('nrOrcamento');
-    nrOrcamentoOriginal = nrOrcamentoInput.value;
-    if (nrOrcamentoInput) { // Adicionado if
-        nrOrcamentoInput.value = orcamento.nrorcamento || '';
-    } else {
-        console.warn("Elemento com ID 'nrOrcamento' não encontrado.");
-    }
-
-    const nomenclaturaInput = document.getElementById('nomenclatura');
-    if (nomenclaturaInput) { // Adicionado if
-        nomenclaturaInput.value = orcamento.nomenclatura || '';
-    } else {
-        console.warn("Elemento 'nomenclatura' não encontrado.");
-    }
-
-    // Define os valores dos selects.
-    // Como os 'value' das options agora são os IDs, a atribuição direta funciona.
-    const statusInput = document.getElementById('Status'); // Seu HTML mostra input type="text"
-
-    if (statusInput) {
-        statusInput.value = orcamento.status || '';
-        console.log("Status", statusInput.value);
-
-        if (statusInput.value === 'F'){           
-            bloquearCamposSeFechado();
-        }
-    } else {
-        console.warn("Elemento com ID 'Status' não encontrado.");
-    }
-
-    const edicaoInput = document.getElementById('edicao');
-    if (edicaoInput) {
-        edicaoInput.value = orcamento.edicao || '';
-        console.log("Edição", edicaoInput.value);        
-    } else {
-        console.warn("Elemento com ID 'Edição' não encontrado.");
-    }
-
-    const clienteSelect = document.querySelector('.idCliente');
-    if (clienteSelect) {
-        clienteSelect.value = orcamento.idcliente || '';
-    } else {
-        console.warn("Elemento com classe '.idCliente' não encontrado.");
-    }
-
-    const eventoSelect = document.querySelector('.idEvento');
-    if (eventoSelect) {
-        eventoSelect.value = orcamento.idevento || '';
-    } else {
-        console.warn("Elemento com classe '.idEvento' não encontrado.");
-    }
-
-    const localMontagemSelect = document.querySelector('.idMontagem');
-    if (localMontagemSelect) {
-        localMontagemSelect.value = orcamento.idmontagem || '';
-        // --- NOVO: Preencher o campo UF da montagem e atualizar visibilidade ---
-        const ufMontagemInput = document.getElementById('ufmontagem');
-        if (ufMontagemInput) {
-            ufMontagemInput.value = orcamento.ufmontagem || '';
-        } else {
-            console.warn("Elemento com ID 'ufmontagem' não encontrado.");
-        }
-
-        atualizarUFOrc(localMontagemSelect);
-
-        if (orcamento.idmontagem) {
-             await carregarPavilhaoOrc(orcamento.idmontagem);
-        } else {
-             await carregarPavilhaoOrc(''); // Limpa o select se não houver montagem
-        }
-
-    } else {
-        console.warn("Elemento com classe '.idMontagem' não encontrado.");
-    }
-   
-
-    if (orcamento.pavilhoes && orcamento.pavilhoes.length > 0) {
-    // Popula a variável global `selectedPavilhoes`
-    // O `orcamento.pavilhoes` deve ser um array de objetos, ex: [{id: 8, nomepavilhao: "nome"}, ...]
-        selectedPavilhoes = orcamento.pavilhoes.map(p => ({
-            id: p.id, // Supondo que o ID é 'id'
-            name: p.nomepavilhao // E o nome é 'nomepavilhao'
-        }));
-    } else {
-        selectedPavilhoes = [];
-    }
-
-    // Chama a função que já sabe como preencher os inputs corretamente
-    updatePavilhaoDisplayInputs();
-
-    for (const id in flatpickrInstances) {
-        const pickerInstance = flatpickrInstances[id];
-
-        if (pickerInstance && typeof pickerInstance.setDate === 'function' && pickerInstance.config) {
-            let inicio = null;
-            let fim = null;
-
-            let isRelevantToPrePos = false; // Garante que seja redefinida em cada loop
-            let isRelevantToMontagemInfra = false; // Garante que seja redefinida em cada loop
-
-            switch(id) {
-                case 'periodoPreEvento':
-                    inicio = orcamento.dtinipreevento;
-                    fim = orcamento.dtfimpreevento;
-                    isRelevantToPrePos = true;
-                    break;
-                case 'periodoInfraMontagem':
-                    inicio = orcamento.dtiniinframontagem;
-                    fim = orcamento.dtfiminframontagem;
-                    isRelevantToMontagemInfra = true;
-                    break;
-                case 'periodoMontagem':                    
-                    inicio = orcamento.dtinimontagem;
-                    fim = orcamento.dtfimmontagem;
-                    break;
-                case 'periodoMarcacao':
-                    inicio = orcamento.dtinimarcacao;
-                    fim = orcamento.dtfimmarcacao;
-                    break;
-                case 'periodoRealizacao':
-                    inicio = orcamento.dtinirealizacao;
-                    fim = orcamento.dtfimrealizacao;
-                    break;
-                case 'periodoDesmontagem':
-                    inicio = orcamento.dtinidesmontagem;
-                    fim = orcamento.dtfimdesmontagem;
-                    break;
-                case 'periodoDesmontagemInfra':
-                    inicio = orcamento.dtiniinfradesmontagem;
-                    fim = orcamento.dtfiminfradesmontagem;
-                    break;
-                case 'periodoPosEvento':
-                    inicio = orcamento.dtiniposevento;
-                    fim = orcamento.dtfimposevento;
-                    isRelevantToPrePos = true;
-                    break;
-            }
-
-            const startDate = inicio ? new Date(inicio) : null;
-            const endDate = fim ? new Date(fim) : null;
-
-            const hasValidDates = (startDate && !isNaN(startDate.getTime())) || (endDate && !isNaN(endDate.getTime()));
-
-            if (pickerInstance.config.mode === "range") {
-                // Adiciona verificação para datas válidas e tratamento para apenas uma data
-                if (startDate && endDate && !isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
-                    pickerInstance.setDate([startDate, endDate], true);
-                } else if (startDate && !isNaN(startDate.getTime())) { // Se apenas a data de início for fornecida
-                     pickerInstance.setDate(startDate, true);
-                } else {
-                    pickerInstance.clear();
-                }
-            } else { // Para modo de data única
-                if (startDate && !isNaN(startDate.getTime())) {
-                    pickerInstance.setDate(startDate, true);
-                } else {
-                    pickerInstance.clear();
-                }
-            }
-
-            if (hasValidDates) {
-                if (isRelevantToPrePos) {
-                    prePosAtivo = true;
-                }
-                if (isRelevantToMontagemInfra) {
-                    montagemInfraAtivo = true;
-                }
-            }
-
-        } else {
-            console.warn(`[preencherFormularioComOrcamento] Instância Flatpickr para ID '${id}' não encontrada ou inválida. Não foi possível preencher.`);
-        }
-    }
-
-    const checkPrePos = document.getElementById('prepos');
-    const checkMontagemInfra = document.getElementById('ativo'); // Assuma este ID
-
-    console.log("CHECKS PARA ATIVAR", checkPrePos, checkMontagemInfra);
-
-    // 1. Pré/Pós Evento
-    if (checkPrePos) {
-        checkPrePos.checked = prePosAtivo;
-        // Se você tiver uma função que atualiza a visibilidade, chame-a aqui
-        // Ex: toggleFieldVisibility('checkPrePos', 'periodoPrePosContainer', prePosAtivo);
-        // Ou chame a função que é ativada no evento 'change' do checkbox:
-        if (typeof atualizarVisibilidadePrePos === 'function') {
-             atualizarVisibilidadePrePos(); // A função deve ler o .checked e agir
-        }
-    }
-
-    // 2. Montagem/Desmontagem Infra
-    if (checkMontagemInfra) {
-        checkMontagemInfra.checked = montagemInfraAtivo;
-        // Ex: toggleFieldVisibility('checkMontagemInfra', 'periodoMontagemInfraContainer', montagemInfraAtivo);
-        // Ou chame a função de atualização de visibilidade:
-        if (typeof atualizarVisibilidadeInfra === 'function') {
-            atualizarVisibilidadeInfra();
-        }
-    }
-
-    // Preencher campos de texto
-    const obsItensInput = document.getElementById('Observacao');
-    if (obsItensInput) {
-        obsItensInput.value = orcamento.obsitens || '';
-    } else {
-        console.warn("Elemento com ID 'Observacao' (Observações sobre os Itens) não encontrado.");
-    }
-
-    const obsPropostaInput = document.getElementById('ObservacaoProposta');
-    if (obsPropostaInput) {
-        obsPropostaInput.value = orcamento.obsproposta || '';
-    } else {
-        console.warn("Elemento com ID 'ObservacaoProposta' (Observações sobre a Proposta) não encontrado.");
-    }
-
-    const formaPagamentoInput = document.getElementById('formaPagamento');
-    if (formaPagamentoInput) {
-        formaPagamentoInput.value = orcamento.formapagamento || '';
-    } else {
-        console.warn("Elemento com ID 'FormaPagamento' (Forma Pagamento) não encontrado.");
-    }
-    
-    console.log("AVISO", orcamento.indicesaplicados);
-    const avisoReajusteInput = document.getElementById('avisoReajusteMensagem');
-    if (avisoReajusteInput) {
-         avisoReajusteInput.textContent = orcamento.indicesaplicados || '';
-    } else {
-        console.warn("Elemento com ID 'avisoReajusteMensagem' não encontrado.");
-    }
-
-    const totalGeralVdaInput = document.getElementById('totalGeralVda');
-    if (totalGeralVdaInput) totalGeralVdaInput.value = formatarMoeda(orcamento.totgeralvda || 0);
-
-    const totalGeralCtoInput = document.getElementById('totalGeralCto');
-    if (totalGeralCtoInput) totalGeralCtoInput.value = formatarMoeda(orcamento.totgeralcto || 0);
-
-    const totalAjdCustoInput = document.getElementById('totalAjdCusto');
-    if (totalAjdCustoInput) totalAjdCustoInput.value = formatarMoeda(orcamento.totajdcto || 0);
-
-    const totalGeralInput = document.getElementById('totalGeral');
-    if (totalGeralCtoInput && totalAjdCustoInput && totalGeralInput) {
-        // Obter os valores dos campos.
-        // Use uma função para remover a formatação de moeda e converter para número.
-        const valorGeralCto = desformatarMoeda(totalGeralCtoInput.value);
-        const valorAjdCusto = desformatarMoeda(totalAjdCustoInput.value);
-
-        // Realizar a soma
-        const somaTotal = valorGeralCto + valorAjdCusto;
-
-        // Formatar o resultado de volta para moeda e atribuir ao campo totalGeral
-        totalGeralInput.value = formatarMoeda(somaTotal);
-    } else {
-        console.warn("Um ou mais elementos de input (totalGeralCto, totalAjdCusto, totalGeral) não foram encontrados.");
-    }
-
-    const lucroInput = document.getElementById('Lucro');
-    if (lucroInput) lucroInput.value = formatarMoeda(orcamento.lucrobruto || 0);
-
-    const percentLucroInput = document.getElementById('percentLucro');
-    if (percentLucroInput) percentLucroInput.value = formatarPercentual(orcamento.percentlucro || 0);
-
-    const descontoInput = document.getElementById('Desconto');
-    if (descontoInput) {
-        // Converte para número antes de toFixed
-        descontoInput.value = parseFloat(orcamento.desconto || 0).toFixed(2);
-    } else {
-        console.warn("Elemento com ID 'Desconto' não encontrado.");
-    }
-
-    const percentDescInput = document.getElementById('percentDesc');
-    if (percentDescInput) {
-        percentDescInput.value = formatarPercentual(parseFloat(orcamento.percentdesconto || 0));
-    } else {
-        console.warn("Elemento com ID 'percentDesc' não encontrado.");
-    }
-
-    const acrescimoInput = document.getElementById('Acrescimo');
-    if (acrescimoInput) {
-        // Converte para número antes de toFixed
-        acrescimoInput.value = parseFloat(orcamento.acrescimo || 0).toFixed(2);
-    } else {
-        console.warn("Elemento com ID 'Acrescimo' não encontrado.");
-    }
-
-    const percentAcrescInput = document.getElementById('percentAcresc');
-    if (percentAcrescInput) {
-        percentAcrescInput.value = formatarPercentual(parseFloat(orcamento.percentacrescimo || 0));
-    } else {
-        console.warn("Elemento com ID 'percentAcresc' não encontrado.");
-    }
-
-    const lucroRealInput = document.getElementById('lucroReal');
-    if (lucroRealInput) lucroRealInput.value = formatarMoeda(orcamento.lucroreal || 0);
-
-    const percentRealInput = document.getElementById('percentReal');
-    if (percentRealInput) percentRealInput.value = formatarPercentual(orcamento.percentlucroreal || 0);
-
-    const valorImpostoInput = document.getElementById('valorImposto');
-    if (valorImpostoInput) valorImpostoInput.value = formatarMoeda(orcamento.vlrimposto || 0);
-  
-    const percentImpostoInput = document.getElementById('percentImposto');
-    if (percentImpostoInput) percentImpostoInput.value = formatarPercentual(orcamento.percentimposto || 0);
-
-    const valorCtoFixoInput = document.getElementById('valorCustoFixo');
-    if (valorCtoFixoInput) valorCtoFixoInput.value = formatarMoeda(orcamento.vlrctofixo || 0);
-
-    const percentCtoFixoInput = document.getElementById('percentCustoFixo');
-    if (percentCtoFixoInput) percentCtoFixoInput.value = formatarPercentual(orcamento.percentctofixo || 0);
-
-    const valorClienteInput = document.getElementById('valorCliente');
-    if (valorClienteInput) valorClienteInput.value = formatarMoeda(orcamento.vlrcliente || 0);
-
-    console.log("VALOR DO CLIENTE VINDO DO BANCO", orcamento.vlrcliente || 0, orcamento.vlrctofixo, orcamento.percentctofixo);
-
-   // preencherItensOrcamentoTabela(orcamento.itens || []);
-
-    if (orcamento.itens && orcamento.itens.length > 0) {
-        preencherItensOrcamentoTabela(orcamento.itens); // <--- ESTA CHAMADA É CRUCIAL
-    } else {
-        console.log("Orçamento carregado não possui itens ou array de itens está vazio.");
-        preencherItensOrcamentoTabela([]); // Limpa a tabela se não houver itens
-    }
-    if (localMontagemSelect) { // Verifica se o select existe antes de chamar
-        atualizarUFOrc(localMontagemSelect);
-    }
+    // ========================================================
 }
 
 

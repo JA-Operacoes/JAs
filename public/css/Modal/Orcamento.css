@@ -489,7 +489,7 @@
   input.preenchido ~ label {
     top: -3px;
     left: 5%;
-    font-size: 12px;
+    font-size: 11px;
     background: #cacaca;
     margin-left: 10px;
   }
@@ -624,15 +624,17 @@ select #idCliente, #idEvento{
 
   textarea{
     font-family: var(--Font-primary);
-    width: 255px;
-    height: 90px;
+    width: 450px;
+    height: 100px;
     border-radius: 6px;
     font-size: 15px;
     border: 1px solid #000000;
     background: white;
     color: #000000;
     overflow-y: auto;
+    scrollbar-width: thin;
     margin-left: 15px;
+    padding: 10px;
     gap: 5px;
   }
 
@@ -843,6 +845,7 @@ select #idCliente, #idEvento{
     max-height: 350px;
     overflow-x: scroll;
     overflow-y: scroll;
+    scrollbar-width: thin;
   }
   
   table {
