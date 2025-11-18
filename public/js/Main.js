@@ -3030,42 +3030,52 @@ atualizarResumoPedidos();
 
 
 async function inicializarCardVencimentos() {
-    const temAcessoFinanceiro = usuarioTemPermissaoFinanceiro();
-    console.log("Usuário tem permissão Financeiro?", temAcessoFinanceiro);
+    // Checa as duas permissões
+    const eMaster = usuarioTemPermissao();
+    const eFinanceiro = usuarioTemPermissaoFinanceiro();
 
-    // 1. Seleciona o slot principal que será reutilizado
-    const cardSlotPrincipal = document.getElementById('cardSlotPrincipal');
-    
-    // 2. Seleciona o template escondido com o conteúdo de Vencimentos
-    const vencimentosTemplate = document.getElementById('vencimentosTemplate');
+    // Seleciona os containers principais
+    const cardVencimentos = document.getElementById('cardContainerVencimentos');
+    const cardOrcamentos = document.getElementById('cardContainerOrcamentos');
 
-    if (!cardSlotPrincipal || !vencimentosTemplate) {
-        console.warn("Elemento HTML essencial não encontrado (cardSlotPrincipal ou vencimentosTemplate).");
+    if (!cardVencimentos || !cardOrcamentos) {
+        console.warn("Um dos cards não foi encontrado (Vencimentos ou Orçamentos).");
         return;
     }
 
-    if (temAcessoFinanceiro) {
-        // AÇÃO: Substituir o conteúdo do slot principal pelo template de Vencimentos.
+    // Padrão: Ambos ocultos, depois exibimos o(s) necessário(s)
+    cardVencimentos.style.display = 'none';
+    cardOrcamentos.style.display = 'none';
+    
+    // ===========================================
+    // Lógica de Visibilidade
+    // ===========================================
+    
+    if (eMaster) {
+        // Se for Master: Mostra AMBOS
+        cardOrcamentos.style.display = 'flex';
+        cardVencimentos.style.display = 'flex';
         
-        // 1. Clona o conteúdo do template (que é o HTML de Vencimentos)
-        const vencimentosContent = vencimentosTemplate.content.cloneNode(true);
-        
-        // 2. O slot principal recebe o novo conteúdo (substituindo o de Orçamentos)
-        cardSlotPrincipal.innerHTML = ''; // Limpa o conteúdo anterior
-        cardSlotPrincipal.appendChild(vencimentosContent);
-        
-        // 3. Carrega os dados (atualizando os IDs injetados)
+        // Carrega dados de Vencimentos (o Master tem acesso, presumivelmente)
         carregarDadosVencimentos();
-    } else {
-        // AÇÃO: Manter o card de Orçamentos (que é o conteúdo inicial do slot)
+    } 
+    else if (eFinanceiro) {
+        // Se for Financeiro (mas não Master): Mostra APENAS VENCIMENTOS
+        cardVencimentos.style.display = 'flex';
         
-        // 1. Remove o template para limpeza do DOM (opcional, já que <template> não renderiza)
-        vencimentosTemplate.remove();
+        // Carrega dados
+        carregarDadosVencimentos();
         
-        // ℹ️ Se houver, chame aqui a função para carregar dados de Orçamentos
-        // carregarDadosOrcamentos(); 
+        // Orçamentos permanece oculto ('none', definido no início)
+    } 
+    else {
+        // Se for Nenhum (não Master e não Financeiro): Mostra APENAS ORÇAMENTOS
+        cardOrcamentos.style.display = 'flex';
+        
+        // Vencimentos permanece oculto ('none', definido no início)
     }
 }
+
 async function carregarDadosVencimentos() {
     try {
         // ⚠️ PASSO 2: IMPLEMENTE O FETCH REAL DOS DADOS DE VENCIMENTOS
@@ -3087,6 +3097,8 @@ async function carregarDadosVencimentos() {
         document.getElementById('vencimentosAtrasados').textContent = '-';
     }
 }
+
+
 
 
 

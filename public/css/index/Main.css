@@ -109,7 +109,7 @@ main#conteudo {
     margin-left: 10px;
 }
 
-.card-orcamentos, .card-eventos, .card-atividades, .card-financeiro, .card-eventos-em-abertos {
+.card-orcamentos, .card-eventos, .card-atividades, .card-financeiro, .card-eventos-em-abertos, .card-vencimentos {
   display: flex;
   flex-direction: column;
   gap: 15px;
@@ -117,27 +117,27 @@ main#conteudo {
 }
 
 /* Linha do título + total */
-.orc-header, .evt-header, .ativ-header, .fin-header {
+.orc-header, .evt-header, .ativ-header, .fin-header, .vec-header {
   display: flex;
   justify-content: space-between;
   font-size: 18px;
   font-weight: 600;
 }
 
-.orc-total, .ativ-total ,.ativ-title, .fin-total, .fin-title {
+.orc-total, .ativ-total ,.ativ-title, .fin-total, .fin-title, .vec-title {
   font-size: 22px;
   font-weight: bold;
 }
 
 /* Linha com abertos + emoji + fechados */
-.orc-body, .evt-body, .fin-body {
+.orc-body, .evt-body, .fin-body, .vec-body {
   display: flex;
   flex-direction: column; /* coloca os itens em coluna */
   gap: 8px; /* espaço entre as linhas */
   font-size: 16px;
 }
 
-.evt-body span , .ativ-body span,.fin-body span, .orc-body span{
+.evt-body span , .ativ-body span,.fin-body span, .orc-body span, .vec-body span {
   display: flex;
   justify-content: space-between; /* label de um lado e número do outro */
   font-weight: 500;
@@ -152,6 +152,10 @@ main#conteudo {
   font-size: 14px;
   color: #ffffff;
 } 
+
+#cardContainerVencimentos{
+  animation: pulsar-vermelho 1.5s infinite ease-in-out;
+}
 
 
 
@@ -851,6 +855,14 @@ span.verMais {
   0% { box-shadow: 0 0 0 0 rgba(249, 22, 22, 0.6); }
   70% { box-shadow: 0 0 0 10px rgba(249, 22, 22, 0); }
   100% { box-shadow: 0 0 0 0 rgba(249, 22, 22, 0); }
+}
+@keyframes pulsar-vermelho2 {
+  0% { box-shadow: 0 0 0 0 rgba(249, 22, 22, 0.6); }
+  0% { background-color: 0 0 0 0 rgba(249, 22, 22, 0.6); }
+  70% { box-shadow: 0 0 0 10px rgba(249, 22, 22, 0); }
+  70% { background-color: 0 0 0 10px rgba(249, 22, 22, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(249, 22, 22, 0); }
+  100% { background-color: 0 0 0 0 rgba(249, 22, 22, 0); }
 }
 
 @keyframes pulsar-amarelo {

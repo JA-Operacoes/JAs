@@ -809,6 +809,23 @@ input#statusMeiaDiaria.status-Rejeitado {
   gap: 5px;
 }
 
+.Selects-temporario {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    margin: 10px 0 10px 30%;
+}
+
+.Selects-temporario p{
+  margin-top: 20px;
+}
+
+select#nmPavilhao {
+    height: 100px;
+    cursor: pointer;
+}
+
 .field {
   display: flex;
   flex-direction: column;
