@@ -505,6 +505,22 @@ border: 1px solid #dc3545;
   opacity: 1;
 }
 
+
+.checkbox input[type="checkbox"]:disabled {
+    opacity: 0.4; /* Torna a caixa de seleção mais transparente */
+    cursor: not-allowed;
+}
+
+/* Seleciona o RÓTULO (label) adjacente a um checkbox desabilitado */
+/* O seletor > .Vertical garante que apenas os elementos filhos diretos da div.checkbox sejam afetados, */
+/* mas o seletor mais simples do "sibling" + label é suficiente e mais direto. */
+.checkbox input[type="checkbox"]:disabled + label {
+    color: #969292; /* Cor cinza claro para o texto */
+    cursor: not-allowed;
+    /* opcional: pode adicionar um efeito tracejado sutil se quiser */
+    text-decoration: none;
+}
+
 #apelidoFuncionario, #nmFuncionario.nmFuncionario {
   width: 550px;
 }
@@ -696,6 +712,18 @@ input#statusMeiaDiaria.status-Rejeitado {
     color: green;
 }
 
+.nmPavilhao option:checked {
+    /* Sugestão 1: Mudar a cor do texto para um azul forte */
+    background-color: var(--primary-color);
+    color: var(--font-color);
+    
+    /* Sugestão 2: Mudar a cor de fundo (pode anular a cor padrão de seleção do SO) */
+    /* background-color: #e0f0ff; */ 
+    
+    /* Sugestão 3: Tornar o texto em negrito */
+    font-weight: bold;
+}
+
 .btnEnviar {
     /* (Seus estilos de cor azul, etc.) */
     cursor: pointer;
@@ -726,6 +754,8 @@ input#statusMeiaDiaria.status-Rejeitado {
   justify-content: center;
   align-items: center;
 }
+
+
 
 
 .form,
@@ -1163,6 +1193,10 @@ input.datasEvento.form-control.input {
 
 input.diariaDobrada.form-control.input, .meiaDiaria.form-control.input {
     width: 900px;
+}
+
+.flatpickr-input[data-input] {
+    display: none;
 }
 
 #containerStatusDiariaDobrada,

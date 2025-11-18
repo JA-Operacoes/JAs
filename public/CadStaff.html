@@ -215,10 +215,10 @@
                   </div>
 
                   <div class="field">
-                    <label for="nmPavilhao">Pavilhão:</label>
+                    <label for="nmPavilhao">Selecione o(s) Pavilhão(ões):</label>
                     <input type="hidden" id="idPavilhao" name="idPavilhao">
-                    <select class="nmPavilhao" name="nmPavilhao" id="nmPavilhao" required>
-                      <option value="" selected disabled>Selecione o Pavilhão</option>
+                    <select class="nmPavilhao" name="nmPavilhao" id="nmPavilhao" multiple required>
+                      <!-- <option value="" selected disabled></option> -->
                     </select>
                   </div>
 
@@ -256,17 +256,21 @@
                     </div>
                 </div> -->
                 <div id="containerViagens">
-                  <div class="checkbox">
+                  <div class="checkbox">                    
                       <div class="Vertical">
-                        <label for="viagem1Check">Alimentação Viagem  (1 - Almoço+Jantar)</label>
+                        <label for="viagem1Check">Alimentação Viagem:  (1 - Almoço+Jantar)</label>
                         <input id="viagem1Check" type="checkbox" title="AJUDA DE CUSTO COM ALMOÇO + JANTAR"/>
                         
                       </div>
                       <div class="Vertical">
                         <label for="viagem2Check"> (2 - Café da Manhã+Almoço+Jantar)</label>
-                        <input id="viagem2Check" type="checkbox" title="AJUDA DE CUSTO COM CAFÉ MANHÃ + ALMOÇO + JANTAR"/>
-                        
+                        <input id="viagem2Check" type="checkbox" title="AJUDA DE CUSTO COM CAFÉ MANHÃ + ALMOÇO + JANTAR"/>                        
                       </div>
+                      <div class="Vertical">
+                        <label for="viagem3Check"> (3 - Local)</label>
+                        <input id="viagem3Check" type="checkbox" title="AJUDA DE CUSTO LOCAL"/>                        
+                      </div>
+                      
                   </div>
                 </div>
                 <div class="form-2colunas">              
