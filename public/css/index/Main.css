@@ -433,6 +433,9 @@ main#conteudo {
   }
   .calendario {
     flex: 1;
+    height: 100%;
+    overflow-y: auto;
+    scrollbar-width: thin;
   }
   .calendario-header {
     display: flex;
@@ -1024,6 +1027,8 @@ span.nenhum-evento {
   gap: 15px;
   animation: fadeIn 0.3s ease-in-out;
   padding: 15px;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .header-equipes-evento {
