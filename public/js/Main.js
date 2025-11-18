@@ -1,6 +1,15 @@
 import { fetchComToken, aplicarTema, fetchHtmlComToken  } from '/utils/utils.js';
 
 
+const getRecordIdFromUrl = (url) => {
+    const parts = url.split('/');
+    const lastPart = parts[parts.length - 1];
+    // Retorna o último segmento se for um número, caso contrário retorna null
+    return !isNaN(parseInt(lastPart)) ? lastPart : null;
+};
+
+
+
 async function abrirModalLocal(url, modulo) {
   if (!modulo) modulo = window.moduloAtual || "Staff";
   console.log("[abrirModalLocal] iniciar:", { modulo, url });
@@ -62,6 +71,56 @@ async function abrirModalLocal(url, modulo) {
     console.error("[abrirModalLocal] falha ao carregar script do módulo:", err);
     return;
   });
+
+  // =========================================================================
+      // 🎯 PONTO DE INSERÇÃO: BUSCA DE DADOS E CARREGAMENTO DE DATAS (Edição)
+      // =========================================================================
+      const recordId = getRecordIdFromUrl(url);
+
+      console.log("RECORD ID", recordId);
+
+      if (recordId) {
+        try {
+            // 1. Busca os dados do Staff/Evento (Assumindo que o endpoint é: /staff/data/ID)
+            const dataUrl = `/${modulo.toLowerCase()}/data/${recordId}`; 
+            const staffData = await fetchComToken(dataUrl);
+            console.log("[abrirModalLocal] Dados do Staff para edição carregados:", staffData);
+
+
+            if (staffData) {
+                // Expõe os dados para que o applyModalPrefill ou o Staff.js possam usá-los
+                window.__modalFetchedData = staffData;
+                
+                const datasOrcamento = staffData.datasOrcamento.map(item => item.data); // Array de datas no formato "YYYY-MM-DD"
+                console.log("[abrirModalLocal] Datas do orçamento extraídas:", datasOrcamento);
+
+                const datasDoStaff = staffData.datasevento;
+
+                // 2. Preenchimento do Flatpickr
+                // Deve usar window.datasEventoPicker (a instância global do Flatpickr)
+//                 if (window.datasEventoPicker && datasDoStaff && Array.isArray(datasDoStaff)) {
+//                     // Define as datas. 'true' garante que o evento 'onChange' dispare o debouncedOnCriteriosChanged.
+//                     window.datasEventoPicker.setDate(datasDoStaff, true);
+//                     console.log(`[abrirModalLocal] Datas carregadas no Flatpickr: ${datasDoStaff.length} dias.`);
+//                 } else {
+//                     console.warn("[abrirModalLocal] Flatpickr ou dados de staff (datasevento) ausentes/inválidos.", { picker: !!window.datasEventoPicker, data: datasDoStaff });
+//                 }
+
+                // 3. (Opcional) Chamar o debounce para garantir o carregamento do orçamento
+                if (typeof window.debouncedOnCriteriosChanged === 'function') {
+                    window.debouncedOnCriteriosChanged();
+                    console.log("[abrirModalLocal] Verificação de orçamento (debounce) chamada.");
+                }
+                
+                // 4. (Opcional) Disparar um evento para o Staff.js preencher os outros campos
+                document.dispatchEvent(new CustomEvent("modal:data:loaded", { detail: staffData }));
+
+            }
+        } catch (error) {
+            console.error(`[abrirModalLocal] Erro ao carregar dados do ${modulo} (ID: ${recordId}):`, error);
+        }
+      }
+      // =========================================================================
 
   // mostra modal (espera elemento modal injetado)
   const modal = document.querySelector("#modal-container .modal");
@@ -132,6 +191,18 @@ async function abrirModalLocal(url, modulo) {
       console.log("[abrirModalLocal] nenhuma função de configuração detectada");
     }
 
+    // setTimeout(() => {
+    //     console.log("[abrirModalLocal] Inicializando Flatpickr com limites após atraso.");
+    //     window.inicializarFlatpickrStaffComLimites();
+    // }, 100); 
+
+    setTimeout(() => {
+        if (typeof window.configurarEventosStaff === "function") {
+            console.log("[abrirModalLocal] Chamando configurarEventosStaff após atraso.");
+            window.configurarEventosStaff();
+        }
+    }, 100); 
+
     // 4) tenta aplicar prefill imediato (se o módulo já injetou selects/inputs)
     setTimeout(() => {
       try {
@@ -158,6 +229,32 @@ async function abrirModalLocal(url, modulo) {
         }
       } catch (e) { console.warn("[abrirModalLocal] retry configurar falhou", e); }
     }, 400);
+
+    setTimeout(() => {
+      const staffData = window.__modalFetchedData;
+      const datasDoStaff = staffData?.datasevento; // Usa optional chaining para segurança
+        
+      // Verifica se o picker e os dados existem
+      if (window.datasEventoPicker && datasDoStaff && Array.isArray(datasDoStaff)) {
+          
+          // Define as datas, disparando onChange (necessário para sincronizar com Diária Dobrada/Meia Diária)
+          window.datasEventoPicker.setDate(datasDoStaff, true); 
+          
+          // 🌟 GARANTIA DE FORMATO: Força a re-renderização do altInput
+          // Isso resolve o problema de YYYY-MM-DD e múltiplos campos.
+          if (window.datasEventoPicker.altInput) {
+              window.datasEventoPicker.altInput.value = window.datasEventoPicker.formatDate(
+                  window.datasEventoPicker.selectedDates, 
+                  window.datasEventoPicker.config.altFormat
+              );
+          }
+          
+          console.log(`[abrirModalLocal] [SetDate Seguro] Datas carregadas no Flatpickr: ${datasDoStaff.length} dias, formato corrigido.`);
+
+      } else {
+          console.warn("[abrirModalLocal] [SetDate Seguro] Flatpickr ou dados de staff (datasevento) ausentes/inválidos.");
+      }
+    }, 500);
   } catch (err) {
     console.warn("[abrirModalLocal] inicialização do módulo apresentou erro", err);
   }
@@ -166,6 +263,7 @@ async function abrirModalLocal(url, modulo) {
 window.applyModalPrefill = function(rawParams) {
   try {
     console.log("[applyModalPrefill] iniciar. rawParams:", rawParams);
+    console.log("[applyModalPrefill] Parâmetros definidos:", window.__modalInitialParams);
     const raw = rawParams || window.__modalInitialParams || (window.location.search ? window.location.search.replace(/^\?/,'') : "");
     console.log("[applyModalPrefill] raw usado:", raw);
     if (!raw) {
@@ -1513,7 +1611,7 @@ async function mostrarEventosEmAberto() {
       let rota;
       try {
         if (target === "finalizados") {
-          rota = "eventos-fechados";
+          rota = "i-fechados";
           
           // **ROTA 1: EVENTOS FECHADOS**
           const resp = await fetchComToken(`/main/eventos-fechados`, { headers: { idempresa } });
@@ -1855,7 +1953,7 @@ function criarCard(evt) {
     card.appendChild(headerEvt);
     card.appendChild(bodyEvt);
     return card;
-}
+  }
 }
 
 
@@ -1981,7 +2079,13 @@ async function abrirTelaEquipesEvento(evento) {
                 nome: f.nome ?? f.descfuncao ?? f.categoria ?? f.nmfuncao ?? "Função",
                 total,
                 preenchidas,
-                concluido: total > 0 && preenchidas >= total
+                concluido: total > 0 && preenchidas >= total,
+                dtini_vaga: f.dtini_vaga ?? null,
+                dtfim_vaga: f.dtfim_vaga ?? null,
+
+                // ✅ ADICIONADO: Datas preenchidas (do staffeventos)
+                datas_staff: f.datas_staff ?? []
+
             };
         }).filter(f => f !== null); // Remove as funções que retornaram null (0/0)
     };
@@ -2049,7 +2153,7 @@ async function abrirTelaEquipesEvento(evento) {
     // renderiza lista mantendo o visual atual mas usando total/preenchidas corretos
     corpo.innerHTML = "";
     equipes.forEach(eq => {
-      // ... (Restante do código de renderização permanece o mesmo)
+      
       const equipeBox = document.createElement("div");
       equipeBox.className = "equipe-box";
 
@@ -2065,8 +2169,14 @@ async function abrirTelaEquipesEvento(evento) {
         if (total === 0) cor = "⚪";
         else if (preench === 0) cor = "🔴";
         else if (preench < total) cor = "🟡";
-        return `${f.nome}: ${cor} ${preench}/${total}`;
+
+        const periodoVaga = formatarPeriodo(f.dtini_vaga, f.dtfim_vaga);
+        console.log("Período da vaga", f.nome, f.dtini_vaga, f.dtfim_vaga, "=>", periodoVaga);
+       
+        return `${f.nome}: ${cor} (${periodoVaga}) ${preench}/${total}`;
       }).join(" | ");
+
+    // <div class="equipe-resumo">${escapeHtml(resumo || "Nenhuma função cadastrada")}</div>
 
       equipeBox.innerHTML = `
         <div class="equipe-header" role="button" tabindex="0">
@@ -2076,7 +2186,8 @@ async function abrirTelaEquipesEvento(evento) {
         <div class="barra-progresso">
           <div class="progresso" style="width:${perc}%;"></div>
         </div>
-        <div class="equipe-resumo">${escapeHtml(resumo || "Nenhuma função cadastrada")}</div>
+        
+        <div class="equipe-resumo">${resumo || "Nenhuma função cadastrada"}</div>
         <div class="equipe-actions">
           <button type="button" class="ver-funcionarios-btn">
             <i class="fas fa-users"></i> Funcionários
@@ -2379,6 +2490,11 @@ async function abrirListaFuncionarios(equipe, evento) {
     }
 }
 
+function formatarPeriodo(inicio, fim) {
+    const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+    return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
+}
+
 function abrirDetalhesEquipe(equipe, evento) {
   const painel = document.getElementById("painelDetalhes");
   if (!painel) return;
@@ -2419,9 +2535,13 @@ function abrirDetalhesEquipe(equipe, evento) {
     li.setAttribute("role", "button");
     li.tabIndex = 0;
 
+    const periodoVaga = formatarPeriodo(func.dtini_vaga, func.dtfim_vaga);
+
     const nomeSpan = document.createElement("div");
     nomeSpan.className = "func-nome";
-    nomeSpan.textContent = func.nome || func.nmfuncao || "Função";
+    // nomeSpan.textContent = func.nome || func.nmfuncao || "Função";
+
+    nomeSpan.innerHTML = `${escapeHtml(func.nome || func.nmfuncao || "Função")} <span class="func-data-vaga">(${periodoVaga})</span>`;
 
     const estadoSpan = document.createElement("div");
     estadoSpan.className = "func-estado";
@@ -2445,14 +2565,15 @@ function abrirDetalhesEquipe(equipe, evento) {
       detalhesSpan.appendChild(botao);
     }
 
+    console.log("Valor de evento.dataeventos:", evento.dataeventos);
     // Abre modal do staff utilizando a mesma lógica do Index.js (abrirModal)
     function abrirStaffModal() {
     // A variável 'concluido' é definida no escopo externo (função abrirDetalhesEquipe)
     if (concluido) return; // não abre se já concluído
 
-    const params = new URLSearchParams();
+    console.log("Objeto evento recebido:", evento);
 
-    
+    const params = new URLSearchParams();    
 
     params.set("idfuncao", func.idfuncao ?? func.idFuncao);
     params.set("nmfuncao", func.nome ?? func.nmfuncao);
@@ -2464,18 +2585,26 @@ function abrirDetalhesEquipe(equipe, evento) {
     params.set("nmcliente", evento.nmfantasia || evento.cliente || ""); 
     params.set("idevento", evento.idevento || "");
     params.set("nmevento", evento.nmevento || "");
-    
-    // Usar idcliente (assumindo que já está no objeto evento)
-    
-    
-    
-    
-   
 
+    if (Array.isArray(evento.dataeventos)) {
+      params.set("dataeventos", JSON.stringify(evento.dataeventos));
+    } else if (evento.dataeventos) {
+      params.set("dataeventos", evento.dataeventos); // Se for string, passa a string
+    }
+
+console.log("Valor de dataeventos:", evento.dataeventos);
+    
+// ✅ ADICIONANDO DATAS DA VAGA AO URL
+    params.set("dtini_vaga", func.dtini_vaga || null);
+    params.set("dtfim_vaga", func.dtfim_vaga || null);
+    // Usar idcliente (assumindo que já está no objeto evento)   
+    
+  
     console.log("Abrindo modal Staff com parâmetros:", Object.fromEntries(params.entries()));
-
+    
     // guarda os parâmetros globais para o prefill do modal
     window.__modalInitialParams = params.toString();
+    console.log("Parâmetros passados para o modal:", window.__modalInitialParams);
     window.moduloAtual = "Staff";
 
     const targetUrl = `CadStaff.html?${params.toString()}`;

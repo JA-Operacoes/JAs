@@ -1113,7 +1113,8 @@ button.ver-funcionarios-btn {
 
 .func-nome {
     display: flex;
-    width: 250px;
+    width: 550px;   
+    gap: 25px;
 }
 
 .func-estado {

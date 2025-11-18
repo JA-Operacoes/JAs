@@ -235,7 +235,7 @@ router.get("/eventos-abertos", async (req, res) => {
                 SELECT 
                     o.idevento,
                     lm.descmontagem AS nmlocalmontagem,
-                    o.idmontagem,
+                    o.idmontagem, 
                     MAX(o.nrorcamento) AS nrorcamento,
                     SUM(i.qtditens) AS total_vagas,
                     MIN(o.dtinimarcacao) AS dtinimarcacao,
@@ -257,7 +257,10 @@ router.get("/eventos-abertos", async (req, res) => {
                         SELECT json_agg(row_to_json(t))
                         FROM (
                             SELECT 
+                                eq2.idequipe,
                                 eq2.nmequipe AS equipe,
+                                i2.idfuncao, -- << ADICIONE AQUI O ID DA FUNÇÃO
+                                f2.descfuncao AS nome_funcao, -- << TALVEZ VOCÊ PRECISE DO NOME DA FUNÇÃO AQUI
                                 SUM(i2.qtditens) AS total_vagas
                             FROM orcamentoitens i2
                             JOIN funcao f2 ON f2.idfuncao = i2.idfuncao
@@ -267,7 +270,7 @@ router.get("/eventos-abertos", async (req, res) => {
                             -- ✅ FILTRO CORRIGIDO: i2.categoria = 'Produto(s)' (SUBQUERY)
                             AND i2.categoria = 'Produto(s)' 
                             --GROUP BY eq2.nmequipe, lm.descmontagem, o.idmontagem
-                            GROUP BY eq2.nmequipe
+                            GROUP BY eq2.idequipe, eq2.nmequipe, i2.idfuncao, f2.descfuncao
                         ) AS t
                     ) AS equipes_detalhes_base
                 FROM orcamentoitens i
@@ -313,6 +316,19 @@ router.get("/eventos-abertos", async (req, res) => {
                 WHERE oe.idempresa = $1 
                 GROUP BY se.idevento, eq.nmequipe
             ),
+            staff_datas_por_funcao AS (
+                SELECT
+                    se.idevento,
+                    se.idfuncao,
+                    array_agg(DISTINCT d.dt) AS datas_staff
+                FROM staffeventos se
+                LEFT JOIN LATERAL jsonb_array_elements_text(se.datasevento) AS d(dt) 
+                    ON TRUE
+                JOIN orcamentos o ON se.idevento = o.idevento
+                JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+                WHERE oe.idempresa = $1
+                GROUP BY se.idevento, se.idfuncao
+            ),
             cliente_info AS (
                 -- CTE para buscar o idcliente e nmfantasia (nome do cliente)
                 SELECT DISTINCT ON (o.idevento)
@@ -345,13 +361,18 @@ router.get("/eventos-abertos", async (req, res) => {
                 (
                     SELECT json_agg(
                         json_build_object(
+                            'idequipe', (b->>'idequipe')::int,
                             'equipe', b->>'equipe',
+                            'idfuncao', (b->>'idfuncao')::int,
+                            'nome_funcao', b->>'nome_funcao',
                             'total_vagas', (b->>'total_vagas')::int,
-                            'preenchidas', COALESCE(sp.preenchidas, 0)
+                            'preenchidas', COALESCE(sp.preenchidas, 0),
+                            'datas_staff', COALESCE(sdf.datas_staff, ARRAY[]::text[])
                         )
                     )
                     FROM json_array_elements(vo.equipes_detalhes_base) AS b
                     LEFT JOIN staff_por_equipe sp ON sp.idevento = e.idevento AND sp.nmequipe = b->>'equipe'
+                    LEFT JOIN staff_datas_por_funcao sdf ON sdf.idevento = e.idevento AND sdf.idfuncao = (b->>'idfuncao')::int
                 ) AS equipes_detalhes,
                 'aberto' AS status_evento
             FROM eventos e
@@ -397,7 +418,7 @@ router.get("/eventos-fechados", async (req, res) => {
         const baseSql = `
             WITH vagas_orc AS (
                 SELECT 
-                    o.idevento,
+                    o.idevento, o.idmontagem,
                     lm.descmontagem AS nmlocalmontagem,
                     MAX(o.nrorcamento) AS nrorcamento,
                     SUM(i.qtditens) AS total_vagas,
@@ -420,8 +441,13 @@ router.get("/eventos-fechados", async (req, res) => {
                         SELECT json_agg(row_to_json(t))
                         FROM (
                             SELECT 
+                                eq2.idequipe,
                                 eq2.nmequipe AS equipe,
-                                SUM(i2.qtditens) AS total_vagas
+                                i2.idfuncao, -- << ADICIONE AQUI O ID DA FUNÇÃO
+                                f2.descfuncao AS nome_funcao, -- << TALVEZ VOCÊ PRECISE DO NOME DA FUNÇÃO AQUI
+                                SUM(i2.qtditens) AS total_vagas,
+                                MIN(i2.periododiariasinicio) AS dtini_vaga,
+                                MAX(i2.periododiariasfim) AS dtfim_vaga
                             FROM orcamentoitens i2
                             JOIN funcao f2 ON f2.idfuncao = i2.idfuncao
                             JOIN equipe eq2 ON eq2.idequipe = f2.idequipe
@@ -429,7 +455,7 @@ router.get("/eventos-fechados", async (req, res) => {
                             WHERE o2.idevento = o.idevento
                             -- 🛑 FILTRO APLICADO: CATEGORIA 'Produto(s)' (SUBQUERY)
                             AND i2.categoria = 'Produto(s)' 
-                            GROUP BY eq2.nmequipe
+                            GROUP BY eq2.idequipe, eq2.nmequipe, i2.idfuncao, f2.descfuncao
                         ) AS t
                     ) AS equipes_detalhes_base
                 FROM orcamentoitens i
@@ -445,7 +471,7 @@ router.get("/eventos-fechados", async (req, res) => {
                     AND EXTRACT(YEAR FROM o.dtinirealizacao) = $2
                     -- 🛑 FILTRO APLICADO: CATEGORIA 'Produto(s)' (MAIN QUERY)
                     AND i.categoria = 'Produto(s)'
-                GROUP BY o.idevento, lm.descmontagem
+                GROUP BY o.idevento, o.idmontagem, lm.descmontagem
             ),
             staff_contagem AS (
                 SELECT 
@@ -475,6 +501,21 @@ router.get("/eventos-fechados", async (req, res) => {
                 WHERE oe.idempresa = $1
                 GROUP BY se.idevento, eq.nmequipe
             ),
+            staff_datas_por_funcao AS (
+                SELECT
+                    se.idevento,
+                    se.idfuncao,
+                    -- ✅ CORRIGIDO: Agrega as colunas retornadas pelo LATERAL JOIN
+                    array_agg(DISTINCT d.dt) AS datas_staff
+                FROM staffeventos se
+                -- ✅ NOVO: Usa LATERAL para expandir o array JSON em linhas
+                LEFT JOIN LATERAL jsonb_array_elements_text(se.datasevento) AS d(dt) 
+                    ON TRUE
+                JOIN orcamentos o ON se.idevento = o.idevento
+                JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+                WHERE oe.idempresa = $1
+                GROUP BY se.idevento, se.idfuncao
+            ),        
             cliente_info AS (
                 -- CTE para buscar o idcliente e nmfantasia (nome do cliente)
                 SELECT DISTINCT ON (o.idevento)
@@ -489,6 +530,7 @@ router.get("/eventos-fechados", async (req, res) => {
             SELECT 
                 e.idevento,
                 e.nmevento,
+                vo.idmontagem,
                 vo.nmlocalmontagem,
                 vo.nrorcamento,
                 ci.idcliente,      
@@ -507,13 +549,20 @@ router.get("/eventos-fechados", async (req, res) => {
                 (
                     SELECT json_agg(
                         json_build_object(
+                            'idequipe', (b->>'idequipe')::int,
                             'equipe', b->>'equipe',
+                            'idfuncao', (b->>'idfuncao')::int,
+                            'nome_funcao', b->>'nome_funcao',
                             'total_vagas', (b->>'total_vagas')::int,
-                            'preenchidas', COALESCE(sp.preenchidas, 0)
+                            'preenchidas', COALESCE(sp.preenchidas, 0),
+                            'dtini_vaga', b->>'dtini_vaga',
+                            'dtfim_vaga', b->>'dtfim_vaga',
+                            'datas_staff', COALESCE(sdf.datas_staff, ARRAY[]::text[])
                         )
                     )
                     FROM json_array_elements(vo.equipes_detalhes_base) AS b
                     LEFT JOIN staff_por_equipe sp ON sp.idevento = e.idevento AND sp.nmequipe = b->>'equipe'
+                    LEFT JOIN staff_datas_por_funcao sdf ON sdf.idevento = e.idevento AND sdf.idfuncao = (b->>'idfuncao')::int
                 ) AS equipes_detalhes,
                 'fechado' AS status_evento
             FROM eventos e
@@ -579,7 +628,9 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
          e.nmequipe AS equipe,
          f.idfuncao,
          f.descfuncao AS funcao,
-         COALESCE(SUM(oi.qtditens), 0) AS qtd_orcamento
+         COALESCE(SUM(oi.qtditens), 0) AS qtd_orcamento,
+         MIN(oi.periododiariasinicio) AS dtini_vaga,
+         MAX(oi.periododiariasfim) AS dtfim_vaga
        FROM orcamentoitens oi
        LEFT JOIN funcao f ON f.idfuncao = oi.idfuncao
        LEFT JOIN equipe e ON e.idequipe = f.idequipe
@@ -632,8 +683,27 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
     // res.status(200).json({ equipes: equipesDetalhes });
 
 
+    // 4️⃣ Busca Datas de Staff por Função
+    const { rows: datasStaffRaw } = await pool.query(
+      `SELECT
+        se.idfuncao,
+        -- Expande o array JSON em linhas e agrega novamente (resolvendo o problema 0A000)
+        array_agg(DISTINCT d.dt ORDER BY d.dt) AS datas_staff
+      FROM staffeventos se
+      LEFT JOIN LATERAL jsonb_array_elements_text(se.datasevento) AS d(dt) 
+        ON TRUE
+      WHERE se.idevento = $1 AND se.idcliente = $2 AND se.datasevento IS NOT NULL
+      GROUP BY se.idfuncao`,
+      [idevento, idcliente]
+    );
 
-    // 4️⃣ Agrupa por equipe
+    // Mapeia para fácil acesso (idfuncao -> array de datas)
+    const datasStaffMap = datasStaffRaw.reduce((acc, row) => {
+        acc[String(row.idfuncao)] = row.datas_staff;
+        return acc;
+    }, {});
+
+    // 5️⃣ Agrupa por equipe
     // 🚨 CORREÇÃO: Usar idequipe como chave e preservar idfuncao
     const equipesMap = {};
     for (const item of itensOrcamento) {
@@ -652,22 +722,31 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
         // 2. Encontra a quantidade de staff já cadastrada
         const cadastrado = staff.find(s => String(s.idfuncao) === String(item.idfuncao)); 
         const qtd_cadastrada = cadastrado ? Number(cadastrado.qtd_cadastrada) : 0;
+        
+        // 3. Obtém as datas preenchidas
+        const datas_staff = datasStaffMap[String(item.idfuncao)] || [];
 
-        // 3. Adiciona a função, PRESERVANDO o ID
+        // 4. Adiciona a função com todos os detalhes
         equipesMap[idequipeKey].funcoes.push({
             idfuncao: item.idfuncao, // ✅ idfuncao incluído
             nome: item.funcao,
             qtd_orcamento: Number(item.qtd_orcamento) || 0,
             qtd_cadastrada,
-            concluido: qtd_cadastrada >= (Number(item.qtd_orcamento) || 0)
+            concluido: qtd_cadastrada >= (Number(item.qtd_orcamento) || 0),
+            // ✅ ADICIONADO: Datas da Vaga (do itensOrcamento)
+            dtini_vaga: item.dtini_vaga,
+            dtfim_vaga: item.dtfim_vaga,
+
+            // ✅ ADICIONADO: Datas Staff (do datasStaffMap)
+            datas_staff: datas_staff
         });
     }
 
-    // 5️⃣ Monta retorno final
+    // 6️⃣ Monta retorno final
     // Usa Object.values para obter a lista de equipes já com idequipe
     const equipesDetalhes = Object.values(equipesMap);
 
-    // 6️⃣ Retorna o objeto completo com os IDs
+    // 7 Retorna o objeto completo com os IDs
     res.status(200).json({ equipes: equipesDetalhes, idmontagem });
     // // ...
 

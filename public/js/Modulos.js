@@ -44,7 +44,9 @@ function verificaModulos() {
         event.preventDefault();
 
         const idModulo = document.querySelector("#idModulo")?.value.trim();
-        const nmModulo = document.querySelector("#nmModulo")?.value.toUpperCase().trim();
+        const nmModuloBruto = document.querySelector("#nmModulo")?.value.toUpperCase().trim();
+
+        const nmModulo = formatarComoCapitalizada(nmModuloBruto);
 
         //const idModulo = document.querySelector("#idModulo")?.value; 
         //const nmModulo = document.querySelector("#nmModulo")?.value;
@@ -237,6 +239,12 @@ function verificaModulos() {
     
 //     return idsEmpresas; // Retorna um array de strings ['1', '2', '3']
 // }
+
+function formatarComoCapitalizada(texto) {
+    if (!texto) return '';
+    const textoLimpo = texto.trim().toLowerCase();
+    return textoLimpo.charAt(0).toUpperCase() + textoLimpo.slice(1);
+}
 
 function coletarEmpresasSelecionadas() {
     const select = document.getElementById('empresas-select-multiplo');
