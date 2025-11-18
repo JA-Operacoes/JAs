@@ -131,7 +131,7 @@
                     </div>
                 </div>
             </div>
-
+            
             
             <div class="cards">
                 <div class="card" id="card-agenda">
@@ -143,18 +143,32 @@
                     </div>
                 </div>
                 
-                <div class="card ">  
-                    <div class="card-orcamentos">
+    
+                <div class="card" id="cardSlotPrincipal">  
+                    <div class="card-orcamentos" id="cardOrcamentos">
+                        <div class="orc-header">
+                        <span class="orc-title">Orçamentos</span>
+                        <span id="orcamentosTotal" class="orc-total">0</span>
+                        </div>
+                        <div class="orc-body">
+                        <span>Abertos: <span id="orcamentosPendentes">0</span></span>
+                        <span>Fechados: <span id="orcamentosFechados">0</span></span>
+                        </div>
+                    </div>
+                </div> 
+
+                <template id="vencimentosTemplate">
+                    <div class="card-orcamentos"> 
                         <div class="orc-header">
-                        <span class="orc-title">Orçamentos</span>
-                        <span id="orcamentosTotal" class="orc-total">0</span>
+                            <span class="orc-title">Aviso de Vencimentos</span>
+                            <span class="orc-total" style="color: #ffc107;">🔔</span> 
                         </div>
                         <div class="orc-body">
-                        <span>Abertos: <span id="orcamentosPendentes">0</span></span>
-                        <span>Fechados: <span id="orcamentosFechados">0</span></span>
+                            <span> A Vencer (7 dias): <span id="vencimentosProximos">0</span></span>
+                            <span>Em Atraso: <span id="vencimentosAtrasados">0</span></span>
                         </div>
                     </div>
-                </div>
+                </template>
 
                     <div class="card">
                         <div class="card-eventos">

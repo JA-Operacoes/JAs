@@ -429,6 +429,16 @@ console.log("Usuário tem permissão master no staff");
   return !!permissaoStaff.pode_master; 
 }
 
+function usuarioTemPermissaoFinanceiro() {
+    if (!window.permissoes || !Array.isArray(window.permissoes)) return false;
+    console.log("Usuário tem permissão Financeiro no staff");
+    const permissaoStaff = window.permissoes.find(p => p.modulo?.toLowerCase() === "staff");
+    if (!permissaoStaff) return false;
+
+    // A flag que você usa para determinar o acesso ao financeiro
+    return !!permissaoStaff.pode_financeiro; 
+}
+
 // Evento no card financeiro
 const cardFinanceiro = document.querySelector(".card-financeiro");
 if (cardFinanceiro) {
@@ -2526,19 +2536,6 @@ function abrirDetalhesEquipe(equipe, evento) {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 // =========================
 //    Pedidos Financeiros 
 // =========================
@@ -2902,6 +2899,71 @@ setInterval(atualizarResumoPedidos, 10000);
 
 // Chamada inicial ao carregar a página
 atualizarResumoPedidos();
+
+
+// ==================================================================================
+// FUNÇÕES DE EXIBIÇÃO E CARREGAMENTO DE CARDS DO DASHBOARD
+// ==================================================================================
+
+
+async function inicializarCardVencimentos() {
+    const temAcessoFinanceiro = usuarioTemPermissaoFinanceiro();
+    console.log("Usuário tem permissão Financeiro?", temAcessoFinanceiro);
+
+    // 1. Seleciona o slot principal que será reutilizado
+    const cardSlotPrincipal = document.getElementById('cardSlotPrincipal');
+    
+    // 2. Seleciona o template escondido com o conteúdo de Vencimentos
+    const vencimentosTemplate = document.getElementById('vencimentosTemplate');
+
+    if (!cardSlotPrincipal || !vencimentosTemplate) {
+        console.warn("Elemento HTML essencial não encontrado (cardSlotPrincipal ou vencimentosTemplate).");
+        return;
+    }
+
+    if (temAcessoFinanceiro) {
+        // AÇÃO: Substituir o conteúdo do slot principal pelo template de Vencimentos.
+        
+        // 1. Clona o conteúdo do template (que é o HTML de Vencimentos)
+        const vencimentosContent = vencimentosTemplate.content.cloneNode(true);
+        
+        // 2. O slot principal recebe o novo conteúdo (substituindo o de Orçamentos)
+        cardSlotPrincipal.innerHTML = ''; // Limpa o conteúdo anterior
+        cardSlotPrincipal.appendChild(vencimentosContent);
+        
+        // 3. Carrega os dados (atualizando os IDs injetados)
+        carregarDadosVencimentos();
+    } else {
+        // AÇÃO: Manter o card de Orçamentos (que é o conteúdo inicial do slot)
+        
+        // 1. Remove o template para limpeza do DOM (opcional, já que <template> não renderiza)
+        vencimentosTemplate.remove();
+        
+        // ℹ️ Se houver, chame aqui a função para carregar dados de Orçamentos
+        // carregarDadosOrcamentos(); 
+    }
+}
+async function carregarDadosVencimentos() {
+    try {
+        // ⚠️ PASSO 2: IMPLEMENTE O FETCH REAL DOS DADOS DE VENCIMENTOS
+        // Use a sua função fetchComToken para obter os dados do backend.
+        // const dados = await fetchComToken('/financeiro/dashboard/vencimentos');
+        
+        // Exemplo de dados de retorno:
+        const dados = {
+            proximos: 5, // Títulos a vencer nos próximos X dias
+            atrasados: 2  // Títulos em atraso
+        };
+        
+        document.getElementById('vencimentosProximos').textContent = dados.proximos;
+        document.getElementById('vencimentosAtrasados').textContent = dados.atrasados;
+    } catch (err) {
+        console.error("Erro ao carregar dados de vencimentos:", err);
+        // Em caso de erro, pode ser útil definir os valores como '-' ou manter '0'
+        document.getElementById('vencimentosProximos').textContent = '-';
+        document.getElementById('vencimentosAtrasados').textContent = '-';
+    }
+}
 
 
 
@@ -3307,6 +3369,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   await atualizarResumo();
   await atualizarEventosEmAberto();
   await atualizarProximoEvento();
+  await inicializarCardVencimentos();
 });
 
 
