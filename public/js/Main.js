@@ -3160,6 +3160,24 @@ document.getElementById("card-agenda").addEventListener("click", async function(
   seletorMes.value = new Date().getMonth();
   calendarioDiv.appendChild(seletorMes);
 
+  // --- CRIAÇÃO DO CABEÇALHO DOS DIAS DA SEMANA ---
+const cabecalhoDiasSemana = document.createElement("div");
+cabecalhoDiasSemana.id = "cabecalhoDiasSemana";
+cabecalhoDiasSemana.className = "cabecalho-semana";
+
+// Nomes dos dias da semana (começando no Domingo, ajuste se necessário)
+const nomesDias = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]; 
+
+nomesDias.forEach(nome => {
+    const nomeDiaDiv = document.createElement("div");
+    nomeDiaDiv.className = "nome-dia";
+    nomeDiaDiv.textContent = nome;
+    cabecalhoDiasSemana.appendChild(nomeDiaDiv);
+});
+
+// ADICIONA O CABEÇALHO DA SEMANA
+calendarioDiv.appendChild(cabecalhoDiasSemana);
+
   // container dos dias
   const diasDiv = document.createElement("div");
   diasDiv.id = "diasCalendario";

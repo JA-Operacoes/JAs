@@ -1131,59 +1131,77 @@ router.post('/notificacoes-financeiras/atualizar-status',
 // =======================================
 router.get("/agenda", async (req, res) => {
   try {
-    const idusuario = req.usuario?.idusuario || req.headers.idusuario;
-    if (!idusuario) return res.status(400).json({ erro: "Usuário não informado" });
+  // Tenta obter o idusuario do objeto de requisição (middleware de autenticação) ou do header
+  const idusuario = req.usuario?.idusuario || req.headers.idusuario; 
+  if (!idusuario) return res.status(400).json({ erro: "Usuário não informado" });
 
-    const resultado = await pool.query(
-      `SELECT * FROM agendas WHERE idusuario = $1 ORDER BY data_evento ASC`,
-      [idusuario]
-    );
+  const resultado = await pool.query(
+  `SELECT idagenda, idusuario, titulo, descricao, data_evento, hora_evento, tipo
+    FROM agendas
+    WHERE idusuario = $1
+    ORDER BY data_evento ASC, hora_evento ASC`,
+  [idusuario]
+);
 
-    res.json(resultado.rows);
+
+  res.json(resultado.rows);
   } catch (err) {
-    console.error("Erro ao buscar agenda:", err);
-    res.status(500).json({ erro: "Erro ao buscar agenda" });
+  console.error("Erro ao buscar agenda:", err);
+  res.status(500).json({ erro: "Erro ao buscar agenda" });
   }
 });
 
+// Rota para adicionar um novo evento na agenda
 router.post("/agenda", async (req, res) => {
   try {
-    const idusuario = req.usuario?.idusuario || req.headers.idusuario;
-    const { titulo, descricao, data_evento, hora_evento, tipo } = req.body;
+  const idusuario = req.usuario?.idusuario || req.headers.idusuario;
+  const { titulo, descricao, data_evento, hora_evento, tipo } = req.body;
 
-    if (!idusuario) return res.status(400).json({ erro: "Usuário não informado" });
-    if (!titulo || !data_evento)
-      return res.status(400).json({ erro: "Título e data são obrigatórios" });
+  if (!idusuario) return res.status(400).json({ erro: "Usuário não informado" });
+  if (!titulo || !data_evento)
+  return res.status(400).json({ erro: "Título e data são obrigatórios" });
 
-    const resultado = await pool.query(
-      `INSERT INTO agendas (idusuario, titulo, descricao, data_evento, hora_evento, tipo)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING *`,
-      [idusuario, titulo, descricao, data_evento, hora_evento, tipo || "Evento"]
-    );
+  const resultado = await pool.query(
+  `INSERT INTO agendas (idusuario, titulo, descricao, data_evento, hora_evento, tipo)
+   VALUES ($1, $2, $3, $4, $5, $6)
+   RETURNING *`,
+  [idusuario, titulo, descricao, data_evento, hora_evento, tipo || "Evento"]
+);
 
-    res.status(201).json(resultado.rows[0]);
+
+  res.status(201).json(resultado.rows[0]);
   } catch (err) {
-    console.error("Erro ao salvar agenda:", err);
-    res.status(500).json({ erro: "Erro ao salvar agenda" });
+  console.error("Erro ao salvar agenda:", err);
+  res.status(500).json({ erro: "Erro ao salvar agenda" });
   }
 });
 
 
+// Rota para excluir um evento específico
 router.delete("/agenda/:idagenda", async (req, res) => {
   try {
-    const idusuario = req.usuario?.idusuario || req.headers.idusuario;
-    const { idagenda } = req.params;
+  const idusuario = req.usuario?.idusuario || req.headers.idusuario;
+  const { idagenda } = req.params;
 
-    await pool.query(
-      `DELETE FROM agendas WHERE idagenda = $1 AND idusuario = $2`,
-      [idagenda, idusuario]
-    );
+  if (!idusuario) return res.status(400).json({ erro: "Usuário não informado" });
 
-    res.json({ sucesso: true });
+  // Garantindo que o usuário só possa excluir seus próprios eventos
+  const resultado = await pool.query(
+  `DELETE FROM agendas
+    WHERE idagenda = $1 AND idusuario = $2
+    RETURNING idagenda`,
+  [idagenda, idusuario]
+);
+
+
+  if (resultado.rowCount === 0) {
+  return res.status(404).json({ erro: "Evento não encontrado ou não pertence ao usuário." });
+  }
+
+  res.json({ sucesso: true, idagenda: idagenda });
   } catch (err) {
-    console.error("Erro ao excluir evento:", err);
-    res.status(500).json({ erro: "Erro ao excluir evento" });
+  console.error("Erro ao excluir evento:", err);
+  res.status(500).json({ erro: "Erro ao excluir evento" });
   }
 });
 
