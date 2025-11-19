@@ -85,32 +85,32 @@ def gerar_contrato(dados):
 
     doc = DocxTemplate(caminho_base)
 
-    # --- Carregamento e Inserção das Imagens de Assinatura ---
+    # # --- Carregamento e Inserção das Imagens de Assinatura ---
     
-    # 1. CAMINHO PARA ASSINATURA JA (EMPRESA)
-    # O 'r' (raw string) é importante para caminhos do Windows.
-    caminho_assinatura_ja = r"C:\Users\JA Promoções\JAs\JAs\public\img\assinaturas\manuscript_26 set 2025, 10-35-11.png"
+    # # 1. CAMINHO PARA ASSINATURA JA (EMPRESA)
+    # # O 'r' (raw string) é importante para caminhos do Windows.
+    # caminho_assinatura_ja = r"C:\Users\JA Promoções\JAs\JAs\public\img\assinaturas\Assinatura-Joao.jpeg"
     
-    # 2. CAMINHO PARA ASSINATURA CARLA (TESTEMUNHA) - AJUSTE SE NECESSÁRIO
-    caminho_assinatura_carla = r"C:\Users\JA Promoções\JAs\JAs\public\img\assinaturas\assinatura_carla.png" 
+    # # 2. CAMINHO PARA ASSINATURA CARLA (TESTEMUNHA) - AJUSTE SE NECESSÁRIO
+    # caminho_assinatura_carla = r"C:\Users\JA Promoções\JAs\JAs\public\img\assinaturas\Assinatura-Carla.jpeg" 
 
-    assinatura_ja = ""
-    # Usa normpath para padronizar as barras de caminho
-    caminho_ja_norm = os.path.normpath(caminho_assinatura_ja) 
+    # assinatura_ja = ""
+    # # Usa normpath para padronizar as barras de caminho
+    # caminho_ja_norm = os.path.normpath(caminho_assinatura_ja) 
 
-    if os.path.exists(caminho_ja_norm):
-        # Inicia o objeto InlineImage (5 cm de largura)
-        assinatura_ja = InlineImage(doc, caminho_ja_norm, width=Cm(5)) 
-    else:
-        print(f"⚠️ Imagem de assinatura JA não encontrada: {caminho_ja_norm}", file=sys.stderr)
+    # if os.path.exists(caminho_ja_norm):
+    #     # Inicia o objeto InlineImage (5 cm de largura)
+    #     assinatura_ja = InlineImage(doc, caminho_ja_norm, width=Cm(5)) 
+    # else:
+    #     print(f"⚠️ Imagem de assinatura JA não encontrada: {caminho_ja_norm}", file=sys.stderr)
 
-    assinatura_carla = ""
-    caminho_carla_norm = os.path.normpath(caminho_assinatura_carla)
-    if os.path.exists(caminho_carla_norm):
-        # Inicia o objeto InlineImage (4 cm de largura)
-        assinatura_carla = InlineImage(doc, caminho_carla_norm, width=Cm(4)) 
-    else:
-        print(f"⚠️ Imagem de assinatura Carla não encontrada: {caminho_carla_norm}", file=sys.stderr)
+    # assinatura_carla = ""
+    # caminho_carla_norm = os.path.normpath(caminho_assinatura_carla)
+    # if os.path.exists(caminho_carla_norm):
+    #     # Inicia o objeto InlineImage (4 cm de largura)
+    #     assinatura_carla = InlineImage(doc, caminho_carla_norm, width=Cm(4)) 
+    # else:
+    #     print(f"⚠️ Imagem de assinatura Carla não encontrada: {caminho_carla_norm}", file=sys.stderr)
     # --------------------------------------------------------
 
     # --- Geração de Contexto ---
@@ -158,9 +158,9 @@ def gerar_contrato(dados):
         "nomenclatura": to_unicode(dados.get("nomenclatura")),
         
         # Passa os objetos InlineImage para o template
-        "cliente_assinatura": "",
-        "empresa_assinatura": assinatura_ja, 
-        "testemunhaJa_assinatura": assinatura_carla 
+        # "cliente_assinatura": "",
+        # "empresa_assinatura": assinatura_ja, 
+        # "testemunhaJa_assinatura": assinatura_carla 
     }
 
     doc.render(context)
