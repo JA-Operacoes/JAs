@@ -73,22 +73,22 @@ async function abrirModalLocal(url, modulo) {
   });
 
   // =========================================================================
-      // 🎯 PONTO DE INSERÇÃO: BUSCA DE DADOS E CARREGAMENTO DE DATAS (Edição)
-      // =========================================================================
-      const recordId = getRecordIdFromUrl(url);
+          // 🎯 PONTO DE INSERÇÃO: BUSCA DE DADOS E CARREGAMENTO DE DATAS (Edição)
+          // =========================================================================
+          const recordId = getRecordIdFromUrl(url);
 
       console.log("RECORD ID", recordId);
 
-      if (recordId) {
-        try {
-            // 1. Busca os dados do Staff/Evento (Assumindo que o endpoint é: /staff/data/ID)
-            const dataUrl = `/${modulo.toLowerCase()}/data/${recordId}`; 
-            const staffData = await fetchComToken(dataUrl);
+          if (recordId) {
+        try {
+        // 1. Busca os dados do Staff/Evento (Assumindo que o endpoint é: /staff/data/ID)
+        const dataUrl = `/${modulo.toLowerCase()}/data/${recordId}`; 
+        const staffData = await fetchComToken(dataUrl);
             console.log("[abrirModalLocal] Dados do Staff para edição carregados:", staffData);
 
 
-            if (staffData) {
-                // Expõe os dados para que o applyModalPrefill ou o Staff.js possam usá-los
+        if (staffData) {
+        // Expõe os dados para que o applyModalPrefill ou o Staff.js possam usá-los
                 window.__modalFetchedData = staffData;
                 
                 const datasOrcamento = staffData.datasOrcamento.map(item => item.data); // Array de datas no formato "YYYY-MM-DD"
@@ -96,9 +96,9 @@ async function abrirModalLocal(url, modulo) {
 
                 const datasDoStaff = staffData.datasevento;
 
-                // 2. Preenchimento do Flatpickr
-                // Deve usar window.datasEventoPicker (a instância global do Flatpickr)
-//                 if (window.datasEventoPicker && datasDoStaff && Array.isArray(datasDoStaff)) {
+        // 2. Preenchimento do Flatpickr
+        // Deve usar window.datasEventoPicker (a instância global do Flatpickr)
+//        if (window.datasEventoPicker && datasDoStaff && Array.isArray(datasDoStaff)) {
 //                     // Define as datas. 'true' garante que o evento 'onChange' dispare o debouncedOnCriteriosChanged.
 //                     window.datasEventoPicker.setDate(datasDoStaff, true);
 //                     console.log(`[abrirModalLocal] Datas carregadas no Flatpickr: ${datasDoStaff.length} dias.`);
@@ -107,20 +107,20 @@ async function abrirModalLocal(url, modulo) {
 //                 }
 
                 // 3. (Opcional) Chamar o debounce para garantir o carregamento do orçamento
-                if (typeof window.debouncedOnCriteriosChanged === 'function') {
+        if (typeof window.debouncedOnCriteriosChanged === 'function') {
   window.debouncedOnCriteriosChanged();
   console.log("[abrirModalLocal] Verificação de orçamento (debounce) chamada.");
-                }
+        }
                 
                 // 4. (Opcional) Disparar um evento para o Staff.js preencher os outros campos
                 document.dispatchEvent(new CustomEvent("modal:data:loaded", { detail: staffData }));
 
-            }
-        } catch (error) {
-            console.error(`[abrirModalLocal] Erro ao carregar dados do ${modulo} (ID: ${recordId}):`, error);
-        }
-      }
-      // =========================================================================
+        }
+        } catch (error) {
+        console.error(`[abrirModalLocal] Erro ao carregar dados do ${modulo} (ID: ${recordId}):`, error);
+        }
+          }
+          // =========================================================================
 
   // mostra modal (espera elemento modal injetado)
   const modal = document.querySelector("#modal-container .modal");
@@ -133,21 +133,21 @@ async function abrirModalLocal(url, modulo) {
 
     // fechar por overlay
     overlay.addEventListener("mousedown", (event) => {
-      if (event.target === overlay) {
-        console.log("[abrirModalLocal] overlay clicado -> fechar");
-        if (typeof fecharModal === "function") {
+          if (event.target === overlay) {
+        console.log("[abrirModalLocal] overlay clicado -> fechar");
+        if (typeof fecharModal === "function") {
             fecharModal();
         } else {
-          overlay.style.display = "none";
-          container.innerHTML = "";
-          document.body.classList.remove("modal-open");
+          overlay.style.display = "none";
+          container.innerHTML = "";
+          document.body.classList.remove("modal-open");
             // Chama o callback AQUI
             if (typeof window.onStaffModalClosed === 'function') {
                 window.onStaffModalClosed(false);
             }
-        }
-      }
-    });
+        }
+          }
+        });
 
     // modal.querySelector(".close")?.addEventListener("click", () => {
     //   console.log("[abrirModalLocal] fechar (botão X)");
@@ -160,23 +160,23 @@ async function abrirModalLocal(url, modulo) {
     // });
 
     modal.querySelector(".close")?.addEventListener("click", () => {
-      console.log("[abrirModalLocal] fechar (botão X)");
+          console.log("[abrirModalLocal] fechar (botão X)");
 
-      // Se a função global existir, use-a para garantir o comportamento de callback.
-      if (typeof fecharModal === "function") {
-        fecharModal(); 
-      } else {
-        // Fallback de fechamento, e aqui você DEVE incluir o callback.
-        overlay.style.display = "none";
-        container.innerHTML = "";
-        document.body.classList.remove("modal-open");
+          // Se a função global existir, use-a para garantir o comportamento de callback.
+          if (typeof fecharModal === "function") {
+        fecharModal(); 
+          } else {
+        // Fallback de fechamento, e aqui você DEVE incluir o callback.
+        overlay.style.display = "none";
+        container.innerHTML = "";
+        document.body.classList.remove("modal-open");
         // Chama o callback AQUI para garantir que a tela volte, mesmo sem a função fecharModal
         if (typeof window.onStaffModalClosed === 'function') {
             window.onStaffModalClosed(false); // false indica que não foi fechado pela função principal, mas ainda deve voltar
         }
-      }
+          }
       // A linha de window.location.reload() FOI REMOVIDA.
-    });
+        });
   } else {
     console.warn("[abrirModalLocal] estrutura de modal não encontrada após injeção do HTML.");
   }
@@ -2502,8 +2502,8 @@ async function abrirListaFuncionarios(equipe, evento) {
 }
 
 function formatarPeriodo(inicio, fim) {
-    const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
-    return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
+        const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+        return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
 }
 
 function abrirDetalhesEquipe(equipe, evento) {
@@ -4035,107 +4035,106 @@ function criarControlesDeFiltro(conteudoGeral) {
     //  FUNÇÃO PARA ATUALIZAR SUB-FILTRO
     // ------------------------------
 function atualizarSubFiltro(tipo) {
-    subFiltroWrapper.innerHTML = "";
+  subFiltroWrapper.innerHTML = "";
 
-    if (tipo === "diario") {
-
-    // Data atual como padrão
-    const hoje = new Date().toISOString().split("T")[0];
-
-    subFiltroWrapper.innerHTML = `
-        <label class="label-select">Selecione o Dia</label>
-
-        <div class="wrapper select-wrapper">
-            <input 
-                type="date"
-                id="sub-filtro-data"
-                class="input btn span select-custom"
-                value="${hoje}"
-            >
-        </div>
-    `;
-
-    // Aciona o carregamento ao mudar a data
-    subFiltroWrapper
-        .querySelector("#sub-filtro-data")
-        .addEventListener("change", () => 
-            carregarDetalhesVencimentos(conteudoGeral)
-        );
-
-    return;
-}
-
-    // --------------------------
-    // 1. MENSAL → SELECT ESTILIZADO
-    // --------------------------
-    if (tipo === "mensal") {
-        let optionsHtml = "";
-
-        for (let i = 1; i <= 12; i++) {
-            const isCurrentMonth = (i === new Date().getMonth() + 1);
-            optionsHtml += `
-                <option value="${i}" ${isCurrentMonth ? "selected" : ""}>
-                    ${nomeDoMes(i)} / ${anoAtual}
-                </option>
-            `;
-        }
-
-        subFiltroWrapper.innerHTML = `
-            <label class="label-select">Selecione o Mês</label>
-            <div class="wrapper select-wrapper">
-                <select id="sub-filtro-select" class="input btn span select-custom">
-                    ${optionsHtml}
-                </select>
-            </div>
-        `;
-
-        subFiltroWrapper.querySelector("#sub-filtro-select")
-            .addEventListener("change", () => carregarDetalhesVencimentos(conteudoGeral));
-
-        return;
-    }
-
-    // --------------------------
-    // 2. TRIMESTRAL → RADIO CUSTOM
-    // --------------------------
-    if (tipo === "trimestral") {
-        const trimes = [1, 2, 3, 4].map(t => ({
-            value: t,
-            label: `Trimestre ${t}`,
-            checked: t === 1
-        }));
-
-        subFiltroWrapper.innerHTML = montarOpcoes("Selecione o Trimestre", trimes);
-    }
-
-    // --------------------------
-    // 3. SEMESTRAL → RADIO CUSTOM
-    // --------------------------
-      else if (tipo === "semestral") {
-          const semestres = [
-              { value: 1, label: `1º Semestre`, checked: true },
-              { value: 2, label: `2º Semestre`, checked: false }
-          ];
+  if (tipo === "diario") {
+          // Data atual como padrão
+          const hoje = new Date().toISOString().split("T")[0];
 
           subFiltroWrapper.innerHTML = `
-              <div class="sub-semestral">
-                  ${montarOpcoes("Selecione o Semestre", semestres)}
-              </div>
+                <label class="label-select">Selecione o Dia</label>
+
+                <div class="wrapper select-wrapper">
+                <input 
+                  type="date"
+                  id="sub-filtro-data"
+                  class="input-data-simples" 
+                  value="${hoje}"
+                >
+                </div>
           `;
-      }
+
+          // Aciona o carregamento ao mudar a data
+          subFiltroWrapper
+                .querySelector("#sub-filtro-data")
+                .addEventListener("change", () => 
+                  carregarDetalhesVencimentos(conteudoGeral)
+                );
+
+          return;
+  }
+
+  // --------------------------
+  // 1. MENSAL → SELECT ESTILIZADO (CORRIGIDO)
+  // --------------------------
+  if (tipo === "mensal") {
+          let optionsHtml = "";
+
+          for (let i = 1; i <= 12; i++) {
+                const isCurrentMonth = (i === new Date().getMonth() + 1);
+                optionsHtml += `
+                  <option value="${i}" ${isCurrentMonth ? "selected" : ""}>
+                          ${nomeDoMes(i)} / ${anoAtual}
+                  </option>
+                `;
+          }
+
+          subFiltroWrapper.innerHTML = `
+                <label class="label-select">Selecione o Mês</label>
+                <div class="wrapper select-wrapper">
+                  <select id="sub-filtro-select" class="select-simples"> // ✅ CLASSE CORRIGIDA
+                          ${optionsHtml}
+                  </select>
+                </div>
+          `;
+
+          subFiltroWrapper.querySelector("#sub-filtro-select")
+                .addEventListener("change", () => carregarDetalhesVencimentos(conteudoGeral));
+
+          return;
+  }
+
+  // --------------------------
+  // 2. TRIMESTRAL → RADIO CUSTOM (INALTERADO - Usa montarOpcoes)
+  // --------------------------
+  if (tipo === "trimestral") {
+          const trimes = [1, 2, 3, 4].map(t => ({
+                value: t,
+                label: `Trimestre ${t}`,
+                checked: t === 1
+          }));
+
+          subFiltroWrapper.innerHTML = montarOpcoes("Selecione o Trimestre", trimes);
+  }
+
+  // --------------------------
+  // 3. SEMESTRAL → RADIO CUSTOM (INALTERADO - Usa montarOpcoes)
+  // --------------------------
+    else if (tipo === "semestral") {
+            const semestres = [
+                  { value: 1, label: `1º Semestre`, checked: true },
+                  { value: 2, label: `2º Semestre`, checked: false }
+            ];
+
+            subFiltroWrapper.innerHTML = `
+                  <div class="sub-semestral">
+                    ${montarOpcoes("Selecione o Semestre", semestres)}
+                  </div>
+            `;
+    }
 
 
-    // --------------------------
-    // 4. ANUAL → NENHUM SUBFILTRO
-    // --------------------------
-    else if (tipo === "anual") {
-        subFiltroWrapper.innerHTML = "";
-        return;
-    }
+  // --------------------------
+  // 4. ANUAL → NENHUM SUBFILTRO (INALTERADO)
+  // --------------------------
+  else if (tipo === "anual") {
+          subFiltroWrapper.innerHTML = "";
+          return;
+  }
 
-    // Listener genérico para os botões do sub-filtro
-    const radios = subFiltroWrapper.querySelectorAll("input[name='sub']");
-    radios.forEach(r => r.addEventListener("change", () => carregarDetalhesVencimentos(conteudoGeral)));
+  // Listener genérico para os botões do sub-filtro
+  const radios = subFiltroWrapper.querySelectorAll("input[name='sub']");
+  radios.forEach(r => r.addEventListener("change", () => carregarDetalhesVencimentos(conteudoGeral)));
 }
 
 
