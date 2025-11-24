@@ -1452,6 +1452,10 @@ async function abrirPopupEvento(idevento) {
     }
 }
 
+
+// =========================
+//     Eventos em Aberto  
+// =========================
 document.addEventListener("DOMContentLoaded", function () {
     const cardEventos = document.querySelector(".card-eventos-em-abertos");
 
@@ -1552,7 +1556,6 @@ async function atualizarEventosEmAberto() {
   }
 }
 
-
 async function mostrarEventosEmAberto() {
  const painel = document.getElementById("painelDetalhes");
  if (!painel) return;
@@ -1568,6 +1571,9 @@ async function mostrarEventosEmAberto() {
  header.className = "header-eventos-em-aberto";
  header.textContent = "⚠ Eventos em Aberto";
  container.appendChild(header);
+
+// const FiltrosVencimentos = criarControlesDeFiltro();
+// container.appendChild(FiltrosVencimentos); 
 
  // ======= ABAS =======
  const abas = document.createElement("div");
@@ -1964,274 +1970,271 @@ function criarCard(evt) {
   }
 }
 
+async function abrirTelaEquipesEvento(evento) {
+  const painel = document.getElementById("painelDetalhes");
+  if (!painel) return;
+  painel.innerHTML = "";
 
-  async function abrirTelaEquipesEvento(evento) {
-    const painel = document.getElementById("painelDetalhes");
-    if (!painel) return;
-    painel.innerHTML = "";
+  const container = document.createElement("div");
+  container.className = "painel-equipes-evento";
 
-    const container = document.createElement("div");
-    container.className = "painel-equipes-evento";
+  // ... (código do HEADER, CORPO e RODAPÉ permanece o mesmo) ...
 
-    // ... (código do HEADER, CORPO e RODAPÉ permanece o mesmo) ...
+  // ===== HEADER =====
+  const header = document.createElement("div");
+  header.className = "header-equipes-evento";
+  header.innerHTML = `
+    <button class="btn-voltar" title="Voltar">←</button>
+    <div class="info-evento">
+      <h2>${evento.nmevento || "Evento sem nome"}</h2>
+      <p>📍 ${evento.local || evento.nmlocalmontagem || "Local não informado"}</p>
+      <p>📅 ${formatarPeriodo(evento.inicio_realizacao, evento.fim_realizacao)}</p>
+    </div>
+  `;
+  container.appendChild(header);
 
-    // ===== HEADER =====
-    const header = document.createElement("div");
-    header.className = "header-equipes-evento";
-    header.innerHTML = `
-      <button class="btn-voltar" title="Voltar">←</button>
-      <div class="info-evento">
-        <h2>${evento.nmevento || "Evento sem nome"}</h2>
-        <p>📍 ${evento.local || evento.nmlocalmontagem || "Local não informado"}</p>
-        <p>📅 ${formatarPeriodo(evento.inicio_realizacao, evento.fim_realizacao)}</p>
-      </div>
-    `;
-    container.appendChild(header);
+  // ===== CORPO (LISTA DE EQUIPES) =====
+  const corpo = document.createElement("div");
+  corpo.className = "corpo-equipes";
+  corpo.innerHTML = `<div class="loading">Carregando equipes…</div>`;
+  container.appendChild(corpo);
 
-    // ===== CORPO (LISTA DE EQUIPES) =====
-    const corpo = document.createElement("div");
-    corpo.className = "corpo-equipes";
-    corpo.innerHTML = `<div class="loading">Carregando equipes…</div>`;
-    container.appendChild(corpo);
+  // rodapé / controles
+  const rodape = document.createElement("div");
+  rodape.className = "rodape-equipes";
+  rodape.innerHTML = `
+    <button class="btn-voltar-rodape"> ← Voltar</button>
+    <button class="btn-relatorio">📄 Gerar Relatório</button>
+  `;
+  container.appendChild(rodape);
 
-    // rodapé / controles
-    const rodape = document.createElement("div");
-    rodape.className = "rodape-equipes";
-    rodape.innerHTML = `
-      <button class="btn-voltar-rodape"> ← Voltar</button>
-      <button class="btn-relatorio">📄 Gerar Relatório</button>
-    `;
-    container.appendChild(rodape);
+  painel.appendChild(container);
 
-    painel.appendChild(container);
+  // eventos de navegação
+  container.querySelector(".btn-voltar")?.addEventListener("click", mostrarEventosEmAberto);
+  container.querySelector(".btn-voltar-rodape")?.addEventListener("click", mostrarEventosEmAberto);
+  container.querySelector(".btn-relatorio")?.addEventListener("click", () => {
+    alert("Função de relatório ainda em desenvolvimento.");
+  });
 
-    // eventos de navegação
-    container.querySelector(".btn-voltar")?.addEventListener("click", mostrarEventosEmAberto);
-    container.querySelector(".btn-voltar-rodape")?.addEventListener("click", mostrarEventosEmAberto);
-    container.querySelector(".btn-relatorio")?.addEventListener("click", () => {
-      alert("Função de relatório ainda em desenvolvimento.");
-    });
-
-    // helper local
-    function formatarPeriodo(inicio, fim) {
-      const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
-      return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
-    }
-
-    // utilitário simples para escapar texto antes de inserir no innerHTML
-    function escapeHtml(str) {
-      if (!str && str !== 0) return "";
-      return String(str)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-    }
-
-    try {
-      const idevento = evento.idevento || evento.id || evento.id_evento;
-      const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
-
-      if (!idevento || !idempresa) {
-        console.error("ID do evento ou empresa não encontrado:", { idevento, idempresa });
-        corpo.innerHTML = `<p class="erro">Erro: evento ou empresa não identificados.</p>`;
-        return;
-      }
-
-      const resp = await fetchComToken(`/main/detalhes-eventos-abertos?idevento=${idevento}&idempresa=${idempresa}`);
-
-      // tratar formatos possíveis do retorno (fetchComToken já retorna JSON)
-      let dados;
-      if (resp && typeof resp === "object" && (Array.isArray(resp) || resp.equipes !== undefined)) {
-        dados = resp;
-      } else if (resp && typeof resp === "object" && "ok" in resp) {
-        if (!resp.ok) throw new Error("Erro ao buscar detalhes das equipes.");
-        dados = await resp.json();
-      } else {
-        console.error("Resposta inválida ao buscar detalhes das equipes:", resp);
-        corpo.innerHTML = `<p class="erro">Erro ao carregar detalhes das equipes.</p>`;
-        return;
-      }
-
-      // normaliza array de equipes: suportar {equipes: [...] } ou array direto
-      const equipesRaw = Array.isArray(dados.equipes) ? dados.equipes : (Array.isArray(dados) ? dados : []);
-
-      // CONSOLE 1: Dados Brutos do Backend
-      console.log("=================================================");
-      console.log(`[${evento.nmevento}] Dados Brutos (equipesRaw) do Backend:`);
-      console.log(equipesRaw);
-      console.log("=================================================");
-
-      if (!equipesRaw.length) {
-        corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe cadastrada para este evento.</p>`;
-        return;
-      }
-      
-      // NOVO HELPER: Mapeia e filtra funções sem vagas no orçamento e sem staff alocado.
-      const mapFuncoes = (funcoesArray) => {
-          if (!Array.isArray(funcoesArray)) return [];
-
-          return funcoesArray.map(f => {
-              // Mapeamento dos campos de Total e Preenchidas
-              const total = Number(f.qtd_orcamento ?? f.qtd_orcamento ?? f.total_vagas ?? f.total ?? f.qtditens ?? 0);
-              const preenchidas = Number(f.qtd_cadastrada ?? f.qtd_cadastrada ?? f.preenchidas ?? f.preenchidos ?? f.preenchidos ?? 0);
-              
-              // Filtro: Se não tem vaga NO ORÇAMENTO E não tem staff PREENCHIDO, ignora.
-              if (total === 0 && preenchidas === 0) {
-                  return null;
-              }
-
-              return {
-                  idfuncao: f.idfuncao ?? f.idFuncao ?? null,
-                  nome: f.nome ?? f.descfuncao ?? f.categoria ?? f.nmfuncao ?? "Função",
-                  total,
-                  preenchidas,
-                  concluido: total > 0 && preenchidas >= total,
-                  dtini_vaga: f.dtini_vaga ?? null,
-                  dtfim_vaga: f.dtfim_vaga ?? null,
-
-                  // ✅ ADICIONADO: Datas preenchidas (do staffeventos)
-                  datas_staff: f.datas_staff ?? []
-
-              };
-          }).filter(f => f !== null); // Remove as funções que retornaram null (0/0)
-      };
-
-
-      // converte e normaliza cada item
-      let equipes = equipesRaw.map(item => {
-        // Obter nome e ID da equipe
-        const equipeNome = item.equipe || item.nmequipe || item.nome || item.categoria || (`Equipe ${item.idequipe ?? ""}`);
-        const equipeId = item.idequipe;
-        let funcoesResult = [];
-        
-        // se veio com funcoes já montadas (compatível com rota atual)
-        if (item.funcoes && Array.isArray(item.funcoes)) {
-          funcoesResult = mapFuncoes(item.funcoes);
-        }
-        // se veio como categorias agregadas (campo 'categorias' do backend)
-        else if (item.categorias && Array.isArray(item.categorias)) {
-          funcoesResult = mapFuncoes(item.categorias);
-        }
-        // item vindo como categoria direta
-        else if (item.categoria) {
-          const total = Number(item.total_vagas ?? item.total ?? item.qtd_orcamento ?? 0);
-          const preenchidas = Number(item.preenchidos ?? item.qtd_cadastrada ?? 0);
-          
-          // Cria função apenas se houver vagas/staff
-          if (total > 0 || preenchidas > 0) { 
-                funcoesResult = [{
-                  idfuncao: item.idfuncao ?? null,
-                  nome: item.categoria || "Função",
-                  total,
-                  preenchidas,
-                  concluido: total > 0 && preenchidas >= total
-              }];
-          }
-        }
-        // fallback genérico (usando funcoes original, se houver)
-        else if (Array.isArray(item.funcoes)) {
-            funcoesResult = mapFuncoes(item.funcoes);
-        }
-        
-        return {
-            equipe: equipeNome,
-            idequipe: equipeId,
-            funcoes: funcoesResult
-        };
-      })
-      // 🛑 NOVO FILTRO DE NOME: Remove o item que vem nomeado explicitamente como "Sem equipe"
-      .filter(eq => eq.equipe.toLowerCase() !== "sem equipe")
-      // FILTRO FINAL: Remove equipes que não contêm NENHUMA função relevante
-      .filter(eq => eq.funcoes && eq.funcoes.length > 0);
-
-      // CONSOLE 2: Dados Filtrados e Normalizados para Renderização
-      console.log("=================================================");
-      console.log(`[${evento.nmevento}] Dados Filtrados e Prontos (equipes):`);
-      console.log(equipes);
-      console.log("=================================================");
-
-
-      if (!equipes.length) {
-        corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe com vagas (Produto(s)) cadastrada para este evento.</p>`;
-        return;
-      }
-
-      // renderiza lista mantendo o visual atual mas usando total/preenchidas corretos
-      corpo.innerHTML = "";
-      equipes.forEach(eq => {
-        
-        const equipeBox = document.createElement("div");
-        equipeBox.className = "equipe-box";
-
-        const totalFuncoes = eq.funcoes?.length || 0;
-        const concluidas = eq.funcoes?.filter(f => f.concluido)?.length || 0;
-        const perc = totalFuncoes > 0 ? Math.round((concluidas / totalFuncoes) * 100) : 0;
-
-        // resumo de vagas por função (compacto) usando total/preenchidas
-        const resumo = eq.funcoes?.map(f => {
-          const preench = Number(f.preenchidas ?? 0);
-          const total = Number(f.total ?? 0);
-          let cor = "🟢";
-          if (total === 0) cor = "⚪";
-          else if (preench === 0) cor = "🔴";
-          else if (preench < total) cor = "🟡";
-
-          const periodoVaga = formatarPeriodo(f.dtini_vaga, f.dtfim_vaga);
-          console.log("Período da vaga", f.nome, f.dtini_vaga, f.dtfim_vaga, "=>", periodoVaga);
-        
-          return `${f.nome}: ${cor} (${periodoVaga}) ${preench}/${total}`;
-        }).join(" | ");
-
-      // <div class="equipe-resumo">${escapeHtml(resumo || "Nenhuma função cadastrada")}</div>
-
-        equipeBox.innerHTML = `
-          <div class="equipe-header" role="button" tabindex="0">
-            <span class="equipe-nome">${escapeHtml(eq.equipe || "Equipe")}</span>
-            <span class="equipe-status">${concluidas}/${totalFuncoes} concluídas</span>
-          </div>
-          <div class="barra-progresso">
-            <div class="progresso" style="width:${perc}%;"></div>
-          </div>
-          
-          <div class="equipe-resumo">${resumo || "Nenhuma função cadastrada"}</div>
-          <div class="equipe-actions">
-            <button type="button" class="ver-funcionarios-btn">
-              <i class="fas fa-users"></i> Funcionários
-            </button>
-          </div>
-        `;
-
-        // clique / tecla Enter abre detalhes (passa evento original e equipe transformada)
-        const headerBtn = equipeBox.querySelector(".equipe-header");
-        headerBtn.addEventListener("click", () => abrirDetalhesEquipe(eq, evento));
-        headerBtn.addEventListener("keypress", (e) => {
-          if (e.key === "Enter") abrirDetalhesEquipe(eq, evento);
-        });
-        
-        // 🛑 NOVO LISTENER: Botão 'Funcionários'
-        const funcionariosBtn = equipeBox.querySelector(".ver-funcionarios-btn");
-        if (funcionariosBtn) {
-            // Passa o objeto equipe (eq) e o objeto evento (evento) para a função
-            funcionariosBtn.addEventListener("click", (e) => {
-                e.stopPropagation(); // Evita que o clique no botão ative o clique do header
-                abrirListaFuncionarios(eq, evento); 
-            });
-        }
-        // 🛑 FIM NOVO LISTENER
-        
-        corpo.appendChild(equipeBox);
-      });
-
-    } catch (err) {
-      console.error("Erro ao buscar detalhes das equipes.", err);
-      const msg = (err && err.message) ? err.message : "Erro ao carregar detalhes das equipes.";
-      corpo.innerHTML = `<p class="erro">${escapeHtml(msg)}</p>`;
-    }
+  // helper local
+  function formatarPeriodo(inicio, fim) {
+    const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+    return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
   }
 
+  // utilitário simples para escapar texto antes de inserir no innerHTML
+  function escapeHtml(str) {
+    if (!str && str !== 0) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
 
+  try {
+    const idevento = evento.idevento || evento.id || evento.id_evento;
+    const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
+
+    if (!idevento || !idempresa) {
+      console.error("ID do evento ou empresa não encontrado:", { idevento, idempresa });
+      corpo.innerHTML = `<p class="erro">Erro: evento ou empresa não identificados.</p>`;
+      return;
+    }
+
+    const resp = await fetchComToken(`/main/detalhes-eventos-abertos?idevento=${idevento}&idempresa=${idempresa}`);
+
+    // tratar formatos possíveis do retorno (fetchComToken já retorna JSON)
+    let dados;
+    if (resp && typeof resp === "object" && (Array.isArray(resp) || resp.equipes !== undefined)) {
+      dados = resp;
+    } else if (resp && typeof resp === "object" && "ok" in resp) {
+      if (!resp.ok) throw new Error("Erro ao buscar detalhes das equipes.");
+      dados = await resp.json();
+    } else {
+      console.error("Resposta inválida ao buscar detalhes das equipes:", resp);
+      corpo.innerHTML = `<p class="erro">Erro ao carregar detalhes das equipes.</p>`;
+      return;
+    }
+
+    // normaliza array de equipes: suportar {equipes: [...] } ou array direto
+    const equipesRaw = Array.isArray(dados.equipes) ? dados.equipes : (Array.isArray(dados) ? dados : []);
+
+    // CONSOLE 1: Dados Brutos do Backend
+    console.log("=================================================");
+    console.log(`[${evento.nmevento}] Dados Brutos (equipesRaw) do Backend:`);
+    console.log(equipesRaw);
+    console.log("=================================================");
+
+    if (!equipesRaw.length) {
+      corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe cadastrada para este evento.</p>`;
+      return;
+    }
+    
+    // NOVO HELPER: Mapeia e filtra funções sem vagas no orçamento e sem staff alocado.
+    const mapFuncoes = (funcoesArray) => {
+        if (!Array.isArray(funcoesArray)) return [];
+
+        return funcoesArray.map(f => {
+            // Mapeamento dos campos de Total e Preenchidas
+            const total = Number(f.qtd_orcamento ?? f.qtd_orcamento ?? f.total_vagas ?? f.total ?? f.qtditens ?? 0);
+            const preenchidas = Number(f.qtd_cadastrada ?? f.qtd_cadastrada ?? f.preenchidas ?? f.preenchidos ?? f.preenchidos ?? 0);
+            
+            // Filtro: Se não tem vaga NO ORÇAMENTO E não tem staff PREENCHIDO, ignora.
+            if (total === 0 && preenchidas === 0) {
+                return null;
+            }
+
+            return {
+                idfuncao: f.idfuncao ?? f.idFuncao ?? null,
+                nome: f.nome ?? f.descfuncao ?? f.categoria ?? f.nmfuncao ?? "Função",
+                total,
+                preenchidas,
+                concluido: total > 0 && preenchidas >= total,
+                dtini_vaga: f.dtini_vaga ?? null,
+                dtfim_vaga: f.dtfim_vaga ?? null,
+
+                // ✅ ADICIONADO: Datas preenchidas (do staffeventos)
+                datas_staff: f.datas_staff ?? []
+
+            };
+        }).filter(f => f !== null); // Remove as funções que retornaram null (0/0)
+    };
+
+
+    // converte e normaliza cada item
+    let equipes = equipesRaw.map(item => {
+      // Obter nome e ID da equipe
+      const equipeNome = item.equipe || item.nmequipe || item.nome || item.categoria || (`Equipe ${item.idequipe ?? ""}`);
+      const equipeId = item.idequipe;
+      let funcoesResult = [];
+      
+      // se veio com funcoes já montadas (compatível com rota atual)
+      if (item.funcoes && Array.isArray(item.funcoes)) {
+        funcoesResult = mapFuncoes(item.funcoes);
+      }
+      // se veio como categorias agregadas (campo 'categorias' do backend)
+      else if (item.categorias && Array.isArray(item.categorias)) {
+        funcoesResult = mapFuncoes(item.categorias);
+      }
+      // item vindo como categoria direta
+      else if (item.categoria) {
+        const total = Number(item.total_vagas ?? item.total ?? item.qtd_orcamento ?? 0);
+        const preenchidas = Number(item.preenchidos ?? item.qtd_cadastrada ?? 0);
+        
+        // Cria função apenas se houver vagas/staff
+        if (total > 0 || preenchidas > 0) { 
+              funcoesResult = [{
+                idfuncao: item.idfuncao ?? null,
+                nome: item.categoria || "Função",
+                total,
+                preenchidas,
+                concluido: total > 0 && preenchidas >= total
+            }];
+        }
+      }
+      // fallback genérico (usando funcoes original, se houver)
+      else if (Array.isArray(item.funcoes)) {
+          funcoesResult = mapFuncoes(item.funcoes);
+      }
+      
+      return {
+          equipe: equipeNome,
+          idequipe: equipeId,
+          funcoes: funcoesResult
+      };
+    })
+    // 🛑 NOVO FILTRO DE NOME: Remove o item que vem nomeado explicitamente como "Sem equipe"
+    .filter(eq => eq.equipe.toLowerCase() !== "sem equipe")
+    // FILTRO FINAL: Remove equipes que não contêm NENHUMA função relevante
+    .filter(eq => eq.funcoes && eq.funcoes.length > 0);
+
+    // CONSOLE 2: Dados Filtrados e Normalizados para Renderização
+    console.log("=================================================");
+    console.log(`[${evento.nmevento}] Dados Filtrados e Prontos (equipes):`);
+    console.log(equipes);
+    console.log("=================================================");
+
+
+    if (!equipes.length) {
+      corpo.innerHTML = `<p class="sem-equipes">Nenhuma equipe com vagas (Produto(s)) cadastrada para este evento.</p>`;
+      return;
+    }
+
+    // renderiza lista mantendo o visual atual mas usando total/preenchidas corretos
+    corpo.innerHTML = "";
+    equipes.forEach(eq => {
+      
+      const equipeBox = document.createElement("div");
+      equipeBox.className = "equipe-box";
+
+      const totalFuncoes = eq.funcoes?.length || 0;
+      const concluidas = eq.funcoes?.filter(f => f.concluido)?.length || 0;
+      const perc = totalFuncoes > 0 ? Math.round((concluidas / totalFuncoes) * 100) : 0;
+
+      // resumo de vagas por função (compacto) usando total/preenchidas
+      const resumo = eq.funcoes?.map(f => {
+        const preench = Number(f.preenchidas ?? 0);
+        const total = Number(f.total ?? 0);
+        let cor = "🟢";
+        if (total === 0) cor = "⚪";
+        else if (preench === 0) cor = "🔴";
+        else if (preench < total) cor = "🟡";
+
+        const periodoVaga = formatarPeriodo(f.dtini_vaga, f.dtfim_vaga);
+        console.log("Período da vaga", f.nome, f.dtini_vaga, f.dtfim_vaga, "=>", periodoVaga);
+      
+        return `${f.nome}: ${cor} (${periodoVaga}) ${preench}/${total}`;
+      }).join(" | ");
+
+    // <div class="equipe-resumo">${escapeHtml(resumo || "Nenhuma função cadastrada")}</div>
+
+      equipeBox.innerHTML = `
+        <div class="equipe-header" role="button" tabindex="0">
+          <span class="equipe-nome">${escapeHtml(eq.equipe || "Equipe")}</span>
+          <span class="equipe-status">${concluidas}/${totalFuncoes} concluídas</span>
+        </div>
+        <div class="barra-progresso">
+          <div class="progresso" style="width:${perc}%;"></div>
+        </div>
+        
+        <div class="equipe-resumo">${resumo || "Nenhuma função cadastrada"}</div>
+        <div class="equipe-actions">
+          <button type="button" class="ver-funcionarios-btn">
+            <i class="fas fa-users"></i> Funcionários
+          </button>
+        </div>
+      `;
+
+      // clique / tecla Enter abre detalhes (passa evento original e equipe transformada)
+      const headerBtn = equipeBox.querySelector(".equipe-header");
+      headerBtn.addEventListener("click", () => abrirDetalhesEquipe(eq, evento));
+      headerBtn.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") abrirDetalhesEquipe(eq, evento);
+      });
+      
+      // 🛑 NOVO LISTENER: Botão 'Funcionários'
+      const funcionariosBtn = equipeBox.querySelector(".ver-funcionarios-btn");
+      if (funcionariosBtn) {
+          // Passa o objeto equipe (eq) e o objeto evento (evento) para a função
+          funcionariosBtn.addEventListener("click", (e) => {
+              e.stopPropagation(); // Evita que o clique no botão ative o clique do header
+              abrirListaFuncionarios(eq, evento); 
+          });
+      }
+      // 🛑 FIM NOVO LISTENER
+      
+      corpo.appendChild(equipeBox);
+    });
+
+  } catch (err) {
+    console.error("Erro ao buscar detalhes das equipes.", err);
+    const msg = (err && err.message) ? err.message : "Erro ao carregar detalhes das equipes.";
+    corpo.innerHTML = `<p class="erro">${escapeHtml(msg)}</p>`;
+  }
+}
 
 /**
  * Abre a tela de lista de funcionários de uma equipe específica no painelDetalhes.
@@ -3024,13 +3027,148 @@ setInterval(atualizarResumoPedidos, 10000);
 atualizarResumoPedidos();
 
 
-// ==================================================================================
-// FUNÇÕES DE EXIBIÇÃO E CARREGAMENTO DE CARDS DO DASHBOARD
-// ==================================================================================
+// ===========================
+// Vencimentos de Pagamentos
+// ===========================
+
+
+async function carregarDetalhesVencimentos(conteudoGeral) {
+    conteudoGeral.innerHTML = '<h3>Carregando dados...</h3>';
+
+    // ➡️ CORREÇÃO: Define dataInicio e dataFim como o dia atual (YYYY-MM-DD)
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+    const dia = String(hoje.getDate()).padStart(2, '0');
+    
+    const dataAtualFormatada = `${ano}-${mes}-${dia}`;
+    const dataInicio = dataAtualFormatada; 
+    const dataFim = dataAtualFormatada;   
+    
+    // Atualiza o título do painel para indicar o dia
+    const tituloPainel = document.querySelector("#venc-container h2");
+    if (tituloPainel) {
+        tituloPainel.textContent = `Vencimentos de Pagamentos`;
+    }
+
+    try {
+        // Agora, dataInicio e dataFim estão definidas e acessíveis.
+        const url = `/vencimentos?dataInicio=${dataInicio}&dataFim=${dataFim}`; 
+        
+        // ASSUME que fetchComToken está definida globalmente
+        const dados = await fetchComToken(url); 
+        
+        if (!dados || !dados.eventos || dados.eventos.length === 0) {
+            conteudoGeral.innerHTML = '<p class="alerta-info">Nenhum vencimento encontrado para o dia de hoje.</p>';
+            return;
+        }
+
+        conteudoGeral.innerHTML = ''; // Limpa o "Carregando"
+        
+        // 1. Cria o container principal do Acordeão
+        const accordionContainer = document.createElement("div");
+        accordionContainer.className = "accordion-vencimentos";
+
+        dados.eventos.forEach((evento, index) => {
+            // 2. Cria o item do Acordeão (Evento)
+            const itemAcordeao = document.createElement("div");
+            itemAcordeao.className = "accordion-item";
+
+            // 3. Cabeçalho do Acordeão (Resumo do Evento)
+            const headerAcordeao = document.createElement("button");
+            headerAcordeao.className = "accordion-header";
+            headerAcordeao.innerHTML = `
+                <div class="evento-info">
+                    <strong>${evento.nomeEvento}</strong> 
+                    <span class="total-geral">Total: R$ ${evento.totalPagarEvento}</span>
+                </div>
+            `;
+            headerAcordeao.addEventListener('click', () => {
+                itemAcordeao.classList.toggle('active');
+            });
+            
+            // 4. Corpo do Acordeão (Detalhes dos Funcionários)
+            const bodyAcordeao = document.createElement("div");
+            bodyAcordeao.className = "accordion-body";
+            
+            let detalhesHtml = `
+                <div class="resumo-evento-totais">
+                    <p>Cachê Total: R$ ${evento.totalCacheEvento}</p>
+                    <p>Ajuda Custo Total: R$ ${evento.totalAjudaCustoEvento}</p>
+                    <p>Adicional Total: R$ ${evento.totalAdicionalEvento}</p>
+                </div>
+                <h4>Detalhes por Funcionário:</h4>
+                <table class="tabela-funcionarios-venc">
+                    <thead>
+                        <tr>
+                            <th>NOME / FUNÇÃO</th>
+                            <th>QTD DIÁRIAS</th>
+                            <th>VALOR CACHÊ</th>
+                            <th>VALOR CUSTO</th>
+                            <th>TOTAL A PAGAR</th>
+                            <th>STATUS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            evento.funcionarios.forEach(func => {
+                detalhesHtml += `
+                    <tr>
+                        <td><strong>${func.nome}</strong><br><small>${func.funcao}</small></td>
+                        <td>${func.qtdDiarias}</td>
+                        <td>R$ ${func.totalCache}</td>
+                        <td>R$ ${func.totalAjudaCusto}</td>
+                        <td><strong>R$ ${func.totalPagar}</strong></td>
+                        <td class="status-${func.statusPgto.toLowerCase()}">${func.statusPgto}</td>
+                    </tr>
+                `;
+            });
+            
+            detalhesHtml += '</tbody></table>';
+            bodyAcordeao.innerHTML = detalhesHtml;
+
+            itemAcordeao.appendChild(headerAcordeao);
+            itemAcordeao.appendChild(bodyAcordeao);
+            accordionContainer.appendChild(itemAcordeao);
+        });
+
+        conteudoGeral.appendChild(accordionContainer);
+
+    } catch (error) {
+        console.error("Erro ao carregar detalhes:", error);
+        conteudoGeral.innerHTML = '<p class="alerta-erro">Não foi possível carregar os dados. Tente novamente.</p>';
+    }
+}
+
+
+async function carregarDadosVencimentos() {
+    // Definir data de hoje
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+    const dia = String(hoje.getDate()).padStart(2, '0');
+    const dataAtualFormatada = `${ano}-${mes}-${dia}`;
+    
+    // Endpoint pode ser o mesmo, mas a lógica aqui é para o CARD.
+    const urlResumo = `/vencimentos?dataInicio=${dataAtualFormatada}&dataFim=${dataAtualFormatada}`;
+
+    try {
+        // Simulação de chamada (você deve usar seu endpoint real e tratar o resultado)
+        // const dadosResumo = await fetchComToken(urlResumo); 
+        
+        // Exemplo:
+        // const cardVencimentos = document.getElementById('cardContainerVencimentos');
+        // cardVencimentos.querySelector('.total-vencimentos').textContent = `R$ 1500,00`; 
+
+    } catch (error) {
+        console.error("Erro ao carregar dados do card de vencimentos:", error);
+    }
+}
 
 
 async function inicializarCardVencimentos() {
-    // Checa as duas permissões
+    // Checa as duas permissões (Assumindo que estão definidas globalmente)
     const eMaster = usuarioTemPermissao();
     const eFinanceiro = usuarioTemPermissaoFinanceiro();
 
@@ -3051,57 +3189,315 @@ async function inicializarCardVencimentos() {
     // Lógica de Visibilidade
     // ===========================================
     
+    if (eMaster || eFinanceiro) {
+        // Se for Master OU Financeiro: Mostra VENCIMENTOS
+        cardVencimentos.style.display = 'flex';
+        carregarDadosVencimentos(); // Chama a função que preenche o card
+    }
+
     if (eMaster) {
-        // Se for Master: Mostra AMBOS
+        // Se for Master: Mostra ORÇAMENTOS também
         cardOrcamentos.style.display = 'flex';
-        cardVencimentos.style.display = 'flex';
-        
-        // Carrega dados de Vencimentos (o Master tem acesso, presumivelmente)
-        carregarDadosVencimentos();
     } 
-    else if (eFinanceiro) {
-        // Se for Financeiro (mas não Master): Mostra APENAS VENCIMENTOS
-        cardVencimentos.style.display = 'flex';
-        
-        // Carrega dados
-        carregarDadosVencimentos();
-        
-        // Orçamentos permanece oculto ('none', definido no início)
-    } 
-    else {
-        // Se for Nenhum (não Master e não Financeiro): Mostra APENAS ORÇAMENTOS
+    else if (!eMaster && !eFinanceiro) {
+         // Se for Nenhum (não Master e não Financeiro): Mostra APENAS ORÇAMENTOS
         cardOrcamentos.style.display = 'flex';
-        
-        // Vencimentos permanece oculto ('none', definido no início)
     }
 }
 
-async function carregarDadosVencimentos() {
-    try {
-        // ⚠️ PASSO 2: IMPLEMENTE O FETCH REAL DOS DADOS DE VENCIMENTOS
-        // Use a sua função fetchComToken para obter os dados do backend.
-        // const dados = await fetchComToken('/financeiro/dashboard/vencimentos');
-        
-        // Exemplo de dados de retorno:
-        const dados = {
-            proximos: 5, // Títulos a vencer nos próximos X dias
-            atrasados: 2  // Títulos em atraso
-        };
-        
-        document.getElementById('vencimentosProximos').textContent = dados.proximos;
-        document.getElementById('vencimentosAtrasados').textContent = dados.atrasados;
-    } catch (err) {
-        console.error("Erro ao carregar dados de vencimentos:", err);
-        // Em caso de erro, pode ser útil definir os valores como '-' ou manter '0'
-        document.getElementById('vencimentosProximos').textContent = '-';
-        document.getElementById('vencimentosAtrasados').textContent = '-';
+function criarControlesDeFiltro(conteudoGeral) {
+    const anoAtual = new Date().getFullYear();
+
+    const filtrosContainer = document.createElement("div");
+    filtrosContainer.className = "filtros-vencimentos";
+
+    // ------------------------------
+    // 1. Filtro Principal (RADIO CUSTOM)
+    // ------------------------------
+    const grupoPeriodo = document.createElement("div");
+    grupoPeriodo.className = "filtro-periodo";
+    grupoPeriodo.innerHTML = `
+        <label class="label-select">Tipo de Filtro</label>
+        <div class="wrapper" id="periodo-wrapper">
+            <div class="option">
+              <input checked value="diario" name="periodo" type="radio" class="input" />
+              <div class="btn"><span class="span">Diario</span></div>
+            </div>
+            <div class="option">
+              <input value="mensal" name="periodo" type="radio" class="input" />
+              <div class="btn"><span class="span">Mensal</span></div>
+            </div>
+            <div class="option">
+              <input value="trimestral" name="periodo" type="radio" class="input" />
+              <div class="btn"><span class="span">Trimestral</span></div>
+            </div>
+            <div class="option">
+              <input value="semestral" name="periodo" type="radio" class="input" />
+              <div class="btn"><span class="span">Semestral</span></div>
+            </div>
+            <div class="option">
+              <input value="anual" name="periodo" type="radio" class="input" />
+              <div class="btn"><span class="span">Anual</span></div>
+            </div>
+        </div>
+    `;
+
+    filtrosContainer.appendChild(grupoPeriodo);
+
+    // ------------------------------
+    // 2. Sub-Filtro (DINÂMICO, TB CUSTOM)
+    // ------------------------------
+    const subFiltroWrapper = document.createElement("div");
+    subFiltroWrapper.id = "sub-filtro-wrapper";
+    subFiltroWrapper.className = "sub-filtro";
+    filtrosContainer.appendChild(subFiltroWrapper);
+
+    // ------------------------------
+    // 3. Botão Aplicar
+    // ------------------------------
+    const btnAplicar = document.createElement("button");
+    btnAplicar.id = "btnAplicarFiltro";
+    btnAplicar.className = "btn-aplicar-filtro";
+    btnAplicar.textContent = "Aplicar Filtro";
+    filtrosContainer.appendChild(btnAplicar);
+
+    // --------------------------------------
+    // FUNÇÃO PARA CRIAR BOTÕES CUSTOMIZADOS
+    // --------------------------------------
+    function montarOpcoes(titulo, valores) {
+        return `
+            <label class="label-select">${titulo}</label>
+            <div class="wrapper" id="sub-opcoes">
+                ${valores.map(v => `
+                    <div class="option">
+                        <input value="${v.value}" name="sub" type="radio" class="input" ${v.checked ? "checked" : ""} />
+                        <div class="btn"><span class="span">${v.label}</span></div>
+                    </div>
+                `).join("")}
+            </div>
+        `;
     }
+
+    // ------------------------------
+    //  FUNÇÃO PARA ATUALIZAR SUB-FILTRO
+    // ------------------------------
+function atualizarSubFiltro(tipo) {
+    subFiltroWrapper.innerHTML = "";
+
+    if (tipo === "diario") {
+
+    // Data atual como padrão
+    const hoje = new Date().toISOString().split("T")[0];
+
+    subFiltroWrapper.innerHTML = `
+        <label class="label-select">Selecione o Dia</label>
+
+        <div class="wrapper select-wrapper">
+            <input 
+                type="date"
+                id="sub-filtro-data"
+                class="input btn span select-custom"
+                value="${hoje}"
+            >
+        </div>
+    `;
+
+    // Aciona o carregamento ao mudar a data
+    subFiltroWrapper
+        .querySelector("#sub-filtro-data")
+        .addEventListener("change", () => 
+            carregarDetalhesVencimentos(conteudoGeral)
+        );
+
+    return;
+}
+
+    // --------------------------
+    // 1. MENSAL → SELECT ESTILIZADO
+    // --------------------------
+    if (tipo === "mensal") {
+        let optionsHtml = "";
+
+        for (let i = 1; i <= 12; i++) {
+            const isCurrentMonth = (i === new Date().getMonth() + 1);
+            optionsHtml += `
+                <option value="${i}" ${isCurrentMonth ? "selected" : ""}>
+                    ${nomeDoMes(i)} / ${anoAtual}
+                </option>
+            `;
+        }
+
+        subFiltroWrapper.innerHTML = `
+            <label class="label-select">Selecione o Mês</label>
+            <div class="wrapper select-wrapper">
+                <select id="sub-filtro-select" class="input btn span select-custom">
+                    ${optionsHtml}
+                </select>
+            </div>
+        `;
+
+        subFiltroWrapper.querySelector("#sub-filtro-select")
+            .addEventListener("change", () => carregarDetalhesVencimentos(conteudoGeral));
+
+        return;
+    }
+
+    // --------------------------
+    // 2. TRIMESTRAL → RADIO CUSTOM
+    // --------------------------
+    if (tipo === "trimestral") {
+        const trimes = [1, 2, 3, 4].map(t => ({
+            value: t,
+            label: `Trimestre ${t}`,
+            checked: t === 1
+        }));
+
+        subFiltroWrapper.innerHTML = montarOpcoes("Selecione o Trimestre", trimes);
+    }
+
+    // --------------------------
+    // 3. SEMESTRAL → RADIO CUSTOM
+    // --------------------------
+      else if (tipo === "semestral") {
+          const semestres = [
+              { value: 1, label: `1º Semestre`, checked: true },
+              { value: 2, label: `2º Semestre`, checked: false }
+          ];
+
+          subFiltroWrapper.innerHTML = `
+              <div class="sub-semestral">
+                  ${montarOpcoes("Selecione o Semestre", semestres)}
+              </div>
+          `;
+      }
+
+
+    // --------------------------
+    // 4. ANUAL → NENHUM SUBFILTRO
+    // --------------------------
+    else if (tipo === "anual") {
+        subFiltroWrapper.innerHTML = "";
+        return;
+    }
+
+    // Listener genérico para os botões do sub-filtro
+    const radios = subFiltroWrapper.querySelectorAll("input[name='sub']");
+    radios.forEach(r => r.addEventListener("change", () => carregarDetalhesVencimentos(conteudoGeral)));
 }
 
 
+    // Inicializa
+    atualizarSubFiltro("diario");
+
+    // Listener Periodo
+    grupoPeriodo.querySelectorAll("input[name='periodo']").forEach(radio => {
+        radio.addEventListener("change", (e) => {
+            const tipo = e.target.value;
+            atualizarSubFiltro(tipo);
+
+            if (tipo === "anual") carregarDetalhesVencimentos(conteudoGeral);
+        });
+    });
+
+    // Botão aplicar
+    btnAplicar.addEventListener("click", () => carregarDetalhesVencimentos(conteudoGeral));
+
+    return filtrosContainer;
+}
+
+function nomeDoMes(num) {
+    const meses = [
+        "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
+        "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"
+    ];
+    return meses[num - 1];
+}
 
 
+function construirQueryDeFiltro() {
+    // Definido localmente para garantir o escopo
+    const anoAtual = new Date().getFullYear(); 
+    
+    const periodoSelect = document.getElementById('periodo-select');
+    const periodo = periodoSelect.value;
+    let queryString = `?periodo=${periodo}&ano=${anoAtual}`;
 
+    // Adiciona o parâmetro de seleção específico se não for Diário ou Anual
+    if (periodo === 'mensal') {
+        const mesSelect = document.getElementById('sub-filtro-select');
+        if (mesSelect) {
+            queryString += `&mes=${mesSelect.value}`;
+        }
+    } else if (periodo === 'trimestral') {
+        const trimestreSelect = document.getElementById('sub-filtro-select');
+        if (trimestreSelect) {
+            queryString += `&trimestre=${trimestreSelect.value}`;
+        }
+    } else if (periodo === 'semestral') {
+        const semestreSelect = document.getElementById('sub-filtro-select');
+        if (semestreSelect) {
+            queryString += `&semestre=${semestreSelect.value}`;
+        }
+    }
+
+    // Para o filtro diário, usamos a data atual como referência (se não houver um seletor de data)
+    if (periodo === 'diario') {
+         const hoje = new Date().toISOString().split('T')[0];
+         queryString += `&dataInicio=${hoje}`;
+    }
+
+    return queryString;
+}
+
+
+document.getElementById("cardContainerVencimentos").addEventListener("click", async function() {
+    const painel = document.getElementById("painelDetalhes");
+    painel.innerHTML = ""; // Limpa o painel anterior
+
+    // Aplicando classes Tailwind para consistência com as funções de filtro
+    const container = document.createElement("div");
+    container.id = "venc-container";
+    container.className = "venc-container";
+
+    const header = document.createElement("div");
+    header.className = "venc-header";
+
+    const btnVoltar = document.createElement("button"); 
+    btnVoltar.id = "btnVoltarVencimentos";
+    // Usando classes Tailwind para um estilo moderno
+    btnVoltar.className = "btn-voltar";
+    btnVoltar.textContent = "←";
+
+    const titulo = document.createElement("h2");
+    titulo.textContent = "Vencimentos de Pagamentos"; 
+
+    header.appendChild(btnVoltar);
+    header.appendChild(titulo);
+    container.appendChild(header);
+    
+    // Contêiner onde o resultado da busca será exibido
+    const conteudoGeral = document.createElement("div");
+    conteudoGeral.className = "conteudo-geral"; 
+    
+    // ➡️ CRIAÇÃO E INSERÇÃO DOS FILTROS (RESTAURADO E CORRIGIDO)
+    // Chama a função para criar o componente de filtro
+    const FiltrosVencimentos = criarControlesDeFiltro(conteudoGeral);
+    // Anexa o componente de filtro ao container principal
+    container.appendChild(FiltrosVencimentos); 
+    
+    container.appendChild(conteudoGeral);
+
+    // Anexe o container completo ao painel
+    painel.appendChild(container);
+    
+    // ➡️ CHAMA A FUNÇÃO CORRIGIDA PELA PRIMEIRA VEZ para carregar o padrão (Mensal Atual)
+    carregarDetalhesVencimentos(conteudoGeral);
+    
+    // 5. Adiciona o listener para o botão de voltar
+    btnVoltar.addEventListener('click', () => {
+        painel.innerHTML = ""; // Volta para a tela anterior
+    });
+});
 
 // ======================
 // ABRIR AGENDA

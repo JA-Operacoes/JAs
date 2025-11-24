@@ -594,6 +594,8 @@ router.get("/eventos-fechados", async (req, res) => {
 
 
 
+
+
 router.get("/detalhes-eventos-abertos", async (req, res) => {
   try {
     const idevento = req.query.idevento || req.headers.idevento;
@@ -1124,6 +1126,178 @@ router.post('/notificacoes-financeiras/atualizar-status',
     }
   }
 );
+
+
+router.get("/vencimentos", async (req, res) => {
+    // dataInicio é o dia que estamos checando (o dia do vencimento)
+    const { dataInicio, tipoVencimento } = req.query; 
+    const idempresa = req.idempresa; // Assumindo que o ID da empresa vem do middleware (req.idempresa)
+
+    // ➡️ 1. Define o dia de filtro e valida o tipo de vencimento
+    if (!dataInicio) {
+        return res.status(400).json({ error: "dataInicio é obrigatório." });
+    }
+    const dataFiltro = dataInicio; // YYYY-MM-DD
+
+    const tipo = tipoVencimento || 'cache'; // Padrão: cache
+    
+    // As novas regras de vencimento serão mapeadas aqui:
+    let vencimentoDateLogic = '';
+    
+    // A tabela 'staffeventos' (tse) não tem as datas de marco (dtinimarcacao, dtfimrealizacao).
+    // Assumimos que a tabela 'eventos' (te) está ligada ao 'staffeventos' (tse) através do 'idevento'.
+    // Precisamos de um JOIN para a tabela 'eventos' e a tabela 'orcamentos' (to).
+
+    // Para esta implementação, vamos assumir uma View ou JOIN que traz as datas:
+    // Vou usar a tabela 'eventos' (te) e presumir que ela já possui ou pode ser JOINed para as datas necessárias.
+
+    const joinOrcamento = `
+        INNER JOIN eventos te ON tse.idevento = te.idevento 
+    `;
+
+    // -------------------------------------------------
+    // ➡️ 2. Define a Lógica de Vencimento no SQL
+    // -------------------------------------------------
+    if (tipo === 'ajuda_custo') {
+        // Vencimento: 2 dias após a dtinimarcacao do Orçamento (te.dtinimarcacao)
+        // O dia de vencimento (dataFiltro) deve ser igual a (dtinimarcacao + 2 dias)
+        vencimentoDateLogic = `
+            te.dtinimarcacao + INTERVAL '2 days'
+        `;
+    } else if (tipo === 'cache') {
+        // Vencimento: 10 dias após a dtfimrealizacao (te.dtfimrealizacao)
+        // O dia de vencimento (dataFiltro) deve ser igual a (dtfimrealizacao + 10 dias)
+        vencimentoDateLogic = `
+            te.dtfimrealizacao + INTERVAL '10 days'
+        `;
+    } else {
+         return res.status(400).json({ error: "tipoVencimento deve ser 'cache' ou 'ajuda_custo'." });
+    }
+    
+    // -------------------------------------------------
+    // ➡️ 3. Lógica WHERE para o dia do Vencimento
+    // -------------------------------------------------
+    const whereVencimento = `
+        ${vencimentoDateLogic}::date = $2::date
+    `;
+
+    try {
+        const vencimentos = {};
+
+        // --- CONSULTA PRINCIPAL (CACHÊ E AJUDA DE CUSTO DETALHADO) ---
+        // A lógica do 'QTD DIÁRIAS' está mantida, mas a filtragem principal mudou
+        const queryVencimentosDetalhe = `
+            SELECT
+                tse.idevento AS "idevento",
+                tse.nmevento AS "nomeEvento",
+                tse.nmfuncao AS "FUNÇÃO",
+                tbf.nome AS "NOME",
+                tbf.pix AS "PIX",
+                -- Valor unitário do Cachê
+                COALESCE(tse.vlrcache, 0.00) AS "VLR CACHÊ", 
+                -- Valor unitário da Ajuda de Custo (Diária)
+                (COALESCE(tse.vlralmoco, 0.00) + COALESCE(tse.vlrjantar, 0.00) + COALESCE(tse.vlrtransporte, 0.00)) AS "VLR AJUDA CUSTO UNITÁRIO",
+                
+                -- Quantidade de diárias (dias de evento) - MANTIDA
+                jsonb_array_length(tse.datasevento) AS "QTD DIÁRIAS",
+
+                -- Valor Adicional
+                (
+                    COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0.00 END, 0.00) +
+                    COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' THEN tse.vlrcaixinha ELSE 0.00 END, 0.00)
+                ) AS "VLR ADICIONAL",
+                tse.statuspgto AS "STATUS PGTO"
+            FROM
+                staffeventos tse
+            JOIN
+                funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
+            JOIN 
+                staffempresas semp ON tse.idstaff = semp.idstaff
+            ${joinOrcamento} -- Adiciona o JOIN para a tabela eventos (te)
+            WHERE
+                semp.idempresa = $1 AND 
+                ${whereVencimento} -- AQUI ESTÁ A NOVA LÓGICA
+            ORDER BY
+                tse.nmevento,
+                tbf.nome
+        `;
+
+        // ➡️ 4. Executa a query com os parâmetros: $1 (idempresa) e $2 (dataFiltro)
+        const resultDetalhe = await pool.query(queryVencimentosDetalhe, [idempresa, dataFiltro]);
+        const dadosBrutos = resultDetalhe.rows;
+
+        // --- AGRUPAMENTO E PROCESSAMENTO NO NODE.JS (MANTIDO) ---
+        const vencimentosAgrupados = {};
+
+        dadosBrutos.forEach(item => {
+            const eventoId = item.idevento;
+            const nomeEvento = item.nomeEvento;
+            // 🛑 A QTD DIÁRIAS AGORA É O TAMANHO TOTAL DO ARRAY DE DATAS, POIS ESTAMOS FILTRANDO APENAS O DIA DE VENCIMENTO.
+            // Se você quiser a quantidade de diárias dentro do evento, deve usar o valor completo, não o filtro de dia.
+            // Para manter a lógica que calcula o total do funcionário (VLR * QTD DIÁRIAS), assumirei que
+            // QTD DIÁRIAS deve ser o total de dias do evento, não apenas o dia de vencimento.
+            // Se precisar do total de diárias apenas no dia de vencimento, use '1' ou a lógica de filtro de dia do seu código original.
+            const qtdDiarias = parseInt(item["QTD DIÁRIAS"] || 0);
+
+            // Calcula os totais do item (MANTIDO)
+            const totalAjudaCusto = parseFloat(item["VLR AJUDA CUSTO UNITÁRIO"] || 0) * qtdDiarias;
+            const totalCache = parseFloat(item["VLR CACHÊ"] || 0) * qtdDiarias;
+            const totalAdicional = parseFloat(item["VLR ADICIONAL"] || 0);
+            const totalPagar = totalAjudaCusto + totalCache + totalAdicional;
+            
+            // ... (Lógica de agrupamento do seu código original, mantida) ...
+            if (!vencimentosAgrupados[eventoId]) {
+                vencimentosAgrupados[eventoId] = {
+                    nomeEvento: nomeEvento,
+                    totalAjudaCustoEvento: 0,
+                    totalCacheEvento: 0,
+                    totalAdicionalEvento: 0,
+                    totalPagarEvento: 0,
+                    funcionarios: []
+                };
+            }
+
+            // Atualiza os totais acumulados do Evento
+            vencimentosAgrupados[eventoId].totalAjudaCustoEvento += totalAjudaCusto;
+            vencimentosAgrupados[eventoId].totalCacheEvento += totalCache;
+            vencimentosAgrupados[eventoId].totalAdicionalEvento += totalAdicional;
+            vencimentosAgrupados[eventoId].totalPagarEvento += totalPagar;
+
+            // Adiciona o detalhe do funcionário
+            vencimentosAgrupados[eventoId].funcionarios.push({
+                nome: item.NOME,
+                funcao: item.FUNÇÃO,
+                pix: item.PIX,
+                qtdDiarias: qtdDiarias,
+                vlrAjudaCustoUnitario: parseFloat(item["VLR AJUDA CUSTO UNITÁRIO"] || 0).toFixed(2),
+                totalAjudaCusto: totalAjudaCusto.toFixed(2),
+                vlrCacheUnitario: parseFloat(item["VLR CACHÊ"] || 0).toFixed(2),
+                totalCache: totalCache.toFixed(2),
+                totalAdicional: totalAdicional.toFixed(2),
+                totalPagar: totalPagar.toFixed(2), 
+                statusPgto: item["STATUS PGTO"]
+            });
+            // ... (Fim da lógica de agrupamento) ...
+        });
+
+        // Formata os totais do evento (para exibição no cabeçalho)
+        Object.values(vencimentosAgrupados).forEach(evento => {
+             evento.totalAjudaCustoEvento = evento.totalAjudaCustoEvento.toFixed(2);
+             evento.totalCacheEvento = evento.totalCacheEvento.toFixed(2);
+             evento.totalAdicionalEvento = evento.totalAdicionalEvento.toFixed(2);
+             evento.totalPagarEvento = evento.totalPagarEvento.toFixed(2);
+        });
+
+        vencimentos.eventos = Object.values(vencimentosAgrupados);
+        
+        return res.json({ tipoVencimento: tipo, dataFiltro: dataFiltro, ...vencimentos });
+        
+    } catch (error) {
+        console.error("❌ Erro ao buscar vencimentos:", error);
+        // Em caso de erro com a data ou JOIN, retorna uma mensagem clara.
+        return res.status(500).json({ error: error.message || "Erro ao listar vencimentos." });
+    }
+});
 
 
 // =======================================

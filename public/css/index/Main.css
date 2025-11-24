@@ -1581,6 +1581,134 @@ body.dark .indicador-evento {
   background: #fff;
 }
 
+/* ---------------------------------------------------
+            VENCIMENTOS E PAGAMENTOS
+  ----------------------------------------------------*/
+.venc-container{
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    gap: 20px;
+    padding: 20px;
+    background: #f5f5f5;
+    border-radius: 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    animation: aparecerAgenda 0.4s ease-in-out;
+}
+
+.venc-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.filtros-vencimentos {
+    display: flex;
+    justify-content: start;
+    gap: 50px;
+    margin: 10px;
+}
+
+.wrapper {
+  position: relative;
+  width: 300px;
+  height: 36px;
+  background-color: transparent;
+  border: 2px solid var(--border-color);
+  border-radius: 34px;
+  display: flex;
+  flex-direction: row;
+  box-shadow: 4px 4px var(--border-color);
+}
+
+.option {
+  margin-right: 5px;
+  width: 80.5px;
+  height: 28px;
+  position: relative;
+  top: 2px;
+  left: 2px;
+  border-radius: 34px;
+  transition: 0.25s cubic-bezier(0, 0, 0, 1);
+}
+
+.option:last-child {
+  margin-right: 4px;
+}
+
+.option:hover {
+  background-color: var(--hover-color);
+}
+
+.option:hover .span {
+  color: var(--font-color);
+}
+
+.input {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  appearance: none;
+  cursor: pointer;
+}
+
+.btn {
+  width: 100%;
+  height: 100%;
+  border-radius: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+
+.span {
+  color: var(--black-color);
+}
+
+.input:checked + .btn {
+  background-color: var(--primary-color);
+  transition: 0.2s cubic-bezier(0, 0, 0, 1);
+}
+
+.input:checked + .btn .span {
+  color: var(--font-color);
+  transition: 0.25s cubic-bezier(0, 0, 0, 1);
+}
+
+.wrapper.select-wrapper {
+  width: 150px;
+}
+
+select#sub-filtro-select {
+    width: 150px;
+    padding: 0 20px;
+    font-weight: var(--font-weight);
+}
+
+button#btnAplicarFiltro {
+    width: 90px;
+    height: 40px;
+    border-radius: 10px;
+    margin-top: 30px;
+    background-color: var(--primary-color);
+    color: var(--font-color);
+}
+
+div#sub-opcoes {
+    width: 350px;
+}
+
+.sub-semestral #sub-opcoes {
+    width: 180px;
+}
+
+
+
+
 
 
 
