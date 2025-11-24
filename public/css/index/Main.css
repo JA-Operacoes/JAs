@@ -66,7 +66,7 @@ main#conteudo {
   gap: 20px;
   margin: 100px 0;
   overflow-x: auto; 
-  padding-left: 5px;
+  padding: 5px;
 }
 
 .card {
@@ -109,7 +109,7 @@ main#conteudo {
     margin-left: 10px;
 }
 
-.card-orcamentos, .card-eventos, .card-atividades, .card-financeiro, .card-eventos-em-abertos {
+.card-orcamentos, .card-eventos, .card-atividades, .card-financeiro, .card-eventos-em-abertos, .card-vencimentos {
   display: flex;
   flex-direction: column;
   gap: 15px;
@@ -117,27 +117,27 @@ main#conteudo {
 }
 
 /* Linha do título + total */
-.orc-header, .evt-header, .ativ-header, .fin-header {
+.orc-header, .evt-header, .ativ-header, .fin-header, .vec-header {
   display: flex;
   justify-content: space-between;
   font-size: 18px;
   font-weight: 600;
 }
 
-.orc-total, .ativ-total ,.ativ-title, .fin-total, .fin-title {
+.orc-total, .ativ-total ,.ativ-title, .fin-total, .fin-title, .vec-title {
   font-size: 22px;
   font-weight: bold;
 }
 
 /* Linha com abertos + emoji + fechados */
-.orc-body, .evt-body, .fin-body {
+.orc-body, .evt-body, .fin-body, .vec-body {
   display: flex;
   flex-direction: column; /* coloca os itens em coluna */
   gap: 8px; /* espaço entre as linhas */
   font-size: 16px;
 }
 
-.evt-body span , .ativ-body span,.fin-body span, .orc-body span{
+.evt-body span , .ativ-body span,.fin-body span, .orc-body span, .vec-body span {
   display: flex;
   justify-content: space-between; /* label de um lado e número do outro */
   font-weight: 500;
@@ -152,6 +152,10 @@ main#conteudo {
   font-size: 14px;
   color: #ffffff;
 } 
+
+#cardContainerVencimentos{
+  animation: pulsar-vermelho 1.5s infinite ease-in-out;
+}
 
 
 
@@ -433,6 +437,9 @@ main#conteudo {
   }
   .calendario {
     flex: 1;
+    height: 100%;
+    overflow-y: auto;
+    scrollbar-width: thin;
   }
   .calendario-header {
     display: flex;
@@ -849,6 +856,14 @@ span.verMais {
   70% { box-shadow: 0 0 0 10px rgba(249, 22, 22, 0); }
   100% { box-shadow: 0 0 0 0 rgba(249, 22, 22, 0); }
 }
+@keyframes pulsar-vermelho2 {
+  0% { box-shadow: 0 0 0 0 rgba(249, 22, 22, 0.6); }
+  0% { background-color: 0 0 0 0 rgba(249, 22, 22, 0.6); }
+  70% { box-shadow: 0 0 0 10px rgba(249, 22, 22, 0); }
+  70% { background-color: 0 0 0 10px rgba(249, 22, 22, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(249, 22, 22, 0); }
+  100% { background-color: 0 0 0 0 rgba(249, 22, 22, 0); }
+}
 
 @keyframes pulsar-amarelo {
   0% { box-shadow: 0 0 0 0 rgba(255, 204, 0, 0.6); }
@@ -1024,6 +1039,8 @@ span.nenhum-evento {
   gap: 15px;
   animation: fadeIn 0.3s ease-in-out;
   padding: 15px;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .header-equipes-evento {
@@ -1262,6 +1279,18 @@ li.funcionario-item {
   to {opacity: 1; transform: translateY(0);}
 }
 
+div#cabecalhoDiasSemana {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    background-color: var(--primary-color);
+    color: var(--font-color);
+}
+
+div#calendarioVertical {
+    height: 100%;
+}
+
 .hidden {
   display: none;
 }
@@ -1326,20 +1355,31 @@ li.funcionario-item {
 
 .agenda-conteudo {
   flex: 1;
+  height: 100%;
   background: white;
   border-radius: 15px;
   padding: 35px;
   border: 1px solid #ddd;
 }
 
+h3#dataSelecionada {
+    margin-bottom: 30px;
+}
+div#calendarioVertical {
+    height: 100%;
+    width: 350px;
+}
+
 .btn-adicionar {
-  margin: 10px 204px;
+  margin: 200px 150px 0 190px;
   padding: 8px 15px;
   background: var(--primary-color);
   color: var(--font-color);
   border: none;
   border-radius: 10px;
   cursor: pointer;
+  display: flex;
+  justify-content: center;
 }
 
 .btn-adicionar:hover {
@@ -1485,7 +1525,6 @@ li.funcionario-item {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 6px;
-  font-size: x-small;
 }
 
 .dia {
@@ -1541,6 +1580,134 @@ body.dark .dia:hover {
 body.dark .indicador-evento {
   background: #fff;
 }
+
+/* ---------------------------------------------------
+            VENCIMENTOS E PAGAMENTOS
+  ----------------------------------------------------*/
+.venc-container{
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    gap: 20px;
+    padding: 20px;
+    background: #f5f5f5;
+    border-radius: 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    animation: aparecerAgenda 0.4s ease-in-out;
+}
+
+.venc-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.filtros-vencimentos {
+    display: flex;
+    justify-content: start;
+    gap: 50px;
+    margin: 10px;
+}
+
+.wrapper {
+  position: relative;
+  width: 300px;
+  height: 36px;
+  background-color: transparent;
+  border: 2px solid var(--border-color);
+  border-radius: 34px;
+  display: flex;
+  flex-direction: row;
+  box-shadow: 4px 4px var(--border-color);
+}
+
+.option {
+  margin-right: 5px;
+  width: 80.5px;
+  height: 28px;
+  position: relative;
+  top: 2px;
+  left: 2px;
+  border-radius: 34px;
+  transition: 0.25s cubic-bezier(0, 0, 0, 1);
+}
+
+.option:last-child {
+  margin-right: 4px;
+}
+
+.option:hover {
+  background-color: var(--hover-color);
+}
+
+.option:hover .span {
+  color: var(--font-color);
+}
+
+.input {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  appearance: none;
+  cursor: pointer;
+}
+
+.btn {
+  width: 100%;
+  height: 100%;
+  border-radius: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+
+.span {
+  color: var(--black-color);
+}
+
+.input:checked + .btn {
+  background-color: var(--primary-color);
+  transition: 0.2s cubic-bezier(0, 0, 0, 1);
+}
+
+.input:checked + .btn .span {
+  color: var(--font-color);
+  transition: 0.25s cubic-bezier(0, 0, 0, 1);
+}
+
+.wrapper.select-wrapper {
+  width: 150px;
+}
+
+select#sub-filtro-select {
+    width: 150px;
+    padding: 0 20px;
+    font-weight: var(--font-weight);
+}
+
+button#btnAplicarFiltro {
+    width: 90px;
+    height: 40px;
+    border-radius: 10px;
+    margin-top: 30px;
+    background-color: var(--primary-color);
+    color: var(--font-color);
+}
+
+div#sub-opcoes {
+    width: 350px;
+}
+
+.sub-semestral #sub-opcoes {
+    width: 180px;
+}
+
+
+
 
 
 

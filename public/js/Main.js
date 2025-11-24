@@ -133,16 +133,21 @@ async function abrirModalLocal(url, modulo) {
 
     // fechar por overlay
     overlay.addEventListener("mousedown", (event) => {
-      if (event.target === overlay) {
-        console.log("[abrirModalLocal] overlay clicado -> fechar");
-        if (typeof fecharModal === "function") fecharModal();
-        else {
-          overlay.style.display = "none";
-          container.innerHTML = "";
-          document.body.classList.remove("modal-open");
-        }
-      }
-    });
+      if (event.target === overlay) {
+        console.log("[abrirModalLocal] overlay clicado -> fechar");
+        if (typeof fecharModal === "function") {
+            fecharModal();
+        } else {
+          overlay.style.display = "none";
+          container.innerHTML = "";
+          document.body.classList.remove("modal-open");
+            // Chama o callback AQUI
+            if (typeof window.onStaffModalClosed === 'function') {
+                window.onStaffModalClosed(false);
+            }
+        }
+      }
+    });
 
     // modal.querySelector(".close")?.addEventListener("click", () => {
     //   console.log("[abrirModalLocal] fechar (botão X)");
@@ -157,17 +162,20 @@ async function abrirModalLocal(url, modulo) {
     modal.querySelector(".close")?.addEventListener("click", () => {
       console.log("[abrirModalLocal] fechar (botão X)");
 
+      // Se a função global existir, use-a para garantir o comportamento de callback.
       if (typeof fecharModal === "function") {
-        fecharModal();
+        fecharModal(); 
       } else {
+        // Fallback de fechamento, e aqui você DEVE incluir o callback.
         overlay.style.display = "none";
         container.innerHTML = "";
         document.body.classList.remove("modal-open");
+        // Chama o callback AQUI para garantir que a tela volte, mesmo sem a função fecharModal
+        if (typeof window.onStaffModalClosed === 'function') {
+            window.onStaffModalClosed(false); // false indica que não foi fechado pela função principal, mas ainda deve voltar
+        }
       }
-
-      // 🚀 AÇÃO CORRETIVA: Força o refresh da página principal após fechar o modal
-      window.location.reload(); 
-      console.log("Página será recarregada após fechar o modal.");
+      // A linha de window.location.reload() FOI REMOVIDA.
     });
   } else {
     console.warn("[abrirModalLocal] estrutura de modal não encontrada após injeção do HTML.");
@@ -1444,6 +1452,10 @@ async function abrirPopupEvento(idevento) {
     }
 }
 
+
+// =========================
+//     Eventos em Aberto  
+// =========================
 document.addEventListener("DOMContentLoaded", function () {
     const cardEventos = document.querySelector(".card-eventos-em-abertos");
 
@@ -1544,7 +1556,6 @@ async function atualizarEventosEmAberto() {
   }
 }
 
-
 async function mostrarEventosEmAberto() {
  const painel = document.getElementById("painelDetalhes");
  if (!painel) return;
@@ -1560,6 +1571,9 @@ async function mostrarEventosEmAberto() {
  header.className = "header-eventos-em-aberto";
  header.textContent = "⚠ Eventos em Aberto";
  container.appendChild(header);
+
+// const FiltrosVencimentos = criarControlesDeFiltro();
+// container.appendChild(FiltrosVencimentos); 
 
  // ======= ABAS =======
  const abas = document.createElement("div");
@@ -1956,7 +1970,6 @@ function criarCard(evt) {
   }
 }
 
-
 async function abrirTelaEquipesEvento(evento) {
   const painel = document.getElementById("painelDetalhes");
   if (!painel) return;
@@ -2113,13 +2126,13 @@ async function abrirTelaEquipesEvento(evento) {
         
         // Cria função apenas se houver vagas/staff
         if (total > 0 || preenchidas > 0) { 
-               funcoesResult = [{
-                 idfuncao: item.idfuncao ?? null,
-                 nome: item.categoria || "Função",
-                 total,
-                 preenchidas,
-                 concluido: total > 0 && preenchidas >= total
-             }];
+              funcoesResult = [{
+                idfuncao: item.idfuncao ?? null,
+                nome: item.categoria || "Função",
+                total,
+                preenchidas,
+                concluido: total > 0 && preenchidas >= total
+            }];
         }
       }
       // fallback genérico (usando funcoes original, se houver)
@@ -2172,7 +2185,7 @@ async function abrirTelaEquipesEvento(evento) {
 
         const periodoVaga = formatarPeriodo(f.dtini_vaga, f.dtfim_vaga);
         console.log("Período da vaga", f.nome, f.dtini_vaga, f.dtfim_vaga, "=>", periodoVaga);
-       
+      
         return `${f.nome}: ${cor} (${periodoVaga}) ${preench}/${total}`;
       }).join(" | ");
 
@@ -2222,8 +2235,6 @@ async function abrirTelaEquipesEvento(evento) {
     corpo.innerHTML = `<p class="erro">${escapeHtml(msg)}</p>`;
   }
 }
-
-
 
 /**
  * Abre a tela de lista de funcionários de uma equipe específica no painelDetalhes.
@@ -2496,172 +2507,158 @@ function formatarPeriodo(inicio, fim) {
 }
 
 function abrirDetalhesEquipe(equipe, evento) {
-  const painel = document.getElementById("painelDetalhes");
-  if (!painel) return;
-  painel.innerHTML = "";
+    const painel = document.getElementById("painelDetalhes");
+    if (!painel) return;
+    painel.innerHTML = "";
 
-  const container = document.createElement("div");
-  container.className = "painel-equipes-evento";
+    const container = document.createElement("div");
+    container.className = "painel-equipes-evento";
 
-  const totalFuncoes = equipe.funcoes?.length || 0;
-  const concluidas = equipe.funcoes?.filter(f => f.concluido)?.length || 0;
+    const totalFuncoes = equipe.funcoes?.length || 0;
+    const concluidas = equipe.funcoes?.filter(f => f.concluido)?.length || 0;
 
-  // ===== HEADER =====
-  const header = document.createElement("div");
-  header.className = "header-equipes-evento";
-  header.innerHTML = `
-    <button class="btn-voltar" title="Voltar">←</button>
-    <div class="info-evento">
-      <h2>${escapeHtml(equipe.equipe || equipe.nome || "Equipe")}</h2>
-      <p>${escapeHtml(evento.nmevento || "Evento sem nome")} — ${concluidas}/${totalFuncoes} concluídas</p>
-      <p>📍 ${escapeHtml(evento.nmlocalmontagem || evento.local || "Local não informado")}</p>
-      <p>👤 Cliente: ${escapeHtml(evento.nmfantasia || evento.cliente || "")}</p>
+    // Funções de utilidade
+    function escapeHtml(str) {
+        if (!str && str !== 0) return "";
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+    
+    // helper local (assumindo que está definido globalmente ou em escopo superior)
+    function formatarPeriodo(inicio, fim) {
+        const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+        return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
+    }
+
+    // 1. FUNÇÃO DE VOLTA DEFINIDA AQUI
+    const voltarParaEquipes = () => abrirTelaEquipesEvento(evento);
+
+    // ===== HEADER - COMPACTADO PARA REMOVER #text =====
+    const header = document.createElement("div");
+    header.className = "header-equipes-evento";
+    header.innerHTML = `<button class="btn-voltar" title="Voltar">←</button><div class="info-evento"><h2>${escapeHtml(equipe.equipe || equipe.nome || "Equipe")}</h2><p>${escapeHtml(evento.nmevento || "Evento sem nome")} — ${concluidas}/${totalFuncoes} concluídas</p><p>📍 ${escapeHtml(evento.nmlocalmontagem || evento.local || "Local não informado")}</p><p>👤 Cliente: ${escapeHtml(evento.nmfantasia || evento.cliente || "")}</p></div>`;
+    container.appendChild(header);
+
+    // ===== LISTA DE FUNÇÕES =====
+    const lista = document.createElement("ul");
+    lista.className = "funcoes-lista";
+
+    (equipe.funcoes || []).forEach(func => {
+        const total = Number(func.total ?? func.total_vagas ?? func.qtd_orcamento ?? 0);
+        const preenchidas = Number(func.preenchidas ?? func.qtd_cadastrada ?? 0);
+        const concluido = total > 0 && preenchidas >= total;
+
+        const li = document.createElement("li");
+        li.className = "funcao-item";
+        if (concluido) li.classList.add("concluido");
+        li.setAttribute("role", "button");
+        li.tabIndex = 0;
+
+        const periodoVaga = formatarPeriodo(func.dtini_vaga, func.dtfim_vaga);
+
+        // NÓS DE TEXTO criados por createElement geralmente não são um problema,
+        // mas vamos garantir que o HTML injetado seja compacto.
+        
+        // CORREÇÃO: Usando a abordagem de wrapper para evitar nós #text.
+        li.innerHTML = `
+<div class="func-wrapper">
+    <div class="func-nome">${escapeHtml(func.nome || func.nmfuncao || "Função")} <span class="func-data-vaga">(${periodoVaga})</span></div>
+    <div class="func-estado">${preenchidas}/${total}</div>
+    <div class="func-detalhes">
+        ${concluido 
+            ? '✅ Completa' 
+            : `<button class="btn-abrir-staff status-urgente-vermelho">⏳ Abrir staff</button>`
+        }
     </div>
-  `;
-  container.appendChild(header);
+</div>
+        `;
+        
+        // Se não estiver concluído, precisamos adicionar o listener ao botão.
+        if (!concluido) {
+             const botao = li.querySelector(".btn-abrir-staff");
+             if (botao) {
+                 botao.addEventListener("click", (e) => {
+                     e.stopPropagation(); // evita conflito com o clique no <li>
+                     abrirStaffModal();
+                 });
+             }
+        }
 
-  // ===== LISTA DE FUNÇÕES =====
-  const lista = document.createElement("ul");
-  lista.className = "funcoes-lista";
+        function abrirStaffModal() {
+            if (concluido) return;
 
-  (equipe.funcoes || []).forEach(func => {
-    const total = Number(func.total ?? func.total_vagas ?? func.qtd_orcamento ?? 0);
-    const preenchidas = Number(func.preenchidas ?? func.qtd_cadastrada ?? 0);
-    const concluido = total > 0 && preenchidas >= total;
+            const params = new URLSearchParams();
 
-    const li = document.createElement("li");
-    li.className = "funcao-item";
-    if (concluido) li.classList.add("concluido");
-    li.setAttribute("role", "button");
-    li.tabIndex = 0;
+            params.set("idfuncao", func.idfuncao ?? func.idFuncao);
+            params.set("nmfuncao", func.nome ?? func.nmfuncao);
+            params.set("idequipe", equipe.idequipe || "");
+            params.set("nmequipe", equipe.equipe || "");
+            params.set("idmontagem", evento.idmontagem || "");
+            params.set("nmlocalmontagem", evento.nmlocalmontagem || "");
+            params.set("idcliente", evento.idcliente || "");
+            params.set("nmcliente", evento.nmfantasia || evento.cliente || "");
+            params.set("idevento", evento.idevento || "");
+            params.set("nmevento", evento.nmevento || "");
 
-    const periodoVaga = formatarPeriodo(func.dtini_vaga, func.dtfim_vaga);
+            if (Array.isArray(evento.dataeventos)) {
+                params.set("dataeventos", JSON.stringify(evento.dataeventos));
+            } else if (evento.dataeventos) {
+                params.set("dataeventos", evento.dataeventos);
+            }
 
-    const nomeSpan = document.createElement("div");
-    nomeSpan.className = "func-nome";
-    // nomeSpan.textContent = func.nome || func.nmfuncao || "Função";
+            params.set("dtini_vaga", func.dtini_vaga || null);
+            params.set("dtfim_vaga", func.dtfim_vaga || null);
 
-    nomeSpan.innerHTML = `${escapeHtml(func.nome || func.nmfuncao || "Função")} <span class="func-data-vaga">(${periodoVaga})</span>`;
+            // 2. LÓGICA DE CALLBACK: Define uma função global temporária.
+            // O código de fechar o modal deve chamar window.onStaffModalClosed()
+            window.onStaffModalClosed = function(modalClosedSuccessfully) {
+                // Limpa a função global logo após ser chamada.
+                delete window.onStaffModalClosed;
+                console.log("Callback do modal Staff acionado. Atualizando a tela...");
+                
+                // Chama a função para voltar à tela anterior e recarregar os dados.
+                voltarParaEquipes(); 
+            };
 
-    const estadoSpan = document.createElement("div");
-    estadoSpan.className = "func-estado";
-    estadoSpan.textContent = `${preenchidas}/${total}`;
-    
-    const detalhesSpan = document.createElement("div");
-    detalhesSpan.className = "func-detalhes";
+            console.log("Abrindo modal Staff com parâmetros:", Object.fromEntries(params.entries()));
 
-    if (concluido) {
-      detalhesSpan.textContent = "✅ Completa";
-    } else {
-      const botao = document.createElement("button");
-      botao.className = "btn-abrir-staff status-urgente-vermelho";
-      botao.textContent = "⏳ Abrir staff";
+            window.__modalInitialParams = params.toString();
+            window.moduloAtual = "Staff";
 
-      botao.addEventListener("click", (e) => {
-        e.stopPropagation(); // evita conflito com o clique no <li>
-        abrirStaffModal();
-      });
+            const targetUrl = `CadStaff.html?${params.toString()}`;
 
-      detalhesSpan.appendChild(botao);
-    }
+            if (typeof abrirModalLocal === "function") {
+                abrirModalLocal(targetUrl, "Staff");
+            } else if (typeof abrirModal === "function") {
+                abrirModal(targetUrl, "Staff");
+            } else {
+                console.error("ERRO FATAL: Nenhuma função global para abrir o modal foi encontrada.");
+            }
+        }
 
-    console.log("Valor de evento.dataeventos:", evento.dataeventos);
-    // Abre modal do staff utilizando a mesma lógica do Index.js (abrirModal)
-    function abrirStaffModal() {
-    // A variável 'concluido' é definida no escopo externo (função abrirDetalhesEquipe)
-    if (concluido) return; // não abre se já concluído
+        li.addEventListener("click", abrirStaffModal);
+        li.addEventListener("keypress", (e) => { if (e.key === "Enter") abrirStaffModal(); });
+        
+        lista.appendChild(li);
+    });
 
-    console.log("Objeto evento recebido:", evento);
+    container.appendChild(lista);
 
-    const params = new URLSearchParams();    
+    // ===== RODAPÉ - COMPACTADO PARA REMOVER #text =====
+    const rodape = document.createElement("div");
+    rodape.className = "rodape-equipes";
+    rodape.innerHTML = `<button class="btn-voltar-rodape">← Voltar</button><span class="status-texto">${concluidas === totalFuncoes ? "✅ Finalizado" : "⏳ Em andamento"}</span>`;
+    container.appendChild(rodape);
 
-    params.set("idfuncao", func.idfuncao ?? func.idFuncao);
-    params.set("nmfuncao", func.nome ?? func.nmfuncao);
-    params.set("idequipe", equipe.idequipe || "");
-    params.set("nmequipe", equipe.equipe || "");
-    params.set("idmontagem", evento.idmontagem || "");
-    params.set("nmlocalmontagem", evento.nmlocalmontagem || "");
-    params.set("idcliente", evento.idcliente || "");   
-    params.set("nmcliente", evento.nmfantasia || evento.cliente || ""); 
-    params.set("idevento", evento.idevento || "");
-    params.set("nmevento", evento.nmevento || "");
+    painel.appendChild(container);
 
-    if (Array.isArray(evento.dataeventos)) {
-      params.set("dataeventos", JSON.stringify(evento.dataeventos));
-    } else if (evento.dataeventos) {
-      params.set("dataeventos", evento.dataeventos); // Se for string, passa a string
-    }
-
-console.log("Valor de dataeventos:", evento.dataeventos);
-    
-// ✅ ADICIONANDO DATAS DA VAGA AO URL
-    params.set("dtini_vaga", func.dtini_vaga || null);
-    params.set("dtfim_vaga", func.dtfim_vaga || null);
-    // Usar idcliente (assumindo que já está no objeto evento)   
-    
-  
-    console.log("Abrindo modal Staff com parâmetros:", Object.fromEntries(params.entries()));
-    
-    // guarda os parâmetros globais para o prefill do modal
-    window.__modalInitialParams = params.toString();
-    console.log("Parâmetros passados para o modal:", window.__modalInitialParams);
-    window.moduloAtual = "Staff";
-
-    const targetUrl = `CadStaff.html?${params.toString()}`;
-
-    // 2. Remove o fallback problemático que criava um elemento <a> e duplicava o clique.
-    if (typeof abrirModalLocal === "function") {
-        abrirModalLocal(targetUrl, "Staff");
-    } else if (typeof abrirModal === "function") {
-        abrirModal(targetUrl, "Staff");
-    } else {
-        // Alerta simples caso as funções globais não existam.
-        console.error("ERRO FATAL: Nenhuma função global para abrir o modal foi encontrada.");
-        // Você pode adicionar um 'alert()' aqui se preferir.
-    }
-}
-
-
-    li.addEventListener("click", abrirStaffModal);
-    li.addEventListener("keypress", (e) => { if (e.key === "Enter") abrirStaffModal(); });
-
-    const wrapper = document.createElement("div");
-    wrapper.className = "func-wrapper";
-    wrapper.appendChild(nomeSpan);
-    wrapper.appendChild(estadoSpan);
-    wrapper.appendChild(detalhesSpan);
-
-    li.appendChild(wrapper);
-    lista.appendChild(li);
-  });
-
-  container.appendChild(lista);
-
-  // ===== RODAPÉ =====
-  const rodape = document.createElement("div");
-  rodape.className = "rodape-equipes";
-  rodape.innerHTML = `
-    <button class="btn-voltar-rodape">← Voltar</button>
-    <span class="status-texto">${concluidas === totalFuncoes ? "✅ Finalizado" : "⏳ Em andamento"}</span>
-  `;
-  container.appendChild(rodape);
-
-  painel.appendChild(container);
-
-  // eventos de navegação
-  container.querySelector(".btn-voltar")?.addEventListener("click", () => abrirTelaEquipesEvento(evento));
-  container.querySelector(".btn-voltar-rodape")?.addEventListener("click", () => abrirTelaEquipesEvento(evento));
-
-  // utilitário local para escapar
-  function escapeHtml(str) {
-    if (!str && str !== 0) return "";
-    return String(str)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-  }
+    // Eventos de navegação
+    container.querySelector(".btn-voltar")?.addEventListener("click", voltarParaEquipes);
+    container.querySelector(".btn-voltar-rodape")?.addEventListener("click", voltarParaEquipes);
 }
 
 
@@ -3783,72 +3780,477 @@ setInterval(atualizarResumoPedidos, 10000);
 atualizarResumoPedidos();
 
 
-// ==================================================================================
-// FUNÇÕES DE EXIBIÇÃO E CARREGAMENTO DE CARDS DO DASHBOARD
-// ==================================================================================
+// ===========================
+// Vencimentos de Pagamentos
+// ===========================
+
+
+async function carregarDetalhesVencimentos(conteudoGeral) {
+    conteudoGeral.innerHTML = '<h3>Carregando dados...</h3>';
+
+    // ➡️ CORREÇÃO: Define dataInicio e dataFim como o dia atual (YYYY-MM-DD)
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+    const dia = String(hoje.getDate()).padStart(2, '0');
+    
+    const dataAtualFormatada = `${ano}-${mes}-${dia}`;
+    const dataInicio = dataAtualFormatada; 
+    const dataFim = dataAtualFormatada;   
+    
+    // Atualiza o título do painel para indicar o dia
+    const tituloPainel = document.querySelector("#venc-container h2");
+    if (tituloPainel) {
+        tituloPainel.textContent = `Vencimentos de Pagamentos`;
+    }
+
+    try {
+        // Agora, dataInicio e dataFim estão definidas e acessíveis.
+        const url = `/vencimentos?dataInicio=${dataInicio}&dataFim=${dataFim}`; 
+        
+        // ASSUME que fetchComToken está definida globalmente
+        const dados = await fetchComToken(url); 
+        
+        if (!dados || !dados.eventos || dados.eventos.length === 0) {
+            conteudoGeral.innerHTML = '<p class="alerta-info">Nenhum vencimento encontrado para o dia de hoje.</p>';
+            return;
+        }
+
+        conteudoGeral.innerHTML = ''; // Limpa o "Carregando"
+        
+        // 1. Cria o container principal do Acordeão
+        const accordionContainer = document.createElement("div");
+        accordionContainer.className = "accordion-vencimentos";
+
+        dados.eventos.forEach((evento, index) => {
+            // 2. Cria o item do Acordeão (Evento)
+            const itemAcordeao = document.createElement("div");
+            itemAcordeao.className = "accordion-item";
+
+            // 3. Cabeçalho do Acordeão (Resumo do Evento)
+            const headerAcordeao = document.createElement("button");
+            headerAcordeao.className = "accordion-header";
+            headerAcordeao.innerHTML = `
+                <div class="evento-info">
+                    <strong>${evento.nomeEvento}</strong> 
+                    <span class="total-geral">Total: R$ ${evento.totalPagarEvento}</span>
+                </div>
+            `;
+            headerAcordeao.addEventListener('click', () => {
+                itemAcordeao.classList.toggle('active');
+            });
+            
+            // 4. Corpo do Acordeão (Detalhes dos Funcionários)
+            const bodyAcordeao = document.createElement("div");
+            bodyAcordeao.className = "accordion-body";
+            
+            let detalhesHtml = `
+                <div class="resumo-evento-totais">
+                    <p>Cachê Total: R$ ${evento.totalCacheEvento}</p>
+                    <p>Ajuda Custo Total: R$ ${evento.totalAjudaCustoEvento}</p>
+                    <p>Adicional Total: R$ ${evento.totalAdicionalEvento}</p>
+                </div>
+                <h4>Detalhes por Funcionário:</h4>
+                <table class="tabela-funcionarios-venc">
+                    <thead>
+                        <tr>
+                            <th>NOME / FUNÇÃO</th>
+                            <th>QTD DIÁRIAS</th>
+                            <th>VALOR CACHÊ</th>
+                            <th>VALOR CUSTO</th>
+                            <th>TOTAL A PAGAR</th>
+                            <th>STATUS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            evento.funcionarios.forEach(func => {
+                detalhesHtml += `
+                    <tr>
+                        <td><strong>${func.nome}</strong><br><small>${func.funcao}</small></td>
+                        <td>${func.qtdDiarias}</td>
+                        <td>R$ ${func.totalCache}</td>
+                        <td>R$ ${func.totalAjudaCusto}</td>
+                        <td><strong>R$ ${func.totalPagar}</strong></td>
+                        <td class="status-${func.statusPgto.toLowerCase()}">${func.statusPgto}</td>
+                    </tr>
+                `;
+            });
+            
+            detalhesHtml += '</tbody></table>';
+            bodyAcordeao.innerHTML = detalhesHtml;
+
+            itemAcordeao.appendChild(headerAcordeao);
+            itemAcordeao.appendChild(bodyAcordeao);
+            accordionContainer.appendChild(itemAcordeao);
+        });
+
+        conteudoGeral.appendChild(accordionContainer);
+
+    } catch (error) {
+        console.error("Erro ao carregar detalhes:", error);
+        conteudoGeral.innerHTML = '<p class="alerta-erro">Não foi possível carregar os dados. Tente novamente.</p>';
+    }
+}
+
+
+async function carregarDadosVencimentos() {
+    // Definir data de hoje
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+    const dia = String(hoje.getDate()).padStart(2, '0');
+    const dataAtualFormatada = `${ano}-${mes}-${dia}`;
+    
+    // Endpoint pode ser o mesmo, mas a lógica aqui é para o CARD.
+    const urlResumo = `/vencimentos?dataInicio=${dataAtualFormatada}&dataFim=${dataAtualFormatada}`;
+
+    try {
+        // Simulação de chamada (você deve usar seu endpoint real e tratar o resultado)
+        // const dadosResumo = await fetchComToken(urlResumo); 
+        
+        // Exemplo:
+        // const cardVencimentos = document.getElementById('cardContainerVencimentos');
+        // cardVencimentos.querySelector('.total-vencimentos').textContent = `R$ 1500,00`; 
+
+    } catch (error) {
+        console.error("Erro ao carregar dados do card de vencimentos:", error);
+    }
+}
 
 
 async function inicializarCardVencimentos() {
-    const temAcessoFinanceiro = usuarioTemPermissaoFinanceiro();
-    console.log("Usuário tem permissão Financeiro?", temAcessoFinanceiro);
+    // Checa as duas permissões (Assumindo que estão definidas globalmente)
+    const eMaster = usuarioTemPermissao();
+    const eFinanceiro = usuarioTemPermissaoFinanceiro();
 
-    // 1. Seleciona o slot principal que será reutilizado
-    const cardSlotPrincipal = document.getElementById('cardSlotPrincipal');
-    
-    // 2. Seleciona o template escondido com o conteúdo de Vencimentos
-    const vencimentosTemplate = document.getElementById('vencimentosTemplate');
+    // Seleciona os containers principais
+    const cardVencimentos = document.getElementById('cardContainerVencimentos');
+    const cardOrcamentos = document.getElementById('cardContainerOrcamentos');
 
-    if (!cardSlotPrincipal || !vencimentosTemplate) {
-        console.warn("Elemento HTML essencial não encontrado (cardSlotPrincipal ou vencimentosTemplate).");
+    if (!cardVencimentos || !cardOrcamentos) {
+        console.warn("Um dos cards não foi encontrado (Vencimentos ou Orçamentos).");
         return;
     }
 
-    if (temAcessoFinanceiro) {
-        // AÇÃO: Substituir o conteúdo do slot principal pelo template de Vencimentos.
-        
-        // 1. Clona o conteúdo do template (que é o HTML de Vencimentos)
-        const vencimentosContent = vencimentosTemplate.content.cloneNode(true);
-        
-        // 2. O slot principal recebe o novo conteúdo (substituindo o de Orçamentos)
-        cardSlotPrincipal.innerHTML = ''; // Limpa o conteúdo anterior
-        cardSlotPrincipal.appendChild(vencimentosContent);
-        
-        // 3. Carrega os dados (atualizando os IDs injetados)
-        carregarDadosVencimentos();
-    } else {
-        // AÇÃO: Manter o card de Orçamentos (que é o conteúdo inicial do slot)
-        
-        // 1. Remove o template para limpeza do DOM (opcional, já que <template> não renderiza)
-        vencimentosTemplate.remove();
-        
-        // ℹ️ Se houver, chame aqui a função para carregar dados de Orçamentos
-        // carregarDadosOrcamentos(); 
+    // Padrão: Ambos ocultos, depois exibimos o(s) necessário(s)
+    cardVencimentos.style.display = 'none';
+    cardOrcamentos.style.display = 'none';
+    
+    // ===========================================
+    // Lógica de Visibilidade
+    // ===========================================
+    
+    if (eMaster || eFinanceiro) {
+        // Se for Master OU Financeiro: Mostra VENCIMENTOS
+        cardVencimentos.style.display = 'flex';
+        carregarDadosVencimentos(); // Chama a função que preenche o card
     }
-}
-async function carregarDadosVencimentos() {
-    try {
-        // ⚠️ PASSO 2: IMPLEMENTE O FETCH REAL DOS DADOS DE VENCIMENTOS
-        // Use a sua função fetchComToken para obter os dados do backend.
-        // const dados = await fetchComToken('/financeiro/dashboard/vencimentos');
-        
-        // Exemplo de dados de retorno:
-        const dados = {
-            proximos: 5, // Títulos a vencer nos próximos X dias
-            atrasados: 2  // Títulos em atraso
-        };
-        
-        document.getElementById('vencimentosProximos').textContent = dados.proximos;
-        document.getElementById('vencimentosAtrasados').textContent = dados.atrasados;
-    } catch (err) {
-        console.error("Erro ao carregar dados de vencimentos:", err);
-        // Em caso de erro, pode ser útil definir os valores como '-' ou manter '0'
-        document.getElementById('vencimentosProximos').textContent = '-';
-        document.getElementById('vencimentosAtrasados').textContent = '-';
+
+    if (eMaster) {
+        // Se for Master: Mostra ORÇAMENTOS também
+        cardOrcamentos.style.display = 'flex';
+    } 
+    else if (!eMaster && !eFinanceiro) {
+         // Se for Nenhum (não Master e não Financeiro): Mostra APENAS ORÇAMENTOS
+        cardOrcamentos.style.display = 'flex';
     }
 }
 
+function criarControlesDeFiltro(conteudoGeral) {
+    const anoAtual = new Date().getFullYear();
+
+    const filtrosContainer = document.createElement("div");
+    filtrosContainer.className = "filtros-vencimentos";
+
+    // ------------------------------
+    // 1. Filtro Principal (RADIO CUSTOM)
+    // ------------------------------
+    const grupoPeriodo = document.createElement("div");
+    grupoPeriodo.className = "filtro-periodo";
+    grupoPeriodo.innerHTML = `
+        <label class="label-select">Tipo de Filtro</label>
+        <div class="wrapper" id="periodo-wrapper">
+            <div class="option">
+              <input checked value="diario" name="periodo" type="radio" class="input" />
+              <div class="btn"><span class="span">Diario</span></div>
+            </div>
+            <div class="option">
+              <input value="mensal" name="periodo" type="radio" class="input" />
+              <div class="btn"><span class="span">Mensal</span></div>
+            </div>
+            <div class="option">
+              <input value="trimestral" name="periodo" type="radio" class="input" />
+              <div class="btn"><span class="span">Trimestral</span></div>
+            </div>
+            <div class="option">
+              <input value="semestral" name="periodo" type="radio" class="input" />
+              <div class="btn"><span class="span">Semestral</span></div>
+            </div>
+            <div class="option">
+              <input value="anual" name="periodo" type="radio" class="input" />
+              <div class="btn"><span class="span">Anual</span></div>
+            </div>
+        </div>
+    `;
+
+    filtrosContainer.appendChild(grupoPeriodo);
+
+    // ------------------------------
+    // 2. Sub-Filtro (DINÂMICO, TB CUSTOM)
+    // ------------------------------
+    const subFiltroWrapper = document.createElement("div");
+    subFiltroWrapper.id = "sub-filtro-wrapper";
+    subFiltroWrapper.className = "sub-filtro";
+    filtrosContainer.appendChild(subFiltroWrapper);
+
+    // ------------------------------
+    // 3. Botão Aplicar
+    // ------------------------------
+    const btnAplicar = document.createElement("button");
+    btnAplicar.id = "btnAplicarFiltro";
+    btnAplicar.className = "btn-aplicar-filtro";
+    btnAplicar.textContent = "Aplicar Filtro";
+    filtrosContainer.appendChild(btnAplicar);
+
+    // --------------------------------------
+    // FUNÇÃO PARA CRIAR BOTÕES CUSTOMIZADOS
+    // --------------------------------------
+    function montarOpcoes(titulo, valores) {
+        return `
+            <label class="label-select">${titulo}</label>
+            <div class="wrapper" id="sub-opcoes">
+                ${valores.map(v => `
+                    <div class="option">
+                        <input value="${v.value}" name="sub" type="radio" class="input" ${v.checked ? "checked" : ""} />
+                        <div class="btn"><span class="span">${v.label}</span></div>
+                    </div>
+                `).join("")}
+            </div>
+        `;
+    }
+
+    // ------------------------------
+    //  FUNÇÃO PARA ATUALIZAR SUB-FILTRO
+    // ------------------------------
+function atualizarSubFiltro(tipo) {
+    subFiltroWrapper.innerHTML = "";
+
+    if (tipo === "diario") {
+
+    // Data atual como padrão
+    const hoje = new Date().toISOString().split("T")[0];
+
+    subFiltroWrapper.innerHTML = `
+        <label class="label-select">Selecione o Dia</label>
+
+        <div class="wrapper select-wrapper">
+            <input 
+                type="date"
+                id="sub-filtro-data"
+                class="input btn span select-custom"
+                value="${hoje}"
+            >
+        </div>
+    `;
+
+    // Aciona o carregamento ao mudar a data
+    subFiltroWrapper
+        .querySelector("#sub-filtro-data")
+        .addEventListener("change", () => 
+            carregarDetalhesVencimentos(conteudoGeral)
+        );
+
+    return;
+}
+
+    // --------------------------
+    // 1. MENSAL → SELECT ESTILIZADO
+    // --------------------------
+    if (tipo === "mensal") {
+        let optionsHtml = "";
+
+        for (let i = 1; i <= 12; i++) {
+            const isCurrentMonth = (i === new Date().getMonth() + 1);
+            optionsHtml += `
+                <option value="${i}" ${isCurrentMonth ? "selected" : ""}>
+                    ${nomeDoMes(i)} / ${anoAtual}
+                </option>
+            `;
+        }
+
+        subFiltroWrapper.innerHTML = `
+            <label class="label-select">Selecione o Mês</label>
+            <div class="wrapper select-wrapper">
+                <select id="sub-filtro-select" class="input btn span select-custom">
+                    ${optionsHtml}
+                </select>
+            </div>
+        `;
+
+        subFiltroWrapper.querySelector("#sub-filtro-select")
+            .addEventListener("change", () => carregarDetalhesVencimentos(conteudoGeral));
+
+        return;
+    }
+
+    // --------------------------
+    // 2. TRIMESTRAL → RADIO CUSTOM
+    // --------------------------
+    if (tipo === "trimestral") {
+        const trimes = [1, 2, 3, 4].map(t => ({
+            value: t,
+            label: `Trimestre ${t}`,
+            checked: t === 1
+        }));
+
+        subFiltroWrapper.innerHTML = montarOpcoes("Selecione o Trimestre", trimes);
+    }
+
+    // --------------------------
+    // 3. SEMESTRAL → RADIO CUSTOM
+    // --------------------------
+      else if (tipo === "semestral") {
+          const semestres = [
+              { value: 1, label: `1º Semestre`, checked: true },
+              { value: 2, label: `2º Semestre`, checked: false }
+          ];
+
+          subFiltroWrapper.innerHTML = `
+              <div class="sub-semestral">
+                  ${montarOpcoes("Selecione o Semestre", semestres)}
+              </div>
+          `;
+      }
 
 
+    // --------------------------
+    // 4. ANUAL → NENHUM SUBFILTRO
+    // --------------------------
+    else if (tipo === "anual") {
+        subFiltroWrapper.innerHTML = "";
+        return;
+    }
+
+    // Listener genérico para os botões do sub-filtro
+    const radios = subFiltroWrapper.querySelectorAll("input[name='sub']");
+    radios.forEach(r => r.addEventListener("change", () => carregarDetalhesVencimentos(conteudoGeral)));
+}
+
+
+    // Inicializa
+    atualizarSubFiltro("diario");
+
+    // Listener Periodo
+    grupoPeriodo.querySelectorAll("input[name='periodo']").forEach(radio => {
+        radio.addEventListener("change", (e) => {
+            const tipo = e.target.value;
+            atualizarSubFiltro(tipo);
+
+            if (tipo === "anual") carregarDetalhesVencimentos(conteudoGeral);
+        });
+    });
+
+    // Botão aplicar
+    btnAplicar.addEventListener("click", () => carregarDetalhesVencimentos(conteudoGeral));
+
+    return filtrosContainer;
+}
+
+function nomeDoMes(num) {
+    const meses = [
+        "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
+        "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"
+    ];
+    return meses[num - 1];
+}
+
+
+function construirQueryDeFiltro() {
+    // Definido localmente para garantir o escopo
+    const anoAtual = new Date().getFullYear(); 
+    
+    const periodoSelect = document.getElementById('periodo-select');
+    const periodo = periodoSelect.value;
+    let queryString = `?periodo=${periodo}&ano=${anoAtual}`;
+
+    // Adiciona o parâmetro de seleção específico se não for Diário ou Anual
+    if (periodo === 'mensal') {
+        const mesSelect = document.getElementById('sub-filtro-select');
+        if (mesSelect) {
+            queryString += `&mes=${mesSelect.value}`;
+        }
+    } else if (periodo === 'trimestral') {
+        const trimestreSelect = document.getElementById('sub-filtro-select');
+        if (trimestreSelect) {
+            queryString += `&trimestre=${trimestreSelect.value}`;
+        }
+    } else if (periodo === 'semestral') {
+        const semestreSelect = document.getElementById('sub-filtro-select');
+        if (semestreSelect) {
+            queryString += `&semestre=${semestreSelect.value}`;
+        }
+    }
+
+    // Para o filtro diário, usamos a data atual como referência (se não houver um seletor de data)
+    if (periodo === 'diario') {
+         const hoje = new Date().toISOString().split('T')[0];
+         queryString += `&dataInicio=${hoje}`;
+    }
+
+    return queryString;
+}
+
+
+document.getElementById("cardContainerVencimentos").addEventListener("click", async function() {
+    const painel = document.getElementById("painelDetalhes");
+    painel.innerHTML = ""; // Limpa o painel anterior
+
+    // Aplicando classes Tailwind para consistência com as funções de filtro
+    const container = document.createElement("div");
+    container.id = "venc-container";
+    container.className = "venc-container";
+
+    const header = document.createElement("div");
+    header.className = "venc-header";
+
+    const btnVoltar = document.createElement("button"); 
+    btnVoltar.id = "btnVoltarVencimentos";
+    // Usando classes Tailwind para um estilo moderno
+    btnVoltar.className = "btn-voltar";
+    btnVoltar.textContent = "←";
+
+    const titulo = document.createElement("h2");
+    titulo.textContent = "Vencimentos de Pagamentos"; 
+
+    header.appendChild(btnVoltar);
+    header.appendChild(titulo);
+    container.appendChild(header);
+    
+    // Contêiner onde o resultado da busca será exibido
+    const conteudoGeral = document.createElement("div");
+    conteudoGeral.className = "conteudo-geral"; 
+    
+    // ➡️ CRIAÇÃO E INSERÇÃO DOS FILTROS (RESTAURADO E CORRIGIDO)
+    // Chama a função para criar o componente de filtro
+    const FiltrosVencimentos = criarControlesDeFiltro(conteudoGeral);
+    // Anexa o componente de filtro ao container principal
+    container.appendChild(FiltrosVencimentos); 
+    
+    container.appendChild(conteudoGeral);
+
+    // Anexe o container completo ao painel
+    painel.appendChild(container);
+    
+    // ➡️ CHAMA A FUNÇÃO CORRIGIDA PELA PRIMEIRA VEZ para carregar o padrão (Mensal Atual)
+    carregarDetalhesVencimentos(conteudoGeral);
+    
+    // 5. Adiciona o listener para o botão de voltar
+    btnVoltar.addEventListener('click', () => {
+        painel.innerHTML = ""; // Volta para a tela anterior
+    });
+});
 
 // ======================
 // ABRIR AGENDA
@@ -3906,6 +4308,24 @@ document.getElementById("card-agenda").addEventListener("click", async function(
 
   seletorMes.value = new Date().getMonth();
   calendarioDiv.appendChild(seletorMes);
+
+  // --- CRIAÇÃO DO CABEÇALHO DOS DIAS DA SEMANA ---
+const cabecalhoDiasSemana = document.createElement("div");
+cabecalhoDiasSemana.id = "cabecalhoDiasSemana";
+cabecalhoDiasSemana.className = "cabecalho-semana";
+
+// Nomes dos dias da semana (começando no Domingo, ajuste se necessário)
+const nomesDias = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]; 
+
+nomesDias.forEach(nome => {
+    const nomeDiaDiv = document.createElement("div");
+    nomeDiaDiv.className = "nome-dia";
+    nomeDiaDiv.textContent = nome;
+    cabecalhoDiasSemana.appendChild(nomeDiaDiv);
+});
+
+// ADICIONA O CABEÇALHO DA SEMANA
+calendarioDiv.appendChild(cabecalhoDiasSemana);
 
   // container dos dias
   const diasDiv = document.createElement("div");
