@@ -108,8 +108,8 @@ async function abrirModalLocal(url, modulo) {
 
                 // 3. (Opcional) Chamar o debounce para garantir o carregamento do orçamento
                 if (typeof window.debouncedOnCriteriosChanged === 'function') {
-                    window.debouncedOnCriteriosChanged();
-                    console.log("[abrirModalLocal] Verificação de orçamento (debounce) chamada.");
+  window.debouncedOnCriteriosChanged();
+  console.log("[abrirModalLocal] Verificação de orçamento (debounce) chamada.");
                 }
                 
                 // 4. (Opcional) Disparar um evento para o Staff.js preencher os outros campos
@@ -2447,7 +2447,7 @@ async function abrirListaFuncionarios(equipe, evento) {
                 conteudoAgrupadoHtml += `
                     <div class="funcionario-grupo-header">
                         <h4 class="grupo-titulo">${escapeHtml(funcao)}</h4>
-                        <span class="grupo-badge">${funcionariosDaFuncao.length} Pessoa(s)</span>
+                        <span class="grupo-badge">${funcionariosDaFuncao.length} Pessoa(s) Pagamento</span>
                     </div>
                     <div class="grupo-divisor"></div>
                 `;
@@ -2743,175 +2743,928 @@ async function buscarPedidosUsuario() {
   }
 }
 // Atualiza o painelDetalhes com os pedidos
-async function mostrarPedidosUsuario() {
-  const lista = document.getElementById("painelDetalhes");
-  if (!lista) return;
+// async function mostrarPedidosUsuario() {
+//   const lista = document.getElementById("painelDetalhes");
+//   if (!lista) return;
 
-  try {
-    let pedidos = await buscarPedidosUsuario(); // já retorna todos os pedidos que o usuário pode ver
-    lista.innerHTML = "";
+//   try {
+//     let pedidos = await buscarPedidosUsuario(); // já retorna todos os pedidos que o usuário pode ver
+//     lista.innerHTML = "";
 
-    // 🔹 Remove duplicados (mesmo funcionário, evento, valor e tipo)
-    const vistos = new Set();
-    pedidos = pedidos.filter(p => {
-      const chave =
-        `${p.funcionario || ""}|${p.evento || ""}|${p.valor || ""}|${p.statusajustecusto?.valor || ""}|${p.statuscaixinha?.valor || ""}|${p.statusmeiadiaria?.valor || ""}|${p.statusdiariadobrada?.valor || ""}`;
-      if (vistos.has(chave)) return false;
-      vistos.add(chave);
-      return true;
-    });
+//     // 🔹 Remove duplicados (mesmo funcionário, evento, valor e tipo)
+//     const vistos = new Set();
+//     pedidos = pedidos.filter(p => {
+//       const chave =
+//         `${p.funcionario || ""}|${p.evento || ""}|${p.valor || ""}|${p.statusajustecusto?.valor || ""}|${p.statuscaixinha?.valor || ""}|${p.statusmeiadiaria?.valor || ""}|${p.statusdiariadobrada?.valor || ""}`;
+//       if (vistos.has(chave)) return false;
+//       vistos.add(chave);
+//       return true;
+//     });
 
-    const titulo = document.createElement("div");
-    titulo.className = "titulo-pedidos font-bold text-lg mb-3";
-    titulo.textContent = "Pedidos por Funcionário";
-    lista.appendChild(titulo);
+//     const titulo = document.createElement("div");
+//     titulo.className = "titulo-pedidos font-bold text-lg mb-3";
+//     titulo.textContent = "Pedidos por Funcionário";
+//     lista.appendChild(titulo);
 
-    if (!pedidos.length) {
-      const msg = document.createElement("p");
-      msg.textContent = "Não há pedidos registrados.";
-      lista.appendChild(msg);
-      return;
+//     if (!pedidos.length) {
+//       const msg = document.createElement("p");
+//       msg.textContent = "Não há pedidos registrados.";
+//       lista.appendChild(msg);
+//       return;
+//     }
+
+//     const listaFuncionarios = document.createElement("div");
+//     listaFuncionarios.className = "lista-funcionarios";
+//     lista.appendChild(listaFuncionarios);
+
+//     // Agrupa pedidos por funcionário
+//     const funcionariosMap = {};
+//     pedidos.forEach(p => {
+//       if (!funcionariosMap[p.funcionario]) funcionariosMap[p.funcionario] = [];
+//       funcionariosMap[p.funcionario].push(p);
+//     });
+
+//     Object.keys(funcionariosMap).forEach(funcNome => {
+//       const pedidosFunc = funcionariosMap[funcNome];
+
+//       // Filtra só pedidos com alterações
+//       const pedidosComAtualizacao = pedidosFunc.filter(p => {
+//         const campos = ["statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada"];
+//         return campos.some(campo => {
+//           const info = p[campo];
+//           return info && (info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao);
+//         });
+//       });
+
+//       if (pedidosComAtualizacao.length === 0) return;
+
+//       // Conta categorias realmente alteradas
+//       let totalCategorias = 0;
+//       pedidosComAtualizacao.forEach(p => {
+//         ["statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada"].forEach(campo => {
+//           const info = p[campo];
+//           // Conta apenas se houver valor/descrição/datas **e** status for pendente
+//           if (info && (info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao)) {
+//             if (!info.status || info.status.toLowerCase() === "pendente") {
+//               totalCategorias++;
+//             }
+//           }
+//         });
+//       });
+
+
+//       const divFuncionario = document.createElement("div");
+//       divFuncionario.className = "funcionario border rounded mb-3";
+
+//       const header = document.createElement("div");
+//       header.className = "funcionario-header p-2 cursor-pointer bg-gray-200 flex justify-between items-center";
+
+//       const nomeFuncionario = funcNome || "Desconhecido";
+//       const nomeSolicitante = pedidosFunc[0].nomeSolicitante || "Você";
+
+//       header.innerHTML = `
+//         <div>
+//           <strong>Funcionário:</strong> ${nomeFuncionario}<br>
+//           <small>Solicitante: ${nomeSolicitante}</small>
+//         </div>
+//         <span>Pendentes: ${totalCategorias}</span>
+//       `;
+
+//       const container = document.createElement("div");
+//       container.className = "funcionario-body p-2 hidden";
+
+//       pedidosComAtualizacao.forEach(pedido => {
+//   ["statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada"].forEach(campo => {
+//     const info = pedido[campo];
+//     if (!info) return;
+
+//     const valorAlterado = info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao;
+//     if (!valorAlterado) return;
+
+//     const statusAtual = (info.status || "Pendente").toLowerCase();
+
+//     const card = document.createElement("div");
+//     card.className = "pedido-card border rounded p-2 mb-2 bg-gray-50 flex justify-between items-start";
+
+//     let corQuadrado = "#facc15"; // padrão = pendente
+//     if (statusAtual === "autorizado") corQuadrado = "#16a34a";
+//     if (statusAtual === "rejeitado") corQuadrado = "#dc2626";
+
+//     let innerHTML = `<div>
+//       <strong>${campo.replace("status", "").replace(/([A-Z])/g, ' $1')}</strong><br>`;
+
+//     if (pedido.evento) {
+//       innerHTML += `<strong>Evento:</strong> ${pedido.evento}<br>`;
+//     }
+
+//     if (info.valor !== undefined) {
+//       innerHTML += `Valor: R$ ${info.valor} - <span class="status-text">${info.status || "Pendente"}</span><br>`;
+//     } else if (info.datas) {
+//       innerHTML += `Datas: ${info.datas.map(d => d.data).join(", ")} - <span class="status-text">${info.status || "Pendente"}</span><br>`;
+//     }
+
+//     if (info.descricao) {
+//       innerHTML += `Descrição: ${info.descricao}<br>`;
+//     }
+
+//     // 🔹 Só mostra botões se for Master e o status ainda for pendente
+//     if (pedido.ehMasterStaff && statusAtual === "pendente") {
+//       innerHTML += `
+//         <div class="flex gap-2 mt-1">
+//           <button class="aprovar bg-green-500 text-white px-2 py-1 rounded">Autorizar</button>
+//           <button class="negar bg-red-500 text-white px-2 py-1 rounded">Rejeitar</button>
+//         </div>
+//       `;
+//     }
+
+//     innerHTML += `</div>`;
+//     innerHTML += `<div class="quadrado-arredondado w-4 h-4 rounded" style="background-color: ${corQuadrado};"></div>`;
+
+//     card.innerHTML = innerHTML;
+//     container.appendChild(card);
+
+//     // 🔹 Adiciona eventos somente se status for pendente
+//     if (pedido.ehMasterStaff && statusAtual === "pendente") {
+//       const aprovarBtn = card.querySelector(".aprovar");
+//       const negarBtn = card.querySelector(".negar");
+
+//       aprovarBtn?.addEventListener("click", async () => {
+//         await atualizarStatusPedido(pedido.idpedido, campo, "Autorizado", card);
+//       });
+
+//       negarBtn?.addEventListener("click", async () => {
+//         await atualizarStatusPedido(pedido.idpedido, campo, "Rejeitado", card);
+//       });
+//     }
+//   });
+// });
+
+
+//       header.addEventListener("click", () => {
+//         container.classList.toggle("hidden");
+//       });
+
+//       divFuncionario.appendChild(header);
+//       divFuncionario.appendChild(container);
+//       listaFuncionarios.appendChild(divFuncionario);
+//     });
+
+//   } catch (err) {
+//     console.error("Erro ao mostrar pedidos:", err);
+//   }
+// }
+
+// O campo que você usará para anexar as informações do AditivoExtra ao objeto do Pedido.
+const CAMPO_ADITIVO_EXTRA = "statusaditivoextra"; 
+
+// async function mostrarPedidosUsuario() {
+//     const lista = document.getElementById("painelDetalhes");
+//     if (!lista) return;
+
+//     try {
+//         // 1. CHAMA AS DUAS FUNÇÕES DE BUSCA EM PARALELO
+//         // Isso melhora a performance, esperando que ambas as requisições terminem.
+//         const [pedidosPadrao, aditivosExtras] = await Promise.all([
+//             buscarPedidosUsuario(), // Pedidos padrão (Ajuste Custo, Caixinha, etc.)
+//             buscarAditivoExtraPendentes() // Solicitações de limite (Aditivo, FuncExcedido, Extra)
+//         ]);
+        
+//         // 2. NORMALIZA E UNE OS DADOS
+        
+//         let pedidosUnificados = [...pedidosPadrao];
+        
+//         // Adiciona as solicitações de AditivoExtra aos pedidos unificados.
+//         // Cada item de aditivosExtras é transformado em um 'pedido' com um campo customizado.
+//         aditivosExtras.forEach(ae => {
+//             // Cria um pedido fictício para o AditivoExtra
+//             // O campo 'funcionario' é o que dita o agrupamento.
+//             const nomeFuncionarioAjustado = ae.funcionario || ae.nomeSolicitante || (ae.funcao ? `[SOLICITAÇÃO: ${ae.funcao.toUpperCase()}]` : "SOLICITAÇÕES ESPECIAIS PENDENTES"); // ⬅️ Melhor agrupamento
+           
+//             const solicitanteAjustado = ae.nomeSolicitante || nomeFuncionarioAjustado;
+//             const pedidoAditivo = {
+//                 // Campos obrigatórios para a estrutura base
+//                 funcionario: nomeFuncionarioAjustado, // Assume que a rota GET de AditivoExtra retorna o nome do funcionário
+//                 nomeSolicitante: solicitanteAjustado,
+//                 evento: ae.evento,
+//                 idpedido: ae.idAditivoExtra, // Usa o ID do AditivoExtra como ID principal (para as ações)
+//                 ehMasterStaff: ae.ehMasterStaff, // Permissão
+//                 dtCriacao: ae.dtCriacao,
+//                 // Adiciona o novo campo que será processado no loop
+//                 [CAMPO_ADITIVO_EXTRA]: {
+//                     status: ae.status,
+//                     tipoSolicitacao: ae.tipoSolicitacao,
+//                     descricao: ae.justificativa, // Mapeia justificativa para descrição
+//                     quantidade: ae.quantidadeSolicitada, // Se disponível
+//                     // Mantenha outros campos necessários
+//                 }
+//             };
+//             pedidosUnificados.push(pedidoAditivo);
+//         });
+
+//         // No bloco de ordenação em mostrarPedidosUsuario:
+//         // pedidosUnificados.sort((a, b) => {
+            
+//         //     // ⭐️ 1. LÓGICA DE PRIORIDADE: Força 'Funcionário: N/A' para o topo
+//         //     // (Apenas se o nome for N/A E ele tiver pendências, embora o agrupamento já filtre)
+//         //     const isANa = a.funcionario === "N/A" || !a.funcionario;
+//         //     const isBNa = b.funcionario === "N/A" || !b.funcionario;
+            
+//         //     if (isANa && !isBNa) return -1; // 'a' (N/A) vai primeiro
+//         //     if (isBNa && !isANa) return 1;  // 'b' (N/A) vai primeiro
+
+//         //     // 2. ORDENAÇÃO POR DATA (Fallback se o funcionário for válido ou ambos N/A)
+//         //     const dataA = new Date(a.dtCriacao || '1970-01-01');
+//         //     const dataB = new Date(b.dtCriacao || '1970-01-01');
+            
+//         //     // Se a data do N/A for inválida, ele será tratado como 1970, 
+//         //     // mas a lógica de prioridade acima o salvará.
+//         //     return dataB.getTime() - dataA.getTime(); 
+//         // });
+
+//         pedidosUnificados.sort((a, b) => {
+//             // Tenta obter o timestamp das datas de criação.
+//             const timeA = new Date(a.dtCriacao).getTime();
+//             const timeB = new Date(b.dtCriacao).getTime();
+
+//             // Verifica se a data é inválida (NaN - Not a Number).
+//             const isANaN = isNaN(timeA);
+//             const isBNaN = isNaN(timeB);
+
+//             // 1. Prioridade para itens SEM DATA VÁLIDA (considerados mais novos)
+//             if (isANaN && !isBNaN) {
+//                 // Se A é inválido e B é válido, A (o novo) vem primeiro.
+//                 return -1; 
+//             }
+//             if (!isANaN && isBNaN) {
+//                 // Se B é inválido e A é válido, B (o novo) vem primeiro (fazendo A ir para o final).
+//                 return 1;  
+//             }
+//             // Se ambos são inválidos (NaN), o sort mantém a ordem relativa (0).
+
+//             // 2. Ordenação normal decrescente (Mais novo primeiro)
+//             return timeB - timeA; 
+//         });
+
+//         lista.innerHTML = "";
+
+//         // 🔹 3. Remove duplicados (Adicionando o novo campo na chave)
+//         const vistos = new Set();
+//         let pedidos = pedidosUnificados.filter(p => {
+//             // Adiciona a verificação do novo campo de AditivoExtra à chave
+//             const aditivoTipo = p[CAMPO_ADITIVO_EXTRA]?.tipoSolicitacao || "";
+//             const aditivoDesc = p[CAMPO_ADITIVO_EXTRA]?.descricao || "";
+            
+//             const chave =
+//                 `${p.funcionario || ""}|${p.evento || ""}|${p.valor || ""}|${p.statusajustecusto?.valor || ""}|${p.statuscaixinha?.valor || ""}|${p.statusmeiadiaria?.valor || ""}|${p.statusdiariadobrada?.valor || ""}|${aditivoTipo}|${aditivoDesc}`;
+            
+//             if (vistos.has(chave)) return false;
+//             vistos.add(chave);
+//             return true;
+//         });
+
+//         const titulo = document.createElement("div");
+//         titulo.className = "titulo-pedidos font-bold text-lg mb-3";
+//         titulo.textContent = "Pedidos e Solicitações Pendentes por Funcionário";
+//         lista.appendChild(titulo);
+
+//         if (!pedidos.length) {
+//             const msg = document.createElement("p");
+//             msg.textContent = "Não há pedidos ou solicitações registradas.";
+//             lista.appendChild(msg);
+//             return;
+//         }
+
+//         const listaFuncionarios = document.createElement("div");
+//         listaFuncionarios.className = "lista-funcionarios";
+//         lista.appendChild(listaFuncionarios);
+        
+//         // 4. Agrupa pedidos por funcionário (como antes)
+//         const funcionariosMap = {};
+//         pedidos.forEach(p => {
+//             if (!funcionariosMap[p.funcionario]) funcionariosMap[p.funcionario] = [];
+//             funcionariosMap[p.funcionario].push(p);
+//         });
+        
+//         // Lista completa de campos a serem processados
+//         const camposTodos = [
+//             "statusajustecusto", 
+//             "statuscaixinha", 
+//             "statusmeiadiaria", 
+//             "statusdiariadobrada",
+//             CAMPO_ADITIVO_EXTRA // NOVO CAMPO
+//         ];
+
+//         Object.keys(funcionariosMap).forEach(funcNome => {
+//             const pedidosFunc = funcionariosMap[funcNome];
+
+//             // 5. Filtra e Conta categorias realmente alteradas/pendentes
+//             const pedidosComAtualizacao = pedidosFunc.filter(p => {
+//                 return camposTodos.some(campo => {
+//                     const info = p[campo];
+//                     return info && (info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao || info.tipoSolicitacao);
+//                 });
+//             });
+
+//             if (pedidosComAtualizacao.length === 0) return;
+
+//             let totalCategorias = 0;
+//             pedidosComAtualizacao.forEach(p => {
+//                 camposTodos.forEach(campo => {
+//                     const info = p[campo];
+//                     if (info && (info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao || info.tipoSolicitacao)) {
+//                         if (!info.status || info.status.toLowerCase() === "pendente") {
+//                             totalCategorias++;
+//                         }
+//                     }
+//                 });
+//             });
+
+
+//             const divFuncionario = document.createElement("div");
+//             divFuncionario.className = "funcionario border rounded mb-3";
+
+//             const header = document.createElement("div");
+//             header.className = "funcionario-header p-2 cursor-pointer bg-gray-200 flex justify-between items-center";
+
+//             const nomeFuncionario = funcNome || "Desconhecido";
+//             // O nome do solicitante ainda é pego do primeiro pedido padrão ou do AditivoExtra se for o único
+//             const nomeSolicitante = pedidosFunc[0].nomeSolicitante || "Você"; 
+
+//             header.innerHTML = `
+//                 <div>
+//                     <strong>Funcionário:</strong> ${nomeFuncionario}<br>
+//                     <small>Solicitante: ${nomeSolicitante}</small>
+//                 </div>
+//                 <span>Pendentes: ${totalCategorias}</span>
+//             `;
+
+//             const container = document.createElement("div");
+//             container.className = "funcionario-body p-2 hidden";
+
+//             // 6. Renderização dos Cards
+//             pedidosComAtualizacao.forEach(pedido => {
+//                 camposTodos.forEach(campo => {
+//                     const info = pedido[campo];
+//                     if (!info) return;
+
+//                     const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
+//                     const valorAlterado = isAditivoExtra || (info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao);
+//                     if (!valorAlterado) return;
+
+//                     const statusAtual = (info.status || "Pendente").toLowerCase();
+
+//                     const card = document.createElement("div");
+//                     card.className = "pedido-card border rounded p-2 mb-2 bg-gray-50 flex justify-between items-start";
+
+//                     let corQuadrado = "#facc15"; // padrão = pendente
+//                     if (statusAtual === "autorizado") corQuadrado = "#16a34a";
+//                     if (statusAtual === "rejeitado") corQuadrado = "#dc2626";
+
+//                     // Define o título do card
+//                     let tituloCard = isAditivoExtra ? info.tipoSolicitacao : campo.replace("status", "").replace(/([A-Z])/g, ' $1').trim();
+                    
+//                     let innerHTML = `<div>
+//                         <strong>${tituloCard}</strong><br>`;
+
+//                     if (pedido.evento) {
+//                         innerHTML += `<strong>Evento:</strong> ${pedido.evento}<br>`;
+//                     }
+
+//                     // Conteúdo específico para AditivoExtra
+//                     if (isAditivoExtra) {
+//                         if (info.quantidade) {
+//                             innerHTML += `Qtd. Solicitada: ${info.quantidade}<br>`;
+//                         }
+//                         innerHTML += `Status: <span class="status-text">${info.status || "Pendente"}</span><br>`;
+//                     } else if (info.valor !== undefined) {
+//                         // Conteúdo para Ajuste Custo, Caixinha, etc.
+//                         innerHTML += `Valor: R$ ${info.valor} - <span class="status-text">${info.status || "Pendente"}</span><br>`;
+//                     } else if (info.datas) {
+//                         innerHTML += `Datas: ${info.datas.map(d => d.data).join(", ")} - <span class="status-text">${info.status || "Pendente"}</span><br>`;
+//                     }
+
+//                     if (info.descricao) {
+//                         innerHTML += `Descrição: ${info.descricao}<br>`;
+//                     }
+
+//                     // 🔹 Só mostra botões se for Master e o status ainda for pendente
+//                     if (pedido.ehMasterStaff && statusAtual === "pendente") {
+//                         innerHTML += `
+//                             <div class="flex gap-2 mt-1">
+//                                 <button class="aprovar bg-green-500 text-white px-2 py-1 rounded">Autorizar</button>
+//                                 <button class="negar bg-red-500 text-white px-2 py-1 rounded">Rejeitar</button>
+//                             </div>
+//                         `;
+//                     }
+
+//                     innerHTML += `</div>`;
+//                     innerHTML += `<div class="quadrado-arredondado w-4 h-4 rounded" style="background-color: ${corQuadrado};"></div>`;
+
+//                     card.innerHTML = innerHTML;
+//                     container.appendChild(card);
+
+//                     // 7. Adiciona eventos
+//                     if (pedido.ehMasterStaff && statusAtual === "pendente") {
+//                         const aprovarBtn = card.querySelector(".aprovar");
+//                         const negarBtn = card.querySelector(".negar");
+
+//                         // O ID de referência será idpedido para pedidos normais e idAditivoExtra para AditivoExtra
+//                         const idReferencia = isAditivoExtra ? pedido.idpedido : pedido.idpedido;
+                        
+//                         // Determina a função de atualização
+//                         const statusUpdateFn = isAditivoExtra ? atualizarStatusAditivoExtra : atualizarStatusPedido;
+//                         // Para AditivoExtra, o campo é irrelevante, mas para pedidos normais é obrigatório
+//                         const campoParaBackend = isAditivoExtra ? null : campo; 
+
+//                         aprovarBtn?.addEventListener("click", async () => {
+//                             await statusUpdateFn(idReferencia, campoParaBackend, "Autorizado", card);
+//                         });
+
+//                         negarBtn?.addEventListener("click", async () => {
+//                             let justificativa = null;
+//                             if (isAditivoExtra) {
+//                                 justificativa = prompt(`Justificativa para rejeitar ${info.tipoSolicitacao}:`);
+//                                 if (!justificativa || justificativa.trim() === '') {
+//                                     alert("A justificativa é obrigatória para rejeitar esta solicitação.");
+//                                     return;
+//                                 }
+//                             }
+//                             await statusUpdateFn(idReferencia, campoParaBackend, "Rejeitado", card, justificativa);
+//                         });
+//                     }
+//                 });
+//             });
+
+
+//             header.addEventListener("click", () => {
+//                 container.classList.toggle("hidden");
+//             });
+
+//             divFuncionario.appendChild(header);
+//             divFuncionario.appendChild(container);
+//             listaFuncionarios.appendChild(divFuncionario);
+//         });
+
+//     } catch (err) {
+//         console.error("Erro ao mostrar pedidos:", err);
+//         lista.innerHTML = `<p class="erro">Erro ao carregar pedidos: ${err.message || 'Erro de rede/servidor.'}</p>`;
+//     }
+// }
+
+
+/**
+ * Exibe um indicador de carregamento (loader) no card.
+ * (Exemplo simplificado, você pode usar a sua implementação existente).
+ * @param {HTMLElement} element - O card onde o loader deve aparecer.
+ */
+function mostrarLoader(element) {
+    if (element) {
+        // Encontra o botão de aprovação ou adiciona uma classe de carregamento ao card
+        const btn = element.querySelector('.btn-aprovar');
+        if (btn) btn.disabled = true;
+
+        // Idealmente, você adiciona um spinner aqui
+        // Ex: element.innerHTML += '<div class="loader-spinner">...</div>';
     }
+}
 
-    const listaFuncionarios = document.createElement("div");
-    listaFuncionarios.className = "lista-funcionarios";
-    lista.appendChild(listaFuncionarios);
+/**
+ * Oculta o indicador de carregamento (loader) no card.
+ * @param {HTMLElement} element - O card onde o loader deve ser removido.
+ */
+function ocultarLoader(element) {
+    if (element) {
+        // Encontra o botão de aprovação e reabilita
+        const btn = element.querySelector('.btn-aprovar');
+        if (btn) btn.disabled = false;
 
-    // Agrupa pedidos por funcionário
-    const funcionariosMap = {};
-    pedidos.forEach(p => {
-      if (!funcionariosMap[p.funcionario]) funcionariosMap[p.funcionario] = [];
-      funcionariosMap[p.funcionario].push(p);
-    });
-
-    Object.keys(funcionariosMap).forEach(funcNome => {
-      const pedidosFunc = funcionariosMap[funcNome];
-
-      // Filtra só pedidos com alterações
-      const pedidosComAtualizacao = pedidosFunc.filter(p => {
-        const campos = ["statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada"];
-        return campos.some(campo => {
-          const info = p[campo];
-          return info && (info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao);
-        });
-      });
-
-      if (pedidosComAtualizacao.length === 0) return;
-
-      // Conta categorias realmente alteradas
-      let totalCategorias = 0;
-      pedidosComAtualizacao.forEach(p => {
-        ["statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada"].forEach(campo => {
-          const info = p[campo];
-          // Conta apenas se houver valor/descrição/datas **e** status for pendente
-          if (info && (info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao)) {
-            if (!info.status || info.status.toLowerCase() === "pendente") {
-              totalCategorias++;
-            }
-          }
-        });
-      });
-
-
-      const divFuncionario = document.createElement("div");
-      divFuncionario.className = "funcionario border rounded mb-3";
-
-      const header = document.createElement("div");
-      header.className = "funcionario-header p-2 cursor-pointer bg-gray-200 flex justify-between items-center";
-
-      const nomeFuncionario = funcNome || "Desconhecido";
-      const nomeSolicitante = pedidosFunc[0].nomeSolicitante || "Você";
-
-      header.innerHTML = `
-        <div>
-          <strong>Funcionário:</strong> ${nomeFuncionario}<br>
-          <small>Solicitante: ${nomeSolicitante}</small>
-        </div>
-        <span>Pendentes: ${totalCategorias}</span>
-      `;
-
-      const container = document.createElement("div");
-      container.className = "funcionario-body p-2 hidden";
-
-      pedidosComAtualizacao.forEach(pedido => {
-  ["statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada"].forEach(campo => {
-    const info = pedido[campo];
-    if (!info) return;
-
-    const valorAlterado = info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao;
-    if (!valorAlterado) return;
-
-    const statusAtual = (info.status || "Pendente").toLowerCase();
-
-    const card = document.createElement("div");
-    card.className = "pedido-card border rounded p-2 mb-2 bg-gray-50 flex justify-between items-start";
-
-    let corQuadrado = "#facc15"; // padrão = pendente
-    if (statusAtual === "autorizado") corQuadrado = "#16a34a";
-    if (statusAtual === "rejeitado") corQuadrado = "#dc2626";
-
-    let innerHTML = `<div>
-      <strong>${campo.replace("status", "").replace(/([A-Z])/g, ' $1')}</strong><br>`;
-
-    if (pedido.evento) {
-      innerHTML += `<strong>Evento:</strong> ${pedido.evento}<br>`;
+        // Remove o spinner, se tiver sido adicionado
+        // Ex: element.querySelector('.loader-spinner')?.remove();
     }
+}
 
-    if (info.valor !== undefined) {
-      innerHTML += `Valor: R$ ${info.valor} - <span class="status-text">${info.status || "Pendente"}</span><br>`;
-    } else if (info.datas) {
-      innerHTML += `Datas: ${info.datas.map(d => d.data).join(", ")} - <span class="status-text">${info.status || "Pendente"}</span><br>`;
-    }
-
-    if (info.descricao) {
-      innerHTML += `Descrição: ${info.descricao}<br>`;
-    }
-
-    // 🔹 Só mostra botões se for Master e o status ainda for pendente
-    if (pedido.ehMasterStaff && statusAtual === "pendente") {
-      innerHTML += `
-        <div class="flex gap-2 mt-1">
-          <button class="aprovar bg-green-500 text-white px-2 py-1 rounded">Autorizar</button>
-          <button class="negar bg-red-500 text-white px-2 py-1 rounded">Rejeitar</button>
-        </div>
-      `;
-    }
-
-    innerHTML += `</div>`;
-    innerHTML += `<div class="quadrado-arredondado w-4 h-4 rounded" style="background-color: ${corQuadrado};"></div>`;
-
-    card.innerHTML = innerHTML;
-    container.appendChild(card);
-
-    // 🔹 Adiciona eventos somente se status for pendente
-    if (pedido.ehMasterStaff && statusAtual === "pendente") {
-      const aprovarBtn = card.querySelector(".aprovar");
-      const negarBtn = card.querySelector(".negar");
-
-      aprovarBtn?.addEventListener("click", async () => {
-        await atualizarStatusPedido(pedido.idpedido, campo, "Autorizado", card);
-      });
-
-      negarBtn?.addEventListener("click", async () => {
-        await atualizarStatusPedido(pedido.idpedido, campo, "Rejeitado", card);
-      });
-    }
-  });
-});
-
-
-      header.addEventListener("click", () => {
-        container.classList.toggle("hidden");
-      });
-
-      divFuncionario.appendChild(header);
-      divFuncionario.appendChild(container);
-      listaFuncionarios.appendChild(divFuncionario);
-    });
-
-  } catch (err) {
-    console.error("Erro ao mostrar pedidos:", err);
+/**
+ * Envia uma requisição ao backend para atualizar o status de uma solicitação Aditivo/Extra.
+ * @param {number} idAditivoExtra - O ID da solicitação AditivoExtra.
+ * @param {string} novoStatus - 'Autorizado' ou 'Rejeitado'.
+ * @param {HTMLElement} cardElement - O elemento HTML do card para atualizar o display.
+ * @param {string} [justificativa=null] - Justificativa para rejeição.
+ */
+async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, cardElement) {
+    
+  let statusMensagem = '';
+  if (novoStatus === 'Rejeitado') {
+      statusMensagem = "REJEITAR";
+  } else {
+      statusMensagem = "AUTORIZAR";
   }
+  const confirmacao = await Swal.fire({
+        title: 'Confirmar Ação',
+        text: `Tem certeza que deseja <strong>${statusMensagem}</strong> a solicitação?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: novoStatus === 'Autorizado' ? '#10B981' : '#F59E0B', // Cores baseadas no status
+        cancelButtonColor: '#DC2626',
+        confirmButtonText: novoStatus,
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (!confirmacao.isConfirmed) {
+        return; // Retorna se o usuário clicar em 'Cancelar'
+    }
+
+    try {
+        mostrarLoader(cardElement); // Função presumida para mostrar um indicador de carregamento
+
+        console.log(`Atualizando AditivoExtra ID ${idAditivoExtra} para status: ${novoStatus}`);
+        
+        // ⚠️ Rota no backend que você precisa criar ou usar, ex: POST /main/aditivoextra/status
+        const url = `/main/aditivoextra/${idAditivoExtra}/status`; 
+        
+        const response = await fetchComToken(url, {
+            // 💡 CORREÇÃO 2: Mudar o método para PATCH
+            method: 'PATCH', 
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                // 💡 CORREÇÃO 3: Enviar apenas os dados que o body do backend espera
+                novoStatus: novoStatus
+     
+            })
+        });
+
+        ocultarLoader(cardElement);
+
+        if (response.sucesso) {
+            Swal.fire({
+                title: 'Sucesso!',
+                text: `Solicitação ${novoStatus} com sucesso!`,
+                icon: 'success',
+                timer: 3000, // Opcional: fecha a mensagem automaticamente após 3 segundos
+                showConfirmButton: false
+            });
+            
+            // Recarregar a lista ou remover o card (depende da sua lógica)
+            // 💡 RECOMENDAÇÃO: Chame a função principal de renderização para recarregar o painel
+            await mostrarPedidosUsuario(); 
+        } else {
+            Swal.fire({
+                title: 'Erro!',
+                text: `Erro ao <strong>${statusMensagem}</strong> a solicitação: ${response.erro || 'Erro desconhecido.'}`,
+                icon: 'error'
+            });
+            console.error(`Falha ao atualizar AditivoExtra ${idAditivoExtra}:`, response);
+        }
+
+    } catch (err) {
+        ocultarLoader(cardElement);
+        console.error("Erro de rede/conexão:", err);
+        alert("Erro de conexão ao tentar atualizar o status.");
+    }
+}
+
+async function mostrarPedidosUsuario() {
+    const lista = document.getElementById("painelDetalhes");
+    if (!lista) return;
+
+    try {
+        // 1. CHAMA AS DUAS FUNÇÕES DE BUSCA EM PARALELO
+        const [pedidosPadrao, aditivosExtras] = await Promise.all([
+            buscarPedidosUsuario(), // Pedidos padrão (Ajuste Custo, Caixinha, etc.)
+            buscarAditivoExtraPendentes() // Solicitações de limite (Aditivo, FuncExcedido, Extra)
+        ]);
+        
+        // 2. NORMALIZA E UNE OS DADOS
+        let pedidosUnificados = [...pedidosPadrao];
+        
+        // Adiciona as solicitações de AditivoExtra aos pedidos unificados.
+        aditivosExtras.forEach(ae => {
+            // 💡 CORREÇÃO 1: Trata 'N/A' usando o nome da função/solicitante
+            const nomeFuncionarioAjustado = ae.nomefuncionario; // || ae.nomeSolicitante || (ae.funcao ? `[SOLICITAÇÃO: ${ae.funcao.toUpperCase()}]` : "SOLICITAÇÕES ESPECIAIS PENDENTES");
+            
+            const solicitanteAjustado = ae.nomesolicitante;     
+                   
+            const pedidoAditivo = {
+                // Campos obrigatórios para a estrutura base
+                funcionario: nomeFuncionarioAjustado, // Usado para agrupamento
+                nomeSolicitante: solicitanteAjustado,
+                evento: ae.evento,
+                idpedido: ae.idaditivoextra, // Usa o ID do AditivoExtra como ID principal
+                ehMasterStaff: ae.ehMasterStaff, 
+                dtCriacao: ae.criado_em, // Data de criação/solicitação
+                // Adiciona o novo campo que será processado no loop
+                [CAMPO_ADITIVO_EXTRA]: {
+                    status: ae.status || ae.Status,
+                    tipoSolicitacao: ae.tipoSolicitacao || ae.tiposolicitacao || 'N/A',
+                    descricao: ae.justificativa, 
+                    quantidade: ae.qtdsolicitada,
+                }
+            };
+            pedidosUnificados.push(pedidoAditivo);
+        });
+
+        // 2.5. ORDENAÇÃO ROBUSTA DE TODOS OS PEDIDOS (Decrescente)
+        pedidosUnificados.sort((a, b) => {
+            const timeA = new Date(a.dtCriacao).getTime();
+            const timeB = new Date(b.dtCriacao).getTime();
+
+            const isANaN = isNaN(timeA);
+            const isBNaN = isNaN(timeB);
+
+            // 1. Prioridade para itens SEM DATA VÁLIDA (vão para o topo)
+            if (isANaN && !isBNaN) {
+                return -1; 
+            }
+            if (!isANaN && isBNaN) {
+                return 1;  
+            }
+
+            // 2. Ordenação normal decrescente
+            return timeB - timeA; 
+        });
+
+        lista.innerHTML = "";
+
+        // 🔹 3. Remove duplicados
+        const vistos = new Set();
+        let pedidos = pedidosUnificados.filter(p => {
+            const aditivoTipo = p[CAMPO_ADITIVO_EXTRA]?.tipoSolicitacao || "";
+            const aditivoDesc = p[CAMPO_ADITIVO_EXTRA]?.descricao || "";
+            
+            // 💡 CORREÇÃO DUPLICADOS: Adiciona o ID do AditivoExtra na chave se for um.
+            const idUnicoAditivo = p[CAMPO_ADITIVO_EXTRA] ? p.idpedido : "";
+            
+            // 💡 CORREÇÃO CHAVE: Usa 'p.funcionario' que foi definido na normalização.
+            const chave =
+                `${p.funcionario || ""}|${p.evento || ""}|${p.valor || ""}|${p.statusajustecusto?.valor || ""}|${p.statuscaixinha?.valor || ""}|${p.statusmeiadiaria?.valor || ""}|${p.statusdiariadobrada?.valor || ""}|${aditivoTipo}|${aditivoDesc}|${idUnicoAditivo}`;
+            
+            if (vistos.has(chave)) return false;
+            vistos.add(chave);
+            return true;
+        });
+
+        const titulo = document.createElement("div");
+        titulo.className = "titulo-pedidos font-bold text-lg mb-3";
+        titulo.textContent = "Pedidos e Solicitações Pendentes por Funcionário";
+        lista.appendChild(titulo);
+
+        if (!pedidos.length) {
+            const msg = document.createElement("p");
+            msg.textContent = "Não há pedidos ou solicitações registradas.";
+            lista.appendChild(msg);
+            return;
+        }
+
+        const listaFuncionarios = document.createElement("div");
+        listaFuncionarios.className = "lista-funcionarios";
+        lista.appendChild(listaFuncionarios);
+        
+        // 4. Agrupa pedidos por funcionário (Usando o campo 'funcionario')
+        const funcionariosMap = {};
+        pedidos.forEach(p => {
+            if (!funcionariosMap[p.funcionario]) funcionariosMap[p.funcionario] = [];
+            funcionariosMap[p.funcionario].push(p);
+        });
+        
+        // ⭐️ 5. ORDENAÇÃO ROBUSTA DOS GRUPOS (Chaves do Mapa)
+        const chavesOrdenadas = Object.keys(funcionariosMap).sort((a, b) => {
+            const pedidoA = funcionariosMap[a][0]; 
+            const pedidoB = funcionariosMap[b][0]; 
+
+            const timeA = new Date(pedidoA.dtCriacao).getTime();
+            const timeB = new Date(pedidoB.dtCriacao).getTime();
+
+            const isANaN = isNaN(timeA);
+            const isBNaN = isNaN(timeB);
+
+            // 1. Prioridade para grupos SEM DATA VÁLIDA (Isso força os Aditivos sem data para o topo)
+            if (isANaN && !isBNaN) {
+                return -1; 
+            }
+            if (!isANaN && isBNaN) {
+                return 1;  
+            }
+
+            // 2. Ordenação normal decrescente
+            return timeB - timeA; 
+        });
+
+        // Itera sobre as chaves ORDENADAS
+        chavesOrdenadas.forEach(funcNome => {
+            const pedidosFunc = funcionariosMap[funcNome];
+
+            // 6. Filtra e Conta categorias realmente alteradas/pendentes
+            const camposTodos = [
+                "statusajustecusto", 
+                "statuscaixinha", 
+                "statusmeiadiaria", 
+                "statusdiariadobrada",
+                CAMPO_ADITIVO_EXTRA
+            ];
+            
+            const pedidosComAtualizacao = pedidosFunc.filter(p => {
+                return camposTodos.some(campo => {
+                    const info = p[campo];
+                    return info && (info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao || info.tipoSolicitacao);
+                });
+            });
+
+            if (pedidosComAtualizacao.length === 0) return;
+
+            let totalCategorias = 0;
+            pedidosComAtualizacao.forEach(p => {
+                camposTodos.forEach(campo => {
+                    const info = p[campo];
+                    if (info && (info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao || info.tipoSolicitacao)) {
+                        if (!info.status || info.status.toLowerCase() === "pendente") {
+                            totalCategorias++;
+                        }
+                    }
+                });
+            });
+
+
+            const divFuncionario = document.createElement("div");
+            divFuncionario.className = "funcionario border rounded mb-3";
+
+            const header = document.createElement("div");
+            header.className = "funcionario-header p-2 cursor-pointer bg-gray-200 flex justify-between items-center";
+
+            const nomeFuncionario = funcNome || "Desconhecido";
+            // O nome do solicitante é pego do primeiro item do grupo
+            const nomeSolicitante = pedidosFunc[0].nomeSolicitante || "Você"; 
+
+            header.innerHTML = `
+                <div>
+                    <strong>Funcionário:</strong> ${nomeFuncionario}<br>
+                    <small>Solicitante: ${nomeSolicitante}</small>
+                </div>
+                <span>Pendentes: ${totalCategorias}</span>
+            `;
+
+            const container = document.createElement("div");
+            container.className = "funcionario-body p-2 hidden";
+
+            // 7. Renderização dos Cards
+            pedidosComAtualizacao.forEach(pedido => {
+                camposTodos.forEach(campo => {
+                    const info = pedido[campo];
+                    if (!info) return;
+
+                    const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
+                    const valorAlterado = isAditivoExtra || (info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao);
+                    if (!valorAlterado) return;
+
+                    const statusAtual = (info.status || "Pendente").toLowerCase();
+
+                    const card = document.createElement("div");
+                    card.className = "pedido-card border rounded p-2 mb-2 bg-gray-50 flex justify-between items-start";
+
+                    let corQuadrado = "#facc15"; // padrão = pendente
+                    if (statusAtual === "autorizado") corQuadrado = "#16a34a";
+                    if (statusAtual === "rejeitado") corQuadrado = "#dc2626";
+
+                    // Define o título do card
+                    // let tituloCard = isAditivoExtra ? info.tipoSolicitacao : campo.replace("status", "").replace(/([A-Z])/g, ' $1').trim();
+                    
+                    // let innerHTML = `<div>
+                    //     <strong>${tituloCard}</strong><br>`;
+
+                    let tituloCard;
+
+                    if (isAditivoExtra) {
+                      const tipo = info.tipoSolicitacao;
+                      // 💡 CORREÇÃO 2: Substitui o título se for 'FuncExcedido'
+                      if (tipo && tipo.toUpperCase() === 'FUNCEXCEDIDO') {
+                        tituloCard = "Limite Diário Excedido por Função/Evento";
+                      } else {
+                        tituloCard = tipo;
+                      }
+                    } else {
+                      tituloCard = campo.replace("status", "").replace(/([A-Z])/g, ' $1').trim();
+                    }
+
+                    let innerHTML = `<div>
+                      <strong>${tituloCard}</strong><br>`;
+
+                    if (pedido.evento) {
+                        innerHTML += `<strong>Evento:</strong> ${pedido.evento}<br>`;
+                    }
+
+                    // Conteúdo específico para AditivoExtra
+                    if (isAditivoExtra) {
+                        if (info.quantidade) {
+                            innerHTML += `Qtd. Solicitada: ${info.quantidade}<br>`;
+                        }
+                        innerHTML += `Status: <span class="status-text">${info.status || "Pendente"}</span><br>`;
+                    } else if (info.valor !== undefined) {
+                        // Conteúdo para Ajuste Custo, Caixinha, etc.
+                        innerHTML += `Valor: R$ ${info.valor} - <span class="status-text">${info.status || "Pendente"}</span><br>`;
+                    } else if (info.datas) {
+                        innerHTML += `Datas: ${info.datas.map(d => d.data).join(", ")} - <span class="status-text">${info.status || "Pendente"}</span><br>`;
+                    }
+
+                    if (info.descricao) {
+                        innerHTML += `Descrição: ${info.descricao}<br>`;
+                    }
+
+                    // 🔹 Só mostra botões se for Master e o status ainda for pendente
+                    if (pedido.ehMasterStaff && statusAtual === "pendente") {
+                        innerHTML += `
+                            <div class="flex gap-2 mt-1">
+                                <button class="aprovar bg-green-500 text-white px-2 py-1 rounded">Autorizar</button>
+                                <button class="negar bg-red-500 text-white px-2 py-1 rounded">Rejeitar</button>
+                            </div>
+                        `;
+                    }
+
+                    innerHTML += `</div>`;
+                    innerHTML += `<div class="quadrado-arredondado w-4 h-4 rounded" style="background-color: ${corQuadrado};"></div>`;
+
+                    card.innerHTML = innerHTML;
+                    container.appendChild(card);
+
+                    // 8. Adiciona eventos
+                    if (pedido.ehMasterStaff && statusAtual === "pendente") {
+                        const aprovarBtn = card.querySelector(".aprovar");
+                        const negarBtn = card.querySelector(".negar");
+
+                        const idReferencia = isAditivoExtra ? pedido.idpedido : pedido.idpedido;
+                        if (!idReferencia) {
+                            console.error("ID do AditivoExtra não encontrado no pedido:", pedido);
+                            alert("Erro: ID da solicitação não encontrado.");
+                            return; // Interrompe a execução se o ID for inválido.
+                        }
+                        const statusUpdateFn = isAditivoExtra ? atualizarStatusAditivoExtra : atualizarStatusPedido;
+                        const campoParaBackend = isAditivoExtra ? null : campo; 
+
+                        aprovarBtn?.addEventListener("click", async () => {
+                            if (isAditivoExtra) {
+                                await statusUpdateFn(idReferencia, "Autorizado", card); // ⬅️ CORREÇÃO
+                            } else {
+                                await statusUpdateFn(idReferencia, campoParaBackend, "Autorizado", card);
+                            }
+                        });
+
+                        negarBtn?.addEventListener("click", async () => {
+                            let justificativa = null;
+                            if (isAditivoExtra) {
+                                justificativa = prompt(`Justificativa para rejeitar ${info.tipoSolicitacao}:`);
+                                if (!justificativa || justificativa.trim() === '') {
+                                    alert("A justificativa é obrigatória para rejeitar esta solicitação.");
+                                    return;
+                                }
+                            }
+                            if (isAditivoExtra) {
+                                await statusUpdateFn(idReferencia, "Rejeitado", card, justificativa); // ⬅️ CORREÇÃO
+                            } else {
+                                await statusUpdateFn(idReferencia, campoParaBackend, "Rejeitado", card, justificativa);
+                            }
+                        });
+                    }
+                });
+            });
+
+
+            header.addEventListener("click", () => {
+                container.classList.toggle("hidden");
+            });
+
+            divFuncionario.appendChild(header);
+            divFuncionario.appendChild(container);
+            listaFuncionarios.appendChild(divFuncionario);
+        });
+
+    } catch (err) {
+        console.error("Erro ao mostrar pedidos:", err);
+        lista.innerHTML = `<p class="erro">Erro ao carregar pedidos: ${err.message || 'Erro de rede/servidor.'}</p>`;
+    }
+}
+
+// ⚠️ Assuma que 'fetchComToken' está disponível e lida com a autenticação e parsing do JSON
+async function buscarAditivoExtraPendentes() {
+  console.log("🟡 Iniciando busca de solicitações Aditivo/Extra Pendentes...");
+    try {
+        // Rota que você deve implementar no seu backend para listar AditivoExtra PENDENTES
+        const url = '/main/aditivoextra/pendentes'; 
+        
+        const resposta = await fetchComToken(url);
+        
+        if (resposta && resposta.sucesso && Array.isArray(resposta.dados)) {
+          console.log(`✅ Sucesso! ${resposta.dados.length} solicitações Aditivo/Extra Pendentes carregadas.`);
+            // Retorna a lista de solicitações
+            return resposta.dados; 
+        }
+        
+        // Lidar com falha na busca, retornando um array vazio ou lançando erro
+        console.error("❌Erro ao buscar AditivoExtra pendentes:", resposta?.erro || 'Resposta inválida do servidor.');
+        return [];
+        
+    } catch (err) {
+        console.error("🔥Erro de rede/conexão ao buscar AditivoExtra:", err);
+        return []; // Retorna array vazio em caso de erro fatal
+    }
 }
 
 // Função para atualizar status via fetch
