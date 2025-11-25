@@ -1728,7 +1728,7 @@ router.get('/aditivoextra/pendentes', async (req, res) => {
             JOIN 
                 Usuarios s ON ae.idUsuarioSolicitante = s.idUsuario
             WHERE 
-                ae.idEmpresa = $1 AND ae.status = 'Pendente'
+                ae.idEmpresa = $1 --AND ae.status = 'Pendente'
             ORDER BY 
                 e.nmevento, f.descfuncao, ae.tipoSolicitacao;
         `;

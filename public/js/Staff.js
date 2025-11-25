@@ -3,6 +3,7 @@ import { fetchComToken, aplicarTema  } from '../utils/utils.js';
 let statusAditivoFinal = null; // Usar null em vez de '' para campos vazios
 let statusExtraBonificadoFinal = null;
 let permitirCadastro = false;
+let nmFuncaoDoFormulario = '';
 
 let decisaoUsuarioDataFora = null;
 
@@ -1349,7 +1350,7 @@ let datasMeiaDiaria = [];
 let orcamentoPorFuncao = {};
 let statusOrcamentoAtual;
 let idOrcamentoAtual = null;
-let limiteMaximo;
+//let limiteMaximo;
 let porcentagemPaga = 50;
 let isFormLoadedFromDoubleClick = false;
 let currentRowSelected = null;
@@ -1366,6 +1367,7 @@ let vlrAlimentacaoDobra =0;
 let isLote = false;
 let temOrcamento = false;
 let bForaSP = false;
+let categoriaFuncao = 'PADRAO';
 
 if (typeof window.StaffOriginal === "undefined") {
     window.StaffOriginal = {
@@ -3038,7 +3040,7 @@ async function verificaStaff() {
                 .trim()
             ) || 0.00;
 
-            validarCamposAntesDoPeriodo();  
+            
             if(!nmFuncionario || !descFuncao || !vlrCusto || !nmCliente || !nmEvento || !periodoDoEvento){
                 return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Funcionário, Função, Cachê, Transportes, Alimentação, Cliente, Evento e Período do Evento.", "warning");
             }
@@ -3077,6 +3079,26 @@ async function verificaStaff() {
                 );
             }
 
+            const viagem1Marcada = document.getElementById('viagem1Check')?.checked || false;
+            const viagem2Marcada = document.getElementById('viagem2Check')?.checked || false;
+            const viagem3Marcada = document.getElementById('viagem3Check')?.checked || false;
+
+            // 1. VERIFICAÇÃO DE OBRIGATORIEDADE
+            if (bForaSP) {
+                // bForaSP está TRUE (Evento é fora de SP)
+                const nenhumaViagemMarcada = !viagem1Marcada && !viagem2Marcada && !viagem3Marcada;
+
+                if (nenhumaViagemMarcada) {
+                    await Swal.fire({
+                        title: "Viagem Obrigatória",
+                        html: "Este evento está cadastrado para ser realizado <strong>fora de São Paulo (SP)</strong>.<br><br>É obrigatório selecionar pelo menos uma opção de <strong>Deslocamento/Viagem</strong> (Viagem 1, Viagem 2 ou Viagem 3) para continuar com o agendamento.",
+                        icon: "error",
+                        confirmButtonText: "Entendi"
+                    });
+                    return; // 🛑 BLOQUEIA O AGENDAMENTO
+                }
+            }
+
             const temPermissaoCadastrar = temPermissao("Staff", "cadastrar");
             const temPermissaoAlterar = temPermissao("Staff", "alterar");
 
@@ -3102,6 +3124,8 @@ async function verificaStaff() {
                 console.log("IDS SÃO DIFERENTES", idStaffEventoFromObject, idStaffEventoNumero);
             }
 
+            
+
             if (idStaffEvento && isFormLoadedFromDoubleClick && currentEditingStaffEvent && idStaffEventoFromObject === idStaffEventoNumero) {
                 console.log("ENTROU NO METODO PUT");
                 metodo = "PUT";
@@ -3116,6 +3140,13 @@ async function verificaStaff() {
                 currentEditingStaffEvent = null;
                 isFormLoadedFromDoubleClick = false;
             }
+
+            // const idEventoEmEdicao = (metodo === "PUT") 
+            //     ? currentEditingStaffEvent.idstaffevento // currentEditingStaffEvent SÓ está populado se metodo for PUT
+            //     : null; 
+
+            // Agora idEventoEmEdicao será 1951 se o método for PUT
+            console.log("Modo final:", metodo, "ID EVENTO PARA API:", idEventoEmEdicao);
 
             if (pavilhao === "SELECIONE O PAVILHÃO") {
                 pavilhao = "";
@@ -3136,7 +3167,9 @@ async function verificaStaff() {
 
             const idFuncionarioParaVerificacao = idFuncionario; 
             const idFuncaoDoFormulario = idFuncao;
-           // const nmFuncaoDoFormulario = descFuncao;     
+            nmFuncaoDoFormulario = descFuncao;     
+           
+            console.log("IdFuncaoDoFormulario do Botão Enviar:", idFuncaoDoFormulario, "NmFuncaoDoFormulario:", nmFuncaoDoFormulario);
 
             const flatpickrForDatasEvento = window.flatpickrInstances['datasEvento'];
             // const datasParaVerificacao = flatpickrForDatasEvento?.selectedDates || [];
@@ -3285,17 +3318,27 @@ async function verificaStaff() {
 
             // 1. CHAME A API E OBTENHA TODOS OS CONFLITOS E A CATEGORIA DA FUNÇÃO
             console.log("Iniciando verificação de disponibilidade do staff...");
+          
             const apiResult = await verificarDisponibilidadeStaff(
                 idFuncionarioParaVerificacao,               
                 periodoDoEvento,
                 idFuncaoDoFormulario,
                 idEventoEmEdicao
             );
+            
+            console.log("DIAGNÓSTICO: API retornou! apiResult:", apiResult);
 
             console.log("Resultado da API:", apiResult.conflicts);
 
             // 🎯 Novas variáveis que a API precisa retornar
-            const { isAvailable, conflicts, categoriaFuncao } = apiResult;
+           // const { isAvailable, conflicts, categoriaFuncao } = apiResult;
+
+             const { isAvailable, conflicts } = apiResult;
+
+            console.log("Valores para busca de duplicidade:");
+            console.log(`- idFuncaoDoFormulario: ${idFuncaoDoFormulario}, Tipo: ${typeof idFuncaoDoFormulario}, Nome: ${nmFuncaoDoFormulario}`);
+            console.log(`- idEventoEmEdicao: ${idEventoEmEdicao}, Tipo: ${typeof idEventoEmEdicao}`);
+           
 
             const conflitoDuplicidade = conflicts && conflicts.find(c => 
                 Number(c.idfuncao) === Number(idFuncaoDoFormulario) &&
@@ -3333,9 +3376,7 @@ async function verificaStaff() {
             const conflitosReais = conflicts ? conflicts.filter(c => String(c.idevento) !== String(idEventoEmEdicao)) : [];
             
             // Obtém o número total de eventos já agendados (excluindo o atual)
-            const totalConflitosExistentes = conflitosReais.length; 
-            
-            
+            const totalConflitosExistentes = conflitosReais.length;
 
             let limiteMaximo;
             let motivoLiberacao = null;
@@ -3456,10 +3497,11 @@ async function verificaStaff() {
                     }
 
                     // 2.2: CHAMADA DA FUNÇÃO DE SOLICITAÇÃO (Cria o registro no AditivoExtra)
+                     console.log("IdFuncaoDoFormulario Antes de Salvar Solicitação:", idFuncaoDoFormulario, "NmFuncaoDoFormulario:", nmFuncaoDoFormulario);
                     try {
                         const result = await salvarSolicitacaoAditivoExtra(
                             idOrcamentoAtual, 
-                            idFuncaoDoFormulario, 
+                            idFuncaoDoFormulario,                         
                             1, // Solicitando +1 (para o agendamento atual)
                             'FuncExcedido', 
                             justificativaFinal, // Usar a justificativa ajustada
@@ -3467,7 +3509,7 @@ async function verificaStaff() {
                         );
 
                         if (!result.sucesso) {
-                            await Swal.fire("Falha na Solicitação", `Não foi possível registrar a solicitação de exceção. Detalhes: ${result.erro || 'Erro desconhecido.'}`, "error");
+                            await Swal.fire("Falha na Solicitação", `Não foi possível registrar a solicitação de exceção. Detalhes: <strong>${result.erro}</strong>`, "error");
                             return; // Bloqueia o agendamento
                         }
 
@@ -3511,6 +3553,7 @@ async function verificaStaff() {
                     
                 }
             }
+        
             // O restante do código de submissão do formulário virá aqui.
 
 //             if (totalConflitosExistentes > 0) {
@@ -4992,7 +5035,7 @@ async function verificarDisponibilidadeStaff(idFuncionario, datasAgendamento, id
     } catch (error) {
         console.error("Erro na API de verificação de disponibilidade:", error);
         Swal.fire("Erro na Verificação", "Não foi possível verificar a disponibilidade do funcionário.", "error");
-        return { isAvailable: false, conflictingEvent: null };
+        return { isAvailable: false, conflictingEvent: null, conflicts: [] };
     }
 }
 
@@ -5249,7 +5292,8 @@ async function carregarFuncaoStaff() {
                     option.setAttribute("data-transporte", funcao.transporte || 0);
                     option.setAttribute("data-transpsenior", funcao.transpsenior || 0);
                     option.setAttribute("data-idequipe", funcao.idequipe || '');
-                    option.setAttribute("data-nmequipe", funcao.nmequipe || '');
+                    option.setAttribute("data-nmequipe", funcao.nmequipe || '');                    
+                    option.setAttribute("data-categoriafuncao", funcao.nmcategoriafuncao || '');
                     option.setAttribute("data-categoria", "Produto(s)");
                     select.appendChild(option);
                // }else {
@@ -5290,6 +5334,7 @@ async function carregarFuncaoStaff() {
                 vlrAlimentacaoFuncao = parseFloat(selectedOption.getAttribute("data-alimentacao")) || 0;
                 vlrTransporteFuncao = parseFloat(selectedOption.getAttribute("data-transporte")) || 0;
                 vlrTransporteSeniorFuncao = parseFloat(selectedOption.getAttribute("data-transpsenior")) || 0;
+                categoriaFuncao = selectedOption.getAttribute("data-categoriafuncao") || '';
                 
                 if (descFuncao === "AJUDANTE DE MARCAÇÃO") {
                     // 1. Marca o "Base"
@@ -5313,9 +5358,7 @@ async function carregarFuncaoStaff() {
                     juniorCheck.disabled = false;
                     baseCheck.disabled = false;
                     
-                }
-
-                
+                }               
                 
             });
 
@@ -7465,13 +7508,14 @@ async function verificarLimiteDeFuncao(criterios) {
                 const resultadoSolicitacao = await solicitarDadosExcecao(
                     tipoExcecao, 
                     idOrcamentoAtual, 
+                    nmFuncaoDoFormulario,
                     criterios.idFuncao
                     // , idEmpresa // Adicione idEmpresa se necessário na assinatura
                 );
                 
                 if (resultadoSolicitacao && resultadoSolicitacao.sucesso) {
                     // Solicitação de Aditivo/Extra criada com sucesso.
-                    await Swal.fire("Solicitação Enviada", `Solicitação de <strong>${tipoExcecao}</strong> para <strong>${nmFuncaoDoFormulario}</strong> registrada com sucesso. O agendamento continuará com status pendente de aprovação.`, "success");
+                    await Swal.fire("Solicitação Enviada", `Solicitação de <strong>${tipoExcecao.toUpperCase()}</strong> para <strong>${nmFuncaoDoFormulario}</strong> registrada com sucesso. O agendamento continuará com status <strong>PENDENTE</strong> de aprovação.`, "success");
                     
                     // // O agendamento principal PODE prosseguir, mas com o status Pendente.
                     // const statusAditivo = (tipoExcecao === 'Aditivo') ? 'Pendente' : null;
@@ -7479,6 +7523,10 @@ async function verificarLimiteDeFuncao(criterios) {
                     
                     // // 🎯 Permite o agendamento e passa o status de volta ao fluxo principal
                     // resolve({ allowed: true, statusAditivo: statusAditivo, statusExtraBonificado: statusExtraBonificado });
+
+                    if (typeof limparTudoStaff === 'function') {
+                        limparTudoStaff(); 
+                    }
 
                     // 🛑 BLOQUEIA o fluxo principal de salvamento do Staff!
                     resolve({ allowed: false, statusAditivo: null, statusExtraBonificado: null });
@@ -7500,14 +7548,59 @@ async function verificarLimiteDeFuncao(criterios) {
 }
 
 
-async function solicitarDadosExcecao(tipo, idOrcamento, nmFuncaoDoFormulario, idFuncao, idEmpresa) { 
+// async function solicitarDadosExcecao(tipo, idOrcamento, nmFuncaoDoFormulario, idFuncao, idEmpresa) { 
     
-    // Esta função agora será responsável por SOLICITAR A QUANTIDADE
-    const { value: formValues } = await Swal.fire({
+//     // Esta função agora será responsável por SOLICITAR A QUANTIDADE
+//     const { value: formValues } = await Swal.fire({
+//         title: `Solicitar ${tipo} para ${nmFuncaoDoFormulario}`,
+//         html: 
+//             `<input id="swal-qtd" class="swal2-input" type="number" placeholder="Quantidade Solicitada" min="1">` +
+//             `<textarea id="swal-justificativa" class="swal2-textarea" placeholder="Justificativa (obrigatório)"></textarea>`,
+//         focusConfirm: false,
+//         preConfirm: () => {
+//             const qtd = document.getElementById('swal-qtd').value;
+//             const justificativa = document.getElementById('swal-justificativa').value;
+
+//             if (!qtd || parseInt(qtd) <= 0) {
+//                 Swal.showValidationMessage('A quantidade solicitada deve ser maior que zero.');
+//                 return false;
+//             }
+//             if (!justificativa.trim()) {
+//                 Swal.showValidationMessage('A justificativa é obrigatória.');
+//                 return false;
+//             }
+//             return { qtd: parseInt(qtd), justificativa: justificativa };
+//         }
+//     });
+
+//     if (formValues) {
+//         // Chama a função final que executa o POST (a mesma que você já tem)
+//         return salvarSolicitacaoAditivoExtra(
+//             idOrcamento, 
+//             idFuncao, 
+//             formValues.qtd, 
+//             tipo, 
+//             formValues.justificativa, 
+//             idEmpresa
+//         );
+//     }
+//     // Retorna false se cancelado
+//     return false;
+// }
+
+async function solicitarDadosExcecao(tipo, idOrcamentoAtual, nmFuncaoDoFormulario, idFuncaoDoFormulario) { 
+    
+    const { value: formValues, isConfirmed } = await Swal.fire({ // 💡 Captura 'isConfirmed'
         title: `Solicitar ${tipo} para ${nmFuncaoDoFormulario}`,
         html: 
             `<input id="swal-qtd" class="swal2-input" type="number" placeholder="Quantidade Solicitada" min="1">` +
             `<textarea id="swal-justificativa" class="swal2-textarea" placeholder="Justificativa (obrigatório)"></textarea>`,
+        
+        // 🎯 MELHORIA: Adiciona explicitamente o botão Cancelar
+        showCancelButton: true,
+        confirmButtonText: `Sim, Solicitar ${tipo}`,
+        cancelButtonText: 'Cancelar',
+        
         focusConfirm: false,
         preConfirm: () => {
             const qtd = document.getElementById('swal-qtd').value;
@@ -7525,19 +7618,27 @@ async function solicitarDadosExcecao(tipo, idOrcamento, nmFuncaoDoFormulario, id
         }
     });
 
-    if (formValues) {
-        // Chama a função final que executa o POST (a mesma que você já tem)
+    // 🎯 CORREÇÃO NO FLUXO DE CANCELAMENTO
+    // isConfirmed será 'false' se o usuário clicar em Cancelar ou fechar o modal.
+    if (isConfirmed && formValues) {
+        
+        // ⚠️ ATENÇÃO: Corrigindo a chamada para salvarSolicitacaoAditivoExtra
+        // O último parâmetro de salvarSolicitacaoAditivoExtra é 'idFuncionario', 
+        // mas você estava passando 'idEmpresa' que não deve ser enviado pelo frontend.
+        // O idFuncionario é nulo neste cenário (limite de função), portanto, passamos null.
         return salvarSolicitacaoAditivoExtra(
-            idOrcamento, 
-            idFuncao, 
+            idOrcamentoAtual, 
+            idFuncaoDoFormulario, 
             formValues.qtd, 
             tipo, 
             formValues.justificativa, 
-            idEmpresa
+            null // idFuncionario é null neste cenário (Aditivo/Extra por Limite de Função)
         );
     }
-    // Retorna false se cancelado
-    return false;
+
+    // Retorna false se cancelado ou se o modal for fechado
+    return { sucesso: false, cancelado: true, erro: 'Solicitação de exceção cancelada pelo usuário.' };
+    
 }
 
 // async function solicitarDadosExcecao(tipo, idOrcamento, idFuncao, idEmpresa, detalhesConflito = {}) { 
@@ -7914,16 +8015,16 @@ window.solicitarDadosExcecao = solicitarDadosExcecao;
 // }
 
 
-async function verificarStatusAditivoExtra(idOrcamento, idFuncao, tipoSolicitacao, idFuncionario = null) {
+async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulario, tipoSolicitacao, idFuncionario = null) {
     
     // Assumimos que idEmpresaAtual é recuperado de forma segura fora desta função
     // ou que o backend usa o contexto da requisição para idEmpresa.
     // Para fins de demonstração, criaremos uma variável placeholder.
-    const idEmpresaAtual = 'N/A'; // Substitua pela sua variável real ou remova se não for mais usada.
+    //const idEmpresaAtual = 'N/A'; // Substitua pela sua variável real ou remova se não for mais usada.
 
     const params = new URLSearchParams({
-        idOrcamento: idOrcamento,
-        idFuncao: idFuncao,
+        idOrcamento: idOrcamentoAtual,
+        idFuncao: idFuncaoDoFormulario,
         tipoSolicitacao: tipoSolicitacao // ESSENCIAL para o backend filtrar
     });
     
@@ -7954,14 +8055,10 @@ async function verificarStatusAditivoExtra(idOrcamento, idFuncao, tipoSolicitaca
             console.log(`Solicitação Recente: Tipo=${solicitacaoRecente.tiposolicitacao}, Status=${status}`);
 
             if (status === 'Pendente' && solicitacaoRecente.tiposolicitacao.trim() === tipoSolicitacao.trim()) {
-                //const tipoPendente = solicitacaoRecente.tiposolicitacao;
-                
-                // Bloqueia apenas se o tipo pendente for o mesmo que está sendo solicitado
-               // if (tipoPendente.trim() === tipoSolicitacao.trim()) {
-                    
+                                  
                     await Swal.fire({
                         title: 'Atenção!',
-                        html: `Já existe uma solicitação de <strong>${solicitacaoRecente.tiposolicitacao}</strong> com status <strong>Pendente</strong> para esta função. <br><br> Por favor, aguarde a aprovação antes de solicitar novamente.`,
+                        html: `Já existe uma solicitação de <strong>${solicitacaoRecente.tiposolicitacao}</strong> com status <strong>Pendente</strong> para esta função. <br><br> Por favor, aguarde a <strong>Aprovação/Rejeição</strong> antes de solicitar novamente.`,
                         icon: 'info',
                         confirmButtonText: 'Entendi'
                     });
@@ -8018,9 +8115,9 @@ async function verificarStatusAditivoExtra(idOrcamento, idFuncao, tipoSolicitaca
                 const vagasDisponiveis = limiteMaximo - totalVagasPreenchidas;
                 
                 const result = await Swal.fire({
-                    title: 'Capacidade Esgotada!',
+                    title: `Confirmação da Solicitação de ${tipoSolicitacao}!`,
                     // Garante que o tipoSolicitacao seja usado na mensagem
-                    html: `As **${limiteMaximo} vagas** (Orçado + Aprovados) para esta função já foram preenchidas (${totalVagasPreenchidas} staff alocados). <br><br> Deseja solicitar um **novo ${tipoSolicitacao}**?`,
+                    html: `As <strong>${limiteMaximo} vagas</strong> (Orçado + Aprovados) para esta função já foram preenchidas (${totalVagasPreenchidas} staff alocados). <br><br> Confirma solicitação um <strong>novo ${tipoSolicitacao}</strong>?`,
                     icon: 'warning',
                     showCancelButton: true,
                     confirmButtonText: 'Sim, Solicitar Mais',
@@ -8089,13 +8186,13 @@ window.verificarStatusAditivoExtra = verificarStatusAditivoExtra; // Torna acess
 //     }
 // }
 
-async function salvarSolicitacaoAditivoExtra(idOrcamentoAtual, idFuncao, qtd, tipo, justificativa, idFuncionario = null) {
-    console.log("AJAX: Tentando salvar solicitação:", { idOrcamentoAtual, idFuncao, qtd, tipo, justificativa });
+async function salvarSolicitacaoAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulario, qtd, tipo, justificativa, idFuncionario = null) {
+    console.log("AJAX: Tentando salvar solicitação:", { idOrcamentoAtual, idFuncaoDoFormulario, qtd, tipo, justificativa });
     
     // Objeto de dados a ser enviado
     const dadosParaEnvio = { 
         idOrcamento: idOrcamentoAtual, 
-        idFuncao: idFuncao,
+        idFuncao: idFuncaoDoFormulario,
         qtdSolicitada: qtd, 
         tipoSolicitacao: tipo, 
         justificativa,
@@ -8125,7 +8222,11 @@ async function salvarSolicitacaoAditivoExtra(idOrcamentoAtual, idFuncao, qtd, ti
     } catch (error) {
         // 3. CAPTURA ERROS de rede ou exceções lançadas por fetchComToken em status 4xx/5xx
         console.error('Erro de rede/código ao salvar solicitação. O erro foi gerado por fetchComToken:', error);
-        return { sucesso: false, erro: 'Falha na comunicação com o servidor.' };
+        //return { sucesso: false, erro: 'Falha na comunicação com o servidor.' };
+        return { 
+            sucesso: false, 
+            erro: error.message || 'Erro de comunicação desconhecido.' 
+        };
     }
 }
 

@@ -108,15 +108,15 @@ router.get('/funcao', async (req, res) => {
   try {
      
     const resultado = await pool.query(`
-  SELECT f.idcategoriafuncao, f.idfuncao, f.descfuncao, f.ativo, f.vdafuncao, f.obsproposta, f.obsfuncao,
-    e.idequipe, e.nmequipe,
-    cf.ctofuncaobase, cf.ctofuncaojunior, cf.ctofuncaopleno, cf.ctofuncaosenior, cf.transporte, cf.transpsenior, cf.alimentacao
-  FROM funcao f
-  INNER JOIN categoriafuncao cf ON f.idcategoriafuncao = cf.idcategoriafuncao
-  INNER JOIN equipe e ON f.idequipe = e.idequipe
-  INNER JOIN funcaoempresas fe ON fe.idfuncao = f.idfuncao
-  WHERE fe.idempresa = $1
-  ORDER BY f.descfuncao
+      SELECT f.idcategoriafuncao, f.idfuncao, f.descfuncao, f.ativo, f.vdafuncao, f.obsproposta, f.obsfuncao,
+        e.idequipe, e.nmequipe, cf.nmcategoriafuncao,
+        cf.ctofuncaobase, cf.ctofuncaojunior, cf.ctofuncaopleno, cf.ctofuncaosenior, cf.transporte, cf.transpsenior, cf.alimentacao
+      FROM funcao f
+      INNER JOIN categoriafuncao cf ON f.idcategoriafuncao = cf.idcategoriafuncao
+      INNER JOIN equipe e ON f.idequipe = e.idequipe
+      INNER JOIN funcaoempresas fe ON fe.idfuncao = f.idfuncao
+      WHERE fe.idempresa = $1
+      ORDER BY f.descfuncao
     `, [idempresa]);
 
     res.json(resultado.rows);
@@ -591,6 +591,7 @@ router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, r
 // Exemplo da sua rota de verificação de disponibilidade (no seu arquivo de rotas, ex: rotaStaff.js)
 // staffRoutes.js (ou o nome do seu arquivo de rotas de staff)
 //essa rota de verificaçao não permite cadastrar caso a data ja tenha sido preenchida
+
 // router.post('/check-availability', autenticarToken(), contextoEmpresa, async (req, res) => {
 //     console.log("🔥 Rota /staff/check-availability (POST) acessada para verificação de disponibilidade");
 
@@ -673,98 +674,99 @@ router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, r
 //     }
 // });
 
-router.post('/check-availability', autenticarToken(), contextoEmpresa, async (req, res) => {
-    console.log("🔥 Rota /staff/check-availability (POST) acessada para verificação de disponibilidade");
+// router.post('/check-availability', autenticarToken(), contextoEmpresa, async (req, res) => {
+//     console.log("🔥 Rota /staff/check-availability (POST) acessada para verificação de disponibilidade");
 
-    // Adicionado idfuncao para a verificação
-    const { idfuncionario, datas, idEventoIgnorar, idfuncao } = req.body;
-    const idEmpresa = req.idempresa;
+//     // Adicionado idfuncao para a verificação
+//     const { idfuncionario, datas, idEventoIgnorar, idfuncao } = req.body;
+//     const idEmpresa = req.idempresa;
 
-    // **ASSUMA QUE VOCÊ TENHA OS IDS DE FUNÇÃO DE EXCEÇÃO DISPONÍVEIS AQUI:**
-    const FUNCOES_FISCAL_IDS = [6]; //ID DE FISCAL NOTURNO
+//     // **ASSUMA QUE VOCÊ TENHA OS IDS DE FUNÇÃO DE EXCEÇÃO DISPONÍVEIS AQUI:**
+//     const FUNCOES_FISCAL_IDS = [6]; //ID DE FISCAL NOTURNO
 
-    if (!idfuncionario || !datas || !Array.isArray(datas) || datas.length === 0 || !idEmpresa || !idfuncao) {
-    return res.status(400).json({ message: "Dados obrigatórios ausentes ou em formato incorreto para verificar disponibilidade." });
-    }
+//     if (!idfuncionario || !datas || !Array.isArray(datas) || datas.length === 0 || !idEmpresa || !idfuncao) {
+//     return res.status(400).json({ message: "Dados obrigatórios ausentes ou em formato incorreto para verificar disponibilidade." });
+//     }
 
-    let client;
-    try {
-    client = await pool.connect();
+//     let client;
+//     try {
+//     client = await pool.connect();
 
-    let params = [idfuncionario, idEmpresa];
-    const dateStartParamIndex = params.length + 1;
-    const datePlaceholders = datas.map((_, i) => `$${dateStartParamIndex + i}`).join(', ');
+//     let params = [idfuncionario, idEmpresa];
+//     const dateStartParamIndex = params.length + 1;
+//     const datePlaceholders = datas.map((_, i) => `$${dateStartParamIndex + i}`).join(', ');
       
-    params = params.concat(datas);
+//     params = params.concat(datas);
 
-    //TRECHO DA COMPARAÇÃO DO ID DO FISCAL NOTURNO
-    const fiscalIdStartParamIndex = params.length + 1;
-    const fiscalIdPlaceholders = FUNCOES_FISCAL_IDS.map((_, i) => `$${fiscalIdStartParamIndex + i}`).join(', '); 
-    params = params.concat(FUNCOES_FISCAL_IDS);         
+//     //TRECHO DA COMPARAÇÃO DO ID DO FISCAL NOTURNO
+//     const fiscalIdStartParamIndex = params.length + 1;
+//     const fiscalIdPlaceholders = FUNCOES_FISCAL_IDS.map((_, i) => `$${fiscalIdStartParamIndex + i}`).join(', '); 
+//     params = params.concat(FUNCOES_FISCAL_IDS);         
 
-    // Adiciona o idfuncao (função agendada) aos parâmetros
-    const idFuncaoParamIndex = params.length + 1;
-    params.push(idfuncao);
-    //FIM DO TRECHO
+//     // Adiciona o idfuncao (função agendada) aos parâmetros
+//     const idFuncaoParamIndex = params.length + 1;
+//     params.push(idfuncao);
+//     //FIM DO TRECHO
 
-    const idEventoIgnorarParamIndex = params.length + 1; 
+//     const idEventoIgnorarParamIndex = params.length + 1; 
       
-    let query = `
-      SELECT 
-        se.nmevento, 
-        se.nmcliente, 
-        se.datasevento, 
-        se.idstaffevento,
-        se.idfuncao -- AQUI: Adicionamos o ID da função à query
-      FROM 
-        staffeventos se
-      INNER JOIN 
-        staff s ON se.idstaff = s.idstaff
-      INNER JOIN 
-        staffEmpresas se_emp ON s.idstaff = se_emp.idstaff 
-      WHERE 
-        se.idfuncionario = $1
-        AND se_emp.idEmpresa = $2
-        AND EXISTS (
-          SELECT 1
-            FROM jsonb_array_elements_text(se.datasevento) AS existing_date
-            WHERE existing_date.value = ANY(ARRAY[${datePlaceholders}]::text[])
-        )
-        -- NOVA CONDIÇÃO: Ignora o conflito se o evento conflitante E o evento atual forem funções FISCAIS.
-        AND NOT (
-          se.idfuncao = ANY(ARRAY[${fiscalIdPlaceholders}]::int[])
-          AND $${idFuncaoParamIndex} = ANY(ARRAY[${fiscalIdPlaceholders}]::int[])
-        )
-    `;
+//     let query = `
+//       SELECT 
+//         se.nmevento, 
+//         se.nmcliente, 
+//         se.datasevento, 
+//         se.idstaffevento,
+//         se.idfuncao -- AQUI: Adicionamos o ID da função à query
+//       FROM 
+//         staffeventos se
+//       INNER JOIN 
+//         staff s ON se.idstaff = s.idstaff
+//       INNER JOIN 
+//         staffEmpresas se_emp ON s.idstaff = se_emp.idstaff 
       
-    if (idEventoIgnorar !== null) {
-      query += ` AND se.idstaffevento != $${idEventoIgnorarParamIndex}`; 
-      params.push(idEventoIgnorar);
-    }
+//       WHERE 
+//         se.idfuncionario = $1
+//         AND se_emp.idEmpresa = $2
+//         AND EXISTS (
+//           SELECT 1
+//             FROM jsonb_array_elements_text(se.datasevento) AS existing_date
+//             WHERE existing_date.value = ANY(ARRAY[${datePlaceholders}]::text[])
+//         )
+//         -- NOVA CONDIÇÃO: Ignora o conflito se o evento conflitante E o evento atual forem funções FISCAIS.
+//         -- AND NOT (
+//         --   se.idfuncao = ANY(ARRAY[${fiscalIdPlaceholders}]::int[])
+//         --   AND $${idFuncaoParamIndex} = ANY(ARRAY[${fiscalIdPlaceholders}]::int[])
+//         -- )
+//     `;
+      
+//     if (idEventoIgnorar !== null) {
+//       query += ` AND se.idstaffevento != $${idEventoIgnorarParamIndex}`; 
+//       params.push(idEventoIgnorar);
+//     }
 
-    console.log("Query de disponibilidade (ajustada com idfuncao):", query);
-    console.log("Parâmetros de disponibilidade (ajustado com idfuncao):", params);
+//     console.log("Query de disponibilidade (ajustada com idfuncao):", query);
+//     console.log("Parâmetros de disponibilidade (ajustado com idfuncao):", params);
 
-    const result = await client.query(query, params);
+//     const result = await client.query(query, params);
 
-    if (result.rows.length > 0) {
-      return res.json({
-      isAvailable: false,
-      conflictingEvent: result.rows[0] // O objeto retornado agora terá o idfuncao
-      });
-    } else {
-      return res.json({ isAvailable: true, conflictingEvent: null });
-    }
+//     if (result.rows.length > 0) {
+//       return res.json({
+//       isAvailable: false,
+//       conflictingEvent: result.rows[0] // O objeto retornado agora terá o idfuncao
+//       });
+//     } else {
+//       return res.json({ isAvailable: true, conflictingEvent: null });
+//     }
 
-    } catch (error) {
-    console.error("❌ Erro no backend ao verificar disponibilidade:", error);
-    res.status(500).json({ message: "Erro interno do servidor ao verificar disponibilidade.", details: error.message });
-    } finally {
-    if (client) {
-      client.release();
-    }
-    }
-});
+//     } catch (error) {
+//     console.error("❌ Erro no backend ao verificar disponibilidade:", error);
+//     res.status(500).json({ message: "Erro interno do servidor ao verificar disponibilidade.", details: error.message });
+//     } finally {
+//     if (client) {
+//       client.release();
+//     }
+//     }
+// }); //certo com a verificacao dos fiscais e sem categoriafuncao
 
 // router.post('/check-availability', autenticarToken(), contextoEmpresa, async (req, res) => {
 //     console.log("🔥 Rota /staff/check-availability (POST) acessada para verificação de disponibilidade");
@@ -818,7 +820,7 @@ router.post('/check-availability', autenticarToken(), contextoEmpresa, async (re
 //                 se.nmevento, 
 //                 se.nmcliente, 
 //                 se.datasevento, 
-//                 se.idstaffevento AS idevento, -- Renomeado para 'idevento' para melhor uso no frontend
+//                 se.idstaffevento, -- Renomeado para 'idevento' para melhor uso no frontend
 //                 se.idfuncao,
 //                 se.nmfuncao
 //             FROM 
@@ -871,6 +873,95 @@ router.post('/check-availability', autenticarToken(), contextoEmpresa, async (re
 // });
 
 //GET pesquisar
+//certo com verificacao categoriafuncao
+
+router.post('/check-availability', autenticarToken(), contextoEmpresa, async (req, res) => {
+    console.log("🔥 Rota /staff/check-availability (POST) acessada para verificação de disponibilidade");
+
+    // idfuncao é mantido para validação de requisição (400), mesmo que não seja usado na query SQL atual.
+    const { idfuncionario, datas, idEventoIgnorar, idfuncao } = req.body;
+    const idEmpresa = req.idempresa;
+
+    // Validação de dados obrigatórios
+    if (!idfuncionario || !datas || !Array.isArray(datas) || datas.length === 0 || !idEmpresa || !idfuncao) {
+        return res.status(400).json({ message: "Dados obrigatórios ausentes ou em formato incorreto para verificar disponibilidade." });
+    }
+
+    let client;
+    try {
+        client = await pool.connect();
+
+        // Parâmetros iniciais: $1 e $2
+        let params = [idfuncionario, idEmpresa];
+
+        // 1. Placeholder das datas (começa em $3)
+        const dateStartParamIndex = params.length + 1; 
+        const datePlaceholders = datas.map((_, i) => `$${dateStartParamIndex + i}`).join(', ');
+        params = params.concat(datas); // Adiciona as datas a params (ex: $3, $4, ...)
+
+        // 💡 TRECHO REMOVIDO: A lógica para FUNCOES_FISCAL_IDS e idfuncao foi removida dos parâmetros
+        // porque os placeholders não estavam sendo usados na query SQL.
+
+        // 2. Placeholder para idEventoIgnorar (se existir)
+        const idEventoIgnorarParamIndex = params.length + 1; // Próximo índice livre após as datas
+        
+        let query = `
+            SELECT 
+                se.nmevento, 
+                se.nmcliente, 
+                se.datasevento, 
+                se.idstaffevento,
+                se.idfuncao 
+            FROM 
+                staffeventos se
+            INNER JOIN 
+                staff s ON se.idstaff = s.idstaff
+            INNER JOIN 
+                staffEmpresas se_emp ON s.idstaff = se_emp.idstaff 
+            
+            WHERE 
+                se.idfuncionario = $1
+                AND se_emp.idEmpresa = $2
+                AND EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements_text(se.datasevento) AS existing_date
+                    WHERE existing_date.value = ANY(ARRAY[${datePlaceholders}]::text[])
+                )
+        `;
+        
+        // Condição para ignorar o evento que está sendo editado
+        if (idEventoIgnorar !== null) {
+            query += ` AND se.idstaffevento != $${idEventoIgnorarParamIndex}`; 
+            params.push(idEventoIgnorar); // Adiciona idEventoIgnorar a params
+        }
+
+        console.log("Query de disponibilidade (ajustada):", query);
+        console.log("Parâmetros de disponibilidade (ajustado):", params);
+
+        const result = await client.query(query, params);
+
+        if (result.rows.length > 0) {
+            // Se houver conflito, retorna o primeiro encontrado
+            return res.json({
+                isAvailable: false,
+                conflictingEvent: result.rows[0]
+            });
+        } else {
+            // Não há conflito de agenda
+            return res.json({ isAvailable: true, conflictingEvent: null });
+        }
+
+    } catch (error) {
+        console.error("❌ Erro no backend ao verificar disponibilidade:", error);
+        // Retorna 500 com mensagem detalhada para debug
+        res.status(500).json({ message: "Erro interno do servidor ao verificar disponibilidade.", details: error.message });
+    } finally {
+        if (client) {
+            client.release();
+        }
+    }
+});
+
 
 router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
     verificarPermissao('staff', 'pesquisar'), // Permissão para visualizar
@@ -1602,17 +1693,45 @@ router.post('/aditivoextra/solicitacao',
     const statusInicial = 'Pendente';
 
     // 2. Validação Atualizada (incluindo idEmpresa)
-    if (!idOrcamento || !idFuncao || !qtdSolicitada || !tipoSolicitacao || !justificativa || !idEmpresaContexto || !idUsuarioSolicitante) { // 💡 CORREÇÃO AQUI
+    
+    if (!idUsuarioSolicitante) {
+        let erroDetalhe = "ID do usuário solicitante (idUsuarioSolicitante) não encontrado no token de autenticação.";
+        return res.status(401).json({ // Retornar 401 (Não Autorizado) ou 500 para erro de contexto
+            sucesso: false,
+            erro: erroDetalhe
+        });
+    }
+    if (!idEmpresaContexto) {
+        let erroDetalhe = "ID da Empresa (idEmpresa) não encontrado no contexto da requisição.";
+        return res.status(500).json({ // Erro interno se o contexto falhar
+            sucesso: false,
+            erro: erroDetalhe
+        });
+    }
 
-        let erroDetalhe = "Dados incompletos. Verifique idOrcamento, idFuncao, qtdSolicitada, tipoSolicitacao, justificativa, idEmpresa e idUsuarioSolicitante.";
-        if (!idUsuarioSolicitante) {
-            erroDetalhe = "ID do usuário solicitante (idUsuarioSolicitante) não encontrado no token de autenticação.";
-        }
+    let campoFaltante = null;
+
+    if (!idOrcamento) {
+        campoFaltante = 'idOrcamento';
+    } else if (!idFuncao) {
+        campoFaltante = 'idFuncao';
+    } else if (!qtdSolicitada) {
+        campoFaltante = 'qtdSolicitada';
+    } else if (!tipoSolicitacao) {
+        campoFaltante = 'tipoSolicitacao';
+    } else if (!justificativa) {
+        campoFaltante = 'justificativa';
+    }
+
+
+    if (campoFaltante) { 
+        // Se algum campo do BODY estiver faltando, retorna 400 com a mensagem específica
+        const erroDetalhe = `Dados incompletos. O campo obrigatório **${campoFaltante}** está faltando na requisição.`;
         
-      return res.status(400).json({ 
-      sucesso: false,
-      erro: erroDetalhe
-      });
+        return res.status(400).json({ 
+            sucesso: false,
+            erro: erroDetalhe
+        });
     }
 
     if (tipoSolicitacao === 'FuncExcedido' && !idFuncionario) {
