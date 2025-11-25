@@ -43,6 +43,10 @@ router.get("/", async (req, res) => {
     });
 });
 
+
+// =======================================
+// PROXIMOS EVENTOS E CALENDARIO
+// =======================================
 router.get("/proximo-evento", async (req, res) => {
     try {
         const idempresa = req.headers.idempresa || req.query.idempresa;
@@ -86,7 +90,6 @@ router.get("/proximo-evento", async (req, res) => {
         res.status(500).json({ error: "Erro interno do servidor" });
     }
 });
-
 router.get("/eventos-calendario", async (req, res) => {
     try {
         const idempresa = req.headers.idempresa || req.query.idempresa;
@@ -217,9 +220,12 @@ router.get("/eventos-staff", async (req, res) => {
         res.status(500).json({ error: "Erro interno do servidor" });
     }
 });
+// =======================================
 
 
-// ROTA: /eventos-abertos
+// =======================================
+// EVENTOS EM ABERTOS E FECHADOS
+// =======================================
 router.get("/eventos-abertos", async (req, res) => {
     try {
         // Validação e setup
@@ -402,7 +408,6 @@ router.get("/eventos-abertos", async (req, res) => {
     }
 });
 
-// ROTA: /eventos-fechados
 router.get("/eventos-fechados", async (req, res) => {
     try {
         // Validação e setup
@@ -594,10 +599,6 @@ router.get("/eventos-fechados", async (req, res) => {
     }
 });
 
-
-
-
-
 router.get("/detalhes-eventos-abertos", async (req, res) => {
   try {
     const idevento = req.query.idevento || req.headers.idevento;
@@ -760,7 +761,6 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
   }
 });
 
-
 router.get("/ListarFuncionarios", async (req, res) => {
 
   console.log("entrou na ListarFuncionarios");
@@ -827,10 +827,12 @@ router.get("/ListarFuncionarios", async (req, res) => {
         res.status(500).json({ erro: 'Erro interno ao listar funcionários da equipe.' });
     }
 });
+// =======================================
 
 
-
-
+// =======================================
+// LOGS DE ATIVIDADES
+// =======================================
 router.get("/atividades-recentes", async (req, res) => {
     try {
         const idexecutor = req.headers.idexecutor || req.query.idexecutor;
@@ -852,9 +854,13 @@ router.get("/atividades-recentes", async (req, res) => {
         res.status(500).json({ error: "Erro ao buscar atividades" });
     }
 });
+// =======================================
 
-// routes/rotaMain.js
-// GET /main/notificacoes-financeiras
+
+
+// =======================================
+// NOTIFICAÇÕES FINANCEIRAS
+// =======================================
 router.get('/notificacoes-financeiras', async (req, res) => {
   try {
     const idempresa = req.idempresa || req.headers.idempresa;
@@ -1129,177 +1135,370 @@ router.post('/notificacoes-financeiras/atualizar-status',
   }
 );
 
+router.patch('/aditivoextra/:idAditivoExtra/status',
+    autenticarToken(),
+    contextoEmpresa,
+    verificarPermissao('staff', 'cadastrar'),
+    logMiddleware('aditivoextra', {
+        buscarDadosAnteriores: async (req) => {
+        const id = req.params.idAditivoExtra;
+            
+        // 💡 Mantida a correção de segurança para evitar erro 22P02 no log middleware
+            if (!id || isNaN(parseInt(id))) return null;
 
-router.get("/vencimentos", async (req, res) => {
-    // dataInicio é o dia que estamos checando (o dia do vencimento)
-    const { dataInicio, tipoVencimento } = req.query; 
-    const idempresa = req.idempresa; // Assumindo que o ID da empresa vem do middleware (req.idempresa)
+        // Usa a coluna justificativa que já existe no banco
+        const query = `SELECT idaditivoextra, status, tiposolicitacao, justificativa FROM AditivoExtra WHERE idAditivoExtra = $1`;
+        const result = await pool.query(query, [id]);
+        return result.rows[0] ? { dadosanteriores: result.rows[0], idregistroalterado: id } : null;
+        }
+    }),
+    async (req, res) => {
+        const idAditivoExtra = req.params.idAditivoExtra;
+        // ⚠️ Vamos ignorar a justificativaStatus na lógica
+        const { novoStatus } = req.body; 
+        const idUsuarioAprovador = req.usuario?.idusuario;
 
-    // ➡️ 1. Define o dia de filtro e valida o tipo de vencimento
-    if (!dataInicio) {
-        return res.status(400).json({ error: "dataInicio é obrigatório." });
-    }
-    const dataFiltro = dataInicio; // YYYY-MM-DD
+        console.log(`🔥 Rota /aditivoextra/${idAditivoExtra}/status acessada: Novo Status: ${novoStatus}`, idUsuarioAprovador);
 
-    const tipo = tipoVencimento || 'cache'; // Padrão: cache
-    
-    // As novas regras de vencimento serão mapeadas aqui:
-    let vencimentoDateLogic = '';
-    
-    // A tabela 'staffeventos' (tse) não tem as datas de marco (dtinimarcacao, dtfimrealizacao).
-    // Assumimos que a tabela 'eventos' (te) está ligada ao 'staffeventos' (tse) através do 'idevento'.
-    // Precisamos de um JOIN para a tabela 'eventos' e a tabela 'orcamentos' (to).
-
-    // Para esta implementação, vamos assumir uma View ou JOIN que traz as datas:
-    // Vou usar a tabela 'eventos' (te) e presumir que ela já possui ou pode ser JOINed para as datas necessárias.
-
-    const joinOrcamento = `
-        INNER JOIN eventos te ON tse.idevento = te.idevento 
-    `;
-
-    // -------------------------------------------------
-    // ➡️ 2. Define a Lógica de Vencimento no SQL
-    // -------------------------------------------------
-    if (tipo === 'ajuda_custo') {
-        // Vencimento: 2 dias após a dtinimarcacao do Orçamento (te.dtinimarcacao)
-        // O dia de vencimento (dataFiltro) deve ser igual a (dtinimarcacao + 2 dias)
-        vencimentoDateLogic = `
-            te.dtinimarcacao + INTERVAL '2 days'
-        `;
-    } else if (tipo === 'cache') {
-        // Vencimento: 10 dias após a dtfimrealizacao (te.dtfimrealizacao)
-        // O dia de vencimento (dataFiltro) deve ser igual a (dtfimrealizacao + 10 dias)
-        vencimentoDateLogic = `
-            te.dtfimrealizacao + INTERVAL '10 days'
-        `;
-    } else {
-         return res.status(400).json({ error: "tipoVencimento deve ser 'cache' ou 'ajuda_custo'." });
+        // 1. Validação
+    if (!novoStatus || !idUsuarioAprovador) {
+        return res.status(400).json({
+            sucesso: false,
+            erro: "Novo status e/ou ID do usuário aprovador não fornecidos."
+        });
     }
     
-    // -------------------------------------------------
-    // ➡️ 3. Lógica WHERE para o dia do Vencimento
-    // -------------------------------------------------
-    const whereVencimento = `
-        ${vencimentoDateLogic}::date = $2::date
-    `;
+    console.log(`Validando novoStatus: ${novoStatus}`);
+
+    const statusPermitidos = ['Autorizado', 'Rejeitado'];
+    if (!statusPermitidos.includes(novoStatus)) {
+        return res.status(400).json({
+            sucesso: false,
+            erro: "Status inválido. Use 'Autorizado' ou 'Rejeitado'."
+        });
+    }
+    
+    console.log(`Status permitido: ${novoStatus}`);
+     
 
     try {
-        const vencimentos = {};
+        // 2. Verifica o status atual da solicitação
+        const checkQuery = `SELECT status, tiposolicitacao FROM AditivoExtra WHERE idaditivoextra = $1 AND idempresa = $2`;
+        const checkResult = await pool.query(checkQuery, [idAditivoExtra, req.idempresa]);
 
-        // --- CONSULTA PRINCIPAL (CACHÊ E AJUDA DE CUSTO DETALHADO) ---
-        // A lógica do 'QTD DIÁRIAS' está mantida, mas a filtragem principal mudou
-        const queryVencimentosDetalhe = `
-            SELECT
-                tse.idevento AS "idevento",
-                tse.nmevento AS "nomeEvento",
-                tse.nmfuncao AS "FUNÇÃO",
-                tbf.nome AS "NOME",
-                tbf.pix AS "PIX",
-                -- Valor unitário do Cachê
-                COALESCE(tse.vlrcache, 0.00) AS "VLR CACHÊ", 
-                -- Valor unitário da Ajuda de Custo (Diária)
-                (COALESCE(tse.vlralmoco, 0.00) + COALESCE(tse.vlrjantar, 0.00) + COALESCE(tse.vlrtransporte, 0.00)) AS "VLR AJUDA CUSTO UNITÁRIO",
-                
-                -- Quantidade de diárias (dias de evento) - MANTIDA
-                jsonb_array_length(tse.datasevento) AS "QTD DIÁRIAS",
+        if (checkResult.rows.length === 0) {
+        return res.status(404).json({ sucesso: false, erro: "Solicitação de Aditivo/Extra não encontrada para esta empresa." });
+    }
+    console.log(`Status atual da solicitação: ${checkResult.rows[0].status}`);
 
-                -- Valor Adicional
-                (
-                    COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0.00 END, 0.00) +
-                    COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' THEN tse.vlrcaixinha ELSE 0.00 END, 0.00)
-                ) AS "VLR ADICIONAL",
-                tse.statuspgto AS "STATUS PGTO"
-            FROM
-                staffeventos tse
-            JOIN
-                funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
-            JOIN 
-                staffempresas semp ON tse.idstaff = semp.idstaff
-            ${joinOrcamento} -- Adiciona o JOIN para a tabela eventos (te)
-            WHERE
-                semp.idempresa = $1 AND 
-                ${whereVencimento} -- AQUI ESTÁ A NOVA LÓGICA
-            ORDER BY
-                tse.nmevento,
-                tbf.nome
+    const currentStatus = checkResult.rows[0].status;
+
+    if (currentStatus !== 'Pendente') {
+        return res.status(400).json({
+        sucesso: false,
+        erro: `A solicitação não pode ser alterada. Status atual: ${currentStatus}.`
+        });
+    }
+
+    // 3. Comando SQL de Atualização
+    let query;
+    let values;
+
+    console.log(`Preparando atualização para status: ${novoStatus}`, idAditivoExtra, req.idempresa);
+
+    // A query de Autorizado já estava correta, sem a justificativa
+    if (novoStatus === 'Autorizado') {
+        query = `
+            UPDATE AditivoExtra
+            SET status = $1, 
+            dtresposta = NOW(), 
+            idusuarioresponsavel = $2
+            WHERE idaditivoextra = $3 AND idempresa = $4
+            RETURNING *;
         `;
+        values = [novoStatus, idUsuarioAprovador, idAditivoExtra, req.idempresa];
+    } else if (novoStatus === 'Rejeitado') {
+        query = `
+            UPDATE AditivoExtra
+            SET status = $1, 
+            dtresposta = NOW(), 
+            idusuarioresponsavel = $2                       
+            WHERE idaditivoextra = $3 AND idempresa = $4
+            RETURNING *;
+        `;
+                    // 💡 CORREÇÃO FINAL: A lista de valores volta a ter 4 itens. O valor para justificativa é NULL.
+        values = [novoStatus, idUsuarioAprovador, idAditivoExtra, req.idempresa]; 
+    } else {
+        throw new Error("Erro de lógica: Status de atualização inválido.");
+    }
 
-        // ➡️ 4. Executa a query com os parâmetros: $1 (idempresa) e $2 (dataFiltro)
-        const resultDetalhe = await pool.query(queryVencimentosDetalhe, [idempresa, dataFiltro]);
-        const dadosBrutos = resultDetalhe.rows;
+    const resultado = await pool.query(query, values);
 
-        // --- AGRUPAMENTO E PROCESSAMENTO NO NODE.JS (MANTIDO) ---
-        const vencimentosAgrupados = {};
+    if (resultado.rows.length === 0) {
+        throw new Error("A atualização falhou. Nenhuma linha afetada.");
+    }
 
-        dadosBrutos.forEach(item => {
-            const eventoId = item.idevento;
-            const nomeEvento = item.nomeEvento;
-            // 🛑 A QTD DIÁRIAS AGORA É O TAMANHO TOTAL DO ARRAY DE DATAS, POIS ESTAMOS FILTRANDO APENAS O DIA DE VENCIMENTO.
-            // Se você quiser a quantidade de diárias dentro do evento, deve usar o valor completo, não o filtro de dia.
-            // Para manter a lógica que calcula o total do funcionário (VLR * QTD DIÁRIAS), assumirei que
-            // QTD DIÁRIAS deve ser o total de dias do evento, não apenas o dia de vencimento.
-            // Se precisar do total de diárias apenas no dia de vencimento, use '1' ou a lógica de filtro de dia do seu código original.
-            const qtdDiarias = parseInt(item["QTD DIÁRIAS"] || 0);
+    // 4. Resposta de Sucesso
+    res.json({
+        sucesso: true,
+        mensagem: `Status da solicitação ${idAditivoExtra} atualizado para ${novoStatus} com sucesso.`,
+        dados: resultado.rows[0]
+    });
 
-            // Calcula os totais do item (MANTIDO)
-            const totalAjudaCusto = parseFloat(item["VLR AJUDA CUSTO UNITÁRIO"] || 0) * qtdDiarias;
-            const totalCache = parseFloat(item["VLR CACHÊ"] || 0) * qtdDiarias;
-            const totalAdicional = parseFloat(item["VLR ADICIONAL"] || 0);
-            const totalPagar = totalAjudaCusto + totalCache + totalAdicional;
-            
-            // ... (Lógica de agrupamento do seu código original, mantida) ...
-            if (!vencimentosAgrupados[eventoId]) {
-                vencimentosAgrupados[eventoId] = {
-                    nomeEvento: nomeEvento,
-                    totalAjudaCustoEvento: 0,
-                    totalCacheEvento: 0,
-                    totalAdicionalEvento: 0,
-                    totalPagarEvento: 0,
-                    funcionarios: []
-                };
-            }
-
-            // Atualiza os totais acumulados do Evento
-            vencimentosAgrupados[eventoId].totalAjudaCustoEvento += totalAjudaCusto;
-            vencimentosAgrupados[eventoId].totalCacheEvento += totalCache;
-            vencimentosAgrupados[eventoId].totalAdicionalEvento += totalAdicional;
-            vencimentosAgrupados[eventoId].totalPagarEvento += totalPagar;
-
-            // Adiciona o detalhe do funcionário
-            vencimentosAgrupados[eventoId].funcionarios.push({
-                nome: item.NOME,
-                funcao: item.FUNÇÃO,
-                pix: item.PIX,
-                qtdDiarias: qtdDiarias,
-                vlrAjudaCustoUnitario: parseFloat(item["VLR AJUDA CUSTO UNITÁRIO"] || 0).toFixed(2),
-                totalAjudaCusto: totalAjudaCusto.toFixed(2),
-                vlrCacheUnitario: parseFloat(item["VLR CACHÊ"] || 0).toFixed(2),
-                totalCache: totalCache.toFixed(2),
-                totalAdicional: totalAdicional.toFixed(2),
-                totalPagar: totalPagar.toFixed(2), 
-                statusPgto: item["STATUS PGTO"]
-            });
-            // ... (Fim da lógica de agrupamento) ...
-        });
-
-        // Formata os totais do evento (para exibição no cabeçalho)
-        Object.values(vencimentosAgrupados).forEach(evento => {
-             evento.totalAjudaCustoEvento = evento.totalAjudaCustoEvento.toFixed(2);
-             evento.totalCacheEvento = evento.totalCacheEvento.toFixed(2);
-             evento.totalAdicionalEvento = evento.totalAdicionalEvento.toFixed(2);
-             evento.totalPagarEvento = evento.totalPagarEvento.toFixed(2);
-        });
-
-        vencimentos.eventos = Object.values(vencimentosAgrupados);
-        
-        return res.json({ tipoVencimento: tipo, dataFiltro: dataFiltro, ...vencimentos });
-        
     } catch (error) {
-        console.error("❌ Erro ao buscar vencimentos:", error);
-        // Em caso de erro com a data ou JOIN, retorna uma mensagem clara.
-        return res.status(500).json({ error: error.message || "Erro ao listar vencimentos." });
+        console.error("Erro ao atualizar status AditivoExtra:", error.message || error);
+        res.status(500).json({
+        sucesso: false,
+        erro: "Erro interno do servidor ao processar a atualização do status."
+        });
     }
 });
+
+router.get('/aditivoextra/pendentes', async (req, res) => {
+    
+    // 💡 CORREÇÃO 1: Utiliza a mesma lógica robusta para obter ID da Empresa e do Usuário
+    const idEmpresa = req.idempresa || req.headers.idempresa; 
+    const idUsuario = req.usuario?.idusuario || req.headers.idusuario; 
+
+    if (!idEmpresa) return res.status(400).json({ erro: 'Empresa não informada' });
+    if (!idUsuario) return res.status(400).json({ erro: 'Usuário não informado' });
+
+
+    // 1. Checa se o usuário é Master no Staff
+    // Agora idUsuario deve estar preenchido corretamente
+    const { rows: permissoes } = await pool.query(`
+        SELECT * FROM permissoes 
+        WHERE idusuario = $1 AND modulo = 'Staff' AND master = 'true'
+    `, [idUsuario]);
+    
+    const ehMasterStaff = permissoes.length > 0;
+
+    // Mantendo o bloqueio de acesso à rota para usuários sem permissão
+    if (!ehMasterStaff) {
+        return res.status(403).json({ erro: 'Permissão negada. Você não é Master Staff no módulo de Staff.' }); 
+    }
+
+    try {
+        const query = `
+            SELECT 
+                ae.idAditivoExtra,
+                ae.tipoSolicitacao,
+                ae.justificativa,
+                ae.status,
+                ae.qtdSolicitada,
+                ae.dtSolicitacao AS criado_em,
+                func.nome AS nomeFuncionario,
+                f.descfuncao AS funcao,
+                e.nmevento AS evento,
+                s.nome || ' ' || s.sobrenome AS nomesolicitante
+            FROM 
+                AditivoExtra ae
+            JOIN 
+                Funcao f ON ae.idFuncao = f.idFuncao
+            JOIN 
+                Funcionarios func ON ae.idFuncionario = func.idFuncionario
+            JOIN 
+                Orcamentos o ON ae.idOrcamento = o.idOrcamento
+            JOIN 
+                Eventos e ON o.idEvento = e.idEvento
+            JOIN 
+                Usuarios s ON ae.idUsuarioSolicitante = s.idUsuario
+            WHERE 
+                ae.idEmpresa = $1 AND ae.status = 'Pendente'
+            ORDER BY 
+                e.nmevento, f.descfuncao, ae.tipoSolicitacao;
+        `;
+        
+        const resultado = await pool.query(query, [idEmpresa]); 
+
+        // 2. INJETA a flag ehMasterStaff em CADA linha antes de retornar.
+        const dadosComPermissao = resultado.rows.map(row => ({
+            ...row,
+            ehMasterStaff: ehMasterStaff // Passa o valor booleano calculado (TRUE)
+        }));
+
+        res.json({
+            sucesso: true,
+            dados: dadosComPermissao // Retorna o array modificado
+        });
+
+    } catch (error) {
+        console.error("Erro ao listar AditivoExtra pendentes:", error);
+        res.status(500).json({ sucesso: false, erro: "Erro interno ao buscar solicitações Aditivo/Extra." });
+    }
+});
+// =======================================
+
+
+
+// =======================================
+// VENCIMENTOS
+// =======================================
+
+router.get("/vencimentos", async (req, res) => {
+  try {
+    const idempresa = req.idempresa;
+    if (!idempresa) {
+      return res.status(400).json({ error: "idempresa obrigatório." });
+    }
+
+    // filtros
+    const periodo = (req.query.periodo || 'diario').toLowerCase();
+    const data = req.query.data;
+    const mes = parseInt(req.query.mes, 10);
+    const ano = parseInt(req.query.ano, 10) || new Date().getFullYear();
+    const trimestre = parseInt(req.query.trimestre, 10);
+    const semestre = parseInt(req.query.semestre, 10);
+
+    // formatador
+    const fmt = d => {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
+
+    let startDate, endDate;
+    let filtroDiario = false;
+
+    // ------------------------
+    // 🎯 REGRA DIÁRIO AJUSTADA
+    // ------------------------
+    if (periodo === "diario") {
+      filtroDiario = true;
+
+      const diaEscolhido = data ? new Date(data) : new Date();
+      startDate = fmt(diaEscolhido);
+      endDate = fmt(diaEscolhido);
+    }
+
+    else if (periodo === "mensal") {
+      const m = (!isNaN(mes) ? mes : new Date().getMonth() + 1);
+      const first = new Date(ano, m - 1, 1);
+      const last = new Date(ano, m, 0);
+      startDate = fmt(first);
+      endDate = fmt(last);
+    }
+
+    else if (periodo === "trimestral") {
+      const t = (!isNaN(trimestre) ? trimestre : 1);
+      const startM = (t - 1) * 3;
+      const first = new Date(ano, startM, 1);
+      const last = new Date(ano, startM + 3, 0);
+      startDate = fmt(first);
+      endDate = fmt(last);
+    }
+
+    else if (periodo === "semestral") {
+      const s = (!isNaN(semestre) ? semestre : 1);
+      const startM = s === 1 ? 0 : 6;
+      const first = new Date(ano, startM, 1);
+      const last = new Date(ano, startM + 6, 0);
+      startDate = fmt(first);
+      endDate = fmt(last);
+    }
+
+    else if (periodo === "anual") {
+      const first = new Date(ano, 0, 1);
+      const last = new Date(ano, 11, 31);
+      startDate = fmt(first);
+      endDate = fmt(last);
+    }
+
+    // ------------------------
+    // SQL DIFERENTE PARA DIÁRIO
+    // ------------------------
+    const whereVencimento = filtroDiario
+      ? `
+        -- Evento está acontecendo neste dia
+        torc.dtinimarcacao::date <= $2::date
+        AND
+        torc.dtfimdesmontagem::date >= $2::date
+      `
+      : `
+        -- Vencimento por ajuda ou cachê
+        ((torc.dtinimarcacao + INTERVAL '2 days')::date BETWEEN $2 AND $3)
+        OR
+        ((torc.dtfimrealizacao + INTERVAL '10 days')::date BETWEEN $2 AND $3)
+      `;
+
+    const query = `
+      SELECT
+        tse.idevento,
+        tse.nmevento,
+
+        COUNT(*) AS total_registros_evento,
+        COUNT(*) FILTER (WHERE tse.statuspgto = 'Pendente') AS qtd_pendentes_registros,
+        COUNT(*) FILTER (WHERE tse.statuspgto != 'Pendente') AS qtd_pagos_registros,
+
+        -- ajuda custo
+        SUM(
+          (COALESCE(tse.vlralmoco,0) + COALESCE(tse.vlralimentacao,0) + COALESCE(tse.vlrtransporte,0))
+          * GREATEST(jsonb_array_length(tse.datasevento), 1)
+        ) AS ajuda_total,
+
+        SUM(
+          (COALESCE(tse.vlralmoco,0) + COALESCE(tse.vlralimentacao,0) + COALESCE(tse.vlrtransporte,0))
+          * GREATEST(jsonb_array_length(tse.datasevento), 1)
+        ) FILTER (WHERE tse.statuspgto = 'Pendente') AS ajuda_pendente,
+
+        -- cache
+        SUM(
+          COALESCE(tse.vlrcache,0) * GREATEST(jsonb_array_length(tse.datasevento), 1)
+        ) AS cache_total,
+
+        SUM(
+          COALESCE(tse.vlrcache,0) * GREATEST(jsonb_array_length(tse.datasevento), 1)
+        ) FILTER (WHERE tse.statuspgto = 'Pendente') AS cache_pendente
+
+      FROM staffeventos tse
+      JOIN staffempresas semp ON tse.idstaff = semp.idstaff
+      JOIN orcamentos torc ON tse.idevento = torc.idevento
+      WHERE semp.idempresa = $1
+        AND (${whereVencimento})
+      GROUP BY tse.idevento, tse.nmevento
+      ORDER BY tse.nmevento;
+    `;
+
+    const params = filtroDiario
+      ? [idempresa, startDate]     // diário só usa 2 parâmetros
+      : [idempresa, startDate, endDate];
+
+    const { rows } = await pool.query(query, params);
+
+    // monta resposta
+    const eventos = rows.map(r => ({
+      idevento: r.idevento,
+      nomeEvento: r.nmevento,
+      ajuda: {
+        total: r.ajuda_total,
+        pendente: r.ajuda_pendente,
+        pagos: r.total_registros_evento - r.qtd_pendentes_registros
+      },
+      cache: {
+        total: r.cache_total,
+        pendente: r.cache_pendente,
+        pagos: r.total_registros_evento - r.qtd_pendentes_registros
+      }
+    }));
+
+    return res.json({
+      periodo,
+      startDate,
+      endDate,
+      eventos
+    });
+
+  } catch (error) {
+    console.error("Erro em /vencimentos:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+
+// =======================================
+
+
 
 
 // =======================================
@@ -1380,6 +1579,7 @@ router.delete("/agenda/:idagenda", async (req, res) => {
   res.status(500).json({ erro: "Erro ao excluir evento" });
   }
 });
+// =======================================
 
 // router.patch('/aditivoextra/:idAditivoExtra/status',
 //    // autenticarToken(),
@@ -1558,198 +1758,5 @@ router.delete("/agenda/:idagenda", async (req, res) => {
 //     }
 // });
 
-router.patch('/aditivoextra/:idAditivoExtra/status',
-    autenticarToken(),
-    contextoEmpresa,
-    verificarPermissao('staff', 'cadastrar'),
-    logMiddleware('aditivoextra', {
-        buscarDadosAnteriores: async (req) => {
-        const id = req.params.idAditivoExtra;
-            
-        // 💡 Mantida a correção de segurança para evitar erro 22P02 no log middleware
-            if (!id || isNaN(parseInt(id))) return null;
-
-        // Usa a coluna justificativa que já existe no banco
-        const query = `SELECT idaditivoextra, status, tiposolicitacao, justificativa FROM AditivoExtra WHERE idAditivoExtra = $1`;
-        const result = await pool.query(query, [id]);
-        return result.rows[0] ? { dadosanteriores: result.rows[0], idregistroalterado: id } : null;
-        }
-    }),
-    async (req, res) => {
-        const idAditivoExtra = req.params.idAditivoExtra;
-        // ⚠️ Vamos ignorar a justificativaStatus na lógica
-        const { novoStatus } = req.body; 
-        const idUsuarioAprovador = req.usuario?.idusuario;
-
-        console.log(`🔥 Rota /aditivoextra/${idAditivoExtra}/status acessada: Novo Status: ${novoStatus}`, idUsuarioAprovador);
-
-        // 1. Validação
-    if (!novoStatus || !idUsuarioAprovador) {
-        return res.status(400).json({
-            sucesso: false,
-            erro: "Novo status e/ou ID do usuário aprovador não fornecidos."
-        });
-    }
-    
-    console.log(`Validando novoStatus: ${novoStatus}`);
-
-    const statusPermitidos = ['Autorizado', 'Rejeitado'];
-    if (!statusPermitidos.includes(novoStatus)) {
-        return res.status(400).json({
-            sucesso: false,
-            erro: "Status inválido. Use 'Autorizado' ou 'Rejeitado'."
-        });
-    }
-    
-    console.log(`Status permitido: ${novoStatus}`);
-     
-
-    try {
-        // 2. Verifica o status atual da solicitação
-        const checkQuery = `SELECT status, tiposolicitacao FROM AditivoExtra WHERE idaditivoextra = $1 AND idempresa = $2`;
-        const checkResult = await pool.query(checkQuery, [idAditivoExtra, req.idempresa]);
-
-        if (checkResult.rows.length === 0) {
-        return res.status(404).json({ sucesso: false, erro: "Solicitação de Aditivo/Extra não encontrada para esta empresa." });
-    }
-    console.log(`Status atual da solicitação: ${checkResult.rows[0].status}`);
-
-    const currentStatus = checkResult.rows[0].status;
-
-    if (currentStatus !== 'Pendente') {
-        return res.status(400).json({
-        sucesso: false,
-        erro: `A solicitação não pode ser alterada. Status atual: ${currentStatus}.`
-        });
-    }
-
-    // 3. Comando SQL de Atualização
-    let query;
-    let values;
-
-    console.log(`Preparando atualização para status: ${novoStatus}`, idAditivoExtra, req.idempresa);
-
-    // A query de Autorizado já estava correta, sem a justificativa
-    if (novoStatus === 'Autorizado') {
-        query = `
-            UPDATE AditivoExtra
-            SET status = $1, 
-            dtresposta = NOW(), 
-            idusuarioresponsavel = $2
-            WHERE idaditivoextra = $3 AND idempresa = $4
-            RETURNING *;
-        `;
-        values = [novoStatus, idUsuarioAprovador, idAditivoExtra, req.idempresa];
-    } else if (novoStatus === 'Rejeitado') {
-        query = `
-            UPDATE AditivoExtra
-            SET status = $1, 
-            dtresposta = NOW(), 
-            idusuarioresponsavel = $2                       
-            WHERE idaditivoextra = $3 AND idempresa = $4
-            RETURNING *;
-        `;
-                    // 💡 CORREÇÃO FINAL: A lista de valores volta a ter 4 itens. O valor para justificativa é NULL.
-        values = [novoStatus, idUsuarioAprovador, idAditivoExtra, req.idempresa]; 
-    } else {
-        throw new Error("Erro de lógica: Status de atualização inválido.");
-    }
-
-    const resultado = await pool.query(query, values);
-
-    if (resultado.rows.length === 0) {
-        throw new Error("A atualização falhou. Nenhuma linha afetada.");
-    }
-
-    // 4. Resposta de Sucesso
-    res.json({
-        sucesso: true,
-        mensagem: `Status da solicitação ${idAditivoExtra} atualizado para ${novoStatus} com sucesso.`,
-        dados: resultado.rows[0]
-    });
-
-    } catch (error) {
-        console.error("Erro ao atualizar status AditivoExtra:", error.message || error);
-        res.status(500).json({
-        sucesso: false,
-        erro: "Erro interno do servidor ao processar a atualização do status."
-        });
-    }
-});
-
-
-router.get('/aditivoextra/pendentes', async (req, res) => {
-    
-    // 💡 CORREÇÃO 1: Utiliza a mesma lógica robusta para obter ID da Empresa e do Usuário
-    const idEmpresa = req.idempresa || req.headers.idempresa; 
-    const idUsuario = req.usuario?.idusuario || req.headers.idusuario; 
-
-    if (!idEmpresa) return res.status(400).json({ erro: 'Empresa não informada' });
-    if (!idUsuario) return res.status(400).json({ erro: 'Usuário não informado' });
-
-
-    // 1. Checa se o usuário é Master no Staff
-    // Agora idUsuario deve estar preenchido corretamente
-    const { rows: permissoes } = await pool.query(`
-        SELECT * FROM permissoes 
-        WHERE idusuario = $1 AND modulo = 'Staff' AND master = 'true'
-    `, [idUsuario]);
-    
-    const ehMasterStaff = permissoes.length > 0;
-
-    // Mantendo o bloqueio de acesso à rota para usuários sem permissão
-    if (!ehMasterStaff) {
-        return res.status(403).json({ erro: 'Permissão negada. Você não é Master Staff no módulo de Staff.' }); 
-    }
-
-    try {
-        const query = `
-            SELECT 
-                ae.idAditivoExtra,
-                ae.tipoSolicitacao,
-                ae.justificativa,
-                ae.status,
-                ae.qtdSolicitada,
-                ae.dtSolicitacao AS criado_em,
-                func.nome AS nomeFuncionario,
-                f.descfuncao AS funcao,
-                e.nmevento AS evento,
-                s.nome || ' ' || s.sobrenome AS nomesolicitante
-            FROM 
-                AditivoExtra ae
-            JOIN 
-                Funcao f ON ae.idFuncao = f.idFuncao
-            JOIN 
-                Funcionarios func ON ae.idFuncionario = func.idFuncionario
-            JOIN 
-                Orcamentos o ON ae.idOrcamento = o.idOrcamento
-            JOIN 
-                Eventos e ON o.idEvento = e.idEvento
-            JOIN 
-                Usuarios s ON ae.idUsuarioSolicitante = s.idUsuario
-            WHERE 
-                ae.idEmpresa = $1 AND ae.status = 'Pendente'
-            ORDER BY 
-                e.nmevento, f.descfuncao, ae.tipoSolicitacao;
-        `;
-        
-        const resultado = await pool.query(query, [idEmpresa]); 
-
-        // 2. INJETA a flag ehMasterStaff em CADA linha antes de retornar.
-        const dadosComPermissao = resultado.rows.map(row => ({
-            ...row,
-            ehMasterStaff: ehMasterStaff // Passa o valor booleano calculado (TRUE)
-        }));
-
-        res.json({
-            sucesso: true,
-            dados: dadosComPermissao // Retorna o array modificado
-        });
-
-    } catch (error) {
-        console.error("Erro ao listar AditivoExtra pendentes:", error);
-        res.status(500).json({ sucesso: false, erro: "Erro interno ao buscar solicitações Aditivo/Extra." });
-    }
-});
 
 module.exports = router;

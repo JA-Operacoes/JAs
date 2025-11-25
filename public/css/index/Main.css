@@ -432,6 +432,7 @@ main#conteudo {
 .calendario-container {
     display: flex;
     width: 100%;
+    height: 100%;
     gap: 20px;
     align-items: flex-start;
   }
@@ -498,13 +499,14 @@ main#conteudo {
   .calendario-controles {
     display: flex;
     flex-direction: row;
+    align-items: center;
 }
 label {
     display: flex;
     margin: 5px;
     font-weight: bold;
 }
-select#mesSelect, select#anoSelect {
+select#mesSelect, select#anoSelect,select#viewSelect {
     font-family: var(--Font-primary);
     display: flex;
     justify-content: center;
@@ -517,6 +519,7 @@ select#mesSelect, select#anoSelect {
     color: #000000;
     outline: none;
 }
+
 
 .legenda {
     /* width: 180px; */

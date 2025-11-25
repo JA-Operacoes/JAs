@@ -3788,109 +3788,128 @@ atualizarResumoPedidos();
 async function carregarDetalhesVencimentos(conteudoGeral) {
     conteudoGeral.innerHTML = '<h3>Carregando dados...</h3>';
 
-    // ➡️ CORREÇÃO: Define dataInicio e dataFim como o dia atual (YYYY-MM-DD)
-    const hoje = new Date();
-    const ano = hoje.getFullYear();
-    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-    const dia = String(hoje.getDate()).padStart(2, '0');
-    
-    const dataAtualFormatada = `${ano}-${mes}-${dia}`;
-    const dataInicio = dataAtualFormatada; 
-    const dataFim = dataAtualFormatada;   
-    
-    // Atualiza o título do painel para indicar o dia
-    const tituloPainel = document.querySelector("#venc-container h2");
-    if (tituloPainel) {
-        tituloPainel.textContent = `Vencimentos de Pagamentos`;
-    }
+    // Obtém data ou filtro definido
+    const params = construirParametrosFiltro();
+    const url = `/vencimentos${params}`;
 
     try {
-        // Agora, dataInicio e dataFim estão definidas e acessíveis.
-        const url = `/vencimentos?dataInicio=${dataInicio}&dataFim=${dataFim}`; 
-        
-        // ASSUME que fetchComToken está definida globalmente
-        const dados = await fetchComToken(url); 
-        
+        const dados = await fetchComToken(url);
+
         if (!dados || !dados.eventos || dados.eventos.length === 0) {
-            conteudoGeral.innerHTML = '<p class="alerta-info">Nenhum vencimento encontrado para o dia de hoje.</p>';
+            conteudoGeral.innerHTML = '<p class="alerta-info">Nenhum evento encontrado para esse período.</p>';
             return;
         }
 
-        conteudoGeral.innerHTML = ''; // Limpa o "Carregando"
-        
-        // 1. Cria o container principal do Acordeão
+        conteudoGeral.innerHTML = "";
         const accordionContainer = document.createElement("div");
         accordionContainer.className = "accordion-vencimentos";
 
-        dados.eventos.forEach((evento, index) => {
-            // 2. Cria o item do Acordeão (Evento)
-            const itemAcordeao = document.createElement("div");
-            itemAcordeao.className = "accordion-item";
+        dados.eventos.forEach(evento => {
+            // ITEM DO ACORDEÃO
+            const item = document.createElement("div");
+            item.className = "accordion-item";
 
-            // 3. Cabeçalho do Acordeão (Resumo do Evento)
-            const headerAcordeao = document.createElement("button");
-            headerAcordeao.className = "accordion-header";
-            headerAcordeao.innerHTML = `
+            // CABEÇALHO DO EVENTO
+            const header = document.createElement("button");
+            header.className = "accordion-header";
+            header.innerHTML = `
                 <div class="evento-info">
-                    <strong>${evento.nomeEvento}</strong> 
-                    <span class="total-geral">Total: R$ ${evento.totalPagarEvento}</span>
+                    <strong>${evento.nomeEvento}</strong>
+                    <span class="total-geral">Total: R$ ${evento.totalGeral}</span>
                 </div>
             `;
-            headerAcordeao.addEventListener('click', () => {
-                itemAcordeao.classList.toggle('active');
-            });
-            
-            // 4. Corpo do Acordeão (Detalhes dos Funcionários)
-            const bodyAcordeao = document.createElement("div");
-            bodyAcordeao.className = "accordion-body";
-            
-            let detalhesHtml = `
-                <div class="resumo-evento-totais">
-                    <p>Cachê Total: R$ ${evento.totalCacheEvento}</p>
-                    <p>Ajuda Custo Total: R$ ${evento.totalAjudaCustoEvento}</p>
-                    <p>Adicional Total: R$ ${evento.totalAdicionalEvento}</p>
+            header.addEventListener("click", () => item.classList.toggle("active"));
+
+            // CORPO DO ACORDEÃO
+            const body = document.createElement("div");
+            body.className = "accordion-body";
+
+            body.innerHTML = `
+                <div class="resumo-categorias">
+                    <div class="categoria-bloco">
+                        <h3>Ajuda de Custo</h3>
+                        <p><strong>Pendente:</strong> R$ ${evento.ajuda.pendente}</p>
+                        <p><strong>Pagos:</strong> ${evento.ajuda.pagos}</p>
+                        <p><strong>Total:</strong> R$ ${evento.ajuda.total}</p>
+                    </div>
+
+                    <div class="categoria-bloco">
+                        <h3>Cachê</h3>
+                        <p><strong>Pendente:</strong> R$ ${evento.cache.pendente}</p>
+                        <p><strong>Pagos:</strong> ${evento.cache.pagos}</p>
+                        <p><strong>Total:</strong> R$ ${evento.cache.total}</p>
+                    </div>
                 </div>
-                <h4>Detalhes por Funcionário:</h4>
+
+                <h4>Funcionários:</h4>
                 <table class="tabela-funcionarios-venc">
                     <thead>
                         <tr>
                             <th>NOME / FUNÇÃO</th>
-                            <th>QTD DIÁRIAS</th>
-                            <th>VALOR CACHÊ</th>
-                            <th>VALOR CUSTO</th>
-                            <th>TOTAL A PAGAR</th>
+                            <th>DIÁRIAS</th>
+                            <th>CACHÊ</th>
+                            <th>A.J. CUSTO</th>
+                            <th>TOTAL</th>
                             <th>STATUS</th>
                         </tr>
                     </thead>
                     <tbody>
+                        ${evento.funcionarios.map(f => `
+                            <tr>
+                                <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
+                                <td>${f.qtdDiarias}</td>
+                                <td>R$ ${f.totalCache}</td>
+                                <td>R$ ${f.totalAjudaCusto}</td>
+                                <td><strong>R$ ${f.totalPagar}</strong></td>
+                                <td class="status-${f.statusPgto.toLowerCase()}">${f.statusPgto}</td>
+                            </tr>
+                        `).join("")}
+                    </tbody>
+                </table>
             `;
 
-            evento.funcionarios.forEach(func => {
-                detalhesHtml += `
-                    <tr>
-                        <td><strong>${func.nome}</strong><br><small>${func.funcao}</small></td>
-                        <td>${func.qtdDiarias}</td>
-                        <td>R$ ${func.totalCache}</td>
-                        <td>R$ ${func.totalAjudaCusto}</td>
-                        <td><strong>R$ ${func.totalPagar}</strong></td>
-                        <td class="status-${func.statusPgto.toLowerCase()}">${func.statusPgto}</td>
-                    </tr>
-                `;
-            });
-            
-            detalhesHtml += '</tbody></table>';
-            bodyAcordeao.innerHTML = detalhesHtml;
-
-            itemAcordeao.appendChild(headerAcordeao);
-            itemAcordeao.appendChild(bodyAcordeao);
-            accordionContainer.appendChild(itemAcordeao);
+            item.appendChild(header);
+            item.appendChild(body);
+            accordionContainer.appendChild(item);
         });
 
         conteudoGeral.appendChild(accordionContainer);
 
     } catch (error) {
-        console.error("Erro ao carregar detalhes:", error);
-        conteudoGeral.innerHTML = '<p class="alerta-erro">Não foi possível carregar os dados. Tente novamente.</p>';
+        console.error(error);
+        conteudoGeral.innerHTML = '<p class="alerta-erro">Erro ao carregar dados.</p>';
+    }
+}
+
+function construirParametrosFiltro() {
+    const tipo = document.querySelector("input[name='periodo']:checked").value;
+
+    if (tipo === "diario") {
+        const dia = document.querySelector("#sub-filtro-data").value;
+        return `?dataInicio=${dia}&dataFim=${dia}`;
+    }
+
+    if (tipo === "mensal") {
+        const mes = document.querySelector("#sub-filtro-select").value;
+        const ano = new Date().getFullYear();
+        return `?mes=${mes}&ano=${ano}`;
+    }
+
+    if (tipo === "trimestral") {
+        const tri = document.querySelector("input[name='sub']:checked").value;
+        const ano = new Date().getFullYear();
+        return `?trimestre=${tri}&ano=${ano}`;
+    }
+
+    if (tipo === "semestral") {
+        const sem = document.querySelector("input[name='sub']:checked").value;
+        const ano = new Date().getFullYear();
+        return `?semestre=${sem}&ano=${ano}`;
+    }
+
+    if (tipo === "anual") {
+        const ano = new Date().getFullYear();
+        return `?ano=${ano}`;
     }
 }
 
