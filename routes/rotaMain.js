@@ -1758,5 +1758,198 @@ router.delete("/agenda/:idagenda", async (req, res) => {
 //     }
 // });
 
+router.patch('/aditivoextra/:idAditivoExtra/status',
+    autenticarToken(),
+    contextoEmpresa,
+    verificarPermissao('staff', 'cadastrar'),
+    logMiddleware('aditivoextra', {
+        buscarDadosAnteriores: async (req) => {
+        const id = req.params.idAditivoExtra;
+            
+        // 💡 Mantida a correção de segurança para evitar erro 22P02 no log middleware
+            if (!id || isNaN(parseInt(id))) return null;
+
+        // Usa a coluna justificativa que já existe no banco
+        const query = `SELECT idaditivoextra, status, tiposolicitacao, justificativa FROM AditivoExtra WHERE idAditivoExtra = $1`;
+        const result = await pool.query(query, [id]);
+        return result.rows[0] ? { dadosanteriores: result.rows[0], idregistroalterado: id } : null;
+        }
+    }),
+    async (req, res) => {
+        const idAditivoExtra = req.params.idAditivoExtra;
+        // ⚠️ Vamos ignorar a justificativaStatus na lógica
+        const { novoStatus } = req.body; 
+        const idUsuarioAprovador = req.usuario?.idusuario;
+
+        console.log(`🔥 Rota /aditivoextra/${idAditivoExtra}/status acessada: Novo Status: ${novoStatus}`, idUsuarioAprovador);
+
+        // 1. Validação
+    if (!novoStatus || !idUsuarioAprovador) {
+        return res.status(400).json({
+            sucesso: false,
+            erro: "Novo status e/ou ID do usuário aprovador não fornecidos."
+        });
+    }
+    
+    console.log(`Validando novoStatus: ${novoStatus}`);
+
+    const statusPermitidos = ['Autorizado', 'Rejeitado'];
+    if (!statusPermitidos.includes(novoStatus)) {
+        return res.status(400).json({
+            sucesso: false,
+            erro: "Status inválido. Use 'Autorizado' ou 'Rejeitado'."
+        });
+    }
+    
+    console.log(`Status permitido: ${novoStatus}`);
+     
+
+    try {
+        // 2. Verifica o status atual da solicitação
+        const checkQuery = `SELECT status, tiposolicitacao FROM AditivoExtra WHERE idaditivoextra = $1 AND idempresa = $2`;
+        const checkResult = await pool.query(checkQuery, [idAditivoExtra, req.idempresa]);
+
+        if (checkResult.rows.length === 0) {
+        return res.status(404).json({ sucesso: false, erro: "Solicitação de Aditivo/Extra não encontrada para esta empresa." });
+    }
+    console.log(`Status atual da solicitação: ${checkResult.rows[0].status}`);
+
+    const currentStatus = checkResult.rows[0].status;
+
+    if (currentStatus !== 'Pendente') {
+        return res.status(400).json({
+        sucesso: false,
+        erro: `A solicitação não pode ser alterada. Status atual: ${currentStatus}.`
+        });
+    }
+
+    // 3. Comando SQL de Atualização
+    let query;
+    let values;
+
+    console.log(`Preparando atualização para status: ${novoStatus}`, idAditivoExtra, req.idempresa);
+
+    // A query de Autorizado já estava correta, sem a justificativa
+    if (novoStatus === 'Autorizado') {
+        query = `
+            UPDATE AditivoExtra
+            SET status = $1, 
+            dtresposta = NOW(), 
+            idusuarioresponsavel = $2
+            WHERE idaditivoextra = $3 AND idempresa = $4
+            RETURNING *;
+        `;
+        values = [novoStatus, idUsuarioAprovador, idAditivoExtra, req.idempresa];
+    } else if (novoStatus === 'Rejeitado') {
+        query = `
+            UPDATE AditivoExtra
+            SET status = $1, 
+            dtresposta = NOW(), 
+            idusuarioresponsavel = $2                       
+            WHERE idaditivoextra = $3 AND idempresa = $4
+            RETURNING *;
+        `;
+                    // 💡 CORREÇÃO FINAL: A lista de valores volta a ter 4 itens. O valor para justificativa é NULL.
+        values = [novoStatus, idUsuarioAprovador, idAditivoExtra, req.idempresa]; 
+    } else {
+        throw new Error("Erro de lógica: Status de atualização inválido.");
+    }
+
+    const resultado = await pool.query(query, values);
+
+    if (resultado.rows.length === 0) {
+        throw new Error("A atualização falhou. Nenhuma linha afetada.");
+    }
+
+    // 4. Resposta de Sucesso
+    res.json({
+        sucesso: true,
+        mensagem: `Status da solicitação ${idAditivoExtra} atualizado para ${novoStatus} com sucesso.`,
+        dados: resultado.rows[0]
+    });
+
+    } catch (error) {
+        console.error("Erro ao atualizar status AditivoExtra:", error.message || error);
+        res.status(500).json({
+        sucesso: false,
+        erro: "Erro interno do servidor ao processar a atualização do status."
+        });
+    }
+});
+
+
+router.get('/aditivoextra/pendentes', async (req, res) => {
+    
+    // 💡 CORREÇÃO 1: Utiliza a mesma lógica robusta para obter ID da Empresa e do Usuário
+    const idEmpresa = req.idempresa || req.headers.idempresa; 
+    const idUsuario = req.usuario?.idusuario || req.headers.idusuario; 
+
+    if (!idEmpresa) return res.status(400).json({ erro: 'Empresa não informada' });
+    if (!idUsuario) return res.status(400).json({ erro: 'Usuário não informado' });
+
+
+    // 1. Checa se o usuário é Master no Staff
+    // Agora idUsuario deve estar preenchido corretamente
+    const { rows: permissoes } = await pool.query(`
+        SELECT * FROM permissoes 
+        WHERE idusuario = $1 AND modulo = 'Staff' AND master = 'true'
+    `, [idUsuario]);
+    
+    const ehMasterStaff = permissoes.length > 0;
+
+    // Mantendo o bloqueio de acesso à rota para usuários sem permissão
+    if (!ehMasterStaff) {
+        return res.status(403).json({ erro: 'Permissão negada. Você não é Master Staff no módulo de Staff.' }); 
+    }
+
+    try {
+        const query = `
+            SELECT 
+                ae.idAditivoExtra,
+                ae.tipoSolicitacao,
+                ae.justificativa,
+                ae.status,
+                ae.qtdSolicitada,
+                ae.dtSolicitacao AS criado_em,
+                func.nome AS nomeFuncionario,
+                f.descfuncao AS funcao,
+                e.nmevento AS evento,
+                s.nome || ' ' || s.sobrenome AS nomesolicitante
+            FROM 
+                AditivoExtra ae
+            JOIN 
+                Funcao f ON ae.idFuncao = f.idFuncao
+            JOIN 
+                Funcionarios func ON ae.idFuncionario = func.idFuncionario
+            JOIN 
+                Orcamentos o ON ae.idOrcamento = o.idOrcamento
+            JOIN 
+                Eventos e ON o.idEvento = e.idEvento
+            JOIN 
+                Usuarios s ON ae.idUsuarioSolicitante = s.idUsuario
+            WHERE 
+                ae.idEmpresa = $1 --AND ae.status = 'Pendente'
+            ORDER BY 
+                e.nmevento, f.descfuncao, ae.tipoSolicitacao;
+        `;
+        
+        const resultado = await pool.query(query, [idEmpresa]); 
+
+        // 2. INJETA a flag ehMasterStaff em CADA linha antes de retornar.
+        const dadosComPermissao = resultado.rows.map(row => ({
+            ...row,
+            ehMasterStaff: ehMasterStaff // Passa o valor booleano calculado (TRUE)
+        }));
+
+        res.json({
+            sucesso: true,
+            dados: dadosComPermissao // Retorna o array modificado
+        });
+
+    } catch (error) {
+        console.error("Erro ao listar AditivoExtra pendentes:", error);
+        res.status(500).json({ sucesso: false, erro: "Erro interno ao buscar solicitações Aditivo/Extra." });
+    }
+});
 
 module.exports = router;
