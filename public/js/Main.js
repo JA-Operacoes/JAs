@@ -518,13 +518,6 @@ function getUsuarioLogado() {
   };
 }
 
-async function atualizarResumo() {
-  const dadosResumo = await buscarResumo();
-  // Cards de orçamentos
-  document.getElementById("orcamentosTotal").textContent = dadosResumo.orcamentos;
-  document.getElementById("orcamentosPendentes").textContent = dadosResumo.orcamentosAbertos;
-  document.getElementById("orcamentosFechados").textContent = dadosResumo.orcamentosFechados;
-}
 
 function usuarioTemPermissao() {
   if (!window.permissoes || !Array.isArray(window.permissoes)) return false;
@@ -880,7 +873,7 @@ async function mostrarCalendarioEventos() {
         opt.textContent = a;
         if (a === anoAtual) opt.selected = true;
         anoSelect.appendChild(opt);
-    }
+      }
 
     const nomesMeses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho",
         "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
@@ -912,7 +905,7 @@ async function mostrarCalendarioEventos() {
         evEl.style.background = getCorPeriodo(ev.tipo);
         evEl.textContent = ev.nome;
         if (ev.tipo === "Feriado") evEl.style.color = "#fff";
-
+        
         const idevento = ev.id || ev.idevento;
         if (idevento) {
             evEl.addEventListener("click", () => abrirPopupEvento(idevento));
@@ -957,8 +950,8 @@ async function mostrarCalendarioEventos() {
         });
 
         try {
-            const idempresa = getIdEmpresa();
-            const data = await fetchComToken(`/main/eventos-calendario?idempresa=${idempresa}&ano=${ano}&mes=${mes}`);
+          const idempresa = getIdEmpresa();
+          const data = await fetchComToken(`/main/eventos-calendario?idempresa=${idempresa}&ano=${ano}&mes=${mes}`);
             const eventos = data.eventos || [];
 
             // Mapa de eventos por data
@@ -1005,6 +998,7 @@ async function mostrarCalendarioEventos() {
                 cell.innerHTML = `<span class="numero-dia">${dia}</span>`;
                 if (dataStr === hojeStr) { cell.style.border = "2px solid var(--primary-color)"; cell.style.borderRadius = "6px"; }
                 (mapaEventos[dataStr] || []).forEach(ev => cell.appendChild(criarEventoElemento(ev)));
+          
                 grid.appendChild(cell);
             }
 
@@ -2660,6 +2654,64 @@ function abrirDetalhesEquipe(equipe, evento) {
     container.querySelector(".btn-voltar")?.addEventListener("click", voltarParaEquipes);
     container.querySelector(".btn-voltar-rodape")?.addEventListener("click", voltarParaEquipes);
 }
+
+
+// =========================
+//    Pedidos Orçamentos 
+// =========================
+document.getElementById("cardContainerOrcamentos").addEventListener("click", async function() {
+    const painel = document.getElementById("painelDetalhes");
+    painel.innerHTML = ""; // Limpa o painel anterior
+
+    // Aplicando classes Tailwind para consistência com as funções de filtro
+    const container = document.createElement("div");
+    container.id = "orc-container";
+    container.className = "orc-container";
+
+    const header = document.createElement("div");
+    header.className = "orcamento-header";
+
+    const btnVoltar = document.createElement("button"); 
+    btnVoltar.id = "btnVoltarorc";
+    // Usando classes Tailwind para um estilo moderno
+    btnVoltar.className = "btn-voltar";
+    btnVoltar.textContent = "←";
+
+    const titulo = document.createElement("h2");
+    titulo.textContent = "Pedidos para Orçamento"; 
+
+    header.appendChild(btnVoltar);
+    header.appendChild(titulo);
+    container.appendChild(header);
+    
+    // Contêiner onde o resultado da busca será exibido
+    const conteudoGeral = document.createElement("div");
+    conteudoGeral.className = "conteudo-geral"; 
+    
+    // const FiltrosVencimentos = criarControlesDeFiltro(conteudoGeral);
+    // container.appendChild(FiltrosVencimentos); 
+    
+    container.appendChild(conteudoGeral);
+
+    // Anexe o container completo ao painel
+    painel.appendChild(container);
+    
+    // 5. Adiciona o listener para o botão de voltar
+    btnVoltar.addEventListener('click', () => {
+        painel.innerHTML = ""; // Volta para a tela anterior
+    });
+});
+async function atualizarResumo() {
+  const dadosResumo = await buscarResumo();
+  document.getElementById("orcamentosTotal").textContent = dadosResumo.orcamentos;
+  document.getElementById("orcamentosPendentes").textContent = dadosResumo.orcamentosAbertos;
+  document.getElementById("orcamentosProposta").textContent = dadosResumo.orcamentosProposta;
+  document.getElementById("orcamentosEmAndamento").textContent = dadosResumo.orcamentosEmAndamento;
+  document.getElementById("orcamentosFechados").textContent = dadosResumo.orcamentosFechados;
+  document.getElementById("orcamentosRecusados").textContent = dadosResumo.orcamentosRecusados;
+}
+
+// =========================
 
 
 // =========================

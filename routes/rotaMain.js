@@ -25,6 +25,27 @@ router.get("/", async (req, res) => {
          WHERE oe.idempresa = $1 AND o.status = 'A'`, [idempresa]
     );
 
+    const { rows: orcamentosProposta } = await pool.query(
+        `SELECT COUNT(*)::int AS total
+         FROM orcamentos o
+         JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+         WHERE oe.idempresa = $1 AND o.status = 'P'`, [idempresa]
+    );
+
+    const { rows: orcamentosRecusados } = await pool.query(
+        `SELECT COUNT(*)::int AS total
+         FROM orcamentos o
+         JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+         WHERE oe.idempresa = $1 AND o.status = 'R'`, [idempresa]
+    );
+
+    const { rows: orcamentosEmAndamento } = await pool.query(
+        `SELECT COUNT(*)::int AS total
+         FROM orcamentos o
+         JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+         WHERE oe.idempresa = $1 AND o.status = 'E'`, [idempresa]
+    );
+
     // Orçamentos fechados (status = 'F')
     const { rows: orcamentosFechados } = await pool.query(
         `SELECT COUNT(*)::int AS total
@@ -38,6 +59,9 @@ router.get("/", async (req, res) => {
     res.json({
         orcamentos: orcamentosTotal[0].total,
         orcamentosAbertos: orcamentosAbertos[0].total,
+        orcamentosProposta: orcamentosProposta[0].total,
+        orcamentosEmAndamento: orcamentosEmAndamento[0].total,
+        orcamentosRecusados: orcamentosRecusados[0].total,
         orcamentosFechados: orcamentosFechados[0].total,
         // eventos, clientes, pedidos, pedidosPendentes...
     });
