@@ -390,7 +390,61 @@ main#conteudo {
   border-bottom-right-radius: 20px;
 }
 
+/* --- CSS Adicional/Modificado --- */
 
+/* Estilo para o botão Voltar (Novo elemento de navegação) */
+.btn-voltar-main-tabs {
+    background: none;
+    border: none;
+    color: var(--cor-texto-secundario, #555);
+    cursor: pointer;
+    padding: 5px 0;
+    margin-bottom: 10px;
+    font-size: 0.9em;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: color 0.2s;
+}
+
+.btn-voltar-main-tabs:hover {
+    color: var(--cor-primaria-clara, #a02020);
+}
+
+/* GARANTE QUE AS SUB-ABAS FIQUEM EM TRÊS COLUNAS (LADO A LADO) */
+.sub-abas-pedidos {
+    display: flex; 
+    width: 100%;
+    /* remove o border-bottom daqui pois será aplicado no .sub-tabs-content para o "encaixe" */
+    border-bottom: none; 
+    margin-top: 5px; 
+    margin-bottom: 10px;
+}
+
+.sub-abas-pedidos .aba {
+    flex-grow: 1; /* Fazem as abas dividirem o espaço igualmente */
+    text-align: center;
+    border-radius: 0;
+    margin-right: 0;
+    border-bottom: 2px solid var(--cor-borda-aba, #ccc);
+}
+
+/* Garante o encaixe visual da aba ativa */
+.sub-abas-pedidos .aba.ativa {
+    border-bottom: 2px solid var(--cor-primaria-clara, #a02020); 
+}
+
+/* Oculta o painel-tabs, já que o conteúdo será injetado no lugar */
+.painel-tabs.ativo {
+    /* Mantém o padding se necessário, mas remove borda superior */
+    padding: 15px;
+    border: 1px solid var(--cor-borda-aba, #ccc);
+    border-top: none; 
+}
+
+.painel-tabs.desativado {
+    display: none !important; /* Esconde o painel quando está 'desativado' */
+}
 
 
 
