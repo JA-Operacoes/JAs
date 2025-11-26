@@ -44,8 +44,9 @@
   padding: 5px;
   margin-top: 10px;
   width: 725px; /* Ajuste o tamanho conforme necessário */
-  height: 490px;
+  height: 495px;
   font-size: 16px;
+  border-radius: 10px;
   z-index: 9999;
 }
 
@@ -99,7 +100,7 @@ body {
   background-color: rgb(0, 0, 0);
   max-width: 700px;
   width: 100%;
-  height: 350px; /* Largura do formulário */
+  height: 400px; /* Largura do formulário */
   margin: 0% auto;  /* Centraliza o formulário na tela */
   padding: 10px;  /* Espaçamento interno */
   background-color: #cacaca;
@@ -114,9 +115,15 @@ fieldset {
   display: flex;
   flex-direction: column;
   width: 650px;
+  height: 325px;
   background-color: transparent;
   border-color: var(--dark-base-color);
   margin: 0 auto;
+}
+
+legend {
+  margin: 10px;
+  padding: 0px 5px;
 }
 
 .form-2colunas {
@@ -157,7 +164,7 @@ fieldset {
   /* width: 270px; */
   height: 30px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 15px;
   padding: 0 20px;
   border: 1px solid #000000;
   background: transparent;
@@ -167,7 +174,7 @@ fieldset {
 
 #nmEvento{
   width: 370px;
-  height: 30px;
+  height: 40px;
 }
 
 #idEvento{
@@ -177,7 +184,7 @@ fieldset {
 select{
     font-family:  var(--Font-primary);
     display: flex;
-    height: 25px;
+    height: 30px;
     justify-content: center;
     align-items: center;
     gap: 10px ;
@@ -192,13 +199,11 @@ select{
 
 
 #selectCliente{ 
-
   width: 550px; /* Ocupa a largura total */
   padding: 8px;   
-
   font-family:  var(--Font-primary);
   display: flex;
-  height: 25px;
+  height: 30px;
   justify-content: center;
   align-items: center;
   gap: 10px ;
@@ -229,21 +234,23 @@ select{
     border: 1px solid #ccc; /* Bordas visíveis, como na imagem */
     border-radius: 4px;
     min-height: 40px; /* Garante uma altura mínima, mesmo sem tags */
-    background-color: #fff;
     max-height: 100px;
      overflow-y: auto;
 }
 .cliente-tag {
-    background-color: #f1f1f1;
     border-radius: 4px; /* Bordas levemente arredondadas */
     padding: 1px 8px;
-    font-size: 12px;
+    font-size: 15px;
     line-height: 1.2;
     color: #333;
     display: flex;
     align-items: center;
-    border: 1px solid #ddd;
-     
+    border: 1px solid var(--primary-color);
+}
+
+.cliente-tag::hover{
+  background-color: var(--hover-color);
+  color: var(--font-color);
 }
 
 .remover-cliente {
@@ -276,7 +283,7 @@ select{
   max-width: 350px;
   height: 30px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 15px;
   padding: 0 8px;
   margin-top: -1px;
   border: 1px solid #000000;
@@ -355,7 +362,7 @@ button {
   cursor: pointer;
   display: flex;
   justify-content: center;
-  margin: 30px auto;
+  margin: 10px auto;
   transition: 5%;
 }
 

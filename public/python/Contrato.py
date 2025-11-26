@@ -119,7 +119,33 @@ def gerar_contrato(dados):
     periodo_realizacao = f"DE: {inicio_realizacao} ATÉ: {fim_realizacao}" \
     if inicio_realizacao and fim_realizacao else inicio_realizacao or fim_realizacao or "N/D"
 
-    ano_atual = datetime.now().year
+    ano_atual = dados.get("edicao") # Tenta ler o campo Edição primeiro
+
+    # Se a Edição não estiver definida ou vazia, usa o ano da data de Realização (que é 2026)
+    if not ano_atual:
+        data_realizacao_str = dados.get("inicio_realizacao") 
+        
+        # 🧪 PONTO DE DEPURAÇÃO: Imprime a data recebida no stderr
+        print(f"DEBUG: Edicao ausente. Tentando usar inicio_realizacao: {data_realizacao_str}", file=sys.stderr)
+        
+        if data_realizacao_str:
+            try:
+                dt_realizacao = parser.isoparse(str(data_realizacao_str))
+                ano_atual = str(dt_realizacao.year) 
+            except Exception as e:
+                # Se falhar ao processar a data, loga o erro específico
+                print(f"❌ ERRO PARSING DATA: {e}", file=sys.stderr)
+                # Se falhar ao processar a data, usa o ano atual como último recurso
+                ano_atual = str(datetime.now().year)
+            
+            # 🧪 PONTO DE DEPURAÇÃO: Imprime o ano final obtido no stderr
+            print(f"DEBUG: Ano obtido após parsing: {ano_atual}", file=sys.stderr)
+            
+        else:
+            # Último fallback se a data de realização também estiver ausente
+            ano_atual = str(datetime.now().year)
+
+
     dia_atual = datetime.now().strftime("%d/%m/%Y")
 
     valor_total = float(str(dados.get("valor_total", "0")).replace("R$", "").replace(",", ".").strip() or 0)

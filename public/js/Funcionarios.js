@@ -62,7 +62,8 @@ if (typeof window.funcionarioriginal === "undefined") {
         dataNascimento:"",
         nomeFamiliar:"",
         apelido:"",
-        pcd:""
+        pcd: false, // 🛠️ Ajustado para booleano
+        ativo: true // 🎯 ATUALIZADO: Padrão é true (ATIVO)
     };
 }
 
@@ -147,16 +148,15 @@ botaoEnviar.addEventListener("click", async (event) => {
     const estado = document.getElementById("estado")?.value.toUpperCase().trim() || '';
     const pais = document.getElementById("pais")?.value.toUpperCase().trim() || '';
 
-    const campoPcd = document.getElementById("pcd").value || "";
+    // 🎯 CAPTURA DO CAMPO 'ativo'
+    const campoPcd = document.getElementById("pcd");
     const pcd = campoPcd?.checked === true;
+    
+    const campoAtivo = document.getElementById("ativo"); // 🎯 ID é 'ativo'
+    const ativo = campoAtivo?.checked === true; // true se marcado (ativo), false se desmarcado (inativo)
      
 
         // Validação de campos obrigatórios
-        // if (!nome || !cpf || !rg || !celularPessoal || !cep || !rua || !numero || !bairro || !cidade || !estado || !pais || !perfil || !celularFamiliar || !nomeFamiliar) {
-        // console.log("VALIDACAO", "nome", nome, "cpf", cpf, "rg", rg, "celularPessoal", celularPessoal, "cep", cep,  "rua", rua,  "numero", numero, "bairro", bairro, "cidade", cidade, "estado", estado, "pais", pais, "perfil", perfil, "celularFamiliar", celularFamiliar, "nomeFamiliar", nomeFamiliar )
-        //     return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Perfil, Nome, Data de Nascimento, CPF, RG, Celular Pessoal, Celular Contato, Nome do Contato, E-mail, CEP, Rua, Número, Bairro, Cidade, Estado e País.", "warning");
-        // }
-        
         if (!nome || !cpf || !rg || !celularPessoal || !perfil || !dataNascimento) {
         console.log("VALIDACAO", "nome", nome, "cpf", cpf, "rg", rg, "celularPessoal", celularPessoal, "cep", cep,  "rua", rua,  "numero", numero, "bairro", bairro, "cidade", cidade, "estado", estado, "pais", pais, "perfil", perfil, "celularFamiliar", celularFamiliar, "nomeFamiliar", nomeFamiliar, "apelido", apelido )
             return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Perfil, Nome, Data de Nascimento, CPF, RG, Celular Pessoal, Celular Contato, Nome do Contato, E-mail, CEP, Rua, Número, Bairro, Cidade, Estado e País.", "warning");
@@ -180,7 +180,7 @@ botaoEnviar.addEventListener("click", async (event) => {
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
             celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
             numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, 
-            numero, complemento, bairro, cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd
+            numero, complemento, bairro, cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd, ativo // 🎯 CAMPO ATIVO
         });
        // --- CRIANDO O FORMDATA ---
     const formData = new FormData();
@@ -213,8 +213,10 @@ botaoEnviar.addEventListener("click", async (event) => {
     formData.append("nomeFamiliar", nomeFamiliar);
     formData.append("apelido", apelido);
     formData.append("pcd", pcd); // <- envia como string "true" ou "false"
+    formData.append("ativo", ativo); // 🎯 CAMPO ATIVO: Adicionado ao FormData
 
         console.log("valor de pcd:", pcd);
+        console.log("valor de ativo:", ativo); // 🎯 CAMPO ATIVO
 
         // Adiciona o arquivo da foto APENAS SE UM NOVO ARQUIVO FOI SELECIONADO
         const inputFileElement = document.getElementById('file');
@@ -228,35 +230,41 @@ botaoEnviar.addEventListener("click", async (event) => {
             perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
             celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
             numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
-            cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd
+            cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd, ativo // 🎯 CAMPO ATIVO
         });
         if (metodo === "PUT" && window.funcionarioOriginal) {
             let houveAlteracao = false;
 
             // 1. Verificar alteração na foto
-            if (fotoArquivo) { // Se um novo arquivo foi selecionado
+            if (fotoArquivo) { 
                 houveAlteracao = true;
             } else {
-                // Se nenhum novo arquivo foi selecionado, verifique se a foto existente foi removida (se tiver uma lógica para isso)
-                // ou se o link da foto no BD mudaria para null (se o frontend permitisse "deselecionar" a foto)
-                // Por enquanto, vamos assumir que se não há novo arquivo, a foto antiga é mantida,
-                // a menos que você adicione um botão "remover foto".
-                // Para ser exato: se `funcionarioOriginal.foto` existe e `fotoArquivo` é nulo, mas o backend não apaga, não é alteração.
-                // Se `funcionarioOriginal.foto` é nulo e `fotoArquivo` é nulo, não é alteração.
+                // Lógica de comparação de foto mantida
             }
 
-            // 2. Comparar os outros campos de texto
-            if (!houveAlteracao) { // Só verifica os outros campos se a foto não causou uma alteração
+            // 2. Comparar os outros campos de texto/booleano
+            if (!houveAlteracao) { 
                 const camposTextoParaComparar = {
                     perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
                     celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
                     numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, numero, complemento, bairro,
-                    cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd
+                    cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, pcd,
+                    ativo // 🎯 CAMPO ATIVO: Adicionado à comparação
                 };
 
                 for (const key in camposTextoParaComparar) {
-                    // É importante que `funcionarioOriginal` tenha as chaves mapeadas para os nomes do frontend
-                    // e que os valores sejam comparáveis (ex: ambos string, ambos uppercase se necessário).
+                    // Trata PCD e ATIVO como booleanos
+                    if (key === 'pcd' || key === 'ativo') {
+                        const originalBool = window.funcionarioOriginal[key] === true;
+                        const atualBool = camposTextoParaComparar[key] === true;
+                        if (originalBool !== atualBool) {
+                            houveAlteracao = true;
+                            break;
+                        }
+                        continue; // Pula a comparação de string para estes campos
+                    }
+
+
                     const valorOriginal = String(window.funcionarioOriginal[key] || '').toUpperCase().trim();
                     const valorAtual = String(camposTextoParaComparar[key] || '').toUpperCase().trim();
 
@@ -307,15 +315,22 @@ botaoEnviar.addEventListener("click", async (event) => {
             // --- CHAMADA FETCH COM FORMDATA ---
             const respostaApi = await fetchComToken(url, {
                 method: metodo,
-                //headers: { 'Content-Type': 'application/json' },
-                body: formData, // ENVIA O FORMDATA AQUI
-                // O fetchComToken deve ser ajustado para NÃO adicionar Content-Type: application/json
-                // quando o body é um FormData. O navegador cuida disso automaticamente.
+                body: formData, 
             });
 
             await Swal.fire("Sucesso!", respostaApi.message || "Funcionário salvo com sucesso.", "success");
             limparCamposFuncionarios();
-            window.funcionarioOriginal = null; // Reseta o estado original após sucesso
+            
+            // 🎯 ATUALIZA O ESTADO ORIGINAL APÓS SUCESSO
+            window.funcionarioOriginal = { 
+                idfuncionario: idFuncionario, // ou o ID retornado se for POST
+                perfil, nome, cpf, rg, nivelFluenciaLinguas, idiomasAdicionais,
+                celularPessoal, celularFamiliar, email, site, codigoBanco, pix,
+                numeroConta, digitoConta, agencia, digitoAgencia, tipoConta, cep, rua, 
+                numero, complemento, bairro, cidade, estado, pais, dataNascimento, nomeFamiliar, apelido, 
+                pcd: pcd,
+                ativo: ativo // 🎯 ATUALIZADO AQUI
+            };
 
         } catch (error) {
             console.error("Erro ao enviar dados do funcionário:", error);
@@ -863,7 +878,7 @@ function configurarPreviewFoto() {
       preview.style.display = 'none';
       header.style.display = 'block';
       fileName.textContent = 'Nenhum arquivo selecionado';
-      hiddenInput.value = '';
+      //hiddenInput.value = '';
       return;
     }
 
@@ -907,6 +922,12 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
 
             const checkboxPcd = document.getElementById("pcd");
             checkboxPcd.checked = funcionario.pcd === true;
+            
+            // 🎯 CARREGA O CAMPO ATIVO: Se for true no DB, marca o checkbox.
+            const checkboxAtivo = document.getElementById("ativo");
+            if (checkboxAtivo) {
+                checkboxAtivo.checked = funcionario.ativo === true;
+            }
 
             const radiosPerfil = document.querySelectorAll('input[name="perfil"]'); // Ou input[name="radio"] se você não mudou o name
             radiosPerfil.forEach(radio => {
@@ -1004,7 +1025,11 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
             console.log("nomeFamiliar recebido:", funcionario.nomefamiliar);
 
             // Armazena o estado original, se necessário
-            window.funcionarioOriginal = { ...funcionario };
+            window.funcionarioOriginal = { 
+                ...funcionario, 
+                pcd: funcionario.pcd === true, // Garante que é booleano
+                ativo: funcionario.ativo === true // 🎯 NOVO: Garante que é booleano (true = ativo)
+            };
            
             const selectLinguas = document.getElementById('Linguas'); 
             if (selectLinguas) {
@@ -1038,9 +1063,9 @@ async function carregarFuncionarioDescricao(nome, elementoInputOuSelect) {
             
             if (!resultado.isConfirmed) {
                 console.log("Usuário cancelou o cadastro do Funcionário.");
-                elementoAtual.value = ""; // Limpa o campo se não for cadastrar
+                elementoInputOuSelect.value = ""; // Limpa o campo se não for cadastrar
                 setTimeout(() => {
-                    elementoAtual.focus();
+                    elementoInputOuSelect.focus();
                 }, 0);
                 return;
             }
@@ -1274,11 +1299,21 @@ function limparCamposFuncionarios(){
         "cidade", "estado", "pais", "nomeFamiliar", "apelido"
     ];
 
+    // --- Limpeza específica para Checkboxes (PCD e Ativo) ---
     const campoPcd = document.getElementById("pcd");
     if (campoPcd && campoPcd.type === "checkbox") {
-        campoPcd.checked = false; // ou true dependendo do trecho
+        campoPcd.checked = false; 
     }
-        // Limpa campos de texto e inputs de forma genérica
+    
+    // 🎯 CAMPO ATIVO: Garante que o checkbox 'ativo' é MARCADO (true por padrão)
+    const campoAtivo = document.getElementById("ativo");
+    if (campoAtivo && campoAtivo.type === "checkbox") {
+        campoAtivo.checked = true; // 🎯 DEVE SER TRUE
+    }
+    // -----------------------------------------------------------
+
+
+    // Limpa campos de texto e inputs de forma genérica
     camposParaLimpar.forEach(id => {
         const campo = document.getElementById(id);
         if (campo) {
@@ -1341,12 +1376,6 @@ function limparCamposFuncionarios(){
     }
 
     
-    // Garante que o campo "ativo" (checkbox) seja desmarcado se existir (não presente no seu HTML de funcionário)
-    const campoAtivo = document.getElementById("ativo");
-    if (campoAtivo && campoAtivo.type === "checkbox") {
-        campoAtivo.checked = false;
-    };
-
     
     const campoNome = document.querySelector("#nome");
     if (campoNome.tagName === "SELECT") {
