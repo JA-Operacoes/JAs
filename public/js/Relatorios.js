@@ -574,7 +574,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                         ` : `<p>Nenhum dado de contingência para este evento.</p>`}
                     </div>
                 `;
-            } else if (index === 0 (nomeRelatorio.toUpperCase() === 'CACHÊ' || nomeRelatorio.toUpperCase() === 'AJUDA DE CUSTO')) {
+            } else if (index === 0 && (nomeRelatorio.toUpperCase() === 'CACHÊ' || nomeRelatorio.toUpperCase() === 'AJUDA DE CUSTO')) {
                 // Garante que o espaço seja ocupado pela Utilização se não for relatório de Cachê
                 html += `<div class="tabela-resumo contingencia" style="visibility: hidden;"></div>`;
             } else if (index > 0) {

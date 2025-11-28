@@ -162,6 +162,13 @@ router.post("/", verificarPermissao('Clientes', 'cadastrar'),
         res.status(201).json({ mensagem: "Cliente salvo com sucesso!", cliente: newCliente }); // Status 201 para criação
     } catch (error) {
         await client.query('ROLLBACK'); // Desfaz a transação em caso de erro
+        if (error.code === '23505') {
+            console.warn("⚠️ CNPJ já existe na base de dados!");
+            return res.status(409).json({
+                erro: "CNPJ já cadastrado.",
+                detalhe: "Já existe um cliente com este CNPJ no sistema."
+            });
+        }
         console.error("❌ Erro ao salvar cliente e/ou associá-lo à empresa:", error);
         res.status(500).json({ erro: "Erro ao salvar cliente.", detail: error.message });
     } finally {
