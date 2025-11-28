@@ -1654,15 +1654,15 @@ function adicionarLinhaOrc() {
                         Swal.fire("Removido!", "O item foi removido da lista.", "success");
                     }
                 });
-            } else if (!temPermissaoApagar) {
-                // Se TEM ID, mas o usuário NÃO tem permissão para apagar
-                console.warn("Usuário não tem permissão para apagar itens de orçamento. Exibindo Swal.");
-                Swal.fire({
-                    title: "Acesso Negado!",
-                    text: "Você não tem permissão para apagar itens de orçamento que já estão salvos.",
-                    icon: "error",
-                    confirmButtonText: "Entendi"
-                });
+            // } else if (!temPermissaoApagar) {
+            //     // Se TEM ID, mas o usuário NÃO tem permissão para apagar
+            //     console.warn("Usuário não tem permissão para apagar itens de orçamento. Exibindo Swal.");
+            //     Swal.fire({
+            //         title: "Acesso Negado!",
+            //         text: "Você não tem permissão para apagar itens de orçamento que já estão salvos.",
+            //         icon: "error",
+            //         confirmButtonText: "Entendi"
+            //     });
             } else {
                 // Se TEM ID E o usuário TEM permissão para apagar (lógica original)
                 let currentItemProduct = linhaParaRemover.querySelector('.produto-input')?.value || "este item";
@@ -2040,15 +2040,15 @@ function adicionarLinhaAdicional() {
                         Swal.fire("Removido!", "O item foi removido da lista.", "success");
                     }
                 });
-            } else if (!temPermissaoApagar) {
-                // Se TEM ID, mas o usuário NÃO tem permissão para apagar
-                console.warn("Usuário não tem permissão para apagar itens de orçamento. Exibindo Swal.");
-                Swal.fire({
-                    title: "Acesso Negado!",
-                    text: "Você não tem permissão para apagar itens de orçamento que já estão salvos.",
-                    icon: "error",
-                    confirmButtonText: "Entendi"
-                });
+            // } else if (!temPermissaoApagar) {
+            //     // Se TEM ID, mas o usuário NÃO tem permissão para apagar
+            //     console.warn("Usuário não tem permissão para apagar itens de orçamento. Exibindo Swal.");
+            //     Swal.fire({
+            //         title: "Acesso Negado!",
+            //         text: "Você não tem permissão para apagar itens de orçamento que já estão salvos.",
+            //         icon: "error",
+            //         confirmButtonText: "Entendi"
+            //     });
             } else {
                 // Se TEM ID E o usuário TEM permissão para apagar (lógica original)
                 let currentItemProduct = linhaParaRemover.querySelector('.produto-input')?.value || "este item";
@@ -4412,15 +4412,15 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
                             Swal.fire("Removido!", "O item foi removido da lista.", "success");
                         }
                     });
-                } else if (!temPermissaoApagar) {
-                    // Se TEM ID, mas o usuário NÃO tem permissão para apagar
-                    console.warn("Usuário não tem permissão para apagar itens de orçamento. Exibindo Swal.");
-                    Swal.fire({
-                        title: "Acesso Negado!",
-                        text: "Você não tem permissão para apagar itens de orçamento que já estão salvos.",
-                        icon: "error",
-                        confirmButtonText: "Entendi"
-                    });
+                // } else if (!temPermissaoApagar) {
+                //     // Se TEM ID, mas o usuário NÃO tem permissão para apagar
+                //     console.warn("Usuário não tem permissão para apagar itens de orçamento. Exibindo Swal.");
+                //     Swal.fire({
+                //         title: "Acesso Negado!",
+                //         text: "Você não tem permissão para apagar itens de orçamento que já estão salvos.",
+                //         icon: "error",
+                //         confirmButtonText: "Entendi"
+                //     });
                 } else {
                     // Se TEM ID E o usuário TEM permissão para apagar (lógica original)
                     let currentItemProduct = linhaParaRemover.querySelector('.produto-input')?.value || "este item";

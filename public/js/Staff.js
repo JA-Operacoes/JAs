@@ -1021,7 +1021,17 @@ function inicializarEPreencherCampos(eventData) {
     meiaDiariacheck.checked = datesMeiaDiaria.length > 0;
     campoMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
     campoStatusMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
-    containerStatusMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';    
+    containerStatusMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none'; 
+    
+    const containerPDF = document.querySelector('.pdf');
+
+    if (containerPDF){
+        if(temPermissaoFinanceiro){
+            containerPDF.style.display = 'flex';
+        } else{ 
+            containerPDF.style.display = 'none';
+        }
+    }
 
 
     if (temPermissaoMaster) {    
@@ -1061,7 +1071,9 @@ function inicializarEPreencherCampos(eventData) {
         document.getElementById('selectStatusAjusteCusto').style.display = 'none';
         statusAjusteCustoInput.style.display = 'block';
         console.log("STATUS AJUSTE CUSTO SEM PERMISSAO TOTAL", eventData.statusajustecusto);
-        statusAjusteCustoInput.value = eventData.statusAjusteCusto || 'Pendente';
+
+        // CORREÇÃO AQUI: use 'statusajustecusto' (tudo minúsculo)
+        statusAjusteCustoInput.value = eventData.statusajustecusto || 'Pendente'; 
         aplicarCorStatusInput(statusAjusteCustoInput);
 
         document.getElementById('selectStatusCaixinha').style.display = 'none';
@@ -1999,15 +2011,26 @@ if (botaoEnviarOriginal) {
   // Agora usa o novo botão clonado na função existente:
     BotaoEnviar.addEventListener("click", async (event) => {
         event.preventDefault();      
-            
-            const datasEventoRawValue = datasEventoPicker?.selectedDates || [];
-            const periodoDoEvento = datasEventoRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
+        
+    const datasEventoRawValue = datasEventoPicker?.selectedDates || [];
+    const periodoDoEvento =
+        datasEventoRawValue.length > 0
+            ? datasEventoRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"))
+            : null;
 
-            const diariaDobradaRawValue = diariaDobradaPicker?.selectedDates || [];
-            const periodoDobrado = diariaDobradaRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
+    const diariaDobradaRawValue = diariaDobradaPicker?.selectedDates || [];
+    const periodoDobrado =
+        diariaDobradaRawValue.length > 0
+            ? diariaDobradaRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"))
+            : null;
 
-            const diariaMeiaRawValue = meiaDiariaPicker?.selectedDates || [];
-            const periodoMeiaDiaria = diariaMeiaRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
+    const diariaMeiaRawValue = meiaDiariaPicker?.selectedDates || [];
+    const periodoMeiaDiaria =
+        diariaMeiaRawValue.length > 0
+            ? diariaMeiaRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"))
+            : null;
+
+           
 
         statusOrcamentoAtual = document.getElementById("status");
         const selectAvaliacao = document.getElementById("avaliacao");
@@ -2577,11 +2600,21 @@ if (botaoEnviarOriginal) {
                     statusPgto = "Pendente";
                 }
 
-                if (statusCaixinha === 'Autorização da Caixinha' && vlrCaixinha === 0) { 
-                    statusCaixinha = '';  
+                // if (statusCaixinha === 'Autorização da Caixinha' && vlrCaixinha === 0) { 
+                //     statusCaixinha = '';  
+                // }
+                // if (statusAjusteCusto === 'Autorização do Ajuste de Custo' && vlrAjusteCusto === 0) { 
+                //     statusAjusteCusto = '';  
+                // }
+
+                if (vlrCaixinha === 0)
+                {
+                    statusCaixinha = '';
                 }
-                if (statusAjusteCusto === 'Autorização do Ajuste de Custo' && vlrAjusteCusto === 0) { 
-                    statusAjusteCusto = '';  
+
+                if (vlrAjusteCusto === 0)
+                {
+                    statusAjusteCusto = '';
                 }
 
                 formData.append('statuspgto', statusPgto);
@@ -2616,19 +2649,7 @@ if (botaoEnviarOriginal) {
 
                 console.log("Status Diaria Dobrada", statusDiariaDobrada, statusMeiaDiaria);
 
-            if (statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === true){
-                statusDiariaDobrada = "Pendente";
-            }
-            if(statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === false){
-                statusDiariaDobrada = "";
-            }
-            if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === true){
-                statusMeiaDiaria = "Pendente";
-            }
-            if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === false){
-                statusMeiaDiaria = "";
-            }
-
+            
                 let dadosDiariaDobrada = [];
                 if (periodoDobrado && periodoDobrado.length > 0) {
                     dadosDiariaDobrada = periodoDobrado.map(data => {
@@ -2651,33 +2672,19 @@ if (botaoEnviarOriginal) {
             });
         }
 
-        if (statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === true){
-            statusDiariaDobrada = "Pendente";
-        }
-        if (statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === false){
-            statusDiariaDobrada = "";
-        }
+        if (diariaDobrada === false)
+            {
+                statusDiariaDobrada = "";
+            }else if (statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === true){
+                statusDiariaDobrada = "Pendente";
+            }
 
-        if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === true){
-            statusMeiaDiaria = "Pendente";
-        }
-        if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === false){
-            statusMeiaDiaria = "";
-        }
-
-        if (statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === true){
-            statusDiariaDobrada = "Pendente";
-        }
-        if (statusDiariaDobrada === "Autorização de Diária Dobrada" && diariaDobrada === false){
-            statusDiariaDobrada = "";
-        }
-
-        if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === true){
-            statusMeiaDiaria = "Pendente";
-        }
-        if (statusMeiaDiaria === "Autorização de Meia Diária" && meiaDiaria === false){
-            statusMeiaDiaria = "";
-        }
+            if (meiaDiaria === false)
+            {
+                statusMeiaDiaria = "";
+            }else if (statusMeiaDiaria === "Autorização de Diária Dobrada" && meiaDiaria === true){
+                statusMeiaDiaria = "Pendente";
+            }
 
 
             formData.append('statusdiariadobrada', statusDiariaDobrada); //aqui remover não usa mais apenas dentro da data
@@ -2741,8 +2748,17 @@ if (botaoEnviarOriginal) {
                 const houveAlteracaoAjusteCusto = (ajusteCustoAtivoOriginal !== ajusteCustoAtivoAtual) || (ajusteCustoValorOriginal !== ajusteCustoValorAtual);
                 const houveAlteracaoCaixinha = (caixinhaAtivoOriginal !== caixinhaAtivoAtual) || (caixinhaValorOriginal !== caixinhaValorAtual);
 
-                const houveAlteracaoDiariaDobrada = (diariaDobradaOriginal !== diariaDobradaAtual) || (dataDiariaDobradaOriginal.toString() !== dataDiariaDobradaAtual.toString());
-                const houveAlteracaoMeiaDiaria = (meiaDiariaOriginal !== meiaDiariaAtual) || (dataMeiaDiariaOriginal.toString() !== dataMeiaDiariaAtual.toString());
+                // const houveAlteracaoDiariaDobrada = (diariaDobradaOriginal !== diariaDobradaAtual) || (dataDiariaDobradaOriginal.toString() !== dataDiariaDobradaAtual.toString());
+                // const houveAlteracaoMeiaDiaria = (meiaDiariaOriginal !== meiaDiariaAtual) ||
+                //     ((dataMeiaDiariaOriginal || []).toString() !== (dataMeiaDiariaAtual || []).toString());
+
+                const houveAlteracaoDiariaDobrada = 
+                    (diariaDobradaOriginal !== diariaDobradaAtual) || 
+                    ((dataDiariaDobradaOriginal || []).toString() !== (dataDiariaDobradaAtual || []).toString());
+
+                const houveAlteracaoMeiaDiaria = 
+                    (meiaDiariaOriginal !== meiaDiariaAtual) ||
+                    ((dataMeiaDiariaOriginal || []).toString() !== (dataMeiaDiariaAtual || []).toString());
 
                 console.log("Houve alteração ajusteCusto?", houveAlteracaoAjusteCusto);
                 console.log("Houve alteração Caixinha?", houveAlteracaoCaixinha);
@@ -5084,8 +5100,8 @@ export function preencherComprovanteCampo(filePath, campoNome) {
 
         let removerBtnHtml = '';
 
-        console.log("PERMISSAO", temPermissaoTotal);
-        if (temPermissaoTotal)
+        console.log("PERMISSAO", temPermissaoMaster);
+        if (temPermissaoMaster)
         {
             removerBtnHtml = `
                 <button type="button" class="btn btn-sm btn-danger remover-comprovante-btn" data-campo="${campoNome}">
