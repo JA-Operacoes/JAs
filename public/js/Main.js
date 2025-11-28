@@ -2642,11 +2642,308 @@ function abrirDetalhesEquipe(equipe, evento) {
 // =========================
 //    Pedidos Orçamentos 
 // =========================
+// function criarFiltroOrcamento(conteudoGeral) {
+//     const filtrosContainer = document.createElement("div");
+//     filtrosContainer.className = "filtros-orcamentos";
+
+//     // ------------------------------
+//     // 1. Filtro Principal (RADIO CUSTOM)
+//     // ------------------------------
+//     const grupoPeriodo = document.createElement("div");
+//     grupoPeriodo.className = "filtro-opção";
+//     grupoPeriodo.innerHTML = `
+//         <label class="label-select">Tipo de Filtro</label>
+//         <div class="wrapper" id="periodo-wrapper">
+//             <div class="option">
+//               <input checked value="aberto" name="periodo" type="radio" class="input" />
+//               <div class="btn"><span class="span">Abertos</span></div>
+//             </div>
+//             <div class="option">
+//               <input value="emProposta" name="periodo" type="radio" class="input" />
+//               <div class="btn"><span class="span">Em Proposta</span></div>
+//             </div>
+//             <div class="option">
+//               <input value="emAndamento" name="periodo" type="radio" class="input" />
+//               <div class="btn"><span class="span">Em Andamento</span></div>
+//             </div>
+//             <div class="option">
+//               <input value="fechados" name="periodo" type="radio" class="input" />
+//               <div class="btn"><span class="span">Fechados</span></div>
+//             </div>
+//             <div class="option">
+//               <input value="recusados" name="periodo" type="radio" class="input" />
+//               <div class="btn"><span class="span">Recusados</span></div>
+//             </div>
+//         </div>
+//     `;
+
+//     filtrosContainer.appendChild(grupoPeriodo);
+
+//     // ------------------------------
+//     // 3. Botão Aplicar
+//     // ------------------------------
+//     const btnAplicar = document.createElement("button");
+//     btnAplicar.id = "btnAplicarFiltro";
+//     btnAplicar.className = "btn-aplicar-filtro";
+//     btnAplicar.textContent = "Aplicar Filtro";
+//     filtrosContainer.appendChild(btnAplicar);
+
+
+// grupoPeriodo.querySelectorAll("input[name='periodo']").forEach(radio => {
+//         radio.addEventListener("change", () => {
+//             // Chama a função de carregamento/filtragem
+//             carregarDetalhesVencimentos(conteudoGeral);
+//         });
+//     });
+
+//     // Listener do Botão Aplicar: Mantém o listener para acionar o filtro explicitamente
+//     btnAplicar.addEventListener("click", () => carregarDetalhesVencimentos(conteudoGeral));
+
+//     return filtrosContainer;
+// }
+
+
+let OrcamentosExtraBonificadoUnificados = [];
+let OrcamentosAdicionaisUnificados = [];
+
+/**
+ * Busca a lista de orçamentos Aprovados - Extra Bonificado.
+ * ✅ CORREÇÃO DE ROBUSTEZ: Adiciona 'headers' explicitamente para garantir o idempresa.
+ */
+async function buscarOrcamentosExtraBonificado() {
+    const URL_EXTRA = '/main/extra-bonificado';
+    // Usa getIdEmpresa() para buscar o ID e passa como header, assim como em buscarPedidosUsuario
+    const options = { headers: { idempresa: getIdEmpresa() } }; 
+    
+    try {
+        const response = await fetchComToken(URL_EXTRA, options);
+        
+        if (!response.ok) {
+            if (response.status) {
+                // Tenta obter a mensagem de erro do JSON se for um erro HTTP padrão
+                const errorData = await response.json().catch(() => ({ mensagem: `Erro HTTP: ${response.status}` }));
+                throw new Error(errorData.mensagem || `Erro HTTP: ${response.status}`);
+            }
+            // Captura o caso de falha de conexão (que resultava em 'Erro HTTP: undefined')
+            throw new Error("Falha na requisição. Verifique a conexão com o servidor.");
+        }
+        
+        const dados = await response.json();
+        console.log("Dados Extra Bonificado:", dados);
+        return dados; 
+    } catch (error) {
+        console.error("Falha ao buscar Extra Bonificado:", error);
+        return []; // Retorna array vazio em caso de falha
+    }
+}
+
+/**
+ * Busca a lista de orçamentos Aprovados - Adicionais.
+ * ✅ CORREÇÃO DE ROBUSTEZ: Adiciona 'headers' explicitamente para garantir o idempresa.
+ */
+async function buscarOrcamentosAdicionais() {
+    const URL_ADICIONAL = '/main/adicionais';
+    // Usa getIdEmpresa() para buscar o ID e passa como header, assim como em buscarPedidosUsuario
+    const options = { headers: { idempresa: getIdEmpresa() } };
+    
+    try {
+        const response = await fetchComToken(URL_ADICIONAL, options);
+        
+        if (!response.ok) {
+            if (response.status) {
+                const errorData = await response.json().catch(() => ({ mensagem: `Erro HTTP: ${response.status}` }));
+                throw new Error(errorData.mensagem || `Erro HTTP: ${response.status}`);
+            }
+            throw new Error("Falha na requisição. Verifique a conexão com o servidor.");
+        }
+        
+        const dados = await response.json();
+        console.log("Dados Adicionais:", dados);
+        return dados; 
+    } catch (error) {
+        console.error("Falha ao buscar Adicionais:", error);
+        return []; // Retorna array vazio em caso de falha
+    }
+}
+
+// Sua função utilitária (sem modificação)
+function formatarTitulo(camelCase) {
+    let result = camelCase.replace('status', '').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+    return result.split(' ').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+}
+
+// Sua função principal (sem modificação)
+async function mostrarOrcamentosAprovados(conteudoGeral) {
+    conteudoGeral.innerHTML = `<p>Carregando pedidos aprovados...</p>`;
+    
+    try {
+        // 1. CHAMA AS DUAS ROTAS EM PARALELO (CORREÇÃO APLICADA NAS FUNÇÕES DE BUSCA)
+        const [pedidosExtraBonificado, pedidosAdicionais] = await Promise.all([
+            buscarOrcamentosExtraBonificado(),
+            buscarOrcamentosAdicionais()
+        ]);
+        
+        // 2. Armazena e Contagem
+        OrcamentosExtraBonificadoUnificados = pedidosExtraBonificado;
+        OrcamentosAdicionaisUnificados = pedidosAdicionais;
+        
+        const countExtraBonificado = OrcamentosExtraBonificadoUnificados.length;
+        const countAdicionais = OrcamentosAdicionaisUnificados.length;
+        
+        const statusFixo = 'autorizado'; 
+
+        // 3. Cria a estrutura de Abas Principais
+        conteudoGeral.innerHTML = `
+            <div class="tabs-container-wrapper">
+                <div class="abas-principais">
+                    <button class="aba main-tab-btn ativa" 
+                        data-tab-content="tab-content-extra" data-categoria="extra">
+                        Extra Bonificado (${countExtraBonificado})
+                    </button>
+                    <button class="aba main-tab-btn" 
+                        data-tab-content="tab-content-adicional" data-categoria="adicional">
+                        Adicional (${countAdicionais})
+                    </button>
+                </div>
+                
+                <div id="tab-content-extra" class="painel-tabs ativo" style="display: flex;"></div>
+                <div id="tab-content-adicional" class="painel-tabs desativado" style="display: none;"></div>
+            </div>
+        `;
+
+        // 4. Adiciona os Listeners
+        document.querySelectorAll('.abas-principais .main-tab-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const targetId = this.getAttribute('data-tab-content');
+                const categoria = this.getAttribute('data-categoria');
+                
+                // Gerencia classes da aba
+                document.querySelectorAll('.abas-principais .main-tab-btn').forEach(btn => btn.classList.remove('ativa'));
+                this.classList.add('ativa');
+                
+                // Gerencia visibilidade dos painéis
+                document.querySelectorAll('.painel-tabs').forEach(content => {
+                    content.style.display = 'none';
+                });
+                const targetContent = document.getElementById(targetId);
+                targetContent.style.display = 'flex'; 
+                
+                // Seleciona a lista correta
+                const listaPedidos = categoria === 'extra' 
+                    ? OrcamentosExtraBonificadoUnificados 
+                    : OrcamentosAdicionaisUnificados;
+                
+                // Renderiza o conteúdo
+                renderizarPedidosorc(listaPedidos, targetId, categoria, statusFixo, true);
+            });
+        });
+
+        // 5. Simula o clique inicial
+        const btnInicial = conteudoGeral.querySelector('.main-tab-btn.ativa');
+        if (btnInicial) {
+            btnInicial.click(); 
+        }
+    } catch (error) {
+        console.error("Erro ao carregar dados de orçamento:", error);
+        conteudoGeral.innerHTML = `<p class="erro">Erro ao carregar pedidos: ${error.message || 'Falha na comunicação com o servidor.'}</p>`;
+    }
+}
+
+// Sua função de renderização (sem modificação)
+function renderizarPedidosorc(listaPedidos, containerId, categoria, status, isStatusFixo) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const pedidosFiltrados = listaPedidos; // Já está filtrado pelo backend (Status 'Autorizado')
+
+    if (pedidosFiltrados.length === 0) {
+        container.innerHTML = `<p class="mt-3">Não há pedidos autorizados nesta categoria.</p>`;
+        return;
+    }
+
+    const accordionHTML = pedidosFiltrados.map((p, index) => {
+        const isAditivoExtra = !!p.tiposolicitacao; 
+        
+        let titulo, detalhes, tipoIcone, tipoCor;
+
+        if (isAditivoExtra) {
+            // Lógica de Título e Detalhes
+            const nomePrincipal = p.nome_funcionario_afetado || p.nome_evento || 'N/D';
+            
+            titulo = `${p.tiposolicitacao} - ${nomePrincipal}`;
+            detalhes = `
+                <p><strong>Tipo:</strong> ${p.tiposolicitacao}</p>
+                ${p.nome_funcionario_afetado ? `<p><strong>Funcionário Afetado:</strong> ${p.nome_funcionario_afetado} (ID: ${p.idfuncionario || 'N/D'})</p>` : ''}
+                ${p.idfuncao ? `<p><strong>ID da Função:</strong> ${p.idfuncao}</p>` : ''}
+                ${p.nome_evento ? `<p><strong>Evento:</strong> ${p.nome_evento}</p>` : ''}
+                <p><strong>Nº Orçamento:</strong> ${p.nrorcamento || 'N/D'}</p>
+                <p><strong>Status:</strong> ${p.status_aditivo}</p>
+                <p><strong>Solicitante:</strong> ${p.nome_usuario_solicitante || 'N/D'}</p>
+                <p><strong>Justificativa:</strong> ${p.justificativa || 'N/D'}</p>
+            `;
+            tipoIcone = 'fa fa-plus-circle';
+            tipoCor = 'aditivo-extra';
+        } else {
+            // Lógica de fallback para pedidos não-aditivos (Embora a query não os traga)
+            const tipoPedido = "Pedido Padrão Aprovado"; 
+            
+            titulo = `${tipoPedido} - ${p.nome_funcionario_afetado || 'N/D'}`;
+            detalhes = `
+                <p><strong>Funcionário:</strong> ${p.nome_funcionario_afetado || 'N/D'}</p>
+                <p><strong>Tipo:</strong> ${tipoPedido}</p>
+                <p><strong>Nº Orçamento:</strong> ${p.nrorcamento || 'N/D'}</p>
+                <p><strong>Solicitante:</strong> ${p.nome_usuario_solicitante || 'N/D'}</p>
+                <p><strong>Status:</strong> ${p.status_aditivo || 'Autorizado'}</p>
+            `;
+            tipoIcone = 'fa fa-user';
+            tipoCor = 'pedido-padrao';
+        }
+
+        return `
+            <div class="accordion-item">
+                <div class="accordion-header ${tipoCor}" data-toggle="collapse" data-target="#collapse-${containerId}-${index}">
+                    <i class="${tipoIcone}"></i>
+                    <span>${titulo}</span>
+                    <i class="fa fa-chevron-down"></i>
+                </div>
+                <div id="collapse-${containerId}-${index}" class="accordion-content collapse">
+                    <div class="accordion-body">
+                        ${detalhes}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    container.innerHTML = accordionHTML;
+    
+    // Adiciona o listener para o Acordeão
+    document.querySelectorAll('.accordion-header').forEach(header => {
+        if (!container.contains(header)) return; 
+        
+        header.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-target').replace('#', '');
+            const content = document.getElementById(targetId);
+            
+            this.classList.toggle('active');
+            
+            if (content.style.maxHeight) {
+                content.style.maxHeight = null;
+            } else {
+                content.style.maxHeight = content.scrollHeight + "px";
+            } 
+        });
+    });
+}
+// Seu Listener de Evento (sem modificação)
 document.getElementById("cardContainerOrcamentos").addEventListener("click", async function() {
     const painel = document.getElementById("painelDetalhes");
+    if (!painel) return;
+    
     painel.innerHTML = ""; // Limpa o painel anterior
 
-    // Aplicando classes Tailwind para consistência com as funções de filtro
     const container = document.createElement("div");
     container.id = "orc-container";
     container.className = "orc-container";
@@ -2656,33 +2953,31 @@ document.getElementById("cardContainerOrcamentos").addEventListener("click", asy
 
     const btnVoltar = document.createElement("button"); 
     btnVoltar.id = "btnVoltarorc";
-    // Usando classes Tailwind para um estilo moderno
     btnVoltar.className = "btn-voltar";
     btnVoltar.textContent = "←";
 
     const titulo = document.createElement("h2");
-    titulo.textContent = "Pedidos para Orçamento"; 
+    titulo.className = "title-orc";
+    titulo.textContent = "Pedidos Aprovados para Orçamento"; 
 
     header.appendChild(btnVoltar);
     header.appendChild(titulo);
     container.appendChild(header);
     
-    // Contêiner onde o resultado da busca será exibido
     const conteudoGeral = document.createElement("div");
     conteudoGeral.className = "conteudo-geral"; 
     
-    // const FiltrosVencimentos = criarControlesDeFiltro(conteudoGeral);
-    // container.appendChild(FiltrosVencimentos); 
-    
     container.appendChild(conteudoGeral);
 
-    // Anexe o container completo ao painel
     painel.appendChild(container);
     
-    // 5. Adiciona o listener para o botão de voltar
+    // Adiciona o listener para o botão de voltar (Fecha o painel de detalhes)
     btnVoltar.addEventListener('click', () => {
         painel.innerHTML = ""; // Volta para a tela anterior
     });
+    
+    // Chama o novo fluxo para mostrar os aprovados
+    await mostrarOrcamentosAprovados(conteudoGeral);
 });
 
 async function atualizarResumo() {
@@ -2866,8 +3161,6 @@ async function buscarPedidosUsuario() {
         return [];
     }
 }
-
-
 /**
  * Exibe um indicador de carregamento (loader) no card.
  * (Exemplo simplificado, você pode usar a sua implementação existente).
@@ -2878,9 +3171,6 @@ function mostrarLoader(element) {
         // Encontra o botão de aprovação ou adiciona uma classe de carregamento ao card
         const btn = element.querySelector('.btn-aprovar');
         if (btn) btn.disabled = true;
-
-        // Idealmente, você adiciona um spinner aqui
-        // Ex: element.innerHTML += '<div class="loader-spinner">...</div>';
     }
 }
 
@@ -2893,9 +3183,6 @@ function ocultarLoader(element) {
         // Encontra o botão de aprovação e reabilita
         const btn = element.querySelector('.btn-aprovar');
         if (btn) btn.disabled = false;
-
-        // Remove o spinner, se tiver sido adicionado
-        // Ex: element.querySelector('.loader-spinner')?.remove();
     }
 }
 
@@ -3185,31 +3472,24 @@ async function mostrarPedidosUsuario() {
           });
           button.classList.add('ativa');
 
-
-          // 2. 🌟 PASSO CRÍTICO: Oculta TODOS os containers de lista. 
-          // USAMOS 'lista' (#painelDetalhes) COMO RAIZ PARA TER CERTEZA DE QUE PEGAMOS TODOS,
-          // INCLUINDO AQUELES INSERIDOS ACIDENTALMENTE FORA DO mainContent.
-          lista.querySelectorAll('.pedidos-list-container').forEach(container => {
-        container.classList.add('hidden'); 
-          
-        // Força Bruta de Ocultamento
-        container.style.display = 'none'; 
-        container.style.visibility = 'hidden'; 
-        container.style.height = '0'; 
-          });
-
-
-          // 3. Mostra APENAS o container do status clicado
-          const targetContainer = document.getElementById(listContainerId);
-          if (targetContainer) {
-        targetContainer.classList.remove('hidden');
-          
-        // Reverte a Força Bruta de Ocultamento no container de destino
-        targetContainer.style.visibility = 'visible';
-        targetContainer.style.height = 'auto'; 
-        targetContainer.style.display = 'flex'; // Use 'flex', 'block' ou 'grid' conforme seu CSS
-          }
-
+                lista.querySelectorAll('.pedidos-list-container').forEach(container => {
+                    container.classList.add('hidden'); 
+                    
+                    // Força Bruta de Ocultamento
+                    container.style.display = 'none'; 
+                    container.style.visibility = 'hidden'; 
+                    container.style.height = '0'; 
+                });
+                // 3. Mostra APENAS o container do status clicado
+                const targetContainer = document.getElementById(listContainerId);
+                if (targetContainer) {
+                    targetContainer.classList.remove('hidden');
+                    
+                    // Reverte a Força Bruta de Ocultamento no container de destino
+                    targetContainer.style.visibility = 'visible';
+                    targetContainer.style.height = 'auto'; 
+                    targetContainer.style.display = 'flex'; // Use 'flex', 'block' ou 'grid' conforme seu CSS
+                }
 
           // 4. Renderiza o conteúdo filtrado
           const listaPedidos = categoria === 'funcionario' ? pedidosFuncionariosUnicos : pedidosFuncoesUnicos;
@@ -3259,11 +3539,6 @@ async function mostrarPedidosUsuario() {
     }
 }
 
-
-/**
- * NOVO: Função que carrega as sub-abas (Pendentes/Autorizados/Rejeitados)
- * APENAS quando a aba principal (Funcionários/Funções) é clicada.
- */
 function carregarSubAbas(targetContent, categoria, pedidos) {
     const listContainerIdBase = categoria === 'funcionario' ? "funcionarios-list" : "funcoes-list";
     
@@ -3287,9 +3562,6 @@ function carregarSubAbas(targetContent, categoria, pedidos) {
 }
 
 
-/**
- * Função auxiliar para criar a estrutura das sub-tabs (Pendentes/Autorizados/Rejeitados).
- */
 function criarSubTabsHTML(listContainerIdBase, categoria, pedidos) {
     const statuses = [
         { status: STATUS_PENDENTE, label: "Pendentes" },
@@ -3382,12 +3654,6 @@ function criarSubTabsHTML(listContainerIdBase, categoria, pedidos) {
         </div>
     `;
 }
-/**
- * Renderiza o conteúdo (cards de pedidos) filtrado dentro de um container específico.
- * Usa as classes de CSS do usuário (.funcionario, .funcionario-header, .pedido-card).
- */
-
-// function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
 //     const container = document.getElementById(containerId);
 //     if (!container) return;
 
@@ -4086,6 +4352,29 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
     }
 }
 
+async function buscarAditivoExtraPendentes() {
+  console.log("🟡 Iniciando busca de solicitações Aditivo/Extra Pendentes...");
+    try {
+        // Rota que você deve implementar no seu backend para listar AditivoExtra PENDENTES
+        const url = '/main/aditivoextra'; 
+        
+        const resposta = await fetchComToken(url);
+        
+        if (resposta && resposta.sucesso && Array.isArray(resposta.dados)) {
+          console.log(`✅ Sucesso! ${resposta.dados.length} solicitações Aditivo/Extra Pendentes carregadas.`);
+            // Retorna a lista de solicitações
+            return resposta.dados; 
+        }
+        
+        // Lidar com falha na busca, retornando um array vazio ou lançando erro
+        console.error("❌Erro ao buscar AditivoExtra pendentes:", resposta?.erro || 'Resposta inválida do servidor.');
+        return [];
+        
+    } catch (err) {
+        console.error("🔥Erro de rede/conexão ao buscar AditivoExtra:", err);
+        return []; // Retorna array vazio em caso de erro fatal
+    }
+}
 
 async function atualizarStatusPedido(idpedido, categoria, acao, cardElement) {
   try {
