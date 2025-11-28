@@ -738,7 +738,7 @@ button#btnVoltarorc {
   align-items: center;
 }
 
-label {
+.label-select {
   display: flex;
   margin: 5px;
   font-weight: bold;
