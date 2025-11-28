@@ -2,44 +2,44 @@
 
 /* Reset básico */
 * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    font-family: 'Abel', sans-serif;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Abel', sans-serif;
 }
 
 main#conteudo {
-    flex: 1;
-    padding: 20px;
-    background-color: #d1d1d1;
-    overflow-y: auto;
+  flex: 1;
+  padding: 20px;
+  background-color: #d1d1d1;
+  overflow-y: auto;
 }
 
 /* Container geral do dashboard */
 .dashboard-container {
-    display: flex;           /* deixa o painel um flex container */
-    flex-direction: column;  /* mantém p e h3 em coluna */
-    justify-content: center;  /* centraliza verticalmente */
-    align-items: center;      /* centraliza horizontalmente */
-    width: 1900px;
-    align-items: center;
-    margin: 100px 10px;
-    gap: 20px;
+  display: flex;     /* deixa o painel um flex container */
+  flex-direction: column;  /* mantém p e h3 em coluna */
+  justify-content: center;  /* centraliza verticalmente */
+  align-items: center;    /* centraliza horizontalmente */
+  width: 1900px;
+  align-items: center;
+  margin: 100px 10px;
+  gap: 20px;
 }
 
 /* Painel de detalhes */
 .detalhes-panel {
-    flex: 1;
-    display: flex;
-    /* justify-content: center; */
-    background-color: #f4f4f4;
-    border-radius: 10px;
-    padding: 20px;
-    align-items: center;
-    min-width: 1000px;
-    flex-direction: column;
-    height: 100%;
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+  flex: 1;
+  display: flex;
+  /* justify-content: center; */
+  background-color: #f4f4f4;
+  border-radius: 10px;
+  padding: 20px;
+  align-items: center;
+  min-width: 1000px;
+  flex-direction: column;
+  height: 100%;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
 }
 
 .detalhes-panel p, .detalhes-panel h3 {
@@ -52,11 +52,11 @@ main#conteudo {
 }
 
 #conteudoDetalhes {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-    margin: auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  margin: auto;
 }
 
 /* -------------------- Cards de resumo -------------------- */
@@ -70,43 +70,43 @@ main#conteudo {
 }
 
 .card {
-    flex: 1 1 200px;
-    background-color: #a7a6a6; /* cor padrão */
-    border-radius: 10px;
-    padding: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.1);
-    transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s, color 0.2s;
-    cursor: pointer;
-    color: black; /* cor padrão do texto */
+  flex: 1 1 200px;
+  background-color: #a7a6a6; /* cor padrão */
+  border-radius: 10px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+  transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s, color 0.2s;
+  cursor: pointer;
+  color: black; /* cor padrão do texto */
 }
 
 .card:hover  {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
-    border: 2px solid var(--border-color);
-    background-color: var(--hover-color); /* cor de fundo no hover */
-    color: var(--font-color); /* cor do texto no hover */
-    font-weight: var(--font-weight);
-    font-family: var(--Font-primary);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+  border: 2px solid var(--border-color);
+  background-color: var(--hover-color); /* cor de fundo no hover */
+  color: var(--font-color); /* cor do texto no hover */
+  font-weight: var(--font-weight);
+  font-family: var(--Font-primary);
 }
 
 
 .card div {
-    font-size: 16px;
-    font-weight: 600;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .card span {
-    font-size: 24px;
-    font-weight: bold;
+  font-size: 24px;
+  font-weight: bold;
 }
 
 .card i {
-    font-size: 28px;
-    margin-left: 10px;
+  font-size: 28px;
+  margin-left: 10px;
 }
 
 .card-orcamentos, .card-eventos, .card-atividades, .card-financeiro, .card-eventos-em-abertos, .card-vencimentos {
@@ -264,18 +264,18 @@ div#orc-container{
 /* -------------------- Notificações Financeiras -------------------- */
 
 .titulo-pedidos {
-    display: flex;
-    justify-content: center;
-    background-color: var(--primary-color);
-    color: var(--font-color);
-    font-weight: var(--font-weight);
-    width: 100%;
-    padding: 10px 16px;
-    border-radius: 6px;
-    margin-bottom: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    font-size: 20px;
-    top: 0;
+  display: flex;
+  justify-content: center;
+  background-color: var(--primary-color);
+  color: var(--font-color);
+  font-weight: var(--font-weight);
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-size: 20px;
+  top: 0;
 }
 
 
@@ -395,8 +395,8 @@ div#orc-container{
 }
 
 .quadrado-arredondado {
-  width: 100px;           
-  height: 100px;          
+  width: 100px;   
+  height: 100px;    
   background-color: #4f46e5; 
   border-top-right-radius: 20px;   
   border-bottom-right-radius: 20px;
@@ -406,56 +406,56 @@ div#orc-container{
 
 /* Estilo para o botão Voltar (Novo elemento de navegação) */
 .btn-voltar-main-tabs {
-    background: none;
-    border: none;
-    color: var(--cor-texto-secundario, #555);
-    cursor: pointer;
-    padding: 5px 0;
-    margin-bottom: 10px;
-    font-size: 0.9em;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    transition: color 0.2s;
+  background: none;
+  border: none;
+  color: var(--cor-texto-secundario, #555);
+  cursor: pointer;
+  padding: 5px 0;
+  margin-bottom: 10px;
+  font-size: 0.9em;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: color 0.2s;
 }
 
 .btn-voltar-main-tabs:hover {
-    color: var(--cor-primaria-clara, #a02020);
+  color: var(--cor-primaria-clara, #a02020);
 }
 
 /* GARANTE QUE AS SUB-ABAS FIQUEM EM TRÊS COLUNAS (LADO A LADO) */
 .sub-abas-pedidos {
-    display: flex; 
-    width: 100%;
-    /* remove o border-bottom daqui pois será aplicado no .sub-tabs-content para o "encaixe" */
-    border-bottom: none; 
-    margin-top: 5px; 
-    margin-bottom: 10px;
+  display: flex; 
+  width: 100%;
+  /* remove o border-bottom daqui pois será aplicado no .sub-tabs-content para o "encaixe" */
+  border-bottom: none; 
+  margin-top: 5px; 
+  margin-bottom: 10px;
 }
 
 .sub-abas-pedidos .aba {
-    flex-grow: 1; /* Fazem as abas dividirem o espaço igualmente */
-    text-align: center;
-    border-radius: 0;
-    margin-right: 0;
-    border-bottom: 2px solid var(--cor-borda-aba, #ccc);
+  flex-grow: 1; /* Fazem as abas dividirem o espaço igualmente */
+  text-align: center;
+  border-radius: 0;
+  margin-right: 0;
+  border-bottom: 2px solid var(--cor-borda-aba, #ccc);
 }
 
 /* Garante o encaixe visual da aba ativa */
 .sub-abas-pedidos .aba.ativa {
-    border-bottom: 2px solid var(--cor-primaria-clara, #a02020); 
+  border-bottom: 2px solid var(--cor-primaria-clara, #a02020); 
 }
 
 /* Oculta o painel-tabs, já que o conteúdo será injetado no lugar */
 .painel-tabs.ativo {
-    /* Mantém o padding se necessário, mas remove borda superior */
-    padding: 15px;
-    border: 1px solid var(--cor-borda-aba, #ccc);
-    border-top: none; 
+  /* Mantém o padding se necessário, mas remove borda superior */
+  padding: 15px;
+  border: 1px solid var(--cor-borda-aba, #ccc);
+  border-top: none; 
 }
 
 .painel-tabs.desativado {
-    display: none !important; /* Esconde o painel quando está 'desativado' */
+  display: none !important; /* Esconde o painel quando está 'desativado' */
 }
 
 
@@ -465,153 +465,162 @@ div#orc-container{
 
 /* -------------------- Mensagens / Dicas -------------------- */
 .mensagens {
-    background-color: #e2e3e5;
-    border-left: 5px solid #d6d8db;
-    padding: 15px 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
+  background-color: #e2e3e5;
+  border-left: 5px solid #d6d8db;
+  padding: 15px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
 }
 
 .mensagens h3 {
-    font-size: 18px;
-    margin-bottom: 10px;
-    color: #495057;
+  font-size: 18px;
+  margin-bottom: 10px;
+  color: #495057;
 }
 
 .mensagens ul {
-    list-style-type: disc;
-    padding-left: 20px;
+  list-style-type: disc;
+  padding-left: 20px;
 }
 
 .mensagens li {
-    font-size: 14px;
-    color: #495057;
-    margin-bottom: 5px;
+  font-size: 14px;
+  color: #495057;
+  margin-bottom: 5px;
 }
 
 .mensagens span {
-    font-weight: bold;
-    color: #212529;
+  font-weight: bold;
+  color: #212529;
 }
 
 /*--------------------- Calendario Eventos -------------------------*/
 .calendario-container {
-    display: flex;
-    width: 100%;
-    height: 100%;
-    gap: 20px;
-    align-items: flex-start;
-  }
-  .calendario {
-    flex: 1;
-    height: 100%;
-    overflow-y: auto;
-    scrollbar-width: thin;
-  }
-  .calendario-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-  }
-  .calendario-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 4px;
-  }
-  .calendario-grid div {
-    height: 75px;
-    font-size: 12px;
-    position: relative;
-    overflow-y: auto;
-    margin: 2px 0;
-  }
-
-  .calendario-grid .header-dias{
-    height: 30px;
-    display: flex;
-    justify-content: center;
-    flex-direction: row;
-    background-color: var(--primary-color);
-    color: var(--font-color);
-    text-align: center;
-  }
-  .header-dias strong{
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  .calendario-grid .numero-dia {
-    font-weight: bold;
-    font-size: 14px;
-    margin-bottom: 2px;
-    display: block;
-  }
-
-  .out-of-month {
-    color: #aaa;
-    background-color: #f9f9f9;
-  }
-
-  .evento {
-    display: block;
-    margin: 2px 0;
-    padding: 2px 4px;
-    border-radius: 4px;
-    font-size: 11px;
-    color: #000;
-  }
-
-  .calendario-controles {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  gap: 20px;
+  align-items: flex-start;
 }
+
+.calendario {
+  flex: 1;
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.calendario-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.calendario-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.calendario-grid div {
+  height: 75px;
+  font-size: 12px;
+  position: relative;
+  overflow-y: auto;
+  margin: 2px 0;
+}
+
+.calendario-grid .header-dias{
+  height: 30px;
+  display: flex;
+  justify-content: center;
+  flex-direction: row;
+  background-color: var(--primary-color);
+  color: var(--font-color);
+  text-align: center;
+}
+
+.header-dias strong{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.calendario-grid .numero-dia {
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 2px;
+  display: block;
+}
+
+.out-of-month {
+  color: #aaa;
+  background-color: #f9f9f9;
+}
+
+.evento {
+  display: block;
+  margin: 2px 0;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #000;
+}
+
+.calendario-controles {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
 label {
-    display: flex;
-    margin: 5px;
-    font-weight: bold;
+  display: flex;
+  margin: 5px;
+  font-weight: bold;
+  width: 190px;
 }
+
 select#mesSelect, select#anoSelect,select#viewSelect {
-    font-family: var(--Font-primary);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border-radius: 6px;
-    font-size: 15px;
-    padding: 0 15px;
-    border: 1px solid #000000;
-    background: transparent;
-    color: #000000;
-    outline: none;
+  font-family: var(--Font-primary);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 6px;
+  font-size: 15px;
+  padding: 0 15px;
+  border: 1px solid #000000;
+  background: transparent;
+  color: #000000;
+  outline: none;
 }
 
 
 .legenda {
-    /* width: 180px; */
-    display: flex;
-    justify-content: flex-end;
-    font-size: 13px;
+  /* width: 180px; */
+  display: flex;
+  justify-content: flex-end;
+  font-size: 13px;
 }
 
   .items {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 0 5px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0 5px;
 }
 
 .legenda-item {
-    display: flex;
-    align-items: center;
-    margin: 6px;
+  display: flex;
+  align-items: center;
+  margin: 6px;
   }
 
   .legenda-cor {
-    width: 18px;
-    height: 18px;
-    border-radius: 4px;
-    margin-right: 8px;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  margin-right: 8px;
   }
 
 .dia-anterior,
@@ -622,69 +631,69 @@ select#mesSelect, select#anoSelect,select#viewSelect {
 
 /* Popup de Evento */
 .popup-evento {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-    width: 320px;
-    max-width: 90%;
-    z-index: 9999;
-    font-family: 'Abel', sans-serif;
-    overflow: hidden;
-    cursor: move; /* indica que pode arrastar */
-    animation: fadeIn 0.3s ease-out;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  width: 320px;
+  max-width: 90%;
+  z-index: 9999;
+  font-family: 'Abel', sans-serif;
+  overflow: hidden;
+  cursor: move; /* indica que pode arrastar */
+  animation: fadeIn 0.3s ease-out;
 }
 
 /* Cabeçalho */
 .popup-evento .popup-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
-    background-color: #333;
-    color: #fff;
-    cursor: move; /* arrastar pelo cabeçalho */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: #333;
+  color: #fff;
+  cursor: move; /* arrastar pelo cabeçalho */
 }
 
 /* Botão de fechar */
 .popup-evento .popup-close {
-    background: transparent;
-    border: none;
-    color: #fff;
-    font-size: 1.2em;
-    cursor: pointer;
-    transition: transform 0.2s;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 1.2em;
+  cursor: pointer;
+  transition: transform 0.2s;
 }
 
 .popup-evento .popup-close:hover {
-    transform: rotate(90deg);
+  transform: rotate(90deg);
 }
 
 /* Corpo */
 .popup-evento .popup-body {
-    padding: 16px;
-    max-height: 400px;
-    overflow-y: auto;
+  padding: 16px;
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .popup-evento .popup-body ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
+  list-style: none;
+  padding: 0;
+  margin: 0;
 }
 
 .popup-evento .popup-body li {
-    padding: 6px 0;
-    border-bottom: 1px solid #eee;
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
 }
 
 /* Animação */
 @keyframes fadeIn {
-    from { opacity: 0; transform: translate(-50%, -55%); }
-    to   { opacity: 1; transform: translate(-50%, -50%); }
+  from { opacity: 0; transform: translate(-50%, -55%); }
+  to   { opacity: 1; transform: translate(-50%, -50%); }
 }
 
 .mini-calendario .eventos-scroll {
@@ -1020,82 +1029,82 @@ span.nenhum-evento {
 
 
 .aba.ativo {
-    background-color: var(--primary-color);
-    color: var(--font-color);
+  background-color: var(--primary-color);
+  color: var(--font-color);
 }
 
 
 .conteudo-aba.ativo {
-    opacity: 1;
-    max-height: 5000px; /* Ou um valor grande o suficiente para o seu conteúdo */
+  opacity: 1;
+  max-height: 5000px; /* Ou um valor grande o suficiente para o seu conteúdo */
 }
 
 /* Sugestão: Transição no conteúdo interno (os cards) */
 /* .conteudo-aba.ativo .card {
-    transition: transform 0.5s ease, opacity 0.5s ease;
-    transform: translateY(10px);
-    opacity: 0;
+  transition: transform 0.5s ease, opacity 0.5s ease;
+  transform: translateY(10px);
+  opacity: 0;
 }
 
 .conteudo-aba.ativo .card:nth-child(n) {
-    /* Pequeno atraso para dar um efeito cascata
-    transition-delay: calc(0.05s * var(--index)); /* Use CSS variable se possível 
-    transform: translateY(0);
-    opacity: 1;
-    
+  /* Pequeno atraso para dar um efeito cascata
+  transition-delay: calc(0.05s * var(--index)); /* Use CSS variable se possível 
+  transform: translateY(0);
+  opacity: 1;
+
 } */
 
 .conteudos-abas .conteudo-aba {
-    /* Esconde por padrão todos os conteúdos da aba */
-    display: block;
-    padding: 15px;
+  /* Esconde por padrão todos os conteúdos da aba */
+  display: block;
+  padding: 15px;
 }
 
 /* Regra para mostrar APENAS o conteúdo que tem a classe 'ativo' */
 .conteudos-abas .conteudo-aba.ativo {
-    /* Mostra o conteúdo ativo (pode ser block, flex, grid, etc.) */
-    display: block !important; 
-    gap: 20px;       /* Adiciona espaçamento entre os cards *
-    height: auto !important; 
-    max-height: none !important;
-    overflow-y: visible !important; /* Permite que o conteúdo completo apareça */
-    opacity: 1;
-    margin-top: 50px;
+  /* Mostra o conteúdo ativo (pode ser block, flex, grid, etc.) */
+  display: block !important; 
+  gap: 20px;     /* Adiciona espaçamento entre os cards *
+  height: auto !important; 
+  max-height: none !important;
+  overflow-y: visible !important; /* Permite que o conteúdo completo apareça */
+  opacity: 1;
+  margin-top: 50px;
 }
 
 .conteudos-abas .conteudo-aba:not(.ativo) {
-    display: none !important; /* Força o elemento a sumir se não tiver a classe 'ativo' */
+  display: none !important; /* Força o elemento a sumir se não tiver a classe 'ativo' */
 }
 
 /* Opcional, mas comum: para o botão */
 .abas-eventos .aba.ativo {
-    font-weight: bold;
-    border-bottom: 2px solid var(--primary-color); /* Exemplo visual */
+  font-weight: bold;
+  border-bottom: 2px solid var(--primary-color); /* Exemplo visual */
 }
 
 .conteudos-abas {
-    width: 100%; /* Garante que a div pai se expanda */
+  width: 100%; /* Garante que a div pai se expanda */
 }
 
 .evento-card {
-    /* 1. Define 100% da largura do container */
-    width: 100%; 
-    
-    /* 2. Garante que os cards empilhados tenham um espaçamento entre si */
-    margin-bottom: 15px; 
-    
-    /* 3. **REMOVE:** flex: 0 0 calc(...) e min-width (pois agora ele é 100%) */
-    
-    /* Seu estilo original */
-    border-radius: 8px;
-    overflow: hidden;
-    background: #fff;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  /* 1. Define 100% da largura do container */
+  width: 100%; 
+
+  /* 2. Garante que os cards empilhados tenham um espaçamento entre si */
+  margin-bottom: 15px; 
+
+  /* 3. **REMOVE:** flex: 0 0 calc(...) e min-width (pois agora ele é 100%) */
+
+  /* Seu estilo original */
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .evento-card:last-child {
-    margin-bottom: 0;
+  margin-bottom: 0;
 }
 
 
@@ -1184,27 +1193,27 @@ button.ver-funcionarios-btn {
 }
 
 .funcao-item {
-    display: flex;
-    align-items: center;
-    margin: 4px 0;
-    justify-content: space-around;
-    width: 100%;
+  display: flex;
+  align-items: center;
+  margin: 4px 0;
+  justify-content: space-around;
+  width: 100%;
 }
 
 .func-wrapper {
-    display: flex;
-    justify-content: space-between;
-    width: 100%;
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
 }
 
 .func-nome {
-    display: flex;
-    width: 550px;   
-    gap: 25px;
+  display: flex;
+  width: 550px;   
+  gap: 25px;
 }
 
 .func-estado {
-    margin-right: 90px;
+  margin-right: 90px;
 }
 
 .funcao-item.concluido {
@@ -1249,10 +1258,10 @@ button.ver-funcionarios-btn {
 }
 
 button.btn-abrir-staff {
-    border-radius: 10px;
-    width: 100px;
-    height: 20px;
-    border: none;
+  border-radius: 10px;
+  width: 100px;
+  height: 20px;
+  border: none;
 }
 
 /*  ===========  TELA FUNCIONARIOS  ======== */
@@ -1305,17 +1314,17 @@ h4.grupo-titulo {
 
 
 span.funcionario-status-badge.status-pago {
-    background-color: #14c11dd9;
+  background-color: #14c11dd9;
 }
 span.funcionario-status-badge.status-atencao {
-    background-color: #fce517d9;
+  background-color: #fce517d9;
 }
 
 span.funcionario-status-badge {
-    text-align: center;
-    align-items: center;
-    border-radius: 10px;
-    width: 100px;
+  text-align: center;
+  align-items: center;
+  border-radius: 10px;
+  width: 100px;
 }
 
 li.funcionario-item {
@@ -1349,15 +1358,15 @@ li.funcionario-item {
 }
 
 div#cabecalhoDiasSemana {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    text-align: center;
-    background-color: var(--primary-color);
-    color: var(--font-color);
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  background-color: var(--primary-color);
+  color: var(--font-color);
 }
 
 div#calendarioVertical {
-    height: 100%;
+  height: 100%;
 }
 
 .hidden {
@@ -1387,6 +1396,8 @@ div#calendarioVertical {
   flex-direction: row;
   gap: 15px;
   width: 100%;
+  overflow-y: auto;
+  max-height: 500px;
   height: 100%;
   align-items: flex-start;
   justify-content: flex-start;
@@ -1432,11 +1443,11 @@ div#calendarioVertical {
 }
 
 h3#dataSelecionada {
-    margin-bottom: 30px;
+  margin-bottom: 30px;
 }
 div#calendarioVertical {
-    height: 100%;
-    width: 350px;
+  height: 100%;
+  width: 350px;
 }
 
 .btn-adicionar {
@@ -1651,40 +1662,42 @@ body.dark .indicador-evento {
 }
 
 /* ---------------------------------------------------
-            VENCIMENTOS E PAGAMENTOS
+  VENCIMENTOS E PAGAMENTOS
   ----------------------------------------------------*/
 .venc-container{
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: 100%;
-    gap: 20px;
-    padding: 20px;
-    background: #f5f5f5;
-    border-radius: 20px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-    animation: aparecerAgenda 0.4s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  gap: 20px;
+  padding: 20px;
+  background: #f5f5f5;
+  border-radius: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  animation: aparecerAgenda 0.4s ease-in-out;
 }
 
 .venc-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .filtros-vencimentos {
-    display: flex;
-    align-items: center;
-    justify-content: start;
-    gap: 50px;
-    margin: 10px;
-    height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: start;
+  gap: 50px;
+  margin: 10px;
+  height: 50px;
 }
+
+/* ======Filtro=========== */
 
 /* WRAPPER */
 .venc-container .wrapper {
   position: relative;
-  width: 300px;
+  width: 520px;
   height: 36px;
   background-color: transparent;
   border: 2px solid var(--border-color);
@@ -1768,21 +1781,49 @@ body.dark .indicador-evento {
   box-sizing: border-box; 
 }
 
-/* WRAPPER ESPECIAL */
+/* WRAPPER GERAL (Manter o que você já tem, mas com flex-wrap se for o wrapper dos rádios) */
+.venc-container .wrapper {
+  position: relative;
+  /* ... (seus estilos de borda e sombra) */
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap; /* Adicionar isto para os botões de rádio (trimestral/semestral) */
+}
+
+/* WRAPPER ESPECIAL PARA SELECT E INPUT DE DATA */
 .venc-container .wrapper.select-wrapper {
-  width: 155px;
+  width: 155px; /* Tamanho fixo para o select de mês e input de data */
+  height: 36px;
+  padding: 0; /* Remove padding aqui, o padding será no input/select */
 }
 
-/* SELECT (Usando ID - Precisa do prefixo para garantir que só afete este painel) */
-
-.venc-container select#sub-filtro-select {
-  width: 155px;
-  border-radius: 35px;
-  padding: 0 20px;
+/* ESTILO GERAL PARA SELECT E INPUT DE DATA */
+.venc-container .select-simples, 
+.venc-container .input-data-simples {
+  width: 100%; /* Preenche o .select-wrapper (155px) */
+  height: 36px;
+  border: none;
+  background-color: transparent;
+  border-radius: 34px;
+  padding: 0 15px; /* Espaçamento interno */
   font-weight: var(--font-weight);
+  color: var(--text-color); /* Garante a cor do texto */
+  /* Remove a seta padrão em alguns navegadores para inputs */
+  -webkit-appearance: none; 
+  -moz-appearance: none;
+  appearance: none;
 }
 
-/* BOTÃO APLICAR */
+/* ESTILO PARA O ANO (Filtro Anual) */
+.venc-container .anual-info {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--text-color);
+  margin-top: 5px;
+  padding-left: 5px;
+}
+
+/* BOTÃO APLICAR (Seus estilos atuais) */
 .venc-container button#btnAplicarFiltro {
   width: 90px;
   height: 40px;
@@ -1792,21 +1833,194 @@ body.dark .indicador-evento {
   color: var(--font-color);
 }
 
-/* SUB-OPÇÕES */
+/* SUB-OPÇÕES (Wrapper dos botões rádio trimestral/semestral) */
 .venc-container div#sub-opcoes {
-  width: 350px;
+  
+    width: 350px; 
+      
 }
 
 .venc-container .sub-semestral #sub-opcoes {
   width: 180px;
 }
+/* ------------------- */
+
+/* Detalhes Vencimentos */
+/* Container Principal */
+.accordion-vencimentos {
+  display: flex;
+  flex-direction: column;
+  gap: 15px; /* Espaçamento entre os eventos */
+  width: 100%;
+}
+
+/* Acordeão Item */
+.accordion-item {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+.accordion-item.active {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Cabeçalho do Acordeão */
+.accordion-header {
+  width: 100%;
+  padding: 15px 20px;
+  background-color: #f8f8f8;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.1em;
+  font-weight: 600;
+  border-bottom: 1px solid #eee;
+}
+
+.accordion-item.active .accordion-header {
+  background-color: #e9ecef;
+}
+
+.total-geral {
+  font-size: 1em;
+  font-weight: 700;
+  color: #007bff; /* Cor principal para o total */
+}
+
+/* Corpo do Acordeão (conteúdo) */
+.accordion-body {
+  padding: 15px 20px;
+  background-color: #fff;
+  display: none; /* Esconde por padrão */
+}
+.accordion-item.active .accordion-body {
+  display: block; /* Mostra quando ativo */
+  /* ⬅️ NOVO: Limita a altura do conteúdo visível (85% da tela é um bom padrão) */
+  max-height: 85vh; 
+
+  /* ⬅️ NOVO: Faz o próprio corpo do accordion rolar se o conteúdo total (incluindo o .venc-container) exceder 85vh */
+  overflow-y: auto;
+}
+
+
+/* Resumo dos Totais */
+.resumo-categorias {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px dashed #ddd;
+}
+
+.categoria-bloco {
+  flex: 1;
+  padding: 15px;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+
+.categoria-bloco h3 {
+  margin-top: 0;
+  font-size: 1.2em;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+
+/* Destaque para o Pendente */
+.categoria-bloco p strong {
+  color: #dc3545; /* Vermelho para Pendente */
+  font-weight: 700;
+}
+
+/* Tabela de Funcionários (Limpo e Funcional) */
+
+.funcionarios-scroll-container {
+  max-height: 180px; /* ⬅️ Continua o limite para a lista de funcionários */
+  overflow-y: auto;  /* ⬅️ CRÍTICO: Habilita o scroll */
+  overflow-x: hidden;
+  border: 1px solid #ccc; 
+  border-radius: 4px;
+  padding: 0; 
+  margin-bottom: 15px;
+}
+
+.tabela-funcionarios-venc {
+  width: 100%;
+  border-collapse: collapse; 
+}
+
+.tabela-funcionarios-venc th {
+  /* ⬅️ A CHAVE: Faz o cabeçalho grudar no topo do contêiner de scroll */
+  position: sticky; 
+  top: 0; 
+  z-index: 10;
+  background-color: #f4f4f4; 
+  font-weight: 600;
+}
+
+.tabela-funcionarios-venc th,
+.tabela-funcionarios-venc td {
+  padding: 10px;
+  text-align: left;
+  font-size: 0.85em;
+  border-bottom: 1px solid #eee;
+
+  /* Remove todas as larguras fixas (width: X%) para evitar conflitos */
+  /* width: auto; */ 
+}
 
 
 
+/* Estilos de Status (Cor principal para Pendente) */
+.status-pendente {
+  color: white;
+  font-weight: 600;
+  background-color: #dc3545; /* Vermelho Forte */
+  padding: 4px 8px;
+  border-radius: 4px;
+  text-align: center;
+}
 
+/* Se você tiver outros status: */
+.status-pago {
+  color: #155724;
+  background-color: #d4edda;
+  border-color: #c3e6cb;
+  padding: 4px 8px;
+  border-radius: 4px;
+  text-align: center;
+}
 
+/* Estilo para as Datas do Evento */
+.categoria-bloco .datas-evento {
+  font-size: 0.9em;
+  color: #495057; /* Cinza escuro */
+  margin-bottom: 5px;
+  padding-bottom: 5px;
+}
 
+.categoria-bloco .vencimento {
+  /* Mantendo o estilo da data de vencimento com destaque */
+  font-size: 0.9em;
+  color: #6c757d;
+  margin-bottom: 10px;
+  border-bottom: 1px dashed #eee;
+  padding-bottom: 5px;
+}
 
+/* Garante que o STRONG no vencimento tem a cor de destaque */
+.categoria-bloco .vencimento strong {
+  color: #007bff;
+  font-weight: 700;
+}
+
+/* -----FIM VENCIMENTOS----- */
 
 
 /*--------------------- Scrool-------------------------*/
@@ -1844,158 +2058,158 @@ display: none;
 /* Até 1324px */
 @media (max-width: 1324px) {
   .calendario-grid div {
-    height: 55px;
-    font-size: 12px;
-    position: relative;
-    overflow-y: auto;
-    margin: 2px 0;
+  height: 55px;
+  font-size: 12px;
+  position: relative;
+  overflow-y: auto;
+  margin: 2px 0;
   }
   .calendario-grid .header-dias {
-    height: 15px;
-    display: flex;
-    justify-content: center;
-    flex-direction: row;
-    background-color: var(--primary-color);
-    color: var(--font-color);
-    text-align: center;
+  height: 15px;
+  display: flex;
+  justify-content: center;
+  flex-direction: row;
+  background-color: var(--primary-color);
+  color: var(--font-color);
+  text-align: center;
   }
   .calendario-grid .numero-dia {
-    font-weight: bold;
-    font-size: 10px;
-    margin-bottom: 2px;
-    display: block;
+  font-weight: bold;
+  font-size: 10px;
+  margin-bottom: 2px;
+  display: block;
   }
 }
 
 /* De 1325px até 1472px */
 @media (min-width: 1325px) and (max-width: 1472px) {
   .calendario-grid div {
-    height: 70px;
-    font-size: 12px;
-    position: relative;
-    overflow-y: auto;
-    margin: 2px 0;
+  height: 70px;
+  font-size: 12px;
+  position: relative;
+  overflow-y: auto;
+  margin: 2px 0;
   }
   .calendario-grid .header-dias {
-    height: 15px;
-    display: flex;
-    justify-content: center;
-    flex-direction: row;
-    background-color: var(--primary-color);
-    color: var(--font-color);
-    text-align: center;
+  height: 15px;
+  display: flex;
+  justify-content: center;
+  flex-direction: row;
+  background-color: var(--primary-color);
+  color: var(--font-color);
+  text-align: center;
   }
   .calendario-grid .numero-dia {
-    font-weight: bold;
-    font-size: 10px;
-    margin-bottom: 2px;
-    display: block;
+  font-weight: bold;
+  font-size: 10px;
+  margin-bottom: 2px;
+  display: block;
   }
   .tabela-atividades tbody {
-      display: block;
-      max-height: 415px;
-      overflow-y: auto;
+    display: block;
+    max-height: 415px;
+    overflow-y: auto;
   }
 }
 
 /* De 1473px até 1656px */
 @media (min-width: 1473px) and (max-width: 1656px) {
   .calendario-grid div {
-    height: 85px;
-    font-size: 12px;
-    position: relative;
-    overflow-y: auto;
-    margin: 2px 0;
+  height: 85px;
+  font-size: 12px;
+  position: relative;
+  overflow-y: auto;
+  margin: 2px 0;
   }
   .tabela-atividades tbody {
-      display: block;
-      max-height: 500px;
-      overflow-y: auto;
+    display: block;
+    max-height: 500px;
+    overflow-y: auto;
   }
 }
 
 /* De 1657px até 1766px */
 @media (min-width: 1657px) and (max-width: 1766px) {
   .calendario-grid div {
-    height: 95px;
-    font-size: 12px;
-    position: relative;
-    overflow-y: auto;
-    margin: 2px 0;
+  height: 95px;
+  font-size: 12px;
+  position: relative;
+  overflow-y: auto;
+  margin: 2px 0;
   }
-    .tabela-atividades tbody {
-      display: block;
-      max-height: 560px;
-      overflow-y: auto;
+  .tabela-atividades tbody {
+    display: block;
+    max-height: 560px;
+    overflow-y: auto;
   }
 }
 
 /* De 1767px até 1987px */
 @media (min-width: 1767px) and (max-width: 1987px) {
   .calendario-grid div {
-    height: 120px;
-    font-size: 12px;
-    position: relative;
-    overflow-y: auto;
-    margin: 2px 0;
+  height: 120px;
+  font-size: 12px;
+  position: relative;
+  overflow-y: auto;
+  margin: 2px 0;
   }
-    .tabela-atividades tbody {
-      display: block;
-      max-height: 650px;
-      overflow-y: auto;
+  .tabela-atividades tbody {
+    display: block;
+    max-height: 650px;
+    overflow-y: auto;
   }
 }
 
 /* De 1988px até 2649px */
 @media (min-width: 1988px) and (max-width: 2649px) {
   .calendario-grid div {
-    height: 115px;
-    font-size: 12px;
-    position: relative;
-    overflow-y: auto;
-    margin: 2px 0;
+  height: 115px;
+  font-size: 12px;
+  position: relative;
+  overflow-y: auto;
+  margin: 2px 0;
   }
-    .tabela-atividades tbody {
-      display: block;
-      max-height: 980px;
-      overflow-y: auto;
+  .tabela-atividades tbody {
+    display: block;
+    max-height: 980px;
+    overflow-y: auto;
   }
 }
 
 
 @media (max-width: 768px) {
-    .cards {
-        flex-direction: column;
-    }
-    .card {
-        justify-content: space-between;
-    }
+  .cards {
+  flex-direction: column;
+  }
+  .card {
+  justify-content: space-between;
+  }
 }
 
 
 @media (min-width: 1988px) {
 .dashboard-container {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    width: 1900px;
-    align-items: center;
-    margin: 100px 10px;
-    gap: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 1900px;
+  align-items: center;
+  margin: 100px 10px;
+  gap: 20px;
 }
 .detalhes-panel {
-    flex: 1;
-    display: flex;
-    /* justify-content: center; */
-    background-color: #f4f4f4;
-    border-radius: 10px;
-    padding: 20px;
-    align-items: center;
-    min-width: 1500px;
-    flex-direction: column;
-    height: 100%;
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+  flex: 1;
+  display: flex;
+  /* justify-content: center; */
+  background-color: #f4f4f4;
+  border-radius: 10px;
+  padding: 20px;
+  align-items: center;
+  min-width: 1500px;
+  flex-direction: column;
+  height: 100%;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
 }
 
 }
