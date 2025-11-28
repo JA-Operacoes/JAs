@@ -1078,209 +1078,370 @@ router.get("/atividades-recentes", async (req, res) => {
 //   }
 // });
 
+// router.get('/notificacoes-financeiras', async (req, res) => {
+//   try {
+//   const idempresa = req.idempresa || req.headers.idempresa;
+//   const idusuario = req.usuario?.idusuario || req.headers.idusuario;
+
+//   if (!idempresa) return res.status(400).json({ error: 'Empresa não informada' });
+//   if (!idusuario) return res.status(400).json({ error: 'Usuário não informado' });
+
+//   // Checa se o usuário é Master no Staff via tabela de permissões (mantido por segurança, embora a query retorne tudo)
+//   const { rows: permissoes } = await pool.query(`
+//   SELECT * FROM permissoes 
+//   WHERE idusuario = $1 AND modulo = 'Staff' AND master = 'true'
+//   `, [idusuario]);
+//   const ehMasterStaff = permissoes.length > 0;
+
+//   // Se o usuário não for Master Staff, você pode querer retornar um erro 403 (Proibido)
+//   if (!ehMasterStaff) {
+//    return res.status(403).json({ error: 'Acesso negado. Necessária permissão Master Staff.' });
+//   }
+
+
+//   // Consulta SQL Otimizada e Corrigida
+//   const { rows } = await pool.query(`
+//   WITH OriginalExecutor AS (
+//   -- 1. Encontra o ID do executor (solicitante) e a data de criação (criado_em) mais antigos
+//   SELECT DISTINCT ON (idregistroalterado)
+//   idregistroalterado AS idstaffevento,
+//   idexecutor,
+//   criado_em
+//   FROM
+//   logs
+//   WHERE
+//   modulo = 'staffeventos'
+//   AND idempresa = $1 -- 🎯 FILTRO DA EMPRESA
+//   ORDER BY
+//   idregistroalterado,
+//   criado_em ASC
+//   )
+
+//   SELECT DISTINCT ON (se.idstaffevento) -- Desduplicando pelo ID Único do Pedido (se.idstaffevento)
+//   se.idstaffevento AS id,
+//   oe.idexecutor, 
+//   (u.nome || ' ' || u.sobrenome) AS nomesolicitante,
+//   f.nome AS nomefuncionario,
+//   e.nmevento AS evento,
+
+//   se.vlrcaixinha::text,
+//   se.desccaixinha,
+//   se.statuscaixinha,
+
+//   se.vlrajustecusto::text,
+//   se.descajustecusto,
+//   se.statusajustecusto,
+
+//   se.dtdiariadobrada::text,
+//   se.descdiariadobrada,
+//   se.statusdiariadobrada,
+
+//   se.dtmeiadiaria::text,
+//   se.descmeiadiaria,
+//   se.statusmeiadiaria,
+
+//   se.datasevento::text,
+//   oe.criado_em, 
+//   se.idfuncionario AS idusuarioalvo,
+//   COALESCE(o.dtfiminfradesmontagem, o.dtfimdesmontagem) AS dtfimrealizacao
+
+//   FROM
+//   staffeventos se
+//   LEFT JOIN -- LEFT JOIN para não perder registros sem log
+//   OriginalExecutor oe ON oe.idstaffevento = se.idstaffevento 
+//   LEFT JOIN
+//   funcionarios f ON f.idfuncionario = se.idfuncionario
+//   LEFT JOIN
+//   usuarios u ON u.idusuario = oe.idexecutor 
+//   LEFT JOIN
+//   eventos e ON e.idevento = se.idevento
+//   LEFT JOIN
+//   orcamentos o ON o.idevento = e.idevento
+
+//   WHERE
+//   -- FILTRO DE STATUS: Pelo menos UM dos status precisa ter sido definido (diferente de NULL)
+//   (
+//   se.statuscaixinha IS NOT NULL OR
+//   se.statusajustecusto IS NOT NULL OR
+//   se.statusdiariadobrada IS NOT NULL OR
+//   se.statusmeiadiaria IS NOT NULL
+//   )
+//   AND
+//   -- FILTRO DE VALOR/DATA: Pelo menos UM dos valores/datas precisa ser relevante
+//   (
+//   (se.vlrcaixinha IS NOT NULL AND se.vlrcaixinha != 0) OR
+//   (se.vlrajustecusto IS NOT NULL AND se.vlrajustecusto != 0) OR
+//   se.dtdiariadobrada IS NOT NULL OR
+//   se.dtmeiadiaria IS NOT NULL
+//   )
+
+//   ORDER BY
+//   se.idstaffevento, -- Necessário para DISTINCT ON
+//   oe.criado_em DESC;
+//   `, [idempresa]); // A query usa apenas $1 (idempresa)
+
+//   // Monta os pedidos (Lógica de transformação mantida da sua rota original)
+//   const pedidos = rows.map(r => {
+//   let dados = {};
+//   // A query agora prioriza os dados de staffeventos, o log.dadosnovos é menos relevante
+//   // mas mantemos o parse por segurança
+//   try { dados = JSON.parse(r.dadosnovos); } catch { /* ignore */ }  
+
+//   function parseValor(v) {
+//   if (!v) return 0;
+//   if (typeof v === 'number') return v;
+//   // O valor já é string (se.vlrcaixinha::text), então pode ser float diretamente
+//   return parseFloat(String(v).replace(',', '.')) || 0;
+//   }
+
+//   function montarCampo(info, valorRaw, descricaoRaw, datasRaw) {
+//   // Se o status for NULL (caso não tenha log correspondente), ignora o campo
+//   if (info === null) return null; 
+
+//   const valor = parseValor(valorRaw);
+//   const descricao = descricaoRaw && descricaoRaw !== '-' ? descricaoRaw : null;
+//   let datas = [];
+//   if (datasRaw) {
+//   // Se o campo for de data (dtdiariadobrada/dtmeiadiaria), o valorRaw é uma data e não um array.
+//   // Para diárias, a lógica é diferente do valor monetário.
+//   if (datasRaw && String(datasRaw).startsWith('[')) {
+//    try { datas = JSON.parse(datasRaw); } catch {}
+//   }
+//   }
+
+//   // status normalizado + cor
+//   let status = 'Pendente';
+//   let cor = '#facc15';
+//   if (info && typeof info === 'string') {
+//   const lower = info.toLowerCase();
+//   if (lower === 'aprovado' || lower === 'autorizado') { status = 'Autorizado'; cor = '#16a34a'; }
+//   else if (lower === 'rejeitado') { status = 'Rejeitado'; cor = '#dc2626'; }
+//   else status = info;
+//   }
+
+//   // O campo só é relevante se for valor > 0 OU tiver descrição OU tiver datas (para diárias)
+//   // O filtro WHERE no SQL já garante isso, mas este é o filtro final
+//   if (valor > 0 || descricao || (datas && datas.length > 0) || datasRaw) {
+//   return { status, cor, valor, descricao, datas: datas.length > 0 ? datas : (datasRaw ? [datasRaw] : []) };
+//   }
+//   return null;
+//   }
+
+//   return {
+//       idpedido: r.id,
+//       solicitante: r.idexecutor || null, // Pode ser NULL se não achou log
+//       nomeSolicitante: r.nomesolicitante || '-',
+//       funcionario: r.nomefuncionario || '-',
+//       evento: r.evento,
+//       tipopedido: 'Financeiro',
+//       criado_em: r.criado_em,
+//       datasevento: r.datasevento || '-',
+//       dtfimrealizacao: r.dtfimrealizacao || null,
+//       // vlrtotal e descricao são consolidações, não mudam a lógica
+//       vlrtotal: parseValor(r.vlrcaixinha || r.vlrajustecusto),
+//       descricao: r.desccaixinha || r.descajustecusto || r.descdiariadobrada || r.descmeiadiaria || '-',
+
+//       // Note: Para diárias, você deve passar o campo de data (dtdiariadobrada/dtmeiadiaria) no lugar do valorRaw,
+//       // e o campo de valor monetário fica nulo (a menos que a diária tenha valor fixo na tabela)
+//       statuscaixinha: montarCampo(r.statuscaixinha, r.vlrcaixinha, r.desccaixinha),
+//       statusajustecusto: montarCampo(r.statusajustecusto, r.vlrajustecusto, r.descajustecusto),
+
+//       // Diárias: Usamos a data para relevância, valorRaw é 0
+//       statusdiariadobrada: montarCampo(r.statusdiariadobrada, 0, r.descdiariadobrada, r.dtdiariadobrada),
+//       statusmeiadiaria: montarCampo(r.statusmeiadiaria, 0, r.descmeiadiaria, r.dtmeiadiaria)
+//       };
+//   })
+//   .filter(p => {
+//     const campos = ['statuscaixinha', 'statusajustecusto', 'statusdiariadobrada', 'statusmeiadiaria'];
+
+//   // Relevância: Mantém apenas se tiver algum campo com status/valor/data preenchido (SQL já fez isso, mas repetimos para o filtro final)
+//     const temRelevancia = campos.some(c => p[c] !== null);
+//     if (!temRelevancia) return false;
+
+//     /*
+//     // Lógica de Prazo (10 dias após o fim do evento) - DESATIVADO PARA TESTE
+//     if (p.dtfimrealizacao) {
+//     const fim = new Date(p.dtfimrealizacao);
+
+//     if (!isNaN(fim.getTime())) {
+//     const limite = new Date(fim);
+//     limite.setDate(fim.getDate() + 10); // Mantém o prazo de 10 dias
+
+//     if (new Date() > limite) return false; // Passou do prazo -> remove
+//     }
+//     }
+//     */
+
+//     return true;
+//   }); 
+
+//   res.json(pedidos);
+
+//   } catch (err) {
+//     console.error('Erro ao buscar notificações financeiras:', err.stack || err);
+//     res.status(500).json({ error: 'Erro ao buscar notificações financeiras' });
+//   }
+// });
+
+
 router.get('/notificacoes-financeiras', async (req, res) => {
-  try {
-  const idempresa = req.idempresa || req.headers.idempresa;
-  const idusuario = req.usuario?.idusuario || req.headers.idusuario;
+    try {
+        const idempresa = req.idempresa || req.headers.idempresa;
+        const idusuario = req.usuario?.idusuario || req.headers.idusuario;
 
-  if (!idempresa) return res.status(400).json({ error: 'Empresa não informada' });
-  if (!idusuario) return res.status(400).json({ error: 'Usuário não informado' });
+        if (!idempresa) return res.status(400).json({ error: 'Empresa não informada' });
+        if (!idusuario) return res.status(400).json({ error: 'Usuário não informado' });
 
-  // Checa se o usuário é Master no Staff via tabela de permissões (mantido por segurança, embora a query retorne tudo)
-  const { rows: permissoes } = await pool.query(`
-  SELECT * FROM permissoes 
-  WHERE idusuario = $1 AND modulo = 'Staff' AND master = 'true'
-  `, [idusuario]);
-  const ehMasterStaff = permissoes.length > 0;
+        // 1. Busca todas as permissões de uma vez
+        const { rows: allPermissoes } = await pool.query(`
+            SELECT modulo, master FROM permissoes 
+            WHERE idusuario = $1
+        `, [idusuario]);
 
-  // Se o usuário não for Master Staff, você pode querer retornar um erro 403 (Proibido)
-  if (!ehMasterStaff) {
-   return res.status(403).json({ error: 'Acesso negado. Necessária permissão Master Staff.' });
-  }
+        // 2. Define o acesso de Master (apenas para botões de Aprovação/Rejeição)
+        const ehMasterStaff = allPermissoes.some(p => p.modulo === 'Staff' && p.master === 'true');
+
+        // 3. Define a permissão de Visualização Total (AGORA CHECA SE O MÓDULO 'Staff' EXISTE)
+        // Se o módulo Financeiro ou Aditivo Extra fosse adicionado, ele também concederia o acesso.
+        const temPermissaoVisualizacaoTotal = allPermissoes.some(p => 
+            p.modulo === 'Staff' || p.modulo.toLowerCase().includes('financeiro')
+        );
+        
+        const podeVerTodos = ehMasterStaff || temPermissaoVisualizacaoTotal; 
+
+        // 4. Lógica de Filtro Condicional
+        let filtroSolicitante = '';
+        const params = [idempresa]; 
+
+        // Se PODE VER TODOS for TRUE, o filtroSolicitante será vazio.
+        if (!podeVerTodos) {
+            filtroSolicitante = `AND oe.idexecutor = $2`;
+            params.push(idusuario); 
+        }
+
+        // DEBUG
+        console.log(`[FINAL QUERY STATE] Financeiro | PodeVerTodos: ${podeVerTodos} | Filtro: "${filtroSolicitante}" | Params: ${params.join(', ')}`);
 
 
-  // Consulta SQL Otimizada e Corrigida
-  const { rows } = await pool.query(`
-  WITH OriginalExecutor AS (
-  -- 1. Encontra o ID do executor (solicitante) e a data de criação (criado_em) mais antigos
-  SELECT DISTINCT ON (idregistroalterado)
-  idregistroalterado AS idstaffevento,
-  idexecutor,
-  criado_em
-  FROM
-  logs
-  WHERE
-  modulo = 'staffeventos'
-  AND idempresa = $1 -- 🎯 FILTRO DA EMPRESA
-  ORDER BY
-  idregistroalterado,
-  criado_em ASC
-  )
+        // 5. Consulta SQL Otimizada
+        const query = `
+        WITH OriginalExecutor AS (
+        SELECT DISTINCT ON (idregistroalterado)
+        idregistroalterado AS idstaffevento, idexecutor, criado_em
+        FROM logs
+        WHERE modulo = 'staffeventos' AND idempresa = $1 
+        ORDER BY idregistroalterado, criado_em ASC
+        )
 
-  SELECT DISTINCT ON (se.idstaffevento) -- Desduplicando pelo ID Único do Pedido (se.idstaffevento)
-  se.idstaffevento AS id,
-  oe.idexecutor, 
-  (u.nome || ' ' || u.sobrenome) AS nomesolicitante,
-  f.nome AS nomefuncionario,
-  e.nmevento AS evento,
+        SELECT DISTINCT ON (se.idstaffevento) 
+        se.idstaffevento AS id, oe.idexecutor, (u.nome || ' ' || u.sobrenome) AS nomesolicitante,
+        f.nome AS nomefuncionario, e.nmevento AS evento,
 
-  se.vlrcaixinha::text,
-  se.desccaixinha,
-  se.statuscaixinha,
+        se.vlrcaixinha::text, se.desccaixinha, se.statuscaixinha, se.vlrajustecusto::text, 
+        se.descajustecusto, se.statusajustecusto, se.dtdiariadobrada::text, 
+        se.descdiariadobrada, se.statusdiariadobrada, se.dtmeiadiaria::text, 
+        se.descmeiadiaria, se.statusmeiadiaria, se.datasevento::text, oe.criado_em, 
+        se.idfuncionario AS idusuarioalvo, COALESCE(o.dtfiminfradesmontagem, o.dtfimdesmontagem) AS dtfimrealizacao
 
-  se.vlrajustecusto::text,
-  se.descajustecusto,
-  se.statusajustecusto,
+        FROM staffeventos se
+        LEFT JOIN OriginalExecutor oe ON oe.idstaffevento = se.idstaffevento 
+        LEFT JOIN funcionarios f ON f.idfuncionario = se.idfuncionario
+        LEFT JOIN usuarios u ON u.idusuario = oe.idexecutor 
+        LEFT JOIN eventos e ON e.idevento = se.idevento
+        LEFT JOIN orcamentos o ON o.idevento = e.idevento
 
-  se.dtdiariadobrada::text,
-  se.descdiariadobrada,
-  se.statusdiariadobrada,
+        WHERE
+        ( se.statuscaixinha IS NOT NULL OR se.statusajustecusto IS NOT NULL OR
+        se.statusdiariadobrada IS NOT NULL OR se.statusmeiadiaria IS NOT NULL )
+        AND
+        ( (se.vlrcaixinha IS NOT NULL AND se.vlrcaixinha != 0) OR
+        (se.vlrajustecusto IS NOT NULL AND se.vlrajustecusto != 0) OR
+        se.dtdiariadobrada IS NOT NULL OR se.dtmeiadiaria IS NOT NULL )
+        ${filtroSolicitante} 
 
-  se.dtmeiadiaria::text,
-  se.descmeiadiaria,
-  se.statusmeiadiaria,
+        ORDER BY se.idstaffevento, oe.criado_em DESC;
+        `;
+        
+        const { rows } = await pool.query(query, params); 
+        console.log(`[FINANCEIRO DEBUG] Linhas retornadas do DB: ${rows.length}`);
 
-  se.datasevento::text,
-  oe.criado_em, 
-  se.idfuncionario AS idusuarioalvo,
-  COALESCE(o.dtfiminfradesmontagem, o.dtfimdesmontagem) AS dtfimrealizacao
+        // 6. Mapeamento e Resposta
+        const pedidos = rows.map(r => {
+            function parseValor(v) {
+                if (!v) return 0;
+                if (typeof v === 'number') return v;
+                return parseFloat(String(v).replace(',', '.')) || 0;
+            }
 
-  FROM
-  staffeventos se
-  LEFT JOIN -- LEFT JOIN para não perder registros sem log
-  OriginalExecutor oe ON oe.idstaffevento = se.idstaffevento 
-  LEFT JOIN
-  funcionarios f ON f.idfuncionario = se.idfuncionario
-  LEFT JOIN
-  usuarios u ON u.idusuario = oe.idexecutor 
-  LEFT JOIN
-  eventos e ON e.idevento = se.idevento
-  LEFT JOIN
-  orcamentos o ON o.idevento = e.idevento
+            function montarCampo(info, valorRaw, descricaoRaw, datasRaw) {
+                if (info === null) return null; 
 
-  WHERE
-  -- FILTRO DE STATUS: Pelo menos UM dos status precisa ter sido definido (diferente de NULL)
-  (
-  se.statuscaixinha IS NOT NULL OR
-  se.statusajustecusto IS NOT NULL OR
-  se.statusdiariadobrada IS NOT NULL OR
-  se.statusmeiadiaria IS NOT NULL
-  )
-  AND
-  -- FILTRO DE VALOR/DATA: Pelo menos UM dos valores/datas precisa ser relevante
-  (
-  (se.vlrcaixinha IS NOT NULL AND se.vlrcaixinha != 0) OR
-  (se.vlrajustecusto IS NOT NULL AND se.vlrajustecusto != 0) OR
-  se.dtdiariadobrada IS NOT NULL OR
-  se.dtmeiadiaria IS NOT NULL
-  )
+                const valor = parseValor(valorRaw);
+                const descricao = descricaoRaw && descricaoRaw !== '-' ? descricaoRaw : null;
+                let datas = [];
+                if (datasRaw) {
+                    if (datasRaw && String(datasRaw).startsWith('[')) {
+                        try { datas = JSON.parse(datasRaw); } catch {}
+                    } else if (datasRaw) {
+                        datas = [{ data: datasRaw, valor: 0 }]; 
+                    }
+                }
 
-  ORDER BY
-  se.idstaffevento, -- Necessário para DISTINCT ON
-  oe.criado_em DESC;
-  `, [idempresa]); // A query usa apenas $1 (idempresa)
+                let status = 'Pendente';
+                let cor = '#facc15';
+                if (info && typeof info === 'string') {
+                    const lower = info.toLowerCase();
+                    if (lower === 'aprovado' || lower === 'autorizado') { status = 'Autorizado'; cor = '#16a34a'; }
+                    else if (lower === 'rejeitado') { status = 'Rejeitado'; cor = '#dc2626'; }
+                    else status = info;
+                }
 
-  // Monta os pedidos (Lógica de transformação mantida da sua rota original)
-  const pedidos = rows.map(r => {
-  let dados = {};
-  // A query agora prioriza os dados de staffeventos, o log.dadosnovos é menos relevante
-  // mas mantemos o parse por segurança
-  try { dados = JSON.parse(r.dadosnovos); } catch { /* ignore */ }  
+                if (valor > 0 || descricao || (datas && datas.length > 0) || datasRaw) {
+                    return { 
+                        status, 
+                        cor, 
+                        valor, 
+                        descricao, 
+                        datas: datas.length > 0 ? datas.map(d => ({ data: d.data || d, valor: d.valor || 0 })) : (datasRaw ? [{ data: datasRaw, valor: 0 }] : []) 
+                    };
+                }
+                return null;
+            }
 
-  function parseValor(v) {
-  if (!v) return 0;
-  if (typeof v === 'number') return v;
-  // O valor já é string (se.vlrcaixinha::text), então pode ser float diretamente
-  return parseFloat(String(v).replace(',', '.')) || 0;
-  }
+            return {
+                idpedido: r.id,
+                solicitante: r.idexecutor || null, 
+                nomeSolicitante: r.nomesolicitante || '-',
+                funcionario: r.nomefuncionario || '-',
+                evento: r.evento,
+                tipopedido: 'Financeiro',
+                criado_em: r.criado_em,
+                datasevento: r.datasevento || '-',
+                dtfimrealizacao: r.dtfimrealizacao || null,
+                vlrtotal: parseValor(r.vlrcaixinha || r.vlrajustecusto),
+                descricao: r.desccaixinha || r.descajustecusto || r.descdiariadobrada || r.descmeiadiaria || '-',
 
-  function montarCampo(info, valorRaw, descricaoRaw, datasRaw) {
-  // Se o status for NULL (caso não tenha log correspondente), ignora o campo
-  if (info === null) return null; 
+                ehMasterStaff: ehMasterStaff, 
+                podeVerTodos: podeVerTodos, 
 
-  const valor = parseValor(valorRaw);
-  const descricao = descricaoRaw && descricaoRaw !== '-' ? descricaoRaw : null;
-  let datas = [];
-  if (datasRaw) {
-  // Se o campo for de data (dtdiariadobrada/dtmeiadiaria), o valorRaw é uma data e não um array.
-  // Para diárias, a lógica é diferente do valor monetário.
-  if (datasRaw && String(datasRaw).startsWith('[')) {
-   try { datas = JSON.parse(datasRaw); } catch {}
-  }
-  }
+                statuscaixinha: montarCampo(r.statuscaixinha, r.vlrcaixinha, r.desccaixinha),
+                statusajustecusto: montarCampo(r.statusajustecusto, r.vlrajustecusto, r.descajustecusto),
+                statusdiariadobrada: montarCampo(r.statusdiariadobrada, 0, r.descdiariadobrada, r.dtdiariadobrada),
+                statusmeiadiaria: montarCampo(r.statusmeiadiaria, 0, r.descmeiadiaria, r.dtmeiadiaria)
+                };
+        })
+        .filter(p => {
+            const campos = ['statuscaixinha', 'statusajustecusto', 'statusdiariadobrada', 'statusmeiadiaria'];
+            const temRelevancia = campos.some(c => p[c] !== null);
+            return temRelevancia;
+        }); 
 
-  // status normalizado + cor
-  let status = 'Pendente';
-  let cor = '#facc15';
-  if (info && typeof info === 'string') {
-  const lower = info.toLowerCase();
-  if (lower === 'aprovado' || lower === 'autorizado') { status = 'Autorizado'; cor = '#16a34a'; }
-  else if (lower === 'rejeitado') { status = 'Rejeitado'; cor = '#dc2626'; }
-  else status = info;
-  }
+        res.json(pedidos);
 
-  // O campo só é relevante se for valor > 0 OU tiver descrição OU tiver datas (para diárias)
-  // O filtro WHERE no SQL já garante isso, mas este é o filtro final
-  if (valor > 0 || descricao || (datas && datas.length > 0) || datasRaw) {
-  return { status, cor, valor, descricao, datas: datas.length > 0 ? datas : (datasRaw ? [datasRaw] : []) };
-  }
-  return null;
-  }
-
-  return {
-      idpedido: r.id,
-      solicitante: r.idexecutor || null, // Pode ser NULL se não achou log
-      nomeSolicitante: r.nomesolicitante || '-',
-      funcionario: r.nomefuncionario || '-',
-      evento: r.evento,
-      tipopedido: 'Financeiro',
-      criado_em: r.criado_em,
-      datasevento: r.datasevento || '-',
-      dtfimrealizacao: r.dtfimrealizacao || null,
-      // vlrtotal e descricao são consolidações, não mudam a lógica
-      vlrtotal: parseValor(r.vlrcaixinha || r.vlrajustecusto),
-      descricao: r.desccaixinha || r.descajustecusto || r.descdiariadobrada || r.descmeiadiaria || '-',
-
-      // Note: Para diárias, você deve passar o campo de data (dtdiariadobrada/dtmeiadiaria) no lugar do valorRaw,
-      // e o campo de valor monetário fica nulo (a menos que a diária tenha valor fixo na tabela)
-      statuscaixinha: montarCampo(r.statuscaixinha, r.vlrcaixinha, r.desccaixinha),
-      statusajustecusto: montarCampo(r.statusajustecusto, r.vlrajustecusto, r.descajustecusto),
-
-      // Diárias: Usamos a data para relevância, valorRaw é 0
-      statusdiariadobrada: montarCampo(r.statusdiariadobrada, 0, r.descdiariadobrada, r.dtdiariadobrada),
-      statusmeiadiaria: montarCampo(r.statusmeiadiaria, 0, r.descmeiadiaria, r.dtmeiadiaria)
-      };
-  })
-  .filter(p => {
-    const campos = ['statuscaixinha', 'statusajustecusto', 'statusdiariadobrada', 'statusmeiadiaria'];
-
-  // Relevância: Mantém apenas se tiver algum campo com status/valor/data preenchido (SQL já fez isso, mas repetimos para o filtro final)
-    const temRelevancia = campos.some(c => p[c] !== null);
-    if (!temRelevancia) return false;
-
-    /*
-    // Lógica de Prazo (10 dias após o fim do evento) - DESATIVADO PARA TESTE
-    if (p.dtfimrealizacao) {
-    const fim = new Date(p.dtfimrealizacao);
-
-    if (!isNaN(fim.getTime())) {
-    const limite = new Date(fim);
-    limite.setDate(fim.getDate() + 10); // Mantém o prazo de 10 dias
-
-    if (new Date() > limite) return false; // Passou do prazo -> remove
+    } catch (err) {
+        console.error('Erro ao buscar notificações financeiras:', err.stack || err);
+        res.status(500).json({ error: 'Erro ao buscar notificações financeiras' });
     }
-    }
-    */
-
-    return true;
-  }); 
-
-  res.json(pedidos);
-
-  } catch (err) {
-    console.error('Erro ao buscar notificações financeiras:', err.stack || err);
-    res.status(500).json({ error: 'Erro ao buscar notificações financeiras' });
-  }
 });
 
 router.post('/notificacoes-financeiras/atualizar-status', 
@@ -2632,81 +2793,163 @@ router.patch('/aditivoextra/:idAditivoExtra/status',
 
 
 
+// router.get('/aditivoextra', async (req, res) => {
+
+//   // 💡 CORREÇÃO 1: Utiliza a mesma lógica robusta para obter ID da Empresa e do Usuário
+//   const idEmpresa = req.idempresa || req.headers.idempresa; 
+//   const idUsuario = req.usuario?.idusuario || req.headers.idusuario; 
+
+//   if (!idEmpresa) return res.status(400).json({ erro: 'Empresa não informada' });
+//   if (!idUsuario) return res.status(400).json({ erro: 'Usuário não informado' });
+
+
+//   // 1. Checa se o usuário é Master no Staff
+//   const { rows: permissoes } = await pool.query(`
+//   SELECT * FROM permissoes 
+//   WHERE idusuario = $1 AND modulo = 'Staff' AND master = 'true'
+//   `, [idUsuario]);
+
+//   const ehMasterStaff = permissoes.length > 0;
+
+//   // Mantendo o bloqueio de acesso à rota para usuários sem permissão
+//   if (!ehMasterStaff) {
+//   return res.status(403).json({ erro: 'Permissão negada. Você não é Master Staff no módulo de Staff.' }); 
+//   }
+
+//   try {
+//   const query = `
+//   SELECT 
+//   ae.idAditivoExtra,
+//   ae.tipoSolicitacao,
+//   ae.justificativa,
+//   ae.status,
+//   ae.qtdSolicitada,
+//   ae.dtSolicitacao AS criado_em,
+//   ae.idFuncionario, -- Adicionando idFuncionario para o front-end
+//   func.nome AS nomeFuncionario,
+//   f.descfuncao AS funcao,
+//   e.nmevento AS evento,
+//   s.nome || ' ' || s.sobrenome AS nomesolicitante
+//   FROM 
+//   AditivoExtra ae
+//   -- CORREÇÃO: Usar LEFT JOIN para incluir registros mesmo que a Funcao esteja ausente (ou seja um pedido genérico)
+//   LEFT JOIN 
+//   Funcao f ON ae.idFuncao = f.idFuncao
+//   -- CORREÇÃO: Usar LEFT JOIN para incluir registros mesmo que o Funcionario esteja ausente (pedidos de Funções)
+//   LEFT JOIN 
+//   Funcionarios func ON ae.idFuncionario = func.idFuncionario
+//   -- Assumimos que Orcamentos, Eventos e Usuarios Solicitantes sempre existem
+//   JOIN 
+//   Orcamentos o ON ae.idOrcamento = o.idOrcamento
+//   JOIN 
+//   Eventos e ON o.idEvento = e.idEvento
+//   JOIN 
+//   Usuarios s ON ae.idUsuarioSolicitante = s.idUsuario
+//   WHERE 
+//   ae.idEmpresa = $1 --AND ae.status = 'Pendente'
+//   ORDER BY 
+//   e.nmevento, f.descfuncao, ae.tipoSolicitacao;
+//   `;
+
+//   const resultado = await pool.query(query, [idEmpresa]); 
+
+//   // 2. INJETA a flag ehMasterStaff em CADA linha antes de retornar.
+//   const dadosComPermissao = resultado.rows.map(row => ({
+//   ...row,
+//   ehMasterStaff: ehMasterStaff // Passa o valor booleano calculado (TRUE)
+//   }));
+
+//   res.json({
+//   sucesso: true,
+//   dados: dadosComPermissao // Retorna o array modificado
+//   });
+
+//   } catch (error) {
+//   console.error("Erro ao listar AditivoExtra pendentes:", error);
+//   res.status(500).json({ sucesso: false, erro: "Erro interno ao buscar solicitações Aditivo/Extra." });
+//   }
+// });
+
 router.get('/aditivoextra', async (req, res) => {
+    try {
+        const idEmpresa = req.idempresa || req.headers.idempresa; 
+        const idUsuario = req.usuario?.idusuario || req.headers.idusuario; 
 
-  // 💡 CORREÇÃO 1: Utiliza a mesma lógica robusta para obter ID da Empresa e do Usuário
-  const idEmpresa = req.idempresa || req.headers.idempresa; 
-  const idUsuario = req.usuario?.idusuario || req.headers.idusuario; 
+        if (!idEmpresa) return res.status(400).json({ erro: 'Empresa não informada' });
+        if (!idUsuario) return res.status(400).json({ erro: 'Usuário não informado' });
 
-  if (!idEmpresa) return res.status(400).json({ erro: 'Empresa não informada' });
-  if (!idUsuario) return res.status(400).json({ erro: 'Usuário não informado' });
+        // 1. Busca todas as permissões de uma vez
+        const { rows: allPermissoes } = await pool.query(`
+            SELECT modulo, master FROM permissoes 
+            WHERE idusuario = $1
+        `, [idUsuario]);
+
+        // 2. Define o acesso de Master (apenas para botões de Aprovação/Rejeição)
+        const ehMasterStaff = allPermissoes.some(p => p.modulo === 'Staff' && p.master === 'true');
+        
+        // 3. Define a permissão de Visualização Total (AGORA CHECA SE O MÓDULO 'Staff' EXISTE)
+        const temPermissaoVisualizacaoTotal = allPermissoes.some(p => 
+            p.modulo === 'Staff' || p.modulo.toLowerCase().includes('aditivoextra')
+        );
+        
+        const podeVerTodos = ehMasterStaff || temPermissaoVisualizacaoTotal; 
+
+        // 4. Lógica de Filtro Condicional
+        let filtroSolicitante = '';
+        const params = [idEmpresa]; 
+
+        // Se PODE VER TODOS for TRUE, o filtroSolicitante será vazio.
+        if (!podeVerTodos) {
+            filtroSolicitante = `AND ae.idUsuarioSolicitante = $2`;
+            params.push(idUsuario); 
+        }
+
+        // DEBUG
+        console.log(`[FINAL QUERY STATE] Aditivo Extra | PodeVerTodos: ${podeVerTodos} | Filtro: "${filtroSolicitante}" | Params: ${params.join(', ')}`);
 
 
-  // 1. Checa se o usuário é Master no Staff
-  const { rows: permissoes } = await pool.query(`
-  SELECT * FROM permissoes 
-  WHERE idusuario = $1 AND modulo = 'Staff' AND master = 'true'
-  `, [idUsuario]);
+        // 5. Consulta SQL 
+        const query = `
+        SELECT 
+        ae.idAditivoExtra, ae.tipoSolicitacao, ae.justificativa, ae.status, ae.qtdSolicitada,
+        ae.dtSolicitacao AS criado_em, ae.idFuncionario, 
+        func.nome AS nomeFuncionario, f.descfuncao AS funcao,
+        e.nmevento AS evento, s.nome || ' ' || s.sobrenome AS nomesolicitante,
+        f.descfuncao AS nmfuncao 
+        FROM 
+        AditivoExtra ae
+        LEFT JOIN Funcao f ON ae.idFuncao = f.idFuncao
+        LEFT JOIN Funcionarios func ON ae.idFuncionario = func.idFuncionario
+        JOIN Orcamentos o ON ae.idOrcamento = o.idOrcamento
+        JOIN Eventos e ON o.idEvento = e.idEvento
+        JOIN Usuarios s ON ae.idUsuarioSolicitante = s.idUsuario
+        WHERE 
+        ae.idEmpresa = $1 
+        ${filtroSolicitante} 
+        ORDER BY 
+        e.nmevento, f.descfuncao, ae.tipoSolicitacao;
+        `;
 
-  const ehMasterStaff = permissoes.length > 0;
+        const resultado = await pool.query(query, params); 
+        console.log(`[ADITIVO EXTRA DEBUG] Linhas retornadas do DB: ${resultado.rows.length}`);
 
-  // Mantendo o bloqueio de acesso à rota para usuários sem permissão
-  if (!ehMasterStaff) {
-  return res.status(403).json({ erro: 'Permissão negada. Você não é Master Staff no módulo de Staff.' }); 
-  }
 
-  try {
-  const query = `
-  SELECT 
-  ae.idAditivoExtra,
-  ae.tipoSolicitacao,
-  ae.justificativa,
-  ae.status,
-  ae.qtdSolicitada,
-  ae.dtSolicitacao AS criado_em,
-  ae.idFuncionario, -- Adicionando idFuncionario para o front-end
-  func.nome AS nomeFuncionario,
-  f.descfuncao AS funcao,
-  e.nmevento AS evento,
-  s.nome || ' ' || s.sobrenome AS nomesolicitante
-  FROM 
-  AditivoExtra ae
-  -- CORREÇÃO: Usar LEFT JOIN para incluir registros mesmo que a Funcao esteja ausente (ou seja um pedido genérico)
-  LEFT JOIN 
-  Funcao f ON ae.idFuncao = f.idFuncao
-  -- CORREÇÃO: Usar LEFT JOIN para incluir registros mesmo que o Funcionario esteja ausente (pedidos de Funções)
-  LEFT JOIN 
-  Funcionarios func ON ae.idFuncionario = func.idFuncionario
-  -- Assumimos que Orcamentos, Eventos e Usuarios Solicitantes sempre existem
-  JOIN 
-  Orcamentos o ON ae.idOrcamento = o.idOrcamento
-  JOIN 
-  Eventos e ON o.idEvento = e.idEvento
-  JOIN 
-  Usuarios s ON ae.idUsuarioSolicitante = s.idUsuario
-  WHERE 
-  ae.idEmpresa = $1 --AND ae.status = 'Pendente'
-  ORDER BY 
-  e.nmevento, f.descfuncao, ae.tipoSolicitacao;
-  `;
+        // 6. Mapeamento e Resposta
+        const dadosComPermissao = resultado.rows.map(row => ({
+            ...row,
+            ehMasterStaff: ehMasterStaff, 
+            podeVerTodos: podeVerTodos 
+        }));
 
-  const resultado = await pool.query(query, [idEmpresa]); 
+        res.json({
+            sucesso: true,
+            dados: dadosComPermissao 
+        });
 
-  // 2. INJETA a flag ehMasterStaff em CADA linha antes de retornar.
-  const dadosComPermissao = resultado.rows.map(row => ({
-  ...row,
-  ehMasterStaff: ehMasterStaff // Passa o valor booleano calculado (TRUE)
-  }));
-
-  res.json({
-  sucesso: true,
-  dados: dadosComPermissao // Retorna o array modificado
-  });
-
-  } catch (error) {
-  console.error("Erro ao listar AditivoExtra pendentes:", error);
-  res.status(500).json({ sucesso: false, erro: "Erro interno ao buscar solicitações Aditivo/Extra." });
-  }
+    } catch (error) {
+        console.error("Erro ao listar AditivoExtra pendentes:", error);
+        res.status(500).json({ sucesso: false, erro: "Erro interno ao buscar solicitações Aditivo/Extra." });
+    }
 });
 
 module.exports = router;

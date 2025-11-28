@@ -501,7 +501,7 @@ function getUsuarioLogado() {
 
 function usuarioTemPermissao() {
   if (!window.permissoes || !Array.isArray(window.permissoes)) return false;
-console.log("Usuário tem permissão master no staff");
+  console.log("Usuário tem permissão master no staff");
   const permissaoStaff = window.permissoes.find(p => p.modulo?.toLowerCase() === "staff");
   if (!permissaoStaff) return false;
 
@@ -2917,6 +2917,8 @@ async function mostrarPedidosUsuario() {
 
     try {
         lista.innerHTML = `<div class="titulo-pedidos">Pedidos e Solicitações</div><p>Carregando dados...</p>`;
+
+        const podeAprovar = usuarioTemPermissao();
     
         // 1. CHAMA AS DUAS FUNÇÕES DE BUSCA EM PARALELO
         const [pedidosPadrao, aditivosExtras] = await Promise.all([
@@ -3115,7 +3117,7 @@ async function mostrarPedidosUsuario() {
 
                 // 4. Renderiza o conteúdo filtrado
                 const listaPedidos = categoria === 'funcionario' ? pedidosFuncionariosUnicos : pedidosFuncoesUnicos;
-                renderizarPedidos(listaPedidos, listContainerId, categoria, status);
+                renderizarPedidos(listaPedidos, listContainerId, categoria, status, podeAprovar);
             }
         });
 
@@ -3289,7 +3291,368 @@ function criarSubTabsHTML(listContainerIdBase, categoria, pedidos) {
  * Usa as classes de CSS do usuário (.funcionario, .funcionario-header, .pedido-card).
  */
 
-function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesejado) {
+// function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
+//     const container = document.getElementById(containerId);
+//     if (!container) return;
+
+//     // 🌟 CORREÇÃO CRUCIAL: Limpa imediatamente o container visualmente e dá feedback.
+//     container.innerHTML = '<p class="text-sm text-gray-500">Filtrando e carregando dados...</p>';
+    
+//     // Constantes (assumindo que estão definidas globalmente: STATUS_PENDENTE, CAMPO_ADITIVO_EXTRA, etc.)
+//     const camposTodos = [
+//         "statusajustecusto", 
+//         "statuscaixinha", 
+//         "statusmeiadiaria", 
+//         "statusdiariadobrada",
+//         CAMPO_ADITIVO_EXTRA
+//     ];
+    
+//     // 1. Agrupamento e Filtragem por Status
+//     const gruposMap = {};
+//     let totalItensRenderizados = 0; 
+
+//     pedidosCompletos.forEach(p => {
+//         let temItemComStatusDesejadoNoPedido = false;
+        
+//         // --- FILTRAGEM DE STATUS APLICADA AQUI ---
+//         const pedidoFiltradoPorStatus = { ...p };
+        
+//         camposTodos.forEach(campo => {
+//             const info = p[campo];
+//             if (!info) {
+//                 delete pedidoFiltradoPorStatus[campo];
+//                 return;
+//             }
+
+//             const statusItem = (info.status || STATUS_PENDENTE).toLowerCase();
+//             const temDadosRelevantes = info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao || info.tipoSolicitacao;
+            
+//             if (temDadosRelevantes && statusItem === statusDesejado) {
+//                 // Mantém o item no pedido filtrado
+//                 temItemComStatusDesejadoNoPedido = true;
+//             } else {
+//                 // Remove o item que não corresponde ao status desejado
+//                 delete pedidoFiltradoPorStatus[campo];
+//             }
+//         });
+        
+//         // Se após o filtro de status, o pedido ainda tiver pelo menos um item que corresponde ao status
+//         if (temItemComStatusDesejadoNoPedido) {
+
+//             // ============== INÍCIO DA CORREÇÃO DE FILTRAGEM DE CATEGORIA (Aditivo/Extra) ==============
+//             const aditivoExtra = pedidoFiltradoPorStatus[CAMPO_ADITIVO_EXTRA];
+            
+//             // Só aplicamos a regra de idfuncionario se o Aditivo/Extra estiver presente no pedido
+//             if (aditivoExtra) {
+//                 // Verifica a presença robusta do idfuncionario (ignora null, undefined, "" e 0)
+//                 const temIdFuncionario = !!aditivoExtra.idfuncionario && aditivoExtra.idfuncionario !== 0;
+
+//                 // 1. Filtro para a ABA FUNCIONÁRIO: SÓ entra se TIVER idfuncionario
+//                 if (categoria === 'funcionario' && !temIdFuncionario) {
+//                     // Pula este pedido (não deve aparecer em Funcionário)
+//                     return; 
+//                 }
+
+//                 // 2. Filtro para a ABA FUNÇÃO: SÓ entra se NÃO TIVER idfuncionario
+//                 if (categoria === 'funcao' && temIdFuncionario) {
+//                     // Pula este pedido (deve aparecer em Funcionário, não em Função)
+//                     return; 
+//                 }
+//             }
+//             // ============== FIM DA CORREÇÃO DE FILTRAGEM DE CATEGORIA ==============
+
+
+//             let chave;
+//             if (categoria === 'funcionario') {
+//                 chave = pedidoFiltradoPorStatus.funcionario;
+//             } else { // categoria === 'funcao'
+//                 // Agrupa por Tipo de Solicitação (ADITIVO, EXTRABONIFICADO, etc.)
+//                 const tipo = pedidoFiltradoPorStatus[CAMPO_ADITIVO_EXTRA]?.tipoSolicitacao || 'SOLICITAÇÃO DE FUNÇÃO';
+//                 chave = tipo;
+//             }
+            
+//             if (!gruposMap[chave]) gruposMap[chave] = [];
+//             // Adiciona a VERSÃO FILTRADA do pedido ao mapa
+//             gruposMap[chave].push(pedidoFiltradoPorStatus);
+//         }
+//     });
+//     // --- FIM DO AGRUPAMENTO E FILTRAGEM ---
+
+//     // 2. Ordenação dos Grupos (por data de criação)
+//     const chavesOrdenadas = Object.keys(gruposMap).sort((a, b) => {
+//         const pedidoA = gruposMap[a][0];
+//         const pedidoB = gruposMap[b][0];
+//         const timeA = new Date(pedidoA.dtCriacao).getTime();
+//         const timeB = new Date(pedidoB.dtCriacao).getTime();
+//         const isANaN = isNaN(timeA);
+//         if (isANaN) return 1;
+//         const isBNaN = isNaN(timeB);
+//         if (isBNaN) return -1;
+//         return timeB - timeA;
+//     });
+    
+//     // 3. Limpa o container novamente (remove a mensagem de 'Carregando')
+//     container.innerHTML = ""; 
+    
+//     if (chavesOrdenadas.length === 0) {
+//         const msg = document.createElement("p");
+//         msg.textContent = `Não há pedidos ou solicitações com status "${statusDesejado.charAt(0).toUpperCase() + statusDesejado.slice(1)}" nesta categoria.`;
+//         container.appendChild(msg);
+        
+//         // Atualiza a contagem da sub-aba (Badge)
+//         const countSpan = document.getElementById(`${containerId.split('-list-')[0]}-count-${statusDesejado}`);
+//         if (countSpan) {
+//             countSpan.textContent = 0;
+//         }
+//         return;
+//     }
+
+
+//     // 4. Cria o container principal com classe .lista-funcionarios
+//     const listaGrupos = document.createElement("div");
+//     listaGrupos.className = "lista-funcionarios"; 
+//     container.appendChild(listaGrupos);
+
+
+//     chavesOrdenadas.forEach(chaveNome => {
+//         // PedidosDoGrupo agora contêm apenas os itens que correspondem ao status
+//         const pedidosDoGrupo = gruposMap[chaveNome];
+        
+//         const divGrupo = document.createElement("div");
+//         divGrupo.className = "funcionario"; 
+
+//         const header = document.createElement("div");
+//         header.className = "funcionario-header"; 
+
+//         let tituloGrupo;
+//         let subtituloGrupo = '';
+//         let pedidosRenderizadosNoGrupo = 0;
+        
+//         if (categoria === 'funcionario') {
+//             tituloGrupo = chaveNome || "Funcionário Desconhecido";
+//             // Para Funcionário, o subtítulo é o Solicitante
+//             subtituloGrupo = `Solicitante: ${pedidosDoGrupo[0].nomeSolicitante || pedidosDoGrupo[0].solicitante_nome || "Você"}`;
+//         } else { // categoria === 'funcao'
+//             tituloGrupo = chaveNome || "Solicitação de Função Desconhecida";
+//             // Para Função/Tipo, mantemos o Solicitante no subtítulo (MELHORIA)
+//             subtituloGrupo = `Solicitante: ${pedidosDoGrupo[0].nomeSolicitante || pedidosDoGrupo[0].solicitante_nome || "Você"}`;
+//         }
+        
+//         const containerBody = document.createElement("div");
+//         containerBody.className = "funcionario-body hidden"; 
+        
+        
+//         // Renderização dos Cards
+//         pedidosDoGrupo.forEach(pedido => {
+//             camposTodos.forEach(campo => {
+//                 // Verifica o pedido filtrado (que só tem o campo se ele corresponder ao statusDesejado)
+//                 const info = pedido[campo]; 
+//                 if (!info) return;
+
+//                 const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
+//                 const valorAlterado = isAditivoExtra || (info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao);
+//                 if (!valorAlterado) return;
+                
+//                 const statusAtual = (info.status || STATUS_PENDENTE).toLowerCase();
+                
+//                 // Esta verificação é redundante após o filtro acima, mas garante a consistência
+//                 if (statusAtual !== statusDesejado) return; 
+
+//                 pedidosRenderizadosNoGrupo++; 
+//                 totalItensRenderizados++; 
+
+//                 // MUDANÇA: Formatar o status (sem o fallback "Pendente", pois o filtro garante que é o status correto)
+//                 const statusTextoFormatado = statusAtual.charAt(0).toUpperCase() + statusAtual.slice(1);
+                
+//                 const card = document.createElement("div");
+//                 card.className = "pedido-card"; 
+
+//                 let corQuadrado = "#facc15"; 
+//                 if (statusAtual === STATUS_AUTORIZADO) corQuadrado = "#16a34a"; 
+//                 if (statusAtual === STATUS_REJEITADO) corQuadrado = "#dc2626"; 
+
+//                 let tituloCard;
+//                 if (isAditivoExtra) {
+//                     const tipo = info.tipoSolicitacao;
+//                     if (tipo && tipo.toUpperCase() === 'FUNCEXCEDIDO') {
+//                         tituloCard = "Limite Diário Excedido por Função/Evento";
+//                     } else {
+//                         // O nome do tipo de solicitação (ADITIVO, EXTRABONIFICADO)
+//                         tituloCard = tipo;
+//                     }
+//                 } else {
+//                     tituloCard = campo.replace("status", "").replace(/([A-Z])/g, ' $1').trim();
+//                     tituloCard = tituloCard.charAt(0).toUpperCase() + tituloCard.slice(1);
+//                 }
+
+//                 let innerHTML = `<div>
+//                     <strong>${tituloCard}</strong><br>`;
+
+//                 // if (pedido.evento) {
+//                 //     innerHTML += `<strong>Evento:</strong> ${pedido.evento}<br>`;
+//                 // }correto e funcinonal                
+                
+//                 // Exibe o nome do funcionário dentro do card da aba 'Função' (o agrupamento é por tipo)
+//                 // if (categoria === 'funcao' && pedido.funcionario) {
+//                 //     innerHTML += `<small>Func.: ${pedido.funcionario}</small><br>`;
+//                 // }
+
+//                 if (pedido.evento) {
+                    
+//                     // Lógica para a ABA FUNCIONÁRIOS: Inclui o Funcionário (nome completo)
+//                     if (categoria === 'funcionario' && pedido.funcionario) {
+//                         // Certifica-se de que o nome do funcionário está disponível
+//                         innerHTML += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
+//                     } 
+                    
+//                     // Lógica para a ABA FUNÇÕES: Inclui a Função (Tipo de Solicitação)
+//                     else if (categoria === 'funcao' && isAditivoExtra) {
+//                         // O 'tipoSolicitacao' atua como o nome da Função/Tipo de solicitação no contexto de orçamento
+//                         const tipoSolicitacao = info.tipoSolicitacao || 'N/A';
+//                         innerHTML += `<strong>Evento:</strong> ${pedido.evento} - <strong>Função:</strong> ${pedido.nmfuncao}<br>`;
+//                     }
+                    
+//                     // Lógica de fallback para outros pedidos (ou pedidos padrão sem funcionário)
+//                     else {
+//                          innerHTML += `<strong>Evento:</strong> ${pedido.evento}<br>`;
+//                     }
+//                 }
+                
+//                 // Exibe o nome do funcionário dentro do card da aba 'Função' (se houver, para referência)
+//                 if (categoria === 'funcao' && pedido.funcionario) {
+//                     innerHTML += `<small>Func.: ${pedido.funcionario}</small><br>`;
+//                 }
+                
+//                 if (isAditivoExtra) {
+//                     if (info.quantidade) {
+//                         innerHTML += `Qtd. Solicitada: ${info.quantidade}<br>`;
+//                     }
+//                     innerHTML += `Status: <span class="status-text font-semibold"><strong>${statusTextoFormatado}</strong></span><br>`;
+//                 } else if (info.valor !== undefined) {
+//                     innerHTML += `Valor: R$ ${info.valor} - <span class="status-text font-semibold">${statusTextoFormatado}</span><br>`;
+//                 } else if (info.datas) {
+//                     innerHTML += `Datas: ${info.datas.map(d => d.data).join(", ")} - <span class="status-text font-semibold">${statusTextoFormatado}</span><br>`;
+//                 }
+
+//                 if (info.descricao) {
+//                     innerHTML += `Descrição: ${info.descricao}<br>`;
+//                 }
+
+//                 // Botões de Ação (APENAS para PENDENTES)
+//                 if (pedido.ehMasterStaff && statusAtual === STATUS_PENDENTE) {
+//                     innerHTML += `
+//                         <div class="flex gap-2 mt-2">
+//                             <button class="aprovar">Autorizar</button>
+//                             <button class="negar">Rejeitar</button>
+//                         </div>
+//                     `;
+//                 }
+
+//                 innerHTML += `</div>`;
+//                 // Indicador de status
+//                 innerHTML += `<div class="quadrado-arredondado" style="background-color: ${corQuadrado}; width: 15px; height: 15px; border-radius: 50%;" title="Status: ${statusTextoFormatado}"></div>`;
+
+//                 card.innerHTML = innerHTML;
+//                 containerBody.appendChild(card);
+
+//                 // Event Listeners (Apenas se for PENDENTE)
+//                 if (pedido.ehMasterStaff && statusAtual === STATUS_PENDENTE) {
+//                     const aprovarBtn = card.querySelector(".aprovar");
+//                     const negarBtn = card.querySelector(".negar");
+
+//                     const idReferencia = isAditivoExtra ? pedido.idpedido : pedido.idpedido;
+//                     if (!idReferencia) return; 
+
+//                     // ATENÇÃO: As funções de backend 'atualizarStatusAditivoExtra' e 'atualizarStatusPedido'
+//                     // devem estar definidas globalmente para que estes eventos funcionem.
+//                     const statusUpdateFn = isAditivoExtra ? atualizarStatusAditivoExtra : atualizarStatusPedido;
+//                     const campoParaBackend = isAditivoExtra ? null : campo;
+
+//                     const recarregarPainel = () => {
+//                         // Simula o clique na aba principal para forçar o re-render completo
+//                         const mainTabBtn = document.querySelector(`.main-tab-btn[data-categoria="${categoria}"]`);
+//                         mainTabBtn?.click();
+                        
+//                         // Garante que a sub-aba anterior seja reativada
+//                         const subTabBtn = document.querySelector(`.sub-tab-btn[data-list-id="${containerId}"]`);
+//                         subTabBtn?.click();
+//                     };
+
+//                     aprovarBtn?.addEventListener("click", async () => {
+//                         // Idealmente, usar um modal customizado no lugar de 'alert' ou 'confirm'.
+//                         if (isAditivoExtra) {
+//                             await statusUpdateFn(idReferencia, STATUS_AUTORIZADO, card); 
+//                         } else {
+//                             await statusUpdateFn(idReferencia, campoParaBackend, STATUS_AUTORIZADO, card);
+//                         }
+//                         recarregarPainel();
+//                     });
+
+//                     negarBtn?.addEventListener("click", async () => {
+//                         // Idealmente, usar um modal customizado para coletar a justificativa.
+//                         let justificativa = "Rejeitado via Painel de Controle"; 
+//                         if (isAditivoExtra) {
+//                             // Simulando a necessidade de input de justificativa.
+//                             console.log(`Ação de rejeitar Aditivo Extra (id: ${idReferencia}). Solicitando justificativa...`);
+//                         }
+                        
+//                         if (isAditivoExtra) {
+//                             await statusUpdateFn(idReferencia, STATUS_REJEITADO, card, justificativa); 
+//                         } else {
+//                             await statusUpdateFn(idReferencia, campoParaBackend, STATUS_REJEITADO, card, justificativa);
+//                         }
+//                         recarregarPainel();
+//                     });
+//                 }
+//             });
+//         });
+
+//         // Adiciona o cabeçalho do grupo e o corpo (expansível)
+//         if (pedidosRenderizadosNoGrupo > 0) {
+//             header.innerHTML = `
+//                 <div>
+//                     ${categoria === 'funcionario' ? 'Funcionário' : 'Função/Tipo'}: <strong>${tituloGrupo}</strong><br>
+//                     <small class="text-xs text-gray-500">${subtituloGrupo}</small>
+//                 </div>
+//                 <div class="flex items-center gap-2">
+//                     <span>${pedidosRenderizadosNoGrupo}</span> <i class="fas fa-chevron-down text-gray-500 text-xs transition-transform transform"></i>
+//                 </div>
+//             `;
+            
+//             header.addEventListener("click", () => {
+//                 containerBody.classList.toggle("hidden");
+//                 header.querySelector('i').classList.toggle('rotate-180');
+//             });
+
+//             divGrupo.appendChild(header);
+//             divGrupo.appendChild(containerBody);
+//             listaGrupos.appendChild(divGrupo);
+//         }
+//     });
+
+//     // 5. Atualiza a contagem da sub-aba (Badge)
+//     const countSpan = document.getElementById(`${containerId.split('-list-')[0]}-count-${statusDesejado}`);
+//     if (countSpan) {
+//         countSpan.textContent = totalItensRenderizados;
+//     }
+// }
+
+///FIM DO NOVO TRECHO
+
+
+// Função para atualizar status via fetch
+
+
+/**
+ * Renderiza a lista de pedidos filtrados por categoria e status, 
+ * controlando a visibilidade dos botões de aprovação/rejeição com base na permissão do usuário.
+ * * @param {Array<Object>} pedidosCompletos - Lista completa de pedidos unificados.
+ * @param {string} containerId - ID do container onde os pedidos serão renderizados (ex: 'tab-content-funcionario-list-pendente').
+ * @param {('funcionario'|'funcao')} categoria - A categoria atual da aba (funcionario ou funcao).
+ * @param {string} statusDesejado - O status para filtrar (pendente, autorizado, rejeitado).
+ * @param {boolean} podeAprovar - Indica se o usuário logado tem permissão Master (Pode aprovar/rejeitar).
+ */
+function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
@@ -3486,15 +3849,6 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 let innerHTML = `<div>
                     <strong>${tituloCard}</strong><br>`;
 
-                // if (pedido.evento) {
-                //     innerHTML += `<strong>Evento:</strong> ${pedido.evento}<br>`;
-                // }correto e funcinonal                
-                
-                // Exibe o nome do funcionário dentro do card da aba 'Função' (o agrupamento é por tipo)
-                // if (categoria === 'funcao' && pedido.funcionario) {
-                //     innerHTML += `<small>Func.: ${pedido.funcionario}</small><br>`;
-                // }
-
                 if (pedido.evento) {
                     
                     // Lógica para a ABA FUNCIONÁRIOS: Inclui o Funcionário (nome completo)
@@ -3506,7 +3860,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     // Lógica para a ABA FUNÇÕES: Inclui a Função (Tipo de Solicitação)
                     else if (categoria === 'funcao' && isAditivoExtra) {
                         // O 'tipoSolicitacao' atua como o nome da Função/Tipo de solicitação no contexto de orçamento
-                        const tipoSolicitacao = info.tipoSolicitacao || 'N/A';
+                        // Adicionando nmfuncao conforme a lógica anterior
                         innerHTML += `<strong>Evento:</strong> ${pedido.evento} - <strong>Função:</strong> ${pedido.nmfuncao}<br>`;
                     }
                     
@@ -3536,8 +3890,8 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                     innerHTML += `Descrição: ${info.descricao}<br>`;
                 }
 
-                // Botões de Ação (APENAS para PENDENTES)
-                if (pedido.ehMasterStaff && statusAtual === STATUS_PENDENTE) {
+                // 🌟 CORREÇÃO DE VISUALIZAÇÃO: Botões de Ação (APENAS se for PENDENTE E o usuário PUDER APROVAR)
+                if (statusAtual === STATUS_PENDENTE && podeAprovar) {
                     innerHTML += `
                         <div class="flex gap-2 mt-2">
                             <button class="aprovar">Autorizar</button>
@@ -3545,6 +3899,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         </div>
                     `;
                 }
+                // Se não for Master, ou não for PENDENTE, nada é adicionado, mantendo a visualização de status.
 
                 innerHTML += `</div>`;
                 // Indicador de status
@@ -3553,8 +3908,8 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                 card.innerHTML = innerHTML;
                 containerBody.appendChild(card);
 
-                // Event Listeners (Apenas se for PENDENTE)
-                if (pedido.ehMasterStaff && statusAtual === STATUS_PENDENTE) {
+                // 🌟 CORREÇÃO DE EVENT LISTENERS: Aplicar apenas se for PENDENTE E o usuário PUDER APROVAR
+                if (statusAtual === STATUS_PENDENTE && podeAprovar) {
                     const aprovarBtn = card.querySelector(".aprovar");
                     const negarBtn = card.querySelector(".negar");
 
@@ -3635,10 +3990,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
     }
 }
 
-///FIM DO NOVO TRECHO
 
-
-// Função para atualizar status via fetch
 async function atualizarStatusPedido(idpedido, categoria, acao, cardElement) {
   try {
     const resposta = await fetchComToken('/main/notificacoes-financeiras/atualizar-status', {
