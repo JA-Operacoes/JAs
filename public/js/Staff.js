@@ -1945,7 +1945,9 @@ function inicializarEPreencherCampos(eventData) {
         document.getElementById('selectStatusAjusteCusto').style.display = 'none';
         statusAjusteCustoInput.style.display = 'block';
         console.log("STATUS AJUSTE CUSTO SEM PERMISSAO TOTAL", eventData.statusajustecusto);
-        statusAjusteCustoInput.value = eventData.statusAjusteCusto || 'Pendente';
+
+        // CORREÇÃO AQUI: use 'statusajustecusto' (tudo minúsculo)
+        statusAjusteCustoInput.value = eventData.statusajustecusto || 'Pendente'; 
         aplicarCorStatusInput(statusAjusteCustoInput);
 
         document.getElementById('selectStatusCaixinha').style.display = 'none';
