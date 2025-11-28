@@ -67,6 +67,83 @@ router.get("/", async (req, res) => {
     });
 });
 
+router.get("/extra-bonificado", async (req, res) => {
+    
+    // ✅ CORREÇÃO DE ROBUSTEZ: Garante que idEmpresa seja uma string e evita null/undefined no pool.query
+    const idEmpresa = String(req.headers.idempresa || req.query.idempresa || '').trim();
+    
+    // DEBUG: Esta linha DEVE aparecer no seu terminal do Node.js
+    console.log("DEBUG: Tentando buscar Extra Bonificado. ID Empresa Tratado:", idEmpresa);
+
+    // 1. Verificação obrigatória antes de consultar o DB
+    if (!idEmpresa) {
+        console.error("🚨 ERRO 400: idEmpresa ausente/inválido.");
+        return res.status(400).json({ mensagem: "ID da empresa é obrigatório." });
+    }
+
+    try {
+        const sqlQuery = `
+            SELECT /* ... */ FROM aditivoextra ae
+            -- ... (Restante da sua query) ...
+            WHERE 
+                ae.status IN ('Autorizado') 
+                AND ae.tiposolicitacao ='Extra Bonificado'
+                AND ae.idempresa = $1; 
+        `;
+
+        // O CRASH ESTÁ ACONTECENDO AQUI, FORA DO TRATAMENTO ASSÍNCRONO DE ERRO.
+        const pedidos = await pool.query(sqlQuery, [idEmpresa]); 
+        
+        return res.status(200).json(pedidos.rows); 
+
+    } catch (error) {
+        // ... (Se o erro for assíncrono, como SQL inválido) ...
+        console.error("🚨 ERRO ASÍNCRONO/DB NA ROTA EXTRA BONIFICADO:", error);
+        return res.status(500).json({ mensagem: "Erro interno do servidor.", detalhe: error.message });
+    }
+});
+
+router.get("/adicionais", async (req, res) => {
+    // 1. OBTENÇÃO DO ID DA EMPRESA
+    const idEmpresa = req.headers.idempresa || req.query.idempresa;
+
+    try {
+        const sqlQuery = `
+            SELECT
+                ae.idaditivoextra,
+                ae.idfuncionario, 
+                ae.idfuncao, 
+                ae.idorcamento, 
+                f.nome AS nome_funcionario_afetado,
+                e.nmevento AS nome_evento,
+                o.nrorcamento,
+                ae.tiposolicitacao,
+                ae.justificativa,
+                ae.status AS status_aditivo,
+                u.nome AS nome_usuario_solicitante
+            FROM aditivoextra ae
+            LEFT JOIN orcamentos o ON ae.idorcamento = o.idorcamento
+            LEFT JOIN funcionarios f ON ae.idfuncionario = f.idfuncionario
+            LEFT JOIN eventos e ON o.idevento = e.idevento
+            LEFT JOIN usuarios u ON ae.idusuariosolicitante = u.idusuario
+            WHERE 
+                ae.status IN ('Autorizado') 
+                AND ae.tiposolicitacao ='Aditivo'
+                -- 2. FILTRO DA EMPRESA ADICIONADO AQUI
+                AND ae.idempresa = $1; 
+        `;
+
+        // 3. USA pool.query E PASSA O ID DA EMPRESA
+        const pedidos = await pool.query(sqlQuery, [idEmpresa]); 
+
+        return res.status(200).json(pedidos.rows); 
+
+    } catch (error) {
+        console.error("Erro ao buscar pedidos Adicionais:", error);
+        return res.status(500).json({ mensagem: "Erro interno do servidor.", detalhe: error.message });
+    }
+});
+
 
 // =======================================
 // PROXIMOS EVENTOS E CALENDARIO
