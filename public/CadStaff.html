@@ -214,14 +214,18 @@
                     </select>
                   </div>
 
+                  
+                </div>
+                
+                <div class="Selects-temporario">
                   <div class="field">
-                    <label for="nmPavilhao">Pavilhão:</label>
-                    <input type="hidden" id="idPavilhao" name="idPavilhao">
-                    <select class="nmPavilhao" name="nmPavilhao" id="nmPavilhao" required>
-                      <option value="" selected disabled>Selecione o Pavilhão</option>
+                    <label for="nmPavilhao">Selecione o(s) Pavilhão(ões):</label>
+                    <input type="hidden" id="idPavilhao" name="idPavilhao" legend="Segure a tecla Ctrl para selecionar múltiplos pavilhões">
+                    <select class="nmPavilhao" name="nmPavilhao" id="nmPavilhao" multiple required >
+                      <!-- <option value="" selected disabled></option> -->
                     </select>
                   </div>
-
+                  <p><i class="fa-solid fa-circle-info"></i>Segure a tecla Ctrl para selecionar múltiplos pavilhões</p>
                 </div>
 
                   <div class="Selects">
@@ -256,17 +260,21 @@
                     </div>
                 </div> -->
                 <div id="containerViagens">
-                  <div class="checkbox">
+                  <div class="checkbox">                    
                       <div class="Vertical">
-                        <label for="viagem1Check">Alimentação Viagem  (1 - Almoço+Jantar)</label>
+                        <label for="viagem1Check">Alimentação Viagem:  (1 - Almoço+Jantar)</label>
                         <input id="viagem1Check" type="checkbox" title="AJUDA DE CUSTO COM ALMOÇO + JANTAR"/>
                         
                       </div>
                       <div class="Vertical">
                         <label for="viagem2Check"> (2 - Café da Manhã+Almoço+Jantar)</label>
-                        <input id="viagem2Check" type="checkbox" title="AJUDA DE CUSTO COM CAFÉ MANHÃ + ALMOÇO + JANTAR"/>
-                        
+                        <input id="viagem2Check" type="checkbox" title="AJUDA DE CUSTO COM CAFÉ MANHÃ + ALMOÇO + JANTAR"/>                        
                       </div>
+                      <div class="Vertical">
+                        <label for="viagem3Check"> (3 - Local)</label>
+                        <input id="viagem3Check" type="checkbox" title="AJUDA DE CUSTO LOCAL"/>                        
+                      </div>
+                      
                   </div>
                 </div>
                 <div class="form-2colunas">              
@@ -299,6 +307,30 @@
                     <p id="contadorDatas"></p>
                   </div>
                 </div>
+
+                <!-- <div class="form-2colunas"> 
+                  <div class="form2" id="campoStatusAditivo" style="display: none;">
+                    <input type="text" id="statusAditivo" name="statusAditivo" readonly required/>
+                    <select id="selectStatusAditivo" style="display:none;">
+                      <option value="none" disabled selected>Autorização do Aditivo</option>
+                      <option value="Pendente">Pendente</option>
+                      <option value="Autorizado">Autorizado</option>
+                      <option value="Rejeitado">Rejeitado</option>
+                    </select>
+                    <label for="statusAditivo">Status Aditivo</label>
+                  </div>
+
+                  <div class="form2" id="campoStatusExtraBonificado" style="display: none;">
+                    <input type="text" id="statusExtraBonificado" name="statusExtraBonificado" readonly required/>
+                    <select id="selectStatusExtraBonificado" style="display:none;">
+                      <option value="none" disabled selected>Autorização Extra Bonificado</option>
+                      <option value="Pendente">Pendente</option>
+                      <option value="Autorizado">Autorizado</option>
+                      <option value="Rejeitado">Rejeitado</option>
+                    </select>
+                    <label for="statusExtraBonificado">Status Extra Bonificado</label>
+                  </div>
+                </div> -->
                   
                 <div class="form-2colunas valores"> 
                   <div class="form2">

@@ -7,6 +7,7 @@ const logMiddleware = require("../middlewares/logMiddleware");
 const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
+const multer = require('multer');
 
 // Aplica autenticação em todas as rotas
 // router.use(autenticarToken);
@@ -78,7 +79,8 @@ router.get(
             o.geradoanoposterior,
             o.indicesaplicados,
             o.vlrctofixo,
-            o.percentctofixo    
+            o.percentctofixo,
+            o.contratourl   
         FROM
             orcamentos o
         JOIN
@@ -981,273 +983,112 @@ router.get('/download/contrato/:fileName', autenticarToken(), async (req, res) =
         res.status(500).json({ error: 'Erro ao baixar o arquivo', detail: error.message });
     }
 });
-      
 
-// router.get("/:nrOrcamento/contrato1", 
-//     autenticarToken(), 
-//     contextoEmpresa,
-//     verificarPermissao("Orcamentos", "pesquisar"),
-//     async (req, res) => {
-//         const client = await pool.connect();
-//         try {
-//             const { nrOrcamento } = req.params;
-//             const idempresa = req.idempresa;
 
-//             // ✅ Etapa 1: Busca dados do orçamento (incluindo o idorcamento)
-//             const queryOrcamento = `
-//                 SELECT 
-//                     o.idorcamento, o.nrorcamento, o.vlrcliente, o.nomenclatura AS nomenclatura,
-//                     o.dtinirealizacao AS inicio_realizacao , o.dtfimrealizacao AS fim_realizacao, o.formapagamento AS forma_pagamento, o.obsproposta AS escopo_servicos,
-//                     c.razaosocial AS cliente_nome, c.cnpj AS cliente_cnpj, c.inscestadual AS cliente_insc_estadual, c.nmcontato AS cliente_responsavel,
-//                     c.rua AS cliente_rua, c.numero AS cliente_numero, c.complemento AS cliente_complemento, c.cep AS cliente_cep,
-//                     e.nmevento AS evento_nome, lm.descmontagem AS local_montagem
-//                 FROM orcamentos o
-//                 JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
-//                 LEFT JOIN clientes c ON o.idcliente = c.idcliente
-//                 LEFT JOIN eventos e ON o.idevento = e.idevento
-//                 LEFT JOIN localmontagem lm ON o.idmontagem = lm.idmontagem
-//                 WHERE o.nrorcamento = $1 AND oe.idempresa = $2
-//                 LIMIT 1
-//             `;
+const contratosUploadDir = path.join(__dirname, '../uploads/contratos');
+if (!fs.existsSync(contratosUploadDir)) {
+    fs.mkdirSync(contratosUploadDir, { recursive: true });
+}
 
-//             const resultOrcamento = await client.query(queryOrcamento, [nrOrcamento, idempresa]);
+if (!fs.existsSync(contratosUploadDir)) fs.mkdirSync(contratosUploadDir, { recursive: true });
 
-//             if (resultOrcamento.rows.length === 0) {
-//                 return res.status(404).json({ error: "Orçamento não encontrado" });
-//             }
 
-//             const dados = resultOrcamento.rows[0];
-//             dados.data_assinatura = new Date().toLocaleDateString("pt-BR");
-//             dados.nr_orcamento = nrOrcamento;
-//             dados.valor_total = dados.vlrcliente;
-//             dados.ano_atual = new Date().getFullYear();
+const storageContratos = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, contratosUploadDir),
+    filename: (req, file, cb) => {
+        const nomeLimpo = file.originalname
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            .replace(/\s+/g, '_')
+            .replace(/[^\w.-]/g, '');
+        cb(null, nomeLimpo);
+    }
+});
 
-//             // ✅ Etapa 2: Busca todos os itens do orçamento na tabela orcamentoitens
-//             const queryItens = `
-//                 SELECT 
-//                     oi.qtditens AS qtd_itens, 
-//                     oi.produto AS produto, 
-//                     oi.setor,
-//                     oi.qtddias AS qtd_dias,
-//                     oi.categoria AS categoria,
-//                     oi.periododiariasinicio AS inicio_datas,
-//                     oi.periododiariasfim AS fim_datas
-//                 FROM orcamentoitens oi
-//                 LEFT JOIN funcao f ON oi.idfuncao = f.idfuncao
-//                 WHERE oi.idorcamento = $1
-//             `;
-//             const resultItens = await client.query(queryItens, [dados.idorcamento]);
+const fileFilterContratos = (req, file, cb) => {
+    const tiposPermitidos = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    if (tiposPermitidos.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Apenas arquivos PDF, DOC e DOCX são permitidos.'), false);
+};
 
-//             const categoriasMap = {};
-//             const adicionais = [];
+const uploadContratosMiddleware = multer({
+    storage: storageContratos,
+    fileFilter: fileFilterContratos,
+    limits: { fileSize: 10 * 1024 * 1024 }
+}).fields([{ name: 'contrato', maxCount: 1 }]);
 
-//             // ✅ Etapa 3: Processa e organiza os itens
-//             resultItens.rows.forEach(item => {
-//                 let categoria = item.categoria || "Outros";
-//                 const isLinhaAdicional = item.is_adicional;
+router.post('/uploadContratoManual', (req, res) => {
+    uploadContratosMiddleware(req, res, async (err) => {
+        try {
+            if (err) {
+                if (err instanceof multer.MulterError)
+                    return res.status(400).json({ success: false, message: `Erro do Multer: ${err.message}` });
+                return res.status(400).json({ success: false, message: err.message });
+            }
 
-//                 const datasFormatadas = (item.inicio_datas && item.fim_datas) 
-//                     ? `de: ${new Date(item.inicio_datas).toLocaleDateString("pt-BR")} até: ${new Date(item.fim_datas).toLocaleDateString("pt-BR")}`
-//                     : "";
+            if (!req.files || !req.files.contrato)
+                return res.status(400).json({ success: false, message: 'Nenhum arquivo enviado.' });
 
-//                 let itemDescricao = `• ${item.qtd_itens} ${capitalizarPalavras(item.produto)}`;
+            const arquivo = req.files.contrato[0];
+            const idOrcamento = req.query.orcamento;
 
-//                 if (item.setor && item.setor.toLowerCase() !== 'null' && item.setor !== '') {
-//                     itemDescricao += `, (${item.setor})`;
-//                 }
+            if (!idOrcamento)
+                return res.status(400).json({ success: false, message: 'Número do orçamento não informado.' });
 
-//                 if (item.qtd_dias !== '0' && datasFormatadas) {
-//                     itemDescricao += `, ${item.qtd_dias} Diária(s), ${datasFormatadas}`;
-//                 }
+            // URL pública do arquivo
+            const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+            const contratourl = `${baseUrl}/uploads/contratos/${arquivo.filename}`;
 
-//                 if (item.qtd_itens > 0) {
-//                     if (isLinhaAdicional) {
-//                         adicionais.push(itemDescricao);
-//                     } else {
-//                         if (categoria === "Produto(s)") {
-//                             categoria = "Equipe Operacional";
-//                         }
-//                         if (!categoriasMap[categoria]) categoriasMap[categoria] = [];
-//                         categoriasMap[categoria].push(itemDescricao);
-//                     }
-//                 }
-//             });
-            
-//             // ✅ Etapa 4: Adiciona os itens processados ao objeto de dados
-//             dados.itens_categorias = [];
-//             const ordemCategorias = ["Equipe Operacional", "Equipamento(s)", "Suprimento(s)"];
-            
-//             // Primeiro, adiciona as categorias na ordem fixa
-//             ordemCategorias.forEach(categoria => {
-//                 if (categoriasMap[categoria]) {
-//                     dados.itens_categorias.push({ nome: categoria, itens: categoriasMap[categoria] });
-//                     delete categoriasMap[categoria];
-//                 }
-//             });
-            
-//             // Em seguida, adiciona as categorias restantes
-//             for (const categoria in categoriasMap) {
-//                 if (categoriasMap.hasOwnProperty(categoria)) {
-//                     dados.itens_categorias.push({ nome: categoria, itens: categoriasMap[categoria] });
-//                 }
-//             }
-            
-//             dados.adicionais = adicionais;
+            console.log(`📁 Contrato "${arquivo.filename}" salvo para orçamento ${idOrcamento}`);
 
-//             console.log("📦 Dados enviados para o Python:", dados);
+            // 🔹 Atualiza no banco de dados
+            await pool.query(
+                `UPDATE orcamentos 
+                 SET contratourl = $1, dataatualizacao = NOW()
+                 WHERE nrorcamento = $2`,
+                [contratourl, idOrcamento]
+            );
 
-//             const pythonExecutable = "python";
-//             const pythonScriptPath = path.join(__dirname, "../public/python/Contrato.py");
+            // 🔹 Retorno JSON
+            res.setHeader('Content-Type', 'application/json');
+            return res.status(200).json({
+                success: true,
+                message: 'Contrato enviado e salvo com sucesso!',
+                fileName: arquivo.filename,
+                contratourl
+            });
 
-//             const python = spawn(pythonExecutable, [pythonScriptPath]);
+        } catch (error) {
+            console.error('Erro ao processar upload:', error);
+            return res.status(500).json({ success: false, message: 'Erro ao processar upload ou salvar no banco.' });
+        }
+    });
+});
 
-//             let output = "";
-//             let errorOutput = "";
+router.post("/salvarContratoUrl", async (req, res) => {
+    try {
+        const { idorcamento, contratourl } = req.body;
 
-//             python.stdin.write(JSON.stringify(dados));
-//             python.stdin.end();
+        if (!idorcamento || !contratourl) {
+            return res.status(400).json({ success: false, message: "Dados incompletos." });
+        }
 
-//             python.stdout.setEncoding("utf-8");
-//             python.stderr.setEncoding("utf-8");
+        await pool.query(
+            "UPDATE orcamentos SET contratourl = $1, dataatualizacao = NOW() WHERE nrorcamento = $2",
+            [contratourl, idorcamento]
+        );
 
-//             python.stdout.on("data", (data) => { output += data.toString(); });
-//             python.stderr.on("data", (data) => { errorOutput += data.toString(); });
+        return res.json({ success: true, message: "Contrato vinculado com sucesso!" });
+    } catch (error) {
+        console.error("Erro ao salvar contratourl:", error);
+        res.status(500).json({ success: false, message: "Erro ao salvar contratourl no banco." });
+    }
+});
 
-//             // ... 🔹 [tudo igual até gerar o arquivo pelo Python]
 
-//             python.on("close", async (code) => {
-//                 if (code !== 0) {
-//                     console.error("🐍 Erro Python:", errorOutput);
-//                     return res.status(500).json({ error: "Erro ao gerar contrato (Python)", detail: errorOutput });
-//                 }
-
-//                 const filePath = output.trim();
-//                 const fileName = path.basename(filePath);
-//                 const downloadUrl = `/orcamentos/download/contrato/${encodeURIComponent(fileName)}`;
-
-//                 if (!fs.existsSync(filePath)) {
-//                     return res.status(500).json({ error: "Arquivo do contrato não encontrado" });
-//                 }
-
-//                 // ✅ Apenas retorna o link do arquivo, sem ClickSign
-//                 res.status(200).json({
-//                     success: true,
-//                     message: "Contrato gerado com sucesso",
-//                     fileUrl: downloadUrl
-//                 });
-//             });
-
-//         } catch (error) {
-//             console.error("Erro ao gerar contrato:", error);
-//             res.status(500).json({ error: "Erro ao gerar contrato", detail: error.message });
-//         } finally {
-//             client.release();
-//         }
-//     }
-// );
-
-// router.post("/:nrOrcamento/enviar-clicksign", 
-//     autenticarToken(), 
-//     contextoEmpresa,
-//     verificarPermissao("Orcamentos", "alterar"),
-//     async (req, res) => {
-//         const client = await pool.connect();
-//         try {
-//             const { nrOrcamento } = req.params;
-
-//             // 🔹 Busca caminho do arquivo salvo
-//             const pastaContratos = path.join(__dirname, "../public/contratos"); 
-//             const files = fs.readdirSync(pastaContratos);
-//             const contratoFile = files.find(f => f.includes(nrOrcamento));
-
-//             if (!contratoFile) {
-//                 return res.status(404).json({ error: "Contrato não encontrado para este orçamento" });
-//             }
-
-//             const filePath = path.join(pastaContratos, contratoFile);
-//             const fileBase64 = fs.readFileSync(filePath, { encoding: "base64" });
-
-//             const nomeArquivoDownload = contratoFile;
-
-//             // 🔹 Aqui vai exatamente o mesmo payload/signers que você já usa
-//             const signers = [
-//                 {
-//                     email: "desenvolvedor1@japromocoes.com.br",
-//                     auths: ["email"],
-//                     sign_as: "sign",
-//                     send_email: true,
-//                     name: "JA Promoções",
-//                     locale: "empresa_assinatura"
-//                 },
-//                 {
-//                     email: "testemunha_email@dominio.com",
-//                     auths: ["email"],
-//                     sign_as: "witness",
-//                     send_email: true,
-//                     name: "Carla Lima",
-//                     locale:"testemunhaJa_assinatura"
-//                 },
-//                 {
-//                     email: "desenvolvedor@japromocoes.com.br",
-//                     auths: ["email"],
-//                     sign_as: "sign",
-//                     send_email: true,
-//                     name: "desenvolvedor Padrao",
-//                     locale: "cliente_assinatura"
-//                 }
-//             ];
-
-//             const clicksignPayload = {
-//                 document: {
-//                     path: `/contratos/${nomeArquivoDownload}`,
-//                     content_base64: `data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,${fileBase64}`,
-//                     name: nomeArquivoDownload,
-//                     auto_close: true,
-//                     signers: signers
-//                 }
-//             };
-
-//             const apiKey = "067ad4b9-d536-414f-bce9-90d491d187c6"; 
-//             const clicksignApiUrl = `https://sandbox.clicksign.com/api/v1/documents?access_token=${apiKey}`;
-
-//             const clicksignResponse = await fetch(clicksignApiUrl, {
-//                 method: 'POST',
-//                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-//                 body: JSON.stringify(clicksignPayload)
-//             });
-
-//             const clicksignResult = await clicksignResponse.json();
-
-//             if (!clicksignResponse.ok) {
-//                 return res.status(clicksignResponse.status).json({
-//                     error: "Erro ao enviar para ClickSign",
-//                     details: clicksignResult.errors
-//                 });
-//             }
-
-//             const signingUrl = clicksignResult.document.signing_url|| null;
-//             const documentKey = clicksignResult.document?.key || null;
-
-//             await pool.query(
-//                 `INSERT INTO contratos_clicksign (doc_key, nr_orcamento, urlcontrato) VALUES ($1, $2, $3)`,
-//                 [documentKey, nrOrcamento, signingUrl]
-//             );
-
-//             res.status(200).json({
-//                 success: true,
-//                 message: "Contrato enviado ao ClickSign com sucesso",
-//                 signingUrl,
-//                 clicksignResult
-//             });
-
-//         } catch (error) {
-//             console.error("Erro ao enviar contrato para ClickSign:", error);
-//             res.status(500).json({ error: "Erro ao enviar contrato", detail: error.message });
-//         } finally {
-//             client.release();
-//         }
-//     }
-// );
 
 router.get("/:nrOrcamento/proposta", 
     autenticarToken(), 
@@ -1930,4 +1771,80 @@ console.log("[BACKEND PATCH] Query Bruta (sem espaços):", updateQuery.replace(/
     }
 );
 
+
+router.patch(
+    // Novo endpoint: /orcamentos/:idorcamento/status
+    "/:idorcamento/status",
+    autenticarToken(),
+    contextoEmpresa,
+    verificarPermissao("Orcamentos", "alterar"),
+    logMiddleware("Orcamentos", {
+        buscarDadosAnteriores: async (req) => {
+            const idOrcamento = req.params.idorcamento;
+            const client = await pool.connect();
+            try {
+                // Busca o status anterior para o log
+                const result = await client.query('SELECT status FROM orcamentos WHERE idorcamento = $1', [idOrcamento]);
+                return {
+                    dadosanteriores: result.rows[0] ? { status: result.rows[0].status } : null,
+                    idregistroalterado: idOrcamento
+                };
+            } finally {
+                client.release();
+            }
+        },
+    }),
+    async (req, res) => {
+        const client = await pool.connect();
+        const idempresa = req.idempresa;
+        const idorcamento = parseInt(req.params.idorcamento);
+        // Recebe o novo status do corpo da requisição
+        const { status } = req.body; 
+
+        console.log(`[BACKEND PATCH] Tentando atualizar o status do Orçamento ${idorcamento} para: ${status}`);
+
+        try {
+            if (isNaN(idorcamento) || idorcamento <= 0) {
+                return res.status(400).json({ error: "ID do Orçamento inválido." });
+            }
+            if (!status || typeof status !== 'string') {
+                return res.status(400).json({ error: "O campo 'status' é obrigatório e deve ser uma string." });
+            }
+
+            await client.query("BEGIN");
+            
+            // Query para atualizar APENAS o campo status.
+            // A condição de subconsulta garante que o orçamento pertence à empresa do usuário.
+            const updateQuery = `
+                UPDATE orcamentos
+                SET status = $1
+                WHERE idorcamento = $2
+                AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $2) = $3
+                RETURNING idorcamento;
+            `;
+            
+            const result = await client.query(updateQuery, [status, idorcamento, idempresa]);
+
+            if (result.rowCount === 0) {
+                await client.query("ROLLBACK");
+                return res.status(404).json({ error: "Orçamento não encontrado ou permissão negada." });
+            }
+
+            await client.query("COMMIT");
+            
+            // Configuração para o log (logMiddleware)
+            res.locals.acao = 'alterou o status';
+            res.locals.idregistroalterado = idorcamento;
+
+            res.status(200).json({ success: true, message: `Status do orçamento atualizado para '${status}' com sucesso.` });
+
+        } catch (error) {
+            await client.query("ROLLBACK");
+            console.error("❌ Erro ao atualizar o status do orçamento:", error.message);
+            res.status(500).json({ error: "Erro interno ao atualizar o status do orçamento.", detail: error.message });
+        } finally {
+            client.release();
+        }
+    }
+);
 module.exports = router;

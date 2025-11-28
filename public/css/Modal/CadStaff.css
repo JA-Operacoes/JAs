@@ -505,6 +505,22 @@ border: 1px solid #dc3545;
   opacity: 1;
 }
 
+
+.checkbox input[type="checkbox"]:disabled {
+    opacity: 0.4; /* Torna a caixa de seleção mais transparente */
+    cursor: not-allowed;
+}
+
+/* Seleciona o RÓTULO (label) adjacente a um checkbox desabilitado */
+/* O seletor > .Vertical garante que apenas os elementos filhos diretos da div.checkbox sejam afetados, */
+/* mas o seletor mais simples do "sibling" + label é suficiente e mais direto. */
+.checkbox input[type="checkbox"]:disabled + label {
+    color: #969292; /* Cor cinza claro para o texto */
+    cursor: not-allowed;
+    /* opcional: pode adicionar um efeito tracejado sutil se quiser */
+    text-decoration: none;
+}
+
 #apelidoFuncionario, #nmFuncionario.nmFuncionario {
   width: 550px;
 }
@@ -696,6 +712,18 @@ input#statusMeiaDiaria.status-Rejeitado {
     color: green;
 }
 
+.nmPavilhao option:checked {
+    /* Sugestão 1: Mudar a cor do texto para um azul forte */
+    background-color: var(--primary-color);
+    color: var(--font-color);
+    
+    /* Sugestão 2: Mudar a cor de fundo (pode anular a cor padrão de seleção do SO) */
+    /* background-color: #e0f0ff; */ 
+    
+    /* Sugestão 3: Tornar o texto em negrito */
+    font-weight: bold;
+}
+
 .btnEnviar {
     /* (Seus estilos de cor azul, etc.) */
     cursor: pointer;
@@ -726,6 +754,8 @@ input#statusMeiaDiaria.status-Rejeitado {
   justify-content: center;
   align-items: center;
 }
+
+
 
 
 .form,
@@ -777,6 +807,23 @@ input#statusMeiaDiaria.status-Rejeitado {
   justify-content: center;
   align-items: center;
   gap: 5px;
+}
+
+.Selects-temporario {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    margin: 10px 0 10px 30%;
+}
+
+.Selects-temporario p{
+  margin-top: 20px;
+}
+
+select#nmPavilhao {
+    height: 100px;
+    cursor: pointer;
 }
 
 .field {
@@ -1165,6 +1212,10 @@ input.diariaDobrada.form-control.input, .meiaDiaria.form-control.input {
     width: 900px;
 }
 
+.flatpickr-input[data-input] {
+    display: none;
+}
+
 #containerStatusDiariaDobrada,
 #containerStatusMeiaDiaria {
     text-align: center;
@@ -1239,6 +1290,138 @@ input.preenchido ~ label {
 .flatpickr-calendar {
   z-index: 1000; /* Maior que o z-index do modal Bootstrap (1050) */
 }
+
+/* // Estilos específicos para o modal de cadastro de funcionários */
+
+/* --- CSS SUGERIDO PARA REPLICAR O ESTILO DAS ABAS DA IMAGEM --- */
+
+/* Container geral para as abas principais (Funcionários/Funções) */
+.tabs-container-wrapper {
+    display: flex;
+    flex-direction: column;
+    /* Ajuste para caber dentro do painelDetalhes */
+    width: 100%;
+    margin-top: 10px; 
+}
+
+/* 1. ABAS PRINCIPAIS (Funcionários e Funções) */
+.abas-principais {
+    display: flex;
+    /* Faz as abas ocuparem toda a largura disponível */
+    width: 100%; 
+    border-bottom: 2px solid var(--cor-borda-aba, #ccc); /* Linha divisória */
+}
+
+/* Estilo base para todos os botões de aba */
+.aba {
+    padding: 8px 15px;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s, color 0.3s;
+    /* Garante que o texto não seja selecionável */
+    user-select: none; 
+}
+
+/* Estilo da aba ativa (Com a cor principal do seu tema, que parece ser um bordô/vermelho escuro) */
+.aba.ativa {
+    background-color: var(--cor-primaria-clara, #a02020); /* Exemplo de cor de destaque */
+    color: white;
+    /* Remove a borda inferior para simular o "encaixe" */
+    border-bottom: 2px solid var(--cor-primaria-clara, #a02020); 
+}
+
+/* Estilo da aba desativada (Cor de fundo neutra, cor do texto escuro) */
+.aba.desativada {
+    background-color: var(--cor-fundo-card, #f4f4f4); /* Exemplo de cinza claro */
+    color: var(--cor-texto-principal, #333);
+    border-bottom: 2px solid var(--cor-borda-aba, #ccc);
+}
+
+.aba:hover:not(.ativa) {
+    background-color: var(--cor-hover-aba, #e0e0e0);
+}
+
+/* 2. SUB-ABAS (Pendentes, Autorizados, Rejeitados) */
+
+/* Container para as sub-abas (abaixo do conteúdo principal) */
+.sub-abas-pedidos {
+    display: flex;
+    margin-top: 10px; /* Separa do título */
+    /* Garante que as sub-abas fiquem menores e mais discretas */
+}
+
+.sub-abas-pedidos .aba {
+    padding: 5px 10px;
+    font-size: 0.9em;
+    /* Ajuste de cor para que pareça sub-item */
+    background-color: var(--cor-fundo-card-claro, #eee);
+    color: var(--cor-texto-principal, #333);
+    border-radius: 4px 4px 0 0;
+    margin-right: 5px;
+    border-bottom: 2px solid var(--cor-borda-aba, #ccc);
+}
+
+.sub-abas-pedidos .aba.ativa {
+    background-color: var(--cor-secundaria, #555); /* Um cinza mais escuro */
+    color: white;
+    border-bottom: 2px solid var(--cor-secundaria, #555);
+}
+
+/* Conteúdo */
+.painel-tabs {
+    /* Garante que o painel de conteúdo fique abaixo da aba ativa */
+    padding: 15px;
+    border: 1px solid var(--cor-borda-aba, #ccc);
+    border-top: none; 
+}
+
+.painel-tabs.desativado {
+    display: none;
+}
+.painel-tabs.ativo {
+    display: block;
+}
+
+.pedidos-list-container.hidden {
+    display: none;
+}
+
+/* Estilo para os grupos de funcionários/funções */
+.funcionario {
+    border: 1px solid #ddd;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.funcionario-header {
+    background-color: #f9f9f9;
+    padding: 10px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.funcionario-body {
+    padding: 10px;
+    border-top: 1px solid #eee;
+}
+
+/* Estilo para os cards individuais */
+.pedido-card {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
+    margin-bottom: 8px;
+    background-color: white;
+    border: 1px solid #ccc;
+    border-left: 5px solid var(--cor-primaria-clara, #a02020);
+    border-radius: 4px;
+}
+
+/* //fim estilos modal cadastro funcionarios */
 
 @media (min-width: 1656px){
 

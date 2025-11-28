@@ -117,7 +117,22 @@ def gerar_proposta(dados):
     periodo_desmontagem = f"{inicio_desmontagem} ATÉ: {fim_desmontagem}" \
     if inicio_desmontagem and fim_desmontagem else inicio_desmontagem or fim_desmontagem or "N/D"
 
-    ano_atual = datetime.now().year
+    ano_do_evento = dados.get("edicao") # Tenta ler o campo Edição primeiro
+
+    # Se a Edição não estiver definida ou vazia, usa o ano da data de Realização (que é 2026)
+    if not ano_do_evento:
+        data_realizacao_str = dados.get("inicio_realizacao") # Ex: "2026-01-17T03:00:00.000Z"
+        if data_realizacao_str:
+            try:
+                dt_realizacao = parser.isoparse(str(data_realizacao_str))
+                ano_do_evento = str(dt_realizacao.year) # Garante '2026'
+            except Exception:
+                # Se falhar ao processar a data, usa o ano atual como último recurso
+                ano_do_evento = str(datetime.now().year)
+        else:
+            # Último fallback se a data de realização também estiver ausente
+            ano_do_evento = str(datetime.now().year)
+    
     dia_atual = datetime.now().strftime("%d/%m/%Y")
 
     valor_total = float(str(dados.get("valor_total", "0")).replace("R$", "").replace(",", ".").strip() or 0)
@@ -129,7 +144,7 @@ def gerar_proposta(dados):
 
     context = {
         "adicionais": dados.get("adicionais", []),
-        "ano_atual": to_unicode(ano_atual),
+        "ano_atual": to_unicode(ano_do_evento),
         "cliente_celular": to_unicode(dados.get("cliente_celular")),
         "cliente_complemento": to_unicode(dados.get("cliente_complemento")),
         "cliente_cnpj": to_unicode(dados.get("cliente_cnpj")),

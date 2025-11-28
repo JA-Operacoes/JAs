@@ -36,8 +36,6 @@ let EventoOriginal = {
 };
 
 
-
-
 async function verificaEvento() {
     console.log("Carregando Evento...");
     
@@ -101,85 +99,6 @@ async function verificaEvento() {
         e.preventDefault();
         limparCamposEvento();
     });
-
-    // botaoEnviar.addEventListener("click", async (e) => {
-    //     e.preventDefault();
-
-    //     const idEvento = document.querySelector("#idEvento").value.trim();
-    //     const nmEvento = document.querySelector("#nmEvento").value.toUpperCase().trim();
-        
-    //     // Permissões
-    //     const temPermissaoCadastrar = temPermissao("Eventos", "cadastrar");
-    //     const temPermissaoAlterar = temPermissao("Eventos", "alterar");
-
-    //     const metodo = idEvento ? "PUT" : "POST";
-
-    //     if (!idEvento && !temPermissaoCadastrar) {
-    //         return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos eventos.", "error");
-    //     }
-
-    //     if (idEvento && !temPermissaoAlterar) {
-    //         return Swal.fire("Acesso negado", "Você não tem permissão para alterar eventos.", "error");
-    //     }
-
-    //     if (!nmEvento) {
-    //         return Swal.fire("Campos obrigatórios!", "Preencha todos os campos antes de enviar.", "warning");
-    //     }
-
-    //     const dados = { nmEvento};        
-
-    //     if (parseInt(idEvento) === parseInt(window.EventoOriginal?.idEvento)) {
-    //         console.log("Evento não alterado, não será enviado.");
-    //     }
-    //     if (nmEvento === window.EventoOriginal?.nmEvento ) {
-    //         console.log("Evento não alterado, não será enviado.");
-    //     }
-    //     // Verifica alterações
-    //     if (
-            
-    //         parseInt(idEvento) === parseInt(window.EventoOriginal?.idEvento) &&
-    //         nmEvento === window.EventoOriginal?.nmEvento  
-    //     ) {
-    //         return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
-    //     }
-        
-    //     const url = idEvento
-    //         ? `/eventos/${idEvento}`
-    //         : "/eventos";
-        
-    //     try {
-    //         // Confirma alteração (PUT)
-    //         if (metodo === "PUT") {
-    //             const { isConfirmed } = await Swal.fire({
-    //                 title: "Deseja salvar as alterações?",
-    //                 text: "Você está prestes a atualizar os dados do Evento.",
-    //                 icon: "question",
-    //                 showCancelButton: true,
-    //                 confirmButtonText: "Sim, salvar",
-    //                 cancelButtonText: "Cancelar",
-    //                 reverseButtons: true,
-    //                 focusCancel: true
-    //             });
-    //             if (!isConfirmed) return;
-    //         }
-
-    //         console.log("Enviando dados para o servidor:", dados, url, metodo);
-    //         const respostaApi = await fetchComToken(url, {
-    //             method: metodo,
-    //             headers: {
-    //                 'Content-Type': 'application/json'
-    //             },
-    //             body: JSON.stringify(dados)
-    //         });            
-
-    //         await Swal.fire("Sucesso!", respostaApi.message || "Evento salvo com sucesso.", "success");
-    //         limparCamposEvento();
-
-    //     } catch (error) {
-    //         console.error("Erro ao enviar dados:", error);
-    //         Swal.fire("Erro", error.message || "Erro ao salvar evento.", "error");
-    //     }
-    // });
 
     botaoEnviar.addEventListener("click", async (e) => {
         e.preventDefault();
@@ -251,7 +170,22 @@ async function verificaEvento() {
             });
 
             await Swal.fire("Sucesso!", respostaApi.message || "Evento salvo com sucesso.", "success");
-            limparCamposEvento();
+            
+            // 💡 AJUSTE: Mudar a lógica de limpeza para o botão 'Enviar'.
+            // Se for POST (novo cadastro), limpa tudo. Se for PUT (alteração),
+            // mantém os dados e apenas atualiza o estado original, ou limpa
+            // se este é o comportamento desejado para 'PUT' também.
+            if (metodo === "POST") {
+                limparCamposEvento();
+            } else {
+                // Atualiza o estado original com os novos dados salvos
+                window.EventoOriginal = {
+                    idEvento: idEvento,
+                    nmEvento: nmEvento,
+                    clientes: clientesDoEvento 
+                };
+            }
+
 
         } catch (error) {
             console.error("Erro ao enviar dados:", error);
@@ -262,6 +196,10 @@ async function verificaEvento() {
     botaoPesquisar.addEventListener("click", async function (e) {
         e.preventDefault();
         limparCamposEvento();
+        
+        // 💡 CORREÇÃO: Chama resetarCampoNmEventoParaInput() para garantir que o campo seja INPUT
+        // antes da pesquisa. Isso evita o bug de um 'select' duplicado se você clicar duas vezes.
+        resetarCampoNmEventoParaInput();
 
         console.log("Pesquisando Evento...");
 
@@ -290,42 +228,33 @@ async function verificaEvento() {
             const input = document.querySelector("#nmEvento");
 
             if (input && input.parentNode) {
+                // Remove listeners do input antes de substituir
+                if (nmEventoInputListener) {
+                    input.removeEventListener("input", nmEventoInputListener);
+                    nmEventoInputListener = null;
+                }
+                if (nmEventoBlurListener) {
+                    input.removeEventListener("blur", nmEventoBlurListener);
+                    nmEventoBlurListener = null;
+                }
+
                 input.parentNode.replaceChild(select, input);
             }
 
             const label = document.querySelector('label[for="nmEvento"]');
             if (label) label.style.display = "none";
 
+            // 💡 CORREÇÃO APLICADA AQUI
             select.addEventListener("change", async function () {
                 const desc = this.value?.trim();
                 if (!desc) return;
 
+                // 1. Carrega os dados do Evento selecionado
                 await carregarEventoDescricao(desc, this);
-
-                const novoInput = document.createElement("input");
-                novoInput.type = "text";
-                novoInput.id = "nmEvento";
-                novoInput.name = "nmEvento";
-                novoInput.required = true;
-                novoInput.className = "form";
-                novoInput.value = desc;
-
-                novoInput.addEventListener("input", function () {
-                    this.value = this.value.toUpperCase();
-                });
-
-                // this.parentNode.replaceChild(novoInput, this);
-                adicionarEventoBlurEvento();
-
-                if (label) {
-                    label.style.display = "block";
-                    label.textContent = "Descrição do Evento";
-                }
-
-                novoInput.addEventListener("blur", async function () {
-                    if (!this.value.trim()) return;
-                    await carregarEventoDescricao(this.value, this);
-                });
+                
+                // 2. Transforma o select de volta para um input para permitir a edição
+                //    e re-adiciona os listeners de blur/input.
+                resetarCampoNmEventoParaInput();
             });
 
         } catch (error) {
@@ -362,22 +291,28 @@ async function carregarClientes() {
 
 function adicionarListenersAoInputNmEvento(inputElement) {
     // Remove listeners anteriores para evitar duplicidade
-    if (novoInputNmEventoInputListener) { // Verifica se já existe um listener para 'input' no novo input
-        inputElement.removeEventListener("input", novoInputNmEventoInputListener);
+    // Esta parte é para inputs que já existem ou foram recriados
+    // Os listeners principais estão nas variáveis globais (nmEventoInputListener, nmEventoBlurListener)
+    
+    // Configura o listener de INPUT (toUpperCase)
+    if (nmEventoInputListener) { 
+        inputElement.removeEventListener("input", nmEventoInputListener);
     }
-    if (novoInputNmEventoBlurListener) { // Verifica se já existe um listener para 'blur' no novo input
-        inputElement.removeEventListener("blur", novoInputNmEventoBlurListener);
-    }
-
-    nmEventoInputListener = function () { // Atribui à variável global para o listener 'input'
+    nmEventoInputListener = function () { 
         this.value = this.value.toUpperCase();
     };
     inputElement.addEventListener("input", nmEventoInputListener);
 
-    nmEventoBlurListener = async function () { // Atribui à variável global para o listener 'blur'
+    // Configura o listener de BLUR (carregarEventoDescricao)
+    if (nmEventoBlurListener) { 
+        inputElement.removeEventListener("blur", nmEventoBlurListener);
+    }
+    nmEventoBlurListener = async function () { 
         if (!this.value.trim()) return;
         console.log("Campo nmEvento procurado (blur dinâmico):", this.value);
-        await carregarEventoDescricao(this.value, this);
+        
+        // 💡 ATENÇÃO: Chama carregarEventoDescricao, mas a lógica de ignorar clique está no final do arquivo
+        await carregarEventoDescricao(this.value, this); 
     };
     inputElement.addEventListener("blur", nmEventoBlurListener);
 }
@@ -390,7 +325,7 @@ function resetarCampoNmEventoParaInput() {
         input.type = "text";
         input.id = "nmEvento";
         input.name = "nmEvento";
-        input.value = ""; // Limpa o valor
+        input.value = nmEventoCampo.value || ""; // Mantém o valor selecionado
         input.placeholder = "Nome do Evento";
         input.className = "form";
         input.classList.add('uppercase');
@@ -403,13 +338,25 @@ function resetarCampoNmEventoParaInput() {
         }
 
         nmEventoCampo.parentNode.replaceChild(input, nmEventoCampo);
-        adicionarListenersAoInputNmEvento(input); // Adiciona os listeners ao novo input
+        
+        // Garante que o input seja populado com o valor de EventoOriginal
+        const nomeOriginal = window.EventoOriginal?.nmEvento || "";
+        if (input.value === "" && nomeOriginal) {
+             input.value = nomeOriginal;
+        }
 
+        adicionarListenersAoInputNmEvento(input); // Adiciona os listeners ao novo input
+        
         const label = document.querySelector('label[for="nmEvento"]');
         if (label) {
             label.style.display = "block";
             label.textContent = "Nome do Evento";
         }
+        
+        // 💡 REATIVAÇÃO DO BLUR: Como o input foi recriado, o listener de blur deve ser reativado
+        // usando a lógica de ignorar o clique de botões.
+        adicionarEventoBlurEvento();
+        
     }
 }
 
@@ -515,15 +462,20 @@ function adicionarEventoBlurEvento() {
     const input = document.querySelector("#nmEvento");
     if (!input) return;
 
-    input.addEventListener("blur", async function () {
+    // 💡 REMOVE O LISTENER ANTERIOR PARA EVITAR DUPLICIDADE
+    if (nmEventoBlurListener) { 
+        input.removeEventListener("blur", nmEventoBlurListener);
+    }
+    
+    nmEventoBlurListener = async function () { // Atribui à variável global
         
         const botoesIgnorados = ["Limpar", "Pesquisar", "Enviar"];
         const ehBotaoIgnorado =
-            ultimoClique?.id && botoesIgnorados.includes(ultimoClique.id) ||
-             (ultimoClique?.classList && ultimoClique.classList.contains("close"));
+            window.ultimoClique?.id && botoesIgnorados.includes(window.ultimoClique.id) ||
+             (window.ultimoClique?.classList && (window.ultimoClique.classList.contains("close") || window.ultimoClique.classList.contains("remover-cliente")));
 
         if (ehBotaoIgnorado) {
-            console.log("🔁 Blur ignorado: clique em botão de controle (Fechar/Limpar/Pesquisar).");
+            console.log("🔁 Blur ignorado: clique em botão de controle (Enviar/Fechar/Limpar/Pesquisar).");
             return;
         }
 
@@ -538,81 +490,29 @@ function adicionarEventoBlurEvento() {
         } catch (error) {
             console.error("Erro ao buscar Evento:", error);
         }
-    });
+    };
+    input.addEventListener("blur", nmEventoBlurListener);
 }
 
-// async function carregarEventoDescricao(desc, elementoAtual) {
-//     try {
-//         const eventos = await fetchComToken(`/eventos?nmEvento=${encodeURIComponent(desc)}`);
-//        // console.log("Resposta do servidor:", response);
-       
-//         document.querySelector("#idEvento").value = eventos.idevento;
-
-//         window.EventoOriginal = {
-//             idEvento: eventos.idevento,
-//             nmEvento: eventos.nmevento
-//         };
-
-//         console.log("Evento encontrado:", EventoOriginal);
-
-//     } catch (error) {
-//         console.warn("Evento não encontrado.");
-
-//         const inputIdEvento = document.querySelector("#idEvento");
-//         const podeCadastrarEvento = temPermissao("Eventos", "cadastrar");
-
-//        if (!inputIdEvento.value && podeCadastrarEvento) {
-//              const resultado = await Swal.fire({
-//                 icon: 'question',
-//                 title: `Deseja cadastrar "${desc.toUpperCase()}" como novo Evento?`,
-//                 text: `Evento "${desc.toUpperCase()}" não encontrado.`,
-//                 showCancelButton: true,
-//                 confirmButtonText: "Sim, cadastrar",
-//                 cancelButtonText: "Cancelar",
-//                 reverseButtons: true,
-//                 focusCancel: true
-//             });
-
-            
-//             if (!resultado.isConfirmed) {
-//                 console.log("Usuário cancelou o cadastro do Evento.");
-//                 elementoAtual.value = ""; // Limpa o campo se não for cadastrar
-//                 setTimeout(() => {
-//                     elementoAtual.focus();
-//                 }, 0);
-//                 return;
-//             }
-//         } else if (!podeCadastrarEvento) {
-//             Swal.fire({
-//                 icon: "info",
-//                 title: "Evento não cadastrado",
-//                 text: "Você não tem permissão para cadastrar eventos.",
-//                 confirmButtonText: "OK"
-//             });
-//         }
-        
-//     }
-// }
 
 async function carregarEventoDescricao(desc, elementoAtual) {
     try {
         const eventos = await fetchComToken(`/eventos?nmEvento=${encodeURIComponent(desc)}`);
 
-        // Limpar o estado anterior antes de carregar o novo
+        // Limpar o estado anterior antes de carregar o novo (opcional, pode ser comentado)
         //limparCamposEvento();
         
         if (!eventos || !eventos.idevento) throw new Error("Evento não encontrado");
 
         document.querySelector("#idEvento").value = eventos.idevento;
-        document.querySelector("#nmEvento").value = eventos.nmevento; // ✅ Certifique-se de preencher o input com o nome retornado
+        document.querySelector("#nmEvento").value = eventos.nmevento; 
         
         window.EventoOriginal = {
             idEvento: eventos.idevento,
             nmEvento: eventos.nmevento,
-            clientes: eventos.clientes // ✅ Armazena o array de clientes originais
+            clientes: eventos.clientes 
         };
 
-        // ✅ Chamar uma função para carregar os clientes no container
         await carregarClientesSelecionados(eventos.clientes);
 
         console.log("Evento encontrado:", window.EventoOriginal);
@@ -623,9 +523,9 @@ async function carregarEventoDescricao(desc, elementoAtual) {
         const inputIdEvento = document.querySelector("#idEvento");
         const podeCadastrarEvento = temPermissao("Eventos", "cadastrar");
         
-        // Se o evento não for encontrado, garantimos que os campos estão limpos
-      //  limparCamposEvento();
-
+        // Se o evento não for encontrado, garantimos que o ID está limpo
+        inputIdEvento.value = "";
+        
         if (!podeCadastrarEvento) {
             Swal.fire({
                 icon: "info",
@@ -633,7 +533,8 @@ async function carregarEventoDescricao(desc, elementoAtual) {
                 text: "Você não tem permissão para cadastrar eventos.",
                 confirmButtonText: "OK"
             });
-            elementoAtual.value = "";
+            // 💡 Se não pode cadastrar, não limpamos o valor, apenas retornamos
+            // elementoAtual.value = ""; 
             return;
         }
 
@@ -650,7 +551,8 @@ async function carregarEventoDescricao(desc, elementoAtual) {
 
         if (!resultado.isConfirmed) {
             console.log("Usuário cancelou o cadastro do Evento.");
-            elementoAtual.value = "";
+            // ❌ CORREÇÃO: Removida a linha que limpava o campo
+            // elementoAtual.value = ""; 
             setTimeout(() => {
                 elementoAtual.focus();
             }, 0);
@@ -660,12 +562,14 @@ async function carregarEventoDescricao(desc, elementoAtual) {
 
 async function carregarClientesSelecionados(clientesIds) {
     if (!clientesIds || clientesIds.length === 0) {
+        // Limpar o container se não houver clientes
+        document.getElementById("clientesSelecionadosContainer").innerHTML = '';
+        document.getElementById("clientesDoEvento").value = "[]";
         return;
     }
 
     const clientesContainer = document.getElementById("clientesSelecionadosContainer");
     const clientesInput = document.getElementById("clientesDoEvento");
-    const clientesSelecionadosSet = new Set(clientesIds);
     const botaoEnviar = document.getElementById("Enviar");
     
     clientesContainer.innerHTML = '';
@@ -677,7 +581,6 @@ async function carregarClientesSelecionados(clientesIds) {
         clientesIds.forEach(id => {
             const cliente = clientesDisponiveis.find(c => c.idcliente === id);
             if (cliente) {
-                // ✅ A variável 'tag' é criada aqui
                 const tag = document.createElement('span');
                 tag.className = 'cliente-tag';
                 const nomeCliente = cliente.nmfantasia;
@@ -685,7 +588,6 @@ async function carregarClientesSelecionados(clientesIds) {
                 tag.innerHTML = `${nomeCliente} <button type="button" class="remover-cliente" data-id="${idCliente}">x</button>`;
                 clientesContainer.appendChild(tag);
                 
-                // ✅ O event listener deve ser definido aqui, onde 'tag' está no escopo
                 tag.querySelector('.remover-cliente').addEventListener('click', async () => {
                     const { isConfirmed } = await Swal.fire({
                         title: "Remover cliente?",
@@ -727,8 +629,8 @@ function limparCamposEvento() {
     const idEvent = document.getElementById("idEvento");
     const descEventEl = document.getElementById("nmEvento");
     
-    const clientesSelecionadosContainer = document.getElementById("clientesSelecionadosContainer"); // ✅
-    const clientesDoEventoInput = document.getElementById("clientesDoEvento"); // ✅
+    const clientesSelecionadosContainer = document.getElementById("clientesSelecionadosContainer");
+    const clientesDoEventoInput = document.getElementById("clientesDoEvento");
 
     if (idEvent) {idEvent.value = "";}
 
@@ -736,7 +638,6 @@ function limparCamposEvento() {
         clientesSelecionadosContainer.innerHTML = "";
     }
 
-    // ✅ Zera o input oculto com os IDs dos clientes
     if (clientesDoEventoInput) {
         clientesDoEventoInput.value = "[]";
     }
@@ -751,19 +652,11 @@ function limparCamposEvento() {
         novoInput.required = true;
         novoInput.className = "form";
 
-        // Configura o evento de transformar texto em maiúsculo
-        novoInput.addEventListener("input", function () {
-            this.value = this.value.toUpperCase();
-        });
-
-        // Reativa o evento blur
-        novoInput.addEventListener("blur", async function () {
-            if (!this.value.trim()) return;
-            await carregarEventoDescricao(this.value, this);
-        });
+        // Configura os eventos
+        adicionarListenersAoInputNmEvento(novoInput);
 
         descEventEl.parentNode.replaceChild(novoInput, descEventEl);
-        adicionarEventoBlurEvento();
+        adicionarEventoBlurEvento(); // Reativa o blur listener no novo input
 
         const label = document.querySelector('label[for="nmEvento"]');
         if (label) {
@@ -774,78 +667,11 @@ function limparCamposEvento() {
         // Se for input normal, só limpa
         descEventEl.value = "";
     }
+    
+    // Zera o estado original
+    limparEventoOriginal();
 }
 
-// async function fetchComToken(url, options = {}) {
-//   console.log("URL da requisição:", url);
-//   const token = localStorage.getItem("token");
-//   const idempresa = localStorage.getItem("idempresa");
-
-//   console.log("ID da empresa no localStorage:", idempresa);
-//   console.log("Token no localStorage:", token);
-
-//   if (!options.headers) options.headers = {};
-  
-//   if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
-//         options.headers['Content-Type'] = 'application/json';
-//   }else if (options.body && typeof options.body === 'object' && options.headers['Content-Type'] !== 'multipart/form-data') {
-       
-//         options.body = JSON.stringify(options.body);
-//         options.headers['Content-Type'] = 'application/json';
-//   }
-
-//   options.headers['Authorization'] = 'Bearer ' + token; 
-
-//   if (
-//       idempresa && 
-//       idempresa !== 'null' && 
-//       idempresa !== 'undefined' && 
-//       idempresa.trim() !== '' &&
-//       !isNaN(idempresa) && 
-//       Number(idempresa) > 0
-//   ) {
-//       options.headers['idempresa'] = idempresa;
-//       console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
-//   } else {
-//     console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
-//   }
-//   console.log("URL OPTIONS", url, options)
- 
-//   const resposta = await fetch(url, options);
-
-//   console.log("Resposta da requisição Eventos.js:", resposta);
-
-//   let responseBody = null;
-//   try {     
-//       responseBody = await resposta.json();
-//   } catch (jsonError) {    
-//       try {
-//           responseBody = await resposta.text();
-//       } catch (textError) {        
-//           responseBody = null;
-//       }
-//   }
-
-//   if (resposta.status === 401) {
-//     localStorage.clear();
-//     Swal.fire({
-//       icon: "warning",
-//       title: "Sessão expirada",
-//       text: "Por favor, faça login novamente."
-//     }).then(() => {
-//       window.location.href = "login.html"; 
-//     });
-   
-//     throw new Error('Sessão expirada'); 
-//   }
-
-//   if (!resposta.ok) {        
-//         const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
-//         throw new Error(`Erro na requisição: ${errorMessage}`);
-//   }
-
-//   return responseBody;
-// }
 
 function configurarEventosCadEvento() {
     console.log("Configurando eventos Evento...");

@@ -3,7 +3,7 @@
 
 /* === Estilos personalizados para SweetAlert2 === */
 .swal2-container {
-  z-index: 100000 !important;
+  z-index: 2000 !important;
 }
 
 .swal2-popup .swal2-styled {
@@ -64,14 +64,15 @@
 }
 
 /* Garantir que o loader fique centralizado dentro do Swal */
-.swal2-html-container {
+/* .swal2-html-container {
   margin: 0 !important;
   padding: 0 !important;
-  display: flex;
+  display: flex !important;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-}
+  gap: 20px ;
+} */
 
 /* --------------------------------------------------------------------------------
                         3 campos de swal

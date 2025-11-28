@@ -1373,7 +1373,7 @@ function adicionarLinhaOrc() {
         <td class="Proposta">
             <div class="checkbox-wrapper-33">
                 <label class="checkbox">
-                    <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                    <input class="checkbox__trigger visuallyhidden" type="checkbox" checked /> 
                     <span class="checkbox__symbol">
                         <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
                             <path d="M4 14l8 7L24 7"></path>
@@ -1739,7 +1739,7 @@ function adicionarLinhaAdicional() {
     //     </td> 
 
     let novaLinha = tabela.insertRow();
-    novaLinha.classList.add("liberada");     // aplica nova cor
+    novaLinha.classList.add("liberada", "linhaAdicional");     // aplica nova cor
     novaLinha.innerHTML = `
         <td style="display: none;"><input type="hidden" class="idItemOrcamento" style="display: none;" value=""></td> <!-- Corrigido: de <th> para <td> e adicionado input hidden -->
         <td style="display: none;"><input type="hidden" class="idFuncao" value=""></td>
@@ -1748,7 +1748,7 @@ function adicionarLinhaAdicional() {
         <td class="Proposta">
             <div class="checkbox-wrapper-33">
                 <label class="checkbox">
-                    <input class="checkbox__trigger visuallyhidden" type="checkbox" />
+                    <input class="checkbox__trigger visuallyhidden" type="checkbox" checked /> 
                     <span class="checkbox__symbol">
                         <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
                             <path d="M4 14l8 7L24 7"></path>
@@ -1823,14 +1823,6 @@ function adicionarLinhaAdicional() {
     `;
     tabela.insertBefore(novaLinha, tabela.firstChild);
 
-    // // --- ADICIONE ESTE LOG AQUI ---
-    // const setorInputCheck = novaLinha.querySelector(".setor-input");
-    // console.log(`DEBUG ADICIONAR LINHA: .setor-input na nova linha:`, setorInputCheck ? 'Encontrado!' : 'NÃO ENCONTRADO!');
-    // if (setorInputCheck) {
-    //     console.log(`DEBUG ADICIONAR LINHA: HTML do td .setor:`, novaLinha.querySelector('td.setor').outerHTML);
-    // }
-    // // --- FIM DO LOG ---
-    // //Inicializa o Flatpickr para o campo de data na nova linha
 
     const descontoValorItem = novaLinha.querySelector('.descontoItem .ValorInteiros');
     if (descontoValorItem) {
@@ -2738,7 +2730,7 @@ async function verificaOrcamento() {
 
     configurarInfraCheckbox();
 
-    configurarPrePosCheckbox();
+    configurarPrePosCheckbox();   
     
 
     const selecionarPavilhaoSelect = document.getElementById('selecionarPavilhao');
@@ -2790,13 +2782,14 @@ async function verificaOrcamento() {
                 event.target.value = ''; // Limpa o campo se a entrada for inválida
                 Swal.fire({
                     title: 'Entrada Inválida',
-                    text: 'Por favor, digite apenas "A" ou "F"',
+                    text: 'Por favor, digite apenas "A", "P", "E", "R" ou "F"',
                     icon: 'warning',
                     confirmButtonText: 'Ok'
                 });
             }
         });
     }
+    gerenciarBotoesProposta(statusInput);
 
     const nrOrcamentoInput = document.getElementById('nrOrcamento');
     if(nrOrcamentoInput){
@@ -3607,344 +3600,358 @@ let montagemInfraAtivo = false;
 
 
 export async function preencherFormularioComOrcamento(orcamento) {
-    if (!orcamento) {
-        limparOrcamento();
-        return;
-    }
-    window.orcamentoAtual = orcamento; 
+    if (!orcamento) {
+        limparOrcamento();
+        return;
+    }
+    window.orcamentoAtual = orcamento; 
 
-    const idOrcamentoInput = document.getElementById('idOrcamento');
-    if (idOrcamentoInput) { // Adicionado if para proteger o acesso a .value
-        idOrcamentoInput.value = orcamento.idorcamento || '';
-    } else {
-        console.warn("Elemento com ID 'idOrcamento' não encontrado.");
-    }
+    const idOrcamentoInput = document.getElementById('idOrcamento');
+    if (idOrcamentoInput) {
+        idOrcamentoInput.value = orcamento.idorcamento || '';
+    } else {
+        console.warn("Elemento com ID 'idOrcamento' não encontrado.");
+    }
 
-    const nrOrcamentoInput = document.getElementById('nrOrcamento');
-    nrOrcamentoOriginal = nrOrcamentoInput.value;
-    if (nrOrcamentoInput) { // Adicionado if
-        nrOrcamentoInput.value = orcamento.nrorcamento || '';
-    } else {
-        console.warn("Elemento com ID 'nrOrcamento' não encontrado.");
-    }
+    const nrOrcamentoInput = document.getElementById('nrOrcamento');
+    nrOrcamentoOriginal = nrOrcamentoInput.value;
+    if (nrOrcamentoInput) {
+        nrOrcamentoInput.value = orcamento.nrorcamento || '';
+    } else {
+        console.warn("Elemento com ID 'nrOrcamento' não encontrado.");
+    }
 
-    const nomenclaturaInput = document.getElementById('nomenclatura');
-    if (nomenclaturaInput) { // Adicionado if
-        nomenclaturaInput.value = orcamento.nomenclatura || '';
-    } else {
-        console.warn("Elemento 'nomenclatura' não encontrado.");
-    }
+    const nomenclaturaInput = document.getElementById('nomenclatura');
+    if (nomenclaturaInput) {
+        nomenclaturaInput.value = orcamento.nomenclatura || '';
+    } else {
+        console.warn("Elemento 'nomenclatura' não encontrado.");
+    }
 
-    // Define os valores dos selects.
-    // Como os 'value' das options agora são os IDs, a atribuição direta funciona.
-    const statusInput = document.getElementById('Status'); // Seu HTML mostra input type="text"
-
-    if (statusInput) {
-        statusInput.value = orcamento.status || '';
-        console.log("Status", statusInput.value);
+    // Define os valores dos selects.
+    const statusInput = document.getElementById('Status'); 
+    if (statusInput) {
+        statusInput.value = orcamento.status || '';
+        console.log("Status", statusInput.value);
 
         if (statusInput.value === 'F'){           
             bloquearCamposSeFechado();
         }
+        gerenciarBotoesProposta(statusInput);
+
     } else {
         console.warn("Elemento com ID 'Status' não encontrado.");
     }
 
-    const edicaoInput = document.getElementById('edicao');
-    if (edicaoInput) {
-        edicaoInput.value = orcamento.edicao || '';
-        console.log("Edição", edicaoInput.value);        
-    } else {
-        console.warn("Elemento com ID 'Edição' não encontrado.");
+    const edicaoInput = document.getElementById('edicao');
+    // ... (O restante da função é preenchimento de campos estáticos)
+    if (edicaoInput) {
+        edicaoInput.value = orcamento.edicao || '';
+        console.log("Edição", edicaoInput.value);        
+    } else {
+        console.warn("Elemento com ID 'Edição' não encontrado.");
+    }
+
+    const clienteSelect = document.querySelector('.idCliente');
+    if (clienteSelect) {
+        clienteSelect.value = orcamento.idcliente || '';
+    } else {
+        console.warn("Elemento com classe '.idCliente' não encontrado.");
+    }
+
+    const eventoSelect = document.querySelector('.idEvento');
+    if (eventoSelect) {
+        eventoSelect.value = orcamento.idevento || '';
+    } else {
+        console.warn("Elemento com classe '.idEvento' não encontrado.");
+    }
+
+    const localMontagemSelect = document.querySelector('.idMontagem');
+    if (localMontagemSelect) {
+        localMontagemSelect.value = orcamento.idmontagem || '';
+        // --- NOVO: Preencher o campo UF da montagem e atualizar visibilidade ---
+        const ufMontagemInput = document.getElementById('ufmontagem');
+        if (ufMontagemInput) {
+            ufMontagemInput.value = orcamento.ufmontagem || '';
+        } else {
+            console.warn("Elemento com ID 'ufmontagem' não encontrado.");
+        }
+
+        atualizarUFOrc(localMontagemSelect);
+
+        if (orcamento.idmontagem) {
+             await carregarPavilhaoOrc(orcamento.idmontagem);
+        } else {
+             await carregarPavilhaoOrc(''); // Limpa o select se não houver montagem
+        }
+
+    } else {
+        console.warn("Elemento com classe '.idMontagem' não encontrado.");
+    }
+   
+
+    if (orcamento.pavilhoes && orcamento.pavilhoes.length > 0) {
+    // Popula a variável global `selectedPavilhoes`
+    // O `orcamento.pavilhoes` deve ser um array de objetos, ex: [{id: 8, nomepavilhao: "nome"}, ...]
+        selectedPavilhoes = orcamento.pavilhoes.map(p => ({
+            id: p.id, // Supondo que o ID é 'id'
+            name: p.nomepavilhao // E o nome é 'nomepavilhao'
+        }));
+    } else {
+        selectedPavilhoes = [];
+    }
+
+    // Chama a função que já sabe como preencher os inputs corretamente
+    updatePavilhaoDisplayInputs();
+
+    for (const id in flatpickrInstances) {
+        // ... (todo o código do flatpickr permanece aqui)
+        const pickerInstance = flatpickrInstances[id];
+
+        if (pickerInstance && typeof pickerInstance.setDate === 'function' && pickerInstance.config) {
+            let inicio = null;
+            let fim = null;
+
+            let isRelevantToPrePos = false; // Garante que seja redefinida em cada loop
+            let isRelevantToMontagemInfra = false; // Garante que seja redefinida em cada loop
+
+            switch(id) {
+                case 'periodoPreEvento':
+                    inicio = orcamento.dtinipreevento;
+                    fim = orcamento.dtfimpreevento;
+                    isRelevantToPrePos = true;
+                    break;
+                case 'periodoInfraMontagem':
+                    inicio = orcamento.dtiniinframontagem;
+                    fim = orcamento.dtfiminframontagem;
+                    isRelevantToMontagemInfra = true;
+                    break;
+                case 'periodoMontagem':                    
+                    inicio = orcamento.dtinimontagem;
+                    fim = orcamento.dtfimmontagem;
+                    break;
+                case 'periodoMarcacao':
+                    inicio = orcamento.dtinimarcacao;
+                    fim = orcamento.dtfimmarcacao;
+                    break;
+                case 'periodoRealizacao':
+                    inicio = orcamento.dtinirealizacao;
+                    fim = orcamento.dtfimrealizacao;
+                    break;
+                case 'periodoDesmontagem':
+                    inicio = orcamento.dtinidesmontagem;
+                    fim = orcamento.dtfimdesmontagem;
+                    break;
+                case 'periodoDesmontagemInfra':
+                    inicio = orcamento.dtiniinfradesmontagem;
+                    fim = orcamento.dtfiminfradesmontagem;
+                    break;
+                case 'periodoPosEvento':
+                    inicio = orcamento.dtiniposevento;
+                    fim = orcamento.dtfimposevento;
+                    isRelevantToPrePos = true;
+                    break;
+            }
+
+            const startDate = inicio ? new Date(inicio) : null;
+            const endDate = fim ? new Date(fim) : null;
+
+            const hasValidDates = (startDate && !isNaN(startDate.getTime())) || (endDate && !isNaN(endDate.getTime()));
+
+            if (pickerInstance.config.mode === "range") {
+                // Adiciona verificação para datas válidas e tratamento para apenas uma data
+                if (startDate && endDate && !isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+                    pickerInstance.setDate([startDate, endDate], true);
+                } else if (startDate && !isNaN(startDate.getTime())) { // Se apenas a data de início for fornecida
+                     pickerInstance.setDate(startDate, true);
+                } else {
+                    pickerInstance.clear();
+                }
+            } else { // Para modo de data única
+                if (startDate && !isNaN(startDate.getTime())) {
+                    pickerInstance.setDate(startDate, true);
+                } else {
+                    pickerInstance.clear();
+                }
+            }
+
+            if (hasValidDates) {
+                if (isRelevantToPrePos) {
+                    prePosAtivo = true;
+                }
+                if (isRelevantToMontagemInfra) {
+                    montagemInfraAtivo = true;
+                }
+            }
+
+        } else {
+            console.warn(`[preencherFormularioComOrcamento] Instância Flatpickr para ID '${id}' não encontrada ou inválida. Não foi possível preencher.`);
+        }
+    }
+
+    const checkPrePos = document.getElementById('prepos');
+    const checkMontagemInfra = document.getElementById('ativo'); // Assuma este ID
+
+    console.log("CHECKS PARA ATIVAR", checkPrePos, checkMontagemInfra);
+
+    // 1. Pré/Pós Evento
+    if (checkPrePos) {
+        checkPrePos.checked = prePosAtivo;
+        // Se você tiver uma função que atualiza a visibilidade, chame-a aqui
+        // Ex: toggleFieldVisibility('checkPrePos', 'periodoPrePosContainer', prePosAtivo);
+        // Ou chame a função que é ativada no evento 'change' do checkbox:
+        if (typeof atualizarVisibilidadePrePos === 'function') {
+             atualizarVisibilidadePrePos(); // A função deve ler o .checked e agir
+        }
+    }
+
+    // 2. Montagem/Desmontagem Infra
+    if (checkMontagemInfra) {
+        checkMontagemInfra.checked = montagemInfraAtivo;
+        // Ex: toggleFieldVisibility('checkMontagemInfra', 'periodoMontagemInfraContainer', montagemInfraAtivo);
+        // Ou chame a função de atualização de visibilidade:
+        if (typeof atualizarVisibilidadeInfra === 'function') {
+            atualizarVisibilidadeInfra();
+        }
+    }
+
+    // Preencher campos de texto
+    const obsItensInput = document.getElementById('Observacao');
+    if (obsItensInput) {
+        obsItensInput.value = orcamento.obsitens || '';
+    } else {
+        console.warn("Elemento com ID 'Observacao' (Observações sobre os Itens) não encontrado.");
+    }
+
+    const obsPropostaInput = document.getElementById('ObservacaoProposta');
+    if (obsPropostaInput) {
+        obsPropostaInput.value = orcamento.obsproposta || '';
+    } else {
+        console.warn("Elemento com ID 'ObservacaoProposta' (Observações sobre a Proposta) não encontrado.");
+    }
+
+    const formaPagamentoInput = document.getElementById('formaPagamento');
+    if (formaPagamentoInput) {
+        formaPagamentoInput.value = orcamento.formapagamento || '';
+    } else {
+        console.warn("Elemento com ID 'FormaPagamento' (Forma Pagamento) não encontrado.");
+    }
+    
+    console.log("AVISO", orcamento.indicesaplicados);
+    const avisoReajusteInput = document.getElementById('avisoReajusteMensagem');
+    if (avisoReajusteInput) {
+         avisoReajusteInput.textContent = orcamento.indicesaplicados || '';
+    } else {
+        console.warn("Elemento com ID 'avisoReajusteMensagem' não encontrado.");
+    }
+
+    const totalGeralVdaInput = document.getElementById('totalGeralVda');
+    if (totalGeralVdaInput) totalGeralVdaInput.value = formatarMoeda(orcamento.totgeralvda || 0);
+
+    const totalGeralCtoInput = document.getElementById('totalGeralCto');
+    if (totalGeralCtoInput) totalGeralCtoInput.value = formatarMoeda(orcamento.totgeralcto || 0);
+
+    const totalAjdCustoInput = document.getElementById('totalAjdCusto');
+    if (totalAjdCustoInput) totalAjdCustoInput.value = formatarMoeda(orcamento.totajdcto || 0);
+
+    const totalGeralInput = document.getElementById('totalGeral');
+    if (totalGeralCtoInput && totalAjdCustoInput && totalGeralInput) {
+        // Obter os valores dos campos.
+        // Use uma função para remover a formatação de moeda e converter para número.
+        const valorGeralCto = desformatarMoeda(totalGeralCtoInput.value);
+        const valorAjdCusto = desformatarMoeda(totalAjdCustoInput.value);
+
+        // Realizar a soma
+        const somaTotal = valorGeralCto + valorAjdCusto;
+
+        // Formatar o resultado de volta para moeda e atribuir ao campo totalGeral
+        totalGeralInput.value = formatarMoeda(somaTotal);
+    } else {
+        console.warn("Um ou mais elementos de input (totalGeralCto, totalAjdCusto, totalGeral) não foram encontrados.");
+    }
+
+    const lucroInput = document.getElementById('Lucro');
+    if (lucroInput) lucroInput.value = formatarMoeda(orcamento.lucrobruto || 0);
+
+    const percentLucroInput = document.getElementById('percentLucro');
+    if (percentLucroInput) percentLucroInput.value = formatarPercentual(orcamento.percentlucro || 0);
+
+    const descontoInput = document.getElementById('Desconto');
+    if (descontoInput) {
+        // Converte para número antes de toFixed
+        descontoInput.value = parseFloat(orcamento.desconto || 0).toFixed(2);
+    } else {
+        console.warn("Elemento com ID 'Desconto' não encontrado.");
+    }
+
+    const percentDescInput = document.getElementById('percentDesc');
+    if (percentDescInput) {
+        percentDescInput.value = formatarPercentual(parseFloat(orcamento.percentdesconto || 0));
+    } else {
+        console.warn("Elemento com ID 'percentDesc' não encontrado.");
+    }
+
+    const acrescimoInput = document.getElementById('Acrescimo');
+    if (acrescimoInput) {
+        // Converte para número antes de toFixed
+        acrescimoInput.value = parseFloat(orcamento.acrescimo || 0).toFixed(2);
+    } else {
+        console.warn("Elemento com ID 'Acrescimo' não encontrado.");
+    }
+
+    const percentAcrescInput = document.getElementById('percentAcresc');
+    if (percentAcrescInput) {
+        percentAcrescInput.value = formatarPercentual(parseFloat(orcamento.percentacrescimo || 0));
+    } else {
+        console.warn("Elemento com ID 'percentAcresc' não encontrado.");
+    }
+
+    const lucroRealInput = document.getElementById('lucroReal');
+    if (lucroRealInput) lucroRealInput.value = formatarMoeda(orcamento.lucroreal || 0);
+
+    const percentRealInput = document.getElementById('percentReal');
+    if (percentRealInput) percentRealInput.value = formatarPercentual(orcamento.percentlucroreal || 0);
+
+    const valorImpostoInput = document.getElementById('valorImposto');
+    if (valorImpostoInput) valorImpostoInput.value = formatarMoeda(orcamento.vlrimposto || 0);
+  
+    const percentImpostoInput = document.getElementById('percentImposto');
+    if (percentImpostoInput) percentImpostoInput.value = formatarPercentual(orcamento.percentimposto || 0);
+
+    const valorCtoFixoInput = document.getElementById('valorCustoFixo');
+    if (valorCtoFixoInput) valorCtoFixoInput.value = formatarMoeda(orcamento.vlrctofixo || 0);
+
+    const percentCtoFixoInput = document.getElementById('percentCustoFixo');
+    if (percentCtoFixoInput) percentCtoFixoInput.value = formatarPercentual(orcamento.percentctofixo || 0);
+
+    const valorClienteInput = document.getElementById('valorCliente');
+    if (valorClienteInput) valorClienteInput.value = formatarMoeda(orcamento.vlrcliente || 0);
+
+    console.log("VALOR DO CLIENTE VINDO DO BANCO", orcamento.vlrcliente || 0, orcamento.vlrctofixo, orcamento.percentctofixo);
+
+   // preencherItensOrcamentoTabela(orcamento.itens || []);
+
+    if (orcamento.itens && orcamento.itens.length > 0) {
+        preencherItensOrcamentoTabela(orcamento.itens); // Chamada crucial que gera os inputs
+    } else {
+        console.log("Orçamento carregado não possui itens ou array de itens está vazio.");
+        preencherItensOrcamentoTabela([]); // Limpa a tabela se não houver itens
+    }
+    
+    if (localMontagemSelect) { // Verifica se o select existe antes de chamar
+        atualizarUFOrc(localMontagemSelect);
+    }
+
+    // ========================================================
+    // ⭐ NOVO BLOCO DE BLOQUEIO NO FINAL (SOLUÇÃO) ⭐
+    // O status é verificado novamente após todos os campos estarem preenchidos/criados.
+    // ========================================================
+    const statusFinal = document.getElementById('Status')?.value;
+    if (statusFinal === 'F') {
+        console.log("Status 'F' detectado no final da carga. Bloqueando campos.");
+        bloquearCamposSeFechado(); 
     }
-
-    const clienteSelect = document.querySelector('.idCliente');
-    if (clienteSelect) {
-        clienteSelect.value = orcamento.idcliente || '';
-    } else {
-        console.warn("Elemento com classe '.idCliente' não encontrado.");
-    }
-
-    const eventoSelect = document.querySelector('.idEvento');
-    if (eventoSelect) {
-        eventoSelect.value = orcamento.idevento || '';
-    } else {
-        console.warn("Elemento com classe '.idEvento' não encontrado.");
-    }
-
-    const localMontagemSelect = document.querySelector('.idMontagem');
-    if (localMontagemSelect) {
-        localMontagemSelect.value = orcamento.idmontagem || '';
-        // --- NOVO: Preencher o campo UF da montagem e atualizar visibilidade ---
-        const ufMontagemInput = document.getElementById('ufmontagem');
-        if (ufMontagemInput) {
-            ufMontagemInput.value = orcamento.ufmontagem || '';
-        } else {
-            console.warn("Elemento com ID 'ufmontagem' não encontrado.");
-        }
-
-        atualizarUFOrc(localMontagemSelect);
-
-        if (orcamento.idmontagem) {
-             await carregarPavilhaoOrc(orcamento.idmontagem);
-        } else {
-             await carregarPavilhaoOrc(''); // Limpa o select se não houver montagem
-        }
-
-    } else {
-        console.warn("Elemento com classe '.idMontagem' não encontrado.");
-    }
-   
-
-    if (orcamento.pavilhoes && orcamento.pavilhoes.length > 0) {
-    // Popula a variável global `selectedPavilhoes`
-    // O `orcamento.pavilhoes` deve ser um array de objetos, ex: [{id: 8, nomepavilhao: "nome"}, ...]
-        selectedPavilhoes = orcamento.pavilhoes.map(p => ({
-            id: p.id, // Supondo que o ID é 'id'
-            name: p.nomepavilhao // E o nome é 'nomepavilhao'
-        }));
-    } else {
-        selectedPavilhoes = [];
-    }
-
-    // Chama a função que já sabe como preencher os inputs corretamente
-    updatePavilhaoDisplayInputs();
-
-    for (const id in flatpickrInstances) {
-        const pickerInstance = flatpickrInstances[id];
-
-        if (pickerInstance && typeof pickerInstance.setDate === 'function' && pickerInstance.config) {
-            let inicio = null;
-            let fim = null;
-
-            let isRelevantToPrePos = false; // Garante que seja redefinida em cada loop
-            let isRelevantToMontagemInfra = false; // Garante que seja redefinida em cada loop
-
-            switch(id) {
-                case 'periodoPreEvento':
-                    inicio = orcamento.dtinipreevento;
-                    fim = orcamento.dtfimpreevento;
-                    isRelevantToPrePos = true;
-                    break;
-                case 'periodoInfraMontagem':
-                    inicio = orcamento.dtiniinframontagem;
-                    fim = orcamento.dtfiminframontagem;
-                    isRelevantToMontagemInfra = true;
-                    break;
-                case 'periodoMontagem':                    
-                    inicio = orcamento.dtinimontagem;
-                    fim = orcamento.dtfimmontagem;
-                    break;
-                case 'periodoMarcacao':
-                    inicio = orcamento.dtinimarcacao;
-                    fim = orcamento.dtfimmarcacao;
-                    break;
-                case 'periodoRealizacao':
-                    inicio = orcamento.dtinirealizacao;
-                    fim = orcamento.dtfimrealizacao;
-                    break;
-                case 'periodoDesmontagem':
-                    inicio = orcamento.dtinidesmontagem;
-                    fim = orcamento.dtfimdesmontagem;
-                    break;
-                case 'periodoDesmontagemInfra':
-                    inicio = orcamento.dtiniinfradesmontagem;
-                    fim = orcamento.dtfiminfradesmontagem;
-                    break;
-                case 'periodoPosEvento':
-                    inicio = orcamento.dtiniposevento;
-                    fim = orcamento.dtfimposevento;
-                    isRelevantToPrePos = true;
-                    break;
-            }
-
-            const startDate = inicio ? new Date(inicio) : null;
-            const endDate = fim ? new Date(fim) : null;
-
-            const hasValidDates = (startDate && !isNaN(startDate.getTime())) || (endDate && !isNaN(endDate.getTime()));
-
-            if (pickerInstance.config.mode === "range") {
-                // Adiciona verificação para datas válidas e tratamento para apenas uma data
-                if (startDate && endDate && !isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
-                    pickerInstance.setDate([startDate, endDate], true);
-                } else if (startDate && !isNaN(startDate.getTime())) { // Se apenas a data de início for fornecida
-                     pickerInstance.setDate(startDate, true);
-                } else {
-                    pickerInstance.clear();
-                }
-            } else { // Para modo de data única
-                if (startDate && !isNaN(startDate.getTime())) {
-                    pickerInstance.setDate(startDate, true);
-                } else {
-                    pickerInstance.clear();
-                }
-            }
-
-            if (hasValidDates) {
-                if (isRelevantToPrePos) {
-                    prePosAtivo = true;
-                }
-                if (isRelevantToMontagemInfra) {
-                    montagemInfraAtivo = true;
-                }
-            }
-
-        } else {
-            console.warn(`[preencherFormularioComOrcamento] Instância Flatpickr para ID '${id}' não encontrada ou inválida. Não foi possível preencher.`);
-        }
-    }
-
-    const checkPrePos = document.getElementById('prepos');
-    const checkMontagemInfra = document.getElementById('ativo'); // Assuma este ID
-
-    console.log("CHECKS PARA ATIVAR", checkPrePos, checkMontagemInfra);
-
-    // 1. Pré/Pós Evento
-    if (checkPrePos) {
-        checkPrePos.checked = prePosAtivo;
-        // Se você tiver uma função que atualiza a visibilidade, chame-a aqui
-        // Ex: toggleFieldVisibility('checkPrePos', 'periodoPrePosContainer', prePosAtivo);
-        // Ou chame a função que é ativada no evento 'change' do checkbox:
-        if (typeof atualizarVisibilidadePrePos === 'function') {
-             atualizarVisibilidadePrePos(); // A função deve ler o .checked e agir
-        }
-    }
-
-    // 2. Montagem/Desmontagem Infra
-    if (checkMontagemInfra) {
-        checkMontagemInfra.checked = montagemInfraAtivo;
-        // Ex: toggleFieldVisibility('checkMontagemInfra', 'periodoMontagemInfraContainer', montagemInfraAtivo);
-        // Ou chame a função de atualização de visibilidade:
-        if (typeof atualizarVisibilidadeInfra === 'function') {
-            atualizarVisibilidadeInfra();
-        }
-    }
-
-    // Preencher campos de texto
-    const obsItensInput = document.getElementById('Observacao');
-    if (obsItensInput) {
-        obsItensInput.value = orcamento.obsitens || '';
-    } else {
-        console.warn("Elemento com ID 'Observacao' (Observações sobre os Itens) não encontrado.");
-    }
-
-    const obsPropostaInput = document.getElementById('ObservacaoProposta');
-    if (obsPropostaInput) {
-        obsPropostaInput.value = orcamento.obsproposta || '';
-    } else {
-        console.warn("Elemento com ID 'ObservacaoProposta' (Observações sobre a Proposta) não encontrado.");
-    }
-
-    const formaPagamentoInput = document.getElementById('formaPagamento');
-    if (formaPagamentoInput) {
-        formaPagamentoInput.value = orcamento.formapagamento || '';
-    } else {
-        console.warn("Elemento com ID 'FormaPagamento' (Forma Pagamento) não encontrado.");
-    }
-    
-    console.log("AVISO", orcamento.indicesaplicados);
-    const avisoReajusteInput = document.getElementById('avisoReajusteMensagem');
-    if (avisoReajusteInput) {
-         avisoReajusteInput.textContent = orcamento.indicesaplicados || '';
-    } else {
-        console.warn("Elemento com ID 'avisoReajusteMensagem' não encontrado.");
-    }
-
-    const totalGeralVdaInput = document.getElementById('totalGeralVda');
-    if (totalGeralVdaInput) totalGeralVdaInput.value = formatarMoeda(orcamento.totgeralvda || 0);
-
-    const totalGeralCtoInput = document.getElementById('totalGeralCto');
-    if (totalGeralCtoInput) totalGeralCtoInput.value = formatarMoeda(orcamento.totgeralcto || 0);
-
-    const totalAjdCustoInput = document.getElementById('totalAjdCusto');
-    if (totalAjdCustoInput) totalAjdCustoInput.value = formatarMoeda(orcamento.totajdcto || 0);
-
-    const totalGeralInput = document.getElementById('totalGeral');
-    if (totalGeralCtoInput && totalAjdCustoInput && totalGeralInput) {
-        // Obter os valores dos campos.
-        // Use uma função para remover a formatação de moeda e converter para número.
-        const valorGeralCto = desformatarMoeda(totalGeralCtoInput.value);
-        const valorAjdCusto = desformatarMoeda(totalAjdCustoInput.value);
-
-        // Realizar a soma
-        const somaTotal = valorGeralCto + valorAjdCusto;
-
-        // Formatar o resultado de volta para moeda e atribuir ao campo totalGeral
-        totalGeralInput.value = formatarMoeda(somaTotal);
-    } else {
-        console.warn("Um ou mais elementos de input (totalGeralCto, totalAjdCusto, totalGeral) não foram encontrados.");
-    }
-
-    const lucroInput = document.getElementById('Lucro');
-    if (lucroInput) lucroInput.value = formatarMoeda(orcamento.lucrobruto || 0);
-
-    const percentLucroInput = document.getElementById('percentLucro');
-    if (percentLucroInput) percentLucroInput.value = formatarPercentual(orcamento.percentlucro || 0);
-
-    const descontoInput = document.getElementById('Desconto');
-    if (descontoInput) {
-        // Converte para número antes de toFixed
-        descontoInput.value = parseFloat(orcamento.desconto || 0).toFixed(2);
-    } else {
-        console.warn("Elemento com ID 'Desconto' não encontrado.");
-    }
-
-    const percentDescInput = document.getElementById('percentDesc');
-    if (percentDescInput) {
-        percentDescInput.value = formatarPercentual(parseFloat(orcamento.percentdesconto || 0));
-    } else {
-        console.warn("Elemento com ID 'percentDesc' não encontrado.");
-    }
-
-    const acrescimoInput = document.getElementById('Acrescimo');
-    if (acrescimoInput) {
-        // Converte para número antes de toFixed
-        acrescimoInput.value = parseFloat(orcamento.acrescimo || 0).toFixed(2);
-    } else {
-        console.warn("Elemento com ID 'Acrescimo' não encontrado.");
-    }
-
-    const percentAcrescInput = document.getElementById('percentAcresc');
-    if (percentAcrescInput) {
-        percentAcrescInput.value = formatarPercentual(parseFloat(orcamento.percentacrescimo || 0));
-    } else {
-        console.warn("Elemento com ID 'percentAcresc' não encontrado.");
-    }
-
-    const lucroRealInput = document.getElementById('lucroReal');
-    if (lucroRealInput) lucroRealInput.value = formatarMoeda(orcamento.lucroreal || 0);
-
-    const percentRealInput = document.getElementById('percentReal');
-    if (percentRealInput) percentRealInput.value = formatarPercentual(orcamento.percentlucroreal || 0);
-
-    const valorImpostoInput = document.getElementById('valorImposto');
-    if (valorImpostoInput) valorImpostoInput.value = formatarMoeda(orcamento.vlrimposto || 0);
-  
-    const percentImpostoInput = document.getElementById('percentImposto');
-    if (percentImpostoInput) percentImpostoInput.value = formatarPercentual(orcamento.percentimposto || 0);
-
-    const valorCtoFixoInput = document.getElementById('valorCustoFixo');
-    if (valorCtoFixoInput) valorCtoFixoInput.value = formatarMoeda(orcamento.vlrctofixo || 0);
-
-    const percentCtoFixoInput = document.getElementById('percentCustoFixo');
-    if (percentCtoFixoInput) percentCtoFixoInput.value = formatarPercentual(orcamento.percentctofixo || 0);
-
-    const valorClienteInput = document.getElementById('valorCliente');
-    if (valorClienteInput) valorClienteInput.value = formatarMoeda(orcamento.vlrcliente || 0);
-
-    console.log("VALOR DO CLIENTE VINDO DO BANCO", orcamento.vlrcliente || 0, orcamento.vlrctofixo, orcamento.percentctofixo);
-
-   // preencherItensOrcamentoTabela(orcamento.itens || []);
-
-    if (orcamento.itens && orcamento.itens.length > 0) {
-        preencherItensOrcamentoTabela(orcamento.itens); // <--- ESTA CHAMADA É CRUCIAL
-    } else {
-        console.log("Orçamento carregado não possui itens ou array de itens está vazio.");
-        preencherItensOrcamentoTabela([]); // Limpa a tabela se não houver itens
-    }
-    if (localMontagemSelect) { // Verifica se o select existe antes de chamar
-        atualizarUFOrc(localMontagemSelect);
-    }
+    // ========================================================
 }
 
 
@@ -5200,7 +5207,7 @@ function bloquearCamposSeFechado() {
     const orcamentoAtual = getOrcamentoAtualCarregado();
     const bProximoAnoCarregado = orcamentoAtual?.geradoanoposterior === true; 
 
-    const idsPermitidos = ['Desconto', 'perCentDesc', 'Acrescimo', 'perCentAcresc', 'ObservacaoProposta', 'Observacao'];
+    const idsPermitidos = ['ObservacaoProposta', 'Observacao'];
 
     const tabela = document.querySelector('table');
 
@@ -5992,26 +5999,126 @@ function getOrcamentoAtualCarregado() {
     return window.orcamentoAtual || null; 
 }
 
+
+
 async function PropostaouContrato() {
+    let orcamentoValue = nrOrcamento; 
+    
+    // 🛑 CORREÇÃO OBRIGATÓRIA: Verifica e extrai o valor se a variável for um objeto HTML
+    if (typeof orcamentoValue === 'object' && orcamentoValue !== null && orcamentoValue.value !== undefined) {
+        console.log("[CORREÇÃO DEBUG] Variável nrOrcamento detectada como objeto HTML. Extraindo .value...");
+        orcamentoValue = orcamentoValue.value;
+    }
+    
+    // Garante que o valor final é uma string limpa
+    const nrOrcamentoStr = String(orcamentoValue).trim(); 
+
+    if (!nrOrcamentoStr || nrOrcamentoStr.length === 0) {
+        Swal.fire('Erro', 'Número do Orçamento inválido ou não encontrado.', 'error');
+        return;
+    }
+    
+    // 🔑 CONSOLE 1: Início da função com o valor corrigido
+    console.log(`[PROPOSTA/CONTRATO DEBUG] 1. Início de PropostaouContrato para Orçamento (CORRIGIDO): ${nrOrcamentoStr}`);
+
+
+    // --- 1. VERIFICAÇÃO INICIAL DE CONTRATO EXISTENTE ---
+    try {
+        const fetchOrcamentoUrl = `/orcamentos?nrOrcamento=${nrOrcamentoStr}`;
+        
+        // 🔑 CONSOLE 2: Antes de fazer a requisição GET
+        console.log(`[FRONTEND DEBUG] 2. Buscando dados do orçamento em: ${fetchOrcamentoUrl}`);
+
+        const orcamentoData = await fetchComToken(fetchOrcamentoUrl, { method: 'GET' });
+        
+        // ✅ CORREÇÃO APLICADA: Assume que a resposta é o objeto de orçamento (e não um array).
+        const orcamento = orcamentoData || null;
+
+        // 🔑 CONSOLE 3: Resultado da requisição GET
+        console.log(`[FRONTEND DEBUG] 3. Dados do Orçamento (Resultado GET):`, orcamento);
+
+        if (!orcamento) {
+            Swal.fire('Erro', 'Orçamento não encontrado para verificação.', 'error');
+            return;
+        }
+
+        const contratoExistenteUrl = orcamento.contratourl;
+        
+        // 🔑 CONSOLE 4: Valor do campo contratourl no DB
+        console.log(`[FRONTEND DEBUG] 4. Valor de contratourl no DB:`, contratoExistenteUrl);
+
+        // 🛑 LÓGICA DE VERIFICAÇÃO: Se o contrato existe, exibe Visualizar e retorna
+        if (contratoExistenteUrl && contratoExistenteUrl.trim() !== '') {
+            // Este bloco será executado
+            // 🔑 CONSOLE 5: Entrou no fluxo de CONTRATO EXISTENTE
+            console.log(`[FRONTEND DEBUG] 5. CONTRATO EXISTE. Exibindo alerta de visualização.`);
+            
+            const filename = contratoExistenteUrl.substring(contratoExistenteUrl.lastIndexOf('/') + 1);
+
+            Swal.fire({
+                title: 'Contrato Vinculado!',
+                html: `Já existe um contrato (${filename}) vinculado ao orçamento <b>${nrOrcamentoStr}</b>.`,
+                icon: 'warning',
+                showCancelButton: true,
+                denyButtonText: "Gerar Proposta", // Botão para Gerar Proposta
+                cancelButtonText: "Fechar",
+                confirmButtonText: "Visualizar Contrato",
+                reverseButtons: true,
+            }).then((res) => {
+                // Ação 1: Visualizar Contrato (Botão Confirm)
+                if (res.isConfirmed) {
+                    window.open(contratoExistenteUrl, '_blank');
+                } 
+                // ✅ CORREÇÃO APLICADA: Ação 2: Gerar Proposta (Botão Deny)
+                else if (res.isDenied) {
+                    console.log("[FLUXO CONTRATO EXISTENTE] Ação selecionada: Gerar Proposta."); 
+                    gerarPropostaPDF(); // Chama a função que gera o PDF
+                }
+                // Ação 3: Fechar (Botão Cancel) - A função não faz nada, pois o return já interrompe
+            });
+            
+            return; // Interrompe a função PropostaouContrato após exibir/tratar o alerta
+        }
+    } catch (error) {
+        console.error("[PROPOSTA/CONTRATO DEBUG] ERRO durante a verificação inicial. Prosseguindo para o seletor.", error);
+    }
+    // Fim da verificação.
+
+    // 🔑 CONSOLE 6: Entrou no fluxo de seleção normal
+    console.log(`[PROPOSTA/CONTRATO DEBUG] 6. Contrato não encontrado. Exibindo seletor de ações.`);
+
+
+    // --- 2. SELETOR DE AÇÕES (Se o contrato não existir) ---
     Swal.fire({
-        title: "Selecione o tipo de documento",
-        text: "Escolha qual documento deseja gerar para este orçamento.",
+        title: "Selecione a ação com o documento",
+        text: "Escolha qual ação deseja realizar para este orçamento.",
         icon: "question",
         showCancelButton: true,
+        showDenyButton: true,
         confirmButtonText: "Gerar Proposta",
         cancelButtonText: "Gerar Contrato",
-        reverseButtons: true,
+        denyButtonText: "Incluir Contrato",
+        reverseButtons: false,
         customClass: {
-            confirmButton: 'Proposta',
-            cancelButton: 'Contrato'
+            confirmButton: 'Proposta', 
+            cancelButton: 'Contrato', 
+            denyButton: 'IncluirContrato'
         }
-        }).then((result) => {
+    }).then((result) => {
         if (result.isConfirmed) {
+            // Clicou no botão CONFIRM (Gerar Proposta)
+            console.log("[FLUXO SELETOR] Ação selecionada: Gerar Proposta."); 
             gerarPropostaPDF();
         } else if (result.dismiss === Swal.DismissReason.cancel) {
-            gerarContrato(nrOrcamento);
+            // Clicou no botão CANCEL (Gerar Contrato)
+            console.log("[FLUXO SELETOR] Ação selecionada: Gerar Contrato.");
+            gerarContrato(nrOrcamentoStr);
+        } else if (result.isDenied) {
+            // Clicou no botão DENY (Incluir Contrato)
+            console.log("[FLUXO SELETOR] Ação selecionada: Incluir Contrato. Chamando incluirContrato(nrOrcamento)...");
+            incluirContrato(nrOrcamentoStr); 
         }
-        });
+    });
 }
 
 document.getElementById('Contrato').addEventListener('click', function(event) {
@@ -6024,15 +6131,79 @@ document.getElementById('Proposta').addEventListener('click', function(event) {
     gerarPropostaPDF();
 });
 
+/**
+ * Gerencia o texto e a visibilidade dos botões de Proposta, Aprovação e Reprovação 
+ * com base no status atual do orçamento.
+ * @param {string} status - O status atual do orçamento (ex: 'P', 'A', 'R', 'E', 'F').
+ */
+function gerenciarBotoesProposta(status) {
+    const btnProposta = document.getElementById('Proposta');
+    const btnAprovar = document.getElementById('AprovarProposta');
+    const btnReprovar = document.getElementById('ReprovarProposta');
+    //const status = document.getElementById('Status');
+    
+    if (!btnProposta) return; 
+
+    const statusFinalizado = ['A', 'R', 'E', 'F'];
+
+    let statusValue = '';
+    
+    if (typeof status === 'string') {
+        statusValue = status;
+    } else if (status && status.tagName) {
+        // É um elemento HTML (INPUT, SELECT, etc.)
+        if (status.tagName === 'INPUT' || status.tagName === 'SELECT') {
+            statusValue = status.value;
+        } else {
+            statusValue = status.innerText;
+        }
+    }
+    
+    // Garante que o valor final seja tratado corretamente
+    const statusLimpo = String(statusValue || '').trim().toUpperCase();
+    console.log("STATUS LIMPO", statusLimpo);
+
+    // 1. Lógica do botão Gerar Proposta
+    if ((statusLimpo === 'P') || (statusLimpo === 'E')){
+        console.log("STATUS LIMPO DENTRO DO IF", statusLimpo);
+        // Status P (Proposta): Permite gerar uma nova.
+        btnProposta.textContent = 'Gerar Nova Proposta';
+    } else {
+        // Qualquer outro status: Volta ao padrão.
+        btnProposta.textContent = 'Gerar Proposta';
+    }
+
+    // 2. Lógica dos botões Aprovar/Reprovar
+    if (statusFinalizado.includes(statusLimpo)) {
+        // Ocultar se o status for Aprovado (A), Reprovado (R), Em Fechamento (E) ou Fechado (F).
+        if (btnAprovar) btnAprovar.style.display = 'none';
+        if (btnReprovar) btnReprovar.style.display = 'none';
+    } else {
+        // Mostrar em todos os outros status (incluindo P e status intermediários).
+        if (btnAprovar) btnAprovar.style.display = 'inline-block';
+        if (btnReprovar) btnReprovar.style.display = 'inline-block';
+    }
+}
+
 async function gerarPropostaPDF() {
     let nrOrcamentoElem = document.getElementById('nrOrcamento');
     let nrOrcamento = "";
-
+   
+    
     if (nrOrcamentoElem) {
         nrOrcamento = nrOrcamentoElem.tagName === "INPUT"
             ? nrOrcamentoElem.value.trim()
             : nrOrcamentoElem.innerText.trim();
     }
+
+    let idOrcamentoElem = document.getElementById('idOrcamento');   
+    let idOrcamento = "";
+
+    if (idOrcamentoElem) {
+        idOrcamento = idOrcamentoElem.tagName === "INPUT"
+            ? idOrcamentoElem.value.trim()
+            : idOrcamentoElem.innerText.trim();
+    } 
 
     if (!nrOrcamento) {
         Swal.fire({
@@ -6063,6 +6234,58 @@ async function gerarPropostaPDF() {
 
         if (result.success) {
             console.log("✅ Proposta gerada com sucesso!");
+
+            console.log("🔄 Tentando atualizar o status do orçamento para 'P'...");
+            if (!idOrcamento) {
+                console.warn("⚠️ Falha ao atualizar o status: ID do Orçamento não encontrado no HTML!");
+                // Não interrompe, mas avisa que o status não será atualizado.
+            } else {
+                console.log("🔄 Tentando atualizar o status do orçamento para 'P'...");
+
+                // USA O ID OBTIDO DO HTML
+                const statusUpdateResult = await fetchComToken(`/orcamentos/${idOrcamento}/status`, {
+                    method: "PATCH", // Ou 'PUT', dependendo da sua API
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        status: "P" 
+                    })
+                });
+
+                if (statusUpdateResult.success) {
+                    console.log("✅ Status do orçamento atualizado para 'P' com sucesso!", nrOrcamento);
+                    
+                    try {
+                        const url = `orcamentos?nrOrcamento=${nrOrcamento}`;
+
+                        const orcamento = await fetchComToken(url, { method: 'GET' });
+                        preencherFormularioComOrcamento(orcamento);
+
+                    } catch (error) {
+                        console.error("Erro ao buscar orçamento:", error);
+
+                        let errorMessage = error.message;
+                        if (error.message.includes("404")) {
+                            errorMessage = `Orçamento com o número ${nrOrcamento} não encontrado.`;
+                            limparOrcamento();
+                        } else if (error.message.includes("400")) {
+                            errorMessage = "Número do orçamento é inválido ou vazio.";
+                            limparOrcamento();
+                        } else {
+                            errorMessage = `Erro ao carregar orçamento: ${error.message}`;
+                            limparOrcamento();
+                        }
+
+                        Swal.fire("Erro!", errorMessage, "error");
+                    }
+                    //gerenciarBotoesProposta('P'); 
+                                    
+                } else {
+                    console.warn("⚠️ Falha ao atualizar o status do orçamento para 'P':", statusUpdateResult.message);
+                    // Você pode decidir se isso deve interromper o fluxo ou apenas mostrar um aviso.
+                }
+            }
             Swal.fire({
                 icon: "success",
                 title: "Proposta gerada!",
@@ -6130,6 +6353,15 @@ async function gerarContrato() {
         }
     }
 
+    let idOrcamentoElem = document.getElementById('idOrcamento'); 
+    let idOrcamento = "";
+    
+    if (idOrcamentoElem) {
+        idOrcamento = idOrcamentoElem.tagName === "INPUT"
+            ? idOrcamentoElem.value.trim()
+            : idOrcamentoElem.innerText.trim();
+    }
+
     if (!nrOrcamento) {
         Swal.fire({
             icon: "error",
@@ -6174,6 +6406,27 @@ async function gerarContrato() {
 
         if (result.success) {
             console.log("✅ Contrato pronto para download!");
+
+            // if (!idOrcamento) {
+            //     console.warn("⚠️ Falha ao atualizar o status: ID do Orçamento não encontrado no HTML!");
+            // } else {
+            //     // USA O ID OBTIDO DO HTML
+            //     const statusUpdateResult = await fetchComToken(`/orcamentos/${idOrcamento}/status`, {
+            //         method: "PATCH", // Ou 'PUT', dependendo da sua API
+            //         headers: {
+            //             "Content-Type": "application/json",
+            //         },
+            //         body: JSON.stringify({
+            //             status: "E" // 🛑 STATUS SUGERIDO: Mude 'C' para o código correto de Contrato Gerado, se necessário.
+            //         })
+            //     });
+
+            //     if (statusUpdateResult.success) {
+            //         console.log("✅ Status do orçamento atualizado para 'C' com sucesso!");
+            //     } else {
+            //         console.warn("⚠️ Falha ao atualizar o status do orçamento para 'C':", statusUpdateResult.message);
+            //     }
+            // }
 
             Swal.fire({
                 icon: "success",
@@ -6233,6 +6486,346 @@ async function gerarContrato() {
     }
 }
 
+
+/**
+ * Abre um SweetAlert2 com campo de upload para incluir o arquivo do contrato.
+ * Se já houver contrato vinculado, mostra a opção de visualizá-lo.
+ * @param {string|object} nrOrcamento - O número do orçamento para vincular o contrato.
+ */
+async function incluirContrato(nrOrcamento) {
+    if (typeof nrOrcamento === 'object' && nrOrcamento?.value !== undefined) {
+        nrOrcamento = nrOrcamento.value;
+    }
+
+    nrOrcamento = String(nrOrcamento);
+    const uploadUrl = `/orcamentos/uploadContratoManual?orcamento=${nrOrcamento}`;
+
+    // 🔑 CONSOLE 1: Início da função e valor do orçamento
+    console.log(`[FRONTEND DEBUG] 1. Início de incluirContrato para Orçamento: ${nrOrcamento}`);
+
+    // 2. LÓGICA DE UPLOAD
+    const { value: uploadResult } = await Swal.fire({
+        title: `Incluir Contrato para Orçamento ${nrOrcamento}`,
+
+        html: `
+            <p style="margin-bottom: 15px;">Selecione o arquivo do contrato (PDF ou Word). Máx: 10MB.</p>
+
+            <input id="file" type="file" name="contrato" accept=".pdf, .doc, .docx" required style="display: none;"> 
+
+            <div class="container">
+
+                <label for="file" class="header" id="uploadHeader" style="cursor: pointer;"> 
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M7 10V9C7 6.23858 9.23858 4 12 4C14.7614 4 17 6.23858 17 9V10C19.2091 10 21 11.7909 21 14C21 15.4806 20.1956 16.8084 19 17.5M7 10C4.79086 10 3 11.7909 3 14C3 15.4806 3.8044 16.8084 5 17.5M7 10C7.43285 10 7.84965 10.0688 8.24006 10.1959M12 12V21M12 12L15 15M12 12L9 15" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <p>Clique para upload!</p>
+                </label><label for="file" class="footer" style="cursor: pointer;">
+                <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+                        <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+                    </svg>
+                    <p id="fileName">Nenhum arquivo selecionado</p>
+                </label>
+            </div>`,
+        
+        // 🛑 Gerenciamento de Foco e Listener de Mudança de Arquivo (didOpen)
+        didOpen: (popup) => {
+            const inputFile = popup.querySelector('#file'); 
+            const fileNameDisplay = popup.querySelector('#fileName');
+            const uploadHeader = popup.querySelector('#uploadHeader');
+            const label = popup.querySelector('.upload-area-wrapper');
+
+            if (inputFile) {
+                inputFile.addEventListener('change', function() {
+                    if (this.files.length > 0) {
+                        fileNameDisplay.textContent = this.files[0].name;
+                        label.style.borderColor = '#28a745'; // Cor de sucesso
+                        uploadHeader.style.color = '#28a745';
+                    } else {
+                        fileNameDisplay.textContent = 'Nenhum arquivo selecionado';
+                        label.style.borderColor = '#007bff'; 
+                        uploadHeader.style.color = '#007bff';
+                    }
+                });
+            }
+        },
+
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonText: 'Fazer Upload e Salvar',
+        cancelButtonText: 'Cancelar',
+        focusConfirm: false,
+        allowOutsideClick: false, 
+        allowEscapeKey: false, 
+        backdrop: false, 
+        showLoaderOnConfirm: true, 
+
+        preConfirm: () => {
+            const inputFile = document.getElementById('file');
+            const file = inputFile.files[0];
+
+            if (!file) {
+                Swal.showValidationMessage('Por favor, selecione um arquivo.');
+                return false;
+            }
+
+            const formData = new FormData();
+            formData.append('contrato', file);
+            // 🔑 CONSOLE 8: Antes de fazer a requisição POST de upload
+            console.log(`[FRONTEND DEBUG] 8. Iniciando upload POST para: ${uploadUrl} com arquivo: ${file.name}`);
+
+            return fetchComToken(uploadUrl, { method: 'POST', body: formData })
+                .then((data) => {
+                    // 🔑 CONSOLE 9: Upload POST bem-sucedido
+                    console.log(`[FRONTEND DEBUG] 9. Upload POST SUCESSO. Resposta do Backend:`, data);
+                    if (!data.success) throw new Error(data.message || 'Falha no upload.');
+                    return data;
+                })
+
+                .catch((error) => {
+                    // 🔑 CONSOLE 10: Upload POST com falha
+                    console.error(`[FRONTEND DEBUG] 10. Upload POST FALHA. Mensagem:`, error.message || error);
+                    Swal.showValidationMessage(error.message || 'Falha no upload.');
+                    return false;
+                });
+        }
+    });
+
+    if (!uploadResult) {
+        // 🔑 CONSOLE 11: Upload cancelado ou falhou no preConfirm
+        console.log("[FRONTEND DEBUG] 11. Upload cancelado ou bloqueado por validação.");
+        return;
+    }
+
+    // 3. MENSAGEM FINAL DE SUCESSO
+    const uploadedFileName = uploadResult.fileName;
+    const finalFileUrl = uploadResult.contratourl;
+
+    // 🔑 CONSOLE 12: URL Final para Visualização
+    console.log(`[FRONTEND DEBUG] 12. Finalizado. URL para visualização: ${finalFileUrl}`);
+
+    Swal.fire({
+        title: 'Contrato Vinculado!',
+        html: `O arquivo <b>${uploadedFileName}</b> foi salvo e vinculado ao orçamento <b>${nrOrcamento}</b>.`,
+        icon: 'success',
+        showCancelButton: true,
+        confirmButtonText: "Visualizar Contrato",
+        cancelButtonText: "Fechar",
+        reverseButtons: true,
+    }).then((res) => {
+        if (res.isConfirmed) {
+            window.open(finalFileUrl, '_blank');
+        }
+    });
+}
+
+document.getElementById('AprovarProposta')?.addEventListener('click', function(event) {
+        event.preventDefault();
+        aprovarProposta();
+});
+/**
+ * Tenta atualizar o status do orçamento para 'E' (Em Fechamento) após aprovação.
+ */
+async function aprovarProposta() {
+    // Busca o ID do Orçamento no elemento com ID 'idOrcamento'
+
+    let nrOrcamentoElem = document.getElementById('nrOrcamento');
+    let nrOrcamento = "";
+
+    if (nrOrcamentoElem) {
+        if (nrOrcamentoElem.tagName === "INPUT") {
+            nrOrcamento = nrOrcamentoElem.value.trim();
+        } else {
+            nrOrcamento = nrOrcamentoElem.innerText.trim();
+        }
+    }
+
+    let idOrcamentoElem = document.getElementById('idOrcamento'); 
+    let idOrcamento = "";
+
+    if (idOrcamentoElem) {
+        idOrcamento = idOrcamentoElem.tagName === "INPUT"
+            ? idOrcamentoElem.value.trim()
+            : idOrcamentoElem.innerText.trim();
+    } 
+
+    if (!idOrcamento) {
+        Swal.fire({
+            icon: "error",
+            title: "Erro!",
+            text: "ID do Orçamento não encontrado. Não é possível aprovar.",
+            confirmButtonText: "Fechar"
+        });
+        console.warn("ID do orçamento não encontrado!");
+        return;
+    }
+
+    try {
+        console.log("🔍 Iniciando requisição para Aprovar Proposta (Status 'E')...");
+
+        const statusUpdateResult = await fetchComToken(`/orcamentos/${idOrcamento}/status`, {
+            method: "PATCH", 
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                status: "E" // Status: Em Fechamento
+            })
+        });
+
+        if (statusUpdateResult.success) {
+            console.log("✅ Status do orçamento atualizado para 'E' com sucesso!");
+            
+            try {
+                const url = `orcamentos?nrOrcamento=${nrOrcamento}`;
+
+                const orcamento = await fetchComToken(url, { method: 'GET' });
+                preencherFormularioComOrcamento(orcamento);
+
+            } catch (error) {
+                console.error("Erro ao buscar orçamento:", error);
+
+                let errorMessage = error.message;
+                if (error.message.includes("404")) {
+                    errorMessage = `Orçamento com o número ${nrOrcamento} não encontrado.`;
+                    limparOrcamento();
+                } else if (error.message.includes("400")) {
+                    errorMessage = "Número do orçamento é inválido ou vazio.";
+                    limparOrcamento();
+                } else {
+                    errorMessage = `Erro ao carregar orçamento: ${error.message}`;
+                    limparOrcamento();
+                }
+
+                Swal.fire("Erro!", errorMessage, "error");
+            }
+
+            Swal.fire({
+                icon: "success",
+                title: "Proposta Aprovada!",
+                text: "O status do orçamento foi alterado para 'Em Fechamento'.",
+                confirmButtonText: "OK",
+            });
+        } else {
+            throw new Error(statusUpdateResult.message || "Falha ao atualizar o status para 'E'.");
+        }
+
+    } catch (err) {
+        console.error("❌ Erro ao Aprovar Proposta:", err);
+        Swal.fire({
+            icon: "error",
+            title: "Erro!",
+            text: `Ocorreu um erro ao aprovar a proposta: ${err.message}`,
+            confirmButtonText: "Fechar"
+        });
+    }
+}
+
+
+
+// 🔴 Evento para o botão Reprovar Proposta
+document.getElementById('ReprovarProposta')?.addEventListener('click', function(event) {
+    event.preventDefault();
+    reprovarProposta();
+});
+
+/**
+ * Tenta atualizar o status do orçamento para 'R' (Reprovado) após reprovação.
+ */
+async function reprovarProposta() {
+    // Busca o ID do Orçamento no elemento com ID 'idOrcamento'
+
+    let nrOrcamentoElem = document.getElementById('nrOrcamento');
+    let nrOrcamento = "";
+
+    if (nrOrcamentoElem) {
+        if (nrOrcamentoElem.tagName === "INPUT") {
+            nrOrcamento = nrOrcamentoElem.value.trim();
+        } else {
+            nrOrcamento = nrOrcamentoElem.innerText.trim();
+        }
+    }
+    
+    let idOrcamentoElem = document.getElementById('idOrcamento'); 
+    let idOrcamento = "";
+
+    if (idOrcamentoElem) {
+        idOrcamento = idOrcamentoElem.tagName === "INPUT"
+            ? idOrcamentoElem.value.trim()
+            : idOrcamentoElem.innerText.trim();
+    } 
+
+    if (!idOrcamento) {
+        Swal.fire({
+            icon: "error",
+            title: "Erro!",
+            text: "ID do Orçamento não encontrado. Não é possível reprovar.",
+            confirmButtonText: "Fechar"
+        });
+        console.warn("ID do orçamento não encontrado!");
+        return;
+    }
+
+    try {
+        console.log("🔍 Iniciando requisição para Reprovar Proposta (Status 'R')...");
+
+        const statusUpdateResult = await fetchComToken(`/orcamentos/${idOrcamento}/status`, {
+            method: "PATCH", 
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                status: "R" // Status: Reprovado
+            })
+        });
+
+        if (statusUpdateResult.success) {
+            console.log("✅ Status do orçamento atualizado para 'R' com sucesso!");
+            
+            try {
+                const url = `orcamentos?nrOrcamento=${nrOrcamento}`;
+
+                const orcamento = await fetchComToken(url, { method: 'GET' });
+                preencherFormularioComOrcamento(orcamento);
+
+            } catch (error) {
+                console.error("Erro ao buscar orçamento:", error);
+
+                let errorMessage = error.message;
+                if (error.message.includes("404")) {
+                    errorMessage = `Orçamento com o número ${nrOrcamento} não encontrado.`;
+                    limparOrcamento();
+                } else if (error.message.includes("400")) {
+                    errorMessage = "Número do orçamento é inválido ou vazio.";
+                    limparOrcamento();
+                } else {
+                    errorMessage = `Erro ao carregar orçamento: ${error.message}`;
+                    limparOrcamento();
+                }
+
+                Swal.fire("Erro!", errorMessage, "error");
+            }
+
+            Swal.fire({
+                icon: "success",
+                title: "Proposta Reprovada!",
+                text: "O status do orçamento foi alterado para 'Reprovado'.",
+                confirmButtonText: "OK",
+            });
+        } else {
+            throw new Error(statusUpdateResult.message || "Falha ao atualizar o status para 'R'.");
+        }
+
+    } catch (err) {
+        console.error("❌ Erro ao Reprovar Proposta:", err);
+        Swal.fire({
+            icon: "error",
+            title: "Erro!",
+            text: `Ocorreu um erro ao reprovar a proposta: ${err.message}`,
+            confirmButtonText: "Fechar"
+        });
+    }
+}
 
 function exportarParaExcel() {
   const linhas = document.querySelectorAll("#tabela tbody tr");

@@ -131,9 +131,23 @@
                     </div>
                 </div>
             </div>
-
+            
             
             <div class="cards">
+                
+                <div class="card" id="cardContainerVencimentos" style="display: none;">  
+                    <div class="card-vencimentos">
+                        <div class="vec-header">
+                            <span class="vec-title">Aviso de Vencimentos</span>
+                            <span id="vencimentosTotal" class="venc-total total-vencimentos">R$ 0,00</span>
+                        </div>
+                        <div class="vec-body">
+                            <span>A Vencer: <span id="vencimentosProximos">0</span></span>
+                            <span>Vencidos: <span id="vencimentosAtrasados">0</span></span> 
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="card" id="card-agenda">
                     <div class="card-agenda">
                         <div class="Agen-header">
@@ -143,18 +157,22 @@
                     </div>
                 </div>
                 
-                <div class="card ">  
+                <div class="card" id="cardContainerOrcamentos">  
                     <div class="card-orcamentos">
                         <div class="orc-header">
-                        <span class="orc-title">Orçamentos</span>
-                        <span id="orcamentosTotal" class="orc-total">0</span>
+                            <span class="orc-title">Orçamentos</span>
+                            <span id="orcamentosTotal" class="orc-total">0</span>
                         </div>
                         <div class="orc-body">
-                        <span>Abertos: <span id="orcamentosPendentes">0</span></span>
-                        <span>Fechados: <span id="orcamentosFechados">0</span></span>
+                            <span>Abertos: <span id="orcamentosPendentes">0</span></span>
+                            <span>Em Proposta: <span id="orcamentosProposta">0</span></span>
+                            <span>Em Andamento: <span id="orcamentosEmAndamento">0</span></span>
+                            <span>Fechados: <span id="orcamentosFechados">0</span></span>
+                            <span>Recusados: <span id="orcamentosRecusados">0</span></span>
                         </div>
                     </div>
-                </div>
+                </div> 
+
 
                     <div class="card">
                         <div class="card-eventos">

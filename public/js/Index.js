@@ -321,16 +321,39 @@ function aplicarConfiguracoes(modulo) {
 
 function fecharModal() {
 
-  const moduloQueEstaFechando = window.moduloAtual;
+    const moduloQueEstaFechando = window.moduloAtual;
+    
+    // 1. Desinicialização e Verificação de Callback
     if (window.moduloHandlers[moduloQueEstaFechando] && typeof window.moduloHandlers[moduloQueEstaFechando].desinicializar === 'function') {
         console.log(`Desinicializando módulo ${moduloQueEstaFechando} antes de fechar o modal.`);
         window.moduloHandlers[moduloQueEstaFechando].desinicializar();
-        window.location.reload();
+        
+        // 🚨 REMOVA O window.location.reload() DAQUI. 
+        // Se ele for executado aqui, ele sempre recarrega ANTES do modal fechar visualmente.
+        // window.location.reload(); 
     }
+    
+    // 2. Limpeza Visual do Modal
+    document.getElementById("modal-container").innerHTML = "";
+    document.getElementById("modal-overlay").style.display = "none";
+    document.body.classList.remove("modal-open");
 
-  document.getElementById("modal-container").innerHTML = "";
-  document.getElementById("modal-overlay").style.display = "none";
-  document.body.classList.remove("modal-open");
+    // 3. Lógica de Ação Pós-Fechamento (Callback vs. Refresh Geral)
+    
+    // ⭐️ PASSO CRUCIAL: Se a função de callback específica existir (definida em abrirDetalhesEquipe), chame-a.
+    if (typeof window.onStaffModalClosed === 'function') {
+        console.log("Fechamento de modal detectado. Chamando callback específico (voltarParaEquipes).");
+        // Chama a função de callback, que é a sua 'voltarParaEquipes'
+        window.onStaffModalClosed(true); 
+    } else {
+        // Se NÃO houver um callback específico (ou seja, foi aberto pelo caminho normal ou outro),
+        // faça a recarga geral, se for o comportamento desejado para os outros modais.
+        console.log("Fechamento de modal detectado. Nenhum callback específico. Recarregando página (comportamento padrão).");
+        window.location.reload(); 
+    }
+    
+    // Limpa a variável global do módulo atual após o fechamento
+    window.moduloAtual = null;
 }
 
 

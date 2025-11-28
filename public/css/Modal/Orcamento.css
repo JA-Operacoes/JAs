@@ -489,7 +489,7 @@
   input.preenchido ~ label {
     top: -3px;
     left: 5%;
-    font-size: 12px;
+    font-size: 11px;
     background: #cacaca;
     margin-left: 10px;
   }
@@ -624,15 +624,17 @@ select #idCliente, #idEvento{
 
   textarea{
     font-family: var(--Font-primary);
-    width: 255px;
-    height: 90px;
+    width: 450px;
+    height: 100px;
     border-radius: 6px;
     font-size: 15px;
     border: 1px solid #000000;
     background: white;
     color: #000000;
     overflow-y: auto;
+    scrollbar-width: thin;
     margin-left: 15px;
+    padding: 10px;
     gap: 5px;
   }
 
@@ -843,6 +845,7 @@ select #idCliente, #idEvento{
     max-height: 350px;
     overflow-x: scroll;
     overflow-y: scroll;
+    scrollbar-width: thin;
   }
   
   table {
@@ -1086,6 +1089,84 @@ select #idCliente, #idEvento{
     flex-direction: row;
   }
 
+  /* ==============  Incluir Contrato  =============== */
+
+.container {
+  height: auto;                  /* Remova altura fixa */
+  width: 450px;
+  border-radius: 10px;
+  box-shadow: 4px 4px 30px rgba(0, 0, 0, .2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;  /* Mantém conteúdo no topo */
+  padding: 10px;
+  gap: 6px;
+  background-color: rgba(0, 110, 255, 0.041);
+  border: 2px dashed var(--primary-color);
+}
+
+.upload-area-wrapper {
+  display: block; /* Ou display: flex; se for manter o fluxo */
+  cursor: pointer; /* Indica que a área é clicável */
+}
+
+.header {
+  flex: 1;
+  width: 100%;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.header svg {
+  height: 50px;
+}
+
+.header p {
+  text-align: center;
+  color: black;
+}
+
+.footer {
+  background-color: rgba(0, 110, 255, 0.075);
+  width: 100%;
+  padding: 6px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  color: black;
+  border: none;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+
+.footer svg {
+  height:35px;
+  fill: var(--primary-color);
+  background-color: transparent;
+  border-radius: 50%;
+  padding: 2px;
+  cursor: pointer;
+  box-shadow: 0 2px 30px transparent;
+}
+
+.footer p {
+  flex: 1;
+  text-align: center;
+  font-size: 15px;
+}
+
+#file {
+display: none;
+}
+
+
 .botao-pdf {
     background-color: #c62828 !important;  /* vermelho forte */
     color: white !important;
@@ -1159,8 +1240,9 @@ select #idCliente, #idEvento{
 
 /* Textos explicativos */
 .swal-container small {
-  color: #aaaaaa;
+  color: #000000;
   font-size: 0.8rem;
+  font-weight: 400;
   margin-top: -6px;
   display: flex;
   justify-content: center;
