@@ -1886,18 +1886,20 @@ function criarCard(evt) {
   // 🌟 FIM DO BLOCO DE PERÍODO ATUALIZADO
 
   // ======= Resumo das equipes/funções em uma linha (Sem alteração) =======
-  const equipes = evt.equipes_detalhes || [];
-  const resumoEquipes = equipes.length
-  ? equipes.map(f => {
-  const total = f.total_vagas || 0;
-  const preenchido = f.preenchidas || 0;
-  const restante = total - preenchido;
-  let cor = "🟢";
-  if (restante === total) cor = "🔴"; // 0 preenchido
-  else if (restante > 0) cor = "🟡"; // Parcialmente preenchido
-  return `${f.equipe}: ${cor} ${preenchido}/${total}`;
-  }).join(" | ")
-  : "Nenhuma equipe cadastrada";
+  // const equipes = evt.equipes_detalhes || [];
+  // const resumoEquipes = equipes.length
+  // ? equipes.map(f => {
+  // const total = f.total_vagas || 0;
+  // const preenchido = f.preenchidas || 0;
+  // const restante = total - preenchido;
+  // let cor = "🟢";
+  // if (restante === total) cor = "🔴"; // 0 preenchido
+  // else if (restante > 0) cor = "🟡"; // Parcialmente preenchido
+  // return `${f.equipe}: ${cor} ${preenchido}/${total}`;
+  // }).join(" | ")
+  // : "Nenhuma equipe cadastrada";
+
+  const resumoEquipes = evt.resumoEquipes || "Nenhuma equipe cadastrada";
 
 
   const card = document.createElement("div");
