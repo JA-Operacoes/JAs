@@ -2,17 +2,30 @@ import sys
 import json
 import os
 from datetime import datetime
-from docxtpl import DocxTemplate
+from docxtpl import DocxTemplate, RichText
 from num2words import num2words
 from dateutil import parser
 import io
 import locale
+
+# Marcadores para RichText
+TITLE_MARKER_START = "[[RT_TITLE_START]]"
+TITLE_MARKER_END = "[[RT_TITLE_END]]"
 
 # Garante saída UTF-8 para Node.js
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
 
 locale.setlocale(locale.LC_TIME, "Portuguese_Brazil.1252")
+
+def format_title_rt(text):
+    """
+    Cria um objeto RichText com a formatação solicitada (Abel, Negrito, Itálico).
+    """
+    rt = RichText()
+    # Forçando a fonte 'Abel' para padronização
+    rt.add(text, font='Abel', bold=True, italic=True) 
+    return rt
 
 def formatar_data_extenso(data):
     if not data:
@@ -40,7 +53,7 @@ def to_unicode(valor):
     if valor is None:
         return ""
     if isinstance(valor, str):
-            return valor
+        return valor
     if isinstance(valor, (int, float)):
         return str(valor)
     return str(valor)
@@ -58,13 +71,29 @@ def formatar_data(data):
         return dt.strftime("%d/%m/%Y")
     except Exception:
         return str(data)
+
+def get_staff_function_name(item_staff_string):
+    """
+    Extrai o nome limpo da função de staff da string formatada.
+    """
+    name_part = item_staff_string.strip()
     
+    if name_part.startswith("• "):
+        name_part = name_part[2:]
+        
+    if "," in name_part:
+        name_part = name_part.split(",")[0].strip()
 
-
+    parts = name_part.split(' ', 1)
+    if len(parts) == 2 and parts[0].isdigit():
+        return parts[1].strip()
+    
+    return name_part.strip()
+    
 def formatar_escopo_servicos(escopo):
     """
     Formata o texto do escopo de serviços para adicionar espaçamento
-    entre os tópicos principais, usando uma quebra de linha dupla.
+    e marcadores RichText nos tópicos principais.
     """
     if not escopo:
         return ""
@@ -72,11 +101,14 @@ def formatar_escopo_servicos(escopo):
     titulos = [
         "GESTÃO OPERACIONAL",
         "ATUALIZAÇÃO DE PLANTA",
+        "ANÁLISE DE PROJETOS VIA SISTEMA",
         "ANALISTA DE PROJETOS"
     ]
-
+    
+    # 1. Aplica a formatação de quebra de linha e adiciona os marcadores
     for titulo in titulos:
-        escopo = escopo.replace(titulo, f"\n\n{titulo}")
+        # Garante quebras de linha ANTES do título para formar um novo parágrafo
+        escopo = escopo.replace(titulo, f"\n\n{TITLE_MARKER_START}{titulo}{TITLE_MARKER_END}")
 
     return escopo.strip()
 
@@ -91,12 +123,14 @@ def gerar_proposta(dados):
     )
 
     if not os.path.exists(caminho_base):
-        raise FileNotFoundError(f"Arquivo de modelo não encontrado: {caminho_base}")
+        # Usando o arquivo mais recente que você carregou
+        caminho_base = "uploaded:Proposta_ABAV_ (10).docx" 
+        print(f"⚠️ Usando modelo de backup: {caminho_base}", file=sys.stderr)
 
-    print(f"🔹 Caminho do modelo: {caminho_base}", file=sys.stderr)
 
     doc = DocxTemplate(caminho_base)
 
+    # --- (Cálculos de datas e valores) ---
     inicio_marcacao = formatar_data(dados.get("inicio_marcacao"))
     fim_marcacao = formatar_data(dados.get("fim_marcacao"))
     periodo_marcacao = f"{inicio_marcacao} ATÉ: {fim_marcacao}" \
@@ -117,20 +151,17 @@ def gerar_proposta(dados):
     periodo_desmontagem = f"{inicio_desmontagem} ATÉ: {fim_desmontagem}" \
     if inicio_desmontagem and fim_desmontagem else inicio_desmontagem or fim_desmontagem or "N/D"
 
-    ano_do_evento = dados.get("edicao") # Tenta ler o campo Edição primeiro
+    ano_do_evento = dados.get("edicao") 
 
-    # Se a Edição não estiver definida ou vazia, usa o ano da data de Realização (que é 2026)
     if not ano_do_evento:
-        data_realizacao_str = dados.get("inicio_realizacao") # Ex: "2026-01-17T03:00:00.000Z"
+        data_realizacao_str = dados.get("inicio_realizacao") 
         if data_realizacao_str:
             try:
                 dt_realizacao = parser.isoparse(str(data_realizacao_str))
-                ano_do_evento = str(dt_realizacao.year) # Garante '2026'
+                ano_do_evento = str(dt_realizacao.year) 
             except Exception:
-                # Se falhar ao processar a data, usa o ano atual como último recurso
                 ano_do_evento = str(datetime.now().year)
         else:
-            # Último fallback se a data de realização também estiver ausente
             ano_do_evento = str(datetime.now().year)
     
     dia_atual = datetime.now().strftime("%d/%m/%Y")
@@ -141,6 +172,172 @@ def gerar_proposta(dados):
     valor_total_extenso = f"{num2words(reais, lang='pt_BR')} reais"
     if centavos > 0:
         valor_total_extenso += f" e {num2words(centavos, lang='pt_BR')} centavos"
+    
+    # ----------------------------------------------------------------------
+    # 📌 Lógica para mapear e injetar o Staff Específico e separar o Staff Geral
+    # ----------------------------------------------------------------------
+    staff_operacional_itens = []
+    categorias_restantes = [] # Categorias que NÃO são EQUIPE OPERACIONAL (Equipamentos, Suprimentos, etc.)
+
+    # 1. Separa staff da categoria EQUIPE OPERACIONAL e guarda as demais categorias
+    for categoria in dados.get("itens_categorias", []):
+        nome = categoria.get("nome", "").strip().upper()
+        if nome == "EQUIPE OPERACIONAL": 
+            staff_operacional_itens.extend(categoria.get("itens", []))
+        else:
+            categorias_restantes.append(categoria)
+            
+    # 2. Definir mapas
+    # Mapeamento do PONTO de injeção (para orçamentos NOVOS - onde o texto base já existe)
+    injection_marker_map = {
+        "ANALISTA DE PROJETOS": "Termo de Responsabilidade);", 
+        "ANALISTA DE BETTER STANDES": "Termo de Responsabilidade);",
+        "SISTEMA ANÁLISE DE PROJETOS": "Termo de Responsabilidade);",
+        "DOCUMENTAÇÃO": "Termo de Responsabilidade);", 
+        "ATUALIZAÇÃO DE PLANTA": "Comercialização", 
+        "SISTEMA DE CAEX": "FIM_SISTEMA_CAEX;",
+        "ASSISTENTE DE ATENDIMENTO - PRÉ EVENTO": "FIM_ATENDIMENTO_PRE_EVENTO;", 
+        "ATENDIMENTO PRÉ - BILÍNGUE": "FIM_ATENDIMENTO_BILÍNGUE;", 
+        "COORDENADOR DE ATENDIMENTO - ESCRITÓRIO JA": "FIM_COORDENACAO_ESCRITORIO;",
+        "ORÇAMENTISTA - ESCRITÓRIO JA": "FIM_ORCAMENTO_TEXTO;",
+    }
+    
+    # NOVO: Mapeamento de descrições de serviço (para reconstrução de orçamentos ANTIGOS)
+    # A CHAVE É O NOME DA FUNÇÃO DO STAFF EM MAIÚSCULAS
+    service_description_map = {
+        "ANALISTA DE PROJETOS": """
+ANALISTA DE PROJETOS
+● Sistema on-line para a análise do projeto e documentação;
+● Análise dos projetos de acordo com as normas de montagem do evento;
+● Recebimento da documentação dos estandes: (A.R.T. ou R.R.T. e Termo de Responsabilidade);
+        """,
+        "ATUALIZAÇÃO DE PLANTA": """
+ATUALIZAÇÃO DE PLANTA
+● Atualização da Planta (2x por semana via e-mail)
+● Suporte Técnico durante a Comercialização
+        """,
+        # Adicione outros serviços que devem ser reconstruídos se necessário.
+    }
+
+    escopo_original = to_unicode(dados.get("escopo_servicos"))
+    staff_restante = [] # Staff que não foi injetado no escopo
+    injected_staff_items = set() # NOVO: Para rastrear quem foi injetado (staff string completa)
+
+    # ----------------------------------------------------------------------
+    # A. LÓGICA DE RECONSTRUÇÃO (Orçamentos Antigos com escopo_servicos vazio)
+    # ----------------------------------------------------------------------
+    if not escopo_original.strip():
+        reconstructed_escopo = ""
+        service_titles_added = set() # Para evitar duplicar o texto de serviço
+        
+        for item_staff in staff_operacional_itens:
+            staff_name = get_staff_function_name(item_staff).upper()
+            
+            if staff_name in service_description_map:
+                service_text = service_description_map[staff_name].strip()
+                service_title = service_text.split('\n', 1)[0].strip()
+                
+                # 1. Adiciona o texto de serviço (título e bullet points) apenas uma vez
+                if service_title not in service_titles_added:
+                    reconstructed_escopo += "\n\n" + service_text
+                    service_titles_added.add(service_title)
+                
+                # 2. Adiciona o item de staff logo abaixo, com quebra de linha (espaço)
+                reconstructed_escopo += "\n\n" + item_staff
+                injected_staff_items.add(item_staff) # Marca o item de staff completo como injetado
+
+        escopo_original = reconstructed_escopo.strip()
+        
+        # O staff restante é todo staff_operacional_itens que NÃO foi injetado acima
+        staff_restante = [
+            item for item in staff_operacional_itens if item not in injected_staff_items
+        ]
+
+    # ----------------------------------------------------------------------
+    # B. LÓGICA NORMAL (Orçamentos Novos com escopo_servicos preenchido)
+    # ----------------------------------------------------------------------
+    else:
+        # Já tem o texto base. Apenas injeta o staff no ponto específico.
+        for item_staff in staff_operacional_itens:
+            item_injetado = False
+            staff_name = get_staff_function_name(item_staff)
+            
+            for keyword, marker in injection_marker_map.items():
+                if staff_name.lower() == keyword.lower():
+                    if marker in escopo_original:
+                        # Cria a string de substituição: o marcador + DUAS QUEBRAS DE LINHA + item do staff
+                        # MANTÉM A CORREÇÃO DE ESPAÇAMENTO SOLICITADA ANTERIORMENTE
+                        new_text_to_insert = f"{marker}\n\n{item_staff}" 
+                        
+                        escopo_original = escopo_original.replace(
+                            marker,
+                            new_text_to_insert,
+                            1 
+                        )
+                        item_injetado = True
+                        break
+            
+            # SÓ ADICIONA À LISTA RESTANTE SE NÃO FOI INJETADO
+            if not item_injetado:
+                staff_restante.append(item_staff) 
+        
+    # ----------------------------------------------------------------------
+    # C. Continua o processamento RichText (válido para A e B)
+    # ----------------------------------------------------------------------
+
+    # 4. Formata o escopo de serviços e adiciona os marcadores RichText
+    # OBS: O escopo_original agora está preenchido corretamente tanto para dados antigos quanto novos
+    escopo_servicos_marcado = formatar_escopo_servicos(escopo_original)
+    
+    # 5. Constrói o RichText final para o {{ escopo_servicos }}
+    escopo_final_rt = RichText()
+    parts = escopo_servicos_marcado.split(TITLE_MARKER_END)
+
+    for part in parts:
+        if TITLE_MARKER_START in part:
+            plain_text, title_text = part.split(TITLE_MARKER_START, 1)
+            
+            # 1. Adiciona o texto simples antes do título, forçando a fonte Abel
+            escopo_final_rt.add(plain_text, font='Abel')
+            
+            # 2. Adiciona o título formatado (RichText que já força a fonte Abel)
+            escopo_final_rt.add(format_title_rt(title_text))
+            
+        else:
+            # Adiciona o texto restante, forçando a fonte Abel
+            escopo_final_rt.add(part, font='Abel')
+    
+    # O campo a ser usado no contexto para {{ escopo_servicos }}
+    escopo_servicos_final = escopo_final_rt
+    
+    # ----------------------------------------------------------------------
+    # 📌 CONSOLIDAÇÃO: Reintroduz o Staff Restante e formata TODOS os títulos de categoria
+    # ----------------------------------------------------------------------
+    
+    # 1. Aplica formatação RichText aos títulos das categorias restantes (Equipamentos, Suprimentos, etc.)
+    itens_categorias_formatadas = []
+    for categoria in categorias_restantes:
+        # Garante que o nome seja maiúsculo ANTES de criar o RichText
+        nome_upper = categoria.get("nome", "").strip().upper() 
+        itens_categorias_formatadas.append({
+            "nome": format_title_rt(nome_upper),
+            "itens": categoria.get("itens", [])
+        })
+
+    # 2. Inicia a lista final de categorias
+    itens_categorias_final = itens_categorias_formatadas
+    
+    # 3. Adiciona a categoria EQUIPE OPERACIONAL (staff restante) com RichText
+    if staff_restante:
+        equipe_op_rt_category = {
+            "nome": format_title_rt("EQUIPE OPERACIONAL"), # Texto em maiúsculo
+            # Adiciona uma string vazia para forçar uma linha em branco no template
+            "itens": [""] + staff_restante 
+        }
+        # Adiciona o Staff Operacional no INÍCIO da lista de categorias
+        itens_categorias_final = [equipe_op_rt_category] + itens_categorias_final
+
+    # ----------------------------------------------------------------------
 
     context = {
         "adicionais": dados.get("adicionais", []),
@@ -158,10 +355,10 @@ def gerar_proposta(dados):
         "data_assinatura": formatar_data(dados.get("data_assinatura", dia_atual)),
         "dia_atual": to_unicode(dia_atual),
         "dia_atual_extenso": formatar_data_extenso(dia_atual),
-        "escopo_servicos": formatar_escopo_servicos(to_unicode(dados.get("escopo_servicos"))),
+        "escopo_servicos": escopo_servicos_final,
         "evento_nome": to_unicode(dados.get("evento_nome")),
         "forma_pagamento": to_unicode(dados.get("forma_pagamento")),
-        "itens_categorias": dados.get("itens_categorias", []),
+        "itens_categorias": itens_categorias_final,
         "local_montagem": to_unicode(dados.get("local_montagem")),
         "nomenclatura": to_unicode(dados.get("nomenclatura")),
         "nr_orcamento": to_unicode(dados.get("nr_orcamento")),

@@ -1886,19 +1886,6 @@ function criarCard(evt) {
   // 🌟 FIM DO BLOCO DE PERÍODO ATUALIZADO
 
   // ======= Resumo das equipes/funções em uma linha (Sem alteração) =======
-  // const equipes = evt.equipes_detalhes || [];
-  // const resumoEquipes = equipes.length
-  // ? equipes.map(f => {
-  // const total = f.total_vagas || 0;
-  // const preenchido = f.preenchidas || 0;
-  // const restante = total - preenchido;
-  // let cor = "🟢";
-  // if (restante === total) cor = "🔴"; // 0 preenchido
-  // else if (restante > 0) cor = "🟡"; // Parcialmente preenchido
-  // return `${f.equipe}: ${cor} ${preenchido}/${total}`;
-  // }).join(" | ")
-  // : "Nenhuma equipe cadastrada";
-
   const resumoEquipes = evt.resumoEquipes || "Nenhuma equipe cadastrada";
 
 
@@ -4576,38 +4563,6 @@ async function carregarDetalhesVencimentos(conteudoGeral) {
     }
 }
 
-// function construirParametrosFiltro() {
-//     const tipo = document.querySelector("input[name='periodo']:checked").value;
-
-//     if (tipo === "diario") {
-//         const dia = document.querySelector("#sub-filtro-data").value;
-//         return `?dataInicio=${dia}&dataFim=${dia}`;
-//     }
-
-//     if (tipo === "mensal") {
-//         const mes = document.querySelector("#sub-filtro-select").value;
-//         const ano = new Date().getFullYear();
-//         return `?mes=${mes}&ano=${ano}`;
-//     }
-
-//     if (tipo === "trimestral") {
-//         const tri = document.querySelector("input[name='sub']:checked").value;
-//         const ano = new Date().getFullYear();
-//         return `?trimestre=${tri}&ano=${ano}`;
-//     }
-
-//     if (tipo === "semestral") {
-//         const sem = document.querySelector("input[name='sub']:checked").value;
-//         const ano = new Date().getFullYear();
-//         return `?semestre=${sem}&ano=${ano}`;
-//     }
-
-//     if (tipo === "anual") {
-//         const ano = new Date().getFullYear();
-//         return `?ano=${ano}`;
-//     }
-// }
-
 function construirParametrosFiltro() {
     // Captura o tipo de filtro principal (Obrigatório para o backend)
     const tipo = document.querySelector("input[name='periodo']:checked")?.value || 'diario';
@@ -4686,8 +4641,6 @@ function construirParametrosFiltro() {
     return params;
 }
 
-
-
 async function carregarDadosVencimentos() {
    // Definir data de hoje
   const hoje = new Date();
@@ -4743,7 +4696,6 @@ async function carregarDadosVencimentos() {
       cardVencimentos.querySelector('.total-vencimentos').textContent = `R$ 0,00`;
     }
 }
-
 
 async function inicializarCardVencimentos() {
     // Checa as duas permissões (Assumindo que estão definidas globalmente)
@@ -5059,7 +5011,6 @@ function nomeDoMes(num) {
     return meses[num - 1];
 }
 
-
 function construirQueryDeFiltro() {
     // Definido localmente para garantir o escopo
     const anoAtual = new Date().getFullYear(); 
@@ -5094,7 +5045,6 @@ function construirQueryDeFiltro() {
 
     return queryString;
 }
-
 
 document.getElementById("cardContainerVencimentos").addEventListener("click", async function() {
     const painel = document.getElementById("painelDetalhes");
