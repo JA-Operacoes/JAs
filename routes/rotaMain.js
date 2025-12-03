@@ -83,8 +83,22 @@ router.get("/extra-bonificado", async (req, res) => {
 
     try {
         const sqlQuery = `
-            SELECT /* ... */ FROM aditivoextra ae
-            -- ... (Restante da sua query) ...
+            SELECT ae.idaditivoextra,
+                ae.idfuncionario, 
+                ae.idfuncao, 
+                ae.idorcamento, 
+                f.nome AS nome_funcionario_afetado,
+                e.nmevento AS nome_evento,
+                o.nrorcamento,
+                ae.tiposolicitacao,
+                ae.justificativa,
+                ae.status AS status_aditivo,
+                u.nome AS nome_usuario_solicitante
+            FROM aditivoextra ae
+            LEFT JOIN orcamentos o ON ae.idorcamento = o.idorcamento
+            LEFT JOIN funcionarios f ON ae.idfuncionario = f.idfuncionario
+            LEFT JOIN eventos e ON o.idevento = e.idevento
+            LEFT JOIN usuarios u ON ae.idusuariosolicitante = u.idusuario
             WHERE 
                 ae.status IN ('Autorizado') 
                 AND ae.tiposolicitacao ='Extra Bonificado'

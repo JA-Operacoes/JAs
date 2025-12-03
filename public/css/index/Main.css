@@ -2063,12 +2063,40 @@ body.dark .indicador-evento {
   display: none; /* Esconde por padrão */
 }
 .accordion-item.active .accordion-body {
-  display: block; /* Mostra quando ativo */
+  display: block !important; /* Mostra quando ativo */
   /* ⬅️ NOVO: Limita a altura do conteúdo visível (85% da tela é um bom padrão) */
   max-height: 85vh; 
 
   /* ⬅️ NOVO: Faz o próprio corpo do accordion rolar se o conteúdo total (incluindo o .venc-container) exceder 85vh */
   overflow-y: auto;
+}
+
+/* regra para exibição EXTRAADITIVO do ORÇAMENTO */
+.accordion-content {
+    display: none; 
+    /* Se você quiser uma transição suave (animação), 
+    use max-height: 0; e overflow: hidden; aqui.
+    */
+    padding: 0 15px; /* Define o padding base para o conteúdo */
+}
+
+/* 2. Mostra o conteúdo quando o item pai tem a classe 'active' */
+.accordion-item.active .accordion-content {
+    display: block !important; 
+    /* Usar !important é uma medida de teste para garantir 
+    que nenhuma outra regra CSS esteja sobrepondo a visibilidade.
+    Você pode tentar remover o !important se funcionar.
+    */
+    max-height: 500px;
+}
+
+/* 3. Estiliza a seta (opcional, para rotação) */
+.accordion-header i.fa-chevron-down {
+    transition: transform 0.3s ease;
+}
+
+.accordion-item.active .accordion-header i.fa-chevron-down {
+    transform: rotate(180deg);
 }
 
 

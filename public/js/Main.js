@@ -15,262 +15,505 @@ const getRecordIdFromUrl = (url) => {
 
 
 
-async function abrirModalLocal(url, modulo) {
-  if (!modulo) modulo = window.moduloAtual || "Staff";
-  console.log("[abrirModalLocal] iniciar:", { modulo, url });
+// async function abrirModalLocal(url, modulo) {
+//   if (!modulo) modulo = window.moduloAtual || "Staff";
+//   console.log("[abrirModalLocal] iniciar:", { modulo, url });
 
-  let html;
-  try {
-  console.log("[abrirModalLocal] fetchHtmlComToken ->", url);
-  html = await fetchHtmlComToken(url);
-  console.log("[abrirModalLocal] HTML recebido, tamanho:", html ? html.length : 0);
-  } catch (err) {
-  console.error("[abrirModalLocal] Erro ao carregar modal (local):", err);
-  return;
-  }
-
-  const container = document.getElementById("modal-container");
-  if (!container) {
-  console.error("[abrirModalLocal] modal-container não encontrado no DOM.");
-  return;
-  }
-
-  // injeta HTML do modal
-  container.innerHTML = html;
-  console.log("[abrirModalLocal] HTML injetado no #modal-container");
-
-  // remove script anterior se existir
-  const scriptId = 'scriptModuloDinamico';
-  const scriptAntigo = document.getElementById(scriptId);
-  if (scriptAntigo) {
-  scriptAntigo.remove();
-  console.log("[abrirModalLocal] script anterior removido");
-  }
-
-  // carrega script do módulo (Staff.js por exemplo)
-  const scriptName = modulo.charAt(0).toUpperCase() + modulo.slice(1) + ".js";
-  const scriptSrc = `js/${scriptName}`;
-
-  // cria promise para aguardar load / execução do módulo
-  await new Promise((resolve, reject) => {
-  console.log("[abrirModalLocal] carregando script do módulo:", scriptSrc);
-  const script = document.createElement("script");
-  script.id = scriptId;
-  script.src = scriptSrc;
-  script.defer = true;
-  script.type = "module";
-
-  script.onload = () => {
-  // aguarda um tick para garantir execução de exports/global assignments
-  setTimeout(() => {
-  console.log(`[abrirModalLocal] Script ${scriptName} carregado e executado.`);
-  resolve();
-  }, 50);
-  };
-  script.onerror = (e) => {
-  console.error(`[abrirModalLocal] Erro ao carregar script ${scriptSrc}`, e);
-  reject(new Error(`Erro ao carregar script ${scriptSrc}`));
-  };
-  document.body.appendChild(script);
-  }).catch(err => {
-  console.error("[abrirModalLocal] falha ao carregar script do módulo:", err);
-  return;
-  });
-
-  // =========================================================================
-  // 🎯 PONTO DE INSERÇÃO: BUSCA DE DADOS E CARREGAMENTO DE DATAS (Edição)
-  // =========================================================================
-  const recordId = getRecordIdFromUrl(url);
-
-  console.log("RECORD ID", recordId);
-
-  if (recordId) {
-  try {
-  // 1. Busca os dados do Staff/Evento (Assumindo que o endpoint é: /staff/data/ID)
-  const dataUrl = `/${modulo.toLowerCase()}/data/${recordId}`; 
-  const staffData = await fetchComToken(dataUrl);
-  console.log("[abrirModalLocal] Dados do Staff para edição carregados:", staffData);
-
-
-  if (staffData) {
-  // Expõe os dados para que o applyModalPrefill ou o Staff.js possam usá-los
-  window.__modalFetchedData = staffData;
-
-  const datasOrcamento = staffData.datasOrcamento.map(item => item.data); // Array de datas no formato "YYYY-MM-DD"
-  console.log("[abrirModalLocal] Datas do orçamento extraídas:", datasOrcamento);
-
-  const datasDoStaff = staffData.datasevento;
-
-  // 2. Preenchimento do Flatpickr
-  // Deve usar window.datasEventoPicker (a instância global do Flatpickr)
-//  if (window.datasEventoPicker && datasDoStaff && Array.isArray(datasDoStaff)) {
-//   // Define as datas. 'true' garante que o evento 'onChange' dispare o debouncedOnCriteriosChanged.
-//   window.datasEventoPicker.setDate(datasDoStaff, true);
-//   console.log(`[abrirModalLocal] Datas carregadas no Flatpickr: ${datasDoStaff.length} dias.`);
-//   } else {
-//   console.warn("[abrirModalLocal] Flatpickr ou dados de staff (datasevento) ausentes/inválidos.", { picker: !!window.datasEventoPicker, data: datasDoStaff });
+//   let html;
+//   try {
+//   console.log("[abrirModalLocal] fetchHtmlComToken ->", url);
+//   html = await fetchHtmlComToken(url);
+//   console.log("[abrirModalLocal] HTML recebido, tamanho:", html ? html.length : 0);
+//   } catch (err) {
+//   console.error("[abrirModalLocal] Erro ao carregar modal (local):", err);
+//   return;
 //   }
 
-  // 3. (Opcional) Chamar o debounce para garantir o carregamento do orçamento
-  if (typeof window.debouncedOnCriteriosChanged === 'function') {
-  window.debouncedOnCriteriosChanged();
-  console.log("[abrirModalLocal] Verificação de orçamento (debounce) chamada.");
-  }
+//   const container = document.getElementById("modal-container");
+//   if (!container) {
+//   console.error("[abrirModalLocal] modal-container não encontrado no DOM.");
+//   return;
+//   }
 
-  // 4. (Opcional) Disparar um evento para o Staff.js preencher os outros campos
-  document.dispatchEvent(new CustomEvent("modal:data:loaded", { detail: staffData }));
+//   // injeta HTML do modal
+//   container.innerHTML = html;
+//   console.log("[abrirModalLocal] HTML injetado no #modal-container");
 
-  }
-  } catch (error) {
-  console.error(`[abrirModalLocal] Erro ao carregar dados do ${modulo} (ID: ${recordId}):`, error);
-  }
-  }
-  // =========================================================================
+//   // remove script anterior se existir
+//   const scriptId = 'scriptModuloDinamico';
+//   const scriptAntigo = document.getElementById(scriptId);
+//   if (scriptAntigo) {
+//   scriptAntigo.remove();
+//   console.log("[abrirModalLocal] script anterior removido");
+//   }
 
-  // mostra modal (espera elemento modal injetado)
-  const modal = document.querySelector("#modal-container .modal");
-  const overlay = document.getElementById("modal-overlay");
-  if (modal && overlay) {
-  modal.style.display = "block";
-  overlay.style.display = "block";
-  document.body.classList.add("modal-open");
-  console.log("[abrirModalLocal] modal exibido");
+//   // carrega script do módulo (Staff.js por exemplo)
+//   const scriptName = modulo.charAt(0).toUpperCase() + modulo.slice(1) + ".js";
+//   const scriptSrc = `js/${scriptName}`;
 
-  // fechar por overlay
-  overlay.addEventListener("mousedown", (event) => {
-  if (event.target === overlay) {
-  console.log("[abrirModalLocal] overlay clicado -> fechar");
-  if (typeof fecharModal === "function") {
-  fecharModal();
-  } else {
-  overlay.style.display = "none";
-  container.innerHTML = "";
-  document.body.classList.remove("modal-open");
-  // Chama o callback AQUI
-  if (typeof window.onStaffModalClosed === 'function') {
-  window.onStaffModalClosed(false);
-  }
-  }
-  }
-  });
+//   // cria promise para aguardar load / execução do módulo
+//   await new Promise((resolve, reject) => {
+//   console.log("[abrirModalLocal] carregando script do módulo:", scriptSrc);
+//   const script = document.createElement("script");
+//   script.id = scriptId;
+//   script.src = scriptSrc;
+//   script.defer = true;
+//   script.type = "module";
 
-  // modal.querySelector(".close")?.addEventListener("click", () => {
-  //   console.log("[abrirModalLocal] fechar (botão X)");
-  //   if (typeof fecharModal === "function") fecharModal();
-  //   else {
-  //   overlay.style.display = "none";
-  //   container.innerHTML = "";
-  //   document.body.classList.remove("modal-open");
-  //   }
-  // });
+//   script.onload = () => {
+//   // aguarda um tick para garantir execução de exports/global assignments
+//   setTimeout(() => {
+//   console.log(`[abrirModalLocal] Script ${scriptName} carregado e executado.`);
+//   resolve();
+//   }, 50);
+//   };
+//   script.onerror = (e) => {
+//   console.error(`[abrirModalLocal] Erro ao carregar script ${scriptSrc}`, e);
+//   reject(new Error(`Erro ao carregar script ${scriptSrc}`));
+//   };
+//   document.body.appendChild(script);
+//   }).catch(err => {
+//   console.error("[abrirModalLocal] falha ao carregar script do módulo:", err);
+//   return;
+//   });
 
-  modal.querySelector(".close")?.addEventListener("click", () => {
-  console.log("[abrirModalLocal] fechar (botão X)");
+//   // =========================================================================
+//   // 🎯 PONTO DE INSERÇÃO: BUSCA DE DADOS E CARREGAMENTO DE DATAS (Edição)
+//   // =========================================================================
+//   const recordId = getRecordIdFromUrl(url);
 
-  // Se a função global existir, use-a para garantir o comportamento de callback.
-  if (typeof fecharModal === "function") {
-  fecharModal(); 
-  } else {
-  // Fallback de fechamento, e aqui você DEVE incluir o callback.
-  overlay.style.display = "none";
-  container.innerHTML = "";
-  document.body.classList.remove("modal-open");
-  // Chama o callback AQUI para garantir que a tela volte, mesmo sem a função fecharModal
-  if (typeof window.onStaffModalClosed === 'function') {
-  window.onStaffModalClosed(false); // false indica que não foi fechado pela função principal, mas ainda deve voltar
-  }
-  }
-  // A linha de window.location.reload() FOI REMOVIDA.
-  });
-  } else {
-  console.warn("[abrirModalLocal] estrutura de modal não encontrada após injeção do HTML.");
-  }
+//   console.log("RECORD ID", recordId);
 
-  // --- Inicializa o módulo carregado ---
-  try {
-  console.log("[abrirModalLocal] inicializando módulo:", modulo);
+//   if (recordId) {
+//   try {
+//   // 1. Busca os dados do Staff/Evento (Assumindo que o endpoint é: /staff/data/ID)
+//   const dataUrl = `/${modulo.toLowerCase()}/data/${recordId}`; 
+//   const staffData = await fetchComToken(dataUrl);
+//   console.log("[abrirModalLocal] Dados do Staff para edição carregados:", staffData);
 
-  // 1) preferencial: handler registrado pelo módulo (window.moduloHandlers)
-  if (window.moduloHandlers && window.moduloHandlers[modulo] && typeof window.moduloHandlers[modulo].configurar === "function") {
-  console.log("[abrirModalLocal] chamando window.moduloHandlers[...] .configurar");
-  window.moduloHandlers[modulo].configurar();
-  } else if (typeof window.configurarEventosEspecificos === "function") {
-  console.log("[abrirModalLocal] chamando window.configurarEventosEspecificos");
-  window.configurarEventosEspecificos(modulo);
-  } else if (typeof window.configurarEventosStaff === "function" && modulo.toLowerCase() === "staff") {
-  console.log("[abrirModalLocal] chamando window.configurarEventosStaff");
-  window.configurarEventosStaff();
-  } else {
-  console.log("[abrirModalLocal] nenhuma função de configuração detectada");
-  }
 
-  // setTimeout(() => {
-  //   console.log("[abrirModalLocal] Inicializando Flatpickr com limites após atraso.");
-  //   window.inicializarFlatpickrStaffComLimites();
-  // }, 100); 
+//   if (staffData) {
+//   // Expõe os dados para que o applyModalPrefill ou o Staff.js possam usá-los
+//   window.__modalFetchedData = staffData;
 
-  setTimeout(() => {
-  if (typeof window.configurarEventosStaff === "function") {
-  console.log("[abrirModalLocal] Chamando configurarEventosStaff após atraso.");
-  window.configurarEventosStaff();
-  }
-  }, 100); 
+//   const datasOrcamento = staffData.datasOrcamento.map(item => item.data); // Array de datas no formato "YYYY-MM-DD"
+//   console.log("[abrirModalLocal] Datas do orçamento extraídas:", datasOrcamento);
 
-  // 4) tenta aplicar prefill imediato (se o módulo já injetou selects/inputs)
-  setTimeout(() => {
-  try {
-  console.log("[abrirModalLocal] tentando applyModalPrefill imediato");
-  if (typeof window.applyModalPrefill === "function") {
-  const ok = window.applyModalPrefill(window.__modalInitialParams || "");
-  console.log("[abrirModalLocal] applyModalPrefill retornou:", ok);
-  } else {
-  const evt = new CustomEvent("modal:prefill", { detail: window.__modalInitialParams || "" });
-  document.dispatchEvent(evt);
-  console.log("[abrirModalLocal] evento modal:prefill disparado");
-  }
-  } catch (e) {
-  console.warn("[abrirModalLocal] prefill falhou", e);
-  }
-  }, 800); //80
+//   const datasDoStaff = staffData.datasevento;
 
-  // pequena garantia: re-tentar inicialização caso o módulo popule DOM com atraso
-  setTimeout(() => {
-  try {
-  if (window.moduloHandlers && window.moduloHandlers[modulo] && typeof window.moduloHandlers[modulo].configurar === "function") {
-  console.log("[abrirModalLocal] re-executando moduloHandlers.configurar (retry)");
-  window.moduloHandlers[modulo].configurar();
-  }
-  } catch (e) { console.warn("[abrirModalLocal] retry configurar falhou", e); }
-  }, 400);
+//   // 2. Preenchimento do Flatpickr
+//   // Deve usar window.datasEventoPicker (a instância global do Flatpickr)
+// //  if (window.datasEventoPicker && datasDoStaff && Array.isArray(datasDoStaff)) {
+// //   // Define as datas. 'true' garante que o evento 'onChange' dispare o debouncedOnCriteriosChanged.
+// //   window.datasEventoPicker.setDate(datasDoStaff, true);
+// //   console.log(`[abrirModalLocal] Datas carregadas no Flatpickr: ${datasDoStaff.length} dias.`);
+// //   } else {
+// //   console.warn("[abrirModalLocal] Flatpickr ou dados de staff (datasevento) ausentes/inválidos.", { picker: !!window.datasEventoPicker, data: datasDoStaff });
+// //   }
 
-  setTimeout(() => {
-  const staffData = window.__modalFetchedData;
-  const datasDoStaff = staffData?.datasevento; // Usa optional chaining para segurança
+//   // 3. (Opcional) Chamar o debounce para garantir o carregamento do orçamento
+//   if (typeof window.debouncedOnCriteriosChanged === 'function') {
+//   window.debouncedOnCriteriosChanged();
+//   console.log("[abrirModalLocal] Verificação de orçamento (debounce) chamada.");
+//   }
 
-  // Verifica se o picker e os dados existem
-  if (window.datasEventoPicker && datasDoStaff && Array.isArray(datasDoStaff)) {
+//   // 4. (Opcional) Disparar um evento para o Staff.js preencher os outros campos
+//   document.dispatchEvent(new CustomEvent("modal:data:loaded", { detail: staffData }));
 
-  // Define as datas, disparando onChange (necessário para sincronizar com Diária Dobrada/Meia Diária)
-  window.datasEventoPicker.setDate(datasDoStaff, true); 
+//   }
+//   } catch (error) {
+//   console.error(`[abrirModalLocal] Erro ao carregar dados do ${modulo} (ID: ${recordId}):`, error);
+//   }
+//   }
+//   // =========================================================================
 
-  // 🌟 GARANTIA DE FORMATO: Força a re-renderização do altInput
-  // Isso resolve o problema de YYYY-MM-DD e múltiplos campos.
-  if (window.datasEventoPicker.altInput) {
-  window.datasEventoPicker.altInput.value = window.datasEventoPicker.formatDate(
-  window.datasEventoPicker.selectedDates, 
-  window.datasEventoPicker.config.altFormat
-  );
-  }
+//   // mostra modal (espera elemento modal injetado)
+//   const modal = document.querySelector("#modal-container .modal");
+//   const overlay = document.getElementById("modal-overlay");
+//   if (modal && overlay) {
+//   modal.style.display = "block";
+//   overlay.style.display = "block";
+//   document.body.classList.add("modal-open");
+//   console.log("[abrirModalLocal] modal exibido");
 
-  console.log(`[abrirModalLocal] [SetDate Seguro] Datas carregadas no Flatpickr: ${datasDoStaff.length} dias, formato corrigido.`);
+//   // fechar por overlay
+//   overlay.addEventListener("mousedown", (event) => {
+//   if (event.target === overlay) {
+//   console.log("[abrirModalLocal] overlay clicado -> fechar");
+//   if (typeof fecharModal === "function") {
+//   fecharModal();
+//   window.location.reload();
+//   } else {
+//   overlay.style.display = "none";
+//   container.innerHTML = "";
+//   document.body.classList.remove("modal-open");
+//   // Chama o callback AQUI
+//   if (typeof window.onStaffModalClosed === 'function') {
+//   window.onStaffModalClosed(false);
+//   }
+//   }
+//   }
+//   });
 
-  } else {
-  console.warn("[abrirModalLocal] [SetDate Seguro] Flatpickr ou dados de staff (datasevento) ausentes/inválidos.");
-  }
-  }, 500);
-  } catch (err) {
-  console.warn("[abrirModalLocal] inicialização do módulo apresentou erro", err);
-  }
+//   // modal.querySelector(".close")?.addEventListener("click", () => {
+//   //   console.log("[abrirModalLocal] fechar (botão X)");
+//   //   if (typeof fecharModal === "function") fecharModal();
+//   //   else {
+//   //   overlay.style.display = "none";
+//   //   container.innerHTML = "";
+//   //   document.body.classList.remove("modal-open");
+//   //   }
+//   // });
+
+//   modal.querySelector(".close")?.addEventListener("click", () => {
+//     console.log("[abrirModalLocal] fechar (botão X)");
+
+//     // Se a função global existir, use-a para garantir o comportamento de callback.
+//     if (typeof fecharModal === "function") {
+//       fecharModal(); 
+//       window.location.reload();
+//     } else {
+//     // Fallback de fechamento, e aqui você DEVE incluir o callback.
+//       overlay.style.display = "none";
+//       container.innerHTML = "";
+//       document.body.classList.remove("modal-open");
+//       // Chama o callback AQUI para garantir que a tela volte, mesmo sem a função fecharModal
+//       if (typeof window.onStaffModalClosed === 'function') {
+//         window.onStaffModalClosed(false); // false indica que não foi fechado pela função principal, mas ainda deve voltar
+//       }
+//       window.location.reload();
+//     }
+//     // A linha de window.location.reload() FOI REMOVIDA.
+//     });
+//     } else {
+//     console.warn("[abrirModalLocal] estrutura de modal não encontrada após injeção do HTML.");
+//     }
+
+//   // --- Inicializa o módulo carregado ---
+//   try {
+//   console.log("[abrirModalLocal] inicializando módulo:", modulo);
+
+//   // 1) preferencial: handler registrado pelo módulo (window.moduloHandlers)
+//   if (window.moduloHandlers && window.moduloHandlers[modulo] && typeof window.moduloHandlers[modulo].configurar === "function") {
+//   console.log("[abrirModalLocal] chamando window.moduloHandlers[...] .configurar");
+//   window.moduloHandlers[modulo].configurar();
+//   } else if (typeof window.configurarEventosEspecificos === "function") {
+//   console.log("[abrirModalLocal] chamando window.configurarEventosEspecificos");
+//   window.configurarEventosEspecificos(modulo);
+//   } else if (typeof window.configurarEventosStaff === "function" && modulo.toLowerCase() === "staff") {
+//   console.log("[abrirModalLocal] chamando window.configurarEventosStaff");
+//   window.configurarEventosStaff();
+//   } else {
+//   console.log("[abrirModalLocal] nenhuma função de configuração detectada");
+//   }
+
+//   // setTimeout(() => {
+//   //   console.log("[abrirModalLocal] Inicializando Flatpickr com limites após atraso.");
+//   //   window.inicializarFlatpickrStaffComLimites();
+//   // }, 100); 
+
+//   setTimeout(() => {
+//   if (typeof window.configurarEventosStaff === "function") {
+//   console.log("[abrirModalLocal] Chamando configurarEventosStaff após atraso.");
+//   window.configurarEventosStaff();
+//   }
+//   }, 100); 
+
+//   // 4) tenta aplicar prefill imediato (se o módulo já injetou selects/inputs)
+//   setTimeout(() => {
+//   try {
+//   console.log("[abrirModalLocal] tentando applyModalPrefill imediato");
+//   if (typeof window.applyModalPrefill === "function") {
+//   const ok = window.applyModalPrefill(window.__modalInitialParams || "");
+//   console.log("[abrirModalLocal] applyModalPrefill retornou:", ok);
+//   } else {
+//   const evt = new CustomEvent("modal:prefill", { detail: window.__modalInitialParams || "" });
+//   document.dispatchEvent(evt);
+//   console.log("[abrirModalLocal] evento modal:prefill disparado");
+//   }
+//   } catch (e) {
+//   console.warn("[abrirModalLocal] prefill falhou", e);
+//   }
+//   }, 800); //80
+
+//   // pequena garantia: re-tentar inicialização caso o módulo popule DOM com atraso
+//   setTimeout(() => {
+//     try {
+//     if (window.moduloHandlers && window.moduloHandlers[modulo] && typeof window.moduloHandlers[modulo].configurar === "function") {
+//       console.log("[abrirModalLocal] re-executando moduloHandlers.configurar (retry)");
+//       window.moduloHandlers[modulo].configurar();
+//       }
+//     } catch (e) { console.warn("[abrirModalLocal] retry configurar falhou", e); }
+//   }, 400);
+
+//     setTimeout(() => {
+//       const staffData = window.__modalFetchedData;
+//       const datasDoStaff = staffData?.datasevento; // Usa optional chaining para segurança
+
+//       // Verifica se o picker e os dados existem
+//       if (window.datasEventoPicker && datasDoStaff && Array.isArray(datasDoStaff)) {
+
+//         // Define as datas, disparando onChange (necessário para sincronizar com Diária Dobrada/Meia Diária)
+//           window.datasEventoPicker.setDate(datasDoStaff, true); 
+
+//         // 🌟 GARANTIA DE FORMATO: Força a re-renderização do altInput
+//         // Isso resolve o problema de YYYY-MM-DD e múltiplos campos.
+//           if (window.datasEventoPicker.altInput) {
+//             window.datasEventoPicker.altInput.value = window.datasEventoPicker.formatDate(
+//             window.datasEventoPicker.selectedDates, 
+//             window.datasEventoPicker.config.altFormat
+//             );
+//           }
+
+//           console.log(`[abrirModalLocal] [SetDate Seguro] Datas carregadas no Flatpickr: ${datasDoStaff.length} dias, formato corrigido.`);
+
+//           } else {
+//             console.warn("[abrirModalLocal] [SetDate Seguro] Flatpickr ou dados de staff (datasevento) ausentes/inválidos.");
+//           }
+//     }, 500);
+//   } catch (err) {
+//     console.warn("[abrirModalLocal] inicialização do módulo apresentou erro", err);
+//   }
+// }
+
+async function abrirModalLocal(url, modulo) {
+    if (!modulo) modulo = window.moduloAtual || "Staff";
+    console.log("[abrirModalLocal] iniciar:", { modulo, url });
+
+    let html;
+    try {
+        console.log("[abrirModalLocal] fetchHtmlComToken ->", url);
+        html = await fetchHtmlComToken(url);
+        console.log("[abrirModalLocal] HTML recebido, tamanho:", html ? html.length : 0);
+    } catch (err) {
+        console.error("[abrirModalLocal] Erro ao carregar modal (local):", err);
+        return;
+    }
+
+    const container = document.getElementById("modal-container");
+    if (!container) {
+        console.error("[abrirModalLocal] modal-container não encontrado no DOM.");
+        return;
+    }
+
+    // injeta HTML do modal
+    container.innerHTML = html;
+    console.log("[abrirModalLocal] HTML injetado no #modal-container");
+
+    // remove script anterior se existir
+    const scriptId = 'scriptModuloDinamico';
+    const scriptAntigo = document.getElementById(scriptId);
+    if (scriptAntigo) {
+        scriptAntigo.remove();
+        console.log("[abrirModalLocal] script anterior removido");
+    }
+
+    // carrega script do módulo (Staff.js por exemplo)
+    const scriptName = modulo.charAt(0).toUpperCase() + modulo.slice(1) + ".js";
+    const scriptSrc = `js/${scriptName}`;
+
+    // cria promise para aguardar load / execução do módulo
+    await new Promise((resolve, reject) => {
+        console.log("[abrirModalLocal] carregando script do módulo:", scriptSrc);
+        const script = document.createElement("script");
+        script.id = scriptId;
+        script.src = scriptSrc;
+        script.defer = true;
+        script.type = "module";
+
+        script.onload = () => {
+            // aguarda um tick para garantir execução de exports/global assignments
+            setTimeout(() => {
+                console.log(`[abrirModalLocal] Script ${scriptName} carregado e executado.`);
+                resolve();
+            }, 50);
+        };
+        script.onerror = (e) => {
+            console.error(`[abrirModalLocal] Erro ao carregar script ${scriptSrc}`, e);
+            reject(new Error(`Erro ao carregar script ${scriptSrc}`));
+        };
+        document.body.appendChild(script);
+    }).catch(err => {
+        console.error("[abrirModalLocal] falha ao carregar script do módulo:", err);
+        return;
+    });
+
+    // =========================================================================
+    // 🎯 PONTO DE INSERÇÃO: BUSCA DE DADOS E CARREGAMENTO DE DATAS (Edição)
+    // =========================================================================
+    const recordId = getRecordIdFromUrl(url);
+
+    console.log("RECORD ID", recordId);
+
+    if (recordId) {
+        try {
+            // 1. Busca os dados do Staff/Evento (Assumindo que o endpoint é: /staff/data/ID)
+            const dataUrl = `/${modulo.toLowerCase()}/data/${recordId}`;
+            const staffData = await fetchComToken(dataUrl);
+            console.log("[abrirModalLocal] Dados do Staff para edição carregados:", staffData);
+
+
+            if (staffData) {
+                // Expõe os dados para que o applyModalPrefill ou o Staff.js possam usá-los
+                window.__modalFetchedData = staffData;
+
+                const datasOrcamento = staffData.datasOrcamento.map(item => item.data); // Array de datas no formato "YYYY-MM-DD"
+                console.log("[abrirModalLocal] Datas do orçamento extraídas:", datasOrcamento);
+
+                const datasDoStaff = staffData.datasevento;
+
+                // 2. Preenchimento do Flatpickr (COMENTADO PARA SER FEITO NO SEGUNDO SETTIMEOUT DE 500MS)
+                // Se o picker não estiver pronto neste momento, o bloco de 500ms fará o preenchimento.
+
+                // 3. (Opcional) Chamar o debounce para garantir o carregamento do orçamento
+                if (typeof window.debouncedOnCriteriosChanged === 'function') {
+                    window.debouncedOnCriteriosChanged();
+                    console.log("[abrirModalLocal] Verificação de orçamento (debounce) chamada.");
+                }
+
+                // 4. (Opcional) Disparar um evento para o Staff.js preencher os outros campos
+                document.dispatchEvent(new CustomEvent("modal:data:loaded", { detail: staffData }));
+
+            }
+        } catch (error) {
+            console.error(`[abrirModalLocal] Erro ao carregar dados do ${modulo} (ID: ${recordId}):`, error);
+        }
+    }
+    // =========================================================================
+
+    // mostra modal (espera elemento modal injetado)
+    const modal = document.querySelector("#modal-container .modal");
+    const overlay = document.getElementById("modal-overlay");
+    if (modal && overlay) {
+        modal.style.display = "block";
+        overlay.style.display = "block";
+        document.body.classList.add("modal-open");
+        console.log("[abrirModalLocal] modal exibido");
+
+        // fechar por overlay
+        overlay.addEventListener("mousedown", (event) => {
+            if (event.target === overlay) {
+                console.log("[abrirModalLocal] overlay clicado -> fechar");
+                if (typeof fecharModal === "function") {
+                    fecharModal();
+                    // 🟢 CORREÇÃO: RECARREGA A PÁGINA
+                    window.location.reload(); 
+                } else {
+                    overlay.style.display = "none";
+                    container.innerHTML = "";
+                    document.body.classList.remove("modal-open");
+                    // Chama o callback AQUI
+                    if (typeof window.onStaffModalClosed === 'function') {
+                        window.onStaffModalClosed(false);
+                    }
+                    // 🟢 CORREÇÃO: RECARREGA A PÁGINA (Fallback)
+                    window.location.reload();
+                }
+            }
+        });
+
+        // fechar por botão ".close"
+        modal.querySelector(".close")?.addEventListener("click", () => {
+            console.log("[abrirModalLocal] fechar (botão X)");
+
+            // Se a função global existir, use-a para garantir o comportamento de callback.
+            if (typeof fecharModal === "function") {
+                fecharModal();
+                // 🟢 CORREÇÃO: RECARREGA A PÁGINA
+                window.location.reload();
+            } else {
+                // Fallback de fechamento, e aqui você DEVE incluir o callback.
+                overlay.style.display = "none";
+                container.innerHTML = "";
+                document.body.classList.remove("modal-open");
+                // Chama o callback AQUI para garantir que a tela volte, mesmo sem a função fecharModal
+                if (typeof window.onStaffModalClosed === 'function') {
+                    window.onStaffModalClosed(false); // false indica que não foi fechado pela função principal, mas ainda deve voltar
+                }
+                // 🟢 CORREÇÃO: RECARREGA A PÁGINA (Fallback)
+                window.location.reload();
+            }
+        });
+    } else {
+        console.warn("[abrirModalLocal] estrutura de modal não encontrada após injeção do HTML.");
+    }
+
+    // --- Inicializa o módulo carregado (LÓGICA LIMPA) ---
+    try {
+        console.log("[abrirModalLocal] inicializando módulo:", modulo);
+
+        // 1) preferencial: handler registrado pelo módulo (window.moduloHandlers)
+        if (window.moduloHandlers && window.moduloHandlers[modulo] && typeof window.moduloHandlers[modulo].configurar === "function") {
+            console.log("[abrirModalLocal] chamando window.moduloHandlers[...] .configurar");
+            window.moduloHandlers[modulo].configurar();
+        } else if (typeof window.configurarEventosEspecificos === "function") {
+            console.log("[abrirModalLocal] chamando window.configurarEventosEspecificos");
+            window.configurarEventosEspecificos(modulo);
+        } else if (typeof window.configurarEventosStaff === "function" && modulo.toLowerCase() === "staff") {
+            console.log("[abrirModalLocal] chamando window.configurarEventosStaff");
+            window.configurarEventosStaff();
+        } else {
+            console.log("[abrirModalLocal] nenhuma função de configuração detectada");
+        }
+
+        // ❌ Bloco de 100ms removido para evitar a duplicação na inicialização.
+
+        // 4) tenta aplicar prefill imediato (se o módulo já injetou selects/inputs)
+        setTimeout(() => {
+            try {
+                console.log("[abrirModalLocal] tentando applyModalPrefill imediato");
+                if (typeof window.applyModalPrefill === "function") {
+                    const ok = window.applyModalPrefill(window.__modalInitialParams || "");
+                    console.log("[abrirModalLocal] applyModalPrefill retornou:", ok);
+                } else {
+                    const evt = new CustomEvent("modal:prefill", { detail: window.__modalInitialParams || "" });
+                    document.dispatchEvent(evt);
+                    console.log("[abrirModalLocal] evento modal:prefill disparado");
+                }
+            } catch (e) {
+                console.warn("[abrirModalLocal] prefill falhou", e);
+            }
+        }, 800);
+
+        // pequena garantia: re-tentar inicialização caso o módulo popule DOM com atraso
+        // setTimeout(() => {
+        //     try {
+        //         if (window.moduloHandlers && window.moduloHandlers[modulo] && typeof window.moduloHandlers[modulo].configurar === "function") {
+        //             console.log("[abrirModalLocal] re-executando moduloHandlers.configurar (retry 400ms)");
+        //             window.moduloHandlers[modulo].configurar();
+        //         }
+        //     } catch (e) { console.warn("[abrirModalLocal] retry configurar falhou", e); }
+        // }, 400);
+
+        // 🌟 Bloco de preenchimento do Flatpickr (500ms) - Garante que o Flatpickr esteja pronto
+        setTimeout(() => {
+            const staffData = window.__modalFetchedData;
+            const datasDoStaff = staffData?.datasevento; // Usa optional chaining para segurança
+
+            // Verifica se o picker e os dados existem
+            if (window.datasEventoPicker && datasDoStaff && Array.isArray(datasDoStaff)) {
+
+                // Define as datas, disparando onChange (necessário para sincronizar com Diária Dobrada/Meia Diária)
+                window.datasEventoPicker.setDate(datasDoStaff, true);
+
+                // 🌟 GARANTIA DE FORMATO: Força a re-renderização do altInput
+                // Isso resolve o problema de YYYY-MM-DD e múltiplos campos.
+                if (window.datasEventoPicker.altInput) {
+                    window.datasEventoPicker.altInput.value = window.datasEventoPicker.formatDate(
+                        window.datasEventoPicker.selectedDates,
+                        window.datasEventoPicker.config.altFormat
+                    );
+                }
+
+                console.log(`[abrirModalLocal] [SetDate Seguro] Datas carregadas no Flatpickr: ${datasDoStaff.length} dias, formato corrigido.`);
+
+            } else {
+                console.warn("[abrirModalLocal] [SetDate Seguro] Flatpickr ou dados de staff (datasevento) ausentes/inválidos.");
+            }
+        }, 500);
+    } catch (err) {
+        console.warn("[abrirModalLocal] inicialização do módulo apresentou erro", err);
+    }
 }
 
 window.applyModalPrefill = function(rawParams) {
@@ -2193,6 +2436,7 @@ async function abrirTelaEquipesEvento(evento) {
   if (e.key === "Enter") abrirDetalhesEquipe(eq, evento);
   });
 
+
   // 🛑 NOVO LISTENER: Botão 'Funcionários'
   const funcionariosBtn = equipeBox.querySelector(".ver-funcionarios-btn");
   if (funcionariosBtn) {
@@ -2712,28 +2956,21 @@ let OrcamentosAdicionaisUnificados = [];
  */
 async function buscarOrcamentosExtraBonificado() {
     const URL_EXTRA = '/main/extra-bonificado';
-    // Usa getIdEmpresa() para buscar o ID e passa como header, assim como em buscarPedidosUsuario
     const options = { headers: { idempresa: getIdEmpresa() } }; 
     
     try {
-        const response = await fetchComToken(URL_EXTRA, options);
+        // ✅ CORREÇÃO: fetchComToken retorna o JSON, então chame de 'dados'
+        const dados = await fetchComToken(URL_EXTRA, options); 
         
-        if (!response.ok) {
-            if (response.status) {
-                // Tenta obter a mensagem de erro do JSON se for um erro HTTP padrão
-                const errorData = await response.json().catch(() => ({ mensagem: `Erro HTTP: ${response.status}` }));
-                throw new Error(errorData.mensagem || `Erro HTTP: ${response.status}`);
-            }
-            // Captura o caso de falha de conexão (que resultava em 'Erro HTTP: undefined')
-            throw new Error("Falha na requisição. Verifique a conexão com o servidor.");
-        }
-        
-        const dados = await response.json();
         console.log("Dados Extra Bonificado:", dados);
-        return dados; 
+        // Garante que a função retorna um array, mesmo que o JSON retornado seja nulo ou não seja um array
+        return Array.isArray(dados) ? dados : []; 
+        
     } catch (error) {
+        // O erro já foi capturado e logado pelo fetchComToken se for falha HTTP.
+        // Se a requisição falhar totalmente, o catch captura e retorna [].
         console.error("Falha ao buscar Extra Bonificado:", error);
-        return []; // Retorna array vazio em caso de falha
+        return []; 
     }
 }
 
@@ -2743,26 +2980,20 @@ async function buscarOrcamentosExtraBonificado() {
  */
 async function buscarOrcamentosAdicionais() {
     const URL_ADICIONAL = '/main/adicionais';
-    // Usa getIdEmpresa() para buscar o ID e passa como header, assim como em buscarPedidosUsuario
     const options = { headers: { idempresa: getIdEmpresa() } };
     
     try {
-        const response = await fetchComToken(URL_ADICIONAL, options);
+        // ✅ CORREÇÃO: fetchComToken retorna o JSON, então chame de 'dados'
+        const dados = await fetchComToken(URL_ADICIONAL, options); 
+
         
-        if (!response.ok) {
-            if (response.status) {
-                const errorData = await response.json().catch(() => ({ mensagem: `Erro HTTP: ${response.status}` }));
-                throw new Error(errorData.mensagem || `Erro HTTP: ${response.status}`);
-            }
-            throw new Error("Falha na requisição. Verifique a conexão com o servidor.");
-        }
-        
-        const dados = await response.json();
         console.log("Dados Adicionais:", dados);
-        return dados; 
+        // Garante que a função retorna um array
+        return Array.isArray(dados) ? dados : []; 
+        
     } catch (error) {
         console.error("Falha ao buscar Adicionais:", error);
-        return []; // Retorna array vazio em caso de falha
+        return []; 
     }
 }
 
@@ -2786,13 +3017,22 @@ async function mostrarOrcamentosAprovados(conteudoGeral) {
         ]);
         
         // 2. Armazena e Contagem
-        OrcamentosExtraBonificadoUnificados = pedidosExtraBonificado;
-        OrcamentosAdicionaisUnificados = pedidosAdicionais;
+        // 🔹 CORREÇÃO A: Mapeia e define o tipo de solicitação explicitamente
+        OrcamentosExtraBonificadoUnificados = pedidosExtraBonificado.map(p => ({
+            ...p,
+            categoriaSolicitacao: 'Extra Bonificado' // Define o tipo aqui
+        }));
+        
+        // 🔹 CORREÇÃO A: Mapeia e define o tipo de solicitação explicitamente
+        OrcamentosAdicionaisUnificados = pedidosAdicionais.map(p => ({
+            ...p,
+            categoriaSolicitacao: 'Adicional' // Define o tipo aqui
+        }));
         
         const countExtraBonificado = OrcamentosExtraBonificadoUnificados.length;
         const countAdicionais = OrcamentosAdicionaisUnificados.length;
         
-        const statusFixo = 'autorizado'; 
+        const statusFixo = 'Autorizado'; 
 
         // 3. Cria a estrutura de Abas Principais
         conteudoGeral.innerHTML = `
@@ -2853,90 +3093,140 @@ async function mostrarOrcamentosAprovados(conteudoGeral) {
 
 // Sua função de renderização (sem modificação)
 function renderizarPedidosorc(listaPedidos, containerId, categoria, status, isStatusFixo) {
+    console.log(`Renderizando pedidos para categoria: ${categoria}, status: ${status}, isStatusFixo: ${isStatusFixo}`);
     const container = document.getElementById(containerId);
     if (!container) return;
+    
+    // Helper function para escapar HTML
+    const escapeHTML = (str) => {
+        if (typeof str !== 'string') return str || '';
+        return str.replace(/[&<>"']/g, function(m) {
+            return ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[m]);
+        });
+    };
+    
+    // 🛑 LIMPA O CONTAINER
+    container.innerHTML = ''; 
 
-    const pedidosFiltrados = listaPedidos; // Já está filtrado pelo backend (Status 'Autorizado')
-
+    const pedidosFiltrados = listaPedidos;
     if (pedidosFiltrados.length === 0) {
         container.innerHTML = `<p class="mt-3">Não há pedidos autorizados nesta categoria.</p>`;
-        return;
     }
 
-    const accordionHTML = pedidosFiltrados.map((p, index) => {
-        const isAditivoExtra = !!p.tiposolicitacao; 
+    // GERAÇÃO DO HTML (Usando a técnica robusta de appendChild)
+    pedidosFiltrados.forEach((p, index) => {
+
+      console.log(`⏳ Iterando pedido ${index} para categoria: ${categoria}`, p);
+        // Variáveis de Exibição
+        const nomeTipoExibicao = escapeHTML(p.categoriaSolicitacao || p.tiposolicitacao || 'Orçamento Complementar'); 
+        const tipoInterno = escapeHTML(p.tiposolicitacao || 'N/D');
+        const nomePrincipal = escapeHTML(p.nome_funcionario_afetado || p.nome_evento || `Orçamento ${p.nrdorcamento}` || 'N/D');        
+        const titulo = `${nomeTipoExibicao} - ${nomePrincipal}`; 
+        const tipoCor = 'aditivo-extra';
+        const tipoIcone = 'fa fa-plus-circle';
+        const collapseId = `collapse-${containerId}-${index}`;
+
+        // Detalhes (HTML interno) - APLICANDO escapeHTML EM TODOS OS CAMPOS DE DADOS
+        const detalhesHTML = `
+            <p><strong>Categoria:</strong> ${nomeTipoExibicao}</p>
+            <p><strong>Tipo Interno:</strong> ${tipoInterno}</p>
+            
+            <hr class="mt-2 mb-2">
+
+            ${p.nome_funcionario_afetado 
+                ? `<p><strong>Funcionário Afetado:</strong> ${escapeHTML(p.nome_funcionario_afetado)} (ID: ${p.idfuncionario || 'N/D'})</p>` 
+                : ''
+            }
+            ${p.idfuncao ? `<p><strong>ID da Função:</strong> ${p.idfuncao}</p>` : ''}
+            ${p.nome_evento ? `<p><strong>Evento:</strong> ${escapeHTML(p.nome_evento)}</p>` : ''}
+            
+            <hr class="mt-2 mb-2">
+            
+            <p><strong>Nº Orçamento:</strong> ${p.idorcamento || p.nrorcamento || 'N/D'}</p>
+            <p><strong>Status:</strong> ${p.status_aditivo || p.status || status}</p>
+            <p><strong>Solicitante:</strong> ${escapeHTML(p.nome_usuario_solicitante || 'N/D')}</p>
+            <p><strong>Justificativa:</strong> ${escapeHTML(p.justificativa || 'N/D')}</p>
+        `;
+
+        console.log(`✅ Gerando item de acordeão para pedido ${index}:`, { titulo, detalhesHTML });
+
+        const item = document.createElement('div');
+        item.className = 'accordion-item';
         
-        let titulo, detalhes, tipoIcone, tipoCor;
-
-        if (isAditivoExtra) {
-            // Lógica de Título e Detalhes
-            const nomePrincipal = p.nome_funcionario_afetado || p.nome_evento || 'N/D';
-            
-            titulo = `${p.tiposolicitacao} - ${nomePrincipal}`;
-            detalhes = `
-                <p><strong>Tipo:</strong> ${p.tiposolicitacao}</p>
-                ${p.nome_funcionario_afetado ? `<p><strong>Funcionário Afetado:</strong> ${p.nome_funcionario_afetado} (ID: ${p.idfuncionario || 'N/D'})</p>` : ''}
-                ${p.idfuncao ? `<p><strong>ID da Função:</strong> ${p.idfuncao}</p>` : ''}
-                ${p.nome_evento ? `<p><strong>Evento:</strong> ${p.nome_evento}</p>` : ''}
-                <p><strong>Nº Orçamento:</strong> ${p.nrorcamento || 'N/D'}</p>
-                <p><strong>Status:</strong> ${p.status_aditivo}</p>
-                <p><strong>Solicitante:</strong> ${p.nome_usuario_solicitante || 'N/D'}</p>
-                <p><strong>Justificativa:</strong> ${p.justificativa || 'N/D'}</p>
-            `;
-            tipoIcone = 'fa fa-plus-circle';
-            tipoCor = 'aditivo-extra';
-        } else {
-            // Lógica de fallback para pedidos não-aditivos (Embora a query não os traga)
-            const tipoPedido = "Pedido Padrão Aprovado"; 
-            
-            titulo = `${tipoPedido} - ${p.nome_funcionario_afetado || 'N/D'}`;
-            detalhes = `
-                <p><strong>Funcionário:</strong> ${p.nome_funcionario_afetado || 'N/D'}</p>
-                <p><strong>Tipo:</strong> ${tipoPedido}</p>
-                <p><strong>Nº Orçamento:</strong> ${p.nrorcamento || 'N/D'}</p>
-                <p><strong>Solicitante:</strong> ${p.nome_usuario_solicitante || 'N/D'}</p>
-                <p><strong>Status:</strong> ${p.status_aditivo || 'Autorizado'}</p>
-            `;
-            tipoIcone = 'fa fa-user';
-            tipoCor = 'pedido-padrao';
-        }
-
-        return `
-            <div class="accordion-item">
-                <div class="accordion-header ${tipoCor}" data-toggle="collapse" data-target="#collapse-${containerId}-${index}">
-                    <i class="${tipoIcone}"></i>
-                    <span>${titulo}</span>
-                    <i class="fa fa-chevron-down"></i>
-                </div>
-                <div id="collapse-${containerId}-${index}" class="accordion-content collapse">
-                    <div class="accordion-body">
-                        ${detalhes}
-                    </div>
+        item.innerHTML = `
+            <div class="accordion-header ${tipoCor}"> 
+                <i class="${tipoIcone}"></i>
+                <span>${titulo}</span>
+                <i class="fa fa-chevron-down"></i>
+            </div>
+            <div id="${collapseId}" class="accordion-content">
+                <div class="accordion-body">
+                    ${detalhesHTML}
                 </div>
             </div>
         `;
-    }).join('');
-
-    container.innerHTML = accordionHTML;
-    
-    // Adiciona o listener para o Acordeão
-    document.querySelectorAll('.accordion-header').forEach(header => {
-        if (!container.contains(header)) return; 
         
-        header.addEventListener('click', function() {
-            const targetId = this.getAttribute('data-target').replace('#', '');
-            const content = document.getElementById(targetId);
-            
-            this.classList.toggle('active');
-            
-            if (content.style.maxHeight) {
-                content.style.maxHeight = null;
-            } else {
-                content.style.maxHeight = content.scrollHeight + "px";
-            } 
+        container.appendChild(item);
+    });
+
+    console.log(`✅ Elementos anexados. Total de filhos no container: ${container.children.length}`);
+    
+    // 🛑 Listener de DELEGAÇÃO DE EVENTOS (Anexado ao container)
+    // Este bloco garante que o listener só seja anexado uma vez.
+    // 🛑 Listener de DELEGAÇÃO DE EVENTOS (Versão Simplificada)
+
+    // Remova qualquer listener anterior para evitar duplicidade
+    // (Esta linha é uma precaução, use se você está executando renderizarPedidosorc mais de uma vez)
+    // container.removeEventListener('click', handleAccordionClick); // Requer que o listener seja nomeado
+
+    container.addEventListener('click', function(event) {
+        
+        const header = event.target.closest('.accordion-header');
+        
+        if (!header) return; // Não foi um clique no cabeçalho
+
+        event.preventDefault(); // Garante que nenhum link ou framework interfira
+        
+        const item = header.closest('.accordion-item');
+        
+        if (!item) return; 
+        
+        console.log(`✅✅✅ SUCESSO! CLIQUE DETECTADO. Aplicando .active em:`, item); 
+
+        // 1. Toggle da classe 'active' no elemento PAI
+        item.classList.toggle('active');
+        
+        // 2. Toggle da classe 'active' no header (para seta)
+        header.classList.toggle('active'); 
+        
+        // 3. Fechar outros itens (opcional)
+        container.querySelectorAll('.accordion-item').forEach(otherItem => {
+            if (otherItem !== item && otherItem.classList.contains('active')) {
+                otherItem.classList.remove('active');
+                const otherHeader = otherItem.querySelector('.accordion-header');
+                if(otherHeader) otherHeader.classList.remove('active');
+            }
         });
     });
+    // Não marque o container se você for executar renderizarPedidosorc apenas uma vez por aba.
+    // Se for executada múltiplas vezes, o listener será duplicado, mas é o preço pela certeza do clique.
 }
+
+document.addEventListener('click', function(event) {
+    const header = event.target.closest('.accordion-header');
+    if (header) {
+        console.log(`🌟 CLIQUE NO ACORDEÃO DETECTADO PELO DOCUMENT! O PROBLEMA É A EXECUÇÃO DO SEU LISTENER.`);
+        // Remove este listener temporário após o teste
+        // document.removeEventListener('click', arguments.callee); 
+    }
+});
+
 // Seu Listener de Evento (sem modificação)
 document.getElementById("cardContainerOrcamentos").addEventListener("click", async function() {
     const painel = document.getElementById("painelDetalhes");
@@ -2988,6 +3278,7 @@ async function atualizarResumo() {
   document.getElementById("orcamentosEmAndamento").textContent = dadosResumo.orcamentosEmAndamento;
   document.getElementById("orcamentosFechados").textContent = dadosResumo.orcamentosFechados;
   document.getElementById("orcamentosRecusados").textContent = dadosResumo.orcamentosRecusados;
+ // document.getElementById("orcamentosPedidos").textContent = dadosResumo.orcamentosPedidos;
 }
 
 // =========================
@@ -3654,355 +3945,6 @@ function criarSubTabsHTML(listContainerIdBase, categoria, pedidos) {
         </div>
     `;
 }
-//     const container = document.getElementById(containerId);
-//     if (!container) return;
-
-//     // 🌟 CORREÇÃO CRUCIAL: Limpa imediatamente o container visualmente e dá feedback.
-//     container.innerHTML = '<p class="text-sm text-gray-500">Filtrando e carregando dados...</p>';
-    
-//     // Constantes (assumindo que estão definidas globalmente: STATUS_PENDENTE, CAMPO_ADITIVO_EXTRA, etc.)
-//     const camposTodos = [
-//         "statusajustecusto", 
-//         "statuscaixinha", 
-//         "statusmeiadiaria", 
-//         "statusdiariadobrada",
-//         CAMPO_ADITIVO_EXTRA
-//     ];
-    
-//     // 1. Agrupamento e Filtragem por Status
-//     const gruposMap = {};
-//     let totalItensRenderizados = 0; 
-
-//     pedidosCompletos.forEach(p => {
-//         let temItemComStatusDesejadoNoPedido = false;
-
-//         // --- FILTRAGEM DE STATUS APLICADA AQUI ---
-//         const pedidoFiltradoPorStatus = { ...p };
-
-//         camposTodos.forEach(campo => {
-//       const info = p[campo];
-//       if (!info) {
-//           delete pedidoFiltradoPorStatus[campo];
-//           return;
-//       }
-
-//       const statusItem = (info.status || STATUS_PENDENTE).toLowerCase();
-//       const temDadosRelevantes = info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao || info.tipoSolicitacao;
-
-//       if (temDadosRelevantes && statusItem === statusDesejado) {
-//           // Mantém o item no pedido filtrado
-//           temItemComStatusDesejadoNoPedido = true;
-//       } else {
-//           // Remove o item que não corresponde ao status desejado
-//           delete pedidoFiltradoPorStatus[campo];
-//       }
-//         });
-
-//         // Se após o filtro de status, o pedido ainda tiver pelo menos um item que corresponde ao status
-//         if (temItemComStatusDesejadoNoPedido) {
-
-//       // ============== INÍCIO DA CORREÇÃO DE FILTRAGEM DE CATEGORIA (Aditivo/Extra) ==============
-//       const aditivoExtra = pedidoFiltradoPorStatus[CAMPO_ADITIVO_EXTRA];
-
-//       // Só aplicamos a regra de idfuncionario se o Aditivo/Extra estiver presente no pedido
-//       if (aditivoExtra) {
-//           // Verifica a presença robusta do idfuncionario (ignora null, undefined, "" e 0)
-//           const temIdFuncionario = !!aditivoExtra.idfuncionario && aditivoExtra.idfuncionario !== 0;
-
-//           // 1. Filtro para a ABA FUNCIONÁRIO: SÓ entra se TIVER idfuncionario
-//           if (categoria === 'funcionario' && !temIdFuncionario) {
-//         // Pula este pedido (não deve aparecer em Funcionário)
-//         return; 
-//           }
-
-//           // 2. Filtro para a ABA FUNÇÃO: SÓ entra se NÃO TIVER idfuncionario
-//           if (categoria === 'funcao' && temIdFuncionario) {
-//         // Pula este pedido (deve aparecer em Funcionário, não em Função)
-//         return; 
-//           }
-//       }
-//       // ============== FIM DA CORREÇÃO DE FILTRAGEM DE CATEGORIA ==============
-
-
-//       let chave;
-//       if (categoria === 'funcionario') {
-//           chave = pedidoFiltradoPorStatus.funcionario;
-//       } else { // categoria === 'funcao'
-//           // Agrupa por Tipo de Solicitação (ADITIVO, EXTRABONIFICADO, etc.)
-//           const tipo = pedidoFiltradoPorStatus[CAMPO_ADITIVO_EXTRA]?.tipoSolicitacao || 'SOLICITAÇÃO DE FUNÇÃO';
-//           chave = tipo;
-//       }
-
-//       if (!gruposMap[chave]) gruposMap[chave] = [];
-//       // Adiciona a VERSÃO FILTRADA do pedido ao mapa
-//       gruposMap[chave].push(pedidoFiltradoPorStatus);
-//         }
-//     });
-//     // --- FIM DO AGRUPAMENTO E FILTRAGEM ---
-
-//     // 2. Ordenação dos Grupos (por data de criação)
-//     const chavesOrdenadas = Object.keys(gruposMap).sort((a, b) => {
-//         const pedidoA = gruposMap[a][0];
-//         const pedidoB = gruposMap[b][0];
-//         const timeA = new Date(pedidoA.dtCriacao).getTime();
-//         const timeB = new Date(pedidoB.dtCriacao).getTime();
-//         const isANaN = isNaN(timeA);
-//         if (isANaN) return 1;
-//         const isBNaN = isNaN(timeB);
-//         if (isBNaN) return -1;
-//         return timeB - timeA;
-//     });
-    
-//     // 3. Limpa o container novamente (remove a mensagem de 'Carregando')
-//     container.innerHTML = ""; 
-    
-//     if (chavesOrdenadas.length === 0) {
-//         const msg = document.createElement("p");
-//         msg.textContent = `Não há pedidos ou solicitações com status "${statusDesejado.charAt(0).toUpperCase() + statusDesejado.slice(1)}" nesta categoria.`;
-//         container.appendChild(msg);
-
-//         // Atualiza a contagem da sub-aba (Badge)
-//         const countSpan = document.getElementById(`${containerId.split('-list-')[0]}-count-${statusDesejado}`);
-//         if (countSpan) {
-//       countSpan.textContent = 0;
-//         }
-//         return;
-//     }
-
-
-//     // 4. Cria o container principal com classe .lista-funcionarios
-//     const listaGrupos = document.createElement("div");
-//     listaGrupos.className = "lista-funcionarios"; 
-//     container.appendChild(listaGrupos);
-
-
-//     chavesOrdenadas.forEach(chaveNome => {
-//         // PedidosDoGrupo agora contêm apenas os itens que correspondem ao status
-//         const pedidosDoGrupo = gruposMap[chaveNome];
-
-//         const divGrupo = document.createElement("div");
-//         divGrupo.className = "funcionario"; 
-
-//         const header = document.createElement("div");
-//         header.className = "funcionario-header"; 
-
-//         let tituloGrupo;
-//         let subtituloGrupo = '';
-//         let pedidosRenderizadosNoGrupo = 0;
-
-//         if (categoria === 'funcionario') {
-//       tituloGrupo = chaveNome || "Funcionário Desconhecido";
-//       // Para Funcionário, o subtítulo é o Solicitante
-//       subtituloGrupo = `Solicitante: ${pedidosDoGrupo[0].nomeSolicitante || pedidosDoGrupo[0].solicitante_nome || "Você"}`;
-//         } else { // categoria === 'funcao'
-//       tituloGrupo = chaveNome || "Solicitação de Função Desconhecida";
-//       // Para Função/Tipo, mantemos o Solicitante no subtítulo (MELHORIA)
-//       subtituloGrupo = `Solicitante: ${pedidosDoGrupo[0].nomeSolicitante || pedidosDoGrupo[0].solicitante_nome || "Você"}`;
-//         }
-
-//         const containerBody = document.createElement("div");
-//         containerBody.className = "funcionario-body hidden"; 
-
-
-//         // Renderização dos Cards
-//         pedidosDoGrupo.forEach(pedido => {
-//       camposTodos.forEach(campo => {
-//           // Verifica o pedido filtrado (que só tem o campo se ele corresponder ao statusDesejado)
-//           const info = pedido[campo]; 
-//           if (!info) return;
-
-//           const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
-//           const valorAlterado = isAditivoExtra || (info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao);
-//           if (!valorAlterado) return;
-
-//           const statusAtual = (info.status || STATUS_PENDENTE).toLowerCase();
-
-//           // Esta verificação é redundante após o filtro acima, mas garante a consistência
-//           if (statusAtual !== statusDesejado) return; 
-
-//           pedidosRenderizadosNoGrupo++; 
-//           totalItensRenderizados++; 
-
-//           // MUDANÇA: Formatar o status (sem o fallback "Pendente", pois o filtro garante que é o status correto)
-//           const statusTextoFormatado = statusAtual.charAt(0).toUpperCase() + statusAtual.slice(1);
-
-//           const card = document.createElement("div");
-//           card.className = "pedido-card"; 
-
-//           let corQuadrado = "#facc15"; 
-//           if (statusAtual === STATUS_AUTORIZADO) corQuadrado = "#16a34a"; 
-//           if (statusAtual === STATUS_REJEITADO) corQuadrado = "#dc2626"; 
-
-//           let tituloCard;
-//           if (isAditivoExtra) {
-//         const tipo = info.tipoSolicitacao;
-//         if (tipo && tipo.toUpperCase() === 'FUNCEXCEDIDO') {
-//       tituloCard = "Limite Diário Excedido por Função/Evento";
-//         } else {
-//       // O nome do tipo de solicitação (ADITIVO, EXTRABONIFICADO)
-//       tituloCard = tipo;
-//         }
-//           } else {
-//         tituloCard = campo.replace("status", "").replace(/([A-Z])/g, ' $1').trim();
-//         tituloCard = tituloCard.charAt(0).toUpperCase() + tituloCard.slice(1);
-//           }
-
-//           let innerHTML = `<div>
-//         <strong>${tituloCard}</strong><br>`;
-
-//           // if (pedido.evento) {
-//           //     innerHTML += `<strong>Evento:</strong> ${pedido.evento}<br>`;
-//           // }correto e funcinonal         
-
-//           // Exibe o nome do funcionário dentro do card da aba 'Função' (o agrupamento é por tipo)
-//           // if (categoria === 'funcao' && pedido.funcionario) {
-//           //     innerHTML += `<small>Func.: ${pedido.funcionario}</small><br>`;
-//           // }
-
-//           if (pedido.evento) {
-
-//         // Lógica para a ABA FUNCIONÁRIOS: Inclui o Funcionário (nome completo)
-//         if (categoria === 'funcionario' && pedido.funcionario) {
-//       // Certifica-se de que o nome do funcionário está disponível
-//       innerHTML += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
-//         } 
-
-//         // Lógica para a ABA FUNÇÕES: Inclui a Função (Tipo de Solicitação)
-//         else if (categoria === 'funcao' && isAditivoExtra) {
-//       // O 'tipoSolicitacao' atua como o nome da Função/Tipo de solicitação no contexto de orçamento
-//       const tipoSolicitacao = info.tipoSolicitacao || 'N/A';
-//       innerHTML += `<strong>Evento:</strong> ${pedido.evento} - <strong>Função:</strong> ${pedido.nmfuncao}<br>`;
-//         }
-
-//         // Lógica de fallback para outros pedidos (ou pedidos padrão sem funcionário)
-//         else {
-//        innerHTML += `<strong>Evento:</strong> ${pedido.evento}<br>`;
-//         }
-//           }
-
-//           // Exibe o nome do funcionário dentro do card da aba 'Função' (se houver, para referência)
-//           if (categoria === 'funcao' && pedido.funcionario) {
-//         innerHTML += `<small>Func.: ${pedido.funcionario}</small><br>`;
-//           }
-
-//           if (isAditivoExtra) {
-//         if (info.quantidade) {
-//       innerHTML += `Qtd. Solicitada: ${info.quantidade}<br>`;
-//         }
-//         innerHTML += `Status: <span class="status-text font-semibold"><strong>${statusTextoFormatado}</strong></span><br>`;
-//           } else if (info.valor !== undefined) {
-//         innerHTML += `Valor: R$ ${info.valor} - <span class="status-text font-semibold">${statusTextoFormatado}</span><br>`;
-//           } else if (info.datas) {
-//         innerHTML += `Datas: ${info.datas.map(d => d.data).join(", ")} - <span class="status-text font-semibold">${statusTextoFormatado}</span><br>`;
-//           }
-
-//           if (info.descricao) {
-//         innerHTML += `Descrição: ${info.descricao}<br>`;
-//           }
-
-//           // Botões de Ação (APENAS para PENDENTES)
-//           if (pedido.ehMasterStaff && statusAtual === STATUS_PENDENTE) {
-//         innerHTML += `
-//       <div class="flex gap-2 mt-2">
-//           <button class="aprovar">Autorizar</button>
-//           <button class="negar">Rejeitar</button>
-//       </div>
-//         `;
-//           }
-
-//           innerHTML += `</div>`;
-//           // Indicador de status
-//           innerHTML += `<div class="quadrado-arredondado" style="background-color: ${corQuadrado}; width: 15px; height: 15px; border-radius: 50%;" title="Status: ${statusTextoFormatado}"></div>`;
-
-//           card.innerHTML = innerHTML;
-//           containerBody.appendChild(card);
-
-//           // Event Listeners (Apenas se for PENDENTE)
-//           if (pedido.ehMasterStaff && statusAtual === STATUS_PENDENTE) {
-//         const aprovarBtn = card.querySelector(".aprovar");
-//         const negarBtn = card.querySelector(".negar");
-
-//         const idReferencia = isAditivoExtra ? pedido.idpedido : pedido.idpedido;
-//         if (!idReferencia) return; 
-
-//         // ATENÇÃO: As funções de backend 'atualizarStatusAditivoExtra' e 'atualizarStatusPedido'
-//         // devem estar definidas globalmente para que estes eventos funcionem.
-//         const statusUpdateFn = isAditivoExtra ? atualizarStatusAditivoExtra : atualizarStatusPedido;
-//         const campoParaBackend = isAditivoExtra ? null : campo;
-
-//         const recarregarPainel = () => {
-//       // Simula o clique na aba principal para forçar o re-render completo
-//       const mainTabBtn = document.querySelector(`.main-tab-btn[data-categoria="${categoria}"]`);
-//       mainTabBtn?.click();
-
-//       // Garante que a sub-aba anterior seja reativada
-//       const subTabBtn = document.querySelector(`.sub-tab-btn[data-list-id="${containerId}"]`);
-//       subTabBtn?.click();
-//         };
-
-//         aprovarBtn?.addEventListener("click", async () => {
-//       // Idealmente, usar um modal customizado no lugar de 'alert' ou 'confirm'.
-//       if (isAditivoExtra) {
-//           await statusUpdateFn(idReferencia, STATUS_AUTORIZADO, card); 
-//       } else {
-//           await statusUpdateFn(idReferencia, campoParaBackend, STATUS_AUTORIZADO, card);
-//       }
-//       recarregarPainel();
-//         });
-
-//         negarBtn?.addEventListener("click", async () => {
-//       // Idealmente, usar um modal customizado para coletar a justificativa.
-//       let justificativa = "Rejeitado via Painel de Controle"; 
-//       if (isAditivoExtra) {
-//           // Simulando a necessidade de input de justificativa.
-//           console.log(`Ação de rejeitar Aditivo Extra (id: ${idReferencia}). Solicitando justificativa...`);
-//       }
-
-//       if (isAditivoExtra) {
-//           await statusUpdateFn(idReferencia, STATUS_REJEITADO, card, justificativa); 
-//       } else {
-//           await statusUpdateFn(idReferencia, campoParaBackend, STATUS_REJEITADO, card, justificativa);
-//       }
-//       recarregarPainel();
-//         });
-//           }
-//       });
-//         });
-
-//         // Adiciona o cabeçalho do grupo e o corpo (expansível)
-//         if (pedidosRenderizadosNoGrupo > 0) {
-//       header.innerHTML = `
-//           <div>
-//         ${categoria === 'funcionario' ? 'Funcionário' : 'Função/Tipo'}: <strong>${tituloGrupo}</strong><br>
-//         <small class="text-xs text-gray-500">${subtituloGrupo}</small>
-//           </div>
-//           <div class="flex items-center gap-2">
-//         <span>${pedidosRenderizadosNoGrupo}</span> <i class="fas fa-chevron-down text-gray-500 text-xs transition-transform transform"></i>
-//           </div>
-//       `;
-
-//       header.addEventListener("click", () => {
-//           containerBody.classList.toggle("hidden");
-//           header.querySelector('i').classList.toggle('rotate-180');
-//       });
-
-//       divGrupo.appendChild(header);
-//       divGrupo.appendChild(containerBody);
-//       listaGrupos.appendChild(divGrupo);
-//         }
-//     });
-
-//     // 5. Atualiza a contagem da sub-aba (Badge)
-//     const countSpan = document.getElementById(`${containerId.split('-list-')[0]}-count-${statusDesejado}`);
-//     if (countSpan) {
-//         countSpan.textContent = totalItensRenderizados;
-//     }
-// }
-
-///FIM DO NOVO TRECHO
-
-
-// Função para atualizar status via fetch
 
 
 /**

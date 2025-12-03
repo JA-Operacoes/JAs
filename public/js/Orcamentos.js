@@ -2782,13 +2782,15 @@ async function verificaOrcamento() {
                 event.target.value = ''; // Limpa o campo se a entrada for inválida
                 Swal.fire({
                     title: 'Entrada Inválida',
-                    text: 'Por favor, digite apenas "A" ou "F"',
+                    text: 'Por favor, digite apenas "A", "P", "E", "R" ou "F"',
                     icon: 'warning',
                     confirmButtonText: 'Ok'
                 });
             }
         });
     }
+
+    gerenciarBotoesProposta(statusInput);
 
     const nrOrcamentoInput = document.getElementById('nrOrcamento');
     if(nrOrcamentoInput){
@@ -2820,7 +2822,7 @@ async function verificaOrcamento() {
                 const url = `orcamentos?nrOrcamento=${nrOrcamento}`;
 
                 const orcamento = await fetchComToken(url, { method: 'GET' });
-                preencherFormularioComOrcamento(orcamento);
+                preencherFormularioComOrcamento(orcamento); 
 
             } catch (error) {
                 console.error("Erro ao buscar orçamento:", error);
@@ -3632,6 +3634,8 @@ export async function preencherFormularioComOrcamento(orcamento) {
     if (statusInput) {
         statusInput.value = orcamento.status || '';
         console.log("Status", statusInput.value);
+
+        gerenciarBotoesProposta(orcamento.status);
 
         // REMOVIDO: A chamada de bloqueio daqui foi removida
         // if (statusInput.value === 'F'){           
@@ -5429,7 +5433,7 @@ function fecharOrcamento() {
         Swal.fire('Orçamento fechado', 'Este orçamento está fechado e não pode ser alterado.', 'warning');
         return;
     }
-
+    gerenciarBotoesProposta(statusInput);
 
     // Swal.fire({
     //     title: 'Deseja realmente fechar este orçamento?',
@@ -6129,9 +6133,62 @@ document.getElementById('Proposta').addEventListener('click', function(event) {
     gerarPropostaPDF();
 });
 
+function gerenciarBotoesProposta(status) {
+
+    console.log("ENTROU EM GERENCIARBOTOESPROPOSTA COM STATUS:", status);
+    const btnProposta = document.getElementById('Proposta');
+    const btnAprovar = document.getElementById('AprovarProposta');
+    const btnReprovar = document.getElementById('ReprovarProposta');
+    //const status = document.getElementById('Status');
+    
+    if (!btnProposta) return; 
+
+    const statusFinalizado = ['A', 'R', 'E', 'F'];
+
+    let statusValue = '';
+    
+    if (typeof status === 'string') {
+        statusValue = status;
+    } else if (status && status.tagName) {
+        // É um elemento HTML (INPUT, SELECT, etc.)
+        if (status.tagName === 'INPUT' || status.tagName === 'SELECT') {
+            statusValue = status.value;
+        } else {
+            statusValue = status.innerText;
+        }
+    }
+    
+    // Garante que o valor final seja tratado corretamente
+    const statusLimpo = String(statusValue || '').trim().toUpperCase();
+    console.log("STATUS LIMPO", statusLimpo);
+
+    // 1. Lógica do botão Gerar Proposta
+    if ((statusLimpo === 'P') || (statusLimpo === 'E')){
+        console.log("STATUS LIMPO DENTRO DO IF", statusLimpo);
+        // Status P (Proposta): Permite gerar uma nova.
+        btnProposta.textContent = 'Gerar Nova Proposta';
+    } else {
+        // Qualquer outro status: Volta ao padrão.
+        btnProposta.textContent = 'Gerar Proposta';
+    }
+
+    // 2. Lógica dos botões Aprovar/Reprovar
+    if (statusFinalizado.includes(statusLimpo)) {
+        // Ocultar se o status for Aprovado (A), Reprovado (R), Em Fechamento (E) ou Fechado (F).
+        if (btnAprovar) btnAprovar.style.display = 'none';
+        if (btnReprovar) btnReprovar.style.display = 'none';
+    } else {
+        // Mostrar em todos os outros status (incluindo P e status intermediários).
+        if (btnAprovar) btnAprovar.style.display = 'inline-block';
+        if (btnReprovar) btnReprovar.style.display = 'inline-block';
+    }
+}
+
+
 async function gerarPropostaPDF() {
     let nrOrcamentoElem = document.getElementById('nrOrcamento');
     let nrOrcamento = "";
+
 
     if (nrOrcamentoElem) {
         nrOrcamento = nrOrcamentoElem.tagName === "INPUT"
@@ -6149,6 +6206,27 @@ async function gerarPropostaPDF() {
         console.warn("Número do orçamento não encontrado!");
         return;
     }
+
+    let idOrcamentoElem = document.getElementById('idOrcamento');
+    let idOrcamento = "";
+
+    if (idOrcamentoElem) {
+        idOrcamento = idOrcamentoElem.tagName === "INPUT"
+            ? idOrcamentoElem.value.trim()
+            : idOrcamentoElem.innerText.trim();
+    }
+
+    if (!idOrcamento) {
+        Swal.fire({
+            icon: "error",      
+            title: "Erro!",
+            text: "ID do orçamento não encontrado!",
+            confirmButtonText: "Fechar"
+        });
+        console.warn("ID do orçamento não encontrado!");
+        return;
+    }
+   
 
     try {
         console.log("🔍 Iniciando requisição para gerar a proposta...");
@@ -6168,6 +6246,58 @@ async function gerarPropostaPDF() {
 
         if (result.success) {
             console.log("✅ Proposta gerada com sucesso!");
+
+            console.log("🔄 Tentando atualizar o status do orçamento para 'P'...");
+            if (!idOrcamento) {
+                console.warn("⚠️ Falha ao atualizar o status: ID do Orçamento não encontrado no HTML!");
+                // Não interrompe, mas avisa que o status não será atualizado.
+            } else {
+                console.log("🔄 Tentando atualizar o status do orçamento para 'P'...");
+
+                // USA O ID OBTIDO DO HTML
+                const statusUpdateResult = await fetchComToken(`/orcamentos/${idOrcamento}/status`, {
+                    method: "PATCH", // Ou 'PUT', dependendo da sua API
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        status: "P" 
+                    })
+                });
+
+                if (statusUpdateResult.success) {
+                    console.log("✅ Status do orçamento atualizado para 'P' com sucesso!", nrOrcamento);
+                    
+                    try {
+                        const url = `orcamentos?nrOrcamento=${nrOrcamento}`;
+
+                        const orcamento = await fetchComToken(url, { method: 'GET' });
+                        preencherFormularioComOrcamento(orcamento);
+
+                    } catch (error) {
+                        console.error("Erro ao buscar orçamento:", error);
+
+                        let errorMessage = error.message;
+                        if (error.message.includes("404")) {
+                            errorMessage = `Orçamento com o número ${nrOrcamento} não encontrado.`;
+                            limparOrcamento();
+                        } else if (error.message.includes("400")) {
+                            errorMessage = "Número do orçamento é inválido ou vazio.";
+                            limparOrcamento();
+                        } else {
+                            errorMessage = `Erro ao carregar orçamento: ${error.message}`;
+                            limparOrcamento();
+                        }
+
+                        Swal.fire("Erro!", errorMessage, "error");
+                    }
+                    //gerenciarBotoesProposta('P'); 
+                                    
+                } else {
+                    console.warn("⚠️ Falha ao atualizar o status do orçamento para 'P':", statusUpdateResult.message);
+                    // Você pode decidir se isso deve interromper o fluxo ou apenas mostrar um aviso.
+                }
+            }
             Swal.fire({
                 icon: "success",
                 title: "Proposta gerada!",
@@ -6243,6 +6373,26 @@ async function gerarContrato() {
             confirmButtonText: "Fechar"
         });
         console.warn("Número do orçamento não encontrado!");
+        return;
+    }
+
+    let idOrcamentoElem = document.getElementById('idOrcamento');
+    let idOrcamento = "";
+
+    if (idOrcamentoElem) {
+        idOrcamento = idOrcamentoElem.tagName === "INPUT"
+            ? idOrcamentoElem.value.trim()
+            : idOrcamentoElem.innerText.trim();
+    }
+
+    if (!idOrcamento) {
+        Swal.fire({
+            icon: "error",      
+            title: "Erro!",
+            text: "ID do orçamento não encontrado!",
+            confirmButtonText: "Fechar"
+        });
+        console.warn("ID do orçamento não encontrado!");
         return;
     }
 
@@ -6472,7 +6622,213 @@ async function incluirContrato(nrOrcamento) {
     });
 }
 
+document.getElementById('AprovarProposta')?.addEventListener('click', function(event) {
+        event.preventDefault();
+        aprovarProposta();
+});
+/**
+ * Tenta atualizar o status do orçamento para 'E' (Em Fechamento) após aprovação.
+ */
+async function aprovarProposta() {
+    // Busca o ID do Orçamento no elemento com ID 'idOrcamento'
 
+    let nrOrcamentoElem = document.getElementById('nrOrcamento');
+    let nrOrcamento = "";
+
+    if (nrOrcamentoElem) {
+        if (nrOrcamentoElem.tagName === "INPUT") {
+            nrOrcamento = nrOrcamentoElem.value.trim();
+        } else {
+            nrOrcamento = nrOrcamentoElem.innerText.trim();
+        }
+    }
+
+    let idOrcamentoElem = document.getElementById('idOrcamento'); 
+    let idOrcamento = "";
+
+    if (idOrcamentoElem) {
+        idOrcamento = idOrcamentoElem.tagName === "INPUT"
+            ? idOrcamentoElem.value.trim()
+            : idOrcamentoElem.innerText.trim();
+    } 
+
+    if (!idOrcamento) {
+        Swal.fire({
+            icon: "error",
+            title: "Erro!",
+            text: "ID do Orçamento não encontrado. Não é possível aprovar.",
+            confirmButtonText: "Fechar"
+        });
+        console.warn("ID do orçamento não encontrado!");
+        return;
+    }
+
+    try {
+        console.log("🔍 Iniciando requisição para Aprovar Proposta (Status 'E')...");
+
+        const statusUpdateResult = await fetchComToken(`/orcamentos/${idOrcamento}/status`, {
+            method: "PATCH", 
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                status: "E" // Status: Em Fechamento
+            })
+        });
+
+        if (statusUpdateResult.success) {
+            console.log("✅ Status do orçamento atualizado para 'E' com sucesso!");
+            
+            try {
+                const url = `orcamentos?nrOrcamento=${nrOrcamento}`;
+
+                const orcamento = await fetchComToken(url, { method: 'GET' });
+                preencherFormularioComOrcamento(orcamento);
+
+            } catch (error) {
+                console.error("Erro ao buscar orçamento:", error);
+
+                let errorMessage = error.message;
+                if (error.message.includes("404")) {
+                    errorMessage = `Orçamento com o número ${nrOrcamento} não encontrado.`;
+                    limparOrcamento();
+                } else if (error.message.includes("400")) {
+                    errorMessage = "Número do orçamento é inválido ou vazio.";
+                    limparOrcamento();
+                } else {
+                    errorMessage = `Erro ao carregar orçamento: ${error.message}`;
+                    limparOrcamento();
+                }
+
+                Swal.fire("Erro!", errorMessage, "error");
+            }
+
+            Swal.fire({
+                icon: "success",
+                title: "Proposta Aprovada!",
+                text: "O status do orçamento foi alterado para 'Em Fechamento'.",
+                confirmButtonText: "OK",
+            });
+        } else {
+            throw new Error(statusUpdateResult.message || "Falha ao atualizar o status para 'E'.");
+        }
+
+    } catch (err) {
+        console.error("❌ Erro ao Aprovar Proposta:", err);
+        Swal.fire({
+            icon: "error",
+            title: "Erro!",
+            text: `Ocorreu um erro ao aprovar a proposta: ${err.message}`,
+            confirmButtonText: "Fechar"
+        });
+    }
+}
+
+
+
+// 🔴 Evento para o botão Reprovar Proposta
+document.getElementById('ReprovarProposta')?.addEventListener('click', function(event) {
+    event.preventDefault();
+    reprovarProposta();
+});
+
+/**
+ * Tenta atualizar o status do orçamento para 'R' (Reprovado) após reprovação.
+ */
+async function reprovarProposta() {
+    // Busca o ID do Orçamento no elemento com ID 'idOrcamento'
+
+    let nrOrcamentoElem = document.getElementById('nrOrcamento');
+    let nrOrcamento = "";
+
+    if (nrOrcamentoElem) {
+        if (nrOrcamentoElem.tagName === "INPUT") {
+            nrOrcamento = nrOrcamentoElem.value.trim();
+        } else {
+            nrOrcamento = nrOrcamentoElem.innerText.trim();
+        }
+    }
+    
+    let idOrcamentoElem = document.getElementById('idOrcamento'); 
+    let idOrcamento = "";
+
+    if (idOrcamentoElem) {
+        idOrcamento = idOrcamentoElem.tagName === "INPUT"
+            ? idOrcamentoElem.value.trim()
+            : idOrcamentoElem.innerText.trim();
+    } 
+
+    if (!idOrcamento) {
+        Swal.fire({
+            icon: "error",
+            title: "Erro!",
+            text: "ID do Orçamento não encontrado. Não é possível reprovar.",
+            confirmButtonText: "Fechar"
+        });
+        console.warn("ID do orçamento não encontrado!");
+        return;
+    }
+
+    try {
+        console.log("🔍 Iniciando requisição para Reprovar Proposta (Status 'R')...");
+
+        const statusUpdateResult = await fetchComToken(`/orcamentos/${idOrcamento}/status`, {
+            method: "PATCH", 
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                status: "R" // Status: Reprovado
+            })
+        });
+
+        if (statusUpdateResult.success) {
+            console.log("✅ Status do orçamento atualizado para 'R' com sucesso!");
+            
+            try {
+                const url = `orcamentos?nrOrcamento=${nrOrcamento}`;
+
+                const orcamento = await fetchComToken(url, { method: 'GET' });
+                preencherFormularioComOrcamento(orcamento);
+
+            } catch (error) {
+                console.error("Erro ao buscar orçamento:", error);
+
+                let errorMessage = error.message;
+                if (error.message.includes("404")) {
+                    errorMessage = `Orçamento com o número ${nrOrcamento} não encontrado.`;
+                    limparOrcamento();
+                } else if (error.message.includes("400")) {
+                    errorMessage = "Número do orçamento é inválido ou vazio.";
+                    limparOrcamento();
+                } else {
+                    errorMessage = `Erro ao carregar orçamento: ${error.message}`;
+                    limparOrcamento();
+                }
+
+                Swal.fire("Erro!", errorMessage, "error");
+            }
+
+            Swal.fire({
+                icon: "success",
+                title: "Proposta Reprovada!",
+                text: "O status do orçamento foi alterado para 'Reprovado'.",
+                confirmButtonText: "OK",
+            });
+        } else {
+            throw new Error(statusUpdateResult.message || "Falha ao atualizar o status para 'R'.");
+        }
+
+    } catch (err) {
+        console.error("❌ Erro ao Reprovar Proposta:", err);
+        Swal.fire({
+            icon: "error",
+            title: "Erro!",
+            text: `Ocorreu um erro ao reprovar a proposta: ${err.message}`,
+            confirmButtonText: "Fechar"
+        });
+    }
+}
 
 
 

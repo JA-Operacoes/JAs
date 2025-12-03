@@ -501,92 +501,92 @@ router.post("/orcamento/consultar",
 );
 
 
-router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, res) => {
-    console.log("🔥 Rota /staff/check-duplicate acessada");
-    let client; // Declarar client aqui para garantir que esteja acessível no finally
-    try {
-    const { idFuncionario, nmFuncionario, setor, nmlocalmontagem, nmevento, nmcliente, datasevento } = req.query;
+// router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, res) => {
+//     console.log("🔥 Rota /staff/check-duplicate acessada");
+//     let client; // Declarar client aqui para garantir que esteja acessível no finally
+//     try {
+//     const { idFuncionario, nmFuncionario, setor, nmlocalmontagem, nmevento, nmcliente, datasevento } = req.query;
 
-    if (!idFuncionario || !nmFuncionario || !nmlocalmontagem || !nmevento || !nmcliente || !datasevento) {
-      return res.status(400).json({ message: 'Campos obrigatórios (ID Funcionário, Nome Funcionário, Local Montagem, Evento, Cliente, Datas Evento) não foram fornecidos para verificar duplicidade.' });
-    }
+//     if (!idFuncionario || !nmFuncionario || !nmlocalmontagem || !nmevento || !nmcliente || !datasevento) {
+//       return res.status(400).json({ message: 'Campos obrigatórios (ID Funcionário, Nome Funcionário, Local Montagem, Evento, Cliente, Datas Evento) não foram fornecidos para verificar duplicidade.' });
+//     }
 
-    let datasEventoArray;
-    try {
-      datasEventoArray = JSON.parse(datasevento);
-      if (!Array.isArray(datasEventoArray) || datasEventoArray.length === 0) {
-      return res.status(400).json({ message: 'Formato inválido para datasevento.' });
-      }
-    } catch (parseError) {
-      return res.status(400).json({ message: 'datasevento inválido: ' + parseError.message });
-    }
+//     let datasEventoArray;
+//     try {
+//       datasEventoArray = JSON.parse(datasevento);
+//       if (!Array.isArray(datasEventoArray) || datasEventoArray.length === 0) {
+//       return res.status(400).json({ message: 'Formato inválido para datasevento.' });
+//       }
+//     } catch (parseError) {
+//       return res.status(400).json({ message: 'datasevento inválido: ' + parseError.message });
+//     }
 
-    client = await pool.connect(); // Conectar ao pool
+//     client = await pool.connect(); // Conectar ao pool
 
-    // Iniciar a query base
-    let query = `
-      SELECT se.idstaffevento, se.vlrcache, se.vlrajustecusto, se.vlrtransporte, se.vlralimentacao, se.vlrcaixinha,
-        se.descajustecusto, se.descbeneficios, se.setor, se.pavilhao, se.vlrtotal, se.comppgtocache, se.comppgtoajdcusto, se.comppgtocaixinha,
-        se.idfuncionario, se.idfuncao, se.nmfuncao, se.idcliente, se.idevento, se.idmontagem, se.datasevento,
-        se.nmfuncionario, se.nmcliente, se.nmevento, se.nmlocalmontagem,
-        s.idstaff, s.avaliacao, se.comppgtoajdcusto50
-            FROM staffeventos se
-            INNER JOIN staff s ON se.idstaff = s.idstaff
-            WHERE se.idfuncionario = $1
-      `;
+//     // Iniciar a query base
+//     let query = `
+//       SELECT se.idstaffevento, se.vlrcache, se.vlrajustecusto, se.vlrtransporte, se.vlralimentacao, se.vlrcaixinha,
+//         se.descajustecusto, se.descbeneficios, se.setor, se.pavilhao, se.vlrtotal, se.comppgtocache, se.comppgtoajdcusto, se.comppgtocaixinha,
+//         se.idfuncionario, se.idfuncao, se.nmfuncao, se.idcliente, se.idevento, se.idmontagem, se.datasevento,
+//         se.nmfuncionario, se.nmcliente, se.nmevento, se.nmlocalmontagem,
+//         s.idstaff, s.avaliacao, se.comppgtoajdcusto50
+//             FROM staffeventos se
+//             INNER JOIN staff s ON se.idstaff = s.idstaff
+//             WHERE se.idfuncionario = $1
+//       `;
 
-    // Array para armazenar os valores dos parâmetros
-    const queryValues = [idFuncionario];
-    let paramIndex = 2; // Começa em 2 porque $1 já foi usado para idFuncionario
+//     // Array para armazenar os valores dos parâmetros
+//     const queryValues = [idFuncionario];
+//     let paramIndex = 2; // Começa em 2 porque $1 já foi usado para idFuncionario
 
-    // Adicionar condição para setor dinamicamente
-    if (setor) { // Se setor foi fornecido (não é string vazia, null, undefined)
-      query += ` AND UPPER(se.setor) = UPPER($${paramIndex})`;
-      queryValues.push(setor);
-      paramIndex++;
-    } else { // Se setor está vazio/nulo
-      query += ` AND (se.setor IS NULL OR se.setor = '')`;
-      // Não adiciona nada a queryValues para esta condição
-    }
+//     // Adicionar condição para setor dinamicamente
+//     if (setor) { // Se setor foi fornecido (não é string vazia, null, undefined)
+//       query += ` AND UPPER(se.setor) = UPPER($${paramIndex})`;
+//       queryValues.push(setor);
+//       paramIndex++;
+//     } else { // Se setor está vazio/nulo
+//       query += ` AND (se.setor IS NULL OR se.setor = '')`;
+//       // Não adiciona nada a queryValues para esta condição
+//     }
 
-    // Adicionar as demais condições
-    query += ` AND UPPER(se.nmlocalmontagem) = UPPER($${paramIndex})`;
-    queryValues.push(nmlocalmontagem);
-    paramIndex++;
+//     // Adicionar as demais condições
+//     query += ` AND UPPER(se.nmlocalmontagem) = UPPER($${paramIndex})`;
+//     queryValues.push(nmlocalmontagem);
+//     paramIndex++;
 
-    query += ` AND UPPER(se.nmevento) = UPPER($${paramIndex})`;
-    queryValues.push(nmevento);
-    paramIndex++;
+//     query += ` AND UPPER(se.nmevento) = UPPER($${paramIndex})`;
+//     queryValues.push(nmevento);
+//     paramIndex++;
 
-    query += ` AND UPPER(se.nmcliente) = UPPER($${paramIndex})`;
-    queryValues.push(nmcliente);
-    paramIndex++;
+//     query += ` AND UPPER(se.nmcliente) = UPPER($${paramIndex})`;
+//     queryValues.push(nmcliente);
+//     paramIndex++;
 
-    query += ` AND se.datasevento::jsonb = $${paramIndex}::jsonb;`;
-    queryValues.push(JSON.stringify(datasEventoArray));
+//     query += ` AND se.datasevento::jsonb = $${paramIndex}::jsonb;`;
+//     queryValues.push(JSON.stringify(datasEventoArray));
 
-    // Log da query e dos valores para depuração
-    console.log("QUERY DINÂMICA:", query);
-    console.log("VALUES DA QUERY:", queryValues);
+//     // Log da query e dos valores para depuração
+//     console.log("QUERY DINÂMICA:", query);
+//     console.log("VALUES DA QUERY:", queryValues);
 
-    const result = await client.query(query, queryValues);
+//     const result = await client.query(query, queryValues);
 
-    if (result.rows.length > 0) {
-      return res.status(200).json({ isDuplicate: true, existingEvent: result.rows[0] });
-    } else {
-      return res.status(200).json({ isDuplicate: false, message: 'Nenhum evento duplicado encontrado.' });
-    }
+//     if (result.rows.length > 0) {
+//       return res.status(200).json({ isDuplicate: true, existingEvent: result.rows[0] });
+//     } else {
+//       return res.status(200).json({ isDuplicate: false, message: 'Nenhum evento duplicado encontrado.' });
+//     }
 
-    } catch (error) {
-    console.error('Erro ao verificar duplicidade de evento:', error);
-    // Garante que o erro é capturado e retornado para o frontend
-    res.status(500).json({ message: 'Erro interno ao verificar duplicidade.', error: error.message });
-    } finally {
-    if (client) {
-      client.release(); // Libera o cliente de volta para o pool
-    }
-    }
-});
+//     } catch (error) {
+//     console.error('Erro ao verificar duplicidade de evento:', error);
+//     // Garante que o erro é capturado e retornado para o frontend
+//     res.status(500).json({ message: 'Erro interno ao verificar duplicidade.', error: error.message });
+//     } finally {
+//     if (client) {
+//       client.release(); // Libera o cliente de volta para o pool
+//     }
+//     }
+// });
 
 // Exemplo da sua rota de verificação de disponibilidade (no seu arquivo de rotas, ex: rotaStaff.js)
 // staffRoutes.js (ou o nome do seu arquivo de rotas de staff)
@@ -875,6 +875,104 @@ router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, r
 //GET pesquisar
 //certo com verificacao categoriafuncao
 
+
+router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, res) => {
+    console.log("🔥 Rota /staff/check-duplicate acessada");
+    let client;
+    try {
+        // 🛑 REMOVEMOS 'setor' E 'nmFuncionario' da desestruturação para focar no que é relevante para o WHERE.
+        // setor é ignorado por regra de negócio. nmFuncionario é apenas para log/mensagem.
+        const { idFuncionario, nmlocalmontagem, nmevento, nmcliente, datasevento, idFuncao } = req.query; 
+
+        if (!idFuncionario || !nmlocalmontagem || !nmevento || !nmcliente || !datasevento || !idFuncao) {
+            return res.status(400).json({ message: 'Campos obrigatórios (Funcionário, Local, Evento, Cliente, Datas, Função) não foram fornecidos para verificar duplicidade.' });
+        }
+        
+        let datasEventoArray;
+        try {
+          datasEventoArray = JSON.parse(datasevento);
+          if (!Array.isArray(datasEventoArray) || datasEventoArray.length === 0) {
+            return res.status(400).json({ message: 'Formato inválido para datasevento.' });
+          }
+        } catch (parseError) {
+          return res.status(400).json({ message: 'datasevento inválido: ' + parseError.message });
+        }
+
+
+        client = await pool.connect(); 
+
+        let query = `
+            SELECT se.idstaffevento, se.vlrcache, se.vlrajustecusto, se.vlrtransporte, se.vlralimentacao, se.vlrcaixinha,
+                se.descajustecusto, se.descbeneficios, se.setor, se.pavilhao, se.vlrtotal, se.comppgtocache, se.comppgtoajdcusto, se.comppgtocaixinha,
+                se.idfuncionario, se.idfuncao, se.nmfuncao, se.idcliente, se.idevento, se.idmontagem, se.datasevento,
+                se.nmfuncionario, se.nmcliente, se.nmevento, se.nmlocalmontagem,
+                s.idstaff, s.avaliacao, se.comppgtoajdcusto50
+            FROM staffeventos se
+            INNER JOIN staff s ON se.idstaff = s.idstaff
+            WHERE se.idfuncionario = $1
+        `;
+
+        const queryValues = [idFuncionario];
+        let paramIndex = 2; // Começa em $2, já que $1 é idFuncionario
+        
+        // 🟢 Setor foi IGNORADO, como solicitado.
+        
+        // CRITERIA 1: nmlocalmontagem ($2)
+        query += ` AND UPPER(se.nmlocalmontagem) = UPPER($${paramIndex})`;
+        queryValues.push(nmlocalmontagem);
+        paramIndex++; // Agora é $3
+
+        // CRITERIA 2: nmevento ($3)
+        query += ` AND UPPER(se.nmevento) = UPPER($${paramIndex})`;
+        queryValues.push(nmevento);
+        paramIndex++; // Agora é $4
+
+        // CRITERIA 3: nmcliente ($4)
+        query += ` AND UPPER(se.nmcliente) = UPPER($${paramIndex})`;
+        queryValues.push(nmcliente);
+        paramIndex++; // Agora é $5
+
+        // CRITERIA 4: datasevento ($5)
+        query += ` AND se.datasevento::jsonb = $${paramIndex}::jsonb`;
+        queryValues.push(JSON.stringify(datasEventoArray));
+        
+        // 🎯 O índice para idFuncao será o próximo: $6
+        const idFuncaoParamIndex = paramIndex + 1; 
+
+        // ORDER BY: Prioriza o conflito de mesma função (duplicidade estrita)
+        query += `
+            ORDER BY
+                CASE WHEN se.idfuncao = $${idFuncaoParamIndex} THEN 0 ELSE 1 END, 
+                se.idstaffevento ASC;`; 
+
+        // 🟢 Adiciona idFuncao como o último parâmetro (que será referenciado como $6)
+        queryValues.push(idFuncao); 
+
+        // Log para depuração
+        console.log("QUERY DINÂMICA:", query);
+        console.log("VALUES DA QUERY:", queryValues);
+
+        const result = await client.query(query, queryValues);
+
+        if (result.rows.length > 0) {
+            // O primeiro resultado será o registro 1974 (ou 1969) com a mesma função 48, 
+            // garantindo que o frontend entre no bloco de Duplicidade Estrita.
+            return res.status(200).json({ isDuplicate: true, existingEvent: result.rows[0] });
+        } else {
+            return res.status(200).json({ isDuplicate: false, message: 'Nenhum evento duplicado encontrado.' });
+        }
+
+    } catch (error) {
+        console.error('Erro ao verificar duplicidade de evento:', error);
+        res.status(500).json({ message: 'Erro interno ao verificar duplicidade.', error: error.message });
+    } finally {
+        if (client) {
+            client.release();
+        }
+    }
+});
+
+
 router.post('/check-availability', autenticarToken(), contextoEmpresa, async (req, res) => {
     console.log("🔥 Rota /staff/check-availability (POST) acessada para verificação de disponibilidade");
 
@@ -944,11 +1042,12 @@ router.post('/check-availability', autenticarToken(), contextoEmpresa, async (re
             // Se houver conflito, retorna o primeiro encontrado
             return res.json({
                 isAvailable: false,
-                conflictingEvent: result.rows[0]
+                conflictingEvent: result.rows[0],
+                conflicts: result.rows
             });
         } else {
             // Não há conflito de agenda
-            return res.json({ isAvailable: true, conflictingEvent: null });
+            return res.json({ isAvailable: true, conflictingEvent: null, conflicts: [] });
         }
 
     } catch (error) {
