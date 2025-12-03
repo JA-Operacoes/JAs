@@ -1151,7 +1151,8 @@ router.get("/:nrOrcamento/proposta",
                     oi.qtddias AS qtd_dias,
                     oi.categoria AS categoria,
                     oi.periododiariasinicio AS inicio_datas,
-                    oi.periododiariasfim AS fim_datas
+                    oi.periododiariasfim AS fim_datas,
+                    oi.adicional AS is_adicional
                 FROM orcamentoitens oi
                 LEFT JOIN funcao f ON oi.idfuncao = f.idfuncao
                 WHERE oi.idorcamento = $1
@@ -1442,53 +1443,71 @@ router.put(
         if (item.id && existingItemIds.has(item.id)) {
           // Item existente: UPDATE
           const updateItemQuery = `
-                        UPDATE orcamentoitens SET
-                            enviarnaproposta = $1, categoria = $2, qtditens = $3, idfuncao = $4,
-                            idequipamento = $5, idsuprimento = $6, produto = $7, qtddias = $8, periododiariasinicio = $9,
-                            periododiariasfim = $10, descontoitem = $11, percentdescontoitem = $12, acrescimoitem = $13,
-                            percentacrescimoitem = $14, vlrdiaria = $15, totvdadiaria = $16, ctodiaria = $17, totctodiaria = $18,
-                            tpajdctoalimentacao = $19, vlrajdctoalimentacao = $20, tpajdctotransporte = $21, vlrajdctotransporte = $22,
-                            totajdctoitem = $23, hospedagem = $24, transporte = $25, totgeralitem = $26, setor = $27
-                        WHERE idorcamentoitem = $28 AND idorcamento = $29;
-                    `;
+              UPDATE orcamentoitens SET
+                  enviarnaproposta = $1, categoria = $2, qtditens = $3, idfuncao = $4,
+                  idequipamento = $5, idsuprimento = $6, produto = $7, qtddias = $8, periododiariasinicio = $9,
+                  periododiariasfim = $10, descontoitem = $11, percentdescontoitem = $12, acrescimoitem = $13,
+                  percentacrescimoitem = $14, vlrdiaria = $15, totvdadiaria = $16, ctodiaria = $17, totctodiaria = $18,
+                  tpajdctoalimentacao = $19, vlrajdctoalimentacao = $20, tpajdctotransporte = $21, vlrajdctotransporte = $22,
+                  totajdctoitem = $23, hospedagem = $24, transporte = $25, totgeralitem = $26, setor = $27,
+                  adicional = $28
+              WHERE idorcamentoitem = $29 AND idorcamento = $30;
+          `;
+
           const itemValues = [
-            item.enviarnaproposta, item.categoria, item.qtditens, item.idfuncao,
-            item.idequipamento, item.idsuprimento, item.produto, item.qtdDias, item.periododiariasinicio,
-            item.periododiariasfim, item.descontoitem, item.percentdescontoitem, item.acrescimoitem,
-            item.percentacrescimoitem, item.vlrdiaria, item.totvdadiaria, item.ctodiaria, item.totctodiaria,
-            item.tpajdctoalimentacao, item.vlrajdctoalimentacao, item.tpajdctotransporte, item.vlrajdctotransporte,
-            item.totajdctoitem, item.hospedagem, item.transporte, item.totgeralitem, item.setor,
-            item.id, // $28 (idorcamentoitem)
-            idOrcamento // $29 (idorcamento)
+              item.enviarnaproposta, item.categoria, item.qtditens, item.idfuncao,
+              item.idequipamento, item.idsuprimento, item.produto, item.qtdDias,
+              item.periododiariasinicio, item.periododiariasfim, item.descontoitem,
+              item.percentdescontoitem, item.acrescimoitem, item.percentacrescimoitem,
+              item.vlrdiaria, item.totvdadiaria, item.ctodiaria, item.totctodiaria,
+              item.tpajdctoalimentacao, item.vlrajdctoalimentacao,
+              item.tpajdctotransporte, item.vlrajdctotransporte,
+              item.totajdctoitem, item.hospedagem, item.transporte,
+              item.totgeralitem, 
+              item.setor ?? '',     // ✅ CORREÇÃO 1: Garante que setor seja '' se for null/undefined
+              item.adicional ?? false, // ✅ CORREÇÃO 2: Garante que adicional seja false se for null/undefined
+              item.id,           // idorcamentoitem
+              idOrcamento
           ];
+// ...
+
           await client.query(updateItemQuery, itemValues);
         } else {
           // Novo item: INSERT
           const insertItemQuery = `
-                        INSERT INTO orcamentoitens (
-                            idorcamento, enviarnaproposta, categoria, qtditens, idfuncao,
-                            idequipamento, idsuprimento, produto, qtddias, periododiariasinicio,
-                            periododiariasfim, descontoitem, percentdescontoitem, acrescimoitem,
-                            percentacrescimoitem, vlrdiaria, totvdadiaria, ctodiaria, totctodiaria,
-                            tpajdctoalimentacao, vlrajdctoalimentacao, tpajdctotransporte, vlrajdctotransporte,
-                            totajdctoitem, hospedagem, transporte, totgeralitem, setor
-                        ) VALUES (
-                            $1, $2, $3, $4, $5,
-                            $6, $7, $8, $9, $10,
-                            $11, $12, $13, $14,
-                            $15, $16, $17, $18, $19,
-                            $20, $21, $22, $23,
-                            $24, $25, $26, $27, $28
-                        );
-                    `;
+              INSERT INTO orcamentoitens (
+                  idorcamento, enviarnaproposta, categoria, qtditens, idfuncao,
+                  idequipamento, idsuprimento, produto, qtddias, periododiariasinicio,
+                  periododiariasfim, descontoitem, percentdescontoitem, acrescimoitem,
+                  percentacrescimoitem, vlrdiaria, totvdadiaria, ctodiaria, totctodiaria,
+                  tpajdctoalimentacao, vlrajdctoalimentacao, tpajdctotransporte,
+                  vlrajdctotransporte, totajdctoitem, hospedagem, transporte,
+                  totgeralitem, setor, adicional
+              ) VALUES (
+                  $1, $2, $3, $4, $5,
+                  $6, $7, $8, $9, $10,
+                  $11, $12, $13, $14,
+                  $15, $16, $17, $18, $19,
+                  $20, $21, $22, $23,
+                  $24, $25, $26, $27, $28,
+                  $29
+              );
+          `;
+
           const itemValues = [
-            idOrcamento, item.enviarnaproposta, item.categoria, item.qtditens, item.idfuncao,
-            item.idequipamento, item.idsuprimento, item.produto, item.qtdDias, item.periododiariasinicio,
-            item.periododiariasfim, item.descontoitem, item.percentdescontoitem, item.acrescimoitem,
-            item.percentacrescimoitem, item.vlrdiaria, item.totvdadiaria, item.ctodiaria, item.totctodiaria,
-            item.tpajdctoalimentacao, item.vlrajdctoalimentacao, item.tpajdctotransporte, item.vlrajdctotransporte,
-            item.totajdctoitem, item.hospedagem, item.transporte, item.totgeralitem, item.setor
+              idOrcamento, item.enviarnaproposta, item.categoria, item.qtditens,
+              item.idfuncao, item.idequipamento, item.idsuprimento, item.produto,
+              item.qtdDias, item.periododiariasinicio, item.periododiariasfim,
+              item.descontoitem, item.percentdescontoitem, item.acrescimoitem,
+              item.percentacrescimoitem, item.vlrdiaria, item.totvdadiaria,
+              item.ctodiaria, item.totctodiaria, item.tpajdctoalimentacao,
+              item.vlrajdctoalimentacao, item.tpajdctotransporte,
+              item.vlrajdctotransporte, item.totajdctoitem, item.hospedagem,
+              item.transporte, item.totgeralitem, 
+              item.setor ?? '',        // ✅ CORREÇÃO 1: Garante que setor seja '' se for null/undefined
+              item.adicional ?? false // ✅ CORREÇÃO 2: Garante que adicional seja false se for null/undefined
           ];
+
           await client.query(insertItemQuery, itemValues);
         }
       }      
@@ -1510,16 +1529,6 @@ router.put(
     }
   }
 );
-
-                // if (dados.cliente_email) {
-                //     signers.push({
-                //         email: dados.cliente_email, 
-                //         auths: ["email"],
-            //            send_email: true,
-                //         sign_as: "sign",
-                //         name: dados.cliente_responsavel || dados.cliente_nome || "Cliente"
-                //     });
-                // }
 
 router.put(
   "/fechar/:id", 
