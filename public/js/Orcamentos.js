@@ -1721,30 +1721,39 @@ function adicionarLinhaOrc() {
 
 
 
+/**
+ * Adiciona uma nova linha de item "adicional" (customizado) à tabela de orçamento.
+ * Inicializa a linha com campos vazios, inputs ocultos de controle e anexa todos os event listeners necessários.
+ */
 function adicionarLinhaAdicional() {
-
+    // 1. Configurações Iniciais e Preparação do DOM
+    // Assume-se que 'liberarSelectsParaAdicional' é uma função existente
     liberarSelectsParaAdicional();
 
-    let tabela = document.getElementById("tabela").getElementsByTagName("tbody")[0];
+    const tabelaBody = document.getElementById("tabela")?.getElementsByTagName("tbody")[0];
+    if (!tabelaBody) {
+        console.error("Erro: Elemento <tbody> da tabela de orçamento não encontrado.");
+        return;
+    }
 
-    let ufAtual = document.getElementById("ufmontagem")?.value || 'SP';
-    const initialDisplayStyle = (!ufAtual || ufAtual.toUpperCase() === 'SP') ? "display: none;" : "display: table-cell;";
+    const ufAtual = document.getElementById("ufmontagem")?.value || 'SP';
+    // O estilo inicial é usado para colunas que só devem aparecer para UF's diferentes de SP
+    const initialDisplayStyle = ufAtual.toUpperCase() === 'SP' ? "display: none;" : "display: table-cell;";
 
-    //PARA ALIMENTACAO E TRANSPORTE EDITÁVEL
-    // <td class="ajdCusto Moeda alimentacao">
-    //         <input type="text" class="vlralimentacao-input Moeda" value="${formatarMoeda(0)}" data-original-ajdcusto>
-    //     </td>    
-    //     <td class="ajdCusto Moeda transporte">
-    //         <input type="text" class="vlrtransporte-input Moeda" value="${formatarMoeda(0)}" data-original-ajdcusto>
-    //     </td> 
+    const novaLinha = tabelaBody.insertRow();
 
-    let novaLinha = tabela.insertRow();
-    novaLinha.classList.add("liberada", "linhaAdicional");     // aplica nova cor
+    // Adiciona classes e dataset para identificação
+    novaLinha.classList.add("liberada", "linhaAdicional", "adicional"); // aplica nova cor e identificação
+    novaLinha.dataset.adicional = "true";
+
+    // 2. HTML da Nova Linha (Template Literal)
     novaLinha.innerHTML = `
-        <td style="display: none;"><input type="hidden" class="idItemOrcamento" style="display: none;" value=""></td> <!-- Corrigido: de <th> para <td> e adicionado input hidden -->
+        <td style="display: none;"><input type="hidden" class="idItemOrcamento" value=""></td>
         <td style="display: none;"><input type="hidden" class="idFuncao" value=""></td>
         <td style="display: none;"><input type="hidden" class="idEquipamento" value=""></td>
         <td style="display: none;"><input type="hidden" class="idSuprimento" value=""></td>
+        <td style="display: none;"><input type="hidden" class="isAdicional" value="true"></td>
+
         <td class="Proposta">
             <div class="checkbox-wrapper-33">
                 <label class="checkbox">
@@ -1758,7 +1767,7 @@ function adicionarLinhaAdicional() {
                 </label>
             </div>
         </td>
-        <td class="Categoria"><input type="text" class="categoria-input" value=""></td> <!-- Adicionado input para edição -->
+        <td class="Categoria"><input type="text" class="categoria-input" value=""></td>
         <td class="qtdProduto">
             <div class="add-less">
                 <input type="number" class="qtdProduto" min="0" value="0">
@@ -1768,9 +1777,8 @@ function adicionarLinhaAdicional() {
                 </div>
             </div>
         </td>
-        <td class="produto"><input type="text" class="produto-input" value=""></td> <!-- Adicionado input para edição -->
-        <td class="setor"><input type="text" class="setor-input" value=""></td> <!-- Adicionado input para edição -->
-
+        <td class="produto"><input type="text" class="produto-input" value=""></td>
+        <td class="setor"><input type="text" class="setor-input" value=""></td>
         <td class="qtdDias">
             <div class="add-less">
                 <input type="number" readonly class="qtdDias" min="0" value="0">
@@ -1799,15 +1807,15 @@ function adicionarLinhaAdicional() {
         <td class="totCtoDiaria Moeda">${formatarMoeda(0)}</td>
         <td class="ajdCusto Moeda alimentacao" data-original-ajdcusto="0">
             <span class="vlralimentacao-input">${formatarMoeda(0)}</span>
-        </td>    
+        </td>     
         <td class="ajdCusto Moeda transporte" data-original-ajdcusto="0">
             <span class="vlrtransporte-input">${formatarMoeda(0)}</span>
         </td>
         <td class="totAjdCusto Moeda">${formatarMoeda(0)}</td>
-        <td class="extraCampo" style="display: none;">
+        <td class="extraCampo" style="${initialDisplayStyle}">
             <input type="text" class="hospedagem" value=" R$ 0,00">
         </td>
-        <td class="extraCampo" style="display: none;">
+        <td class="extraCampo" style="${initialDisplayStyle}">
             <input type="text" class="transporteExtraInput" value=" R$ 0,00">
         </td>
         <td class="totGeral Moeda">${formatarMoeda(0)}</td>
@@ -1821,116 +1829,88 @@ function adicionarLinhaAdicional() {
             </div>
         </td>
     `;
-    tabela.insertBefore(novaLinha, tabela.firstChild);
+    
+    // Insere a nova linha no início do <tbody>
+    tabelaBody.insertBefore(novaLinha, tabelaBody.firstChild);
+
+    // 3. Função Auxiliar para Desconto/Acréscimo (Reduz Repetição)
+    
+    /**
+     * Anexa os listeners de input e blur para os campos de valor e percentual de Desconto/Acréscimo.
+     * @param {HTMLElement} linha A linha da tabela (<tr>).
+     * @param {'desconto'|'acrescimo'} type O tipo de cálculo.
+     */
+    const attachAcresDescListeners = (linha, type) => {
+        const selector = `.${type}Item`;
+        const itemCell = linha.querySelector(selector);
+        if (!itemCell) return;
+
+        const valorInput = itemCell.querySelector('.ValorInteiros');
+        const percentualInput = itemCell.querySelector('.valorPerCent');
+
+        if (valorInput) {
+            valorInput.addEventListener('input', function() {
+                console.log(`EVENTO INPUT: Campo ValorInteiros de ${type} alterado.`);
+                window.lastEditedFieldType = 'valor'; // Assumindo que lastEditedFieldType é global (window)
+                recalcularDescontoAcrescimo(this, type, 'valor', this.closest('tr'));
+            });
+            valorInput.addEventListener('blur', function() {
+                console.log(`EVENTO BLUR: Campo ValorInteiros de ${type}.`);
+                this.value = formatarMoeda(desformatarMoeda(this.value));
+                setTimeout(() => {
+                    const campoPercentual = this.closest(selector).querySelector('.valorPerCent');
+                    if (document.activeElement !== campoPercentual && !this.closest('.Acres-Desc').contains(document.activeElement)) {
+                        window.lastEditedFieldType = null;
+                        console.log("lastEditedFieldType resetado para null após blur do ValorInteiros.");
+                    }
+                }, 0);
+            });
+        }
+
+        if (percentualInput) {
+            percentualInput.addEventListener('input', function() {
+                console.log(`EVENTO INPUT: Campo valorPerCent de ${type} alterado.`);
+                window.lastEditedFieldType = 'percentual'; // Assumindo que lastEditedFieldType é global (window)
+                recalcularDescontoAcrescimo(this, type, 'percentual', this.closest('tr'));
+            });
+            percentualInput.addEventListener('blur', function() {
+                console.log(`EVENTO BLUR: Campo valorPerCent de ${type}.`);
+                this.value = formatarPercentual(desformatarPercentual(this.value));
+                setTimeout(() => {
+                    if (!this.closest('.Acres-Desc').contains(document.activeElement)) {
+                        window.lastEditedFieldType = null;
+                        console.log("lastEditedFieldType resetado para null após blur do valorPerCent.");
+                    }
+                }, 0);
+            });
+        }
+    };
+    
+    // Anexa os listeners de Desconto e Acréscimo usando a função auxiliar
+    attachAcresDescListeners(novaLinha, 'desconto');
+    attachAcresDescListeners(novaLinha, 'acrescimo');
 
 
-    const descontoValorItem = novaLinha.querySelector('.descontoItem .ValorInteiros');
-    if (descontoValorItem) {
-        descontoValorItem.addEventListener('input', function() {
-            console.log("EVENTO INPUT: Campo ValorInteiros de Desconto alterado.");
-            lastEditedFieldType = 'valor';
-            recalcularDescontoAcrescimo(this, 'desconto', 'valor', this.closest('tr'));
-        });
-        descontoValorItem.addEventListener('blur', function() {
-            console.log("EVENTO BLUR: Campo ValorInteiros de Desconto.");
-            this.value = formatarMoeda(desformatarMoeda(this.value));
-            // Adiciona um listener para o próximo tick, para verificar o foco.
-            // Se o foco não está no campo percentual ou em outro campo da mesma célula, zera.
-            setTimeout(() => {
-                const campoPercentual = this.closest('.descontoItem').querySelector('.valorPerCent');
-                // Se o foco não está no campo parceiro OU se o foco saiu da célula Acres-Desc
-                if (document.activeElement !== campoPercentual && !this.closest('.Acres-Desc').contains(document.activeElement)) {
-                    lastEditedFieldType = null;
-                    console.log("lastEditedFieldType resetado para null após blur do ValorInteiros.");
-                }
-            }, 0); // Pequeno atraso para o browser resolver o foco
-        });
-    }
-
-    // Campo Percentual de Desconto
-    const descontoPercentualItem = novaLinha.querySelector('.descontoItem .valorPerCent');
-    if (descontoPercentualItem) {
-        descontoPercentualItem.addEventListener('input', function() {
-            console.log("EVENTO INPUT: Campo valorPerCent de Desconto alterado.");
-            lastEditedFieldType = 'percentual';
-            recalcularDescontoAcrescimo(this, 'desconto', 'percentual', this.closest('tr'));
-        });
-        descontoPercentualItem.addEventListener('blur', function() {
-            console.log("EVENTO BLUR: Campo valorPerCent de Desconto.");
-            this.value = formatarPercentual(desformatarPercentual(this.value));
-            // Ao sair do percentual, podemos resetar o lastEditedFieldType
-            // já que o usuário provavelmente terminou a interação com este par de campos.
-            setTimeout(() => {
-                // Verifica se o foco não está dentro do mesmo grupo acres-desc
-                if (!this.closest('.Acres-Desc').contains(document.activeElement)) {
-                    lastEditedFieldType = null;
-                    console.log("lastEditedFieldType resetado para null após blur do valorPerCent.");
-                }
-            }, 0);
-        });
-    }
-    const acrescimoValorItem = novaLinha.querySelector('.acrescimoItem .ValorInteiros');
-    if (acrescimoValorItem) {
-        acrescimoValorItem.addEventListener('input', function() {
-            console.log("EVENTO INPUT: Campo ValorInteiros de Acréscimo alterado.");
-            lastEditedFieldType = 'valor';
-            recalcularDescontoAcrescimo(this, 'acrescimo', 'valor', this.closest('tr'));
-        });
-        acrescimoValorItem.addEventListener('blur', function() {
-            console.log("EVENTO BLUR: Campo ValorInteiros de Acréscimo.");
-            this.value = formatarMoeda(desformatarMoeda(this.value));
-            // Adiciona um listener para o próximo tick, para verificar o foco.
-            // Se o foco não está no campo percentual ou em outro campo da mesma célula, zera.
-            setTimeout(() => {
-                const campoPercentual = this.closest('.acrescimoItem').querySelector('.valorPerCent');
-                // Se o foco não está no campo parceiro OU se o foco saiu da célula Acres-Desc
-                if (document.activeElement !== campoPercentual && !this.closest('.Acres-Desc').contains(document.activeElement)) {
-                    lastEditedFieldType = null;
-                    console.log("lastEditedFieldType resetado para null após blur do ValorInteiros.");
-                }
-            }, 0); // Pequeno atraso para o browser resolver o foco
-        });
-    }
-
-    // Campo Percentual de Desconto
-    const acrescimoPercentualItem = novaLinha.querySelector('.acrescimoItem .valorPerCent');
-    if (acrescimoPercentualItem) {
-        acrescimoPercentualItem.addEventListener('input', function() {
-            console.log("EVENTO INPUT: Campo valorPerCent de Acréscimo alterado.");
-            lastEditedFieldType = 'percentual';
-            recalcularDescontoAcrescimo(this, 'acrescimo', 'percentual', this.closest('tr'));
-        });
-        acrescimoPercentualItem.addEventListener('blur', function() {
-            console.log("EVENTO BLUR: Campo valorPerCent de Acréscimo.");
-            this.value = formatarPercentual(desformatarPercentual(this.value));
-            // Ao sair do percentual, podemos resetar o lastEditedFieldType
-            // já que o usuário provavelmente terminou a interação com este par de campos.
-            setTimeout(() => {
-                // Verifica se o foco não está dentro do mesmo grupo acres-desc
-                if (!this.closest('.Acres-Desc').contains(document.activeElement)) {
-                    lastEditedFieldType = null;
-                    console.log("lastEditedFieldType resetado para null após blur do valorPerCent.");
-                }
-            }, 0);
-        });
-    }
-
+    // 4. Inicialização do Flatpickr para o campo de data
     const novoInputData = novaLinha.querySelector('input[type="text"].datas');
     if (novoInputData) {
+        // Assume-se que 'commonFlatpickrOptionsTable' é uma variável global de configuração
         flatpickr(novoInputData, commonFlatpickrOptionsTable);
         console.log("Flatpickr inicializado para nova linha adicionada:", novoInputData);
     } else {
         console.error("Erro: Novo input de data não encontrado na nova linha.");
     }
 
-    const incrementButton = novaLinha.querySelector('.qtdProduto .increment');
-    const decrementButton = novaLinha.querySelector('.qtdProduto .decrement');
-    const quantityInput = novaLinha.querySelector('.qtdProduto input[type="number"]');
+    // 5. Event Listeners para Quantidade (qtdProduto)
+    const { incrementButton, decrementButton, quantityInput } = {
+        incrementButton: novaLinha.querySelector('.qtdProduto .increment'),
+        decrementButton: novaLinha.querySelector('.qtdProduto .decrement'),
+        quantityInput: novaLinha.querySelector('.qtdProduto input[type="number"]')
+    };
 
     if (incrementButton && quantityInput) {
         incrementButton.addEventListener('click', function() {
             quantityInput.value = parseInt(quantityInput.value) + 1;
-            // Chame sua função de recalcular a linha aqui também, se necessário
             recalcularLinha(this.closest('tr'));
         });
     }
@@ -1938,32 +1918,14 @@ function adicionarLinhaAdicional() {
     if (decrementButton && quantityInput) {
         decrementButton.addEventListener('click', function() {
             let currentValue = parseInt(quantityInput.value);
-            if (currentValue > 0) { // Garante que não decrementa abaixo de zero
+            if (currentValue > 0) {
                 quantityInput.value = currentValue - 1;
-                // Chame sua função de recalcular a linha aqui também, se necessário
                 recalcularLinha(this.closest('tr'));
             }
         });
     }
 
-    // novaLinha.querySelector('.descontoItem .ValorInteiros')?.addEventListener('blur', function(event) { // MUDANÇA: 'input' para 'blur'
-    //     console.log("DEBUG: Blur no campo ValorInteiros de Desconto! Input:", this.value); // Adicione este log
-    //     recalcularDescontoAcrescimo(this, 'desconto', 'valor', this.closest('tr'));
-    // });
-
-    // novaLinha.querySelector('.descontoItem .valorPerCent')?.addEventListener('blur', function(event) { // MUDANÇA: 'input' para 'blur'
-    //     console.log("DEBUG: Blur no campo valorPerCent de Desconto! Input:", this.value); // Adicione este log
-    //     recalcularDescontoAcrescimo(this, 'desconto', 'percentual', this.closest('tr'));
-    // });
-    // novaLinha.querySelector('.acrescimoItem .ValorInteiros')?.addEventListener('blur', function(event) { // MUDANÇA: 'input' para 'blur'
-    //     console.log("DEBUG: Blur no campo ValorInteiros de Acrescimo! Input:", this.value); // Adicione este log
-    //     recalcularDescontoAcrescimo(this, 'acrescimo', 'valor', this.closest('tr'));
-    // });
-    // novaLinha.querySelector('.acrescimoItem .valorPerCent')?.addEventListener('blur', function(event) { // MUDANÇA: 'input' para 'blur'
-    //     console.log("DEBUG: Blur no campo valorPerCent de Acrescimo! Input:", this.value); // Adicione este log
-    //     recalcularDescontoAcrescimo(this, 'acrescimo', 'percentual', this.closest('tr'));
-    // });
-
+    // Listener de input para Qtd. Produto e Qtd. Dias
     novaLinha.querySelector('.qtdProduto input')?.addEventListener('input', function() {
         recalcularLinha(this.closest('tr'));
     });
@@ -1971,51 +1933,49 @@ function adicionarLinhaAdicional() {
         recalcularLinha(this.closest('tr'));
     });
 
-    // // Event listeners para campos de ajuda de custo (selects)
-    // novaLinha.querySelector('.tpAjdCusto-alimentacao')?.addEventListener('change', function() {
-    //     recalcularLinha(this.closest('tr'));
-    // });
-    // novaLinha.querySelector('.tpAjdCusto-transporte')?.addEventListener('change', function() {
-    //     recalcularLinha(this.closest('tr'));
-    // });
-
+    // Event listeners para auxílios de custo (Alimentação e Transporte)
     novaLinha.querySelector('.vlralimentacao-input')?.addEventListener('input', function() {
         recalcularLinha(this.closest('tr'));
     });
-    // Usa a nova classe .vlrtransporte-input e o evento 'input'
     novaLinha.querySelector('.vlrtransporte-input')?.addEventListener('input', function() {
         recalcularLinha(this.closest('tr'));
     });
 
-
-    // Event listeners para campos extras (hospedagem, transporte)
+    // Event listeners para campos extras (Hospedagem, Transporte Extra)
     novaLinha.querySelector('.hospedagem')?.addEventListener('input', function() {
         recalcularLinha(this.closest('tr'));
     });
-    novaLinha.querySelector('.transporteExtraInput')?.addEventListener('input', function() {
-        recalcularLinha(this.closest('tr'));
-        console.log("INPUT TRANSPORTE ALTERADO NO ADICIONARLINHAORC:", this.value);
-    });
+    const transporteExtraInput = novaLinha.querySelector('.transporteExtraInput');
+    if (transporteExtraInput) {
+        transporteExtraInput.addEventListener('input', function() {
+            recalcularLinha(this.closest('tr'));
+            console.log("INPUT TRANSPORTE ALTERADO NO ADICIONARLINHAORC:", this.value);
+        });
+    }
 
 
-
-
-    const temPermissaoApagar = temPermissao("Orcamentos", "apagar");
+    // 6. Lógica do Botão Apagar
+    const temPermissaoApagar = temPermissao("Orcamentos", "apagar"); // Assume-se que temPermissao é uma função existente
     const deleteButton = novaLinha.querySelector('.btnApagar');
-    const idItemInput = novaLinha.querySelector('input.idItemOrcamento'); // Obtém o input de ID
-    const idFuncaoInput = novaLinha.querySelector('input.idFuncao');
+    const idItemInput = novaLinha.querySelector('input.idItemOrcamento');
 
     if (deleteButton) {
+        // Aplica estilo de desabilitado visualmente se não tiver permissão para itens EXISTENTES
+        if (!temPermissaoApagar) {
+            deleteButton.classList.add("btnDesabilitado");
+            deleteButton.title = "Você não tem permissão para apagar itens de orçamento que já estão salvos.";
+        }
+
         deleteButton.addEventListener('click', async function(event) {
-            event.preventDefault(); // Sempre previne o comportamento padrão inicial
+            event.preventDefault();
 
             const linhaParaRemover = this.closest('tr');
-            const idOrcamentoItem = idItemInput ? idItemInput.value : null; // Pega o ID na hora do clique
+            const idOrcamentoItem = idItemInput?.value || null;
 
             if (!idOrcamentoItem || idOrcamentoItem.trim() === '') {
-                // Se NÃO tem ID (linha nova/vazia), SEMPRE permite remoção local
+                // Item novo/vazio (sem ID) -> Remoção local
                 console.log("DEBUG: Item sem ID. Permitindo exclusão local.");
-                Swal.fire({
+                const result = await Swal.fire({ // Assume-se que Swal.fire é uma função existente (SweetAlert2)
                     title: "Remover item?",
                     text: "Este item ainda não foi salvo no banco de dados. Deseja apenas removê-lo da lista?",
                     icon: "warning",
@@ -2024,32 +1984,28 @@ function adicionarLinhaAdicional() {
                     cancelButtonColor: "#d33",
                     confirmButtonText: "Sim, remover!",
                     cancelButtonText: "Cancelar"
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        linhaParaRemover.remove();
-                        recalcularTotaisGerais();
-                        calcularLucro();
-                        Swal.fire("Removido!", "O item foi removido da lista.", "success");
-                    }
                 });
-            // } else if (!temPermissaoApagar) {
-            //     // Se TEM ID, mas o usuário NÃO tem permissão para apagar
-            //     console.warn("Usuário não tem permissão para apagar itens de orçamento. Exibindo Swal.");
-            //     Swal.fire({
-            //         title: "Acesso Negado!",
-            //         text: "Você não tem permissão para apagar itens de orçamento que já estão salvos.",
-            //         icon: "error",
-            //         confirmButtonText: "Entendi"
-            //     });
+
+                if (result.isConfirmed) {
+                    linhaParaRemover.remove();
+                    recalcularTotaisGerais();
+                    calcularLucro();
+                    Swal.fire("Removido!", "O item foi removido da lista.", "success");
+                }
             } else {
-                // Se TEM ID E o usuário TEM permissão para apagar (lógica original)
+                // Item salvo (com ID) -> Excluir no Backend se tiver permissão
+
+                // Lógica para obter o nome do item para o SweetAlert
                 let currentItemProduct = linhaParaRemover.querySelector('.produto-input')?.value || "este item";
                 if (!currentItemProduct || currentItemProduct.trim() === '') {
-                     const produtoCell = linhaParaRemover.querySelector('.produto');
-                     if (produtoCell) {
-                         currentItemProduct = produtoCell.textContent.trim();
-                     }
+                    currentItemProduct = linhaParaRemover.querySelector('.produto')?.textContent.trim() || "este item";
                 }
+                
+                // Se a permissão não for checada aqui, o usuário tentará deletar e o backend pode negar.
+                // Mantendo a lógica de apagar se tem ID (assumindo que o if/else não checa permissão
+                // mas apenas se o item é novo ou salvo, e o backend fará a checagem final).
+                // NOTA: O código original tinha um bloco de `else if (!temPermissaoApagar)` que foi
+                // removido/comentado. Estou seguindo a estrutura de código fornecida pelo usuário.
 
                 const { isConfirmed } = await Swal.fire({
                     title: `Tem Certeza que deseja EXCLUIR o item "${currentItemProduct}" ?`,
@@ -2064,9 +2020,13 @@ function adicionarLinhaAdicional() {
 
                 if (isConfirmed) {
                     try {
-                        const idOrcamentoPrincipal = document.getElementById('idOrcamento').value;
+                        const idOrcamentoPrincipal = document.getElementById('idOrcamento')?.value;
+                        if (!idOrcamentoPrincipal) throw new Error("ID do Orçamento principal não encontrado.");
+
                         console.log("IDS ORCAMENTO:", idOrcamentoPrincipal, idOrcamentoItem);
-                       await fetchComToken(`/orcamentos/${idOrcamentoPrincipal}/itens/${idOrcamentoItem}`, {
+                        
+                        // Assume-se que 'fetchComToken' é uma função existente para requisições com autenticação
+                        await fetchComToken(`/orcamentos/${idOrcamentoPrincipal}/itens/${idOrcamentoItem}`, {
                             method: 'DELETE',
                             headers: { 'Content-Type': 'application/json' },
                         });
@@ -2079,24 +2039,19 @@ function adicionarLinhaAdicional() {
 
                     } catch (error) {
                         console.error("Erro ao deletar item:", error);
-                        Swal.fire("Erro!", `Não foi possível deletar o item: ${error.message}`, "error");
+                        // Mensagem de erro mais robusta para o usuário
+                        const errorMessage = error.response ? `Erro: ${error.response.status} - ${error.response.statusText}` : error.message;
+                        Swal.fire("Erro!", `Não foi possível deletar o item: ${errorMessage}`, "error");
                     }
                 }
             }
         });
-
-        // Aplica classe de desabilitado visualmente se não tiver permissão para apagar itens EXISTENTES
-        // Isso é feito FORA do listener, para que a aparência seja aplicada imediatamente
-        if (!temPermissaoApagar) {
-             // NÃO ADICIONE disabled=true AQUI, APENAS A CLASSE VISUAL
-            deleteButton.classList.add("btnDesabilitado");
-            deleteButton.title = "Você não tem permissão para apagar itens de orçamento que já estão salvos.";
-        }
     }
 
-    recalcularTotaisGerais();
-    aplicarMascaraMoeda();
-    limparSelects();
+    // 7. Recálculos e Formatação Finais
+    recalcularTotaisGerais(); // Assume-se que recalcularTotaisGerais é uma função existente
+    aplicarMascaraMoeda(); // Assume-se que aplicarMascaraMoeda é uma função existente
+    limparSelects(); // Assume-se que limparSelects é uma função existente
 }
 
 function removerLinhaOrc(botao) {
@@ -5240,7 +5195,7 @@ function bloquearCamposSeFechado() {
             const classes = botao.classList;
 
             const deveContinuarAtivo =
-                id === 'btnSalvar' ||
+                id === 'Enviar' ||
                 id === 'Close' ||
                 id === 'Limpar' ||
                 classes.contains('Close') ||
