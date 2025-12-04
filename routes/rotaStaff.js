@@ -1062,6 +1062,179 @@ router.post('/check-availability', autenticarToken(), contextoEmpresa, async (re
 });
 
 
+// router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
+//     verificarPermissao('staff', 'pesquisar'), // Permissão para visualizar
+//     async (req, res) => {
+//     console.log("🔥 Rota /staff/eventos-por-funcionario/GET acessada");
+//     const idempresa = req.idempresa;
+//     const idFuncionarioParam = req.params.idFuncionario; // O ID do funcionário a ser pesquisado
+
+//     let client;
+
+//     // Validação básica do parâmetro
+//     if (!idFuncionarioParam) {
+//       return res.status(400).json({ message: "ID do funcionário é obrigatório para esta consulta." });
+//     }
+
+//     try {
+//       client = await pool.connect();
+
+//       // A consulta SQL ajustada para filtrar por idfuncionario
+//       // let query = `
+//       //     SELECT
+//       //         se.idstaffevento,
+//       //         se.idfuncionario,
+//       //         se.nmfuncionario,
+//       //         se.idevento,
+//       //         se.nmevento,
+//       //         se.idcliente,
+//       //         se.nmcliente,
+//       //         se.idfuncao,
+//       //         se.nmfuncao,
+//       //         se.idmontagem,
+//       //         se.nmlocalmontagem,
+//       //         se.pavilhao,
+//       //         se.vlrcache,
+//       //         se.vlralmoco,
+//       //         se.vlralimentacao,
+//       //         se.vlrtransporte,
+//       //         se.vlrajustecusto,
+//       //         se.vlrcaixinha,
+//       //         se.descajustecusto,
+//       //         se.descbeneficios,
+//       //         se.vlrtotal,
+//       //         se.datasevento,
+//       //         se.comppgtocache,
+//       //         se.comppgtoajdcusto,
+//       //         se.comppgtoajdcusto50,
+//       //         se.comppgtocaixinha,
+//       //         se.setor,
+//       //         se.statuspgto,
+//       //         se.statusajustecusto,
+//       //         se.statuscaixinha,
+//       //         se.dtdiariadobrada,
+//       //         se.dtmeiadiaria,
+//       //         se.statusdiariadobrada,
+//       //         se.statusmeiadiaria,
+//       //         se.desccaixinha,
+//       //         se.descmeiadiaria,
+//       //         se.descdiariadobrada,
+//       //         se.nivelexperiencia,
+//       //         s.idstaff,
+//       //         s.avaliacao
+//       //   FROM
+//       //         staffeventos se
+//       //   INNER JOIN
+//       //         staff s ON se.idstaff = s.idstaff
+//       //   INNER JOIN
+//       //         staffEmpresas se_emp ON s.idstaff = se_emp.idstaff
+//       //   WHERE
+//       //         se_emp.idEmpresa = $1 AND se.idfuncionario = $2
+//       //   ORDER BY
+//       //         COALESCE(
+//       //             (se.datasevento ->> 0)::date,
+//       //             (se.dtdiariadobrada ->> 0)::date,
+//       //             (se.dtmeiadiaria ->> 0)::date
+//       //         ) DESC NULLS LAST,
+//       //         se.nmcliente ASC,
+//       //         se.nmevento ASC;
+//       // `;
+
+//       let query = `SELECT
+//           se.idstaffevento,
+//           se.idfuncionario,
+//           se.nmfuncionario,
+//           se.idequipe,
+//           se.nmequipe,
+//           se.idevento,
+//           se.nmevento,
+//           se.idcliente,
+//           se.nmcliente,
+//           se.idfuncao,
+//           se.nmfuncao,
+//           se.idmontagem,
+//           se.nmlocalmontagem,
+//           se.pavilhao,
+//           se.vlrcache,
+//           se.vlralimentacao,
+//           se.vlrtransporte,
+//           se.vlrajustecusto,
+//           se.vlrcaixinha,
+//           se.descajustecusto,
+//           se.descbeneficios,
+//           se.vlrtotal,
+//           se.datasevento,
+//           se.comppgtocache,
+//           se.comppgtoajdcusto,
+//           se.comppgtoajdcusto50,
+//           se.comppgtocaixinha,
+//           se.setor,
+//           se.statuspgto,
+//           se.statusajustecusto,
+//           se.statuscaixinha,
+//           se.dtdiariadobrada,
+//           se.dtmeiadiaria,
+//           se.statusdiariadobrada,
+//           se.statusmeiadiaria,
+//           se.desccaixinha,
+//           se.descmeiadiaria,
+//           se.descdiariadobrada,
+//           se.nivelexperiencia,
+//           se.qtdpessoaslote,
+//           s.idstaff,
+//           s.avaliacao,
+//           (
+//         SELECT jsonb_agg(elem ORDER BY elem::date)
+//         FROM jsonb_array_elements_text(se.datasevento) elem
+//           ) AS datasevento,
+//           (
+//         SELECT jsonb_agg(elem ORDER BY (elem->>'data')::date)
+//         FROM jsonb_array_elements(se.dtdiariadobrada) elem
+//           ) AS dtdiariadobrada,
+//           (
+//         SELECT jsonb_agg(elem ORDER BY (elem->>'data')::date)
+//         FROM jsonb_array_elements(se.dtmeiadiaria) elem
+//           ) AS dtmeiadiaria
+//               FROM staffeventos se
+//               INNER JOIN staff s 
+//           ON se.idstaff = s.idstaff
+//               INNER JOIN staffEmpresas se_emp 
+//           ON s.idstaff = se_emp.idstaff
+//               WHERE
+//           se_emp.idEmpresa = $1
+//           AND se.idfuncionario = $2
+//               ORDER BY
+//           GREATEST(
+//         COALESCE((SELECT MAX(elem::date) FROM jsonb_array_elements_text(se.datasevento) elem), '0001-01-01'),
+//         COALESCE((SELECT MAX((elem->>'data')::date) FROM jsonb_array_elements(se.dtdiariadobrada) elem), '0001-01-01'),
+//         COALESCE((SELECT MAX((elem->>'data')::date) FROM jsonb_array_elements(se.dtmeiadiaria) elem), '0001-01-01')
+//           ) DESC,
+//           se.nmcliente ASC,
+//           se.nmevento ASC
+//         `;
+
+//       //se.idevento DESC, se.idstaffevento DESC; -- Ordena por evento e depois pelo ID do registro de staffevento
+//       const queryParams = [idempresa, idFuncionarioParam];
+
+//       const result = await client.query(query, queryParams);
+
+//       // console.log(Foram encontrados ${result.rows.length} eventos para o funcionário ${idFuncionarioParam});
+
+//       res.status(200).json(result.rows);
+
+//     } catch (error) {
+//       console.error("❌ Erro ao buscar eventos do funcionário:", error);
+//       res.status(500).json({ error: "Erro ao buscar eventos do funcionário", details: error.message });
+//     } finally {
+//       if (client) {
+//       client.release();
+//       }
+//       console.log('--- Fim da requisição GET /eventos-por-funcionario ---');
+//     }
+//     }
+// );
+
+
 router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
     verificarPermissao('staff', 'pesquisar'), // Permissão para visualizar
     async (req, res) => {
@@ -1079,67 +1252,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
     try {
       client = await pool.connect();
 
-      // A consulta SQL ajustada para filtrar por idfuncionario
-      // let query = `
-      //     SELECT
-      //         se.idstaffevento,
-      //         se.idfuncionario,
-      //         se.nmfuncionario,
-      //         se.idevento,
-      //         se.nmevento,
-      //         se.idcliente,
-      //         se.nmcliente,
-      //         se.idfuncao,
-      //         se.nmfuncao,
-      //         se.idmontagem,
-      //         se.nmlocalmontagem,
-      //         se.pavilhao,
-      //         se.vlrcache,
-      //         se.vlralmoco,
-      //         se.vlralimentacao,
-      //         se.vlrtransporte,
-      //         se.vlrajustecusto,
-      //         se.vlrcaixinha,
-      //         se.descajustecusto,
-      //         se.descbeneficios,
-      //         se.vlrtotal,
-      //         se.datasevento,
-      //         se.comppgtocache,
-      //         se.comppgtoajdcusto,
-      //         se.comppgtoajdcusto50,
-      //         se.comppgtocaixinha,
-      //         se.setor,
-      //         se.statuspgto,
-      //         se.statusajustecusto,
-      //         se.statuscaixinha,
-      //         se.dtdiariadobrada,
-      //         se.dtmeiadiaria,
-      //         se.statusdiariadobrada,
-      //         se.statusmeiadiaria,
-      //         se.desccaixinha,
-      //         se.descmeiadiaria,
-      //         se.descdiariadobrada,
-      //         se.nivelexperiencia,
-      //         s.idstaff,
-      //         s.avaliacao
-      //   FROM
-      //         staffeventos se
-      //   INNER JOIN
-      //         staff s ON se.idstaff = s.idstaff
-      //   INNER JOIN
-      //         staffEmpresas se_emp ON s.idstaff = se_emp.idstaff
-      //   WHERE
-      //         se_emp.idEmpresa = $1 AND se.idfuncionario = $2
-      //   ORDER BY
-      //         COALESCE(
-      //             (se.datasevento ->> 0)::date,
-      //             (se.dtdiariadobrada ->> 0)::date,
-      //             (se.dtmeiadiaria ->> 0)::date
-      //         ) DESC NULLS LAST,
-      //         se.nmcliente ASC,
-      //         se.nmevento ASC;
-      // `;
-
+      // Linha 1219 (aproximadamente, no seu log)
       let query = `SELECT
           se.idstaffevento,
           se.idfuncionario,
@@ -1184,41 +1297,89 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
           s.idstaff,
           s.avaliacao,
           (
-        SELECT jsonb_agg(elem ORDER BY elem::date)
-        FROM jsonb_array_elements_text(se.datasevento) elem
-          ) AS datasevento,
+            SELECT jsonb_agg(elem ORDER BY elem::date)
+            FROM jsonb_array_elements_text(
+                CASE 
+                    WHEN jsonb_typeof(se.datasevento) = 'array' 
+                    THEN se.datasevento 
+                    ELSE '[]'::jsonb 
+                END
+            ) elem
+          ) AS datasevento_aggr, -- Renomeado para evitar conflito com a coluna original
           (
-        SELECT jsonb_agg(elem ORDER BY (elem->>'data')::date)
-        FROM jsonb_array_elements(se.dtdiariadobrada) elem
-          ) AS dtdiariadobrada,
+            SELECT jsonb_agg(elem ORDER BY (elem->>'data')::date)
+            FROM jsonb_array_elements(
+                CASE 
+                    WHEN jsonb_typeof(se.dtdiariadobrada) = 'array' 
+                    THEN se.dtdiariadobrada 
+                    ELSE '[]'::jsonb 
+                END
+            ) elem
+          ) AS dtdiariadobrada_aggr, -- Renomeado
           (
-        SELECT jsonb_agg(elem ORDER BY (elem->>'data')::date)
-        FROM jsonb_array_elements(se.dtmeiadiaria) elem
-          ) AS dtmeiadiaria
-              FROM staffeventos se
-              INNER JOIN staff s 
+            SELECT jsonb_agg(elem ORDER BY (elem->>'data')::date)
+            FROM jsonb_array_elements(
+                CASE 
+                    WHEN jsonb_typeof(se.dtmeiadiaria) = 'array' 
+                    THEN se.dtmeiadiaria 
+                    ELSE '[]'::jsonb 
+                END
+            ) elem
+          ) AS dtmeiadiaria_aggr -- Renomeado
+            FROM staffeventos se
+            INNER JOIN staff s 
           ON se.idstaff = s.idstaff
-              INNER JOIN staffEmpresas se_emp 
+            INNER JOIN staffEmpresas se_emp 
           ON s.idstaff = se_emp.idstaff
-              WHERE
+            WHERE
           se_emp.idEmpresa = $1
           AND se.idfuncionario = $2
-              ORDER BY
+            ORDER BY
           GREATEST(
-        COALESCE((SELECT MAX(elem::date) FROM jsonb_array_elements_text(se.datasevento) elem), '0001-01-01'),
-        COALESCE((SELECT MAX((elem->>'data')::date) FROM jsonb_array_elements(se.dtdiariadobrada) elem), '0001-01-01'),
-        COALESCE((SELECT MAX((elem->>'data')::date) FROM jsonb_array_elements(se.dtmeiadiaria) elem), '0001-01-01')
+            COALESCE(
+                (
+                    SELECT MAX(elem::date) 
+                    FROM jsonb_array_elements_text(
+                        CASE 
+                            WHEN jsonb_typeof(se.datasevento) = 'array' 
+                            THEN se.datasevento 
+                            ELSE '[]'::jsonb 
+                        END
+                    ) elem
+                ), '0001-01-01'
+            ),
+            COALESCE(
+                (
+                    SELECT MAX((elem->>'data')::date) 
+                    FROM jsonb_array_elements(
+                        CASE 
+                            WHEN jsonb_typeof(se.dtdiariadobrada) = 'array' 
+                            THEN se.dtdiariadobrada 
+                            ELSE '[]'::jsonb 
+                        END
+                    ) elem
+                ), '0001-01-01'
+            ),
+            COALESCE(
+                (
+                    SELECT MAX((elem->>'data')::date) 
+                    FROM jsonb_array_elements(
+                        CASE 
+                            WHEN jsonb_typeof(se.dtmeiadiaria) = 'array' 
+                            THEN se.dtmeiadiaria 
+                            ELSE '[]'::jsonb 
+                        END
+                    ) elem
+                ), '0001-01-01'
+            )
           ) DESC,
           se.nmcliente ASC,
           se.nmevento ASC
         `;
 
-      //se.idevento DESC, se.idstaffevento DESC; -- Ordena por evento e depois pelo ID do registro de staffevento
       const queryParams = [idempresa, idFuncionarioParam];
 
       const result = await client.query(query, queryParams);
-
-      // console.log(Foram encontrados ${result.rows.length} eventos para o funcionário ${idFuncionarioParam});
 
       res.status(200).json(result.rows);
 
@@ -1327,6 +1488,28 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
       console.error("Erro ao parsear datameiadiaria:", parseError);
       }
     }
+
+    // let datasDiariaDobradaParsed = null;
+
+    // if (datadiariadobrada && datadiariadobrada !== "" && datadiariadobrada !== "[]") {
+    //   try {
+    //     const json = JSON.parse(datadiariadobrada);
+    //     datasDiariaDobradaParsed = Array.isArray(json) ? ordenarDatas(json) : null;
+    //   } catch (err) {
+    //     console.warn("Aviso: datadiariadobrada inválido:", err.message);
+    //   }
+    // }
+
+    // let datasMeiaDiariaParsed = null;
+
+    // if (datameiadiaria && datameiadiaria !== "" && datameiadiaria !== "[]") {
+    //   try {
+    //     const json = JSON.parse(datameiadiaria);
+    //     datasMeiaDiariaParsed = Array.isArray(json) ? ordenarDatas(json) : null;
+    //   } catch (err) {
+    //     console.warn("Aviso: datameiadiaria inválido:", err.message);
+    //   }
+    // }
 
     const files = req.files;
     const comprovanteCacheFile = files?.comppgtocache ? files.comppgtocache[0] : null;
@@ -1586,6 +1769,28 @@ router.post(
         console.warn("Aviso: datameiadiaria inválido:", parseError.message);
       }
     }
+
+    // let datasDiariaDobradaParsed = null;
+
+    // if (datadiariadobrada && datadiariadobrada !== "" && datadiariadobrada !== "[]") {
+    //   try {
+    //     const json = JSON.parse(datadiariadobrada);
+    //     datasDiariaDobradaParsed = Array.isArray(json) ? ordenarDatas(json) : null;
+    //   } catch (err) {
+    //     console.warn("Aviso: datadiariadobrada inválido:", err.message);
+    //   }
+    // }
+
+    // let datasMeiaDiariaParsed = null;
+
+    // if (datameiadiaria && datameiadiaria !== "" && datameiadiaria !== "[]") {
+    //   try {
+    //     const json = JSON.parse(datameiadiaria);
+    //     datasMeiaDiariaParsed = Array.isArray(json) ? ordenarDatas(json) : null;
+    //   } catch (err) {
+    //     console.warn("Aviso: datameiadiaria inválido:", err.message);
+    //   }
+    // }
 
     // datasevento precisa ser um array JSON válido se fornecido
     let datasEventoParsed = null;
