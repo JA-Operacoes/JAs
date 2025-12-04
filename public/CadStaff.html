@@ -123,14 +123,16 @@
                                 <th>Pavilhão</th>
                                 <th id="qtdPessoasHeader" style="display: none;">Qtd Pessoas</th>
                                 <th>Período</th>
-                                <th>Cache</th>
+                                <th>Cachê</th>
+                                <th>Total Cachê</th>
                                 <th>Vlr Ajuste Cto</th>
                                 <th>Obs.Ajuste Cto</th>              
                                 <th>Alimentação</th>
-                                <th>Transporte</th>                                    
+                                <th>Transporte</th>
+                                <th>Total Ajuda Custo</th>                                    
                                 <th>Caixinha</th>
                                 <th>Obs.Benefícios</th>                                   
-                                <th>Total</th>
+                                <th>Total Geral</th>
                                 <th>StatusPagto</th>
                             </tr>
                         </thead>
@@ -304,7 +306,10 @@
                     <h3>Período do Evento:</h3>
                     <input type="text" class="datasEvento" id="datasEvento" name="datasEvento[]" placeholder="Nenhuma data selecionada"  readonly required>
                     <input type="hidden" id="vlrTotalHidden" name="vlrTotalHidden" value="0.00">
+                    <input type="hidden" id="vlrTotalCacheHidden" name="vlrTotalCacheHidden" value="0.00">
+                    <input type="hidden" id="vlrTotalAjdCustoHidden" name="vlrTotalAjdCustoHidden" value="0.00">
                     <p id="contadorDatas"></p>
+                    
                   </div>
                 </div>
 
@@ -334,8 +339,16 @@
                   
                 <div class="form-2colunas valores"> 
                   <div class="form2">
+                    <input type="text" class="preenchido moeda" value="R$ 0,00" id="vlrTotalAjdCusto" name="vlrTotalAjdCusto[]"  readonly required>
+                    <label>Valor Total Aj. Custo</label>
+                  </div>
+                  <div class="form2">
+                    <input type="text" class="preenchido moeda" value="R$ 0,00" id="vlrTotalCache" name="vlrTotalCache[]"  readonly required>
+                    <label>Valor Total Cachê</label>
+                  </div>
+                  <div class="form2">
                     <input type="text" class="preenchido moeda" value="R$ 0,00" id="vlrTotal" name="vlrTotal[]"  readonly required>
-                    <label>Valor Total</label>
+                    <label>Valor Total Geral</label>
                   </div>
                   <div class="form2">                      
                     <input type="text" class="preenchido" name="statusPgto" id="statusPgto" required readonly >
@@ -412,8 +425,19 @@
                         <div id="campoDiariaDobrada" style="display: none;">
                           <h3>Diaria Dobrada:</h3>
                           <div class="row">
-                          <input type="text" class="preenchido diariaDobrada" name="diariaDobrada" id="diariaDobrada" placeholder="Selecione a Data Dobrada">
+                            <input type="text" class="preenchido diariaDobrada" name="diariaDobrada" id="diariaDobrada" placeholder="Selecione a Data Dobrada">
                             <textarea id="descDiariaDobrada" name="diariaDobrada"  placeholder="Observação da Diaria Dobrada"></textarea>
+                            <div class="form-2colunas">
+                              <div class="form2" id="campoStatusDiariaDobrada" style="display: none;">
+                                <input type="text" id="statusDiariaDobrada" name ="statusdiariaDobrada" readonly required/>
+                                <select id="selectStatusDiariaDobrada" style="display:none;">
+                                  <option value="none" disabled selected>Autorização de Diária Dobrada</option>
+                                  <option value="Pendente">Pendente</option>
+                                  <option value="Autorizado">Autorizado</option>
+                                  <option value="Rejeitado">Rejeitado</option>
+                                </select>
+                              </div>
+                            </div>
                           </div>
                         </div>
                         
@@ -422,34 +446,25 @@
                           <div class="row">
                             <input type="text" class="preenchido diariaDobrada" name="meiaDiaria" id="meiaDiaria" placeholder="Selecione a Data">
                             <textarea  name="descMeiaDiaria" id="descMeiaDiaria"  placeholder="Observação da Meia Diaria"></textarea>
+                            <div class="form-2colunas">    
+                              <div class="form2" id="campoStatusMeiaDiaria" style="display: none;">
+                                <input type="text" id="statusMeiaDiaria" name ="statusMeiaDiaria" readonly required/>
+                                <select id="selectStatusMeiaDiaria" style="display:none;">
+                                  <option value="none" disabled selected>Autorização de Meia Diária</option>
+                                  <option value="Pendente">Pendente</option>
+                                  <option value="Autorizado">Autorizado</option>
+                                  <option value="Rejeitado">Rejeitado</option>
+                                </select>
+                              </div>
+                            </div>
                           </div>
                         </div>
                     </div>
                     
 
-                    <div class="form-2colunas">
-                        <div class="form2" id="campoStatusDiariaDobrada" style="display: none;">
-                          <input type="text" id="statusDiariaDobrada" name ="statusdiariaDobrada" readonly required/>
-                          <select id="selectStatusDiariaDobrada" style="display:none;">
-                            <option value="none" disabled selected>Autorização de Diária Dobrada</option>
-                            <option value="Pendente">Pendente</option>
-                            <option value="Autorizado">Autorizado</option>
-                            <option value="Rejeitado">Rejeitado</option>
-                          </select>
-                        </div>
-                    </div>
+                    
 
-                    <div class="form-2colunas">    
-                        <div class="form2" id="campoStatusMeiaDiaria" style="display: none;">
-                          <input type="text" id="statusMeiaDiaria" name ="statusMeiaDiaria" readonly required/>
-                          <select id="selectStatusMeiaDiaria" style="display:none;">
-                            <option value="none" disabled selected>Autorização de Meia Diária</option>
-                            <option value="Pendente">Pendente</option>
-                            <option value="Autorizado">Autorizado</option>
-                            <option value="Rejeitado">Rejeitado</option>
-                          </select>
-                        </div>
-                    </div>
+                    
 
                     <div class="form-2colunasDatas">
                       <div id="grupoDiariaDobrada" class="status-group">

@@ -52,7 +52,20 @@
                         <div class="form">
                             <input type="text" class="preenchido" id="nrOrcamento" name="nrOrcamento" spellcheck="false">
                             <label for="nrOrcamento">N° do Orçamento</label>
+                        </div>                   
+
+                        <div class="checkbox-wrapper-33 checkbox-coluna">
+                            <p class="checkbox__textwrapper">Liberado Para Contratar Staff</p>
+                            <label class="checkbox">
+                                <input class="checkbox__trigger visuallyhidden" type="checkbox" id="liberaContratacao" name="liberaContratacao">
+                                <span class="checkbox__symbol">
+                                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M4 14l8 7L24 7"></path>
+                                    </svg>
+                                </span>
+                            </label>
                         </div>
+                        
                         <div class="form">
                             <input type="text" class="preenchido" id="idOrcamento" name="idOrcamento" spellcheck="false" readonly style="display: none;" >
                             <!-- <label for="idOrcamento">Código</label> -->
@@ -201,7 +214,7 @@
                     
                     <div class="addLinha"><button class="adicionar" id="adicionarLinha">Adicionar Linha</button></div>
                     <div class="addLinha"><button class="Adicional" id="adicionarLinhaAdicional" style="display: none;">Adicional</button></div>
-                   
+                    
                     <div class="table">
                         <table id="tabela" >
                             <thead>

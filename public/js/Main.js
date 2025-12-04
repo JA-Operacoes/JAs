@@ -15,306 +15,555 @@ const getRecordIdFromUrl = (url) => {
 
 
 
-async function abrirModalLocal(url, modulo) {
-  if (!modulo) modulo = window.moduloAtual || "Staff";
-  console.log("[abrirModalLocal] iniciar:", { modulo, url });
+// async function abrirModalLocal(url, modulo) {
+//   if (!modulo) modulo = window.moduloAtual || "Staff";
+//   console.log("[abrirModalLocal] iniciar:", { modulo, url });
 
-  let html;
-  try {
-  console.log("[abrirModalLocal] fetchHtmlComToken ->", url);
-  html = await fetchHtmlComToken(url);
-  console.log("[abrirModalLocal] HTML recebido, tamanho:", html ? html.length : 0);
-  } catch (err) {
-  console.error("[abrirModalLocal] Erro ao carregar modal (local):", err);
-  return;
-  }
-
-  const container = document.getElementById("modal-container");
-  if (!container) {
-  console.error("[abrirModalLocal] modal-container não encontrado no DOM.");
-  return;
-  }
-
-  // injeta HTML do modal
-  container.innerHTML = html;
-  console.log("[abrirModalLocal] HTML injetado no #modal-container");
-
-  // remove script anterior se existir
-  const scriptId = 'scriptModuloDinamico';
-  const scriptAntigo = document.getElementById(scriptId);
-  if (scriptAntigo) {
-  scriptAntigo.remove();
-  console.log("[abrirModalLocal] script anterior removido");
-  }
-
-  // carrega script do módulo (Staff.js por exemplo)
-  const scriptName = modulo.charAt(0).toUpperCase() + modulo.slice(1) + ".js";
-  const scriptSrc = `js/${scriptName}`;
-
-  // cria promise para aguardar load / execução do módulo
-  await new Promise((resolve, reject) => {
-  console.log("[abrirModalLocal] carregando script do módulo:", scriptSrc);
-  const script = document.createElement("script");
-  script.id = scriptId;
-  script.src = scriptSrc;
-  script.defer = true;
-  script.type = "module";
-
-  script.onload = () => {
-  // aguarda um tick para garantir execução de exports/global assignments
-  setTimeout(() => {
-  console.log(`[abrirModalLocal] Script ${scriptName} carregado e executado.`);
-  resolve();
-  }, 50);
-  };
-  script.onerror = (e) => {
-  console.error(`[abrirModalLocal] Erro ao carregar script ${scriptSrc}`, e);
-  reject(new Error(`Erro ao carregar script ${scriptSrc}`));
-  };
-  document.body.appendChild(script);
-  }).catch(err => {
-  console.error("[abrirModalLocal] falha ao carregar script do módulo:", err);
-  return;
-  });
-
-  // =========================================================================
-  // 🎯 PONTO DE INSERÇÃO: BUSCA DE DADOS E CARREGAMENTO DE DATAS (Edição)
-  // =========================================================================
-  const recordId = getRecordIdFromUrl(url);
-
-  console.log("RECORD ID", recordId);
-
-  if (recordId) {
-  try {
-  // 1. Busca os dados do Staff/Evento (Assumindo que o endpoint é: /staff/data/ID)
-  const dataUrl = `/${modulo.toLowerCase()}/data/${recordId}`; 
-  const staffData = await fetchComToken(dataUrl);
-  console.log("[abrirModalLocal] Dados do Staff para edição carregados:", staffData);
-
-
-  if (staffData) {
-  // Expõe os dados para que o applyModalPrefill ou o Staff.js possam usá-los
-  window.__modalFetchedData = staffData;
-
-  const datasOrcamento = staffData.datasOrcamento.map(item => item.data); // Array de datas no formato "YYYY-MM-DD"
-  console.log("[abrirModalLocal] Datas do orçamento extraídas:", datasOrcamento);
-
-  const datasDoStaff = staffData.datasevento;
-
-  // 2. Preenchimento do Flatpickr
-  // Deve usar window.datasEventoPicker (a instância global do Flatpickr)
-//  if (window.datasEventoPicker && datasDoStaff && Array.isArray(datasDoStaff)) {
-//   // Define as datas. 'true' garante que o evento 'onChange' dispare o debouncedOnCriteriosChanged.
-//   window.datasEventoPicker.setDate(datasDoStaff, true);
-//   console.log(`[abrirModalLocal] Datas carregadas no Flatpickr: ${datasDoStaff.length} dias.`);
-//   } else {
-//   console.warn("[abrirModalLocal] Flatpickr ou dados de staff (datasevento) ausentes/inválidos.", { picker: !!window.datasEventoPicker, data: datasDoStaff });
+//   let html;
+//   try {
+//   console.log("[abrirModalLocal] fetchHtmlComToken ->", url);
+//   html = await fetchHtmlComToken(url);
+//   console.log("[abrirModalLocal] HTML recebido, tamanho:", html ? html.length : 0);
+//   } catch (err) {
+//   console.error("[abrirModalLocal] Erro ao carregar modal (local):", err);
+//   return;
 //   }
 
-  // 3. (Opcional) Chamar o debounce para garantir o carregamento do orçamento
-  if (typeof window.debouncedOnCriteriosChanged === 'function') {
-  window.debouncedOnCriteriosChanged();
-  console.log("[abrirModalLocal] Verificação de orçamento (debounce) chamada.");
-  }
+//   const container = document.getElementById("modal-container");
+//   if (!container) {
+//   console.error("[abrirModalLocal] modal-container não encontrado no DOM.");
+//   return;
+//   }
 
-  // 4. (Opcional) Disparar um evento para o Staff.js preencher os outros campos
-  document.dispatchEvent(new CustomEvent("modal:data:loaded", { detail: staffData }));
+//   // injeta HTML do modal
+//   container.innerHTML = html;
+//   console.log("[abrirModalLocal] HTML injetado no #modal-container");
 
-  }
-  } catch (error) {
-  console.error(`[abrirModalLocal] Erro ao carregar dados do ${modulo} (ID: ${recordId}):`, error);
-  }
-  }
-  // =========================================================================
+//   // remove script anterior se existir
+//   const scriptId = 'scriptModuloDinamico';
+//   const scriptAntigo = document.getElementById(scriptId);
+//   if (scriptAntigo) {
+//   scriptAntigo.remove();
+//   console.log("[abrirModalLocal] script anterior removido");
+//   }
 
-  // mostra modal (espera elemento modal injetado)
-  const modal = document.querySelector("#modal-container .modal");
-  const overlay = document.getElementById("modal-overlay");
-  if (modal && overlay) {
-  modal.style.display = "block";
-  overlay.style.display = "block";
-  document.body.classList.add("modal-open");
-  console.log("[abrirModalLocal] modal exibido");
+//   // carrega script do módulo (Staff.js por exemplo)
+//   const scriptName = modulo.charAt(0).toUpperCase() + modulo.slice(1) + ".js";
+//   const scriptSrc = `js/${scriptName}`;
 
-  // fechar por overlay
-  overlay.addEventListener("mousedown", (event) => {
-  if (event.target === overlay) {
-  console.log("[abrirModalLocal] overlay clicado -> fechar");
-  if (typeof fecharModal === "function") {
-  fecharModal();
-  } else {
-  overlay.style.display = "none";
-  container.innerHTML = "";
-  document.body.classList.remove("modal-open");
-  // Chama o callback AQUI
-  if (typeof window.onStaffModalClosed === 'function') {
-  window.onStaffModalClosed(false);
-  }
-  }
-  }
-  });
+//   // cria promise para aguardar load / execução do módulo
+//   await new Promise((resolve, reject) => {
+//   console.log("[abrirModalLocal] carregando script do módulo:", scriptSrc);
+//   const script = document.createElement("script");
+//   script.id = scriptId;
+//   script.src = scriptSrc;
+//   script.defer = true;
+//   script.type = "module";
 
-  // modal.querySelector(".close")?.addEventListener("click", () => {
-  //   console.log("[abrirModalLocal] fechar (botão X)");
-  //   if (typeof fecharModal === "function") fecharModal();
-  //   else {
-  //   overlay.style.display = "none";
-  //   container.innerHTML = "";
-  //   document.body.classList.remove("modal-open");
-  //   }
-  // });
+//   script.onload = () => {
+//   // aguarda um tick para garantir execução de exports/global assignments
+//   setTimeout(() => {
+//   console.log(`[abrirModalLocal] Script ${scriptName} carregado e executado.`);
+//   resolve();
+//   }, 50);
+//   };
+//   script.onerror = (e) => {
+//   console.error(`[abrirModalLocal] Erro ao carregar script ${scriptSrc}`, e);
+//   reject(new Error(`Erro ao carregar script ${scriptSrc}`));
+//   };
+//   document.body.appendChild(script);
+//   }).catch(err => {
+//   console.error("[abrirModalLocal] falha ao carregar script do módulo:", err);
+//   return;
+//   });
 
-  modal.querySelector(".close")?.addEventListener("click", () => {
-  console.log("[abrirModalLocal] fechar (botão X)");
+//   // =========================================================================
+//   // 🎯 PONTO DE INSERÇÃO: BUSCA DE DADOS E CARREGAMENTO DE DATAS (Edição)
+//   // =========================================================================
+//   const recordId = getRecordIdFromUrl(url);
 
-  // Se a função global existir, use-a para garantir o comportamento de callback.
-  if (typeof fecharModal === "function") {
-  fecharModal(); 
-  } else {
-  // Fallback de fechamento, e aqui você DEVE incluir o callback.
-  overlay.style.display = "none";
-  container.innerHTML = "";
-  document.body.classList.remove("modal-open");
-  // Chama o callback AQUI para garantir que a tela volte, mesmo sem a função fecharModal
-  if (typeof window.onStaffModalClosed === 'function') {
-  window.onStaffModalClosed(false); // false indica que não foi fechado pela função principal, mas ainda deve voltar
-  }
-  }
-  // A linha de window.location.reload() FOI REMOVIDA.
-  });
-  } else {
-  console.warn("[abrirModalLocal] estrutura de modal não encontrada após injeção do HTML.");
-  }
+//   console.log("RECORD ID", recordId);
 
-  // --- Inicializa o módulo carregado ---
-  try {
-  console.log("[abrirModalLocal] inicializando módulo:", modulo);
+//   if (recordId) {
+//   try {
+//   // 1. Busca os dados do Staff/Evento (Assumindo que o endpoint é: /staff/data/ID)
+//   const dataUrl = `/${modulo.toLowerCase()}/data/${recordId}`; 
+//   const staffData = await fetchComToken(dataUrl);
+//   console.log("[abrirModalLocal] Dados do Staff para edição carregados:", staffData);
 
-  // 1) preferencial: handler registrado pelo módulo (window.moduloHandlers)
-  if (window.moduloHandlers && window.moduloHandlers[modulo] && typeof window.moduloHandlers[modulo].configurar === "function") {
-  console.log("[abrirModalLocal] chamando window.moduloHandlers[...] .configurar");
-  window.moduloHandlers[modulo].configurar();
-  } else if (typeof window.configurarEventosEspecificos === "function") {
-  console.log("[abrirModalLocal] chamando window.configurarEventosEspecificos");
-  window.configurarEventosEspecificos(modulo);
-  } else if (typeof window.configurarEventosStaff === "function" && modulo.toLowerCase() === "staff") {
-  console.log("[abrirModalLocal] chamando window.configurarEventosStaff");
-  window.configurarEventosStaff();
-  } else {
-  console.log("[abrirModalLocal] nenhuma função de configuração detectada");
-  }
 
-  // setTimeout(() => {
-  //   console.log("[abrirModalLocal] Inicializando Flatpickr com limites após atraso.");
-  //   window.inicializarFlatpickrStaffComLimites();
-  // }, 100); 
+//   if (staffData) {
+//   // Expõe os dados para que o applyModalPrefill ou o Staff.js possam usá-los
+//   window.__modalFetchedData = staffData;
 
-  setTimeout(() => {
-  if (typeof window.configurarEventosStaff === "function") {
-  console.log("[abrirModalLocal] Chamando configurarEventosStaff após atraso.");
-  window.configurarEventosStaff();
-  }
-  }, 100); 
+//   const datasOrcamento = staffData.datasOrcamento.map(item => item.data); // Array de datas no formato "YYYY-MM-DD"
+//   console.log("[abrirModalLocal] Datas do orçamento extraídas:", datasOrcamento);
 
-  // 4) tenta aplicar prefill imediato (se o módulo já injetou selects/inputs)
-  setTimeout(() => {
-  try {
-  console.log("[abrirModalLocal] tentando applyModalPrefill imediato");
-  if (typeof window.applyModalPrefill === "function") {
-  const ok = window.applyModalPrefill(window.__modalInitialParams || "");
-  console.log("[abrirModalLocal] applyModalPrefill retornou:", ok);
-  } else {
-  const evt = new CustomEvent("modal:prefill", { detail: window.__modalInitialParams || "" });
-  document.dispatchEvent(evt);
-  console.log("[abrirModalLocal] evento modal:prefill disparado");
-  }
-  } catch (e) {
-  console.warn("[abrirModalLocal] prefill falhou", e);
-  }
-  }, 800); //80
+//   const datasDoStaff = staffData.datasevento;
 
-  // pequena garantia: re-tentar inicialização caso o módulo popule DOM com atraso
-  setTimeout(() => {
-  try {
-  if (window.moduloHandlers && window.moduloHandlers[modulo] && typeof window.moduloHandlers[modulo].configurar === "function") {
-  console.log("[abrirModalLocal] re-executando moduloHandlers.configurar (retry)");
-  window.moduloHandlers[modulo].configurar();
-  }
-  } catch (e) { console.warn("[abrirModalLocal] retry configurar falhou", e); }
-  }, 400);
+//   // 2. Preenchimento do Flatpickr
+//   // Deve usar window.datasEventoPicker (a instância global do Flatpickr)
+// //  if (window.datasEventoPicker && datasDoStaff && Array.isArray(datasDoStaff)) {
+// //   // Define as datas. 'true' garante que o evento 'onChange' dispare o debouncedOnCriteriosChanged.
+// //   window.datasEventoPicker.setDate(datasDoStaff, true);
+// //   console.log(`[abrirModalLocal] Datas carregadas no Flatpickr: ${datasDoStaff.length} dias.`);
+// //   } else {
+// //   console.warn("[abrirModalLocal] Flatpickr ou dados de staff (datasevento) ausentes/inválidos.", { picker: !!window.datasEventoPicker, data: datasDoStaff });
+// //   }
 
-  setTimeout(() => {
-  const staffData = window.__modalFetchedData;
-  const datasDoStaff = staffData?.datasevento; // Usa optional chaining para segurança
+//   // 3. (Opcional) Chamar o debounce para garantir o carregamento do orçamento
+//   if (typeof window.debouncedOnCriteriosChanged === 'function') {
+//   window.debouncedOnCriteriosChanged();
+//   console.log("[abrirModalLocal] Verificação de orçamento (debounce) chamada.");
+//   }
 
-  // Verifica se o picker e os dados existem
-  if (window.datasEventoPicker && datasDoStaff && Array.isArray(datasDoStaff)) {
+//   // 4. (Opcional) Disparar um evento para o Staff.js preencher os outros campos
+//   document.dispatchEvent(new CustomEvent("modal:data:loaded", { detail: staffData }));
 
-  // Define as datas, disparando onChange (necessário para sincronizar com Diária Dobrada/Meia Diária)
-  window.datasEventoPicker.setDate(datasDoStaff, true); 
+//   }
+//   } catch (error) {
+//   console.error(`[abrirModalLocal] Erro ao carregar dados do ${modulo} (ID: ${recordId}):`, error);
+//   }
+//   }
+//   // =========================================================================
 
-  // 🌟 GARANTIA DE FORMATO: Força a re-renderização do altInput
-  // Isso resolve o problema de YYYY-MM-DD e múltiplos campos.
-  if (window.datasEventoPicker.altInput) {
-  window.datasEventoPicker.altInput.value = window.datasEventoPicker.formatDate(
-  window.datasEventoPicker.selectedDates, 
-  window.datasEventoPicker.config.altFormat
-  );
-  }
+//   // mostra modal (espera elemento modal injetado)
+//   const modal = document.querySelector("#modal-container .modal");
+//   const overlay = document.getElementById("modal-overlay");
+//   if (modal && overlay) {
+//   modal.style.display = "block";
+//   overlay.style.display = "block";
+//   document.body.classList.add("modal-open");
+//   console.log("[abrirModalLocal] modal exibido");
 
-  console.log(`[abrirModalLocal] [SetDate Seguro] Datas carregadas no Flatpickr: ${datasDoStaff.length} dias, formato corrigido.`);
+//   // fechar por overlay
+//   overlay.addEventListener("mousedown", (event) => {
+//   if (event.target === overlay) {
+//   console.log("[abrirModalLocal] overlay clicado -> fechar");
+//   if (typeof fecharModal === "function") {
+//   fecharModal();
+//   window.location.reload();
+//   } else {
+//   overlay.style.display = "none";
+//   container.innerHTML = "";
+//   document.body.classList.remove("modal-open");
+//   // Chama o callback AQUI
+//   if (typeof window.onStaffModalClosed === 'function') {
+//   window.onStaffModalClosed(false);
+//   }
+//   }
+//   }
+//   });
 
-  } else {
-  console.warn("[abrirModalLocal] [SetDate Seguro] Flatpickr ou dados de staff (datasevento) ausentes/inválidos.");
-  }
-  }, 500);
-  } catch (err) {
-  console.warn("[abrirModalLocal] inicialização do módulo apresentou erro", err);
-  }
+//   // modal.querySelector(".close")?.addEventListener("click", () => {
+//   //   console.log("[abrirModalLocal] fechar (botão X)");
+//   //   if (typeof fecharModal === "function") fecharModal();
+//   //   else {
+//   //   overlay.style.display = "none";
+//   //   container.innerHTML = "";
+//   //   document.body.classList.remove("modal-open");
+//   //   }
+//   // });
+
+//   modal.querySelector(".close")?.addEventListener("click", () => {
+//     console.log("[abrirModalLocal] fechar (botão X)");
+
+//     // Se a função global existir, use-a para garantir o comportamento de callback.
+//     if (typeof fecharModal === "function") {
+//       fecharModal(); 
+//       window.location.reload();
+//     } else {
+//     // Fallback de fechamento, e aqui você DEVE incluir o callback.
+//       overlay.style.display = "none";
+//       container.innerHTML = "";
+//       document.body.classList.remove("modal-open");
+//       // Chama o callback AQUI para garantir que a tela volte, mesmo sem a função fecharModal
+//       if (typeof window.onStaffModalClosed === 'function') {
+//         window.onStaffModalClosed(false); // false indica que não foi fechado pela função principal, mas ainda deve voltar
+//       }
+//       window.location.reload();
+//     }
+//     // A linha de window.location.reload() FOI REMOVIDA.
+//     });
+//     } else {
+//     console.warn("[abrirModalLocal] estrutura de modal não encontrada após injeção do HTML.");
+//     }
+
+//   // --- Inicializa o módulo carregado ---
+//   try {
+//   console.log("[abrirModalLocal] inicializando módulo:", modulo);
+
+//   // 1) preferencial: handler registrado pelo módulo (window.moduloHandlers)
+//   if (window.moduloHandlers && window.moduloHandlers[modulo] && typeof window.moduloHandlers[modulo].configurar === "function") {
+//   console.log("[abrirModalLocal] chamando window.moduloHandlers[...] .configurar");
+//   window.moduloHandlers[modulo].configurar();
+//   } else if (typeof window.configurarEventosEspecificos === "function") {
+//   console.log("[abrirModalLocal] chamando window.configurarEventosEspecificos");
+//   window.configurarEventosEspecificos(modulo);
+//   } else if (typeof window.configurarEventosStaff === "function" && modulo.toLowerCase() === "staff") {
+//   console.log("[abrirModalLocal] chamando window.configurarEventosStaff");
+//   window.configurarEventosStaff();
+//   } else {
+//   console.log("[abrirModalLocal] nenhuma função de configuração detectada");
+//   }
+
+//   // setTimeout(() => {
+//   //   console.log("[abrirModalLocal] Inicializando Flatpickr com limites após atraso.");
+//   //   window.inicializarFlatpickrStaffComLimites();
+//   // }, 100); 
+
+//   setTimeout(() => {
+//   if (typeof window.configurarEventosStaff === "function") {
+//   console.log("[abrirModalLocal] Chamando configurarEventosStaff após atraso.");
+//   window.configurarEventosStaff();
+//   }
+//   }, 100); 
+
+//   // 4) tenta aplicar prefill imediato (se o módulo já injetou selects/inputs)
+//   setTimeout(() => {
+//   try {
+//   console.log("[abrirModalLocal] tentando applyModalPrefill imediato");
+//   if (typeof window.applyModalPrefill === "function") {
+//   const ok = window.applyModalPrefill(window.__modalInitialParams || "");
+//   console.log("[abrirModalLocal] applyModalPrefill retornou:", ok);
+//   } else {
+//   const evt = new CustomEvent("modal:prefill", { detail: window.__modalInitialParams || "" });
+//   document.dispatchEvent(evt);
+//   console.log("[abrirModalLocal] evento modal:prefill disparado");
+//   }
+//   } catch (e) {
+//   console.warn("[abrirModalLocal] prefill falhou", e);
+//   }
+//   }, 800); //80
+
+//   // pequena garantia: re-tentar inicialização caso o módulo popule DOM com atraso
+//   setTimeout(() => {
+//     try {
+//     if (window.moduloHandlers && window.moduloHandlers[modulo] && typeof window.moduloHandlers[modulo].configurar === "function") {
+//       console.log("[abrirModalLocal] re-executando moduloHandlers.configurar (retry)");
+//       window.moduloHandlers[modulo].configurar();
+//       }
+//     } catch (e) { console.warn("[abrirModalLocal] retry configurar falhou", e); }
+//   }, 400);
+
+//     setTimeout(() => {
+//       const staffData = window.__modalFetchedData;
+//       const datasDoStaff = staffData?.datasevento; // Usa optional chaining para segurança
+
+//       // Verifica se o picker e os dados existem
+//       if (window.datasEventoPicker && datasDoStaff && Array.isArray(datasDoStaff)) {
+
+//         // Define as datas, disparando onChange (necessário para sincronizar com Diária Dobrada/Meia Diária)
+//           window.datasEventoPicker.setDate(datasDoStaff, true); 
+
+//         // 🌟 GARANTIA DE FORMATO: Força a re-renderização do altInput
+//         // Isso resolve o problema de YYYY-MM-DD e múltiplos campos.
+//           if (window.datasEventoPicker.altInput) {
+//             window.datasEventoPicker.altInput.value = window.datasEventoPicker.formatDate(
+//             window.datasEventoPicker.selectedDates, 
+//             window.datasEventoPicker.config.altFormat
+//             );
+//           }
+
+//           console.log(`[abrirModalLocal] [SetDate Seguro] Datas carregadas no Flatpickr: ${datasDoStaff.length} dias, formato corrigido.`);
+
+//           } else {
+//             console.warn("[abrirModalLocal] [SetDate Seguro] Flatpickr ou dados de staff (datasevento) ausentes/inválidos.");
+//           }
+//     }, 500);
+//   } catch (err) {
+//     console.warn("[abrirModalLocal] inicialização do módulo apresentou erro", err);
+//   }
+// }
+
+async function abrirModalLocal(url, modulo) {
+    if (!modulo) modulo = window.moduloAtual || "Staff";
+    console.log("[abrirModalLocal] iniciar:", { modulo, url });
+
+    let html;
+    try {
+        console.log("[abrirModalLocal] fetchHtmlComToken ->", url);
+        html = await fetchHtmlComToken(url);
+        console.log("[abrirModalLocal] HTML recebido, tamanho:", html ? html.length : 0);
+    } catch (err) {
+        console.error("[abrirModalLocal] Erro ao carregar modal (local):", err);
+        return;
+    }
+
+    const container = document.getElementById("modal-container");
+    if (!container) {
+        console.error("[abrirModalLocal] modal-container não encontrado no DOM.");
+        return;
+    }
+
+    // injeta HTML do modal
+    container.innerHTML = html;
+    console.log("[abrirModalLocal] HTML injetado no #modal-container");
+
+    // remove script anterior se existir
+    const scriptId = 'scriptModuloDinamico';
+    const scriptAntigo = document.getElementById(scriptId);
+    if (scriptAntigo) {
+        scriptAntigo.remove();
+        console.log("[abrirModalLocal] script anterior removido");
+    }
+
+    // carrega script do módulo (Staff.js por exemplo)
+    const scriptName = modulo.charAt(0).toUpperCase() + modulo.slice(1) + ".js";
+    const scriptSrc = `js/${scriptName}`;
+
+    // cria promise para aguardar load / execução do módulo
+    await new Promise((resolve, reject) => {
+        console.log("[abrirModalLocal] carregando script do módulo:", scriptSrc);
+        const script = document.createElement("script");
+        script.id = scriptId;
+        script.src = scriptSrc;
+        script.defer = true;
+        script.type = "module";
+
+        script.onload = () => {
+            // aguarda um tick para garantir execução de exports/global assignments
+            setTimeout(() => {
+                console.log(`[abrirModalLocal] Script ${scriptName} carregado e executado.`);
+                resolve();
+            }, 50);
+        };
+        script.onerror = (e) => {
+            console.error(`[abrirModalLocal] Erro ao carregar script ${scriptSrc}`, e);
+            reject(new Error(`Erro ao carregar script ${scriptSrc}`));
+        };
+        document.body.appendChild(script);
+    }).catch(err => {
+        console.error("[abrirModalLocal] falha ao carregar script do módulo:", err);
+        return;
+    });
+
+    // =========================================================================
+    // 🎯 PONTO DE INSERÇÃO: BUSCA DE DADOS E CARREGAMENTO DE DATAS (Edição)
+    // =========================================================================
+    const recordId = getRecordIdFromUrl(url);
+
+    console.log("RECORD ID", recordId);
+
+    if (recordId) {
+        try {
+            // 1. Busca os dados do Staff/Evento (Assumindo que o endpoint é: /staff/data/ID)
+            const dataUrl = `/${modulo.toLowerCase()}/data/${recordId}`;
+            const staffData = await fetchComToken(dataUrl);
+            console.log("[abrirModalLocal] Dados do Staff para edição carregados:", staffData);
+
+
+            if (staffData) {
+                // Expõe os dados para que o applyModalPrefill ou o Staff.js possam usá-los
+                window.__modalFetchedData = staffData;
+
+                const datasOrcamento = staffData.datasOrcamento.map(item => item.data); // Array de datas no formato "YYYY-MM-DD"
+                console.log("[abrirModalLocal] Datas do orçamento extraídas:", datasOrcamento);
+
+                const datasDoStaff = staffData.datasevento;
+
+                // 2. Preenchimento do Flatpickr (COMENTADO PARA SER FEITO NO SEGUNDO SETTIMEOUT DE 500MS)
+                // Se o picker não estiver pronto neste momento, o bloco de 500ms fará o preenchimento.
+
+                // 3. (Opcional) Chamar o debounce para garantir o carregamento do orçamento
+                if (typeof window.debouncedOnCriteriosChanged === 'function') {
+                    window.debouncedOnCriteriosChanged();
+                    console.log("[abrirModalLocal] Verificação de orçamento (debounce) chamada.");
+                }
+
+                // 4. (Opcional) Disparar um evento para o Staff.js preencher os outros campos
+                document.dispatchEvent(new CustomEvent("modal:data:loaded", { detail: staffData }));
+
+            }
+        } catch (error) {
+            console.error(`[abrirModalLocal] Erro ao carregar dados do ${modulo} (ID: ${recordId}):`, error);
+        }
+    }
+    // =========================================================================
+
+    // mostra modal (espera elemento modal injetado)
+    const modal = document.querySelector("#modal-container .modal");
+    const overlay = document.getElementById("modal-overlay");
+    if (modal && overlay) {
+        modal.style.display = "block";
+        overlay.style.display = "block";
+        document.body.classList.add("modal-open");
+        console.log("[abrirModalLocal] modal exibido");
+
+        // fechar por overlay
+        overlay.addEventListener("mousedown", (event) => {
+            if (event.target === overlay) {
+                console.log("[abrirModalLocal] overlay clicado -> fechar");
+                if (typeof fecharModal === "function") {
+                    fecharModal();
+                    // 🟢 CORREÇÃO: RECARREGA A PÁGINA
+                    window.location.reload(); 
+                } else {
+                    overlay.style.display = "none";
+                    container.innerHTML = "";
+                    document.body.classList.remove("modal-open");
+                    // Chama o callback AQUI
+                    if (typeof window.onStaffModalClosed === 'function') {
+                        window.onStaffModalClosed(false);
+                    }
+                    // 🟢 CORREÇÃO: RECARREGA A PÁGINA (Fallback)
+                    window.location.reload();
+                }
+            }
+        });
+
+        // fechar por botão ".close"
+        modal.querySelector(".close")?.addEventListener("click", () => {
+            console.log("[abrirModalLocal] fechar (botão X)");
+
+            // Se a função global existir, use-a para garantir o comportamento de callback.
+            if (typeof fecharModal === "function") {
+                fecharModal();
+                // 🟢 CORREÇÃO: RECARREGA A PÁGINA
+                window.location.reload();
+            } else {
+                // Fallback de fechamento, e aqui você DEVE incluir o callback.
+                overlay.style.display = "none";
+                container.innerHTML = "";
+                document.body.classList.remove("modal-open");
+                // Chama o callback AQUI para garantir que a tela volte, mesmo sem a função fecharModal
+                if (typeof window.onStaffModalClosed === 'function') {
+                    window.onStaffModalClosed(false); // false indica que não foi fechado pela função principal, mas ainda deve voltar
+                }
+                // 🟢 CORREÇÃO: RECARREGA A PÁGINA (Fallback)
+                window.location.reload();
+            }
+        });
+    } else {
+        console.warn("[abrirModalLocal] estrutura de modal não encontrada após injeção do HTML.");
+    }
+
+    // --- Inicializa o módulo carregado (LÓGICA LIMPA) ---
+    try {
+        console.log("[abrirModalLocal] inicializando módulo:", modulo);
+
+        // 1) preferencial: handler registrado pelo módulo (window.moduloHandlers)
+        if (window.moduloHandlers && window.moduloHandlers[modulo] && typeof window.moduloHandlers[modulo].configurar === "function") {
+            console.log("[abrirModalLocal] chamando window.moduloHandlers[...] .configurar");
+            window.moduloHandlers[modulo].configurar();
+        } else if (typeof window.configurarEventosEspecificos === "function") {
+            console.log("[abrirModalLocal] chamando window.configurarEventosEspecificos");
+            window.configurarEventosEspecificos(modulo);
+        } else if (typeof window.configurarEventosStaff === "function" && modulo.toLowerCase() === "staff") {
+            console.log("[abrirModalLocal] chamando window.configurarEventosStaff");
+            window.configurarEventosStaff();
+        } else {
+            console.log("[abrirModalLocal] nenhuma função de configuração detectada");
+        }
+
+        // ❌ Bloco de 100ms removido para evitar a duplicação na inicialização.
+
+        // 4) tenta aplicar prefill imediato (se o módulo já injetou selects/inputs)
+        setTimeout(() => {
+            try {
+                console.log("[abrirModalLocal] tentando applyModalPrefill imediato");
+                if (typeof window.applyModalPrefill === "function") {
+                    const ok = window.applyModalPrefill(window.__modalInitialParams || "");
+                    console.log("[abrirModalLocal] applyModalPrefill retornou:", ok);
+                } else {
+                    const evt = new CustomEvent("modal:prefill", { detail: window.__modalInitialParams || "" });
+                    document.dispatchEvent(evt);
+                    console.log("[abrirModalLocal] evento modal:prefill disparado");
+                }
+            } catch (e) {
+                console.warn("[abrirModalLocal] prefill falhou", e);
+            }
+        }, 800);
+
+        // pequena garantia: re-tentar inicialização caso o módulo popule DOM com atraso
+        // setTimeout(() => {
+        //     try {
+        //         if (window.moduloHandlers && window.moduloHandlers[modulo] && typeof window.moduloHandlers[modulo].configurar === "function") {
+        //             console.log("[abrirModalLocal] re-executando moduloHandlers.configurar (retry 400ms)");
+        //             window.moduloHandlers[modulo].configurar();
+        //         }
+        //     } catch (e) { console.warn("[abrirModalLocal] retry configurar falhou", e); }
+        // }, 400);
+
+        // 🌟 Bloco de preenchimento do Flatpickr (500ms) - Garante que o Flatpickr esteja pronto
+        setTimeout(() => {
+            const staffData = window.__modalFetchedData;
+            const datasDoStaff = staffData?.datasevento; // Usa optional chaining para segurança
+
+            // Verifica se o picker e os dados existem
+            if (window.datasEventoPicker && datasDoStaff && Array.isArray(datasDoStaff)) {
+
+                // Define as datas, disparando onChange (necessário para sincronizar com Diária Dobrada/Meia Diária)
+                window.datasEventoPicker.setDate(datasDoStaff, true);
+
+                if (typeof window.atualizarContadorEDatas === 'function') {
+                    // Chama a função de atualização do contador com as datas do staff
+                    window.atualizarContadorEDatas(window.datasEventoPicker.selectedDates);
+                    console.log("[abrirModalLocal] Contador de datas do evento atualizado após SetDate.");
+                }
+
+                // 🌟 GARANTIA DE FORMATO: Força a re-renderização do altInput
+                // Isso resolve o problema de YYYY-MM-DD e múltiplos campos.
+                if (window.datasEventoPicker.altInput) {
+                    window.datasEventoPicker.altInput.value = window.datasEventoPicker.formatDate(
+                        window.datasEventoPicker.selectedDates,
+                        window.datasEventoPicker.config.altFormat
+                    );
+                }
+
+                console.log(`[abrirModalLocal] [SetDate Seguro] Datas carregadas no Flatpickr: ${datasDoStaff.length} dias, formato corrigido.`);
+
+            } else {
+                console.warn("[abrirModalLocal] [SetDate Seguro] Flatpickr ou dados de staff (datasevento) ausentes/inválidos.");
+            }
+        }, 500);
+    } catch (err) {
+        console.warn("[abrirModalLocal] inicialização do módulo apresentou erro", err);
+    }
 }
 
 window.applyModalPrefill = function(rawParams) {
   try {
-  console.log("[applyModalPrefill] iniciar. rawParams:", rawParams);
-  console.log("[applyModalPrefill] Parâmetros definidos:", window.__modalInitialParams);
-  const raw = rawParams || window.__modalInitialParams || (window.location.search ? window.location.search.replace(/^\?/,'') : "");
-  console.log("[applyModalPrefill] raw usado:", raw);
-  if (!raw) {
-  console.log("[applyModalPrefill] sem params, abortando");
-  return false;
-  }
-  const params = new URLSearchParams(raw);
+    console.log("[applyModalPrefill] iniciar. rawParams:", rawParams);
+    console.log("[applyModalPrefill] Parâmetros definidos:", window.__modalInitialParams);
+    const raw = rawParams || window.__modalInitialParams || (window.location.search ? window.location.search.replace(/^\?/,'') : "");
+    console.log("[applyModalPrefill] raw usado:", raw);
+    if (!raw) {
+      console.log("[applyModalPrefill] sem params, abortando");
+      return false;
+    }
+    const params = new URLSearchParams(raw);
 
-  console.log("[applyModalPrefill ABRIRMODALLOCAL] URLSearchParams:", Array.from(params.entries()));
+    console.log("[applyModalPrefill ABRIRMODALLOCAL] URLSearchParams:", Array.from(params.entries()));
 
-  // leitura dos valores esperados
-  const prefill = {
-  idevento: params.get("idevento"),
-  idfuncao: params.get("idfuncao"),
-  idequipe: params.get("idequipe"),
-  idcliente: params.get("idcliente"),
-  idmontagem: params.get("idmontagem"),
-  nmequipe: params.get("nmequipe") || params.get("idequipe_nome"),
-  nmfuncao: params.get("nmfuncao"),
-  nmevento: params.get("nmevento"),
-  nmcliente: params.get("nmcliente"),
-  nmlocalmontagem: params.get("nmlocalmontagem") || params.get("idmontagem_nome")
-  };
-  console.log("[applyModalPrefill] prefill parseado:", prefill);
+    // leitura dos valores esperados
+    const prefill = {
+      idevento: params.get("idevento"),
+      idfuncao: params.get("idfuncao"),
+      idequipe: params.get("idequipe"),
+      idcliente: params.get("idcliente"),
+      idmontagem: params.get("idmontagem"),
+      nmequipe: params.get("nmequipe") || params.get("idequipe_nome"),
+      nmfuncao: params.get("nmfuncao"),
+      nmevento: params.get("nmevento"),
+      nmcliente: params.get("nmcliente"),
+      nmlocalmontagem: params.get("nmlocalmontagem") || params.get("idmontagem_nome")
+    };
+    console.log("[applyModalPrefill] prefill parseado:", prefill);
 
   // expõe para uso posterior (Staff.js ou observers)
   window.__modalDesiredPrefill = prefill;
 
   // helper: tenta aplicar em hidden/input simples
   function setHidden(id, value) {
-  if (!value) return;
-  const el = document.getElementById(id);
-  if (el) {
-  el.value = value;
-  console.log(`[applyModalPrefill] setHidden ${id}=${value}`);
-  } else {
-  console.log(`[applyModalPrefill] hidden ${id} não encontrado`);
-  }
+    if (!value) return;
+    const el = document.getElementById(id);
+    if (el) {
+      el.value = value;
+      console.log(`[applyModalPrefill] setHidden ${id}=${value}`);
+    } else {
+      console.log(`[applyModalPrefill] hidden ${id} não encontrado`);
+    }
   }
 
   setHidden("idEvento", prefill.idevento);
@@ -326,68 +575,68 @@ window.applyModalPrefill = function(rawParams) {
 
   // helper: tenta selecionar option existente — NÃO cria option para evitar sobrescrever listas carregadas depois
   function trySelectIfExists(selectId, value, text) {
-  if (!value && !text) return false;
-  const sel = document.getElementById(selectId);
-  if (!sel) {
-  console.log(`[applyModalPrefill] select ${selectId} não existe ainda`);
-  return false;
-  }
-  const options = Array.from(sel.options || []);
+    if (!value && !text) return false;
+    const sel = document.getElementById(selectId);
+    if (!sel) {
+      console.log(`[applyModalPrefill] select ${selectId} não existe ainda`);
+      return false;
+    }
+    const options = Array.from(sel.options || []);
   // tenta por value primeiro
-  let opt = options.find(o => String(o.value) === String(value));
-  if (!opt && text) {
-  opt = options.find(o => (o.textContent || o.text || "").trim() === String(text).trim());
-  }
-  if (opt) {
-  sel.value = opt.value;
-  sel.dispatchEvent(new Event("change", { bubbles: true }));
-  console.log(`[applyModalPrefill] selecionado ${selectId} -> value:${opt.value} text:${opt.text}`);
-  return true;
-  }
-  console.log(`[applyModalPrefill] opção não encontrada em ${selectId} para value:${value} text:${text}`);
-  return false;
+    let opt = options.find(o => String(o.value) === String(value));
+    if (!opt && text) {
+      opt = options.find(o => (o.textContent || o.text || "").trim() === String(text).trim());
+    }
+    if (opt) {
+      sel.value = opt.value;
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      console.log(`[applyModalPrefill] selecionado ${selectId} -> value:${opt.value} text:${opt.text}`);
+      return true;
+    }
+    console.log(`[applyModalPrefill] opção não encontrada em ${selectId} para value:${value} text:${text}`);
+    return false;
   }
 
   // Observador que aguarda opções serem adicionadas a um <select> e então tenta aplicar
   function observeSelectUntilPopulated(selectId, value, text, timeout = 3000) {
-  const sel = document.getElementById(selectId);
-  if (!sel) {
-  console.log(`[applyModalPrefill] observe: select ${selectId} não existe, pulando`);
-  return;
-  }
-  if (trySelectIfExists(selectId, value, text)) return;
+    const sel = document.getElementById(selectId);
+    if (!sel) {
+    console.log(`[applyModalPrefill] observe: select ${selectId} não existe, pulando`);
+    return;
+    }
+    if (trySelectIfExists(selectId, value, text)) return;
 
-  console.log(`[applyModalPrefill] observando select ${selectId} até popular (timeout ${timeout}ms)`);
-  const mo = new MutationObserver((mutations) => {
-  if (trySelectIfExists(selectId, value, text)) {
-  try { mo.disconnect(); } catch(e) {}
-  console.log(`[applyModalPrefill] observe: option aplicada em ${selectId}`);
-  }
-  });
+    console.log(`[applyModalPrefill] observando select ${selectId} até popular (timeout ${timeout}ms)`);
+    const mo = new MutationObserver((mutations) => {
+    if (trySelectIfExists(selectId, value, text)) {
+    try { mo.disconnect(); } catch(e) {}
+    console.log(`[applyModalPrefill] observe: option aplicada em ${selectId}`);
+    }
+    });
 
-  mo.observe(sel, { childList: true, subtree: true });
+    mo.observe(sel, { childList: true, subtree: true });
 
-  setTimeout(() => {
-  try { mo.disconnect(); } catch (e) {}
-  const still = document.getElementById(selectId);
+    setTimeout(() => {
+    try { mo.disconnect(); } catch (e) {}
+    const still = document.getElementById(selectId);
 
-  // LINHA 244 ATUALIZADA (CORREÇÃO DO PRIMEIRO TypeError: reading 'length')
-  if (still && still.options && (still.options.length === 0 || !trySelectIfExists(selectId, value, text))) { 
-  console.log(`[applyModalPrefill] timeout atingido para ${selectId}. Criando option fallback (se tiver texto).`);
-  if (text || value) {
-  const opt = document.createElement("option");
-  opt.value = value || text || "";
-  opt.text = text || value || "Selecionado";
-  opt.selected = true;
-  still.appendChild(opt);
+    // LINHA 244 ATUALIZADA (CORREÇÃO DO PRIMEIRO TypeError: reading 'length')
+    if (still && still.options && (still.options.length === 0 || !trySelectIfExists(selectId, value, text))) { 
+    console.log(`[applyModalPrefill] timeout atingido para ${selectId}. Criando option fallback (se tiver texto).`);
+    if (text || value) {
+    const opt = document.createElement("option");
+    opt.value = value || text || "";
+    opt.text = text || value || "Selecionado";
+    opt.selected = true;
+    still.appendChild(opt);
 
-  // NOVA LINHA (CORREÇÃO DO SEGUNDO TypeError em Staff.js:3345)
-  still.value = opt.value; 
+    // NOVA LINHA (CORREÇÃO DO SEGUNDO TypeError em Staff.js:3345)
+    still.value = opt.value; 
 
-  // LINHA 252 ATUALIZADA (agora mais segura)
-  still.dispatchEvent(new Event('change', { bubbles: true }));
-  console.log(`[applyModalPrefill] option fallback criado em ${selectId} value:${opt.value}`);
-  }
+    // LINHA 252 ATUALIZADA (agora mais segura)
+    still.dispatchEvent(new Event('change', { bubbles: true }));
+    console.log(`[applyModalPrefill] option fallback criado em ${selectId} value:${opt.value}`);
+    }
   }
   }, timeout);
 }
@@ -518,6 +767,10 @@ function usuarioTemPermissaoFinanceiro() {
   return !!permissaoStaff.pode_financeiro; 
 }
 
+function podeVisualizarTudo() {
+    // Se for Master OU tiver permissão Financeiro, pode ver tudo.
+    return usuarioTemPermissao() || usuarioTemPermissaoFinanceiro();
+}
 // Evento no card financeiro
 const cardFinanceiro = document.querySelector(".card-financeiro");
 if (cardFinanceiro) {
@@ -584,11 +837,11 @@ async function atualizarAtividades() {
           html += "</tr></thead><tbody>";
 
           dados.forEach(obj => {
-            html += "<tr>";
-            Object.values(obj).forEach(val => {
-            html += `<td>${val !== null && val !== undefined ? val : ""}</td>`;
-            });
-            html += "</tr>";
+      html += "<tr>";
+      Object.values(obj).forEach(val => {
+      html += `<td>${val !== null && val !== undefined ? val : ""}</td>`;
+      });
+      html += "</tr>";
           });
 
           html += "</tbody></table>";
@@ -885,10 +1138,10 @@ async function mostrarCalendarioEventos() {
         evEl.style.background = getCorPeriodo(ev.tipo);
         evEl.textContent = ev.nome;
         if (ev.tipo === "Feriado") evEl.style.color = "#fff";
-        
+
         const idevento = ev.id || ev.idevento;
         if (idevento) {
-            evEl.addEventListener("click", () => abrirPopupEvento(idevento));
+      evEl.addEventListener("click", () => abrirPopupEvento(idevento));
         }
         return evEl;
     }
@@ -932,7 +1185,7 @@ async function mostrarCalendarioEventos() {
         try {
           const idempresa = getIdEmpresa();
           const data = await fetchComToken(`/main/eventos-calendario?idempresa=${idempresa}&ano=${ano}&mes=${mes}`);
-            const eventos = data.eventos || [];
+      const eventos = data.eventos || [];
 
   // Mapa de eventos por data
   const mapaEventos = {};
@@ -971,16 +1224,16 @@ async function mostrarCalendarioEventos() {
   grid.appendChild(cell);
   }
 
-            // Dias do mês atual
-            for (let dia = 1; dia <= ultimoDia; dia++) {
-                const dataStr = `${ano}-${String(mes).padStart(2,"0")}-${String(dia).padStart(2,"0")}`;
-                const cell = document.createElement("div");
-                cell.innerHTML = `<span class="numero-dia">${dia}</span>`;
-                if (dataStr === hojeStr) { cell.style.border = "2px solid var(--primary-color)"; cell.style.borderRadius = "6px"; }
-                (mapaEventos[dataStr] || []).forEach(ev => cell.appendChild(criarEventoElemento(ev)));
-          
-                grid.appendChild(cell);
-            }
+      // Dias do mês atual
+      for (let dia = 1; dia <= ultimoDia; dia++) {
+          const dataStr = `${ano}-${String(mes).padStart(2,"0")}-${String(dia).padStart(2,"0")}`;
+          const cell = document.createElement("div");
+          cell.innerHTML = `<span class="numero-dia">${dia}</span>`;
+          if (dataStr === hojeStr) { cell.style.border = "2px solid var(--primary-color)"; cell.style.borderRadius = "6px"; }
+          (mapaEventos[dataStr] || []).forEach(ev => cell.appendChild(criarEventoElemento(ev)));
+
+          grid.appendChild(cell);
+      }
 
   // Dias do próximo mês (apenas até completar a última semana)
   const totalCelulas = grid.children.length;
@@ -1886,18 +2139,7 @@ function criarCard(evt) {
   // 🌟 FIM DO BLOCO DE PERÍODO ATUALIZADO
 
   // ======= Resumo das equipes/funções em uma linha (Sem alteração) =======
-  const equipes = evt.equipes_detalhes || [];
-  const resumoEquipes = equipes.length
-  ? equipes.map(f => {
-  const total = f.total_vagas || 0;
-  const preenchido = f.preenchidas || 0;
-  const restante = total - preenchido;
-  let cor = "🟢";
-  if (restante === total) cor = "🔴"; // 0 preenchido
-  else if (restante > 0) cor = "🟡"; // Parcialmente preenchido
-  return `${f.equipe}: ${cor} ${preenchido}/${total}`;
-  }).join(" | ")
-  : "Nenhuma equipe cadastrada";
+  const resumoEquipes = evt.resumoEquipes || "Nenhuma equipe cadastrada";
 
 
   const card = document.createElement("div");
@@ -2188,6 +2430,7 @@ async function abrirTelaEquipesEvento(evento) {
   headerBtn.addEventListener("keypress", (e) => {
   if (e.key === "Enter") abrirDetalhesEquipe(eq, evento);
   });
+
 
   // 🛑 NOVO LISTENER: Botão 'Funcionários'
   const funcionariosBtn = equipeBox.querySelector(".ver-funcionarios-btn");
@@ -2638,11 +2881,354 @@ function abrirDetalhesEquipe(equipe, evento) {
 // =========================
 //    Pedidos Orçamentos 
 // =========================
+// function criarFiltroOrcamento(conteudoGeral) {
+//     const filtrosContainer = document.createElement("div");
+//     filtrosContainer.className = "filtros-orcamentos";
+
+//     // ------------------------------
+//     // 1. Filtro Principal (RADIO CUSTOM)
+//     // ------------------------------
+//     const grupoPeriodo = document.createElement("div");
+//     grupoPeriodo.className = "filtro-opção";
+//     grupoPeriodo.innerHTML = `
+//         <label class="label-select">Tipo de Filtro</label>
+//         <div class="wrapper" id="periodo-wrapper">
+//             <div class="option">
+//               <input checked value="aberto" name="periodo" type="radio" class="input" />
+//               <div class="btn"><span class="span">Abertos</span></div>
+//             </div>
+//             <div class="option">
+//               <input value="emProposta" name="periodo" type="radio" class="input" />
+//               <div class="btn"><span class="span">Em Proposta</span></div>
+//             </div>
+//             <div class="option">
+//               <input value="emAndamento" name="periodo" type="radio" class="input" />
+//               <div class="btn"><span class="span">Em Andamento</span></div>
+//             </div>
+//             <div class="option">
+//               <input value="fechados" name="periodo" type="radio" class="input" />
+//               <div class="btn"><span class="span">Fechados</span></div>
+//             </div>
+//             <div class="option">
+//               <input value="recusados" name="periodo" type="radio" class="input" />
+//               <div class="btn"><span class="span">Recusados</span></div>
+//             </div>
+//         </div>
+//     `;
+
+//     filtrosContainer.appendChild(grupoPeriodo);
+
+//     // ------------------------------
+//     // 3. Botão Aplicar
+//     // ------------------------------
+//     const btnAplicar = document.createElement("button");
+//     btnAplicar.id = "btnAplicarFiltro";
+//     btnAplicar.className = "btn-aplicar-filtro";
+//     btnAplicar.textContent = "Aplicar Filtro";
+//     filtrosContainer.appendChild(btnAplicar);
+
+
+// grupoPeriodo.querySelectorAll("input[name='periodo']").forEach(radio => {
+//         radio.addEventListener("change", () => {
+//             // Chama a função de carregamento/filtragem
+//             carregarDetalhesVencimentos(conteudoGeral);
+//         });
+//     });
+
+//     // Listener do Botão Aplicar: Mantém o listener para acionar o filtro explicitamente
+//     btnAplicar.addEventListener("click", () => carregarDetalhesVencimentos(conteudoGeral));
+
+//     return filtrosContainer;
+// }
+
+
+let OrcamentosExtraBonificadoUnificados = [];
+let OrcamentosAdicionaisUnificados = [];
+
+/**
+ * Busca a lista de orçamentos Aprovados - Extra Bonificado.
+ * ✅ CORREÇÃO DE ROBUSTEZ: Adiciona 'headers' explicitamente para garantir o idempresa.
+ */
+async function buscarOrcamentosExtraBonificado() {
+    const URL_EXTRA = '/main/extra-bonificado';
+    const options = { headers: { idempresa: getIdEmpresa() } }; 
+    
+    try {
+        // ✅ CORREÇÃO: fetchComToken retorna o JSON, então chame de 'dados'
+        const dados = await fetchComToken(URL_EXTRA, options); 
+        
+        console.log("Dados Extra Bonificado:", dados);
+        // Garante que a função retorna um array, mesmo que o JSON retornado seja nulo ou não seja um array
+        return Array.isArray(dados) ? dados : []; 
+        
+    } catch (error) {
+        // O erro já foi capturado e logado pelo fetchComToken se for falha HTTP.
+        // Se a requisição falhar totalmente, o catch captura e retorna [].
+        console.error("Falha ao buscar Extra Bonificado:", error);
+        return []; 
+    }
+}
+
+/**
+ * Busca a lista de orçamentos Aprovados - Adicionais.
+ * ✅ CORREÇÃO DE ROBUSTEZ: Adiciona 'headers' explicitamente para garantir o idempresa.
+ */
+async function buscarOrcamentosAdicionais() {
+    const URL_ADICIONAL = '/main/adicionais';
+    const options = { headers: { idempresa: getIdEmpresa() } };
+    
+    try {
+        // ✅ CORREÇÃO: fetchComToken retorna o JSON, então chame de 'dados'
+        const dados = await fetchComToken(URL_ADICIONAL, options); 
+
+        
+        console.log("Dados Adicionais:", dados);
+        // Garante que a função retorna um array
+        return Array.isArray(dados) ? dados : []; 
+        
+    } catch (error) {
+        console.error("Falha ao buscar Adicionais:", error);
+        return []; 
+    }
+}
+
+// Sua função utilitária (sem modificação)
+function formatarTitulo(camelCase) {
+    let result = camelCase.replace('status', '').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+    return result.split(' ').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+}
+
+// Sua função principal (sem modificação)
+async function mostrarOrcamentosAprovados(conteudoGeral) {
+    conteudoGeral.innerHTML = `<p>Carregando pedidos aprovados...</p>`;
+    
+    try {
+        // 1. CHAMA AS DUAS ROTAS EM PARALELO (CORREÇÃO APLICADA NAS FUNÇÕES DE BUSCA)
+        const [pedidosExtraBonificado, pedidosAdicionais] = await Promise.all([
+            buscarOrcamentosExtraBonificado(),
+            buscarOrcamentosAdicionais()
+        ]);
+        
+        // 2. Armazena e Contagem
+        // 🔹 CORREÇÃO A: Mapeia e define o tipo de solicitação explicitamente
+        OrcamentosExtraBonificadoUnificados = pedidosExtraBonificado.map(p => ({
+            ...p,
+            categoriaSolicitacao: 'Extra Bonificado' // Define o tipo aqui
+        }));
+        
+        // 🔹 CORREÇÃO A: Mapeia e define o tipo de solicitação explicitamente
+        OrcamentosAdicionaisUnificados = pedidosAdicionais.map(p => ({
+            ...p,
+            categoriaSolicitacao: 'Adicional' // Define o tipo aqui
+        }));
+        
+        const countExtraBonificado = OrcamentosExtraBonificadoUnificados.length;
+        const countAdicionais = OrcamentosAdicionaisUnificados.length;
+        
+        const statusFixo = 'Autorizado'; 
+
+        // 3. Cria a estrutura de Abas Principais
+        conteudoGeral.innerHTML = `
+            <div class="tabs-container-wrapper">
+                <div class="abas-principais">
+                    <button class="aba main-tab-btn ativa" 
+                        data-tab-content="tab-content-extra" data-categoria="extra">
+                        Extra Bonificado (${countExtraBonificado})
+                    </button>
+                    <button class="aba main-tab-btn" 
+                        data-tab-content="tab-content-adicional" data-categoria="adicional">
+                        Adicional (${countAdicionais})
+                    </button>
+                </div>
+                
+                <div id="tab-content-extra" class="painel-tabs ativo" style="display: flex;"></div>
+                <div id="tab-content-adicional" class="painel-tabs desativado" style="display: none;"></div>
+            </div>
+        `;
+
+        // 4. Adiciona os Listeners
+        document.querySelectorAll('.abas-principais .main-tab-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const targetId = this.getAttribute('data-tab-content');
+                const categoria = this.getAttribute('data-categoria');
+                
+                // Gerencia classes da aba
+                document.querySelectorAll('.abas-principais .main-tab-btn').forEach(btn => btn.classList.remove('ativa'));
+                this.classList.add('ativa');
+                
+                // Gerencia visibilidade dos painéis
+                document.querySelectorAll('.painel-tabs').forEach(content => {
+                    content.style.display = 'none';
+                });
+                const targetContent = document.getElementById(targetId);
+                targetContent.style.display = 'flex'; 
+                
+                // Seleciona a lista correta
+                const listaPedidos = categoria === 'extra' 
+                    ? OrcamentosExtraBonificadoUnificados 
+                    : OrcamentosAdicionaisUnificados;
+                
+                // Renderiza o conteúdo
+                renderizarPedidosorc(listaPedidos, targetId, categoria, statusFixo, true);
+            });
+        });
+
+        // 5. Simula o clique inicial
+        const btnInicial = conteudoGeral.querySelector('.main-tab-btn.ativa');
+        if (btnInicial) {
+            btnInicial.click(); 
+        }
+    } catch (error) {
+        console.error("Erro ao carregar dados de orçamento:", error);
+        conteudoGeral.innerHTML = `<p class="erro">Erro ao carregar pedidos: ${error.message || 'Falha na comunicação com o servidor.'}</p>`;
+    }
+}
+
+// Sua função de renderização (sem modificação)
+function renderizarPedidosorc(listaPedidos, containerId, categoria, status, isStatusFixo) {
+    console.log(`Renderizando pedidos para categoria: ${categoria}, status: ${status}, isStatusFixo: ${isStatusFixo}`);
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    // Helper function para escapar HTML
+    const escapeHTML = (str) => {
+        if (typeof str !== 'string') return str || '';
+        return str.replace(/[&<>"']/g, function(m) {
+            return ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[m]);
+        });
+    };
+    
+    // 🛑 LIMPA O CONTAINER
+    container.innerHTML = ''; 
+
+    const pedidosFiltrados = listaPedidos;
+    if (pedidosFiltrados.length === 0) {
+        container.innerHTML = `<p class="mt-3">Não há pedidos autorizados nesta categoria.</p>`;
+    }
+
+    // GERAÇÃO DO HTML (Usando a técnica robusta de appendChild)
+    pedidosFiltrados.forEach((p, index) => {
+
+      console.log(`⏳ Iterando pedido ${index} para categoria: ${categoria}`, p);
+        // Variáveis de Exibição
+        const nomeTipoExibicao = escapeHTML(p.categoriaSolicitacao || p.tiposolicitacao || 'Orçamento Complementar'); 
+        const tipoInterno = escapeHTML(p.tiposolicitacao || 'N/D');
+        const nomePrincipal = escapeHTML(p.nome_funcionario_afetado || p.nome_evento || `Orçamento ${p.nrdorcamento}` || 'N/D');        
+        const titulo = `${nomeTipoExibicao} - ${nomePrincipal}`; 
+        const tipoCor = 'aditivo-extra';
+        const tipoIcone = 'fa fa-plus-circle';
+        const collapseId = `collapse-${containerId}-${index}`;
+
+        // Detalhes (HTML interno) - APLICANDO escapeHTML EM TODOS OS CAMPOS DE DADOS
+        const detalhesHTML = `
+            <p><strong>Categoria:</strong> ${nomeTipoExibicao}</p>
+            <p><strong>Tipo Interno:</strong> ${tipoInterno}</p>
+            
+            <hr class="mt-2 mb-2">
+
+            ${p.nome_funcionario_afetado 
+                ? `<p><strong>Funcionário Afetado:</strong> ${escapeHTML(p.nome_funcionario_afetado)} (ID: ${p.idfuncionario || 'N/D'})</p>` 
+                : ''
+            }
+            ${p.idfuncao ? `<p><strong>ID da Função:</strong> ${p.idfuncao}</p>` : ''}
+            ${p.nome_evento ? `<p><strong>Evento:</strong> ${escapeHTML(p.nome_evento)}</p>` : ''}
+            
+            <hr class="mt-2 mb-2">
+            
+            <p><strong>Nº Orçamento:</strong> ${p.idorcamento || p.nrorcamento || 'N/D'}</p>
+            <p><strong>Status:</strong> ${p.status_aditivo || p.status || status}</p>
+            <p><strong>Solicitante:</strong> ${escapeHTML(p.nome_usuario_solicitante || 'N/D')}</p>
+            <p><strong>Justificativa:</strong> ${escapeHTML(p.justificativa || 'N/D')}</p>
+        `;
+
+        console.log(`✅ Gerando item de acordeão para pedido ${index}:`, { titulo, detalhesHTML });
+
+        const item = document.createElement('div');
+        item.className = 'accordion-item';
+        
+        item.innerHTML = `
+            <div class="accordion-header ${tipoCor}"> 
+                <i class="${tipoIcone}"></i>
+                <span>${titulo}</span>
+                <i class="fa fa-chevron-down"></i>
+            </div>
+            <div id="${collapseId}" class="accordion-content">
+                <div class="accordion-body">
+                    ${detalhesHTML}
+                </div>
+            </div>
+        `;
+        
+        container.appendChild(item);
+    });
+
+    console.log(`✅ Elementos anexados. Total de filhos no container: ${container.children.length}`);
+    
+    // 🛑 Listener de DELEGAÇÃO DE EVENTOS (Anexado ao container)
+    // Este bloco garante que o listener só seja anexado uma vez.
+    // 🛑 Listener de DELEGAÇÃO DE EVENTOS (Versão Simplificada)
+
+    // Remova qualquer listener anterior para evitar duplicidade
+    // (Esta linha é uma precaução, use se você está executando renderizarPedidosorc mais de uma vez)
+    // container.removeEventListener('click', handleAccordionClick); // Requer que o listener seja nomeado
+
+    container.addEventListener('click', function(event) {
+        
+        const header = event.target.closest('.accordion-header');
+        
+        if (!header) return; // Não foi um clique no cabeçalho
+
+        event.preventDefault(); // Garante que nenhum link ou framework interfira
+        
+        const item = header.closest('.accordion-item');
+        
+        if (!item) return; 
+        
+        console.log(`✅✅✅ SUCESSO! CLIQUE DETECTADO. Aplicando .active em:`, item); 
+
+        // 1. Toggle da classe 'active' no elemento PAI
+        item.classList.toggle('active');
+        
+        // 2. Toggle da classe 'active' no header (para seta)
+        header.classList.toggle('active'); 
+        
+        // 3. Fechar outros itens (opcional)
+        container.querySelectorAll('.accordion-item').forEach(otherItem => {
+            if (otherItem !== item && otherItem.classList.contains('active')) {
+                otherItem.classList.remove('active');
+                const otherHeader = otherItem.querySelector('.accordion-header');
+                if(otherHeader) otherHeader.classList.remove('active');
+            }
+        });
+    });
+    // Não marque o container se você for executar renderizarPedidosorc apenas uma vez por aba.
+    // Se for executada múltiplas vezes, o listener será duplicado, mas é o preço pela certeza do clique.
+}
+
+document.addEventListener('click', function(event) {
+    const header = event.target.closest('.accordion-header');
+    if (header) {
+        console.log(`🌟 CLIQUE NO ACORDEÃO DETECTADO PELO DOCUMENT! O PROBLEMA É A EXECUÇÃO DO SEU LISTENER.`);
+        // Remove este listener temporário após o teste
+        // document.removeEventListener('click', arguments.callee); 
+    }
+});
+
+// Seu Listener de Evento (sem modificação)
 document.getElementById("cardContainerOrcamentos").addEventListener("click", async function() {
     const painel = document.getElementById("painelDetalhes");
+    if (!painel) return;
+    
     painel.innerHTML = ""; // Limpa o painel anterior
 
-    // Aplicando classes Tailwind para consistência com as funções de filtro
     const container = document.createElement("div");
     container.id = "orc-container";
     container.className = "orc-container";
@@ -2652,33 +3238,31 @@ document.getElementById("cardContainerOrcamentos").addEventListener("click", asy
 
     const btnVoltar = document.createElement("button"); 
     btnVoltar.id = "btnVoltarorc";
-    // Usando classes Tailwind para um estilo moderno
     btnVoltar.className = "btn-voltar";
     btnVoltar.textContent = "←";
 
     const titulo = document.createElement("h2");
-    titulo.textContent = "Pedidos para Orçamento"; 
+    titulo.className = "title-orc";
+    titulo.textContent = "Pedidos Aprovados para Orçamento"; 
 
     header.appendChild(btnVoltar);
     header.appendChild(titulo);
     container.appendChild(header);
     
-    // Contêiner onde o resultado da busca será exibido
     const conteudoGeral = document.createElement("div");
     conteudoGeral.className = "conteudo-geral"; 
     
-    // const FiltrosVencimentos = criarControlesDeFiltro(conteudoGeral);
-    // container.appendChild(FiltrosVencimentos); 
-    
     container.appendChild(conteudoGeral);
 
-    // Anexe o container completo ao painel
     painel.appendChild(container);
     
-    // 5. Adiciona o listener para o botão de voltar
+    // Adiciona o listener para o botão de voltar (Fecha o painel de detalhes)
     btnVoltar.addEventListener('click', () => {
         painel.innerHTML = ""; // Volta para a tela anterior
     });
+    
+    // Chama o novo fluxo para mostrar os aprovados
+    await mostrarOrcamentosAprovados(conteudoGeral);
 });
 
 async function atualizarResumo() {
@@ -2689,6 +3273,7 @@ async function atualizarResumo() {
   document.getElementById("orcamentosEmAndamento").textContent = dadosResumo.orcamentosEmAndamento;
   document.getElementById("orcamentosFechados").textContent = dadosResumo.orcamentosFechados;
   document.getElementById("orcamentosRecusados").textContent = dadosResumo.orcamentosRecusados;
+ // document.getElementById("orcamentosPedidos").textContent = dadosResumo.orcamentosPedidos;
 }
 
 // =========================
@@ -2698,82 +3283,170 @@ async function atualizarResumo() {
 //  Pedidos Financeiros
 // =========================
 
-async function buscarPedidosUsuario() {
-  const idusuario = getIdExecutor(); // pega do token
-  try {
-    const resposta = await fetchComToken(`/main/notificacoes-financeiras`, {
-      headers: { idempresa: getIdEmpresa() }
-    });  
+// async function buscarPedidosUsuario() {
+//   const idusuario = getIdExecutor(); // pega do token
+//   try {
+//     const resposta = await fetchComToken(`/main/notificacoes-financeiras`, {
+//       headers: { idempresa: getIdEmpresa() }
+//     });  
     
+//     const podeVerTodos = podeVisualizarTudo();
+//     const ehMasterStaff = usuarioTemPermissao();
+   
+//     console.log("Usuário é Master (Aprovar)?", ehMasterStaff);
+//     console.log("Usuário pode ver todos os pedidos?", podeVerTodos);
 
-    const ehMasterStaff = usuarioTemPermissao();
-    console.log("Usuário é Master no Staff?", ehMasterStaff);
-    console.log("Resposta bruta do fetch:", resposta);
+//     if (!resposta || !Array.isArray(resposta)) {
+//       console.error("Resposta inválida ou não é um array:", resposta);
+//       return [];
+//     }
 
-    if (!resposta || !Array.isArray(resposta)) {
-      console.error("Resposta inválida ou não é um array:", resposta);
-      return [];
-    }
+//     // Função para preencher sempre o nome do solicitante
+//     function preencherSolicitante(p) {
+//       return {
+//         ...p,
+//         solicitante_nome: p.nomeSolicitante || p.solicitante_nome || (String(p.solicitante) === String(idusuario) ? "Você" : "Solicitante desconhecido")
+//       };
+//     }
 
-    // Função para preencher sempre o nome do solicitante
-    function preencherSolicitante(p) {
-      return {
-        ...p,
-        solicitante_nome: p.nomeSolicitante || p.solicitante_nome || (String(p.solicitante) === String(idusuario) ? "Você" : "Solicitante desconhecido")
-      };
-    }
+//     // Normaliza status: sempre retorna objeto { status: 'pendente' | 'autorizado' | 'rejeitado', ...outrosCampos }
+//     function normalizarCampoJSON(campo) {
+//       if (!campo) return { status: "pendente" };
+//       if (typeof campo === "string") {
+//         try {
+//           const parsed = JSON.parse(campo);
+//           return { ...parsed, status: parsed.status?.toLowerCase() || "pendente" };
+//         } catch {
+//           return { status: campo.toLowerCase() };
+//         }
+//       }
+//       if (typeof campo === "object") {
+//         return { ...campo, status: campo.status?.toLowerCase() || "pendente" };
+//       }
+//       return { status: "pendente" };
+//     }
 
-    // Normaliza status: sempre retorna objeto { status: 'pendente' | 'autorizado' | 'rejeitado', ...outrosCampos }
-    function normalizarCampoJSON(campo) {
-      if (!campo) return { status: "pendente" };
-      if (typeof campo === "string") {
-        try {
-          const parsed = JSON.parse(campo);
-          return { ...parsed, status: parsed.status?.toLowerCase() || "pendente" };
-        } catch {
-          return { status: campo.toLowerCase() };
+//     function normalizarPedido(p) {
+//       return {
+//         ...p,
+//         statuscaixinha: normalizarCampoJSON(p.statuscaixinha),
+//         statusajustecusto: normalizarCampoJSON(p.statusajustecusto),
+//         statusdiariadobrada: normalizarCampoJSON(p.statusdiariadobrada),
+//         statusmeiadiaria: normalizarCampoJSON(p.statusmeiadiaria)
+//       };
+//     }
+
+//     // Mapeia todos os pedidos
+//     let pedidosProcessados = resposta.map(p => normalizarPedido(preencherSolicitante(p)));
+
+//     if (ehMasterStaff) {
+//       console.log("✅ Usuário é MASTER → vendo todos os pedidos.");
+//       pedidosProcessados = pedidosProcessados
+//         .filter(p => String(p.solicitante) === String(idusuario)) // ⬅️ ESTE É O FILTRO!
+//         .map(p => ({ ...p, ehMasterStaff: false }));
+//      // console.log("PEDIDOS PROCESSADOS", pedidosProcessados);
+//     } else {
+//     // Usuário comum → vê apenas os próprios pedidos
+//       pedidosProcessados = pedidosProcessados
+//       .filter(p => String(p.solicitante) === String(idusuario))
+//       .map(p => ({ ...p, ehMasterStaff: false }));
+//     //  console.log("👤 Usuário comum → pedidos do próprio usuário:", pedidosProcessados);
+//     }
+
+//     return pedidosProcessados;
+
+//   } catch (err) {
+//   console.error("Erro na requisição de pedidos:", err);
+//   return [];
+//   }
+// }
+
+
+async function buscarPedidosUsuario() {
+    const idusuario = getIdExecutor(); // pega do token
+    try {
+        const resposta = await fetchComToken(`/main/notificacoes-financeiras`, {
+            headers: { idempresa: getIdEmpresa() }
+        });  
+        
+        // 1. CHECAGEM DE PERMISSÃO
+        const podeVerTodos = podeVisualizarTudo(); 
+        const ehMasterStaff = usuarioTemPermissao(); 
+        
+        console.log("Usuário é Master (Aprovar)?", ehMasterStaff);
+        console.log("Usuário pode ver todos os pedidos?", podeVerTodos); 
+
+        if (!resposta || !Array.isArray(resposta)) {
+            console.error("Resposta inválida ou não é um array:", resposta);
+            return [];
         }
-      }
-      if (typeof campo === "object") {
-        return { ...campo, status: campo.status?.toLowerCase() || "pendente" };
-      }
-      return { status: "pendente" };
+
+        // --- Funções de Normalização (Mantidas) ---
+        function preencherSolicitante(p) {
+            return {
+                ...p,
+                solicitante_nome: p.nomeSolicitante || p.solicitante_nome || (String(p.solicitante) === String(idusuario) ? "Você" : "Solicitante desconhecido")
+            };
+        }
+
+        function normalizarCampoJSON(campo) {
+            if (!campo) return { status: "pendente" };
+            if (typeof campo === "string") {
+                try {
+                    const parsed = JSON.parse(campo);
+                    return { ...parsed, status: parsed.status?.toLowerCase() || "pendente" };
+                } catch {
+                    return { status: campo.toLowerCase() };
+                }
+            }
+            if (typeof campo === "object") {
+                return { ...campo, status: campo.status?.toLowerCase() || "pendente" };
+            }
+            return { status: "pendente" };
+        }
+
+        function normalizarPedido(p) {
+            return {
+                ...p,
+                statuscaixinha: normalizarCampoJSON(p.statuscaixinha),
+                statusajustecusto: normalizarCampoJSON(p.statusajustecusto),
+                statusdiariadobrada: normalizarCampoJSON(p.statusdiariadobrada),
+                statusmeiadiaria: normalizarCampoJSON(p.statusmeiadiaria)
+            };
+        }
+        // --- Fim das Funções de Normalização ---
+
+        let pedidosProcessados = resposta.map(p => normalizarPedido(preencherSolicitante(p)));
+
+        // 2. APLICAÇÃO DA LÓGICA DE VISUALIZAÇÃO
+        if (podeVerTodos) { 
+            console.log("✅ Usuário tem Visualização Total (Master/Financeiro) → Retornando todos os pedidos.");
+            
+            // APENAS mapeia as flags, SEM FILTRO
+            pedidosProcessados = pedidosProcessados.map(p => ({ 
+                ...p, 
+                ehMasterStaff: ehMasterStaff, // True se Master (para botões)
+                podeVerTodos: true 
+            }));
+        } else {
+            console.log("👤 Usuário comum → Vendo apenas os próprios pedidos.");
+            // Usuário comum → aplica o filtro
+            pedidosProcessados = pedidosProcessados
+                .filter(p => String(p.solicitante) === String(idusuario)) // APLICAÇÃO DO FILTRO
+                .map(p => ({ 
+                    ...p, 
+                    ehMasterStaff: false,
+                    podeVerTodos: false
+                }));
+        }
+
+        return pedidosProcessados;
+
+    } catch (err) {
+        console.error("Erro na requisição de pedidos:", err);
+        return [];
     }
-
-    function normalizarPedido(p) {
-      return {
-        ...p,
-        statuscaixinha: normalizarCampoJSON(p.statuscaixinha),
-        statusajustecusto: normalizarCampoJSON(p.statusajustecusto),
-        statusdiariadobrada: normalizarCampoJSON(p.statusdiariadobrada),
-        statusmeiadiaria: normalizarCampoJSON(p.statusmeiadiaria)
-      };
-    }
-
-    // Mapeia todos os pedidos
-    let pedidosProcessados = resposta.map(p => normalizarPedido(preencherSolicitante(p)));
-
-    if (ehMasterStaff) {
-      console.log("✅ Usuário é MASTER → vendo todos os pedidos.");
-      pedidosProcessados = pedidosProcessados.map(p => ({ ...p, ehMasterStaff: true }));
-     // console.log("PEDIDOS PROCESSADOS", pedidosProcessados);
-    } else {
-    // Usuário comum → vê apenas os próprios pedidos
-      pedidosProcessados = pedidosProcessados
-      .filter(p => String(p.solicitante) === String(idusuario))
-      .map(p => ({ ...p, ehMasterStaff: false }));
-    //  console.log("👤 Usuário comum → pedidos do próprio usuário:", pedidosProcessados);
-    }
-
-    return pedidosProcessados;
-
-  } catch (err) {
-  console.error("Erro na requisição de pedidos:", err);
-  return [];
-  }
 }
-
-
 /**
  * Exibe um indicador de carregamento (loader) no card.
  * (Exemplo simplificado, você pode usar a sua implementação existente).
@@ -2784,9 +3457,6 @@ function mostrarLoader(element) {
         // Encontra o botão de aprovação ou adiciona uma classe de carregamento ao card
         const btn = element.querySelector('.btn-aprovar');
         if (btn) btn.disabled = true;
-
-        // Idealmente, você adiciona um spinner aqui
-        // Ex: element.innerHTML += '<div class="loader-spinner">...</div>';
     }
 }
 
@@ -2799,9 +3469,6 @@ function ocultarLoader(element) {
         // Encontra o botão de aprovação e reabilita
         const btn = element.querySelector('.btn-aprovar');
         if (btn) btn.disabled = false;
-
-        // Remove o spinner, se tiver sido adicionado
-        // Ex: element.querySelector('.loader-spinner')?.remove();
     }
 }
 
@@ -2841,44 +3508,44 @@ async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, cardEleme
         mostrarLoader(cardElement); // Função presumida para mostrar um indicador de carregamento
 
         console.log(`Atualizando AditivoExtra ID ${idAditivoExtra} para status: ${novoStatus}`);
-        
+
         // ⚠️ Rota no backend que você precisa criar ou usar, ex: POST /main/aditivoextra/status
         const url = `/main/aditivoextra/${idAditivoExtra}/status`; 
         const novoStatusCapitalizado = novoStatus.charAt(0).toUpperCase() + novoStatus.slice(1);
         const response = await fetchComToken(url, {
-            // 💡 CORREÇÃO 2: Mudar o método para PATCH
-            method: 'PATCH', 
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                // 💡 CORREÇÃO 3: Enviar apenas os dados que o body do backend espera
-                novoStatus: novoStatusCapitalizado
+      // 💡 CORREÇÃO 2: Mudar o método para PATCH
+      method: 'PATCH', 
+      headers: {
+          'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+          // 💡 CORREÇÃO 3: Enviar apenas os dados que o body do backend espera
+          novoStatus: novoStatusCapitalizado
      
-            })
+      })
         });
 
         ocultarLoader(cardElement);
 
         if (response.sucesso) {
-            Swal.fire({
-                title: 'Sucesso!',
-                text: `Solicitação ${novoStatus} com sucesso!`,
-                icon: 'success',
-                timer: 3000, // Opcional: fecha a mensagem automaticamente após 3 segundos
-                showConfirmButton: false
-            });
-            
-            // Recarregar a lista ou remover o card (depende da sua lógica)
-            // 💡 RECOMENDAÇÃO: Chame a função principal de renderização para recarregar o painel
-            await mostrarPedidosUsuario(); 
+      Swal.fire({
+          title: 'Sucesso!',
+          text: `Solicitação ${novoStatus} com sucesso!`,
+          icon: 'success',
+          timer: 3000, // Opcional: fecha a mensagem automaticamente após 3 segundos
+          showConfirmButton: false
+      });
+
+      // Recarregar a lista ou remover o card (depende da sua lógica)
+      // 💡 RECOMENDAÇÃO: Chame a função principal de renderização para recarregar o painel
+      await mostrarPedidosUsuario(); 
         } else {
-            Swal.fire({
-                title: 'Erro!',
-                text: `Erro ao <strong>${statusMensagem}</strong> a solicitação: ${response.erro || 'Erro desconhecido.'}`,
-                icon: 'error'
-            });
-            console.error(`Falha ao atualizar AditivoExtra ${idAditivoExtra}:`, response);
+      Swal.fire({
+          title: 'Erro!',
+          text: `Erro ao <strong>${statusMensagem}</strong> a solicitação: ${response.erro || 'Erro desconhecido.'}`,
+          icon: 'error'
+      });
+      console.error(`Falha ao atualizar AditivoExtra ${idAditivoExtra}:`, response);
         }
 
     } catch (err) {
@@ -2895,15 +3562,15 @@ async function buscarAditivoExtraCompleto() {
         // Altere a URL para a rota que busca todos os status
         const url = '/main/aditivoextra'; 
         const resposta = await fetchComToken(url);
-        
+
         if (resposta && resposta.sucesso && Array.isArray(resposta.dados)) {
-            //console.log(`✅ Sucesso! ${resposta.dados.length} solicitações Aditivo/Extra carregadas.`);
-            return resposta.dados; 
+      //console.log(`✅ Sucesso! ${resposta.dados.length} solicitações Aditivo/Extra carregadas.`);
+      return resposta.dados; 
         }
-        
+
         console.error("❌Erro ao buscar AditivoExtra completo:", resposta?.erro || 'Resposta inválida do servidor.');
         return [];
-        
+
     } catch (err) {
         console.error("🔥Erro de rede/conexão ao buscar AditivoExtra:", err);
         return [];
@@ -2922,93 +3589,95 @@ async function mostrarPedidosUsuario() {
     
         // 1. CHAMA AS DUAS FUNÇÕES DE BUSCA EM PARALELO
         const [pedidosPadrao, aditivosExtras] = await Promise.all([
-            buscarPedidosUsuario(),
-            buscarAditivoExtraCompleto()
+      buscarPedidosUsuario(),
+      buscarAditivoExtraCompleto()
         ]);
 
         // 2. NORMALIZA E UNE OS DADOS
         let pedidosUnificados = [...pedidosPadrao];
 
         aditivosExtras.forEach(ae => {
-            const nomeFuncionarioAjustado = ae.nomefuncionario; 
-            const solicitanteAjustado = ae.nomesolicitante;
-            // ATENÇÃO: Assumo que STATUS_PENDENTE e CAMPO_ADITIVO_EXTRA estão definidos globalmente
-            const statusPadrao = typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente';
-            const pedidoAditivo = {
-                funcionario: nomeFuncionarioAjustado, 
-                nomeSolicitante: solicitanteAjustado,
-                evento: ae.evento,
-                nmfuncao: ae.funcao || null,
-                idpedido: ae.idaditivoextra, 
-                ehMasterStaff: ae.ehMasterStaff, 
-                dtCriacao: ae.criado_em, 
-                [CAMPO_ADITIVO_EXTRA]: {
-                    idfuncionario: ae.idfuncionario,
-                    status: (ae.status || ae.Status || statusPadrao).toLowerCase(),
-                    tipoSolicitacao: ae.tipoSolicitacao || ae.tiposolicitacao || 'N/A',
-                    descricao: ae.justificativa, 
-                    quantidade: ae.qtdsolicitada,
-                    
-                }
-            };
-            pedidosUnificados.push(pedidoAditivo);
+      const nomeFuncionarioAjustado = ae.nomefuncionario; 
+      const solicitanteAjustado = ae.nomesolicitante;
+      // ATENÇÃO: Assumo que STATUS_PENDENTE e CAMPO_ADITIVO_EXTRA estão definidos globalmente
+      const statusPadrao = typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente';
+      const pedidoAditivo = {
+          funcionario: nomeFuncionarioAjustado, 
+          nomeSolicitante: solicitanteAjustado,
+          evento: ae.evento,
+          nmfuncao: ae.funcao || null,
+          idpedido: ae.idaditivoextra, 
+          ehMasterStaff: ae.ehMasterStaff,
+          podeVerTodos: ae.podeVerTodos, 
+          solicitante: ae.idusuariosolicitante, 
+          dtCriacao: ae.criado_em, 
+          [CAMPO_ADITIVO_EXTRA]: {
+        idfuncionario: ae.idfuncionario,
+        status: (ae.status || ae.Status || statusPadrao).toLowerCase(),
+        tipoSolicitacao: ae.tipoSolicitacao || ae.tiposolicitacao || 'N/A',
+        descricao: ae.justificativa, 
+        quantidade: ae.qtdsolicitada,
+          
+          }
+      };
+      pedidosUnificados.push(pedidoAditivo);
         });
 
         // 3. ORDENAÇÃO E REMOÇÃO DE DUPLICADOS
         pedidosUnificados.sort((a, b) => {
-            const timeA = new Date(a.dtCriacao).getTime();
-            const timeB = new Date(b.dtCriacao).getTime();
-            return isNaN(timeB) ? 1 : isNaN(timeA) ? -1 : timeB - timeA;
+      const timeA = new Date(a.dtCriacao).getTime();
+      const timeB = new Date(b.dtCriacao).getTime();
+      return isNaN(timeB) ? 1 : isNaN(timeA) ? -1 : timeB - timeA;
         });
 
         const vistos = new Set();
         let pedidos = pedidosUnificados.filter(p => {
-            const aditivoTipo = p[CAMPO_ADITIVO_EXTRA]?.tipoSolicitacao || "";
-            const idUnicoAditivo = p[CAMPO_ADITIVO_EXTRA] ? p.idpedido : "";
-            const chave =
-                `${p.funcionario || ""}|${p.evento || ""}|${p.statusajustecusto?.valor || ""}|${p.statuscaixinha?.valor || ""}|${idUnicoAditivo}|${aditivoTipo}`;
-            
-            if (vistos.has(chave)) return false;
-            vistos.add(chave);
-            return true;
+      const aditivoTipo = p[CAMPO_ADITIVO_EXTRA]?.tipoSolicitacao || "";
+      const idUnicoAditivo = p[CAMPO_ADITIVO_EXTRA] ? p.idpedido : "";
+      const chave =
+          `${p.funcionario || ""}|${p.evento || ""}|${p.statusajustecusto?.valor || ""}|${p.statuscaixinha?.valor || ""}|${idUnicoAditivo}|${aditivoTipo}`;
+        
+      if (vistos.has(chave)) return false;
+      vistos.add(chave);
+      return true;
         });
 
 
         if (!pedidos.length) {
-            lista.innerHTML = `<div class="titulo-pedidos">Pedidos e Solicitações</div><p>Não há pedidos ou solicitações registradas.</p>`;
-            return;
+      lista.innerHTML = `<div class="titulo-pedidos">Pedidos e Solicitações</div><p>Não há pedidos ou solicitações registradas.</p>`;
+      return;
         }
 
-        
+
 
         // 4. SEPARAÇÃO EM CATEGORIAS
         const pedidosFuncionarios = [];
         const pedidosFuncoes = [];
 
         const camposPadrao = [
-            "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada"
+      "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada"
         ];
 
         pedidos.forEach(p => {
-            const ehAditivoExtra = !!p[CAMPO_ADITIVO_EXTRA];
-            const ehPedidoPadrao = camposPadrao.some(campo => p[campo] && (p[campo].status || p[campo].valor !== undefined));
-            
-            const aditivoInfo = p[CAMPO_ADITIVO_EXTRA];
-            const temIdFuncionario = ehAditivoExtra && !!aditivoInfo.idfuncionario && aditivoInfo.idfuncionario !== 0;
+      const ehAditivoExtra = !!p[CAMPO_ADITIVO_EXTRA];
+      const ehPedidoPadrao = camposPadrao.some(campo => p[campo] && (p[campo].status || p[campo].valor !== undefined));
+        
+      const aditivoInfo = p[CAMPO_ADITIVO_EXTRA];
+      const temIdFuncionario = ehAditivoExtra && !!aditivoInfo.idfuncionario && aditivoInfo.idfuncionario !== 0;
 
-            // Pedidos Funcionários: Pedido Padrão OU AditivoExtra COM idFuncionario
-            if (ehPedidoPadrao || temIdFuncionario) {
-                if (!pedidosFuncionarios.includes(p)) {
-                    pedidosFuncionarios.push(p);
-                }
-            }
+      // Pedidos Funcionários: Pedido Padrão OU AditivoExtra COM idFuncionario
+      if (ehPedidoPadrao || temIdFuncionario) {
+          if (!pedidosFuncionarios.includes(p)) {
+        pedidosFuncionarios.push(p);
+          }
+      }
 
-            // Pedidos Funções: AditivoExtra SEM idFuncionario (Correção aqui: Removemos a restrição por tipo)
-            if (ehAditivoExtra && !temIdFuncionario) {
-                if (!pedidosFuncoes.includes(p)) {
-                    pedidosFuncoes.push(p);
-                }
-            }
+      // Pedidos Funções: AditivoExtra SEM idFuncionario (Correção aqui: Removemos a restrição por tipo)
+      if (ehAditivoExtra && !temIdFuncionario) {
+          if (!pedidosFuncoes.includes(p)) {
+        pedidosFuncoes.push(p);
+          }
+      }
         });
 
         const pedidosFuncionariosUnicos = Array.from(new Set(pedidosFuncionarios));
@@ -3016,83 +3685,79 @@ async function mostrarPedidosUsuario() {
 
         // --- ESTRUTURA DE TABS (Funcionários/Funções) ---
         const tabsHTML = `
-            <div class="titulo-pedidos">Pedidos e Solicitações</div>
-            <div class="tabs-container-wrapper">
-                <div class="abas-principais">
-                    <button class="aba main-tab-btn ativa" 
-                        data-tab-content="tab-content-funcionarios" data-categoria="funcionario">
-                        Funcionários (${pedidosFuncionariosUnicos.length})
-                    </button>
-                    <button class="aba main-tab-btn" 
-                        data-tab-content="tab-content-funcoes" data-categoria="funcao">
-                        Funções (${pedidosFuncoesUnicos.length})
-                    </button>
-                </div>
-                <div id="tab-content-funcionarios" class="painel-tabs ativo">
-                    <p class="mt-3">Clique na aba 'Funcionários' ou 'Funções' para ver os pedidos.</p>
-                </div>
-                <div id="tab-content-funcoes" class="painel-tabs desativado">
-                    <p class="mt-3">Clique na aba 'Funcionários' ou 'Funções' para ver os pedidos.</p>
-                </div>
-            </div>
+      <div class="titulo-pedidos">Pedidos e Solicitações</div>
+      <div class="tabs-container-wrapper">
+          <div class="abas-principais">
+        <button class="aba main-tab-btn ativa" 
+      data-tab-content="tab-content-funcionarios" data-categoria="funcionario">
+      Funcionários (${pedidosFuncionariosUnicos.length})
+        </button>
+        <button class="aba main-tab-btn" 
+      data-tab-content="tab-content-funcoes" data-categoria="funcao">
+      Funções (${pedidosFuncoesUnicos.length})
+        </button>
+          </div>
+          <div id="tab-content-funcionarios" class="painel-tabs ativo">
+        <p class="mt-3">Clique na aba 'Funcionários' ou 'Funções' para ver os pedidos.</p>
+          </div>
+          <div id="tab-content-funcoes" class="painel-tabs desativado">
+        <p class="mt-3">Clique na aba 'Funcionários' ou 'Funções' para ver os pedidos.</p>
+          </div>
+      </div>
         `;
 
         lista.innerHTML = tabsHTML; 
 
         // 5. Listener para as tabs principais
         document.querySelectorAll('.abas-principais .main-tab-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                const targetId = this.getAttribute('data-tab-content');
-                const categoria = this.getAttribute('data-categoria');
-                const abasPrincipaisContainer = document.querySelector('.abas-principais'); 
-            
-                // 1. Alterna o estilo da aba principal:
-                document.querySelectorAll('.abas-principais .main-tab-btn').forEach(btn => {
-                    btn.classList.remove('ativa');
-                    btn.classList.remove('desativada'); 
-                });
-                this.classList.add('ativa');
+      button.addEventListener('click', function() {
+          const targetId = this.getAttribute('data-tab-content');
+          const categoria = this.getAttribute('data-categoria');
+          const abasPrincipaisContainer = document.querySelector('.abas-principais'); 
+      
+          // 1. Alterna o estilo da aba principal:
+          document.querySelectorAll('.abas-principais .main-tab-btn').forEach(btn => {
+        btn.classList.remove('ativa');
+        btn.classList.remove('desativada'); 
+          });
+          this.classList.add('ativa');
 
-                // 2. Oculta o container das ABAS PRINCIPAIS (Funcionários/Funções)
-                if (abasPrincipaisContainer) {
-                    abasPrincipaisContainer.style.display = 'none';
-                }
+          // 2. Oculta o container das ABAS PRINCIPAIS (Funcionários/Funções)
+          if (abasPrincipaisContainer) {
+        abasPrincipaisContainer.style.display = 'none';
+          }
 
-                // 3. Alterna a visibilidade do conteúdo principal
-                document.querySelectorAll('.painel-tabs').forEach(content => content.classList.remove('ativo'));
-                document.querySelectorAll('.painel-tabs').forEach(content => content.classList.add('desativado'));
+          // 3. Alterna a visibilidade do conteúdo principal
+          document.querySelectorAll('.painel-tabs').forEach(content => content.classList.remove('ativo'));
+          document.querySelectorAll('.painel-tabs').forEach(content => content.classList.add('desativado'));
 
-                const targetContent = document.getElementById(targetId);
-                targetContent.classList.add('ativo');
-                targetContent.classList.remove('desativado');
+          const targetContent = document.getElementById(targetId);
+          targetContent.classList.add('ativo');
+          targetContent.classList.remove('desativado');
 
-                // 4. CHAMA A FUNÇÃO para carregar as sub-abas E simula o clique em "Pendentes"
-                const listaPedidos = categoria === 'funcionario' ? pedidosFuncionariosUnicos : pedidosFuncoesUnicos;
-                carregarSubAbas(targetContent, categoria, listaPedidos);
-            });
+          // 4. CHAMA A FUNÇÃO para carregar as sub-abas E simula o clique em "Pendentes"
+          const listaPedidos = categoria === 'funcionario' ? pedidosFuncionariosUnicos : pedidosFuncoesUnicos;
+          carregarSubAbas(targetContent, categoria, listaPedidos);
+      });
         });
 
         // 6. Delegação de Eventos para as sub-abas (CORREÇÃO DE ESCOPO)
         lista.addEventListener('click', function(event) {
-            const button = event.target.closest('.sub-tab-btn');
-            if (button) {
-                const status = button.getAttribute('data-status');
-                const categoria = button.getAttribute('data-categoria');
-                const listContainerId = button.getAttribute('data-list-id');
-                // NOTA: O mainContentId não é mais usado para a limpeza, mas é necessário para o renderizarPedidos
-                const mainContentId = `tab-content-${categoria}`; 
+      const button = event.target.closest('.sub-tab-btn');
+      if (button) {
+          const status = button.getAttribute('data-status');
+          const categoria = button.getAttribute('data-categoria');
+          const listContainerId = button.getAttribute('data-list-id');
+          // NOTA: O mainContentId não é mais usado para a limpeza, mas é necessário para o renderizarPedidos
+          const mainContentId = `tab-content-${categoria}`; 
 
-                // 1. Alterna o estilo da sub-aba:
-                document.querySelectorAll(`.sub-abas-pedidos[data-categoria="${categoria}"] .sub-tab-btn`).forEach(btn => {
-                    btn.classList.remove('ativa');
-                    //btn.classList.remove('desativada'); 
-                });
-                button.classList.add('ativa');
+          // 1. Alterna o estilo da sub-aba:
+          document.querySelectorAll(`.sub-abas-pedidos[data-categoria="${categoria}"] .sub-tab-btn`).forEach(btn => {
+        btn.classList.remove('ativa');
+        //btn.classList.remove('desativada'); 
+          });
+          button.classList.add('ativa');
 
-
-                // 2. 🌟 PASSO CRÍTICO: Oculta TODOS os containers de lista. 
-                // USAMOS 'lista' (#painelDetalhes) COMO RAIZ PARA TER CERTEZA DE QUE PEGAMOS TODOS,
-                // INCLUINDO AQUELES INSERIDOS ACIDENTALMENTE FORA DO mainContent.
                 lista.querySelectorAll('.pedidos-list-container').forEach(container => {
                     container.classList.add('hidden'); 
                     
@@ -3101,8 +3766,6 @@ async function mostrarPedidosUsuario() {
                     container.style.visibility = 'hidden'; 
                     container.style.height = '0'; 
                 });
-                
-
                 // 3. Mostra APENAS o container do status clicado
                 const targetContainer = document.getElementById(listContainerId);
                 if (targetContainer) {
@@ -3114,47 +3777,46 @@ async function mostrarPedidosUsuario() {
                     targetContainer.style.display = 'flex'; // Use 'flex', 'block' ou 'grid' conforme seu CSS
                 }
 
-
-                // 4. Renderiza o conteúdo filtrado
-                const listaPedidos = categoria === 'funcionario' ? pedidosFuncionariosUnicos : pedidosFuncoesUnicos;
-                renderizarPedidos(listaPedidos, listContainerId, categoria, status, podeAprovar);
-            }
+          // 4. Renderiza o conteúdo filtrado
+          const listaPedidos = categoria === 'funcionario' ? pedidosFuncionariosUnicos : pedidosFuncoesUnicos;
+          renderizarPedidos(listaPedidos, listContainerId, categoria, status, podeAprovar);
+      }
         });
 
         // 7. Delegação de Eventos para o botão "Voltar"
         lista.addEventListener('click', function(event) {
-            const backButton = event.target.closest('.btn-voltar-main-tabs');
-            if (backButton) {
-                const abasPrincipaisContainer = document.querySelector('.abas-principais');
-            
-                // Oculta o conteúdo atual e volta para a mensagem inicial
-                const activeTabContent = backButton.closest('.painel-tabs.ativo');
-            
-                if(activeTabContent) {
-                    // Limpa o conteúdo (remove Pendentes/Autorizados/Rejeitados)
-                    const categoriaAtual = activeTabContent.id.includes('funcionarios') ? 'Funcionários' : 'Funções';
-                    activeTabContent.innerHTML = `<p class="mt-3">Clique na aba '${categoriaAtual}' para ver os pedidos.</p>`;
-                
-                    // Oculta o painel de conteúdo
-                    activeTabContent.classList.remove('ativo');
-                    activeTabContent.classList.add('desativado');
-                }
+      const backButton = event.target.closest('.btn-voltar-main-tabs');
+      if (backButton) {
+          const abasPrincipaisContainer = document.querySelector('.abas-principais');
+      
+          // Oculta o conteúdo atual e volta para a mensagem inicial
+          const activeTabContent = backButton.closest('.painel-tabs.ativo');
+      
+          if(activeTabContent) {
+        // Limpa o conteúdo (remove Pendentes/Autorizados/Rejeitados)
+        const categoriaAtual = activeTabContent.id.includes('funcionarios') ? 'Funcionários' : 'Funções';
+        activeTabContent.innerHTML = `<p class="mt-3">Clique na aba '${categoriaAtual}' para ver os pedidos.</p>`;
+          
+        // Oculta o painel de conteúdo
+        activeTabContent.classList.remove('ativo');
+        activeTabContent.classList.add('desativado');
+          }
 
-                // Torna visível o container das ABAS PRINCIPAIS (Funcionários/Funções)
-                if (abasPrincipaisContainer) {
-                    abasPrincipaisContainer.style.display = 'flex'; 
-                }
+          // Torna visível o container das ABAS PRINCIPAIS (Funcionários/Funções)
+          if (abasPrincipaisContainer) {
+        abasPrincipaisContainer.style.display = 'flex'; 
+          }
 
-                // Reativa o painel de conteúdo da aba que estava ativa (Funcionários ou Funções)
-                const activeMainTabButton = document.querySelector('.abas-principais .main-tab-btn.ativa');
-                if (activeMainTabButton) {
-                    const targetContent = document.getElementById(activeMainTabButton.getAttribute('data-tab-content'));
-                    if (targetContent) {
-                        targetContent.classList.add('ativo');
-                        targetContent.classList.remove('desativado');
-                    }
-                }
-            }
+          // Reativa o painel de conteúdo da aba que estava ativa (Funcionários ou Funções)
+          const activeMainTabButton = document.querySelector('.abas-principais .main-tab-btn.ativa');
+          if (activeMainTabButton) {
+        const targetContent = document.getElementById(activeMainTabButton.getAttribute('data-tab-content'));
+        if (targetContent) {
+      targetContent.classList.add('ativo');
+      targetContent.classList.remove('desativado');
+        }
+          }
+      }
         });
 
     } catch (err) {
@@ -3163,11 +3825,6 @@ async function mostrarPedidosUsuario() {
     }
 }
 
-
-/**
- * NOVO: Função que carrega as sub-abas (Pendentes/Autorizados/Rejeitados)
- * APENAS quando a aba principal (Funcionários/Funções) é clicada.
- */
 function carregarSubAbas(targetContent, categoria, pedidos) {
     const listContainerIdBase = categoria === 'funcionario' ? "funcionarios-list" : "funcoes-list";
     
@@ -3191,9 +3848,6 @@ function carregarSubAbas(targetContent, categoria, pedidos) {
 }
 
 
-/**
- * Função auxiliar para criar a estrutura das sub-tabs (Pendentes/Autorizados/Rejeitados).
- */
 function criarSubTabsHTML(listContainerIdBase, categoria, pedidos) {
     const statuses = [
         { status: STATUS_PENDENTE, label: "Pendentes" },
@@ -3214,433 +3868,78 @@ function criarSubTabsHTML(listContainerIdBase, categoria, pedidos) {
         let isAuthorized = false;
         let isPending = false;
         camposTodos.forEach(campo => {
-            const info = p[campo];
-            if (!info) return;
-            
-            const statusItem = (info.status || STATUS_PENDENTE).toLowerCase();
-            const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
-            
-            // Lógica de filtragem mais robusta para contagem (semelhante à do renderizarPedidos)
-            let deveContar = false;
-            if (isAditivoExtra) {
-                // Para AditivoExtra, a contagem depende da categoria (Funcionário ou Função)
-                const temIdFuncionario = !!info.idfuncionario && info.idfuncionario !== 0;
-                if (categoria === 'funcionario' && temIdFuncionario) {
-                    deveContar = true;
-                } else if (categoria === 'funcao' && !temIdFuncionario) {
-                    deveContar = true;
-                }
-            } else if (categoria === 'funcionario' && (info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao || info.status)) {
-                // Pedidos padrão só entram em Funcionário
-                deveContar = true;
-            }
+      const info = p[campo];
+      if (!info) return;
+        
+      const statusItem = (info.status || STATUS_PENDENTE).toLowerCase();
+      const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
+        
+      // Lógica de filtragem mais robusta para contagem (semelhante à do renderizarPedidos)
+      let deveContar = false;
+      if (isAditivoExtra) {
+          // Para AditivoExtra, a contagem depende da categoria (Funcionário ou Função)
+          const temIdFuncionario = !!info.idfuncionario && info.idfuncionario !== 0;
+          if (categoria === 'funcionario' && temIdFuncionario) {
+        deveContar = true;
+          } else if (categoria === 'funcao' && !temIdFuncionario) {
+        deveContar = true;
+          }
+      } else if (categoria === 'funcionario' && (info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao || info.status)) {
+          // Pedidos padrão só entram em Funcionário
+          deveContar = true;
+      }
 
-            // if (deveContar && contagens[statusItem] !== undefined) {
-            //     contagens[statusItem]++;
-            // }
+      // if (deveContar && contagens[statusItem] !== undefined) {
+      //     contagens[statusItem]++;
+      // }
 
-            if (deveContar) {
-                if (statusItem === STATUS_REJEITADO) isRejected = true;
-                if (statusItem === STATUS_AUTORIZADO) isAuthorized = true;
-                if (statusItem === STATUS_PENDENTE) isPending = true;
-            }
+      if (deveContar) {
+          if (statusItem === STATUS_REJEITADO) isRejected = true;
+          if (statusItem === STATUS_AUTORIZADO) isAuthorized = true;
+          if (statusItem === STATUS_PENDENTE) isPending = true;
+      }
 
         });
         if (isRejected) {
-            contagens[STATUS_REJEITADO]++;
+      contagens[STATUS_REJEITADO]++;
         } else if (isAuthorized) {
-            contagens[STATUS_AUTORIZADO]++;
+      contagens[STATUS_AUTORIZADO]++;
         } else if (isPending) {
-            contagens[STATUS_PENDENTE]++;
+      contagens[STATUS_PENDENTE]++;
         }
     });
 
     // Geração dos Botões de Sub-Abas
     const tabButtons = statuses.map(s => `
         <button class="aba sub-tab-btn ${s.status === STATUS_PENDENTE ? 'ativa' : ''}" 
-            data-status="${s.status}" data-categoria="${categoria}" data-list-id="${listContainerIdBase}-${s.status}">
-            ${s.label} (<span id="${listContainerIdBase}-count-${s.status}">${contagens[s.status]}</span>)
+      data-status="${s.status}" data-categoria="${categoria}" data-list-id="${listContainerIdBase}-${s.status}">
+      ${s.label} (<span id="${listContainerIdBase}-count-${s.status}">${contagens[s.status]}</span>)
         </button>
     `).join('');
 
     // Conteúdo das Sub-Abas
     const tabContents = statuses.map(s => `
         <div id="${listContainerIdBase}-${s.status}" class="pedidos-list-container ${s.status === STATUS_PENDENTE ? '' : 'hidden'}">
-            <p class="mt-2 text-sm text-gray-500">Carregando lista de pedidos ${s.label.toLowerCase()}...</p>
+      <p class="mt-2 text-sm text-gray-500">Carregando lista de pedidos ${s.label.toLowerCase()}...</p>
         </div>
     `).join('');
 
     // ESTRUTURA PRINCIPAL DO CONTEÚDO (INCLUI BOTÃO VOLTAR)
     return `
         <button class="btn-voltar-main-tabs" type="button">
-            <i class="fas fa-arrow-left"></i> Voltar para Pedidos e Solicitações
+      <i class="fas fa-arrow-left"></i> Voltar para Pedidos e Solicitações
         </button>
-        
+
         <div class="sub-tab-view">
-            <div class="sub-abas-pedidos" data-categoria="${categoria}">
-                ${tabButtons}
-            </div>
-            <div class="sub-tabs-content">
-                ${tabContents}
-            </div>
+      <div class="sub-abas-pedidos" data-categoria="${categoria}">
+          ${tabButtons}
+      </div>
+      <div class="sub-tabs-content">
+          ${tabContents}
+      </div>
         </div>
     `;
 }
-/**
- * Renderiza o conteúdo (cards de pedidos) filtrado dentro de um container específico.
- * Usa as classes de CSS do usuário (.funcionario, .funcionario-header, .pedido-card).
- */
-
-// function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
-//     const container = document.getElementById(containerId);
-//     if (!container) return;
-
-//     // 🌟 CORREÇÃO CRUCIAL: Limpa imediatamente o container visualmente e dá feedback.
-//     container.innerHTML = '<p class="text-sm text-gray-500">Filtrando e carregando dados...</p>';
-    
-//     // Constantes (assumindo que estão definidas globalmente: STATUS_PENDENTE, CAMPO_ADITIVO_EXTRA, etc.)
-//     const camposTodos = [
-//         "statusajustecusto", 
-//         "statuscaixinha", 
-//         "statusmeiadiaria", 
-//         "statusdiariadobrada",
-//         CAMPO_ADITIVO_EXTRA
-//     ];
-    
-//     // 1. Agrupamento e Filtragem por Status
-//     const gruposMap = {};
-//     let totalItensRenderizados = 0; 
-
-//     pedidosCompletos.forEach(p => {
-//         let temItemComStatusDesejadoNoPedido = false;
-        
-//         // --- FILTRAGEM DE STATUS APLICADA AQUI ---
-//         const pedidoFiltradoPorStatus = { ...p };
-        
-//         camposTodos.forEach(campo => {
-//             const info = p[campo];
-//             if (!info) {
-//                 delete pedidoFiltradoPorStatus[campo];
-//                 return;
-//             }
-
-//             const statusItem = (info.status || STATUS_PENDENTE).toLowerCase();
-//             const temDadosRelevantes = info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao || info.tipoSolicitacao;
-            
-//             if (temDadosRelevantes && statusItem === statusDesejado) {
-//                 // Mantém o item no pedido filtrado
-//                 temItemComStatusDesejadoNoPedido = true;
-//             } else {
-//                 // Remove o item que não corresponde ao status desejado
-//                 delete pedidoFiltradoPorStatus[campo];
-//             }
-//         });
-        
-//         // Se após o filtro de status, o pedido ainda tiver pelo menos um item que corresponde ao status
-//         if (temItemComStatusDesejadoNoPedido) {
-
-//             // ============== INÍCIO DA CORREÇÃO DE FILTRAGEM DE CATEGORIA (Aditivo/Extra) ==============
-//             const aditivoExtra = pedidoFiltradoPorStatus[CAMPO_ADITIVO_EXTRA];
-            
-//             // Só aplicamos a regra de idfuncionario se o Aditivo/Extra estiver presente no pedido
-//             if (aditivoExtra) {
-//                 // Verifica a presença robusta do idfuncionario (ignora null, undefined, "" e 0)
-//                 const temIdFuncionario = !!aditivoExtra.idfuncionario && aditivoExtra.idfuncionario !== 0;
-
-//                 // 1. Filtro para a ABA FUNCIONÁRIO: SÓ entra se TIVER idfuncionario
-//                 if (categoria === 'funcionario' && !temIdFuncionario) {
-//                     // Pula este pedido (não deve aparecer em Funcionário)
-//                     return; 
-//                 }
-
-//                 // 2. Filtro para a ABA FUNÇÃO: SÓ entra se NÃO TIVER idfuncionario
-//                 if (categoria === 'funcao' && temIdFuncionario) {
-//                     // Pula este pedido (deve aparecer em Funcionário, não em Função)
-//                     return; 
-//                 }
-//             }
-//             // ============== FIM DA CORREÇÃO DE FILTRAGEM DE CATEGORIA ==============
-
-
-//             let chave;
-//             if (categoria === 'funcionario') {
-//                 chave = pedidoFiltradoPorStatus.funcionario;
-//             } else { // categoria === 'funcao'
-//                 // Agrupa por Tipo de Solicitação (ADITIVO, EXTRABONIFICADO, etc.)
-//                 const tipo = pedidoFiltradoPorStatus[CAMPO_ADITIVO_EXTRA]?.tipoSolicitacao || 'SOLICITAÇÃO DE FUNÇÃO';
-//                 chave = tipo;
-//             }
-            
-//             if (!gruposMap[chave]) gruposMap[chave] = [];
-//             // Adiciona a VERSÃO FILTRADA do pedido ao mapa
-//             gruposMap[chave].push(pedidoFiltradoPorStatus);
-//         }
-//     });
-//     // --- FIM DO AGRUPAMENTO E FILTRAGEM ---
-
-//     // 2. Ordenação dos Grupos (por data de criação)
-//     const chavesOrdenadas = Object.keys(gruposMap).sort((a, b) => {
-//         const pedidoA = gruposMap[a][0];
-//         const pedidoB = gruposMap[b][0];
-//         const timeA = new Date(pedidoA.dtCriacao).getTime();
-//         const timeB = new Date(pedidoB.dtCriacao).getTime();
-//         const isANaN = isNaN(timeA);
-//         if (isANaN) return 1;
-//         const isBNaN = isNaN(timeB);
-//         if (isBNaN) return -1;
-//         return timeB - timeA;
-//     });
-    
-//     // 3. Limpa o container novamente (remove a mensagem de 'Carregando')
-//     container.innerHTML = ""; 
-    
-//     if (chavesOrdenadas.length === 0) {
-//         const msg = document.createElement("p");
-//         msg.textContent = `Não há pedidos ou solicitações com status "${statusDesejado.charAt(0).toUpperCase() + statusDesejado.slice(1)}" nesta categoria.`;
-//         container.appendChild(msg);
-        
-//         // Atualiza a contagem da sub-aba (Badge)
-//         const countSpan = document.getElementById(`${containerId.split('-list-')[0]}-count-${statusDesejado}`);
-//         if (countSpan) {
-//             countSpan.textContent = 0;
-//         }
-//         return;
-//     }
-
-
-//     // 4. Cria o container principal com classe .lista-funcionarios
-//     const listaGrupos = document.createElement("div");
-//     listaGrupos.className = "lista-funcionarios"; 
-//     container.appendChild(listaGrupos);
-
-
-//     chavesOrdenadas.forEach(chaveNome => {
-//         // PedidosDoGrupo agora contêm apenas os itens que correspondem ao status
-//         const pedidosDoGrupo = gruposMap[chaveNome];
-        
-//         const divGrupo = document.createElement("div");
-//         divGrupo.className = "funcionario"; 
-
-//         const header = document.createElement("div");
-//         header.className = "funcionario-header"; 
-
-//         let tituloGrupo;
-//         let subtituloGrupo = '';
-//         let pedidosRenderizadosNoGrupo = 0;
-        
-//         if (categoria === 'funcionario') {
-//             tituloGrupo = chaveNome || "Funcionário Desconhecido";
-//             // Para Funcionário, o subtítulo é o Solicitante
-//             subtituloGrupo = `Solicitante: ${pedidosDoGrupo[0].nomeSolicitante || pedidosDoGrupo[0].solicitante_nome || "Você"}`;
-//         } else { // categoria === 'funcao'
-//             tituloGrupo = chaveNome || "Solicitação de Função Desconhecida";
-//             // Para Função/Tipo, mantemos o Solicitante no subtítulo (MELHORIA)
-//             subtituloGrupo = `Solicitante: ${pedidosDoGrupo[0].nomeSolicitante || pedidosDoGrupo[0].solicitante_nome || "Você"}`;
-//         }
-        
-//         const containerBody = document.createElement("div");
-//         containerBody.className = "funcionario-body hidden"; 
-        
-        
-//         // Renderização dos Cards
-//         pedidosDoGrupo.forEach(pedido => {
-//             camposTodos.forEach(campo => {
-//                 // Verifica o pedido filtrado (que só tem o campo se ele corresponder ao statusDesejado)
-//                 const info = pedido[campo]; 
-//                 if (!info) return;
-
-//                 const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
-//                 const valorAlterado = isAditivoExtra || (info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao);
-//                 if (!valorAlterado) return;
-                
-//                 const statusAtual = (info.status || STATUS_PENDENTE).toLowerCase();
-                
-//                 // Esta verificação é redundante após o filtro acima, mas garante a consistência
-//                 if (statusAtual !== statusDesejado) return; 
-
-//                 pedidosRenderizadosNoGrupo++; 
-//                 totalItensRenderizados++; 
-
-//                 // MUDANÇA: Formatar o status (sem o fallback "Pendente", pois o filtro garante que é o status correto)
-//                 const statusTextoFormatado = statusAtual.charAt(0).toUpperCase() + statusAtual.slice(1);
-                
-//                 const card = document.createElement("div");
-//                 card.className = "pedido-card"; 
-
-//                 let corQuadrado = "#facc15"; 
-//                 if (statusAtual === STATUS_AUTORIZADO) corQuadrado = "#16a34a"; 
-//                 if (statusAtual === STATUS_REJEITADO) corQuadrado = "#dc2626"; 
-
-//                 let tituloCard;
-//                 if (isAditivoExtra) {
-//                     const tipo = info.tipoSolicitacao;
-//                     if (tipo && tipo.toUpperCase() === 'FUNCEXCEDIDO') {
-//                         tituloCard = "Limite Diário Excedido por Função/Evento";
-//                     } else {
-//                         // O nome do tipo de solicitação (ADITIVO, EXTRABONIFICADO)
-//                         tituloCard = tipo;
-//                     }
-//                 } else {
-//                     tituloCard = campo.replace("status", "").replace(/([A-Z])/g, ' $1').trim();
-//                     tituloCard = tituloCard.charAt(0).toUpperCase() + tituloCard.slice(1);
-//                 }
-
-//                 let innerHTML = `<div>
-//                     <strong>${tituloCard}</strong><br>`;
-
-//                 // if (pedido.evento) {
-//                 //     innerHTML += `<strong>Evento:</strong> ${pedido.evento}<br>`;
-//                 // }correto e funcinonal                
-                
-//                 // Exibe o nome do funcionário dentro do card da aba 'Função' (o agrupamento é por tipo)
-//                 // if (categoria === 'funcao' && pedido.funcionario) {
-//                 //     innerHTML += `<small>Func.: ${pedido.funcionario}</small><br>`;
-//                 // }
-
-//                 if (pedido.evento) {
-                    
-//                     // Lógica para a ABA FUNCIONÁRIOS: Inclui o Funcionário (nome completo)
-//                     if (categoria === 'funcionario' && pedido.funcionario) {
-//                         // Certifica-se de que o nome do funcionário está disponível
-//                         innerHTML += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
-//                     } 
-                    
-//                     // Lógica para a ABA FUNÇÕES: Inclui a Função (Tipo de Solicitação)
-//                     else if (categoria === 'funcao' && isAditivoExtra) {
-//                         // O 'tipoSolicitacao' atua como o nome da Função/Tipo de solicitação no contexto de orçamento
-//                         const tipoSolicitacao = info.tipoSolicitacao || 'N/A';
-//                         innerHTML += `<strong>Evento:</strong> ${pedido.evento} - <strong>Função:</strong> ${pedido.nmfuncao}<br>`;
-//                     }
-                    
-//                     // Lógica de fallback para outros pedidos (ou pedidos padrão sem funcionário)
-//                     else {
-//                          innerHTML += `<strong>Evento:</strong> ${pedido.evento}<br>`;
-//                     }
-//                 }
-                
-//                 // Exibe o nome do funcionário dentro do card da aba 'Função' (se houver, para referência)
-//                 if (categoria === 'funcao' && pedido.funcionario) {
-//                     innerHTML += `<small>Func.: ${pedido.funcionario}</small><br>`;
-//                 }
-                
-//                 if (isAditivoExtra) {
-//                     if (info.quantidade) {
-//                         innerHTML += `Qtd. Solicitada: ${info.quantidade}<br>`;
-//                     }
-//                     innerHTML += `Status: <span class="status-text font-semibold"><strong>${statusTextoFormatado}</strong></span><br>`;
-//                 } else if (info.valor !== undefined) {
-//                     innerHTML += `Valor: R$ ${info.valor} - <span class="status-text font-semibold">${statusTextoFormatado}</span><br>`;
-//                 } else if (info.datas) {
-//                     innerHTML += `Datas: ${info.datas.map(d => d.data).join(", ")} - <span class="status-text font-semibold">${statusTextoFormatado}</span><br>`;
-//                 }
-
-//                 if (info.descricao) {
-//                     innerHTML += `Descrição: ${info.descricao}<br>`;
-//                 }
-
-//                 // Botões de Ação (APENAS para PENDENTES)
-//                 if (pedido.ehMasterStaff && statusAtual === STATUS_PENDENTE) {
-//                     innerHTML += `
-//                         <div class="flex gap-2 mt-2">
-//                             <button class="aprovar">Autorizar</button>
-//                             <button class="negar">Rejeitar</button>
-//                         </div>
-//                     `;
-//                 }
-
-//                 innerHTML += `</div>`;
-//                 // Indicador de status
-//                 innerHTML += `<div class="quadrado-arredondado" style="background-color: ${corQuadrado}; width: 15px; height: 15px; border-radius: 50%;" title="Status: ${statusTextoFormatado}"></div>`;
-
-//                 card.innerHTML = innerHTML;
-//                 containerBody.appendChild(card);
-
-//                 // Event Listeners (Apenas se for PENDENTE)
-//                 if (pedido.ehMasterStaff && statusAtual === STATUS_PENDENTE) {
-//                     const aprovarBtn = card.querySelector(".aprovar");
-//                     const negarBtn = card.querySelector(".negar");
-
-//                     const idReferencia = isAditivoExtra ? pedido.idpedido : pedido.idpedido;
-//                     if (!idReferencia) return; 
-
-//                     // ATENÇÃO: As funções de backend 'atualizarStatusAditivoExtra' e 'atualizarStatusPedido'
-//                     // devem estar definidas globalmente para que estes eventos funcionem.
-//                     const statusUpdateFn = isAditivoExtra ? atualizarStatusAditivoExtra : atualizarStatusPedido;
-//                     const campoParaBackend = isAditivoExtra ? null : campo;
-
-//                     const recarregarPainel = () => {
-//                         // Simula o clique na aba principal para forçar o re-render completo
-//                         const mainTabBtn = document.querySelector(`.main-tab-btn[data-categoria="${categoria}"]`);
-//                         mainTabBtn?.click();
-                        
-//                         // Garante que a sub-aba anterior seja reativada
-//                         const subTabBtn = document.querySelector(`.sub-tab-btn[data-list-id="${containerId}"]`);
-//                         subTabBtn?.click();
-//                     };
-
-//                     aprovarBtn?.addEventListener("click", async () => {
-//                         // Idealmente, usar um modal customizado no lugar de 'alert' ou 'confirm'.
-//                         if (isAditivoExtra) {
-//                             await statusUpdateFn(idReferencia, STATUS_AUTORIZADO, card); 
-//                         } else {
-//                             await statusUpdateFn(idReferencia, campoParaBackend, STATUS_AUTORIZADO, card);
-//                         }
-//                         recarregarPainel();
-//                     });
-
-//                     negarBtn?.addEventListener("click", async () => {
-//                         // Idealmente, usar um modal customizado para coletar a justificativa.
-//                         let justificativa = "Rejeitado via Painel de Controle"; 
-//                         if (isAditivoExtra) {
-//                             // Simulando a necessidade de input de justificativa.
-//                             console.log(`Ação de rejeitar Aditivo Extra (id: ${idReferencia}). Solicitando justificativa...`);
-//                         }
-                        
-//                         if (isAditivoExtra) {
-//                             await statusUpdateFn(idReferencia, STATUS_REJEITADO, card, justificativa); 
-//                         } else {
-//                             await statusUpdateFn(idReferencia, campoParaBackend, STATUS_REJEITADO, card, justificativa);
-//                         }
-//                         recarregarPainel();
-//                     });
-//                 }
-//             });
-//         });
-
-//         // Adiciona o cabeçalho do grupo e o corpo (expansível)
-//         if (pedidosRenderizadosNoGrupo > 0) {
-//             header.innerHTML = `
-//                 <div>
-//                     ${categoria === 'funcionario' ? 'Funcionário' : 'Função/Tipo'}: <strong>${tituloGrupo}</strong><br>
-//                     <small class="text-xs text-gray-500">${subtituloGrupo}</small>
-//                 </div>
-//                 <div class="flex items-center gap-2">
-//                     <span>${pedidosRenderizadosNoGrupo}</span> <i class="fas fa-chevron-down text-gray-500 text-xs transition-transform transform"></i>
-//                 </div>
-//             `;
-            
-//             header.addEventListener("click", () => {
-//                 containerBody.classList.toggle("hidden");
-//                 header.querySelector('i').classList.toggle('rotate-180');
-//             });
-
-//             divGrupo.appendChild(header);
-//             divGrupo.appendChild(containerBody);
-//             listaGrupos.appendChild(divGrupo);
-//         }
-//     });
-
-//     // 5. Atualiza a contagem da sub-aba (Badge)
-//     const countSpan = document.getElementById(`${containerId.split('-list-')[0]}-count-${statusDesejado}`);
-//     if (countSpan) {
-//         countSpan.textContent = totalItensRenderizados;
-//     }
-// }
-
-///FIM DO NOVO TRECHO
-
-
-// Função para atualizar status via fetch
 
 
 /**
@@ -3674,67 +3973,67 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
 
     pedidosCompletos.forEach(p => {
         let temItemComStatusDesejadoNoPedido = false;
-        
+
         // --- FILTRAGEM DE STATUS APLICADA AQUI ---
         const pedidoFiltradoPorStatus = { ...p };
-        
-        camposTodos.forEach(campo => {
-            const info = p[campo];
-            if (!info) {
-                delete pedidoFiltradoPorStatus[campo];
-                return;
-            }
 
-            const statusItem = (info.status || STATUS_PENDENTE).toLowerCase();
-            const temDadosRelevantes = info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao || info.tipoSolicitacao;
-            
-            if (temDadosRelevantes && statusItem === statusDesejado) {
-                // Mantém o item no pedido filtrado
-                temItemComStatusDesejadoNoPedido = true;
-            } else {
-                // Remove o item que não corresponde ao status desejado
-                delete pedidoFiltradoPorStatus[campo];
-            }
+        camposTodos.forEach(campo => {
+      const info = p[campo];
+      if (!info) {
+          delete pedidoFiltradoPorStatus[campo];
+          return;
+      }
+
+      const statusItem = (info.status || STATUS_PENDENTE).toLowerCase();
+      const temDadosRelevantes = info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao || info.tipoSolicitacao;
+
+      if (temDadosRelevantes && statusItem === statusDesejado) {
+          // Mantém o item no pedido filtrado
+          temItemComStatusDesejadoNoPedido = true;
+      } else {
+          // Remove o item que não corresponde ao status desejado
+          delete pedidoFiltradoPorStatus[campo];
+      }
         });
-        
+
         // Se após o filtro de status, o pedido ainda tiver pelo menos um item que corresponde ao status
         if (temItemComStatusDesejadoNoPedido) {
 
-            // ============== INÍCIO DA CORREÇÃO DE FILTRAGEM DE CATEGORIA (Aditivo/Extra) ==============
-            const aditivoExtra = pedidoFiltradoPorStatus[CAMPO_ADITIVO_EXTRA];
-            
-            // Só aplicamos a regra de idfuncionario se o Aditivo/Extra estiver presente no pedido
-            if (aditivoExtra) {
-                // Verifica a presença robusta do idfuncionario (ignora null, undefined, "" e 0)
-                const temIdFuncionario = !!aditivoExtra.idfuncionario && aditivoExtra.idfuncionario !== 0;
+      // ============== INÍCIO DA CORREÇÃO DE FILTRAGEM DE CATEGORIA (Aditivo/Extra) ==============
+      const aditivoExtra = pedidoFiltradoPorStatus[CAMPO_ADITIVO_EXTRA];
+        
+      // Só aplicamos a regra de idfuncionario se o Aditivo/Extra estiver presente no pedido
+      if (aditivoExtra) {
+          // Verifica a presença robusta do idfuncionario (ignora null, undefined, "" e 0)
+          const temIdFuncionario = !!aditivoExtra.idfuncionario && aditivoExtra.idfuncionario !== 0;
 
-                // 1. Filtro para a ABA FUNCIONÁRIO: SÓ entra se TIVER idfuncionario
-                if (categoria === 'funcionario' && !temIdFuncionario) {
-                    // Pula este pedido (não deve aparecer em Funcionário)
-                    return; 
-                }
+          // 1. Filtro para a ABA FUNCIONÁRIO: SÓ entra se TIVER idfuncionario
+          if (categoria === 'funcionario' && !temIdFuncionario) {
+        // Pula este pedido (não deve aparecer em Funcionário)
+        return; 
+          }
 
-                // 2. Filtro para a ABA FUNÇÃO: SÓ entra se NÃO TIVER idfuncionario
-                if (categoria === 'funcao' && temIdFuncionario) {
-                    // Pula este pedido (deve aparecer em Funcionário, não em Função)
-                    return; 
-                }
-            }
-            // ============== FIM DA CORREÇÃO DE FILTRAGEM DE CATEGORIA ==============
+          // 2. Filtro para a ABA FUNÇÃO: SÓ entra se NÃO TIVER idfuncionario
+          if (categoria === 'funcao' && temIdFuncionario) {
+        // Pula este pedido (deve aparecer em Funcionário, não em Função)
+        return; 
+          }
+      }
+      // ============== FIM DA CORREÇÃO DE FILTRAGEM DE CATEGORIA ==============
 
 
-            let chave;
-            if (categoria === 'funcionario') {
-                chave = pedidoFiltradoPorStatus.funcionario;
-            } else { // categoria === 'funcao'
-                // Agrupa por Tipo de Solicitação (ADITIVO, EXTRABONIFICADO, etc.)
-                const tipo = pedidoFiltradoPorStatus[CAMPO_ADITIVO_EXTRA]?.tipoSolicitacao || 'SOLICITAÇÃO DE FUNÇÃO';
-                chave = tipo;
-            }
-            
-            if (!gruposMap[chave]) gruposMap[chave] = [];
-            // Adiciona a VERSÃO FILTRADA do pedido ao mapa
-            gruposMap[chave].push(pedidoFiltradoPorStatus);
+      let chave;
+      if (categoria === 'funcionario') {
+          chave = pedidoFiltradoPorStatus.funcionario;
+      } else { // categoria === 'funcao'
+          // Agrupa por Tipo de Solicitação (ADITIVO, EXTRABONIFICADO, etc.)
+          const tipo = pedidoFiltradoPorStatus[CAMPO_ADITIVO_EXTRA]?.tipoSolicitacao || 'SOLICITAÇÃO DE FUNÇÃO';
+          chave = tipo;
+      }
+
+      if (!gruposMap[chave]) gruposMap[chave] = [];
+      // Adiciona a VERSÃO FILTRADA do pedido ao mapa
+      gruposMap[chave].push(pedidoFiltradoPorStatus);
         }
     });
     // --- FIM DO AGRUPAMENTO E FILTRAGEM ---
@@ -3759,11 +4058,11 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
         const msg = document.createElement("p");
         msg.textContent = `Não há pedidos ou solicitações com status "${statusDesejado.charAt(0).toUpperCase() + statusDesejado.slice(1)}" nesta categoria.`;
         container.appendChild(msg);
-        
+
         // Atualiza a contagem da sub-aba (Badge)
         const countSpan = document.getElementById(`${containerId.split('-list-')[0]}-count-${statusDesejado}`);
         if (countSpan) {
-            countSpan.textContent = 0;
+      countSpan.textContent = 0;
         }
         return;
     }
@@ -3778,7 +4077,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
     chavesOrdenadas.forEach(chaveNome => {
         // PedidosDoGrupo agora contêm apenas os itens que correspondem ao status
         const pedidosDoGrupo = gruposMap[chaveNome];
-        
+
         const divGrupo = document.createElement("div");
         divGrupo.className = "funcionario"; 
 
@@ -3788,198 +4087,198 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
         let tituloGrupo;
         let subtituloGrupo = '';
         let pedidosRenderizadosNoGrupo = 0;
-        
+
         if (categoria === 'funcionario') {
-            tituloGrupo = chaveNome || "Funcionário Desconhecido";
-            // Para Funcionário, o subtítulo é o Solicitante
-            subtituloGrupo = `Solicitante: ${pedidosDoGrupo[0].nomeSolicitante || pedidosDoGrupo[0].solicitante_nome || "Você"}`;
+      tituloGrupo = chaveNome || "Funcionário Desconhecido";
+      // Para Funcionário, o subtítulo é o Solicitante
+      subtituloGrupo = `Solicitante: ${pedidosDoGrupo[0].nomeSolicitante || pedidosDoGrupo[0].solicitante_nome || "Você"}`;
         } else { // categoria === 'funcao'
-            tituloGrupo = chaveNome || "Solicitação de Função Desconhecida";
-            // Para Função/Tipo, mantemos o Solicitante no subtítulo (MELHORIA)
-            subtituloGrupo = `Solicitante: ${pedidosDoGrupo[0].nomeSolicitante || pedidosDoGrupo[0].solicitante_nome || "Você"}`;
+      tituloGrupo = chaveNome || "Solicitação de Função Desconhecida";
+      // Para Função/Tipo, mantemos o Solicitante no subtítulo (MELHORIA)
+      subtituloGrupo = `Solicitante: ${pedidosDoGrupo[0].nomeSolicitante || pedidosDoGrupo[0].solicitante_nome || "Você"}`;
         }
-        
+
         const containerBody = document.createElement("div");
         containerBody.className = "funcionario-body hidden"; 
-        
-        
+
+
         // Renderização dos Cards
         pedidosDoGrupo.forEach(pedido => {
-            camposTodos.forEach(campo => {
-                // Verifica o pedido filtrado (que só tem o campo se ele corresponder ao statusDesejado)
-                const info = pedido[campo]; 
-                if (!info) return;
+      camposTodos.forEach(campo => {
+          // Verifica o pedido filtrado (que só tem o campo se ele corresponder ao statusDesejado)
+          const info = pedido[campo]; 
+          if (!info) return;
 
-                const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
-                const valorAlterado = isAditivoExtra || (info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao);
-                if (!valorAlterado) return;
-                
-                const statusAtual = (info.status || STATUS_PENDENTE).toLowerCase();
-                
-                // Esta verificação é redundante após o filtro acima, mas garante a consistência
-                if (statusAtual !== statusDesejado) return; 
+          const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
+          const valorAlterado = isAditivoExtra || (info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao);
+          if (!valorAlterado) return;
 
-                pedidosRenderizadosNoGrupo++; 
-                totalItensRenderizados++; 
+          const statusAtual = (info.status || STATUS_PENDENTE).toLowerCase();
 
-                // MUDANÇA: Formatar o status (sem o fallback "Pendente", pois o filtro garante que é o status correto)
-                const statusTextoFormatado = statusAtual.charAt(0).toUpperCase() + statusAtual.slice(1);
-                
-                const card = document.createElement("div");
-                card.className = "pedido-card"; 
+          // Esta verificação é redundante após o filtro acima, mas garante a consistência
+          if (statusAtual !== statusDesejado) return; 
 
-                let corQuadrado = "#facc15"; 
-                if (statusAtual === STATUS_AUTORIZADO) corQuadrado = "#16a34a"; 
-                if (statusAtual === STATUS_REJEITADO) corQuadrado = "#dc2626"; 
+          pedidosRenderizadosNoGrupo++; 
+          totalItensRenderizados++; 
 
-                let tituloCard;
-                if (isAditivoExtra) {
-                    const tipo = info.tipoSolicitacao;
-                    if (tipo && tipo.toUpperCase() === 'FUNCEXCEDIDO') {
-                        tituloCard = "Limite Diário Excedido por Função/Evento";
-                    } else {
-                        // O nome do tipo de solicitação (ADITIVO, EXTRABONIFICADO)
-                        tituloCard = tipo;
-                    }
-                } else {
-                    tituloCard = campo.replace("status", "").replace(/([A-Z])/g, ' $1').trim();
-                    tituloCard = tituloCard.charAt(0).toUpperCase() + tituloCard.slice(1);
-                }
+          // MUDANÇA: Formatar o status (sem o fallback "Pendente", pois o filtro garante que é o status correto)
+          const statusTextoFormatado = statusAtual.charAt(0).toUpperCase() + statusAtual.slice(1);
 
-                let innerHTML = `<div>
-                    <strong>${tituloCard}</strong><br>`;
+          const card = document.createElement("div");
+          card.className = "pedido-card"; 
 
-                if (pedido.evento) {
-                    
-                    // Lógica para a ABA FUNCIONÁRIOS: Inclui o Funcionário (nome completo)
-                    if (categoria === 'funcionario' && pedido.funcionario) {
-                        // Certifica-se de que o nome do funcionário está disponível
-                        innerHTML += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
-                    } 
-                    
-                    // Lógica para a ABA FUNÇÕES: Inclui a Função (Tipo de Solicitação)
-                    else if (categoria === 'funcao' && isAditivoExtra) {
-                        // O 'tipoSolicitacao' atua como o nome da Função/Tipo de solicitação no contexto de orçamento
-                        // Adicionando nmfuncao conforme a lógica anterior
-                        innerHTML += `<strong>Evento:</strong> ${pedido.evento} - <strong>Função:</strong> ${pedido.nmfuncao}<br>`;
-                    }
-                    
-                    // Lógica de fallback para outros pedidos (ou pedidos padrão sem funcionário)
-                    else {
-                         innerHTML += `<strong>Evento:</strong> ${pedido.evento}<br>`;
-                    }
-                }
-                
-                // Exibe o nome do funcionário dentro do card da aba 'Função' (se houver, para referência)
-                if (categoria === 'funcao' && pedido.funcionario) {
-                    innerHTML += `<small>Func.: ${pedido.funcionario}</small><br>`;
-                }
-                
-                if (isAditivoExtra) {
-                    if (info.quantidade) {
-                        innerHTML += `Qtd. Solicitada: ${info.quantidade}<br>`;
-                    }
-                    innerHTML += `Status: <span class="status-text font-semibold"><strong>${statusTextoFormatado}</strong></span><br>`;
-                } else if (info.valor !== undefined) {
-                    innerHTML += `Valor: R$ ${info.valor} - <span class="status-text font-semibold">${statusTextoFormatado}</span><br>`;
-                } else if (info.datas) {
-                    innerHTML += `Datas: ${info.datas.map(d => d.data).join(", ")} - <span class="status-text font-semibold">${statusTextoFormatado}</span><br>`;
-                }
+          let corQuadrado = "#facc15"; 
+          if (statusAtual === STATUS_AUTORIZADO) corQuadrado = "#16a34a"; 
+          if (statusAtual === STATUS_REJEITADO) corQuadrado = "#dc2626"; 
 
-                if (info.descricao) {
-                    innerHTML += `Descrição: ${info.descricao}<br>`;
-                }
+          let tituloCard;
+          if (isAditivoExtra) {
+        const tipo = info.tipoSolicitacao;
+        if (tipo && tipo.toUpperCase() === 'FUNCEXCEDIDO') {
+      tituloCard = "Limite Diário Excedido por Função/Evento";
+        } else {
+      // O nome do tipo de solicitação (ADITIVO, EXTRABONIFICADO)
+      tituloCard = tipo;
+        }
+          } else {
+        tituloCard = campo.replace("status", "").replace(/([A-Z])/g, ' $1').trim();
+        tituloCard = tituloCard.charAt(0).toUpperCase() + tituloCard.slice(1);
+          }
 
-                // 🌟 CORREÇÃO DE VISUALIZAÇÃO: Botões de Ação (APENAS se for PENDENTE E o usuário PUDER APROVAR)
-                if (statusAtual === STATUS_PENDENTE && podeAprovar) {
-                    innerHTML += `
-                        <div class="flex gap-2 mt-2">
-                            <button class="aprovar">Autorizar</button>
-                            <button class="negar">Rejeitar</button>
-                        </div>
-                    `;
-                }
-                // Se não for Master, ou não for PENDENTE, nada é adicionado, mantendo a visualização de status.
+          let innerHTML = `<div>
+        <strong>${tituloCard}</strong><br>`;
 
-                innerHTML += `</div>`;
-                // Indicador de status
-                innerHTML += `<div class="quadrado-arredondado" style="background-color: ${corQuadrado}; width: 15px; height: 15px; border-radius: 50%;" title="Status: ${statusTextoFormatado}"></div>`;
+          if (pedido.evento) {
+          
+        // Lógica para a ABA FUNCIONÁRIOS: Inclui o Funcionário (nome completo)
+        if (categoria === 'funcionario' && pedido.funcionario) {
+      // Certifica-se de que o nome do funcionário está disponível
+      innerHTML += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
+        } 
 
-                card.innerHTML = innerHTML;
-                containerBody.appendChild(card);
+        // Lógica para a ABA FUNÇÕES: Inclui a Função (Tipo de Solicitação)
+        else if (categoria === 'funcao' && isAditivoExtra) {
+      // O 'tipoSolicitacao' atua como o nome da Função/Tipo de solicitação no contexto de orçamento
+      // Adicionando nmfuncao conforme a lógica anterior
+      innerHTML += `<strong>Evento:</strong> ${pedido.evento} - <strong>Função:</strong> ${pedido.nmfuncao}<br>`;
+        }
 
-                // 🌟 CORREÇÃO DE EVENT LISTENERS: Aplicar apenas se for PENDENTE E o usuário PUDER APROVAR
-                if (statusAtual === STATUS_PENDENTE && podeAprovar) {
-                    const aprovarBtn = card.querySelector(".aprovar");
-                    const negarBtn = card.querySelector(".negar");
+        // Lógica de fallback para outros pedidos (ou pedidos padrão sem funcionário)
+        else {
+       innerHTML += `<strong>Evento:</strong> ${pedido.evento}<br>`;
+        }
+          }
 
-                    const idReferencia = isAditivoExtra ? pedido.idpedido : pedido.idpedido;
-                    if (!idReferencia) return; 
+          // Exibe o nome do funcionário dentro do card da aba 'Função' (se houver, para referência)
+          if (categoria === 'funcao' && pedido.funcionario) {
+        innerHTML += `<small>Func.: ${pedido.funcionario}</small><br>`;
+          }
 
-                    // ATENÇÃO: As funções de backend 'atualizarStatusAditivoExtra' e 'atualizarStatusPedido'
-                    // devem estar definidas globalmente para que estes eventos funcionem.
-                    const statusUpdateFn = isAditivoExtra ? atualizarStatusAditivoExtra : atualizarStatusPedido;
-                    const campoParaBackend = isAditivoExtra ? null : campo;
+          if (isAditivoExtra) {
+        if (info.quantidade) {
+      innerHTML += `Qtd. Solicitada: ${info.quantidade}<br>`;
+        }
+        innerHTML += `Status: <span class="status-text font-semibold"><strong>${statusTextoFormatado}</strong></span><br>`;
+          } else if (info.valor !== undefined) {
+        innerHTML += `Valor: R$ ${info.valor} - <span class="status-text font-semibold"><strong>${statusTextoFormatado}</strong></span><br>`;
+          } else if (info.datas) {
+        innerHTML += `Datas: ${info.datas.map(d => d.data).join(", ")} - <span class="status-text font-semibold">${statusTextoFormatado}</span><br>`;
+          }
 
-                    const recarregarPainel = () => {
-                        // Simula o clique na aba principal para forçar o re-render completo
-                        const mainTabBtn = document.querySelector(`.main-tab-btn[data-categoria="${categoria}"]`);
-                        mainTabBtn?.click();
-                        
-                        // Garante que a sub-aba anterior seja reativada
-                        const subTabBtn = document.querySelector(`.sub-tab-btn[data-list-id="${containerId}"]`);
-                        subTabBtn?.click();
-                    };
+          if (info.descricao) {
+        innerHTML += `Descrição: ${info.descricao}<br>`;
+          }
 
-                    aprovarBtn?.addEventListener("click", async () => {
-                        // Idealmente, usar um modal customizado no lugar de 'alert' ou 'confirm'.
-                        if (isAditivoExtra) {
-                            await statusUpdateFn(idReferencia, STATUS_AUTORIZADO, card); 
-                        } else {
-                            await statusUpdateFn(idReferencia, campoParaBackend, STATUS_AUTORIZADO, card);
-                        }
-                        recarregarPainel();
-                    });
+          // 🌟 CORREÇÃO DE VISUALIZAÇÃO: Botões de Ação (APENAS se for PENDENTE E o usuário PUDER APROVAR)
+          if (statusAtual === STATUS_PENDENTE && podeAprovar) {
+        innerHTML += `
+      <div class="flex gap-2 mt-2">
+          <button class="aprovar">Autorizar</button>
+          <button class="negar">Rejeitar</button>
+      </div>
+        `;
+          }
+          // Se não for Master, ou não for PENDENTE, nada é adicionado, mantendo a visualização de status.
 
-                    negarBtn?.addEventListener("click", async () => {
-                        // Idealmente, usar um modal customizado para coletar a justificativa.
-                        let justificativa = "Rejeitado via Painel de Controle"; 
-                        if (isAditivoExtra) {
-                            // Simulando a necessidade de input de justificativa.
-                            console.log(`Ação de rejeitar Aditivo Extra (id: ${idReferencia}). Solicitando justificativa...`);
-                        }
-                        
-                        if (isAditivoExtra) {
-                            await statusUpdateFn(idReferencia, STATUS_REJEITADO, card, justificativa); 
-                        } else {
-                            await statusUpdateFn(idReferencia, campoParaBackend, STATUS_REJEITADO, card, justificativa);
-                        }
-                        recarregarPainel();
-                    });
-                }
-            });
+          innerHTML += `</div>`;
+          // Indicador de status
+          innerHTML += `<div class="quadrado-arredondado" style="background-color: ${corQuadrado}; width: 15px; height: 15px; border-radius: 50%;" title="Status: ${statusTextoFormatado}"></div>`;
+
+          card.innerHTML = innerHTML;
+          containerBody.appendChild(card);
+
+          // 🌟 CORREÇÃO DE EVENT LISTENERS: Aplicar apenas se for PENDENTE E o usuário PUDER APROVAR
+          if (statusAtual === STATUS_PENDENTE && podeAprovar) {
+        const aprovarBtn = card.querySelector(".aprovar");
+        const negarBtn = card.querySelector(".negar");
+
+        const idReferencia = isAditivoExtra ? pedido.idpedido : pedido.idpedido;
+        if (!idReferencia) return; 
+
+        // ATENÇÃO: As funções de backend 'atualizarStatusAditivoExtra' e 'atualizarStatusPedido'
+        // devem estar definidas globalmente para que estes eventos funcionem.
+        const statusUpdateFn = isAditivoExtra ? atualizarStatusAditivoExtra : atualizarStatusPedido;
+        const campoParaBackend = isAditivoExtra ? null : campo;
+
+        const recarregarPainel = () => {
+      // Simula o clique na aba principal para forçar o re-render completo
+      const mainTabBtn = document.querySelector(`.main-tab-btn[data-categoria="${categoria}"]`);
+      mainTabBtn?.click();
+        
+      // Garante que a sub-aba anterior seja reativada
+      const subTabBtn = document.querySelector(`.sub-tab-btn[data-list-id="${containerId}"]`);
+      subTabBtn?.click();
+        };
+
+        aprovarBtn?.addEventListener("click", async () => {
+      // Idealmente, usar um modal customizado no lugar de 'alert' ou 'confirm'.
+      if (isAditivoExtra) {
+          await statusUpdateFn(idReferencia, STATUS_AUTORIZADO, card); 
+      } else {
+          await statusUpdateFn(idReferencia, campoParaBackend, STATUS_AUTORIZADO, card);
+      }
+      recarregarPainel();
+        });
+
+        negarBtn?.addEventListener("click", async () => {
+      // Idealmente, usar um modal customizado para coletar a justificativa.
+      let justificativa = "Rejeitado via Painel de Controle"; 
+      if (isAditivoExtra) {
+          // Simulando a necessidade de input de justificativa.
+          console.log(`Ação de rejeitar Aditivo Extra (id: ${idReferencia}). Solicitando justificativa...`);
+      }
+
+      if (isAditivoExtra) {
+          await statusUpdateFn(idReferencia, STATUS_REJEITADO, card, justificativa); 
+      } else {
+          await statusUpdateFn(idReferencia, campoParaBackend, STATUS_REJEITADO, card, justificativa);
+      }
+      recarregarPainel();
+        });
+          }
+      });
         });
 
         // Adiciona o cabeçalho do grupo e o corpo (expansível)
         if (pedidosRenderizadosNoGrupo > 0) {
-            header.innerHTML = `
-                <div>
-                    ${categoria === 'funcionario' ? 'Funcionário' : 'Função/Tipo'}: <strong>${tituloGrupo}</strong><br>
-                    <small class="text-xs text-gray-500">${subtituloGrupo}</small>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span>${pedidosRenderizadosNoGrupo}</span> <i class="fas fa-chevron-down text-gray-500 text-xs transition-transform transform"></i>
-                </div>
-            `;
-            
-            header.addEventListener("click", () => {
-                containerBody.classList.toggle("hidden");
-                header.querySelector('i').classList.toggle('rotate-180');
-            });
+      header.innerHTML = `
+          <div>
+        ${categoria === 'funcionario' ? 'Funcionário' : 'Função/Tipo'}: <strong>${tituloGrupo}</strong><br>
+        <small class="text-xs text-gray-500">${subtituloGrupo}</small>
+          </div>
+          <div class="flex items-center gap-2">
+        <span>${pedidosRenderizadosNoGrupo}</span> <i class="fas fa-chevron-down text-gray-500 text-xs transition-transform transform"></i>
+          </div>
+      `;
+        
+      header.addEventListener("click", () => {
+          containerBody.classList.toggle("hidden");
+          header.querySelector('i').classList.toggle('rotate-180');
+      });
 
-            divGrupo.appendChild(header);
-            divGrupo.appendChild(containerBody);
-            listaGrupos.appendChild(divGrupo);
+      divGrupo.appendChild(header);
+      divGrupo.appendChild(containerBody);
+      listaGrupos.appendChild(divGrupo);
         }
     });
 
@@ -3990,6 +4289,29 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
     }
 }
 
+async function buscarAditivoExtraPendentes() {
+  console.log("🟡 Iniciando busca de solicitações Aditivo/Extra Pendentes...");
+    try {
+        // Rota que você deve implementar no seu backend para listar AditivoExtra PENDENTES
+        const url = '/main/aditivoextra'; 
+        
+        const resposta = await fetchComToken(url);
+        
+        if (resposta && resposta.sucesso && Array.isArray(resposta.dados)) {
+          console.log(`✅ Sucesso! ${resposta.dados.length} solicitações Aditivo/Extra Pendentes carregadas.`);
+            // Retorna a lista de solicitações
+            return resposta.dados; 
+        }
+        
+        // Lidar com falha na busca, retornando um array vazio ou lançando erro
+        console.error("❌Erro ao buscar AditivoExtra pendentes:", resposta?.erro || 'Resposta inválida do servidor.');
+        return [];
+        
+    } catch (err) {
+        console.error("🔥Erro de rede/conexão ao buscar AditivoExtra:", err);
+        return []; // Retorna array vazio em caso de erro fatal
+    }
+}
 
 async function atualizarStatusPedido(idpedido, categoria, acao, cardElement) {
   try {
@@ -4063,44 +4385,44 @@ async function atualizarResumoPedidos() {
     try {
         // 1. BUSCA E UNIFICAÇÃO DOS DADOS (Mantido)
         const [pedidosPadrao, aditivosExtras] = await Promise.all([
-            buscarPedidosUsuario(),
-            buscarAditivoExtraCompleto()
+      buscarPedidosUsuario(),
+      buscarAditivoExtraCompleto()
         ]);
 
         let pedidosUnificados = [...pedidosPadrao];
-        
+
         // Normalização dos Aditivos Extras (Mantido)
         aditivosExtras.forEach(ae => {
-            const statusPadrao = typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente';
-            const pedidoAditivo = {
-                // Incluímos campos necessários para a chave de deduplicação completa
-                funcionario: ae.nomefuncionario, // Necessário para a chave
-                evento: ae.evento,             // Necessário para a chave
-                idpedido: ae.idaditivoextra,   // Necessário para a chave
-                // Os campos de statusajustecusto, statuscaixinha etc. são null/undefined aqui, o que é OK.
-                [CAMPO_ADITIVO_EXTRA]: {
-                    status: (ae.status || ae.Status || statusPadrao).toLowerCase(),
-                    tipoSolicitacao: ae.tipoSolicitacao || ae.tiposolicitacao || 'N/A', // Necessário para a chave
-                },
-            };
-            pedidosUnificados.push(pedidoAditivo);
+      const statusPadrao = typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente';
+      const pedidoAditivo = {
+          // Incluímos campos necessários para a chave de deduplicação completa
+          funcionario: ae.nomefuncionario, // Necessário para a chave
+          evento: ae.evento,       // Necessário para a chave
+          idpedido: ae.idaditivoextra,   // Necessário para a chave
+          // Os campos de statusajustecusto, statuscaixinha etc. são null/undefined aqui, o que é OK.
+          [CAMPO_ADITIVO_EXTRA]: {
+        status: (ae.status || ae.Status || statusPadrao).toLowerCase(),
+        tipoSolicitacao: ae.tipoSolicitacao || ae.tiposolicitacao || 'N/A', // Necessário para a chave
+          },
+      };
+      pedidosUnificados.push(pedidoAditivo);
         });
 
         // 2. 🎯 CORREÇÃO: DEDUPLICAÇÃO COMPLETA (Replicando a lógica de mostrarPedidosUsuario)
         const vistos = new Set();
         const pedidosCompletosUnicos = pedidosUnificados.filter(p => {
-             const aditivoTipo = p[CAMPO_ADITIVO_EXTRA]?.tipoSolicitacao || "";
-             const idUnicoAditivo = p[CAMPO_ADITIVO_EXTRA] ? p.idpedido : "";
-             
-             // A chave deve ser a mesma utilizada na mostrarPedidosUsuario
-             const chave =
-                 `${p.funcionario || ""}|${p.evento || ""}|${p.statusajustecusto?.valor || ""}|${p.statuscaixinha?.valor || ""}|${idUnicoAditivo}|${aditivoTipo}`;
-             
-             if (vistos.has(chave)) return false;
-             vistos.add(chave);
-             return true;
-        });
+       const aditivoTipo = p[CAMPO_ADITIVO_EXTRA]?.tipoSolicitacao || "";
+       const idUnicoAditivo = p[CAMPO_ADITIVO_EXTRA] ? p.idpedido : "";
         
+       // A chave deve ser a mesma utilizada na mostrarPedidosUsuario
+       const chave =
+           `${p.funcionario || ""}|${p.evento || ""}|${p.statusajustecusto?.valor || ""}|${p.statuscaixinha?.valor || ""}|${idUnicoAditivo}|${aditivoTipo}`;
+        
+       if (vistos.has(chave)) return false;
+       vistos.add(chave);
+       return true;
+        });
+
         // 3. CONTAGEM POR STATUS COM PRIORIDADE (Mantido, funciona com a nova lista)
         let total = 0;
         let autorizados = 0;
@@ -4108,39 +4430,39 @@ async function atualizarResumoPedidos() {
         let rejeitados = 0;
 
         const camposTodos = [
-            "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada", CAMPO_ADITIVO_EXTRA
+      "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada", CAMPO_ADITIVO_EXTRA
         ];
-        
+
         pedidosCompletosUnicos.forEach(p => {
-            total++; 
+      total++; 
 
-            let isRejected = false;
-            let isAuthorized = false;
-            let isPending = false;
-            
-            // Primeira Passagem: Identificar todos os status relevantes no pedido
-            camposTodos.forEach(campo => {
-                const info = p[campo];
-                // Condição para que o campo seja relevante para a contagem no card (exclui campos vazios)
-                const isRelevant = info && (info.valor !== undefined || info.datas || info.descricao || info.status);
-                
-                if (!isRelevant) return;
+      let isRejected = false;
+      let isAuthorized = false;
+      let isPending = false;
+        
+      // Primeira Passagem: Identificar todos os status relevantes no pedido
+      camposTodos.forEach(campo => {
+          const info = p[campo];
+          // Condição para que o campo seja relevante para a contagem no card (exclui campos vazios)
+          const isRelevant = info && (info.valor !== undefined || info.datas || info.descricao || info.status);
 
-                const statusItem = (info.status || STATUS_PENDENTE).toLowerCase();
+          if (!isRelevant) return;
 
-                if (statusItem === STATUS_REJEITADO) isRejected = true;
-                if (statusItem === STATUS_AUTORIZADO) isAuthorized = true;
-                if (statusItem === STATUS_PENDENTE) isPending = true;
-            });
+          const statusItem = (info.status || STATUS_PENDENTE).toLowerCase();
 
-            // Segunda Passagem: Contagem baseada na PRIORIDADE (Rejeitado > Autorizado > Pendente)
-            if (isRejected) {
-                rejeitados++;
-            } else if (isAuthorized) {
-                autorizados++;
-            } else if (isPending) {
-                pendentes++;
-            }
+          if (statusItem === STATUS_REJEITADO) isRejected = true;
+          if (statusItem === STATUS_AUTORIZADO) isAuthorized = true;
+          if (statusItem === STATUS_PENDENTE) isPending = true;
+      });
+
+      // Segunda Passagem: Contagem baseada na PRIORIDADE (Rejeitado > Autorizado > Pendente)
+      if (isRejected) {
+          rejeitados++;
+      } else if (isAuthorized) {
+          autorizados++;
+      } else if (isPending) {
+          pendentes++;
+      }
         });
 
 
@@ -4189,8 +4511,8 @@ async function carregarDetalhesVencimentos(conteudoGeral) {
         const dados = await fetchComToken(url);
 
         if (!dados || !dados.eventos || dados.eventos.length === 0) {
-            conteudoGeral.innerHTML = '<p class="alerta-info">Nenhum evento encontrado para esse período.</p>';
-            return;
+      conteudoGeral.innerHTML = '<p class="alerta-info">Nenhum evento encontrado para esse período.</p>';
+      return;
         }
 
         conteudoGeral.innerHTML = "";
@@ -4198,83 +4520,83 @@ async function carregarDetalhesVencimentos(conteudoGeral) {
         accordionContainer.className = "accordion-vencimentos";
 
         dados.eventos.forEach(evento => {
-            // ITEM DO ACORDEÃO
-            const item = document.createElement("div");
-            item.className = "accordion-item";
+      // ITEM DO ACORDEÃO
+      const item = document.createElement("div");
+      item.className = "accordion-item";
 
-            // CABEÇALHO DO EVENTO
-            const header = document.createElement("button");
-            header.className = "accordion-header";
-            header.innerHTML = `
-                <div class="evento-info">
-                    <strong>${evento.nomeEvento}</strong>
-                    <span class="total-geral">Total: ${formatarMoeda(evento.totalGeral)}</span> 
-                </div>
-            `;
-            header.addEventListener("click", () => item.classList.toggle("active"));
+      // CABEÇALHO DO EVENTO
+      const header = document.createElement("button");
+      header.className = "accordion-header";
+      header.innerHTML = `
+          <div class="evento-info">
+        <strong>${evento.nomeEvento}</strong>
+        <span class="total-geral">Total: ${formatarMoeda(evento.totalGeral)}</span> 
+          </div>
+      `;
+      header.addEventListener("click", () => item.classList.toggle("active"));
 
-            // CORPO DO ACORDEÃO
-            const body = document.createElement("div");
-            body.className = "accordion-body";
+      // CORPO DO ACORDEÃO
+      const body = document.createElement("div");
+      body.className = "accordion-body";
 
-            console.log(`Dados dos Funcionários para o Evento: ${evento.nomeEvento}`);
-            console.log(evento.funcionarios);
+      console.log(`Dados dos Funcionários para o Evento: ${evento.nomeEvento}`);
+      console.log(evento.funcionarios);
 
-            body.innerHTML = `
-              <div class="resumo-categorias">
-                  <div class="categoria-bloco">
-                      <h3>Ajuda de Custo</h3>
-                      <p class="datas-evento">
-                          Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
-                      </p>
-                      <p class="vencimento">Vence em: <strong>${evento.dataVencimentoAjuda}</strong></p>
-                      <p><strong>Pendentes:</strong> ${formatarMoeda(evento.ajuda.pendente)} - <strong>Pagos:</strong> ${formatarMoeda(evento.ajuda.pagos)} - <strong>Total:</strong> ${formatarMoeda(evento.ajuda.total)}</p>
-                     
-                  </div>
+      body.innerHTML = `
+        <div class="resumo-categorias">
+      <div class="categoria-bloco">
+          <h3>Ajuda de Custo</h3>
+          <p class="datas-evento">
+        Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
+          </p>
+          <p class="vencimento">Vence em: <strong>${evento.dataVencimentoAjuda}</strong></p>
+          <p><strong>Pendentes:</strong> ${formatarMoeda(evento.ajuda.pendente)} - <strong>Pagos:</strong> ${formatarMoeda(evento.ajuda.pagos)} - <strong>Total:</strong> ${formatarMoeda(evento.ajuda.total)}</p>
+        
+      </div>
 
-                  <div class="categoria-bloco">
-                      <h3>Cachê</h3>
-                      <p class="datas-evento">
-                          Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
-                      </p>
-                      <p class="vencimento">Vence em: <strong>${evento.dataVencimentoCache}</strong></p>
-                      <p><strong>Pendentes:</strong> ${formatarMoeda(evento.cache.pendente)} - <strong>Pagos:</strong> ${formatarMoeda(evento.cache.pagos)} - <strong>Total:</strong> ${formatarMoeda(evento.cache.total)}</p>
-                  </div>
-              </div>
+      <div class="categoria-bloco">
+          <h3>Cachê</h3>
+          <p class="datas-evento">
+        Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
+          </p>
+          <p class="vencimento">Vence em: <strong>${evento.dataVencimentoCache}</strong></p>
+          <p><strong>Pendentes:</strong> ${formatarMoeda(evento.cache.pendente)} - <strong>Pagos:</strong> ${formatarMoeda(evento.cache.pagos)} - <strong>Total:</strong> ${formatarMoeda(evento.cache.total)}</p>
+      </div>
+        </div>
 
-              <h4>Funcionários (${evento.funcionarios?.length || 0} Registros):</h4>
-              
-              <div class="funcionarios-scroll-container"> 
-                  <table class="tabela-funcionarios-venc">
-                      <thead>
-                          <tr>
-                              <th>NOME / FUNÇÃO</th>
-                              <th>DIÁRIAS</th>
-                              <th>CACHÊ</th>
-                              <th>A.J. CUSTO</th>
-                              <th>TOTAL</th>
-                              <th>STATUS</th>
-                          </tr>
-                      </thead>
-                      <tbody>
-                          ${evento.funcionarios?.map(f => `
-                              <tr>
-                                  <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
-                                  <td>${f.qtdDiarias}</td>
-                                  <td>${formatarMoeda(f.totalCache)}</td>
-                                  <td>${formatarMoeda(f.totalAjudaCusto)}</td>
-                                  <td><strong>${formatarMoeda(f.totalPagar)}</strong></td>
-                                  <td class="status-${(f.statusPgto || 'desconhecido').toLowerCase()}">${f.statusPgto || '—'}</td>
-                              </tr>
-                          `).join("") ?? '<tr><td colspan="6" class="text-center">Nenhum funcionário encontrado neste evento.</td></tr>'}
-                      </tbody>
-                  </table>
-              </div> 
-            `;
+        <h4>Funcionários (${evento.funcionarios?.length || 0} Registros):</h4>
+        
+        <div class="funcionarios-scroll-container"> 
+      <table class="tabela-funcionarios-venc">
+          <thead>
+        <tr>
+      <th>NOME / FUNÇÃO</th>
+      <th>DIÁRIAS</th>
+      <th>CACHÊ</th>
+      <th>A.J. CUSTO</th>
+      <th>TOTAL</th>
+      <th>STATUS</th>
+        </tr>
+          </thead>
+          <tbody>
+        ${evento.funcionarios?.map(f => `
+      <tr>
+          <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
+          <td>${f.qtdDiarias}</td>
+          <td>${formatarMoeda(f.totalCache)}</td>
+          <td>${formatarMoeda(f.totalAjudaCusto)}</td>
+          <td><strong>${formatarMoeda(f.totalPagar)}</strong></td>
+          <td class="status-${(f.statusPgto || 'desconhecido').toLowerCase()}">${f.statusPgto || '—'}</td>
+      </tr>
+        `).join("") ?? '<tr><td colspan="6" class="text-center">Nenhum funcionário encontrado neste evento.</td></tr>'}
+          </tbody>
+      </table>
+        </div> 
+      `;
 
-            item.appendChild(header);
-            item.appendChild(body);
-            accordionContainer.appendChild(item);
+      item.appendChild(header);
+      item.appendChild(body);
+      accordionContainer.appendChild(item);
         });
 
         conteudoGeral.appendChild(accordionContainer);
@@ -4284,38 +4606,6 @@ async function carregarDetalhesVencimentos(conteudoGeral) {
         conteudoGeral.innerHTML = '<p class="alerta-erro">Erro ao carregar dados.</p>';
     }
 }
-
-// function construirParametrosFiltro() {
-//     const tipo = document.querySelector("input[name='periodo']:checked").value;
-
-//     if (tipo === "diario") {
-//         const dia = document.querySelector("#sub-filtro-data").value;
-//         return `?dataInicio=${dia}&dataFim=${dia}`;
-//     }
-
-//     if (tipo === "mensal") {
-//         const mes = document.querySelector("#sub-filtro-select").value;
-//         const ano = new Date().getFullYear();
-//         return `?mes=${mes}&ano=${ano}`;
-//     }
-
-//     if (tipo === "trimestral") {
-//         const tri = document.querySelector("input[name='sub']:checked").value;
-//         const ano = new Date().getFullYear();
-//         return `?trimestre=${tri}&ano=${ano}`;
-//     }
-
-//     if (tipo === "semestral") {
-//         const sem = document.querySelector("input[name='sub']:checked").value;
-//         const ano = new Date().getFullYear();
-//         return `?semestre=${sem}&ano=${ano}`;
-//     }
-
-//     if (tipo === "anual") {
-//         const ano = new Date().getFullYear();
-//         return `?ano=${ano}`;
-//     }
-// }
 
 function construirParametrosFiltro() {
     // Captura o tipo de filtro principal (Obrigatório para o backend)
@@ -4334,7 +4624,7 @@ function construirParametrosFiltro() {
         const dia = document.querySelector("#sub-filtro-data")?.value;
         // O backend deve usar a dataInicio e a dataFim como o mesmo dia
         if (dia) {
-            params += `&dataInicio=${dia}&dataFim=${dia}`;
+      params += `&dataInicio=${dia}&dataFim=${dia}`;
         }
     }
 
@@ -4345,7 +4635,7 @@ function construirParametrosFiltro() {
         const data = document.querySelector("#sub-filtro-data")?.value;
         // O backend usará esta data para calcular o Domingo anterior e o Sábado seguinte.
         if (data) {
-            params += `&dataInicio=${data}`;
+      params += `&dataInicio=${data}`;
         }
     }
 
@@ -4355,8 +4645,8 @@ function construirParametrosFiltro() {
     else if (tipo === "mensal") {
         const mes = document.querySelector("#sub-filtro-select")?.value;
         if (mes) {
-            // Envia mês e ano. O backend deve calcular dataInicio (dia 1) e dataFim (último dia).
-            params += `&mes=${mes}&ano=${anoAtual}`;
+      // Envia mês e ano. O backend deve calcular dataInicio (dia 1) e dataFim (último dia).
+      params += `&mes=${mes}&ano=${anoAtual}`;
         }
     }
 
@@ -4367,8 +4657,8 @@ function construirParametrosFiltro() {
         // Usa o seletor genérico 'sub' que criamos
         const tri = document.querySelector("input[name='sub']:checked")?.value;
         if (tri) {
-            // Envia trimestre e ano. O backend deve calcular as datas de início e fim.
-            params += `&trimestre=${tri}&ano=${anoAtual}`;
+      // Envia trimestre e ano. O backend deve calcular as datas de início e fim.
+      params += `&trimestre=${tri}&ano=${anoAtual}`;
         }
     }
 
@@ -4379,8 +4669,8 @@ function construirParametrosFiltro() {
         // Usa o seletor genérico 'sub' que criamos
         const sem = document.querySelector("input[name='sub']:checked")?.value;
         if (sem) {
-            // Envia semestre e ano. O backend deve calcular as datas de início e fim.
-            params += `&semestre=${sem}&ano=${anoAtual}`;
+      // Envia semestre e ano. O backend deve calcular as datas de início e fim.
+      params += `&semestre=${sem}&ano=${anoAtual}`;
         }
     }
 
@@ -4394,8 +4684,6 @@ function construirParametrosFiltro() {
     
     return params;
 }
-
-
 
 async function carregarDadosVencimentos() {
    // Definir data de hoje
@@ -4453,7 +4741,6 @@ async function carregarDadosVencimentos() {
     }
 }
 
-
 async function inicializarCardVencimentos() {
     // Checa as duas permissões (Assumindo que estão definidas globalmente)
     const eMaster = usuarioTemPermissao();
@@ -4506,30 +4793,30 @@ function criarControlesDeFiltro(conteudoGeral) {
     grupoPeriodo.innerHTML = `
         <label class="label-select">Tipo de Filtro</label>
         <div class="wrapper" id="periodo-wrapper">
-            <div class="option">
-              <input checked value="diario" name="periodo" type="radio" class="input" />
-              <div class="btn"><span class="span">Diário</span></div>
-            </div>
-            <div class="option">
-              <input value="semanal" name="periodo" type="radio" class="input" />
-              <div class="btn"><span class="span">Semanal</span></div>
-            </div>
-            <div class="option">
-              <input value="mensal" name="periodo" type="radio" class="input" />
-              <div class="btn"><span class="span">Mensal</span></div>
-            </div>
-            <div class="option">
-              <input value="trimestral" name="periodo" type="radio" class="input" />
-              <div class="btn"><span class="span">Trimestral</span></div>
-            </div>
-            <div class="option">
-              <input value="semestral" name="periodo" type="radio" class="input" />
-              <div class="btn"><span class="span">Semestral</span></div>
-            </div>
-            <div class="option">
-              <input value="anual" name="periodo" type="radio" class="input" />
-              <div class="btn"><span class="span">Anual</span></div>
-            </div>
+      <div class="option">
+        <input checked value="diario" name="periodo" type="radio" class="input" />
+        <div class="btn"><span class="span">Diário</span></div>
+      </div>
+      <div class="option">
+        <input value="semanal" name="periodo" type="radio" class="input" />
+        <div class="btn"><span class="span">Semanal</span></div>
+      </div>
+      <div class="option">
+        <input value="mensal" name="periodo" type="radio" class="input" />
+        <div class="btn"><span class="span">Mensal</span></div>
+      </div>
+      <div class="option">
+        <input value="trimestral" name="periodo" type="radio" class="input" />
+        <div class="btn"><span class="span">Trimestral</span></div>
+      </div>
+      <div class="option">
+        <input value="semestral" name="periodo" type="radio" class="input" />
+        <div class="btn"><span class="span">Semestral</span></div>
+      </div>
+      <div class="option">
+        <input value="anual" name="periodo" type="radio" class="input" />
+        <div class="btn"><span class="span">Anual</span></div>
+      </div>
         </div>
     `;
 
@@ -4557,15 +4844,15 @@ function criarControlesDeFiltro(conteudoGeral) {
     // --------------------------------------
     function montarOpcoes(titulo, valores) {
         return `
-            <label class="label-select">${titulo}</label>
-            <div class="wrapper" id="sub-opcoes">
-                ${valores.map(v => `
-                    <div class="option">
-                        <input value="${v.value}" name="sub" type="radio" class="input" ${v.checked ? "checked" : ""} />
-                        <div class="btn"><span class="span">${v.label}</span></div>
-                    </div>
-                `).join("")}
-            </div>
+      <label class="label-select">${titulo}</label>
+      <div class="wrapper" id="sub-opcoes">
+          ${valores.map(v => `
+        <div class="option">
+      <input value="${v.value}" name="sub" type="radio" class="input" ${v.checked ? "checked" : ""} />
+      <div class="btn"><span class="span">${v.label}</span></div>
+        </div>
+          `).join("")}
+      </div>
         `;
     }
 
@@ -4576,7 +4863,7 @@ function criarControlesDeFiltro(conteudoGeral) {
     function atualizarSubFiltro(tipo) {
       // Limpa o conteúdo anterior do sub-filtro
       subFiltroWrapper.innerHTML = "";
-      
+
       // O ano atual (anoAtual)
       const anoAtual = new Date().getFullYear(); 
 
@@ -4588,24 +4875,24 @@ function criarControlesDeFiltro(conteudoGeral) {
           const hoje = new Date().toISOString().split("T")[0];
 
           subFiltroWrapper.innerHTML = `
-              <label class="label-select">Selecione o Dia</label>
+        <label class="label-select">Selecione o Dia</label>
 
-              <div class="wrapper select-wrapper">
-              <input 
-                type="date"
-                id="sub-filtro-data"
-                class="input-data-simples" 
-                value="${hoje}"
-              >
-              </div>
+        <div class="wrapper select-wrapper">
+        <input 
+          type="date"
+          id="sub-filtro-data"
+          class="input-data-simples" 
+          value="${hoje}"
+        >
+        </div>
           `;
 
           // Aciona o carregamento ao mudar a data (listener)
           subFiltroWrapper
-              .querySelector("#sub-filtro-data")
-              .addEventListener("change", () => 
-                carregarDetalhesVencimentos(conteudoGeral)
-              );
+        .querySelector("#sub-filtro-data")
+        .addEventListener("change", () => 
+          carregarDetalhesVencimentos(conteudoGeral)
+        );
 
           // Dispara a busca Imediatamente com o filtro padrão (hoje)
           carregarDetalhesVencimentos(conteudoGeral); 
@@ -4621,25 +4908,25 @@ function criarControlesDeFiltro(conteudoGeral) {
           const hoje = new Date().toISOString().split("T")[0]; 
 
           subFiltroWrapper.innerHTML = `
-              <label class="label-select">Selecione uma data na semana</label>
+        <label class="label-select">Selecione uma data na semana</label>
 
-              <div class="wrapper select-wrapper">
-              <input 
-                type="date"
-                id="sub-filtro-data"
-                class="input-data-simples" 
-                value="${hoje}"
-              >
-              </div>
+        <div class="wrapper select-wrapper">
+        <input 
+          type="date"
+          id="sub-filtro-data"
+          class="input-data-simples" 
+          value="${hoje}"
+        >
+        </div>
           `;
 
           // Aciona o carregamento ao mudar a data (listener)
           subFiltroWrapper
-              .querySelector("#sub-filtro-data")
-              .addEventListener("change", () => 
-                  carregarDetalhesVencimentos(conteudoGeral)
-              );
-          
+        .querySelector("#sub-filtro-data")
+        .addEventListener("change", () => 
+      carregarDetalhesVencimentos(conteudoGeral)
+        );
+
           // Dispara a busca Imediatamente com o filtro padrão (hoje)
           carregarDetalhesVencimentos(conteudoGeral); 
 
@@ -4655,21 +4942,21 @@ function criarControlesDeFiltro(conteudoGeral) {
           const mesAtual = new Date().getMonth() + 1; // 1 a 12
 
           for (let i = 1; i <= 12; i++) {
-              const isCurrentMonth = (i === mesAtual);
-              optionsHtml += `
-                  <option value="${i}" ${isCurrentMonth ? "selected" : ""}>
-                      ${nomeDoMes(i)} / ${anoAtual}
-                  </option>
-                  `;
+        const isCurrentMonth = (i === mesAtual);
+        optionsHtml += `
+      <option value="${i}" ${isCurrentMonth ? "selected" : ""}>
+          ${nomeDoMes(i)} / ${anoAtual}
+      </option>
+      `;
           }
 
           subFiltroWrapper.innerHTML = `
-              <label class="label-select">Selecione o Mês</label>
-              <div class="wrapper select-wrapper">
-                <select id="sub-filtro-select" class="select-simples">
-                  ${optionsHtml}
-                </select>
-              </div>
+        <label class="label-select">Selecione o Mês</label>
+        <div class="wrapper select-wrapper">
+          <select id="sub-filtro-select" class="select-simples">
+      ${optionsHtml}
+          </select>
+        </div>
           `;
 
           // Aciona o carregamento ao mudar o mês (listener)
@@ -4690,9 +4977,9 @@ function criarControlesDeFiltro(conteudoGeral) {
           const trimestreAtual = Math.ceil(mesAtual / 3); // 1, 2, 3 ou 4
 
           const trimes = [1, 2, 3, 4].map(t => ({
-              value: t,
-              label: `Trimestre ${t} / ${anoAtual}`,
-              checked: t === trimestreAtual
+        value: t,
+        label: `Trimestre ${t} / ${anoAtual}`,
+        checked: t === trimestreAtual
           }));
 
           subFiltroWrapper.innerHTML = montarOpcoes("Selecione o Trimestre", trimes);
@@ -4706,8 +4993,8 @@ function criarControlesDeFiltro(conteudoGeral) {
           const semestreAtual = mesAtual <= 6 ? 1 : 2; // 1 ou 2
 
           const semestres = [
-            { value: 1, label: `1º Semestre / ${anoAtual}`, checked: semestreAtual === 1 },
-            { value: 2, label: `2º Semestre / ${anoAtual}`, checked: semestreAtual === 2 }
+      { value: 1, label: `1º Semestre / ${anoAtual}`, checked: semestreAtual === 1 },
+      { value: 2, label: `2º Semestre / ${anoAtual}`, checked: semestreAtual === 2 }
           ];
 
           subFiltroWrapper.innerHTML = montarOpcoes("Selecione o Semestre", semestres);
@@ -4719,13 +5006,13 @@ function criarControlesDeFiltro(conteudoGeral) {
       // --------------------------
       else if (tipo === "anual") {
           subFiltroWrapper.innerHTML = `
-              <label class="label-select">Período Anual</label>
-              <p class="anual-info">Eventos do ano de ${anoAtual}</p>
+        <label class="label-select">Período Anual</label>
+        <p class="anual-info">Eventos do ano de ${anoAtual}</p>
           `;
-        
+
           // Dispara a busca Imediatamente com o filtro padrão (ano atual)
           carregarDetalhesVencimentos(conteudoGeral);
-        
+
           return;
       }
 
@@ -4735,7 +5022,7 @@ function criarControlesDeFiltro(conteudoGeral) {
       // Este bloco só é executado para 'trimestral' ou 'semestral'
       const radios = subFiltroWrapper.querySelectorAll("input[name='sub']");
       radios.forEach(r => r.addEventListener("change", () => carregarDetalhesVencimentos(conteudoGeral)));
-      
+
       // Dispara a busca Imediatamente para o filtro padrão
       if (tipo === 'trimestral' || tipo === 'semestral') {
           carregarDetalhesVencimentos(conteudoGeral);
@@ -4747,10 +5034,10 @@ function criarControlesDeFiltro(conteudoGeral) {
     // Listener Periodo
     grupoPeriodo.querySelectorAll("input[name='periodo']").forEach(radio => {
         radio.addEventListener("change", (e) => {
-            const tipo = e.target.value;
-            atualizarSubFiltro(tipo);
+      const tipo = e.target.value;
+      atualizarSubFiltro(tipo);
 
-            if (tipo === "anual") carregarDetalhesVencimentos(conteudoGeral);
+      if (tipo === "anual") carregarDetalhesVencimentos(conteudoGeral);
         });
     });
 
@@ -4768,7 +5055,6 @@ function nomeDoMes(num) {
     return meses[num - 1];
 }
 
-
 function construirQueryDeFiltro() {
     // Definido localmente para garantir o escopo
     const anoAtual = new Date().getFullYear(); 
@@ -4781,17 +5067,17 @@ function construirQueryDeFiltro() {
     if (periodo === 'mensal') {
         const mesSelect = document.getElementById('sub-filtro-select');
         if (mesSelect) {
-            queryString += `&mes=${mesSelect.value}`;
+      queryString += `&mes=${mesSelect.value}`;
         }
     } else if (periodo === 'trimestral') {
         const trimestreSelect = document.getElementById('sub-filtro-select');
         if (trimestreSelect) {
-            queryString += `&trimestre=${trimestreSelect.value}`;
+      queryString += `&trimestre=${trimestreSelect.value}`;
         }
     } else if (periodo === 'semestral') {
         const semestreSelect = document.getElementById('sub-filtro-select');
         if (semestreSelect) {
-            queryString += `&semestre=${semestreSelect.value}`;
+      queryString += `&semestre=${semestreSelect.value}`;
         }
     }
 
@@ -4803,7 +5089,6 @@ function construirQueryDeFiltro() {
 
     return queryString;
 }
-
 
 document.getElementById("cardContainerVencimentos").addEventListener("click", async function() {
     const painel = document.getElementById("painelDetalhes");
@@ -5107,28 +5392,28 @@ function carregarEventosDoDia(data) {
       if (ev.tipo === "Reunião") {
         icone = `<svg class="icon" viewBox="0 0 24 24">
           <g stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M8 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
-            <path d="M16 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
-            <path d="M2 20a6 6 0 0 1 12 0"/>
-            <path d="M10 20a6 6 0 0 1 12 0"/>
-            <path d="M12 14c-1.5 0-3 .5-4 1.5"/>
+      <path d="M8 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
+      <path d="M16 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
+      <path d="M2 20a6 6 0 0 1 12 0"/>
+      <path d="M10 20a6 6 0 0 1 12 0"/>
+      <path d="M12 14c-1.5 0-3 .5-4 1.5"/>
           </g>
         </svg>`;
       } else if (ev.tipo === "Lembrete") {
         icone = `<svg class="icon" viewBox="0 0 24 24">
           <g stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="4" width="14" height="16" rx="2"/>
-            <path d="M7 8h8"/>
-            <path d="M16 5v2"/>
+      <rect x="3" y="4" width="14" height="16" rx="2"/>
+      <path d="M7 8h8"/>
+      <path d="M16 5v2"/>
           </g>
         </svg>`;
       } else if (ev.tipo === "Anotação") {
         icone = `<svg class="icon" viewBox="0 0 24 24">
           <g stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 3h10l6 6v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/>
-            <path d="M14 3v6h6"/>
-            <path d="M8 13h8"/>
-            <path d="M8 16h5"/>
+      <path d="M4 3h10l6 6v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/>
+      <path d="M14 3v6h6"/>
+      <path d="M8 13h8"/>
+      <path d="M8 16h5"/>
           </g>
         </svg>`;
       }
