@@ -84,7 +84,8 @@ router.get(
             o.indicesaplicados,
             o.vlrctofixo,
             o.percentctofixo,
-            o.contratourl   
+            o.contratourl,
+            o.contratarstaff  
         FROM
             orcamentos o
         JOIN
@@ -577,6 +578,7 @@ router.post(
       vlrCtoFixo,
       percentCtoFixo,
       itens,
+      contratarstaff
     } = req.body;
 
     const idempresa = req.idempresa;
@@ -614,13 +616,13 @@ router.post(
                     desconto, percentdesconto, acrescimo, percentacrescimo,
                     lucroreal, percentlucroreal, vlrimposto, percentimposto, vlrcliente, nomenclatura, 
                     formapagamento, edicao, geradoanoposterior, dtinipreevento, dtfimpreevento, dtiniposevento,
-                    dtfimposevento, indicesAplicados, nrorcamentooriginal, vlrctofixo, percentctofixo
+                    dtfimposevento, indicesAplicados, nrorcamentooriginal, vlrctofixo, percentctofixo, contratarstaff
                 ) VALUES (
                     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                     $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
                     $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, 
                     $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, 
-                    $41, $42, $43, $44, $45
+                    $41, $42, $43, $44, $45, $46
                 ) RETURNING idorcamento, nrorcamento; -- Adicionado nrorcamento aqui!
             `;
 
@@ -671,6 +673,7 @@ router.post(
         nrOrcamentoOriginal || null,
         vlrCtoFixo,
         percentCtoFixo,
+        contratarstaff
       ];
 
       const resultOrcamento = await client.query(
@@ -1629,7 +1632,7 @@ router.put(
              desconto, percentDesconto, acrescimo, percentAcrescimo,
              lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idsPavilhoes, nomenclatura, 
              formaPagamento, edicao, geradoAnoPosterior, dtIniPreEvento, dtFimPreEvento, dtIniPosEvento, 
-             dtFimPosEvento, avisoReajusteTexto, vlrCtoFixo, percentCtoFixo, itens } = req.body;
+             dtFimPosEvento, avisoReajusteTexto, vlrCtoFixo, percentCtoFixo, itens, contratarstaff } = req.body;
 
   const idempresa = req.idempresa; // ID da empresa do middleware 'contextoEmpresa'
 
@@ -1650,8 +1653,8 @@ router.put(
                         lucroreal = $29, percentlucroreal = $30, vlrimposto = $31, percentimposto = $32, vlrcliente = $33, 
                         nomenclatura = $34, formapagamento = $35, edicao = $36, geradoanoposterior = $37, dtinipreevento = $38, 
                         dtfimpreevento = $39, dtiniposevento = $40, dtfimposevento = $41, indicesaplicados = $42, vlrctofixo = $43,
-                        percentctofixo = $44
-                 WHERE idorcamento = $45 AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $45) = $46;
+                        percentctofixo = $44, contratarstaff = $45
+                 WHERE idorcamento = $46  AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $46) =$47 ;
              `;
 
         const orcamentoValues = [
@@ -1664,7 +1667,7 @@ router.put(
          desconto, percentDesconto, acrescimo, percentAcrescimo,
          lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, nomenclatura,
          formaPagamento, edicao, geradoAnoPosterior, dtIniPreEvento, dtFimPreEvento, dtIniPosEvento, dtFimPosEvento,
-         avisoReajusteTexto, vlrCtoFixo, percentCtoFixo,
+         avisoReajusteTexto, vlrCtoFixo, percentCtoFixo,contratarstaff,
          idOrcamento, // $45
          idempresa  // $46
         ];

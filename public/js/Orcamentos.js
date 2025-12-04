@@ -3380,6 +3380,7 @@ async function verificaOrcamento() {
         id: orcamentoId,
         nomenclatura: document.querySelector("#nomenclatura")?.value,
         status: formData.get("Status"),
+        contratarstaff: document.querySelector('#liberaContratacao')?.checked || false,
         idCliente:
           document.querySelector(".idCliente option:checked")?.value || null, // Se o campo for vazio, será null
         idEvento:
