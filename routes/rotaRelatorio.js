@@ -335,216 +335,218 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                     "NOME";
             `;
         }
-//         }else if (tipo === 'cache') {
-//     queryFechamentoPrincipal = `
-        // WITH
-        // -- 🔹 1) Pega o ano das datas do evento
-        // ano_evento AS (
-        //     SELECT DISTINCT EXTRACT(YEAR FROM (date_value::date))::int AS ano
-        //     FROM staffeventos tse,
-        //          jsonb_array_elements_text(tse.datasevento) AS s(date_value)
-        // ),
+        // }else if (tipo === 'cache') {
+        //     queryFechamentoPrincipal = `
+        //         WITH
+        //         -- 🔹 1) Pega o ano das datas do evento
+        //         ano_evento AS (
+        //             SELECT DISTINCT EXTRACT(YEAR FROM (date_value::date))::int AS ano
+        //             FROM staffeventos tse,
+        //                 jsonb_array_elements_text(tse.datasevento) AS s(date_value)
+        //         ),
 
-        // -- 🔹 2) Lista completa de feriados fixos + móveis
-        // feriados AS (
-        //     SELECT data FROM (
-        //         -- ⭐ FIXOS
-        //         SELECT make_date(a.ano, 1, 1) FROM ano_evento a UNION   -- Confraternização Universal
-        //         SELECT make_date(a.ano, 4, 21) FROM ano_evento a UNION  -- Tiradentes
-        //         SELECT make_date(a.ano, 5, 1) FROM ano_evento a UNION   -- Trabalho
-        //         SELECT make_date(a.ano, 9, 7) FROM ano_evento a UNION   -- Independência
-        //         SELECT make_date(a.ano, 10, 12) FROM ano_evento a UNION -- Padroeira
-        //         SELECT make_date(a.ano, 11, 2) FROM ano_evento a UNION  -- Finados
-        //         SELECT make_date(a.ano, 11, 15) FROM ano_evento a UNION -- Proclamação
-        //         SELECT make_date(a.ano, 12, 25) FROM ano_evento a UNION -- Natal
+        //         -- 🔹 2) Lista completa de feriados fixos + móveis
+        //         feriados AS (
+        //             SELECT f.data FROM (
+        //                 SELECT make_date(a.ano, 1, 1) AS data FROM ano_evento a UNION
+        //                 SELECT make_date(a.ano, 4, 21) AS data FROM ano_evento a UNION
+        //                 SELECT make_date(a.ano, 5, 1) AS data FROM ano_evento a UNION
+        //                 SELECT make_date(a.ano, 9, 7) AS data FROM ano_evento a UNION
+        //                 SELECT make_date(a.ano, 10, 12) AS data FROM ano_evento a UNION
+        //                 SELECT make_date(a.ano, 11, 2) AS data FROM ano_evento a UNION
+        //                 SELECT make_date(a.ano, 11, 15) AS data FROM ano_evento a UNION
+        //                 SELECT make_date(a.ano, 11, 20) AS data FROM ano_evento a UNION
+        //                 SELECT make_date(a.ano, 12, 25) AS data FROM ano_evento a UNION
 
-        //         -- ⭐ MÓVEIS (baseados na Páscoa)
-        //         SELECT calcular_pascoa(a.ano) FROM ano_evento a UNION                    -- Páscoa
-        //         SELECT calcular_pascoa(a.ano) - INTERVAL '2 day' FROM ano_evento a UNION -- Sexta-feira Santa
-        //         SELECT calcular_pascoa(a.ano) - INTERVAL '47 day' FROM ano_evento a UNION -- Carnaval (terça)
-        //         SELECT calcular_pascoa(a.ano) - INTERVAL '48 day' FROM ano_evento a UNION -- Carnaval (segunda)
-        //         SELECT calcular_pascoa(a.ano) - INTERVAL '49 day' FROM ano_evento a UNION -- Carnaval (domingo)
-        //         SELECT calcular_pascoa(a.ano) + INTERVAL '60 day' FROM ano_evento a      -- Corpus Christi
-        //     ) f
-        // ),
+        //                 -- 🟡 MÓVEIS COM ALIAS "data"
+        //                 SELECT calcular_pascoa(a.ano) AS data FROM ano_evento a UNION
+        //                 SELECT calcular_pascoa(a.ano) - INTERVAL '2 day' AS data FROM ano_evento a UNION
+        //                 SELECT calcular_pascoa(a.ano) - INTERVAL '47 day' AS data FROM ano_evento a UNION
+        //                 SELECT calcular_pascoa(a.ano) - INTERVAL '48 day' AS data FROM ano_evento a UNION
+        //                 SELECT calcular_pascoa(a.ano) - INTERVAL '49 day' AS data FROM ano_evento a UNION
+        //                 SELECT calcular_pascoa(a.ano) + INTERVAL '60 day' AS data FROM ano_evento a
+        //             ) f
+                
 
-//         diarias_autorizadas AS (
-//             SELECT
-//                 tse.idstaffevento,
-//                 (SELECT COUNT(*) FROM jsonb_to_recordset(tse.dtdiariadobrada) AS d(data text, status text)
-//                     WHERE d.status = 'Autorizado') AS qtd_diarias_dobradas_autorizadas,
-//                 (SELECT COUNT(*) FROM jsonb_to_recordset(tse.dtmeiadiaria) AS m(data text, status text)
-//                     WHERE m.status = 'Autorizado') AS qtd_meias_diarias_autorizadas
-//             FROM
-//                 staffeventos tse
-//             JOIN
-//                 staffempresas semp ON tse.idstaff = semp.idstaff
-//             WHERE
-//                 semp.idempresa = $1 ${wherePeriodo}
-//         )
+        //         ),
 
-//         SELECT
-//             "idevento",
-//             "nomeEvento",
-//             "idcliente",
-//             "nomeCliente",
-//             "idequipe",
-//             "nmequipe",
-//             "FUNÇÃO",
-//             "NOME",
-//             "PIX",
-//             "INÍCIO",
-//             "TÉRMINO",
-//             "VLR ADICIONAL",
-//             "VLR DIÁRIA",
-//             "QTD",
-//             "QTDPESSOAS",
-//             "TOT DIÁRIAS",
-//             CAST(("TOT DIÁRIAS" + "VLR ADICIONAL") AS NUMERIC(10, 2)) AS "TOT GERAL",
-//             "STATUS PGTO",
-//             "TOT PAGAR"
-//         FROM (
-//             SELECT
-//                 tse.idevento AS "idevento",
-//                 tse.nmevento AS "nomeEvento",
-//                 tse.idcliente AS "idcliente",
-//                 tse.nmcliente AS "nomeCliente",
-//                 tse.idequipe AS "idequipe",
-//                 tse.nmequipe AS "nmequipe",
-//                 tse.qtdpessoaslote AS "QTDPESSOAS",
-//                 tse.nmfuncao AS "FUNÇÃO",
-//                 tbf.nome AS "NOME",
-//                 tbf.pix AS "PIX",
+        //         diarias_autorizadas AS (
+        //             SELECT
+        //                 tse.idstaffevento,
+        //                 (SELECT COUNT(*) FROM jsonb_to_recordset(tse.dtdiariadobrada) AS d(data text, status text)
+        //                     WHERE d.status = 'Autorizado') AS qtd_diarias_dobradas_autorizadas,
+        //                 (SELECT COUNT(*) FROM jsonb_to_recordset(tse.dtmeiadiaria) AS m(data text, status text)
+        //                     WHERE m.status = 'Autorizado') AS qtd_meias_diarias_autorizadas
+        //             FROM
+        //                 staffeventos tse
+        //             JOIN
+        //                 staffempresas semp ON tse.idstaff = semp.idstaff
+        //             WHERE
+        //                 semp.idempresa = $1 ${wherePeriodo}
+        //         )
 
-//                 (SELECT MIN(date_value::date)
-//                  FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))::text AS "INÍCIO",
+        //         SELECT
+        //             "idevento",
+        //             "nomeEvento",
+        //             "idcliente",
+        //             "nomeCliente",
+        //             "idequipe",
+        //             "nmequipe",
+        //             "FUNÇÃO",
+        //             "NOME",
+        //             "PIX",
+        //             "INÍCIO",
+        //             "TÉRMINO",
+        //             "VLR ADICIONAL",
+        //             "VLR DIÁRIA",
+        //             "QTD",
+        //             "QTDPESSOAS",
+        //             "TOT DIÁRIAS",
+        //             CAST(("TOT DIÁRIAS" + "VLR ADICIONAL") AS NUMERIC(10, 2)) AS "TOT GERAL",
+        //             "STATUS PGTO",
+        //             "TOT PAGAR"
+        //         FROM (
+        //             SELECT
+        //                 tse.idevento AS "idevento",
+        //                 tse.nmevento AS "nomeEvento",
+        //                 tse.idcliente AS "idcliente",
+        //                 tse.nmcliente AS "nomeCliente",
+        //                 tse.idequipe AS "idequipe",
+        //                 tse.nmequipe AS "nmequipe",
+        //                 tse.qtdpessoaslote AS "QTDPESSOAS",
+        //                 tse.nmfuncao AS "FUNÇÃO",
+        //                 tbf.nome AS "NOME",
+        //                 tbf.pix AS "PIX",
 
-//                 (SELECT MAX(date_value::date)
-//                  FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))::text AS "TÉRMINO",
+        //                 (SELECT MIN(date_value::date)
+        //                 FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))::text AS "INÍCIO",
 
-//                 CAST((
-//                     COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0 END, 0) +
-//                     COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' THEN tse.vlrcaixinha ELSE 0 END, 0) +
-//                     (COALESCE(tse.vlrcache, 0) + COALESCE(tse.vlralimentacao, 0)) * da.qtd_diarias_dobradas_autorizadas +
-//                     ((COALESCE(tse.vlrcache, 0) / 2) + COALESCE(tse.vlralimentacao, 0)) * da.qtd_meias_diarias_autorizadas
-//                 ) AS NUMERIC(10, 2)) AS "VLR ADICIONAL",
+        //                 (SELECT MAX(date_value::date)
+        //                 FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))::text AS "TÉRMINO",
 
-//                 COALESCE(tse.vlrcache, 0) AS "VLR DIÁRIA",
+        //                 CAST((
+        //                     COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0 END, 0) +
+        //                     COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' THEN tse.vlrcaixinha ELSE 0 END, 0) +
+        //                     (COALESCE(tse.vlrcache, 0) + COALESCE(tse.vlralimentacao, 0)) * da.qtd_diarias_dobradas_autorizadas +
+        //                     ((COALESCE(tse.vlrcache, 0) / 2) + COALESCE(tse.vlralimentacao, 0)) * da.qtd_meias_diarias_autorizadas
+        //                 ) AS NUMERIC(10, 2)) AS "VLR ADICIONAL",
 
-//                 jsonb_array_length((
-//                     SELECT jsonb_agg(date_value)
-//                     FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
-//                     WHERE
-//                         EXTRACT(DOW FROM date_value::date) IN (0, 6)  -- DOM ou SAB
-//                         OR date_value::date IN (SELECT data FROM feriados)
-//                 )) AS "QTD",
+        //                 COALESCE(tse.vlrcache, 0) AS "VLR DIÁRIA",
 
-//                 (COALESCE(tse.vlrcache, 0) *
-//                     (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0
-//                           THEN 1 ELSE tse.qtdpessoaslote END) *
-//                     jsonb_array_length((
-//                         SELECT jsonb_agg(date_value)
-//                         FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
-//                         WHERE
-//                             EXTRACT(DOW FROM date_value::date) IN (0, 6)
-//                             OR date_value::date IN (SELECT data FROM feriados)
-//                     ))
-//                 ) AS "TOT DIÁRIAS",
+        //                 jsonb_array_length((
+        //                     SELECT jsonb_agg(date_value)
+        //                     FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
+        //                     WHERE
+        //                         EXTRACT(DOW FROM date_value::date) IN (0, 6)  -- DOM ou SAB
+        //                         OR date_value::date IN (SELECT data FROM feriados)
+        //                 )) AS "QTD",
 
-//                 CAST(COALESCE(NULLIF(TRIM(tse.vlrcaixinha::TEXT), ''), '0') AS NUMERIC) AS vlrcaixinha_num,
+        //                 (COALESCE(tse.vlrcache, 0) *
+        //                     (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0
+        //                         THEN 1 ELSE tse.qtdpessoaslote END) *
+        //                     jsonb_array_length((
+        //                         SELECT jsonb_agg(date_value)
+        //                         FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
+        //                         WHERE
+        //                             EXTRACT(DOW FROM date_value::date) IN (0, 6)
+        //                             OR date_value::date IN (SELECT data FROM feriados)
+        //                     ))
+        //                 ) AS "TOT DIÁRIAS",
 
-//                 CASE
-//                     WHEN (tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '')
-//                      AND (
-//                         CAST(COALESCE(NULLIF(TRIM(tse.vlrcaixinha::TEXT), ''), '0') AS NUMERIC) <= 0
-//                         OR (
-//                             CAST(COALESCE(NULLIF(TRIM(tse.vlrcaixinha::TEXT), ''), '0') AS NUMERIC) > 0
-//                             AND (tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '')
-//                         )
-//                     )
-//                     THEN 'Pago'
-//                     ELSE 'Pendente'
-//                 END AS "STATUS PGTO",
+        //                 CAST(COALESCE(NULLIF(TRIM(tse.vlrcaixinha::TEXT), ''), '0') AS NUMERIC) AS vlrcaixinha_num,
 
-//                 CAST((
-//                     -- 1. Total de diárias sobre finais de semana + feriados
-//                     CASE
-//                         WHEN tse.comppgtocache IS NULL OR tse.comppgtocache = ''
-//                         THEN (
-//                             COALESCE(tse.vlrcache, 0) *
-//                             (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0
-//                                   THEN 1 ELSE tse.qtdpessoaslote END) *
-//                             jsonb_array_length((
-//                                 SELECT jsonb_agg(date_value)
-//                                 FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
-//                                 WHERE
-//                                     (EXTRACT(DOW FROM date_value::date) IN (0, 6)
-//                                      OR date_value::date IN (SELECT data FROM feriados))
-//                                     AND ${phaseFilterSql}
-//                             ))
-//                         )
-//                         ELSE 0
-//                     END +
+        //                 CASE
+        //                     WHEN (tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '')
+        //                     AND (
+        //                         CAST(COALESCE(NULLIF(TRIM(tse.vlrcaixinha::TEXT), ''), '0') AS NUMERIC) <= 0
+        //                         OR (
+        //                             CAST(COALESCE(NULLIF(TRIM(tse.vlrcaixinha::TEXT), ''), '0') AS NUMERIC) > 0
+        //                             AND (tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '')
+        //                         )
+        //                     )
+        //                     THEN 'Pago'
+        //                     ELSE 'Pendente'
+        //                 END AS "STATUS PGTO",
 
-//                     -- 2. Ajuste autorizado
-//                     CASE
-//                         WHEN tse.comppgtocache IS NULL OR tse.comppgtocache = ''
-//                         THEN COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado'
-//                                            THEN tse.vlrajustecusto ELSE 0 END, 0)
-//                         ELSE 0
-//                     END +
+        //                 CAST((
+        //                     -- 1. Total de diárias sobre finais de semana + feriados
+        //                     CASE
+        //                         WHEN tse.comppgtocache IS NULL OR tse.comppgtocache = ''
+        //                         THEN (
+        //                             COALESCE(tse.vlrcache, 0) *
+        //                             (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0
+        //                                 THEN 1 ELSE tse.qtdpessoaslote END) *
+        //                             jsonb_array_length((
+        //                                 SELECT jsonb_agg(date_value)
+        //                                 FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
+        //                                 WHERE
+        //                                     (EXTRACT(DOW FROM date_value::date) IN (0, 6)
+        //                                     OR date_value::date IN (SELECT data FROM feriados))
+        //                                     AND ${phaseFilterSql}
+        //                             ))
+        //                         )
+        //                         ELSE 0
+        //                     END +
 
-//                     -- 3. Caixinha (se devida e sem comprovante)
-//                     CASE
-//                         WHEN CAST(COALESCE(NULLIF(TRIM(tse.vlrcaixinha::TEXT), ''), '0') AS NUMERIC) > 0
-//                          AND (tse.comppgtocaixinha IS NULL OR tse.comppgtocaixinha = '')
-//                         THEN COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado'
-//                                            THEN tse.vlrcaixinha ELSE 0 END, 0)
-//                         ELSE 0
-//                     END +
+        //                     -- 2. Ajuste autorizado
+        //                     CASE
+        //                         WHEN tse.comppgtocache IS NULL OR tse.comppgtocache = ''
+        //                         THEN COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado'
+        //                                         THEN tse.vlrajustecusto ELSE 0 END, 0)
+        //                         ELSE 0
+        //                     END +
 
-//                     -- 4. Diárias dobradas
-//                     CASE
-//                         WHEN tse.comppgtocache IS NULL OR tse.comppgtocache = ''
-//                         THEN (COALESCE(tse.vlrcache, 0) + COALESCE(tse.vlralimentacao, 0))
-//                              * da.qtd_diarias_dobradas_autorizadas
-//                         ELSE 0
-//                     END +
+        //                     -- 3. Caixinha (se devida e sem comprovante)
+        //                     CASE
+        //                         WHEN CAST(COALESCE(NULLIF(TRIM(tse.vlrcaixinha::TEXT), ''), '0') AS NUMERIC) > 0
+        //                         AND (tse.comppgtocaixinha IS NULL OR tse.comppgtocaixinha = '')
+        //                         THEN COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado'
+        //                                         THEN tse.vlrcaixinha ELSE 0 END, 0)
+        //                         ELSE 0
+        //                     END +
 
-//                     -- 5. Meias diárias
-//                     CASE
-//                         WHEN tse.comppgtocache IS NULL OR tse.comppgtocache = ''
-//                         THEN ((COALESCE(tse.vlrcache, 0) / 2) + COALESCE(tse.vlralimentacao, 0))
-//                              * da.qtd_meias_diarias_autorizadas
-//                         ELSE 0
-//                     END
-//                 ) AS NUMERIC(10,2)) AS "TOT PAGAR"
+        //                     -- 4. Diárias dobradas
+        //                     CASE
+        //                         WHEN tse.comppgtocache IS NULL OR tse.comppgtocache = ''
+        //                         THEN (COALESCE(tse.vlrcache, 0) + COALESCE(tse.vlralimentacao, 0))
+        //                             * da.qtd_diarias_dobradas_autorizadas
+        //                         ELSE 0
+        //                     END +
 
-//             FROM staffeventos tse
-//             JOIN funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
-//             JOIN staffempresas semp ON tse.idstaff = semp.idstaff
-//             JOIN diarias_autorizadas da ON tse.idstaffevento = da.idstaffevento
+        //                     -- 5. Meias diárias
+        //                     CASE
+        //                         WHEN tse.comppgtocache IS NULL OR tse.comppgtocache = ''
+        //                         THEN ((COALESCE(tse.vlrcache, 0) / 2) + COALESCE(tse.vlralimentacao, 0))
+        //                             * da.qtd_meias_diarias_autorizadas
+        //                         ELSE 0
+        //                     END
+        //                 ) AS NUMERIC(10,2)) AS "TOT PAGAR"
 
-//             WHERE
-//                 semp.idempresa = $1
-//                 ${wherePeriodo}
-//                 ${whereStatus}
+        //             FROM staffeventos tse
+        //             JOIN funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
+        //             JOIN staffempresas semp ON tse.idstaff = semp.idstaff
+        //             JOIN diarias_autorizadas da ON tse.idstaffevento = da.idstaffevento
 
-//                 -- SOMENTE datas que são finais de semana ou feriados
-//                 AND jsonb_array_length((
-//                     SELECT jsonb_agg(date_value)
-//                     FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
-//                     WHERE
-//                         (EXTRACT(DOW FROM date_value::date) IN (0, 6)
-//                          OR date_value::date IN (SELECT data FROM feriados))
-//                         AND ${phaseFilterSql}
-//                 )) > 0
+        //             WHERE
+        //                 semp.idempresa = $1
+        //                 ${wherePeriodo}
+        //                 ${whereStatus}
 
-//         ) AS subquery
+        //                 -- SOMENTE datas que são finais de semana ou feriados
+        //                 AND jsonb_array_length((
+        //                     SELECT jsonb_agg(date_value)
+        //                     FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
+        //                     WHERE
+        //                         (EXTRACT(DOW FROM date_value::date) IN (0, 6)
+        //                         OR date_value::date IN (SELECT data FROM feriados))
+        //                         AND ${phaseFilterSql}
+        //                 )) > 0
 
-//         ORDER BY "nomeEvento", "NOME";
-//     `;
-// }
+        //         ) AS subquery
+
+        //         ORDER BY "nomeEvento", "NOME";
+        //     `;
+        // }
 
     
         const resultFechamentoPrincipal = await pool.query(queryFechamentoPrincipal, params);

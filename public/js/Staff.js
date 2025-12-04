@@ -1899,15 +1899,15 @@ function inicializarEPreencherCampos(eventData) {
     const containerPDF = document.querySelector('.pdf');
 
     if (containerPDF) {
-        if (temPermissaoFinanceiro) {
+        if (temPermissaoFinanceiro || temPermissaoMaster) {
             containerPDF.style.display = 'block'; // 🚫 Oculta tudo para quem não tem Master/Financeiro
         } else {            
             containerPDF.style.display = 'none'; // 👁️ Mostra tudo para Master e Financeiro
         }
     }
 
-    if (temPermissaoTotal) {   
-        console.log("É FINANCEIRO"); 
+    if (temPermissaoMaster) {   
+        console.log("É MASTER"); 
         document.getElementById('selectStatusAjusteCusto').style.display = 'block';
         statusAjusteCustoInput.style.display = 'none';
         console.log("STATUS AJUSTE CUSTO TEM PERMISSAO TOTAL", eventData.statusajustecusto);
@@ -1941,7 +1941,7 @@ function inicializarEPreencherCampos(eventData) {
 
      } else {      
            
-        console.log("NÃO É FINANCEIRO");
+        console.log("NÃO É MASTER");
         document.getElementById('selectStatusAjusteCusto').style.display = 'none';
         statusAjusteCustoInput.style.display = 'block';
         console.log("STATUS AJUSTE CUSTO SEM PERMISSAO TOTAL", eventData.statusajustecusto);
