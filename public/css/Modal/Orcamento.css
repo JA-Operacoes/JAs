@@ -652,7 +652,6 @@ select #idCliente, #idEvento{
   }
 
   .checkbox-coluna {
-  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
