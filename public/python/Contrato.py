@@ -75,7 +75,7 @@ def gerar_contrato(dados):
     caminho_base = os.path.join(
         os.path.dirname(os.path.dirname(pasta_script)),
         "models",
-        "Contrato_LAAD_2025-RJ.docx"
+        "Contrato.docx"
     )
 
     if not os.path.exists(caminho_base):
