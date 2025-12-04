@@ -1517,7 +1517,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
         
         const { rows } = await pool.query(query, params); 
         console.log(`[FINANCEIRO DEBUG] Linhas retornadas do DB: ${rows.length}`);
-        console.log("Dados retornados", rows);
+        // console.log("Dados retornados", rows);
 
         // 6. Mapeamento e Resposta
         const pedidos = rows.map(r => {
