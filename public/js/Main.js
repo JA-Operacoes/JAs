@@ -496,6 +496,12 @@ async function abrirModalLocal(url, modulo) {
                 // Define as datas, disparando onChange (necessário para sincronizar com Diária Dobrada/Meia Diária)
                 window.datasEventoPicker.setDate(datasDoStaff, true);
 
+                if (typeof window.atualizarContadorEDatas === 'function') {
+                    // Chama a função de atualização do contador com as datas do staff
+                    window.atualizarContadorEDatas(window.datasEventoPicker.selectedDates);
+                    console.log("[abrirModalLocal] Contador de datas do evento atualizado após SetDate.");
+                }
+
                 // 🌟 GARANTIA DE FORMATO: Força a re-renderização do altInput
                 // Isso resolve o problema de YYYY-MM-DD e múltiplos campos.
                 if (window.datasEventoPicker.altInput) {
@@ -518,46 +524,46 @@ async function abrirModalLocal(url, modulo) {
 
 window.applyModalPrefill = function(rawParams) {
   try {
-  console.log("[applyModalPrefill] iniciar. rawParams:", rawParams);
-  console.log("[applyModalPrefill] Parâmetros definidos:", window.__modalInitialParams);
-  const raw = rawParams || window.__modalInitialParams || (window.location.search ? window.location.search.replace(/^\?/,'') : "");
-  console.log("[applyModalPrefill] raw usado:", raw);
-  if (!raw) {
-  console.log("[applyModalPrefill] sem params, abortando");
-  return false;
-  }
-  const params = new URLSearchParams(raw);
+    console.log("[applyModalPrefill] iniciar. rawParams:", rawParams);
+    console.log("[applyModalPrefill] Parâmetros definidos:", window.__modalInitialParams);
+    const raw = rawParams || window.__modalInitialParams || (window.location.search ? window.location.search.replace(/^\?/,'') : "");
+    console.log("[applyModalPrefill] raw usado:", raw);
+    if (!raw) {
+      console.log("[applyModalPrefill] sem params, abortando");
+      return false;
+    }
+    const params = new URLSearchParams(raw);
 
-  console.log("[applyModalPrefill ABRIRMODALLOCAL] URLSearchParams:", Array.from(params.entries()));
+    console.log("[applyModalPrefill ABRIRMODALLOCAL] URLSearchParams:", Array.from(params.entries()));
 
-  // leitura dos valores esperados
-  const prefill = {
-  idevento: params.get("idevento"),
-  idfuncao: params.get("idfuncao"),
-  idequipe: params.get("idequipe"),
-  idcliente: params.get("idcliente"),
-  idmontagem: params.get("idmontagem"),
-  nmequipe: params.get("nmequipe") || params.get("idequipe_nome"),
-  nmfuncao: params.get("nmfuncao"),
-  nmevento: params.get("nmevento"),
-  nmcliente: params.get("nmcliente"),
-  nmlocalmontagem: params.get("nmlocalmontagem") || params.get("idmontagem_nome")
-  };
-  console.log("[applyModalPrefill] prefill parseado:", prefill);
+    // leitura dos valores esperados
+    const prefill = {
+      idevento: params.get("idevento"),
+      idfuncao: params.get("idfuncao"),
+      idequipe: params.get("idequipe"),
+      idcliente: params.get("idcliente"),
+      idmontagem: params.get("idmontagem"),
+      nmequipe: params.get("nmequipe") || params.get("idequipe_nome"),
+      nmfuncao: params.get("nmfuncao"),
+      nmevento: params.get("nmevento"),
+      nmcliente: params.get("nmcliente"),
+      nmlocalmontagem: params.get("nmlocalmontagem") || params.get("idmontagem_nome")
+    };
+    console.log("[applyModalPrefill] prefill parseado:", prefill);
 
   // expõe para uso posterior (Staff.js ou observers)
   window.__modalDesiredPrefill = prefill;
 
   // helper: tenta aplicar em hidden/input simples
   function setHidden(id, value) {
-  if (!value) return;
-  const el = document.getElementById(id);
-  if (el) {
-  el.value = value;
-  console.log(`[applyModalPrefill] setHidden ${id}=${value}`);
-  } else {
-  console.log(`[applyModalPrefill] hidden ${id} não encontrado`);
-  }
+    if (!value) return;
+    const el = document.getElementById(id);
+    if (el) {
+      el.value = value;
+      console.log(`[applyModalPrefill] setHidden ${id}=${value}`);
+    } else {
+      console.log(`[applyModalPrefill] hidden ${id} não encontrado`);
+    }
   }
 
   setHidden("idEvento", prefill.idevento);
@@ -569,68 +575,68 @@ window.applyModalPrefill = function(rawParams) {
 
   // helper: tenta selecionar option existente — NÃO cria option para evitar sobrescrever listas carregadas depois
   function trySelectIfExists(selectId, value, text) {
-  if (!value && !text) return false;
-  const sel = document.getElementById(selectId);
-  if (!sel) {
-  console.log(`[applyModalPrefill] select ${selectId} não existe ainda`);
-  return false;
-  }
-  const options = Array.from(sel.options || []);
+    if (!value && !text) return false;
+    const sel = document.getElementById(selectId);
+    if (!sel) {
+      console.log(`[applyModalPrefill] select ${selectId} não existe ainda`);
+      return false;
+    }
+    const options = Array.from(sel.options || []);
   // tenta por value primeiro
-  let opt = options.find(o => String(o.value) === String(value));
-  if (!opt && text) {
-  opt = options.find(o => (o.textContent || o.text || "").trim() === String(text).trim());
-  }
-  if (opt) {
-  sel.value = opt.value;
-  sel.dispatchEvent(new Event("change", { bubbles: true }));
-  console.log(`[applyModalPrefill] selecionado ${selectId} -> value:${opt.value} text:${opt.text}`);
-  return true;
-  }
-  console.log(`[applyModalPrefill] opção não encontrada em ${selectId} para value:${value} text:${text}`);
-  return false;
+    let opt = options.find(o => String(o.value) === String(value));
+    if (!opt && text) {
+      opt = options.find(o => (o.textContent || o.text || "").trim() === String(text).trim());
+    }
+    if (opt) {
+      sel.value = opt.value;
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      console.log(`[applyModalPrefill] selecionado ${selectId} -> value:${opt.value} text:${opt.text}`);
+      return true;
+    }
+    console.log(`[applyModalPrefill] opção não encontrada em ${selectId} para value:${value} text:${text}`);
+    return false;
   }
 
   // Observador que aguarda opções serem adicionadas a um <select> e então tenta aplicar
   function observeSelectUntilPopulated(selectId, value, text, timeout = 3000) {
-  const sel = document.getElementById(selectId);
-  if (!sel) {
-  console.log(`[applyModalPrefill] observe: select ${selectId} não existe, pulando`);
-  return;
-  }
-  if (trySelectIfExists(selectId, value, text)) return;
+    const sel = document.getElementById(selectId);
+    if (!sel) {
+    console.log(`[applyModalPrefill] observe: select ${selectId} não existe, pulando`);
+    return;
+    }
+    if (trySelectIfExists(selectId, value, text)) return;
 
-  console.log(`[applyModalPrefill] observando select ${selectId} até popular (timeout ${timeout}ms)`);
-  const mo = new MutationObserver((mutations) => {
-  if (trySelectIfExists(selectId, value, text)) {
-  try { mo.disconnect(); } catch(e) {}
-  console.log(`[applyModalPrefill] observe: option aplicada em ${selectId}`);
-  }
-  });
+    console.log(`[applyModalPrefill] observando select ${selectId} até popular (timeout ${timeout}ms)`);
+    const mo = new MutationObserver((mutations) => {
+    if (trySelectIfExists(selectId, value, text)) {
+    try { mo.disconnect(); } catch(e) {}
+    console.log(`[applyModalPrefill] observe: option aplicada em ${selectId}`);
+    }
+    });
 
-  mo.observe(sel, { childList: true, subtree: true });
+    mo.observe(sel, { childList: true, subtree: true });
 
-  setTimeout(() => {
-  try { mo.disconnect(); } catch (e) {}
-  const still = document.getElementById(selectId);
+    setTimeout(() => {
+    try { mo.disconnect(); } catch (e) {}
+    const still = document.getElementById(selectId);
 
-  // LINHA 244 ATUALIZADA (CORREÇÃO DO PRIMEIRO TypeError: reading 'length')
-  if (still && still.options && (still.options.length === 0 || !trySelectIfExists(selectId, value, text))) { 
-  console.log(`[applyModalPrefill] timeout atingido para ${selectId}. Criando option fallback (se tiver texto).`);
-  if (text || value) {
-  const opt = document.createElement("option");
-  opt.value = value || text || "";
-  opt.text = text || value || "Selecionado";
-  opt.selected = true;
-  still.appendChild(opt);
+    // LINHA 244 ATUALIZADA (CORREÇÃO DO PRIMEIRO TypeError: reading 'length')
+    if (still && still.options && (still.options.length === 0 || !trySelectIfExists(selectId, value, text))) { 
+    console.log(`[applyModalPrefill] timeout atingido para ${selectId}. Criando option fallback (se tiver texto).`);
+    if (text || value) {
+    const opt = document.createElement("option");
+    opt.value = value || text || "";
+    opt.text = text || value || "Selecionado";
+    opt.selected = true;
+    still.appendChild(opt);
 
-  // NOVA LINHA (CORREÇÃO DO SEGUNDO TypeError em Staff.js:3345)
-  still.value = opt.value; 
+    // NOVA LINHA (CORREÇÃO DO SEGUNDO TypeError em Staff.js:3345)
+    still.value = opt.value; 
 
-  // LINHA 252 ATUALIZADA (agora mais segura)
-  still.dispatchEvent(new Event('change', { bubbles: true }));
-  console.log(`[applyModalPrefill] option fallback criado em ${selectId} value:${opt.value}`);
-  }
+    // LINHA 252 ATUALIZADA (agora mais segura)
+    still.dispatchEvent(new Event('change', { bubbles: true }));
+    console.log(`[applyModalPrefill] option fallback criado em ${selectId} value:${opt.value}`);
+    }
   }
   }, timeout);
 }

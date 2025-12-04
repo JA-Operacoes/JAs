@@ -1496,13 +1496,20 @@ router.get('/notificacoes-financeiras', async (req, res) => {
         LEFT JOIN eventos e ON e.idevento = se.idevento
         LEFT JOIN orcamentos o ON o.idevento = e.idevento
 
-        WHERE
-        ( se.statuscaixinha IS NOT NULL OR se.statusajustecusto IS NOT NULL OR
-        se.statusdiariadobrada IS NOT NULL OR se.statusmeiadiaria IS NOT NULL )
-        AND
-        ( (se.vlrcaixinha IS NOT NULL AND se.vlrcaixinha != 0) OR
-        (se.vlrajustecusto IS NOT NULL AND se.vlrajustecusto != 0) OR
-        se.dtdiariadobrada IS NOT NULL OR se.dtmeiadiaria IS NOT NULL )
+        WHERE    
+        (
+            (se.statuscaixinha IS NOT NULL AND se.statuscaixinha <> '') OR
+            (se.statusajustecusto IS NOT NULL AND se.statusajustecusto <> '') OR
+            (se.statusdiariadobrada IS NOT NULL AND se.statusdiariadobrada <> '') OR 
+            (se.statusmeiadiaria IS NOT NULL AND se.statusmeiadiaria <> '')
+        )
+        AND        
+        (           
+            (se.vlrcaixinha IS NOT NULL AND se.vlrcaixinha != 0) OR          
+            (se.vlrajustecusto IS NOT NULL AND se.vlrajustecusto != 0) OR          
+            (se.dtdiariadobrada IS NOT NULL AND se.dtdiariadobrada <> '[]'::jsonb) OR           
+            (se.dtmeiadiaria IS NOT NULL AND se.dtmeiadiaria <> '[]'::jsonb)
+        )
         ${filtroSolicitante} 
 
         ORDER BY se.idstaffevento, oe.criado_em DESC;
@@ -1510,6 +1517,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
         
         const { rows } = await pool.query(query, params); 
         console.log(`[FINANCEIRO DEBUG] Linhas retornadas do DB: ${rows.length}`);
+        console.log("Dados retornados", rows);
 
         // 6. Mapeamento e Resposta
         const pedidos = rows.map(r => {
