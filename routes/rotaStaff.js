@@ -109,8 +109,8 @@ router.get('/funcao', async (req, res) => {
      
     const resultado = await pool.query(`
       SELECT f.idcategoriafuncao, f.idfuncao, f.descfuncao, f.ativo, f.vdafuncao, f.obsproposta, f.obsfuncao,
-        e.idequipe, e.nmequipe, cf.nmcategoriafuncao,
-        cf.ctofuncaobase, cf.ctofuncaojunior, cf.ctofuncaopleno, cf.ctofuncaosenior, cf.transporte, cf.transpsenior, cf.alimentacao
+          e.idequipe, e.nmequipe, cf.nmcategoriafuncao,
+          cf.ctofuncaobase, cf.ctofuncaojunior, cf.ctofuncaopleno, cf.ctofuncaosenior, cf.transporte, cf.transpsenior, cf.alimentacao, cf.vlrfuncionario
       FROM funcao f
       INNER JOIN categoriafuncao cf ON f.idcategoriafuncao = cf.idcategoriafuncao
       INNER JOIN equipe e ON f.idequipe = e.idequipe
