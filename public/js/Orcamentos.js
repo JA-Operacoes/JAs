@@ -1899,15 +1899,14 @@ function adicionarLinhaAdicional() {
 // Assume-se que 'liberarSelectsParaAdicional' é uma função existente
 liberarSelectsParaAdicional();
 
-const tabelaBody = document
-.getElementById("tabela")
-?.getElementsByTagName("tbody")[0];
+const tabelaBody = document.getElementById("tabela")?.getElementsByTagName("tbody")[0];
 if (!tabelaBody) {
 console.error(
 "Erro: Elemento <tbody> da tabela de orçamento não encontrado."
 );
 return;
 }
+tabelaBody.innerHTML = "";
 
 const ufAtual = document.getElementById("ufmontagem")?.value || "SP";
 // O estilo inicial é usado para colunas que só devem aparecer para UF's diferentes de SP
