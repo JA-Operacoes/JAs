@@ -1908,6 +1908,7 @@ console.error(
 );
 return;
 }
+tabelaBody.innerHTML = "";
 
 const ufAtual = document.getElementById("ufmontagem")?.value || "SP";
 // O estilo inicial é usado para colunas que só devem aparecer para UF's diferentes de SP
