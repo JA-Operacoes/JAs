@@ -1366,7 +1366,7 @@ function inicializarEPreencherCampos(eventData) {
 
      } else {      
            
-        console.log("NÃO É FINANCEIRO");
+        console.log("NÃO É MASTER");
         document.getElementById('selectStatusAjusteCusto').style.display = 'none';
         statusAjusteCustoInput.style.display = 'block';
         console.log("STATUS AJUSTE CUSTO SEM PERMISSAO TOTAL", eventData.statusajustecusto);
