@@ -1,18 +1,8 @@
 import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/flatpickr.min.js";
 import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/l10n/pt.js";
 
-//import "../js/flatpickr/l10n/pt.js";
-//import "../js/flatpickr/flatpickr.min.js";
 
 import { fetchComToken, aplicarTema } from "../utils/utils.js";
-
-// document.addEventListener("DOMContentLoaded", function () {
-//     const idempresa = localStorage.getItem("idempresa");
-//     if (idempresa) {
-//         let tema = idempresa == 1 ? "JA-Oper" : "ES";
-//         aplicarTema(tema);
-//     }
-// });
 
 document.addEventListener("DOMContentLoaded", function () {
   const idempresa = localStorage.getItem("idempresa");
@@ -4292,7 +4282,18 @@ export async function preencherFormularioComOrcamento(orcamento) {
     if (typeof atualizarVisibilidadeInfra === "function") {
       atualizarVisibilidadeInfra();
     }
-  } // Preencher campos de texto
+  }
+
+  // 3. NOVO: Liberado Para Contratar Staff
+const checkLiberaStaff = document.getElementById("liberaContratacao");
+if (checkLiberaStaff) {
+    checkLiberaStaff.checked = !!orcamento.contratarstaff;
+    console.log("Liberado Contratação Staff", checkLiberaStaff.checked);
+  } else {
+    console.warn("Elemento com ID 'liberaContratacao' não encontrado.");
+  }
+  
+  // Preencher campos de texto
 
   const obsItensInput = document.getElementById("Observacao");
   if (obsItensInput) {

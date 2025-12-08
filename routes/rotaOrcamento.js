@@ -41,8 +41,6 @@ router.get(
             e.nmevento AS nomeevento,
             o.idmontagem,
             lm.descmontagem AS nomelocalmontagem,
-           -- o.idpavilhao,
-           -- p.nmpavilhao AS nomepavilhao,
             o.nrorcamento,
             o.inframontagem,
             o.dtinipreevento,

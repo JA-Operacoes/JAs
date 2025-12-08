@@ -4337,9 +4337,12 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
         idOrcamentoAtual = idOrcamento;
 
         const nrOrcamento = dadosDoOrcamento[0].nrorcamento;
+
+        const liberadoCadastro = dadosDoOrcamento[0].contratarstaff;
+
         
 
-       console.log('ID do Orçamento Atual:', idOrcamentoAtual, statusDoOrcamento);
+       console.log('ID do Orçamento Atual:', idOrcamentoAtual, statusDoOrcamento, liberadoCadastro);
 
     
 
@@ -4349,12 +4352,13 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
             controlarBotaoSalvarStaff(false);
             return;
         }
-        // if (statusDoOrcamento === 'P' && !liberadoCadastro) {
-        //     Swal.fire({ icon: 'warning', title: 'Orçamento Não liberado para Contratação', text: 'Orçamento em Proposta Sem liberação de Contratação. Não é possível cadastrar.' });
-        //     temOrcamento = false;
-        //     controlarBotaoSalvarStaff(false);
-        //     return;
-        // }
+
+        if (statusDoOrcamento === 'P' && !liberadoCadastro) {
+            Swal.fire({ icon: 'warning', title: 'Orçamento Não liberado para Contratação', text: 'Orçamento em Proposta Sem liberação de Contratação. Não é possível cadastrar.' });
+            temOrcamento = false;
+            controlarBotaoSalvarStaff(false);
+            return;
+        }
 
         // --- 3. VALIDAÇÃO DE DATAS ESPECÍFICA POR FUNÇÃO ---
         const funcaoSelecionadaTexto = descFuncaoSelect.options[descFuncaoSelect.selectedIndex].text;

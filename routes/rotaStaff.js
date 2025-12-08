@@ -408,7 +408,7 @@ router.post("/orcamento/consultar",
                 WHERE oi.idorcamentoitem IS NOT NULL
             )
             SELECT
-                o.status, o.idorcamento,
+                o.status, o.idorcamento, o.contratarstaff,
                 -- CORREÇÃO AQUI:
                 -- Em vez de recalcular todas as datas do evento inteiro,
                 -- pegamos apenas as datas deste item específico que já calculamos na CTE.
@@ -470,6 +470,7 @@ router.post("/orcamento/consultar",
                 o.status, 
                 o.idorcamento,
                 oi.qtditens,
+                o.contratarstaff,
                 dto.periodos_disponiveis -- Necessário no Group By pois agora é coluna direta
             ORDER BY
                 oi.idorcamentoitem;
