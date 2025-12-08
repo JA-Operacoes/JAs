@@ -2620,138 +2620,94 @@ function atualizarUFOrc(selectLocalMontagem) {
   }
 }
 
+function ceilToTenCents(value, factor) {
+    if (typeof value !== 'number' || isNaN(value)) {
+        return 0;
+    }
+    const reajustedValue = value * factor;
+    // Arredonda para o múltiplo de 0.10 (dez centavos) mais próximo (ceil)
+    const roundedValue = Math.ceil(reajustedValue * 10) / 10;
+    return parseFloat(roundedValue.toFixed(2));
+}
+
+
 function atualizaProdutoOrc(event) {
-  // console.log("Função atualizaProduto chamada", Categoria);
-
-  let select = event.target; // Qual select foi alterado (Funcao, equipamento ou suprimento)
-
-  console.log("Select alterado:", select); // Log do select alterado
-
-  let selectedOption = select.options[select.selectedIndex]; // Opção selecionada
-  let valorSelecionado = selectedOption.value;
-
-  console.log("Valor :", valorSelecionado);
-
-  // Obtém as informações do item selecionado
-  let produtoSelecionado = selectedOption.getAttribute("data-descproduto");
-
-  console.log("Produto selecionado:", produtoSelecionado); // Log do produto selecionado
-  // Log do pavilhão selecionado
-  let vlrCusto = selectedOption.getAttribute("data-cto");
-  let vlrVenda = selectedOption.getAttribute("data-vda");
-
-  const vlrCustoNumerico = parseFloat(vlrCusto) || 0;
-  const vlrVendaNumerico = parseFloat(vlrVenda) || 0;
-
-  let tabela = document.getElementById("tabela");
-  if (!tabela) return; // Se a tabela não existir, sai da função
-
-  //let ultimaLinha = tabela.querySelector("tbody tr:last-child");
-  let ultimaLinha = tabela.querySelector("tbody tr:first-child");
-  if (ultimaLinha) {
-    let celulaProduto = ultimaLinha.querySelector(".produto");
-    let celulaCategoria = ultimaLinha.querySelector(".Categoria");
-
-    let inputIdFuncao = ultimaLinha.querySelector("input.idFuncao");
-    let inputIdEquipamento = ultimaLinha.querySelector("input.idEquipamento");
-    let inputIdSuprimento = ultimaLinha.querySelector("input.idSuprimento");
-
-    if (inputIdFuncao) inputIdFuncao.value = "";
-    if (inputIdEquipamento) inputIdEquipamento.value = "";
-    if (inputIdSuprimento) inputIdSuprimento.value = "";
-
-    // Atribui o NOME do produto ao texto da célula
-    if (celulaProduto) {
-      // AQUI ESTÁ A CHAVE: o texto da célula recebe o NOME, e não o ID.
-      celulaProduto.textContent = produtoSelecionado;
+    let select = event.target;
+    console.log("Select alterado:", select);
+    let selectedOption = select.options[select.selectedIndex];
+    let valorSelecionado = selectedOption.value;
+    console.log("Valor :", valorSelecionado);
+    let produtoSelecionado = selectedOption.getAttribute("data-descproduto");
+    console.log("Produto selecionado:", produtoSelecionado);
+    let vlrCusto = selectedOption.getAttribute("data-cto");
+    let vlrVenda = selectedOption.getAttribute("data-vda");
+    let vlrCustoNumerico = parseFloat(vlrCusto) || 0;
+    let vlrVendaNumerico = parseFloat(vlrVenda) || 0;
+    if (typeof bProximoAno !== 'undefined' && bProximoAno) {
+        console.log("Aplicando reajuste de 'Próximo Ano' a item recém-selecionado.");
+        const fatorGeral = GLOBAL_PERCENTUAL_GERAL > 0 ? 1 + GLOBAL_PERCENTUAL_GERAL / 100 : 1;
+        const fatorAjuda = GLOBAL_PERCENTUAL_AJUDA > 0 ? 1 + GLOBAL_PERCENTUAL_AJUDA / 100 : 1;
+        vlrCustoNumerico = ceilToTenCents(vlrCustoNumerico, fatorGeral);
+        vlrVendaNumerico = ceilToTenCents(vlrVendaNumerico, fatorGeral);
+        if (typeof vlrAlimentacao !== 'undefined') {
+            vlrAlimentacao = ceilToTenCents(parseFloat(vlrAlimentacao) || 0, fatorAjuda);
+        }
+        if (typeof vlrTransporte !== 'undefined') {
+            vlrTransporte = ceilToTenCents(parseFloat(vlrTransporte) || 0, fatorAjuda);
+        }
     }
-
-    if (celulaCategoria && Categoria !== "Pavilhao") {
-      celulaCategoria.textContent = Categoria;
+    let tabela = document.getElementById("tabela");
+    if (!tabela) return;
+    let ultimaLinha = tabela.querySelector("tbody tr:first-child");
+    if (ultimaLinha) {
+        let celulaProduto = ultimaLinha.querySelector(".produto");
+        let celulaCategoria = ultimaLinha.querySelector(".Categoria");
+        let inputIdFuncao = ultimaLinha.querySelector("input.idFuncao");
+        let inputIdEquipamento = ultimaLinha.querySelector("input.idEquipamento");
+        let inputIdSuprimento = ultimaLinha.querySelector("input.idSuprimento");
+        if (inputIdFuncao) inputIdFuncao.value = "";
+        if (inputIdEquipamento) inputIdEquipamento.value = "";
+        if (inputIdSuprimento) inputIdSuprimento.value = "";
+        if (celulaProduto) {
+            celulaProduto.textContent = produtoSelecionado;
+        }
+        if (celulaCategoria && Categoria !== "Pavilhao") {
+            celulaCategoria.textContent = Categoria;
+        }
+        console.log(" A categoria é :", Categoria);
+        if (select.classList.contains("idFuncao")) {
+            inputIdFuncao.value = valorSelecionado;
+        } else if (select.classList.contains("idEquipamento")) {
+            inputIdEquipamento.value = valorSelecionado;
+        } else if (select.classList.contains("idSuprimento")) {
+            inputIdSuprimento.value = valorSelecionado;
+        }
+        const spanAlimentacao = ultimaLinha.querySelector(".vlralimentacao-input");
+        const spanTransporte = ultimaLinha.querySelector(".vlrtransporte-input");
+        if (spanAlimentacao) {
+            spanAlimentacao.textContent = formatarMoeda(vlrAlimentacao);
+            ultimaLinha.querySelector(
+                ".ajdCusto.alimentacao"
+            ).dataset.originalAjdcusto = vlrAlimentacao.toString();
+        }
+        if (spanTransporte) {
+            spanTransporte.textContent = formatarMoeda(vlrTransporte);
+            ultimaLinha.querySelector(
+                ".ajdCusto.transporte"
+            ).dataset.originalAjdcusto = vlrTransporte.toString();
+        }
+        let celulaVlrCusto = ultimaLinha.querySelector(".vlrCusto");
+        if (celulaVlrCusto) celulaVlrCusto.textContent = formatarMoeda(vlrCustoNumerico);
+        console.log(" valor de Custo é:", vlrCustoNumerico);
+        let celulaVlrVenda = ultimaLinha.querySelector(".vlrVenda");
+        if (celulaVlrVenda) {
+            celulaVlrVenda.textContent = formatarMoeda(vlrVendaNumerico);
+            celulaVlrVenda.dataset.originalVenda = vlrVendaNumerico.toString();
+        }
+        console.log(" valor de Venda é:", vlrVendaNumerico);
     }
-
-    console.log(" A categoria é :", Categoria);
-
-    if (select.classList.contains("idFuncao")) {
-      inputIdFuncao.value = valorSelecionado;
-    } else if (select.classList.contains("idEquipamento")) {
-      inputIdEquipamento.value = valorSelecionado;
-    } else if (select.classList.contains("idSuprimento")) {
-      inputIdSuprimento.value = valorSelecionado;
-    }
-
-    // // Encontre os selects de alimentação e transporte dentro da nova linha
-    // const selectAlimentacao = ultimaLinha.querySelector('.select-alimentacao');
-    // const selectTransporte = ultimaLinha.querySelector('.select-transporte');
-
-    // if (Categoria === "Produto(s)") { // Use "Função" se essa for a categoria exata definida na option
-    //     if (selectAlimentacao) {
-    //         selectAlimentacao.disabled = false;
-    //     }
-    //     if (selectTransporte) {
-    //         selectTransporte.disabled = false;
-    //     }
-    // } else {
-    //     if (selectAlimentacao) {
-    //         selectAlimentacao.disabled = true;
-    //         selectAlimentacao.value = ""; // Opcional: Reseta o valor
-    //     }
-    //     if (selectTransporte) {
-    //         selectTransporte.disabled = true;
-    //         selectTransporte.value = ""; // Opcional: Reseta o valor
-    //     }
-    // }
-
-    //TRECHO PARA ALIMENTAÇÃO E TRANSPORTE EDITÁVEL
-    // const inputAlimentacao = ultimaLinha.querySelector('.vlralimentacao-input');
-    // const inputTransporte = ultimaLinha.querySelector('.vlrtransporte-input');
-
-    // // Assume que vlrAlimentacao e vlrTransporte são globais e foram setados em carregarFuncaoOrc
-    // if (inputAlimentacao) {
-    //     inputAlimentacao.value = formatarMoeda(vlrAlimentacao);
-    //     inputAlimentacao.dataset.originalAjdcusto = vlrAlimentacao.toString();
-    // }
-    // if (inputTransporte) {
-    //     inputTransporte.value = formatarMoeda(vlrTransporte);
-    //     inputTransporte.dataset.originalAjdcusto = vlrTransporte.toString();
-    // }
-
-    //TRECHO PARA ALIMENTAÇÃO E TRANSPORTE NÃO EDITÁVEL
-    const spanAlimentacao = ultimaLinha.querySelector(".vlralimentacao-input");
-    const spanTransporte = ultimaLinha.querySelector(".vlrtransporte-input");
-
-    // Atualizamos o texto do span (o display na tabela)
-    if (spanAlimentacao) {
-      spanAlimentacao.textContent = formatarMoeda(vlrAlimentacao);
-      // Atualiza o data-attribute na própria célula <td> (opcional, mas bom para referência)
-      ultimaLinha.querySelector(
-        ".ajdCusto.alimentacao"
-      ).dataset.originalAjdcusto = vlrAlimentacao.toString();
-    }
-    if (spanTransporte) {
-      spanTransporte.textContent = formatarMoeda(vlrTransporte);
-      // Atualiza o data-attribute na própria célula <td>
-      ultimaLinha.querySelector(
-        ".ajdCusto.transporte"
-      ).dataset.originalAjdcusto = vlrTransporte.toString();
-    }
-
-    let celulaVlrCusto = ultimaLinha.querySelector(".vlrCusto");
-    if (celulaVlrCusto) celulaVlrCusto.textContent = vlrCusto;
-    console.log(" valor de Custo é:", vlrCusto);
-
-    let celulaVlrVenda = ultimaLinha.querySelector(".vlrVenda");
-    // if (celulaVlrVenda) celulaVlrVenda.textContent = vlrVenda;
-
-    if (celulaVlrVenda) {
-      celulaVlrVenda.textContent = formatarMoeda(vlrVendaNumerico);
-      celulaVlrVenda.dataset.originalVenda = vlrVendaNumerico.toString();
-    }
-    console.log(" valor de Venda é:", vlrVendaNumerico);
-  }
-  gerarObservacoesProposta([ultimaLinha]);
-  recalcularLinha(ultimaLinha);
-  //marcia
+    gerarObservacoesProposta([ultimaLinha]);
+    recalcularLinha(ultimaLinha);
 }
 
 // Sua função de atualização de valores (mantém-se a mesma)
@@ -3525,12 +3481,12 @@ async function verificaOrcamento() {
         tpajdctoalimentacao:
             linha.querySelector(".tpAjdCusto-alimentacao")?.value || null,
         vlrajdctoalimentacao: desformatarMoeda(
-            linha.querySelector(".valorbanco.alimentacao")?.textContent || "0"
+            linha.querySelector(".vlralimentacao-input")?.textContent || "0"
         ),
         tpajdctotransporte:
             linha.querySelector(".tpAjdCusto-transporte")?.value || null,
         vlrajdctotransporte: desformatarMoeda(
-            linha.querySelector(".valorbanco.transporte")?.textContent || "0"
+            linha.querySelector(".vlrtransporte-input")?.textContent || "0"
         ),
         totajdctoitem: desformatarMoeda(
             linha.querySelector(".totAjdCusto.Moeda")?.textContent || "0"
