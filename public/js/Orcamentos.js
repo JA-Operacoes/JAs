@@ -1,18 +1,8 @@
 import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/flatpickr.min.js";
 import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/l10n/pt.js";
 
-//import "../js/flatpickr/l10n/pt.js";
-//import "../js/flatpickr/flatpickr.min.js";
 
 import { fetchComToken, aplicarTema } from "../utils/utils.js";
-
-// document.addEventListener("DOMContentLoaded", function () {
-//     const idempresa = localStorage.getItem("idempresa");
-//     if (idempresa) {
-//         let tema = idempresa == 1 ? "JA-Oper" : "ES";
-//         aplicarTema(tema);
-//     }
-// });
 
 document.addEventListener("DOMContentLoaded", function () {
   const idempresa = localStorage.getItem("idempresa");
@@ -1899,9 +1889,7 @@ function adicionarLinhaAdicional() {
 // Assume-se que 'liberarSelectsParaAdicional' é uma função existente
 liberarSelectsParaAdicional();
 
-const tabelaBody = document
-.getElementById("tabela")
-?.getElementsByTagName("tbody")[0];
+const tabelaBody = document.getElementById("tabela")?.getElementsByTagName("tbody")[0];
 if (!tabelaBody) {
 console.error(
 "Erro: Elemento <tbody> da tabela de orçamento não encontrado."
@@ -3381,6 +3369,7 @@ async function verificaOrcamento() {
         id: orcamentoId,
         nomenclatura: document.querySelector("#nomenclatura")?.value,
         status: formData.get("Status"),
+        contratarstaff: document.querySelector('#liberaContratacao')?.checked || false,
         idCliente:
           document.querySelector(".idCliente option:checked")?.value || null, // Se o campo for vazio, será null
         idEvento:
@@ -4293,7 +4282,18 @@ export async function preencherFormularioComOrcamento(orcamento) {
     if (typeof atualizarVisibilidadeInfra === "function") {
       atualizarVisibilidadeInfra();
     }
-  } // Preencher campos de texto
+  }
+
+  // 3. NOVO: Liberado Para Contratar Staff
+const checkLiberaStaff = document.getElementById("liberaContratacao");
+if (checkLiberaStaff) {
+    checkLiberaStaff.checked = !!orcamento.contratarstaff;
+    console.log("Liberado Contratação Staff", checkLiberaStaff.checked);
+  } else {
+    console.warn("Elemento com ID 'liberaContratacao' não encontrado.");
+  }
+  
+  // Preencher campos de texto
 
   const obsItensInput = document.getElementById("Observacao");
   if (obsItensInput) {

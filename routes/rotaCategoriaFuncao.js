@@ -90,6 +90,7 @@ router.put("/:id", autenticarToken({ verificarEmpresa: false }), verificarPermis
     
    // const { descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsProposta, alimentacao, obsFuncao} = req.body;
     const { descCatFuncao } = body; 
+    const valorFuncionario = toNumeric(body.valorFuncionario);
     const custoSenior = toNumeric(body.custoSenior);
     const custoPleno = toNumeric(body.custoPleno);
     const custoJunior = toNumeric(body.custoJunior);
@@ -105,11 +106,11 @@ router.put("/:id", autenticarToken({ verificarEmpresa: false }), verificarPermis
       const result = await pool.query(
         `UPDATE categoriafuncao cf
          SET nmcategoriafuncao = $1, ctofuncaosenior = $2, ctofuncaopleno = $3, ctofuncaojunior = $4, ctofuncaobase = $5, vdafuncao = $6, transporte = $7, 
-              transpsenior = $8, alimentacao = $9
+              transpsenior = $8, alimentacao = $9, vlrfuncionario = $10
          FROM categoriafuncaoempresas cfe
-         WHERE cf.idcategoriafuncao = $10 AND cfe.idcategoriafuncao = cf.idcategoriafuncao AND cfe.idempresa = $11
+         WHERE cf.idcategoriafuncao = $11 AND cfe.idcategoriafuncao = cf.idcategoriafuncao AND cfe.idempresa = $12
          RETURNING cf.idcategoriafuncao`,
-        [descCatFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, alimentacao, id, idempresa]
+        [descCatFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, alimentacao, valorFuncionario, id, idempresa]
       );
 
      if (result.rowCount) {
@@ -150,7 +151,8 @@ router.post("/", autenticarToken({ verificarEmpresa: false }), verificarPermissa
         return isNaN(num) ? 0 : num;
     };
 
-    const { descCatFuncao} = body; 
+    const { descCatFuncao} = body;
+    const valorFuncionario = toNumeric(body.valorFuncionario);
     const custoSenior = toNumeric(body.custoSenior);
     const custoPleno = toNumeric(body.custoPleno);
     const custoJunior = toNumeric(body.custoJunior);
@@ -166,8 +168,8 @@ router.post("/", autenticarToken({ verificarEmpresa: false }), verificarPermissa
         await client.query('BEGIN');
        
         const resultFuncao = await client.query(
-            "INSERT INTO categoriafuncao (nmcategoriafuncao, ctofuncaosenior, ctofuncaopleno, ctofuncaojunior, ctofuncaobase, vdafuncao, transporte, transpsenior, alimentacao) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING idcategoriafuncao, nmcategoriafuncao", // ✅ Retorna idFuncao
-            [descCatFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, alimentacao]
+            "INSERT INTO categoriafuncao (nmcategoriafuncao, ctofuncaosenior, ctofuncaopleno, ctofuncaojunior, ctofuncaobase, vdafuncao, transporte, transpsenior, alimentacao, vlrfuncionario) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING idcategoriafuncao, nmcategoriafuncao", // ✅ Retorna idFuncao
+            [descCatFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, alimentacao, valorFuncionario]
         );
 
         const novaFuncao = resultFuncao.rows[0];

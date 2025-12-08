@@ -3129,24 +3129,32 @@ function renderizarPedidosorc(listaPedidos, containerId, categoria, status, isSt
 
         // Detalhes (HTML interno) - APLICANDO escapeHTML EM TODOS OS CAMPOS DE DADOS
         const detalhesHTML = `
-            <p><strong>Categoria:</strong> ${nomeTipoExibicao}</p>
-            <p><strong>Tipo Interno:</strong> ${tipoInterno}</p>
+            <div class= "categoria">
+              <p><strong>Categoria:</strong> ${nomeTipoExibicao}</p>
+              <p><strong>Tipo Interno:</strong> ${tipoInterno}</p>
+            </div>  
             
             <hr class="mt-2 mb-2">
 
-            ${p.nome_funcionario_afetado 
-                ? `<p><strong>Funcionário Afetado:</strong> ${escapeHTML(p.nome_funcionario_afetado)} (ID: ${p.idfuncionario || 'N/D'})</p>` 
-                : ''
-            }
-            ${p.idfuncao ? `<p><strong>ID da Função:</strong> ${p.idfuncao}</p>` : ''}
-            ${p.nome_evento ? `<p><strong>Evento:</strong> ${escapeHTML(p.nome_evento)}</p>` : ''}
-            
+            <div class= "FuncionarioEvento">
+              ${p.nome_funcionario_afetado 
+                  ? `<p><strong>Funcionário Afetado:</strong> ${escapeHTML(p.nome_funcionario_afetado)} (ID: ${p.idfuncionario || 'N/D'})</p>` 
+                  : ''
+              }
+              ${p.idfuncao ? `<p><strong>ID da Função:</strong> ${p.idfuncao}</p>` : ''}
+              ${p.nome_evento ? `<p><strong>Evento:</strong> ${escapeHTML(p.nome_evento)}</p>` : ''}
+            </div>
+
             <hr class="mt-2 mb-2">
-            
-            <p><strong>Nº Orçamento:</strong> ${p.idorcamento || p.nrorcamento || 'N/D'}</p>
-            <p><strong>Status:</strong> ${p.status_aditivo || p.status || status}</p>
-            <p><strong>Solicitante:</strong> ${escapeHTML(p.nome_usuario_solicitante || 'N/D')}</p>
-            <p><strong>Justificativa:</strong> ${escapeHTML(p.justificativa || 'N/D')}</p>
+
+            <div class="detalhes-orcamento">
+              <div class="infos-gerais">
+                <p><strong>Nº Orçamento:</strong> ${p.idorcamento || p.nrorcamento || 'N/D'}</p>
+                <p><strong>Status:</strong> ${p.status_aditivo || p.status || status}</p>
+                <p><strong>Solicitante:</strong> ${escapeHTML(p.nome_usuario_solicitante || 'N/D')}</p>
+              </div>
+              <div class="justficativa"><p><strong>Justificativa:</strong> ${escapeHTML(p.justificativa || 'N/D')}</p></div>
+            </div>
         `;
 
         console.log(`✅ Gerando item de acordeão para pedido ${index}:`, { titulo, detalhesHTML });
@@ -3171,14 +3179,6 @@ function renderizarPedidosorc(listaPedidos, containerId, categoria, status, isSt
     });
 
     console.log(`✅ Elementos anexados. Total de filhos no container: ${container.children.length}`);
-    
-    // 🛑 Listener de DELEGAÇÃO DE EVENTOS (Anexado ao container)
-    // Este bloco garante que o listener só seja anexado uma vez.
-    // 🛑 Listener de DELEGAÇÃO DE EVENTOS (Versão Simplificada)
-
-    // Remova qualquer listener anterior para evitar duplicidade
-    // (Esta linha é uma precaução, use se você está executando renderizarPedidosorc mais de uma vez)
-    // container.removeEventListener('click', handleAccordionClick); // Requer que o listener seja nomeado
 
     container.addEventListener('click', function(event) {
         

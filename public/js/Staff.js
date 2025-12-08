@@ -132,34 +132,6 @@ const extractDatesFromStatusArray = (datesWithStatusArray) => {
     }).filter(d => d);
 };
 
-// const aplicarStatusManualmente = (pickerInstance, dataArray) => {
-//     const dias = pickerInstance.calendarContainer.querySelectorAll('.flatpickr-day');
-//     dias.forEach(diaElement => {
-//         const dataDia = flatpickr.formatDate(diaElement.dateObj, "Y-m-d");
-//         const statusData = dataArray.find(item => item.data === dataDia);
-//         if (statusData) {
-//             diaElement.classList.add(`status-${statusData.status.toLowerCase()}`);
-//         }
-//     });
-// };
-
-
-// Exemplo de chamada ao abrir o modal
-// if (window.__modalInitialParams) {
-//     console.log("window.__modalInitialParams:", window.__modalInitialParams);
-//     // Converte a string de parâmetros para um objeto
-//     const params = new URLSearchParams(window.__modalInitialParams);
-//     const dtini_vaga = params.get("dtini_vaga");
-//     const dtfim_vaga = params.get("dtfim_vaga");
-
-//     if (dtini_vaga && dtfim_vaga) {
-//         preencherDatasEventoFlatpickr(dtini_vaga, dtfim_vaga);
-//     } else {
-//         console.warn("[ABRIRMODALLOCAL] Parâmetros de datas não encontrados:", { dtini_vaga, dtfim_vaga });
-//     }
-// } else {
-//     console.error("[ABRIRMODALLOCAL] __modalInitialParams não definido.");
-// }
 
 if (window.__modalInitialParams) {
     const params = new URLSearchParams(window.__modalInitialParams);
@@ -176,1042 +148,6 @@ if (window.__modalInitialParams) {
         console.warn("[configurarEventosStaff] Parâmetro dataeventos não encontrado.");
     }
 }
-
-// function configurarFlatpickrs() {
-//     console.log("Configurando Flatpickrs...");
-    
-
-//     diariaDobradaPicker = flatpickr("#diariaDobrada", {
-//         ...commonFlatpickrOptions,
-//         enable: [],
-//         altInput: true,
-//         altFormat: "d/m/Y",
-
-//         onDayCreate: (dObj, dStr, fp, dayElement) => {
-//             const dataDia = flatpickr.formatDate(dayElement.dateObj, "Y-m-d");
-//             const statusData = datasDobrada.find(item => item.data === dataDia);
-
-//             if (statusData) {
-//                 dayElement.classList.add(`status-${statusData.status.toLowerCase()}`);
-
-//                 // Se o status NÃO é 'Pendente', adiciona um evento de clique
-//                 // que impede a desmarcação
-//                 if (statusData.status.toLowerCase() !== 'pendente') {
-//                     dayElement.addEventListener('click', (e) => {
-//                         // Impede o clique de ser processado pelo Flatpickr
-//                         e.preventDefault();
-//                         e.stopPropagation();
-
-//                         Swal.fire({
-//                             title: 'Atenção!',
-//                             text: `Esta data já foi processada e não pode ser desmarcada.`,
-//                             icon: 'warning',
-//                             confirmButtonText: 'OK'
-//                         });
-//                     }, true); // O 'true' garante que este evento seja capturado primeiro
-//                 }
-//             }
-//         },
-
-//         onReady: (selectedDates, dateStr, instance) => {
-//             // Garante que o texto seja formatado corretamente na carga inicial.
-//             setTimeout(() => {
-//                 formatInputTextWithStatus(instance, datasMeiaDiaria);
-//             }, 0);
-//         },
-//         onChange: (selectedDates, dateStr, instance) => {
-//             // Lógica de verificação de duplicatas
-//             let duplicateDates = [];
-//             if (selectedDates.length > 0) {
-//                 const datesMeiaDiaria = meiaDiariaPicker.selectedDates;
-//                 for (let i = 0; i < selectedDates.length; i++) {
-//                     const dataSelecionada = flatpickr.formatDate(selectedDates[i], "Y-m-d");
-//                     const dataExisteEmMeiaDiaria = datesMeiaDiaria.some(d => flatpickr.formatDate(d, "Y-m-d") === dataSelecionada);
-//                     if (dataExisteEmMeiaDiaria) {
-//                         duplicateDates.push(selectedDates[i]);
-//                     }
-//                 }
-//             }
-            
-//             if (duplicateDates.length > 0) {
-//                 Swal.fire({
-//                     title: 'Atenção!',
-//                     text: `Uma ou mais datas selecionadas já estão em "Meia Diária": ${duplicateDates.map(d => flatpickr.formatDate(d, 'd/m/Y')).join(', ')}. Serão desmarcadas daqui.`,
-//                     icon: 'warning',
-//                     confirmButtonText: 'OK'
-//                 });
-                
-//                 const newSelectedDates = instance.selectedDates.filter(date =>
-//                     !duplicateDates.some(dupDate => dupDate.getTime() === date.getTime())
-//                 );
-//                 instance.setDate(newSelectedDates, false);
-//                 return;
-//             }
-
-//             // Se a validação passou, atualize a variável para o próximo ciclo
-//             instance._prevSelectedDates = [...selectedDates];
-//             formatInputTextWithStatus(instance, datasDobrada);
-//         },
-
-//         onClose: function(selectedDates, dateStr, instance) {
-//             setTimeout(() => {
-//                 formatInputTextWithStatus(instance, datasDobrada);
-//                 formatInputTextWithStatus(meiaDiariaPicker, datasMeiaDiaria);
-//             }, 0); 
-//             diariaDobradacheck.checked = instance.selectedDates.length > 0;
-//             updateDisabledDates();
-//             calcularValorTotal();
-//         },
-//     });
-
-//     // Inicialização da Meia Diária
-//     meiaDiariaPicker = flatpickr("#meiaDiaria", {
-//         ...commonFlatpickrOptions,
-//         enable: [],
-//         altInput: true, // Habilita o campo de entrada alternativo
-//         altFormat: "d/m/Y", // Formato padrão para o altInput
-//         onDayCreate: (dObj, dStr, fp, dayElement) => {
-//             const dataDia = flatpickr.formatDate(dayElement.dateObj, "Y-m-d");
-//             const statusData = datasMeiaDiaria.find(item => item.data === dataDia);
-            
-//             if (statusData) {
-//                 dayElement.classList.add(`status-${statusData.status.toLowerCase()}`);
-                
-//                 if (statusData.status.toLowerCase() !== 'pendente') {
-//                     dayElement.addEventListener('click', (e) => {
-//                         e.preventDefault();
-//                         e.stopPropagation();
-//                         Swal.fire({
-//                             title: 'Atenção!',
-//                             text: `Esta data já foi processada e não pode ser desmarcada.`,
-//                             icon: 'warning',
-//                             confirmButtonText: 'OK'
-//                         });
-//                     }, true);
-//                 }
-//             }
-//         },
-//         onReady: (selectedDates, dateStr, instance) => {
-//             // Garante que o texto seja formatado corretamente na carga inicial.
-//             setTimeout(() => {
-//                 formatInputTextWithStatus(instance, datasMeiaDiaria);
-//             }, 0);
-//         },
-//         onChange: (selectedDates, dateStr, instance) => {
-//             // Garante que o texto seja formatado corretamente após uma seleção.
-//            let duplicateDates = [];
-//             if (selectedDates.length > 0) {
-//                 const datesDiariaDobrada = diariaDobradaPicker.selectedDates;
-//                 for (let i = 0; i < selectedDates.length; i++) {
-//                     const dataSelecionada = flatpickr.formatDate(selectedDates[i], "Y-m-d");
-//                     const dataExisteEmDiariaDobrada = datesDiariaDobrada.some(d => flatpickr.formatDate(d, "Y-m-d") === dataSelecionada);
-//                     if (dataExisteEmDiariaDobrada) {
-//                         duplicateDates.push(selectedDates[i]);
-//                     }
-//                 }
-//             }
-            
-//             if (duplicateDates.length > 0) {
-//                 Swal.fire({
-//                     title: 'Atenção!',
-//                     text: `Uma ou mais datas selecionadas já estão em "Diária Dobrada": ${duplicateDates.map(d => flatpickr.formatDate(d, 'd/m/Y')).join(', ')}. Não é possível selecioná-las aqui.`,
-//                     icon: 'warning',
-//                     confirmButtonText: 'OK'
-//                 });
-                
-//                 const newSelectedDates = instance.selectedDates.filter(date =>
-//                     !duplicateDates.some(dupDate => dupDate.getTime() === date.getTime())
-//                 );
-                
-//                 instance.setDate(newSelectedDates, false);
-//                 return;
-//             }
-
-//             // --- Adicione também a lógica de prevenção de remoção para o Meia Diária ---
-//             // Se a validação passou, atualize a variável para o próximo ciclo
-//             const previouslySelectedDates = instance._prevSelectedDates || [];
-//             const datesAttemptedToRemove = previouslySelectedDates.filter(prevDate => 
-//                 !selectedDates.some(newDate => prevDate.getTime() === newDate.getTime())
-//             );
-
-//             const unauthorizedRemovals = datesAttemptedToRemove.filter(removedDate =>
-//                 datasMeiaDiaria.some(d => 
-//                     d.status.toLowerCase() !== 'pendente' && 
-//                     flatpickr.formatDate(new Date(d.data), 'Y-m-d') === flatpickr.formatDate(removedDate, 'Y-m-d')
-//                 )
-//             );
-
-//             if (unauthorizedRemovals.length > 0) {
-//                 Swal.fire({
-//                     title: 'Atenção!',
-//                     text: `As seguintes datas já foram processadas e não podem ser desmarcadas: ${unauthorizedRemovals.map(d => flatpickr.formatDate(d, 'd/m/Y')).join(', ')}.`,
-//                     icon: 'warning',
-//                     confirmButtonText: 'OK'
-//                 });
-                
-//                 instance.setDate(previouslySelectedDates, false);
-//                 return;
-//             }
-
-//             // Se a validação passou, atualize a variável para o próximo ciclo
-//             instance._prevSelectedDates = [...selectedDates];
-//             formatInputTextWithStatus(instance, datasMeiaDiaria);
-
-//         },
-//         onClose: function(selectedDates, dateStr, instance) {
-//             // Garante que o texto seja formatado corretamente após o fechamento do calendário.
-//             setTimeout(() => {
-//                 formatInputTextWithStatus(instance, datasMeiaDiaria);
-//                 // ADIÇÃO: Força a atualização do input do Diária Dobrada
-//                 formatInputTextWithStatus(diariaDobradaPicker, datasDobrada);
-//             }, 0);
-
-//             // CORREÇÃO: Itera sobre todas as datas selecionadas para verificar duplicação
-//             let duplicateDates = [];
-//             if (selectedDates.length > 0) {
-//                 const datesDiariaDobrada = diariaDobradaPicker.selectedDates;
-//                 for (let i = 0; i < selectedDates.length; i++) {
-//                     const dataSelecionada = flatpickr.formatDate(selectedDates[i], "Y-m-d");
-//                     const dataExisteEmDiariaDobrada = datesDiariaDobrada.some(d => flatpickr.formatDate(d, "Y-m-d") === dataSelecionada);
-//                     if (dataExisteEmDiariaDobrada) {
-//                         // Adiciona a data formatada à lista de duplicatas
-//                        // duplicateDates.push(flatpickr.formatDate(selectedDates[i], "d/m/Y"));
-//                        duplicateDates.push(selectedDates[i]);
-//                     }
-//                 }
-//             }
-
-//             if (duplicateDates.length > 0) {
-//                 Swal.fire({
-//                     title: 'Atenção!',
-//                     // Inclui as datas duplicadas na mensagem
-//                     //text: `Uma ou mais datas selecionadas já estão em "Diária Dobrada": ${duplicateDates.join(', ')}. Por favor, desmarque-as antes de selecioná-las aqui.`,
-//                     text: `Uma ou mais datas selecionadas já estão em "Diária Dobrada": ${duplicateDates.map(d => flatpickr.formatDate(d, 'd/m/Y')).join(', ')}. Não é possível selecioná-las aqui.`,
-//                     icon: 'warning',
-//                     confirmButtonText: 'OK'
-//                 });
-//                // instance.clear();
-//                const newSelectedDates = instance.selectedDates.filter(date =>
-//                     !duplicateDates.some(dupDate => dupDate.getTime() === date.getTime())
-//                 );
-
-//                 // Atualiza o Flatpickr com as datas restantes, mantendo as que não eram duplicadas
-//                 instance.setDate(newSelectedDates, false);
-//             }
-
-//             meiaDiariacheck.checked = instance.selectedDates.length > 0;
-//             updateDisabledDates();
-//             calcularValorTotal();
-//         },
-//     });
-
-//     // Inicialização do Picker Principal (datasEvento)
-//     datasEventoPicker = flatpickr("#datasEvento", {
-//         ...commonFlatpickrOptions,
-//         altInput: true, // Habilita o campo de entrada alternativo
-//         altFormat: "d/m/Y", // Formato padrão para o altInput
-//         dateFormat: "Y-m-d",
-//         onOpen: (selectedDates, dateStr, instance) => {
-//             // Mapeamento dos elementos (se for usado no Swal)
-//             const elementsMap = {
-//                 'Funcionário': document.getElementById('nmFuncionario'),
-//                 'Função': document.getElementById('descFuncao'),
-                
-//                 'Local Montagem': document.getElementById('nmLocalMontagem'),
-//                 'Pavilhão': document.getElementById('nmPavilhao'),
-//                 'Cliente': document.getElementById('nmCliente'),
-//                 'Evento': document.getElementById('nmEvento'),
-//             };
-
-//             const inputElement = document.getElementById('datasEvento');
-            
-//             // Usamos setTimeout(0) para garantir que o Flatpickr tenha aberto 
-//             // seu calendário antes de tentarmos fechá-lo.
-//             setTimeout(() => { 
-//                 console.log("ENTRANDO EM VALIDAÇÃO DE ABERTURA VIA setTimeout(0)");
-//                 const campoVazio = validarCamposAntesDoPeriodo(); // Sua função de validação
-
-//                 if (typeof campoVazio === 'string' && campoVazio.trim() !== '') {
-//                 //if (campoVazio) {
-//                     // 🛑 1. Fecha o calendário imediatamente
-//                     instance.close(); 
-                    
-//                     // 🛑 2. Remove o foco do input para evitar reabertura imediata
-//                     if (inputElement) {
-//                     inputElement.blur();
-//                     }
-                    
-//                     // Exibe o SweetAlert2
-//                     Swal.fire({
-//                         icon: 'warning',
-//                         title: 'Preenchimento Pendente',
-//                         html: `Por favor, preencha o campo **${campoVazio}** antes de selecionar o período do evento.`,
-//                         confirmButtonText: 'Entendi'
-//                     }).then(() => {
-//                         // Tenta focar no campo vazio
-//                         if (campoVazio !== 'Nível de Experiência') {
-//                             const campoElement = elementsMap[campoVazio];
-//                             if (campoElement) {
-//                                 campoElement.focus();
-//                             }
-//                         }
-//                     });
-//                 }
-//             }, 0); 
-//         },
-       
-//         onDayCreate: (dObj, dStr, fp, dayElement) => {
-//             const dataDia = flatpickr.formatDate(dayElement.dateObj, "Y-m-d");
-            
-//             console.log("ENTROU EM DATAS EVENTO NO CONFIGURAR FLATPICKRS")
-            
-//             // Verifica o status em ambas as listas de dados
-//             const statusDataDobrada = datasDobrada.find(d => d.data === dataDia);
-//             const statusDataMeiaDiaria = datasMeiaDiaria.find(d => d.data === dataDia);
-
-//             if (statusDataDobrada) {
-//                 const status = statusDataDobrada.status.toLowerCase();
-//                 dayElement.classList.add(`status-${status}`);
-//                 if (status !== 'pendente') {
-//                     dayElement.addEventListener('click', (e) => {
-//                         e.preventDefault();
-//                         e.stopPropagation();
-//                         Swal.fire({
-//                             title: 'Atenção!',
-//                             text: `Esta data já foi processada e não pode ser desmarcada.`,
-//                             icon: 'warning',
-//                             confirmButtonText: 'OK'
-//                         });
-//                     }, true);
-//                 }
-//             } else if (statusDataMeiaDiaria) {
-//                 const status = statusDataMeiaDiaria.status.toLowerCase();
-//                 dayElement.classList.add(`status-${status}`);
-//                 if (status !== 'pendente') {
-//                     dayElement.addEventListener('click', (e) => {
-//                         e.preventDefault();
-//                         e.stopPropagation();
-//                         Swal.fire({
-//                             title: 'Atenção!',
-//                             text: `Esta data já foi processada e não pode ser desmarcada.`,
-//                             icon: 'warning',
-//                             confirmButtonText: 'OK'
-//                         });
-//                     }, true);
-//                 }
-//             }
-//         },
-//         onChange: function(selectedDates, dateStr, instance) {
-//             datasEventoSelecionadas = selectedDates; 
-            
-//             const previouslySelectedDates = instance._prevSelectedDates || [];
-//             const datesAttemptedToRemove = previouslySelectedDates.filter(prevDate => 
-//                 !selectedDates.some(newDate => prevDate.getTime() === newDate.getTime())
-//             );
-
-//             const unauthorizedRemovals = datesAttemptedToRemove.filter(removedDate => {
-//                 const dataDiaRemovida = flatpickr.formatDate(removedDate, 'Y-m-d');
-//                 const statusDobrada = datasDobrada.find(d => d.data === dataDiaRemovida);
-//                 const statusMeiaDiaria = datasMeiaDiaria.find(d => d.data === dataDiaRemovida);
-                
-//                 return (statusDobrada && statusDobrada.status.toLowerCase() !== 'pendente') ||
-//                     (statusMeiaDiaria && statusMeiaDiaria.status.toLowerCase() !== 'pendente');
-//             });
-
-//             if (unauthorizedRemovals.length > 0) {
-//                 Swal.fire({
-//                     title: 'Atenção!',
-//                     text: `As seguintes datas já foram processadas e não podem ser desmarcadas: ${unauthorizedRemovals.map(d => flatpickr.formatDate(d, 'd/m/Y')).join(', ')}.`,
-//                     icon: 'warning',
-//                     confirmButtonText: 'OK'
-//                 });
-                
-//                 // Restaura a seleção anterior e impede a remoção
-//                 instance.setDate(previouslySelectedDates, false);
-//                 return;
-//             }
-            
-//             // Se a validação passou, atualiza a variável para o próximo ciclo
-//             instance._prevSelectedDates = [...selectedDates];
-            
-//             // --- Sua lógica existente ---
-//             datasEventoSelecionadas = selectedDates;
-//             const contador = document.getElementById('contadorDatas');
-//             if (contador) {
-//                 contador.innerText = selectedDates.length === 0
-//                     ? 'Nenhuma data selecionada'
-//                     : `${selectedDates.length} ${selectedDates.length === 1 ? 'Diária Selecionada' : 'Diárias'}`;
-//             }
-            
-//             // ... restante da sua lógica de setDate para os outros pickers ...
-//             diariaDobradaPicker.set('enable', datasEventoSelecionadas);
-//             meiaDiariaPicker.set('enable', datasEventoSelecionadas);
-//             diariaDobradaPicker.setDate(
-//                 diariaDobradaPicker.selectedDates.filter(date => datasEventoSelecionadas.some(d => d.getTime() === date.getTime())),
-//                 false
-//             );
-//             meiaDiariaPicker.setDate(
-//                 meiaDiariaPicker.selectedDates.filter(date => datasEventoSelecionadas.some(d => d.getTime() === date.getTime())),
-//                 false
-//             );
-//         },
-//         onClose: selectedDates => {
-//             if (selectedDates.length > 0) debouncedOnCriteriosChanged();
-//             //updateDisabledDates();
-
-//             console.log("Datas selecionadas:", selectedDates);
-//             calcularValorTotal();
-//         }        
-//     });   
-//     function createBlockHandler(instance) {
-//         return function(event) {
-//             // Ignora cliques que não são do mouse (ex: acionamento por teclado)
-//             if (event.detail === 0) return; 
-
-//             console.log("ENTRANDO NA INTERCEPTAÇÃO MOUSE DOWN FINAL (Toggle/AltInput)");
-
-//             const campoVazio = validarCamposAntesDoPeriodo(); // Sua função de validação
-//             console.log("Campo Vazio Retornado:", campoVazio);
-//             if (typeof campoVazio === 'string' && campoVazio.trim() !== '') {
-//             //if (campoVazio) {
-//                 // 🛑 Intercepta e previne que o Flatpickr receba o evento
-//                 event.preventDefault(); 
-//                 event.stopPropagation();
-                
-//                 // Plano B: Força o fechamento caso tenha aberto (se o preventDefault falhou)
-//                 if (instance && instance.isOpen) {
-//                     instance.close();
-//                 }
-                
-//                 // Mapeamento dos elementos (se for usado no Swal)
-//                 const elementsMap = {
-//                     'Funcionário': document.getElementById('nmFuncionario'),
-//                     'Função': document.getElementById('descFuncao'),                    
-//                     'Local Montagem': document.getElementById('nmLocalMontagem'),                    
-//                     'Cliente': document.getElementById('nmCliente'),
-//                     'Evento': document.getElementById('nmEvento'),
-//                 };
-
-//                 // Exibe o SweetAlert2
-//                 Swal.fire({
-//                     icon: 'warning',
-//                     title: 'Preenchimento Pendente',
-//                     html: `Por favor, preencha o campo **${campoVazio}** antes de selecionar o período do evento.`,
-//                     confirmButtonText: 'Entendi'
-//                 }).then(() => {
-//                     // Tenta focar no campo vazio
-//                     if (campoVazio !== 'Nível de Experiência') {
-//                         const campoElement = elementsMap[campoVazio];
-//                         if (campoElement) {
-//                             campoElement.focus();
-//                         }
-//                     }else {
-//                         // Lógica de foco para Nível de Experiência (se necessário, foca no primeiro item)
-//                         // Por exemplo, foca na primeira checkbox:
-//                         const primeiraCheck = document.getElementById('seniorCheck');
-//                         if (primeiraCheck) {
-//                             primeiraCheck.focus();
-//                         }
-//                     }
-//                 });
-//                 return; 
-//             }
-//         };
-//     }
-
-//     // O handler de evento permanece o mesmo
-//     const handler = createBlockHandler(datasEventoPicker);
-
-//     // 1. O input que o usuário vê (datasEventoPicker.altInput)
-//     const altInput = datasEventoPicker.altInput;
-
-//     if (altInput) {
-//         // 🛑 A ÚLTIMA TENTATIVA: Aplicamos o listener ao elemento PAI do altInput
-//         // O altInput do Flatpickr está quase sempre dentro de um elemento que recebe o clique primeiro.
-//         const parentElement = altInput.parentElement;
-        
-//         if (parentElement) {
-//             // Tenta no elemento pai imediato
-//             parentElement.addEventListener('mousedown', handler, true);
-//             console.log("Listener MOUSE DOWN aplicado no elemento PAI do input.");
-//         }
-        
-//         // Deixa o listener no altInput e no toggleButton como segurança
-//         altInput.addEventListener('mousedown', handler, true);
-        
-//         const toggleButton = datasEventoPicker.toggle;
-//         // if (toggleButton) {
-//         //     toggleButton.addEventListener('mousedown', handler, true);
-//         // }
-//         if (toggleButton && typeof toggleButton.addEventListener === 'function') {
-//             toggleButton.addEventListener('mousedown', handler, true);
-//         }
-//     }
-// }
-
-
-// const atualizarContadorEDatas = (selectedDates) => {
-//     const contador = document.getElementById('contadorDatas');
-//     if (contador) {
-//         contador.innerText = selectedDates.length === 0
-//             ? 'Nenhuma data selecionada'
-//             : `${selectedDates.length} ${selectedDates.length === 1 ? 'Diária Selecionada' : 'Diárias'}`;
-//     }
-
-//     const diariaDobradaPicker = window.diariaDobradaPicker;
-//     const meiaDiariaPicker = window.meiaDiariaPicker;
-
-//     if (diariaDobradaPicker) {
-//         diariaDobradaPicker.set('enable', selectedDates);
-//         diariaDobradaPicker.setDate(
-//             diariaDobradaPicker.selectedDates.filter(date => selectedDates.some(d => d.getTime() === date.getTime())),
-//             false
-//         );
-//     }
-
-//     if (meiaDiariaPicker) {
-//         meiaDiariaPicker.set('enable', selectedDates);
-//         meiaDiariaPicker.setDate(
-//             meiaDiariaPicker.selectedDates.filter(date => selectedDates.some(d => d.getTime() === date.getTime())),
-//             false
-//         );
-//     }
-// };
-
-
-// function configurarFlatpickrs() {
-//     console.log("Configurando Flatpickrs...");    
-    
-//     // Inicialização da Diária Dobrada
-//     window.diariaDobradaPicker = flatpickr("#diariaDobrada", {
-//         ...commonFlatpickrOptions,
-//         enable: [],
-//         altInput: true,
-//         altFormat: "d/m/Y",
-
-//         onDayCreate: (dObj, dStr, fp, dayElement) => {
-//             const dataDia = flatpickr.formatDate(dayElement.dateObj, "Y-m-d");
-//             const statusData = datasDobrada.find(item => item.data === dataDia);
-
-//             if (statusData) {
-//                 dayElement.classList.add(`status-${statusData.status.toLowerCase()}`);
-
-//                 // Se o status NÃO é 'Pendente', adiciona um evento de clique
-//                 // que impede a desmarcação
-//                 if (statusData.status.toLowerCase() !== 'pendente') {
-//                     dayElement.addEventListener('click', (e) => {
-//                         // Impede o clique de ser processado pelo Flatpickr
-//                         e.preventDefault();
-//                         e.stopPropagation();
-
-//                         Swal.fire({
-//                             title: 'Atenção!',
-//                             text: `Esta data já foi processada e não pode ser desmarcada.`,
-//                             icon: 'warning',
-//                             confirmButtonText: 'OK'
-//                         });
-//                     }, true); // O 'true' garante que este evento seja capturado primeiro
-//                 }
-//             }
-//         },
-
-//         onReady: (selectedDates, dateStr, instance) => {
-//             // Garante que o texto seja formatado corretamente na carga inicial.
-//             setTimeout(() => {
-//                 // 🎯 CORREÇÃO: Usar 'datasDobrada' para formatar o input do Diária Dobrada
-//                 formatInputTextWithStatus(instance, datasDobrada); 
-//             }, 0);
-//         },
-//         onChange: (selectedDates, dateStr, instance) => {
-//             // Lógica de prevenção de remoção para datas não pendentes
-//             const previouslySelectedDates = instance._prevSelectedDates || [];
-//             const datesAttemptedToRemove = previouslySelectedDates.filter(prevDate => 
-//                 !selectedDates.some(newDate => prevDate.getTime() === newDate.getTime())
-//             );
-
-//             const unauthorizedRemovals = datesAttemptedToRemove.filter(removedDate =>
-//                 datasDobrada.some(d => 
-//                     d.status.toLowerCase() !== 'pendente' && 
-//                     flatpickr.formatDate(new Date(d.data), 'Y-m-d') === flatpickr.formatDate(removedDate, 'Y-m-d')
-//                 )
-//             );
-
-//             if (unauthorizedRemovals.length > 0) {
-//                 Swal.fire({
-//                     title: 'Atenção!',
-//                     text: `As seguintes datas já foram processadas e não podem ser desmarcadas: ${unauthorizedRemovals.map(d => flatpickr.formatDate(d, 'd/m/Y')).join(', ')}.`,
-//                     icon: 'warning',
-//                     confirmButtonText: 'OK'
-//                 });
-                
-//                 // Restaura a seleção anterior e impede a remoção
-//                 instance.setDate(previouslySelectedDates, false);
-//                 return;
-//             }
-            
-//             // Lógica de verificação de duplicatas (conflito com Meia Diária)
-//             let duplicateDates = [];
-//             if (selectedDates.length > 0) {
-//                 // const datesMeiaDiaria = meiaDiariaPicker.selectedDates;
-//                 // for (let i = 0; i < selectedDates.length; i++) {
-//                 //     const dataSelecionada = flatpickr.formatDate(selectedDates[i], "Y-m-d");
-//                 //     const dataExisteEmMeiaDiaria = datesMeiaDiaria.some(d => flatpickr.formatDate(d, "Y-m-d") === dataSelecionada);
-//                 //     if (dataExisteEmMeiaDiaria) {
-//                 //         duplicateDates.push(selectedDates[i]);
-//                 //     }
-//                 // }
-
-//                 if (window.meiaDiariaPicker) { 
-//                     const datesMeiaDiaria = window.meiaDiariaPicker.selectedDates;
-//                     for (let i = 0; i < selectedDates.length; i++) {
-//                         const dataSelecionada = flatpickr.formatDate(selectedDates[i], "Y-m-d");
-//                         const dataExisteEmMeiaDiaria = datesMeiaDiaria.some(d => flatpickr.formatDate(d, "Y-m-d") === dataSelecionada);
-//                         if (dataExisteEmMeiaDiaria) {
-//                             duplicateDates.push(selectedDates[i]);
-//                         }
-//                     }
-//                 }
-//             }
-            
-//             if (duplicateDates.length > 0) {
-//                 Swal.fire({
-//                     title: 'Atenção!',
-//                     text: `Uma ou mais datas selecionadas já estão em "Meia Diária": ${duplicateDates.map(d => flatpickr.formatDate(d, 'd/m/Y')).join(', ')}. Serão desmarcadas daqui.`,
-//                     icon: 'warning',
-//                     confirmButtonText: 'OK'
-//                 });
-                
-//                 const newSelectedDates = instance.selectedDates.filter(date =>
-//                     !duplicateDates.some(dupDate => dupDate.getTime() === date.getTime())
-//                 );
-//                 instance.setDate(newSelectedDates, false);
-//                 // 🎯 CORREÇÃO: Deve retornar para evitar que o código seguinte (que atualiza _prevSelectedDates)
-//                 // seja executado com a seleção problemática.
-//                 return; 
-//             }
-
-//             // Se a validação passou, atualize a variável para o próximo ciclo
-//             instance._prevSelectedDates = [...selectedDates];
-//             formatInputTextWithStatus(instance, datasDobrada);
-//         },
-
-//         onClose: function(selectedDates, dateStr, instance) {
-//             setTimeout(() => {
-//                 formatInputTextWithStatus(instance, datasDobrada);
-//                 //formatInputTextWithStatus(meiaDiariaPicker, datasMeiaDiaria);
-//                 if (window.meiaDiariaPicker) {
-//                     formatInputTextWithStatus(window.meiaDiariaPicker, datasMeiaDiaria);
-//                 }
-//             }, 0); 
-//             diariaDobradacheck.checked = instance.selectedDates.length > 0;
-//             updateDisabledDates();
-//             console.log("Fechando Diária Dobrada, datas selecionadas:", selectedDates);
-//             calcularValorTotal();
-//         },
-//     });
-
-//     // Inicialização da Meia Diária
-//     meiaDiariaPicker = flatpickr("#meiaDiaria", {
-//         ...commonFlatpickrOptions,
-//         enable: [],
-//         altInput: true, // Habilita o campo de entrada alternativo
-//         altFormat: "d/m/Y", // Formato padrão para o altInput
-//         onDayCreate: (dObj, dStr, fp, dayElement) => {
-//             const dataDia = flatpickr.formatDate(dayElement.dateObj, "Y-m-d");
-//             const statusData = datasMeiaDiaria.find(item => item.data === dataDia);
-            
-//             if (statusData) {
-//                 dayElement.classList.add(`status-${statusData.status.toLowerCase()}`);
-                
-//                 if (statusData.status.toLowerCase() !== 'pendente') {
-//                     dayElement.addEventListener('click', (e) => {
-//                         e.preventDefault();
-//                         e.stopPropagation();
-//                         Swal.fire({
-//                             title: 'Atenção!',
-//                             text: `Esta data já foi processada e não pode ser desmarcada.`,
-//                             icon: 'warning',
-//                             confirmButtonText: 'OK'
-//                         });
-//                     }, true);
-//                 }
-//             }
-//         },
-//         onReady: (selectedDates, dateStr, instance) => {
-//             // Garante que o texto seja formatado corretamente na carga inicial.
-//             setTimeout(() => {
-//                 formatInputTextWithStatus(instance, datasMeiaDiaria);
-//             }, 0);
-//         },
-//         onChange: (selectedDates, dateStr, instance) => {
-//             // Lógica de verificação de duplicatas (conflito com Diária Dobrada)
-//             let duplicateDates = [];
-//             if (selectedDates.length > 0) {
-//                 if (window.diariaDobradaPicker) {
-//                     const datesDiariaDobrada = window.diariaDobradaPicker.selectedDates;
-//                     for (let i = 0; i < selectedDates.length; i++) {
-//                         const dataSelecionada = flatpickr.formatDate(selectedDates[i], "Y-m-d");
-//                         const dataExisteEmDiariaDobrada = datesDiariaDobrada.some(d => flatpickr.formatDate(d, "Y-m-d") === dataSelecionada);
-//                         if (dataExisteEmDiariaDobrada) {
-//                             duplicateDates.push(selectedDates[i]);
-//                         }
-//                     }
-//                 }
-//             }
-            
-//             if (duplicateDates.length > 0) {
-//                 Swal.fire({
-//                     title: 'Atenção!',
-//                     text: `Uma ou mais datas selecionadas já estão em "Diária Dobrada": ${duplicateDates.map(d => flatpickr.formatDate(d, 'd/m/Y')).join(', ')}. Não é possível selecioná-las aqui.`,
-//                     icon: 'warning',
-//                     confirmButtonText: 'OK'
-//                 });
-                
-//                 const newSelectedDates = instance.selectedDates.filter(date =>
-//                     !duplicateDates.some(dupDate => dupDate.getTime() === date.getTime())
-//                 );
-                
-//                 instance.setDate(newSelectedDates, false);
-//                 return;
-//             }
-
-//             // Lógica de prevenção de remoção para datas não pendentes
-//             const previouslySelectedDates = instance._prevSelectedDates || [];
-//             const datesAttemptedToRemove = previouslySelectedDates.filter(prevDate => 
-//                 !selectedDates.some(newDate => prevDate.getTime() === newDate.getTime())
-//             );
-
-//             const unauthorizedRemovals = datesAttemptedToRemove.filter(removedDate =>
-//                 datasMeiaDiaria.some(d => 
-//                     d.status.toLowerCase() !== 'pendente' && 
-//                     flatpickr.formatDate(new Date(d.data), 'Y-m-d') === flatpickr.formatDate(removedDate, 'Y-m-d')
-//                 )
-//             );
-
-//             if (unauthorizedRemovals.length > 0) {
-//                 Swal.fire({
-//                     title: 'Atenção!',
-//                     text: `As seguintes datas já foram processadas e não podem ser desmarcadas: ${unauthorizedRemovals.map(d => flatpickr.formatDate(d, 'd/m/Y')).join(', ')}.`,
-//                     icon: 'warning',
-//                     confirmButtonText: 'OK'
-//                 });
-                
-//                 instance.setDate(previouslySelectedDates, false);
-//                 return;
-//             }
-
-//             // Se a validação passou, atualize a variável para o próximo ciclo
-//             instance._prevSelectedDates = [...selectedDates];
-//             formatInputTextWithStatus(instance, datasMeiaDiaria);
-
-//         },
-//         onClose: function(selectedDates, dateStr, instance) {
-//             // Garante que o texto seja formatado corretamente após o fechamento do calendário.
-//             setTimeout(() => {
-//                 formatInputTextWithStatus(instance, datasMeiaDiaria);
-//                 // ADIÇÃO: Força a atualização do input do Diária Dobrada
-//                if (window.diariaDobradaPicker) {
-//                     formatInputTextWithStatus(window.diariaDobradaPicker, datasDobrada);
-//                 }
-//             }, 0);
-
-//             // Esta verificação de duplicata é redundante aqui e deve ser tratada no onChange.
-//             // A lógica de remoção duplicada no onClose foi removida para simplificação, 
-//             // já que a lógica do onChange garante que a seleção final esteja correta.
-
-//             meiaDiariacheck.checked = instance.selectedDates.length > 0;
-//             updateDisabledDates();
-//             console.log("Fechando Meia Diária, datas selecionadas:", selectedDates);
-//             calcularValorTotal();
-//         },
-//     });
-
-//     // Inicialização do Picker Principal (datasEvento)
-//     window.datasEventoPicker = flatpickr("#datasEvento", {
-//         ...commonFlatpickrOptions,
-//         //dateFormat: "Y-m-d",
-//         //altInput: true, // Habilita o campo de entrada alternativo
-//         //altFormat: "d/m/Y", // Formato padrão para o altInput
-//         onValueUpdate: function(selectedDates, dateStr, instance) {
-//             // Lida com datas múltiplas no novo formato d/m/Y
-//             const displayValue = selectedDates.map(d => instance.formatDate(d, 'd/m/Y')).join(', ');
-//             instance.input.value = displayValue;
-//         },
-        
-//         onReady: (selectedDates, dateStr, instance) => {
-//             console.log("🟢 DEBUG: Evento onReady disparado. Flatpickr configurado com sucesso.");
-//             if (selectedDates.length > 0 && typeof atualizarContadorEDatas === 'function') {
-        
-//                atualizarContadorEDatas(selectedDates);
-//             }   
-            
-//         },
-//         // onOpen: (selectedDates, dateStr, instance) => {
-//         //     console.log("🟢 DEBUG: Evento onOpen disparado! Instância está ativa.");
-//         //     // Mapeamento dos elementos (se for usado no Swal)
-//         //     const elementsMap = {
-//         //         'Funcionário': document.getElementById('nmFuncionario'),
-//         //         'Função': document.getElementById('descFuncao'),
-                
-//         //         'Local Montagem': document.getElementById('nmLocalMontagem'),
-//         //         'Pavilhão': document.getElementById('nmPavilhao'),
-//         //         'Cliente': document.getElementById('nmCliente'),
-//         //         'Evento': document.getElementById('nmEvento'),
-//         //     };
-
-//         //     const inputElement = document.getElementById('datasEvento');
-            
-//         //     // Usamos setTimeout(0) para garantir que o Flatpickr tenha aberto 
-//         //     // seu calendário antes de tentarmos fechá-lo.
-//         //     setTimeout(() => { 
-//         //         console.log("ENTRANDO EM VALIDAÇÃO DE ABERTURA VIA setTimeout(0)");
-//         //         const campoVazio = validarCamposAntesDoPeriodo(); // Sua função de validação
-
-//         //         if (typeof campoVazio === 'string' && campoVazio.trim() !== '') {
-//         //         //if (campoVazio) {
-//         //             // 🛑 1. Fecha o calendário imediatamente
-//         //             instance.close(); 
-                    
-//         //             // 🛑 2. Remove o foco do input para evitar reabertura imediata
-//         //             if (inputElement) {
-//         //             inputElement.blur();
-//         //             }
-                    
-//         //             // Exibe o SweetAlert2
-//         //             Swal.fire({
-//         //                 icon: 'warning',
-//         //                 title: 'Preenchimento Pendente',
-//         //                 html: `Por favor, preencha o campo **${campoVazio}** antes de selecionar o período do evento.`,
-//         //                 confirmButtonText: 'Entendi'
-//         //             }).then(() => {
-//         //                 // Tenta focar no campo vazio
-//         //                 if (campoVazio !== 'Nível de Experiência') {
-//         //                     const campoElement = elementsMap[campoVazio];
-//         //                     if (campoElement) {
-//         //                         campoElement.focus();
-//         //                     }
-//         //                 }
-//         //             });
-//         //         }
-//         //     }, 0); 
-//         // },
-        
-//         onDayCreate: (dObj, dStr, fp, dayElement) => {
-//             const dataDia = flatpickr.formatDate(dayElement.dateObj, "Y-m-d");
-            
-//             console.log("🟢 DEBUG: ENTROU EM DATAS EVENTO NO CONFIGURAR FLATPICKRS");
-            
-//             // Verifica o status em ambas as listas de dados
-//             const statusDataDobrada = datasDobrada.find(d => d.data === dataDia);
-//             const statusDataMeiaDiaria = datasMeiaDiaria.find(d => d.data === dataDia);
-
-//             if (statusDataDobrada) {
-//                 const status = statusDataDobrada.status.toLowerCase();
-//                 dayElement.classList.add(`status-${status}`);
-//                 if (status !== 'pendente') {
-//                     // Evita desmarcação para diária dobrada processada
-//                     dayElement.addEventListener('click', (e) => {
-//                         e.preventDefault();
-//                         e.stopPropagation();
-//                         Swal.fire({
-//                             title: 'Atenção!',
-//                             text: `Esta data já foi processada e não pode ser desmarcada.`,
-//                             icon: 'warning',
-//                             confirmButtonText: 'OK'
-//                         });
-//                     }, true);
-//                 }
-//             } else if (statusDataMeiaDiaria) {
-//                 const status = statusDataMeiaDiaria.status.toLowerCase();
-//                 dayElement.classList.add(`status-${status}`);
-//                 if (status !== 'pendente') {
-//                     // Evita desmarcação para meia diária processada
-//                     dayElement.addEventListener('click', (e) => {
-//                         e.preventDefault();
-//                         e.stopPropagation();
-//                         Swal.fire({
-//                             title: 'Atenção!',
-//                             text: `Esta data já foi processada e não pode ser desmarcada.`,
-//                             icon: 'warning',
-//                             confirmButtonText: 'OK'
-//                         });
-//                     }, true);
-//                 }
-//             }
-//         },
-//         onChange: function(selectedDates, dateStr, instance) {
-//             datasEventoSelecionadas = selectedDates; 
-
-//             console.log("🟢 DEBUG: CHANGE DATAS EVENTO", datasEventoSelecionadas);
-            
-//             // 🎯 CORREÇÃO: Lógica de prevenção de remoção (MANTIDA)
-//             const previouslySelectedDates = instance._prevSelectedDates || [];
-//             const datesAttemptedToRemove = previouslySelectedDates.filter(prevDate => 
-//                 !selectedDates.some(newDate => prevDate.getTime() === newDate.getTime())
-//             );
-
-//             const unauthorizedRemovals = datesAttemptedToRemove.filter(removedDate => {
-//                 const dataDiaRemovida = flatpickr.formatDate(removedDate, 'Y-m-d');
-//                 const statusDobrada = datasDobrada.find(d => d.data === dataDiaRemovida);
-//                 const statusMeiaDiaria = datasMeiaDiaria.find(d => d.data === dataDiaRemovida);
-                
-//                 return (statusDobrada && statusDobrada.status.toLowerCase() !== 'pendente') ||
-//                     (statusMeiaDiaria && statusMeiaDiaria.status.toLowerCase() !== 'pendente');
-//             });
-
-//             if (unauthorizedRemovals.length > 0) {
-//                 Swal.fire({
-//                     title: 'Atenção!',
-//                     text: `As seguintes datas já foram processadas e não podem ser desmarcadas: ${unauthorizedRemovals.map(d => flatpickr.formatDate(d, 'd/m/Y')).join(', ')}.`,
-//                     icon: 'warning',
-//                     confirmButtonText: 'OK'
-//                 });
-                
-//                 instance.setDate(previouslySelectedDates, false);
-//                 return;
-//             }
-            
-//             // Se a validação passou, atualiza a variável para o próximo ciclo
-//             instance._prevSelectedDates = [...selectedDates];
-            
-//             // --- Lógica de Contador (MANTIDA) ---
-//             // datasEventoSelecionadas = selectedDates;
-//             // const contador = document.getElementById('contadorDatas');
-//             // if (contador) {
-//             //     contador.innerText = selectedDates.length === 0
-//             //         ? 'Nenhuma data selecionada'
-//             //         : `${selectedDates.length} ${selectedDates.length === 1 ? 'Diária Selecionada' : 'Diárias'}`;
-//             // }
-            
-//             // 🚀 LÓGICA DE ATUALIZAÇÃO DOS PICKERS AUXILIARES (AGORA É A ÚNICA VEZ)
-//             // if (diariaDobradaPicker) {
-//             //     diariaDobradaPicker.set('enable', datasEventoSelecionadas);
-//             //     diariaDobradaPicker.setDate(
-//             //         diariaDobradaPicker.selectedDates.filter(date => datasEventoSelecionadas.some(d => d.getTime() === date.getTime())),
-//             //         false
-//             //     );
-//             // }
-
-//             // if (meiaDiariaPicker) {
-//             //     meiaDiariaPicker.set('enable', datasEventoSelecionadas);
-//             //     meiaDiariaPicker.setDate(
-//             //         meiaDiariaPicker.selectedDates.filter(date => datasEventoSelecionadas.some(d => d.getTime() === date.getTime())),
-//             //         false
-//             //     );
-//             // }
-//             atualizarContadorEDatas(selectedDates);
-//             console.log("DEBUG ATÔMICO: Chamando debouncedOnCriteriosChanged do onChange."); 
-            
-//         },
-//         onClose: selectedDates => {
-//             // 🟢 NOVO LOG DE TESTE ATÔMICO
-//             console.log(" 🟢 DEBUG ATÔMICO: Evento onClose disparado."); 
-            
-//             if (selectedDates.length > 0) {
-//                 console.log("DEBUG ATÔMICO: Chamando debouncedOnCriteriosChanged."); 
-//                 //debouncedOnCriteriosChanged();
-//             } else {
-//                 console.log("DEBUG ATÔMICO: Nenhuma data selecionada.");
-//             }
-            
-//             console.log("Datas selecionadas:", selectedDates); // Seu log original
-//             console.log("Fechando Datas Evento, datas selecionadas:", selectedDates);
-//             atualizarContadorEDatas(selectedDates);
-//             //calcularValorTotal();
-//         }        
-//     });   
-    
-//     function createBlockHandler(instance) {
-//         return function(event) {
-//             // Ignora cliques que não são do mouse (ex: acionamento por teclado)
-            
-//             if (instance && instance.isOpen) {
-//                 console.log("PASSOU NO BLOQUEIO: Calendário já está aberto. Permitindo fechar.");
-//                 return; 
-//             }
-            
-//             if (event.detail === 0) return; 
-
-//             console.log("ENTRANDO NA INTERCEPTAÇÃO MOUSE DOWN FINAL (Toggle/AltInput)");
-
-//             const campoVazio = validarCamposAntesDoPeriodo(); // Sua função de validação
-//             console.log("Campo Vazio Retornado:", campoVazio);
-//             if (typeof campoVazio === 'string' && campoVazio.trim() !== '') {
-//             //if (campoVazio) {
-//                 // 🛑 Intercepta e previne que o Flatpickr receba o evento
-//                 event.preventDefault(); 
-//                 event.stopPropagation();
-                
-//                 // Plano B: Força o fechamento caso tenha aberto (se o preventDefault falhou)
-//                 if (instance && instance.isOpen) {
-//                     instance.close();
-//                 }
-                
-//                 // Mapeamento dos elementos (se for usado no Swal)
-//                 const elementsMap = {
-//                     'Funcionário': document.getElementById('nmFuncionario'),
-//                     'Função': document.getElementById('descFuncao'),           
-//                     'Local Montagem': document.getElementById('nmLocalMontagem'),          
-//                     'Cliente': document.getElementById('nmCliente'),
-//                     'Evento': document.getElementById('nmEvento'),
-//                 };
-
-//                 // Exibe o SweetAlert2
-//                 Swal.fire({
-//                     icon: 'warning',
-//                     title: 'Preenchimento Pendente',
-//                     html: `Por favor, preencha o campo **${campoVazio}** antes de selecionar o período do evento.`,
-//                     confirmButtonText: 'Entendi'
-//                 }).then(() => {
-//                     // Tenta focar no campo vazio
-//                     if (campoVazio !== 'Nível de Experiência') {
-//                         const campoElement = elementsMap[campoVazio];
-//                         if (campoElement) {
-//                             campoElement.focus();
-//                         }
-//                     }else {
-//                         // Lógica de foco para Nível de Experiência (se necessário, foca no primeiro item)
-//                         // Por exemplo, foca na primeira checkbox:
-//                         const primeiraCheck = document.getElementById('seniorCheck');
-//                         if (primeiraCheck) {
-//                             primeiraCheck.focus();
-//                         }
-//                     }
-//                 });
-//                 return; 
-//             }
-//         };
-//     }
-
-//     // O handler de evento permanece o mesmo
-//     const handler = createBlockHandler(window.datasEventoPicker);
-
-//     // 1. O input que o usuário vê (datasEventoPicker.altInput)
-//     const altInput = window.datasEventoPicker.altInput;
-
-//     if (window.datasEventoPicker) { // ✅ Verifica se a instância foi criada
-//         const altInput = window.datasEventoPicker.altInput; // Corrigido para usar window.
-
-//         if (altInput) {
-//             // A ÚLTIMA TENTATIVA: Aplicamos o listener ao elemento PAI do altInput
-//             const parentElement = altInput.parentElement;
-            
-//             if (parentElement) {
-//                 // Tenta no elemento pai imediato
-//                 parentElement.addEventListener('mousedown', handler, true);
-//                 console.log("Listener MOUSE DOWN aplicado no elemento PAI do input.");
-//             }
-            
-//             // Deixa o listener no altInput e no toggleButton como segurança
-//             altInput.addEventListener('mousedown', handler, true);
-            
-//             const toggleButton = window.datasEventoPicker.toggle;
-//             if (toggleButton && typeof toggleButton.addEventListener === 'function') {
-//                 toggleButton.addEventListener('mousedown', handler, true);
-//             }
-//         }
-//     }
-// }
 
 
 function configurarFlatpickrs() {
@@ -1558,7 +494,7 @@ function configurarFlatpickrs() {
                 console.log("Datas selecionadas:", selectedDates); 
                 console.log("Fechando Datas Evento, datas selecionadas:", selectedDates);
                 atualizarContadorEDatas(selectedDates);
-            }        
+            }      
         }); 
     } else {
         window.datasEventoPicker = null; // Garante que a variável seja null se o elemento não for encontrado
@@ -1589,8 +525,8 @@ function configurarFlatpickrs() {
                 
                 const elementsMap = {
                     'Funcionário': document.getElementById('nmFuncionario'),
-                    'Função': document.getElementById('descFuncao'),           
-                    'Local Montagem': document.getElementById('nmLocalMontagem'),          
+                    'Função': document.getElementById('descFuncao'),          
+                    'Local Montagem': document.getElementById('nmLocalMontagem'),    
                     'Cliente': document.getElementById('nmCliente'),
                     'Evento': document.getElementById('nmEvento'),
                 };
@@ -1652,53 +588,6 @@ function converterDatasParaFlatpickr(datasRecebidas) {
     });
 }
 
-
-// Função de inicialização correta
-
-// function atualizarContadorEDatas(selectedDates) {
-//     // 1. Atualização do Contador
-//     const contador = document.getElementById('contadorDatas');
-//     if (contador) {
-//         contador.innerText = selectedDates.length === 0
-//             ? 'Nenhuma data selecionada'
-//             : `${selectedDates.length} ${selectedDates.length === 1 ? 'Diária Selecionada' : 'Diárias'}`;
-//     }
-
-//     // 2. Sincronização da Diária Dobrada (CORRIGIDO)
-//     // A chamada para .set('enable', ...) é a linha que está falhando (Staff.js:1137)
-//     if (window.diariaDobradaPicker) { // ✅ Checagem de existência
-//         try {
-//             // A linha problemática. O array 'selectedDates' vem do datasEventoPicker.
-//             window.diariaDobradaPicker.set('enable', selectedDates); 
-//             window.diariaDobradaPicker.setDate(
-//                 window.diariaDobradaPicker.selectedDates.filter(date => selectedDates.some(d => d.getTime() === date.getTime())),
-//                 false
-//             );
-//             if (typeof formatInputTextWithStatus === 'function') {
-//                 formatInputTextWithStatus(window.diariaDobradaPicker, datasDobrada);
-//             }
-//         } catch (e) {
-//             console.error("❌ Erro ao sincronizar Diária Dobrada (Staff.js:1137):", e);
-//             // Opcional: Adicionar um alerta de erro mais visível ou logar para depuração.
-//         }
-//     }
-
-//     // 3. Sincronização da Meia Diária
-//     if (window.meiaDiariaPicker) { // ✅ Checagem de existência
-//         try {
-//             window.meiaDiariaPicker.set('enable', selectedDates);
-//             window.meiaDiariaPicker.setDate(
-//                 window.meiaDiariaPicker.selectedDates.filter(date => selectedDates.some(d => d.getTime() === date.getTime())),
-//                 false
-//             );
-//             if (typeof formatInputTextWithStatus === 'function') {
-//                 formatInputTextWithStatus(window.meiaDiariaPicker, datasMeiaDiaria);
-//             }
-//         } catch (e) {
-//             console.error("❌ Erro ao sincronizar Meia Diária:", e);
-//         }
-//     }
-// }
 
 function atualizarContadorEDatas(selectedDates) {
 
@@ -1865,6 +754,7 @@ let vlrAlimentacaoFuncao = 0;
 let vlrTransporteFuncao = 0;
 let vlrTransporteSeniorFuncao = 0;
 let vlrAlimentacaoDobra =0;
+let vlrFuncionario = 0;
 let isLote = false;
 let temOrcamento = false;
 let bForaSP = false;
@@ -2257,7 +1147,7 @@ const carregarDadosParaEditar = (eventData) => {
         case "Senior":
             seniorCheck.checked = true;
             break;
-    }        
+    }      
 
     preencherComprovanteCampo(eventData.comppgtocache, 'Cache');
     preencherComprovanteCampo(eventData.comppgtoajdcusto, 'AjdCusto');
@@ -2571,25 +1461,25 @@ function getDadosFormulario() {
 
 
 const carregarTabelaStaff = async (funcionarioId) => {
-    eventsTableBody.innerHTML = '';
-    noResultsMessage.style.display = 'none';
-    currentRowSelected = null;
-    isFormLoadedFromDoubleClick = false;
+    eventsTableBody.innerHTML = '';
+    noResultsMessage.style.display = 'none';
+    currentRowSelected = null;
+    isFormLoadedFromDoubleClick = false;
 
-    console.log("CARREGOU TABELA STAFF", isFormLoadedFromDoubleClick);
-    
+    console.log("CARREGOU TABELA STAFF", isFormLoadedFromDoubleClick);
+
     // 💡 CORREÇÃO ROBUSTA para evitar o erro /null
     // Verifica se o ID é falsy (vazio, undefined, etc.) OU se é a string "null" (que é truthy)
-    if (!funcionarioId || (typeof funcionarioId === 'string' && (funcionarioId.toLowerCase() === 'null' || funcionarioId.trim() === ''))) {
+    if (!funcionarioId || (typeof funcionarioId === 'string' && (funcionarioId.toLowerCase() === 'null' || funcionarioId.trim() === ''))) {
         noResultsMessage.style.display = 'block';
         noResultsMessage.textContent = 'Por favor, selecione um funcionário para pesquisar os eventos.';
         return;
-    }
+    }
 
-    // Agora, a URL só será construída se funcionarioId for um valor válido (ex: "123")
-    const url = `/staff/${funcionarioId}`; // Sua nova rota GET
+    // Agora, a URL só será construída se funcionarioId for um valor válido (ex: "123")
+    const url = `/staff/${funcionarioId}`; // Sua nova rota GET
 
-    try {
+    try {
         const response = await fetch(url, {
             method: 'GET',
             headers: {
@@ -2785,11 +1675,11 @@ const carregarTabelaStaff = async (funcionarioId) => {
             noResultsMessage.textContent = `Nenhum evento encontrado para o funcionário selecionado.`;
         }
 
-    } catch (error) {
+    } catch (error) {
         console.error('Erro ao buscar dados de eventos do funcionário:', error);
         noResultsMessage.style.display = 'block';
         noResultsMessage.textContent = `Erro ao carregar dados: ${error.message}. Tente novamente.`;
-    }
+    }
 };
 
 function aplicarCoresAsOpcoes(selectElementId) {
@@ -2875,8 +1765,8 @@ async function limparCamposStaffParcial() {
     if (nmFuncionario) nmFuncionario.value = ''; 
 
     const descfuncaoElement = document.getElementById('nmFuncaoSelect'); 
-    const descfuncaoAtual = (descfuncaoElement ? descfuncaoElement.value : '').trim();
-    const isAjudanteDeMarcacao = descfuncaoAtual.toUpperCase() === 'AJUDANTE DE MARCAÇÃO';
+    const descfuncaoAtual = (descfuncaoElement ? descfuncaoElement.value : '').trim();
+    const isAjudanteDeMarcacao = descfuncaoAtual.toUpperCase() === 'AJUDANTE DE MARCAÇÃO';
 
     document.querySelector("#apelidoFuncionario").value = '';
     const apelido = document.getElementById("apelidoFuncionario");
@@ -2903,13 +1793,13 @@ async function limparCamposStaffParcial() {
     
     if (isAjudanteDeMarcacao) {
         console.log("Função 'Ajudante de Marcação' detectada. Pulando a limpeza dos Níveis de Experiência.");
-    } else {
+    } else {
         document.getElementById('Seniorcheck').checked = false;
         document.getElementById('Plenocheck').checked = false;
         document.getElementById('Juniorcheck').checked = false;
         document.getElementById('Basecheck').checked = false;
         console.log("Níveis de experiência limpos.");
-    }
+    }
        
     
     // 4. 🛑 LIMPEZA TOTAL DE DATAS (Flatpickr)
@@ -3873,7 +2763,7 @@ async function verificaStaff() {
             console.log("Iniciando verificação de disponibilidade do staff...");
           
             const apiResult = await verificarDisponibilidadeStaff(
-                idFuncionarioParaVerificacao,             
+                idFuncionarioParaVerificacao,             
                 periodoDoEvento,
                 idFuncaoDoFormulario,
                 idEventoEmEdicao
@@ -3914,7 +2804,7 @@ async function verificaStaff() {
 // // 🟢 CORREÇÃO: GARANTIR CONFLITOS NO ARRAY PARA CÁLCULO DE LIMITE E DUPLICIDADE
 // // (Localização: Correta. Imediatamente após a API e antes da checagem de duplicidade.)
 // // ----------------------------------------------------------------------------------
-//          if (isAvailable === false && apiResult.conflictingEvent) {
+//          if (isAvailable === false && apiResult.conflictingEvent) {
 //                 // A linha de verificação Array.isArray() não é mais necessária aqui.
                 
 //                 // Garante que o evento ainda não está no array antes de adicionar (para máxima segurança)
@@ -4351,7 +3241,7 @@ async function verificaStaff() {
                                 
                                 const result = await salvarSolicitacaoAditivoExtra(
                                     idOrcamentoAtual, 
-                                    idFuncaoDoFormulario,             
+                                    idFuncaoDoFormulario,             
                                     1, // Solicitando +1
                                     'FuncExcedido', 
                                     justificativaFinal,
@@ -5397,7 +4287,7 @@ const debouncedOnCriteriosChanged = debounce(() => {
     // Apenas chame a API se os campos obrigatórios estiverem preenchidos
     if (idEvento && idCliente && idLocalMontagem && idFuncao && periodoDoEvento.length > 0) {
         console.log("🟢 DEBUG: Chamando buscarEPopularOrcamento. Todos os critérios (incluindo Nível de Experiência) atendidos.");
-        buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idFuncao, periodoDoEvento);      
+        buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idFuncao, periodoDoEvento);    
     } else {
         console.log("🔴 DEBUG: Bloqueado. Um dos critérios obrigatórios está ausente ou `periodoDoEvento` está vazio.");
     }
@@ -5405,172 +4295,6 @@ const debouncedOnCriteriosChanged = debounce(() => {
 
 }, 500);
 
-
-// async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, datasEvento) {
-//     try {
-//         console.log("Buscando orçamento com os seguintes IDs:", { idEvento, idCliente,  idLocalMontagem, datasEvento });
-
-//         const criteriosDeBusca = {
-//             idEvento,
-//             idCliente,
-//             idLocalMontagem,
-//             //setor: setorParaBusca,
-//             datasEvento: datasEvento || []
-//         };
-//         console.log("Objeto enviado para o backend:", criteriosDeBusca);
-
-//         const dadosDoOrcamento = await fetchComToken('/staff/orcamento/consultar', {
-//             method: 'POST',
-//             headers: { 'Content-Type': 'application/json' },
-//             body: JSON.stringify(criteriosDeBusca)
-//         });
-
-//         // Limpa a variável global antes de qualquer processamento
-//         orcamentoPorFuncao = {};        
-
-//         console.log('DEBUG: Dados do Orçamento Recebidos:', dadosDoOrcamento);
-
-//         // **VALIDAÇÃO CORRIGIDA:** Garante que a resposta é um array válido e não vazio
-//         if (!Array.isArray(dadosDoOrcamento) || dadosDoOrcamento.length === 0) {
-//             temOrcamento = false;
-//             controlarBotaoSalvarStaff(false); 
-//             Swal.fire({
-//                 icon: 'info',
-//                 title: 'Nenhum Orçamento Encontrado',
-//                 text: 'Não foram encontrados orçamentos para os critérios de busca informados. Por favor, verifique os parâmetros e tente novamente.'
-//             });
-//             // Opcional: define o status como nulo ou vazio
-//             statusOrcamentoAtual = '';
-//             return;
-//         }
-//         // else {
-//         //     temOrcamento = true;
-//         //     controlarBotaoSalvarStaff(true);
-//         // }
-
-//         // **LÓGICA DO STATUS:** Agora que sabemos que o array não está vazio, podemos acessar a posição [0] com segurança
-//         // const statusDoOrcamento = dadosDoOrcamento[0].status;
-//         // console.log('DEBUG: Status do Orçamento Encontrado:', statusDoOrcamento);
-//         // statusOrcamentoAtual = statusDoOrcamento; // Define a variável global
-
-//         const primeiroItem = dadosDoOrcamento[0];
-//         const statusDoOrcamento = primeiroItem.status;
-//         const datasOrcadasTotais = primeiroItem.datas_totais_orcadas || [];
-
-//         console.log('DEBUG: Status do Orçamento Encontrado:', statusDoOrcamento);
-//         statusOrcamentoAtual = statusDoOrcamento; // Define a variável global
-
-//         //ORCAMENTO ABERTO E SEM PROPOSTA ENVIADA
-//         if (statusDoOrcamento === 'A') {
-//             Swal.fire({
-//                 icon: 'warning',
-//                 title: 'Orçamento Sem Proposta Enviada',
-//                 text: 'O orçamento para os parâmetros solicitados ainda está em aberto. Não é possível cadastrar o Staff.'
-//             });
-//             return;
-//         }
-//         // **PROCESSAMENTO DOS DADOS:** Se o status não for 'A', o código continua aqui
-
-
-    
-//         // dadosDoOrcamento.forEach(item => {
-//         //     //const chave = `${item.nmevento}-${item.nmcliente}-${item.nmlocalmontagem}-${item.pavilhao}-${item.descfuncao}`;
-//         //     const chave = `${item.nmevento}-${item.nmcliente}-${item.nmlocalmontagem}-${item.descfuncao}`;
-//         //     orcamentoPorFuncao[chave] = {
-//         //         quantidadeOrcada: item.quantidade_orcada,
-//         //         quantidadeEscalada: item.quantidade_escalada
-//         //     };
-//         // });
-
-//         // =================================================================
-//         // 3. VALIDAÇÃO DE DATAS: Datas selecionadas vs. Datas orçadas (NOVO)
-//         // =================================================================
-
-//         // Converte o array de datas orçadas para um Set para comparação eficiente
-//         const datasOrcadasSet = new Set(datasOrcadasTotais.map(d => {
-//             // Garante o formato YYYY-MM-DD
-//             return typeof d === 'string' ? d.substring(0, 10) : ''; 
-//         }));
-
-//         // Encontra as datas selecionadas pelo usuário que NÃO estão no Set de datas orçadas
-//         const datasNaoOrcadas = [];
-//         for (const dataSelecionada of datasEvento) {
-//             if (!datasOrcadasSet.has(dataSelecionada)) {
-//                 datasNaoOrcadas.push(dataSelecionada);
-//             }
-//         }
-
-//         if (datasNaoOrcadas.length > 0) {
-//             temOrcamento = false; // Bloqueia o botão SALVAR
-//             controlarBotaoSalvarStaff(false);
-            
-//             // Formata as datas para o alerta (DD/MM/AAAA)
-//             const datasFormatadas = datasNaoOrcadas.map(data => {
-//                 const [ano, mes, dia] = data.split('-');
-//                 return `${dia}/${mes}/${ano}`;
-//             }).join(', ');
-            
-//             Swal.fire({
-//                 icon: 'warning',
-//                 title: 'Datas Fora do Orçamento',
-//                 html: `O(s) dia(s) **${datasFormatadas}** não possui(em) orçamento em proposta. Deseja incluir e solicitar um **Aditivo** ou **Extra Bonificado**?`,
-//                 showCancelButton: true,
-//                 confirmButtonText: 'Solicitar Aditivo/Extra',
-//                 cancelButtonText: 'Cancelar Staff',
-//             }).then((result) => {
-//                 if (result.isConfirmed) {
-//                     // TODO: Implementar ou chamar a função para abrir o modal de aditivo/extra
-//                     console.log("Ação: Abrir modal de Aditivo/Extra.");
-//                 } else {
-//                     // Usuário optou por não continuar/cancelar
-//                     console.log("Ação: Staff cancelado ou data removida.");
-//                     // Sugestão: Você pode querer remover estas datas do Flatpickr aqui
-//                 }
-//             });
-//             return; // Interrompe a função aqui
-//         } 
-        
-//         // Se chegou aqui, TODAS as datas estão orçadas e o status é válido
-//         temOrcamento = true;
-//         controlarBotaoSalvarStaff(true);
-//         // =================================================================
-//         // 4. PROCESSAMENTO DOS DADOS (Existente)
-//         // =================================================================
-
-//         dadosDoOrcamento.forEach(item => {
-//          const chave = `${item.nmevento}-${item.nmcliente}-${item.nmlocalmontagem}-${item.descfuncao}`;
-//          
-//          // Se a chave não existir, inicializa e define as quantidades
-//          if (!orcamentoPorFuncao[chave]) {
-//      orcamentoPorFuncao[chave] = {
-//                  // Converte para número e define os valores iniciais
-//                  quantidadeOrcada: Number(item.quantidade_orcada), 
-//                  quantidadeEscalada: Number(item.quantidade_escalada) 
-//      };
-//          } else {
-//      // Se a chave já existir, SOMENTE SOMA a quantidade Orçada
-//      // O valor de quantidadeEscalada (total de escalados no DB) já foi definido 
-//      // na primeira iteração e é o mesmo para todas as linhas de orçamento.
-//      orcamentoPorFuncao[chave].quantidadeOrcada += Number(item.quantidade_orcada);
-//      
-//      // Importante: Não some orcamentoPorFuncao[chave].quantidadeEscalada novamente!
-//          }
-//      });
-//         console.log('Orçamento carregado:', orcamentoPorFuncao);
-
-//     } catch (error) {
-//         console.error("Erro ao carregar orçamento:", error);
-//         orcamentoPorFuncao = {};
-//         statusOrcamentoAtual = ''; // Limpa o status em caso de erro
-//         temOrcamento = false;
-//         controlarBotaoSalvarStaff(false);
-//         Swal.fire({
-//             icon: 'error',
-//             title: 'Erro de Carregamento',
-//             text: 'Não foi possível carregar o orçamento. Tente novamente mais tarde.'
-//         });
-//     }
-// }
 
 async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idFuncao, datasEvento) {
     try {
@@ -5613,9 +4337,12 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
         idOrcamentoAtual = idOrcamento;
 
         const nrOrcamento = dadosDoOrcamento[0].nrorcamento;
+
+        const liberadoCadastro = dadosDoOrcamento[0].contratarstaff;
+
         
 
-       console.log('ID do Orçamento Atual:', idOrcamentoAtual, statusDoOrcamento);
+       console.log('ID do Orçamento Atual:', idOrcamentoAtual, statusDoOrcamento, liberadoCadastro);
 
     
 
@@ -5625,12 +4352,13 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
             controlarBotaoSalvarStaff(false);
             return;
         }
-        // if (statusDoOrcamento === 'P' && !liberadoCadastro) {
-        //     Swal.fire({ icon: 'warning', title: 'Orçamento Não liberado para Contratação', text: 'Orçamento em Proposta Sem liberação de Contratação. Não é possível cadastrar.' });
-        //     temOrcamento = false;
-        //     controlarBotaoSalvarStaff(false);
-        //     return;
-        // }
+
+        if (statusDoOrcamento === 'P' && !liberadoCadastro) {
+            Swal.fire({ icon: 'warning', title: 'Orçamento Não liberado para Contratação', text: 'Orçamento em Proposta Sem liberação de Contratação. Não é possível cadastrar.' });
+            temOrcamento = false;
+            controlarBotaoSalvarStaff(false);
+            return;
+        }
 
         // --- 3. VALIDAÇÃO DE DATAS ESPECÍFICA POR FUNÇÃO ---
         const funcaoSelecionadaTexto = descFuncaoSelect.options[descFuncaoSelect.selectedIndex].text;
@@ -5919,43 +4647,43 @@ function renderDatesWithStatus(datesArray, containerId, type) {
 
 
 function desinicializarStaffModal() {
-    console.log("🧹 Desinicializando módulo Staff.js...");
-    
+    console.log("🧹 Desinicializando módulo Staff.js...");
+
     // Garante que a instância existe e a destrói.
-    if (window.datasEventoPicker) {
+    if (window.datasEventoPicker) {
         window.datasEventoPicker.destroy();
         window.datasEventoPicker = null; // Limpa a referência global
         console.log("Flatpickr para #datasEvento destruído.");
-    }
+    }
 
-    if (window.diariaDobradaPicker) {
+    if (window.diariaDobradaPicker) {
         window.diariaDobradaPicker.destroy();
         window.diariaDobradaPicker = null; // Limpa a referência global
         console.log("Flatpickr para #diariaDobrada destruído.");
-    }
+    }
 
-    if (window.meiaDiariaPicker) {
+    if (window.meiaDiariaPicker) {
         window.meiaDiariaPicker.destroy();
         window.meiaDiariaPicker = null; // Limpa a referência global
         console.log("Flatpickr para #meiaDiaria destruído.");
-    }
+    }
 
     // 🛑 REMOVE AS CHAMADAS setDate() QUE ESTAVAM CAUSANDO O ERRO DE UNDEFINED
-    // if (typeof datasEventoPicker !== 'undefined' && datasEventoPicker) { ... }
+    // if (typeof datasEventoPicker !== 'undefined' && datasEventoPicker) { ... }
     // Essas chamadas não são mais necessárias, pois a instância foi destruída.
     
-    // ----------------------------------------------------------------------
-    // 3. Limpar o estado global e campos do formulário
-    // ----------------------------------------------------------------------
-    window.StaffOriginal = null;
-    window.currentEditingStaffEvent = null;
-    
-    // Chama a limpeza de campos (agora que o Flatpickr não existe mais e não vai falhar)
-    limparCamposStaff(); 
-    
-    document.querySelector("#form").reset(); // Garante que o formulário seja completamente resetado
+    // ----------------------------------------------------------------------
+    // 3. Limpar o estado global e campos do formulário
+    // ----------------------------------------------------------------------
+    window.StaffOriginal = null;
+    window.currentEditingStaffEvent = null;
 
-    console.log("✅ Módulo Staff.js desinicializado.");
+    // Chama a limpeza de campos (agora que o Flatpickr não existe mais e não vai falhar)
+    limparCamposStaff(); 
+
+    document.querySelector("#form").reset(); // Garante que o formulário seja completamente resetado
+
+    console.log("✅ Módulo Staff.js desinicializado.");
 }
 
 function normalizeEmptyValue(value) {
@@ -6040,51 +4768,6 @@ function formatarDatas(datas) {
     }).join(', ');
 }
 
-// function inicializarFlatpickrsGlobais() {
-//     console.log("Inicializando Flatpickr para todos os campos de data (globais)...");
-
-//     const dateInputIds = ['datasEvento', 'diariaDobrada', 'meiaDiaria'];
-//     const commonFlatpickrOptions = {
-//         mode: "multiple",
-//         dateFormat: "Y-m-d",
-//     };
-
-//     dateInputIds.forEach(id => {
-//         const element = document.getElementById(id);
-//         if (element) {
-//             if (!element._flatpickr) {
-//                 // AQUI ESTÁ A CORREÇÃO:
-//                 // Obtemos as datas do objeto de edição, se existirem.
-//                 let initialDates = [];
-//                 if (window.currentEditingStaffEvent) {
-//                     if (id === 'datasEvento' && window.currentEditingStaffEvent.datasevento) {
-//                         initialDates = window.currentEditingStaffEvent.datasevento;
-//                     }
-//                     // Adicione lógica semelhante para 'diariaDobrada' e 'meiaDiaria'
-//                     // se houver campos de data correspondentes no objeto de edição.
-//                     // Exemplo:
-//                     // else if (id === 'diariaDobrada' && window.currentEditingStaffEvent.dtdiariadobrada) {
-//                     //    initialDates = window.currentEditingStaffEvent.dtdiariadobrada;
-//                     // }
-//                     // etc.
-//                 }
-
-//                 const picker = flatpickr(element, {
-//                     ...commonFlatpickrOptions,
-//                     defaultDate: initialDates // Pré-preenche o calendário com as datas
-//                 });
-
-//                 window.flatpickrInstances[id] = picker;
-//                 console.log(`Flatpickr inicializado e salvo para campo global #${id}`, initialDates);
-//             } else {
-//                 console.log(`Flatpickr para campo global #${id} já estava inicializado.`);
-//                 window.flatpickrInstances[id] = element._flatpickr;
-//             }
-//         } else {
-//             console.warn(`Elemento com ID '${id}' não encontrado para inicialização do Flatpickr.`);
-//         }
-//     });
-// }
 
 function adicionarEventoBlurStaff() {
     const input = document.querySelector("#nmFuncionario");
@@ -6212,7 +4895,7 @@ async function carregarEquipeStaff() {
 async function carregarFuncaoStaff() {
     try{
         const funcaofetch = await fetchComToken('/staff/funcao');
-        console.log("ENTROU NO CARREGARFUNCAOSTAFF", funcaofetch);        
+        console.log("ENTROU NO CARREGARFUNCAOSTAFF", funcaofetch);       
 
         let selects = document.querySelectorAll(".descFuncao");
 
@@ -6239,18 +4922,22 @@ async function carregarFuncaoStaff() {
                     option.setAttribute("data-ctopleno", funcao.ctofuncaopleno);
                     option.setAttribute("data-ctojunior", funcao.ctofuncaojunior);
                     option.setAttribute("data-ctobase", funcao.ctofuncaobase);
-                    option.setAttribute("data-vda", funcao.vdafuncao);   
+                    option.setAttribute("data-vda", funcao.vdafuncao); 
+                    
+                    // 🟢 Linha Adicionada para trazer o valor do funcionário
+                    option.setAttribute("data-vlrfuncionario", funcao.vlrfuncionario || 0); 
+                    
                     option.setAttribute("data-alimentacao", funcao.alimentacao || 0);
                     option.setAttribute("data-transporte", funcao.transporte || 0);
                     option.setAttribute("data-transpsenior", funcao.transpsenior || 0);
                     option.setAttribute("data-idequipe", funcao.idequipe || '');
-                    option.setAttribute("data-nmequipe", funcao.nmequipe || '');                    
+                    option.setAttribute("data-nmequipe", funcao.nmequipe || '');                     
                     option.setAttribute("data-categoriafuncao", funcao.nmcategoriafuncao || '');
                     option.setAttribute("data-categoria", "Produto(s)");
                     select.appendChild(option);
                // }else {
-               //     // Opcional: Log para saber quais funções foram filtradas.
-               //     console.log(`Função inativa ignorada: ${funcao.descfuncao}`);
+               //      // Opcional: Log para saber quais funções foram filtradas.
+               //      console.log(`Função inativa ignorada: ${funcao.descfuncao}`);
                // }
             });
 
@@ -6259,15 +4946,27 @@ async function carregarFuncaoStaff() {
                 document.getElementById("vlrCusto").value = '';
                 document.getElementById("alimentacao").value = '';
                 document.getElementById("transporte").value = '';
-                document.getElementById("Seniorcheck").checked = false;
-                document.getElementById("Plenocheck").checked = false;
-                document.getElementById("Juniorcheck").checked = false;
-                document.getElementById("Basecheck").checked = false;
+                
+                // Referências aos checkboxes (use IDs consistentes com o seu HTML)
+                const seniorCheck = document.getElementById("seniorCheck") || document.getElementById("Seniorcheck"); 
+                const plenoCheck = document.getElementById("plenoCheck") || document.getElementById("Plenocheck"); 
+                const juniorCheck = document.getElementById("juniorCheck") || document.getElementById("Juniorcheck"); 
+                const baseCheck = document.getElementById("baseCheck") || document.getElementById("Basecheck"); 
+                
+                if (seniorCheck) seniorCheck.checked = false;
+                if (plenoCheck) plenoCheck.checked = false;
+                if (juniorCheck) juniorCheck.checked = false;
+                if (baseCheck) baseCheck.checked = false;
+
                 inputIdEquipe.value = '';
                 inputNmEquipe.value = '';
 
                 const selectedOption = this.options[this.selectedIndex];
                 const descFuncao = selectedOption.textContent;
+
+                // 1. Obtém o valor do perfil
+                const perfilFuncionarioInput = document.getElementById('perfilFuncionario');
+                const perfilSelecionado = perfilFuncionarioInput?.value?.toUpperCase().trim() || ''; 
 
                 document.getElementById("idFuncao").value = selectedOption.getAttribute("data-idFuncao"); 
                 const idEquipeSelecionado = selectedOption.getAttribute("data-idequipe");
@@ -6282,38 +4981,80 @@ async function carregarFuncaoStaff() {
                 vlrCustoSeniorFuncao = parseFloat(selectedOption.getAttribute("data-ctosenior")) || 0;
                 vlrCustoPlenoFuncao = parseFloat(selectedOption.getAttribute("data-ctopleno")) || 0;
                 vlrCustoJuniorFuncao = parseFloat(selectedOption.getAttribute("data-ctojunior")) || 0;
-                vlrCustoBaseFuncao = parseFloat(selectedOption.getAttribute("data-ctobase")) || 0;           
+                vlrCustoBaseFuncao = parseFloat(selectedOption.getAttribute("data-ctobase")) || 0;         
                 vlrAlimentacaoFuncao = parseFloat(selectedOption.getAttribute("data-alimentacao")) || 0;
                 vlrTransporteFuncao = parseFloat(selectedOption.getAttribute("data-transporte")) || 0;
                 vlrTransporteSeniorFuncao = parseFloat(selectedOption.getAttribute("data-transpsenior")) || 0;
+
+                // 🔴 CORREÇÃO: Lendo o atributo com o nome todo em minúsculo (kebab-case) 
+                // e armazenando na variável com 'F' maiúsculo para consistência.
+                const vlrFuncionario = parseFloat(selectedOption.getAttribute("data-vlrfuncionario")) || 0;
+                
                 categoriaFuncao = selectedOption.getAttribute("data-categoriafuncao") || '';
                 
+                // ----------------------------------------------------
+                // LÓGICA DE OVERRIDE POR FUNÇÃO E PERFIL
+                // ----------------------------------------------------
                 if (descFuncao === "AJUDANTE DE MARCAÇÃO") {
-                    // 1. Marca o "Base"
-                    baseCheck.checked = true;
-                    // 2. Desabilita os demais
-                    seniorCheck.disabled = true;
-                    plenoCheck.disabled = true;
-                    juniorCheck.disabled = true;
-                    baseCheck.disabled = false; // Garante que o Base está habilitado para ser enviado/lido
-                    document.getElementById("vlrCusto").value = (parseFloat(vlrCustoBaseFuncao) || 0).toFixed(2);
-                    document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);   
-                    document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+                    console.log(`🟡 REGRA FUNÇÃO ATIVA: ${descFuncao}. Trava no Base e Custo Base.`);
                     
-                    // Opcional: Se precisar aplicar o custo Base imediatamente, adicione a lógica aqui.
-                    // Por exemplo: document.getElementById("vlrCusto").value = parseFloat(selectedOption.getAttribute("data-ctobase")) || 0;
+                    // 1. Marca/Trava o "Base"
+                    if (baseCheck) baseCheck.checked = true;
+                    if (seniorCheck) seniorCheck.disabled = true;
+                    if (plenoCheck) plenoCheck.disabled = true;
+                    if (juniorCheck) juniorCheck.disabled = true;
+                    if (baseCheck) baseCheck.disabled = false; 
+                    
+                    // 2. Preenche os custos com o valor Base da Função
+                    document.getElementById("vlrCusto").value = (parseFloat(vlrCustoBaseFuncao) || 0).toFixed(2).replace('.', ',');
+                    document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2).replace('.', ','); 
+                    document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2).replace('.', ',');
+                    
+                    if (typeof calcularValorTotal === 'function') {
+                        calcularValorTotal();
+                    }
+                    
+                } 
+                // Verifica se o perfil é INTERNO ou EXTERNO
+                else if(perfilSelecionado === "INTERNO" || perfilSelecionado === "EXTERNO") { 
+                    console.log(`🔴 REGRA PERFIL ATIVA: Perfil 'FUNCIONARIO' (${perfilSelecionado}) detectado.`);
+                    // 💡 DEBUG: Confira o valor que foi lido do atributo 'data-vlrfuncionario':
+                    console.log(`💡 DEBUG: vlrFuncionario lido: ${vlrFuncionario}`);
 
-                } else {
-                    // 3. Re-habilita todos os checkboxes para qualquer outra função
-                    seniorCheck.disabled = false;
-                    plenoCheck.disabled = false;
-                    juniorCheck.disabled = false;
-                    baseCheck.disabled = false;
+                    // 1. Marca/Trava o "Base"
+                    if (baseCheck) baseCheck.checked = true;
+                    if (seniorCheck) seniorCheck.disabled = true;
+                    if (plenoCheck) plenoCheck.disabled = true;
+                    if (juniorCheck) juniorCheck.disabled = true;
+                    if (baseCheck) baseCheck.disabled = false; 
+
+                    // 2. Preenche os custos com o vlrFuncionario
+                    // 🟢 CORREÇÃO CRÍTICA: Usando o nome de variável CONSISTENTE (vlrFuncionario)
+                    document.getElementById("vlrCusto").value = (parseFloat(vlrFuncionario) || 0).toFixed(2).replace('.', ',');
+                    document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2).replace('.', ','); 
+                    document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2).replace('.', ',');
                     
-                }               
-                
+                    if (typeof calcularValorTotal === 'function') {
+                        calcularValorTotal();
+                    }
+
+                }
+                // Perfil/Função Padrão (FREELANCER, LOTE, ou Função/Perfil padrão)
+                else{
+                    console.log("🟢 PERFIL/FUNÇÃO PADRÃO: Habilita Checkboxes e chama onCriteriosChanged.");
+                    
+                    // 1. Re-habilita todos os checkboxes
+                    if (seniorCheck) seniorCheck.disabled = false;
+                    if (plenoCheck) plenoCheck.disabled = false;
+                    if (juniorCheck) juniorCheck.disabled = false;
+                    if (baseCheck) baseCheck.disabled = false;
+                    
+                    // 2. Chama onCriteriosChanged para preencher os valores de custo inicial
+                    if (typeof onCriteriosChanged === 'function') {
+                        onCriteriosChanged();
+                    }
+                }
             });
-
         });
     }catch(error){
     console.error("Erro ao carregar funcao:", error);
@@ -6641,77 +5382,6 @@ async function carregarLocalMontStaff() {
     }
 }
 
-// async function carregarPavilhaoStaff(idMontagem) {
-
-//     // if (!idMontagem || idMontagem === "") {
-//     //     console.warn("carregarPavilhaoStaff: idMontagem vazio, abortando requisição.");
-//     //     // Pode ser necessário limpar o select de Pavilhão aqui, se ele existir.
-//     //     return [];
-//     // }
-
-//     try{
-
-//        const pavilhaofetch = await fetchComToken(`/staff/pavilhao?idmontagem=${idMontagem}`);
-
-//         let selects = document.querySelectorAll(".nmPavilhao");
-
-//         selects.forEach(select => {
-
-//             select.innerHTML = '<option value="">Selecione o Pavilhão</option>'; // Adiciona a opção padrão
-//             pavilhaofetch.forEach(localpav => {
-
-//                 let option = document.createElement("option");
-
-//                 option.value = localpav.idpavilhao;  // Atenção ao nome da propriedade (idMontagem)
-//                 option.textContent = localpav.nmpavilhao;
-//                 option.setAttribute("data-idPavilhao", localpav.idpavilhao);
-//                 option.setAttribute("data-nmPavilhao", localpav.nmPavilhao);
-
-//                 select.appendChild(option);
-
-//             });
-//             select.addEventListener("change", function () {
-//                 // document.getElementById("idPavilhao").value = selectedOption.getAttribute("data-idPavilhao");
-
-
-//             });
-
-//         });
-//     }catch(error){
-//         console.error("Erro ao carregar pavilhao:", error);
-//     }
-// }
-
-// async function carregarDadosPavilhao(idMontagem) { // Renomeada para corresponder ao seu código
-//         if (!nmPavilhaoSelect) return;
-
-//         nmPavilhaoSelect.innerHTML = '<option value="">Carregando Pavilhões...</option>'; // Mensagem de carregamento
-
-//         if (!idMontagem) {
-//             nmPavilhaoSelect.innerHTML = '<option value="">Selecione Pavilhão</option>';
-//             return;
-//         }
-
-//         try {
-//             const pavilhaoData = await fetchComToken(`/staff/pavilhao?idmontagem=${idMontagem}`); // Ajuste a URL se necessário
-//             console.log(`Dados de Pavilhões recebidos para ${idMontagem}:`, pavilhaoData); // Log para depuração
-
-//             nmPavilhaoSelect.innerHTML = '<option value="">Selecione Pavilhão</option>'; // Limpa e adiciona opção padrão
-//             pavilhaoData.forEach(localpav => {
-//                 const option = document.createElement('option');
-//                 option.value = localpav.idpavilhao;  // O valor da opção é o ID
-//                 option.textContent = localpav.nmpavilhao; // O texto visível é o nome
-//                 option.setAttribute("data-idPavilhao", localpav.idpavilhao);
-//                 option.setAttribute("data-nmPavilhao", localpav.nmpavilhao); // Corrigido typo
-//                 nmPavilhaoSelect.appendChild(option);
-//                 console.log(`Adicionada opção: value="${option.value}", text="${option.textContent}"`); // Log de depuração
-//             });
-//             console.log(`Pavilhões carregados e populados para Local de Montagem ${idMontagem}.`);
-//         } catch (error) {
-//             console.error("Erro ao carregar pavilhao:", error);
-//             nmPavilhaoSelect.innerHTML = '<option value="">Erro ao carregar Pavilhões</option>';
-//         }
-// }
 
 async function carregarPavilhaoStaff(idMontagem) {
     if (!idMontagem || idMontagem === "") {
@@ -6873,341 +5543,6 @@ function limparCamposEvento() {
     console.log("Limpeza parcial do formulário concluída.");
 }
 
-// function limparCamposStaff() {
-//     const campos = [
-//         "idStaff", "nmFuncionario", "apelidoFuncionario", "linkFotoFuncionarios", "descFuncao", "vlrCusto",
-//         "nmLocalMontagem", "nmPavilhao", "alimentacao", "transporte", "vlrBeneficio", "descBeneficio",
-//         "nmCliente", "nmEvento", "vlrTotal", "vlrTotalHidden", "idFuncionario", "idFuncao", "idMontagem",
-//         "idPavilhao", "idCliente", "idEvento", "statusPgto", "statusCaixinha", "statusAjusteCusto", "statusDiariaDobrada",
-//         "descDiariaDobrada", "statusMeiaDiaria", "descMeiaDiaria", "labelFuncionario", "perfilFuncionario", "qtdPessoas",
-//         "idequipe","nmEquipe"
-//     ];
-
-//     campos.forEach(id => {
-//         const campo = document.getElementById(id);
-//         if (campo) {
-//             campo.value = "";
-//             console.log(`Campo "${id}" limpo.`);
-//         }
-//     });
-
-//     currentEditingStaffEvent = null; // Garanta que esta também seja limpa
-//     isFormLoadedFromDoubleClick = false;
-
-//     const previewFoto = document.getElementById('previewFoto');
-//     const fileName = document.getElementById('fileName');
-//     const fileInput = document.getElementById('file');
-//     const uploadHeader = document.getElementById('uploadHeader');
-//     const linkFotoFuncionarios = document.getElementById('linkFotoFuncionarios');
-//     const nomeFuncionarioExibido = document.getElementById('nomeFuncionarioExibido');
-//     const labelFuncionario = document.getElementById('labelFuncionario');
-
-//     if (labelFuncionario) {
-//         labelFuncionario.style.display = "none"; // esconde
-//         labelFuncionario.textContent = "";       // limpa o texto
-//         labelFuncionario.style.color = "";       // reseta cor
-//         console.log("Label Funcionário limpo.");
-//     }
-
-//     if (previewFoto) {
-//         previewFoto.src = "#";
-//         previewFoto.style.display = "none";
-//         console.log("Preview da foto limpo.");
-//     }
-//     if (fileName) {
-//         fileName.textContent = "Nenhum arquivo selecionado";
-//     }
-//     if (fileInput) {
-//         fileInput.value = "";
-//     }
-//     if (uploadHeader) {
-//         uploadHeader.style.display = "block";
-//     }
-//     if (linkFotoFuncionarios) {
-//         linkFotoFuncionarios.value = "";
-//     }
-//     if (nomeFuncionarioExibido) {
-//         nomeFuncionarioExibido.textContent = "";
-//     }    
-
-//     const contadorDatas = document.getElementById('contadorDatas');
-
-//     if (contadorDatas) {
-//         contadorDatas.textContent = "Nenhuma data selecionada.";
-//     }
-
-//     // Limpeza do Picker Principal (Datas do Evento)
-//     if (window.datasEventoPicker) {
-//         window.datasEventoPicker.clear();
-//         // O MutationObserver deve pegar a alteração no contadorDatas, 
-//         // mas é bom garantir que o contador reflita a limpeza.
-//         if (contadorDatas) {
-//             contadorDatas.textContent = "Nenhuma data selecionada."; 
-//         }
-//         console.log("Datas do evento limpas via Flatpickr.");
-//     }
-    
-//     // Limpeza dos Pickers Auxiliares (Diária Dobrada e Meia Diária)
-//     if (window.diariaDobradaPicker) {
-//         window.diariaDobradaPicker.clear();
-//         // Além de limpar, é importante desabilitar o picker (remover datas 'enable')
-//         // Embora setar para [] possa ser suficiente, se ele foi inicializado com 'enable',
-//         // você pode querer setá-lo para um array vazio, mas clear() geralmente basta para a UI.
-//     }
-
-//     if (window.meiaDiariaPicker) {
-//         window.meiaDiariaPicker.clear();
-//     }
-//     console.log("Pickers auxiliares (Diária Dobrada e Meia Diária) limpos.");
-
-//     // ✅ Limpeza de PDFs por classe
-//     const fileNamesPDF = document.querySelectorAll('.fileNamePDF');
-//     const fileInputsPDF = document.querySelectorAll('.filePDFInput');
-//     const hiddenInputsPDF = document.querySelectorAll('.hiddenPDF');
-
-//     fileNamesPDF.forEach(p => {
-//         p.textContent = "Nenhum arquivo selecionado";
-//     });
-//     fileInputsPDF.forEach(input => {
-//         input.value = "";
-//     });
-//     hiddenInputsPDF.forEach(input => {
-//         input.value = "";
-//     });
-//     console.log("Campos de arquivos PDF limpos.");
-
-//     // Resetar campos opcionais
-//     const ajusteCustoCheck = document.getElementById('ajusteCustocheck');
-//     const campoAjusteCusto = document.getElementById('campoAjusteCusto');
-//     const campoStatusAjusteCusto = document.getElementById('campoStatusAjusteCusto');
-
-//     const caixinhaCheck = document.getElementById('Caixinhacheck');
-//     const campoCaixinha = document.getElementById('campoCaixinha');
-//     const campoStatusCaixinha = document.getElementById('campoStatusCaixinha');
-
-
-//     if (ajusteCustoCheck) {
-//         ajusteCustoCheck.checked = false;
-//         if (campoAjusteCusto) campoAjusteCusto.style.display = 'none';
-//         const inputAjusteCusto = document.getElementById('ajusteCusto');
-//         if (inputAjusteCusto) inputAjusteCusto.value = '';
-
-//         const ajusteCustoTextarea = document.getElementById('descAjusteCusto');
-//         if (ajusteCustoTextarea) {
-//             ajusteCustoTextarea.style.display = 'none'; // Oculta o textarea
-//             ajusteCustoTextarea.required = false;      // Remove a obrigatoriedade
-//             ajusteCustoTextarea.value = '';            // Limpa o conteúdo
-//         }
-
-//         if (campoStatusAjusteCusto) campoStatusAjusteCusto.style.display = 'none';
-
-//     }
-//     if (caixinhaCheck) {
-//         caixinhaCheck.checked = false;
-//         if (campoCaixinha) campoCaixinha.style.display = 'none';
-//         const inputCaixinha = document.getElementById('caixinha');
-//         if (inputCaixinha) inputCaixinha.value = '';
-//         if (campoStatusCaixinha) campoStatusCaixinha.style.display = 'none';
-
-//         const descCaixinhaTextarea = document.getElementById('descCaixinha');
-//         if (descCaixinhaTextarea) {
-//             descCaixinhaTextarea.style.display = 'none'; // Oculta o textarea
-//             descCaixinhaTextarea.required = false;      // Remove a obrigatoriedade
-//             descCaixinhaTextarea.value = '';            // Limpa o conteúdo
-//         }
-
-//         if (campoStatusCaixinha) campoStatusCaixinha.style.display = 'none';
-//     }
-
-//     const meiaDiariaCheck = document.getElementById('meiaDiariaCheck');
-//     if (meiaDiariaCheck){
-//         meiaDiariaCheck.checked = false;
-       
-//         if (meiaDiariaCheck) campoMeiaDiaria.style.display = 'none';
-//         const inputMeiaDiaria = document.getElementById('meiaDiaria');
-//         if (inputMeiaDiaria) inputMeiaDiaria.value = '';
-//         if (campoStatusMeiaDiaria) campoStatusMeiaDiaria.style.display = 'none';
-
-//         const descMeiaDiariaTextarea = document.getElementById('descMeiaDiaria');
-//         if (descMeiaDiariaTextarea) {
-//             descMeiaDiariaTextarea.style.display = 'none'; // Oculta o textarea
-//             descMeiaDiariaTextarea.required = false;      // Remove a obrigatoriedade
-//             descMeiaDiariaTextarea.value = '';            // Limpa o conteúdo
-//         }
-
-//         if (campoStatusMeiaDiaria) campoStatusMeiaDiaria.style.display = 'none';
-
-//     } 
-
-//     const diariaDobradacheck = document.getElementById('diariaDobradacheck');
-//     if (diariaDobradacheck){
-//         diariaDobradacheck.checked = false;
-//         if (diariaDobradacheck) campoDiariaDobrada.style.display = 'none';
-//         const inputDiariaDobrada = document.getElementById('diariaDobrada');
-//         if (inputDiariaDobrada) inputDiariaDobrada.value = '';
-//         if (campoStatusDiariaDobrada) campoStatusDiariaDobrada.style.display = 'none';
-       
-//         const descDiariaDobradaTextarea = document.getElementById('descDiariaDobrada');
-//         if (descDiariaDobradaTextarea) {
-//             descDiariaDobradaTextarea.style.display = 'none'; // Oculta o textarea
-//             descDiariaDobradaTextarea.required = false;      // Remove a obrigatoriedade
-//             descDiariaDobradaTextarea.value = '';            // Limpa o conteúdo
-//         }
-      
-//         if (campoStatusDiariaDobrada) campoStatusDiariaDobrada.style.display = 'none';
-
-//     } 
-
-//     const meiaDiariacheck = document.getElementById('meiaDiariacheck');
-//     if (meiaDiariacheck){
-//         meiaDiariacheck.checked = false;
-//         if (meiaDiariacheck) campoDiariaDobrada.style.display = 'none';
-//         const inputMeiaDiaria = document.getElementById('meiaDiaria');
-//         if (inputMeiaDiaria) inputMeiaDiaria.value = '';
-//         if (campoStatusMeiaDiaria) campoStatusMeiaDiaria.style.display = 'none';
-       
-//         const descMeiaDiariaTextarea = document.getElementById('descDiariaDobrada');
-//         if (descMeiaDiariaTextarea) {
-//             descMeiaDiariaTextarea.style.display = 'none'; // Oculta o textarea
-//             descMeiaDiariaTextarea.required = false;      // Remove a obrigatoriedade
-//             descMeiaDiariaTextarea.value = '';            // Limpa o conteúdo
-//         }
-      
-//         if (campoStatusMeiaDiaria) campoStatusMeiaDiaria.style.display = 'none';
-
-//     } 
-
-//     if (check50) {
-//         check50.checked = false;
-//     }
-//     if (check100) {
-//         check100.checked = false;
-//     }
-
-//     const seniorCheck = document.getElementById('Seniorcheck');
-//     if (seniorCheck) seniorCheck.checked = false;
-
-//     const plenoCheck = document.getElementById('Plenocheck');
-//     if (plenoCheck) plenoCheck.checked = false;
-
-//     const juniorCheck = document.getElementById('Juniorcheck');
-//     if (juniorCheck) juniorCheck.checked = false;
-
-//     const baseCheck = document.getElementById('Basecheck');
-//     if (baseCheck) baseCheck.checked = false;
-
-//     const viagem1Check = document.getElementById('viagem1Check');
-//     if (viagem1Check) viagem1Check.checked = false;
-
-//     const viagem2Check = document.getElementById('viagem2Check');
-//     if (viagem2Check) viagem2Check.checked = false;
-
-//     const viagem3Check = document.getElementById('viagem3Check');
-//     if (viagem3Check) viagem3Check.checked = false;
-
-//     const beneficioTextarea = document.getElementById('descBeneficio');
-//     if (beneficioTextarea) {
-//         beneficioTextarea.style.display = 'none'; // Oculta o textarea
-//         beneficioTextarea.required = false;      // Remove a obrigatoriedade
-//         beneficioTextarea.value = '';            // Limpa o conteúdo
-//     }
-
-//     const ajusteCustoTextarea = document.getElementById('descAjusteCusto');
-//     if (ajusteCustoTextarea) {
-//         ajusteCustoTextarea.style.display = 'none'; // Oculta o textarea
-//         ajusteCustoTextarea.required = false;      // Remove a obrigatoriedade
-//         ajusteCustoTextarea.value = '';            // Limpa o conteúdo
-//     }
-
-//     const descCaixinhaTextarea = document.getElementById('descCaixinha');
-//     if (descCaixinhaTextarea) {
-//         descCaixinhaTextarea.style.display = 'none'; // Oculta o textarea
-//         descCaixinhaTextarea.required = false;      // Remove a obrigatoriedade
-//         descCaixinhaTextarea.value = '';            // Limpa o conteúdo
-//     }
-
-//     const statusMeiaDiaria = document.getElementById('statusMeiaDiaria');
-//     if (statusMeiaDiaria) statusMeiaDiaria.value = 'Autorização da Meia Diária';
-
-//     const statusDiariaDobrada = document.getElementById('statusDiariaDobrada');
-//     if (statusDiariaDobrada) statusDiariaDobrada.value = 'Autorização da Diária Dobrada';
-
-//     const statusPgto = document.getElementById('statuspgto');
-//     if (statusPgto) statusPgto.value = '';
-
-//     const statusAjusteCusto = document.getElementById('statusAjusteCusto');
-//     if (statusAjusteCusto) statusAjusteCusto.value = 'Autorização do Ajuste de Custo';
-
-//     const statusCaixinha = document.getElementById('statuscaixinha');
-//     if (statusCaixinha) statusCaixinha.value = 'Autorização da Caixinha';     
-
-//     const containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
-//     const containerStatusMeiaDiaria = document.getElementById('containerStatusMeiaDiaria');
-//     const containerStatusAditivo = document.getElementById('containerStatusAditivo');
-//     const containerStatusExtraBonificado = document.getElementById('containerStatusExtraBonificado');
-
-//     if (containerStatusDiariaDobrada) {
-//         containerStatusDiariaDobrada.innerHTML = '';
-//         containerStatusDiariaDobrada.style.display = 'none';
-//     }
-
-//     if (containerStatusMeiaDiaria) {
-//         containerStatusMeiaDiaria.innerHTML = '';
-//         containerStatusMeiaDiaria.style.display = 'none';
-//     }
-
-    
-//     if (containerStatusAditivo) {
-//         containerStatusAditivo.innerHTML = '';
-//         containerStatusAditivo.style.display = 'none';
-//     }
-
-//     if (containerStatusExtraBonificado) {
-//         containerStatusExtraBonificado.innerHTML = '';
-//         containerStatusExtraBonificado.style.display = 'none';
-//     }
-
-//     const avaliacaoSelect = document.getElementById('avaliacao');
-//     if (avaliacaoSelect) {
-//         avaliacaoSelect.value = ''; // Define para o valor da opção vazia (se existir, ex: <option value="">Selecione...</option>)
-//         // avaliacaoSelect.selectedIndex = 0; // Alternativa: seleciona a primeira opção
-//         const tarjaAvaliacao = document.getElementById('tarjaAvaliacao');
-//         if (tarjaAvaliacao) {
-//             tarjaAvaliacao.className = 'tarja-avaliacao'; // Reseta para a classe padrão
-//             tarjaAvaliacao.textContent = ''; // Limpa o texto
-//             console.log("Campos de avaliação (select e tarja) limpos.");
-//         }
-//     }
-
-//     const tabelaCorpo = document.getElementById("eventsDataTable").getElementsByTagName("tbody")[0];
-//     if (tabelaCorpo) {
-//         // Remove todas as linhas filhas do tbody
-//         while (tabelaCorpo.firstChild) {
-//             tabelaCorpo.removeChild(tabelaCorpo.firstChild);
-//         }
-//         console.log("Corpo da tabela (tabela) limpo.");
-
-//         // Adiciona uma linha "vazia" de volta, se for o comportamento padrão desejado
-//         let emptyRow = tabelaCorpo.insertRow();
-//         let emptyCell = emptyRow.insertCell(0);
-//         emptyCell.colSpan = 20; // Ajuste para o número total de colunas da sua tabela
-//         emptyCell.textContent = "Nenhum item adicionado.";
-//         emptyCell.style.textAlign = "center";
-//         emptyCell.style.padding = "20px";
-//         console.log("Linha vazia adicionada à tabela 'tabela'.");
-//     } else {
-//         console.warn("Tabela com ID 'tabela' ou seu tbody não encontrado para limpeza. Verifique se o ID está correto.");
-//     }
-
-
-//     limparCamposComprovantes();
-//     limparFoto();
-
-//     // ✅ Limpa objeto em memória
-//     limparStaffOriginal();
-//     console.log("StaffOriginal resetado.");
-// }
-
 function limparCamposStaff() {
     const campos = [
         "idStaff", "nmFuncionario", "apelidoFuncionario", "linkFotoFuncionarios", "descFuncao", "vlrCusto",
@@ -7239,8 +5574,8 @@ function limparCamposStaff() {
 
     if (labelFuncionario) {
         labelFuncionario.style.display = "none"; // esconde
-        labelFuncionario.textContent = "";       // limpa o texto
-        labelFuncionario.style.color = "";       // reseta cor
+        labelFuncionario.textContent = "";    // limpa o texto
+        labelFuncionario.style.color = "";    // reseta cor
         console.log("Label Funcionário limpo.");
     }
 
@@ -7327,8 +5662,8 @@ function limparCamposStaff() {
         const ajusteCustoTextarea = document.getElementById('descAjusteCusto');
         if (ajusteCustoTextarea) {
             ajusteCustoTextarea.style.display = 'none'; // Oculta o textarea
-            ajusteCustoTextarea.required = false;      // Remove a obrigatoriedade
-            ajusteCustoTextarea.value = '';            // Limpa o conteúdo
+            ajusteCustoTextarea.required = false;    // Remove a obrigatoriedade
+            ajusteCustoTextarea.value = '';        // Limpa o conteúdo
         }
 
         if (campoStatusAjusteCusto) campoStatusAjusteCusto.style.display = 'none';
@@ -7344,8 +5679,8 @@ function limparCamposStaff() {
         const descCaixinhaTextarea = document.getElementById('descCaixinha');
         if (descCaixinhaTextarea) {
             descCaixinhaTextarea.style.display = 'none'; // Oculta o textarea
-            descCaixinhaTextarea.required = false;      // Remove a obrigatoriedade
-            descCaixinhaTextarea.value = '';            // Limpa o conteúdo
+            descCaixinhaTextarea.required = false;   // Remove a obrigatoriedade
+            descCaixinhaTextarea.value = '';       // Limpa o conteúdo
         }
 
         if (campoStatusCaixinha) campoStatusCaixinha.style.display = 'none';
@@ -7366,8 +5701,8 @@ function limparCamposStaff() {
         const descMeiaDiariaTextarea = document.getElementById('descMeiaDiaria');
         if (descMeiaDiariaTextarea) {
             descMeiaDiariaTextarea.style.display = 'none'; // Oculta o textarea
-            descMeiaDiariaTextarea.required = false;      // Remove a obrigatoriedade
-            descMeiaDiariaTextarea.value = '';            // Limpa o conteúdo
+            descMeiaDiariaTextarea.required = false;     // Remove a obrigatoriedade
+            descMeiaDiariaTextarea.value = '';     // Limpa o conteúdo
         }
     } 
 
@@ -7385,8 +5720,8 @@ function limparCamposStaff() {
         const descDiariaDobradaTextarea = document.getElementById('descDiariaDobrada');
         if (descDiariaDobradaTextarea) {
             descDiariaDobradaTextarea.style.display = 'none'; // Oculta o textarea
-            descDiariaDobradaTextarea.required = false;      // Remove a obrigatoriedade
-            descDiariaDobradaTextarea.value = '';            // Limpa o conteúdo
+            descDiariaDobradaTextarea.required = false;      // Remove a obrigatoriedade
+            descDiariaDobradaTextarea.value = '';      // Limpa o conteúdo
         }
     } 
 
@@ -7404,8 +5739,8 @@ function limparCamposStaff() {
     //     const descMeiaDiariaTextarea = document.getElementById('descDiariaDobrada'); // ERROR: descDiariaDobrada
     //     if (descMeiaDiariaTextarea) {
     //         descMeiaDiariaTextarea.style.display = 'none'; 
-    //         descMeiaDiariaTextarea.required = false;      
-    //         descMeiaDiariaTextarea.value = '';            
+    //         descMeiaDiariaTextarea.required = false;      
+    //         descMeiaDiariaTextarea.value = '';      
     //     }
         
     //     if (campoStatusMeiaDiaria) ampoStatusMeiaDiaria.style.display = 'none'; // ERROR: ampoStatusMeiaDiaria
@@ -7445,22 +5780,22 @@ function limparCamposStaff() {
     const beneficioTextarea = document.getElementById('descBeneficio');
     if (beneficioTextarea) {
         beneficioTextarea.style.display = 'none'; // Oculta o textarea
-        beneficioTextarea.required = false;      // Remove a obrigatoriedade
-        beneficioTextarea.value = '';            // Limpa o conteúdo
+        beneficioTextarea.required = false;      // Remove a obrigatoriedade
+        beneficioTextarea.value = '';      // Limpa o conteúdo
     }
 
     const descAjusteCustoTextarea = document.getElementById('descAjusteCusto');
     if (descAjusteCustoTextarea) {
         descAjusteCustoTextarea.style.display = 'none'; // Oculta o textarea
-        descAjusteCustoTextarea.required = false;      // Remove a obrigatoriedade
-        descAjusteCustoTextarea.value = '';            // Limpa o conteúdo
+        descAjusteCustoTextarea.required = false;    // Remove a obrigatoriedade
+        descAjusteCustoTextarea.value = '';        // Limpa o conteúdo
     }
 
     const descCaixinhaTextarea = document.getElementById('descCaixinha');
     if (descCaixinhaTextarea) {
         descCaixinhaTextarea.style.display = 'none'; // Oculta o textarea
-        descCaixinhaTextarea.required = false;      // Remove a obrigatoriedade
-        descCaixinhaTextarea.value = '';            // Limpa o conteúdo
+        descCaixinhaTextarea.required = false;   // Remove a obrigatoriedade
+        descCaixinhaTextarea.value = '';       // Limpa o conteúdo
     }
 
     // 🎯 CORREÇÃO: Alinhando a string para 'Autorização de...' para bater com a lógica de salvamento
@@ -7478,7 +5813,7 @@ function limparCamposStaff() {
     if (statusAjusteCusto) statusAjusteCusto.value = 'Autorização do Ajuste de Custo';
 
     const statusCaixinha = document.getElementById('statuscaixinha');
-    if (statusCaixinha) statusCaixinha.value = 'Autorização da Caixinha';     
+    if (statusCaixinha) statusCaixinha.value = 'Autorização da Caixinha';   
 
     const containerStatusDiariaDobrada = document.getElementById('containerStatusDiariaDobrada');
     const containerStatusMeiaDiaria = document.getElementById('containerStatusMeiaDiaria');
@@ -7574,39 +5909,6 @@ function getPeriodoDatas(inputValue) {
     console.log("Datas formatadas para array:", datasFormatadas);
     return datasFormatadas; // Retorna um array de strings no formato YYYY-MM-DD
 }
-
-// Sua função formatarDataParaBackend continua a mesma
-// function formatarDataParaBackend(dataString) {
-//     if (!dataString) return null;
-//     const partes = dataString.split('/');
-//     if (partes.length === 3) {
-//         let dia = partes[0];
-//         let mes = partes[1];
-//         let ano = partes[2];
-
-//         // Lógica para anos de 2 dígitos (mantida como está)
-//         if (ano.length === 2) {
-//             const currentYear = new Date().getFullYear(); // Ex: 2025
-//             const century = Math.floor(currentYear / 100) * 100; // Ex: 2000
-
-//             // Se o ano de 2 dígitos for maior que o ano atual de 2 dígitos (ex: 95 para 25), assume 19xx.
-//             // Senão, assume 20xx.
-//             if (parseInt(ano) > (currentYear % 100)) {
-//                 ano = (century - 100) + parseInt(ano); // Ex: 1995
-//             } else {
-//                 ano = century + parseInt(ano); // Ex: 2025
-//             }
-//         }
-
-//         mes = mes.padStart(2, '0');
-//         dia = dia.padStart(2, '0');
-
-//         return `${ano}-${mes}-${dia}`; // Retorna no formato YYYY-MM-DD
-//     }
-//     return null; // Retorna null se o formato não for DD/MM/YYYY
-// }
-
-
 
 /**
  * Converte uma string de data (DD/MM/YYYY ou YYYY-MM-DD) para o formato YYYY-MM-DD.
@@ -8542,71 +6844,6 @@ document.addEventListener('click', function(e) {
         });
     }
 });
-/**
- * Verifica se a quantidade de funcionários para uma função excedeu o orçamento
- * com base em múltiplos critérios, incluindo o período.
- * @param {object} criterios - Objeto com os critérios (ex: {nmFuncao, nmEvento, datasEvento, ...}).
- * @returns {boolean} - true se o limite não foi atingido, false caso contrário.
- */
-// function verificarLimiteDeFuncao(criterios) {
-
-//     // 1. Construa a chave composta, garantindo que a GRANULARIDADE corresponda ao orçamento.
-//     // Usamos '|| '' ' para garantir que a chave seja construída mesmo se Pavilhão ou Setor for null/undefined.
-//     const chave = `${criterios.nmEvento}-${criterios.nmCliente}-${criterios.nmlocalMontagem}-${criterios.pavilhao || ''}-${criterios.nmFuncao}-${criterios.setor || ''}`;
-//   
-//     const dadosOrcamento = orcamentoPorFuncao[chave];
-
-//     console.log("Verificando limite para a chave:", chave, dadosOrcamento);
-
-//     // Se não houver dados de orçamento para ESTA COMBINAÇÃO ÚNICA, não há limite
-//     if (!dadosOrcamento) {
-//      return true;
-//     }
-
-//     // 2. Conte quantos funcionários já foram inseridos na tabela com EXATAMENTE esses critérios
-//     let countNaTabela = 0;
-//     const linhasTabela = document.querySelectorAll('#eventsTableBody tr');
-//     linhasTabela.forEach(linha => {
-//      const eventDataNaLinha = JSON.parse(linha.dataset.eventData);
-//      if (
-//          eventDataNaLinha.nmfuncao.trim().toUpperCase() === criterios.nmFuncao.toUpperCase().trim() &&
-//          eventDataNaLinha.nmevento.trim().toUpperCase() === criterios.nmEvento.toUpperCase().trim() &&
-//          eventDataNaLinha.nmcliente.trim().toUpperCase() === criterios.nmCliente.toUpperCase().trim() &&
-//          eventDataNaLinha.nmlocalmontagem.trim().toUpperCase() === criterios.nmlocalMontagem.toUpperCase().trim() &&
-//          // Incluindo Pavilhão e Setor na contagem, assim como na chave
-//              (eventDataNaLinha.pavilhao || '').trim().toUpperCase() === (criterios.pavilhao || '').toUpperCase().trim() &&
-//          (eventDataNaLinha.setor || '').trim().toUpperCase() === (criterios.setor || '').toUpperCase().trim()
-//      ) {
-//          countNaTabela++;
-//      }
-//     });
-
-//     // 3. Combine a contagem do banco e da tabela
-//     // const totalEscalado = dadosOrcamento.quantidadeEscalada + countNaTabela;
-//     // const limite = dadosOrcamento.quantidadeOrcada;
-
-//     // console.log(`Verificando para a combinação '${chave}' - Total escalado: ${totalEscalado}, Limite: ${limite}`);
-
-//     const totalJaOcupado = Number(dadosOrcamento.quantidadeEscalada) + countNaTabela;
-//     const limite = dadosOrcamento.quantidadeOrcada;
-
-//     // Calcule o total proposto: slots ocupados + 1 (o item que está sendo submetido)
-//     const totalProposto = totalJaOcupado + 1; // 💡 CORREÇÃO CRÍTICA AQUI
-
-//     console.log(`Verificando para a combinação '${chave}' - Ocupado: ${totalJaOcupado}, Limite: ${limite}, Proposto: ${totalProposto}`);
-
-//     if (totalProposto > limite) {
-//         Swal.fire({
-//             icon: 'warning',
-//             title: 'Limite atingido',
-//             text: `O limite de ${limite} para esta função no período já foi alcançado. Existem ${dadosOrcamento.quantidadeEscalada} funcionários já salvos para este período e ${countNaTabela} adicionados na lista atual.`,
-//         });
-//         return false;
-//     }
-
-//     return true;
-// }
-
 
 /**
  * Verifica o limite de vagas orçadas para uma função.
@@ -8899,46 +7136,6 @@ async function verificarLimiteDeFuncao(criterios) {
 }
 
 
-// async function solicitarDadosExcecao(tipo, idOrcamento, nmFuncaoDoFormulario, idFuncao, idEmpresa) { 
-    
-//     // Esta função agora será responsável por SOLICITAR A QUANTIDADE
-//     const { value: formValues } = await Swal.fire({
-//         title: `Solicitar ${tipo} para ${nmFuncaoDoFormulario}`,
-//         html: 
-//             `<input id="swal-qtd" class="swal2-input" type="number" placeholder="Quantidade Solicitada" min="1">` +
-//             `<textarea id="swal-justificativa" class="swal2-textarea" placeholder="Justificativa (obrigatório)"></textarea>`,
-//         focusConfirm: false,
-//         preConfirm: () => {
-//             const qtd = document.getElementById('swal-qtd').value;
-//             const justificativa = document.getElementById('swal-justificativa').value;
-
-//             if (!qtd || parseInt(qtd) <= 0) {
-//                 Swal.showValidationMessage('A quantidade solicitada deve ser maior que zero.');
-//                 return false;
-//             }
-//             if (!justificativa.trim()) {
-//                 Swal.showValidationMessage('A justificativa é obrigatória.');
-//                 return false;
-//             }
-//             return { qtd: parseInt(qtd), justificativa: justificativa };
-//         }
-//     });
-
-//     if (formValues) {
-//         // Chama a função final que executa o POST (a mesma que você já tem)
-//         return salvarSolicitacaoAditivoExtra(
-//             idOrcamento, 
-//             idFuncao, 
-//             formValues.qtd, 
-//             tipo, 
-//             formValues.justificativa, 
-//             idEmpresa
-//         );
-//     }
-//     // Retorna false se cancelado
-//     return false;
-// }
-
 async function solicitarDadosExcecao(tipo, idOrcamentoAtual, nmFuncaoDoFormulario, idFuncaoDoFormulario) { 
     
     const { value: formValues, isConfirmed } = await Swal.fire({ // 💡 Captura 'isConfirmed'
@@ -8992,129 +7189,6 @@ async function solicitarDadosExcecao(tipo, idOrcamentoAtual, nmFuncaoDoFormulari
     
 }
 
-// async function solicitarDadosExcecao(tipo, idOrcamento, idFuncao, idEmpresa, detalhesConflito = {}) { 
-    
-//     // Novo log de DEBUG para ver o conteúdo exato que chegou na função:
-//     console.log("OBJETO DETALHES RECEBIDO:", detalhesConflito);
-    
-//     // Tipo: 'Aditivo', 'Extra', ou 'FuncExcedido'
-//     const isFuncExcedido = tipo === 'FuncExcedido';
-//     let title = `Solicitar ${tipo}`;
-//     let htmlContent = '';
-//     const qtdFixa = 1; // Quantidade fixa usada para FuncExcedido
-    
-//     // 1. Não usamos mais a desestruturação para evitar erros de scope/destructure
-    
-//     if (isFuncExcedido) {
-//         // --- CONSTRUÇÃO DO HTML PARA EXCEÇÃO DE LIMITE DIÁRIO ---
-        
-//         title = "Solicitar Autorização de Exceção (Limite Diário)";
-        
-//         // CORRIGIDO: Acesso direto às propriedades do objeto (mais robusto)
-//         const nmFunc = detalhesConflito.nmFuncionario || 'N/A';
-//         const totalConflitos = detalhesConflito.totalConflitosExistentes || 0;
-//         const limiteMax = detalhesConflito.limiteMaximo || 'N/A';
-//         const datasFormatadas = detalhesConflito.datasFormatadas;
-//         const conflitosReais = detalhesConflito.conflitosReais || [];
-
-
-//         let msg = `O funcionário <strong>${nmFunc}</strong> já está agendado em <strong>${totalConflitos}</strong> atividade(s) `;
-        
-//         // Adiciona as datas conflitantes à mensagem
-//         if (datasFormatadas) {
-//             msg += `na(s) data(s) conflitante(s): <strong>${datasFormatadas}</strong>.`;
-//         }
-
-//         msg += `<br><br>⚠️ <strong>LIMITE ATINGIDO!</strong> O limite máximo é de <strong>${limiteMax}</strong> agendamentos por funcionário para o mesmo dia.`;
-        
-//         // Adiciona a lista de eventos agendados (agora visível no modal)
-//         if (conflitosReais.length > 0) {
-//             msg += `<br><br><strong>Eventos Agendados (${totalConflitos}):</strong>`;
-//             conflitosReais.forEach(c => {
-//                 msg += `<br> - <strong>${c.nmevento || 'N/A'}</strong> (Função: ${c.nmfuncao})`;
-//             });
-//         }
-
-//         msg += `<br><br>Para continuar, você deve SOLICITAR AUTORIZAÇÃO por exceder o limite.<br>
-//                  A quantidade solicitada será fixada em **${qtdFixa}** (referente ao agendamento atual).`;
-        
-//         htmlContent = `
-//             <div class="swal2-html-container" style="text-align: left; margin-bottom: 15px;">
-//                 ${msg}
-//             </div>
-//             <textarea id="swal-justificativa" class="swal2-textarea" placeholder="Justificativa (obrigatório)"></textarea>
-//         `;
-        
-//     } else {
-//         // --- CONSTRUÇÃO DO HTML PARA SOLICITAÇÃO PADRÃO (Aditivo/Extra) ---
-//         htmlContent = 
-//             `<input id="swal-qtd" class="swal2-input" type="number" placeholder="Quantidade Solicitada" min="1">` +
-//             `<textarea id="swal-justificativa" class="swal2-textarea" placeholder="Justificativa (obrigatório)"></textarea>`;
-//     }
-    
-//     // 2. Exibição do Modal (SweetAlert)
-//     const { value: formValues, isConfirmed } = await Swal.fire({
-//         title: title,
-//         html: htmlContent,
-//         icon: isFuncExcedido ? 'warning' : 'info',
-//         focusConfirm: false,
-//         showCancelButton: true,
-//         confirmButtonText: isFuncExcedido ? "Sim, Solicitar Autorização e Agendar" : "Solicitar",
-//         cancelButtonText: "Não, Cancelar",
-        
-//         preConfirm: () => {
-//             const justificativa = document.getElementById('swal-justificativa').value;
-//             let qtd = qtdFixa; // Assume 1 se for FuncExcedido
-
-//             if (!isFuncExcedido) {
-//                 // Validação para Aditivo/Extra
-//                 const qtdInput = document.getElementById('swal-qtd').value;
-//                 qtd = parseInt(qtdInput);
-                
-//                 if (!qtdInput || qtd <= 0) {
-//                     Swal.showValidationMessage('A quantidade solicitada deve ser maior que zero.');
-//                     return false;
-//                 }
-//             }
-            
-//             if (!justificativa.trim()) {
-//                 Swal.showValidationMessage('A justificativa é obrigatória.');
-//                 return false;
-//             }
-            
-//             return { qtd: qtd, justificativa: justificativa };
-//         }
-//     });
-
-//     // 3. Chamada à API de Salvamento
-//     if (formValues && isConfirmed) { 
-//         let justificativaFinal = formValues.justificativa;
-
-//         // Se for FuncExcedido, anexa a informação do período à justificativa
-//         if (isFuncExcedido && detalhesConflito.datasParaVerificacao && window.getPeriodoEvento) {
-            
-//             const { dtInicio, dtFim } = window.getPeriodoEvento(detalhesConflito.datasParaVerificacao); 
-            
-//             if (dtInicio && dtFim) {
-//                 // Adiciona o período do novo agendamento à justificativa
-//                 justificativaFinal = `[Período Agendamento: ${dtInicio} a ${dtFim}] - ${justificativaFinal}`;
-//             }
-//         }
-        
-//         // Retorna o resultado da chamada à API (se bem-sucedida)
-//         return salvarSolicitacaoAditivoExtra(
-//             idOrcamento, 
-//             idFuncao, 
-//             formValues.qtd, // Será 1 para FuncExcedido ou a QTD digitada
-//             tipo, 
-//             justificativaFinal, 
-//             idEmpresa
-//         );
-//     }
-    
-//     // Retorna false se o usuário cancelou o modal ou se a validação falhou
-//     return false;
-// }
 
 window.solicitarDadosExcecao = solicitarDadosExcecao;
 
@@ -9140,253 +7214,6 @@ function getPeriodoEvento(datas) {
     // 4. Retorna o objeto esperado
     return { dtInicio, dtFim };
 }
-
-/**
- * 💡 NOVO FLUXO: Verifica o status de Aditivo/Extra para a função/orçamento.
- * @returns {boolean} true se deve prosseguir para a solicitação de quantidade, false caso contrário.
- */
-/**
- * 💡 NOVO FLUXO: Verifica o status de Aditivo/Extra para a função/orçamento.
- * @returns {boolean} true se deve prosseguir para a solicitação de quantidade, false caso contrário.
- */
-// async function verificarStatusAditivoExtra(idOrcamento, idFuncao, tipoSolicitacao) {
-    
-//     // 🎯 CORREÇÃO: Acessar o elemento de forma segura
-//     // const idEmpresaElement = document.getElementById('idEmpresaSelect');
-    
-//     // // Verifica se o elemento existe. Se for null, lança o erro de contexto.
-//     // if (!idEmpresaElement) {
-//     //     Swal.fire('Erro de Contexto!', 'Não foi possível identificar a empresa atual (Elemento idEmpresaSelect não encontrado).', 'error');
-//     //     return false;
-//     // }
-    
-//     // const idEmpresaAtual = idEmpresaElement.value;
-    
-//     // // Validação extra para garantir que o valor não está vazio
-//     // if (!idEmpresaAtual) {
-//     //     Swal.fire('Erro de Contexto!', 'O ID da empresa atual está vazio. Verifique a seleção.', 'error');
-//     //     return false;
-//     // }
-    
-//     try {
-//         // 1. CHAMA O NOVO ENDPOINT DE VERIFICAÇÃO (Mude a URL se necessário)
-//         const url = `/staff/aditivoextra/verificar-status?idOrcamento=${idOrcamento}&idFuncao=${idFuncao}`;
-//         console.log(`Buscando status em: ${url}`);
-        
-//         // ⚠️ Nota: O erro "Failed to fetch" (primeira linha do seu log) sugere que o endpoint
-//         // /staff/aditivoextra/verificar-status AINDA NÃO EXISTE ou tem um erro de rede/CORS.
-//         // Certifique-se de que o novo endpoint no rotaStaff.js esteja funcional.
-//         const response = await fetchComToken(url, {});
-        
-//         if (response.sucesso === false) {
-//             Swal.fire('Erro!', `Não foi possível verificar o status atual: ${response.erro}`, 'error');
-//             return false; // BLOQUEADO
-//         }
-
-//         const { solicitacaoRecente, totaisFuncao } = response.dados;
-
-//         // --- Etapa 1: Verificar Solicitação Recente (Pendente/Rejeitado) ---
-//         if (solicitacaoRecente) {
-//             const status = solicitacaoRecente.status;
-
-//             if (status === 'Pendente') {
-//                 const tipoPendenteBr = formatarTipoSolicitacao(solicitacaoRecente.tipoSolicitacao); 
-                
-//                 await Swal.fire({
-//                     title: 'Atenção!',
-//                     // Garante que o tipoPendenteBr é utilizado no HTML
-//                     html: `Já existe uma solicitação de **${tipoPendenteBr}** com status **Pendente** para esta função. <br><br> Por favor, aguarde a aprovação antes de solicitar novamente.`,
-//                     icon: 'info',
-//                     confirmButtonText: 'Entendi'
-//                 });
-//                 return false; // BLOQUEADO
-//             }
-
-//             if (status === 'Rejeitado') {
-//                 const result = await Swal.fire({
-//                     title: 'Solicitação Rejeitada!',
-//                     html: `A última solicitação (${solicitacaoRecente.idAditivoExtra}) foi **Rejeitada**. <br><br> Deseja fazer uma nova solicitação?`,
-//                     icon: 'warning',
-//                     showCancelButton: true,
-//                     confirmButtonText: 'Sim, Nova Solicitação',
-//                     cancelButtonText: 'Não, Cancelar'
-//                 });
-                
-//                 if (!result.isConfirmed) {
-//                     return false; // BLOQUEADO
-//                 }
-//             }
-//         }
-
-//         // --- Etapa 2: Verificar Capacidade Total (Aprovado/Preenchido) ---
-//         if (totaisFuncao) {
-//             const { totalOrcado, totalAditivoAprovado, totalExtraAprovado, totalVagasPreenchidas } = totaisFuncao;
-            
-//             // Lógica para 'Total Original' e Limite
-//             const totalOriginal = totalOrcado - totalAditivoAprovado - totalExtraAprovado;
-
-//             let limiteMaximo;
-            
-//             if (tipoSolicitacao === 'Aditivo') {
-//                 limiteMaximo = totalOriginal + totalAditivoAprovado;
-//             } else if (tipoSolicitacao === 'ExtraBonificado') {
-//                 limiteMaximo = totalOriginal + totalExtraAprovado;
-//             } else {
-//                 limiteMaximo = totalOriginal; // Default para segurança
-//             }
-
-//             // Verifica se as vagas aprovadas (Limite Máximo) já foram preenchidas
-//             if (totalVagasPreenchidas >= limiteMaximo) {
-                
-//                 const result = await Swal.fire({
-//                     title: 'Capacidade Esgotada!',
-//                     html: `As **${limiteMaximo} vagas** (Total Original + ${tipoSolicitacao} Aprovado) para esta função já foram preenchidas (${totalVagasPreenchidas} staff alocados). <br><br> Deseja solicitar um **novo ${tipoSolicitacao}**?`,
-//                     icon: 'warning',
-//                     showCancelButton: true,
-//                     confirmButtonText: 'Sim, Solicitar Mais',
-//                     cancelButtonText: 'Não, Cancelar'
-//                 });
-
-//                 if (!result.isConfirmed) {
-//                     return false; // BLOQUEADO
-//                 }
-//             }
-//             // Se passou, prossegue.
-//         }
-        
-//         // --- Etapa Final: Se passou por todas as verificações, prossegue para solicitar a QTD ---
-//         // A função solicitarDadosExcecao irá coletar a QTD e chamar salvarSolicitacaoAditivoExtra
-//         return solicitarDadosExcecao(tipoSolicitacao, idOrcamento, idFuncao, idEmpresaAtual); 
-
-//     } catch (error) {
-//         console.error("Erro na verificação de status AditivoExtra:", error);
-//         // Em caso de erro, bloqueia o fluxo.
-//         Swal.fire('Erro Inesperado!', `Ocorreu um erro ao verificar o status. Detalhe: ${error.message}`, 'error');
-//         return false;
-//     }
-// }
-
-// async function verificarStatusAditivoExtra(idOrcamento, idFuncao, tipoSolicitacao) {
-    
-//     // 🎯 1. RESTAURAÇÃO DA OBTENÇÃO DO ID DA EMPRESA
-//     // const idEmpresaElement = document.getElementById('idEmpresaSelect');
-    
-//     // // Verifica se o elemento existe.
-//     // if (!idEmpresaElement) {
-//     //     Swal.fire('Erro de Contexto!', 'Não foi possível identificar a empresa atual (Elemento idEmpresaSelect não encontrado).', 'error');
-//     //     return false;
-//     // }
-    
-//     // const idEmpresaAtual = idEmpresaElement.value;
-    
-//     // // Validação extra
-//     // if (!idEmpresaAtual) {
-//     //     Swal.fire('Erro de Contexto!', 'O ID da empresa atual está vazio. Verifique a seleção.', 'error');
-//     //     return false;
-//     // }
-    
-//     try {
-//         // 2. CHAMA O ENDPOINT DE VERIFICAÇÃO
-//         const url = `/staff/aditivoextra/verificar-status?idOrcamento=${idOrcamento}&idFuncao=${idFuncao}`;
-//         console.log(`Buscando status em: ${url}`);
-        
-//         const response = await fetchComToken(url, {});
-        
-//         if (response.sucesso === false) {
-//             Swal.fire('Erro!', `Não foi possível verificar o status atual: ${response.erro}`, 'error');
-//             return false; // BLOQUEADO
-//         }
-
-//         const { solicitacaoRecente, totaisFuncao } = response.dados;
-
-//         // --- Etapa 1: Verificar Solicitação Recente (Pendente/Rejeitado) ---
-//         if (solicitacaoRecente) {
-//             const status = solicitacaoRecente.status;
-
-//             if (status === 'Pendente') {
-//                 const tipoPendente = solicitacaoRecente.tipoSolicitacao;
-                
-//                 // 🎯 NOVA LÓGICA DE BLOQUEIO ESPECÍFICO:
-//                 // Só bloqueia se o tipo pendente ('Aditivo' ou 'Extra') for o mesmo que está sendo solicitado agora.
-//                 if (tipoPendente === tipoSolicitacao) {
-                    
-//                     await Swal.fire({
-//                         title: 'Atenção!',
-//                         // Usa o tipoPendente diretamente, conforme preferência.
-//                         html: `Já existe uma solicitação de **${tipoPendente}** com status **Pendente** para esta função. <br><br> Por favor, aguarde a aprovação antes de solicitar novamente.`,
-//                         icon: 'info',
-//                         confirmButtonText: 'Entendi'
-//                     });
-//                     return false; // BLOQUEADO
-//                 } 
-//                 // Se os tipos forem diferentes (e.g., Pendente: Aditivo, Tentativa: Extra), a função prossegue.
-//             }
-
-//             if (status === 'Rejeitado') {
-//                 const tipoRejeitado = solicitacaoRecente.tipoSolicitacao; // Pega o tipo da solicitação rejeitada
-
-//                 const result = await Swal.fire({
-//                     title: 'Solicitação Rejeitada!',
-//                     html: `A última solicitação (${solicitacaoRecente.idAditivoExtra} de **${tipoRejeitado}**) foi **Rejeitada**. <br><br> Deseja fazer uma nova solicitação?`,
-//                     icon: 'warning',
-//                     showCancelButton: true,
-//                     confirmButtonText: 'Sim, Nova Solicitação',
-//                     cancelButtonText: 'Não, Cancelar'
-//                 });
-                
-//                 if (!result.isConfirmed) {
-//                     return false; // BLOQUEADO
-//                 }
-//             }
-//         }
-
-//         // --- Etapa 2: Verificar Capacidade Total (Aprovado/Preenchido) ---
-//         if (totaisFuncao) {
-//             const { totalOrcado, totalAditivoAprovado, totalExtraAprovado, totalVagasPreenchidas } = totaisFuncao;
-            
-//             // Lógica para 'Total Original' e Limite
-//             const totalOriginal = totalOrcado - totalAditivoAprovado - totalExtraAprovado;
-
-//             let limiteMaximo;
-            
-//             if (tipoSolicitacao === 'Aditivo') {
-//                 limiteMaximo = totalOriginal + totalAditivoAprovado;
-//             } else if (tipoSolicitacao === 'Extra') { // 🎯 Corrigido para 'Extra' se o seu banco salva assim
-//                 limiteMaximo = totalOriginal + totalExtraAprovado;
-//             } else {
-//                 limiteMaximo = totalOriginal; // Default para segurança
-//             }
-
-//             // Verifica se as vagas aprovadas (Limite Máximo) já foram preenchidas
-//             if (totalVagasPreenchidas >= limiteMaximo) {
-                
-//                 const result = await Swal.fire({
-//                     title: 'Capacidade Esgotada!',
-//                     // Garante que o tipoSolicitacao seja usado na mensagem (e.g., 'Extra' ou 'Aditivo')
-//                     html: `As **${limiteMaximo} vagas** (Total Original + ${tipoSolicitacao} Aprovado) para esta função já foram preenchidas (${totalVagasPreenchidas} staff alocados). <br><br> Deseja solicitar um **novo ${tipoSolicitacao}**?`,
-//                     icon: 'warning',
-//                     showCancelButton: true,
-//                     confirmButtonText: 'Sim, Solicitar Mais',
-//                     cancelButtonText: 'Não, Cancelar'
-//                 });
-
-//                 if (!result.isConfirmed) {
-//                     return false; // BLOQUEADO
-//                 }
-//             }
-//         }
-        
-//         // --- Etapa Final: Se passou por todas as verificações, prossegue para solicitar a QTD ---
-//         return solicitarDadosExcecao(tipoSolicitacao, idOrcamento, idFuncao, idEmpresaAtual); 
-
-//     } catch (error) {
-//         console.error("Erro na verificação de status AditivoExtra:", error);
-//         // Em caso de erro, bloqueia o fluxo.
-//         Swal.fire('Erro Inesperado!', `Ocorreu um erro ao verificar o status. Detalhe: ${error.message}`, 'error');
-//         return false;
-//     }
-// }
-
 
 async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulario, tipoSolicitacao, idFuncionario = null, nmFuncionario) {
     
@@ -9542,41 +7369,6 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
 window.verificarStatusAditivoExtra = verificarStatusAditivoExtra; // Torna acessível
 
 
-// async function salvarSolicitacaoAditivoExtra(idOrcamentoAtual, idFuncao, qtd, tipo, justificativa) {
-//     // Implemente sua chamada AJAX (fetch/axios) aqui
-//     console.log("AJAX: Tentando salvar solicitação:", { idOrcamentoAtual, idFuncao, qtd, tipo, justificativa });
-    
-//     try {
-//         const data = await fetchComToken('/staff/aditivoextra/solicitacao', {
-//             method: 'POST',
-//            // headers: { 'Content-Type': 'application/json' },
-//             body: { 
-//      idOrcamento: idOrcamentoAtual, 
-//      idFuncao: idFuncao,
-//      qtdSolicitada: qtd, 
-//      tipoSolicitacao: tipo, 
-//      justificativa 
-//          }
-//         });
-        
-//         //const data = await response.json();
-        
-//         if (data.sucesso) { 
-//              // O backend deve retornar idAditivoExtra
-//             return { sucesso: true, idAditivoExtra: data.idAditivoExtra }; 
-//         } else {
-//              // Se o backend retornou 200/201 mas com { sucesso: false, erro: '...' }
-//              console.error('Erro lógico do backend:', data);
-//              return { sucesso: false };
-//         }
-        
-//     } catch (error) {
-//         // 3. CAPTURA ERROS DE REDE, 404 (tratado como throw new Error), e erros de sucesso=false do backend
-//         console.error('Erro de rede/código ao salvar solicitação. O erro foi gerado por fetchComToken:', error);
-//         return { sucesso: false };
-//     }
-// }
-
 async function salvarSolicitacaoAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulario, qtd, tipo, justificativa, idFuncionario = null) {
     console.log("AJAX: Tentando salvar solicitação:", { idOrcamentoAtual, idFuncaoDoFormulario, qtd, tipo, justificativa });
     
@@ -9651,39 +7443,23 @@ function limparFoto() {
 
 
 
-// function ocultarCamposComprovantes(papelDoUsuario) {
-//     // Condição para MOSTRAR os campos de comprovantes
-//     //const temPermissaoMaster = temPermissao("Staff", "master");
-//     // const temPermissaoFinanceiro = temPermissao("Staff", "financeiro");
-
-//     // const temPermissaoTotal = (temPermissaoMaster || temPermissaoFinanceiro);
-
-//     // Se o usuário NÃO tiver a permissão, oculta o container.
-//     // Caso contrário, ele permanece visível (ou é exibido).
-//     if (!temPermissaoTotal) {
-//         containerPDF.style.display = 'none';
-//     } else {
-//         containerPDF.style.display = ''; // Volta ao padrão
-//     }
-// }
-
 
 function configurarEventosStaff() {
-    console.log("Configurando eventos Staff...");
+    console.log("Configurando eventos Staff...");
 
-    const containerPDF = document.querySelector('.pdf');
+    const containerPDF = document.querySelector('.pdf');
 
-    // Se o usuário NÃO tiver a permissão Master, oculta o container.
-    if (!temPermissaoMaster) {
+    // Se o usuário NÃO tiver a permissão Master, oculta o container.
+    if (!temPermissaoMaster) {
         containerPDF.style.display = 'none';
-    } else {
+    } else {
         containerPDF.style.display = ''; // Volta ao padrão
-    }
+    }
 
-    verificaStaff(); // Carrega os Staff ao abrir o modal
-    adicionarEventoBlurStaff();
-    inicializarFlatpickrsGlobais();
-    limparStaffOriginal();
+    verificaStaff(); // Carrega os Staff ao abrir o modal
+    adicionarEventoBlurStaff();
+    inicializarFlatpickrsGlobais();
+    limparStaffOriginal();
 
     inicializarFlatpickrStaffComLimites(); 
 
@@ -9703,12 +7479,12 @@ function configurarEventosStaff() {
         }
     }
 
-    // Inicializa o estado dos campos extra/caixinha no carregamento
-    const inputAjusteCusto = document.getElementById('ajusteCusto');
-    const ajusteCustocheck = document.getElementById('ajusteCustocheck');
-    const campoAjusteCusto = document.getElementById('campoAjusteCusto');
+    // Inicializa o estado dos campos extra/caixinha no carregamento
+    const inputAjusteCusto = document.getElementById('ajusteCusto');
+    const ajusteCustocheck = document.getElementById('ajusteCustocheck');
+    const campoAjusteCusto = document.getElementById('campoAjusteCusto');
 
-    if (ajusteCustocheck && campoAjusteCusto && ajusteCustoTextarea) {
+    if (ajusteCustocheck && campoAjusteCusto && ajusteCustoTextarea) {
         ajusteCustocheck.addEventListener('change', function() {
             campoAjusteCusto.style.display = this.checked ? 'block' : 'none';
 
@@ -9729,42 +7505,42 @@ function configurarEventosStaff() {
             if (inputAjusteCusto) inputAjusteCusto.value = '';
             ajusteCustoTextarea.value = '';
         }
-    }
+    }
 
-    const caixinhacheck = document.getElementById('Caixinhacheck');
-    const campoCaixinha = document.getElementById('campoCaixinha');
+    const caixinhacheck = document.getElementById('Caixinhacheck');
+    const campoCaixinha = document.getElementById('campoCaixinha');
 
-    if (caixinhacheck && campoCaixinha) {
+    if (caixinhacheck && campoCaixinha) {
         caixinhacheck.addEventListener('change', function() {
             campoCaixinha.style.display = this.checked ? 'block' : 'none';
         });
         campoCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
-    }
+    }
 
-    const diariaDobradacheck = document.getElementById('diariaDobradacheck');
-    const campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
-    if (diariaDobradacheck && campoDiariaDobrada) {
+    const diariaDobradacheck = document.getElementById('diariaDobradacheck');
+    const campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
+    if (diariaDobradacheck && campoDiariaDobrada) {
         diariaDobradacheck.addEventListener('change', function() {
             campoDiariaDobrada.style.display = this.checked ? 'block' : 'none';
 
         });
         campoDiariaDobrada.style.display = diariaDobradacheck.checked ? 'block' : 'none';
 
-    }
+    }
 
-    const meiaDiariacheck = document.getElementById('meiaDiariacheck');
-    const campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
-    if (meiaDiariacheck && campoMeiaDiaria) {
+    const meiaDiariacheck = document.getElementById('meiaDiariacheck');
+    const campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
+    if (meiaDiariacheck && campoMeiaDiaria) {
         meiaDiariacheck.addEventListener('change', function() {
             campoMeiaDiaria.style.display = this.checked ? 'block' : 'none';
          });
         campoMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
-    }
+    }
 
-    // Chama mostrarTarja() para inicializar a tarja com base no valor do select
-    if (typeof mostrarTarja === 'function') {
+    // Chama mostrarTarja() para inicializar a tarja com base no valor do select
+    if (typeof mostrarTarja === 'function') {
         mostrarTarja();
-    }
+    }
     
     // 📢 NOVO BLOCO: Restrição de edição dos campos de Status
     const statusAjusteCustoInput = document.getElementById('statusAjusteCusto');
@@ -9786,7 +7562,7 @@ function configurarEventosStaff() {
 
     const datasDoFlatpickr = window.datasEventoPicker?.selectedDates.map(d => d.toISOString().split('T')[0]) || [];
 
-    console.log("Entrou configurar Staff no STAFF.js.");
+    console.log("Entrou configurar Staff no STAFF.js.");
 
 }
 
