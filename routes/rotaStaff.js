@@ -136,7 +136,7 @@ try {
       const result = await pool.query(
       `SELECT func.* FROM funcionarios func
       INNER JOIN funcionarioempresas funce ON funce.idfuncionario = func.idfuncionario
-      WHERE funce.idempresa = $1 ORDER BY func.nome ASC`,
+      WHERE funce.idempresa = $1 AND ativo = 'true' ORDER BY func.nome ASC`,
       [idempresa]
       );
       return result.rows.length
