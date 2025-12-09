@@ -6339,70 +6339,94 @@ async function gerarProximoAno() {
     return;
   }
 
-  const { value: formValues } = await Swal.fire({
-    title: "Reajuste para o Próximo Ano",
-    html:
-      '<div class="swal-container">' +
-      '  <label for="swal-percentual-geral">Percentual Geral (%) (Custo/Venda):</label>' +
-      '  <input id="swal-percentual-geral" type="number" step="0.01" min="0" tabindex="1" placeholder="Ex: 10.50">' +
-      "  <small>Será aplicado ao valor unitário de todos os itens (venda e custo).</small>" +
-      '  <label for="swal-percentual-ajuda">Percentual Ajuda de Custo (%) (Diárias):</label>' +
-      '  <input id="swal-percentual-ajuda" type="number" step="0.01" min="0" tabindex="2" placeholder="Ex: 5.00">' +
-      "  <small>Será aplicado à Alimentação e Transporte.</small>" +
-      "</div>",
-
-    focusConfirm: false,
-    allowOutsideClick: false, // Impede fechamento por clique externo
-    allowEscapeKey: false,
+  // =======================================================
+  // NOVO PASSO: Confirmação de Reajuste
+  // =======================================================
+  const { isConfirmed: deveReajustar } = await Swal.fire({
+    title: "Próximo Ano",
+    text: "Deseja aplicar um percentual de reajuste nos valores (Custo e Venda) do novo orçamento, ou usar os valores atuais do orçamento espelhado?",
+    icon: "question",
     showCancelButton: true,
     confirmButtonText: "Aplicar Reajuste",
-    cancelButtonText: "Cancelar",
-
-    didOpen: (popup) => {
-      const inputs = popup.querySelectorAll("input");
-      inputs.forEach((input) => {
-        input.removeAttribute("readonly");
-        input.style.pointerEvents = "auto";
-      });
-
-      // Coloca o foco no primeiro campo
-      inputs[0].focus();
-    },
-
-    preConfirm: () => {
-      const geral = parseFloat(
-        document
-          .getElementById("swal-percentual-geral")
-          .value.replace(",", ".") || "0"
-      );
-      const ajuda = parseFloat(
-        document
-          .getElementById("swal-percentual-ajuda")
-          .value.replace(",", ".") || "0"
-      );
-
-      if (isNaN(geral) || isNaN(ajuda)) {
-        Swal.showValidationMessage(
-          "Por favor, insira valores numéricos válidos."
-        );
-        return false;
-      }
-      return { percentualGeral: geral, percentualAjuda: ajuda };
-    },
+    cancelButtonText: "Usar Valores Atuais",
+    reverseButtons: true, // Inverte a ordem para o "Confirmar" ficar à direita
   });
+  
+  // Se o usuário escolher 'Usar Valores Atuais' (cancelButtonText), 'deveReajustar' será false.
+  // Neste caso, GLOBAL_PERCENTUAL_GERAL e GLOBAL_PERCENTUAL_AJUDA permanecerão 0.
+  let percentualGeral = 0;
+  let percentualAjuda = 0;
 
-  // Se o usuário cancelou ou a validação falhou, interrompe
-  if (!formValues) {
-    return;
+  // =======================================================
+  // PASSO CONDICIONAL: Solicitar Percentuais de Reajuste
+  // =======================================================
+  if (deveReajustar) {
+    const { value: formValues } = await Swal.fire({
+      title: "Reajuste para o Próximo Ano",
+      html:
+        '<div class="swal-container">' +
+        '  <label for="swal-percentual-geral">Percentual Geral (%) (Custo/Venda):</label>' +
+        '  <input id="swal-percentual-geral" type="number" step="0.01" min="0" tabindex="1" placeholder="Ex: 10.50">' +
+        "  <small>Será aplicado ao valor unitário de todos os itens (venda e custo).</small>" +
+        '  <label for="swal-percentual-ajuda">Percentual Ajuda de Custo (%) (Diárias):</label>' +
+        '  <input id="swal-percentual-ajuda" type="number" step="0.01" min="0" tabindex="2" placeholder="Ex: 5.00">' +
+        "  <small>Será aplicado à Alimentação e Transporte.</small>" +
+        "</div>",
+
+      focusConfirm: false,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showCancelButton: true,
+      confirmButtonText: "Aplicar Reajuste",
+      cancelButtonText: "Cancelar",
+
+      didOpen: (popup) => {
+        const inputs = popup.querySelectorAll("input");
+        inputs.forEach((input) => {
+          input.removeAttribute("readonly");
+          input.style.pointerEvents = "auto";
+        });
+        inputs[0].focus();
+      },
+
+      preConfirm: () => {
+        const geral = parseFloat(
+          document
+            .getElementById("swal-percentual-geral")
+            .value.replace(",", ".") || "0"
+        );
+        const ajuda = parseFloat(
+          document
+            .getElementById("swal-percentual-ajuda")
+            .value.replace(",", ".") || "0"
+        );
+
+        if (isNaN(geral) || isNaN(ajuda)) {
+          Swal.showValidationMessage(
+            "Por favor, insira valores numéricos válidos."
+          );
+          return false;
+        }
+        return { percentualGeral: geral, percentualAjuda: ajuda };
+      },
+    });
+
+    // Se o usuário cancelou o *segundo* Swal (o de reajuste), interrompe
+    if (!formValues) {
+      return;
+    }
+    
+    percentualGeral = formValues.percentualGeral;
+    percentualAjuda = formValues.percentualAjuda;
   }
-
+  
   // =======================================================
   // 2. ARMAZENAMENTO E LÓGICA DE ESPELHAMENTO
   // =======================================================
 
-  // Armazena os percentuais globalmente
-  GLOBAL_PERCENTUAL_GERAL = formValues.percentualGeral;
-  GLOBAL_PERCENTUAL_AJUDA = formValues.percentualAjuda;
+  // Armazena os percentuais globalmente (0 se o usuário escolheu 'Usar Valores Atuais')
+  GLOBAL_PERCENTUAL_GERAL = percentualGeral;
+  GLOBAL_PERCENTUAL_AJUDA = percentualAjuda;
 
   idOrcamentoOriginalParaAtualizar = orcamentoFechado.idorcamento;
   bProximoAno = true;
@@ -6411,8 +6435,6 @@ async function gerarProximoAno() {
   anoProximoOrcamento = anoCorrente + 1;
 
   console.log("PROXIMO ANO EM GERARPROXIMOANO", anoProximoOrcamento);
-
-  // 2. Chama a função que destrói e recria os calendários com a nova opção
 
   // 2. Criar o objeto para o novo orçamento
   const novoOrcamento = { ...orcamentoFechado };
@@ -6470,15 +6492,10 @@ async function gerarProximoAno() {
 
   atualizarFlatpickrParaProximoAno();
 
-  // 4. Limpar Desconto/Acréscimo para um novo cálculo (OPCIONAL, mas recomendado)
-  // Se o cálculo for automático, é melhor começar "limpo"
-  //   novoOrcamento.desconto = 0;
-  //   novoOrcamento.percentdesconto = 0;
-  //   novoOrcamento.acrescimo = 0;
-  //   novoOrcamento.percentacrescimo = 0;
+  // 4. Limpar Desconto/Acréscimo
+  // (Bloco comentado mantido)
 
   // 5. Chamar a função de preenchimento com o novo objeto
-  // (Você precisará adaptar sua função preencherFormularioComOrcamento para aceitar esse 'novo' objeto, o que parece que ela já faz.)
   preencherFormularioComOrcamentoParaProximoAno(novoOrcamento);
 
   // 6. Alerta de sucesso e foco na edição
