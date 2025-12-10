@@ -1228,7 +1228,7 @@ const fileFilterContratos = (req, file, cb) => {
 const uploadContratosMiddleware = multer({
   storage: storageContratos,
   fileFilter: fileFilterContratos,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 50 * 1024 * 1024 },
 }).fields([{ name: "contrato", maxCount: 1 }]);
 
 router.post("/uploadContratoManual", (req, res) => {

@@ -6917,156 +6917,127 @@ function getOrcamentoAtualCarregado() {
 }
 
 async function PropostaouContrato() {
-  let orcamentoValue = nrOrcamento;
+    let orcamentoValue = nrOrcamento;
 
-  // 🛑 CORREÇÃO OBRIGATÓRIA: Verifica e extrai o valor se a variável for um objeto HTML
-  if (
-    typeof orcamentoValue === "object" &&
-    orcamentoValue !== null &&
-    orcamentoValue.value !== undefined
-  ) {
-    console.log(
-      "[CORREÇÃO DEBUG] Variável nrOrcamento detectada como objeto HTML. Extraindo .value..."
-    );
-    orcamentoValue = orcamentoValue.value;
-  }
-
-  // Garante que o valor final é uma string limpa
-  const nrOrcamentoStr = String(orcamentoValue).trim();
-
-  if (!nrOrcamentoStr || nrOrcamentoStr.length === 0) {
-    Swal.fire(
-      "Erro",
-      "Número do Orçamento inválido ou não encontrado.",
-      "error"
-    );
-    return;
-  }
-
-  // 🔑 CONSOLE 1: Início da função com o valor corrigido
-  console.log(
-    `[PROPOSTA/CONTRATO DEBUG] 1. Início de PropostaouContrato para Orçamento (CORRIGIDO): ${nrOrcamentoStr}`
-  );
-
-  // --- 1. VERIFICAÇÃO INICIAL DE CONTRATO EXISTENTE ---
-  try {
-    const fetchOrcamentoUrl = `/orcamentos?nrOrcamento=${nrOrcamentoStr}`;
-
-    // 🔑 CONSOLE 2: Antes de fazer a requisição GET
-    console.log(
-      `[FRONTEND DEBUG] 2. Buscando dados do orçamento em: ${fetchOrcamentoUrl}`
-    );
-
-    const orcamentoData = await fetchComToken(fetchOrcamentoUrl, {
-      method: "GET",
-    });
-
-    // ✅ CORREÇÃO APLICADA: Assume que a resposta é o objeto de orçamento (e não um array).
-    const orcamento = orcamentoData || null;
-
-    // 🔑 CONSOLE 3: Resultado da requisição GET
-    console.log(
-      `[FRONTEND DEBUG] 3. Dados do Orçamento (Resultado GET):`,
-      orcamento
-    );
-
-    if (!orcamento) {
-      Swal.fire("Erro", "Orçamento não encontrado para verificação.", "error");
-      return;
+    // 🛑 CORREÇÃO OBRIGATÓRIA: Verifica e extrai o valor se a variável for um objeto HTML
+    if (
+        typeof orcamentoValue === "object" &&
+        orcamentoValue !== null &&
+        orcamentoValue.value !== undefined
+    ) {
+        // [LOG REMOVIDO] console.log("[CORREÇÃO DEBUG] Variável nrOrcamento detectada como objeto HTML. Extraindo .value...");
+        orcamentoValue = orcamentoValue.value;
     }
 
-    const contratoExistenteUrl = orcamento.contratourl;
+    // Garante que o valor final é uma string limpa
+    const nrOrcamentoStr = String(orcamentoValue).trim();
 
-    // 🔑 CONSOLE 4: Valor do campo contratourl no DB
-    console.log(
-      `[FRONTEND DEBUG] 4. Valor de contratourl no DB:`,
-      contratoExistenteUrl
-    );
+    if (!nrOrcamentoStr || nrOrcamentoStr.length === 0) {
+        Swal.fire(
+            "Erro",
+            "Número do Orçamento inválido ou não encontrado.",
+            "error"
+        );
+        return;
+    }
 
-    // 🛑 LÓGICA DE VERIFICAÇÃO: Se o contrato existe, exibe Visualizar e retorna
-    if (contratoExistenteUrl && contratoExistenteUrl.trim() !== "") {
-      // Este bloco será executado
-      // 🔑 CONSOLE 5: Entrou no fluxo de CONTRATO EXISTENTE
-      console.log(
-        `[FRONTEND DEBUG] 5. CONTRATO EXISTE. Exibindo alerta de visualização.`
-      );
+    try {
+        const fetchOrcamentoUrl = `/orcamentos?nrOrcamento=${nrOrcamentoStr}`;
 
-      const filename = contratoExistenteUrl.substring(
-        contratoExistenteUrl.lastIndexOf("/") + 1
-      );
+        const orcamentoData = await fetchComToken(fetchOrcamentoUrl, {
+            method: "GET",
+        });
 
-      Swal.fire({
-        title: "Contrato Vinculado!",
-        html: `Já existe um contrato (${filename}) vinculado ao orçamento <b>${nrOrcamentoStr}</b>.`,
-        icon: "warning",
+  
+        const orcamento = orcamentoData || null;
+
+
+
+        if (!orcamento) {
+            Swal.fire("Erro", "Orçamento não encontrado para verificação.", "error");
+            return;
+        }
+
+        const contratoExistenteUrl = orcamento.contratourl;
+
+
+
+
+        if (contratoExistenteUrl && contratoExistenteUrl.trim() !== "") {
+
+
+            const filename = contratoExistenteUrl.substring(
+                contratoExistenteUrl.lastIndexOf("/") + 1
+            );
+
+            Swal.fire({
+                title: "Contrato Vinculado!",
+                html: `Já existe um contrato (${filename}) vinculado ao orçamento <b>${nrOrcamentoStr}</b>.`,
+                icon: "warning",
+                showCancelButton: true,
+                denyButtonText: "Gerar Proposta", 
+                cancelButtonText: "Fechar",
+                confirmButtonText: "Visualizar Contrato",
+                reverseButtons: true,
+            }).then((res) => {
+
+                if (res.isConfirmed) {
+                    window.open(contratoExistenteUrl, "_blank");
+                }
+
+                else if (res.isDenied) {
+
+                    gerarPropostaPDF(); 
+                }
+            });
+
+            return; 
+        }
+    } catch (error) {
+        console.error(
+            "[PROPOSTA/CONTRATO] ERRO durante a verificação inicial. Prosseguindo para o seletor.",
+            error
+        ); 
+    }
+
+    Swal.fire({
+        title: "Selecione a ação com o documento",
+        text: "Escolha qual ação deseja realizar para este orçamento.",
+        icon: "question",
         showCancelButton: true,
-        denyButtonText: "Gerar Proposta", // Botão para Gerar Proposta
-        cancelButtonText: "Fechar",
-        confirmButtonText: "Visualizar Contrato",
-        reverseButtons: true,
-      }).then((res) => {
-        // Ação 1: Visualizar Contrato (Botão Confirm)
-        if (res.isConfirmed) {
-          window.open(contratoExistenteUrl, "_blank");
+        showDenyButton: true,
+        confirmButtonText: "Gerar Proposta",
+        cancelButtonText: "Gerar Contrato",
+        denyButtonText: "Incluir Contrato",
+        reverseButtons: false,
+        customClass: {
+            confirmButton: "Proposta",
+            cancelButton: "Contrato",
+            denyButton: "IncluirContrato",
+        },
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Clicou no botão CONFIRM (Gerar Proposta)
+            // [LOG REMOVIDO] console.log("[FLUXO SELETOR] Ação selecionada: Gerar Proposta.");
+            gerarPropostaPDF();
+        } else if (result.dismiss === Swal.DismissReason.cancel) {
+            // Clicou no botão CANCEL (Gerar Contrato)
+            // [LOG REMOVIDO] console.log("[FLUXO SELETOR] Ação selecionada: Gerar Contrato.");
+            gerarContrato(nrOrcamentoStr);
+        } else if (result.isDenied) {
+            // Clicou no botão DENY (Incluir Contrato)
+            /* * 🚨 PONTO DE ATENÇÃO (Conversão de Upload): 
+             * A função 'incluirContrato' deve ser responsável por:
+             * 1. Solicitar o upload do arquivo ao usuário.
+             * 2. Enviar o arquivo para o servidor (Node.js/Backend).
+             * 3. O BACKEND DEVE VERIFICAR A EXTENSÃO DO ARQUIVO UPLOADADO (ex: .docx) 
+             * E CONVERTÊ-LO PARA .PDF antes de salvar o arquivo final e sua URL no DB.
+             * * A conversão não pode ser feita diretamente aqui no frontend.
+             */
+            // [LOG REMOVIDO] console.log("[FLUXO SELETOR] Ação selecionada: Incluir Contrato. Chamando incluirContrato(nrOrcamento)...");
+            incluirContrato(nrOrcamentoStr);
         }
-        // ✅ CORREÇÃO APLICADA: Ação 2: Gerar Proposta (Botão Deny)
-        else if (res.isDenied) {
-          console.log(
-            "[FLUXO CONTRATO EXISTENTE] Ação selecionada: Gerar Proposta."
-          );
-          gerarPropostaPDF(); // Chama a função que gera o PDF
-        }
-        // Ação 3: Fechar (Botão Cancel) - A função não faz nada, pois o return já interrompe
-      });
-
-      return; // Interrompe a função PropostaouContrato após exibir/tratar o alerta
-    }
-  } catch (error) {
-    console.error(
-      "[PROPOSTA/CONTRATO DEBUG] ERRO durante a verificação inicial. Prosseguindo para o seletor.",
-      error
-    );
-  }
-  // Fim da verificação.
-
-  // 🔑 CONSOLE 6: Entrou no fluxo de seleção normal
-  console.log(
-    `[PROPOSTA/CONTRATO DEBUG] 6. Contrato não encontrado. Exibindo seletor de ações.`
-  );
-
-  // --- 2. SELETOR DE AÇÕES (Se o contrato não existir) ---
-  Swal.fire({
-    title: "Selecione a ação com o documento",
-    text: "Escolha qual ação deseja realizar para este orçamento.",
-    icon: "question",
-    showCancelButton: true,
-    showDenyButton: true,
-    confirmButtonText: "Gerar Proposta",
-    cancelButtonText: "Gerar Contrato",
-    denyButtonText: "Incluir Contrato",
-    reverseButtons: false,
-    customClass: {
-      confirmButton: "Proposta",
-      cancelButton: "Contrato",
-      denyButton: "IncluirContrato",
-    },
-  }).then((result) => {
-    if (result.isConfirmed) {
-      // Clicou no botão CONFIRM (Gerar Proposta)
-      console.log("[FLUXO SELETOR] Ação selecionada: Gerar Proposta.");
-      gerarPropostaPDF();
-    } else if (result.dismiss === Swal.DismissReason.cancel) {
-      // Clicou no botão CANCEL (Gerar Contrato)
-      console.log("[FLUXO SELETOR] Ação selecionada: Gerar Contrato.");
-      gerarContrato(nrOrcamentoStr);
-    } else if (result.isDenied) {
-      // Clicou no botão DENY (Incluir Contrato)
-      console.log(
-        "[FLUXO SELETOR] Ação selecionada: Incluir Contrato. Chamando incluirContrato(nrOrcamento)..."
-      );
-      incluirContrato(nrOrcamentoStr);
-    }
-  });
+    });
 }
 
 document.getElementById("Contrato").addEventListener("click", function (event) {
