@@ -23,7 +23,7 @@ main#conteudo {
   align-items: center;    /* centraliza horizontalmente */
   width: 1900px;
   align-items: center;
-  margin: 100px 10px;
+  margin: 100px 10px 0;
   gap: 20px;
 }
 
@@ -64,8 +64,9 @@ main#conteudo {
   display: flex;
   flex-wrap: wrap;
   gap: 20px;
-  margin: 100px 0;
-  overflow-x: auto; 
+  margin: 100px 0 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 5px;
 }
 
@@ -157,8 +158,6 @@ main#conteudo {
   animation: pulsar-vermelho 1.5s infinite ease-in-out;
 }
 
-
-
 .ativ-body ul {
   list-style: none;
   padding: 0;
@@ -172,6 +171,18 @@ main#conteudo {
   border-bottom: 1px solid #ddd;
   font-size: 14px;
   color: #333;
+}
+
+select#selectAno {
+  width: 60px;
+  border: none;
+  background-color: transparent;
+  font-size: 25px;
+  outline: none;
+  box-shadow: none;
+  font-weight: bold;
+  appearance: none;
+  cursor: pointer;
 }
 
 /* ===================== NOVO: filtro de data e scroll ===================== */
@@ -2218,6 +2229,55 @@ body.dark .indicador-evento {
 .categoria-bloco .vencimento strong {
   color: #007bff;
   font-weight: 700;
+}
+
+
+.bloco-pendente, .bloco-pago{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Garante que o Resumo Detalhado (conteúdo interno) seja organizado */
+.resumo-detalhado {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.resumo-status {
+    display: flex;
+    justify-content: center;
+    gap: 50px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #bdb9b9;
+}
+
+.resumo-status h4 {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.resumo-status .valor-pendente {
+    font-weight: bold;
+    color: #d9534f; /* Vermelho para pendente */
+    font-size: 1.2rem;
+}
+
+.resumo-status .valor-pago {
+    font-weight: bold;
+    color: #5cb85c; /* Verde para pago */
+    font-size: 1.2rem;
+}
+.resumo-categorias-totais {
+    display: flex;
+    justify-content: space-evenly;
+}
+
+.AJDC, .CACHE {
+  display: flex;
+  gap: 10px;
 }
 
 /* -----FIM VENCIMENTOS----- */

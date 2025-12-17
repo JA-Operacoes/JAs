@@ -2144,7 +2144,7 @@ function calcularIntervaloDeDatas(periodo, params) {
     return { dataInicial, dataFinal };
 }
 
-// router.get("/vencimentos", async (req, res) => {
+
     
 //     // Função auxiliar de data (DD/MM/YYYY)
 //     const formatarData = (data) => {
@@ -2443,22 +2443,59 @@ function calcularIntervaloDeDatas(periodo, params) {
 //     }
 // });
 
-
-
-// =======================================
-// AGENDA PESSOAL DO USUÁRIO
-// =======================================
-
-router.get("/vencimentos", async (req, res) => {
+router.get("/vencimentos", async (req, res) => { //antes do filtro
     
-    // ... [SUA FUNÇÃO formatarData (DD/MM/YYYY) É MANTIDA AQUI] ...
+    // ----------------------------------------------------------------
+    // FUNÇÕES DE APOIO
+    // ----------------------------------------------------------------
+    /**
+     * Função para formatar uma string de data 'YYYY-MM-DD' para 'DD/MM/YYYY'.
+     * * Correção implementada: Cria o objeto Date tratando a data como LOCAL, 
+     * evitando o problema de deslocamento de fuso horário (-3h ou -4h) que 
+     * faria a data cair no dia anterior.
+     * * @param {string|Date} data A string de data no formato 'YYYY-MM-DD' vinda do banco.
+     * @returns {string} A data formatada 'DD/MM/YYYY' ou 'N/A'.
+     */
     const formatarData = (data) => {
         if (!data) return 'N/A';
-        const d = new Date(data); 
-        const dia = String(d.getDate()).padStart(2, '0');
-        const mes = String(d.getMonth() + 1).padStart(2, '0');
-        const ano = d.getFullYear();
-        return `${dia}/${mes}/${ano}`;
+
+        let dataStr = data instanceof Date ? data.toISOString().split('T')[0] : String(data);
+
+        // 1. Tenta extrair as partes no formato YYYY-MM-DD
+        const partes = dataStr.split('-');
+        
+        if (partes.length !== 3) {
+            // Se a string não estiver no formato esperado ('YYYY-MM-DD'), tenta forçar a criação
+            const d = new Date(dataStr + 'T00:00:00');
+            if (isNaN(d.getTime())) return 'N/A';
+
+            return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        }
+
+        // 2. CRIAÇÃO CORRETA: Cria o objeto Date com Ano, Mês (0-based) e Dia
+        const ano = parseInt(partes[0], 10);
+        const mes = parseInt(partes[1], 10) - 1; // Mês é baseado em 0 (Janeiro = 0)
+        const dia = parseInt(partes[2], 10);
+        
+        // Cria a data no fuso horário local, eliminando o deslocamento.
+        const d = new Date(ano, mes, dia); 
+        
+        if (isNaN(d.getTime())) return 'N/A';
+
+        // 3. Formatação final
+        const d_dia = String(d.getDate()).padStart(2, '0');
+        const d_mes = String(d.getMonth() + 1).padStart(2, '0');
+        const d_ano = d.getFullYear();
+
+        return `${d_dia}/${d_mes}/${d_ano}`;
+    };
+
+    // formatador de data para o SQL (YYYY-MM-DD)
+    const fmt = d => {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
     };
 
     console.log("🔥 Rota /vencimentos acessada com query:", req.query);
@@ -2468,171 +2505,185 @@ router.get("/vencimentos", async (req, res) => {
             return res.status(400).json({ error: "idempresa obrigatório." });
         }
 
-        // Filtros de período (mantendo a lógica original)
+        // Filtros de período
         const periodo = (req.query.periodo || 'diario').toLowerCase();
         const dataInicioQuery = req.query.dataInicio;
-        // const dataFimQuery = req.query.dataFim; // Não é usado diretamente, pois dataFim é calculado
         const mes = parseInt(req.query.mes, 10);
         const ano = parseInt(req.query.ano, 10) || new Date().getFullYear();
         const trimestre = parseInt(req.query.trimestre, 10);
         const semestre = parseInt(req.query.semestre, 10);
 
-        // formatador de data para o SQL (YYYY-MM-DD)
-        const fmt = d => {
-            const yyyy = d.getFullYear();
-            const mm = String(d.getMonth() + 1).padStart(2, '0');
-            const dd = String(d.getDate()).padStart(2, '0');
-            return `${yyyy}-${mm}-${dd}`;
-        };
-
         let startDate, endDate;
-        let dataBase; // Variável auxiliar para a data de início
+        let dataBase; 
 
         // ------------------------
         // LÓGICA DE DATAS (Define o range de filtro: $2 e $3)
         // ------------------------
         
-        // --- DIÁRIO ---
         if (periodo === "diario") {
-            // Se veio do query, use a string (Ex: '2025-01-20'), se não, use hoje
             dataBase = dataInicioQuery ? new Date(dataInicioQuery + 'T00:00:00') : new Date();
             startDate = fmt(dataBase);
             endDate = fmt(dataBase);
-        }
-        
-        // --- SEMANAL (CORRIGIDO) ---
-        else if (periodo === "semanal") {
-            // Usa T00:00:00 para garantir que o fuso horário local não altere o dia.
+        } else if (periodo === "semanal") {
             dataBase = dataInicioQuery ? new Date(dataInicioQuery + 'T00:00:00') : new Date();
-            
-            // Pega o dia da semana (0 = Domingo, 6 = Sábado)
             const diaSemana = dataBase.getDay();
-
-            // Calcula o início da semana (Domingo)
             const primeiroDiaSemana = new Date(dataBase);
-            // .getDate() - diaSemana garante que voltamos para o Domingo
             primeiroDiaSemana.setDate(dataBase.getDate() - diaSemana);
             startDate = fmt(primeiroDiaSemana);
-
-            // Calcula o fim da semana (Sábado)
             const ultimoDiaSemana = new Date(primeiroDiaSemana);
-            ultimoDiaSemana.setDate(primeiroDiaSemana.getDate() + 6); // Avança 6 dias
+            ultimoDiaSemana.setDate(primeiroDiaSemana.getDate() + 6);
             endDate = fmt(ultimoDiaSemana);
-        }
-        
-        // --- MENSAL ---
-        else if (periodo === "mensal") {
+        } else if (periodo === "mensal") {
             const m = (!isNaN(mes) ? mes : new Date().getMonth() + 1);
             const first = new Date(ano, m - 1, 1);
-            const last = new Date(ano, m, 0); // Dia 0 do próximo mês = último dia do mês atual
+            const last = new Date(ano, m, 0); 
             startDate = fmt(first);
             endDate = fmt(last);
-        }
-        
-        // --- TRIMESTRAL ---
-        else if (periodo === "trimestral") {
+        } else if (periodo === "trimestral") {
             const t = (!isNaN(trimestre) ? trimestre : Math.ceil((new Date().getMonth() + 1) / 3));
             const startM = (t - 1) * 3;
             const first = new Date(ano, startM, 1);
             const last = new Date(ano, startM + 3, 0);
             startDate = fmt(first);
             endDate = fmt(last);
-        }
-        
-        // --- SEMESTRAL ---
-        else if (periodo === "semestral") {
+        } else if (periodo === "semestral") {
             const currentMonth = new Date().getMonth();
-            const defaultSemestre = currentMonth <= 5 ? 1 : 2; // 0-5 é 1º sem, 6-11 é 2º sem
+            const defaultSemestre = currentMonth <= 5 ? 1 : 2; 
             const s = (!isNaN(semestre) ? semestre : defaultSemestre);
             const startM = s === 1 ? 0 : 6;
             const first = new Date(ano, startM, 1);
             const last = new Date(ano, startM + 6, 0);
             startDate = fmt(first);
             endDate = fmt(last);
-        }
-        
-        // --- ANUAL ---
-        else if (periodo === "anual") {
+        } else if (periodo === "anual") {
             const first = new Date(ano, 0, 1);
             const last = new Date(ano, 11, 31);
             startDate = fmt(first);
             endDate = fmt(last);
         }
         
-        // Fallback: Se por algum motivo as datas não foram definidas
         if (!startDate || !endDate) {
             const hoje = new Date();
             startDate = fmt(hoje);
             endDate = fmt(hoje);
         }
+        
+        // Parâmetro $4 (Data de Hoje - Usado para determinar "Vencido" na lógica anual)
+        const dataHojeSQL = fmt(new Date()); 
 
-        // ------------------------
-        // REGRA DE NEGÓCIO DE VENCIMENTO (FINAL)
-        // ------------------------
-        // A sua WHERE CLAUSE está correta para usar $2 e $3 (startDate e endDate)
-        const whereVencimento = `
-            ((torc.dtinimarcacao + INTERVAL '2 days')::date BETWEEN $2 AND $3)
-            OR
-            (torc.dtfimrealizacao IS NOT NULL AND (torc.dtfimrealizacao + INTERVAL '10 days')::date BETWEEN $2 AND $3)
+        // Parâmetros base: $1=idempresa, $2=startDate, $3=endDate
+        let params = [idempresa, startDate, endDate]; 
+        
+        // ----------------------------------------------------------------
+        // 1. CLÁUSULA WHERE BASE 
+        // ----------------------------------------------------------------
+        const whereBasePeriodo = `
+            torc.dtinimarcacao BETWEEN $2 AND $3
         `.trim();
 
+        // ----------------------------------------------------------------
+        // 2. CLÁUSULA WHERE VENCIMENTO PENDENTE 
+        // ----------------------------------------------------------------
+        let whereVencimentoPendente;
+
+        if (periodo.toLowerCase() === 'anual') {
+            // MODO ANUAL: Inclui Pagamentos Pendentes VENCIDOS ou A VENCER no Período
+            whereVencimentoPendente = `
+                (tse.statuspgto = 'Pendente') AND (
+                    -- 1. Regra para AJUDA DE CUSTO (+2 dias)
+                    (
+                        ((torc.dtinimarcacao + INTERVAL '2 days')::date < $4) -- Inclui AJUDA VENCIDA
+                        OR
+                        ((torc.dtinimarcacao + INTERVAL '2 days')::date BETWEEN $2 AND $3) -- Inclui AJUDA A VENCER
+                    )
+                    OR
+                    -- 2. Regra para CACHÊ (+3 dias)
+                    (
+                        torc.dtfimrealizacao IS NOT NULL AND 
+                        (
+                            ((torc.dtfimrealizacao + INTERVAL '3 days')::date < $4) -- Inclui CACHÊ VENCIDO
+                            OR
+                            ((torc.dtfimrealizacao + INTERVAL '3 days')::date BETWEEN $2 AND $3) -- Inclui CACHÊ A VENCER
+                        )
+                    )
+                )
+            `.trim();
+            // Adiciona o quarto parâmetro $4, totalizando 4 parâmetros
+            params.push(dataHojeSQL); 
+
+        } else {
+            // MODO PADRÃO: Inclui APENAS os pagamentos A VENCER dentro do período
+            whereVencimentoPendente = `
+                (tse.statuspgto = 'Pendente') AND (
+                    ((torc.dtinimarcacao + INTERVAL '2 days')::date BETWEEN $2 AND $3)
+                    OR
+                    (torc.dtfimrealizacao IS NOT NULL AND (torc.dtfimrealizacao + INTERVAL '3 days')::date BETWEEN $2 AND $3)
+                )
+            `.trim();
+        }
+
         // ----------------------------------------------------
-        // 1. PRIMEIRA QUERY: TOTAIS AGREGADOS POR EVENTO
+        // 3. PRIMEIRA QUERY: TOTAIS AGREGADOS POR EVENTO
         // ----------------------------------------------------
-        // ... [Sua queryAgregacao é mantida] ...
         const queryAgregacao = `
             SELECT
-                tse.idevento,
-                tse.nmevento,
-                MAX(torc.dtinimarcacao) AS max_data_inicio_orcamento,
-                MAX(torc.dtfimrealizacao) AS max_data_fim_realizacao_orcamento,
-                COUNT(*) AS total_registros_evento,
-                COUNT(*) FILTER (WHERE tse.statuspgto = 'Pendente') AS qtd_pendentes_registros,
-                COUNT(*) FILTER (WHERE tse.statuspgto != 'Pendente') AS qtd_pagos_registros,
+        tse.idevento,
+        torc.idorcamento, 
+        e.nmevento,
+        MAX(torc.dtinimarcacao) AS max_data_inicio_orcamento,
+        MAX(torc.dtfimrealizacao) AS max_data_fim_realizacao_orcamento,
+        
+        -- ajuda custo total
+        SUM(
+            (COALESCE(tse.vlralmoco,0) + COALESCE(tse.vlralimentacao,0) + COALESCE(tse.vlrtransporte,0))
+            * GREATEST(jsonb_array_length(tse.datasevento), 1)
+        ) AS ajuda_total,
+        
+        -- ajuda custo PAGA
+        SUM(
+            (COALESCE(tse.vlralmoco,0) + COALESCE(tse.vlralimentacao,0) + COALESCE(tse.vlrtransporte,0))
+            * GREATEST(jsonb_array_length(tse.datasevento), 1)
+        ) FILTER (WHERE tse.statuspgto = 'Pago') AS ajuda_paga,
 
-                -- ajuda custo total
-                SUM(
-                    (COALESCE(tse.vlralmoco,0) + COALESCE(tse.vlralimentacao,0) + COALESCE(tse.vlrtransporte,0))
-                    * GREATEST(jsonb_array_length(tse.datasevento), 1)
-                ) AS ajuda_total,
+        -- ajuda custo pendente
+        SUM(
+            (COALESCE(tse.vlralmoco,0) + COALESCE(tse.vlralimentacao,0) + COALESCE(tse.vlrtransporte,0))
+            * GREATEST(jsonb_array_length(tse.datasevento), 1)
+        ) FILTER (WHERE ${whereVencimentoPendente}) AS ajuda_pendente,
 
-                -- ajuda custo pendente
-                SUM(
-                    (COALESCE(tse.vlralmoco,0) + COALESCE(tse.vlralimentacao,0) + COALESCE(tse.vlrtransporte,0))
-                    * GREATEST(jsonb_array_length(tse.datasevento), 1)
-                ) FILTER (WHERE tse.statuspgto = 'Pendente') AS ajuda_pendente,
+        -- cache total
+        SUM(
+            COALESCE(tse.vlrcache,0) * GREATEST(jsonb_array_length(tse.datasevento), 1)
+        ) AS cache_total,
+        
+        -- cache PAGO
+        SUM(
+            COALESCE(tse.vlrcache,0) * GREATEST(jsonb_array_length(tse.datasevento), 1)
+        ) FILTER (WHERE tse.statuspgto = 'Pago') AS cache_pago,
 
-                -- cache total
-                SUM(
-                    COALESCE(tse.vlrcache,0) * GREATEST(jsonb_array_length(tse.datasevento), 1)
-                ) AS cache_total,
+        -- cache pendente
+        SUM(
+            COALESCE(tse.vlrcache,0) * GREATEST(jsonb_array_length(tse.datasevento), 1)
+        ) FILTER (WHERE ${whereVencimentoPendente}) AS cache_pendente
 
-                -- cache pendente
-                SUM(
-                    COALESCE(tse.vlrcache,0) * GREATEST(jsonb_array_length(tse.datasevento), 1)
-                ) FILTER (WHERE tse.statuspgto = 'Pendente') AS cache_pendente
-
-            FROM staffeventos tse
-            JOIN staffempresas semp ON tse.idstaff = semp.idstaff
-            JOIN orcamentos torc ON tse.idevento = torc.idevento
-            WHERE semp.idempresa = $1
-            AND (${whereVencimento})
-            GROUP BY tse.idevento, tse.nmevento
-            ORDER BY tse.nmevento;
+    FROM staffeventos tse
+    JOIN eventos e ON tse.idevento = e.idevento -- Incluído join à tabela 'eventos'
+    JOIN staffempresas semp ON tse.idstaff = semp.idstaff
+    JOIN orcamentos torc ON tse.idevento = torc.idevento
+    WHERE semp.idempresa = $1 -- RETORNA O PARÂMETRO $1
+    -- FILTRO BASE
+    AND (${whereBasePeriodo}) 
+    GROUP BY tse.idevento, torc.idorcamento, e.nmevento
+    ORDER BY e.nmevento;
         `;
 
-        const params = [idempresa, startDate, endDate];
-        // ⚠️ ASSUMIR QUE pool.query ESTÁ DEFINIDO E DISPONÍVEL
         const { rows: eventosAgregados } = await pool.query(queryAgregacao, params); 
 
         if (eventosAgregados.length === 0) {
             return res.json({ periodo, startDate, endDate, eventos: [] });
         }
 
-        // ----------------------------------------------------
-        // 2. SEGUNDA QUERY: DETALHES INDIVIDUAIS DOS FUNCIONÁRIOS
-        // ----------------------------------------------------
-        // ... [Sua queryDetalhes e o resto do código de aninhamento são mantidos] ...
+        // 4. SEGUNDA QUERY: DETALHES INDIVIDUAIS DOS FUNCIONÁRIOS (Sem alterações)
         const idsEventosFiltrados = eventosAgregados.map(e => e.idevento);
 
         const queryDetalhes = `
@@ -2659,10 +2710,9 @@ router.get("/vencimentos", async (req, res) => {
         const { rows: detalhesFuncionarios } = await pool.query(queryDetalhes, [idsEventosFiltrados]); 
 
         // ----------------------------------------------------
-        // 3. PROCESSAMENTO E ANINHAMENTO DOS DADOS
+        // 5. PROCESSAMENTO E ANINHAMENTO DOS DADOS
         // ----------------------------------------------------
 
-        // A. Cria um mapa de funcionários agrupados por idevento
         const funcionariosPorEvento = detalhesFuncionarios.reduce((acc, func) => {
             const idevento = func.idevento;
             if (!acc[idevento]) {
@@ -2678,32 +2728,37 @@ router.get("/vencimentos", async (req, res) => {
                 totalCache: parseFloat(func.totalcache) || 0,
                 totalAjudaCusto: parseFloat(func.totalajudacusto) || 0,
                 totalPagar: parseFloat(func.totalpagar) || 0,
-
             });
             return acc;
         }, {});
 
 
-        // B. Mapeia os eventos agregados, adicionando a lista de funcionários
         const eventosComDetalhes = eventosAgregados.map(r => {
             const ajudaTotal = parseFloat(r.ajuda_total) || 0;
+            const ajudaPendente = parseFloat(r.ajuda_pendente) || 0;
             const cacheTotal = parseFloat(r.cache_total) || 0;
+            const cachePendente = parseFloat(r.cache_pendente) || 0;
+            
+            // ✅ CORREÇÃO: Lendo os valores pagos diretamente do SQL
+            const ajudaPagos = parseFloat(r.ajuda_paga) || 0; 
+            const cachePagos = parseFloat(r.cache_pago) || 0;
+
             const totalGeral = ajudaTotal + cacheTotal;
 
-            // ... [Lógica de cálculo de vencimentos é mantida e está OK] ...
+            // --- CÁLCULO DE VENCIMENTO DA AJUDA DE CUSTO (+2 DIAS) ---
             const dataInicioEvento = formatarData(r.max_data_inicio_orcamento); 
-            const dataFimEvento = formatarData(r.max_data_fim_realizacao_orcamento);
-
             const maxDataInicio = new Date(r.max_data_inicio_orcamento);
             const vencimentoAjudaCusto = new Date(maxDataInicio.getTime());
-            vencimentoAjudaCusto.setDate(maxDataInicio.getDate() + 2);
+            vencimentoAjudaCusto.setDate(maxDataInicio.getDate() + 2); 
             const dataVencimentoAjuda = formatarData(vencimentoAjudaCusto);
 
+            // --- CÁLCULO DE VENCIMENTO DO CACHÊ (+3 DIAS) ---
+            const dataFimEvento = formatarData(r.max_data_fim_realizacao_orcamento);
             let dataVencimentoCache = 'N/A';
             if (r.max_data_fim_realizacao_orcamento) {
                 const maxDataFim = new Date(r.max_data_fim_realizacao_orcamento);
                 const vencimentoCache = new Date(maxDataFim.getTime());
-                vencimentoCache.setDate(maxDataFim.getDate() + 10);
+                vencimentoCache.setDate(maxDataFim.getDate() + 3); 
                 dataVencimentoCache = formatarData(vencimentoCache);
             }
             
@@ -2714,27 +2769,29 @@ router.get("/vencimentos", async (req, res) => {
                 nomeEvento: r.nmevento,
                 totalGeral: totalGeral,
 
-                dataInicioEvento,   
-                dataFimEvento,      
+                dataInicioEvento,   
+                dataFimEvento,      
                 dataVencimentoAjuda,
-                dataVencimentoCache,
+                dataVencimentoCache, 
 
                 ajuda: {
                     total: ajudaTotal,
-                    pendente: parseFloat(r.ajuda_pendente) || 0,
-                    pagos: ajudaTotal - (parseFloat(r.ajuda_pendente) || 0) 
+                    pendente: ajudaPendente,
+                    // ✅ CORREÇÃO: Usando o valor explícito do SQL
+                    pagos: ajudaPagos 
                 },
                 cache: {
                     total: cacheTotal,
-                    pendente: parseFloat(r.cache_pendente) || 0,
-                    pagos: cacheTotal - (parseFloat(r.cache_pendente) || 0)
+                    pendente: cachePendente,
+                    // ✅ CORREÇÃO: Usando o valor explícito do SQL
+                    pagos: cachePagos
                 },
                 
                 funcionarios: funcionariosPorEvento[idevento] || []
             }
         });
 
-        // 4. Retornar a resposta final
+        // 6. Retornar a resposta final
         return res.json({
             periodo,
             startDate,
@@ -2747,6 +2804,396 @@ router.get("/vencimentos", async (req, res) => {
         return res.status(500).json({ error: error.message });
     }
 });
+
+// router.get("/vencimentos", async (req, res) => {
+//     // ----------------------------------------------------------------
+//     // FUNÇÕES DE APOIO (Mantidas)
+//     // ----------------------------------------------------------------
+//     const formatarData = (data) => {
+//         if (!data) return 'N/A';
+//         let dataStr = data instanceof Date ? data.toISOString().split('T')[0] : String(data);
+//         const partes = dataStr.split('-');
+//         if (partes.length !== 3) {
+//             const d = new Date(dataStr + 'T00:00:00');
+//             if (isNaN(d.getTime())) return 'N/A';
+//             return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+//         }
+//         const ano = parseInt(partes[0], 10);
+//         const mes = parseInt(partes[1], 10) - 1; 
+//         const dia = parseInt(partes[2], 10);
+//         const d = new Date(ano, mes, dia); 
+//         if (isNaN(d.getTime())) return 'N/A';
+//         const d_dia = String(d.getDate()).padStart(2, '0');
+//         const d_mes = String(d.getMonth() + 1).padStart(2, '0');
+//         const d_ano = d.getFullYear();
+//         return `${d_dia}/${d_mes}/${d_ano}`;
+//     };
+
+//     const fmt = d => {
+//         const yyyy = d.getFullYear();
+//         const mm = String(d.getMonth() + 1).padStart(2, '0');
+//         const dd = String(d.getDate()).padStart(2, '0');
+//         return `${yyyy}-${mm}-${dd}`;
+//     };
+
+//     const calcularVencimento = (dataBase, diasTolerancia, formatarData) => {
+//         if (!dataBase) return 'N/A';
+//         const dataFormatada = formatarData(dataBase); 
+//         if (dataFormatada === 'N/A') return 'N/A';
+//         const [d, m, y] = dataFormatada.split('/').map(Number);
+//         const baseDate = new Date(y, m - 1, d); 
+//         const vencimento = new Date(baseDate.getTime());
+//         vencimento.setDate(baseDate.getDate() + diasTolerancia);
+//         return formatarData(vencimento);
+//     };
+
+
+//     console.log("🔥 Rota /vencimentos acessada com query:", req.query);
+//     try {
+//         const idempresa = req.idempresa;
+//         if (!idempresa) {
+//             return res.status(400).json({ error: "idempresa obrigatório." });
+//         }
+
+//         // Filtros de período
+//         const periodo = (req.query.periodo || 'diario').toLowerCase();
+//         const dataInicioQuery = req.query.dataInicio;
+//         const hoje = new Date(); 
+        
+//         // O ano será definido pelo filtro, se existir, senão usa o ano atual.
+//         const anoFiltro = parseInt(req.query.ano, 10);
+//         const ano = !isNaN(anoFiltro) ? anoFiltro : hoje.getFullYear(); 
+
+//         const mes = parseInt(req.query.mes, 10);
+//         const trimestre = parseInt(req.query.trimestre, 10);
+//         const semestre = parseInt(req.query.semestre, 10);
+
+//         let startDate, endDate;
+
+//         // ------------------------
+//         // LÓGICA DE DATAS (Define o range de filtro: $2 e $3)
+//         // ------------------------
+        
+//         if (periodo === "diario") {
+//             let dataBase;
+//             if (dataInicioQuery) {
+//                 // Se dataInicio existe, use-a.
+//                 dataBase = new Date(dataInicioQuery + 'T00:00:00');
+//             } else {
+//                 // Se não há dataInicio, mas há ano (filtro), usa dia/mês atual, mas no ANO ESPECIFICADO.
+//                 // Correção: Se o ano for diferente do ano atual e nenhuma data for fornecida, 
+//                 // é melhor retornar o dia/mês atual do ANO ESPECIFICADO.
+//                 dataBase = new Date(ano, hoje.getMonth(), hoje.getDate()); 
+//             }
+                
+//             startDate = fmt(dataBase);
+//             endDate = fmt(dataBase);
+//         } else if (periodo === "semanal") {
+//             // Se houver data, usa a data. Senão, usa a semana do dia de hoje, mas no ano especificado.
+//             let dataBase = dataInicioQuery ? new Date(dataInicioQuery + 'T00:00:00') : new Date(ano, hoje.getMonth(), hoje.getDate()); 
+            
+//             const diaSemana = dataBase.getDay();
+//             const primeiroDiaSemana = new Date(dataBase);
+//             primeiroDiaSemana.setDate(dataBase.getDate() - diaSemana);
+            
+//             startDate = fmt(primeiroDiaSemana);
+            
+//             const ultimoDiaSemana = new Date(primeiroDiaSemana);
+//             ultimoDiaSemana.setDate(primeiroDiaSemana.getDate() + 6);
+            
+//             endDate = fmt(ultimoDiaSemana);
+//         } else if (periodo === "mensal") {
+//             const m = (!isNaN(mes) ? mes : hoje.getMonth() + 1);
+//             // Sempre usa o 'ano' do filtro
+//             const first = new Date(ano, m - 1, 1);
+//             const last = new Date(ano, m, 0); 
+//             startDate = fmt(first);
+//             endDate = fmt(last);
+//         } else if (periodo === "trimestral") {
+//             const t = (!isNaN(trimestre) ? trimestre : Math.ceil((hoje.getMonth() + 1) / 3));
+//             const startM = (t - 1) * 3;
+//             // Sempre usa o 'ano' do filtro
+//             const first = new Date(ano, startM, 1);
+//             const last = new Date(ano, startM + 3, 0);
+//             startDate = fmt(first);
+//             endDate = fmt(last);
+//         } else if (periodo === "semestral") {
+//             const currentMonth = hoje.getMonth();
+//             const defaultSemestre = currentMonth <= 5 ? 1 : 2; 
+//             const s = (!isNaN(semestre) ? semestre : defaultSemestre);
+//             const startM = s === 1 ? 0 : 6;
+//             // Sempre usa o 'ano' do filtro
+//             const first = new Date(ano, startM, 1);
+//             const last = new Date(ano, startM + 6, 0);
+//             startDate = fmt(first);
+//             endDate = fmt(last);
+//         } else if (periodo === "anual") {
+//             // Sempre usa o 'ano' do filtro
+//             const first = new Date(ano, 0, 1);
+//             const last = new Date(ano, 11, 31);
+//             startDate = fmt(first);
+//             endDate = fmt(last);
+//         }
+        
+//         if (!startDate || !endDate) {
+//             startDate = fmt(hoje);
+//             endDate = fmt(hoje);
+//         }
+        
+//         // Parâmetro $4 (Data de Hoje - Usado para determinar "Vencido" na lógica anual)
+//         // Isso deve continuar sendo a data atual do servidor, não a data do filtro.
+//         const dataHojeSQL = fmt(new Date()); 
+
+//         // Parâmetros base: $1=idempresa, $2=startDate, $3=endDate
+//         let params = [idempresa, startDate, endDate]; 
+        
+//         // ----------------------------------------------------------------
+//         // NOVOS FILTROS DE PERÍODO DE REALIZAÇÃO 
+//         // ----------------------------------------------------------------
+//         // Adicionando a cláusula para garantir que a REALIZAÇÃO do evento esteja no período.
+//         const whereRealizacaoPeriodo = `
+//             (torc.dtinimarcacao BETWEEN $2 AND $3)
+//             OR
+//             (torc.dtfimrealizacao IS NOT NULL AND torc.dtfimrealizacao BETWEEN $2 AND $3)
+//         `.trim();
+        
+//         // 1. CLÁUSULA WHERE BASE (COMBINADA: Vencimento E Realização)
+//         const whereBasePeriodo = `
+//             (
+//                 -- CRITÉRIO A (VENCIMENTO): Filtra pela data de VENCIMENTO no período $2-$3
+//                 (
+//                     ((torc.dtinimarcacao + INTERVAL '2 days')::date BETWEEN $2 AND $3)
+//                     OR
+//                     (torc.dtfimrealizacao IS NOT NULL AND (torc.dtfimrealizacao + INTERVAL '3 days')::date BETWEEN $2 AND $3)
+//                 )
+//                 -- CRITÉRIO B (REALIZAÇÃO): O EVENTO DEVE TER SIDO REALIZADO NO PERÍODO $2-$3
+//                 AND
+//                 (
+//                     ${whereRealizacaoPeriodo}
+//                 )
+//             )
+//         `.trim();
+
+
+//         // ----------------------------------------------------------------
+//         // 2. CLÁUSULA WHERE VENCIMENTO PENDENTE 
+//         // ----------------------------------------------------------------
+//         let whereVencimentoPendente;
+
+//         if (periodo.toLowerCase() === 'anual') {
+//             whereVencimentoPendente = `
+//                 (tse.statuspgto = 'Pendente') AND (
+//                     (
+//                         ((torc.dtinimarcacao + INTERVAL '2 days')::date < $4) 
+//                         OR
+//                         ((torc.dtinimarcacao + INTERVAL '2 days')::date BETWEEN $2 AND $3) 
+//                     )
+//                     OR
+//                     (
+//                         torc.dtfimrealizacao IS NOT NULL AND 
+//                         (
+//                             ((torc.dtfimrealizacao + INTERVAL '3 days')::date < $4) 
+//                             OR
+//                             ((torc.dtfimrealizacao + INTERVAL '3 days')::date BETWEEN $2 AND $3) 
+//                         )
+//                     )
+//                 )
+//             `.trim();
+//             params.push(dataHojeSQL); 
+
+//         } else {
+//             whereVencimentoPendente = `
+//                 (tse.statuspgto = 'Pendente') AND (
+//                     ((torc.dtinimarcacao + INTERVAL '2 days')::date BETWEEN $2 AND $3)
+//                     OR
+//                     (torc.dtfimrealizacao IS NOT NULL AND (torc.dtfimrealizacao + INTERVAL '3 days')::date BETWEEN $2 AND $3)
+//                 )
+//             `.trim();
+//         }
+
+//         // ----------------------------------------------------
+//         // 3. PRIMEIRA QUERY: TOTAIS AGREGADOS POR EVENTO
+//         // ----------------------------------------------------
+//         const queryAgregacao = `
+//             SELECT
+//                 tse.idevento,
+//                 torc.idorcamento, -- Adicionado idorcamento para desambiguar eventos anuais
+//                 tse.nmevento,
+//                 MAX(torc.dtinimarcacao) AS max_data_inicio_orcamento,
+//                 MAX(torc.dtfimrealizacao) AS max_data_fim_realizacao_orcamento,
+                
+//                 SUM(
+//                     (COALESCE(tse.vlralmoco,0) + COALESCE(tse.vlralimentacao,0) + COALESCE(tse.vlrtransporte,0))
+//                     * GREATEST(jsonb_array_length(tse.datasevento), 1)
+//                 ) AS ajuda_total,
+                
+//                 SUM(
+//                     (COALESCE(tse.vlralmoco,0) + COALESCE(tse.vlralimentacao,0) + COALESCE(tse.vlrtransporte,0))
+//                     * GREATEST(jsonb_array_length(tse.datasevento), 1)
+//                 ) FILTER (WHERE tse.statuspgto = 'Pago') AS ajuda_paga,
+
+//                 SUM(
+//                     (COALESCE(tse.vlralmoco,0) + COALESCE(tse.vlralimentacao,0) + COALESCE(tse.vlrtransporte,0))
+//                     * GREATEST(jsonb_array_length(tse.datasevento), 1)
+//                 ) FILTER (WHERE ${whereVencimentoPendente}) AS ajuda_pendente,
+
+//                 SUM(
+//                     COALESCE(tse.vlrcache,0) * GREATEST(jsonb_array_length(tse.datasevento), 1)
+//                 ) AS cache_total,
+                
+//                 SUM(
+//                     COALESCE(tse.vlrcache,0) * GREATEST(jsonb_array_length(tse.datasevento), 1)
+//                 ) FILTER (WHERE tse.statuspgto = 'Pago') AS cache_pago,
+
+//                 SUM(
+//                     COALESCE(tse.vlrcache,0) * GREATEST(jsonb_array_length(tse.datasevento), 1)
+//                 ) FILTER (WHERE ${whereVencimentoPendente}) AS cache_pendente
+
+//             FROM staffeventos tse
+//             JOIN staffempresas semp ON tse.idstaff = semp.idstaff
+//             JOIN orcamentos torc ON tse.idevento = torc.idevento
+//             WHERE semp.idempresa = $1
+//             AND (${whereBasePeriodo}) 
+//             -- Agrupamos por idevento E idorcamento para separar instâncias anuais
+//             GROUP BY tse.idevento, torc.idorcamento, tse.nmevento
+//             ORDER BY tse.nmevento;
+//         `;
+
+//         const { rows: eventosAgregados } = await pool.query(queryAgregacao, params); 
+
+//         if (eventosAgregados.length === 0) {
+//             return res.json({ periodo, startDate, endDate, eventos: [] });
+//         }
+
+//         // 4. PREPARAÇÃO PARA A SEGUNDA QUERY: DETALHES INDIVIDUAIS DOS FUNCIONÁRIOS
+//         // Para garantir que os detalhes correspondam exatamente aos eventos agregados, 
+//         // criamos listas de idevento e idorcamento encontrados.
+//         const idsEventosFiltrados = eventosAgregados.map(e => e.idevento);
+//         const idsOrcamentosFiltrados = eventosAgregados.map(e => e.idorcamento);
+
+//         const queryDetalhes = `
+//             SELECT
+//                 tse.idevento,
+//                 torc.idorcamento, -- Adiciona o idorcamento para o aninhamento
+//                 tse.nmfuncionario AS nome,
+//                 tse.nmfuncao AS funcao,
+//                 jsonb_array_length(tse.datasevento) AS qtdDiarias,
+//                 COALESCE(tse.vlrcache, 0) * GREATEST(jsonb_array_length(tse.datasevento), 1) AS totalCache,
+//                 (COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0))
+//                     * GREATEST(jsonb_array_length(tse.datasevento), 1) AS totalAjudaCusto,
+//                 (
+//                     COALESCE(tse.vlrcache, 0) + 
+//                     COALESCE(tse.vlralmoco, 0) + 
+//                     COALESCE(tse.vlralimentacao, 0) + 
+//                     COALESCE(tse.vlrtransporte, 0)
+//                 ) * GREATEST(jsonb_array_length(tse.datasevento), 1) AS totalPagar,
+//                 tse.statuspgto AS statusPgto
+//             FROM staffeventos tse
+//             JOIN orcamentos torc ON tse.idevento = torc.idevento -- Junta o orçamento para filtrar!
+//             WHERE 
+//                 tse.idevento = ANY($1::int[])
+//                 AND torc.idorcamento = ANY($2::int[]) -- Filtro cruzado de idevento e idorcamento
+//             ORDER BY tse.idevento, torc.idorcamento, tse.nmfuncionario;
+//         `;
+
+//         const { rows: detalhesFuncionarios } = await pool.query(queryDetalhes, [idsEventosFiltrados, idsOrcamentosFiltrados]); 
+
+//         // ----------------------------------------------------
+//         // 5. PROCESSAMENTO E ANINHAMENTO DOS DADOS
+//         // ----------------------------------------------------
+
+//         // Cria um mapa usando a chave composta "idevento-idorcamento"
+//         const eventosMap = eventosAgregados.reduce((acc, r) => {
+//             const key = `${r.idevento}-${r.idorcamento}`;
+//             acc[key] = {
+//                 ...r,
+//                 funcionarios: []
+//             };
+//             return acc;
+//         }, {});
+
+//         // Aninha os detalhes usando a mesma chave composta
+//         detalhesFuncionarios.forEach(func => {
+//             const key = `${func.idevento}-${func.idorcamento}`;
+//             if (eventosMap[key]) {
+//                  eventosMap[key].funcionarios.push({
+//                     idevento: func.idevento,
+//                     nome: func.nome,
+//                     funcao: func.funcao,
+//                     statusPgto: func.statuspgto,
+//                     qtdDiarias: parseInt(func.qtddiarias, 10) || 0,
+//                     totalCache: parseFloat(func.totalcache) || 0,
+//                     totalAjudaCusto: parseFloat(func.totalajudacusto) || 0,
+//                     totalPagar: parseFloat(func.totalpagar) || 0,
+//                 });
+//             }
+//         });
+
+//         // Mapeamento final
+//         const eventosComDetalhes = Object.values(eventosMap).map(r => {
+//             const ajudaTotal = parseFloat(r.ajuda_total) || 0;
+//             const ajudaPendente = parseFloat(r.ajuda_pendente) || 0;
+//             const cacheTotal = parseFloat(r.cache_total) || 0;
+//             const cachePendente = parseFloat(r.cache_pendente) || 0;
+            
+//             const ajudaPagos = parseFloat(r.ajuda_paga) || 0; 
+//             const cachePagos = parseFloat(r.cache_pago) || 0;
+
+//             const totalGeral = ajudaTotal + cacheTotal;
+
+//             const dataInicioEvento = formatarData(r.max_data_inicio_orcamento); 
+//             const dataVencimentoAjuda = calcularVencimento(r.max_data_inicio_orcamento, 2, formatarData);
+
+//             const dataFimEvento = formatarData(r.max_data_fim_realizacao_orcamento);
+//             const dataVencimentoCache = calcularVencimento(r.max_data_fim_realizacao_orcamento, 3, formatarData);
+            
+            
+//             return {
+//                 idevento: r.idevento,
+//                 idorcamento: r.idorcamento,
+//                 nomeEvento: r.nmevento,
+//                 totalGeral: totalGeral,
+
+//                 dataInicioEvento,   
+//                 dataFimEvento,      
+//                 dataVencimentoAjuda,
+//                 dataVencimentoCache, 
+
+//                 ajuda: {
+//                     total: ajudaTotal,
+//                     pendente: ajudaPendente,
+//                     pagos: ajudaPagos 
+//                 },
+//                 cache: {
+//                     total: cacheTotal,
+//                     pendente: cachePendente,
+//                     pagos: cachePagos
+//                 },
+                
+//                 funcionarios: r.funcionarios || []
+//             }
+//         });
+
+
+//         // 6. Retornar a resposta final
+//         return res.json({
+//             periodo,
+//             startDate,
+//             endDate,
+//             eventos: eventosComDetalhes
+//         });
+
+//     } catch (error) {
+//         console.error("Erro em /vencimentos:", error);
+//         return res.status(500).json({ error: error.message });
+//     }
+// });
+
+
+// =======================================
+// AGENDA PESSOAL DO USUÁRIO
+// =======================================
+
 
 
 router.get("/agenda", async (req, res) => {
