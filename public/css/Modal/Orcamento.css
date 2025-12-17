@@ -182,6 +182,7 @@
   }
 
 
+
   .Selects{
     display: flex;
     justify-content:space-around;
@@ -206,12 +207,13 @@
 
   .select.ufmontagem{
     width: 50px;
-    margin-right: 10px;
+    margin-right: 20px;
     margin-left: -5px;
   }
 
   .select.pav{
     width: 160px;
+    margin-right: 20px;
   }
 
   .select label{
@@ -571,6 +573,9 @@ select #idCliente, #idEvento{
     gap: 6px;
     font-size: 14px;
 }
+span.pavilhao-tag {
+    width: 120px;
+}
 
 /* Botão de remover a tag */
 .remover-pavilhao-btn {
@@ -656,6 +661,11 @@ select #idCliente, #idEvento{
   align-items: center;
   justify-content: center;
   flex-direction: column;
+}
+
+.checkbox-wrapper-33.checkbox-coluna.contratarstaff {
+    display: flex;
+    flex-direction: row;
 }
 
 

@@ -35,7 +35,7 @@ const uploadContratosMiddleware = multer({
     storage: storageContratos,
     fileFilter: fileFilterContratos,
     limits: {
-        fileSize: 10 * 1024 * 1024 // 10MB
+        fileSize: 50 * 1024 * 1024 // 10MB
     }
 }).fields([
     { name: 'file', maxCount: 1 }

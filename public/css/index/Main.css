@@ -219,7 +219,8 @@ div#orc-container{
 
 button#btnVoltarorc {
   color: var(--font-color);
-  margin-left: 10px
+  margin-left: 10px;
+  margin-bottom: 5px;
 }
 
 .title-orc {
@@ -368,7 +369,6 @@ button#btnVoltarorc {
 
 .painel-tabs.ativo {
     padding: 15px;
-    border: 1px solid var(--cor-borda-aba, #ccc);
     display: flex;
     border-top: none;
 }
@@ -620,9 +620,7 @@ button#btnVoltarorc {
 
 /* Oculta o painel-tabs, já que o conteúdo será injetado no lugar */
 .painel-tabs.ativo {
-  /* Mantém o padding se necessário, mas remove borda superior */
   padding: 15px;
-  border: 1px solid var(--cor-borda-aba, #ccc);
   border-top: none; 
   height: 100%;
   overflow-y: auto;
@@ -2033,6 +2031,7 @@ body.dark .indicador-evento {
   overflow: hidden;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
+  width: 100%;
 }
 .accordion-item.active {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -2064,37 +2063,28 @@ body.dark .indicador-evento {
   color: #007bff; /* Cor principal para o total */
 }
 
-/* Corpo do Acordeão (conteúdo) */
+/* Corpo do Acordeão (Orcamentos) */
 .accordion-body {
   padding: 15px 20px;
   background-color: #fff;
   display: none; /* Esconde por padrão */
 }
 .accordion-item.active .accordion-body {
-  display: block !important; /* Mostra quando ativo */
-  /* ⬅️ NOVO: Limita a altura do conteúdo visível (85% da tela é um bom padrão) */
-  max-height: 85vh; 
-
-  /* ⬅️ NOVO: Faz o próprio corpo do accordion rolar se o conteúdo total (incluindo o .venc-container) exceder 85vh */
+  display: flex !important;
+  flex-direction: column;
+  width: 100%;
   overflow-y: auto;
 }
 
 /* regra para exibição EXTRAADITIVO do ORÇAMENTO */
 .accordion-content {
     display: none; 
-    /* Se você quiser uma transição suave (animação), 
-    use max-height: 0; e overflow: hidden; aqui.
-    */
     padding: 0 15px; /* Define o padding base para o conteúdo */
 }
 
 /* 2. Mostra o conteúdo quando o item pai tem a classe 'active' */
 .accordion-item.active .accordion-content {
-    display: block !important; 
-    /* Usar !important é uma medida de teste para garantir 
-    que nenhuma outra regra CSS esteja sobrepondo a visibilidade.
-    Você pode tentar remover o !important se funcionar.
-    */
+    display: flex !important; 
     max-height: 500px;
 }
 
@@ -2105,6 +2095,27 @@ body.dark .indicador-evento {
 
 .accordion-item.active .accordion-header i.fa-chevron-down {
     transform: rotate(180deg);
+}
+
+.categoria {
+  display: flex;
+  justify-content: space-evenly;
+}
+
+.FuncionarioEvento {
+  display: flex;
+  justify-content: space-evenly;
+}
+
+.detalhes-orcamento {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+}
+
+.infos-gerais {
+  display: flex;
+  justify-content: space-evenly;
 }
 
 

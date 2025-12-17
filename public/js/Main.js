@@ -3154,15 +3154,11 @@ function renderizarPedidosorc(listaPedidos, containerId, categoria, status, isSt
             </div>
 
             <hr class="mt-2 mb-2">
-
-            <div class="detalhes-orcamento">
-              <div class="infos-gerais">
-                <p><strong>Nº Orçamento:</strong> ${p.idorcamento || p.nrorcamento || 'N/D'}</p>
-                <p><strong>Status:</strong> ${p.status_aditivo || p.status || status}</p>
-                <p><strong>Solicitante:</strong> ${escapeHTML(p.nome_usuario_solicitante || 'N/D')}</p>                
-              </div>
-              <div class="justficativa"><p><strong>Justificativa:</strong> ${escapeHTML(p.justificativa || 'N/D')}</p></div>
-            </div>
+            
+            <p><strong>Nº Orçamento:</strong> ${p.idorcamento || p.nrorcamento || 'N/D'}</p>
+            <p><strong>Status:</strong> ${p.status_aditivo || p.status || status}</p>
+            <p><strong>Solicitante:</strong> ${escapeHTML(p.nome_usuario_solicitante || 'N/D')}</p>
+            <p><strong>Justificativa:</strong> ${escapeHTML(p.justificativa || 'N/D')}</p>
         `;
 
         console.log(`✅ Gerando item de acordeão para pedido ${index}:`, { titulo, detalhesHTML });

@@ -109,8 +109,8 @@ router.get('/funcao', async (req, res) => {
      
     const resultado = await pool.query(`
       SELECT f.idcategoriafuncao, f.idfuncao, f.descfuncao, f.ativo, f.vdafuncao, f.obsproposta, f.obsfuncao,
-        e.idequipe, e.nmequipe, cf.nmcategoriafuncao,
-        cf.ctofuncaobase, cf.ctofuncaojunior, cf.ctofuncaopleno, cf.ctofuncaosenior, cf.transporte, cf.transpsenior, cf.alimentacao
+          e.idequipe, e.nmequipe, cf.nmcategoriafuncao,
+          cf.ctofuncaobase, cf.ctofuncaojunior, cf.ctofuncaopleno, cf.ctofuncaosenior, cf.transporte, cf.transpsenior, cf.alimentacao, cf.vlrfuncionario
       FROM funcao f
       INNER JOIN categoriafuncao cf ON f.idcategoriafuncao = cf.idcategoriafuncao
       INNER JOIN equipe e ON f.idequipe = e.idequipe
@@ -136,7 +136,7 @@ try {
       const result = await pool.query(
       `SELECT func.* FROM funcionarios func
       INNER JOIN funcionarioempresas funce ON funce.idfuncionario = func.idfuncionario
-      WHERE funce.idempresa = $1 ORDER BY func.nome ASC`,
+      WHERE funce.idempresa = $1 AND ativo = 'true' ORDER BY func.nome ASC`,
       [idempresa]
       );
       return result.rows.length
@@ -408,7 +408,7 @@ router.post("/orcamento/consultar",
                 WHERE oi.idorcamentoitem IS NOT NULL
             )
             SELECT
-                o.status, o.idorcamento,
+                o.status, o.idorcamento, o.contratarstaff,
                 -- CORREÇÃO AQUI:
                 -- Em vez de recalcular todas as datas do evento inteiro,
                 -- pegamos apenas as datas deste item específico que já calculamos na CTE.
@@ -470,6 +470,7 @@ router.post("/orcamento/consultar",
                 o.status, 
                 o.idorcamento,
                 oi.qtditens,
+                o.contratarstaff,
                 dto.periodos_disponiveis -- Necessário no Group By pois agora é coluna direta
             ORDER BY
                 oi.idorcamentoitem;

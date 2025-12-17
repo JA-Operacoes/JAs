@@ -1,18 +1,8 @@
 import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/flatpickr.min.js";
 import "https://cdn.jsdelivr.net/npm/flatpickr@latest/dist/l10n/pt.js";
 
-//import "../js/flatpickr/l10n/pt.js";
-//import "../js/flatpickr/flatpickr.min.js";
 
 import { fetchComToken, aplicarTema } from "../utils/utils.js";
-
-// document.addEventListener("DOMContentLoaded", function () {
-//     const idempresa = localStorage.getItem("idempresa");
-//     if (idempresa) {
-//         let tema = idempresa == 1 ? "JA-Oper" : "ES";
-//         aplicarTema(tema);
-//     }
-// });
 
 document.addEventListener("DOMContentLoaded", function () {
   const idempresa = localStorage.getItem("idempresa");
@@ -1899,15 +1889,14 @@ function adicionarLinhaAdicional() {
 // Assume-se que 'liberarSelectsParaAdicional' é uma função existente
 liberarSelectsParaAdicional();
 
-const tabelaBody = document
-.getElementById("tabela")
-?.getElementsByTagName("tbody")[0];
+const tabelaBody = document.getElementById("tabela")?.getElementsByTagName("tbody")[0];
 if (!tabelaBody) {
 console.error(
 "Erro: Elemento <tbody> da tabela de orçamento não encontrado."
 );
 return;
 }
+tabelaBody.innerHTML = "";
 
 const ufAtual = document.getElementById("ufmontagem")?.value || "SP";
 // O estilo inicial é usado para colunas que só devem aparecer para UF's diferentes de SP
@@ -2631,138 +2620,94 @@ function atualizarUFOrc(selectLocalMontagem) {
   }
 }
 
+function ceilToTenCents(value, factor) {
+    if (typeof value !== 'number' || isNaN(value)) {
+        return 0;
+    }
+    const reajustedValue = value * factor;
+    // Arredonda para o múltiplo de 0.10 (dez centavos) mais próximo (ceil)
+    const roundedValue = Math.ceil(reajustedValue * 10) / 10;
+    return parseFloat(roundedValue.toFixed(2));
+}
+
+
 function atualizaProdutoOrc(event) {
-  // console.log("Função atualizaProduto chamada", Categoria);
-
-  let select = event.target; // Qual select foi alterado (Funcao, equipamento ou suprimento)
-
-  console.log("Select alterado:", select); // Log do select alterado
-
-  let selectedOption = select.options[select.selectedIndex]; // Opção selecionada
-  let valorSelecionado = selectedOption.value;
-
-  console.log("Valor :", valorSelecionado);
-
-  // Obtém as informações do item selecionado
-  let produtoSelecionado = selectedOption.getAttribute("data-descproduto");
-
-  console.log("Produto selecionado:", produtoSelecionado); // Log do produto selecionado
-  // Log do pavilhão selecionado
-  let vlrCusto = selectedOption.getAttribute("data-cto");
-  let vlrVenda = selectedOption.getAttribute("data-vda");
-
-  const vlrCustoNumerico = parseFloat(vlrCusto) || 0;
-  const vlrVendaNumerico = parseFloat(vlrVenda) || 0;
-
-  let tabela = document.getElementById("tabela");
-  if (!tabela) return; // Se a tabela não existir, sai da função
-
-  //let ultimaLinha = tabela.querySelector("tbody tr:last-child");
-  let ultimaLinha = tabela.querySelector("tbody tr:first-child");
-  if (ultimaLinha) {
-    let celulaProduto = ultimaLinha.querySelector(".produto");
-    let celulaCategoria = ultimaLinha.querySelector(".Categoria");
-
-    let inputIdFuncao = ultimaLinha.querySelector("input.idFuncao");
-    let inputIdEquipamento = ultimaLinha.querySelector("input.idEquipamento");
-    let inputIdSuprimento = ultimaLinha.querySelector("input.idSuprimento");
-
-    if (inputIdFuncao) inputIdFuncao.value = "";
-    if (inputIdEquipamento) inputIdEquipamento.value = "";
-    if (inputIdSuprimento) inputIdSuprimento.value = "";
-
-    // Atribui o NOME do produto ao texto da célula
-    if (celulaProduto) {
-      // AQUI ESTÁ A CHAVE: o texto da célula recebe o NOME, e não o ID.
-      celulaProduto.textContent = produtoSelecionado;
+    let select = event.target;
+    console.log("Select alterado:", select);
+    let selectedOption = select.options[select.selectedIndex];
+    let valorSelecionado = selectedOption.value;
+    console.log("Valor :", valorSelecionado);
+    let produtoSelecionado = selectedOption.getAttribute("data-descproduto");
+    console.log("Produto selecionado:", produtoSelecionado);
+    let vlrCusto = selectedOption.getAttribute("data-cto");
+    let vlrVenda = selectedOption.getAttribute("data-vda");
+    let vlrCustoNumerico = parseFloat(vlrCusto) || 0;
+    let vlrVendaNumerico = parseFloat(vlrVenda) || 0;
+    if (typeof bProximoAno !== 'undefined' && bProximoAno) {
+        console.log("Aplicando reajuste de 'Próximo Ano' a item recém-selecionado.");
+        const fatorGeral = GLOBAL_PERCENTUAL_GERAL > 0 ? 1 + GLOBAL_PERCENTUAL_GERAL / 100 : 1;
+        const fatorAjuda = GLOBAL_PERCENTUAL_AJUDA > 0 ? 1 + GLOBAL_PERCENTUAL_AJUDA / 100 : 1;
+        vlrCustoNumerico = ceilToTenCents(vlrCustoNumerico, fatorGeral);
+        vlrVendaNumerico = ceilToTenCents(vlrVendaNumerico, fatorGeral);
+        if (typeof vlrAlimentacao !== 'undefined') {
+            vlrAlimentacao = ceilToTenCents(parseFloat(vlrAlimentacao) || 0, fatorAjuda);
+        }
+        if (typeof vlrTransporte !== 'undefined') {
+            vlrTransporte = ceilToTenCents(parseFloat(vlrTransporte) || 0, fatorAjuda);
+        }
     }
-
-    if (celulaCategoria && Categoria !== "Pavilhao") {
-      celulaCategoria.textContent = Categoria;
+    let tabela = document.getElementById("tabela");
+    if (!tabela) return;
+    let ultimaLinha = tabela.querySelector("tbody tr:first-child");
+    if (ultimaLinha) {
+        let celulaProduto = ultimaLinha.querySelector(".produto");
+        let celulaCategoria = ultimaLinha.querySelector(".Categoria");
+        let inputIdFuncao = ultimaLinha.querySelector("input.idFuncao");
+        let inputIdEquipamento = ultimaLinha.querySelector("input.idEquipamento");
+        let inputIdSuprimento = ultimaLinha.querySelector("input.idSuprimento");
+        if (inputIdFuncao) inputIdFuncao.value = "";
+        if (inputIdEquipamento) inputIdEquipamento.value = "";
+        if (inputIdSuprimento) inputIdSuprimento.value = "";
+        if (celulaProduto) {
+            celulaProduto.textContent = produtoSelecionado;
+        }
+        if (celulaCategoria && Categoria !== "Pavilhao") {
+            celulaCategoria.textContent = Categoria;
+        }
+        console.log(" A categoria é :", Categoria);
+        if (select.classList.contains("idFuncao")) {
+            inputIdFuncao.value = valorSelecionado;
+        } else if (select.classList.contains("idEquipamento")) {
+            inputIdEquipamento.value = valorSelecionado;
+        } else if (select.classList.contains("idSuprimento")) {
+            inputIdSuprimento.value = valorSelecionado;
+        }
+        const spanAlimentacao = ultimaLinha.querySelector(".vlralimentacao-input");
+        const spanTransporte = ultimaLinha.querySelector(".vlrtransporte-input");
+        if (spanAlimentacao) {
+            spanAlimentacao.textContent = formatarMoeda(vlrAlimentacao);
+            ultimaLinha.querySelector(
+                ".ajdCusto.alimentacao"
+            ).dataset.originalAjdcusto = vlrAlimentacao.toString();
+        }
+        if (spanTransporte) {
+            spanTransporte.textContent = formatarMoeda(vlrTransporte);
+            ultimaLinha.querySelector(
+                ".ajdCusto.transporte"
+            ).dataset.originalAjdcusto = vlrTransporte.toString();
+        }
+        let celulaVlrCusto = ultimaLinha.querySelector(".vlrCusto");
+        if (celulaVlrCusto) celulaVlrCusto.textContent = formatarMoeda(vlrCustoNumerico);
+        console.log(" valor de Custo é:", vlrCustoNumerico);
+        let celulaVlrVenda = ultimaLinha.querySelector(".vlrVenda");
+        if (celulaVlrVenda) {
+            celulaVlrVenda.textContent = formatarMoeda(vlrVendaNumerico);
+            celulaVlrVenda.dataset.originalVenda = vlrVendaNumerico.toString();
+        }
+        console.log(" valor de Venda é:", vlrVendaNumerico);
     }
-
-    console.log(" A categoria é :", Categoria);
-
-    if (select.classList.contains("idFuncao")) {
-      inputIdFuncao.value = valorSelecionado;
-    } else if (select.classList.contains("idEquipamento")) {
-      inputIdEquipamento.value = valorSelecionado;
-    } else if (select.classList.contains("idSuprimento")) {
-      inputIdSuprimento.value = valorSelecionado;
-    }
-
-    // // Encontre os selects de alimentação e transporte dentro da nova linha
-    // const selectAlimentacao = ultimaLinha.querySelector('.select-alimentacao');
-    // const selectTransporte = ultimaLinha.querySelector('.select-transporte');
-
-    // if (Categoria === "Produto(s)") { // Use "Função" se essa for a categoria exata definida na option
-    //     if (selectAlimentacao) {
-    //         selectAlimentacao.disabled = false;
-    //     }
-    //     if (selectTransporte) {
-    //         selectTransporte.disabled = false;
-    //     }
-    // } else {
-    //     if (selectAlimentacao) {
-    //         selectAlimentacao.disabled = true;
-    //         selectAlimentacao.value = ""; // Opcional: Reseta o valor
-    //     }
-    //     if (selectTransporte) {
-    //         selectTransporte.disabled = true;
-    //         selectTransporte.value = ""; // Opcional: Reseta o valor
-    //     }
-    // }
-
-    //TRECHO PARA ALIMENTAÇÃO E TRANSPORTE EDITÁVEL
-    // const inputAlimentacao = ultimaLinha.querySelector('.vlralimentacao-input');
-    // const inputTransporte = ultimaLinha.querySelector('.vlrtransporte-input');
-
-    // // Assume que vlrAlimentacao e vlrTransporte são globais e foram setados em carregarFuncaoOrc
-    // if (inputAlimentacao) {
-    //     inputAlimentacao.value = formatarMoeda(vlrAlimentacao);
-    //     inputAlimentacao.dataset.originalAjdcusto = vlrAlimentacao.toString();
-    // }
-    // if (inputTransporte) {
-    //     inputTransporte.value = formatarMoeda(vlrTransporte);
-    //     inputTransporte.dataset.originalAjdcusto = vlrTransporte.toString();
-    // }
-
-    //TRECHO PARA ALIMENTAÇÃO E TRANSPORTE NÃO EDITÁVEL
-    const spanAlimentacao = ultimaLinha.querySelector(".vlralimentacao-input");
-    const spanTransporte = ultimaLinha.querySelector(".vlrtransporte-input");
-
-    // Atualizamos o texto do span (o display na tabela)
-    if (spanAlimentacao) {
-      spanAlimentacao.textContent = formatarMoeda(vlrAlimentacao);
-      // Atualiza o data-attribute na própria célula <td> (opcional, mas bom para referência)
-      ultimaLinha.querySelector(
-        ".ajdCusto.alimentacao"
-      ).dataset.originalAjdcusto = vlrAlimentacao.toString();
-    }
-    if (spanTransporte) {
-      spanTransporte.textContent = formatarMoeda(vlrTransporte);
-      // Atualiza o data-attribute na própria célula <td>
-      ultimaLinha.querySelector(
-        ".ajdCusto.transporte"
-      ).dataset.originalAjdcusto = vlrTransporte.toString();
-    }
-
-    let celulaVlrCusto = ultimaLinha.querySelector(".vlrCusto");
-    if (celulaVlrCusto) celulaVlrCusto.textContent = vlrCusto;
-    console.log(" valor de Custo é:", vlrCusto);
-
-    let celulaVlrVenda = ultimaLinha.querySelector(".vlrVenda");
-    // if (celulaVlrVenda) celulaVlrVenda.textContent = vlrVenda;
-
-    if (celulaVlrVenda) {
-      celulaVlrVenda.textContent = formatarMoeda(vlrVendaNumerico);
-      celulaVlrVenda.dataset.originalVenda = vlrVendaNumerico.toString();
-    }
-    console.log(" valor de Venda é:", vlrVendaNumerico);
-  }
-  gerarObservacoesProposta([ultimaLinha]);
-  recalcularLinha(ultimaLinha);
-  //marcia
+    gerarObservacoesProposta([ultimaLinha]);
+    recalcularLinha(ultimaLinha);
 }
 
 // Sua função de atualização de valores (mantém-se a mesma)
@@ -3380,6 +3325,7 @@ async function verificaOrcamento() {
         id: orcamentoId,
         nomenclatura: document.querySelector("#nomenclatura")?.value,
         status: formData.get("Status"),
+        contratarstaff: document.querySelector('#liberaContratacao')?.checked || false,
         idCliente:
           document.querySelector(".idCliente option:checked")?.value || null, // Se o campo for vazio, será null
         idEvento:
@@ -3535,12 +3481,12 @@ async function verificaOrcamento() {
         tpajdctoalimentacao:
             linha.querySelector(".tpAjdCusto-alimentacao")?.value || null,
         vlrajdctoalimentacao: desformatarMoeda(
-            linha.querySelector(".valorbanco.alimentacao")?.textContent || "0"
+            linha.querySelector(".vlralimentacao-input")?.textContent || "0"
         ),
         tpajdctotransporte:
             linha.querySelector(".tpAjdCusto-transporte")?.value || null,
         vlrajdctotransporte: desformatarMoeda(
-            linha.querySelector(".valorbanco.transporte")?.textContent || "0"
+            linha.querySelector(".vlrtransporte-input")?.textContent || "0"
         ),
         totajdctoitem: desformatarMoeda(
             linha.querySelector(".totAjdCusto.Moeda")?.textContent || "0"
@@ -4293,7 +4239,18 @@ export async function preencherFormularioComOrcamento(orcamento) {
     if (typeof atualizarVisibilidadeInfra === "function") {
       atualizarVisibilidadeInfra();
     }
-  } // Preencher campos de texto
+  }
+
+  // 3. NOVO: Liberado Para Contratar Staff
+const checkLiberaStaff = document.getElementById("liberaContratacao");
+if (checkLiberaStaff) {
+    checkLiberaStaff.checked = !!orcamento.contratarstaff;
+    console.log("Liberado Contratação Staff", checkLiberaStaff.checked);
+  } else {
+    console.warn("Elemento com ID 'liberaContratacao' não encontrado.");
+  }
+  
+  // Preencher campos de texto
 
   const obsItensInput = document.getElementById("Observacao");
   if (obsItensInput) {
@@ -6383,70 +6340,94 @@ async function gerarProximoAno() {
     return;
   }
 
-  const { value: formValues } = await Swal.fire({
-    title: "Reajuste para o Próximo Ano",
-    html:
-      '<div class="swal-container">' +
-      '  <label for="swal-percentual-geral">Percentual Geral (%) (Custo/Venda):</label>' +
-      '  <input id="swal-percentual-geral" type="number" step="0.01" min="0" tabindex="1" placeholder="Ex: 10.50">' +
-      "  <small>Será aplicado ao valor unitário de todos os itens (venda e custo).</small>" +
-      '  <label for="swal-percentual-ajuda">Percentual Ajuda de Custo (%) (Diárias):</label>' +
-      '  <input id="swal-percentual-ajuda" type="number" step="0.01" min="0" tabindex="2" placeholder="Ex: 5.00">' +
-      "  <small>Será aplicado à Alimentação e Transporte.</small>" +
-      "</div>",
-
-    focusConfirm: false,
-    allowOutsideClick: false, // Impede fechamento por clique externo
-    allowEscapeKey: false,
+  // =======================================================
+  // NOVO PASSO: Confirmação de Reajuste
+  // =======================================================
+  const { isConfirmed: deveReajustar } = await Swal.fire({
+    title: "Próximo Ano",
+    text: "Deseja aplicar um percentual de reajuste nos valores (Custo e Venda) do novo orçamento, ou usar os valores atuais do orçamento espelhado?",
+    icon: "question",
     showCancelButton: true,
     confirmButtonText: "Aplicar Reajuste",
-    cancelButtonText: "Cancelar",
-
-    didOpen: (popup) => {
-      const inputs = popup.querySelectorAll("input");
-      inputs.forEach((input) => {
-        input.removeAttribute("readonly");
-        input.style.pointerEvents = "auto";
-      });
-
-      // Coloca o foco no primeiro campo
-      inputs[0].focus();
-    },
-
-    preConfirm: () => {
-      const geral = parseFloat(
-        document
-          .getElementById("swal-percentual-geral")
-          .value.replace(",", ".") || "0"
-      );
-      const ajuda = parseFloat(
-        document
-          .getElementById("swal-percentual-ajuda")
-          .value.replace(",", ".") || "0"
-      );
-
-      if (isNaN(geral) || isNaN(ajuda)) {
-        Swal.showValidationMessage(
-          "Por favor, insira valores numéricos válidos."
-        );
-        return false;
-      }
-      return { percentualGeral: geral, percentualAjuda: ajuda };
-    },
+    cancelButtonText: "Usar Valores Atuais",
+    reverseButtons: true, // Inverte a ordem para o "Confirmar" ficar à direita
   });
+  
+  // Se o usuário escolher 'Usar Valores Atuais' (cancelButtonText), 'deveReajustar' será false.
+  // Neste caso, GLOBAL_PERCENTUAL_GERAL e GLOBAL_PERCENTUAL_AJUDA permanecerão 0.
+  let percentualGeral = 0;
+  let percentualAjuda = 0;
 
-  // Se o usuário cancelou ou a validação falhou, interrompe
-  if (!formValues) {
-    return;
+  // =======================================================
+  // PASSO CONDICIONAL: Solicitar Percentuais de Reajuste
+  // =======================================================
+  if (deveReajustar) {
+    const { value: formValues } = await Swal.fire({
+      title: "Reajuste para o Próximo Ano",
+      html:
+        '<div class="swal-container">' +
+        '  <label for="swal-percentual-geral">Percentual Geral (%) (Custo/Venda):</label>' +
+        '  <input id="swal-percentual-geral" type="number" step="0.01" min="0" tabindex="1" placeholder="Ex: 10.50">' +
+        "  <small>Será aplicado ao valor unitário de todos os itens (venda e custo).</small>" +
+        '  <label for="swal-percentual-ajuda">Percentual Ajuda de Custo (%) (Diárias):</label>' +
+        '  <input id="swal-percentual-ajuda" type="number" step="0.01" min="0" tabindex="2" placeholder="Ex: 5.00">' +
+        "  <small>Será aplicado à Alimentação e Transporte.</small>" +
+        "</div>",
+
+      focusConfirm: false,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showCancelButton: true,
+      confirmButtonText: "Aplicar Reajuste",
+      cancelButtonText: "Cancelar",
+
+      didOpen: (popup) => {
+        const inputs = popup.querySelectorAll("input");
+        inputs.forEach((input) => {
+          input.removeAttribute("readonly");
+          input.style.pointerEvents = "auto";
+        });
+        inputs[0].focus();
+      },
+
+      preConfirm: () => {
+        const geral = parseFloat(
+          document
+            .getElementById("swal-percentual-geral")
+            .value.replace(",", ".") || "0"
+        );
+        const ajuda = parseFloat(
+          document
+            .getElementById("swal-percentual-ajuda")
+            .value.replace(",", ".") || "0"
+        );
+
+        if (isNaN(geral) || isNaN(ajuda)) {
+          Swal.showValidationMessage(
+            "Por favor, insira valores numéricos válidos."
+          );
+          return false;
+        }
+        return { percentualGeral: geral, percentualAjuda: ajuda };
+      },
+    });
+
+    // Se o usuário cancelou o *segundo* Swal (o de reajuste), interrompe
+    if (!formValues) {
+      return;
+    }
+    
+    percentualGeral = formValues.percentualGeral;
+    percentualAjuda = formValues.percentualAjuda;
   }
-
+  
   // =======================================================
   // 2. ARMAZENAMENTO E LÓGICA DE ESPELHAMENTO
   // =======================================================
 
-  // Armazena os percentuais globalmente
-  GLOBAL_PERCENTUAL_GERAL = formValues.percentualGeral;
-  GLOBAL_PERCENTUAL_AJUDA = formValues.percentualAjuda;
+  // Armazena os percentuais globalmente (0 se o usuário escolheu 'Usar Valores Atuais')
+  GLOBAL_PERCENTUAL_GERAL = percentualGeral;
+  GLOBAL_PERCENTUAL_AJUDA = percentualAjuda;
 
   idOrcamentoOriginalParaAtualizar = orcamentoFechado.idorcamento;
   bProximoAno = true;
@@ -6455,8 +6436,6 @@ async function gerarProximoAno() {
   anoProximoOrcamento = anoCorrente + 1;
 
   console.log("PROXIMO ANO EM GERARPROXIMOANO", anoProximoOrcamento);
-
-  // 2. Chama a função que destrói e recria os calendários com a nova opção
 
   // 2. Criar o objeto para o novo orçamento
   const novoOrcamento = { ...orcamentoFechado };
@@ -6514,15 +6493,10 @@ async function gerarProximoAno() {
 
   atualizarFlatpickrParaProximoAno();
 
-  // 4. Limpar Desconto/Acréscimo para um novo cálculo (OPCIONAL, mas recomendado)
-  // Se o cálculo for automático, é melhor começar "limpo"
-  //   novoOrcamento.desconto = 0;
-  //   novoOrcamento.percentdesconto = 0;
-  //   novoOrcamento.acrescimo = 0;
-  //   novoOrcamento.percentacrescimo = 0;
+  // 4. Limpar Desconto/Acréscimo
+  // (Bloco comentado mantido)
 
   // 5. Chamar a função de preenchimento com o novo objeto
-  // (Você precisará adaptar sua função preencherFormularioComOrcamento para aceitar esse 'novo' objeto, o que parece que ela já faz.)
   preencherFormularioComOrcamentoParaProximoAno(novoOrcamento);
 
   // 6. Alerta de sucesso e foco na edição
@@ -6944,156 +6918,127 @@ function getOrcamentoAtualCarregado() {
 }
 
 async function PropostaouContrato() {
-  let orcamentoValue = nrOrcamento;
+    let orcamentoValue = nrOrcamento;
 
-  // 🛑 CORREÇÃO OBRIGATÓRIA: Verifica e extrai o valor se a variável for um objeto HTML
-  if (
-    typeof orcamentoValue === "object" &&
-    orcamentoValue !== null &&
-    orcamentoValue.value !== undefined
-  ) {
-    console.log(
-      "[CORREÇÃO DEBUG] Variável nrOrcamento detectada como objeto HTML. Extraindo .value..."
-    );
-    orcamentoValue = orcamentoValue.value;
-  }
-
-  // Garante que o valor final é uma string limpa
-  const nrOrcamentoStr = String(orcamentoValue).trim();
-
-  if (!nrOrcamentoStr || nrOrcamentoStr.length === 0) {
-    Swal.fire(
-      "Erro",
-      "Número do Orçamento inválido ou não encontrado.",
-      "error"
-    );
-    return;
-  }
-
-  // 🔑 CONSOLE 1: Início da função com o valor corrigido
-  console.log(
-    `[PROPOSTA/CONTRATO DEBUG] 1. Início de PropostaouContrato para Orçamento (CORRIGIDO): ${nrOrcamentoStr}`
-  );
-
-  // --- 1. VERIFICAÇÃO INICIAL DE CONTRATO EXISTENTE ---
-  try {
-    const fetchOrcamentoUrl = `/orcamentos?nrOrcamento=${nrOrcamentoStr}`;
-
-    // 🔑 CONSOLE 2: Antes de fazer a requisição GET
-    console.log(
-      `[FRONTEND DEBUG] 2. Buscando dados do orçamento em: ${fetchOrcamentoUrl}`
-    );
-
-    const orcamentoData = await fetchComToken(fetchOrcamentoUrl, {
-      method: "GET",
-    });
-
-    // ✅ CORREÇÃO APLICADA: Assume que a resposta é o objeto de orçamento (e não um array).
-    const orcamento = orcamentoData || null;
-
-    // 🔑 CONSOLE 3: Resultado da requisição GET
-    console.log(
-      `[FRONTEND DEBUG] 3. Dados do Orçamento (Resultado GET):`,
-      orcamento
-    );
-
-    if (!orcamento) {
-      Swal.fire("Erro", "Orçamento não encontrado para verificação.", "error");
-      return;
+    // 🛑 CORREÇÃO OBRIGATÓRIA: Verifica e extrai o valor se a variável for um objeto HTML
+    if (
+        typeof orcamentoValue === "object" &&
+        orcamentoValue !== null &&
+        orcamentoValue.value !== undefined
+    ) {
+        // [LOG REMOVIDO] console.log("[CORREÇÃO DEBUG] Variável nrOrcamento detectada como objeto HTML. Extraindo .value...");
+        orcamentoValue = orcamentoValue.value;
     }
 
-    const contratoExistenteUrl = orcamento.contratourl;
+    // Garante que o valor final é uma string limpa
+    const nrOrcamentoStr = String(orcamentoValue).trim();
 
-    // 🔑 CONSOLE 4: Valor do campo contratourl no DB
-    console.log(
-      `[FRONTEND DEBUG] 4. Valor de contratourl no DB:`,
-      contratoExistenteUrl
-    );
+    if (!nrOrcamentoStr || nrOrcamentoStr.length === 0) {
+        Swal.fire(
+            "Erro",
+            "Número do Orçamento inválido ou não encontrado.",
+            "error"
+        );
+        return;
+    }
 
-    // 🛑 LÓGICA DE VERIFICAÇÃO: Se o contrato existe, exibe Visualizar e retorna
-    if (contratoExistenteUrl && contratoExistenteUrl.trim() !== "") {
-      // Este bloco será executado
-      // 🔑 CONSOLE 5: Entrou no fluxo de CONTRATO EXISTENTE
-      console.log(
-        `[FRONTEND DEBUG] 5. CONTRATO EXISTE. Exibindo alerta de visualização.`
-      );
+    try {
+        const fetchOrcamentoUrl = `/orcamentos?nrOrcamento=${nrOrcamentoStr}`;
 
-      const filename = contratoExistenteUrl.substring(
-        contratoExistenteUrl.lastIndexOf("/") + 1
-      );
+        const orcamentoData = await fetchComToken(fetchOrcamentoUrl, {
+            method: "GET",
+        });
 
-      Swal.fire({
-        title: "Contrato Vinculado!",
-        html: `Já existe um contrato (${filename}) vinculado ao orçamento <b>${nrOrcamentoStr}</b>.`,
-        icon: "warning",
+  
+        const orcamento = orcamentoData || null;
+
+
+
+        if (!orcamento) {
+            Swal.fire("Erro", "Orçamento não encontrado para verificação.", "error");
+            return;
+        }
+
+        const contratoExistenteUrl = orcamento.contratourl;
+
+
+
+
+        if (contratoExistenteUrl && contratoExistenteUrl.trim() !== "") {
+
+
+            const filename = contratoExistenteUrl.substring(
+                contratoExistenteUrl.lastIndexOf("/") + 1
+            );
+
+            Swal.fire({
+                title: "Contrato Vinculado!",
+                html: `Já existe um contrato (${filename}) vinculado ao orçamento <b>${nrOrcamentoStr}</b>.`,
+                icon: "warning",
+                showCancelButton: true,
+                denyButtonText: "Gerar Proposta", 
+                cancelButtonText: "Fechar",
+                confirmButtonText: "Visualizar Contrato",
+                reverseButtons: true,
+            }).then((res) => {
+
+                if (res.isConfirmed) {
+                    window.open(contratoExistenteUrl, "_blank");
+                }
+
+                else if (res.isDenied) {
+
+                    gerarPropostaPDF(); 
+                }
+            });
+
+            return; 
+        }
+    } catch (error) {
+        console.error(
+            "[PROPOSTA/CONTRATO] ERRO durante a verificação inicial. Prosseguindo para o seletor.",
+            error
+        ); 
+    }
+
+    Swal.fire({
+        title: "Selecione a ação com o documento",
+        text: "Escolha qual ação deseja realizar para este orçamento.",
+        icon: "question",
         showCancelButton: true,
-        denyButtonText: "Gerar Proposta", // Botão para Gerar Proposta
-        cancelButtonText: "Fechar",
-        confirmButtonText: "Visualizar Contrato",
-        reverseButtons: true,
-      }).then((res) => {
-        // Ação 1: Visualizar Contrato (Botão Confirm)
-        if (res.isConfirmed) {
-          window.open(contratoExistenteUrl, "_blank");
+        showDenyButton: true,
+        confirmButtonText: "Gerar Proposta",
+        cancelButtonText: "Gerar Contrato",
+        denyButtonText: "Incluir Contrato",
+        reverseButtons: false,
+        customClass: {
+            confirmButton: "Proposta",
+            cancelButton: "Contrato",
+            denyButton: "IncluirContrato",
+        },
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Clicou no botão CONFIRM (Gerar Proposta)
+            // [LOG REMOVIDO] console.log("[FLUXO SELETOR] Ação selecionada: Gerar Proposta.");
+            gerarPropostaPDF();
+        } else if (result.dismiss === Swal.DismissReason.cancel) {
+            // Clicou no botão CANCEL (Gerar Contrato)
+            // [LOG REMOVIDO] console.log("[FLUXO SELETOR] Ação selecionada: Gerar Contrato.");
+            gerarContrato(nrOrcamentoStr);
+        } else if (result.isDenied) {
+            // Clicou no botão DENY (Incluir Contrato)
+            /* * 🚨 PONTO DE ATENÇÃO (Conversão de Upload): 
+             * A função 'incluirContrato' deve ser responsável por:
+             * 1. Solicitar o upload do arquivo ao usuário.
+             * 2. Enviar o arquivo para o servidor (Node.js/Backend).
+             * 3. O BACKEND DEVE VERIFICAR A EXTENSÃO DO ARQUIVO UPLOADADO (ex: .docx) 
+             * E CONVERTÊ-LO PARA .PDF antes de salvar o arquivo final e sua URL no DB.
+             * * A conversão não pode ser feita diretamente aqui no frontend.
+             */
+            // [LOG REMOVIDO] console.log("[FLUXO SELETOR] Ação selecionada: Incluir Contrato. Chamando incluirContrato(nrOrcamento)...");
+            incluirContrato(nrOrcamentoStr);
         }
-        // ✅ CORREÇÃO APLICADA: Ação 2: Gerar Proposta (Botão Deny)
-        else if (res.isDenied) {
-          console.log(
-            "[FLUXO CONTRATO EXISTENTE] Ação selecionada: Gerar Proposta."
-          );
-          gerarPropostaPDF(); // Chama a função que gera o PDF
-        }
-        // Ação 3: Fechar (Botão Cancel) - A função não faz nada, pois o return já interrompe
-      });
-
-      return; // Interrompe a função PropostaouContrato após exibir/tratar o alerta
-    }
-  } catch (error) {
-    console.error(
-      "[PROPOSTA/CONTRATO DEBUG] ERRO durante a verificação inicial. Prosseguindo para o seletor.",
-      error
-    );
-  }
-  // Fim da verificação.
-
-  // 🔑 CONSOLE 6: Entrou no fluxo de seleção normal
-  console.log(
-    `[PROPOSTA/CONTRATO DEBUG] 6. Contrato não encontrado. Exibindo seletor de ações.`
-  );
-
-  // --- 2. SELETOR DE AÇÕES (Se o contrato não existir) ---
-  Swal.fire({
-    title: "Selecione a ação com o documento",
-    text: "Escolha qual ação deseja realizar para este orçamento.",
-    icon: "question",
-    showCancelButton: true,
-    showDenyButton: true,
-    confirmButtonText: "Gerar Proposta",
-    cancelButtonText: "Gerar Contrato",
-    denyButtonText: "Incluir Contrato",
-    reverseButtons: false,
-    customClass: {
-      confirmButton: "Proposta",
-      cancelButton: "Contrato",
-      denyButton: "IncluirContrato",
-    },
-  }).then((result) => {
-    if (result.isConfirmed) {
-      // Clicou no botão CONFIRM (Gerar Proposta)
-      console.log("[FLUXO SELETOR] Ação selecionada: Gerar Proposta.");
-      gerarPropostaPDF();
-    } else if (result.dismiss === Swal.DismissReason.cancel) {
-      // Clicou no botão CANCEL (Gerar Contrato)
-      console.log("[FLUXO SELETOR] Ação selecionada: Gerar Contrato.");
-      gerarContrato(nrOrcamentoStr);
-    } else if (result.isDenied) {
-      // Clicou no botão DENY (Incluir Contrato)
-      console.log(
-        "[FLUXO SELETOR] Ação selecionada: Incluir Contrato. Chamando incluirContrato(nrOrcamento)..."
-      );
-      incluirContrato(nrOrcamentoStr);
-    }
-  });
+    });
 }
 
 document.getElementById("Contrato").addEventListener("click", function (event) {

@@ -1,4 +1,3 @@
-
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
 
 
@@ -49,7 +48,8 @@ if (typeof window.CatFuncaoOriginal === "undefined") {
         vlrTransporte: "",
         vlrTransporteSenior: "",
         vlrAlmoco: "",
-        vlrAlimentacao: "" 
+        vlrAlimentacao: "",
+        valorFuncionario: ""
 
     }
 };
@@ -101,6 +101,7 @@ function verificaCatFuncao() {
 
         const idCatFuncao = document.querySelector("#idCatFuncao").value;
         const descCatFuncao = document.querySelector("#descCatFuncao").value.toUpperCase().trim();
+        const vlrFuncionario = document.querySelector("#valorFuncionario").value || 0.00;
         const vlrCustoSenior = document.querySelector("#CustoSenior").value || 0.00;
         const vlrCustoPleno = document.querySelector("#CustoPleno").value || 0.00;
         const vlrCustoJunior = document.querySelector("#CustoJunior").value || 0.00;
@@ -109,7 +110,8 @@ function verificaCatFuncao() {
         const vlrTransporte = document.querySelector("#transporte").value || 0.00;
         const vlrTransporteSenior = document.querySelector("#TranspSenior").value || 0.00;      
         const vlrAlimentacao = document.querySelector("#alimentacao").value || 0.00;    
-    
+        
+        const valorFuncionario = parseFloat(String(vlrFuncionario).replace(",", "."));
         const custoSenior = parseFloat(String(vlrCustoSenior).replace(",", "."));
         const custoPleno = parseFloat(String(vlrCustoPleno).replace(",", "."));
         const custoJunior = parseFloat(String(vlrCustoJunior).replace(",", "."));
@@ -137,7 +139,7 @@ function verificaCatFuncao() {
             return Swal.fire("Acesso negado", "Você não tem permissão para alterar funções.", "error");
         }
 
-        console.log("campos antes de salvar", idCatFuncao, descCatFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda,  transporte, transporteSenior, alimentacao);
+        console.log("campos antes de salvar", idCatFuncao, descCatFuncao, valorFuncionario, custoSenior, custoPleno, custoJunior, custoBase, venda,  transporte, transporteSenior, alimentacao);
 
          if (!descCatFuncao) { // || !venda
 
@@ -149,8 +151,8 @@ function verificaCatFuncao() {
             });
             return;
         }
-        console.log("Valores do Funcao:", idCatFuncao, descCatFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, alimentacao);
-        console.log("Valores do Funcao Original:", window.CatFuncaoOriginal.idCatFuncao, window.CatFuncaoOriginal.descCatFuncao, window.CatFuncaoOriginal.vlrCusto, window.CatFuncaoOriginal.vlrCustoSenior,
+        console.log("Valores do Funcao:", idCatFuncao, descCatFuncao, valorFuncionario, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, alimentacao);
+        console.log("Valores do Funcao Original:", window.CatFuncaoOriginal.idCatFuncao, window.CatFuncaoOriginal.descCatFuncao, window.CatFuncaoOriginal.valorFuncionario, window.CatFuncaoOriginal.vlrCusto, window.CatFuncaoOriginal.vlrCustoSenior,
             window.CatFuncaoOriginal.vlrCustoPleno, window.CatFuncaoOriginal.vlrCustoJunior, window.CatFuncaoOriginal.vlrBase, window.CatFuncaoOriginal.vlrVenda, window.CatFuncaoOriginal.vlrTransporte, 
             window.CatFuncaoOriginal.vlrTransporteSenior,  window.CatFuncaoOriginal.vlrAlimentacao);
             
@@ -158,6 +160,7 @@ function verificaCatFuncao() {
         if (
             parseInt(idCatFuncao) === parseInt(window.CatFuncaoOriginal.idCatFuncao) && 
             descCatFuncao === window.CatFuncaoOriginal.descCatFuncao && 
+            Number(valorFuncionario).toFixed(2) === Number(window.CatFuncaoOriginal.vlrFuncionario).toFixed(2) &&
             Number(custoSenior).toFixed(2) === Number(window.CatFuncaoOriginal.vlrCustoSenior).toFixed(2) &&
             Number(custoPleno).toFixed(2) === Number(window.CatFuncaoOriginal.vlrCustoPleno).toFixed(2) &&
             Number(custoJunior).toFixed(2) === Number(window.CatFuncaoOriginal.vlrCustoJunior).toFixed(2) &&
@@ -177,7 +180,7 @@ function verificaCatFuncao() {
             return;
         }
 
-        const dados = { descCatFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior,alimentacao};
+        const dados = { descCatFuncao, valorFuncionario, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior,alimentacao};
         const token = localStorage.getItem('token');
         const idEmpresa = localStorage.getItem('idEmpresa');
 
@@ -423,6 +426,7 @@ async function carregarCatFuncaoDescricao(desc, elementoAtual) {
         }
      
          document.querySelector("#idCatFuncao").value = catfuncao.idcategoriafuncao;
+         document.querySelector("#valorFuncionario").value = catfuncao.vlrfuncionario || 0.00;
          document.querySelector("#CustoSenior").value = catfuncao.ctofuncaosenior || 0.00;
          document.querySelector("#CustoPleno").value = catfuncao.ctofuncaopleno || 0.00;
          document.querySelector("#CustoJunior").value = catfuncao.ctofuncaojunior || 0.00;
@@ -444,11 +448,10 @@ async function carregarCatFuncaoDescricao(desc, elementoAtual) {
             vlrVenda: catfuncao.vdafuncao,
             vlrTransporte: catfuncao.transporte,
             vlrTransporteSenior: catfuncao.transpsenior,
-            vlrAlimentacao: catfuncao.alimentacao  
-          
+            vlrAlimentacao: catfuncao.alimentacao,
+            vlrFuncionario: catfuncao.vlrfuncionario 
         };
-   
-       
+
 
     } catch (error) {
         
@@ -502,7 +505,8 @@ function limparCatFuncaoOriginal() {
         vlrTransporte: "",
         vlrTransporteSenior: "",
         vlrAlmoco: "",
-        vlrAlimentacao: ""     
+        vlrAlimentacao: "",
+        valorFuncionario: ""     
     };
 }
 
