@@ -6,6 +6,14 @@ const STATUS_PENDENTE = "pendente";
 const STATUS_AUTORIZADO = "autorizado";
 const STATUS_REJEITADO = "rejeitado";
 
+const camposObrigatorios = [
+    "status_ajuste_custo", 
+    "status_caixinha", 
+    "status_meia_diaria", 
+    "status_diaria_dobrada", 
+    CAMPO_ADITIVO_EXTRA // Deve ser 'statusaditivoextra'
+];
+
 const getRecordIdFromUrl = (url) => {
   const parts = url.split('/');
   const lastPart = parts[parts.length - 1];
@@ -929,92 +937,92 @@ async function atualizarProximoEvento() {
   }
 
   // Função para criar Date no fuso local a partir de "YYYY-MM-DD"
-  function parseDateLocal(dateStr) {
-  if (typeof dateStr === "string") {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d);
-  }
-  return new Date(dateStr); // ISO
-  }
-  return new Date(dateStr); // Já é Date
-  }
+    function parseDateLocal(dateStr) {
+        if (typeof dateStr === "string") {
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                const [y, m, d] = dateStr.split("-").map(Number);
+                return new Date(y, m - 1, d);
+            }
+            return new Date(dateStr); // ISO
+        }
+        return new Date(dateStr); // Já é Date
+    }
 
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
 
-  let proximos = resposta.eventos
-  .map(ev => ({ ...ev, data: parseDateLocal(ev.data) }))
-  .filter(ev => ev.data.getTime() >= hoje.getTime());
+    let proximos = resposta.eventos
+    .map(ev => ({ ...ev, data: parseDateLocal(ev.data) }))
+    .filter(ev => ev.data.getTime() >= hoje.getTime());
 
-  if (proximos.length === 0) {
-  nomeSpan.textContent = "Sem próximos eventos agendados.";
-  tempoSmall.textContent = "--";
-  return;
-  }
+    if (proximos.length === 0) {
+    nomeSpan.textContent = "Sem próximos eventos agendados.";
+    tempoSmall.textContent = "--";
+    return;
+    }
 
-  function formatarTempoRestante(dataEvento) {
-  const hojeTmp = new Date();
-  hojeTmp.setHours(0,0,0,0);
-  const diffDias = Math.round((dataEvento - hojeTmp) / (1000 * 60 * 60 * 24));
-  if (diffDias > 0) return `(em ${diffDias} dia${diffDias > 1 ? "s" : ""})`;
-  else if (diffDias === 0) return "(hoje)";
-  else return "(já começou)";
-  }
+    function formatarTempoRestante(dataEvento) {
+    const hojeTmp = new Date();
+    hojeTmp.setHours(0,0,0,0);
+    const diffDias = Math.round((dataEvento - hojeTmp) / (1000 * 60 * 60 * 24));
+    if (diffDias > 0) return `(em ${diffDias} dia${diffDias > 1 ? "s" : ""})`;
+    else if (diffDias === 0) return "(hoje)";
+    else return "(já começou)";
+    }
 
-  const limite = new Date();
-  limite.setDate(hoje.getDate() + 5);
+    const limite = new Date();
+    limite.setDate(hoje.getDate() + 5);
 
-  const proximos5Dias = proximos.filter(ev => ev.data <= limite);
+    const proximos5Dias = proximos.filter(ev => ev.data <= limite);
 
-  if (proximos5Dias.length === 1) {
-  // Caso 1: apenas 1 evento
-  const ev = proximos5Dias[0];
-  nomeSpan.textContent = ev.nmevento;
-  tempoSmall.textContent = `${ev.data.toLocaleDateString()} ${formatarTempoRestante(ev.data)}`;
-  nomeSpan.style.fontSize = "1.5em";
-  } else {
-  // Caso 2: mais de 1 evento → ajustar fonte menor
-  nomeSpan.style.fontSize = "1em";
+    if (proximos5Dias.length === 1) {
+    // Caso 1: apenas 1 evento
+    const ev = proximos5Dias[0];
+    nomeSpan.textContent = ev.nmevento;
+    tempoSmall.textContent = `${ev.data.toLocaleDateString()} ${formatarTempoRestante(ev.data)}`;
+    nomeSpan.style.fontSize = "1.5em";
+    } else {
+    // Caso 2: mais de 1 evento → ajustar fonte menor
+    nomeSpan.style.fontSize = "1em";
 
-  const eventosPorData = {};
-  proximos5Dias.forEach(ev => {
-  const dataStr = ev.data.toLocaleDateString();
-  if (!eventosPorData[dataStr]) eventosPorData[dataStr] = [];
-  eventosPorData[dataStr].push(ev.nmevento);
-  });
+    const eventosPorData = {};
+    proximos5Dias.forEach(ev => {
+    const dataStr = ev.data.toLocaleDateString();
+    if (!eventosPorData[dataStr]) eventosPorData[dataStr] = [];
+    eventosPorData[dataStr].push(ev.nmevento);
+    });
 
-  const datas = Object.keys(eventosPorData).sort((a,b) => {
-  const [da, ma, ya] = a.split("/").map(Number);
-  const [db, mb, yb] = b.split("/").map(Number);
-  return new Date(ya, ma-1, da) - new Date(yb, mb-1, db);
-  });
+    const datas = Object.keys(eventosPorData).sort((a,b) => {
+    const [da, ma, ya] = a.split("/").map(Number);
+    const [db, mb, yb] = b.split("/").map(Number);
+    return new Date(ya, ma-1, da) - new Date(yb, mb-1, db);
+    });
 
-  if (datas.length === 1) {
-  // Todos no mesmo dia
-  const lista = eventosPorData[datas[0]];
-  let nomes = "";
-  if (lista.length <= 3) {
-  nomes = lista.join(" | ");
-  } else {
-  const primeiros = lista.slice(0, 3).join(" | ");
-  const restantes = lista.length - 3;
-  nomes = `${primeiros} | +${restantes}`;
-  }
-  nomeSpan.textContent = nomes;
-  tempoSmall.textContent = `${datas[0]} ${formatarTempoRestante(proximos5Dias[0].data)}`;
-  } else {
-  // Dias diferentes
-  nomeSpan.innerHTML = datas.map(dataStr => {
-  const [d, m, y] = dataStr.split("/").map(Number);
-  const dataObj = new Date(y, m-1, d);
-  return eventosPorData[dataStr]
-  .map(nome => `${nome} - ${dataStr} ${formatarTempoRestante(dataObj)}`)
-  .join("<br>");
-  }).join("<br>");
-  tempoSmall.textContent = "";
-  }
-  }
+    if (datas.length === 1) {
+    // Todos no mesmo dia
+    const lista = eventosPorData[datas[0]];
+    let nomes = "";
+    if (lista.length <= 3) {
+    nomes = lista.join(" | ");
+    } else {
+    const primeiros = lista.slice(0, 3).join(" | ");
+    const restantes = lista.length - 3;
+    nomes = `${primeiros} | +${restantes}`;
+    }
+    nomeSpan.textContent = nomes;
+    tempoSmall.textContent = `${datas[0]} ${formatarTempoRestante(proximos5Dias[0].data)}`;
+    } else {
+    // Dias diferentes
+    nomeSpan.innerHTML = datas.map(dataStr => {
+    const [d, m, y] = dataStr.split("/").map(Number);
+    const dataObj = new Date(y, m-1, d);
+    return eventosPorData[dataStr]
+    .map(nome => `${nome} - ${dataStr} ${formatarTempoRestante(dataObj)}`)
+    .join("<br>");
+    }).join("<br>");
+    tempoSmall.textContent = "";
+    }
+    }
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -1173,90 +1181,90 @@ async function mostrarCalendarioEventos() {
 
   // ======= RENDER MENSAL (mantendo comportamento) =======
   async function renderMensal(ano, mes) {
-  grid.innerHTML = "";
-  // Cabeçalho dias da semana
-  ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].forEach(d => {
-  const el = document.createElement("div");
-  el.className = "header-dias";
-  el.innerHTML = `<strong>${d}</strong>`;
-  grid.appendChild(el);
-  });
+    grid.innerHTML = "";
+    // Cabeçalho dias da semana
+    ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].forEach(d => {
+        const el = document.createElement("div");
+        el.className = "header-dias";
+        el.innerHTML = `<strong>${d}</strong>`;
+        grid.appendChild(el);
+    });
 
-        try {
-          const idempresa = getIdEmpresa();
-          const data = await fetchComToken(`/main/eventos-calendario?idempresa=${idempresa}&ano=${ano}&mes=${mes}`);
-      const eventos = data.eventos || [];
+    try {
+        const idempresa = getIdEmpresa();
+        const data = await fetchComToken(`/main/eventos-calendario?idempresa=${idempresa}&ano=${ano}&mes=${mes}`);
+        const eventos = data.eventos || [];
 
-  // Mapa de eventos por data
-  const mapaEventos = {};
-  eventos.forEach(ev => {
-  const inicio = new Date(ev.inicio);
-  const fim = new Date(ev.fim);
-  for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
-  const key = d.toISOString().split("T")[0];
-  if (!mapaEventos[key]) mapaEventos[key] = [];
-  mapaEventos[key].push(ev);
-  }
-  });
+        // Mapa de eventos por data
+        const mapaEventos = {};
+        eventos.forEach(ev => {
+            const inicio = new Date(ev.inicio);
+            const fim = new Date(ev.fim);
+            for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
+                const key = d.toISOString().split("T")[0];
+                if (!mapaEventos[key]) mapaEventos[key] = [];
+                mapaEventos[key].push(ev);
+            }
+        });
 
-  const hoje = new Date();
-  const hojeStr = hoje.toISOString().split("T")[0];
+        const hoje = new Date();
+        const hojeStr = hoje.toISOString().split("T")[0];
 
-  const primeiroDia = new Date(ano, mes - 1, 1);
-  const ultimoDia = new Date(ano, mes, 0).getDate();
-  const diaSemanaInicio = primeiroDia.getDay();
+        const primeiroDia = new Date(ano, mes - 1, 1);
+        const ultimoDia = new Date(ano, mes, 0).getDate();
+        const diaSemanaInicio = primeiroDia.getDay();
 
-  const ultimoDiaMesAnterior = new Date(ano, mes - 1, 0).getDate();
-  let mesAnterior = mes - 1;
-  let anoAnterior = ano;
-  if (mesAnterior === 0) { mesAnterior = 12; anoAnterior -= 1; }
+        const ultimoDiaMesAnterior = new Date(ano, mes - 1, 0).getDate();
+        let mesAnterior = mes - 1;
+        let anoAnterior = ano;
+        if (mesAnterior === 0) { mesAnterior = 12; anoAnterior -= 1; }
 
-  // Dias do mês anterior (apenas os necessários)
-  for (let i = diaSemanaInicio - 1; i >= 0; i--) {
-  const dia = ultimoDiaMesAnterior - i;
-  const dataStr = `${anoAnterior}-${String(mesAnterior).padStart(2,"0")}-${String(dia).padStart(2,"0")}`;
-  const cell = document.createElement("div");
-  cell.classList.add("dia-anterior");
-  cell.style.opacity = "0.4";
-  cell.innerHTML = `<span class="numero-dia">${dia}</span>`;
-  if (dataStr === hojeStr) { cell.style.border = "2px solid var(--primary-color)"; cell.style.borderRadius = "6px"; }
-  (mapaEventos[dataStr] || []).forEach(ev => cell.appendChild(criarEventoElemento(ev)));
-  grid.appendChild(cell);
-  }
+        // Dias do mês anterior (apenas os necessários)
+        for (let i = diaSemanaInicio - 1; i >= 0; i--) {
+        const dia = ultimoDiaMesAnterior - i;
+        const dataStr = `${anoAnterior}-${String(mesAnterior).padStart(2,"0")}-${String(dia).padStart(2,"0")}`;
+        const cell = document.createElement("div");
+        cell.classList.add("dia-anterior");
+        cell.style.opacity = "0.4";
+        cell.innerHTML = `<span class="numero-dia">${dia}</span>`;
+        if (dataStr === hojeStr) { cell.style.border = "2px solid var(--primary-color)"; cell.style.borderRadius = "6px"; }
+        (mapaEventos[dataStr] || []).forEach(ev => cell.appendChild(criarEventoElemento(ev)));
+        grid.appendChild(cell);
+        }
 
-      // Dias do mês atual
-      for (let dia = 1; dia <= ultimoDia; dia++) {
-          const dataStr = `${ano}-${String(mes).padStart(2,"0")}-${String(dia).padStart(2,"0")}`;
-          const cell = document.createElement("div");
-          cell.innerHTML = `<span class="numero-dia">${dia}</span>`;
-          if (dataStr === hojeStr) { cell.style.border = "2px solid var(--primary-color)"; cell.style.borderRadius = "6px"; }
-          (mapaEventos[dataStr] || []).forEach(ev => cell.appendChild(criarEventoElemento(ev)));
+            // Dias do mês atual
+            for (let dia = 1; dia <= ultimoDia; dia++) {
+                const dataStr = `${ano}-${String(mes).padStart(2,"0")}-${String(dia).padStart(2,"0")}`;
+                const cell = document.createElement("div");
+                cell.innerHTML = `<span class="numero-dia">${dia}</span>`;
+                if (dataStr === hojeStr) { cell.style.border = "2px solid var(--primary-color)"; cell.style.borderRadius = "6px"; }
+                (mapaEventos[dataStr] || []).forEach(ev => cell.appendChild(criarEventoElemento(ev)));
 
-          grid.appendChild(cell);
-      }
+                grid.appendChild(cell);
+            }
 
-  // Dias do próximo mês (apenas até completar a última semana)
-  const totalCelulas = grid.children.length;
-  const linhasCompletas = Math.ceil(totalCelulas / 7) * 7;
-  const diasProximoMes = linhasCompletas - totalCelulas;
-  let mesProximo = mes + 1;
-  let anoProximo = ano;
-  if (mesProximo === 13) { mesProximo = 1; anoProximo += 1; }
+        // Dias do próximo mês (apenas até completar a última semana)
+        const totalCelulas = grid.children.length;
+        const linhasCompletas = Math.ceil(totalCelulas / 7) * 7;
+        const diasProximoMes = linhasCompletas - totalCelulas;
+        let mesProximo = mes + 1;
+        let anoProximo = ano;
+        if (mesProximo === 13) { mesProximo = 1; anoProximo += 1; }
 
-  for (let i = 1; i <= diasProximoMes; i++) {
-  const dataStr = `${anoProximo}-${String(mesProximo).padStart(2,"0")}-${String(i).padStart(2,"0")}`;
-  const cell = document.createElement("div");
-  cell.classList.add("dia-proximo");
-  cell.style.opacity = "0.4";
-  cell.innerHTML = `<span class="numero-dia">${i}</span>`;
-  if (dataStr === hojeStr) { cell.style.border = "2px solid var(--primary-color)"; cell.style.borderRadius = "6px"; }
-  (mapaEventos[dataStr] || []).forEach(ev => cell.appendChild(criarEventoElemento(ev)));
-  grid.appendChild(cell);
-  }
+        for (let i = 1; i <= diasProximoMes; i++) {
+        const dataStr = `${anoProximo}-${String(mesProximo).padStart(2,"0")}-${String(i).padStart(2,"0")}`;
+        const cell = document.createElement("div");
+        cell.classList.add("dia-proximo");
+        cell.style.opacity = "0.4";
+        cell.innerHTML = `<span class="numero-dia">${i}</span>`;
+        if (dataStr === hojeStr) { cell.style.border = "2px solid var(--primary-color)"; cell.style.borderRadius = "6px"; }
+        (mapaEventos[dataStr] || []).forEach(ev => cell.appendChild(criarEventoElemento(ev)));
+        grid.appendChild(cell);
+        }
 
-  } catch (err) {
-  console.error("Erro ao carregar eventos do calendário (mensal):", err);
-  }
+    } catch (err) {
+    console.error("Erro ao carregar eventos do calendário (mensal):", err);
+    }
   }
 
   // ======= RENDER SEMANAL =======
@@ -3129,24 +3137,32 @@ function renderizarPedidosorc(listaPedidos, containerId, categoria, status, isSt
 
         // Detalhes (HTML interno) - APLICANDO escapeHTML EM TODOS OS CAMPOS DE DADOS
         const detalhesHTML = `
-            <p><strong>Categoria:</strong> ${nomeTipoExibicao}</p>
-            <p><strong>Tipo Interno:</strong> ${tipoInterno}</p>
+            <div class= "categoria">
+              <p><strong>Categoria:</strong> ${nomeTipoExibicao}</p>
+              <p><strong>Tipo Interno:</strong> ${tipoInterno}</p>
+            </div>  
             
             <hr class="mt-2 mb-2">
 
-            ${p.nome_funcionario_afetado 
-                ? `<p><strong>Funcionário Afetado:</strong> ${escapeHTML(p.nome_funcionario_afetado)} (ID: ${p.idfuncionario || 'N/D'})</p>` 
-                : ''
-            }
-            ${p.idfuncao ? `<p><strong>ID da Função:</strong> ${p.idfuncao}</p>` : ''}
-            ${p.nome_evento ? `<p><strong>Evento:</strong> ${escapeHTML(p.nome_evento)}</p>` : ''}
-            
+            <div class= "FuncionarioEvento">
+              ${p.nome_funcionario_afetado 
+                  ? `<p><strong>Funcionário Afetado:</strong> ${escapeHTML(p.nome_funcionario_afetado)} (ID: ${p.idfuncionario || 'N/D'})</p>` 
+                  : ''
+              }
+              ${p.idfuncao ? `<p><strong>ID da Função:</strong> ${p.idfuncao}</p>` : ''}
+              ${p.nome_evento ? `<p><strong>Evento:</strong> ${escapeHTML(p.nome_evento)}</p>` : ''}
+            </div>
+
             <hr class="mt-2 mb-2">
-            
-            <p><strong>Nº Orçamento:</strong> ${p.idorcamento || p.nrorcamento || 'N/D'}</p>
-            <p><strong>Status:</strong> ${p.status_aditivo || p.status || status}</p>
-            <p><strong>Solicitante:</strong> ${escapeHTML(p.nome_usuario_solicitante || 'N/D')}</p>
-            <p><strong>Justificativa:</strong> ${escapeHTML(p.justificativa || 'N/D')}</p>
+
+            <div class="detalhes-orcamento">
+              <div class="infos-gerais">
+                <p><strong>Nº Orçamento:</strong> ${p.idorcamento || p.nrorcamento || 'N/D'}</p>
+                <p><strong>Status:</strong> ${p.status_aditivo || p.status || status}</p>
+                <p><strong>Solicitante:</strong> ${escapeHTML(p.nome_usuario_solicitante || 'N/D')}</p>                
+              </div>
+              <div class="justficativa"><p><strong>Justificativa:</strong> ${escapeHTML(p.justificativa || 'N/D')}</p></div>
+            </div>
         `;
 
         console.log(`✅ Gerando item de acordeão para pedido ${index}:`, { titulo, detalhesHTML });
@@ -3171,14 +3187,6 @@ function renderizarPedidosorc(listaPedidos, containerId, categoria, status, isSt
     });
 
     console.log(`✅ Elementos anexados. Total de filhos no container: ${container.children.length}`);
-    
-    // 🛑 Listener de DELEGAÇÃO DE EVENTOS (Anexado ao container)
-    // Este bloco garante que o listener só seja anexado uma vez.
-    // 🛑 Listener de DELEGAÇÃO DE EVENTOS (Versão Simplificada)
-
-    // Remova qualquer listener anterior para evitar duplicidade
-    // (Esta linha é uma precaução, use se você está executando renderizarPedidosorc mais de uma vez)
-    // container.removeEventListener('click', handleAccordionClick); // Requer que o listener seja nomeado
 
     container.addEventListener('click', function(event) {
         
@@ -3276,163 +3284,79 @@ async function atualizarResumo() {
  // document.getElementById("orcamentosPedidos").textContent = dadosResumo.orcamentosPedidos;
 }
 
-// =========================
 
 
 // =========================
 //  Pedidos Financeiros
 // =========================
 
-// async function buscarPedidosUsuario() {
-//   const idusuario = getIdExecutor(); // pega do token
-//   try {
-//     const resposta = await fetchComToken(`/main/notificacoes-financeiras`, {
-//       headers: { idempresa: getIdEmpresa() }
-//     });  
-    
-//     const podeVerTodos = podeVisualizarTudo();
-//     const ehMasterStaff = usuarioTemPermissao();
-   
-//     console.log("Usuário é Master (Aprovar)?", ehMasterStaff);
-//     console.log("Usuário pode ver todos os pedidos?", podeVerTodos);
-
-//     if (!resposta || !Array.isArray(resposta)) {
-//       console.error("Resposta inválida ou não é um array:", resposta);
-//       return [];
-//     }
-
-//     // Função para preencher sempre o nome do solicitante
-//     function preencherSolicitante(p) {
-//       return {
-//         ...p,
-//         solicitante_nome: p.nomeSolicitante || p.solicitante_nome || (String(p.solicitante) === String(idusuario) ? "Você" : "Solicitante desconhecido")
-//       };
-//     }
-
-//     // Normaliza status: sempre retorna objeto { status: 'pendente' | 'autorizado' | 'rejeitado', ...outrosCampos }
-//     function normalizarCampoJSON(campo) {
-//       if (!campo) return { status: "pendente" };
-//       if (typeof campo === "string") {
-//         try {
-//           const parsed = JSON.parse(campo);
-//           return { ...parsed, status: parsed.status?.toLowerCase() || "pendente" };
-//         } catch {
-//           return { status: campo.toLowerCase() };
-//         }
-//       }
-//       if (typeof campo === "object") {
-//         return { ...campo, status: campo.status?.toLowerCase() || "pendente" };
-//       }
-//       return { status: "pendente" };
-//     }
-
-//     function normalizarPedido(p) {
-//       return {
-//         ...p,
-//         statuscaixinha: normalizarCampoJSON(p.statuscaixinha),
-//         statusajustecusto: normalizarCampoJSON(p.statusajustecusto),
-//         statusdiariadobrada: normalizarCampoJSON(p.statusdiariadobrada),
-//         statusmeiadiaria: normalizarCampoJSON(p.statusmeiadiaria)
-//       };
-//     }
-
-//     // Mapeia todos os pedidos
-//     let pedidosProcessados = resposta.map(p => normalizarPedido(preencherSolicitante(p)));
-
-//     if (ehMasterStaff) {
-//       console.log("✅ Usuário é MASTER → vendo todos os pedidos.");
-//       pedidosProcessados = pedidosProcessados
-//         .filter(p => String(p.solicitante) === String(idusuario)) // ⬅️ ESTE É O FILTRO!
-//         .map(p => ({ ...p, ehMasterStaff: false }));
-//      // console.log("PEDIDOS PROCESSADOS", pedidosProcessados);
-//     } else {
-//     // Usuário comum → vê apenas os próprios pedidos
-//       pedidosProcessados = pedidosProcessados
-//       .filter(p => String(p.solicitante) === String(idusuario))
-//       .map(p => ({ ...p, ehMasterStaff: false }));
-//     //  console.log("👤 Usuário comum → pedidos do próprio usuário:", pedidosProcessados);
-//     }
-
-//     return pedidosProcessados;
-
-//   } catch (err) {
-//   console.error("Erro na requisição de pedidos:", err);
-//   return [];
-//   }
-// }
-
-
 async function buscarPedidosUsuario() {
-    const idusuario = getIdExecutor(); // pega do token
+    const idusuario = getIdExecutor(); 
+
+    // ----------------------------------------------------
+    // FUNÇÕES UTILS SIMPLIFICADAS (V43.0)
+    // ----------------------------------------------------
+    function preencherSolicitante(p) {
+        return {
+            ...p,
+            // Usa idusuariosolicitante, ou idusuario (V40.0)
+            solicitante: p.idusuariosolicitante || p.idusuario, 
+            solicitante_nome: p.nomeSolicitante || p.solicitante_nome || (String(p.solicitante) === String(idusuario) ? "Você" : "Solicitante desconhecido")
+        };
+    }
+    // A função garantirCamposDeStatus e desmembrarPedidos SÃO REMOVIDAS
+    // ----------------------------------------------------
+
     try {
         const resposta = await fetchComToken(`/main/notificacoes-financeiras`, {
             headers: { idempresa: getIdEmpresa() }
         });  
+
+        console.log("DEBUG: Resposta Bruta do Fetch (length):", resposta ? resposta.length : 0);
         
-        // 1. CHECAGEM DE PERMISSÃO
         const podeVerTodos = podeVisualizarTudo(); 
         const ehMasterStaff = usuarioTemPermissao(); 
-        
-        console.log("Usuário é Master (Aprovar)?", ehMasterStaff);
-        console.log("Usuário pode ver todos os pedidos?", podeVerTodos); 
 
         if (!resposta || !Array.isArray(resposta)) {
             console.error("Resposta inválida ou não é um array:", resposta);
             return [];
         }
 
-        // --- Funções de Normalização (Mantidas) ---
-        function preencherSolicitante(p) {
-            return {
-                ...p,
-                solicitante_nome: p.nomeSolicitante || p.solicitante_nome || (String(p.solicitante) === String(idusuario) ? "Você" : "Solicitante desconhecido")
-            };
+        // 🛑 NOVO FLUXO V43.0: Os 412 itens são pedidos únicos (já desmembrados pelo servidor)
+        let pedidosProcessados = resposta.map(p => preencherSolicitante(p));
+
+        pedidosProcessados = pedidosProcessados.map(p => ({
+            ...p,
+            // 🛑 CORREÇÃO V48.0: Converte o status para minúsculas.
+            status_aprovacao: p.status ? p.status.toLowerCase() : null, 
+            categoria_item: p.categoria 
+        }));
+
+        // 🛑 DEBUG V50: Confirma o status padronizado
+        if (pedidosProcessados.length > 0) {
+            console.log("DEBUG V50: Status Padronizado do 1º Pedido Financeiro:", pedidosProcessados[0].status_aprovacao);
         }
 
-        function normalizarCampoJSON(campo) {
-            if (!campo) return { status: "pendente" };
-            if (typeof campo === "string") {
-                try {
-                    const parsed = JSON.parse(campo);
-                    return { ...parsed, status: parsed.status?.toLowerCase() || "pendente" };
-                } catch {
-                    return { status: campo.toLowerCase() };
-                }
-            }
-            if (typeof campo === "object") {
-                return { ...campo, status: campo.status?.toLowerCase() || "pendente" };
-            }
-            return { status: "pendente" };
-        }
+        // 🛑 DEBUG V37: Loga o resultado ANTES do filtro de usuário
+        console.log("DEBUG V37: Pedidos Processados ANTES do filtro de usuário:", pedidosProcessados.length);
 
-        function normalizarPedido(p) {
-            return {
-                ...p,
-                statuscaixinha: normalizarCampoJSON(p.statuscaixinha),
-                statusajustecusto: normalizarCampoJSON(p.statusajustecusto),
-                statusdiariadobrada: normalizarCampoJSON(p.statusdiariadobrada),
-                statusmeiadiaria: normalizarCampoJSON(p.statusmeiadiaria)
-            };
-        }
-        // --- Fim das Funções de Normalização ---
 
-        let pedidosProcessados = resposta.map(p => normalizarPedido(preencherSolicitante(p)));
-
-        // 2. APLICAÇÃO DA LÓGICA DE VISUALIZAÇÃO
+        // 3. APLICAÇÃO DA LÓGICA DE VISUALIZAÇÃO E FILTRO
         if (podeVerTodos) { 
-            console.log("✅ Usuário tem Visualização Total (Master/Financeiro) → Retornando todos os pedidos.");
+            console.log(`✅ Usuário tem Visualização Total (Master/Financeiro) → Retornando ${pedidosProcessados.length} pedidos.`);
             
-            // APENAS mapeia as flags, SEM FILTRO
             pedidosProcessados = pedidosProcessados.map(p => ({ 
                 ...p, 
-                ehMasterStaff: ehMasterStaff, // True se Master (para botões)
+                ehMasterStaff: ehMasterStaff,
                 podeVerTodos: true 
             }));
+
         } else {
             console.log("👤 Usuário comum → Vendo apenas os próprios pedidos.");
-            // Usuário comum → aplica o filtro
+            
+            // Filtra no array de 412 itens, usando a chave 'solicitante'
             pedidosProcessados = pedidosProcessados
-                .filter(p => String(p.solicitante) === String(idusuario)) // APLICAÇÃO DO FILTRO
+                .filter(p => String(p.solicitante) === String(idusuario))
                 .map(p => ({ 
                     ...p, 
                     ehMasterStaff: false,
@@ -3440,18 +3364,16 @@ async function buscarPedidosUsuario() {
                 }));
         }
 
-        return pedidosProcessados;
+        console.log(`RESPOSTA NO BUSCAR PEDIDOS (${pedidosProcessados.length})`);
+        
+        return pedidosProcessados; 
 
     } catch (err) {
         console.error("Erro na requisição de pedidos:", err);
         return [];
     }
 }
-/**
- * Exibe um indicador de carregamento (loader) no card.
- * (Exemplo simplificado, você pode usar a sua implementação existente).
- * @param {HTMLElement} element - O card onde o loader deve aparecer.
- */
+
 function mostrarLoader(element) {
     if (element) {
         // Encontra o botão de aprovação ou adiciona uma classe de carregamento ao card
@@ -3460,10 +3382,7 @@ function mostrarLoader(element) {
     }
 }
 
-/**
- * Oculta o indicador de carregamento (loader) no card.
- * @param {HTMLElement} element - O card onde o loader deve ser removido.
- */
+
 function ocultarLoader(element) {
     if (element) {
         // Encontra o botão de aprovação e reabilita
@@ -3472,88 +3391,8 @@ function ocultarLoader(element) {
     }
 }
 
-/**
- * Envia uma requisição ao backend para atualizar o status de uma solicitação Aditivo/Extra.
- * @param {number} idAditivoExtra - O ID da solicitação AditivoExtra.
- * @param {string} novoStatus - 'Autorizado' ou 'Rejeitado'.
- * @param {HTMLElement} cardElement - O elemento HTML do card para atualizar o display.
- * @param {string} [justificativa=null] - Justificativa para rejeição.
- */
-async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, cardElement) {
 
-  console.log(`Iniciando atualização de status para AditivoExtra ID ${idAditivoExtra} para: ${novoStatus}`);
-    
-  let statusMensagem = '';
-  if (novoStatus === 'rejeitado') {
-      statusMensagem = "REJEITAR";
-  } else {
-      statusMensagem = "AUTORIZAR";
-  }
-  const confirmacao = await Swal.fire({
-        title: 'Confirmar Ação',
-        html: `Tem certeza que deseja <strong>${statusMensagem}</strong> a solicitação?`, // ✅ html renderiza o <strong> em negrito
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: novoStatus === 'Autorizado' ? '#10B981' : '#F59E0B', // Cores baseadas no status
-        cancelButtonColor: '#DC2626',
-        confirmButtonText: statusMensagem,
-        cancelButtonText: 'Cancelar'
-    });
 
-    if (!confirmacao.isConfirmed) {
-        return; // Retorna se o usuário clicar em 'Cancelar'
-    }
-
-    try {
-        mostrarLoader(cardElement); // Função presumida para mostrar um indicador de carregamento
-
-        console.log(`Atualizando AditivoExtra ID ${idAditivoExtra} para status: ${novoStatus}`);
-
-        // ⚠️ Rota no backend que você precisa criar ou usar, ex: POST /main/aditivoextra/status
-        const url = `/main/aditivoextra/${idAditivoExtra}/status`; 
-        const novoStatusCapitalizado = novoStatus.charAt(0).toUpperCase() + novoStatus.slice(1);
-        const response = await fetchComToken(url, {
-      // 💡 CORREÇÃO 2: Mudar o método para PATCH
-      method: 'PATCH', 
-      headers: {
-          'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-          // 💡 CORREÇÃO 3: Enviar apenas os dados que o body do backend espera
-          novoStatus: novoStatusCapitalizado
-     
-      })
-        });
-
-        ocultarLoader(cardElement);
-
-        if (response.sucesso) {
-      Swal.fire({
-          title: 'Sucesso!',
-          text: `Solicitação ${novoStatus} com sucesso!`,
-          icon: 'success',
-          timer: 3000, // Opcional: fecha a mensagem automaticamente após 3 segundos
-          showConfirmButton: false
-      });
-
-      // Recarregar a lista ou remover o card (depende da sua lógica)
-      // 💡 RECOMENDAÇÃO: Chame a função principal de renderização para recarregar o painel
-      await mostrarPedidosUsuario(); 
-        } else {
-      Swal.fire({
-          title: 'Erro!',
-          text: `Erro ao <strong>${statusMensagem}</strong> a solicitação: ${response.erro || 'Erro desconhecido.'}`,
-          icon: 'error'
-      });
-      console.error(`Falha ao atualizar AditivoExtra ${idAditivoExtra}:`, response);
-        }
-
-    } catch (err) {
-        ocultarLoader(cardElement);
-        console.error("Erro de rede/conexão:", err);
-        alert("Erro de conexão ao tentar atualizar o status.");
-    }
-}
 
 
 async function buscarAditivoExtraCompleto() {
@@ -3578,245 +3417,798 @@ async function buscarAditivoExtraCompleto() {
 }
 
 
+// async function mostrarPedidosUsuario() {
+//     const lista = document.getElementById("painelDetalhes");
+//     if (!lista) return;
+
+//     let pedidos = []; // Array final de grupos
+//     const podeAprovar = usuarioTemPermissao();
+
+//     // Variáveis de Configuração movidas para o topo (Corrigido)
+//     const camposTodos = [
+//         "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada", CAMPO_ADITIVO_EXTRA
+//     ];
+
+//     try {
+//         lista.innerHTML = `<div class="titulo-pedidos">Pedidos e Solicitações</div><p>Carregando dados...</p>`;
+    
+//         // 1. CHAMA AS DUAS FUNÇÕES DE BUSCA EM PARALELO
+//         const [pedidosPadrao, aditivosExtras] = await Promise.all([
+//             buscarPedidosUsuario(),
+//             buscarAditivoExtraCompleto()
+//         ]);
+
+//         // 2. NORMALIZA E UNE OS DADOS (CORREÇÃO DE MAPEAMENTO)
+//         let pedidosUnificados = pedidosPadrao;
+//         const aditivosMapeados = [];
+
+//         console.log(`DEBUG V44: Array Combinado Final (Financeiros + Aditivos): ${pedidosUnificados.length} itens.`);
+
+//         aditivosExtras.forEach(ae => {
+//             const nomeFuncionarioAjustado = ae.nomefuncionario; 
+//             const solicitanteAjustado = ae.nomesolicitante;
+//             const statusPadrao = typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente';
+            
+//             const statusLower = (ae.status || ae.Status || statusPadrao).toLowerCase();
+//             const corStatus = (function(status) {
+//                 if (status.includes('aprovado') || status.includes('autorizado')) return '#16a34a'; // Verde
+//                 if (status.includes('rejeitado') || status.includes('recusado')) return '#dc2626'; // Vermelho
+//                 return '#facc15'; // Amarelo (Pendente)
+//             })(statusLower);
+
+//             const pedidoAditivo = {
+//                 funcionario: nomeFuncionarioAjustado, 
+//                 nomeSolicitante: solicitanteAjustado,
+//                 evento: ae.evento,
+//                 nmfuncao: ae.funcao || null,
+//                 // ✅ CORREÇÃO 1: Garante que idpedido e idaditivoextra estão presentes no objeto mapeado
+//                 idpedido: ae.idaditivoextra, 
+//                 idaditivoextra: ae.idaditivoextra, // Adicionado para consistência na chave de agrupamento/log
+//                 ehMasterStaff: ae.ehMasterStaff,
+//                 podeVerTodos: ae.podeVerTodos, 
+//                 solicitante: ae.idusuariosolicitante, 
+//                 dtCriacao: ae.criado_em, 
+//                 status_aprovacao: statusLower,
+//                 categoria_item: CAMPO_ADITIVO_EXTRA,
+//                 status: statusLower,
+//                 cor: corStatus,
+//                 [CAMPO_ADITIVO_EXTRA]: [{
+//                     idfuncionario: ae.idfuncionario,
+//                     status: statusLower,
+//                     tipoSolicitacao: ae.tipoSolicitacao || ae.tiposolicitacao || 'N/A',
+//                     descricao: ae.justificativa, 
+//                     quantidade: ae.qtdsolicitada,      
+//                 }]
+//             };
+//             aditivosMapeados.push(pedidoAditivo);
+//         });
+
+//         pedidosUnificados.push(...aditivosMapeados);
+//         console.log(`DEBUG V55: Array Combinado Final (Financeiros + Aditivos Mapeados): ${pedidosUnificados.length} itens.`);
+
+//         // 3. AGRUPAMENTO COM CONTROLE DE DUPLICATAS POR ITEM (REFINADO)
+//         const pedidosAgrupados = {};
+//         const chavesDosItensAdicionados = new Set(); 
+
+//         pedidosUnificados.forEach(p => {
+//             // Variáveis de Agrupamento
+//             const evento = p.evento || 'Sem Evento';
+//             const funcionario = p.funcionario || null; 
+//             const nmfuncao = p.nmfuncao || null;
+//             // idUnico é o ID do GRUPO (o mesmo para todos os itens no grupo)
+//             const idGrupo = p.idpedido || p.idaditivoextra || Math.random(); 
+//             const funcionarioOuFuncao = funcionario || nmfuncao || `Item-ID-${idGrupo}`; 
+//             const chaveAgrupamento = funcionarioOuFuncao; 
+//             const solicitanteAtual = p.nomeSolicitante; 
+            
+//             // LÓGICA DE DEDUPLICAÇÃO DE ITEM DENTRO DO GRUPO
+//             const categoria = p.categoria_item || camposTodos.find(c => p[c] && (Array.isArray(p[c]) ? p[c].length > 0 : typeof p[c] === 'object' && p[c] !== null)); 
+            
+//             // ✅ CORREÇÃO 2: Usa apenas o ID do item para a chave, garantindo que seja o ID do Aditivo Extra (p.idpedido é o AE ID)
+//             const idUnicoItem = p.idpedido || p.idaditivoextra || p.idagrupamento || 'RANDOM-' + Math.random(); 
+
+//             // Chave única para o ITEM: Funcionario|Categoria|ID do pedido
+//             const chaveItemUnico = `${chaveAgrupamento}|${categoria || 'Outro'}|${idUnicoItem}`;
+
+//             // Verifica e Adiciona a Chave
+//             if (chavesDosItensAdicionados.has(chaveItemUnico)) {
+//                 console.warn(`🛑 DUPLICAÇÃO IGNORADA: Chave: ${chaveItemUnico}. ID Item: ${idUnicoItem}, Categoria: ${categoria}`);
+//                 return; // Pula este item se ele já foi visto
+//             }
+//             if (categoria === CAMPO_ADITIVO_EXTRA) {
+//                 // O log agora mostrará o idaditivoextra, comprovando a correção 1
+//                 console.log(`✅ Aditivo Extra ADICIONADO: Chave: ${chaveItemUnico}. ID Pedido: ${p.idpedido}, ID Aditivo Extra: ${p.idaditivoextra}`);
+//             }
+//             chavesDosItensAdicionados.add(chaveItemUnico);
+            
+//             // LÓGICA DE CRIAÇÃO DO GRUPO
+//             if (!pedidosAgrupados[chaveAgrupamento]) {
+//                 pedidosAgrupados[chaveAgrupamento] = {
+//                     evento: evento,
+//                     funcionario: funcionario, 
+//                     nmfuncao: nmfuncao,
+//                     idpedido: p.idpedido, 
+//                     dtCriacao: p.dtCriacao, 
+//                     todosSolicitantes: new Set(), 
+//                     registrosOriginais: [] 
+//                 };
+//             }
+
+//             if (solicitanteAtual) {
+//                 pedidosAgrupados[chaveAgrupamento].todosSolicitantes.add(solicitanteAtual);
+//             }
+            
+//             // Adiciona o item (único) ao grupo
+//             pedidosAgrupados[chaveAgrupamento].registrosOriginais.push(p);
+//         });
+
+//         const pedidosParaClassificar = Object.values(pedidosAgrupados);
+//         console.log(`[CLASSIFICAÇÃO] Iniciando classificação de ${pedidosParaClassificar.length} pedidos agrupados.`);
+
+//         // 4. CONVERTE DE VOLTA PARA ARRAY E POPULA 'pedidos' (Inalterado)
+//         // ... (resto do código inalterado, pois o problema estava na unificação/agrupamento)
+//         pedidos = Object.values(pedidosAgrupados).map(p => { 
+//             const listaSolicitantes = Array.from(p.todosSolicitantes).join(', ');
+//             p.nomeSolicitante = listaSolicitantes;
+//             delete p.todosSolicitantes;
+//             return p;
+//         });
+
+//         // ORDENAÇÃO (Inalterado)
+//         pedidos.sort((a, b) => {
+//             const nomeA = (a.funcionario || a.nmfuncao || '').toLowerCase();
+//             const nomeB = (b.funcionario || b.nmfuncao || '').toLowerCase();
+            
+//             if (nomeA < nomeB) return -1;
+//             if (nomeA > nomeB) return 1;
+
+//             const eventoA = (a.evento || '').toLowerCase();
+//             const eventoB = (b.evento || '').toLowerCase();
+            
+//             if (eventoA < eventoB) return -1;
+//             if (eventoA > eventoB) return 1;
+
+//             return 0;
+//         });
+        
+//         // Verifica se há pedidos após a unificação/agrupamento
+//         if (!pedidos.length) { 
+//             lista.innerHTML = `<div class="titulo-pedidos">Pedidos e Solicitações</div><p>Não há pedidos ou solicitações registradas.</p>`;
+//             return;
+//         }
+
+//         // 5. SEPARAÇÃO EM CATEGORIAS (Inalterado)
+//         const pedidosFuncionariosUnicos = pedidos.filter(p => !!p.funcionario);
+//         const pedidosFuncoesUnicos = pedidos.filter(p => !p.funcionario);
+        
+//         console.log(`Contagem Final - Funcionários: ${pedidosFuncionariosUnicos.length}, Funções: ${pedidosFuncoesUnicos.length}`);
+
+
+//         // --- 6. GERAÇÃO DA CONTAGEM FINAL POR STATUS (Inalterado, usa camposTodos do topo) ---
+        
+//         const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
+//         const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
+//         const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
+
+//         const statusCountsFinal = {
+//             funcionario: { [STATUS_PENDENTE_LOWER]: 0, [STATUS_AUTORIZADO_LOWER]: 0, [STATUS_REJEITADO_LOWER]: 0 },
+//             funcao: { [STATUS_PENDENTE_LOWER]: 0, [STATUS_AUTORIZADO_LOWER]: 0, [STATUS_REJEITADO_LOWER]: 0 }
+//         };
+
+//         function contarStatus(listaDeGrupos, categoriaDestino) {
+//             // ... (Lógica de contagem inalterada) ...
+//             const chavesValidas = [STATUS_PENDENTE_LOWER, STATUS_AUTORIZADO_LOWER, STATUS_REJEITADO_LOWER];
+
+//             listaDeGrupos.forEach(grupo => {
+//                 const registros = grupo.registrosOriginais || []; 
+                
+//                 registros.forEach(pedidoDesmembrado => {
+//                     // 1. CONTAGEM DO PEDIDO PRINCIPAL (Lógica Inalterada)
+//                     if (pedidoDesmembrado.status_aprovacao && pedidoDesmembrado.categoria_item !== CAMPO_ADITIVO_EXTRA) {
+//                         const statusPrincipal = pedidoDesmembrado.status_aprovacao.toLowerCase();
+//                         if (chavesValidas.includes(statusPrincipal)) {
+//                             statusCountsFinal[categoriaDestino][statusPrincipal]++;
+//                         }
+//                     }
+
+//                     // 2. CONTAGEM DOS SUB-ITENS:
+//                     camposTodos.forEach(campo => {
+//                         const infoRaw = pedidoDesmembrado[campo];
+                        
+//                         let itens = [];
+//                         if (campo === CAMPO_ADITIVO_EXTRA && Array.isArray(infoRaw)) {
+//                             itens = infoRaw;
+//                         } else if (campo !== CAMPO_ADITIVO_EXTRA) {
+//                             itens = safeParse(infoRaw) || []; 
+//                         }
+
+//                         if (Array.isArray(itens)) {
+//                             itens.forEach(item => {
+//                                 if (item && typeof item === 'object') {
+//                                     const statusItem = (item.status || STATUS_PENDENTE_LOWER).toLowerCase();
+//                                     if (chavesValidas.includes(statusItem)) {
+//                                         statusCountsFinal[categoriaDestino][statusItem]++;
+//                                     }
+//                                 }
+//                             });
+//                         }
+//                     });
+//                 });
+//             });
+//         }
+        
+//         contarStatus(pedidosFuncionariosUnicos, 'funcionario');
+//         contarStatus(pedidosFuncoesUnicos, 'funcao');
+
+//         console.log(`[CONTAGEM V92.0] Status por Categoria:`, statusCountsFinal);
+        
+//         const totalPendente = statusCountsFinal.funcionario[STATUS_PENDENTE_LOWER] + statusCountsFinal.funcao[STATUS_PENDENTE_LOWER];
+//         const totalAutorizado = statusCountsFinal.funcionario[STATUS_AUTORIZADO_LOWER] + statusCountsFinal.funcao[STATUS_AUTORIZADO_LOWER];
+//         const totalRejeitado = statusCountsFinal.funcionario[STATUS_REJEITADO_LOWER] + statusCountsFinal.funcao[STATUS_REJEITADO_LOWER];
+        
+//         console.log(`[CONTAGEM V92.0 TOTAL] Pendentes: ${totalPendente}, Autorizados: ${totalAutorizado}, Rejeitados: ${totalRejeitado}`);
+
+//         // --- 7. ESTRUTURA DE TABS (Renderização e Listeners) ---
+//         // ... (Lógica de Tabs inalterada) ...
+//         const tabsHTML = `
+//             <div class="titulo-pedidos">Pedidos e Solicitações</div>
+//             <div class="tabs-container-wrapper">
+//                 <div class="abas-principais">
+//                     <button class="aba main-tab-btn ativa" 
+//                         data-tab-content="tab-content-funcionarios" data-categoria="funcionario">
+//                         Funcionários (${pedidosFuncionariosUnicos.length})
+//                     </button>
+//                     <button class="aba main-tab-btn" 
+//                         data-tab-content="tab-content-funcoes" data-categoria="funcao">
+//                         Funções (${pedidosFuncoesUnicos.length})
+//                     </button>
+//                 </div>
+//                 <div id="tab-content-funcionarios" class="painel-tabs ativo">
+//                     <p class="mt-3">Clique na aba 'Funcionários' ou 'Funções' para ver os pedidos.</p>
+//                 </div>
+//                 <div id="tab-content-funcoes" class="painel-tabs desativado">
+//                     <p class="mt-3">Clique na aba 'Funcionários' ou 'Funções' para ver os pedidos.</p>
+//                 </div>
+//             </div>
+//         `;
+
+//         lista.innerHTML = tabsHTML; 
+
+//         // Listeners (Inalterados)
+//         document.querySelectorAll('.abas-principais .main-tab-btn').forEach(button => {
+//             button.addEventListener('click', function() {
+//                 // ... (Lógica do clique da aba principal) ...
+//                 const clickedButton = this;
+//                 const targetId = clickedButton.getAttribute('data-tab-content');
+//                 const categoria = clickedButton.getAttribute('data-categoria');
+//                 const abasPrincipaisContainer = document.querySelector('.abas-principais'); 
+                
+//                 document.querySelectorAll('.abas-principais .main-tab-btn').forEach(btn => {
+//                     if (btn) { 
+//                         btn.classList.remove('ativa');
+//                         btn.classList.remove('desativada'); 
+//                     }
+//                 }); 
+                
+//                 clickedButton.classList.add('ativa');
+
+//                 if (abasPrincipaisContainer) {
+//                     abasPrincipaisContainer.style.display = 'none';
+//                 }
+
+//                 document.querySelectorAll('.painel-tabs').forEach(content => content.classList.remove('ativo'));
+//                 document.querySelectorAll('.painel-tabs').forEach(content => content.classList.add('desativado'));
+
+//                 const targetContent = document.getElementById(targetId);
+//                 targetContent.classList.add('ativo');
+//                 targetContent.classList.remove('desativado'); 
+
+//                 const listaPedidos = categoria === 'funcionario' ? pedidosFuncionariosUnicos : pedidosFuncoesUnicos;
+//                 const contagemCategoria = categoria === 'funcionario' ? statusCountsFinal.funcionario : statusCountsFinal.funcao;
+
+//                 carregarSubAbasInicial(targetContent, categoria, listaPedidos, contagemCategoria);
+//             });
+//         });
+//         // Delegação de Eventos para as sub-abas (Inalterado)
+//         lista.addEventListener('click', function(event) {
+//             const button = event.target.closest('.sub-tab-btn');
+//             if (button) {
+//                 // ... (Lógica do clique da sub-aba) ...
+//                 const status = button.getAttribute('data-status');
+//                 const categoria = button.getAttribute('data-categoria');
+//                 const listContainerId = button.getAttribute('data-list-id');
+
+//                 document.querySelectorAll(`.sub-abas-pedidos[data-categoria="${categoria}"] .sub-tab-btn`).forEach(btn => {
+//                     btn.classList.remove('ativa');
+//                 });
+//                 button.classList.add('ativa');
+
+//                 lista.querySelectorAll('.pedidos-list-container').forEach(container => {
+//                     container.classList.add('hidden'); 
+//                     container.style.display = 'none'; 
+//                     container.style.visibility = 'hidden'; 
+//                     container.style.height = '0'; 
+//                 });
+                
+//                 const targetContainer = document.getElementById(listContainerId);
+//                 if (targetContainer) {
+//                     targetContainer.classList.remove('hidden');
+//                     targetContainer.style.visibility = 'visible';
+//                     targetContainer.style.height = 'auto'; 
+//                     targetContainer.style.display = 'flex'; 
+//                 }
+
+//                 const listaPedidos = categoria === 'funcionario' ? pedidosFuncionariosUnicos : pedidosFuncoesUnicos;
+//                 renderizarPedidos(listaPedidos, listContainerId, categoria, status, podeAprovar);
+//             }
+//         });
+
+//         // Delegação de Eventos para o botão "Voltar" (Inalterado)
+//         lista.addEventListener('click', function(event) {
+//             const backButton = event.target.closest('.btn-voltar-main-tabs');
+//             if (backButton) {
+//                 // ... (Lógica do botão voltar) ...
+//                 const abasPrincipaisContainer = document.querySelector('.abas-principais');
+            
+//                 const activeTabContent = backButton.closest('.painel-tabs.ativo');
+            
+//                 if(activeTabContent) {
+//                     const categoriaAtual = activeTabContent.id.includes('funcionarios') ? 'Funcionários' : 'Funções';
+//                     activeTabContent.innerHTML = `<p class="mt-3">Clique na aba '${categoriaAtual}' para ver os pedidos.</p>`;
+                    
+//                     activeTabContent.classList.remove('ativo');
+//                     activeTabContent.classList.add('desativado');
+//                 }
+
+//                 if (abasPrincipaisContainer) {
+//                     abasPrincipaisContainer.style.display = 'flex'; 
+//                 }
+
+//                 const activeMainTabButton = document.querySelector('.abas-principais .main-tab-btn.ativa');
+//                 if (activeMainTabButton) {
+//                     const targetContent = document.getElementById(activeMainTabButton.getAttribute('data-tab-content'));
+//                     if (targetContent) {
+//                         targetContent.classList.add('ativo');
+//                         targetContent.classList.remove('desativado');
+//                     }
+//                 }
+//             }
+//         });
+
+//     } catch (err) {
+//         console.error("Erro CRÍTICO ao mostrar pedidos:", err);
+//         lista.innerHTML = `<p class="erro">Erro ao carregar pedidos: ${err.message || 'Verifique se as funções de busca e utilidade estão implementadas corretamente.'}</p>`;
+//     }
+// }
+
 async function mostrarPedidosUsuario() {
     const lista = document.getElementById("painelDetalhes");
     if (!lista) return;
 
+    let pedidos = []; // Array final de grupos
+    const podeAprovar = usuarioTemPermissao();
+
+    // 🛑 NOVA CONFIGURAÇÃO: Mapeamento do campo de status para o campo de dados que é um JSON String de array
+    const dataFieldMapping = {
+        "statusdiariadobrada": "dtdiariadobrada",
+        "statusmeiadiaria": "dtmeiadiaria",
+        // Outros campos de status que contêm JSON Array devem ser adicionados aqui
+    };
+
+    const camposTodos = [
+        "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada", CAMPO_ADITIVO_EXTRA
+    ];
+
     try {
         lista.innerHTML = `<div class="titulo-pedidos">Pedidos e Solicitações</div><p>Carregando dados...</p>`;
-
-        const podeAprovar = usuarioTemPermissao();
     
         // 1. CHAMA AS DUAS FUNÇÕES DE BUSCA EM PARALELO
         const [pedidosPadrao, aditivosExtras] = await Promise.all([
-      buscarPedidosUsuario(),
-      buscarAditivoExtraCompleto()
+            buscarPedidosUsuario(),
+            buscarAditivoExtraCompleto()
         ]);
 
-        // 2. NORMALIZA E UNE OS DADOS
-        let pedidosUnificados = [...pedidosPadrao];
+        // 2. NORMALIZA E UNE OS DADOS (CORREÇÃO DE MAPEAMENTO)
+        let pedidosUnificados = pedidosPadrao;
+        const aditivosMapeados = [];
+
+        console.log(`DEBUG V44: Array Combinado Inicial (Financeiros): ${pedidosUnificados.length} itens.`);
 
         aditivosExtras.forEach(ae => {
-      const nomeFuncionarioAjustado = ae.nomefuncionario; 
-      const solicitanteAjustado = ae.nomesolicitante;
-      // ATENÇÃO: Assumo que STATUS_PENDENTE e CAMPO_ADITIVO_EXTRA estão definidos globalmente
-      const statusPadrao = typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente';
-      const pedidoAditivo = {
-          funcionario: nomeFuncionarioAjustado, 
-          nomeSolicitante: solicitanteAjustado,
-          evento: ae.evento,
-          nmfuncao: ae.funcao || null,
-          idpedido: ae.idaditivoextra, 
-          ehMasterStaff: ae.ehMasterStaff,
-          podeVerTodos: ae.podeVerTodos, 
-          solicitante: ae.idusuariosolicitante, 
-          dtCriacao: ae.criado_em, 
-          [CAMPO_ADITIVO_EXTRA]: {
-        idfuncionario: ae.idfuncionario,
-        status: (ae.status || ae.Status || statusPadrao).toLowerCase(),
-        tipoSolicitacao: ae.tipoSolicitacao || ae.tiposolicitacao || 'N/A',
-        descricao: ae.justificativa, 
-        quantidade: ae.qtdsolicitada,
-          
-          }
-      };
-      pedidosUnificados.push(pedidoAditivo);
+            const nomeFuncionarioAjustado = ae.nomefuncionario; 
+            const solicitanteAjustado = ae.nomesolicitante;
+            const statusPadrao = typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente';
+            
+            const statusLower = (ae.status || ae.Status || statusPadrao).toLowerCase();
+            const corStatus = (function(status) {
+                if (status.includes('aprovado') || status.includes('autorizado')) return '#16a34a'; // Verde
+                if (status.includes('rejeitado') || status.includes('recusado')) return '#dc2626'; // Vermelho
+                return '#facc15'; // Amarelo (Pendente)
+            })(statusLower);
+
+            const pedidoAditivo = {
+                funcionario: nomeFuncionarioAjustado, 
+                nomeSolicitante: solicitanteAjustado,
+                evento: ae.evento,
+                nmfuncao: ae.funcao || null,
+                idpedido: ae.idaditivoextra, 
+                idaditivoextra: ae.idaditivoextra, 
+                ehMasterStaff: ae.ehMasterStaff,
+                podeVerTodos: ae.podeVerTodos, 
+                solicitante: ae.idusuariosolicitante, 
+                dtCriacao: ae.criado_em, 
+                status_aprovacao: statusLower,
+                categoria_item: CAMPO_ADITIVO_EXTRA,
+                status: statusLower,
+                cor: corStatus,
+                [CAMPO_ADITIVO_EXTRA]: [{
+                    idfuncionario: ae.idfuncionario,
+                    status: statusLower,
+                    tipoSolicitacao: ae.tipoSolicitacao || ae.tiposolicitacao || 'N/A',
+                    descricao: ae.justificativa, 
+                    quantidade: ae.qtdsolicitada,      
+                }]
+            };
+            aditivosMapeados.push(pedidoAditivo);
         });
 
-        // 3. ORDENAÇÃO E REMOÇÃO DE DUPLICADOS
-        pedidosUnificados.sort((a, b) => {
-      const timeA = new Date(a.dtCriacao).getTime();
-      const timeB = new Date(b.dtCriacao).getTime();
-      return isNaN(timeB) ? 1 : isNaN(timeA) ? -1 : timeB - timeA;
+        pedidosUnificados.push(...aditivosMapeados);
+        console.log(`DEBUG V55: Array Combinado (Financeiros + Aditivos Mapeados): ${pedidosUnificados.length} itens.`);
+
+
+        // 🛑 NOVO PASSO: DESMEMBRAMENTO DE ITENS COM MÚLTIPLAS CATEGORIAS E PARSEAMENTO DE JSON 🛑
+        const pedidosDesmembrados = [];
+
+        pedidosUnificados.forEach(pedidoOriginal => {
+            
+            // 1. Identifica todas as categorias ativas no pedido original
+            const categoriasPresentes = camposTodos.filter(c => {
+                const valor = pedidoOriginal[c];
+                if (c === CAMPO_ADITIVO_EXTRA) {
+                    return pedidoOriginal.categoria_item === CAMPO_ADITIVO_EXTRA && Array.isArray(valor) && valor.length > 0;
+                }
+                
+                // Para campos de diária/ajuste, verifica se o campo é truthy ou um array/objeto não vazio.
+                if (Array.isArray(valor)) {
+                    return valor.length > 0;
+                }
+                return valor && valor.toString().trim() !== ''; 
+            });
+
+
+            if (categoriasPresentes.length > 0) {
+                // 2. Cria um novo objeto para cada categoria presente.
+                categoriasPresentes.forEach(categoria => {
+                    
+                    const pedidoDesmembrado = { 
+                        ...pedidoOriginal,
+                        // Atribui a categoria correta para este novo item
+                        categoria_item: categoria 
+                    };
+                    
+                    // 🎯 CORREÇÃO CRÍTICA: PARSEAMENTO DO CAMPO DE DATA/ITEM
+                    const dataField = dataFieldMapping[categoria];
+                    
+                    if (dataField && pedidoDesmembrado[dataField]) {
+                         // Tenta fazer o parse do JSON string (Ex: dtdiariadobrada)
+                        const parsedData = safeParse(pedidoDesmembrado[dataField]);
+                        
+                        // Se o parse for bem sucedido e for um array, SOBRESCREVE a string JSON com o array JS.
+                        if (Array.isArray(parsedData) && parsedData.length > 0) {
+                            pedidoDesmembrado[dataField] = parsedData;
+                        } else {
+                            // Se falhar o parse, remove o campo para que a renderização não tente usá-lo incorretamente
+                            // Ou apenas o deixa como está (string original), dependendo da robustez do safeParse
+                            // Vamos manter a string, mas o console.error ajuda a debugar
+                            if(typeof pedidoDesmembrado[dataField] === 'string' && pedidoDesmembrado[dataField].startsWith('[')) {
+                                console.error(`Falha ao parsear JSON no campo ${dataField} para o pedido ${pedidoOriginal.id}:`, pedidoDesmembrado[dataField]);
+                            }
+                        }
+                    }
+                    
+                    // Opcional: Limpa os outros campos financeiros/aditivos para isolar o item.
+                    camposTodos.forEach(c => {
+                         if (c !== categoria) {
+                             delete pedidoDesmembrado[c];
+                         }
+                    });
+
+                    pedidosDesmembrados.push(pedidoDesmembrado);
+                });
+            } else if (pedidoOriginal.categoria_item) {
+                 pedidosDesmembrados.push(pedidoOriginal);
+            }
         });
 
-        const vistos = new Set();
-        let pedidos = pedidosUnificados.filter(p => {
-      const aditivoTipo = p[CAMPO_ADITIVO_EXTRA]?.tipoSolicitacao || "";
-      const idUnicoAditivo = p[CAMPO_ADITIVO_EXTRA] ? p.idpedido : "";
-      const chave =
-          `${p.funcionario || ""}|${p.evento || ""}|${p.statusajustecusto?.valor || ""}|${p.statuscaixinha?.valor || ""}|${idUnicoAditivo}|${aditivoTipo}`;
+        console.log(`DEBUG V57: Total de itens após desmembramento e parseamento: ${pedidosDesmembrados.length}.`);
+
+        // 3. AGRUPAMENTO COM CONTROLE DE DUPLICATAS POR ITEM (REFINADO)
+        const pedidosAgrupados = {};
+        const chavesDosItensAdicionados = new Set(); 
+
+        // 🛑 ITERAR AGORA SOBRE pedidosDesmembrados 🛑
+        pedidosDesmembrados.forEach(p => {
+            // Variáveis de Agrupamento
+            const evento = p.evento || 'Sem Evento';
+            const funcionario = p.funcionario || null; 
+            const nmfuncao = p.nmfuncao || null;
+            const idGrupo = p.idpedido || p.idaditivoextra || Math.random(); 
+            const funcionarioOuFuncao = funcionario || nmfuncao || `Item-ID-${idGrupo}`; 
+            const chaveAgrupamento = funcionarioOuFuncao; 
+            const solicitanteAtual = p.nomeSolicitante; 
+            
+            const categoria = p.categoria_item || camposTodos.find(c => p[c] && (Array.isArray(p[c]) ? p[c].length > 0 : typeof p[c] === 'object' && p[c] !== null)); 
+            
+            const idUnicoItem = p.idpedido || p.idaditivoextra || p.idagrupamento || 'RANDOM-' + Math.random(); 
+
+            const chaveItemUnico = `${chaveAgrupamento}|${categoria || 'Outro'}|${idUnicoItem}`;
+
+            // Verifica e Adiciona a Chave
+            if (chavesDosItensAdicionados.has(chaveItemUnico)) {
+                console.warn(`🛑 DUPLICAÇÃO IGNORADA: Chave: ${chaveItemUnico}. ID Item: ${idUnicoItem}, Categoria: ${categoria}`);
+                return; // Pula este item se ele já foi visto
+            }
+            if (categoria === CAMPO_ADITIVO_EXTRA) {
+                console.log(`✅ Aditivo Extra ADICIONADO: Chave: ${chaveItemUnico}. ID Pedido: ${p.idpedido}, ID Aditivo Extra: ${p.idaditivoextra}`);
+            }
+            chavesDosItensAdicionados.add(chaveItemUnico);
+            
+            // LÓGICA DE CRIAÇÃO DO GRUPO
+            if (!pedidosAgrupados[chaveAgrupamento]) {
+                pedidosAgrupados[chaveAgrupamento] = {
+                    evento: evento,
+                    funcionario: funcionario, 
+                    nmfuncao: nmfuncao,
+                    idpedido: p.idpedido, 
+                    dtCriacao: p.dtCriacao, 
+                    todosSolicitantes: new Set(), 
+                    registrosOriginais: [] 
+                };
+            }
+
+            if (solicitanteAtual) {
+                pedidosAgrupados[chaveAgrupamento].todosSolicitantes.add(solicitanteAtual);
+            }
+            
+            // Adiciona o item (único) ao grupo
+            pedidosAgrupados[chaveAgrupamento].registrosOriginais.push(p);
+        });
+
+        const pedidosParaClassificar = Object.values(pedidosAgrupados);
+        console.log(`[CLASSIFICAÇÃO] Iniciando classificação de ${pedidosParaClassificar.length} pedidos agrupados.`);
+
+        // 4. CONVERTE DE VOLTA PARA ARRAY E POPULA 'pedidos'
+        pedidos = Object.values(pedidosAgrupados).map(p => { 
+            const listaSolicitantes = Array.from(p.todosSolicitantes).join(', ');
+            p.nomeSolicitante = listaSolicitantes;
+            delete p.todosSolicitantes;
+            return p;
+        });
+
+        // ORDENAÇÃO (Inalterado)
+        pedidos.sort((a, b) => {
+            const nomeA = (a.funcionario || a.nmfuncao || '').toLowerCase();
+            const nomeB = (b.funcionario || b.nmfuncao || '').toLowerCase();
+            
+            if (nomeA < nomeB) return -1;
+            if (nomeA > nomeB) return 1;
+
+            const eventoA = (a.evento || '').toLowerCase();
+            const eventoB = (b.evento || '').toLowerCase();
+            
+            if (eventoA < eventoB) return -1;
+            if (eventoA > eventoB) return 1;
+
+            return 0;
+        });
         
-      if (vistos.has(chave)) return false;
-      vistos.add(chave);
-      return true;
-        });
-
-
-        if (!pedidos.length) {
-      lista.innerHTML = `<div class="titulo-pedidos">Pedidos e Solicitações</div><p>Não há pedidos ou solicitações registradas.</p>`;
-      return;
+        // Verifica se há pedidos após a unificação/agrupamento
+        if (!pedidos.length) { 
+            lista.innerHTML = `<div class="titulo-pedidos">Pedidos e Solicitações</div><p>Não há pedidos ou solicitações registradas.</p>`;
+            return;
         }
 
-
-
-        // 4. SEPARAÇÃO EM CATEGORIAS
-        const pedidosFuncionarios = [];
-        const pedidosFuncoes = [];
-
-        const camposPadrao = [
-      "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada"
-        ];
-
-        pedidos.forEach(p => {
-      const ehAditivoExtra = !!p[CAMPO_ADITIVO_EXTRA];
-      const ehPedidoPadrao = camposPadrao.some(campo => p[campo] && (p[campo].status || p[campo].valor !== undefined));
+        // 5. SEPARAÇÃO EM CATEGORIAS (Inalterado)
+        const pedidosFuncionariosUnicos = pedidos.filter(p => !!p.funcionario);
+        const pedidosFuncoesUnicos = pedidos.filter(p => !p.funcionario);
         
-      const aditivoInfo = p[CAMPO_ADITIVO_EXTRA];
-      const temIdFuncionario = ehAditivoExtra && !!aditivoInfo.idfuncionario && aditivoInfo.idfuncionario !== 0;
+        console.log(`Contagem Final - Funcionários: ${pedidosFuncionariosUnicos.length}, Funções: ${pedidosFuncoesUnicos.length}`);
 
-      // Pedidos Funcionários: Pedido Padrão OU AditivoExtra COM idFuncionario
-      if (ehPedidoPadrao || temIdFuncionario) {
-          if (!pedidosFuncionarios.includes(p)) {
-        pedidosFuncionarios.push(p);
-          }
-      }
 
-      // Pedidos Funções: AditivoExtra SEM idFuncionario (Correção aqui: Removemos a restrição por tipo)
-      if (ehAditivoExtra && !temIdFuncionario) {
-          if (!pedidosFuncoes.includes(p)) {
-        pedidosFuncoes.push(p);
-          }
-      }
-        });
+        // --- 6. GERAÇÃO DA CONTAGEM FINAL POR STATUS (Inalterado) ---
+        
+        const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
+        const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
+        const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
 
-        const pedidosFuncionariosUnicos = Array.from(new Set(pedidosFuncionarios));
-        const pedidosFuncoesUnicos = Array.from(new Set(pedidosFuncoes));
+        const statusCountsFinal = {
+            funcionario: { [STATUS_PENDENTE_LOWER]: 0, [STATUS_AUTORIZADO_LOWER]: 0, [STATUS_REJEITADO_LOWER]: 0 },
+            funcao: { [STATUS_PENDENTE_LOWER]: 0, [STATUS_AUTORIZADO_LOWER]: 0, [STATUS_REJEITADO_LOWER]: 0 }
+        };
 
-        // --- ESTRUTURA DE TABS (Funcionários/Funções) ---
+        function contarStatus(listaDeGrupos, categoriaDestino) {
+            const chavesValidas = [STATUS_PENDENTE_LOWER, STATUS_AUTORIZADO_LOWER, STATUS_REJEITADO_LOWER];
+
+            listaDeGrupos.forEach(grupo => {
+                const registros = grupo.registrosOriginais || []; 
+                
+                registros.forEach(pedidoDesmembrado => {
+                    // 1. CONTAGEM DO PEDIDO PRINCIPAL (Geralmente não usada, mas mantida)
+                    if (pedidoDesmembrado.status_aprovacao && pedidoDesmembrado.categoria_item !== CAMPO_ADITIVO_EXTRA) {
+                        const statusPrincipal = pedidoDesmembrado.status_aprovacao.toLowerCase();
+                        if (chavesValidas.includes(statusPrincipal)) {
+                            statusCountsFinal[categoriaDestino][statusPrincipal]++;
+                        }
+                    }
+
+                    // 2. CONTAGEM DOS SUB-ITENS (A principal fonte de contagem agora):
+                    camposTodos.forEach(campo => {
+                        const infoRaw = pedidoDesmembrado[campo];
+                        
+                        let itens = [];
+                        // Se o campo do sub-item for igual à categoria_item, processa
+                        if (campo === pedidoDesmembrado.categoria_item) {
+                            if (campo === CAMPO_ADITIVO_EXTRA && Array.isArray(infoRaw)) {
+                                itens = infoRaw;
+                            } else if (dataFieldMapping[campo] && Array.isArray(infoRaw)) {
+                                // Se for um campo de diária/meia diária, o infoRaw JÁ DEVE SER o array parseado devido à correção acima.
+                                itens = infoRaw; 
+                            } else if (dataFieldMapping[campo] && typeof infoRaw === 'string') {
+                                // Caso o parseamento tenha falhado na etapa anterior (raro), tenta de novo (fallback)
+                                itens = safeParse(infoRaw) || []; 
+                            }
+                        }
+
+                        if (Array.isArray(itens)) {
+                            itens.forEach(item => {
+                                if (item && typeof item === 'object') {
+                                    const statusItem = (item.status || STATUS_PENDENTE_LOWER).toLowerCase();
+                                    if (chavesValidas.includes(statusItem)) {
+                                        statusCountsFinal[categoriaDestino][statusItem]++;
+                                    }
+                                }
+                            });
+                        }
+                    });
+                });
+            });
+        }
+        
+        contarStatus(pedidosFuncionariosUnicos, 'funcionario');
+        contarStatus(pedidosFuncoesUnicos, 'funcao');
+
+        console.log(`[CONTAGEM V92.1] Status por Categoria:`, statusCountsFinal);
+        
+        const totalPendente = statusCountsFinal.funcionario[STATUS_PENDENTE_LOWER] + statusCountsFinal.funcao[STATUS_PENDENTE_LOWER];
+        const totalAutorizado = statusCountsFinal.funcionario[STATUS_AUTORIZADO_LOWER] + statusCountsFinal.funcao[STATUS_AUTORIZADO_LOWER];
+        const totalRejeitado = statusCountsFinal.funcionario[STATUS_REJEITADO_LOWER] + statusCountsFinal.funcao[STATUS_REJEITADO_LOWER];
+        
+        console.log(`[CONTAGEM V92.1 TOTAL] Pendentes: ${totalPendente}, Autorizados: ${totalAutorizado}, Rejeitados: ${totalRejeitado}`);
+
+        // --- 7. ESTRUTURA DE TABS (Renderização e Listeners) ---
         const tabsHTML = `
-      <div class="titulo-pedidos">Pedidos e Solicitações</div>
-      <div class="tabs-container-wrapper">
-          <div class="abas-principais">
-        <button class="aba main-tab-btn ativa" 
-      data-tab-content="tab-content-funcionarios" data-categoria="funcionario">
-      Funcionários (${pedidosFuncionariosUnicos.length})
-        </button>
-        <button class="aba main-tab-btn" 
-      data-tab-content="tab-content-funcoes" data-categoria="funcao">
-      Funções (${pedidosFuncoesUnicos.length})
-        </button>
-          </div>
-          <div id="tab-content-funcionarios" class="painel-tabs ativo">
-        <p class="mt-3">Clique na aba 'Funcionários' ou 'Funções' para ver os pedidos.</p>
-          </div>
-          <div id="tab-content-funcoes" class="painel-tabs desativado">
-        <p class="mt-3">Clique na aba 'Funcionários' ou 'Funções' para ver os pedidos.</p>
-          </div>
-      </div>
+            <div class="titulo-pedidos">Pedidos e Solicitações</div>
+            <div class="tabs-container-wrapper">
+                <div class="abas-principais">
+                    <button class="aba main-tab-btn ativa" 
+                        data-tab-content="tab-content-funcionarios" data-categoria="funcionario">
+                        Funcionários (${pedidosFuncionariosUnicos.length})
+                    </button>
+                    <button class="aba main-tab-btn" 
+                        data-tab-content="tab-content-funcoes" data-categoria="funcao">
+                        Funções (${pedidosFuncoesUnicos.length})
+                    </button>
+                </div>
+                <div id="tab-content-funcionarios" class="painel-tabs ativo">
+                    <p class="mt-3">Clique na aba 'Funcionários' ou 'Funções' para ver os pedidos.</p>
+                </div>
+                <div id="tab-content-funcoes" class="painel-tabs desativado">
+                    <p class="mt-3">Clique na aba 'Funcionários' ou 'Funções' para ver os pedidos.</p>
+                </div>
+            </div>
         `;
 
         lista.innerHTML = tabsHTML; 
 
-        // 5. Listener para as tabs principais
+        // Listeners (Inalterados)
         document.querySelectorAll('.abas-principais .main-tab-btn').forEach(button => {
-      button.addEventListener('click', function() {
-          const targetId = this.getAttribute('data-tab-content');
-          const categoria = this.getAttribute('data-categoria');
-          const abasPrincipaisContainer = document.querySelector('.abas-principais'); 
-      
-          // 1. Alterna o estilo da aba principal:
-          document.querySelectorAll('.abas-principais .main-tab-btn').forEach(btn => {
-        btn.classList.remove('ativa');
-        btn.classList.remove('desativada'); 
-          });
-          this.classList.add('ativa');
+            button.addEventListener('click', function() {
+                // ... (Lógica do clique da aba principal) ...
+                const clickedButton = this;
+                const targetId = clickedButton.getAttribute('data-tab-content');
+                const categoria = clickedButton.getAttribute('data-categoria');
+                const abasPrincipaisContainer = document.querySelector('.abas-principais'); 
+                
+                document.querySelectorAll('.abas-principais .main-tab-btn').forEach(btn => {
+                    if (btn) { 
+                        btn.classList.remove('ativa');
+                        btn.classList.remove('desativada'); 
+                    }
+                }); 
+                
+                clickedButton.classList.add('ativa');
 
-          // 2. Oculta o container das ABAS PRINCIPAIS (Funcionários/Funções)
-          if (abasPrincipaisContainer) {
-        abasPrincipaisContainer.style.display = 'none';
-          }
+                if (abasPrincipaisContainer) {
+                    abasPrincipaisContainer.style.display = 'none';
+                }
 
-          // 3. Alterna a visibilidade do conteúdo principal
-          document.querySelectorAll('.painel-tabs').forEach(content => content.classList.remove('ativo'));
-          document.querySelectorAll('.painel-tabs').forEach(content => content.classList.add('desativado'));
+                document.querySelectorAll('.painel-tabs').forEach(content => content.classList.remove('ativo'));
+                document.querySelectorAll('.painel-tabs').forEach(content => content.classList.add('desativado'));
 
-          const targetContent = document.getElementById(targetId);
-          targetContent.classList.add('ativo');
-          targetContent.classList.remove('desativado');
+                const targetContent = document.getElementById(targetId);
+                targetContent.classList.add('ativo');
+                targetContent.classList.remove('desativado'); 
 
-          // 4. CHAMA A FUNÇÃO para carregar as sub-abas E simula o clique em "Pendentes"
-          const listaPedidos = categoria === 'funcionario' ? pedidosFuncionariosUnicos : pedidosFuncoesUnicos;
-          carregarSubAbas(targetContent, categoria, listaPedidos);
-      });
+                const listaPedidos = categoria === 'funcionario' ? pedidosFuncionariosUnicos : pedidosFuncoesUnicos;
+                const contagemCategoria = categoria === 'funcionario' ? statusCountsFinal.funcionario : statusCountsFinal.funcao;
+
+                carregarSubAbasInicial(targetContent, categoria, listaPedidos, contagemCategoria);
+            });
         });
-
-        // 6. Delegação de Eventos para as sub-abas (CORREÇÃO DE ESCOPO)
+        // Delegação de Eventos para as sub-abas (Inalterado)
         lista.addEventListener('click', function(event) {
-      const button = event.target.closest('.sub-tab-btn');
-      if (button) {
-          const status = button.getAttribute('data-status');
-          const categoria = button.getAttribute('data-categoria');
-          const listContainerId = button.getAttribute('data-list-id');
-          // NOTA: O mainContentId não é mais usado para a limpeza, mas é necessário para o renderizarPedidos
-          const mainContentId = `tab-content-${categoria}`; 
+            const button = event.target.closest('.sub-tab-btn');
+            if (button) {
+                // ... (Lógica do clique da sub-aba) ...
+                const status = button.getAttribute('data-status');
+                const categoria = button.getAttribute('data-categoria');
+                const listContainerId = button.getAttribute('data-list-id');
 
-          // 1. Alterna o estilo da sub-aba:
-          document.querySelectorAll(`.sub-abas-pedidos[data-categoria="${categoria}"] .sub-tab-btn`).forEach(btn => {
-        btn.classList.remove('ativa');
-        //btn.classList.remove('desativada'); 
-          });
-          button.classList.add('ativa');
+                document.querySelectorAll(`.sub-abas-pedidos[data-categoria="${categoria}"] .sub-tab-btn`).forEach(btn => {
+                    btn.classList.remove('ativa');
+                });
+                button.classList.add('ativa');
 
                 lista.querySelectorAll('.pedidos-list-container').forEach(container => {
                     container.classList.add('hidden'); 
-                    
-                    // Força Bruta de Ocultamento
                     container.style.display = 'none'; 
                     container.style.visibility = 'hidden'; 
                     container.style.height = '0'; 
                 });
-                // 3. Mostra APENAS o container do status clicado
+                
                 const targetContainer = document.getElementById(listContainerId);
                 if (targetContainer) {
                     targetContainer.classList.remove('hidden');
-                    
-                    // Reverte a Força Bruta de Ocultamento no container de destino
                     targetContainer.style.visibility = 'visible';
                     targetContainer.style.height = 'auto'; 
-                    targetContainer.style.display = 'flex'; // Use 'flex', 'block' ou 'grid' conforme seu CSS
+                    targetContainer.style.display = 'flex'; 
                 }
 
-          // 4. Renderiza o conteúdo filtrado
-          const listaPedidos = categoria === 'funcionario' ? pedidosFuncionariosUnicos : pedidosFuncoesUnicos;
-          renderizarPedidos(listaPedidos, listContainerId, categoria, status, podeAprovar);
-      }
+                const listaPedidos = categoria === 'funcionario' ? pedidosFuncionariosUnicos : pedidosFuncoesUnicos;
+                renderizarPedidos(listaPedidos, listContainerId, categoria, status, podeAprovar);
+            }
         });
 
-        // 7. Delegação de Eventos para o botão "Voltar"
+        // Delegação de Eventos para o botão "Voltar" (Inalterado)
         lista.addEventListener('click', function(event) {
-      const backButton = event.target.closest('.btn-voltar-main-tabs');
-      if (backButton) {
-          const abasPrincipaisContainer = document.querySelector('.abas-principais');
-      
-          // Oculta o conteúdo atual e volta para a mensagem inicial
-          const activeTabContent = backButton.closest('.painel-tabs.ativo');
-      
-          if(activeTabContent) {
-        // Limpa o conteúdo (remove Pendentes/Autorizados/Rejeitados)
-        const categoriaAtual = activeTabContent.id.includes('funcionarios') ? 'Funcionários' : 'Funções';
-        activeTabContent.innerHTML = `<p class="mt-3">Clique na aba '${categoriaAtual}' para ver os pedidos.</p>`;
-          
-        // Oculta o painel de conteúdo
-        activeTabContent.classList.remove('ativo');
-        activeTabContent.classList.add('desativado');
-          }
+            const backButton = event.target.closest('.btn-voltar-main-tabs');
+            if (backButton) {
+                // ... (Lógica do botão voltar) ...
+                const abasPrincipaisContainer = document.querySelector('.abas-principais');
+            
+                const activeTabContent = backButton.closest('.painel-tabs.ativo');
+            
+                if(activeTabContent) {
+                    const categoriaAtual = activeTabContent.id.includes('funcionarios') ? 'Funcionários' : 'Funções';
+                    activeTabContent.innerHTML = `<p class="mt-3">Clique na aba '${categoriaAtual}' para ver os pedidos.</p>`;
+                    
+                    activeTabContent.classList.remove('ativo');
+                    activeTabContent.classList.add('desativado');
+                }
 
-          // Torna visível o container das ABAS PRINCIPAIS (Funcionários/Funções)
-          if (abasPrincipaisContainer) {
-        abasPrincipaisContainer.style.display = 'flex'; 
-          }
+                if (abasPrincipaisContainer) {
+                    abasPrincipaisContainer.style.display = 'flex'; 
+                }
 
-          // Reativa o painel de conteúdo da aba que estava ativa (Funcionários ou Funções)
-          const activeMainTabButton = document.querySelector('.abas-principais .main-tab-btn.ativa');
-          if (activeMainTabButton) {
-        const targetContent = document.getElementById(activeMainTabButton.getAttribute('data-tab-content'));
-        if (targetContent) {
-      targetContent.classList.add('ativo');
-      targetContent.classList.remove('desativado');
-        }
-          }
-      }
+                const activeMainTabButton = document.querySelector('.abas-principais .main-tab-btn.ativa');
+                if (activeMainTabButton) {
+                    const targetContent = document.getElementById(activeMainTabButton.getAttribute('data-tab-content'));
+                    if (targetContent) {
+                        targetContent.classList.add('ativo');
+                        targetContent.classList.remove('desativado');
+                    }
+                }
+            }
         });
 
     } catch (err) {
@@ -3826,7 +4218,8 @@ async function mostrarPedidosUsuario() {
 }
 
 function carregarSubAbas(targetContent, categoria, pedidos) {
-    const listContainerIdBase = categoria === 'funcionario' ? "funcionarios-list" : "funcoes-list";
+  
+  const listContainerIdBase = categoria === 'funcionario' ? "funcionarios-list" : "funcoes-list";
     
     // Verifica se o conteúdo já foi carregado para evitar re-criação
     if (targetContent.querySelector('.sub-abas-pedidos')) {
@@ -3848,446 +4241,3251 @@ function carregarSubAbas(targetContent, categoria, pedidos) {
 }
 
 
-function criarSubTabsHTML(listContainerIdBase, categoria, pedidos) {
+function criarSubTabsHTML(listContainerIdBase, categoria, statusCounts) {
+    // statusCounts é o objeto de contagem que contém {pendente: X, autorizado: Y, rejeitado: Z}
+
+    console.log("CRIARSUBTABS", listContainerIdBase, categoria, statusCounts);
+    
     const statuses = [
         { status: STATUS_PENDENTE, label: "Pendentes" },
         { status: STATUS_AUTORIZADO, label: "Autorizados" },
         { status: STATUS_REJEITADO, label: "Rejeitados" }
     ];
 
-    const camposTodos = [
-        "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada", CAMPO_ADITIVO_EXTRA
-    ];
-
-    // Calcula as contagens
-    const contagens = {};
-    statuses.forEach(s => contagens[s.status] = 0);
-
-    pedidos.forEach(p => {
-        let isRejected = false;
-        let isAuthorized = false;
-        let isPending = false;
-        camposTodos.forEach(campo => {
-      const info = p[campo];
-      if (!info) return;
-        
-      const statusItem = (info.status || STATUS_PENDENTE).toLowerCase();
-      const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
-        
-      // Lógica de filtragem mais robusta para contagem (semelhante à do renderizarPedidos)
-      let deveContar = false;
-      if (isAditivoExtra) {
-          // Para AditivoExtra, a contagem depende da categoria (Funcionário ou Função)
-          const temIdFuncionario = !!info.idfuncionario && info.idfuncionario !== 0;
-          if (categoria === 'funcionario' && temIdFuncionario) {
-        deveContar = true;
-          } else if (categoria === 'funcao' && !temIdFuncionario) {
-        deveContar = true;
-          }
-      } else if (categoria === 'funcionario' && (info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao || info.status)) {
-          // Pedidos padrão só entram em Funcionário
-          deveContar = true;
-      }
-
-      // if (deveContar && contagens[statusItem] !== undefined) {
-      //     contagens[statusItem]++;
-      // }
-
-      if (deveContar) {
-          if (statusItem === STATUS_REJEITADO) isRejected = true;
-          if (statusItem === STATUS_AUTORIZADO) isAuthorized = true;
-          if (statusItem === STATUS_PENDENTE) isPending = true;
-      }
-
-        });
-        if (isRejected) {
-      contagens[STATUS_REJEITADO]++;
-        } else if (isAuthorized) {
-      contagens[STATUS_AUTORIZADO]++;
-        } else if (isPending) {
-      contagens[STATUS_PENDENTE]++;
-        }
-    });
-
     // Geração dos Botões de Sub-Abas
-    const tabButtons = statuses.map(s => `
-        <button class="aba sub-tab-btn ${s.status === STATUS_PENDENTE ? 'ativa' : ''}" 
-      data-status="${s.status}" data-categoria="${categoria}" data-list-id="${listContainerIdBase}-${s.status}">
-      ${s.label} (<span id="${listContainerIdBase}-count-${s.status}">${contagens[s.status]}</span>)
-        </button>
-    `).join('');
+    const tabButtons = statuses.map(s => {
+        const statusKey = s.status.toLowerCase(); // Usa a chave minúscula (pendente, autorizado, rejeitado)
+        const count = statusCounts[statusKey] || 0; // Lê a contagem do objeto passado
+        
+        return `
+            <button class="aba sub-tab-btn ${s.status === STATUS_PENDENTE ? 'ativa' : ''}" 
+                data-status="${s.status}" data-categoria="${categoria}" data-list-id="${listContainerIdBase}-${s.status}">
+                ${s.label} (<span id="${listContainerIdBase}-count-${s.status}">${count}</span>)
+            </button>
+        `;
+    }).join('');
 
     // Conteúdo das Sub-Abas
     const tabContents = statuses.map(s => `
         <div id="${listContainerIdBase}-${s.status}" class="pedidos-list-container ${s.status === STATUS_PENDENTE ? '' : 'hidden'}">
-      <p class="mt-2 text-sm text-gray-500">Carregando lista de pedidos ${s.label.toLowerCase()}...</p>
+            <p class="mt-2 text-sm text-gray-500">Carregando lista de pedidos ${s.label.toLowerCase()}...</p>
         </div>
     `).join('');
 
     // ESTRUTURA PRINCIPAL DO CONTEÚDO (INCLUI BOTÃO VOLTAR)
     return `
         <button class="btn-voltar-main-tabs" type="button">
-      <i class="fas fa-arrow-left"></i> Voltar para Pedidos e Solicitações
+            <i class="fas fa-arrow-left"></i> Voltar para Pedidos e Solicitações
         </button>
 
         <div class="sub-tab-view">
-      <div class="sub-abas-pedidos" data-categoria="${categoria}">
-          ${tabButtons}
-      </div>
-      <div class="sub-tabs-content">
-          ${tabContents}
-      </div>
+            <div class="sub-abas-pedidos" data-categoria="${categoria}">
+                ${tabButtons}
+            </div>
+            <div class="sub-tabs-content">
+                ${tabContents}
+            </div>
         </div>
     `;
 }
 
 
-/**
- * Renderiza a lista de pedidos filtrados por categoria e status, 
- * controlando a visibilidade dos botões de aprovação/rejeição com base na permissão do usuário.
- * * @param {Array<Object>} pedidosCompletos - Lista completa de pedidos unificados.
- * @param {string} containerId - ID do container onde os pedidos serão renderizados (ex: 'tab-content-funcionario-list-pendente').
- * @param {('funcionario'|'funcao')} categoria - A categoria atual da aba (funcionario ou funcao).
- * @param {string} statusDesejado - O status para filtrar (pendente, autorizado, rejeitado).
- * @param {boolean} podeAprovar - Indica se o usuário logado tem permissão Master (Pode aprovar/rejeitar).
- */
+function carregarSubAbasInicial(targetContent, categoria, pedidos, statusCounts) {
+    const listContainerIdBase = categoria === 'funcionario' ? "funcionarios-list" : "funcoes-list";
+    const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
+    
+    // Verifica se o conteúdo já foi carregado para evitar re-criação
+    if (targetContent.querySelector('.sub-abas-pedidos')) {
+         // Se já foi carregado, apenas simula o clique em Pendentes
+         const defaultSubTab = targetContent.querySelector(`.sub-tab-btn[data-status="${STATUS_PENDENTE}"]`);
+         if(defaultSubTab) { 
+             defaultSubTab.click(); 
+         }
+         return;
+    }
+    
+    // Gera o HTML das sub-abas, passando o objeto de contagem CORRETO (statusCounts)
+    const subTabsHTML = criarSubTabsHTML(listContainerIdBase, categoria, statusCounts); // <--- MUDANÇA CRÍTICA AQUI
+    targetContent.innerHTML = subTabsHTML;
+
+    // Simula o clique no primeiro sub-tab ("Pendentes")
+    const defaultSubTab = targetContent.querySelector(`.sub-tab-btn[data-status="${STATUS_PENDENTE}"]`);
+    if (defaultSubTab) {
+        // Dispara o evento de clique, que será capturado pelo Listener na mostrarPedidosUsuario
+        // O Listener usará o array 'pedidos' e o status 'STATUS_PENDENTE' para renderizar o conteúdo.
+        defaultSubTab.click();
+    }
+}
+
+
+function formatarNomeSolicitacao(campoNome) {
+    if (!campoNome) return 'N/D';
+    
+    // 1. Remove o prefixo 'status' e converte para minúsculas para comparação
+    let nomeLimpo = campoNome.toLowerCase().replace("status", "");
+    
+    // 2. Mapeamento de quebra de palavras conhecida (V72.0)
+    const mapeamento = {
+        "ajustecusto": "Ajuste de Custo",
+        "caixinha": "Caixinha",
+        "meiadiaria": "Meia Diária",
+        "diariadobrada": "Diária Dobrada",
+        "aditivoextra": "Aditivo Extra"
+    };
+
+    if (mapeamento[nomeLimpo]) {
+        return mapeamento[nomeLimpo];
+    }
+
+    // 3. Fallback: Tenta quebrar pelo Camel Case e Capitalizar
+    let nomeFormatado = nomeLimpo.replace(/([a-z])([A-Z])/g, '$1 $2');
+    
+    // Capitaliza a primeira letra de cada palavra
+    return nomeFormatado.split(' ')
+                        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                        .join(' ');
+}
+
+
+function parseDateLocal(dateString) {
+    if (!dateString) return null;
+    // A string deve estar no formato 'YYYY-MM-DD'.
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return null;
+
+    const year = parseInt(parts[0], 10);
+    // O mês em JavaScript é baseado em zero (0 = Janeiro, 11 = Dezembro).
+    const month = parseInt(parts[1], 10) - 1; 
+    const day = parseInt(parts[2], 10);
+
+    // Cria o objeto Date usando o fuso horário LOCAL do ambiente.
+    // Isso é a chave para evitar o deslocamento para o dia anterior (ex: 01/11)
+    // quando o fuso horário local é negativo (ex: GMT-3).
+    return new Date(year, month, day);
+}
+
+
+// function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
+//     const container = document.getElementById(containerId);
+//     if (!container) return;
+
+//     // 🛑 CORREÇÃO V61.0: Garante que o contêiner de lista se comporte como uma coluna.
+//     container.style.display = 'flex';
+//     container.style.flexDirection = 'column';
+//     container.style.flexWrap = 'nowrap';
+//     container.style.gap = '10px';
+
+//     container.innerHTML = '';
+
+//     const camposTodos = [
+//         "statusajustecusto",
+//         "statuscaixinha",
+//         "statusmeiadiaria",
+//         "statusdiariadobrada",
+//         CAMPO_ADITIVO_EXTRA
+//     ];
+//     // 🛑 V65.0: Inclui o campo placeholder para renderização na Seção 2
+//     const camposRenderizaveis = [...camposTodos, 'pedido_principal'];
+
+//     const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
+//     const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
+//     const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
+
+
+//     // --- 1. FILTRAGEM E CONSOLIDAÇÃO DE SOLICITANTES (Ajustada com V82.0 - Lógica de Prioridade Fina) ---
+//     const gruposFiltrados = [];
+//     const solicitantesPendentesPorChave = {};
+
+//     pedidosCompletos.forEach(grupoConsolidado => {
+//         let chaveRenderizacao = categoria === 'funcionario'
+//             ? grupoConsolidado.funcionario
+//             : (grupoConsolidado.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
+
+//         if (!chaveRenderizacao) return;
+
+//         if (!solicitantesPendentesPorChave[chaveRenderizacao]) {
+//             solicitantesPendentesPorChave[chaveRenderizacao] = new Set();
+//         }
+
+//         const registros = grupoConsolidado.registrosOriginais || [];
+        
+//         // 🛑 V79.0: Usar um mapa temporário para consolidar registros por ID dentro deste grupo
+//         const pedidosConsolidadosPorId = new Map();
+
+//         registros.forEach(pedidoOriginal => {
+//             const id = pedidoOriginal.idpedido;
+//             let pedidoConsolidado = pedidosConsolidadosPorId.get(id);
+
+//             if (!pedidoConsolidado) {
+//                 // Se o ID é novo, inicializa com o objeto original
+//                 pedidoConsolidado = { 
+//                     ...pedidoOriginal, 
+//                     temMatch: false, 
+//                     renderizarComoPedidoPrincipal: false,
+//                     dataPrincipal: undefined, 
+//                     valorPrincipal: undefined,
+//                     tipoSolicitacaoGeral: undefined // V82.0: Garante que seja undefined na primeira vez.
+//                 };
+//                 pedidosConsolidadosPorId.set(id, pedidoConsolidado);
+//             }
+            
+//             // Verifica o status principal do pedido (para os 412 pedidos financeiros)
+//             const statusPrincipal = (pedidoOriginal.status_aprovacao || '').toLowerCase();
+//             if (statusPrincipal === statusDesejado) {
+//                 pedidoConsolidado.temMatch = true;
+//                 if (pedidoOriginal.nomeSolicitante) {
+//                     solicitantesPendentesPorChave[chaveRenderizacao].add(pedidoOriginal.nomeSolicitante);
+//                 }
+//                 pedidoConsolidado.renderizarComoPedidoPrincipal = true; // Status principal deu match
+                
+//                 // 🛑 V82.0: Flags de Anexação
+//                 let dataAnexadaNesteCiclo = false;
+//                 let valorAnexadoNesteCiclo = false;
+                
+//                 // 1. Prioridade: DATA
+//                 if (pedidoConsolidado['dataPrincipal'] === undefined && pedidoOriginal.dataEspecifica) {
+//                     // 🛑 CORREÇÃO DE DATA 1/4: Usando parsing manual para garantir fuso horário local.
+//                     const dataObj = parseDateLocal(pedidoOriginal.dataEspecifica);
+                    
+//                     if (dataObj) {
+//                        pedidoConsolidado['dataPrincipal'] = dataObj.toLocaleDateString('pt-BR'); 
+//                        dataAnexadaNesteCiclo = true; 
+//                     }
+                    
+
+//                 // 2. Fallback: VALOR
+//                 } else if (pedidoConsolidado['valorPrincipal'] === undefined && pedidoOriginal.vlrtotal !== undefined && typeof pedidoOriginal.vlrtotal === 'number') {
+//                     pedidoConsolidado['valorPrincipal'] = pedidoOriginal.vlrtotal;
+//                     valorAnexadoNesteCiclo = true; 
+//                 }
+                
+//                 // 🛑 V82.0: Define o tipo de solicitação
+//                 if (pedidoOriginal.categoria || pedidoOriginal.categoria_item) {
+//                    const novoTipo = formatarNomeSolicitacao(pedidoOriginal.categoria || pedidoOriginal.categoria_item);
+                   
+//                    // Prioriza o tipo se:
+//                    // A) O tipo ainda não foi definido OU
+//                    // B) Este registro acabou de anexar a data ou o valor principal.
+//                    if (pedidoConsolidado['tipoSolicitacaoGeral'] === undefined || dataAnexadaNesteCiclo || valorAnexadoNesteCiclo) {
+//                       pedidoConsolidado['tipoSolicitacaoGeral'] = novoTipo;
+//                    }
+//                 }
+//             }
+//             // FIM V82.0
+            
+//             // Processamento dos itens aninhados
+//             camposTodos.forEach(campo => {
+//                 const info = pedidoOriginal[campo];
+//                 if (!info) {
+//                     return;
+//                 }
+
+//                 const itens = Array.isArray(info) ? info : [info];
+
+//                 const itensFiltrados = itens.filter(item =>
+//                     (item.status || STATUS_PENDENTE_LOWER).toLowerCase() === statusDesejado
+//                 );
+
+//                 if (itensFiltrados.length > 0) {
+//                     pedidoConsolidado.temMatch = true;
+//                     if (pedidoOriginal.nomeSolicitante) {
+//                       solicitantesPendentesPorChave[chaveRenderizacao].add(pedidoOriginal.nomeSolicitante);
+//                     }
+                    
+//                     // 🛑 V80.0: Inicialização segura do campo como array antes da concatenação
+//                     if (!pedidoConsolidado[campo] || !Array.isArray(pedidoConsolidado[campo])) {
+//                       pedidoConsolidado[campo] = [];
+//                     }
+                    
+//                     // Concatena itens aninhados de diferentes registros
+//                     pedidoConsolidado[campo] = pedidoConsolidado[campo].concat(itensFiltrados);
+//                 }
+//             });
+//         });
+        
+//         // Finaliza a filtragem e preparação para renderização
+//         const pedidosFiltradosNoGrupo = Array.from(pedidosConsolidadosPorId.values())
+//             .filter(p => p.temMatch);
+
+//         pedidosFiltradosNoGrupo.forEach(pedidoConsolidado => {
+//             // Se o tipo geral ainda não foi definido, usa o fallback simples
+//             if (pedidoConsolidado.renderizarComoPedidoPrincipal && !pedidoConsolidado['tipoSolicitacaoGeral']) {
+//                 let tipoSolicitacaoNome = 'Solicitação Financeira Principal';
+//                 const campoCategoria = pedidoConsolidado.categoria || pedidoConsolidado.categoria_item; 
+
+//                 if (campoCategoria) {
+//                     tipoSolicitacaoNome = formatarNomeSolicitacao(campoCategoria);
+//                 } else {
+//                     const campoTipo = camposTodos.find(c => pedidoConsolidado[c]);
+//                     if (campoTipo) {
+//                       tipoSolicitacaoNome = formatarNomeSolicitacao(campoTipo);
+//                     }
+//                 }
+//                 pedidoConsolidado['tipoSolicitacaoGeral'] = tipoSolicitacaoNome;
+//             }
+            
+//             const temItensAninhados = camposTodos.some(campo => pedidoConsolidado[campo] !== undefined);
+
+//             if (pedidoConsolidado.renderizarComoPedidoPrincipal && !temItensAninhados) {
+//                 // Adiciona o placeholder para o Pedido Principal se ele deu match no status e não tem sub-itens
+//                 pedidoConsolidado['pedido_principal'] = [{ status: STATUS_PENDENTE_LOWER }];
+//             }
+
+//             // Remove flags temporárias
+//             delete pedidoConsolidado.temMatch;
+//             delete pedidoConsolidado.renderizarComoPedidoPrincipal;
+//         });
+
+
+//         if (pedidosFiltradosNoGrupo.length > 0) {
+//             gruposFiltrados.push({
+//                 ...grupoConsolidado,
+//                 registrosOriginais: pedidosFiltradosNoGrupo
+//             });
+//         }
+//     });
+    
+//     // FIM DA SEÇÃO 1: Consolidação por ID garantida.
+
+//     // A ordenação por data de criação não deve mais precisar de correção de fuso,
+//     // pois a data de criação (dtCriacao) geralmente já inclui o tempo e é formatada corretamente.
+//     gruposFiltrados.sort((a, b) =>
+//         new Date(b.dtCriacao || '1970-01-01').getTime() -
+//         new Date(a.dtCriacao || '1970-01-01').getTime()
+//     );
+
+//     if (gruposFiltrados.length === 0) {
+//         const msg = document.createElement("p");
+//         msg.textContent = `Não há pedidos com status "${statusDesejado}".`;
+//         container.appendChild(msg);
+
+//         const countSpan = document.getElementById(`${containerId.split('-list-')[0]}-count-${statusDesejado}`);
+//         if (countSpan) countSpan.textContent = 0;
+//         return;
+//     }
+
+//     // --- 2. RENDERIZAÇÃO (Usa data já formatada) ---
+//     const listaGrupos = document.createElement("div");
+//     listaGrupos.className = "lista-funcionarios";
+
+//     let totalItensRenderizados = 0;
+
+//     gruposFiltrados.forEach(grupo => {
+//         const pedidosDoGrupo = grupo.registrosOriginais;
+//         if (!pedidosDoGrupo?.length) return;
+
+//         const pedidosParaRenderizar = pedidosDoGrupo; 
+        
+//         const chaveNome = categoria === 'funcionario'
+//             ? grupo.funcionario
+//             : (grupo.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
+
+//         const solicitantesGrupo = Array.from(solicitantesPendentesPorChave[chaveNome] || []).join(', ') || 'N/D';
+
+//         const divGrupo = document.createElement("div");
+//         divGrupo.className = "funcionario";
+
+//         const header = document.createElement("div");
+//         header.className = "funcionario-header";
+
+//         const body = document.createElement("div");
+//         body.className = "funcionario-body hidden";
+
+//         let htmlBody = '';
+//         let itensGrupo = 0;
+
+//         // Itera sobre os pedidos consolidados
+//         pedidosParaRenderizar.forEach(pedido => {
+//             // Itera sobre camposTodos e o novo placeholder 'pedido_principal'
+//             camposRenderizaveis.forEach(campo => { 
+//                 const itensFiltrados = pedido[campo];
+//                 if (!itensFiltrados || itensFiltrados.length === 0) return;
+
+//                 const itensParaRenderizar = Array.isArray(itensFiltrados) ? itensFiltrados : [itensFiltrados];
+
+//                 itensParaRenderizar.forEach(infoItem => {
+//                     itensGrupo++;
+//                     totalItensRenderizados++;
+
+//                     const statusTexto = statusDesejado.charAt(0).toUpperCase() + statusDesejado.slice(1);
+//                     let corQuadrado = statusDesejado === STATUS_AUTORIZADO_LOWER ? "#16a34a" : statusDesejado === STATUS_REJEITADO_LOWER ? "#dc2626" : "#facc15";
+
+//                     let tituloCard;
+//                     const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
+//                     const isDataUnica = campo === "statusmeiadiaria" || campo === "statusdiariadobrada";
+//                     const isPedidoPrincipal = campo === 'pedido_principal'; 
+
+//                     if (isPedidoPrincipal) {
+//                       tituloCard = pedido.tipoSolicitacaoGeral || 'Solicitação Principal'; 
+
+//                       // 🛑 V81.0: Usa a data já formatada
+//                       if (pedido.dataPrincipal) {
+//                            tituloCard += ` (${pedido.dataPrincipal})`;
+
+//                       } else if (pedido.valorPrincipal !== undefined && typeof pedido.valorPrincipal === 'number') {
+//                           const valorFmt = pedido.valorPrincipal.toFixed(2).replace('.', ',');
+//                           tituloCard += ` (R$ ${valorFmt})`;
+//                       }
+
+//                     } else if (isAditivoExtra) {
+//                       const tipo = infoItem.tipoSolicitacao;
+//                       tituloCard = (tipo?.toUpperCase() === 'FUNCEXCEDIDO')
+//                           ? "Limite Diário Excedido por Função/Evento"
+//                           : tipo;
+//                     } else {
+//                       // Itens aninhados
+//                       tituloCard = formatarNomeSolicitacao(campo);
+
+//                       // V77.0: Adiciona Data/Valor ao título do item aninhado
+//                       if (isDataUnica && infoItem.data) {
+//                           // 🛑 CORREÇÃO DE DATA 2/4: Usando parsing manual para garantir fuso horário local.
+//                           const dataObj = parseDateLocal(infoItem.data); 
+//                           const dataFmt = dataObj?.toLocaleDateString('pt-BR') || '';
+//                           if (dataFmt) tituloCard += ` (${dataFmt})`;
+//                       } else if ((campo.includes('custo') || campo.includes('caixinha')) && typeof infoItem.valor === 'number') {
+//                                const valorFmt = infoItem.valor.toFixed(2).replace('.', ',');
+//                                tituloCard += ` (R$ ${valorFmt})`;
+//                       }
+//                     }
+
+//                     htmlBody += `
+//                       <div class="pedido-card">
+//                           <div>
+//                               <strong>${tituloCard}</strong><br>
+//                     `;
+
+//                     const nomeSolic = pedido.nomeSolicitante || "N/D";
+
+//                     if (pedido.evento) {
+//                       if (categoria === 'funcionario' && pedido.funcionario) {
+//                           htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario} - <strong>Solicitante:</strong> ${nomeSolic}<br>`;
+//                       } else {
+//                           htmlBody += `<strong>Evento:</strong> ${pedido.evento}<br>`;
+//                       }
+//                     }
+
+//                     if (isPedidoPrincipal) {
+//                       htmlBody += `Status do Pedido: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     } else if (isAditivoExtra) {
+//                       if (infoItem.quantidade) htmlBody += `Qtd: ${infoItem.quantidade}<br>`;
+//                       htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     } else if (infoItem.valor !== undefined) {
+//                       htmlBody += `Valor: R$ ${infoItem.valor} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     } else if (isDataUnica) {
+//                       // 🛑 CORREÇÃO DE DATA 3/4: Usando parsing manual para garantir fuso horário local.
+//                       const dataObj = parseDateLocal(infoItem.data);
+//                       const dataFmt = dataObj ? dataObj.toLocaleDateString('pt-BR') : 'Data indefinida';
+//                       htmlBody += `Data: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     } else if (infoItem.datas) {
+//                       // 🛑 CORREÇÃO DE DATA 4/4: Usando parsing manual para garantir fuso horário local.
+//                       const datasFmt = infoItem.datas
+//                           .map(d => parseDateLocal(d.data)?.toLocaleDateString('pt-BR'))
+//                           .filter(d => d) // Remove qualquer data que falhou no parsing
+//                           .join(', ');
+//                       htmlBody += `Datas: ${datasFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     }
+
+//                     if (infoItem.descricao) {
+//                       htmlBody += `Descrição: ${infoItem.descricao}<br>`;
+//                     }
+
+//                     if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
+//                       // Se for pedido principal, o campo de ação é 'status_aprovacao'
+//                       const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo; 
+
+//                       // Garante que a data bruta (YYYY-MM-DD) vá para o backend.
+//                       const dataParaAcao = isPedidoPrincipal ? (pedido.dataEspecifica || '') : (isDataUnica ? infoItem.data : '');
+
+//                       htmlBody += `
+//                           <div class="flex gap-2 mt-2"
+//                               data-id="${pedido.idpedido}"
+//                               data-campo="${campoParaAcao}"
+//                               data-data="${dataParaAcao}"
+//                               data-aditivo="${isAditivoExtra}">
+//                               <button class="aprovar">Autorizar</button>
+//                               <button class="negar">Rejeitar</button>
+//                           </div>
+//                       `;
+//                     }
+
+//                     htmlBody += `
+//                           </div>
+//                           <div class="quadrado-arredondado" style="background-color: ${corQuadrado};" title="Status: ${statusTexto}"></div>
+//                       </div>
+//                     `;
+//                 });
+//             });
+//         });
+
+//         body.innerHTML = htmlBody;
+
+//         header.innerHTML = `
+//             <div>
+//                 ${categoria === 'funcionario' ? 'Funcionário' : 'Função'}:
+//                 <strong>${chaveNome}</strong><br>
+//                 <small class="text-xs text-gray-500">Solicitante(s): ${solicitantesGrupo}</small>
+//             </div>
+//             <div class="flex items-center gap-2">
+//                 <span>${itensGrupo}</span>
+//                 <i class="fas fa-chevron-down text-gray-500 text-xs transition-transform transform"></i>
+//             </div>
+//         `;
+
+//         header.addEventListener("click", () => {
+//             body.classList.toggle("hidden");
+//             header.querySelector('i').classList.toggle('rotate-180');
+//         });
+
+//         divGrupo.appendChild(header);
+//         divGrupo.appendChild(body);
+//         listaGrupos.appendChild(divGrupo);
+//     });
+
+//     container.appendChild(listaGrupos);
+
+//     // --- 3. LISTENERS DE AÇÃO (SWAL) ---
+
+//     // Listener delegado para os botões 'aprovar' e 'negar'
+//     container.addEventListener('click', async function(event) {
+//         const target = event.target;
+//         if (!target.classList.contains('aprovar') && !target.classList.contains('negar')) return;
+
+//         const actionDiv = target.closest('.flex.gap-2.mt-2');
+//         if (!actionDiv) return;
+
+//         const isAprovar = target.classList.contains('aprovar');
+//         const idReferencia = actionDiv.getAttribute('data-id');
+//         const campoParaBackend = actionDiv.getAttribute('data-campo');
+//         const dataParaUpdate = actionDiv.getAttribute('data-data');
+//         const isAditivoExtra = actionDiv.getAttribute('data-aditivo') === 'true';
+
+//         const statusUpdateFn = isAditivoExtra ? atualizarStatusAditivoExtra : atualizarStatusPedido;
+//         const statusTarget = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
+
+//         const cardElement = target.closest('.pedido-card');
+
+//         // --- LÓGICA DE CONFIRMAÇÃO (MODAL) ---
+//         if (isAprovar) {
+//             // === MODAL DE CONFIRMAÇÃO PARA AUTORIZAR ===
+//             const result = await Swal.fire({
+//                 title: 'Tem certeza?',
+//                 text: "Você irá autorizar esta solicitação. Esta ação é irreversível!",
+//                 icon: 'warning',
+//                 showCancelButton: true,
+//                 confirmButtonColor: '#16a34a',
+//                 cancelButtonColor: '#dc2626',
+//                 confirmButtonText: 'Sim, Autorizar!',
+//                 cancelButtonText: 'Cancelar'
+//             });
+
+//             if (result.isConfirmed) {
+//                 if (isAditivoExtra) {
+//                     await statusUpdateFn(idReferencia, statusTarget, cardElement);
+//                 } else {
+//                     await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate, null);
+//                 }
+//             }
+//         } else {
+//             // === MODAL DE CONFIRMAÇÃO E JUSTIFICATIVA PARA REJEITAR ---
+//             const { value: justificativa } = await Swal.fire({
+//                 title: 'Rejeitar Solicitação',
+//                 input: 'textarea',
+//                 inputLabel: 'Por favor, insira a justificativa da rejeição:',
+//                 inputPlaceholder: 'Justificativa...',
+//                 showCancelButton: true,
+//                 confirmButtonColor: '#dc2626',
+//                 cancelButtonColor: '#6b7280',
+//                 confirmButtonText: 'Sim, Rejeitar!',
+//                 cancelButtonText: 'Cancelar',
+//                 inputValidator: (value) => {
+//                     if (!value) {
+//                       return 'Você precisa inserir uma justificativa!';
+//                     }
+//                 }
+//             });
+
+//             if (justificativa) {
+//                 if (isAditivoExtra) {
+//                     await statusUpdateFn(idReferencia, statusTarget, cardElement, justificativa);
+//                 } else {
+//                     await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate, justificativa);
+//                 }
+//             }
+//         }
+//     });
+
+//     // --- 4. Atualiza a contagem da sub-aba (Badge) ---
+//     const span = document.getElementById(`${containerId.split('-list-')[0]}-count-${statusDesejado}`);
+//     if (span) {
+//         span.textContent = totalItensRenderizados;
+//     }
+// }
+
+
+function safeParse(input) {
+    if (Array.isArray(input)) return input;
+    if (typeof input !== 'string') return [input];
+    
+    let result = input.trim();
+    
+    // 1. Caso de borda: Se for "null" ou "[]" (string vazia de array)
+    if (result.toLowerCase() === 'null' || result === '[]') return [];
+
+    // 2. Remove aspas externas se o JSON estiver envolto nelas (ex: '"{...}"')
+    if (result.startsWith('"') && result.endsWith('"')) {
+        result = result.substring(1, result.length - 1).trim();
+    }
+    
+    // 3. Tenta corrigir aspas duplas incorretas (muito comum em serialização de DB)
+    // Ex: Substitui [{""data"":...}] por [{"data":...}]
+    let jsonString = result.replace(/""/g, '"');
+    
+    try {
+        // Tenta parsear a string corrigida
+        const parsed = JSON.parse(jsonString);
+        return Array.isArray(parsed) ? parsed : [parsed];
+    } catch (e) {
+        // Fallback: Tenta parsear a string original sem correção de aspas (caso a correção tenha quebrado)
+        try {
+            const parsed = JSON.parse(result);
+            return Array.isArray(parsed) ? parsed : [parsed];
+        } catch (e) {
+            // Fallback final: se tudo falhar, retorna o input original dentro de um array
+            console.warn("safeParse falhou em todos os modos para:", input, e);
+            return [input];
+        }
+    }
+}
+
+
+// function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
+//     const container = document.getElementById(containerId);
+//     if (!container) return;
+
+//     // 🛑 CORREÇÃO V61.0: Garante que o contêiner de lista se comporte como uma coluna.
+//     container.style.display = 'flex';
+//     container.style.flexDirection = 'column';
+//     container.style.flexWrap = 'nowrap';
+//     container.style.gap = '10px';
+
+//     container.innerHTML = '';
+
+//     const camposTodos = [
+//         "statusajustecusto",
+//         "statuscaixinha",
+//         "statusmeiadiaria",
+//         "statusdiariadobrada",
+//         CAMPO_ADITIVO_EXTRA
+//     ];
+//     // 🛑 V65.0: Inclui o campo placeholder para renderização na Seção 2
+//     const camposRenderizaveis = [...camposTodos, 'pedido_principal'];
+
+//     const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
+//     const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
+//     const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
+
+
+//     // --- 1. FILTRAGEM E CONSOLIDAÇÃO DE SOLICITANTES ---
+//     const gruposFiltrados = [];
+//     const solicitantesPendentesPorChave = {};
+
+//     pedidosCompletos.forEach(grupoConsolidado => {
+//         let chaveRenderizacao = categoria === 'funcionario'
+//             ? grupoConsolidado.funcionario
+//             : (grupoConsolidado.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
+
+//         if (!chaveRenderizacao) return;
+
+//         if (!solicitantesPendentesPorChave[chaveRenderizacao]) {
+//             solicitantesPendentesPorChave[chaveRenderizacao] = new Set();
+//         }
+
+//         const registros = grupoConsolidado.registrosOriginais || [];
+        
+//         // 🛑 V79.0: Usar um mapa temporário para consolidar registros por ID dentro deste grupo
+//         const pedidosConsolidadosPorId = new Map();
+
+//         registros.forEach(pedidoOriginal => {
+//             const id = pedidoOriginal.idpedido;
+//             let pedidoConsolidado = pedidosConsolidadosPorId.get(id);
+
+//             if (!pedidoConsolidado) {
+//                 // Se o ID é novo, inicializa com o objeto original
+//                 pedidoConsolidado = { 
+//                     ...pedidoOriginal, 
+//                     temMatch: false, 
+//                     renderizarComoPedidoPrincipal: false,
+//                     dataPrincipal: undefined, 
+//                     valorPrincipal: undefined,
+//                     tipoSolicitacaoGeral: undefined
+//                 };
+//                 pedidosConsolidadosPorId.set(id, pedidoConsolidado);
+//             }
+            
+//             // Verifica o status principal do pedido (para os 412 pedidos financeiros)
+//             const statusPrincipal = (pedidoOriginal.status_aprovacao || '').toLowerCase();
+//             if (statusPrincipal === statusDesejado) {
+//                 pedidoConsolidado.temMatch = true;
+//                 if (pedidoOriginal.nomeSolicitante) {
+//                     solicitantesPendentesPorChave[chaveRenderizacao].add(pedidoOriginal.nomeSolicitante);
+//                 }
+//                 pedidoConsolidado.renderizarComoPedidoPrincipal = true; 
+                
+//                 // 🛑 V82.0: Flags de Anexação
+//                 let dataAnexadaNesteCiclo = false;
+//                 let valorAnexadoNesteCiclo = false;
+                
+//                 // 1. Prioridade: DATA
+//                 if (pedidoConsolidado['dataPrincipal'] === undefined && pedidoOriginal.dataEspecifica) {
+//                     // 🛑 CORREÇÃO DE DATA 1/4 (Manual Parsing)
+//                     const dataObj = parseDateLocal(pedidoOriginal.dataEspecifica);
+                    
+//                     if (dataObj) {
+//                          pedidoConsolidado['dataPrincipal'] = dataObj.toLocaleDateString('pt-BR'); 
+//                          dataAnexadaNesteCiclo = true; 
+//                     }
+                    
+
+//                 // 2. Fallback: VALOR
+//                 } else if (pedidoConsolidado['valorPrincipal'] === undefined && pedidoOriginal.vlrtotal !== undefined && typeof pedidoOriginal.vlrtotal === 'number') {
+//                     pedidoConsolidado['valorPrincipal'] = pedidoOriginal.vlrtotal;
+//                     valorAnexadoNesteCiclo = true; 
+//                 }
+                
+//                 // 🛑 V82.0: Define o tipo de solicitação
+//                 if (pedidoOriginal.categoria || pedidoOriginal.categoria_item) {
+//                    const novoTipo = formatarNomeSolicitacao(pedidoOriginal.categoria || pedidoOriginal.categoria_item);
+//                    if (pedidoConsolidado['tipoSolicitacaoGeral'] === undefined || dataAnexadaNesteCiclo || valorAnexadoNesteCiclo) {
+//                         pedidoConsolidado['tipoSolicitacaoGeral'] = novoTipo;
+//                    }
+//                 }
+//             }
+            
+//             // Processamento dos itens aninhados
+//             camposTodos.forEach(campo => {
+//                 const info = pedidoOriginal[campo];
+//                 // if (!info) {
+//                 //     return;
+//                 // }
+                
+//                 console.log("CAMPO", campo);
+//                 // 🛑 NOVO CONSOLE.LOG PARA DEBUG - VAMOS VER O QUE REALMENTE ESTÁ VINDO DO BACKEND!
+//                 if (campo === "statusmeiadiaria" || campo === "statusdiariadobrada") {
+//                    console.log(`DEBUG V86.0: ID ${pedidoOriginal.idpedido} - Campo: ${campo} - Info Bruta:`, info);
+//                 }
+//                 // FIM CONSOLE.LOG
+
+//                 // 🛑 CORREÇÃO ESTRUTURAL (V85.0): Uso do safeParse para garantir leitura de array/JSON string
+//                 const itens = safeParse(info);
+                
+//                 // A filtragem deve manter apenas os itens que correspondem ao statusDesejado
+//                 const itensFiltrados = itens.filter(item =>
+//                     // Garante que o item é um objeto com a propriedade status antes de chamar toLowerCase
+//                     (typeof item === 'object' && item !== null && (item.status || STATUS_PENDENTE_LOWER).toLowerCase() === statusDesejado)
+//                 );
+
+//                 if (itensFiltrados.length > 0) {
+//                     pedidoConsolidado.temMatch = true;
+//                     if (pedidoOriginal.nomeSolicitante) {
+//                         solicitantesPendentesPorChave[chaveRenderizacao].add(pedidoOriginal.nomeSolicitante);
+//                     }
+                    
+//                     // 🛑 V80.0: Inicialização segura do campo como array antes da concatenação
+//                     if (!pedidoConsolidado[campo] || !Array.isArray(pedidoConsolidado[campo])) {
+//                         pedidoConsolidado[campo] = [];
+//                     }
+                    
+//                     // Concatena itens aninhados de diferentes registros
+//                     pedidoConsolidado[campo] = pedidoConsolidado[campo].concat(itensFiltrados);
+//                 }
+//             });
+//         });
+        
+//         // Finaliza a filtragem e preparação para renderização
+//         const pedidosFiltradosNoGrupo = Array.from(pedidosConsolidadosPorId.values())
+//             .filter(p => p.temMatch);
+
+//         pedidosFiltradosNoGrupo.forEach(pedidoConsolidado => {
+//             // Lógica de definição do tipo de solicitação geral... (inalterada)
+//             if (pedidoConsolidado.renderizarComoPedidoPrincipal && !pedidoConsolidado['tipoSolicitacaoGeral']) {
+//                 let tipoSolicitacaoNome = 'Solicitação Financeira Principal';
+//                 const campoCategoria = pedidoConsolidado.categoria || pedidoConsolidado.categoria_item; 
+
+//                 if (campoCategoria) {
+//                     tipoSolicitacaoNome = formatarNomeSolicitacao(campoCategoria);
+//                 } else {
+//                     const campoTipo = camposTodos.find(c => pedidoConsolidado[c]);
+//                     if (campoTipo) {
+//                         tipoSolicitacaoNome = formatarNomeSolicitacao(campoTipo);
+//                     }
+//                 }
+//                 pedidoConsolidado['tipoSolicitacaoGeral'] = tipoSolicitacaoNome;
+//             }
+            
+//             const temItensAninhados = camposTodos.some(campo => pedidoConsolidado[campo] !== undefined);
+
+//             if (pedidoConsolidado.renderizarComoPedidoPrincipal && !temItensAninhados) {
+//                 // Adiciona o placeholder para o Pedido Principal se ele deu match no status e não tem sub-itens
+//                 pedidoConsolidado['pedido_principal'] = [{ status: STATUS_PENDENTE_LOWER }];
+//             }
+
+//             // Remove flags temporárias
+//             delete pedidoConsolidado.temMatch;
+//             delete pedidoConsolidado.renderizarComoPedidoPrincipal;
+//         });
+
+
+//         if (pedidosFiltradosNoGrupo.length > 0) {
+//             gruposFiltrados.push({
+//                 ...grupoConsolidado,
+//                 registrosOriginais: pedidosFiltradosNoGrupo
+//             });
+//         }
+//     });
+    
+//     // FIM DA SEÇÃO 1: Consolidação.
+
+//     // Ordenação... (inalterada)
+//     gruposFiltrados.sort((a, b) =>
+//         new Date(b.dtCriacao || '1970-01-01').getTime() -
+//         new Date(a.dtCriacao || '1970-01-01').getTime()
+//     );
+
+//     if (gruposFiltrados.length === 0) {
+//         const msg = document.createElement("p");
+//         msg.textContent = `Não há pedidos com status "${statusDesejado}".`;
+//         container.appendChild(msg);
+
+//         const countSpan = document.getElementById(`${containerId.split('-list-')[0]}-count-${statusDesejado}`);
+//         if (countSpan) countSpan.textContent = 0;
+//         return;
+//     }
+
+//     // --- 2. RENDERIZAÇÃO ---
+//     const listaGrupos = document.createElement("div");
+//     listaGrupos.className = "lista-funcionarios";
+
+//     let totalItensRenderizados = 0;
+
+//     gruposFiltrados.forEach(grupo => {
+//         const pedidosDoGrupo = grupo.registrosOriginais;
+//         if (!pedidosDoGrupo?.length) return;
+
+//         const pedidosParaRenderizar = pedidosDoGrupo; 
+        
+//         const chaveNome = categoria === 'funcionario'
+//             ? grupo.funcionario
+//             : (grupo.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
+
+//         const solicitantesGrupo = Array.from(solicitantesPendentesPorChave[chaveNome] || []).join(', ') || 'N/D';
+
+//         const divGrupo = document.createElement("div");
+//         divGrupo.className = "funcionario";
+
+//         const header = document.createElement("div");
+//         header.className = "funcionario-header";
+
+//         const body = document.createElement("div");
+//         body.className = "funcionario-body hidden";
+
+//         let htmlBody = '';
+//         let itensGrupo = 0;
+
+//         // Itera sobre os pedidos consolidados
+//         pedidosParaRenderizar.forEach(pedido => {
+//             // Itera sobre camposTodos e o novo placeholder 'pedido_principal'
+//             camposRenderizaveis.forEach(campo => { 
+//                 const itensFiltrados = pedido[campo];
+//                 if (!itensFiltrados || itensFiltrados.length === 0) return;
+
+//                 const itensParaRenderizar = Array.isArray(itensFiltrados) ? itensFiltrados : [itensFiltrados];
+
+//                 itensParaRenderizar.forEach(infoItem => {
+                    
+//                     itensGrupo++;
+//                     totalItensRenderizados++;
+
+//                     const statusTexto = (infoItem.status || statusDesejado).charAt(0).toUpperCase() + (infoItem.status || statusDesejado).slice(1);
+//                     // A cor agora é baseada no status REAL do item (vindo da consolidação)
+//                     const statusLower = (infoItem.status || statusDesejado).toLowerCase();
+//                     let corQuadrado = statusLower === STATUS_AUTORIZADO_LOWER ? "#16a34a" : statusLower === STATUS_REJEITADO_LOWER ? "#dc2626" : "#facc15";
+
+//                     let tituloCard;
+//                     const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
+//                     const isDataUnica = campo === "statusmeiadiaria" || campo === "statusdiariadobrada";
+//                     const isPedidoPrincipal = campo === 'pedido_principal'; 
+
+//                     // 🛑 DEBUG DE CAMPO ATUAL
+// console.log(`[DEBUG CAMPO] Pedido ${pedido.idpedido} - Campo sendo avaliado: ${campo} - Possui infoItem.valor: ${infoItem.valor !== undefined}`);
+// // FIM DEBUG
+
+//                     if (isPedidoPrincipal) {
+//                         tituloCard = pedido.tipoSolicitacaoGeral || 'Solicitação Principal'; 
+
+//                         // V81.0: Usa a data já formatada
+//                         if (pedido.dataPrincipal) {
+//                              tituloCard += ` (${pedido.dataPrincipal})`;
+
+//                         } else if (pedido.valorPrincipal !== undefined && typeof pedido.valorPrincipal === 'number') {
+//                             const valorFmt = pedido.valorPrincipal.toFixed(2).replace('.', ',');
+//                             tituloCard += ` (R$ ${valorFmt})`;
+//                         }
+
+//                     } else if (isAditivoExtra) {
+//                         const tipo = infoItem.tipoSolicitacao;
+//                         tituloCard = (tipo?.toUpperCase() === 'FUNCEXCEDIDO')
+//                             ? "Limite Diário Excedido por Função/Evento"
+//                             : tipo;
+//                     } else {
+//                         // Itens aninhados
+//                         tituloCard = formatarNomeSolicitacao(campo);
+
+//                         // V77.0: Adiciona Data/Valor ao título do item aninhado
+//                         // if (isDataUnica && infoItem.data) {
+//                         //     // 🛑 CORREÇÃO DE DATA 2/4 (Manual Parsing)
+//                         //     const dataObj = parseDateLocal(infoItem.data); 
+//                         //     const dataFmt = dataObj?.toLocaleDateString('pt-BR') || '';
+//                         //     if (dataFmt) tituloCard += ` (${dataFmt})`;
+//                         if (isDataUnica) { // <-- REMOVA O infoItem.data daqui para usar a nova lógica
+//                             // 🛑 CORREÇÃO DE DATA NO TÍTULO
+//                             const dataBruta = String(infoItem.data || '').trim(); // Garante string não-nula/undefined
+
+//                             let dataFmt = '';
+//                             if (dataBruta !== '') {
+//                                 const dataObj = parseDateLocal(dataBruta); 
+//                                 dataFmt = dataObj?.toLocaleDateString('pt-BR') || '';
+//                             }
+
+//                             if (dataFmt) tituloCard += ` (${dataFmt})`;
+
+//                         } else if (campo.includes('custo') || campo.includes('caixinha')) {
+    
+//                             // 🛑 CORREÇÃO V91.0: Parse do valor para inclusão no TÍTULO
+//                             const valor = parseFloat(infoItem.valor) || 0; // Converte para número
+
+//                             if (valor !== 0) { // Verifica se o valor é diferente de zero
+//                                 const valorFmt = valor.toFixed(2).replace('.', ',');
+//                                 tituloCard += ` (R$ ${valorFmt})`;
+//                             }
+//                         }
+//                     }
+
+//                     htmlBody += `
+//                         <div class="pedido-card">
+//                             <div>
+//                                 <strong>${tituloCard}</strong><br>
+//                     `;
+
+//                     const nomeSolic = pedido.nomeSolicitante || "N/D";
+
+//                     if (pedido.evento) {
+//                         if (categoria === 'funcionario' && pedido.funcionario) {
+//                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario} - <strong>Solicitante:</strong> ${nomeSolic}<br>`;
+//                         } else {
+//                             htmlBody += `<strong>Evento:</strong> ${pedido.evento}<br>`;
+//                         }
+//                     }
+
+//                     if (isPedidoPrincipal) {
+//                         htmlBody += `Status do Pedido: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     } else if (isAditivoExtra) {
+//                         if (infoItem.quantidade) htmlBody += `Qtd: ${infoItem.quantidade}<br>`;
+//                         htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     } else if (campo.includes('custo') || campo.includes('caixinha')) {
+
+//                         // 🛑 CORREÇÃO DE VALOR E FORMATAÇÃO (V90.0)
+//                         // Converte para número de forma segura e verifica se é um valor válido para exibição.
+//                         const valor = parseFloat(infoItem.valor) || 0; // Se o valor for nulo/undefined, se torna 0.
+
+//                         console.log("VALOR AJUSTECUSTO/CAIXINHA", valor);
+
+//                         if (valor !== 0) {
+//                             const valorFmt = valor.toFixed(2).replace('.', ',');
+//                             // 🚨 Adicionando a descrição no corpo junto com o valor para clareza
+//                             htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                         } else {
+//                             // Se o valor for 0, mas o status for Pendente/Autorizado, exibe apenas o status.
+//                             // Isso cobre o caso em que o status está ativo, mas o valor é zero.
+//                             htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                         }
+//                     } else if (isDataUnica) {
+//                         // 🛑 NOVO DEBUG PARA DATA
+//                         //console.log(`DEBUG V89.0: Diária/Meia. Pedido ${pedido.idpedido} - Campo: ${campo} - Data Bruta: ${infoItem.data}`);
+//                         // FIM DEBUG
+//                         // // 🛑 CORREÇÃO DE DATA 3/4 (Manual Parsing)
+//                         // const dataObj = parseDateLocal(infoItem.data);
+//                         // const dataFmt = dataObj ? dataObj.toLocaleDateString('pt-BR') : 'Data indefinida';
+//                         // htmlBody += `Data: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                         // 🛑 CORREÇÃO DE DATA NO CORPO (Manual Parsing mais robusto)
+//                         const dataBruta = String(infoItem.data || '').trim(); // Garante string não-nula/undefined
+
+//                         let dataFmt = 'Data indefinida';
+
+//                         if (dataBruta !== '') {
+//                             const dataObj = parseDateLocal(dataBruta);
+//                             dataFmt = dataObj ? dataObj.toLocaleDateString('pt-BR') : 'Data indefinida';
+//                         }
+
+//                         htmlBody += `Data: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     } else if (infoItem.datas) {
+//                         // 🛑 CORREÇÃO DE DATA 4/4 (Manual Parsing)
+//                         const datasFmt = infoItem.datas
+//                             .map(d => parseDateLocal(d.data)?.toLocaleDateString('pt-BR'))
+//                             .filter(d => d) // Remove qualquer data que falhou no parsing
+//                             .join(', ');
+//                         htmlBody += `Datas: ${datasFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     }
+
+//                     if (infoItem.descricao) {
+//                         htmlBody += `Descrição: ${infoItem.descricao}<br>`;
+//                     }
+
+//                     if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
+//                         // Ações de Aprovação/Rejeição (inalterada)
+//                         const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo; 
+//                         const dataParaAcao = isPedidoPrincipal ? (pedido.dataEspecifica || '') : (isDataUnica ? infoItem.data : '');
+
+//                         htmlBody += `
+//                             <div class="flex gap-2 mt-2"
+//                                 data-id="${pedido.idpedido}"
+//                                 data-campo="${campoParaAcao}"
+//                                 data-data="${dataParaAcao}"
+//                                 data-aditivo="${isAditivoExtra}">
+//                                 <button class="aprovar">Autorizar</button>
+//                                 <button class="negar">Rejeitar</button>
+//                             </div>
+//                         `;
+//                     }
+
+//                     htmlBody += `
+//                             </div>
+//                             <div class="quadrado-arredondado" style="background-color: ${corQuadrado};" title="Status: ${statusTexto}"></div>
+//                         </div>
+//                     `;
+//                 });
+//             });
+//         });
+
+//         body.innerHTML = htmlBody;
+
+//         header.innerHTML = `
+//             <div>
+//                 ${categoria === 'funcionario' ? 'Funcionário' : 'Função'}:
+//                 <strong>${chaveNome}</strong><br>
+//                 <small class="text-xs text-gray-500">Solicitante(s): ${solicitantesGrupo}</small>
+//             </div>
+//             <div class="flex items-center gap-2">
+//                 <span>${itensGrupo}</span>
+//                 <i class="fas fa-chevron-down text-gray-500 text-xs transition-transform transform"></i>
+//             </div>
+//         `;
+
+//         header.addEventListener("click", () => {
+//             body.classList.toggle("hidden");
+//             header.querySelector('i').classList.toggle('rotate-180');
+//         });
+
+//         divGrupo.appendChild(header);
+//         divGrupo.appendChild(body);
+//         listaGrupos.appendChild(divGrupo);
+//     });
+
+//     container.appendChild(listaGrupos);
+
+//     // --- 3. LISTENERS DE AÇÃO (SWAL) --- (inalterado)
+
+//     // Listener delegado para os botões 'aprovar' e 'negar'
+//     container.addEventListener('click', async function(event) {
+//         const target = event.target;
+//         if (!target.classList.contains('aprovar') && !target.classList.contains('negar')) return;
+
+//         const actionDiv = target.closest('.flex.gap-2.mt-2');
+//         if (!actionDiv) return;
+
+//         const isAprovar = target.classList.contains('aprovar');
+//         const idReferencia = actionDiv.getAttribute('data-id');
+//         const campoParaBackend = actionDiv.getAttribute('data-campo');
+//         const dataParaUpdate = actionDiv.getAttribute('data-data');
+//         const isAditivoExtra = actionDiv.getAttribute('data-aditivo') === 'true';
+
+//         const statusUpdateFn = isAditivoExtra ? atualizarStatusAditivoExtra : atualizarStatusPedido;
+//         const statusTarget = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
+
+//         const cardElement = target.closest('.pedido-card');
+
+//         // --- LÓGICA DE CONFIRMAÇÃO (MODAL) ---
+//         if (isAprovar) {
+//             // === MODAL DE CONFIRMAÇÃO PARA AUTORIZAR ===
+//             const result = await Swal.fire({
+//                 title: 'Tem certeza?',
+//                 text: "Você irá autorizar esta solicitação. Esta ação é irreversível!",
+//                 icon: 'warning',
+//                 showCancelButton: true,
+//                 confirmButtonColor: '#16a34a',
+//                 cancelButtonColor: '#dc2626',
+//                 confirmButtonText: 'Sim, Autorizar!',
+//                 cancelButtonText: 'Cancelar'
+//             });
+
+//             if (result.isConfirmed) {
+//                 if (isAditivoExtra) {
+//                     await statusUpdateFn(idReferencia, statusTarget, cardElement);
+//                 } else {
+//                     await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate, null);
+//                 }
+//             }
+//         } else {
+//             // === MODAL DE CONFIRMAÇÃO E JUSTIFICATIVA PARA REJEITAR ---
+//             const { value: justificativa } = await Swal.fire({
+//                 title: 'Rejeitar Solicitação',
+//                 input: 'textarea',
+//                 inputLabel: 'Por favor, insira a justificativa da rejeição:',
+//                 inputPlaceholder: 'Justificativa...',
+//                 showCancelButton: true,
+//                 confirmButtonColor: '#dc2626',
+//                 cancelButtonColor: '#6b7280',
+//                 confirmButtonText: 'Sim, Rejeitar!',
+//                 cancelButtonText: 'Cancelar',
+//                 inputValidator: (value) => {
+//                     if (!value) {
+//                         return 'Você precisa inserir uma justificativa!';
+//                     }
+//                 }
+//             });
+
+//             if (justificativa) {
+//                 if (isAditivoExtra) {
+//                     await statusUpdateFn(idReferencia, statusTarget, cardElement, justificativa);
+//                 } else {
+//                     await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate, justificativa);
+//                 }
+//             }
+//         }
+//     });
+
+//     // --- 4. Atualiza a contagem da sub-aba (Badge) ---
+//     const span = document.getElementById(`${containerId.split('-list-')[0]}-count-${statusDesejado}`);
+//     if (span) {
+//         span.textContent = totalItensRenderizados;
+//     }
+// }
+
+// function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
+//     const container = document.getElementById(containerId);
+//     if (!container) return;
+
+//     // 🛑 CORREÇÃO V61.0: Garante que o contêiner de lista se comporte como uma coluna.
+//     container.style.display = 'flex';
+//     container.style.flexDirection = 'column';
+//     container.style.flexWrap = 'nowrap';
+//     container.style.gap = '10px';
+
+//     container.innerHTML = '';
+
+//     const camposTodos = [
+//         "statusajustecusto",
+//         "statuscaixinha",
+//         "statusmeiadiaria",
+//         "statusdiariadobrada",
+//         CAMPO_ADITIVO_EXTRA
+//     ];
+//     // 🛑 V65.0: Inclui o campo placeholder para renderização na Seção 2
+//     const camposRenderizaveis = [...camposTodos, 'pedido_principal'];
+
+//     const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
+//     const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
+//     const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
+
+
+//     // --- 1. FILTRAGEM E CONSOLIDAÇÃO DE SOLICITANTES ---
+//     const gruposFiltrados = [];
+//     const solicitantesPendentesPorChave = {};
+
+//     pedidosCompletos.forEach(grupoConsolidado => {
+//         let chaveRenderizacao = categoria === 'funcionario'
+//             ? grupoConsolidado.funcionario
+//             : (grupoConsolidado.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
+
+//         if (!chaveRenderizacao) return;
+
+//         if (!solicitantesPendentesPorChave[chaveRenderizacao]) {
+//             solicitantesPendentesPorChave[chaveRenderizacao] = new Set();
+//         }
+
+//         const registros = grupoConsolidado.registrosOriginais || [];
+        
+//         // 🛑 V79.0: Usar um mapa temporário para consolidar registros por ID dentro deste grupo
+//         const pedidosConsolidadosPorId = new Map();
+
+//         registros.forEach(pedidoOriginal => {
+//             const id = pedidoOriginal.idpedido;
+//             let pedidoConsolidado = pedidosConsolidadosPorId.get(id);
+
+//             if (!pedidoConsolidado) {
+//                 // Se o ID é novo, inicializa com o objeto original
+//                 pedidoConsolidado = { 
+//                     ...pedidoOriginal, 
+//                     temMatch: false, 
+//                     renderizarComoPedidoPrincipal: false,
+//                     dataPrincipal: undefined, 
+//                     valorPrincipal: undefined,
+//                     tipoSolicitacaoGeral: undefined
+//                 };
+//                 pedidosConsolidadosPorId.set(id, pedidoConsolidado);
+//             }
+            
+//             // Verifica o status principal do pedido (para os 412 pedidos financeiros)
+//             const statusPrincipal = (pedidoOriginal.status_aprovacao || '').toLowerCase();
+//             if (statusPrincipal === statusDesejado) {
+//                 pedidoConsolidado.temMatch = true;
+//                 if (pedidoOriginal.nomeSolicitante) {
+//                     solicitantesPendentesPorChave[chaveRenderizacao].add(pedidoOriginal.nomeSolicitante);
+//                 }
+//                 pedidoConsolidado.renderizarComoPedidoPrincipal = true; 
+                
+//                 // 🛑 V82.0: Flags de Anexação
+//                 let dataAnexadaNesteCiclo = false;
+//                 let valorAnexadoNesteCiclo = false;
+                
+//                 // 1. Prioridade: DATA
+//                 if (pedidoConsolidado['dataPrincipal'] === undefined && pedidoOriginal.dataEspecifica) {
+//                     // 🛑 CORREÇÃO DE DATA 1/4 (Manual Parsing)
+//                     const dataObj = parseDateLocal(pedidoOriginal.dataEspecifica);
+                    
+//                     if (dataObj) {
+//                          pedidoConsolidado['dataPrincipal'] = dataObj.toLocaleDateString('pt-BR'); 
+//                          dataAnexadaNesteCiclo = true; 
+//                     }
+                    
+
+//                 // 2. Fallback: VALOR
+//                 } else if (pedidoConsolidado['valorPrincipal'] === undefined && pedidoOriginal.vlrtotal !== undefined && typeof pedidoOriginal.vlrtotal === 'number') {
+//                     pedidoConsolidado['valorPrincipal'] = pedidoOriginal.vlrtotal;
+//                     valorAnexadoNesteCiclo = true; 
+//                 }
+                
+//                 // 🛑 V82.0: Define o tipo de solicitação
+//                 if (pedidoOriginal.categoria || pedidoOriginal.categoria_item) {
+//                    const novoTipo = formatarNomeSolicitacao(pedidoOriginal.categoria || pedidoOriginal.categoria_item);
+//                    if (pedidoConsolidado['tipoSolicitacaoGeral'] === undefined || dataAnexadaNesteCiclo || valorAnexadoNesteCiclo) {
+//                         pedidoConsolidado['tipoSolicitacaoGeral'] = novoTipo;
+//                    }
+//                 }
+//             }
+            
+//             // Processamento dos itens aninhados
+//             camposTodos.forEach(campo => {
+//                 const info = pedidoOriginal[campo];
+                
+//                 // 🛑 CORREÇÃO ESTRUTURAL (V85.0): Uso do safeParse para garantir leitura de array/JSON string
+//                 const itens = safeParse(info);
+                
+//                 // A filtragem deve manter apenas os itens que correspondem ao statusDesejado
+//                 const itensFiltrados = itens.filter(item =>
+//                     // Garante que o item é um objeto com a propriedade status antes de chamar toLowerCase
+//                     (typeof item === 'object' && item !== null && (item.status || STATUS_PENDENTE_LOWER).toLowerCase() === statusDesejado)
+//                 );
+
+//                 if (itensFiltrados.length > 0) {
+//                     pedidoConsolidado.temMatch = true;
+//                     if (pedidoOriginal.nomeSolicitante) {
+//                         solicitantesPendentesPorChave[chaveRenderizacao].add(pedidoOriginal.nomeSolicitante);
+//                     }
+                    
+//                     // 🛑 V80.0: Inicialização segura do campo como array antes da concatenação
+//                     if (!pedidoConsolidado[campo] || !Array.isArray(pedidoConsolidado[campo])) {
+//                         pedidoConsolidado[campo] = [];
+//                     }
+                    
+//                     // Concatena itens aninhados de diferentes registros
+//                     pedidoConsolidado[campo] = pedidoConsolidado[campo].concat(itensFiltrados);
+//                 }
+//             });
+//         });
+        
+//         // Finaliza a filtragem e preparação para renderização
+//         const pedidosFiltradosNoGrupo = Array.from(pedidosConsolidadosPorId.values())
+//             .filter(p => p.temMatch);
+
+//         pedidosFiltradosNoGrupo.forEach(pedidoConsolidado => {
+//             // Lógica de definição do tipo de solicitação geral... (inalterada)
+//             if (pedidoConsolidado.renderizarComoPedidoPrincipal && !pedidoConsolidado['tipoSolicitacaoGeral']) {
+//                 let tipoSolicitacaoNome = 'Solicitação Financeira Principal';
+//                 const campoCategoria = pedidoConsolidado.categoria || pedidoConsolidado.categoria_item; 
+
+//                 if (campoCategoria) {
+//                     tipoSolicitacaoNome = formatarNomeSolicitacao(campoCategoria);
+//                 } else {
+//                     const campoTipo = camposTodos.find(c => pedidoConsolidado[c]);
+//                     if (campoTipo) {
+//                         tipoSolicitacaoNome = formatarNomeSolicitacao(campoTipo);
+//                     }
+//                 }
+//                 pedidoConsolidado['tipoSolicitacaoGeral'] = tipoSolicitacaoNome;
+//             }
+            
+//             const temItensAninhados = camposTodos.some(campo => pedidoConsolidado[campo] !== undefined);
+
+//             if (pedidoConsolidado.renderizarComoPedidoPrincipal && !temItensAninhados) {
+//                 // Adiciona o placeholder para o Pedido Principal se ele deu match no status e não tem sub-itens
+//                 pedidoConsolidado['pedido_principal'] = [{ status: STATUS_PENDENTE_LOWER }];
+//             }
+
+//             // Remove flags temporárias
+//             delete pedidoConsolidado.temMatch;
+//             delete pedidoConsolidado.renderizarComoPedidoPrincipal;
+//         });
+
+
+//         if (pedidosFiltradosNoGrupo.length > 0) {
+//             gruposFiltrados.push({
+//                 ...grupoConsolidado,
+//                 registrosOriginais: pedidosFiltradosNoGrupo
+//             });
+//         }
+//     });
+    
+//     // FIM DA SEÇÃO 1: Consolidação.
+
+//     // Ordenação... (inalterada)
+//     gruposFiltrados.sort((a, b) =>
+//         new Date(b.dtCriacao || '1970-01-01').getTime() -
+//         new Date(a.dtCriacao || '1970-01-01').getTime()
+//     );
+
+//     if (gruposFiltrados.length === 0) {
+//         const msg = document.createElement("p");
+//         msg.textContent = `Não há pedidos com status "${statusDesejado}".`;
+//         container.appendChild(msg);
+
+//         // 🛑 REMOVIDO: Lógica de sobrescrita do countSpan para 0.
+//         return;
+//     }
+
+//     // --- 2. RENDERIZAÇÃO ---
+//     const listaGrupos = document.createElement("div");
+//     listaGrupos.className = "lista-funcionarios";
+
+//     // 🛑 REMOVIDO: let totalItensRenderizados = 0; (Variável não é mais necessária)
+
+//     gruposFiltrados.forEach(grupo => {
+//         const pedidosDoGrupo = grupo.registrosOriginais;
+//         if (!pedidosDoGrupo?.length) return;
+
+//         const pedidosParaRenderizar = pedidosDoGrupo; 
+        
+//         const chaveNome = categoria === 'funcionario'
+//             ? grupo.funcionario
+//             : (grupo.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
+
+//         const solicitantesGrupo = Array.from(solicitantesPendentesPorChave[chaveNome] || []).join(', ') || 'N/D';
+
+//         const divGrupo = document.createElement("div");
+//         divGrupo.className = "funcionario";
+
+//         const header = document.createElement("div");
+//         header.className = "funcionario-header";
+
+//         const body = document.createElement("div");
+//         body.className = "funcionario-body hidden";
+
+//         let htmlBody = '';
+//         let itensGrupo = 0;
+
+//         // Itera sobre os pedidos consolidados
+//         pedidosParaRenderizar.forEach(pedido => {
+//             // Itera sobre camposTodos e o novo placeholder 'pedido_principal'
+//             camposRenderizaveis.forEach(campo => { 
+//                 const itensFiltrados = pedido[campo];
+//                 if (!itensFiltrados || itensFiltrados.length === 0) return;
+
+//                 const itensParaRenderizar = Array.isArray(itensFiltrados) ? itensFiltrados : [itensFiltrados];
+
+//                 itensParaRenderizar.forEach(infoItem => {
+                    
+//                     itensGrupo++;
+//                     // 🛑 REMOVIDO: totalItensRenderizados++;
+
+//                     const statusTexto = (infoItem.status || statusDesejado).charAt(0).toUpperCase() + (infoItem.status || statusDesejado).slice(1);
+//                     // A cor agora é baseada no status REAL do item (vindo da consolidação)
+//                     const statusLower = (infoItem.status || statusDesejado).toLowerCase();
+//                     let corQuadrado = statusLower === STATUS_AUTORIZADO_LOWER ? "#16a34a" : statusLower === STATUS_REJEITADO_LOWER ? "#dc2626" : "#facc15";
+
+//                     let tituloCard;
+//                     const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
+//                     const isDataUnica = campo === "statusmeiadiaria" || campo === "statusdiariadobrada";
+//                     const isPedidoPrincipal = campo === 'pedido_principal'; 
+
+//                     if (isPedidoPrincipal) {
+//                         tituloCard = pedido.tipoSolicitacaoGeral || 'Solicitação Principal'; 
+
+//                         // V81.0: Usa a data já formatada
+//                         if (pedido.dataPrincipal) {
+//                              tituloCard += ` (${pedido.dataPrincipal})`;
+
+//                         } else if (pedido.valorPrincipal !== undefined && typeof pedido.valorPrincipal === 'number') {
+//                             const valorFmt = pedido.valorPrincipal.toFixed(2).replace('.', ',');
+//                             tituloCard += ` (R$ ${valorFmt})`;
+//                         }
+
+//                     } else if (isAditivoExtra) {
+//                         const tipo = infoItem.tipoSolicitacao;
+//                         tituloCard = (tipo?.toUpperCase() === 'FUNCEXCEDIDO')
+//                             ? "Limite Diário Excedido por Função/Evento"
+//                             : tipo;
+//                     } else {
+//                         // Itens aninhados
+//                         tituloCard = formatarNomeSolicitacao(campo);
+
+//                         // V77.0: Adiciona Data/Valor ao título do item aninhado
+//                         if (isDataUnica) { 
+//                             // 🛑 CORREÇÃO DE DATA NO TÍTULO
+//                             const dataBruta = String(infoItem.data || '').trim(); // Garante string não-nula/undefined
+
+//                             let dataFmt = '';
+//                             if (dataBruta !== '') {
+//                                 const dataObj = parseDateLocal(dataBruta); 
+//                                 dataFmt = dataObj?.toLocaleDateString('pt-BR') || '';
+//                             }
+
+//                             if (dataFmt) tituloCard += ` (${dataFmt})`;
+
+//                         } else if (campo.includes('custo') || campo.includes('caixinha')) {
+    
+//                             // 🛑 CORREÇÃO V91.0: Parse do valor para inclusão no TÍTULO
+//                             const valor = parseFloat(infoItem.valor) || 0; // Converte para número
+
+//                             if (valor !== 0) { // Verifica se o valor é diferente de zero
+//                                 const valorFmt = valor.toFixed(2).replace('.', ',');
+//                                 tituloCard += ` (R$ ${valorFmt})`;
+//                             }
+//                         }
+//                     }
+
+//                     htmlBody += `
+//                         <div class="pedido-card">
+//                             <div>
+//                                 <strong>${tituloCard}</strong><br>
+//                     `;
+
+//                     const nomeSolic = pedido.nomeSolicitante || "N/D";
+
+//                     if (pedido.evento) {
+//                         if (categoria === 'funcionario' && pedido.funcionario) {
+//                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario} - <strong>Solicitante:</strong> ${nomeSolic}<br>`;
+//                         } else {
+//                             htmlBody += `<strong>Evento:</strong> ${pedido.evento}<br>`;
+//                         }
+//                     }
+
+//                     if (isPedidoPrincipal) {
+//                         htmlBody += `Status do Pedido: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     } else if (isAditivoExtra) {
+//                         if (infoItem.quantidade) htmlBody += `Qtd: ${infoItem.quantidade}<br>`;
+//                         htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     } else if (campo.includes('custo') || campo.includes('caixinha')) {
+
+//                         // 🛑 CORREÇÃO DE VALOR E FORMATAÇÃO (V90.0)
+//                         const valor = parseFloat(infoItem.valor) || 0; 
+
+//                         if (valor !== 0) {
+//                             const valorFmt = valor.toFixed(2).replace('.', ',');
+//                             // 🚨 Adicionando a descrição no corpo junto com o valor para clareza
+//                             htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                         } else {
+//                             htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                         }
+//                     } else if (isDataUnica) {
+//                         // 🛑 CORREÇÃO DE DATA NO CORPO (Manual Parsing mais robusto)
+//                         const dataBruta = String(infoItem.data || '').trim(); // Garante string não-nula/undefined
+
+//                         let dataFmt = 'Data indefinida';
+
+//                         if (dataBruta !== '') {
+//                             const dataObj = parseDateLocal(dataBruta);
+//                             dataFmt = dataObj ? dataObj.toLocaleDateString('pt-BR') : 'Data indefinida';
+//                         }
+
+//                         htmlBody += `Data: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     } else if (infoItem.datas) {
+//                         // 🛑 CORREÇÃO DE DATA 4/4 (Manual Parsing)
+//                         const datasFmt = infoItem.datas
+//                             .map(d => parseDateLocal(d.data)?.toLocaleDateString('pt-BR'))
+//                             .filter(d => d) // Remove qualquer data que falhou no parsing
+//                             .join(', ');
+//                         htmlBody += `Datas: ${datasFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     }
+
+//                     if (infoItem.descricao) {
+//                         htmlBody += `Descrição: ${infoItem.descricao}<br>`;
+//                     }
+
+//                     if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
+//                         // Ações de Aprovação/Rejeição (inalterada)
+//                         const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo; 
+//                         const dataParaAcao = isPedidoPrincipal ? (pedido.dataEspecifica || '') : (isDataUnica ? infoItem.data : '');
+
+//                         htmlBody += `
+//                             <div class="flex gap-2 mt-2"
+//                                 data-id="${pedido.idpedido}"
+//                                 data-campo="${campoParaAcao}"
+//                                 data-data="${dataParaAcao}"
+//                                 data-aditivo="${isAditivoExtra}">
+//                                 <button class="aprovar">Autorizar</button>
+//                                 <button class="negar">Rejeitar</button>
+//                             </div>
+//                         `;
+//                     }
+
+//                     htmlBody += `
+//                             </div>
+//                             <div class="quadrado-arredondado" style="background-color: ${corQuadrado};" title="Status: ${statusTexto}"></div>
+//                         </div>
+//                     `;
+//                 });
+//             });
+//         });
+
+//         body.innerHTML = htmlBody;
+
+//         header.innerHTML = `
+//             <div>
+//                 ${categoria === 'funcionario' ? 'Funcionário' : 'Função'}:
+//                 <strong>${chaveNome}</strong><br>
+//                 <small class="text-xs text-gray-500">Solicitante(s): ${solicitantesGrupo}</small>
+//             </div>
+//             <div class="flex items-center gap-2">
+//                 <span>${itensGrupo}</span>
+//                 <i class="fas fa-chevron-down text-gray-500 text-xs transition-transform transform"></i>
+//             </div>
+//         `;
+
+//         header.addEventListener("click", () => {
+//             body.classList.toggle("hidden");
+//             header.querySelector('i').classList.toggle('rotate-180');
+//         });
+
+//         divGrupo.appendChild(header);
+//         divGrupo.appendChild(body);
+//         listaGrupos.appendChild(divGrupo);
+//     });
+
+//     container.appendChild(listaGrupos);
+
+//     // --- 3. LISTENERS DE AÇÃO (SWAL) --- (inalterado)
+
+//     // Listener delegado para os botões 'aprovar' e 'negar'
+//     container.addEventListener('click', async function(event) {
+//         const target = event.target;
+//         if (!target.classList.contains('aprovar') && !target.classList.contains('negar')) return;
+
+//         const actionDiv = target.closest('.flex.gap-2.mt-2');
+//         if (!actionDiv) return;
+
+//         const isAprovar = target.classList.contains('aprovar');
+//         const idReferencia = actionDiv.getAttribute('data-id');
+//         const campoParaBackend = actionDiv.getAttribute('data-campo');
+//         const dataParaUpdate = actionDiv.getAttribute('data-data');
+//         const isAditivoExtra = actionDiv.getAttribute('data-aditivo') === 'true';
+
+//         const statusUpdateFn = isAditivoExtra ? atualizarStatusAditivoExtra : atualizarStatusPedido;
+//         const statusTarget = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
+
+//         const cardElement = target.closest('.pedido-card');
+
+//         // --- LÓGICA DE CONFIRMAÇÃO (MODAL) ---
+//         if (isAprovar) {
+//             // === MODAL DE CONFIRMAÇÃO PARA AUTORIZAR ===
+//             const result = await Swal.fire({
+//                 title: 'Tem certeza?',
+//                 text: "Você irá autorizar esta solicitação. Esta ação é irreversível!",
+//                 icon: 'warning',
+//                 showCancelButton: true,
+//                 confirmButtonColor: '#16a34a',
+//                 cancelButtonColor: '#dc2626',
+//                 confirmButtonText: 'Sim, Autorizar!',
+//                 cancelButtonText: 'Cancelar'
+//             });
+
+//             if (result.isConfirmed) {
+//                 if (isAditivoExtra) {
+//                     await statusUpdateFn(idReferencia, statusTarget, cardElement);
+//                 } else {
+//                     await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate, null);
+//                 }
+//             }
+//         } else {
+//             // === MODAL DE CONFIRMAÇÃO E JUSTIFICATIVA PARA REJEITAR ---
+//             const { value: justificativa } = await Swal.fire({
+//                 title: 'Rejeitar Solicitação',
+//                 input: 'textarea',
+//                 inputLabel: 'Por favor, insira a justificativa da rejeição:',
+//                 inputPlaceholder: 'Justificativa...',
+//                 showCancelButton: true,
+//                 confirmButtonColor: '#dc2626',
+//                 cancelButtonColor: '#6b7280',
+//                 confirmButtonText: 'Sim, Rejeitar!',
+//                 cancelButtonText: 'Cancelar',
+//                 inputValidator: (value) => {
+//                     if (!value) {
+//                         return 'Você precisa inserir uma justificativa!';
+//                     }
+//                 }
+//             });
+
+//             if (justificativa) {
+//                 if (isAditivoExtra) {
+//                     await statusUpdateFn(idReferencia, statusTarget, cardElement, justificativa);
+//                 } else {
+//                     await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate, justificativa);
+//                 }
+//             }
+//         }
+//     });
+
+//     // 🛑 REMOVIDO: --- 4. Atualiza a contagem da sub-aba (Badge) ---
+//     // A contagem é definida no carregamento inicial pela função criarSubTabsHTML.
+// }
+
+
+// function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
+//     const container = document.getElementById(containerId);
+//     if (!container) return;
+
+//     // 🛑 CORREÇÃO V61.0: Garante que o contêiner de lista se comporte como uma coluna.
+//     container.style.display = 'flex';
+//     container.style.flexDirection = 'column';
+//     container.style.flexWrap = 'nowrap';
+//     container.style.gap = '10px';
+
+//     container.innerHTML = '';
+
+//     const camposTodos = [
+//         "statusajustecusto",
+//         "statuscaixinha",
+//         "statusmeiadiaria",
+//         "statusdiariadobrada",
+//         CAMPO_ADITIVO_EXTRA
+//     ];
+//     // 🛑 V65.0: Inclui o campo placeholder para renderização na Seção 2
+//     const camposRenderizaveis = [...camposTodos, 'pedido_principal'];
+
+//     const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
+//     const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
+//     const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
+
+
+//     // --- 1. FILTRAGEM E CONSOLIDAÇÃO DE SOLICITANTES ---
+//     const gruposFiltrados = [];
+//     const solicitantesPendentesPorChave = {};
+
+//     pedidosCompletos.forEach(grupoConsolidado => {
+//         let chaveRenderizacao = categoria === 'funcionario'
+//             ? grupoConsolidado.funcionario
+//             : (grupoConsolidado.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
+
+//         if (!chaveRenderizacao) return;
+
+//         if (!solicitantesPendentesPorChave[chaveRenderizacao]) {
+//             solicitantesPendentesPorChave[chaveRenderizacao] = new Set();
+//         }
+
+//         const registros = grupoConsolidado.registrosOriginais || [];
+        
+//         // 🛑 V79.0: Usar um mapa temporário para consolidar registros por ID dentro deste grupo
+//         const pedidosConsolidadosPorId = new Map();
+
+//         registros.forEach(pedidoOriginal => {
+//             const id = pedidoOriginal.idpedido;
+//             let pedidoConsolidado = pedidosConsolidadosPorId.get(id);
+
+//             if (!pedidoConsolidado) {
+//                 // Se o ID é novo, inicializa com o objeto original
+//                 pedidoConsolidado = { 
+//                     ...pedidoOriginal, 
+//                     temMatch: false, 
+//                     renderizarComoPedidoPrincipal: false,
+//                     dataPrincipal: undefined, 
+//                     valorPrincipal: undefined,
+//                     tipoSolicitacaoGeral: undefined
+//                 };
+//                 pedidosConsolidadosPorId.set(id, pedidoConsolidado);
+//             }
+            
+//             // Verifica o status principal do pedido (para os 412 pedidos financeiros)
+//             const statusPrincipal = (pedidoOriginal.status_aprovacao || '').toLowerCase();
+//             if (statusPrincipal === statusDesejado) {
+//                 pedidoConsolidado.temMatch = true;
+//                 if (pedidoOriginal.nomeSolicitante) {
+//                     solicitantesPendentesPorChave[chaveRenderizacao].add(pedidoOriginal.nomeSolicitante);
+//                 }
+//                 pedidoConsolidado.renderizarComoPedidoPrincipal = true; 
+                
+//                 // 🛑 V82.0: Flags de Anexação
+//                 let dataAnexadaNesteCiclo = false;
+//                 let valorAnexadoNesteCiclo = false;
+                
+//                 // 1. Prioridade: DATA
+//                 if (pedidoConsolidado['dataPrincipal'] === undefined && pedidoOriginal.dataEspecifica) {
+//                     // 🛑 CORREÇÃO DE DATA 1/4 (Manual Parsing)
+//                     const dataObj = parseDateLocal(pedidoOriginal.dataEspecifica);
+                    
+//                     if (dataObj) {
+//                         pedidoConsolidado['dataPrincipal'] = dataObj.toLocaleDateString('pt-BR'); 
+//                         dataAnexadaNesteCiclo = true; 
+//                     }
+                    
+
+//                 // 2. Fallback: VALOR
+//                 } else if (pedidoConsolidado['valorPrincipal'] === undefined && pedidoOriginal.vlrtotal !== undefined && typeof pedidoOriginal.vlrtotal === 'number') {
+//                     pedidoConsolidado['valorPrincipal'] = pedidoOriginal.vlrtotal;
+//                     valorAnexadoNesteCiclo = true; 
+//                 }
+                
+//                 // 🛑 V82.0: Define o tipo de solicitação
+//                 if (pedidoOriginal.categoria || pedidoOriginal.categoria_item) {
+//                    const novoTipo = formatarNomeSolicitacao(pedidoOriginal.categoria || pedidoOriginal.categoria_item);
+//                    if (pedidoConsolidado['tipoSolicitacaoGeral'] === undefined || dataAnexadaNesteCiclo || valorAnexadoNesteCiclo) {
+//                         pedidoConsolidado['tipoSolicitacaoGeral'] = novoTipo;
+//                    }
+//                 }
+//             }
+            
+//             // Processamento dos itens aninhados
+//             camposTodos.forEach(campo => {
+//                 const info = pedidoOriginal[campo];
+                
+//                 // 🛑 CORREÇÃO ESTRUTURAL (V85.0): Uso do safeParse para garantir leitura de array/JSON string
+//                 const itens = safeParse(info);
+                
+//                 // A filtragem deve manter apenas os itens que correspondem ao statusDesejado
+//                 const itensFiltrados = itens.filter(item =>
+//                     // Garante que o item é um objeto com a propriedade status antes de chamar toLowerCase
+//                     (typeof item === 'object' && item !== null && (item.status || STATUS_PENDENTE_LOWER).toLowerCase() === statusDesejado)
+//                 );
+
+//                 if (itensFiltrados.length > 0) {
+//                     pedidoConsolidado.temMatch = true;
+//                     if (pedidoOriginal.nomeSolicitante) {
+//                         solicitantesPendentesPorChave[chaveRenderizacao].add(pedidoOriginal.nomeSolicitante);
+//                     }
+                    
+//                     // 🛑 V80.0: Inicialização segura do campo como array antes da concatenação
+//                     if (!pedidoConsolidado[campo] || !Array.isArray(pedidoConsolidado[campo])) {
+//                         pedidoConsolidado[campo] = [];
+//                     }
+                    
+//                     // 🛑 CORREÇÃO DE DUPLICAÇÃO DE SUB-ITENS (V96.0)
+//                     // Cria um mapa para itens aninhados, usando a chave mais específica ou um fallback.
+//                     const mapaAtual = new Map(pedidoConsolidado[campo].map(item => {
+//                         const uniqueKey = item.idAditivoExtra || item.idCaixinha || item.idajustecusto || item.data || item.id;
+//                         // Usa o ID do Pedido + Nome do Campo como fallback para itens sem ID ou Data.
+//                         const key = uniqueKey || `${pedidoOriginal.idpedido}_${campo}`; 
+//                         return [key, item];
+//                     }));
+                    
+//                     // Adiciona ou sobrescreve itens filtrados, garantindo a unicidade.
+//                     itensFiltrados.forEach(item => {
+//                         const uniqueKey = item.idAditivoExtra || item.idCaixinha || item.idajustecusto || item.data || item.id;
+//                         const key = uniqueKey || `${pedidoOriginal.idpedido}_${campo}`;
+//                         mapaAtual.set(key, item);
+//                     });
+
+//                     // A lista consolidada agora contém apenas itens únicos.
+//                     pedidoConsolidado[campo] = Array.from(mapaAtual.values());
+//                 }
+//             });
+//         });
+        
+//         // Finaliza a filtragem e preparação para renderização
+//         const pedidosFiltradosNoGrupo = Array.from(pedidosConsolidadosPorId.values())
+//             .filter(p => p.temMatch);
+
+//         pedidosFiltradosNoGrupo.forEach(pedidoConsolidado => {
+//             // Lógica de definição do tipo de solicitação geral... (inalterada)
+//             if (pedidoConsolidado.renderizarComoPedidoPrincipal && !pedidoConsolidado['tipoSolicitacaoGeral']) {
+//                 let tipoSolicitacaoNome = 'Solicitação Financeira Principal';
+//                 const campoCategoria = pedidoConsolidado.categoria || pedidoConsolidado.categoria_item; 
+
+//                 if (campoCategoria) {
+//                     tipoSolicitacaoNome = formatarNomeSolicitacao(campoCategoria);
+//                 } else {
+//                     const campoTipo = camposTodos.find(c => pedidoConsolidado[c]);
+//                     if (campoTipo) {
+//                         tipoSolicitacaoNome = formatarNomeSolicitacao(campoTipo);
+//                     }
+//                 }
+//                 pedidoConsolidado['tipoSolicitacaoGeral'] = tipoSolicitacaoNome;
+//             }
+            
+//             const temItensAninhados = camposTodos.some(campo => pedidoConsolidado[campo] !== undefined);
+
+//             if (pedidoConsolidado.renderizarComoPedidoPrincipal && !temItensAninhados) {
+//                 // Adiciona o placeholder para o Pedido Principal se ele deu match no status e não tem sub-itens
+//                 pedidoConsolidado['pedido_principal'] = [{ status: STATUS_PENDENTE_LOWER }];
+//             }
+
+//             // Remove flags temporárias
+//             delete pedidoConsolidado.temMatch;
+//             delete pedidoConsolidado.renderizarComoPedidoPrincipal;
+//         });
+
+
+//         if (pedidosFiltradosNoGrupo.length > 0) {
+//             gruposFiltrados.push({
+//                 ...grupoConsolidado,
+//                 registrosOriginais: pedidosFiltradosNoGrupo
+//             });
+//         }
+//     });
+    
+//     // FIM DA SEÇÃO 1: Consolidação.
+
+//     // Ordenação... (inalterada)
+//     gruposFiltrados.sort((a, b) =>
+//         new Date(b.dtCriacao || '1970-01-01').getTime() -
+//         new Date(a.dtCriacao || '1970-01-01').getTime()
+//     );
+
+//     if (gruposFiltrados.length === 0) {
+//         const msg = document.createElement("p");
+//         msg.textContent = `Não há pedidos com status "${statusDesejado}".`;
+//         container.appendChild(msg);
+
+//         // 🛑 REMOVIDO: Lógica de sobrescrita do countSpan para 0.
+//         return;
+//     }
+
+//     // --- 2. RENDERIZAÇÃO ---
+//     const listaGrupos = document.createElement("div");
+//     listaGrupos.className = "lista-funcionarios";
+
+//     // 🛑 REMOVIDO: let totalItensRenderizados = 0; (Variável não é mais necessária)
+
+//     gruposFiltrados.forEach(grupo => {
+//         const pedidosDoGrupo = grupo.registrosOriginais;
+//         if (!pedidosDoGrupo?.length) return;
+
+//         const pedidosParaRenderizar = pedidosDoGrupo; 
+        
+//         const chaveNome = categoria === 'funcionario'
+//             ? grupo.funcionario
+//             : (grupo.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
+
+//         const solicitantesGrupo = Array.from(solicitantesPendentesPorChave[chaveNome] || []).join(', ') || 'N/D';
+
+//         const divGrupo = document.createElement("div");
+//         divGrupo.className = "funcionario";
+
+//         const header = document.createElement("div");
+//         header.className = "funcionario-header";
+
+//         const body = document.createElement("div");
+//         body.className = "funcionario-body hidden";
+
+//         let htmlBody = '';
+//         let itensGrupo = 0;
+
+//         // Itera sobre os pedidos consolidados
+//         pedidosParaRenderizar.forEach(pedido => {
+//             // Itera sobre camposTodos e o novo placeholder 'pedido_principal'
+//             camposRenderizaveis.forEach(campo => { 
+//                 const itensFiltrados = pedido[campo];
+//                 if (!itensFiltrados || itensFiltrados.length === 0) return;
+
+//                 const itensParaRenderizar = Array.isArray(itensFiltrados) ? itensFiltrados : [itensFiltrados];
+
+//                 itensParaRenderizar.forEach(infoItem => {
+                    
+//                     itensGrupo++;
+//                     // 🛑 REMOVIDO: totalItensRenderizados++;
+
+//                     const statusTexto = (infoItem.status || statusDesejado).charAt(0).toUpperCase() + (infoItem.status || statusDesejado).slice(1);
+//                     // A cor agora é baseada no status REAL do item (vindo da consolidação)
+//                     const statusLower = (infoItem.status || statusDesejado).toLowerCase();
+//                     let corQuadrado = statusLower === STATUS_AUTORIZADO_LOWER ? "#16a34a" : statusLower === STATUS_REJEITADO_LOWER ? "#dc2626" : "#facc15";
+
+//                     let tituloCard;
+//                     const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
+//                     const isDataUnica = campo === "statusmeiadiaria" || campo === "statusdiariadobrada";
+//                     const isPedidoPrincipal = campo === 'pedido_principal'; 
+
+//                     if (isPedidoPrincipal) {
+//                         tituloCard = pedido.tipoSolicitacaoGeral || 'Solicitação Principal'; 
+
+//                         // V81.0: Usa a data já formatada
+//                         if (pedido.dataPrincipal) {
+//                             tituloCard += ` (${pedido.dataPrincipal})`;
+
+//                         } else if (pedido.valorPrincipal !== undefined && typeof pedido.valorPrincipal === 'number') {
+//                             const valorFmt = pedido.valorPrincipal.toFixed(2).replace('.', ',');
+//                             tituloCard += ` (R$ ${valorFmt})`;
+//                         }
+
+//                     } else if (isAditivoExtra) {
+//                         const tipo = infoItem.tipoSolicitacao;
+//                         tituloCard = (tipo?.toUpperCase() === 'FUNCEXCEDIDO')
+//                             ? "Limite Diário Excedido por Função/Evento"
+//                             : tipo;
+//                     } else {
+//                         // Itens aninhados
+//                         tituloCard = formatarNomeSolicitacao(campo);
+
+//                         // V77.0: Adiciona Data/Valor ao título do item aninhado
+//                         if (isDataUnica) { 
+//                             // 🛑 CORREÇÃO DE DATA NO TÍTULO
+//                             const dataBruta = String(infoItem.data || '').trim(); // Garante string não-nula/undefined
+
+//                             let dataFmt = '';
+//                             if (dataBruta !== '') {
+//                                 const dataObj = parseDateLocal(dataBruta); 
+//                                 dataFmt = dataObj?.toLocaleDateString('pt-BR') || '';
+//                             }
+
+//                             if (dataFmt) tituloCard += ` (${dataFmt})`;
+
+//                         } else if (campo.includes('custo') || campo.includes('caixinha')) {
+    
+//                             // 🛑 CORREÇÃO V91.0: Parse do valor para inclusão no TÍTULO
+//                             const valor = parseFloat(infoItem.valor) || 0; // Converte para número
+
+//                             if (valor !== 0) { // Verifica se o valor é diferente de zero
+//                                 const valorFmt = valor.toFixed(2).replace('.', ',');
+//                                 tituloCard += ` (R$ ${valorFmt})`;
+//                             }
+//                         }
+//                     }
+
+//                     htmlBody += `
+//                         <div class="pedido-card">
+//                             <div>
+//                                 <strong>${tituloCard}</strong><br>
+//                     `;
+
+//                     const nomeSolic = pedido.nomeSolicitante || "N/D";
+
+//                     if (pedido.evento) {
+//                         if (categoria === 'funcionario' && pedido.funcionario) {
+//                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario} - <strong>Solicitante:</strong> ${nomeSolic}<br>`;
+//                         } else {
+//                             htmlBody += `<strong>Evento:</strong> ${pedido.evento}<br>`;
+//                         }
+//                     }
+
+//                     if (isPedidoPrincipal) {
+//                         htmlBody += `Status do Pedido: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     } else if (isAditivoExtra) {
+//                         if (infoItem.quantidade) htmlBody += `Qtd: ${infoItem.quantidade}<br>`;
+//                         htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     } else if (campo.includes('custo') || campo.includes('caixinha')) {
+
+//                         // 🛑 CORREÇÃO DE VALOR E FORMATAÇÃO (V90.0)
+//                         const valor = parseFloat(infoItem.valor) || 0; 
+
+//                         if (valor !== 0) {
+//                             const valorFmt = valor.toFixed(2).replace('.', ',');
+//                             // 🚨 Adicionando a descrição no corpo junto com o valor para clareza
+//                             htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                         } else {
+//                             htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                         }
+//                     } else if (isDataUnica) {
+//                         // 🛑 CORREÇÃO DE DATA NO CORPO (Manual Parsing mais robusto)
+//                         const dataBruta = String(infoItem.data || '').trim(); // Garante string não-nula/undefined
+
+//                         let dataFmt = 'Data indefinida';
+
+//                         if (dataBruta !== '') {
+//                             const dataObj = parseDateLocal(dataBruta);
+//                             dataFmt = dataObj ? dataObj.toLocaleDateString('pt-BR') : 'Data indefinida';
+//                         }
+
+//                         htmlBody += `Data: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     } else if (infoItem.datas) {
+//                         // 🛑 CORREÇÃO DE DATA 4/4 (Manual Parsing)
+//                         const datasFmt = infoItem.datas
+//                             .map(d => parseDateLocal(d.data)?.toLocaleDateString('pt-BR'))
+//                             .filter(d => d) // Remove qualquer data que falhou no parsing
+//                             .join(', ');
+//                         htmlBody += `Datas: ${datasFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+//                     }
+
+//                     if (infoItem.descricao) {
+//                         htmlBody += `Descrição: ${infoItem.descricao}<br>`;
+//                     }
+
+//                     if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
+//                         // Ações de Aprovação/Rejeição (inalterada)
+//                         const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo; 
+//                         const dataParaAcao = isPedidoPrincipal ? (pedido.dataEspecifica || '') : (isDataUnica ? infoItem.data : '');
+//                         // 🛑 V95.0: Passa o ID do sub-item para Aditivo Extra. Se não for AE, passa o idpedido.
+//                         const idParaAcao = isAditivoExtra ? (infoItem.idAditivoExtra || pedido.idpedido) : pedido.idpedido;
+                        
+//                         htmlBody += `
+//                             <div class="flex gap-2 mt-2"
+//                                 data-id="${idParaAcao}"
+//                                 data-campo="${campoParaAcao}"
+//                                 data-data="${dataParaAcao}"
+//                                 data-aditivo="${isAditivoExtra}">
+//                                 <button class="aprovar">Autorizar</button>
+//                                 <button class="negar">Rejeitar</button>
+//                             </div>
+//                         `;
+//                     }
+
+//                     htmlBody += `
+//                             </div>
+//                             <div class="quadrado-arredondado" style="background-color: ${corQuadrado};" title="Status: ${statusTexto}"></div>
+//                         </div>
+//                     `;
+//                 });
+//             });
+//         });
+
+//         body.innerHTML = htmlBody;
+
+//         header.innerHTML = `
+//             <div>
+//                 ${categoria === 'funcionario' ? 'Funcionário' : 'Função'}:
+//                 <strong>${chaveNome}</strong><br>
+//                 <small class="text-xs text-gray-500">Solicitante(s): ${solicitantesGrupo}</small>
+//             </div>
+//             <div class="flex items-center gap-2">
+//                 <span>${itensGrupo}</span>
+//                 <i class="fas fa-chevron-down text-gray-500 text-xs transition-transform transform"></i>
+//             </div>
+//         `;
+
+//         header.addEventListener("click", () => {
+//             body.classList.toggle("hidden");
+//             header.querySelector('i').classList.toggle('rotate-180');
+//         });
+
+//         divGrupo.appendChild(header);
+//         divGrupo.appendChild(body);
+//         listaGrupos.appendChild(divGrupo);
+//     });
+
+//     container.appendChild(listaGrupos);
+
+//     // --- 3. LISTENERS DE AÇÃO (SWAL) --- (inalterada)
+
+//     // Listener delegado para os botões 'aprovar' e 'negar'
+//     container.addEventListener('click', async function(event) {
+//         const target = event.target;
+//         if (!target.classList.contains('aprovar') && !target.classList.contains('negar')) return;
+
+//         const actionDiv = target.closest('.flex.gap-2.mt-2');
+//         if (!actionDiv) return;
+
+//         const isAprovar = target.classList.contains('aprovar');
+//         // O ID agora pode ser o ID do Aditivo Extra ou o ID do Pedido Principal
+//         const idReferencia = actionDiv.getAttribute('data-id'); 
+//         const campoParaBackend = actionDiv.getAttribute('data-campo');
+//         const dataParaUpdate = actionDiv.getAttribute('data-data');
+//         const isAditivoExtra = actionDiv.getAttribute('data-aditivo') === 'true';
+
+//         const statusUpdateFn = isAditivoExtra ? atualizarStatusAditivoExtra : atualizarStatusPedido;
+//         const statusTarget = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
+
+//         const cardElement = target.closest('.pedido-card');
+
+//         // --- LÓGICA DE CONFIRMAÇÃO (MODAL) ---
+//         if (isAprovar) {
+//             // === MODAL DE CONFIRMAÇÃO PARA AUTORIZAR ===
+//             const result = await Swal.fire({
+//                 title: 'Tem certeza?',
+//                 text: "Você irá autorizar esta solicitação. Esta ação é irreversível!",
+//                 icon: 'warning',
+//                 showCancelButton: true,
+//                 confirmButtonColor: '#16a34a',
+//                 cancelButtonColor: '#dc2626',
+//                 confirmButtonText: 'Sim, Autorizar!',
+//                 cancelButtonText: 'Cancelar'
+//             });
+
+//             if (result.isConfirmed) {
+//                 if (isAditivoExtra) {
+//                     // O ID passado é o idAditivoExtra
+//                     await statusUpdateFn(idReferencia, statusTarget, cardElement); 
+//                 } else {
+//                     // O ID passado é o idpedido
+//                     await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate, null);
+//                 }
+//             }
+//         } else {
+//             // === MODAL DE CONFIRMAÇÃO E JUSTIFICATIVA PARA REJEITAR ---
+//             const { value: justificativa } = await Swal.fire({
+//                 title: 'Rejeitar Solicitação',
+//                 input: 'textarea',
+//                 inputLabel: 'Por favor, insira a justificativa da rejeição:',
+//                 inputPlaceholder: 'Justificativa...',
+//                 showCancelButton: true,
+//                 confirmButtonColor: '#dc2626',
+//                 cancelButtonColor: '#6b7280',
+//                 confirmButtonText: 'Sim, Rejeitar!',
+//                 cancelButtonText: 'Cancelar',
+//                 inputValidator: (value) => {
+//                     if (!value) {
+//                         return 'Você precisa inserir uma justificativa!';
+//                     }
+//                 }
+//             });
+
+//             if (justificativa) {
+//                 if (isAditivoExtra) {
+//                     // O ID passado é o idAditivoExtra
+//                     await statusUpdateFn(idReferencia, statusTarget, cardElement, justificativa);
+//                 } else {
+//                     // O ID passado é o idpedido
+//                     await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate, justificativa);
+//                 }
+//             }
+//         }
+//     });
+
+//     // 🛑 REMOVIDO: --- 4. Atualiza a contagem da sub-aba (Badge) ---
+//     // A contagem é definida no carregamento inicial pela função criarSubTabsHTML.
+// }
+
+
 function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesejado, podeAprovar) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
-    // 🌟 CORREÇÃO CRUCIAL: Limpa imediatamente o container visualmente e dá feedback.
-    container.innerHTML = '<p class="text-sm text-gray-500">Filtrando e carregando dados...</p>';
-    
-    // Constantes (assumindo que estão definidas globalmente: STATUS_PENDENTE, CAMPO_ADITIVO_EXTRA, etc.)
+    // 🛑 CORREÇÃO V61.0: Garante que o contêiner de lista se comporte como uma coluna.
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    container.style.flexWrap = 'nowrap';
+    container.style.gap = '10px';
+
+    container.innerHTML = '';
+
     const camposTodos = [
-        "statusajustecusto", 
-        "statuscaixinha", 
-        "statusmeiadiaria", 
+        "statusajustecusto",
+        "statuscaixinha",
+        "statusmeiadiaria",
         "statusdiariadobrada",
         CAMPO_ADITIVO_EXTRA
     ];
+    // 🛑 V65.0: Inclui o campo placeholder para renderização na Seção 2
+    const camposRenderizaveis = [...camposTodos, 'pedido_principal'];
+
+    const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
+    const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
+    const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
+
+
+    // --- 1. FILTRAGEM E CONSOLIDAÇÃO DE SOLICITANTES ---
+    const gruposFiltrados = [];
+    const solicitantesPendentesPorChave = {};
     
-    // 1. Agrupamento e Filtragem por Status
-    const gruposMap = {};
+    // 🛑 V97.0: Reinicia a contagem total de itens renderizados para o badge
     let totalItensRenderizados = 0; 
 
-    pedidosCompletos.forEach(p => {
-        let temItemComStatusDesejadoNoPedido = false;
+    pedidosCompletos.forEach(grupoConsolidado => {
+        let chaveRenderizacao = categoria === 'funcionario'
+            ? grupoConsolidado.funcionario
+            : (grupoConsolidado.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
 
-        // --- FILTRAGEM DE STATUS APLICADA AQUI ---
-        const pedidoFiltradoPorStatus = { ...p };
+        if (!chaveRenderizacao) return;
 
-        camposTodos.forEach(campo => {
-      const info = p[campo];
-      if (!info) {
-          delete pedidoFiltradoPorStatus[campo];
-          return;
-      }
+        if (!solicitantesPendentesPorChave[chaveRenderizacao]) {
+            solicitantesPendentesPorChave[chaveRenderizacao] = new Set();
+        }
 
-      const statusItem = (info.status || STATUS_PENDENTE).toLowerCase();
-      const temDadosRelevantes = info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao || info.tipoSolicitacao;
+        const registros = grupoConsolidado.registrosOriginais || [];
+        
+        // 🛑 V79.0: Usar um mapa temporário para consolidar registros por ID dentro deste grupo
+        const pedidosConsolidadosPorId = new Map();
 
-      if (temDadosRelevantes && statusItem === statusDesejado) {
-          // Mantém o item no pedido filtrado
-          temItemComStatusDesejadoNoPedido = true;
-      } else {
-          // Remove o item que não corresponde ao status desejado
-          delete pedidoFiltradoPorStatus[campo];
-      }
+        registros.forEach(pedidoOriginal => {
+            const id = pedidoOriginal.idpedido;
+            let pedidoConsolidado = pedidosConsolidadosPorId.get(id);
+
+            if (!pedidoConsolidado) {
+                // Se o ID é novo, inicializa com o objeto original
+                pedidoConsolidado = { 
+                    ...pedidoOriginal, 
+                    temMatch: false, 
+                    renderizarComoPedidoPrincipal: false,
+                    dataPrincipal: undefined, 
+                    valorPrincipal: undefined,
+                    tipoSolicitacaoGeral: undefined
+                };
+                pedidosConsolidadosPorId.set(id, pedidoConsolidado);
+            }
+            
+            // Verifica o status principal do pedido (para os 412 pedidos financeiros)
+            const statusPrincipal = (pedidoOriginal.status_aprovacao || '').toLowerCase();
+            if (statusPrincipal === statusDesejado) {
+                pedidoConsolidado.temMatch = true;
+                if (pedidoOriginal.nomeSolicitante) {
+                    solicitantesPendentesPorChave[chaveRenderizacao].add(pedidoOriginal.nomeSolicitante);
+                }
+                pedidoConsolidado.renderizarComoPedidoPrincipal = true; 
+                
+                // 🛑 V82.0: Flags de Anexação
+                let dataAnexadaNesteCiclo = false;
+                let valorAnexadoNesteCiclo = false;
+                
+                // 1. Prioridade: DATA
+                if (pedidoConsolidado['dataPrincipal'] === undefined && pedidoOriginal.dataEspecifica) {
+                    // 🛑 CORREÇÃO DE DATA 1/4 (Manual Parsing)
+                    const dataObj = parseDateLocal(pedidoOriginal.dataEspecifica);
+                    
+                    if (dataObj) {
+                        pedidoConsolidado['dataPrincipal'] = dataObj.toLocaleDateString('pt-BR'); 
+                        dataAnexadaNesteCiclo = true; 
+                    }
+                    
+
+                // 2. Fallback: VALOR
+                } else if (pedidoConsolidado['valorPrincipal'] === undefined && pedidoOriginal.vlrtotal !== undefined && typeof pedidoOriginal.vlrtotal === 'number') {
+                    pedidoConsolidado['valorPrincipal'] = pedidoOriginal.vlrtotal;
+                    valorAnexadoNesteCiclo = true; 
+                }
+                
+                // 🛑 V82.0: Define o tipo de solicitação
+                if (pedidoOriginal.categoria || pedidoOriginal.categoria_item) {
+                   const novoTipo = formatarNomeSolicitacao(pedidoOriginal.categoria || pedidoOriginal.categoria_item);
+                   if (pedidoConsolidado['tipoSolicitacaoGeral'] === undefined || dataAnexadaNesteCiclo || valorAnexadoNesteCiclo) {
+                        pedidoConsolidado['tipoSolicitacaoGeral'] = novoTipo;
+                   }
+                }
+            }
+            
+            // Processamento dos itens aninhados
+            camposTodos.forEach(campo => {
+                const info = pedidoOriginal[campo];
+                
+                // 🛑 CORREÇÃO ESTRUTURAL (V85.0): Uso do safeParse para garantir leitura de array/JSON string
+                const itens = safeParse(info);
+                
+                // A filtragem deve manter apenas os itens que correspondem ao statusDesejado
+                const itensFiltrados = itens.filter(item =>
+                    // Garante que o item é um objeto com a propriedade status antes de chamar toLowerCase
+                    (typeof item === 'object' && item !== null && (item.status || STATUS_PENDENTE_LOWER).toLowerCase() === statusDesejado)
+                );
+
+                if (itensFiltrados.length > 0) {
+                    pedidoConsolidado.temMatch = true;
+                    if (pedidoOriginal.nomeSolicitante) {
+                        solicitantesPendentesPorChave[chaveRenderizacao].add(pedidoOriginal.nomeSolicitante);
+                    }
+                    
+                    // 🛑 V80.0: Inicialização segura do campo como array antes da concatenação
+                    if (!pedidoConsolidado[campo] || !Array.isArray(pedidoConsolidado[campo])) {
+                        pedidoConsolidado[campo] = [];
+                    }
+                    
+                    // 🛑 CORREÇÃO DE DUPLICAÇÃO DE SUB-ITENS (V96.0)
+                    // Cria um mapa para itens aninhados, usando a chave mais específica ou um fallback.
+                    const mapaAtual = new Map(pedidoConsolidado[campo].map(item => {
+                        const uniqueKey = item.idAditivoExtra || item.idCaixinha || item.idajustecusto || item.data || item.id;
+                        // Usa o ID do Pedido + Nome do Campo como fallback para itens sem ID ou Data.
+                        const key = uniqueKey || `${pedidoOriginal.idpedido}_${campo}`; 
+                        return [key, item];
+                    }));
+                    
+                    // Adiciona ou sobrescreve itens filtrados, garantindo a unicidade.
+                    itensFiltrados.forEach(item => {
+                        const uniqueKey = item.idAditivoExtra || item.idCaixinha || item.idajustecusto || item.data || item.id;
+                        const key = uniqueKey || `${pedidoOriginal.idpedido}_${campo}`;
+                        mapaAtual.set(key, item);
+                    });
+
+                    // A lista consolidada agora contém apenas itens únicos.
+                    pedidoConsolidado[campo] = Array.from(mapaAtual.values());
+                }
+            });
+        });
+        
+        // Finaliza a filtragem e preparação para renderização
+        const pedidosFiltradosNoGrupo = Array.from(pedidosConsolidadosPorId.values())
+            .filter(p => p.temMatch);
+
+        pedidosFiltradosNoGrupo.forEach(pedidoConsolidado => {
+            // Lógica de definição do tipo de solicitação geral... (inalterada)
+            if (pedidoConsolidado.renderizarComoPedidoPrincipal && !pedidoConsolidado['tipoSolicitacaoGeral']) {
+                let tipoSolicitacaoNome = 'Solicitação Financeira Principal';
+                const campoCategoria = pedidoConsolidado.categoria || pedidoConsolidado.categoria_item; 
+
+                if (campoCategoria) {
+                    tipoSolicitacaoNome = formatarNomeSolicitacao(campoCategoria);
+                } else {
+                    const campoTipo = camposTodos.find(c => pedidoConsolidado[c]);
+                    if (campoTipo) {
+                        tipoSolicitacaoNome = formatarNomeSolicitacao(campoTipo);
+                    }
+                }
+                pedidoConsolidado['tipoSolicitacaoGeral'] = tipoSolicitacaoNome;
+            }
+            
+            const temItensAninhados = camposTodos.some(campo => pedidoConsolidado[campo] !== undefined);
+
+            if (pedidoConsolidado.renderizarComoPedidoPrincipal && !temItensAninhados) {
+                // Adiciona o placeholder para o Pedido Principal se ele deu match no status e não tem sub-itens
+                pedidoConsolidado['pedido_principal'] = [{ status: STATUS_PENDENTE_LOWER }];
+            }
+
+            // Remove flags temporárias
+            delete pedidoConsolidado.temMatch;
+            delete pedidoConsolidado.renderizarComoPedidoPrincipal;
         });
 
-        // Se após o filtro de status, o pedido ainda tiver pelo menos um item que corresponde ao status
-        if (temItemComStatusDesejadoNoPedido) {
 
-      // ============== INÍCIO DA CORREÇÃO DE FILTRAGEM DE CATEGORIA (Aditivo/Extra) ==============
-      const aditivoExtra = pedidoFiltradoPorStatus[CAMPO_ADITIVO_EXTRA];
-        
-      // Só aplicamos a regra de idfuncionario se o Aditivo/Extra estiver presente no pedido
-      if (aditivoExtra) {
-          // Verifica a presença robusta do idfuncionario (ignora null, undefined, "" e 0)
-          const temIdFuncionario = !!aditivoExtra.idfuncionario && aditivoExtra.idfuncionario !== 0;
-
-          // 1. Filtro para a ABA FUNCIONÁRIO: SÓ entra se TIVER idfuncionario
-          if (categoria === 'funcionario' && !temIdFuncionario) {
-        // Pula este pedido (não deve aparecer em Funcionário)
-        return; 
-          }
-
-          // 2. Filtro para a ABA FUNÇÃO: SÓ entra se NÃO TIVER idfuncionario
-          if (categoria === 'funcao' && temIdFuncionario) {
-        // Pula este pedido (deve aparecer em Funcionário, não em Função)
-        return; 
-          }
-      }
-      // ============== FIM DA CORREÇÃO DE FILTRAGEM DE CATEGORIA ==============
-
-
-      let chave;
-      if (categoria === 'funcionario') {
-          chave = pedidoFiltradoPorStatus.funcionario;
-      } else { // categoria === 'funcao'
-          // Agrupa por Tipo de Solicitação (ADITIVO, EXTRABONIFICADO, etc.)
-          const tipo = pedidoFiltradoPorStatus[CAMPO_ADITIVO_EXTRA]?.tipoSolicitacao || 'SOLICITAÇÃO DE FUNÇÃO';
-          chave = tipo;
-      }
-
-      if (!gruposMap[chave]) gruposMap[chave] = [];
-      // Adiciona a VERSÃO FILTRADA do pedido ao mapa
-      gruposMap[chave].push(pedidoFiltradoPorStatus);
+        if (pedidosFiltradosNoGrupo.length > 0) {
+            gruposFiltrados.push({
+                ...grupoConsolidado,
+                registrosOriginais: pedidosFiltradosNoGrupo
+            });
         }
     });
-    // --- FIM DO AGRUPAMENTO E FILTRAGEM ---
+    
+    // FIM DA SEÇÃO 1: Consolidação.
 
-    // 2. Ordenação dos Grupos (por data de criação)
-    const chavesOrdenadas = Object.keys(gruposMap).sort((a, b) => {
-        const pedidoA = gruposMap[a][0];
-        const pedidoB = gruposMap[b][0];
-        const timeA = new Date(pedidoA.dtCriacao).getTime();
-        const timeB = new Date(pedidoB.dtCriacao).getTime();
-        const isANaN = isNaN(timeA);
-        if (isANaN) return 1;
-        const isBNaN = isNaN(timeB);
-        if (isBNaN) return -1;
-        return timeB - timeA;
-    });
-    
-    // 3. Limpa o container novamente (remove a mensagem de 'Carregando')
-    container.innerHTML = ""; 
-    
-    if (chavesOrdenadas.length === 0) {
+    // Ordenação... (inalterada)
+    // gruposFiltrados.sort((a, b) =>
+    //     new Date(b.dtCriacao || '1970-01-01').getTime() -
+    //     new Date(a.dtCriacao || '1970-01-01').getTime()
+    // );
+
+    if (gruposFiltrados.length === 0) {
         const msg = document.createElement("p");
-        msg.textContent = `Não há pedidos ou solicitações com status "${statusDesejado.charAt(0).toUpperCase() + statusDesejado.slice(1)}" nesta categoria.`;
+        msg.textContent = `Não há pedidos com status "${statusDesejado}".`;
         container.appendChild(msg);
-
-        // Atualiza a contagem da sub-aba (Badge)
-        const countSpan = document.getElementById(`${containerId.split('-list-')[0]}-count-${statusDesejado}`);
-        if (countSpan) {
-      countSpan.textContent = 0;
+        
+        // 🛑 V97.0: Atualiza a contagem para 0
+        if (typeof atualizarBadgeDeStatus === 'function') {
+             // Ex: atualizarBadgeDeStatus('pendente', 0, categoria);
+             atualizarBadgeDeStatus(statusDesejado, 0, categoria);
         }
         return;
     }
 
-
-    // 4. Cria o container principal com classe .lista-funcionarios
+    // --- 2. RENDERIZAÇÃO ---
     const listaGrupos = document.createElement("div");
-    listaGrupos.className = "lista-funcionarios"; 
-    container.appendChild(listaGrupos);
+    listaGrupos.className = "lista-funcionarios";
 
+    gruposFiltrados.forEach(grupo => {
+        const pedidosDoGrupo = grupo.registrosOriginais;
+        if (!pedidosDoGrupo?.length) return;
 
-    chavesOrdenadas.forEach(chaveNome => {
-        // PedidosDoGrupo agora contêm apenas os itens que correspondem ao status
-        const pedidosDoGrupo = gruposMap[chaveNome];
+        const pedidosParaRenderizar = pedidosDoGrupo; 
+        
+        const chaveNome = categoria === 'funcionario'
+            ? grupo.funcionario
+            : (grupo.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
+
+        const solicitantesGrupo = Array.from(solicitantesPendentesPorChave[chaveNome] || []).join(', ') || 'N/D';
 
         const divGrupo = document.createElement("div");
-        divGrupo.className = "funcionario"; 
+        divGrupo.className = "funcionario";
 
         const header = document.createElement("div");
-        header.className = "funcionario-header"; 
+        header.className = "funcionario-header";
 
-        let tituloGrupo;
-        let subtituloGrupo = '';
-        let pedidosRenderizadosNoGrupo = 0;
+        const body = document.createElement("div");
+        body.className = "funcionario-body hidden";
 
-        if (categoria === 'funcionario') {
-      tituloGrupo = chaveNome || "Funcionário Desconhecido";
-      // Para Funcionário, o subtítulo é o Solicitante
-      subtituloGrupo = `Solicitante: ${pedidosDoGrupo[0].nomeSolicitante || pedidosDoGrupo[0].solicitante_nome || "Você"}`;
-        } else { // categoria === 'funcao'
-      tituloGrupo = chaveNome || "Solicitação de Função Desconhecida";
-      // Para Função/Tipo, mantemos o Solicitante no subtítulo (MELHORIA)
-      subtituloGrupo = `Solicitante: ${pedidosDoGrupo[0].nomeSolicitante || pedidosDoGrupo[0].solicitante_nome || "Você"}`;
-        }
+        let htmlBody = '';
+        let itensGrupo = 0;
 
-        const containerBody = document.createElement("div");
-        containerBody.className = "funcionario-body hidden"; 
+        // Itera sobre os pedidos consolidados
+        pedidosParaRenderizar.forEach(pedido => {
+            // Itera sobre camposTodos e o novo placeholder 'pedido_principal'
+            camposRenderizaveis.forEach(campo => { 
+                const itensFiltrados = pedido[campo];
+                if (!itensFiltrados || itensFiltrados.length === 0) return;
 
+                const itensParaRenderizar = Array.isArray(itensFiltrados) ? itensFiltrados : [itensFiltrados];
 
-        // Renderização dos Cards
-        pedidosDoGrupo.forEach(pedido => {
-      camposTodos.forEach(campo => {
-          // Verifica o pedido filtrado (que só tem o campo se ele corresponder ao statusDesejado)
-          const info = pedido[campo]; 
-          if (!info) return;
+                itensParaRenderizar.forEach(infoItem => {
+                    
+                    itensGrupo++;
+                    totalItensRenderizados++; // 🛑 V97.0: Contagem total atualizada
 
-          const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
-          const valorAlterado = isAditivoExtra || (info.valor !== undefined || (info.datas && info.datas.length > 0) || info.descricao);
-          if (!valorAlterado) return;
+                    const statusTexto = (infoItem.status || statusDesejado).charAt(0).toUpperCase() + (infoItem.status || statusDesejado).slice(1);
+                    // A cor agora é baseada no status REAL do item (vindo da consolidação)
+                    const statusLower = (infoItem.status || statusDesejado).toLowerCase();
+                    let corQuadrado = statusLower === STATUS_AUTORIZADO_LOWER ? "#16a34a" : statusLower === STATUS_REJEITADO_LOWER ? "#dc2626" : "#facc15";
 
-          const statusAtual = (info.status || STATUS_PENDENTE).toLowerCase();
+                    let tituloCard;
+                    const isAditivoExtra = campo === CAMPO_ADITIVO_EXTRA;
+                    const isDataUnica = campo === "statusmeiadiaria" || campo === "statusdiariadobrada";
+                    const isPedidoPrincipal = campo === 'pedido_principal'; 
 
-          // Esta verificação é redundante após o filtro acima, mas garante a consistência
-          if (statusAtual !== statusDesejado) return; 
+                    if (isPedidoPrincipal) {
+                        tituloCard = pedido.tipoSolicitacaoGeral || 'Solicitação Principal'; 
 
-          pedidosRenderizadosNoGrupo++; 
-          totalItensRenderizados++; 
+                        // V81.0: Usa a data já formatada
+                        if (pedido.dataPrincipal) {
+                            tituloCard += ` (${pedido.dataPrincipal})`;
 
-          // MUDANÇA: Formatar o status (sem o fallback "Pendente", pois o filtro garante que é o status correto)
-          const statusTextoFormatado = statusAtual.charAt(0).toUpperCase() + statusAtual.slice(1);
+                        } else if (pedido.valorPrincipal !== undefined && typeof pedido.valorPrincipal === 'number') {
+                            const valorFmt = pedido.valorPrincipal.toFixed(2).replace('.', ',');
+                            tituloCard += ` (R$ ${valorFmt})`;
+                        }
 
-          const card = document.createElement("div");
-          card.className = "pedido-card"; 
+                    } else if (isAditivoExtra) {
+                        const tipo = infoItem.tipoSolicitacao;
+                        tituloCard = (tipo?.toUpperCase() === 'FUNCEXCEDIDO')
+                            ? "Limite Diário Excedido por Função/Evento"
+                            : tipo;
+                    } else {
+                        // Itens aninhados
+                        tituloCard = formatarNomeSolicitacao(campo);
 
-          let corQuadrado = "#facc15"; 
-          if (statusAtual === STATUS_AUTORIZADO) corQuadrado = "#16a34a"; 
-          if (statusAtual === STATUS_REJEITADO) corQuadrado = "#dc2626"; 
+                        // V77.0: Adiciona Data/Valor ao título do item aninhado
+                        if (isDataUnica) { 
+                            // 🛑 CORREÇÃO DE DATA NO TÍTULO
+                            const dataBruta = String(infoItem.data || '').trim(); // Garante string não-nula/undefined
 
-          let tituloCard;
-          if (isAditivoExtra) {
-        const tipo = info.tipoSolicitacao;
-        if (tipo && tipo.toUpperCase() === 'FUNCEXCEDIDO') {
-      tituloCard = "Limite Diário Excedido por Função/Evento";
-        } else {
-      // O nome do tipo de solicitação (ADITIVO, EXTRABONIFICADO)
-      tituloCard = tipo;
-        }
-          } else {
-        tituloCard = campo.replace("status", "").replace(/([A-Z])/g, ' $1').trim();
-        tituloCard = tituloCard.charAt(0).toUpperCase() + tituloCard.slice(1);
-          }
+                            let dataFmt = '';
+                            if (dataBruta !== '') {
+                                const dataObj = parseDateLocal(dataBruta); 
+                                dataFmt = dataObj?.toLocaleDateString('pt-BR') || '';
+                            }
 
-          let innerHTML = `<div>
-        <strong>${tituloCard}</strong><br>`;
+                            if (dataFmt) tituloCard += ` (${dataFmt})`;
 
-          if (pedido.evento) {
-          
-        // Lógica para a ABA FUNCIONÁRIOS: Inclui o Funcionário (nome completo)
-        if (categoria === 'funcionario' && pedido.funcionario) {
-      // Certifica-se de que o nome do funcionário está disponível
-      innerHTML += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario}<br>`;
-        } 
+                        } else if (campo.includes('custo') || campo.includes('caixinha')) {
+    
+                            // 🛑 CORREÇÃO V91.0: Parse do valor para inclusão no TÍTULO
+                            const valor = parseFloat(infoItem.valor) || 0; // Converte para número
 
-        // Lógica para a ABA FUNÇÕES: Inclui a Função (Tipo de Solicitação)
-        else if (categoria === 'funcao' && isAditivoExtra) {
-      // O 'tipoSolicitacao' atua como o nome da Função/Tipo de solicitação no contexto de orçamento
-      // Adicionando nmfuncao conforme a lógica anterior
-      innerHTML += `<strong>Evento:</strong> ${pedido.evento} - <strong>Função:</strong> ${pedido.nmfuncao}<br>`;
-        }
+                            if (valor !== 0) { // Verifica se o valor é diferente de zero
+                                const valorFmt = valor.toFixed(2).replace('.', ',');
+                                tituloCard += ` (R$ ${valorFmt})`;
+                            }
+                        }
+                    }
 
-        // Lógica de fallback para outros pedidos (ou pedidos padrão sem funcionário)
-        else {
-       innerHTML += `<strong>Evento:</strong> ${pedido.evento}<br>`;
-        }
-          }
+                    htmlBody += `
+                        <div class="pedido-card">
+                            <div>
+                                <strong>${tituloCard}</strong><br>
+                    `;
 
-          // Exibe o nome do funcionário dentro do card da aba 'Função' (se houver, para referência)
-          if (categoria === 'funcao' && pedido.funcionario) {
-        innerHTML += `<small>Func.: ${pedido.funcionario}</small><br>`;
-          }
+                    const nomeSolic = pedido.nomeSolicitante || "N/D";
 
-          if (isAditivoExtra) {
-        if (info.quantidade) {
-      innerHTML += `Qtd. Solicitada: ${info.quantidade}<br>`;
-        }
-        innerHTML += `Status: <span class="status-text font-semibold"><strong>${statusTextoFormatado}</strong></span><br>`;
-          } else if (info.valor !== undefined) {
-        innerHTML += `Valor: R$ ${info.valor} - <span class="status-text font-semibold"><strong>${statusTextoFormatado}</strong></span><br>`;
-          } else if (info.datas) {
-        innerHTML += `Datas: ${info.datas.map(d => d.data).join(", ")} - <span class="status-text font-semibold">${statusTextoFormatado}</span><br>`;
-          }
+                    if (pedido.evento) {
+                        if (categoria === 'funcionario' && pedido.funcionario) {
+                            htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario} - <strong>Solicitante:</strong> ${nomeSolic}<br>`;
+                        } else {
+                            htmlBody += `<strong>Evento:</strong> ${pedido.evento}<br>`;
+                        }
+                    }
 
-          if (info.descricao) {
-        innerHTML += `Descrição: ${info.descricao}<br>`;
-          }
+                    if (isPedidoPrincipal) {
+                        htmlBody += `Status do Pedido: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+                    } else if (isAditivoExtra) {
+                        if (infoItem.quantidade) htmlBody += `Qtd: ${infoItem.quantidade}<br>`;
+                        htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+                    } else if (campo.includes('custo') || campo.includes('caixinha')) {
 
-          // 🌟 CORREÇÃO DE VISUALIZAÇÃO: Botões de Ação (APENAS se for PENDENTE E o usuário PUDER APROVAR)
-          if (statusAtual === STATUS_PENDENTE && podeAprovar) {
-        innerHTML += `
-      <div class="flex gap-2 mt-2">
-          <button class="aprovar">Autorizar</button>
-          <button class="negar">Rejeitar</button>
-      </div>
+                        // 🛑 CORREÇÃO DE VALOR E FORMATAÇÃO (V90.0)
+                        const valor = parseFloat(infoItem.valor) || 0; 
+
+                        if (valor !== 0) {
+                            const valorFmt = valor.toFixed(2).replace('.', ',');
+                            // 🚨 Adicionando a descrição no corpo junto com o valor para clareza
+                            htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+                        } else {
+                            htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+                        }
+                    } else if (isDataUnica) {
+                        // 🛑 CORREÇÃO DE DATA NO CORPO (Manual Parsing mais robusto)
+                        const dataBruta = String(infoItem.data || '').trim(); // Garante string não-nula/undefined
+
+                        let dataFmt = 'Data indefinida';
+
+                        if (dataBruta !== '') {
+                            const dataObj = parseDateLocal(dataBruta);
+                            dataFmt = dataObj ? dataObj.toLocaleDateString('pt-BR') : 'Data indefinida';
+                        }
+
+                        htmlBody += `Data: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+                    } else if (infoItem.datas) {
+                        // 🛑 CORREÇÃO DE DATA 4/4 (Manual Parsing)
+                        const datasFmt = infoItem.datas
+                            .map(d => parseDateLocal(d.data)?.toLocaleDateString('pt-BR'))
+                            .filter(d => d) // Remove qualquer data que falhou no parsing
+                            .join(', ');
+                        htmlBody += `Datas: ${datasFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+                    }
+
+                    if (infoItem.descricao) {
+                        htmlBody += `Descrição: ${infoItem.descricao}<br>`;
+                    }
+
+                    if (statusDesejado === STATUS_PENDENTE_LOWER && podeAprovar) {
+                        // Ações de Aprovação/Rejeição (inalterada)
+                        const campoParaAcao = isPedidoPrincipal ? 'status_aprovacao' : campo; 
+                        const dataParaAcao = isPedidoPrincipal 
+                            ? (pedido.dataEspecifica || '') 
+                            : (isDataUnica 
+                                ? (infoItem.data || '').trim() // 💡 Apenas pega a string bruta da data e remove espaços
+                                : '' // Deixa vazio para os outros campos (como caixinha)
+                            );
+                        // 🛑 V95.0: Passa o ID do sub-item para Aditivo Extra. Se não for AE, passa o idpedido.
+                        const idParaAcao = isAditivoExtra ? (infoItem.idAditivoExtra || pedido.idpedido) : pedido.idpedido;
+                        
+                        htmlBody += `
+                            <div class="flex gap-2 mt-2"
+                                data-id="${idParaAcao}"
+                                data-campo="${campoParaAcao}"
+                                data-data="${dataParaAcao}"
+                                data-aditivo="${isAditivoExtra}">
+                                <button class="aprovar">Autorizar</button>
+                                <button class="negar">Rejeitar</button>
+                            </div>
+                        `;
+                    }
+
+                    htmlBody += `
+                            </div>
+                            <div class="quadrado-arredondado" style="background-color: ${corQuadrado};" title="Status: ${statusTexto}"></div>
+                        </div>
+                    `;
+                });
+            });
+        });
+
+        body.innerHTML = htmlBody;
+
+        header.innerHTML = `
+            <div>
+                ${categoria === 'funcionario' ? 'Funcionário' : 'Função'}:
+                <strong>${chaveNome}</strong><br>
+                <small class="text-xs text-gray-500">Solicitante(s): ${solicitantesGrupo}</small>
+            </div>
+            <div class="flex items-center gap-2">
+                <span>${itensGrupo}</span>
+                <i class="fas fa-chevron-down text-gray-500 text-xs transition-transform transform"></i>
+            </div>
         `;
-          }
-          // Se não for Master, ou não for PENDENTE, nada é adicionado, mantendo a visualização de status.
 
-          innerHTML += `</div>`;
-          // Indicador de status
-          innerHTML += `<div class="quadrado-arredondado" style="background-color: ${corQuadrado}; width: 15px; height: 15px; border-radius: 50%;" title="Status: ${statusTextoFormatado}"></div>`;
+        header.addEventListener("click", () => {
+            body.classList.toggle("hidden");
+            header.querySelector('i').classList.toggle('rotate-180');
+        });
 
-          card.innerHTML = innerHTML;
-          containerBody.appendChild(card);
+        divGrupo.appendChild(header);
+        divGrupo.appendChild(body);
+        listaGrupos.appendChild(divGrupo);
+    });
 
-          // 🌟 CORREÇÃO DE EVENT LISTENERS: Aplicar apenas se for PENDENTE E o usuário PUDER APROVAR
-          if (statusAtual === STATUS_PENDENTE && podeAprovar) {
-        const aprovarBtn = card.querySelector(".aprovar");
-        const negarBtn = card.querySelector(".negar");
+    container.appendChild(listaGrupos);
 
-        const idReferencia = isAditivoExtra ? pedido.idpedido : pedido.idpedido;
-        if (!idReferencia) return; 
+    // --- 3. LISTENERS DE AÇÃO (SWAL) --- (inalterada)
 
-        // ATENÇÃO: As funções de backend 'atualizarStatusAditivoExtra' e 'atualizarStatusPedido'
-        // devem estar definidas globalmente para que estes eventos funcionem.
+    // Listener delegado para os botões 'aprovar' e 'negar'
+    container.addEventListener('click', async function(event) {
+        const target = event.target;
+        if (!target.classList.contains('aprovar') && !target.classList.contains('negar')) return;
+
+        const actionDiv = target.closest('.flex.gap-2.mt-2');
+        if (!actionDiv) return;
+
+        const isAprovar = target.classList.contains('aprovar');
+        // O ID agora pode ser o ID do Aditivo Extra ou o ID do Pedido Principal
+        const idReferencia = actionDiv.getAttribute('data-id'); 
+        const campoParaBackend = actionDiv.getAttribute('data-campo');
+        const dataParaUpdate = actionDiv.getAttribute('data-data');
+        const isAditivoExtra = actionDiv.getAttribute('data-aditivo') === 'true';
+
         const statusUpdateFn = isAditivoExtra ? atualizarStatusAditivoExtra : atualizarStatusPedido;
-        const campoParaBackend = isAditivoExtra ? null : campo;
+        const statusTarget = isAprovar ? STATUS_AUTORIZADO_LOWER : STATUS_REJEITADO_LOWER;
 
-        const recarregarPainel = () => {
-      // Simula o clique na aba principal para forçar o re-render completo
-      const mainTabBtn = document.querySelector(`.main-tab-btn[data-categoria="${categoria}"]`);
-      mainTabBtn?.click();
-        
-      // Garante que a sub-aba anterior seja reativada
-      const subTabBtn = document.querySelector(`.sub-tab-btn[data-list-id="${containerId}"]`);
-      subTabBtn?.click();
-        };
+        const cardElement = target.closest('.pedido-card');
 
-        aprovarBtn?.addEventListener("click", async () => {
-      // Idealmente, usar um modal customizado no lugar de 'alert' ou 'confirm'.
-      if (isAditivoExtra) {
-          await statusUpdateFn(idReferencia, STATUS_AUTORIZADO, card); 
-      } else {
-          await statusUpdateFn(idReferencia, campoParaBackend, STATUS_AUTORIZADO, card);
-      }
-      recarregarPainel();
-        });
+        // --- LÓGICA DE CONFIRMAÇÃO (MODAL) ---
+        if (isAprovar) {
+            // === MODAL DE CONFIRMAÇÃO PARA AUTORIZAR ===
+            const result = await Swal.fire({
+                title: 'Tem certeza?',
+                text: `Você irá <strong>AUTORIZAR</strong> a solicitação. Esta ação é irreversível!`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#16a34a',
+                cancelButtonColor: '#dc2626',
+                confirmButtonText: 'Sim, Autorizar!',
+                cancelButtonText: 'Cancelar'
+            });
 
-        negarBtn?.addEventListener("click", async () => {
-      // Idealmente, usar um modal customizado para coletar a justificativa.
-      let justificativa = "Rejeitado via Painel de Controle"; 
-      if (isAditivoExtra) {
-          // Simulando a necessidade de input de justificativa.
-          console.log(`Ação de rejeitar Aditivo Extra (id: ${idReferencia}). Solicitando justificativa...`);
-      }
+            if (result.isConfirmed) {
+                if (isAditivoExtra) {
+                    // O ID passado é o idAditivoExtra
+                    await statusUpdateFn(idReferencia, statusTarget, cardElement); 
+                } else {
+                    // O ID passado é o idpedido
+                    await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate, null);
+                }
+            }
+        } else {
+            // === MODAL DE CONFIRMAÇÃO E JUSTIFICATIVA PARA REJEITAR ---
+            // const { value: justificativa } = await Swal.fire({
+            //     title: 'Rejeitar Solicitação',
+            //     input: 'textarea',
+            //     inputLabel: 'Por favor, insira a justificativa da rejeição:',
+            //     inputPlaceholder: 'Justificativa...',
+            //     showCancelButton: true,
+            //     confirmButtonColor: '#dc2626',
+            //     cancelButtonColor: '#6b7280',
+            //     confirmButtonText: 'Sim, Rejeitar!',
+            //     cancelButtonText: 'Cancelar',
+            //     inputValidator: (value) => {
+            //         if (!value) {
+            //             return 'Você precisa inserir uma justificativa!';
+            //         }
+            //     }
+            // });
 
-      if (isAditivoExtra) {
-          await statusUpdateFn(idReferencia, STATUS_REJEITADO, card, justificativa); 
-      } else {
-          await statusUpdateFn(idReferencia, campoParaBackend, STATUS_REJEITADO, card, justificativa);
-      }
-      recarregarPainel();
-        });
-          }
-      });
-        });
-
-        // Adiciona o cabeçalho do grupo e o corpo (expansível)
-        if (pedidosRenderizadosNoGrupo > 0) {
-      header.innerHTML = `
-          <div>
-        ${categoria === 'funcionario' ? 'Funcionário' : 'Função/Tipo'}: <strong>${tituloGrupo}</strong><br>
-        <small class="text-xs text-gray-500">${subtituloGrupo}</small>
-          </div>
-          <div class="flex items-center gap-2">
-        <span>${pedidosRenderizadosNoGrupo}</span> <i class="fas fa-chevron-down text-gray-500 text-xs transition-transform transform"></i>
-          </div>
-      `;
-        
-      header.addEventListener("click", () => {
-          containerBody.classList.toggle("hidden");
-          header.querySelector('i').classList.toggle('rotate-180');
-      });
-
-      divGrupo.appendChild(header);
-      divGrupo.appendChild(containerBody);
-      listaGrupos.appendChild(divGrupo);
+            //if (justificativa) {
+                if (isAditivoExtra) {
+                    // O ID passado é o idAditivoExtra
+                    //await statusUpdateFn(idReferencia, statusTarget, cardElement, justificativa);
+                    await statusUpdateFn(idReferencia, statusTarget, cardElement);
+                } else {
+                    // O ID passado é o idpedido
+                    //await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate, justificativa);
+                    await statusUpdateFn(idReferencia, campoParaBackend, statusTarget, cardElement, dataParaUpdate);
+                }
+            //}
         }
     });
 
-    // 5. Atualiza a contagem da sub-aba (Badge)
-    const countSpan = document.getElementById(`${containerId.split('-list-')[0]}-count-${statusDesejado}`);
-    if (countSpan) {
-        countSpan.textContent = totalItensRenderizados;
+    // 🛑 V97.0: Atualiza a contagem da sub-aba (Badge) com o valor exato
+    if (typeof atualizarBadgeDeStatus === 'function') {
+         // Ex: atualizarBadgeDeStatus('pendente', 171, 'funcionario');
+         atualizarBadgeDeStatus(statusDesejado, totalItensRenderizados, categoria);
     }
 }
+
+
+
+function extrairDatasDoCampoStatus(statusFieldContent) {
+    if (!statusFieldContent) {
+        return [];
+    }
+
+    let result = [];
+    
+    // 1. TENTAR TRATAR COMO STRING JSON PRIMEIRO (Prioriza o caso de dados malformados/inconsistentes)
+    if (typeof statusFieldContent === 'string') {
+        let jsonStr = statusFieldContent.trim();
+        
+        // CORREÇÃO FINAL PARA "null" STRING
+        if (jsonStr.toLowerCase() === 'null' || jsonStr === '') {
+            return [];
+        }
+        
+        try {
+            // A. Limpeza Extrema (remove espaços e caracteres invisíveis)
+            jsonStr = jsonStr.replace(/[\s\uFEFF\xA0\u2000-\u200A\u202F\u205F\u3000]/g, ''); 
+            
+            // B. Tenta remover MÚLTIPLOS encapsulamentos de aspas (Ex: '"[{...}]"')
+            while (jsonStr.startsWith('"') && jsonStr.endsWith('"') && jsonStr.length > 2) {
+                jsonStr = JSON.parse(jsonStr);
+                if (typeof jsonStr !== 'string') break;
+            }
+            
+            if (typeof jsonStr === 'string') {
+                // C. CORREÇÃO CRÍTICA FINAL DE ASPAS DUPLAS MALFORMADAS
+                if (jsonStr.startsWith('[') && jsonStr.includes('""')) {
+                    jsonStr = jsonStr.replace(/""/g, '"');
+                }
+                
+                // D. Tentativa final de parse.
+                if (jsonStr.startsWith('[')) {
+                    const parsed = JSON.parse(jsonStr);
+                    if (Array.isArray(parsed)) {
+                         result = parsed; // Sucesso na string!
+                    }
+                }
+            } else if (Array.isArray(jsonStr)) {
+                result = jsonStr; // Sucesso na string (converteu direto para array)
+            }
+            
+        } catch (e) {
+            // Se falhar na string, assume que não é uma string JSON.
+        }
+    }
+
+    // Se o resultado da string for positivo, retorna.
+    if (result.length > 0) {
+        return result;
+    }
+    
+    // 2. TENTAR TRATAR COMO OBJETO (Fallback para o formato mapeado pelo ORM)
+    if (typeof statusFieldContent === 'object') {
+        // A. Se for o objeto aninhado ({ status: 'pendente', datas: [...] }) (Ex: Meia Diária)
+        if (Array.isArray(statusFieldContent.datas)) {
+            return statusFieldContent.datas;
+        }
+        // B. Se for o array de datas diretamente
+        if (Array.isArray(statusFieldContent)) {
+            return statusFieldContent;
+        }
+    }
+    
+    // Se não encontrou nada em string nem objeto, retorna vazio.
+    return [];
+}
+
+// function normalizarPedidosComMultiplasDatas(pedidoPadrao) {
+//     const pedidosNormalizados = [];
+//     const camposDeDataMap = {
+//         "statusmeiadiaria": "descmeiadiaria",
+//         "statusdiariadobrada": "descdiariadobrada"
+//     };
+    
+//     // Lista de campos de solicitação (status/valor/descrição) a serem limpos
+//     const camposDeSolicitacao = [
+//         "statusmeiadiaria", "descmeiadiaria", 
+//         "statusdiariadobrada", "descdiariadobrada",
+//         "statusajustecusto", "descajustecusto",
+//         "statuscaixinha", "desccaixinha",
+//         CAMPO_ADITIVO_EXTRA 
+//     ];
+
+//     let encontrouItemDeData = false;
+
+//     // 1. Processa Itens de Data (Meia Diária / Diária Dobrada)
+//     Object.keys(camposDeDataMap).forEach(campoStatus => {
+//         const campoDescricao = camposDeDataMap[campoStatus];
+//         console.log("CAMPO DESCRICAO ANTES DE EXTRAIRDATAS", campoDescricao);
+//         const statusField = pedidoPadrao[campoStatus];
+//         const datasArray = extrairDatasDoCampoStatus(statusField);
+//          console.log("DATASARRAY DEPOIS DE EXTRAIRDATAS", datasArray);
+        
+//         if (datasArray.length > 0) {
+
+
+//             encontrouItemDeData = true;
+//             const descricaoGeral = pedidoPadrao[campoDescricao] || '';
+
+//             // Agora, a lógica de singularização é executada
+//             datasArray.forEach(dataItem => {
+                
+//                 // 🛑 CORREÇÃO DE STATUS: Se for string, usa o status do campo pai. Se for objeto, usa dataItem.status.
+//                 const statusField = pedidoPadrao[campoStatus];
+                
+//                 // 1. Obtém o status consolidado do campo pai (ex: 'pendente')
+//                 const statusParent = (statusField.status || 'pendente').toLowerCase(); 
+                
+//                 const isDataString = typeof dataItem === 'string';
+//                 const dataDaSolicitacao = isDataString ? dataItem : dataItem.data;
+                
+//                 // 🛑 CORREÇÃO CRÍTICA AQUI:
+//                 // Se for objeto, tenta usar dataItem.status.
+//                 // Se for nulo/vazio, usa o status consolidado do campo pai (statusParent).
+//                 const statusItem = isDataString 
+//                     ? statusParent
+//                     : (dataItem.status ? dataItem.status.toLowerCase() : statusParent); // <--- Correção aplicada aqui
+
+//                     console.log("STATUS ITEM", statusItem);
+                
+//                 if (statusItem === STATUS_PENDENTE || statusItem === STATUS_AUTORIZADO || statusItem === STATUS_REJEITADO || statusItem === 'autorização da meia diária') {
+                    
+//                     // COPIA TODOS OS METADADOS do pedido original
+//                     const novoPedido = { ...pedidoPadrao }; 
+                    
+//                     // Remove TODOS os campos de solicitação (deixando APENAS os metadados)
+//                     camposDeSolicitacao.forEach(c => delete novoPedido[c]);
+                    
+//                     // Adiciona APENAS o campo singular de data que queremos.
+//                     novoPedido[campoStatus] = {
+//                       data: dataDaSolicitacao, 
+//                       status: statusItem, 
+//                       descricao: descricaoGeral,
+//                       idPedidoData: `${pedidoPadrao.idpedido}-${campoStatus}-${dataDaSolicitacao}` // Usa a data da solicitação
+//                     };
+
+//                     // Garante que o campo 'funcionario' e 'nomeSolicitante' tenham os valores corretos
+//                     novoPedido.funcionario = pedidoPadrao.funcionario || pedidoPadrao.nomefuncionario || pedidoPadrao.nomeUsuarioAlvo || novoPedido.funcionario || null;
+//                     novoPedido.nomeSolicitante = pedidoPadrao.nomeSolicitante || pedidoPadrao.nomesolicitante || pedidoPadrao.nomeUsuarioSolicitante || novoPedido.nomeSolicitante || null;
+                    
+//                   console.log("NOVO PEDIDO", novoPedido);
+//                     pedidosNormalizados.push(novoPedido);
+//                 }
+//             });
+//         }
+//     });
+
+//     // 2. Cria um Pedido Residual (para Ajuste, Caixinha ou Aditivo Extra)
+//     let temItemDeValorOuAditivo = (pedidoPadrao.statusajustecusto || pedidoPadrao.statuscaixinha || pedidoPadrao[CAMPO_ADITIVO_EXTRA]);
+    
+//     if (temItemDeValorOuAditivo || !encontrouItemDeData) {
+        
+//         const pedidoResidual = { ...pedidoPadrao };
+        
+//         // Limpa os campos de data (apenas os de diária/meiadiária, se já foram separados)
+//         Object.keys(camposDeDataMap).forEach(c => {
+//             delete pedidoResidual[c];
+//             delete pedidoResidual[camposDeDataMap[c]];
+//         });
+
+//         let deveAdicionarResidual = false;
+//         if (pedidoResidual.statusajustecusto || pedidoResidual.statuscaixinha || pedidoResidual[CAMPO_ADITIVO_EXTRA]) {
+//              deveAdicionarResidual = true;
+//         }
+
+//         if (deveAdicionarResidual) {
+//             // Garante campos de nome para o residual também
+//             pedidoResidual.funcionario = pedidoPadrao.funcionario || pedidoPadrao.nomefuncionario || pedidoPadrao.nomeUsuarioAlvo || pedidoResidual.funcionario || null;
+//             pedidoResidual.nomeSolicitante = pedidoPadrao.nomeSolicitante || pedidoPadrao.nomesolicitante || pedidoPadrao.nomeUsuarioSolicitante || pedidoResidual.nomeSolicitante || null;
+            
+//             pedidosNormalizados.push(pedidoResidual);
+//         }
+//     }
+
+//     return pedidosNormalizados; 
+// }
+
+
+// function normalizarPedidosComMultiplasDatas(pedidoPadrao) {
+//     const pedidosNormalizados = [];
+//     const camposDeDataMap = {
+//         "statusmeiadiaria": "descmeiadiaria",
+//         "statusdiariadobrada": "descdiariadobrada"
+//     };
+    
+//     // Lista de campos de solicitação (status/valor/descrição) a serem limpos
+//     const camposDeSolicitacao = [
+//         "statusmeiadiaria", "descmeiadiaria", 
+//         "statusdiariadobrada", "descdiariadobrada",
+//         "statusajustecusto", "descajustecusto",
+//         "statuscaixinha", "desccaixinha",
+//         CAMPO_ADITIVO_EXTRA 
+//     ];
+
+//     let encontrouItemDeData = false;
+    
+//     // 🛑 LOG CRÍTICO AQUI PARA DIAGNÓSTICO:
+//     // Imprime os valores brutos dos campos de data para confirmar o que o JS está recebendo.
+//     console.log("DIAGNÓSTICO PEDIDO BRUTO:", {
+//         idPedido: pedidoPadrao.idpedido,
+//         statusMeiaDiaria: pedidoPadrao.statusmeiadiaria,
+//         statusDiariaDobrada: pedidoPadrao.statusdiariadobrada,
+//         // Garante que o objeto inteiro seja inspecionável no console
+//         _pedidoCompleto: pedidoPadrao
+//     });
+
+//     // 1. Processa Itens de Data (Meia Diária / Diária Dobrada)
+//     Object.keys(camposDeDataMap).forEach(campoStatus => {
+//         const campoDescricao = camposDeDataMap[campoStatus];
+//         console.log("CAMPO DESCRICAO ANTES DE EXTRAIRDATAS", campoDescricao);
+        
+//         const statusField = pedidoPadrao[campoStatus];
+        
+//         // 🛑 Aqui o extrairDatasDoCampoStatus vai logar seu tipo se for string/object
+//         const datasArray = extrairDatasDoCampoStatus(statusField); 
+//         console.log("DATASARRAY DEPOIS DE EXTRAIRDATAS", datasArray);
+        
+//         if (datasArray.length > 0) {
+//             // ... (o restante da lógica de normalização, mantida da sua versão mais recente e correta)
+            
+//             encontrouItemDeData = true;
+//             const descricaoGeral = pedidoPadrao[campoDescricao] || '';
+
+//             // 1. Obtém o status consolidado do campo pai (ex: 'pendente')
+//             const statusParent = (statusField && typeof statusField === 'object' && statusField.status 
+//                               ? statusField.status 
+//                               : 'pendente').toLowerCase();
+            
+//             // Agora, a lógica de singularização é executada
+//             datasArray.forEach(dataItem => {
+                
+//                 const isDataString = typeof dataItem === 'string';
+//                 const dataDaSolicitacao = isDataString ? dataItem : dataItem.data;
+                
+//                 // Correção de Fallback de Status
+//                 const statusItem = isDataString 
+//                     ? statusParent
+//                     : (dataItem.status ? dataItem.status.toLowerCase() : statusParent);
+
+//                 console.log("STATUS ITEM", statusItem);
+                
+//                 // Use suas constantes de status aqui
+//                 if (statusItem === STATUS_PENDENTE || statusItem === STATUS_AUTORIZADO || statusItem === STATUS_REJEITADO || statusItem === 'autorização da meia diária') {
+                    
+//                     const novoPedido = { ...pedidoPadrao }; 
+                    
+//                     // Limpa TODOS os campos de solicitação
+//                     camposDeSolicitacao.forEach(c => delete novoPedido[c]);
+                    
+//                     // Adiciona APENAS o campo singular
+//                     novoPedido[campoStatus] = {
+//                       data: dataDaSolicitacao, 
+//                       status: statusItem, 
+//                       descricao: descricaoGeral,
+//                       idPedidoData: `${pedidoPadrao.idpedido}-${campoStatus}-${dataDaSolicitacao}` 
+//                     };
+
+//                     novoPedido.funcionario = pedidoPadrao.funcionario || pedidoPadrao.nomefuncionario || pedidoPadrao.nomeUsuarioAlvo || novoPedido.funcionario || null;
+//                     novoPedido.nomeSolicitante = pedidoPadrao.nomeSolicitante || pedidoPadrao.nomesolicitante || pedidoPadrao.nomeUsuarioSolicitante || novoPedido.nomeSolicitante || null;
+                    
+//                     console.log("NOVO PEDIDO", novoPedido);
+//                     pedidosNormalizados.push(novoPedido);
+//                 }
+//             });
+//         }
+//     });
+
+//     // 2. Cria um Pedido Residual (lógica mantida)
+//     let temItemDeValorOuAditivo = (pedidoPadrao.statusajustecusto || pedidoPadrao.statuscaixinha || pedidoPadrao[CAMPO_ADITIVO_EXTRA]);
+    
+//     if (temItemDeValorOuAditivo || !encontrouItemDeData) {
+        
+//         const pedidoResidual = { ...pedidoPadrao };
+        
+//         // Limpa os campos de data (apenas os de diária/meiadiária, se já foram separados)
+//         Object.keys(camposDeDataMap).forEach(c => {
+//             delete pedidoResidual[c];
+//             delete pedidoResidual[camposDeDataMap[c]];
+//         });
+
+//         let deveAdicionarResidual = false;
+//         if (pedidoResidual.statusajustecusto || pedidoResidual.statuscaixinha || pedidoResidual[CAMPO_ADITIVO_EXTRA]) {
+//              deveAdicionarResidual = true;
+//         }
+
+//         if (deveAdicionarResidual) {
+//             pedidoResidual.funcionario = pedidoPadrao.funcionario || pedidoPadrao.nomefuncionario || pedidoPadrao.nomeUsuarioAlvo || pedidoResidual.funcionario || null;
+//             pedidoResidual.nomeSolicitante = pedidoPadrao.nomeSolicitante || pedidoPadrao.nomesolicitante || pedidoPadrao.nomeUsuarioSolicitante || pedidoResidual.nomeSolicitante || null;
+            
+//             pedidosNormalizados.push(pedidoResidual);
+//         }
+//     }
+
+//     return pedidosNormalizados; 
+// }
+
+// ATENÇÃO: Use esta versão da função, assumindo que as constantes 
+// CAMPO_ADITIVO_EXTRA, STATUS_PENDENTE, etc., estão definidas globalmente.
+
+
+function normalizarPedidosComMultiplasDatas(pedidoPadrao) {
+    const pedidosNormalizados = [];
+    const camposDeDataMap = {
+        "statusmeiadiaria": "descmeiadiaria",
+        "statusdiariadobrada": "descdiariadobrada"
+    };
+
+    // Lista de campos de solicitação a serem limpos nos pedidos singulares
+    const camposDeSolicitacao = [
+        "statusmeiadiaria", "descmeiadiaria", 
+        "statusdiariadobrada", "descdiariadobrada",
+        "statusajustecusto", "descajustecusto",
+        "statuscaixinha", "desccaixinha",
+        CAMPO_ADITIVO_EXTRA 
+    ];
+
+    let encontrouItemDeData = false;
+
+    // 1. Processa Itens de Data (Meia Diária / Diária Dobrada)
+    Object.keys(camposDeDataMap).forEach(campoStatus => {
+        const campoDescricao = camposDeDataMap[campoStatus];
+        
+        // O valor é a string JSON bruta (após a correção em buscarPedidosUsuario)
+        const statusFieldContent = pedidoPadrao[campoStatus]; 
+        
+        // 🛑 Usa a função robusta para extrair as datas
+        const datasArray = extrairDatasDoCampoStatus(statusFieldContent); 
+
+        if (datasArray.length > 0) {
+            encontrouItemDeData = true;
+            const descricaoGeral = pedidoPadrao[campoDescricao] || '';
+
+            // Tenta obter o status consolidado do CAMPO PAI se ele for um objeto pré-mapeado.
+            const statusParent = (typeof statusFieldContent === 'object' && statusFieldContent.status) 
+                                ? statusFieldContent.status.toLowerCase() 
+                                : STATUS_PENDENTE;
+            
+            // 2. Itera sobre as datas extraídas para criar pedidos singulares
+            datasArray.forEach(dataItem => {
+                
+                const isDataString = typeof dataItem === 'string';
+                const dataDaSolicitacao = isDataString ? dataItem : dataItem.data;
+                
+                // Extrai o status específico do item (se existir) ou usa o status pai
+                const statusItem = isDataString 
+                    ? statusParent
+                    : (dataItem.status ? dataItem.status.toLowerCase() : statusParent);
+
+                // Inclui apenas status relevantes para aprovação/visualização
+                if ([STATUS_PENDENTE, STATUS_AUTORIZADO, STATUS_REJEITADO, 'autorização da meia diária'].includes(statusItem)) {
+                    
+                    const novoPedido = { ...pedidoPadrao }; 
+                    
+                    // Limpa TODOS os campos de solicitação
+                    camposDeSolicitacao.forEach(c => delete novoPedido[c]);
+                    
+                    // Adiciona APENAS o campo singular
+                    novoPedido[campoStatus] = {
+                        data: dataDaSolicitacao, 
+                        status: statusItem, 
+                        descricao: descricaoGeral,
+                        idPedidoData: `${pedidoPadrao.idpedido}-${campoStatus}-${dataDaSolicitacao}` 
+                    };
+
+                    // Normaliza os nomes
+                    novoPedido.funcionario = pedidoPadrao.funcionario || pedidoPadrao.nomefuncionario || pedidoPadrao.nomeUsuarioAlvo || novoPedido.funcionario || null;
+                    novoPedido.nomeSolicitante = pedidoPadrao.nomeSolicitante || pedidoPadrao.nomesolicitante || pedidoPadrao.nomeUsuarioSolicitante || novoPedido.nomeSolicitante || null;
+                    
+                    pedidosNormalizados.push(novoPedido); // 🛑 Adiciona o pedido singularizado
+                }
+            });
+        }
+    });
+
+    // 3. Cria um Pedido Residual (Contendo Caixinha, Ajuste ou Aditivo Extra, se não houver diárias/meias diárias)
+    let temItemDeValorOuAditivo = (pedidoPadrao.statusajustecusto || pedidoPadrao.statuscaixinha || pedidoPadrao[CAMPO_ADITIVO_EXTRA]);
+    
+    if (temItemDeValorOuAditivo || !encontrouItemDeData) {
+        
+        const pedidoResidual = { ...pedidoPadrao };
+        
+        // Limpa os campos de data (apenas os de diária/meiadiária, se já foram separados)
+        Object.keys(camposDeDataMap).forEach(c => {
+            delete pedidoResidual[c];
+            delete pedidoResidual[camposDeDataMap[c]];
+        });
+
+        let deveAdicionarResidual = false;
+        
+        // Verifica se há alguma solicitação não-data restante
+        if (pedidoResidual.statusajustecusto || pedidoResidual.statuscaixinha || pedidoResidual[CAMPO_ADITIVO_EXTRA]) {
+             deveAdicionarResidual = true;
+        }
+
+        // Adiciona o pedido residual APENAS se não houve itens de data processados,
+        // OU se houver itens de valor/aditivo que não foram separados.
+        if (deveAdicionarResidual || (temItemDeValorOuAditivo && !encontrouItemDeData)) {
+            
+            // Garante que o objeto residual não tem IDs duplicados se o Aditivo foi tratado
+            if (pedidoResidual[CAMPO_ADITIVO_EXTRA] && pedidosNormalizados.some(p => p.idpedido === pedidoResidual.idpedido)) {
+                 // Evita duplicar o residual se ele for apenas um Aditivo Extra já unificado
+                 // (Mas como o Aditivo Extra é tratado em outro loop (aditivosExtras.forEach), isso é mais seguro)
+            } else {
+                 pedidoResidual.funcionario = pedidoPadrao.funcionario || pedidoPadrao.nomefuncionario || pedidoPadrao.nomeUsuarioAlvo || pedidoResidual.funcionario || null;
+                 pedidoResidual.nomeSolicitante = pedidoPadrao.nomeSolicitante || pedidoPadrao.nomesolicitante || pedidoPadrao.nomeUsuarioSolicitante || pedidoResidual.nomeSolicitante || null;
+                 pedidosNormalizados.push(pedidoResidual);
+            }
+        }
+    }
+
+    return pedidosNormalizados; 
+}
+
+/**
+ * Converte uma string de data (AAAA-MM-DD) em um objeto Date local para evitar o bug de fuso horário.
+ * @param {string} dateString - A data no formato AAAA-MM-DD.
+ * @returns {Date} Um objeto Date representando a data local.
+ */
+function criarDataLocal(dateString) {
+    if (!dateString) return null;
+    
+    // O formato esperado é YYYY-MM-DD (ISO 8601 Date).
+    const parts = dateString.split('-');
+    if (parts.length !== 3) {
+        // Fallback para o new Date() se o formato for inesperado.
+        return new Date(dateString);
+    }
+    
+    // Cria a data usando Ano, Mês (base 0) e Dia, forçando a ser interpretada
+    // como hora local (00:00:00), prevenindo o problema de fuso horário.
+    const year = parseInt(parts[0], 10);
+    const monthIndex = parseInt(parts[1], 10) - 1; // Mês é de 0 a 11
+    const day = parseInt(parts[2], 10);
+    
+    return new Date(year, monthIndex, day);
+}
+
+// ==================================================================================
+// FUNÇÕES AUXILIARES PARA STATUS/CONTAGEM (Adicionar ao Main.js)
+// ==================================================================================
+
+// Helper para extrair o status único de um registro singularizado
+function obterStatusDoRegistro(registro) {
+    const camposStatus = [
+        "statusmeiadiaria", "statusdiariadobrada", 
+        "statusajustecusto", "statuscaixinha", 
+        CAMPO_ADITIVO_EXTRA 
+    ];
+    
+    for (const campo of camposStatus) {
+        if (registro[campo] && typeof registro[campo] === 'object' && registro[campo].status) {
+            return {
+                status: (registro[campo].status || STATUS_PENDENTE).toLowerCase(),
+                campo: campo,
+                info: registro[campo] // Retorna a info completa (incluindo idfuncionario para aditivo)
+            }; 
+        }
+    }
+    return null;
+}
+
+// NOVO CÓDIGO DA FUNÇÃO calcularContagemDeStatus COMPLETA
+function calcularContagemDeStatus(pedidosAgrupados, categoria) {
+    const contagens = {
+        [STATUS_PENDENTE]: 0,
+        [STATUS_AUTORIZADO]: 0,
+        [STATUS_REJEITADO]: 0
+    };
+    
+    const CHAVE_ADITIVO_EXTRA = "statusaditivoextra"; 
+    const camposTodos = [
+        "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada", CHAVE_ADITIVO_EXTRA 
+    ];
+
+    // ✅ CORREÇÃO V22.1: Garante que só retorna STATUS_PENDENTE se a string realmente existir e for pendente.
+    const classificarStatus = (statusString) => {
+        const statusLower = (statusString || '').toLowerCase().trim();
+        if (statusLower === '') return null; // Ignora string vazia
+        if (statusLower.includes('aprovado') || statusLower.includes('autorizado')) return STATUS_AUTORIZADO;
+        if (statusLower.includes('rejeitado') || statusLower.includes('recusado')) return STATUS_REJEITADO;
+        if (statusLower.includes('pendente')) return STATUS_PENDENTE; 
+        
+        // Se a string não for vazia, mas também não for um dos status reconhecidos,
+        // pode ser considerada PENDENTE por segurança se não vier nula/vazia.
+        return STATUS_PENDENTE; 
+    };
+    const isAditivo = (campo) => campo === CHAVE_ADITIVO_EXTRA;
+
+
+    // pedidosAgrupados.forEach(grupoConsolidado => {
+    //     const registros = grupoConsolidado.registrosOriginais || [grupoConsolidado]; 
+
+    //     registros.forEach(pedidoOriginal => {
+            
+    //         const temNomeFuncionarioOriginal = !!pedidoOriginal.funcionario && pedidoOriginal.funcionario !== '-';
+            
+    //         camposTodos.forEach(campo => {
+    //             const info = pedidoOriginal[campo];
+                
+    //             let rawStatus = null;
+                
+    //             // 1. CHECAGEM DE EXISTÊNCIA E VALIDADE
+    //             if (info === null || info === undefined) {
+    //                 // Se a chave existe (null) ou não existe (undefined), IGNORAMOS a contagem
+    //                 return; 
+    //             } 
+                
+    //             // 2. EXTRAÇÃO DO STATUS
+    //             if (typeof info === 'string') {
+    //                 rawStatus = info; 
+    //             } else if (typeof info === 'object') {
+    //                 if (typeof info.status === 'string') {
+    //                     rawStatus = info.status; 
+    //                 }
+    //             }
+                
+    //             if (!rawStatus) {
+    //                 // Se info existia, mas não tinha status, não contamos.
+    //                 return;
+    //             }
+                
+    //             // 3. CLASSIFICAÇÃO E FILTRO DE CATEGORIA
+    //             const statusClassificado = classificarStatus(rawStatus);
+    //             if (!statusClassificado) return;
+                
+    //             // 4. FILTRAGEM POR CATEGORIA (Lógica correta)
+    //             let passaNoFiltroCategoria = true;
+                
+    //             if (isAditivo(campo)) {
+    //                 const temIdFuncionarioAditivo = !!info?.idfuncionario && info.idfuncionario !== 0; 
+    //                 if (categoria === 'funcionario' && !temIdFuncionarioAditivo) passaNoFiltroCategoria = false;
+    //                 if (categoria === 'funcao' && temIdFuncionarioAditivo) passaNoFiltroCategoria = false;
+    //             } else { // Pedidos Financeiros
+    //                 if (categoria === 'funcionario' && !temNomeFuncionarioOriginal) passaNoFiltroCategoria = false; 
+    //                 if (categoria === 'funcao' && temNomeFuncionarioOriginal) passaNoFiltroCategoria = false;
+    //             }
+                
+    //             if (!passaNoFiltroCategoria) return;
+
+    //             // 5. CONTAGEM FINAL
+    //             contagens[statusClassificado]++;
+    //         });
+    //     });
+    // });
+
+    // console.log(`[Contagem Status FINAL REVISADA V22.1 - CORREÇÃO DE VALORES NULOS] Categoria ${categoria}: Pendentes: ${contagens[STATUS_PENDENTE]}, Autorizados: ${contagens[STATUS_AUTORIZADO]}, Rejeitados: ${contagens[STATUS_REJEITADO]}`);
+    
+    // return contagens;
+
+    pedidosAgrupados.forEach(grupoConsolidado => {
+    const registros = grupoConsolidado.registrosOriginais || [grupoConsolidado]; 
+
+    registros.forEach(pedidoOriginal => {
+        
+        const temNomeFuncionarioOriginal = !!pedidoOriginal.funcionario && pedidoOriginal.funcionario !== '-';
+        
+        camposTodos.forEach(campo => {
+            const info = pedidoOriginal[campo];
+            
+            // 1. CHECAGEM DE EXISTÊNCIA E VALIDADE
+            if (info === null || info === undefined) {
+                return; 
+            } 
+            
+            // 2. EXTRAÇÃO DO STATUS: NOVO TRATAMENTO PARA ARRAY OU OBJETO ÚNICO
+            let itensParaContar = [];
+            
+            if (Array.isArray(info)) {
+                // Se é um array (Caixinha, Ajuste de Custo, Diária, Meia Diária)
+                itensParaContar = info;
+            } else if (typeof info === 'object' && info !== null) {
+                // Se for um objeto único com status dentro (Ex: Antigo Aditivo Extra)
+                itensParaContar.push(info);
+            } else if (typeof info === 'string') {
+                 // Se for uma string (Ex: status de aprovação antigo), trata como um item
+                 itensParaContar.push({ status: info });
+            }
+
+
+            // 3. Itera sobre os itens extraídos para contagem
+            itensParaContar.forEach(itemInfo => {
+                 const rawStatus = itemInfo.status;
+                 
+                 if (!rawStatus) {
+                     return; // Item válido, mas sem status (ex: pode ser um item vazio dentro do array)
+                 }
+                 
+                 // 4. CLASSIFICAÇÃO E FILTRO DE CATEGORIA
+                 const statusClassificado = classificarStatus(rawStatus);
+                 if (!statusClassificado) return;
+                 
+                 // 5. FILTRAGEM POR CATEGORIA (Lógica original inalterada)
+                 let passaNoFiltroCategoria = true;
+                 
+                 if (isAditivo(campo)) {
+                     const temIdFuncionarioAditivo = !!itemInfo?.idfuncionario && itemInfo.idfuncionario !== 0; 
+                     if (categoria === 'funcionario' && !temIdFuncionarioAditivo) passaNoFiltroCategoria = false;
+                     if (categoria === 'funcao' && temIdFuncionarioAditivo) passaNoFiltroCategoria = false;
+                 } else { // Pedidos Financeiros
+                     if (categoria === 'funcionario' && !temNomeFuncionarioOriginal) passaNoFiltroCategoria = false; 
+                     if (categoria === 'funcao' && temNomeFuncionarioOriginal) passaNoFiltroCategoria = false;
+                 }
+                 
+                 if (!passaNoFiltroCategoria) return;
+
+                 // 6. CONTAGEM FINAL
+                 contagens[statusClassificado]++;
+            });
+        });
+    });
+});
+
+console.log(`[Contagem Status FINAL REVISADA V22.2 - Suporte a Arrays] Categoria ${categoria}: Pendentes: ${contagens[STATUS_PENDENTE]}, Autorizados: ${contagens[STATUS_AUTORIZADO]}, Rejeitados: ${contagens[STATUS_REJEITADO]}`);
+    
+return contagens;
+
+}
+
 
 async function buscarAditivoExtraPendentes() {
   console.log("🟡 Iniciando busca de solicitações Aditivo/Extra Pendentes...");
@@ -4313,171 +7511,901 @@ async function buscarAditivoExtraPendentes() {
     }
 }
 
-async function atualizarStatusPedido(idpedido, categoria, acao, cardElement) {
-  try {
-    const resposta = await fetchComToken('/main/notificacoes-financeiras/atualizar-status', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'idempresa': getIdEmpresa()
-      },
-      body: JSON.stringify({ idpedido, categoria, acao })
-    });
+// async function atualizarStatusPedido(idpedido, categoria, acao, cardElement) {
+//   try {
+//     const resposta = await fetchComToken('/main/notificacoes-financeiras/atualizar-status', {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//         'idempresa': getIdEmpresa()
+//       },
+//       body: JSON.stringify({ idpedido, categoria, acao })
+//     });
 
-    if (resposta.sucesso && resposta.atualizado) {
-      // Pega os dados atualizados da coluna certa
-      const campoAtualizado = resposta.atualizado[categoria]; // Ex: statuscaixinha
-      let info = campoAtualizado;
-      if (typeof info === "string") {
-        try { info = JSON.parse(info); } catch { info = { status: info }; }
-      }
-      const statusNormalized = (info.status || "Pendente").toLowerCase();
+//     if (resposta.sucesso && resposta.atualizado) {
+//       // Pega os dados atualizados da coluna certa
+//       const campoAtualizado = resposta.atualizado[categoria]; // Ex: statuscaixinha
+//       let info = campoAtualizado;
+//       if (typeof info === "string") {
+//         try { info = JSON.parse(info); } catch { info = { status: info }; }
+//       }
+//       const statusNormalized = (info.status || "Pendente").toLowerCase();
 
-      // Atualiza quadrado visualmente
-      const quadrado = cardElement.querySelector(".quadrado-arredondado");
-      if (quadrado) {
-        let cor = "#facc15"; // pendente
-        if (statusNormalized === "autorizado") cor = "#16a34a";
-        if (statusNormalized === "rejeitado") cor = "#dc2626";
-        quadrado.style.transition = "background-color 0.5s ease";
-        quadrado.style.backgroundColor = cor;
-      }
+//       // Atualiza quadrado visualmente
+//       const quadrado = cardElement.querySelector(".quadrado-arredondado");
+//       if (quadrado) {
+//         let cor = "#facc15"; // pendente
+//         if (statusNormalized === "autorizado") cor = "#16a34a";
+//         if (statusNormalized === "rejeitado") cor = "#dc2626";
+//         quadrado.style.transition = "background-color 0.5s ease";
+//         quadrado.style.backgroundColor = cor;
+//       }
 
-      // Atualiza status no span correto
-      const statusSpan = cardElement.querySelector(".status-text");
-      if (statusSpan) statusSpan.textContent = info.status || "Pendente";
+//       // Atualiza status no span correto
+//       const statusSpan = cardElement.querySelector(".status-text");
+//       if (statusSpan) statusSpan.textContent = info.status || "Pendente";
 
-      // Atualiza valor, descrição e datas do card
-      const innerDiv = cardElement.querySelector("div");
-      if (innerDiv) {
-        let html = `<strong>${categoria.replace("status", "").replace(/([A-Z])/g, ' $1')}</strong><br>`;
-        if (resposta.atualizado.evento) html += `Evento: ${resposta.atualizado.evento}<br>`;
-        if (info.valor !== undefined) html += `Valor: R$ ${info.valor}<br>`;
-        if (info.descricao) html += `Descrição: ${info.descricao}<br>`;
-        if (info.datas && info.datas.length > 0) html += `Datas: ${info.datas.map(d => d.data).join(", ")}<br>`;
-        html += `<span class="status-text">${info.status}</span>`;
-        innerDiv.innerHTML = html;
-      }
+//       // Atualiza valor, descrição e datas do card
+//       const innerDiv = cardElement.querySelector("div");
+//       if (innerDiv) {
+//         let html = `<strong>${categoria.replace("status", "").replace(/([A-Z])/g, ' $1')}</strong><br>`;
+//         if (resposta.atualizado.evento) html += `Evento: ${resposta.atualizado.evento}<br>`;
+//         if (info.valor !== undefined) html += `Valor: R$ ${info.valor}<br>`;
+//         if (info.descricao) html += `Descrição: ${info.descricao}<br>`;
+//         if (info.datas && info.datas.length > 0) html += `Datas: ${info.datas.map(d => d.data).join(", ")}<br>`;
+//         html += `<span class="status-text">${info.status}</span>`;
+//         innerDiv.innerHTML = html;
+//       }
 
-      // 🔹 Alert temporário
-      const alerta = document.createElement("div");
-      alerta.textContent = `Status atualizado para ${acao.toUpperCase()}`;
-      alerta.style.position = "fixed";
-      alerta.style.top = "20px";
-      alerta.style.right = "20px";
-      alerta.style.backgroundColor = "#16a34a";
-      alerta.style.color = "#fff";
-      alerta.style.padding = "10px 15px";
-      alerta.style.borderRadius = "6px";
-      alerta.style.zIndex = 9999;
-      document.body.appendChild(alerta);
-      setTimeout(() => alerta.remove(), 2500);
+//       // 🔹 Alert temporário
+//       const alerta = document.createElement("div");
+//       alerta.textContent = `Status atualizado para ${acao.toUpperCase()}`;
+//       alerta.style.position = "fixed";
+//       alerta.style.top = "20px";
+//       alerta.style.right = "20px";
+//       alerta.style.backgroundColor = "#16a34a";
+//       alerta.style.color = "#fff";
+//       alerta.style.padding = "10px 15px";
+//       alerta.style.borderRadius = "6px";
+//       alerta.style.zIndex = 9999;
+//       document.body.appendChild(alerta);
+//       setTimeout(() => alerta.remove(), 2500);
 
-    } else {
-      console.error("Falha ao atualizar pedido:", resposta);
+//     } else {
+//       console.error("Falha ao atualizar pedido:", resposta);
+//     }
+//   } catch (err) {
+//     console.error("Erro ao atualizar pedido:", err);
+//   }
+// }
+
+// 🛑 CORRIGIDO: Adiciona dataParaUpdate e justificativa como parâmetros
+
+
+
+async function atualizarStatusPedido(idpedido, categoria, acao, cardElement, dataParaUpdate) {
+    try {
+
+        const dataToSend = dataParaUpdate && dataParaUpdate.trim() !== '' 
+                           ? dataParaUpdate 
+                           : null;
+        // 🛑 CRÍTICO: Inclui a data e a justificativa no BODY da requisição
+        const bodyData = {
+            idpedido, 
+            categoria, 
+            acao, 
+            data: dataToSend
+        };
+
+        const isAtualizacaoPorData = !!dataParaUpdate;
+        
+        const resposta = await fetchComToken('/main/notificacoes-financeiras/atualizar-status', {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+               // 'idempresa': getIdEmpresa()
+            },
+            body: JSON.stringify(bodyData) // Usa o bodyData corrigido
+        });
+
+        console.log("RESPOSTA", resposta);
+        //if (resposta.sucesso && resposta.atualizado) {
+        if (resposta && resposta.sucesso) {
+
+            if (!resposta.atualizado) {
+                 console.warn("Sucesso retornado, mas dados de atualização ausentes.", resposta);
+                 // O QUE FAZER NESSA SITUAÇÃO? O ideal é que o backend envie 'atualizado'.
+                 // Se não enviar, a lógica de baixo falhará.
+                 // Neste caso, se a falha persistir após o ajuste 2, o problema é o backend que não envia 'atualizado'.
+                 return; // Sai da função para evitar erros subsequentes se o campo for vital
+            }
+            
+            // ... (mapeamento e busca do campo atualizado - Mantido) ...
+            const mapCategoriaToColuna = {
+                'statuscaixinha': 'statuscaixinha',
+                'statusajustecusto': 'statusajustecusto',
+                'statusdiariadobrada': 'dtdiariadobrada',
+                'statusmeiadiaria': 'dtmeiadiaria',
+            };
+            
+            const nomeColunaDB = mapCategoriaToColuna[categoria];
+            const campoAtualizado = resposta.atualizado[nomeColunaDB]; 
+            
+            let info = campoAtualizado;
+            
+            // Se for um array (Diárias), precisamos encontrar o status do item específico
+            if (Array.isArray(info)) {
+                // 🛑 CORRIGIDO: dataParaUpdate AGORA EXISTE e será usado
+                info = info.find(item => item.data === dataParaUpdate); 
+            } else if (typeof info === "string" && nomeColunaDB !== 'statuscaixinha' && nomeColunaDB !== 'statusajustecusto') {
+                 // Tenta parsear JSON se não for uma coluna de string simples
+                 try { info = JSON.parse(info); } catch { info = {}; }
+            }
+
+            if (!info || typeof info !== 'object') {
+                 // Se o campo for string (Caixinha/Ajuste), ele será o próprio status
+                 info = { status: campoAtualizado };
+            }
+            
+            const statusNormalized = (info.status || "Pendente").toLowerCase();
+            console.log("VAIR REMOVER CARD", isAtualizacaoPorData, statusNormalized);  
+            
+           //if (isAtualizacaoPorData && (statusNormalized === "autorizado" || statusNormalized === "rejeitado")) {
+            if (statusNormalized === "autorizado" || statusNormalized === "rejeitado") {
+                // Remove o card da lista de Pendentes para evitar que apareça novamente
+                // Assume-se que cardElement é o elemento pai (o card ou item de lista) que 
+                // representa esta data específica.
+                if (cardElement && typeof cardElement.remove === 'function') {
+                    cardElement.remove();   
+                    console.log("Diária/Meia Diária removida imediatamente.");                
+                }                
+            }          
+            
+            
+            // Atualiza quadrado visualmente
+            const quadrado = cardElement.querySelector(".quadrado-arredondado");
+            if (quadrado) {
+                let cor = "#facc15"; // pendente
+                if (statusNormalized === "autorizado") cor = "#16a34a";
+                if (statusNormalized === "rejeitado") cor = "#dc2626";
+                quadrado.style.transition = "background-color 0.5s ease";
+                quadrado.style.backgroundColor = cor;
+            }
+
+            // Atualiza status no span correto
+            const statusSpan = cardElement.querySelector(".status-text");
+            if (statusSpan) statusSpan.textContent = info.status || "Pendente";
+
+            // Atualiza valor, descrição e datas do card
+            // O código aqui pode precisar de revisão, pois ele tenta recriar o HTML, 
+            // o que pode ser complexo. Deixei o original, mas tenha isso em mente.
+            const innerDiv = cardElement.querySelector("div");
+            if (innerDiv) {
+                let html = `<strong>${categoria.replace("status", "").replace(/([A-Z])/g, ' $1')}</strong><br>`;
+                if (resposta.atualizado.evento) html += `Evento: ${resposta.atualizado.evento}<br>`;
+                if (info.valor !== undefined) html += `Valor: R$ ${info.valor}<br>`;
+                if (info.descricao) html += `Descrição: ${info.descricao}<br>`;
+                // Note que info.datas pode não existir se info veio do array mapeado em Diárias
+                if (Array.isArray(campoAtualizado)) {
+                    // Se for diária, mostra apenas a data específica que foi alterada
+                    html += `Data: ${dataParaUpdate} - <span class="status-text">${info.status}</span>`;
+                } else if (info.datas && info.datas.length > 0) {
+                     html += `Datas: ${info.datas.map(d => d.data).join(", ")}<br>`;
+                     html += `<span class="status-text">${info.status}</span>`;
+                } else {
+                     html += `<span class="status-text">${info.status}</span>`;
+                }
+                innerDiv.innerHTML = html;
+            }
+
+            // 🔹 Alert temporário
+            // const alerta = document.createElement("div");
+            // alerta.textContent = `Status atualizado para ${acao.toUpperCase()}`;
+            // alerta.style.position = "fixed";
+            // alerta.style.top = "20px";
+            // alerta.style.right = "20px";
+            // alerta.style.backgroundColor = "#16a34a";
+            // alerta.style.color = "#fff";
+            // alerta.style.padding = "10px 15px";
+            // alerta.style.borderRadius = "6px";
+            // alerta.style.zIndex = 9999;
+            // document.body.appendChild(alerta);
+            // setTimeout(() => alerta.remove(), 2500);
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Sucesso!',
+                // Usando <strong> conforme solicitado
+                html: `Status atualizado para <strong>${acao.charAt(0).toUpperCase() + acao.slice(1)}</strong> com sucesso!`, 
+                
+                // 🎯 CORREÇÃO 1: Mudar para true para mostrar o botão
+                showConfirmButton: true, 
+                // 🎯 CORREÇÃO 2: Remover o timer
+                // timer: 1800, 
+                
+                // Opcional: Define o texto e a cor do botão
+                confirmButtonText: 'OK', 
+                confirmButtonColor: '#3085d6',
+
+                // O willClose agora será disparado apenas quando o usuário clicar em OK
+                willClose: async () => {
+                    // Se NÃO for uma atualização por data (Caixinha, Ajuste de Custo), recarrega a lista.
+                    if (!isAtualizacaoPorData && typeof mostrarPedidosUsuario === 'function') {
+                       // await mostrarPedidosUsuario(); 
+                        console.log("Lista de pedidos recarregada após atualização do status (Ajuste/Caixinha) pelo clique em OK.");
+                    }
+                }
+            });
+            
+            return true;
+
+        } else {
+            console.error("Falha ao atualizar pedido:", resposta);
+            return false;
+        }
+    } catch (err) {
+        console.error("Erro ao atualizar pedido:", err);
+        
     }
-  } catch (err) {
-    console.error("Erro ao atualizar pedido:", err);
-  }
+    return false;
 }
 
-async function atualizarResumoPedidos() {
+async function atualizarStatusAditivoExtra(idAditivoExtra, novoStatus, cardElement) {
+
+  console.log(`Iniciando atualização de status para AditivoExtra ID ${idAditivoExtra} para: ${novoStatus}`);
+    
+  let statusMensagem = '';
+  if (novoStatus === 'rejeitado') {
+      statusMensagem = "REJEITAR";
+  } else {
+      statusMensagem = "AUTORIZAR";
+  }
+  const confirmacao = await Swal.fire({
+        title: 'Confirmar Ação',
+        html: `Tem certeza que deseja <strong>${statusMensagem}</strong> a solicitação de <strong>Aditivo / Extra</strong>?`, // ✅ html renderiza o <strong> em negrito
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: novoStatus === 'Autorizado' ? '#10B981' : '#F59E0B', // Cores baseadas no status
+        cancelButtonColor: '#DC2626',
+        confirmButtonText: statusMensagem,
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (!confirmacao.isConfirmed) {
+        return false; // Retorna se o usuário clicar em 'Cancelar'
+    }
+
     try {
-        // 1. BUSCA E UNIFICAÇÃO DOS DADOS (Mantido)
+        mostrarLoader(cardElement); // Função presumida para mostrar um indicador de carregamento
+
+        console.log(`Atualizando AditivoExtra ID ${idAditivoExtra} para status: ${novoStatus}`);
+
+        // ⚠️ Rota no backend que você precisa criar ou usar, ex: POST /main/aditivoextra/status
+        const url = `/main/aditivoextra/${idAditivoExtra}/status`; 
+        const novoStatusCapitalizado = novoStatus.charAt(0).toUpperCase() + novoStatus.slice(1);
+        const response = await fetchComToken(url, {
+            // 💡 CORREÇÃO 2: Mudar o método para PATCH
+            method: 'PATCH', 
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                // 💡 CORREÇÃO 3: Enviar apenas os dados que o body do backend espera
+                novoStatus: novoStatusCapitalizado
+            
+            })
+        });
+
+        ocultarLoader(cardElement);
+
+        if (response.sucesso) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Sucesso!',
+                html: `Aditivo Extra atualizado para **${novoStatus.charAt(0).toUpperCase() + novoStatus.slice(1)}** com sucesso!`, 
+                showConfirmButton: false,
+                timer: 1800
+            });
+
+            // Recarregar a lista ou remover o card (depende da sua lógica)
+            // 💡 RECOMENDAÇÃO: Chame a função principal de renderização para recarregar o painel
+            //await mostrarPedidosUsuario(); 
+            return true;
+        } else {
+            Swal.fire({
+                title: 'Erro!',
+                //text: `Erro ao <strong>${statusMensagem}</strong> a solicitação: ${response.erro || 'Erro desconhecido.'}`,
+                text: `Erro ao atualizar a solicitação: ${response.erro || 'Erro desconhecido.'}`,
+                icon: 'error'
+            });
+            console.error(`Falha ao atualizar AditivoExtra ${idAditivoExtra}:`, response);
+            return false;
+        }
+
+    } catch (err) {
+        ocultarLoader(cardElement);
+        console.error("Erro de rede/conexão:", err);
+        //alert("Erro de conexão ao tentar atualizar o status.");
+        throw err;
+    }
+}
+
+
+// Main.js - Trecho do event listener que lida com os cliques nos botões de ação
+
+// document.addEventListener('click', async function (e) {
+//     const actionDiv = e.target.closest('[data-id][data-campo][data-acao]');
+    
+//     if (actionDiv) {
+//         // 1. Coleta de Atributos
+//         const idReferencia = actionDiv.getAttribute('data-id');
+//         const campoParaBackend = actionDiv.getAttribute('data-campo');
+//         const statusTarget = actionDiv.getAttribute('data-acao'); 
+//         const dataParaUpdate = actionDiv.getAttribute('data-data');
+//         const isAditivo = actionDiv.getAttribute('data-aditivo') === 'true'; // Se for 'true', chama a função Aditivo
+//         const cardElement = actionDiv.closest('.card-item-pedido');
+
+//         // 2. Determina a função a ser chamada
+//         const fnUpdate = isAditivo ? atualizarStatusAditivoExtra : atualizarStatusPedido;
+        
+//         try {
+//             // 3. Executa a atualização
+//             // A função fnUpdate deve retornar 'true' em caso de sucesso.
+//             const sucesso = await fnUpdate(
+//                 idReferencia, 
+//                 campoParaBackend, 
+//                 statusTarget, 
+//                 actionDiv.closest('.card-body'), 
+//                 dataParaUpdate, 
+//                 null // Argumento para idAditivo (se aplicável, ajuste conforme sua função)
+//             );
+
+//             // 🛑 4. Feedback e Remoção do Card (APLICÁVEL PARA AMBOS)
+//             if (sucesso) {
+                
+//                 let titleMsg = 'Sucesso!';
+//                 let textMsg = `Status atualizado para **${statusTarget}** com sucesso!`;
+                
+//                 // Personaliza a mensagem para Aditivo Extra
+//                 if (isAditivo) {
+//                     textMsg = `Aditivo Extra atualizado para **${statusTarget}**.`;
+//                 }
+
+//                 // Chamar o SweetAlert
+//                 Swal.fire({
+//                     icon: 'success',
+//                     title: titleMsg,
+//                     html: textMsg, // Usado para renderizar o **negrito**
+//                     showConfirmButton: false,
+//                     timer: 1800
+//                 });
+                
+//                 // Remove o card da visualização da lista
+//                 if (cardElement) {
+//                     cardElement.remove();
+//                 }
+                
+//                 // 5. Atualize a contagem das sub-abas (se necessário)
+//                 // await carregarContadoresEtabs(); 
+//             }
+            
+//         } catch (error) {
+//             // O tratamento de erro continua aqui
+//             console.error('Erro ao processar a ação:', error);
+//         }
+//     }
+// });
+
+// async function atualizarResumoPedidos() {
+//     try {
+//         // 1. BUSCA E UNIFICAÇÃO DOS DADOS (Mantido)
+//         const [pedidosPadrao, aditivosExtras] = await Promise.all([
+//           buscarPedidosUsuario(),
+//           buscarAditivoExtraCompleto()
+//         ]);
+
+//         let pedidosUnificados = [...pedidosPadrao];
+
+//         // Normalização dos Aditivos Extras (Mantido)
+//         aditivosExtras.forEach(ae => {
+//       const statusPadrao = typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente';
+//       const pedidoAditivo = {
+//           // Incluímos campos necessários para a chave de deduplicação completa
+//           funcionario: ae.nomefuncionario, // Necessário para a chave
+//           evento: ae.evento,       // Necessário para a chave
+//           idpedido: ae.idaditivoextra,   // Necessário para a chave
+//           // Os campos de statusajustecusto, statuscaixinha etc. são null/undefined aqui, o que é OK.
+//           [CAMPO_ADITIVO_EXTRA]: {
+//         status: (ae.status || ae.Status || statusPadrao).toLowerCase(),
+//         tipoSolicitacao: ae.tipoSolicitacao || ae.tiposolicitacao || 'N/A', // Necessário para a chave
+//           },
+//       };
+//       pedidosUnificados.push(pedidoAditivo);
+//         });
+
+//         // 2. 🎯 CORREÇÃO: DEDUPLICAÇÃO COMPLETA (Replicando a lógica de mostrarPedidosUsuario)
+//         const vistos = new Set();
+//         const pedidosCompletosUnicos = pedidosUnificados.filter(p => {
+//        const aditivoTipo = p[CAMPO_ADITIVO_EXTRA]?.tipoSolicitacao || "";
+//        const idUnicoAditivo = p[CAMPO_ADITIVO_EXTRA] ? p.idpedido : "";
+        
+//        // A chave deve ser a mesma utilizada na mostrarPedidosUsuario
+//        const chave =
+//            `${p.funcionario || ""}|${p.evento || ""}|${p.statusajustecusto?.valor || ""}|${p.statuscaixinha?.valor || ""}|${idUnicoAditivo}|${aditivoTipo}`;
+        
+//        if (vistos.has(chave)) return false;
+//        vistos.add(chave);
+//        return true;
+//         });
+
+//         // 3. CONTAGEM POR STATUS COM PRIORIDADE (Mantido, funciona com a nova lista)
+//         let total = 0;
+//         let autorizados = 0;
+//         let pendentes = 0;
+//         let rejeitados = 0;
+
+//         const camposTodos = [
+//       "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada", CAMPO_ADITIVO_EXTRA
+//         ];
+
+//         pedidosCompletosUnicos.forEach(p => {
+//       total++; 
+
+//       let isRejected = false;
+//       let isAuthorized = false;
+//       let isPending = false;
+        
+//       // Primeira Passagem: Identificar todos os status relevantes no pedido
+//       camposTodos.forEach(campo => {
+//           const info = p[campo];
+//           // Condição para que o campo seja relevante para a contagem no card (exclui campos vazios)
+//           const isRelevant = info && (info.valor !== undefined || info.datas || info.descricao || info.status);
+
+//           if (!isRelevant) return;
+
+//           const statusItem = (info.status || STATUS_PENDENTE).toLowerCase();
+
+//           if (statusItem === STATUS_REJEITADO) isRejected = true;
+//           if (statusItem === STATUS_AUTORIZADO) isAuthorized = true;
+//           if (statusItem === STATUS_PENDENTE) isPending = true;
+//       });
+
+//       // Segunda Passagem: Contagem baseada na PRIORIDADE (Rejeitado > Autorizado > Pendente)
+//       if (isRejected) {
+//           rejeitados++;
+//       } else if (isAuthorized) {
+//           autorizados++;
+//       } else if (isPending) {
+//           pendentes++;
+//       }
+//         });
+
+
+//         // 4. ATUALIZAÇÃO DO CARD
+//         document.getElementById("pedidosTotal").textContent = total; // Deve ser 394 agora
+//         document.getElementById("pedidosAutorizados").textContent = autorizados;
+//         document.getElementById("pedidosPendentes").textContent = pendentes;
+//         document.getElementById("pedidosRecusados").textContent = rejeitados;
+
+//     } catch (err) {
+//         console.error("Erro ao atualizar resumo de pedidos:", err);
+//     }
+// }
+
+// Atualiza automaticamente a cada 10 segundos
+
+
+// async function atualizarResumoPedidos() {
+//     // 🛑 Adição das constantes padronizadas para comparação
+//     const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
+//     const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
+//     const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
+
+//     try {
+//         // ... (Seções 1 e 2 inalteradas - Busca, Unificação e Deduplicação) ...
+//         const [pedidosPadrao, aditivosExtras] = await Promise.all([
+//             buscarPedidosUsuario(),
+//             buscarAditivoExtraCompleto()
+//         ]);
+
+//         let pedidosUnificados = [...pedidosPadrao];
+
+//         aditivosExtras.forEach(ae => {
+//             const statusPadrao = typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente';
+//             const pedidoAditivo = {
+//                 funcionario: ae.nomefuncionario, 
+//                 evento: ae.evento, 
+//                 idpedido: ae.idaditivoextra, 
+//                 [CAMPO_ADITIVO_EXTRA]: {
+//                     status: (ae.status || ae.Status || statusPadrao).toLowerCase(),
+//                     tipoSolicitacao: ae.tipoSolicitacao || ae.tiposolicitacao || 'N/A',
+//                 },
+//             };
+//             pedidosUnificados.push(pedidoAditivo);
+//         });
+
+//         const vistos = new Set();
+//         const pedidosCompletosUnicos = pedidosUnificados.filter(p => {
+//             const aditivoTipo = p[CAMPO_ADITIVO_EXTRA]?.tipoSolicitacao || "";
+//             const idUnicoAditivo = p[CAMPO_ADITIVO_EXTRA] ? p.idpedido : "";
+            
+//             const chave =
+//                 `${p.funcionario || ""}|${p.evento || ""}|${p.statusajustecusto?.valor || ""}|${p.statuscaixinha?.valor || ""}|${idUnicoAditivo}|${aditivoTipo}`;
+            
+//             if (vistos.has(chave)) return false;
+//             vistos.add(chave);
+//             return true;
+//         });
+
+//         // 3. CONTAGEM POR STATUS COM PRIORIDADE 
+//         let total = 0;
+//         let autorizados = 0;
+//         let pendentes = 0;
+//         let rejeitados = 0;
+
+//         const camposTodos = [
+//             "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada", CAMPO_ADITIVO_EXTRA
+//         ];
+
+//         pedidosCompletosUnicos.forEach(p => {
+//             total++; 
+
+//             let isRejected = false;
+//             let isAuthorized = false;
+//             let isPending = false;
+            
+//             camposTodos.forEach(campo => {
+//                 const info = p[campo];
+//                 // Condição para que o campo seja relevante para a contagem no card (exclui campos vazios)
+//                 const isRelevant = info && (info.valor !== undefined || info.datas || info.descricao || info.status);
+
+//                 if (!isRelevant) return;
+
+//                 const statusItem = (info.status || STATUS_PENDENTE_LOWER).toLowerCase(); // Usa o fallback padronizado
+                
+//                 // 🛑 CORREÇÃO: Compara statusItem (minúsculo) com as constantes minúsculas
+//                 if (statusItem === STATUS_REJEITADO_LOWER) isRejected = true;
+//                 if (statusItem === STATUS_AUTORIZADO_LOWER) isAuthorized = true;
+//                 if (statusItem === STATUS_PENDENTE_LOWER) isPending = true;
+//             });
+
+//             // Segunda Passagem: Contagem baseada na PRIORIDADE (Rejeitado > Autorizado > Pendente)
+//             if (isRejected) {
+//                 rejeitados++;
+//             } else if (isAuthorized) {
+//                 autorizados++;
+//             } else if (isPending) {
+//                 pendentes++;
+//             }
+//         });
+
+
+//         // 4. ATUALIZAÇÃO DO CARD (Não precisa de alteração)
+//         document.getElementById("pedidosTotal").textContent = total;
+//         document.getElementById("pedidosAutorizados").textContent = autorizados;
+//         document.getElementById("pedidosPendentes").textContent = pendentes;
+//         document.getElementById("pedidosRecusados").textContent = rejeitados;
+
+//     } catch (err) {
+//         console.error("Erro ao atualizar resumo de pedidos:", err);
+//     }
+// }
+
+
+// Adicione esta função ao seu Main.js ou utilitário
+function processarContagensResumo(pedidosBrutos) {
+    const contagens = {
+        totalItens: 0,
+        autorizados: 0,
+        pendentes: 0,
+        rejeitados: 0
+    };
+
+    // Usaremos Sets para rastrear IDs de pedido brutos únicos
+    // (A contagem de 403/397 parece um problema de pedidos duplicados no payload, mas vamos focar no status)
+    
+    // Lista de campos aninhados a serem contados
+    const camposAninhados = [
+        "statusajustecusto",
+        "statuscaixinha",
+        "statusmeiadiaria",
+        "statusdiariadobrada",
+        CAMPO_ADITIVO_EXTRA
+    ];
+    
+    const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
+    const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
+    const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
+
+
+    pedidosBrutos.forEach(pedidoOriginal => {
+        // Objeto temporário para rastrear os status *consolidados* para este pedido
+        const statusItemConsolidados = {
+            [STATUS_PENDENTE_LOWER]: 0,
+            [STATUS_AUTORIZADO_LOWER]: 0,
+            [STATUS_REJEITADO_LOWER]: 0
+        };
+        
+        let temSubItemContado = false;
+
+        // 1. Processa Sub-itens Aninhados
+        camposAninhados.forEach(campo => {
+            const info = pedidoOriginal[campo];
+            const itens = safeParse(info);
+            
+            // Usar mapa/Set para deduplicar sub-itens (igual ao renderizarPedidos V96.0)
+            const itensConsolidados = new Map();
+
+            itens.forEach(item => {
+                 // Garante que o item é um objeto antes de tentar ler o status
+                if (typeof item !== 'object' || item === null) return;
+                
+                const status = (item.status || STATUS_PENDENTE_LOWER).toLowerCase();
+                if (![STATUS_PENDENTE_LOWER, STATUS_AUTORIZADO_LOWER, STATUS_REJEITADO_LOWER].includes(status)) return;
+                
+                // Lógica de Deduplicação V96.0
+                const uniqueKey = item.idAditivoExtra || item.idCaixinha || item.idajustecusto || item.data || item.id;
+                const key = uniqueKey || `${pedidoOriginal.idpedido}_${campo}`; 
+
+                // Adiciona ao mapa se for um sub-item válido (não sobrescreve, apenas conta)
+                if (!itensConsolidados.has(key)) {
+                    itensConsolidados.set(key, item);
+                    statusItemConsolidados[status]++;
+                    temSubItemContado = true;
+                }
+            });
+        });
+        
+        // 2. Processa Status Principal (Se não houver sub-itens)
+        if (!temSubItemContado) {
+            const statusPrincipal = (pedidoOriginal.status_aprovacao || STATUS_PENDENTE_LOWER).toLowerCase();
+            
+             if ([STATUS_PENDENTE_LOWER, STATUS_AUTORIZADO_LOWER, STATUS_REJEITADO_LOWER].includes(statusPrincipal)) {
+                 // Contamos apenas 1 item pelo status principal
+                 statusItemConsolidados[statusPrincipal]++;
+             }
+        }
+        
+        // 3. Soma as contagens consolidadas deste pedido ao total
+        contagens.pendentes += statusItemConsolidados[STATUS_PENDENTE_LOWER];
+        contagens.autorizados += statusItemConsolidados[STATUS_AUTORIZADO_LOWER];
+        contagens.rejeitados += statusItemConsolidados[STATUS_REJEITADO_LOWER];
+    });
+
+    // Calcula o Total de ITENS (que é o que está sendo renderizado)
+    contagens.totalItens = contagens.pendentes + contagens.autorizados + contagens.rejeitados;
+
+    return contagens;
+}
+
+// async function atualizarResumoPedidos() {
+//     // 🛑 Adição das constantes padronizadas para comparação
+//     const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
+//     const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
+//     const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
+
+//     try {
+//         // ... (Seções 1 e 2 inalteradas - Busca, Unificação e Deduplicação) ...
+//         const [pedidosPadrao, aditivosExtras] = await Promise.all([
+//             buscarPedidosUsuario(),
+//             buscarAditivoExtraCompleto()
+//         ]);
+
+//         let pedidosUnificados = [...pedidosPadrao];
+
+//         aditivosExtras.forEach(ae => {
+//             const statusPadrao = typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente';
+//             const pedidoAditivo = {
+//                 funcionario: ae.nomefuncionario, 
+//                 evento: ae.evento, 
+//                 idpedido: ae.idaditivoextra, 
+//                 [CAMPO_ADITIVO_EXTRA]: {
+//                     status: (ae.status || ae.Status || statusPadrao).toLowerCase(),
+//                     tipoSolicitacao: ae.tipoSolicitacao || ae.tiposolicitacao || 'N/A',
+//                 },
+//             };
+//             pedidosUnificados.push(pedidoAditivo);
+//         });
+
+//         const vistos = new Set();
+//         const pedidosCompletosUnicos = pedidosUnificados.filter(p => {
+//             const aditivoTipo = p[CAMPO_ADITIVO_EXTRA]?.tipoSolicitacao || "";
+//             const idUnicoAditivo = p[CAMPO_ADITIVO_EXTRA] ? p.idpedido : "";
+            
+//             const chave =
+//                 `${p.funcionario || ""}|${p.evento || ""}|${p.statusajustecusto?.valor || ""}|${p.statuscaixinha?.valor || ""}|${idUnicoAditivo}|${aditivoTipo}`;
+            
+//             if (vistos.has(chave)) return false;
+//             vistos.add(chave);
+//             return true;
+//         });
+
+//         // 3. CONTAGEM POR STATUS COM PRIORIDADE 
+//         let total = 0;
+//         let autorizados = 0;
+//         let pendentes = 0;
+//         let rejeitados = 0;
+
+//         const camposTodos = [
+//             "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada", CAMPO_ADITIVO_EXTRA
+//         ];
+
+//         pedidosCompletosUnicos.forEach(p => {
+//             total++; 
+
+//             let isRejected = false;
+//             let isAuthorized = false;
+//             let isPending = false;
+            
+//             camposTodos.forEach(campo => {
+//                 let info = p[campo]; // Pega o valor (pode ser objeto ou string JSON)
+                
+//                 // 🛑 CORREÇÃO CRÍTICA: Tenta analisar (parse) se 'info' é uma string JSON
+//                 if (typeof info === 'string' && info.startsWith('[')) {
+//                     try {
+//                         // Tenta converter a string JSON em um objeto (ou array de objetos)
+//                         const parsedInfo = JSON.parse(info);
+                        
+//                         // Se for um array (como no seu exemplo), pegamos o primeiro item para análise
+//                         if (Array.isArray(parsedInfo) && parsedInfo.length > 0) {
+//                             info = parsedInfo[0]; // Agora 'info' é o objeto {status: "Pendente", valor: 200, ...}
+//                         } else {
+//                             info = parsedInfo;
+//                         }
+//                     } catch (e) {
+//                         // Se falhar o parse, mantemos a informação original (que provavelmente é nula/irrelevante)
+//                         console.warn(`Falha ao analisar JSON para o campo ${campo} do pedido ID ${p.idpedido}:`, e);
+//                     }
+//                 }
+//                 // FIM DA CORREÇÃO CRÍTICA
+
+//                 // Condição para que o campo seja relevante para a contagem no card
+//                 // Agora 'info' é um objeto (se foi convertido) ou null/undefined.
+//                 const isRelevant = info && (info.valor !== undefined || info.datas || info.descricao || info.status);
+
+//                 if (!isRelevant) return;
+
+//                 const statusItem = (info.status || STATUS_PENDENTE_LOWER).toLowerCase();
+                
+//                 if (statusItem === STATUS_REJEITADO_LOWER) isRejected = true;
+//                 if (statusItem === STATUS_AUTORIZADO_LOWER) isAuthorized = true;
+//                 if (statusItem === STATUS_PENDENTE_LOWER) isPending = true;
+//             });
+
+//             // Segunda Passagem: Contagem baseada na PRIORIDADE (Rejeitado > Autorizado > Pendente)
+//             if (isRejected) {
+//                 rejeitados++;
+//             } else if (isAuthorized) {
+//                 autorizados++;
+//             } else if (isPending) {
+//                 pendentes++;
+//             }
+//         });
+
+//         // 4. ATUALIZAÇÃO DO CARD - Implementação Defensiva
+//         console.log(`[ATUALIZAÇÃO CARD] Total: ${total}, Autorizados: ${autorizados}, Pendentes: ${pendentes}, Rejeitados: ${rejeitados}`);
+
+//         const elTotal = document.getElementById("pedidosTotal");
+//         const elAutorizados = document.getElementById("pedidosAutorizados");
+//         const elPendentes = document.getElementById("pedidosPendentes");
+//         const elRecusados = document.getElementById("pedidosRecusados");
+
+//         // DEBUG: Confirma se os elementos estão sendo encontrados
+//         console.log(`[DEBUG DOM] Elemento Pendentes Encontrado? ${!!elPendentes}`); 
+
+//         // Atualiza APENAS se o elemento existir
+//         if (elTotal) {
+//             elTotal.textContent = total;
+//         } else {
+//             console.error("ERRO CRÍTICO: Não foi possível encontrar o elemento #pedidosTotal.");
+//         }
+//         if (elAutorizados) {
+//             elAutorizados.textContent = autorizados;
+//         } else {
+//             console.error("ERRO CRÍTICO: Não foi possível encontrar o elemento #pedidosAutorizados.");
+//         }
+//         if (elPendentes) {
+//             elPendentes.textContent = pendentes;
+//         } else {
+//             console.error("ERRO CRÍTICO: Não foi possível encontrar o elemento #pedidosPendentes.");
+//         }
+//         if (elRecusados) {
+//             elRecusados.textContent = rejeitados;
+//         } else {
+//             console.error("ERRO CRÍTICO: Não foi possível encontrar o elemento #pedidosRecusados.");
+//         }
+//     } catch (err) {
+//         console.error("Erro ao atualizar resumo de pedidos:", err);
+//     }
+// }
+
+async function atualizarResumoPedidos() {
+    // 🛑 Adição das constantes padronizadas para comparação (Manter)
+    const STATUS_PENDENTE_LOWER = (typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente').toLowerCase();
+    const STATUS_AUTORIZADO_LOWER = (typeof STATUS_AUTORIZADO !== 'undefined' ? STATUS_AUTORIZADO : 'autorizado').toLowerCase();
+    const STATUS_REJEITADO_LOWER = (typeof STATUS_REJEITADO !== 'undefined' ? STATUS_REJEITADO : 'rejeitado').toLowerCase();
+
+    try {
+        // 1. Busca os dados brutos (Inalterado)
         const [pedidosPadrao, aditivosExtras] = await Promise.all([
-      buscarPedidosUsuario(),
-      buscarAditivoExtraCompleto()
+            buscarPedidosUsuario(),
+            buscarAditivoExtraCompleto()
         ]);
 
         let pedidosUnificados = [...pedidosPadrao];
 
-        // Normalização dos Aditivos Extras (Mantido)
+        // 2. Unificação Aditivo Extra (Inalterado, apenas a variável mudou de nome para clareza)
         aditivosExtras.forEach(ae => {
-      const statusPadrao = typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente';
-      const pedidoAditivo = {
-          // Incluímos campos necessários para a chave de deduplicação completa
-          funcionario: ae.nomefuncionario, // Necessário para a chave
-          evento: ae.evento,       // Necessário para a chave
-          idpedido: ae.idaditivoextra,   // Necessário para a chave
-          // Os campos de statusajustecusto, statuscaixinha etc. são null/undefined aqui, o que é OK.
-          [CAMPO_ADITIVO_EXTRA]: {
-        status: (ae.status || ae.Status || statusPadrao).toLowerCase(),
-        tipoSolicitacao: ae.tipoSolicitacao || ae.tiposolicitacao || 'N/A', // Necessário para a chave
-          },
-      };
-      pedidosUnificados.push(pedidoAditivo);
+            const statusPadrao = typeof STATUS_PENDENTE !== 'undefined' ? STATUS_PENDENTE : 'pendente';
+            const pedidoAditivo = {
+                // ... (propriedades do Aditivo Extra)
+                funcionario: ae.nomefuncionario, 
+                evento: ae.evento, 
+                idpedido: ae.idaditivoextra, 
+                [CAMPO_ADITIVO_EXTRA]: {
+                    status: (ae.status || ae.Status || statusPadrao).toLowerCase(),
+                    tipoSolicitacao: ae.tipoSolicitacao || ae.tiposolicitacao || 'N/A',
+                },
+            };
+            pedidosUnificados.push(pedidoAditivo);
         });
 
-        // 2. 🎯 CORREÇÃO: DEDUPLICAÇÃO COMPLETA (Replicando a lógica de mostrarPedidosUsuario)
-        const vistos = new Set();
-        const pedidosCompletosUnicos = pedidosUnificados.filter(p => {
-       const aditivoTipo = p[CAMPO_ADITIVO_EXTRA]?.tipoSolicitacao || "";
-       const idUnicoAditivo = p[CAMPO_ADITIVO_EXTRA] ? p.idpedido : "";
+        // 🛑 V98.0: Não é necessário filtrar por chave de dedup aqui (a contagem granular já lida com isso)
+        // Usamos toda a lista unificada para a contagem (397 + Aditivos)
+        const pedidosBrutosUnificados = pedidosUnificados;
         
-       // A chave deve ser a mesma utilizada na mostrarPedidosUsuario
-       const chave =
-           `${p.funcionario || ""}|${p.evento || ""}|${p.statusajustecusto?.valor || ""}|${p.statuscaixinha?.valor || ""}|${idUnicoAditivo}|${aditivoTipo}`;
+        // --- SEÇÃO 3: CONTAGEM UNIFICADA DE ITENS (NOVA LÓGICA) ---
         
-       if (vistos.has(chave)) return false;
-       vistos.add(chave);
-       return true;
-        });
-
-        // 3. CONTAGEM POR STATUS COM PRIORIDADE (Mantido, funciona com a nova lista)
-        let total = 0;
-        let autorizados = 0;
-        let pendentes = 0;
-        let rejeitados = 0;
-
-        const camposTodos = [
-      "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada", CAMPO_ADITIVO_EXTRA
-        ];
-
-        pedidosCompletosUnicos.forEach(p => {
-      total++; 
-
-      let isRejected = false;
-      let isAuthorized = false;
-      let isPending = false;
+        // 🛑 AQUI ESTÁ A CHAVE: Usamos a função processarContagensResumo
+        // para contar os itens (sub-itens e pedidos principais sem sub-itens)
+        const contagensExatas = processarContagensResumo(pedidosBrutosUnificados);
         
-      // Primeira Passagem: Identificar todos os status relevantes no pedido
-      camposTodos.forEach(campo => {
-          const info = p[campo];
-          // Condição para que o campo seja relevante para a contagem no card (exclui campos vazios)
-          const isRelevant = info && (info.valor !== undefined || info.datas || info.descricao || info.status);
+        const total = contagensExatas.totalItens;
+        const autorizados = contagensExatas.autorizados;
+        const pendentes = contagensExatas.pendentes;
+        const rejeitados = contagensExatas.rejeitados;
+        
+        // -----------------------------------------------------------
 
-          if (!isRelevant) return;
+        // 4. ATUALIZAÇÃO DO CARD - Implementação Defensiva (Inalterada)
+        console.log(`[ATUALIZAÇÃO CARD] Total: ${total}, Autorizados: ${autorizados}, Pendentes: ${pendentes}, Rejeitados: ${rejeitados}`);
 
-          const statusItem = (info.status || STATUS_PENDENTE).toLowerCase();
+        const elTotal = document.getElementById("pedidosTotal");
+        const elAutorizados = document.getElementById("pedidosAutorizados");
+        const elPendentes = document.getElementById("pedidosPendentes");
+        const elRecusados = document.getElementById("pedidosRecusados");
 
-          if (statusItem === STATUS_REJEITADO) isRejected = true;
-          if (statusItem === STATUS_AUTORIZADO) isAuthorized = true;
-          if (statusItem === STATUS_PENDENTE) isPending = true;
-      });
+        // DEBUG: Confirma se os elementos estão sendo encontrados
+        console.log(`[DEBUG DOM] Elemento Pendentes Encontrado? ${!!elPendentes}`); 
 
-      // Segunda Passagem: Contagem baseada na PRIORIDADE (Rejeitado > Autorizado > Pendente)
-      if (isRejected) {
-          rejeitados++;
-      } else if (isAuthorized) {
-          autorizados++;
-      } else if (isPending) {
-          pendentes++;
-      }
-        });
-
-
-        // 4. ATUALIZAÇÃO DO CARD
-        document.getElementById("pedidosTotal").textContent = total; // Deve ser 394 agora
-        document.getElementById("pedidosAutorizados").textContent = autorizados;
-        document.getElementById("pedidosPendentes").textContent = pendentes;
-        document.getElementById("pedidosRecusados").textContent = rejeitados;
-
+        // Atualiza APENAS se o elemento existir
+        if (elTotal) {
+            elTotal.textContent = total;
+        } else {
+            console.error("ERRO CRÍTICO: Não foi possível encontrar o elemento #pedidosTotal.");
+        }
+        if (elAutorizados) {
+            elAutorizados.textContent = autorizados;
+        } else {
+            console.error("ERRO CRÍTICO: Não foi possível encontrar o elemento #pedidosAutorizados.");
+        }
+        if (elPendentes) {
+            elPendentes.textContent = pendentes;
+        } else {
+            console.error("ERRO CRÍTICO: Não foi possível encontrar o elemento #pedidosPendentes.");
+        }
+        if (elRecusados) {
+            elRecusados.textContent = rejeitados;
+        } else {
+            console.error("ERRO CRÍTICO: Não foi possível encontrar o elemento #pedidosRecusados.");
+        }
     } catch (err) {
         console.error("Erro ao atualizar resumo de pedidos:", err);
     }
 }
 
-// Atualiza automaticamente a cada 10 segundos
+// NOTA: A função processarContagensResumo (V97.0) e safeParse devem estar disponíveis globalmente.
+
 setInterval(atualizarResumoPedidos, 10000);
 //setInterval(atualizarResumoPedidos, 500);
 

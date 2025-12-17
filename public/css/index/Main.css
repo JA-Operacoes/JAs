@@ -548,9 +548,17 @@ button#btnVoltarorc {
 }
 
 .lista-funcionarios {
-  max-height: 500px; /* controla altura total */
+  height: 100%; /* controla altura total */
   overflow-y: auto;
   padding-right: 6px; /* espaço pro scroll não colar */
+}
+
+#funcionarios-list-pendente, 
+#funcoes-list-pendente,
+.lista-funcionarios {
+    /* Adicione esta regra: */
+    flex-wrap: wrap !important; /* Garante que os itens quebrem para a próxima linha */
+    flex-direction: column; /* Força a lista a ser vertical (se display: flex for aplicado) */
 }
 
 /* Classe para esconder */
@@ -616,6 +624,9 @@ button#btnVoltarorc {
   padding: 15px;
   border: 1px solid var(--cor-borda-aba, #ccc);
   border-top: none; 
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .painel-tabs.desativado {

@@ -4084,6 +4084,7 @@ let prePosAtivo = false;
 let montagemInfraAtivo = false;
 
 export async function preencherFormularioComOrcamento(orcamento) {
+  console.log("ENTROU NO PREENCHER FORUMLARIO DO ORÇAMENTO")
   if (!orcamento) {
     limparOrcamento();
     return;
