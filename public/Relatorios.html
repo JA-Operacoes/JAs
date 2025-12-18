@@ -12,42 +12,50 @@
     <div class="controls">
       <div class="opcoesRelatorios">
         <fieldset>
-          <legend>Tipo de Relatório</legend>
-          <br>
-          <div class="tpRelatorio">
-            <div class="titulo">            
-            <!-- <label>Tipo de Relatório:</label> -->
-            </div>
-            <div class="coluna">
-              <div class="checkbox-wrapper-33">
-                <label class="checkbox">
-                  <input class="checkbox__trigger visuallyhidden" type="radio" id="ajudaCustoRadio" name="reportType" value="ajuda_custo" checked />
-                  <span class="checkbox__symbol">
-                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M4 14l8 7L24 7"></path>
-                    </svg>
-                  </span>
-                  <p class="checkbox__textwrapper">Ajuda de Custo</p>
-                </label>
-              </div>
-              <!-- <label><input type="radio" id="ajudaCustoRadio" name="reportType" value="ajuda_custo" checked>Ajuda de Custo</label> -->
-          
-              <div class="checkbox-wrapper-33">
-                <label class="checkbox">
-                  <input class="checkbox__trigger visuallyhidden" type="radio" id="cacheRadio" name="reportType" value="cache" />
-                  <span class="checkbox__symbol">
-                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M4 14l8 7L24 7"></path>
-                    </svg>
-                  </span>
-                  <p class="checkbox__textwrapper">Cachê</p>
-                </label>
-              </div>
-              <!-- <label><input type="radio" id="cacheRadio" name="reportType" value="cache">Cachê</label> -->
-            </div>
+      <legend>Tipo de Relatório</legend>
+      <br>
+      <div class="tpRelatorio">
+        <div class="coluna">
+          <div class="checkbox-wrapper-33" id="opcaoOperacional">
+            <label class="checkbox">
+              <input class="checkbox__trigger visuallyhidden" type="radio" id="operacionalRadio" name="reportType" value="operacional" />
+              <span class="checkbox__symbol">
+                <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M4 14l8 7L24 7"></path>
+                </svg>
+              </span>
+              <p class="checkbox__textwrapper">Funcionarios</p>
+            </label>
           </div>
-          <br>
-        </fieldset>
+
+          <div id="opcoesFinanceiro">
+            <div class="checkbox-wrapper-33">
+              <label class="checkbox">
+                <input class="checkbox__trigger visuallyhidden" type="radio" id="ajudaCustoRadio" name="reportType" value="ajuda_custo" checked />
+                <span class="checkbox__symbol">
+                  <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 14l8 7L24 7"></path>
+                  </svg>
+                </span>
+                <p class="checkbox__textwrapper">Ajuda de Custo</p>
+              </label>
+            </div>
+
+            <div class="checkbox-wrapper-33">
+              <label class="checkbox">
+                <input class="checkbox__trigger visuallyhidden" type="radio" id="cacheRadio" name="reportType" value="cache" />
+                <span class="checkbox__symbol">
+                  <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 14l8 7L24 7"></path>
+                  </svg>
+                </span>
+                <p class="checkbox__textwrapper">Cachê</p>
+              </label>
+            </div>
+          </div> </div>
+      </div>
+      <br>
+</fieldset>
 
         <fieldset>
           <legend>Filtrar por Fase Específica do Evento:</legend>
