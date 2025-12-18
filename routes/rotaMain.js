@@ -1988,15 +1988,29 @@ router.get('/notificacoes-financeiras', async (req, res) => {
         // console.log("Dados retornados", rows);
 
         // 6. Mapeamento e Resposta
-        const pedidos = rows.map(r => {
-            function parseValor(v) {
-                if (!v) return 0;
-                if (typeof v === 'number') return v;
-                return parseFloat(String(v).replace(',', '.')) || 0;
+        const parseValor = (v) => {
+            if (!v) return 0;
+            if (typeof v === 'number') return v;
+            return parseFloat(String(v).replace(',', '.')) || 0;
+        };
+        
+        // Novo Helper para verificar se um JSONB é vazio '[]'
+        const isJsonbArrayEmpty = (jsonbString) => {
+            if (!jsonbString) return true;
+            // Tenta dar parse e verifica se é um array vazio. 
+            // Se falhar, retorna true (para tratar como vazio e não processar).
+            try {
+                const parsed = JSON.parse(jsonbString);
+                return Array.isArray(parsed) && parsed.length === 0;
+            } catch (e) {
+                return true;
             }
+        };
 
-            function montarCampo(info, valorRaw, descricaoRaw, datasRaw) {
-                if (info === null) return null; 
+        const pedidosConsolidados = rows.map(r => {
+
+            // Helper para gerar a string JSON de Caixinha/Ajuste (Array de 1 Item)
+            const stringifyUnico = (statusField, valorRaw, descricaoRaw) => {
 
                 const valor = parseValor(valorRaw);
                 const status = statusField || '';

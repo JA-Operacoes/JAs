@@ -141,7 +141,7 @@ try {
       );
       return result.rows.length
       ? res.json(result.rows)
-      : res.status(404).json({ message: "Nenhum funcionário encontrado para esta empresa." });
+      : res.status(404).json({ message: "Nenhum funcionário encontrado para esta empresa na RotaStaff." });
     
     } catch (error) {
     console.error("Erro ao buscar funcionário:", error);
