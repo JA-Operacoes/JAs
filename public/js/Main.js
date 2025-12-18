@@ -1047,7 +1047,7 @@ async function mostrarCalendarioEventos() {
   const controles = document.createElement("div");
   controles.className = "calendario-controles";
   controles.innerHTML = `
-  <label>Ano: <select id="anoSelect"></select></label>
+  <div><label>Ano: <select id="anoSelect"></select></label></div>
   <label>Mês: <select id="mesSelect"></select></label>
   <label>Visualização:
   <select id="viewSelect">
@@ -4754,6 +4754,7 @@ function construirParametrosFiltro() {
 
 
 // async function carregarDadosVencimentos() {
+
 //     // Definir data de hoje (YYYY-MM-DD)
 //     const hoje = new Date();
 //     const ano = hoje.getFullYear();
@@ -4890,149 +4891,114 @@ function construirParametrosFiltro() {
 //     }
 // }
 
-async function carregarDadosVencimentos(anoFiltro) { // <-- Recebe o parâmetro
-    // Definir data de hoje (YYYY-MM-DD)
-    const hoje = new Date();
-    const anoAtual = hoje.getFullYear();
-    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-    const dia = String(hoje.getDate()).padStart(2, '0');
-    const dataAtualFormatada = `${anoAtual}-${mes}-${dia}`;
-    // Data de referência (sem hora) para comparação
-    const dataComparacao = new Date(dataAtualFormatada + 'T00:00:00'); 
-
-    // ✅ NOVO: Define o ano para o filtro. Usa anoFiltro se passado, senão usa o anoAtual.
-    const ano = anoFiltro || anoAtual; 
-
-    // URL para buscar todos os vencimentos no ANO selecionado.
-    const urlResumo = `/main/vencimentos?periodo=anual&ano=${ano}`;
-
-    // ... (restante do código: captura de elementos, somadores, try/catch) ...
-    
-    // 🎯 Capturando os elementos
-    const cardVencimentos = document.getElementById('cardContainerVencimentos');
-    const vencimentosTotalElement = document.getElementById('vencimentosTotal'); 
-    const vencimentosPagosElement = document.getElementById('vencimentosPagos'); 
-    const vencAjudaAVencerElement = document.getElementById('vencAjudaAVencer');
-    const vencCacheAVencerElement = document.getElementById('vencCacheAVencer');
-    const vencAjudaVencidosElement = document.getElementById('vencAjudaVencidos');
-    const vencCacheVencidosElement = document.getElementById('vencCacheVencidos');
-    const vencAjudaPagosElement = document.getElementById('vencAjudaPagos');
-    const vencCachePagosElement = document.getElementById('vencCachePagos');
-
-    // Verificação de existência dos elementos
-    if (!vencimentosTotalElement || !vencimentosPagosElement || !vencAjudaAVencerElement || 
-        !vencCacheAVencerElement || !vencAjudaVencidosElement || !vencCacheVencidosElement ||
-        !vencAjudaPagosElement || !vencCachePagosElement) {
-        
-        console.error("Erro: Um ou mais elementos do card de vencimentos não foram encontrados no DOM. Verifique as IDs.");
-        return;
+// 1. Gatilho para o Select
+window.carregarDadosDoFiltro = function() {
+    const select = document.getElementById('selectAno');
+    if (select) {
+        console.log("Filtrando para o ano:", select.value);
+        carregarDadosVencimentos(parseInt(select.value, 10));
     }
-    
-    // Inicializa somadores DETALHADOS
-    let totalGeralPrevisto = 0; 
-    let ajudaAVencer = 0;
-    let cacheAVencer = 0;
-    let ajudaVencidos = 0;
-    let cacheVencidos = 0;
+};
 
-    // Inicializa somadores PAGOS
-    let ajudaPagos = 0;
-    let cachePagos = 0;
-    
+function configurarSelectAno() {
+    const select = document.getElementById('selectAno');
+    if (!select) return;
+
+    const anoAtual = new Date().getFullYear();
+    const anosParaExibir = [anoAtual - 1, anoAtual, anoAtual + 1]; // Ex: 2024, 2025, 2026
+
+    // Limpa opções existentes
+    select.innerHTML = '';
+
+    anosParaExibir.forEach(ano => {
+        const option = document.createElement('option');
+        option.value = ano;
+        option.textContent = ano;
+        
+        // Define o ano vigente como selecionado
+        if (ano === anoAtual) {
+            option.selected = true;
+        }
+        
+        select.appendChild(option);
+    });
+
+    // Após configurar, carrega os dados do ano atual pela primeira vez
+    carregarDadosVencimentos(anoAtual);
+}
+
+// Chame esta função quando a página carregar
+document.addEventListener('DOMContentLoaded', () => {
+    configurarSelectAno();
+    // outras inicializações...
+});
+
+async function carregarDadosVencimentos(anoFiltro) {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    const ano = anoFiltro || hoje.getFullYear();
+    const url = `/main/vencimentos?periodo=anual&ano=${ano}`;
+
     try {
-        const dadosResumo = await fetchComToken(urlResumo); 
+        const dados = await fetchComToken(url);
+        
+        let soma = {
+            previsto: 0, pagos: 0, 
+            ajAVencer: 0, ajVencidos: 0, ajPagos: 0,
+            chAVencer: 0, chVencidos: 0, chPagos: 0
+        };
 
-        if (dadosResumo && dadosResumo.eventos && dadosResumo.eventos.length > 0) {
-            
-            dadosResumo.eventos.forEach(evento => {
+        if (dados && dados.eventos) {
+            dados.eventos.forEach(ev => {
+                // Ajuda
+                const ajP = parseFloat(ev.ajuda.pendente);
+                const [da, ma, ya] = ev.dataVencimentoAjuda.split('/').map(Number);
+                const dtAj = new Date(ya, ma - 1, da);
                 
-                // 1. Lógica de PENDENTES (A VENCER vs. VENCIDOS)
-                const ajudaPendente = evento.ajuda.pendente || 0;
-                if (ajudaPendente > 0 && evento.dataVencimentoAjuda && evento.dataVencimentoAjuda !== 'N/A') {
-                    
-                    const [d, m, y] = evento.dataVencimentoAjuda.split('/').map(n => parseInt(n, 10));
-                    // Cria a data de vencimento no fuso horário local para evitar desvios de 1 dia
-                    const dataVencimentoAjuda = new Date(y, m - 1, d); 
-
-                    // A comparação A VENCER/VENCIDOS SÓ USA A DATA DE HOJE (ANOATUAL)
-                    if (dataVencimentoAjuda < dataComparacao) {
-                        ajudaVencidos += ajudaPendente; 
-                    } else {
-                        ajudaAVencer += ajudaPendente; 
-                    }
-                    totalGeralPrevisto += ajudaPendente;
+                if (ajP > 0) {
+                    if (dtAj < hoje) soma.ajVencidos += ajP;
+                    else soma.ajAVencer += ajP;
                 }
+                soma.ajPagos += parseFloat(ev.ajuda.pagos);
 
-                const cachePendente = evento.cache.pendente || 0;
-                if (cachePendente > 0 && evento.dataVencimentoCache && evento.dataVencimentoCache !== 'N/A') {
-                    
-                    const [d, m, y] = evento.dataVencimentoCache.split('/').map(n => parseInt(n, 10));
-                    // Cria a data de vencimento no fuso horário local para evitar desvios de 1 dia
-                    const dataVencimentoCache = new Date(y, m - 1, d); 
-
-                    if (dataVencimentoCache < dataComparacao) {
-                        cacheVencidos += cachePendente; 
-                    } else {
-                        cacheAVencer += cachePendente; 
-                    }
-                    totalGeralPrevisto += cachePendente;
+                // Cache
+                const chP = parseFloat(ev.cache.pendente);
+                if (chP > 0 && ev.dataVencimentoCache !== 'N/A') {
+                    const [dc, mc, yc] = ev.dataVencimentoCache.split('/').map(Number);
+                    const dtCh = new Date(yc, mc - 1, dc);
+                    if (dtCh < hoje) soma.chVencidos += chP;
+                    else soma.chAVencer += chP;
                 }
-                
-                // 2. Lógica de PAGOS
-                ajudaPagos += evento.ajuda.pagos || 0;
-                cachePagos += evento.cache.pagos || 0;
-                
+                soma.chPagos += parseFloat(ev.cache.pagos);
             });
         }
-        
-        const totalGeralPagos = ajudaPagos + cachePagos;
 
-        // 🎯 ATUALIZAÇÃO DO CARD
-        
-        // 1. Header
-        vencimentosTotalElement.textContent = formatarMoeda(totalGeralPrevisto); 
-        vencimentosPagosElement.textContent = formatarMoeda(totalGeralPagos);    
-        
-        // 2. A Vencer (Detalhado)
-        vencAjudaAVencerElement.textContent = formatarMoeda(ajudaAVencer); 
-        vencCacheAVencerElement.textContent = formatarMoeda(cacheAVencer); 
-        
-        // 3. Vencidos (Detalhado)
-        vencAjudaVencidosElement.textContent = formatarMoeda(ajudaVencidos); 
-        vencCacheVencidosElement.textContent = formatarMoeda(cacheVencidos); 
-        
-        // 4. Pagos (Detalhado)
-        vencAjudaPagosElement.textContent = formatarMoeda(ajudaPagos);          
-        vencCachePagosElement.textContent = formatarMoeda(cachePagos);          
-        
-        if (totalGeralPrevisto > 0 || totalGeralPagos > 0) {
-            cardVencimentos.style.display = 'block';
-        } else {
-            cardVencimentos.style.display = 'none';
-        }
+        soma.previsto = soma.ajAVencer + soma.ajVencidos + soma.chAVencer + soma.chVencidos;
+        soma.pagos = soma.ajPagos + soma.chPagos;
+
+        // Atualização dos Elementos com verificação de existência
+        const atualizarTexto = (id, valor) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = formatarMoeda(valor);
+        };
+
+        atualizarTexto('vencimentosTotal', soma.previsto);
+        atualizarTexto('vencimentosPagos', soma.pagos);
+        atualizarTexto('vencAjudaAVencer', soma.ajAVencer);
+        atualizarTexto('vencAjudaVencidos', soma.ajVencidos);
+        atualizarTexto('vencAjudaPagos', soma.ajPagos);
+        atualizarTexto('vencCacheAVencer', soma.chAVencer);
+        atualizarTexto('vencCacheVencidos', soma.chVencidos);
+        atualizarTexto('vencCachePagos', soma.chPagos);
+
+        const container = document.getElementById('cardContainerVencimentos');
+        if (container) container.style.display = 'block';
 
     } catch (error) {
-        console.error("Erro ao carregar dados do card de vencimentos:", error);
-        // Em caso de erro, zera os valores
-        vencimentosTotalElement.textContent = `R$ 0,00`;
-        vencimentosPagosElement.textContent = `R$ 0,00`;
-        vencAjudaAVencerElement.textContent = `R$ 0,00`; 
-        vencCacheAVencerElement.textContent = `R$ 0,00`; 
-        vencAjudaVencidosElement.textContent = `R$ 0,00`; 
-        vencCacheVencidosElement.textContent = `R$ 0,00`; 
-        vencAjudaPagosElement.textContent = `R$ 0,00`; 
-        vencCachePagosElement.textContent = `R$ 0,00`; 
+        console.error("Erro ao carregar vencimentos:", error);
     }
 }
-function carregarDadosDoFiltro() {
-    const selectElement = document.getElementById('selectAno'); // ID do seu <select> de ano
-    if (selectElement) {
-        const anoSelecionado = selectElement.value;
-        // Chama a função principal com o ano selecionado
-        carregarDadosVencimentos(parseInt(anoSelecionado, 10)); 
-    }
-}
-
 
 async function inicializarCardVencimentos() {
     // Checa as duas permissões (Assumindo que estão definidas globalmente)
