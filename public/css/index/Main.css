@@ -1472,14 +1472,14 @@ button.btn-abrir-staff {
 }
 
 .funcionario-grupo-header {
-  display: flex;
-  justify-content: start;
-  gap: 30px;
-  background-color: var(--primary-color);
-  color: var(--font-color);
-  font-weight: var(--font-weigth);
-  width: 100%;
-  border-radius: 10px;
+    display: flex;
+    justify-content: space-around;
+    gap: 140px;
+    background-color: var(--primary-color);
+    color: var(--font-color);
+    font-weight: var(--font-weigth);
+    width: 100%;
+    border-radius: 10px;
 }
 
 ul.funcionario-lista {

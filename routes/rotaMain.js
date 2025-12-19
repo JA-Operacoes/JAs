@@ -829,26 +829,42 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
 });
 
 router.get("/ListarFuncionarios", async (req, res) => {
-  const { idEvento, idEquipe, idempresa, ano } = req.query;
+  // Pega o idempresa da query ou do objeto de requisição (middleware)
+  const idempresa = req.query.idempresa || req.idempresa;
+  const { idEvento, idEquipe, ano } = req.query;
+  
   const anoFiltro = ano ? Number(ano) : new Date().getFullYear();
+
+  if (!idEvento || !idEquipe || !idempresa) {
+    return res.status(400).json({ erro: "Parâmetros idEvento, idEquipe e idempresa são obrigatórios." });
+  }
 
   try {
     const query = `
-    SELECT se.idstaffevento, se.idfuncionario, se.nmfuncionario AS nome, 
-           se.nmfuncao AS funcao, se.vlrtotal, se.statuspgto AS status_pagamento
+    SELECT 
+        se.idstaffevento, 
+        se.idfuncionario, 
+        se.nmfuncionario AS nome, 
+        se.nmfuncao AS funcao, 
+        se.vlrtotal, 
+        se.statuspgto AS status_pagamento,
+        se.setor,
+        se.nivelexperiencia
     FROM public.staffeventos se
     INNER JOIN orcamentos o ON o.idevento = se.idevento
     INNER JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
     WHERE se.idevento = $1 
       AND se.idequipe = $2 
       AND oe.idempresa = $3
-      AND EXTRACT(YEAR FROM o.dtinirealizacao) = $4 -- 🟢 SÓ TRAZ QUEM É DESTE ANO
+      -- Filtro de ano baseado na data de início do orçamento
+      AND EXTRACT(YEAR FROM o.dtinimarcacao) = $4 
     ORDER BY se.nmfuncao, se.nmfuncionario;`;
 
     const { rows } = await pool.query(query, [idEvento, idEquipe, idempresa, anoFiltro]);
     res.status(200).json(rows);
   } catch (erro) {
-    res.status(500).json({ erro: 'Erro interno.' });
+    console.error("Erro ListarFuncionarios:", erro);
+    res.status(500).json({ erro: 'Erro interno ao listar funcionários.' });
   }
 });
 // =======================================
@@ -1659,19 +1675,63 @@ router.patch('/aditivoextra/:idAditivoExtra/status',
 // VENCIMENTOS
 // =======================================
 router.get("/vencimentos", async (req, res) => {
+    // Função auxiliar para formatar data para o SQL (YYYY-MM-DD)
+    const fmt = d => {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    };
+
     try {
         const idempresa = req.idempresa;
         if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
 
+        // --- LÓGICA DE FILTROS (Extraída do código anterior) ---
+        const periodo = (req.query.periodo || 'anual').toLowerCase();
+        const dataInicioQuery = req.query.dataInicio;
+        const mes = parseInt(req.query.mes, 10);
         const anoFiltro = parseInt(req.query.ano, 10) || new Date().getFullYear();
-        
-        // Definição do range do ano selecionado
-        const startDate = `${anoFiltro}-01-01`;
-        const endDate = `${anoFiltro}-12-31`;
-        const dataHojeSQL = new Date().toISOString().split('T')[0];
+        const trimestre = parseInt(req.query.trimestre, 10);
+        const semestre = parseInt(req.query.semestre, 10);
 
+        let startDate, endDate;
+        let dataBase;
+
+        if (periodo === "diario") {
+            dataBase = dataInicioQuery ? new Date(dataInicioQuery + 'T00:00:00') : new Date();
+            startDate = fmt(dataBase);
+            endDate = fmt(dataBase);
+        } else if (periodo === "semanal") {
+            dataBase = dataInicioQuery ? new Date(dataInicioQuery + 'T00:00:00') : new Date();
+            const diaSemana = dataBase.getDay();
+            const primeiro = new Date(dataBase);
+            primeiro.setDate(dataBase.getDate() - diaSemana);
+            startDate = fmt(primeiro);
+            const ultimo = new Date(primeiro);
+            ultimo.setDate(primeiro.getDate() + 6);
+            endDate = fmt(ultimo);
+        } else if (periodo === "mensal") {
+            const m = (!isNaN(mes) ? mes : new Date().getMonth() + 1);
+            startDate = fmt(new Date(anoFiltro, m - 1, 1));
+            endDate = fmt(new Date(anoFiltro, m, 0));
+        } else if (periodo === "trimestral") {
+            const t = (!isNaN(trimestre) ? trimestre : Math.ceil((new Date().getMonth() + 1) / 3));
+            startDate = fmt(new Date(anoFiltro, (t - 1) * 3, 1));
+            endDate = fmt(new Date(anoFiltro, t * 3, 0));
+        } else if (periodo === "semestral") {
+            const s = (!isNaN(semestre) ? semestre : (new Date().getMonth() <= 5 ? 1 : 2));
+            startDate = fmt(new Date(anoFiltro, s === 1 ? 0 : 6, 1));
+            endDate = fmt(new Date(anoFiltro, s === 1 ? 6 : 12, 0));
+        } else { // anual ou default
+            startDate = `${anoFiltro}-01-01`;
+            endDate = `${anoFiltro}-12-31`;
+        }
+
+        const dataHojeSQL = fmt(new Date());
         let params = [idempresa, startDate, endDate, dataHojeSQL];
 
+        // Lógica de Vencimento Pendente (considerando atrasados e dentro do período)
         const whereVencimentoPendente = `
             (tse.statuspgto = 'Pendente') AND (
                 ((torc.dtinimarcacao + INTERVAL '2 days')::date < $4) OR 
@@ -1683,7 +1743,7 @@ router.get("/vencimentos", async (req, res) => {
             )
         `.trim();
 
-        // 1. QUERY DE AGREGAÇÃO (RESUMO POR EVENTO)
+        // 1. QUERY DE AGREGAÇÃO
         const queryAgregacao = `
             SELECT
                 tse.idevento, e.nmevento,
@@ -1701,16 +1761,14 @@ router.get("/vencimentos", async (req, res) => {
             JOIN orcamentoempresas oe ON torc.idorcamento = oe.idorcamento
             WHERE oe.idempresa = $1 
               AND torc.dtinimarcacao BETWEEN $2 AND $3
-              AND EXISTS (SELECT 1 FROM jsonb_array_elements_text(tse.datasevento) d WHERE EXTRACT(YEAR FROM d::date) = ${anoFiltro})
             GROUP BY tse.idevento, e.nmevento;
         `;
 
         const { rows: eventos } = await pool.query(queryAgregacao, params);
 
-        if (eventos.length === 0) return res.json({ eventos: [] });
+        if (eventos.length === 0) return res.json({ periodo, startDate, endDate, eventos: [] });
 
         // 2. QUERY DE DETALHES (LISTA DE FUNCIONÁRIOS)
-        // Usamos os IDs dos eventos encontrados acima para buscar o staff
         const idsEventos = eventos.map(e => e.idevento);
         const queryDetalhes = `
             SELECT
@@ -1722,13 +1780,12 @@ router.get("/vencimentos", async (req, res) => {
                 tse.statuspgto AS statusPgto
             FROM staffeventos tse
             WHERE tse.idevento = ANY($1)
-              AND EXISTS (SELECT 1 FROM jsonb_array_elements_text(tse.datasevento) d WHERE EXTRACT(YEAR FROM d::date) = $2)
             ORDER BY tse.nmfuncionario;
         `;
 
-        const { rows: staffRows } = await pool.query(queryDetalhes, [idsEventos, anoFiltro]);
+        const { rows: staffRows } = await pool.query(queryDetalhes, [idsEventos]);
 
-        // 3. MAPEAMENTO FINAL (ANEXANDO STAFF AOS EVENTOS)
+        // 3. MAPEAMENTO FINAL
         const resultado = eventos.map(ev => {
             const dInicio = ev.dt_inicio ? new Date(ev.dt_inicio) : null;
             const dFim = ev.dt_fim ? new Date(ev.dt_fim) : null;
@@ -1742,16 +1799,15 @@ router.get("/vencimentos", async (req, res) => {
                 dataVencimentoAjuda: dInicio ? new Date(new Date(dInicio).setDate(dInicio.getDate() + 2)).toLocaleDateString('pt-BR') : 'N/A',
                 dataVencimentoCache: dFim ? new Date(new Date(dFim).setDate(dFim.getDate() + 3)).toLocaleDateString('pt-BR') : 'N/A',
                 ajuda: { 
-                    total: parseFloat(ev.ajuda_total), 
+                    total: parseFloat(ev.ajuda_total || 0), 
                     pendente: parseFloat(ev.ajuda_pendente || 0), 
                     pagos: parseFloat(ev.ajuda_paga || 0) 
                 },
                 cache: { 
-                    total: parseFloat(ev.cache_total), 
+                    total: parseFloat(ev.cache_total || 0), 
                     pendente: parseFloat(ev.cache_pendente || 0), 
                     pagos: parseFloat(ev.cache_pago || 0) 
                 },
-                // Filtra os funcionários que pertencem a este evento específico
                 funcionarios: staffRows
                     .filter(s => s.idevento === ev.idevento)
                     .map(s => ({
@@ -1764,7 +1820,7 @@ router.get("/vencimentos", async (req, res) => {
             };
         });
 
-        res.json({ eventos: resultado });
+        res.json({ periodo, startDate, endDate, eventos: resultado });
 
     } catch (error) {
         console.error("ERRO CRÍTICO NO BACKEND:", error);

@@ -2640,17 +2640,22 @@ async function abrirListaFuncionarios(equipe, evento) {
 
   // === Carregamento de Dados ===
   try {
-  const idevento = evento.idevento || evento.id || evento.id_evento;
-  const idequipe = equipe.idequipe;
-  const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
+    const idevento = evento.idevento || evento.id || evento.id_evento;
+    const idequipe = equipe.idequipe;
+    const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
+    
+    // Tenta pegar o ano da data do evento, se não existir, usa o ano atual
+    const dataRef = evento.inicio_realizacao || evento.dtinirealizacao || new Date();
+    const ano = new Date(dataRef).getFullYear();
 
-  if (!idevento || !idequipe || !idempresa) {
-  corpo.innerHTML = `<p class="erro">Erro: IDs de evento, equipe ou empresa não identificados.</p>`;
-  return;
-  }
+    if (!idevento || !idequipe || !idempresa) {
+      corpo.innerHTML = `<p class="erro">Erro: Dados incompletos (Evento: ${idevento}, Equipe: ${idequipe}, Empresa: ${idempresa}).</p>`;
+      return;
+    }
 
-  const url = `/main/ListarFuncionarios?idEvento=${idevento}&idEquipe=${idequipe}`;
-  const funcionarios = await fetchComToken(url);
+    // Adicionado idempresa e ano na query string para bater com o que o backend espera
+    const url = `/main/ListarFuncionarios?idEvento=${idevento}&idEquipe=${idequipe}&idempresa=${idempresa}&ano=${ano}`;
+    const funcionarios = await fetchComToken(url);
 
   if (!Array.isArray(funcionarios)) {
    throw new Error("Resposta inválida ou vazia do servidor.");
@@ -2675,7 +2680,8 @@ async function abrirListaFuncionarios(equipe, evento) {
   conteudoAgrupadoHtml += `
   <div class="funcionario-grupo-header">
   <h4 class="grupo-titulo">${escapeHtml(funcao)}</h4>
-  <span class="grupo-badge">${funcionariosDaFuncao.length} Pessoa(s) Pagamento</span>
+  <span class="grupo-badge">${funcionariosDaFuncao.length} Pessoa(s)</span>
+  <span class="grupo-periodo">Status</span>
   </div>
   <div class="grupo-divisor"></div>
   `;
