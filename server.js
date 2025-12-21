@@ -15,6 +15,7 @@ const { autenticarToken, contextoEmpresa } = require('./middlewares/authMiddlewa
 //const contextoEmpresa = require('./middlewares/contextoEmpresa');
 
 // --- antes de app.use('/auth', authRoutes); e de todas as outras rotas:
+app.use(express.static(path.join(__dirname, 'public')));//adicionado para não dar erro na atualização da página
 app.use(express.json());                 // lê JSON no corpo das requisições
 app.use(express.urlencoded({ extended: true })); // lê formulários URL-encoded
 
