@@ -1675,7 +1675,6 @@ router.patch('/aditivoextra/:idAditivoExtra/status',
 // VENCIMENTOS
 // =======================================
 router.get("/vencimentos", async (req, res) => {
-    // Função auxiliar para formatar data para o SQL (YYYY-MM-DD)
     const fmt = d => {
         const yyyy = d.getFullYear();
         const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -1687,7 +1686,7 @@ router.get("/vencimentos", async (req, res) => {
         const idempresa = req.idempresa;
         if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
 
-        // --- LÓGICA DE FILTROS (Extraída do código anterior) ---
+        // --- LÓGICA DE FILTROS RESTAURADA ---
         const periodo = (req.query.periodo || 'anual').toLowerCase();
         const dataInicioQuery = req.query.dataInicio;
         const mes = parseInt(req.query.mes, 10);
@@ -1723,38 +1722,30 @@ router.get("/vencimentos", async (req, res) => {
             const s = (!isNaN(semestre) ? semestre : (new Date().getMonth() <= 5 ? 1 : 2));
             startDate = fmt(new Date(anoFiltro, s === 1 ? 0 : 6, 1));
             endDate = fmt(new Date(anoFiltro, s === 1 ? 6 : 12, 0));
-        } else { // anual ou default
+        } else { // anual
             startDate = `${anoFiltro}-01-01`;
             endDate = `${anoFiltro}-12-31`;
         }
 
-        const dataHojeSQL = fmt(new Date());
-        let params = [idempresa, startDate, endDate, dataHojeSQL];
-
-        // Lógica de Vencimento Pendente (considerando atrasados e dentro do período)
-        const whereVencimentoPendente = `
-            (tse.statuspgto = 'Pendente') AND (
-                ((torc.dtinimarcacao + INTERVAL '2 days')::date < $4) OR 
-                ((torc.dtinimarcacao + INTERVAL '2 days')::date BETWEEN $2 AND $3) OR
-                (torc.dtfimrealizacao IS NOT NULL AND (
-                    ((torc.dtfimrealizacao + INTERVAL '3 days')::date < $4) OR
-                    ((torc.dtfimrealizacao + INTERVAL '3 days')::date BETWEEN $2 AND $3)
-                ))
-            )
-        `.trim();
-
-        // 1. QUERY DE AGREGAÇÃO
+        // --- QUERY DE AGREGAÇÃO CORRIGIDA ---
+        // Removi a variável complexa 'whereVencimentoPendente' que estava causando o erro de parâmetro $4
         const queryAgregacao = `
             SELECT
                 tse.idevento, e.nmevento,
                 MAX(torc.dtinimarcacao) AS dt_inicio,
                 MAX(torc.dtfimrealizacao) AS dt_fim,
-                SUM((COALESCE(tse.vlralmoco,0)+COALESCE(tse.vlralimentacao,0)+COALESCE(tse.vlrtransporte,0)) * GREATEST(jsonb_array_length(tse.datasevento), 1)) AS ajuda_total,
-                SUM((COALESCE(tse.vlralmoco,0)+COALESCE(tse.vlralimentacao,0)+COALESCE(tse.vlrtransporte,0)) * GREATEST(jsonb_array_length(tse.datasevento), 1)) FILTER (WHERE tse.statuspgto = 'Pago') AS ajuda_paga,
-                SUM((COALESCE(tse.vlralmoco,0)+COALESCE(tse.vlralimentacao,0)+COALESCE(tse.vlrtransporte,0)) * GREATEST(jsonb_array_length(tse.datasevento), 1)) FILTER (WHERE ${whereVencimentoPendente}) AS ajuda_pendente,
-                SUM(COALESCE(tse.vlrcache,0) * GREATEST(jsonb_array_length(tse.datasevento), 1)) AS cache_total,
-                SUM(COALESCE(tse.vlrcache,0) * GREATEST(jsonb_array_length(tse.datasevento), 1)) FILTER (WHERE tse.statuspgto = 'Pago') AS cache_pago,
-                SUM(COALESCE(tse.vlrcache,0) * GREATEST(jsonb_array_length(tse.datasevento), 1)) FILTER (WHERE ${whereVencimentoPendente}) AS cache_pendente
+                -- Ajuda de Custo
+                COALESCE(SUM((COALESCE(tse.vlralmoco,0)+COALESCE(tse.vlralimentacao,0)+COALESCE(tse.vlrtransporte,0)) * GREATEST(jsonb_array_length(tse.datasevento), 1)), 0) AS ajuda_total,
+                COALESCE(SUM((COALESCE(tse.vlralmoco,0)+COALESCE(tse.vlralimentacao,0)+COALESCE(tse.vlrtransporte,0)) * GREATEST(jsonb_array_length(tse.datasevento), 1)) 
+                    FILTER (WHERE tse.statuspgtoajdcto LIKE 'Pago%'), 0) AS ajuda_paga,
+                COALESCE(SUM((COALESCE(tse.vlralmoco,0)+COALESCE(tse.vlralimentacao,0)+COALESCE(tse.vlrtransporte,0)) * GREATEST(jsonb_array_length(tse.datasevento), 1)) 
+                    FILTER (WHERE tse.statuspgtoajdcto = 'Pendente' OR tse.statuspgtoajdcto IS NULL), 0) AS ajuda_pendente,
+                -- Cachê
+                COALESCE(SUM(COALESCE(tse.vlrcache,0) * GREATEST(jsonb_array_length(tse.datasevento), 1)), 0) AS cache_total,
+                COALESCE(SUM(COALESCE(tse.vlrcache,0) * GREATEST(jsonb_array_length(tse.datasevento), 1)) 
+                    FILTER (WHERE tse.statuspgto LIKE 'Pago%'), 0) AS cache_pago,
+                COALESCE(SUM(COALESCE(tse.vlrcache,0) * GREATEST(jsonb_array_length(tse.datasevento), 1)) 
+                    FILTER (WHERE tse.statuspgto = 'Pendente' OR tse.statuspgto IS NULL), 0) AS cache_pendente
             FROM staffeventos tse
             JOIN eventos e ON tse.idevento = e.idevento
             JOIN orcamentos torc ON tse.idevento = torc.idevento
@@ -1764,20 +1755,20 @@ router.get("/vencimentos", async (req, res) => {
             GROUP BY tse.idevento, e.nmevento;
         `;
 
-        const { rows: eventos } = await pool.query(queryAgregacao, params);
+        const { rows: eventos } = await pool.query(queryAgregacao, [idempresa, startDate, endDate]);
 
         if (eventos.length === 0) return res.json({ periodo, startDate, endDate, eventos: [] });
 
-        // 2. QUERY DE DETALHES (LISTA DE FUNCIONÁRIOS)
+        // --- QUERY DE DETALHES ---
         const idsEventos = eventos.map(e => e.idevento);
         const queryDetalhes = `
             SELECT
-                tse.idevento, tse.nmfuncionario AS nome, tse.nmfuncao AS funcao,
-                jsonb_array_length(tse.datasevento) AS qtdDiarias,
-                COALESCE(tse.vlrcache, 0) * GREATEST(jsonb_array_length(tse.datasevento), 1) AS totalCache,
-                (COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * GREATEST(jsonb_array_length(tse.datasevento), 1) AS totalAjudaCusto,
-                (COALESCE(tse.vlrcache, 0) + COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * GREATEST(jsonb_array_length(tse.datasevento), 1) AS totalPagar,
-                tse.statuspgto AS statusPgto
+                tse.idstaffevento, tse.idevento, tse.nmfuncionario AS nome, tse.nmfuncao AS funcao,
+                jsonb_array_length(tse.datasevento) AS qtddiarias,
+                (COALESCE(tse.vlrcache, 0) * GREATEST(jsonb_array_length(tse.datasevento), 1)) AS totalcache,
+                ((COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * GREATEST(jsonb_array_length(tse.datasevento), 1)) AS totalajudacusto,
+                tse.statuspgto, 
+                tse.statuspgtoajdcto
             FROM staffeventos tse
             WHERE tse.idevento = ANY($1)
             ORDER BY tse.nmfuncionario;
@@ -1785,7 +1776,7 @@ router.get("/vencimentos", async (req, res) => {
 
         const { rows: staffRows } = await pool.query(queryDetalhes, [idsEventos]);
 
-        // 3. MAPEAMENTO FINAL
+        // --- MAPEAMENTO FINAL ---
         const resultado = eventos.map(ev => {
             const dInicio = ev.dt_inicio ? new Date(ev.dt_inicio) : null;
             const dFim = ev.dt_fim ? new Date(ev.dt_fim) : null;
@@ -1796,26 +1787,31 @@ router.get("/vencimentos", async (req, res) => {
                 totalGeral: parseFloat(ev.ajuda_total) + parseFloat(ev.cache_total),
                 dataInicioEvento: dInicio ? dInicio.toLocaleDateString('pt-BR') : 'N/A',
                 dataFimEvento: dFim ? dFim.toLocaleDateString('pt-BR') : 'N/A',
+                // Lógica de Vencimento
                 dataVencimentoAjuda: dInicio ? new Date(new Date(dInicio).setDate(dInicio.getDate() + 2)).toLocaleDateString('pt-BR') : 'N/A',
                 dataVencimentoCache: dFim ? new Date(new Date(dFim).setDate(dFim.getDate() + 3)).toLocaleDateString('pt-BR') : 'N/A',
                 ajuda: { 
-                    total: parseFloat(ev.ajuda_total || 0), 
-                    pendente: parseFloat(ev.ajuda_pendente || 0), 
-                    pagos: parseFloat(ev.ajuda_paga || 0) 
+                    total: parseFloat(ev.ajuda_total), 
+                    pendente: parseFloat(ev.ajuda_pendente), 
+                    pagos: parseFloat(ev.ajuda_paga) 
                 },
                 cache: { 
-                    total: parseFloat(ev.cache_total || 0), 
-                    pendente: parseFloat(ev.cache_pendente || 0), 
-                    pagos: parseFloat(ev.cache_pago || 0) 
+                    total: parseFloat(ev.cache_total), 
+                    pendente: parseFloat(ev.cache_pendente), 
+                    pagos: parseFloat(ev.cache_pago) 
                 },
                 funcionarios: staffRows
                     .filter(s => s.idevento === ev.idevento)
                     .map(s => ({
-                        ...s,
-                        qtdDiarias: parseInt(s.qtddiarias, 10),
-                        totalCache: parseFloat(s.totalcache),
-                        totalAjudaCusto: parseFloat(s.totalajudacusto),
-                        totalPagar: parseFloat(s.totalpagar)
+                        idstaffevento: s.idstaffevento,
+                        nome: s.nome,
+                        funcao: s.funcao,
+                        qtddiarias: parseInt(s.qtddiarias, 10),
+                        totalcache: parseFloat(s.totalcache),
+                        totalajudacusto: parseFloat(s.totalajudacusto),
+                        totalpagar: parseFloat(s.totalcache) + parseFloat(s.totalajudacusto),
+                        statuspgto: s.statuspgto || 'Pendente',
+                        statuspgtoajdcto: s.statuspgtoajdcto || 'Pendente'
                     }))
             };
         });
@@ -1825,6 +1821,30 @@ router.get("/vencimentos", async (req, res) => {
     } catch (error) {
         console.error("ERRO CRÍTICO NO BACKEND:", error);
         res.status(500).json({ error: error.message });
+    }
+});
+
+// NOVA ROTA PARA ATUALIZAR STATUS INDIVIDUAL
+router.post("/vencimentos/update-status", async (req, res) => {
+    const { idStaff, tipo, novoStatus } = req.body;
+    
+    // Mapeia o tipo para a coluna correta do banco
+    const coluna = (tipo === 'Cache') ? 'statuspgto' : 'statuspgtoajdcto';
+
+    try {
+        const result = await pool.query(
+            `UPDATE staffeventos SET ${coluna} = $1 WHERE idstaffevento = $2`, 
+            [novoStatus, idStaff]
+        );
+
+        if (result.rowCount > 0) {
+            res.json({ success: true });
+        } else {
+            res.status(404).json({ success: false, error: "Registro não encontrado." });
+        }
+    } catch (error) {
+        console.error("Erro no update:", error);
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 // =======================================

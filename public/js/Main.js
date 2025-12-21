@@ -4508,9 +4508,11 @@ function formatarMoeda(valor) {
 }
 
 async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) { 
+    // Segurança: Se o container principal não existir, interrompe a função
+    if (!conteudoGeral) return;
+
     conteudoGeral.innerHTML = '<h3>Carregando dados...</h3>';
     
-    // 1. Limpa o resumo
     if (valoresResumoElement) {
         valoresResumoElement.innerHTML = '';
     }
@@ -4521,7 +4523,6 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
     try {
         const dados = await fetchComToken(url);
         
-        // 2. Inicializa somadores
         let totalAjudaPendente = 0;
         let totalAjudaPaga = 0;
         let totalCachePendente = 0;
@@ -4537,26 +4538,16 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             accordionContainer.className = "accordion-vencimentos";
 
             dados.eventos.forEach(evento => {
-                // ✅ LEITURA SEGURA: Estas variáveis NUNCA serão nulas ou undefined, serão 0 se o dado faltar.
+                // Os nomes aqui devem bater com o que o backend envia no objeto 'evento'
                 const ajudaPendente = evento.ajuda?.pendente || 0;
                 const ajudaPaga = evento.ajuda?.pagos || 0;
                 const cachePendente = evento.cache?.pendente || 0;
                 const cachePaga = evento.cache?.pagos || 0;
 
-                // 3. Acumula os totais
                 totalAjudaPendente += ajudaPendente;
                 totalAjudaPaga += ajudaPaga;
                 totalCachePendente += cachePendente;
                 totalCachePago += cachePaga;
-
-                const dataInicio = evento.dataInicioEvento || 'N/A';
-                const dataFim = evento.dataFimEvento || 'N/A';
-                const vencimentoAjuda = evento.dataVencimentoAjuda || 'N/A';
-                const vencimentoCache = evento.dataVencimentoCache || 'N/A';
-
-                console.log(`Processando evento: ${dados.eventos.indexOf(evento) + 1} - ${evento.nomeEvento}`);
-
-                // ... (Criação do Acordeão) ...
 
                 const item = document.createElement("div");
                 item.className = "accordion-item";
@@ -4574,7 +4565,6 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 const body = document.createElement("div");
                 body.className = "accordion-body";
 
-                // ✅ CORPO DO ACORDEÃO: Usando as variáveis locais SEGURAS
                 body.innerHTML = `
                     <div class="resumo-categorias">
                         <div class="categoria-bloco">
@@ -4583,16 +4573,15 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                                 Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
                             </p>
                             <p class="vencimento">Vence em: <strong>${evento.dataVencimentoAjuda}</strong></p>
-                            <p><strong>Pendentes:</strong> ${formatarMoeda(ajudaPendente)} - <strong>Pagos:</strong> ${formatarMoeda(ajudaPaga)} - <strong>Total:</strong> ${formatarMoeda(evento.ajuda?.total || 0)}</p>
+                            <p><strong>Pendentes:</strong> ${formatarMoeda(ajudaPendente)} - <strong>Pagos:</strong> ${formatarMoeda(ajudaPaga)}</p>
                         </div>
-
                         <div class="categoria-bloco">
                             <h3>Cachê</h3>
                             <p class="datas-evento">
                                 Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
                             </p>
                             <p class="vencimento">Vence em: <strong>${evento.dataVencimentoCache}</strong></p>
-                            <p><strong>Pendentes:</strong> ${formatarMoeda(cachePendente)} - <strong>Pagos:</strong> ${formatarMoeda(cachePaga)} - <strong>Total:</strong> ${formatarMoeda(evento.cache?.total || 0)}</p>
+                            <p><strong>Pendentes:</strong> ${formatarMoeda(cachePendente)} - <strong>Pagos:</strong> ${formatarMoeda(cachePaga)}</p>
                         </div>
                     </div>
 
@@ -4604,23 +4593,84 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                                 <tr>
                                     <th>NOME / FUNÇÃO</th>
                                     <th>DIÁRIAS</th>
+                                    ${usuarioTemPermissao() ? '<th>AÇÕES CACHÊ</th>' : ''}
                                     <th>CACHÊ</th>
+                                    <th>STATUS CACHÊ</th>
+                                    ${usuarioTemPermissao() ? '<th>AÇÕES A.J.CUSTO</th>' : ''}
                                     <th>A.J. CUSTO</th>
+                                    <th>STATUS A.J.CUSTO</th>
                                     <th>TOTAL</th>
-                                    <th>STATUS</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${evento.funcionarios?.map(f => `
-                                    <tr>
-                                        <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
-                                        <td>${f.qtdDiarias}</td>
-                                        <td>${formatarMoeda(f.totalCache)}</td>
-                                        <td>${formatarMoeda(f.totalAjudaCusto)}</td>
-                                        <td><strong>${formatarMoeda(f.totalPagar)}</strong></td>
-                                        <td class="status-${(f.statusPgto || 'desconhecido').toLowerCase()}">${f.statusPgto || '—'}</td>
-                                    </tr>
-                                `).join("") ?? '<tr><td colspan="6" class="text-center">Nenhum funcionário encontrado neste evento.</td></tr>'}
+                               ${evento.funcionarios?.map(f => {
+                                    const statusCache = f.statuspgto || 'Pendente';
+                                    const statusAjuda = f.statuspgtoajdcto || 'Pendente';
+                                    
+                                    const classeCache = statusCache.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+                                    const classeAjuda = statusAjuda.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+
+
+                                    // Se já estiver 100% Pago, mantém a célula mas remove os botões (mostra ícone fixo)
+                                    const renderBotaoAcao = (tipo, statusAtual) => {
+                                        if (!usuarioTemPermissao()) return '';
+
+                                        // Caso 1: Pago (Bloqueado)
+                                        if (statusAtual === 'Pago' || statusAtual === 'Pago 100%') {
+                                            return `
+                                                <td class="acoes-master">
+                                                    <div class="btn-group-acoes">
+                                                        <span class="check-finalizado"><i class="fas fa-lock"></i></span>
+                                                    </div>
+                                                </td>`; 
+                                        }
+
+                                        // Caso 2: Pago 50% (Botão de complemento)
+                                        if (statusAtual === 'Pago 50%') {
+                                            return `
+                                                <td class="acoes-master">
+                                                    <div class="btn-group-acoes">
+                                                        <button class="btn-complementar" title="Pagar os 50% restantes" 
+                                                            onclick="alterarStatusStaff(${f.idstaffevento}, '${tipo}', 'Pago 100%')">
+                                                            <i class="fas fa-plus-circle"></i> +50%
+                                                        </button>
+                                                    </div>
+                                                </td>`;
+                                        }
+
+                                        // Caso 3: Pendente (Botões padrão)
+                                        return `
+                                            <td class="acoes-master">
+                                                <div class="btn-group-acoes">
+                                                    <button class="btn-pago" onclick="alterarStatusStaff(${f.idstaffevento}, '${tipo}', 'Pago')">
+                                                        <i class="fas fa-check"></i> Pago
+                                                    </button>
+                                                    <button class="btn-suspenso" onclick="alterarStatusStaff(${f.idstaffevento}, '${tipo}', 'Suspenso')">
+                                                        <i class="fas fa-pause"></i> Suspender
+                                                    </button>
+                                                </div>
+                                            </td>`;
+                                    };
+                                    return `
+                                        <tr>
+                                            <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
+                                            <td>${f.qtddiarias || 0}</td>
+                                            
+                                            <td class="acoes-master col-acoes-cache">
+                                                ${renderConteudoAcao(f.idstaffevento, 'Cache', statusCache)}
+                                            </td>
+                                            <td>${formatarMoeda(f.totalcache || 0)}</td>
+                                            <td class="status-celula status-${classeCache} col-status-cache">${statusCache}</td>
+                                            
+                                            <td class="acoes-master col-acoes-ajuda">
+                                                ${renderConteudoAcao(f.idstaffevento, 'Ajuda', statusAjuda)}
+                                            </td>
+                                            <td>${formatarMoeda(f.totalajudacusto || 0)}</td>
+                                            <td class="status-celula status-${classeAjuda} col-status-ajuda">${statusAjuda}</td>
+                                            
+                                            <td><strong>${formatarMoeda(f.totalpagar || 0)}</strong></td>
+                                        </tr>`;
+                                }).join("")}
                             </tbody>
                         </table>
                     </div> 
@@ -4631,17 +4681,13 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 accordionContainer.appendChild(item);
             });
 
-            console.log("Todas as datas :", dados.eventos.map(e => ({nome: e.nomeEvento, inicio: e.dataInicioEvento, fim: e.dataFimEvento})));
-
             conteudoGeral.appendChild(accordionContainer);
         }
 
-        // 4. Atualiza a DIV de resumo (topo do painel)
+        // 4. Atualiza a DIV de resumo
         if (valoresResumoElement) {
             const totalPagarGeral = totalAjudaPendente + totalCachePendente;
             const totalPagoGeral = totalAjudaPaga + totalCachePago;
-            
-            const tipoFiltro = document.querySelector("input[name='periodo']:checked")?.value || 'diário';
             
             valoresResumoElement.innerHTML = `
                 <div class="resumo-detalhado">
@@ -4651,17 +4697,16 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                             <span class="valor-pendente">${formatarMoeda(totalPagarGeral)}</span>
                         </div>
                         <div class="bloco-pago">
-                            <h4>Pago</h4>
+                            <h4>Pago (Total e Parcial)</h4>
                             <span class="valor-pago">${formatarMoeda(totalPagoGeral)}</span>
                         </div>
                     </div>
-
                     <div class="resumo-categorias-totais">
-                        <div class="AJDC">
+                        <div>
                             <label><strong>Ajuda de Custo:</strong></label>
                             <p>Pendente: ${formatarMoeda(totalAjudaPendente)} / Pago: ${formatarMoeda(totalAjudaPaga)}</p>
                         </div>
-                        <div class="CACHE">
+                        <div>
                             <label><strong>Cachê:</strong></label>
                             <p>Pendente: ${formatarMoeda(totalCachePendente)} / Pago: ${formatarMoeda(totalCachePago)}</p>
                         </div>
@@ -4670,15 +4715,83 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             `;
         }
 
-
     } catch (error) {
-        console.error("Erro ao carregar detalhes de vencimentos:", error);
-        conteudoGeral.innerHTML = '<p class="alerta-erro">Erro ao carregar dados.</p>';
-        if (valoresResumoElement) {
-             valoresResumoElement.innerHTML = `<p class="alerta-erro">Erro ao carregar resumo.</p>`;
-        }
+        console.error("Erro ao carregar detalhes:", error);
+        conteudoGeral.innerHTML = '<p class="alerta-erro">Erro ao carregar dados do servidor.</p>';
     }
 }
+
+// --- FUNÇÕES DE AÇÃO CORRIGIDAS ---
+
+async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
+    const btnClicado = elementoBotao;
+    const linhaTr = btnClicado ? btnClicado.closest('tr') : null;
+
+    try {
+        const response = await fetch(`/main/vencimentos/update-status`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}` 
+            },
+            body: JSON.stringify({ idStaff, tipo, novoStatus })
+        });
+
+        if (response.ok) {
+            exibirToastSucesso(); // Sua função de Toast
+
+            if (linhaTr) {
+                // Identifica as classes corretas baseado no tipo (Cache ou Ajuda)
+                const sufixo = tipo === 'Cache' ? 'cache' : 'ajuda';
+                const celulaAcoes = linhaTr.querySelector(`.col-acoes-${sufixo}`);
+                const celulaStatus = linhaTr.querySelector(`.col-status-${sufixo}`);
+
+                // Atualiza o Status Visual
+                if (celulaStatus) {
+                    const classeStatus = novoStatus.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+                    celulaStatus.className = `status-celula status-${classeStatus} col-status-${sufixo}`;
+                    celulaStatus.innerText = novoStatus;
+                }
+
+                // Atualiza os Botões
+                if (celulaAcoes) {
+                    celulaAcoes.innerHTML = renderConteudoAcao(idStaff, tipo, novoStatus);
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Erro:", error);
+    }
+}
+
+function renderConteudoAcao(idStaff, tipo, statusAtual) {
+    if (statusAtual === 'Pago' || statusAtual === 'Pago 100%') {
+        return `<div class="btn-group-acoes"><span class="check-finalizado"><i class="fas fa-lock"></i></span></div>`;
+    }
+
+    if (statusAtual === 'Pago 50%') {
+        return `
+            <div class="btn-group-acoes">
+                <button class="btn-complementar" title="Pagar os 50% restantes" 
+                    onclick="alterarStatusStaff(${idStaff}, '${tipo}', 'Pago 100%', this)">
+                    <i class="fas fa-plus-circle"></i> +50%
+                </button>
+            </div>`;
+    }
+
+    return `
+        <div class="btn-group-acoes">
+            <button class="btn-pago" onclick="alterarStatusStaff(${idStaff}, '${tipo}', 'Pago', this)">
+                <i class="fas fa-check"></i> Pago
+            </button>
+            <button class="btn-suspenso" onclick="alterarStatusStaff(${idStaff}, '${tipo}', 'Suspenso', this)">
+                <i class="fas fa-pause"></i> Suspender
+            </button>
+        </div>`;
+}
+
+window.alterarStatusStaff = alterarStatusStaff;
+
 
 function construirParametrosFiltro() {
     // Captura o tipo de filtro principal (Obrigatório para o backend)
