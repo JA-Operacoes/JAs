@@ -1055,7 +1055,7 @@ async function mostrarCalendarioEventos() {
   const controles = document.createElement("div");
   controles.className = "calendario-controles";
   controles.innerHTML = `
-  <label>Ano: <select id="anoSelect"></select></label>
+  <div><label>Ano: <select id="anoSelect"></select></label></div>
   <label>Mês: <select id="mesSelect"></select></label>
   <label>Visualização:
   <select id="viewSelect">
@@ -2648,17 +2648,22 @@ async function abrirListaFuncionarios(equipe, evento) {
 
   // === Carregamento de Dados ===
   try {
-  const idevento = evento.idevento || evento.id || evento.id_evento;
-  const idequipe = equipe.idequipe;
-  const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
+    const idevento = evento.idevento || evento.id || evento.id_evento;
+    const idequipe = equipe.idequipe;
+    const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
+    
+    // Tenta pegar o ano da data do evento, se não existir, usa o ano atual
+    const dataRef = evento.inicio_realizacao || evento.dtinirealizacao || new Date();
+    const ano = new Date(dataRef).getFullYear();
 
-  if (!idevento || !idequipe || !idempresa) {
-  corpo.innerHTML = `<p class="erro">Erro: IDs de evento, equipe ou empresa não identificados.</p>`;
-  return;
-  }
+    if (!idevento || !idequipe || !idempresa) {
+      corpo.innerHTML = `<p class="erro">Erro: Dados incompletos (Evento: ${idevento}, Equipe: ${idequipe}, Empresa: ${idempresa}).</p>`;
+      return;
+    }
 
-  const url = `/main/ListarFuncionarios?idEvento=${idevento}&idEquipe=${idequipe}`;
-  const funcionarios = await fetchComToken(url);
+    // Adicionado idempresa e ano na query string para bater com o que o backend espera
+    const url = `/main/ListarFuncionarios?idEvento=${idevento}&idEquipe=${idequipe}&idempresa=${idempresa}&ano=${ano}`;
+    const funcionarios = await fetchComToken(url);
 
   if (!Array.isArray(funcionarios)) {
    throw new Error("Resposta inválida ou vazia do servidor.");
@@ -2683,7 +2688,8 @@ async function abrirListaFuncionarios(equipe, evento) {
   conteudoAgrupadoHtml += `
   <div class="funcionario-grupo-header">
   <h4 class="grupo-titulo">${escapeHtml(funcao)}</h4>
-  <span class="grupo-badge">${funcionariosDaFuncao.length} Pessoa(s) Pagamento</span>
+  <span class="grupo-badge">${funcionariosDaFuncao.length} Pessoa(s)</span>
+  <span class="grupo-periodo">Status</span>
   </div>
   <div class="grupo-divisor"></div>
   `;
@@ -2889,6 +2895,7 @@ function abrirDetalhesEquipe(equipe, evento) {
 // =========================
 //    Pedidos Orçamentos 
 // =========================
+
 // function criarFiltroOrcamento(conteudoGeral) {
 //     const filtrosContainer = document.createElement("div");
 //     filtrosContainer.className = "filtros-orcamentos";
@@ -3129,7 +3136,7 @@ function renderizarPedidosorc(listaPedidos, containerId, categoria, status, isSt
         // Variáveis de Exibição
         const nomeTipoExibicao = escapeHTML(p.categoriaSolicitacao || p.tiposolicitacao || 'Orçamento Complementar'); 
         const tipoInterno = escapeHTML(p.tiposolicitacao || 'N/D');
-        const nomePrincipal = escapeHTML(p.nome_funcionario_afetado || p.nome_evento || `Orçamento ${p.nrdorcamento}` || 'N/D');        
+        const nomePrincipal = escapeHTML(p.nome_funcionario_afetado || p.nome_evento || `Orçamento ${p.nrdorcamento}` || 'N/D');       
         const titulo = `${nomeTipoExibicao} - ${nomePrincipal}`; 
         const tipoCor = 'aditivo-extra';
         const tipoIcone = 'fa fa-plus-circle';
@@ -4790,112 +4797,335 @@ function formatarMoeda(valor) {
     });
 }
 
-async function carregarDetalhesVencimentos(conteudoGeral) {
-    conteudoGeral.innerHTML = '<h3>Carregando dados...</h3>';
+async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) { 
+    // Segurança: Se o container principal não existir, interrompe a função
+    if (!conteudoGeral) return;
 
-    // Obtém data ou filtro definido
+    conteudoGeral.innerHTML = '<h3>Carregando dados...</h3>';
+    
+    if (valoresResumoElement) {
+        valoresResumoElement.innerHTML = '';
+    }
+
     const params = construirParametrosFiltro();
     const url = `/main/vencimentos${params}`;
 
     try {
         const dados = await fetchComToken(url);
+        
+        let totalAjudaPendente = 0;
+        let totalAjudaPaga = 0;
+        let totalCachePendente = 0;
+        let totalCachePago = 0;
+        
+        let temDados = dados && dados.eventos && dados.eventos.length > 0;
 
-        if (!dados || !dados.eventos || dados.eventos.length === 0) {
-      conteudoGeral.innerHTML = '<p class="alerta-info">Nenhum evento encontrado para esse período.</p>';
-      return;
+        if (!temDados) {
+            conteudoGeral.innerHTML = '<p class="alerta-info">Nenhum evento encontrado para esse período.</p>';
+        } else {
+            conteudoGeral.innerHTML = "";
+            const accordionContainer = document.createElement("div");
+            accordionContainer.className = "accordion-vencimentos";
+
+            dados.eventos.forEach(evento => {
+                // Os nomes aqui devem bater com o que o backend envia no objeto 'evento'
+                const ajudaPendente = evento.ajuda?.pendente || 0;
+                const ajudaPaga = evento.ajuda?.pagos || 0;
+                const cachePendente = evento.cache?.pendente || 0;
+                const cachePaga = evento.cache?.pagos || 0;
+
+                totalAjudaPendente += ajudaPendente;
+                totalAjudaPaga += ajudaPaga;
+                totalCachePendente += cachePendente;
+                totalCachePago += cachePaga;
+
+                const item = document.createElement("div");
+                item.className = "accordion-item";
+
+                const header = document.createElement("button");
+                header.className = "accordion-header";
+                header.innerHTML = `
+                    <div class="evento-info">
+                        <strong>${evento.nomeEvento}</strong>
+                        <span class="total-geral">Total: ${formatarMoeda(evento.totalGeral)}</span> 
+                    </div>
+                `;
+                header.addEventListener("click", () => item.classList.toggle("active"));
+
+                const body = document.createElement("div");
+                body.className = "accordion-body";
+
+                body.innerHTML = `
+                    <div class="resumo-categorias">
+                        <div class="categoria-bloco">
+                            <h3>Ajuda de Custo</h3>
+                            <p class="datas-evento">
+                                Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
+                            </p>
+                            <p class="vencimento">Vence em: <strong>${evento.dataVencimentoAjuda}</strong></p>
+                            <p><strong>Pendentes:</strong> ${formatarMoeda(ajudaPendente)} - <strong>Pagos:</strong> ${formatarMoeda(ajudaPaga)}</p>
+                        </div>
+                        <div class="categoria-bloco">
+                            <h3>Cachê</h3>
+                            <p class="datas-evento">
+                                Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
+                            </p>
+                            <p class="vencimento">Vence em: <strong>${evento.dataVencimentoCache}</strong></p>
+                            <p><strong>Pendentes:</strong> ${formatarMoeda(cachePendente)} - <strong>Pagos:</strong> ${formatarMoeda(cachePaga)}</p>
+                        </div>
+                    </div>
+
+                    <h4>Funcionários (${evento.funcionarios?.length || 0} Registros):</h4>
+                    
+                    <div class="funcionarios-scroll-container"> 
+                        <table class="tabela-funcionarios-venc">
+                            <thead>
+                                <tr>
+                                    <th>NOME / FUNÇÃO</th>
+                                    <th>DIÁRIAS</th>
+                                    ${usuarioTemPermissao() ? '<th>AÇÕES CACHÊ</th>' : ''}
+                                    <th>CACHÊ</th>
+                                    <th>STATUS CACHÊ</th>
+                                    ${usuarioTemPermissao() ? '<th>AÇÕES A.J.CUSTO</th>' : ''}
+                                    <th>A.J. CUSTO</th>
+                                    <th>STATUS A.J.CUSTO</th>
+                                    <th>TOTAL</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                               ${evento.funcionarios?.map(f => {
+                                    const statusCache = f.statuspgto || 'Pendente';
+                                    const statusAjuda = f.statuspgtoajdcto || 'Pendente';
+                                    
+                                    const classeCache = statusCache.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+                                    const classeAjuda = statusAjuda.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+
+
+                                    // Se já estiver 100% Pago, mantém a célula mas remove os botões (mostra ícone fixo)
+                                    const renderBotaoAcao = (tipo, statusAtual) => {
+                                        if (!usuarioTemPermissao()) return '';
+
+                                        // Caso 1: Pago (Bloqueado)
+                                        if (statusAtual === 'Pago' || statusAtual === 'Pago 100%') {
+                                            return `
+                                                <td class="acoes-master">
+                                                    <div class="btn-group-acoes">
+                                                        <span class="check-finalizado"><i class="fas fa-lock"></i></span>
+                                                    </div>
+                                                </td>`; 
+                                        }
+
+                                        // Caso 2: Pago 50% (Botão de complemento)
+                                        if (statusAtual === 'Pago 50%') {
+                                            return `
+                                                <td class="acoes-master">
+                                                    <div class="btn-group-acoes">
+                                                        <button class="btn-complementar" title="Pagar os 50% restantes" 
+                                                            onclick="alterarStatusStaff(${f.idstaffevento}, '${tipo}', 'Pago 100%')">
+                                                            <i class="fas fa-plus-circle"></i> +50%
+                                                        </button>
+                                                    </div>
+                                                </td>`;
+                                        }
+
+                                        // Caso 3: Pendente (Botões padrão)
+                                        return `
+                                            <td class="acoes-master">
+                                                <div class="btn-group-acoes">
+                                                    <button class="btn-pago" onclick="alterarStatusStaff(${f.idstaffevento}, '${tipo}', 'Pago')">
+                                                        <i class="fas fa-check"></i> Pago
+                                                    </button>
+                                                    <button class="btn-suspenso" onclick="alterarStatusStaff(${f.idstaffevento}, '${tipo}', 'Suspenso')">
+                                                        <i class="fas fa-pause"></i> Suspender
+                                                    </button>
+                                                </div>
+                                            </td>`;
+                                    };
+                                    return `
+                                        <tr>
+                                            <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
+                                            <td>${f.qtddiarias || 0}</td>
+                                            
+                                            <td class="acoes-master col-acoes-cache">
+                                                ${renderConteudoAcao(f.idstaffevento, 'Cache', statusCache)}
+                                            </td>
+                                            <td>${formatarMoeda(f.totalcache || 0)}</td>
+                                            <td class="status-celula status-${classeCache} col-status-cache">${statusCache}</td>
+                                            
+                                            <td class="acoes-master col-acoes-ajuda">
+                                                ${renderConteudoAcao(f.idstaffevento, 'Ajuda', statusAjuda)}
+                                            </td>
+                                            <td>${formatarMoeda(f.totalajudacusto || 0)}</td>
+                                            <td class="status-celula status-${classeAjuda} col-status-ajuda">${statusAjuda}</td>
+                                            
+                                            <td><strong>${formatarMoeda(f.totalpagar || 0)}</strong></td>
+                                        </tr>`;
+                                }).join("")}
+                            </tbody>
+                        </table>
+                    </div> 
+                `;
+
+                item.appendChild(header);
+                item.appendChild(body);
+                accordionContainer.appendChild(item);
+            });
+
+            conteudoGeral.appendChild(accordionContainer);
         }
 
-        conteudoGeral.innerHTML = "";
-        const accordionContainer = document.createElement("div");
-        accordionContainer.className = "accordion-vencimentos";
-
-        dados.eventos.forEach(evento => {
-      // ITEM DO ACORDEÃO
-      const item = document.createElement("div");
-      item.className = "accordion-item";
-
-      // CABEÇALHO DO EVENTO
-      const header = document.createElement("button");
-      header.className = "accordion-header";
-      header.innerHTML = `
-          <div class="evento-info">
-        <strong>${evento.nomeEvento}</strong>
-        <span class="total-geral">Total: ${formatarMoeda(evento.totalGeral)}</span> 
-          </div>
-      `;
-      header.addEventListener("click", () => item.classList.toggle("active"));
-
-      // CORPO DO ACORDEÃO
-      const body = document.createElement("div");
-      body.className = "accordion-body";
-
-      console.log(`Dados dos Funcionários para o Evento: ${evento.nomeEvento}`);
-      console.log(evento.funcionarios);
-
-      body.innerHTML = `
-        <div class="resumo-categorias">
-      <div class="categoria-bloco">
-          <h3>Ajuda de Custo</h3>
-          <p class="datas-evento">
-        Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
-          </p>
-          <p class="vencimento">Vence em: <strong>${evento.dataVencimentoAjuda}</strong></p>
-          <p><strong>Pendentes:</strong> ${formatarMoeda(evento.ajuda.pendente)} - <strong>Pagos:</strong> ${formatarMoeda(evento.ajuda.pagos)} - <strong>Total:</strong> ${formatarMoeda(evento.ajuda.total)}</p>
-        
-      </div>
-
-      <div class="categoria-bloco">
-          <h3>Cachê</h3>
-          <p class="datas-evento">
-        Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
-          </p>
-          <p class="vencimento">Vence em: <strong>${evento.dataVencimentoCache}</strong></p>
-          <p><strong>Pendentes:</strong> ${formatarMoeda(evento.cache.pendente)} - <strong>Pagos:</strong> ${formatarMoeda(evento.cache.pagos)} - <strong>Total:</strong> ${formatarMoeda(evento.cache.total)}</p>
-      </div>
-        </div>
-
-        <h4>Funcionários (${evento.funcionarios?.length || 0} Registros):</h4>
-        
-        <div class="funcionarios-scroll-container"> 
-      <table class="tabela-funcionarios-venc">
-          <thead>
-        <tr>
-      <th>NOME / FUNÇÃO</th>
-      <th>DIÁRIAS</th>
-      <th>CACHÊ</th>
-      <th>A.J. CUSTO</th>
-      <th>TOTAL</th>
-      <th>STATUS</th>
-        </tr>
-          </thead>
-          <tbody>
-        ${evento.funcionarios?.map(f => `
-      <tr>
-          <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
-          <td>${f.qtdDiarias}</td>
-          <td>${formatarMoeda(f.totalCache)}</td>
-          <td>${formatarMoeda(f.totalAjudaCusto)}</td>
-          <td><strong>${formatarMoeda(f.totalPagar)}</strong></td>
-          <td class="status-${(f.statusPgto || 'desconhecido').toLowerCase()}">${f.statusPgto || '—'}</td>
-      </tr>
-        `).join("") ?? '<tr><td colspan="6" class="text-center">Nenhum funcionário encontrado neste evento.</td></tr>'}
-          </tbody>
-      </table>
-        </div> 
-      `;
-
-      item.appendChild(header);
-      item.appendChild(body);
-      accordionContainer.appendChild(item);
-        });
-
-        conteudoGeral.appendChild(accordionContainer);
+        // 4. Atualiza a DIV de resumo
+        if (valoresResumoElement) {
+            const totalPagarGeral = totalAjudaPendente + totalCachePendente;
+            const totalPagoGeral = totalAjudaPaga + totalCachePago;
+            
+            valoresResumoElement.innerHTML = `
+                <div class="resumo-detalhado">
+                    <div class="resumo-status">
+                        <div class="bloco-pendente">
+                            <h4>A Pagar (Pendente)</h4>
+                            <span class="valor-pendente">${formatarMoeda(totalPagarGeral)}</span>
+                        </div>
+                        <div class="bloco-pago">
+                            <h4>Pago (Total e Parcial)</h4>
+                            <span class="valor-pago">${formatarMoeda(totalPagoGeral)}</span>
+                        </div>
+                    </div>
+                    <div class="resumo-categorias-totais">
+                        <div>
+                            <label><strong>Ajuda de Custo:</strong></label>
+                            <p>Pendente: ${formatarMoeda(totalAjudaPendente)} / Pago: ${formatarMoeda(totalAjudaPaga)}</p>
+                        </div>
+                        <div>
+                            <label><strong>Cachê:</strong></label>
+                            <p>Pendente: ${formatarMoeda(totalCachePendente)} / Pago: ${formatarMoeda(totalCachePago)}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
 
     } catch (error) {
-        console.error(error);
-        conteudoGeral.innerHTML = '<p class="alerta-erro">Erro ao carregar dados.</p>';
+        console.error("Erro ao carregar detalhes:", error);
+        conteudoGeral.innerHTML = '<p class="alerta-erro">Erro ao carregar dados do servidor.</p>';
     }
 }
+
+function exibirToastSucesso(mensagem = 'Status atualizado!') {
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true
+    });
+    Toast.fire({ icon: 'success', title: mensagem });
+}
+
+async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
+    const btnClicado = elementoBotao;
+    const linhaTr = btnClicado ? btnClicado.closest('tr') : null;
+    let statusParaEnviar = novoStatus;
+
+    // LÓGICA DO SWAL PARA AJUDA DE CUSTO (50% ou 100%)
+    if (tipo === 'Ajuda' && novoStatus === 'Pago') {
+        const { value: opcao } = await Swal.fire({
+            title: 'Pagamento Ajuda de Custo',
+            text: 'Escolha a modalidade do pagamento:',
+            icon: 'question',
+            showDenyButton: true,
+            showCancelButton: true,
+            confirmButtonText: 'Pago 100%',
+            denyButtonText: 'Pago 50%',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#28a745',
+            denyButtonColor: '#17a2b8',
+        });
+
+        if (opcao === true) { // Clicou em Pago 100%
+            statusParaEnviar = 'Pago 100%';
+        } else if (Swal.getDenyButton() && opcao === false) { // Clicou em Pago 50%
+            // Nota: O Swal retorna false para o Deny Button se não configurado retorno específico
+            statusParaEnviar = 'Pago 50%';
+        } else {
+            return; // Usuário cancelou, encerra a função
+        }
+    }
+
+    try {
+        const response = await fetch(`/main/vencimentos/update-status`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}` 
+            },
+            body: JSON.stringify({ idStaff, tipo, novoStatus: statusParaEnviar })
+        });
+
+        if (response.ok) {
+            exibirToastSucesso(`Status atualizado para ${statusParaEnviar}`);
+
+            if (linhaTr) {
+                const sufixo = tipo.toLowerCase() === 'cache' ? 'cache' : 'ajuda';
+                const celulaAcoes = linhaTr.querySelector(`.col-acoes-${sufixo}`);
+                const celulaStatus = linhaTr.querySelector(`.col-status-${sufixo}`);
+
+                // Atualiza o Status Visual na tabela
+                if (celulaStatus) {
+                    const classeStatus = statusParaEnviar.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+                    celulaStatus.className = `status-celula status-${classeStatus} col-status-${sufixo}`;
+                    celulaStatus.innerText = statusParaEnviar;
+                }
+
+                // Atualiza os Botões na tabela
+                if (celulaAcoes) {
+                    celulaAcoes.innerHTML = renderConteudoAcao(idStaff, tipo, statusParaEnviar);
+                }
+            }
+
+            // Atualiza os cards de totais no topo (opcional, mas recomendado)
+            if (typeof carregarDadosVencimentos === "function") {
+                const filtroAno = document.getElementById('filtroAnoVencimentos')?.value || 2026;
+                carregarDadosVencimentos(filtroAno);
+            }
+        }
+    } catch (error) {
+        console.error("Erro ao atualizar:", error);
+        Swal.fire('Erro', 'Não foi possível atualizar o status.', 'error');
+    }
+}
+
+function renderConteudoAcao(idStaff, tipo, statusAtual) {
+    // Se estiver 100% ou Pago (Cache), mostra cadeado
+    if (statusAtual === 'Pago' || statusAtual === 'Pago 100%') {
+        return `<div class="btn-group-acoes"><span class="check-finalizado"><i class="fas fa-lock"></i></span></div>`;
+    }
+
+    // Se estiver 50%, mostra botão para completar o resto
+    if (statusAtual === 'Pago 50%') {
+        return `
+            <div class="btn-group-acoes">
+                <button class="btn-complementar" title="Pagar os 50% restantes" 
+                    onclick="alterarStatusStaff(${idStaff}, '${tipo}', 'Pago 100%', this)">
+                    <i class="fas fa-plus-circle"></i> +50%
+                </button>
+            </div>`;
+    }
+
+    // Pendente / Suspenso
+    return `
+        <div class="btn-group-acoes">
+            <button class="btn-pago" onclick="alterarStatusStaff(${idStaff}, '${tipo}', 'Pago', this)">
+                <i class="fas fa-check"></i> Pago
+            </button>
+            <button class="btn-suspenso" onclick="alterarStatusStaff(${idStaff}, '${tipo}', 'Suspenso', this)">
+                <i class="fas fa-pause"></i> Suspenso
+            </button>
+        </div>`;
+}
+
+window.alterarStatusStaff = alterarStatusStaff;
+
 
 function construirParametrosFiltro() {
     // Captura o tipo de filtro principal (Obrigatório para o backend)
@@ -4975,59 +5205,273 @@ function construirParametrosFiltro() {
     return params;
 }
 
-async function carregarDadosVencimentos() {
-   // Definir data de hoje
-  const hoje = new Date();
-  const ano = hoje.getFullYear();
-  const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-  const dia = String(hoje.getDate()).padStart(2, '0');
-  const dataAtualFormatada = `${ano}-${mes}-${dia}`;
 
-  console.log("Data atual formatada para vencimentos:", dataAtualFormatada);
-  // A URL está correta para o resumo diário
-  const urlResumo = `/main/vencimentos?dataInicio=${dataAtualFormatada}&dataFim=${dataAtualFormatada}`;
+// async function carregarDadosVencimentos() {
 
-  // 🎯 CORREÇÃO 1: Obter o elemento do total ANTES do try/catch
-  const cardVencimentos = document.getElementById('cardContainerVencimentos');
-  const totalElement = cardVencimentos ? cardVencimentos.querySelector('.total-vencimentos') : null;
+//     // Definir data de hoje (YYYY-MM-DD)
+//     const hoje = new Date();
+//     const ano = hoje.getFullYear();
+//     const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+//     const dia = String(hoje.getDate()).padStart(2, '0');
+//     const dataAtualFormatada = `${ano}-${mes}-${dia}`;
+//     // Data de referência (sem hora) para comparação
+//     const dataComparacao = new Date(dataAtualFormatada + 'T00:00:00'); 
 
-  // 🎯 CORREÇÃO 2: Se o elemento do total não for encontrado, aborta a função.
-    if (!totalElement) {
-        console.error("Erro: Elemento '.total-vencimentos' não encontrado no DOM. Verifique o HTML do card.");
-        return;
+//     // URL para buscar todos os vencimentos no ANO atual.
+//     const urlResumo = `/main/vencimentos?periodo=anual&ano=${ano}`;
+
+//     // 🎯 Capturando os elementos
+//     const cardVencimentos = document.getElementById('cardContainerVencimentos');
+    
+//     // Elementos de TOTAIS (Header)
+//     const vencimentosTotalElement = document.getElementById('vencimentosTotal'); // Total Previsto
+//     const vencimentosPagosElement = document.getElementById('vencimentosPagos'); // ✅ NOVO: Total Pagos
+
+//     // Elementos DETALHADOS (Grupos)
+//     const vencAjudaAVencerElement = document.getElementById('vencAjudaAVencer');
+//     const vencCacheAVencerElement = document.getElementById('vencCacheAVencer');
+//     const vencAjudaVencidosElement = document.getElementById('vencAjudaVencidos');
+//     const vencCacheVencidosElement = document.getElementById('vencCacheVencidos');
+    
+//     // ✅ NOVO: Elementos Detalhados Pagos
+//     const vencAjudaPagosElement = document.getElementById('vencAjudaPagos');
+//     const vencCachePagosElement = document.getElementById('vencCachePagos');
+
+//     // Verificação de existência dos elementos
+//     if (!vencimentosTotalElement || !vencimentosPagosElement || !vencAjudaAVencerElement || 
+//         !vencCacheAVencerElement || !vencAjudaVencidosElement || !vencCacheVencidosElement ||
+//         !vencAjudaPagosElement || !vencCachePagosElement) {
+        
+//         console.error("Erro: Um ou mais elementos do card de vencimentos não foram encontrados no DOM. Verifique as IDs.");
+//         return;
+//     }
+    
+//     // Inicializa somadores DETALHADOS
+//     let totalGeralPrevisto = 0; // Soma de A VENCER + VENCIDOS
+//     let ajudaAVencer = 0;
+//     let cacheAVencer = 0;
+//     let ajudaVencidos = 0;
+//     let cacheVencidos = 0;
+
+//     // ✅ NOVO: Inicializa somadores PAGOS
+//     let ajudaPagos = 0;
+//     let cachePagos = 0;
+    
+//     try {
+//         const dadosResumo = await fetchComToken(urlResumo); 
+
+//         if (dadosResumo && dadosResumo.eventos && dadosResumo.eventos.length > 0) {
+            
+//             dadosResumo.eventos.forEach(evento => {
+                
+//                 // ------------------------------------
+//                 // 1. Lógica de PENDENTES (A VENCER vs. VENCIDOS)
+//                 // ------------------------------------
+//                 const ajudaPendente = evento.ajuda.pendente || 0;
+//                 if (ajudaPendente > 0 && evento.dataVencimentoAjuda && evento.dataVencimentoAjuda !== 'N/A') {
+                    
+//                     const [d, m, y] = evento.dataVencimentoAjuda.split('/').map(n => parseInt(n, 10));
+//                     const dataVencimentoAjuda = new Date(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}T00:00:00`);
+
+//                     if (dataVencimentoAjuda < dataComparacao) {
+//                         ajudaVencidos += ajudaPendente; 
+//                     } else {
+//                         ajudaAVencer += ajudaPendente; 
+//                     }
+//                     totalGeralPrevisto += ajudaPendente;
+//                 }
+
+//                 const cachePendente = evento.cache.pendente || 0;
+//                 if (cachePendente > 0 && evento.dataVencimentoCache && evento.dataVencimentoCache !== 'N/A') {
+                    
+//                     const [d, m, y] = evento.dataVencimentoCache.split('/').map(n => parseInt(n, 10));
+//                     const dataVencimentoCache = new Date(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}T00:00:00`);
+
+//                     if (dataVencimentoCache < dataComparacao) {
+//                         cacheVencidos += cachePendente; 
+//                     } else {
+//                         cacheAVencer += cachePendente; 
+//                     }
+//                     totalGeralPrevisto += cachePendente;
+//                 }
+                
+//                 // ------------------------------------
+//                 // ✅ 2. Lógica de PAGOS (Valores explícitos do Servidor)
+//                 // ------------------------------------
+//                 ajudaPagos += evento.ajuda.pagos || 0;
+//                 cachePagos += evento.cache.pagos || 0;
+                
+//             });
+//         }
+        
+//         const totalGeralPagos = ajudaPagos + cachePagos;
+
+//         // 🎯 ATUALIZAÇÃO DO CARD (TODOS COM formatarMoeda)
+        
+//         // 1. Header
+//         vencimentosTotalElement.textContent = formatarMoeda(totalGeralPrevisto); // Previsto (Pendentes: A Vencer + Vencidos)
+//         vencimentosPagosElement.textContent = formatarMoeda(totalGeralPagos);    // ✅ NOVO: Pagos (Total)
+        
+//         // 2. A Vencer (Detalhado)
+//         vencAjudaAVencerElement.textContent = formatarMoeda(ajudaAVencer); 
+//         vencCacheAVencerElement.textContent = formatarMoeda(cacheAVencer); 
+        
+//         // 3. Vencidos (Detalhado)
+//         vencAjudaVencidosElement.textContent = formatarMoeda(ajudaVencidos); 
+//         vencCacheVencidosElement.textContent = formatarMoeda(cacheVencidos); 
+        
+//         // 4. Pagos (Detalhado)
+//         vencAjudaPagosElement.textContent = formatarMoeda(ajudaPagos);          // ✅ NOVO: Ajuda Paga
+//         vencCachePagosElement.textContent = formatarMoeda(cachePagos);          // ✅ NOVO: Cachê Pago
+        
+//         if (totalGeralPrevisto > 0 || totalGeralPagos > 0) {
+//             cardVencimentos.style.display = 'block';
+//         } else {
+//             cardVencimentos.style.display = 'none';
+//         }
+
+//     } catch (error) {
+//         console.error("Erro ao carregar dados do card de vencimentos:", error);
+//         // Em caso de erro, zera os valores de forma consistente
+//         vencimentosTotalElement.textContent = `R$ 0,00`;
+//         vencimentosPagosElement.textContent = `R$ 0,00`;
+//         vencAjudaAVencerElement.textContent = `R$ 0,00`; 
+//         vencCacheAVencerElement.textContent = `R$ 0,00`; 
+//         vencAjudaVencidosElement.textContent = `R$ 0,00`; 
+//         vencCacheVencidosElement.textContent = `R$ 0,00`; 
+//         vencAjudaPagosElement.textContent = `R$ 0,00`; 
+//         vencCachePagosElement.textContent = `R$ 0,00`; 
+//     }
+// }
+
+// 1. Gatilho para o Select
+window.carregarDadosDoFiltro = function() {
+    const select = document.getElementById('selectAno');
+    if (select) {
+        console.log("Filtrando para o ano:", select.value);
+        carregarDadosVencimentos(parseInt(select.value, 10));
     }
+};
+
+function configurarSelectAno() {
+    const select = document.getElementById('selectAno');
+    if (!select) return;
+
+    const anoAtual = new Date().getFullYear();
+    const anosParaExibir = [anoAtual - 1, anoAtual, anoAtual + 1]; // Ex: 2024, 2025, 2026
+
+    // Limpa opções existentes
+    select.innerHTML = '';
+
+    anosParaExibir.forEach(ano => {
+        const option = document.createElement('option');
+        option.value = ano;
+        option.textContent = ano;
+        
+        // Define o ano vigente como selecionado
+        if (ano === anoAtual) {
+            option.selected = true;
+        }
+        
+        select.appendChild(option);
+    });
+
+    // Após configurar, carrega os dados do ano atual pela primeira vez
+    carregarDadosVencimentos(anoAtual);
+}
+
+// Chame esta função quando a página carregar
+document.addEventListener('DOMContentLoaded', () => {
+    configurarSelectAno();
+    // outras inicializações...
+});
+
+async function carregarDadosVencimentos(anoFiltro) {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    const ano = anoFiltro || hoje.getFullYear();
+    const url = `/main/vencimentos?periodo=anual&ano=${ano}`;
 
     try {
-    // 🎯 1. CHAMADA REAL: Executa a requisição
-      const dadosResumo = await fetchComToken(urlResumo); 
+        const dados = await fetchComToken(url);
+        
+        let soma = {
+            previsto: 0, pagos: 0, 
+            ajAVencer: 0, ajVencidos: 0, ajPagos: 0,
+            chAVencer: 0, chVencidos: 0, chPagos: 0
+        };
 
-      // Inicializa somadores
-      let totalGeralVencimentos = 0;
+        if (dados && dados.eventos) {
+            dados.eventos.forEach(ev => {
+                // --- AJUDA DE CUSTO ---
+                const ajPendente = parseFloat(ev.ajuda.pendente) || 0;
+                const ajJaPago = parseFloat(ev.ajuda.pagos) || 0;
 
-      if (dadosResumo && dadosResumo.eventos && dadosResumo.eventos.length > 0) {
-          // 🎯 2. PROCESSAMENTO: Soma o total de ajudas e cachês pendentes de todos os eventos
-          dadosResumo.eventos.forEach(evento => {
-          // Soma os valores PENDENTES de Ajuda de Custo e Cachê
-          totalGeralVencimentos += (evento.ajuda.pendente || 0);
-          totalGeralVencimentos += (evento.cache.pendente || 0);
-        });
-      }
+                // Regra: Soma no card de PAGOS tudo que já foi pago (Total ou 50%)
+                soma.ajPagos += ajJaPago;
 
-    // 🎯 3. ATUALIZAÇÃO DO CARD: Formata para BRL e atualiza o DOM
-    const totalFormatado = new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(totalGeralVencimentos);
+                // Regra: Se ainda tem algo pendente, verifica o vencimento
+                if (ajPendente > 0) {
+                    const [da, ma, ya] = ev.dataVencimentoAjuda.split('/').map(Number);
+                    const dtAj = new Date(ya, ma - 1, da);
+                    
+                    if (dtAj < hoje) {
+                        soma.ajVencidos += ajPendente;
+                    } else {
+                        soma.ajAVencer += ajPendente;
+                    }
+                }
 
-    const cardVencimentos = document.getElementById('cardContainerVencimentos');
-    // Assumindo que você tem um elemento com a classe 'total-vencimentos' no seu card
-    cardVencimentos.querySelector('.total-vencimentos').textContent = totalFormatado; 
+                // --- CACHÊ ---
+                const chPendente = parseFloat(ev.cache.pendente) || 0;
+                const chJaPago = parseFloat(ev.cache.pagos) || 0;
+
+                // Soma o que já foi pago de Cachê
+                soma.chPagos += chJaPago;
+
+                // Se houver cachê pendente, calcula se está vencido
+                if (chPendente > 0 && ev.dataVencimentoCache !== 'N/A') {
+                    const [dc, mc, yc] = ev.dataVencimentoCache.split('/').map(Number);
+                    const dtCh = new Date(yc, mc - 1, dc);
+                    
+                    if (dtCh < hoje) {
+                        soma.chVencidos += chPendente;
+                    } else {
+                        soma.chAVencer += chPendente;
+                    }
+                }
+            });
+        }
+
+        // Cálculos dos Totais Gerais dos Cards Superiores
+        soma.previsto = soma.ajAVencer + soma.ajVencidos + soma.chAVencer + soma.chVencidos;
+        soma.pagos = soma.ajPagos + soma.chPagos;
+
+        // Função auxiliar para injetar os valores no HTML
+        const atualizarTexto = (id, valor) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = formatarMoeda(valor);
+        };
+
+        // Atualização Visual
+        atualizarTexto('vencimentosTotal', soma.previsto);
+        atualizarTexto('vencimentosPagos', soma.pagos);
+        
+        atualizarTexto('vencAjudaAVencer', soma.ajAVencer);
+        atualizarTexto('vencAjudaVencidos', soma.ajVencidos);
+        atualizarTexto('vencAjudaPagos', soma.ajPagos);
+        
+        atualizarTexto('vencCacheAVencer', soma.chAVencer);
+        atualizarTexto('vencCacheVencidos', soma.chVencidos);
+        atualizarTexto('vencCachePagos', soma.chPagos);
+
+        if (document.getElementById('cardContainerVencimentos')) {
+            document.getElementById('cardContainerVencimentos').style.display = 'block';
+        }
 
     } catch (error) {
-      console.error("Erro ao carregar dados do card de vencimentos:", error);
-      // Opcional: Mostrar erro no card
-      const cardVencimentos = document.getElementById('cardContainerVencimentos');
-      cardVencimentos.querySelector('.total-vencimentos').textContent = `R$ 0,00`;
+        console.error("Erro ao carregar dados financeiros:", error);
     }
 }
 
@@ -5069,7 +5513,7 @@ async function inicializarCardVencimentos() {
     }
 }
 
-function criarControlesDeFiltro(conteudoGeral) {
+function criarControlesDeFiltro(conteudoGeral, valoresResumoElement) { 
     const anoAtual = new Date().getFullYear();
 
     const filtrosContainer = document.createElement("div");
@@ -5081,34 +5525,34 @@ function criarControlesDeFiltro(conteudoGeral) {
     const grupoPeriodo = document.createElement("div");
     grupoPeriodo.className = "filtro-periodo";
     grupoPeriodo.innerHTML = `
-        <label class="label-select">Tipo de Filtro</label>
-        <div class="wrapper" id="periodo-wrapper">
-      <div class="option">
-        <input checked value="diario" name="periodo" type="radio" class="input" />
-        <div class="btn"><span class="span">Diário</span></div>
-      </div>
-      <div class="option">
-        <input value="semanal" name="periodo" type="radio" class="input" />
-        <div class="btn"><span class="span">Semanal</span></div>
-      </div>
-      <div class="option">
-        <input value="mensal" name="periodo" type="radio" class="input" />
-        <div class="btn"><span class="span">Mensal</span></div>
-      </div>
-      <div class="option">
-        <input value="trimestral" name="periodo" type="radio" class="input" />
-        <div class="btn"><span class="span">Trimestral</span></div>
-      </div>
-      <div class="option">
-        <input value="semestral" name="periodo" type="radio" class="input" />
-        <div class="btn"><span class="span">Semestral</span></div>
-      </div>
-      <div class="option">
-        <input value="anual" name="periodo" type="radio" class="input" />
-        <div class="btn"><span class="span">Anual</span></div>
-      </div>
+      <label class="label-select">Tipo de Filtro</label>
+      <div class="wrapper" id="periodo-wrapper">
+        <div class="option">
+            <input checked value="diario" name="periodo" type="radio" class="input" />
+            <div class="btn"><span class="span">Diário</span></div>
         </div>
-    `;
+        <div class="option">
+          <input value="semanal" name="periodo" type="radio" class="input" />
+          <div class="btn"><span class="span">Semanal</span></div>
+        </div>
+        <div class="option">
+          <input value="mensal" name="periodo" type="radio" class="input" />
+          <div class="btn"><span class="span">Mensal</span></div>
+        </div>
+        <div class="option">
+          <input value="trimestral" name="periodo" type="radio" class="input" />
+          <div class="btn"><span class="span">Trimestral</span></div>
+        </div>
+        <div class="option">
+          <input value="semestral" name="periodo" type="radio" class="input" />
+          <div class="btn"><span class="span">Semestral</span></div>
+        </div>
+        <div class="option">
+          <input value="anual" name="periodo" type="radio" class="input" />
+          <div class="btn"><span class="span">Anual</span></div>
+        </div>
+      </div>
+`;
 
     filtrosContainer.appendChild(grupoPeriodo);
 
@@ -5120,29 +5564,21 @@ function criarControlesDeFiltro(conteudoGeral) {
     subFiltroWrapper.className = "sub-filtro";
     filtrosContainer.appendChild(subFiltroWrapper);
 
-    // ------------------------------
-    // 3. Botão Aplicar
-    // ------------------------------
-    const btnAplicar = document.createElement("button");
-    btnAplicar.id = "btnAplicarFiltro";
-    btnAplicar.className = "btn-aplicar-filtro";
-    btnAplicar.textContent = "Aplicar Filtro";
-    filtrosContainer.appendChild(btnAplicar);
 
     // --------------------------------------
     // FUNÇÃO PARA CRIAR BOTÕES CUSTOMIZADOS
     // --------------------------------------
     function montarOpcoes(titulo, valores) {
         return `
-      <label class="label-select">${titulo}</label>
-      <div class="wrapper" id="sub-opcoes">
-          ${valores.map(v => `
-        <div class="option">
-      <input value="${v.value}" name="sub" type="radio" class="input" ${v.checked ? "checked" : ""} />
-      <div class="btn"><span class="span">${v.label}</span></div>
-        </div>
-          `).join("")}
-      </div>
+            <label class="label-select">${titulo}</label>
+            <div class="wrapper" id="sub-opcoes">
+                ${valores.map(v => `
+                    <div class="option">
+                        <input value="${v.value}" name="sub" type="radio" class="input" ${v.checked ? "checked" : ""} />
+                        <div class="btn"><span class="span">${v.label}</span></div>
+                    </div>
+                `).join("")}
+            </div>
         `;
     }
 
@@ -5151,172 +5587,172 @@ function criarControlesDeFiltro(conteudoGeral) {
     // ------------------------------
 
     function atualizarSubFiltro(tipo) {
-      // Limpa o conteúdo anterior do sub-filtro
-      subFiltroWrapper.innerHTML = "";
+        // Limpa o conteúdo anterior do sub-filtro
+        subFiltroWrapper.innerHTML = "";
 
-      // O ano atual (anoAtual)
-      const anoAtual = new Date().getFullYear(); 
+        // O ano atual (anoAtual)
+        const anoAtual = new Date().getFullYear(); 
 
-      // --------------------------
-      // 1. DIÁRIO → INPUT DE DATA
-      // --------------------------
-      if (tipo === "diario") {
-          // Data atual como padrão
-          const hoje = new Date().toISOString().split("T")[0];
+        // --------------------------
+        // 1. DIÁRIO → INPUT DE DATA
+        // --------------------------
+        if (tipo === "diario") {
+            // Data atual como padrão
+            const hoje = new Date().toISOString().split("T")[0];
 
-          subFiltroWrapper.innerHTML = `
-        <label class="label-select">Selecione o Dia</label>
+            subFiltroWrapper.innerHTML = `
+                <label class="label-select">Selecione o Dia</label>
 
-        <div class="wrapper select-wrapper">
-        <input 
-          type="date"
-          id="sub-filtro-data"
-          class="input-data-simples" 
-          value="${hoje}"
-        >
-        </div>
-          `;
+                <div class="wrapper select-wrapper">
+                    <input 
+                        type="date"
+                        id="sub-filtro-data"
+                        class="input-data-simples" 
+                        value="${hoje}"
+                    >
+                </div>
+            `;
 
-          // Aciona o carregamento ao mudar a data (listener)
-          subFiltroWrapper
-        .querySelector("#sub-filtro-data")
-        .addEventListener("change", () => 
-          carregarDetalhesVencimentos(conteudoGeral)
-        );
+            // Aciona o carregamento ao mudar a data (listener)
+            subFiltroWrapper
+            .querySelector("#sub-filtro-data")
+            .addEventListener("change", () => 
+                carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) // ✅ PASSANDO
+            );
 
-          // Dispara a busca Imediatamente com o filtro padrão (hoje)
-          carregarDetalhesVencimentos(conteudoGeral); 
+            // Dispara a busca Imediatamente com o filtro padrão (hoje)
+            carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement); // ✅ PASSANDO
 
-          return; 
-      }
+            return; 
+        }
 
-      // --------------------------
-      // 2. SEMANAL → INPUT DE DATA
-      // --------------------------
-      else if (tipo === "semanal") {
-          // Data atual como padrão
-          const hoje = new Date().toISOString().split("T")[0]; 
+        // --------------------------
+        // 2. SEMANAL → INPUT DE DATA
+        // --------------------------
+        else if (tipo === "semanal") {
+            // Data atual como padrão
+            const hoje = new Date().toISOString().split("T")[0]; 
 
-          subFiltroWrapper.innerHTML = `
-        <label class="label-select">Selecione uma data na semana</label>
+            subFiltroWrapper.innerHTML = `
+                <label class="label-select">Selecione uma data na semana</label>
 
-        <div class="wrapper select-wrapper">
-        <input 
-          type="date"
-          id="sub-filtro-data"
-          class="input-data-simples" 
-          value="${hoje}"
-        >
-        </div>
-          `;
+                <div class="wrapper select-wrapper">
+                    <input 
+                        type="date"
+                        id="sub-filtro-data"
+                        class="input-data-simples" 
+                        value="${hoje}"
+                    >
+                </div>
+            `;
 
-          // Aciona o carregamento ao mudar a data (listener)
-          subFiltroWrapper
-        .querySelector("#sub-filtro-data")
-        .addEventListener("change", () => 
-      carregarDetalhesVencimentos(conteudoGeral)
-        );
+            // Aciona o carregamento ao mudar a data (listener)
+            subFiltroWrapper
+            .querySelector("#sub-filtro-data")
+            .addEventListener("change", () => 
+            carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) // ✅ PASSANDO
+            );
 
-          // Dispara a busca Imediatamente com o filtro padrão (hoje)
-          carregarDetalhesVencimentos(conteudoGeral); 
+            // Dispara a busca Imediatamente com o filtro padrão (hoje)
+            carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement); // ✅ PASSANDO
 
-          return;
-      }
-
-
-      // --------------------------
-      // 3. MENSAL → SELECT ESTILIZADO
-      // --------------------------
-      else if (tipo === "mensal") { 
-          let optionsHtml = "";
-          const mesAtual = new Date().getMonth() + 1; // 1 a 12
-
-          for (let i = 1; i <= 12; i++) {
-        const isCurrentMonth = (i === mesAtual);
-        optionsHtml += `
-      <option value="${i}" ${isCurrentMonth ? "selected" : ""}>
-          ${nomeDoMes(i)} / ${anoAtual}
-      </option>
-      `;
-          }
-
-          subFiltroWrapper.innerHTML = `
-        <label class="label-select">Selecione o Mês</label>
-        <div class="wrapper select-wrapper">
-          <select id="sub-filtro-select" class="select-simples">
-      ${optionsHtml}
-          </select>
-        </div>
-          `;
-
-          // Aciona o carregamento ao mudar o mês (listener)
-          subFiltroWrapper.querySelector("#sub-filtro-select")
-          .addEventListener("change", () => carregarDetalhesVencimentos(conteudoGeral));
-
-          // Dispara a busca Imediatamente com o filtro padrão (mês atual)
-          carregarDetalhesVencimentos(conteudoGeral);
-
-          return;
-      }
-
-      // --------------------------
-      // 4. TRIMESTRAL → RADIO CUSTOM
-      // --------------------------
-      else if (tipo === "trimestral") {
-          const mesAtual = new Date().getMonth() + 1; // 1 a 12
-          const trimestreAtual = Math.ceil(mesAtual / 3); // 1, 2, 3 ou 4
-
-          const trimes = [1, 2, 3, 4].map(t => ({
-        value: t,
-        label: `Trimestre ${t} / ${anoAtual}`,
-        checked: t === trimestreAtual
-          }));
-
-          subFiltroWrapper.innerHTML = montarOpcoes("Selecione o Trimestre", trimes);
-      }
-
-      // --------------------------
-      // 5. SEMESTRAL → RADIO CUSTOM
-      // --------------------------
-      else if (tipo === "semestral") {
-          const mesAtual = new Date().getMonth() + 1; // 1 a 12
-          const semestreAtual = mesAtual <= 6 ? 1 : 2; // 1 ou 2
-
-          const semestres = [
-      { value: 1, label: `1º Semestre / ${anoAtual}`, checked: semestreAtual === 1 },
-      { value: 2, label: `2º Semestre / ${anoAtual}`, checked: semestreAtual === 2 }
-          ];
-
-          subFiltroWrapper.innerHTML = montarOpcoes("Selecione o Semestre", semestres);
-      }
+            return;
+        }
 
 
-      // --------------------------
-      // 6. ANUAL → Exibe Ano Atual
-      // --------------------------
-      else if (tipo === "anual") {
-          subFiltroWrapper.innerHTML = `
-        <label class="label-select">Período Anual</label>
-        <p class="anual-info">Eventos do ano de ${anoAtual}</p>
-          `;
+        // --------------------------
+        // 3. MENSAL → SELECT ESTILIZADO
+        // --------------------------
+        else if (tipo === "mensal") { 
+            let optionsHtml = "";
+            const mesAtual = new Date().getMonth() + 1; // 1 a 12
 
-          // Dispara a busca Imediatamente com o filtro padrão (ano atual)
-          carregarDetalhesVencimentos(conteudoGeral);
+            for (let i = 1; i <= 12; i++) {
+                const isCurrentMonth = (i === mesAtual);
+                optionsHtml += `
+                    <option value="${i}" ${isCurrentMonth ? "selected" : ""}>
+                        ${nomeDoMes(i)} / ${anoAtual}
+                    </option>
+                `;
+            }
 
-          return;
-      }
+            subFiltroWrapper.innerHTML = `
+                <label class="label-select">Selecione o Mês</label>
+                <div class="wrapper select-wrapper">
+                    <select id="sub-filtro-select" class="select-simples">
+                        ${optionsHtml}
+                    </select>
+                </div>
+            `;
 
-      // --------------------------
-      // LISTENER GENÉRICO PARA SUB-FILTROS DE RÁDIO (TRIMESTRAL/SEMESTRAL)
-      // --------------------------
-      // Este bloco só é executado para 'trimestral' ou 'semestral'
-      const radios = subFiltroWrapper.querySelectorAll("input[name='sub']");
-      radios.forEach(r => r.addEventListener("change", () => carregarDetalhesVencimentos(conteudoGeral)));
+            // Aciona o carregamento ao mudar o mês (listener)
+            subFiltroWrapper.querySelector("#sub-filtro-select")
+            .addEventListener("change", () => carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement)); // ✅ PASSANDO
 
-      // Dispara a busca Imediatamente para o filtro padrão
-      if (tipo === 'trimestral' || tipo === 'semestral') {
-          carregarDetalhesVencimentos(conteudoGeral);
-      }
+            // Dispara a busca Imediatamente com o filtro padrão (mês atual)
+            carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement); // ✅ PASSANDO
+
+            return;
+        }
+
+        // --------------------------
+        // 4. TRIMESTRAL → RADIO CUSTOM
+        // --------------------------
+        else if (tipo === "trimestral") {
+            const mesAtual = new Date().getMonth() + 1; // 1 a 12
+            const trimestreAtual = Math.ceil(mesAtual / 3); // 1, 2, 3 ou 4
+
+            const trimes = [1, 2, 3, 4].map(t => ({
+                value: t,
+                label: `Trimestre ${t} / ${anoAtual}`,
+                checked: t === trimestreAtual
+            }));
+
+            subFiltroWrapper.innerHTML = montarOpcoes("Selecione o Trimestre", trimes);
+        }
+
+        // --------------------------
+        // 5. SEMESTRAL → RADIO CUSTOM
+        // --------------------------
+        else if (tipo === "semestral") {
+            const mesAtual = new Date().getMonth() + 1; // 1 a 12
+            const semestreAtual = mesAtual <= 6 ? 1 : 2; // 1 ou 2
+
+            const semestres = [
+                { value: 1, label: `1º Semestre / ${anoAtual}`, checked: semestreAtual === 1 },
+                { value: 2, label: `2º Semestre / ${anoAtual}`, checked: semestreAtual === 2 }
+            ];
+
+            subFiltroWrapper.innerHTML = montarOpcoes("Selecione o Semestre", semestres);
+        }
+
+
+        // --------------------------
+        // 6. ANUAL → Exibe Ano Atual
+        // --------------------------
+        else if (tipo === "anual") {
+            subFiltroWrapper.innerHTML = `
+                <label class="label-select">Período Anual</label>
+                <p class="anual-info">Eventos do ano de ${anoAtual}</p>
+            `;
+
+            // Dispara a busca Imediatamente com o filtro padrão (ano atual)
+            carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement); // ✅ PASSANDO
+
+            return;
+        }
+
+        // --------------------------
+        // LISTENER GENÉRICO PARA SUB-FILTROS DE RÁDIO (TRIMESTRAL/SEMESTRAL)
+        // --------------------------
+        // Este bloco só é executado para 'trimestral' ou 'semestral'
+        const radios = subFiltroWrapper.querySelectorAll("input[name='sub']");
+        radios.forEach(r => r.addEventListener("change", () => carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement))); // ✅ PASSANDO
+
+        // Dispara a busca Imediatamente para o filtro padrão
+        if (tipo === 'trimestral' || tipo === 'semestral') {
+            carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement); // ✅ PASSANDO
+        }
     }
     // Inicializa
     atualizarSubFiltro("diario");
@@ -5324,15 +5760,13 @@ function criarControlesDeFiltro(conteudoGeral) {
     // Listener Periodo
     grupoPeriodo.querySelectorAll("input[name='periodo']").forEach(radio => {
         radio.addEventListener("change", (e) => {
-      const tipo = e.target.value;
-      atualizarSubFiltro(tipo);
+            const tipo = e.target.value;
+            atualizarSubFiltro(tipo);
 
-      if (tipo === "anual") carregarDetalhesVencimentos(conteudoGeral);
+            if (tipo === "anual") carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement); // ✅ PASSANDO
         });
     });
 
-    // Botão aplicar
-    btnAplicar.addEventListener("click", () => carregarDetalhesVencimentos(conteudoGeral));
 
     return filtrosContainer;
 }
@@ -5382,9 +5816,8 @@ function construirQueryDeFiltro() {
 
 document.getElementById("cardContainerVencimentos").addEventListener("click", async function() {
     const painel = document.getElementById("painelDetalhes");
-    painel.innerHTML = ""; // Limpa o painel anterior
+    painel.innerHTML = "";
 
-    // Aplicando classes Tailwind para consistência com as funções de filtro
     const container = document.createElement("div");
     container.id = "venc-container";
     container.className = "venc-container";
@@ -5394,7 +5827,6 @@ document.getElementById("cardContainerVencimentos").addEventListener("click", as
 
     const btnVoltar = document.createElement("button"); 
     btnVoltar.id = "btnVoltarVencimentos";
-    // Usando classes Tailwind para um estilo moderno
     btnVoltar.className = "btn-voltar";
     btnVoltar.textContent = "←";
 
@@ -5404,30 +5836,680 @@ document.getElementById("cardContainerVencimentos").addEventListener("click", as
     header.appendChild(btnVoltar);
     header.appendChild(titulo);
     container.appendChild(header);
+
+    const valoresResumoElement = document.createElement("div");
+    valoresResumoElement.id = "valores-resumo-vencimentos"; 
+    valoresResumoElement.className = "resumo-periodo-vencimentos";
     
-    // Contêiner onde o resultado da busca será exibido
     const conteudoGeral = document.createElement("div");
     conteudoGeral.className = "conteudo-geral"; 
     
-    // ➡️ CRIAÇÃO E INSERÇÃO DOS FILTROS (RESTAURADO E CORRIGIDO)
-    // Chama a função para criar o componente de filtro
-    const FiltrosVencimentos = criarControlesDeFiltro(conteudoGeral);
-    // Anexa o componente de filtro ao container principal
+    const FiltrosVencimentos = criarControlesDeFiltro(conteudoGeral, valoresResumoElement);
     container.appendChild(FiltrosVencimentos); 
-    
+    container.appendChild(valoresResumoElement); 
     container.appendChild(conteudoGeral);
 
     // Anexe o container completo ao painel
     painel.appendChild(container);
-    
-    // ➡️ CHAMA A FUNÇÃO CORRIGIDA PELA PRIMEIRA VEZ para carregar o padrão (Mensal Atual)
-    carregarDetalhesVencimentos(conteudoGeral);
-    
-    // 5. Adiciona o listener para o botão de voltar
+  
     btnVoltar.addEventListener('click', () => {
         painel.innerHTML = ""; // Volta para a tela anterior
     });
 });
+
+// ===========================
+// Vencimentos de Pagamentos
+// ===========================
+
+// function formatarMoeda(valor) {
+//     // 1. Garante que o valor é um número (float). Se for null/undefined/NaN, usa 0.
+//     const num = parseFloat(valor) || 0; // ✅ CORREÇÃO: Trata null, undefined, "", e NaN como 0.
+
+//     // 2. Formata para o padrão Brasileiro
+//     return num.toLocaleString('pt-BR', { // .toLocaleString é apenas um alias para o Intl.NumberFormat().format()
+//         style: 'currency',
+//         currency: 'BRL',
+//     });
+// }
+
+// async function carregarDetalhesVencimentos(conteudoGeral) {
+//     conteudoGeral.innerHTML = '<h3>Carregando dados...</h3>';
+
+//     // Obtém data ou filtro definido
+//     const params = construirParametrosFiltro();
+//     const url = `/main/vencimentos${params}`;
+
+//     try {
+//         const dados = await fetchComToken(url);
+
+//         if (!dados || !dados.eventos || dados.eventos.length === 0) {
+//       conteudoGeral.innerHTML = '<p class="alerta-info">Nenhum evento encontrado para esse período.</p>';
+//       return;
+//         }
+
+//         conteudoGeral.innerHTML = "";
+//         const accordionContainer = document.createElement("div");
+//         accordionContainer.className = "accordion-vencimentos";
+
+//         dados.eventos.forEach(evento => {
+//       // ITEM DO ACORDEÃO
+//       const item = document.createElement("div");
+//       item.className = "accordion-item";
+
+//       // CABEÇALHO DO EVENTO
+//       const header = document.createElement("button");
+//       header.className = "accordion-header";
+//       header.innerHTML = `
+//           <div class="evento-info">
+//         <strong>${evento.nomeEvento}</strong>
+//         <span class="total-geral">Total: ${formatarMoeda(evento.totalGeral)}</span> 
+//           </div>
+//       `;
+//       header.addEventListener("click", () => item.classList.toggle("active"));
+
+//       // CORPO DO ACORDEÃO
+//       const body = document.createElement("div");
+//       body.className = "accordion-body";
+
+//       console.log(`Dados dos Funcionários para o Evento: ${evento.nomeEvento}`);
+//       console.log(evento.funcionarios);
+
+//       body.innerHTML = `
+//         <div class="resumo-categorias">
+//       <div class="categoria-bloco">
+//           <h3>Ajuda de Custo</h3>
+//           <p class="datas-evento">
+//         Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
+//           </p>
+//           <p class="vencimento">Vence em: <strong>${evento.dataVencimentoAjuda}</strong></p>
+//           <p><strong>Pendentes:</strong> ${formatarMoeda(evento.ajuda.pendente)} - <strong>Pagos:</strong> ${formatarMoeda(evento.ajuda.pagos)} - <strong>Total:</strong> ${formatarMoeda(evento.ajuda.total)}</p>
+        
+//       </div>
+
+//       <div class="categoria-bloco">
+//           <h3>Cachê</h3>
+//           <p class="datas-evento">
+//         Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
+//           </p>
+//           <p class="vencimento">Vence em: <strong>${evento.dataVencimentoCache}</strong></p>
+//           <p><strong>Pendentes:</strong> ${formatarMoeda(evento.cache.pendente)} - <strong>Pagos:</strong> ${formatarMoeda(evento.cache.pagos)} - <strong>Total:</strong> ${formatarMoeda(evento.cache.total)}</p>
+//       </div>
+//         </div>
+
+//         <h4>Funcionários (${evento.funcionarios?.length || 0} Registros):</h4>
+        
+//         <div class="funcionarios-scroll-container"> 
+//       <table class="tabela-funcionarios-venc">
+//           <thead>
+//         <tr>
+//       <th>NOME / FUNÇÃO</th>
+//       <th>DIÁRIAS</th>
+//       <th>CACHÊ</th>
+//       <th>A.J. CUSTO</th>
+//       <th>TOTAL</th>
+//       <th>STATUS</th>
+//         </tr>
+//           </thead>
+//           <tbody>
+//         ${evento.funcionarios?.map(f => `
+//       <tr>
+//           <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
+//           <td>${f.qtdDiarias}</td>
+//           <td>${formatarMoeda(f.totalCache)}</td>
+//           <td>${formatarMoeda(f.totalAjudaCusto)}</td>
+//           <td><strong>${formatarMoeda(f.totalPagar)}</strong></td>
+//           <td class="status-${(f.statusPgto || 'desconhecido').toLowerCase()}">${f.statusPgto || '—'}</td>
+//       </tr>
+//         `).join("") ?? '<tr><td colspan="6" class="text-center">Nenhum funcionário encontrado neste evento.</td></tr>'}
+//           </tbody>
+//       </table>
+//         </div> 
+//       `;
+
+//       item.appendChild(header);
+//       item.appendChild(body);
+//       accordionContainer.appendChild(item);
+//         });
+
+//         conteudoGeral.appendChild(accordionContainer);
+
+//     } catch (error) {
+//         console.error(error);
+//         conteudoGeral.innerHTML = '<p class="alerta-erro">Erro ao carregar dados.</p>';
+//     }
+// }
+
+// function construirParametrosFiltro() {
+//     // Captura o tipo de filtro principal (Obrigatório para o backend)
+//     const tipo = document.querySelector("input[name='periodo']:checked")?.value || 'diario';
+    
+//     // Inicia a string de parâmetros com o tipo
+//     let params = `?periodo=${tipo}`;
+    
+//     // Variável para o ano, usada em vários filtros
+//     const anoAtual = new Date().getFullYear(); 
+
+//     // ----------------------------------------------------
+//     // DIÁRIO
+//     // ----------------------------------------------------
+//     if (tipo === "diario") {
+//         const dia = document.querySelector("#sub-filtro-data")?.value;
+//         // O backend deve usar a dataInicio e a dataFim como o mesmo dia
+//         if (dia) {
+//       params += `&dataInicio=${dia}&dataFim=${dia}`;
+//         }
+//     }
+
+//     // ----------------------------------------------------
+//     // ✅ SEMANAL (NOVO BLOCO INSERIDO)
+//     // ----------------------------------------------------
+//     else if (tipo === "semanal") {
+//         const data = document.querySelector("#sub-filtro-data")?.value;
+//         // O backend usará esta data para calcular o Domingo anterior e o Sábado seguinte.
+//         if (data) {
+//       params += `&dataInicio=${data}`;
+//         }
+//     }
+
+//     // ----------------------------------------------------
+//     // MENSAL
+//     // ----------------------------------------------------
+//     else if (tipo === "mensal") {
+//         const mes = document.querySelector("#sub-filtro-select")?.value;
+//         if (mes) {
+//       // Envia mês e ano. O backend deve calcular dataInicio (dia 1) e dataFim (último dia).
+//       params += `&mes=${mes}&ano=${anoAtual}`;
+//         }
+//     }
+
+//     // ----------------------------------------------------
+//     // TRIMESTRAL
+//     // ----------------------------------------------------
+//     else if (tipo === "trimestral") {
+//         // Usa o seletor genérico 'sub' que criamos
+//         const tri = document.querySelector("input[name='sub']:checked")?.value;
+//         if (tri) {
+//       // Envia trimestre e ano. O backend deve calcular as datas de início e fim.
+//       params += `&trimestre=${tri}&ano=${anoAtual}`;
+//         }
+//     }
+
+//     // ----------------------------------------------------
+//     // SEMESTRAL
+//     // ----------------------------------------------------
+//     else if (tipo === "semestral") {
+//         // Usa o seletor genérico 'sub' que criamos
+//         const sem = document.querySelector("input[name='sub']:checked")?.value;
+//         if (sem) {
+//       // Envia semestre e ano. O backend deve calcular as datas de início e fim.
+//       params += `&semestre=${sem}&ano=${anoAtual}`;
+//         }
+//     }
+
+//     // ----------------------------------------------------
+//     // ANUAL
+//     // ----------------------------------------------------
+//     else if (tipo === "anual") {
+//         // Envia apenas o ano. O backend deve calcular dataInicio (Jan 1) e dataFim (Dez 31).
+//         params += `&ano=${anoAtual}`;
+//     }
+    
+//     return params;
+// }
+
+// async function carregarDadosVencimentos() {
+//    // Definir data de hoje
+//   const hoje = new Date();
+//   const ano = hoje.getFullYear();
+//   const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+//   const dia = String(hoje.getDate()).padStart(2, '0');
+//   const dataAtualFormatada = `${ano}-${mes}-${dia}`;
+
+//   console.log("Data atual formatada para vencimentos:", dataAtualFormatada);
+//   // A URL está correta para o resumo diário
+//   const urlResumo = `/main/vencimentos?dataInicio=${dataAtualFormatada}&dataFim=${dataAtualFormatada}`;
+
+//   // 🎯 CORREÇÃO 1: Obter o elemento do total ANTES do try/catch
+//   const cardVencimentos = document.getElementById('cardContainerVencimentos');
+//   const totalElement = cardVencimentos ? cardVencimentos.querySelector('.total-vencimentos') : null;
+
+//   // 🎯 CORREÇÃO 2: Se o elemento do total não for encontrado, aborta a função.
+//     if (!totalElement) {
+//         console.error("Erro: Elemento '.total-vencimentos' não encontrado no DOM. Verifique o HTML do card.");
+//         return;
+//     }
+
+//     try {
+//     // 🎯 1. CHAMADA REAL: Executa a requisição
+//       const dadosResumo = await fetchComToken(urlResumo); 
+
+//       // Inicializa somadores
+//       let totalGeralVencimentos = 0;
+
+//       if (dadosResumo && dadosResumo.eventos && dadosResumo.eventos.length > 0) {
+//           // 🎯 2. PROCESSAMENTO: Soma o total de ajudas e cachês pendentes de todos os eventos
+//           dadosResumo.eventos.forEach(evento => {
+//           // Soma os valores PENDENTES de Ajuda de Custo e Cachê
+//           totalGeralVencimentos += (evento.ajuda.pendente || 0);
+//           totalGeralVencimentos += (evento.cache.pendente || 0);
+//         });
+//       }
+
+//     // 🎯 3. ATUALIZAÇÃO DO CARD: Formata para BRL e atualiza o DOM
+//     const totalFormatado = new Intl.NumberFormat('pt-BR', {
+//       style: 'currency',
+//       currency: 'BRL'
+//     }).format(totalGeralVencimentos);
+
+//     const cardVencimentos = document.getElementById('cardContainerVencimentos');
+//     // Assumindo que você tem um elemento com a classe 'total-vencimentos' no seu card
+//     cardVencimentos.querySelector('.total-vencimentos').textContent = totalFormatado; 
+
+//     } catch (error) {
+//       console.error("Erro ao carregar dados do card de vencimentos:", error);
+//       // Opcional: Mostrar erro no card
+//       const cardVencimentos = document.getElementById('cardContainerVencimentos');
+//       cardVencimentos.querySelector('.total-vencimentos').textContent = `R$ 0,00`;
+//     }
+// }
+
+// async function inicializarCardVencimentos() {
+//     // Checa as duas permissões (Assumindo que estão definidas globalmente)
+//     const eMaster = usuarioTemPermissao();
+//     const eFinanceiro = usuarioTemPermissaoFinanceiro();
+
+//     // Seleciona os containers principais
+//     const cardVencimentos = document.getElementById('cardContainerVencimentos');
+//     const cardOrcamentos = document.getElementById('cardContainerOrcamentos');
+
+//     if (!cardVencimentos || !cardOrcamentos) {
+//         console.warn("Um dos cards não foi encontrado (Vencimentos ou Orçamentos).");
+//         return;
+//     }
+
+//     // Padrão: Ambos ocultos, depois exibimos o(s) necessário(s)
+//     cardVencimentos.style.display = 'none';
+//     cardOrcamentos.style.display = 'none';
+    
+//     // ===========================================
+//     // Lógica de Visibilidade
+//     // ===========================================
+    
+//     if (eMaster || eFinanceiro) {
+//         // Se for Master OU Financeiro: Mostra VENCIMENTOS
+//         cardVencimentos.style.display = 'flex';
+//         carregarDadosVencimentos(); // Chama a função que preenche o card
+//     }
+
+//     if (eMaster) {
+//         // Se for Master: Mostra ORÇAMENTOS também
+//         cardOrcamentos.style.display = 'flex';
+//     } 
+//     else if (!eMaster && !eFinanceiro) {
+//          // Se for Nenhum (não Master e não Financeiro): Mostra APENAS ORÇAMENTOS
+//         cardOrcamentos.style.display = 'flex';
+//     }
+// }
+
+// function criarControlesDeFiltro(conteudoGeral) {
+//     const anoAtual = new Date().getFullYear();
+
+//     const filtrosContainer = document.createElement("div");
+//     filtrosContainer.className = "filtros-vencimentos";
+
+//     // ------------------------------
+//     // 1. Filtro Principal (RADIO CUSTOM)
+//     // ------------------------------
+//     const grupoPeriodo = document.createElement("div");
+//     grupoPeriodo.className = "filtro-periodo";
+//     grupoPeriodo.innerHTML = `
+//         <label class="label-select">Tipo de Filtro</label>
+//         <div class="wrapper" id="periodo-wrapper">
+//       <div class="option">
+//         <input checked value="diario" name="periodo" type="radio" class="input" />
+//         <div class="btn"><span class="span">Diário</span></div>
+//       </div>
+//       <div class="option">
+//         <input value="semanal" name="periodo" type="radio" class="input" />
+//         <div class="btn"><span class="span">Semanal</span></div>
+//       </div>
+//       <div class="option">
+//         <input value="mensal" name="periodo" type="radio" class="input" />
+//         <div class="btn"><span class="span">Mensal</span></div>
+//       </div>
+//       <div class="option">
+//         <input value="trimestral" name="periodo" type="radio" class="input" />
+//         <div class="btn"><span class="span">Trimestral</span></div>
+//       </div>
+//       <div class="option">
+//         <input value="semestral" name="periodo" type="radio" class="input" />
+//         <div class="btn"><span class="span">Semestral</span></div>
+//       </div>
+//       <div class="option">
+//         <input value="anual" name="periodo" type="radio" class="input" />
+//         <div class="btn"><span class="span">Anual</span></div>
+//       </div>
+//         </div>
+//     `;
+
+//     filtrosContainer.appendChild(grupoPeriodo);
+
+//     // ------------------------------
+//     // 2. Sub-Filtro (DINÂMICO, TB CUSTOM)
+//     // ------------------------------
+//     const subFiltroWrapper = document.createElement("div");
+//     subFiltroWrapper.id = "sub-filtro-wrapper";
+//     subFiltroWrapper.className = "sub-filtro";
+//     filtrosContainer.appendChild(subFiltroWrapper);
+
+//     // ------------------------------
+//     // 3. Botão Aplicar
+//     // ------------------------------
+//     const btnAplicar = document.createElement("button");
+//     btnAplicar.id = "btnAplicarFiltro";
+//     btnAplicar.className = "btn-aplicar-filtro";
+//     btnAplicar.textContent = "Aplicar Filtro";
+//     filtrosContainer.appendChild(btnAplicar);
+
+//     // --------------------------------------
+//     // FUNÇÃO PARA CRIAR BOTÕES CUSTOMIZADOS
+//     // --------------------------------------
+//     function montarOpcoes(titulo, valores) {
+//         return `
+//       <label class="label-select">${titulo}</label>
+//       <div class="wrapper" id="sub-opcoes">
+//           ${valores.map(v => `
+//         <div class="option">
+//       <input value="${v.value}" name="sub" type="radio" class="input" ${v.checked ? "checked" : ""} />
+//       <div class="btn"><span class="span">${v.label}</span></div>
+//         </div>
+//           `).join("")}
+//       </div>
+//         `;
+//     }
+
+//     // ------------------------------
+//     //  FUNÇÃO PARA ATUALIZAR SUB-FILTRO
+//     // ------------------------------
+
+//     function atualizarSubFiltro(tipo) {
+//       // Limpa o conteúdo anterior do sub-filtro
+//       subFiltroWrapper.innerHTML = "";
+
+//       // O ano atual (anoAtual)
+//       const anoAtual = new Date().getFullYear(); 
+
+//       // --------------------------
+//       // 1. DIÁRIO → INPUT DE DATA
+//       // --------------------------
+//       if (tipo === "diario") {
+//           // Data atual como padrão
+//           const hoje = new Date().toISOString().split("T")[0];
+
+//           subFiltroWrapper.innerHTML = `
+//         <label class="label-select">Selecione o Dia</label>
+
+//         <div class="wrapper select-wrapper">
+//         <input 
+//           type="date"
+//           id="sub-filtro-data"
+//           class="input-data-simples" 
+//           value="${hoje}"
+//         >
+//         </div>
+//           `;
+
+//           // Aciona o carregamento ao mudar a data (listener)
+//           subFiltroWrapper
+//         .querySelector("#sub-filtro-data")
+//         .addEventListener("change", () => 
+//           carregarDetalhesVencimentos(conteudoGeral)
+//         );
+
+//           // Dispara a busca Imediatamente com o filtro padrão (hoje)
+//           carregarDetalhesVencimentos(conteudoGeral); 
+
+//           return; 
+//       }
+
+//       // --------------------------
+//       // 2. SEMANAL → INPUT DE DATA
+//       // --------------------------
+//       else if (tipo === "semanal") {
+//           // Data atual como padrão
+//           const hoje = new Date().toISOString().split("T")[0]; 
+
+//           subFiltroWrapper.innerHTML = `
+//         <label class="label-select">Selecione uma data na semana</label>
+
+//         <div class="wrapper select-wrapper">
+//         <input 
+//           type="date"
+//           id="sub-filtro-data"
+//           class="input-data-simples" 
+//           value="${hoje}"
+//         >
+//         </div>
+//           `;
+
+//           // Aciona o carregamento ao mudar a data (listener)
+//           subFiltroWrapper
+//         .querySelector("#sub-filtro-data")
+//         .addEventListener("change", () => 
+//       carregarDetalhesVencimentos(conteudoGeral)
+//         );
+
+//           // Dispara a busca Imediatamente com o filtro padrão (hoje)
+//           carregarDetalhesVencimentos(conteudoGeral); 
+
+//           return;
+//       }
+
+
+//       // --------------------------
+//       // 3. MENSAL → SELECT ESTILIZADO
+//       // --------------------------
+//       else if (tipo === "mensal") { 
+//           let optionsHtml = "";
+//           const mesAtual = new Date().getMonth() + 1; // 1 a 12
+
+//           for (let i = 1; i <= 12; i++) {
+//         const isCurrentMonth = (i === mesAtual);
+//         optionsHtml += `
+//       <option value="${i}" ${isCurrentMonth ? "selected" : ""}>
+//           ${nomeDoMes(i)} / ${anoAtual}
+//       </option>
+//       `;
+//           }
+
+//           subFiltroWrapper.innerHTML = `
+//         <label class="label-select">Selecione o Mês</label>
+//         <div class="wrapper select-wrapper">
+//           <select id="sub-filtro-select" class="select-simples">
+//       ${optionsHtml}
+//           </select>
+//         </div>
+//           `;
+
+//           // Aciona o carregamento ao mudar o mês (listener)
+//           subFiltroWrapper.querySelector("#sub-filtro-select")
+//           .addEventListener("change", () => carregarDetalhesVencimentos(conteudoGeral));
+
+//           // Dispara a busca Imediatamente com o filtro padrão (mês atual)
+//           carregarDetalhesVencimentos(conteudoGeral);
+
+//           return;
+//       }
+
+//       // --------------------------
+//       // 4. TRIMESTRAL → RADIO CUSTOM
+//       // --------------------------
+//       else if (tipo === "trimestral") {
+//           const mesAtual = new Date().getMonth() + 1; // 1 a 12
+//           const trimestreAtual = Math.ceil(mesAtual / 3); // 1, 2, 3 ou 4
+
+//           const trimes = [1, 2, 3, 4].map(t => ({
+//         value: t,
+//         label: `Trimestre ${t} / ${anoAtual}`,
+//         checked: t === trimestreAtual
+//           }));
+
+//           subFiltroWrapper.innerHTML = montarOpcoes("Selecione o Trimestre", trimes);
+//       }
+
+//       // --------------------------
+//       // 5. SEMESTRAL → RADIO CUSTOM
+//       // --------------------------
+//       else if (tipo === "semestral") {
+//           const mesAtual = new Date().getMonth() + 1; // 1 a 12
+//           const semestreAtual = mesAtual <= 6 ? 1 : 2; // 1 ou 2
+
+//           const semestres = [
+//       { value: 1, label: `1º Semestre / ${anoAtual}`, checked: semestreAtual === 1 },
+//       { value: 2, label: `2º Semestre / ${anoAtual}`, checked: semestreAtual === 2 }
+//           ];
+
+//           subFiltroWrapper.innerHTML = montarOpcoes("Selecione o Semestre", semestres);
+//       }
+
+
+//       // --------------------------
+//       // 6. ANUAL → Exibe Ano Atual
+//       // --------------------------
+//       else if (tipo === "anual") {
+//           subFiltroWrapper.innerHTML = `
+//         <label class="label-select">Período Anual</label>
+//         <p class="anual-info">Eventos do ano de ${anoAtual}</p>
+//           `;
+
+//           // Dispara a busca Imediatamente com o filtro padrão (ano atual)
+//           carregarDetalhesVencimentos(conteudoGeral);
+
+//           return;
+//       }
+
+//       // --------------------------
+//       // LISTENER GENÉRICO PARA SUB-FILTROS DE RÁDIO (TRIMESTRAL/SEMESTRAL)
+//       // --------------------------
+//       // Este bloco só é executado para 'trimestral' ou 'semestral'
+//       const radios = subFiltroWrapper.querySelectorAll("input[name='sub']");
+//       radios.forEach(r => r.addEventListener("change", () => carregarDetalhesVencimentos(conteudoGeral)));
+
+//       // Dispara a busca Imediatamente para o filtro padrão
+//       if (tipo === 'trimestral' || tipo === 'semestral') {
+//           carregarDetalhesVencimentos(conteudoGeral);
+//       }
+//     }
+//     // Inicializa
+//     atualizarSubFiltro("diario");
+
+//     // Listener Periodo
+//     grupoPeriodo.querySelectorAll("input[name='periodo']").forEach(radio => {
+//         radio.addEventListener("change", (e) => {
+//       const tipo = e.target.value;
+//       atualizarSubFiltro(tipo);
+
+//       if (tipo === "anual") carregarDetalhesVencimentos(conteudoGeral);
+//         });
+//     });
+
+//     // Botão aplicar
+//     btnAplicar.addEventListener("click", () => carregarDetalhesVencimentos(conteudoGeral));
+
+//     return filtrosContainer;
+// }
+
+// function nomeDoMes(num) {
+//     const meses = [
+//         "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
+//         "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"
+//     ];
+//     return meses[num - 1];
+// }
+
+// function construirQueryDeFiltro() {
+//     // Definido localmente para garantir o escopo
+//     const anoAtual = new Date().getFullYear(); 
+    
+//     const periodoSelect = document.getElementById('periodo-select');
+//     const periodo = periodoSelect.value;
+//     let queryString = `?periodo=${periodo}&ano=${anoAtual}`;
+
+//     // Adiciona o parâmetro de seleção específico se não for Diário ou Anual
+//     if (periodo === 'mensal') {
+//         const mesSelect = document.getElementById('sub-filtro-select');
+//         if (mesSelect) {
+//       queryString += `&mes=${mesSelect.value}`;
+//         }
+//     } else if (periodo === 'trimestral') {
+//         const trimestreSelect = document.getElementById('sub-filtro-select');
+//         if (trimestreSelect) {
+//       queryString += `&trimestre=${trimestreSelect.value}`;
+//         }
+//     } else if (periodo === 'semestral') {
+//         const semestreSelect = document.getElementById('sub-filtro-select');
+//         if (semestreSelect) {
+//       queryString += `&semestre=${semestreSelect.value}`;
+//         }
+//     }
+
+//     // Para o filtro diário, usamos a data atual como referência (se não houver um seletor de data)
+//     if (periodo === 'diario') {
+//          const hoje = new Date().toISOString().split('T')[0];
+//          queryString += `&dataInicio=${hoje}`;
+//     }
+
+//     return queryString;
+// }
+
+// document.getElementById("cardContainerVencimentos").addEventListener("click", async function() {
+//     const painel = document.getElementById("painelDetalhes");
+//     painel.innerHTML = ""; // Limpa o painel anterior
+
+//     // Aplicando classes Tailwind para consistência com as funções de filtro
+//     const container = document.createElement("div");
+//     container.id = "venc-container";
+//     container.className = "venc-container";
+
+//     const header = document.createElement("div");
+//     header.className = "venc-header";
+
+//     const btnVoltar = document.createElement("button"); 
+//     btnVoltar.id = "btnVoltarVencimentos";
+//     // Usando classes Tailwind para um estilo moderno
+//     btnVoltar.className = "btn-voltar";
+//     btnVoltar.textContent = "←";
+
+//     const titulo = document.createElement("h2");
+//     titulo.textContent = "Vencimentos de Pagamentos"; 
+
+//     header.appendChild(btnVoltar);
+//     header.appendChild(titulo);
+//     container.appendChild(header);
+    
+//     // Contêiner onde o resultado da busca será exibido
+//     const conteudoGeral = document.createElement("div");
+//     conteudoGeral.className = "conteudo-geral"; 
+    
+//     // ➡️ CRIAÇÃO E INSERÇÃO DOS FILTROS (RESTAURADO E CORRIGIDO)
+//     // Chama a função para criar o componente de filtro
+//     const FiltrosVencimentos = criarControlesDeFiltro(conteudoGeral);
+//     // Anexa o componente de filtro ao container principal
+//     container.appendChild(FiltrosVencimentos); 
+    
+//     container.appendChild(conteudoGeral);
+
+//     // Anexe o container completo ao painel
+//     painel.appendChild(container);
+    
+//     // ➡️ CHAMA A FUNÇÃO CORRIGIDA PELA PRIMEIRA VEZ para carregar o padrão (Mensal Atual)
+//     carregarDetalhesVencimentos(conteudoGeral);
+    
+//     // 5. Adiciona o listener para o botão de voltar
+//     btnVoltar.addEventListener('click', () => {
+//         painel.innerHTML = ""; // Volta para a tela anterior
+//     });
+// });
 
 // ======================
 // ABRIR AGENDA
