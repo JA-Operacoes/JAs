@@ -110,7 +110,7 @@
   #painel-container {
     position: relative;
     width: 210px;
-    height: calc(100vh - 200px);
+    height: calc(100vh - 70px);
     overflow: hidden;
     display: flex;
     flex-direction: column;

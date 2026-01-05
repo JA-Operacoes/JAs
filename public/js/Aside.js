@@ -275,7 +275,7 @@ async function carregarOrcamentos(clienteId, eventoId) {
                                 console.log("🟤 Buscando orçamento detalhado via API...");
                                 const orcamento = await fetchComToken(`orcamentos?nrOrcamento=${orc.nrorcamento}`);
                                 const moduloOrcamento = await import('./Orcamentos.js');
-                                console.log("✅ Dados recebidos, preenchendo formulário.");
+                                console.log("✅ Dados recebidos, preenchendo formulário. ");
                                 moduloOrcamento.preencherFormularioComOrcamento(orcamento);
                             } catch (error) {
                                 console.error("❌ Erro ao buscar orçamento:", error);
