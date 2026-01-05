@@ -5011,11 +5011,46 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
     }
 }
 
-// --- FUNÇÕES DE AÇÃO CORRIGIDAS ---
+function exibirToastSucesso(mensagem = 'Status atualizado!') {
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true
+    });
+    Toast.fire({ icon: 'success', title: mensagem });
+}
 
 async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
     const btnClicado = elementoBotao;
     const linhaTr = btnClicado ? btnClicado.closest('tr') : null;
+    let statusParaEnviar = novoStatus;
+
+    // LÓGICA DO SWAL PARA AJUDA DE CUSTO (50% ou 100%)
+    if (tipo === 'Ajuda' && novoStatus === 'Pago') {
+        const { value: opcao } = await Swal.fire({
+            title: 'Pagamento Ajuda de Custo',
+            text: 'Escolha a modalidade do pagamento:',
+            icon: 'question',
+            showDenyButton: true,
+            showCancelButton: true,
+            confirmButtonText: 'Pago 100%',
+            denyButtonText: 'Pago 50%',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#28a745',
+            denyButtonColor: '#17a2b8',
+        });
+
+        if (opcao === true) { // Clicou em Pago 100%
+            statusParaEnviar = 'Pago 100%';
+        } else if (Swal.getDenyButton() && opcao === false) { // Clicou em Pago 50%
+            // Nota: O Swal retorna false para o Deny Button se não configurado retorno específico
+            statusParaEnviar = 'Pago 50%';
+        } else {
+            return; // Usuário cancelou, encerra a função
+        }
+    }
 
     try {
         const response = await fetch(`/main/vencimentos/update-status`, {
@@ -5024,41 +5059,49 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${localStorage.getItem('token')}` 
             },
-            body: JSON.stringify({ idStaff, tipo, novoStatus })
+            body: JSON.stringify({ idStaff, tipo, novoStatus: statusParaEnviar })
         });
 
         if (response.ok) {
-            exibirToastSucesso(); // Sua função de Toast
+            exibirToastSucesso(`Status atualizado para ${statusParaEnviar}`);
 
             if (linhaTr) {
-                // Identifica as classes corretas baseado no tipo (Cache ou Ajuda)
-                const sufixo = tipo === 'Cache' ? 'cache' : 'ajuda';
+                const sufixo = tipo.toLowerCase() === 'cache' ? 'cache' : 'ajuda';
                 const celulaAcoes = linhaTr.querySelector(`.col-acoes-${sufixo}`);
                 const celulaStatus = linhaTr.querySelector(`.col-status-${sufixo}`);
 
-                // Atualiza o Status Visual
+                // Atualiza o Status Visual na tabela
                 if (celulaStatus) {
-                    const classeStatus = novoStatus.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+                    const classeStatus = statusParaEnviar.toLowerCase().replace(/\s+/g, '-').replace('%', '');
                     celulaStatus.className = `status-celula status-${classeStatus} col-status-${sufixo}`;
-                    celulaStatus.innerText = novoStatus;
+                    celulaStatus.innerText = statusParaEnviar;
                 }
 
-                // Atualiza os Botões
+                // Atualiza os Botões na tabela
                 if (celulaAcoes) {
-                    celulaAcoes.innerHTML = renderConteudoAcao(idStaff, tipo, novoStatus);
+                    celulaAcoes.innerHTML = renderConteudoAcao(idStaff, tipo, statusParaEnviar);
                 }
+            }
+
+            // Atualiza os cards de totais no topo (opcional, mas recomendado)
+            if (typeof carregarDadosVencimentos === "function") {
+                const filtroAno = document.getElementById('filtroAnoVencimentos')?.value || 2026;
+                carregarDadosVencimentos(filtroAno);
             }
         }
     } catch (error) {
-        console.error("Erro:", error);
+        console.error("Erro ao atualizar:", error);
+        Swal.fire('Erro', 'Não foi possível atualizar o status.', 'error');
     }
 }
 
 function renderConteudoAcao(idStaff, tipo, statusAtual) {
+    // Se estiver 100% ou Pago (Cache), mostra cadeado
     if (statusAtual === 'Pago' || statusAtual === 'Pago 100%') {
         return `<div class="btn-group-acoes"><span class="check-finalizado"><i class="fas fa-lock"></i></span></div>`;
     }
 
+    // Se estiver 50%, mostra botão para completar o resto
     if (statusAtual === 'Pago 50%') {
         return `
             <div class="btn-group-acoes">
@@ -5069,13 +5112,14 @@ function renderConteudoAcao(idStaff, tipo, statusAtual) {
             </div>`;
     }
 
+    // Pendente / Suspenso
     return `
         <div class="btn-group-acoes">
             <button class="btn-pago" onclick="alterarStatusStaff(${idStaff}, '${tipo}', 'Pago', this)">
                 <i class="fas fa-check"></i> Pago
             </button>
             <button class="btn-suspenso" onclick="alterarStatusStaff(${idStaff}, '${tipo}', 'Suspenso', this)">
-                <i class="fas fa-pause"></i> Suspender
+                <i class="fas fa-pause"></i> Suspenso
             </button>
         </div>`;
 }

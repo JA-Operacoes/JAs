@@ -835,43 +835,58 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
 });
 
 router.get("/ListarFuncionarios", async (req, res) => {
-  // Pega o idempresa da query ou do objeto de requisição (middleware)
-  const idempresa = req.query.idempresa || req.idempresa;
-  const { idEvento, idEquipe, ano } = req.query;
-  
-  const anoFiltro = ano ? Number(ano) : new Date().getFullYear();
+    // Tenta pegar o idempresa de várias fontes para garantir
+    const idempresa = req.query.idempresa || req.headers.idempresa || req.idempresa;
+    const { idEvento, idEquipe, ano } = req.query;
+    
+    // Define o ano como o atual (2026) se não for enviado
+    const anoFiltro = ano ? Number(ano) : new Date().getFullYear();
 
-  if (!idEvento || !idEquipe || !idempresa) {
-    return res.status(400).json({ erro: "Parâmetros idEvento, idEquipe e idempresa são obrigatórios." });
-  }
+    if (!idEvento || !idEquipe || !idempresa) {
+        return res.status(400).json({ 
+            erro: "Parâmetros idEvento, idEquipe e idempresa são obrigatórios." 
+        });
+    }
 
-  try {
-    const query = `
-    SELECT 
-        se.idstaffevento, 
-        se.idfuncionario, 
-        se.nmfuncionario AS nome, 
-        se.nmfuncao AS funcao, 
-        se.vlrtotal, 
-        se.statuspgto AS status_pagamento,
-        se.setor,
-        se.nivelexperiencia
-    FROM public.staffeventos se
-    INNER JOIN orcamentos o ON o.idevento = se.idevento
-    INNER JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-    WHERE se.idevento = $1 
-      AND se.idequipe = $2 
-      AND oe.idempresa = $3
-      -- Filtro de ano baseado na data de início do orçamento
-      AND EXTRACT(YEAR FROM o.dtinimarcacao) = $4 
-    ORDER BY se.nmfuncao, se.nmfuncionario;`;
+    try {
+        const query = `
+        SELECT 
+            se.idstaffevento, 
+            se.idfuncionario, 
+            se.nmfuncionario AS nome, 
+            se.nmfuncao AS funcao, 
+            se.vlrtotal, 
+            se.statuspgto AS status_pagamento,
+            se.setor,
+            se.nivelexperiencia
+        FROM public.staffeventos se
+        WHERE se.idevento = $1
+          AND se.idequipe = $2
+          -- Verifica empresa sem duplicar linhas (EXISTS em vez de JOIN)
+          AND EXISTS (
+              SELECT 1 
+              FROM orcamentoempresas oe
+              JOIN orcamentos o ON o.idorcamento = oe.idorcamento
+              WHERE o.idevento = se.idevento 
+                AND oe.idempresa = $3
+          )
+          -- Trava de segurança para o Ano (2026) dentro do JSONB
+          AND EXISTS (
+              SELECT 1 
+              FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
+              WHERE EXTRACT(YEAR FROM (d.dt)::date) = $4
+          )
+        ORDER BY se.nmfuncao, se.nmfuncionario;`;
 
-    const { rows } = await pool.query(query, [idEvento, idEquipe, idempresa, anoFiltro]);
-    res.status(200).json(rows);
-  } catch (erro) {
-    console.error("Erro ListarFuncionarios:", erro);
-    res.status(500).json({ erro: 'Erro interno ao listar funcionários.' });
-  }
+        const { rows } = await pool.query(query, [idEvento, idEquipe, idempresa, anoFiltro]);
+        
+        // Retorna a lista limpa (sem duplicatas)
+        res.status(200).json(rows);
+        
+    } catch (erro) {
+        console.error("Erro ListarFuncionarios:", erro);
+        res.status(500).json({ erro: 'Erro interno ao listar funcionários.' });
+    }
 });
 // =======================================
 
@@ -2493,8 +2508,6 @@ router.get("/vencimentos", async (req, res) => {
             endDate = fmt(dataBase);
         } else if (periodo === "semanal") {
             dataBase = dataInicioQuery ? new Date(dataInicioQuery + 'T00:00:00') : new Date();
-
-            // Pega o dia da semana (0 = Domingo, 6 = Sábado)
             const diaSemana = dataBase.getDay();
             const primeiro = new Date(dataBase);
             primeiro.setDate(dataBase.getDate() - diaSemana);
@@ -2566,58 +2579,12 @@ router.get("/vencimentos", async (req, res) => {
             ORDER BY tse.nmfuncionario;
         `;
 
-        const { rows: detalhesFuncionarios } = await pool.query(queryDetalhes, [idsEventosFiltrados]); 
+        const { rows: staffRows } = await pool.query(queryDetalhes, [idsEventos]);
 
-        // ----------------------------------------------------
-        // 3. PROCESSAMENTO E ANINHAMENTO DOS DADOS
-        // ----------------------------------------------------
-
-        // A. Cria um mapa de funcionários agrupados por idevento
-        const funcionariosPorEvento = detalhesFuncionarios.reduce((acc, func) => {
-            const idevento = func.idevento;
-            if (!acc[idevento]) {
-                acc[idevento] = [];
-            }
-
-            acc[idevento].push({
-                idevento: func.idevento,
-                nome: func.nome,
-                funcao: func.funcao,
-                statusPgto: func.statuspgto,
-                qtdDiarias: parseInt(func.qtddiarias, 10) || 0,
-                totalCache: parseFloat(func.totalcache) || 0,
-                totalAjudaCusto: parseFloat(func.totalajudacusto) || 0,
-                totalPagar: parseFloat(func.totalpagar) || 0,
-
-            });
-            return acc;
-        }, {});
-
-
-        // B. Mapeia os eventos agregados, adicionando a lista de funcionários
-        const eventosComDetalhes = eventosAgregados.map(r => {
-            const ajudaTotal = parseFloat(r.ajuda_total) || 0;
-            const cacheTotal = parseFloat(r.cache_total) || 0;
-            const totalGeral = ajudaTotal + cacheTotal;
-
-            // ... [Lógica de cálculo de vencimentos é mantida e está OK] ...
-            const dataInicioEvento = formatarData(r.max_data_inicio_orcamento); 
-            const dataFimEvento = formatarData(r.max_data_fim_realizacao_orcamento);
-
-            const maxDataInicio = new Date(r.max_data_inicio_orcamento);
-            const vencimentoAjudaCusto = new Date(maxDataInicio.getTime());
-            vencimentoAjudaCusto.setDate(maxDataInicio.getDate() + 2);
-            const dataVencimentoAjuda = formatarData(vencimentoAjudaCusto);
-
-            let dataVencimentoCache = 'N/A';
-            if (r.max_data_fim_realizacao_orcamento) {
-                const maxDataFim = new Date(r.max_data_fim_realizacao_orcamento);
-                const vencimentoCache = new Date(maxDataFim.getTime());
-                vencimentoCache.setDate(maxDataFim.getDate() + 10);
-                dataVencimentoCache = formatarData(vencimentoCache);
-            }
-
-            const idevento = r.idevento;
+        // --- MAPEAMENTO FINAL ---
+        const resultado = eventos.map(ev => {
+            const dInicio = ev.dt_inicio ? new Date(ev.dt_inicio) : null;
+            const dFim = ev.dt_fim ? new Date(ev.dt_fim) : null;
 
             return {
                 idevento: ev.idevento,
@@ -2633,24 +2600,53 @@ router.get("/vencimentos", async (req, res) => {
                     pendente: parseFloat(ev.ajuda_pendente), 
                     pagos: parseFloat(ev.ajuda_paga) 
                 },
-                cache: {
-                    total: cacheTotal,
-                    pendente: parseFloat(r.cache_pendente) || 0,
-                    pagos: cacheTotal - (parseFloat(r.cache_pendente) || 0)
+                cache: { 
+                    total: parseFloat(ev.cache_total), 
+                    pendente: parseFloat(ev.cache_pendente), 
+                    pagos: parseFloat(ev.cache_pago) 
                 },
-
-                funcionarios: funcionariosPorEvento[idevento] || []
-            }
+                funcionarios: staffRows
+                    .filter(s => s.idevento === ev.idevento)
+                    .map(s => ({
+                        idstaffevento: s.idstaffevento,
+                        nome: s.nome,
+                        funcao: s.funcao,
+                        qtddiarias: parseInt(s.qtddiarias, 10),
+                        totalcache: parseFloat(s.totalcache),
+                        totalajudacusto: parseFloat(s.totalajudacusto),
+                        totalpagar: parseFloat(s.totalcache) + parseFloat(s.totalajudacusto),
+                        statuspgto: s.statuspgto || 'Pendente',
+                        statuspgtoajdcto: s.statuspgtoajdcto || 'Pendente'
+                    }))
+            };
         });
 
-        // 4. Retornar a resposta final
-        return res.json({
-            periodo,
-            startDate,
-            endDate,
-            eventos: eventosComDetalhes
-        });
+        res.json({ periodo, startDate, endDate, eventos: resultado });
 
+    } catch (error) {
+        console.error("ERRO CRÍTICO NO BACKEND:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// NOVA ROTA PARA ATUALIZAR STATUS INDIVIDUAL
+router.post("/vencimentos/update-status", async (req, res) => {
+    const { idStaff, tipo, novoStatus } = req.body;
+    
+    // Mapeia o tipo para a coluna correta do banco
+    const coluna = (tipo === 'Cache') ? 'statuspgto' : 'statuspgtoajdcto';
+
+    try {
+        const result = await pool.query(
+            `UPDATE staffeventos SET ${coluna} = $1 WHERE idstaffevento = $2`, 
+            [novoStatus, idStaff]
+        );
+
+        if (result.rowCount > 0) {
+            res.json({ success: true });
+        } else {
+            res.status(404).json({ success: false, error: "Registro não encontrado." });
+        }
     } catch (error) {
         console.error("Erro no update:", error);
         res.status(500).json({ success: false, error: error.message });
