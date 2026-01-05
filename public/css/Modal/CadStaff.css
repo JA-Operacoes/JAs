@@ -622,19 +622,24 @@ input#statusMeiaDiaria.status-Rejeitado {
 }
 
 /* Cor da Fonte para "Pendente" (Amarelo/Laranja) */
-.status-custom.status-Pendente {
-    color: #FFC107; /* Cor do seu CSS de fundo Pendente */
+.status-custom.statusStaff-Pendente, .status-custom.statusStaff-pendente {
+    background-color: #FFC107; /* Cor do seu CSS de fundo Pendente */
+    color:white;
     font-weight: normal; /* Geralmente Pendente é menos destacado */
 }
 
 /* Cor da Fonte para "Autorizado" (Verde) */
-.status-custom.status-Autorizado {
-    color: green; /* Cor do seu CSS de fundo Autorizado #198754 */
+.status-custom.statusStaff-Autorizado, .status-custom.statusStaff-autorizado {
+    background-color: green;
+    color: white; /* Cor do seu CSS de fundo Autorizado #198754 */
+    font-weight: normal;
 }
 
 /* Cor da Fonte para "Rejeitado" (Vermelho) */
-.status-custom.status-Rejeitado {
-    color: #DC3545; /* Cor do seu CSS de fundo Rejeitado */
+.status-custom.statusStaff-Rejeitado, .status-custom.statusStaff-rejeitado {
+    background-color: #DC3545;
+    color: white; /* Cor do seu CSS de fundo Rejeitado */
+    font-weight: normal;
 }
 
 /* #selectStatusDiariaDobrada.status-none {
@@ -698,6 +703,19 @@ input#statusMeiaDiaria.status-Rejeitado {
     color: green;
 }
 
+#statusPgto.pago50 {
+    color: #FFC107;
+}
+
+#statusPgto.pendente {
+    color: red;
+}
+
+/* Estilo para status Pago (Verde) */
+#statusPgto.suspenso {
+    color:rgb(80, 194, 255);
+}
+
 .status-pgto {
     font-weight: bold;
 }
@@ -710,6 +728,14 @@ input#statusMeiaDiaria.status-Rejeitado {
 /* Estilo para status Pago (Verde) */
 .status-pgto.pago {
     color: green;
+}
+
+.status-pgto.pago50 {
+    color: #FFC107;
+}
+
+.status-pgto.suspenso {
+    color:rgb(80, 194, 255);;
 }
 
 .nmPavilhao option:checked {
@@ -975,6 +1001,14 @@ input#vlrTotal:not([value=""]) ~ label{
   background: #cacaca;
 }
 
+input#ajusteCusto:not([value=""]) ~ label{
+  top: 0;
+  left: 25px;
+  font-size: 14px;
+  padding: 0 2px;
+  background: #cacaca;
+}
+
 input ~ label,
 textarea ~ label {
     top: 0;
@@ -988,7 +1022,7 @@ input#idStaff{
   width: 100px;
 }
 
-input#transporte,#almoco,#jantar,#lrCusto{
+input#transporte,#almoco,#jantar,#vlrCusto{
   /* width: 170px; */
   width: 100%;
 }
