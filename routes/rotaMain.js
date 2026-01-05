@@ -835,58 +835,46 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
 });
 
 router.get("/ListarFuncionarios", async (req, res) => {
-    // Tenta pegar o idempresa de várias fontes para garantir
-    const idempresa = req.query.idempresa || req.headers.idempresa || req.idempresa;
-    const { idEvento, idEquipe, ano } = req.query;
-    
-    // Define o ano como o atual (2026) se não for enviado
-    const anoFiltro = ano ? Number(ano) : new Date().getFullYear();
+  const idempresa = req.query.idempresa || req.idempresa;
+  const { idEvento, idEquipe, ano } = req.query;
+  
+  const anoFiltro = ano ? Number(ano) : new Date().getFullYear();
 
-    if (!idEvento || !idEquipe || !idempresa) {
-        return res.status(400).json({ 
-            erro: "Parâmetros idEvento, idEquipe e idempresa são obrigatórios." 
-        });
-    }
+  if (!idEvento || !idEquipe || !idempresa) {
+    return res.status(400).json({ erro: "Parâmetros idEvento, idEquipe e idempresa são obrigatórios." });
+  }
 
-    try {
-        const query = `
-        SELECT 
-            se.idstaffevento, 
-            se.idfuncionario, 
-            se.nmfuncionario AS nome, 
-            se.nmfuncao AS funcao, 
-            se.vlrtotal, 
-            se.statuspgto AS status_pagamento,
-            se.setor,
-            se.nivelexperiencia
-        FROM public.staffeventos se
-        WHERE se.idevento = $1
-          AND se.idequipe = $2
-          -- Verifica empresa sem duplicar linhas (EXISTS em vez de JOIN)
-          AND EXISTS (
-              SELECT 1 
-              FROM orcamentoempresas oe
-              JOIN orcamentos o ON o.idorcamento = oe.idorcamento
-              WHERE o.idevento = se.idevento 
-                AND oe.idempresa = $3
-          )
-          -- Trava de segurança para o Ano (2026) dentro do JSONB
-          AND EXISTS (
-              SELECT 1 
-              FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
-              WHERE EXTRACT(YEAR FROM (d.dt)::date) = $4
-          )
-        ORDER BY se.nmfuncao, se.nmfuncionario;`;
+  try {
+    const query = `
+    SELECT 
+        se.idstaffevento, 
+        se.idfuncionario, 
+        se.nmfuncionario AS nome, 
+        se.nmfuncao AS funcao, 
+        se.vlrtotal, 
+        se.statuspgto AS status_pagamento,
+        se.setor,
+        se.nivelexperiencia
+    FROM public.staffeventos se
+    INNER JOIN orcamentos o ON o.idevento = se.idevento
+    INNER JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+    WHERE se.idevento = $1 
+      AND se.idequipe = $2 
+      AND oe.idempresa = $3
+      -- GARANTE QUE O FUNCIONÁRIO TEM DATAS LANÇADAS PARA O ANO SELECIONADO (2026)
+      AND EXISTS (
+          SELECT 1 
+          FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
+          WHERE EXTRACT(YEAR FROM (d.dt)::date) = $4
+      )
+    ORDER BY se.nmfuncao, se.nmfuncionario;`;
 
-        const { rows } = await pool.query(query, [idEvento, idEquipe, idempresa, anoFiltro]);
-        
-        // Retorna a lista limpa (sem duplicatas)
-        res.status(200).json(rows);
-        
-    } catch (erro) {
-        console.error("Erro ListarFuncionarios:", erro);
-        res.status(500).json({ erro: 'Erro interno ao listar funcionários.' });
-    }
+    const { rows } = await pool.query(query, [idEvento, idEquipe, idempresa, anoFiltro]);
+    res.status(200).json(rows);
+  } catch (erro) {
+    console.error("Erro ListarFuncionarios:", erro);
+    res.status(500).json({ erro: 'Erro interno ao listar funcionários.' });
+  }
 });
 // =======================================
 
@@ -2480,153 +2468,213 @@ function calcularIntervaloDeDatas(periodo, params) {
 // =======================================
 
 router.get("/vencimentos", async (req, res) => {
+  try {
+    const idempresa = req.idempresa;
+    if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
+
+    const periodo = (req.query.periodo || 'anual').toLowerCase();
+    const anoFiltro = parseInt(req.query.ano, 10) || new Date().getFullYear();
+
+    // Função auxiliar para formatar datas para o SQL (YYYY-MM-DD)
     const fmt = d => {
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        return `${yyyy}-${mm}-${dd}`;
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
     };
 
-    try {
-        const idempresa = req.idempresa;
-        if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
+    let startDate, endDate;
+    let queryParams;
 
-        // --- LÓGICA DE FILTROS RESTAURADA ---
-        const periodo = (req.query.periodo || 'anual').toLowerCase();
-        const dataInicioQuery = req.query.dataInicio;
-        const mes = parseInt(req.query.mes, 10);
-        const anoFiltro = parseInt(req.query.ano, 10) || new Date().getFullYear();
-        const trimestre = parseInt(req.query.trimestre, 10);
-        const semestre = parseInt(req.query.semestre, 10);
-
-        let startDate, endDate;
-        let dataBase;
-
-        if (periodo === "diario") {
-            dataBase = dataInicioQuery ? new Date(dataInicioQuery + 'T00:00:00') : new Date();
-            startDate = fmt(dataBase);
-            endDate = fmt(dataBase);
-        } else if (periodo === "semanal") {
-            dataBase = dataInicioQuery ? new Date(dataInicioQuery + 'T00:00:00') : new Date();
-            const diaSemana = dataBase.getDay();
-            const primeiro = new Date(dataBase);
-            primeiro.setDate(dataBase.getDate() - diaSemana);
-            startDate = fmt(primeiro);
-            const ultimo = new Date(primeiro);
-            ultimo.setDate(primeiro.getDate() + 6);
-            endDate = fmt(ultimo);
-        } else if (periodo === "mensal") {
-            const m = (!isNaN(mes) ? mes : new Date().getMonth() + 1);
-            startDate = fmt(new Date(anoFiltro, m - 1, 1));
-            endDate = fmt(new Date(anoFiltro, m, 0));
-        } else if (periodo === "trimestral") {
-            const t = (!isNaN(trimestre) ? trimestre : Math.ceil((new Date().getMonth() + 1) / 3));
-            startDate = fmt(new Date(anoFiltro, (t - 1) * 3, 1));
-            endDate = fmt(new Date(anoFiltro, t * 3, 0));
-        } else if (periodo === "semestral") {
-            const s = (!isNaN(semestre) ? semestre : (new Date().getMonth() <= 5 ? 1 : 2));
-            startDate = fmt(new Date(anoFiltro, s === 1 ? 0 : 6, 1));
-            endDate = fmt(new Date(anoFiltro, s === 1 ? 6 : 12, 0));
-        } else { // anual
-            startDate = `${anoFiltro}-01-01`;
-            endDate = `${anoFiltro}-12-31`;
-        }
-
-        // --- QUERY DE AGREGAÇÃO CORRIGIDA ---
-        // Removi a variável complexa 'whereVencimentoPendente' que estava causando o erro de parâmetro $4
-        const queryAgregacao = `
-            SELECT
-                tse.idevento, e.nmevento,
-                MAX(torc.dtinimarcacao) AS dt_inicio,
-                MAX(torc.dtfimrealizacao) AS dt_fim,
-                -- Ajuda de Custo
-                COALESCE(SUM((COALESCE(tse.vlralmoco,0)+COALESCE(tse.vlralimentacao,0)+COALESCE(tse.vlrtransporte,0)) * GREATEST(jsonb_array_length(tse.datasevento), 1)), 0) AS ajuda_total,
-                COALESCE(SUM((COALESCE(tse.vlralmoco,0)+COALESCE(tse.vlralimentacao,0)+COALESCE(tse.vlrtransporte,0)) * GREATEST(jsonb_array_length(tse.datasevento), 1)) 
-                    FILTER (WHERE tse.statuspgtoajdcto LIKE 'Pago%'), 0) AS ajuda_paga,
-                COALESCE(SUM((COALESCE(tse.vlralmoco,0)+COALESCE(tse.vlralimentacao,0)+COALESCE(tse.vlrtransporte,0)) * GREATEST(jsonb_array_length(tse.datasevento), 1)) 
-                    FILTER (WHERE tse.statuspgtoajdcto = 'Pendente' OR tse.statuspgtoajdcto IS NULL), 0) AS ajuda_pendente,
-                -- Cachê
-                COALESCE(SUM(COALESCE(tse.vlrcache,0) * GREATEST(jsonb_array_length(tse.datasevento), 1)), 0) AS cache_total,
-                COALESCE(SUM(COALESCE(tse.vlrcache,0) * GREATEST(jsonb_array_length(tse.datasevento), 1)) 
-                    FILTER (WHERE tse.statuspgto LIKE 'Pago%'), 0) AS cache_pago,
-                COALESCE(SUM(COALESCE(tse.vlrcache,0) * GREATEST(jsonb_array_length(tse.datasevento), 1)) 
-                    FILTER (WHERE tse.statuspgto = 'Pendente' OR tse.statuspgto IS NULL), 0) AS cache_pendente
-            FROM staffeventos tse
-            JOIN eventos e ON tse.idevento = e.idevento
-            JOIN orcamentos torc ON tse.idevento = torc.idevento
-            JOIN orcamentoempresas oe ON torc.idorcamento = oe.idorcamento
-            WHERE oe.idempresa = $1 
-              AND torc.dtinimarcacao BETWEEN $2 AND $3
-            GROUP BY tse.idevento, e.nmevento;
-        `;
-
-        const { rows: eventos } = await pool.query(queryAgregacao, [idempresa, startDate, endDate]);
-
-        if (eventos.length === 0) return res.json({ periodo, startDate, endDate, eventos: [] });
-
-        // --- QUERY DE DETALHES ---
-        const idsEventos = eventos.map(e => e.idevento);
-        const queryDetalhes = `
-            SELECT
-                tse.idstaffevento, tse.idevento, tse.nmfuncionario AS nome, tse.nmfuncao AS funcao,
-                jsonb_array_length(tse.datasevento) AS qtddiarias,
-                (COALESCE(tse.vlrcache, 0) * GREATEST(jsonb_array_length(tse.datasevento), 1)) AS totalcache,
-                ((COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * GREATEST(jsonb_array_length(tse.datasevento), 1)) AS totalajudacusto,
-                tse.statuspgto, 
-                tse.statuspgtoajdcto
-            FROM staffeventos tse
-            WHERE tse.idevento = ANY($1)
-            ORDER BY tse.nmfuncionario;
-        `;
-
-        const { rows: staffRows } = await pool.query(queryDetalhes, [idsEventos]);
-
-        // --- MAPEAMENTO FINAL ---
-        const resultado = eventos.map(ev => {
-            const dInicio = ev.dt_inicio ? new Date(ev.dt_inicio) : null;
-            const dFim = ev.dt_fim ? new Date(ev.dt_fim) : null;
-
-            return {
-                idevento: ev.idevento,
-                nomeEvento: ev.nmevento,
-                totalGeral: parseFloat(ev.ajuda_total) + parseFloat(ev.cache_total),
-                dataInicioEvento: dInicio ? dInicio.toLocaleDateString('pt-BR') : 'N/A',
-                dataFimEvento: dFim ? dFim.toLocaleDateString('pt-BR') : 'N/A',
-                // Lógica de Vencimento
-                dataVencimentoAjuda: dInicio ? new Date(new Date(dInicio).setDate(dInicio.getDate() + 2)).toLocaleDateString('pt-BR') : 'N/A',
-                dataVencimentoCache: dFim ? new Date(new Date(dFim).setDate(dFim.getDate() + 3)).toLocaleDateString('pt-BR') : 'N/A',
-                ajuda: { 
-                    total: parseFloat(ev.ajuda_total), 
-                    pendente: parseFloat(ev.ajuda_pendente), 
-                    pagos: parseFloat(ev.ajuda_paga) 
-                },
-                cache: { 
-                    total: parseFloat(ev.cache_total), 
-                    pendente: parseFloat(ev.cache_pendente), 
-                    pagos: parseFloat(ev.cache_pago) 
-                },
-                funcionarios: staffRows
-                    .filter(s => s.idevento === ev.idevento)
-                    .map(s => ({
-                        idstaffevento: s.idstaffevento,
-                        nome: s.nome,
-                        funcao: s.funcao,
-                        qtddiarias: parseInt(s.qtddiarias, 10),
-                        totalcache: parseFloat(s.totalcache),
-                        totalajudacusto: parseFloat(s.totalajudacusto),
-                        totalpagar: parseFloat(s.totalcache) + parseFloat(s.totalajudacusto),
-                        statuspgto: s.statuspgto || 'Pendente',
-                        statuspgtoajdcto: s.statuspgtoajdcto || 'Pendente'
-                    }))
-            };
-        });
-
-        res.json({ periodo, startDate, endDate, eventos: resultado });
-
-    } catch (error) {
-        console.error("ERRO CRÍTICO NO BACKEND:", error);
-        res.status(500).json({ error: error.message });
+    // --- DEFINIÇÃO DO INTERVALO DE DATAS (START/END) ---
+    if (periodo === 'diario') {
+      const d = req.query.dataInicio ? new Date(req.query.dataInicio + 'T00:00:00') : new Date();
+      startDate = fmt(d); endDate = fmt(d);
+    } else if (periodo === 'semanal') {
+      const base = req.query.dataInicio ? new Date(req.query.dataInicio + 'T00:00:00') : new Date();
+      const diaSemana = base.getDay();
+      const primeiro = new Date(base); primeiro.setDate(base.getDate() - diaSemana);
+      const ultimo = new Date(primeiro); ultimo.setDate(primeiro.getDate() + 6);
+      startDate = fmt(primeiro); endDate = fmt(ultimo);
+    } else if (periodo === 'mensal') {
+      const m = parseInt(req.query.mes, 10) || (new Date().getMonth() + 1);
+      const y = parseInt(req.query.ano, 10) || new Date().getFullYear();
+      startDate = fmt(new Date(y, m - 1, 1));
+      endDate = fmt(new Date(y, m, 0));
+    } else if (periodo === 'trimestral') {
+      const t = parseInt(req.query.trimestre, 10) || Math.ceil((new Date().getMonth() + 1) / 3);
+      const y = parseInt(req.query.ano, 10) || new Date().getFullYear();
+      startDate = fmt(new Date(y, (t - 1) * 3, 1));
+      endDate = fmt(new Date(y, t * 3, 0));
+    } else if (periodo === 'semestral') {
+      const s = parseInt(req.query.semestre, 10) || (new Date().getMonth() < 6 ? 1 : 2);
+      const y = parseInt(req.query.ano, 10) || new Date().getFullYear();
+      startDate = fmt(new Date(y, s === 1 ? 0 : 6, 1));
+      endDate = fmt(new Date(y, s === 1 ? 6 : 12, 0));
+    } else {
+      // ANUAL (Padrão)
+      startDate = `${anoFiltro}-01-01`;
+      endDate = `${anoFiltro}-12-31`;
     }
+
+    queryParams = [idempresa, startDate, endDate];
+
+    // --- QUERY 1: AGREGAÇÃO DOS CARDS DE EVENTO ---
+    const queryAgregacao = `
+      SELECT
+        o.idevento,
+        e.nmevento,
+        MIN(o.dtinirealizacao) AS dt_inicio,
+        MAX(o.dtfimrealizacao) AS dt_fim,
+        
+        -- Soma ajuda de custo proporcional aos dias filtrados
+        COALESCE(SUM(
+          (COALESCE(tse.vlralmoco,0) + COALESCE(tse.vlralimentacao,0) + COALESCE(tse.vlrtransporte,0)) * calc.qtd
+        ), 0) AS ajuda_total,
+        
+        -- Soma cachê proporcional aos dias filtrados
+        COALESCE(SUM(
+          COALESCE(tse.vlrcache,0) * calc.qtd
+        ), 0) AS cache_total,
+        
+        -- Valores já pagos no período
+        COALESCE(SUM(
+          (COALESCE(tse.vlralmoco,0) + COALESCE(tse.vlralimentacao,0) + COALESCE(tse.vlrtransporte,0)) * calc.qtd
+        ) FILTER (WHERE tse.statuspgtoajdcto IN ('Pago', 'Pago 100%')), 0) AS ajuda_paga,
+        
+        COALESCE(SUM(
+          COALESCE(tse.vlrcache,0) * calc.qtd
+        ) FILTER (WHERE tse.statuspgto IN ('Pago', 'Pago 100%')), 0) AS cache_paga
+
+      FROM orcamentos o
+      JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
+      JOIN eventos e ON o.idevento = e.idevento
+      JOIN staffeventos tse ON e.idevento = tse.idevento
+      -- O segredo está aqui: conta apenas diárias dentro do range $2 e $3
+      CROSS JOIN LATERAL (
+        SELECT COUNT(*)::int as qtd
+        FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
+        WHERE (d.dt)::date BETWEEN $2 AND $3
+      ) AS calc
+      WHERE oe.idempresa = $1
+        AND calc.qtd > 0
+      GROUP BY o.idevento, e.nmevento
+      ORDER BY dt_inicio ASC;
+    `;
+
+    const { rows: eventosRaw } = await pool.query(queryAgregacao, queryParams);
+
+    if (!eventosRaw || eventosRaw.length === 0) {
+      return res.json({ periodo, startDate, endDate, eventos: [] });
+    }
+
+    const idsEventos = eventosRaw.map(e => e.idevento);
+
+    // --- QUERY 2: DETALHES DOS FUNCIONÁRIOS (TABELA) ---
+    const queryDetalhes = `
+      SELECT
+        tse.idstaffevento, 
+        tse.idevento, 
+        tse.nmfuncionario AS nome, 
+        tse.nmfuncao AS funcao,
+        calc.qtd AS qtddiarias_filtradas,
+        calc.min_dt,
+        calc.max_dt,
+        (COALESCE(tse.vlrcache, 0) * calc.qtd) AS totalcache_filtrado,
+        ((COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * calc.qtd) AS totalajudacusto_filtrado,
+        tse.statuspgto, 
+        tse.statuspgtoajdcto
+      FROM staffeventos tse
+      CROSS JOIN LATERAL (
+        SELECT COUNT(*)::int as qtd,
+               MIN((d.dt)::date) AS min_dt,
+               MAX((d.dt)::date) AS max_dt
+        FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
+        WHERE (d.dt)::date BETWEEN $2 AND $3
+      ) AS calc
+      WHERE tse.idevento = ANY($1)
+        AND calc.qtd > 0
+      ORDER BY tse.nmfuncionario;
+    `;
+
+    const { rows: staffRows } = await pool.query(queryDetalhes, [idsEventos, startDate, endDate]);
+
+    // --- MAPEAMENTO FINAL DO RESULTADO ---
+    // Agrupa funcionários por evento para recalcular datas e totais a partir das diárias filtradas
+    const funcionariosPorEvento = staffRows.reduce((acc, s) => {
+      const ide = s.idevento;
+      if (!acc[ide]) acc[ide] = [];
+      acc[ide].push(s);
+      return acc;
+    }, {});
+
+    const resultado = eventosRaw.map(ev => {
+      const staffs = funcionariosPorEvento[ev.idevento] || [];
+
+      // Recalcula totais a partir dos funcionários filtrados
+      let ajTotal = 0, ajPaga = 0, chTotal = 0, chPaga = 0;
+      let minDate = null, maxDate = null;
+
+      staffs.forEach(s => {
+        const totalCache = parseFloat(s.totalcache_filtrado) || 0;
+        const totalAjuda = parseFloat(s.totalajudacusto_filtrado) || 0;
+        chTotal += totalCache;
+        ajTotal += totalAjuda;
+
+        if (s.statuspgto && ['Pago','Pago 100%'].includes(s.statuspgto)) chPaga += totalCache;
+        if (s.statuspgtoajdcto && ['Pago','Pago 100%'].includes(s.statuspgtoajdcto)) ajPaga += totalAjuda;
+
+        if (s.min_dt) {
+          const d = new Date(s.min_dt);
+          if (!minDate || d < minDate) minDate = d;
+        }
+        if (s.max_dt) {
+          const d = new Date(s.max_dt);
+          if (!maxDate || d > maxDate) maxDate = d;
+        }
+      });
+
+      const dataInicioEvento = minDate ? minDate.toLocaleDateString('pt-BR') : (ev.dt_inicio ? new Date(ev.dt_inicio).toLocaleDateString('pt-BR') : 'N/A');
+      const dataFimEvento = maxDate ? maxDate.toLocaleDateString('pt-BR') : (ev.dt_fim ? new Date(ev.dt_fim).toLocaleDateString('pt-BR') : 'N/A');
+
+      const dataVencimentoAjuda = minDate ? new Date(minDate.getTime() + 2*24*60*60*1000).toLocaleDateString('pt-BR') : 'N/A';
+      const dataVencimentoCache = maxDate ? new Date(maxDate.getTime() + 10*24*60*60*1000).toLocaleDateString('pt-BR') : 'N/A';
+
+      return {
+        idevento: ev.idevento,
+        nomeEvento: ev.nmevento,
+        totalGeral: ajTotal + chTotal,
+        dataInicioEvento,
+        dataFimEvento,
+        dataVencimentoAjuda,
+        dataVencimentoCache,
+        ajuda: { total: ajTotal, pagos: ajPaga, pendente: ajTotal - ajPaga },
+        cache: { total: chTotal, pagos: chPaga, pendente: chTotal - chPaga },
+        funcionarios: staffs.map(s => ({
+          idstaffevento: s.idstaffevento,
+          nome: s.nome,
+          funcao: s.funcao,
+          qtddiarias: s.qtddiarias_filtradas,
+          totalcache: parseFloat(s.totalcache_filtrado) || 0,
+          totalajudacusto: parseFloat(s.totalajudacusto_filtrado) || 0,
+          totalpagar: (parseFloat(s.totalcache_filtrado) || 0) + (parseFloat(s.totalajudacusto_filtrado) || 0),
+          statuspgto: s.statuspgto || 'Pendente',
+          statuspgtoajdcto: s.statuspgtoajdcto || 'Pendente'
+        }))
+      };
+    });
+
+    return res.json({ 
+      periodo, 
+      startDate, 
+      endDate, 
+      eventos: resultado 
+    });
+
+  } catch (error) {
+    console.error("ERRO FINANCEIRO VENCIMENTOS:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // NOVA ROTA PARA ATUALIZAR STATUS INDIVIDUAL

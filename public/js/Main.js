@@ -5404,52 +5404,74 @@ async function carregarDadosVencimentos(anoFiltro) {
 
         if (dados && dados.eventos) {
             dados.eventos.forEach(ev => {
-                // Ajuda
-                const ajP = parseFloat(ev.ajuda.pendente);
-                const [da, ma, ya] = ev.dataVencimentoAjuda.split('/').map(Number);
-                const dtAj = new Date(ya, ma - 1, da);
-                
-                if (ajP > 0) {
-                    if (dtAj < hoje) soma.ajVencidos += ajP;
-                    else soma.ajAVencer += ajP;
-                }
-                soma.ajPagos += parseFloat(ev.ajuda.pagos);
+                // --- AJUDA DE CUSTO ---
+                const ajPendente = parseFloat(ev.ajuda.pendente) || 0;
+                const ajJaPago = parseFloat(ev.ajuda.pagos) || 0;
 
-                // Cache
-                const chP = parseFloat(ev.cache.pendente);
-                if (chP > 0 && ev.dataVencimentoCache !== 'N/A') {
+                // Regra: Soma no card de PAGOS tudo que já foi pago (Total ou 50%)
+                soma.ajPagos += ajJaPago;
+
+                // Regra: Se ainda tem algo pendente, verifica o vencimento
+                if (ajPendente > 0) {
+                    const [da, ma, ya] = ev.dataVencimentoAjuda.split('/').map(Number);
+                    const dtAj = new Date(ya, ma - 1, da);
+                    
+                    if (dtAj < hoje) {
+                        soma.ajVencidos += ajPendente;
+                    } else {
+                        soma.ajAVencer += ajPendente;
+                    }
+                }
+
+                // --- CACHÊ ---
+                const chPendente = parseFloat(ev.cache.pendente) || 0;
+                const chJaPago = parseFloat(ev.cache.pagos) || 0;
+
+                // Soma o que já foi pago de Cachê
+                soma.chPagos += chJaPago;
+
+                // Se houver cachê pendente, calcula se está vencido
+                if (chPendente > 0 && ev.dataVencimentoCache !== 'N/A') {
                     const [dc, mc, yc] = ev.dataVencimentoCache.split('/').map(Number);
                     const dtCh = new Date(yc, mc - 1, dc);
-                    if (dtCh < hoje) soma.chVencidos += chP;
-                    else soma.chAVencer += chP;
+                    
+                    if (dtCh < hoje) {
+                        soma.chVencidos += chPendente;
+                    } else {
+                        soma.chAVencer += chPendente;
+                    }
                 }
-                soma.chPagos += parseFloat(ev.cache.pagos);
             });
         }
 
+        // Cálculos dos Totais Gerais dos Cards Superiores
         soma.previsto = soma.ajAVencer + soma.ajVencidos + soma.chAVencer + soma.chVencidos;
         soma.pagos = soma.ajPagos + soma.chPagos;
 
-        // Atualização dos Elementos com verificação de existência
+        // Função auxiliar para injetar os valores no HTML
         const atualizarTexto = (id, valor) => {
             const el = document.getElementById(id);
             if (el) el.textContent = formatarMoeda(valor);
         };
 
+        // Atualização Visual
         atualizarTexto('vencimentosTotal', soma.previsto);
         atualizarTexto('vencimentosPagos', soma.pagos);
+        
         atualizarTexto('vencAjudaAVencer', soma.ajAVencer);
         atualizarTexto('vencAjudaVencidos', soma.ajVencidos);
         atualizarTexto('vencAjudaPagos', soma.ajPagos);
+        
         atualizarTexto('vencCacheAVencer', soma.chAVencer);
         atualizarTexto('vencCacheVencidos', soma.chVencidos);
         atualizarTexto('vencCachePagos', soma.chPagos);
 
-        const container = document.getElementById('cardContainerVencimentos');
-        if (container) container.style.display = 'block';
+        if (document.getElementById('cardContainerVencimentos')) {
+            document.getElementById('cardContainerVencimentos').style.display = 'block';
+        }
 
     } catch (error) {
-        console.error("Erro ao carregar vencimentos:", error);
+        console.error("Erro ao carregar dados financeiros:", error);
     }
 }
 
