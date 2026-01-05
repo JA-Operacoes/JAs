@@ -1228,7 +1228,7 @@ const fileFilterContratos = (req, file, cb) => {
 const uploadContratosMiddleware = multer({
   storage: storageContratos,
   fileFilter: fileFilterContratos,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 50 * 1024 * 1024 },
 }).fields([{ name: "contrato", maxCount: 1 }]);
 
 router.post("/uploadContratoManual", (req, res) => {
@@ -1707,92 +1707,238 @@ router.put(
             );
          }
         }
-        // 2. Lidar com os itens do orçamento (orcamentoitens)
-        // Primeiro, busque os IDs dos itens existentes para este orçamento
-        const existingItemsResult = await client.query(
-            `SELECT idorcamentoitem FROM orcamentoitens WHERE idorcamento = $1`,
-            [idOrcamento]
-        );
-        const existingItemIds = new Set(existingItemsResult.rows.map(row => row.idorcamentoitem));
-        const receivedItemIds = new Set(itens.filter(item => item.id).map(item => item.id));
+//         // 2. Lidar com os itens do orçamento (orcamentoitens)
+//         // Primeiro, busque os IDs dos itens existentes para este orçamento
+//         const existingItemsResult = await client.query(
+//             `SELECT idorcamentoitem FROM orcamentoitens WHERE idorcamento = $1`,
+//             [idOrcamento]
+//         );
+//         const existingItemIds = new Set(existingItemsResult.rows.map(row => row.idorcamentoitem));
+//         const receivedItemIds = new Set(itens.filter(item => item.id).map(item => item.id));
 
-// Identificar itens a serem deletados (estão no DB mas não foram recebidos no payload)
-        // ... (código de deleção omitido para simplificação)
+// // Identificar itens a serem deletados (estão no DB mas não foram recebidos no payload)
+//         // ... (código de deleção omitido para simplificação)
 
-        // Iterar sobre os itens recebidos no payload
-        for (const item of itens) {
+//         // Iterar sobre os itens recebidos no payload
+//         for (const item of itens) {
         
-         // 🛑 Lógica do 'ADICIONAL' (dependente de item.adicional === true)
-         const isAdicional = item.adicional === true; 
+//          // 🛑 Lógica do 'ADICIONAL' (dependente de item.adicional === true)
+//          const isAdicional = item.adicional === true; 
         
-         if (item.id && existingItemIds.has(item.id)) {
-            // Item existente: UPDATE
-            const updateItemQuery = `UPDATE orcamentoitens SET
-                    enviarnaproposta = $1, categoria = $2, qtditens = $3, idfuncao = $4,
-                    idequipamento = $5, idsuprimento = $6, produto = $7, qtddias = $8, periododiariasinicio = $9,
-                    periododiariasfim = $10, descontoitem = $11, percentdescontoitem = $12, acrescimoitem = $13,
-                    percentacrescimoitem = $14, vlrdiaria = $15, totvdadiaria = $16, ctodiaria = $17, totctodiaria = $18,
-                    tpajdctoalimentacao = $19, vlrajdctoalimentacao = $20, tpajdctotransporte = $21, vlrajdctotransporte = $22,
-                    totajdctoitem = $23, hospedagem = $24, transporte = $25, totgeralitem = $26, setor = $27,
-                    adicional = $28
-                WHERE idorcamentoitem = $29 AND idorcamento = $30;
-            `;
+//          if (item.id && existingItemIds.has(item.id)) {
+//             // Item existente: UPDATE
+//             const updateItemQuery = `UPDATE orcamentoitens SET
+//                     enviarnaproposta = $1, categoria = $2, qtditens = $3, idfuncao = $4,
+//                     idequipamento = $5, idsuprimento = $6, produto = $7, qtddias = $8, periododiariasinicio = $9,
+//                     periododiariasfim = $10, descontoitem = $11, percentdescontoitem = $12, acrescimoitem = $13,
+//                     percentacrescimoitem = $14, vlrdiaria = $15, totvdadiaria = $16, ctodiaria = $17, totctodiaria = $18,
+//                     tpajdctoalimentacao = $19, vlrajdctoalimentacao = $20, tpajdctotransporte = $21, vlrajdctotransporte = $22,
+//                     totajdctoitem = $23, hospedagem = $24, transporte = $25, totgeralitem = $26, setor = $27,
+//                     adicional = $28
+//                 WHERE idorcamentoitem = $29 AND idorcamento = $30;
+//             `;
 
-            const itemValues = [
-                item.enviarnaproposta, item.categoria, item.qtditens, item.idfuncao,
-                item.idequipamento, item.idsuprimento, item.produto, item.qtdDias,
-                item.periododiariasinicio, item.periododiariasfim, item.descontoitem,
-                item.percentdescontoitem, item.acrescimoitem, item.percentacrescimoitem,
-                item.vlrdiaria, item.totvdadiaria, item.ctodiaria, item.totctodiaria,
-                item.tpajdctoalimentacao, item.vlrajdctoalimentacao,
-                item.tpajdctotransporte, item.vlrajdctotransporte,
-                item.totajdctoitem, item.hospedagem, item.transporte,
-                item.totgeralitem, 
-                item.setor ?? '',     
-                isAdicional,      
-                item.id,            // idorcamentoitem
-                idOrcamento
-            ];
+//             const itemValues = [
+//                 item.enviarnaproposta, item.categoria, item.qtditens, item.idfuncao,
+//                 item.idequipamento, item.idsuprimento, item.produto, item.qtdDias,
+//                 item.periododiariasinicio, item.periododiariasfim, item.descontoitem,
+//                 item.percentdescontoitem, item.acrescimoitem, item.percentacrescimoitem,
+//                 item.vlrdiaria, item.totvdadiaria, item.ctodiaria, item.totctodiaria,
+//                 item.tpajdctoalimentacao, item.vlrajdctoalimentacao,
+//                 item.tpajdctotransporte, item.vlrajdctotransporte,
+//                 item.totajdctoitem, item.hospedagem, item.transporte,
+//                 item.totgeralitem, 
+//                 item.setor ?? '',     
+//                 isAdicional,      
+//                 item.id,            // idorcamentoitem
+//                 idOrcamento
+//             ];
 
-            await client.query(updateItemQuery, itemValues);
-         } else {
-            // Novo item: INSERT
-            const insertItemQuery = `INSERT INTO orcamentoitens (
-                    idorcamento, enviarnaproposta, categoria, qtditens, idfuncao,
-                    idequipamento, idsuprimento, produto, qtddias, periododiariasinicio,
-                    periododiariasfim, descontoitem, percentdescontoitem, acrescimoitem,
-                    percentacrescimoitem, vlrdiaria, totvdadiaria, ctodiaria, totctodiaria,
-                    tpajdctoalimentacao, vlrajdctoalimentacao, tpajdctotransporte,
-                    vlrajdctotransporte, totajdctoitem, hospedagem, transporte,
-                    totgeralitem, setor, adicional
-                ) VALUES (
-                    $1, $2, $3, $4, $5,
-                    $6, $7, $8, $9, $10,
-                    $11, $12, $13, $14,
-                    $15, $16, $17, $18, $19,
-                    $20, $21, $22, $23,
-                    $24, $25, $26, $27, $28,
-                    $29
-                );
-            `;
+//             await client.query(updateItemQuery, itemValues);
+//          } else {
+//             // Novo item: INSERT
+//             const insertItemQuery = `INSERT INTO orcamentoitens (
+//                     idorcamento, enviarnaproposta, categoria, qtditens, idfuncao,
+//                     idequipamento, idsuprimento, produto, qtddias, periododiariasinicio,
+//                     periododiariasfim, descontoitem, percentdescontoitem, acrescimoitem,
+//                     percentacrescimoitem, vlrdiaria, totvdadiaria, ctodiaria, totctodiaria,
+//                     tpajdctoalimentacao, vlrajdctoalimentacao, tpajdctotransporte,
+//                     vlrajdctotransporte, totajdctoitem, hospedagem, transporte,
+//                     totgeralitem, setor, adicional
+//                 ) VALUES (
+//                     $1, $2, $3, $4, $5,
+//                     $6, $7, $8, $9, $10,
+//                     $11, $12, $13, $14,
+//                     $15, $16, $17, $18, $19,
+//                     $20, $21, $22, $23,
+//                     $24, $25, $26, $27, $28,
+//                     $29
+//                 );
+//             `;
 
-            const itemValues = [
-                idOrcamento, item.enviarnaproposta, item.categoria, item.qtditens,
-                item.idfuncao, item.idequipamento, item.idsuprimento, item.produto,
-                item.qtdDias, item.periododiariasinicio, item.periododiariasfim,
-                item.descontoitem, item.percentdescontoitem, item.acrescimoitem,
-                item.percentacrescimoitem, item.vlrdiaria, item.totvdadiaria,
-                item.ctodiaria, item.totctodiaria, item.tpajdctoalimentacao,
-                item.vlrajdctoalimentacao, item.tpajdctotransporte,
-                item.vlrajdctotransporte, item.totajdctoitem, item.hospedagem,
-                item.transporte, item.totgeralitem, 
-                item.setor ?? '',
-                isAdicional 
-            ];
+//             const itemValues = [
+//                 idOrcamento, item.enviarnaproposta, item.categoria, item.qtditens,
+//                 item.idfuncao, item.idequipamento, item.idsuprimento, item.produto,
+//                 item.qtdDias, item.periododiariasinicio, item.periododiariasfim,
+//                 item.descontoitem, item.percentdescontoitem, item.acrescimoitem,
+//                 item.percentacrescimoitem, item.vlrdiaria, item.totvdadiaria,
+//                 item.ctodiaria, item.totctodiaria, item.tpajdctoalimentacao,
+//                 item.vlrajdctoalimentacao, item.tpajdctotransporte,
+//                 item.vlrajdctotransporte, item.totajdctoitem, item.hospedagem,
+//                 item.transporte, item.totgeralitem, 
+//                 item.setor ?? '',
+//                 isAdicional 
+//             ];
 
-            await client.query(insertItemQuery, itemValues);
-         }
-        }     
+//             await client.query(insertItemQuery, itemValues);
+//          }
+//         }     
+
+// ==========================================================
+// 2. Lidar com os itens do orçamento (orcamentoitens)
+// ==========================================================
+
+// 1. Buscar IDs existentes no banco
+const existingItemsResult = await client.query(
+    `SELECT idorcamentoitem 
+       FROM orcamentoitens 
+      WHERE idorcamento = $1`,
+    [idOrcamento]
+);
+const existingItemIds = new Set(existingItemsResult.rows.map(r => Number(r.idorcamentoitem)));
+
+
+// 2. IDs enviados pelo frontend
+const receivedItemIds = new Set(
+    itens
+        .filter(item => item.id) 
+        .map(item => Number(item.id))
+);
+
+
+// 3. Identificar itens que devem ser DELETADOS
+const itemsToDelete = [...existingItemIds].filter(id => !receivedItemIds.has(id));
+
+if (itemsToDelete.length > 0) {
+    await client.query(
+        `DELETE FROM orcamentoitens
+          WHERE idorcamento = $1
+            AND idorcamentoitem = ANY($2)`,
+        [idOrcamento, itemsToDelete]
+    );
+}
+
+
+// 4. Inserir / Atualizar cada item enviado
+for (const item of itens) {
+    
+    const isAdicional = item.adicional === true;
+
+    if (item.id && existingItemIds.has(Number(item.id))) {
+        // ----------------------
+        // UPDATE DO ITEM EXISTENTE
+        // ----------------------
+        const updateItemQuery = `
+            UPDATE orcamentoitens SET
+                enviarnaproposta = $1,
+                categoria = $2,
+                qtditens = $3,
+                idfuncao = $4,
+                idequipamento = $5,
+                idsuprimento = $6,
+                produto = $7,
+                qtddias = $8,
+                periododiariasinicio = $9,
+                periododiariasfim = $10,
+                descontoitem = $11,
+                percentdescontoitem = $12,
+                acrescimoitem = $13,
+                percentacrescimoitem = $14,
+                vlrdiaria = $15,
+                totvdadiaria = $16,
+                ctodiaria = $17,
+                totctodiaria = $18,
+                tpajdctoalimentacao = $19,
+                vlrajdctoalimentacao = $20,
+                tpajdctotransporte = $21,
+                vlrajdctotransporte = $22,
+                totajdctoitem = $23,
+                hospedagem = $24,
+                transporte = $25,
+                totgeralitem = $26,
+                setor = $27,
+                adicional = $28
+            WHERE idorcamentoitem = $29
+              AND idorcamento = $30
+        `;
+
+        const itemValues = [
+            item.enviarnaproposta, item.categoria, item.qtditens,
+            item.idfuncao, item.idequipamento, item.idsuprimento, item.produto,
+            item.qtdDias, item.periododiariasinicio, item.periododiariasfim,
+            item.descontoitem, item.percentdescontoitem,
+            item.acrescimoitem, item.percentacrescimoitem,
+            item.vlrdiaria, item.totvdadiaria, item.ctodiaria, item.totctodiaria,
+            item.tpajdctoalimentacao, item.vlrajdctoalimentacao,
+            item.tpajdctotransporte, item.vlrajdctotransporte,
+            item.totajdctoitem, item.hospedagem, item.transporte,
+            item.totgeralitem,
+            item.setor ?? '',
+            isAdicional,
+            item.id,
+            idOrcamento
+        ];
+
+        await client.query(updateItemQuery, itemValues);
+
+    } else {
+        // ----------------------
+        // INSERT DE NOVO ITEM
+        // ----------------------
+        const insertItemQuery = `
+            INSERT INTO orcamentoitens (
+                idorcamento, enviarnaproposta, categoria, qtditens,
+                idfuncao, idequipamento, idsuprimento, produto,
+                qtddias, periododiariasinicio, periododiariasfim,
+                descontoitem, percentdescontoitem, acrescimoitem,
+                percentacrescimoitem, vlrdiaria, totvdadiaria,
+                ctodiaria, totctodiaria, tpajdctoalimentacao,
+                vlrajdctoalimentacao, tpajdctotransporte,
+                vlrajdctotransporte, totajdctoitem,
+                hospedagem, transporte, totgeralitem,
+                setor, adicional
+            ) VALUES (
+                $1, $2, $3, $4,
+                $5, $6, $7, $8,
+                $9, $10, $11,
+                $12, $13, $14,
+                $15, $16, $17,
+                $18, $19, $20,
+                $21, $22, $23,
+                $24, $25, $26,
+                $27, $28, $29
+            )
+        `;
+
+        const itemValues = [
+            idOrcamento, item.enviarnaproposta, item.categoria,
+            item.qtditens, item.idfuncao, item.idequipamento,
+            item.idsuprimento, item.produto, item.qtdDias,
+            item.periododiariasinicio, item.periododiariasfim,
+            item.descontoitem, item.percentdescontoitem,
+            item.acrescimoitem, item.percentacrescimoitem,
+            item.vlrdiaria, item.totvdadiaria, item.ctodiaria,
+            item.totctodiaria, item.tpajdctoalimentacao,
+            item.vlrajdctoalimentacao, item.tpajdctotransporte,
+            item.vlrajdctotransporte, item.totajdctoitem,
+            item.hospedagem, item.transporte, item.totgeralitem,
+            item.setor ?? '',
+            isAdicional
+        ];
+
+        await client.query(insertItemQuery, itemValues);
+    }
+}
 
         await client.query("COMMIT"); // Confirma a transação
 
