@@ -3045,10 +3045,21 @@ function renderizarListaOrcamentos(container, lista) {
         item.innerHTML = `
             <div class="accordion-orc-header">
                 <div class="header-main">
-                    <span class="orc-badge status-${orc.status.toLowerCase()}">${orc.status}</span>
-                    <strong>#${orc.nrorcamento}</strong> - ${orc.nome_evento}
+                    <div class="orc-header-info">
+                        <label>Status:</label>
+                        <span class="orc-badge status-${orc.status.toLowerCase()}">${orc.status}</span>
+                    </div>
+                    <div class="orc-header-info">
+                        <label>N Orçamento:</label>
+                        <strong>#${orc.nrorcamento}</strong> 
+                    </div>
+                    <div class="orc-header-info">
+                        <label>Evento:</label>
+                        <strong>${orc.nome_evento || ''}</strong>
+                    </div>
                 </div>
                 <div class="header-sub">
+                    <label>Nomenclatura:</label>
                     <small>${orc.nomenclatura || ''}</small>
                 </div>
             </div>

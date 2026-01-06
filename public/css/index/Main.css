@@ -416,6 +416,15 @@ button#btnVoltarorc {
     transition: all 0.3s ease;
 }
 
+.orc-header-info {
+    margin: 0 10px;
+    font-size: medium;
+}
+
+.header-sub {
+    font-size: medium;
+}
+
 .accordion-item.active .accordion-orc-body {
     display: flex !important;
     flex-direction: row;
@@ -424,7 +433,6 @@ button#btnVoltarorc {
 }
 
 .accordion-item.active
-
 .periodo-container{
     display: flex;
     justify-content: center;
@@ -451,6 +459,10 @@ button.btn-detalhes-orcamento:hover {
     background: var(--hover-color);
     color: var(--font-color);
     transition: all 0.3s ease;
+}
+
+.header-main {
+    display: flex;
 }
 
 
