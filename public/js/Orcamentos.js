@@ -2583,40 +2583,27 @@ function atualizarQtdDias(input, selectedDatesArray) {
   }
 }
 
+
 function atualizarUFOrc(selectLocalMontagem) {
-  console.log("Função atualizarUF chamada");
-  console.log("Lista atual de locais antes da busca:", locaisDeMontagem);
+  // 1. Verifica se o elemento existe
+  if (!selectLocalMontagem) return;
 
-  let selectedOption =
-    selectLocalMontagem.options[selectLocalMontagem.selectedIndex]; // Obtém a opção selecionada
-  let uf = selectedOption.getAttribute("data-ufmontagem"); // Obtém a UF
-  // let idLocal = selectLocalMontagem.value;
-
-  console.log("UF selecionada do atualizarUF:", uf); // Verifica se o valor está correto
-
-  const ufSelecionada = uf; // Obtém o valor da UF selecionada
-
-  let inputUF = document.getElementById("ufmontagem");
-
-  if (inputUF) {
-    inputUF.value = uf; // Atualiza o campo de input
-  } else {
-    console.error("Campo 'ufmontagem' não encontrado!");
+  // 2. Verifica se existe uma opção selecionada (selectedIndex >= 0)
+  // e se essa opção não é a "Selecione..." (geralmente value "")
+  const selectedOption = selectLocalMontagem.options[selectLocalMontagem.selectedIndex];
+  
+  if (!selectedOption || selectLocalMontagem.value === "") {
+    const ufInput = document.getElementById("ufmontagem");
+    if (ufInput) ufInput.value = ""; // Limpa o campo UF se nada estiver selecionado
+    return;
   }
 
-  const colunasExtras = document.querySelectorAll(".extraColuna"); // Colunas do cabeçalho
-  const camposExtras = document.querySelectorAll(".extraCampo"); // Campos na tabela
-
-  console.log("UF Selecionada.", ufSelecionada);
-
-  if (ufSelecionada !== "SP") {
-    console.log("UF diferente de SP, exibindo campos extras.");
-    colunasExtras.forEach((col) => (col.style.display = "table-cell")); // Exibe cabeçalho
-    camposExtras.forEach((campo) => (campo.style.display = "table-cell")); // Exibe campos
-  } else {
-    // console.log("UF é SP, ocultando campos extras.");
-    colunasExtras.forEach((col) => (col.style.display = "none")); // Oculta cabeçalho
-    camposExtras.forEach((campo) => (campo.style.display = "none")); // Oculta campos
+  // 3. Tenta pegar o atributo de forma segura
+  const uf = selectedOption.getAttribute("data-uf");
+  
+  const ufInput = document.getElementById("ufmontagem");
+  if (ufInput) {
+    ufInput.value = uf || "";
   }
 }
 
@@ -3734,9 +3721,9 @@ async function atualizarCampoGeradoAnoPosterior(
 function desinicializarOrcamentosModal() {
   console.log("🧹 Desinicializando módulo Orcamentos.js");
 
-  const selectElement = document.getElementById("idMontagem");
-  if (selectElement && idMontagemChangeListener) {
-    selectElement.removeEventListener("change", idMontagemChangeListener);
+  const selectLocalMontagem = document.getElementById("idMontagem");
+  if (selectLocalMontagem && idMontagemChangeListener) {
+    selectLocalMontagem.removeEventListener("change", idMontagemChangeListener);
     idMontagemChangeListener = null;
   }
 
@@ -4243,9 +4230,67 @@ export async function preencherFormularioComOrcamento(orcamento) {
 
   // 3. NOVO: Liberado Para Contratar Staff
 const checkLiberaStaff = document.getElementById("liberaContratacao");
-if (checkLiberaStaff) {
+  if (checkLiberaStaff) {
+    // 1. Define se o checkbox está marcado ou não baseado no banco
     checkLiberaStaff.checked = !!orcamento.contratarstaff;
-    console.log("Liberado Contratação Staff", checkLiberaStaff.checked);
+
+    const statusInput = document.getElementById("Status");
+
+function atualizarEstadoLiberaStaff(status) {
+    const isBloqueado = status === "A";
+    
+    // 1. Desabilita o input (isso já impede a alteração do valor)
+    checkLiberaStaff.disabled = isBloqueado; 
+
+    // 2. Gerencia o estilo do cursor e eventos
+    if (checkLiberaStaff.parentElement) {
+        if (isBloqueado) {
+            // Aplicamos o cursor de bloqueio
+            checkLiberaStaff.parentElement.style.cursor = "not-allowed";
+            checkLiberaStaff.style.cursor = "not-allowed";
+            
+            // IMPORTANTE: Mantemos pointer-events como "auto" ou "" 
+            // para que o navegador consiga ler o cursor: not-allowed no hover.
+            checkLiberaStaff.parentElement.style.pointerEvents = "auto";
+            
+            // Adicionamos a classe CSS que você criou para reforçar o estilo
+            checkLiberaStaff.parentElement.classList.add("status-aprovado");
+        } else {
+            // Restaura o estado padrão
+            checkLiberaStaff.parentElement.style.cursor = "pointer";
+            checkLiberaStaff.style.cursor = "pointer";
+            checkLiberaStaff.parentElement.style.pointerEvents = "";
+            checkLiberaStaff.parentElement.classList.remove("status-aprovado");
+        }
+    }
+
+    console.log(`Checkbox Staff ${isBloqueado ? 'bloqueado' : 'habilitado'}: Status ${status}`);
+}
+
+    // Estado inicial com base no orcamento carregado
+    atualizarEstadoLiberaStaff(orcamento.status);
+
+    // Se houver o campo de Status, escuta mudanças para atualizar em tempo real
+    if (statusInput) {
+      statusInput.addEventListener("input", function () {
+        atualizarEstadoLiberaStaff(statusInput.value || "");
+      });
+      statusInput.addEventListener("change", function () {
+        atualizarEstadoLiberaStaff(statusInput.value || "");
+      });
+    }
+
+    // Garantir que cliques no checkbox sejam ignorados quando status for A (por segurança)
+    checkLiberaStaff.addEventListener("click", function (e) {
+      const currentStatus = (statusInput && statusInput.value) ? statusInput.value : (orcamento.status || "");
+      if (currentStatus === "A") {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Clique bloqueado em 'liberaContratacao' porque status é 'A'");
+      }
+    });
+
+    console.log("Liberado Contratação Staff:", checkLiberaStaff.checked);
   } else {
     console.warn("Elemento com ID 'liberaContratacao' não encontrado.");
   }
