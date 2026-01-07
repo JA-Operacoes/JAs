@@ -95,7 +95,7 @@ h1 {
 .coluna {
     display: flex;
     flex-direction: column;
-    align-items: flex-start; /* radios alinhados à esquerda */
+    align-items: anchor-center; /* radios alinhados à esquerda */
     gap: 10px;
 }
 .titulo {
