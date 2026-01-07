@@ -2583,40 +2583,27 @@ function atualizarQtdDias(input, selectedDatesArray) {
   }
 }
 
+
 function atualizarUFOrc(selectLocalMontagem) {
-  console.log("Função atualizarUF chamada");
-  console.log("Lista atual de locais antes da busca:", locaisDeMontagem);
+  // 1. Verifica se o elemento existe
+  if (!selectLocalMontagem) return;
 
-  let selectedOption =
-    selectLocalMontagem.options[selectLocalMontagem.selectedIndex]; // Obtém a opção selecionada
-  let uf = selectedOption.getAttribute("data-ufmontagem"); // Obtém a UF
-  // let idLocal = selectLocalMontagem.value;
-
-  console.log("UF selecionada do atualizarUF:", uf); // Verifica se o valor está correto
-
-  const ufSelecionada = uf; // Obtém o valor da UF selecionada
-
-  let inputUF = document.getElementById("ufmontagem");
-
-  if (inputUF) {
-    inputUF.value = uf; // Atualiza o campo de input
-  } else {
-    console.error("Campo 'ufmontagem' não encontrado!");
+  // 2. Verifica se existe uma opção selecionada (selectedIndex >= 0)
+  // e se essa opção não é a "Selecione..." (geralmente value "")
+  const selectedOption = selectLocalMontagem.options[selectLocalMontagem.selectedIndex];
+  
+  if (!selectedOption || selectLocalMontagem.value === "") {
+    const ufInput = document.getElementById("ufmontagem");
+    if (ufInput) ufInput.value = ""; // Limpa o campo UF se nada estiver selecionado
+    return;
   }
 
-  const colunasExtras = document.querySelectorAll(".extraColuna"); // Colunas do cabeçalho
-  const camposExtras = document.querySelectorAll(".extraCampo"); // Campos na tabela
-
-  console.log("UF Selecionada.", ufSelecionada);
-
-  if (ufSelecionada !== "SP") {
-    console.log("UF diferente de SP, exibindo campos extras.");
-    colunasExtras.forEach((col) => (col.style.display = "table-cell")); // Exibe cabeçalho
-    camposExtras.forEach((campo) => (campo.style.display = "table-cell")); // Exibe campos
-  } else {
-    // console.log("UF é SP, ocultando campos extras.");
-    colunasExtras.forEach((col) => (col.style.display = "none")); // Oculta cabeçalho
-    camposExtras.forEach((campo) => (campo.style.display = "none")); // Oculta campos
+  // 3. Tenta pegar o atributo de forma segura
+  const uf = selectedOption.getAttribute("data-uf");
+  
+  const ufInput = document.getElementById("ufmontagem");
+  if (ufInput) {
+    ufInput.value = uf || "";
   }
 }
 
@@ -3734,9 +3721,9 @@ async function atualizarCampoGeradoAnoPosterior(
 function desinicializarOrcamentosModal() {
   console.log("🧹 Desinicializando módulo Orcamentos.js");
 
-  const selectElement = document.getElementById("idMontagem");
-  if (selectElement && idMontagemChangeListener) {
-    selectElement.removeEventListener("change", idMontagemChangeListener);
+  const selectLocalMontagem = document.getElementById("idMontagem");
+  if (selectLocalMontagem && idMontagemChangeListener) {
+    selectLocalMontagem.removeEventListener("change", idMontagemChangeListener);
     idMontagemChangeListener = null;
   }
 
@@ -4243,9 +4230,67 @@ export async function preencherFormularioComOrcamento(orcamento) {
 
   // 3. NOVO: Liberado Para Contratar Staff
 const checkLiberaStaff = document.getElementById("liberaContratacao");
-if (checkLiberaStaff) {
+  if (checkLiberaStaff) {
+    // 1. Define se o checkbox está marcado ou não baseado no banco
     checkLiberaStaff.checked = !!orcamento.contratarstaff;
-    console.log("Liberado Contratação Staff", checkLiberaStaff.checked);
+
+    const statusInput = document.getElementById("Status");
+
+function atualizarEstadoLiberaStaff(status) {
+    const isBloqueado = status === "A";
+    
+    // 1. Desabilita o input (isso já impede a alteração do valor)
+    checkLiberaStaff.disabled = isBloqueado; 
+
+    // 2. Gerencia o estilo do cursor e eventos
+    if (checkLiberaStaff.parentElement) {
+        if (isBloqueado) {
+            // Aplicamos o cursor de bloqueio
+            checkLiberaStaff.parentElement.style.cursor = "not-allowed";
+            checkLiberaStaff.style.cursor = "not-allowed";
+            
+            // IMPORTANTE: Mantemos pointer-events como "auto" ou "" 
+            // para que o navegador consiga ler o cursor: not-allowed no hover.
+            checkLiberaStaff.parentElement.style.pointerEvents = "auto";
+            
+            // Adicionamos a classe CSS que você criou para reforçar o estilo
+            checkLiberaStaff.parentElement.classList.add("status-aprovado");
+        } else {
+            // Restaura o estado padrão
+            checkLiberaStaff.parentElement.style.cursor = "pointer";
+            checkLiberaStaff.style.cursor = "pointer";
+            checkLiberaStaff.parentElement.style.pointerEvents = "";
+            checkLiberaStaff.parentElement.classList.remove("status-aprovado");
+        }
+    }
+
+    console.log(`Checkbox Staff ${isBloqueado ? 'bloqueado' : 'habilitado'}: Status ${status}`);
+}
+
+    // Estado inicial com base no orcamento carregado
+    atualizarEstadoLiberaStaff(orcamento.status);
+
+    // Se houver o campo de Status, escuta mudanças para atualizar em tempo real
+    if (statusInput) {
+      statusInput.addEventListener("input", function () {
+        atualizarEstadoLiberaStaff(statusInput.value || "");
+      });
+      statusInput.addEventListener("change", function () {
+        atualizarEstadoLiberaStaff(statusInput.value || "");
+      });
+    }
+
+    // Garantir que cliques no checkbox sejam ignorados quando status for A (por segurança)
+    checkLiberaStaff.addEventListener("click", function (e) {
+      const currentStatus = (statusInput && statusInput.value) ? statusInput.value : (orcamento.status || "");
+      if (currentStatus === "A") {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Clique bloqueado em 'liberaContratacao' porque status é 'A'");
+      }
+    });
+
+    console.log("Liberado Contratação Staff:", checkLiberaStaff.checked);
   } else {
     console.warn("Elemento com ID 'liberaContratacao' não encontrado.");
   }
@@ -4590,6 +4635,27 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
       );
     }
 
+    // Fallback: se ao carregar os itens os valores individuais de ajuda de custo
+    // vierem zerados, mas existir um total de ajuda de custo no item (totajdctoitem),
+    // distribuímos esse total em um valor por diária para exibição. Isso evita que
+    // a UI mostre R$ 0,00 quando o banco tem o total calculado.
+    if (
+      !aplicarReajuste &&
+      (vlrAjdAlimentacao === 0 && vlrAjdTransporte === 0) &&
+      parseFloat(item.totajdctoitem || 0) > 0
+    ) {
+      const multiplicador = (qtdItens * qtdDias) || 1;
+      const perUnit = parseFloat(item.totajdctoitem) / multiplicador;
+      console.log(
+        "Fallback AjdCusto: distribuindo totajdctoitem em vlrAjdAlimentacao:",
+        perUnit
+      );
+      vlrAjdAlimentacao = perUnit;
+      vlrAjdTransporte = 0;
+      totAjuda = (vlrAjdAlimentacao + vlrAjdTransporte) * qtdItens * qtdDias;
+      totGeralItem = totAjuda + totCtoDiaria;
+    }
+
     const newRow = tabelaBody.insertRow(); // Cria a linha DOM de uma vez
     newRow.dataset.idorcamentoitem = item.idorcamentoitem || "";
     newRow.dataset.idfuncao = item.idfuncao || "";
@@ -4718,12 +4784,12 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
             <td class="vlrCusto Moeda">${formatarMoeda(ctoDiaria)}</td>
             <td class="totCtoDiaria Moeda">${formatarMoeda(totCtoDiaria)}</td>
                     
-            <td class="ajdCusto Moeda alimentacao">${formatarMoeda(
-              vlrAjdAlimentacao
-            )}</td>
-            <td class="ajdCusto Moeda transporte">${formatarMoeda(
-              vlrAjdTransporte
-            )}</td>
+            <td class="ajdCusto Moeda alimentacao" data-original-ajdcusto="${vlrAjdAlimentacao}">
+                <span class="vlralimentacao-input">${formatarMoeda(vlrAjdAlimentacao)}</span>
+            </td>
+            <td class="ajdCusto Moeda transporte" data-original-ajdcusto="${vlrAjdTransporte}">
+                <span class="vlrtransporte-input">${formatarMoeda(vlrAjdTransporte)}</span>
+            </td>
 
             <td class="totAjdCusto Moeda">${formatarMoeda(totAjuda)}</td>
            
@@ -6790,6 +6856,15 @@ async function preencherFormularioComOrcamentoParaProximoAno(orcamento) {
   console.log("VALOR DO CLIENTE VINDO DO BANCO", orcamento.vlrcliente || 0);
 
   if (orcamento.itens && orcamento.itens.length > 0) {
+    try {
+      // Se for um orçamento 'Próximo Ano', tenta re-hidratar os valores canônicos
+      if (bProximoAno) {
+        await rehidrateItemsForNewYear(orcamento.itens);
+      }
+    } catch (err) {
+      console.warn("[REHIDRATE] Falha ao re-hidratar itens no frontend:", err);
+    }
+
     preencherItensOrcamentoTabela(orcamento.itens, true);
   } else {
     preencherItensOrcamentoTabela([]);
@@ -6915,6 +6990,81 @@ function getOrcamentoAtualCarregado() {
 
   // Por enquanto, use a variável global que armazena os dados
   return window.orcamentoAtual || null;
+}
+
+/**
+ * Re-hidrata os itens do orçamento com os valores canônicos atuais
+ * (VDA / CTO) para Função / Equipamento / Suprimento antes de exibir o
+ * orçamento do 'Próximo Ano' no frontend. Isso melhora a experiência do
+ * usuário mostrando já os valores atualizados mesmo antes de salvar.
+ */
+async function rehidrateItemsForNewYear(itens) {
+  if (!itens || !Array.isArray(itens) || itens.length === 0) return;
+
+  try {
+    // Busca em paralelo as listas mestres disponíveis para a empresa
+    const [funcs, equips, suprs] = await Promise.all([
+      fetchComToken('/orcamentos/funcao').then((r) => r),
+      fetchComToken('/orcamentos/equipamentos').then((r) => r),
+      fetchComToken('/orcamentos/suprimentos').then((r) => r),
+    ]);
+
+    const funcMap = (Array.isArray(funcs) ? funcs : []).reduce((acc, f) => {
+      acc[String(f.idfuncao)] = f;
+      return acc;
+    }, {});
+
+    const eqMap = (Array.isArray(equips) ? equips : []).reduce((acc, e) => {
+      acc[String(e.idequip)] = e;
+      return acc;
+    }, {});
+
+    const supMap = (Array.isArray(suprs) ? suprs : []).reduce((acc, s) => {
+      acc[String(s.idsup)] = s;
+      return acc;
+    }, {});
+
+    // Atualiza cada item conforme encontrado nas tabelas mestres
+    for (const item of itens) {
+      let vlrdiaria = parseFloat(item.vlrdiaria || 0) || 0;
+      let ctodiaria = parseFloat(item.ctodiaria || 0) || 0;
+
+      if (item.idfuncao && funcMap[String(item.idfuncao)]) {
+        const f = funcMap[String(item.idfuncao)];
+        vlrdiaria = parseFloat(f.vdafuncao) || vlrdiaria;
+        // Algumas queries trazem o cto dentro da categoria; ajusta se presente
+        ctodiaria = parseFloat(f.ctofuncaobase || f.cto || 0) || ctodiaria;
+      } else if (item.idequipamento && eqMap[String(item.idequipamento)]) {
+        const e = eqMap[String(item.idequipamento)];
+        vlrdiaria = parseFloat(e.vdaequip || e.vda || 0) || vlrdiaria;
+        ctodiaria = parseFloat(e.ctoequip || e.cto || 0) || ctodiaria;
+      } else if (item.idsuprimento && supMap[String(item.idsuprimento)]) {
+        const s = supMap[String(item.idsuprimento)];
+        vlrdiaria = parseFloat(s.vdasup || s.vda || 0) || vlrdiaria;
+        ctodiaria = parseFloat(s.ctosup || s.cto || 0) || ctodiaria;
+      }
+
+      const qtdItens = parseFloat(item.qtditens || item.qtdItens || 0) || 0;
+      const qtdDias = parseFloat(item.qtddias || item.qtdDias || 0) || 0;
+      const descontoItem = parseFloat(item.descontoitem || 0) || 0;
+      const acrescimoItem = parseFloat(item.acrescimoitem || 0) || 0;
+
+      const totvdadiaria = Math.round((vlrdiaria * qtdItens * qtdDias + acrescimoItem - descontoItem) * 100) / 100;
+      const totctodiaria = Math.round((ctodiaria * qtdItens * qtdDias) * 100) / 100;
+      const vlrajd = parseFloat(item.vlrajdctoalimentacao || item.vlrajdctotransporte || 0) || 0;
+      const totajdctoitem = Math.round(vlrajd * qtdItens * qtdDias * 100) / 100;
+      const totgeralitem = Math.round((totctodiaria + totajdctoitem) * 100) / 100;
+
+      item.vlrdiaria = vlrdiaria;
+      item.ctodiaria = ctodiaria;
+      item.totvdadiaria = totvdadiaria;
+      item.totctodiaria = totctodiaria;
+      item.totajdctoitem = totajdctoitem;
+      item.totgeralitem = totgeralitem;
+    }
+  } catch (err) {
+    console.warn('[REHIDRATE] Falha ao buscar valores canônicos no frontend:', err);
+  }
 }
 
 async function PropostaouContrato() {

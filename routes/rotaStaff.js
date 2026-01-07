@@ -1063,179 +1063,6 @@ router.post('/check-availability', autenticarToken(), contextoEmpresa, async (re
 });
 
 
-// router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
-//     verificarPermissao('staff', 'pesquisar'), // Permissão para visualizar
-//     async (req, res) => {
-//     console.log("🔥 Rota /staff/eventos-por-funcionario/GET acessada");
-//     const idempresa = req.idempresa;
-//     const idFuncionarioParam = req.params.idFuncionario; // O ID do funcionário a ser pesquisado
-
-//     let client;
-
-//     // Validação básica do parâmetro
-//     if (!idFuncionarioParam) {
-//       return res.status(400).json({ message: "ID do funcionário é obrigatório para esta consulta." });
-//     }
-
-//     try {
-//       client = await pool.connect();
-
-//       // A consulta SQL ajustada para filtrar por idfuncionario
-//       // let query = `
-//       //     SELECT
-//       //         se.idstaffevento,
-//       //         se.idfuncionario,
-//       //         se.nmfuncionario,
-//       //         se.idevento,
-//       //         se.nmevento,
-//       //         se.idcliente,
-//       //         se.nmcliente,
-//       //         se.idfuncao,
-//       //         se.nmfuncao,
-//       //         se.idmontagem,
-//       //         se.nmlocalmontagem,
-//       //         se.pavilhao,
-//       //         se.vlrcache,
-//       //         se.vlralmoco,
-//       //         se.vlralimentacao,
-//       //         se.vlrtransporte,
-//       //         se.vlrajustecusto,
-//       //         se.vlrcaixinha,
-//       //         se.descajustecusto,
-//       //         se.descbeneficios,
-//       //         se.vlrtotal,
-//       //         se.datasevento,
-//       //         se.comppgtocache,
-//       //         se.comppgtoajdcusto,
-//       //         se.comppgtoajdcusto50,
-//       //         se.comppgtocaixinha,
-//       //         se.setor,
-//       //         se.statuspgto,
-//       //         se.statusajustecusto,
-//       //         se.statuscaixinha,
-//       //         se.dtdiariadobrada,
-//       //         se.dtmeiadiaria,
-//       //         se.statusdiariadobrada,
-//       //         se.statusmeiadiaria,
-//       //         se.desccaixinha,
-//       //         se.descmeiadiaria,
-//       //         se.descdiariadobrada,
-//       //         se.nivelexperiencia,
-//       //         s.idstaff,
-//       //         s.avaliacao
-//       //   FROM
-//       //         staffeventos se
-//       //   INNER JOIN
-//       //         staff s ON se.idstaff = s.idstaff
-//       //   INNER JOIN
-//       //         staffEmpresas se_emp ON s.idstaff = se_emp.idstaff
-//       //   WHERE
-//       //         se_emp.idEmpresa = $1 AND se.idfuncionario = $2
-//       //   ORDER BY
-//       //         COALESCE(
-//       //             (se.datasevento ->> 0)::date,
-//       //             (se.dtdiariadobrada ->> 0)::date,
-//       //             (se.dtmeiadiaria ->> 0)::date
-//       //         ) DESC NULLS LAST,
-//       //         se.nmcliente ASC,
-//       //         se.nmevento ASC;
-//       // `;
-
-//       let query = `SELECT
-//           se.idstaffevento,
-//           se.idfuncionario,
-//           se.nmfuncionario,
-//           se.idequipe,
-//           se.nmequipe,
-//           se.idevento,
-//           se.nmevento,
-//           se.idcliente,
-//           se.nmcliente,
-//           se.idfuncao,
-//           se.nmfuncao,
-//           se.idmontagem,
-//           se.nmlocalmontagem,
-//           se.pavilhao,
-//           se.vlrcache,
-//           se.vlralimentacao,
-//           se.vlrtransporte,
-//           se.vlrajustecusto,
-//           se.vlrcaixinha,
-//           se.descajustecusto,
-//           se.descbeneficios,
-//           se.vlrtotal,
-//           se.datasevento,
-//           se.comppgtocache,
-//           se.comppgtoajdcusto,
-//           se.comppgtoajdcusto50,
-//           se.comppgtocaixinha,
-//           se.setor,
-//           se.statuspgto,
-//           se.statusajustecusto,
-//           se.statuscaixinha,
-//           se.dtdiariadobrada,
-//           se.dtmeiadiaria,
-//           se.statusdiariadobrada,
-//           se.statusmeiadiaria,
-//           se.desccaixinha,
-//           se.descmeiadiaria,
-//           se.descdiariadobrada,
-//           se.nivelexperiencia,
-//           se.qtdpessoaslote,
-//           s.idstaff,
-//           s.avaliacao,
-//           (
-//         SELECT jsonb_agg(elem ORDER BY elem::date)
-//         FROM jsonb_array_elements_text(se.datasevento) elem
-//           ) AS datasevento,
-//           (
-//         SELECT jsonb_agg(elem ORDER BY (elem->>'data')::date)
-//         FROM jsonb_array_elements(se.dtdiariadobrada) elem
-//           ) AS dtdiariadobrada,
-//           (
-//         SELECT jsonb_agg(elem ORDER BY (elem->>'data')::date)
-//         FROM jsonb_array_elements(se.dtmeiadiaria) elem
-//           ) AS dtmeiadiaria
-//               FROM staffeventos se
-//               INNER JOIN staff s 
-//           ON se.idstaff = s.idstaff
-//               INNER JOIN staffEmpresas se_emp 
-//           ON s.idstaff = se_emp.idstaff
-//               WHERE
-//           se_emp.idEmpresa = $1
-//           AND se.idfuncionario = $2
-//               ORDER BY
-//           GREATEST(
-//         COALESCE((SELECT MAX(elem::date) FROM jsonb_array_elements_text(se.datasevento) elem), '0001-01-01'),
-//         COALESCE((SELECT MAX((elem->>'data')::date) FROM jsonb_array_elements(se.dtdiariadobrada) elem), '0001-01-01'),
-//         COALESCE((SELECT MAX((elem->>'data')::date) FROM jsonb_array_elements(se.dtmeiadiaria) elem), '0001-01-01')
-//           ) DESC,
-//           se.nmcliente ASC,
-//           se.nmevento ASC
-//         `;
-
-//       //se.idevento DESC, se.idstaffevento DESC; -- Ordena por evento e depois pelo ID do registro de staffevento
-//       const queryParams = [idempresa, idFuncionarioParam];
-
-//       const result = await client.query(query, queryParams);
-
-//       // console.log(Foram encontrados ${result.rows.length} eventos para o funcionário ${idFuncionarioParam});
-
-//       res.status(200).json(result.rows);
-
-//     } catch (error) {
-//       console.error("❌ Erro ao buscar eventos do funcionário:", error);
-//       res.status(500).json({ error: "Erro ao buscar eventos do funcionário", details: error.message });
-//     } finally {
-//       if (client) {
-//       client.release();
-//       }
-//       console.log('--- Fim da requisição GET /eventos-por-funcionario ---');
-//     }
-//     }
-// );
-
-
 router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
     verificarPermissao('staff', 'pesquisar'), // Permissão para visualizar
     async (req, res) => {
@@ -1294,7 +1121,10 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
           se.descmeiadiaria,
           se.descdiariadobrada,
           se.nivelexperiencia,
+          se.statuspgtoajdcto,
+          se.statuspgtocaixinha,
           se.qtdpessoaslote,
+          se.tipoajudacustoviagem,
           s.idstaff,
           s.avaliacao,
           (
@@ -1375,7 +1205,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
             )
           ) DESC,
           se.nmcliente ASC,
-          se.nmevento ASC
+          se.nmevento ASC          
         `;
 
       const queryParams = [idempresa, idFuncionarioParam];
@@ -1420,24 +1250,24 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
       // Ajustar a query para buscar o registro de staffeventos
       // Incluímos o JOIN com staffempresas para verificar a posse da empresa
       const result = await pool.query(
-    `SELECT se.*, se.nmfuncionario AS nmfuncionario_principal,
-    se.nmfuncao, se.nmcliente, se.nmevento, se.nmlocalmontagem
-    FROM staffeventos se
-    INNER JOIN staff s ON se.idfuncionario = s.idstaff
-    INNER JOIN staffempresas sme ON sme.idstaff = s.idstaff       
-    WHERE se.idstaffevento = $1 AND sme.idempresa = $2`, // Verifica a empresa do staff
-    [idstaffEvento, idempresa]
-      );
-      const linha = result.rows[0] || null;
-      return {
-    dadosanteriores: linha,
-    idregistroalterado: linha?.idstaffevento || null
-      };
-      } catch (error) {
-      console.error("Erro ao buscar dados anteriores do evento de staff para log:", error);
-      return { dadosanteriores: null, idregistroalterado: null };
+      `SELECT se.*, se.nmfuncionario AS nmfuncionario_principal,
+      se.nmfuncao, se.nmcliente, se.nmevento, se.nmlocalmontagem
+      FROM staffeventos se
+      INNER JOIN staff s ON se.idfuncionario = s.idstaff
+      INNER JOIN staffempresas sme ON sme.idstaff = s.idstaff       
+      WHERE se.idstaffevento = $1 AND sme.idempresa = $2`, // Verifica a empresa do staff
+      [idstaffEvento, idempresa]
+        );
+        const linha = result.rows[0] || null;
+        return {
+      dadosanteriores: linha,
+      idregistroalterado: linha?.idstaffevento || null
+        };
+        } catch (error) {
+        console.error("Erro ao buscar dados anteriores do evento de staff para log:", error);
+        return { dadosanteriores: null, idregistroalterado: null };
+        }
       }
-    }
     }),
     async (req, res) => {
     const idStaffEvento = req.params.idStaffEvento;
@@ -1450,7 +1280,7 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
       vlrcache, vlrajustecusto, vlrtransporte, vlralimentacao, vlrcaixinha,
       descajustecusto, datasevento, vlrtotal, descbeneficios, setor, statuspgto, 
       statusajustecusto, statuscaixinha, statusdiariadobrada, statusmeiadiaria, datadiariadobrada, datameiadiaria,
-      desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoas, idequipe, nmequipe
+      desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoas, idequipe, nmequipe, tipoajudacustoviagem
     } = req.body;
 
     console.log("BACKEND", req.body);
@@ -1565,40 +1395,40 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
       
       let newComppgtoCachePath = oldRecord ? oldRecord.comppgtocache : null;
       if (comprovanteCacheFile) {         
-      deletarArquivoAntigo(oldRecord?.comppgtocache);
-      newComppgtoCachePath = `/uploads/staff_comprovantes/${comprovanteCacheFile.filename}`;
+        deletarArquivoAntigo(oldRecord?.comppgtocache);
+        newComppgtoCachePath = `/uploads/staff_comprovantes/${comprovanteCacheFile.filename}`;
       }            
       else if (req.body.limparComprovanteCache === 'true') {            
-      console.log("Removendo comprovante de cache...");
-      deletarArquivoAntigo(oldRecord?.comppgtocache);
-      newComppgtoCachePath = null; 
+        console.log("Removendo comprovante de cache...");
+        deletarArquivoAntigo(oldRecord?.comppgtocache);
+        newComppgtoCachePath = null; 
       }
       
       let newComppgtoAjdCustoPath = oldRecord ? oldRecord.comppgtoajdcusto : null;
       if (comprovanteAjdCustoFile) {
-    deletarArquivoAntigo(oldRecord?.comppgtoajdcusto);
-    newComppgtoAjdCustoPath = `/uploads/staff_comprovantes/${comprovanteAjdCustoFile.filename}`;
+        deletarArquivoAntigo(oldRecord?.comppgtoajdcusto);
+        newComppgtoAjdCustoPath = `/uploads/staff_comprovantes/${comprovanteAjdCustoFile.filename}`;
       } else if (req.body.limparComprovanteAjdCusto === 'true') {
-      deletarArquivoAntigo(oldRecord?.comppgtoajdcusto);
-      newComppgtoAjdCustoPath = null;
+        deletarArquivoAntigo(oldRecord?.comppgtoajdcusto);
+        newComppgtoAjdCustoPath = null;
       }
 
       let newComppgtoAjdCusto50Path = oldRecord ? oldRecord.comppgtoajdcusto50 : null;
       if (comprovanteAjdCusto50File) {
-    deletarArquivoAntigo(oldRecord?.comppgtoajdcusto50);
-    newComppgtoAjdCusto50Path = `/uploads/staff_comprovantes/${comprovanteAjdCusto50File.filename}`;
+        deletarArquivoAntigo(oldRecord?.comppgtoajdcusto50);
+        newComppgtoAjdCusto50Path = `/uploads/staff_comprovantes/${comprovanteAjdCusto50File.filename}`;
       } else if (req.body.limparComprovanteAjdCusto50 === 'true') {
-      deletarArquivoAntigo(oldRecord?.comppgtoajdcusto50);
-      newComppgtoAjdCustoPath = null;
+        deletarArquivoAntigo(oldRecord?.comppgtoajdcusto50);
+        newComppgtoAjdCusto50Path = null;
       }
       
       let newComppgtoCaixinhaPath = oldRecord ? oldRecord.comppgtocaixinha : null;
       if (comprovanteCaixinhaFile) {
-      deletarArquivoAntigo(oldRecord?.comppgtocaixinha);
-      newComppgtoCaixinhaPath = `/uploads/staff_comprovantes/${comprovanteCaixinhaFile.filename}`;
+        deletarArquivoAntigo(oldRecord?.comppgtocaixinha);
+        newComppgtoCaixinhaPath = `/uploads/staff_comprovantes/${comprovanteCaixinhaFile.filename}`;
       } else if (req.body.limparComprovanteCaixinha === 'true') {
-      deletarArquivoAntigo(oldRecord?.comppgtocaixinha);
-      newComppgtoCaixinhaPath = null;
+        deletarArquivoAntigo(oldRecord?.comppgtocaixinha);
+        newComppgtoCaixinhaPath = null;
       }
 
       //JSON.stringify(datasEventoParsed),
@@ -1616,10 +1446,10 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
         dtdiariadobrada = $27, dtmeiadiaria = $28,
         desccaixinha = $29, descdiariadobrada = $30, descmeiadiaria = $31,
         comppgtocache = $32, comppgtoajdcusto = $33, comppgtoajdcusto50 = $34, comppgtocaixinha = $35, 
-        nivelexperiencia = $36, qtdpessoaslote = $37, idequipe = $38, nmequipe = $39
+        nivelexperiencia = $36, qtdpessoaslote = $37, idequipe = $38, nmequipe = $39, tipoajudacustoviagem = $40
       FROM staff s
       INNER JOIN staffempresas sme ON sme.idstaff = s.idstaff
-      WHERE se.idstaff = s.idstaff AND se.idstaffevento = $40 AND sme.idempresa = $41
+      WHERE se.idstaff = s.idstaff AND se.idstaffevento = $41 AND sme.idempresa = $42
       RETURNING se.idstaffevento, se.datasevento;
       
       `;
@@ -1649,7 +1479,7 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
       desccaixinha, descdiariadobrada, descmeiadiaria,
       // Caminhos dos comprovantes
       newComppgtoCachePath, newComppgtoAjdCustoPath, newComppgtoAjdCusto50Path, newComppgtoCaixinhaPath,
-      nivelexperiencia, qtdpessoas, idequipe, nmequipe,
+      nivelexperiencia, qtdpessoas, idequipe, nmequipe, tipoajudacustoviagem,
       // Parâmetros de identificação da linha
       idStaffEvento, idempresa
       ];
@@ -1743,7 +1573,7 @@ router.post(
       vlrcaixinha, nmfuncionario, datasevento: datasEventoRaw,
       descajustecusto, descbeneficios, vlrtotal, setor, statuspgto, statusajustecusto, statuscaixinha,
       statusdiariadobrada, statusmeiadiaria, datadiariadobrada, datameiadiaria, desccaixinha,
-      descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoas, idequipe, nmequipe
+      descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoas, idequipe, nmequipe, tipoajudacustoviagem
     } = req.body;
 
     // Parse opcionais de datas (sem rollback aqui, só validação)
@@ -1876,10 +1706,10 @@ router.post(
         vlrcache, vlralmoco, vlralimentacao, vlrtransporte, vlrajustecusto,
         vlrcaixinha, descajustecusto, datasevento, vlrtotal, comppgtocache, comppgtoajdcusto, comppgtocaixinha,
         descbeneficios, setor, statuspgto, statusajustecusto, statuscaixinha, statusdiariadobrada, statusmeiadiaria, dtdiariadobrada,
-        comppgtoajdcusto50, dtmeiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoaslote, idequipe, nmequipe
+        comppgtoajdcusto50, dtmeiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoaslote, idequipe, nmequipe, tipoajudacustoviagem
         
       ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40
       )
       RETURNING idstaffevento;
     `;

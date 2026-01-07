@@ -162,7 +162,15 @@ async function fetchComToken(url, options = {}) {
     }
 
     if (!resposta.ok) {
-        const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
+        // Monta a mensagem de erro incluindo detalhes do servidor quando disponíveis
+        let errorMessage = '';
+        if (responseBody && (responseBody.erro || responseBody.message)) {
+            errorMessage = (responseBody.erro || responseBody.message) + (responseBody.detalhes ? ' - ' + responseBody.detalhes : '');
+        } else if (responseBody) {
+            errorMessage = typeof responseBody === 'string' ? responseBody : JSON.stringify(responseBody);
+        } else {
+            errorMessage = resposta.statusText;
+        }
         throw new Error(`Erro na requisição: ${errorMessage}`);
     }
 

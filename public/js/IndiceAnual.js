@@ -989,6 +989,12 @@ function adicionarEventoBlurIndiceAnual() {
 }
 
 async function carregarIndiceAnualDescricao(desc, elementoAtual) {
+    // Utilitário: remove classes de estado (btn-primary, btn-secondary, btn-danger)
+    // Declarado no escopo da função para estar disponível tanto no try quanto no catch
+    function limparClasses(btn) {
+        if (btn) btn.classList.remove('btn-primary', 'btn-secondary', 'btn-danger');
+    }
+
     try {
 
         console.log("Carregando Índice Anual para descrição:", desc);

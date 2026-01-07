@@ -897,6 +897,8 @@ const DescViagem3 = "[Viagem Fora SP] Valor Alimentação e Transporte para Func
 
 
 
+
+
 window.flatpickrInstances = {
     diariaDobrada: diariaDobradaPicker,
     meiaDiaria: meiaDiariaPicker,
@@ -921,10 +923,75 @@ function atualizarLayout() {
     }
 }
 
+const alternarBloqueioFlatpickr = (instancia, bloquear) => {
+    if (!instancia) return;
+    
+    if (bloquear) {
+        if (instancia.input) instancia.input.readOnly = true;
+        if (instancia._input) instancia._input.disabled = true;
+        instancia.close();
+        instancia.input.style.pointerEvents = 'none';
+        instancia.input.style.backgroundColor = '#f2f2f2'; // Estética de bloqueado
+    } else {
+        if (instancia.input) instancia.input.readOnly = false;
+        if (instancia._input) instancia._input.disabled = false;
+        instancia.input.style.pointerEvents = 'auto';
+        instancia.input.style.backgroundColor = ''; 
+    }
+};
+
 // A sua função principal de carregamento de dados
-const carregarDadosParaEditar = (eventData) => {
+const carregarDadosParaEditar = (eventData, bloquear) => {
     console.log("Objeto eventData recebido:", eventData);
-    console.log("Valor de dtdiariadobrada:", eventData.dtdiariadobrada);
+    console.log("Valor de dtdiariadobrada:", eventData.dtdiariadobrada);    
+
+    const btn = document.getElementById('Enviar');
+    const fieldsetEvento = document.getElementById('containerFieldsets');
+    
+    // 1. Lógica do Botão Enviar
+    if (btn) {
+        const precisaComprovante = verificarNecessidadeComprovante(eventData);
+        // Se for financeiro (bloquear=true) mas precisa de comprovante, o botão DEVE aparecer
+        if (bloquear && !precisaComprovante) {
+            btn.style.display = 'none';
+            btn.disabled = true;
+        } else {
+            btn.style.display = 'block';
+            btn.disabled = false;
+        }
+    }
+
+    // 2. Bloqueio Seletivo dentro do Fieldset Evento
+    if (fieldsetEvento) {
+        // Seleciona todos os inputs, selects e textareas que NÃO são do tipo FILE (comprovantes)
+        const camposParaTravar = fieldsetEvento.querySelectorAll('input:not([type="file"]), select, textarea');
+        
+        camposParaTravar.forEach(campo => {
+            if (campo.id === 'check50' || campo.id === 'check100') {
+                return; // Pula para o próximo campo sem travar este
+            }
+            if (bloquear) {
+                campo.readOnly = true; 
+                // Selects e Checkboxes não aceitam readOnly, precisam de disabled
+                if (campo.tagName === 'SELECT' || campo.type === 'checkbox') {
+                    campo.disabled = true;
+                }
+                //campo.style.backgroundColor = '#f2f2f2'; // Sinal visual de bloqueado
+                campo.style.cursor = 'not-allowed';
+            } else {
+                // Se não for para bloquear (Admin ou evento aberto), restaura tudo
+                campo.readOnly = false;
+                campo.disabled = false;
+                campo.style.backgroundColor = '';
+                campo.style.cursor = '';
+            }
+        });
+    }
+
+    // 3. Liberar apenas os Uploads Necessários (Financeiro)
+    // Chamamos a função que você já tem ou a lógica de habilitar file inputs
+    configurarUploadsFinanceiro(eventData);
+
 
     retornoDados = true;
     limparCamposEvento();
@@ -949,6 +1016,12 @@ const carregarDadosParaEditar = (eventData) => {
     idEquipeInput.value = eventData.idequipe || '';
 
 
+    const valorAjudaCustoViagem = eventData.tipoajudacustoviagem; // Esse é o 1, 2 ou 3
+
+    document.getElementById('viagem1Check').checked = (valorAjudaCustoViagem === 1);
+    document.getElementById('viagem2Check').checked = (valorAjudaCustoViagem === 2);
+    document.getElementById('viagem3Check').checked = (valorAjudaCustoViagem === 3);
+
     if (containerDiariaDobradaCheck) {
         containerDiariaDobradaCheck.style.display = 'block';
         containerStatusDiariaDobrada.style.display = 'block';
@@ -968,8 +1041,9 @@ const carregarDadosParaEditar = (eventData) => {
         const selectedOption = descFuncaoSelect.options[descFuncaoSelect.selectedIndex];
 
         // Se uma opção válida for encontrada, atualiza as variáveis globais
-        if (selectedOption) {
-            vlrAlimentacaoDobra = parseFloat(selectedOption.getAttribute("data-alimentacao")) || 0;
+        if (selectedOption) {//AQUI QUE TEMOS QUE FAZER A CORREÇÃO CARREGANDO OS VALORES CORRETOS
+            //vlrAlimentacaoDobra = parseFloat(selectedOption.getAttribute("data-alimentacao")) || 0;
+            vlrAlimentacaoDobra = parseFloat(eventData.vlralimentacao) || 0;
 
             console.log("Valores de Almoço e Jantar carregados para edição:", vlrAlimentacaoDobra);
         }
@@ -979,6 +1053,7 @@ const carregarDadosParaEditar = (eventData) => {
     if (nmClienteSelect) nmClienteSelect.value = eventData.idcliente || '';
     if (nmEventoSelect) nmEventoSelect.value = eventData.idevento || '';
     
+
     
     const equipeId = eventData.idequipe || '';
     
@@ -1068,7 +1143,7 @@ const carregarDadosParaEditar = (eventData) => {
             nmPavilhaoSelect.innerHTML = `<option value="${eventData.pavilhao || ''}">${eventData.pavilhao || 'Selecione Pavilhão'}</option>`;
             nmPavilhaoSelect.value = eventData.pavilhao || '';
         }
-    }
+    }    
 
     qtdPessoasInput.value = parseInt(eventData.qtdpessoaslote || 0);
 
@@ -1076,6 +1151,7 @@ const carregarDadosParaEditar = (eventData) => {
     vlrCustoInput.value = parseFloat(eventData.vlrcache || 0).toFixed(2).replace('.', ',');
     transporteInput.value = parseFloat(eventData.vlrtransporte || 0).toFixed(2).replace('.', ',');  
     alimentacaoInput.value = parseFloat(eventData.vlralimentacao || 0).toFixed(2).replace('.', ',');
+    
     descBeneficioTextarea.value = eventData.descbeneficios || '';
 
     ajusteCustoInput.value = parseFloat(eventData.vlrajustecusto || 0).toFixed(2).replace('.', ',');
@@ -1157,8 +1233,49 @@ const carregarDadosParaEditar = (eventData) => {
     // --- PONTO CHAVE: Chama a nova função para lidar com os Flatpickrs ---
     inicializarEPreencherCampos(eventData);
     atualizarContadorDatas();
+
+    const pickers = [
+        window.datasEventoPicker,
+        window.diariaDobradaPicker,
+        window.meiaDiariaPicker
+    ];
+
+    pickers.forEach(p => alternarBloqueioFlatpickr(p, bloquear));
+
+    
 };
 
+
+const verificarNecessidadeComprovante = (ed) => {
+    // Regra 1: Cachê
+    const precisaCache = parseFloat(ed.vlrtotcache || 0) > 0 && 
+                         (ed.statuspgto || "").toLowerCase() === 'pago' && 
+                         (!ed.comppgtocache);
+
+    // Regra 2: Ajuda de Custo
+    const precisaAjd = parseFloat(ed.vlrtotajdcusto || 0) > 0 && 
+                        (ed.statuspgtoajdcto || "").toLowerCase() === 'pago' && 
+                        (!ed.comppgtoajdcusto);
+
+    // Regra 3: Caixinha
+    const precisaCaixinha = parseFloat(ed.vlrcaixinha || 0) > 0 && 
+                            (ed.statuscaixinha || "").toLowerCase() === 'pago' && 
+                            (!ed.comppgtocaixinha);
+
+    return precisaCache || precisaAjd || precisaCaixinha;
+};
+
+const configurarUploadsFinanceiro = (ed) => {
+    const upCache = document.getElementById('uploadCompCache'); // Ajuste os IDs
+    const upAjd = document.getElementById('uploadCompAjd');
+    const upCaixinha = document.getElementById('uploadCompCaixinha');
+
+    if (upCache) upCache.disabled = !(parseFloat(ed.vlrtotcache || 0) > 0 && (ed.statuspgto || "").toLowerCase() === 'pago' && !ed.comppgtocache);
+    
+    if (upAjd) upAjd.disabled = !(parseFloat(ed.vlrtotajdcusto || 0) > 0 && (ed.statuspgtoajdcto || "").toLowerCase() === 'pago' && !ed.comppgtoajdcusto);
+    
+    if (upCaixinha) upCaixinha.disabled = !(parseFloat(ed.vlrcaixinha || 0) > 0 && (ed.statuscaixinha || "").toLowerCase() === 'pago' && !ed.comppgtocaixinha);
+};
 
 /**
  * Inicializa e preenche os campos do formulário com os dados de um evento.
@@ -1460,31 +1577,542 @@ function getDadosFormulario() {
 }
 
 
+// const carregarTabelaStaff = async (funcionarioId) => {
+//     eventsTableBody.innerHTML = '';
+//     noResultsMessage.style.display = 'none';
+//     currentRowSelected = null;
+//     isFormLoadedFromDoubleClick = false;
+
+//     console.log("CARREGOU TABELA STAFF", isFormLoadedFromDoubleClick);
+
+//     // 💡 CORREÇÃO ROBUSTA para evitar o erro /null
+//     // Verifica se o ID é falsy (vazio, undefined, etc.) OU se é a string "null" (que é truthy)
+//     if (!funcionarioId || (typeof funcionarioId === 'string' && (funcionarioId.toLowerCase() === 'null' || funcionarioId.trim() === ''))) {
+//         noResultsMessage.style.display = 'block';
+//         noResultsMessage.textContent = 'Por favor, selecione um funcionário para pesquisar os eventos.';
+//         return;
+//     }
+
+//     // Agora, a URL só será construída se funcionarioId for um valor válido (ex: "123")
+//     const url = `/staff/${funcionarioId}`; // Sua nova rota GET
+
+//     try {
+//         const response = await fetch(url, {
+//             method: 'GET',
+//             headers: {
+//         'Content-Type': 'application/json',
+//         'Authorization': 'Bearer ' + localStorage.getItem('token')
+//             }
+//         });
+
+//         if (!response.ok) {
+//             const errorData = await response.json();
+//             throw new Error(errorData.message || 'Erro na requisição');
+//         }
+
+//         const data = await response.json();
+//         console.log('Dados de eventos recebidos para o funcionário:', data);
+
+//         document.getElementById('qtdPessoasHeader').style.display = 'none';
+
+
+//         if (data && data.length > 0) {        
+
+//             if (isLote) {
+//                 document.getElementById('qtdPessoasHeader').style.display = 'table-cell';
+//             }
+//             data.forEach(eventData => {
+
+//                 let datasArray = [];
+//                 try {
+//                     datasArray = (typeof eventData.datasevento === 'string') 
+//                         ? JSON.parse(eventData.datasevento) 
+//                         : (Array.isArray(eventData.datasevento) ? eventData.datasevento : []);
+//                 } catch (e) {
+//                     console.error("Erro ao processar datas:", e);
+//                     datasArray = [];
+//                 }
+//                 const qtdDias = datasArray.length;
+
+//                 const row = eventsTableBody.insertRow();
+//                 row.dataset.eventData = JSON.stringify(eventData);
+
+//                 if (eventData.status === "Pago"){
+//                     Swal.fire({
+//                         icon: 'warning',
+//                         title: 'Não é possível inserir dados para edição.',
+//                         text: 'Evento deste funcionário já foi concluído e pago',
+//                     });
+//                     return;
+
+//                 }else{
+//                     row.addEventListener('dblclick', () => {
+
+//                         if (eventData.statuspgto === "Pago" && !temPermissaoTotal) {
+//                             Swal.fire({
+//                                 icon: 'warning',
+//                                 title: 'STAFF PAGO! Sem permissão para editar.',
+//                                 text: 'Este evento já foi pago não possibilitando a edição.'
+//                             });
+//                             return; // Impede que o restante do código do dblclick seja executado
+//                         }
+
+//                         isFormLoadedFromDoubleClick = true;
+//                         if (currentRowSelected) {
+//                             currentRowSelected.classList.remove('selected-row');
+//                         }
+
+//                         row.classList.add('selected-row');
+
+//                         currentRowSelected = row;
+
+//                         carregarDadosParaEditar(eventData)
+//                     });
+
+
+//                     row.insertCell().textContent = eventData.nmfuncao || '';
+//                     row.insertCell().textContent = eventData.setor || '';
+//                     row.insertCell().textContent = eventData.nmcliente || '';
+//                     row.insertCell().textContent = eventData.nmevento || '';
+//                     row.insertCell().textContent = eventData.nmlocalmontagem || '';
+//                     row.insertCell().textContent = eventData.pavilhao || '';
+
+//                     const qtdPessoasCell = row.insertCell();
+//                     if (isLote) {
+//                         qtdPessoasCell.textContent = eventData.qtdpessoaslote || '0';
+//                         qtdPessoasCell.style.display = 'table-cell';
+//                     } else {
+//                         qtdPessoasCell.style.display = 'none';
+//                     }
+
+//                     row.insertCell().textContent = (eventData.datasevento && typeof eventData.datasevento === 'string')
+
+//                     ? JSON.parse(eventData.datasevento) // Primeiro parseia a string JSON para um array
+//                     .map(dateStr => { // Depois, mapeia cada string de data no array
+//                         const parts = dateStr.split('-'); // Divide a data (ex: ['2025', '07', '01'])
+//                         if (parts.length === 3) {
+//                             return `${parts[2]}/${parts[1]}/${parts[0]}`; // Reorganiza para DD/MM/YYYY
+//                         }
+//                         return dateStr; // Retorna a data original se não estiver no formato esperado
+//                     })
+//                     .join(', ') // Junta as datas formatadas com vírgula e espaço
+//                     : (Array.isArray(eventData.datasevento) && eventData.datasevento.length > 0)
+//                     ? eventData.datasevento // Se já for um array (do backend, por exemplo)
+//                     .map(dateStr => {
+//                         const parts = dateStr.split('-');
+//                         if (parts.length === 3) {
+//                             return `${parts[2]}/${parts[1]}/${parts[0]}`;
+//                         }
+//                         return dateStr;
+//                     })
+//                     .join(', ')
+//                     : 'N/A';
+
+//                     row.insertCell().textContent = qtdDias;
+
+//                     row.insertCell().textContent = parseFloat(eventData.vlrcache || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+//                     
+
+//                     let valorTotalCache = parseFloat(eventData.vlrtotcache || 0.00);
+//                     row.insertCell().textContent = valorTotalCache.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+//                     const vlrAjusteCustoCell = row.insertCell();
+//                     const vlrAjusteCustoFormatado = parseFloat(eventData.vlrajustecusto || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+//                     vlrAjusteCustoCell.textContent = vlrAjusteCustoFormatado; // Insere o valor em preto
+
+//                     const statusAjusteCusto = (eventData.statusajustecusto || '').trim();
+
+//                     if (statusAjusteCusto) {
+//                         const statusSpan = document.createElement('span');
+//                         statusSpan.textContent = ` (${statusAjusteCusto})`;
+//                         statusSpan.classList.add('status-custom');
+
+//                         // Formata o status para "Pendente", "Autorizado", etc.
+//                         // Garante que o status para a classe seja Capitalizado
+//                         const statusCapitalized = statusAjusteCusto.charAt(0).toUpperCase() + statusAjusteCusto.slice(1).toLowerCase();
+
+//                         // Adiciona a classe de cor correta
+//                         statusSpan.classList.add(`status-${statusCapitalized}`); 
+
+//                         vlrAjusteCustoCell.appendChild(statusSpan);
+//                     }
+
+//                     row.insertCell().textContent = eventData.descajustecusto || '';           
+//                     row.insertCell().textContent = parseFloat(eventData.vlralimentacao || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+//                     row.insertCell().textContent = parseFloat(eventData.vlrtransporte || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+//           
+//                     let valorTotalAjdCusto = parseFloat(eventData.vlrtotajdcusto || 0.00);
+//                     row.insertCell().textContent = valorTotalAjdCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+//                     const vlrCaixinhaCell = row.insertCell();
+//                     const vlrCaixinhaFormatado = parseFloat(eventData.vlrcaixinha || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+//                     vlrCaixinhaCell.textContent = vlrCaixinhaFormatado; // Valor em preto
+
+//                     const statusCaixinha = (eventData.statuscaixinha || '').trim();
+
+//                     if (statusCaixinha) {
+//                         const statusSpan = document.createElement('span');
+//                         statusSpan.textContent = ` (${statusCaixinha})`;
+//                         statusSpan.classList.add('status-custom');
+
+//                         // Formata o status para "Pendente", "Autorizado", etc.
+//                         // Garante que o status para a classe seja Capitalizado
+//                         const statusCapitalized = statusCaixinha.charAt(0).toUpperCase() + statusCaixinha.slice(1).toLowerCase();
+
+//                         // Adiciona a classe de cor correta
+//                         statusSpan.classList.add(`status-${statusCapitalized}`);
+
+//                         vlrCaixinhaCell.appendChild(statusSpan);
+//                     }
+//                     row.insertCell().textContent = eventData.descbeneficios || '';       
+
+                    
+                
+
+//                     let valorTotalCalculado = parseFloat(eventData.vlrtotal || 0.00);
+
+//                     // Adiciona vlrcaixinha se statuscaixinha for 'Autorizado'
+//         //                  if (eventData.statuscaixinha && eventData.statuscaixinha.toLowerCase() === 'autorizado') {
+//         //                      valorTotalCalculado += parseFloat(eventData.vlrcaixinha || 0.00);
+//         //                  }
+
+//         //                  // Adiciona vlrajustecusto se statusajustecusto for 'Autorizado'
+//         //                  if (eventData.statusajustecusto && eventData.statusajustecusto.toLowerCase() === 'autorizado') {
+//         //                      valorTotalCalculado += parseFloat(eventData.vlrajustecusto || 0.00);
+//         //                  }
+
+//                     row.insertCell().textContent = valorTotalCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+//                     const statusCell = row.insertCell();
+
+//                     const status = (eventData.statuspgto || '').toLowerCase();
+//                     const statusSpan = document.createElement('span');
+//                     statusSpan.textContent = status.toUpperCase();
+
+//                     // Adicione a classe base
+//                     statusSpan.classList.add('status-pgto');
+
+//                     if (status === "pendente") {
+//                         statusSpan.classList.add('pendente');
+//                     } else if (status === "pago") {
+//                         statusSpan.classList.add('pago');
+//                     }
+//                     statusCell.appendChild(statusSpan);
+//                 }
+
+//             });
+//         } else {
+//             noResultsMessage.style.display = 'block';
+//             noResultsMessage.textContent = `Nenhum evento encontrado para o funcionário selecionado.`;
+//         }
+
+//     } catch (error) {
+//         console.error('Erro ao buscar dados de eventos do funcionário:', error);
+//         noResultsMessage.style.display = 'block';
+//         noResultsMessage.textContent = `Erro ao carregar dados: ${error.message}. Tente novamente.`;
+//     }
+// };//original
+
+
+// const carregarTabelaStaff = async (funcionarioId) => {
+//     eventsTableBody.innerHTML = '';
+//     noResultsMessage.style.display = 'none';
+//     currentRowSelected = null;
+//     isFormLoadedFromDoubleClick = false;
+
+//     if (!funcionarioId || (typeof funcionarioId === 'string' && (funcionarioId.toLowerCase() === 'null' || funcionarioId.trim() === ''))) {
+//         noResultsMessage.style.display = 'block';
+//         noResultsMessage.textContent = 'Por favor, selecione um funcionário para pesquisar os eventos.';
+//         return;
+//     }
+
+//     const url = `/staff/${funcionarioId}`;
+
+//     try {
+//         const response = await fetch(url, {
+//             method: 'GET',
+//             headers: {
+//                 'Content-Type': 'application/json',
+//                 'Authorization': 'Bearer ' + localStorage.getItem('token')
+//             }
+//         });
+
+//         if (!response.ok) {
+//             const errorData = await response.json();
+//             throw new Error(errorData.message || 'Erro na requisição');
+//         }
+
+//         const data = await response.json();
+//         document.getElementById('qtdPessoasHeader').style.display = 'none';
+
+//         if (data && data.length > 0) {
+//             if (isLote) {
+//                 document.getElementById('qtdPessoasHeader').style.display = 'table-cell';
+//             }
+
+//             data.forEach(eventData => {
+//                 // --- 1. CÁLCULO DOS TOTAIS ---
+//                 //const totais = calcularTotaisLinha(eventData);
+
+//                 let datasArrayDias = [];
+//                 try {
+//                     datasArrayDias = typeof eventData.datasevento === 'string' ? JSON.parse(eventData.datasevento) : (eventData.datasevento || []);
+//                 } catch(e) { 
+//                     datasArrayDias = []; 
+//                 }
+//                 const qtdDiasCalculada = datasArrayDias.length;
+
+//                 // --- 2. DEFINIÇÃO DOS VALORES FINANCEIROS ---
+//                 let totais;
+
+//                 // Verificação se existem totais financeiros salvos no banco
+//                 const temValoresNoBanco = 
+//                     eventData.vlrtotajdcto !== undefined && eventData.vlrtotajdcto !== null && parseFloat(eventData.vlrtotajdcto) !== 0 &&
+//                     eventData.vlrtotcache !== undefined && eventData.vlrtotcache !== null && parseFloat(eventData.vlrtotcache) !== 0;
+
+//                 if (temValoresNoBanco) {
+//                     // Usa valores do banco, mas a Qtd de Dias vem do cálculo acima
+//                     totais = {
+//                         qtdDias: qtdDiasCalculada, 
+//                         totalAjdCusto: parseFloat(eventData.vlrtotajdcto),
+//                         totalCache: parseFloat(eventData.vlrtotcache),
+//                         vlrDobraCalculado: parseFloat(eventData.vlrtotdiariadobrada || 0),
+//                         vlrMeiaCalculada: parseFloat(eventData.vlrtotmeiadiaria || 0),
+//                         totalGeral: parseFloat(eventData.vlrtotgeral || 0)
+//                     };
+//                 } else {
+//                     // Caso contrário, calcula tudo do zero
+//                     totais = calcularTotaisLinha(eventData);
+//                     // Garante que a qtdDias usada seja a que acabamos de calcular localmente
+//                     totais.qtdDias = qtdDiasCalculada; 
+//                 }
+
+//                 const row = eventsTableBody.insertRow();
+//                 row.dataset.eventData = JSON.stringify(eventData);
+
+//                 // Bloqueio de edição para status "Pago"
+//                 if (eventData.status === "Pago") {
+//                     row.addEventListener('dblclick', () => {
+//                         Swal.fire({
+//                             icon: 'warning',
+//                             title: 'Não é possível editar.',
+//                             text: 'Evento deste funcionário já foi concluído e pago',
+//                         });
+//                     });
+//                 } else {
+//                     row.addEventListener('dblclick', () => {
+//                         if (eventData.statuspgto === "Pago" && !temPermissaoTotal) {
+//                             Swal.fire({
+//                                 icon: 'warning',
+//                                 title: 'STAFF PAGO!',
+//                                 text: 'Este evento já foi pago não possibilitando a edição.'
+//                             });
+//                             return;
+//                         }
+//                         isFormLoadedFromDoubleClick = true;
+//                         if (currentRowSelected) currentRowSelected.classList.remove('selected-row');
+//                         row.classList.add('selected-row');
+//                         currentRowSelected = row;
+//                         carregarDadosParaEditar(eventData);
+//                     });
+//                 }
+
+//                 // --- 2. PREENCHIMENTO DAS CÉLULAS (ORDEM PARA O FINANCEIRO) ---
+                
+//                 // Informações Básicas
+//                 row.insertCell().textContent = eventData.nmfuncao || '';
+//                 row.insertCell().textContent = eventData.setor || '';
+//                 row.insertCell().textContent = eventData.nmcliente || '';
+//                 row.insertCell().textContent = eventData.nmevento || '';
+//                 row.insertCell().textContent = eventData.nmlocalmontagem || '';
+//                 row.insertCell().textContent = eventData.pavilhao || '';
+
+//                 // Quantidade Pessoas (se Lote)
+//                 const qtdPessoasCell = row.insertCell();
+//                 if (isLote) {
+//                     qtdPessoasCell.textContent = eventData.qtdpessoaslote || '0';
+//                     qtdPessoasCell.style.display = 'table-cell';
+//                 } else {
+//                     qtdPessoasCell.style.display = 'none';
+//                 }
+
+//                 // Datas do Evento (Formatadas)
+//                 let datasArray = [];
+//                 try {
+//                     datasArray = typeof eventData.datasevento === 'string' ? JSON.parse(eventData.datasevento) : (eventData.datasevento || []);
+//                 } catch(e) { datasArray = []; }
+
+//                 row.insertCell().textContent = datasArray.map(dateStr => {
+//                     const parts = dateStr.split('-');
+//                     return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateStr;
+//                 }).join(', ') || 'N/A';
+
+//                 // --- NOVAS COLUNAS PARA O FINANCEIRO ---
+                
+//                 // Qtd Dias
+//                 row.insertCell().textContent = totais.qtdDias;
+
+//                 row.insertCell().textContent = parseFloat(eventData.vlralimentacao || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+//                 row.insertCell().textContent = parseFloat(eventData.vlrtransporte || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+//                 // --- TOTAL AJUDA DE CUSTO ---
+//                 const cellTotalAjd = row.insertCell();
+//                 const vlrAjdCusto = totais.totalAjdCusto || 0;
+//                 cellTotalAjd.textContent = vlrAjdCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+//                 cellTotalAjd.style.fontWeight = 'bold'; 
+
+//                 // --- STATUS DE PAGAMENTO AJUDA DE CUSTO ---
+//                 const cellStatusAjd = row.insertCell();
+
+//                 // REGRA: Só renderiza o status se o valor total de ajuda de custo for maior que zero
+//                 if (vlrAjdCusto > 0) {
+//                     const statusAjdBase = (eventData.statuspgtoajdcto || 'pendente').toLowerCase().trim();
+//                     const statusSpanAjd = document.createElement('span');
+
+//                     // Define o texto em MAIÚSCULAS                    
+//                     if (statusAjdBase === 'pago50') {
+//                         statusSpanAjd.textContent = 'PAGO 50%';
+//                     } else {
+//                         statusSpanAjd.textContent = statusAjdBase.toUpperCase();
+//                     }
+
+//                     // Adiciona as classes CSS (suporta pago, pendente, suspenso, etc.)
+//                     statusSpanAjd.classList.add('status-pgto', statusAjdBase);
+
+//                     cellStatusAjd.appendChild(statusSpanAjd);
+//                 } else {
+//                     // Se não houver valor, a célula fica limpa
+//                     cellStatusAjd.textContent = '---'; 
+//                 }
+
+//                 // Valores Unitários (Base)
+//                 row.insertCell().textContent = parseFloat(eventData.vlrcache || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+               
+//                 // Ajuste de Custo (Coluna Original)
+//                 const vlrAjusteCell = row.insertCell();
+//                 vlrAjusteCell.textContent = parseFloat(eventData.vlrajustecusto || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+//                 if (eventData.statusajustecusto) {
+//                     vlrAjusteCell.innerHTML += ` <span class="status-custom statusStaff-${eventData.statusajustecusto.toLowerCase()}">(${eventData.statusajustecusto})</span>`;
+//                 }
+
+//                 row.insertCell().textContent = eventData.descajustecusto || '';  
+
+//                 // --- COLUNA DATAS DIÁRIA DOBRADA ---
+//                 const cellDatasDobra = row.insertCell();
+//                 cellDatasDobra.innerHTML = formatarDataComStatus(eventData.dtdiariadobrada);
+
+//                 // --- COLUNA VALOR DIÁRIA DOBRADA ---
+//                 const vlrDobraCell = row.insertCell();
+//                 // Reutiliza o valor calculado de dobra
+//                 vlrDobraCell.textContent = totais.vlrDobraCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+//                 // --- COLUNA DATAS MEIA DIÁRIA ---
+//                 const cellDatasMeia = row.insertCell();
+//                 cellDatasMeia.innerHTML = formatarDataComStatus(eventData.dtmeiadiaria);
+
+//                 // --- COLUNA VALOR MEIA DIÁRIA ---
+//                 const vlrMeiaCell = row.insertCell();
+//                 // Reutiliza o valor calculado de meia
+//                 vlrMeiaCell.textContent = totais.vlrMeiaCalculada.toLocaleString('pt-BR', { 
+//                     style: 'currency', 
+//                     currency: 'BRL' 
+//                 });
+                
+//                 row.insertCell().textContent = eventData.descbeneficios || '';
+
+               
+//                 // --- TOTAL CACHÊ --- (Qtd Dias * Vlr Cache * Multiplicador)                
+                 
+//                 const cellTotalCache = row.insertCell();
+//                 cellTotalCache.textContent = totais.totalCache.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+//                 cellTotalCache.style.fontWeight = 'bold'; // Aplica negrito
+
+//                 // --- STATUS DE PAGAMENTO DO CACHÊ ---
+//                 const statusCellCache = row.insertCell();
+//                 const statuscache = (eventData.statuspgto || 'pendente').toLowerCase().trim();
+
+//                 const statusCacheSpan = document.createElement('span');
+
+//                 // 1. Define o texto sempre em MAIÚSCULAS para exibição
+//                 statusCacheSpan.textContent = statuscache.toUpperCase();
+
+//                 // 2. Adiciona a classe base e a classe específica (pago, pendente ou suspenso)
+//                 // Isso substitui o teste fixo e aceita qualquer novo status adicionado ao CSS
+//                 statusCacheSpan.classList.add('status-pgto', statuscache);
+
+//                 statusCellCache.appendChild(statusCacheSpan);
+
+//                 // --- COLUNA VALOR CAIXINHA ---
+//                 const vlrCaixinha = parseFloat(eventData.vlrcaixinha || 0);
+//                 const vlrCaixinhaCell = row.insertCell();
+//                 vlrCaixinhaCell.textContent = vlrCaixinha.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+//                 // Só adiciona o badge de status ao lado do valor se ele existir
+//                 if (eventData.statuscaixinha && vlrCaixinha > 0) {
+//                     vlrCaixinhaCell.innerHTML += ` <span class="status-custom statusStaff-${eventData.statuscaixinha.toLowerCase()}">(${eventData.statuscaixinha})</span>`;
+//                 }
+
+//                 // --- COLUNA STATUS DE PAGAMENTO DA CAIXINHA ---
+//                 const statusCaixinhaCell = row.insertCell();
+
+//                 // REGRA: Só cria o span de status se o valor da caixinha for maior que zero
+//                 if (vlrCaixinha > 0) {
+//                     const statusCaixinhaBase = (eventData.statuscaixinha || 'pendente').toLowerCase().trim();
+//                     const statusCaixinhaSpan = document.createElement('span');
+
+//                     // 1. Define o texto visível sempre em MAIÚSCULAS
+//                     statusCaixinhaSpan.textContent = statusCaixinhaBase.toUpperCase();
+
+//                     // 2. Adiciona as classes para o CSS
+//                     statusCaixinhaSpan.classList.add('status-pgto', statusCaixinhaBase);
+
+//                     statusCaixinhaCell.appendChild(statusCaixinhaSpan);
+//                 } else {
+//                     // Se não houver valor, a célula fica vazia ou com um traço
+//                     statusCaixinhaCell.textContent = '---'; 
+//                 }
+
+//                 // VALOR TOTAL GERAL (Soma Final Autorizada)
+//                 const cellTotalGeral = row.insertCell();
+//                 cellTotalGeral.textContent = totais.totalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+//                 cellTotalGeral.style.fontWeight = 'bold';
+
+                
+//             });
+//         } else {
+//             noResultsMessage.style.display = 'block';
+//             noResultsMessage.textContent = `Nenhum evento encontrado.`;
+//         }
+//     } catch (error) {
+//         console.error('Erro:', error);
+//         noResultsMessage.style.display = 'block';
+//         noResultsMessage.textContent = `Erro ao carregar dados: ${error.message}`;
+//     }
+// };//primeira alteração com novos campos
+
+
 const carregarTabelaStaff = async (funcionarioId) => {
+    // Reset inicial da tela
     eventsTableBody.innerHTML = '';
     noResultsMessage.style.display = 'none';
     currentRowSelected = null;
     isFormLoadedFromDoubleClick = false;
 
-    console.log("CARREGOU TABELA STAFF", isFormLoadedFromDoubleClick);
-
-    // 💡 CORREÇÃO ROBUSTA para evitar o erro /null
-    // Verifica se o ID é falsy (vazio, undefined, etc.) OU se é a string "null" (que é truthy)
+    // Validação de ID
     if (!funcionarioId || (typeof funcionarioId === 'string' && (funcionarioId.toLowerCase() === 'null' || funcionarioId.trim() === ''))) {
         noResultsMessage.style.display = 'block';
         noResultsMessage.textContent = 'Por favor, selecione um funcionário para pesquisar os eventos.';
         return;
     }
 
-    // Agora, a URL só será construída se funcionarioId for um valor válido (ex: "123")
-    const url = `/staff/${funcionarioId}`; // Sua nova rota GET
+    const url = `/staff/${funcionarioId}`;
 
     try {
         const response = await fetch(url, {
             method: 'GET',
             headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + localStorage.getItem('token')
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
             }
         });
 
@@ -1494,192 +2122,361 @@ const carregarTabelaStaff = async (funcionarioId) => {
         }
 
         const data = await response.json();
-        console.log('Dados de eventos recebidos para o funcionário:', data);
-
         document.getElementById('qtdPessoasHeader').style.display = 'none';
 
-
-        if (data && data.length > 0) {        
-
+        if (data && data.length > 0) {
             if (isLote) {
-        document.getElementById('qtdPessoasHeader').style.display = 'table-cell';
+                document.getElementById('qtdPessoasHeader').style.display = 'table-cell';
             }
+
             data.forEach(eventData => {
+                // --- 1. PROCESSAMENTO DE DATAS E QTD DIAS (Sempre calculado dinamicamente) ---
+                let datasArray = [];
+                try {
+                    datasArray = typeof eventData.datasevento === 'string' ? JSON.parse(eventData.datasevento) : (eventData.datasevento || []);
+                } catch(e) { 
+                    datasArray = []; 
+                }
+                const qtdDiasCalculada = datasArray.length;
 
-        const row = eventsTableBody.insertRow();
-        row.dataset.eventData = JSON.stringify(eventData);
+                // --- 2. DEFINIÇÃO DOS TOTAIS (Prioridade para o Banco, senão calcula) ---
+                let totais;
+                const temValoresNoBanco = 
+                    eventData.vlrtotajdcusto !== undefined && eventData.vlrtotajdcusto !== null && parseFloat(eventData.vlrtotajdcusto) !== 0 &&
+                    eventData.vlrtotcache !== undefined && eventData.vlrtotcache !== null && parseFloat(eventData.vlrtotcache) !== 0;
 
-        if (eventData.status === "Pago"){
-            Swal.fire({
-                icon: 'warning',
-                title: 'Não é possível inserir dados para edição.',
-                text: 'Evento deste funcionário já foi concluído e pago',
-            });
-            return;
-
-        }else{
-            row.addEventListener('dblclick', () => {
-
-                if (eventData.statuspgto === "Pago" && !temPermissaoTotal) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'STAFF PAGO! Sem permissão para editar.',
-                        text: 'Este evento já foi pago não possibilitando a edição.'
-                    });
-                    return; // Impede que o restante do código do dblclick seja executado
+                if (temValoresNoBanco) {
+                    totais = {
+                        qtdDias: qtdDiasCalculada, 
+                        totalAjdCusto: parseFloat(eventData.vlrtotajdcusto),
+                        totalCache: parseFloat(eventData.vlrtotcache),
+                        vlrDobraCalculado: parseFloat(eventData.vlrtotdiariadobrada || 0),
+                        vlrMeiaCalculada: parseFloat(eventData.vlrtotmeiadiaria || 0),
+                        totalGeral: parseFloat(eventData.vlrtotgeral || 0)
+                    };
+                } else {
+                    totais = calcularTotaisLinha(eventData);
+                    totais.qtdDias = qtdDiasCalculada; // Garante consistência
                 }
 
-                isFormLoadedFromDoubleClick = true;
-                if (currentRowSelected) {
-                    currentRowSelected.classList.remove('selected-row');
+                
+                // Lógica de bloqueio de edição
+                const vlrAjd = totais.totalAjdCusto; 
+                const vlrCache = totais.totalCache;
+                const statusAjd = (eventData.statuspgtoajdcto || "").toLowerCase();
+                const statusCache = (eventData.statuspgto || "").toLowerCase();
+
+                console.log("Valores para verificação de pagamento:", {vlrAjd, statusAjd, vlrCache, statusCache, temPermissaoTotal});
+
+                // REGRA: Consideramos "Evento Concluído e Pago" se:
+                // 1. O que era devido de Ajuda de Custo está pago (se houver valor)
+                // 2. O que era devido de Cachê está pago (se houver valor)
+                const temValorAlgum = (vlrAjd > 0 || vlrCache > 0);
+                const estaTudoPago = temValorAlgum && 
+                     (vlrAjd > 0 ? statusAjd === "pago" : true) && 
+                     (vlrCache > 0 ? statusCache === "pago" : true);
+
+
+                const bloqueioParcial = !temPermissaoTotal && (statusAjd === "pago" || statusCache === "pago");
+
+                const row = eventsTableBody.insertRow();
+                row.dataset.eventData = JSON.stringify(eventData);
+
+                row.addEventListener('dblclick', async () => {
+                    isFormLoadedFromDoubleClick = true;
+
+                    let datasOriginaisArray = [];
+                    try {
+                        datasOriginaisArray = typeof eventData.datasevento === 'string' 
+                            ? JSON.parse(eventData.datasevento) 
+                            : (eventData.datasevento || []);
+                    } catch(e) { 
+                        datasOriginaisArray = []; 
+                    }
+
+                    // Armazenamos no window para que o botão "Salvar" consiga ler depois
+                    window.dadosOriginais = {
+                        idFuncionario: eventData.idstaffevento,
+                        periodo: datasOriginaisArray
+                    };
+                    
+                    // Gerenciamento visual da seleção da linha
+                    if (currentRowSelected) currentRowSelected.classList.remove('selected-row');
+                    row.classList.add('selected-row');
+                    currentRowSelected = row;
+
+                    // --- LOGICA DE PERMISSÕES ---
+
+                    // 1. USUÁRIO COM PERMISSÃO TOTAL (ADMIN)
+                    if (temPermissaoTotal) {
+                        if (estaTudoPago || bloqueioParcial) {
+                            // Apenas avisa, mas deixa editar
+                            await Swal.fire({
+                                icon: 'info',
+                                title: 'CONCLUÍDO E PAGO',
+                                text: 'Este evento já foi pago, mas você tem permissão de administrador para editar.',
+                                confirmButtonText: 'Continuar'
+                            });
+                        }
+                        carregarDadosParaEditar(eventData, false); // Libera botão (bloquear = false)
+                        return; // Encerra a execução do clique aqui
+                    }
+
+                    // 2. USUÁRIO COM PERMISSÃO FINANCEIRO (VISUALIZADOR)
+                    if (temPermissaoFinanceiro) {
+                        if (estaTudoPago || bloqueioParcial) {
+                            await Swal.fire({
+                                icon: 'warning',
+                                title: 'MODO VISUALIZAÇÃO',
+                                text: 'Evento com pagamento vinculado. Você pode visualizar os dados, mas a edição está desativada.',
+                                confirmButtonText: 'Entendido'
+                            });
+                            carregarDadosParaEditar(eventData, true); // Bloqueia botão (bloquear = true)
+                        } else {
+                            // Se ainda não foi pago, financeiro pode editar? 
+                            // Se sim, false. Se apenas ver, true.
+                            carregarDadosParaEditar(eventData, false); 
+                        }
+                        return;
+                    }
+
+                    // 3. SEM PERMISSÃO (BLOQUEIO TOTAL)
+                    // Se não caiu nos IFs acima e está pago/parcial, nega até o carregamento
+                    if (estaTudoPago || bloqueioParcial) {
+                        await Swal.fire({
+                            icon: 'error',
+                            title: 'ACESSO BLOQUEADO',
+                            text: 'Você não tem permissão para acessar dados de eventos já pagos ou concluídos.',
+                            confirmButtonText: 'Sair'
+                        });
+                        
+                        // Limpa a seleção e não carrega nada
+                        if (currentRowSelected) currentRowSelected.classList.remove('selected-row');
+                        currentRowSelected = null;
+                        return; // Não chama carregarDadosParaEditar
+                    }
+
+                    // 4. CASO PADRÃO (Evento aberto e usuário comum)
+                    carregarDadosParaEditar(eventData, false);
+                });
+
+                // --- 4. PREENCHIMENTO DAS CÉLULAS ---
+                
+                // Informações Básicas
+                row.insertCell().textContent = eventData.nmfuncao || '';
+                row.insertCell().textContent = eventData.setor || '';
+                row.insertCell().textContent = eventData.nmcliente || '';
+                row.insertCell().textContent = eventData.nmevento || '';
+                row.insertCell().textContent = eventData.nmlocalmontagem || '';
+                row.insertCell().textContent = eventData.pavilhao || '';
+
+                // Coluna Qtd Pessoas (Lote)
+                const qtdPessoasCell = row.insertCell();
+                if (isLote) {
+                    qtdPessoasCell.textContent = eventData.qtdpessoaslote || '0';
+                } else {
+                    qtdPessoasCell.style.display = 'none';
                 }
 
-                row.classList.add('selected-row');
+                // Datas do Evento formatadas
+                row.insertCell().textContent = datasArray.map(dateStr => {
+                    const parts = dateStr.split('-');
+                    return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateStr;
+                }).join(', ') || 'N/A';
 
-                currentRowSelected = row;
+                // Qtd Dias
+                row.insertCell().textContent = totais.qtdDias;
 
-                carregarDadosParaEditar(eventData)
-            });
+                // Valores Unitários Ajuda de Custo
+                row.insertCell().textContent = parseFloat(eventData.vlralimentacao || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                row.insertCell().textContent = parseFloat(eventData.vlrtransporte || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+                // TOTAL AJUDA DE CUSTO
+                const cellTotalAjd = row.insertCell();
+                cellTotalAjd.textContent = totais.totalAjdCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                cellTotalAjd.style.fontWeight = 'bold';
 
-            row.insertCell().textContent = eventData.nmfuncao || '';
-            row.insertCell().textContent = eventData.setor || '';
-            row.insertCell().textContent = eventData.nmcliente || '';
-            row.insertCell().textContent = eventData.nmevento || '';
-            row.insertCell().textContent = eventData.nmlocalmontagem || '';
-            row.insertCell().textContent = eventData.pavilhao || '';
-
-            const qtdPessoasCell = row.insertCell();
-            if (isLote) {
-                qtdPessoasCell.textContent = eventData.qtdpessoaslote || '0';
-                qtdPessoasCell.style.display = 'table-cell';
-            } else {
-                qtdPessoasCell.style.display = 'none';
-            }
-
-            row.insertCell().textContent = (eventData.datasevento && typeof eventData.datasevento === 'string')
-
-            ? JSON.parse(eventData.datasevento) // Primeiro parseia a string JSON para um array
-            .map(dateStr => { // Depois, mapeia cada string de data no array
-                const parts = dateStr.split('-'); // Divide a data (ex: ['2025', '07', '01'])
-                if (parts.length === 3) {
-                    return `${parts[2]}/${parts[1]}/${parts[0]}`; // Reorganiza para DD/MM/YYYY
+                // STATUS AJUDA DE CUSTO (Oculta se valor for 0)
+                const cellStatusAjd = row.insertCell();
+                if (totais.totalAjdCusto > 0) {
+                    const statusAjdBase = (eventData.statuspgtoajdcto || 'pendente').toLowerCase().trim();
+                    const statusSpanAjd = document.createElement('span');
+                    
+                    if (statusAjdBase === 'pago50') {
+                        statusSpanAjd.textContent = 'PAGO 50%';
+                    } else {
+                        statusSpanAjd.textContent = statusAjdBase.toUpperCase();
+                    }
+                    statusSpanAjd.classList.add('status-pgto', statusAjdBase);
+                    cellStatusAjd.appendChild(statusSpanAjd);
+                } else {
+                    cellStatusAjd.textContent = '---';
                 }
-                return dateStr; // Retorna a data original se não estiver no formato esperado
-            })
-            .join(', ') // Junta as datas formatadas com vírgula e espaço
-            : (Array.isArray(eventData.datasevento) && eventData.datasevento.length > 0)
-            ? eventData.datasevento // Se já for um array (do backend, por exemplo)
-            .map(dateStr => {
-                const parts = dateStr.split('-');
-                if (parts.length === 3) {
-                    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+
+                // Cachê Base e Ajuste
+                row.insertCell().textContent = parseFloat(eventData.vlrcache || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                
+                const vlrAjusteCell = row.insertCell();
+                vlrAjusteCell.textContent = parseFloat(eventData.vlrajustecusto || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                if (eventData.statusajustecusto) {
+                    vlrAjusteCell.innerHTML += ` <span class="status-custom statusStaff-${eventData.statusajustecusto.toLowerCase()}">(${eventData.statusajustecusto})</span>`;
                 }
-                return dateStr;
-            })
-            .join(', ')
-            : 'N/A';
 
-            row.insertCell().textContent = parseFloat(eventData.vlrcache || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  
-            let valorTotalCache = parseFloat(eventData.vlrtotcache || 0.00);
-            row.insertCell().textContent = valorTotalCache.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                row.insertCell().textContent = eventData.descajustecusto || '';
 
-            const vlrAjusteCustoCell = row.insertCell();
-            const vlrAjusteCustoFormatado = parseFloat(eventData.vlrajustecusto || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            vlrAjusteCustoCell.textContent = vlrAjusteCustoFormatado; // Insere o valor em preto
+                // Dobras e Meias
+                row.insertCell().innerHTML = formatarDataComStatus(eventData.dtdiariadobrada);
+                row.insertCell().textContent = totais.vlrDobraCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                
+                row.insertCell().innerHTML = formatarDataComStatus(eventData.dtmeiadiaria);
+                row.insertCell().textContent = totais.vlrMeiaCalculada.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-            const statusAjusteCusto = (eventData.statusajustecusto || '').trim();
+                row.insertCell().textContent = eventData.descbeneficios || '';
 
-            if (statusAjusteCusto) {
-                const statusSpan = document.createElement('span');
-                statusSpan.textContent = ` (${statusAjusteCusto})`;
-                statusSpan.classList.add('status-custom');
+                // TOTAL CACHÊ
+                const cellTotalCache = row.insertCell();
+                cellTotalCache.textContent = totais.totalCache.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                cellTotalCache.style.fontWeight = 'bold';
 
-                // Formata o status para "Pendente", "Autorizado", etc.
-                // Garante que o status para a classe seja Capitalizado
-                const statusCapitalized = statusAjusteCusto.charAt(0).toUpperCase() + statusAjusteCusto.slice(1).toLowerCase();
+                // STATUS PAGAMENTO CACHÊ
+                const statusCellCache = row.insertCell();
+                const scache = (eventData.statuspgto || 'pendente').toLowerCase().trim();
+                const spanCache = document.createElement('span');
+                spanCache.textContent = (scache === 'pago50') ? 'PAGO 50%' : scache.toUpperCase();
+                spanCache.classList.add('status-pgto', scache);
+                statusCellCache.appendChild(spanCache);
 
-                // Adiciona a classe de cor correta
-                statusSpan.classList.add(`status-${statusCapitalized}`); 
+                // CAIXINHA
+                const vlrCaixinha = parseFloat(eventData.vlrcaixinha || 0);
+                const vlrCaixinhaCell = row.insertCell();
+                vlrCaixinhaCell.textContent = vlrCaixinha.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                if (eventData.statuscaixinha && vlrCaixinha > 0) {
+                    vlrCaixinhaCell.innerHTML += ` <span class="status-custom statusStaff-${eventData.statuscaixinha.toLowerCase()}">(${eventData.statuscaixinha})</span>`;
+                }
 
-                vlrAjusteCustoCell.appendChild(statusSpan);
-            }
+                // STATUS CAIXINHA
+                const statusCaixinhaCell = row.insertCell();
+                if (vlrCaixinha > 0) {
+                    const sCaixinha = (eventData.statuscaixinha || 'pendente').toLowerCase().trim();
+                    const spanCaixinha = document.createElement('span');
+                    spanCaixinha.textContent = sCaixinha.toUpperCase();
+                    spanCaixinha.classList.add('status-pgto', sCaixinha);
+                    statusCaixinhaCell.appendChild(spanCaixinha);
+                } else {
+                    statusCaixinhaCell.textContent = '---';
+                }
 
-            row.insertCell().textContent = eventData.descajustecusto || '';           
-            row.insertCell().textContent = parseFloat(eventData.vlralimentacao || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            row.insertCell().textContent = parseFloat(eventData.vlrtransporte || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  
-            let valorTotalAjdCusto = parseFloat(eventData.vlrtotajdcusto || 0.00);
-            row.insertCell().textContent = valorTotalAjdCusto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-            const vlrCaixinhaCell = row.insertCell();
-            const vlrCaixinhaFormatado = parseFloat(eventData.vlrcaixinha || 0.00).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            vlrCaixinhaCell.textContent = vlrCaixinhaFormatado; // Valor em preto
-
-            const statusCaixinha = (eventData.statuscaixinha || '').trim();
-
-            if (statusCaixinha) {
-                const statusSpan = document.createElement('span');
-                statusSpan.textContent = ` (${statusCaixinha})`;
-                statusSpan.classList.add('status-custom');
-
-                // Formata o status para "Pendente", "Autorizado", etc.
-                // Garante que o status para a classe seja Capitalizado
-                const statusCapitalized = statusCaixinha.charAt(0).toUpperCase() + statusCaixinha.slice(1).toLowerCase();
-
-                // Adiciona a classe de cor correta
-                statusSpan.classList.add(`status-${statusCapitalized}`);
-
-                vlrCaixinhaCell.appendChild(statusSpan);
-            }
-            row.insertCell().textContent = eventData.descbeneficios || '';       
-
-            
-          
-
-            let valorTotalCalculado = parseFloat(eventData.vlrtotal || 0.00);
-
-            // Adiciona vlrcaixinha se statuscaixinha for 'Autorizado'
-//                  if (eventData.statuscaixinha && eventData.statuscaixinha.toLowerCase() === 'autorizado') {
-//                      valorTotalCalculado += parseFloat(eventData.vlrcaixinha || 0.00);
-//                  }
-
-//                  // Adiciona vlrajustecusto se statusajustecusto for 'Autorizado'
-//                  if (eventData.statusajustecusto && eventData.statusajustecusto.toLowerCase() === 'autorizado') {
-//                      valorTotalCalculado += parseFloat(eventData.vlrajustecusto || 0.00);
-//                  }
-
-            row.insertCell().textContent = valorTotalCalculado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-            const statusCell = row.insertCell();
-
-            const status = (eventData.statuspgto || '').toLowerCase();
-            const statusSpan = document.createElement('span');
-            statusSpan.textContent = status.toUpperCase();
-
-            // Adicione a classe base
-            statusSpan.classList.add('status-pgto');
-
-            if (status === "pendente") {
-                statusSpan.classList.add('pendente');
-            } else if (status === "pago") {
-                statusSpan.classList.add('pago');
-            }
-            statusCell.appendChild(statusSpan);
-        }
-
+                // TOTAL GERAL
+                const cellTotalGeral = row.insertCell();
+                cellTotalGeral.textContent = totais.totalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                cellTotalGeral.style.fontWeight = 'bold';
             });
         } else {
             noResultsMessage.style.display = 'block';
-            noResultsMessage.textContent = `Nenhum evento encontrado para o funcionário selecionado.`;
+            noResultsMessage.textContent = `Nenhum evento encontrado.`;
         }
-
     } catch (error) {
-        console.error('Erro ao buscar dados de eventos do funcionário:', error);
+        console.error('Erro:', error);
         noResultsMessage.style.display = 'block';
-        noResultsMessage.textContent = `Erro ao carregar dados: ${error.message}. Tente novamente.`;
+        noResultsMessage.textContent = `Erro ao carregar dados: ${error.message}`;
     }
+};
+
+const formatarDataComStatus = (campo) => {
+    if (!campo || campo === '[]') return '---';
+    
+    // Limpeza da string para evitar erro no JSON.parse (removendo aspas duplicadas "")
+    let str = typeof campo === 'string' ? campo.replace(/""/g, '"') : JSON.stringify(campo);
+    if (str.startsWith('"') && str.endsWith('"')) str = str.substring(1, str.length - 1);
+    
+    let dados = [];
+    try { 
+        dados = JSON.parse(str); 
+    } catch (e) { 
+        return '---'; 
+    }
+
+    if (!Array.isArray(dados)) return '---';
+
+    return dados.map(item => {
+        const d = item.data.split('-');
+        const dataBr = d.length === 3 ? `${d[2]}/${d[1]}/${d[0]}` : item.data;
+        
+        // Pegamos o status original (ex: "Autorizado")
+        const status = item.status || 'Pendente';
+        
+        // Lógica idêntica ao Vlr Ajuste Cto:
+        // A data fica fora do span, e o status entra no span com a classe do seu CSS
+        return `${dataBr} <span class="status-custom statusStaff-${status}">(${status})</span>`;
+    }).join('<br>'); // <br> garante que cada data fique em uma linha se houver várias
+};
+
+
+const calcularTotaisLinha = (eventData) => {
+    const vlrCache = parseFloat(eventData.vlrcache || 0);
+    const vlrAlim = parseFloat(eventData.vlralimentacao || 0);
+    const vlrTransp = parseFloat(eventData.vlrtransporte || 0);
+    const qtdpessoas = parseInt(eventData.qtdpessoaslote || 1);
+    const multiplicador = (eventData.perfil === "Lote") ? qtdpessoas : 1;
+    const vlrAlimExtra = parseFloat(eventData.vlralimentacao || 0); // Valor fixo conforme sua regra
+
+    // Função interna para limpar JSONB corrompido ou com aspas duplicadas
+    const parseSeguro = (campo) => {
+        if (!campo || campo === '[]') return [];
+        try {
+            if (typeof campo === 'string') {
+                // Remove aspas duplicadas e limpa o início/fim da string
+                let strLimpa = campo.replace(/""/g, '"');
+                if (strLimpa.startsWith('"') && strLimpa.endsWith('"')) {
+                    strLimpa = strLimpa.substring(1, strLimpa.length - 1);
+                }
+                return JSON.parse(strLimpa);
+            }
+            return campo;
+        } catch (e) {
+            console.error("Erro no parseSeguro:", e);
+            return [];
+        }
+    };
+
+    // 1. Quantidade de dias (Base)
+    const datas = parseSeguro(eventData.datasevento);
+    const qtdDias = datas.length;
+
+    // 2. Cálculos Iniciais (Diárias Normais)
+    let totalCache = (qtdDias * vlrCache) * multiplicador;
+    let totalAjdCusto = (qtdDias * (vlrAlim + vlrTransp)) * multiplicador;
+
+    // 3. Processamento de Diárias Dobradas
+    const dobras = parseSeguro(eventData.dtdiariadobrada);
+    const autorizadasDobra = dobras.filter(item => item.status === 'Autorizado').length;
+    
+    const extrasDobraCache = (vlrCache * autorizadasDobra);
+    const extrasDobraAjd = (vlrAlimExtra * autorizadasDobra);
+
+    // 4. Processamento de Meias Diárias
+    const meias = parseSeguro(eventData.dtmeiadiaria);
+    const autorizadasMeia = meias.filter(item => item.status === 'Autorizado').length;
+    
+    const extrasMeiaCache = ((vlrCache / 2) * autorizadasMeia);
+    const extrasMeiaAjd = (vlrAlimExtra * autorizadasMeia);
+
+    // 5. Ajustes e Caixinha
+    const vlrAjuste = (eventData.statusajustecusto === 'Autorizado') ? parseFloat(eventData.vlrajustecusto || 0) : 0;
+    const vlrCaixinha = (eventData.statuscaixinha === 'Autorizado') ? parseFloat(eventData.vlrcaixinha || 0) : 0;
+
+    // Consolidação dos Totais
+    totalCache += (extrasDobraCache + extrasMeiaCache + vlrAjuste + extrasDobraAjd + extrasMeiaAjd);
+    //totalAjdCusto += (extrasDobraAjd + extrasMeiaAjd);
+
+    return {
+        qtdDias,
+        totalCache,
+        totalAjdCusto,
+        vlrDobraCalculado: extrasDobraCache + extrasDobraAjd, // Para exibir na coluna
+        vlrMeiaCalculada: extrasMeiaCache + extrasMeiaAjd,    // Para exibir na coluna
+        totalGeral: totalCache + totalAjdCusto + vlrCaixinha
+    };
 };
 
 function aplicarCoresAsOpcoes(selectElementId) {
@@ -2232,9 +3029,7 @@ async function verificaStaff() {
         }
     });
 
-    caixinhacheck.addEventListener('change', (e) => {
-        // Ação padrão: desativa o comportamento padrão do evento se houver lógica adicional
-        // e.preventDefault(); // Comentei esta linha pois ela pode impedir a mudança visual do checkbox
+    caixinhacheck.addEventListener('change', (e) => {       
 
         // Assegura que o campo de valor e a descrição sejam acessados corretamente
         const caixinhaInput = document.getElementById('caixinha');
@@ -2369,10 +3164,11 @@ async function verificaStaff() {
 
         // Agora usa o novo botão clonado na função existente:
         BotaoEnviar.addEventListener("click", async (event) => {
-            event.preventDefault();      
+            event.preventDefault();                
+            
                 
             const datasEventoRawValue = window.datasEventoPicker?.selectedDates || [];
-            //const datasEventoRawValue = window.flatpickrInstances['datasEvento']?.selectedDates || [];
+            
             const periodoDoEvento = datasEventoRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
 
             const diariaDobradaRawValue = window.diariaDobradaPicker?.selectedDates || [];
@@ -2382,7 +3178,7 @@ async function verificaStaff() {
             const periodoMeiaDiaria = diariaMeiaRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
 
             statusOrcamentoAtual = document.getElementById("status");
-            //idOrcamentoAtual = document.querySelector("#idOrcamento").value;
+           
             const selectAvaliacao = document.getElementById("avaliacao");
             const avaliacao = selectAvaliacao.options[selectAvaliacao.selectedIndex]?.textContent.trim().toUpperCase() || '';
             const idStaff = document.querySelector("#idStaff").value.trim();
@@ -2406,14 +3202,13 @@ async function verificaStaff() {
             const nmEvento = selectEvento.options[selectEvento.selectedIndex]?.textContent.trim().toUpperCase() || '';
             const idEquipe = document.querySelector("#idEquipe").value;
             const nmEquipe = document.querySelector("#nmEquipe").value.trim().toUpperCase();
-        // const selectEquipe = document.getElementById("nmEquipe");
-        // const nmEquipe = selectEquipe.options[selectEquipe.selectedIndex]?.textContent.trim().toUpperCase() || '';
+       
 
             const idMontagem = document.querySelector("#idMontagem").value; // ID do local de montagem (FK)
             const selectLocalMontagem = document.getElementById("nmLocalMontagem");
             const nmLocalMontagem = selectLocalMontagem.options[selectLocalMontagem.selectedIndex].textContent.trim();
             const selectPavilhao = document.getElementById("nmPavilhao");
-         //   let pavilhao = selectPavilhao.options[selectPavilhao.selectedIndex]?.textContent.trim().toUpperCase() || '';
+        
             const inputHiddenPavilhao = document.getElementById('idPavilhao');
             const pavilhao = inputHiddenPavilhao.value.trim().toUpperCase() || '';
             const caixinhaAtivo = document.getElementById("Caixinhacheck")?.checked;
@@ -2423,7 +3218,7 @@ async function verificaStaff() {
 
             const descAjusteCustoInput = document.getElementById("descAjusteCusto");
             const descAjusteCusto = descAjusteCustoInput.value.trim() || "";
-            //const statusAjusteCusto = document.getElementById("statusAjusteCusto").value;     
+           
 
             const setor = document.querySelector("#setor").value.trim().toUpperCase();
 
@@ -2548,7 +3343,8 @@ async function verificaStaff() {
 
             const isEditingInitial = !!(currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento);
 
-            const idEventoEmEdicao = isEditingInitial ? currentEditingStaffEvent.idstaffevento : null;
+            const idEventoEmEdicao = isEditingInitial ? currentEditingStaffEvent.idstaffevento : null;           
+
 
             console.log("EM EDIÇÃO?", isEditingInitial, idEventoEmEdicao);
 
@@ -2564,9 +3360,7 @@ async function verificaStaff() {
                 console.log("IDS SÃO IGUAIS", idStaffEventoFromObject, idStaffEventoNumero);
             } else {
                 console.log("IDS SÃO DIFERENTES", idStaffEventoFromObject, idStaffEventoNumero);
-            }
-
-            
+            }            
 
             if (idStaffEvento && isFormLoadedFromDoubleClick && currentEditingStaffEvent && idStaffEventoFromObject === idStaffEventoNumero) {
                 console.log("ENTROU NO METODO PUT");
@@ -2582,12 +3376,7 @@ async function verificaStaff() {
                 currentEditingStaffEvent = null;
                 isFormLoadedFromDoubleClick = false;
             }
-
-            // const idEventoEmEdicao = (metodo === "PUT") 
-            //     ? currentEditingStaffEvent.idstaffevento // currentEditingStaffEvent SÓ está populado se metodo for PUT
-            //     : null; 
-
-            // Agora idEventoEmEdicao será 1951 se o método for PUT
+                      
             console.log("Modo final:", metodo, "ID EVENTO PARA API:", idEventoEmEdicao);
 
             if (pavilhao === "SELECIONE O PAVILHÃO") {
@@ -2615,134 +3404,7 @@ async function verificaStaff() {
             console.log("IdFuncaoDoFormulario do Botão Enviar:", idFuncaoDoFormulario, "NmFuncaoDoFormulario:", nmFuncaoDoFormulario, "IdEvento:", idEventoPrincipal);
 
             const flatpickrForDatasEvento = window.flatpickrInstances['datasEvento'];
-            // const datasParaVerificacao = flatpickrForDatasEvento?.selectedDates || [];
-            
-            // //PARA EXCEÇÃO DE BLOQUEIO QUANDO A FUNÇÃO FOR FISCAL NOTURNO MESMA DATA EVENTOS DIFERENTES
-        
-
-            // const isDiariaDobradaChecked = diariaDobradacheck.checked;
-
-            // console.log("Parâmetros para verificarDisponibilidadeStaff:", {
-            //     idFuncionarioParaVerificacao,   
-            //     periodoDoEvento,
-            //     idFuncaoDoFormulario,
-            //     idEventoEmEdicao
-            // });
-
-            // console.log("Iniciando verificação de disponibilidade do staff...");
-            // const { isAvailable, conflictingEvent } = await verificarDisponibilidadeStaff(
-            //     idFuncionarioParaVerificacao,               
-            //     periodoDoEvento,
-            //     idFuncaoDoFormulario,
-            //     idEventoEmEdicao
-
-            // );
-
-            // const FUNCOES_EXCECAO_IDS = ['6'] //FISCAL NOTURNO ID 6, 'ID_FISCAL_DIURNO', 'ID_FISCAL_LOGISTICA']; // Substitua pelos IDs reais
-            // const idFuncaoConflitante = conflictingEvent?.idfuncao; 
-            // const isFuncaoExcecao = FUNCOES_EXCECAO_IDS.includes(String(idFuncaoDoFormulario)) || FUNCOES_EXCECAO_IDS.includes(String(idFuncaoConflitante));
-            // const isFuncaoAtualFiscal = FUNCOES_EXCECAO_IDS.includes(String(idFuncaoDoFormulario));
-            // const isFuncaoConflitanteFiscal = conflictingEvent ? FUNCOES_EXCECAO_IDS.includes(String(conflictingEvent.idfuncao)) : false;
-
-            // console.log("Dados do formulário para verificação de duplicidade:", {
-            //     idFuncionario: idFuncionario,
-            //     nmFuncionario: nmFuncionario,
-            //     idFuncao: idFuncao,
-            //     setor: setor,
-            //     nmlocalmontagem: nmLocalMontagem,
-            //     nmevento: nmEvento,
-            //     nmcliente: nmCliente,
-            //     datasevento: JSON.stringify(periodoDoEvento)
-            // });
-
-
-            // if (!isAvailable) {
-
-            //     // **SE FOR UMA FUNÇÃO DE EXCEÇÃO, IGNORAR O BLOQUEIO E PROSSEGUIR**
-            //     if (isFuncaoExcecao) {
-            //         console.log("A função agendada ou conflitante é uma função de FISCAL.");
-            //         let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado em outra atividade na mesma data.`;
-        
-            //         if (conflictingEvent) {
-            //             msg += `<br>Evento Conflitante: "<strong>${conflictingEvent.nmevento || 'N/A'}</strong>" (Função ID ${conflictingEvent.idfuncao}).`;
-            //         }
-                    
-            //         msg += `<br><br><strong>Motivo do Prosseguimento:</strong>`;
-    
-            //         if (isFuncaoAtualFiscal && isFuncaoConflitanteFiscal) {
-            //             msg += ` Ambas as atividades (a atual e a conflitante) são Funções de Fiscal, permitindo a sobreposição.`;
-            //         } else if (isFuncaoAtualFiscal) {
-            //             msg += ` A função <strong>atual</strong> (${idFuncaoDoFormulario}) é uma Função de Fiscal.`;
-            //         } else if (isFuncaoConflitanteFiscal) {
-            //             msg += ` A função <strong>conflitante</strong> (${conflictingEvent.idfuncao}) é uma Função de Fiscal.`;
-            //         } else {
-            //             // Fallback, embora a lógica isFuncaoExcecao deva evitar este path se foi bem definida
-            //             msg += ` Conflito ignorado devido à regra de exceção da Função de Fiscal.`;
-            //         }
-
-            //         await Swal.fire({
-            //             title: "Aviso: Conflito Ignorado (Fiscal)",
-            //             html: msg,
-            //             icon: "info", // Informativo
-            //             confirmButtonText: "Prosseguir"
-            //         });
-            //         // Apenas prossegue com o restante da submissão (sai do bloco !isAvailable)
-            //     } else if (conflictingEvent && String(conflictingEvent.idfuncao) === String(idFuncaoDoFormulario) && !isDiariaDobradaChecked) {
-
-            //     //if (conflictingEvent && String(conflictingEvent.idfuncao) === String(idFuncaoDoFormulario) && !isDiariaDobradaChecked) {
-
-            //         let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado para a <strong>mesma função</strong>`;
-            //         if (conflictingEvent) {
-            //             msg += ` no evento "<strong>${conflictingEvent.nmevento || 'N/A'}</strong>" do cliente "<strong>${conflictingEvent.nmcliente || 'N/A'}</strong>"`;
-            //         }
-
-            //         Swal.fire({
-            //             title: "Conflito de Agendamento",
-            //             html: msg,
-            //             icon: "error"
-            //         });
-            //         return;
-
-            //     } else {
-
-            //         let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado para uma <strong>função diferente</strong> `;
-
-
-            //         if (isDiariaDobradaChecked) {
-            //             msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado em <strong>outra atividade</strong> na(s) data(s) conflitante(s).`;
-            //         }
-
-            //         if (conflictingEvent) {
-            //             msg += `no evento "<strong>${conflictingEvent.nmevento || 'N/A'}</strong>" do cliente "<strong>${conflictingEvent.nmcliente || 'N/A'}</strong>" `;
-            //         }
-
-            //         const conflictingDates = typeof conflictingEvent.datasevento === 'string' ? JSON.parse(conflictingEvent.datasevento) : conflictingEvent.datasevento;
-            //         const intersection = datasParaVerificacao.map(d => d.toISOString().split('T')[0]).filter(date => conflictingDates.includes(date));
-            //         if (intersection.length > 0) {
-            //             msg += `nas datas: <strong>${intersection.map(d => {
-            //                 const parts = d.split('-');
-            //                 return `${parts[2]}/${parts[1]}/${parts[0]}`;
-            //             }).join(', ')}</strong>.`;
-            //         } else {
-            //             msg += `em datas conflitantes.`;
-            //         }
-
-            //         msg += `<br>Deseja continuar com o agendamento?`;
-
-            //         const { isConfirmed } = await Swal.fire({
-            //             title: "Atenção: Conflito de Agendamento!",
-            //             html: msg,
-            //             icon: "warning",
-            //             showCancelButton: true,
-            //             confirmButtonText: "Sim, continuar",
-            //             cancelButtonText: "Não, cancelar",
-            //         });
-
-            //         if (!isConfirmed) {
-            //             return;
-            //         }
-            //     }
-            // }
+           
 
             //-----NOVO TRECHO PARA VERIFICAÇÃO DE FUNCIONÁRIO COM LIMITE DE AGENDAMENTOS POR DIA -----
             const datasParaVerificacao = periodoDoEvento.map(d => {
@@ -2757,8 +3419,9 @@ async function verificaStaff() {
                 }
                 // 3. Caso contrário, ignora (ou trata como erro)
                 return null; 
-            }).filter(d => d !== null);
+            }).filter(d => d !== null);           
 
+           
             // 1. CHAME A API E OBTENHA TODOS OS CONFLITOS E A CATEGORIA DA FUNÇÃO
             console.log("Iniciando verificação de disponibilidade do staff...");
           
@@ -2773,20 +3436,14 @@ async function verificaStaff() {
 
             console.log("Resultado da API (Disponível):", apiResult.isAvailable, "Conflito Encontrado:", apiResult.conflictingEvent);
 
-            // 🎯 Novas variáveis que a API precisa retornar
-           // const { isAvailable, conflicts, categoriaFuncao } = apiResult;
+           
 
-            //const { isAvailable, conflicts } = apiResult;
-
-            //const { isAvailable, conflicts: initialConflicts,  } = apiResult;
-            //let conflicts = initialConflicts; // Usar nova variável para manipulação
-
-           const { 
+            const { 
                 isAvailable, 
                 conflicts: initialConflicts = [], // Garante que initialConflicts é [] se a propriedade 'conflicts' não vier
                 conflictingEvent // Adiciona para fácil acesso
             } = apiResult;
-
+ 
             let conflicts = initialConflicts;      
             
             console.log("DIAGNÓSTICO: Número total de eventos conflitantes retornados pela API (conflicts.length):", conflicts.length);
@@ -2800,121 +3457,34 @@ async function verificaStaff() {
                 conflicts.push(apiResult.conflictingEvent);
             }
 
-// // ----------------------------------------------------------------------------------
-// // 🟢 CORREÇÃO: GARANTIR CONFLITOS NO ARRAY PARA CÁLCULO DE LIMITE E DUPLICIDADE
-// // (Localização: Correta. Imediatamente após a API e antes da checagem de duplicidade.)
-// // ----------------------------------------------------------------------------------
-//          if (isAvailable === false && apiResult.conflictingEvent) {
-//                 // A linha de verificação Array.isArray() não é mais necessária aqui.
-                
-//                 // Garante que o evento ainda não está no array antes de adicionar (para máxima segurança)
-//                 const eventToAdd = apiResult.conflictingEvent;
-//                 const isAlreadyInConflicts = conflicts.some(c => 
-//                     Number(c.idstaffevento) === Number(eventToAdd.idstaffevento)
-//                 );
-                
-//                 if (!isAlreadyInConflicts) {
-//                     conflicts.push(eventToAdd);
-//                 }
-//             }
-// // ----------------------------------------------------------------------------------
-           // const idEventoPrincipal = document.getElementById('idEvento')?.value;            
-            const idRegistroEmEdicao = currentEditingStaffEvent?.idstaffevento || document.getElementById('idStaffEvento')?.value;
-           
+  
+            //const idRegistroEmEdicao = currentEditingStaffEvent?.idstaffevento || document.getElementById('idStaffEvento')?.value;
+            const idRegistroEmEdicaoParaFiltro = currentEditingStaffEvent?.idstaffevento || document.getElementById('idStaffEvento')?.value;
 
 
             console.log("Valores para busca de duplicidade:");
             console.log(`- idFuncaoDoFormulario: ${idFuncaoDoFormulario}, Tipo: ${typeof idFuncaoDoFormulario}, Nome: ${nmFuncaoDoFormulario}`);
             console.log(`- idEventoPrincipal: ${idEventoPrincipal}, Tipo: ${typeof idEventoPrincipal}`); // NOVO LOG
-            console.log(`- idEventoEmEdicao: ${idEventoEmEdicao}, Tipo: ${typeof idEventoEmEdicao}`);
-           
+            console.log(`- idEventoEmEdicao: ${idEventoEmEdicao}, Tipo: ${typeof idEventoEmEdicao}`);          
 
-            // const conflitoDuplicidade = conflicts && conflicts.find(c => 
-            //     Number(c.idfuncao) === Number(idFuncaoDoFormulario) &&
-            //   //  String(c.nmFuncao) === String(nmFuncaoDoFormulario) &&
-            //     Number(c.idevento) === Number(idEventoEmEdicao) 
-            // );
+        //     const periodoStringAtual = (periodoDoEvento || []).sort().join(',');
+        // const periodoStringOriginal = (window.dadosOriginais?.periodo || []).sort().join(',');
+        // const idFuncionarioOriginal = String(window.dadosOriginais?.idFuncionario || "");
+        // const idFuncionarioAtual = String(idStaffEvento); // idFuncionario capturado no início do clique
 
-            // const conflitoDuplicidade = conflicts && conflicts.find(c => 
-            //     // 1. Deve ser a mesma função
-            //     Number(c.idfuncao) === Number(idFuncaoDoFormulario) &&
-            //     // 2. Deve ser o mesmo evento principal
-            //     // (Compara o c.idevento do conflito com o ID do Evento que estamos tentando agendar)
-            //     Number(c.idevento) === Number(idEventoPrincipal) && 
-            //     // 3. NÃO PODE ser o registro que está sendo editado (Self-Conflict exclusion)
-            //     String(c.idstaffevento) !== String(idRegistroEmEdicao)
-            // );
+        // // Se for edição e NÃO mudou data nem funcionário, pulamos tudo
+        // const isEdicao = !!idRegistroEmEdicaoParaFiltro; // ou a lógica que você usa para identificar PUT
+        // const mudouAgenda = (periodoStringAtual !== periodoStringOriginal) || (idFuncionarioAtual !== idFuncionarioOriginal);
+        // console.log("PeriodoStringAtual:", periodoStringAtual, "PeriodoStringOriginal:", periodoStringOriginal, "IdFuncionarioAtual:", idFuncionarioAtual, "IdFuncionarioOriginal:", idFuncionarioOriginal);
 
-            // console.log("Conflito de Duplicidade Encontrado:", conflitoDuplicidade);
 
-            // if (conflitoDuplicidade) {
+        // console.log("Verificação de alteração de agenda:", mudouAgenda, isEdicao);
 
-            //     console.log("!!! DUPLICADO ENCONTRADO (STRICT) !!!");
 
-            //     let msg = `O funcionário <br>${nmFuncionario} já está agendado para a mesma função e mesmo evento nas datas solicitadas.`;
-            //     const datasConflito = encontrarDatasConflitantes(datasParaVerificacao, [conflitoDuplicidade]);
-            //     const datasFormatadas = formatarDatas(datasConflito);
-                
-            //     msg += `<br>Datas Duplicadas: <strong>${datasFormatadas}</strong>.`;
-            //     msg += `<br>Esta ação é considerada Duplicidade e não pode ser continuada.`;
-
-            //     await Swal.fire({
-            //         title: "Bloqueio: Duplicidade Encontrada",
-            //         html: msg,
-            //         icon: "error", // BLOQUEIA
-            //         confirmButtonText: "Entendi"
-            //     });
-            //     return; // **Bloqueia o envio**
-            // }
-
-            // console.log("DUPLICIDADE", duplicateCheckResult, duplicateCheckResult.isDuplicate);
-            // if (duplicateCheckResult && duplicateCheckResult.isDuplicate) {
-            //     const conflitoDuplicidade = duplicateCheckResult.existingEvent;
-                
-            //     // O ID do registro que estamos tentando editar (idstaffevento). Será null se for POST.
-            //     const idRegistroEmEdicao = currentEditingStaffEvent?.idstaffevento || document.getElementById('idStaffEvento')?.value;
-
-            //     // Se o duplicado encontrado for o registro que estamos editando (autocontradição), ignore.
-            //     if (String(conflitoDuplicidade.idstaffevento) === String(idRegistroEmEdicao)) {
-            //         console.log("Duplicidade detectada é o próprio registro em edição. Prosseguindo como edição normal.");
-            //         // CONTINUA o fluxo para a checagem de limites (abaixo).
-            //     } else {
-            //         console.log("!!! DUPLICADO ENCONTRADO (STRICT) - TRATAMENTO IMEDIATO !!!");
-                    
-            //         const idRegistroDuplicado = conflitoDuplicidade.idstaffevento;
-                    
-            //         // Requer que 'encontrarDatasConflitantes' e 'formatarDatas' estejam definidos.
-            //         const datasConflito = encontrarDatasConflitantes(datasParaVerificacao, [conflitoDuplicidade]); 
-            //         const datasFormatadas = formatarDatas(datasConflito);
-                    
-            //         const { isConfirmed } = await Swal.fire({
-            //             icon: "info",
-            //             title: "Cadastro Duplicado!",
-            //             html: `O funcionário <strong>${nmFuncionario}</strong> já está escalado para o evento <strong>${conflitoDuplicidade.nmevento}</strong> com a função <strong>${conflitoDuplicidade.nmfuncao}</strong> nas datas solicitadas: <strong>${datasFormatadas}</strong>.<br><br>Deseja **Atualizar** o registro existente (ID: ${idRegistroDuplicado}) com os novos dados?`,
-            //             showCancelButton: true,
-            //             confirmButtonText: "Sim, atualizar",
-            //             cancelButtonText: "Não, cancelar",
-            //             reverseButtons: true
-            //         });
-
-            //         if (!isConfirmed) {
-            //             console.log("Usuário optou por não atualizar o evento duplicado.");
-            //             return; // 🛑 BLOQUEIA: Sai imediatamente da função.
-            //         }
-
-            //         console.log("Usuário confirmou a atualização do evento duplicado. Alterando para modo PUT.");
-                    
-            //         // Altera o modo para PUT e a URL para o registro duplicado
-            //         metodo = "PUT";
-            //         url = `/staff/${idRegistroDuplicado}`; 
-            //         currentEditingStaffEvent = conflitoDuplicidade; 
-            //         isFormLoadedFromDoubleClick = true; 
-                    
-            //         // O fluxo continuará, e o restante das checagens (limite) serão executadas antes da submissão.
-            //         // Como o modo é agora PUT, a checagem de limite será feita corretamente.
-            //     }
-            // }
-
+        // if (isEdicao && !mudouAgenda) {
+        //     console.log("✅ Alteração informativa detectada. Pulando validações de conflito e duplicidade.");
+        //     // Aqui o código sai desse bloco gigante e vai direto para a parte final de montagem do FormData e Fetch
+        // } else {
 
             if (metodo === "POST" || (metodo === "PUT" && !isFormLoadedFromDoubleClick)) {
                 console.log("Iniciando verificação de duplicidade. Método Inicial:", metodo, "Carregado por duplo clique:", isFormLoadedFromDoubleClick);
@@ -2993,56 +3563,8 @@ async function verificaStaff() {
 
                                 console.log("Usuário bloqueado de cadastrar duplicidade estrita.");
                                 return; // 🛑 BLOQUEIA e encerra a execução.
-
-                                // const { isConfirmed } = await Swal.fire({
-                                //     icon: "info",
-                                //     title: "Cadastro Duplicado!",
-                                //     html: `O evento para o funcionário <strong>${nmFuncionario}</strong> com as datas selecionadas JÁ ESTÁ CADASTRADO com a mesma função. <br><br>Deseja Atualizar o registro existente?`,
-                                //     showCancelButton: true,
-                                //     confirmButtonText: "Sim, atualizar",
-                                //     cancelButtonText: "Não, cancelar",
-                                //     reverseButtons: true
-                                // });
-
-                                // if (!isConfirmed) {
-                                //     console.log("Usuário optou por não atualizar o evento duplicado.");
-                                //     return; // 🛑 BLOQUEIA
-                                // }
-
-                                // console.log("Usuário confirmou a atualização do evento duplicado. Alterando para modo PUT.");
-                                // metodo = "PUT";
-                                // url = `/staff/${existingEventData.idstaffevento}`; // Usa o ID do evento duplicado encontrado
-                                // currentEditingStaffEvent = existingEventData; // Define o evento a ser editado como o duplicado
-                                // isFormLoadedFromDoubleClick = true; // Marca para pular verificação futura
-                                // // Prossegue para checagem de limites.
                                 
-                            // 🛑 NOVO BLOCO CRÍTICO: Conflito de Agenda Estrito (Função Diferente, mas MESMO Evento). 🛑
-                            } 
-                            // else if (isSameEvent) { 
-                                
-                            //     console.log("!!! CONFLITO DE AGENDA ESTRITO ENCONTRADO (Funções Diferentes NO MESMO EVENTO) !!!");
-                            //     // await Swal.fire({
-                            //     //     icon: "error",
-                            //     //     title: "Conflito de Agenda!",
-                            //     //     html: `O funcionário <strong>${nmFuncionario}</strong> já está escalado para o evento <strong>${existingEventData.nmevento}</strong> na data(s) selecionada(s) com a função <strong>${existingEventData.nmfuncao}</strong>. Ele não pode ser escalado para outra função no **mesmo evento** e data(s).`,
-                            //     //     confirmButtonText: "Entendido",
-                            //     // });
-                            //     // return; // 🛑 BLOQUEIA: Viola a regra de uma função por evento.
-
-                            //     await Swal.fire({
-                            //         icon: "warning", // Alerta para chamar atenção
-                            //         title: "Conflito de Agenda Grave!",
-                            //         html: `O funcionário <strong>${nmFuncionario}</strong> já está escalado para o evento <strong>${existingEventData.nmevento}</strong> na data(s) selecionada(s) com a função <strong>${existingEventData.nmfuncao}</strong>.<br><br> O sistema **continuará para verificar limites diários**.`,
-                            //         confirmButtonText: "Prosseguir (Revisar Limites)",
-                            //     });
-                                
-                            // } else {
-                            //     // Conflito 3: Conflito de Horário (Função Diferente E Evento Diferente).
-                            //     // Permite prosseguir para a checagem de Limite Diário (limiteMaximo).
-                                
-                            //     console.log("!!! CONFLITO DE HORÁRIO ENCONTRADO (Funções Diferentes, Eventos Diferentes) !!! - Prosseguindo para checagem de limite diário.");
-                            //     // Não há bloqueio. O fluxo continua para a verificação de limites (limiteMaximo).
-                            // }
+                            }                             
                         }
 
                     } else {
@@ -3063,15 +3585,8 @@ async function verificaStaff() {
             
             // Variável de ID Fiscal (manter para o limite 2)
             const FUNCOES_EXCECAO_IDS = ['6']; // FISCAL NOTURNO ID 6, etc.
-
-            // 2. FILTRAR E CONTAR CONFLITOS
-            // Filtra os eventos conflitantes que não são o evento atual (em caso de edição)
-            // const conflitosReais = conflicts ? conflicts.filter(c => String(c.idevento) !== String(idEventoEmEdicao)) : [];
-            
-            // // Obtém o número total de eventos já agendados (excluindo o atual)
-            // const totalConflitosExistentes = conflitosReais.length;
-
-            const idRegistroEmEdicaoParaFiltro = currentEditingStaffEvent?.idstaffevento || document.getElementById('idStaffEvento')?.value;
+           
+            //const idRegistroEmEdicaoParaFiltro = currentEditingStaffEvent?.idstaffevento || document.getElementById('idStaffEvento')?.value;
 
             // 2. FILTRAR E CONTAR CONFLITOS
             // Filtra os eventos conflitantes que NÃO são o registro de staff que estamos AGORA editando/atualizando.
@@ -3093,10 +3608,7 @@ async function verificaStaff() {
                 limiteMaximo = 2;
                 motivoLiberacao = "É permitido até 2 agendamentos, por funcionário para o mesmo dia.";
             } 
-            // Regra padrão de bloqueio: 1 agendamento por dia
-            // else {
-            //     limiteMaximo = 1; 
-            // }
+            
            
 
             if (totalConflitosExistentes > 0) {
@@ -3362,167 +3874,7 @@ async function verificaStaff() {
                 }
             }
         
-            // O restante do código de submissão do formulário virá aqui.
-
-//             if (totalConflitosExistentes > 0) {
-//                 const datasConflito = encontrarDatasConflitantes(datasParaVerificacao, conflitosReais);
-//                 const datasFormatadas = formatarDatas(datasConflito);
-                
-//                 let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado em <br>${totalConflitosExistentes}</br> atividade(s) `;
-                
-//                 // Adiciona as datas conflitantes à mensagem
-//                 if (datasConflito.length > 0) {
-//                     msg += `na(s) data(s) conflitante(s): <strong>${datasFormatadas}</strong>.`;
-//                 }
-
-//                 console.log('--- DEBUG INÍCIO DE FLUXO DE EXCEÇÃO ---');
-// console.log('Valor de nmFuncionario:', nmFuncionario);
-// console.log('Valor de limiteMaximo:', limiteMaximo);
-// console.log('Valor de conflitosReais:', conflitosReais);
-// console.log('Valor de datasParaVerificacao:', datasParaVerificacao);
-
-//                 // 3.1: VERIFICA SE O LIMITE FOI ATINGIDO OU EXCEDIDO (SOLICITA AUTORIZAÇÃO)
-//                 if (totalConflitosExistentes >= limiteMaximo) {
-                    
-//                     // 🎯 Passo 1: Obter ID do Orçamento
-//                     // Assumindo função global
-//                     if (!idOrcamentoAtual) {
-//                         await Swal.fire("Erro", "Não foi possível obter o ID do Orçamento (idOrcamento) necessário para a solicitação.", "error");
-//                         return; 
-//                     }
-                    
-//                     // 🎯 Passo 2: Verifica Status Existente (Pendência/Autorização)
-//                     // **NOTA:** Aqui você precisará decidir o 'tipoSolicitacao' para passar para verificarStatusAditivoExtra.
-//                     // Se o limite excedido é um conflito de agenda (FuncExcedido), use 'FuncExcedido'
-//                     const tipoSolicitacaoLimite = 'FuncExcedido'; 
-//                     const aditivoExistente = await verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulario, tipoSolicitacaoLimite);
-    
-
-
-//                     if (aditivoExistente.encontrado) {
-                        
-//                         // A. STATUS PENDENTE: BLOQUEIA
-//                         if (aditivoExistente.status === 'Pendente') {
-//                             await Swal.fire({
-//                                 title: "Solicitação Pendente",
-//                                 html: `Já existe uma solicitação de exceção <strong>PENDENTE</strong> (ID: ${aditivoExistente.detalhes.idAditivoExtra}). Aguarde a aprovação.`,
-//                                 icon: "info",
-//                                 confirmButtonText: "Entendi"
-//                             });
-//                             return; // Bloqueia o agendamento
-//                         }
-
-//                         // B. STATUS AUTORIZADO: PROSSEGUE (Sai do IF principal para continuar o agendamento)
-//                         if (aditivoExistente.status === 'Autorizado') {
-//                             await Swal.fire({
-//                                 title: "Autorização Existente",
-//                                 html: `Já existe uma solicitação <strong>AUTORIZADA</strong> (ID: ${aditivoExistente.detalhes.idAditivoExtra}). O agendamento será processado.`,
-//                                 icon: "success",
-//                                 confirmButtonText: "Prosseguir com o Agendamento"
-//                             });
-//                             // O RETURN AQUI FOI REMOVIDO! O código deve continuar (sair do bloco IF grande)
-//                         }
-                        
-//                         // Se for Autorizado, o código **DEVE** cair fora do IF para continuar.
-//                         // Se for Rejeitado, ele **DEVE** cair no bloco 'else' abaixo para solicitar novamente.
-//                     }
-                    
-//                     // --- ⬇️ O TRECHO ABAIXO SUBSTITUI A CHAMADA ANTIGA ⬇️ ---
-
-//                     console.log('Aditivo existente não encontrado ou status é Rejeitado. Iniciando nova solicitação de autorização.');
-                    
-//                     // C. STATUS NÃO ENCONTRADO OU REJEITADO: SOLICITA NOVA AUTORIZAÇÃO
-//                     if (!aditivoExistente.encontrado || aditivoExistente.status === 'Rejeitado') { 
-                        
-//                         const datasConflito = encontrarDatasConflitantes(datasParaVerificacao, conflitosReais);
-//                         const datasFormatadasStr = formatarDatas(datasConflito);                   
-                       
-                        
-                        
-//                         const detalhesParaMensagem = {
-//                             // CORRIGIDO: Passando as variáveis para o objeto
-//                             nmFuncionario: nmFuncionario,
-//                             totalConflitosExistentes: conflitosReais.length,
-//                             datasFormatadas: datasFormatadasStr, // Usando a string formatada
-//                             conflitosReais: conflitosReais,
-//                             limiteMaximo: limiteMaximo,
-//                             datasParaVerificacao: datasParaVerificacao
-//                         };
-
-//                         console.log('CONTEÚDO DO OBJETO ANTES DE ENVIAR:', detalhesParaMensagem);
-
-
-
-//                         // 🎯 2. CHAMA A NOVA FUNÇÃO CENTRALIZADA COM OS DETALHES
-//                         const result = await solicitarDadosExcecao(
-//                             'FuncExcedido', 
-//                             idOrcamentoAtual, 
-//                             idFuncaoDoFormulario, 
-//                             idEmpresa,
-//                             detalhesParaMensagem // Enviando o objeto completo
-//                         );
-
-                       
-
-//                         // 🎯 3. TRATAMENTO DO RESULTADO
-//                         if (result && result.sucesso) {
-
-//                             await Swal.fire(
-//                                 "Autorização Solicitada",
-//                                 `Solicitação de Exceção #${result.idAditivoExtra} registrada com sucesso. O agendamento continuará.`,
-//                                 "success"
-//                             );
-
-//                         } else if (result === false) {
-
-//                             // Usuário cancelou
-//                             return;
-
-//                         } else {
-
-//                             // Erro da API
-//                             await Swal.fire(
-//                                 "Falha na Solicitação",
-//                                 `Não foi possível registrar a solicitação de exceção.<br>${result.erro || 'Erro desconhecido.'}`,
-//                                 "error"
-//                             );
-//                             return; 
-//                         }
-
-//                     }
-                    
-//                     // O código continua para a submissão final do formulário
-
-//                 } else {
-//                     // 3.2: Conflito, mas DENTRO do Limite (Aviso com Permissão - Lógica Original)
-                    
-//                     // *** AVISO: Conflito, mas DENTRO do Limite ***
-                    
-//                     msg += `<br><br>Você está tentando agendar o <strong>${(totalConflitosExistentes + 1)}º</strong> evento.`;
-//                     msg += `<br>Motivo do Prosseguimento: <strong>${motivoLiberacao}</strong>`;
-                    
-//                     msg += `<br><br>Eventos Agendados (${totalConflitosExistentes}):`;
-//                     conflitosReais.forEach(c => {
-//                         msg += `<br> - <strong>${c.nmevento || 'N/A'}</strong> (Função: ${c.nmfuncao})`;
-//                     });
-
-//                     msg += `<br><br>Deseja continuar com o agendamento? (Limite total: ${limiteMaximo})`;
-
-//                     const { isConfirmed } = await Swal.fire({
-//                         title: "Atenção: Conflito de Agendamento!",
-//                         html: msg,
-//                         icon: "warning",
-//                         showCancelButton: true,
-//                         confirmButtonText: "Sim, continuar",
-//                         cancelButtonText: "Não, cancelar",
-//                     });
-
-//                     if (!isConfirmed) {
-//                         return; // **Cancela o envio**
-//                     }
-                    
-//                 }
-//             }
+           // } // Fecha o bloco ELSE do isEdicao e mudouAgenda
 
             //----- FIM DO TRECHO DE VERIFICAÇÃO DE LIMITE DE AGENDAMENTOS POR DIA -----
 
@@ -3592,92 +3944,11 @@ async function verificaStaff() {
                         "Status Final Consolidado -> Aditivo:", statusAditivoFinal, 
                         "| Extra Bonificado:", statusExtraBonificadoFinal
                     );
-
-                    // IMPORTANTE:
-                    // Agora você deve garantir que essas variáveis (statusAditivoFinal e statusExtraBonificadoFinal)
-                    // sejam passadas para o objeto que será enviado ao backend (provavelmente 'dados' ou 'payload').
-                    // Exemplo:
-                    // dados.statusaditivo = statusAditivoFinal;
-                    // dados.statusextrabonificado = statusExtraBonificadoFinal;
+                    
                 }
                 
 
-            }
-
-            // if (metodo === "POST" || (metodo === "PUT" && !isFormLoadedFromDoubleClick)) {
-            //     console.log("Iniciando verificação de duplicidade. Método Inicial:", metodo, "Carregado por duplo clique:", isFormLoadedFromDoubleClick);
-            //     try {
-            //         const checkDuplicateUrl = `/staff/check-duplicate?` + new URLSearchParams({
-            //             idFuncionario: idFuncionario,
-            //             nmFuncionario: nmFuncionario,
-            //             setor: setor,
-            //             nmlocalmontagem: nmLocalMontagem,
-            //             nmevento: nmEvento,
-            //             nmcliente: nmCliente,
-            //             datasevento: JSON.stringify(periodoDoEvento)
-            //         }).toString();
-
-            //         const duplicateCheckResult = await fetchComToken(checkDuplicateUrl, {
-            //             method: 'GET',
-            //             headers: { 'Content-Type': 'application/json' }
-            //         });
-
-            //         if (duplicateCheckResult.isDuplicate) {
-
-            //             const existingEventData = duplicateCheckResult.existingEvent;
-
-            //             console.log("!!! DUPLICADO ENCONTRADO !!!");
-            //             console.log("Evento duplicado retornado pelo backend:", existingEventData);
-            //             console.log("Comparando:", currentEditingStaffEvent?.idstaffevento, "com", existingEventData?.idstaffevento);
-
-
-            //             console.log("COMPARACAO", currentEditingStaffEvent, existingEventData);
-
-            //             if (currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento === existingEventData.idstaffevento) {
-
-            //                 console.log("Evento existente detectado e em modo de edição. É o mesmo registro. Prosseguindo para verificação de alteração.");
-            //                 metodo = "PUT"; // Garante que o método continua PUT
-            //                 url = `/staff/${existingEventData.idstaffevento}`; // Garante a URL correta
-            //                 currentEditingStaffEvent = existingEventData; // Atualiza com os dados mais recentes do backend
-            //                 // isFormLoadedFromDoubleClick = true; // Já deveria ser true se chegou aqui por duplo clique
-            //             } else {
-
-            //                 const { isConfirmed } = await Swal.fire({
-            //                     icon: "info",
-            //                     title: "Cadastro Duplicado!",
-            //                     html: `O evento para o funcionário <strong>${nmFuncionario}</strong> com as datas selecionadas já está cadastrado.<br><br>Deseja Atualizar o registro existente?`,
-            //                     showCancelButton: true,
-            //                     confirmButtonText: "Sim, atualizar",
-            //                     cancelButtonText: "Não, cancelar",
-            //                     reverseButtons: true
-            //                 });
-
-            //                 if (!isConfirmed) {
-            //                     console.log("Usuário optou por não atualizar o evento duplicado.");
-            //                     return;
-            //                 }
-
-            //                 console.log("Usuário confirmou a atualização do evento duplicado. Alterando para modo PUT.");
-            //                 metodo = "PUT";
-            //                 url = `/staff/${existingEventData.idstaffevento}`; // Usa o ID do evento duplicado encontrado
-            //                 currentEditingStaffEvent = existingEventData; // Define o evento a ser editado como o duplicado
-            //                 isFormLoadedFromDoubleClick = true; // Marca como "carregado por duplo clique" para pular a verificação futura para este item
-            //             }
-
-            //         } else {
-
-            //             console.log("Nenhum evento duplicado encontrado. Prosseguindo com o método original:", metodo);
-            //         }
-            //     } catch (error) {
-            //         console.error("Erro na verificação de duplicidade:", error);
-            //         Swal.fire("Erro", error.message || "Não foi possível verificar duplicidade. Tente novamente.", "error");
-            //         return; // Bloqueia o envio se houver erro na verificação
-            //     }
-            // } else {
-            //     console.log("Pulando verificação de duplicidade (modo de edição via duplo clique já está ativo).");
-            // }
-
-            // Staff.js: Trecho corrigido dentro de handleFormSubmit            
+            }            
 
 
             const formData = new FormData();
@@ -3776,7 +4047,10 @@ async function verificaStaff() {
             formData.append('descbeneficios', descBeneficioTextarea.value.trim());
             formData.append('setor', setor);
 
-            let statusPgto = "Pendente"; // Valor padrão
+            let statusPgto = document.querySelector("#statuspgto")?.value || "Pendente"; 
+            let statusPgtoAjusteCusto = document.querySelector("#statuspgtoajdcto")?.value || "Pendente"; 
+            let statusPgtoCaixinha = document.querySelector("#statuspgtocxnh")?.value || "Pendente";           
+            
 
             console.log("VALORES CUSTOS ANTES", vlrCusto, ajusteCusto, caixinha, alimentacao, transporte);
             const custosVazios = ajusteCusto === 0 && caixinha === 0 && alimentacao === 0 && transporte === 0;
@@ -3798,19 +4072,27 @@ async function verificaStaff() {
             const caixinhasPagos = ((vlrCaixinha > 0) && temComprovanteCaixinha);
 
 
-            if (cachePago && ajudaCustoPaga && caixinhasPagos) {
+            // if (cachePago && ajudaCustoPaga && caixinhasPagos) {
+            //     statusPgto = "Pago";
+            // } else if (
+            //     (vlrCache <= 0 || (vlrCache > 0 && temComprovanteCache)) && // Se o cache não precisa de comprovação ou está pago
+            //     ((vlrAlimentacao <= 0 && vlrTransporte <= 0) || ((vlrAlimentacao > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto)) && // Mesma lógica para ajuda de custo
+            //     (vlrCaixinha <= 0 || (vlrCaixinha > 0 && temComprovanteCaixinha))
+            // ) {
 
-                statusPgto = "Pago";
-            } else if (
-                (vlrCache <= 0 || (vlrCache > 0 && temComprovanteCache)) && // Se o cache não precisa de comprovação ou está pago
-                ((vlrAlimentacao <= 0 && vlrTransporte <= 0) || ((vlrAlimentacao > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto)) && // Mesma lógica para ajuda de custo
-                (vlrCaixinha <= 0 || (vlrCaixinha > 0 && temComprovanteCaixinha))
-            ) {
-
-                statusPgto = "Pago";
-            } else {
-                statusPgto = "Pendente";
-            }           
+            //     statusPgto = "Pago";
+            // } else {
+            //     statusPgto = "Pendente";
+            // }       
+            
+            
+            // if (statusPgto !== "Pago") {
+            //     if (vlrCache > 0 && !!comppgtocacheDoForm) {
+            //         statusPgto = "Pago";
+            //     } else {
+            //         statusPgto = "Pendente";
+            //     }
+            // }
 
             if (vlrCaixinha === 0) { 
                 // Se não tem valor, o status deve ser vazio, conforme solicitado.
@@ -3822,12 +4104,49 @@ async function verificaStaff() {
                 statusAjusteCusto = '';  
             }
 
+            // if (statusPgtoAjusteCusto !== "Pago" && statusPgtoAjusteCusto !== "Pago50") {
+            //     if (temComprovanteAjudaCusto) {
+            //         statusPgtoAjusteCusto = "Pago";
+            //     } else if (temComprovanteAjudaCusto50) {
+            //         statusPgtoAjusteCusto = "Pago50";
+            //     } else {
+            //         statusPgtoAjusteCusto = "Pendente";
+            //     }
+            // } else {
+            //     // Se já estava Pago ou Pago50, mas agora subiram o comprovante total, forçamos "Pago"
+            //     if (temComprovanteAjudaCusto) {
+            //         statusPgtoAjusteCusto = "Pago";
+            //     }
+            // }
+
+            // if (statusPgtoCaixinha !== "Pago") {
+            //     if (temComprovanteCaixinha) {
+            //         statusPgtoCaixinha = "Pago";
+            //     } else {
+            //         statusPgtoCaixinha = "Pendente";
+            //     }
+            // }
+
+            //if (vlrAjusteCusto === 0) statusPgtoAjusteCusto = '';
+            //if (vlrCaixinha === 0) statusPgtoCaixinha = '';
+
             formData.append('statuspgto', statusPgto);
+            formData.append('statusajustecusto', statusPgtoAjusteCusto);
+            formData.append('statuscaixinha', statusPgtoCaixinha);
+
             formData.append('statusajustecusto', statusAjusteCusto);
-            formData.append('statuscaixinha', statusCaixinha);
+            formData.append('statuscaixinha', statusCaixinha);            
             formData.append('descdiariadobrada', descDiariaDobradaTextarea.value.trim());
             formData.append('descmeiadiaria', descMeiaDiariaTextarea.value.trim());
-            formData.append('desccaixinha', descCaixinhaTextarea.value.trim());        
+            formData.append('desccaixinha', descCaixinhaTextarea.value.trim()); 
+            
+            let tipoAjudaCustoViagem = 0; // Valor padrão (nenhum ou erro)
+
+            if (document.getElementById('viagem1Check').checked) tipoAjudaCustoViagem = 1;
+            else if (document.getElementById('viagem2Check').checked) tipoAjudaCustoViagem = 2;
+            else if (document.getElementById('viagem3Check').checked) tipoAjudaCustoViagem = 3;
+
+            formData.append('tipoajudacustoviagem', tipoAjudaCustoViagem.toString());
         
             let nivelExperienciaSelecionado ="";
 
@@ -3899,28 +4218,7 @@ async function verificaStaff() {
         formData.append('statusdiariadobrada', statusDiariaDobrada);
         formData.append('statusmeiadiaria', statusMeiaDiaria);
         formData.append('datadiariadobrada', JSON.stringify(dadosDiariaDobrada));
-        formData.append('datameiadiaria', JSON.stringify(dadosMeiaDiaria));
-
-        //if (diariaDobrada === true){ 
-        //     formData.append('statusdiariadobrada', statusDiariaDobrada);
-           
-        //     if (dadosDiariaDobrada && dadosDiariaDobrada.length > 0) {
-        //         formData.append('datadiariadobrada', JSON.stringify(dadosDiariaDobrada));
-        //     }
-        // }
-        // if (meiaDiaria === true){
-            
-        //     formData.append('statusmeiadiaria', statusMeiaDiaria);
-
-        //     if (dadosMeiaDiaria && dadosMeiaDiaria.length > 0) {
-        //         formData.append('datameiadiaria', JSON.stringify(dadosMeiaDiaria));
-        //     } 
-        // }     
-        
-          
-        
-       // formData.append('datadiariadobrada', JSON.stringify(dadosDiariaDobrada));
-       // formData.append('datameiadiaria', JSON.stringify(dadosMeiaDiaria));
+        formData.append('datameiadiaria', JSON.stringify(dadosMeiaDiaria));       
         
 
         console.log("Preparando envio de FormData. Método:", metodo, "URL:", url, window.StaffOriginal);
@@ -4166,91 +4464,91 @@ async function verificaStaff() {
 
             // --- EXECUTA O FETCH PARA POST OU PUT ---
             try {
-            console.log("ENTRANDO NO TRY. Método:", metodo);
+                console.log("ENTRANDO NO TRY. Método:", metodo);
 
-            const respostaApi = await fetchComToken(url, {
-                method: metodo,
-                //headers: { 'Content-Type': 'application/json' },
-                body: formData
-            });
+                const respostaApi = await fetchComToken(url, {
+                    method: metodo,
+                    //headers: { 'Content-Type': 'application/json' },
+                    body: formData
+                });
 
-            // 🛑 Reabilita o botão após o sucesso do FETCH
-            const botaoEnviar = document.getElementById("botaoEnviar");
-            if (botaoEnviar) {
-                botaoEnviar.disabled = false;
-                botaoEnviar.textContent = 'Salvar'; 
-            }
-
-            await Swal.fire("Sucesso!", respostaApi.message || "Staff salvo com sucesso.", "success");
-
-            // 1. RECUPERAÇÃO DO ESTADO ORIGINAL:
-            await carregarTabelaStaff(idFuncionario);
-            window.StaffOriginal = null;
-
-            // =========================================================================
-            // 🛑 NOVO BLOCO DE PERGUNTA (Substituindo o antigo limparCamposStaff())
-            // =========================================================================
-
-            const result = await Swal.fire({
-                title: "Deseja continuar?",
-                text: "O cadastro foi concluído. Quer cadastrar mais um funcionário para o mesmo evento/função ou finalizar?",
-                icon: "question",
-                showCancelButton: true,
-                showDenyButton: true,
-                confirmButtonText: "Cadastrar mais um (Manter dados)",
-                cancelButtonText: "Finalizar e Sair", // Opção de fechar a modal
-                denyButtonText: "Cadastrar novo staff (Limpar tudo)", // Opção de cadastrar outro staff (limpar tudo)
-                reverseButtons: true,
-                focusCancel: true
-            });
-            
-            if (result.isConfirmed) {
-                // Se escolheu "Cadastrar mais um (Manter dados)"
-                console.log("Usuário escolheu: Cadastrar mais um (Manter evento/função)");
-                
-                // Chama a nova função de limpeza parcial
-                if (typeof limparCamposStaffParcial === "function") {
-                    limparCamposStaffParcial();
-                } else {
-                    console.error("limparCamposStaffParcial não está definida. Limpando tudo.");
-                    limparCamposStaff(); // Fallback para limpeza total
+                // 🛑 Reabilita o botão após o sucesso do FETCH
+                const botaoEnviar = document.getElementById("botaoEnviar");
+                if (botaoEnviar) {
+                    botaoEnviar.disabled = false;
+                    botaoEnviar.textContent = 'Salvar'; 
                 }
 
-            } else if (result.isDenied) {
-                // Se escolheu "Cadastrar novo staff (Limpar tudo)"
-                console.log("Usuário escolheu: Cadastrar novo staff (Limpar tudo)");
-                limparCamposStaff(); // Sua função de limpeza total
+                await Swal.fire("Sucesso!", respostaApi.message || "Staff salvo com sucesso.", "success");
 
-            } else if (result.dismiss === Swal.DismissReason.cancel) {
-                // Se escolheu "Finalizar e Sair"
-                console.log("Usuário escolheu: Finalizar e Sair");
+                // 1. RECUPERAÇÃO DO ESTADO ORIGINAL:
+                await carregarTabelaStaff(idFuncionario);
+                window.StaffOriginal = null;
+
+                // =========================================================================
+                // 🛑 NOVO BLOCO DE PERGUNTA (Substituindo o antigo limparCamposStaff())
+                // =========================================================================
+
+                const result = await Swal.fire({
+                    title: "Deseja continuar?",
+                    text: "O cadastro foi concluído. Quer cadastrar mais um funcionário para o mesmo evento/função ou finalizar?",
+                    icon: "question",
+                    showCancelButton: true,
+                    showDenyButton: true,
+                    confirmButtonText: "Cadastrar mais um (Manter dados)",
+                    cancelButtonText: "Finalizar e Sair", // Opção de fechar a modal
+                    denyButtonText: "Cadastrar novo staff (Limpar tudo)", // Opção de cadastrar outro staff (limpar tudo)
+                    reverseButtons: true,
+                    focusCancel: true
+                });
                 
-                // Chama a função global para fechar a modal
-                if (typeof fecharModal === "function") {
-                    fecharModal();
-                    window.location.reload();
-                } else {
-                    // Fallback (se a fecharModal não estiver no escopo)
-                    document.getElementById("modal-overlay").style.display = "none";
-                    document.getElementById("modal-container").innerHTML = "";
-                    document.body.classList.remove("modal-open");
-                }
-            }
-            
-            // =========================================================================
+                if (result.isConfirmed) {
+                    // Se escolheu "Cadastrar mais um (Manter dados)"
+                    console.log("Usuário escolheu: Cadastrar mais um (Manter evento/função)");
+                    
+                    // Chama a nova função de limpeza parcial
+                    if (typeof limparCamposStaffParcial === "function") {
+                        limparCamposStaffParcial();
+                    } else {
+                        console.error("limparCamposStaffParcial não está definida. Limpando tudo.");
+                        limparCamposStaff(); // Fallback para limpeza total
+                    }
 
-        } catch (error) {
-            console.error("❌ Erro ao enviar dados do funcionário:", error);
-            
-            // ❌ Reabilita o botão após o erro
-            const botaoEnviar = document.getElementById("botaoEnviar");
-            if (botaoEnviar) {
-                botaoEnviar.disabled = false;
-                botaoEnviar.textContent = 'Salvar'; 
+                } else if (result.isDenied) {
+                    // Se escolheu "Cadastrar novo staff (Limpar tudo)"
+                    console.log("Usuário escolheu: Cadastrar novo staff (Limpar tudo)");
+                    limparCamposStaff(); // Sua função de limpeza total
+
+                } else if (result.dismiss === Swal.DismissReason.cancel) {
+                    // Se escolheu "Finalizar e Sair"
+                    console.log("Usuário escolheu: Finalizar e Sair");
+                    
+                    // Chama a função global para fechar a modal
+                    if (typeof fecharModal === "function") {
+                        fecharModal();
+                        window.location.reload();
+                    } else {
+                        // Fallback (se a fecharModal não estiver no escopo)
+                        document.getElementById("modal-overlay").style.display = "none";
+                        document.getElementById("modal-container").innerHTML = "";
+                        document.body.classList.remove("modal-open");
+                    }
+                }
+                
+                // =========================================================================
+
+            } catch (error) {
+                console.error("❌ Erro ao enviar dados do funcionário:", error);
+                
+                // ❌ Reabilita o botão após o erro
+                const botaoEnviar = document.getElementById("botaoEnviar");
+                if (botaoEnviar) {
+                    botaoEnviar.disabled = false;
+                    botaoEnviar.textContent = 'Salvar'; 
+                }
+                
+                Swal.fire("Erro", error.message || "Erro ao salvar funcionário.", "error");
             }
-            
-            Swal.fire("Erro", error.message || "Erro ao salvar funcionário.", "error");
-        }
         })
     }
 }
@@ -4942,6 +5240,14 @@ async function carregarFuncaoStaff() {
             });
 
             select.addEventListener("change", function (event) {
+                if (isFormLoadedFromDoubleClick) {
+                    console.log("💾 Edição detectada: Preservando valores históricos do banco.");
+                    
+                    // Resetamos a flag para que, SE o usuário mudar a função MANUALMENTE 
+                    // após abrir o formulário, aí sim o sistema passe a buscar os preços novos.
+                    isFormLoadedFromDoubleClick = false; 
+                    return; 
+                }
 
                 document.getElementById("vlrCusto").value = '';
                 document.getElementById("alimentacao").value = '';
@@ -5442,6 +5748,12 @@ async function carregarPavilhaoStaff(idMontagem) {
 function limparCamposEvento() {
     console.log("Limpeza parcial do formulário iniciada (apenas campos do evento).");
 
+    const btn = document.getElementById('Enviar');
+    if (btn) {
+        btn.style.display = 'block'; // Ou 'block', dependendo do seu fluxo
+        btn.disabled = false;
+    }
+
     // Lista de campos que se referem a um evento específico
     const camposEvento = [
         "idStaff", "descFuncao", "vlrCusto", "ajusteCusto", "transporte", "alimentacao", "caixinha",
@@ -5553,6 +5865,12 @@ function limparCamposStaff() {
         "idequipe","nmEquipe"
     ];
 
+    const btn = document.getElementById('Enviar');
+    if (btn) {
+        btn.style.display = 'block'; // Ou 'block', dependendo do seu fluxo
+        btn.disabled = false;
+    }
+    
     campos.forEach(id => {
         const campo = document.getElementById(id);
         if (campo) {
@@ -6588,7 +6906,7 @@ function calcularValorTotal() {
             totalCache += valorCacheMeia;
             totalAjdCusto += valorAjdCustoMeia;
 
-            console.log(`Meias Diárias Autorizadas: ${meiasDiariasAutorizadas.length}. Adicionando: ${valorMeiaDiaria.toFixed(2)}`);
+            console.log(`Meias Diárias Autorizadas: ${meiasDiariasAutorizadas.length}. Adicionando: ${valorMeiaDiaria.toFixed(2)}. Ajuda de Custo: ${valorAjdCustoMeia.toFixed(2)}    `);
         }
     }
     // Formatação e atualização dos campos
