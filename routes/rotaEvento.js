@@ -198,7 +198,7 @@ router.get("/", verificarPermissao('Eventos', 'pesquisar'), async (req, res) => 
                  WHERE ee.idempresa = $1 AND e.nmevento ILIKE $2
                  GROUP BY e.idevento
                  LIMIT 1`,
-                [idempresa, `%${nmEvento}%`]
+                [idempresa, nmEvento]
             );
             
             console.log("RESULTADO QUERY", result);
