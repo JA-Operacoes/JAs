@@ -4635,6 +4635,27 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
       );
     }
 
+    // Fallback: se ao carregar os itens os valores individuais de ajuda de custo
+    // vierem zerados, mas existir um total de ajuda de custo no item (totajdctoitem),
+    // distribuímos esse total em um valor por diária para exibição. Isso evita que
+    // a UI mostre R$ 0,00 quando o banco tem o total calculado.
+    if (
+      !aplicarReajuste &&
+      (vlrAjdAlimentacao === 0 && vlrAjdTransporte === 0) &&
+      parseFloat(item.totajdctoitem || 0) > 0
+    ) {
+      const multiplicador = (qtdItens * qtdDias) || 1;
+      const perUnit = parseFloat(item.totajdctoitem) / multiplicador;
+      console.log(
+        "Fallback AjdCusto: distribuindo totajdctoitem em vlrAjdAlimentacao:",
+        perUnit
+      );
+      vlrAjdAlimentacao = perUnit;
+      vlrAjdTransporte = 0;
+      totAjuda = (vlrAjdAlimentacao + vlrAjdTransporte) * qtdItens * qtdDias;
+      totGeralItem = totAjuda + totCtoDiaria;
+    }
+
     const newRow = tabelaBody.insertRow(); // Cria a linha DOM de uma vez
     newRow.dataset.idorcamentoitem = item.idorcamentoitem || "";
     newRow.dataset.idfuncao = item.idfuncao || "";
@@ -4763,12 +4784,12 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
             <td class="vlrCusto Moeda">${formatarMoeda(ctoDiaria)}</td>
             <td class="totCtoDiaria Moeda">${formatarMoeda(totCtoDiaria)}</td>
                     
-            <td class="ajdCusto Moeda alimentacao">${formatarMoeda(
-              vlrAjdAlimentacao
-            )}</td>
-            <td class="ajdCusto Moeda transporte">${formatarMoeda(
-              vlrAjdTransporte
-            )}</td>
+            <td class="ajdCusto Moeda alimentacao" data-original-ajdcusto="${vlrAjdAlimentacao}">
+                <span class="vlralimentacao-input">${formatarMoeda(vlrAjdAlimentacao)}</span>
+            </td>
+            <td class="ajdCusto Moeda transporte" data-original-ajdcusto="${vlrAjdTransporte}">
+                <span class="vlrtransporte-input">${formatarMoeda(vlrAjdTransporte)}</span>
+            </td>
 
             <td class="totAjdCusto Moeda">${formatarMoeda(totAjuda)}</td>
            
@@ -6835,6 +6856,15 @@ async function preencherFormularioComOrcamentoParaProximoAno(orcamento) {
   console.log("VALOR DO CLIENTE VINDO DO BANCO", orcamento.vlrcliente || 0);
 
   if (orcamento.itens && orcamento.itens.length > 0) {
+    try {
+      // Se for um orçamento 'Próximo Ano', tenta re-hidratar os valores canônicos
+      if (bProximoAno) {
+        await rehidrateItemsForNewYear(orcamento.itens);
+      }
+    } catch (err) {
+      console.warn("[REHIDRATE] Falha ao re-hidratar itens no frontend:", err);
+    }
+
     preencherItensOrcamentoTabela(orcamento.itens, true);
   } else {
     preencherItensOrcamentoTabela([]);
@@ -6960,6 +6990,81 @@ function getOrcamentoAtualCarregado() {
 
   // Por enquanto, use a variável global que armazena os dados
   return window.orcamentoAtual || null;
+}
+
+/**
+ * Re-hidrata os itens do orçamento com os valores canônicos atuais
+ * (VDA / CTO) para Função / Equipamento / Suprimento antes de exibir o
+ * orçamento do 'Próximo Ano' no frontend. Isso melhora a experiência do
+ * usuário mostrando já os valores atualizados mesmo antes de salvar.
+ */
+async function rehidrateItemsForNewYear(itens) {
+  if (!itens || !Array.isArray(itens) || itens.length === 0) return;
+
+  try {
+    // Busca em paralelo as listas mestres disponíveis para a empresa
+    const [funcs, equips, suprs] = await Promise.all([
+      fetchComToken('/orcamentos/funcao').then((r) => r),
+      fetchComToken('/orcamentos/equipamentos').then((r) => r),
+      fetchComToken('/orcamentos/suprimentos').then((r) => r),
+    ]);
+
+    const funcMap = (Array.isArray(funcs) ? funcs : []).reduce((acc, f) => {
+      acc[String(f.idfuncao)] = f;
+      return acc;
+    }, {});
+
+    const eqMap = (Array.isArray(equips) ? equips : []).reduce((acc, e) => {
+      acc[String(e.idequip)] = e;
+      return acc;
+    }, {});
+
+    const supMap = (Array.isArray(suprs) ? suprs : []).reduce((acc, s) => {
+      acc[String(s.idsup)] = s;
+      return acc;
+    }, {});
+
+    // Atualiza cada item conforme encontrado nas tabelas mestres
+    for (const item of itens) {
+      let vlrdiaria = parseFloat(item.vlrdiaria || 0) || 0;
+      let ctodiaria = parseFloat(item.ctodiaria || 0) || 0;
+
+      if (item.idfuncao && funcMap[String(item.idfuncao)]) {
+        const f = funcMap[String(item.idfuncao)];
+        vlrdiaria = parseFloat(f.vdafuncao) || vlrdiaria;
+        // Algumas queries trazem o cto dentro da categoria; ajusta se presente
+        ctodiaria = parseFloat(f.ctofuncaobase || f.cto || 0) || ctodiaria;
+      } else if (item.idequipamento && eqMap[String(item.idequipamento)]) {
+        const e = eqMap[String(item.idequipamento)];
+        vlrdiaria = parseFloat(e.vdaequip || e.vda || 0) || vlrdiaria;
+        ctodiaria = parseFloat(e.ctoequip || e.cto || 0) || ctodiaria;
+      } else if (item.idsuprimento && supMap[String(item.idsuprimento)]) {
+        const s = supMap[String(item.idsuprimento)];
+        vlrdiaria = parseFloat(s.vdasup || s.vda || 0) || vlrdiaria;
+        ctodiaria = parseFloat(s.ctosup || s.cto || 0) || ctodiaria;
+      }
+
+      const qtdItens = parseFloat(item.qtditens || item.qtdItens || 0) || 0;
+      const qtdDias = parseFloat(item.qtddias || item.qtdDias || 0) || 0;
+      const descontoItem = parseFloat(item.descontoitem || 0) || 0;
+      const acrescimoItem = parseFloat(item.acrescimoitem || 0) || 0;
+
+      const totvdadiaria = Math.round((vlrdiaria * qtdItens * qtdDias + acrescimoItem - descontoItem) * 100) / 100;
+      const totctodiaria = Math.round((ctodiaria * qtdItens * qtdDias) * 100) / 100;
+      const vlrajd = parseFloat(item.vlrajdctoalimentacao || item.vlrajdctotransporte || 0) || 0;
+      const totajdctoitem = Math.round(vlrajd * qtdItens * qtdDias * 100) / 100;
+      const totgeralitem = Math.round((totctodiaria + totajdctoitem) * 100) / 100;
+
+      item.vlrdiaria = vlrdiaria;
+      item.ctodiaria = ctodiaria;
+      item.totvdadiaria = totvdadiaria;
+      item.totctodiaria = totctodiaria;
+      item.totajdctoitem = totajdctoitem;
+      item.totgeralitem = totgeralitem;
+    }
+  } catch (err) {
+    console.warn('[REHIDRATE] Falha ao buscar valores canônicos no frontend:', err);
+  }
 }
 
 async function PropostaouContrato() {

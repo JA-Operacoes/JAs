@@ -33,6 +33,22 @@ router.get("/all", verificarPermissao('IndiceAnual', 'pesquisar'), async (req, r
             
     } catch (error) {
         console.error("❌ Erro ao buscar todos os índices anuais (rota /all):", error);
+        // Detecta erro de tabela ausente (Postgres code 42P01) e sugere a migration
+        if (error && (error.code === '42P01' || /indiceanualempresas/i.test(error.message))) {
+            const migrationSql = `
+-- Cria tabela de associação entre índices anuais e empresas
+CREATE TABLE IF NOT EXISTS indiceanualempresas (
+  idindice INTEGER NOT NULL REFERENCES indiceanual(idindice) ON DELETE CASCADE,
+  idempresa INTEGER NOT NULL REFERENCES empresas(idempresa) ON DELETE CASCADE,
+  PRIMARY KEY (idindice, idempresa)
+);
+`;
+            return res.status(500).json({
+                error: "Tabela 'indiceanualempresas' não encontrada no banco de dados.",
+                detalhes: error.message,
+                sugestao_migracao: migrationSql.trim()
+            });
+        }
         return res.status(500).json({ error: error.message || "Erro ao buscar índices anuais" });
     }
 });
@@ -74,6 +90,21 @@ router.get("/", verificarPermissao('IndiceAnual', 'pesquisar'), async (req, res)
         }
     } catch (error) {
         console.error("❌ Erro ao buscar índices anuais:", error);
+        if (error && (error.code === '42P01' || /indiceanualempresas/i.test(error.message))) {
+            const migrationSql = `
+-- Cria tabela de associação entre índices anuais e empresas
+CREATE TABLE IF NOT EXISTS indiceanualempresas (
+  idindice INTEGER NOT NULL REFERENCES indiceanual(idindice) ON DELETE CASCADE,
+  idempresa INTEGER NOT NULL REFERENCES empresas(idempresa) ON DELETE CASCADE,
+  PRIMARY KEY (idindice, idempresa)
+);
+`;
+            return res.status(500).json({
+                error: "Tabela 'indiceanualempresas' não encontrada no banco de dados.",
+                detalhes: error.message,
+                sugestao_migracao: migrationSql.trim()
+            });
+        }
         return res.status(500).json({ error: error.message || "Erro ao buscar índices anuais" });
     }
 });
@@ -184,6 +215,23 @@ router.post("/", verificarPermissao('IndiceAnual', 'cadastrar'),
           await client.query('ROLLBACK');
       }
       console.error("❌ Erro ao salvar índice anual e/ou associá-lo à empresa:", error);
+
+      if (error && (error.code === '42P01' || /indiceanualempresas/i.test(error.message))) {
+          const migrationSql = `
+-- Cria tabela de associação entre índices anuais e empresas
+CREATE TABLE IF NOT EXISTS indiceanualempresas (
+  idindice INTEGER NOT NULL REFERENCES indiceanual(idindice) ON DELETE CASCADE,
+  idempresa INTEGER NOT NULL REFERENCES empresas(idempresa) ON DELETE CASCADE,
+  PRIMARY KEY (idindice, idempresa)
+);
+`;
+          return res.status(500).json({
+              erro: "Tabela 'indiceanualempresas' não encontrada no banco de dados.",
+              detalhes: error.message,
+              sugestao_migracao: migrationSql.trim()
+          });
+      }
+
       res.status(500).json({ erro: "Erro ao salvar índice anual", detalhes: error.message });
   } finally {
       if (client) {

@@ -741,6 +741,85 @@ router.post(
       // 3. Inserir os itens na tabela 'orcamentoitens'
       if (itens && itens.length > 0) {
         for (const item of itens) {
+          // Se este for um orçamento gerado para o ano seguinte (espelho),
+          // re-hidratar valores canônicos (VDA / CTO) a partir das tabelas mestres
+          // para garantir que o espelho use os valores atuais do sistema.
+          if (geradoAnoPosterior === true || nrOrcamentoOriginal) {
+            try {
+              // Valores iniciais vindos do payload (fallback)
+              let vlrdiaria = parseFloat(item.vlrdiaria || 0) || 0;
+              let ctodiaria = parseFloat(item.ctodiaria || 0) || 0;
+
+              // 1) Função
+              if (item.idfuncao) {
+                const funcRes = await client.query(
+                  `SELECT f.vdafuncao AS vda, cf.ctofuncaobase AS cto
+                   FROM funcao f
+                   LEFT JOIN categoriafuncao cf ON cf.idcategoriafuncao = f.idcategoriafuncao
+                   WHERE f.idfuncao = $1 LIMIT 1`,
+                  [item.idfuncao]
+                );
+                if (funcRes.rows && funcRes.rows[0]) {
+                  vlrdiaria = parseFloat(funcRes.rows[0].vda) || vlrdiaria;
+                  ctodiaria = parseFloat(funcRes.rows[0].cto) || ctodiaria;
+                }
+              }
+
+              // 2) Equipamento
+              else if (item.idequipamento) {
+                const eqRes = await client.query(
+                  `SELECT e.vdaequip AS vda, e.ctoequip AS cto
+                   FROM equipamentos e
+                   INNER JOIN equipamentoempresas ee ON ee.idequip = e.idequip
+                   WHERE e.idequip = $1 AND ee.idempresa = $2 LIMIT 1`,
+                  [item.idequipamento, idempresa]
+                );
+                if (eqRes.rows && eqRes.rows[0]) {
+                  vlrdiaria = parseFloat(eqRes.rows[0].vda) || vlrdiaria;
+                  ctodiaria = parseFloat(eqRes.rows[0].cto) || ctodiaria;
+                }
+              }
+
+              // 3) Suprimento
+              else if (item.idsuprimento) {
+                const supRes = await client.query(
+                  `SELECT s.vdasup AS vda, s.ctosup AS cto
+                   FROM suprimentos s
+                   INNER JOIN suprimentoempresas se ON se.idsup = s.idsup
+                   WHERE s.idsup = $1 AND se.idempresa = $2 LIMIT 1`,
+                  [item.idsuprimento, idempresa]
+                );
+                if (supRes.rows && supRes.rows[0]) {
+                  vlrdiaria = parseFloat(supRes.rows[0].vda) || vlrdiaria;
+                  ctodiaria = parseFloat(supRes.rows[0].cto) || ctodiaria;
+                }
+              }
+
+              // Recalcular totais com base nas quantidades (mantendo desconto/acréscimo do item)
+              const qtdItens = parseFloat(item.qtditens || item.qtdItens || 0) || 0;
+              const qtdDias = parseFloat(item.qtddias || item.qtdDias || 0) || 0;
+              const descontoItem = parseFloat(item.descontoitem || 0) || 0;
+              const acrescimoItem = parseFloat(item.acrescimoitem || 0) || 0;
+
+              const totvdadiaria = Math.round((vlrdiaria * qtdItens * qtdDias + acrescimoItem - descontoItem) * 100) / 100;
+              const totctodiaria = Math.round((ctodiaria * qtdItens * qtdDias) * 100) / 100;
+              const vlrajd = parseFloat(item.vlrajdctoalimentacao || 0) + parseFloat(item.vlrajdctotransporte || 0);
+              const totajdctoitem = Math.round(vlrajd * qtdItens * qtdDias * 100) / 100;
+              const totgeralitem = Math.round((totctodiaria + totajdctoitem) * 100) / 100;
+
+              // Atualiza o objeto item para ser inserido com valores atualizados
+              item.vlrdiaria = vlrdiaria;
+              item.ctodiaria = ctodiaria;
+              item.totvdadiaria = totvdadiaria;
+              item.totctodiaria = totctodiaria;
+              item.totajdctoitem = totajdctoitem;
+              item.totgeralitem = totgeralitem;
+            } catch (err) {
+              console.warn('[GERAR_ESPELHO] Falha ao re-hidratar valores canônicos para item:', err.message);
+              // Em caso de falha, prossegue com os valores já presentes no item
+            }
+          }
+
           const insertItemQuery = `
                         INSERT INTO orcamentoitens (
                             idorcamento, enviarnaproposta, categoria, qtditens, idfuncao,
