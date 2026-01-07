@@ -171,20 +171,17 @@ async function verificaEvento() {
 
             await Swal.fire("Sucesso!", respostaApi.message || "Evento salvo com sucesso.", "success");
             
-            // 💡 AJUSTE: Mudar a lógica de limpeza para o botão 'Enviar'.
-            // Se for POST (novo cadastro), limpa tudo. Se for PUT (alteração),
-            // mantém os dados e apenas atualiza o estado original, ou limpa
-            // se este é o comportamento desejado para 'PUT' também.
-            if (metodo === "POST") {
-                limparCamposEvento();
-            } else {
-                // Atualiza o estado original com os novos dados salvos
-                window.EventoOriginal = {
-                    idEvento: idEvento,
-                    nmEvento: nmEvento,
-                    clientes: clientesDoEvento 
-                };
-            }
+            limparCamposEvento();
+            // if (metodo === "POST") {
+            //     limparCamposEvento();
+            // } else {
+            //     // Atualiza o estado original com os novos dados salvos
+            //     window.EventoOriginal = {
+            //         idEvento: idEvento,
+            //         nmEvento: nmEvento,
+            //         clientes: clientesDoEvento 
+            //     };
+            // }
 
 
         } catch (error) {
