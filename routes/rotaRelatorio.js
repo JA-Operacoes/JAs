@@ -23,60 +23,43 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
         return res.status(400).json({ error: 'Tipo de relatório inválido.' });
     }
     
-    let phaseFilterSql = `s.date_value::date >= $2::date AND s.date_value::date <= $3::date`; // Filtro interno das subqueries de staff (s.date_value::date ...)
+let phaseFilterSql = `s.date_value::date >= $2::date AND s.date_value::date <= $3::date`;
 
-    const whereEventos = `
-        AND CASE
-            -- 1. Se o período de busca for de UM ÚNICO DIA ($2 = $3)
-            WHEN $2::date = $3::date THEN
-                (
-                    -- Verifica se a data exata existe
-                    tse.datasevento ? $2::text 
-                    AND 
-                    -- E verifica se o evento tem APENAS um dia
-                    jsonb_array_length(tse.datasevento) = 1
-                )
-            
-            -- 2. Se o período de busca for de MÚLTIPLOS DIAS ($2 != $3)
-            ELSE
-                -- Verifica se o array de datas do evento é EXATAMENTE igual ao array de datas gerado
-                NOT EXISTS (
+const whereEventos = `
+    AND CASE
+        WHEN $2::date = $3::date THEN
+            (tse.datasevento ? $2::text AND jsonb_array_length(tse.datasevento) = 1)
+        ELSE
+            NOT EXISTS (
                 SELECT 1
                 FROM jsonb_array_elements_text(tse.datasevento) AS event_date
                 WHERE event_date::date < $2::date OR event_date::date > $3::date
             )
-        END
+    END
+`;
+
+try {
+    const relatorio = {};
+
+    // 1. DEFINIÇÃO FIXA DOS PARÂMETROS ($1 até $6)
+    const params = [
+        idempresa,                                        // $1
+        dataInicio,                                       // $2
+        dataFim,                                          // $3
+        (evento && evento !== "todos" && evento !== "") ? evento.toString() : null,   // $4
+        (cliente && cliente !== "todos" && cliente !== "") ? cliente.toString() : null, // $5
+        (equipe && equipe !== "todos" && equipe !== "") ? equipe.toString() : null    // $6
+    ];
+
+    // 2. FILTROS EXTRAS COM CAST PARA TEXT (Isso resolve o erro globalmente onde usar wherePeriodoFinal)
+    const sqlFiltrosExtras = `
+        AND ($4::text IS NULL OR $4::text = '' OR tse.idevento::text = $4::text)
+        AND ($5::text IS NULL OR $5::text = '' OR tse.idcliente::text = $5::text)
+        AND ($6::text IS NULL OR $6::text = '' OR tse.idequipe::text = $6::text)
     `;
 
-  
-    let wherePeriodo = whereEventos;        
-    
-
-    try {
-        const relatorio = {};
-
-        let paramCount = 4; // Começa a contagem para os parâmetros dinâmicos
-        const params = [idempresa, dataInicio, dataFim];
-        
-        // Aplica o filtro de Evento (tem prioridade máxima sobre o filtro de fase/período)
-        if (evento && evento !== "todos") {
-            wherePeriodo += ` AND tse.idevento = $${paramCount}`;
-            params.push(evento);
-            paramCount++;
-        }
-        // REMOVIDO: Bloco 'else if (whereEventosFase)' não é mais necessário
-
-        if (cliente && cliente !== "todos") {
-            wherePeriodo += ` AND tse.idcliente = $${paramCount}`;
-            params.push(cliente);
-            paramCount++;
-        }
-
-        if (equipe && equipe !== "todos") {
-            wherePeriodo += ` AND tse.idequipe = $${paramCount}`;
-            params.push(equipe);
-            paramCount++; // Incrementa o contador para o próximo parâmetro
-        }
+    // 3. Unificamos na variável que as queries abaixo utilizam
+    let wherePeriodoFinal = whereEventos + sqlFiltrosExtras;
 
         console.log("ATENÇÃO PAGOS/PENDENTES",pagos, pendentes)
 
@@ -149,7 +132,7 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
       //  whereStatus = whereStatus || "AND 1=1";
       //  phaseFilterSql = phaseFilterSql || "1=1";
 
-        console.log("STATUS PAGTO", whereStatus, wherePeriodo, phaseFilterSql);
+        console.log("STATUS PAGTO", whereStatus, wherePeriodoFinal, phaseFilterSql);
     
         let queryFechamentoPrincipal = ''; // Variável para armazenar a query principal
         
@@ -168,44 +151,44 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                     tbf.pix AS "PIX",                    
                     (SELECT MIN(date_value::date) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))::text AS "INÍCIO",
                     (SELECT MAX(date_value::date) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))::text AS "TÉRMINO",                   
-                    0 AS "VLR ADICIONAL",
-                    (COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) AS "VLR DIÁRIA",
+                   
+                    CAST((COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) AS NUMERIC(10,2)) AS "VLR DIÁRIA",
                     jsonb_array_length(
                         (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))
                     ) AS "QTD",
-                    (COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0 THEN 1 ELSE tse.qtdpessoaslote END) * jsonb_array_length(
+                    -- TOT DIÁRIAS (Valor total bruto)
+                    CAST((COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0 THEN 1 ELSE tse.qtdpessoaslote END) * jsonb_array_length(
                         (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))
-                    ) AS "TOT DIÁRIAS",
-                    --tse.statuspgto AS "STATUS PGTO"
-                    (COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0 THEN 1 ELSE tse.qtdpessoaslote END) * jsonb_array_length(
+                    ) AS NUMERIC(10,2)) AS "TOT DIÁRIAS",
+                    -- TOT GERAL (Mesmo valor do TOT DIÁRIAS para este relatório)
+                    CAST((COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0 THEN 1 ELSE tse.qtdpessoaslote END) * jsonb_array_length(
                         (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))
-                    ) AS "TOT GERAL",
+                    ) AS NUMERIC(10,2)) AS "TOT GERAL",
+                    -- STATUS PGTO baseado na coluna de status                    
                     CASE
-                        WHEN tse.comppgtoajdcusto IS NOT NULL AND tse.comppgtoajdcusto != '' THEN 'Pago 100%'
-                        WHEN tse.comppgtoajdcusto50 IS NOT NULL AND tse.comppgtoajdcusto50 != '' THEN 'Pago 50%'
-                        ELSE tse.statuspgto
-                    END AS "STATUS PGTO",
-                    CASE
-                        WHEN tse.comppgtoajdcusto IS NOT NULL AND tse.comppgtoajdcusto != '' THEN 0.00                        
-                        WHEN tse.comppgtoajdcusto50 IS NOT NULL AND tse.comppgtoajdcusto50 != '' THEN 
-                            -- TOT PAGAR (UNFILTERED no cálculo): Usa a QTD total de diárias (dividida por 2 no caso de 50%)
-                            (COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0 THEN 1 ELSE tse.qtdpessoaslote END) * jsonb_array_length(
-                                (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))
-                            ) / 2
+                        WHEN (COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) = 0 THEN '--'
+                        WHEN tse.statuspgtoajdcto = 'Pago' THEN 'Pago 100%'
+                        WHEN tse.statuspgtoajdcto = 'Pago50' THEN 'Pago 50%'
+                        ELSE COALESCE(tse.statuspgtoajdcto, 'Pendente')
+                    END AS "STATUS PGTO",                    
+                    CAST(CASE
+                        WHEN (COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) = 0 THEN 0.00
+                        WHEN tse.statuspgtoajdcto = 'Pago' THEN 0.00                        
+                        WHEN tse.statuspgtoajdcto = 'Pago50' THEN 
+                            ((COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * (CASE WHEN tse.qtdpessoaslote <= 0 THEN 1 ELSE tse.qtdpessoaslote END) * jsonb_array_length((SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)))
+                            ) / 2.0
                         ELSE 
-                            -- TOT PAGAR (UNFILTERED no cálculo): Usa a QTD total de diárias
-                            (COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0 THEN 1 ELSE tse.qtdpessoaslote END) * jsonb_array_length(
-                                (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value))
-                            )
-                    END AS "TOT PAGAR"                   
+                            (COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * (CASE WHEN tse.qtdpessoaslote <= 0 THEN 1 ELSE tse.qtdpessoaslote END) * jsonb_array_length((SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)))
+                    END AS NUMERIC(10,2)) AS "TOT PAGAR"                   
                 FROM
                     staffeventos tse
                 JOIN
                     funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
                 JOIN 
                     staffempresas semp ON tse.idstaff = semp.idstaff
-                WHERE
-                    semp.idempresa = $1 ${whereStatus} --${wherePeriodo} 
+                WHERE semp.idempresa = $1
+                    ${whereStatus} 
+                    ${wherePeriodoFinal} 
                     AND jsonb_array_length(
                         (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
                         WHERE ${phaseFilterSql})
@@ -215,10 +198,9 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                     tse.nmcliente,
                     tbf.nome;
             `;
-        } else if (tipo === 'cache') {
-            // Tratamento preventivo do parâmetro de evento para evitar erro de string vazia no integer
-            const eventoIdFinal = (evento && evento !== '') ? parseInt(evento) : null;
 
+        
+        } else if (tipo === 'cache') {
             queryFechamentoPrincipal = `
             WITH
             ano_evento AS (
@@ -246,12 +228,19 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                     (SELECT COUNT(*) FROM jsonb_to_recordset(COALESCE(tse.dtdiariadobrada, '[]'::jsonb)) AS d(data text, status text) WHERE d.status = 'Autorizado') AS qtd_dobras,
                     (SELECT COUNT(*) FROM jsonb_to_recordset(COALESCE(tse.dtmeiadiaria, '[]'::jsonb)) AS m(data text, status text) WHERE m.status = 'Autorizado') AS qtd_meias
                 FROM staffeventos tse
+                JOIN staffempresas semp ON tse.idstaff = semp.idstaff
+                WHERE semp.idempresa = $1 ${wherePeriodoFinal}
             )
             SELECT 
                 *,
-                (COALESCE("VLR DIÁRIA", 0) * (CASE WHEN "QTDPESSOAS" <= 0 THEN 1 ELSE "QTDPESSOAS" END) * "QTD") AS "TOT DIÁRIAS",
-                ((COALESCE("VLR DIÁRIA", 0) * (CASE WHEN "QTDPESSOAS" <= 0 THEN 1 ELSE "QTDPESSOAS" END) * "QTD") + "VLR ADICIONAL") AS "TOT GERAL",
-                CAST(0 AS NUMERIC(10,2)) AS "TOT PAGAR"
+                -- Correção: Forçando CAST e tratando QTDPESSOAS para evitar zerar o cálculo
+                CAST(
+                    (COALESCE("VLR DIÁRIA", 0) * (CASE WHEN COALESCE("QTDPESSOAS", 0) <= 0 THEN 1 ELSE "QTDPESSOAS" END) * COALESCE("QTD", 0)) 
+                AS NUMERIC(10,2)) AS "TOT DIÁRIAS",
+                
+                CAST(
+                    ((COALESCE("VLR DIÁRIA", 0) * (CASE WHEN COALESCE("QTDPESSOAS", 0) <= 0 THEN 1 ELSE "QTDPESSOAS" END) * COALESCE("QTD", 0)) + COALESCE("VLR ADICIONAL", 0)) 
+                AS NUMERIC(10,2)) AS "TOT GERAL"
             FROM (
                 SELECT
                     tse.idevento,
@@ -260,9 +249,10 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                     tse.nmcliente AS "nomeCliente",
                     tse.idequipe,
                     tse.nmequipe AS "nmequipe",
-                    tse.qtdpessoaslote AS "QTDPESSOAS",
+                    COALESCE(tse.qtdpessoaslote, 1) AS "QTDPESSOAS", -- Garante valor mínimo 1
                     tse.nmfuncao AS "FUNÇÃO",
-                    tbf.nome AS "NOME",
+                    tse.statuspgtocaixinha AS "STATUS CAIXINHA",
+                    tbf.nome || ' (' || tbf.perfil || ')' AS "NOME",
                     tbf.pix AS "PIX",
                     tbf.perfil AS "PERFIL_FUNC",
                     (SELECT MIN(d_val::date) FROM jsonb_array_elements_text(tse.datasevento) AS d_val)::text AS "INÍCIO",
@@ -280,7 +270,7 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                         )
                     ) AS "QTD",
 
-                    COALESCE(tse.vlrcache, 0) AS "VLR DIÁRIA",
+                    CAST(COALESCE(tse.vlrcache, 0) AS NUMERIC(10,2)) AS "VLR DIÁRIA",
 
                     CAST((
                         COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0 END, 0) +
@@ -289,26 +279,57 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                         ((COALESCE(tse.vlrcache, 0) / 2.0) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(da.qtd_meias, 0)
                     ) AS NUMERIC(10, 2)) AS "VLR ADICIONAL",
 
+                    -- STATUS PGTO com a sua regra para exibir '---' quando não houver valor
                     CASE
+                        WHEN COALESCE(tse.vlrcache, 0) = 0 THEN '---'
                         WHEN (tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '')
                         AND (CAST(COALESCE(NULLIF(TRIM(tse.vlrcaixinha::TEXT), ''), '0') AS NUMERIC) <= 0
                             OR (CAST(COALESCE(NULLIF(TRIM(tse.vlrcaixinha::TEXT), ''), '0') AS NUMERIC) > 0 AND (tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '')))
                         THEN 'Pago' ELSE 'Pendente'
-                    END AS "STATUS PGTO"
+                    END AS "STATUS PGTO",
+
+                    CAST((
+                        CASE 
+                            WHEN tse.statuspgto IS DISTINCT FROM 'Pago'
+                            THEN (COALESCE(tse.vlrcache, 0) * (CASE WHEN COALESCE(tse.qtdpessoaslote, 0) <= 0 THEN 1 ELSE tse.qtdpessoaslote END) * (
+                                SELECT COUNT(*)::int
+                                FROM jsonb_array_elements_text(tse.datasevento) AS s(date_val)
+                                WHERE date_val::date >= $2::date AND date_val::date <= $3::date
+                                AND (
+                                    tbf.perfil ILIKE '%Free%' 
+                                    OR 
+                                    ((tbf.perfil ILIKE '%Interno%' OR tbf.perfil ILIKE '%Externo%') 
+                                    AND (EXTRACT(DOW FROM date_val::date) IN (0, 6) OR date_val::date IN (SELECT data FROM feriados)))
+                                )
+                            ))
+                            ELSE 0 
+                        END +
+                        CASE WHEN (tse.statuspgto IS DISTINCT FROM 'Pago') AND tse.statusajustecusto = 'Autorizado' THEN COALESCE(tse.vlrajustecusto, 0) ELSE 0 END +
+                        CASE WHEN (tse.statuspgtocaixinha IS DISTINCT FROM 'Pago') AND tse.statuscaixinha = 'Autorizado' THEN COALESCE(tse.vlrcaixinha, 0) ELSE 0 END +
+                        CASE WHEN tse.statuspgto IS DISTINCT FROM 'Pago' THEN 
+                            (((COALESCE(tse.vlrcache, 0) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(da.qtd_dobras, 0)) +
+                            (((COALESCE(tse.vlrcache, 0) / 2.0) + COALESCE(tse.vlralimentacao, 0)) * COALESCE(da.qtd_meias, 0)))
+                            ELSE 0 
+                        END
+                    ) AS NUMERIC(10,2)) AS "TOT PAGAR"
 
                 FROM staffeventos tse
                 JOIN funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
                 JOIN staffempresas semp ON tse.idstaff = semp.idstaff
                 LEFT JOIN diarias_autorizadas da ON tse.idstaffevento = da.idstaffevento
                 WHERE semp.idempresa = $1 
-                -- Filtro de Evento Seguro
-                AND ($4::text IS NULL OR $4::text = '' OR tse.idevento = CAST(NULLIF($4::text, '') AS INTEGER))
-                -- As variáveis abaixo devem conter apenas filtros válidos
-                ${whereStatus}
+                    ${whereStatus} 
+                    ${wherePeriodoFinal} 
+                    AND jsonb_array_length(
+                        (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
+                        WHERE ${phaseFilterSql})
+                    ) > 0
             ) AS subquery
             WHERE ("QTD" > 0 OR "VLR ADICIONAL" != 0)
             ORDER BY "nomeEvento", "NOME";
             `;
+
+
         } else if (tipo === 'operacional') {
             queryFechamentoPrincipal = `
             WITH ano_evento AS (
@@ -320,6 +341,7 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
             feriados AS (
                 SELECT data::date FROM (
                     SELECT make_date(a.ano, 1, 1) FROM ano_evento a UNION
+                    SELECT make_date(a.ano, 1, 25) FROM ano_evento a UNION
                     SELECT make_date(a.ano, 4, 21) FROM ano_evento a UNION
                     SELECT make_date(a.ano, 5, 1) FROM ano_evento a UNION
                     SELECT make_date(a.ano, 9, 7) FROM ano_evento a UNION
@@ -356,13 +378,13 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
 
                 -- Coluna VLR ADICIONAL
                 CAST(
-                    COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0 END, 0) +
-                    COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' THEN tse.vlrcaixinha ELSE 0 END, 0)
+                    COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0 END, 0.00) +
+                    COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' THEN tse.vlrcaixinha ELSE 0 END, 0.00)
                 AS NUMERIC(10, 2)) AS "VLR ADICIONAL",
 
                 -- Coluna TOT GERAL
                 CAST(
-                    (COALESCE(tse.vlrcache, 0) * (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0 THEN 1 ELSE tse.qtdpessoaslote END) * (
+                    (COALESCE(tse.vlrcache, 0.00) * (CASE WHEN tse.qtdpessoaslote IS NULL OR tse.qtdpessoaslote = 0 THEN 1 ELSE tse.qtdpessoaslote END) * (
                         SELECT COUNT(*)
                         FROM jsonb_array_elements_text(tse.datasevento) AS s(date_val)
                         WHERE date_val::date BETWEEN $2::date AND $3::date
@@ -373,8 +395,8 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                             AND (EXTRACT(DOW FROM date_val::date) IN (0, 6) OR date_val::date IN (SELECT data FROM feriados)))
                         )
                     )) +
-                    COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0 END, 0) +
-                    COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' THEN tse.vlrcaixinha ELSE 0 END, 0)
+                    COALESCE(CASE WHEN tse.statusajustecusto = 'Autorizado' THEN tse.vlrajustecusto ELSE 0 END, 0.00) +
+                    COALESCE(CASE WHEN tse.statuscaixinha = 'Autorizado' THEN tse.vlrcaixinha ELSE 0 END, 0.00)
                 AS NUMERIC(10, 2)) AS "TOT GERAL",
 
                 -- Coluna STATUS PGTO
@@ -389,12 +411,12 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
             JOIN funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
             JOIN staffempresas semp ON tse.idstaff = semp.idstaff
             WHERE semp.idempresa = $1
-            AND ($4::text IS NULL OR $4::text = '' OR tse.idevento = CAST(NULLIF($4::text, '') AS INTEGER))
-            ${cliente && cliente !== "todos" ? `AND tse.idcliente = $${params.indexOf(cliente) + 1}` : ''}
-            ${equipe && equipe !== "todos" ? `AND tse.idequipe = $${params.indexOf(equipe) + 1}` : ''}
-            ${whereStatus}
-            AND (SELECT COUNT(*) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_val)
-                WHERE date_val::date BETWEEN $2::date AND $3::date) > 0
+                  ${whereStatus} 
+                  ${wherePeriodoFinal} 
+                  AND jsonb_array_length(
+                    (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
+                    WHERE ${phaseFilterSql})
+                  ) > 0
             ORDER BY tse.nmevento, tbf.nome;
             `;
     }
@@ -434,74 +456,130 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
 
             
         // Utilização de Diárias (não filtra por evento)
-        const queryUtilizacaoDiarias = `
-            SELECT
-                o.idevento,
-                o.nrorcamento,
-                oi.produto AS "INFORMAÇÕES EM PROPOSTA",
-                SUM(oi.qtditens) AS "QTD PROFISSIONAIS",
-                SUM(oi.qtditens * oi.qtddias) AS "DIÁRIAS CONTRATADAS",
-                COALESCE(MAX(td.diarias_utilizadas_por_funcao), 0) AS "DIÁRIAS UTILIZADAS",
-                SUM(oi.qtditens * oi.qtddias) - COALESCE(MAX(td.diarias_utilizadas_por_funcao), 0) AS "SALDO"
-            FROM
-                orcamentos o
-            JOIN orcamentoitens oi ON oi.idorcamento = o.idorcamento
-            JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-            LEFT JOIN (
-                SELECT
-                    tse.idevento,
-                    tse.idcliente,
-                    semp.idempresa,
-                    tse.nmfuncao,
-                    SUM(jsonb_array_length(
-                        (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
-                         WHERE ${phaseFilterSql})
-                    )) AS diarias_utilizadas_por_funcao
-                FROM
-                    staffeventos tse
-                JOIN staffempresas semp ON semp.idstaff = tse.idstaff
-                WHERE
-                    semp.idempresa = $1 ${wherePeriodo}
-                    --AND EXISTS (
-                    --    SELECT 1 FROM jsonb_array_elements_text(tse.datasevento) AS s_check(date_value_check)
-                    --    WHERE s_check.date_value_check::date >= $2::date AND s_check.date_value_check::date <= $3::date
-                    --)
-                    ${evento && evento !== "todos" ? `AND tse.idevento = $${params.indexOf(evento) + 1}` : ''}
-                    ${cliente && cliente !== "todos" ? `AND tse.idcliente = $${params.indexOf(cliente) + 1}` : ''}
-                    ${equipe && equipe !== "todos" ? `AND tse.idequipe = $${params.indexOf(equipe) + 1}` : ''}
+        // const queryUtilizacaoDiarias = `
+        //     SELECT
+        //         o.idevento,
+        //         o.nrorcamento,
+        //         oi.produto AS "INFORMAÇÕES EM PROPOSTA",
+        //         SUM(oi.qtditens) AS "QTD PROFISSIONAIS",
+        //         SUM(oi.qtditens * oi.qtddias) AS "DIÁRIAS CONTRATADAS",
+        //         COALESCE(MAX(td.diarias_utilizadas_por_funcao), 0) AS "DIÁRIAS UTILIZADAS",
+        //         SUM(oi.qtditens * oi.qtddias) - COALESCE(MAX(td.diarias_utilizadas_por_funcao), 0) AS "SALDO"
+        //     FROM
+        //         orcamentos o
+        //     JOIN orcamentoitens oi ON oi.idorcamento = o.idorcamento
+        //     JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+        //     LEFT JOIN (
+        //         SELECT
+        //             tse.idevento,
+        //             tse.idcliente,
+        //             semp.idempresa,
+        //             tse.nmfuncao,
+        //             SUM(jsonb_array_length(
+        //                 (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
+        //                  WHERE ${phaseFilterSql})
+        //             )) AS diarias_utilizadas_por_funcao
+        //         FROM
+        //             staffeventos tse
+        //         JOIN staffempresas semp ON semp.idstaff = tse.idstaff
+        //         WHERE
+        //             semp.idempresa = $1 ${wherePeriodoFinal}
+        //             --AND EXISTS (
+        //             --    SELECT 1 FROM jsonb_array_elements_text(tse.datasevento) AS s_check(date_value_check)
+        //             --    WHERE s_check.date_value_check::date >= $2::date AND s_check.date_value_check::date <= $3::date
+        //             --)
+        //             ${evento && evento !== "todos" ? `AND tse.idevento = $${params.indexOf(evento) + 1}` : ''}
+        //             ${cliente && cliente !== "todos" ? `AND tse.idcliente = $${params.indexOf(cliente) + 1}` : ''}
+        //             ${equipe && equipe !== "todos" ? `AND tse.idequipe = $${params.indexOf(equipe) + 1}` : ''}
                   
 
-                GROUP BY
-                    tse.idevento, tse.idcliente, semp.idempresa, tse.nmfuncao
-            ) AS td ON td.idevento = o.idevento
-                    AND td.idcliente = o.idcliente
-                    AND td.idempresa = oe.idempresa
-                    AND td.nmfuncao = oi.produto
-            WHERE
-                oe.idempresa = $1
-                AND EXISTS (
-                    SELECT 1
-                    FROM staffeventos inner_tse
-                    JOIN staffempresas inner_semp ON inner_semp.idstaff = inner_tse.idstaff AND inner_semp.idempresa = oe.idempresa
-                    CROSS JOIN jsonb_array_elements_text(inner_tse.datasevento) AS inner_event_date
-                    WHERE inner_tse.idevento = o.idevento
-                    AND inner_tse.idcliente = o.idcliente
-                    AND inner_event_date::date >= $2::date
-                    AND inner_event_date::date <= $3::date
-                    ${evento && evento !== "todos" ? `AND inner_tse.idevento = $${params.indexOf(evento) + 1}` : ''}
-                    ${cliente && cliente !== "todos" ? `AND inner_tse.idcliente = $${params.indexOf(cliente) + 1}` : ''}
-                    ${equipe && equipe !== "todos" ? `AND inner_tse.idequipe = $${params.indexOf(equipe) + 1}` : ''}                  
+        //         GROUP BY
+        //             tse.idevento, tse.idcliente, semp.idempresa, tse.nmfuncao
+        //     ) AS td ON td.idevento = o.idevento
+        //             AND td.idcliente = o.idcliente
+        //             AND td.idempresa = oe.idempresa
+        //             AND td.nmfuncao = oi.produto
+        //     WHERE
+        //         oe.idempresa = $1
+        //         AND EXISTS (
+        //             SELECT 1
+        //             FROM staffeventos inner_tse
+        //             JOIN staffempresas inner_semp ON inner_semp.idstaff = inner_tse.idstaff AND inner_semp.idempresa = oe.idempresa
+        //             CROSS JOIN jsonb_array_elements_text(inner_tse.datasevento) AS inner_event_date
+        //             WHERE inner_tse.idevento = o.idevento
+        //             AND inner_tse.idcliente = o.idcliente
+        //             AND inner_event_date::date >= $2::date
+        //             AND inner_event_date::date <= $3::date
+        //             ${evento && evento !== "todos" ? `AND inner_tse.idevento = $${params.indexOf(evento) + 1}` : ''}
+        //             ${cliente && cliente !== "todos" ? `AND inner_tse.idcliente = $${params.indexOf(cliente) + 1}` : ''}
+        //             ${equipe && equipe !== "todos" ? `AND inner_tse.idequipe = $${params.indexOf(equipe) + 1}` : ''}                  
                 
-                )
-            GROUP BY
-                o.idevento,
-                o.nrorcamento,
-                oi.produto
-            ORDER BY
-                o.idevento,
-                o.nrorcamento,
-                oi.produto;
-        `;
+        //         )
+        //     GROUP BY
+        //         o.idevento,
+        //         o.nrorcamento,
+        //         oi.produto
+        //     ORDER BY
+        //         o.idevento,
+        //         o.nrorcamento,
+        //         oi.produto;
+        // `;
+
+        const queryUtilizacaoDiarias = `
+    SELECT
+        o.idevento,
+        o.nrorcamento,
+        oi.produto AS "INFORMAÇÕES EM PROPOSTA",
+        SUM(oi.qtditens) AS "QTD PROFISSIONAIS",
+        SUM(oi.qtditens * oi.qtddias) AS "DIÁRIAS CONTRATADAS",
+        COALESCE(MAX(td.diarias_utilizadas_por_funcao), 0) AS "DIÁRIAS UTILIZADAS",
+        SUM(oi.qtditens * oi.qtddias) - COALESCE(MAX(td.diarias_utilizadas_por_funcao), 0) AS "SALDO"
+    FROM
+        orcamentos o
+    JOIN orcamentoitens oi ON oi.idorcamento = o.idorcamento
+    JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+    LEFT JOIN (
+        SELECT
+            tse.idevento,
+            tse.idcliente,
+            semp.idempresa,
+            tse.nmfuncao,
+            SUM(jsonb_array_length(
+                (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
+                 WHERE ${phaseFilterSql})
+            )) AS diarias_utilizadas_por_funcao
+        FROM
+            staffeventos tse
+        JOIN staffempresas semp ON semp.idstaff = tse.idstaff
+        WHERE
+            semp.idempresa = $1 ${wherePeriodoFinal} -- Aqui o cast já está incluso
+        GROUP BY
+            tse.idevento, tse.idcliente, semp.idempresa, tse.nmfuncao
+    ) AS td ON td.idevento = o.idevento
+            AND td.idcliente = o.idcliente
+            AND td.idempresa = oe.idempresa
+            AND td.nmfuncao = oi.produto
+    WHERE
+        oe.idempresa = $1
+        AND EXISTS (
+            SELECT 1
+            FROM staffeventos inner_tse
+            JOIN staffempresas inner_semp ON inner_semp.idstaff = inner_tse.idstaff AND inner_semp.idempresa = oe.idempresa
+            CROSS JOIN jsonb_array_elements_text(inner_tse.datasevento) AS inner_event_date
+            WHERE inner_tse.idevento = o.idevento
+            AND inner_tse.idcliente = o.idcliente
+            AND inner_event_date::date >= $2::date
+            AND inner_event_date::date <= $3::date
+            -- CORREÇÃO AQUI: Cast para texto na comparação manual
+            AND ($4::text IS NULL OR $4::text = '' OR inner_tse.idevento::text = $4::text)
+            AND ($5::text IS NULL OR $5::text = '' OR inner_tse.idcliente::text = $5::text)
+            AND ($6::text IS NULL OR $6::text = '' OR inner_tse.idequipe::text = $6::text)
+        )
+    GROUP BY
+        o.idevento, o.nrorcamento, oi.produto
+    ORDER BY
+        o.idevento, o.nrorcamento, oi.produto;
+`;
         //const resultUtilizacaoDiarias = await pool.query(queryUtilizacaoDiarias, [idempresa, dataInicio, dataFim]);
         const resultUtilizacaoDiarias = await pool.query(queryUtilizacaoDiarias, params);
         relatorio.utilizacaoDiarias = resultUtilizacaoDiarias.rows;        
@@ -519,7 +597,7 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
                     staffempresas semp ON tse.idstaff = semp.idstaff
                 
                 WHERE
-                    semp.idempresa = $1 ${wherePeriodo}
+                    semp.idempresa = $1 ${wherePeriodoFinal}
             )
             SELECT
                 tse.idevento,
@@ -535,7 +613,7 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
             JOIN
                 calculos_adicionais ca ON ca.idstaffevento = tse.idstaffevento
             WHERE
-                semp.idempresa = $1 ${wherePeriodo}
+                semp.idempresa = $1 ${wherePeriodoFinal}
                 AND jsonb_array_length(tse.dtdiariadobrada) > 0
             
             UNION ALL
@@ -554,7 +632,7 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
             JOIN
                 calculos_adicionais ca ON ca.idstaffevento = tse.idstaffevento
             WHERE
-                semp.idempresa = $1 ${wherePeriodo}
+                semp.idempresa = $1 ${wherePeriodoFinal}
                 AND jsonb_array_length(tse.dtmeiadiaria) > 0
 
             UNION ALL
@@ -571,7 +649,7 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
             JOIN 
                 staffempresas semp ON tse.idstaff = semp.idstaff
             WHERE
-                semp.idempresa = $1 ${wherePeriodo}
+                semp.idempresa = $1 ${wherePeriodoFinal}
                 AND tse.statusajustecusto = 'Autorizado' 
                 AND tse.vlrajustecusto IS NOT NULL 
                 AND tse.vlrajustecusto != 0
@@ -590,7 +668,7 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
             JOIN 
                 staffempresas semp ON semp.idstaff = tse.idstaff
             WHERE
-                semp.idempresa = $1 ${wherePeriodo}
+                semp.idempresa = $1 ${wherePeriodoFinal}
                 AND tse.statuscaixinha = 'Autorizado' 
                 AND tse.vlrcaixinha IS NOT NULL 
                 AND tse.vlrcaixinha > 0
