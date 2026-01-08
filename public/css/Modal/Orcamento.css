@@ -1099,6 +1099,14 @@ span.pavilhao-tag {
 
   /* ==============  Incluir Contrato  =============== */
 
+  /* Quando o status for A, se você adicionar uma classe no container pai */
+.status-aprovado, 
+.status-aprovado label, 
+.status-aprovado input {
+    cursor: not-allowed !important;
+    pointer-events: auto !important; /* Força o mouse a reconhecer o elemento */
+}
+
 .container {
   height: auto;                  /* Remova altura fixa */
   width: 450px;

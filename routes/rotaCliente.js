@@ -88,17 +88,17 @@ router.put("/:id", verificarPermissao('Clientes', 'alterar'),
     const idempresa = req.idempresa; 
     const ativo = req.body.ativo !== undefined ? req.body.ativo : false; 
 
-    const { nmFantasia, razaoSocial, cnpj, inscEstadual, emailCliente, emailNfe, site, telefone, nmContato, celContato, emailContato, cep, rua, numero, complemento, bairro, cidade, estado, pais, tpcliente } = req.body;
+    const { nmFantasia, razaoSocial, cnpj, inscEstadual, emailCliente, emailNfe, site, telefone, nmContato, celContato, emailContato, cep, rua, numero, complemento, bairro, cidade, estado, pais, tpcliente, responsavelContrato } = req.body;
   console.log("DADOS RECEBIDOS", req.body);
     try {
         // Adiciona a condição 'idempresa' para garantir que o usuário só possa atualizar clientes de sua empresa
         const result = await pool.query(
             `UPDATE clientes c
-             SET nmfantasia = $1, razaosocial = $2, cnpj = $3, inscestadual = $4, emailcliente = $5, emailnfe = $6, site = $7, telefone = $8, nmcontato = $9, celcontato = $10, emailcontato = $11, cep = $12, rua = $13, numero = $14, complemento = $15, bairro = $16, cidade = $17, estado = $18, pais = $19, ativo = $20, tpcliente = $21
+             SET nmfantasia = $1, razaosocial = $2, cnpj = $3, inscestadual = $4, emailcliente = $5, emailnfe = $6, site = $7, telefone = $8, nmcontato = $9, celcontato = $10, emailcontato = $11, cep = $12, rua = $13, numero = $14, complemento = $15, bairro = $16, cidade = $17, estado = $18, pais = $19, ativo = $20, tpcliente = $21, responsavelcontrato = $22
              FROM clienteempresas ce
-             WHERE c.idcliente = $22 AND ce.idcliente = c.idcliente AND ce.idempresa = $23
+             WHERE c.idcliente = $23 AND ce.idcliente = c.idcliente AND ce.idempresa = $24
              RETURNING c.idcliente`, // Retorna os dados do cliente atualizado
-            [nmFantasia, razaoSocial, cnpj, inscEstadual, emailCliente, emailNfe, site, telefone, nmContato, celContato, emailContato, cep, rua, numero, complemento, bairro, cidade, estado, pais, ativo, tpcliente, id, idempresa]
+            [nmFantasia, razaoSocial, cnpj, inscEstadual, emailCliente, emailNfe, site, telefone, nmContato, celContato, emailContato, cep, rua, numero, complemento, bairro, cidade, estado, pais, ativo, tpcliente, responsavelContrato , id, idempresa]
         );
 
         if (result.rowCount) {
@@ -128,7 +128,7 @@ router.post("/", verificarPermissao('Clientes', 'cadastrar'),
 
   async (req, res) => {
   const ativo = req.body.ativo !== undefined ? req.body.ativo : false;
-  const { nmFantasia, razaoSocial, cnpj, inscEstadual, emailCliente, emailNfe, site, telefone, nmContato, celContato, emailContato,   cep, rua, numero, complemento, bairro, cidade, estado, pais, tpcliente } = req.body;
+  const { nmFantasia, razaoSocial, cnpj, inscEstadual, emailCliente, emailNfe, site, telefone, nmContato, celContato, emailContato, cep, rua, numero, complemento, bairro, cidade, estado, pais, tpcliente, responsavelContrato } = req.body;
   const idempresa = req.idempresa;
  console.log("DADOS RECEBIDOS", req.body);
   let client; // Declara a variável client para uso em transação
@@ -139,8 +139,8 @@ router.post("/", verificarPermissao('Clientes', 'cadastrar'),
 
         // 1. Insere o novo cliente na tabela 'clientes'
         const resultCliente = await client.query( // Usar 'client' ao invés de 'pool' para a transação
-            "INSERT INTO clientes (nmfantasia, razaosocial, cnpj, inscestadual, emailcliente, emailnfe, site, telefone, nmcontato, celcontato, emailcontato, cep, rua, numero, complemento, bairro, cidade, estado, pais, ativo, tpcliente) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING idcliente, nmfantasia",
-            [nmFantasia, razaoSocial, cnpj, inscEstadual, emailCliente, emailNfe, site, telefone, nmContato, celContato, emailContato, cep, rua, numero, complemento, bairro, cidade, estado, pais, ativo, tpcliente]
+            "INSERT INTO clientes (nmfantasia, razaosocial, cnpj, inscestadual, emailcliente, emailnfe, site, telefone, nmcontato, celcontato, emailcontato, cep, rua, numero, complemento, bairro, cidade, estado, pais, ativo, tpcliente, responsavelcontrato) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING idcliente, nmfantasia",
+            [nmFantasia, razaoSocial, cnpj, inscEstadual, emailCliente, emailNfe, site, telefone, nmContato, celContato, emailContato, cep, rua, numero, complemento, bairro, cidade, estado, pais, ativo, tpcliente, responsavelContrato]
         );
 
         const newCliente = resultCliente.rows[0];

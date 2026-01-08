@@ -2896,385 +2896,596 @@ function abrirDetalhesEquipe(equipe, evento) {
 //    Pedidos Orçamentos 
 // =========================
 
-// function criarFiltroOrcamento(conteudoGeral) {
-//     const filtrosContainer = document.createElement("div");
-//     filtrosContainer.className = "filtros-orcamentos";
-
-//     // ------------------------------
-//     // 1. Filtro Principal (RADIO CUSTOM)
-//     // ------------------------------
-//     const grupoPeriodo = document.createElement("div");
-//     grupoPeriodo.className = "filtro-opção";
-//     grupoPeriodo.innerHTML = `
-//         <label class="label-select">Tipo de Filtro</label>
-//         <div class="wrapper" id="periodo-wrapper">
-//             <div class="option">
-//               <input checked value="aberto" name="periodo" type="radio" class="input" />
-//               <div class="btn"><span class="span">Abertos</span></div>
-//             </div>
-//             <div class="option">
-//               <input value="emProposta" name="periodo" type="radio" class="input" />
-//               <div class="btn"><span class="span">Em Proposta</span></div>
-//             </div>
-//             <div class="option">
-//               <input value="emAndamento" name="periodo" type="radio" class="input" />
-//               <div class="btn"><span class="span">Em Andamento</span></div>
-//             </div>
-//             <div class="option">
-//               <input value="fechados" name="periodo" type="radio" class="input" />
-//               <div class="btn"><span class="span">Fechados</span></div>
-//             </div>
-//             <div class="option">
-//               <input value="recusados" name="periodo" type="radio" class="input" />
-//               <div class="btn"><span class="span">Recusados</span></div>
-//             </div>
-//         </div>
-//     `;
-
-//     filtrosContainer.appendChild(grupoPeriodo);
-
-//     // ------------------------------
-//     // 3. Botão Aplicar
-//     // ------------------------------
-//     const btnAplicar = document.createElement("button");
-//     btnAplicar.id = "btnAplicarFiltro";
-//     btnAplicar.className = "btn-aplicar-filtro";
-//     btnAplicar.textContent = "Aplicar Filtro";
-//     filtrosContainer.appendChild(btnAplicar);
-
-
-// grupoPeriodo.querySelectorAll("input[name='periodo']").forEach(radio => {
-//         radio.addEventListener("change", () => {
-//             // Chama a função de carregamento/filtragem
-//             carregarDetalhesVencimentos(conteudoGeral);
-//         });
-//     });
-
-//     // Listener do Botão Aplicar: Mantém o listener para acionar o filtro explicitamente
-//     btnAplicar.addEventListener("click", () => carregarDetalhesVencimentos(conteudoGeral));
-
-//     return filtrosContainer;
-// }
-
-
-let OrcamentosExtraBonificadoUnificados = [];
-let OrcamentosAdicionaisUnificados = [];
-
-/**
- * Busca a lista de orçamentos Aprovados - Extra Bonificado.
- * ✅ CORREÇÃO DE ROBUSTEZ: Adiciona 'headers' explicitamente para garantir o idempresa.
- */
-async function buscarOrcamentosExtraBonificado() {
-    const URL_EXTRA = '/main/extra-bonificado';
-    const options = { headers: { idempresa: getIdEmpresa() } }; 
-    
-    try {
-        // ✅ CORREÇÃO: fetchComToken retorna o JSON, então chame de 'dados'
-        const dados = await fetchComToken(URL_EXTRA, options); 
-        
-        console.log("Dados Extra Bonificado:", dados);
-        // Garante que a função retorna um array, mesmo que o JSON retornado seja nulo ou não seja um array
-        return Array.isArray(dados) ? dados : []; 
-        
-    } catch (error) {
-        // O erro já foi capturado e logado pelo fetchComToken se for falha HTTP.
-        // Se a requisição falhar totalmente, o catch captura e retorna [].
-        console.error("Falha ao buscar Extra Bonificado:", error);
-        return []; 
-    }
-}
-
-/**
- * Busca a lista de orçamentos Aprovados - Adicionais.
- * ✅ CORREÇÃO DE ROBUSTEZ: Adiciona 'headers' explicitamente para garantir o idempresa.
- */
-async function buscarOrcamentosAdicionais() {
-    const URL_ADICIONAL = '/main/adicionais';
-    const options = { headers: { idempresa: getIdEmpresa() } };
-    
-    try {
-        // ✅ CORREÇÃO: fetchComToken retorna o JSON, então chame de 'dados'
-        const dados = await fetchComToken(URL_ADICIONAL, options); 
-
-        
-        console.log("Dados Adicionais:", dados);
-        // Garante que a função retorna um array
-        return Array.isArray(dados) ? dados : []; 
-        
-    } catch (error) {
-        console.error("Falha ao buscar Adicionais:", error);
-        return []; 
-    }
-}
-
-// Sua função utilitária (sem modificação)
-function formatarTitulo(camelCase) {
-    let result = camelCase.replace('status', '').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
-    return result.split(' ').map(word => 
-        word.charAt(0).toUpperCase() + word.slice(1)
-    ).join(' ');
-}
-
-// Sua função principal (sem modificação)
-async function mostrarOrcamentosAprovados(conteudoGeral) {
-    conteudoGeral.innerHTML = `<p>Carregando pedidos aprovados...</p>`;
-    
-    try {
-        // 1. CHAMA AS DUAS ROTAS EM PARALELO (CORREÇÃO APLICADA NAS FUNÇÕES DE BUSCA)
-        const [pedidosExtraBonificado, pedidosAdicionais] = await Promise.all([
-            buscarOrcamentosExtraBonificado(),
-            buscarOrcamentosAdicionais()
-        ]);
-        
-        // 2. Armazena e Contagem
-        // 🔹 CORREÇÃO A: Mapeia e define o tipo de solicitação explicitamente
-        OrcamentosExtraBonificadoUnificados = pedidosExtraBonificado.map(p => ({
-            ...p,
-            categoriaSolicitacao: 'Extra Bonificado' // Define o tipo aqui
-        }));
-        
-        // 🔹 CORREÇÃO A: Mapeia e define o tipo de solicitação explicitamente
-        OrcamentosAdicionaisUnificados = pedidosAdicionais.map(p => ({
-            ...p,
-            categoriaSolicitacao: 'Adicional' // Define o tipo aqui
-        }));
-        
-        const countExtraBonificado = OrcamentosExtraBonificadoUnificados.length;
-        const countAdicionais = OrcamentosAdicionaisUnificados.length;
-        
-        const statusFixo = 'Autorizado'; 
-
-        // 3. Cria a estrutura de Abas Principais
-        conteudoGeral.innerHTML = `
-            <div class="tabs-container-wrapper">
-                <div class="abas-principais">
-                    <button class="aba main-tab-btn ativa" 
-                        data-tab-content="tab-content-extra" data-categoria="extra">
-                        Extra Bonificado (${countExtraBonificado})
-                    </button>
-                    <button class="aba main-tab-btn" 
-                        data-tab-content="tab-content-adicional" data-categoria="adicional">
-                        Adicional (${countAdicionais})
-                    </button>
+function montarOpcoesOrc(titulo, valores, conteudoGeral) {
+    return `
+        <label class="label-select">${titulo}</label>
+        <div class="wrapper" style="width: ${valores.length * 90}px;">
+            ${valores.map(v => `
+                <div class="option" style="width: 80px;">
+                    <input value="${v.value}" name="subOrc" type="radio" class="input" ${v.checked ? "checked" : ""} />
+                    <div class="btn"><span class="span">${v.label}</span></div>
                 </div>
-                
-                <div id="tab-content-extra" class="painel-tabs ativo" style="display: flex;"></div>
-                <div id="tab-content-adicional" class="painel-tabs desativado" style="display: none;"></div>
-            </div>
-        `;
-
-        // 4. Adiciona os Listeners
-        document.querySelectorAll('.abas-principais .main-tab-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                const targetId = this.getAttribute('data-tab-content');
-                const categoria = this.getAttribute('data-categoria');
-                
-                // Gerencia classes da aba
-                document.querySelectorAll('.abas-principais .main-tab-btn').forEach(btn => btn.classList.remove('ativa'));
-                this.classList.add('ativa');
-                
-                // Gerencia visibilidade dos painéis
-                document.querySelectorAll('.painel-tabs').forEach(content => {
-                    content.style.display = 'none';
-                });
-                const targetContent = document.getElementById(targetId);
-                targetContent.style.display = 'flex'; 
-                
-                // Seleciona a lista correta
-                const listaPedidos = categoria === 'extra' 
-                    ? OrcamentosExtraBonificadoUnificados 
-                    : OrcamentosAdicionaisUnificados;
-                
-                // Renderiza o conteúdo
-                renderizarPedidosorc(listaPedidos, targetId, categoria, statusFixo, true);
-            });
-        });
-
-        // 5. Simula o clique inicial
-        const btnInicial = conteudoGeral.querySelector('.main-tab-btn.ativa');
-        if (btnInicial) {
-            btnInicial.click(); 
-        }
-    } catch (error) {
-        console.error("Erro ao carregar dados de orçamento:", error);
-        conteudoGeral.innerHTML = `<p class="erro">Erro ao carregar pedidos: ${error.message || 'Falha na comunicação com o servidor.'}</p>`;
-    }
+            `).join("")}
+        </div>`;
 }
 
-// Sua função de renderização (sem modificação)
-function renderizarPedidosorc(listaPedidos, containerId, categoria, status, isStatusFixo) {
-    console.log(`Renderizando pedidos para categoria: ${categoria}, status: ${status}, isStatusFixo: ${isStatusFixo}`);
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    
-    // Helper function para escapar HTML
-    const escapeHTML = (str) => {
-        if (typeof str !== 'string') return str || '';
-        return str.replace(/[&<>"']/g, function(m) {
-            return ({
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#39;'
-            }[m]);
+function construirParametrosOrcamentos() {
+    const status = document.querySelector("input[name='statusOrc']:checked")?.value || 'aberto';
+    const periodo = document.querySelector("input[name='periodoOrc']:checked")?.value || 'diario';
+    const anoAtual = new Date().getFullYear();
+
+    let query = `?status=${status}&periodo=${periodo}&ano=${anoAtual}`;
+
+    const subData = document.querySelector("#sub-filtro-data-orc")?.value;
+    const subSelect = document.querySelector("#sub-filtro-select-orc")?.value;
+    const subRadio = document.querySelector("input[name='subOrc']:checked")?.value;
+
+    if (subData) query += `&dataRef=${subData}`;
+    if (subSelect) query += `&mes=${subSelect}`;
+    if (subRadio) {
+        if (periodo === 'trimestral') query += `&trimestre=${subRadio}`;
+        if (periodo === 'semestral') query += `&semestre=${subRadio}`;
+    }
+
+    return query;
+}
+
+// --- CORE DOS FILTROS ---
+
+function criarFiltrosOrcamentoCompletos(conteudoGeral) {
+    const filtrosContainer = document.createElement("div");
+    filtrosContainer.className = "filtros-vencimentos venc-container"; 
+
+    const wrapperUnificado = document.createElement("div");
+    wrapperUnificado.style.display = "flex";
+    wrapperUnificado.style.flexWrap = "wrap";
+    wrapperUnificado.style.gap = "20px";
+
+    // 1. Grupo Status
+    const grupoStatus = document.createElement("div");
+    grupoStatus.className = "filtro-grupo";
+    grupoStatus.innerHTML = `
+        <label class="label-select">Nível do Orçamento</label>
+        <div class="wrapper" style="width: 350px;"> 
+            ${['Aberto', 'Negociação', 'Aprovado', 'Fechado', 'Recusado'].map((s, i) => `
+                <div class="option" style="width: 50px;">
+                    <input ${i === 0 ? 'checked' : ''} value="${s.toLowerCase()}" name="statusOrc" type="radio" class="input" />
+                    <div class="btn"><span class="span">${s}</span></div>
+                </div>
+            `).join('')}
+        </div>`;
+
+    // 2. Grupo Período
+    const grupoPeriodo = document.createElement("div");
+    grupoPeriodo.className = "filtro-grupo";
+    grupoPeriodo.innerHTML = `
+        <label class="label-select">Período</label>
+        <div class="wrapper" style="width: 300px;">
+            <div class="option" style="width: 30px;"><input checked value="diario" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Diário</span></div></div>
+            <div class="option" style="width: 30px;"><input value="semanal" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Semanal</span></div></div>
+            <div class="option" style="width: 30px;"><input value="mensal" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Mensal</span></div></div>
+            <div class="option" style="width: 30px;"><input value="trimestral" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Trimestral</span></div></div>
+            <div class="option" style="width: 30px;"><input value="anual" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Anual</span></div></div>
+        </div>`;
+
+    const subFiltroWrapper = document.createElement("div");
+    subFiltroWrapper.id = "sub-filtro-orc-wrapper";
+    subFiltroWrapper.className = "filtro-grupo";
+
+    wrapperUnificado.appendChild(grupoStatus);
+    wrapperUnificado.appendChild(grupoPeriodo);
+    wrapperUnificado.appendChild(subFiltroWrapper);
+    filtrosContainer.appendChild(wrapperUnificado);
+
+    const atualizarSubFiltroInterno = (tipo) => {
+        subFiltroWrapper.innerHTML = "";
+        const anoAtual = new Date().getFullYear();
+
+        if (tipo === "diario" || tipo === "semanal") {
+            const hoje = new Date().toISOString().split("T")[0];
+            subFiltroWrapper.innerHTML = `
+                <label class="label-select">Data Base</label>
+                <div class="wrapper select-wrapper">
+                    <input type="date" id="sub-filtro-data-orc" class="input-data-simples" value="${hoje}">
+                </div>`;
+        } 
+        else if (tipo === "mensal") {
+            let options = "";
+            for (let i = 1; i <= 12; i++) {
+                // Aqui usamos a sua função nomeDoMes global
+                options += `<option value="${i}" ${i === (new Date().getMonth()+1) ? 'selected' : ''}>${nomeDoMes(i)} / ${anoAtual}</option>`;
+            }
+            subFiltroWrapper.innerHTML = `<label class="label-select">Mês</label><div class="wrapper select-wrapper"><select id="sub-filtro-select-orc" class="select-simples">${options}</select></div>`;
+        }
+        else if (tipo === "trimestral") {
+            const trimes = [1,2,3,4].map(t => ({ value: t, label: `T${t} / ${anoAtual}`, checked: t === Math.ceil((new Date().getMonth()+1)/3) }));
+            subFiltroWrapper.innerHTML = montarOpcoesOrc("Trimestre", trimes);
+        }
+        else if (tipo === "anual") {
+            subFiltroWrapper.innerHTML = `<label class="label-select">Ano Vigente</label><div class="wrapper select-wrapper"><select id="sub-filtro-select-orc" class="select-simples"><option value="${anoAtual}">${anoAtual}</option></select></div>`;
+        }
+
+        subFiltroWrapper.querySelectorAll("input, select").forEach(el => {
+            el.addEventListener("change", () => carregarDetalhesOrcamentos(conteudoGeral));
         });
     };
-    
-    // 🛑 LIMPA O CONTAINER
-    container.innerHTML = ''; 
 
-    const pedidosFiltrados = listaPedidos;
-    if (pedidosFiltrados.length === 0) {
-        container.innerHTML = `<p class="mt-3">Não há pedidos autorizados nesta categoria.</p>`;
+    [grupoStatus, grupoPeriodo].forEach(g => {
+        g.querySelectorAll("input").forEach(i => i.addEventListener("change", (e) => {
+            if(e.target.name === 'periodoOrc') atualizarSubFiltroInterno(e.target.value);
+            carregarDetalhesOrcamentos(conteudoGeral);
+        }));
+    });
+
+    atualizarSubFiltroInterno("diario");
+    return filtrosContainer;
+}
+
+// --- RENDERIZAÇÃO E CLIQUE ---
+
+function renderizarListaOrcamentos(container, lista) {
+    container.innerHTML = "";
+    if (!lista || lista.length === 0) {
+        container.innerHTML = `<p class="mt-3">Nenhum orçamento encontrado para 2026.</p>`;
+        return;
     }
 
-    // GERAÇÃO DO HTML (Usando a técnica robusta de appendChild)
-    pedidosFiltrados.forEach((p, index) => {
+    const grid = document.createElement("div");
+    grid.className = "orcamentos-grid mt-3";
 
-      console.log(`⏳ Iterando pedido ${index} para categoria: ${categoria}`, p);
-        // Variáveis de Exibição
-        const nomeTipoExibicao = escapeHTML(p.categoriaSolicitacao || p.tiposolicitacao || 'Orçamento Complementar'); 
-        const tipoInterno = escapeHTML(p.tiposolicitacao || 'N/D');
-        const nomePrincipal = escapeHTML(p.nome_funcionario_afetado || p.nome_evento || `Orçamento ${p.nrdorcamento}` || 'N/D');       
-        const titulo = `${nomeTipoExibicao} - ${nomePrincipal}`; 
-        const tipoCor = 'aditivo-extra';
-        const tipoIcone = 'fa fa-plus-circle';
-        const collapseId = `collapse-${containerId}-${index}`;
+    lista.forEach(orc => {
+        const dataInicio = new Date(orc.dtinimarcacao).toLocaleDateString('pt-BR');
+        const dataFimRaw = new Date(orc.data_final_ciclo);
+        const dataFim = dataFimRaw.getFullYear() > 1950 
+            ? dataFimRaw.toLocaleDateString('pt-BR') 
+            : "Data de Desmontagem não definida";
 
-        // Detalhes (HTML interno) - APLICANDO escapeHTML EM TODOS OS CAMPOS DE DADOS
-        const detalhesHTML = `
-            <div class= "categoria">
-              <p><strong>Categoria:</strong> ${nomeTipoExibicao}</p>
-              <p><strong>Tipo Interno:</strong> ${tipoInterno}</p>
-            </div>  
-            
-            <hr class="mt-2 mb-2">
-
-            <div class= "FuncionarioEvento">
-              ${p.nome_funcionario_afetado 
-                  ? `<p><strong>Funcionário Afetado:</strong> ${escapeHTML(p.nome_funcionario_afetado)} (ID: ${p.idfuncionario || 'N/D'})</p>` 
-                  : ''
-              }
-              ${p.idfuncao ? `<p><strong>ID da Função:</strong> ${p.idfuncao}</p>` : ''}
-              ${p.nome_evento ? `<p><strong>Evento:</strong> ${escapeHTML(p.nome_evento)}</p>` : ''}
-            </div>
-
-            <hr class="mt-2 mb-2">
-            
-            <p><strong>Nº Orçamento:</strong> ${p.idorcamento || p.nrorcamento || 'N/D'}</p>
-            <p><strong>Status:</strong> ${p.status_aditivo || p.status || status}</p>
-            <p><strong>Solicitante:</strong> ${escapeHTML(p.nome_usuario_solicitante || 'N/D')}</p>
-            <p><strong>Justificativa:</strong> ${escapeHTML(p.justificativa || 'N/D')}</p>
-        `;
-
-        console.log(`✅ Gerando item de acordeão para pedido ${index}:`, { titulo, detalhesHTML });
-
-        const item = document.createElement('div');
-        item.className = 'accordion-item';
-        
+        const item = document.createElement("div");
+        item.className = "accordion-item";
         item.innerHTML = `
-            <div class="accordion-header ${tipoCor}"> 
-                <i class="${tipoIcone}"></i>
-                <span>${titulo}</span>
-                <i class="fa fa-chevron-down"></i>
+            <div class="accordion-orc-header">
+                <div class="header-main">
+                    <div class="orc-header-info">
+                        <label>Status:</label>
+                        <span class="orc-badge status-${orc.status.toLowerCase()}">${orc.status}</span>
+                    </div>
+                    <div class="orc-header-info">
+                        <label>N Orçamento:</label>
+                        <strong>#${orc.nrorcamento}</strong> 
+                    </div>
+                    <div class="orc-header-info">
+                        <label>Evento:</label>
+                        <strong>${orc.nome_evento || ''}</strong>
+                    </div>
+                </div>
+                <div class="header-sub">
+                    <label>Nomenclatura:</label>
+                    <small>${orc.nomenclatura || ''}</small>
+                </div>
             </div>
-            <div id="${collapseId}" class="accordion-content">
-                <div class="accordion-body">
-                    ${detalhesHTML}
+            <div class="accordion-content">
+                <div class="accordion-orc-body">
+                    <div class="periodo-container">
+                        <p><strong><i class="fa fa-calendar-check"></i> Período Total:</strong></p>
+                        <p class="data-range">${dataInicio} ➔ ${dataFim}</p>
+                    </div>
+                    <p><strong>Verba de Contratação:</strong> R$ ${parseFloat(orc.totgeralcto || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                    <button class="btn-detalhes-orcamento" data-nrorcamento="${orc.nrorcamento}">Ver Detalhes do Orçamento</button>
                 </div>
             </div>
         `;
-        
-        container.appendChild(item);
-    });
 
-    console.log(`✅ Elementos anexados. Total de filhos no container: ${container.children.length}`);
+        item.querySelector(".accordion-orc-header").onclick = () => item.classList.toggle("active");
 
-    container.addEventListener('click', function(event) {
-        
-        const header = event.target.closest('.accordion-header');
-        
-        if (!header) return; // Não foi um clique no cabeçalho
+        // Lógica de abertura com validação
+        item.querySelector(".btn-detalhes-orcamento").onclick = async (e) => {
+            const nrOrcamento = e.target.getAttribute("data-nrorcamento");
+            
+            // 1. Verificar se o modal já existe no DOM (pode estar apenas escondido)
+            let modalOrcamento = document.getElementById("modalOrcamentos"); // Ajuste o ID conforme seu HTML
+            const linkModal = document.querySelector('.abrir-modal[data-modulo="Orcamentos"]');
 
-        event.preventDefault(); // Garante que nenhum link ou framework interfira
-        
-        const item = header.closest('.accordion-item');
-        
-        if (!item) return; 
-        
-        console.log(`✅✅✅ SUCESSO! CLIQUE DETECTADO. Aplicando .active em:`, item); 
+            console.log("🟢 Iniciando abertura do orçamento:", nrOrcamento);
 
-        // 1. Toggle da classe 'active' no elemento PAI
-        item.classList.toggle('active');
-        
-        // 2. Toggle da classe 'active' no header (para seta)
-        header.classList.toggle('active'); 
-        
-        // 3. Fechar outros itens (opcional)
-        container.querySelectorAll('.accordion-item').forEach(otherItem => {
-            if (otherItem !== item && otherItem.classList.contains('active')) {
-                otherItem.classList.remove('active');
-                const otherHeader = otherItem.querySelector('.accordion-header');
-                if(otherHeader) otherHeader.classList.remove('active');
+            if (!linkModal) {
+                console.error("❌ Link de ativação do modal não encontrado.");
+                return;
             }
-        });
+
+            // 2. Disparar abertura (Simula o clique no menu lateral)
+            linkModal.click();
+
+            // 3. Função de verificação recursiva (Polling)
+            // Em vez de um timeout fixo, vamos checar se o input apareceu
+            let tentativas = 0;
+            const maxTentativas = 20; // 2 segundos (100ms * 20)
+
+            const verificarModalCarregado = setInterval(async () => {
+                const inputNr = document.getElementById("nrOrcamento");
+                tentativas++;
+
+                if (inputNr) {
+                    clearInterval(verificarModalCarregado);
+                    console.log("✅ Modal carregado e input encontrado na tentativa:", tentativas);
+                    
+                    // Preencher e disparar Enter
+                    inputNr.value = nrOrcamento;
+                    const enterEvent = new KeyboardEvent('keydown', {
+                        key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true
+                    });
+                    inputNr.dispatchEvent(enterEvent);
+
+                    // Chamar preenchimento detalhado
+                    try {
+                        const orcDet = await fetchComToken(`orcamentos?nrOrcamento=${nrOrcamento}`);
+                        const moduloOrcamento = await import('./Orcamentos.js');
+                        moduloOrcamento.preencherFormularioComOrcamento(orcDet);
+                    } catch (err) {
+                        console.error("❌ Erro no preenchimento detalhado:", err);
+                    }
+                } else if (tentativas >= maxTentativas) {
+                    clearInterval(verificarModalCarregado);
+                    console.warn("⚠️ O modal demorou muito para abrir ou o input não existe.");
+                }
+            }, 100);
+        };
+
+        grid.appendChild(item);
     });
-    // Não marque o container se você for executar renderizarPedidosorc apenas uma vez por aba.
-    // Se for executada múltiplas vezes, o listener será duplicado, mas é o preço pela certeza do clique.
+
+    container.appendChild(grid);
+}
+                    //  <hr class="orcamento-hr">
+async function carregarDetalhesOrcamentos(conteudoGeral) {
+    conteudoGeral.innerHTML = `<p class="mt-3">Buscando orçamentos...</p>`;
+    const queryParams = construirParametrosOrcamentos();
+    try {
+        const idEmpresa = getIdEmpresa();
+        const orcamentos = await fetchComToken(`/main/orcamentos${queryParams}`, { headers: { idempresa: idEmpresa } });
+        renderizarListaOrcamentos(conteudoGeral, orcamentos);
+    } catch (error) {
+        conteudoGeral.innerHTML = `<p class="erro">Erro ao carregar dados.</p>`;
+    }
 }
 
-document.addEventListener('click', function(event) {
-    const header = event.target.closest('.accordion-header');
-    if (header) {
-        console.log(`🌟 CLIQUE NO ACORDEÃO DETECTADO PELO DOCUMENT! O PROBLEMA É A EXECUÇÃO DO SEU LISTENER.`);
-        // Remove este listener temporário após o teste
-        // document.removeEventListener('click', arguments.callee); 
-    }
-});
-
-// Seu Listener de Evento (sem modificação)
 document.getElementById("cardContainerOrcamentos").addEventListener("click", async function() {
     const painel = document.getElementById("painelDetalhes");
     if (!painel) return;
     
-    painel.innerHTML = ""; // Limpa o painel anterior
-
+    painel.innerHTML = ""; 
     const container = document.createElement("div");
     container.id = "orc-container";
-    container.className = "orc-container";
+    container.className = "orc-container venc-container"; 
 
     const header = document.createElement("div");
     header.className = "orcamento-header";
+    header.innerHTML = `<button id="btnVoltarorc" class="btn-voltar">←</button><h2 class="title-orc">Gestão de Orçamentos</h2>`;
 
-    const btnVoltar = document.createElement("button"); 
-    btnVoltar.id = "btnVoltarorc";
-    btnVoltar.className = "btn-voltar";
-    btnVoltar.textContent = "←";
-
-    const titulo = document.createElement("h2");
-    titulo.className = "title-orc";
-    titulo.textContent = "Pedidos Aprovados para Orçamento"; 
-
-    header.appendChild(btnVoltar);
-    header.appendChild(titulo);
-    container.appendChild(header);
-    
     const conteudoGeral = document.createElement("div");
     conteudoGeral.className = "conteudo-geral"; 
-    
-    container.appendChild(conteudoGeral);
 
+    container.appendChild(header);
+    container.appendChild(criarFiltrosOrcamentoCompletos(conteudoGeral));
+    container.appendChild(conteudoGeral);
     painel.appendChild(container);
     
-    // Adiciona o listener para o botão de voltar (Fecha o painel de detalhes)
-    btnVoltar.addEventListener('click', () => {
-        painel.innerHTML = ""; // Volta para a tela anterior
-    });
-    
-    // Chama o novo fluxo para mostrar os aprovados
-    await mostrarOrcamentosAprovados(conteudoGeral);
+    document.getElementById("btnVoltarorc").onclick = () => painel.innerHTML = ""; 
+
+    carregarDetalhesOrcamentos(conteudoGeral);
 });
+
+// function renderizarEstruturaAbasOrcamentos(container, dadosExtra, dadosAdic) {
+//     container.innerHTML = `
+//         <div class="tabs-container-wrapper">
+//             <div class="abas-principais">
+//                 <button class="aba main-tab-btn ativa" data-categoria="extra">
+//                     Extra Bonificado (${dadosExtra.length})
+//                 </button>
+//                 <button class="aba main-tab-btn" data-categoria="adicional">
+//                     Adicional (${dadosAdic.length})
+//                 </button>
+//             </div>
+//             <div id="orc-tab-content-render" class="painel-tabs ativo" style="display: flex; flex-direction: column;"></div>
+//         </div>
+//     `;
+
+//     container.querySelectorAll('.main-tab-btn').forEach(btn => {
+//         btn.addEventListener('click', function() {
+//             container.querySelectorAll('.main-tab-btn').forEach(b => b.classList.remove('ativa'));
+//             this.classList.add('ativa');
+            
+//             const cat = this.getAttribute('data-categoria');
+//             const lista = (cat === 'extra') ? dadosExtra : dadosAdic;
+//             const statusAtual = document.querySelector("input[name='statusOrc']:checked")?.value;
+            
+//             // Chama sua função original de renderização (que está comentada no seu código)
+//             if (typeof renderizarPedidosorc === "function") {
+//                 renderizarPedidosorc(lista, "orc-tab-content-render", cat, statusAtual, false);
+//             }
+//         });
+//     });
+
+//     // Clique inicial para carregar a primeira aba
+//     container.querySelector('.main-tab-btn.ativa').click();
+// }
+
+// let OrcamentosExtraBonificadoUnificados = [];
+// let OrcamentosAdicionaisUnificados = [];
+
+// /**
+//  * Busca a lista de orçamentos Aprovados - Extra Bonificado.
+//  * ✅ CORREÇÃO DE ROBUSTEZ: Adiciona 'headers' explicitamente para garantir o idempresa.
+//  */
+// async function buscarOrcamentosExtraBonificado() {
+//     const URL_EXTRA = '/main/extra-bonificado';
+//     const options = { headers: { idempresa: getIdEmpresa() } }; 
+    
+//     try {
+//         // ✅ CORREÇÃO: fetchComToken retorna o JSON, então chame de 'dados'
+//         const dados = await fetchComToken(URL_EXTRA, options); 
+        
+//         console.log("Dados Extra Bonificado:", dados);
+//         // Garante que a função retorna um array, mesmo que o JSON retornado seja nulo ou não seja um array
+//         return Array.isArray(dados) ? dados : []; 
+        
+//     } catch (error) {
+//         // O erro já foi capturado e logado pelo fetchComToken se for falha HTTP.
+//         // Se a requisição falhar totalmente, o catch captura e retorna [].
+//         console.error("Falha ao buscar Extra Bonificado:", error);
+//         return []; 
+//     }
+// }
+
+// /**
+//  * Busca a lista de orçamentos Aprovados - Adicionais.
+//  * ✅ CORREÇÃO DE ROBUSTEZ: Adiciona 'headers' explicitamente para garantir o idempresa.
+//  */
+// async function buscarOrcamentosAdicionais() {
+//     const URL_ADICIONAL = '/main/adicionais';
+//     const options = { headers: { idempresa: getIdEmpresa() } };
+    
+//     try {
+//         // ✅ CORREÇÃO: fetchComToken retorna o JSON, então chame de 'dados'
+//         const dados = await fetchComToken(URL_ADICIONAL, options); 
+
+        
+//         console.log("Dados Adicionais:", dados);
+//         // Garante que a função retorna um array
+//         return Array.isArray(dados) ? dados : []; 
+        
+//     } catch (error) {
+//         console.error("Falha ao buscar Adicionais:", error);
+//         return []; 
+//     }
+// }
+
+// // Sua função utilitária (sem modificação)
+// function formatarTitulo(camelCase) {
+//     let result = camelCase.replace('status', '').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+//     return result.split(' ').map(word => 
+//         word.charAt(0).toUpperCase() + word.slice(1)
+//     ).join(' ');
+// }
+
+// // Sua função principal (sem modificação)
+// async function mostrarOrcamentosAprovados(conteudoGeral) {
+//     conteudoGeral.innerHTML = `<p>Carregando pedidos aprovados...</p>`;
+    
+//     try {
+//         // 1. CHAMA AS DUAS ROTAS EM PARALELO (CORREÇÃO APLICADA NAS FUNÇÕES DE BUSCA)
+//         const [pedidosExtraBonificado, pedidosAdicionais] = await Promise.all([
+//             buscarOrcamentosExtraBonificado(),
+//             buscarOrcamentosAdicionais()
+//         ]);
+        
+//         // 2. Armazena e Contagem
+//         // 🔹 CORREÇÃO A: Mapeia e define o tipo de solicitação explicitamente
+//         OrcamentosExtraBonificadoUnificados = pedidosExtraBonificado.map(p => ({
+//             ...p,
+//             categoriaSolicitacao: 'Extra Bonificado' // Define o tipo aqui
+//         }));
+        
+//         // 🔹 CORREÇÃO A: Mapeia e define o tipo de solicitação explicitamente
+//         OrcamentosAdicionaisUnificados = pedidosAdicionais.map(p => ({
+//             ...p,
+//             categoriaSolicitacao: 'Adicional' // Define o tipo aqui
+//         }));
+        
+//         const countExtraBonificado = OrcamentosExtraBonificadoUnificados.length;
+//         const countAdicionais = OrcamentosAdicionaisUnificados.length;
+        
+//         const statusFixo = 'Autorizado'; 
+
+//         // 3. Cria a estrutura de Abas Principais
+//         conteudoGeral.innerHTML = `
+//             <div class="tabs-container-wrapper">
+//                 <div class="abas-principais">
+//                     <button class="aba main-tab-btn ativa" 
+//                         data-tab-content="tab-content-extra" data-categoria="extra">
+//                         Extra Bonificado (${countExtraBonificado})
+//                     </button>
+//                     <button class="aba main-tab-btn" 
+//                         data-tab-content="tab-content-adicional" data-categoria="adicional">
+//                         Adicional (${countAdicionais})
+//                     </button>
+//                 </div>
+                
+//                 <div id="tab-content-extra" class="painel-tabs ativo" style="display: flex;"></div>
+//                 <div id="tab-content-adicional" class="painel-tabs desativado" style="display: none;"></div>
+//             </div>
+//         `;
+
+//         // 4. Adiciona os Listeners
+//         document.querySelectorAll('.abas-principais .main-tab-btn').forEach(button => {
+//             button.addEventListener('click', function() {
+//                 const targetId = this.getAttribute('data-tab-content');
+//                 const categoria = this.getAttribute('data-categoria');
+                
+//                 // Gerencia classes da aba
+//                 document.querySelectorAll('.abas-principais .main-tab-btn').forEach(btn => btn.classList.remove('ativa'));
+//                 this.classList.add('ativa');
+                
+//                 // Gerencia visibilidade dos painéis
+//                 document.querySelectorAll('.painel-tabs').forEach(content => {
+//                     content.style.display = 'none';
+//                 });
+//                 const targetContent = document.getElementById(targetId);
+//                 targetContent.style.display = 'flex'; 
+                
+//                 // Seleciona a lista correta
+//                 const listaPedidos = categoria === 'extra' 
+//                     ? OrcamentosExtraBonificadoUnificados 
+//                     : OrcamentosAdicionaisUnificados;
+                
+//                 // Renderiza o conteúdo
+//                 renderizarPedidosorc(listaPedidos, targetId, categoria, statusFixo, true);
+//             });
+//         });
+
+//         // 5. Simula o clique inicial
+//         const btnInicial = conteudoGeral.querySelector('.main-tab-btn.ativa');
+//         if (btnInicial) {
+//             btnInicial.click(); 
+//         }
+//     } catch (error) {
+//         console.error("Erro ao carregar dados de orçamento:", error);
+//         conteudoGeral.innerHTML = `<p class="erro">Erro ao carregar pedidos: ${error.message || 'Falha na comunicação com o servidor.'}</p>`;
+//     }
+// }
+
+// // Sua função de renderização (sem modificação)
+// function renderizarPedidosorc(listaPedidos, containerId, categoria, status, isStatusFixo) {
+//     console.log(`Renderizando pedidos para categoria: ${categoria}, status: ${status}, isStatusFixo: ${isStatusFixo}`);
+//     const container = document.getElementById(containerId);
+//     if (!container) return;
+    
+//     // Helper function para escapar HTML
+//     const escapeHTML = (str) => {
+//         if (typeof str !== 'string') return str || '';
+//         return str.replace(/[&<>"']/g, function(m) {
+//             return ({
+//                 '&': '&amp;',
+//                 '<': '&lt;',
+//                 '>': '&gt;',
+//                 '"': '&quot;',
+//                 "'": '&#39;'
+//             }[m]);
+//         });
+//     };
+    
+//     // 🛑 LIMPA O CONTAINER
+//     container.innerHTML = ''; 
+
+//     const pedidosFiltrados = listaPedidos;
+//     if (pedidosFiltrados.length === 0) {
+//         container.innerHTML = `<p class="mt-3">Não há pedidos autorizados nesta categoria.</p>`;
+//     }
+
+//     // GERAÇÃO DO HTML (Usando a técnica robusta de appendChild)
+//     pedidosFiltrados.forEach((p, index) => {
+
+//       console.log(`⏳ Iterando pedido ${index} para categoria: ${categoria}`, p);
+//         // Variáveis de Exibição
+//         const nomeTipoExibicao = escapeHTML(p.categoriaSolicitacao || p.tiposolicitacao || 'Orçamento Complementar'); 
+//         const tipoInterno = escapeHTML(p.tiposolicitacao || 'N/D');
+//         const nomePrincipal = escapeHTML(p.nome_funcionario_afetado || p.nome_evento || `Orçamento ${p.nrdorcamento}` || 'N/D');       
+//         const titulo = `${nomeTipoExibicao} - ${nomePrincipal}`; 
+//         const tipoCor = 'aditivo-extra';
+//         const tipoIcone = 'fa fa-plus-circle';
+//         const collapseId = `collapse-${containerId}-${index}`;
+
+//         // Detalhes (HTML interno) - APLICANDO escapeHTML EM TODOS OS CAMPOS DE DADOS
+//         const detalhesHTML = `
+//             <div class= "categoria">
+//               <p><strong>Categoria:</strong> ${nomeTipoExibicao}</p>
+//               <p><strong>Tipo Interno:</strong> ${tipoInterno}</p>
+//             </div>  
+            
+//             <hr class="mt-2 mb-2">
+
+//             <div class= "FuncionarioEvento">
+//               ${p.nome_funcionario_afetado 
+//                   ? `<p><strong>Funcionário Afetado:</strong> ${escapeHTML(p.nome_funcionario_afetado)} (ID: ${p.idfuncionario || 'N/D'})</p>` 
+//                   : ''
+//               }
+//               ${p.idfuncao ? `<p><strong>ID da Função:</strong> ${p.idfuncao}</p>` : ''}
+//               ${p.nome_evento ? `<p><strong>Evento:</strong> ${escapeHTML(p.nome_evento)}</p>` : ''}
+//             </div>
+
+//             <hr class="mt-2 mb-2">
+            
+//             <p><strong>Nº Orçamento:</strong> ${p.idorcamento || p.nrorcamento || 'N/D'}</p>
+//             <p><strong>Status:</strong> ${p.status_aditivo || p.status || status}</p>
+//             <p><strong>Solicitante:</strong> ${escapeHTML(p.nome_usuario_solicitante || 'N/D')}</p>
+//             <p><strong>Justificativa:</strong> ${escapeHTML(p.justificativa || 'N/D')}</p>
+//         `;
+
+//         console.log(`✅ Gerando item de acordeão para pedido ${index}:`, { titulo, detalhesHTML });
+
+//         const item = document.createElement('div');
+//         item.className = 'accordion-item';
+        
+//         item.innerHTML = `
+//             <div class="accordion-header ${tipoCor}"> 
+//                 <i class="${tipoIcone}"></i>
+//                 <span>${titulo}</span>
+//                 <i class="fa fa-chevron-down"></i>
+//             </div>
+//             <div id="${collapseId}" class="accordion-content">
+//                 <div class="accordion-body">
+//                     ${detalhesHTML}
+//                 </div>
+//             </div>
+//         `;
+        
+//         container.appendChild(item);
+//     });
+
+//     console.log(`✅ Elementos anexados. Total de filhos no container: ${container.children.length}`);
+
+//     container.addEventListener('click', function(event) {
+        
+//         const header = event.target.closest('.accordion-header');
+        
+//         if (!header) return; // Não foi um clique no cabeçalho
+
+//         event.preventDefault(); // Garante que nenhum link ou framework interfira
+        
+//         const item = header.closest('.accordion-item');
+        
+//         if (!item) return; 
+        
+//         console.log(`✅✅✅ SUCESSO! CLIQUE DETECTADO. Aplicando .active em:`, item); 
+
+//         // 1. Toggle da classe 'active' no elemento PAI
+//         item.classList.toggle('active');
+        
+//         // 2. Toggle da classe 'active' no header (para seta)
+//         header.classList.toggle('active'); 
+        
+//         // 3. Fechar outros itens (opcional)
+//         container.querySelectorAll('.accordion-item').forEach(otherItem => {
+//             if (otherItem !== item && otherItem.classList.contains('active')) {
+//                 otherItem.classList.remove('active');
+//                 const otherHeader = otherItem.querySelector('.accordion-header');
+//                 if(otherHeader) otherHeader.classList.remove('active');
+//             }
+//         });
+//     });
+//     // Não marque o container se você for executar renderizarPedidosorc apenas uma vez por aba.
+//     // Se for executada múltiplas vezes, o listener será duplicado, mas é o preço pela certeza do clique.
+// }
+
+// document.addEventListener('click', function(event) {
+//     const header = event.target.closest('.accordion-header');
+//     if (header) {
+//         console.log(`🌟 CLIQUE NO ACORDEÃO DETECTADO PELO DOCUMENT! O PROBLEMA É A EXECUÇÃO DO SEU LISTENER.`);
+//         // Remove este listener temporário após o teste
+//         // document.removeEventListener('click', arguments.callee); 
+//     }
+// });
+
+// Seu Listener de Evento (sem modificação)
 
 async function atualizarResumo() {
   const dadosResumo = await buscarResumo();
@@ -4797,6 +5008,16 @@ function formatarMoeda(valor) {
     });
 }
 
+function formatarStatusFront(status) {
+    if (!status || status === 'Pendente') return "Pendente";
+    if (status === "Pago") return "Pago 100%";
+    if (status.startsWith("Pago") && !status.includes("%")) {
+        const valor = status.replace("Pago", "");
+        return valor ? `Pago ${valor}%` : "Pago 100%";
+    }
+    return status;
+}
+
 async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) { 
     // Segurança: Se o container principal não existir, interrompe a função
     if (!conteudoGeral) return;
@@ -4893,10 +5114,11 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                                 </tr>
                             </thead>
                             <tbody>
-                               ${evento.funcionarios?.map(f => {
-                                    const statusCache = f.statuspgto || 'Pendente';
-                                    const statusAjuda = f.statuspgtoajdcto || 'Pendente';
+                            ${evento.funcionarios?.map(f => {
+                                    const statusCache = formatarStatusFront(f.statuspgto);
+                                    const statusAjuda = formatarStatusFront(f.statuspgtoajdcto);
                                     
+                                    // As classes CSS também devem usar o status formatado para manter a cor correta
                                     const classeCache = statusCache.toLowerCase().replace(/\s+/g, '-').replace('%', '');
                                     const classeAjuda = statusAjuda.toLowerCase().replace(/\s+/g, '-').replace('%', '');
 

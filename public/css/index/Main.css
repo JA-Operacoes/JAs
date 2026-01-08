@@ -217,7 +217,7 @@ select#selectAno {
 }
 /* ========================================== */
 
-/* ===================== Orcamentos ===================== */
+/*==============  ORÇAMENTOS  ============== */
 div#orc-container{
   width: 100%;
   height: 100%;
@@ -388,6 +388,85 @@ button#btnVoltarorc {
     display: flex;
     border-top: none;
 }
+/* ORÇAMENTOS GRID */
+.orcamentos-grid.mt-3 {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.accordion-orc-header {
+    width: 100%;
+    padding: 15px 20px;
+    background-color: #f8f8f8;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 1.1em;
+    font-weight: 600;
+    border-bottom: 1px solid #eee;
+}
+
+.accordion-orc-header:hover {
+    background-color: var(--hover-color);
+    color: var(--font-color);
+    transition: all 0.3s ease;
+}
+
+.orc-header-info {
+    margin: 0 10px;
+    font-size: medium;
+}
+
+.header-sub {
+    font-size: medium;
+}
+
+.accordion-item.active .accordion-orc-body {
+    display: flex !important;
+    flex-direction: row;
+    width: 100%;
+    justify-content: space-between;
+}
+
+.accordion-item.active
+.periodo-container{
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.orcamento-hr {
+    width: 450px;
+    display: flex;
+    justify-content: space-between;
+    margin: 5px 0 0 233px;
+}
+
+button.btn-detalhes-orcamento {
+    display: flex;
+    border-radius: 10px;
+    padding: 5px;
+    background: var(--primary-color);
+    color: var(--font-color);
+    border: none;
+}
+
+button.btn-detalhes-orcamento:hover {
+    background: var(--hover-color);
+    color: var(--font-color);
+    transition: all 0.3s ease;
+}
+
+.header-main {
+    display: flex;
+}
+
+
+/* ====================================== */
 
 
 
@@ -1587,6 +1666,7 @@ div#calendarioVertical {
   gap: 15px;
   width: 100%;
   overflow-y: auto;
+  scrollbar-width: thin;
   max-height: 500px;
   height: 100%;
   align-items: flex-start;
@@ -2491,6 +2571,9 @@ body.dark .indicador-evento {
 }
 
 /* -----FIM VENCIMENTOS----- */
+
+
+
 
 
 /*--------------------- Scrool-------------------------*/

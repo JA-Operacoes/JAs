@@ -54,7 +54,8 @@ if (typeof window.clienteOriginal === "undefined") {
         estado: "",
         pais: "",
         ativo: "",
-        tpcliente: ""
+        tpcliente: "",
+        responsavelContrato: ""
     };
 }
 
@@ -133,7 +134,8 @@ const campos = {
         celContato: "#celContato",
         emailContato: "#emailContato",
         ativo: "#ativo",
-        tpcliente: "#tpcliente"
+        tpcliente: "#tpcliente",
+        responsavelContrato: "#responsavelContrato"
 };
 
 const getCampo = (key) => document.querySelector(campos[key]);
@@ -180,7 +182,8 @@ const preencherFormulario = (cliente) => {
         estado: cliente.estado || "",
         pais: cliente.pais || "",
         ativo: cliente.ativo || false,
-        tpcliente: cliente.tpcliente || ""
+        tpcliente: cliente.tpcliente || "",
+        responsavelContrato: cliente.responsavelcontrato || ""
     };
 
     console.log("Cliente original CarregarCliente:", window.clienteOriginal);
@@ -216,6 +219,7 @@ const obterDadosFormulario = () => {
         nmContato: valor("nmContato").toUpperCase(),
         celContato: valor("celContato").replace(/\D/g, ''),
         emailContato: valor("emailContato"),
+        responsavelContrato: valor("responsavelContrato").toUpperCase(),
         cep: valor("cep").replace(/\D/g, ''),
         rua: valor("rua").toUpperCase(),
         numero: valor("numero"),
@@ -474,7 +478,8 @@ function carregarClientes() {
         estado: "",
         pais: "",
         ativo: "",
-        tpcliente: ""
+        tpcliente: "",
+        responsavelContrato: ""
     };
 
 
@@ -641,6 +646,7 @@ async function carregarClientesNmFantasia(desc, elementoAtual) {
         maskCelContato.value = cliente.celcontato || '';
         document.querySelector("#nmContato").value = cliente.nmcontato || "";
         document.querySelector("#emailContato").value = cliente.emailcontato || "";
+        document.querySelector("#responsavelContrato").value = cliente.responsavelcontrato || "";
         maskCEP.value = cliente.cep || '';
         document.querySelector("#rua").value = cliente.rua || "";
         document.querySelector("#numero").value = cliente.numero || "";
@@ -718,7 +724,8 @@ function limparClienteOriginal() {
         estado: "",
         pais: "",
         ativo: "",
-        tpcliente: ""
+        tpcliente: "",
+        responsavelContrato: ""
     };
 }
 
