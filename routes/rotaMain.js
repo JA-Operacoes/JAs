@@ -845,7 +845,7 @@ router.get("/ListarFuncionarios", async (req, res) => {
 
   try {
     const query = `
-    SELECT DISTINCT ON (se.idstaffevento)
+    SELECT 
         se.idstaffevento, 
         se.idfuncionario, 
         se.nmfuncionario AS nome, 
@@ -860,12 +860,13 @@ router.get("/ListarFuncionarios", async (req, res) => {
     WHERE se.idevento = $1 
       AND se.idequipe = $2 
       AND oe.idempresa = $3
+      -- GARANTE QUE O FUNCIONÁRIO TEM DATAS LANÇADAS PARA O ANO SELECIONADO (2026)
       AND EXISTS (
           SELECT 1 
           FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
           WHERE EXTRACT(YEAR FROM (d.dt)::date) = $4
       )
-    ORDER BY se.idstaffevento, se.nmfuncao, se.nmfuncionario;`;
+    ORDER BY se.nmfuncao, se.nmfuncionario;`;
 
     const { rows } = await pool.query(query, [idEvento, idEquipe, idempresa, anoFiltro]);
     res.status(200).json(rows);
