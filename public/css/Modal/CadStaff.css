@@ -631,7 +631,7 @@ input#statusMeiaDiaria.status-Rejeitado {
 /* Cor da Fonte para "Autorizado" (Verde) */
 .status-custom.statusStaff-Autorizado, .status-custom.statusStaff-autorizado {
     background-color: green;
-    color: white; /* Cor do seu CSS de fundo Autorizado #198754 */
+    color: white; /* Cor do seu CSS de fundo Autorizado #.198754 */
     font-weight: normal;
 }
 
@@ -688,32 +688,30 @@ input#statusMeiaDiaria.status-Rejeitado {
     border-color: #F44336 !important;
 }
 
-#statusPgto {
+#statusPgto, #statusPgtoAjudaCusto {
     /* Pode ter estilos base aqui, como borda, padding, etc. */
     font-weight: bold; /* Para destacar o texto */
 }
 
-/* Estilo para status Pendente (Vermelho) */
-#statusPgto.pendente {
-    color: red;
-}
 
-/* Estilo para status Pago (Verde) */
-#statusPgto.pago {
+
+/* Estilo para status Pagamento */
+#statusPgto.pago, #statusPgtoAjudaCusto.pago {
     color: green;
 }
 
-#statusPgto.pago50 {
-    color: #FFC107;
+#statusPgto.pago50, #statusPgtoAjudaCusto.pago50 {
+    color: #9f6a00;
+    /* background-color: white; */
 }
 
-#statusPgto.pendente {
+#statusPgto.pendente, #statusPgtoAjudaCusto.pendente {
     color: red;
 }
 
 /* Estilo para status Pago (Verde) */
-#statusPgto.suspenso {
-    color:rgb(80, 194, 255);
+#statusPgto.suspenso, #statusPgtoAjudaCusto.suspenso {
+    color:rgb(35 139 227);
 }
 
 .status-pgto {
@@ -904,7 +902,7 @@ select, input[type="text"] {
 
 .form2 input {
   height: 30px;
-  width: 250px;
+  width: 190px;
   font-size: 15px;
   padding: 0 10px;
   border: 1px solid #000;
