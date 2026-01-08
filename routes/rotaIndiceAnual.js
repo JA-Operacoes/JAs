@@ -245,149 +245,161 @@ CREATE TABLE IF NOT EXISTS indiceanualempresas (
 
 async function aplicarCalculo(idempresa, idexecutor, anoReferencia, idIndiceAnual) {
     
-    const client = await pool.connect(); // Assumindo uma conexão de banco de dados
+    const client = await pool.connect(); 
+    
+    console.log(`Iniciando aplicarCalculo: idempresa=${idempresa}, idexecutor=${idexecutor}, anoReferencia=${anoReferencia}, idIndiceAnual=${idIndiceAnual}`);
     
     // Fórmula de arredondamento TETO para o próximo 0.10: CEIL(Valor * 10) / 10
     const ceilToTenCents = (valor) => `CEIL((${valor})::numeric * 10) / 10`;
+    
+    // Função auxiliar para o cálculo de aumento com proteção contra NULL (COALESCE)
+    const ctoFormula = (coluna, percentual) => 
+        `(COALESCE(${coluna},0) + (COALESCE(${coluna},0) * COALESCE(${percentual},0)) / 100)`; 
 
     try {
-        // 1. INÍCIO DA TRANSAÇÃO
         await client.query('BEGIN');
 
         // =========================================================================
-        // PASSO 1: DESATIVA O LOTE (SNAPSHOT) ANTERIOR ATIVO
-        // (Se existir um, marca como revertido, permitindo que um novo seja criado)
+        // PASSO 1: DESATIVA OS LOTES (SNAPSHOT) ANTERIORES ATIVOS
         // =========================================================================
         console.log(`Desativando lotes ativos anteriores para Empresa ${idempresa}, Ano ${anoReferencia}...`);
         
-        const desativacaoQuery = `
-            UPDATE atualizacaoanual
-            SET 
-                revertido = NOW()
-            WHERE 
-                idempresa = $1 AND 
-                anoreferencia = $2 AND 
-                revertido IS NULL; -- Busca apenas o lote que ainda não foi revertido
-        `;
-        await client.query(desativacaoQuery, [idempresa, anoReferencia]);
+        const desativacaoFuncao = `UPDATE atualizacaoanual SET revertido = NOW() WHERE idempresa = $1 AND anoreferencia = $2 AND revertido IS NULL;`;
+        const desativacaoEquip = `UPDATE atualizacaoanualequipamento SET revertido = NOW() WHERE idempresa = $1 AND anoreferencia = $2 AND revertido IS NULL;`;
+        const desativacaoSupr = `UPDATE atualizacaoanualsuprimento SET revertido = NOW() WHERE idempresa = $1 AND anoreferencia = $2 AND revertido IS NULL;`;
+        
+        await client.query(desativacaoFuncao, [idempresa, anoReferencia]);
+        await client.query(desativacaoEquip, [idempresa, anoReferencia]);
+        await client.query(desativacaoSupr, [idempresa, anoReferencia]);
 
         // =========================================================================
-        // PASSO 2: CRIA NOVO LOTE (SNAPSHOT) COM OS VALORES ATUAIS
-        // (Salva os valores que ESTÃO AGORA em 'funcao' antes da aplicação do índice)
+        // PASSO 2: CRIA NOVOS LOTES (SNAPSHOTS) COM OS VALORES ATUAIS
         // =========================================================================
-        console.log(`Criando novo lote (snapshot) de valores originais...`);
+        console.log(`Criando novos snapshots de valores originais...`);
 
-        const novoLoteQuery = `
+        // Snapshot Funções
+        const snapshotFuncaoQuery = `
             INSERT INTO atualizacaoanual (
                 idempresa, idexecutor, idcategoriafuncao, idfuncao, anoreferencia, idindiceaplicado,
                 ctoseniororiginal, transpseniororiginal, ctoplenooriginal, ctojuniororiginal, 
-                ctobaseoriginal, transporteoriginal, alimentacaooriginal, vdaoriginal,
-                datasalvamento
+                ctobaseoriginal, transporteoriginal, alimentacaooriginal, vdaoriginal, datasalvamento
             )
-            SELECT 
-                $1 AS idempresa, 
-                $2 AS idexecutor,
-                cf.idcategoriafuncao, 
-                f.idfuncao, 
-                $3 AS anoreferencia, 
-                $4 AS idindiceaplicado,
-                -- Buscando campos de custo da CATEGORIAFUNCAO (cf)
-                cf.ctofuncaosenior AS ctoseniororiginal, 
-                cf.transpsenior AS transpseniororiginal, 
-                cf.ctofuncaopleno AS ctoplenooriginal, 
-                cf.ctofuncaojunior AS ctojuniororiginal, 
-                cf.ctofuncaobase AS ctobaseoriginal, 
-                cf.transporte AS transporteoriginal, 
-                cf.alimentacao AS alimentacaooriginal, 
-                
-                -- Buscando VDA da FUNCAO (f)
-                f.vdafuncao AS vdaoriginal,
-
-                NOW() AS datasalvamento
+            SELECT $1, $2, cf.idcategoriafuncao, f.idfuncao, $3, $4,
+                cf.ctofuncaosenior, cf.transpsenior, cf.ctofuncaopleno, cf.ctofuncaojunior, 
+                cf.ctofuncaobase, cf.transporte, cf.alimentacao, f.vdafuncao, NOW()
             FROM funcao f
             INNER JOIN categoriafuncao cf ON cf.idcategoriafuncao = f.idcategoriafuncao
             INNER JOIN categoriafuncaoempresas cfe ON cfe.idcategoriafuncao = cf.idcategoriafuncao
             WHERE cfe.idempresa = $1;
         `;
-        await client.query(novoLoteQuery, [idempresa, idexecutor, anoReferencia, idIndiceAnual]);
-        console.log(`Novo lote criado com sucesso.`);
+        console.log('Executando snapshotFuncaoQuery...');
+        const snapshotFuncaoRes = await client.query(snapshotFuncaoQuery, [idempresa, idexecutor, anoReferencia, idIndiceAnual]);
+        console.log('snapshotFuncao inserted rows:', snapshotFuncaoRes.rowCount);
+
+        // Snapshot Equipamentos
+        const snapshotEquipQuery = `
+            INSERT INTO atualizacaoanualequipamento (
+                idempresa, idexecutor, idequip, anoreferencia, idindiceaplicado,
+                ctoequiporiginal, vdaequiporiginal, datasalvamento
+            )
+            SELECT $1, $2, e.idequip, $3, $4, e.ctoequip, e.vdaequip, NOW()
+            FROM equipamentos e
+            INNER JOIN equipamentoempresas ee ON ee.idequip = e.idequip
+            WHERE ee.idempresa = $1;
+        `;
+        console.log('Executando snapshotEquipQuery...');
+        const snapshotEquipRes = await client.query(snapshotEquipQuery, [idempresa, idexecutor, anoReferencia, idIndiceAnual]);
+        console.log('snapshotEquip inserted rows:', snapshotEquipRes.rowCount);
+
+        // Snapshot Suprimentos
+        const snapshotSuprQuery = `
+            INSERT INTO atualizacaoanualsuprimento (
+                idempresa, idexecutor, idsup, anoreferencia, idindiceaplicado,
+                ctosuporiginal, vdasuporiginal, datasalvamento
+            )
+            SELECT $1, $2, s.idsup, $3, $4, s.ctosup, s.vdasup, NOW()
+            FROM suprimentos s
+            INNER JOIN suprimentoempresas se ON se.idsup = s.idsup
+            WHERE se.idempresa = $1;
+        `;
+        console.log('Executando snapshotSuprQuery...');
+        const snapshotSuprRes = await client.query(snapshotSuprQuery, [idempresa, idexecutor, anoReferencia, idIndiceAnual]);
+        console.log('snapshotSupr inserted rows:', snapshotSuprRes.rowCount);
 
         // =========================================================================
-        // PASSO 3: APLICA O ÍNDICE NA TABELA 'categoriafuncao'
-        // (Atualiza os valores da tabela principal com o novo cálculo)
+        // PASSO 3: APLICA O ÍNDICE NAS TABELAS PRINCIPAIS
         // =========================================================================
-        console.log(`Aplicando índice na tabela 'categoriafuncao' com arredondamento de 10 centavos...`);
-
-        // Função auxiliar para o cálculo de aumento
-        const ctoFormula = (coluna, percentual) => 
-            `(${coluna} + (${coluna} * ${percentual}) / 100)`;
-
-        // Aplicando a fórmula de arredondamento nos resultados dos cálculos
+        
+        // 3.1 UPDATE CategoriaFunção
         const aplicacaoCtoQuery = `
             UPDATE categoriafuncao cf
             SET 
-                -- Aplica o percentual CTO/VDA em todos os campos de custo e ARREDONDA
                 ctofuncaosenior = ${ceilToTenCents(ctoFormula('ctofuncaosenior', 'ia.percentctovda'))}, 
                 ctofuncaopleno = ${ceilToTenCents(ctoFormula('ctofuncaopleno', 'ia.percentctovda'))}, 
                 ctofuncaojunior = ${ceilToTenCents(ctoFormula('ctofuncaojunior', 'ia.percentctovda'))}, 
                 ctofuncaobase = ${ceilToTenCents(ctoFormula('ctofuncaobase', 'ia.percentctovda'))},
-                
-                -- Aplica os percentuais específicos em Transporte e Alimentação e ARREDONDA
                 transpsenior = ${ceilToTenCents(ctoFormula('cf.transpsenior', 'ia.percenttransporte'))}, 
                 transporte = ${ceilToTenCents(ctoFormula('cf.transporte', 'ia.percenttransporte'))}, 
                 alimentacao = ${ceilToTenCents(ctoFormula('cf.alimentacao', 'ia.percentalimentacao'))}
-
-            FROM categoriafuncaoempresas cfe
-            INNER JOIN indiceanual ia ON ia.idindice = $1
-            WHERE 
-                cfe.idempresa = $2 AND
-                cf.idcategoriafuncao = cfe.idcategoriafuncao;
+            FROM categoriafuncaoempresas cfe, indiceanual ia 
+            WHERE ia.idindice = $1 AND cfe.idempresa = $2 AND cf.idcategoriafuncao = cfe.idcategoriafuncao;
         `;
-        await client.query(aplicacaoCtoQuery, [idIndiceAnual, idempresa]);
+        console.log('Executando aplicacaoCtoQuery (Categoria Função)...');
+        const aplicacaoCtoRes = await client.query(aplicacaoCtoQuery, [idIndiceAnual, idempresa]);
+        console.log('aplicacaoCto affected rows:', aplicacaoCtoRes.rowCount);
 
-        console.log(`Aplicando índice na tabela 'funcao' (VDA) com arredondamento de 10 centavos...`);
-
-        // 2. UPDATE na tabela FUNCAO (VDA)
+        // 3.2 UPDATE Função (VDA)
         const aplicacaoVdaQuery = `
             UPDATE funcao f
-            SET 
-                vdafuncao = ${ceilToTenCents(ctoFormula('f.vdafuncao', 'ia.percentctovda'))}
-            FROM categoriafuncao cf -- JOIN necessário para conseguir filtrar pela empresa
-            INNER JOIN categoriafuncaoempresas cfe ON cfe.idcategoriafuncao = cf.idcategoriafuncao
-            INNER JOIN indiceanual ia ON ia.idindice = $1
-            WHERE 
-                cfe.idempresa = $2 AND
-                f.idcategoriafuncao = cf.idcategoriafuncao;
+            SET vdafuncao = ${ceilToTenCents(ctoFormula('f.vdafuncao', 'ia.percentctovda'))}
+            FROM categoriafuncaoempresas cfe, indiceanual ia 
+            WHERE ia.idindice = $1 AND cfe.idempresa = $2 AND f.idcategoriafuncao = cfe.idcategoriafuncao;
         `;
-        await client.query(aplicacaoVdaQuery, [idIndiceAnual, idempresa]);
-        
+        console.log('Executando aplicacaoVdaQuery (Função VDA)...');
+        const aplicacaoVdaRes = await client.query(aplicacaoVdaQuery, [idIndiceAnual, idempresa]);
+        console.log('aplicacaoVda affected rows:', aplicacaoVdaRes.rowCount);
+
+        // 3.3 UPDATE Equipamentos
+        const aplicacaoEquipQuery = `
+            UPDATE equipamentos e
+            SET 
+                ctoequip = ${ceilToTenCents(ctoFormula('e.ctoequip', 'ia.percentctovda'))},
+                vdaequip = ${ceilToTenCents(ctoFormula('e.vdaequip', 'ia.percentctovda'))}
+            FROM equipamentoempresas ee, indiceanual ia
+            WHERE ia.idindice = $1 AND ee.idempresa = $2 AND e.idequip = ee.idequip;
+        `;
+        console.log('Executando aplicacaoEquipQuery (Equipamentos)...');
+        const aplicacaoEquipRes = await client.query(aplicacaoEquipQuery, [idIndiceAnual, idempresa]);
+        console.log('aplicacaoEquip affected rows:', aplicacaoEquipRes.rowCount);
+
+        // 3.4 UPDATE Suprimentos
+        const aplicacaoSuprQuery = `
+            UPDATE suprimentos s
+            SET 
+                ctosup = ${ceilToTenCents(ctoFormula('s.ctosup', 'ia.percentctovda'))},
+                vdasup = ${ceilToTenCents(ctoFormula('s.vdasup', 'ia.percentctovda'))}
+            FROM suprimentoempresas se, indiceanual ia
+            WHERE ia.idindice = $1 AND se.idempresa = $2 AND s.idsup = se.idsup;
+        `;
+        console.log('Executando aplicacaoSuprQuery (Suprimentos)...');
+        const aplicacaoSuprRes = await client.query(aplicacaoSuprQuery, [idIndiceAnual, idempresa]);
+        console.log('aplicacaoSupr affected rows:', aplicacaoSuprRes.rowCount);
+
         // =========================================================================
         // PASSO 4: REGISTRA A DATA DE APLICAÇÃO NO ÍNDICE
-        // (Marca o índice como 'utilizado')
         // =========================================================================
-        console.log(`Registrando data de aplicação no índice anual...`);
+        console.log('Atualizando dataatualizacao no indiceanual...');
+        const updateIndiceRes = await client.query(`UPDATE indiceanual SET dataatualizacao = NOW() WHERE idindice = $1;`, [idIndiceAnual]);
+        console.log('indiceanual update affected rows:', updateIndiceRes.rowCount);
 
-        const indiceAtualizacaoQuery = `
-            UPDATE indiceanual
-            SET dataatualizacao = NOW()
-            WHERE idindice = $1;
-        `;
-        await client.query(indiceAtualizacaoQuery, [idIndiceAnual]);
-
-        // 5. FIM DA TRANSAÇÃO
         await client.query('COMMIT');
-        
-        console.log('Aplicação do índice concluída com sucesso!');
-        return { success: true, message: 'Índice aplicado e snapshot histórico criado com sucesso.' };
+        return { success: true, message: 'Índice aplicado em Funções, Equipamentos e Suprimentos com sucesso.' };
 
     } catch (error) {
-        // Se algo der errado, desfaz todas as operações acima
         await client.query('ROLLBACK');
         console.error('Erro ao aplicar o cálculo:', error);
-        return { success: false, message: 'Falha ao aplicar o índice. A operação foi desfeita.', error: error.message };
-
+        return { success: false, message: 'Falha ao aplicar o índice.', error: error.message };
     } finally {
-        // Libera a conexão do cliente
         client.release();
     }
 };
@@ -434,7 +446,7 @@ router.post("/:id/aplicar-calculo", verificarPermissao('IndiceAnual', 'alterar')
             return res.json({ message: resultado.message });
         } else {
             console.error("Erro na aplicação:", resultado.error);
-            return res.status(500).json({ message: resultado.message || "Erro desconhecido na aplicação do índice." });
+            return res.status(500).json({ message: resultado.message || "Erro desconhecido na aplicação do índice.", detalhes: resultado.error });
         }
     }
 );
@@ -548,6 +560,29 @@ router.post("/:id/desfazer-calculo", verificarPermissao('IndiceAnual', 'alterar'
                 [idIndiceLote] // Passa o ID do lote (ex: 1)
             );
 
+            console.log(`Aplicando índice na tabela 'equipamentos'...`);
+            await client.query(`
+                UPDATE equipamentos e
+                SET 
+                    ctoequip = aae.ctoequiporiginal,
+                    vdaequip = aae.vdaequiporiginal
+                FROM atualizacaoanualequipamento aae
+                WHERE e.idequip = aae.idequip 
+                AND aae.idindiceaplicado = $1
+            `, [idIndiceLote]);
+
+            // --- ATUALIZAÇÃO DE SUPRIMENTOS ---
+            console.log(`Aplicando índice na tabela 'suprimentos'...`);
+            await client.query(`
+                UPDATE suprimentos s
+                SET 
+                    ctosup = aas.ctosuporiginal,
+                    vdasup = aas.vdasuporiginal
+                FROM atualizacaoanualsuprimento aas
+                WHERE s.idsup = aas.idsup 
+                AND aas.idindiceaplicado = $1
+            `, [idIndiceLote]);
+
             // 5. MARCA TODO O LOTE ATIVO COMO REVERTIDO (Bulk Update pelo Lote ID)
             const resultReversao = await client.query(
                 `UPDATE atualizacaoanual 
@@ -586,108 +621,54 @@ router.post("/:id/desfazer-calculo", verificarPermissao('IndiceAnual', 'alterar'
 );
 
 
-router.get("/:id/relatorio-comparacao", verificarPermissao('IndiceAnual', 'pesquisar'),
-    async (req, res) => {
-        const idIndiceAnual = req.params.id;
-        const idempresa = req.idempresa;
-        
-        let client;
-        try {
-            client = await pool.connect();
+router.get("/:id/relatorio-comparacao", verificarPermissao('IndiceAnual', 'pesquisar'), async (req, res) => {
+    const idIndiceAnual = req.params.id;
+    const idempresa = req.idempresa;
+    let client;
+    try {
+        client = await pool.connect();
+        const indiceRes = await client.query(`SELECT ano, dataatualizacao, percentctovda FROM indiceanual WHERE idindice = $1`, [idIndiceAnual]);
+        const idx = indiceRes.rows[0];
 
-            // 1. OBTÉM O ANO DE REFERÊNCIA E O STATUS DE ATUALIZAÇÃO DO ÍNDICE
-            const indiceResult = await client.query(
-                `SELECT ano AS anoreferencia, 
-                        dataatualizacao, 
-                        percentctovda, 
-                        percentalimentacao, 
-                        percenttransporte 
-                 FROM indiceanual 
-                 WHERE idindice = $1`,
-                [idIndiceAnual]
-            );
-
-            if (indiceResult.rows.length === 0) {
-                return res.status(404).json({ message: "Índice Anual não encontrado." });
-            }
+        const reportQuery = `
+            -- Funções
+            SELECT f.descfuncao as item, 'Função' as categoria, aa.vdaoriginal as valor_original, f.vdafuncao as valor_atual
+            FROM atualizacaoanual aa
+            JOIN funcao f ON f.idfuncao = aa.idfuncao
+            WHERE aa.idindiceaplicado = $1 AND aa.idempresa = $2 AND aa.revertido IS NULL
             
-            // O JS acessa 'anoreferencia' graças ao alias acima
-            const indiceData = indiceResult.rows[0];
-            const anoReferencia = indiceData.anoreferencia; 
-            const dataAtualizacao = indiceData.dataatualizacao;
-          
-
-            // 2. DEFINE A CONDIÇÃO DO LOTE
-            let condicaoRevertido = 'NULL'; // Padrão para buscar o último lote revertido
+            UNION ALL
             
+            -- Equipamentos
+            SELECT e.descequip as item, 'Equipamento' as categoria, aae.vdaequiporiginal as valor_original, e.vdaequip as valor_atual
+            FROM atualizacaoanualequipamento aae
+            JOIN equipamentos e ON e.idequip = aae.idequip
+            WHERE aae.idindiceaplicado = $1 AND aae.idempresa = $2 AND aae.revertido IS NULL
             
-            const reportQuery = `
-                SELECT
-                    aa.idatualizacao, 
-                    f.descfuncao,
-                    cf.nmcategoriafuncao,
-                    
-                    -- VALORES ORIGINAIS (DO SNAPSHOT - Tabela atualizacaoanual)
-                    aa.ctobaseoriginal AS cto_base_original,
-                    aa.ctojuniororiginal AS cto_junior_original,
-                    aa.ctoplenooriginal AS cto_pleno_original,
-                    aa.ctoseniororiginal AS cto_senior_original,
-                    aa.vdaoriginal AS vda_original,
-                    aa.transporteoriginal AS transporte_original,
-                    aa.alimentacaooriginal AS alimentacao_original,
-                    
-                    -- VALORES ATUAIS (DA TABELA PRINCIPAL - Tabela funcao / categoriafuncao)
-                    cf_atual.ctofuncaobase AS cto_base_atual,
-                    cf_atual.ctofuncaojunior AS cto_junior_atual,
-                    cf_atual.ctofuncaopleno AS cto_pleno_atual,
-                    cf_atual.ctofuncaosenior AS cto_senior_atual,
-                    cf_atual.alimentacao AS alimentacao_atual,
-                    cf_atual.transporte AS transporte_atual,
-                    f_atual.vdafuncao AS vda_atual
-                   
-                    
-                FROM atualizacaoanual aa
-                INNER JOIN funcao f ON f.idfuncao = aa.idfuncao
-                INNER JOIN categoriafuncao cf ON cf.idcategoriafuncao = aa.idcategoriafuncao
+            UNION ALL
+            
+            -- Suprimentos
+            SELECT s.descsup as item, 'Suprimento' as categoria, aas.vdasuporiginal as valor_original, s.vdasup as valor_atual
+            FROM atualizacaoanualsuprimento aas
+            JOIN suprimentos s ON s.idsup = aas.idsup
+            WHERE aas.idindiceaplicado = $1 AND aas.idempresa = $2 AND aas.revertido IS NULL
+        `;
 
-                INNER JOIN categoriafuncao cf_atual ON cf_atual.idcategoriafuncao = aa.idcategoriafuncao
-                INNER JOIN funcao f_atual ON f_atual.idfuncao = aa.idfuncao
+        const result = await client.query(reportQuery, [idIndiceAnual, idempresa]);
 
-                WHERE 
-                    aa.anoreferencia = $1 
-                    AND aa.idempresa = $2 
-                    AND aa.revertido IS ${condicaoRevertido}
-                ORDER BY cf.nmcategoriafuncao, f.descfuncao
-            `.trim();
-
-            const result = await client.query(
-                reportQuery,
-                [anoReferencia, idempresa] 
-            );
-                        
-            if (result.rows.length === 0) {
-                return res.status(404).json({ message: "Nenhum dado de funções encontrado para o lote de comparação selecionado." });
-            }
-
-            //res.json(result.rows);
-            res.json({
-                indice: {
-                    anoReferencia: anoReferencia,
-                    dataAplicacao: dataAtualizacao, // O campo que você precisa
-                    percentctovda: indiceData.percentctovda,
-                    percentalimentacao: indiceData.percentalimentacao,
-                    percenttransporte: indiceData.percenttransporte
-                },
-                detalhes: result.rows
-            });
-
-        } catch (error) {
-            console.error("❌ Erro ao gerar relatório de comparação:", error);
-            res.status(500).json({ error: "Erro ao gerar relatório de comparação.", detalhes: error.message });
-        } finally {
-            if (client) client.release();
-        }
+        res.json({
+            indice: {
+                anoReferencia: idx.ano,
+                dataAplicacao: idx.dataatualizacao,
+                percentctovda: idx.percentctovda
+            },
+            detalhes: result.rows
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (client) client.release();
     }
-);
+});
 
 module.exports = router;
