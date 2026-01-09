@@ -1,12 +1,5 @@
 import { fetchComToken, aplicarTema } from '../utils/utils.js';
 
-// document.addEventListener("DOMContentLoaded", function () {
-//     const idempresa = localStorage.getItem("idempresa");
-//     if (idempresa) {
-//         let tema = idempresa == 1 ? "JA-Oper" : "ES";
-//         aplicarTema(tema);
-//     }
-// });
 
 document.addEventListener("DOMContentLoaded", function () {
     const idempresa = localStorage.getItem("idempresa");
@@ -32,7 +25,7 @@ let limparSuprimentoButtonListener = null;
 let enviarSuprimentoButtonListener = null;
 let pesquisarSuprimentoButtonListener = null;
 let selectSuprimentoChangeListener = null;
-let novoInputDescSupBlurListener = null; 
+let novoInputDescSupBlurListener = null; // Para o blur do novo input de descrição
 let novoInputDescSupInputListener = null;
 
 if (typeof window.SuprimentoOriginal === "undefined") {
@@ -44,11 +37,9 @@ if (typeof window.SuprimentoOriginal === "undefined") {
     };
 }
 
-
 function verificaSuprimento() {
 
     console.log("Carregando Suprimento...");
-    
     
     const botaoEnviar = document.querySelector("#Enviar");
     const botaoPesquisar = document.querySelector("#Pesquisar");
@@ -67,18 +58,17 @@ function verificaSuprimento() {
 
     });
 
-    botaoEnviar.addEventListener("click", async function (event) {
-        event.preventDefault(); // Previne o envio padrão do formulário
-
-        console.log("ENVIANDO DADOS DO Suprimento PELO Suprimento.JS", document);
+        
+    botaoEnviar.addEventListener("click", async (event) => {
+        event.preventDefault();
 
         const idSup = document.querySelector("#idSup").value.trim();
         const descSup = document.querySelector("#descSup").value.toUpperCase().trim();
         const vlrCusto = document.querySelector("#ctoSup").value;
         const vlrVenda = document.querySelector("#vdaSup").value;
-    
-        const custo = parseFloat(String(vlrCusto).replace(",", "."));
-        const venda = parseFloat(String(vlrVenda).replace(",", "."));
+
+        const custo = parseFloat(vlrCusto.replace(",", "."));
+        const venda = parseFloat(vlrVenda.replace(",", "."));
 
         // Permissões
         const temPermissaoCadastrar = temPermissao("Suprimentos", "cadastrar");
@@ -87,56 +77,40 @@ function verificaSuprimento() {
         const metodo = idSup ? "PUT" : "POST";
 
         if (!idSup && !temPermissaoCadastrar) {
-            return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novo suprimento.", "error");
+            return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos suprimentos.", "error");
         }
 
         if (idSup && !temPermissaoAlterar) {
             return Swal.fire("Acesso negado", "Você não tem permissão para alterar suprimentos.", "error");
         }
-    
+
         if (!descSup || !vlrCusto || !vlrVenda) {
-           
-            Swal.fire({
-                icon: 'warning',
-                title: 'Campos obrigatórios!',
-                text: 'Preencha todos os campos antes de enviar.',
-                confirmButtonText: 'Entendi'
-            });
-            return;
+            return Swal.fire("Campos obrigatórios!", "Preencha todos os campos antes de enviar.", "warning");
         }
-        console.log("Valores do Suprimento:", idSup, descSup, custo, venda);
-        console.log("Valores do Suprimento Original:", window.SuprimentoOriginal.idSup, window.SuprimentoOriginal.descSup, window.SuprimentoOriginal.vlrCusto, window.SuprimentoOriginal.vlrVenda);
-    
-        // Comparar com os valores originais
-        if (
-            parseInt(idSup) === parseInt(window.SuprimentoOriginal.idSup) && 
-            descSup === window.SuprimentoOriginal.descSup && 
-            Number(custo).toFixed(2) === Number(window.SuprimentoOriginal.vlrCusto).toFixed(2) &&
-            Number(venda).toFixed(2) === Number(window.SuprimentoOriginal.vlrVenda).toFixed(2)
-        ) {
-            console.log("Nenhuma alteração detectada.");
-            await Swal.fire({
-                icon: 'info',
-                title: 'Nenhuma alteração foi detectada!',
-                text: 'Faça alguma alteração antes de salvar.',
-                confirmButtonText: 'Entendi'
-            });
-            return;
-        }
-    
+
         const dados = { descSup, custo, venda };
+
+        // Verifica alterações
+        if (
+            idSup &&
+            parseInt(idSup) === parseInt(window.SuprimentoOriginal?.idSup) &&
+            descSup === window.SuprimentoOriginal?.descSup &&
+            Number(custo).toFixed(2) === Number(window.SuprimentoOriginal?.vlrCusto).toFixed(2) &&
+            Number(venda).toFixed(2) === Number(window.SuprimentoOriginal?.vlrVenda).toFixed(2)
+        ) {
+            return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
+        }
 
         const url = idSup
             ? `/suprimentos/${idSup}`
             : "/suprimentos";
-
 
         try {
             // Confirma alteração (PUT)
             if (metodo === "PUT") {
                 const { isConfirmed } = await Swal.fire({
                     title: "Deseja salvar as alterações?",
-                    text: "Você está prestes a atualizar os dados do Suprimentos.",
+                    text: "Você está prestes a atualizar os dados do s.",
                     icon: "question",
                     showCancelButton: true,
                     confirmButtonText: "Sim, salvar",
@@ -146,12 +120,10 @@ function verificaSuprimento() {
                 });
                 if (!isConfirmed) return;
             }
-            console.log("Enviando dados para o servidor:", dados, url, metodo);
+
             const respostaApi = await fetchComToken(url, {
                 method: metodo,
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dados)
             });            
 
@@ -160,89 +132,108 @@ function verificaSuprimento() {
 
         } catch (error) {
             console.error("Erro ao enviar dados:", error);
-            Swal.fire("Erro", error.message || "Erro ao salvar suprimento.", "error");
+            Swal.fire("Erro", error.message || "Erro ao salvar s.", "error");
         }
     });
 
-
     botaoPesquisar.addEventListener("click", async function (event) {
-        event.preventDefault();
-        limparCamposSuprimento();
-        
-        console.log("Pesquisando Suprimento...");
-        const temPermissaoPesquisar = temPermissao('Suprimentos', 'pesquisar');
-        if (!temPermissaoPesquisar) {
-            return Swal.fire("Acesso negado", "Você não tem permissão para pesquisar.", "warning");
-        }
+    event.preventDefault();
+    limparCamposSuprimento();
 
-        try {
-            const suprimentos = await fetchComToken("/suprimentos"); // ajuste a rota conforme sua API
-            
-            console.log("Suprimentos encontrados:", suprimentos);
+    console.log("Pesquisando Suprimento...");
 
-            const select = criarSelectSuprimento(suprimentos);
-            limparCamposSuprimento();
+    // Verifica permissão
+    const temPermissaoPesquisar = temPermissao("Suprimentos", "pesquisar");
 
-            const input = document.querySelector("#descSup");
-               
-            if (input && input.parentNode) {
-                input.parentNode.replaceChild(select, input);
-            }
-   
-            const label = document.querySelector('label[for="descSup"]');
-            if (label) {
-              label.style.display = "none"; // ou guarda o texto, se quiser restaurar exatamente o mesmo
-            }
-    
-            // Reativar o evento blur para o novo select
-            select.addEventListener("change", async function () {
-                const desc = this.value?.trim();
-               
-                if (!desc) {
-                    console.warn("Valor do select está vazio ou indefinido.");
-                    return;
-                }
+    if (!temPermissaoPesquisar) {
+        return Swal.fire(
+            "Acesso negado",
+            "Você não tem permissão para pesquisar suprimentos.",
+            "error"
+        );
+    }
 
-                await carregarSuprimentoDescricao(desc, this);
+    try {
+        const suprimentos = await fetchComToken("/suprimentos");
 
-                const novoInput = document.createElement("input");
-                novoInput.type = "text";
-                novoInput.id = "descSup";
-                novoInput.name = "descSup";
-                novoInput.required = true;
-                novoInput.className = "form";
-                novoInput.value = desc;
-            
-                novoInput.addEventListener("input", function() {
-                    this.value = this.value.toUpperCase(); // transforma o texto em maiúsculo à medida que o usuário digita
-                });
-
-                this.parentNode.replaceChild(novoInput, this);
-                adicionarEventoBlurSuprimento();
-               
-                const label = document.querySelector('label[for="descSup"]');
-                if (label) {
-                label.style.display = "block";
-                label.textContent = "Descrição do Suprimento"; // ou algum texto que você tenha guardado
-                }
-              
-                novoInput.addEventListener("blur", async function () {
-                    if (!this.value.trim()) return;
-                    await carregarSuprimentoDescricao(this.value, this);
-                });
- 
-         });
-    
-        } catch (error) {
-            console.error("Erro ao carregar Suprimentos:", error);
-            Swal.fire({
-                icon: 'error',
-                title: 'Erro',
-                text: 'Não foi possível carregar os suprimentos.',
+        if (!suprimentos || suprimentos.length === 0) {
+            return Swal.fire({
+                icon: 'info',
+                title: 'Nenhum suprimento cadastrado',
+                text: 'Não foi encontrado nenhum suprimento no sistema.',
                 confirmButtonText: 'Ok'
             });
         }
-    });
+
+        console.log("Suprimentos encontrados:", suprimentos);
+
+        const select = criarSelectSuprimento(suprimentos);
+        limparCamposSuprimento();
+
+        const input = document.querySelector("#descSup");
+
+        if (input && input.parentNode) {
+            input.parentNode.replaceChild(select, input);
+        }
+
+        const label = document.querySelector('label[for="descSup"]');
+        if (label) {
+            label.style.display = "none";
+        }
+
+        // Evento ao escolher um s
+        select.addEventListener("change", async function () {
+            const desc = this.value?.trim();
+
+            if (!desc) return;
+
+            await carregarSuprimentoDescricao(desc, this);
+
+            const novoInput = document.createElement("input");
+            novoInput.type = "text";
+            novoInput.id = "descSup";
+            novoInput.name = "descSup";
+            
+            // --- ESTAS LINHAS SÃO AS QUE ARRUMAM O VALID ---
+            novoInput.required = true; 
+            novoInput.setAttribute("placeholder", " "); // Ajuda o CSS a detectar conteúdo
+            novoInput.setAttribute("spellcheck", "false");
+            // ----------------------------------------------
+
+            novoInput.className = "form uppercase"; 
+            novoInput.value = desc;
+
+            novoInput.addEventListener("input", function () {
+                this.value = this.value.toUpperCase();
+            });
+
+            if (this.parentNode) {
+                this.parentNode.replaceChild(novoInput, this);
+            }
+
+            // REATIVA O LABEL
+            if (label) {
+                label.style.display = ""; // Remove o display manual para voltar ao absoluto do CSS
+                label.textContent = " Suprimento ";
+            }
+
+            // Adiciona o blur novamente
+            adicionarEventoBlurSuprimento();
+        });
+
+    } catch (error) {
+        console.error("Erro ao carregar Suprimentos:", error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Erro',
+            text: error.message || 'Não foi possível carregar os suprimentos.',
+            confirmButtonText: 'Ok'
+        });
+    }
+});
+
+    
+
 }
 
 function adicionarListenersAoInputDescSup(inputElement) {
@@ -254,18 +245,18 @@ function adicionarListenersAoInputDescSup(inputElement) {
         inputElement.removeEventListener("blur", novoInputDescSupBlurListener);
     }
 
-    novoInputDescSupInputListener = function () {
+    novoInputDescSupInputListener = function() {
         this.value = this.value.toUpperCase();
     };
     inputElement.addEventListener("input", novoInputDescSupInputListener);
 
-    novoInputDescSupBlurListener = async function () {
+    novoInputDescSupBlurListener = async function() {
         if (!this.value.trim()) return;
-        console.log("Campo descSup procurado (blur dinâmico):", this.value);
         await carregarSuprimentoDescricao(this.value, this);
     };
     inputElement.addEventListener("blur", novoInputDescSupBlurListener);
 }
+
 
 function resetarCampoDescSupParaInput() {
     const descSupCampo = document.getElementById("descSup");
@@ -330,18 +321,22 @@ function desinicializarSuprimentoModal() {
     // 2. Remover listeners do campo descSup (que pode ser input ou select)
     if (descSupElement) {
         if (descSupElement.tagName.toLowerCase() === "input") {
-            if (novoInputDescSupInputListener) { // Pode ser o listener do input dinâmico
+            if (descSupBlurListener) {
+                descSupElement.removeEventListener("blur", descSupBlurListener);
+                descSupBlurListener = null;
+                console.log("Listener de blur do descSup (input original) removido.");
+            }
+            if (novoInputDescSupInputListener) {
                 descSupElement.removeEventListener("input", novoInputDescSupInputListener);
                 novoInputDescSupInputListener = null;
-                console.log("Listener de input do descSup (input) removido.");
+                console.log("Listener de input do descSup (input dinâmico) removido.");
             }
-            if (novoInputDescSupBlurListener) { // Pode ser o listener do input dinâmico
+            if (novoInputDescSupBlurListener) {
                 descSupElement.removeEventListener("blur", novoInputDescSupBlurListener);
                 novoInputDescSupBlurListener = null;
-                console.log("Listener de blur do descSup (input) removido.");
+                console.log("Listener de blur do descSup (input dinâmico) removido.");
             }
-            // O descSupBlurListener original não existe mais se foi substituído pelo dinâmico
-            // Se você quiser ter certeza, poderia checar e remover, mas os dinâmicos já cobrem
+
         } else if (descSupElement.tagName.toLowerCase() === "select" && selectSuprimentoChangeListener) {
             descSupElement.removeEventListener("change", selectSuprimentoChangeListener);
             selectSuprimentoChangeListener = null;
@@ -350,16 +345,14 @@ function desinicializarSuprimentoModal() {
     }
 
     // 3. Limpar o estado global e campos do formulário
-    window.SuprimentoOriginal = null; // Zera o objeto de suprimento original
+    window.SuprimentoOriginal = null; // Zera o objeto de s original
     limparCamposSuprimento(); // Limpa todos os campos visíveis do formulário
-    //document.querySelector("#form").reset(); // Garante que o formulário seja completamente resetado
+   // document.querySelector("#form").reset(); // Garante que o formulário seja completamente resetado
     document.querySelector("#idSup").value = ""; // Limpa o ID oculto
     resetarCampoDescSupParaInput(); // Garante que o campo descSup volte a ser um input padrão
 
     console.log("✅ Módulo Suprimentos.js desinicializado.");
 }
-
-
 
 function criarSelectSuprimento(suprimentos) {
    
@@ -389,25 +382,26 @@ function criarSelectSuprimento(suprimentos) {
  
     return select;
 }
+
 if (!window.ultimoClique) {
     window.ultimoClique = null;
   
 }
-// Captura o último elemento clicado no documento (uma única vez)
 document.addEventListener("mousedown", (e) => {
     window.ultimoClique = e.target;
 });
 
 function adicionarEventoBlurSuprimento() {
     const input = document.querySelector("#descSup");
-    if (!input) return;
-        
+    if (!input) return;   
+    
+    
     input.addEventListener("blur", async function () {
        
         const botoesIgnorados = ["Limpar", "Pesquisar", "Close"];
         const ehBotaoIgnorado =
-            ultimoClique?.id && botoesIgnorados.includes(ultimoClique.id) ||
-             (ultimoClique?.classList && ultimoClique.classList.contains("close"));
+            (ultimoClique?.id && botoesIgnorados.includes(ultimoClique.id)) ||
+            (ultimoClique?.classList && ultimoClique.classList.contains("close"));
 
         if (ehBotaoIgnorado) {
             console.log("🔁 Blur ignorado: clique em botão de controle (Fechar/Limpar/Pesquisar).");
@@ -423,36 +417,115 @@ function adicionarEventoBlurSuprimento() {
             await carregarSuprimentoDescricao(desc, this);
             console.log("Suprimento selecionado depois de carregarSuprimentoDescricao:", this.value);
         } catch (error) {
-            console.error("Erro ao buscar Suprimentos:", error);
+            console.error("Erro ao buscar Suprimento:", error);
         }
     });
 }
 
 async function carregarSuprimentoDescricao(desc, elementoAtual) {
     try {
+        // 1. Verifique se o nome do parâmetro na URL bate com o que o Router espera (descSup)
         const suprimentos = await fetchComToken(`/suprimentos?descSup=${encodeURIComponent(desc)}`);
         
+        // 2. O banco retorna tudo em MINÚSCULO (idsup, descsup, ctosup, vdasup)
+        if (!suprimentos || !suprimentos.idsup) throw new Error("Suprimento não encontrado");
+     
+        // 3. Preencha os campos usando os nomes em minúsculo vindos do banco
         document.querySelector("#idSup").value = suprimentos.idsup;
         document.querySelector("#ctoSup").value = suprimentos.ctosup;
-        document.querySelector("#vdaSup").value = suprimentos.vdasup
+        document.querySelector("#vdaSup").value = suprimentos.vdasup;
+
+        // 4. Atualize o objeto original para o Dirty Checking funcionar (também em minúsculo)
         window.SuprimentoOriginal = {
             idSup: suprimentos.idsup,
             descSup: suprimentos.descsup,
             vlrCusto: suprimentos.ctosup,
             vlrVenda: suprimentos.vdasup
-        };   
-    
+        };
+
+        console.log("Campos preenchidos com sucesso!");
 
     } catch (error) {
-        
-         
-        console.warn("Suprimento não encontrado.");
+        //console.warn("Erro ao buscar s:", error);
 
-        const inputIdSuprimento = document.querySelector("#idSup");
-        const podeCadastrarSuprimento = temPermissao("Suprimentos", "cadastrar");
+        //const temPermissaoCadastrar = temPermissao("Suprimentos", "cadastrar");
+        //const temPermissaoAlterar = temPermissao("Suprimentos", "alterar");
 
-       if (!inputIdSuprimento.value && podeCadastrarSuprimento) {
-             const resultado = await Swal.fire({
+        // const metodo = idSup ? "PUT" : "POST";
+
+        // if (!idSup && !temPermissaoCadastrar) {
+        //     return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos suprimentos.", "error");
+        // }
+
+        // if (idSup && !temPermissaoAlterar) {
+        //     return Swal.fire("Acesso negado", "Você não tem permissão para alterar suprimentos.", "error");
+        // }
+
+        // if (!descSup) {
+        //     return Swal.fire("Campos obrigatórios!", "Preencha todos os campos antes de enviar.", "warning");
+        // }
+
+        // const dados = { descSup };        
+
+        // if (parseInt(idSup) === parseInt(window.SuprimentoOriginal?.idSup)) {
+        //     console.log("Suprimento não alterado, não será enviado.");
+        // }
+        // if (descSup === window.SuprimentoOriginal?.descSup) {
+        //     console.log("Suprimento não alterado, não será enviado.");
+        // }
+        // // Verifica alterações
+        // if (
+
+        //     parseInt(idSup) === parseInt(window.SuprimentoOriginal?.idSup) &&
+        //     descSup === window.SuprimentoOriginal?.descSup
+        // ) {
+        //     return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
+        // }
+
+        // const url = idSup
+        //     ? `/suprimentos/${idSup}`
+        //     : "/suprimentos";
+
+        // try {
+        //     // Confirma alteração (PUT)
+        //     if (metodo === "PUT") {
+        //         const { isConfirmed } = await Swal.fire({
+        //             title: "Deseja salvar as alterações?",
+        //             text: "Você está prestes a atualizar os dados do Suprimento.",
+        //             icon: "question",
+        //             showCancelButton: true,
+        //             confirmButtonText: "Sim, salvar",
+        //             cancelButtonText: "Cancelar",
+        //             reverseButtons: true,
+        //             focusCancel: true
+        //         });
+        //         if (!isConfirmed) return;
+        //     }
+
+        //     console.log("Enviando dados para o servidor:", dados, url, metodo);
+        //     const respostaApi = await fetchComToken(url, {
+        //         method: metodo,
+        //         headers: {
+        //             'Content-Type': 'application/json'
+        //         },
+        //         body: JSON.stringify(dados)
+        //     });            
+
+        //     await Swal.fire("Sucesso!", respostaApi.message || "Suprimento salvo com sucesso.", "success");
+        //     limparCamposSuprimento();
+
+        // } catch (error) {
+        //     console.error("Erro ao enviar dados:", error);
+        //     Swal.fire("Erro", error.message || "Erro ao salvar s.", "error");
+        // }
+
+        const inputIdSup = document.querySelector("#idSup");
+        const podeCadastrar = temPermissao("Suprimentos", "cadastrar");
+
+        console.log("Valor de inputIdSup.value:", inputIdSup.value, podeCadastrar);
+        if (!inputIdSup.value) {
+            console.log("Detectado Suprimento não encontrado e usuário tem permissão para cadastrar.");
+            const resultado = await Swal.fire({
                 icon: 'question',
                 title: `Deseja cadastrar "${desc.toUpperCase()}" como novo Suprimento?`,
                 text: `Suprimento "${desc.toUpperCase()}" não encontrado.`,
@@ -463,25 +536,34 @@ async function carregarSuprimentoDescricao(desc, elementoAtual) {
                 focusCancel: true
             });
 
+            console.log("Resultado bruto do Swal.fire:", resultado);
             if (resultado.isConfirmed) {
-                
-                console.log(`Usuário optou por cadastrar: ${desc}`);
-            }
-            if (!resultado.isConfirmed) {
-                console.log("Usuário cancelou o cadastro do Suprimento.");
+                console.log("DEBUG: Swal.fire CONFIRMADO! Prosseguindo...");
+                console.log("Valor de elementoAtual.value APÓS CONFIRMAÇÃO (deve ser o digitado):", elementoAtual.value); // Log após confirmação
+                // Nenhuma ação de limpeza aqui. O campo deve permanecer com o valor.
+            } else { // Usuário clicou em Cancelar ou descartou o modal
+                console.log("DEBUG: Swal.fire CANCELADO ou DISMISSADO. Detalhes:", resultado);
+                console.log("DEBUG: Limpando elementoAtual.value, pois não foi confirmado o cadastro."); // Log antes de limpar
                 elementoAtual.value = ""; // Limpa o campo se não for cadastrar
                 setTimeout(() => {
                     elementoAtual.focus();
                 }, 0);
-                return;
+                return; // Sai da função carregarSuprimentoDescricao
             }
-        } else if (!podeCadastrarSuprimento) {
+        } else if (!podeCadastrar) {
+            console.log("Suprimento não encontrado, mas usuário NÃO tem permissão para cadastrar.");
             Swal.fire({
                 icon: "info",
                 title: "Suprimento não cadastrado",
                 text: "Você não tem permissão para cadastrar suprimentos.",
                 confirmButtonText: "OK"
             });
+            // Se não tem permissão e não encontrou, limpa o campo também para evitar confusão.
+            elementoAtual.value = ""; 
+            setTimeout(() => {
+                elementoAtual.focus();
+            }, 0);
+            return; // Sai da função carregarSuprimentoDescricao
         }
     }
 }
@@ -497,129 +579,20 @@ function limparSuprimentoOriginal() {
 }
 
 
-
 function limparCamposSuprimento() {
+    const campos = ["idSup", "descSup","ctoSup", "vdaSup" ];
+    campos.forEach(id => {
+        const campo = document.getElementById(id);
+        if (campo) campo.value = "";
+    });
     
-    const idSup = document.getElementById("idSup");
-    const descSupEl = document.getElementById("descSup");
-    const ctoSup = document.getElementById("ctoSup");
-    const vdaSup = document.getElementById("vdaSup");
-
-    if (idSup) idSup.value = "";
-    if (ctoSup) ctoSup.value = "";
-    if (vdaSup) vdaSup.value = "";
-
-    if (descSupEl && descSupEl.tagName === "SELECT") {
-        // Se for SELECT, trocar por INPUT
-        const novoInput = document.createElement("input");
-        novoInput.type = "text";
-        novoInput.id = "descSup";
-        novoInput.name = "descSup";
-        novoInput.required = true;
-        novoInput.className = "form";
-
-        // Configura o evento de transformar texto em maiúsculo
-        novoInput.addEventListener("input", function () {
-            this.value = this.value.toUpperCase();
-        });
-
-        // Reativa o evento blur
-        novoInput.addEventListener("blur", async function () {
-            if (!this.value.trim()) return;
-            await carregarSuprimentoDescricao(this.value, this);
-        });
-
-        descSupEl.parentNode.replaceChild(novoInput, descSupEl);
-        adicionarEventoBlurSuprimento();
-
-        const label = document.querySelector('label[for="descSup"]');
-        if (label) {
-            label.style.display = "block";
-            label.textContent = "Descrição do Suprimento";
-        }
-    } else if (descSupEl) {
-        // Se for input normal, só limpa
-        descSupEl.value = "";
-    }
-
 }
-
-// async function fetchComToken(url, options = {}) {
-//   console.log("URL da requisição:", url);
-//   const token = localStorage.getItem("token");
-//   const idempresa = localStorage.getItem("idempresa");
-
-//   console.log("ID da empresa no localStorage:", idempresa);
-//   console.log("Token no localStorage:", token);
-
-//   if (!options.headers) options.headers = {};
-  
-//   if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
-//         options.headers['Content-Type'] = 'application/json';
-//   }else if (options.body && typeof options.body === 'object' && options.headers['Content-Type'] !== 'multipart/form-data') {
-       
-//         options.body = JSON.stringify(options.body);
-//         options.headers['Content-Type'] = 'application/json';
-//   }
-
-//   options.headers['Authorization'] = 'Bearer ' + token; 
-
-//   if (
-//       idempresa && 
-//       idempresa !== 'null' && 
-//       idempresa !== 'undefined' && 
-//       idempresa.trim() !== '' &&
-//       !isNaN(idempresa) && 
-//       Number(idempresa) > 0
-//   ) {
-//       options.headers['idempresa'] = idempresa;
-//       console.log('[fetchComToken] Enviando idempresa no header:', idempresa);
-//   } else {
-//     console.warn('[fetchComToken] idempresa inválido, não será enviado no header:', idempresa);
-//   }
-//   console.log("URL OPTIONS", url, options)
- 
-//   const resposta = await fetch(url, options);
-
-//   console.log("Resposta da requisição Suprimentos.js:", resposta);
-
-//   let responseBody = null;
-//   try {     
-//       responseBody = await resposta.json();
-//   } catch (jsonError) {    
-//       try {
-//           responseBody = await resposta.text();
-//       } catch (textError) {        
-//           responseBody = null;
-//       }
-//   }
-
-//   if (resposta.status === 401) {
-//     localStorage.clear();
-//     Swal.fire({
-//       icon: "warning",
-//       title: "Sessão expirada",
-//       text: "Por favor, faça login novamente."
-//     }).then(() => {
-//       window.location.href = "login.html"; 
-//     });
-
-//     throw new Error('Sessão expirada'); 
-//   }
-
-//   if (!resposta.ok) {
-//         const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
-//         throw new Error(`Erro na requisição: ${errorMessage}`);
-//   }
-
-//   return responseBody;
-// }
 
 function configurarEventosSuprimento() {
     console.log("Configurando eventos Suprimento...");
     verificaSuprimento(); // Carrega os Suprimento ao abrir o modal
-    adicionarEventoBlurSuprimento(); // Adiciona o evento blur ao campo de descrição
-    console.log("Entrou configurar Suprimento no EQUIPAMENTO.js.");
+    adicionarEventoBlurSuprimento();
+    console.log("Entrou configurar Suprimento no SUPRIMENTO.js.");
     
 
 } 
@@ -628,22 +601,20 @@ window.configurarEventosSuprimento = configurarEventosSuprimento;
 function configurarEventosEspecificos(modulo) {
   console.log("⚙️ configurarEventosEspecificos recebeu:", modulo);
   if (modulo.trim().toLowerCase() === 'suprimentos') {
-    console.log("Modulo", modulo.trim().toLowerCase() );
     configurarEventosSuprimento();
     
     if (typeof aplicarPermissoes === "function" && window.permissoes) {
       aplicarPermissoes(window.permissoes);
     } else {
-      console.warn("⚠️ aplicarPermissoes ou window.permissoes ainda não estão disponíveis para LocalMontagem.");
+      console.warn("⚠️ aplicarPermissoes ou window.permissoes ainda não estão disponíveis para Suprimentos.");
     }
   }
 }
 window.configurarEventosEspecificos = configurarEventosEspecificos;
 
-
 window.moduloHandlers = window.moduloHandlers || {};
 
-window.moduloHandlers['Suprimentos'] = { // A chave 'Suprimentos' (com S maiúsculo) deve corresponder ao seu Index.js
+window.moduloHandlers['Suprimentos'] = { // A chave 'Suprimentos' (com E maiúsculo) deve corresponder ao seu Index.js
     configurar: configurarEventosSuprimento,
     desinicializar: desinicializarSuprimentoModal
 };

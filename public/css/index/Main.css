@@ -190,6 +190,49 @@ select#selectAno {
   cursor: pointer;
 }
 
+/*  ===================== Filtro e SubFiltros ========================== */
+.filtros-fechados {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.label-select-fechado {
+    display: flex;
+    margin: 5px;
+    font-weight: bold;
+}
+
+.wrapper-select-custom {
+    position: relative;
+    width: 150px; /* Largura menor que o de rádio, já que é um dropdown */
+    height: 36px;
+    background-color: transparent;
+    border: 2px solid var(--border-color);
+    border-radius: 34px;
+    display: flex;
+    align-items: center;
+    box-shadow: 4px 4px var(--border-color);
+    padding: 0 10px;
+}
+
+.select-simples {
+    width: 100%;
+    background: transparent;
+    border: none;
+    font-weight: bold;
+    color: var(--text-color);
+    cursor: pointer;
+    outline: none;
+    appearance: none; /* Remove a seta padrão para você controlar */
+}
+
+
+
+/*  ==================================================================== */
+
 /* ===================== NOVO: filtro de data e scroll ===================== */
 #filtroData {
   width: 100%;

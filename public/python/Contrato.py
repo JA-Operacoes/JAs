@@ -59,6 +59,24 @@ def formatar_escopo_servicos(escopo):
 
     return escopo.strip()
 
+def formatar_cnpj(cnpj):
+    """ Formata uma string de números para o padrão 00.000.000/0000-00. """
+    if not cnpj:
+        return ""
+    # Remove qualquer caractere que não seja número
+    cnpj_limpo = ''.join(filter(str.isdigit, str(cnpj)))
+    
+    if len(cnpj_limpo) == 14:
+        return f"{cnpj_limpo[:2]}.{cnpj_limpo[2:5]}.{cnpj_limpo[5:8]}/{cnpj_limpo[8:12]}-{cnpj_limpo[12:]}"
+    
+    return cnpj # Retorna o original caso não tenha 14 dígitos
+
+def formatar_cep(cep):
+    cep_limpo = ''.join(filter(str.isdigit, str(cep)))
+    if len(cep_limpo) == 8:
+        return f"{cep_limpo[:5]}-{cep_limpo[5:]}"
+    return cep
+
 # Gera contrato DOCX
 def gerar_contrato(dados):
     pasta_script = os.path.dirname(os.path.abspath(__file__))
@@ -85,32 +103,30 @@ def gerar_contrato(dados):
 
     doc = DocxTemplate(caminho_base)
 
-    # # --- Carregamento e Inserção das Imagens de Assinatura ---
+    # --- Carregamento e Inserção das Imagens de Assinatura ---
     
-    # # 1. CAMINHO PARA ASSINATURA JA (EMPRESA)
-    # # O 'r' (raw string) é importante para caminhos do Windows.
-    # caminho_assinatura_ja = r"C:\Users\JA Promoções\JAs\JAs\public\img\assinaturas\Assinatura-Joao.jpeg"
+    # 1. CAMINHO PARA ASSINATURA JA (EMPRESA)
+    caminho_assinatura_ja = r"C:\Users\JA Promoções\JAs\JAs\public\img\assinaturas\Assinatura-Joao.jpeg"
     
-    # # 2. CAMINHO PARA ASSINATURA CARLA (TESTEMUNHA) - AJUSTE SE NECESSÁRIO
-    # caminho_assinatura_carla = r"C:\Users\JA Promoções\JAs\JAs\public\img\assinaturas\Assinatura-Carla.jpeg" 
+    # 2. CAMINHO PARA ASSINATURA CARLA (TESTEMUNHA) - AJUSTE SE NECESSÁRIO
+    caminho_assinatura_carla = r"C:\Users\JA Promoções\JAs\JAs\public\img\assinaturas\Assinatura-Carla.jpeg" 
 
-    # assinatura_ja = ""
-    # # Usa normpath para padronizar as barras de caminho
-    # caminho_ja_norm = os.path.normpath(caminho_assinatura_ja) 
+    assinatura_ja = ""
+    caminho_ja_norm = os.path.normpath(caminho_assinatura_ja) 
 
-    # if os.path.exists(caminho_ja_norm):
-    #     # Inicia o objeto InlineImage (5 cm de largura)
-    #     assinatura_ja = InlineImage(doc, caminho_ja_norm, width=Cm(5)) 
-    # else:
-    #     print(f"⚠️ Imagem de assinatura JA não encontrada: {caminho_ja_norm}", file=sys.stderr)
+    if os.path.exists(caminho_ja_norm):
+        # Inicia o objeto InlineImage (5 cm de largura)
+        assinatura_ja = InlineImage(doc, caminho_ja_norm, width=Cm(5)) 
+    else:
+        print(f"⚠️ Imagem de assinatura JA não encontrada: {caminho_ja_norm}", file=sys.stderr)
 
-    # assinatura_carla = ""
-    # caminho_carla_norm = os.path.normpath(caminho_assinatura_carla)
-    # if os.path.exists(caminho_carla_norm):
-    #     # Inicia o objeto InlineImage (4 cm de largura)
-    #     assinatura_carla = InlineImage(doc, caminho_carla_norm, width=Cm(4)) 
-    # else:
-    #     print(f"⚠️ Imagem de assinatura Carla não encontrada: {caminho_carla_norm}", file=sys.stderr)
+    assinatura_carla = ""
+    caminho_carla_norm = os.path.normpath(caminho_assinatura_carla)
+    if os.path.exists(caminho_carla_norm):
+        # Inicia o objeto InlineImage (4 cm de largura)
+        assinatura_carla = InlineImage(doc, caminho_carla_norm, width=Cm(4)) 
+    else:
+        print(f"⚠️ Imagem de assinatura Carla não encontrada: {caminho_carla_norm}", file=sys.stderr)
     # --------------------------------------------------------
 
     # --- Geração de Contexto ---
@@ -119,7 +135,19 @@ def gerar_contrato(dados):
     periodo_realizacao = f"DE: {inicio_realizacao} ATÉ: {fim_realizacao}" \
     if inicio_realizacao and fim_realizacao else inicio_realizacao or fim_realizacao or "N/D"
 
-    ano_atual = dados.get("edicao") # Tenta ler o campo Edição primeiro
+    # Lógica para o Endereço com Vírgula
+    rua = to_unicode(dados.get("cliente_rua"))
+    numero = to_unicode(dados.get("cliente_numero"))
+    complemento = to_unicode(dados.get("cliente_complemento"))
+
+    # 1. Primeiro junta Rua e Número com vírgula
+    rua_formatada = f"{rua}, {numero}" if rua and numero else (rua or numero)
+
+    # 2. Se existir complemento, adiciona ao final (ex: " - Sala 102" ou " - Bloco B")
+    if complemento:
+        rua_formatada = f"{rua_formatada} - {complemento}"
+
+    ano_atual = dados.get("edicao")
 
     # Se a Edição não estiver definida ou vazia, usa o ano da data de Realização (que é 2026)
     if not ano_atual:
@@ -155,38 +183,39 @@ def gerar_contrato(dados):
     if centavos > 0:
         valor_total_extenso += f" e {num2words(centavos, lang='pt_BR')} centavos"
 
+
     context = {
         "cliente_nome": to_unicode(dados.get("cliente_nome")),
-        "forma_pagamento": to_unicode(dados.get("forma_pagamento")),
-        "escopo_servicos": formatar_escopo_servicos(to_unicode(dados.get("escopo_servicos"))),
-        "cliente_cnpj": to_unicode(dados.get("cliente_cnpj")),
-        "cliente_rua": to_unicode(dados.get("cliente_rua")),
-        "cliente_numero": to_unicode(dados.get("cliente_numero")),
-        "cliente_complemento": to_unicode(dados.get("cliente_complemento")),
-        "cliente_cep": to_unicode(dados.get("cliente_cep")),
+        "cliente_rua": rua_formatada,
+        "cliente_cep": formatar_cep(to_unicode(dados.get("cliente_cep"))),
+        "cliente_cnpj": formatar_cnpj(to_unicode(dados.get("cliente_cnpj"))),
         "cliente_insc_estadual": to_unicode(dados.get("cliente_insc_estadual")),
         "cliente_responsavel": to_unicode(dados.get("cliente_responsavel")),
         "evento_nome": to_unicode(dados.get("evento_nome")),
+        "periodo_realizacao": periodo_realizacao,
         "local_montagem": to_unicode(dados.get("local_montagem")),
+        "ano_atual": to_unicode(ano_atual),
+        "dia_atual": to_unicode(dia_atual),
+        "escopo_servicos": formatar_escopo_servicos(to_unicode(dados.get("escopo_servicos"))),
+        "valor_total": f"R$ {valor_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+        "valor_total_extenso": valor_total_extenso,
+        "forma_pagamento": to_unicode(dados.get("forma_pagamento")),
+        "data_assinatura": formatar_data(dados.get("data_assinatura", dia_atual)),
+
+        "empresa_assinatura": assinatura_ja, 
+        "testemunhaJa_assinatura": assinatura_carla,
+
         "nm_pavilhao": to_unicode(dados.get("nm_pavilhao")),
         "periodo_marcacao": to_unicode(dados.get("periodo_marcacao")),
         "periodo_montagem": to_unicode(dados.get("periodo_montagem")),
-        "periodo_realizacao": periodo_realizacao,
         "periodo_desmontagem": to_unicode(dados.get("periodo_desmontagem")),
-        "valor_total": f"R$ {valor_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
-        "valor_total_extenso": valor_total_extenso,
         "nr_orcamento": to_unicode(dados.get("nr_orcamento")),
-        "data_assinatura": formatar_data(dados.get("data_assinatura", dia_atual)),
-        "ano_atual": to_unicode(ano_atual),
-        "dia_atual": to_unicode(dia_atual),
         "itens_categorias": dados.get("itens_categorias", []),
         "adicionais": dados.get("adicionais", []),
         "nomenclatura": to_unicode(dados.get("nomenclatura")),
         
         # Passa os objetos InlineImage para o template
         # "cliente_assinatura": "",
-        # "empresa_assinatura": assinatura_ja, 
-        # "testemunhaJa_assinatura": assinatura_carla 
     }
 
     doc.render(context)
