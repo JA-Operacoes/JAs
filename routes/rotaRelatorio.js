@@ -170,7 +170,14 @@ try {
                         WHEN tse.statuspgtoajdcto = 'Pago' THEN 'Pago 100%'
                         WHEN tse.statuspgtoajdcto = 'Pago50' THEN 'Pago 50%'
                         ELSE COALESCE(tse.statuspgtoajdcto, 'Pendente')
-                    END AS "STATUS PGTO",                    
+                    END AS "STATUS PGTO",    
+                    CASE 
+                        WHEN (COALESCE(tse.vlralimentacao, 0) = 0 AND COALESCE(tse.vlrtransporte, 0) = 0) THEN 'Isento'
+                        WHEN (tse.comppgtoajdcusto IS NOT NULL AND tse.comppgtoajdcusto != '') 
+                            OR (tse.comppgtoajdcusto50 IS NOT NULL AND tse.comppgtoajdcusto50 != '' AND tse.comppgtoajdcusto IS NOT NULL AND tse.comppgtoajdcusto != '') THEN 'Anexado'
+                        WHEN (tse.comppgtoajdcusto50 IS NOT NULL AND tse.comppgtoajdcusto50 != '') THEN '50% Anexado'
+                        ELSE 'Pendente'
+                    END AS "COMP STATUS",                
                     CAST(CASE
                         WHEN (COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) = 0 THEN 0.00
                         WHEN tse.statuspgtoajdcto = 'Pago' THEN 0.00                        
@@ -286,8 +293,46 @@ try {
                         AND (CAST(COALESCE(NULLIF(TRIM(tse.vlrcaixinha::TEXT), ''), '0') AS NUMERIC) <= 0
                             OR (CAST(COALESCE(NULLIF(TRIM(tse.vlrcaixinha::TEXT), ''), '0') AS NUMERIC) > 0 AND (tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '')))
                         THEN 'Pago' ELSE 'Pendente'
-                    END AS "STATUS PGTO",
+                    END AS "STATUS PGTO",                    
+CASE 
+    -- 1. ISENTO
+    WHEN (COALESCE(tse.vlrcache, 0) <= 0 AND COALESCE(tse.vlrcaixinha, 0) <= 0) THEN 'Isento'
 
+    -- 2. TUDO PENDENTE (Cachê > 0 e Caixinha > 0, mas ambos sem comprovante)
+    WHEN (COALESCE(tse.vlrcache, 0) > 0 AND (tse.comppgtocache IS NULL OR tse.comppgtocache = ''))
+         AND (COALESCE(tse.vlrcaixinha, 0) > 0 AND (tse.comppgtocaixinha IS NULL OR tse.comppgtocaixinha = ''))
+         THEN 'Cachê e Caixinha Pendentes'
+
+    -- 3. CACHÊ PENDENTE (Mas Caixinha está OK ou é Isenta)
+    WHEN (COALESCE(tse.vlrcache, 0) > 0 AND (tse.comppgtocache IS NULL OR tse.comppgtocache = ''))
+         AND (COALESCE(tse.vlrcaixinha, 0) <= 0 OR (tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != ''))
+         THEN 'Cachê Pendente'
+
+    -- 4. CAIXINHA PENDENTE (Mas Cachê está OK ou é Isento)
+    WHEN (COALESCE(tse.vlrcaixinha, 0) > 0 AND (tse.comppgtocaixinha IS NULL OR tse.comppgtocaixinha = ''))
+         AND (COALESCE(tse.vlrcache, 0) <= 0 OR (tse.comppgtocache IS NOT NULL AND tse.comppgtocache != ''))
+         THEN 'Caixinha Pendente'
+
+    -- 5. AMBOS ANEXADOS
+    WHEN (COALESCE(tse.vlrcache, 0) > 0 AND tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '') 
+         AND (COALESCE(tse.vlrcaixinha, 0) > 0 AND tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '') 
+         THEN 'Cachê e Caixinha Anexados'
+
+    -- 6. CACHÊ ANEXADO (Mas tem valor de Caixinha faltando ou Caixinha é isenta)
+    WHEN (COALESCE(tse.vlrcache, 0) > 0 AND tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '') 
+         THEN CASE 
+                WHEN COALESCE(tse.vlrcaixinha, 0) > 0 AND (tse.comppgtocaixinha IS NULL OR tse.comppgtocaixinha = '') 
+                THEN 'Cachê Anexado (Falta Caixinha)'
+                ELSE 'Cachê Anexado'
+              END
+
+    -- 7. CAIXINHA ANEXADA (Caso o cachê seja zero e a caixinha tenha valor e comprovante)
+    WHEN (COALESCE(tse.vlrcaixinha, 0) > 0 AND tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '') 
+         AND COALESCE(tse.vlrcache, 0) <= 0
+         THEN 'Caixinha Anexada'
+
+    ELSE 'Comprovantes Pendentes'
+END AS "COMP STATUS",
                     CAST((
                         CASE 
                             WHEN tse.statuspgto IS DISTINCT FROM 'Pago'

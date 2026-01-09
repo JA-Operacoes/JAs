@@ -131,7 +131,7 @@
         </div>
             
         <div class="user-box camposenha">
-          <input type="text" id="nome_usuario" value="" spellcheck="false" oninput="preencherUsuarioPeloEmail()" >
+          <input type="text" id="nome_usuario" value="" spellcheck="false" >
           <label for="nome_usuario"> Usuário:</label>    
         </div>
      
@@ -200,6 +200,10 @@
                 </div>
             <div class="Permissions2">
               <div><h4 for="Acesso Especial" class="categoria-titulo">ACESSOS ESPECIAIS</h4></div>
+              <div>
+                <input id="AdminSupremo" type="checkbox" disabled />
+                <label for="AdminSupremo">ADMINISTRADOR SUPREMO</label>
+              </div>
               <div>
                 <input id="Master" type="checkbox" disabled />
                 <label for="Master">MASTER</label>

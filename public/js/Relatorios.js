@@ -633,6 +633,14 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
         }
     };
 
+    const obterClasseCompStatus = (status) => {
+        if (!status) return '';
+        if (status.includes('Anexado') && !status.includes('Falta')) return 'status-doc-ok'; // Verde
+        if (status.includes('50%')) return 'status-doc-alerta'; // Amarelo/Laranja
+        if (status === 'Isento') return 'status-doc-isento'; // Cinza
+        return 'status-doc-erro'; // Vermelho
+    };
+
     const equipeSelectElement = document.getElementById('equipeSelect');   
     const selectedIndex = equipeSelectElement.selectedIndex;
     let nomeEquipe = selectedIndex >= 0 ? ` - Equipe: ${equipeSelectElement.options[selectedIndex].text}` : '';
@@ -666,7 +674,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
             'FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'VLR DIÁRIA', 
             ...(tipo !== 'ajuda_custo' ? ['VLR ADICIONAL'] : []),
             ...(tipo === 'cache' ? ['STATUS CX'] : []), 
-            'QTD', 'TOT DIÁRIAS', 'TOT GERAL', 'STATUS PGTO', 'TOT PAGAR'
+            'QTD', 'TOT DIÁRIAS', 'TOT GERAL', 'STATUS PGTO', 'TOT PAGAR', 'STATUS COMPROVANTE'
           ]
         : [
             'FUNÇÃO', 'NOME', 'CPF', 'INÍCIO', 'TÉRMINO', 'QTD', 
@@ -678,7 +686,8 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
             'FUNÇÃO': 'text-left', 'NOME': 'text-left', 'PIX': 'text-left', 'CPF': 'text-left',
             'INÍCIO': 'text-left', 'TÉRMINO': 'text-left', 'VLR DIÁRIA': 'text-right',
             'VLR ADICIONAL': 'text-right', 'STATUS CX': 'text-center', 'QTD': 'text-center', 
-            'TOT DIÁRIAS': 'text-right', 'TOT GERAL': 'text-right', 'STATUS PGTO': 'text-center', 'TOT PAGAR': 'text-right'
+            'TOT DIÁRIAS': 'text-right', 'TOT GERAL': 'text-right', 'STATUS PGTO': 'text-center', 
+            'TOT PAGAR': 'text-right', 'COMP STATUS': 'text-center'
         };
 
         html += `
@@ -687,7 +696,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                     <tr>
                         ${colunas.map(col => `<th class="${alinhamentos[col] || ''}">${col}</th>`).join('')}
                     </tr>
-                </thead>
+                </thead>  
                 <tbody>
                     ${dadosFechamento.map(item => `
                         <tr>
@@ -713,14 +722,18 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                             ${podeVerFinanceiro ? `
                                 <td class="${alinhamentos['TOT DIÁRIAS']}">${formatarMoeda(item["TOT DIÁRIAS"])}</td>
                                 <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
-                                <td class="${alinhamentos['STATUS PGTO']} ${obterClasseStatus(item["STATUS PGTO"])}">${item["STATUS PGTO"] || ''}</td>
+                                <td class="${alinhamentos['STATUS PGTO']} ${obterClasseStatus(item["STATUS PGTO"])}">${item["STATUS PGTO"] || ''}</td>                                
                                 <td class="${alinhamentos['TOT PAGAR']}">${formatarMoeda(item["TOT PAGAR"])}</td>
+                                <td class="${alinhamentos['COMP STATUS']} ${obterClasseCompStatus(item["COMP STATUS"])}" style="font-size: 0.85em; font-weight: bold;">
+                                    ${item["COMP STATUS"] || '---'}
+                                </td>
                             ` : `
                                 <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
                                 <td class="${alinhamentos['STATUS PGTO']}">${item["STATUS PGTO"] || ''}</td>
                             `}
                         </tr>
                     `).join('')}
+
 
                     ${podeVerFinanceiro && totaisFechamentoCache ? `
                     <tr class="row-total">
@@ -734,9 +747,8 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                         <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalQtd || ''}</td> 
                         <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalDiarias)}</td>
                         <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalGeral)}</td>
-                        <td></td> 
-                        <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalPagar)}</td>
-                    </tr>` : ''}
+                        <td></td> <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalPagar)}</td>
+                        <td></td> </tr>` : ''}
                 </tbody>
             </table>
         `;
@@ -1551,6 +1563,11 @@ function imprimirRelatorio(conteudoRelatorio) {
         color: red;
         font-weight: bold;
         }
+
+        .status-doc-ok { color: green !important; font-weight: bold;}      /* Verde */
+        .status-doc-alerta { color: orange !important; font-weight: bold;}  /* Laranja */
+        .status-doc-erro { color: red !important; font-weight: bold;}    /* Vermelho */
+        .status-doc-isento { color: #6c757d !important; font-weight: bold;}  /* Cinza */
 
         /* --- REGRAS PARA A SEÇÃO DE RESUMO DE DIÁRIAS --- */
 
