@@ -674,7 +674,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
             'FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'VLR DIÁRIA', 
             ...(tipo !== 'ajuda_custo' ? ['VLR ADICIONAL'] : []),
             ...(tipo === 'cache' ? ['STATUS CX'] : []), 
-            'QTD', 'TOT DIÁRIAS', 'TOT GERAL', 'STATUS PGTO', 'TOT PAGAR', 'COMP STATUS'
+            'QTD', 'TOT DIÁRIAS', 'TOT GERAL', 'STATUS PGTO', 'TOT PAGAR', 'STATUS COMPROVANTE'
           ]
         : [
             'FUNÇÃO', 'NOME', 'CPF', 'INÍCIO', 'TÉRMINO', 'QTD', 
