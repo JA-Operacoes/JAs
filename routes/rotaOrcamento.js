@@ -921,7 +921,7 @@ router.get(
                 SELECT 
                     o.idorcamento, o.nrorcamento, o.vlrcliente, o.nomenclatura AS nomenclatura,
                     o.dtinirealizacao AS inicio_realizacao , o.dtfimrealizacao AS fim_realizacao, o.formapagamento AS forma_pagamento, o.obsproposta AS escopo_servicos,
-                    c.razaosocial AS cliente_nome, c.cnpj AS cliente_cnpj, c.inscestadual AS cliente_insc_estadual, c.nmcontato AS cliente_responsavel,
+                    c.razaosocial AS cliente_nome, c.cnpj AS cliente_cnpj, c.inscestadual AS cliente_insc_estadual, c.responsavelcontrato AS cliente_responsavel,
                     c.rua AS cliente_rua, c.numero AS cliente_numero, c.complemento AS cliente_complemento, c.cep AS cliente_cep,
                     e.nmevento AS evento_nome, lm.descmontagem AS local_montagem
                 FROM orcamentos o

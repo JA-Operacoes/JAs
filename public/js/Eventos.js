@@ -171,16 +171,18 @@ async function verificaEvento() {
 
             await Swal.fire("Sucesso!", respostaApi.message || "Evento salvo com sucesso.", "success");
             
+            
             limparCamposEvento();
             // if (metodo === "POST") {
             //     limparCamposEvento();
             // } else {
+          
             //     // Atualiza o estado original com os novos dados salvos
-            //     window.EventoOriginal = {
-            //         idEvento: idEvento,
-            //         nmEvento: nmEvento,
-            //         clientes: clientesDoEvento 
-            //     };
+            //     // window.EventoOriginal = {
+            //     //     idEvento: idEvento,
+            //     //     nmEvento: nmEvento,
+            //     //     clientes: clientesDoEvento 
+            //     // };
             // }
 
 
@@ -573,7 +575,7 @@ async function carregarClientesSelecionados(clientesIds) {
     clientesInput.value = JSON.stringify(clientesIds);
 
     try {
-        const clientesDisponiveis = await fetchComToken('/clientes');
+        const clientesDisponiveis = await fetchComToken('/eventos/clientes');
         
         clientesIds.forEach(id => {
             const cliente = clientesDisponiveis.find(c => c.idcliente === id);

@@ -298,6 +298,8 @@ async function verificarNomeExistente(req, res) {
 async function verificarNomeCompleto(req, res) {
   const { nome, sobrenome } = req.body;
 
+  console.log("verificarNomeCompleto AuthController", req.body);
+
   if (!nome || !sobrenome) {
     return res.status(400).json({ error: "Nome e sobrenome são obrigatórios" });
   }
@@ -306,6 +308,8 @@ async function verificarNomeCompleto(req, res) {
     const resultado = await db.query(`
       SELECT * FROM usuarios WHERE nome = $1 AND sobrenome = $2 LIMIT 1
     `, [nome, sobrenome]);
+
+    console.log("Resultado da consulta nome completo:", resultado.rows);
 
     if (resultado.rows.length > 0) {
       return res.json({ usuario: resultado.rows[0] });

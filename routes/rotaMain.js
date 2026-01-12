@@ -845,7 +845,7 @@ router.get("/ListarFuncionarios", async (req, res) => {
 
   try {
     const query = `
-    SELECT DISTINCT ON (se.idstaffevento)
+    SELECT 
         se.idstaffevento, 
         se.idfuncionario, 
         se.nmfuncionario AS nome, 
@@ -860,12 +860,13 @@ router.get("/ListarFuncionarios", async (req, res) => {
     WHERE se.idevento = $1 
       AND se.idequipe = $2 
       AND oe.idempresa = $3
+      -- GARANTE QUE O FUNCIONÁRIO TEM DATAS LANÇADAS PARA O ANO SELECIONADO (2026)
       AND EXISTS (
           SELECT 1 
           FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
           WHERE EXTRACT(YEAR FROM (d.dt)::date) = $4
       )
-    ORDER BY se.idstaffevento, se.nmfuncao, se.nmfuncionario;`;
+    ORDER BY se.nmfuncao, se.nmfuncionario;`;
 
     const { rows } = await pool.query(query, [idEvento, idEquipe, idempresa, anoFiltro]);
     res.status(200).json(rows);
@@ -1627,7 +1628,7 @@ router.get("/vencimentos", async (req, res) => {
     if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
 
     const periodo = (req.query.periodo || 'anual').toLowerCase();
-    const anoFiltro = parseInt(req.query.ano, 10) || new Date().getFullYear();
+    const anoFiltro = parseInt(req.query.ano, 10) || 2026;
 
     const fmt = d => {
       const yyyy = d.getFullYear();
@@ -1640,75 +1641,45 @@ router.get("/vencimentos", async (req, res) => {
     if (periodo === 'diario') {
       const d = req.query.dataInicio ? new Date(req.query.dataInicio + 'T00:00:00') : new Date();
       startDate = fmt(d); endDate = fmt(d);
-    } else if (periodo === 'semanal') {
-      const base = req.query.dataInicio ? new Date(req.query.dataInicio + 'T00:00:00') : new Date();
-      const diaSemana = base.getDay();
-      const primeiro = new Date(base); primeiro.setDate(base.getDate() - diaSemana);
-      const ultimo = new Date(primeiro); ultimo.setDate(primeiro.getDate() + 6);
-      startDate = fmt(primeiro); endDate = fmt(ultimo);
     } else if (periodo === 'mensal') {
       const m = parseInt(req.query.mes, 10) || (new Date().getMonth() + 1);
-      const y = parseInt(req.query.ano, 10) || new Date().getFullYear();
+      const y = parseInt(req.query.ano, 10) || 2026;
       startDate = fmt(new Date(y, m - 1, 1));
       endDate = fmt(new Date(y, m, 0));
-    } else if (periodo === 'trimestral') {
-      const t = parseInt(req.query.trimestre, 10) || Math.ceil((new Date().getMonth() + 1) / 3);
-      const y = parseInt(req.query.ano, 10) || new Date().getFullYear();
-      startDate = fmt(new Date(y, (t - 1) * 3, 1));
-      endDate = fmt(new Date(y, t * 3, 0));
-    } else if (periodo === 'semestral') {
-      const s = parseInt(req.query.semestre, 10) || (new Date().getMonth() < 6 ? 1 : 2);
-      const y = parseInt(req.query.ano, 10) || new Date().getFullYear();
-      startDate = fmt(new Date(y, s === 1 ? 0 : 6, 1));
-      endDate = fmt(new Date(y, s === 1 ? 6 : 12, 0));
     } else {
       startDate = `${anoFiltro}-01-01`;
       endDate = `${anoFiltro}-12-31`;
     }
 
-    const queryParams = [idempresa, startDate, endDate];
-
-    // ATUALIZADO: O FILTER agora aceita 'Pago' ou 'Pago' seguido de números (parciais)
+    // 1. QUERY DE AGREGAÇÃO (RESUMO)
     const queryAgregacao = `
-      SELECT
-        o.idevento, e.nmevento,
-        MIN(o.dtinirealizacao) AS dt_inicio,
-        MAX(o.dtfimrealizacao) AS dt_fim,
+      SELECT o.idevento, e.nmevento,
         COALESCE(SUM((COALESCE(tse.vlralmoco,0) + COALESCE(tse.vlralimentacao,0) + COALESCE(tse.vlrtransporte,0)) * calc.qtd), 0) AS ajuda_total,
         COALESCE(SUM(COALESCE(tse.vlrcache,0) * calc.qtd), 0) AS cache_total,
-        
-        COALESCE(SUM((COALESCE(tse.vlralmoco,0) + COALESCE(tse.vlralimentacao,0) + COALESCE(tse.vlrtransporte,0)) * calc.qtd) 
-          FILTER (WHERE tse.statuspgtoajdcto = 'Pago' OR tse.statuspgtoajdcto LIKE 'Pago%'), 0) AS ajuda_paga,
-        
-        COALESCE(SUM(COALESCE(tse.vlrcache,0) * calc.qtd) 
-          FILTER (WHERE tse.statuspgto = 'Pago' OR tse.statuspgto LIKE 'Pago%'), 0) AS cache_paga
-
+        COALESCE(SUM(COALESCE(tse.vlrcaixinha,0) * calc.qtd), 0) AS caixinha_total
       FROM orcamentos o
       JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
       JOIN eventos e ON o.idevento = e.idevento
       JOIN staffeventos tse ON e.idevento = tse.idevento
       CROSS JOIN LATERAL (
-        SELECT COUNT(*)::int as qtd
-        FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
+        SELECT COUNT(*)::int as qtd FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
         WHERE (d.dt)::date BETWEEN $2 AND $3
       ) AS calc
       WHERE oe.idempresa = $1 AND calc.qtd > 0
-      GROUP BY o.idevento, e.nmevento
-      ORDER BY dt_inicio ASC;
+      GROUP BY o.idevento, e.nmevento;
     `;
 
-    const { rows: eventosRaw } = await pool.query(queryAgregacao, queryParams);
-    if (!eventosRaw || eventosRaw.length === 0) return res.json({ periodo, startDate, endDate, eventos: [] });
+    const { rows: eventosRaw } = await pool.query(queryAgregacao, [idempresa, startDate, endDate]);
+    if (eventosRaw.length === 0) return res.json({ eventos: [] });
 
-    const idsEventos = eventosRaw.map(e => e.idevento);
-
+    // 2. QUERY DE DETALHES (LISTA COM DATAS)
     const queryDetalhes = `
-      SELECT
-        tse.idstaffevento, tse.idevento, tse.nmfuncionario AS nome, tse.nmfuncao AS funcao,
-        calc.qtd AS qtddiarias_filtradas, calc.min_dt, calc.max_dt,
+      SELECT tse.idstaffevento, tse.idevento, tse.nmfuncionario AS nome, tse.nmfuncao AS funcao,
+        calc.qtd AS qtddiarias_filtradas, calc.min_dt AS periodo_eventoini, calc.max_dt AS periodo_eventofim,
         (COALESCE(tse.vlrcache, 0) * calc.qtd) AS totalcache_filtrado,
         ((COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * calc.qtd) AS totalajudacusto_filtrado,
-        tse.statuspgto, tse.statuspgtoajdcto
+        (COALESCE(tse.vlrcaixinha, 0) * calc.qtd) AS totalcaixinha_filtrado,
+        tse.statuspgto, tse.statuspgtoajdcto, tse.statuscaixinha
       FROM staffeventos tse
       CROSS JOIN LATERAL (
         SELECT COUNT(*)::int as qtd, MIN((d.dt)::date) AS min_dt, MAX((d.dt)::date) AS max_dt
@@ -1716,54 +1687,70 @@ router.get("/vencimentos", async (req, res) => {
         WHERE (d.dt)::date BETWEEN $2 AND $3
       ) AS calc
       WHERE tse.idevento = ANY($1) AND calc.qtd > 0
-      ORDER BY tse.nmfuncionario;
+      ORDER BY tse.nmfuncionario ASC;
     `;
 
-    const { rows: staffRows } = await pool.query(queryDetalhes, [idsEventos, startDate, endDate]);
+    const { rows: staffRows } = await pool.query(queryDetalhes, [eventosRaw.map(e => e.idevento), startDate, endDate]);
 
-    const funcionariosPorEvento = staffRows.reduce((acc, s) => {
-      const ide = s.idevento;
-      if (!acc[ide]) acc[ide] = [];
-      acc[ide].push(s);
-      return acc;
-    }, {});
+    // Função interna para evitar NaN
+    const formatarDDMM = (dStr) => {
+        if (!dStr || dStr === "null") return '---';
+        // Adicionar T00:00:00 garante que o JavaScript não mude o dia pelo fuso horário
+        const d = new Date(dStr + 'T00:00:00'); 
+        if (isNaN(d.getTime())) return '---';
+        
+        const dia = String(d.getDate()).padStart(2, '0');
+        const mes = String(d.getMonth() + 1).padStart(2, '0');
+        return `${dia}/${mes}`;
+    };
 
     const resultado = eventosRaw.map(ev => {
-      const staffs = funcionariosPorEvento[ev.idevento] || [];
-      let ajTotal = 0, ajPaga = 0, chTotal = 0, chPaga = 0;
-      let minDate = null, maxDate = null;
+      const staffs = staffRows.filter(s => s.idevento === ev.idevento);
+      let ajT = 0, ajP = 0, chT = 0, chP = 0, cxT = 0, cxP = 0;
+      let minEventDate = null, maxEventDate = null;
 
-      staffs.forEach(s => {
-        const tCache = parseFloat(s.totalcache_filtrado) || 0;
-        const tAjuda = parseFloat(s.totalajudacusto_filtrado) || 0;
-        chTotal += tCache; ajTotal += tAjuda;
+      const staffsProcessados = staffs.map(s => {
+        const vC = parseFloat(s.totalcache_filtrado) || 0;
+        const vA = parseFloat(s.totalajudacusto_filtrado) || 0;
+        const vX = parseFloat(s.totalcaixinha_filtrado) || 0;
+        
+        chT += vC; ajT += vA; cxT += vX;
+        if (s.statuspgto?.startsWith('Pago')) chP += vC;
+        if (s.statuspgtoajdcto?.startsWith('Pago')) ajP += vA;
+        if (s.statuscaixinha?.startsWith('Pago')) cxP += vX;
 
-        // Lógica de Soma: Se começar com 'Pago', somamos ao total pago
-        if (s.statuspgto && s.statuspgto.startsWith('Pago')) chPaga += tCache;
-        if (s.statuspgtoajdcto && s.statuspgtoajdcto.startsWith('Pago')) ajPaga += tAjuda;
+        if (s.periodo_eventoini) { const d = new Date(s.periodo_eventoini); if (!minEventDate || d < minEventDate) minEventDate = d; }
+        if (s.periodo_eventofim) { const d = new Date(s.periodo_eventofim); if (!maxEventDate || d > maxEventDate) maxEventDate = d; }
 
-        if (s.min_dt) { const d = new Date(s.min_dt); if (!minDate || d < minDate) minDate = d; }
-        if (s.max_dt) { const d = new Date(s.max_dt); if (!maxDate || d > maxDate) maxDate = d; }
+        return {
+          ...s,
+          // RESOLUÇÃO DO NaN: Verifica se as datas existem antes de formatar
+          periodo_evento: (s.periodo_eventoini && s.periodo_eventofim) 
+        ? (s.periodo_eventoini === s.periodo_eventofim 
+            ? formatarDDMM(s.periodo_eventoini) 
+            : `${formatarDDMM(s.periodo_eventoini)} a ${formatarDDMM(s.periodo_eventofim)}`)
+        : '',
+          totalcache_filtrado: vC,
+          totalajudacusto_filtrado: vA,
+          totalcaixinha_filtrado: vX,
+          totalpagar: vC + vA + vX
+        };
       });
 
       return {
         idevento: ev.idevento,
         nomeEvento: ev.nmevento,
-        totalGeral: ajTotal + chTotal,
-        dataInicioEvento: minDate ? minDate.toLocaleDateString('pt-BR') : 'N/A',
-        dataFimEvento: maxDate ? maxDate.toLocaleDateString('pt-BR') : 'N/A',
-        dataVencimentoAjuda: minDate ? new Date(minDate.getTime() + 2*24*60*60*1000).toLocaleDateString('pt-BR') : 'N/A',
-        dataVencimentoCache: maxDate ? new Date(maxDate.getTime() + 10*24*60*60*1000).toLocaleDateString('pt-BR') : 'N/A',
-        ajuda: { total: ajTotal, pagos: ajPaga, pendente: ajTotal - ajPaga },
-        cache: { total: chTotal, pagos: chPaga, pendente: chTotal - chPaga },
-        funcionarios: staffs.map(s => ({
-          ...s,
-          totalpagar: (parseFloat(s.totalcache_filtrado) || 0) + (parseFloat(s.totalajudacusto_filtrado) || 0)
-        }))
+        totalGeral: ajT + chT + cxT,
+        dataVencimentoAjuda: minEventDate ? new Date(minEventDate.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---',
+        dataVencimentoCache: maxEventDate ? new Date(maxEventDate.getTime() + 10*86400000).toLocaleDateString('pt-BR') : '---',
+        ajuda: { total: ajT, pendente: ajT - ajP },
+        cache: { total: chT, pendente: chT - chP },
+        caixinha: { total: cxT, pendente: cxT - cxP },
+        funcionarios: staffsProcessados
       };
     });
 
-    return res.json({ periodo, startDate, endDate, eventos: resultado });
+    res.json({ eventos: resultado });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

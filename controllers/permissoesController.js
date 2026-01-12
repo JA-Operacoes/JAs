@@ -63,6 +63,7 @@ async function listarPermissoesPorUsuario(req, res) {
       apagar: !!row.apagar,
       master: !!row.master,
       financeiro: !!row.financeiro,
+      supremo: !!row.supremo,
       idempresa: row.idempresa
     }));
     console.log("listarPermissoesPorUsuario FINAL", permissoes);
@@ -85,7 +86,8 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
     pesquisar,
     apagar,
     master,
-    financeiro    
+    financeiro,
+    supremo    
   } = req.body;
 
   const ativo = req.body.ativo !== undefined ? req.body.ativo : false; // Padrão para true se não fornecido
@@ -123,10 +125,10 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
         // Atualiza
         const updateResult = await db.query(`
           UPDATE permissoes
-          SET cadastrar = $1, alterar = $2, pesquisar = $3, acesso = $4, apagar = $5, master = $6, financeiro = $7
-          WHERE idusuario = $8 AND modulo = $9 AND idempresa = $10
+          SET cadastrar = $1, alterar = $2, pesquisar = $3, acesso = $4, apagar = $5, master = $6, financeiro = $7, supremo = $8
+          WHERE idusuario = $9 AND modulo = $10 AND idempresa = $11
           RETURNING id;
-        `, [cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, idusuario, moduloFormatado, idempresa]);
+        `, [cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, idusuario, moduloFormatado, idempresa]);
         
   
         idpermissao = updateResult.rows[0]?.id || null;
@@ -135,10 +137,10 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
       } else {
         // Insere nova permissão
         const insertResult = await db.query(`
-          INSERT INTO permissoes (idusuario, modulo, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, idempresa)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          INSERT INTO permissoes (idusuario, modulo, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, idempresa)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
           RETURNING id;
-        `, [idusuario, moduloFormatado, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, idempresa]);
+        `, [idusuario, moduloFormatado, cadastrar, alterar, pesquisar, acesso, apagar, master, financeiro, supremo, idempresa]);
         idpermissao = insertResult.rows[0].id;
         acao = 'cadastrou';
       }
@@ -181,103 +183,6 @@ async function cadastrarOuAtualizarPermissoes(req, res) {
   }
 }
 
-// async function cadastrarOuAtualizarPermissoes(req, res) {
-//   const {
-//     idusuario,
-//     modulo,
-//     permissoesPorEmpresa // Array de objetos { idempresa, acesso, cadastrar, alterar, pesquisar }
-//   } = req.body;
-
-//   if (!idusuario || !modulo || !Array.isArray(permissoesPorEmpresa)) {
-//     return res.status(400).json({ erro: 'Dados inválidos ou incompletos.' });
-//   }
-
-//   const client = await db.connect(); // Inicia a conexão do pool
-//   try {
-//     await client.query('BEGIN'); // Inicia a transação
-
-//     const moduloFormatado = modulo.charAt(0).toUpperCase() + modulo.slice(1).toLowerCase();
-
-//     // 1. Obter as permissões ATUAIS para este usuário e módulo
-//     const { rows: currentPerms } = await client.query(
-//       'SELECT idempresa, acesso, cadastrar, alterar, pesquisar FROM permissoes WHERE idusuario = $1 AND modulo = $2',
-//       [idusuario, moduloFormatado]
-//     );
-
-//     const currentPermsMap = new Map();
-//     currentPerms.forEach(p => {
-//       currentPermsMap.set(p.idempresa, p);
-//     });
-
-//     const incomingEmpresaIds = new Set(permissoesPorEmpresa.map(p => p.idempresa));
-
-//     // 2. Processar permissões recebidas (UPSERT)
-//     for (const permData of permissoesPorEmpresa) {
-//       const { idempresa, acesso, cadastrar, alterar, pesquisar } = permData;
-
-//       if (currentPermsMap.has(idempresa)) {
-//         // PERMISSÃO EXISTE: VERIFICAR SE HOUVE ALTERAÇÃO E ATUALIZAR
-//         const existingPerm = currentPermsMap.get(idempresa);
-//         if (
-//           existingPerm.acesso !== acesso ||
-//           existingPerm.cadastrar !== cadastrar ||
-//           existingPerm.alterar !== alterar ||
-//           existingPerm.pesquisar !== pesquisar
-//         ) {
-//           await client.query(`
-//             UPDATE permissoes
-//             SET acesso = $1, cadastrar = $2, alterar = $3, pesquisar = $4
-//             WHERE idusuario = $5 AND modulo = $6 AND idempresa = $7
-//           `, [acesso, cadastrar, alterar, pesquisar, idusuario, moduloFormatado, idempresa]);
-//           console.log(`Permissão atualizada para usuário ${idusuario}, módulo ${moduloFormatado}, empresa ${idempresa}.`);
-//         } else {
-//             console.log(`Nenhuma alteração detectada para permissão de usuário ${idusuario}, módulo ${moduloFormatado}, empresa ${idempresa}.`);
-//         }
-//       } else {
-//         // PERMISSÃO NÃO EXISTE: INSERIR NOVA
-//         await client.query(`
-//           INSERT INTO permissoes (idusuario, modulo, acesso, cadastrar, alterar, pesquisar, idempresa)
-//           VALUES ($1, $2, $3, $4, $5, $6, $7)
-//         `, [idusuario, moduloFormatado, acesso, cadastrar, alterar, pesquisar, idempresa]);
-//         console.log(`Permissão inserida para usuário ${idusuario}, módulo ${moduloFormatado}, empresa ${idempresa}.`);
-//       }
-
-//       // Garante vínculo em usuarioempresas (mantido)
-//       const { rowCount } = await client.query(
-//         'SELECT 1 FROM usuarioempresas WHERE idusuario = $1 AND idempresa = $2',
-//         [idusuario, idempresa]
-//       );
-//       if (rowCount === 0) {
-//         await client.query(
-//           'INSERT INTO usuarioempresas (idusuario, idempresa) VALUES ($1, $2)',
-//           [idusuario, idempresa]
-//         );
-//         console.log(`Vínculo de usuário ${idusuario} com empresa ${idempresa} criado.`);
-//       }
-//     }
-
-//     // 3. Deletar permissões que não estão mais na lista recebida
-//     for (const existingPerm of currentPerms) {
-//       if (!incomingEmpresaIds.has(existingPerm.idempresa)) {
-//         await client.query(
-//           'DELETE FROM permissoes WHERE idusuario = $1 AND modulo = $2 AND idempresa = $3',
-//           [idusuario, moduloFormatado, existingPerm.idempresa]
-//         );
-//         console.log(`Permissão deletada para usuário ${idusuario}, módulo ${moduloFormatado}, empresa ${existingPerm.idempresa} (não mais selecionada).`);
-//       }
-//     }
-
-//     await client.query('COMMIT'); // Confirma a transação
-//     res.status(200).json({ sucesso: true, mensagem: 'Permissões salvas com sucesso.' });
-
-//   } catch (erro) {
-//     await client.query('ROLLBACK'); // Reverte a transação em caso de erro
-//     console.error('Erro ao salvar permissões (Transação Revertida):', erro);
-//     res.status(500).json({ erro: 'Erro ao salvar permissões no banco de dados.' });
-//   } finally {
-//     client.release(); // Libera o cliente de volta para o pool
-//   }
-// }
 
 
 async function atualizarEmpresasDoUsuario(req, res) {

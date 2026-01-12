@@ -1701,6 +1701,26 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 });
 
+function criarFiltroAnoCustom() {
+    const anoAtual = new Date().getFullYear();
+    const anos = [anoAtual, anoAtual - 1, anoAtual - 2]; 
+
+    const filtroContainer = document.createElement("div");
+    // Mantemos as classes para o alinhamento do Flexbox e respiros
+    filtroContainer.className = "filtros-fechados"; 
+    filtroContainer.innerHTML = `
+        <label class="label-select-fechado">Filtrar por Ano</label>
+        <div class="wrapper-select-custom"> 
+            <select id="filtroAnoSelect" class="select-simples">
+                ${anos.map(ano => `
+                    <option value="${ano}">${ano}</option>
+                `).join("")}
+            </select>
+        </div>
+    `;
+    return filtroContainer;
+}
+
 async function atualizarEventosEmAberto() {
   const qtdSpan = document.getElementById("qtdEventosAbertos");
   const lista = document.querySelector(".card-eventos-em-abertos .evt-body");
@@ -1839,51 +1859,71 @@ async function mostrarEventosEmAberto() {
  // ------------------------------------------------------------------
  // ======= EVENTO DE TROCA DE ABAS - CORRIGIDO =======
  // ------------------------------------------------------------------
-  abas.querySelectorAll(".aba").forEach(btn => {
-  btn.addEventListener("click", async () => {
-  // 1. Identifica os elementos
-  const target = btn.dataset.target; // 'abertos' ou 'finalizados'
-  const targetEl = document.getElementById(target);
-  const idempresa = getIdEmpresa(); // Obtemos idempresa uma vez
+abas.querySelectorAll(".aba").forEach(btn => {
+    btn.addEventListener("click", async () => {
+        const target = btn.dataset.target; 
+        const targetEl = document.getElementById(target);
+        const idempresa = localStorage.getItem("idempresa");
 
-  // 2. Troca visual de aba ativa (MANTIDO)
-  abas.querySelectorAll(".aba").forEach(b => b.classList.remove("ativo"));
-  btn.classList.add("ativo");
+        // 1. Troca visual de abas
+        abas.querySelectorAll(".aba").forEach(b => b.classList.remove("ativo"));
+        btn.classList.add("ativo");
+        conteudos.querySelectorAll(".conteudo-aba").forEach(c => c.classList.remove("ativo"));
+        targetEl.classList.add("ativo");
 
-  // 3. Esconde conteúdos e mostra o alvo (MANTIDO)
-  conteudos.querySelectorAll(".conteudo-aba").forEach(c => c.classList.remove("ativo"));
-  targetEl.classList.add("ativo");
+        // 2. Lógica para Encerrados (Finalizados)
+        if (target === "finalizados") {
+            targetEl.innerHTML = ""; // Limpa anterior
 
-  // 4. FORÇA O RECARREGAMENTO e mostra o loading
-  targetEl.innerHTML = `<div class="loading-spinner">Carregando eventos ${target}...</div>`;
+            // Renderiza o componente Select
+            const filtroAnoCont = criarFiltroAnoCustom();
+            targetEl.appendChild(filtroAnoCont);
 
-  let rota;
-  try {
-  if (target === "finalizados") {
-  rota = "i-fechados";
+            // Container onde a lista de cards aparecerá
+            const listaCont = document.createElement("div");
+            listaCont.className = "lista-eventos-fechados";
+            targetEl.appendChild(listaCont);
 
-  // **ROTA 1: EVENTOS FECHADOS**
-  const resp = await fetchComToken(`/main/eventos-fechados`, { headers: { idempresa } });
-  const eventos = resp && typeof resp.json === 'function' ? await resp.json() : resp;
+            const carregarDadosFechados = async () => {
+                const select = document.getElementById("filtroAnoSelect");
+                const ano = select ? select.value : new Date().getFullYear();
+                
+                listaCont.innerHTML = `<div class="loading-spinner">Carregando eventos de ${ano}...</div>`;
+                
+                try {
+                    const resp = await fetchComToken(`/main/eventos-fechados?ano=${ano}`, { headers: { idempresa } });
+                    const eventos = resp && typeof resp.json === 'function' ? await resp.json() : resp;
+                    
+                    // Usa sua função existente de renderização para manter os cards e alertas
+                    renderizarEventos(listaCont, eventos);
+                } catch (err) {
+                    console.error("Erro ao carregar encerrados:", err);
+                    listaCont.innerHTML = `<div class="erro-carregar">Erro ao buscar eventos de ${ano}.</div>`;
+                }
+            };
 
-  renderizarEventos(targetEl, eventos);
+            // Evento de mudança no Select
+            const selectElement = filtroAnoCont.querySelector("#filtroAnoSelect");
+            selectElement.addEventListener("change", carregarDadosFechados);
 
-  } else { // target === "abertos"
-  rota = "eventos-abertos";
+            // Carga inicial do ano atual
+            carregarDadosFechados();
 
-  // **ROTA 2: EVENTOS ABERTOS**
-  const resp = await fetchComToken(`/main/eventos-abertos`, { headers: { idempresa } });
-  const eventos = resp && typeof resp.json === 'function' ? await resp.json() : resp;
-
-  renderizarEventos(targetEl, eventos);
-  }
-
-  } catch (err) {
-  // 5. Tratamento de erro detalhado
-  console.error(`Falha ao carregar a rota ${rota}:`, err);
-  targetEl.innerHTML = `<div class="erro-carregar">Erro ao carregar eventos de ${target} (Rota: <b>/main/${rota}</b>). Verifique o console.</div>`;
-  }
-  });
+        } else {
+            // 3. Lógica para Abertos (Se clicar de volta)
+            if (!targetEl.dataset.populado) {
+                targetEl.innerHTML = `<div class="loading-spinner">Carregando abertos...</div>`;
+                try {
+                    const resp = await fetchComToken(`/main/eventos-abertos`, { headers: { idempresa } });
+                    const eventos = resp && typeof resp.json === 'function' ? await resp.json() : resp;
+                    renderizarEventos(targetEl, eventos);
+                    targetEl.dataset.populado = "1";
+                } catch (err) {
+                    targetEl.innerHTML = `<div class="erro-carregar">Erro ao buscar abertos.</div>`;
+                }
+            }
+        }
+    });
 });
 
 // FUNÇÃO AUXILIAR PARA EVITAR DUPLICAÇÃO DE CÓDIGO DE RENDERIZAÇÃO
@@ -5018,220 +5058,429 @@ function formatarStatusFront(status) {
     return status;
 }
 
+// async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) { 
+//     // Segurança: Se o container principal não existir, interrompe a função
+//     if (!conteudoGeral) return;
+
+//     conteudoGeral.innerHTML = '<h3>Carregando dados...</h3>';
+    
+//     if (valoresResumoElement) {
+//         valoresResumoElement.innerHTML = '';
+//     }
+
+//     const params = construirParametrosFiltro();
+//     const url = `/main/vencimentos${params}`;
+
+//     try {
+//         const dados = await fetchComToken(url);
+        
+//         let totalAjudaPendente = 0;
+//         let totalAjudaPaga = 0;
+//         let totalCachePendente = 0;
+//         let totalCachePago = 0;
+        
+//         let temDados = dados && dados.eventos && dados.eventos.length > 0;
+
+//         if (!temDados) {
+//             conteudoGeral.innerHTML = '<p class="alerta-info">Nenhum evento encontrado para esse período.</p>';
+//         } else {
+//             conteudoGeral.innerHTML = "";
+//             const accordionContainer = document.createElement("div");
+//             accordionContainer.className = "accordion-vencimentos";
+
+//             dados.eventos.forEach(evento => {
+//                 // Os nomes aqui devem bater com o que o backend envia no objeto 'evento'
+//                 const ajudaPendente = evento.ajuda?.pendente || 0;
+//                 const ajudaPaga = evento.ajuda?.pagos || 0;
+//                 const cachePendente = evento.cache?.pendente || 0;
+//                 const cachePaga = evento.cache?.pagos || 0;
+
+//                 totalAjudaPendente += ajudaPendente;
+//                 totalAjudaPaga += ajudaPaga;
+//                 totalCachePendente += cachePendente;
+//                 totalCachePago += cachePaga;
+
+//                 const item = document.createElement("div");
+//                 item.className = "accordion-item";
+
+//                 const header = document.createElement("button");
+//                 header.className = "accordion-header";
+//                 header.innerHTML = `
+//                     <div class="evento-info">
+//                         <strong>${evento.nomeEvento}</strong>
+//                         <span class="total-geral">Total: ${formatarMoeda(evento.totalGeral)}</span> 
+//                     </div>
+//                 `;
+//                 header.addEventListener("click", () => item.classList.toggle("active"));
+
+//                 const body = document.createElement("div");
+//                 body.className = "accordion-body";
+
+//                 body.innerHTML = `
+//                     <div class="resumo-categorias">
+//                         <div class="categoria-bloco">
+//                             <h3>Ajuda de Custo</h3>
+//                             <p class="datas-evento">
+//                                 Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
+//                             </p>
+//                             <p class="vencimento">Vence em: <strong>${evento.dataVencimentoAjuda}</strong></p>
+//                             <p><strong>Pendentes:</strong> ${formatarMoeda(ajudaPendente)} - <strong>Pagos:</strong> ${formatarMoeda(ajudaPaga)}</p>
+//                         </div>
+//                         <div class="categoria-bloco">
+//                             <h3>Cachê</h3>
+//                             <p class="datas-evento">
+//                                 Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
+//                             </p>
+//                             <p class="vencimento">Vence em: <strong>${evento.dataVencimentoCache}</strong></p>
+//                             <p><strong>Pendentes:</strong> ${formatarMoeda(cachePendente)} - <strong>Pagos:</strong> ${formatarMoeda(cachePaga)}</p>
+//                         </div>
+//                     </div>
+
+//                     <div id="container-filtro-dinamico"></div>
+
+//                     <h4>Funcionários (${evento.funcionarios?.length || 0} Registros):</h4>
+                    
+//                     <div class="funcionarios-scroll-container"> 
+//                         <table class="tabela-funcionarios-venc">
+//                             <thead>
+//                                 <tr>
+//                                     <th>NOME / FUNÇÃO</th>
+//                                     <th>DIÁRIAS</th>
+//                                     ${usuarioTemPermissao() ? '<th>AÇÕES CACHÊ</th>' : ''}
+//                                     <th>CACHÊ</th>
+//                                     <th>STATUS CACHÊ</th>
+//                                     ${usuarioTemPermissao() ? '<th>AÇÕES A.J.CUSTO</th>' : ''}
+//                                     <th>A.J. CUSTO</th>
+//                                     <th>STATUS A.J.CUSTO</th>
+//                                     <th>TOTAL</th>
+//                                 </tr>
+//                             </thead>
+//                             <tbody>
+//                             ${evento.funcionarios?.map(f => {
+//                                     const statusCache = formatarStatusFront(f.statuspgto);
+//                                     const statusAjuda = formatarStatusFront(f.statuspgtoajdcto);
+                                    
+//                                     // As classes CSS também devem usar o status formatado para manter a cor correta
+//                                     const classeCache = statusCache.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+//                                     const classeAjuda = statusAjuda.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+
+
+//                                     // Se já estiver 100% Pago, mantém a célula mas remove os botões (mostra ícone fixo)
+//                                     const renderBotaoAcao = (tipo, statusAtual) => {
+//                                         if (!usuarioTemPermissao()) return '';
+
+//                                         // Caso 1: Pago (Bloqueado)
+//                                         if (statusAtual === 'Pago' || statusAtual === 'Pago 100%') {
+//                                             return `
+//                                                 <td class="acoes-master">
+//                                                     <div class="btn-group-acoes">
+//                                                         <span class="check-finalizado"><i class="fas fa-lock"></i></span>
+//                                                     </div>
+//                                                 </td>`; 
+//                                         }
+
+//                                         // Caso 2: Pago 50% (Botão de complemento)
+//                                         if (statusAtual === 'Pago 50%') {
+//                                             return `
+//                                                 <td class="acoes-master">
+//                                                     <div class="btn-group-acoes">
+//                                                         <button class="btn-complementar" title="Pagar os 50% restantes" 
+//                                                             onclick="alterarStatusStaff(${f.idstaffevento}, '${tipo}', 'Pago 100%')">
+//                                                             <i class="fas fa-plus-circle"></i> +50%
+//                                                         </button>
+//                                                     </div>
+//                                                 </td>`;
+//                                         }
+
+//                                         // Caso 3: Pendente (Botões padrão)
+//                                         return `
+//                                             <td class="acoes-master">
+//                                                 <div class="btn-group-acoes">
+//                                                     <button class="btn-pago" onclick="alterarStatusStaff(${f.idstaffevento}, '${tipo}', 'Pago')">
+//                                                         <i class="fas fa-check"></i> Pago
+//                                                     </button>
+//                                                     <button class="btn-suspenso" onclick="alterarStatusStaff(${f.idstaffevento}, '${tipo}', 'Suspenso')">
+//                                                         <i class="fas fa-pause"></i> Suspender
+//                                                     </button>
+//                                                 </div>
+//                                             </td>`;
+//                                     };
+//                                     return `
+//                                         <tr>
+//                                             <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
+//                                             <td>${f.qtddiarias || 0}</td>
+                                            
+//                                             <td class="acoes-master col-acoes-cache">
+//                                                 ${renderConteudoAcao(f.idstaffevento, 'Cache', statusCache)}
+//                                             </td>
+//                                             <td>${formatarMoeda(f.totalcache || 0)}</td>
+//                                             <td class="status-celula status-${classeCache} col-status-cache">${statusCache}</td>
+                                            
+//                                             <td class="acoes-master col-acoes-ajuda">
+//                                                 ${renderConteudoAcao(f.idstaffevento, 'Ajuda', statusAjuda)}
+//                                             </td>
+//                                             <td>${formatarMoeda(f.totalajudacusto || 0)}</td>
+//                                             <td class="status-celula status-${classeAjuda} col-status-ajuda">${statusAjuda}</td>
+                                            
+//                                             <td><strong>${formatarMoeda(f.totalpagar || 0)}</strong></td>
+//                                         </tr>`;
+//                                 }).join("")}
+//                             </tbody>
+//                         </table>
+//                     </div> 
+//                 `;
+//                 const containerFiltro = body.querySelector("#container-filtro-dinamico");
+//                 if (containerFiltro) {
+//                     // Chamamos a função que criamos anteriormente
+//                     const filtro = criarFiltroCategorias(conteudoGeral, valoresResumoElement);
+//                     containerFiltro.appendChild(filtro);
+//                 }
+
+//                 item.appendChild(header);
+//                 item.appendChild(body);
+//                 accordionContainer.appendChild(item);
+//             });
+
+//             conteudoGeral.appendChild(accordionContainer);
+//         }
+
+//         // 4. Atualiza a DIV de resumo
+//         if (valoresResumoElement) {
+//             const totalPagarGeral = totalAjudaPendente + totalCachePendente;
+//             const totalPagoGeral = totalAjudaPaga + totalCachePago;
+            
+//             valoresResumoElement.innerHTML = `
+//                 <div class="resumo-detalhado">
+//                     <div class="resumo-status">
+//                         <div class="bloco-pendente">
+//                             <h4>A Pagar (Pendente)</h4>
+//                             <span class="valor-pendente">${formatarMoeda(totalPagarGeral)}</span>
+//                         </div>
+//                         <div class="bloco-pago">
+//                             <h4>Pago (Total e Parcial)</h4>
+//                             <span class="valor-pago">${formatarMoeda(totalPagoGeral)}</span>
+//                         </div>
+//                     </div>
+//                     <div class="resumo-categorias-totais">
+//                         <div>
+//                             <label><strong>Ajuda de Custo:</strong></label>
+//                             <p>Pendente: ${formatarMoeda(totalAjudaPendente)} / Pago: ${formatarMoeda(totalAjudaPaga)}</p>
+//                         </div>
+//                         <div>
+//                             <label><strong>Cachê:</strong></label>
+//                             <p>Pendente: ${formatarMoeda(totalCachePendente)} / Pago: ${formatarMoeda(totalCachePago)}</p>
+//                         </div>
+//                     </div>
+//                 </div>
+//             `;
+//         }
+
+//     } catch (error) {
+//         console.error("Erro ao carregar detalhes:", error);
+//         conteudoGeral.innerHTML = '<p class="alerta-erro">Erro ao carregar dados do servidor.</p>';
+//     }
+// }
 async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) { 
-    // Segurança: Se o container principal não existir, interrompe a função
     if (!conteudoGeral) return;
 
-    conteudoGeral.innerHTML = '<h3>Carregando dados...</h3>';
-    
-    if (valoresResumoElement) {
-        valoresResumoElement.innerHTML = '';
-    }
+    conteudoGeral.innerHTML = '<h3>Carregando dados financeiros...</h3>';
+    if (valoresResumoElement) valoresResumoElement.innerHTML = '';
 
     const params = construirParametrosFiltro();
     const url = `/main/vencimentos${params}`;
 
     try {
         const dados = await fetchComToken(url);
-        
-        let totalAjudaPendente = 0;
-        let totalAjudaPaga = 0;
-        let totalCachePendente = 0;
-        let totalCachePago = 0;
-        
-        let temDados = dados && dados.eventos && dados.eventos.length > 0;
-
-        if (!temDados) {
-            conteudoGeral.innerHTML = '<p class="alerta-info">Nenhum evento encontrado para esse período.</p>';
-        } else {
-            conteudoGeral.innerHTML = "";
-            const accordionContainer = document.createElement("div");
-            accordionContainer.className = "accordion-vencimentos";
-
-            dados.eventos.forEach(evento => {
-                // Os nomes aqui devem bater com o que o backend envia no objeto 'evento'
-                const ajudaPendente = evento.ajuda?.pendente || 0;
-                const ajudaPaga = evento.ajuda?.pagos || 0;
-                const cachePendente = evento.cache?.pendente || 0;
-                const cachePaga = evento.cache?.pagos || 0;
-
-                totalAjudaPendente += ajudaPendente;
-                totalAjudaPaga += ajudaPaga;
-                totalCachePendente += cachePendente;
-                totalCachePago += cachePaga;
-
-                const item = document.createElement("div");
-                item.className = "accordion-item";
-
-                const header = document.createElement("button");
-                header.className = "accordion-header";
-                header.innerHTML = `
-                    <div class="evento-info">
-                        <strong>${evento.nomeEvento}</strong>
-                        <span class="total-geral">Total: ${formatarMoeda(evento.totalGeral)}</span> 
-                    </div>
-                `;
-                header.addEventListener("click", () => item.classList.toggle("active"));
-
-                const body = document.createElement("div");
-                body.className = "accordion-body";
-
-                body.innerHTML = `
-                    <div class="resumo-categorias">
-                        <div class="categoria-bloco">
-                            <h3>Ajuda de Custo</h3>
-                            <p class="datas-evento">
-                                Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
-                            </p>
-                            <p class="vencimento">Vence em: <strong>${evento.dataVencimentoAjuda}</strong></p>
-                            <p><strong>Pendentes:</strong> ${formatarMoeda(ajudaPendente)} - <strong>Pagos:</strong> ${formatarMoeda(ajudaPaga)}</p>
-                        </div>
-                        <div class="categoria-bloco">
-                            <h3>Cachê</h3>
-                            <p class="datas-evento">
-                                Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
-                            </p>
-                            <p class="vencimento">Vence em: <strong>${evento.dataVencimentoCache}</strong></p>
-                            <p><strong>Pendentes:</strong> ${formatarMoeda(cachePendente)} - <strong>Pagos:</strong> ${formatarMoeda(cachePaga)}</p>
-                        </div>
-                    </div>
-
-                    <h4>Funcionários (${evento.funcionarios?.length || 0} Registros):</h4>
-                    
-                    <div class="funcionarios-scroll-container"> 
-                        <table class="tabela-funcionarios-venc">
-                            <thead>
-                                <tr>
-                                    <th>NOME / FUNÇÃO</th>
-                                    <th>DIÁRIAS</th>
-                                    ${usuarioTemPermissao() ? '<th>AÇÕES CACHÊ</th>' : ''}
-                                    <th>CACHÊ</th>
-                                    <th>STATUS CACHÊ</th>
-                                    ${usuarioTemPermissao() ? '<th>AÇÕES A.J.CUSTO</th>' : ''}
-                                    <th>A.J. CUSTO</th>
-                                    <th>STATUS A.J.CUSTO</th>
-                                    <th>TOTAL</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            ${evento.funcionarios?.map(f => {
-                                    const statusCache = formatarStatusFront(f.statuspgto);
-                                    const statusAjuda = formatarStatusFront(f.statuspgtoajdcto);
-                                    
-                                    // As classes CSS também devem usar o status formatado para manter a cor correta
-                                    const classeCache = statusCache.toLowerCase().replace(/\s+/g, '-').replace('%', '');
-                                    const classeAjuda = statusAjuda.toLowerCase().replace(/\s+/g, '-').replace('%', '');
-
-
-                                    // Se já estiver 100% Pago, mantém a célula mas remove os botões (mostra ícone fixo)
-                                    const renderBotaoAcao = (tipo, statusAtual) => {
-                                        if (!usuarioTemPermissao()) return '';
-
-                                        // Caso 1: Pago (Bloqueado)
-                                        if (statusAtual === 'Pago' || statusAtual === 'Pago 100%') {
-                                            return `
-                                                <td class="acoes-master">
-                                                    <div class="btn-group-acoes">
-                                                        <span class="check-finalizado"><i class="fas fa-lock"></i></span>
-                                                    </div>
-                                                </td>`; 
-                                        }
-
-                                        // Caso 2: Pago 50% (Botão de complemento)
-                                        if (statusAtual === 'Pago 50%') {
-                                            return `
-                                                <td class="acoes-master">
-                                                    <div class="btn-group-acoes">
-                                                        <button class="btn-complementar" title="Pagar os 50% restantes" 
-                                                            onclick="alterarStatusStaff(${f.idstaffevento}, '${tipo}', 'Pago 100%')">
-                                                            <i class="fas fa-plus-circle"></i> +50%
-                                                        </button>
-                                                    </div>
-                                                </td>`;
-                                        }
-
-                                        // Caso 3: Pendente (Botões padrão)
-                                        return `
-                                            <td class="acoes-master">
-                                                <div class="btn-group-acoes">
-                                                    <button class="btn-pago" onclick="alterarStatusStaff(${f.idstaffevento}, '${tipo}', 'Pago')">
-                                                        <i class="fas fa-check"></i> Pago
-                                                    </button>
-                                                    <button class="btn-suspenso" onclick="alterarStatusStaff(${f.idstaffevento}, '${tipo}', 'Suspenso')">
-                                                        <i class="fas fa-pause"></i> Suspender
-                                                    </button>
-                                                </div>
-                                            </td>`;
-                                    };
-                                    return `
-                                        <tr>
-                                            <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
-                                            <td>${f.qtddiarias || 0}</td>
-                                            
-                                            <td class="acoes-master col-acoes-cache">
-                                                ${renderConteudoAcao(f.idstaffevento, 'Cache', statusCache)}
-                                            </td>
-                                            <td>${formatarMoeda(f.totalcache || 0)}</td>
-                                            <td class="status-celula status-${classeCache} col-status-cache">${statusCache}</td>
-                                            
-                                            <td class="acoes-master col-acoes-ajuda">
-                                                ${renderConteudoAcao(f.idstaffevento, 'Ajuda', statusAjuda)}
-                                            </td>
-                                            <td>${formatarMoeda(f.totalajudacusto || 0)}</td>
-                                            <td class="status-celula status-${classeAjuda} col-status-ajuda">${statusAjuda}</td>
-                                            
-                                            <td><strong>${formatarMoeda(f.totalpagar || 0)}</strong></td>
-                                        </tr>`;
-                                }).join("")}
-                            </tbody>
-                        </table>
-                    </div> 
-                `;
-
-                item.appendChild(header);
-                item.appendChild(body);
-                accordionContainer.appendChild(item);
-            });
-
-            conteudoGeral.appendChild(accordionContainer);
+        if (!dados || !dados.eventos || dados.eventos.length === 0) {
+            conteudoGeral.innerHTML = '<p class="alerta-info">Nenhum dado encontrado.</p>';
+            return;
         }
 
-        // 4. Atualiza a DIV de resumo
-        if (valoresResumoElement) {
-            const totalPagarGeral = totalAjudaPendente + totalCachePendente;
-            const totalPagoGeral = totalAjudaPaga + totalCachePago;
+        // 1. Bloqueio Global do Botão Caixinha no Topo
+        const totalCaixinhaGeral = dados.eventos.reduce((acc, ev) => acc + (ev.caixinha?.total || 0), 0);
+        const radioCaixinhaTopo = document.querySelector('input[name="categoria"][value="caixinha"]');
+        
+        if (radioCaixinhaTopo) {
+            if (totalCaixinhaGeral === 0) {
+                radioCaixinhaTopo.disabled = true;
+                radioCaixinhaTopo.closest('.option').classList.add('disabled-option');
+            } else {
+                radioCaixinhaTopo.disabled = false;
+                radioCaixinhaTopo.closest('.option').classList.remove('disabled-option');
+            }
+        }
+
+        const filtroSelecionadoNoTopo = document.querySelector('input[name="categoria"]:checked');
+        const categoriaInicial = filtroSelecionadoNoTopo ? filtroSelecionadoNoTopo.value : 'ajuda_custo';
+
+        conteudoGeral.innerHTML = "";
+        const accordionContainer = document.createElement("div");
+        accordionContainer.className = "accordion-vencimentos";
+
+        // Funções de Renderização
+        const obterHeaderTabela = (filtro) => `
+            <tr>
+                <th>NOME / FUNÇÃO</th>
+                <th style="text-align:center">DIÁRIAS</th>
+                <th style="text-align:center">PERÍODO</th>
+                ${(filtro === 'cache') ? `<th>AÇÕES CACHÊ</th><th>STATUS</th><th>VALOR</th>` : ''}
+                ${(filtro === 'ajuda_custo') ? `<th>AÇÕES A.J.CUSTO</th><th>STATUS</th><th>VALOR</th>` : ''}
+                ${(filtro === 'caixinha') ? `<th>AÇÕES CAIXINHA</th><th>STATUS</th><th>VALOR</th>` : ''}
+            </tr>`;
+
+        const obterLinhasTabela = (evento, filtro) => {
+            let lista = evento.funcionarios || [];
             
-            valoresResumoElement.innerHTML = `
-                <div class="resumo-detalhado">
-                    <div class="resumo-status">
-                        <div class="bloco-pendente">
-                            <h4>A Pagar (Pendente)</h4>
-                            <span class="valor-pendente">${formatarMoeda(totalPagarGeral)}</span>
-                        </div>
-                        <div class="bloco-pago">
-                            <h4>Pago (Total e Parcial)</h4>
-                            <span class="valor-pago">${formatarMoeda(totalPagoGeral)}</span>
-                        </div>
-                    </div>
-                    <div class="resumo-categorias-totais">
-                        <div>
-                            <label><strong>Ajuda de Custo:</strong></label>
-                            <p>Pendente: ${formatarMoeda(totalAjudaPendente)} / Pago: ${formatarMoeda(totalAjudaPaga)}</p>
-                        </div>
-                        <div>
-                            <label><strong>Cachê:</strong></label>
-                            <p>Pendente: ${formatarMoeda(totalCachePendente)} / Pago: ${formatarMoeda(totalCachePago)}</p>
-                        </div>
-                    </div>
+            // Regra: Se for caixinha, mostra apenas quem tem valor > 0
+            if (filtro === 'caixinha') {
+                lista = lista.filter(f => (f.totalcaixinha_filtrado || 0) > 0);
+            }
+
+            if (lista.length === 0) {
+                return `<tr><td colspan="10" style="text-align:center; padding: 20px;">Nenhum registro para esta categoria.</td></tr>`;
+            }
+
+            return lista.map(f => {
+                const sCache = formatarStatusFront(f.statuspgto || "Pendente");
+                const sAjuda = formatarStatusFront(f.statuspgtoajdcto || "Pendente");
+                const sCaixinha = formatarStatusFront(f.statuscaixinha || "Pendente"); // Corrigido para statuscaixinha
+                const cl = (s) => s.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+
+                return `
+                    <tr>
+                        <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
+                        <td style="text-align:center">${f.qtddiarias_filtradas || 0}</td>
+                        <td style="text-align:center"><small>${f.periodo_evento || '---'}</small></td>
+                        ${(filtro === 'cache') ? `
+                            <td class="acoes-master">${renderConteudoAcao(f.idstaffevento, 'Cache', sCache)}</td>
+                            <td class="status-celula status-${cl(sCache)}">${sCache}</td>
+                            <td>${formatarMoeda(f.totalcache_filtrado || 0)}</td>
+                        ` : ''}
+                        ${(filtro === 'ajuda_custo') ? `
+                            <td class="acoes-master">${renderConteudoAcao(f.idstaffevento, 'Ajuda', sAjuda)}</td>
+                            <td class="status-celula status-${cl(sAjuda)}">${sAjuda}</td>
+                            <td>${formatarMoeda(f.totalajudacusto_filtrado || 0)}</td>
+                        ` : ''}
+                        ${(filtro === 'caixinha') ? `
+                            <td class="acoes-master">${renderConteudoAcao(f.idstaffevento, 'Caixinha', sCaixinha)}</td>
+                            <td class="status-celula status-${cl(sCaixinha)}">${sCaixinha}</td>
+                            <td>${formatarMoeda(f.totalcaixinha_filtrado || 0)}</td>
+                        ` : ''}
+                    </tr>`;
+            }).join("");
+        };
+
+        dados.eventos.forEach(evento => {
+            const item = document.createElement("div");
+            item.className = "accordion-item";
+
+            const header = document.createElement("button");
+            header.className = "accordion-header";
+            header.innerHTML = `
+                <div class="evento-info">
+                    <strong>${evento.nomeEvento}</strong>
+                    <span class="total-geral">Total: ${formatarMoeda(evento.totalGeral)}</span> 
                 </div>
             `;
-        }
+            header.onclick = () => item.classList.toggle("active");
+
+            const body = document.createElement("div");
+            body.className = "accordion-body";
+            
+            body.innerHTML = `
+                <div class="resumo-categorias">
+                    <div class="categoria-bloco">
+                        <h3>Ajuda de Custo</h3>
+                        <p>Vence em: <strong>${evento.dataVencimentoAjuda}</strong></p>
+                        <p>Pendentes: ${formatarMoeda(evento.ajuda?.pendente || 0)}</p>
+                    </div>
+                    <div class="categoria-bloco">
+                        <h3>Cachê</h3>
+                        <p>Vence em: <strong>${evento.dataVencimentoCache}</strong></p>
+                        <p>Pendentes: ${formatarMoeda(evento.cache?.pendente || 0)}</p>
+                    </div>
+                    <div class="categoria-bloco">
+                        <h3>Caixinha</h3>
+                        <p>Pendentes: ${formatarMoeda(evento.caixinha?.pendente || 0)}</p>
+                    </div>
+                </div>
+                <div class="container-filtro-local" style="margin: 10px 0;"></div>
+                <div class="funcionarios-scroll-container"> 
+                    <table class="tabela-funcionarios-venc">
+                        <thead>${obterHeaderTabela(categoriaInicial)}</thead>
+                        <tbody>${obterLinhasTabela(evento, categoriaInicial)}</tbody>
+                    </table>
+                </div>
+            `;
+
+            // Filtro Local Interno (Sincronizado)
+            const cFiltro = body.querySelector(".container-filtro-local");
+            const fHtml = criarFiltroCategorias(null, null); 
+            
+            // Bloqueia caixinha no filtro local do accordion
+            const radioLocalCaixinha = fHtml.querySelector('input[value="caixinha"]');
+            if (radioLocalCaixinha && (evento.caixinha?.total || 0) === 0) {
+                radioLocalCaixinha.disabled = true;
+                radioLocalCaixinha.closest('.option').classList.add('disabled-option');
+            }
+
+            const radioLocalAtivo = fHtml.querySelector(`input[value="${categoriaInicial}"]`);
+            if (radioLocalAtivo && !radioLocalAtivo.disabled) radioLocalAtivo.checked = true;
+
+            cFiltro.appendChild(fHtml);
+
+            fHtml.querySelectorAll('input[name="categoria"]').forEach(r => {
+                r.addEventListener('change', (e) => {
+                    const v = e.target.value;
+                    const tab = body.querySelector(".tabela-funcionarios-venc");
+                    tab.querySelector("thead").innerHTML = obterHeaderTabela(v);
+                    tab.querySelector("tbody").innerHTML = obterLinhasTabela(evento, v);
+                });
+            });
+
+            item.appendChild(header);
+            item.appendChild(body);
+            accordionContainer.appendChild(item);
+        });
+
+        conteudoGeral.appendChild(accordionContainer);
+        atualizarResumoGeralEstatico(dados.eventos, valoresResumoElement);
 
     } catch (error) {
-        console.error("Erro ao carregar detalhes:", error);
-        conteudoGeral.innerHTML = '<p class="alerta-erro">Erro ao carregar dados do servidor.</p>';
+        console.error("Erro crítico:", error);
     }
 }
+
+function atualizarResumoGeralEstatico(eventos, element) {
+    if (!element) return;
+    let ajP = 0, ajOK = 0, chP = 0, chOK = 0, cxP = 0, cxOK = 0;
+
+    eventos.forEach(e => {
+        ajP += (e.ajuda?.pendente || 0); ajOK += (e.ajuda?.pagos || 0);
+        chP += (e.cache?.pendente || 0); chOK += (e.cache?.pagos || 0);
+        cxP += (e.caixinha?.pendente || 0); cxOK += (e.caixinha?.pagos || 0);
+    });
+
+    element.innerHTML = `
+        <div class="resumo-detalhado">
+            <div class="resumo-status">
+                <div class="bloco-pendente">
+                    <h4>A Pagar (Total)</h4>
+                    <span class="valor-pendente">${formatarMoeda(ajP + chP + cxP)}</span>
+                </div>
+                <div class="bloco-pago">
+                    <h4>Pago (Total)</h4>
+                    <span class="valor-pago">${formatarMoeda(ajOK + chOK + cxOK)}</span>
+                </div>
+            </div>
+            <div class="resumo-categorias-totais">
+                <div><label><strong>Ajuda:</strong></label><p>Pend: ${formatarMoeda(ajP)} / Pago: ${formatarMoeda(ajOK)}</p></div>
+                <div><label><strong>Cachê:</strong></label><p>Pend: ${formatarMoeda(chP)} / Pago: ${formatarMoeda(chOK)}</p></div>
+                <div><label><strong>Caixinha:</strong></label><p>Pend: ${formatarMoeda(cxP)} / Pago: ${formatarMoeda(cxOK)}</p></div>
+            </div>
+        </div>`;
+}
+
 
 function exibirToastSucesso(mensagem = 'Status atualizado!') {
     const Toast = Swal.mixin({
@@ -5427,8 +5676,6 @@ function construirParametrosFiltro() {
     return params;
 }
 
-
-// async function carregarDadosVencimentos() {
 
 //     // Definir data de hoje (YYYY-MM-DD)
 //     const hoje = new Date();
@@ -5993,6 +6240,41 @@ function criarControlesDeFiltro(conteudoGeral, valoresResumoElement) {
     return filtrosContainer;
 }
 
+function criarFiltroCategorias(conteudoGeral, valoresResumoElement) {
+    const container = document.createElement("div");
+    container.className = "filtro-categoria-container"; // Uma classe pai para controle extra se precisar
+
+    container.innerHTML = `
+      <label class="label-select">Categoria de Pagamento</label>
+      <div class="wrapper" id="categoria-wrapper">
+        <div class="option">
+            <input checked value="ajuda_custo" name="categoria" type="radio" class="input" />
+            <div class="btn"><span class="span">Ajud. Custo</span></div>
+        </div>
+        <div class="option">
+            <input value="cache" name="categoria" type="radio" class="input" />
+            <div class="btn"><span class="span">Cache</span></div>
+        </div>
+        <div class="option">
+            <input value="caixinha" name="categoria" type="radio" class="input" />
+            <div class="btn"><span class="span">Caixinha</span></div>
+        </div>
+      </div>
+    `;
+
+    // Adiciona o evento de clique em cada rádio
+    container.querySelectorAll("input[name='categoria']").forEach(radio => {
+        radio.addEventListener("change", () => {
+            // Chama a função de carregamento sempre que mudar a categoria
+            if (typeof carregarDetalhesVencimentos === "function") {
+                carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement);
+            }
+        });
+    });
+
+    return container;
+}
+
 function nomeDoMes(num) {
     const meses = [
         "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
@@ -6067,8 +6349,9 @@ document.getElementById("cardContainerVencimentos").addEventListener("click", as
     conteudoGeral.className = "conteudo-geral"; 
     
     const FiltrosVencimentos = criarControlesDeFiltro(conteudoGeral, valoresResumoElement);
+
     container.appendChild(FiltrosVencimentos); 
-    container.appendChild(valoresResumoElement); 
+    container.appendChild(valoresResumoElement);
     container.appendChild(conteudoGeral);
 
     // Anexe o container completo ao painel
@@ -6080,658 +6363,7 @@ document.getElementById("cardContainerVencimentos").addEventListener("click", as
 });
 
 // ===========================
-// Vencimentos de Pagamentos
-// ===========================
 
-// function formatarMoeda(valor) {
-//     // 1. Garante que o valor é um número (float). Se for null/undefined/NaN, usa 0.
-//     const num = parseFloat(valor) || 0; // ✅ CORREÇÃO: Trata null, undefined, "", e NaN como 0.
-
-//     // 2. Formata para o padrão Brasileiro
-//     return num.toLocaleString('pt-BR', { // .toLocaleString é apenas um alias para o Intl.NumberFormat().format()
-//         style: 'currency',
-//         currency: 'BRL',
-//     });
-// }
-
-// async function carregarDetalhesVencimentos(conteudoGeral) {
-//     conteudoGeral.innerHTML = '<h3>Carregando dados...</h3>';
-
-//     // Obtém data ou filtro definido
-//     const params = construirParametrosFiltro();
-//     const url = `/main/vencimentos${params}`;
-
-//     try {
-//         const dados = await fetchComToken(url);
-
-//         if (!dados || !dados.eventos || dados.eventos.length === 0) {
-//       conteudoGeral.innerHTML = '<p class="alerta-info">Nenhum evento encontrado para esse período.</p>';
-//       return;
-//         }
-
-//         conteudoGeral.innerHTML = "";
-//         const accordionContainer = document.createElement("div");
-//         accordionContainer.className = "accordion-vencimentos";
-
-//         dados.eventos.forEach(evento => {
-//       // ITEM DO ACORDEÃO
-//       const item = document.createElement("div");
-//       item.className = "accordion-item";
-
-//       // CABEÇALHO DO EVENTO
-//       const header = document.createElement("button");
-//       header.className = "accordion-header";
-//       header.innerHTML = `
-//           <div class="evento-info">
-//         <strong>${evento.nomeEvento}</strong>
-//         <span class="total-geral">Total: ${formatarMoeda(evento.totalGeral)}</span> 
-//           </div>
-//       `;
-//       header.addEventListener("click", () => item.classList.toggle("active"));
-
-//       // CORPO DO ACORDEÃO
-//       const body = document.createElement("div");
-//       body.className = "accordion-body";
-
-//       console.log(`Dados dos Funcionários para o Evento: ${evento.nomeEvento}`);
-//       console.log(evento.funcionarios);
-
-//       body.innerHTML = `
-//         <div class="resumo-categorias">
-//       <div class="categoria-bloco">
-//           <h3>Ajuda de Custo</h3>
-//           <p class="datas-evento">
-//         Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
-//           </p>
-//           <p class="vencimento">Vence em: <strong>${evento.dataVencimentoAjuda}</strong></p>
-//           <p><strong>Pendentes:</strong> ${formatarMoeda(evento.ajuda.pendente)} - <strong>Pagos:</strong> ${formatarMoeda(evento.ajuda.pagos)} - <strong>Total:</strong> ${formatarMoeda(evento.ajuda.total)}</p>
-        
-//       </div>
-
-//       <div class="categoria-bloco">
-//           <h3>Cachê</h3>
-//           <p class="datas-evento">
-//         Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
-//           </p>
-//           <p class="vencimento">Vence em: <strong>${evento.dataVencimentoCache}</strong></p>
-//           <p><strong>Pendentes:</strong> ${formatarMoeda(evento.cache.pendente)} - <strong>Pagos:</strong> ${formatarMoeda(evento.cache.pagos)} - <strong>Total:</strong> ${formatarMoeda(evento.cache.total)}</p>
-//       </div>
-//         </div>
-
-//         <h4>Funcionários (${evento.funcionarios?.length || 0} Registros):</h4>
-        
-//         <div class="funcionarios-scroll-container"> 
-//       <table class="tabela-funcionarios-venc">
-//           <thead>
-//         <tr>
-//       <th>NOME / FUNÇÃO</th>
-//       <th>DIÁRIAS</th>
-//       <th>CACHÊ</th>
-//       <th>A.J. CUSTO</th>
-//       <th>TOTAL</th>
-//       <th>STATUS</th>
-//         </tr>
-//           </thead>
-//           <tbody>
-//         ${evento.funcionarios?.map(f => `
-//       <tr>
-//           <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
-//           <td>${f.qtdDiarias}</td>
-//           <td>${formatarMoeda(f.totalCache)}</td>
-//           <td>${formatarMoeda(f.totalAjudaCusto)}</td>
-//           <td><strong>${formatarMoeda(f.totalPagar)}</strong></td>
-//           <td class="status-${(f.statusPgto || 'desconhecido').toLowerCase()}">${f.statusPgto || '—'}</td>
-//       </tr>
-//         `).join("") ?? '<tr><td colspan="6" class="text-center">Nenhum funcionário encontrado neste evento.</td></tr>'}
-//           </tbody>
-//       </table>
-//         </div> 
-//       `;
-
-//       item.appendChild(header);
-//       item.appendChild(body);
-//       accordionContainer.appendChild(item);
-//         });
-
-//         conteudoGeral.appendChild(accordionContainer);
-
-//     } catch (error) {
-//         console.error(error);
-//         conteudoGeral.innerHTML = '<p class="alerta-erro">Erro ao carregar dados.</p>';
-//     }
-// }
-
-// function construirParametrosFiltro() {
-//     // Captura o tipo de filtro principal (Obrigatório para o backend)
-//     const tipo = document.querySelector("input[name='periodo']:checked")?.value || 'diario';
-    
-//     // Inicia a string de parâmetros com o tipo
-//     let params = `?periodo=${tipo}`;
-    
-//     // Variável para o ano, usada em vários filtros
-//     const anoAtual = new Date().getFullYear(); 
-
-//     // ----------------------------------------------------
-//     // DIÁRIO
-//     // ----------------------------------------------------
-//     if (tipo === "diario") {
-//         const dia = document.querySelector("#sub-filtro-data")?.value;
-//         // O backend deve usar a dataInicio e a dataFim como o mesmo dia
-//         if (dia) {
-//       params += `&dataInicio=${dia}&dataFim=${dia}`;
-//         }
-//     }
-
-//     // ----------------------------------------------------
-//     // ✅ SEMANAL (NOVO BLOCO INSERIDO)
-//     // ----------------------------------------------------
-//     else if (tipo === "semanal") {
-//         const data = document.querySelector("#sub-filtro-data")?.value;
-//         // O backend usará esta data para calcular o Domingo anterior e o Sábado seguinte.
-//         if (data) {
-//       params += `&dataInicio=${data}`;
-//         }
-//     }
-
-//     // ----------------------------------------------------
-//     // MENSAL
-//     // ----------------------------------------------------
-//     else if (tipo === "mensal") {
-//         const mes = document.querySelector("#sub-filtro-select")?.value;
-//         if (mes) {
-//       // Envia mês e ano. O backend deve calcular dataInicio (dia 1) e dataFim (último dia).
-//       params += `&mes=${mes}&ano=${anoAtual}`;
-//         }
-//     }
-
-//     // ----------------------------------------------------
-//     // TRIMESTRAL
-//     // ----------------------------------------------------
-//     else if (tipo === "trimestral") {
-//         // Usa o seletor genérico 'sub' que criamos
-//         const tri = document.querySelector("input[name='sub']:checked")?.value;
-//         if (tri) {
-//       // Envia trimestre e ano. O backend deve calcular as datas de início e fim.
-//       params += `&trimestre=${tri}&ano=${anoAtual}`;
-//         }
-//     }
-
-//     // ----------------------------------------------------
-//     // SEMESTRAL
-//     // ----------------------------------------------------
-//     else if (tipo === "semestral") {
-//         // Usa o seletor genérico 'sub' que criamos
-//         const sem = document.querySelector("input[name='sub']:checked")?.value;
-//         if (sem) {
-//       // Envia semestre e ano. O backend deve calcular as datas de início e fim.
-//       params += `&semestre=${sem}&ano=${anoAtual}`;
-//         }
-//     }
-
-//     // ----------------------------------------------------
-//     // ANUAL
-//     // ----------------------------------------------------
-//     else if (tipo === "anual") {
-//         // Envia apenas o ano. O backend deve calcular dataInicio (Jan 1) e dataFim (Dez 31).
-//         params += `&ano=${anoAtual}`;
-//     }
-    
-//     return params;
-// }
-
-// async function carregarDadosVencimentos() {
-//    // Definir data de hoje
-//   const hoje = new Date();
-//   const ano = hoje.getFullYear();
-//   const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-//   const dia = String(hoje.getDate()).padStart(2, '0');
-//   const dataAtualFormatada = `${ano}-${mes}-${dia}`;
-
-//   console.log("Data atual formatada para vencimentos:", dataAtualFormatada);
-//   // A URL está correta para o resumo diário
-//   const urlResumo = `/main/vencimentos?dataInicio=${dataAtualFormatada}&dataFim=${dataAtualFormatada}`;
-
-//   // 🎯 CORREÇÃO 1: Obter o elemento do total ANTES do try/catch
-//   const cardVencimentos = document.getElementById('cardContainerVencimentos');
-//   const totalElement = cardVencimentos ? cardVencimentos.querySelector('.total-vencimentos') : null;
-
-//   // 🎯 CORREÇÃO 2: Se o elemento do total não for encontrado, aborta a função.
-//     if (!totalElement) {
-//         console.error("Erro: Elemento '.total-vencimentos' não encontrado no DOM. Verifique o HTML do card.");
-//         return;
-//     }
-
-//     try {
-//     // 🎯 1. CHAMADA REAL: Executa a requisição
-//       const dadosResumo = await fetchComToken(urlResumo); 
-
-//       // Inicializa somadores
-//       let totalGeralVencimentos = 0;
-
-//       if (dadosResumo && dadosResumo.eventos && dadosResumo.eventos.length > 0) {
-//           // 🎯 2. PROCESSAMENTO: Soma o total de ajudas e cachês pendentes de todos os eventos
-//           dadosResumo.eventos.forEach(evento => {
-//           // Soma os valores PENDENTES de Ajuda de Custo e Cachê
-//           totalGeralVencimentos += (evento.ajuda.pendente || 0);
-//           totalGeralVencimentos += (evento.cache.pendente || 0);
-//         });
-//       }
-
-//     // 🎯 3. ATUALIZAÇÃO DO CARD: Formata para BRL e atualiza o DOM
-//     const totalFormatado = new Intl.NumberFormat('pt-BR', {
-//       style: 'currency',
-//       currency: 'BRL'
-//     }).format(totalGeralVencimentos);
-
-//     const cardVencimentos = document.getElementById('cardContainerVencimentos');
-//     // Assumindo que você tem um elemento com a classe 'total-vencimentos' no seu card
-//     cardVencimentos.querySelector('.total-vencimentos').textContent = totalFormatado; 
-
-//     } catch (error) {
-//       console.error("Erro ao carregar dados do card de vencimentos:", error);
-//       // Opcional: Mostrar erro no card
-//       const cardVencimentos = document.getElementById('cardContainerVencimentos');
-//       cardVencimentos.querySelector('.total-vencimentos').textContent = `R$ 0,00`;
-//     }
-// }
-
-// async function inicializarCardVencimentos() {
-//     // Checa as duas permissões (Assumindo que estão definidas globalmente)
-//     const eMaster = usuarioTemPermissao();
-//     const eFinanceiro = usuarioTemPermissaoFinanceiro();
-
-//     // Seleciona os containers principais
-//     const cardVencimentos = document.getElementById('cardContainerVencimentos');
-//     const cardOrcamentos = document.getElementById('cardContainerOrcamentos');
-
-//     if (!cardVencimentos || !cardOrcamentos) {
-//         console.warn("Um dos cards não foi encontrado (Vencimentos ou Orçamentos).");
-//         return;
-//     }
-
-//     // Padrão: Ambos ocultos, depois exibimos o(s) necessário(s)
-//     cardVencimentos.style.display = 'none';
-//     cardOrcamentos.style.display = 'none';
-    
-//     // ===========================================
-//     // Lógica de Visibilidade
-//     // ===========================================
-    
-//     if (eMaster || eFinanceiro) {
-//         // Se for Master OU Financeiro: Mostra VENCIMENTOS
-//         cardVencimentos.style.display = 'flex';
-//         carregarDadosVencimentos(); // Chama a função que preenche o card
-//     }
-
-//     if (eMaster) {
-//         // Se for Master: Mostra ORÇAMENTOS também
-//         cardOrcamentos.style.display = 'flex';
-//     } 
-//     else if (!eMaster && !eFinanceiro) {
-//          // Se for Nenhum (não Master e não Financeiro): Mostra APENAS ORÇAMENTOS
-//         cardOrcamentos.style.display = 'flex';
-//     }
-// }
-
-// function criarControlesDeFiltro(conteudoGeral) {
-//     const anoAtual = new Date().getFullYear();
-
-//     const filtrosContainer = document.createElement("div");
-//     filtrosContainer.className = "filtros-vencimentos";
-
-//     // ------------------------------
-//     // 1. Filtro Principal (RADIO CUSTOM)
-//     // ------------------------------
-//     const grupoPeriodo = document.createElement("div");
-//     grupoPeriodo.className = "filtro-periodo";
-//     grupoPeriodo.innerHTML = `
-//         <label class="label-select">Tipo de Filtro</label>
-//         <div class="wrapper" id="periodo-wrapper">
-//       <div class="option">
-//         <input checked value="diario" name="periodo" type="radio" class="input" />
-//         <div class="btn"><span class="span">Diário</span></div>
-//       </div>
-//       <div class="option">
-//         <input value="semanal" name="periodo" type="radio" class="input" />
-//         <div class="btn"><span class="span">Semanal</span></div>
-//       </div>
-//       <div class="option">
-//         <input value="mensal" name="periodo" type="radio" class="input" />
-//         <div class="btn"><span class="span">Mensal</span></div>
-//       </div>
-//       <div class="option">
-//         <input value="trimestral" name="periodo" type="radio" class="input" />
-//         <div class="btn"><span class="span">Trimestral</span></div>
-//       </div>
-//       <div class="option">
-//         <input value="semestral" name="periodo" type="radio" class="input" />
-//         <div class="btn"><span class="span">Semestral</span></div>
-//       </div>
-//       <div class="option">
-//         <input value="anual" name="periodo" type="radio" class="input" />
-//         <div class="btn"><span class="span">Anual</span></div>
-//       </div>
-//         </div>
-//     `;
-
-//     filtrosContainer.appendChild(grupoPeriodo);
-
-//     // ------------------------------
-//     // 2. Sub-Filtro (DINÂMICO, TB CUSTOM)
-//     // ------------------------------
-//     const subFiltroWrapper = document.createElement("div");
-//     subFiltroWrapper.id = "sub-filtro-wrapper";
-//     subFiltroWrapper.className = "sub-filtro";
-//     filtrosContainer.appendChild(subFiltroWrapper);
-
-//     // ------------------------------
-//     // 3. Botão Aplicar
-//     // ------------------------------
-//     const btnAplicar = document.createElement("button");
-//     btnAplicar.id = "btnAplicarFiltro";
-//     btnAplicar.className = "btn-aplicar-filtro";
-//     btnAplicar.textContent = "Aplicar Filtro";
-//     filtrosContainer.appendChild(btnAplicar);
-
-//     // --------------------------------------
-//     // FUNÇÃO PARA CRIAR BOTÕES CUSTOMIZADOS
-//     // --------------------------------------
-//     function montarOpcoes(titulo, valores) {
-//         return `
-//       <label class="label-select">${titulo}</label>
-//       <div class="wrapper" id="sub-opcoes">
-//           ${valores.map(v => `
-//         <div class="option">
-//       <input value="${v.value}" name="sub" type="radio" class="input" ${v.checked ? "checked" : ""} />
-//       <div class="btn"><span class="span">${v.label}</span></div>
-//         </div>
-//           `).join("")}
-//       </div>
-//         `;
-//     }
-
-//     // ------------------------------
-//     //  FUNÇÃO PARA ATUALIZAR SUB-FILTRO
-//     // ------------------------------
-
-//     function atualizarSubFiltro(tipo) {
-//       // Limpa o conteúdo anterior do sub-filtro
-//       subFiltroWrapper.innerHTML = "";
-
-//       // O ano atual (anoAtual)
-//       const anoAtual = new Date().getFullYear(); 
-
-//       // --------------------------
-//       // 1. DIÁRIO → INPUT DE DATA
-//       // --------------------------
-//       if (tipo === "diario") {
-//           // Data atual como padrão
-//           const hoje = new Date().toISOString().split("T")[0];
-
-//           subFiltroWrapper.innerHTML = `
-//         <label class="label-select">Selecione o Dia</label>
-
-//         <div class="wrapper select-wrapper">
-//         <input 
-//           type="date"
-//           id="sub-filtro-data"
-//           class="input-data-simples" 
-//           value="${hoje}"
-//         >
-//         </div>
-//           `;
-
-//           // Aciona o carregamento ao mudar a data (listener)
-//           subFiltroWrapper
-//         .querySelector("#sub-filtro-data")
-//         .addEventListener("change", () => 
-//           carregarDetalhesVencimentos(conteudoGeral)
-//         );
-
-//           // Dispara a busca Imediatamente com o filtro padrão (hoje)
-//           carregarDetalhesVencimentos(conteudoGeral); 
-
-//           return; 
-//       }
-
-//       // --------------------------
-//       // 2. SEMANAL → INPUT DE DATA
-//       // --------------------------
-//       else if (tipo === "semanal") {
-//           // Data atual como padrão
-//           const hoje = new Date().toISOString().split("T")[0]; 
-
-//           subFiltroWrapper.innerHTML = `
-//         <label class="label-select">Selecione uma data na semana</label>
-
-//         <div class="wrapper select-wrapper">
-//         <input 
-//           type="date"
-//           id="sub-filtro-data"
-//           class="input-data-simples" 
-//           value="${hoje}"
-//         >
-//         </div>
-//           `;
-
-//           // Aciona o carregamento ao mudar a data (listener)
-//           subFiltroWrapper
-//         .querySelector("#sub-filtro-data")
-//         .addEventListener("change", () => 
-//       carregarDetalhesVencimentos(conteudoGeral)
-//         );
-
-//           // Dispara a busca Imediatamente com o filtro padrão (hoje)
-//           carregarDetalhesVencimentos(conteudoGeral); 
-
-//           return;
-//       }
-
-
-//       // --------------------------
-//       // 3. MENSAL → SELECT ESTILIZADO
-//       // --------------------------
-//       else if (tipo === "mensal") { 
-//           let optionsHtml = "";
-//           const mesAtual = new Date().getMonth() + 1; // 1 a 12
-
-//           for (let i = 1; i <= 12; i++) {
-//         const isCurrentMonth = (i === mesAtual);
-//         optionsHtml += `
-//       <option value="${i}" ${isCurrentMonth ? "selected" : ""}>
-//           ${nomeDoMes(i)} / ${anoAtual}
-//       </option>
-//       `;
-//           }
-
-//           subFiltroWrapper.innerHTML = `
-//         <label class="label-select">Selecione o Mês</label>
-//         <div class="wrapper select-wrapper">
-//           <select id="sub-filtro-select" class="select-simples">
-//       ${optionsHtml}
-//           </select>
-//         </div>
-//           `;
-
-//           // Aciona o carregamento ao mudar o mês (listener)
-//           subFiltroWrapper.querySelector("#sub-filtro-select")
-//           .addEventListener("change", () => carregarDetalhesVencimentos(conteudoGeral));
-
-//           // Dispara a busca Imediatamente com o filtro padrão (mês atual)
-//           carregarDetalhesVencimentos(conteudoGeral);
-
-//           return;
-//       }
-
-//       // --------------------------
-//       // 4. TRIMESTRAL → RADIO CUSTOM
-//       // --------------------------
-//       else if (tipo === "trimestral") {
-//           const mesAtual = new Date().getMonth() + 1; // 1 a 12
-//           const trimestreAtual = Math.ceil(mesAtual / 3); // 1, 2, 3 ou 4
-
-//           const trimes = [1, 2, 3, 4].map(t => ({
-//         value: t,
-//         label: `Trimestre ${t} / ${anoAtual}`,
-//         checked: t === trimestreAtual
-//           }));
-
-//           subFiltroWrapper.innerHTML = montarOpcoes("Selecione o Trimestre", trimes);
-//       }
-
-//       // --------------------------
-//       // 5. SEMESTRAL → RADIO CUSTOM
-//       // --------------------------
-//       else if (tipo === "semestral") {
-//           const mesAtual = new Date().getMonth() + 1; // 1 a 12
-//           const semestreAtual = mesAtual <= 6 ? 1 : 2; // 1 ou 2
-
-//           const semestres = [
-//       { value: 1, label: `1º Semestre / ${anoAtual}`, checked: semestreAtual === 1 },
-//       { value: 2, label: `2º Semestre / ${anoAtual}`, checked: semestreAtual === 2 }
-//           ];
-
-//           subFiltroWrapper.innerHTML = montarOpcoes("Selecione o Semestre", semestres);
-//       }
-
-
-//       // --------------------------
-//       // 6. ANUAL → Exibe Ano Atual
-//       // --------------------------
-//       else if (tipo === "anual") {
-//           subFiltroWrapper.innerHTML = `
-//         <label class="label-select">Período Anual</label>
-//         <p class="anual-info">Eventos do ano de ${anoAtual}</p>
-//           `;
-
-//           // Dispara a busca Imediatamente com o filtro padrão (ano atual)
-//           carregarDetalhesVencimentos(conteudoGeral);
-
-//           return;
-//       }
-
-//       // --------------------------
-//       // LISTENER GENÉRICO PARA SUB-FILTROS DE RÁDIO (TRIMESTRAL/SEMESTRAL)
-//       // --------------------------
-//       // Este bloco só é executado para 'trimestral' ou 'semestral'
-//       const radios = subFiltroWrapper.querySelectorAll("input[name='sub']");
-//       radios.forEach(r => r.addEventListener("change", () => carregarDetalhesVencimentos(conteudoGeral)));
-
-//       // Dispara a busca Imediatamente para o filtro padrão
-//       if (tipo === 'trimestral' || tipo === 'semestral') {
-//           carregarDetalhesVencimentos(conteudoGeral);
-//       }
-//     }
-//     // Inicializa
-//     atualizarSubFiltro("diario");
-
-//     // Listener Periodo
-//     grupoPeriodo.querySelectorAll("input[name='periodo']").forEach(radio => {
-//         radio.addEventListener("change", (e) => {
-//       const tipo = e.target.value;
-//       atualizarSubFiltro(tipo);
-
-//       if (tipo === "anual") carregarDetalhesVencimentos(conteudoGeral);
-//         });
-//     });
-
-//     // Botão aplicar
-//     btnAplicar.addEventListener("click", () => carregarDetalhesVencimentos(conteudoGeral));
-
-//     return filtrosContainer;
-// }
-
-// function nomeDoMes(num) {
-//     const meses = [
-//         "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
-//         "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"
-//     ];
-//     return meses[num - 1];
-// }
-
-// function construirQueryDeFiltro() {
-//     // Definido localmente para garantir o escopo
-//     const anoAtual = new Date().getFullYear(); 
-    
-//     const periodoSelect = document.getElementById('periodo-select');
-//     const periodo = periodoSelect.value;
-//     let queryString = `?periodo=${periodo}&ano=${anoAtual}`;
-
-//     // Adiciona o parâmetro de seleção específico se não for Diário ou Anual
-//     if (periodo === 'mensal') {
-//         const mesSelect = document.getElementById('sub-filtro-select');
-//         if (mesSelect) {
-//       queryString += `&mes=${mesSelect.value}`;
-//         }
-//     } else if (periodo === 'trimestral') {
-//         const trimestreSelect = document.getElementById('sub-filtro-select');
-//         if (trimestreSelect) {
-//       queryString += `&trimestre=${trimestreSelect.value}`;
-//         }
-//     } else if (periodo === 'semestral') {
-//         const semestreSelect = document.getElementById('sub-filtro-select');
-//         if (semestreSelect) {
-//       queryString += `&semestre=${semestreSelect.value}`;
-//         }
-//     }
-
-//     // Para o filtro diário, usamos a data atual como referência (se não houver um seletor de data)
-//     if (periodo === 'diario') {
-//          const hoje = new Date().toISOString().split('T')[0];
-//          queryString += `&dataInicio=${hoje}`;
-//     }
-
-//     return queryString;
-// }
-
-// document.getElementById("cardContainerVencimentos").addEventListener("click", async function() {
-//     const painel = document.getElementById("painelDetalhes");
-//     painel.innerHTML = ""; // Limpa o painel anterior
-
-//     // Aplicando classes Tailwind para consistência com as funções de filtro
-//     const container = document.createElement("div");
-//     container.id = "venc-container";
-//     container.className = "venc-container";
-
-//     const header = document.createElement("div");
-//     header.className = "venc-header";
-
-//     const btnVoltar = document.createElement("button"); 
-//     btnVoltar.id = "btnVoltarVencimentos";
-//     // Usando classes Tailwind para um estilo moderno
-//     btnVoltar.className = "btn-voltar";
-//     btnVoltar.textContent = "←";
-
-//     const titulo = document.createElement("h2");
-//     titulo.textContent = "Vencimentos de Pagamentos"; 
-
-//     header.appendChild(btnVoltar);
-//     header.appendChild(titulo);
-//     container.appendChild(header);
-    
-//     // Contêiner onde o resultado da busca será exibido
-//     const conteudoGeral = document.createElement("div");
-//     conteudoGeral.className = "conteudo-geral"; 
-    
-//     // ➡️ CRIAÇÃO E INSERÇÃO DOS FILTROS (RESTAURADO E CORRIGIDO)
-//     // Chama a função para criar o componente de filtro
-//     const FiltrosVencimentos = criarControlesDeFiltro(conteudoGeral);
-//     // Anexa o componente de filtro ao container principal
-//     container.appendChild(FiltrosVencimentos); 
-    
-//     container.appendChild(conteudoGeral);
-
-//     // Anexe o container completo ao painel
-//     painel.appendChild(container);
-    
-//     // ➡️ CHAMA A FUNÇÃO CORRIGIDA PELA PRIMEIRA VEZ para carregar o padrão (Mensal Atual)
-//     carregarDetalhesVencimentos(conteudoGeral);
-    
-//     // 5. Adiciona o listener para o botão de voltar
-//     btnVoltar.addEventListener('click', () => {
-//         painel.innerHTML = ""; // Volta para a tela anterior
-//     });
-// });
 
 // ======================
 // ABRIR AGENDA
