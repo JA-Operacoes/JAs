@@ -240,7 +240,7 @@ select#selectAno {
 
 #categoria-wrapper{
   position: relative;
-  width: 350px;
+  width: 260px;
   height: 36px;
   background-color: transparent;
   border: 2px solid var(--border-color);
@@ -2497,7 +2497,7 @@ body.dark .indicador-evento {
 .tabela-funcionarios-venc th,
 .tabela-funcionarios-venc td {
   padding: 10px;
-  text-align: left;
+  text-align: center;
   font-size: 0.85em;
   border-bottom: 1px solid #eee;
 

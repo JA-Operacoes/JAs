@@ -5296,13 +5296,18 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             return;
         }
 
-        // 1. Verifica se existe algum valor de caixinha globalmente para desabilitar o rádio principal
+        // 1. Bloqueio Global do Botão Caixinha no Topo
         const totalCaixinhaGeral = dados.eventos.reduce((acc, ev) => acc + (ev.caixinha?.total || 0), 0);
         const radioCaixinhaTopo = document.querySelector('input[name="categoria"][value="caixinha"]');
         
-        if (radioCaixinhaTopo && totalCaixinhaGeral === 0) {
-            radioCaixinhaTopo.disabled = true;
-            radioCaixinhaTopo.closest('.option').classList.add('disabled-option'); // Para você estilizar no CSS
+        if (radioCaixinhaTopo) {
+            if (totalCaixinhaGeral === 0) {
+                radioCaixinhaTopo.disabled = true;
+                radioCaixinhaTopo.closest('.option').classList.add('disabled-option');
+            } else {
+                radioCaixinhaTopo.disabled = false;
+                radioCaixinhaTopo.closest('.option').classList.remove('disabled-option');
+            }
         }
 
         const filtroSelecionadoNoTopo = document.querySelector('input[name="categoria"]:checked');
@@ -5312,37 +5317,40 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
         const accordionContainer = document.createElement("div");
         accordionContainer.className = "accordion-vencimentos";
 
+        // Funções de Renderização
         const obterHeaderTabela = (filtro) => `
             <tr>
                 <th>NOME / FUNÇÃO</th>
-                <th>DIÁRIAS</th>
+                <th style="text-align:center">DIÁRIAS</th>
+                <th style="text-align:center">PERÍODO</th>
                 ${(filtro === 'cache') ? `<th>AÇÕES CACHÊ</th><th>STATUS</th><th>VALOR</th>` : ''}
                 ${(filtro === 'ajuda_custo') ? `<th>AÇÕES A.J.CUSTO</th><th>STATUS</th><th>VALOR</th>` : ''}
                 ${(filtro === 'caixinha') ? `<th>AÇÕES CAIXINHA</th><th>STATUS</th><th>VALOR</th>` : ''}
             </tr>`;
 
         const obterLinhasTabela = (evento, filtro) => {
-            // 2. FILTRO DE FUNCIONÁRIOS: Se for caixinha, filtra quem tem valor > 0
-            let funcionariosFiltrados = evento.funcionarios || [];
+            let lista = evento.funcionarios || [];
             
+            // Regra: Se for caixinha, mostra apenas quem tem valor > 0
             if (filtro === 'caixinha') {
-                funcionariosFiltrados = funcionariosFiltrados.filter(f => (f.totalcaixinha_filtrado || 0) > 0);
+                lista = lista.filter(f => (f.totalcaixinha_filtrado || 0) > 0);
             }
 
-            if (funcionariosFiltrados.length === 0) {
-                return `<tr><td colspan="10" style="text-align:center;">Nenhum registro com valor para esta categoria.</td></tr>`;
+            if (lista.length === 0) {
+                return `<tr><td colspan="10" style="text-align:center; padding: 20px;">Nenhum registro para esta categoria.</td></tr>`;
             }
 
-            return funcionariosFiltrados.map(f => {
+            return lista.map(f => {
                 const sCache = formatarStatusFront(f.statuspgto || "Pendente");
                 const sAjuda = formatarStatusFront(f.statuspgtoajdcto || "Pendente");
-                const sCaixinha = formatarStatusFront(f.statuspgtocaixinha || "Pendente");
+                const sCaixinha = formatarStatusFront(f.statuscaixinha || "Pendente"); // Corrigido para statuscaixinha
                 const cl = (s) => s.toLowerCase().replace(/\s+/g, '-').replace('%', '');
 
                 return `
                     <tr>
                         <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
-                        <td>${f.qtddiarias_filtradas || 0}</td>
+                        <td style="text-align:center">${f.qtddiarias_filtradas || 0}</td>
+                        <td style="text-align:center"><small>${f.periodo_evento || '---'}</small></td>
                         ${(filtro === 'cache') ? `
                             <td class="acoes-master">${renderConteudoAcao(f.idstaffevento, 'Cache', sCache)}</td>
                             <td class="status-celula status-${cl(sCache)}">${sCache}</td>
@@ -5358,7 +5366,6 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                             <td class="status-celula status-${cl(sCaixinha)}">${sCaixinha}</td>
                             <td>${formatarMoeda(f.totalcaixinha_filtrado || 0)}</td>
                         ` : ''}
-                        <td><strong>${formatarMoeda(f.totalpagar || 0)}</strong></td>
                     </tr>`;
             }).join("");
         };
@@ -5367,7 +5374,6 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             const item = document.createElement("div");
             item.className = "accordion-item";
 
-            // ... (código do header do accordion igual ao anterior)
             const header = document.createElement("button");
             header.className = "accordion-header";
             header.innerHTML = `
@@ -5407,11 +5413,11 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 </div>
             `;
 
-            // Configuração do Filtro Local (Interno)
+            // Filtro Local Interno (Sincronizado)
             const cFiltro = body.querySelector(".container-filtro-local");
             const fHtml = criarFiltroCategorias(null, null); 
             
-            // Bloqueia caixinha se o evento específico não tiver caixinha
+            // Bloqueia caixinha no filtro local do accordion
             const radioLocalCaixinha = fHtml.querySelector('input[value="caixinha"]');
             if (radioLocalCaixinha && (evento.caixinha?.total || 0) === 0) {
                 radioLocalCaixinha.disabled = true;
