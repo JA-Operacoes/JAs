@@ -18,100 +18,90 @@ header{
       z-index: 1000;
 }
 
-.interface{
-  max-width: 2560px;
-  padding: 0 ;
-  margin: 0 ;
-  display: flex;
-  align-items:center;
-  justify-content: space-between;
-}
-.logotipo{
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding:5px 10px;
-  gap:10px;
-}
+  .interface{
+    max-width: 2560px;
+    max-height: 90px;
+    padding: 0 ;
+    margin: 0 ;
+    display: flex;
+    align-items:center;
+    justify-content: space-between;
+  }
+  .logotipo{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding:20px 10px;
+    gap:10px;
+  }
+  
+  .logotipo img{
+    max-width: 90px;
+    height: auto;
+    display: flex;
+    justify-content: flex-start;
+    object-fit: contain;
+  }
+  
+  .minilogos{
+    display: flex;
+    align-items: center;
+  }
+  
+  .minilogos img{
+    max-width: 25px;
+    height: auto;
+    display: flex;
+    justify-content: flex-start;
+    object-fit: contain;
+    align-items: center;
+  
+  }
 
-.logotipo img{
-  max-width: 100px;
-  height: auto;
-  display: flex;
-  justify-content: flex-start;
-  object-fit: contain;
-}
+    [class^="logo-"] {
+    display: none !important; /* Esconde todos os logos por padrão */
+  }
 
-.minilogos{
-  display: flex;
-  align-items: center;
-}
-
-.minilogos img{
-  max-width: 25px;
-  height: auto;
-  display: flex;
-  justify-content: flex-start;
-  object-fit: contain;
-  align-items: center;
-}
 
 span{
   gap: 3px;
 }
 
-nav {
-  background-color: transparent; /* Cor inicial */
-  transition: background 0.3s ease-in-out; /* Suaviza a troca de cor */
-}
+  nav { 
+    transition: background 0.3s ease-in-out; /* Suaviza a troca de cor */
+  }
+  
+  
+  nav ul{
+  width: 100%;
+  margin: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    list-style-type: none;
+  }
+  
+  /*personalização dos itens menu */
+  
+  nav ul li a{
+    color: #fff;
+    padding: 20px 40px;
+    text-decoration: none;
+    font-weight: 700;
+    display: flex;
+    justify-content: center;
+    transition: .2s;
+  }
+  
+  /* /borda muda de cor ao passar mouse/ */
+  
+  nav ul li a:hover{
+    background-color: #ff0000;
+    color: #ffffff;
+    box-shadow: inset 0 0 8px #0000008a;
+  
+  }
 
-/* Quando o mouse passar sobre cada logo, a cor do menu muda */
-.logo-expo:hover ~ nav {
-  background-color: #f47722;
-}
-
-.logo-ES:hover ~ nav {
-  background-color: #6ec62d;
-}
-
-.logo-EP:hover ~ nav {
-  background-color: #989997;
-}
-
-.logo-ED:hover ~ nav {
-  background-color: #4db3e9;
-}
-
-
-nav ul{
-width: 100%;
-margin: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  list-style-type: none;
-}
-
-/*personalização dos itens menu */
-
-nav ul li a{
-  color: #fff;
-  padding: 20px 40px;
-  text-decoration: none;
-  font-weight: 700;
-  display: flex;
-  justify-content: center;
-  transition: .2s;
-}
-
-/* /borda muda de cor ao passar mouse/ */
-
-nav ul li a:hover{
-  background-color: var(--EP-color);
-  color: #ffffff;
-  box-shadow: inset 0 0 8px #0000008a;
-
-}
 
   #container {
     display: flex;
@@ -120,7 +110,7 @@ nav ul li a:hover{
   #painel-container {
     position: relative;
     width: 210px;
-    height: calc(100vh - 200px);
+    height: calc(100vh - 70px);
     overflow: hidden;
     display: flex;
     flex-direction: column;
