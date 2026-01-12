@@ -2572,6 +2572,7 @@ body.dark .indicador-evento {
   color: #495057; /* Cinza escuro */
   margin-bottom: 5px;
   padding-bottom: 5px;
+  gap: 5px;
 }
 
 .categoria-bloco .vencimento {
@@ -2581,6 +2582,11 @@ body.dark .indicador-evento {
   margin-bottom: 10px;
   border-bottom: 1px dashed #eee;
   padding-bottom: 5px;
+  gap: 5px;
+}
+
+p.pendentes-pagos {
+    gap: 5px;
 }
 
 /* Garante que o STRONG no vencimento tem a cor de destaque */

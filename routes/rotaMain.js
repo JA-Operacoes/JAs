@@ -1676,6 +1676,7 @@ router.get("/vencimentos", async (req, res) => {
     const queryDetalhes = `
       SELECT tse.idstaffevento, tse.idevento, tse.nmfuncionario AS nome, tse.nmfuncao AS funcao,
         calc.qtd AS qtddiarias_filtradas, calc.min_dt AS periodo_eventoini, calc.max_dt AS periodo_eventofim,
+        calc_full.full_min_dt AS periodo_eventoini_all, calc_full.full_max_dt AS periodo_eventofim_all,
         (COALESCE(tse.vlrcache, 0) * calc.qtd) AS totalcache_filtrado,
         ((COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * calc.qtd) AS totalajudacusto_filtrado,
         (COALESCE(tse.vlrcaixinha, 0) * calc.qtd) AS totalcaixinha_filtrado,
@@ -1686,22 +1687,41 @@ router.get("/vencimentos", async (req, res) => {
         FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
         WHERE (d.dt)::date BETWEEN $2 AND $3
       ) AS calc
+      CROSS JOIN LATERAL (
+        SELECT MIN((d2.dt)::date) AS full_min_dt, MAX((d2.dt)::date) AS full_max_dt
+        FROM jsonb_array_elements_text(tse.datasevento) AS d2(dt)
+      ) AS calc_full
       WHERE tse.idevento = ANY($1) AND calc.qtd > 0
       ORDER BY tse.nmfuncionario ASC;
     `;
 
     const { rows: staffRows } = await pool.query(queryDetalhes, [eventosRaw.map(e => e.idevento), startDate, endDate]);
 
-    // Função interna para evitar NaN
+    // Funções internas para formatar datas com segurança
+    // Normaliza entrada que pode ser Date ou string e retorna Date válido ou null
+    const normalizarParaDate = (val) => {
+        if (!val) return null;
+        if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+        try {
+            // Se receber '2026-01-20T00:00:00' ou '2026-01-20', extrai parte de data
+            const s = String(val).split('T')[0];
+            const d = new Date(s + 'T00:00:00');
+            return isNaN(d.getTime()) ? null : d;
+        } catch (e) {
+            return null;
+        }
+    };
+
     const formatarDDMM = (dStr) => {
-        if (!dStr || dStr === "null") return '---';
-        // Adicionar T00:00:00 garante que o JavaScript não mude o dia pelo fuso horário
-        const d = new Date(dStr + 'T00:00:00'); 
-        if (isNaN(d.getTime())) return '---';
-        
-        const dia = String(d.getDate()).padStart(2, '0');
-        const mes = String(d.getMonth() + 1).padStart(2, '0');
-        return `${dia}/${mes}`;
+        const d = normalizarParaDate(dStr);
+        if (!d) return '---';
+        return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+    };
+
+    const formatarDDMMYYYY = (dStr) => {
+        const d = normalizarParaDate(dStr);
+        if (!d) return '---';
+        return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
     };
 
     const resultado = eventosRaw.map(ev => {
@@ -1715,21 +1735,49 @@ router.get("/vencimentos", async (req, res) => {
         const vX = parseFloat(s.totalcaixinha_filtrado) || 0;
         
         chT += vC; ajT += vA; cxT += vX;
-        if (s.statuspgto?.startsWith('Pago')) chP += vC;
-        if (s.statuspgtoajdcto?.startsWith('Pago')) ajP += vA;
-        if (s.statuscaixinha?.startsWith('Pago')) cxP += vX;
 
-        if (s.periodo_eventoini) { const d = new Date(s.periodo_eventoini); if (!minEventDate || d < minEventDate) minEventDate = d; }
-        if (s.periodo_eventofim) { const d = new Date(s.periodo_eventofim); if (!maxEventDate || d > maxEventDate) maxEventDate = d; }
+        // Calcula valores pagos considerando pagamentos parciais (ex: 'Pago 50%')
+        const calcPago = (status, amount) => {
+            if (!status) return 0;
+            const s = String(status);
+            if (!s.startsWith('Pago')) return 0;
+            // Match any digits in the status (handles 'Pago 50%', 'Pago50', 'Pago50%')
+            const match = s.match(/(\d+)/);
+            if (match) return amount * (Number(match[1]) / 100);
+            return amount; // 'Pago' or 'Pago 100%' => valor integral
+        };
+
+        chP += calcPago(s.statuspgto, vC);
+        ajP += calcPago(s.statuspgtoajdcto, vA);
+        cxP += calcPago(s.statuscaixinha, vX);
+
+        // Normaliza e converte para string ISO (YYYY-MM-DD) para comparação/formatacao segura
+        const normalizarParaISO = (val) => {
+            if (!val) return null;
+            if (val instanceof Date) return val.toISOString().split('T')[0];
+            const s = String(val).split('T')[0];
+            const d = new Date(s + 'T00:00:00');
+            return isNaN(d.getTime()) ? null : s;
+        };
+
+        const startRaw = s.periodo_eventoini || s.periodo_eventoini_all;
+        const endRaw = s.periodo_eventofim || s.periodo_eventofim_all;
+        const startISO = normalizarParaISO(startRaw);
+        const endISO = normalizarParaISO(endRaw);
+
+        if (startISO) { const d = new Date(startISO + 'T00:00:00'); if (!minEventDate || d < minEventDate) minEventDate = d; }
+        if (endISO) { const d = new Date(endISO + 'T00:00:00'); if (!maxEventDate || d > maxEventDate) maxEventDate = d; }
 
         return {
           ...s,
-          // RESOLUÇÃO DO NaN: Verifica se as datas existem antes de formatar
-          periodo_evento: (s.periodo_eventoini && s.periodo_eventofim) 
-        ? (s.periodo_eventoini === s.periodo_eventofim 
-            ? formatarDDMM(s.periodo_eventoini) 
-            : `${formatarDDMM(s.periodo_eventoini)} a ${formatarDDMM(s.periodo_eventofim)}`)
-        : '',
+          // PERÍODO DO FUNCIONÁRIO (usa dd/mm/yyyy para evitar ambiguidade)
+          periodo_eventoini_raw: startISO || null,
+          periodo_eventofim_raw: endISO || null,
+          periodo_eventoini_fmt: startISO ? formatarDDMMYYYY(startISO) : '---',
+          periodo_eventofim_fmt: endISO ? formatarDDMMYYYY(endISO) : '---',
+          periodo_evento: (startISO && endISO)
+              ? (startISO === endISO ? formatarDDMMYYYY(startISO) : `${formatarDDMMYYYY(startISO)} a ${formatarDDMMYYYY(endISO)}`)
+              : '---',
           totalcache_filtrado: vC,
           totalajudacusto_filtrado: vA,
           totalcaixinha_filtrado: vX,
@@ -1741,11 +1789,14 @@ router.get("/vencimentos", async (req, res) => {
         idevento: ev.idevento,
         nomeEvento: ev.nmevento,
         totalGeral: ajT + chT + cxT,
+        // PERÍODO DO EVENTO (menor data/trabalhada e maior data trabalhada alcançadas pelos staff)
+        periodo_evento: minEventDate ? `${String(minEventDate.getDate()).padStart(2,'0')}/${String(minEventDate.getMonth()+1).padStart(2,'0')}/${minEventDate.getFullYear()}` : '---',
+        dataFimEvento: maxEventDate ? `${String(maxEventDate.getDate()).padStart(2,'0')}/${String(maxEventDate.getMonth()+1).padStart(2,'0')}/${maxEventDate.getFullYear()}` : '---',
         dataVencimentoAjuda: minEventDate ? new Date(minEventDate.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---',
         dataVencimentoCache: maxEventDate ? new Date(maxEventDate.getTime() + 10*86400000).toLocaleDateString('pt-BR') : '---',
-        ajuda: { total: ajT, pendente: ajT - ajP },
-        cache: { total: chT, pendente: chT - chP },
-        caixinha: { total: cxT, pendente: cxT - cxP },
+        ajuda: { total: ajT, pendente: ajT - ajP, pago: ajP },
+        cache: { total: chT, pendente: chT - chP, pago: chP },
+        caixinha: { total: cxT, pendente: cxT - cxP, pago: cxP },
         funcionarios: staffsProcessados
       };
     });

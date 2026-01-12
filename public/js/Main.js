@@ -5091,9 +5091,9 @@ function formatarStatusFront(status) {
 //             dados.eventos.forEach(evento => {
 //                 // Os nomes aqui devem bater com o que o backend envia no objeto 'evento'
 //                 const ajudaPendente = evento.ajuda?.pendente || 0;
-//                 const ajudaPaga = evento.ajuda?.pagos || 0;
+//                 const ajudaPaga = parseFloat(evento.ajuda?.pago ?? evento.ajuda?.pagos) || 0;
 //                 const cachePendente = evento.cache?.pendente || 0;
-//                 const cachePaga = evento.cache?.pagos || 0;
+//                 const cachePaga = parseFloat(evento.cache?.pago ?? evento.cache?.pagos) || 0;
 
 //                 totalAjudaPendente += ajudaPendente;
 //                 totalAjudaPaga += ajudaPaga;
@@ -5282,7 +5282,6 @@ function formatarStatusFront(status) {
 // }
 async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) { 
     if (!conteudoGeral) return;
-
     conteudoGeral.innerHTML = '<h3>Carregando dados financeiros...</h3>';
     if (valoresResumoElement) valoresResumoElement.innerHTML = '';
 
@@ -5296,18 +5295,12 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             return;
         }
 
-        // 1. Bloqueio Global do Botão Caixinha no Topo
+        // Bloqueio Global do Botão Caixinha no Topo
         const totalCaixinhaGeral = dados.eventos.reduce((acc, ev) => acc + (ev.caixinha?.total || 0), 0);
         const radioCaixinhaTopo = document.querySelector('input[name="categoria"][value="caixinha"]');
-        
         if (radioCaixinhaTopo) {
-            if (totalCaixinhaGeral === 0) {
-                radioCaixinhaTopo.disabled = true;
-                radioCaixinhaTopo.closest('.option').classList.add('disabled-option');
-            } else {
-                radioCaixinhaTopo.disabled = false;
-                radioCaixinhaTopo.closest('.option').classList.remove('disabled-option');
-            }
+            radioCaixinhaTopo.disabled = totalCaixinhaGeral === 0;
+            radioCaixinhaTopo.closest('.option').classList.toggle('disabled-option', totalCaixinhaGeral === 0);
         }
 
         const filtroSelecionadoNoTopo = document.querySelector('input[name="categoria"]:checked');
@@ -5317,7 +5310,7 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
         const accordionContainer = document.createElement("div");
         accordionContainer.className = "accordion-vencimentos";
 
-        // Funções de Renderização
+        // Funções internas de renderização (obterHeaderTabela e obterLinhasTabela permanecem iguais)
         const obterHeaderTabela = (filtro) => `
             <tr>
                 <th>NOME / FUNÇÃO</th>
@@ -5330,20 +5323,13 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
         const obterLinhasTabela = (evento, filtro) => {
             let lista = evento.funcionarios || [];
-            
-            // Regra: Se for caixinha, mostra apenas quem tem valor > 0
-            if (filtro === 'caixinha') {
-                lista = lista.filter(f => (f.totalcaixinha_filtrado || 0) > 0);
-            }
-
-            if (lista.length === 0) {
-                return `<tr><td colspan="10" style="text-align:center; padding: 20px;">Nenhum registro para esta categoria.</td></tr>`;
-            }
+            if (filtro === 'caixinha') lista = lista.filter(f => (f.totalcaixinha_filtrado || 0) > 0);
+            if (lista.length === 0) return `<tr><td colspan="10" style="text-align:center; padding: 20px;">Nenhum registro para esta categoria.</td></tr>`;
 
             return lista.map(f => {
                 const sCache = formatarStatusFront(f.statuspgto || "Pendente");
                 const sAjuda = formatarStatusFront(f.statuspgtoajdcto || "Pendente");
-                const sCaixinha = formatarStatusFront(f.statuscaixinha || "Pendente"); // Corrigido para statuscaixinha
+                const sCaixinha = formatarStatusFront(f.statuscaixinha || "Pendente");
                 const cl = (s) => s.toLowerCase().replace(/\s+/g, '-').replace('%', '');
 
                 return `
@@ -5391,19 +5377,29 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 <div class="resumo-categorias">
                     <div class="categoria-bloco">
                         <h3>Ajuda de Custo</h3>
-                        <p>Vence em: <strong>${evento.dataVencimentoAjuda}</strong></p>
-                        <p>Pendentes: ${formatarMoeda(evento.ajuda?.pendente || 0)}</p>
+                        <p class="datas-evento">Período Evento: <strong>${evento.periodo_evento}</strong> a <strong>${evento.dataFimEvento}</strong></p>
+                        <p class="vencimento">Vence em: <strong>${evento.dataVencimentoAjuda}</strong></p>
+                        <p class="pendentes-pagos"><strong>Pendentes:</strong> ${formatarMoeda(evento.ajuda?.pendente || 0)}<strong>Pagos:</strong> ${formatarMoeda(evento.ajuda?.pago || 0)}</p>
                     </div>
+
                     <div class="categoria-bloco">
                         <h3>Cachê</h3>
-                        <p>Vence em: <strong>${evento.dataVencimentoCache}</strong></p>
-                        <p>Pendentes: ${formatarMoeda(evento.cache?.pendente || 0)}</p>
+                        <p class="datas-evento">Período Evento: <strong>${evento.periodo_evento}</strong> a <strong>${evento.dataFimEvento}</strong></p>
+                        <p class="vencimento">Vence em: <strong>${evento.dataVencimentoCache}</strong></p>
+                        <p class="pendentes-pagos"><strong>Pendentes:</strong> ${formatarMoeda(evento.cache?.pendente || 0)}<strong>Pagos:</strong> ${formatarMoeda(evento.cache?.pago || 0)}</p>
                     </div>
-                    <div class="categoria-bloco">
-                        <h3>Caixinha</h3>
-                        <p>Pendentes: ${formatarMoeda(evento.caixinha?.pendente || 0)}</p>
-                    </div>
+
+                    ${(evento.caixinha?.total > 0) ? `
+                        <div class="categoria-bloco">
+                            <h3>Caixinha</h3>
+                            <div class="caixinhaPP">
+                                <p><strong>Pendentes:</strong> ${formatarMoeda(evento.caixinha?.pendente || 0)}</p>
+                                <p><strong>Pagos:</strong> ${formatarMoeda(evento.caixinha?.pago || 0)}</p>
+                            </div>
+                        </div>
+                    ` : ''}
                 </div>
+
                 <div class="container-filtro-local" style="margin: 10px 0;"></div>
                 <div class="funcionarios-scroll-container"> 
                     <table class="tabela-funcionarios-venc">
@@ -5413,11 +5409,10 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 </div>
             `;
 
-            // Filtro Local Interno (Sincronizado)
+            // Filtro Local Interno
             const cFiltro = body.querySelector(".container-filtro-local");
             const fHtml = criarFiltroCategorias(null, null); 
             
-            // Bloqueia caixinha no filtro local do accordion
             const radioLocalCaixinha = fHtml.querySelector('input[value="caixinha"]');
             if (radioLocalCaixinha && (evento.caixinha?.total || 0) === 0) {
                 radioLocalCaixinha.disabled = true;
@@ -5428,7 +5423,6 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             if (radioLocalAtivo && !radioLocalAtivo.disabled) radioLocalAtivo.checked = true;
 
             cFiltro.appendChild(fHtml);
-
             fHtml.querySelectorAll('input[name="categoria"]').forEach(r => {
                 r.addEventListener('change', (e) => {
                     const v = e.target.value;
@@ -5453,30 +5447,42 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
 function atualizarResumoGeralEstatico(eventos, element) {
     if (!element) return;
-    let ajP = 0, ajOK = 0, chP = 0, chOK = 0, cxP = 0, cxOK = 0;
+
+    // Totais por categoria
+    let totalPendAjuda = 0, totalPagoAjuda = 0;
+    let totalPendCache = 0, totalPagoCache = 0;
+    let totalPendCaix = 0, totalPagoCaix = 0;
 
     eventos.forEach(e => {
-        ajP += (e.ajuda?.pendente || 0); ajOK += (e.ajuda?.pagos || 0);
-        chP += (e.cache?.pendente || 0); chOK += (e.cache?.pagos || 0);
-        cxP += (e.caixinha?.pendente || 0); cxOK += (e.caixinha?.pagos || 0);
+        totalPendAjuda += Number(e.ajuda?.pendente || 0);
+        totalPagoAjuda += Number(e.ajuda?.pago || 0);
+
+        totalPendCache += Number(e.cache?.pendente || 0);
+        totalPagoCache += Number(e.cache?.pago || 0);
+
+        totalPendCaix += Number(e.caixinha?.pendente || 0);
+        totalPagoCaix += Number(e.caixinha?.pago || 0);
     });
+
+    const totalPend = totalPendAjuda + totalPendCache + totalPendCaix;
+    const totalPago = totalPagoAjuda + totalPagoCache + totalPagoCaix;
 
     element.innerHTML = `
         <div class="resumo-detalhado">
             <div class="resumo-status">
                 <div class="bloco-pendente">
                     <h4>A Pagar (Total)</h4>
-                    <span class="valor-pendente">${formatarMoeda(ajP + chP + cxP)}</span>
+                    <span class="valor-pendente">${formatarMoeda(totalPend)}</span>
                 </div>
                 <div class="bloco-pago">
                     <h4>Pago (Total)</h4>
-                    <span class="valor-pago">${formatarMoeda(ajOK + chOK + cxOK)}</span>
+                    <span class="valor-pago">${formatarMoeda(totalPago)}</span>
                 </div>
             </div>
             <div class="resumo-categorias-totais">
-                <div><label><strong>Ajuda:</strong></label><p>Pend: ${formatarMoeda(ajP)} / Pago: ${formatarMoeda(ajOK)}</p></div>
-                <div><label><strong>Cachê:</strong></label><p>Pend: ${formatarMoeda(chP)} / Pago: ${formatarMoeda(chOK)}</p></div>
-                <div><label><strong>Caixinha:</strong></label><p>Pend: ${formatarMoeda(cxP)} / Pago: ${formatarMoeda(cxOK)}</p></div>
+                <div><label><strong>Ajuda:</strong></label><p>Pend: ${formatarMoeda(totalPendAjuda)} / Pago: ${formatarMoeda(totalPagoAjuda)}</p></div>
+                <div><label><strong>Cachê:</strong></label><p>Pend: ${formatarMoeda(totalPendCache)} / Pago: ${formatarMoeda(totalPagoCache)}</p></div>
+                <div><label><strong>Caixinha:</strong></label><p>Pend: ${formatarMoeda(totalPendCaix)} / Pago: ${formatarMoeda(totalPagoCaix)}</p></div>
             </div>
         </div>`;
 }
@@ -5498,9 +5504,9 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
     const linhaTr = btnClicado ? btnClicado.closest('tr') : null;
     let statusParaEnviar = novoStatus;
 
-    // LÓGICA DO SWAL PARA AJUDA DE CUSTO (50% ou 100%)
+    // Lógica do Swal para Ajuda de Custo
     if (tipo === 'Ajuda' && novoStatus === 'Pago') {
-        const { value: opcao } = await Swal.fire({
+        const result = await Swal.fire({
             title: 'Pagamento Ajuda de Custo',
             text: 'Escolha a modalidade do pagamento:',
             icon: 'question',
@@ -5513,17 +5519,17 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
             denyButtonColor: '#17a2b8',
         });
 
-        if (opcao === true) { // Clicou em Pago 100%
-            statusParaEnviar = 'Pago 100%';
-        } else if (Swal.getDenyButton() && opcao === false) { // Clicou em Pago 50%
-            // Nota: O Swal retorna false para o Deny Button se não configurado retorno específico
-            statusParaEnviar = 'Pago 50%';
-        } else {
-            return; // Usuário cancelou, encerra a função
-        }
+        if (result.isConfirmed) statusParaEnviar = 'Pago 100%';
+        else if (result.isDenied) statusParaEnviar = 'Pago 50%';
+        else return;
     }
 
     try {
+        // Mostra um spinner no botão para feedback imediato
+        const htmlOriginalBotao = btnClicado.innerHTML;
+        btnClicado.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btnClicado.disabled = true;
+
         const response = await fetch(`/main/vencimentos/update-status`, {
             method: 'POST',
             headers: { 
@@ -5533,36 +5539,55 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
             body: JSON.stringify({ idStaff, tipo, novoStatus: statusParaEnviar })
         });
 
-        if (response.ok) {
-            exibirToastSucesso(`Status atualizado para ${statusParaEnviar}`);
+        if (!response.ok) throw new Error('Erro ao salvar no banco');
 
-            if (linhaTr) {
-                const sufixo = tipo.toLowerCase() === 'cache' ? 'cache' : 'ajuda';
-                const celulaAcoes = linhaTr.querySelector(`.col-acoes-${sufixo}`);
-                const celulaStatus = linhaTr.querySelector(`.col-status-${sufixo}`);
+        // --- AQUI ACONTECE A MÁGICA DA ATUALIZAÇÃO INSTANTÂNEA ---
+        
+        exibirToastSucesso(`Status: ${statusParaEnviar}`);
 
-                // Atualiza o Status Visual na tabela
-                if (celulaStatus) {
-                    const classeStatus = statusParaEnviar.toLowerCase().replace(/\s+/g, '-').replace('%', '');
-                    celulaStatus.className = `status-celula status-${classeStatus} col-status-${sufixo}`;
-                    celulaStatus.innerText = statusParaEnviar;
-                }
+        if (linhaTr) {
+            const sufixo = tipo.toLowerCase() === 'cache' ? 'cache' : 'ajuda';
+            const celulaAcoes = linhaTr.querySelector(`.col-acoes-${sufixo}`);
+            const celulaStatus = linhaTr.querySelector(`.col-status-${sufixo}`);
 
-                // Atualiza os Botões na tabela
-                if (celulaAcoes) {
-                    celulaAcoes.innerHTML = renderConteudoAcao(idStaff, tipo, statusParaEnviar);
-                }
+            // 1. Atualiza o texto e a cor da célula de status
+            if (celulaStatus) {
+                // Remove classes antigas de status (ex: status-pendente, status-pago-50)
+                celulaStatus.className = celulaStatus.className.replace(/\bstatus-\S+/g, '');
+                
+                // Cria a nova classe baseada no status
+                const classeFormatada = statusParaEnviar.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+                celulaStatus.classList.add(`status-${classeFormatada}`);
+                celulaStatus.innerText = statusParaEnviar;
             }
 
-            // Atualiza os cards de totais no topo (opcional, mas recomendado)
-            if (typeof carregarDadosVencimentos === "function") {
-                const filtroAno = document.getElementById('filtroAnoVencimentos')?.value || 2026;
-                carregarDadosVencimentos(filtroAno);
+            // 2. Atualiza os botões (Ações)
+            if (celulaAcoes) {
+                celulaAcoes.innerHTML = renderConteudoAcao(idStaff, tipo, statusParaEnviar);
             }
         }
+
+        // 3. Atualiza os cards de totais lá no topo (Caixinha)
+        const filtroAno = document.getElementById('filtroAnoVencimentos')?.value || new Date().getFullYear();
+        
+        // Chamada assíncrona para não travar a UI
+        carregarDadosVencimentos(filtroAno);
+
+        // Se o painel de detalhes estiver aberto, atualiza também o resumo detalhado (caixinha/ajuda/cache)
+        const valoresResumoElement = document.getElementById('valores-resumo-vencimentos');
+        const conteudoGeral = document.querySelector('#venc-container .conteudo-geral');
+        if (valoresResumoElement && conteudoGeral && typeof carregarDetalhesVencimentos === 'function') {
+            carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement);
+        }
+
+        if (typeof atualizarCardCaixinha === "function") atualizarCardCaixinha();
+
     } catch (error) {
         console.error("Erro ao atualizar:", error);
         Swal.fire('Erro', 'Não foi possível atualizar o status.', 'error');
+        // Volta o botão ao estado original se der erro
+        btnClicado.innerHTML = htmlOriginalBotao;
+        btnClicado.disabled = false;
     }
 }
 
@@ -5875,7 +5900,7 @@ async function carregarDadosVencimentos(anoFiltro) {
             dados.eventos.forEach(ev => {
                 // --- AJUDA DE CUSTO ---
                 const ajPendente = parseFloat(ev.ajuda.pendente) || 0;
-                const ajJaPago = parseFloat(ev.ajuda.pagos) || 0;
+                const ajJaPago = parseFloat(ev.ajuda.pago ?? ev.ajuda.pagos) || 0;
 
                 // Regra: Soma no card de PAGOS tudo que já foi pago (Total ou 50%)
                 soma.ajPagos += ajJaPago;
@@ -5894,7 +5919,7 @@ async function carregarDadosVencimentos(anoFiltro) {
 
                 // --- CACHÊ ---
                 const chPendente = parseFloat(ev.cache.pendente) || 0;
-                const chJaPago = parseFloat(ev.cache.pagos) || 0;
+                const chJaPago = parseFloat(ev.cache.pago ?? ev.cache.pagos) || 0;
 
                 // Soma o que já foi pago de Cachê
                 soma.chPagos += chJaPago;
