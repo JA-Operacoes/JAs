@@ -1,0 +1,68 @@
+<link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
+<link rel="stylesheet" href="css/Modal/CadContas.css">
+<link rel="stylesheet" href="css/Roots/Roots.css">
+
+<div id="cadModalContas" class="modal">
+  <div class="modal-content"> 
+        
+        <div class="Close"><button class="close" id="Fechar"> X </button></div>
+
+        <div id ="form-contas">             
+            
+            <div class = "title">
+                <h1>Cadastro de Contas</h1>
+            </div>
+
+            <form  method="post"  id="form" name="form" autocomplete="on">
+    
+                <fieldset>
+                    <legend>Cadastre a Conta</legend>
+                    <br>
+                    <div class="form-3colunas">
+                        <div class="form">
+                            <input type="text" name="idConta" id="idConta" readonly spellcheck="false">
+                            <label for ="idConta">Código</label>     
+                        </div>
+                        <div class="form">
+                            <input type="text" class="uppercase" name="nmConta" id="nmConta"  required spellcheck="false">
+                            <label for = "nmConta">Nome da Conta</label>
+                        </div>
+                        <div class="form-checkbox">
+                            <div class="checkbox-wrapper-33">
+                                <label class="checkbox">
+                                    <p class="checkbox__textwrapper">Conta Ativa</p>
+                                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo" checked />
+                                    <span class="checkbox__symbol">
+                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                                            <path d="M4 14l8 7L24 7"></path>
+                                        </svg>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form">
+                        <select name="tpConta" id="tpConta" required class="form">
+                            <option value="" disabled selected>Selecione o Tipo de Conta</option>
+                            <option value="Consumo">Consumo (Luz, Água, etc.)</option>
+                            <option value="Bancaria">Conta Bancária</option>
+                            <option value="Servico">Prestação de Serviço</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                        <!-- <label for="tpConta">Tipo de Conta</label> -->
+                    </div>
+                        
+                   
+                </fieldset>
+            </form>
+        </div>
+        <div class="BTNs">
+            <button class="bntPesquisar" id="Pesquisar" type="button">Pesquisar</button>
+            <button class="bntLimpar"  id="Limpar" type="button">Limpar</button>
+            <button class="btnEnviar" id="Enviar" type="button">Enviar</button>
+        </div>
+    </div>
+</div>

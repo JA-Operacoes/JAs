@@ -18,144 +18,141 @@
 
   <link rel="stylesheet" href="Css/Modal/CadEmpresas.css">
     <div id="cadModalEmpresas" class="modal">
-        <div class="modal-content">
-            
-            <div class="Close"><button class="close" id="Fechar"> X </button></div>
-            <div id ="form-content">
-                <form id="form">
+      <div class="modal-content">
+          
+        <div class="Close"><button class="close" id="Fechar"> X </button></div>
+        <div id ="form-content">
+          <form id="form">
 
-                    <div class = "title">
-                    <h1>Cadastro de Empresas</h1>
-                    </div>
-                    
-                    <fieldset>
-                        <legend>Informações da  Empresa</legend>
-                        <div class="form-2colunas">
-              <div class="form2">
-                <input type="text" class="uppercase" name="nmFantasia" id="nmFantasia" required>
-                <label for="nmFantasia"> Nome Fantasia</label>
-              </div>
-
-              <div class="form2">
-                <input type="text" class="uppercase" name="razaoSocial" id="razaoSocial" required>
-                <label for="razaoSocial"> Razão Social</label>
-              </div>
+            <div class = "title">
+              <h1>Cadastro de Empresas</h1>
             </div>
-            <div class="form-2colunas">
-              <div class="form2">
-                <input type="text" name="cnpj" id="cnpj" maxlength="20" required oninput="formatCNPJ(this)">
-                <!-- maxlength="20" oninput="formatCNPJ(this)" required > -->
-                <label for="cnpj">CPF/CNPJ</label>
+                  
+            <fieldset>
+              <legend>Informações da  Empresa</legend>
+              <div class="form-2colunas">
+                <div class="form2">
+                  <input type="text" class="uppercase" name="nmFantasia" id="nmFantasia" required>
+                  <label for="nmFantasia"> Nome Fantasia</label>
+                </div>
+
+                <div class="form2">
+                  <input type="text" class="uppercase" name="razaoSocial" id="razaoSocial" required>
+                  <label for="razaoSocial"> Razão Social</label>
+                </div>
               </div>
-              <div class="form2">
-                <input type="text" class="uppercase" name="inscEstadual" id="inscEstadual" required
-                  oninput="formatIE(this)">
-                <label for="inscEstadual">Inscrição Estadual</label>
+
+              <div class="form-2colunas">
+                <div class="form2">
+                  <input type="text" name="cnpj" id="cnpj" maxlength="20" required oninput="formatCNPJ(this)">
+                  <!-- maxlength="20" oninput="formatCNPJ(this)" required > -->
+                  <label for="cnpj">CPF/CNPJ</label>
+                </div>
+
+                <div class="form2">
+                  <input type="text" class="uppercase" name="inscEstadual" id="inscEstadual" required
+                    oninput="formatIE(this)">
+                  <label for="inscEstadual">Inscrição Estadual</label>
+                </div>
               </div>
+              <div class="form-2colunas">
+                <div class="form2">
+                  <input type="email" name="emailEmpresa" id="emailEmpresa" required>
+                  <label for="emailEmpresa">Email Empresa</label>
+                </div>
+                <div class="form2">
+                  <input type="text" name="emailNfe" id="emailNfe" required>
+                  <label for="emailNfe">Email NF-e</label>
+                </div>
+              </div>
+              <div class="form-2colunas">
+                <div class="form2">
+                  <input type="url" name="site" id="site" required spellcheck="false">
+                  <label for="site"> Site </label>
+                </div>
+                <div class="form2">
+                  <input type="tel" name="telefone" id="telefone" maxlength="15" oninput="formatTelefone(this)" required>
+                  <label for="tel"> Telefone </label>
+                </div>
+              </div>
+
+              <div class="form-3colunas">
+                <div class="checkbox-wrapper-33">
+                  <label class="checkbox">
+                    <p class="checkbox__textwrapper">Empresa Ativo</p>
+                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo" />
+                    <span class="checkbox__symbol">
+                      <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28"
+                        version="1" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 14l8 7L24 7"></path>
+                      </svg>
+                    </span>
+                  </label>
+                </div>             
+
+                <div class="form2">
+                  <input type="text" class="uppercase" name="idEmpresa" id="idEmpresa" placeholder=" "
+                    spellcheck="false" readonly />
+                  <label for="idEmpresa">Código</label>
+                </div>
+              </div>
+            </fieldset><br>
+
+            <fieldset>
+              <legend>Dados de Localização</legend>
+              <div class="form-2colunas">
+                <div class="form2">
+                    <input type="text" id="cep" name="cep" maxlength="9" oninput="formatCEP(this)" oninput="buscarCEP()"
+                    required>
+                    <label for="cep">CEP</label>
+                </div>
+                <div class="form2">
+                    <input type="text" class="uppercase" id="rua" name="rua" required>
+                    <label for="rua">Rua</label>
+                </div>
+              </div>
+              <div class="form-2colunas">
+                <div class="form2">
+                    <input type="text" id="numero" name="numero" required>
+                    <label for="numero">Número</label>
+                </div>
+                <div class="form2">
+                    <input type="text" class="uppercase" class="Complemento" name="complemento"
+                    id="complemento" required spellcheck="false">
+                    <label for="complemento">Complemento</label>
+                </div>
+                <div class="form2">
+                    <input type="text" class="uppercase" id="bairro" name="bairro" required>
+                    <label for="bairro"> Bairro </label>
+                </div>
+              </div>
+
+              <div class="form-2colunas">
+                <div class="form2">
+                    <input type="text" class="uppercase" id="cidade" name="cidade" required>
+                    <label for="cidade">Cidade</label>
+                </div>
+                <div class="form2">
+                    <input type="text" class="uppercase" id="estado" name="estado" required>
+                    <label for="estado"> Estado</label>
+                </div>
+                <div class="form2">
+                    <input type="text" class="uppercase" id="pais" name="pais" required>
+                    <label for="pais">Pais</label>
+                </div>
+              </div>
+            </fieldset>
+          </div>
+
+            <div class="BTNs">
+        
+                <button class="btnPesquisar" id="Pesquisar" type="button">Pesquisar</button>
+                <button class="btnLimpar" id="Limpar" type="button">Limpar</button>
+                <button class="btnEnviar" id="Enviar" type="button">Enviar</button>
+        
             </div>
-            <div class="form-2colunas">
-              <div class="form2">
-                <input type="email" name="emailEmpresa" id="emailEmpresa" required>
-                <label for="emailEmpresa">Email Empresa</label>
-              </div>
-              <div class="form2">
-                <input type="text" name="emailNfe" id="emailNfe" required>
-                <label for="emailNfe">Email NF-e</label>
-              </div>
-            </div>
-            <div class="form-2colunas">
-              <div class="form2">
-                <input type="url" name="site" id="site" required spellcheck="false">
-                <label for="site"> Site </label>
-              </div>
-              <div class="form2">
-                <input type="tel" name="telefone" id="telefone" maxlength="15" oninput="formatTelefone(this)" required>
-                <label for="tel"> Telefone </label>
-              </div>
-            </div>
 
-
-            <div class="form-3colunas">
-              <div class="checkbox-wrapper-33">
-                <label class="checkbox">
-                  <p class="checkbox__textwrapper">Empresa Ativo</p>
-                  <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo" />
-                  <span class="checkbox__symbol">
-                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28"
-                      version="1" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M4 14l8 7L24 7"></path>
-                    </svg>
-                  </span>
-
-                                </label>
-                            </div>             
-
-                            <div class="form2">
-                                <input type="text" class="uppercase" name="idEmpresa" id="idEmpresa" placeholder=" "
-                                spellcheck="false" readonly />
-                                <label for="idEmpresa">Código</label>
-                            </div>
-                        </div>
-
-
-          </fieldset><br>
-
-                    <fieldset>
-                        <legend>Dados de Localização</legend>
-                        <div class="form-2colunas">
-                        <div class="form2">
-                            <input type="text" id="cep" name="cep" maxlength="9" oninput="formatCEP(this)" oninput="buscarCEP()"
-                            required>
-                            <label for="cep">CEP</label>
-                        </div>
-                        <div class="form2">
-                            <input type="text" class="uppercase" id="rua" name="rua" required>
-                            <label for="rua">Rua</label>
-                        </div>
-                        </div>
-                        <div class="form-2colunas">
-                        <div class="form2">
-                            <input type="text" id="numero" name="numero" required>
-                            <label for="numero">Número</label>
-                        </div>
-                        <div class="form2">
-                            <input type="text" class="uppercase" class="Complemento" name="complemento"
-                            id="complemento" required spellcheck="false">
-                            <label for="complemento">Complemento</label>
-                        </div>
-                        <div class="form2">
-                            <input type="text" class="uppercase" id="bairro" name="bairro" required>
-                            <label for="bairro"> Bairro </label>
-                        </div>
-                        </div>
-
-                        <div class="form-2colunas">
-                        <div class="form2">
-                            <input type="text" class="uppercase" id="cidade" name="cidade" required>
-                            <label for="cidade">Cidade</label>
-                        </div>
-                        <div class="form2">
-                            <input type="text" class="uppercase" id="estado" name="estado" required>
-                            <label for="estado"> Estado</label>
-                        </div>
-                        <div class="form2">
-                            <input type="text" class="uppercase" id="pais" name="pais" required>
-                            <label for="pais">Pais</label>
-                        </div>
-                        </div>
-                    </fieldset>
-        </div>
-
-                    <div class="BTNs">
-                
-                        <button class="btnPesquisar" id="Pesquisar" type="button">Pesquisar</button>
-                        <button class="btnLimpar" id="Limpar" type="button">Limpar</button>
-                        <button class="btnEnviar" id="Enviar" type="button">Enviar</button>
-                
-                    </div>
-
-                </form>
-            
+          </form>            
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

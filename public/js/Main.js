@@ -400,6 +400,7 @@ async function abrirModalLocal(url, modulo) {
 
         // fechar por overlay
         overlay.addEventListener("mousedown", (event) => {
+            console.log("EVENT TARGET", event.target, "OVERLAY FECHAR", overlay);
             if (event.target === overlay) {
                 console.log("[abrirModalLocal] overlay clicado -> fechar");
                 if (typeof fecharModal === "function") {
