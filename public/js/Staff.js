@@ -4377,8 +4377,90 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
         }
 
         // --- 4. TRATAMENTO DE DATAS FORA DO ORÇAMENTO (BOTÕES SEPARADOS) ---
-        if (datasNaoOrcadas.length > 0) {
+        // if (datasNaoOrcadas.length > 0) {
             
+        //     const datasFormatadas = datasNaoOrcadas.map(data => {
+        //         const [ano, mes, dia] = data.split('-');
+        //         return `${dia}/${mes}/${ano}`;
+        //     }).join(', ');
+            
+        //     console.warn("Datas fora do orçamento:", datasNaoOrcadas);
+
+        //     // Configuração do Swal com 3 botões
+        //     const result = await Swal.fire({
+        //         icon: 'question', // Ícone de pergunta é mais adequado para escolha
+        //         title: 'Datas Fora do Orçamento',
+        //         html: `A função <b>${funcaoSelecionadaTexto}</b> não possui orçamento para: <br><b style="color:red">${datasFormatadas}</b>.<br><br>Como deseja prosseguir?`,
+                
+        //         // Configuração dos Botões
+        //         showCancelButton: true,
+        //         showDenyButton: true, // Habilita o terceiro botão
+                
+        //         confirmButtonText: 'Solicitar Aditivo ($)',
+        //         denyButtonText: 'Extra Bonificado (Grátis)',
+        //         cancelButtonText: 'Cancelar',
+                
+        //         confirmButtonColor: '#28a745', // Verde (Dinheiro/Aditivo)
+        //         denyButtonColor: '#17a2b8',    // Azul ou Laranja (Bonificado)
+        //         cancelButtonColor: '#d33',     // Vermelho (Cancelar)
+                
+        //         allowOutsideClick: false,      // Obriga o usuário a decidir
+        //         allowEscapeKey: false
+        //     });
+
+        //     if (result.isConfirmed) {
+        //         // --- OPÇÃO 1: ADITIVO ---
+        //         console.log("Usuário escolheu: ADITIVO");
+        //         decisaoUsuarioDataFora = 'ADITIVO'; // Salva na variável global
+                
+        //         temOrcamento = true;
+        //         mostrarStatusComoPendente('StatusAditivo')
+        //         controlarBotaoSalvarStaff(true);
+
+        //     } else if (result.isDenied) {
+        //         // --- OPÇÃO 2: EXTRA BONIFICADO ---
+        //         console.log("Usuário escolheu: EXTRA BONIFICADO");
+        //         decisaoUsuarioDataFora = 'EXTRA'; // Salva na variável global
+                
+        //         temOrcamento = true;
+        //         mostrarStatusComoPendente('StatusExtraBonificado');
+        //         controlarBotaoSalvarStaff(true);
+
+        //     } else {
+        //         // --- OPÇÃO 3: CANCELAR ---
+        //         console.log("Usuário Cancelou");
+        //         temOrcamento = false;
+        //         controlarBotaoSalvarStaff(false);
+                
+        //         if (window.flatpickrInstances && window.flatpickrInstances['datasEvento']) {
+        //             window.flatpickrInstances['datasEvento'].clear();
+        //         }
+        //         decisaoUsuarioDataFora = null;
+        //         return; 
+        //     }
+        // } else {
+        //     // Datas Ok
+        //     temOrcamento = true;
+        //     controlarBotaoSalvarStaff(true);
+        // }
+
+        // // --- 5. POPULAR OBJETO GLOBAL ---
+        // dadosDoOrcamento.forEach(item => {
+        //     const chave = `${item.nmevento}-${item.nmcliente}-${item.nmlocalmontagem}-${item.descfuncao}`;
+        //     if (!orcamentoPorFuncao[chave]) {
+        //         orcamentoPorFuncao[chave] = {
+        //             quantidadeOrcada: Number(item.quantidade_orcada), 
+        //             quantidadeEscalada: Number(item.quantidade_escalada),
+        //             idOrcamento: item.idOrcamento,
+        //             idFuncao: item.idFuncao
+        //         };
+        //     } else {
+        //         orcamentoPorFuncao[chave].quantidadeOrcada += Number(item.quantidade_orcada);
+        //     }
+        // });
+
+        // --- 4. TRATAMENTO DE DATAS FORA DO ORÇAMENTO (COM SOLICITAÇÃO DE EXCEÇÃO) ---
+        if (datasNaoOrcadas.length > 0) {
             const datasFormatadas = datasNaoOrcadas.map(data => {
                 const [ano, mes, dia] = data.split('-');
                 return `${dia}/${mes}/${ano}`;
@@ -4386,78 +4468,83 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
             
             console.warn("Datas fora do orçamento:", datasNaoOrcadas);
 
-            // Configuração do Swal com 3 botões
+            // 1. Pergunta o tipo de solicitação
             const result = await Swal.fire({
-                icon: 'question', // Ícone de pergunta é mais adequado para escolha
+                icon: 'question',
                 title: 'Datas Fora do Orçamento',
                 html: `A função <b>${funcaoSelecionadaTexto}</b> não possui orçamento para: <br><b style="color:red">${datasFormatadas}</b>.<br><br>Como deseja prosseguir?`,
-                
-                // Configuração dos Botões
                 showCancelButton: true,
-                showDenyButton: true, // Habilita o terceiro botão
-                
+                showDenyButton: true,
                 confirmButtonText: 'Solicitar Aditivo ($)',
                 denyButtonText: 'Extra Bonificado (Grátis)',
                 cancelButtonText: 'Cancelar',
-                
-                confirmButtonColor: '#28a745', // Verde (Dinheiro/Aditivo)
-                denyButtonColor: '#17a2b8',    // Azul ou Laranja (Bonificado)
-                cancelButtonColor: '#d33',     // Vermelho (Cancelar)
-                
-                allowOutsideClick: false,      // Obriga o usuário a decidir
+                confirmButtonColor: '#28a745',
+                denyButtonColor: '#17a2b8',
+                cancelButtonColor: '#d33',
+                allowOutsideClick: false,
                 allowEscapeKey: false
             });
 
+            let tipoParaSolicitar = '';
+
             if (result.isConfirmed) {
-                // --- OPÇÃO 1: ADITIVO ---
-                console.log("Usuário escolheu: ADITIVO");
-                decisaoUsuarioDataFora = 'ADITIVO'; // Salva na variável global
-                
-                temOrcamento = true;
-                mostrarStatusComoPendente('StatusAditivo')
-                controlarBotaoSalvarStaff(true);
-
+                tipoParaSolicitar = 'Aditivo';
             } else if (result.isDenied) {
-                // --- OPÇÃO 2: EXTRA BONIFICADO ---
-                console.log("Usuário escolheu: EXTRA BONIFICADO");
-                decisaoUsuarioDataFora = 'EXTRA'; // Salva na variável global
-                
-                temOrcamento = true;
-                mostrarStatusComoPendente('StatusExtraBonificado');
-                controlarBotaoSalvarStaff(true);
-
+                tipoParaSolicitar = 'Extra Bonificado';
             } else {
-                // --- OPÇÃO 3: CANCELAR ---
-                console.log("Usuário Cancelou");
-                temOrcamento = false;
-                controlarBotaoSalvarStaff(false);
-                
-                if (window.flatpickrInstances && window.flatpickrInstances['datasEvento']) {
-                    window.flatpickrInstances['datasEvento'].clear();
-                }
-                decisaoUsuarioDataFora = null;
+                // OPÇÃO: CANCELAR
+                console.log("Usuário Cancelou no primeiro nível");
+                cancelarProcessoOrcamento();
                 return; 
             }
+
+            // 2. Chama o modal de quantidade e justificativa
+            // Importante: passamos 'idFuncao' que vem dos argumentos da sua função buscarEPopularOrcamento
+            const resultadoExcecao = await solicitarDadosExcecao(
+                tipoParaSolicitar, 
+                idOrcamentoAtual, 
+                funcaoSelecionadaTexto, 
+                idFuncao 
+            );
+
+            // 3. Valida se a gravação no banco (via AJAX) deu certo
+            if (resultadoExcecao && resultadoExcecao.sucesso) {
+                console.log(`Sucesso ao registrar ${tipoParaSolicitar}`);
+                decisaoUsuarioDataFora = (tipoParaSolicitar === 'Aditivo' ? 'ADITIVO' : 'EXTRA');
+                
+                temOrcamento = true;
+                const statusElemento = (tipoParaSolicitar === 'Aditivo' ? 'StatusAditivo' : 'StatusExtraBonificado');
+                mostrarStatusComoPendente(statusElemento);
+                controlarBotaoSalvarStaff(true);
+                
+                Swal.fire('Solicitado!', `A solicitação de ${tipoParaSolicitar} foi registrada com sucesso.`, 'success');
+            } else {
+                // Se o usuário cancelou o segundo modal ou deu erro no salvarSolicitacaoAditivoExtra
+                console.log("Solicitação cancelada ou falhou:", resultadoExcecao.erro);
+                if (!resultadoExcecao.cancelado) {
+                    Swal.fire('Erro', 'Não foi possível salvar a solicitação: ' + resultadoExcecao.erro, 'error');
+                }
+                cancelarProcessoOrcamento();
+                return;
+            }
+
         } else {
             // Datas Ok
             temOrcamento = true;
             controlarBotaoSalvarStaff(true);
         }
 
-        // --- 5. POPULAR OBJETO GLOBAL ---
-        dadosDoOrcamento.forEach(item => {
-            const chave = `${item.nmevento}-${item.nmcliente}-${item.nmlocalmontagem}-${item.descfuncao}`;
-            if (!orcamentoPorFuncao[chave]) {
-                orcamentoPorFuncao[chave] = {
-                    quantidadeOrcada: Number(item.quantidade_orcada), 
-                    quantidadeEscalada: Number(item.quantidade_escalada),
-                    idOrcamento: item.idOrcamento,
-                    idFuncao: item.idFuncao
-                };
-            } else {
-                orcamentoPorFuncao[chave].quantidadeOrcada += Number(item.quantidade_orcada);
+        // Função auxiliar interna para limpar campos em caso de cancelamento
+        function cancelarProcessoOrcamento() {
+            temOrcamento = false;
+            controlarBotaoSalvarStaff(false);
+            if (window.flatpickrInstances && window.flatpickrInstances['datasEvento']) {
+                window.flatpickrInstances['datasEvento'].clear();
             }
-        });
+            decisaoUsuarioDataFora = null;
+        }
+
+        
 
     } catch (error) {
         console.error("Erro:", error);
