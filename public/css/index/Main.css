@@ -2526,10 +2526,43 @@ body.dark .indicador-evento {
 .status-suspenso { background: #ff7f07; color: #ffffff; font-weight: 600; border-radius: 10%; }
 
 
-.acoes-master {
+.acoes-master, .acoes-supremo, .acoes-financeiro {
     text-align: center;
     vertical-align: middle !important;
 }
+
+.acoes-financeiro .btn-comprovante,
+.comprovantes-cell .btn-comprovante,
+.comprovantes-cell .btn-ver-comp {
+    background: #007bff;
+    color: #fff;
+    border: none;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 6px;
+}
+
+.comprovantes-cell .btn-ver-comp { background: transparent; color: #333; border: 1px solid #ddd; padding: 4px 6px; }
+.comprovantes-cell .btn-ver-comp i { margin-right: 6px; }
+
+.acoes-financeiro .btn-comprovante:hover, .comprovantes-cell .btn-comprovante:hover { opacity: 0.9; }
+
+.badge { margin-left: 6px; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; }
+.badge.comprov-50 { background: #ffeb3b; color: #000; }
+.badge.comprov-50.pending { opacity: 0.5; }
+.badge.comprov-100 { background: #28a745; color: #fff; }
+.badge.comprov-100.pending { opacity: 0.5; }
+/* Badge para comprovantes únicos (Cache / Caixinha) */
+.badge.comprov-uni { background: #17a2b8; color: #fff; }
+.badge.comprov-uni.pending { opacity: 0.5; }
+
+/* Estilo do botão 'Ver Comprovante' e label pequena */
+.btn-ver-comp { background: #fff; border: 1px solid #ddd; padding: 6px 8px; border-radius: 4px; cursor: pointer; color: #333; display:flex; align-items:center; gap:6px; }
+.btn-ver-comp i { color: #e53935; }
+.comprov-label { font-size: 0.75em; color: #666; margin-left: 6px; }
+
+.comprovantes-cell { display: flex; align-items: center; gap: 6px; justify-content: center; }
 
 /* Este grupo garante que os botões fiquem alinhados e com o mesmo espaçamento */
 .btn-group-acoes {

@@ -4,6 +4,9 @@ const pool = require("../db/conexaoDB");
 const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlewares');
 const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 const logMiddleware = require("../middlewares/logMiddleware");
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 router.get("/", async (req, res) => {
   const idempresa = req.headers.idempresa || req.query.idempresa;
@@ -1622,6 +1625,39 @@ function calcularIntervaloDeDatas(periodo, params) {
 // =======================================
 // VENCIMENTOS
 // =======================================
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const dir = './uploads/comprovantes/';
+        // Cria a pasta caso ela não exista
+        if (!fs.existsSync(dir)){
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        cb(null, dir);
+    },
+    filename: function (req, file, cb) {
+        // Gera um nome único: idStaff-timestamp-nomeoriginal
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+// Inicializa o middleware upload (Isso resolve o ReferenceError)
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // Limite de 5MB
+    fileFilter: (req, file, cb) => {
+        const extensões = /jpeg|jpg|png|pdf/;
+        const mimetype = extensões.test(file.mimetype);
+        const extname = extensões.test(path.extname(file.originalname).toLowerCase());
+
+        if (mimetype && extname) {
+            return cb(null, true);
+        }
+        cb(new Error("Apenas imagens (JPG/PNG) e PDFs são permitidos."));
+    }
+});
+
+
 router.get("/vencimentos", async (req, res) => {
   try {
     const idempresa = req.idempresa;
@@ -1675,24 +1711,28 @@ router.get("/vencimentos", async (req, res) => {
     // 2. QUERY DE DETALHES (LISTA COM DATAS)
     const queryDetalhes = `
       SELECT tse.idstaffevento, tse.idevento, tse.nmfuncionario AS nome, tse.nmfuncao AS funcao,
-        calc.qtd AS qtddiarias_filtradas, calc.min_dt AS periodo_eventoini, calc.max_dt AS periodo_eventofim,
-        calc_full.full_min_dt AS periodo_eventoini_all, calc_full.full_max_dt AS periodo_eventofim_all,
-        (COALESCE(tse.vlrcache, 0) * calc.qtd) AS totalcache_filtrado,
-        ((COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * calc.qtd) AS totalajudacusto_filtrado,
-        (COALESCE(tse.vlrcaixinha, 0) * calc.qtd) AS totalcaixinha_filtrado,
-        tse.statuspgto, tse.statuspgtoajdcto, tse.statuscaixinha
-      FROM staffeventos tse
-      CROSS JOIN LATERAL (
-        SELECT COUNT(*)::int as qtd, MIN((d.dt)::date) AS min_dt, MAX((d.dt)::date) AS max_dt
-        FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
-        WHERE (d.dt)::date BETWEEN $2 AND $3
-      ) AS calc
-      CROSS JOIN LATERAL (
-        SELECT MIN((d2.dt)::date) AS full_min_dt, MAX((d2.dt)::date) AS full_max_dt
-        FROM jsonb_array_elements_text(tse.datasevento) AS d2(dt)
-      ) AS calc_full
-      WHERE tse.idevento = ANY($1) AND calc.qtd > 0
-      ORDER BY tse.nmfuncionario ASC;
+    calc.qtd AS qtddiarias_filtradas, calc.min_dt AS periodo_eventoini, calc.max_dt AS periodo_eventofim,
+    calc_full.full_min_dt AS periodo_eventoini_all, calc_full.full_max_dt AS periodo_eventofim_all,
+    (COALESCE(tse.vlrcache, 0) * calc.qtd) AS totalcache_filtrado,
+    ((COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * calc.qtd) AS totalajudacusto_filtrado,
+    (COALESCE(tse.vlrcaixinha, 0) * calc.qtd) AS totalcaixinha_filtrado,
+    tse.statuspgto, tse.statuspgtoajdcto, tse.statuscaixinha,
+    tse.comppgtocache, 
+    tse.comppgtocaixinha, 
+    tse.comppgtoajdcusto50, 
+    tse.comppgtoajdcusto
+  FROM staffeventos tse
+  CROSS JOIN LATERAL (
+    SELECT COUNT(*)::int as qtd, MIN((d.dt)::date) AS min_dt, MAX((d.dt)::date) AS max_dt
+    FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
+    WHERE (d.dt)::date BETWEEN $2 AND $3
+  ) AS calc
+  CROSS JOIN LATERAL (
+    SELECT MIN((d2.dt)::date) AS full_min_dt, MAX((d2.dt)::date) AS full_max_dt
+    FROM jsonb_array_elements_text(tse.datasevento) AS d2(dt)
+  ) AS calc_full
+  WHERE tse.idevento = ANY($1) AND calc.qtd > 0
+  ORDER BY tse.nmfuncionario ASC;
     `;
 
     const { rows: staffRows } = await pool.query(queryDetalhes, [eventosRaw.map(e => e.idevento), startDate, endDate]);
@@ -1809,30 +1849,105 @@ router.get("/vencimentos", async (req, res) => {
 
 router.post("/vencimentos/update-status", async (req, res) => {
     let { idStaff, tipo, novoStatus } = req.body;
-    const coluna = (tipo === 'Cache') ? 'statuspgto' : 'statuspgtoajdcto';
 
-    // --- LÓGICA DE PADRONIZAÇÃO DO BANCO ---
-    if (novoStatus === "Pago 100%") {
-        novoStatus = "Pago"; // 100% vira apenas 'Pago'
-    } else if (novoStatus.includes("%")) {
-        // "Pago 50%" vira "Pago50"
-        novoStatus = novoStatus.replace("%", "").replace(/\s/g, "");
+    // 1. Mapeamento da Coluna (Corrigido para incluir Caixinha)
+    let coluna = "";
+    if (tipo === 'Cache') {
+        coluna = 'statuspgto';
+    } else if (tipo === 'Ajuda') {
+        coluna = 'statuspgtoajdcto';
+    } else if (tipo === 'Caixinha') {
+        coluna = 'statuscaixinha'; // Nome da coluna conforme sua query de SELECT
     }
-    // ---------------------------------------
+
+    if (!coluna) {
+        return res.status(400).json({ success: false, error: "Tipo de pagamento inválido." });
+    }
+
+    // 2. Lógica de Padronização do Banco (Ex: "Pago 50%" -> "Pago50")
+    let statusFinal = novoStatus;
+    if (statusFinal === "Pago 100%") {
+        statusFinal = "Pago"; 
+    } else if (statusFinal.includes("%")) {
+        statusFinal = statusFinal.replace("%", "").replace(/\s/g, "");
+    }
 
     try {
         const result = await pool.query(
             `UPDATE staffeventos SET ${coluna} = $1 WHERE idstaffevento = $2`, 
-            [novoStatus, idStaff]
+            [statusFinal, idStaff]
         );
 
         if (result.rowCount > 0) {
-            res.json({ success: true, statusSalvo: novoStatus });
+            res.json({ success: true, statusSalvo: statusFinal });
         } else {
             res.status(404).json({ success: false, error: "Registro não encontrado." });
         }
     } catch (error) {
+        console.error("Erro ao atualizar status:", error);
         res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+router.post("/vencimentos/upload-comprovante", upload.single('arquivo'), async (req, res) => {
+    const { idStaff, tipo } = req.body;
+    
+    if (!req.file) {
+        return res.status(400).json({ error: "Nenhum arquivo enviado." });
+    }
+
+    const pathArquivo = req.file.path.replace(/\\/g, "/"); 
+
+    try {
+        let coluna = "";
+
+        // Mapeamento direto dos tipos vindo do frontend
+        if (tipo === 'cache') {
+            coluna = 'comppgtocache';
+        } 
+        else if (tipo === 'caixinha') {
+            coluna = 'comppgtocaixinha';
+        } 
+        else if (tipo === 'ajuda_50') {
+            coluna = 'comppgtoajdcusto50';
+        } 
+        else if (tipo === 'ajuda_100') {
+            coluna = 'comppgtoajdcusto';
+        }
+        else if (tipo === 'ajuda') {
+            // Caso receba apenas 'ajuda', mantemos sua lógica de detecção automática
+            const statusRes = await pool.query(
+                'SELECT comppgtoajdcusto50 FROM staffeventos WHERE idstaffevento = $1',
+                [idStaff]
+            );
+            const jaTem50 = statusRes.rows[0]?.comppgtoajdcusto50;
+            coluna = jaTem50 ? 'comppgtoajdcusto' : 'comppgtoajdcusto50';
+        }
+
+        // Se o tipo enviado não bater com nenhum acima, a coluna será vazia
+        if (!coluna) {
+            console.error("Tipo de upload inválido recebido:", tipo);
+            return res.status(400).json({ error: `Tipo de comprovante '${tipo}' não reconhecido.` });
+        }
+
+        const result = await pool.query(
+            `UPDATE staffeventos SET ${coluna} = $1 WHERE idstaffevento = $2`,
+            [pathArquivo, idStaff]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: "Funcionário não encontrado no evento." });
+        }
+
+        res.json({ 
+            success: true, 
+            path: pathArquivo, 
+            colunaDestino: coluna 
+        });
+
+    } catch (error) {
+        console.error("Erro no processamento do upload:", error);
+        res.status(500).json({ error: "Erro interno ao salvar comprovante." });
     }
 });
 // =======================================
