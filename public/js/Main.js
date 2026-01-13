@@ -5066,20 +5066,19 @@ function formatarStatusFront(status) {
 }
 
 // Cria o HTML para a coluna de comprovantes de acordo com a categoria
-function gerarHTMLComprovanteDinamico(idStaff, filtro, statusTexto, htmlAtual = "", idFuncionario = null) {
+function gerarHTMLComprovanteDinamico(idStaff, filtro, statusTexto, htmlAtual = "") {
     const statusLimpo = statusTexto ? statusTexto.toLowerCase().trim() : "";
     
-    // Identificadores de estado
+    // Identifica se é pagamento total
     const éPagamentoTotal = statusLimpo === "pago 100%" || statusLimpo === "pago" || statusLimpo === "concluído";
     const éPagamentoParcial = statusLimpo.includes("50");
 
-    // Verifica se já existem botões de visualizar para não sobrescrever com inputs de upload
+    // Verifica se já existem botões de visualizar para preservar
     const temVer50 = htmlAtual.includes("50%");
     const temVer100 = htmlAtual.includes("100%");
-    const temVerGeral = htmlAtual.includes("btn-ver-comp") && !filtro.includes('ajuda');
+    const temVerGeral = htmlAtual.includes("btn-ver-comp");
 
-    // Função interna para reaproveitar o botão "VER" que já está no HTML
-    const extrairBotaoExistente = (tipo) => {
+    const extrairBotao = (tipo) => {
         const div = document.createElement('div');
         div.innerHTML = htmlAtual;
         const botoes = div.querySelectorAll('.btn-ver-comp');
@@ -5090,137 +5089,57 @@ function gerarHTMLComprovanteDinamico(idStaff, filtro, statusTexto, htmlAtual = 
     };
 
     if (filtro.includes('ajuda')) {
-        // REGRA: Se pagou 100% DIRETO (sem ter pago 50% antes), mostra apenas UM input total
+        // CASO 1: Pagamento direto de 100% -> Mostra apenas 1 input (ou o botão de VER se já existir)
         if (éPagamentoTotal && !temVer50) {
             return `
                 <div style="display:flex; align-items:center; gap:8px;">
                     <span style="font-size: 10px; font-weight: bold;">Total:</span>
-                    ${temVer100 ? extrairBotaoExistente("100") : renderBotaoUploadUiverse(idStaff, 'ajuda100', idFuncionario)}
+                    ${temVer100 ? extrairBotao("100") : renderBotaoUploadUiverse(idStaff, 'ajuda_100')}
                 </div>`;
         }
 
-        // CASO CONTRÁRIO: Mostra os dois campos (fluxo parcelado ou aguardando)
-        const liberado50 = éPagamentoParcial || éPagamentoTotal;
-        const liberado100 = éPagamentoTotal;
-
+        // CASO 2: Pagamento de 50% ou 100% após já ter pago 50% -> Mantém os dois campos
         return `
             <div style="display:flex; flex-direction: column; gap:5px; align-items:flex-start;">
                 <div style="display:flex; align-items:center; gap:8px;">
                     <span style="font-size: 10px; font-weight: bold; min-width: 35px;">50%:</span>
-                    ${temVer50 ? extrairBotaoExistente("50") : (liberado50 ? renderBotaoUploadUiverse(idStaff, 'ajuda50', idFuncionario) : '<span style="font-size:9px; color:#999;">Bloqueado</span>')}
+                    ${temVer50 ? extrairBotao("50") : (éPagamentoParcial || éPagamentoTotal ? renderBotaoUploadUiverse(idStaff, 'ajuda_50') : '<span style="font-size:9px; color:#999;">Bloqueado</span>')}
                 </div>
                 <div style="display:flex; align-items:center; gap:8px;">
                     <span style="font-size: 10px; font-weight: bold; min-width: 35px;">100%:</span>
-                    ${temVer100 ? extrairBotaoExistente("100") : (liberado100 ? renderBotaoUploadUiverse(idStaff, 'ajuda100', idFuncionario) : '<span style="font-size:9px; color:#999;">Aguardando Pago</span>')}
+                    ${temVer100 ? extrairBotao("100") : (éPagamentoTotal ? renderBotaoUploadUiverse(idStaff, 'ajuda_100') : '<span style="font-size:9px; color:#999;">Aguardando Pago</span>')}
                 </div>
             </div>`;
     } else {
-        // Lógica para Cachê ou Caixinha (Sempre 1 campo)
-        const liberadoGeral = statusLimpo === "pago" || statusLimpo === "concluído";
-        if (temVerGeral) return htmlAtual;
-        return liberadoGeral ? renderBotaoUploadUiverse(idStaff, filtro, idFuncionario) : '<span style="font-size:10px; color:#999;">Aguardando Pago</span>';
+        // Cache e Caixinha (Sempre 1 input)
+        if (temVerGeral && !filtro.includes('ajuda')) return htmlAtual;
+        return éPagamentoTotal ? renderBotaoUploadUiverse(idStaff, filtro) : '<span style="font-size:10px; color:#999;">Aguardando Pago</span>';
     }
 }
 
 // Abre um Swal perguntando Abrir no Navegador (PDF) ou Baixar
-function abrirComprovanteSwal(encodedUrl) {
-    const url = decodeURIComponent(encodedUrl);
-    const ext = (url.split('.').pop() || '').toLowerCase();
-
-    if (ext === 'pdf') {
-        Swal.fire({
-            title: 'Comprovante',
-            text: 'Deseja abrir no navegador ou baixar este arquivo?',
-            icon: 'question',
-            showDenyButton: true,
-            showCancelButton: true,
-            confirmButtonText: 'Abrir no Navegador',
-            denyButtonText: 'Baixar',
-        }).then(res => {
-            if (res.isConfirmed) window.open(url, '_blank');
-            else if (res.isDenied) triggerDownload(url);
-        });
-    } else {
-        Swal.fire({
-            title: 'Comprovante',
-            text: 'Este arquivo não pode ser pré-visualizado no navegador. Deseja baixar?',
-            icon: 'info',
-            showCancelButton: true,
-            confirmButtonText: 'Baixar'
-        }).then(res => { if (res.isConfirmed) triggerDownload(url); });
-    }
-}
-
-function triggerDownload(url) {
-    const a = document.createElement('a');
-    a.href = url;
-    a.setAttribute('download', '');
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-}
-
-const SVG_ADD_FILE = `
-<svg aria-hidden="true" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:16px; height:16px; margin-right:8px;">
-    <path stroke-width="2" stroke="#ffffff" d="M13.5 3H12H8C6.34315 3 5 4.34315 5 6V18C5 19.6569 6.34315 21 8 21H11M13.5 3L19 8.625M13.5 3V7.625C13.5 8.17728 13.9477 8.625 14.5 8.625H19M19 8.625V11.8125" stroke-linejoin="round" stroke-linecap="round"></path>
-    <path stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="#ffffff" d="M17 15V18M17 21V18M17 18H14M17 18H20"></path>
-</svg>`;
-
-// Função para gerar o HTML do botão Uiverse + Input File
-function renderBotaoUploadUiverse(idStaff, tipo, idFuncionario = null) {
-    const idInput = `file-${tipo}-${idStaff}`;
-    // Define um title/contexto para o upload dependendo do tipo
-    let title = 'Enviar comprovante';
-    if (tipo === 'ajuda50') title = 'Enviar comprovante (Ajuda 50%)';
-    else if (tipo === 'ajuda100') title = 'Enviar comprovante (Ajuda - 2ª parcela / 100%)';
-    else if (tipo === 'cache') title = 'Enviar comprovante (Cachê)';
-    else if (tipo === 'caixinha') title = 'Enviar comprovante (Caixinha)';
-
-    // Garante que passado como null ou número literal (sem aspas) no atributo onchange
-    const idFuncionarioAttr = (idFuncionario !== null && idFuncionario !== undefined) ? idFuncionario : 'null';
-
-    return `
-        <div class="upload-container-uiverse" style="display: inline-block; vertical-align: middle;">
-            <input type="file" id="${idInput}" style="display:none" onchange="handleFileUpload(this, ${idStaff}, '${tipo}', ${idFuncionarioAttr})">
-            <button class="btn-uiverse-comprovante" 
-                    title="${title}"
-                    onclick="document.getElementById('${idInput}').click()"
-                    style="display: flex; align-items: center; background: #212121; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 10px; font-weight: bold; transition: 0.3s;">
-                ${SVG_ADD_FILE}
-                <span style="font-size:10px; margin-left:6px;">COMPROVANTE</span>
-            </button>
-        </div>
-    `;
-}
-
-async function handleFileUpload(input, idStaff, tipo, idFuncionario = null) {
+window.handleFileUpload = async function(input, idStaff, tipo, idFuncionario = null) {
     const file = input.files[0];
     if (!file) return;
 
     const formData = new FormData();
-
-    // Se o id do funcionário foi passado no botão, anexa ao FormData para updates parciais no backend
-    if (idFuncionario !== null && idFuncionario !== undefined) {
+    if (idFuncionario && idFuncionario !== 'null') {
         formData.append('idfuncionario', idFuncionario);
     }
 
-    // Mapeia o 'tipo' para o campo esperado pelo backend (rotaStaff PUT)
-    if (tipo === 'ajuda50') {
-        formData.append('comppgtoajdcusto50', file);
-    } else if (tipo === 'ajuda100' || tipo === 'ajuda') {
-        // 'ajuda' mantém compatibilidade com uploads 100%
-        formData.append('comppgtoajdcusto', file);
-    } else if (tipo === 'cache') {
-        formData.append('comppgtocache', file);
-    } else if (tipo === 'caixinha') {
-        formData.append('comppgtocaixinha', file);
-    } else {
-        // Genérico: envia em 'arquivo' e o backend deverá tratar
-        formData.append('arquivo', file);
-    }
+    // Mapeamento correto para o Backend
+    if (tipo === 'ajuda50') formData.append('comppgtoajdcusto50', file);
+    else if (tipo === 'ajuda100' || tipo === 'ajuda') formData.append('comppgtoajdcusto', file);
+    else if (tipo === 'cache') formData.append('comppgtocache', file);
+    else if (tipo === 'caixinha') formData.append('comppgtocaixinha', file);
+    else formData.append('arquivo', file);
 
     try {
-        // Faz PUT direto para a rota de staff que já aceita multipart e grava os campos apropriados
+        // Feedback visual de carregamento
+        const btnOriginal = input.nextElementSibling;
+        const textoOriginal = btnOriginal ? btnOriginal.innerHTML : '';
+        if (btnOriginal) btnOriginal.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
         const response = await fetch(`/staff/${idStaff}`, {
             method: 'PUT',
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
@@ -5228,45 +5147,102 @@ async function handleFileUpload(input, idStaff, tipo, idFuncionario = null) {
         });
 
         if (response.ok) {
-            exibirToastSucesso('Comprovante enviado com sucesso!');
-            // Atualiza a visualização sem recarregar a página inteira
-            if (typeof carregarDadosVencimentos === 'function') carregarDadosVencimentos();
+            if (typeof exibirToastSucesso === 'function') exibirToastSucesso('Enviado com sucesso!');
+            
+            // Chama a função principal de recarregamento para atualizar a tabela/accordion
+            if (typeof carregarDetalhesVencimentos === 'function') {
+                const conteudoGeral = document.getElementById('vencimentos-conteudo'); // ajuste conforme seu ID real
+                const resumoElement = document.getElementById('valores-resumo');
+                carregarDetalhesVencimentos(conteudoGeral, resumoElement);
+            }
         } else {
-            const err = await response.json().catch(()=>({message:'Erro no servidor'}));
-            console.error('Upload falhou:', err);
-            Swal.fire('Erro', err.message || 'Não foi possível enviar o arquivo.', 'error');
+            const err = await response.json().catch(() => ({ message: 'Erro no servidor' }));
+            Swal.fire('Erro', err.message || 'Falha no upload.', 'error');
+            if (btnOriginal) btnOriginal.innerHTML = textoOriginal;
         }
     } catch (error) {
-        console.error('Erro de rede no upload:', error);
-        Swal.fire('Erro', 'Não foi possível enviar o arquivo.', 'error');
+        console.error('Erro de rede:', error);
+        Swal.fire('Erro', 'Erro de conexão com o servidor.', 'error');
     } finally {
-        input.value = ''; // Limpa o input
+        input.value = ''; 
     }
+};
+
+// 2. VISUALIZAÇÃO DE COMPROVANTES (Global para onclick="abrirComprovanteSwal")
+window.abrirComprovanteSwal = function(encodedUrl) {
+    const url = decodeURIComponent(encodedUrl);
+    const ext = (url.split('.').pop() || '').toLowerCase();
+
+    const configBase = {
+        title: 'Comprovante de Pagamento',
+        icon: 'info',
+        showCancelButton: true,
+        cancelButtonText: 'Fechar',
+        confirmButtonColor: '#3085d6',
+        denyButtonColor: '#2ecc71',
+    };
+
+    if (ext === 'pdf') {
+        Swal.fire({
+            ...configBase,
+            text: 'Deseja visualizar o PDF ou baixar o arquivo?',
+            showDenyButton: true,
+            confirmButtonText: '<i class="fas fa-eye"></i> Abrir no Navegador',
+            denyButtonText: '<i class="fas fa-download"></i> Baixar PDF',
+        }).then(res => {
+            if (res.isConfirmed) window.open(url, '_blank');
+            else if (res.isDenied) triggerDownload(url);
+        });
+    } else {
+        Swal.fire({
+            ...configBase,
+            text: 'Este arquivo é uma imagem ou formato de download. Deseja baixar?',
+            confirmButtonText: '<i class="fas fa-download"></i> Baixar Arquivo'
+        }).then(res => { if (res.isConfirmed) triggerDownload(url); });
+    }
+};
+
+// 3. AUXILIAR DE DOWNLOAD
+function triggerDownload(url) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = url.split('/').pop();
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 }
 
-function abrirComprovantesStaff(idStaffEvento) {
-    try {
-        const params = new URLSearchParams();
-        params.set('idstaffevento', idStaffEvento);
-        params.set('focus', 'comprovantes');
+// 4. FUNÇÃO DE APOIO PARA ABRIR MODAL (Se usada nos botões de ações)
+window.abrirComprovantesStaff = function(idStaffEvento) {
+    const params = new URLSearchParams();
+    params.set('idstaffevento', idStaffEvento);
+    params.set('focus', 'comprovantes');
+    
+    const targetUrl = `CadStaff.html?${params.toString()}`;
+    if (typeof abrirModalLocal === 'function') abrirModalLocal(targetUrl, 'Staff');
+    else if (typeof abrirModal === 'function') abrirModal(targetUrl, 'Staff');
+    else window.open(targetUrl, '_blank');
+};
 
-        window.__modalInitialParams = params.toString();
-        window.moduloAtual = 'Staff';
-        const targetUrl = `CadStaff.html?${params.toString()}`;
+/**
+ * RE-RENDERIZAÇÃO DO BOTÃO DE UPLOAD (Uiverse Style)
+ */
+function renderBotaoUploadUiverse(idStaff, tipo, idFuncionario = null) {
+    const idInput = `file-${tipo}-${idStaff}`;
+    const idFuncAttr = (idFuncionario !== null) ? idFuncionario : 'null';
 
-        if (typeof abrirModalLocal === 'function') {
-            abrirModalLocal(targetUrl, 'Staff');
-        } else if (typeof abrirModal === 'function') {
-            abrirModal(targetUrl, 'Staff');
-        } else {
-            console.error('Nenhuma função para abrir modal encontrada');
-        }
-    } catch (err) {
-        console.error('Erro ao abrir modal de comprovantes', err);
-        Swal.fire('Erro', 'Não foi possível abrir o formulário de comprovantes.', 'error');
-    }
+    return `
+        <div class="upload-container-uiverse" style="display: inline-block;">
+            <input type="file" id="${idInput}" style="display:none" 
+                   onchange="handleFileUpload(this, ${idStaff}, '${tipo}', ${idFuncAttr})">
+            <button class="btn-uiverse-comprovante" 
+                    onclick="document.getElementById('${idInput}').click()"
+                    style="display: flex; align-items: center; background: #212121; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 9px; font-weight: bold;">
+                <i class="fas fa-upload" style="margin-right:5px;"></i> COMPROVANTE
+            </button>
+        </div>
+    `;
 }
-
 
 
 async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) { 
@@ -5563,7 +5539,7 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
     try {
         btnClicado.disabled = true;
         const htmlOriginal = btnClicado.innerHTML;
-        btnClicado.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btnClicado.innerHTML = '';
 
         const response = await fetch(`/main/vencimentos/update-status`, {
             method: 'POST',
@@ -5597,6 +5573,8 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
                 // 3. ATUALIZAÇÃO CHAVE: Libera os inputs de upload na hora
                 if (celulaComprovantes) {
                     const filtroFormatado = tipo.toLowerCase().includes('ajuda') ? 'ajuda_custo' : tipo.toLowerCase();
+                    
+                    // Atualiza a célula passando o novo status e preservando o que já existe
                     celulaComprovantes.innerHTML = gerarHTMLComprovanteDinamico(
                         idStaff, 
                         filtroFormatado, 
