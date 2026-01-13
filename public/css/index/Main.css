@@ -229,7 +229,32 @@ select#selectAno {
     appearance: none; /* Remove a seta padrão para você controlar */
 }
 
+/*  ============================================================ */
+.filtro-categoria-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+  margin-bottom: 20px;
+  align-items: center;
+}
 
+#categoria-wrapper{
+  position: relative;
+  width: 260px;
+  height: 36px;
+  background-color: transparent;
+  border: 2px solid var(--border-color);
+  border-radius: 34px;
+  display: flex;
+  flex-direction: row;
+  box-shadow: 4px 4px var(--border-color);
+}
+
+.option.disabled-option {
+    cursor: not-allowed !important;
+    opacity: 0.5;
+    filter: grayscale(0.8);
+}
 
 /*  ==================================================================== */
 
@@ -2472,7 +2497,7 @@ body.dark .indicador-evento {
 .tabela-funcionarios-venc th,
 .tabela-funcionarios-venc td {
   padding: 10px;
-  text-align: left;
+  text-align: center;
   font-size: 0.85em;
   border-bottom: 1px solid #eee;
 

@@ -5059,220 +5059,429 @@ function formatarStatusFront(status) {
     return status;
 }
 
+// async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) { 
+//     // Segurança: Se o container principal não existir, interrompe a função
+//     if (!conteudoGeral) return;
+
+//     conteudoGeral.innerHTML = '<h3>Carregando dados...</h3>';
+    
+//     if (valoresResumoElement) {
+//         valoresResumoElement.innerHTML = '';
+//     }
+
+//     const params = construirParametrosFiltro();
+//     const url = `/main/vencimentos${params}`;
+
+//     try {
+//         const dados = await fetchComToken(url);
+        
+//         let totalAjudaPendente = 0;
+//         let totalAjudaPaga = 0;
+//         let totalCachePendente = 0;
+//         let totalCachePago = 0;
+        
+//         let temDados = dados && dados.eventos && dados.eventos.length > 0;
+
+//         if (!temDados) {
+//             conteudoGeral.innerHTML = '<p class="alerta-info">Nenhum evento encontrado para esse período.</p>';
+//         } else {
+//             conteudoGeral.innerHTML = "";
+//             const accordionContainer = document.createElement("div");
+//             accordionContainer.className = "accordion-vencimentos";
+
+//             dados.eventos.forEach(evento => {
+//                 // Os nomes aqui devem bater com o que o backend envia no objeto 'evento'
+//                 const ajudaPendente = evento.ajuda?.pendente || 0;
+//                 const ajudaPaga = evento.ajuda?.pagos || 0;
+//                 const cachePendente = evento.cache?.pendente || 0;
+//                 const cachePaga = evento.cache?.pagos || 0;
+
+//                 totalAjudaPendente += ajudaPendente;
+//                 totalAjudaPaga += ajudaPaga;
+//                 totalCachePendente += cachePendente;
+//                 totalCachePago += cachePaga;
+
+//                 const item = document.createElement("div");
+//                 item.className = "accordion-item";
+
+//                 const header = document.createElement("button");
+//                 header.className = "accordion-header";
+//                 header.innerHTML = `
+//                     <div class="evento-info">
+//                         <strong>${evento.nomeEvento}</strong>
+//                         <span class="total-geral">Total: ${formatarMoeda(evento.totalGeral)}</span> 
+//                     </div>
+//                 `;
+//                 header.addEventListener("click", () => item.classList.toggle("active"));
+
+//                 const body = document.createElement("div");
+//                 body.className = "accordion-body";
+
+//                 body.innerHTML = `
+//                     <div class="resumo-categorias">
+//                         <div class="categoria-bloco">
+//                             <h3>Ajuda de Custo</h3>
+//                             <p class="datas-evento">
+//                                 Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
+//                             </p>
+//                             <p class="vencimento">Vence em: <strong>${evento.dataVencimentoAjuda}</strong></p>
+//                             <p><strong>Pendentes:</strong> ${formatarMoeda(ajudaPendente)} - <strong>Pagos:</strong> ${formatarMoeda(ajudaPaga)}</p>
+//                         </div>
+//                         <div class="categoria-bloco">
+//                             <h3>Cachê</h3>
+//                             <p class="datas-evento">
+//                                 Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
+//                             </p>
+//                             <p class="vencimento">Vence em: <strong>${evento.dataVencimentoCache}</strong></p>
+//                             <p><strong>Pendentes:</strong> ${formatarMoeda(cachePendente)} - <strong>Pagos:</strong> ${formatarMoeda(cachePaga)}</p>
+//                         </div>
+//                     </div>
+
+//                     <div id="container-filtro-dinamico"></div>
+
+//                     <h4>Funcionários (${evento.funcionarios?.length || 0} Registros):</h4>
+                    
+//                     <div class="funcionarios-scroll-container"> 
+//                         <table class="tabela-funcionarios-venc">
+//                             <thead>
+//                                 <tr>
+//                                     <th>NOME / FUNÇÃO</th>
+//                                     <th>DIÁRIAS</th>
+//                                     ${usuarioTemPermissao() ? '<th>AÇÕES CACHÊ</th>' : ''}
+//                                     <th>CACHÊ</th>
+//                                     <th>STATUS CACHÊ</th>
+//                                     ${usuarioTemPermissao() ? '<th>AÇÕES A.J.CUSTO</th>' : ''}
+//                                     <th>A.J. CUSTO</th>
+//                                     <th>STATUS A.J.CUSTO</th>
+//                                     <th>TOTAL</th>
+//                                 </tr>
+//                             </thead>
+//                             <tbody>
+//                             ${evento.funcionarios?.map(f => {
+//                                     const statusCache = formatarStatusFront(f.statuspgto);
+//                                     const statusAjuda = formatarStatusFront(f.statuspgtoajdcto);
+                                    
+//                                     // As classes CSS também devem usar o status formatado para manter a cor correta
+//                                     const classeCache = statusCache.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+//                                     const classeAjuda = statusAjuda.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+
+
+//                                     // Se já estiver 100% Pago, mantém a célula mas remove os botões (mostra ícone fixo)
+//                                     const renderBotaoAcao = (tipo, statusAtual) => {
+//                                         if (!usuarioTemPermissao()) return '';
+
+//                                         // Caso 1: Pago (Bloqueado)
+//                                         if (statusAtual === 'Pago' || statusAtual === 'Pago 100%') {
+//                                             return `
+//                                                 <td class="acoes-master">
+//                                                     <div class="btn-group-acoes">
+//                                                         <span class="check-finalizado"><i class="fas fa-lock"></i></span>
+//                                                     </div>
+//                                                 </td>`; 
+//                                         }
+
+//                                         // Caso 2: Pago 50% (Botão de complemento)
+//                                         if (statusAtual === 'Pago 50%') {
+//                                             return `
+//                                                 <td class="acoes-master">
+//                                                     <div class="btn-group-acoes">
+//                                                         <button class="btn-complementar" title="Pagar os 50% restantes" 
+//                                                             onclick="alterarStatusStaff(${f.idstaffevento}, '${tipo}', 'Pago 100%')">
+//                                                             <i class="fas fa-plus-circle"></i> +50%
+//                                                         </button>
+//                                                     </div>
+//                                                 </td>`;
+//                                         }
+
+//                                         // Caso 3: Pendente (Botões padrão)
+//                                         return `
+//                                             <td class="acoes-master">
+//                                                 <div class="btn-group-acoes">
+//                                                     <button class="btn-pago" onclick="alterarStatusStaff(${f.idstaffevento}, '${tipo}', 'Pago')">
+//                                                         <i class="fas fa-check"></i> Pago
+//                                                     </button>
+//                                                     <button class="btn-suspenso" onclick="alterarStatusStaff(${f.idstaffevento}, '${tipo}', 'Suspenso')">
+//                                                         <i class="fas fa-pause"></i> Suspender
+//                                                     </button>
+//                                                 </div>
+//                                             </td>`;
+//                                     };
+//                                     return `
+//                                         <tr>
+//                                             <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
+//                                             <td>${f.qtddiarias || 0}</td>
+                                            
+//                                             <td class="acoes-master col-acoes-cache">
+//                                                 ${renderConteudoAcao(f.idstaffevento, 'Cache', statusCache)}
+//                                             </td>
+//                                             <td>${formatarMoeda(f.totalcache || 0)}</td>
+//                                             <td class="status-celula status-${classeCache} col-status-cache">${statusCache}</td>
+                                            
+//                                             <td class="acoes-master col-acoes-ajuda">
+//                                                 ${renderConteudoAcao(f.idstaffevento, 'Ajuda', statusAjuda)}
+//                                             </td>
+//                                             <td>${formatarMoeda(f.totalajudacusto || 0)}</td>
+//                                             <td class="status-celula status-${classeAjuda} col-status-ajuda">${statusAjuda}</td>
+                                            
+//                                             <td><strong>${formatarMoeda(f.totalpagar || 0)}</strong></td>
+//                                         </tr>`;
+//                                 }).join("")}
+//                             </tbody>
+//                         </table>
+//                     </div> 
+//                 `;
+//                 const containerFiltro = body.querySelector("#container-filtro-dinamico");
+//                 if (containerFiltro) {
+//                     // Chamamos a função que criamos anteriormente
+//                     const filtro = criarFiltroCategorias(conteudoGeral, valoresResumoElement);
+//                     containerFiltro.appendChild(filtro);
+//                 }
+
+//                 item.appendChild(header);
+//                 item.appendChild(body);
+//                 accordionContainer.appendChild(item);
+//             });
+
+//             conteudoGeral.appendChild(accordionContainer);
+//         }
+
+//         // 4. Atualiza a DIV de resumo
+//         if (valoresResumoElement) {
+//             const totalPagarGeral = totalAjudaPendente + totalCachePendente;
+//             const totalPagoGeral = totalAjudaPaga + totalCachePago;
+            
+//             valoresResumoElement.innerHTML = `
+//                 <div class="resumo-detalhado">
+//                     <div class="resumo-status">
+//                         <div class="bloco-pendente">
+//                             <h4>A Pagar (Pendente)</h4>
+//                             <span class="valor-pendente">${formatarMoeda(totalPagarGeral)}</span>
+//                         </div>
+//                         <div class="bloco-pago">
+//                             <h4>Pago (Total e Parcial)</h4>
+//                             <span class="valor-pago">${formatarMoeda(totalPagoGeral)}</span>
+//                         </div>
+//                     </div>
+//                     <div class="resumo-categorias-totais">
+//                         <div>
+//                             <label><strong>Ajuda de Custo:</strong></label>
+//                             <p>Pendente: ${formatarMoeda(totalAjudaPendente)} / Pago: ${formatarMoeda(totalAjudaPaga)}</p>
+//                         </div>
+//                         <div>
+//                             <label><strong>Cachê:</strong></label>
+//                             <p>Pendente: ${formatarMoeda(totalCachePendente)} / Pago: ${formatarMoeda(totalCachePago)}</p>
+//                         </div>
+//                     </div>
+//                 </div>
+//             `;
+//         }
+
+//     } catch (error) {
+//         console.error("Erro ao carregar detalhes:", error);
+//         conteudoGeral.innerHTML = '<p class="alerta-erro">Erro ao carregar dados do servidor.</p>';
+//     }
+// }
 async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) { 
-    // Segurança: Se o container principal não existir, interrompe a função
     if (!conteudoGeral) return;
 
-    conteudoGeral.innerHTML = '<h3>Carregando dados...</h3>';
-    
-    if (valoresResumoElement) {
-        valoresResumoElement.innerHTML = '';
-    }
+    conteudoGeral.innerHTML = '<h3>Carregando dados financeiros...</h3>';
+    if (valoresResumoElement) valoresResumoElement.innerHTML = '';
 
     const params = construirParametrosFiltro();
     const url = `/main/vencimentos${params}`;
 
     try {
         const dados = await fetchComToken(url);
-        
-        let totalAjudaPendente = 0;
-        let totalAjudaPaga = 0;
-        let totalCachePendente = 0;
-        let totalCachePago = 0;
-        
-        let temDados = dados && dados.eventos && dados.eventos.length > 0;
-
-        if (!temDados) {
-            conteudoGeral.innerHTML = '<p class="alerta-info">Nenhum evento encontrado para esse período.</p>';
-        } else {
-            conteudoGeral.innerHTML = "";
-            const accordionContainer = document.createElement("div");
-            accordionContainer.className = "accordion-vencimentos";
-
-            dados.eventos.forEach(evento => {
-                // Os nomes aqui devem bater com o que o backend envia no objeto 'evento'
-                const ajudaPendente = evento.ajuda?.pendente || 0;
-                const ajudaPaga = evento.ajuda?.pagos || 0;
-                const cachePendente = evento.cache?.pendente || 0;
-                const cachePaga = evento.cache?.pagos || 0;
-
-                totalAjudaPendente += ajudaPendente;
-                totalAjudaPaga += ajudaPaga;
-                totalCachePendente += cachePendente;
-                totalCachePago += cachePaga;
-
-                const item = document.createElement("div");
-                item.className = "accordion-item";
-
-                const header = document.createElement("button");
-                header.className = "accordion-header";
-                header.innerHTML = `
-                    <div class="evento-info">
-                        <strong>${evento.nomeEvento}</strong>
-                        <span class="total-geral">Total: ${formatarMoeda(evento.totalGeral)}</span> 
-                    </div>
-                `;
-                header.addEventListener("click", () => item.classList.toggle("active"));
-
-                const body = document.createElement("div");
-                body.className = "accordion-body";
-
-                body.innerHTML = `
-                    <div class="resumo-categorias">
-                        <div class="categoria-bloco">
-                            <h3>Ajuda de Custo</h3>
-                            <p class="datas-evento">
-                                Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
-                            </p>
-                            <p class="vencimento">Vence em: <strong>${evento.dataVencimentoAjuda}</strong></p>
-                            <p><strong>Pendentes:</strong> ${formatarMoeda(ajudaPendente)} - <strong>Pagos:</strong> ${formatarMoeda(ajudaPaga)}</p>
-                        </div>
-                        <div class="categoria-bloco">
-                            <h3>Cachê</h3>
-                            <p class="datas-evento">
-                                Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
-                            </p>
-                            <p class="vencimento">Vence em: <strong>${evento.dataVencimentoCache}</strong></p>
-                            <p><strong>Pendentes:</strong> ${formatarMoeda(cachePendente)} - <strong>Pagos:</strong> ${formatarMoeda(cachePaga)}</p>
-                        </div>
-                    </div>
-
-                    <h4>Funcionários (${evento.funcionarios?.length || 0} Registros):</h4>
-                    
-                    <div class="funcionarios-scroll-container"> 
-                        <table class="tabela-funcionarios-venc">
-                            <thead>
-                                <tr>
-                                    <th>NOME / FUNÇÃO</th>
-                                    <th>DIÁRIAS</th>
-                                    ${usuarioTemPermissao() ? '<th>AÇÕES CACHÊ</th>' : ''}
-                                    <th>CACHÊ</th>
-                                    <th>STATUS CACHÊ</th>
-                                    ${usuarioTemPermissao() ? '<th>AÇÕES A.J.CUSTO</th>' : ''}
-                                    <th>A.J. CUSTO</th>
-                                    <th>STATUS A.J.CUSTO</th>
-                                    <th>TOTAL</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            ${evento.funcionarios?.map(f => {
-                                    const statusCache = formatarStatusFront(f.statuspgto);
-                                    const statusAjuda = formatarStatusFront(f.statuspgtoajdcto);
-                                    
-                                    // As classes CSS também devem usar o status formatado para manter a cor correta
-                                    const classeCache = statusCache.toLowerCase().replace(/\s+/g, '-').replace('%', '');
-                                    const classeAjuda = statusAjuda.toLowerCase().replace(/\s+/g, '-').replace('%', '');
-
-
-                                    // Se já estiver 100% Pago, mantém a célula mas remove os botões (mostra ícone fixo)
-                                    const renderBotaoAcao = (tipo, statusAtual) => {
-                                        if (!usuarioTemPermissao()) return '';
-
-                                        // Caso 1: Pago (Bloqueado)
-                                        if (statusAtual === 'Pago' || statusAtual === 'Pago 100%') {
-                                            return `
-                                                <td class="acoes-master">
-                                                    <div class="btn-group-acoes">
-                                                        <span class="check-finalizado"><i class="fas fa-lock"></i></span>
-                                                    </div>
-                                                </td>`; 
-                                        }
-
-                                        // Caso 2: Pago 50% (Botão de complemento)
-                                        if (statusAtual === 'Pago 50%') {
-                                            return `
-                                                <td class="acoes-master">
-                                                    <div class="btn-group-acoes">
-                                                        <button class="btn-complementar" title="Pagar os 50% restantes" 
-                                                            onclick="alterarStatusStaff(${f.idstaffevento}, '${tipo}', 'Pago 100%')">
-                                                            <i class="fas fa-plus-circle"></i> +50%
-                                                        </button>
-                                                    </div>
-                                                </td>`;
-                                        }
-
-                                        // Caso 3: Pendente (Botões padrão)
-                                        return `
-                                            <td class="acoes-master">
-                                                <div class="btn-group-acoes">
-                                                    <button class="btn-pago" onclick="alterarStatusStaff(${f.idstaffevento}, '${tipo}', 'Pago')">
-                                                        <i class="fas fa-check"></i> Pago
-                                                    </button>
-                                                    <button class="btn-suspenso" onclick="alterarStatusStaff(${f.idstaffevento}, '${tipo}', 'Suspenso')">
-                                                        <i class="fas fa-pause"></i> Suspender
-                                                    </button>
-                                                </div>
-                                            </td>`;
-                                    };
-                                    return `
-                                        <tr>
-                                            <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
-                                            <td>${f.qtddiarias || 0}</td>
-                                            
-                                            <td class="acoes-master col-acoes-cache">
-                                                ${renderConteudoAcao(f.idstaffevento, 'Cache', statusCache)}
-                                            </td>
-                                            <td>${formatarMoeda(f.totalcache || 0)}</td>
-                                            <td class="status-celula status-${classeCache} col-status-cache">${statusCache}</td>
-                                            
-                                            <td class="acoes-master col-acoes-ajuda">
-                                                ${renderConteudoAcao(f.idstaffevento, 'Ajuda', statusAjuda)}
-                                            </td>
-                                            <td>${formatarMoeda(f.totalajudacusto || 0)}</td>
-                                            <td class="status-celula status-${classeAjuda} col-status-ajuda">${statusAjuda}</td>
-                                            
-                                            <td><strong>${formatarMoeda(f.totalpagar || 0)}</strong></td>
-                                        </tr>`;
-                                }).join("")}
-                            </tbody>
-                        </table>
-                    </div> 
-                `;
-
-                item.appendChild(header);
-                item.appendChild(body);
-                accordionContainer.appendChild(item);
-            });
-
-            conteudoGeral.appendChild(accordionContainer);
+        if (!dados || !dados.eventos || dados.eventos.length === 0) {
+            conteudoGeral.innerHTML = '<p class="alerta-info">Nenhum dado encontrado.</p>';
+            return;
         }
 
-        // 4. Atualiza a DIV de resumo
-        if (valoresResumoElement) {
-            const totalPagarGeral = totalAjudaPendente + totalCachePendente;
-            const totalPagoGeral = totalAjudaPaga + totalCachePago;
+        // 1. Bloqueio Global do Botão Caixinha no Topo
+        const totalCaixinhaGeral = dados.eventos.reduce((acc, ev) => acc + (ev.caixinha?.total || 0), 0);
+        const radioCaixinhaTopo = document.querySelector('input[name="categoria"][value="caixinha"]');
+        
+        if (radioCaixinhaTopo) {
+            if (totalCaixinhaGeral === 0) {
+                radioCaixinhaTopo.disabled = true;
+                radioCaixinhaTopo.closest('.option').classList.add('disabled-option');
+            } else {
+                radioCaixinhaTopo.disabled = false;
+                radioCaixinhaTopo.closest('.option').classList.remove('disabled-option');
+            }
+        }
+
+        const filtroSelecionadoNoTopo = document.querySelector('input[name="categoria"]:checked');
+        const categoriaInicial = filtroSelecionadoNoTopo ? filtroSelecionadoNoTopo.value : 'ajuda_custo';
+
+        conteudoGeral.innerHTML = "";
+        const accordionContainer = document.createElement("div");
+        accordionContainer.className = "accordion-vencimentos";
+
+        // Funções de Renderização
+        const obterHeaderTabela = (filtro) => `
+            <tr>
+                <th>NOME / FUNÇÃO</th>
+                <th style="text-align:center">DIÁRIAS</th>
+                <th style="text-align:center">PERÍODO</th>
+                ${(filtro === 'cache') ? `<th>AÇÕES CACHÊ</th><th>STATUS</th><th>VALOR</th>` : ''}
+                ${(filtro === 'ajuda_custo') ? `<th>AÇÕES A.J.CUSTO</th><th>STATUS</th><th>VALOR</th>` : ''}
+                ${(filtro === 'caixinha') ? `<th>AÇÕES CAIXINHA</th><th>STATUS</th><th>VALOR</th>` : ''}
+            </tr>`;
+
+        const obterLinhasTabela = (evento, filtro) => {
+            let lista = evento.funcionarios || [];
             
-            valoresResumoElement.innerHTML = `
-                <div class="resumo-detalhado">
-                    <div class="resumo-status">
-                        <div class="bloco-pendente">
-                            <h4>A Pagar (Pendente)</h4>
-                            <span class="valor-pendente">${formatarMoeda(totalPagarGeral)}</span>
-                        </div>
-                        <div class="bloco-pago">
-                            <h4>Pago (Total e Parcial)</h4>
-                            <span class="valor-pago">${formatarMoeda(totalPagoGeral)}</span>
-                        </div>
-                    </div>
-                    <div class="resumo-categorias-totais">
-                        <div>
-                            <label><strong>Ajuda de Custo:</strong></label>
-                            <p>Pendente: ${formatarMoeda(totalAjudaPendente)} / Pago: ${formatarMoeda(totalAjudaPaga)}</p>
-                        </div>
-                        <div>
-                            <label><strong>Cachê:</strong></label>
-                            <p>Pendente: ${formatarMoeda(totalCachePendente)} / Pago: ${formatarMoeda(totalCachePago)}</p>
-                        </div>
-                    </div>
+            // Regra: Se for caixinha, mostra apenas quem tem valor > 0
+            if (filtro === 'caixinha') {
+                lista = lista.filter(f => (f.totalcaixinha_filtrado || 0) > 0);
+            }
+
+            if (lista.length === 0) {
+                return `<tr><td colspan="10" style="text-align:center; padding: 20px;">Nenhum registro para esta categoria.</td></tr>`;
+            }
+
+            return lista.map(f => {
+                const sCache = formatarStatusFront(f.statuspgto || "Pendente");
+                const sAjuda = formatarStatusFront(f.statuspgtoajdcto || "Pendente");
+                const sCaixinha = formatarStatusFront(f.statuscaixinha || "Pendente"); // Corrigido para statuscaixinha
+                const cl = (s) => s.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+
+                return `
+                    <tr>
+                        <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
+                        <td style="text-align:center">${f.qtddiarias_filtradas || 0}</td>
+                        <td style="text-align:center"><small>${f.periodo_evento || '---'}</small></td>
+                        ${(filtro === 'cache') ? `
+                            <td class="acoes-master">${renderConteudoAcao(f.idstaffevento, 'Cache', sCache)}</td>
+                            <td class="status-celula status-${cl(sCache)}">${sCache}</td>
+                            <td>${formatarMoeda(f.totalcache_filtrado || 0)}</td>
+                        ` : ''}
+                        ${(filtro === 'ajuda_custo') ? `
+                            <td class="acoes-master">${renderConteudoAcao(f.idstaffevento, 'Ajuda', sAjuda)}</td>
+                            <td class="status-celula status-${cl(sAjuda)}">${sAjuda}</td>
+                            <td>${formatarMoeda(f.totalajudacusto_filtrado || 0)}</td>
+                        ` : ''}
+                        ${(filtro === 'caixinha') ? `
+                            <td class="acoes-master">${renderConteudoAcao(f.idstaffevento, 'Caixinha', sCaixinha)}</td>
+                            <td class="status-celula status-${cl(sCaixinha)}">${sCaixinha}</td>
+                            <td>${formatarMoeda(f.totalcaixinha_filtrado || 0)}</td>
+                        ` : ''}
+                    </tr>`;
+            }).join("");
+        };
+
+        dados.eventos.forEach(evento => {
+            const item = document.createElement("div");
+            item.className = "accordion-item";
+
+            const header = document.createElement("button");
+            header.className = "accordion-header";
+            header.innerHTML = `
+                <div class="evento-info">
+                    <strong>${evento.nomeEvento}</strong>
+                    <span class="total-geral">Total: ${formatarMoeda(evento.totalGeral)}</span> 
                 </div>
             `;
-        }
+            header.onclick = () => item.classList.toggle("active");
+
+            const body = document.createElement("div");
+            body.className = "accordion-body";
+            
+            body.innerHTML = `
+                <div class="resumo-categorias">
+                    <div class="categoria-bloco">
+                        <h3>Ajuda de Custo</h3>
+                        <p>Vence em: <strong>${evento.dataVencimentoAjuda}</strong></p>
+                        <p>Pendentes: ${formatarMoeda(evento.ajuda?.pendente || 0)}</p>
+                    </div>
+                    <div class="categoria-bloco">
+                        <h3>Cachê</h3>
+                        <p>Vence em: <strong>${evento.dataVencimentoCache}</strong></p>
+                        <p>Pendentes: ${formatarMoeda(evento.cache?.pendente || 0)}</p>
+                    </div>
+                    <div class="categoria-bloco">
+                        <h3>Caixinha</h3>
+                        <p>Pendentes: ${formatarMoeda(evento.caixinha?.pendente || 0)}</p>
+                    </div>
+                </div>
+                <div class="container-filtro-local" style="margin: 10px 0;"></div>
+                <div class="funcionarios-scroll-container"> 
+                    <table class="tabela-funcionarios-venc">
+                        <thead>${obterHeaderTabela(categoriaInicial)}</thead>
+                        <tbody>${obterLinhasTabela(evento, categoriaInicial)}</tbody>
+                    </table>
+                </div>
+            `;
+
+            // Filtro Local Interno (Sincronizado)
+            const cFiltro = body.querySelector(".container-filtro-local");
+            const fHtml = criarFiltroCategorias(null, null); 
+            
+            // Bloqueia caixinha no filtro local do accordion
+            const radioLocalCaixinha = fHtml.querySelector('input[value="caixinha"]');
+            if (radioLocalCaixinha && (evento.caixinha?.total || 0) === 0) {
+                radioLocalCaixinha.disabled = true;
+                radioLocalCaixinha.closest('.option').classList.add('disabled-option');
+            }
+
+            const radioLocalAtivo = fHtml.querySelector(`input[value="${categoriaInicial}"]`);
+            if (radioLocalAtivo && !radioLocalAtivo.disabled) radioLocalAtivo.checked = true;
+
+            cFiltro.appendChild(fHtml);
+
+            fHtml.querySelectorAll('input[name="categoria"]').forEach(r => {
+                r.addEventListener('change', (e) => {
+                    const v = e.target.value;
+                    const tab = body.querySelector(".tabela-funcionarios-venc");
+                    tab.querySelector("thead").innerHTML = obterHeaderTabela(v);
+                    tab.querySelector("tbody").innerHTML = obterLinhasTabela(evento, v);
+                });
+            });
+
+            item.appendChild(header);
+            item.appendChild(body);
+            accordionContainer.appendChild(item);
+        });
+
+        conteudoGeral.appendChild(accordionContainer);
+        atualizarResumoGeralEstatico(dados.eventos, valoresResumoElement);
 
     } catch (error) {
-        console.error("Erro ao carregar detalhes:", error);
-        conteudoGeral.innerHTML = '<p class="alerta-erro">Erro ao carregar dados do servidor.</p>';
+        console.error("Erro crítico:", error);
     }
 }
+
+function atualizarResumoGeralEstatico(eventos, element) {
+    if (!element) return;
+    let ajP = 0, ajOK = 0, chP = 0, chOK = 0, cxP = 0, cxOK = 0;
+
+    eventos.forEach(e => {
+        ajP += (e.ajuda?.pendente || 0); ajOK += (e.ajuda?.pagos || 0);
+        chP += (e.cache?.pendente || 0); chOK += (e.cache?.pagos || 0);
+        cxP += (e.caixinha?.pendente || 0); cxOK += (e.caixinha?.pagos || 0);
+    });
+
+    element.innerHTML = `
+        <div class="resumo-detalhado">
+            <div class="resumo-status">
+                <div class="bloco-pendente">
+                    <h4>A Pagar (Total)</h4>
+                    <span class="valor-pendente">${formatarMoeda(ajP + chP + cxP)}</span>
+                </div>
+                <div class="bloco-pago">
+                    <h4>Pago (Total)</h4>
+                    <span class="valor-pago">${formatarMoeda(ajOK + chOK + cxOK)}</span>
+                </div>
+            </div>
+            <div class="resumo-categorias-totais">
+                <div><label><strong>Ajuda:</strong></label><p>Pend: ${formatarMoeda(ajP)} / Pago: ${formatarMoeda(ajOK)}</p></div>
+                <div><label><strong>Cachê:</strong></label><p>Pend: ${formatarMoeda(chP)} / Pago: ${formatarMoeda(chOK)}</p></div>
+                <div><label><strong>Caixinha:</strong></label><p>Pend: ${formatarMoeda(cxP)} / Pago: ${formatarMoeda(cxOK)}</p></div>
+            </div>
+        </div>`;
+}
+
 
 function exibirToastSucesso(mensagem = 'Status atualizado!') {
     const Toast = Swal.mixin({
@@ -6032,6 +6241,41 @@ function criarControlesDeFiltro(conteudoGeral, valoresResumoElement) {
     return filtrosContainer;
 }
 
+function criarFiltroCategorias(conteudoGeral, valoresResumoElement) {
+    const container = document.createElement("div");
+    container.className = "filtro-categoria-container"; // Uma classe pai para controle extra se precisar
+
+    container.innerHTML = `
+      <label class="label-select">Categoria de Pagamento</label>
+      <div class="wrapper" id="categoria-wrapper">
+        <div class="option">
+            <input checked value="ajuda_custo" name="categoria" type="radio" class="input" />
+            <div class="btn"><span class="span">Ajud. Custo</span></div>
+        </div>
+        <div class="option">
+            <input value="cache" name="categoria" type="radio" class="input" />
+            <div class="btn"><span class="span">Cache</span></div>
+        </div>
+        <div class="option">
+            <input value="caixinha" name="categoria" type="radio" class="input" />
+            <div class="btn"><span class="span">Caixinha</span></div>
+        </div>
+      </div>
+    `;
+
+    // Adiciona o evento de clique em cada rádio
+    container.querySelectorAll("input[name='categoria']").forEach(radio => {
+        radio.addEventListener("change", () => {
+            // Chama a função de carregamento sempre que mudar a categoria
+            if (typeof carregarDetalhesVencimentos === "function") {
+                carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement);
+            }
+        });
+    });
+
+    return container;
+}
+
 function nomeDoMes(num) {
     const meses = [
         "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
@@ -6106,8 +6350,9 @@ document.getElementById("cardContainerVencimentos").addEventListener("click", as
     conteudoGeral.className = "conteudo-geral"; 
     
     const FiltrosVencimentos = criarControlesDeFiltro(conteudoGeral, valoresResumoElement);
+
     container.appendChild(FiltrosVencimentos); 
-    container.appendChild(valoresResumoElement); 
+    container.appendChild(valoresResumoElement);
     container.appendChild(conteudoGeral);
 
     // Anexe o container completo ao painel

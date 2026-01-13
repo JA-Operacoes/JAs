@@ -1196,7 +1196,7 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     caixinhaInput.value = parseFloat(eventData.vlrcaixinha || 0).toFixed(2).replace('.', ',');
     descCaixinhaTextarea.value = eventData.desccaixinha || '';
     statusCaixinhaInput.value = eventData.statuscaixinha;
-    statusPgtoCaixinhaInput.value = eventData.statuspgtocaixinha.toUpperCase() || '';
+    statusPgtoCaixinhaInput.value = (eventData.statuspgtocaixinha?.toUpperCase()) || '';
 
     vlrTotalInput.value = parseFloat(eventData.vlrtotal || 0).toFixed(2).replace('.', ',');
 
