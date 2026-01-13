@@ -478,7 +478,8 @@ async function listarPermissoes(req, res) {
         alterar   AS alterar,
         apagar    AS apagar,
         master    AS master,
-        financeiro AS financeiro
+        financeiro AS financeiro,
+        supremo   AS supremo
       FROM permissoes
       WHERE idusuario = $1 AND idempresa = $2
       `,
@@ -494,7 +495,8 @@ async function listarPermissoes(req, res) {
       pode_alterar: p.alterar,
       pode_apagar: p.apagar, // Adiciona a propriedade de apagar, se existir
       pode_master: p.master,
-      pode_financeiro: p.financeiro
+      pode_financeiro: p.financeiro,
+      pode_supremo: p.supremo
     }));
 
     res.json(permissoes);

@@ -1684,7 +1684,13 @@ const carregarTabelaStaff = async (funcionarioId) => {
                 // --- 1. PROCESSAMENTO DE DATAS E QTD DIAS (Sempre calculado dinamicamente) ---
                 let datasArray = [];
                 try {
-                    datasArray = typeof eventData.datasevento === 'string' ? JSON.parse(eventData.datasevento) : (eventData.datasevento || []);
+                    //datasArray = typeof eventData.datasevento === 'string' ? JSON.parse(eventData.datasevento) : (eventData.datasevento || []);
+                    const fonteDados = eventData.datasevento_aggr || eventData.datasevento;
+    
+                    datasArray = typeof fonteDados === 'string' ? JSON.parse(fonteDados) : (fonteDados || []);
+                    
+                    // GARANTIA FRONT-END: Ordena as datas antes de exibir
+                    datasArray.sort((a, b) => new Date(a) - new Date(b));
                 } catch(e) { 
                     datasArray = []; 
                 }

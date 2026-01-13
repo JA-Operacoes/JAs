@@ -375,7 +375,10 @@
   
   /* menu --- nesta parte podemos poupar linhas de codigos adicionando as classes e dando a elas o mesmo padrao das outras, para as classes que n utilizam o . seguido de função , utilizando apenas a , para adicionar as classes que n utilição função  */
   .Cadastro, 
-  .Orçamento{
+  .Orcamento,
+  .Relatorios,
+  .Financeiro,
+  .Usuarios{
     position: relative;
     display: flex;
     justify-content: center;
@@ -384,7 +387,10 @@
   
   /* /submenu/ */
   .Cadastro .drop,
-  .Orçamento .drop{
+  .Orcamento .drop,
+  .Relatorios .drop,
+  .Financeiro .drop,
+  .Usuarios .drop{
     position:absolute;
     max-height: none;
     background-color:#65636b;
@@ -397,12 +403,21 @@
   
   /* /submenu/ */
   .Cadastro .drop a,
-  .Orçamento .drop a{
+  .Orcamento .drop a,
+  .Relatorios .drop a,
+  .Financeiro .drop a,
+  .Usuarios .drop a{
+    display: block;
+    color: white;
+    text-decoration: none;
   padding: 20px;
   
   }
   .Cadastro:hover .drop,
-  .Orçamento:hover .drop{
+  .Orcamento:hover .drop,
+  .Relatorios:hover .drop,
+  .Financeiro:hover .drop,
+  .Usuarios:hover .drop{
     height: 300px;
   }
   
@@ -533,7 +548,10 @@
       align-items: center;
     }
     .Cadastro .drop,
-    .Orçamento .drop{
+    .Orcamento .drop,
+    .Relatorios .drop,
+    .Financeiro .drop,
+    .Usuarios .drop{
       position: static;
       width: 100%;
       height: auto;
