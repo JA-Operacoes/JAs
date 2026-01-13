@@ -35,7 +35,7 @@
 } 
 
 /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
-#cadModalEmpresas.modal {
+#cadModalContas.modal {
   position: fixed;
   top: 50%; /* Alinha verticalmente ao centro */
   left: 50%; /* Alinha horizontalmente ao centro */   
@@ -44,19 +44,26 @@
   padding: 5px;
   margin-top: 10px;
   width: 725px; /* Ajuste o tamanho conforme necessário */
-  height: 580px;
+  height: 530px;
   font-size: 16px;
   z-index: 9999;
 }
 
-#cadModalEmpresas.modal-content{
+#cadModalContas.modal-content{
   height: 590px;
 }
 
-#cadModalEmpresas.modal-open{
+#cadModalContas.modal-open{
   /* overflow: visible; Permite a rolagem do modal */
   overflow: hidden;
   pointer-events: none;
+}
+
+/* --- Estilização conforme Equipamentos (Alinhamento) --- */
+#cadModalContas .form {
+    margin: 20px 12px;
+    display: flex;
+    align-items: center;
 }
 
 /* Quando o modal estiver visível */
@@ -85,11 +92,11 @@ body{
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-top: 70px;
+    
 }
 
 
-#form-content {
+#form-contas {
   font-family: "Abel", sans-serif;
   display: flex;                
   flex-direction: column; 
@@ -97,7 +104,7 @@ body{
   background-color: white;
   max-width: 700px;   
   width: 100%;  
-  height: 490px; 
+  height: 440px; 
   margin: 0 auto;         
   padding: 10px;                
   background-color: #cacaca; 
@@ -111,6 +118,7 @@ fieldset {
   display: flex;
   flex-direction: column;
   width: 650px;
+  height: 300px;
   background-color: transparent;
   border-color: var(--dark-color);
   margin: 0 auto;
@@ -144,6 +152,7 @@ legend{
   gap:5px;
 }
 
+
 .form input{
   font-family:  var(--Font-primary);
   width: 350px;
@@ -171,6 +180,10 @@ legend{
   outline: none;
 }
 
+#idConta{
+  width: 80px;
+}
+
 .form2 {
   display: flex;
   flex-wrap: wrap;
@@ -179,24 +192,39 @@ legend{
 }
 
 
-.form2 select{
-  /* box-sizing: border-box; */
+.form select {
   border-radius: 5px;
   flex: 1;
   font-family: var(--Font-primary);
-  width: 270px;
-  min-width: 270px;
-  max-width: 270px;
-  height: 30px; 
-  /* line-height: 20px; */
+  width: 250px; 
+  height: 30px;
   border-radius: 6px;
   font-size: 13px;
   padding: 0 8px;
-  margin-top: -1px; 
+  margin-top: -1px;
   border: 1px solid #000000;
   background: transparent;
   color: #000000;
   outline: none;
+}
+
+#tpConta.form select {
+    width: 100px;
+}
+
+button.close {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+  width: 200px;
+  height: 30px;
+  margin: 0;
+}
+
+.Close{
+  display: flex;
+  justify-content: center;
+  height: 25px;
 }
 
 
@@ -213,6 +241,7 @@ legend{
   color: #000000;
   outline: none;
 }
+
 .form label, .form-2colunas label, .form2 label{
   position: absolute;
   top: 50%;
@@ -269,33 +298,14 @@ input[type=file]{
   display: none;
 }
 
-input#numero, input#estado, input#pais, input#complemento{
-  width: 120px;
-}
 
 input#id{
   width: 70px;
 }
 
-input#tpcliente{
-  width: 60px;
-}
 
-input.tpcliente {
-  text-align: center;          /* Centraliza horizontalmente */
-  vertical-align: middle;      /* Boa prática */
-  font-size: 1.2rem;           /* Tamanho legal pro caractere */
-  height: 2.5em;
-  width: 2.5em;
-  line-height: 2.5em;          /* Alinha verticalmente no input */
-  padding: 0;
-}
-label#tpcliente{
-  font-size: 9px;
-}
-
-#idCliente.has-value + label,
-#idCliente:focus + label {
+#idConta.has-value + label,
+#idConta:focus + label {
   top: 0;
   left: 25%;
   font-size: 15px;
@@ -303,7 +313,35 @@ label#tpcliente{
   background: #cacaca;
 }
 
-/* From Uiverse.io by Shoh2008 */ 
+/* --- CHECKBOX CUSTOMIZADO (CORRIGIDO) --- */
+
+/* 1. Garante que o label do checkbox não herde o comportamento absoluto dos inputs de texto */
+.form-checkbox label.checkbox {
+    position: relative !important; 
+    top: auto !important;
+    transform: none !important;
+    left: auto !important;
+    display: flex !important;
+    align-items: center;
+    cursor: pointer;
+    z-index: 10; /* Garante que fique acima de camadas fantasmas */
+}
+
+/* 2. Permite que o clique passe pelo texto e pelo símbolo e chegue ao label/input */
+.checkbox__textwrapper, .checkbox__symbol {
+    pointer-events: none;
+}
+
+/* 3. Garante que o container tenha espaço para o clique */
+.form-checkbox {
+    display: flex;
+    align-items: center;
+    min-width: 150px;
+    height: 35px;
+}
+
+
+
 .checkbox-wrapper-33 {
   --s-xsmall: 0.625em;
   --s-small: 1.2em;
@@ -326,6 +364,10 @@ label#tpcliente{
   padding: 0;
   position: absolute;
   width: 1px;
+}
+/* Garante que o input escondido ainda receba o clique através do label */
+.checkbox-wrapper-33 .visuallyhidden {
+    pointer-events: none;
 }
 
 .checkbox-wrapper-33 .checkbox {
@@ -493,28 +535,5 @@ button.Close {
   color: red;
   font-size: 14px;
   display: none;
-}
-
-/* Estiliza a largura do scrollbar */
-::-webkit-scrollbar {
-  width: 5px;
-  height: 12px; /* Para o scrollbar horizontal */
-}
-
-/* Estiliza a parte que você pode arrastar (thumb) */
-::-webkit-scrollbar-thumb {
-  background-color: #888;
-  border-radius: 10px;
-}
-
-/* Estiliza a trilha do scrollbar (o fundo) */
-::-webkit-scrollbar-track {
-  background-color: transparent;
-  border-radius: 5px;
-}
-
-/* Adiciona um efeito de hover para o thumb */
-::-webkit-scrollbar-thumb:hover {
-  background-color: #555;
 }
 

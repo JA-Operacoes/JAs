@@ -25,6 +25,7 @@
   display: none; /* Inicialmente invisível */
   z-index: 1000; /* Fica acima do overlay */  
 } 
+
 /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
 #cadModalEquipamentos.modal {
   position: fixed;
@@ -43,6 +44,7 @@
 #cadModalEquipamentos.modal-content{
   height: 590px;
 }
+
 #cadModalEquipamentos.modal-open{
   overflow: hidden;
   pointer-events: none;

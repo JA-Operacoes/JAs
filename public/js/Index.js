@@ -8,6 +8,8 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (!token) return [];
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
+      console.log("Payload do Token:", payload);
+      console.log("Empresas encontradas:", payload.empresas);
       return payload.empresas || [];
     } catch (e) {
       console.warn("Token inválido ou sem empresas:", e);
@@ -103,17 +105,20 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         // 4. Itera sobre a nova lista de logos dinâmica para mostrar/esconder.
         logos.forEach(logo => {
-        //  console.log("Processando logo:", logo);
+
+          console.log("Processando logo:", logo);
             const el = document.querySelector(logo.selector);
-          //  console.log(`el: ${el} para seletor ${logo.selector}`);
+            console.log(`el: ${el} para seletor ${logo.selector}`);
             if (el) {              
                 // Se o ID da empresa do backend não estiver na lista do token, esconde o logo.
-                if (!empresasAtivas.includes(logo.id)) {                 
+                if (!empresasAtivas.includes(logo.id)) { 
+                  console.log(`Escondendo logo para empresa ID: ${logo.id}`);                
                     el.style.display = 'none';
                 } else {
                     // Se o usuário tem permissão, mostra o logo e configura o evento de clique.
                     //el.style.display = 'block'; 
                     //el.style.display = 'inline-block'; 
+                    console.log(`Mostrando logo para empresa ID: ${logo.id}`);
                     el.style.setProperty('display', 'block', 'important'); 
                     
                     el.setAttribute('data-idempresa', logo.id);
@@ -126,7 +131,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                         
                     });
                 }
-              //  console.log(`PROCESSADO LOGO: ${logo.selector} PARA EMPRESA ID: ${logo.id}`);
+                console.log(`PROCESSADO LOGO: ${logo.selector} PARA EMPRESA ID: ${logo.id}`);
             }
         });
  
@@ -204,6 +209,21 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
   });
 });
+
+// Seleciona o elemento pai (o <li> que tem a classe Financeiro)
+  const menuFinanceiro = document.querySelector(".Financeiro");
+  
+  if (menuFinanceiro) {
+    // Verifica se dentro dele existe algum link (abrir-modal) que NÃO está com display 'none'
+    const subMenusVisiveis = Array.from(menuFinanceiro.querySelectorAll(".abrir-modal"))
+                                  .filter(botao => botao.style.display !== "none");
+
+    if (subMenusVisiveis.length > 0) {
+      menuFinanceiro.style.display = "block"; // Mostra o menu pai se houver filhos ativos
+    } else {
+      menuFinanceiro.style.display = "none";  // Esconde o menu pai se todos os filhos sumiram
+    }
+  }
 
 async function atualizarPermissoes() {
   try {
