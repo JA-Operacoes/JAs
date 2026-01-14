@@ -3575,7 +3575,7 @@ async function buscarPedidosUsuario() {
 
         console.log("DEBUG: Resposta Bruta do Fetch (length):", resposta ? resposta.length : 0);
         
-        const podeVerTodos = podeVisualizarTudo(); 
+        const podeVerTodos = usuarioTemPermissaoSupremo(); 
         const ehMasterStaff = usuarioTemPermissao(); 
 
         if (!resposta || !Array.isArray(resposta)) {
@@ -5065,22 +5065,19 @@ function formatarStatusFront(status) {
     return status;
 }
 
-// Cria o HTML para a coluna de comprovantes de acordo com a categoria
+//  ============== Comprovantes Dinâmicos ==============
 function gerarHTMLComprovanteDinamico(idStaff, filtro, statusTexto, htmlAtual = "") {
     const statusLimpo = statusTexto ? statusTexto.toLowerCase().trim() : "";
-    
-    // Identifica se é pagamento total
-    const éPagamentoTotal = statusLimpo === "pago 100%" || statusLimpo === "pago" || statusLimpo === "concluído";
+    const éPagamentoTotal = statusLimpo === "pago 100%" || statusLimpo === "pago";
     const éPagamentoParcial = statusLimpo.includes("50");
-
-    // Verifica se já existem botões de visualizar para preservar
-    const temVer50 = htmlAtual.includes("50%");
-    const temVer100 = htmlAtual.includes("100%");
-    const temVerGeral = htmlAtual.includes("btn-ver-comp");
+    
+    // Filtra strings "null" vindas do banco ou do front
+    const htmlSeguro = (htmlAtual && htmlAtual !== "null" && htmlAtual !== "undefined") ? htmlAtual : "";
 
     const extrairBotao = (tipo) => {
+        if (!htmlSeguro) return null;
         const div = document.createElement('div');
-        div.innerHTML = htmlAtual;
+        div.innerHTML = htmlSeguro;
         const botoes = div.querySelectorAll('.btn-ver-comp');
         for (let b of botoes) {
             if (b.innerText.includes(tipo)) return b.outerHTML;
@@ -5089,86 +5086,98 @@ function gerarHTMLComprovanteDinamico(idStaff, filtro, statusTexto, htmlAtual = 
     };
 
     if (filtro.includes('ajuda')) {
-        // CASO 1: Pagamento direto de 100% -> Mostra apenas 1 input (ou o botão de VER se já existir)
-        if (éPagamentoTotal && !temVer50) {
+        const btn50 = extrairBotao("50");
+        const btn100 = extrairBotao("100");
+
+        if (éPagamentoParcial || btn50) {
             return `
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <span style="font-size: 10px; font-weight: bold;">Total:</span>
-                    ${temVer100 ? extrairBotao("100") : renderBotaoUploadUiverse(idStaff, 'ajuda_100')}
+                <div style="display:flex; flex-direction: column; gap:5px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size: 10px; font-weight: bold; min-width: 40px;">1ª Parc:</span>
+                        ${btn50 || renderBotaoUploadUiverse(idStaff, 'ajuda_50')}
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size: 10px; font-weight: bold; min-width: 40px;">2ª Parc:</span>
+                        ${btn100 || (éPagamentoTotal ? renderBotaoUploadUiverse(idStaff, 'ajuda_100') : '<span style="font-size:9px; color:#999;">Aguardando...</span>')}
+                    </div>
                 </div>`;
         }
 
-        // CASO 2: Pagamento de 50% ou 100% após já ter pago 50% -> Mantém os dois campos
-        return `
-            <div style="display:flex; flex-direction: column; gap:5px; align-items:flex-start;">
+        if (éPagamentoTotal) {
+            return `
                 <div style="display:flex; align-items:center; gap:8px;">
-                    <span style="font-size: 10px; font-weight: bold; min-width: 35px;">50%:</span>
-                    ${temVer50 ? extrairBotao("50") : (éPagamentoParcial || éPagamentoTotal ? renderBotaoUploadUiverse(idStaff, 'ajuda_50') : '<span style="font-size:9px; color:#999;">Bloqueado</span>')}
-                </div>
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <span style="font-size: 10px; font-weight: bold; min-width: 35px;">100%:</span>
-                    ${temVer100 ? extrairBotao("100") : (éPagamentoTotal ? renderBotaoUploadUiverse(idStaff, 'ajuda_100') : '<span style="font-size:9px; color:#999;">Aguardando Pago</span>')}
-                </div>
-            </div>`;
-    } else {
-        // Cache e Caixinha (Sempre 1 input)
-        if (temVerGeral && !filtro.includes('ajuda')) return htmlAtual;
-        return éPagamentoTotal ? renderBotaoUploadUiverse(idStaff, filtro) : '<span style="font-size:10px; color:#999;">Aguardando Pago</span>';
+                    <span style="font-size: 10px; font-weight: bold;">Total:</span>
+                    ${btn100 || renderBotaoUploadUiverse(idStaff, 'ajuda_100')}
+                </div>`;
+        }
+        return '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>';
     }
-}
 
-// Abre um Swal perguntando Abrir no Navegador (PDF) ou Baixar
+    return extrairBotao("Ver") || (éPagamentoTotal ? renderBotaoUploadUiverse(idStaff, filtro) : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>');
+}
 window.handleFileUpload = async function(input, idStaff, tipo, idFuncionario = null) {
     const file = input.files[0];
     if (!file) return;
 
     const formData = new FormData();
-    if (idFuncionario && idFuncionario !== 'null') {
-        formData.append('idfuncionario', idFuncionario);
-    }
+    formData.append('arquivo', file); 
+    formData.append('idStaff', idStaff);
+    formData.append('tipo', tipo);
 
-    // Mapeamento correto para o Backend
-    if (tipo === 'ajuda50') formData.append('comppgtoajdcusto50', file);
-    else if (tipo === 'ajuda100' || tipo === 'ajuda') formData.append('comppgtoajdcusto', file);
-    else if (tipo === 'cache') formData.append('comppgtocache', file);
-    else if (tipo === 'caixinha') formData.append('comppgtocaixinha', file);
-    else formData.append('arquivo', file);
+    // Captura o botão e o container para manipulação imediata
+    const container = input.closest('.upload-container-uiverse');
+    const btnOriginal = input.nextElementSibling;
+    const textoOriginal = btnOriginal ? btnOriginal.innerHTML : '';
 
     try {
-        // Feedback visual de carregamento
-        const btnOriginal = input.nextElementSibling;
-        const textoOriginal = btnOriginal ? btnOriginal.innerHTML : '';
-        if (btnOriginal) btnOriginal.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        if (btnOriginal) {
+            btnOriginal.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Aguardando...';
+            btnOriginal.disabled = true;
+        }
 
-        const response = await fetch(`/staff/${idStaff}`, {
-            method: 'PUT',
+        const response = await fetch(`/main/vencimentos/upload-comprovante`, {
+            method: 'POST',
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
             body: formData
         });
 
         if (response.ok) {
-            if (typeof exibirToastSucesso === 'function') exibirToastSucesso('Enviado com sucesso!');
-            
-            // Chama a função principal de recarregamento para atualizar a tabela/accordion
+            const data = await response.json();
+            exibirToastSucesso('Enviado com sucesso!');
+
+            // --- MUDANÇA AQUI: Transforma o botão de Upload em botão de Ver ---
+            if (container) {
+                const urlCodificada = encodeURIComponent(data.path);
+                const label = tipo.includes('50') ? '50%' : (tipo.includes('100') ? '100%' : 'Ver Comp.');
+                
+                container.outerHTML = `
+                    <button class="btn-ver-comp" onclick="abrirComprovanteSwal('${urlCodificada}')" title="Ver ${label}">
+                        <i class="fas fa-file-pdf"></i> <small>${label}</small>
+                    </button>`;
+            }
+
+            // Atualiza os dados em segundo plano para garantir sincronia com o banco
             if (typeof carregarDetalhesVencimentos === 'function') {
-                const conteudoGeral = document.getElementById('vencimentos-conteudo'); // ajuste conforme seu ID real
-                const resumoElement = document.getElementById('valores-resumo');
-                carregarDetalhesVencimentos(conteudoGeral, resumoElement);
+                carregarDetalhesVencimentos(document.getElementById('vencimentos-conteudo'), document.getElementById('valores-resumo'));
             }
         } else {
-            const err = await response.json().catch(() => ({ message: 'Erro no servidor' }));
-            Swal.fire('Erro', err.message || 'Falha no upload.', 'error');
-            if (btnOriginal) btnOriginal.innerHTML = textoOriginal;
+            const err = await response.json();
+            Swal.fire('Erro', err.error || 'Falha no upload.', 'error');
+            if (btnOriginal) {
+                btnOriginal.innerHTML = textoOriginal;
+                btnOriginal.disabled = false;
+            }
         }
     } catch (error) {
-        console.error('Erro de rede:', error);
-        Swal.fire('Erro', 'Erro de conexão com o servidor.', 'error');
-    } finally {
-        input.value = ''; 
+        console.error('Erro:', error);
+        if (btnOriginal) {
+            btnOriginal.innerHTML = textoOriginal;
+            btnOriginal.disabled = false;
+        }
     }
 };
 
-// 2. VISUALIZAÇÃO DE COMPROVANTES (Global para onclick="abrirComprovanteSwal")
+
 window.abrirComprovanteSwal = function(encodedUrl) {
     const url = decodeURIComponent(encodedUrl);
     const ext = (url.split('.').pop() || '').toLowerCase();
@@ -5202,7 +5211,6 @@ window.abrirComprovanteSwal = function(encodedUrl) {
     }
 };
 
-// 3. AUXILIAR DE DOWNLOAD
 function triggerDownload(url) {
     const a = document.createElement('a');
     a.href = url;
@@ -5212,7 +5220,6 @@ function triggerDownload(url) {
     document.body.removeChild(a);
 }
 
-// 4. FUNÇÃO DE APOIO PARA ABRIR MODAL (Se usada nos botões de ações)
 window.abrirComprovantesStaff = function(idStaffEvento) {
     const params = new URLSearchParams();
     params.set('idstaffevento', idStaffEvento);
@@ -5224,9 +5231,46 @@ window.abrirComprovantesStaff = function(idStaffEvento) {
     else window.open(targetUrl, '_blank');
 };
 
-/**
- * RE-RENDERIZAÇÃO DO BOTÃO DE UPLOAD (Uiverse Style)
- */
+window.criarHTMLComprovantes = function(f, tipo) {
+    if (tipo === 'ajuda_custo') {
+        let html = '<div style="display:flex; flex-direction:column; gap:4px;">';
+        
+        // Comprovante 50%
+        if (f.comppgtoajdcusto50) {
+            const url50 = encodeURIComponent(f.comppgtoajdcusto50);
+            html += `
+                <button class="btn-ver-comp" onclick="abrirComprovanteSwal('${url50}')" title="Ver 50%">
+                    <i class="fas fa-file-pdf"></i> <small>Ver Comprovante 50%</small>
+                </button>`;
+        }
+        
+        // Comprovante 100%
+        if (f.comppgtoajdcusto) {
+            const url100 = encodeURIComponent(f.comppgtoajdcusto);
+            html += `
+                <button class="btn-ver-comp" onclick="abrirComprovanteSwal('${url100}')" title="Ver 100%">
+                    <i class="fas fa-file-pdf"></i> <small>Ver Comprovante 100%</small>
+                </button>`;
+        }
+        
+        html += '</div>';
+        return html;
+    }
+
+    // Para Cache ou Caixinha
+    const campo = (tipo === 'cache') ? f.comppgtocache : f.comppgtocaixinha;
+    if (campo) {
+        const url = encodeURIComponent(campo);
+        return `
+            <button class="btn-ver-comp" onclick="abrirComprovanteSwal('${url}')">
+                <i class="fas fa-file-pdf"></i> Ver Comp.
+            </button>`;
+    }
+
+    return '';
+};
+
+
 function renderBotaoUploadUiverse(idStaff, tipo, idFuncionario = null) {
     const idInput = `file-${tipo}-${idStaff}`;
     const idFuncAttr = (idFuncionario !== null) ? idFuncionario : 'null';
@@ -5243,6 +5287,8 @@ function renderBotaoUploadUiverse(idStaff, tipo, idFuncionario = null) {
         </div>
     `;
 }
+
+// ======================================================
 
 
 async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) { 
@@ -5276,98 +5322,78 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
         accordionContainer.className = "accordion-vencimentos";
 
         // Funções internas de renderização (obterHeaderTabela e obterLinhasTabela permanecem iguais)
-        const obterHeaderTabela = (filtro) => `
+        const obterHeaderTabela = (filtro) =>{
+            const podeVerAcoes = usuarioTemPermissaoSupremo();
+            return `
             <tr>
                 <th>NOME / FUNÇÃO</th>
                 <th style="text-align:center">DIÁRIAS</th>
                 <th style="text-align:center">PERÍODO</th>
-                ${(filtro === 'cache') ? `<th>COMPROVANTE(S)</th><th>STATUS</th><th>VALOR</th>` : ''}
-                ${(filtro === 'ajuda_custo') ? `<th>COMPROVANTE(S)</th><th>STATUS</th><th>VALOR</th>` : ''}
-                ${(filtro === 'caixinha') ? `<th>COMPROVANTE(S)</th><th>STATUS</th><th>VALOR</th>` : ''}
+                ${podeVerAcoes ? `<th style="text-align:center">AÇÕES</th>` : ''}
+                <th>COMPROVANTE(S)</th>
+                <th>STATUS</th>
+                <th>VALOR</th>
             </tr>`;
+    };
 
-        const obterLinhasTabela = (evento, filtro) => {
-            let lista = evento.funcionarios || [];
-            if (filtro === 'caixinha') lista = lista.filter(f => (f.totalcaixinha_filtrado || 0) > 0);
-            if (lista.length === 0) return `<tr><td colspan="10" style="text-align:center; padding: 20px;">Nenhum registro para esta categoria.</td></tr>`;
+const obterLinhasTabela = (evento, filtro) => {
+    let lista = evento.funcionarios || [];
+    if (filtro === 'caixinha') lista = lista.filter(f => (f.totalcaixinha_filtrado || 0) > 0);
+    if (lista.length === 0) return `<tr><td colspan="10" style="text-align:center; padding: 20px;">Nenhum registro.</td></tr>`;
 
-            // Somente usuários com permissão 'supremo' devem ver os botões de ação
-            const podeVerAcoes = usuarioTemPermissaoSupremo();
+    const podeVerAcoes = usuarioTemPermissaoSupremo();
+    const mostraUploadPermissao = (usuarioTemPermissao() || usuarioTemPermissaoFinanceiro());
 
-            return lista.map(f => {
-                const sCache = formatarStatusFront(f.statuspgto || "Pendente");
-                const sAjuda = formatarStatusFront(f.statuspgtoajdcto || "Pendente");
-                const sCaixinha = formatarStatusFront(f.statuscaixinha || "Pendente");
-                const cl = (s) => s.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+    return lista.map(f => {
+        // Mapeamento de dados conforme o filtro selecionado
+        const info = {
+            'cache': { 
+                status: formatarStatusFront(f.statuspgto || "Pendente"), 
+                valor: f.totalcache_filtrado, 
+                tipoAcao: 'Cache', // <-- Corrigido para 'Cache' (Maiúsculo)
+                comp: f.comppgtocache 
+            },
+            'ajuda_custo': { 
+                status: formatarStatusFront(f.statuspgtoajdcto || "Pendente"), 
+                valor: f.totalajudacusto_filtrado, 
+                tipoAcao: 'Ajuda', 
+                comp: f.comppgtoajdcusto 
+            },
+            'caixinha': { 
+                status: formatarStatusFront(f.statuscaixinha || "Pendente"), 
+                valor: f.totalcaixinha_filtrado, 
+                tipoAcao: 'Caixinha', 
+                comp: f.comppgtocaixinha 
+            }
+        }[filtro];
 
-                // Controle: supremos não devem ver/comprovantes nem botões de upload
-                const mostrarComprovantesParaUsuario = !usuarioTemPermissaoSupremo();
-                const mostraUploadPermissao = (usuarioTemPermissao() || usuarioTemPermissaoFinanceiro());
+        const statusLimpo = info.status.toLowerCase();
+        const estaPago = statusLimpo.startsWith('pago');
+        const classeStatus = statusLimpo.replace(/\s+/g, '-').replace('%', '');
 
-                // Ajuda só libera upload após estar marcado como Pago (50% ou 100%)
-                const ajudaPago = sAjuda && sAjuda.toLowerCase().startsWith('pago');
-                const cachePago = sCache && sCache.toLowerCase().startsWith('pago');
-                const caixinhaPago = sCaixinha && sCaixinha.toLowerCase().startsWith('pago');
+        return `
+            <tr>
+                <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
+                <td style="text-align:center">${f.qtddiarias_filtradas || 0}</td>
+                <td style="text-align:center"><small>${f.periodo_evento || '---'}</small></td>
 
-                return `
-                    <tr>
-                        <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
-                        <td style="text-align:center">${f.qtddiarias_filtradas || 0}</td>
-                        <td style="text-align:center"><small>${f.periodo_evento || '---'}</small></td>
-                        
-                        ${(filtro === 'cache') ? `
-                            <td class="comprovantes-cell">
-                                ${podeVerAcoes ? renderConteudoAcao(f.idstaffevento, 'Cache', sCache) : ''}
-                                ${ (mostrarComprovantesParaUsuario && cachePago && f.comppgtocache) ? criarHTMLComprovantes(f, 'cache') : ''}
-                                ${ (mostrarComprovantesParaUsuario && mostraUploadPermissao && cachePago && !f.comppgtocache) ? renderBotaoUploadUiverse(f.idstaffevento, 'cache', f.idfuncionario) : ''} 
-                                ${ (mostrarComprovantesParaUsuario && cachePago) ? (f.comppgtocache ? '<span class="badge comprov-uni">Comprovante ✔</span>' : '<span class="badge comprov-uni pending">Comprovante</span>') : ''}
-                            </td>
-                            <td class="status-celula status-${cl(sCache)}">${sCache}</td>
-                            <td>${formatarMoeda(f.totalcache_filtrado || 0)}</td>
-                        ` : ''}
+                ${podeVerAcoes ? `
+                    <td class="acoes-supremo" style="text-align:center">
+                        ${renderConteudoAcao(f.idstaffevento, info.tipoAcao, info.status)}
+                    </td>` : ''}
 
-                        ${(filtro === 'ajuda_custo') ? `
-                            <td>
-                                ${podeVerAcoes ? renderConteudoAcao(f.idstaffevento, 'Ajuda', sAjuda) : ''}
-                                ${mostrarComprovantesParaUsuario ? `
-                                    <div style="display:flex; align-items:center; gap:8px;">
+                <td>
+                    ${estaPago ? 
+                        gerarHTMLComprovanteDinamico(f.idstaffevento, filtro, info.status, criarHTMLComprovantes(f, filtro)) 
+                        : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'}
+                </td>
 
-                                        ${ (sAjuda === 'Pago 50%') ? `
-                                            <!-- 50%: Se já tem comprovante mostra 'Ver Comprovante', se não tem mostra upload -->
-                                            ${ f.comppgtoajdcusto50 ? criarHTMLComprovantes({comppgtoajdcusto50: f.comppgtoajdcusto50}, 'ajuda_custo') : (mostraUploadPermissao ? renderBotaoUploadUiverse(f.idstaffevento, 'ajuda50', f.idfuncionario) : '') }
+                <td class="status-celula status-${classeStatus}">${info.status}</td>
 
-                                            <!-- 100% (segunda parcela) -->
-                                            ${ f.comppgtoajdcusto ? criarHTMLComprovantes({comppgtoajdcusto: f.comppgtoajdcusto}, 'ajuda_custo') : (mostraUploadPermissao ? renderBotaoUploadUiverse(f.idstaffevento, 'ajuda100', f.idfuncionario) : '') }
-                                        ` : '' }
-
-                                        ${ (sAjuda && sAjuda.toLowerCase().startsWith('pago') && sAjuda !== 'Pago 50%') ? `
-                                            ${ f.comppgtoajdcusto ? criarHTMLComprovantes({comppgtoajdcusto: f.comppgtoajdcusto}, 'ajuda_custo') : (mostraUploadPermissao ? renderBotaoUploadUiverse(f.idstaffevento, 'ajuda', f.idfuncionario) : '') }
-                                        ` : '' }
-
-                                        <!-- Badges (visíveis apenas após o status ser Pago) -->
-                                        ${ (ajudaPago) ? (f.comppgtoajdcusto50 ? '<span class="badge comprov-50">50% ✔</span>' : '<span class="badge comprov-50 pending">50%</span>') : ''}
-                                        ${ (ajudaPago) ? (f.comppgtoajdcusto ? '<span class="badge comprov-100">100% ✔</span>' : '<span class="badge comprov-100 pending">100%</span>') : ''}
-
-                                    </div>
-                                ` : ''}
-                            </td>
-                            <td class="status-celula status-${cl(sAjuda)}">${sAjuda}</td>
-                            <td>${formatarMoeda(f.totalajudacusto_filtrado || 0)}</td>
-                        ` : ''}
-
-                        ${(filtro === 'caixinha') ? `
-                            <td class="comprovantes-cell">
-                                ${podeVerAcoes ? renderConteudoAcao(f.idstaffevento, 'Caixinha', sCaixinha) : ''}
-                                ${ (mostrarComprovantesParaUsuario && caixinhaPago) ? criarHTMLComprovantes(f, 'caixinha') : ''}
-                                ${ (mostrarComprovantesParaUsuario && mostraUploadPermissao && caixinhaPago) ? renderBotaoUploadUiverse(f.idstaffevento, 'caixinha', f.idfuncionario) : ''}
-                                ${ (mostrarComprovantesParaUsuario && caixinhaPago) ? (f.comppgtocaixinha ? '<span class="badge comprov-uni">Comprovante ✔</span>' : '<span class="badge comprov-uni pending">Comprovante</span>') : ''}
-                            </td>
-                            <td class="status-celula status-${cl(sCaixinha)}">${sCaixinha}</td>
-                            <td>${formatarMoeda(f.totalcaixinha_filtrado || 0)}</td>
-                        ` : ''}
-                    </tr>`;
-            }).join("");
-        };
+                <td>${formatarMoeda(info.valor || 0)}</td>
+            </tr>`;
+    }).join("");
+};
 
         dados.eventos.forEach(evento => {
             const item = document.createElement("div");
@@ -5572,14 +5598,18 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
 
                 // 3. ATUALIZAÇÃO CHAVE: Libera os inputs de upload na hora
                 if (celulaComprovantes) {
-                    const filtroFormatado = tipo.toLowerCase().includes('ajuda') ? 'ajuda_custo' : tipo.toLowerCase();
+                    // 1. Define o filtro correto
+                    const filtroParaDinamico = (tipo === 'Ajuda') ? 'ajuda_custo' : tipo.toLowerCase();
                     
-                    // Atualiza a célula passando o novo status e preservando o que já existe
+                    // 2. Pega o HTML atual, tratando se vier nulo do banco/front
+                    const conteudoAtual = celulaComprovantes.innerHTML;
+
+                    // 3. Atualiza a célula (Aqui estava o erro do filtroFormatado)
                     celulaComprovantes.innerHTML = gerarHTMLComprovanteDinamico(
                         idStaff, 
-                        filtroFormatado, 
+                        filtroParaDinamico, 
                         statusParaEnviar, 
-                        celulaComprovantes.innerHTML
+                        conteudoAtual
                     );
                 }
             }
@@ -5656,8 +5686,6 @@ function renderConteudoAcao(idStaff, tipo, statusAtual) {
             </button>
         </div>`;
 }
-
-// Abre o modal de Staff já posicionado para inserir/visualizar comprovantes
 
 window.alterarStatusStaff = alterarStatusStaff;
 window.abrirComprovantesStaff = abrirComprovantesStaff;
