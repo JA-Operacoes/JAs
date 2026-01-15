@@ -4544,7 +4544,20 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
             decisaoUsuarioDataFora = null;
         }
 
-        
+        // // --- 5. POPULAR OBJETO GLOBAL ---
+        dadosDoOrcamento.forEach(item => {
+            const chave = `${item.nmevento}-${item.nmcliente}-${item.nmlocalmontagem}-${item.descfuncao}`;
+            if (!orcamentoPorFuncao[chave]) {
+                orcamentoPorFuncao[chave] = {
+                    quantidadeOrcada: Number(item.quantidade_orcada), 
+                    quantidadeEscalada: Number(item.quantidade_escalada),
+                    idOrcamento: item.idOrcamento,
+                    idFuncao: item.idFuncao
+                };
+            } else {
+                orcamentoPorFuncao[chave].quantidadeOrcada += Number(item.quantidade_orcada);
+            }
+        });
 
     } catch (error) {
         console.error("Erro:", error);
