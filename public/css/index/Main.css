@@ -2039,6 +2039,23 @@ body.dark .indicador-evento {
   height: 50px;
 }
 
+.filtros-Evt {
+  display: flex;
+  align-items: center;
+  justify-content: start;
+  gap: 50px;
+  height: 50px;
+}
+
+.Evt-container{
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 20px;
+  border-radius: 20px;
+  animation: aparecerAgenda 0.4s ease-in-out;
+}
+
 .checkbox-wrapper-33.checkbox-coluna.contratarstaff {
     display: flex;
     flex-direction: row;
@@ -2196,7 +2213,7 @@ body.dark .indicador-evento {
 /* ======Filtros =========== */
 
 /* WRAPPER */
-.venc-container .wrapper {
+.venc-container .wrapper, .Evt-container .wrapper {
   position: relative;
   width: 520px;
   height: 36px;
@@ -2209,7 +2226,7 @@ body.dark .indicador-evento {
 } 
 
 /* OPTION */
-.venc-container .option {
+.venc-container .option, .Evt-container .option {
   margin-right: 5px;
   width: 80.5px;
   height: 28px;
@@ -2220,20 +2237,20 @@ body.dark .indicador-evento {
   transition: 0.25s cubic-bezier(0, 0, 0, 1);
 }
 
-.venc-container .option:last-child {
+.venc-container .option:last-child, .Evt-container .option:last-child {
   margin-right: 4px;
 }
 
-.venc-container .option:hover {
+.venc-container .option:hover, .Evt-container .option:hover {
   background-color: var(--hover-color);
 }
 
-.venc-container .option:hover .span {
+.venc-container .option:hover .span, .Evt-container .option:hover .span {
   color: var(--font-color);
 }
 
 /* INPUT (O rádio/checkbox invisível. Assume-se que a classe 'input' só é usada aqui) */
-.venc-container .input { 
+.venc-container .input, .Evt-container .input { 
   width: 100%;
   height: 100%;
   position: absolute;
@@ -2244,7 +2261,7 @@ body.dark .indicador-evento {
 }
 
 /* BTN (A aparência do botão) */
-.venc-container .btn {
+.venc-container .btn, .Evt-container .btn {
   width: 100%;
   height: 100%;
   border-radius: 50px;
@@ -2255,17 +2272,17 @@ body.dark .indicador-evento {
 }
 
 /* SPAN (O texto) */
-.venc-container .span {
+.venc-container .span, .Evt-container .span {
   color: var(--black-color);
 }
 
 /* ESTADOS */
-.venc-container .input:checked + .btn {
+.venc-container .input:checked + .btn, .Evt-container .input:checked + .btn {
   background-color: var(--primary-color);
   transition: 0.2s cubic-bezier(0, 0, 0, 1);
 }
 
-.venc-container .input:checked + .btn .span {
+.venc-container .input:checked + .btn .span, .Evt-container .input:checked + .btn .span {
   color: var(--font-color);
   transition: 0.25s cubic-bezier(0, 0, 0, 1);
 }
@@ -2283,7 +2300,7 @@ body.dark .indicador-evento {
 }
 
 /* WRAPPER GERAL (Manter o que você já tem, mas com flex-wrap se for o wrapper dos rádios) */
-.venc-container .wrapper {
+.venc-container .wrapper, .Evt-container .wrapper {
   position: relative;
   /* ... (seus estilos de borda e sombra) */
   display: flex;
@@ -2292,15 +2309,15 @@ body.dark .indicador-evento {
 }
 
 /* WRAPPER ESPECIAL PARA SELECT E INPUT DE DATA */
-.venc-container .wrapper.select-wrapper {
+.venc-container .wrapper.select-wrapper, .Evt-container .wrapper.select-wrapper {
   width: 155px; /* Tamanho fixo para o select de mês e input de data */
   height: 36px;
   padding: 0; /* Remove padding aqui, o padding será no input/select */
 }
 
 /* ESTILO GERAL PARA SELECT E INPUT DE DATA */
-.venc-container .select-simples, 
-.venc-container .input-data-simples {
+.venc-container .select-simples, .Evt-container .select-simples,
+.venc-container .input-data-simples, .Evt-container .input-data-simples {
   width: 100%; /* Preenche o .select-wrapper (155px) */
   height: 36px;
   border: none;
@@ -2316,7 +2333,7 @@ body.dark .indicador-evento {
 }
 
 /* ESTILO PARA O ANO (Filtro Anual) */
-.venc-container .anual-info {
+.venc-container .anual-info, .Evt-container .anual-info {
   font-size: 16px;
   font-weight: bold;
   color: var(--text-color);
@@ -2325,7 +2342,7 @@ body.dark .indicador-evento {
 }
 
 /* BOTÃO APLICAR (Seus estilos atuais) */
-.venc-container button#btnAplicarFiltro {
+.venc-container button#btnAplicarFiltro, .Evt-container button#btnAplicarFiltro {
   width: 90px;
   height: 40px;
   border-radius: 10px;
@@ -2335,13 +2352,13 @@ body.dark .indicador-evento {
 }
 
 /* SUB-OPÇÕES (Wrapper dos botões rádio trimestral/semestral) */
-.venc-container div#sub-opcoes {
+.venc-container div#sub-opcoes, .Evt-container div#sub-opcoes {
   
     width: 350px; 
       
 }
 
-.venc-container .sub-semestral #sub-opcoes {
+.venc-container .sub-semestral #sub-opcoes, .Evt-container .sub-semestral #sub-opcoes {
   width: 180px;
 }
 /* ------------------- */
