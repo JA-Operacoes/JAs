@@ -1,32 +1,15 @@
-<!-- <!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="css/Modal/CadStaff.css">
-    <link rel="stylesheet" href="css/Roots/Roots.css">
-    <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
-    
-    
-    <title>Modal</title>
-    
-  </head>
-  <body data-modulo="Staff">
-    
-    <div id="CadModal" class="modal"> <div class="modal-content"> -->
-    <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <!-- <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/material_red.css"> -->
-    <link rel="stylesheet" href="https://unpkg.com/flatpickr/dist/themes/material_red.css">
-    <link rel="stylesheet" href="css/Flatpickr/flatpickr-empresas.css">
-    <link rel="stylesheet" href="css/Modal/CadStaff.css">
+<link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<!-- <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/material_red.css"> -->
+<link rel="stylesheet" href="https://unpkg.com/flatpickr/dist/themes/material_red.css">
+<link rel="stylesheet" href="css/Flatpickr/flatpickr-empresas.css">
+<link rel="stylesheet" href="css/Modal/CadStaff.css">
  
 <div id="cadModalStaff" class="modal">
   <div class="modal-content">
 
-      <!-- <div id ="form-Staff">  -->
+    
 
         <div class="Close"><button class="close" id="Fechar"> X </button></div>
         
@@ -99,9 +82,10 @@
                       </div>
                       <div id="tarjaAvaliacao" class="tarja-avaliacao"></div>
                       <br>
-                      <label id="labelFuncionario" style="display: none; font-weight: bold; color: green; font-size: 100px;">
-                       
-                      </label>
+                      <label id="labelFuncionario" style="display: none; font-weight: bold; color: green; font-size: 100px;"></label>
+                      <button id="btnGerarFichaPendente" type="button" class="btn-ficha">
+                          Ficha de Trabalho
+                      </button>
                     </div>                    
                   </div> 
                 <br>
@@ -162,12 +146,7 @@
                       <option value="" selected disabled>Selecione a Função</option>
                     </select>
                   </div>  
-                  <div class="field">
-                    <!-- <label for="descEquipe">Equipe:</label>
-                    <input type="hidden" id="idEquipe" name="idEquipe">
-                    <select class="nmEquipe" name="nmEquipe" id="nmEquipe">       
-                      <option value="" selected disabled>Selecione a Equipe</option>                     
-                    </select> -->
+                  <div class="field">                    
                     <label for="nmEquipe">Equipe:</label>
                     <input type="hidden" id="idEquipe" name="idEquipe">
                     <input type="text" id="nmEquipe" name="nmEquipe" class="nmEquipe" readonly>
@@ -232,7 +211,7 @@
                     <label for="nmPavilhao">Selecione o(s) Pavilhão(ões):</label>
                     <input type="hidden" id="idPavilhao" name="idPavilhao" legend="Segure a tecla Ctrl para selecionar múltiplos pavilhões">
                     <select class="nmPavilhao" name="nmPavilhao" id="nmPavilhao" multiple required >
-                      <!-- <option value="" selected disabled></option> -->
+                      
                     </select>
                   </div>
                   <p><i class="fa-solid fa-circle-info"></i>Segure a tecla Ctrl para selecionar múltiplos pavilhões</p>
@@ -255,20 +234,7 @@
                     </div>
                   </div>        
                 <br>
-
-                <!-- <div class="field Alimentação">
-                    <label for="tpalimentacao">Alimentação:</label>
-                    <div class="checkbox">                      
-                      <div class="Vertical">
-                        <input id="Almococheck" type="checkbox" />
-                        <label for="Almococheck">Almoço</label>
-                      </div>
-                      <div class="Vertical">
-                        <input id="Jantarcheck" type="checkbox" />
-                        <label for="Jantarcheck">Jantar</label>
-                      </div>                      
-                    </div>
-                </div> -->
+                
                 <div id="containerViagens">
                   <div class="checkbox">                    
                       <div class="Vertical">
@@ -292,11 +258,7 @@
                   <div class="form2">
                       <input type="text" name="vlrCusto" id="vlrCusto" class="preenchido" readonly data-permanent-readonly="true" required>
                       <label for="vlrCusto">Cache</label>
-                  </div> 
-                  <!-- <div class="form2">
-                    <input type="text" name="almoco" id="almoco" class="preenchido" readonly required>
-                    <label for="almoco">Almoço</label>
-                  </div>  -->                  
+                  </div>                                 
 
                   <div class="form2">
                     <input type="text" name="alimentacao" id="alimentacao" class="preenchido"  readonly data-permanent-readonly="true" required>
@@ -319,31 +281,7 @@
                     <p id="contadorDatas"></p>
                     
                   </div>
-                </div>
-
-                <!-- <div class="form-2colunas"> 
-                  <div class="form2" id="campoStatusAditivo" style="display: none;">
-                    <input type="text" id="statusAditivo" name="statusAditivo" readonly required/>
-                    <select id="selectStatusAditivo" style="display:none;">
-                      <option value="none" disabled selected>Autorização do Aditivo</option>
-                      <option value="Pendente">Pendente</option>
-                      <option value="Autorizado">Autorizado</option>
-                      <option value="Rejeitado">Rejeitado</option>
-                    </select>
-                    <label for="statusAditivo">Status Aditivo</label>
-                  </div>
-
-                  <div class="form2" id="campoStatusExtraBonificado" style="display: none;">
-                    <input type="text" id="statusExtraBonificado" name="statusExtraBonificado" readonly required/>
-                    <select id="selectStatusExtraBonificado" style="display:none;">
-                      <option value="none" disabled selected>Autorização Extra Bonificado</option>
-                      <option value="Pendente">Pendente</option>
-                      <option value="Autorizado">Autorizado</option>
-                      <option value="Rejeitado">Rejeitado</option>
-                    </select>
-                    <label for="statusExtraBonificado">Status Extra Bonificado</label>
-                  </div>
-                </div> -->
+                </div>                
                   
                 <div class="form-2colunas valores"> 
                   <div class="form2">
@@ -387,17 +325,7 @@
                     <label for="meiaDiariacheck">Meia Diaria</label>
                   </div>
                 </div>
-                <br>
-
-                <!-- <div id="containerDiariaDobrada"></div>
-                <div id="containerMeiaDiaria"></div> -->
-
-                <!-- <div class="form-2colunas">
-                    <div class="form2">
-                      <input type="text" name="vlrCusto" id="vlrCusto" required>
-                      <label for="vlrCusto">Cache</label>
-                    </div>                              
-                </div>    -->
+                <br>                
 
                     <div class="form-2colunas ajusteCusto">
                       <div class="form2" id="campoAjusteCusto" style="display: none;">
@@ -493,35 +421,7 @@
                           <label><strong>Meia Diária</strong></label>
                           <div id="containerStatusMeiaDiaria" class="status-container"></div>
                       </div>
-                  </div>
-
-                  <!-- <div class="form-2colunas">
-                    <div class="form2">
-                      <input type="text" name="almoco" id="almoco" required>
-                      <label for="almoco">Almoço</label>
-                    </div>                              
-                    <div class="form2">
-                      <input type="text" name="jantar" id="jantar" required>
-                      <label for="jantar">Jantar</label>
-                    </div>   
-                    <div class="form2">
-                      <input type="text" name="transporte" id="transporte" required>
-                      <label for="transporte">Transporte</label>
-                    </div>
-                    <textarea name="descBeneficio" id="descBeneficio" placeholder="Descritivo dos Benefícios"  required></textarea>
-                  </div>   -->
-
-                  
-                  <!-- <div class="form2">
-                    <textarea name="descBeneficio" id="descBeneficio" placeholder="Descritivo dos Benefícios"  required></textarea>
-                  </div> -->
-
-                  <!-- <div class="form-2colunas">
-                      <div class="form2">                      
-                        <input type="text" class="preenchido" name="statusPgto" id="statusPgto" required readonly >
-                        <label for="statusPgto">Status do Pagamento</label>
-                    </div>  
-                  </div>  -->
+                  </div>                  
 
                   <div class="pdf">                    
                     <div class="collumn">
@@ -616,17 +516,11 @@
             </div>
           </div>
       
-          <div class="BTNs">
-            <!-- <button class="btnPesquisar" id="Pesquisar" type="button">Pesquisar</button> -->
+          <div class="BTNs">           
             <button class="btnLimpar" id="Limpar" type="button">Limpar</button>
             <button class="btnEnviar" id="Enviar" type="button" disabled>Enviar</button>
           </div>
         </form>
-      <!-- </div> -->
         
     </div>
 </div>
-
-<!-- <script src="js/Formataçoes.js"></script>
-</body>
-</html> -->

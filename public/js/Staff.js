@@ -1997,8 +1997,34 @@ const carregarTabelaStaff = async (funcionarioId) => {
                 // TOTAL GERAL
                 const cellTotalGeral = row.insertCell();
                 cellTotalGeral.textContent = totais.totalGeral.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                cellTotalGeral.style.fontWeight = 'bold';
+                cellTotalGeral.style.fontWeight = 'bold'; 
+                
             });
+
+            const containerAcoes = document.getElementById('containerAcoesStaff'); // Supondo que você tenha um div para isso
+            if (containerAcoes) {
+                containerAcoes.innerHTML = ''; // Limpa para não duplicar
+                const btnGerarTodosPendentes = document.createElement('button');
+                btnGerarTodosPendentes.innerHTML = '📄 Gerar PDF de Pendentes';
+                btnGerarTodosPendentes.className = 'btn-pdf-geral';
+                
+                btnGerarTodosPendentes.onclick = () => {
+                    // Filtra apenas os eventos onde a Ajuda de Custo está pendente
+                    const eventosPendentes = data.filter(ev => 
+                        (ev.statuspgtoajdcto || '').toLowerCase().trim() === 'pendente'
+                    );
+
+                    if (eventosPendentes.length === 0) {
+                        Swal.fire('Aviso', 'Não há eventos com Ajuda de Custo pendente para este funcionário.', 'info');
+                        return;
+                    }
+
+                    // Chama a função passando a lista filtrada
+                    gerarPdfFichaTrabalho(eventosPendentes);
+                };
+                containerAcoes.appendChild(btnGerarTodosPendentes);
+            }
+
         } else {
             noResultsMessage.style.display = 'block';
             noResultsMessage.textContent = `Nenhum evento encontrado.`;
@@ -2440,6 +2466,125 @@ async function verificaStaff() {
     tarja.addEventListener("change", async function () {
     mostrarTarja();
     });
+
+    // document.getElementById('btnGerarFichaPendente').onclick = async function() {
+    //     // 1. Primeiro Filtro: Tipo de Evento
+    //     const { value: tipoFiltro } = await Swal.fire({
+    //         title: 'Gerar Ficha de Trabalho',
+    //         input: 'select',
+    //         inputOptions: {
+    //             'todos': 'Todos os Eventos',
+    //             'a_realizar': 'Eventos a Realizar (Futuros)',
+    //             'realizados': 'Eventos Realizados (Passados)'
+    //         },
+    //         inputPlaceholder: 'Selecione uma opção',
+    //         showCancelButton: true,
+    //         confirmButtonText: 'Próximo',
+    //         cancelButtonText: 'Cancelar'
+    //     });
+
+    //     if (!tipoFiltro) return;
+
+    //     let dataCorteInicio = null;
+    //     let dataCorteFim = null;
+
+    //     // 2. Se for "Realizados", perguntar o período (Opcional)
+    //     if (tipoFiltro === 'realizados') {
+    //         const { value: periodo } = await Swal.fire({
+    //             title: 'Filtrar por Período?',
+    //             html: `
+    //                 <input type="month" id="mesFiltro" class="swal2-input">
+    //                 <p style="font-size: 0.8em; color: gray;">Deixe em branco para ver todos os passados</p>
+    //             `,
+    //             showCancelButton: true,
+    //             confirmButtonText: 'Filtrar',
+    //             preConfirm: () => {
+    //                 return document.getElementById('mesFiltro').value;
+    //             }
+    //         });
+            
+    //         if (periodo) {
+    //             const [ano, mes] = periodo.split('-');
+    //             dataCorteInicio = new Date(ano, mes - 1, 1);
+    //             dataCorteFim = new Date(ano, mes, 0); // Último dia do mês
+    //         }
+    //     }
+
+    //     processarGeracaoFicha(tipoFiltro, dataCorteInicio, dataCorteFim);
+    // };
+
+    document.getElementById('btnGerarFichaPendente').onclick = async function() {        
+        // Configuração de estilo comum
+        const configEstilo = {
+            width: '400px', // Força o alerta a ser mais estreito
+            customClass: {
+                container: 'swal-compacto',
+                title: 'swal-titulo-menor',
+                htmlContainer: 'swal-texto-menor'
+            },
+            didOpen: () => {
+                // Ajuste direto via JavaScript (garante que mude)
+                const container = Swal.getHtmlContainer();
+                if (container) container.style.fontSize = '14px';
+                
+                const title = Swal.getTitle();
+                if (title) title.style.fontSize = '18px';
+
+                const input = Swal.getInput();
+                if (input) {
+                    input.style.fontSize = '14px';
+                    input.style.height = '35px';
+                }
+            }
+        };
+
+        // 1. Primeiro Filtro
+        const { value: tipoFiltro } = await Swal.fire({
+            ...configEstilo, // Espalha as configurações de estilo aqui
+            title: 'Gerar Ficha de Trabalho',
+            input: 'select',
+            inputOptions: {
+                'todos': 'Todos os Eventos',
+                'a_realizar': 'Eventos a Realizar (Futuros)',
+                'realizados': 'Eventos Realizados (Passados)'
+            },
+            inputPlaceholder: 'Selecione uma opção',
+            showCancelButton: true,
+            confirmButtonText: 'Próximo',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (!tipoFiltro) return;
+
+        let dataCorteInicio = null;
+        let dataCorteFim = null;
+
+        // 2. Segundo Filtro (Realizados)
+        if (tipoFiltro === 'realizados') {
+            const { value: periodo } = await Swal.fire({
+                ...configEstilo, // Espalha as configurações de estilo aqui
+                title: 'Filtrar por Período?',
+                html: `
+                    <input type="month" id="mesFiltro" class="swal2-input" style="font-size: 14px; height: 35px; width: 80%;">
+                    <p style="font-size: 12px; color: gray; margin-top: 10px;">Deixe em branco para ver todos os passados</p>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Filtrar',
+                cancelButtonText: 'Cancelar',
+                preConfirm: () => {
+                    return document.getElementById('mesFiltro').value;
+                }
+            });
+            
+            if (periodo) {
+                const [ano, mes] = periodo.split('-');
+                dataCorteInicio = new Date(ano, mes - 1, 1);
+                dataCorteFim = new Date(ano, mes, 0);
+            }
+        }
+
+        processarGeracaoFicha(tipoFiltro, dataCorteInicio, dataCorteFim);
+    };
 
     botaoLimpar.addEventListener("click", function (event) {
         event.preventDefault(); // Previne o envio padrão do formulário
@@ -4330,13 +4475,9 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
 
         const nrOrcamento = dadosDoOrcamento[0].nrorcamento;
 
-        const liberadoCadastro = dadosDoOrcamento[0].contratarstaff;
+        const liberadoCadastro = dadosDoOrcamento[0].contratarstaff;        
 
-        
-
-       console.log('ID do Orçamento Atual:', idOrcamentoAtual, statusDoOrcamento, liberadoCadastro);
-
-    
+       console.log('ID do Orçamento Atual:', idOrcamentoAtual, statusDoOrcamento, liberadoCadastro);    
 
         if (statusDoOrcamento === 'A') {
             Swal.fire({ icon: 'warning', title: `Orçamento Sem Proposta`, text: 'Orçamento status A (Aberto). Não é possível cadastrar.' });
@@ -7565,7 +7706,433 @@ function limparFoto() {
     }
 }
 
+function processarGeracaoFicha(tipo, dataMin, dataMax) {
+    const linhas = document.querySelectorAll('#eventsDataTable tbody tr');
+    const eventosFiltrados = [];
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
 
+    console.log("Iniciando filtragem...", { tipo, hoje });
+
+    linhas.forEach((linha, index) => {
+        const celulas = linha.cells;
+        if (celulas.length < 10) return;
+
+        // --- MAPA DE ÍNDICES CONFORME SEU CONSOLE ---
+        const evento = celulas[3].innerText.trim();
+        const textoDatas = celulas[7].innerText.trim();
+
+        // 1. Tratamento das Datas (Lida com "20/01/2026, 21/01/2026" ou formato ISO)
+        let datasObj = [];
+        const partes = textoDatas.split(/[\s,]+/); // Quebra por vírgula ou espaço
+        
+        partes.forEach(p => {
+            if (p.includes('/')) {
+                // Formato DD/MM/AAAA
+                const [d, m, a] = p.split('/');
+                datasObj.push(new Date(a, m - 1, d));
+            } else if (p.includes('-')) {
+                // Formato ISO YYYY-MM-DD
+                datasObj.push(new Date(p));
+            }
+        });
+
+        datasObj.sort((a, b) => a - b);
+        if (datasObj.length === 0) return;
+
+        const ultimaDataEvento = datasObj[datasObj.length - 1];
+        ultimaDataEvento.setHours(0, 0, 0, 0);
+
+        let incluir = false;
+
+        if (tipo === 'todos') incluir = true;
+        else if (tipo === 'a_realizar') {
+            if (ultimaDataEvento >= hoje) incluir = true;
+        } else if (tipo === 'realizados') {
+            if (ultimaDataEvento < hoje) {
+                if (dataMin && dataMax) {
+                    if (ultimaDataEvento >= dataMin && ultimaDataEvento <= dataMax) incluir = true;
+                } else {
+                    incluir = true;
+                }
+            }
+        }
+
+        if (incluir) {
+            eventosFiltrados.push({
+                funcao: celulas[0].innerText,
+                cliente: celulas[2].innerText,
+                evento: evento,
+                local: celulas[4].innerText,
+                periodo: textoDatas,
+                valorTotal: celulas[25].innerText
+            });
+        }
+    });
+
+    console.log("Eventos encontrados após filtro:", eventosFiltrados.length);
+
+    if (eventosFiltrados.length > 0) {
+        const titulosFiltro = {
+            'todos': 'Relatório Geral de Eventos',
+            'a_realizar': 'Relatório de Eventos a Realizar (Futuros)',
+            'realizados': 'Relatório de Eventos Realizados (Concluídos)'
+        };
+        gerarPdfFichaTrabalho(eventosFiltrados, titulosFiltro[tipo]);
+    } else {
+        Swal.fire('Ops!', 'Nenhum evento corresponde aos critérios.', 'info');
+    }
+}
+
+
+// async function gerarPdfFichaTrabalho(eventos, nomeFiltro) {
+//     const { jsPDF } = window.jspdf;
+//     const doc = new jsPDF('p', 'mm', 'a4');
+//     const hoje = new Date();
+//     hoje.setHours(0, 0, 0, 0);
+
+//     const dataGeracao = new Date().toLocaleDateString('pt-BR');
+//     const selectFuncionario = document.getElementById("nmFuncionario");
+//     const nomeFuncionario = selectFuncionario?.options[selectFuncionario.selectedIndex]?.textContent.trim().toUpperCase() || "PROFISSIONAL NÃO IDENTIFICADO";
+
+//     // --- CABEÇALHO ---
+//     doc.setFontSize(16); doc.setFont("helvetica", "bold");
+//     doc.text("FICHA DE TRABALHO - STAFF", 14, 15);
+//     doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(100);
+//     doc.text(`Filtro: ${nomeFiltro}`, 14, 22);
+//     doc.text(`Profissional: ${nomeFuncionario}`, 14, 27);
+//     doc.text(`Gerado em: ${dataGeracao}`, 196, 15, { align: 'right' });
+
+//     const colunas = ["Informações do Evento", "Detalhes da Vaga"];
+    
+//     const linhasCorpo = eventos.map(ev => {
+//         const partes = ev.periodo.split(/[\s,]+/);
+//         const datasObj = partes.map(p => {
+//             const [d, m, a] = p.split('/');
+//             return new Date(a, m - 1, d);
+//         }).sort((a, b) => a - b);
+//         const ultimaData = datasObj[datasObj.length - 1];
+//         const estaEncerrado = (ultimaData < hoje);
+
+//         // Adicionamos espaços extras após os dois pontos para evitar que fiquem grudados
+//         return [
+//             { 
+//                 content: `${estaEncerrado ? "STATUS: ENCERRADO" : "STATUS: EM ANDAMENTO"}\n\nEVENTO:  ${ev.evento}\n\nCLIENTE: ${ev.cliente}\n\nLOCAL:   ${ev.local}`,
+//                 estaEncerrado: estaEncerrado
+//             },
+//             { 
+//                 content: `FUNÇÃO:  ${ev.funcao}\n\nPERÍODO:\n${ev.periodo}` 
+//             }
+//         ];
+//     });
+
+//     doc.autoTable({
+//         startY: 35,
+//         head: [colunas],
+//         body: linhasCorpo,
+//         theme: 'grid',
+//         headStyles: { fillColor: [45, 45, 45], halign: 'center', fontStyle: 'bold' },
+//         styles: { 
+//             fontSize: 9, 
+//             cellPadding: { top: 7, right: 5, bottom: 7, left: 8 }, // Aumentamos o left para 8 para não grudar na borda
+//             valign: 'top',
+//             overflow: 'linebreak',
+//             rowPageBreak: 'avoid', // Evita que uma única linha se divida entre duas páginas se possível
+//             font: "helvetica"
+//         },
+//         columnStyles: {
+//             0: { cellWidth: 95 },
+//             1: { cellWidth: 'auto' }
+//         },
+//         // Este hook é chamado antes de desenhar a célula. Vamos usá-lo para formatar o texto.
+//         didParseCell: function(data) {
+//             if (data.section === 'body') {
+//                 // Aqui não precisamos fazer nada, o segredo está no didDrawCell simplificado
+//             }
+//         },
+//         didDrawCell: function(data) {
+//             if (data.section === 'body' && data.column.index === 0) {
+//                 const isEnc = data.cell.raw.estaEncerrado;
+//                 const text = data.cell.text;
+                
+//                 // Pintamos apenas a primeira linha (Status) de colorido
+//                 if (text && text.length > 0) {
+//                     doc.setFont(undefined, 'bold');
+//                     if (text[0].includes("STATUS:")) {
+//                         doc.setTextColor(isEnc ? 200 : 0, isEnc ? 0 : 128, 0);
+//                         // O AutoTable já desenhou o texto, aqui apenas garantimos as cores
+//                     }
+//                 }
+//             }
+//         }
+//     });
+
+//     // --- RODAPÉ COM PAGINAÇÃO ---
+//     const totalPages = doc.internal.getNumberOfPages();
+//     for (let i = 1; i <= totalPages; i++) {
+//         doc.setPage(i);
+//         doc.setFontSize(8);
+//         doc.setTextColor(150);
+//         doc.text(`Página ${i} de ${totalPages}`, 105, 290, { align: 'center' });
+//     }
+
+//     const blobUrl = doc.output('bloburl');
+//     window.open(blobUrl, '_blank');
+// }
+
+
+// --- FUNÇÕES AUXILIARES ---
+
+// async function gerarPdfFichaTrabalho(eventos, nomeFiltro) {
+//     const { jsPDF } = window.jspdf;
+//     const doc = new jsPDF('p', 'mm', 'a4');
+//     const hoje = new Date();
+//     hoje.setHours(0, 0, 0, 0);
+
+//     const dataGeracao = new Date().toLocaleDateString('pt-BR');
+//     const selectFuncionario = document.getElementById("nmFuncionario");
+//     const nomeFuncionario = selectFuncionario?.options[selectFuncionario.selectedIndex]?.textContent.trim().toUpperCase() || "PROFISSIONAL NÃO IDENTIFICADO";
+
+//     // --- CABEÇALHO ---
+//     doc.setFontSize(16); doc.setFont("helvetica", "bold");
+//     doc.text("FICHA DE TRABALHO - STAFF", 14, 15);
+//     doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(100);
+//     doc.text(`Filtro: ${nomeFiltro}`, 14, 22);
+//     doc.text(`Profissional: ${nomeFuncionario}`, 14, 27);
+//     doc.text(`Gerado em: ${dataGeracao}`, 196, 15, { align: 'right' });
+
+//     const colunas = ["Informações do Evento", "Detalhes da Vaga"];
+    
+//     const linhasCorpo = eventos.map(ev => {
+//         const partes = ev.periodo.split(/[\s,]+/);
+//         const datasObj = partes.map(p => {
+//             const [d, m, a] = p.split('/');
+//             return new Date(a, m - 1, d);
+//         }).sort((a, b) => a - b);
+//         const ultimaData = datasObj[datasObj.length - 1];
+//         const estaEncerrado = (ultimaData < hoje);
+
+//         // Usamos prefixos fáceis de identificar para o Negrito
+//         return [
+//             { 
+//                 content: `${estaEncerrado ? "STATUS: ENCERRADO" : "STATUS: EM ANDAMENTO"}\nEVENTO: ${ev.evento}\nCLIENTE: ${ev.cliente}\nLOCAL: ${ev.local}`,
+//                 estaEncerrado // Passamos o dado puro para usar no hook de desenho
+//             },
+//             { 
+//                 content: `FUNÇÃO: ${ev.funcao}\n\nPERÍODO:\n${ev.periodo}`
+//             }
+//         ];
+//     });
+
+//     doc.autoTable({
+//         startY: 35,
+//         head: [colunas],
+//         body: linhasCorpo,
+//         theme: 'grid',
+//         headStyles: { fillColor: [45, 45, 45], halign: 'center', fontStyle: 'bold' },
+//         styles: { 
+//             fontSize: 9, 
+//             cellPadding: 5, 
+//             valign: 'top',
+//             overflow: 'linebreak',
+//             rowPageBreak: 'avoid', // Impede que o evento seja cortado ao meio
+//             font: "helvetica"
+//         },
+//         columnStyles: { 0: { cellWidth: 95 }, 1: { cellWidth: 'auto' } },
+        
+//         // AQUI ESTÁ A MÁGICA:
+//         didDrawCell: function(data) {
+//             if (data.section === 'body') {
+//                 const doc = data.doc;
+//                 const cell = data.cell;
+//                 const lines = cell.text; // O AutoTable já separou o texto em linhas para nós
+//                 const padding = cell.padding('left');
+//                 let cursorY = cell.y + cell.padding('top') + 3.5;
+//                 const jump = 4.5; // Distância entre linhas
+
+//                 // Limpa o fundo para remover o texto "padrão" (evita o efeito fantasma/duplicado)
+//                 doc.setFillColor(255, 255, 255);
+//                 doc.rect(cell.x + 0.5, cell.y + 0.5, cell.width - 1, cell.height - 1, 'F');
+
+//                 lines.forEach((line) => {
+//                     doc.setFont("helvetica", "bold");
+//                     doc.setTextColor(0);
+
+//                     if (line.startsWith("STATUS:")) {
+//                         const isEnc = cell.raw.estaEncerrado;
+//                         doc.setTextColor(isEnc ? 200 : 0, isEnc ? 0 : 128, 0);
+//                         doc.text(line, cell.x + padding, cursorY);
+//                     } 
+//                     else if (line.includes(": ")) {
+//                         const [label, ...rest] = line.split(": ");
+//                         const valor = rest.join(": ");
+                        
+//                         // Desenha o rótulo (EVENTO:, CLIENTE:, etc) em Negrito
+//                         doc.setFont("helvetica", "bold");
+//                         doc.text(label + ":", cell.x + padding, cursorY);
+
+//                         // Desenha o valor em Normal com um recuo fixo de 18mm
+//                         doc.setFont("helvetica", "normal");
+//                         const textWidth = cell.width - padding - 20;
+//                         const valorQuebrado = doc.splitTextToSize(valor, textWidth);
+//                         doc.text(valorQuebrado, cell.x + padding + 18, cursorY);
+
+//                         // Se o texto do valor for longo e quebrar, precisamos pular o cursorY
+//                         if (valorQuebrado.length > 1) {
+//                             cursorY += (valorQuebrado.length - 1) * jump;
+//                         }
+//                     } else {
+//                         // Linhas simples (como as datas do período)
+//                         doc.setFont("helvetica", "normal");
+//                         doc.text(line, cell.x + padding, cursorY);
+//                     }
+//                     cursorY += jump;
+//                 });
+//             }
+//         }
+//     });
+
+//     // --- RODAPÉ ---
+//     const totalPages = doc.internal.getNumberOfPages();
+//     for (let i = 1; i <= totalPages; i++) {
+//         doc.setPage(i);
+//         doc.setFontSize(8); doc.setTextColor(150);
+//         doc.text(`Página ${i} de ${totalPages}`, 105, 290, { align: 'center' });
+//     }
+
+//     window.open(doc.output('bloburl'), '_blank');
+// }
+
+
+async function gerarPdfFichaTrabalho(eventos, nomeFiltro) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    const dataGeracao = new Date().toLocaleDateString('pt-BR');
+    const selectFuncionario = document.getElementById("nmFuncionario");
+    const nomeFuncionario = selectFuncionario?.options[selectFuncionario.selectedIndex]?.textContent.trim().toUpperCase() || "PROFISSIONAL NÃO IDENTIFICADO";
+
+    // --- CABEÇALHO ---
+    doc.setFontSize(16); doc.setFont("helvetica", "bold");
+    doc.text("FICHA DE TRABALHO - STAFF", 14, 15);
+    doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(100);
+    doc.text(`Filtro: ${nomeFiltro}`, 14, 22);
+    doc.text(`Profissional: ${nomeFuncionario}`, 14, 27);
+    doc.text(`Gerado em: ${dataGeracao}`, 196, 15, { align: 'right' });
+
+    const colunas = ["Informações do Evento", "Detalhes da Vaga"];
+    
+    const linhasCorpo = eventos.map(ev => {
+        const partes = ev.periodo.split(/[\s,]+/);
+        const datasObj = partes.map(p => {
+            const [d, m, a] = p.split('/');
+            return new Date(a, m - 1, d);
+        }).sort((a, b) => a - b);
+        const ultimaData = datasObj[datasObj.length - 1];
+        const estaEncerrado = (ultimaData < hoje);
+
+        return [
+            { 
+                content: `STATUS: ${estaEncerrado ? "ENCERRADO" : "EM ANDAMENTO"}\nEVENTO: ${ev.evento}\nCLIENTE: ${ev.cliente}\nLOCAL: ${ev.local}`,
+                estaEncerrado
+            },
+            { 
+                content: `FUNÇÃO: ${ev.funcao}\nPERÍODO:\n${ev.periodo}` 
+            }
+        ];
+    });
+
+    doc.autoTable({
+        startY: 35,
+        head: [colunas],
+        body: linhasCorpo,
+        theme: 'grid',
+        headStyles: { fillColor: [45, 45, 45], halign: 'center', fontStyle: 'bold' },
+        styles: { 
+            fontSize: 9, 
+            cellPadding: { top: 7, right: 5, bottom: 12, left: 6 }, // Aumentado bottom para garantir espaço no período
+            valign: 'top',
+            overflow: 'linebreak',
+            rowPageBreak: 'avoid',
+            font: "helvetica"
+        },
+        columnStyles: { 0: { cellWidth: 90 }, 1: { cellWidth: 'auto' } },
+        
+        didDrawCell: function(data) {
+            if (data.section === 'body') {
+                const doc = data.doc;
+                const cell = data.cell;
+                const lines = cell.text;
+                const padLeft = cell.padding('left');
+                let cursorY = cell.y + cell.padding('top') + 3.5;
+                const lineHeight = 4.2; 
+                const gapExtra = 3.0; // Espaço apenas entre blocos diferentes
+
+                // Limpa o fundo para evitar sobreposição
+                doc.setFillColor(255, 255, 255);
+                doc.rect(cell.x + 0.5, cell.y + 0.5, cell.width - 1, cell.height - 1, 'F');
+
+                lines.forEach((line, index) => {
+                    const text = line.trim();
+                    if (!text) return;
+
+                    // Se não for a primeira linha e contiver um rótulo, adiciona o gapExtra
+                    if (index > 0 && text.includes(":")) {
+                        cursorY += gapExtra;
+                    }
+
+                    if (text.startsWith("STATUS:")) {
+                        doc.setFont("helvetica", "bold");
+                        const isEnc = cell.raw.estaEncerrado;
+                        doc.setTextColor(isEnc ? 200 : 0, isEnc ? 0 : 128, 0);
+                        doc.text(text, cell.x + padLeft, cursorY);
+                        cursorY += lineHeight;
+                    } 
+                    else if (text.includes(":")) {
+                        const [label, ...rest] = text.split(":");
+                        const valor = rest.join(":").trim();
+                        
+                        // Rótulo sempre em Negrito
+                        doc.setFont("helvetica", "bold");
+                        doc.setTextColor(0);
+                        doc.text(label + ":", cell.x + padLeft, cursorY);
+
+                        // Valor em Normal
+                        doc.setFont("helvetica", "normal");
+                        const availableWidth = cell.width - padLeft - 22;
+                        const valorQuebrado = doc.splitTextToSize(valor, availableWidth);
+                        
+                        // Alinhamento fixo (20mm de recuo)
+                        doc.text(valorQuebrado, cell.x + padLeft + 20, cursorY);
+
+                        // Calcula o pulo do cursor baseado na quebra do nome (sem gap extra aqui)
+                        const numLines = Array.isArray(valorQuebrado) ? valorQuebrado.length : 1;
+                        cursorY += (numLines * lineHeight);
+                    } 
+                    else {
+                        // Linhas que são continuação (datas do período ou nomes muito longos)
+                        doc.setFont("helvetica", "normal");
+                        doc.setTextColor(0);
+                        doc.text(text, cell.x + padLeft, cursorY);
+                        cursorY += lineHeight;
+                    }
+                });
+            }
+        }
+    });
+
+    // Rodapé
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8); doc.setTextColor(150);
+        doc.text(`Página ${i} de ${totalPages}`, 105, 290, { align: 'center' });
+    }
+
+    window.open(doc.output('bloburl'), '_blank');
+}
 
 
 function configurarEventosStaff() {

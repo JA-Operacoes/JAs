@@ -66,12 +66,12 @@ async function verificaCentroCusto() {
         const option = e.target;
         
         if (option.tagName === "OPTION") {
-            const acao = option.selected ? "remover" : "incluir";
+            const acao = option.selected ? "REMOVER" : "INCLUIR";
             const cor = option.selected ? "#d33" : "#3085d6";
 
             // Primeiro Swal: Pergunta se quer alterar
             const result = await Swal.fire({
-                title: acao === "incluir" ? "Vincular Empresa" : "Inativar Vínculo",
+                title: acao === "INCLUIR" ? "Vincular Empresa" : "Inativar Vínculo",
                 text: `Deseja ${acao} a empresa ${option.text} neste Centro de Custo? Lembre-se de clicar em ENVIAR para confirmar.`,
                 icon: 'question',
                 showCancelButton: true,
@@ -89,7 +89,7 @@ async function verificaCentroCusto() {
                 await Swal.fire({
                     icon: 'info',
                     title: 'Alteração registrada',
-                    text: 'Atenção: A alteração foi aplicada na tela, mas ainda NÃO foi salva no banco de dados. Você PRECISA clicar no botão "Enviar" para gravar as mudanças definitivamente.',
+                    text: 'Atenção: A alteração foi aplicada na tela, mas ainda NÃO foi salva no banco de dados. Você PRECISA clicar no botão "ENVIAR" para gravar as mudanças definitivamente.',
                     confirmButtonText: 'Entendi',
                     confirmButtonColor: 'var(--primary-color)',
                     allowOutsideClick: false // Impede fechar clicando fora
