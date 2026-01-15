@@ -1657,7 +1657,6 @@ const upload = multer({
     }
 });
 
-
 router.get("/vencimentos", async (req, res) => {
   try {
     const idempresa = req.idempresa;

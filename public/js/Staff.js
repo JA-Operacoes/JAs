@@ -4459,6 +4459,7 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
         //     }
         // });
 
+        // --- 4. TRATAMENTO DE DATAS FORA DO ORÇAMENTO (COM SOLICITAÇÃO DE EXCEÇÃO) ---
         if (datasNaoOrcadas.length > 0) {
             const datasFormatadas = datasNaoOrcadas.map(data => {
                 const [ano, mes, dia] = data.split('-');

@@ -32,7 +32,6 @@ if (typeof window.ContaOriginal === "undefined") {
         nmConta: "",
         ativo: false,
         tpConta: ""
-      //  codConta: ""
     };
 }
 
@@ -43,26 +42,29 @@ async function verificaConta() {
     const botaoPesquisar = document.querySelector("#Pesquisar");
     const botaoLimpar = document.querySelector("#Limpar");
     const form = document.querySelector("#form");
-  //  const inputCodContaElement = document.querySelector("#codConta");
 
-  const ativoCheckbox = document.querySelector("#ativo");
+    const nmContaInput = document.querySelector("#nmConta");
+    const tpContaSelect = document.querySelector("#tpConta");
+
+    // Adiciona os ouvintes para validar enquanto digita ou seleciona
+    if (nmContaInput) {
+        nmContaInput.addEventListener("input", validarFormulario);
+    }
+    if (tpContaSelect) {
+        tpContaSelect.addEventListener("change", validarFormulario);
+    }
+
+    validarFormulario();
+ 
+    const ativoCheckbox = document.querySelector("#ativo");
     if (ativoCheckbox) {
         console.log("Checkbox 'ativo' encontrado.");
         ativoCheckbox.checked = false;
     }
     else {
         console.log("Checkbox 'ativo' não encontrado.");
-    }
+    } 
    
-    // if (inputCodContaElement) {
-    //     inputCodContaElement.addEventListener("blur", async function () {
-    //         const codConta = this.value.toUpperCase().trim();
-    //         await preencherConta(codConta);
-    //     });
-    //     console.log("[initFuncionariosModal] Listener 'blur' adicionado ao campo de CÓDIGO do banco (#codigobanco).");
-    // } else {
-    //     console.warn("[initFuncionariosModal] Campo de CÓDIGO do banco (#codigobanco) não encontrado.");
-    // }
 
     if (!botaoEnviar || !form) {
         console.error("Formulário ou botão não encontrado no DOM.");
@@ -75,13 +77,12 @@ async function verificaConta() {
     });
 
     botaoEnviar.addEventListener("click", async (e) => {
-        e.preventDefault();
+        e.preventDefault();       
 
         const idConta = document.querySelector("#idConta").value.trim();
         const nmConta = document.querySelector("#nmConta").value.toUpperCase().trim();
         const ativo = document.querySelector("#ativo").checked;
-        const tpConta = document.querySelector("#tpConta").value;
-     //   const codConta = document.querySelector("#codConta").value.toUpperCase().trim();
+        const tpConta = document.querySelector("#tpConta").value; 
 
         const temPermissaoCadastrar = temPermissao("Contas", "cadastrar");
         const temPermissaoAlterar = temPermissao("Contas", "alterar");
@@ -105,8 +106,7 @@ async function verificaConta() {
             parseInt(idConta) === parseInt(ContaOriginal?.idConta) &&
             nmConta === ContaOriginal?.nmConta &&
             ativo === ContaOriginal?.ativo &&
-            tpConta === ContaOriginal?.tpConta
-           // codConta === ContaOriginal?.codConta
+            tpConta === ContaOriginal?.tpConta 
         ) {
             return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
         }
@@ -193,7 +193,10 @@ async function verificaConta() {
 
                 novoInput.addEventListener("input", function () {
                     this.value = this.value.toUpperCase();
+                    validarFormulario();
                 });
+
+                novoInput.addEventListener("input", validarFormulario);
 
                 this.parentNode.replaceChild(novoInput, this);
                 adicionarEventoBlurConta();
@@ -226,17 +229,11 @@ async function verificaConta() {
 function desinicializarContasModal() {
     console.log("🧹 Desinicializando módulo Contas.js");
 
-   // const inputCodContaElement = document.querySelector("#codConta");
     const botaoEnviar = document.querySelector("#Enviar");
     const botaoPesquisar = document.querySelector("#Pesquisar");
     const botaoLimpar = document.querySelector("#Limpar");
     const inputNmConta = document.querySelector("#nmConta"); // Pode ser input ou select
-    const ativoCheckbox = document.querySelector("#ativo");
-    // // Remover listeners que foram armazenados
-    // if (inputCodContaElement && blurCodContaListener) {
-    //     inputCodContaElement.removeEventListener("blur", blurCodContaListener);
-    //     blurCodContaListener = null;
-    // }
+    const ativoCheckbox = document.querySelector("#ativo");   
 
     if (botaoLimpar && limparButtonListener) {
         botaoLimpar.removeEventListener("click", limparButtonListener);
@@ -328,126 +325,127 @@ function adicionarEventoBlurConta() {
     });
 }
 
-async function preencherConta(codConta) {
-    try {
-        const contas = await fetchComToken(`/contas?codConta=${encodeURIComponent(codConta)}`);    
+// async function preencherConta(codConta) {
+//     try {
+//         const contas = await fetchComToken(`/contas?codConta=${encodeURIComponent(codConta)}`);    
         
-        document.querySelector("#idConta").value = contas.idbanco;
-        document.querySelector("#nmConta").value = contas.nmbanco;
-        document.querySelector("#ativo").checked = contas.ativo;
+//         document.querySelector("#idConta").value = contas.idbanco;
+//         document.querySelector("#nmConta").value = contas.nmbanco;
+//         document.querySelector("#ativo").checked = contas.ativo;
 
-        window.ContaOriginal = {
-            idConta: contas.idbanco,
-          //  codConta:contas.codbanco,
-            nmConta: contas.nmbanco,
-            ativo: contas.ativo
-        };
+//         window.ContaOriginal = {
+//             idConta: contas.idbanco,     
+//             nmConta: contas.nmbanco,
+//             ativo: contas.ativo
+//         };
 
-        console.log("Conta encontrado:", ContaOriginal);
+//         console.log("Conta encontrado:", ContaOriginal);
 
-    } catch (error) {
-        console.warn("Conta não encontrado.");
+//     } catch (error) {
+//         console.warn("Conta não encontrado.");
 
-        const inputIdConta = document.querySelector("#idConta");
-        const podeCadastrarConta = temPermissao("contas", "cadastrar");
+//         const inputIdConta = document.querySelector("#idConta");
+//         const podeCadastrarConta = temPermissao("contas", "cadastrar");
 
-        if (!inputIdConta.value && podeCadastrarConta) {
-            const resultado = await Swal.fire({
-                icon: 'question',
-                title: `Deseja cadastrar "${idConta.toUpperCase()}" como novo Conta?`,
-                text: `Conta "${idConta.toUpperCase()}" não encontrado.`,
-                showCancelButton: true,
-                confirmButtonText: "Sim, cadastrar",
-                cancelButtonText: "Cancelar",
-                reverseButtons: true,
-                focusCancel: true
-            });
+//         if (!inputIdConta.value && podeCadastrarConta) {
+//             const resultado = await Swal.fire({
+//                 icon: 'question',
+//                 title: `Deseja cadastrar "${idConta.toUpperCase()}" como novo Conta?`,
+//                 text: `Conta "${idConta.toUpperCase()}" não encontrado.`,
+//                 showCancelButton: true,
+//                 confirmButtonText: "Sim, cadastrar",
+//                 cancelButtonText: "Cancelar",
+//                 reverseButtons: true,
+//                 focusCancel: true
+//             });
             
-            if (!resultado.isConfirmed) {
-                console.log("Usuário cancelou o cadastro do Conta.");
-                elementoAtual.value = ""; // Limpa o campo se não for cadastrar
-                setTimeout(() => {
-                    elementoAtual.focus();
-                }, 0);
-                return;
-            }
-        } else if (!podeCadastrarConta) {
-            Swal.fire({
-                icon: "info",
-                title:"Conta não cadastrado",
-                text: "Você não tem permissão para cadastrar contas.",
-                confirmButtonText: "OK"
-            });
-        }
+//             if (!resultado.isConfirmed) {
+//                 console.log("Usuário cancelou o cadastro do Conta.");
+//                 elementoAtual.value = ""; // Limpa o campo se não for cadastrar
+//                 setTimeout(() => {
+//                     elementoAtual.focus();
+//                 }, 0);
+//                 return;
+//             }
+//         } else if (!podeCadastrarConta) {
+//             Swal.fire({
+//                 icon: "info",
+//                 title:"Conta não cadastrado",
+//                 text: "Você não tem permissão para cadastrar contas.",
+//                 confirmButtonText: "OK"
+//             });
+//         }
         
-    }   
-}
+//     }   
+// }
 
+
+// 
 
 async function carregarContaDescricao(desc, elementoAtual) {
     try {
-            const contas = await fetchComToken(`/contas?nmConta=${encodeURIComponent(desc)}`);
-           // console.log("Resposta do servidor:", response);
-           
-            document.querySelector("#idConta").value = contas.idconta;
-            document.querySelector("#nmConta").value = contas.nmconta || "";
-            document.querySelector("#tpConta").value = contas.tpconta || "";
-            
-           // document.querySelector("#codConta").value = contas.codbanco;
-
-            const isAtivo = contas.ativo === true || contas.ativo === 1 || contas.ativo === "S";
-            document.querySelector("#ativo").checked = isAtivo;
-            console.log("Ativo definido para:", isAtivo);
-            window.ContaOriginal = {
-                idConta: contas.idconta,
-                //codConta:contas.codbanco,
-                nmConta: contas.nmconta,
-                ativo: isAtivo,
-                tpConta: contas.tpconta
-            };
-    
-            console.log("Conta encontrado:", ContaOriginal);
-    
-        } catch (error) {
-            console.warn("Conta não encontrado.");
-    
-            const inputIdConta = document.querySelector("#idConta");
-            const podeCadastrarConta = temPermissao("contas", "cadastrar");
-    
-           if (!inputIdConta.value && podeCadastrarConta) {
-                 const resultado = await Swal.fire({
-                    icon: 'question',
-                    title: `Deseja cadastrar "${desc.toUpperCase()}" como novo Conta?`,
-                    text: `Conta "${desc.toUpperCase()}" não encontrado.`,
-                    showCancelButton: true,
-                    confirmButtonText: "Sim, cadastrar",
-                    cancelButtonText: "Cancelar",
-                    reverseButtons: true,
-                    focusCancel: true
-                });
-    
-                
-                if (!resultado.isConfirmed) {
-                    console.log("Usuário cancelou o cadastro do Conta.");
-                    elementoAtual.value = ""; // Limpa o campo se não for cadastrar
-                    setTimeout(() => {
-                        elementoAtual.focus();
-                    }, 0);
-                    return;
-                }
-            } else if (!podeCadastrarConta) {
-                Swal.fire({
-                    icon: "info",
-                    title:"Conta não cadastrado",
-                    text: "Você não tem permissão para cadastrar contas.",
-                    confirmButtonText: "OK"
-                });
-            }
-            
+        const dadosRecebidos = await fetchComToken(`/contas?nmConta=${encodeURIComponent(desc)}`);
+        
+        // Verifica se retornou um array vazio ou objeto nulo
+        if (!dadosRecebidos || (Array.isArray(dadosRecebidos) && dadosRecebidos.length === 0)) {
+            throw new Error("Conta não encontrada");
         }
+
+        // Se a API retornar um array, pegamos o primeiro índice
+        const contas = Array.isArray(dadosRecebidos) ? dadosRecebidos[0] : dadosRecebidos;
+
+        document.querySelector("#idConta").value = contas.idconta || "";
+        document.querySelector("#nmConta").value = contas.nmconta || "";
+        document.querySelector("#tpConta").value = contas.tpconta || ""; 
+        
+        const isAtivo = contas.ativo === true || contas.ativo === 1 || contas.ativo === "S" || contas.ativo === "T";
+        document.querySelector("#ativo").checked = isAtivo;
+
+        window.ContaOriginal = {
+            idConta: contas.idconta,     
+            nmConta: contas.nmconta,
+            ativo: isAtivo,
+            tpConta: contas.tpconta
+        };
+
+        validarFormulario(); // Atualiza o estado do botão enviar
+
+    } catch (error) {
+        console.warn("Conta não encontrada, abrindo opção de cadastro.");
+        
+        // Limpa o ID para garantir que o sistema entenda que é um novo cadastro
+        document.querySelector("#idConta").value = "";
+
+        const podeCadastrarConta = temPermissao("Contas", "cadastrar");
+
+        if (podeCadastrarConta) {
+            const resultado = await Swal.fire({
+                icon: 'question',
+                title: `Deseja cadastrar "${desc.toUpperCase()}"?`,
+                text: `A conta não foi encontrada no sistema.`,
+                showCancelButton: true,
+                confirmButtonText: "Sim, cadastrar",
+                cancelButtonText: "Cancelar",
+                reverseButtons: true
+            });
+
+            if (!resultado.isConfirmed) {
+                elementoAtual.value = "";
+                validarFormulario();
+                setTimeout(() => elementoAtual.focus(), 0);
+            } else {
+                validarFormulario(); // Habilita o botão se os campos estiverem ok
+            }
+        } else {
+            Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novas contas.", "info");
+            elementoAtual.value = "";
+            validarFormulario();
+        }
+    }
 }
 
 function limparCamposConta() {
+    console.log("Limpando campos do Conta...");
     const idEvent = document.getElementById("idConta");
     const nmContaEl = document.getElementById("nmConta");
     const tpContaEl = document.getElementById("tpConta");
@@ -489,8 +487,30 @@ function limparCamposConta() {
             campoAtivo.checked = false;
         }
     }
+    validarFormulario();
 }
 
+function validarFormulario() {
+    const elNm = document.querySelector("#nmConta");
+    const elTp = document.querySelector("#tpConta");
+    const botaoEnviar = document.querySelector("#Enviar");
+
+    if (!elNm || !elTp || !botaoEnviar) return;
+
+    const nmConta = elNm.value.trim();
+    const tpConta = elTp.value.trim();
+
+    // Habilita se ambos tiverem valor
+    if (nmConta.length > 0 && tpConta.length > 0) {
+        botaoEnviar.disabled = false;
+        botaoEnviar.style.opacity = "1";
+        botaoEnviar.style.cursor = "pointer";
+    } else {
+        botaoEnviar.disabled = true;
+        botaoEnviar.style.opacity = "0.5";
+        botaoEnviar.style.cursor = "not-allowed";
+    }
+}
 
 function configurarCadConta() {
     verificaConta();
