@@ -107,45 +107,41 @@ router.get("/adicionais", async (req, res) => {
 // =======================================
 router.get("/proximo-evento", async (req, res) => {
   try {
-  const idempresa = req.headers.idempresa || req.query.idempresa;
-  if (!idempresa) return res.status(400).json({ error: "idempresa não fornecido" });
+    const idempresa = req.headers.idempresa || req.query.idempresa;
+    if (!idempresa) return res.status(400).json({ error: "idempresa não fornecido" });
 
-  // Busca todos os eventos da empresa nos próximos 5 dias (inclusive hoje)
-  const { rows: eventos } = await pool.query(
-  `SELECT e.nmevento, o.dtinimontagem
-  FROM orcamentos o
-  JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-  JOIN eventos e ON e.idevento = o.idevento
-  WHERE oe.idempresa = $1
-  AND o.dtinimontagem >= CURRENT_DATE
-  AND o.dtinimontagem <= CURRENT_DATE + INTERVAL '5 days'
-  ORDER BY o.dtinimontagem`,
-  [idempresa]
-  );
+    const { rows: eventos } = await pool.query(
+    `SELECT 
+        e.nmevento, 
+        o.dtinimarcacao, 
+        o.dtinimontagem, 
+        o.dtinirealizacao
+    FROM orcamentos o
+    JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+    JOIN eventos e ON e.idevento = o.idevento
+    WHERE oe.idempresa = $1
+    AND (o.dtinimarcacao >= CURRENT_DATE + INTERVAL '7 day' OR o.dtinirealizacao >= CURRENT_DATE)
+    ORDER BY o.dtinimarcacao ASC`,
+    [idempresa]
+    );
 
-  if (!eventos || eventos.length === 0) {
-  return res.json({ eventos: [] });
-  }
+    // Formatação para o Frontend entender as fases
+    const respostaFormatada = eventos.map(ev => {
+        return {
+            nmevento: ev.nmevento,
+            datas: {
+                "Marcação": ev.dtinimarcacao,
+                "Montagem": ev.dtinimontagem,
+                "Realização": ev.dtinirealizacao
+            }
+        };
+    });
 
-  // Monta resposta agrupando por data para facilitar o frontend
-  const eventosPorData = {};
-  eventos.forEach(ev => {
-  const dataStr = ev.dtinimontagem.toISOString().split("T")[0]; // "YYYY-MM-DD"
-  if (!eventosPorData[dataStr]) eventosPorData[dataStr] = [];
-  eventosPorData[dataStr].push({ nmevento: ev.nmevento, data: ev.dtinimontagem });
-  });
-
-  // Flatten em um array para o frontend processar
-  const respostaFormatada = [];
-  Object.keys(eventosPorData).sort().forEach(data => {
-  eventosPorData[data].forEach(ev => respostaFormatada.push(ev));
-  });
-
-  res.json({ eventos: respostaFormatada });
+    res.json({ eventos: respostaFormatada });
 
   } catch (err) {
-  console.error("Erro em /proximo-evento:", err);
-  res.status(500).json({ error: "Erro interno do servidor" });
+    console.error("Erro em /proximo-evento:", err);
+    res.status(500).json({ error: "Erro interno do servidor" });
   }
 });
 
@@ -1291,6 +1287,7 @@ router.get("/orcamentos", async (req, res) => {
         res.status(500).json({ error: "Erro interno no servidor." });
     }
 });
+
 router.get("/orcamentos/resumo", async (req, res) => {
   try {
     const idempresa = req.headers.idempresa || req.query.idempresa;

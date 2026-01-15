@@ -929,105 +929,126 @@ document.addEventListener("DOMContentLoaded", function () {
 
 async function atualizarProximoEvento() {
   const resposta = await fetchComToken("/main/proximo-evento", {
-  headers: { idempresa: getIdEmpresa() }
+    headers: { idempresa: getIdEmpresa() }
   });
 
   const nomeSpan = document.getElementById("proximoEventoNome");
   const tempoSmall = document.getElementById("proximoEventoTempo");
 
   if (!resposta.eventos || resposta.eventos.length === 0) {
-  nomeSpan.textContent = "Sem próximos eventos agendados.";
-  tempoSmall.textContent = "--";
-  return;
-  }
-
-  // Função para criar Date no fuso local a partir de "YYYY-MM-DD"
-    function parseDateLocal(dateStr) {
-        if (typeof dateStr === "string") {
-            if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-                const [y, m, d] = dateStr.split("-").map(Number);
-                return new Date(y, m - 1, d);
-            }
-            return new Date(dateStr); // ISO
-        }
-        return new Date(dateStr); // Já é Date
-    }
-
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-
-    let proximos = resposta.eventos
-    .map(ev => ({ ...ev, data: parseDateLocal(ev.data) }))
-    .filter(ev => ev.data.getTime() >= hoje.getTime());
-
-    if (proximos.length === 0) {
     nomeSpan.textContent = "Sem próximos eventos agendados.";
     tempoSmall.textContent = "--";
     return;
-    }
+  }
 
-    function formatarTempoRestante(dataEvento) {
+  // Função para criar Date no fuso local (evita erros de fuso horário)
+  function parseDateLocal(dateStr) {
+    if (!dateStr) return null;
+    if (typeof dateStr === "string") {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        const [y, m, d] = dateStr.split("-").map(Number);
+        return new Date(y, m - 1, d);
+      }
+      return new Date(dateStr);
+    }
+    return new Date(dateStr);
+  }
+
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  // 1. Processar eventos e identificar a fase mais próxima (Marcação, Montagem ou Realização)
+  let proximos = resposta.eventos.map(ev => {
+    const fases = [
+      { nome: "Marcação", data: parseDateLocal(ev.dtinimarcacao) },
+      { nome: "Montagem", data: parseDateLocal(ev.dtinimontagem) },
+      { nome: "Realização", data: parseDateLocal(ev.dtinirealizacao) }
+    ]
+    .filter(f => f.data && f.data.getTime() >= hoje.getTime())
+    .sort((a, b) => a.data - b.data);
+
+    // Se não houver fase futura, usa a Marcação como padrão
+    const faseAtiva = fases[0] || { nome: "Evento", data: parseDateLocal(ev.dtinimarcacao) };
+
+    return {
+      nmevento: ev.nmevento,
+      faseNome: faseAtiva.nome,
+      data: faseAtiva.data
+    };
+  })
+  .filter(ev => ev.data && ev.data.getTime() >= hoje.getTime())
+  .sort((a, b) => a.data - b.data);
+
+  if (proximos.length === 0) {
+    nomeSpan.textContent = "Sem próximos eventos agendados.";
+    tempoSmall.textContent = "--";
+    return;
+  }
+
+  function formatarTempoRestante(dataEvento) {
     const hojeTmp = new Date();
-    hojeTmp.setHours(0,0,0,0);
+    hojeTmp.setHours(0, 0, 0, 0);
     const diffDias = Math.round((dataEvento - hojeTmp) / (1000 * 60 * 60 * 24));
     if (diffDias > 0) return `(em ${diffDias} dia${diffDias > 1 ? "s" : ""})`;
-    else if (diffDias === 0) return "(hoje)";
-    else return "(já começou)";
-    }
+    if (diffDias === 0) return "(hoje)";
+    return "(em andamento)";
+  }
 
-    const limite = new Date();
-    limite.setDate(hoje.getDate() + 5);
+  // --- LÓGICA DE EXIBIÇÃO ---
 
-    const proximos5Dias = proximos.filter(ev => ev.data <= limite);
-
-    if (proximos5Dias.length === 1) {
-    // Caso 1: apenas 1 evento
-    const ev = proximos5Dias[0];
-    nomeSpan.textContent = ev.nmevento;
-    tempoSmall.textContent = `${ev.data.toLocaleDateString()} ${formatarTempoRestante(ev.data)}`;
-    nomeSpan.style.fontSize = "1.5em";
-    } else {
-    // Caso 2: mais de 1 evento → ajustar fonte menor
+  // CASO 1: Poucos eventos (1 ou 2) -> Exibição detalhada com nome da fase
+  if (proximos.length <= 2) {
+    nomeSpan.style.fontSize = "1.3em";
+    nomeSpan.innerHTML = proximos.map(ev => {
+      return `
+        <div style="margin-bottom: 8px;">
+          <strong>${ev.nmevento}</strong><br>
+          <small style="font-size: 0.7em; color: var(--primary-color);">
+            Início ${ev.faseNome}: ${ev.data.toLocaleDateString()} ${formatarTempoRestante(ev.data)}
+          </small>
+        </div>
+      `;
+    }).join("");
+    tempoSmall.textContent = ""; 
+  } 
+  
+  // CASO 2: Muitos eventos -> Exibição em lista resumida
+  else {
     nomeSpan.style.fontSize = "1em";
-
     const eventosPorData = {};
-    proximos5Dias.forEach(ev => {
-    const dataStr = ev.data.toLocaleDateString();
-    if (!eventosPorData[dataStr]) eventosPorData[dataStr] = [];
-    eventosPorData[dataStr].push(ev.nmevento);
+    
+    // Limita a exibição aos primeiros 4 para não esticar o card
+    const listaReduzida = proximos.slice(0, 4);
+
+    listaReduzida.forEach(ev => {
+      const dataStr = ev.data.toLocaleDateString();
+      if (!eventosPorData[dataStr]) eventosPorData[dataStr] = [];
+      eventosPorData[dataStr].push(ev);
     });
 
-    const datas = Object.keys(eventosPorData).sort((a,b) => {
-    const [da, ma, ya] = a.split("/").map(Number);
-    const [db, mb, yb] = b.split("/").map(Number);
-    return new Date(ya, ma-1, da) - new Date(yb, mb-1, db);
+    const datasOrdenadas = Object.keys(eventosPorData).sort((a, b) => {
+      const [da, ma, ya] = a.split("/").map(Number);
+      const [db, mb, yb] = b.split("/").map(Number);
+      return new Date(ya, ma - 1, da) - new Date(yb, mb - 1, db);
     });
 
-    if (datas.length === 1) {
-    // Todos no mesmo dia
-    const lista = eventosPorData[datas[0]];
-    let nomes = "";
-    if (lista.length <= 3) {
-    nomes = lista.join(" | ");
-    } else {
-    const primeiros = lista.slice(0, 3).join(" | ");
-    const restantes = lista.length - 3;
-    nomes = `${primeiros} | +${restantes}`;
-    }
-    nomeSpan.textContent = nomes;
-    tempoSmall.textContent = `${datas[0]} ${formatarTempoRestante(proximos5Dias[0].data)}`;
-    } else {
-    // Dias diferentes
-    nomeSpan.innerHTML = datas.map(dataStr => {
-    const [d, m, y] = dataStr.split("/").map(Number);
-    const dataObj = new Date(y, m-1, d);
-    return eventosPorData[dataStr]
-    .map(nome => `${nome} - ${dataStr} ${formatarTempoRestante(dataObj)}`)
-    .join("<br>");
+    nomeSpan.innerHTML = datasOrdenadas.map(dataStr => {
+      const eventosDoDia = eventosPorData[dataStr];
+      const dataObj = eventosDoDia[0].data;
+      
+      // Se houver mais de um evento no mesmo dia, resume
+      if (eventosDoDia.length > 1) {
+        return `• ${eventosDoDia[0].nmevento} +${eventosDoDia.length - 1} - ${dataStr}`;
+      }
+      return `• ${eventosDoDia[0].nmevento} - ${dataStr}`;
     }).join("<br>");
-    tempoSmall.textContent = "";
+
+    if (proximos.length > 4) {
+      nomeSpan.innerHTML += `<br><small>... e mais ${proximos.length - 4} compromissos</small>`;
     }
-    }
+
+    tempoSmall.textContent = "Próximas atividades";
+  }
 }
 
 document.addEventListener("DOMContentLoaded", function () {
