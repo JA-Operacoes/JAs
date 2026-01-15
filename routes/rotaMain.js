@@ -4,6 +4,9 @@ const pool = require("../db/conexaoDB");
 const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlewares');
 const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 const logMiddleware = require("../middlewares/logMiddleware");
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 router.get("/", async (req, res) => {
   const idempresa = req.headers.idempresa || req.query.idempresa;
@@ -1622,6 +1625,38 @@ function calcularIntervaloDeDatas(periodo, params) {
 // =======================================
 // VENCIMENTOS
 // =======================================
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const dir = './uploads/comprovantes/';
+        // Cria a pasta caso ela não exista
+        if (!fs.existsSync(dir)){
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        cb(null, dir);
+    },
+    filename: function (req, file, cb) {
+        // Gera um nome único: idStaff-timestamp-nomeoriginal
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+// Inicializa o middleware upload (Isso resolve o ReferenceError)
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // Limite de 5MB
+    fileFilter: (req, file, cb) => {
+        const extensões = /jpeg|jpg|png|pdf/;
+        const mimetype = extensões.test(file.mimetype);
+        const extname = extensões.test(path.extname(file.originalname).toLowerCase());
+
+        if (mimetype && extname) {
+            return cb(null, true);
+        }
+        cb(new Error("Apenas imagens (JPG/PNG) e PDFs são permitidos."));
+    }
+});
+
 router.get("/vencimentos", async (req, res) => {
   try {
     const idempresa = req.idempresa;
@@ -1675,33 +1710,57 @@ router.get("/vencimentos", async (req, res) => {
     // 2. QUERY DE DETALHES (LISTA COM DATAS)
     const queryDetalhes = `
       SELECT tse.idstaffevento, tse.idevento, tse.nmfuncionario AS nome, tse.nmfuncao AS funcao,
-        calc.qtd AS qtddiarias_filtradas, calc.min_dt AS periodo_eventoini, calc.max_dt AS periodo_eventofim,
-        (COALESCE(tse.vlrcache, 0) * calc.qtd) AS totalcache_filtrado,
-        ((COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * calc.qtd) AS totalajudacusto_filtrado,
-        (COALESCE(tse.vlrcaixinha, 0) * calc.qtd) AS totalcaixinha_filtrado,
-        tse.statuspgto, tse.statuspgtoajdcto, tse.statuscaixinha
-      FROM staffeventos tse
-      CROSS JOIN LATERAL (
-        SELECT COUNT(*)::int as qtd, MIN((d.dt)::date) AS min_dt, MAX((d.dt)::date) AS max_dt
-        FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
-        WHERE (d.dt)::date BETWEEN $2 AND $3
-      ) AS calc
-      WHERE tse.idevento = ANY($1) AND calc.qtd > 0
-      ORDER BY tse.nmfuncionario ASC;
+    calc.qtd AS qtddiarias_filtradas, calc.min_dt AS periodo_eventoini, calc.max_dt AS periodo_eventofim,
+    calc_full.full_min_dt AS periodo_eventoini_all, calc_full.full_max_dt AS periodo_eventofim_all,
+    (COALESCE(tse.vlrcache, 0) * calc.qtd) AS totalcache_filtrado,
+    ((COALESCE(tse.vlralmoco, 0) + COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) * calc.qtd) AS totalajudacusto_filtrado,
+    (COALESCE(tse.vlrcaixinha, 0) * calc.qtd) AS totalcaixinha_filtrado,
+    tse.statuspgto, tse.statuspgtoajdcto, tse.statuscaixinha,
+    tse.comppgtocache, 
+    tse.comppgtocaixinha, 
+    tse.comppgtoajdcusto50, 
+    tse.comppgtoajdcusto
+  FROM staffeventos tse
+  CROSS JOIN LATERAL (
+    SELECT COUNT(*)::int as qtd, MIN((d.dt)::date) AS min_dt, MAX((d.dt)::date) AS max_dt
+    FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
+    WHERE (d.dt)::date BETWEEN $2 AND $3
+  ) AS calc
+  CROSS JOIN LATERAL (
+    SELECT MIN((d2.dt)::date) AS full_min_dt, MAX((d2.dt)::date) AS full_max_dt
+    FROM jsonb_array_elements_text(tse.datasevento) AS d2(dt)
+  ) AS calc_full
+  WHERE tse.idevento = ANY($1) AND calc.qtd > 0
+  ORDER BY tse.nmfuncionario ASC;
     `;
 
     const { rows: staffRows } = await pool.query(queryDetalhes, [eventosRaw.map(e => e.idevento), startDate, endDate]);
 
-    // Função interna para evitar NaN
+    // Funções internas para formatar datas com segurança
+    // Normaliza entrada que pode ser Date ou string e retorna Date válido ou null
+    const normalizarParaDate = (val) => {
+        if (!val) return null;
+        if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+        try {
+            // Se receber '2026-01-20T00:00:00' ou '2026-01-20', extrai parte de data
+            const s = String(val).split('T')[0];
+            const d = new Date(s + 'T00:00:00');
+            return isNaN(d.getTime()) ? null : d;
+        } catch (e) {
+            return null;
+        }
+    };
+
     const formatarDDMM = (dStr) => {
-        if (!dStr || dStr === "null") return '---';
-        // Adicionar T00:00:00 garante que o JavaScript não mude o dia pelo fuso horário
-        const d = new Date(dStr + 'T00:00:00'); 
-        if (isNaN(d.getTime())) return '---';
-        
-        const dia = String(d.getDate()).padStart(2, '0');
-        const mes = String(d.getMonth() + 1).padStart(2, '0');
-        return `${dia}/${mes}`;
+        const d = normalizarParaDate(dStr);
+        if (!d) return '---';
+        return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+    };
+
+    const formatarDDMMYYYY = (dStr) => {
+        const d = normalizarParaDate(dStr);
+        if (!d) return '---';
+        return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
     };
 
     const resultado = eventosRaw.map(ev => {
@@ -1715,21 +1774,49 @@ router.get("/vencimentos", async (req, res) => {
         const vX = parseFloat(s.totalcaixinha_filtrado) || 0;
         
         chT += vC; ajT += vA; cxT += vX;
-        if (s.statuspgto?.startsWith('Pago')) chP += vC;
-        if (s.statuspgtoajdcto?.startsWith('Pago')) ajP += vA;
-        if (s.statuscaixinha?.startsWith('Pago')) cxP += vX;
 
-        if (s.periodo_eventoini) { const d = new Date(s.periodo_eventoini); if (!minEventDate || d < minEventDate) minEventDate = d; }
-        if (s.periodo_eventofim) { const d = new Date(s.periodo_eventofim); if (!maxEventDate || d > maxEventDate) maxEventDate = d; }
+        // Calcula valores pagos considerando pagamentos parciais (ex: 'Pago 50%')
+        const calcPago = (status, amount) => {
+            if (!status) return 0;
+            const s = String(status);
+            if (!s.startsWith('Pago')) return 0;
+            // Match any digits in the status (handles 'Pago 50%', 'Pago50', 'Pago50%')
+            const match = s.match(/(\d+)/);
+            if (match) return amount * (Number(match[1]) / 100);
+            return amount; // 'Pago' or 'Pago 100%' => valor integral
+        };
+
+        chP += calcPago(s.statuspgto, vC);
+        ajP += calcPago(s.statuspgtoajdcto, vA);
+        cxP += calcPago(s.statuscaixinha, vX);
+
+        // Normaliza e converte para string ISO (YYYY-MM-DD) para comparação/formatacao segura
+        const normalizarParaISO = (val) => {
+            if (!val) return null;
+            if (val instanceof Date) return val.toISOString().split('T')[0];
+            const s = String(val).split('T')[0];
+            const d = new Date(s + 'T00:00:00');
+            return isNaN(d.getTime()) ? null : s;
+        };
+
+        const startRaw = s.periodo_eventoini || s.periodo_eventoini_all;
+        const endRaw = s.periodo_eventofim || s.periodo_eventofim_all;
+        const startISO = normalizarParaISO(startRaw);
+        const endISO = normalizarParaISO(endRaw);
+
+        if (startISO) { const d = new Date(startISO + 'T00:00:00'); if (!minEventDate || d < minEventDate) minEventDate = d; }
+        if (endISO) { const d = new Date(endISO + 'T00:00:00'); if (!maxEventDate || d > maxEventDate) maxEventDate = d; }
 
         return {
           ...s,
-          // RESOLUÇÃO DO NaN: Verifica se as datas existem antes de formatar
-          periodo_evento: (s.periodo_eventoini && s.periodo_eventofim) 
-        ? (s.periodo_eventoini === s.periodo_eventofim 
-            ? formatarDDMM(s.periodo_eventoini) 
-            : `${formatarDDMM(s.periodo_eventoini)} a ${formatarDDMM(s.periodo_eventofim)}`)
-        : '',
+          // PERÍODO DO FUNCIONÁRIO (usa dd/mm/yyyy para evitar ambiguidade)
+          periodo_eventoini_raw: startISO || null,
+          periodo_eventofim_raw: endISO || null,
+          periodo_eventoini_fmt: startISO ? formatarDDMMYYYY(startISO) : '---',
+          periodo_eventofim_fmt: endISO ? formatarDDMMYYYY(endISO) : '---',
+          periodo_evento: (startISO && endISO)
+              ? (startISO === endISO ? formatarDDMMYYYY(startISO) : `${formatarDDMMYYYY(startISO)} a ${formatarDDMMYYYY(endISO)}`)
+              : '---',
           totalcache_filtrado: vC,
           totalajudacusto_filtrado: vA,
           totalcaixinha_filtrado: vX,
@@ -1741,11 +1828,14 @@ router.get("/vencimentos", async (req, res) => {
         idevento: ev.idevento,
         nomeEvento: ev.nmevento,
         totalGeral: ajT + chT + cxT,
+        // PERÍODO DO EVENTO (menor data/trabalhada e maior data trabalhada alcançadas pelos staff)
+        periodo_evento: minEventDate ? `${String(minEventDate.getDate()).padStart(2,'0')}/${String(minEventDate.getMonth()+1).padStart(2,'0')}/${minEventDate.getFullYear()}` : '---',
+        dataFimEvento: maxEventDate ? `${String(maxEventDate.getDate()).padStart(2,'0')}/${String(maxEventDate.getMonth()+1).padStart(2,'0')}/${maxEventDate.getFullYear()}` : '---',
         dataVencimentoAjuda: minEventDate ? new Date(minEventDate.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---',
         dataVencimentoCache: maxEventDate ? new Date(maxEventDate.getTime() + 10*86400000).toLocaleDateString('pt-BR') : '---',
-        ajuda: { total: ajT, pendente: ajT - ajP },
-        cache: { total: chT, pendente: chT - chP },
-        caixinha: { total: cxT, pendente: cxT - cxP },
+        ajuda: { total: ajT, pendente: ajT - ajP, pago: ajP },
+        cache: { total: chT, pendente: chT - chP, pago: chP },
+        caixinha: { total: cxT, pendente: cxT - cxP, pago: cxP },
         funcionarios: staffsProcessados
       };
     });
@@ -1758,30 +1848,105 @@ router.get("/vencimentos", async (req, res) => {
 
 router.post("/vencimentos/update-status", async (req, res) => {
     let { idStaff, tipo, novoStatus } = req.body;
-    const coluna = (tipo === 'Cache') ? 'statuspgto' : 'statuspgtoajdcto';
 
-    // --- LÓGICA DE PADRONIZAÇÃO DO BANCO ---
-    if (novoStatus === "Pago 100%") {
-        novoStatus = "Pago"; // 100% vira apenas 'Pago'
-    } else if (novoStatus.includes("%")) {
-        // "Pago 50%" vira "Pago50"
-        novoStatus = novoStatus.replace("%", "").replace(/\s/g, "");
+    // 1. Mapeamento da Coluna (Corrigido para incluir Caixinha)
+    let coluna = "";
+    if (tipo === 'Cache') {
+        coluna = 'statuspgto';
+    } else if (tipo === 'Ajuda') {
+        coluna = 'statuspgtoajdcto';
+    } else if (tipo === 'Caixinha') {
+        coluna = 'statuscaixinha'; // Nome da coluna conforme sua query de SELECT
     }
-    // ---------------------------------------
+
+    if (!coluna) {
+        return res.status(400).json({ success: false, error: "Tipo de pagamento inválido." });
+    }
+
+    // 2. Lógica de Padronização do Banco (Ex: "Pago 50%" -> "Pago50")
+    let statusFinal = novoStatus;
+    if (statusFinal === "Pago 100%") {
+        statusFinal = "Pago"; 
+    } else if (statusFinal.includes("%")) {
+        statusFinal = statusFinal.replace("%", "").replace(/\s/g, "");
+    }
 
     try {
         const result = await pool.query(
             `UPDATE staffeventos SET ${coluna} = $1 WHERE idstaffevento = $2`, 
-            [novoStatus, idStaff]
+            [statusFinal, idStaff]
         );
 
         if (result.rowCount > 0) {
-            res.json({ success: true, statusSalvo: novoStatus });
+            res.json({ success: true, statusSalvo: statusFinal });
         } else {
             res.status(404).json({ success: false, error: "Registro não encontrado." });
         }
     } catch (error) {
+        console.error("Erro ao atualizar status:", error);
         res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+router.post("/vencimentos/upload-comprovante", upload.single('arquivo'), async (req, res) => {
+    const { idStaff, tipo } = req.body;
+    
+    if (!req.file) {
+        return res.status(400).json({ error: "Nenhum arquivo enviado." });
+    }
+
+    const pathArquivo = req.file.path.replace(/\\/g, "/"); 
+
+    try {
+        let coluna = "";
+
+        // Mapeamento direto dos tipos vindo do frontend
+        if (tipo === 'cache') {
+            coluna = 'comppgtocache';
+        } 
+        else if (tipo === 'caixinha') {
+            coluna = 'comppgtocaixinha';
+        } 
+        else if (tipo === 'ajuda_50') {
+            coluna = 'comppgtoajdcusto50';
+        } 
+        else if (tipo === 'ajuda_100') {
+            coluna = 'comppgtoajdcusto';
+        }
+        else if (tipo === 'ajuda') {
+            // Caso receba apenas 'ajuda', mantemos sua lógica de detecção automática
+            const statusRes = await pool.query(
+                'SELECT comppgtoajdcusto50 FROM staffeventos WHERE idstaffevento = $1',
+                [idStaff]
+            );
+            const jaTem50 = statusRes.rows[0]?.comppgtoajdcusto50;
+            coluna = jaTem50 ? 'comppgtoajdcusto' : 'comppgtoajdcusto50';
+        }
+
+        // Se o tipo enviado não bater com nenhum acima, a coluna será vazia
+        if (!coluna) {
+            console.error("Tipo de upload inválido recebido:", tipo);
+            return res.status(400).json({ error: `Tipo de comprovante '${tipo}' não reconhecido.` });
+        }
+
+        const result = await pool.query(
+            `UPDATE staffeventos SET ${coluna} = $1 WHERE idstaffevento = $2`,
+            [pathArquivo, idStaff]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: "Funcionário não encontrado no evento." });
+        }
+
+        res.json({ 
+            success: true, 
+            path: pathArquivo, 
+            colunaDestino: coluna 
+        });
+
+    } catch (error) {
+        console.error("Erro no processamento do upload:", error);
+        res.status(500).json({ error: "Erro interno ao salvar comprovante." });
     }
 });
 // =======================================

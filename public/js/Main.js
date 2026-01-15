@@ -776,10 +776,16 @@ function usuarioTemPermissaoFinanceiro() {
   return !!permissaoStaff.pode_financeiro; 
 }
 
-function podeVisualizarTudo() {
-    // Se for Master OU tiver permissão Financeiro, pode ver tudo.
-    return usuarioTemPermissao() || usuarioTemPermissaoFinanceiro();
+function usuarioTemPermissaoSupremo() {
+  if (!window.permissoes || !Array.isArray(window.permissoes)) return false;
+  
+  const permissaoStaff = window.permissoes.find(p => p.modulo?.toLowerCase() === "staff");
+  if (!permissaoStaff) return false;
+
+  // Retorna true apenas se a nova flag 'pode_supremo' for verdadeira
+  return !!permissaoStaff.pode_supremo; 
 }
+
 // Evento no card financeiro
 const cardFinanceiro = document.querySelector(".card-financeiro");
 if (cardFinanceiro) {
@@ -3569,7 +3575,7 @@ async function buscarPedidosUsuario() {
 
         console.log("DEBUG: Resposta Bruta do Fetch (length):", resposta ? resposta.length : 0);
         
-        const podeVerTodos = podeVisualizarTudo(); 
+        const podeVerTodos = usuarioTemPermissaoSupremo(); 
         const ehMasterStaff = usuarioTemPermissao(); 
 
         if (!resposta || !Array.isArray(resposta)) {
@@ -5061,231 +5067,234 @@ function formatarStatusFront(status) {
     return status;
 }
 
-// async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) { 
-//     // Segurança: Se o container principal não existir, interrompe a função
-//     if (!conteudoGeral) return;
-
-//     conteudoGeral.innerHTML = '<h3>Carregando dados...</h3>';
+//  ============== Comprovantes Dinâmicos ==============
+function gerarHTMLComprovanteDinamico(idStaff, filtro, statusTexto, htmlAtual = "") {
+    const statusLimpo = statusTexto ? statusTexto.toLowerCase().trim() : "";
+    const éPagamentoTotal = statusLimpo === "pago 100%" || statusLimpo === "pago";
+    const éPagamentoParcial = statusLimpo.includes("50");
     
-//     if (valoresResumoElement) {
-//         valoresResumoElement.innerHTML = '';
-//     }
+    // Filtra strings "null" vindas do banco ou do front
+    const htmlSeguro = (htmlAtual && htmlAtual !== "null" && htmlAtual !== "undefined") ? htmlAtual : "";
 
-//     const params = construirParametrosFiltro();
-//     const url = `/main/vencimentos${params}`;
+    const extrairBotao = (tipo) => {
+        if (!htmlSeguro) return null;
+        const div = document.createElement('div');
+        div.innerHTML = htmlSeguro;
+        const botoes = div.querySelectorAll('.btn-ver-comp');
+        for (let b of botoes) {
+            if (b.innerText.includes(tipo)) return b.outerHTML;
+        }
+        return null;
+    };
 
-//     try {
-//         const dados = await fetchComToken(url);
+    if (filtro.includes('ajuda')) {
+        const btn50 = extrairBotao("50");
+        const btn100 = extrairBotao("100");
+
+        if (éPagamentoParcial || btn50) {
+            return `
+                <div style="display:flex; flex-direction: column; gap:5px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size: 10px; font-weight: bold; min-width: 40px;">1ª Parc:</span>
+                        ${btn50 || renderBotaoUploadUiverse(idStaff, 'ajuda_50')}
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size: 10px; font-weight: bold; min-width: 40px;">2ª Parc:</span>
+                        ${btn100 || (éPagamentoTotal ? renderBotaoUploadUiverse(idStaff, 'ajuda_100') : '<span style="font-size:9px; color:#999;">Aguardando...</span>')}
+                    </div>
+                </div>`;
+        }
+
+        if (éPagamentoTotal) {
+            return `
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size: 10px; font-weight: bold;">Total:</span>
+                    ${btn100 || renderBotaoUploadUiverse(idStaff, 'ajuda_100')}
+                </div>`;
+        }
+        return '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>';
+    }
+
+    return extrairBotao("Ver") || (éPagamentoTotal ? renderBotaoUploadUiverse(idStaff, filtro) : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>');
+}
+window.handleFileUpload = async function(input, idStaff, tipo, idFuncionario = null) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('arquivo', file); 
+    formData.append('idStaff', idStaff);
+    formData.append('tipo', tipo);
+
+    // Captura o botão e o container para manipulação imediata
+    const container = input.closest('.upload-container-uiverse');
+    const btnOriginal = input.nextElementSibling;
+    const textoOriginal = btnOriginal ? btnOriginal.innerHTML : '';
+
+    try {
+        if (btnOriginal) {
+            btnOriginal.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Aguardando...';
+            btnOriginal.disabled = true;
+        }
+
+        const response = await fetch(`/main/vencimentos/upload-comprovante`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            body: formData
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            exibirToastSucesso('Enviado com sucesso!');
+
+            // --- MUDANÇA AQUI: Transforma o botão de Upload em botão de Ver ---
+            if (container) {
+                const urlCodificada = encodeURIComponent(data.path);
+                const label = tipo.includes('50') ? '50%' : (tipo.includes('100') ? '100%' : 'Ver Comp.');
+                
+                container.outerHTML = `
+                    <button class="btn-ver-comp" onclick="abrirComprovanteSwal('${urlCodificada}')" title="Ver ${label}">
+                        <i class="fas fa-file-pdf"></i> <small>${label}</small>
+                    </button>`;
+            }
+
+            // Atualiza os dados em segundo plano para garantir sincronia com o banco
+            if (typeof carregarDetalhesVencimentos === 'function') {
+                carregarDetalhesVencimentos(document.getElementById('vencimentos-conteudo'), document.getElementById('valores-resumo'));
+            }
+        } else {
+            const err = await response.json();
+            Swal.fire('Erro', err.error || 'Falha no upload.', 'error');
+            if (btnOriginal) {
+                btnOriginal.innerHTML = textoOriginal;
+                btnOriginal.disabled = false;
+            }
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        if (btnOriginal) {
+            btnOriginal.innerHTML = textoOriginal;
+            btnOriginal.disabled = false;
+        }
+    }
+};
+
+
+window.abrirComprovanteSwal = function(encodedUrl) {
+    const url = decodeURIComponent(encodedUrl);
+    const ext = (url.split('.').pop() || '').toLowerCase();
+
+    const configBase = {
+        title: 'Comprovante de Pagamento',
+        icon: 'info',
+        showCancelButton: true,
+        cancelButtonText: 'Fechar',
+        confirmButtonColor: '#3085d6',
+        denyButtonColor: '#2ecc71',
+    };
+
+    if (ext === 'pdf') {
+        Swal.fire({
+            ...configBase,
+            text: 'Deseja visualizar o PDF ou baixar o arquivo?',
+            showDenyButton: true,
+            confirmButtonText: '<i class="fas fa-eye"></i> Abrir no Navegador',
+            denyButtonText: '<i class="fas fa-download"></i> Baixar PDF',
+        }).then(res => {
+            if (res.isConfirmed) window.open(url, '_blank');
+            else if (res.isDenied) triggerDownload(url);
+        });
+    } else {
+        Swal.fire({
+            ...configBase,
+            text: 'Este arquivo é uma imagem ou formato de download. Deseja baixar?',
+            confirmButtonText: '<i class="fas fa-download"></i> Baixar Arquivo'
+        }).then(res => { if (res.isConfirmed) triggerDownload(url); });
+    }
+};
+
+function triggerDownload(url) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = url.split('/').pop();
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+window.abrirComprovantesStaff = function(idStaffEvento) {
+    const params = new URLSearchParams();
+    params.set('idstaffevento', idStaffEvento);
+    params.set('focus', 'comprovantes');
+    
+    const targetUrl = `CadStaff.html?${params.toString()}`;
+    if (typeof abrirModalLocal === 'function') abrirModalLocal(targetUrl, 'Staff');
+    else if (typeof abrirModal === 'function') abrirModal(targetUrl, 'Staff');
+    else window.open(targetUrl, '_blank');
+};
+
+window.criarHTMLComprovantes = function(f, tipo) {
+    if (tipo === 'ajuda_custo') {
+        let html = '<div style="display:flex; flex-direction:column; gap:4px;">';
         
-//         let totalAjudaPendente = 0;
-//         let totalAjudaPaga = 0;
-//         let totalCachePendente = 0;
-//         let totalCachePago = 0;
+        // Comprovante 50%
+        if (f.comppgtoajdcusto50) {
+            const url50 = encodeURIComponent(f.comppgtoajdcusto50);
+            html += `
+                <button class="btn-ver-comp" onclick="abrirComprovanteSwal('${url50}')" title="Ver 50%">
+                    <i class="fas fa-file-pdf"></i> <small>Ver Comprovante 50%</small>
+                </button>`;
+        }
         
-//         let temDados = dados && dados.eventos && dados.eventos.length > 0;
+        // Comprovante 100%
+        if (f.comppgtoajdcusto) {
+            const url100 = encodeURIComponent(f.comppgtoajdcusto);
+            html += `
+                <button class="btn-ver-comp" onclick="abrirComprovanteSwal('${url100}')" title="Ver 100%">
+                    <i class="fas fa-file-pdf"></i> <small>Ver Comprovante 100%</small>
+                </button>`;
+        }
+        
+        html += '</div>';
+        return html;
+    }
 
-//         if (!temDados) {
-//             conteudoGeral.innerHTML = '<p class="alerta-info">Nenhum evento encontrado para esse período.</p>';
-//         } else {
-//             conteudoGeral.innerHTML = "";
-//             const accordionContainer = document.createElement("div");
-//             accordionContainer.className = "accordion-vencimentos";
+    // Para Cache ou Caixinha
+    const campo = (tipo === 'cache') ? f.comppgtocache : f.comppgtocaixinha;
+    if (campo) {
+        const url = encodeURIComponent(campo);
+        return `
+            <button class="btn-ver-comp" onclick="abrirComprovanteSwal('${url}')">
+                <i class="fas fa-file-pdf"></i> Ver Comp.
+            </button>`;
+    }
 
-//             dados.eventos.forEach(evento => {
-//                 // Os nomes aqui devem bater com o que o backend envia no objeto 'evento'
-//                 const ajudaPendente = evento.ajuda?.pendente || 0;
-//                 const ajudaPaga = evento.ajuda?.pagos || 0;
-//                 const cachePendente = evento.cache?.pendente || 0;
-//                 const cachePaga = evento.cache?.pagos || 0;
-
-//                 totalAjudaPendente += ajudaPendente;
-//                 totalAjudaPaga += ajudaPaga;
-//                 totalCachePendente += cachePendente;
-//                 totalCachePago += cachePaga;
-
-//                 const item = document.createElement("div");
-//                 item.className = "accordion-item";
-
-//                 const header = document.createElement("button");
-//                 header.className = "accordion-header";
-//                 header.innerHTML = `
-//                     <div class="evento-info">
-//                         <strong>${evento.nomeEvento}</strong>
-//                         <span class="total-geral">Total: ${formatarMoeda(evento.totalGeral)}</span> 
-//                     </div>
-//                 `;
-//                 header.addEventListener("click", () => item.classList.toggle("active"));
-
-//                 const body = document.createElement("div");
-//                 body.className = "accordion-body";
-
-//                 body.innerHTML = `
-//                     <div class="resumo-categorias">
-//                         <div class="categoria-bloco">
-//                             <h3>Ajuda de Custo</h3>
-//                             <p class="datas-evento">
-//                                 Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
-//                             </p>
-//                             <p class="vencimento">Vence em: <strong>${evento.dataVencimentoAjuda}</strong></p>
-//                             <p><strong>Pendentes:</strong> ${formatarMoeda(ajudaPendente)} - <strong>Pagos:</strong> ${formatarMoeda(ajudaPaga)}</p>
-//                         </div>
-//                         <div class="categoria-bloco">
-//                             <h3>Cachê</h3>
-//                             <p class="datas-evento">
-//                                 Período Evento: <strong>${evento.dataInicioEvento}</strong> a <strong>${evento.dataFimEvento}</strong>
-//                             </p>
-//                             <p class="vencimento">Vence em: <strong>${evento.dataVencimentoCache}</strong></p>
-//                             <p><strong>Pendentes:</strong> ${formatarMoeda(cachePendente)} - <strong>Pagos:</strong> ${formatarMoeda(cachePaga)}</p>
-//                         </div>
-//                     </div>
-
-//                     <div id="container-filtro-dinamico"></div>
-
-//                     <h4>Funcionários (${evento.funcionarios?.length || 0} Registros):</h4>
-                    
-//                     <div class="funcionarios-scroll-container"> 
-//                         <table class="tabela-funcionarios-venc">
-//                             <thead>
-//                                 <tr>
-//                                     <th>NOME / FUNÇÃO</th>
-//                                     <th>DIÁRIAS</th>
-//                                     ${usuarioTemPermissao() ? '<th>AÇÕES CACHÊ</th>' : ''}
-//                                     <th>CACHÊ</th>
-//                                     <th>STATUS CACHÊ</th>
-//                                     ${usuarioTemPermissao() ? '<th>AÇÕES A.J.CUSTO</th>' : ''}
-//                                     <th>A.J. CUSTO</th>
-//                                     <th>STATUS A.J.CUSTO</th>
-//                                     <th>TOTAL</th>
-//                                 </tr>
-//                             </thead>
-//                             <tbody>
-//                             ${evento.funcionarios?.map(f => {
-//                                     const statusCache = formatarStatusFront(f.statuspgto);
-//                                     const statusAjuda = formatarStatusFront(f.statuspgtoajdcto);
-                                    
-//                                     // As classes CSS também devem usar o status formatado para manter a cor correta
-//                                     const classeCache = statusCache.toLowerCase().replace(/\s+/g, '-').replace('%', '');
-//                                     const classeAjuda = statusAjuda.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+    return '';
+};
 
 
-//                                     // Se já estiver 100% Pago, mantém a célula mas remove os botões (mostra ícone fixo)
-//                                     const renderBotaoAcao = (tipo, statusAtual) => {
-//                                         if (!usuarioTemPermissao()) return '';
+function renderBotaoUploadUiverse(idStaff, tipo, idFuncionario = null) {
+    const idInput = `file-${tipo}-${idStaff}`;
+    const idFuncAttr = (idFuncionario !== null) ? idFuncionario : 'null';
 
-//                                         // Caso 1: Pago (Bloqueado)
-//                                         if (statusAtual === 'Pago' || statusAtual === 'Pago 100%') {
-//                                             return `
-//                                                 <td class="acoes-master">
-//                                                     <div class="btn-group-acoes">
-//                                                         <span class="check-finalizado"><i class="fas fa-lock"></i></span>
-//                                                     </div>
-//                                                 </td>`; 
-//                                         }
+    return `
+        <div class="upload-container-uiverse" style="display: inline-block;">
+            <input type="file" id="${idInput}" style="display:none" 
+                   onchange="handleFileUpload(this, ${idStaff}, '${tipo}', ${idFuncAttr})">
+            <button class="btn-uiverse-comprovante" 
+                    onclick="document.getElementById('${idInput}').click()"
+                    style="display: flex; align-items: center; background: #212121; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 9px; font-weight: bold;">
+                <i class="fas fa-upload" style="margin-right:5px;"></i> COMPROVANTE
+            </button>
+        </div>
+    `;
+}
 
-//                                         // Caso 2: Pago 50% (Botão de complemento)
-//                                         if (statusAtual === 'Pago 50%') {
-//                                             return `
-//                                                 <td class="acoes-master">
-//                                                     <div class="btn-group-acoes">
-//                                                         <button class="btn-complementar" title="Pagar os 50% restantes" 
-//                                                             onclick="alterarStatusStaff(${f.idstaffevento}, '${tipo}', 'Pago 100%')">
-//                                                             <i class="fas fa-plus-circle"></i> +50%
-//                                                         </button>
-//                                                     </div>
-//                                                 </td>`;
-//                                         }
+// ======================================================
 
-//                                         // Caso 3: Pendente (Botões padrão)
-//                                         return `
-//                                             <td class="acoes-master">
-//                                                 <div class="btn-group-acoes">
-//                                                     <button class="btn-pago" onclick="alterarStatusStaff(${f.idstaffevento}, '${tipo}', 'Pago')">
-//                                                         <i class="fas fa-check"></i> Pago
-//                                                     </button>
-//                                                     <button class="btn-suspenso" onclick="alterarStatusStaff(${f.idstaffevento}, '${tipo}', 'Suspenso')">
-//                                                         <i class="fas fa-pause"></i> Suspender
-//                                                     </button>
-//                                                 </div>
-//                                             </td>`;
-//                                     };
-//                                     return `
-//                                         <tr>
-//                                             <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
-//                                             <td>${f.qtddiarias || 0}</td>
-                                            
-//                                             <td class="acoes-master col-acoes-cache">
-//                                                 ${renderConteudoAcao(f.idstaffevento, 'Cache', statusCache)}
-//                                             </td>
-//                                             <td>${formatarMoeda(f.totalcache || 0)}</td>
-//                                             <td class="status-celula status-${classeCache} col-status-cache">${statusCache}</td>
-                                            
-//                                             <td class="acoes-master col-acoes-ajuda">
-//                                                 ${renderConteudoAcao(f.idstaffevento, 'Ajuda', statusAjuda)}
-//                                             </td>
-//                                             <td>${formatarMoeda(f.totalajudacusto || 0)}</td>
-//                                             <td class="status-celula status-${classeAjuda} col-status-ajuda">${statusAjuda}</td>
-                                            
-//                                             <td><strong>${formatarMoeda(f.totalpagar || 0)}</strong></td>
-//                                         </tr>`;
-//                                 }).join("")}
-//                             </tbody>
-//                         </table>
-//                     </div> 
-//                 `;
-//                 const containerFiltro = body.querySelector("#container-filtro-dinamico");
-//                 if (containerFiltro) {
-//                     // Chamamos a função que criamos anteriormente
-//                     const filtro = criarFiltroCategorias(conteudoGeral, valoresResumoElement);
-//                     containerFiltro.appendChild(filtro);
-//                 }
 
-//                 item.appendChild(header);
-//                 item.appendChild(body);
-//                 accordionContainer.appendChild(item);
-//             });
-
-//             conteudoGeral.appendChild(accordionContainer);
-//         }
-
-//         // 4. Atualiza a DIV de resumo
-//         if (valoresResumoElement) {
-//             const totalPagarGeral = totalAjudaPendente + totalCachePendente;
-//             const totalPagoGeral = totalAjudaPaga + totalCachePago;
-            
-//             valoresResumoElement.innerHTML = `
-//                 <div class="resumo-detalhado">
-//                     <div class="resumo-status">
-//                         <div class="bloco-pendente">
-//                             <h4>A Pagar (Pendente)</h4>
-//                             <span class="valor-pendente">${formatarMoeda(totalPagarGeral)}</span>
-//                         </div>
-//                         <div class="bloco-pago">
-//                             <h4>Pago (Total e Parcial)</h4>
-//                             <span class="valor-pago">${formatarMoeda(totalPagoGeral)}</span>
-//                         </div>
-//                     </div>
-//                     <div class="resumo-categorias-totais">
-//                         <div>
-//                             <label><strong>Ajuda de Custo:</strong></label>
-//                             <p>Pendente: ${formatarMoeda(totalAjudaPendente)} / Pago: ${formatarMoeda(totalAjudaPaga)}</p>
-//                         </div>
-//                         <div>
-//                             <label><strong>Cachê:</strong></label>
-//                             <p>Pendente: ${formatarMoeda(totalCachePendente)} / Pago: ${formatarMoeda(totalCachePago)}</p>
-//                         </div>
-//                     </div>
-//                 </div>
-//             `;
-//         }
-
-//     } catch (error) {
-//         console.error("Erro ao carregar detalhes:", error);
-//         conteudoGeral.innerHTML = '<p class="alerta-erro">Erro ao carregar dados do servidor.</p>';
-//     }
-// }
 async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) { 
     if (!conteudoGeral) return;
-
     conteudoGeral.innerHTML = '<h3>Carregando dados financeiros...</h3>';
     if (valoresResumoElement) valoresResumoElement.innerHTML = '';
 
@@ -5299,18 +5308,12 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             return;
         }
 
-        // 1. Bloqueio Global do Botão Caixinha no Topo
+        // Bloqueio Global do Botão Caixinha no Topo
         const totalCaixinhaGeral = dados.eventos.reduce((acc, ev) => acc + (ev.caixinha?.total || 0), 0);
         const radioCaixinhaTopo = document.querySelector('input[name="categoria"][value="caixinha"]');
-        
         if (radioCaixinhaTopo) {
-            if (totalCaixinhaGeral === 0) {
-                radioCaixinhaTopo.disabled = true;
-                radioCaixinhaTopo.closest('.option').classList.add('disabled-option');
-            } else {
-                radioCaixinhaTopo.disabled = false;
-                radioCaixinhaTopo.closest('.option').classList.remove('disabled-option');
-            }
+            radioCaixinhaTopo.disabled = totalCaixinhaGeral === 0;
+            radioCaixinhaTopo.closest('.option').classList.toggle('disabled-option', totalCaixinhaGeral === 0);
         }
 
         const filtroSelecionadoNoTopo = document.querySelector('input[name="categoria"]:checked');
@@ -5320,58 +5323,79 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
         const accordionContainer = document.createElement("div");
         accordionContainer.className = "accordion-vencimentos";
 
-        // Funções de Renderização
-        const obterHeaderTabela = (filtro) => `
+        // Funções internas de renderização (obterHeaderTabela e obterLinhasTabela permanecem iguais)
+        const obterHeaderTabela = (filtro) =>{
+            const podeVerAcoes = usuarioTemPermissaoSupremo();
+            return `
             <tr>
                 <th>NOME / FUNÇÃO</th>
                 <th style="text-align:center">DIÁRIAS</th>
                 <th style="text-align:center">PERÍODO</th>
-                ${(filtro === 'cache') ? `<th>AÇÕES CACHÊ</th><th>STATUS</th><th>VALOR</th>` : ''}
-                ${(filtro === 'ajuda_custo') ? `<th>AÇÕES A.J.CUSTO</th><th>STATUS</th><th>VALOR</th>` : ''}
-                ${(filtro === 'caixinha') ? `<th>AÇÕES CAIXINHA</th><th>STATUS</th><th>VALOR</th>` : ''}
+                ${podeVerAcoes ? `<th style="text-align:center">AÇÕES</th>` : ''}
+                <th>COMPROVANTE(S)</th>
+                <th>STATUS</th>
+                <th>VALOR</th>
             </tr>`;
+    };
 
-        const obterLinhasTabela = (evento, filtro) => {
-            let lista = evento.funcionarios || [];
-            
-            // Regra: Se for caixinha, mostra apenas quem tem valor > 0
-            if (filtro === 'caixinha') {
-                lista = lista.filter(f => (f.totalcaixinha_filtrado || 0) > 0);
+const obterLinhasTabela = (evento, filtro) => {
+    let lista = evento.funcionarios || [];
+    if (filtro === 'caixinha') lista = lista.filter(f => (f.totalcaixinha_filtrado || 0) > 0);
+    if (lista.length === 0) return `<tr><td colspan="10" style="text-align:center; padding: 20px;">Nenhum registro.</td></tr>`;
+
+    const podeVerAcoes = usuarioTemPermissaoSupremo();
+    const mostraUploadPermissao = (usuarioTemPermissao() || usuarioTemPermissaoFinanceiro());
+
+    return lista.map(f => {
+        // Mapeamento de dados conforme o filtro selecionado
+        const info = {
+            'cache': { 
+                status: formatarStatusFront(f.statuspgto || "Pendente"), 
+                valor: f.totalcache_filtrado, 
+                tipoAcao: 'Cache', // <-- Corrigido para 'Cache' (Maiúsculo)
+                comp: f.comppgtocache 
+            },
+            'ajuda_custo': { 
+                status: formatarStatusFront(f.statuspgtoajdcto || "Pendente"), 
+                valor: f.totalajudacusto_filtrado, 
+                tipoAcao: 'Ajuda', 
+                comp: f.comppgtoajdcusto 
+            },
+            'caixinha': { 
+                status: formatarStatusFront(f.statuscaixinha || "Pendente"), 
+                valor: f.totalcaixinha_filtrado, 
+                tipoAcao: 'Caixinha', 
+                comp: f.comppgtocaixinha 
             }
+        }[filtro];
 
-            if (lista.length === 0) {
-                return `<tr><td colspan="10" style="text-align:center; padding: 20px;">Nenhum registro para esta categoria.</td></tr>`;
-            }
+        const statusLimpo = info.status.toLowerCase();
+        const estaPago = statusLimpo.startsWith('pago');
+        const classeStatus = statusLimpo.replace(/\s+/g, '-').replace('%', '');
 
-            return lista.map(f => {
-                const sCache = formatarStatusFront(f.statuspgto || "Pendente");
-                const sAjuda = formatarStatusFront(f.statuspgtoajdcto || "Pendente");
-                const sCaixinha = formatarStatusFront(f.statuscaixinha || "Pendente"); // Corrigido para statuscaixinha
-                const cl = (s) => s.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+        return `
+            <tr>
+                <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
+                <td style="text-align:center">${f.qtddiarias_filtradas || 0}</td>
+                <td style="text-align:center"><small>${f.periodo_evento || '---'}</small></td>
 
-                return `
-                    <tr>
-                        <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
-                        <td style="text-align:center">${f.qtddiarias_filtradas || 0}</td>
-                        <td style="text-align:center"><small>${f.periodo_evento || '---'}</small></td>
-                        ${(filtro === 'cache') ? `
-                            <td class="acoes-master">${renderConteudoAcao(f.idstaffevento, 'Cache', sCache)}</td>
-                            <td class="status-celula status-${cl(sCache)}">${sCache}</td>
-                            <td>${formatarMoeda(f.totalcache_filtrado || 0)}</td>
-                        ` : ''}
-                        ${(filtro === 'ajuda_custo') ? `
-                            <td class="acoes-master">${renderConteudoAcao(f.idstaffevento, 'Ajuda', sAjuda)}</td>
-                            <td class="status-celula status-${cl(sAjuda)}">${sAjuda}</td>
-                            <td>${formatarMoeda(f.totalajudacusto_filtrado || 0)}</td>
-                        ` : ''}
-                        ${(filtro === 'caixinha') ? `
-                            <td class="acoes-master">${renderConteudoAcao(f.idstaffevento, 'Caixinha', sCaixinha)}</td>
-                            <td class="status-celula status-${cl(sCaixinha)}">${sCaixinha}</td>
-                            <td>${formatarMoeda(f.totalcaixinha_filtrado || 0)}</td>
-                        ` : ''}
-                    </tr>`;
-            }).join("");
-        };
+                ${podeVerAcoes ? `
+                    <td class="acoes-supremo" style="text-align:center">
+                        ${renderConteudoAcao(f.idstaffevento, info.tipoAcao, info.status)}
+                    </td>` : ''}
+
+                <td>
+                    ${estaPago ? 
+                        gerarHTMLComprovanteDinamico(f.idstaffevento, filtro, info.status, criarHTMLComprovantes(f, filtro)) 
+                        : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'}
+                </td>
+
+                <td class="status-celula status-${classeStatus}">${info.status}</td>
+
+                <td>${formatarMoeda(info.valor || 0)}</td>
+            </tr>`;
+    }).join("");
+};
 
         dados.eventos.forEach(evento => {
             const item = document.createElement("div");
@@ -5394,19 +5418,29 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 <div class="resumo-categorias">
                     <div class="categoria-bloco">
                         <h3>Ajuda de Custo</h3>
-                        <p>Vence em: <strong>${evento.dataVencimentoAjuda}</strong></p>
-                        <p>Pendentes: ${formatarMoeda(evento.ajuda?.pendente || 0)}</p>
+                        <p class="datas-evento">Período Evento: <strong>${evento.periodo_evento}</strong> a <strong>${evento.dataFimEvento}</strong></p>
+                        <p class="vencimento">Vence em: <strong>${evento.dataVencimentoAjuda}</strong></p>
+                        <p class="pendentes-pagos"><strong>Pendentes:</strong> ${formatarMoeda(evento.ajuda?.pendente || 0)}<strong>Pagos:</strong> ${formatarMoeda(evento.ajuda?.pago || 0)}</p>
                     </div>
+
                     <div class="categoria-bloco">
                         <h3>Cachê</h3>
-                        <p>Vence em: <strong>${evento.dataVencimentoCache}</strong></p>
-                        <p>Pendentes: ${formatarMoeda(evento.cache?.pendente || 0)}</p>
+                        <p class="datas-evento">Período Evento: <strong>${evento.periodo_evento}</strong> a <strong>${evento.dataFimEvento}</strong></p>
+                        <p class="vencimento">Vence em: <strong>${evento.dataVencimentoCache}</strong></p>
+                        <p class="pendentes-pagos"><strong>Pendentes:</strong> ${formatarMoeda(evento.cache?.pendente || 0)}<strong>Pagos:</strong> ${formatarMoeda(evento.cache?.pago || 0)}</p>
                     </div>
-                    <div class="categoria-bloco">
-                        <h3>Caixinha</h3>
-                        <p>Pendentes: ${formatarMoeda(evento.caixinha?.pendente || 0)}</p>
-                    </div>
+
+                    ${(evento.caixinha?.total > 0) ? `
+                        <div class="categoria-bloco">
+                            <h3>Caixinha</h3>
+                            <div class="caixinhaPP">
+                                <p><strong>Pendentes:</strong> ${formatarMoeda(evento.caixinha?.pendente || 0)}</p>
+                                <p><strong>Pagos:</strong> ${formatarMoeda(evento.caixinha?.pago || 0)}</p>
+                            </div>
+                        </div>
+                    ` : ''}
                 </div>
+
                 <div class="container-filtro-local" style="margin: 10px 0;"></div>
                 <div class="funcionarios-scroll-container"> 
                     <table class="tabela-funcionarios-venc">
@@ -5416,11 +5450,10 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
                 </div>
             `;
 
-            // Filtro Local Interno (Sincronizado)
+            // Filtro Local Interno
             const cFiltro = body.querySelector(".container-filtro-local");
             const fHtml = criarFiltroCategorias(null, null); 
             
-            // Bloqueia caixinha no filtro local do accordion
             const radioLocalCaixinha = fHtml.querySelector('input[value="caixinha"]');
             if (radioLocalCaixinha && (evento.caixinha?.total || 0) === 0) {
                 radioLocalCaixinha.disabled = true;
@@ -5431,7 +5464,6 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             if (radioLocalAtivo && !radioLocalAtivo.disabled) radioLocalAtivo.checked = true;
 
             cFiltro.appendChild(fHtml);
-
             fHtml.querySelectorAll('input[name="categoria"]').forEach(r => {
                 r.addEventListener('change', (e) => {
                     const v = e.target.value;
@@ -5456,30 +5488,42 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
 
 function atualizarResumoGeralEstatico(eventos, element) {
     if (!element) return;
-    let ajP = 0, ajOK = 0, chP = 0, chOK = 0, cxP = 0, cxOK = 0;
+
+    // Totais por categoria
+    let totalPendAjuda = 0, totalPagoAjuda = 0;
+    let totalPendCache = 0, totalPagoCache = 0;
+    let totalPendCaix = 0, totalPagoCaix = 0;
 
     eventos.forEach(e => {
-        ajP += (e.ajuda?.pendente || 0); ajOK += (e.ajuda?.pagos || 0);
-        chP += (e.cache?.pendente || 0); chOK += (e.cache?.pagos || 0);
-        cxP += (e.caixinha?.pendente || 0); cxOK += (e.caixinha?.pagos || 0);
+        totalPendAjuda += Number(e.ajuda?.pendente || 0);
+        totalPagoAjuda += Number(e.ajuda?.pago || 0);
+
+        totalPendCache += Number(e.cache?.pendente || 0);
+        totalPagoCache += Number(e.cache?.pago || 0);
+
+        totalPendCaix += Number(e.caixinha?.pendente || 0);
+        totalPagoCaix += Number(e.caixinha?.pago || 0);
     });
+
+    const totalPend = totalPendAjuda + totalPendCache + totalPendCaix;
+    const totalPago = totalPagoAjuda + totalPagoCache + totalPagoCaix;
 
     element.innerHTML = `
         <div class="resumo-detalhado">
             <div class="resumo-status">
                 <div class="bloco-pendente">
                     <h4>A Pagar (Total)</h4>
-                    <span class="valor-pendente">${formatarMoeda(ajP + chP + cxP)}</span>
+                    <span class="valor-pendente">${formatarMoeda(totalPend)}</span>
                 </div>
                 <div class="bloco-pago">
                     <h4>Pago (Total)</h4>
-                    <span class="valor-pago">${formatarMoeda(ajOK + chOK + cxOK)}</span>
+                    <span class="valor-pago">${formatarMoeda(totalPago)}</span>
                 </div>
             </div>
             <div class="resumo-categorias-totais">
-                <div><label><strong>Ajuda:</strong></label><p>Pend: ${formatarMoeda(ajP)} / Pago: ${formatarMoeda(ajOK)}</p></div>
-                <div><label><strong>Cachê:</strong></label><p>Pend: ${formatarMoeda(chP)} / Pago: ${formatarMoeda(chOK)}</p></div>
-                <div><label><strong>Caixinha:</strong></label><p>Pend: ${formatarMoeda(cxP)} / Pago: ${formatarMoeda(cxOK)}</p></div>
+                <div><label><strong>Ajuda:</strong></label><p>Pend: ${formatarMoeda(totalPendAjuda)} / Pago: ${formatarMoeda(totalPagoAjuda)}</p></div>
+                <div><label><strong>Cachê:</strong></label><p>Pend: ${formatarMoeda(totalPendCache)} / Pago: ${formatarMoeda(totalPagoCache)}</p></div>
+                <div><label><strong>Caixinha:</strong></label><p>Pend: ${formatarMoeda(totalPendCaix)} / Pago: ${formatarMoeda(totalPagoCaix)}</p></div>
             </div>
         </div>`;
 }
@@ -5501,7 +5545,6 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
     const linhaTr = btnClicado ? btnClicado.closest('tr') : null;
     let statusParaEnviar = novoStatus;
 
-    // LÓGICA DO SWAL PARA AJUDA DE CUSTO (50% ou 100%)
     if (tipo === 'Ajuda' && novoStatus === 'Pago') {
         const { value: opcao } = await Swal.fire({
             title: 'Pagamento Ajuda de Custo',
@@ -5516,17 +5559,16 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
             denyButtonColor: '#17a2b8',
         });
 
-        if (opcao === true) { // Clicou em Pago 100%
-            statusParaEnviar = 'Pago 100%';
-        } else if (Swal.getDenyButton() && opcao === false) { // Clicou em Pago 50%
-            // Nota: O Swal retorna false para o Deny Button se não configurado retorno específico
-            statusParaEnviar = 'Pago 50%';
-        } else {
-            return; // Usuário cancelou, encerra a função
-        }
+        if (opcao === true) statusParaEnviar = 'Pago 100%';
+        else if (Swal.getDenyButton() && opcao === false) statusParaEnviar = 'Pago 50%';
+        else return;
     }
 
     try {
+        btnClicado.disabled = true;
+        const htmlOriginal = btnClicado.innerHTML;
+        btnClicado.innerHTML = '';
+
         const response = await fetch(`/main/vencimentos/update-status`, {
             method: 'POST',
             headers: { 
@@ -5540,32 +5582,81 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
             exibirToastSucesso(`Status atualizado para ${statusParaEnviar}`);
 
             if (linhaTr) {
-                const sufixo = tipo.toLowerCase() === 'cache' ? 'cache' : 'ajuda';
-                const celulaAcoes = linhaTr.querySelector(`.col-acoes-${sufixo}`);
-                const celulaStatus = linhaTr.querySelector(`.col-status-${sufixo}`);
+                const celulaStatus = linhaTr.querySelector('.status-celula');
+                const celulaAcoes = linhaTr.querySelector('.acoes-supremo');
+                const celulaComprovantes = linhaTr.querySelector('.comprovantes-cell');
 
-                // Atualiza o Status Visual na tabela
+                // 1. Atualiza Cor e Texto do Status
                 if (celulaStatus) {
                     const classeStatus = statusParaEnviar.toLowerCase().replace(/\s+/g, '-').replace('%', '');
-                    celulaStatus.className = `status-celula status-${classeStatus} col-status-${sufixo}`;
+                    celulaStatus.className = `status-celula status-${classeStatus}`;
                     celulaStatus.innerText = statusParaEnviar;
                 }
 
-                // Atualiza os Botões na tabela
+                // 2. Atualiza Botões de Ação (Pago/Suspenso/Lock)
                 if (celulaAcoes) {
                     celulaAcoes.innerHTML = renderConteudoAcao(idStaff, tipo, statusParaEnviar);
                 }
-            }
 
-            // Atualiza os cards de totais no topo (opcional, mas recomendado)
-            if (typeof carregarDadosVencimentos === "function") {
-                const filtroAno = document.getElementById('filtroAnoVencimentos')?.value || 2026;
-                carregarDadosVencimentos(filtroAno);
+                // 3. ATUALIZAÇÃO CHAVE: Libera os inputs de upload na hora
+                if (celulaComprovantes) {
+                    // 1. Define o filtro correto
+                    const filtroParaDinamico = (tipo === 'Ajuda') ? 'ajuda_custo' : tipo.toLowerCase();
+                    
+                    // 2. Pega o HTML atual, tratando se vier nulo do banco/front
+                    const conteudoAtual = celulaComprovantes.innerHTML;
+
+                    // 3. Atualiza a célula (Aqui estava o erro do filtroFormatado)
+                    celulaComprovantes.innerHTML = gerarHTMLComprovanteDinamico(
+                        idStaff, 
+                        filtroParaDinamico, 
+                        statusParaEnviar, 
+                        conteudoAtual
+                    );
+                }
             }
+            await atualizarCardsResumoSilencioso();
+        } else {
+            throw new Error('Erro no servidor');
         }
     } catch (error) {
-        console.error("Erro ao atualizar:", error);
+        btnClicado.disabled = false;
+        btnClicado.innerHTML = '<i class="fas fa-check"></i> Pago';
         Swal.fire('Erro', 'Não foi possível atualizar o status.', 'error');
+    }
+}
+
+async function atualizarCardsResumoSilencioso() {
+    try {
+        const filtroAno = document.getElementById('filtroAnoVencimentos')?.value || 2026;
+        // Busca os dados atualizados do backend
+        const response = await fetch(`/main/vencimentos?periodo=anual&ano=${filtroAno}`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const dados = await response.json();
+
+        // Função auxiliar para formatar moeda e atualizar o elemento
+        const atualizarValor = (seletor, valor) => {
+            const el = document.querySelector(seletor);
+            if (el) el.innerText = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
+        };
+
+        // --- ATUALIZA OS CARDS DO TOPO (Segundo Print) ---
+        // Ajuste os seletores conforme as classes/IDs reais do seu HTML
+        atualizarValor('.card-ajuda .pendente', dados.totalAjudaPendente);
+        atualizarValor('.card-ajuda .pago', dados.totalAjudaPago);
+        
+        atualizarValor('.card-cache .pendente', dados.totalCachePendente);
+        atualizarValor('.card-cache .pago', dados.totalCachePago);
+
+        atualizarValor('.card-caixinha .valor-total', dados.saldoCaixinha);
+
+        // Se houver aquele resumo de "A Pagar (Total)" vermelho e verde do topo:
+        atualizarValor('.total-geral-pendente', dados.totalGeralPendente);
+        atualizarValor('.total-geral-pago', dados.totalGeralPago);
+
+    } catch (error) {
+        console.error("Erro ao sincronizar resumos:", error);
     }
 }
 
@@ -5599,6 +5690,8 @@ function renderConteudoAcao(idStaff, tipo, statusAtual) {
 }
 
 window.alterarStatusStaff = alterarStatusStaff;
+window.abrirComprovantesStaff = abrirComprovantesStaff;
+window.handleFileUpload = handleFileUpload;
 
 
 function construirParametrosFiltro() {
@@ -5679,143 +5772,6 @@ function construirParametrosFiltro() {
     return params;
 }
 
-
-//     // Definir data de hoje (YYYY-MM-DD)
-//     const hoje = new Date();
-//     const ano = hoje.getFullYear();
-//     const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-//     const dia = String(hoje.getDate()).padStart(2, '0');
-//     const dataAtualFormatada = `${ano}-${mes}-${dia}`;
-//     // Data de referência (sem hora) para comparação
-//     const dataComparacao = new Date(dataAtualFormatada + 'T00:00:00'); 
-
-//     // URL para buscar todos os vencimentos no ANO atual.
-//     const urlResumo = `/main/vencimentos?periodo=anual&ano=${ano}`;
-
-//     // 🎯 Capturando os elementos
-//     const cardVencimentos = document.getElementById('cardContainerVencimentos');
-    
-//     // Elementos de TOTAIS (Header)
-//     const vencimentosTotalElement = document.getElementById('vencimentosTotal'); // Total Previsto
-//     const vencimentosPagosElement = document.getElementById('vencimentosPagos'); // ✅ NOVO: Total Pagos
-
-//     // Elementos DETALHADOS (Grupos)
-//     const vencAjudaAVencerElement = document.getElementById('vencAjudaAVencer');
-//     const vencCacheAVencerElement = document.getElementById('vencCacheAVencer');
-//     const vencAjudaVencidosElement = document.getElementById('vencAjudaVencidos');
-//     const vencCacheVencidosElement = document.getElementById('vencCacheVencidos');
-    
-//     // ✅ NOVO: Elementos Detalhados Pagos
-//     const vencAjudaPagosElement = document.getElementById('vencAjudaPagos');
-//     const vencCachePagosElement = document.getElementById('vencCachePagos');
-
-//     // Verificação de existência dos elementos
-//     if (!vencimentosTotalElement || !vencimentosPagosElement || !vencAjudaAVencerElement || 
-//         !vencCacheAVencerElement || !vencAjudaVencidosElement || !vencCacheVencidosElement ||
-//         !vencAjudaPagosElement || !vencCachePagosElement) {
-        
-//         console.error("Erro: Um ou mais elementos do card de vencimentos não foram encontrados no DOM. Verifique as IDs.");
-//         return;
-//     }
-    
-//     // Inicializa somadores DETALHADOS
-//     let totalGeralPrevisto = 0; // Soma de A VENCER + VENCIDOS
-//     let ajudaAVencer = 0;
-//     let cacheAVencer = 0;
-//     let ajudaVencidos = 0;
-//     let cacheVencidos = 0;
-
-//     // ✅ NOVO: Inicializa somadores PAGOS
-//     let ajudaPagos = 0;
-//     let cachePagos = 0;
-    
-//     try {
-//         const dadosResumo = await fetchComToken(urlResumo); 
-
-//         if (dadosResumo && dadosResumo.eventos && dadosResumo.eventos.length > 0) {
-            
-//             dadosResumo.eventos.forEach(evento => {
-                
-//                 // ------------------------------------
-//                 // 1. Lógica de PENDENTES (A VENCER vs. VENCIDOS)
-//                 // ------------------------------------
-//                 const ajudaPendente = evento.ajuda.pendente || 0;
-//                 if (ajudaPendente > 0 && evento.dataVencimentoAjuda && evento.dataVencimentoAjuda !== 'N/A') {
-                    
-//                     const [d, m, y] = evento.dataVencimentoAjuda.split('/').map(n => parseInt(n, 10));
-//                     const dataVencimentoAjuda = new Date(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}T00:00:00`);
-
-//                     if (dataVencimentoAjuda < dataComparacao) {
-//                         ajudaVencidos += ajudaPendente; 
-//                     } else {
-//                         ajudaAVencer += ajudaPendente; 
-//                     }
-//                     totalGeralPrevisto += ajudaPendente;
-//                 }
-
-//                 const cachePendente = evento.cache.pendente || 0;
-//                 if (cachePendente > 0 && evento.dataVencimentoCache && evento.dataVencimentoCache !== 'N/A') {
-                    
-//                     const [d, m, y] = evento.dataVencimentoCache.split('/').map(n => parseInt(n, 10));
-//                     const dataVencimentoCache = new Date(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}T00:00:00`);
-
-//                     if (dataVencimentoCache < dataComparacao) {
-//                         cacheVencidos += cachePendente; 
-//                     } else {
-//                         cacheAVencer += cachePendente; 
-//                     }
-//                     totalGeralPrevisto += cachePendente;
-//                 }
-                
-//                 // ------------------------------------
-//                 // ✅ 2. Lógica de PAGOS (Valores explícitos do Servidor)
-//                 // ------------------------------------
-//                 ajudaPagos += evento.ajuda.pagos || 0;
-//                 cachePagos += evento.cache.pagos || 0;
-                
-//             });
-//         }
-        
-//         const totalGeralPagos = ajudaPagos + cachePagos;
-
-//         // 🎯 ATUALIZAÇÃO DO CARD (TODOS COM formatarMoeda)
-        
-//         // 1. Header
-//         vencimentosTotalElement.textContent = formatarMoeda(totalGeralPrevisto); // Previsto (Pendentes: A Vencer + Vencidos)
-//         vencimentosPagosElement.textContent = formatarMoeda(totalGeralPagos);    // ✅ NOVO: Pagos (Total)
-        
-//         // 2. A Vencer (Detalhado)
-//         vencAjudaAVencerElement.textContent = formatarMoeda(ajudaAVencer); 
-//         vencCacheAVencerElement.textContent = formatarMoeda(cacheAVencer); 
-        
-//         // 3. Vencidos (Detalhado)
-//         vencAjudaVencidosElement.textContent = formatarMoeda(ajudaVencidos); 
-//         vencCacheVencidosElement.textContent = formatarMoeda(cacheVencidos); 
-        
-//         // 4. Pagos (Detalhado)
-//         vencAjudaPagosElement.textContent = formatarMoeda(ajudaPagos);          // ✅ NOVO: Ajuda Paga
-//         vencCachePagosElement.textContent = formatarMoeda(cachePagos);          // ✅ NOVO: Cachê Pago
-        
-//         if (totalGeralPrevisto > 0 || totalGeralPagos > 0) {
-//             cardVencimentos.style.display = 'block';
-//         } else {
-//             cardVencimentos.style.display = 'none';
-//         }
-
-//     } catch (error) {
-//         console.error("Erro ao carregar dados do card de vencimentos:", error);
-//         // Em caso de erro, zera os valores de forma consistente
-//         vencimentosTotalElement.textContent = `R$ 0,00`;
-//         vencimentosPagosElement.textContent = `R$ 0,00`;
-//         vencAjudaAVencerElement.textContent = `R$ 0,00`; 
-//         vencCacheAVencerElement.textContent = `R$ 0,00`; 
-//         vencAjudaVencidosElement.textContent = `R$ 0,00`; 
-//         vencCacheVencidosElement.textContent = `R$ 0,00`; 
-//         vencAjudaPagosElement.textContent = `R$ 0,00`; 
-//         vencCachePagosElement.textContent = `R$ 0,00`; 
-//     }
-// }
-
 // 1. Gatilho para o Select
 window.carregarDadosDoFiltro = function() {
     const select = document.getElementById('selectAno');
@@ -5878,7 +5834,7 @@ async function carregarDadosVencimentos(anoFiltro) {
             dados.eventos.forEach(ev => {
                 // --- AJUDA DE CUSTO ---
                 const ajPendente = parseFloat(ev.ajuda.pendente) || 0;
-                const ajJaPago = parseFloat(ev.ajuda.pagos) || 0;
+                const ajJaPago = parseFloat(ev.ajuda.pago ?? ev.ajuda.pagos) || 0;
 
                 // Regra: Soma no card de PAGOS tudo que já foi pago (Total ou 50%)
                 soma.ajPagos += ajJaPago;
@@ -5897,7 +5853,7 @@ async function carregarDadosVencimentos(anoFiltro) {
 
                 // --- CACHÊ ---
                 const chPendente = parseFloat(ev.cache.pendente) || 0;
-                const chJaPago = parseFloat(ev.cache.pagos) || 0;
+                const chJaPago = parseFloat(ev.cache.pago ?? ev.cache.pagos) || 0;
 
                 // Soma o que já foi pago de Cachê
                 soma.chPagos += chJaPago;
@@ -5949,6 +5905,7 @@ async function carregarDadosVencimentos(anoFiltro) {
 
 async function inicializarCardVencimentos() {
     // Checa as duas permissões (Assumindo que estão definidas globalmente)
+    const eSupremo = usuarioTemPermissaoSupremo();
     const eMaster = usuarioTemPermissao();
     const eFinanceiro = usuarioTemPermissaoFinanceiro();
 
@@ -5969,17 +5926,17 @@ async function inicializarCardVencimentos() {
     // Lógica de Visibilidade
     // ===========================================
     
-    if (eMaster || eFinanceiro) {
+    if (eSupremo || eFinanceiro || eMaster ) {
         // Se for Master OU Financeiro: Mostra VENCIMENTOS
         cardVencimentos.style.display = 'flex';
         carregarDadosVencimentos(); // Chama a função que preenche o card
     }
 
-    if (eMaster) {
+    if (eSupremo || eMaster) {
         // Se for Master: Mostra ORÇAMENTOS também
         cardOrcamentos.style.display = 'flex';
     } 
-    else if (!eMaster && !eFinanceiro) {
+    else if (!eSupremo && !eFinanceiro && !eMaster) {
          // Se for Nenhum (não Master e não Financeiro): Mostra APENAS ORÇAMENTOS
         cardOrcamentos.style.display = 'flex';
     }
@@ -6364,6 +6321,7 @@ document.getElementById("cardContainerVencimentos").addEventListener("click", as
         painel.innerHTML = ""; // Volta para a tela anterior
     });
 });
+
 
 // ===========================
 

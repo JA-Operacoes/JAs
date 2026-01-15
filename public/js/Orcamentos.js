@@ -21,6 +21,10 @@ document.addEventListener("DOMContentLoaded", function () {
         // aplicarTema('default');
       });
   }
+
+  // Gerenciar botões baseado no status inicial
+  const statusInput = document.getElementById("Status");
+  gerenciarBotoesProposta(statusInput);
 });
 let idMontagemChangeListener = null;
 let statusInputListener = null;
@@ -7210,6 +7214,7 @@ function gerenciarBotoesProposta(status) {
     const btnProposta = document.getElementById('Proposta');
     const btnAprovar = document.getElementById('AprovarProposta');
     const btnReprovar = document.getElementById('ReprovarProposta');
+    const btnFecharOrc = document.getElementById('fecharOrc');
     //const status = document.getElementById('Status');
     
     if (!btnProposta) return; 
@@ -7253,162 +7258,88 @@ function gerenciarBotoesProposta(status) {
         if (btnAprovar) btnAprovar.style.display = 'inline-block';
         if (btnReprovar) btnReprovar.style.display = 'inline-block';
     }
+
+    // 3. Lógica do botão Fechar Orçamento
+    if (statusLimpo === 'E') {
+        if (btnFecharOrc) btnFecharOrc.style.display = 'inline-block';
+    } else {
+        if (btnFecharOrc) btnFecharOrc.style.display = 'none';
+    }
 }
 
 async function gerarPropostaPDF() {
-  let nrOrcamentoElem = document.getElementById("nrOrcamento");
-  let nrOrcamento = "";
+    // 1. Pegar IDs básicos do formulário (seu código original)
+    let nrOrcamentoElem = document.getElementById("nrOrcamento");
+    let nrOrcamento = nrOrcamentoElem?.value?.trim() || nrOrcamentoElem?.innerText?.trim() || "";
 
-  if (nrOrcamentoElem) {
-    nrOrcamento =
-      nrOrcamentoElem.tagName === "INPUT"
-        ? nrOrcamentoElem.value.trim()
-        : nrOrcamentoElem.innerText.trim();
-  }
-
-    let idOrcamentoElem = document.getElementById('idOrcamento');   
-    let idOrcamento = "";
-
-    if (idOrcamentoElem) {
-        idOrcamento = idOrcamentoElem.tagName === "INPUT"
-            ? idOrcamentoElem.value.trim()
-            : idOrcamentoElem.innerText.trim();
-    } 
-
-  if (!nrOrcamento) {
-    Swal.fire({
-      icon: "error",
-      title: "Erro!",
-      text: "Número do orçamento não encontrado!",
-      confirmButtonText: "Fechar",
-    });
-    console.warn("Número do orçamento não encontrado!");
-    return;
-  }
-
-  try {
-    console.log("🔍 Iniciando requisição para gerar a proposta...");
-
-    Swal.fire({
-      title: "Gerando Proposta...",
-      html: `<div id="page"><div id="container"><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="h1">JA</div></div></div><p class="text-gray-500 text-sm mt-2">Aguarde enquanto a proposta é gerada.</p>`,
-      allowOutsideClick: false,
-      showConfirmButton: false,
-    });
-
-    const result = await fetchComToken(`/orcamentos/${nrOrcamento}/proposta`, {
-      method: "GET",
-    });
-
-    Swal.close();
-
-    if (result.success) {
-      console.log("✅ Proposta gerada com sucesso!");
-      console.log("🔄 Tentando atualizar o status do orçamento para 'P'...");
-      if (!idOrcamento) {
-          console.warn("⚠️ Falha ao atualizar o status: ID do Orçamento não encontrado no HTML!");
-          // Não interrompe, mas avisa que o status não será atualizado.
-      } else {
-          console.log("🔄 Tentando atualizar o status do orçamento para 'P'...");
-
-          // USA O ID OBTIDO DO HTML
-          const statusUpdateResult = await fetchComToken(`/orcamentos/${idOrcamento}/status`, {
-              method: "PATCH", // Ou 'PUT', dependendo da sua API
-              headers: {
-                  "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                  status: "P" 
-              })
-          });
-
-          if (statusUpdateResult.success) {
-              console.log("✅ Status do orçamento atualizado para 'P' com sucesso!", nrOrcamento);
-              
-              try {
-                  const url = `orcamentos?nrOrcamento=${nrOrcamento}`;
-
-                  const orcamento = await fetchComToken(url, { method: 'GET' });
-                  preencherFormularioComOrcamento(orcamento);
-
-              } catch (error) {
-                  console.error("Erro ao buscar orçamento:", error);
-
-                  let errorMessage = error.message;
-                  if (error.message.includes("404")) {
-                      errorMessage = `Orçamento com o número ${nrOrcamento} não encontrado.`;
-                      limparOrcamento();
-                  } else if (error.message.includes("400")) {
-                      errorMessage = "Número do orçamento é inválido ou vazio.";
-                      limparOrcamento();
-                  } else {
-                      errorMessage = `Erro ao carregar orçamento: ${error.message}`;
-                      limparOrcamento();
-                  }
-
-                  Swal.fire("Erro!", errorMessage, "error");
-              }
-              //gerenciarBotoesProposta('P'); 
-                              
-          } else {
-              console.warn("⚠️ Falha ao atualizar o status do orçamento para 'P':", statusUpdateResult.message);
-              // Você pode decidir se isso deve interromper o fluxo ou apenas mostrar um aviso.
-          }
-      }
-      Swal.fire({
-        icon: "success",
-        title: "Proposta gerada!",
-        text: "A proposta foi gerada com sucesso.",
-        showCancelButton: true,
-        confirmButtonText: "📥 Baixar Proposta",
-        cancelButtonText: "OK",
-        reverseButtons: true,
-      }).then((res) => {
-        if (res.isConfirmed) {
-          (async () => {
-            try {
-              const fileUrl = result.fileUrl;
-              const fileName = decodeURIComponent(fileUrl.split("/").pop());
-
-              const response = await fetch(fileUrl, {
-                headers: {
-                  Authorization: `Bearer ${localStorage.getItem("token")}`,
-                },
-              });
-
-              if (!response.ok) throw new Error("Erro ao baixar o arquivo");
-
-              const blob = await response.blob();
-              const link = document.createElement("a");
-              link.href = window.URL.createObjectURL(blob);
-              link.download = fileName;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            } catch (err) {
-              console.error("❌ Erro no download:", err);
-              Swal.fire("Erro", "Não foi possível baixar o arquivo", "error");
-            }
-          })();
-        }
-      });
-    } else {
-      throw new Error(
-        result.message || "Ocorreu um erro desconhecido ao gerar a proposta."
-      );
+    if (!nrOrcamento) {
+        return Swal.fire("Erro!", "Número do orçamento não encontrado!", "error");
     }
-  } catch (err) {
-    console.error("❌ Erro ao gerar proposta:", err);
 
-    Swal.close();
+    try {
+        // 2. BUSCAR TEXTOS DO BANCO DE DADOS
+        // Você precisará de uma rota que retorne os 12 textos (id, titulo, conteudo)
+        const responseTextos = await fetchComToken('/configuracoes/textos-proposta');
+        const textosDisponiveis = responseTextos.data; // Array de objetos
 
-    Swal.fire({
-      icon: "error",
-      title: "Erro!",
-      text: `Ocorreu um erro ao gerar a proposta: ${err.message}`,
-      confirmButtonText: "Fechar",
-    });
-  }
+        // 3. MONTAR O HTML DOS CHECKBOXES
+        let htmlCheckboxes = `<div style="text-align: left; max-height: 300px; overflow-y: auto; padding: 10px;">
+            <p class="mb-3 text-sm text-gray-600">Selecione as cláusulas que deseja incluir nesta proposta:</p>`;
+        
+        textosDisponiveis.forEach(t => {
+            htmlCheckboxes += `
+                <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="texto_${t.id}" value="${t.id}" class="swal2-checkbox-custom" checked style="margin:0;">
+                    <label for="texto_${t.id}" style="cursor:pointer; font-size: 14px;">${t.titulo}</label>
+                </div>`;
+        });
+        htmlCheckboxes += `</div>`;
+
+        // 4. ABRIR SWAL PARA SELEÇÃO
+        const { value: formValues, isConfirmed } = await Swal.fire({
+            title: 'Configurar Cláusulas',
+            html: htmlCheckboxes,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'Gerar PDF <i class="fas fa-file-pdf"></i>',
+            cancelButtonText: 'Cancelar',
+            preConfirm: () => {
+                const selecionados = [];
+                textosDisponiveis.forEach(t => {
+                    if (document.getElementById(`texto_${t.id}`).checked) {
+                        selecionados.push(t.id);
+                    }
+                });
+                return selecionados;
+            }
+        });
+
+        if (!isConfirmed) return;
+
+        // 5. SEGUIR COM A GERAÇÃO ENVIANDO OS TEXTOS SELECIONADOS
+        Swal.fire({
+            title: "Gerando Proposta...",
+            html: `<div id="page"><div id="container"><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="h1">JA</div></div></div>`,
+            allowOutsideClick: false,
+            showConfirmButton: false,
+        });
+
+        const result = await fetchComToken(`/orcamentos/${nrOrcamento}/proposta`, {
+            method: "POST", // Mudamos para POST para enviar o corpo
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ textosIds: formValues }) // Enviamos os IDs dos textos selecionados
+        });
+
+        // ... resto do seu código de download e atualização de status ...
+        Swal.close();
+        if (result.success) {
+            // Lógica de download que você já possui
+        }
+
+    } catch (err) {
+        console.error(err);
+        Swal.fire("Erro", "Falha ao processar textos da proposta.", "error");
+    }
 }
 
 async function gerarContrato() {

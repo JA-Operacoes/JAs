@@ -1,0 +1,74 @@
+
+    <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <link rel="stylesheet" href="css/Modal/CadTextos.css">
+    <link rel="stylesheet" href= css/Roots/Roots.css>">
+    <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
+    <div id="cadModalTextos" class="modal">
+        <div class="modal-content">
+
+            <div class="Close"><button class="close"> X </button></div>
+            <div id="form-content">
+
+                <div class="title">
+                    <h1>Cadastro de Textos</h1>
+                </div>
+
+                <form id="form" name="form" autocomplete="on">
+                    <fieldset>
+                        <legend>Cadastre os Textos </legend>
+
+                        <div class="form-3colunas">
+
+                            <div class="checkbox-wrapper-33">
+                                <label class="checkbox">
+                                    <p class="checkbox__textwrapper">Ativo</p>
+                                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo" />
+                                    <span class="checkbox__symbol">
+                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M4 14l8 7L24 7"></path>
+                                        </svg>
+                                    </span>
+                                </label>
+                            </div>
+
+                            <div class="form2">
+                                <input type="text" class="uppercase" name="Titulo" id="Titulo" required spellcheck="false" />
+                                <label for="Titulo">Titulo</label>
+                            </div>
+
+                            <div class="form2">
+                                <input type="text" class="uppercase" name="idTexto" id="idTexto" placeholder=" "
+                                spellcheck="false" readonly />
+                                <label for="idTexto">Código</label>
+                            </div>
+                        </div>
+
+                        <div class="form">
+                            <p for="categoria">Categoria</p>
+                            <select id="categoria" name="categoria" class="preenchido">
+                                <option value="" disabled selected>Selecione a Categoria</option>
+                                <option value="Operacional">Operacional</option>
+                                <option value="Analise de Sistemas">Análise de Sistemas</option>
+                                <option value="CAEX">CAEX</option>
+                            </select>
+                        </div>
+
+                        <div class="form2">
+                            <textarea name="conteudo" id="conteudo" placeholder="Digite o Texto Pré definido"></textarea>
+                        </div>
+                        
+                    </fieldset>
+
+                   </form>
+                
+            </div>
+            <div class="BTNs">
+                <button class="btnPesquisar" id="Pesquisar" type="button">Pesquisar</button>
+                <button class="btnLimpar" id="Limpar" type="button">Limpar</button>
+                <button class="btnEnviar" id="Enviar" type="button">Enviar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/Textospredefinidos.js"></script>

@@ -76,6 +76,7 @@ app.use("/localmontagem", autenticarToken(), contextoEmpresa, require("./routes/
 app.use("/staff", autenticarToken(), contextoEmpresa, require("./routes/rotaStaff"));
 app.use("/empresas", autenticarToken(), contextoEmpresa, require("./routes/rotaEmpresa"));
 app.use("/bancos", autenticarToken(), contextoEmpresa, require("./routes/rotaBancos"));
+app.use("/propostatextos", autenticarToken(), contextoEmpresa, require("./routes/RotaTextos"));
 
 app.use("/modulos", autenticarToken(), contextoEmpresa, require("./routes/rotaModulo"));
 app.use("/relatorios", autenticarToken(), contextoEmpresa, require("./routes/rotaRelatorio"));
