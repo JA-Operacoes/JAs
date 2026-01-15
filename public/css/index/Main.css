@@ -486,25 +486,37 @@ button#btnVoltarorc {
 
 .orc-header-info {
     margin: 0 10px;
-    font-size: medium;
+    font-size: 14px;
 }
 
 .header-sub {
-    font-size: medium;
+    font-size: 14px;
 }
 
 .accordion-item.active .accordion-orc-body {
     display: flex !important;
     flex-direction: row;
     width: 100%;
-    justify-content: space-between;
+    justify-content: space-around;
 }
 
-.accordion-item.active
+.valor-container {
+    display: flex;
+    gap: 20px;
+}
+
 .periodo-container{
     display: flex;
     justify-content: center;
     gap: 10px;
+    margin-left: 10px;
+}
+
+.periodo-container p {
+    font-size: 12px;
+}
+.periodo-container p.data-range {
+    margin-left: 5px;
 }
 
 .orcamento-hr {
