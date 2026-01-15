@@ -420,6 +420,60 @@
   .Usuarios:hover .drop{
     height: 300px;
   }
+
+  /* SUBMENU LATERAL - CONFIGURAÇÃO FINANCEIRO */
+  /* 1. Reset de visibilidade para o Financeiro */
+  .Financeiro:hover .drop, 
+  .Financeiro:hover .drop-content {
+      overflow: visible !important;
+      display: block !important;
+  }
+
+  /* 2. O item "Cadastros" precisa de ser relativo */
+  .sub-drop {
+      position: relative !important;
+      display: block !important;
+      width: 100%;
+  }
+
+  /* 3. O Submenu Lateral - CONFIGURAÇÃO DE FORÇA BRUTA */
+  .sub-drop-content {
+      display: none !important; /* Escondido total por padrão */
+      position: absolute !important;
+      top: 0 !important;
+      right: 100% !important;  /* Alinha a face direita do submenu na face esquerda do pai */
+      left: auto !important;   /* Reseta o valor anterior */
+      background-color: #474646 !important;
+      min-width: 210px !important;
+      z-index: 9999999 !important;
+      box-shadow: 8px 0px 15px rgba(0,0,0,0.5) !important;
+  }
+
+  /* 4. GATILHO DE EXIBIÇÃO - Quando passar o rato em Cadastros */
+  .sub-drop:hover > .sub-drop-content {
+      display: block !important; /* Força o aparecimento */
+  }
+
+  /* 5. SEGURANÇA PARA O MODAL */
+  body.modal-open .sub-drop-content,
+  body.modal-open .drop-content {
+      display: none !important;
+  }
+
+  /* 6. ESTILO DOS LINKS (Para garantir que não ficam transparentes) */
+  .sub-drop-content a {
+      padding: 12px 16px !important;
+      display: block !important;
+      color: #ffffff !important;
+      background-color: #474646 !important;
+      border-bottom: 1px solid rgba(255,255,255,0.1) !important;
+      text-decoration: none !important;
+  }
+
+  .sub-drop-content a:hover {
+      background-color: #942123 !important;
+  }
+  /* FIM DO SUBMENU LATERAL - CONFIGURAÇÃO FINANCEIRO */
   
   /* NAV vertical para mobile */
   nav ul {

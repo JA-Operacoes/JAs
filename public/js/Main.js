@@ -3666,6 +3666,8 @@ async function buscarAditivoExtraCompleto() {
         const url = '/main/aditivoextra'; 
         const resposta = await fetchComToken(url);
 
+        console.log("DEBUG: Resposta Bruta do Fetch AditivoExtra (length):", resposta.dados ? (Array.isArray(resposta.dados) ? resposta.dados.length : 'N/D') : 0);
+
         if (resposta && resposta.sucesso && Array.isArray(resposta.dados)) {
       //console.log(`✅ Sucesso! ${resposta.dados.length} solicitações Aditivo/Extra carregadas.`);
       return resposta.dados; 

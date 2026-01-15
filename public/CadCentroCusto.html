@@ -1,38 +1,38 @@
 <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
-<link rel="stylesheet" href="css/Modal/CadContas.css">
+<link rel="stylesheet" href="css/Modal/CadCentroCusto.css">
 <link rel="stylesheet" href="css/Roots/Roots.css">
 
-<div id="cadModalContas" class="modal">
+<div id="cadModalCentroCusto" class="modal">
   <div class="modal-content"> 
         
         <div class="Close"><button class="close" id="Fechar"> X </button></div>
 
-        <div id ="form-contas">             
+        <div id ="form-centroCusto">             
             
             <div class = "title">
-                <h1>Cadastro de Contas</h1>
+                <h1>Cadastro de Centro de Custo</h1>
             </div>
 
             <form  method="post"  id="form" name="form" autocomplete="on">
     
                 <fieldset>
-                    <legend>Cadastre a Conta</legend>
+                    <legend>Cadastre o Centro de Custo</legend>
                     <br>
                     <div class="form-3colunas">
                         <div class="form">
-                            <input type="text" name="idConta" id="idConta" readonly spellcheck="false">
-                            <label for ="idConta">Código</label>     
+                            <input type="text" name="idCentroCusto" id="idCentroCusto" readonly spellcheck="false">
+                            <label for ="idCentroCusto">Código</label>     
                         </div>
                         <div class="form">
-                            <input type="text" class="uppercase" name="nmConta" id="nmConta"  required spellcheck="false">
-                            <label for = "nmConta">Nome da Conta</label>
+                            <input type="text" class="uppercase" name="nmCentroCusto" id="nmCentroCusto"  required spellcheck="false">
+                            <label for = "nmCentroCusto">Nome do Centro de Custo</label>
                         </div>
                         <div class="form-checkbox">
                             <div class="checkbox-wrapper-33">
                                 <label class="checkbox">
-                                    <p class="checkbox__textwrapper">Conta Ativa</p>
+                                    <p class="checkbox__textwrapper">Centro de Custo Ativo</p>
                                     <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo" checked />
                                     <span class="checkbox__symbol">
                                         <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
@@ -45,18 +45,21 @@
                     </div>
                     
                     <div class="form">
-                        <select name="tpConta" id="tpConta" required class="form">
-                            <option value="" disabled selected>Selecione o Tipo de Conta</option>
-                            <option value="Assessoria">Assessoria</option>
-                            <option value="Consumo">Consumo (Luz, Água, etc.)</option>
-                            <option value="Impostos">Impostos</option>
-                            <option value="Pessoas">Pagamento Pessoas</option>                            
-                            <option value="Sistema">Sistema</option>
-                            <option value="Veiculos">Veículos</option>
-                        </select>
-                        <!-- <label for="tpConta">Tipo de Conta</label> -->
-                    </div>
+                        <!-- <div class="user-box">
+                        <select id="empresaSelect" name="idempresa" required class="form">
+                            <option value="" selected disabled>Selecione Empresa</option>                   
+                           
+                        </select>              
+                        </div>
+                       
+                    </div> -->
                         
+                        <div class="user-box">
+                            <select id="empresaSelect" name="idempresa" required class="form" multiple style="height: 100px;">
+                            </select>
+                            <!-- <label for="empresaSelect">Selecione as Empresas (Segure CTRL)</label> -->
+                        </div>
+                    </div>
                    
                 </fieldset>
             </form>
