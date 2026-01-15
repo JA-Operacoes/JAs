@@ -739,9 +739,7 @@ function getIdEmpresa() {
 }
 
 // Função para buscar resumo dos cards
-  async function buscarResumo() {
-  return await fetchComToken("/main");
-}
+
 
 function getUsuarioLogado() {
   const token = localStorage.getItem("token");
@@ -2957,24 +2955,38 @@ function montarOpcoesOrc(titulo, valores, conteudoGeral) {
 }
 
 function construirParametrosOrcamentos() {
-    const status = document.querySelector("input[name='statusOrc']:checked")?.value || 'aberto';
-    const periodo = document.querySelector("input[name='periodoOrc']:checked")?.value || 'diario';
-    const anoAtual = new Date().getFullYear();
+    const status = document.querySelector('input[name="statusOrc"]:checked')?.value || 'todos';
+    const periodo = document.querySelector('input[name="periodoOrc"]:checked')?.value || 'diario';
+    const dataInput = document.getElementById("sub-filtro-data-orc");
 
-    let query = `?status=${status}&periodo=${periodo}&ano=${anoAtual}`;
+    let urlParams = `?status=${status}&periodo=${periodo}`;
 
-    const subData = document.querySelector("#sub-filtro-data-orc")?.value;
-    const subSelect = document.querySelector("#sub-filtro-select-orc")?.value;
-    const subRadio = document.querySelector("input[name='subOrc']:checked")?.value;
-
-    if (subData) query += `&dataRef=${subData}`;
-    if (subSelect) query += `&mes=${subSelect}`;
-    if (subRadio) {
-        if (periodo === 'trimestral') query += `&trimestre=${subRadio}`;
-        if (periodo === 'semestral') query += `&semestre=${subRadio}`;
+    if (periodo === 'semanal' && dataInput && dataInput.value) {
+        // Criamos a data base escolhida no input
+        const dataEscolhida = new Date(dataInput.value + 'T00:00:00');
+        
+        // CALENDÁRIO GLOBAL: Encontrar o Domingo (início) daquela semana
+        const diaDaSemana = dataEscolhida.getDay(); // 0=Dom, 1=Seg...
+        const dataInicioSemana = new Date(dataEscolhida);
+        dataInicioSemana.setDate(dataEscolhida.getDate() - diaDaSemana);
+        
+        // CALENDÁRIO GLOBAL: Encontrar o Sábado (fim) daquela semana
+        const dataFimSemana = new Date(dataInicioSemana);
+        dataFimSemana.setDate(dataInicioSemana.getDate() + 6);
+        
+        const dataRefStr = dataInicioSemana.toISOString().split('T')[0];
+        const dataFimStr = dataFimSemana.toISOString().split('T')[0];
+        
+        urlParams += `&dataRef=${dataRefStr}&dataFim=${dataFimStr}`;
+        
+        console.log(`📅 Semana Global: ${dataRefStr} até ${dataFimStr}`);
+    } else {
+        const selectGeral = document.getElementById("sub-filtro-select-orc");
+        if (selectGeral) urlParams += `&valorFiltro=${selectGeral.value}`;
+        if (dataInput) urlParams += `&dataRef=${dataInput.value}`;
     }
 
-    return query;
+    return urlParams;
 }
 
 // --- CORE DOS FILTROS ---
@@ -2993,14 +3005,14 @@ function criarFiltrosOrcamentoCompletos(conteudoGeral) {
     grupoStatus.className = "filtro-grupo";
     grupoStatus.innerHTML = `
         <label class="label-select">Nível do Orçamento</label>
-        <div class="wrapper" style="width: 350px;"> 
-            ${['Aberto', 'Negociação', 'Aprovado', 'Fechado', 'Recusado'].map((s, i) => `
-                <div class="option" style="width: 50px;">
-                    <input ${i === 0 ? 'checked' : ''} value="${s.toLowerCase()}" name="statusOrc" type="radio" class="input" />
-                    <div class="btn"><span class="span">${s}</span></div>
-                </div>
-            `).join('')}
-        </div>`;
+    <div class="wrapper" style="width: 420px;"> 
+        ${['Todos', 'Aberto', 'Proposta', 'Em Andamento', 'Fechado', 'Recusado'].map((s, i) => `
+            <div class="option" style="width: 60px;">
+                <input ${i === 0 ? 'checked' : ''} value="${s === 'Todos' ? 'todos' : s.toLowerCase()}" name="statusOrc" type="radio" class="input" />
+                <div class="btn"><span class="span">${s}</span></div>
+            </div>
+        `).join('')}
+    </div>`;
 
     // 2. Grupo Período
     const grupoPeriodo = document.createElement("div");
@@ -3012,6 +3024,7 @@ function criarFiltrosOrcamentoCompletos(conteudoGeral) {
             <div class="option" style="width: 30px;"><input value="semanal" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Semanal</span></div></div>
             <div class="option" style="width: 30px;"><input value="mensal" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Mensal</span></div></div>
             <div class="option" style="width: 30px;"><input value="trimestral" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Trimestral</span></div></div>
+            <div class="option" style="width: 30px;"><input value="semestral" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Semestral</span></div></div>
             <div class="option" style="width: 30px;"><input value="anual" name="periodoOrc" type="radio" class="input" /><div class="btn"><span class="span">Anual</span></div></div>
         </div>`;
 
@@ -3045,12 +3058,41 @@ function criarFiltrosOrcamentoCompletos(conteudoGeral) {
             subFiltroWrapper.innerHTML = `<label class="label-select">Mês</label><div class="wrapper select-wrapper"><select id="sub-filtro-select-orc" class="select-simples">${options}</select></div>`;
         }
         else if (tipo === "trimestral") {
-            const trimes = [1,2,3,4].map(t => ({ value: t, label: `T${t} / ${anoAtual}`, checked: t === Math.ceil((new Date().getMonth()+1)/3) }));
-            subFiltroWrapper.innerHTML = montarOpcoesOrc("Trimestre", trimes);
-        }
-        else if (tipo === "anual") {
-            subFiltroWrapper.innerHTML = `<label class="label-select">Ano Vigente</label><div class="wrapper select-wrapper"><select id="sub-filtro-select-orc" class="select-simples"><option value="${anoAtual}">${anoAtual}</option></select></div>`;
-        }
+        // Divisão correta: T1(Jan-Mar), T2(Abr-Jun), T3(Jul-Set), T4(Out-Dez)
+        const trimes = [
+            { v: 1, l: `1º Trimestre (Jan-Mar)` },
+            { v: 2, l: `2º Trimestre (Abr-Jun)` },
+            { v: 3, l: `3º Trimestre (Jul-Set)` },
+            { v: 4, l: `4º Trimestre (Out-Dez)` }
+        ];
+        let options = trimes.map(t => `<option value="${t.v}">${t.l} / ${anoAtual}</option>`).join('');
+        subFiltroWrapper.innerHTML = `<label class="label-select">Trimestre</label><div class="wrapper select-wrapper"><select id="sub-filtro-select-orc" class="select-simples">${options}</select></div>`;
+    }
+    else if (tipo === "semestral") {
+        // Adição dos Semestres: S1(Jan-Jun), S2(Jul-Dez)
+        const semes = [
+            { v: 1, l: `1º Semestre (Jan-Jun)` },
+            { v: 2, l: `2º Semestre (Jul-Dez)` }
+        ];
+        let options = semes.map(s => `<option value="${s.v}">${s.l} / ${anoAtual}</option>`).join('');
+        subFiltroWrapper.innerHTML = `<label class="label-select">Semestre</label><div class="wrapper select-wrapper"><select id="sub-filtro-select-orc" class="select-simples">${options}</select></div>`;
+    }
+       else if (tipo === "anual") {
+    const anoAtual = 2026; // Definido conforme seu contexto
+    const anos = [anoAtual - 1, anoAtual, anoAtual + 1]; // [2025, 2026, 2027]
+    
+    let options = anos.map(ano => 
+        `<option value="${ano}" ${ano === anoAtual ? 'selected' : ''}>${ano}</option>`
+    ).join('');
+    
+    subFiltroWrapper.innerHTML = `
+        <label class="label-select">Ano Vigente</label>
+        <div class="wrapper select-wrapper">
+            <select id="sub-filtro-select-orc" class="select-simples">
+                ${options}
+            </select>
+        </div>`;
+}
 
         subFiltroWrapper.querySelectorAll("input, select").forEach(el => {
             el.addEventListener("change", () => carregarDetalhesOrcamentos(conteudoGeral));
@@ -3072,107 +3114,129 @@ function criarFiltrosOrcamentoCompletos(conteudoGeral) {
 
 function renderizarListaOrcamentos(container, lista) {
     container.innerHTML = "";
+
+    // Captura o ano selecionado para personalizar a mensagem de erro/vazio
+    const selectAno = document.getElementById("sub-filtro-select-orc");
+    const periodoAtivo = document.querySelector('input[name="periodoOrc"]:checked')?.value;
+    const anoExibicao = (periodoAtivo === 'anual' && selectAno) ? selectAno.value : '2026';
+
     if (!lista || lista.length === 0) {
-        container.innerHTML = `<p class="mt-3">Nenhum orçamento encontrado para 2026.</p>`;
+        container.innerHTML = `
+            <div class="alert-no-data mt-3">
+                <p>Nenhum orçamento encontrado para os critérios de ${anoExibicao}.</p>
+            </div>`;
         return;
     }
 
     const grid = document.createElement("div");
     grid.className = "orcamentos-grid mt-3";
 
+    // Mapeamento de nomes para exibição nos Badges
+    const statusTraducao = {
+        'F': 'Fechado',
+        'E': 'Em Andamento',
+        'P': 'Proposta',
+        'A': 'Aberto',
+        'R': 'Recusado'
+    };
+
     lista.forEach(orc => {
-        const dataInicio = new Date(orc.dtinimarcacao).toLocaleDateString('pt-BR');
-        const dataFimRaw = new Date(orc.data_final_ciclo);
-        const dataFim = dataFimRaw.getFullYear() > 1950 
-            ? dataFimRaw.toLocaleDateString('pt-BR') 
-            : "Data de Desmontagem não definida";
+    const dIni = new Date(orc.dtinimarcacao);
+    const dataInicio = !isNaN(dIni) ? dIni.toLocaleDateString('pt-BR') : "---";
+
+    const dFimRaw = new Date(orc.data_final_ciclo);
+    const dataFim = (dFimRaw.getFullYear() > 1950) 
+        ? dFimRaw.toLocaleDateString('pt-BR') 
+        : "Não definida";
+
+        const statusLower = orc.status.toLowerCase();
+        const nomeStatus = statusTraducao[orc.status] || orc.status;
 
         const item = document.createElement("div");
-        item.className = "accordion-item";
+        item.className = `accordion-item status-border-${statusLower}`; // Borda lateral por status
         item.innerHTML = `
             <div class="accordion-orc-header">
                 <div class="header-main">
                     <div class="orc-header-info">
                         <label>Status:</label>
-                        <span class="orc-badge status-${orc.status.toLowerCase()}">${orc.status}</span>
+                        <span class="orc-badge status-${statusLower}">${nomeStatus}</span>
                     </div>
                     <div class="orc-header-info">
-                        <label>N Orçamento:</label>
+                        <label>Nº Orçamento:</label>
                         <strong>#${orc.nrorcamento}</strong> 
                     </div>
                     <div class="orc-header-info">
                         <label>Evento:</label>
-                        <strong>${orc.nome_evento || ''}</strong>
+                        <strong>${orc.nome_evento || 'Evento sem Nome'}</strong>
                     </div>
+                    <div class="periodo-container">
+                            <p><strong><i class="fa fa-calendar-alt"></i> Período Total:</strong></p>
+                            <p class="data-range">${dataInicio} ➔ ${dataFim}</p>
+                        </div>
                 </div>
                 <div class="header-sub">
                     <label>Nomenclatura:</label>
-                    <small>${orc.nomenclatura || ''}</small>
+                    <small>${orc.nomenclatura || '---'}</small>
                 </div>
             </div>
             <div class="accordion-content">
                 <div class="accordion-orc-body">
-                    <div class="periodo-container">
-                        <p><strong><i class="fa fa-calendar-check"></i> Período Total:</strong></p>
-                        <p class="data-range">${dataInicio} ➔ ${dataFim}</p>
+                    <div class="details-row">
+                        <div class="valor-container">
+                            <p><strong>Verba de Contratação:</strong></p>
+                            <p class="valor-texto">R$ ${parseFloat(orc.totgeralcto || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                        </div>
                     </div>
-                    <p><strong>Verba de Contratação:</strong> R$ ${parseFloat(orc.totgeralcto || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
-                    <button class="btn-detalhes-orcamento" data-nrorcamento="${orc.nrorcamento}">Ver Detalhes do Orçamento</button>
+                    <hr>
+                    <button class="btn-detalhes-orcamento" data-nrorcamento="${orc.nrorcamento}">
+                        <i class="fa fa-external-link-alt"></i> Abrir Detalhes no Módulo
+                    </button>
                 </div>
             </div>
         `;
 
-        item.querySelector(".accordion-orc-header").onclick = () => item.classList.toggle("active");
+        // Evento de Accordion
+        item.querySelector(".accordion-orc-header").onclick = () => {
+            // Opcional: fechar outros abertos (estilo sanfona)
+            // grid.querySelectorAll('.accordion-item').forEach(i => i !== item && i.classList.remove('active'));
+            item.classList.toggle("active");
+        };
 
-        // Lógica de abertura com validação
+        // Lógica de abertura do Modal (Polling)
         item.querySelector(".btn-detalhes-orcamento").onclick = async (e) => {
-            const nrOrcamento = e.target.getAttribute("data-nrorcamento");
-            
-            // 1. Verificar se o modal já existe no DOM (pode estar apenas escondido)
-            let modalOrcamento = document.getElementById("modalOrcamentos"); // Ajuste o ID conforme seu HTML
+            e.stopPropagation(); // Evita fechar o accordion ao clicar no botão
+            const nrOrcamento = e.currentTarget.getAttribute("data-nrorcamento");
             const linkModal = document.querySelector('.abrir-modal[data-modulo="Orcamentos"]');
 
-            console.log("🟢 Iniciando abertura do orçamento:", nrOrcamento);
-
             if (!linkModal) {
-                console.error("❌ Link de ativação do modal não encontrado.");
+                console.error("❌ Link do módulo não encontrado.");
                 return;
             }
 
-            // 2. Disparar abertura (Simula o clique no menu lateral)
             linkModal.click();
 
-            // 3. Função de verificação recursiva (Polling)
-            // Em vez de um timeout fixo, vamos checar se o input apareceu
             let tentativas = 0;
-            const maxTentativas = 20; // 2 segundos (100ms * 20)
-
-            const verificarModalCarregado = setInterval(async () => {
+            const verificarModal = setInterval(async () => {
                 const inputNr = document.getElementById("nrOrcamento");
                 tentativas++;
 
                 if (inputNr) {
-                    clearInterval(verificarModalCarregado);
-                    console.log("✅ Modal carregado e input encontrado na tentativa:", tentativas);
-                    
-                    // Preencher e disparar Enter
+                    clearInterval(verificarModal);
                     inputNr.value = nrOrcamento;
-                    const enterEvent = new KeyboardEvent('keydown', {
-                        key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true
-                    });
-                    inputNr.dispatchEvent(enterEvent);
+                    
+                    // Dispara o Enter para carregar os dados no módulo
+                    const enter = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true });
+                    inputNr.dispatchEvent(enter);
 
-                    // Chamar preenchimento detalhado
+                    // Importação dinâmica para preenchimento forçado se necessário
                     try {
                         const orcDet = await fetchComToken(`orcamentos?nrOrcamento=${nrOrcamento}`);
-                        const moduloOrcamento = await import('./Orcamentos.js');
-                        moduloOrcamento.preencherFormularioComOrcamento(orcDet);
-                    } catch (err) {
-                        console.error("❌ Erro no preenchimento detalhado:", err);
-                    }
-                } else if (tentativas >= maxTentativas) {
-                    clearInterval(verificarModalCarregado);
-                    console.warn("⚠️ O modal demorou muito para abrir ou o input não existe.");
+                        const modulo = await import('./Orcamentos.js');
+                        if(modulo.preencherFormularioComOrcamento) modulo.preencherFormularioComOrcamento(orcDet);
+                    } catch (err) { console.warn("Aviso: Falha ao forçar preenchimento detalhado."); }
+                    
+                } else if (tentativas >= 20) {
+                    clearInterval(verificarModal);
                 }
             }, 100);
         };
@@ -3220,6 +3284,22 @@ document.getElementById("cardContainerOrcamentos").addEventListener("click", asy
 
     carregarDetalhesOrcamentos(conteudoGeral);
 });
+
+async function buscarResumo() {
+  return await fetchComToken("/main/orcamentos/resumo");
+}
+
+async function atualizarResumo() {
+    const dadosResumo = await buscarResumo();
+    document.getElementById("orcamentosTotal").textContent = dadosResumo.orcamentos;
+    document.getElementById("orcamentosPendentes").textContent = dadosResumo.orcamentosAbertos;
+    document.getElementById("orcamentosProposta").textContent = dadosResumo.orcamentosProposta;
+    document.getElementById("orcamentosEmAndamento").textContent = dadosResumo.orcamentosEmAndamento;
+    document.getElementById("orcamentosFechados").textContent = dadosResumo.orcamentosFechados;
+    document.getElementById("orcamentosRecusados").textContent = dadosResumo.orcamentosRecusados;
+    // document.getElementById("orcamentosPedidos").textContent = dadosResumo.orcamentosPedidos;
+}
+
 
 // function renderizarEstruturaAbasOrcamentos(container, dadosExtra, dadosAdic) {
 //     container.innerHTML = `
@@ -3533,18 +3613,6 @@ document.getElementById("cardContainerOrcamentos").addEventListener("click", asy
 // });
 
 // Seu Listener de Evento (sem modificação)
-
-async function atualizarResumo() {
-  const dadosResumo = await buscarResumo();
-  document.getElementById("orcamentosTotal").textContent = dadosResumo.orcamentos;
-  document.getElementById("orcamentosPendentes").textContent = dadosResumo.orcamentosAbertos;
-  document.getElementById("orcamentosProposta").textContent = dadosResumo.orcamentosProposta;
-  document.getElementById("orcamentosEmAndamento").textContent = dadosResumo.orcamentosEmAndamento;
-  document.getElementById("orcamentosFechados").textContent = dadosResumo.orcamentosFechados;
-  document.getElementById("orcamentosRecusados").textContent = dadosResumo.orcamentosRecusados;
- // document.getElementById("orcamentosPedidos").textContent = dadosResumo.orcamentosPedidos;
-}
-
 
 
 // ==============================================================================================

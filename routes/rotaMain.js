@@ -8,67 +8,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-router.get("/", async (req, res) => {
-  const idempresa = req.headers.idempresa || req.query.idempresa;
-  console.log("ROTA MAIN - idempresa recebido:", idempresa);
 
-  // Total de orçamentos
-  const { rows: orcamentosTotal } = await pool.query(
-  `SELECT COUNT(*)::int AS total
-   FROM orcamentos o
-   JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-   WHERE oe.idempresa = $1`, [idempresa]
-  );
-
-  // Orçamentos abertos (status = 'A')
-  const { rows: orcamentosAbertos } = await pool.query(
-  `SELECT COUNT(*)::int AS total
-   FROM orcamentos o
-   JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-   WHERE oe.idempresa = $1 AND o.status = 'A'`, [idempresa]
-  );
-
-  const { rows: orcamentosProposta } = await pool.query(
-  `SELECT COUNT(*)::int AS total
-   FROM orcamentos o
-   JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-   WHERE oe.idempresa = $1 AND o.status = 'P'`, [idempresa]
-  );
-
-  const { rows: orcamentosRecusados } = await pool.query(
-  `SELECT COUNT(*)::int AS total
-   FROM orcamentos o
-   JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-   WHERE oe.idempresa = $1 AND o.status = 'R'`, [idempresa]
-  );
-
-  const { rows: orcamentosEmAndamento } = await pool.query(
-  `SELECT COUNT(*)::int AS total
-   FROM orcamentos o
-   JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-   WHERE oe.idempresa = $1 AND o.status = 'E'`, [idempresa]
-  );
-
-  // Orçamentos fechados (status = 'F')
-  const { rows: orcamentosFechados } = await pool.query(
-  `SELECT COUNT(*)::int AS total
-   FROM orcamentos o
-   JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-   WHERE oe.idempresa = $1 AND o.status = 'F'`, [idempresa]
-  );
-
-  // ... (demais queries para eventos, clientes, etc)
-
-  res.json({
-  orcamentos: orcamentosTotal[0].total,
-  orcamentosAbertos: orcamentosAbertos[0].total,
-  orcamentosProposta: orcamentosProposta[0].total,
-  orcamentosEmAndamento: orcamentosEmAndamento[0].total,
-  orcamentosRecusados: orcamentosRecusados[0].total,
-  orcamentosFechados: orcamentosFechados[0].total,
-  // eventos, clientes, pedidos, pedidosPendentes...
-  });
-});
 
 router.get("/extra-bonificado", async (req, res) => {
     
@@ -884,51 +824,77 @@ router.get("/ListarFuncionarios", async (req, res) => {
 // ORCAMENTOS
 // =======================================
 router.get("/orcamentos", async (req, res) => {
-    let sql = "";
     try {
         const idempresa = req.headers.idempresa || req.query.idempresa;
-        const { status, periodo, dataRef, mes } = req.query;
-        const anoCorrente = 2026;
+        const { status, periodo, dataRef, dataFim, valorFiltro, ano } = req.query;
+        
+        // Define o ano base (padrão 2026)
+        const anoParaBusca = ano ? parseInt(ano) : 2026;
 
         if (!idempresa) return res.status(400).json({ error: "idempresa não fornecido" });
 
         const mapaStatus = {
-            'aberto': 'A', 'negociação': 'P', 'aprovado': 'E', 'fechado': 'F', 'recusado': 'R'
+            'aberto': 'A', 'proposta': 'P', 'em andamento': 'E', 'fechado': 'F', 'recusado': 'R'
         };
 
-        sql = `
-            SELECT 
-                o.idorcamento, o.nrorcamento, o.status, o.totgeralcto, o.nomenclatura,
-                o.dtinimarcacao, 
-                o.dtfimdesmontagem, 
-                o.dtfiminfradesmontagem,
-                e.nmevento as nome_evento,
-                -- Pega a maior data entre as duas desmontagens para o fim do ciclo
-                GREATEST(COALESCE(o.dtfimdesmontagem, '1900-01-01'), COALESCE(o.dtfiminfradesmontagem, '1900-01-01')) as data_final_ciclo
+        // 1. Base da Query
+        let sql = `
+            SELECT o.*, e.nmevento as nome_evento,
+            GREATEST(COALESCE(o.dtfimdesmontagem, '1900-01-01'), COALESCE(o.dtfiminfradesmontagem, '1900-01-01')) as data_final_ciclo
             FROM orcamentos o
             JOIN eventos e ON o.idevento = e.idevento
             JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
             WHERE oe.idempresa = $1 
-            AND EXTRACT(YEAR FROM o.dtinimarcacao) = $2
         `;
         
-        const params = [idempresa, anoCorrente];
+        const params = [idempresa];
 
-        if (status && mapaStatus[status.toLowerCase()]) {
+        // 2. Lógica de Filtro de Período (Ajuste Semanal)
+        if (periodo === 'semanal' && dataRef && dataFim) {
+            // No semanal, ignoramos o EXTRACT YEAR e usamos BETWEEN para não vazar meses
+            params.push(dataRef, dataFim);
+            sql += ` AND o.dtinimarcacao::date BETWEEN $${params.length - 1} AND $${params.length}`;
+        } else {
+            // Para todos os outros filtros, mantemos a trava do Ano selecionado
+            params.push(anoParaBusca);
+            sql += ` AND EXTRACT(YEAR FROM o.dtinimarcacao) = $${params.length}`;
+
+            if (periodo === 'diario' && dataRef) {
+                params.push(dataRef);
+                sql += ` AND o.dtinimarcacao::date = $${params.length}`;
+            } else if (periodo === 'mensal' && valorFiltro) {
+                params.push(parseInt(valorFiltro));
+                sql += ` AND EXTRACT(MONTH FROM o.dtinimarcacao) = $${params.length}`;
+            } else if (periodo === 'trimestral' && valorFiltro) {
+                params.push(parseInt(valorFiltro));
+                sql += ` AND EXTRACT(QUARTER FROM o.dtinimarcacao) = $${params.length}`;
+            } else if (periodo === 'semestral' && valorFiltro) {
+                if (parseInt(valorFiltro) === 1) {
+                    sql += ` AND EXTRACT(MONTH FROM o.dtinimarcacao) BETWEEN 1 AND 6`;
+                } else {
+                    sql += ` AND EXTRACT(MONTH FROM o.dtinimarcacao) BETWEEN 7 AND 12`;
+                }
+            }
+        }
+
+        // 3. Filtro de Status (Se não for "todos")
+        if (status && status !== 'todos' && mapaStatus[status.toLowerCase()]) {
             params.push(mapaStatus[status.toLowerCase()]);
             sql += ` AND o.status = $${params.length}`;
         }
 
-        // Filtros de busca (Baseados na data de marcação/início)
-        if (periodo === 'diario' && dataRef) {
-            params.push(dataRef);
-            sql += ` AND o.dtinimarcacao::date = $${params.length}`;
-        } else if (periodo === 'mensal' && mes) {
-            params.push(parseInt(mes));
-            sql += ` AND EXTRACT(MONTH FROM o.dtinimarcacao) = $${params.length}`;
-        }
-
-        sql += ` ORDER BY o.dtinimarcacao DESC`;
+        // 4. ORGANIZAÇÃO GLOBAL (Status primeiro, depois Data do Orçamento)
+        // Isso garante que independente do filtro, a ordem F, E, P, A, R seja respeitada
+        sql += ` ORDER BY 
+            CASE o.status
+                WHEN 'F' THEN 1
+                WHEN 'E' THEN 2
+                WHEN 'P' THEN 3
+                WHEN 'A' THEN 4
+                WHEN 'R' THEN 5
+                ELSE 6
+            END ASC, 
+            o.dtinimarcacao ASC`;
 
         const { rows } = await pool.query(sql, params);
         res.json(rows);
@@ -938,6 +904,43 @@ router.get("/orcamentos", async (req, res) => {
         res.status(500).json({ error: "Erro interno no servidor." });
     }
 });
+
+router.get("/orcamentos/resumo", async (req, res) => {
+  try {
+    const idempresa = req.headers.idempresa || req.query.idempresa;
+    
+    if (!idempresa) {
+      return res.status(400).json({ error: "idempresa não fornecido" });
+    }
+
+    console.log("ROTA MAIN - idempresa recebido:", idempresa);
+
+    // Query única para performance máxima e filtro de ano atual
+    const sql = `
+      SELECT 
+        COUNT(*)::int AS orcamentos,
+        COUNT(*) FILTER (WHERE o.status = 'A')::int AS "orcamentosAbertos",
+        COUNT(*) FILTER (WHERE o.status = 'P')::int AS "orcamentosProposta",
+        COUNT(*) FILTER (WHERE o.status = 'E')::int AS "orcamentosEmAndamento",
+        COUNT(*) FILTER (WHERE o.status = 'F')::int AS "orcamentosFechados",
+        COUNT(*) FILTER (WHERE o.status = 'R')::int AS "orcamentosRecusados"
+      FROM orcamentos o
+      JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+      WHERE oe.idempresa = $1 
+      AND EXTRACT(YEAR FROM o.dtinimarcacao) = EXTRACT(YEAR FROM CURRENT_DATE)
+    `;
+
+    const { rows } = await pool.query(sql, [idempresa]);
+
+    // O objeto retornado já terá o formato esperado pelo seu frontend
+    res.json(rows[0]);
+
+  } catch (err) {
+    console.error("❌ Erro na rota principal:", err.message);
+    res.status(500).json({ error: "Erro interno no servidor." });
+  }
+});
+
 // =======================================
 
 // =======================================
