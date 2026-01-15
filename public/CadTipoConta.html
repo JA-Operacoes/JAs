@@ -1,38 +1,38 @@
 <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
-<link rel="stylesheet" href="css/Modal/CadCentroCusto.css">
+<link rel="stylesheet" href="css/Modal/CadTipoConta.css">
 <link rel="stylesheet" href="css/Roots/Roots.css">
 
-<div id="cadModalCentroCusto" class="modal">
+<div id="cadModalTipoConta" class="modal">
   <div class="modal-content"> 
         
         <div class="Close"><button class="close" id="Fechar"> X </button></div>
 
-        <div id ="form-centroCusto">             
+        <div id ="form-tipoconta">             
             
             <div class = "title">
-                <h1>Cadastro de Centro de Custo</h1>
+                <h1>Cadastro de Tipo de Contas</h1>
             </div>
 
             <form  method="post"  id="form" name="form" autocomplete="on">
     
                 <fieldset>
-                    <legend>Cadastre o Centro de Custo</legend>
+                    <legend>Cadastre a Conta</legend>
                     <br>
                     <div class="form-3colunas">
                         <div class="form">
-                            <input type="text" name="idCentroCusto" id="idCentroCusto" readonly spellcheck="false">
-                            <label for ="idCentroCusto">Código</label>     
+                            <input type="text" name="idTipoonta" id="idTipoConta" readonly spellcheck="false">
+                            <label for ="idTipoConta">Código</label>     
                         </div>
                         <div class="form">
-                            <input type="text" class="uppercase" name="nmCentroCusto" id="nmCentroCusto"  required spellcheck="false">
-                            <label for = "nmCentroCusto">Nome do Centro de Custo</label>
+                            <input type="text" class="uppercase" name="nmTipoConta" id="nmTipoConta"  required spellcheck="false">
+                            <label for = "nmTipoConta">Tipo da Conta</label>
                         </div>
                         <div class="form-checkbox">
                             <div class="checkbox-wrapper-33">
                                 <label class="checkbox">
-                                    <p class="checkbox__textwrapper">Centro de Custo Ativo</p>
+                                    <p class="checkbox__textwrapper">Tipo Conta Ativa</p>
                                     <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo" checked />
                                     <span class="checkbox__symbol">
                                         <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
@@ -42,14 +42,7 @@
                                 </label>
                             </div>
                         </div>
-                    </div>
-                    
-                    <div class="form">
-                        <div class="user-box">
-                            <select id="empresaSelect" name="idempresa" required class="form" multiple style="height: 100px;">
-                            </select>                           
-                        </div>
-                    </div>                   
+                    </div> 
                 </fieldset>
             </form>
         </div>

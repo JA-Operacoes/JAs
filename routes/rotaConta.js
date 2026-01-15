@@ -16,6 +16,7 @@ router.get("/", verificarPermissao('Contas', 'pesquisar'), async (req, res) => {
 
   try {
     if (nmConta) {
+      // Retorna idtipoconta agora
       const result = await pool.query(
         `SELECT * FROM contas WHERE idempresa = $1 AND nmconta ILIKE $2 LIMIT 1`,
         [idempresa, nmConta]
@@ -37,8 +38,6 @@ router.get("/", verificarPermissao('Contas', 'pesquisar'), async (req, res) => {
     res.status(500).json({ message: "Erro ao buscar conta" });
   }
 });
-
-// ... (mantenha o início do arquivo igual)
 
 // PUT atualizar
 router.put("/:id", 
@@ -66,17 +65,19 @@ router.put("/:id",
   async (req, res) => {
     const id = req.params.id;
     const idempresa = req.idempresa;
-    // ADICIONADO: tpConta extraído do corpo da requisição
-    const { nmConta, ativo, tpConta } = req.body; 
-
+    
+    // ALTERADO: agora recebe idtipoconta do body (enviado pelo JS como dados)
+    const { nmConta, idtipoconta } = req.body; 
+    const ativo = req.body.ativo === true || req.body.ativo === 'true';
+    
     try {
-        // ATUALIZADO: Query agora inclui tpconta
+        // ATUALIZADO: Query usando a nova coluna idtipoconta
         const result = await pool.query(
           `UPDATE contas 
-           SET nmconta = $1, ativo = $2, tpconta = $3 
+           SET nmconta = $1, ativo = $2, idtipoconta = $3 
            WHERE idconta = $4 AND idempresa = $5 
-           RETURNING idconta, nmconta, ativo, tpconta`, 
-          [nmConta, ativo, tpConta, id, idempresa]
+           RETURNING idconta, nmconta, ativo, idtipoconta`, 
+          [nmConta, ativo, idtipoconta, id, idempresa]
         );
 
         if (result.rowCount) {
@@ -100,25 +101,26 @@ router.post("/", verificarPermissao('Contas', 'cadastrar'),
       }
   }),
   async (req, res) => {
-    // ADICIONADO: tpConta extraído do corpo da requisição
-    const { nmConta, ativo, tpConta } = req.body;
+    // ALTERADO: agora recebe idtipoconta
+    const { nmConta, ativo, idtipoconta } = req.body;
     const idempresa = req.idempresa;
 
     try {
-        // ATUALIZADO: Query agora inclui tpconta no INSERT
+        // ATUALIZADO: Query usando idtipoconta no INSERT
         const result = await pool.query(
-            "INSERT INTO contas (nmconta, ativo, idempresa, tpconta) VALUES ($1, $2, $3, $4) RETURNING idconta, nmconta", 
-            [nmConta, ativo, idempresa, tpConta]
+            "INSERT INTO contas (nmconta, ativo, idempresa, idtipoconta) VALUES ($1, $2, $3, $4) RETURNING idconta, nmconta, idtipoconta", 
+            [nmConta, ativo, idempresa, idtipoconta]
         );
 
         const novaConta = result.rows[0];
         res.locals.acao = 'cadastrou';
         res.locals.idregistroalterado = novaConta.idconta; 
 
-        res.status(201).json({ mensagem: "Conta salva com sucesso!", conta: novaConta });
+        // Padronizado para 'message' para facilitar no Frontend
+        res.status(201).json({ message: "Conta salva com sucesso!", conta: novaConta });
     } catch (error) {
         console.error("Erro ao salvar conta:", error);
-        res.status(500).json({ erro: "Erro ao salvar conta.", detail: error.message });
+        res.status(500).json({ message: "Erro ao salvar conta.", detail: error.message });
     }
 });
 
