@@ -1205,16 +1205,29 @@ router.get("/orcamentos", async (req, res) => {
         const idempresa = req.headers.idempresa || req.query.idempresa;
         const { status, periodo, dataRef, dataFim, valorFiltro, ano } = req.query;
         
-        // Define o ano base (padrão 2026)
-        const anoParaBusca = ano ? parseInt(ano) : 2026;
-
         if (!idempresa) return res.status(400).json({ error: "idempresa não fornecido" });
+
+        // --- CORREÇÃO DA LÓGICA DE CAPTURA DO ANO ---
+        let anoParaBusca;
+        
+        if (ano) {
+            // Se vier explicitamente no ?ano=
+            anoParaBusca = parseInt(ano);
+        } else if (periodo === 'anual' && valorFiltro) {
+            // Se vier como ?periodo=anual&valorFiltro=2025 (como no seu log)
+            anoParaBusca = parseInt(valorFiltro);
+        } else {
+            // Fallback para o ano atual do sistema
+            anoParaBusca = new Date().getFullYear();
+        }
+
+        // LOG DE VERIFICAÇÃO ATUALIZADO
+        console.log(`>>> LOG CORRIGIDO - Empresa: ${idempresa} | Periodo: ${periodo} | ValorFiltro: ${valorFiltro} | Ano Final: ${anoParaBusca}`);
 
         const mapaStatus = {
             'aberto': 'A', 'proposta': 'P', 'em andamento': 'E', 'fechado': 'F', 'recusado': 'R'
         };
 
-        // 1. Base da Query
         let sql = `
             SELECT o.*, e.nmevento as nome_evento,
             GREATEST(COALESCE(o.dtfimdesmontagem, '1900-01-01'), COALESCE(o.dtfiminfradesmontagem, '1900-01-01')) as data_final_ciclo
@@ -1226,13 +1239,12 @@ router.get("/orcamentos", async (req, res) => {
         
         const params = [idempresa];
 
-        // 2. Lógica de Filtro de Período (Ajuste Semanal)
+        // Filtro de Período
         if (periodo === 'semanal' && dataRef && dataFim) {
-            // No semanal, ignoramos o EXTRACT YEAR e usamos BETWEEN para não vazar meses
             params.push(dataRef, dataFim);
             sql += ` AND o.dtinimarcacao::date BETWEEN $${params.length - 1} AND $${params.length}`;
         } else {
-            // Para todos os outros filtros, mantemos a trava do Ano selecionado
+            // Aplica o ano capturado dinamicamente
             params.push(anoParaBusca);
             sql += ` AND EXTRACT(YEAR FROM o.dtinimarcacao) = $${params.length}`;
 
@@ -1254,14 +1266,12 @@ router.get("/orcamentos", async (req, res) => {
             }
         }
 
-        // 3. Filtro de Status (Se não for "todos")
+        // Filtro de Status
         if (status && status !== 'todos' && mapaStatus[status.toLowerCase()]) {
             params.push(mapaStatus[status.toLowerCase()]);
             sql += ` AND o.status = $${params.length}`;
         }
 
-        // 4. ORGANIZAÇÃO GLOBAL (Status primeiro, depois Data do Orçamento)
-        // Isso garante que independente do filtro, a ordem F, E, P, A, R seja respeitada
         sql += ` ORDER BY 
             CASE o.status
                 WHEN 'F' THEN 1
@@ -1281,7 +1291,6 @@ router.get("/orcamentos", async (req, res) => {
         res.status(500).json({ error: "Erro interno no servidor." });
     }
 });
-
 router.get("/orcamentos/resumo", async (req, res) => {
   try {
     const idempresa = req.headers.idempresa || req.query.idempresa;
