@@ -929,105 +929,126 @@ document.addEventListener("DOMContentLoaded", function () {
 
 async function atualizarProximoEvento() {
   const resposta = await fetchComToken("/main/proximo-evento", {
-  headers: { idempresa: getIdEmpresa() }
+    headers: { idempresa: getIdEmpresa() }
   });
 
   const nomeSpan = document.getElementById("proximoEventoNome");
   const tempoSmall = document.getElementById("proximoEventoTempo");
 
   if (!resposta.eventos || resposta.eventos.length === 0) {
-  nomeSpan.textContent = "Sem próximos eventos agendados.";
-  tempoSmall.textContent = "--";
-  return;
-  }
-
-  // Função para criar Date no fuso local a partir de "YYYY-MM-DD"
-    function parseDateLocal(dateStr) {
-        if (typeof dateStr === "string") {
-            if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-                const [y, m, d] = dateStr.split("-").map(Number);
-                return new Date(y, m - 1, d);
-            }
-            return new Date(dateStr); // ISO
-        }
-        return new Date(dateStr); // Já é Date
-    }
-
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-
-    let proximos = resposta.eventos
-    .map(ev => ({ ...ev, data: parseDateLocal(ev.data) }))
-    .filter(ev => ev.data.getTime() >= hoje.getTime());
-
-    if (proximos.length === 0) {
     nomeSpan.textContent = "Sem próximos eventos agendados.";
     tempoSmall.textContent = "--";
     return;
-    }
+  }
 
-    function formatarTempoRestante(dataEvento) {
+  // Função para criar Date no fuso local (evita erros de fuso horário)
+  function parseDateLocal(dateStr) {
+    if (!dateStr) return null;
+    if (typeof dateStr === "string") {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        const [y, m, d] = dateStr.split("-").map(Number);
+        return new Date(y, m - 1, d);
+      }
+      return new Date(dateStr);
+    }
+    return new Date(dateStr);
+  }
+
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  // 1. Processar eventos e identificar a fase mais próxima (Marcação, Montagem ou Realização)
+  let proximos = resposta.eventos.map(ev => {
+    const fases = [
+      { nome: "Marcação", data: parseDateLocal(ev.dtinimarcacao) },
+      { nome: "Montagem", data: parseDateLocal(ev.dtinimontagem) },
+      { nome: "Realização", data: parseDateLocal(ev.dtinirealizacao) }
+    ]
+    .filter(f => f.data && f.data.getTime() >= hoje.getTime())
+    .sort((a, b) => a.data - b.data);
+
+    // Se não houver fase futura, usa a Marcação como padrão
+    const faseAtiva = fases[0] || { nome: "Evento", data: parseDateLocal(ev.dtinimarcacao) };
+
+    return {
+      nmevento: ev.nmevento,
+      faseNome: faseAtiva.nome,
+      data: faseAtiva.data
+    };
+  })
+  .filter(ev => ev.data && ev.data.getTime() >= hoje.getTime())
+  .sort((a, b) => a.data - b.data);
+
+  if (proximos.length === 0) {
+    nomeSpan.textContent = "Sem próximos eventos agendados.";
+    tempoSmall.textContent = "--";
+    return;
+  }
+
+  function formatarTempoRestante(dataEvento) {
     const hojeTmp = new Date();
-    hojeTmp.setHours(0,0,0,0);
+    hojeTmp.setHours(0, 0, 0, 0);
     const diffDias = Math.round((dataEvento - hojeTmp) / (1000 * 60 * 60 * 24));
     if (diffDias > 0) return `(em ${diffDias} dia${diffDias > 1 ? "s" : ""})`;
-    else if (diffDias === 0) return "(hoje)";
-    else return "(já começou)";
-    }
+    if (diffDias === 0) return "(hoje)";
+    return "(em andamento)";
+  }
 
-    const limite = new Date();
-    limite.setDate(hoje.getDate() + 5);
+  // --- LÓGICA DE EXIBIÇÃO ---
 
-    const proximos5Dias = proximos.filter(ev => ev.data <= limite);
-
-    if (proximos5Dias.length === 1) {
-    // Caso 1: apenas 1 evento
-    const ev = proximos5Dias[0];
-    nomeSpan.textContent = ev.nmevento;
-    tempoSmall.textContent = `${ev.data.toLocaleDateString()} ${formatarTempoRestante(ev.data)}`;
-    nomeSpan.style.fontSize = "1.5em";
-    } else {
-    // Caso 2: mais de 1 evento → ajustar fonte menor
+  // CASO 1: Poucos eventos (1 ou 2) -> Exibição detalhada com nome da fase
+  if (proximos.length <= 2) {
+    nomeSpan.style.fontSize = "1.3em";
+    nomeSpan.innerHTML = proximos.map(ev => {
+      return `
+        <div style="margin-bottom: 8px;">
+          <strong>${ev.nmevento}</strong><br>
+          <small style="font-size: 0.7em; color: var(--primary-color);">
+            Início ${ev.faseNome}: ${ev.data.toLocaleDateString()} ${formatarTempoRestante(ev.data)}
+          </small>
+        </div>
+      `;
+    }).join("");
+    tempoSmall.textContent = ""; 
+  } 
+  
+  // CASO 2: Muitos eventos -> Exibição em lista resumida
+  else {
     nomeSpan.style.fontSize = "1em";
-
     const eventosPorData = {};
-    proximos5Dias.forEach(ev => {
-    const dataStr = ev.data.toLocaleDateString();
-    if (!eventosPorData[dataStr]) eventosPorData[dataStr] = [];
-    eventosPorData[dataStr].push(ev.nmevento);
+    
+    // Limita a exibição aos primeiros 4 para não esticar o card
+    const listaReduzida = proximos.slice(0, 4);
+
+    listaReduzida.forEach(ev => {
+      const dataStr = ev.data.toLocaleDateString();
+      if (!eventosPorData[dataStr]) eventosPorData[dataStr] = [];
+      eventosPorData[dataStr].push(ev);
     });
 
-    const datas = Object.keys(eventosPorData).sort((a,b) => {
-    const [da, ma, ya] = a.split("/").map(Number);
-    const [db, mb, yb] = b.split("/").map(Number);
-    return new Date(ya, ma-1, da) - new Date(yb, mb-1, db);
+    const datasOrdenadas = Object.keys(eventosPorData).sort((a, b) => {
+      const [da, ma, ya] = a.split("/").map(Number);
+      const [db, mb, yb] = b.split("/").map(Number);
+      return new Date(ya, ma - 1, da) - new Date(yb, mb - 1, db);
     });
 
-    if (datas.length === 1) {
-    // Todos no mesmo dia
-    const lista = eventosPorData[datas[0]];
-    let nomes = "";
-    if (lista.length <= 3) {
-    nomes = lista.join(" | ");
-    } else {
-    const primeiros = lista.slice(0, 3).join(" | ");
-    const restantes = lista.length - 3;
-    nomes = `${primeiros} | +${restantes}`;
-    }
-    nomeSpan.textContent = nomes;
-    tempoSmall.textContent = `${datas[0]} ${formatarTempoRestante(proximos5Dias[0].data)}`;
-    } else {
-    // Dias diferentes
-    nomeSpan.innerHTML = datas.map(dataStr => {
-    const [d, m, y] = dataStr.split("/").map(Number);
-    const dataObj = new Date(y, m-1, d);
-    return eventosPorData[dataStr]
-    .map(nome => `${nome} - ${dataStr} ${formatarTempoRestante(dataObj)}`)
-    .join("<br>");
+    nomeSpan.innerHTML = datasOrdenadas.map(dataStr => {
+      const eventosDoDia = eventosPorData[dataStr];
+      const dataObj = eventosDoDia[0].data;
+      
+      // Se houver mais de um evento no mesmo dia, resume
+      if (eventosDoDia.length > 1) {
+        return `• ${eventosDoDia[0].nmevento} +${eventosDoDia.length - 1} - ${dataStr}`;
+      }
+      return `• ${eventosDoDia[0].nmevento} - ${dataStr}`;
     }).join("<br>");
-    tempoSmall.textContent = "";
+
+    if (proximos.length > 4) {
+      nomeSpan.innerHTML += `<br><small>... e mais ${proximos.length - 4} compromissos</small>`;
     }
-    }
+
+    tempoSmall.textContent = "Próximas atividades";
+  }
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -1829,107 +1850,168 @@ async function mostrarEventosEmAberto() {
  // ======= HEADER =======
  const header = document.createElement("div");
  header.className = "header-eventos-em-aberto";
- header.textContent = "⚠ Eventos em Aberto";
+ header.textContent = "Eventos em Aberto";
+//  header.textContent = "Painel Operacional";
  container.appendChild(header);
 
 // const FiltrosVencimentos = criarControlesDeFiltro();
 // container.appendChild(FiltrosVencimentos); 
 
- // ======= ABAS =======
- const abas = document.createElement("div");
- abas.className = "abas-eventos";
- abas.innerHTML = `
-  <div class="aba ativo" data-target="abertos">Abertos</div>
-  <div class="aba" data-target="finalizados">Encerrados</div>
- `;
- container.appendChild(abas);
+// ======= SUBSTITUIÇÃO DA SEÇÃO DE ABAS PELOS FILTROS =======
 
- // ======= CONTEÚDOS DAS ABAS =======
- const conteudos = document.createElement("div");
- conteudos.className = "conteudos-abas";
+// 1. Criamos o container que receberá a lista de cards
+const conteudoGeral = document.createElement("div");
+conteudoGeral.className = "conteudo-geral-eventos ativo";
+conteudoGeral.style.marginTop = "40px";
 
- const abaAbertos = document.createElement("div");
- abaAbertos.className = "conteudo-aba ativo";
- abaAbertos.id = "abertos";
+// 2. Criamos o componente de filtros (Status, Período e Data/Mês/Ano)
+// Esta função gerencia as trocas e chama o carregamento automaticamente
+const filtros = criarFiltrosEventoCompletos(conteudoGeral);
 
- const abaFinalizados = document.createElement("div");
- abaFinalizados.className = "conteudo-aba";
- abaFinalizados.id = "finalizados";
+// 3. Adicionamos ao container principal
+container.appendChild(filtros);
+container.appendChild(conteudoGeral);
+painel.appendChild(container);
 
- conteudos.appendChild(abaAbertos);
- conteudos.appendChild(abaFinalizados);
- container.appendChild(conteudos);
- painel.appendChild(container);
+// 4. Disparamos a carga inicial
+carregarDetalhesEventos(conteudoGeral);
 
- // ------------------------------------------------------------------
- // ======= EVENTO DE TROCA DE ABAS - CORRIGIDO =======
- // ------------------------------------------------------------------
-abas.querySelectorAll(".aba").forEach(btn => {
-    btn.addEventListener("click", async () => {
-        const target = btn.dataset.target; 
-        const targetEl = document.getElementById(target);
-        const idempresa = localStorage.getItem("idempresa");
+// ------------------------------------------------------------------
+// ======= FUNÇÃO DE FILTROS (LÓGICA UNIFICADA) =======
+// ------------------------------------------------------------------
 
-        // 1. Troca visual de abas
-        abas.querySelectorAll(".aba").forEach(b => b.classList.remove("ativo"));
-        btn.classList.add("ativo");
-        conteudos.querySelectorAll(".conteudo-aba").forEach(c => c.classList.remove("ativo"));
-        targetEl.classList.add("ativo");
+function criarFiltrosEventoCompletos(conteudoGeral) {
+    const filtrosContainer = document.createElement("div");
+    filtrosContainer.className = "filtros-Evt Evt-container";
 
-        // 2. Lógica para Encerrados (Finalizados)
-        if (target === "finalizados") {
-            targetEl.innerHTML = ""; // Limpa anterior
+    const wrapperUnificado = document.createElement("div");
+    wrapperUnificado.style.display = "flex";
+    wrapperUnificado.style.flexWrap = "wrap";
+    wrapperUnificado.style.gap = "20px";
 
-            // Renderiza o componente Select
-            const filtroAnoCont = criarFiltroAnoCustom();
-            targetEl.appendChild(filtroAnoCont);
+    // --- FILTRO STATUS (Substitui as abas Abertos/Encerrados) ---
+    const grupoStatus = document.createElement("div");
+    grupoStatus.className = "filtro-grupo";
+    grupoStatus.innerHTML = `
+        <label class="label-select">Visualizar Eventos</label>
+        <div class="wrapper" style="width: 253px;"> 
+            <div class="option" style="width: 120px;">
+                <input checked value="abertos" name="statusEvt" type="radio" class="input" />
+                <div class="btn"><span class="span">Abertos</span></div>
+            </div>
+            <div class="option" style="width: 120px;">
+                <input value="encerrados" name="statusEvt" type="radio" class="input" />
+                <div class="btn"><span class="span">Encerrados</span></div>
+            </div>
+        </div>`;
 
-            // Container onde a lista de cards aparecerá
-            const listaCont = document.createElement("div");
-            listaCont.className = "lista-eventos-fechados";
-            targetEl.appendChild(listaCont);
+    // --- FILTRO PERÍODO (Diário, Semanal, Mensal, Anual) ---
+    const grupoPeriodo = document.createElement("div");
+    grupoPeriodo.className = "filtro-grupo";
+    grupoPeriodo.innerHTML = `
+        <label class="label-select">Período</label>
+        <div class="wrapper" style="width: 400px;">
+            ${['diario', 'semanal', 'mensal', 'Trimestral', 'Semestral', 'anual'].map((p, i) => `
+                <div class="option" style="width: 60px;">
+                    <input ${i===2?'checked':''} value="${p}" name="periodoEvt" type="radio" class="input" />
+                    <div class="btn"><span class="span">${p.charAt(0).toUpperCase()+p.slice(1)}</span></div>
+                </div>
+            `).join('')}
+        </div>`;
 
-            const carregarDadosFechados = async () => {
-                const select = document.getElementById("filtroAnoSelect");
-                const ano = select ? select.value : new Date().getFullYear();
-                
-                listaCont.innerHTML = `<div class="loading-spinner">Carregando eventos de ${ano}...</div>`;
-                
-                try {
-                    const resp = await fetchComToken(`/main/eventos-fechados?ano=${ano}`, { headers: { idempresa } });
-                    const eventos = resp && typeof resp.json === 'function' ? await resp.json() : resp;
-                    
-                    // Usa sua função existente de renderização para manter os cards e alertas
-                    renderizarEventos(listaCont, eventos);
-                } catch (err) {
-                    console.error("Erro ao carregar encerrados:", err);
-                    listaCont.innerHTML = `<div class="erro-carregar">Erro ao buscar eventos de ${ano}.</div>`;
-                }
-            };
+    // Container para o sub-filtro dinâmico (Input Date ou Select Mês/Ano)
+    const subFiltroWrapper = document.createElement("div");
+    subFiltroWrapper.id = "sub-filtro-evt-wrapper";
+    subFiltroWrapper.className = "filtro-grupo";
 
-            // Evento de mudança no Select
-            const selectElement = filtroAnoCont.querySelector("#filtroAnoSelect");
-            selectElement.addEventListener("change", carregarDadosFechados);
+    wrapperUnificado.appendChild(grupoStatus);
+    wrapperUnificado.appendChild(grupoPeriodo);
+    wrapperUnificado.appendChild(subFiltroWrapper);
+    filtrosContainer.appendChild(wrapperUnificado);
 
-            // Carga inicial do ano atual
-            carregarDadosFechados();
+    // Lógica para mudar o seletor de data/mês conforme o período
+    const atualizarSubFiltroInterno = (tipo) => {
+        subFiltroWrapper.innerHTML = "";
+        const anoAtual = 2026; // Conforme seu código base
 
-        } else {
-            // 3. Lógica para Abertos (Se clicar de volta)
-            if (!targetEl.dataset.populado) {
-                targetEl.innerHTML = `<div class="loading-spinner">Carregando abertos...</div>`;
-                try {
-                    const resp = await fetchComToken(`/main/eventos-abertos`, { headers: { idempresa } });
-                    const eventos = resp && typeof resp.json === 'function' ? await resp.json() : resp;
-                    renderizarEventos(targetEl, eventos);
-                    targetEl.dataset.populado = "1";
-                } catch (err) {
-                    targetEl.innerHTML = `<div class="erro-carregar">Erro ao buscar abertos.</div>`;
-                }
-            }
+        if (tipo === "diario" || tipo === "semanal") {
+            const hoje = new Date().toISOString().split("T")[0];
+            subFiltroWrapper.innerHTML = `
+                <label class="label-select">Data Base</label>
+                <div class="wrapper select-wrapper">
+                    <input type="date" id="sub-filtro-data-evt" class="input-data-simples" value="${hoje}">
+                </div>`;
+        } 
+        else if (tipo === "mensal") {
+        let options = "";
+        const mesAtual = new Date().getMonth() + 1;
+        const nomes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+        nomes.forEach((nome, i) => {
+            options += `<option value="${i + 1}" ${i + 1 === mesAtual ? 'selected' : ''}>${nome} / ${anoAtual}</option>`;
+        });
+        subFiltroWrapper.innerHTML = `<label class="label-select">Mês</label><div class="wrapper select-wrapper"><select id="sub-filtro-select-evt" class="select-simples">${options}</select></div>`;
+    }
+        else if (tipo === "Trimestral") {
+            const trimAtual = Math.floor(new Date().getMonth() / 3) + 1;
+            let options = "";
+            ["1º Trimestre (Jan-Mar)", "2º Trimestre (Abr-Jun)", "3º Trimestre (Jul-Set)", "4º Trimestre (Out-Dez)"].forEach((t, i) => {
+                options += `<option value="${i + 1}" ${i + 1 === trimAtual ? 'selected' : ''}>${t}</option>`;
+            });
+            subFiltroWrapper.innerHTML = `<label class="label-select">Trimestre</label><div class="wrapper select-wrapper"><select id="sub-filtro-select-evt" class="select-simples">${options}</select></div>`;
+        } 
+        else if (tipo === "Semestral") {
+            const semAtual = new Date().getMonth() < 6 ? 1 : 2;
+            let options = `
+                <option value="1" ${semAtual === 1 ? 'selected' : ''}>1º Semestre (Jan-Jun)</option>
+                <option value="2" ${semAtual === 2 ? 'selected' : ''}>2º Semestre (Jul-Dez)</option>`;
+            subFiltroWrapper.innerHTML = `<label class="label-select">Semestre</label><div class="wrapper select-wrapper"><select id="sub-filtro-select-evt" class="select-simples">${options}</select></div>`;
+        } 
+        else if (tipo === "anual") {
+            subFiltroWrapper.innerHTML = `<label class="label-select">Ano</label><div class="wrapper select-wrapper"><select id="sub-filtro-select-evt" class="select-simples"><option value="2025">2025</option><option value="2026" selected>2026</option><option value="2027">2027</option></select></div>`;
         }
+
+        // Reatribui o evento de mudança para disparar a busca
+        subFiltroWrapper.querySelectorAll("input, select").forEach(el => {
+            el.addEventListener("change", () => carregarDetalhesEventos(conteudoGeral));
+        });
+    };
+
+    // Eventos para rádio buttons (Status e Período)
+    [grupoStatus, grupoPeriodo].forEach(g => {
+        g.querySelectorAll("input").forEach(i => i.addEventListener("change", (e) => {
+            if (e.target.name === 'periodoEvt') atualizarSubFiltroInterno(e.target.value);
+            carregarDetalhesEventos(conteudoGeral);
+        }));
     });
-});
+
+    atualizarSubFiltroInterno("mensal");
+    return filtrosContainer;
+}
+
+async function carregarDetalhesEventos(targetEl) {
+    const idempresa = localStorage.getItem("idempresa");
+    const status = document.querySelector('input[name="statusEvt"]:checked')?.value;
+    const periodo = document.querySelector('input[name="periodoEvt"]:checked')?.value;
+    const subEl = document.getElementById("sub-filtro-data-evt") || document.getElementById("sub-filtro-select-evt");
+    const valorSub = subEl ? subEl.value : "";
+
+    targetEl.innerHTML = `<div class="loading-spinner">Carregando eventos...</div>`;
+
+    try {
+        // Define a rota baseada no filtro de Status
+        const rota = status === "abertos" ? "/main/eventos-abertos" : "/main/eventos-fechados";
+        
+        const resp = await fetchComToken(`${rota}?periodo=${periodo}&valor=${valorSub}`, { headers: { idempresa } });
+        const eventos = resp && typeof resp.json === 'function' ? await resp.json() : resp;
+
+        // Reutiliza sua função de renderização existente para manter o visual dos cards
+        renderizarEventos(targetEl, eventos);
+        
+    } catch (err) {
+        console.error("Erro ao filtrar eventos:", err);
+        targetEl.innerHTML = `<div class="erro-carregar">Erro ao buscar dados.</div>`;
+    }
+}
 
 // FUNÇÃO AUXILIAR PARA EVITAR DUPLICAÇÃO DE CÓDIGO DE RENDERIZAÇÃO
 function renderizarEventos(targetEl, eventos) {
@@ -1962,41 +2044,49 @@ function renderizarEventos(targetEl, eventos) {
   }
   });
 }
- // ------------------------------------------------------------------
- // ======= CARREGAMENTO INICIAL - CORRIGIDO =======
- // ------------------------------------------------------------------
- // REMOVIDAS as declarações eventosAbertos/Finalizados vazias
+try {
+    const idempresa = localStorage.getItem("idempresa");
+    
+    // 1. Busque o container correto (ajuste o ID 'container-eventos' para o seu ID real)
+    const containerEventos = document.getElementById("container-eventos"); 
 
-  try {
-  const idempresa = localStorage.getItem("idempresa");
-  // URL CORRIGIDA PARA A NOVA ROTA ESPECÍFICA
-  const resp = await fetchComToken(`/main/eventos-abertos`, { headers: { idempresa } });
-  const eventos = resp?.ok ? await resp.json() : resp;
+    if (!containerEventos) {
+        console.error("Erro: Container de eventos não encontrado no HTML.");
+        return;
+    }
 
-  if (!Array.isArray(eventos)) {
-  abaAbertos.innerHTML = `<span class="erro-carregar">Erro ao carregar eventos</span>`;
-  console.error("Erro backend: resposta inesperada", eventos);
-  return;
-  }
+    const resp = await fetchComToken(`/main/eventos-abertos`, { headers: { idempresa } });
+    const eventos = resp?.ok ? await resp.json() : resp;
 
-  if (!eventos.length) {
-  abaAbertos.innerHTML = `<span class="nenhum-evento">Nenhum evento em aberto 🎉</span>`;
-  abaAbertos.dataset.populado = "1";
-  return;
-  }
+    // Limpa o container antes de começar
+    containerEventos.innerHTML = "";
 
-  // Transforma eventos para o formato UI e preenche
-  eventos.map(evt => normalizarEvento(evt)).forEach(evt => {
-  abaAbertos.appendChild(criarCard(evt));
-  });
+    if (!Array.isArray(eventos)) {
+        containerEventos.innerHTML = `<span class="erro-carregar">Erro ao carregar eventos</span>`;
+        console.error("Erro backend: resposta inesperada", eventos);
+        return;
+    }
 
-  abaAbertos.dataset.populado = "1"; // Marca como populado
+    if (!eventos.length) {
+        containerEventos.innerHTML = `<span class="nenhum-evento">Nenhum evento em aberto 🎉</span>`;
+        return;
+    }
 
-  } catch (err) {
-  console.error("Erro ao carregar eventos em aberto:", err);
-  abaAbertos.innerHTML = `<span class="erro-carregar">Erro ao buscar eventos</span>`;
-  }
+    // 2. Renderiza os cards no novo container
+    eventos
+        .map(evt => normalizarEvento(evt))
+        .forEach(evt => {
+            containerEventos.appendChild(criarCard(evt));
+        });
 
+} catch (err) {
+    console.error("Erro ao carregar eventos em aberto:", err);
+    // Verificação de segurança caso o erro ocorra antes de definir o container
+    const containerEventos = document.getElementById("container-eventos");
+    if (containerEventos) {
+        containerEventos.innerHTML = `<span class="erro-carregar">Erro ao buscar eventos</span>`;
+    }
+}
 
   // ------------------------------------------------------------------
   // ======= FUNÇÕES AUXILIARES - REORGANIZADAS/SIMPLIFICADAS =======
@@ -2936,6 +3026,8 @@ function abrirDetalhesEquipe(equipe, evento) {
   container.querySelector(".btn-voltar")?.addEventListener("click", voltarParaEquipes);
   container.querySelector(".btn-voltar-rodape")?.addEventListener("click", voltarParaEquipes);
 }
+
+
 
 // =========================
 //    Pedidos Orçamentos 
