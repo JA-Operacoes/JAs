@@ -941,9 +941,7 @@ async function atualizarProximoEvento() {
     return;
   }
 
-  // Função para criar Date no fuso local (evita erros de fuso horário)
   function parseDateLocal(dateStr) {
-    if (!dateStr) return null;
     if (typeof dateStr === "string") {
       if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
         const [y, m, d] = dateStr.split("-").map(Number);
@@ -957,27 +955,10 @@ async function atualizarProximoEvento() {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
-  // 1. Processar eventos e identificar a fase mais próxima (Marcação, Montagem ou Realização)
-  let proximos = resposta.eventos.map(ev => {
-    const fases = [
-      { nome: "Marcação", data: parseDateLocal(ev.dtinimarcacao) },
-      { nome: "Montagem", data: parseDateLocal(ev.dtinimontagem) },
-      { nome: "Realização", data: parseDateLocal(ev.dtinirealizacao) }
-    ]
-    .filter(f => f.data && f.data.getTime() >= hoje.getTime())
-    .sort((a, b) => a.data - b.data);
-
-    // Se não houver fase futura, usa a Marcação como padrão
-    const faseAtiva = fases[0] || { nome: "Evento", data: parseDateLocal(ev.dtinimarcacao) };
-
-    return {
-      nmevento: ev.nmevento,
-      faseNome: faseAtiva.nome,
-      data: faseAtiva.data
-    };
-  })
-  .filter(ev => ev.data && ev.data.getTime() >= hoje.getTime())
-  .sort((a, b) => a.data - b.data);
+  // 1. Pega todos os eventos que ainda não passaram
+  let proximos = resposta.eventos
+    .map(ev => ({ ...ev, data: parseDateLocal(ev.data) }))
+    .filter(ev => ev.data.getTime() >= hoje.getTime());
 
   if (proximos.length === 0) {
     nomeSpan.textContent = "Sem próximos eventos agendados.";
@@ -990,64 +971,61 @@ async function atualizarProximoEvento() {
     hojeTmp.setHours(0, 0, 0, 0);
     const diffDias = Math.round((dataEvento - hojeTmp) / (1000 * 60 * 60 * 24));
     if (diffDias > 0) return `(em ${diffDias} dia${diffDias > 1 ? "s" : ""})`;
-    if (diffDias === 0) return "(hoje)";
-    return "(em andamento)";
+    else if (diffDias === 0) return "(hoje)";
+    else return "(já começou)";
   }
 
-  // --- LÓGICA DE EXIBIÇÃO ---
+  // 2. Tenta filtrar eventos para a "janela de destaque" (7 dias)
+  const limite = new Date();
+  limite.setDate(hoje.getDate() + 7);
+  const proximos7Dias = proximos.filter(ev => ev.data <= limite);
 
-  // CASO 1: Poucos eventos (1 ou 2) -> Exibição detalhada com nome da fase
-  if (proximos.length <= 2) {
+  // LÓGICA DE EXIBIÇÃO
+  if (proximos7Dias.length === 0) {
+    // CASO 0: Não tem nada nos próximos 7 dias? Mostra o primeiro evento futuro que encontrar
+    const ev = proximos[0];
+    nomeSpan.textContent = ev.nmevento;
+    tempoSmall.textContent = `${ev.data.toLocaleDateString()} ${formatarTempoRestante(ev.data)}`;
     nomeSpan.style.fontSize = "1.3em";
-    nomeSpan.innerHTML = proximos.map(ev => {
-      return `
-        <div style="margin-bottom: 8px;">
-          <strong>${ev.nmevento}</strong><br>
-          <small style="font-size: 0.7em; color: var(--primary-color);">
-            Início ${ev.faseNome}: ${ev.data.toLocaleDateString()} ${formatarTempoRestante(ev.data)}
-          </small>
-        </div>
-      `;
-    }).join("");
-    tempoSmall.textContent = ""; 
   } 
-  
-  // CASO 2: Muitos eventos -> Exibição em lista resumida
+  else if (proximos7Dias.length === 1) {
+    // CASO 1: Apenas 1 evento na semana (Destaque máximo)
+    const ev = proximos7Dias[0];
+    nomeSpan.textContent = ev.nmevento;
+    tempoSmall.textContent = `${ev.data.toLocaleDateString()} ${formatarTempoRestante(ev.data)}`;
+    nomeSpan.style.fontSize = "1.5em";
+  } 
   else {
+    // CASO 2: Múltiplos eventos na semana (Lista compacta)
     nomeSpan.style.fontSize = "1em";
     const eventosPorData = {};
-    
-    // Limita a exibição aos primeiros 4 para não esticar o card
-    const listaReduzida = proximos.slice(0, 4);
-
-    listaReduzida.forEach(ev => {
+    proximos7Dias.forEach(ev => {
       const dataStr = ev.data.toLocaleDateString();
       if (!eventosPorData[dataStr]) eventosPorData[dataStr] = [];
-      eventosPorData[dataStr].push(ev);
+      eventosPorData[dataStr].push(ev.nmevento);
     });
 
-    const datasOrdenadas = Object.keys(eventosPorData).sort((a, b) => {
+    const datas = Object.keys(eventosPorData).sort((a, b) => {
       const [da, ma, ya] = a.split("/").map(Number);
       const [db, mb, yb] = b.split("/").map(Number);
       return new Date(ya, ma - 1, da) - new Date(yb, mb - 1, db);
     });
 
-    nomeSpan.innerHTML = datasOrdenadas.map(dataStr => {
-      const eventosDoDia = eventosPorData[dataStr];
-      const dataObj = eventosDoDia[0].data;
-      
-      // Se houver mais de um evento no mesmo dia, resume
-      if (eventosDoDia.length > 1) {
-        return `• ${eventosDoDia[0].nmevento} +${eventosDoDia.length - 1} - ${dataStr}`;
-      }
-      return `• ${eventosDoDia[0].nmevento} - ${dataStr}`;
-    }).join("<br>");
-
-    if (proximos.length > 4) {
-      nomeSpan.innerHTML += `<br><small>... e mais ${proximos.length - 4} compromissos</small>`;
+    if (datas.length === 1) {
+      const lista = eventosPorData[datas[0]];
+      let nomes = lista.length <= 3 ? lista.join(" | ") : `${lista.slice(0, 3).join(" | ")} | +${lista.length - 3}`;
+      nomeSpan.textContent = nomes;
+      tempoSmall.textContent = `${datas[0]} ${formatarTempoRestante(proximos7Dias[0].data)}`;
+    } else {
+      nomeSpan.innerHTML = datas.map(dataStr => {
+        const [d, m, y] = dataStr.split("/").map(Number);
+        const dataObj = new Date(y, m - 1, d);
+        return eventosPorData[dataStr]
+          .map(nome => `${nome} - ${dataStr} ${formatarTempoRestante(dataObj)}`)
+          .join("<br>");
+      }).join("<br>");
+      tempoSmall.textContent = "";
     }
-
-    tempoSmall.textContent = "Próximas atividades";
   }
 }
 

@@ -105,36 +105,34 @@ router.get("/adicionais", async (req, res) => {
 // =======================================
 // PROXIMOS EVENTOS E CALENDARIO
 // =======================================
+// BACKEND CORRIGIDO
 router.get("/proximo-evento", async (req, res) => {
   try {
     const idempresa = req.headers.idempresa || req.query.idempresa;
     if (!idempresa) return res.status(400).json({ error: "idempresa não fornecido" });
 
     const { rows: eventos } = await pool.query(
-    `SELECT 
+      `SELECT 
         e.nmevento, 
-        o.dtinimarcacao, 
-        o.dtinimontagem, 
-        o.dtinirealizacao
-    FROM orcamentos o
-    JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-    JOIN eventos e ON e.idevento = o.idevento
-    WHERE oe.idempresa = $1
-    AND (o.dtinimarcacao >= CURRENT_DATE + INTERVAL '7 day' OR o.dtinirealizacao >= CURRENT_DATE)
-    ORDER BY o.dtinimarcacao ASC`,
-    [idempresa]
+        o.dtinimarcacao 
+       FROM orcamentos o
+       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+       JOIN eventos e ON e.idevento = o.idevento
+       WHERE oe.idempresa = $1
+       AND o.dtinimarcacao >= CURRENT_DATE
+       AND o.dtinimarcacao <= CURRENT_DATE + INTERVAL '7 days'
+       ORDER BY o.dtinimarcacao ASC`,
+      [idempresa]
     );
 
-    // Formatação para o Frontend entender as fases
+    // Mapeamento garantindo que usamos a coluna correta (dtinimarcacao)
     const respostaFormatada = eventos.map(ev => {
-        return {
-            nmevento: ev.nmevento,
-            datas: {
-                "Marcação": ev.dtinimarcacao,
-                "Montagem": ev.dtinimontagem,
-                "Realização": ev.dtinirealizacao
-            }
-        };
+      return {
+        nmevento: ev.nmevento,
+        // .toISOString() pode mudar o dia dependendo do fuso se houver hora salva.
+        // Se a coluna for DATE puro no Postgres, use .toLocaleDateString('en-CA') para garantir YYYY-MM-DD
+        data: new Date(ev.dtinimarcacao).toLocaleDateString('en-CA') 
+      };
     });
 
     res.json({ eventos: respostaFormatada });
@@ -157,8 +155,8 @@ router.get("/eventos-calendario", async (req, res) => {
     const { rows: eventos } = await pool.query(`
       SELECT 
         e.idevento,
-        o.nomenclatura,
         e.nmevento AS evento_nome,
+        COUNT(o.idorcamento) as qtd_orcamentos,
         o.dtiniinframontagem, o.dtfiminframontagem,
         o.dtinimarcacao, o.dtfimmarcacao,
         o.dtinimontagem, o.dtfimmontagem,
@@ -169,8 +167,15 @@ router.get("/eventos-calendario", async (req, res) => {
       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
       JOIN eventos e ON e.idevento = o.idevento
       WHERE oe.idempresa = $1
+      -- REGRAS DE STATUS --
       AND (
-        -- Verifica se qualquer uma das datas cai dentro do mês/ano solicitado
+        (o.status IN ('E', 'F')) -- Efetivado ou Fechado
+        OR 
+        (o.status = 'P' AND o.contratarstaff = TRUE) -- Proposta com Staff
+      )
+      AND o.status NOT IN ('R', 'A') -- Garante exclusão de Reprovados e Abertos
+      ----------------------
+      AND (
         EXISTS (
           SELECT 1 FROM unnest(ARRAY[
             o.dtiniinframontagem, o.dtfiminframontagem,
@@ -183,18 +188,27 @@ router.get("/eventos-calendario", async (req, res) => {
           WHERE EXTRACT(YEAR FROM d.data) = $2 AND EXTRACT(MONTH FROM d.data) = $3
         )
       )
+      GROUP BY 
+        e.idevento, e.nmevento, 
+        o.dtiniinframontagem, o.dtfiminframontagem,
+        o.dtinimarcacao, o.dtfimmarcacao,
+        o.dtinimontagem, o.dtfimmontagem,
+        o.dtinirealizacao, o.dtfimrealizacao,
+        o.dtinidesmontagem, o.dtfimdesmontagem,
+        o.dtiniinfradesmontagem, o.dtfiminfradesmontagem
       ORDER BY o.dtinimarcacao ASC;
     `, [idempresa, ano, mes]);
 
     const resposta = [];
-
-    // Função auxiliar para formatar data sem perder o dia devido ao fuso horário
+    
+    // Formatação de data robusta (evita problemas de fuso horário/timezone)
     const formatDate = (date) => {
       if (!date) return null;
       const d = new Date(date);
-      return d.getFullYear() + "-" + 
-             String(d.getMonth() + 1).padStart(2, '0') + "-" + 
-             String(d.getDate()).padStart(2, '0');
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     };
 
     eventos.forEach(ev => {
@@ -209,9 +223,14 @@ router.get("/eventos-calendario", async (req, res) => {
 
       fasesConfig.forEach(f => {
         if (f.ini) {
+          // Se houver múltiplos orçamentos agrupados na mesma data, indica no nome
+          const nomeExibicao = parseInt(ev.qtd_orcamentos) > 1 
+            ? `${ev.evento_nome} (${ev.qtd_orcamentos} Orçamentos)` 
+            : ev.evento_nome;
+
           resposta.push({
             idevento: ev.idevento,
-            nome: ev.nomenclatura ? `${ev.evento_nome} - ${ev.nomenclatura}` : ev.evento_nome,
+            nome: nomeExibicao,
             inicio: formatDate(f.ini),
             fim: formatDate(f.fim || f.ini),
             tipo: f.tipo
@@ -221,7 +240,6 @@ router.get("/eventos-calendario", async (req, res) => {
     });
 
     res.json({ eventos: resposta });
-
   } catch (err) {
     console.error("Erro em /eventos-calendario:", err);
     res.status(500).json({ error: "Erro interno do servidor" });
