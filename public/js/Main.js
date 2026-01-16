@@ -5522,11 +5522,11 @@ const obterLinhasTabela = (evento, filtro) => {
                         ${renderConteudoAcao(f.idstaffevento, info.tipoAcao, info.status)}
                     </td>` : ''}
 
-                <td>
-                    ${estaPago ? 
-                        gerarHTMLComprovanteDinamico(f.idstaffevento, filtro, info.status, criarHTMLComprovantes(f, filtro)) 
-                        : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'}
-                </td>
+             <td class="comprovantes-cell">
+                ${estaPago ? 
+                    gerarHTMLComprovanteDinamico(f.idstaffevento, filtro, info.status, criarHTMLComprovantes(f, filtro)) 
+                    : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'}
+            </td>
 
                 <td class="status-celula status-${classeStatus}">${info.status}</td>
 
