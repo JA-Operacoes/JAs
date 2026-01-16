@@ -7278,14 +7278,20 @@ async function gerarPropostaPDF() {
 
     try {
         // 2. BUSCAR TEXTOS DO BANCO DE DADOS
-        // Você precisará de uma rota que retorne os 12 textos (id, titulo, conteudo)
-        const responseTextos = await fetchComToken('/configuracoes/textos-proposta');
-        const textosDisponiveis = responseTextos.data; // Array de objetos
+        const responseTextos = await fetchComToken('/propostatextos');
+        
+        // CORREÇÃO: Garante que se responseTextos ou data forem nulos, usamos um array vazio
+        const textosDisponiveis = (responseTextos && responseTextos.data) ? responseTextos.data : [];
+
+        if (textosDisponiveis.length === 0) {
+            return Swal.fire("Atenção", "Nenhum texto ativo encontrado para a proposta.", "warning");
+        }
 
         // 3. MONTAR O HTML DOS CHECKBOXES
         let htmlCheckboxes = `<div style="text-align: left; max-height: 300px; overflow-y: auto; padding: 10px;">
             <p class="mb-3 text-sm text-gray-600">Selecione as cláusulas que deseja incluir nesta proposta:</p>`;
         
+        // Agora o forEach nunca falhará, pois textosDisponiveis é no mínimo []
         textosDisponiveis.forEach(t => {
             htmlCheckboxes += `
                 <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 10px;">
@@ -7341,6 +7347,8 @@ async function gerarPropostaPDF() {
         Swal.fire("Erro", "Falha ao processar textos da proposta.", "error");
     }
 }
+
+
 
 async function gerarContrato() {
   let nrOrcamentoElem = document.getElementById("nrOrcamento");
