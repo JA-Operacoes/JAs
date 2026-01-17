@@ -1030,13 +1030,14 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
   try {
     const idevento = req.query.idevento || req.headers.idevento;
     const idempresa = req.query.idempresa || req.headers.idempresa;
+    // Pega o ano da query ou do sistema
     const ano = req.query.ano ? Number(req.query.ano) : new Date().getFullYear();
 
     if (!idevento || !idempresa) {
       return res.status(400).json({ error: "Parâmetros 'idevento' e 'idempresa' são obrigatórios." });
     }
 
-    // 1️⃣ Busca o orçamento principal para obter o idorcamento e idcliente
+    // 1️⃣ Busca orçamento principal filtrando pelo ANO de realização
     const { rows: orcamentos } = await pool.query(
       `SELECT o.idorcamento, o.idcliente, o.idmontagem
        FROM orcamentos o
@@ -1050,84 +1051,102 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
     if (!orcamentos.length) return res.status(200).json({ equipes: [] });
     const { idorcamento, idcliente, idmontagem } = orcamentos[0];
 
-    // 2️⃣ Query Unificada com o JOIN que testamos no PgAdmin
-    // Esta query já traz o orçamento cruzado com o staff, respeitando o SETOR.
-    const queryPrincipal = `
-      SELECT 
-          f.idequipe, 
-          eq.nmequipe AS equipe, 
-          oi.idfuncao, 
-          f.descfuncao AS nmfuncao_base,
-          COALESCE(oi.setor, '') AS setor,
-          SUM(oi.qtditens) AS qtd_orcamento,
-          MIN(oi.periododiariasinicio) AS dtini_vaga,
-          MAX(oi.periododiariasfim) AS dtfim_vaga,
-          COALESCE(st.qtd_cadastrada, 0) AS qtd_cadastrada
-      FROM orcamentoitens oi
-      JOIN funcao f ON f.idfuncao = oi.idfuncao
-      JOIN equipe eq ON eq.idequipe = f.idequipe
-      LEFT JOIN (
-          SELECT 
-              se.idfuncao, 
-              COALESCE(se.setor, '') AS setor, 
-              COUNT(DISTINCT se.idstaff) AS qtd_cadastrada
-          FROM staffeventos se
-          WHERE se.idevento = $1 
-            AND se.idcliente = $2
-            AND EXISTS (
-                SELECT 1 
-                FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
-                WHERE EXTRACT(YEAR FROM (d.dt)::date) = $3
-            )
-          GROUP BY se.idfuncao, se.setor
-      ) st ON st.idfuncao = oi.idfuncao 
-          AND UPPER(TRIM(COALESCE(st.setor, ''))) = UPPER(TRIM(COALESCE(oi.setor, '')))
-      WHERE oi.idorcamento = $4
-        AND (oi.categoria ILIKE '%Produto%' OR oi.categoria ILIKE '%Equipe%' OR oi.categoria ILIKE '%Mão%')
-      GROUP BY f.idequipe, eq.nmequipe, oi.idfuncao, f.descfuncao, oi.setor, st.qtd_cadastrada
-      ORDER BY eq.nmequipe, f.descfuncao, oi.setor
-    `;
+    // 2️⃣ Busca Itens do Orçamento (Vagas) - Agora incluindo SETOR
+    const { rows: itensOrcamento } = await pool.query(
+      `SELECT 
+        f.idequipe, 
+        eq.nmequipe AS equipe, 
+        i.idfuncao, 
+        f.descfuncao AS funcao,
+        i.setor,
+        SUM(i.qtditens) AS qtd_orcamento,
+        MIN(i.periododiariasinicio) AS dtini_vaga,
+        MAX(i.periododiariasfim) AS dtfim_vaga
+       FROM orcamentoitens i
+       JOIN funcao f ON f.idfuncao = i.idfuncao
+       JOIN equipe eq ON eq.idequipe = f.idequipe
+       WHERE i.idorcamento = $1 AND i.categoria = 'Produto(s)'
+       GROUP BY f.idequipe, eq.nmequipe, i.idfuncao, f.descfuncao, i.setor`,
+      [idorcamento]
+    );
 
-    const { rows: dadosAgrupados } = await pool.query(queryPrincipal, [idevento, idcliente, ano, idorcamento]);
+    // 3️⃣ Busca quantidades cadastradas - TRAVA ANO com EXISTS para ignorar lixo de 2025
+    const { rows: staff } = await pool.query(
+      `SELECT se.idfuncao, se.pavilhao, COUNT(DISTINCT se.idstaff) AS qtd_cadastrada
+       FROM staffeventos se
+       WHERE se.idevento = $1 
+         AND se.idcliente = $2
+         AND EXISTS (
+             SELECT 1 
+             FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
+             WHERE EXTRACT(YEAR FROM (d.dt)::date) = $3
+         )
+       GROUP BY se.idfuncao, se.pavilhao`,
+      [idevento, idcliente, ano]
+    );
 
-    // 3️⃣ Agrupamento por Equipe para o formato que o Frontend espera
+    // 4️⃣ Busca Datas de Staff por Função - TRAVA ANO dentro do JSON
+    const { rows: datasStaffRaw } = await pool.query(
+      `SELECT 
+          se.idfuncao, se.pavilhao,
+          array_agg(DISTINCT d.dt ORDER BY d.dt) AS datas_staff
+       FROM staffeventos se
+       INNER JOIN orcamentos o ON o.idevento = se.idevento
+       CROSS JOIN LATERAL (
+           SELECT dt FROM jsonb_array_elements_text(se.datasevento) AS dt
+           WHERE EXTRACT(YEAR FROM dt::date) = $2
+       ) AS d
+       WHERE se.idevento = $1 AND se.idcliente = $3
+       GROUP BY se.idfuncao, se.pavilhao`,
+      [idevento, ano, idcliente]
+    );
+
+    const datasStaffMap = datasStaffRaw.reduce((acc, row) => {
+      acc[`${row.idfuncao}_${row.pavilhao}`] = row.datas_staff;
+      return acc;
+    }, {});
+
+    // 5️⃣ Agrupa por equipe
     const equipesMap = {};
-
-    dadosAgrupados.forEach(item => {
-      const idequipeKey = item.idequipe || "SEM_EQUIPE";
+    for (const item of itensOrcamento) {
+      const idequipe = item.idequipe;
+      const idequipeKey = idequipe || "SEM_EQUIPE";
 
       if (!equipesMap[idequipeKey]) {
         equipesMap[idequipeKey] = {
           equipe: item.equipe || "Sem equipe",
-          idequipe: item.idequipe,
+          idequipe: idequipe,
           funcoes: [],
         };
       }
 
-      const total = Number(item.qtd_orcamento) || 0;
-      const cadastrada = Number(item.qtd_cadastrada) || 0;
+      // Procura a quantidade preenchida para esta função específica
+      const cadastrado = staff.find(s => String(s.idfuncao) === String(item.idfuncao) && s.pavilhao === item.setor); 
+      const qtd_cadastrada = cadastrado ? Number(cadastrado.qtd_cadastrada) : 0;
+      const datas_staff = datasStaffMap[`${item.idfuncao}_${item.setor}`] || [];
 
       equipesMap[idequipeKey].funcoes.push({
         idfuncao: item.idfuncao,
-        nmfuncao_base: item.nmfuncao_base,
-        setor: item.setor,
-        nome: item.setor ? `${item.nmfuncao_base} (${item.setor})` : item.nmfuncao_base,
-        qtd_orcamento: total,
-        qtd_cadastrada: cadastrada,
-        concluido: total > 0 && cadastrada >= total,
+        nome: item.setor ? `${item.funcao} (${item.setor})` : item.funcao,
+        qtd_orcamento: Number(item.qtd_orcamento) || 0,
+        qtd_cadastrada,
+        concluido: qtd_cadastrada >= (Number(item.qtd_orcamento) || 0),
         dtini_vaga: item.dtini_vaga,
-        dtfim_vaga: item.dtfim_vaga
+        dtfim_vaga: item.dtfim_vaga,
+        datas_staff: datas_staff
       });
-    });
+    }
 
+    // 6️⃣ Retorno final
     res.status(200).json({ 
       equipes: Object.values(equipesMap), 
-      idmontagem 
+      idmontagem,
+      idorcamento
     });
 
   } catch (err) {
-    console.error("Erro ao carregar detalhes dos eventos abertos:", err);
-    res.status(500).json({ error: "Erro interno ao buscar detalhes." });
+    console.error("Erro ao buscar detalhes dos eventos abertos:", err);
+    res.status(500).json({ error: "Erro interno ao buscar detalhes dos eventos abertos." });
   }
 });
 
@@ -1143,28 +1162,27 @@ router.get("/ListarFuncionarios", async (req, res) => {
 
   try {
     const query = `
-    SELECT 
-        se.idstaffevento, 
-        se.idfuncionario, 
-        se.nmfuncionario AS nome, 
-        se.nmfuncao AS funcao, 
-        se.vlrtotal, 
-        se.statuspgto AS status_pagamento,
-        se.setor,
-        se.nivelexperiencia
-    FROM public.staffeventos se
-    INNER JOIN orcamentos o ON o.idevento = se.idevento
-    INNER JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-    WHERE se.idevento = $1 
-      AND se.idequipe = $2 
-      AND oe.idempresa = $3
-      -- GARANTE QUE O FUNCIONÁRIO TEM DATAS LANÇADAS PARA O ANO SELECIONADO (2026)
-      AND EXISTS (
-          SELECT 1 
-          FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
-          WHERE EXTRACT(YEAR FROM (d.dt)::date) = $4
-      )
-    ORDER BY se.nmfuncao, se.nmfuncionario;`;
+    SELECT DISTINCT ON (se.idstaffevento)
+    se.idstaffevento, 
+    se.idfuncionario, 
+    se.nmfuncionario AS nome, 
+    se.nmfuncao AS funcao, 
+    se.vlrtotal, 
+    se.statuspgto AS status_pagamento,
+    -- Aqui está a correção:
+    COALESCE(NULLIF(se.setor, ''), NULLIF(se.pavilhao, ''), '') AS setor,
+    se.nivelexperiencia
+FROM public.staffeventos se
+INNER JOIN orcamentoempresas oe ON oe.idorcamento = se.idorcamento
+WHERE se.idevento = $1
+  AND se.idequipe = $2
+  AND oe.idempresa = $3
+  AND EXISTS (
+      SELECT 1 
+      FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
+      WHERE EXTRACT(YEAR FROM (d.dt)::date) = $4
+  )
+ORDER BY se.idstaffevento, se.nmfuncao, se.nmfuncionario;`;
 
     const { rows } = await pool.query(query, [idEvento, idEquipe, idempresa, anoFiltro]);
     res.status(200).json(rows);

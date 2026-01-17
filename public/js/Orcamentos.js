@@ -346,6 +346,11 @@ async function carregarPavilhaoOrc(idMontagem) {
     }
     selectedPavilhoes = [];
     updatePavilhaoDisplayInputs();
+
+    // Limpar datalist do setor
+    const datalist = document.getElementById("datalist-setor");
+    if (datalist) datalist.innerHTML = "";
+
     return; // Não faça a requisição se idMontagem for vazio
   }
 
@@ -371,9 +376,38 @@ async function carregarPavilhaoOrc(idMontagem) {
       });
       // O event listener agora será adicionado uma vez, fora desta função, no DOMContentLoaded
     }
+
+    // Atualizar datalist do setor
+    atualizarDatalistSetor(idMontagem);
   } catch (error) {
     console.error("Erro ao carregar pavilhao:", error);
     Swal.fire("Erro", "Não foi possível carregar os pavilhões.", "error");
+  }
+}
+
+async function atualizarDatalistSetor(idMontagem) {
+  const datalist = document.getElementById("datalist-setor");
+  if (!datalist) return;
+
+  datalist.innerHTML = ""; // Limpar opções anteriores
+
+  if (!idMontagem || idMontagem === "") {
+    return;
+  }
+
+  try {
+    const pavilhoes = await fetchComToken(
+      `/orcamentos/pavilhao?idmontagem=${idMontagem}`
+    );
+    console.log("Pavilhões para datalist:", pavilhoes);
+
+    pavilhoes.forEach((localpav) => {
+      let option = document.createElement("option");
+      option.value = localpav.nmpavilhao;
+      datalist.appendChild(option);
+    });
+  } catch (error) {
+    console.error("Erro ao carregar pavilhões para datalist:", error);
   }
 }
 
@@ -663,6 +697,11 @@ function configurarFormularioOrc() {
       orcamento.Pessoas.push(dados);
     }
   });
+
+  // Adicionar datalist para setor
+  let datalist = document.createElement("datalist");
+  datalist.id = "datalist-setor";
+  form.appendChild(datalist);
 }
 
 function desformatarMoeda(valor) {
@@ -1482,7 +1521,7 @@ function adicionarLinhaOrc() {
         </td>
 
         <td class="produto"><input type="text" class="produto-input" value=""></td> <!-- Adicionado input para edição -->
-        <td class="setor"><input type="text" class="setor-input" value=""></td> <!-- Adicionado input para edição -->
+        <td class="setor"><input type="text" class="setor-input" list="datalist-setor" value=""></td> <!-- Adicionado input para edição -->
 
         <td class="qtdDias">
             <div class="add-less">

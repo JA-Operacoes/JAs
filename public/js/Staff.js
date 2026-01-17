@@ -1,5 +1,10 @@
 import { fetchComToken, aplicarTema  } from '../utils/utils.js';
 
+function getUrlParameter(name) {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(name);
+}
+
 let statusAditivoFinal = null; // Usar null em vez de '' para campos vazios
 let statusExtraBonificadoFinal = null;
 let permitirCadastro = false;
@@ -9,6 +14,8 @@ let decisaoUsuarioDataFora = null;
 
 // Crie uma flag global para rastrear se o evento foi capturado
 let prefillEventFired = false; 
+
+let setorEsperado = ''; 
 
 window.addEventListener('prefill:registered', function (e) {
     console.log("⚡ EVENTO RECEBIDO: prefill:registered. Tentando chamar a busca...");
@@ -136,6 +143,7 @@ const extractDatesFromStatusArray = (datesWithStatusArray) => {
 if (window.__modalInitialParams) {
     const params = new URLSearchParams(window.__modalInitialParams);
     const dataeventos = params.get("dataeventos");
+    setorEsperado = params.get("setor") || '';
 
     if (dataeventos) {
         try {
@@ -2684,6 +2692,12 @@ async function verificaStaff() {
     nmClienteSelect.addEventListener('change', debouncedOnCriteriosChanged);
     nmLocalMontagemSelect.addEventListener('change', debouncedOnCriteriosChanged);
     setorInput.addEventListener('change', debouncedOnCriteriosChanged);
+    descFuncaoSelect.addEventListener('change', () => {
+        const idorcamento = getUrlParameter('idorcamento');
+        const idfuncao = descFuncaoSelect.value;
+        const idmontagem = nmLocalMontagemSelect.value;
+        carregarPavilhaoStaff(idmontagem, idorcamento, idfuncao);
+    });
 
     baseCheck.addEventListener('change', debouncedOnCriteriosChanged);
     juniorCheck.addEventListener('change', debouncedOnCriteriosChanged);
@@ -3217,6 +3231,19 @@ async function verificaStaff() {
             const idEventoPrincipal = idEvento;
 
             console.log("IdFuncaoDoFormulario do Botão Enviar:", idFuncaoDoFormulario, "NmFuncaoDoFormulario:", nmFuncaoDoFormulario, "IdEvento:", idEventoPrincipal);
+
+            // Validação de pavilhão obrigatório
+            const idorcamento = getUrlParameter('idorcamento');
+            if (idorcamento && idFuncaoDoFormulario) {
+                try {
+                    const pavilhaoObrigatorio = await fetchComToken(`/staff/pavilhao?idmontagem=${idMontagem}&idorcamento=${idorcamento}&idfuncao=${idFuncaoDoFormulario}`);
+                    if (pavilhaoObrigatorio.length > 0 && !pavilhao.trim()) {
+                        return Swal.fire("Campo obrigatório!", "Para esta função, é obrigatório selecionar um pavilhão.", "warning");
+                    }
+                } catch (error) {
+                    console.error("Erro ao verificar pavilhões obrigatórios:", error);
+                }
+            }
 
             const flatpickrForDatasEvento = window.flatpickrInstances['datasEvento'];
            
@@ -5613,7 +5640,8 @@ async function carregarLocalMontStaff() {
 
                idMontagemSelecionado = selectedOption.value;
 
-               carregarPavilhaoStaff(idMontagemSelecionado);
+               const idorcamento = getUrlParameter('idorcamento');
+               carregarPavilhaoStaff(idMontagemSelecionado, idorcamento);
 
             });
 
@@ -5624,7 +5652,7 @@ async function carregarLocalMontStaff() {
 }
 
 
-async function carregarPavilhaoStaff(idMontagem) {
+async function carregarPavilhaoStaff(idMontagem, idorcamento = null, idfuncao = null) {
     if (!idMontagem || idMontagem === "") {
         console.warn("carregarPavilhaoStaff: idMontagem vazio. Limpando seleção de Pavilhão.");
         let selects = document.querySelectorAll(".nmPavilhao");
@@ -5636,7 +5664,10 @@ async function carregarPavilhaoStaff(idMontagem) {
     }
 
     try {
-        const pavilhaofetch = await fetchComToken(`/staff/pavilhao?idmontagem=${idMontagem}`);
+        let url = `/staff/pavilhao?idmontagem=${idMontagem}`;
+        if (idorcamento) url += `&idorcamento=${idorcamento}`;
+        if (idfuncao) url += `&idfuncao=${idfuncao}`;
+        const pavilhaofetch = await fetchComToken(url);
         let selects = document.querySelectorAll(".nmPavilhao");
         const hiddenInputParaNomes = document.getElementById("idPavilhao"); 
 
@@ -5675,6 +5706,20 @@ async function carregarPavilhaoStaff(idMontagem) {
                 }
             });
         });
+
+        // Selecionar o pavilhão esperado se houver
+        if (setorEsperado) {
+            selects.forEach(select => {
+                for (let i = 0; i < select.options.length; i++) {
+                    const option = select.options[i];
+                    if (option.textContent.toUpperCase().trim() === setorEsperado.toUpperCase().trim()) {
+                        select.value = option.value;
+                        select.dispatchEvent(new Event('change'));
+                        break;
+                    }
+                }
+            });
+        }
     } catch (error) {
         console.error("❌ Erro ao carregar pavilhao:", error);
     }
