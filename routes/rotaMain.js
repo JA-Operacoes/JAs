@@ -105,34 +105,36 @@ router.get("/adicionais", async (req, res) => {
 // =======================================
 // PROXIMOS EVENTOS E CALENDARIO
 // =======================================
-// BACKEND CORRIGIDO
 router.get("/proximo-evento", async (req, res) => {
   try {
     const idempresa = req.headers.idempresa || req.query.idempresa;
     if (!idempresa) return res.status(400).json({ error: "idempresa não fornecido" });
 
     const { rows: eventos } = await pool.query(
-      `SELECT 
+    `SELECT 
         e.nmevento, 
-        o.dtinimarcacao 
-       FROM orcamentos o
-       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-       JOIN eventos e ON e.idevento = o.idevento
-       WHERE oe.idempresa = $1
-       AND o.dtinimarcacao >= CURRENT_DATE
-       AND o.dtinimarcacao <= CURRENT_DATE + INTERVAL '7 days'
-       ORDER BY o.dtinimarcacao ASC`,
-      [idempresa]
+        o.dtinimarcacao, 
+        o.dtinimontagem, 
+        o.dtinirealizacao
+    FROM orcamentos o
+    JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+    JOIN eventos e ON e.idevento = o.idevento
+    WHERE oe.idempresa = $1
+    AND (o.dtinimarcacao >= CURRENT_DATE + INTERVAL '7 day' OR o.dtinirealizacao >= CURRENT_DATE)
+    ORDER BY o.dtinimarcacao ASC`,
+    [idempresa]
     );
 
-    // Mapeamento garantindo que usamos a coluna correta (dtinimarcacao)
+    // Formatação para o Frontend entender as fases
     const respostaFormatada = eventos.map(ev => {
-      return {
-        nmevento: ev.nmevento,
-        // .toISOString() pode mudar o dia dependendo do fuso se houver hora salva.
-        // Se a coluna for DATE puro no Postgres, use .toLocaleDateString('en-CA') para garantir YYYY-MM-DD
-        data: new Date(ev.dtinimarcacao).toLocaleDateString('en-CA') 
-      };
+        return {
+            nmevento: ev.nmevento,
+            datas: {
+                "Marcação": ev.dtinimarcacao,
+                "Montagem": ev.dtinimontagem,
+                "Realização": ev.dtinirealizacao
+            }
+        };
     });
 
     res.json({ eventos: respostaFormatada });
@@ -155,8 +157,8 @@ router.get("/eventos-calendario", async (req, res) => {
     const { rows: eventos } = await pool.query(`
       SELECT 
         e.idevento,
+        o.nomenclatura,
         e.nmevento AS evento_nome,
-        COUNT(o.idorcamento) as qtd_orcamentos,
         o.dtiniinframontagem, o.dtfiminframontagem,
         o.dtinimarcacao, o.dtfimmarcacao,
         o.dtinimontagem, o.dtfimmontagem,
@@ -167,15 +169,8 @@ router.get("/eventos-calendario", async (req, res) => {
       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
       JOIN eventos e ON e.idevento = o.idevento
       WHERE oe.idempresa = $1
-      -- REGRAS DE STATUS --
       AND (
-        (o.status IN ('E', 'F')) -- Efetivado ou Fechado
-        OR 
-        (o.status = 'P' AND o.contratarstaff = TRUE) -- Proposta com Staff
-      )
-      AND o.status NOT IN ('R', 'A') -- Garante exclusão de Reprovados e Abertos
-      ----------------------
-      AND (
+        -- Verifica se qualquer uma das datas cai dentro do mês/ano solicitado
         EXISTS (
           SELECT 1 FROM unnest(ARRAY[
             o.dtiniinframontagem, o.dtfiminframontagem,
@@ -188,27 +183,18 @@ router.get("/eventos-calendario", async (req, res) => {
           WHERE EXTRACT(YEAR FROM d.data) = $2 AND EXTRACT(MONTH FROM d.data) = $3
         )
       )
-      GROUP BY 
-        e.idevento, e.nmevento, 
-        o.dtiniinframontagem, o.dtfiminframontagem,
-        o.dtinimarcacao, o.dtfimmarcacao,
-        o.dtinimontagem, o.dtfimmontagem,
-        o.dtinirealizacao, o.dtfimrealizacao,
-        o.dtinidesmontagem, o.dtfimdesmontagem,
-        o.dtiniinfradesmontagem, o.dtfiminfradesmontagem
       ORDER BY o.dtinimarcacao ASC;
     `, [idempresa, ano, mes]);
 
     const resposta = [];
-    
-    // Formatação de data robusta (evita problemas de fuso horário/timezone)
+
+    // Função auxiliar para formatar data sem perder o dia devido ao fuso horário
     const formatDate = (date) => {
       if (!date) return null;
       const d = new Date(date);
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
+      return d.getFullYear() + "-" + 
+             String(d.getMonth() + 1).padStart(2, '0') + "-" + 
+             String(d.getDate()).padStart(2, '0');
     };
 
     eventos.forEach(ev => {
@@ -223,14 +209,9 @@ router.get("/eventos-calendario", async (req, res) => {
 
       fasesConfig.forEach(f => {
         if (f.ini) {
-          // Se houver múltiplos orçamentos agrupados na mesma data, indica no nome
-          const nomeExibicao = parseInt(ev.qtd_orcamentos) > 1 
-            ? `${ev.evento_nome} (${ev.qtd_orcamentos} Orçamentos)` 
-            : ev.evento_nome;
-
           resposta.push({
             idevento: ev.idevento,
-            nome: nomeExibicao,
+            nome: ev.nomenclatura ? `${ev.evento_nome} - ${ev.nomenclatura}` : ev.evento_nome,
             inicio: formatDate(f.ini),
             fim: formatDate(f.fim || f.ini),
             tipo: f.tipo
@@ -240,6 +221,7 @@ router.get("/eventos-calendario", async (req, res) => {
     });
 
     res.json({ eventos: resposta });
+
   } catch (err) {
     console.error("Erro em /eventos-calendario:", err);
     res.status(500).json({ error: "Erro interno do servidor" });
@@ -1048,14 +1030,13 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
   try {
     const idevento = req.query.idevento || req.headers.idevento;
     const idempresa = req.query.idempresa || req.headers.idempresa;
-    // Pega o ano da query ou do sistema
     const ano = req.query.ano ? Number(req.query.ano) : new Date().getFullYear();
 
     if (!idevento || !idempresa) {
       return res.status(400).json({ error: "Parâmetros 'idevento' e 'idempresa' são obrigatórios." });
     }
 
-    // 1️⃣ Busca orçamento principal filtrando pelo ANO de realização
+    // 1️⃣ Busca o orçamento principal para obter o idorcamento e idcliente
     const { rows: orcamentos } = await pool.query(
       `SELECT o.idorcamento, o.idcliente, o.idmontagem
        FROM orcamentos o
@@ -1069,101 +1050,84 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
     if (!orcamentos.length) return res.status(200).json({ equipes: [] });
     const { idorcamento, idcliente, idmontagem } = orcamentos[0];
 
-    // 2️⃣ Busca Itens do Orçamento (Vagas) - Agora incluindo SETOR
-    const { rows: itensOrcamento } = await pool.query(
-      `SELECT 
-        f.idequipe, 
-        eq.nmequipe AS equipe, 
-        i.idfuncao, 
-        f.descfuncao AS funcao,
-        i.setor,
-        SUM(i.qtditens) AS qtd_orcamento,
-        MIN(i.periododiariasinicio) AS dtini_vaga,
-        MAX(i.periododiariasfim) AS dtfim_vaga
-       FROM orcamentoitens i
-       JOIN funcao f ON f.idfuncao = i.idfuncao
-       JOIN equipe eq ON eq.idequipe = f.idequipe
-       WHERE i.idorcamento = $1 AND i.categoria = 'Produto(s)'
-       GROUP BY f.idequipe, eq.nmequipe, i.idfuncao, f.descfuncao, i.setor`,
-      [idorcamento]
-    );
+    // 2️⃣ Query Unificada com o JOIN que testamos no PgAdmin
+    // Esta query já traz o orçamento cruzado com o staff, respeitando o SETOR.
+    const queryPrincipal = `
+      SELECT 
+          f.idequipe, 
+          eq.nmequipe AS equipe, 
+          oi.idfuncao, 
+          f.descfuncao AS nmfuncao_base,
+          COALESCE(oi.setor, '') AS setor,
+          SUM(oi.qtditens) AS qtd_orcamento,
+          MIN(oi.periododiariasinicio) AS dtini_vaga,
+          MAX(oi.periododiariasfim) AS dtfim_vaga,
+          COALESCE(st.qtd_cadastrada, 0) AS qtd_cadastrada
+      FROM orcamentoitens oi
+      JOIN funcao f ON f.idfuncao = oi.idfuncao
+      JOIN equipe eq ON eq.idequipe = f.idequipe
+      LEFT JOIN (
+          SELECT 
+              se.idfuncao, 
+              COALESCE(se.setor, '') AS setor, 
+              COUNT(DISTINCT se.idstaff) AS qtd_cadastrada
+          FROM staffeventos se
+          WHERE se.idevento = $1 
+            AND se.idcliente = $2
+            AND EXISTS (
+                SELECT 1 
+                FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
+                WHERE EXTRACT(YEAR FROM (d.dt)::date) = $3
+            )
+          GROUP BY se.idfuncao, se.setor
+      ) st ON st.idfuncao = oi.idfuncao 
+          AND UPPER(TRIM(COALESCE(st.setor, ''))) = UPPER(TRIM(COALESCE(oi.setor, '')))
+      WHERE oi.idorcamento = $4
+        AND (oi.categoria ILIKE '%Produto%' OR oi.categoria ILIKE '%Equipe%' OR oi.categoria ILIKE '%Mão%')
+      GROUP BY f.idequipe, eq.nmequipe, oi.idfuncao, f.descfuncao, oi.setor, st.qtd_cadastrada
+      ORDER BY eq.nmequipe, f.descfuncao, oi.setor
+    `;
 
-    // 3️⃣ Busca quantidades cadastradas - TRAVA ANO com EXISTS para ignorar lixo de 2025
-    const { rows: staff } = await pool.query(
-      `SELECT se.idfuncao, COUNT(DISTINCT se.idstaff) AS qtd_cadastrada
-       FROM staffeventos se
-       WHERE se.idevento = $1 
-         AND se.idcliente = $2
-         AND EXISTS (
-             SELECT 1 
-             FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
-             WHERE EXTRACT(YEAR FROM (d.dt)::date) = $3
-         )
-       GROUP BY se.idfuncao`,
-      [idevento, idcliente, ano]
-    );
+    const { rows: dadosAgrupados } = await pool.query(queryPrincipal, [idevento, idcliente, ano, idorcamento]);
 
-    // 4️⃣ Busca Datas de Staff por Função - TRAVA ANO dentro do JSON
-    const { rows: datasStaffRaw } = await pool.query(
-      `SELECT 
-          se.idfuncao, 
-          array_agg(DISTINCT d.dt ORDER BY d.dt) AS datas_staff
-       FROM staffeventos se
-       INNER JOIN orcamentos o ON o.idevento = se.idevento
-       CROSS JOIN LATERAL (
-           SELECT dt FROM jsonb_array_elements_text(se.datasevento) AS dt
-           WHERE EXTRACT(YEAR FROM dt::date) = $2
-       ) AS d
-       WHERE se.idevento = $1 AND se.idcliente = $3
-       GROUP BY se.idfuncao`,
-      [idevento, ano, idcliente]
-    );
-
-    const datasStaffMap = datasStaffRaw.reduce((acc, row) => {
-      acc[String(row.idfuncao)] = row.datas_staff;
-      return acc;
-    }, {});
-
-    // 5️⃣ Agrupa por equipe
+    // 3️⃣ Agrupamento por Equipe para o formato que o Frontend espera
     const equipesMap = {};
-    for (const item of itensOrcamento) {
-      const idequipe = item.idequipe;
-      const idequipeKey = idequipe || "SEM_EQUIPE";
+
+    dadosAgrupados.forEach(item => {
+      const idequipeKey = item.idequipe || "SEM_EQUIPE";
 
       if (!equipesMap[idequipeKey]) {
         equipesMap[idequipeKey] = {
           equipe: item.equipe || "Sem equipe",
-          idequipe: idequipe,
+          idequipe: item.idequipe,
           funcoes: [],
         };
       }
 
-      // Procura a quantidade preenchida para esta função específica
-      const cadastrado = staff.find(s => String(s.idfuncao) === String(item.idfuncao)); 
-      const qtd_cadastrada = cadastrado ? Number(cadastrado.qtd_cadastrada) : 0;
-      const datas_staff = datasStaffMap[String(item.idfuncao)] || [];
+      const total = Number(item.qtd_orcamento) || 0;
+      const cadastrada = Number(item.qtd_cadastrada) || 0;
 
       equipesMap[idequipeKey].funcoes.push({
         idfuncao: item.idfuncao,
-        nome: item.setor ? `${item.funcao} (${item.setor})` : item.funcao,
-        qtd_orcamento: Number(item.qtd_orcamento) || 0,
-        qtd_cadastrada,
-        concluido: qtd_cadastrada >= (Number(item.qtd_orcamento) || 0),
+        nmfuncao_base: item.nmfuncao_base,
+        setor: item.setor,
+        nome: item.setor ? `${item.nmfuncao_base} (${item.setor})` : item.nmfuncao_base,
+        qtd_orcamento: total,
+        qtd_cadastrada: cadastrada,
+        concluido: total > 0 && cadastrada >= total,
         dtini_vaga: item.dtini_vaga,
-        dtfim_vaga: item.dtfim_vaga,
-        datas_staff: datas_staff
+        dtfim_vaga: item.dtfim_vaga
       });
-    }
+    });
 
-    // 6️⃣ Retorno final
     res.status(200).json({ 
       equipes: Object.values(equipesMap), 
       idmontagem 
     });
 
   } catch (err) {
-    console.error("Erro ao buscar detalhes dos eventos abertos:", err);
-    res.status(500).json({ error: "Erro interno ao buscar detalhes dos eventos abertos." });
+    console.error("Erro ao carregar detalhes dos eventos abertos:", err);
+    res.status(500).json({ error: "Erro interno ao buscar detalhes." });
   }
 });
 
