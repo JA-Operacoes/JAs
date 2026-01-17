@@ -60,6 +60,13 @@ const preencherFormulario = (texto) => {
     console.log("PREENCHER FORMULARIO", texto);
     Object.entries(campos).forEach(([key]) => {
         setCampo(key, texto[key.toLowerCase()] || "");
+        
+        // Disparar evento para cada campo preenchido
+        const el = getCampo(key);
+        if (el) {
+            el.dispatchEvent(new Event('input'));
+            if (el.value) el.classList.add("has-value");
+        }
     });
 
     window.textoOriginal = {
@@ -111,7 +118,8 @@ function carregarTextos() {
         return;
     }
 
-    btnEnviar.addEventListener("click", async (e) => {
+    // Guarda o listener do Enviar
+    btnEnviarListener = async (e) => {
         e.preventDefault();
         console.log("Entrou no botão Enviar");
         const dados = obterDadosFormulario();
@@ -181,79 +189,133 @@ function carregarTextos() {
             console.error("Erro ao enviar dados:", error);
             Swal.fire("Erro", error.message || "Erro ao salvar texto.", "error");
         }
-    });
+    };
+
+    btnEnviar.addEventListener("click", btnEnviarListener);
+
+    // Guarda o listener do Limpar
+    btnLimparListener = () => {
+        const campo = document.getElementById("Titulo");
+
+        if (campo && campo.tagName.toLowerCase() === "select") {
+            const input = document.createElement("input");
+            input.type = "text";
+            input.id = "Titulo";
+            input.name = "Titulo";
+            input.className = "form";
+            input.required = true;
+            input.classList.add("uppercase");
+
+            campo.parentNode.replaceChild(input, campo);
+            adicionarEventoBlurTexto();
+
+            const label = document.querySelector('label[for="Titulo"]');
+            if (label) {
+                label.style.display = "block";
+                label.textContent = "Título";
+            }
+        }
+
+        limparFormulario();
+    };
 
     if (btnLimpar) {
-        btnLimpar.addEventListener("click", () => {
-            const campo = document.getElementById("Titulo");
-
-            if (campo && campo.tagName.toLowerCase() === "select") {
-                const input = document.createElement("input");
-                input.type = "text";
-                input.id = "Titulo";
-                input.name = "Titulo";
-                input.className = "form";
-                input.required = true;
-                input.classList.add("uppercase");
-
-                campo.parentNode.replaceChild(input, campo);
-                adicionarEventoBlurTexto();
-
-                const label = document.querySelector('label[for="Titulo"]');
-                if (label) {
-                    label.style.display = "block";
-                    label.textContent = "Título";
-                }
-            }
-
-            limparFormulario(); // Se você quiser limpar o restante do formulário
-        });
+        btnLimpar.addEventListener("click", btnLimparListener);
     }
 
-    if (btnPesquisar) {
-        console.log("Entrou no botão pesquisar antes do click");
+    // Guarda o listener do Pesquisar
+    btnPesquisarListener = async (event) => {
+        event.preventDefault();
+        console.log("✅ Botão Pesquisar clicado - Carregando textos...");
 
-        btnPesquisar.addEventListener("click", async (event) => {
-            event.preventDefault();
-            console.log("ENTROU NO BOTÃO PESQUISAR DEPOIS DO CLICK");
+        try {
+            console.log("📤 Chamando API: GET /propostatextos");
+            const response = await fetchComToken("/propostatextos");
+            const textos = response.data;
+            console.log("📋 Textos retornados da API:", textos);
+            console.log("   Tipo:", typeof textos);
+            console.log("   É array?", Array.isArray(textos));
+            console.log("   Quantidade:", textos?.length || 0);
 
-            limparFormulario();
-            try {
-                console.log("CarregarTextos");
-                const textos = await fetchComToken("/propostatextos");
-
-                if (!textos || textos.length === 0) {
-                    return Swal.fire({
-                        icon: 'info',
-                        title: 'Nenhum texto cadastrado',
-                        text: 'Não foi encontrado nenhum texto no sistema.',
-                        confirmButtonText: 'Ok'
-                    });
-                }
-
-                const input = getCampo("titulo");
-
-                const select = criarSelectTextos(textos);
-                if (input && input.parentNode) {
-                    input.parentNode.replaceChild(select, input);
-                }
-
-                const label = document.querySelector('label[for="Titulo"]');
-                if (label) label.style.display = "none";
-
-                select.addEventListener("change", async function () {
-                    const desc = this.value?.trim();
-                    if (!desc) return;
-
-                    await carregarTextosTitulo(desc, this);
-                    console.log("Texto selecionado:", desc);
+            if (!textos || (Array.isArray(textos) && textos.length === 0)) {
+                console.warn("⚠️ Nenhum texto retornado");
+                return Swal.fire({
+                    icon: 'info',
+                    title: 'Nenhum texto cadastrado',
+                    text: 'Não foi encontrado nenhum texto no sistema.',
+                    confirmButtonText: 'Ok'
                 });
-
-            } catch (error) {
-                console.error("Erro ao carregar textos:", error);
-                mostrarErro("Erro", "Não foi possível carregar os textos.");
             }
-        });
+
+            // Limpa antes de transformar
+            limparFormulario();
+
+            // Substitui input por select
+            const inputTitulo = getCampo("titulo");
+            console.log("🔍 Input Título encontrado:", inputTitulo);
+
+            if (!inputTitulo) {
+                console.error("❌ Campo #Titulo não encontrado no DOM");
+                return Swal.fire({
+                    icon: 'error',
+                    title: 'Erro',
+                    text: 'Campo Título não encontrado. Contate o administrador.',
+                    confirmButtonText: 'Ok'
+                });
+            }
+
+            const select = criarSelectTextos(textos);
+            console.log("✅ Select criado com sucesso");
+            
+            if (inputTitulo && inputTitulo.parentNode) {
+                inputTitulo.parentNode.replaceChild(select, inputTitulo);
+                console.log("✅ Input substituído por select no DOM");
+            } else {
+                console.error("❌ Não foi possível substituir o input");
+                return Swal.fire({
+                    icon: 'error',
+                    title: 'Erro',
+                    text: 'Não foi possível carregar o formulário. Contate o administrador.',
+                    confirmButtonText: 'Ok'
+                });
+            }
+
+            const label = document.querySelector('label[for="Titulo"]');
+            if (label) label.style.display = "none";
+
+            // Listener para quando seleciona um texto
+            selectTextosChangeListener = async function () {
+                const desc = this.value?.trim();
+                console.log("🎯 Texto selecionado no select:", desc);
+                if (!desc) {
+                    console.log("⚠️ Nenhum texto selecionado");
+                    return;
+                }
+
+                await carregarTextosTitulo(desc, this);
+            };
+
+            select.addEventListener("change", selectTextosChangeListener);
+            console.log("✅ Evento 'change' adicionado ao select");
+
+        } catch (error) {
+            console.error("❌ Erro ao carregar textos:", error);
+            console.error("   Mensagem:", error.message);
+            console.error("   Stack:", error.stack);
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro ao carregar textos',
+                text: error.message || 'Não foi possível carregar os textos. Verifique a API.',
+                confirmButtonText: 'Ok'
+            });
+        }
+    };
+
+    if (btnPesquisar) {
+        btnPesquisar.addEventListener("click", btnPesquisarListener);
+        console.log("✅ Listener 'click' adicionado ao botão Pesquisar");
+    } else {
+        console.error("❌ Botão Pesquisar não encontrado!");
     }
 }
 
@@ -310,29 +372,45 @@ function houveAlteracao(dados) {
 }
 
 function criarSelectTextos(textos) {
+    console.log("🔧 Criando select com textos:", textos);
+
     const select = document.createElement("select");
     select.id = "Titulo";
     select.name = "Titulo";
     select.required = true;
-    select.className = "form";
+    select.className = "form2";
 
     const defaultOption = document.createElement("option");
-
     defaultOption.text = "Selecione um texto...";
     defaultOption.disabled = true;
     defaultOption.selected = true;
     defaultOption.value = "";
     select.appendChild(defaultOption);
 
-    console.log("Textos encontrados no CriarSelects:", textos);
+    // Verifica se textos é um array ou objeto com propriedade rows/data
+    let arrayTextos = textos;
+    if (textos && textos.data) {
+        arrayTextos = textos.data;
+    } else if (textos && textos.rows) {
+        arrayTextos = textos.rows;
+    }
 
-    textos.forEach(textoachado => {
+    console.log("📊 Array de textos a processar:", arrayTextos);
+
+    if (!Array.isArray(arrayTextos)) {
+        console.error("❌ Textos não é um array:", arrayTextos);
+        return select;
+    }
+
+    arrayTextos.forEach((textoachado, index) => {
+        console.log(`📝 Adicionando texto ${index}:`, textoachado);
         const option = document.createElement("option");
-        option.value = textoachado.titulo;
-        option.text = textoachado.titulo;
+        option.value = textoachado.titulo || textoachado.id;
+        option.text = textoachado.titulo || `Texto ${textoachado.id}`;
         select.appendChild(option);
     });
 
+    console.log(`✅ Select criado com ${arrayTextos.length} opções`);
     return select;
 }
 
@@ -420,52 +498,62 @@ function adicionarEventoBlurTexto() {
 
 async function carregarTextosTitulo(desc, elementoAtual) {
     try {
+        console.log("🔍 Procurando texto com título:", desc);
         const response = await fetchComToken(`/propostatextos?titulo=${encodeURIComponent(desc.trim())}`);
-        const textoEncontrado = response.data;
+        
+        console.log("📥 Resposta da API:", response);
 
-        const texto = Array.isArray(textoEncontrado) ? textoEncontrado[0] : textoEncontrado;
+        // Trata diferentes formatos de resposta
+        let textoEncontrado;
+        if (Array.isArray(response)) {
+            textoEncontrado = response[0];
+        } else if (response && response.data) {
+            textoEncontrado = Array.isArray(response.data) ? response.data[0] : response.data;
+        } else if (response && response.success) {
+            textoEncontrado = Array.isArray(response.data) ? response.data[0] : response.data;
+        } else {
+            textoEncontrado = response;
+        }
 
-        if (!texto || Object.keys(texto).length === 0) {
+        console.log("✅ Texto encontrado:", textoEncontrado);
+
+        if (!textoEncontrado || Object.keys(textoEncontrado).length === 0) {
             throw new Error("Texto não encontrado");
         }
 
-        console.log("Texto encontrado:", texto);
+        // Preencher os campos com os dados do texto
+        setCampo("idTexto", textoEncontrado.id || "");
+        setCampo("titulo", textoEncontrado.titulo || "");
+        setCampo("conteudo", textoEncontrado.conteudo || "");
+        setCampo("categoria", textoEncontrado.categoria || "");
+        setCampo("ativo", textoEncontrado.ativo === true || textoEncontrado.ativo === "true" || textoEncontrado.ativo === 1);
 
-        // Preencher os campos...
-        document.querySelector("#idTexto").value = texto.id || "";
-        document.querySelector("#Titulo").value = texto.titulo || "";
-        document.querySelector("#conteudo").value = texto.conteudo || "";
-        document.querySelector("#categoria").value = texto.categoria || "";
-        document.querySelector("#ativo").checked =
-            texto.ativo === true || texto.ativo === "true" || texto.ativo === 1;
+        // Atualiza o textoOriginal para rastrear mudanças
+        window.textoOriginal = {
+            idTexto: textoEncontrado.id || "",
+            titulo: textoEncontrado.titulo || "",
+            conteudo: textoEncontrado.conteudo || "",
+            ativo: textoEncontrado.ativo === true || textoEncontrado.ativo === "true" || textoEncontrado.ativo === 1,
+            categoria: textoEncontrado.categoria || ""
+        };
 
-        textoOriginal = { ...texto };
+        console.log("✅ Texto original atualizado:", window.textoOriginal);
 
-        const novoInput = document.createElement("input");
-        novoInput.type = "text";
-        novoInput.id = "Titulo";
-        novoInput.name = "Titulo";
-        novoInput.required = true;
-        novoInput.className = "form";
-        novoInput.classList.add("uppercase");
-        novoInput.value = texto.titulo;
-
-        elementoAtual.parentNode.replaceChild(novoInput, elementoAtual);
-        adicionarEventoBlurTexto();
-
-        const label = document.querySelector('label[for="Titulo"]');
-        if (label) {
-            label.style.display = "block";
-            label.textContent = "Título";
+        // Marca o campo idTexto como bloqueado
+        const campoCodigo = getCampo("idTexto");
+        if (campoCodigo) {
+            campoCodigo.classList.add("has-value");
+            campoCodigo.readOnly = true;
         }
 
-        novoInput.addEventListener("blur", async function () {
-            if (!this.value.trim()) return;
-            await carregarTextosTitulo(this.value, this);
+    } catch (error) {
+        console.error("❌ Erro ao carregar texto:", error);
+        Swal.fire({
+            icon: 'warning',
+            title: 'Texto não encontrado',
+            text: 'Nenhum texto com esse título foi encontrado.',
+            confirmButtonText: 'Ok'
         });
-
-    } catch {
-        mostrarErro("Texto não encontrado", "Nenhum texto com esse título foi encontrado.");
         limparTextoOriginal();
     }
 }

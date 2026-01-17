@@ -941,9 +941,7 @@ async function atualizarProximoEvento() {
     return;
   }
 
-  // Função para criar Date no fuso local (evita erros de fuso horário)
   function parseDateLocal(dateStr) {
-    if (!dateStr) return null;
     if (typeof dateStr === "string") {
       if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
         const [y, m, d] = dateStr.split("-").map(Number);
@@ -957,27 +955,10 @@ async function atualizarProximoEvento() {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
-  // 1. Processar eventos e identificar a fase mais próxima (Marcação, Montagem ou Realização)
-  let proximos = resposta.eventos.map(ev => {
-    const fases = [
-      { nome: "Marcação", data: parseDateLocal(ev.dtinimarcacao) },
-      { nome: "Montagem", data: parseDateLocal(ev.dtinimontagem) },
-      { nome: "Realização", data: parseDateLocal(ev.dtinirealizacao) }
-    ]
-    .filter(f => f.data && f.data.getTime() >= hoje.getTime())
-    .sort((a, b) => a.data - b.data);
-
-    // Se não houver fase futura, usa a Marcação como padrão
-    const faseAtiva = fases[0] || { nome: "Evento", data: parseDateLocal(ev.dtinimarcacao) };
-
-    return {
-      nmevento: ev.nmevento,
-      faseNome: faseAtiva.nome,
-      data: faseAtiva.data
-    };
-  })
-  .filter(ev => ev.data && ev.data.getTime() >= hoje.getTime())
-  .sort((a, b) => a.data - b.data);
+  // 1. Pega todos os eventos que ainda não passaram
+  let proximos = resposta.eventos
+    .map(ev => ({ ...ev, data: parseDateLocal(ev.data) }))
+    .filter(ev => ev.data.getTime() >= hoje.getTime());
 
   if (proximos.length === 0) {
     nomeSpan.textContent = "Sem próximos eventos agendados.";
@@ -990,64 +971,61 @@ async function atualizarProximoEvento() {
     hojeTmp.setHours(0, 0, 0, 0);
     const diffDias = Math.round((dataEvento - hojeTmp) / (1000 * 60 * 60 * 24));
     if (diffDias > 0) return `(em ${diffDias} dia${diffDias > 1 ? "s" : ""})`;
-    if (diffDias === 0) return "(hoje)";
-    return "(em andamento)";
+    else if (diffDias === 0) return "(hoje)";
+    else return "(já começou)";
   }
 
-  // --- LÓGICA DE EXIBIÇÃO ---
+  // 2. Tenta filtrar eventos para a "janela de destaque" (7 dias)
+  const limite = new Date();
+  limite.setDate(hoje.getDate() + 7);
+  const proximos7Dias = proximos.filter(ev => ev.data <= limite);
 
-  // CASO 1: Poucos eventos (1 ou 2) -> Exibição detalhada com nome da fase
-  if (proximos.length <= 2) {
+  // LÓGICA DE EXIBIÇÃO
+  if (proximos7Dias.length === 0) {
+    // CASO 0: Não tem nada nos próximos 7 dias? Mostra o primeiro evento futuro que encontrar
+    const ev = proximos[0];
+    nomeSpan.textContent = ev.nmevento;
+    tempoSmall.textContent = `${ev.data.toLocaleDateString()} ${formatarTempoRestante(ev.data)}`;
     nomeSpan.style.fontSize = "1.3em";
-    nomeSpan.innerHTML = proximos.map(ev => {
-      return `
-        <div style="margin-bottom: 8px;">
-          <strong>${ev.nmevento}</strong><br>
-          <small style="font-size: 0.7em; color: var(--primary-color);">
-            Início ${ev.faseNome}: ${ev.data.toLocaleDateString()} ${formatarTempoRestante(ev.data)}
-          </small>
-        </div>
-      `;
-    }).join("");
-    tempoSmall.textContent = ""; 
   } 
-  
-  // CASO 2: Muitos eventos -> Exibição em lista resumida
+  else if (proximos7Dias.length === 1) {
+    // CASO 1: Apenas 1 evento na semana (Destaque máximo)
+    const ev = proximos7Dias[0];
+    nomeSpan.textContent = ev.nmevento;
+    tempoSmall.textContent = `${ev.data.toLocaleDateString()} ${formatarTempoRestante(ev.data)}`;
+    nomeSpan.style.fontSize = "1.5em";
+  } 
   else {
+    // CASO 2: Múltiplos eventos na semana (Lista compacta)
     nomeSpan.style.fontSize = "1em";
     const eventosPorData = {};
-    
-    // Limita a exibição aos primeiros 4 para não esticar o card
-    const listaReduzida = proximos.slice(0, 4);
-
-    listaReduzida.forEach(ev => {
+    proximos7Dias.forEach(ev => {
       const dataStr = ev.data.toLocaleDateString();
       if (!eventosPorData[dataStr]) eventosPorData[dataStr] = [];
-      eventosPorData[dataStr].push(ev);
+      eventosPorData[dataStr].push(ev.nmevento);
     });
 
-    const datasOrdenadas = Object.keys(eventosPorData).sort((a, b) => {
+    const datas = Object.keys(eventosPorData).sort((a, b) => {
       const [da, ma, ya] = a.split("/").map(Number);
       const [db, mb, yb] = b.split("/").map(Number);
       return new Date(ya, ma - 1, da) - new Date(yb, mb - 1, db);
     });
 
-    nomeSpan.innerHTML = datasOrdenadas.map(dataStr => {
-      const eventosDoDia = eventosPorData[dataStr];
-      const dataObj = eventosDoDia[0].data;
-      
-      // Se houver mais de um evento no mesmo dia, resume
-      if (eventosDoDia.length > 1) {
-        return `• ${eventosDoDia[0].nmevento} +${eventosDoDia.length - 1} - ${dataStr}`;
-      }
-      return `• ${eventosDoDia[0].nmevento} - ${dataStr}`;
-    }).join("<br>");
-
-    if (proximos.length > 4) {
-      nomeSpan.innerHTML += `<br><small>... e mais ${proximos.length - 4} compromissos</small>`;
+    if (datas.length === 1) {
+      const lista = eventosPorData[datas[0]];
+      let nomes = lista.length <= 3 ? lista.join(" | ") : `${lista.slice(0, 3).join(" | ")} | +${lista.length - 3}`;
+      nomeSpan.textContent = nomes;
+      tempoSmall.textContent = `${datas[0]} ${formatarTempoRestante(proximos7Dias[0].data)}`;
+    } else {
+      nomeSpan.innerHTML = datas.map(dataStr => {
+        const [d, m, y] = dataStr.split("/").map(Number);
+        const dataObj = new Date(y, m - 1, d);
+        return eventosPorData[dataStr]
+          .map(nome => `${nome} - ${dataStr} ${formatarTempoRestante(dataObj)}`)
+          .join("<br>");
+      }).join("<br>");
+      tempoSmall.textContent = "";
     }
-
-    tempoSmall.textContent = "Próximas atividades";
   }
 }
 
@@ -2421,6 +2399,9 @@ async function abrirTelaEquipesEvento(evento) {
   // normaliza array de equipes: suportar {equipes: [...] } ou array direto
   const equipesRaw = Array.isArray(dados.equipes) ? dados.equipes : (Array.isArray(dados) ? dados : []);
 
+  // Adiciona idorcamento ao evento
+  evento.idorcamento = dados.idorcamento;
+
   // CONSOLE 1: Dados Brutos do Backend
   console.log("=================================================");
   console.log(`[${evento.nmevento}] Dados Brutos (equipesRaw) do Backend:`);
@@ -2605,265 +2586,150 @@ async function abrirTelaEquipesEvento(evento) {
 async function abrirListaFuncionarios(equipe, evento) {
   const painel = document.getElementById("painelDetalhes");
   if (!painel) return;
-  painel.innerHTML = ""; 
+  painel.innerHTML = "";
 
   const container = document.createElement("div");
   container.className = "painel-lista-funcionarios";
 
-  // ... (Helpers locais escapeHtml, agruparFuncionariosPorFuncao, formatarPeriodo permanecem os mesmos) ...
-
+  // --- Helpers internos ---
   function escapeHtml(str) {
-  if (!str && str !== 0) return "";
-  return String(str)
-  .replace(/&/g, "&amp;")
-  .replace(/</g, "&lt;")
-  .replace(/>/g, "&gt;")
-  .replace(/"/g, "&quot;")
-  .replace(/'/g, "&#39;");
+    if (!str && str !== 0) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
   const agruparFuncionariosPorFuncao = (lista) => {
-  return lista.reduce((grupos, funcionario) => {
-  const funcao = funcionario.funcao || 'Não Classificado';
-  if (!grupos[funcao]) {
-  grupos[funcao] = [];
-  }
-  grupos[funcao].push(funcionario);
-  return grupos;
-  }, {});
+    return lista.reduce((grupos, funcionario) => {
+      const funcao = funcionario.funcao || 'Não Classificado';
+      if (!grupos[funcao]) grupos[funcao] = [];
+      grupos[funcao].push(funcionario);
+      return grupos;
+    }, {});
   };
 
   function formatarPeriodo(inicio, fim) {
-  const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
-  return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
-  }
-   function cleanAndNormalize(str) {
-  if (!str && str !== 0) return "";
-  let cleanStr = String(str);
-
-  // 1. Remove pontuações e acentos (normaliza para NFD e remove caracteres diacríticos)
-  cleanStr = cleanStr.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-  // 2. Remove caracteres não alfanuméricos exceto espaços e delimitadores comuns (mantendo o texto legível)
-  cleanStr = cleanStr.replace(/[^\w\s\-\.\/]/g, ' '); 
-
-  return cleanStr.trim();
+    const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+    return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
   }
 
-  // --- HELPER: Exportação para CSV (AGORA COM LIMPEZA E MOEDA) ---
+  function cleanAndNormalize(str) {
+    if (!str && str !== 0) return "";
+    return String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  }
+
+  // --- Exportação CSV ---
   function exportarParaCSV(data, nomeEquipe, nomeEvento) {
-  if (!Array.isArray(data) || data.length === 0) {
-  alert("Não há dados para exportar.");
-  return;
+    if (!data.length) return alert("Não há dados.");
+    const DELIMITADOR = ';';
+    const headers = ["Funcao", "Nome", "Setor", "Status Pagamento", "Valor Total", "Nivel Experiencia"];
+
+    const csvRows = data.map(row => {
+      const valor = row.vlrtotal ? String(row.vlrtotal).replace('.', ',') : '0';
+      return [
+        cleanAndNormalize(row.funcao),
+        cleanAndNormalize(row.nome),
+        cleanAndNormalize(row.setor),
+        cleanAndNormalize(row.status_pagamento),
+        valor,
+        cleanAndNormalize(row.nivelexperiencia)
+      ].join(DELIMITADOR);
+    });
+
+    const csvContent = "\uFEFF" + [headers.join(DELIMITADOR), ...csvRows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `Lista_${cleanAndNormalize(nomeEquipe)}_${cleanAndNormalize(nomeEvento)}.csv`;
+    link.click();
   }
 
-  const DELIMITADOR = ';'; 
-
-  // 1. Define os cabeçalhos das colunas
-  const headers = [
-  "Funcao", // Sem acento
-  "Nome", 
-  "Setor", 
-  "Status Pagamento", 
-  "Valor Total (R$)", // Indicando a moeda
-  "Nivel Experiencia", // Sem acento
-  "ID Funcionario",
-  "ID Staff Evento"
-  ];
-
-  // 2. Mapeia os dados e trata campos
-  const csvRows = data.map(row => {
-  // Função para envolver o valor em aspas se contiver PONTO E VÍRGULA, aspas ou quebra de linha
-  const sanitize = val => {
-  let str = String(val ?? '');
-  // Trata aspas duplas internas (escapa)
-  str = str.replace(/"/g, '""'); 
-  // Envolve o valor em aspas se houver PONTO E VÍRGULA, aspas ou quebra de linha
-  if (str.includes(DELIMITADOR) || str.includes('\n') || str.includes('"')) {
-  return `"${str}"`;
-  }
-  return str;
-  };
-
-  // Tratamento do Valor Total: Remove R$, substitui ponto por vírgula para decimal
-  const valorTotalRaw = row.vlrtotal ? String(row.vlrtotal).replace(/[R$\s]/g, '') : '0';
-  // Garante que o separador decimal seja a vírgula (padrão brasileiro no CSV)
-  const valorTotalFormatado = valorTotalRaw.replace('.', ','); 
-
-
-  return [
-  sanitize(cleanAndNormalize(row.funcao || 'Nao Classificado')), // Limpeza
-  sanitize(cleanAndNormalize(row.nome)),   // Limpeza
-  sanitize(cleanAndNormalize(row.setor)), // Limpeza
-  sanitize(cleanAndNormalize(row.status_pagamento)),   // Limpeza
-  sanitize(valorTotalFormatado),   // Formato para moeda
-  sanitize(cleanAndNormalize(row.nivelexperiencia)),   // Limpeza
-  sanitize(row.idfuncionario),
-  sanitize(row.idstaffevento)
-  ].join(DELIMITADOR); 
-  });
-
-  // 3. Combina cabeçalhos e linhas
-  const csvContent = [
-  headers.join(DELIMITADOR), 
-  ...csvRows
-  ].join('\n');
-
-  // 4. Cria e dispara o download
-  const nomeArquivo = `Lista_Funcionarios_${cleanAndNormalize(nomeEquipe).replace(/\s/g, '_')}_${cleanAndNormalize(nomeEvento).replace(/\s/g, '_')}.csv`;
-
-  // Adicionando BOM (Byte Order Mark) para melhor compatibilidade com caracteres UTF-8 no Excel
-  const BOM = '\uFEFF'; 
-  const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' }); 
-  const link = document.createElement("a");
-
-  if (link.download !== undefined) { 
-  const url = URL.createObjectURL(blob);
-  link.setAttribute("href", url);
-  link.setAttribute("download", nomeArquivo);
-  link.style.visibility = 'hidden';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-  } else {
-  alert("Seu navegador não suporta download automático.");
-  }
-  }
-  // ------------------------------------------
-
-  let listaFuncionariosCarregada = [];
-
-  // ... (Estrutura HTML do HEADER, CORPO e RODAPÉ permanece a mesma) ...
-
-  // ===== HEADER (Adaptado) =====
+  // --- Construção do Layout ---
   const header = document.createElement("div");
-  header.className = "header-equipes-evento"; 
+  header.className = "header-equipes-evento";
   header.innerHTML = `
-  <button class="btn-voltar-detalhe" title="Voltar para Detalhe da Equipe">←</button>
-  <div class="info-evento">
-  <h2>${escapeHtml(equipe.equipe || "Equipe")}</h2>
-  <p><strong>Evento:</strong> ${escapeHtml(evento.nmevento || "Evento")}</p>
-  <p>📍 ${evento.local || evento.nmlocalmontagem || "Local não informado"}</p>
-  <p>📅 ${formatarPeriodo(evento.inicio_realizacao, evento.fim_realizacao)}</p>
-  </div>
+    <button class="btn-voltar-detalhe" title="Voltar">←</button>
+    <div class="info-evento">
+      <h2>${escapeHtml(equipe.equipe)}</h2>
+      <p><strong>Evento:</strong> ${escapeHtml(evento.nmevento)}</p>
+      <p>📅 ${formatarPeriodo(evento.inicio_realizacao, evento.fim_realizacao)}</p>
+    </div>
   `;
   container.appendChild(header);
 
-  // ===== CORPO (Conteúdo Dinâmico - Funcionários) =====
   const corpo = document.createElement("div");
   corpo.className = "corpo-funcionarios";
   corpo.innerHTML = `<div class="loading">Carregando funcionários...</div>`;
   container.appendChild(corpo);
 
-  // ===== RODAPÉ (Adaptado) =====
   const rodape = document.createElement("div");
-  rodape.className = "rodape-equipes"; 
+  rodape.className = "rodape-equipes";
   rodape.innerHTML = `
-  <button class="btn-voltar-rodape-detalhe"> ← Voltar</button>
-  <button class="btn-exportar-lista">📥 Exportar Lista</button>
+    <button class="btn-voltar-rodape-detalhe"> ← Voltar</button>
+    <button class="btn-exportar-lista">📥 Exportar Lista</button>
   `;
   container.appendChild(rodape);
-
   painel.appendChild(container);
 
-  // === Eventos de Navegação ===
-  const voltarParaEquipes = () => abrirTelaEquipesEvento(evento); 
-  container.querySelector(".btn-voltar-detalhe")?.addEventListener("click", voltarParaEquipes);
-  container.querySelector(".btn-voltar-rodape-detalhe")?.addEventListener("click", voltarParaEquipes);
+  // Eventos
+  const voltar = () => abrirTelaEquipesEvento(evento);
+  container.querySelector(".btn-voltar-detalhe").onclick = voltar;
+  container.querySelector(".btn-voltar-rodape-detalhe").onclick = voltar;
 
-  // 🛑 EVENTO DO BOTÃO EXPORTAR (CHAMA O HELPER CORRIGIDO)
-  container.querySelector(".btn-exportar-lista")?.addEventListener("click", () => {
-  exportarParaCSV(
-  listaFuncionariosCarregada, 
-  equipe.equipe || "Equipe", 
-  evento.nmevento || "Evento"
-  );
-  });
-
-  // === Carregamento de Dados ===
   try {
-    const idevento = evento.idevento || evento.id || evento.id_evento;
+    const idevento = evento.idevento || evento.id;
     const idequipe = equipe.idequipe;
     const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
-    
-    // Tenta pegar o ano da data do evento, se não existir, usa o ano atual
-    const dataRef = evento.inicio_realizacao || evento.dtinirealizacao || new Date();
-    const ano = new Date(dataRef).getFullYear();
+    const ano = new Date(evento.inicio_realizacao || new Date()).getFullYear();
 
-    if (!idevento || !idequipe || !idempresa) {
-      corpo.innerHTML = `<p class="erro">Erro: Dados incompletos (Evento: ${idevento}, Equipe: ${idequipe}, Empresa: ${idempresa}).</p>`;
+    const url = `/main/ListarFuncionarios?idEvento=${idevento}&idEquipe=${idequipe}&idempresa=${idempresa}&ano=${ano}`;
+    const funcionarios = await fetchComToken(url);
+    let listaFuncionariosCarregada = funcionarios;
+
+    container.querySelector(".btn-exportar-lista").onclick = () => exportarParaCSV(listaFuncionariosCarregada, equipe.equipe, evento.nmevento);
+
+    if (!funcionarios.length) {
+      corpo.innerHTML = `<p class="sem-funcionarios-msg">Nenhum funcionário cadastrado.</p>`;
       return;
     }
 
-    // Adicionado idempresa e ano na query string para bater com o que o backend espera
-    const url = `/main/ListarFuncionarios?idEvento=${idevento}&idEquipe=${idequipe}&idempresa=${idempresa}&ano=${ano}`;
-    const funcionarios = await fetchComToken(url);
+    const grupos = agruparFuncionariosPorFuncao(funcionarios);
+    let html = '';
 
-  if (!Array.isArray(funcionarios)) {
-   throw new Error("Resposta inválida ou vazia do servidor.");
-  }
+    for (const funcao in grupos) {
+      html += `
+        <div class="funcionario-grupo-header">
+          <h4 class="grupo-titulo">${escapeHtml(funcao)}</h4>
+          <span class="grupo-badge">${grupos[funcao].length} Pessoa(s)</span>
+        </div>
+        <div class="grupo-divisor"></div>
+        <ul class="funcionario-lista">
+      `;
 
-  listaFuncionariosCarregada = funcionarios; 
+      grupos[funcao].forEach(f => {
+        const statusClass = f.status_pagamento === 'Pago' ? 'status-pago' : 'status-pendente';
+        
+        // ✅ AQUI ESTÁ A MUDANÇA: NOME (SETOR)
+        const nomeComSetor = f.setor ? `${f.nome} (${f.setor})` : f.nome;
 
-  if (funcionarios.length === 0) {
-  corpo.innerHTML = `<p class="sem-funcionarios-msg">Nenhum funcionário cadastrado nesta equipe para este evento.</p>`;
-  return;
-  }
-
-  // --- Renderização da Lista de Funcionários ---
-  const gruposPorFuncao = agruparFuncionariosPorFuncao(funcionarios);
-  let conteudoAgrupadoHtml = '';
-
-  for (const funcao in gruposPorFuncao) {
-  if (gruposPorFuncao.hasOwnProperty(funcao)) {
-  const funcionariosDaFuncao = gruposPorFuncao[funcao];
-
-  // Header do Grupo
-  conteudoAgrupadoHtml += `
-  <div class="funcionario-grupo-header">
-  <h4 class="grupo-titulo">${escapeHtml(funcao)}</h4>
-  <span class="grupo-badge">${funcionariosDaFuncao.length} Pessoa(s)</span>
-  <span class="grupo-periodo">Status</span>
-  </div>
-  <div class="grupo-divisor"></div>
-  `;
-
-  // Lista de Funcionários
-  let listaFuncionariosHtml = '<ul class="funcionario-lista">';
-
-  funcionariosDaFuncao.forEach(f => {
-  let statusClass = 'status-pendente';
-  const statusTexto = f.status_pagamento || 'Pendente';
-
-  if (statusTexto === 'Pago') {
-  statusClass = 'status-pago'; 
-  } else if (statusTexto) {
-  statusClass = 'status-atencao'; 
-  }
-
-  // Renderização do item - Aplicando escapeHtml
-  listaFuncionariosHtml += `
-  <li class="funcionario-item">
-  <span class="funcionario-nome">${escapeHtml(f.nome)}</span>
-  <span class="funcionario-status-badge ${statusClass}">
-  ${escapeHtml(statusTexto)}
-  </span>
-  </li>
-  `;
-  });
-
-  listaFuncionariosHtml += '</ul>';
-  conteudoAgrupadoHtml += listaFuncionariosHtml;
-  }
-  }
-
-  corpo.innerHTML = conteudoAgrupadoHtml; 
+        html += `
+          <li class="funcionario-item">
+            <span class="funcionario-nome">${escapeHtml(nomeComSetor)}</span>
+            <span class="funcionario-status-badge ${statusClass}">
+              ${escapeHtml(f.status_pagamento || 'Pendente')}
+            </span>
+          </li>
+        `;
+      });
+      html += '</ul>';
+    }
+    corpo.innerHTML = html;
 
   } catch (err) {
-  console.error("Erro ao buscar lista de funcionários:", err);
-  const msg = (err && err.message) ? err.message : "Erro interno ao carregar a lista de funcionários.";
-  corpo.innerHTML = `<p class="erro">${escapeHtml(msg)}</p>`;
+    corpo.innerHTML = `<p class="erro">Erro ao carregar lista.</p>`;
   }
 }
 
@@ -2969,6 +2835,7 @@ function abrirDetalhesEquipe(equipe, evento) {
   params.set("nmcliente", evento.nmfantasia || evento.cliente || "");
   params.set("idevento", evento.idevento || "");
   params.set("nmevento", evento.nmevento || "");
+  params.set("idorcamento", evento.idorcamento || "");
 
   if (Array.isArray(evento.dataeventos)) {
   params.set("dataeventos", JSON.stringify(evento.dataeventos));
@@ -5544,11 +5411,11 @@ const obterLinhasTabela = (evento, filtro) => {
                         ${renderConteudoAcao(f.idstaffevento, info.tipoAcao, info.status)}
                     </td>` : ''}
 
-                <td>
-                    ${estaPago ? 
-                        gerarHTMLComprovanteDinamico(f.idstaffevento, filtro, info.status, criarHTMLComprovantes(f, filtro)) 
-                        : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'}
-                </td>
+        <td class="comprovantes-cell">
+                ${estaPago ? 
+                    gerarHTMLComprovanteDinamico(f.idstaffevento, filtro, info.status, criarHTMLComprovantes(f, filtro)) 
+                : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'}
+            </td>
 
                 <td class="status-celula status-${classeStatus}">${info.status}</td>
 

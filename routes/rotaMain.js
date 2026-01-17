@@ -1072,7 +1072,7 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
 
     // 3️⃣ Busca quantidades cadastradas - TRAVA ANO com EXISTS para ignorar lixo de 2025
     const { rows: staff } = await pool.query(
-      `SELECT se.idfuncao, COUNT(DISTINCT se.idstaff) AS qtd_cadastrada
+      `SELECT se.idfuncao, se.pavilhao, COUNT(DISTINCT se.idstaff) AS qtd_cadastrada
        FROM staffeventos se
        WHERE se.idevento = $1 
          AND se.idcliente = $2
@@ -1081,14 +1081,14 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
              FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
              WHERE EXTRACT(YEAR FROM (d.dt)::date) = $3
          )
-       GROUP BY se.idfuncao`,
+       GROUP BY se.idfuncao, se.pavilhao`,
       [idevento, idcliente, ano]
     );
 
     // 4️⃣ Busca Datas de Staff por Função - TRAVA ANO dentro do JSON
     const { rows: datasStaffRaw } = await pool.query(
       `SELECT 
-          se.idfuncao, 
+          se.idfuncao, se.pavilhao,
           array_agg(DISTINCT d.dt ORDER BY d.dt) AS datas_staff
        FROM staffeventos se
        INNER JOIN orcamentos o ON o.idevento = se.idevento
@@ -1097,12 +1097,12 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
            WHERE EXTRACT(YEAR FROM dt::date) = $2
        ) AS d
        WHERE se.idevento = $1 AND se.idcliente = $3
-       GROUP BY se.idfuncao`,
+       GROUP BY se.idfuncao, se.pavilhao`,
       [idevento, ano, idcliente]
     );
 
     const datasStaffMap = datasStaffRaw.reduce((acc, row) => {
-      acc[String(row.idfuncao)] = row.datas_staff;
+      acc[`${row.idfuncao}_${row.pavilhao}`] = row.datas_staff;
       return acc;
     }, {});
 
@@ -1121,9 +1121,9 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
       }
 
       // Procura a quantidade preenchida para esta função específica
-      const cadastrado = staff.find(s => String(s.idfuncao) === String(item.idfuncao)); 
+      const cadastrado = staff.find(s => String(s.idfuncao) === String(item.idfuncao) && s.pavilhao === item.setor); 
       const qtd_cadastrada = cadastrado ? Number(cadastrado.qtd_cadastrada) : 0;
-      const datas_staff = datasStaffMap[String(item.idfuncao)] || [];
+      const datas_staff = datasStaffMap[`${item.idfuncao}_${item.setor}`] || [];
 
       equipesMap[idequipeKey].funcoes.push({
         idfuncao: item.idfuncao,
@@ -1140,7 +1140,8 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
     // 6️⃣ Retorno final
     res.status(200).json({ 
       equipes: Object.values(equipesMap), 
-      idmontagem 
+      idmontagem,
+      idorcamento
     });
 
   } catch (err) {
@@ -1161,28 +1162,27 @@ router.get("/ListarFuncionarios", async (req, res) => {
 
   try {
     const query = `
-    SELECT 
-        se.idstaffevento, 
-        se.idfuncionario, 
-        se.nmfuncionario AS nome, 
-        se.nmfuncao AS funcao, 
-        se.vlrtotal, 
-        se.statuspgto AS status_pagamento,
-        se.setor,
-        se.nivelexperiencia
-    FROM public.staffeventos se
-    INNER JOIN orcamentos o ON o.idevento = se.idevento
-    INNER JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-    WHERE se.idevento = $1 
-      AND se.idequipe = $2 
-      AND oe.idempresa = $3
-      -- GARANTE QUE O FUNCIONÁRIO TEM DATAS LANÇADAS PARA O ANO SELECIONADO (2026)
-      AND EXISTS (
-          SELECT 1 
-          FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
-          WHERE EXTRACT(YEAR FROM (d.dt)::date) = $4
-      )
-    ORDER BY se.nmfuncao, se.nmfuncionario;`;
+    SELECT DISTINCT ON (se.idstaffevento)
+    se.idstaffevento, 
+    se.idfuncionario, 
+    se.nmfuncionario AS nome, 
+    se.nmfuncao AS funcao, 
+    se.vlrtotal, 
+    se.statuspgto AS status_pagamento,
+    -- Aqui está a correção:
+    COALESCE(NULLIF(se.setor, ''), NULLIF(se.pavilhao, ''), '') AS setor,
+    se.nivelexperiencia
+FROM public.staffeventos se
+INNER JOIN orcamentoempresas oe ON oe.idorcamento = se.idorcamento
+WHERE se.idevento = $1
+  AND se.idequipe = $2
+  AND oe.idempresa = $3
+  AND EXISTS (
+      SELECT 1 
+      FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
+      WHERE EXTRACT(YEAR FROM (d.dt)::date) = $4
+  )
+ORDER BY se.idstaffevento, se.nmfuncao, se.nmfuncionario;`;
 
     const { rows } = await pool.query(query, [idEvento, idEquipe, idempresa, anoFiltro]);
     res.status(200).json(rows);

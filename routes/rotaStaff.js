@@ -231,25 +231,62 @@ router.get('/pavilhao', async (req, res) => {
  console.log("🔥 Rota /staff/pavilhao acessada");
 
   const idempresa = req.idempresa;
-  const idmontagem = req.query.idmontagem; 
+  const idmontagem = req.query.idmontagem;
+  const idorcamento = req.query.idorcamento;
+  const idfuncao = req.query.idfuncao;
 
-  console.log("IDMONTAGEM", idmontagem);
+  console.log("IDMONTAGEM", idmontagem, "IDORCAMENTO", idorcamento, "IDFUNCAO", idfuncao);
 
   try {
-     
-    const resultado = await pool.query(`
-  SELECT p.nmpavilhao
-  FROM localmontpavilhao p        
-  WHERE p.idmontagem = $1
-  ORDER BY p.nmpavilhao
-    `, [idmontagem]);
+    let query;
+    let params;
+
+    if (idorcamento && idfuncao) {
+      // Verificar se há pavilhões no orcamentoitens para esta função
+      const checkPavilhao = await pool.query(`
+        SELECT DISTINCT oi.setor
+        FROM orcamentoitens oi
+        WHERE oi.idorcamento = $1 AND oi.idfuncao = $2 AND oi.setor IS NOT NULL AND oi.setor != ''
+      `, [idorcamento, idfuncao]);
+
+      if (checkPavilhao.rows.length > 0) {
+        // Há pavilhões no orçamento, retornar apenas esses
+        query = `
+          SELECT DISTINCT oi.setor as nmpavilhao
+          FROM orcamentoitens oi
+          WHERE oi.idorcamento = $1 AND oi.idfuncao = $2 AND oi.setor IS NOT NULL AND oi.setor != ''
+          ORDER BY oi.setor
+        `;
+        params = [idorcamento, idfuncao];
+      } else {
+        // Não há pavilhões no orçamento, retornar todos do local de montagem
+        query = `
+          SELECT p.nmpavilhao
+          FROM localmontpavilhao p
+          WHERE p.idmontagem = $1
+          ORDER BY p.nmpavilhao
+        `;
+        params = [idmontagem];
+      }
+    } else {
+      // Sem idorcamento e idfuncao, retornar todos do local de montagem
+      query = `
+        SELECT p.nmpavilhao
+        FROM localmontpavilhao p
+        WHERE p.idmontagem = $1
+        ORDER BY p.nmpavilhao
+      `;
+      params = [idmontagem];
+    }
+
+    const resultado = await pool.query(query, params);
 
     console.log("PAVILHAO", resultado);
     res.json(resultado.rows);
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({ erro: 'Erro ao buscar clientes' });
+    res.status(500).json({ erro: 'Erro ao buscar pavilhões' });
   }
 
 });
