@@ -101,32 +101,48 @@ router.get('/equipe', async (req, res) => {
 });
 
 router.get('/funcao', async (req, res) => {
-  
- console.log("🔥 Rota /staff/funcao acessada");
+  console.log("🔥 Rota /staff/funcao acessada");
 
   const idempresa = req.idempresa;
+  // Permite filtrar funções por uma ou mais equipes (ex: ?idequipe=1,2)
+  const idequipeParam = req.query.idequipe;
 
   try {
-     
-    const resultado = await pool.query(`
-      SELECT f.idcategoriafuncao, f.idfuncao, f.descfuncao, f.ativo, f.vdafuncao, f.obsproposta, f.obsfuncao,
-          e.idequipe, e.nmequipe, cf.nmcategoriafuncao,
-          cf.ctofuncaobase, cf.ctofuncaojunior, cf.ctofuncaopleno, cf.ctofuncaosenior, cf.transporte, cf.transpsenior, cf.alimentacao, cf.vlrfuncionario
-      FROM funcao f
-      INNER JOIN categoriafuncao cf ON f.idcategoriafuncao = cf.idcategoriafuncao
-      INNER JOIN equipe e ON f.idequipe = e.idequipe
-      INNER JOIN funcaoempresas fe ON fe.idfuncao = f.idfuncao
-      WHERE fe.idempresa = $1
-      ORDER BY f.descfuncao
-    `, [idempresa]);
+    const filtros = [idempresa];
+    let filtroEquipeSQL = "";
+
+    if (idequipeParam) {
+      const idequipes = String(idequipeParam)
+        .split(',')
+        .map(v => v.trim())
+        .filter(v => v)
+        .map(Number)
+        .filter(Number.isFinite);
+
+      if (idequipes.length > 0) {
+        filtros.push(idequipes);
+        filtroEquipeSQL = " AND f.idequipe = ANY($2::int[]) ";
+      }
+    }
+
+    const resultado = await pool.query(
+      `SELECT f.idcategoriafuncao, f.idfuncao, f.descfuncao, f.ativo, f.vdafuncao, f.obsproposta, f.obsfuncao,
+              e.idequipe, e.nmequipe, cf.nmcategoriafuncao,
+              cf.ctofuncaobase, cf.ctofuncaojunior, cf.ctofuncaopleno, cf.ctofuncaosenior, cf.transporte, cf.transpsenior, cf.alimentacao, cf.vlrfuncionario
+       FROM funcao f
+       INNER JOIN categoriafuncao cf ON f.idcategoriafuncao = cf.idcategoriafuncao
+       INNER JOIN equipe e ON f.idequipe = e.idequipe
+       INNER JOIN funcaoempresas fe ON fe.idfuncao = f.idfuncao
+       WHERE fe.idempresa = $1 ${filtroEquipeSQL}
+       ORDER BY f.descfuncao`,
+      filtros
+    );
 
     res.json(resultado.rows);
-
   } catch (error) {
     console.error(error);
-    res.status(500).json({ erro: 'Erro ao buscar clientes' });
+    res.status(500).json({ erro: 'Erro ao buscar funções' });
   }
-
 });
 
 router.get("/funcionarios",  async (req, res) => { 
@@ -231,25 +247,62 @@ router.get('/pavilhao', async (req, res) => {
  console.log("🔥 Rota /staff/pavilhao acessada");
 
   const idempresa = req.idempresa;
-  const idmontagem = req.query.idmontagem; 
+  const idmontagem = req.query.idmontagem;
+  const idorcamento = req.query.idorcamento;
+  const idfuncao = req.query.idfuncao;
 
-  console.log("IDMONTAGEM", idmontagem);
+  console.log("IDMONTAGEM", idmontagem, "IDORCAMENTO", idorcamento, "IDFUNCAO", idfuncao);
 
   try {
-     
-    const resultado = await pool.query(`
-  SELECT p.nmpavilhao
-  FROM localmontpavilhao p        
-  WHERE p.idmontagem = $1
-  ORDER BY p.nmpavilhao
-    `, [idmontagem]);
+    let query;
+    let params;
+
+    if (idorcamento && idfuncao) {
+      // Verificar se há pavilhões no orcamentoitens para esta função
+      const checkPavilhao = await pool.query(`
+        SELECT DISTINCT oi.setor
+        FROM orcamentoitens oi
+        WHERE oi.idorcamento = $1 AND oi.idfuncao = $2 AND oi.setor IS NOT NULL AND oi.setor != ''
+      `, [idorcamento, idfuncao]);
+
+      if (checkPavilhao.rows.length > 0) {
+        // Há pavilhões no orçamento, retornar apenas esses
+        query = `
+          SELECT DISTINCT oi.setor as nmpavilhao
+          FROM orcamentoitens oi
+          WHERE oi.idorcamento = $1 AND oi.idfuncao = $2 AND oi.setor IS NOT NULL AND oi.setor != ''
+          ORDER BY oi.setor
+        `;
+        params = [idorcamento, idfuncao];
+      } else {
+        // Não há pavilhões no orçamento, retornar todos do local de montagem
+        query = `
+          SELECT p.nmpavilhao
+          FROM localmontpavilhao p
+          WHERE p.idmontagem = $1
+          ORDER BY p.nmpavilhao
+        `;
+        params = [idmontagem];
+      }
+    } else {
+      // Sem idorcamento e idfuncao, retornar todos do local de montagem
+      query = `
+        SELECT p.nmpavilhao
+        FROM localmontpavilhao p
+        WHERE p.idmontagem = $1
+        ORDER BY p.nmpavilhao
+      `;
+      params = [idmontagem];
+    }
+
+    const resultado = await pool.query(query, params);
 
     console.log("PAVILHAO", resultado);
     res.json(resultado.rows);
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({ erro: 'Erro ao buscar clientes' });
+    res.status(500).json({ erro: 'Erro ao buscar pavilhões' });
   }
 
 });
@@ -259,30 +312,18 @@ router.post("/orcamento/consultar",
   async (req, res) => {
   console.log("Dados recebidos no backend:", req.body);
   const client = await pool.connect();
-  try {
-        const {
-            idEvento,
-            idCliente,
-            idLocalMontagem,
-            idFuncao,
-            datasEvento = [],
-        } = req.body;
+    try {
+        // Certifique-se que os nomes aqui batem com o JSON.stringify do frontend
+        const { idEvento, idCliente, idLocalMontagem, idFuncao, datasEvento, setor } = req.body;
+        
+        // O idempresa vem do middleware de contexto
+        const idempresa = req.idempresa; 
 
-        const idempresa = req.idempresa;
-
-        console.log("ORCAMENTO/CONSULTAR", req.body);
-
-        if (!idEvento || !idCliente || !idLocalMontagem || !idFuncao) {
-            return res
-              .status(400)
-              .json({
-        error: "IDs de Evento, Cliente, Local de Montagem e Função são obrigatórios.",
-              });
+        if (!idEvento || !idCliente || !idLocalMontagem || !idFuncao || !datasEvento) {
+            return res.status(400).json({ error: "Parâmetros incompletos para consulta." });
         }
 
-        if (!Array.isArray(datasEvento) || datasEvento.length === 0) {
-            return res.status(400).json({ error: "O array de datas é obrigatório para a pesquisa." });
-        }
+        console.log("🔍 [ORCAMENTO/CONSULTAR] Filtros:", { idEvento, idCliente, idLocalMontagem, idFuncao, setor });
 
         const query = `
             WITH datas_orcamento AS (
@@ -317,6 +358,7 @@ router.post("/orcamento/consultar",
                         AND se.idcliente = o.idcliente
                         AND se.idmontagem = o.idmontagem
                         AND se.idfuncao = oi.idfuncao
+                        AND se.pavilhao = $7
                         -- Verifica staff escalado apenas nas datas que foram filtradas na busca ($5)
                         AND se.datasevento @> to_jsonb($5::text[])
                 ) AS quantidade_escalada
@@ -341,7 +383,9 @@ router.post("/orcamento/consultar",
                 AND o.idevento = $2
                 AND o.idcliente = $3
                 AND o.idmontagem = $4
+                AND oi.idfuncao = $6
                 AND oi.idfuncao IS NOT NULL
+                AND oi.setor = $7
                 -- Filtra para trazer apenas itens que tenham choque de data com o que foi pesquisado
                 AND dto.periodos_disponiveis && $5::date[]
             GROUP BY
@@ -371,23 +415,23 @@ router.post("/orcamento/consultar",
             idCliente,
             idLocalMontagem,
             datasEvento,
+            idFuncao,
+            setor || ''
         ];
 
-        const result = await client.query(query, values);
-        const orcamentoItems = result.rows;
+       const result = await client.query(query, values);
+        
+        console.log("✅ [ORCAMENTO/CONSULTAR] Resultado:", result.rows);
+        // Retorna apenas as linhas. O frontend agora está preparado para receber o array puro.
+        res.status(200).json(result.rows);
 
-        res.status(200).json(orcamentoItems);
-       } catch (error) {
-        console.error("Erro ao buscar itens de orçamento por critérios:", error);
-        res.status(500).json({
-            error: "Erro ao buscar orçamento por critérios.",
-            detail: error.message,
-        });
-       } finally {
+    } catch (error) {
+        console.error("Erro no backend:", error);
+        res.status(500).json({ error: error.message });
+    } finally {
         client.release();
-      }
     }
-);
+});
 
 
 router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, res) => {

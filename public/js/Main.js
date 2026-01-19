@@ -552,6 +552,7 @@ window.applyModalPrefill = function(rawParams) {
       idequipe: params.get("idequipe"),
       idcliente: params.get("idcliente"),
       idmontagem: params.get("idmontagem"),
+      idorcamento: params.get("idorcamento"),
       nmequipe: params.get("nmequipe") || params.get("idequipe_nome"),
       nmfuncao: params.get("nmfuncao"),
       nmevento: params.get("nmevento"),
@@ -581,6 +582,7 @@ window.applyModalPrefill = function(rawParams) {
   setHidden("idFuncao", prefill.idfuncao);
   setHidden("idCliente", prefill.idcliente);
   setHidden("idMontagem", prefill.idmontagem);
+  setHidden("idorcamento", prefill.idorcamento);
 
   // helper: tenta selecionar option existente — NÃO cria option para evitar sobrescrever listas carregadas depois
   function trySelectIfExists(selectId, value, text) {
@@ -941,9 +943,7 @@ async function atualizarProximoEvento() {
     return;
   }
 
-  // Função para criar Date no fuso local (evita erros de fuso horário)
   function parseDateLocal(dateStr) {
-    if (!dateStr) return null;
     if (typeof dateStr === "string") {
       if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
         const [y, m, d] = dateStr.split("-").map(Number);
@@ -957,27 +957,10 @@ async function atualizarProximoEvento() {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
-  // 1. Processar eventos e identificar a fase mais próxima (Marcação, Montagem ou Realização)
-  let proximos = resposta.eventos.map(ev => {
-    const fases = [
-      { nome: "Marcação", data: parseDateLocal(ev.dtinimarcacao) },
-      { nome: "Montagem", data: parseDateLocal(ev.dtinimontagem) },
-      { nome: "Realização", data: parseDateLocal(ev.dtinirealizacao) }
-    ]
-    .filter(f => f.data && f.data.getTime() >= hoje.getTime())
-    .sort((a, b) => a.data - b.data);
-
-    // Se não houver fase futura, usa a Marcação como padrão
-    const faseAtiva = fases[0] || { nome: "Evento", data: parseDateLocal(ev.dtinimarcacao) };
-
-    return {
-      nmevento: ev.nmevento,
-      faseNome: faseAtiva.nome,
-      data: faseAtiva.data
-    };
-  })
-  .filter(ev => ev.data && ev.data.getTime() >= hoje.getTime())
-  .sort((a, b) => a.data - b.data);
+  // 1. Pega todos os eventos que ainda não passaram
+  let proximos = resposta.eventos
+    .map(ev => ({ ...ev, data: parseDateLocal(ev.data) }))
+    .filter(ev => ev.data.getTime() >= hoje.getTime());
 
   if (proximos.length === 0) {
     nomeSpan.textContent = "Sem próximos eventos agendados.";
@@ -990,64 +973,61 @@ async function atualizarProximoEvento() {
     hojeTmp.setHours(0, 0, 0, 0);
     const diffDias = Math.round((dataEvento - hojeTmp) / (1000 * 60 * 60 * 24));
     if (diffDias > 0) return `(em ${diffDias} dia${diffDias > 1 ? "s" : ""})`;
-    if (diffDias === 0) return "(hoje)";
-    return "(em andamento)";
+    else if (diffDias === 0) return "(hoje)";
+    else return "(já começou)";
   }
 
-  // --- LÓGICA DE EXIBIÇÃO ---
+  // 2. Tenta filtrar eventos para a "janela de destaque" (7 dias)
+  const limite = new Date();
+  limite.setDate(hoje.getDate() + 7);
+  const proximos7Dias = proximos.filter(ev => ev.data <= limite);
 
-  // CASO 1: Poucos eventos (1 ou 2) -> Exibição detalhada com nome da fase
-  if (proximos.length <= 2) {
+  // LÓGICA DE EXIBIÇÃO
+  if (proximos7Dias.length === 0) {
+    // CASO 0: Não tem nada nos próximos 7 dias? Mostra o primeiro evento futuro que encontrar
+    const ev = proximos[0];
+    nomeSpan.textContent = ev.nmevento;
+    tempoSmall.textContent = `${ev.data.toLocaleDateString()} ${formatarTempoRestante(ev.data)}`;
     nomeSpan.style.fontSize = "1.3em";
-    nomeSpan.innerHTML = proximos.map(ev => {
-      return `
-        <div style="margin-bottom: 8px;">
-          <strong>${ev.nmevento}</strong><br>
-          <small style="font-size: 0.7em; color: var(--primary-color);">
-            Início ${ev.faseNome}: ${ev.data.toLocaleDateString()} ${formatarTempoRestante(ev.data)}
-          </small>
-        </div>
-      `;
-    }).join("");
-    tempoSmall.textContent = ""; 
   } 
-  
-  // CASO 2: Muitos eventos -> Exibição em lista resumida
+  else if (proximos7Dias.length === 1) {
+    // CASO 1: Apenas 1 evento na semana (Destaque máximo)
+    const ev = proximos7Dias[0];
+    nomeSpan.textContent = ev.nmevento;
+    tempoSmall.textContent = `${ev.data.toLocaleDateString()} ${formatarTempoRestante(ev.data)}`;
+    nomeSpan.style.fontSize = "1.5em";
+  } 
   else {
+    // CASO 2: Múltiplos eventos na semana (Lista compacta)
     nomeSpan.style.fontSize = "1em";
     const eventosPorData = {};
-    
-    // Limita a exibição aos primeiros 4 para não esticar o card
-    const listaReduzida = proximos.slice(0, 4);
-
-    listaReduzida.forEach(ev => {
+    proximos7Dias.forEach(ev => {
       const dataStr = ev.data.toLocaleDateString();
       if (!eventosPorData[dataStr]) eventosPorData[dataStr] = [];
-      eventosPorData[dataStr].push(ev);
+      eventosPorData[dataStr].push(ev.nmevento);
     });
 
-    const datasOrdenadas = Object.keys(eventosPorData).sort((a, b) => {
+    const datas = Object.keys(eventosPorData).sort((a, b) => {
       const [da, ma, ya] = a.split("/").map(Number);
       const [db, mb, yb] = b.split("/").map(Number);
       return new Date(ya, ma - 1, da) - new Date(yb, mb - 1, db);
     });
 
-    nomeSpan.innerHTML = datasOrdenadas.map(dataStr => {
-      const eventosDoDia = eventosPorData[dataStr];
-      const dataObj = eventosDoDia[0].data;
-      
-      // Se houver mais de um evento no mesmo dia, resume
-      if (eventosDoDia.length > 1) {
-        return `• ${eventosDoDia[0].nmevento} +${eventosDoDia.length - 1} - ${dataStr}`;
-      }
-      return `• ${eventosDoDia[0].nmevento} - ${dataStr}`;
-    }).join("<br>");
-
-    if (proximos.length > 4) {
-      nomeSpan.innerHTML += `<br><small>... e mais ${proximos.length - 4} compromissos</small>`;
+    if (datas.length === 1) {
+      const lista = eventosPorData[datas[0]];
+      let nomes = lista.length <= 3 ? lista.join(" | ") : `${lista.slice(0, 3).join(" | ")} | +${lista.length - 3}`;
+      nomeSpan.textContent = nomes;
+      tempoSmall.textContent = `${datas[0]} ${formatarTempoRestante(proximos7Dias[0].data)}`;
+    } else {
+      nomeSpan.innerHTML = datas.map(dataStr => {
+        const [d, m, y] = dataStr.split("/").map(Number);
+        const dataObj = new Date(y, m - 1, d);
+        return eventosPorData[dataStr]
+          .map(nome => `${nome} - ${dataStr} ${formatarTempoRestante(dataObj)}`)
+          .join("<br>");
+      }).join("<br>");
+      tempoSmall.textContent = "";
     }
-
-    tempoSmall.textContent = "Próximas atividades";
   }
 }
 
@@ -2153,28 +2133,51 @@ try {
   const data_referencia = ev.dtinimontagem || ev.dtinirealizacao || ev.dtinimarcacao;
   const fim_evento = ev.dtfimdesmontagem || ev.dtfimrealizacao;
 
-  let equipesDetalhes = Array.isArray(ev.equipes_detalhes) ? ev.equipes_detalhes : [];
+    let equipesDetalhes = Array.isArray(ev.equipes_detalhes) ? ev.equipes_detalhes : [];
 
-  // 🛑 CORREÇÃO DE DADOS: Recalcula totais a partir dos detalhes das equipes para garantir consistência
-  const totalVagasCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.total_vagas || 0), 0);
-  const totalStaffCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.preenchidas || 0), 0);
-  const vagasRestantesCalculado = totalVagasCalculado - totalStaffCalculado;
+    // 🛑 CORREÇÃO DE DADOS: Recalcula totais a partir dos detalhes das equipes para garantir consistência
+    const totalVagasCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.total_vagas || 0), 0);
+    const totalStaffCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.preenchidas || 0), 0);
+    const vagasRestantesCalculado = totalVagasCalculado - totalStaffCalculado;
 
-  return {
-  ...ev,
-  data_referencia,
-  inicio_realizacao,
-  fim_realizacao,
-  fim_evento,
+    // 🧮 Recalcula resumo por categoria evitando categorias inexistentes
+    const grupos = equipesDetalhes.reduce((acc, item) => {
+        const categoria = (item.equipe || item.categoria || item.nmequipe || 'OPERACIONAL').toString().trim().toUpperCase();
+        const total = item.total_vagas || 0;
+        const preench = item.preenchidas || 0;
+        if (!acc[categoria]) acc[categoria] = { total: 0, preench: 0 };
+        acc[categoria].total += total;
+        acc[categoria].preench += preench;
+        return acc;
+    }, {});
 
-  // 🛑 Usa os totais calculados para o status principal
-  total_vagas: totalVagasCalculado,
-  total_staff: totalStaffCalculado,
-  vagas_restantes: vagasRestantesCalculado,
+    const resumoEquipesCalc = Object.entries(grupos)
+        .filter(([, vals]) => vals.total > 0) // só mostra categorias que realmente têm vagas
+        .map(([cat, vals]) => {
+            let statusIcon = "🟢";
+            if (vals.total === 0) statusIcon = "⚪";
+            else if (vals.preench === 0) statusIcon = "🔴";
+            else if (vals.preench < vals.total) statusIcon = "🟡";
+            return `${statusIcon} ${cat}: ${vals.preench}/${vals.total}`;
+        })
+        .join(' | ');
 
-  total_staff_api: ev.total_staff, // Mantém o valor original do backend para referência (opcional)
-  equipes_detalhes: equipesDetalhes
-  };
+    return {
+    ...ev,
+    data_referencia,
+    inicio_realizacao,
+    fim_realizacao,
+    fim_evento,
+
+    // 🛑 Usa os totais calculados para o status principal
+    total_vagas: totalVagasCalculado,
+    total_staff: totalStaffCalculado,
+    vagas_restantes: vagasRestantesCalculado,
+
+    total_staff_api: ev.total_staff, // Mantém o valor original do backend para referência (opcional)
+    equipes_detalhes: equipesDetalhes,
+    resumoEquipes: resumoEquipesCalc || ev.resumoEquipes || 'Nenhuma equipe cadastrada'
+    };
   }
 
 function criarCard(evt) {
@@ -2421,6 +2424,9 @@ async function abrirTelaEquipesEvento(evento) {
   // normaliza array de equipes: suportar {equipes: [...] } ou array direto
   const equipesRaw = Array.isArray(dados.equipes) ? dados.equipes : (Array.isArray(dados) ? dados : []);
 
+  // Adiciona idorcamento ao evento
+  evento.idorcamento = dados.idorcamento;
+
   // CONSOLE 1: Dados Brutos do Backend
   console.log("=================================================");
   console.log(`[${evento.nmevento}] Dados Brutos (equipesRaw) do Backend:`);
@@ -2605,265 +2611,151 @@ async function abrirTelaEquipesEvento(evento) {
 async function abrirListaFuncionarios(equipe, evento) {
   const painel = document.getElementById("painelDetalhes");
   if (!painel) return;
-  painel.innerHTML = ""; 
+  painel.innerHTML = "";
 
   const container = document.createElement("div");
   container.className = "painel-lista-funcionarios";
 
-  // ... (Helpers locais escapeHtml, agruparFuncionariosPorFuncao, formatarPeriodo permanecem os mesmos) ...
-
+  // --- Helpers internos ---
   function escapeHtml(str) {
-  if (!str && str !== 0) return "";
-  return String(str)
-  .replace(/&/g, "&amp;")
-  .replace(/</g, "&lt;")
-  .replace(/>/g, "&gt;")
-  .replace(/"/g, "&quot;")
-  .replace(/'/g, "&#39;");
+    if (!str && str !== 0) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
   const agruparFuncionariosPorFuncao = (lista) => {
-  return lista.reduce((grupos, funcionario) => {
-  const funcao = funcionario.funcao || 'Não Classificado';
-  if (!grupos[funcao]) {
-  grupos[funcao] = [];
-  }
-  grupos[funcao].push(funcionario);
-  return grupos;
-  }, {});
+    return lista.reduce((grupos, funcionario) => {
+      const funcao = funcionario.funcao || 'Não Classificado';
+      if (!grupos[funcao]) grupos[funcao] = [];
+      grupos[funcao].push(funcionario);
+      return grupos;
+    }, {});
   };
 
   function formatarPeriodo(inicio, fim) {
-  const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
-  return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
-  }
-   function cleanAndNormalize(str) {
-  if (!str && str !== 0) return "";
-  let cleanStr = String(str);
-
-  // 1. Remove pontuações e acentos (normaliza para NFD e remove caracteres diacríticos)
-  cleanStr = cleanStr.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-  // 2. Remove caracteres não alfanuméricos exceto espaços e delimitadores comuns (mantendo o texto legível)
-  cleanStr = cleanStr.replace(/[^\w\s\-\.\/]/g, ' '); 
-
-  return cleanStr.trim();
+    const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+    return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
   }
 
-  // --- HELPER: Exportação para CSV (AGORA COM LIMPEZA E MOEDA) ---
+  function cleanAndNormalize(str) {
+    if (!str && str !== 0) return "";
+    return String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  }
+
+  // --- Exportação CSV ---
   function exportarParaCSV(data, nomeEquipe, nomeEvento) {
-  if (!Array.isArray(data) || data.length === 0) {
-  alert("Não há dados para exportar.");
-  return;
+    if (!data.length) return alert("Não há dados.");
+    const DELIMITADOR = ';';
+    const headers = ["Funcao", "Nome", "Setor", "Status Pagamento", "Valor Total", "Nivel Experiencia"];
+
+    const csvRows = data.map(row => {
+      const valor = row.vlrtotal ? String(row.vlrtotal).replace('.', ',') : '0';
+      return [
+        cleanAndNormalize(row.funcao),
+        cleanAndNormalize(row.nome),
+        cleanAndNormalize(row.setor),
+        cleanAndNormalize(row.status_pagamento),
+        valor,
+        cleanAndNormalize(row.nivelexperiencia)
+      ].join(DELIMITADOR);
+    });
+
+    const csvContent = "\uFEFF" + [headers.join(DELIMITADOR), ...csvRows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `Lista_${cleanAndNormalize(nomeEquipe)}_${cleanAndNormalize(nomeEvento)}.csv`;
+    link.click();
   }
 
-  const DELIMITADOR = ';'; 
-
-  // 1. Define os cabeçalhos das colunas
-  const headers = [
-  "Funcao", // Sem acento
-  "Nome", 
-  "Setor", 
-  "Status Pagamento", 
-  "Valor Total (R$)", // Indicando a moeda
-  "Nivel Experiencia", // Sem acento
-  "ID Funcionario",
-  "ID Staff Evento"
-  ];
-
-  // 2. Mapeia os dados e trata campos
-  const csvRows = data.map(row => {
-  // Função para envolver o valor em aspas se contiver PONTO E VÍRGULA, aspas ou quebra de linha
-  const sanitize = val => {
-  let str = String(val ?? '');
-  // Trata aspas duplas internas (escapa)
-  str = str.replace(/"/g, '""'); 
-  // Envolve o valor em aspas se houver PONTO E VÍRGULA, aspas ou quebra de linha
-  if (str.includes(DELIMITADOR) || str.includes('\n') || str.includes('"')) {
-  return `"${str}"`;
-  }
-  return str;
-  };
-
-  // Tratamento do Valor Total: Remove R$, substitui ponto por vírgula para decimal
-  const valorTotalRaw = row.vlrtotal ? String(row.vlrtotal).replace(/[R$\s]/g, '') : '0';
-  // Garante que o separador decimal seja a vírgula (padrão brasileiro no CSV)
-  const valorTotalFormatado = valorTotalRaw.replace('.', ','); 
-
-
-  return [
-  sanitize(cleanAndNormalize(row.funcao || 'Nao Classificado')), // Limpeza
-  sanitize(cleanAndNormalize(row.nome)),   // Limpeza
-  sanitize(cleanAndNormalize(row.setor)), // Limpeza
-  sanitize(cleanAndNormalize(row.status_pagamento)),   // Limpeza
-  sanitize(valorTotalFormatado),   // Formato para moeda
-  sanitize(cleanAndNormalize(row.nivelexperiencia)),   // Limpeza
-  sanitize(row.idfuncionario),
-  sanitize(row.idstaffevento)
-  ].join(DELIMITADOR); 
-  });
-
-  // 3. Combina cabeçalhos e linhas
-  const csvContent = [
-  headers.join(DELIMITADOR), 
-  ...csvRows
-  ].join('\n');
-
-  // 4. Cria e dispara o download
-  const nomeArquivo = `Lista_Funcionarios_${cleanAndNormalize(nomeEquipe).replace(/\s/g, '_')}_${cleanAndNormalize(nomeEvento).replace(/\s/g, '_')}.csv`;
-
-  // Adicionando BOM (Byte Order Mark) para melhor compatibilidade com caracteres UTF-8 no Excel
-  const BOM = '\uFEFF'; 
-  const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' }); 
-  const link = document.createElement("a");
-
-  if (link.download !== undefined) { 
-  const url = URL.createObjectURL(blob);
-  link.setAttribute("href", url);
-  link.setAttribute("download", nomeArquivo);
-  link.style.visibility = 'hidden';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-  } else {
-  alert("Seu navegador não suporta download automático.");
-  }
-  }
-  // ------------------------------------------
-
-  let listaFuncionariosCarregada = [];
-
-  // ... (Estrutura HTML do HEADER, CORPO e RODAPÉ permanece a mesma) ...
-
-  // ===== HEADER (Adaptado) =====
+  // --- Construção do Layout ---
   const header = document.createElement("div");
-  header.className = "header-equipes-evento"; 
+  header.className = "header-equipes-evento";
   header.innerHTML = `
-  <button class="btn-voltar-detalhe" title="Voltar para Detalhe da Equipe">←</button>
-  <div class="info-evento">
-  <h2>${escapeHtml(equipe.equipe || "Equipe")}</h2>
-  <p><strong>Evento:</strong> ${escapeHtml(evento.nmevento || "Evento")}</p>
-  <p>📍 ${evento.local || evento.nmlocalmontagem || "Local não informado"}</p>
-  <p>📅 ${formatarPeriodo(evento.inicio_realizacao, evento.fim_realizacao)}</p>
-  </div>
+    <button class="btn-voltar-detalhe" title="Voltar">←</button>
+    <div class="info-evento">
+      <h2>${escapeHtml(equipe.equipe)}</h2>
+      <p><strong>Evento:</strong> ${escapeHtml(evento.nmevento)}</p>
+      <p>📅 ${formatarPeriodo(evento.inicio_realizacao, evento.fim_realizacao)}</p>
+    </div>
   `;
   container.appendChild(header);
 
-  // ===== CORPO (Conteúdo Dinâmico - Funcionários) =====
   const corpo = document.createElement("div");
   corpo.className = "corpo-funcionarios";
   corpo.innerHTML = `<div class="loading">Carregando funcionários...</div>`;
   container.appendChild(corpo);
 
-  // ===== RODAPÉ (Adaptado) =====
   const rodape = document.createElement("div");
-  rodape.className = "rodape-equipes"; 
+  rodape.className = "rodape-equipes";
   rodape.innerHTML = `
-  <button class="btn-voltar-rodape-detalhe"> ← Voltar</button>
-  <button class="btn-exportar-lista">📥 Exportar Lista</button>
+    <button class="btn-voltar-rodape-detalhe"> ← Voltar</button>
+    <button class="btn-exportar-lista">📥 Exportar Lista</button>
   `;
   container.appendChild(rodape);
-
   painel.appendChild(container);
 
-  // === Eventos de Navegação ===
-  const voltarParaEquipes = () => abrirTelaEquipesEvento(evento); 
-  container.querySelector(".btn-voltar-detalhe")?.addEventListener("click", voltarParaEquipes);
-  container.querySelector(".btn-voltar-rodape-detalhe")?.addEventListener("click", voltarParaEquipes);
+  // Eventos
+  const voltar = () => abrirTelaEquipesEvento(evento);
+  container.querySelector(".btn-voltar-detalhe").onclick = voltar;
+  container.querySelector(".btn-voltar-rodape-detalhe").onclick = voltar;
 
-  // 🛑 EVENTO DO BOTÃO EXPORTAR (CHAMA O HELPER CORRIGIDO)
-  container.querySelector(".btn-exportar-lista")?.addEventListener("click", () => {
-  exportarParaCSV(
-  listaFuncionariosCarregada, 
-  equipe.equipe || "Equipe", 
-  evento.nmevento || "Evento"
-  );
-  });
-
-  // === Carregamento de Dados ===
   try {
-    const idevento = evento.idevento || evento.id || evento.id_evento;
+    const idevento = evento.idevento || evento.id;
     const idequipe = equipe.idequipe;
     const idempresa = localStorage.getItem("idempresa") || sessionStorage.getItem("idempresa");
-    
-    // Tenta pegar o ano da data do evento, se não existir, usa o ano atual
-    const dataRef = evento.inicio_realizacao || evento.dtinirealizacao || new Date();
-    const ano = new Date(dataRef).getFullYear();
+    const ano = new Date(evento.inicio_realizacao || new Date()).getFullYear();
 
-    if (!idevento || !idequipe || !idempresa) {
-      corpo.innerHTML = `<p class="erro">Erro: Dados incompletos (Evento: ${idevento}, Equipe: ${idequipe}, Empresa: ${idempresa}).</p>`;
+    const url = `/main/ListarFuncionarios?idEvento=${idevento}&idEquipe=${idequipe}&idempresa=${idempresa}&ano=${ano}`;
+    const funcionarios = await fetchComToken(url);
+    let listaFuncionariosCarregada = funcionarios;
+
+    container.querySelector(".btn-exportar-lista").onclick = () => exportarParaCSV(listaFuncionariosCarregada, equipe.equipe, evento.nmevento);
+
+    if (!funcionarios.length) {
+      corpo.innerHTML = `<p class="sem-funcionarios-msg">Nenhum funcionário cadastrado.</p>`;
       return;
     }
 
-    // Adicionado idempresa e ano na query string para bater com o que o backend espera
-    const url = `/main/ListarFuncionarios?idEvento=${idevento}&idEquipe=${idequipe}&idempresa=${idempresa}&ano=${ano}`;
-    const funcionarios = await fetchComToken(url);
+    const grupos = agruparFuncionariosPorFuncao(funcionarios);
+    let html = '';
 
-  if (!Array.isArray(funcionarios)) {
-   throw new Error("Resposta inválida ou vazia do servidor.");
-  }
+    for (const funcao in grupos) {
+      html += `
+        <div class="funcionario-grupo-header">
+          <h4 class="grupo-titulo">${escapeHtml(funcao)}</h4>
+          <span class="grupo-badge">${grupos[funcao].length} Pessoa(s)</span>
+          <span class="grupo-badge"> Status Pagamento</span>
+        </div>
+        <div class="grupo-divisor"></div>
+        <ul class="funcionario-lista">
+      `;
 
-  listaFuncionariosCarregada = funcionarios; 
+      grupos[funcao].forEach(f => {
+        const statusClass = f.status_pagamento === 'Pago' ? 'status-pago' : 'status-pendente';
+        
+        // ✅ AQUI ESTÁ A MUDANÇA: NOME (SETOR)
+        const nomeComSetor = f.setor ? `${f.nome} (${f.setor})` : f.nome;
 
-  if (funcionarios.length === 0) {
-  corpo.innerHTML = `<p class="sem-funcionarios-msg">Nenhum funcionário cadastrado nesta equipe para este evento.</p>`;
-  return;
-  }
-
-  // --- Renderização da Lista de Funcionários ---
-  const gruposPorFuncao = agruparFuncionariosPorFuncao(funcionarios);
-  let conteudoAgrupadoHtml = '';
-
-  for (const funcao in gruposPorFuncao) {
-  if (gruposPorFuncao.hasOwnProperty(funcao)) {
-  const funcionariosDaFuncao = gruposPorFuncao[funcao];
-
-  // Header do Grupo
-  conteudoAgrupadoHtml += `
-  <div class="funcionario-grupo-header">
-  <h4 class="grupo-titulo">${escapeHtml(funcao)}</h4>
-  <span class="grupo-badge">${funcionariosDaFuncao.length} Pessoa(s)</span>
-  <span class="grupo-periodo">Status</span>
-  </div>
-  <div class="grupo-divisor"></div>
-  `;
-
-  // Lista de Funcionários
-  let listaFuncionariosHtml = '<ul class="funcionario-lista">';
-
-  funcionariosDaFuncao.forEach(f => {
-  let statusClass = 'status-pendente';
-  const statusTexto = f.status_pagamento || 'Pendente';
-
-  if (statusTexto === 'Pago') {
-  statusClass = 'status-pago'; 
-  } else if (statusTexto) {
-  statusClass = 'status-atencao'; 
-  }
-
-  // Renderização do item - Aplicando escapeHtml
-  listaFuncionariosHtml += `
-  <li class="funcionario-item">
-  <span class="funcionario-nome">${escapeHtml(f.nome)}</span>
-  <span class="funcionario-status-badge ${statusClass}">
-  ${escapeHtml(statusTexto)}
-  </span>
-  </li>
-  `;
-  });
-
-  listaFuncionariosHtml += '</ul>';
-  conteudoAgrupadoHtml += listaFuncionariosHtml;
-  }
-  }
-
-  corpo.innerHTML = conteudoAgrupadoHtml; 
+        html += `
+          <li class="funcionario-item">
+            <span class="funcionario-nome">${escapeHtml(nomeComSetor)}</span>
+            <span class="funcionario-status-badge ${statusClass}">
+              ${escapeHtml(f.status_pagamento || 'Pendente')}
+            </span>
+          </li>
+        `;
+      });
+      html += '</ul>';
+    }
+    corpo.innerHTML = html;
 
   } catch (err) {
-  console.error("Erro ao buscar lista de funcionários:", err);
-  const msg = (err && err.message) ? err.message : "Erro interno ao carregar a lista de funcionários.";
-  corpo.innerHTML = `<p class="erro">${escapeHtml(msg)}</p>`;
+    corpo.innerHTML = `<p class="erro">Erro ao carregar lista.</p>`;
   }
 }
 
@@ -2883,148 +2775,146 @@ function abrirDetalhesEquipe(equipe, evento) {
   const totalFuncoes = equipe.funcoes?.length || 0;
   const concluidas = equipe.funcoes?.filter(f => f.concluido)?.length || 0;
 
-  // Funções de utilidade
   function escapeHtml(str) {
-  if (!str && str !== 0) return "";
-  return String(str)
-  .replace(/&/g, "&amp;")
-  .replace(/</g, "&lt;")
-  .replace(/>/g, "&gt;")
-  .replace(/"/g, "&quot;")
-  .replace(/'/g, "&#39;");
+    if (!str && str !== 0) return "";
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
-  // helper local (assumindo que está definido globalmente ou em escopo superior)
   function formatarPeriodo(inicio, fim) {
-  const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
-  return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
+    const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+    return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
   }
 
-  // 1. FUNÇÃO DE VOLTA DEFINIDA AQUI
   const voltarParaEquipes = () => abrirTelaEquipesEvento(evento);
 
-  // ===== HEADER - COMPACTADO PARA REMOVER #text =====
+  // HEADER
   const header = document.createElement("div");
   header.className = "header-equipes-evento";
-  header.innerHTML = `<button class="btn-voltar" title="Voltar">←</button><div class="info-evento"><h2>${escapeHtml(equipe.equipe || equipe.nome || "Equipe")}</h2><p>${escapeHtml(evento.nmevento || "Evento sem nome")} — ${concluidas}/${totalFuncoes} concluídas</p><p>📍 ${escapeHtml(evento.nmlocalmontagem || evento.local || "Local não informado")}</p><p>👤 Cliente: ${escapeHtml(evento.nmfantasia || evento.cliente || "")}</p></div>`;
+  header.innerHTML = `
+    <button class="btn-voltar" title="Voltar">←</button>
+    <div class="info-evento">
+      <h2>${escapeHtml(equipe.equipe || "Equipe")}</h2>
+      <p>${escapeHtml(evento.nmevento)} — ${concluidas}/${totalFuncoes} concluídas</p>
+      <p>📍 ${escapeHtml(evento.nmlocalmontagem || "Local não informado")}</p>
+      <p>👤 Cliente: ${escapeHtml(evento.nmfantasia || evento.cliente || "")}</p>
+    </div>`;
   container.appendChild(header);
 
-  // ===== LISTA DE FUNÇÕES =====
   const lista = document.createElement("ul");
   lista.className = "funcoes-lista";
 
   (equipe.funcoes || []).forEach(func => {
-  const total = Number(func.total ?? func.total_vagas ?? func.qtd_orcamento ?? 0);
-  const preenchidas = Number(func.preenchidas ?? func.qtd_cadastrada ?? 0);
-  const concluido = total > 0 && preenchidas >= total;
+    const total = Number(func.qtd_orcamento ?? func.total ?? 0);
+    const preenchidas = Number(func.qtd_cadastrada ?? func.preenchidas ?? 0);
+    const concluido = total > 0 && preenchidas >= total;
 
-  const li = document.createElement("li");
-  li.className = "funcao-item";
-  if (concluido) li.classList.add("concluido");
-  li.setAttribute("role", "button");
-  li.tabIndex = 0;
+    const li = document.createElement("li");
+    li.className = "funcao-item";
+    if (concluido) li.classList.add("concluido");
 
-  const periodoVaga = formatarPeriodo(func.dtini_vaga, func.dtfim_vaga);
+    const periodoVaga = formatarPeriodo(func.dtini_vaga, func.dtfim_vaga);
 
-  // NÓS DE TEXTO criados por createElement geralmente não são um problema,
-  // mas vamos garantir que o HTML injetado seja compacto.
+    li.innerHTML = `
+      <div class="func-wrapper">
+        <div class="func-nome">${escapeHtml(func.nome)} <span class="func-data-vaga">(${periodoVaga})</span></div>
+        <div class="func-estado">${preenchidas}/${total}</div>
+        <div class="func-detalhes">
+          ${concluido ? '✅ Completa' : `<button class="btn-abrir-staff status-urgente-vermelho">⏳ Abrir staff</button>`}
+        </div>
+      </div>`;
 
-  // CORREÇÃO: Usando a abordagem de wrapper para evitar nós #text.
-  li.innerHTML = `
-<div class="func-wrapper">
-  <div class="func-nome">${escapeHtml(func.nome || func.nmfuncao || "Função")} <span class="func-data-vaga">(${periodoVaga})</span></div>
-  <div class="func-estado">${preenchidas}/${total}</div>
-  <div class="func-detalhes">
-  ${concluido 
-  ? '✅ Completa' 
-  : `<button class="btn-abrir-staff status-urgente-vermelho">⏳ Abrir staff</button>`
-  }
-  </div>
-</div>
-  `;
+    function abrirStaffModal() {
+      if (concluido) return;
 
-  // Se não estiver concluído, precisamos adicionar o listener ao botão.
-  if (!concluido) {
-   const botao = li.querySelector(".btn-abrir-staff");
-   if (botao) {
-   botao.addEventListener("click", (e) => {
-   e.stopPropagation(); // evita conflito com o clique no <li>
-   abrirStaffModal();
-   });
-   }
-  }
+      // 🔍 DEBUG COMPLETO DO OBJETO FUNC
+      console.log("🔍 [Main.js] Objeto FUNC COMPLETO:", func);
+      console.log("🔍 [Main.js] Objeto EVENTO COMPLETO:", evento);
 
-  function abrirStaffModal() {
-  if (concluido) return;
+      const params = new URLSearchParams();
+      params.set("idfuncao", func.idfuncao);
+      params.set("nmfuncao", func.nome);
+      params.set("idevento", evento.idevento);
+      params.set("idorcamento", evento.idorcamento);
+      params.set("idcliente", evento.idcliente);
+      params.set("idmontagem", evento.idmontagem);
+      params.set("nmcliente", evento.nmfantasia || evento.cliente || "");
+      params.set("nmevento", evento.nmevento || "");
 
-  const params = new URLSearchParams();
+      // --- CAPTURA ROBUSTA DO SETOR ---
+      // 1️⃣ Tenta setor_orcamento (que vem do orçamento)
+      let valorSetor = (func.setor_orcamento || func.setor || func.nmsetor || func.local || func.localmontagem || "").trim();
+      
+      // 2️⃣ Se vazio, EXTRAI do nome da função - formato: "FUNÇÃO (SETOR)"
+      if (!valorSetor && func.nome) {
+        const match = func.nome.match(/\(([^)]+)\)$/);
+        if (match && match[1]) {
+          valorSetor = match[1].trim();
+          console.log("✅ [Main.js] Setor extraído do nome:", valorSetor);
+        }
+      }
+      
+      const periodoDoEvento = func.datas_staff || func.dtini_vaga || "";
+      
+      console.log("🔍 [Main.js] Valor do setor identificado:", {
+        setor_orcamento: func.setor_orcamento,
+        setor: func.setor,
+        nomeDaFuncao: func.nome,
+        valorFinal: valorSetor,
+        datas_staff: func.datas_staff,
+        periodoDoEvento: periodoDoEvento
+      });
 
-  params.set("idfuncao", func.idfuncao ?? func.idFuncao);
-  params.set("nmfuncao", func.nome ?? func.nmfuncao);
-  params.set("idequipe", equipe.idequipe || "");
-  params.set("nmequipe", equipe.equipe || "");
-  params.set("idmontagem", evento.idmontagem || "");
-  params.set("nmlocalmontagem", evento.nmlocalmontagem || "");
-  params.set("idcliente", evento.idcliente || "");
-  params.set("nmcliente", evento.nmfantasia || evento.cliente || "");
-  params.set("idevento", evento.idevento || "");
-  params.set("nmevento", evento.nmevento || "");
+      const pavilhoesOficiais = evento.pavilhoes_nomes || []; 
+      const ehPavilhaoOficial = pavilhoesOficiais.some(p => 
+        p.trim().toUpperCase() === valorSetor.toUpperCase()
+      );
 
-  if (Array.isArray(evento.dataeventos)) {
-  params.set("dataeventos", JSON.stringify(evento.dataeventos));
-  } else if (evento.dataeventos) {
-  params.set("dataeventos", evento.dataeventos);
-  }
+      // Define instruções para o Modal
+      params.set("modo_local", ehPavilhaoOficial ? "pavilhao" : "setor");
+      params.set("valor_local", valorSetor);
 
-  params.set("dtini_vaga", func.dtini_vaga || null);
-  params.set("dtfim_vaga", func.dtfim_vaga || null);
+      // 🔥 ADICIONA DATAS E PERÍODO
+      if (func.datas_staff && Array.isArray(func.datas_staff)) {
+        params.set("datas_existentes", JSON.stringify(func.datas_staff));
+        console.log("✅ [Main.js] Datas adicionadas aos parâmetros:", func.datas_staff);
+      } else {
+        console.warn("⚠️ [Main.js] Nenhuma data em datas_staff:", func.datas_staff);
+      }
 
-  // 2. LÓGICA DE CALLBACK: Define uma função global temporária.
-  // O código de fechar o modal deve chamar window.onStaffModalClosed()
-  window.onStaffModalClosed = function(modalClosedSuccessfully) {
-  // Limpa a função global logo após ser chamada.
-  delete window.onStaffModalClosed;
-  console.log("Callback do modal Staff acionado. Atualizando a tela...");
+      if (func.dtini_vaga) {
+        params.set("dtini_vaga", func.dtini_vaga);
+      }
+      if (func.dtfim_vaga) {
+        params.set("dtfim_vaga", func.dtfim_vaga);
+      }
+      
+      window.onStaffModalClosed = () => {
+        delete window.onStaffModalClosed;
+        voltarParaEquipes(); 
+      };
 
-  // Chama a função para voltar à tela anterior e recarregar os dados.
-  voltarParaEquipes(); 
-  };
+      window.__modalInitialParams = params.toString();
+      
+      console.log("📤 [Main.js] Parâmetros finais enviados para modal:", Object.fromEntries(params.entries()));
+      
+      const targetUrl = `CadStaff.html?${params.toString()}`;
 
-  console.log("Abrindo modal Staff com parâmetros:", Object.fromEntries(params.entries()));
+      if (typeof abrirModalLocal === "function") abrirModalLocal(targetUrl, "Staff");
+      else if (typeof abrirModal === "function") abrirModal(targetUrl, "Staff");
+    }
 
-  window.__modalInitialParams = params.toString();
-  window.moduloAtual = "Staff";
-
-  const targetUrl = `CadStaff.html?${params.toString()}`;
-
-  if (typeof abrirModalLocal === "function") {
-  abrirModalLocal(targetUrl, "Staff");
-  } else if (typeof abrirModal === "function") {
-  abrirModal(targetUrl, "Staff");
-  } else {
-  console.error("ERRO FATAL: Nenhuma função global para abrir o modal foi encontrada.");
-  }
-  }
-
-  li.addEventListener("click", abrirStaffModal);
-  li.addEventListener("keypress", (e) => { if (e.key === "Enter") abrirStaffModal(); });
-
-  lista.appendChild(li);
+    if (!concluido) {
+      li.querySelector(".btn-abrir-staff")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        abrirStaffModal();
+      });
+      li.addEventListener("click", abrirStaffModal);
+    }
+    lista.appendChild(li);
   });
 
   container.appendChild(lista);
-
-  // ===== RODAPÉ - COMPACTADO PARA REMOVER #text =====
-  const rodape = document.createElement("div");
-  rodape.className = "rodape-equipes";
-  rodape.innerHTML = `<button class="btn-voltar-rodape">← Voltar</button><span class="status-texto">${concluidas === totalFuncoes ? "✅ Finalizado" : "⏳ Em andamento"}</span>`;
-  container.appendChild(rodape);
-
   painel.appendChild(container);
-
-  // Eventos de navegação
-  container.querySelector(".btn-voltar")?.addEventListener("click", voltarParaEquipes);
-  container.querySelector(".btn-voltar-rodape")?.addEventListener("click", voltarParaEquipes);
 }
 
 
@@ -5544,11 +5434,11 @@ const obterLinhasTabela = (evento, filtro) => {
                         ${renderConteudoAcao(f.idstaffevento, info.tipoAcao, info.status)}
                     </td>` : ''}
 
-                <td>
-                    ${estaPago ? 
-                        gerarHTMLComprovanteDinamico(f.idstaffevento, filtro, info.status, criarHTMLComprovantes(f, filtro)) 
-                        : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'}
-                </td>
+        <td class="comprovantes-cell">
+                ${estaPago ? 
+                    gerarHTMLComprovanteDinamico(f.idstaffevento, filtro, info.status, criarHTMLComprovantes(f, filtro)) 
+                : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'}
+            </td>
 
                 <td class="status-celula status-${classeStatus}">${info.status}</td>
 

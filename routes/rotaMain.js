@@ -572,8 +572,15 @@ router.get("/eventos-abertos", async (req, res) => {
                 GROUP BY o.idevento, lm.descmontagem, o.idmontagem
             ),
             staff_por_funcao AS (
-                SELECT se.idevento, se.idfuncao, COUNT(DISTINCT se.idstaff) AS preenchidas 
+                SELECT 
+                    se.idevento, 
+                    se.idfuncao, 
+                    COUNT(DISTINCT se.idstaff) AS preenchidas,
+                    MIN(f.idequipe) AS idequipe_staff,
+                    MIN(eq.nmequipe) AS equipe_staff
                 FROM staffeventos se
+                LEFT JOIN funcao f ON f.idfuncao = se.idfuncao
+                LEFT JOIN equipe eq ON eq.idequipe = f.idequipe
                 WHERE EXISTS (
                     SELECT 1 FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
                     WHERE d.dt::date BETWEEN $2 AND $3
@@ -592,17 +599,23 @@ router.get("/eventos-abertos", async (req, res) => {
                 WHERE o.status <> 'R' ORDER BY o.idevento, o.dtinirealizacao DESC 
             )
             SELECT e.idevento, e.nmevento, vo.*, ci.nmfantasia,
-                (SELECT json_agg(json_build_object(
-                    'idequipe', (b->>'idequipe')::int, 
-                    'equipe', b->>'equipe',
-                    'idfuncao', (b->>'idfuncao')::int, 
-                    'nome_funcao', b->>'nome_funcao',
-                    'total_vagas', (b->>'total_vagas')::int,
-                    'preenchidas', COALESCE(spf.preenchidas, 0),
-                    'datas_staff', COALESCE(sdf.datas_staff, ARRAY[]::text[])
-                )) FROM json_array_elements(vo.equipes_detalhes_base) AS b
-                   LEFT JOIN staff_por_funcao spf ON spf.idevento = e.idevento AND spf.idfuncao = (b->>'idfuncao')::int
-                   LEFT JOIN staff_datas_por_funcao sdf ON sdf.idevento = e.idevento AND sdf.idfuncao = (b->>'idfuncao')::int
+                (
+                    SELECT json_agg(jsonb_build_object(
+                        'idequipe', (b->>'idequipe')::int,
+                        'equipe', b->>'equipe',
+                        'idfuncao', (b->>'idfuncao')::int,
+                        'nome_funcao', b->>'nome_funcao',
+                        'total_vagas', (b->>'total_vagas')::int,
+                        'preenchidas', COALESCE(spf.preenchidas, 0),
+                        'datas_staff', COALESCE(sdf.datas_staff, ARRAY[]::text[])
+                    ))
+                    FROM json_array_elements(
+                        (SELECT equipes_detalhes_base FROM vagas_orc WHERE idevento = e.idevento)
+                    ) AS b
+                    LEFT JOIN staff_por_funcao spf ON spf.idevento = e.idevento 
+                        AND spf.idfuncao = (b->>'idfuncao')::int
+                    LEFT JOIN staff_datas_por_funcao sdf ON sdf.idevento = e.idevento 
+                        AND sdf.idfuncao = (b->>'idfuncao')::int
                 ) AS equipes_detalhes
             FROM eventos e
             INNER JOIN vagas_orc vo ON vo.idevento = e.idevento
@@ -612,6 +625,15 @@ router.get("/eventos-abertos", async (req, res) => {
         `;
 
         const { rows } = await pool.query(sql, params);
+        
+        // DEBUG: Verificar o que vem do banco
+        rows.forEach(r => {
+            if (r.nmevento && (r.nmevento.includes('ABAV') || r.nmevento.includes('CIOSP'))) {
+                console.log('\n=== DEBUG', r.nmevento, '===');
+                console.log('equipes_detalhes_base:', JSON.stringify(r.equipes_detalhes_base, null, 2));
+                console.log('equipes_detalhes (final):', JSON.stringify(r.equipes_detalhes, null, 2));
+            }
+        });
         
         // Função de mapeamento para o resumo visual
         const mappedRows = rows.map(evt => {
@@ -1030,14 +1052,13 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
   try {
     const idevento = req.query.idevento || req.headers.idevento;
     const idempresa = req.query.idempresa || req.headers.idempresa;
-    // Pega o ano da query ou do sistema
     const ano = req.query.ano ? Number(req.query.ano) : new Date().getFullYear();
 
     if (!idevento || !idempresa) {
       return res.status(400).json({ error: "Parâmetros 'idevento' e 'idempresa' são obrigatórios." });
     }
 
-    // 1️⃣ Busca orçamento principal filtrando pelo ANO de realização
+    // 1️⃣ Busca orçamento principal
     const { rows: orcamentos } = await pool.query(
       `SELECT o.idorcamento, o.idcliente, o.idmontagem
        FROM orcamentos o
@@ -1051,17 +1072,13 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
     if (!orcamentos.length) return res.status(200).json({ equipes: [] });
     const { idorcamento, idcliente, idmontagem } = orcamentos[0];
 
-    // 2️⃣ Busca Itens do Orçamento (Vagas) - Agora incluindo SETOR
+    // 2️⃣ Busca Vagas do Orçamento (Usando o setor como local principal)
     const { rows: itensOrcamento } = await pool.query(
-      `SELECT 
-        f.idequipe, 
-        eq.nmequipe AS equipe, 
-        i.idfuncao, 
-        f.descfuncao AS funcao,
-        i.setor,
-        SUM(i.qtditens) AS qtd_orcamento,
-        MIN(i.periododiariasinicio) AS dtini_vaga,
-        MAX(i.periododiariasfim) AS dtfim_vaga
+      `SELECT f.idequipe, eq.nmequipe AS equipe, i.idfuncao, f.descfuncao AS funcao,
+              COALESCE(i.setor, '') AS setor_orcamento,
+              SUM(i.qtditens) AS qtd_orcamento,
+              MIN(i.periododiariasinicio) AS dtini_vaga,
+              MAX(i.periododiariasfim) AS dtfim_vaga
        FROM orcamentoitens i
        JOIN funcao f ON f.idfuncao = i.idfuncao
        JOIN equipe eq ON eq.idequipe = f.idequipe
@@ -1070,82 +1087,93 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
       [idorcamento]
     );
 
-    // 3️⃣ Busca quantidades cadastradas - TRAVA ANO com EXISTS para ignorar lixo de 2025
-    const { rows: staff } = await pool.query(
-      `SELECT se.idfuncao, COUNT(DISTINCT se.idstaff) AS qtd_cadastrada
+    // 3️⃣ Busca quantidades cadastradas (Lógica COALESCE para bater com o setor do orçamento)
+    const { rows: staffCount } = await pool.query(
+      `SELECT se.idfuncao, 
+              COALESCE(NULLIF(se.pavilhao, ''), se.setor, '') AS localizacao,
+              COUNT(DISTINCT se.idstaff) AS qtd_cadastrada
        FROM staffeventos se
        WHERE se.idevento = $1 
          AND se.idcliente = $2
          AND EXISTS (
-             SELECT 1 
-             FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
+             SELECT 1 FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
              WHERE EXTRACT(YEAR FROM (d.dt)::date) = $3
          )
-       GROUP BY se.idfuncao`,
+       GROUP BY se.idfuncao, localizacao`,
       [idevento, idcliente, ano]
     );
 
-    // 4️⃣ Busca Datas de Staff por Função - TRAVA ANO dentro do JSON
+    // 4️⃣ Busca Datas (IMPORTANTE: A chave aqui deve ser idfuncao + localizacao)
     const { rows: datasStaffRaw } = await pool.query(
-      `SELECT 
-          se.idfuncao, 
-          array_agg(DISTINCT d.dt ORDER BY d.dt) AS datas_staff
+      `SELECT se.idfuncao, 
+              COALESCE(NULLIF(se.pavilhao, ''), se.setor, '') AS localizacao,
+              array_agg(DISTINCT d.dt ORDER BY d.dt) AS datas_staff
        FROM staffeventos se
-       INNER JOIN orcamentos o ON o.idevento = se.idevento
        CROSS JOIN LATERAL (
            SELECT dt FROM jsonb_array_elements_text(se.datasevento) AS dt
            WHERE EXTRACT(YEAR FROM dt::date) = $2
        ) AS d
        WHERE se.idevento = $1 AND se.idcliente = $3
-       GROUP BY se.idfuncao`,
+       GROUP BY se.idfuncao, localizacao`,
       [idevento, ano, idcliente]
     );
 
+    // Criamos o mapa usando a string normalizada para evitar erros de case ou espaços
     const datasStaffMap = datasStaffRaw.reduce((acc, row) => {
-      acc[String(row.idfuncao)] = row.datas_staff;
+      const key = `${row.idfuncao}_${String(row.localizacao).trim().toUpperCase()}`;
+      acc[key] = row.datas_staff;
       return acc;
     }, {});
 
-    // 5️⃣ Agrupa por equipe
+    // 5️⃣ Agrupamento por equipe e montagem do objeto final
     const equipesMap = {};
     for (const item of itensOrcamento) {
-      const idequipe = item.idequipe;
-      const idequipeKey = idequipe || "SEM_EQUIPE";
+      const idequipeKey = item.idequipe || "SEM_EQUIPE";
 
       if (!equipesMap[idequipeKey]) {
         equipesMap[idequipeKey] = {
           equipe: item.equipe || "Sem equipe",
-          idequipe: idequipe,
+          idequipe: item.idequipe,
           funcoes: [],
         };
       }
 
-      // Procura a quantidade preenchida para esta função específica
-      const cadastrado = staff.find(s => String(s.idfuncao) === String(item.idfuncao)); 
+      const setorNormalizado = String(item.setor_orcamento).trim().toUpperCase();
+
+      // Busca a quantidade
+      const cadastrado = staffCount.find(s => 
+        String(s.idfuncao) === String(item.idfuncao) && 
+        String(s.localizacao).trim().toUpperCase() === setorNormalizado
+      ); 
+
       const qtd_cadastrada = cadastrado ? Number(cadastrado.qtd_cadastrada) : 0;
-      const datas_staff = datasStaffMap[String(item.idfuncao)] || [];
+      
+      // Busca as datas no mapa usando a mesma chave normalizada
+      const chaveDatas = `${item.idfuncao}_${setorNormalizado}`;
+      const datas_staff = datasStaffMap[chaveDatas] || [];
 
       equipesMap[idequipeKey].funcoes.push({
         idfuncao: item.idfuncao,
-        nome: item.setor ? `${item.funcao} (${item.setor})` : item.funcao,
+        nome: item.setor_orcamento ? `${item.funcao} (${item.setor_orcamento})` : item.funcao,
+        setor_orcamento: item.setor_orcamento,
         qtd_orcamento: Number(item.qtd_orcamento) || 0,
         qtd_cadastrada,
         concluido: qtd_cadastrada >= (Number(item.qtd_orcamento) || 0),
         dtini_vaga: item.dtini_vaga,
         dtfim_vaga: item.dtfim_vaga,
-        datas_staff: datas_staff
+        datas_staff: datas_staff // Agora as datas voltarão a aparecer
       });
     }
 
-    // 6️⃣ Retorno final
     res.status(200).json({ 
       equipes: Object.values(equipesMap), 
-      idmontagem 
+      idmontagem,
+      idorcamento
     });
 
   } catch (err) {
-    console.error("Erro ao buscar detalhes dos eventos abertos:", err);
-    res.status(500).json({ error: "Erro interno ao buscar detalhes dos eventos abertos." });
+    console.error("Erro ao processar detalhes dos eventos:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -1161,28 +1189,27 @@ router.get("/ListarFuncionarios", async (req, res) => {
 
   try {
     const query = `
-    SELECT 
-        se.idstaffevento, 
-        se.idfuncionario, 
-        se.nmfuncionario AS nome, 
-        se.nmfuncao AS funcao, 
-        se.vlrtotal, 
-        se.statuspgto AS status_pagamento,
-        se.setor,
-        se.nivelexperiencia
-    FROM public.staffeventos se
-    INNER JOIN orcamentos o ON o.idevento = se.idevento
-    INNER JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-    WHERE se.idevento = $1 
-      AND se.idequipe = $2 
-      AND oe.idempresa = $3
-      -- GARANTE QUE O FUNCIONÁRIO TEM DATAS LANÇADAS PARA O ANO SELECIONADO (2026)
-      AND EXISTS (
-          SELECT 1 
-          FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
-          WHERE EXTRACT(YEAR FROM (d.dt)::date) = $4
-      )
-    ORDER BY se.nmfuncao, se.nmfuncionario;`;
+    SELECT DISTINCT ON (se.idstaffevento)
+    se.idstaffevento, 
+    se.idfuncionario, 
+    se.nmfuncionario AS nome, 
+    se.nmfuncao AS funcao, 
+    se.vlrtotal, 
+    se.statuspgto AS status_pagamento,
+    -- Aqui está a correção:
+    COALESCE(NULLIF(se.setor, ''), NULLIF(se.pavilhao, ''), '') AS setor,
+    se.nivelexperiencia
+FROM public.staffeventos se
+INNER JOIN orcamentoempresas oe ON oe.idorcamento = se.idorcamento
+WHERE se.idevento = $1
+  AND se.idequipe = $2
+  AND oe.idempresa = $3
+  AND EXISTS (
+      SELECT 1 
+      FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
+      WHERE EXTRACT(YEAR FROM (d.dt)::date) = $4
+  )
+ORDER BY se.idstaffevento, se.nmfuncao, se.nmfuncionario;`;
 
     const { rows } = await pool.query(query, [idEvento, idEquipe, idempresa, anoFiltro]);
     res.status(200).json(rows);

@@ -111,13 +111,13 @@ body {
 }
 
 fieldset {
-  display: flex;
-  flex-direction: column;
-  width: 650px;
-  background-color: transparent;
-  border-color: var(--dark-base-color);
-  margin: 0 auto;
-  border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    width: 650px;
+    height: 590px;
+    border-color: var(--dark-base-color);
+    margin: 0 auto;
+    border-radius: 10px;
 }
 
 legend {
@@ -160,7 +160,7 @@ legend {
 .form2 input {
   font-family: var(--Font-primary);
   width: 270px;
-  height: 40px;
+  height: 30px;
   border-radius: 6px;
   font-size: 15px;
   padding: 0 20px;
@@ -177,18 +177,28 @@ legend {
   align-items: center;  /* aqui é o segredo do alinhamento */
  }
 
+select#Titulo{
+border-radius: 5px;
+flex: 1;
+font-family: var(--Font-primary);
+width: 300px;
+height: 30px;
+border-radius: 6px;
+font-size: 13px;
+padding: 0 8px;
+border: 1px solid #000000;
+background: transparent;
+color: #000000;
+outline: none;
+}
+
 .form select {
-  border-radius: 5px;
-  flex: 1;
   font-family: var(--Font-primary);
   width: 350px;
-  min-width: 350px;
-  max-width: 350px;
   height: 30px;
   border-radius: 6px;
-  font-size: 13px;
-  padding: 0 8px;
-  margin-top: -1px;
+  font-size: 10px;
+  padding: 0 15px;
   border: 1px solid #000000;
   background: transparent;
   color: #000000;
@@ -208,7 +218,7 @@ legend {
   justify-content: center;
   align-items: center;
   position: absolute;
-  top: 35%;
+  top: 50%;
   transform: translateY(-50%);
   color: #000000;
   font-size: 19px;
@@ -245,7 +255,7 @@ input:valid~label{
   textarea{
     font-family: var(--Font-primary);
     width: 625px;
-    height: 400px;
+    height: 380px;
     border-radius: 6px;
     font-size: 15px;
     border: 1px solid #000000;
@@ -253,7 +263,6 @@ input:valid~label{
     color: #000000;
     overflow-y: auto;
     scrollbar-width: thin;
-    margin-left: 15px;
     padding: 10px;
     gap: 5px;
   }
