@@ -552,6 +552,7 @@ window.applyModalPrefill = function(rawParams) {
       idequipe: params.get("idequipe"),
       idcliente: params.get("idcliente"),
       idmontagem: params.get("idmontagem"),
+      idorcamento: params.get("idorcamento"),
       nmequipe: params.get("nmequipe") || params.get("idequipe_nome"),
       nmfuncao: params.get("nmfuncao"),
       nmevento: params.get("nmevento"),
@@ -581,6 +582,7 @@ window.applyModalPrefill = function(rawParams) {
   setHidden("idFuncao", prefill.idfuncao);
   setHidden("idCliente", prefill.idcliente);
   setHidden("idMontagem", prefill.idmontagem);
+  setHidden("idorcamento", prefill.idorcamento);
 
   // helper: tenta selecionar option existente — NÃO cria option para evitar sobrescrever listas carregadas depois
   function trySelectIfExists(selectId, value, text) {
@@ -2131,28 +2133,51 @@ try {
   const data_referencia = ev.dtinimontagem || ev.dtinirealizacao || ev.dtinimarcacao;
   const fim_evento = ev.dtfimdesmontagem || ev.dtfimrealizacao;
 
-  let equipesDetalhes = Array.isArray(ev.equipes_detalhes) ? ev.equipes_detalhes : [];
+    let equipesDetalhes = Array.isArray(ev.equipes_detalhes) ? ev.equipes_detalhes : [];
 
-  // 🛑 CORREÇÃO DE DADOS: Recalcula totais a partir dos detalhes das equipes para garantir consistência
-  const totalVagasCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.total_vagas || 0), 0);
-  const totalStaffCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.preenchidas || 0), 0);
-  const vagasRestantesCalculado = totalVagasCalculado - totalStaffCalculado;
+    // 🛑 CORREÇÃO DE DADOS: Recalcula totais a partir dos detalhes das equipes para garantir consistência
+    const totalVagasCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.total_vagas || 0), 0);
+    const totalStaffCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.preenchidas || 0), 0);
+    const vagasRestantesCalculado = totalVagasCalculado - totalStaffCalculado;
 
-  return {
-  ...ev,
-  data_referencia,
-  inicio_realizacao,
-  fim_realizacao,
-  fim_evento,
+    // 🧮 Recalcula resumo por categoria evitando categorias inexistentes
+    const grupos = equipesDetalhes.reduce((acc, item) => {
+        const categoria = (item.equipe || item.categoria || item.nmequipe || 'OPERACIONAL').toString().trim().toUpperCase();
+        const total = item.total_vagas || 0;
+        const preench = item.preenchidas || 0;
+        if (!acc[categoria]) acc[categoria] = { total: 0, preench: 0 };
+        acc[categoria].total += total;
+        acc[categoria].preench += preench;
+        return acc;
+    }, {});
 
-  // 🛑 Usa os totais calculados para o status principal
-  total_vagas: totalVagasCalculado,
-  total_staff: totalStaffCalculado,
-  vagas_restantes: vagasRestantesCalculado,
+    const resumoEquipesCalc = Object.entries(grupos)
+        .filter(([, vals]) => vals.total > 0) // só mostra categorias que realmente têm vagas
+        .map(([cat, vals]) => {
+            let statusIcon = "🟢";
+            if (vals.total === 0) statusIcon = "⚪";
+            else if (vals.preench === 0) statusIcon = "🔴";
+            else if (vals.preench < vals.total) statusIcon = "🟡";
+            return `${statusIcon} ${cat}: ${vals.preench}/${vals.total}`;
+        })
+        .join(' | ');
 
-  total_staff_api: ev.total_staff, // Mantém o valor original do backend para referência (opcional)
-  equipes_detalhes: equipesDetalhes
-  };
+    return {
+    ...ev,
+    data_referencia,
+    inicio_realizacao,
+    fim_realizacao,
+    fim_evento,
+
+    // 🛑 Usa os totais calculados para o status principal
+    total_vagas: totalVagasCalculado,
+    total_staff: totalStaffCalculado,
+    vagas_restantes: vagasRestantesCalculado,
+
+    total_staff_api: ev.total_staff, // Mantém o valor original do backend para referência (opcional)
+    equipes_detalhes: equipesDetalhes,
+    resumoEquipes: resumoEquipesCalc || ev.resumoEquipes || 'Nenhuma equipe cadastrada'
+    };
   }
 
 function criarCard(evt) {
@@ -2704,6 +2729,7 @@ async function abrirListaFuncionarios(equipe, evento) {
         <div class="funcionario-grupo-header">
           <h4 class="grupo-titulo">${escapeHtml(funcao)}</h4>
           <span class="grupo-badge">${grupos[funcao].length} Pessoa(s)</span>
+          <span class="grupo-badge"> Status Pagamento</span>
         </div>
         <div class="grupo-divisor"></div>
         <ul class="funcionario-lista">

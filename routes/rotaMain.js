@@ -572,8 +572,15 @@ router.get("/eventos-abertos", async (req, res) => {
                 GROUP BY o.idevento, lm.descmontagem, o.idmontagem
             ),
             staff_por_funcao AS (
-                SELECT se.idevento, se.idfuncao, COUNT(DISTINCT se.idstaff) AS preenchidas 
+                SELECT 
+                    se.idevento, 
+                    se.idfuncao, 
+                    COUNT(DISTINCT se.idstaff) AS preenchidas,
+                    MIN(f.idequipe) AS idequipe_staff,
+                    MIN(eq.nmequipe) AS equipe_staff
                 FROM staffeventos se
+                LEFT JOIN funcao f ON f.idfuncao = se.idfuncao
+                LEFT JOIN equipe eq ON eq.idequipe = f.idequipe
                 WHERE EXISTS (
                     SELECT 1 FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
                     WHERE d.dt::date BETWEEN $2 AND $3
@@ -592,17 +599,23 @@ router.get("/eventos-abertos", async (req, res) => {
                 WHERE o.status <> 'R' ORDER BY o.idevento, o.dtinirealizacao DESC 
             )
             SELECT e.idevento, e.nmevento, vo.*, ci.nmfantasia,
-                (SELECT json_agg(json_build_object(
-                    'idequipe', (b->>'idequipe')::int, 
-                    'equipe', b->>'equipe',
-                    'idfuncao', (b->>'idfuncao')::int, 
-                    'nome_funcao', b->>'nome_funcao',
-                    'total_vagas', (b->>'total_vagas')::int,
-                    'preenchidas', COALESCE(spf.preenchidas, 0),
-                    'datas_staff', COALESCE(sdf.datas_staff, ARRAY[]::text[])
-                )) FROM json_array_elements(vo.equipes_detalhes_base) AS b
-                   LEFT JOIN staff_por_funcao spf ON spf.idevento = e.idevento AND spf.idfuncao = (b->>'idfuncao')::int
-                   LEFT JOIN staff_datas_por_funcao sdf ON sdf.idevento = e.idevento AND sdf.idfuncao = (b->>'idfuncao')::int
+                (
+                    SELECT json_agg(jsonb_build_object(
+                        'idequipe', (b->>'idequipe')::int,
+                        'equipe', b->>'equipe',
+                        'idfuncao', (b->>'idfuncao')::int,
+                        'nome_funcao', b->>'nome_funcao',
+                        'total_vagas', (b->>'total_vagas')::int,
+                        'preenchidas', COALESCE(spf.preenchidas, 0),
+                        'datas_staff', COALESCE(sdf.datas_staff, ARRAY[]::text[])
+                    ))
+                    FROM json_array_elements(
+                        (SELECT equipes_detalhes_base FROM vagas_orc WHERE idevento = e.idevento)
+                    ) AS b
+                    LEFT JOIN staff_por_funcao spf ON spf.idevento = e.idevento 
+                        AND spf.idfuncao = (b->>'idfuncao')::int
+                    LEFT JOIN staff_datas_por_funcao sdf ON sdf.idevento = e.idevento 
+                        AND sdf.idfuncao = (b->>'idfuncao')::int
                 ) AS equipes_detalhes
             FROM eventos e
             INNER JOIN vagas_orc vo ON vo.idevento = e.idevento
@@ -612,6 +625,15 @@ router.get("/eventos-abertos", async (req, res) => {
         `;
 
         const { rows } = await pool.query(sql, params);
+        
+        // DEBUG: Verificar o que vem do banco
+        rows.forEach(r => {
+            if (r.nmevento && (r.nmevento.includes('ABAV') || r.nmevento.includes('CIOSP'))) {
+                console.log('\n=== DEBUG', r.nmevento, '===');
+                console.log('equipes_detalhes_base:', JSON.stringify(r.equipes_detalhes_base, null, 2));
+                console.log('equipes_detalhes (final):', JSON.stringify(r.equipes_detalhes, null, 2));
+            }
+        });
         
         // Função de mapeamento para o resumo visual
         const mappedRows = rows.map(evt => {
