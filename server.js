@@ -85,6 +85,8 @@ app.use("/indiceanual", autenticarToken(), contextoEmpresa, require("./routes/ro
 app.use("/tipoconta", autenticarToken(), contextoEmpresa, require("./routes/rotaTipoConta"));
 app.use("/contas", autenticarToken(), contextoEmpresa, require("./routes/rotaConta"));
 app.use("/centrocusto", autenticarToken(), contextoEmpresa, require("./routes/rotaCentroCusto"));
+app.use("/lancamentos", autenticarToken(), contextoEmpresa, require("./routes/rotaLancamento"));
+app.use("/pagamentos", autenticarToken(), contextoEmpresa, require("./routes/rotaPagamento"));
 
 app.use("/Contrato",require("./routes/rotaContrato"));
 
