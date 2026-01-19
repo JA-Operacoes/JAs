@@ -1,3 +1,4 @@
+
 .modal-open main,
 .modal-open header,
 .modal-open #content,  /* qualquer container do seu conteúdo de fundo */
@@ -35,7 +36,7 @@
 } 
 
 /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
-#cadModalContas.modal {
+#cadModalPagamentos.modal {
   position: fixed;
   top: 50%; /* Alinha verticalmente ao centro */
   left: 50%; /* Alinha horizontalmente ao centro */   
@@ -43,24 +44,24 @@
   background-color: #4d4d4d;
   padding: 5px;
   margin-top: 10px;
-  width: 750px; /* Ajuste o tamanho conforme necessário */
-  height: 520px;
+  width: 1000px; /* Ajuste o tamanho conforme necessário */
+  height: 750px;
   font-size: 16px;
   z-index: 9999;
 }
 
-#cadModalContas.modal-content{
+#cadModalPagamentos.modal-content{
   height: 590px;
 }
 
-#cadModalContas.modal-open{
+#cadModalPagamentos.modal-open{
   /* overflow: visible; Permite a rolagem do modal */
   overflow: hidden;
   pointer-events: none;
 }
 
 /* --- Estilização conforme Equipamentos (Alinhamento) --- */
-#cadModalContas .form {
+#cadModalPagamentos .form {
     margin: 20px 12px;
     display: flex;
     align-items: center;
@@ -96,15 +97,15 @@ body{
 }
 
 
-#form-contas {
+#form-pagamentos {
   font-family: "Abel", sans-serif;
   display: flex;                
   flex-direction: column; 
   justify-content: center;
   background-color: white;
-  max-width: 730px;   
+  max-width: 980px;   
   width: 100%;  
-  height: 440px; 
+  height: 670px; 
   margin: 0 auto;         
   padding: 10px;                
   background-color: #cacaca; 
@@ -117,8 +118,8 @@ body{
 fieldset {
   display: flex;
   flex-direction: column;
-  width: 650px;
-  height: 300px;
+  width: 730px;
+  height: 600px;
   background-color: transparent;
   border-color: var(--dark-color);
   margin: 0 auto;
@@ -158,7 +159,7 @@ legend{
   width: 350px;
   height: 30px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 17px;
   padding: 0 15px;
   border: 1px solid #000000;
   background: transparent;
@@ -166,10 +167,23 @@ legend{
   outline: none;
 }
 
+input#vlrPrevisto, input#vlrPago{
+  width: 180px;
+}
+
+input#numParcela{
+
+  width: 120px;
+}
+
+input#observacaoPagto{
+  width: 800px;
+} 
+
 .form2 input{
   flex: 1;
   font-family: var(--Font-primary);
-  width: 270px;
+  width: 200px;
   height: 30px;
   border-radius: 6px;
   font-size: 13px;
@@ -180,8 +194,21 @@ legend{
   outline: none;
 }
 
-#idConta{
+#idPagamento{
   width: 80px;
+}
+
+#vlrEstimado
+{
+  width: 180px;
+}
+
+select#periodicidade, select#tipoRepeticao{
+    width: 180px;
+}
+
+select#idContaSelect{
+    width: 250px;
 }
 
 .form2 {
@@ -191,12 +218,11 @@ legend{
   align-items: center; /* aqui é o segredo do alinhamento */
 }
 
-
 .form select {
   border-radius: 5px;
   flex: 1;
   font-family: var(--Font-primary);
-  width: 250px; 
+  width: 350px; 
   height: 30px;
   border-radius: 6px;
   font-size: 13px;
@@ -208,9 +234,9 @@ legend{
   outline: none;
 }
 
-#tpConta.form select {
+/* #tpConta.form select {
     width: 100px;
-}
+} */
 
 button.close {
   display: flex;
@@ -227,6 +253,10 @@ button.close {
   height: 25px;
 }
 
+.btnEnviar.modo-edicao {
+    background-color: #f39c12 !important; /* Laranja para alertar edição */
+    border-color: #e67e22 !important;
+}
 
 .form3 input{
   flex: 1;
@@ -253,6 +283,7 @@ button.close {
   left: 20px;
  
 }
+
 .form3 label{
   position: absolute;
   top: 50%;
@@ -289,7 +320,7 @@ input:not([value=""]) ~ label {
 }
 
 input[type=date]{
-  width: 111px;
+  width: 150px;
   height: 30px;
   font-size: 17px;
 }
@@ -304,8 +335,8 @@ input#id{
 }
 
 
-#idConta.has-value + label,
-#idConta:focus + label {
+#idpagamento.has-value + label,
+#idpagamento:focus + label {
   top: 0;
   left: 25%;
   font-size: 15px;
@@ -339,8 +370,6 @@ input#id{
     min-width: 150px;
     height: 35px;
 }
-
-
 
 .checkbox-wrapper-33 {
   --s-xsmall: 0.625em;
@@ -451,6 +480,107 @@ input#id{
   box-shadow: 0 0 0 0.25em var(--c-primary-20-percent-opacity);
 }
 
+
+/* --- ESTILIZAÇÃO CONSOLIDADA DO HISTÓRICO DE PAGAMENTOS --- */
+
+.previa-lancamentos {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    width: 100%; /* Garante que ocupe a largura do fieldset */
+}
+
+.previa-lancamentos h3 {
+    font-size: 16px;
+    margin-bottom: 8px;
+    color: #333;
+    text-align: center;
+}
+
+/* O Segredo do Scroll: Limitamos a altura para 6 linhas */
+.table-container {
+    max-height: 185px; 
+    overflow-y: auto;  
+    border: 1px solid #eee;
+    background: white;
+}
+
+/* Customização da Scrollbar (Global para o container do modal) */
+.table-container::-webkit-scrollbar {
+    width: 6px;
+}
+.table-container::-webkit-scrollbar-thumb {
+    background: #bbb;
+    border-radius: 10px;
+}
+
+/* Tabela de Prévia/Histórico */
+.table-previa {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+/* Cabeçalho Fixo */
+.table-previa thead th {
+    position: sticky;
+    top: 0;
+    background-color: #e9e9e9;
+    color: #555;
+    font-size: 12px;
+    z-index: 2;
+    padding: 8px 4px;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.table-previa td {
+    text-align: center;
+    padding: 8px 4px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.table-previa tr:hover {
+    background-color: #f1f1f1;
+}
+
+/* Badges de Status */
+.status-badge {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    display: inline-block;
+}
+
+.status-badge.pago {
+    background-color: #28a745;
+    color: white;
+}
+
+.status-badge.pendente {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.celula-obs {
+    max-width: 150px; /* Ajuste conforme a largura da sua tabela */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    color: #666;
+    font-size: 0.9em;
+}
+
+.celula-obs:hover {
+    color: var(--cor-primaria, #3085d6);
+    text-decoration: underline;
+}
+
 @-webkit-keyframes ripple-33 {
   from {
     transform: scale(0);
@@ -531,6 +661,7 @@ button.Close {
   display: none;
   margin-top: 10px;
 }
+
 #mensagemErro {
   color: red;
   font-size: 14px;

@@ -145,7 +145,7 @@ router.post("/",
       }
   }),
   async (req, res) => {
-    const { nmCentrocusto, ativo, empresas } = req.body; // 'empresas' é um array [1, 2, 3]
+    const { nmCentroCusto, ativo, empresas } = req.body; // 'empresas' é um array [1, 2, 3]
 
     try {
         // Iniciamos uma transação para garantir que ou salva todos ou nenhum
@@ -154,7 +154,7 @@ router.post("/",
         const promessas = empresas.map(idEmp => {
             return pool.query(
                 "INSERT INTO centrocusto (nmcentrocusto, ativo, idempresa) VALUES ($1, $2, $3)", 
-                [nmCentrocusto, ativo, idEmp]
+                [nmCentroCusto, ativo, idEmp]
             );
         });
 

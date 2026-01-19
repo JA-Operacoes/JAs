@@ -1,0 +1,121 @@
+<link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
+<link rel="stylesheet" href="css/Modal/CadLancamentos.css"> 
+<link rel="stylesheet" href="css/Roots/Roots.css">
+
+<div id="cadModalLancamentos" class="modal">
+    <div class="modal-content">
+        
+        <div class="Close"><button class="close" id="Fechar"> X </button></div>
+
+        <div id="form-lancamentos"> 
+            <div class="title">
+                <h1>Lançamentos Financeiros</h1>
+            </div>
+
+            <form method="post" id="form-lancamentos" name="form-lancamentos" autocomplete="on">
+                <fieldset>
+                    <legend>Dados do Lançamento</legend>
+                    
+                    <div class="form-3colunas">
+                        <div class="form">
+                            <input type="text" name="idLancamento" id="idLancamento" readonly>
+                            <label for="idLancamento">Código</label>
+                        </div>
+                        <div class="form">
+                            <input type="text" class="uppercase" name="descricao" id="descricao" spellcheck="false" placeholder=" ">
+                            <label for="descricao">Descrição (Opcional - Caso vazio, usará Nome da Conta)</label>
+                        </div>
+                        <div class="form">
+                            <select name="idConta" id="idContaSelect" required>
+                                <option value="" disabled selected>Selecione a Conta...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-checkbox">
+                            <div class="checkbox-wrapper-33">
+                                <label class="checkbox">
+                                    <p class="checkbox__textwrapper">Ativo</p>
+                                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo" checked />
+                                    <span class="checkbox__symbol">
+                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                                            <path d="M4 14l8 7L24 7"></path>
+                                        </svg>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-2colunas">
+                        
+                    </div>
+
+                    <div class="form-2colunas">
+                        <div class="form">
+                            <select name="idCentroCusto" id="idCentroCusto" required>
+                                <option value="" disabled selected>Centro de Custo (Setor - Empresa)...</option>
+                            </select>
+                            
+                        </div>
+                        
+                        <div class="form">
+                            <input type="text" name="vlrEstimado" id="vlrEstimado" required>
+                            <label for="vlrEstimado">Valor Estimado (R$)</label>
+                        </div>
+                        
+                    </div>
+
+                    <div class="form-3colunas">
+                        <div class="form">
+                            <input type="date" name="vctoBase" id="vctoBase" required>
+                            <label for="vctoBase">Vencimento Base</label>
+                        </div>
+                        <div class="form">
+                            <select name="periodicidade" id="periodicidade">
+                                <option value="MENSAL">Mensal</option>
+                                <option value="UNICO">Único</option>
+                                <option value="SEMANAL">Semanal</option>
+                                <option value="TRIMESTRAL">Trimestal</option>
+                                <option value="SEMESTRAL">Semestral</option>
+                                <option value="ANUAL">Anual</option>
+                            </select>
+                        </div>
+                        <div class="form">
+                            <select name="tipoRepeticao" id="tipoRepeticao">
+                                <option value="FIXO">Fixo</option>
+                                <option value="PARCELADO">Parcelado</option>
+                            </select>
+                        </div>
+                        <div class="form-checkbox">
+                            <div class="checkbox-wrapper-33">
+                                <label class="checkbox">
+                                    <p class="checkbox__textwrapper">Indeterminado</p>
+                                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="indeterminado" name="indeterminado" />
+                                    <span class="checkbox__symbol">
+                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                                            <path d="M4 14l8 7L24 7"></path>
+                                        </svg>
+                                    </span>
+                                </label>
+                            </div>
+                        </div> 
+                        
+                        <div class="form" id="containerTermino">
+                            <input type="date" name="dtTermino" id="dtTermino">
+                            <label for="dtTermino">Data de Término</label>
+                        </div>                       
+                    </div>
+                    <div id="container-previa"></div>
+                </fieldset>
+            </form>
+        </div>
+
+        <div class="BTNs">
+            <button class="bntPesquisar" id="Pesquisar" type="button">Pesquisar</button>
+            <button class="bntLimpar" id="Limpar" type="button">Limpar</button>
+            <button class="btnEnviar" id="Enviar" type="button">Enviar</button>
+        </div>
+    </div>
+</div>
