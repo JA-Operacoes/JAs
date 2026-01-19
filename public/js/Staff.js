@@ -1345,6 +1345,32 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
         case "Senior":
             seniorCheck.checked = true;
             break;
+    }
+    
+    // 🔴 VERIFICA SE É FUNCIONÁRIO (INTERNO/EXTERNO) E BLOQUEIA OS CHECKBOXES
+    const perfilFuncionarioCarregado = perfilFuncionarioInput?.value?.toUpperCase().trim() || '';
+    console.log("[carregarDadosParaEditar] Perfil do funcionário:", perfilFuncionarioCarregado);
+    
+    if (perfilFuncionarioCarregado === "INTERNO" || perfilFuncionarioCarregado === "EXTERNO") {
+        console.log("🔴 Funcionário INTERNO/EXTERNO detectado - Travando nível Base");
+        
+        // Garante que apenas Base está marcado
+        baseCheck.checked = true;
+        seniorCheck.checked = false;
+        plenoCheck.checked = false;
+        juniorCheck.checked = false;
+        
+        // Desabilita todos os checkboxes exceto Base
+        seniorCheck.disabled = true;
+        plenoCheck.disabled = true;
+        juniorCheck.disabled = true;
+        baseCheck.disabled = false;
+    } else {
+        // Libera todos os checkboxes para outros perfis
+        seniorCheck.disabled = false;
+        plenoCheck.disabled = false;
+        juniorCheck.disabled = false;
+        baseCheck.disabled = false;
     }      
 
     preencherComprovanteCampo(eventData.comppgtocache, 'Cache');
@@ -1989,7 +2015,7 @@ const carregarTabelaStaff = async (funcionarioId) => {
 
                     // --- LOGICA DE PERMISSÕES ---
 
-                    // 1. USUÁRIO COM PERMISSÃO TOTAL (ADMIN)
+                    // 1. USUÁRIO COM PERMISSÃO TOTAL (ADMIN/SUPREMO)
                     if (temPermissaoTotal) {
                         if (estaTudoPago || bloqueioParcial) {
                             // Apenas avisa, mas deixa editar
@@ -2022,13 +2048,17 @@ const carregarTabelaStaff = async (funcionarioId) => {
                         return;
                     }
 
-                    // 3. SEM PERMISSÃO (BLOQUEIO TOTAL)
-                    // Se não caiu nos IFs acima e está pago/parcial, nega até o carregamento
-                    if (estaTudoPago || bloqueioParcial) {
+                    // 3. USUÁRIO NORMAL (SEM PERMISSÕES ESPECIAIS)
+                    // 🔴 BLOQUEIO SE CACHÊ ESTIVER PAGO
+                    const cachePago = (vlrCache > 0 && statusCache === "pago");
+                    
+                    if (estaTudoPago || bloqueioParcial || cachePago) {
                         await Swal.fire({
                             icon: 'error',
                             title: 'ACESSO BLOQUEADO',
-                            text: 'Você não tem permissão para acessar dados de eventos já pagos ou concluídos.',
+                            text: cachePago 
+                                ? 'O cachê deste evento já foi pago. Você não tem permissão para editar.'
+                                : 'Você não tem permissão para acessar dados de eventos já pagos ou concluídos.',
                             confirmButtonText: 'Sair'
                         });
                         
@@ -3377,7 +3407,13 @@ BotaoEnviar.addEventListener("click", async (event) => {
         desccaixinha: document.getElementById("descCaixinha")?.value || '',
 
         tipoajudacustoviagem: document.getElementById("tipoAjudaCustoViagem")?.value || '0',
-        nivelexperiencia: document.getElementById("nivelExperiencia")?.value || '',
+        nivelexperiencia: (function() {
+            if (seniorCheck?.checked) return 'Senior';
+            if (plenoCheck?.checked) return 'Pleno';
+            if (juniorCheck?.checked) return 'Junior';
+            if (baseCheck?.checked) return 'Base';
+            return '';
+        })(),
 
         qtdpessoas: '0',
 
@@ -3394,7 +3430,10 @@ BotaoEnviar.addEventListener("click", async (event) => {
     /* ===============================
        5. VALIDAÇÃO DE LIMITE
     =============================== */
-    if (typeof verificarLimiteDeFuncao === "function") {
+    // 🔧 CORREÇÃO: Só verifica limite se for NOVO cadastro (não em edição)
+    const isEdit = idStaff !== '0';
+    
+    if (typeof verificarLimiteDeFuncao === "function" && !isEdit) {
         console.log("🔍 [LIMITE] Dados enviados para verificação:", {
             nmEvento: dadosParaEnvio.nmevento,
             nmCliente: dadosParaEnvio.nmcliente,
@@ -3415,6 +3454,8 @@ BotaoEnviar.addEventListener("click", async (event) => {
         });
 
         if (limite && limite.allowed === false) return;
+    } else if (isEdit) {
+        console.log("⏩ [LIMITE] Edição detectada - Validação de limite pulada");
     }
 
     /* ===============================
@@ -3448,7 +3489,7 @@ BotaoEnviar.addEventListener("click", async (event) => {
     /* ===============================
        5.5 COMPARAÇÃO E CONFIRMAÇÃO (APENAS PARA EDIÇÃO)
     =============================== */
-    const isEdit = idStaff !== '0';
+    // isEdit já foi declarado anteriormente na linha de validação de limite
     
     if (isEdit && currentEditingStaffEvent) {
         console.log("🔍 [VALIDAÇÃO PUT] Comparando dados originais com atuais...");
@@ -3674,17 +3715,23 @@ const debouncedOnCriteriosChanged = debounce(async () => {
         await buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idFuncao, periodoDoEvento);
 
         // PASSO 3: Verifica Limites
-        const criteriosParaLimite = {
-            nmEvento,
-            nmCliente,
-            nmlocalMontagem,
-            nmFuncao,
-            setor: setorDefinitivo, 
-            idFuncao: idFuncao
-        };
+        // 🔧 CORREÇÃO: Só verifica limite se NÃO estiver editando um registro existente
+        if (!currentEditingStaffEvent && !isFormLoadedFromDoubleClick) {
+            const criteriosParaLimite = {
+                nmEvento,
+                nmCliente,
+                nmlocalMontagem,
+                nmFuncao,
+                setor: setorDefinitivo, 
+                idFuncao: idFuncao
+            };
 
-        const resultado = await verificarLimiteDeFuncao(criteriosParaLimite);
-        controlarBotaoSalvarStaff(resultado.allowed);
+            const resultado = await verificarLimiteDeFuncao(criteriosParaLimite);
+            controlarBotaoSalvarStaff(resultado.allowed);
+        } else {
+            console.log("⏩ [LIMITE] Edição detectada - Validação de limite em onCriteriosChanged pulada");
+            controlarBotaoSalvarStaff(true); // Libera o botão salvar em modo edição
+        }
     } else {
         controlarBotaoSalvarStaff(false);
     }
@@ -6221,7 +6268,20 @@ function calcularValorTotal() {
              totalCache += cache * qtdpessoas;
              totalAjdCusto += (transporte + alimentacao) * qtdpessoas;
              console.log(`Perfil 'Lote' detectado. Diária (${data.toLocaleDateString()}) para ${qtdpessoas} pessoas: ${total.toFixed(2)}`);
+        } else if (perfilFuncionario === "INTERNO" || perfilFuncionario === "EXTERNO") {
+            // 🔴 FUNCIONÁRIO (INTERNO/EXTERNO): Cachê apenas nos finais de semana
+            if (isFinalDeSemanaOuFeriado(data)) {
+                total += cache + transporte + alimentacao;
+                totalCache += cache;   
+                totalAjdCusto += transporte + alimentacao;
+                console.log(`Data ${data.toLocaleDateString()} é fim de semana/feriado. Cachê adicionado: ${cache}`);
+            } else {
+                total += transporte + alimentacao;
+                totalAjdCusto += transporte + alimentacao;
+                console.log(`Data ${data.toLocaleDateString()} não é fim de semana nem feriado. Apenas Ajuda de Custo: ${(transporte + alimentacao).toFixed(2)}`);
+            }
         } else {
+            // Perfil desconhecido ou vazio - comportamento padrão (cachê apenas finais de semana)
             if (isFinalDeSemanaOuFeriado(data)) {
                 total += cache + transporte +  alimentacao;
                 totalCache += cache;   
