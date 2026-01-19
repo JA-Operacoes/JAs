@@ -1231,7 +1231,7 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     descBeneficioTextarea.value = eventData.descbeneficios || '';
 
     ajusteCustoInput.value = parseFloat(eventData.vlrajustecusto || 0).toFixed(2).replace('.', ',');
-    ajusteCustoTextarea.value = eventData.descajusteCusto || '';
+    ajusteCustoTextarea.value = eventData.descajustecusto || '';
     statusAjusteCustoInput.value = eventData.statusajustecusto;
 
     caixinhaInput.value = parseFloat(eventData.vlrcaixinha || 0).toFixed(2).replace('.', ',');
@@ -1384,6 +1384,16 @@ function validarEFiltrarSetorPavilhao() {
         return;
     }
     
+    // 🔧 MELHORIA: Salva as opções originais na PRIMEIRA vez, antes de qualquer alteração
+    if (!selectPav.dataset.originalOptions && selectPav.options.length > 0) {
+        const allOptions = Array.from(selectPav.options).map(opt => ({
+            value: opt.value,
+            text: opt.textContent
+        }));
+        selectPav.dataset.originalOptions = JSON.stringify(allOptions);
+        console.log("[validarEFiltrarSetorPavilhao] Opções originais salvas:", allOptions.length);
+    }
+    
     const setorInformado = inputSetor.value.toUpperCase().trim();
     console.log("[validarEFiltrarSetorPavilhao] Setor informado:", setorInformado || "(vazio)");
     console.log("[validarEFiltrarSetorPavilhao] Opções do select:", Array.from(selectPav.options).map(o => o.textContent));
@@ -1394,6 +1404,7 @@ function validarEFiltrarSetorPavilhao() {
         selectPav.disabled = false;
         selectPav.style.opacity = "1";
         selectPav.style.cursor = "auto";
+        selectPav.style.backgroundColor = "";
         selectPav.title = "";
         selectPav.required = false;
         // Restaura todas as opções se estavam filtradas
@@ -1409,6 +1420,20 @@ function validarEFiltrarSetorPavilhao() {
             console.log("[validarEFiltrarSetorPavilhao] Opções restauradas");
         }
         return;
+    }
+    
+    // 🔧 MELHORIA: Restaura as opções originais ANTES de fazer a nova validação
+    // Isso garante que sempre tenhamos todas as opções disponíveis para comparar
+    if (selectPav.dataset.originalOptions) {
+        const originalOptions = JSON.parse(selectPav.dataset.originalOptions);
+        selectPav.innerHTML = '';
+        originalOptions.forEach(opt => {
+            const option = document.createElement('option');
+            option.value = opt.value;
+            option.textContent = opt.text;
+            selectPav.appendChild(option);
+        });
+        console.log("[validarEFiltrarSetorPavilhao] Opções restauradas antes da validação");
     }
     
     // Procura por um pavilhão compatível com o setor
@@ -3312,10 +3337,26 @@ BotaoEnviar.addEventListener("click", async (event) => {
             const norm = raw.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
             return norm || '0';
         })(),
-        vlrajustecusto: document.getElementById("vlrAjusteCusto")?.value || '0',
-        vlrtransporte: document.getElementById("vlrTransporte")?.value || '0',
-        vlralimentacao: document.getElementById("vlrAlimentacao")?.value || '0',
-        vlrcaixinha: document.getElementById("vlrCaixinha")?.value || '0',
+        vlrajustecusto: (function(){
+            const raw = document.getElementById("vlrAjusteCusto")?.value || '0';
+            const norm = raw.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
+            return norm || '0';
+        })(),
+        vlrtransporte: (function(){
+            const raw = document.getElementById("transporte")?.value || '0';
+            const norm = raw.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
+            return norm || '0';
+        })(),
+        vlralimentacao: (function(){
+            const raw = document.getElementById("alimentacao")?.value || '0';
+            const norm = raw.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
+            return norm || '0';
+        })(),
+        vlrcaixinha: (function(){
+            const raw = document.getElementById("vlrCaixinha")?.value || '0';
+            const norm = raw.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
+            return norm || '0';
+        })(),
 
         descajustecusto: document.getElementById("descAjusteCusto")?.value || '',
         descbeneficios: document.getElementById("descBeneficios")?.value || '',
@@ -3663,6 +3704,17 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocal, idFuncao, d
             document.getElementById('idPavilhao')?.value ||
             ''
         ).trim().toUpperCase();
+
+        // 🆕 NOVO: Verificar se há Extra Bonificado Aprovado antes de buscar orçamento
+        const statusExtra = await verificarExtraBonificadoAprovado(idEvento, idCliente, idLocal, idFuncao);
+        if (statusExtra && statusExtra.aprovado) {
+            console.log('✅ Extra Bonificado APROVADO encontrado! Liberando salvamento sem orçamento.');
+            temOrcamento = true;
+            idOrcamentoAtual = statusExtra.idOrcamento;
+            decisaoUsuarioDataFora = 'EXTRA';
+            window.orcamentoPorFuncao = {}; // Limpa o mapa
+            return; // Retorna sem buscar orçamento
+        }
 
         // Limpeza de parâmetros para a API não receber "null"
         const params = {
@@ -5739,9 +5791,9 @@ document.getElementById('Seniorcheck').addEventListener('change', function () {
         baseCheck.checked = false;
 
         //console.log("Valores para Senior - Custo:", vlrCustoSeniorFuncao, "Alimentação:", vlrAlimentacao, "Transporte:", vlrTransporteSeniorFuncao);
-        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoSeniorFuncao) || 0).toFixed(2); 
-        document.getElementById("transporte").value = (parseFloat(vlrTransporteSeniorFuncao) || 0).toFixed(2);
+        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2).replace('.', ',');
+        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoSeniorFuncao) || 0).toFixed(2).replace('.', ','); 
+        document.getElementById("transporte").value = (parseFloat(vlrTransporteSeniorFuncao) || 0).toFixed(2).replace('.', ',');
 
         const datasEventoInput = document.getElementById('datasEvento');
         if (datasEventoInput) {
@@ -5769,9 +5821,9 @@ document.getElementById('Plenocheck').addEventListener('change', function () {
         juniorCheck.checked = false;
         baseCheck.checked = false;        
         
-        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoPlenoFuncao) || 0).toFixed(2);   
-        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
-        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoPlenoFuncao) || 0).toFixed(2).replace('.', ',');   
+        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2).replace('.', ',');
+        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2).replace('.', ',');
     
         const datasEventoInput = document.getElementById('datasEvento');
         if (datasEventoInput) {
@@ -5798,9 +5850,9 @@ document.getElementById('Juniorcheck').addEventListener('change', function () {
         plenoCheck.checked = false;
         baseCheck.checked = false;
 
-        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoJuniorFuncao) || 0).toFixed(2); 
-        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);  
-        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoJuniorFuncao) || 0).toFixed(2).replace('.', ','); 
+        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2).replace('.', ',');  
+        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2).replace('.', ',');
     
         const datasEventoInput = document.getElementById('datasEvento');
         if (datasEventoInput) {
@@ -5829,9 +5881,9 @@ document.getElementById('Basecheck').addEventListener('change', function () {
         plenoCheck.checked = false;
         juniorCheck.checked = false;
 
-        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoBaseFuncao) || 0).toFixed(2);
-        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);   
-        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoBaseFuncao) || 0).toFixed(2).replace('.', ',');
+        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2).replace('.', ',');   
+        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2).replace('.', ',');
 
         const datasEventoInput = document.getElementById('datasEvento');
         if (datasEventoInput) {
@@ -6967,6 +7019,66 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
 
 window.verificarStatusAditivoExtra = verificarStatusAditivoExtra; // Torna acessível
 
+/**
+ * Verifica se existe Extra Bonificado Aprovado para os critérios informados.
+ * Retorna objeto com status de aprovação.
+ */
+async function verificarExtraBonificadoAprovado(idEvento, idCliente, idMontagem, idFuncao) {
+    try {
+        // Busca orçamento relacionado aos critérios
+        const orcamentosResponse = await fetchComToken(
+            `/staff/orcamento/consultar`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    idEvento,
+                    idCliente,
+                    idLocalMontagem: idMontagem,
+                    idFuncao,
+                    datasEvento: [],
+                    setor: ''
+                })
+            }
+        );
+
+        // Se não encontrou orçamento, retorna false
+        if (!Array.isArray(orcamentosResponse) || orcamentosResponse.length === 0) {
+            return { aprovado: false };
+        }
+
+        const idOrcamento = orcamentosResponse[0].idorcamento;
+
+        // Consulta status do Extra Bonificado
+        const statusResponse = await fetchComToken(
+            `/staff/aditivoextra/status?idOrcamento=${idOrcamento}&idFuncao=${idFuncao}&tipoSolicitacao=Extra Bonificado`
+        );
+
+        if (statusResponse && statusResponse.sucesso && statusResponse.dados) {
+            const { solicitacaoRecente } = statusResponse.dados;
+            
+            // Verifica se há Extra Bonificado com status Autorizado
+            if (solicitacaoRecente && 
+                solicitacaoRecente.tiposolicitacao === 'Extra Bonificado' && 
+                solicitacaoRecente.status === 'Autorizado') {
+                console.log('✅ Extra Bonificado AUTORIZADO encontrado:', solicitacaoRecente);
+                return { 
+                    aprovado: true, 
+                    idOrcamento: idOrcamento,
+                    detalhes: solicitacaoRecente
+                };
+            }
+        }
+
+        return { aprovado: false };
+
+    } catch (error) {
+        console.error('Erro ao verificar Extra Bonificado aprovado:', error);
+        return { aprovado: false };
+    }
+}
+
+window.verificarExtraBonificadoAprovado = verificarExtraBonificadoAprovado;
 
 async function salvarSolicitacaoAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulario, qtd, tipo, justificativa, idFuncionario = null) {
     console.log("AJAX: Tentando salvar solicitação:", { idOrcamentoAtual, idFuncaoDoFormulario, qtd, tipo, justificativa });
