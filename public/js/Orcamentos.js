@@ -1939,7 +1939,8 @@ console.error(
 );
 return;
 }
-tabelaBody.innerHTML = "";
+// NÃO apaga as linhas existentes (orçamento fechado) ao adicionar linha adicional
+// tabelaBody.innerHTML = "";
 
 const ufAtual = document.getElementById("ufmontagem")?.value || "SP";
 // O estilo inicial é usado para colunas que só devem aparecer para UF's diferentes de SP
@@ -5203,30 +5204,20 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
   });
 
   if (aplicarReajuste) {
-    document.getElementById("avisoReajusteMensagem").textContent =
-      mensagemReajuste.trim();
+    // Exibe a mensagem de reajuste
+    const avisoReajusteElement = document.getElementById("avisoReajusteMensagem");
+    if (avisoReajusteElement) {
+      avisoReajusteElement.textContent = mensagemReajuste.trim();
+    }
+    
+    // Recalcula os totais gerais com os novos valores
     recalcularTotaisGerais();
 
+    // Aplica os descontos e acréscimos após recalcular
     const globalDescontoValor = document.getElementById("Desconto");
     const globalAcrescimoValor = document.getElementById("Acrescimo");
 
-    if (globalDescontoValor && orcamentoAtual.desconto) {
-      globalDescontoValor.value = formatarMoeda(orcamentoAtual.desconto);
-    }
-    if (globalAcrescimoValor && orcamentoAtual.acrescimo) {
-      globalAcrescimoValor.value = formatarMoeda(orcamentoAtual.acrescimo);
-    }
-
-    console.log(
-      "APLICAR REAJUSTE VALOR DESCONTO/ACRESCIMO",
-      globalDescontoValor.value,
-      globalAcrescimoValor.value
-    );
-
     if (globalDescontoValor || globalAcrescimoValor) {
-      console.log(
-        "INICIALIZANDO DESCONTO/ACRÉSCIMO GLOBAL com valores do item."
-      );
       const descValor = desformatarMoeda(globalDescontoValor?.value || "0");
       const acrescValor = desformatarMoeda(globalAcrescimoValor?.value || "0");
 
@@ -5237,8 +5228,7 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
         lastEditedGlobalFieldType = "valorAcrescimo";
         aplicarDescontoEAcrescimo("Acrescimo");
       } else {
-        // Caso não haja desconto/acréscimo global inicial, mas queira
-        // atualizar o valorCliente de qualquer forma.
+        // Atualiza o valorCliente de qualquer forma
         aplicarDescontoEAcrescimo("Desconto");
       }
 

@@ -3405,13 +3405,84 @@ BotaoEnviar.addEventListener("click", async (event) => {
     }
 
     /* ===============================
+       5.5 COMPARAÇÃO E CONFIRMAÇÃO (APENAS PARA EDIÇÃO)
+    =============================== */
+    const isEdit = idStaff !== '0';
+    
+    if (isEdit && currentEditingStaffEvent) {
+        console.log("🔍 [VALIDAÇÃO PUT] Comparando dados originais com atuais...");
+        
+        // Função auxiliar para log e comparação
+        const logAndCheck = (fieldName, originalValue, currentValue, condition) => {
+            const isDifferent = condition;
+            console.log(`[COMPARACAO] ${fieldName}: Original = '${originalValue}' | Atual = '${currentValue}' | Diferente = ${isDifferent}`);
+            return isDifferent;
+        };
+        
+        // Normaliza valores vazios
+        const normalizeEmptyValue = (value) => {
+            if (value === null || value === undefined || value === '' || value === 'null') return '';
+            return String(value).trim();
+        };
+        
+        // Comparação completa de todos os campos
+        let houveAlteracao = 
+            logAndCheck('ID Funcionário', currentEditingStaffEvent.idfuncionario, dadosParaEnvio.idfuncionario, currentEditingStaffEvent.idfuncionario != dadosParaEnvio.idfuncionario) ||
+            logAndCheck('Função', (currentEditingStaffEvent.nmfuncao || '').toUpperCase(), dadosParaEnvio.nmfuncao, (currentEditingStaffEvent.nmfuncao || '').toUpperCase() != dadosParaEnvio.nmfuncao) ||
+            logAndCheck('Valor Cache', parseFloat(currentEditingStaffEvent.vlrcache || 0), parseFloat(dadosParaEnvio.vlrcache || 0), parseFloat(currentEditingStaffEvent.vlrcache || 0) != parseFloat(dadosParaEnvio.vlrcache || 0)) ||
+            logAndCheck('Datas Evento', JSON.stringify(currentEditingStaffEvent.datasevento || []), dadosParaEnvio.datasevento, JSON.stringify(currentEditingStaffEvent.datasevento || []) !== dadosParaEnvio.datasevento) ||
+            logAndCheck('Valor Ajuste Custo', parseFloat(currentEditingStaffEvent.vlrajustecusto || 0), parseFloat(dadosParaEnvio.vlrajustecusto || 0), parseFloat(currentEditingStaffEvent.vlrajustecusto || 0) != parseFloat(dadosParaEnvio.vlrajustecusto || 0)) ||
+            logAndCheck('Valor Transporte', parseFloat(currentEditingStaffEvent.vlrtransporte || 0), parseFloat(dadosParaEnvio.vlrtransporte || 0), parseFloat(currentEditingStaffEvent.vlrtransporte || 0) != parseFloat(dadosParaEnvio.vlrtransporte || 0)) ||
+            logAndCheck('Valor Alimentação', parseFloat(currentEditingStaffEvent.vlralimentacao || 0), parseFloat(dadosParaEnvio.vlralimentacao || 0), parseFloat(currentEditingStaffEvent.vlralimentacao || 0) != parseFloat(dadosParaEnvio.vlralimentacao || 0)) ||
+            logAndCheck('Valor Caixinha', parseFloat(currentEditingStaffEvent.vlrcaixinha || 0), parseFloat(dadosParaEnvio.vlrcaixinha || 0), parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) != parseFloat(dadosParaEnvio.vlrcaixinha || 0)) ||
+            logAndCheck('Descrição Ajuste Custo', (currentEditingStaffEvent.descajustecusto || '').trim(), (dadosParaEnvio.descajustecusto || '').trim(), (currentEditingStaffEvent.descajustecusto || '').trim() != (dadosParaEnvio.descajustecusto || '').trim()) ||
+            logAndCheck('Descrição Benefícios', (currentEditingStaffEvent.descbeneficios || '').trim(), (dadosParaEnvio.descbeneficios || '').trim(), (currentEditingStaffEvent.descbeneficios || '').trim() != (dadosParaEnvio.descbeneficios || '').trim()) ||
+            logAndCheck('Descrição Caixinha', (currentEditingStaffEvent.desccaixinha || '').trim(), (dadosParaEnvio.desccaixinha || '').trim(), (currentEditingStaffEvent.desccaixinha || '').trim() != (dadosParaEnvio.desccaixinha || '').trim()) ||
+            logAndCheck('Setor', (currentEditingStaffEvent.setor || '').toUpperCase().trim(), (dadosParaEnvio.setor || '').toUpperCase().trim(), (currentEditingStaffEvent.setor || '').toUpperCase().trim() != (dadosParaEnvio.setor || '').toUpperCase().trim()) ||
+            logAndCheck('ID Cliente', currentEditingStaffEvent.idcliente, dadosParaEnvio.idcliente, currentEditingStaffEvent.idcliente != dadosParaEnvio.idcliente) ||
+            logAndCheck('ID Evento', currentEditingStaffEvent.idevento, dadosParaEnvio.idevento, currentEditingStaffEvent.idevento != dadosParaEnvio.idevento) ||
+            logAndCheck('ID Montagem', currentEditingStaffEvent.idmontagem, dadosParaEnvio.idmontagem, currentEditingStaffEvent.idmontagem != dadosParaEnvio.idmontagem) ||
+            logAndCheck('ID Equipe', currentEditingStaffEvent.idequipe, dadosParaEnvio.idequipe, currentEditingStaffEvent.idequipe != dadosParaEnvio.idequipe) ||
+            logAndCheck('Pavilhão', (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim(), (dadosParaEnvio.pavilhao || '').toUpperCase().trim(), (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != (dadosParaEnvio.pavilhao || '').toUpperCase().trim()) ||
+            logAndCheck('Descrição Diária Dobrada', (currentEditingStaffEvent.descdiariadobrada || '').trim(), (dadosParaEnvio.descdiariadobrada || '').trim(), (currentEditingStaffEvent.descdiariadobrada || '').trim() != (dadosParaEnvio.descdiariadobrada || '').trim()) ||
+            logAndCheck('Descrição Meia Diária', (currentEditingStaffEvent.descmeiadiaria || '').trim(), (dadosParaEnvio.descmeiadiaria || '').trim(), (currentEditingStaffEvent.descmeiadiaria || '').trim() != (dadosParaEnvio.descmeiadiaria || '').trim()) ||
+            logAndCheck('Datas Diária Dobrada', JSON.stringify(currentEditingStaffEvent.dtdiariadobrada || []), dadosParaEnvio.datadiariadobrada, JSON.stringify(currentEditingStaffEvent.dtdiariadobrada || []) !== dadosParaEnvio.datadiariadobrada) ||
+            logAndCheck('Datas Meia Diária', JSON.stringify(currentEditingStaffEvent.dtmeiadiaria || []), dadosParaEnvio.datameiadiaria, JSON.stringify(currentEditingStaffEvent.dtmeiadiaria || []) !== dadosParaEnvio.datameiadiaria) ||
+            logAndCheck('Nível Experiência', (currentEditingStaffEvent.nivelexperiencia || '').trim(), (dadosParaEnvio.nivelexperiencia || '').trim(), (currentEditingStaffEvent.nivelexperiencia || '').trim() != (dadosParaEnvio.nivelexperiencia || '').trim()) ||
+            logAndCheck('Qtd Pessoas', currentEditingStaffEvent.qtdpessoas || 0, dadosParaEnvio.qtdpessoas || 0, (currentEditingStaffEvent.qtdpessoas || 0) != (dadosParaEnvio.qtdpessoas || 0));
+        
+        console.log("🔍 [VALIDAÇÃO PUT] Houve alteração geral?", houveAlteracao);
+        
+        if (!houveAlteracao) {
+            console.log("❌ Nenhuma alteração detectada, bloqueando salvamento.");
+            return Swal.fire("Nenhuma alteração detectada", "Faça alguma alteração antes de salvar.", "info");
+        }
+        
+        // Confirma com o usuário se deseja salvar as alterações
+        const { isConfirmed } = await Swal.fire({
+            title: "Deseja salvar as alterações?",
+            text: "Você está prestes a atualizar os dados do staff.",
+            icon: "question",
+            showCancelButton: true,
+            confirmButtonText: "Sim, salvar",
+            cancelButtonText: "Cancelar",
+            reverseButtons: true,
+            focusCancel: true
+        });
+        
+        if (!isConfirmed) {
+            console.log("❌ Alteração cancelada pelo usuário");
+            return;
+        }
+    }
+
+    /* ===============================
        6. ENVIO
     =============================== */
     try {
         BotaoEnviar.disabled = true;
         BotaoEnviar.textContent = "Salvando...";
 
-        const isEdit = idStaff !== '0';
         const url = isEdit ? `/staff/${idStaff}` : '/staff';
 
         const result = await fetchComToken(url, {
@@ -3429,7 +3500,87 @@ BotaoEnviar.addEventListener("click", async (event) => {
         }
 
         await Swal.fire("Sucesso!", isEdit ? "Atualizado!" : "Cadastrado!", "success");
-        location.reload();
+
+        // 🛑 Reabilita o botão após o sucesso
+        BotaoEnviar.disabled = false;
+        BotaoEnviar.textContent = "Salvar";
+
+        // Recarrega a tabela de staff se for edição
+        if (isEdit && dadosParaEnvio.idfuncionario) {
+            await carregarTabelaStaff(dadosParaEnvio.idfuncionario);
+        }
+
+        // =========================================================================
+        // 🎯 PERGUNTA AO USUÁRIO O QUE FAZER APÓS O CADASTRO
+        // =========================================================================
+        const resultSwal = await Swal.fire({
+            title: "Deseja continuar?",
+            text: "O cadastro foi concluído. Quer cadastrar mais um funcionário para o mesmo evento/função ou finalizar?",
+            icon: "question",
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonText: "Cadastrar mais um (Manter dados)",
+            cancelButtonText: "Finalizar e Sair",
+            denyButtonText: "Cadastrar novo staff (Limpar tudo)",
+            reverseButtons: true,
+            focusCancel: true
+        });
+        
+        if (resultSwal.isConfirmed) {
+            // Se escolheu "Cadastrar mais um (Manter dados)"
+            console.log("Usuário escolheu: Cadastrar mais um (Manter evento/função)");
+            
+            // Chama a função de limpeza parcial (mantém evento, cliente, local, função)
+            if (typeof limparCamposStaffParcial === "function") {
+                limparCamposStaffParcial();
+            } else {
+                console.warn("limparCamposStaffParcial não está definida. Limpando apenas funcionário.");
+                // Limpa apenas campos do funcionário
+                const nmFuncionarioSelect = document.getElementById('nmFuncionario');
+                const idFuncionarioInput = document.getElementById('idFuncionario');
+                if (nmFuncionarioSelect) nmFuncionarioSelect.value = '';
+                if (idFuncionarioInput) idFuncionarioInput.value = '';
+                
+                // Limpa valores financeiros
+                if (document.getElementById('vlrCusto')) document.getElementById('vlrCusto').value = '0,00';
+                if (document.getElementById('vlrAjusteCusto')) document.getElementById('vlrAjusteCusto').value = '0,00';
+                if (document.getElementById('vlrTransporte')) document.getElementById('vlrTransporte').value = '0,00';
+                if (document.getElementById('vlrAlimentacao')) document.getElementById('vlrAlimentacao').value = '0,00';
+                if (document.getElementById('vlrCaixinha')) document.getElementById('vlrCaixinha').value = '0,00';
+                if (document.getElementById('vlrTotal')) document.getElementById('vlrTotal').value = '0,00';
+            }
+
+        } else if (resultSwal.isDenied) {
+            // Se escolheu "Cadastrar novo staff (Limpar tudo)"
+            console.log("Usuário escolheu: Cadastrar novo staff (Limpar tudo)");
+            if (typeof limparCamposStaff === "function") {
+                limparCamposStaff();
+            } else {
+                // Fallback: recarrega a página
+                location.reload();
+            }
+
+        } else if (resultSwal.dismiss === Swal.DismissReason.cancel) {
+            // Se escolheu "Finalizar e Sair"
+            console.log("Usuário escolheu: Finalizar e Sair");
+            
+            // Tenta fechar a modal
+            if (typeof fecharModal === "function") {
+                fecharModal();
+                window.location.reload();
+            } else {
+                // Fallback: fecha a modal manualmente
+                const modalOverlay = document.getElementById("modal-overlay");
+                const modalContainer = document.getElementById("modal-container");
+                
+                if (modalOverlay) modalOverlay.style.display = "none";
+                if (modalContainer) modalContainer.innerHTML = "";
+                document.body.classList.remove("modal-open");
+                
+                // Recarrega a página
+                window.location.reload();
+            }
+        }
 
     } catch (error) {
         console.error("❌ Erro:", error);
@@ -3501,6 +3652,11 @@ const debouncedOnCriteriosChanged = debounce(async () => {
 
 async function buscarEPopularOrcamento(idEvento, idCliente, idLocal, idFuncao, datasEvento) {
     try {
+        console.log("Buscando orçamento com os seguintes IDs:", { idEvento, idCliente, idLocal, idFuncao, datasEvento });
+
+        // Reseta a decisão anterior sempre que buscar novo orçamento
+        decisaoUsuarioDataFora = null;
+
         // ✅ Captura o setor/pavilhão selecionado no formulário (prioridade: #setor > #idPavilhao)
         const setorSelecionado = (
             document.getElementById('setor')?.value ||
@@ -3528,71 +3684,313 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocal, idFuncao, d
 
         window.orcamentoPorFuncao = {};
 
-        if (Array.isArray(result) && result.length > 0) {
-            result.forEach(item => {
-                const ev = (item.nmevento || '').trim().toUpperCase();
-                const cl = (item.nmcliente || '').trim().toUpperCase();
-                const lc = (item.nmlocalmontagem || '').trim().toUpperCase();
-                const st = (item.setor || '').trim().toUpperCase();
-                const fn = (item.descfuncao || '').trim().toUpperCase();
-
-                // Chave Mestra
-                const chave = `${ev}-${cl}-${lc}-${st}-${fn}`;
-                const valorMapa = {
-                    totalOrcado: parseInt(item.quantidade_orcada) || 0,
-                    vagasPreenchidas: parseInt(item.quantidade_escalada) || 0,
-                    idOrcamento: item.idorcamento
-                };
-                // Guarda a chave específica (por nomes)
-                window.orcamentoPorFuncao[chave] = valorMapa;
-
-                // Também armazena chaves usando IDs (idevento-idcliente-idmontagem-idfuncao)
-                // Isso cobre casos em que a verificação usa IDs em vez de nomes.
-                const evId = (item.idevento || '').toString().trim();
-                const clId = (item.idcliente || '').toString().trim();
-                const lcId = (item.idmontagem || '').toString().trim();
-                const fnId = (item.idfuncao || '').toString().trim();
-                const chaveIds = `${evId}-${clId}-${lcId}-${st}-${fnId}`;
-                const chaveIdsSemFuncao = `${evId}-${clId}-${lcId}-${st}-`;
-                const chaveIdsGeral = `${evId}-${clId}-${lcId}-GERAL-${fnId}`;
-                const chaveIdsGeralSemFuncao = `${evId}-${clId}-${lcId}-GERAL-`;
-                const chaveIdsVaziaTotal = `${evId}-${clId}-${lcId}--`;
-
-                if (!window.orcamentoPorFuncao[chaveIds]) window.orcamentoPorFuncao[chaveIds] = valorMapa;
-                if (!window.orcamentoPorFuncao[chaveIdsSemFuncao]) window.orcamentoPorFuncao[chaveIdsSemFuncao] = valorMapa;
-                if (!window.orcamentoPorFuncao[chaveIdsGeral]) window.orcamentoPorFuncao[chaveIdsGeral] = valorMapa;
-                if (!window.orcamentoPorFuncao[chaveIdsGeralSemFuncao]) window.orcamentoPorFuncao[chaveIdsGeralSemFuncao] = valorMapa;
-                if (!window.orcamentoPorFuncao[chaveIdsVaziaTotal]) window.orcamentoPorFuncao[chaveIdsVaziaTotal] = valorMapa;
-
-                // Também cria variações úteis para evitar falta de correspondência
-                // 1) chave sem função (fn vazia)
-                const chaveSemFuncao = `${ev}-${cl}-${lc}-${st}-`;
-                if (!window.orcamentoPorFuncao[chaveSemFuncao]) window.orcamentoPorFuncao[chaveSemFuncao] = valorMapa;
-
-                // 2) chave GERAL (setor padrão)
-                const chaveGeral = `${ev}-${cl}-${lc}-GERAL-${fn}`;
-                if (!window.orcamentoPorFuncao[chaveGeral]) window.orcamentoPorFuncao[chaveGeral] = valorMapa;
-
-                // 3) chave GERAL sem função
-                const chaveGeralSemFuncao = `${ev}-${cl}-${lc}-GERAL-`;
-                if (!window.orcamentoPorFuncao[chaveGeralSemFuncao]) window.orcamentoPorFuncao[chaveGeralSemFuncao] = valorMapa;
-
-                // 4) chaves totalmente vazias (sem setor e sem função)
-                const chaveVaziaTotal = `${ev}-${cl}-${lc}--`;
-                if (!window.orcamentoPorFuncao[chaveVaziaTotal]) window.orcamentoPorFuncao[chaveVaziaTotal] = valorMapa;
+        if (!Array.isArray(result) || result.length === 0) {
+            // Não há orçamento - perguntar se quer solicitar adicional ou extrabonificado
+            const descFuncaoSelect = document.getElementById('descFuncao');
+            const funcaoSelecionadaTexto = descFuncaoSelect?.options[descFuncaoSelect.selectedIndex]?.text || 'esta função';
+            
+            const resultSwal = await Swal.fire({
+                icon: 'warning',
+                title: 'Nenhum Orçamento Encontrado',
+                html: `Não foram encontrados itens de orçamento para <b>${funcaoSelecionadaTexto}</b>.<br><br>Como deseja prosseguir?`,
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: 'Solicitar Adicional ($)',
+                denyButtonText: 'Extra Bonificado (Grátis)',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#28a745',
+                denyButtonColor: '#17a2b8',
+                cancelButtonColor: '#d33',
+                allowOutsideClick: false,
+                allowEscapeKey: false
             });
-            console.log("✅ Orçamento mapeado:", window.orcamentoPorFuncao);
-            
-            // 🔒 DETECÇÃO DE SETOR VAZIO/NULL: Verifica se há itens sem setor
-            const temSetorVazio = result.some(item => !item.setor || item.setor.trim() === '');
-            console.log("🔒 [Orçamento] Tem setor vazio?", temSetorVazio);
-            
-            if (temSetorVazio) {
-                bloqueiarCamposSetorEPavilhao(true);
+
+            let tipoParaSolicitar = '';
+
+            if (resultSwal.isConfirmed) {
+                tipoParaSolicitar = 'Adicional';
+            } else if (resultSwal.isDenied) {
+                tipoParaSolicitar = 'Extra Bonificado';
             } else {
-                bloqueiarCamposSetorEPavilhao(false);
+                // Usuário cancelou
+                console.log("Usuário cancelou - sem orçamento");
+                temOrcamento = false;
+                controlarBotaoSalvarStaff(false);
+                idOrcamentoAtual = null;
+                if (window.datasEventoPicker) {
+                    window.datasEventoPicker.clear();
+                }
+                return;
+            }
+
+            // Pergunta sobre o ID do orçamento para vincular a solicitação
+            const { value: idOrcamentoInformado } = await Swal.fire({
+                title: 'Informar Orçamento',
+                html: `Para registrar a solicitação de <b>${tipoParaSolicitar}</b>, informe o ID do orçamento relacionado:`,
+                input: 'number',
+                inputPlaceholder: 'Digite o ID do orçamento',
+                showCancelButton: true,
+                confirmButtonText: 'Continuar',
+                cancelButtonText: 'Cancelar',
+                inputValidator: (value) => {
+                    if (!value || value <= 0) {
+                        return 'Por favor, informe um ID válido!';
+                    }
+                }
+            });
+
+            if (!idOrcamentoInformado) {
+                // Usuário cancelou
+                console.log("Usuário cancelou ao informar ID do orçamento");
+                temOrcamento = false;
+                controlarBotaoSalvarStaff(false);
+                idOrcamentoAtual = null;
+                if (window.datasEventoPicker) {
+                    window.datasEventoPicker.clear();
+                }
+                return;
+            }
+
+            idOrcamentoAtual = parseInt(idOrcamentoInformado);
+
+            // Chama o modal de quantidade e justificativa
+            const resultadoExcecao = await solicitarDadosExcecao(
+                tipoParaSolicitar,
+                idOrcamentoAtual,
+                funcaoSelecionadaTexto,
+                idFuncao
+            );
+
+            if (resultadoExcecao && resultadoExcecao.sucesso) {
+                console.log(`Sucesso ao registrar ${tipoParaSolicitar} sem orçamento`);
+                decisaoUsuarioDataFora = (tipoParaSolicitar === 'Adicional' ? 'ADICIONAL' : 'EXTRA');
+                
+                temOrcamento = true;
+                const statusElemento = (tipoParaSolicitar === 'Adicional' ? 'StatusAdicional' : 'StatusExtraBonificado');
+                mostrarStatusComoPendente(statusElemento);
+                controlarBotaoSalvarStaff(true);
+                
+                Swal.fire('Solicitado!', `A solicitação de ${tipoParaSolicitar} foi registrada com sucesso.`, 'success');
+            } else {
+                console.log("Solicitação cancelada ou falhou:", resultadoExcecao?.erro);
+                if (!resultadoExcecao?.cancelado) {
+                    Swal.fire('Erro', 'Não foi possível salvar a solicitação: ' + (resultadoExcecao?.erro || 'Erro desconhecido'), 'error');
+                }
+                temOrcamento = false;
+                controlarBotaoSalvarStaff(false);
+                idOrcamentoAtual = null;
+                if (window.datasEventoPicker) {
+                    window.datasEventoPicker.clear();
+                }
+            }
+            
+            return;
+        }
+
+        const statusDoOrcamento = result[0].status;
+        const idOrcamento = result[0].idorcamento;
+        idOrcamentoAtual = idOrcamento;
+        const liberadoCadastro = result[0].contratarstaff;
+
+        console.log('ID do Orçamento Atual:', idOrcamentoAtual, statusDoOrcamento, liberadoCadastro);
+
+        if (statusDoOrcamento === 'A') {
+            Swal.fire({ 
+                icon: 'warning', 
+                title: 'Orçamento Sem Proposta', 
+                text: 'Orçamento status A (Aberto). Não é possível cadastrar.' 
+            });
+            temOrcamento = false;
+            controlarBotaoSalvarStaff(false);
+            return;
+        }
+
+        if (statusDoOrcamento === 'P' && !liberadoCadastro) {
+            Swal.fire({ 
+                icon: 'warning', 
+                title: 'Orçamento Não liberado para Contratação', 
+                text: 'Orçamento em Proposta Sem liberação de Contratação. Não é possível cadastrar.' 
+            });
+            temOrcamento = false;
+            controlarBotaoSalvarStaff(false);
+            return;
+        }
+
+        // --- 3. VALIDAÇÃO DE DATAS ESPECÍFICA POR FUNÇÃO ---
+        const descFuncaoSelect = document.getElementById('descFuncao');
+        const funcaoSelecionadaTexto = descFuncaoSelect?.options[descFuncaoSelect.selectedIndex]?.text || '';
+        console.log("Validando datas para:", funcaoSelecionadaTexto);
+
+        const datasPermitidasParaFuncao = new Set();
+
+        result.forEach(item => {
+            if (item.descfuncao === funcaoSelecionadaTexto) {
+                if (item.datas_totais_orcadas && Array.isArray(item.datas_totais_orcadas)) {
+                    item.datas_totais_orcadas.forEach(dataISO => {
+                        const dataSimples = typeof dataISO === 'string' ? dataISO.split('T')[0] : '';
+                        if (dataSimples) datasPermitidasParaFuncao.add(dataSimples);
+                    });
+                }
+            }
+        });
+
+        const datasNaoOrcadas = [];
+        for (const dataSelecionada of datasEvento) {
+            if (!datasPermitidasParaFuncao.has(dataSelecionada)) {
+                datasNaoOrcadas.push(dataSelecionada);
             }
         }
+
+        // --- 4. TRATAMENTO DE DATAS FORA DO ORÇAMENTO (COM SOLICITAÇÃO DE EXCEÇÃO) ---
+        if (datasNaoOrcadas.length > 0) {
+            const datasFormatadas = datasNaoOrcadas.map(data => {
+                const [ano, mes, dia] = data.split('-');
+                return `${dia}/${mes}/${ano}`;
+            }).join(', ');
+            
+            console.warn("Datas fora do orçamento:", datasNaoOrcadas);
+
+            // 1. Pergunta o tipo de solicitação
+            const resultSwal = await Swal.fire({
+                icon: 'question',
+                title: 'Datas Fora do Orçamento',
+                html: `A função <b>${funcaoSelecionadaTexto}</b> não possui orçamento para: <br><b style="color:red">${datasFormatadas}</b>.<br><br>Como deseja prosseguir?`,
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: 'Solicitar Aditivo ($)',
+                denyButtonText: 'Extra Bonificado (Grátis)',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#28a745',
+                denyButtonColor: '#17a2b8',
+                cancelButtonColor: '#d33',
+                allowOutsideClick: false,
+                allowEscapeKey: false
+            });
+
+            let tipoParaSolicitar = '';
+
+            if (resultSwal.isConfirmed) {
+                tipoParaSolicitar = 'Aditivo';
+            } else if (resultSwal.isDenied) {
+                tipoParaSolicitar = 'Extra Bonificado';
+            } else {
+                // OPÇÃO: CANCELAR
+                console.log("Usuário Cancelou no primeiro nível");
+                cancelarProcessoOrcamento();
+                return; 
+            }
+
+            // 2. Chama o modal de quantidade e justificativa
+            const resultadoExcecao = await solicitarDadosExcecao(
+                tipoParaSolicitar, 
+                idOrcamentoAtual, 
+                funcaoSelecionadaTexto, 
+                idFuncao 
+            );
+
+            // 3. Valida se a gravação no banco (via AJAX) deu certo
+            if (resultadoExcecao && resultadoExcecao.sucesso) {
+                console.log(`Sucesso ao registrar ${tipoParaSolicitar}`);
+                decisaoUsuarioDataFora = (tipoParaSolicitar === 'Aditivo' ? 'ADITIVO' : 'EXTRA');
+                
+                temOrcamento = true;
+                const statusElemento = (tipoParaSolicitar === 'Aditivo' ? 'StatusAditivo' : 'StatusExtraBonificado');
+                mostrarStatusComoPendente(statusElemento);
+                controlarBotaoSalvarStaff(true);
+                
+                Swal.fire('Solicitado!', `A solicitação de ${tipoParaSolicitar} foi registrada com sucesso.`, 'success');
+            } else {
+                // Se o usuário cancelou o segundo modal ou deu erro no salvarSolicitacaoAditivoExtra
+                console.log("Solicitação cancelada ou falhou:", resultadoExcecao?.erro);
+                if (!resultadoExcecao?.cancelado) {
+                    Swal.fire('Erro', 'Não foi possível salvar a solicitação: ' + (resultadoExcecao?.erro || 'Erro desconhecido'), 'error');
+                }
+                cancelarProcessoOrcamento();
+                return;
+            }
+
+        } else {
+            // Datas Ok
+            temOrcamento = true;
+            controlarBotaoSalvarStaff(true);
+        }
+
+        // Função auxiliar interna para limpar campos em caso de cancelamento
+        function cancelarProcessoOrcamento() {
+            temOrcamento = false;
+            controlarBotaoSalvarStaff(false);
+            if (window.datasEventoPicker) {
+                window.datasEventoPicker.clear();
+            }
+            decisaoUsuarioDataFora = null;
+        }
+
+        // --- 5. POPULAR OBJETO GLOBAL ---
+        result.forEach(item => {
+            const ev = (item.nmevento || '').trim().toUpperCase();
+            const cl = (item.nmcliente || '').trim().toUpperCase();
+            const lc = (item.nmlocalmontagem || '').trim().toUpperCase();
+            const st = (item.setor || '').trim().toUpperCase();
+            const fn = (item.descfuncao || '').trim().toUpperCase();
+
+            // Chave Mestra
+            const chave = `${ev}-${cl}-${lc}-${st}-${fn}`;
+            const valorMapa = {
+                totalOrcado: parseInt(item.quantidade_orcada) || 0,
+                vagasPreenchidas: parseInt(item.quantidade_escalada) || 0,
+                idOrcamento: item.idorcamento
+            };
+            
+            // Guarda a chave específica (por nomes)
+            if (!window.orcamentoPorFuncao[chave]) {
+                window.orcamentoPorFuncao[chave] = valorMapa;
+            } else {
+                window.orcamentoPorFuncao[chave].totalOrcado += valorMapa.totalOrcado;
+            }
+
+            // Também armazena chaves usando IDs (idevento-idcliente-idmontagem-idfuncao)
+            const evId = (item.idevento || '').toString().trim();
+            const clId = (item.idcliente || '').toString().trim();
+            const lcId = (item.idmontagem || '').toString().trim();
+            const fnId = (item.idfuncao || '').toString().trim();
+            const chaveIds = `${evId}-${clId}-${lcId}-${st}-${fnId}`;
+            const chaveIdsSemFuncao = `${evId}-${clId}-${lcId}-${st}-`;
+            const chaveIdsGeral = `${evId}-${clId}-${lcId}-GERAL-${fnId}`;
+            const chaveIdsGeralSemFuncao = `${evId}-${clId}-${lcId}-GERAL-`;
+            const chaveIdsVaziaTotal = `${evId}-${clId}-${lcId}--`;
+
+            if (!window.orcamentoPorFuncao[chaveIds]) window.orcamentoPorFuncao[chaveIds] = valorMapa;
+            if (!window.orcamentoPorFuncao[chaveIdsSemFuncao]) window.orcamentoPorFuncao[chaveIdsSemFuncao] = valorMapa;
+            if (!window.orcamentoPorFuncao[chaveIdsGeral]) window.orcamentoPorFuncao[chaveIdsGeral] = valorMapa;
+            if (!window.orcamentoPorFuncao[chaveIdsGeralSemFuncao]) window.orcamentoPorFuncao[chaveIdsGeralSemFuncao] = valorMapa;
+            if (!window.orcamentoPorFuncao[chaveIdsVaziaTotal]) window.orcamentoPorFuncao[chaveIdsVaziaTotal] = valorMapa;
+
+            // Também cria variações úteis para evitar falta de correspondência
+            const chaveSemFuncao = `${ev}-${cl}-${lc}-${st}-`;
+            if (!window.orcamentoPorFuncao[chaveSemFuncao]) window.orcamentoPorFuncao[chaveSemFuncao] = valorMapa;
+
+            const chaveGeral = `${ev}-${cl}-${lc}-GERAL-${fn}`;
+            if (!window.orcamentoPorFuncao[chaveGeral]) window.orcamentoPorFuncao[chaveGeral] = valorMapa;
+
+            const chaveGeralSemFuncao = `${ev}-${cl}-${lc}-GERAL-`;
+            if (!window.orcamentoPorFuncao[chaveGeralSemFuncao]) window.orcamentoPorFuncao[chaveGeralSemFuncao] = valorMapa;
+
+            const chaveVaziaTotal = `${ev}-${cl}-${lc}--`;
+            if (!window.orcamentoPorFuncao[chaveVaziaTotal]) window.orcamentoPorFuncao[chaveVaziaTotal] = valorMapa;
+        });
+        
+        console.log("✅ Orçamento mapeado:", window.orcamentoPorFuncao);
+        
+        // 🔒 DETECÇÃO DE SETOR VAZIO/NULL: Verifica se há itens sem setor
+        const temSetorVazio = result.some(item => !item.setor || item.setor.trim() === '');
+        console.log("🔒 [Orçamento] Tem setor vazio?", temSetorVazio);
+        
+        if (temSetorVazio) {
+            bloqueiarCamposSetorEPavilhao(true);
+        } else {
+            bloqueiarCamposSetorEPavilhao(false);
+        }
+
     } catch (error) {
         console.error("❌ Erro ao buscar orçamento:", error);
     }
@@ -3616,7 +4014,7 @@ function bloqueiarCamposSetorEPavilhao(bloquear = true) {
             setorInput.style.cursor = 'not-allowed';
             setorInput.style.pointerEvents = 'none';
             setorInput.style.opacity = '0.6';
-            setorInput.title = 'Campo bloqueado: Orçamento sem setor específico';
+            setorInput.title = 'Campo bloqueado: F sem setor específico';
             setorInput.setAttribute('data-bloqueado', 'true');
         }
         
@@ -6160,14 +6558,72 @@ async function verificarLimiteDeFuncao(criterios) {
         console.log(`✅ Chave específica encontrada! Total: ${total}, Preenchidas: ${preenchidas}`);
 
         if (preenchidas >= total) {
-            // Se estourou, verifica Aditivos/Extras
-            const statusExcecao = await verificarStatusAditivoExtra(dados.idOrcamento, criterios.idFuncao);
-            if (statusExcecao && (statusExcecao.temVagaExtra || statusExcecao.temVagaAditivo)) {
+            // 🎯 LIMITE ATINGIDO: Oferece opção de solicitar Aditivo ou Extra
+            
+            // 1. Verifica se já existe solicitação pendente ou autorizada
+            const statusExcecao = await verificarStatusAditivoExtra(
+                dados.idOrcamento, 
+                criterios.idFuncao, 
+                'Aditivo',  // Tipo de solicitação
+                null,       // idFuncionario (não aplicável aqui)
+                criterios.nmFuncao || fn  // Nome da função
+            );
+            
+            // Se retornou false, significa que bloqueou (já tem pendente)
+            if (statusExcecao === false) {
+                return { allowed: false };
+            }
+            
+            // Se já tem autorizado, libera
+            if (statusExcecao && statusExcecao.encontrado && statusExcecao.status === 'Autorizado') {
                 return { allowed: true };
             }
 
-            Swal.fire("Limite Atingido", `Limite de ${total} vagas para ${fn} (${setorFinal}) excedido.`, "error");
-            return { allowed: false };
+            // 2. Mostra Swal com opções Aditivo/Extra
+            const result = await Swal.fire({
+                icon: 'warning',
+                title: 'Limite Orçamentário Atingido',
+                html: `O limite de <strong>${total}</strong> vagas para <strong>${fn}</strong> (${setorFinal}) já foi alcançado.<br><br>Já foram preenchidas <strong>${preenchidas}</strong> vagas.<br><br>Deseja cadastrar este item como <strong>Aditivo</strong> ou <strong>Extra Bonificado</strong>?`,
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: 'Aditivo ($)',
+                denyButtonText: 'Extra Bonificado (Grátis)',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#28a745',
+                denyButtonColor: '#17a2b8',
+                cancelButtonColor: '#d33'
+            });
+
+            let tipoSolicitacao = '';
+            
+            if (result.isConfirmed) {
+                tipoSolicitacao = 'Aditivo';
+            } else if (result.isDenied) {
+                tipoSolicitacao = 'Extra Bonificado';
+            } else {
+                // Cancelou
+                return { allowed: false };
+            }
+
+            // 3. Solicita quantidade e justificativa
+            const resultadoExcecao = await solicitarDadosExcecao(
+                tipoSolicitacao,
+                dados.idOrcamento,
+                fn,
+                criterios.idFuncao
+            );
+
+            if (resultadoExcecao && resultadoExcecao.sucesso) {
+                Swal.fire('Solicitado!', `A solicitação de ${tipoSolicitacao} foi registrada com sucesso.`, 'success');
+                return { 
+                    allowed: true, 
+                    statusAditivo: tipoSolicitacao === 'Aditivo' ? 'Pendente' : null,
+                    statusExtraBonificado: tipoSolicitacao === 'Extra Bonificado' ? 'Pendente' : null
+                };
+            } else {
+                // Cancelou ou erro
+                return { allowed: false };
+            }
         }
 
         return { allowed: true };
@@ -6202,14 +6658,72 @@ async function verificarLimiteDeFuncao(criterios) {
     const preenchidas = parseInt(dados.vagasPreenchidas) || 0;
 
     if (preenchidas >= total) {
-        // Se estourou, verifica Aditivos/Extras
-        const statusExcecao = await verificarStatusAditivoExtra(dados.idOrcamento, criterios.idFuncao);
-        if (statusExcecao && (statusExcecao.temVagaExtra || statusExcecao.temVagaAditivo)) {
+        // 🎯 LIMITE ATINGIDO: Oferece opção de solicitar Aditivo ou Extra
+        
+        // 1. Verifica se já existe solicitação pendente ou autorizada
+        const statusExcecao = await verificarStatusAditivoExtra(
+            dados.idOrcamento, 
+            criterios.idFuncao, 
+            'Aditivo',  // Tipo de solicitação
+            null,       // idFuncionario (não aplicável aqui)
+            criterios.nmFuncao || fn  // Nome da função
+        );
+        
+        // Se retornou false, significa que bloqueou (já tem pendente)
+        if (statusExcecao === false) {
+            return { allowed: false };
+        }
+        
+        // Se já tem autorizado, libera
+        if (statusExcecao && statusExcecao.encontrado && statusExcecao.status === 'Autorizado') {
             return { allowed: true };
         }
 
-        Swal.fire("Limite Atingido", `Limite de ${total} vagas para ${fn} excedido.`, "error");
-        return { allowed: false };
+        // 2. Mostra Swal com opções Aditivo/Extra
+        const result = await Swal.fire({
+            icon: 'warning',
+            title: 'Limite Orçamentário Atingido',
+            html: `O limite de <strong>${total}</strong> vagas para <strong>${fn}</strong> já foi alcançado.<br><br>Já foram preenchidas <strong>${preenchidas}</strong> vagas.<br><br>Deseja cadastrar este item como <strong>Aditivo</strong> ou <strong>Extra Bonificado</strong>?`,
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonText: 'Aditivo ($)',
+            denyButtonText: 'Extra Bonificado (Grátis)',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#28a745',
+            denyButtonColor: '#17a2b8',
+            cancelButtonColor: '#d33'
+        });
+
+        let tipoSolicitacao = '';
+        
+        if (result.isConfirmed) {
+            tipoSolicitacao = 'Aditivo';
+        } else if (result.isDenied) {
+            tipoSolicitacao = 'Extra Bonificado';
+        } else {
+            // Cancelou
+            return { allowed: false };
+        }
+
+        // 3. Solicita quantidade e justificativa
+        const resultadoExcecao = await solicitarDadosExcecao(
+            tipoSolicitacao,
+            dados.idOrcamento,
+            fn,
+            criterios.idFuncao
+        );
+
+        if (resultadoExcecao && resultadoExcecao.sucesso) {
+            Swal.fire('Solicitado!', `A solicitação de ${tipoSolicitacao} foi registrada com sucesso.`, 'success');
+            return { 
+                allowed: true, 
+                statusAditivo: tipoSolicitacao === 'Aditivo' ? 'Pendente' : null,
+                statusExtraBonificado: tipoSolicitacao === 'Extra Bonificado' ? 'Pendente' : null
+            };
+        } else {
+            // Cancelou ou erro
+            return { allowed: false };
+        }
     }
 
     return { allowed: true };
@@ -6298,6 +6812,12 @@ function getPeriodoEvento(datas) {
 async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulario, tipoSolicitacao, idFuncionario = null, nmFuncionario) {
     
     console.log(`Verificando status para idOrcamento: ${idOrcamentoAtual}, idFuncao: ${idFuncaoDoFormulario}, tipoSolicitacao: ${tipoSolicitacao}, idFuncionario: ${idFuncionario}`);
+
+    // 🛡️ VALIDAÇÃO: Garante que tipoSolicitacao tenha um valor padrão
+    if (!tipoSolicitacao || tipoSolicitacao === 'undefined' || tipoSolicitacao.trim() === '') {
+        console.error('⚠️ tipoSolicitacao está vazio ou undefined. Usando valor padrão.');
+        tipoSolicitacao = 'Aditivo'; // Valor padrão
+    }
 
     const params = new URLSearchParams({
         idOrcamento: idOrcamentoAtual,

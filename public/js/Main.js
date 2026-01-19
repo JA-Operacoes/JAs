@@ -2915,6 +2915,9 @@ function abrirDetalhesEquipe(equipe, evento) {
 
   container.appendChild(lista);
   painel.appendChild(container);
+  
+  // Adiciona listener para o botão voltar
+  container.querySelector(".btn-voltar")?.addEventListener("click", voltarParaEquipes);
 }
 
 
