@@ -56,6 +56,18 @@ document.addEventListener("DOMContentLoaded", function () {
                 // aplicarTema('default');
             });
     }
+
+    // 🔥 SEGUNDA TENTATIVA DE PREENCHIMENTO (DOMContentLoaded)
+    if (setorEsperado) {
+        const setorInput = document.getElementById('setor');
+        if (setorInput) {
+            setorInput.value = setorEsperado.toUpperCase();
+            setorInput.dispatchEvent(new Event('change', { bubbles: true }));
+            console.log("✅ [DOMContentLoaded] Campo setor preenchido com:", setorEsperado.toUpperCase());
+        }
+    } else {
+        console.warn("⚠️ [DOMContentLoaded] setorEsperado ainda está vazio!");
+    }
 });
 
 //importado no inicio do js pois deve ser importado antes do restante do codigo
@@ -143,7 +155,28 @@ const extractDatesFromStatusArray = (datesWithStatusArray) => {
 if (window.__modalInitialParams) {
     const params = new URLSearchParams(window.__modalInitialParams);
     const dataeventos = params.get("dataeventos");
-    setorEsperado = params.get("setor") || '';
+    setorEsperado = params.get("setor") || params.get("valor_local") || '';
+
+    // 🔍 DEBUG: Mostra todos os parâmetros recebidos no modal
+    console.log("=== 📥 PARÂMETROS RECEBIDOS NO MODAL STAFF ===");
+    console.log("URL completa:", window.location.href);
+    console.log("Parâmetros:", Object.fromEntries(params.entries()));
+    console.log("setor esperado ATRIBUÍDO:", setorEsperado);
+    console.log("modo_local:", params.get("modo_local"));
+    console.log("valor_local:", params.get("valor_local"));
+    console.log("=============================================");
+
+    // 🔥 PREENCHE O CAMPO SETOR IMEDIATAMENTE (se elemento já existe)
+    setTimeout(() => {
+        const setorInput = document.getElementById('setor');
+        if (setorInput && setorEsperado) {
+            setorInput.value = setorEsperado.toUpperCase();
+            setorInput.dispatchEvent(new Event('change'));
+            console.log("✅ Campo setor preenchido IMEDIATAMENTE com:", setorEsperado.toUpperCase());
+        } else {
+            console.warn("⚠️ Campo setor não encontrado ou setorEsperado vazio:", {setorInputExists: !!setorInput, setorEsperado});
+        }
+    }, 50);
 
     if (dataeventos) {
         try {
@@ -1209,8 +1242,19 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     vlrTotalInput.value = parseFloat(eventData.vlrtotal || 0).toFixed(2).replace('.', ',');
 
     console.log("VALOR TOTAL", vlrTotalInput.value);
-    setorInput.value = eventData.setor.toUpperCase() || '';
+    
+    // ✅ CARREGAMENTO DO SETOR: Prioridade - eventData.setor -> eventData.orcamentoitens -> ''
+    const setorCarregar = eventData.setor || eventData.orcamentoitens || '';
+    setorInput.value = setorCarregar.toUpperCase() || '';
+    console.log("[carregarDadosParaEditar] Setor carregado:", setorCarregar, "| Fonte: ", eventData.setor ? 'setor' : (eventData.orcamentoitens ? 'orcamentoitens' : 'vazio'));
+    
     statusPagtoInput.value = eventData.statuspgto.toUpperCase() || '';
+    
+    // ✅ NOVO: Valida e filtra os pavilhões baseado no setor carregado
+    setTimeout(() => {
+        validarEFiltrarSetorPavilhao();
+        console.log("[carregarDadosParaEditar] Validação de setor/pavilhão executada após carregamento");
+    }, 250);
 
 
     // Lógica para checkboxes de Bônus e Caixinha
@@ -1317,6 +1361,146 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     
 };
 
+// Adicione isso ao final do arquivo Staff.js ou dentro de verificaStaff()
+
+
+/**
+ * Valida e aplica restrições ao setor e pavilhão baseado na compatibilidade.
+ * Se o setor informado não está cadastrado nos pavilhões, bloqueia a seleção de pavilhões.
+ * Se o setor for compatível com um pavilhão, mostra apenas esse pavilhão e força sua seleção.
+ */
+function validarEFiltrarSetorPavilhao() {
+    const inputSetor = document.getElementById("setor");
+    const selectPav = document.getElementById("nmPavilhao");
+    
+    if (!inputSetor || !selectPav) {
+        console.warn("[validarEFiltrarSetorPavilhao] inputSetor ou selectPav não encontrados");
+        return;
+    }
+    
+    const setorInformado = inputSetor.value.toUpperCase().trim();
+    console.log("[validarEFiltrarSetorPavilhao] Setor informado:", setorInformado || "(vazio)");
+    console.log("[validarEFiltrarSetorPavilhao] Opções do select:", Array.from(selectPav.options).map(o => o.textContent));
+    
+    if (!setorInformado) {
+        // Se não há setor informado, libera o pavilhão
+        console.log("[validarEFiltrarSetorPavilhao] Setor vazio - liberando pavilhão");
+        selectPav.disabled = false;
+        selectPav.style.opacity = "1";
+        selectPav.style.cursor = "auto";
+        selectPav.title = "";
+        selectPav.required = false;
+        // Restaura todas as opções se estavam filtradas
+        if (selectPav.dataset.originalOptions) {
+            const originalOptions = JSON.parse(selectPav.dataset.originalOptions);
+            selectPav.innerHTML = '';
+            originalOptions.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.value;
+                option.textContent = opt.text;
+                selectPav.appendChild(option);
+            });
+            console.log("[validarEFiltrarSetorPavilhao] Opções restauradas");
+        }
+        return;
+    }
+    
+    // Procura por um pavilhão compatível com o setor
+    let pavilhaoCompaivel = null;
+    let indiceCompaivel = -1;
+    
+    for (let i = 0; i < selectPav.options.length; i++) {
+        const option = selectPav.options[i];
+        if (option.value === "") continue; // Ignora a opção padrão vazia
+        
+        const nmPavilhao = option.textContent.toUpperCase().trim();
+        console.log(`[validarEFiltrarSetorPavilhao] Comparando "${setorInformado}" com "${nmPavilhao}"`);
+        if (nmPavilhao === setorInformado) {
+            pavilhaoCompaivel = option;
+            indiceCompaivel = i;
+            console.log(`[validarEFiltrarSetorPavilhao] MATCH encontrado!`);
+            break;
+        }
+    }
+    
+    if (pavilhaoCompaivel) {
+        // Setor é compatível com um pavilhão cadastrado
+        // Mostra apenas esse pavilhão e força sua seleção
+        console.log(`✅ Setor compatível encontrado: ${setorInformado}`);
+        
+        // Salva as opções originais se ainda não foram salvas
+        if (!selectPav.dataset.originalOptions) {
+            const allOptions = Array.from(selectPav.options).map(opt => ({
+                value: opt.value,
+                text: opt.textContent
+            }));
+            selectPav.dataset.originalOptions = JSON.stringify(allOptions);
+        }
+        
+        // Limpa e deixa apenas a opção padrão e o pavilhão compatível
+        selectPav.innerHTML = '';
+        
+        const opcaoPadrao = document.createElement('option');
+        opcaoPadrao.value = "";
+        opcaoPadrao.textContent = "Selecione o Pavilhão";
+        opcaoPadrao.disabled = true;
+        selectPav.appendChild(opcaoPadrao);
+        
+        const optionCompativel = document.createElement('option');
+        optionCompativel.value = pavilhaoCompaivel.value;
+        optionCompativel.textContent = pavilhaoCompaivel.textContent;
+        selectPav.appendChild(optionCompativel);
+        
+        // Força a seleção do pavilhão compatível
+        selectPav.value = pavilhaoCompaivel.value;
+        selectPav.disabled = false;
+        selectPav.style.opacity = "1";
+        selectPav.style.cursor = "auto";
+        selectPav.title = "";
+        selectPav.required = true;
+        
+        // Marca como obrigatório visualmente
+        const label = document.querySelector('label[for="nmPavilhao"]');
+        if (label && !label.textContent.includes('*')) {
+            label.textContent += ' *';
+        }
+        
+        console.log(`✅ Setor compatível encontrado: ${setorInformado} -> Pavilhão: ${pavilhaoCompaivel.textContent}`);
+    } else {
+        // Setor não é compatível com nenhum pavilhão cadastrado
+        // Bloqueia a seleção de pavilhões e mostra mensagem
+        console.log(`❌ Setor não compatível: ${setorInformado} - Pavilhão bloqueado`);
+        
+        selectPav.disabled = true;
+        selectPav.style.opacity = "0.5";
+        selectPav.style.cursor = "not-allowed";
+        selectPav.style.backgroundColor = "#f2f2f2";
+        selectPav.value = "";
+        selectPav.required = false;
+        
+        // Cria tooltip com mensagem informativa
+        selectPav.title = `O setor "${setorInformado}" não está cadastrado nos pavilhões disponíveis para este local de montagem.`;
+        
+        // Se tinha restaurar opções, faz isso
+        if (selectPav.dataset.originalOptions) {
+            const originalOptions = JSON.parse(selectPav.dataset.originalOptions);
+            selectPav.innerHTML = '';
+            originalOptions.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.value;
+                option.textContent = opt.textContent;
+                selectPav.appendChild(option);
+            });
+        }
+    }
+}
+
+// Execução dupla: 
+// 1. Tenta imediatamente ao carregar o script
+realizarIntertravamentoSetorPavilhao();
+
+// 2. Reforça após o tempo de carregamento dos dados AJAX (Clientes/Funções)
+setTimeout(realizarIntertravamentoSetorPavilhao, 1000);
 
 const verificarNecessidadeComprovante = (ed) => {
     // Regra 1: Cachê
@@ -2690,8 +2874,27 @@ async function verificaStaff() {
 
     nmEventoSelect.addEventListener('change', debouncedOnCriteriosChanged);
     nmClienteSelect.addEventListener('change', debouncedOnCriteriosChanged);
-    nmLocalMontagemSelect.addEventListener('change', debouncedOnCriteriosChanged);
-    setorInput.addEventListener('change', debouncedOnCriteriosChanged);
+    nmLocalMontagemSelect.addEventListener('change', function() {
+        // Limpa o cache de opções originais para permitir novo carregamento
+        const selectPav = document.getElementById("nmPavilhao");
+        if (selectPav) {
+            selectPav.dataset.originalOptions = '';
+        }
+        debouncedOnCriteriosChanged();
+    });
+    setorInput.addEventListener('change', function() {
+        console.log("[SETOR CHANGE] Valor do setor:", this.value);
+        validarEFiltrarSetorPavilhao();
+        debouncedOnCriteriosChanged();
+    });
+    setorInput.addEventListener('input', function() {
+        console.log("[SETOR INPUT] Valor do setor em tempo real:", this.value);
+        validarEFiltrarSetorPavilhao();
+    });
+    setorInput.addEventListener('blur', function() {
+        console.log("[SETOR BLUR] Valor do setor após perder foco:", this.value);
+        validarEFiltrarSetorPavilhao();
+    });
     descFuncaoSelect.addEventListener('change', () => {
         const idorcamento = getUrlParameter('idorcamento');
         const idfuncao = descFuncaoSelect.value;
@@ -5720,6 +5923,19 @@ async function carregarPavilhaoStaff(idMontagem, idorcamento = null, idfuncao = 
                 }
             });
         }
+        
+        // 🔥 PREENCHE O CAMPO SETOR ANTES DA VALIDAÇÃO
+        if (setorEsperado) {
+            const setorInput = document.getElementById('setor');
+            if (setorInput) {
+                setorInput.value = setorEsperado.toUpperCase();
+                console.log("✅ [carregarPavilhaoStaff] Campo setor preenchido com:", setorEsperado.toUpperCase());
+            }
+        }
+        
+        // ✅ NOVO: Valida e filtra o setor com base nos pavilhões carregados
+        validarEFiltrarSetorPavilhao();
+        
     } catch (error) {
         console.error("❌ Erro ao carregar pavilhao:", error);
     }
@@ -8187,16 +8403,15 @@ function configurarEventosStaff() {
 
     // Se o usuário NÃO tiver a permissão Master, oculta o container.
     if (!temPermissaoMaster) {
-        containerPDF.style.display = 'none';
+        if (containerPDF) containerPDF.style.display = 'none';
     } else {
-        containerPDF.style.display = ''; // Volta ao padrão
+        if (containerPDF) containerPDF.style.display = ''; 
     }
 
-    verificaStaff(); // Carrega os Staff ao abrir o modal
+    verificaStaff(); 
     adicionarEventoBlurStaff();
     inicializarFlatpickrsGlobais();
     limparStaffOriginal();
-
     inicializarFlatpickrStaffComLimites(); 
 
     if (window.__modalInitialParams) {
@@ -8210,99 +8425,100 @@ function configurarEventosStaff() {
             } catch (e) {
                 console.warn("Erro ao parsear dataeventos:", e);
             }
-        } else {
-            console.warn("[configurarEventosStaff] Parâmetro dataeventos não encontrado.");
         }
     }
 
-    // Inicializa o estado dos campos extra/caixinha no carregamento
-    const inputAjusteCusto = document.getElementById('ajusteCusto');
-    const ajusteCustocheck = document.getElementById('ajusteCustocheck');
-    const campoAjusteCusto = document.getElementById('campoAjusteCusto');
-
-    if (ajusteCustocheck && campoAjusteCusto && ajusteCustoTextarea) {
-        ajusteCustocheck.addEventListener('change', function() {
-            campoAjusteCusto.style.display = this.checked ? 'block' : 'none';
-
-            ajusteCustoTextarea.style.display = this.checked ? 'block' : 'none';
-            ajusteCustoTextarea.required = this.checked;
-            if (!this.checked) {
-        if (inputAjusteCusto) inputAjusteCusto.value = ''; // Limpa o input 'ajusteCusto' ao ocultar
-        ajusteCustoTextarea.value = '';               // Limpa o textarea 'ajusteCusto' ao ocultar
-            }
-
-        });
-
-        campoAjusteCusto.style.display = ajusteCustocheck.checked ? 'block' : 'none';
-
-        ajusteCustoTextarea.style.display = ajusteCustocheck.checked ? 'block' : 'none';
-        ajusteCustoTextarea.required = ajusteCustocheck.checked;
-        if (!ajusteCustocheck.checked) {
-            if (inputAjusteCusto) inputAjusteCusto.value = '';
-            ajusteCustoTextarea.value = '';
+    // --- Lógica de Checkboxes (Ajuste, Caixinha, etc) ---
+    const setupToggle = (checkId, campoId, extraId = null) => {
+        const chk = document.getElementById(checkId);
+        const div = document.getElementById(campoId);
+        if (chk && div) {
+            const toggle = () => {
+                div.style.display = chk.checked ? 'block' : 'none';
+                if (extraId) {
+                    const ext = document.getElementById(extraId);
+                    if (ext) ext.style.display = chk.checked ? 'block' : 'none';
+                }
+            };
+            chk.addEventListener('change', toggle);
+            toggle();
         }
-    }
+    };
 
-    const caixinhacheck = document.getElementById('Caixinhacheck');
-    const campoCaixinha = document.getElementById('campoCaixinha');
-    const campoPgtoCaixinha = document.getElementById('campoPgtoCaixinha');
+    setupToggle('ajusteCustocheck', 'campoAjusteCusto', 'ajusteCustoTextarea');
+    setupToggle('Caixinhacheck', 'campoCaixinha');
+    setupToggle('diariaDobradacheck', 'campoDiariaDobrada');
+    setupToggle('meiaDiariacheck', 'campoMeiaDiaria');
 
-    if (caixinhacheck && campoCaixinha) {
-        caixinhacheck.addEventListener('change', function() {
-            campoCaixinha.style.display = this.checked ? 'block' : 'none';
-            campoPgtoCaixinha.style.display = this.checked ? 'block' : 'none';
-        });
-        campoCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
-        campoPgtoCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
-    }
-
-    const diariaDobradacheck = document.getElementById('diariaDobradacheck');
-    const campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
-    if (diariaDobradacheck && campoDiariaDobrada) {
-        diariaDobradacheck.addEventListener('change', function() {
-            campoDiariaDobrada.style.display = this.checked ? 'block' : 'none';
-
-        });
-        campoDiariaDobrada.style.display = diariaDobradacheck.checked ? 'block' : 'none';
-
-    }
-
-    const meiaDiariacheck = document.getElementById('meiaDiariacheck');
-    const campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
-    if (meiaDiariacheck && campoMeiaDiaria) {
-        meiaDiariacheck.addEventListener('change', function() {
-            campoMeiaDiaria.style.display = this.checked ? 'block' : 'none';
-         });
-        campoMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
-    }
-
-    // Chama mostrarTarja() para inicializar a tarja com base no valor do select
-    if (typeof mostrarTarja === 'function') {
-        mostrarTarja();
-    }
+    if (typeof mostrarTarja === 'function') mostrarTarja();
     
-    // 📢 NOVO BLOCO: Restrição de edição dos campos de Status
+    // Restrição Master
     const statusAjusteCustoInput = document.getElementById('statusAjusteCusto');
     const statusCaixinhaInput = document.getElementById('statusCaixinha');
-
     if (statusAjusteCustoInput && statusCaixinhaInput) {
-        if (!temPermissaoMaster) {
-            // Desabilita os campos se o usuário NÃO for Master
-            statusAjusteCustoInput.disabled = true;
-            statusCaixinhaInput.disabled = true;
-            console.log("Status de Ajuste/Caixinha desabilitados: Permissão Master requerida.");
-        } else {
-            // Garante que os campos estão habilitados se o usuário for Master
-            statusAjusteCustoInput.disabled = false;
-            statusCaixinhaInput.disabled = false;
-        }
+        statusAjusteCustoInput.disabled = !temPermissaoMaster;
+        statusCaixinhaInput.disabled = !temPermissaoMaster;
     }
-    // 📢 FIM DO NOVO BLOCO    
 
-    const datasDoFlatpickr = window.datasEventoPicker?.selectedDates.map(d => d.toISOString().split('T')[0]) || [];
+    // 🚀 CHAMADA DO INTERTRAVAMENTO (SETOR vs PAVILHÃO)
+    // Usamos um delay para garantir que os selects e campos carreguem totalmente
+    setTimeout(realizarIntertravamentoSetorPavilhao, 800);
 
     console.log("Entrou configurar Staff no STAFF.js.");
+}
 
+/**
+ * Função responsável por travar os campos de local conforme o orçamento
+ */
+function realizarIntertravamentoSetorPavilhao() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const modo = urlParams.get("modo_local");
+    const valorRaw = urlParams.get("valor_local");
+
+    // Validação de segurança: se não houver instrução na URL, não faz nada
+    if (!modo || !valorRaw || valorRaw === "undefined" || valorRaw === "null" || valorRaw.trim() === "") {
+        console.log("ℹ️ Sem instruções de intertravamento na URL.");
+        return;
+    }
+
+    const valor = decodeURIComponent(valorRaw).trim();
+    const inputSetor = document.getElementById("setor");
+    const selectPav = document.getElementById("nmPavilhao"); 
+
+    console.log("🔒 Executando trava de local:", modo, valor);
+
+    if (modo === "setor") {
+        // MODO SETOR: Preenche texto, trava o input e desabilita o Pavilhão
+        if (inputSetor) {
+            inputSetor.value = valor.toUpperCase();
+            inputSetor.readOnly = true;
+            inputSetor.style.backgroundColor = "#e9ecef";
+            inputSetor.style.fontWeight = "bold";
+        }
+        if (selectPav) {
+            selectPav.value = "";
+            selectPav.disabled = true;
+            selectPav.style.opacity = "0.6";
+        }
+    } 
+    else if (modo === "pavilhao") {
+        // MODO PAVILHÃO: Limpa/trava o setor e seleciona o item no dropdown
+        if (inputSetor) {
+            inputSetor.value = "";
+            inputSetor.disabled = true;
+            inputSetor.placeholder = "Vinculado ao Pavilhão";
+        }
+        if (selectPav) {
+            const opcoes = selectPav.options;
+            for (let i = 0; i < opcoes.length; i++) {
+                if (opcoes[i].text.trim().toUpperCase() === valor.toUpperCase()) {
+                    selectPav.selectedIndex = i;
+                    selectPav.disabled = true;
+                    break;
+                }
+            }
+        }
+    }
 }
 
 // NO INÍCIO OU FINAL DO SEU STAFF.JS (Escopo Global)

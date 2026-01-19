@@ -2749,149 +2749,146 @@ function abrirDetalhesEquipe(equipe, evento) {
   const totalFuncoes = equipe.funcoes?.length || 0;
   const concluidas = equipe.funcoes?.filter(f => f.concluido)?.length || 0;
 
-  // Funções de utilidade
   function escapeHtml(str) {
-  if (!str && str !== 0) return "";
-  return String(str)
-  .replace(/&/g, "&amp;")
-  .replace(/</g, "&lt;")
-  .replace(/>/g, "&gt;")
-  .replace(/"/g, "&quot;")
-  .replace(/'/g, "&#39;");
+    if (!str && str !== 0) return "";
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
-  // helper local (assumindo que está definido globalmente ou em escopo superior)
   function formatarPeriodo(inicio, fim) {
-  const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
-  return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
+    const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+    return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
   }
 
-  // 1. FUNÇÃO DE VOLTA DEFINIDA AQUI
   const voltarParaEquipes = () => abrirTelaEquipesEvento(evento);
 
-  // ===== HEADER - COMPACTADO PARA REMOVER #text =====
+  // HEADER
   const header = document.createElement("div");
   header.className = "header-equipes-evento";
-  header.innerHTML = `<button class="btn-voltar" title="Voltar">←</button><div class="info-evento"><h2>${escapeHtml(equipe.equipe || equipe.nome || "Equipe")}</h2><p>${escapeHtml(evento.nmevento || "Evento sem nome")} — ${concluidas}/${totalFuncoes} concluídas</p><p>📍 ${escapeHtml(evento.nmlocalmontagem || evento.local || "Local não informado")}</p><p>👤 Cliente: ${escapeHtml(evento.nmfantasia || evento.cliente || "")}</p></div>`;
+  header.innerHTML = `
+    <button class="btn-voltar" title="Voltar">←</button>
+    <div class="info-evento">
+      <h2>${escapeHtml(equipe.equipe || "Equipe")}</h2>
+      <p>${escapeHtml(evento.nmevento)} — ${concluidas}/${totalFuncoes} concluídas</p>
+      <p>📍 ${escapeHtml(evento.nmlocalmontagem || "Local não informado")}</p>
+      <p>👤 Cliente: ${escapeHtml(evento.nmfantasia || evento.cliente || "")}</p>
+    </div>`;
   container.appendChild(header);
 
-  // ===== LISTA DE FUNÇÕES =====
   const lista = document.createElement("ul");
   lista.className = "funcoes-lista";
 
   (equipe.funcoes || []).forEach(func => {
-  const total = Number(func.total ?? func.total_vagas ?? func.qtd_orcamento ?? 0);
-  const preenchidas = Number(func.preenchidas ?? func.qtd_cadastrada ?? 0);
-  const concluido = total > 0 && preenchidas >= total;
+    const total = Number(func.qtd_orcamento ?? func.total ?? 0);
+    const preenchidas = Number(func.qtd_cadastrada ?? func.preenchidas ?? 0);
+    const concluido = total > 0 && preenchidas >= total;
 
-  const li = document.createElement("li");
-  li.className = "funcao-item";
-  if (concluido) li.classList.add("concluido");
-  li.setAttribute("role", "button");
-  li.tabIndex = 0;
+    const li = document.createElement("li");
+    li.className = "funcao-item";
+    if (concluido) li.classList.add("concluido");
 
-  const periodoVaga = formatarPeriodo(func.dtini_vaga, func.dtfim_vaga);
+    const periodoVaga = formatarPeriodo(func.dtini_vaga, func.dtfim_vaga);
 
-  // NÓS DE TEXTO criados por createElement geralmente não são um problema,
-  // mas vamos garantir que o HTML injetado seja compacto.
+    li.innerHTML = `
+      <div class="func-wrapper">
+        <div class="func-nome">${escapeHtml(func.nome)} <span class="func-data-vaga">(${periodoVaga})</span></div>
+        <div class="func-estado">${preenchidas}/${total}</div>
+        <div class="func-detalhes">
+          ${concluido ? '✅ Completa' : `<button class="btn-abrir-staff status-urgente-vermelho">⏳ Abrir staff</button>`}
+        </div>
+      </div>`;
 
-  // CORREÇÃO: Usando a abordagem de wrapper para evitar nós #text.
-  li.innerHTML = `
-<div class="func-wrapper">
-  <div class="func-nome">${escapeHtml(func.nome || func.nmfuncao || "Função")} <span class="func-data-vaga">(${periodoVaga})</span></div>
-  <div class="func-estado">${preenchidas}/${total}</div>
-  <div class="func-detalhes">
-  ${concluido 
-  ? '✅ Completa' 
-  : `<button class="btn-abrir-staff status-urgente-vermelho">⏳ Abrir staff</button>`
-  }
-  </div>
-</div>
-  `;
+    function abrirStaffModal() {
+      if (concluido) return;
 
-  // Se não estiver concluído, precisamos adicionar o listener ao botão.
-  if (!concluido) {
-   const botao = li.querySelector(".btn-abrir-staff");
-   if (botao) {
-   botao.addEventListener("click", (e) => {
-   e.stopPropagation(); // evita conflito com o clique no <li>
-   abrirStaffModal();
-   });
-   }
-  }
+      // 🔍 DEBUG COMPLETO DO OBJETO FUNC
+      console.log("🔍 [Main.js] Objeto FUNC COMPLETO:", func);
+      console.log("🔍 [Main.js] Objeto EVENTO COMPLETO:", evento);
 
-  function abrirStaffModal() {
-  if (concluido) return;
+      const params = new URLSearchParams();
+      params.set("idfuncao", func.idfuncao);
+      params.set("nmfuncao", func.nome);
+      params.set("idevento", evento.idevento);
+      params.set("idorcamento", evento.idorcamento);
+      params.set("idcliente", evento.idcliente);
+      params.set("idmontagem", evento.idmontagem);
+      params.set("nmcliente", evento.nmfantasia || evento.cliente || "");
+      params.set("nmevento", evento.nmevento || "");
 
-  const params = new URLSearchParams();
+      // --- CAPTURA ROBUSTA DO SETOR ---
+      // 1️⃣ Tenta setor_orcamento (que vem do orçamento)
+      let valorSetor = (func.setor_orcamento || func.setor || func.nmsetor || func.local || func.localmontagem || "").trim();
+      
+      // 2️⃣ Se vazio, EXTRAI do nome da função - formato: "FUNÇÃO (SETOR)"
+      if (!valorSetor && func.nome) {
+        const match = func.nome.match(/\(([^)]+)\)$/);
+        if (match && match[1]) {
+          valorSetor = match[1].trim();
+          console.log("✅ [Main.js] Setor extraído do nome:", valorSetor);
+        }
+      }
+      
+      const periodoDoEvento = func.datas_staff || func.dtini_vaga || "";
+      
+      console.log("🔍 [Main.js] Valor do setor identificado:", {
+        setor_orcamento: func.setor_orcamento,
+        setor: func.setor,
+        nomeDaFuncao: func.nome,
+        valorFinal: valorSetor,
+        datas_staff: func.datas_staff,
+        periodoDoEvento: periodoDoEvento
+      });
 
-  params.set("idfuncao", func.idfuncao ?? func.idFuncao);
-  params.set("nmfuncao", func.nome ?? func.nmfuncao);
-  params.set("idequipe", equipe.idequipe || "");
-  params.set("nmequipe", equipe.equipe || "");
-  params.set("idmontagem", evento.idmontagem || "");
-  params.set("nmlocalmontagem", evento.nmlocalmontagem || "");
-  params.set("idcliente", evento.idcliente || "");
-  params.set("nmcliente", evento.nmfantasia || evento.cliente || "");
-  params.set("idevento", evento.idevento || "");
-  params.set("nmevento", evento.nmevento || "");
-  params.set("idorcamento", evento.idorcamento || "");
+      const pavilhoesOficiais = evento.pavilhoes_nomes || []; 
+      const ehPavilhaoOficial = pavilhoesOficiais.some(p => 
+        p.trim().toUpperCase() === valorSetor.toUpperCase()
+      );
 
-  if (Array.isArray(evento.dataeventos)) {
-  params.set("dataeventos", JSON.stringify(evento.dataeventos));
-  } else if (evento.dataeventos) {
-  params.set("dataeventos", evento.dataeventos);
-  }
+      // Define instruções para o Modal
+      params.set("modo_local", ehPavilhaoOficial ? "pavilhao" : "setor");
+      params.set("valor_local", valorSetor);
 
-  params.set("dtini_vaga", func.dtini_vaga || null);
-  params.set("dtfim_vaga", func.dtfim_vaga || null);
+      // 🔥 ADICIONA DATAS E PERÍODO
+      if (func.datas_staff && Array.isArray(func.datas_staff)) {
+        params.set("datas_existentes", JSON.stringify(func.datas_staff));
+        console.log("✅ [Main.js] Datas adicionadas aos parâmetros:", func.datas_staff);
+      } else {
+        console.warn("⚠️ [Main.js] Nenhuma data em datas_staff:", func.datas_staff);
+      }
 
-  // 2. LÓGICA DE CALLBACK: Define uma função global temporária.
-  // O código de fechar o modal deve chamar window.onStaffModalClosed()
-  window.onStaffModalClosed = function(modalClosedSuccessfully) {
-  // Limpa a função global logo após ser chamada.
-  delete window.onStaffModalClosed;
-  console.log("Callback do modal Staff acionado. Atualizando a tela...");
+      if (func.dtini_vaga) {
+        params.set("dtini_vaga", func.dtini_vaga);
+      }
+      if (func.dtfim_vaga) {
+        params.set("dtfim_vaga", func.dtfim_vaga);
+      }
+      
+      window.onStaffModalClosed = () => {
+        delete window.onStaffModalClosed;
+        voltarParaEquipes(); 
+      };
 
-  // Chama a função para voltar à tela anterior e recarregar os dados.
-  voltarParaEquipes(); 
-  };
+      window.__modalInitialParams = params.toString();
+      
+      console.log("📤 [Main.js] Parâmetros finais enviados para modal:", Object.fromEntries(params.entries()));
+      
+      const targetUrl = `CadStaff.html?${params.toString()}`;
 
-  console.log("Abrindo modal Staff com parâmetros:", Object.fromEntries(params.entries()));
+      if (typeof abrirModalLocal === "function") abrirModalLocal(targetUrl, "Staff");
+      else if (typeof abrirModal === "function") abrirModal(targetUrl, "Staff");
+    }
 
-  window.__modalInitialParams = params.toString();
-  window.moduloAtual = "Staff";
-
-  const targetUrl = `CadStaff.html?${params.toString()}`;
-
-  if (typeof abrirModalLocal === "function") {
-  abrirModalLocal(targetUrl, "Staff");
-  } else if (typeof abrirModal === "function") {
-  abrirModal(targetUrl, "Staff");
-  } else {
-  console.error("ERRO FATAL: Nenhuma função global para abrir o modal foi encontrada.");
-  }
-  }
-
-  li.addEventListener("click", abrirStaffModal);
-  li.addEventListener("keypress", (e) => { if (e.key === "Enter") abrirStaffModal(); });
-
-  lista.appendChild(li);
+    if (!concluido) {
+      li.querySelector(".btn-abrir-staff")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        abrirStaffModal();
+      });
+      li.addEventListener("click", abrirStaffModal);
+    }
+    lista.appendChild(li);
   });
 
   container.appendChild(lista);
-
-  // ===== RODAPÉ - COMPACTADO PARA REMOVER #text =====
-  const rodape = document.createElement("div");
-  rodape.className = "rodape-equipes";
-  rodape.innerHTML = `<button class="btn-voltar-rodape">← Voltar</button><span class="status-texto">${concluidas === totalFuncoes ? "✅ Finalizado" : "⏳ Em andamento"}</span>`;
-  container.appendChild(rodape);
-
   painel.appendChild(container);
-
-  // Eventos de navegação
-  container.querySelector(".btn-voltar")?.addEventListener("click", voltarParaEquipes);
-  container.querySelector(".btn-voltar-rodape")?.addEventListener("click", voltarParaEquipes);
 }
 
 

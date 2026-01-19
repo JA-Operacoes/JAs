@@ -378,6 +378,7 @@ router.post("/orcamento/consultar",
                 AND o.idevento = $2
                 AND o.idcliente = $3
                 AND o.idmontagem = $4
+                AND oi.idfuncao = $6
                 AND oi.idfuncao IS NOT NULL
                 -- Filtra para trazer apenas itens que tenham choque de data com o que foi pesquisado
                 AND dto.periodos_disponiveis && $5::date[]
@@ -408,10 +409,23 @@ router.post("/orcamento/consultar",
             idCliente,
             idLocalMontagem,
             datasEvento,
+            idFuncao,
         ];
 
         const result = await client.query(query, values);
         const orcamentoItems = result.rows;
+
+        console.log("🔍 [/orcamento/consultar] Parâmetros da query:");
+        console.log("  - idempresa ($1):", idempresa);
+        console.log("  - idEvento ($2):", idEvento);
+        console.log("  - idCliente ($3):", idCliente);
+        console.log("  - idLocalMontagem ($4):", idLocalMontagem);
+        console.log("  - datasEvento ($5):", datasEvento);
+        console.log("  - idFuncao ($6):", idFuncao);
+        console.log("🔍 [/orcamento/consultar] Resultado da query:", orcamentoItems.length, "itens encontrados");
+        if (orcamentoItems.length === 0) {
+            console.warn("⚠️ Nenhum orçamento encontrado com esses critérios!");
+        }
 
         res.status(200).json(orcamentoItems);
        } catch (error) {

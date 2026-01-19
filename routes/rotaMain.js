@@ -1030,14 +1030,13 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
   try {
     const idevento = req.query.idevento || req.headers.idevento;
     const idempresa = req.query.idempresa || req.headers.idempresa;
-    // Pega o ano da query ou do sistema
     const ano = req.query.ano ? Number(req.query.ano) : new Date().getFullYear();
 
     if (!idevento || !idempresa) {
       return res.status(400).json({ error: "Parâmetros 'idevento' e 'idempresa' são obrigatórios." });
     }
 
-    // 1️⃣ Busca orçamento principal filtrando pelo ANO de realização
+    // 1️⃣ Busca orçamento principal
     const { rows: orcamentos } = await pool.query(
       `SELECT o.idorcamento, o.idcliente, o.idmontagem
        FROM orcamentos o
@@ -1051,17 +1050,13 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
     if (!orcamentos.length) return res.status(200).json({ equipes: [] });
     const { idorcamento, idcliente, idmontagem } = orcamentos[0];
 
-    // 2️⃣ Busca Itens do Orçamento (Vagas) - Agora incluindo SETOR
+    // 2️⃣ Busca Vagas do Orçamento (Usando o setor como local principal)
     const { rows: itensOrcamento } = await pool.query(
-      `SELECT 
-        f.idequipe, 
-        eq.nmequipe AS equipe, 
-        i.idfuncao, 
-        f.descfuncao AS funcao,
-        i.setor,
-        SUM(i.qtditens) AS qtd_orcamento,
-        MIN(i.periododiariasinicio) AS dtini_vaga,
-        MAX(i.periododiariasfim) AS dtfim_vaga
+      `SELECT f.idequipe, eq.nmequipe AS equipe, i.idfuncao, f.descfuncao AS funcao,
+              COALESCE(i.setor, '') AS setor_orcamento,
+              SUM(i.qtditens) AS qtd_orcamento,
+              MIN(i.periododiariasinicio) AS dtini_vaga,
+              MAX(i.periododiariasfim) AS dtfim_vaga
        FROM orcamentoitens i
        JOIN funcao f ON f.idfuncao = i.idfuncao
        JOIN equipe eq ON eq.idequipe = f.idequipe
@@ -1070,74 +1065,84 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
       [idorcamento]
     );
 
-    // 3️⃣ Busca quantidades cadastradas - TRAVA ANO com EXISTS para ignorar lixo de 2025
-    const { rows: staff } = await pool.query(
-      `SELECT se.idfuncao, se.pavilhao, COUNT(DISTINCT se.idstaff) AS qtd_cadastrada
+    // 3️⃣ Busca quantidades cadastradas (Lógica COALESCE para bater com o setor do orçamento)
+    const { rows: staffCount } = await pool.query(
+      `SELECT se.idfuncao, 
+              COALESCE(NULLIF(se.pavilhao, ''), se.setor, '') AS localizacao,
+              COUNT(DISTINCT se.idstaff) AS qtd_cadastrada
        FROM staffeventos se
        WHERE se.idevento = $1 
          AND se.idcliente = $2
          AND EXISTS (
-             SELECT 1 
-             FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
+             SELECT 1 FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
              WHERE EXTRACT(YEAR FROM (d.dt)::date) = $3
          )
-       GROUP BY se.idfuncao, se.pavilhao`,
+       GROUP BY se.idfuncao, localizacao`,
       [idevento, idcliente, ano]
     );
 
-    // 4️⃣ Busca Datas de Staff por Função - TRAVA ANO dentro do JSON
+    // 4️⃣ Busca Datas (IMPORTANTE: A chave aqui deve ser idfuncao + localizacao)
     const { rows: datasStaffRaw } = await pool.query(
-      `SELECT 
-          se.idfuncao, se.pavilhao,
-          array_agg(DISTINCT d.dt ORDER BY d.dt) AS datas_staff
+      `SELECT se.idfuncao, 
+              COALESCE(NULLIF(se.pavilhao, ''), se.setor, '') AS localizacao,
+              array_agg(DISTINCT d.dt ORDER BY d.dt) AS datas_staff
        FROM staffeventos se
-       INNER JOIN orcamentos o ON o.idevento = se.idevento
        CROSS JOIN LATERAL (
            SELECT dt FROM jsonb_array_elements_text(se.datasevento) AS dt
            WHERE EXTRACT(YEAR FROM dt::date) = $2
        ) AS d
        WHERE se.idevento = $1 AND se.idcliente = $3
-       GROUP BY se.idfuncao, se.pavilhao`,
+       GROUP BY se.idfuncao, localizacao`,
       [idevento, ano, idcliente]
     );
 
+    // Criamos o mapa usando a string normalizada para evitar erros de case ou espaços
     const datasStaffMap = datasStaffRaw.reduce((acc, row) => {
-      acc[`${row.idfuncao}_${row.pavilhao}`] = row.datas_staff;
+      const key = `${row.idfuncao}_${String(row.localizacao).trim().toUpperCase()}`;
+      acc[key] = row.datas_staff;
       return acc;
     }, {});
 
-    // 5️⃣ Agrupa por equipe
+    // 5️⃣ Agrupamento por equipe e montagem do objeto final
     const equipesMap = {};
     for (const item of itensOrcamento) {
-      const idequipe = item.idequipe;
-      const idequipeKey = idequipe || "SEM_EQUIPE";
+      const idequipeKey = item.idequipe || "SEM_EQUIPE";
 
       if (!equipesMap[idequipeKey]) {
         equipesMap[idequipeKey] = {
           equipe: item.equipe || "Sem equipe",
-          idequipe: idequipe,
+          idequipe: item.idequipe,
           funcoes: [],
         };
       }
 
-      // Procura a quantidade preenchida para esta função específica
-      const cadastrado = staff.find(s => String(s.idfuncao) === String(item.idfuncao) && s.pavilhao === item.setor); 
+      const setorNormalizado = String(item.setor_orcamento).trim().toUpperCase();
+
+      // Busca a quantidade
+      const cadastrado = staffCount.find(s => 
+        String(s.idfuncao) === String(item.idfuncao) && 
+        String(s.localizacao).trim().toUpperCase() === setorNormalizado
+      ); 
+
       const qtd_cadastrada = cadastrado ? Number(cadastrado.qtd_cadastrada) : 0;
-      const datas_staff = datasStaffMap[`${item.idfuncao}_${item.setor}`] || [];
+      
+      // Busca as datas no mapa usando a mesma chave normalizada
+      const chaveDatas = `${item.idfuncao}_${setorNormalizado}`;
+      const datas_staff = datasStaffMap[chaveDatas] || [];
 
       equipesMap[idequipeKey].funcoes.push({
         idfuncao: item.idfuncao,
-        nome: item.setor ? `${item.funcao} (${item.setor})` : item.funcao,
+        nome: item.setor_orcamento ? `${item.funcao} (${item.setor_orcamento})` : item.funcao,
+        setor_orcamento: item.setor_orcamento,
         qtd_orcamento: Number(item.qtd_orcamento) || 0,
         qtd_cadastrada,
         concluido: qtd_cadastrada >= (Number(item.qtd_orcamento) || 0),
         dtini_vaga: item.dtini_vaga,
         dtfim_vaga: item.dtfim_vaga,
-        datas_staff: datas_staff
+        datas_staff: datas_staff // Agora as datas voltarão a aparecer
       });
     }
 
-    // 6️⃣ Retorno final
     res.status(200).json({ 
       equipes: Object.values(equipesMap), 
       idmontagem,
@@ -1145,8 +1150,8 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
     });
 
   } catch (err) {
-    console.error("Erro ao buscar detalhes dos eventos abertos:", err);
-    res.status(500).json({ error: "Erro interno ao buscar detalhes dos eventos abertos." });
+    console.error("Erro ao processar detalhes dos eventos:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
