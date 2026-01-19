@@ -1,3 +1,4 @@
+
 .modal-open main,
 .modal-open header,
 .modal-open #content,  /* qualquer container do seu conteúdo de fundo */
@@ -35,7 +36,7 @@
 } 
 
 /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
-#cadModalContas.modal {
+#cadModalLancamentos.modal {
   position: fixed;
   top: 50%; /* Alinha verticalmente ao centro */
   left: 50%; /* Alinha horizontalmente ao centro */   
@@ -43,24 +44,24 @@
   background-color: #4d4d4d;
   padding: 5px;
   margin-top: 10px;
-  width: 750px; /* Ajuste o tamanho conforme necessário */
-  height: 520px;
+  width: 1000px; /* Ajuste o tamanho conforme necessário */
+  height: 750px;
   font-size: 16px;
   z-index: 9999;
 }
 
-#cadModalContas.modal-content{
+#cadModalLancamentos.modal-content{
   height: 590px;
 }
 
-#cadModalContas.modal-open{
+#cadModalLancamentos.modal-open{
   /* overflow: visible; Permite a rolagem do modal */
   overflow: hidden;
   pointer-events: none;
 }
 
 /* --- Estilização conforme Equipamentos (Alinhamento) --- */
-#cadModalContas .form {
+#cadModalLancamentos .form {
     margin: 20px 12px;
     display: flex;
     align-items: center;
@@ -96,15 +97,15 @@ body{
 }
 
 
-#form-contas {
+#form-lancamentos {
   font-family: "Abel", sans-serif;
   display: flex;                
   flex-direction: column; 
   justify-content: center;
   background-color: white;
-  max-width: 730px;   
+  max-width: 980px;   
   width: 100%;  
-  height: 440px; 
+  height: 670px; 
   margin: 0 auto;         
   padding: 10px;                
   background-color: #cacaca; 
@@ -118,7 +119,7 @@ fieldset {
   display: flex;
   flex-direction: column;
   width: 650px;
-  height: 300px;
+  height: 600px;
   background-color: transparent;
   border-color: var(--dark-color);
   margin: 0 auto;
@@ -169,7 +170,7 @@ legend{
 .form2 input{
   flex: 1;
   font-family: var(--Font-primary);
-  width: 270px;
+  width: 200px;
   height: 30px;
   border-radius: 6px;
   font-size: 13px;
@@ -180,8 +181,21 @@ legend{
   outline: none;
 }
 
-#idConta{
+#idLancamento{
   width: 80px;
+}
+
+#vlrEstimado
+{
+  width: 180px;
+}
+
+select#periodicidade, select#tipoRepeticao{
+    width: 180px;
+}
+
+select#idContaSelect{
+    width: 250px;
 }
 
 .form2 {
@@ -191,12 +205,11 @@ legend{
   align-items: center; /* aqui é o segredo do alinhamento */
 }
 
-
 .form select {
   border-radius: 5px;
   flex: 1;
   font-family: var(--Font-primary);
-  width: 250px; 
+  width: 350px; 
   height: 30px;
   border-radius: 6px;
   font-size: 13px;
@@ -208,9 +221,9 @@ legend{
   outline: none;
 }
 
-#tpConta.form select {
+/* #tpConta.form select {
     width: 100px;
-}
+} */
 
 button.close {
   display: flex;
@@ -253,6 +266,7 @@ button.close {
   left: 20px;
  
 }
+
 .form3 label{
   position: absolute;
   top: 50%;
@@ -289,7 +303,7 @@ input:not([value=""]) ~ label {
 }
 
 input[type=date]{
-  width: 111px;
+  width: 150px;
   height: 30px;
   font-size: 17px;
 }
@@ -304,8 +318,8 @@ input#id{
 }
 
 
-#idConta.has-value + label,
-#idConta:focus + label {
+#idlancamento.has-value + label,
+#idlancamento:focus + label {
   top: 0;
   left: 25%;
   font-size: 15px;
@@ -339,8 +353,6 @@ input#id{
     min-width: 150px;
     height: 35px;
 }
-
-
 
 .checkbox-wrapper-33 {
   --s-xsmall: 0.625em;
@@ -451,6 +463,73 @@ input#id{
   box-shadow: 0 0 0 0.25em var(--c-primary-20-percent-opacity);
 }
 
+
+/* Container que controla o Scroll e a visibilidade */
+#container-previa {
+    margin-top: 15px;
+    max-height: 300px; /* Altura máxima antes de aparecer o scroll */
+    overflow-y: auto;  /* Ativa o scroll vertical se ultrapassar a altura */
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+    padding: 10px;
+    display: none; /* Começa escondido, o JS mostra ao clicar no checkbox */
+}
+
+/* Customização da barra de rolagem para ficar mais elegante */
+#container-previa::-webkit-scrollbar {
+    width: 6px;
+}
+#container-previa::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 10px;
+}
+
+.previa-titulo {
+    font-size: 0.9rem;
+    color: #333;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+    font-weight: bold;
+    position: sticky; /* Mantém o título fixo no topo enquanto rola */
+    top: 0;
+    background: #f8f9fa;
+    z-index: 1;
+}
+
+/* A estrutura de duas colunas */
+.previa-grades {
+    display: grid;
+    grid-template-columns: 1fr 1fr; 
+    gap: 20px;
+}
+
+.table-previa {
+    width: 100%;
+    font-size: 0.85rem;
+    border-collapse: collapse;
+}
+
+.table-previa th {
+    text-align: left;
+    color: #888;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    padding-bottom: 5px;
+}
+
+.table-previa td {
+    padding: 6px 0;
+    border-bottom: 1px dashed #eee;
+}
+
+/* Destaque para a linha ao passar o mouse */
+.table-previa tr:hover {
+    background-color: #f1f1f1;
+}
+
+
 @-webkit-keyframes ripple-33 {
   from {
     transform: scale(0);
@@ -531,6 +610,7 @@ button.Close {
   display: none;
   margin-top: 10px;
 }
+
 #mensagemErro {
   color: red;
   font-size: 14px;

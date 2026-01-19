@@ -1,0 +1,121 @@
+<link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
+<link rel="stylesheet" href="css/Modal/CadPagamentos.css"> 
+<link rel="stylesheet" href="css/Roots/Roots.css">
+
+<div id="cadModalPagamentos" class="modal">
+    <div class="modal-content">
+        
+        <div class="Close"><button class="close" id="Fechar"> X </button></div>
+
+        <div id="form-pagamentos"> 
+            <div class="title">
+                <h1>Registro de Pagamentos</h1>
+            </div>
+
+            <form method="post" id="form" name="form" autocomplete="on">
+                <fieldset>
+                    <legend>Dados da Baixa / Pagamento</legend>
+                    
+                    <div class="form-3colunas">
+                        <div class="form">
+                            <input type="text" name="idPagamento" id="idPagamento" readonly>
+                            <label for="idPagamento">ID Pagto</label>
+                        </div>
+                        
+                        <div class="form" style="grid-column: span 2;">
+                            <select name="idLancamento" id="idLancamentoSelect" required>
+                                <option value="" disabled selected>Selecione o Lançamento (Conta)...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-3colunas">
+                         <div class="form">
+                            <input type="date" name="dtvcto" id="dtvcto" readonly style="background-color: var(--cor-background-input-readonly, #f9f9f9);">
+                            <label for="dtvcto">Vencimento Original</label>
+                        </div>
+                        <div class="form">
+                            <input type="text" name="vlrPrevisto" id="vlrPrevisto" readonly style="background-color: var(--cor-background-input-readonly, #f9f9f9);">
+                            <label for="vlrPrevisto">Valor Previsto (R$)</label>
+                        </div>
+                        <div class="form">
+                            <input type="number" name="numParcela" id="numParcela" readonly style="background-color: var(--cor-background-input-readonly, #f9f9f9);">
+                            <label for="numParcela">Nº Parcela</label>
+                        </div>
+                    </div>
+
+                    <div class="form-2colunas">
+                        <div class="form">
+                            <input type="date" name="dtpgto" id="dtpgto" required>
+                            <label for="dtpgto">Data do Pagamento</label>
+                        </div>
+                        
+                        <div class="form">
+                            <input type="text" name="vlrPago" id="vlrPago" required>
+                            <label for="vlrPago">Valor Efetivamente Pago (R$)</label>
+                        </div>
+                    </div>
+
+                    <div class="form-1coluna">
+                        <div class="form">
+                            <input type="text" class="uppercase" name="observacao" id="observacaoPagto" required>
+                            <label for="observacaoPagto">Observações</label>
+                        </div>
+                    </div>
+
+                    <!-- <div class="form-2colunas">
+                        <div class="campo">
+                            <label for="arquivo_conta">Imagem da Conta/Boleto:</label>
+                            <input type="file" id="arquivo_conta" accept="image/*,application/pdf">
+                        </div>
+                        <div class="campo">
+                            <label for="comprovante_pagto">Comprovante de Pagamento:</label>
+                            <input type="file" id="comprovante_pagto" accept="image/*,application/pdf">
+                        </div>
+                    </div> -->
+
+                    <div class="form-checkbox" style="margin-top: 15px;">
+                        <div class="checkbox-wrapper-33">
+                            <label class="checkbox">
+                                <p class="checkbox__textwrapper">Pagamento Confirmado</p>
+                                <input class="checkbox__trigger visuallyhidden" type="checkbox" id="statusPagto" name="statusPagto" checked />
+                                <span class="checkbox__symbol">
+                                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                                        <path d="M4 14l8 7L24 7"></path>
+                                    </svg>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="previa-lancamentos">
+                        <h3>Histórico de Pagamentos deste Lançamento</h3>
+                        <div class="table-container">
+                            <table class="table-previa">
+                                <thead>
+                                    <tr>
+                                        <th>Parc.</th>
+                                        <th>Vencimento</th>
+                                        <th>Valor Pago</th>
+                                        <th>Data Pago</th>
+                                        <th>Status</th>
+                                        <th>Observação</th> <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="corpoHistoricoPagto">
+                                    </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </fieldset>
+            </form>
+        </div>
+
+        <div class="BTNs">
+            <!-- <button class="bntPesquisar" id="Pesquisar" type="button">Histórico</button> -->
+            <button class="bntLimpar" id="Limpar" type="button">Limpar</button>
+            <button class="btnEnviar" id="Enviar" type="button">Confirmar Pagamento</button>
+        </div>
+    </div>
+</div>

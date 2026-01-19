@@ -1977,3 +1977,26 @@ width: 820px;
     max-width: 1000px;
 }
 }
+
+/* 🔒 Estilos para campos bloqueados (setor e pavilhão) */
+input[data-bloqueado="true"],
+select[data-bloqueado="true"] {
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    opacity: 0.6 !important;
+    background-color: #f0f0f0 !important;
+    border: 2px solid #ccc !important;
+    color: #999 !important;
+}
+
+input[data-bloqueado="true"]:hover,
+select[data-bloqueado="true"]:hover {
+    cursor: not-allowed !important;
+}
+
+input:disabled,
+select:disabled {
+    cursor: not-allowed !important;
+    opacity: 0.6;
+    background-color: #f0f0f0;
+}

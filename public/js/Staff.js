@@ -56,6 +56,18 @@ document.addEventListener("DOMContentLoaded", function () {
                 // aplicarTema('default');
             });
     }
+
+    // 🔥 SEGUNDA TENTATIVA DE PREENCHIMENTO (DOMContentLoaded)
+    if (setorEsperado) {
+        const setorInput = document.getElementById('setor');
+        if (setorInput) {
+            setorInput.value = setorEsperado.toUpperCase();
+            setorInput.dispatchEvent(new Event('change', { bubbles: true }));
+            console.log("✅ [DOMContentLoaded] Campo setor preenchido com:", setorEsperado.toUpperCase());
+        }
+    } else {
+        console.warn("⚠️ [DOMContentLoaded] setorEsperado ainda está vazio!");
+    }
 });
 
 //importado no inicio do js pois deve ser importado antes do restante do codigo
@@ -143,7 +155,28 @@ const extractDatesFromStatusArray = (datesWithStatusArray) => {
 if (window.__modalInitialParams) {
     const params = new URLSearchParams(window.__modalInitialParams);
     const dataeventos = params.get("dataeventos");
-    setorEsperado = params.get("setor") || '';
+    setorEsperado = params.get("setor") || params.get("valor_local") || '';
+
+    // 🔍 DEBUG: Mostra todos os parâmetros recebidos no modal
+    console.log("=== 📥 PARÂMETROS RECEBIDOS NO MODAL STAFF ===");
+    console.log("URL completa:", window.location.href);
+    console.log("Parâmetros:", Object.fromEntries(params.entries()));
+    console.log("setor esperado ATRIBUÍDO:", setorEsperado);
+    console.log("modo_local:", params.get("modo_local"));
+    console.log("valor_local:", params.get("valor_local"));
+    console.log("=============================================");
+
+    // 🔥 PREENCHE O CAMPO SETOR IMEDIATAMENTE (se elemento já existe)
+    setTimeout(() => {
+        const setorInput = document.getElementById('setor');
+        if (setorInput && setorEsperado) {
+            setorInput.value = setorEsperado.toUpperCase();
+            setorInput.dispatchEvent(new Event('change'));
+            console.log("✅ Campo setor preenchido IMEDIATAMENTE com:", setorEsperado.toUpperCase());
+        } else {
+            console.warn("⚠️ Campo setor não encontrado ou setorEsperado vazio:", {setorInputExists: !!setorInput, setorEsperado});
+        }
+    }, 50);
 
     if (dataeventos) {
         try {
@@ -1209,8 +1242,19 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     vlrTotalInput.value = parseFloat(eventData.vlrtotal || 0).toFixed(2).replace('.', ',');
 
     console.log("VALOR TOTAL", vlrTotalInput.value);
-    setorInput.value = eventData.setor.toUpperCase() || '';
+    
+    // ✅ CARREGAMENTO DO SETOR: Prioridade - eventData.setor -> eventData.orcamentoitens -> ''
+    const setorCarregar = eventData.setor || eventData.orcamentoitens || '';
+    setorInput.value = setorCarregar.toUpperCase() || '';
+    console.log("[carregarDadosParaEditar] Setor carregado:", setorCarregar, "| Fonte: ", eventData.setor ? 'setor' : (eventData.orcamentoitens ? 'orcamentoitens' : 'vazio'));
+    
     statusPagtoInput.value = eventData.statuspgto.toUpperCase() || '';
+    
+    // ✅ NOVO: Valida e filtra os pavilhões baseado no setor carregado
+    setTimeout(() => {
+        validarEFiltrarSetorPavilhao();
+        console.log("[carregarDadosParaEditar] Validação de setor/pavilhão executada após carregamento");
+    }, 250);
 
 
     // Lógica para checkboxes de Bônus e Caixinha
@@ -1224,6 +1268,9 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
         ajusteCustoTextarea.style.display = ajusteCustocheck.checked ? 'block' : 'none';
         ajusteCustoTextarea.required = ajusteCustocheck.checked;
         ajusteCustoTextarea.value = eventData.descajustecusto || '';
+        
+        // 🔒 Verifica se deve bloquear o checkbox baseado no status
+        controlarBloqueioCheckbox('ajusteCustocheck', 'statusAjusteCusto');
     }
     if (caixinhacheck) {
         caixinhacheck.checked = parseFloat(eventData.vlrcaixinha || 0) > 0;
@@ -1233,6 +1280,9 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
         descCaixinhaTextarea.style.display = caixinhacheck.checked ? 'block' : 'none';
         descCaixinhaTextarea.required = caixinhacheck.checked;
         descCaixinhaTextarea.value = eventData.desccaixinha || '';
+        
+        // 🔒 Verifica se deve bloquear o checkbox baseado no status
+        controlarBloqueioCheckbox('Caixinhacheck', 'statusCaixinha');
     }
 
     // Lógica para Comprovantes 50% e 100%
@@ -1317,6 +1367,146 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     
 };
 
+// Adicione isso ao final do arquivo Staff.js ou dentro de verificaStaff()
+
+
+/**
+ * Valida e aplica restrições ao setor e pavilhão baseado na compatibilidade.
+ * Se o setor informado não está cadastrado nos pavilhões, bloqueia a seleção de pavilhões.
+ * Se o setor for compatível com um pavilhão, mostra apenas esse pavilhão e força sua seleção.
+ */
+function validarEFiltrarSetorPavilhao() {
+    const inputSetor = document.getElementById("setor");
+    const selectPav = document.getElementById("nmPavilhao");
+    
+    if (!inputSetor || !selectPav) {
+        console.warn("[validarEFiltrarSetorPavilhao] inputSetor ou selectPav não encontrados");
+        return;
+    }
+    
+    const setorInformado = inputSetor.value.toUpperCase().trim();
+    console.log("[validarEFiltrarSetorPavilhao] Setor informado:", setorInformado || "(vazio)");
+    console.log("[validarEFiltrarSetorPavilhao] Opções do select:", Array.from(selectPav.options).map(o => o.textContent));
+    
+    if (!setorInformado) {
+        // Se não há setor informado, libera o pavilhão
+        console.log("[validarEFiltrarSetorPavilhao] Setor vazio - liberando pavilhão");
+        selectPav.disabled = false;
+        selectPav.style.opacity = "1";
+        selectPav.style.cursor = "auto";
+        selectPav.title = "";
+        selectPav.required = false;
+        // Restaura todas as opções se estavam filtradas
+        if (selectPav.dataset.originalOptions) {
+            const originalOptions = JSON.parse(selectPav.dataset.originalOptions);
+            selectPav.innerHTML = '';
+            originalOptions.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.value;
+                option.textContent = opt.text;
+                selectPav.appendChild(option);
+            });
+            console.log("[validarEFiltrarSetorPavilhao] Opções restauradas");
+        }
+        return;
+    }
+    
+    // Procura por um pavilhão compatível com o setor
+    let pavilhaoCompaivel = null;
+    let indiceCompaivel = -1;
+    
+    for (let i = 0; i < selectPav.options.length; i++) {
+        const option = selectPav.options[i];
+        if (option.value === "") continue; // Ignora a opção padrão vazia
+        
+        const nmPavilhao = option.textContent.toUpperCase().trim();
+        console.log(`[validarEFiltrarSetorPavilhao] Comparando "${setorInformado}" com "${nmPavilhao}"`);
+        if (nmPavilhao === setorInformado) {
+            pavilhaoCompaivel = option;
+            indiceCompaivel = i;
+            console.log(`[validarEFiltrarSetorPavilhao] MATCH encontrado!`);
+            break;
+        }
+    }
+    
+    if (pavilhaoCompaivel) {
+        // Setor é compatível com um pavilhão cadastrado
+        // Mostra apenas esse pavilhão e força sua seleção
+        console.log(`✅ Setor compatível encontrado: ${setorInformado}`);
+        
+        // Salva as opções originais se ainda não foram salvas
+        if (!selectPav.dataset.originalOptions) {
+            const allOptions = Array.from(selectPav.options).map(opt => ({
+                value: opt.value,
+                text: opt.textContent
+            }));
+            selectPav.dataset.originalOptions = JSON.stringify(allOptions);
+        }
+        
+        // Limpa e deixa apenas a opção padrão e o pavilhão compatível
+        selectPav.innerHTML = '';
+        
+        const opcaoPadrao = document.createElement('option');
+        opcaoPadrao.value = "";
+        opcaoPadrao.textContent = "Selecione o Pavilhão";
+        opcaoPadrao.disabled = true;
+        selectPav.appendChild(opcaoPadrao);
+        
+        const optionCompativel = document.createElement('option');
+        optionCompativel.value = pavilhaoCompaivel.value;
+        optionCompativel.textContent = pavilhaoCompaivel.textContent;
+        selectPav.appendChild(optionCompativel);
+        
+        // Força a seleção do pavilhão compatível
+        selectPav.value = pavilhaoCompaivel.value;
+        selectPav.disabled = false;
+        selectPav.style.opacity = "1";
+        selectPav.style.cursor = "auto";
+        selectPav.title = "";
+        selectPav.required = true;
+        
+        // Marca como obrigatório visualmente
+        const label = document.querySelector('label[for="nmPavilhao"]');
+        if (label && !label.textContent.includes('*')) {
+            label.textContent += ' *';
+        }
+        
+        console.log(`✅ Setor compatível encontrado: ${setorInformado} -> Pavilhão: ${pavilhaoCompaivel.textContent}`);
+    } else {
+        // Setor não é compatível com nenhum pavilhão cadastrado
+        // Bloqueia a seleção de pavilhões e mostra mensagem
+        console.log(`❌ Setor não compatível: ${setorInformado} - Pavilhão bloqueado`);
+        
+        selectPav.disabled = true;
+        selectPav.style.opacity = "0.5";
+        selectPav.style.cursor = "not-allowed";
+        selectPav.style.backgroundColor = "#f2f2f2";
+        selectPav.value = "";
+        selectPav.required = false;
+        
+        // Cria tooltip com mensagem informativa
+        selectPav.title = `O setor "${setorInformado}" não está cadastrado nos pavilhões disponíveis para este local de montagem.`;
+        
+        // Se tinha restaurar opções, faz isso
+        if (selectPav.dataset.originalOptions) {
+            const originalOptions = JSON.parse(selectPav.dataset.originalOptions);
+            selectPav.innerHTML = '';
+            originalOptions.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.value;
+                option.textContent = opt.textContent;
+                selectPav.appendChild(option);
+            });
+        }
+    }
+}
+
+// Execução dupla: 
+// 1. Tenta imediatamente ao carregar o script
+realizarIntertravamentoSetorPavilhao();
+
+// 2. Reforça após o tempo de carregamento dos dados AJAX (Clientes/Funções)
+setTimeout(realizarIntertravamentoSetorPavilhao, 1000);
 
 const verificarNecessidadeComprovante = (ed) => {
     // Regra 1: Cachê
@@ -2690,8 +2880,33 @@ async function verificaStaff() {
 
     nmEventoSelect.addEventListener('change', debouncedOnCriteriosChanged);
     nmClienteSelect.addEventListener('change', debouncedOnCriteriosChanged);
-    nmLocalMontagemSelect.addEventListener('change', debouncedOnCriteriosChanged);
-    setorInput.addEventListener('change', debouncedOnCriteriosChanged);
+    nmLocalMontagemSelect.addEventListener('change', function() {
+        // Limpa o cache de opções originais para permitir novo carregamento
+        const selectPav = document.getElementById("nmPavilhao");
+        if (selectPav) {
+            selectPav.dataset.originalOptions = '';
+        }
+        debouncedOnCriteriosChanged();
+    });
+    setorInput.addEventListener('change', function() {
+        console.log("[SETOR CHANGE] Valor do setor:", this.value);
+        // Atualiza o campo hidden idPavilhao com o valor do setor para manter consistência
+        const hiddenPavilhao = document.getElementById("idPavilhao");
+        if (hiddenPavilhao && this.value) {
+            hiddenPavilhao.value = this.value;
+            console.log("[SETOR CHANGE] Atualizou #idPavilhao para:", this.value);
+        }
+        validarEFiltrarSetorPavilhao();
+        debouncedOnCriteriosChanged();
+    });
+    setorInput.addEventListener('input', function() {
+        console.log("[SETOR INPUT] Valor do setor em tempo real:", this.value);
+        validarEFiltrarSetorPavilhao();
+    });
+    setorInput.addEventListener('blur', function() {
+        console.log("[SETOR BLUR] Valor do setor após perder foco:", this.value);
+        validarEFiltrarSetorPavilhao();
+    });
     descFuncaoSelect.addEventListener('change', () => {
         const idorcamento = getUrlParameter('idorcamento');
         const idfuncao = descFuncaoSelect.value;
@@ -2753,7 +2968,8 @@ async function verificaStaff() {
 
         if (!isCheckedBeforeSwal) {
             // Lógica para quando o usuário desmarca a caixa
-            if (statusAjusteCustoOriginal !== 'Pendente') {
+            // Se há status registrado e ele não é Pendente, não permite remover
+            if (statusAjusteCustoOriginal && statusAjusteCustoOriginal !== 'Pendente') {
                 e.preventDefault();
                 Swal.fire({
                     title: 'Atenção!',
@@ -2993,1429 +3209,387 @@ async function verificaStaff() {
         console.log("[botaoEnviar] Listener antigo removido para evitar salvamento duplicado.");
 
         // Agora usa o novo botão clonado na função existente:
-        BotaoEnviar.addEventListener("click", async (event) => {
-            event.preventDefault();                
-            
-                
-            const datasEventoRawValue = window.datasEventoPicker?.selectedDates || [];
-            
-            const periodoDoEvento = datasEventoRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
+BotaoEnviar.addEventListener("click", async (event) => {
+    event.preventDefault();
 
-            const diariaDobradaRawValue = window.diariaDobradaPicker?.selectedDates || [];
-            const periodoDobrado = diariaDobradaRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
+    /* ===============================
+       1. DATAS (SEGURAS)
+    =============================== */
+    const datasEventoRawValue = window.datasEventoPicker?.selectedDates || [];
+    const periodoDoEvento = datasEventoRawValue.map(d =>
+        flatpickr.formatDate(d, "Y-m-d")
+    );
 
-            const diariaMeiaRawValue = window.meiaDiariaPicker?.selectedDates || [];
-            const periodoMeiaDiaria = diariaMeiaRawValue.map(date => flatpickr.formatDate(date, "Y-m-d"));
+    const periodoDobrado = (window.diariaDobradaPicker?.selectedDates || [])
+        .map(d => flatpickr.formatDate(d, "Y-m-d"));
 
-            statusOrcamentoAtual = document.getElementById("status");
-           
-            const selectAvaliacao = document.getElementById("avaliacao");
-            const avaliacao = selectAvaliacao.options[selectAvaliacao.selectedIndex]?.textContent.trim().toUpperCase() || '';
-            const idStaff = document.querySelector("#idStaff").value.trim();
-            const idFuncionario = document.querySelector("#idFuncionario").value;
-            const selectFuncionario = document.getElementById("nmFuncionario");
-            const nmFuncionario = selectFuncionario.options[selectFuncionario.selectedIndex]?.textContent.trim().toUpperCase() || '';
-            const idFuncao = document.querySelector("#idFuncao").value;
-            const selectFuncao = document.getElementById("descFuncao");
-            const descFuncao = selectFuncao.options[selectFuncao.selectedIndex]?.textContent.trim().toUpperCase() || '';
-            const vlrCusto = document.querySelector("#vlrCusto").value.trim() || '0';
-            const ajusteCusto = document.querySelector("#ajusteCusto").value.trim() || '0';
-            const transporte = document.querySelector("#transporte").value.trim() || '0';
-    
-            const alimentacao = document.querySelector("#alimentacao").value.trim() || '0';
-            const caixinha = document.querySelector("#caixinha").value.trim() || '0';
-            const idCliente = document.querySelector("#idCliente").value;
-            const selectCliente = document.getElementById("nmCliente");
-            const nmCliente = selectCliente.options[selectCliente.selectedIndex]?.textContent.trim().toUpperCase() || '';
-            const idEvento = document.querySelector("#idEvento").value;
-            const selectEvento = document.getElementById("nmEvento");
-            const nmEvento = selectEvento.options[selectEvento.selectedIndex]?.textContent.trim().toUpperCase() || '';
-            const idEquipe = document.querySelector("#idEquipe").value;
-            const nmEquipe = document.querySelector("#nmEquipe").value.trim().toUpperCase();
-       
+    const periodoMeiaDiaria = (window.meiaDiariaPicker?.selectedDates || [])
+        .map(d => flatpickr.formatDate(d, "Y-m-d"));
 
-            const idMontagem = document.querySelector("#idMontagem").value; // ID do local de montagem (FK)
-            const selectLocalMontagem = document.getElementById("nmLocalMontagem");
-            const nmLocalMontagem = selectLocalMontagem.options[selectLocalMontagem.selectedIndex].textContent.trim();
-            const selectPavilhao = document.getElementById("nmPavilhao");
+    /* ===============================
+       2. FUNÇÃO UTILITÁRIA
+    =============================== */
+    const limparId = (val) =>
+        (val === '' || val === 'null' || val == null || isNaN(val))
+            ? null
+            : parseInt(val);
+
+    /* ===============================
+       3. SELECTS BLINDADOS
+    =============================== */
+    const getSelectText = (id) => {
+        const el = document.getElementById(id);
+        if (!el) return '';
+        const selectedIndex = (typeof el.selectedIndex === 'number') ? el.selectedIndex : -1;
+        if (selectedIndex === -1) return '';
+        const option = (el.options && el.options[selectedIndex]) ? el.options[selectedIndex] : null;
+        if (!option || typeof option.textContent !== 'string') return '';
+        return option.textContent.trim().toUpperCase();
+    };
+
+    const avaliacao = getSelectText("avaliacao");
+    const nmFuncionario = getSelectText("nmFuncionario");
+
+    const selectIdFuncao = document.getElementById("idFuncao");
+    let nmFuncaoRaw = '';
+    // Tenta pegar de #descFuncao (select de função com nomes) primeiro
+    const descFuncaoSelect = document.getElementById('descFuncao');
+    if (descFuncaoSelect) {
+        const si = (typeof descFuncaoSelect.selectedIndex === 'number') ? descFuncaoSelect.selectedIndex : -1;
+        if (si !== -1 && descFuncaoSelect.options && descFuncaoSelect.options[si] && typeof descFuncaoSelect.options[si].textContent === 'string') {
+            nmFuncaoRaw = descFuncaoSelect.options[si].textContent.trim().toUpperCase();
+        }
+    }
+    // Fallback para #idFuncao se não conseguir de #descFuncao
+    if (!nmFuncaoRaw && selectIdFuncao) {
+        const si = (typeof selectIdFuncao.selectedIndex === 'number') ? selectIdFuncao.selectedIndex : -1;
+        if (si !== -1 && selectIdFuncao.options && selectIdFuncao.options[si] && typeof selectIdFuncao.options[si].textContent === 'string') {
+            nmFuncaoRaw = selectIdFuncao.options[si].textContent.trim().toUpperCase();
+        }
+    }
+    if (!nmFuncaoRaw) nmFuncaoRaw = (document.getElementById("nmFuncao")?.value || '').toString().trim().toUpperCase();
+
+    /* ===============================
+       4. IDS E CAMPOS
+    =============================== */
+    const idStaff = document.querySelector("#idStaff")?.value?.trim() || '0';
+
+    const dadosParaEnvio = {
+        avaliacao,
+        idfuncionario: limparId(document.getElementById("idFuncionario")?.value),
+        nmfuncionario: nmFuncionario,
+
+        idfuncao: limparId(selectIdFuncao?.value),
+        nmfuncao: nmFuncaoRaw,
+
+        idcliente: limparId(document.getElementById("idCliente")?.value),
+        nmcliente: getSelectText("nmCliente"),
+
+        idevento: limparId(document.getElementById("idEvento")?.value),
+        nmevento: getSelectText("nmEvento"),
+
+        idmontagem: limparId(document.getElementById("idMontagem")?.value),
+        nmlocalmontagem: getSelectText("nmLocalMontagem"),
+
+        // ✅ SIMPLIFICADO: pavilhao deve sempre usar o valor do setor selecionado
+        pavilhao: (
+            document.getElementById('setor')?.value ||
+            document.getElementById('idPavilhao')?.value ||
+            getSelectText('nmPavilhao') ||
+            ''
+        ).trim().toUpperCase(),
         
-            const inputHiddenPavilhao = document.getElementById('idPavilhao');
-            const pavilhao = inputHiddenPavilhao.value.trim().toUpperCase() || '';
-            const caixinhaAtivo = document.getElementById("Caixinhacheck")?.checked;
-            const ajusteCustoAtivo = document.getElementById("ajusteCustocheck")?.checked;
-            const descBeneficioInput = document.getElementById("descBeneficio");
-            const descBeneficio = descBeneficioInput?.value.trim() || "";
-
-            const descAjusteCustoInput = document.getElementById("descAjusteCusto");
-            const descAjusteCusto = descAjusteCustoInput.value.trim() || "";           
-
-            const setor = document.querySelector("#setor").value.trim().toUpperCase();
-
-            const descCaixinhaInput = document.getElementById("descCaixinha");
-            const descCaixinha = descCaixinhaInput?.value.trim() || "";
-                //const statusCaixinha = document.getElementById("statusCaixinha").value;
-
-            const selectStatusAjusteCusto = document.getElementById("statusAjusteCusto");
-            console.log("Elemento `statusAjusteCusto`:", selectStatusAjusteCusto);
-            let statusAjusteCusto = selectStatusAjusteCusto?.value?.trim() || '';
-
-            console.log("Valor `statusAjusteCusto`:", statusAjusteCusto);
-
-            const selectStatusCaixinha = document.getElementById("statusCaixinha");
-            let statusCaixinha = selectStatusCaixinha?.value?.trim() || '';
-
-            const diariaDobrada = document.getElementById("diariaDobradacheck")?.checked;
-            const meiaDiaria = document.getElementById("meiaDiariacheck")?.checked;
-            let statusDiariaDobrada = document.getElementById("statusDiariaDobrada").value;
-            let statusMeiaDiaria = document.getElementById("statusMeiaDiaria").value;
-
-            const seniorCheck = document.getElementById('Seniorcheck');
-            const plenoCheck = document.getElementById('Plenocheck');
-            const juniorCheck = document.getElementById('Juniorcheck');
-            const baseCheck = document.getElementById('Basecheck');       
-
-            const qtdPessoas = parseInt(document.getElementById('qtdPessoas').value, 10) || 0;
-
-            console.log("QTD PESSOAS", qtdPessoas);
-
-            console.log("STATUS CAIXINHA, AJUSTECUSTO, DIARIADOBRADAINPUT, DATASEVENTOINPUT", statusCaixinha, statusAjusteCusto, diariaDobradaInput, datasEventoInput);
-
-            if (periodoDoEvento.length === 0) {
-                return Swal.fire("Campo obrigatório!", "Por favor, selecione os dias do evento.", "warning");
-            }
-            if (diariaDobradacheck.checked && periodoDobrado.length === 0) {
-                return Swal.fire(
-                    "Campo obrigatório!",
-                    "Por favor, selecione os dias de Dobra no evento.",
-                    "warning"
-                );
-            }
-            if (meiaDiariacheck.checked && periodoMeiaDiaria.length === 0) {
-                return Swal.fire(
-                    "Campo obrigatório!",
-                    "Por favor, selecione os dias de Dobra no evento.",
-                    "warning"
-                );
-            }   
-            const vlrTotal = document.getElementById('vlrTotal').value;
-            const total = parseFloat(
-            vlrTotal
-                .replace('R$', '')
-                .replace(/\./g, '')
-                .replace(',', '.')
-                .trim()
-            ) || 0.00;
-
-            
-            if(!nmFuncionario || !descFuncao || !vlrCusto || !nmCliente || !nmEvento || !periodoDoEvento){
-                return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Funcionário, Função, Cachê, Transportes, Alimentação, Cliente, Evento e Período do Evento.", "warning");
-            }
-
-            if (!seniorCheck.checked &&  !plenoCheck.checked &&  !juniorCheck.checked &&  !baseCheck.checked) {
-                return Swal.fire(
-                    "Nível de Experiência não selecionado!",
-                    "Por favor, selecione pelo menos um nível de experiência: Sênior, Pleno, Júnior ou Base.",
-                    "warning"
-                );
-            }
-
-            if ((caixinhaAtivo) && !descCaixinha) {
-
-                if (descCaixinhaInput) {
-                    descCaixinhaInput.focus();
-                }
-
-                return Swal.fire(
-                    "Campos obrigatórios!",
-                    "Preencha a descrição do benefício (Caixinha) antes de salvar.",
-                    "warning"
-                );
-            }
-
-            if ((ajusteCustoAtivo) && !descAjusteCusto) {
-
-                if (descAjusteCustoInput) {
-                    descAjusteCustoInput.focus();
-                }
-
-                return Swal.fire(
-                    "Campos obrigatórios!",
-                    "Preencha a descrição do bônus antes de salvar.",
-                    "warning"
-                );
-            }
-
-            const viagem1Marcada = document.getElementById('viagem1Check')?.checked || false;
-            const viagem2Marcada = document.getElementById('viagem2Check')?.checked || false;
-            const viagem3Marcada = document.getElementById('viagem3Check')?.checked || false;
-
-            // 1. VERIFICAÇÃO DE OBRIGATORIEDADE
-            if (bForaSP) {
-                // bForaSP está TRUE (Evento é fora de SP)
-                const nenhumaViagemMarcada = !viagem1Marcada && !viagem2Marcada && !viagem3Marcada;
-
-                if (nenhumaViagemMarcada) {
-                    await Swal.fire({
-                        title: "Viagem Obrigatória",
-                        html: "Este evento está cadastrado para ser realizado <strong>fora de São Paulo (SP)</strong>.<br><br>É obrigatório selecionar pelo menos uma opção de <strong>Deslocamento/Viagem</strong> (Viagem 1, Viagem 2 ou Viagem 3) para continuar com o agendamento.",
-                        icon: "error",
-                        confirmButtonText: "Entendi"
-                    });
-                    return; // 🛑 BLOQUEIA O AGENDAMENTO
-                }
-            }
-
-            const temPermissaoCadastrar = temPermissao("Staff", "cadastrar");
-            const temPermissaoAlterar = temPermissao("Staff", "alterar");
-
-            const idStaffEvento = document.querySelector("#idStaffEvento").value;
-
-            const isEditingInitial = !!(currentEditingStaffEvent && currentEditingStaffEvent.idstaffevento);
-
-            const idEventoEmEdicao = isEditingInitial ? currentEditingStaffEvent.idstaffevento : null;           
-
-
-            console.log("EM EDIÇÃO?", isEditingInitial, idEventoEmEdicao);
-
-            let metodo = isEditingInitial ? "PUT" : "POST";
-            let url = isEditingInitial ? `/staff/${idEventoEmEdicao}` : "/staff";
-
-            const idStaffEventoFromObject = currentEditingStaffEvent ? currentEditingStaffEvent.idstaffevento : null;
-
-            const idStaffEventoNumero = parseInt(idStaffEvento, 10);
-
-            if (idStaffEventoFromObject === idStaffEventoNumero)
-            {
-                console.log("IDS SÃO IGUAIS", idStaffEventoFromObject, idStaffEventoNumero);
-            } else {
-                console.log("IDS SÃO DIFERENTES", idStaffEventoFromObject, idStaffEventoNumero);
-            }            
-
-            if (idStaffEvento && isFormLoadedFromDoubleClick && currentEditingStaffEvent && idStaffEventoFromObject === idStaffEventoNumero) {
-                console.log("ENTROU NO METODO PUT");
-                metodo = "PUT";
-                url = `/staff/${idStaffEvento}`;
-                console.log("Modo de edição detectado via idstaffevento e flag. Método:", metodo, "URL:", url);
-            } else {
-
-                metodo = "POST";
-                url = "/staff";
-                console.log("Modo de cadastro detectado. Método:", metodo, "URL:", url, "Status Orcamento", statusOrcamentoAtual);
-
-                currentEditingStaffEvent = null;
-                isFormLoadedFromDoubleClick = false;
-            }
-                      
-            console.log("Modo final:", metodo, "ID EVENTO PARA API:", idEventoEmEdicao);
-
-            if (pavilhao === "SELECIONE O PAVILHÃO") {
-                pavilhao = "";
-            }
-
-            if (metodo === "POST" && !temPermissaoCadastrar) {
-                return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos staffs.", "error");
-            }
-
-            if (metodo === "PUT" && !temPermissaoAlterar) {
-                return Swal.fire("Acesso negado", "Você não tem permissão para alterar staffs.", "error");
-            }
-
-            console.log("--- INÍCIO handleFormSubmit ---");
-            console.log("Método inicial:", metodo); // POST ou PUT
-            console.log("Carregado por duplo clique (isFormLoadedFromDoubleClick):", isFormLoadedFromDoubleClick);
-            console.log("currentEditingStaffEvent (antes da verificação):", currentEditingStaffEvent);
-
-            const idFuncionarioParaVerificacao = idFuncionario; 
-            const idFuncaoDoFormulario = idFuncao;
-            nmFuncaoDoFormulario = descFuncao;     
-            const idEventoPrincipal = idEvento;
-
-            console.log("IdFuncaoDoFormulario do Botão Enviar:", idFuncaoDoFormulario, "NmFuncaoDoFormulario:", nmFuncaoDoFormulario, "IdEvento:", idEventoPrincipal);
-
-            // Validação de pavilhão obrigatório
-            const idorcamento = getUrlParameter('idorcamento');
-            if (idorcamento && idFuncaoDoFormulario) {
-                try {
-                    const pavilhaoObrigatorio = await fetchComToken(`/staff/pavilhao?idmontagem=${idMontagem}&idorcamento=${idorcamento}&idfuncao=${idFuncaoDoFormulario}`);
-                    if (pavilhaoObrigatorio.length > 0 && !pavilhao.trim()) {
-                        return Swal.fire("Campo obrigatório!", "Para esta função, é obrigatório selecionar um pavilhão.", "warning");
-                    }
-                } catch (error) {
-                    console.error("Erro ao verificar pavilhões obrigatórios:", error);
-                }
-            }
-
-            const flatpickrForDatasEvento = window.flatpickrInstances['datasEvento'];
-           
-
-            //-----NOVO TRECHO PARA VERIFICAÇÃO DE FUNCIONÁRIO COM LIMITE DE AGENDAMENTOS POR DIA -----
-            const datasParaVerificacao = periodoDoEvento.map(d => {
-                // 1. Verifica se 'd' é um objeto Date
-                if (d instanceof Date) {
-                    return d.toISOString().split('T')[0];
-                }
-                // 2. Se não for Date, mas for string, retorna a string diretamente.
-                // (Assumindo que strings já estão no formato YYYY-MM-DD, conforme exigido pela API)
-                if (typeof d === 'string') {
-                    return d;
-                }
-                // 3. Caso contrário, ignora (ou trata como erro)
-                return null; 
-            }).filter(d => d !== null);           
-
-           
-            // 1. CHAME A API E OBTENHA TODOS OS CONFLITOS E A CATEGORIA DA FUNÇÃO
-            console.log("Iniciando verificação de disponibilidade do staff...");
-          
-            const apiResult = await verificarDisponibilidadeStaff(
-                idFuncionarioParaVerificacao,             
-                periodoDoEvento,
-                idFuncaoDoFormulario,
-                idEventoEmEdicao
-            );
-            
-            console.log("DIAGNÓSTICO: API retornou! apiResult:", apiResult);
-
-            console.log("Resultado da API (Disponível):", apiResult.isAvailable, "Conflito Encontrado:", apiResult.conflictingEvent);
-
-           
-
-            const { 
-                isAvailable, 
-                conflicts: initialConflicts = [], // Garante que initialConflicts é [] se a propriedade 'conflicts' não vier
-                conflictingEvent // Adiciona para fácil acesso
-            } = apiResult;
- 
-            let conflicts = initialConflicts;      
-            
-            console.log("DIAGNÓSTICO: Número total de eventos conflitantes retornados pela API (conflicts.length):", conflicts.length);
-
-            const totalConflitosExistentes = conflicts.length;
-            
-            
-            if (apiResult.conflictingEvent && !conflicts.some(c => 
-                    Number(c.idstaffevento) === Number(apiResult.conflictingEvent.idstaffevento)
-                )) {
-                conflicts.push(apiResult.conflictingEvent);
-            }
-
-  
-            //const idRegistroEmEdicao = currentEditingStaffEvent?.idstaffevento || document.getElementById('idStaffEvento')?.value;
-            const idRegistroEmEdicaoParaFiltro = currentEditingStaffEvent?.idstaffevento || document.getElementById('idStaffEvento')?.value;
-
-
-            console.log("Valores para busca de duplicidade:");
-            console.log(`- idFuncaoDoFormulario: ${idFuncaoDoFormulario}, Tipo: ${typeof idFuncaoDoFormulario}, Nome: ${nmFuncaoDoFormulario}`);
-            console.log(`- idEventoPrincipal: ${idEventoPrincipal}, Tipo: ${typeof idEventoPrincipal}`); // NOVO LOG
-            console.log(`- idEventoEmEdicao: ${idEventoEmEdicao}, Tipo: ${typeof idEventoEmEdicao}`);          
-
-        //     const periodoStringAtual = (periodoDoEvento || []).sort().join(',');
-        // const periodoStringOriginal = (window.dadosOriginais?.periodo || []).sort().join(',');
-        // const idFuncionarioOriginal = String(window.dadosOriginais?.idFuncionario || "");
-        // const idFuncionarioAtual = String(idStaffEvento); // idFuncionario capturado no início do clique
-
-        // // Se for edição e NÃO mudou data nem funcionário, pulamos tudo
-        // const isEdicao = !!idRegistroEmEdicaoParaFiltro; // ou a lógica que você usa para identificar PUT
-        // const mudouAgenda = (periodoStringAtual !== periodoStringOriginal) || (idFuncionarioAtual !== idFuncionarioOriginal);
-        // console.log("PeriodoStringAtual:", periodoStringAtual, "PeriodoStringOriginal:", periodoStringOriginal, "IdFuncionarioAtual:", idFuncionarioAtual, "IdFuncionarioOriginal:", idFuncionarioOriginal);
-
-
-        // console.log("Verificação de alteração de agenda:", mudouAgenda, isEdicao);
-
-
-        // if (isEdicao && !mudouAgenda) {
-        //     console.log("✅ Alteração informativa detectada. Pulando validações de conflito e duplicidade.");
-        //     // Aqui o código sai desse bloco gigante e vai direto para a parte final de montagem do FormData e Fetch
-        // } else {
-
-            if (metodo === "POST" || (metodo === "PUT" && !isFormLoadedFromDoubleClick)) {
-                console.log("Iniciando verificação de duplicidade. Método Inicial:", metodo, "Carregado por duplo clique:", isFormLoadedFromDoubleClick);
-                try {
-                    const checkDuplicateUrl = `/staff/check-duplicate?` + new URLSearchParams({
-                        idFuncionario: idFuncionario,
-                        nmFuncionario: nmFuncionario,
-                        setor: setor,
-                        nmlocalmontagem: nmLocalMontagem,
-                        nmevento: nmEvento,
-                        nmcliente: nmCliente,
-                        datasevento: JSON.stringify(periodoDoEvento),
-                        idFuncao: idFuncao
-                    }).toString();
-
-                    const duplicateCheckResult = await fetchComToken(checkDuplicateUrl, {
-                        method: 'GET',
-                        headers: { 'Content-Type': 'application/json' }
-                    });
-
-                    console.log("DuplicateCheckResult", duplicateCheckResult);
-
-                    if (duplicateCheckResult.isDuplicate) {
-                        console.log("IsDuplicate");
-
-                        const existingEventData = duplicateCheckResult.existingEvent;
-
-                        console.log("EXISTINGEVENTEDATA", existingEventData);
-                        
-                        // 1. Obtém o ID do evento que estamos tentando salvar (se for uma edição)
-                        const idEventoFormulario = idEvento;
-                        
-                        console.log("IDEVENTOFORMULARIO", idEventoFormulario);
-                        // 2. Define o ID do evento retornado pelo backend
-                        const idEventoDuplicado = existingEventData?.idstaffevento;
-                        
-                        console.log("IDEVENTODUPLICADO", idEventoDuplicado);
-                        // 3. Verifica se o duplicado é o próprio evento em edição (Self-Conflict).
-                        const isSelfConflict = idEventoFormulario && String(idEventoFormulario) === String(idEventoDuplicado);
-
-                        console.log("ISSELFCONFLICT", isSelfConflict);
-                        // Variáveis de comparação:
-                        //const idEventoDoFormulario = document.getElementById('idEvento')?.value; // ID do evento no formulário
-                        //const idFuncaoDoFormulario = document.getElementById('descFuncaoSelect')?.value; // ID da função no formulário
-
-                        console.log("IDS EVENTO E FUNCAO DO FORMULARIO", idFuncaoDoFormulario, idEventoFormulario);
-
-                        const isSameFunction = Number(existingEventData?.idfuncao) === Number(idFuncaoDoFormulario);
-                        // 5. Verifica se o duplicado é para o MESMO evento.
-                        const isSameEvent = Number(existingEventData?.idevento) === Number(idEventoFormulario);
-
-                        console.log("IS SAME FUNCTION E EVENT", isSameFunction, isSameEvent);
-                        
-                        // A. SE É O PRÓPRIO EVENTO EM EDIÇÃO (Self-Conflict)
-                        if (isSelfConflict) {
-                            console.log("Evento existente detectado e em modo de edição. É o mesmo registro (Self-Conflict). Prosseguindo para verificação de alteração.");
-                            metodo = "PUT"; // Garante que o método continua PUT
-                            url = `/staff/${existingEventData.idstaffevento}`; // Garante a URL correta
-                            currentEditingStaffEvent = existingEventData; // Atualiza com os dados mais recentes do backend
-                            // Prossegue para checagem de limites.
-                            
-                        // B. SE É UM CONFLITO E NÃO É O PRÓPRIO EVENTO EM EDIÇÃO (Conflito Real de Agenda)
-                        } else { 
-                            
-                            // Conflito 1: Duplicidade Estrita (mesma função, ID diferente).
-                            if (isSameFunction) {
-                                
-                                console.log("!!! DUPLICADO ENCONTRADO (STRICT) !!!");
-
-                                await Swal.fire({
-                                    icon: "error", // Altera para ícone de erro
-                                    title: "Cadastro Duplicado!",
-                                    html: `O evento para o funcionário <strong>${nmFuncionario}</strong> com a função <strong>${existingEventData.nmfuncao}</strong> e datas selecionadas JÁ ESTÁ CADASTRADO, não permitindo cadastrar novamente.<br><br>É necessário editar o registro existente, e não criar um novo.`,
-                                    confirmButtonText: "Entendido",
-                                });
-
-                                console.log("Usuário bloqueado de cadastrar duplicidade estrita.");
-                                return; // 🛑 BLOQUEIA e encerra a execução.
-                                
-                            }                             
-                        }
-
-                    } else {
-
-                        console.log("Nenhum evento duplicado encontrado. Prosseguindo com o método original:", metodo);
-                    }
-                } catch (error) {
-                    console.error("Erro na verificação de duplicidade:", error);
-                    Swal.fire("Erro", error.message || "Não foi possível verificar duplicidade. Tente novamente.", "error");
-                    return; // Bloqueia o envio se houver erro na verificação
-                }
-            } else {
-                console.log("Pulando verificação de duplicidade (modo de edição via duplo clique já está ativo).");
-            }
-
-            // Variável Local (Adapte conforme onde você obtém a categoria)
-            const categoriaFuncaoDoFormulario = categoriaFuncao || 'PADRAO'; 
-            
-            // Variável de ID Fiscal (manter para o limite 2)
-            const FUNCOES_EXCECAO_IDS = ['6']; // FISCAL NOTURNO ID 6, etc.
-           
-            //const idRegistroEmEdicaoParaFiltro = currentEditingStaffEvent?.idstaffevento || document.getElementById('idStaffEvento')?.value;
-
-            // 2. FILTRAR E CONTAR CONFLITOS
-            // Filtra os eventos conflitantes que NÃO são o registro de staff que estamos AGORA editando/atualizando.
-            const conflitosReais = conflicts ? conflicts.filter(c => String(c.idstaffevento) !== String(idRegistroEmEdicaoParaFiltro)) : [];
-
-            // Obtém o número total de eventos já agendados (excluindo o atual)
-           // const totalConflitosExistentes = conflitosReais.length;
-            
-            let limiteMaximo;
-            let motivoLiberacao = null;
-
-            // 3. Define o limite de acordo com a categoria
-            if (categoriaFuncaoDoFormulario === 'ATENDIMENTO PRÉ-EVENTO') {
-                limiteMaximo = 4;
-                motivoLiberacao = "A categoria <br>ATENDIMENTO PRÉ-EVENTO</br> permite até 4 agendamentos, por funcionário parao mesmo dia.";
-            } 
-            else {
-                //if (FUNCOES_EXCECAO_IDS.includes(String(idFuncaoDoFormulario))) {
-                limiteMaximo = 2;
-                motivoLiberacao = "É permitido até 2 agendamentos, por funcionário para o mesmo dia.";
-            } 
-            
-           
-
-            if (totalConflitosExistentes > 0) {
-                const datasConflito = encontrarDatasConflitantes(datasParaVerificacao, conflitosReais);
-                const datasFormatadas = formatarDatas(datasConflito);
-                
-                let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado em <br>${totalConflitosExistentes}</br> atividade(s) `;
-                
-                // Adiciona as datas conflitantes à mensagem
-                if (datasConflito.length > 0) {
-                    msg += `na(s) data(s) conflitante(s): <strong>${datasFormatadas}</strong>.`;
-                }
-
-                // 3.1: VERIFICA SE O LIMITE FOI ATINGIDO OU EXCEDIDO (SOLICITA AUTORIZAÇÃO)
-                if (totalConflitosExistentes >= limiteMaximo) {
-                    
-                    // --- NOVO PASSO 1: VERIFICAÇÃO DE STATUS EXISTENTE (PENDENTE/AUTORIZADO) ---
-                   
-                    if (!idOrcamentoAtual) {
-                        await Swal.fire("Erro", "Não foi possível obter o ID do Orçamento (idOrcamento) necessário para a solicitação.", "error");
-                        return; 
-                    }
-
-                    const aditivoExistente = await verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulario, 'FuncExcedido', idFuncionarioParaVerificacao, nmFuncionario);
-
-                    if (aditivoExistente === false) {
-                        return; // 🛑 BLOQUEIA O AGENDAMENTO AQUI E SAI DA FUNÇÃO PRINCIPAL.
-                    }
-                    
-                    if (aditivoExistente.encontrado) {
-                        
-                        // A. STATUS PENDENTE: BLOQUEIA
-                        if (aditivoExistente.status === 'Pendente') {
-                            // await Swal.fire({
-                            //     title: "Solicitação Pendente",
-                            //     html: `Já existe uma solicitação de exceção <strong>PENDENTE</strong> para esta função, evento e período (ID: ${aditivoExistente.detalhes.idAditivoExtra}). Aguarde a aprovação.`,
-                            //     icon: "info",
-                            //     confirmButtonText: "Entendi"
-                            // });
-                            //return; // Bloqueia o agendamento
-                        }
-
-                        // B. STATUS AUTORIZADO: PROSSEGUE SEM NOVA SOLICITAÇÃO
-                        if (aditivoExistente.status === 'Autorizado') {
-                            await Swal.fire({
-                                title: "Autorização Existente",
-                                html: `Já existe uma solicitação de exceção <strong>AUTORIZADA</strong> para esta função, evento e período (ID: ${aditivoExistente.detalhes.idAditivoExtra}). O agendamento será processado sem gerar um novo aditivo.`,
-                                icon: "success",
-                                confirmButtonText: "Prosseguir com o Agendamento"
-                            });
-                            return; // PROSSEGUE (pula o restante do bloco IF)
-                        }
-                        
-                        // C. Se o status for Rejeitado ou outro, o código continua para criar uma nova solicitação.
-                    }
-                    
-                    // --- PASSO 2: CRIAÇÃO DE NOVA SOLICITAÇÃO DE ADITIVO (Se necessário) ---
-                    
-                    // Mensagem padrão para solicitação de autorização
-                    msg += `<br><br>⚠️ <strong>LIMITE ATINGIDO!</strong> O limite máximo é de <strong>${limiteMaximo}</strong> agendamentos por funcionário para o mesmo dia.`;
-                    msg += `<br><br>Eventos Agendados (${totalConflitosExistentes}):`;
-                    conflitosReais.forEach(c => {
-                        msg += `<br> - <strong>${c.nmevento || 'N/A'}</strong> (Função: ${c.nmfuncao})`;
-                    });
-
-                    msg += `<br><br>Para continuar, você deve SOLICITAR AUTORIZAÇÃO por exceder o limite. Deseja prosseguir?`;
-                    
-                    let justificativa = '';
-                    let isConfirmed = false;
-                    const swalResult =  await Swal.fire({
-                    //const { value: justificativa, isConfirmed } = await Swal.fire({
-                        title: "Solicitar Autorização de Exceção?",
-                        html: `
-                            ${msg}<br>
-                            <label for="swal-input-justificativa">Justificativa:</label>
-                            <textarea id="swal-input-justificativa" class="swal2-textarea" placeholder="Descreva o motivo..." required></textarea>
-                        `, 
-                        icon: "warning", 
-                        showCancelButton: true,
-                        confirmButtonText: "Sim, Solicitar Autorização e Agendar",
-                        cancelButtonText: "Não, Cancelar Agendamento",
-                        preConfirm: () => {
-                            const input = document.getElementById('swal-input-justificativa').value.trim();
-                            if (!input) {
-                                Swal.showValidationMessage('A justificativa é obrigatória para a solicitação.');
-                                return false;
-                            }
-                            return input; 
-                        }
-                    });
-
-                    justificativa = swalResult.value || '';
-                    isConfirmed = swalResult.isConfirmed;
-
-                    if (!isConfirmed) {
-                        return; // **Cancela o envio**
-                    }
-                    console.log("Justificativa confirmada e pronta para processamento:", justificativa);
-                    
-                    try { 
-                        // 2.1: AJUSTE DA JUSTIFICATIVA COM O PERÍODO (MOVIDO PARA DENTRO DO TRY)
-                        const { dtInicio, dtFim } = getPeriodoEvento(datasParaVerificacao);
-                        let justificativaFinal = justificativa;
-
-                        if (dtInicio && dtFim) {
-                            // Adiciona o período do novo agendamento à justificativa
-                            justificativaFinal = `[Período Agendamento: ${dtInicio} a ${dtFim}] - ${justificativa}`;
-                        }
-                        
-                        console.log("IdFuncaoDoFormulario Antes de Salvar Solicitação:", idFuncaoDoFormulario, "NmFuncaoDoFormulario:", nmFuncaoDoFormulario);
-                        
-                        const result = await salvarSolicitacaoAditivoExtra(
-                            idOrcamentoAtual, 
-                            idFuncaoDoFormulario,                       
-                            1, // Solicitando +1 (para o agendamento atual)
-                            'FuncExcedido', 
-                            justificativaFinal, // Usar a justificativa ajustada
-                            idFuncionarioParaVerificacao
-                        );                       
-                        
-
-                        // Flag para rastrear o resultado e o ID, e se foi cancelado
-                        let solicitacaoInfo = { 
-                            salva: false, 
-                            id: null, 
-                            cancelada: !isConfirmed 
-                        };
-
-                        // 1. TENTA SALVAR A SOLICITAÇÃO APENAS SE O USUÁRIO CONFIRMOU A JUSTIFICATIVA
-                        if (isConfirmed) {
-                            try { 
-                                // 2.1: AJUSTE DA JUSTIFICATIVA COM O PERÍODO
-                                // Certifique-se de que a função getPeriodoEvento foi definida antes (conforme discutido anteriormente)
-                                const { dtInicio, dtFim } = getPeriodoEvento(datasParaVerificacao);
-                                let justificativaFinal = justificativa;
-
-                                if (dtInicio && dtFim) {
-                                    justificativaFinal = `[Período Agendamento: ${dtInicio} a ${dtFim}] - ${justificativa}`;
-                                }
-                                
-                                console.log("IdFuncaoDoFormulario Antes de Salvar Solicitação:", idFuncaoDoFormulario, "NmFuncaoDoFormulario:", nmFuncaoDoFormulario);
-                                
-                                const result = await salvarSolicitacaoAditivoExtra(
-                                    idOrcamentoAtual, 
-                                    idFuncaoDoFormulario,             
-                                    1, // Solicitando +1
-                                    'FuncExcedido', 
-                                    justificativaFinal,
-                                    idFuncionarioParaVerificacao
-                                );
-
-                                if (!result.sucesso) {
-                                    await Swal.fire("Falha na Solicitação", `Não foi possível registrar a solicitação de exceção. Detalhes: <strong>${result.erro}</strong>`, "error");
-                                    return; // Bloqueia o agendamento em caso de falha no servidor/API
-                                }
-
-                                // Sucesso
-                                solicitacaoInfo.salva = true;
-                                solicitacaoInfo.id = result.idAditivoExtra;
-                                
-                            } catch (error) {
-                                console.error("Erro inesperado no fluxo de aditivo:", error);
-                                await Swal.fire("Erro Crítico", `Ocorreu um erro inesperado durante a solicitação de aditivo. Verifique o console. Detalhes: ${error.message}`, "error");
-                                return; // Bloqueia o agendamento em caso de erro crítico
-                            }
-                        }
-
-                        // 2. EXIBIÇÃO DO SWAL DE DECISÃO FINAL (Unificado para Sucesso ou Cancelamento)
-
-                        let swalTitle;
-                        let htmlMessage;
-                        let swalIcon;
-
-                        if (solicitacaoInfo.salva) {
-                            swalTitle = "Solicitação Pendente Registrada!";
-                            htmlMessage = `Sua solicitação de exceção foi registrada com sucesso e está <strong>Pendente de aprovação<strong>. O agendamento do staff <strong>NÃO<strong> foi realizado.`;
-                            swalIcon = "info";
-                        } else if (solicitacaoInfo.cancelada) {
-                            swalTitle = "Agendamento Cancelado";
-                            htmlMessage = `Você optou por <strong>NÃO</strong> solicitar a autorização de exceção. O agendamento foi cancelado.`;
-                            swalIcon = "warning";
-                        } else {
-                            // Se não salvou e não foi cancelado (o que indica que o 'return' foi chamado acima devido a um erro de API)
-                            return;
-                        }
-
-                        htmlMessage += `<br><br>Qual a próxima ação?`;
-
-                        const resultDecisao = await Swal.fire({
-                            title: swalTitle,
-                            html: htmlMessage,
-                            icon: swalIcon,
-                            showCancelButton: true,
-                            showDenyButton: true,
-                            confirmButtonText: "Cadastrar mais um (Manter evento/função)",
-                            cancelButtonText: "Finalizar e Sair",
-                            denyButtonText: "Cadastrar novo staff (Limpar tudo)",
-                            reverseButtons: true,
-                            focusCancel: true
-                        });
-
-                        // 3. TRATAMENTO DA DECISÃO DO USUÁRIO
-                        if (resultDecisao.isConfirmed) {
-                            console.log("Usuário escolheu: Cadastrar mais um (Manter evento/função)");
-                            if (typeof limparCamposStaffParcial === "function") {
-                                limparCamposStaffParcial();
-                            } else {
-                                console.error("limparCamposStaffParcial não está definida. Limpando tudo.");
-                                limparCamposStaff();
-                            }
-                        } else if (resultDecisao.isDenied) {
-                            console.log("Usuário escolheu: Cadastrar novo staff (Limpar tudo)");
-                            limparCamposStaff();
-                        } else if (resultDecisao.dismiss === Swal.DismissReason.cancel) {
-                            console.log("Usuário escolheu: Finalizar e Sair");
-                            if (typeof fecharModal === "function") {
-                                fecharModal();
-                                window.location.reload();
-                            } else {
-                                document.getElementById("modal-overlay").style.display = "none";
-                                document.getElementById("modal-container").innerHTML = "";
-                                document.body.classList.remove("modal-open");
-                            }
-                        }
-
-                        return; // 🛑 ESSENCIAL: Bloqueia o agendamento do staff. A decisão já foi tomada.
-
-                    } catch (error) {
-                        console.error("Erro inesperado no fluxo de aditivo:", error);
-                        await Swal.fire("Erro Crítico", `Ocorreu um erro inesperado durante a solicitação de aditivo. Verifique o console. Detalhes: ${error.message}`, "error");
-                        return; // Bloqueia o agendamento
-                    }
-
-
-                } else {
-                    // 3.2: Conflito, mas DENTRO do Limite (Aviso com Permissão - Lógica Original)
-                    
-                    // *** AVISO: Conflito, mas DENTRO do Limite ***
-                    
-                    msg += `<br><br>Você está tentando agendar o <strong>${(totalConflitosExistentes + 1)}º</strong> evento.`;
-                    msg += `<br>Motivo do Prosseguimento: <strong>${motivoLiberacao}</strong>`;
-                    
-                    msg += `<br><br>Eventos Agendados (${totalConflitosExistentes}):`;
-                    conflitosReais.forEach(c => {
-                        msg += `<br> - <strong>${c.nmevento || 'N/A'}</strong> (Função: ${c.nmfuncao})`;
-                    });
-
-                    msg += `<br><br>Deseja continuar com o agendamento? (Limite total: ${limiteMaximo})`;
-
-                    const { isConfirmed } = await Swal.fire({
-                        title: "Atenção: Conflito de Agendamento!",
-                        html: msg,
-                        icon: "warning",
-                        showCancelButton: true,
-                        confirmButtonText: "Sim, continuar",
-                        cancelButtonText: "Não, cancelar",
-                    });
-
-                    if (!isConfirmed) {
-                        return; // **Cancela o envio**
-                    }
-                    
-                }
-            }
+        setor: (
+            document.getElementById('setor')?.value ||
+            document.getElementById('idPavilhao')?.value ||
+            getSelectText('nmPavilhao') ||
+            ''
+            ).trim().toUpperCase(),
+
+        // Backend espera 'vlrcache'; no DOM o campo é '#vlrCusto'
+        vlrcache: (function(){
+            const raw = document.getElementById("vlrCusto")?.value || '0';
+            const norm = raw.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
+            return norm || '0';
+        })(),
+        vlrajustecusto: document.getElementById("vlrAjusteCusto")?.value || '0',
+        vlrtransporte: document.getElementById("vlrTransporte")?.value || '0',
+        vlralimentacao: document.getElementById("vlrAlimentacao")?.value || '0',
+        vlrcaixinha: document.getElementById("vlrCaixinha")?.value || '0',
+
+        descajustecusto: document.getElementById("descAjusteCusto")?.value || '',
+        descbeneficios: document.getElementById("descBeneficios")?.value || '',
+
+        vlrtotal: (document.getElementById("vlrTotal")?.value || "0")
+            .replace("R$ ", "")
+            .replace(/\./g, "")
+            .replace(",", "."),
+
+        statuspgto: '',
+        statuspgtoajdcto: '',
+        statuspgtocaixinha: '',
+        statusajustecusto: '',
+        statuscaixinha: '',
+
+        descdiariadobrada: document.getElementById("descDiariaDobrada")?.value || '',
+        descmeiadiaria: document.getElementById("descMeiaDiaria")?.value || '',
+        desccaixinha: document.getElementById("descCaixinha")?.value || '',
+
+        tipoajudacustoviagem: document.getElementById("tipoAjudaCustoViagem")?.value || '0',
+        nivelexperiencia: document.getElementById("nivelExperiencia")?.value || '',
+
+        qtdpessoas: '0',
+
+        idequipe: limparId(document.getElementById("idEquipe")?.value),
+        nmequipe: document.getElementById("nmEquipe")?.value || '',
+
+        datasevento: JSON.stringify(periodoDoEvento),
+        datadiariadobrada: JSON.stringify(periodoDobrado),
+        datameiadiaria: JSON.stringify(periodoMeiaDiaria),
+
+        idorcamento: limparId(document.getElementById("idorcamento")?.value) || limparId(getUrlParameter('idorcamento'))
+    };
+
+    /* ===============================
+       5. VALIDAÇÃO DE LIMITE
+    =============================== */
+    if (typeof verificarLimiteDeFuncao === "function") {
+        console.log("🔍 [LIMITE] Dados enviados para verificação:", {
+            nmEvento: dadosParaEnvio.nmevento,
+            nmCliente: dadosParaEnvio.nmcliente,
+            nmlocalMontagem: dadosParaEnvio.nmlocalmontagem,
+            nmFuncao: dadosParaEnvio.nmfuncao,
+            setor: dadosParaEnvio.setor,
+            pavilhao: dadosParaEnvio.pavilhao,
+            idFuncao: dadosParaEnvio.idfuncao
+        });
         
-           // } // Fecha o bloco ELSE do isEdicao e mudouAgenda
-
-            //----- FIM DO TRECHO DE VERIFICAÇÃO DE LIMITE DE AGENDAMENTOS POR DIA -----
-
-            console.log("Preparando dados para envio:", {
-                nmFuncionario, descFuncao, nmLocalMontagem, nmCliente, nmEvento, vlrCusto, ajusteCusto, transporte, alimentacao, caixinha,
-                periodoDoEvento, vlrTotal
-            });
-
-            if (metodo === "POST")
-            {
-                const datasSelecionadas = window.flatpickrInstances['datasEvento']?.selectedDates.map(date => {
-                    return date.toISOString().split('T')[0];
-                }) || []; // Adicione um fallback para um array vazio
-
-                // Corrija a linha para usar o 'chaining opcional' e um fallback
-                const datasDobradas = window.flatpickrInstances['diariaDobrada']?.selectedDates.map(date => {
-                    return date.toISOString().split('T')[0];
-                }) || []; 
-
-                const periodoDoEvento = [...datasSelecionadas, ...datasDobradas];
-
-                const criteriosDeVerificacao = {
-                
-                    nmEvento: nmEventoSelect.options[nmEventoSelect.selectedIndex].text,
-                    nmCliente: nmClienteSelect.options[nmClienteSelect.selectedIndex].text,
-                    nmlocalMontagem: nmLocalMontagemSelect.options[nmLocalMontagemSelect.selectedIndex].text,
-                    nmFuncao: descFuncaoSelect.options[descFuncaoSelect.selectedIndex].text,                    
-                    pavilhao: nmPavilhaoSelect.options[nmPavilhaoSelect.selectedIndex].text,
-                    datasEvento: datasSelecionadas,
-                    datasEventoDobradas: datasDobradas,
-                    idFuncao: descFuncaoSelect.value
-                };
-
-                // if (!isFormLoadedFromDoubleClick && !verificarLimiteDeFuncao(criteriosDeVerificacao)) {
-
-                //     return;
-                // }
-
-                //NOVO: Verificação de limite de vagas orçadas
-                if (!isFormLoadedFromDoubleClick) {
-                   // controlarBotaoSalvarStaff(false);
-                    // 1. VERIFICAÇÃO DE LIMITE DE QUANTIDADE (VAGAS)
-                    const resultadoFuncao = await verificarLimiteDeFuncao(criteriosDeVerificacao);
-
-                    if (!resultadoFuncao.allowed) {
-                        controlarBotaoSalvarStaff(false); //se puder cadastrar mais liberar o botão dqui
-                        return; // Bloqueia o cadastro se o usuário cancelou no modal de quantidade
-                    }
-
-                    // Inicializa com o resultado da verificação de QUANTIDADE
-                    statusAditivoFinal = resultadoFuncao.statusAditivo;
-                    statusExtraBonificadoFinal = resultadoFuncao.statusExtraBonificado;
-
-                    // 2. VERIFICAÇÃO DE DATAS FORA DO ORÇAMENTO (Variável Global)
-                    // Verifica se houve decisão de Aditivo/Extra na etapa de seleção de datas
-                    if (typeof decisaoUsuarioDataFora !== 'undefined' && decisaoUsuarioDataFora !== null) {
-                        console.log("Aplicando decisão manual por Data Fora do Orçamento:", decisaoUsuarioDataFora);
-
-                        if (decisaoUsuarioDataFora === 'ADITIVO') {
-                            statusAditivoFinal = 'Pendente';
-                        } else if (decisaoUsuarioDataFora === 'EXTRA') {
-                            statusExtraBonificadoFinal = 'Pendente';
-                        }
-                    }
-                    
-                    console.log(
-                        "Status Final Consolidado -> Aditivo:", statusAditivoFinal, 
-                        "| Extra Bonificado:", statusExtraBonificadoFinal
-                    );
-                    
-                }
-                
-
-            }            
-
-
-            const formData = new FormData();
-            // Adiciona todos os campos de texto ao FormData
-            formData.append('avaliacao', avaliacao);
-            formData.append('idfuncionario', idFuncionario);
-            formData.append('nmfuncionario', nmFuncionario);
-            formData.append('idfuncao', idFuncao);
-            formData.append('nmfuncao', descFuncao);
-            formData.append('idcliente', idCliente);
-            formData.append('nmcliente', nmCliente);
-            formData.append('idevento', idEvento);
-            formData.append('nmevento', nmEvento);
-            formData.append('idmontagem', idMontagem);
-            formData.append('nmlocalmontagem', nmLocalMontagem);
-            formData.append('pavilhao', pavilhao);
-            formData.append('vlrcache', vlrCusto);
-            formData.append('vlrajustecusto', ajusteCusto);
-            formData.append('vlrtransporte', transporte);     
-            formData.append('vlralimentacao', alimentacao);
-            formData.append('vlrcaixinha', caixinha);
-            formData.append('descajustecusto', ajusteCustoTextarea.value.trim());
-            formData.append('datasevento', JSON.stringify(periodoDoEvento));
-            formData.append('vlrtotal', total.toString());
-
-
-            const fileCacheInput = document.getElementById('fileCache');
-            const hiddenRemoverCacheInput = document.getElementById('limparComprovanteCache');
-            let comppgtocacheDoForm;
-
-            if (fileCacheInput.files && fileCacheInput.files[0]) {
-
-                formData.append('comppgtocache', fileCacheInput.files[0]);
-                comppgtocacheDoForm = 'novo-arquivo';
-            } else if (hiddenRemoverCacheInput.value === 'true') {
-
-                formData.append('limparComprovanteCache', 'true');
-                comppgtocacheDoForm = '';
-            } else if (currentEditingStaffEvent && currentEditingStaffEvent.comppgtocache) {
-
-                comppgtocacheDoForm = currentEditingStaffEvent.comppgtocache;
-            } else {
-
-                comppgtocacheDoForm = '';
-            }
-
-
-            const fileAjdCustoInput = document.getElementById('fileAjdCusto');
-            const hiddenRemoverAjdCustoInput = document.getElementById('limparComprovanteAjdCusto');
-
-            const fileAjdCusto2Input = document.getElementById('fileAjdCusto2');
-            const hiddenRemoverAjdCusto2Input = document.getElementById('limparComprovanteAjdCusto2');
-            let comppgtoajdcustoDoForm;
-            let comppgtoajdcusto50DoForm;
-
-            if (fileAjdCustoInput.files && fileAjdCustoInput.files[0]) {
-                formData.append('comppgtoajdcusto', fileAjdCustoInput.files[0]);
-                comppgtoajdcustoDoForm = 'novo-arquivo';
-            } else if (hiddenRemoverAjdCustoInput.value === 'true') {
-                formData.append('limparComprovanteAjdCusto', 'true');
-                comppgtoajdcustoDoForm = '';
-            } else if (currentEditingStaffEvent && currentEditingStaffEvent.comppgtoajdcusto) {
-                comppgtoajdcustoDoForm = currentEditingStaffEvent.comppgtoajdcusto;
-            } else {
-                comppgtoajdcustoDoForm = '';
-            }
-
-            if (fileAjdCusto2Input.files && fileAjdCusto2Input.files[0]) {
-                formData.append('comppgtoajdcusto50', fileAjdCusto2Input.files[0]);
-                comppgtoajdcusto50DoForm = 'novo-arquivo';
-            } else if (hiddenRemoverAjdCusto2Input.value === 'true') {
-                formData.append('limparComprovanteAjdCusto2', 'true');
-                comppgtoajdcusto50DoForm = '';
-            } else if (currentEditingStaffEvent && currentEditingStaffEvent.comppgtoajdcusto50) {
-                comppgtoajdcusto50DoForm = currentEditingStaffEvent.comppgtoajdcusto50;
-            } else {
-                comppgtoajdcusto50DoForm = '';
-            }
-
-            const fileCaixinhaInput = document.getElementById('fileCaixinha');
-            const hiddenRemoverCaixinhaInput = document.getElementById('limparComprovanteCaixinha');
-            let comppgtocaixinhaDoForm;
-
-            if (fileCaixinhaInput.files && fileCaixinhaInput.files[0]) {
-                formData.append('comppgtocaixinha', fileCaixinhaInput.files[0]);
-                comppgtocaixinhaDoForm = 'novo-arquivo';
-            } else if (hiddenRemoverCaixinhaInput.value === 'true') {
-                formData.append('limparComprovanteCaixinha', 'true');
-                comppgtocaixinhaDoForm = '';
-            } else if (currentEditingStaffEvent && currentEditingStaffEvent.comppgtocaixinha) {
-                comppgtocaixinhaDoForm = currentEditingStaffEvent.comppgtocaixinha;
-            } else {
-                comppgtocaixinhaDoForm = '';
-            }
-
-            formData.append('descbeneficios', descBeneficioTextarea.value.trim());
-            formData.append('setor', setor);
-
-            let statusPgto = document.querySelector("#statusPgto")?.value || ''; 
-            let statusPgtoAjusteCusto = document.querySelector("#statusPgtoAjudaCusto")?.value || ''; 
-            let statusPgtoCaixinha = document.querySelector("#statusPgtoCaixinha")?.value || '';           
-
-            console.log("VALORES CUSTOS ANTES", vlrCusto, ajusteCusto, caixinha, alimentacao, transporte);
-            const custosVazios = ajusteCusto === 0 && caixinha === 0 && alimentacao === 0 && transporte === 0;
-            console.log("VALORES CUSTOS DEPOIS", vlrCusto, ajusteCusto, caixinha, alimentacao, transporte, comppgtocacheDoForm, comppgtocacheDoForm, comppgtocaixinhaDoForm);
-
-            const vlrAjusteCusto = parseFloat(ajusteCusto);
-            const vlrCache = parseFloat(vlrCusto);
-            const vlrAlimentacao = parseFloat(alimentacao);
-            const vlrTransporte = parseFloat(transporte);
-            const vlrCaixinha = parseFloat(caixinha);
-
-            const temComprovanteCache = !!comppgtocacheDoForm;
-            const temComprovanteAjudaCusto = !!comppgtoajdcustoDoForm;
-            const temComprovanteAjudaCusto50 = !!comppgtoajdcusto50DoForm;
-            const temComprovanteCaixinha = !!comppgtocaixinhaDoForm;
-
-            const cachePago = (vlrCache > 0 && temComprovanteCache);
-            const ajudaCustoPaga = ((vlrAlimentacao > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto);
-            const caixinhasPagos = ((vlrCaixinha > 0) && temComprovanteCaixinha);
-
-
-            // if (cachePago && ajudaCustoPaga && caixinhasPagos) {
-            //     statusPgto = "Pago";
-            // } else if (
-            //     (vlrCache <= 0 || (vlrCache > 0 && temComprovanteCache)) && // Se o cache não precisa de comprovação ou está pago
-            //     ((vlrAlimentacao <= 0 && vlrTransporte <= 0) || ((vlrAlimentacao > 0 || vlrTransporte > 0) && temComprovanteAjudaCusto)) && // Mesma lógica para ajuda de custo
-            //     (vlrCaixinha <= 0 || (vlrCaixinha > 0 && temComprovanteCaixinha))
-            // ) {
-
-            //     statusPgto = "Pago";
-            // } else {
-            //     statusPgto = "Pendente";
-            // }       
-            
-            
-            // if (statusPgto !== "Pago") {
-            //     if (vlrCache > 0 && !!comppgtocacheDoForm) {
-            //         statusPgto = "Pago";
-            //     } else {
-            //         statusPgto = "Pendente";
-            //     }
-            // }
-
-            if (vlrCaixinha === 0) { 
-                // Se não tem valor, o status deve ser vazio, conforme solicitado.
-                statusCaixinha = '';  
-            }
-
-            if (vlrAjusteCusto === 0) { 
-                // Se não tem valor, o status deve ser vazio, conforme solicitado.
-                statusAjusteCusto = '';  
-            }
-
-            // if (statusPgtoAjusteCusto !== "Pago" && statusPgtoAjusteCusto !== "Pago50") {
-            //     if (temComprovanteAjudaCusto) {
-            //         statusPgtoAjusteCusto = "Pago";
-            //     } else if (temComprovanteAjudaCusto50) {
-            //         statusPgtoAjusteCusto = "Pago50";
-            //     } else {
-            //         statusPgtoAjusteCusto = "Pendente";
-            //     }
-            // } else {
-            //     // Se já estava Pago ou Pago50, mas agora subiram o comprovante total, forçamos "Pago"
-            //     if (temComprovanteAjudaCusto) {
-            //         statusPgtoAjusteCusto = "Pago";
-            //     }
-            // }
-
-            // if (statusPgtoCaixinha !== "Pago") {
-            //     if (temComprovanteCaixinha) {
-            //         statusPgtoCaixinha = "Pago";
-            //     } else {
-            //         statusPgtoCaixinha = "Pendente";
-            //     }
-            // }
-
-            //if (vlrAjusteCusto === 0) statusPgtoAjusteCusto = '';
-            //if (vlrCaixinha === 0) statusPgtoCaixinha = '';
-
-            formData.append('statuspgto', statusPgto);
-            formData.append('statuspgtoajdcto', statusPgtoAjusteCusto);
-            formData.append('statuspgtocaixinha', statusPgtoCaixinha);
-
-            formData.append('statusajustecusto', statusAjusteCusto);
-            formData.append('statuscaixinha', statusCaixinha);            
-            formData.append('descdiariadobrada', descDiariaDobradaTextarea.value.trim());
-            formData.append('descmeiadiaria', descMeiaDiariaTextarea.value.trim());
-            formData.append('desccaixinha', descCaixinhaTextarea.value.trim()); 
-            
-            let tipoAjudaCustoViagem = 0; // Valor padrão (nenhum ou erro)
-
-            if (document.getElementById('viagem1Check').checked) tipoAjudaCustoViagem = 1;
-            else if (document.getElementById('viagem2Check').checked) tipoAjudaCustoViagem = 2;
-            else if (document.getElementById('viagem3Check').checked) tipoAjudaCustoViagem = 3;
-
-            formData.append('tipoajudacustoviagem', tipoAjudaCustoViagem.toString());
-        
-            let nivelExperienciaSelecionado ="";
-
-            if (seniorCheck.checked) {
-                nivelExperienciaSelecionado =  "Senior";
-            } 
-            if (plenoCheck.checked) {
-                nivelExperienciaSelecionado =  "Pleno";
-            } 
-            if (juniorCheck.checked) {
-                nivelExperienciaSelecionado =  "Junior";
-            } 
-            if (baseCheck.checked) {
-                nivelExperienciaSelecionado =  "Base";
-            }
-
-            formData.append('nivelexperiencia', nivelExperienciaSelecionado);
-            formData.append('qtdpessoas', qtdPessoas.toString());
-
-            console.log("ENVIANDO ID E NOME EQUIPE", idEquipe, nmEquipe);
-            formData.append('idequipe', idEquipe);
-            formData.append('nmequipe', nmEquipe);
-
-            console.log("Status Diaria Dobrada", statusDiariaDobrada, statusMeiaDiaria);
-
-        
-            if (diariaDobrada === true ){
-                if (statusDiariaDobrada === "Autorização de Diária Dobrada"){
-
-                    statusDiariaDobrada = "Pendente";
-                }
-            }else{
-                statusDiariaDobrada = '';
-            }
-            if (meiaDiaria === true && statusMeiaDiaria === "Autorização de Meia Diária"){          
-                if (statusMeiaDiaria === "Autorização de Meia Diária"){
-                    statusMeiaDiaria = "Pendente";
-                }
-                
-            }else{
-                statusMeiaDiaria = '';
-            }
-
-            let dadosDiariaDobrada = [];
-            if (periodoDobrado && periodoDobrado.length > 0) {
-                dadosDiariaDobrada = periodoDobrado.map(data => {
-                    const statusData = datasDobrada.find(item => item.data === data);
-                    return {
-                        data: data,
-                        status: statusData ? statusData.status : statusDiariaDobrada
-                    };
-                });
-            }
-
-            let dadosMeiaDiaria = [];
-            if (periodoMeiaDiaria && periodoMeiaDiaria.length > 0) {
-                dadosMeiaDiaria = periodoMeiaDiaria.map(data => {
-                    const statusData = datasMeiaDiaria.find(item => item.data === data);
-                    return {
-                        data: data,
-                        status: statusData ? statusData.status : statusMeiaDiaria
-                    };
-                });
-            }
-                    
-        
-        console.log("STATUS ANTES DE SALVAR", statusDiariaDobrada, statusMeiaDiaria, dadosDiariaDobrada, dadosMeiaDiaria, diariaDobrada, meiaDiaria);
-
-        formData.append('statusdiariadobrada', statusDiariaDobrada);
-        formData.append('statusmeiadiaria', statusMeiaDiaria);
-        formData.append('datadiariadobrada', JSON.stringify(dadosDiariaDobrada));
-        formData.append('datameiadiaria', JSON.stringify(dadosMeiaDiaria));   
-        
-        console.log("ID ORÇAMENTO ATUAL PARA PUT:", idOrcamentoAtual);
-        formData.append('idorcamento', idOrcamentoAtual);
-        
-
-        console.log("Preparando envio de FormData. Método:", metodo, "URL:", url, window.StaffOriginal);
-        console.log("Dados do FormData:", {
-            nmFuncionario, descFuncao, vlrCusto, ajusteCusto, transporte, alimentacao, caixinha,
-            nmCliente, nmEvento, periodoDoEvento, vlrTotal, diariaDobrada, meiaDiaria, nivelExperienciaSelecionado
+        const limite = await verificarLimiteDeFuncao({
+            nmEvento: dadosParaEnvio.nmevento,
+            nmCliente: dadosParaEnvio.nmcliente,
+            nmlocalMontagem: dadosParaEnvio.nmlocalmontagem,
+            nmFuncao: dadosParaEnvio.nmfuncao,
+            idFuncao: dadosParaEnvio.idfuncao,
+            setor: dadosParaEnvio.setor
         });
 
-        console.log("METODO PARA ENVIAR",metodo, currentEditingStaffEvent);
+        if (limite && limite.allowed === false) return;
+    }
 
-        console.log("Preparando envio de FormData. Método:", metodo, "URL:", url);
-        console.log("Dados do FormData sendo enviados:");
+    /* ===============================
+       5.1 VALIDAÇÃO DE CAMPOS OBRIGATÓRIOS (CLIENTE-SIDE)
+    =============================== */
+    const obrigatorios = [
+        { campo: 'Funcionário', valor: dadosParaEnvio.idfuncionario },
+        { campo: 'Nome Funcionário', valor: dadosParaEnvio.nmfuncionario },
+        { campo: 'Evento (ID)', valor: dadosParaEnvio.idevento },
+        { campo: 'Evento (Nome)', valor: dadosParaEnvio.nmevento },
+        { campo: 'Cliente (ID)', valor: dadosParaEnvio.idcliente },
+        { campo: 'Cliente (Nome)', valor: dadosParaEnvio.nmcliente },
+        { campo: 'Função (ID)', valor: dadosParaEnvio.idfuncao },
+        { campo: 'Função (Nome)', valor: dadosParaEnvio.nmfuncao },
+        { campo: 'Local Montagem (ID)', valor: dadosParaEnvio.idmontagem },
+        { campo: 'Local Montagem (Nome)', valor: dadosParaEnvio.nmlocalmontagem },
+        { campo: 'Cache', valor: dadosParaEnvio.vlrcache }
+    ];
+    const faltando = obrigatorios.filter(o => o.valor === null || o.valor === undefined || o.valor === '' || o.valor === '0');
+    if (faltando.length) {
+        const lista = faltando.map(f => `• ${f.campo}`).join('<br>');
+        await Swal.fire({
+            icon: 'warning',
+            title: 'Campos obrigatórios faltando',
+            html: `Preencha os campos:<br><br>${lista}`,
+            confirmButtonText: 'OK'
+        });
+        return;
+    }
 
-        for (let pair of formData.entries()) {
-            console.log(pair[0]+ ': ' + pair[1]);
+    /* ===============================
+       5.5 COMPARAÇÃO E CONFIRMAÇÃO (APENAS PARA EDIÇÃO)
+    =============================== */
+    const isEdit = idStaff !== '0';
+    
+    if (isEdit && currentEditingStaffEvent) {
+        console.log("🔍 [VALIDAÇÃO PUT] Comparando dados originais com atuais...");
+        
+        // Função auxiliar para log e comparação
+        const logAndCheck = (fieldName, originalValue, currentValue, condition) => {
+            const isDifferent = condition;
+            console.log(`[COMPARACAO] ${fieldName}: Original = '${originalValue}' | Atual = '${currentValue}' | Diferente = ${isDifferent}`);
+            return isDifferent;
+        };
+        
+        // Normaliza valores vazios
+        const normalizeEmptyValue = (value) => {
+            if (value === null || value === undefined || value === '' || value === 'null') return '';
+            return String(value).trim();
+        };
+        
+        // Comparação completa de todos os campos
+        let houveAlteracao = 
+            logAndCheck('ID Funcionário', currentEditingStaffEvent.idfuncionario, dadosParaEnvio.idfuncionario, currentEditingStaffEvent.idfuncionario != dadosParaEnvio.idfuncionario) ||
+            logAndCheck('Função', (currentEditingStaffEvent.nmfuncao || '').toUpperCase(), dadosParaEnvio.nmfuncao, (currentEditingStaffEvent.nmfuncao || '').toUpperCase() != dadosParaEnvio.nmfuncao) ||
+            logAndCheck('Valor Cache', parseFloat(currentEditingStaffEvent.vlrcache || 0), parseFloat(dadosParaEnvio.vlrcache || 0), parseFloat(currentEditingStaffEvent.vlrcache || 0) != parseFloat(dadosParaEnvio.vlrcache || 0)) ||
+            logAndCheck('Datas Evento', JSON.stringify(currentEditingStaffEvent.datasevento || []), dadosParaEnvio.datasevento, JSON.stringify(currentEditingStaffEvent.datasevento || []) !== dadosParaEnvio.datasevento) ||
+            logAndCheck('Valor Ajuste Custo', parseFloat(currentEditingStaffEvent.vlrajustecusto || 0), parseFloat(dadosParaEnvio.vlrajustecusto || 0), parseFloat(currentEditingStaffEvent.vlrajustecusto || 0) != parseFloat(dadosParaEnvio.vlrajustecusto || 0)) ||
+            logAndCheck('Valor Transporte', parseFloat(currentEditingStaffEvent.vlrtransporte || 0), parseFloat(dadosParaEnvio.vlrtransporte || 0), parseFloat(currentEditingStaffEvent.vlrtransporte || 0) != parseFloat(dadosParaEnvio.vlrtransporte || 0)) ||
+            logAndCheck('Valor Alimentação', parseFloat(currentEditingStaffEvent.vlralimentacao || 0), parseFloat(dadosParaEnvio.vlralimentacao || 0), parseFloat(currentEditingStaffEvent.vlralimentacao || 0) != parseFloat(dadosParaEnvio.vlralimentacao || 0)) ||
+            logAndCheck('Valor Caixinha', parseFloat(currentEditingStaffEvent.vlrcaixinha || 0), parseFloat(dadosParaEnvio.vlrcaixinha || 0), parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) != parseFloat(dadosParaEnvio.vlrcaixinha || 0)) ||
+            logAndCheck('Descrição Ajuste Custo', (currentEditingStaffEvent.descajustecusto || '').trim(), (dadosParaEnvio.descajustecusto || '').trim(), (currentEditingStaffEvent.descajustecusto || '').trim() != (dadosParaEnvio.descajustecusto || '').trim()) ||
+            logAndCheck('Descrição Benefícios', (currentEditingStaffEvent.descbeneficios || '').trim(), (dadosParaEnvio.descbeneficios || '').trim(), (currentEditingStaffEvent.descbeneficios || '').trim() != (dadosParaEnvio.descbeneficios || '').trim()) ||
+            logAndCheck('Descrição Caixinha', (currentEditingStaffEvent.desccaixinha || '').trim(), (dadosParaEnvio.desccaixinha || '').trim(), (currentEditingStaffEvent.desccaixinha || '').trim() != (dadosParaEnvio.desccaixinha || '').trim()) ||
+            logAndCheck('Setor', (currentEditingStaffEvent.setor || '').toUpperCase().trim(), (dadosParaEnvio.setor || '').toUpperCase().trim(), (currentEditingStaffEvent.setor || '').toUpperCase().trim() != (dadosParaEnvio.setor || '').toUpperCase().trim()) ||
+            logAndCheck('ID Cliente', currentEditingStaffEvent.idcliente, dadosParaEnvio.idcliente, currentEditingStaffEvent.idcliente != dadosParaEnvio.idcliente) ||
+            logAndCheck('ID Evento', currentEditingStaffEvent.idevento, dadosParaEnvio.idevento, currentEditingStaffEvent.idevento != dadosParaEnvio.idevento) ||
+            logAndCheck('ID Montagem', currentEditingStaffEvent.idmontagem, dadosParaEnvio.idmontagem, currentEditingStaffEvent.idmontagem != dadosParaEnvio.idmontagem) ||
+            logAndCheck('ID Equipe', currentEditingStaffEvent.idequipe, dadosParaEnvio.idequipe, currentEditingStaffEvent.idequipe != dadosParaEnvio.idequipe) ||
+            logAndCheck('Pavilhão', (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim(), (dadosParaEnvio.pavilhao || '').toUpperCase().trim(), (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != (dadosParaEnvio.pavilhao || '').toUpperCase().trim()) ||
+            logAndCheck('Descrição Diária Dobrada', (currentEditingStaffEvent.descdiariadobrada || '').trim(), (dadosParaEnvio.descdiariadobrada || '').trim(), (currentEditingStaffEvent.descdiariadobrada || '').trim() != (dadosParaEnvio.descdiariadobrada || '').trim()) ||
+            logAndCheck('Descrição Meia Diária', (currentEditingStaffEvent.descmeiadiaria || '').trim(), (dadosParaEnvio.descmeiadiaria || '').trim(), (currentEditingStaffEvent.descmeiadiaria || '').trim() != (dadosParaEnvio.descmeiadiaria || '').trim()) ||
+            logAndCheck('Datas Diária Dobrada', JSON.stringify(currentEditingStaffEvent.dtdiariadobrada || []), dadosParaEnvio.datadiariadobrada, JSON.stringify(currentEditingStaffEvent.dtdiariadobrada || []) !== dadosParaEnvio.datadiariadobrada) ||
+            logAndCheck('Datas Meia Diária', JSON.stringify(currentEditingStaffEvent.dtmeiadiaria || []), dadosParaEnvio.datameiadiaria, JSON.stringify(currentEditingStaffEvent.dtmeiadiaria || []) !== dadosParaEnvio.datameiadiaria) ||
+            logAndCheck('Nível Experiência', (currentEditingStaffEvent.nivelexperiencia || '').trim(), (dadosParaEnvio.nivelexperiencia || '').trim(), (currentEditingStaffEvent.nivelexperiencia || '').trim() != (dadosParaEnvio.nivelexperiencia || '').trim()) ||
+            logAndCheck('Qtd Pessoas', currentEditingStaffEvent.qtdpessoas || 0, dadosParaEnvio.qtdpessoas || 0, (currentEditingStaffEvent.qtdpessoas || 0) != (dadosParaEnvio.qtdpessoas || 0));
+        
+        console.log("🔍 [VALIDAÇÃO PUT] Houve alteração geral?", houveAlteracao);
+        
+        if (!houveAlteracao) {
+            console.log("❌ Nenhuma alteração detectada, bloqueando salvamento.");
+            return Swal.fire("Nenhuma alteração detectada", "Faça alguma alteração antes de salvar.", "info");
+        }
+        
+        // Confirma com o usuário se deseja salvar as alterações
+        const { isConfirmed } = await Swal.fire({
+            title: "Deseja salvar as alterações?",
+            text: "Você está prestes a atualizar os dados do staff.",
+            icon: "question",
+            showCancelButton: true,
+            confirmButtonText: "Sim, salvar",
+            cancelButtonText: "Cancelar",
+            reverseButtons: true,
+            focusCancel: true
+        });
+        
+        if (!isConfirmed) {
+            console.log("❌ Alteração cancelada pelo usuário");
+            return;
+        }
+    }
+
+    /* ===============================
+       6. ENVIO
+    =============================== */
+    try {
+        BotaoEnviar.disabled = true;
+        BotaoEnviar.textContent = "Salvando...";
+
+        const url = isEdit ? `/staff/${idStaff}` : '/staff';
+
+        const result = await fetchComToken(url, {
+            method: isEdit ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dadosParaEnvio)
+        });
+
+        console.log("✅ Resposta do backend (Staff):", result);
+
+        // Backend pode retornar { message: "..." } para sucesso OU { error/details: "..." } para erro
+        const temErro = result?.error || result?.message === "Erro ao salvar" || result?.details;
+        if (temErro && result?.message !== "Evento(s) salvo(s) e associado(s) ao staff com sucesso!") {
+            throw new Error(result?.error || result?.details || "Erro ao salvar");
         }
 
+        await Swal.fire("Sucesso!", isEdit ? "Atualizado!" : "Cadastrado!", "success");
 
-        if (metodo === "PUT") {
-            if (!isEditingInitial) {
-                console.log("Erro: Dados originais não encontrados para PUT");
-                return Swal.fire("Erro", "Dados originais não encontrados para comparação (ID ausente para PUT).", "error");
-            }
+        // 🛑 Reabilita o botão após o sucesso
+        BotaoEnviar.disabled = false;
+        BotaoEnviar.textContent = "Salvar";
 
-            const ajusteCustoAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrajustecusto || 0.00) > 0;
-            const caixinhaAtivoOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0.00) > 0;
-            const ajusteCustoValorOriginal = parseFloat(currentEditingStaffEvent.vlrajustecusto || 0);
-            const caixinhaValorOriginal = parseFloat(currentEditingStaffEvent.vlrcaixinha || 0.00);
+        // Recarrega a tabela de staff se for edição
+        if (isEdit && dadosParaEnvio.idfuncionario) {
+            await carregarTabelaStaff(dadosParaEnvio.idfuncionario);
+        }
 
-            const diariaDobradaOriginal = currentEditingStaffEvent.diariadobrada || false;
-            const meiaDiariaOriginal = currentEditingStaffEvent.meiadiaria || false;
-
-            const dataDiariaDobradaOriginal = currentEditingStaffEvent.dtdiariadobrada || [];
-            const dataMeiaDiariaOriginal = currentEditingStaffEvent.dtmeiadiaria || [];
-
-            const dataDiariaDobradaOriginalLimpa = (dataDiariaDobradaOriginal || []).map(item => 
-                typeof item === 'object' ? item.data : item
-            );
-
-            const dataMeiaDiariaOriginalLimpa = (dataMeiaDiariaOriginal || []).map(item => 
-                typeof item === 'object' ? item.data : item
-            );
-
-            const nivelExperienciaOriginal = currentEditingStaffEvent.nivelexperiencia || "";
-
-            console.log("Valores originais - ajusteCusto Ativo:", ajusteCustoAtivoOriginal, "ajusteCusto Valor:", ajusteCustoValorOriginal);
-            console.log("Valores originais - Caixinha Ativo:", caixinhaAtivoOriginal, "Caixinha Valor:", caixinhaValorOriginal);
-
-            const ajusteCustoAtivoAtual = ajusteCustoAtivo;
-            const caixinhaAtivoAtual = caixinhaAtivo;
-            const ajusteCustoValorAtual = parseFloat(ajusteCusto.replace(',', '.') || 0.00);
-            const caixinhaValorAtual = parseFloat(caixinha.replace(',', '.') || 0.00);
-
-            const diariaDobradaAtual = diariaDobradacheck.checked;
-            const meiaDiariaAtual = meiaDiariacheck.checked;
-            const dataDiariaDobradaAtual = periodoDobrado;
-            const dataMeiaDiariaAtual = periodoMeiaDiaria;
-
-            const nivelExperienciaAtual = nivelExperienciaSelecionado;
-            const qtdPessoasAtual = qtdPessoas;
-
-            const houveAlteracaoAjusteCusto = (ajusteCustoAtivoOriginal !== ajusteCustoAtivoAtual) || (ajusteCustoValorOriginal !== ajusteCustoValorAtual);
-            const houveAlteracaoCaixinha = (caixinhaAtivoOriginal !== caixinhaAtivoAtual) || (caixinhaValorOriginal !== caixinhaValorAtual);
-
-            const houveAlteracaoDiariaDobrada = (diariaDobradaOriginal !== diariaDobradaAtual) || (dataDiariaDobradaOriginal.toString() !== dataDiariaDobradaAtual.toString());
-            const houveAlteracaoMeiaDiaria = (meiaDiariaOriginal !== meiaDiariaAtual) || (dataMeiaDiariaOriginal.toString() !== dataMeiaDiariaAtual.toString());
-
-            console.log("Houve alteração ajusteCusto?", houveAlteracaoAjusteCusto);
-            console.log("Houve alteração Caixinha?", houveAlteracaoCaixinha);
-            console.log("Houve alteração Diária Dobrada?", houveAlteracaoDiariaDobrada);
-            console.log("Houve alteração Meia Diária?", houveAlteracaoMeiaDiaria);
-
-
-            if (houveAlteracaoCaixinha && caixinhaAtivoAtual) {
-                if (!descCaixinha || descCaixinha.length < 15) {
-                    if (descCaixinhaInput) descCaixinhaInput.focus();
-                    return Swal.fire(
-                        "Campos obrigatórios!",
-                        "A descrição do benefício (Caixinha) deve ter no mínimo 15 caracteres para salvar.",
-                        "warning"
-                    );
-                }
-            }
-
-            if (houveAlteracaoAjusteCusto && ajusteCustoAtivoAtual) {
-                if (!descAjusteCusto || descAjusteCusto.length < 15) {
-                    if (descAjusteCusto) descAjusteCustoInput.focus();
-                    return Swal.fire(
-                        "Campos obrigatórios!",
-                        "A descrição do Bônus deve ter no mínimo 15 caracteres para salvar.",
-                        "warning"
-                    );
-                }
-            }
-
-
-            if (houveAlteracaoDiariaDobrada && diariaDobradaAtual) {
-                const descDiariaDobradaInput = document.getElementById("descDiariaDobrada");
-                const descDiariaDobrada = descDiariaDobradaInput.value.trim();
-
-                if (!descDiariaDobrada || descDiariaDobrada.length < 15) {
-                    if (descDiariaDobradaInput) {
-                        descDiariaDobradaInput.focus();
-                    }
-                    return Swal.fire(
-                        "Campo obrigatório!",
-                        "A descrição da Diária Dobrada deve ter no mínimo 15 caracteres para salvar.",
-                        "warning"
-                    );
-                }
-            }
-
-
-            if (houveAlteracaoMeiaDiaria && meiaDiariaAtual) {
-                const descMeiaDiariaInput = document.getElementById("descMeiaDiaria");
-                const descMeiaDiaria = descMeiaDiariaInput.value.trim();
-
-                if (!descMeiaDiaria || descMeiaDiaria.length < 15) {
-                    if (descMeiaDiariaInput) {
-                        descMeiaDiariaInput.focus();
-                    }
-                    return Swal.fire(
-                        "Campo obrigatório!",
-                        "A descrição da Meia Diária deve ter no mínimo 15 caracteres para salvar.",
-                        "warning"
-                    );
-                }
-            }
-
-            formData.append('idstaff', currentEditingStaffEvent.idstaff || '');
-            formData.append('idstaffevento', currentEditingStaffEvent.idstaffevento);
-
-            
-
-            let houveAlteracao = false;
-            if (
-                currentEditingStaffEvent.idfuncionario != idFuncionario ||
-                currentEditingStaffEvent.nmfuncao.toUpperCase() != descFuncao ||
-                parseFloat(currentEditingStaffEvent.vlrcache || 0.00) != parseFloat(vlrCusto.replace(',', '.') || 0.00) ||
-                JSON.stringify(currentEditingStaffEvent.periodo || []) !== JSON.stringify(periodoDoEvento) ||
-                parseFloat(currentEditingStaffEvent.vlrajustecusto || 0.00) != ajusteCustoValorAtual ||
-                parseFloat(currentEditingStaffEvent.vlrtransporte || 0.00) != parseFloat(transporte.replace(',', '.') || 0.00) ||               
-                parseFloat(currentEditingStaffEvent.vlralimentacao || 0.00) != parseFloat(alimentacao.replace(',', '.') || 0.00) ||
-                parseFloat(currentEditingStaffEvent.vlrcaixinha || 0.00) != caixinhaValorAtual ||
-                (currentEditingStaffEvent.descajustecusto || '').trim() != descAjusteCusto.trim() ||
-                (currentEditingStaffEvent.descbeneficios || '').trim() != descBeneficio.trim() ||
-                (currentEditingStaffEvent.desccaixinha || '').trim() != descCaixinha.trim() ||
-                (currentEditingStaffEvent.setor || '').trim() != setor.trim() ||
-                currentEditingStaffEvent.idcliente != idCliente ||
-                currentEditingStaffEvent.idevento != idEvento ||
-                currentEditingStaffEvent.idmontagem != idMontagem ||
-                currentEditingStaffEvent.idequipe != idEquipe ||
-                (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao ||
-                (currentEditingStaffEvent.statuspgto || '').trim() != statusPgto.trim() ||
-                (currentEditingStaffEvent.statusajustecusto || '').trim() != statusAjusteCusto.trim() ||
-                (currentEditingStaffEvent.statuscaixinha || '').trim() != statusCaixinha.trim() ||
-                (currentEditingStaffEvent.statusdiariadobrada || '').trim() != statusDiariaDobrada.trim() ||
-                (currentEditingStaffEvent.statusmeiadiaria || '').trim() != statusMeiaDiaria.trim() ||
-                currentEditingStaffEvent.diariadobrada != diariaDobradaAtual ||
-                currentEditingStaffEvent.meiadiaria != meiaDiariaAtual ||
-                currentEditingStaffEvent.nivelexperiencia != nivelExperienciaAtual ||
-                currentEditingStaffEvent.qtdpessoas != qtdPessoasAtual 
-            ) {
-                houveAlteracao = true;
-            }
-
-            const logAndCheck = (fieldName, originalValue, currentValue, condition) => {
-            const isDifferent = condition;
-                console.log(`[COMPARACAO] ${fieldName}: Original = '${originalValue}' | Atual = '${currentValue}' | Diferente = ${isDifferent}`);
-                return isDifferent;
-            };
-            houveAlteracao =
-                logAndCheck('ID Equipe', currentEditingStaffEvent.idequipe, idEquipe, currentEditingStaffEvent.idequipe != idEquipe) ||
-                logAndCheck('Equipe', currentEditingStaffEvent.nmequipe.toUpperCase(), nmEquipe, currentEditingStaffEvent.nmequipe.toUpperCase() != nmEquipe) ||
-                logAndCheck('ID Funcionário', currentEditingStaffEvent.idfuncionario, idFuncionario, currentEditingStaffEvent.idfuncionario != idFuncionario) ||
-                logAndCheck('Função', currentEditingStaffEvent.nmfuncao.toUpperCase(), descFuncao, currentEditingStaffEvent.nmfuncao.toUpperCase() != descFuncao) ||
-                logAndCheck('Valor Cache', parseFloat(currentEditingStaffEvent.vlrcache || 0), parseFloat(vlrCusto.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrcache || 0) != parseFloat(vlrCusto.replace(',', '.') || 0)) ||
-                logAndCheck('Datas Evento', JSON.stringify(currentEditingStaffEvent.datasevento || []), JSON.stringify(periodoDoEvento), JSON.stringify(currentEditingStaffEvent.datasevento || []) !== JSON.stringify(periodoDoEvento)) || // Use datasevento
-                logAndCheck('Valor AjusteCusto', parseFloat(currentEditingStaffEvent.vlrajustecusto || 0), ajusteCustoValorAtual, parseFloat(currentEditingStaffEvent.vlrajustecusto || 0) != ajusteCustoValorAtual) ||
-                logAndCheck('Valor Transporte', parseFloat(currentEditingStaffEvent.vlrtransporte || 0), parseFloat(transporte.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlrtransporte || 0) != parseFloat(transporte.replace(',', '.') || 0)) ||
-                logAndCheck('Valor Alimentação', parseFloat(currentEditingStaffEvent.vlralimentacao || 0), parseFloat(alimentacao.replace(',', '.') || 0), parseFloat(currentEditingStaffEvent.vlralimentacao || 0) != parseFloat(alimentacao.replace(',', '.') || 0)) ||
-                logAndCheck('Valor Caixinha', parseFloat(currentEditingStaffEvent.vlrcaixinha || 0), caixinhaValorAtual, parseFloat(currentEditingStaffEvent.vlrcaixinha || 0) != caixinhaValorAtual) ||
-                logAndCheck('Descrição Bônus', (currentEditingStaffEvent.descajustecusto || '').trim(), descAjusteCusto.trim(), (currentEditingStaffEvent.descajustecusto || '').trim() != descAjusteCusto.trim()) ||
-                logAndCheck('Descrição Benefícios', (currentEditingStaffEvent.descbeneficios || '').trim(), descBeneficio.trim(), (currentEditingStaffEvent.descbeneficios || '').trim() != descBeneficio.trim()) ||
-                logAndCheck('Descrição Caixinha', (currentEditingStaffEvent.desccaixinha || '').trim(), descCaixinha.trim(), (currentEditingStaffEvent.desccaixinha || '').trim() != descCaixinha.trim()) ||
-                logAndCheck('Setor', (currentEditingStaffEvent.setor.toUpperCase() || '').trim(), setor.trim().toUpperCase(), (currentEditingStaffEvent.setor.toUpperCase() || '').trim() != setor.toUpperCase().trim()) ||
-                logAndCheck('StatusPgto', (currentEditingStaffEvent.statuspgto || '').trim(), statusPgto.trim(), (currentEditingStaffEvent.statuspgto || '').trim() != statusPgto.trim()) ||
-                //logAndCheck('StatusAjusteCusto', (currentEditingStaffEvent.statusajustecusto || '').trim(), statusAjusteCusto.trim(), (currentEditingStaffEvent.statusajustecusto || '').trim() != statusAjusteCusto.trim()) ||
-                logAndCheck('StatusAjusteCusto', (currentEditingStaffEvent.statusajustecusto || '').trim(), (statusAjusteCusto || '').trim(), (currentEditingStaffEvent.statusajustecusto || '').trim() != (statusAjusteCusto || '').trim()) ||
-                logAndCheck('StatusCaixinha', (currentEditingStaffEvent.statuscaixinha || '').trim(), (statusCaixinha || '').trim(), (currentEditingStaffEvent.statuscaixinha || '').trim() != (statusCaixinha || '').trim()) ||
-                logAndCheck('ID Cliente', currentEditingStaffEvent.idcliente, idCliente, currentEditingStaffEvent.idcliente != idCliente) ||
-                logAndCheck('ID Evento', currentEditingStaffEvent.idevento, idEvento, currentEditingStaffEvent.idevento != idEvento) ||
-                logAndCheck('ID Montagem', currentEditingStaffEvent.idmontagem, idMontagem, currentEditingStaffEvent.idmontagem != idMontagem) ||
-                logAndCheck('Pavilhão', (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim(), pavilhao.toUpperCase().trim(), (currentEditingStaffEvent.pavilhao || '').toUpperCase().trim() != pavilhao.toUpperCase().trim()) ||
-
-                logAndCheck(
-                    'Comprovante Cache',
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtocache), // Valor original normalizado
-                    normalizeEmptyValue(comppgtocacheDoForm),                 // Valor do formulário normalizado
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtocache) !== normalizeEmptyValue(comppgtocacheDoForm) // Comparação normalizada
-                ) ||
-                logAndCheck(
-                    'Comprovante Ajuda Custo',
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto),
-                    normalizeEmptyValue(comppgtoajdcustoDoForm),
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto) !== normalizeEmptyValue(comppgtoajdcustoDoForm)
-                ) ||
-                logAndCheck(
-                    'Comprovante Ajuda Custo 50',
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto50),
-                    normalizeEmptyValue(comppgtoajdcusto50DoForm),
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtoajdcusto50) !== normalizeEmptyValue(comppgtoajdcusto50DoForm)
-                ) ||
-                logAndCheck(
-                    'Comprovante Caixinha',
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtocaixinha),
-                    normalizeEmptyValue(comppgtocaixinhaDoForm),
-                    normalizeEmptyValue(currentEditingStaffEvent.comppgtocaixinha) !== normalizeEmptyValue(comppgtocaixinhaDoForm)
-                ) ||
-
-                //logAndCheck('Datas Diária Dobrada', JSON.stringify(dataDiariaDobradaOriginal), JSON.stringify(dataDiariaDobradaAtual), JSON.stringify(dataDiariaDobradaOriginal) !== JSON.stringify(dataDiariaDobradaAtual)) ||
-                //logAndCheck('Datas Meia Diária', JSON.stringify(dataMeiaDiariaOriginal), JSON.stringify(dataMeiaDiariaAtual), JSON.stringify(dataMeiaDiariaOriginal) !== JSON.stringify(dataMeiaDiariaAtual)) ||
-
-                logAndCheck(
-                    'Datas Diária Dobrada', 
-                    JSON.stringify(dataDiariaDobradaOriginalLimpa), 
-                    JSON.stringify(dataDiariaDobradaAtual), 
-                    JSON.stringify(dataDiariaDobradaOriginalLimpa) !== JSON.stringify(dataDiariaDobradaAtual)
-                ) ||
-                logAndCheck(
-                    'Datas Meia Diária', 
-                    JSON.stringify(dataMeiaDiariaOriginalLimpa), 
-                    JSON.stringify(dataMeiaDiariaAtual), 
-                    JSON.stringify(dataMeiaDiariaOriginalLimpa) !== JSON.stringify(dataMeiaDiariaAtual)
-                ) ||
-
-                logAndCheck('Status Diária Dobrada', (currentEditingStaffEvent.statusdiariadobrada || '').trim(), (statusDiariaDobrada|| '').trim(), (currentEditingStaffEvent.statusdiariadobrada || '').trim() != (statusDiariaDobrada|| '').trim()) ||
-                logAndCheck('Status Meia Diária', (currentEditingStaffEvent.statusmeiadiaria || '').trim(), (statusMeiaDiaria|| '').trim(), (currentEditingStaffEvent.statusmeiadiaria || '').trim() != (statusMeiaDiaria|| '').trim()) ||
-                logAndCheck('Nível Experiência', (currentEditingStaffEvent.nivelexperiencia || '').trim(), nivelExperienciaAtual.trim(), (currentEditingStaffEvent.nivelexperiencia || '').trim() != nivelExperienciaAtual.trim()) ||
-                logAndCheck('Qtd Pessoas', currentEditingStaffEvent.qtdpessoas || 0, qtdPessoasAtual || 0, (currentEditingStaffEvent.qtdpessoas || 0) != (qtdPessoasAtual || 0));
+        // =========================================================================
+        // 🎯 PERGUNTA AO USUÁRIO O QUE FAZER APÓS O CADASTRO
+        // =========================================================================
+        const resultSwal = await Swal.fire({
+            title: "Deseja continuar?",
+            text: "O cadastro foi concluído. Quer cadastrar mais um funcionário para o mesmo evento/função ou finalizar?",
+            icon: "question",
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonText: "Cadastrar mais um (Manter dados)",
+            cancelButtonText: "Finalizar e Sair",
+            denyButtonText: "Cadastrar novo staff (Limpar tudo)",
+            reverseButtons: true,
+            focusCancel: true
+        });
         
-                console.log("Houve alteração geral?", houveAlteracao);
-
-                if (!houveAlteracao) {
-                    console.log("Nenhuma alteração detectada, bloqueando salvamento.");
-                    return Swal.fire("Nenhuma alteração detectada", "Faça alguma alteração antes de salvar.", "info");
-                }
-
-                const { isConfirmed } = await Swal.fire({
-                    title: "Deseja salvar as alterações?",
-                    text: "Você está prestes a atualizar os dados do staff.",
-                    icon: "question",
-                    showCancelButton: true,
-                    confirmButtonText: "Sim, salvar",
-                    cancelButtonText: "Cancelar",
-                    reverseButtons: true,
-                    focusCancel: true
-                });
-
-                if (!isConfirmed) {
-                    console.log("Alteração cancelada pelo usuário");
-                    return;
-                }
+        if (resultSwal.isConfirmed) {
+            // Se escolheu "Cadastrar mais um (Manter dados)"
+            console.log("Usuário escolheu: Cadastrar mais um (Manter evento/função)");
+            
+            // Chama a função de limpeza parcial (mantém evento, cliente, local, função)
+            if (typeof limparCamposStaffParcial === "function") {
+                limparCamposStaffParcial();
+            } else {
+                console.warn("limparCamposStaffParcial não está definida. Limpando apenas funcionário.");
+                // Limpa apenas campos do funcionário
+                const nmFuncionarioSelect = document.getElementById('nmFuncionario');
+                const idFuncionarioInput = document.getElementById('idFuncionario');
+                if (nmFuncionarioSelect) nmFuncionarioSelect.value = '';
+                if (idFuncionarioInput) idFuncionarioInput.value = '';
+                
+                // Limpa valores financeiros
+                if (document.getElementById('vlrCusto')) document.getElementById('vlrCusto').value = '0,00';
+                if (document.getElementById('vlrAjusteCusto')) document.getElementById('vlrAjusteCusto').value = '0,00';
+                if (document.getElementById('vlrTransporte')) document.getElementById('vlrTransporte').value = '0,00';
+                if (document.getElementById('vlrAlimentacao')) document.getElementById('vlrAlimentacao').value = '0,00';
+                if (document.getElementById('vlrCaixinha')) document.getElementById('vlrCaixinha').value = '0,00';
+                if (document.getElementById('vlrTotal')) document.getElementById('vlrTotal').value = '0,00';
             }
 
-            // --- EXECUTA O FETCH PARA POST OU PUT ---
-            try {
-                console.log("ENTRANDO NO TRY. Método:", metodo);
-
-                const respostaApi = await fetchComToken(url, {
-                    method: metodo,
-                    //headers: { 'Content-Type': 'application/json' },
-                    body: formData
-                });
-
-                // 🛑 Reabilita o botão após o sucesso do FETCH
-                const botaoEnviar = document.getElementById("botaoEnviar");
-                if (botaoEnviar) {
-                    botaoEnviar.disabled = false;
-                    botaoEnviar.textContent = 'Salvar'; 
-                }
-
-                await Swal.fire("Sucesso!", respostaApi.message || "Staff salvo com sucesso.", "success");
-
-                // 1. RECUPERAÇÃO DO ESTADO ORIGINAL:
-                await carregarTabelaStaff(idFuncionario);
-                window.StaffOriginal = null;
-
-                // =========================================================================
-                // 🛑 NOVO BLOCO DE PERGUNTA (Substituindo o antigo limparCamposStaff())
-                // =========================================================================
-
-                const result = await Swal.fire({
-                    title: "Deseja continuar?",
-                    text: "O cadastro foi concluído. Quer cadastrar mais um funcionário para o mesmo evento/função ou finalizar?",
-                    icon: "question",
-                    showCancelButton: true,
-                    showDenyButton: true,
-                    confirmButtonText: "Cadastrar mais um (Manter dados)",
-                    cancelButtonText: "Finalizar e Sair", // Opção de fechar a modal
-                    denyButtonText: "Cadastrar novo staff (Limpar tudo)", // Opção de cadastrar outro staff (limpar tudo)
-                    reverseButtons: true,
-                    focusCancel: true
-                });
-                
-                if (result.isConfirmed) {
-                    // Se escolheu "Cadastrar mais um (Manter dados)"
-                    console.log("Usuário escolheu: Cadastrar mais um (Manter evento/função)");
-                    
-                    // Chama a nova função de limpeza parcial
-                    if (typeof limparCamposStaffParcial === "function") {
-                        limparCamposStaffParcial();
-                    } else {
-                        console.error("limparCamposStaffParcial não está definida. Limpando tudo.");
-                        limparCamposStaff(); // Fallback para limpeza total
-                    }
-
-                } else if (result.isDenied) {
-                    // Se escolheu "Cadastrar novo staff (Limpar tudo)"
-                    console.log("Usuário escolheu: Cadastrar novo staff (Limpar tudo)");
-                    limparCamposStaff(); // Sua função de limpeza total
-
-                } else if (result.dismiss === Swal.DismissReason.cancel) {
-                    // Se escolheu "Finalizar e Sair"
-                    console.log("Usuário escolheu: Finalizar e Sair");
-                    
-                    // Chama a função global para fechar a modal
-                    if (typeof fecharModal === "function") {
-                        fecharModal();
-                        window.location.reload();
-                    } else {
-                        // Fallback (se a fecharModal não estiver no escopo)
-                        document.getElementById("modal-overlay").style.display = "none";
-                        document.getElementById("modal-container").innerHTML = "";
-                        document.body.classList.remove("modal-open");
-                    }
-                }
-                
-                // =========================================================================
-
-            } catch (error) {
-                console.error("❌ Erro ao enviar dados do funcionário:", error);
-                
-                // ❌ Reabilita o botão após o erro
-                const botaoEnviar = document.getElementById("botaoEnviar");
-                if (botaoEnviar) {
-                    botaoEnviar.disabled = false;
-                    botaoEnviar.textContent = 'Salvar'; 
-                }
-                
-                Swal.fire("Erro", error.message || "Erro ao salvar funcionário.", "error");
+        } else if (resultSwal.isDenied) {
+            // Se escolheu "Cadastrar novo staff (Limpar tudo)"
+            console.log("Usuário escolheu: Cadastrar novo staff (Limpar tudo)");
+            if (typeof limparCamposStaff === "function") {
+                limparCamposStaff();
+            } else {
+                // Fallback: recarrega a página
+                location.reload();
             }
-        })
+
+        } else if (resultSwal.dismiss === Swal.DismissReason.cancel) {
+            // Se escolheu "Finalizar e Sair"
+            console.log("Usuário escolheu: Finalizar e Sair");
+            
+            // Tenta fechar a modal
+            if (typeof fecharModal === "function") {
+                fecharModal();
+                window.location.reload();
+            } else {
+                // Fallback: fecha a modal manualmente
+                const modalOverlay = document.getElementById("modal-overlay");
+                const modalContainer = document.getElementById("modal-container");
+                
+                if (modalOverlay) modalOverlay.style.display = "none";
+                if (modalContainer) modalContainer.innerHTML = "";
+                document.body.classList.remove("modal-open");
+                
+                // Recarrega a página
+                window.location.reload();
+            }
+        }
+
+    } catch (error) {
+        console.error("❌ Erro:", error);
+        BotaoEnviar.disabled = false;
+        BotaoEnviar.textContent = "Salvar";
+        Swal.fire("Erro", error.message, "error");
+    }
+});
+
     }
 }
   
@@ -4427,106 +3601,229 @@ const debounce = (func, delay) => {
   };
 };
 
-const debouncedOnCriteriosChanged = debounce(() => {
+const debouncedOnCriteriosChanged = debounce(async () => {
+    // 1. Captura de IDs
     const idEvento = nmEventoSelect.value;
     const idCliente = nmClienteSelect.value;
     const idLocalMontagem = nmLocalMontagemSelect.value;
     const idFuncao = descFuncaoSelect.value;
-    const setorParaBusca = setorInput.value.toUpperCase();
+
+    // 2. UNIFICAÇÃO DE SETOR/PAVILHÃO
+    // Captura de qualquer um dos dois campos e limpa espaços
+    const setorRaw = document.getElementById('setor')?.value || document.getElementById('pavilhao')?.value || '';
+    const setorDefinitivo = setorRaw.trim().toUpperCase();
+
+    // 3. Captura de Nomes para a Chave Composta
+    const nmEvento = nmEventoSelect.options[nmEventoSelect.selectedIndex]?.text || '';
+    const nmCliente = nmClienteSelect.options[nmClienteSelect.selectedIndex]?.text || '';
+    const nmlocalMontagem = nmLocalMontagemSelect.options[nmLocalMontagemSelect.selectedIndex]?.text || '';
+    const nmFuncao = descFuncaoSelect.options[descFuncaoSelect.selectedIndex]?.text || '';
+
+    // 4. Tratamento de Datas
     const datasEventoRawValue = datasEventoInput ? datasEventoInput.value.trim() : '';
-    console.log("DEBUG 1: RAW input de Datas Evento (d/m/Y):", datasEventoRawValue);
     const periodoDoEvento = getPeriodoDatas(datasEventoRawValue);
-    console.log("DEBUG 2: Array final de Datas Evento (YYYY-MM-DD):", periodoDoEvento);
 
-    // --- NOVO TRECHO PARA NÍVEL DE EXPERIÊNCIA ---
-    const seniorChecked = document.getElementById('seniorCheck')?.checked;
-    const plenoChecked = document.getElementById('plenoCheck')?.checked;
-    const juniorChecked = document.getElementById('juniorCheck')?.checked;
-    const baseChecked = document.getElementById('baseCheck')?.checked;
-    const nivelSelecionado = seniorChecked || plenoChecked || juniorChecked || baseChecked; 
-    // ----------------------------------------------
+    // Validação de Nível (Opcional, conforme seu código)
+    const nivelSelecionado = document.querySelector('input[name="nivelexperiencia"]:checked')?.value;
 
-    console.log(`DEBUG 3: Validação Final - idEvento: ${!!idEvento}, idCliente: ${!!idCliente}, idFuncao: ${!!idFuncao}, Nível Selecionado: ${!!nivelSelecionado}, Datas count: ${periodoDoEvento.length}`);
-
-    // Apenas chame a API se os campos obrigatórios estiverem preenchidos
     if (idEvento && idCliente && idLocalMontagem && idFuncao && periodoDoEvento.length > 0) {
-        console.log("🟢 DEBUG: Chamando buscarEPopularOrcamento. Todos os critérios (incluindo Nível de Experiência) atendidos.");
-        buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idFuncao, periodoDoEvento);    
-    } else {
-        console.log("🔴 DEBUG: Bloqueado. Um dos critérios obrigatórios está ausente ou `periodoDoEvento` está vazio.");
-    }
-    
+        console.log(`🔍 Validando: ${nmFuncao} no ${setorDefinitivo || 'GERAL'}`);
 
+        // PASSO 2: Busca no Banco
+        await buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idFuncao, periodoDoEvento);
+
+        // PASSO 3: Verifica Limites
+        const criteriosParaLimite = {
+            nmEvento,
+            nmCliente,
+            nmlocalMontagem,
+            nmFuncao,
+            setor: setorDefinitivo, 
+            idFuncao: idFuncao
+        };
+
+        const resultado = await verificarLimiteDeFuncao(criteriosParaLimite);
+        controlarBotaoSalvarStaff(resultado.allowed);
+    } else {
+        controlarBotaoSalvarStaff(false);
+    }
 }, 500);
 
 
-async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idFuncao, datasEvento) {
+async function buscarEPopularOrcamento(idEvento, idCliente, idLocal, idFuncao, datasEvento) {
     try {
-        console.log("Buscando orçamento com os seguintes IDs:", { idEvento, idCliente, idLocalMontagem, idFuncao, datasEvento });
+        console.log("Buscando orçamento com os seguintes IDs:", { idEvento, idCliente, idLocal, idFuncao, datasEvento });
 
         // Reseta a decisão anterior sempre que buscar novo orçamento
-        decisaoUsuarioDataFora = null; 
+        decisaoUsuarioDataFora = null;
 
-        const criteriosDeBusca = {
-            idEvento,
-            idCliente,
-            idLocalMontagem,
-            idFuncao,
-            datasEvento: datasEvento || []
+        // ✅ Captura o setor/pavilhão selecionado no formulário (prioridade: #setor > #idPavilhao)
+        const setorSelecionado = (
+            document.getElementById('setor')?.value ||
+            document.getElementById('idPavilhao')?.value ||
+            ''
+        ).trim().toUpperCase();
+
+        // Limpeza de parâmetros para a API não receber "null"
+        const params = {
+            idEvento: idEvento === 'null' ? null : idEvento,
+            idCliente: idCliente === 'null' ? null : idCliente,
+            idLocalMontagem: idLocal === 'null' ? null : idLocal,
+            idFuncao: idFuncao === 'null' ? null : idFuncao,
+            datasEvento: datasEvento,
+            setor: setorSelecionado
         };
 
-        const dadosDoOrcamento = await fetchComToken('/staff/orcamento/consultar', {
+        console.log("🔍 [buscarEPopularOrcamento] Enviando params:", params);
+
+        const result = await fetchComToken('/staff/orcamento/consultar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(criteriosDeBusca)
+            body: JSON.stringify(params)
         });
 
-        orcamentoPorFuncao = {};   
-        
-        console.log('Dados do Orçamento Recebidos:', dadosDoOrcamento);
+        window.orcamentoPorFuncao = {};
 
-        if (!Array.isArray(dadosDoOrcamento) || dadosDoOrcamento.length === 0) {
-            temOrcamento = false;
-            controlarBotaoSalvarStaff(false); 
-            Swal.fire({ icon: 'info', title: 'Nenhum Orçamento Encontrado', text: 'Não foram encontrados itens de orçamento.' });
-            statusOrcamentoAtual = '';
-            idOrcamentoAtual = null;
+        if (!Array.isArray(result) || result.length === 0) {
+            // Não há orçamento - perguntar se quer solicitar adicional ou extrabonificado
+            const descFuncaoSelect = document.getElementById('descFuncao');
+            const funcaoSelecionadaTexto = descFuncaoSelect?.options[descFuncaoSelect.selectedIndex]?.text || 'esta função';
+            
+            const resultSwal = await Swal.fire({
+                icon: 'warning',
+                title: 'Nenhum Orçamento Encontrado',
+                html: `Não foram encontrados itens de orçamento para <b>${funcaoSelecionadaTexto}</b>.<br><br>Como deseja prosseguir?`,
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: 'Solicitar Adicional ($)',
+                denyButtonText: 'Extra Bonificado (Grátis)',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#28a745',
+                denyButtonColor: '#17a2b8',
+                cancelButtonColor: '#d33',
+                allowOutsideClick: false,
+                allowEscapeKey: false
+            });
+
+            let tipoParaSolicitar = '';
+
+            if (resultSwal.isConfirmed) {
+                tipoParaSolicitar = 'Adicional';
+            } else if (resultSwal.isDenied) {
+                tipoParaSolicitar = 'Extra Bonificado';
+            } else {
+                // Usuário cancelou
+                console.log("Usuário cancelou - sem orçamento");
+                temOrcamento = false;
+                controlarBotaoSalvarStaff(false);
+                idOrcamentoAtual = null;
+                if (window.datasEventoPicker) {
+                    window.datasEventoPicker.clear();
+                }
+                return;
+            }
+
+            // Pergunta sobre o ID do orçamento para vincular a solicitação
+            const { value: idOrcamentoInformado } = await Swal.fire({
+                title: 'Informar Orçamento',
+                html: `Para registrar a solicitação de <b>${tipoParaSolicitar}</b>, informe o ID do orçamento relacionado:`,
+                input: 'number',
+                inputPlaceholder: 'Digite o ID do orçamento',
+                showCancelButton: true,
+                confirmButtonText: 'Continuar',
+                cancelButtonText: 'Cancelar',
+                inputValidator: (value) => {
+                    if (!value || value <= 0) {
+                        return 'Por favor, informe um ID válido!';
+                    }
+                }
+            });
+
+            if (!idOrcamentoInformado) {
+                // Usuário cancelou
+                console.log("Usuário cancelou ao informar ID do orçamento");
+                temOrcamento = false;
+                controlarBotaoSalvarStaff(false);
+                idOrcamentoAtual = null;
+                if (window.datasEventoPicker) {
+                    window.datasEventoPicker.clear();
+                }
+                return;
+            }
+
+            idOrcamentoAtual = parseInt(idOrcamentoInformado);
+
+            // Chama o modal de quantidade e justificativa
+            const resultadoExcecao = await solicitarDadosExcecao(
+                tipoParaSolicitar,
+                idOrcamentoAtual,
+                funcaoSelecionadaTexto,
+                idFuncao
+            );
+
+            if (resultadoExcecao && resultadoExcecao.sucesso) {
+                console.log(`Sucesso ao registrar ${tipoParaSolicitar} sem orçamento`);
+                decisaoUsuarioDataFora = (tipoParaSolicitar === 'Adicional' ? 'ADICIONAL' : 'EXTRA');
+                
+                temOrcamento = true;
+                const statusElemento = (tipoParaSolicitar === 'Adicional' ? 'StatusAdicional' : 'StatusExtraBonificado');
+                mostrarStatusComoPendente(statusElemento);
+                controlarBotaoSalvarStaff(true);
+                
+                Swal.fire('Solicitado!', `A solicitação de ${tipoParaSolicitar} foi registrada com sucesso.`, 'success');
+            } else {
+                console.log("Solicitação cancelada ou falhou:", resultadoExcecao?.erro);
+                if (!resultadoExcecao?.cancelado) {
+                    Swal.fire('Erro', 'Não foi possível salvar a solicitação: ' + (resultadoExcecao?.erro || 'Erro desconhecido'), 'error');
+                }
+                temOrcamento = false;
+                controlarBotaoSalvarStaff(false);
+                idOrcamentoAtual = null;
+                if (window.datasEventoPicker) {
+                    window.datasEventoPicker.clear();
+                }
+            }
+            
             return;
         }
 
-        const statusDoOrcamento = dadosDoOrcamento[0].status;
-        statusOrcamentoAtual = statusDoOrcamento;
-
-        const idOrcamento = dadosDoOrcamento[0].idorcamento;
+        const statusDoOrcamento = result[0].status;
+        const idOrcamento = result[0].idorcamento;
         idOrcamentoAtual = idOrcamento;
+        const liberadoCadastro = result[0].contratarstaff;
 
-        const nrOrcamento = dadosDoOrcamento[0].nrorcamento;
-
-        const liberadoCadastro = dadosDoOrcamento[0].contratarstaff;        
-
-       console.log('ID do Orçamento Atual:', idOrcamentoAtual, statusDoOrcamento, liberadoCadastro);    
+        console.log('ID do Orçamento Atual:', idOrcamentoAtual, statusDoOrcamento, liberadoCadastro);
 
         if (statusDoOrcamento === 'A') {
-            Swal.fire({ icon: 'warning', title: `Orçamento Sem Proposta`, text: 'Orçamento status A (Aberto). Não é possível cadastrar.' });
+            Swal.fire({ 
+                icon: 'warning', 
+                title: 'Orçamento Sem Proposta', 
+                text: 'Orçamento status A (Aberto). Não é possível cadastrar.' 
+            });
             temOrcamento = false;
             controlarBotaoSalvarStaff(false);
             return;
         }
 
         if (statusDoOrcamento === 'P' && !liberadoCadastro) {
-            Swal.fire({ icon: 'warning', title: 'Orçamento Não liberado para Contratação', text: 'Orçamento em Proposta Sem liberação de Contratação. Não é possível cadastrar.' });
+            Swal.fire({ 
+                icon: 'warning', 
+                title: 'Orçamento Não liberado para Contratação', 
+                text: 'Orçamento em Proposta Sem liberação de Contratação. Não é possível cadastrar.' 
+            });
             temOrcamento = false;
             controlarBotaoSalvarStaff(false);
             return;
         }
 
         // --- 3. VALIDAÇÃO DE DATAS ESPECÍFICA POR FUNÇÃO ---
-        const funcaoSelecionadaTexto = descFuncaoSelect.options[descFuncaoSelect.selectedIndex].text;
+        const descFuncaoSelect = document.getElementById('descFuncao');
+        const funcaoSelecionadaTexto = descFuncaoSelect?.options[descFuncaoSelect.selectedIndex]?.text || '';
         console.log("Validando datas para:", funcaoSelecionadaTexto);
 
         const datasPermitidasParaFuncao = new Set();
 
-        dadosDoOrcamento.forEach(item => {
+        result.forEach(item => {
             if (item.descfuncao === funcaoSelecionadaTexto) {
                 if (item.datas_totais_orcadas && Array.isArray(item.datas_totais_orcadas)) {
                     item.datas_totais_orcadas.forEach(dataISO => {
@@ -4544,89 +3841,6 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
             }
         }
 
-        // --- 4. TRATAMENTO DE DATAS FORA DO ORÇAMENTO (BOTÕES SEPARADOS) ---
-        // if (datasNaoOrcadas.length > 0) {
-            
-        //     const datasFormatadas = datasNaoOrcadas.map(data => {
-        //         const [ano, mes, dia] = data.split('-');
-        //         return `${dia}/${mes}/${ano}`;
-        //     }).join(', ');
-            
-        //     console.warn("Datas fora do orçamento:", datasNaoOrcadas);
-
-        //     // Configuração do Swal com 3 botões
-        //     const result = await Swal.fire({
-        //         icon: 'question', // Ícone de pergunta é mais adequado para escolha
-        //         title: 'Datas Fora do Orçamento',
-        //         html: `A função <b>${funcaoSelecionadaTexto}</b> não possui orçamento para: <br><b style="color:red">${datasFormatadas}</b>.<br><br>Como deseja prosseguir?`,
-                
-        //         // Configuração dos Botões
-        //         showCancelButton: true,
-        //         showDenyButton: true, // Habilita o terceiro botão
-                
-        //         confirmButtonText: 'Solicitar Aditivo ($)',
-        //         denyButtonText: 'Extra Bonificado (Grátis)',
-        //         cancelButtonText: 'Cancelar',
-                
-        //         confirmButtonColor: '#28a745', // Verde (Dinheiro/Aditivo)
-        //         denyButtonColor: '#17a2b8',    // Azul ou Laranja (Bonificado)
-        //         cancelButtonColor: '#d33',     // Vermelho (Cancelar)
-                
-        //         allowOutsideClick: false,      // Obriga o usuário a decidir
-        //         allowEscapeKey: false
-        //     });
-
-        //     if (result.isConfirmed) {
-        //         // --- OPÇÃO 1: ADITIVO ---
-        //         console.log("Usuário escolheu: ADITIVO");
-        //         decisaoUsuarioDataFora = 'ADITIVO'; // Salva na variável global
-                
-        //         temOrcamento = true;
-        //         mostrarStatusComoPendente('StatusAditivo')
-        //         controlarBotaoSalvarStaff(true);
-
-        //     } else if (result.isDenied) {
-        //         // --- OPÇÃO 2: EXTRA BONIFICADO ---
-        //         console.log("Usuário escolheu: EXTRA BONIFICADO");
-        //         decisaoUsuarioDataFora = 'EXTRA'; // Salva na variável global
-                
-        //         temOrcamento = true;
-        //         mostrarStatusComoPendente('StatusExtraBonificado');
-        //         controlarBotaoSalvarStaff(true);
-
-        //     } else {
-        //         // --- OPÇÃO 3: CANCELAR ---
-        //         console.log("Usuário Cancelou");
-        //         temOrcamento = false;
-        //         controlarBotaoSalvarStaff(false);
-                
-        //         if (window.flatpickrInstances && window.flatpickrInstances['datasEvento']) {
-        //             window.flatpickrInstances['datasEvento'].clear();
-        //         }
-        //         decisaoUsuarioDataFora = null;
-        //         return; 
-        //     }
-        // } else {
-        //     // Datas Ok
-        //     temOrcamento = true;
-        //     controlarBotaoSalvarStaff(true);
-        // }
-
-        // // --- 5. POPULAR OBJETO GLOBAL ---
-        // dadosDoOrcamento.forEach(item => {
-        //     const chave = `${item.nmevento}-${item.nmcliente}-${item.nmlocalmontagem}-${item.descfuncao}`;
-        //     if (!orcamentoPorFuncao[chave]) {
-        //         orcamentoPorFuncao[chave] = {
-        //             quantidadeOrcada: Number(item.quantidade_orcada), 
-        //             quantidadeEscalada: Number(item.quantidade_escalada),
-        //             idOrcamento: item.idOrcamento,
-        //             idFuncao: item.idFuncao
-        //         };
-        //     } else {
-        //         orcamentoPorFuncao[chave].quantidadeOrcada += Number(item.quantidade_orcada);
-        //     }
-        // });
-
         // --- 4. TRATAMENTO DE DATAS FORA DO ORÇAMENTO (COM SOLICITAÇÃO DE EXCEÇÃO) ---
         if (datasNaoOrcadas.length > 0) {
             const datasFormatadas = datasNaoOrcadas.map(data => {
@@ -4637,7 +3851,7 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
             console.warn("Datas fora do orçamento:", datasNaoOrcadas);
 
             // 1. Pergunta o tipo de solicitação
-            const result = await Swal.fire({
+            const resultSwal = await Swal.fire({
                 icon: 'question',
                 title: 'Datas Fora do Orçamento',
                 html: `A função <b>${funcaoSelecionadaTexto}</b> não possui orçamento para: <br><b style="color:red">${datasFormatadas}</b>.<br><br>Como deseja prosseguir?`,
@@ -4655,9 +3869,9 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
 
             let tipoParaSolicitar = '';
 
-            if (result.isConfirmed) {
+            if (resultSwal.isConfirmed) {
                 tipoParaSolicitar = 'Aditivo';
-            } else if (result.isDenied) {
+            } else if (resultSwal.isDenied) {
                 tipoParaSolicitar = 'Extra Bonificado';
             } else {
                 // OPÇÃO: CANCELAR
@@ -4667,7 +3881,6 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
             }
 
             // 2. Chama o modal de quantidade e justificativa
-            // Importante: passamos 'idFuncao' que vem dos argumentos da sua função buscarEPopularOrcamento
             const resultadoExcecao = await solicitarDadosExcecao(
                 tipoParaSolicitar, 
                 idOrcamentoAtual, 
@@ -4688,9 +3901,9 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
                 Swal.fire('Solicitado!', `A solicitação de ${tipoParaSolicitar} foi registrada com sucesso.`, 'success');
             } else {
                 // Se o usuário cancelou o segundo modal ou deu erro no salvarSolicitacaoAditivoExtra
-                console.log("Solicitação cancelada ou falhou:", resultadoExcecao.erro);
-                if (!resultadoExcecao.cancelado) {
-                    Swal.fire('Erro', 'Não foi possível salvar a solicitação: ' + resultadoExcecao.erro, 'error');
+                console.log("Solicitação cancelada ou falhou:", resultadoExcecao?.erro);
+                if (!resultadoExcecao?.cancelado) {
+                    Swal.fire('Erro', 'Não foi possível salvar a solicitação: ' + (resultadoExcecao?.erro || 'Erro desconhecido'), 'error');
                 }
                 cancelarProcessoOrcamento();
                 return;
@@ -4706,34 +3919,177 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
         function cancelarProcessoOrcamento() {
             temOrcamento = false;
             controlarBotaoSalvarStaff(false);
-            if (window.flatpickrInstances && window.flatpickrInstances['datasEvento']) {
-                window.flatpickrInstances['datasEvento'].clear();
+            if (window.datasEventoPicker) {
+                window.datasEventoPicker.clear();
             }
             decisaoUsuarioDataFora = null;
         }
 
-        // // --- 5. POPULAR OBJETO GLOBAL ---
-        dadosDoOrcamento.forEach(item => {
-            const chave = `${item.nmevento}-${item.nmcliente}-${item.nmlocalmontagem}-${item.descfuncao}`;
-            if (!orcamentoPorFuncao[chave]) {
-                orcamentoPorFuncao[chave] = {
-                    quantidadeOrcada: Number(item.quantidade_orcada), 
-                    quantidadeEscalada: Number(item.quantidade_escalada),
-                    idOrcamento: item.idOrcamento,
-                    idFuncao: item.idFuncao
-                };
+        // --- 5. POPULAR OBJETO GLOBAL ---
+        result.forEach(item => {
+            const ev = (item.nmevento || '').trim().toUpperCase();
+            const cl = (item.nmcliente || '').trim().toUpperCase();
+            const lc = (item.nmlocalmontagem || '').trim().toUpperCase();
+            const st = (item.setor || '').trim().toUpperCase();
+            const fn = (item.descfuncao || '').trim().toUpperCase();
+
+            // Chave Mestra
+            const chave = `${ev}-${cl}-${lc}-${st}-${fn}`;
+            const valorMapa = {
+                totalOrcado: parseInt(item.quantidade_orcada) || 0,
+                vagasPreenchidas: parseInt(item.quantidade_escalada) || 0,
+                idOrcamento: item.idorcamento
+            };
+            
+            // Guarda a chave específica (por nomes)
+            if (!window.orcamentoPorFuncao[chave]) {
+                window.orcamentoPorFuncao[chave] = valorMapa;
             } else {
-                orcamentoPorFuncao[chave].quantidadeOrcada += Number(item.quantidade_orcada);
+                window.orcamentoPorFuncao[chave].totalOrcado += valorMapa.totalOrcado;
             }
+
+            // Também armazena chaves usando IDs (idevento-idcliente-idmontagem-idfuncao)
+            const evId = (item.idevento || '').toString().trim();
+            const clId = (item.idcliente || '').toString().trim();
+            const lcId = (item.idmontagem || '').toString().trim();
+            const fnId = (item.idfuncao || '').toString().trim();
+            const chaveIds = `${evId}-${clId}-${lcId}-${st}-${fnId}`;
+            const chaveIdsSemFuncao = `${evId}-${clId}-${lcId}-${st}-`;
+            const chaveIdsGeral = `${evId}-${clId}-${lcId}-GERAL-${fnId}`;
+            const chaveIdsGeralSemFuncao = `${evId}-${clId}-${lcId}-GERAL-`;
+            const chaveIdsVaziaTotal = `${evId}-${clId}-${lcId}--`;
+
+            if (!window.orcamentoPorFuncao[chaveIds]) window.orcamentoPorFuncao[chaveIds] = valorMapa;
+            if (!window.orcamentoPorFuncao[chaveIdsSemFuncao]) window.orcamentoPorFuncao[chaveIdsSemFuncao] = valorMapa;
+            if (!window.orcamentoPorFuncao[chaveIdsGeral]) window.orcamentoPorFuncao[chaveIdsGeral] = valorMapa;
+            if (!window.orcamentoPorFuncao[chaveIdsGeralSemFuncao]) window.orcamentoPorFuncao[chaveIdsGeralSemFuncao] = valorMapa;
+            if (!window.orcamentoPorFuncao[chaveIdsVaziaTotal]) window.orcamentoPorFuncao[chaveIdsVaziaTotal] = valorMapa;
+
+            // Também cria variações úteis para evitar falta de correspondência
+            const chaveSemFuncao = `${ev}-${cl}-${lc}-${st}-`;
+            if (!window.orcamentoPorFuncao[chaveSemFuncao]) window.orcamentoPorFuncao[chaveSemFuncao] = valorMapa;
+
+            const chaveGeral = `${ev}-${cl}-${lc}-GERAL-${fn}`;
+            if (!window.orcamentoPorFuncao[chaveGeral]) window.orcamentoPorFuncao[chaveGeral] = valorMapa;
+
+            const chaveGeralSemFuncao = `${ev}-${cl}-${lc}-GERAL-`;
+            if (!window.orcamentoPorFuncao[chaveGeralSemFuncao]) window.orcamentoPorFuncao[chaveGeralSemFuncao] = valorMapa;
+
+            const chaveVaziaTotal = `${ev}-${cl}-${lc}--`;
+            if (!window.orcamentoPorFuncao[chaveVaziaTotal]) window.orcamentoPorFuncao[chaveVaziaTotal] = valorMapa;
         });
+        
+        console.log("✅ Orçamento mapeado:", window.orcamentoPorFuncao);
+        
+        // 🔒 DETECÇÃO DE SETOR VAZIO/NULL: Verifica se há itens sem setor
+        const temSetorVazio = result.some(item => !item.setor || item.setor.trim() === '');
+        console.log("🔒 [Orçamento] Tem setor vazio?", temSetorVazio);
+        
+        if (temSetorVazio) {
+            bloqueiarCamposSetorEPavilhao(true);
+        } else {
+            bloqueiarCamposSetorEPavilhao(false);
+        }
 
     } catch (error) {
-        console.error("Erro:", error);
-        // Tratamento de erro padrão...
+        console.error("❌ Erro ao buscar orçamento:", error);
     }
 }
 
 // Adicione esta função em Staff.js
+/**
+ * Bloqueia ou desbloqueia os campos de setor e pavilhão
+ * @param {boolean} bloquear - true para bloquear, false para desbloquear
+ */
+function bloqueiarCamposSetorEPavilhao(bloquear = true) {
+    const setorInput = document.getElementById('setor');
+    const pavilhaoSelects = document.querySelectorAll('.nmPavilhao');
+    
+    if (bloquear) {
+        // 🔒 BLOQUEIAR
+        console.log("🔒 [Bloqueio] Bloqueando campos de setor e pavilhão");
+        
+        if (setorInput) {
+            setorInput.disabled = true;
+            setorInput.style.cursor = 'not-allowed';
+            setorInput.style.pointerEvents = 'none';
+            setorInput.style.opacity = '0.6';
+            setorInput.title = 'Campo bloqueado: F sem setor específico';
+            setorInput.setAttribute('data-bloqueado', 'true');
+        }
+        
+        pavilhaoSelects.forEach(select => {
+            select.disabled = true;
+            select.style.cursor = 'not-allowed';
+            select.style.pointerEvents = 'none';
+            select.style.opacity = '0.6';
+            select.title = 'Campo bloqueado: Orçamento sem setor específico';
+            select.setAttribute('data-bloqueado', 'true');
+        });
+    } else {
+        // 🔓 DESBLOQUEAR
+        console.log("🔓 [Desbloqueio] Desbloqueando campos de setor e pavilhão");
+        
+        if (setorInput) {
+            setorInput.disabled = false;
+            setorInput.style.cursor = 'auto';
+            setorInput.style.pointerEvents = 'auto';
+            setorInput.style.opacity = '1';
+            setorInput.title = '';
+            setorInput.removeAttribute('data-bloqueado');
+        }
+        
+        pavilhaoSelects.forEach(select => {
+            select.disabled = false;
+            select.style.cursor = 'auto';
+            select.style.pointerEvents = 'auto';
+            select.style.opacity = '1';
+            select.title = '';
+            select.removeAttribute('data-bloqueado');
+        });
+    }
+}
+
+/**
+ * Bloqueia ou desbloqueia checkboxes baseado no status do campo associado.
+ * Se o status for diferente de 'Pendente', o checkbox fica completamente bloqueado.
+ * @param {string} checkboxId - ID do checkbox (ex: 'ajusteCustocheck')
+ * @param {string} statusFieldId - ID do campo de status (ex: 'statusAjusteCusto')
+ * @param {boolean} bloqueio - true para bloquear, false para desbloquear
+ */
+function controlarBloqueioCheckbox(checkboxId, statusFieldId, bloqueio = true) {
+    const checkbox = document.getElementById(checkboxId);
+    const statusField = document.getElementById(statusFieldId);
+    
+    if (!checkbox) {
+        console.warn(`Checkbox ${checkboxId} não encontrado`);
+        return;
+    }
+    
+    const statusValue = statusField ? statusField.value : '';
+    
+    // Se status for diferente de 'Pendente', BLOQUEIA completamente
+    if (bloqueio && statusValue && statusValue !== 'Pendente' && statusValue !== '') {
+        console.log(`🔒 [Bloqueio] Bloqueando checkbox ${checkboxId} - Status: ${statusValue}`);
+        
+        checkbox.disabled = true;
+        checkbox.style.cursor = 'not-allowed';
+        checkbox.style.pointerEvents = 'none';
+        checkbox.style.opacity = '0.6';
+        checkbox.title = `Bloqueado: Status é "${statusValue}". Não é possível desmarcar.`;
+        checkbox.setAttribute('data-bloqueado', 'true');
+    } else {
+        console.log(`🔓 [Desbloqueio] Desbloqueando checkbox ${checkboxId}`);
+        
+        checkbox.disabled = false;
+        checkbox.style.cursor = 'pointer';
+        checkbox.style.pointerEvents = 'auto';
+        checkbox.style.opacity = '1';
+        checkbox.title = '';
+        checkbox.removeAttribute('data-bloqueado');
+    }
+}
+
 /**
  * Torna o campo de status visível e define seu valor inicial como 'Pendente'.
  * Deve ser chamada após uma solicitação ser criada (ex: confirmação do Swal).
@@ -4957,28 +4313,27 @@ function normalizeEmptyValue(value) {
 
 async function verificarDisponibilidadeStaff(idFuncionario, datasAgendamento, idFuncao, idEventoIgnorar = null) {
     try {
-        // AQUI ESTÁ A CORREÇÃO: 'datasAgendamento' já é um array de strings.
+        if (!idFuncionario || !datasAgendamento || datasAgendamento.length === 0) {
+            return { isAvailable: true, conflicts: [] }; 
+        }
+
         const data = await fetchComToken(`/staff/check-availability`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 idfuncionario: idFuncionario,
-                datas: datasAgendamento, // AQUI: Envia o array de strings diretamente
+                datas: datasAgendamento, 
                 idfuncao: idFuncao,
                 idEventoIgnorar: idEventoIgnorar
             })
         });
 
-        return data;
+        return data || { isAvailable: false, conflicts: [] };
     } catch (error) {
-        console.error("Erro na API de verificação de disponibilidade:", error);
-        Swal.fire("Erro na Verificação", "Não foi possível verificar a disponibilidade do funcionário.", "error");
-        return { isAvailable: false, conflictingEvent: null, conflicts: [] };
+        console.error("❌ Erro na verificação de disponibilidade:", error);
+        return { isAvailable: false, conflicts: [] };
     }
 }
-
 // Função auxiliar para encontrar as datas de intersecção
 
 function encontrarDatasConflitantes(datasParaVerificacao, conflitosReais) {
@@ -5720,6 +5075,19 @@ async function carregarPavilhaoStaff(idMontagem, idorcamento = null, idfuncao = 
                 }
             });
         }
+        
+        // 🔥 PREENCHE O CAMPO SETOR ANTES DA VALIDAÇÃO
+        if (setorEsperado) {
+            const setorInput = document.getElementById('setor');
+            if (setorInput) {
+                setorInput.value = setorEsperado.toUpperCase();
+                console.log("✅ [carregarPavilhaoStaff] Campo setor preenchido com:", setorEsperado.toUpperCase());
+            }
+        }
+        
+        // ✅ NOVO: Valida e filtra o setor com base nos pavilhões carregados
+        validarEFiltrarSetorPavilhao();
+        
     } catch (error) {
         console.error("❌ Erro ao carregar pavilhao:", error);
     }
@@ -7158,292 +6526,207 @@ document.addEventListener('click', function(e) {
 
 /**
  * Verifica o limite de vagas orçadas para uma função.
- * Retorna um objeto de status para o cadastro.
- * * @param {object} criterios Critérios de filtro (nmEvento, nmFuncao, etc.).
- * @returns {Promise<{ allowed: boolean, statusAditivo: string | null, statusExtraBonificado: string | null }>}
+ * @param {object} criterios Critérios de filtro (nmEvento, nmFuncao, etc.).
+ * @returns {Promise<{ allowed: boolean }>}
  */
 async function verificarLimiteDeFuncao(criterios) {
-    // 1. Construa a chave composta
-    //const chave = `${criterios.nmEvento}-${criterios.nmCliente}-${criterios.nmlocalMontagem}-${criterios.pavilhao || ''}-${criterios.nmFuncao}-${criterios.setor || ''}`;
+    if (!criterios || !window.orcamentoPorFuncao) return { allowed: false };
+
+    // Tenta pegar o setor de várias fontes para evitar o erro de chave vazia "--"
+    const setorDaTela = document.getElementById('setor')?.value || document.getElementById('nmPavilhao')?.value || '';
+    const setorFinal = (criterios.setor || setorDaTela || '').trim().toUpperCase();
+
+    const ev = (criterios.nmEvento || '').trim().toUpperCase();
+    const cl = (criterios.nmCliente || '').trim().toUpperCase();
+    const lc = (criterios.nmlocalMontagem || '').trim().toUpperCase();
+    const fn = (criterios.nmFuncao || '').trim().toUpperCase();
+
+    // ⚠️ PRIORIDADE: Sempre usar a chave específica com setor diferenciado
+    // Dessa forma, diferentes pavilhões/setores têm limites independentes
+    const chaveEspecifica = `${ev}-${cl}-${lc}-${setorFinal}-${fn}`;
     
-    
-    const nmEvento = (criterios.nmEvento || '').trim().toUpperCase();
-    const nmCliente = (criterios.nmCliente || '').trim().toUpperCase();
-    const nmlocalMontagem = (criterios.nmlocalMontagem || '').trim().toUpperCase();
-    const pavilhao = (criterios.pavilhao || '').trim().toUpperCase();
-    const nmFuncao = (criterios.nmFuncao || '').trim().toUpperCase();
-    const setor = (criterios.setor || '').trim().toUpperCase();
-   
+    console.log(`🔍 Verificando limite para: Evento=${ev}, Cliente=${cl}, Local=${lc}, Setor=${setorFinal}, Função=${fn}`);
+    console.log(`📌 Chave específica: ${chaveEspecifica}`);
+    console.log(`📊 Mapa disponível:`, Object.keys(window.orcamentoPorFuncao));
 
-    // Constrói uma lista de partes, excluindo partes que ficariam vazias (como pavilhao ou setor)
-    const partesChave = [
-        nmEvento,
-        nmCliente,
-        nmlocalMontagem,
-        pavilhao, 
-        nmFuncao,
-        setor     
-    ];
+    // Primeiro tenta a chave específica com setor diferenciado
+    if (window.orcamentoPorFuncao[chaveEspecifica]) {
+        const dados = window.orcamentoPorFuncao[chaveEspecifica];
+        const total = parseInt(dados.totalOrcado) || 0;
+        const preenchidas = parseInt(dados.vagasPreenchidas) || 0;
 
-    // Filtra valores nulos, undefined ou strings vazias, e junta com um hífen.
-    const chave = partesChave
-        .filter(p => p) // Remove as strings vazias ('')
-        .join('-'); // Junta as partes restantes com hífen
+        console.log(`✅ Chave específica encontrada! Total: ${total}, Preenchidas: ${preenchidas}`);
 
-    // 💡 IMPORTANTE: Tente limpar o final da chave, se for o caso do ' 1'
-    // Se você tem certeza que o ' 1' vem do campo nmFuncao e não deveria estar lá,
-    // você precisará limpar a variável 'nmFuncao' ANTES de incluí-la no array.
-    // Exemplo: const nmFuncaoLimpa = nmFuncao.replace(/\s\d+$/, ''); 
-    
-    // Assumindo que a chave no orcamentoPorFuncao NÃO tem o ' 1' no final:
-    const chaveSemNumerosFinais = chave.replace(/(\s\d+)$/, ''); 
-    
-    const dadosOrcamento = orcamentoPorFuncao[chaveSemNumerosFinais] || orcamentoPorFuncao[chave];
-    // Tenta primeiro com a chave limpa, depois com a chave original (se não for o problema)
+        if (preenchidas >= total) {
+            // 🎯 LIMITE ATINGIDO: Oferece opção de solicitar Aditivo ou Extra
+            
+            // 1. Verifica se já existe solicitação pendente ou autorizada
+            const statusExcecao = await verificarStatusAditivoExtra(
+                dados.idOrcamento, 
+                criterios.idFuncao, 
+                'Aditivo',  // Tipo de solicitação
+                null,       // idFuncionario (não aplicável aqui)
+                criterios.nmFuncao || fn  // Nome da função
+            );
+            
+            // Se retornou false, significa que bloqueou (já tem pendente)
+            if (statusExcecao === false) {
+                return { allowed: false };
+            }
+            
+            // Se já tem autorizado, libera
+            if (statusExcecao && statusExcecao.encontrado && statusExcecao.status === 'Autorizado') {
+                return { allowed: true };
+            }
 
-
-    console.log("Verificando limite para a chave:", chave, dadosOrcamento);
-    // const dadosOrcamento = orcamentoPorFuncao[chave];
-
-    // console.log("Verificando limite para a chave:", chave, dadosOrcamento);
-
-    // Se não houver dados de orçamento para ESTA COMBINAÇÃO ÚNICA, não há limite
-    if (!dadosOrcamento) {
-        console.warn("⚠️ ORÇAMENTO NÃO ENCONTRADO para a chave:", chave);
-        // Retorno de sucesso (Permitido, sem status especial)
-        return { allowed: true, statusAditivo: null, statusExtraBonificado: null };
-    }
-
-    // 2. Conte quantos funcionários já foram inseridos na tabela com EXATAMENTE esses critérios
-    let countNaTabela = 0;
-    const linhasTabela = document.querySelectorAll('#eventsTableBody tr');
-    linhasTabela.forEach(linha => {
-        const eventDataNaLinha = JSON.parse(linha.dataset.eventData);
-        if (
-            eventDataNaLinha.nmfuncao.trim().toUpperCase() === criterios.nmFuncao.toUpperCase().trim() &&
-            eventDataNaLinha.nmevento.trim().toUpperCase() === criterios.nmEvento.toUpperCase().trim() &&
-            eventDataNaLinha.nmcliente.trim().toUpperCase() === criterios.nmCliente.toUpperCase().trim() &&
-            eventDataNaLinha.nmlocalmontagem.trim().toUpperCase() === criterios.nmlocalMontagem.toUpperCase().trim() &&
-            // Incluindo Pavilhão e Setor na contagem
-            (eventDataNaLinha.pavilhao || '').trim().toUpperCase() === (criterios.pavilhao || '').toUpperCase().trim() &&
-            (eventDataNaLinha.setor || '').trim().toUpperCase() === (criterios.setor || '').toUpperCase().trim()
-        ) {
-            countNaTabela++;
-        }
-    });
-
-    // 3. Calcule o total ocupado e proposto
-    const totalJaOcupado = Number(dadosOrcamento.quantidadeEscalada) + countNaTabela;
-    const limite = dadosOrcamento.quantidadeOrcada;
-
-    // Calcule o total proposto: slots ocupados + 1 (o item que está sendo submetido)
-    const totalProposto = totalJaOcupado + 1;
-
-    console.log(`Verificando para a combinação '${chave}' - Ocupado: ${totalJaOcupado}, Limite: ${limite}, Proposto: ${totalProposto}`);
-
-    // --- LÓGICA DE LIMITE ---
-
-    // if (totalProposto > limite) {
-        
-    //     // 🚨 NOVO BLOQUEIO DE SEGURANÇA: Se exceder o limite em mais de 1, bloqueia.
-    //     // Assumimos que o Aditivo/Extra permite APENAS +1 acima do limite orçado.
-    //     //if (totalProposto > limite + 1) {
-    //     // if (totalProposto > limite) {
-    //     //     Swal.fire({
-    //     //         icon: 'error',
-    //     //         title: 'Limite Máximo Excedido',
-    //     //         text: `O cadastro excede o limite orçado para a vaga. (Limite Orçado: ${limite}) - (Ocupado: ${totalJaOcupado}) - (Proposto: ${totalProposto}).`
-    //     //     });
-    //     //     // Retorno de bloqueio
-    //     //     return { allowed: false, statusAditivo: null, statusExtraBonificado: null };
-    //     // }
-        
-    //     // 💡 LIMITE ATINGIDO: Apresenta os botões Aditivo/Extra Bonificado (Assíncrono)
-    //     return new Promise(resolve => {
-    //         Swal.fire({
-    //             icon: 'info',
-    //             title: 'Limite Orçamentário Atingido',
-    //             //html: `O limite de **${limite}** para esta função já foi alcançado. <br>Existem ${dadosOrcamento.quantidadeEscalada} funcionários já salvos e ${countNaTabela} adicionados. <br><br>Deseja cadastrar este item como **Aditivo** ou **Extra Bonificado**?`,
-    //             html: `O limite de **${limite}** para esta função já foi alcançado. <br>Existem ${dadosOrcamento.quantidadeEscalada} funcionários já salvos. <br><br>Deseja cadastrar este item como <strong>Aditivo</strong> ou <strong>Extra Bonificado</strong>?`,
-                
-    //             // Configuração dos Botões
-    //             showCancelButton: true,
-    //             showDenyButton: true, // Habilita o terceiro botão
-    //             confirmButtonText: 'Aditivo',
-    //             denyButtonText: 'Extra Bonificado',
-    //             cancelButtonText: 'Cancelar Cadastro',
-    //             //reverseButtons: true
-    //         }).then(async (result) => {
-    //             let statusAditivo = null;
-    //             let statusExtraBonificado = null;
-    //             let opcaoEscolhida = null;
-    //             let permitirCadastro = false;
-
-    //             if (result.isConfirmed) {
-    //                 // Clicou em "Aditivo"
-    //                 opcaoEscolhida = 'Aditivo';
-    //                 statusAditivo = 'Pendente';
-    //                 permitirCadastro = true;
-    //             } else if (result.isDenied) {
-    //                 // Clicou em "Extra Bonificado"
-    //                 opcaoEscolhida = 'Extra Bonificado';
-    //                 statusExtraBonificado = 'Pendente';
-    //                 permitirCadastro = true;
-    //             } else {
-    //                 // Clicou em "Cancelar Cadastro" ou fora do modal
-    //                 resolve({ allowed: false, statusAditivo: null, statusExtraBonificado: null });
-    //                 return;
-    //             }
-
-    //             // --- 3. NOVO TRECHO: SEGUNDO SWAL DE CONFIRMAÇÃO ---
-    //             // Swal.fire({
-    //             //     icon: 'question',
-    //             //     title: 'Confirmar Escolha',
-    //             //     html: `Você escolheu a opção **${opcaoEscolhida}**. Deseja realmente prosseguir com o cadastro como **${opcaoEscolhida}**?`,
-    //             //     showCancelButton: true,
-    //             //     confirmButtonText: `Sim, usar ${opcaoEscolhida}`,
-    //             //     cancelButtonText: 'Não, voltar',
-    //             // }).then((confirmResult) => {
-    //             //     if (confirmResult.isConfirmed) {
-    //             //         // Confirmação OK: resolve com a opção escolhida no primeiro Swal
-    //             //         resolve({ 
-    //             //             allowed: true, 
-    //             //             statusAditivo: statusAditivo, 
-    //             //             statusExtraBonificado: statusExtraBonificado 
-    //             //         });
-    //             //     } else {
-    //             //         // Confirmação Cancelada: cancela o cadastro
-    //             //         resolve({ 
-    //             //             allowed: false, 
-    //             //             statusAditivo: null, 
-    //             //             statusExtraBonificado: null 
-    //             //         });
-    //             //     }
-    //             // });
-
-
-    //             // solicitarDadosExcecao(opcaoEscolhida, idOrcamentoAtual, criterios.idFuncao)
-    //             // .then(solicitacaoResult => {
-    //             //     resolve(solicitacaoResult);
-    //             // });
-
-    //             const prosseguir = await verificarStatusAditivoExtra(idOrcamentoAtual, criterios.idFuncao, opcaoEscolhida);
-                
-    //             if (prosseguir) {
-    //                 // Se a nova lógica permitiu e já coletou os dados da solicitação, 
-    //                 // a função principal deve ser cancelada, pois a submissão será feita pelo fluxo do Aditivo/Extra
-    //                 resolve({ allowed: false, statusAditivo: null, statusExtraBonificado: null, solicitacaoEmCurso: true });
-    //             } else {
-    //                 // Se a nova lógica bloqueou ou foi cancelada pelo usuário (aguardar Pendente/Rejeitado)
-    //                 resolve({ allowed: false, statusAditivo: null, statusExtraBonificado: null });
-    //             }
-        
-    //         });
-    //     });
-
-    // }
-
-    // // LIMITE NÃO ATINGIDO (Permite o cadastro normalmente)
-    // return { allowed: true, statusAditivo: null, statusExtraBonificado: null };
-
-    if (totalProposto > limite) {
-        
-        // 💡 LIMITE ATINGIDO: Apresenta os botões Aditivo/Extra Bonificado (Assíncrono)
-        return new Promise(resolve => {
-            Swal.fire({
-                icon: 'info',
+            // 2. Mostra Swal com opções Aditivo/Extra
+            const result = await Swal.fire({
+                icon: 'warning',
                 title: 'Limite Orçamentário Atingido',
-                html: `O limite de <strong>${limite}</strong> para a função <strong>${nmFuncaoDoFormulario}</strong> já foi alcançado. <br>Existem ${dadosOrcamento.quantidadeEscalada} funcionários já salvos. <br><br>Deseja solicitar <strong>Aditivo</strong> ou <strong>Extra Bonificado</strong> para a função <strong>${nmFuncaoDoFormulario}</strong>?`,
-                
+                html: `O limite de <strong>${total}</strong> vagas para <strong>${fn}</strong> (${setorFinal}) já foi alcançado.<br><br>Já foram preenchidas <strong>${preenchidas}</strong> vagas.<br><br>Deseja cadastrar este item como <strong>Aditivo</strong> ou <strong>Extra Bonificado</strong>?`,
                 showCancelButton: true,
                 showDenyButton: true,
-                confirmButtonText: 'Aditivo',
-                denyButtonText: 'Extra Bonificado',
-                cancelButtonText: 'Cancelar Cadastro',
-            }).then(async (result) => {
-                let opcaoEscolhida = null;
-                const tipoExcecao = (result.isConfirmed ? 'Aditivo' : result.isDenied ? 'Extra Bonificado' : null);
-
-                if (!tipoExcecao) {
-                    // Clicou em "Cancelar Cadastro" ou fora do modal
-                    resolve({ allowed: false, statusAditivo: null, statusExtraBonificado: null });
-                    return;
-                }
-                
-                // --- NOVO FLUXO: SOLICITA JUSTIFICATIVA E CRIA REGISTRO NA TABELA ADITIVOEXTRA ---
-                
-                // 1. Verifica se já existe uma solicitação Pendente/Autorizada (Funciona como um bloqueio ou bypass)
-                const aditivoExistente = await verificarStatusAditivoExtra(
-                    idOrcamentoAtual, 
-                    criterios.idFuncao, 
-                    tipoExcecao // Passa 'Aditivo' ou 'Extra Bonificado'
-                );
-
-                if (aditivoExistente === false) {
-                    // O bloqueio aconteceu DENTRO de verificarStatusAditivoExtra (ex: Pendente)
-                    resolve({ allowed: false, statusAditivo: null, statusExtraBonificado: null });
-                    return;
-                }
-                
-                if (aditivoExistente.encontrado && aditivoExistente.status === 'Autorizado') {
-                     // 2. Se a solicitação já está AUTORIZADA, podemos prosseguir com o agendamento principal
-                     // O status no payload será 'Autorizado' para que o backend saiba que este item usa a exceção.
-                     const statusAditivo = (tipoExcecao === 'Aditivo') ? 'Autorizado' : null;
-                     const statusExtraBonificado = (tipoExcecao === 'Extra Bonificado') ? 'Autorizado' : null;
-
-                     Swal.fire('Autorização Existente', `Solicitação de <strong>${tipoExcecao}</strong> já autorizada para <strong>${nmFuncaoDoFormulario}</strong>. Prosseguindo com o agendamento.`, 'success');
-                     
-                     // 🎯 Permite o agendamento e passa o status de volta ao fluxo principal
-                     resolve({ allowed: true, statusAditivo: statusAditivo, statusExtraBonificado: statusExtraBonificado });
-                     return;
-
-                } else if (aditivoExistente.encontrado && aditivoExistente.status === 'Rejeitado') {
-                    // Se foi rejeitado, podemos tentar uma nova solicitação (o fluxo continua abaixo)
-                    Swal.fire('Solicitação Rejeitada', `A solicitação de ${tipoExcecao} anterior para <strong>${nmFuncaoDoFormulario}</strong> foi rejeitada. Você pode submeter uma nova.`, 'info');
-                }
-                
-                // 3. Se não houver solicitação ou se foi Rejeitada, chama a função para coletar dados e salvar
-                // Nota: Assumimos que a variável 'idEmpresa' está disponível globalmente, se necessário.
-                const resultadoSolicitacao = await solicitarDadosExcecao(
-                    tipoExcecao, 
-                    idOrcamentoAtual, 
-                    nmFuncaoDoFormulario,
-                    criterios.idFuncao
-                    // , idEmpresa // Adicione idEmpresa se necessário na assinatura
-                );
-                
-                if (resultadoSolicitacao && resultadoSolicitacao.sucesso) {
-                    // Solicitação de Aditivo/Extra criada com sucesso.
-                    await Swal.fire("Solicitação Enviada", `Solicitação de <strong>${tipoExcecao.toUpperCase()}</strong> para <strong>${nmFuncaoDoFormulario}</strong> registrada com sucesso. O agendamento continuará com status <strong>PENDENTE</strong> de aprovação.`, "success");
-                    
-                    // // O agendamento principal PODE prosseguir, mas com o status Pendente.
-                    // const statusAditivo = (tipoExcecao === 'Aditivo') ? 'Pendente' : null;
-                    // const statusExtraBonificado = (tipoExcecao === 'Extra Bonificado') ? 'Pendente' : null;
-                    
-                    // // 🎯 Permite o agendamento e passa o status de volta ao fluxo principal
-                    // resolve({ allowed: true, statusAditivo: statusAditivo, statusExtraBonificado: statusExtraBonificado });
-
-                    if (typeof limparTudoStaff === 'function') {
-                        limparTudoStaff(); 
-                    }
-
-                    // 🛑 BLOQUEIA o fluxo principal de salvamento do Staff!
-                    resolve({ allowed: false, statusAditivo: null, statusExtraBonificado: null });
-
-                } else {
-                    // Falha ao salvar ou usuário cancelou em solicitarDadosExcecao
-                    if (resultadoSolicitacao && resultadoSolicitacao.erro) {
-                        Swal.fire("Falha na Solicitação", `Não foi possível registrar a solicitação. Detalhes: ${resultadoSolicitacao.erro}`, "error");
-                    }
-                    resolve({ allowed: false, statusAditivo: null, statusExtraBonificado: null });
-                }
+                confirmButtonText: 'Aditivo ($)',
+                denyButtonText: 'Extra Bonificado (Grátis)',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#28a745',
+                denyButtonColor: '#17a2b8',
+                cancelButtonColor: '#d33'
             });
-        });
 
+            let tipoSolicitacao = '';
+            
+            if (result.isConfirmed) {
+                tipoSolicitacao = 'Aditivo';
+            } else if (result.isDenied) {
+                tipoSolicitacao = 'Extra Bonificado';
+            } else {
+                // Cancelou
+                return { allowed: false };
+            }
+
+            // 3. Solicita quantidade e justificativa
+            const resultadoExcecao = await solicitarDadosExcecao(
+                tipoSolicitacao,
+                dados.idOrcamento,
+                fn,
+                criterios.idFuncao
+            );
+
+            if (resultadoExcecao && resultadoExcecao.sucesso) {
+                Swal.fire('Solicitado!', `A solicitação de ${tipoSolicitacao} foi registrada com sucesso.`, 'success');
+                return { 
+                    allowed: true, 
+                    statusAditivo: tipoSolicitacao === 'Aditivo' ? 'Pendente' : null,
+                    statusExtraBonificado: tipoSolicitacao === 'Extra Bonificado' ? 'Pendente' : null
+                };
+            } else {
+                // Cancelou ou erro
+                return { allowed: false };
+            }
+        }
+
+        return { allowed: true };
     }
 
-    // LIMITE NÃO ATINGIDO (Permite o cadastro normalmente)
-    return { allowed: true, statusAditivo: null, statusExtraBonificado: null };
+    // Se a chave específica não existe, tenta fallbacks (mas sem usar setores diferentes)
+    const candidatos = [
+        `${ev}-${cl}-${lc}-${setorFinal}-`,  // sem função
+        `${ev}-${cl}-${lc}-GERAL-${fn}`,     // GERAL com função
+        `${ev}-${cl}-${lc}-GERAL-`,           // GERAL sem função
+        `${ev}-${cl}-${lc}--${fn}`,           // sem setor, com função
+        `${ev}-${cl}-${lc}--`                 // sem setor e sem função
+    ];
+
+    let dados = null;
+    let chaveEncontrada = null;
+    for (const c of candidatos) {
+        if (window.orcamentoPorFuncao[c]) {
+            dados = window.orcamentoPorFuncao[c];
+            chaveEncontrada = c;
+            console.log(`⚠️ Chave específica não encontrada. Usando fallback: ${chaveEncontrada}`);
+            break;
+        }
+    }
+
+    if (!dados) {
+        console.warn("⚠️ Função não encontrada no mapa. Liberando envio sem bloqueio. Candidatos:", candidatos);
+        return { allowed: true };
+    }
+
+    const total = parseInt(dados.totalOrcado) || 0;
+    const preenchidas = parseInt(dados.vagasPreenchidas) || 0;
+
+    if (preenchidas >= total) {
+        // 🎯 LIMITE ATINGIDO: Oferece opção de solicitar Aditivo ou Extra
+        
+        // 1. Verifica se já existe solicitação pendente ou autorizada
+        const statusExcecao = await verificarStatusAditivoExtra(
+            dados.idOrcamento, 
+            criterios.idFuncao, 
+            'Aditivo',  // Tipo de solicitação
+            null,       // idFuncionario (não aplicável aqui)
+            criterios.nmFuncao || fn  // Nome da função
+        );
+        
+        // Se retornou false, significa que bloqueou (já tem pendente)
+        if (statusExcecao === false) {
+            return { allowed: false };
+        }
+        
+        // Se já tem autorizado, libera
+        if (statusExcecao && statusExcecao.encontrado && statusExcecao.status === 'Autorizado') {
+            return { allowed: true };
+        }
+
+        // 2. Mostra Swal com opções Aditivo/Extra
+        const result = await Swal.fire({
+            icon: 'warning',
+            title: 'Limite Orçamentário Atingido',
+            html: `O limite de <strong>${total}</strong> vagas para <strong>${fn}</strong> já foi alcançado.<br><br>Já foram preenchidas <strong>${preenchidas}</strong> vagas.<br><br>Deseja cadastrar este item como <strong>Aditivo</strong> ou <strong>Extra Bonificado</strong>?`,
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonText: 'Aditivo ($)',
+            denyButtonText: 'Extra Bonificado (Grátis)',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#28a745',
+            denyButtonColor: '#17a2b8',
+            cancelButtonColor: '#d33'
+        });
+
+        let tipoSolicitacao = '';
+        
+        if (result.isConfirmed) {
+            tipoSolicitacao = 'Aditivo';
+        } else if (result.isDenied) {
+            tipoSolicitacao = 'Extra Bonificado';
+        } else {
+            // Cancelou
+            return { allowed: false };
+        }
+
+        // 3. Solicita quantidade e justificativa
+        const resultadoExcecao = await solicitarDadosExcecao(
+            tipoSolicitacao,
+            dados.idOrcamento,
+            fn,
+            criterios.idFuncao
+        );
+
+        if (resultadoExcecao && resultadoExcecao.sucesso) {
+            Swal.fire('Solicitado!', `A solicitação de ${tipoSolicitacao} foi registrada com sucesso.`, 'success');
+            return { 
+                allowed: true, 
+                statusAditivo: tipoSolicitacao === 'Aditivo' ? 'Pendente' : null,
+                statusExtraBonificado: tipoSolicitacao === 'Extra Bonificado' ? 'Pendente' : null
+            };
+        } else {
+            // Cancelou ou erro
+            return { allowed: false };
+        }
+    }
+
+    return { allowed: true };
 }
 
 
@@ -7529,6 +6812,12 @@ function getPeriodoEvento(datas) {
 async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulario, tipoSolicitacao, idFuncionario = null, nmFuncionario) {
     
     console.log(`Verificando status para idOrcamento: ${idOrcamentoAtual}, idFuncao: ${idFuncaoDoFormulario}, tipoSolicitacao: ${tipoSolicitacao}, idFuncionario: ${idFuncionario}`);
+
+    // 🛡️ VALIDAÇÃO: Garante que tipoSolicitacao tenha um valor padrão
+    if (!tipoSolicitacao || tipoSolicitacao === 'undefined' || tipoSolicitacao.trim() === '') {
+        console.error('⚠️ tipoSolicitacao está vazio ou undefined. Usando valor padrão.');
+        tipoSolicitacao = 'Aditivo'; // Valor padrão
+    }
 
     const params = new URLSearchParams({
         idOrcamento: idOrcamentoAtual,
@@ -8187,16 +7476,15 @@ function configurarEventosStaff() {
 
     // Se o usuário NÃO tiver a permissão Master, oculta o container.
     if (!temPermissaoMaster) {
-        containerPDF.style.display = 'none';
+        if (containerPDF) containerPDF.style.display = 'none';
     } else {
-        containerPDF.style.display = ''; // Volta ao padrão
+        if (containerPDF) containerPDF.style.display = ''; 
     }
 
-    verificaStaff(); // Carrega os Staff ao abrir o modal
+    verificaStaff(); 
     adicionarEventoBlurStaff();
     inicializarFlatpickrsGlobais();
     limparStaffOriginal();
-
     inicializarFlatpickrStaffComLimites(); 
 
     if (window.__modalInitialParams) {
@@ -8210,99 +7498,100 @@ function configurarEventosStaff() {
             } catch (e) {
                 console.warn("Erro ao parsear dataeventos:", e);
             }
-        } else {
-            console.warn("[configurarEventosStaff] Parâmetro dataeventos não encontrado.");
         }
     }
 
-    // Inicializa o estado dos campos extra/caixinha no carregamento
-    const inputAjusteCusto = document.getElementById('ajusteCusto');
-    const ajusteCustocheck = document.getElementById('ajusteCustocheck');
-    const campoAjusteCusto = document.getElementById('campoAjusteCusto');
-
-    if (ajusteCustocheck && campoAjusteCusto && ajusteCustoTextarea) {
-        ajusteCustocheck.addEventListener('change', function() {
-            campoAjusteCusto.style.display = this.checked ? 'block' : 'none';
-
-            ajusteCustoTextarea.style.display = this.checked ? 'block' : 'none';
-            ajusteCustoTextarea.required = this.checked;
-            if (!this.checked) {
-        if (inputAjusteCusto) inputAjusteCusto.value = ''; // Limpa o input 'ajusteCusto' ao ocultar
-        ajusteCustoTextarea.value = '';               // Limpa o textarea 'ajusteCusto' ao ocultar
-            }
-
-        });
-
-        campoAjusteCusto.style.display = ajusteCustocheck.checked ? 'block' : 'none';
-
-        ajusteCustoTextarea.style.display = ajusteCustocheck.checked ? 'block' : 'none';
-        ajusteCustoTextarea.required = ajusteCustocheck.checked;
-        if (!ajusteCustocheck.checked) {
-            if (inputAjusteCusto) inputAjusteCusto.value = '';
-            ajusteCustoTextarea.value = '';
+    // --- Lógica de Checkboxes (Ajuste, Caixinha, etc) ---
+    const setupToggle = (checkId, campoId, extraId = null) => {
+        const chk = document.getElementById(checkId);
+        const div = document.getElementById(campoId);
+        if (chk && div) {
+            const toggle = () => {
+                div.style.display = chk.checked ? 'block' : 'none';
+                if (extraId) {
+                    const ext = document.getElementById(extraId);
+                    if (ext) ext.style.display = chk.checked ? 'block' : 'none';
+                }
+            };
+            chk.addEventListener('change', toggle);
+            toggle();
         }
-    }
+    };
 
-    const caixinhacheck = document.getElementById('Caixinhacheck');
-    const campoCaixinha = document.getElementById('campoCaixinha');
-    const campoPgtoCaixinha = document.getElementById('campoPgtoCaixinha');
+    setupToggle('ajusteCustocheck', 'campoAjusteCusto', 'ajusteCustoTextarea');
+    setupToggle('Caixinhacheck', 'campoCaixinha');
+    setupToggle('diariaDobradacheck', 'campoDiariaDobrada');
+    setupToggle('meiaDiariacheck', 'campoMeiaDiaria');
 
-    if (caixinhacheck && campoCaixinha) {
-        caixinhacheck.addEventListener('change', function() {
-            campoCaixinha.style.display = this.checked ? 'block' : 'none';
-            campoPgtoCaixinha.style.display = this.checked ? 'block' : 'none';
-        });
-        campoCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
-        campoPgtoCaixinha.style.display = caixinhacheck.checked ? 'block' : 'none';
-    }
-
-    const diariaDobradacheck = document.getElementById('diariaDobradacheck');
-    const campoDiariaDobrada = document.getElementById('campoDiariaDobrada');
-    if (diariaDobradacheck && campoDiariaDobrada) {
-        diariaDobradacheck.addEventListener('change', function() {
-            campoDiariaDobrada.style.display = this.checked ? 'block' : 'none';
-
-        });
-        campoDiariaDobrada.style.display = diariaDobradacheck.checked ? 'block' : 'none';
-
-    }
-
-    const meiaDiariacheck = document.getElementById('meiaDiariacheck');
-    const campoMeiaDiaria = document.getElementById('campoMeiaDiaria');
-    if (meiaDiariacheck && campoMeiaDiaria) {
-        meiaDiariacheck.addEventListener('change', function() {
-            campoMeiaDiaria.style.display = this.checked ? 'block' : 'none';
-         });
-        campoMeiaDiaria.style.display = meiaDiariacheck.checked ? 'block' : 'none';
-    }
-
-    // Chama mostrarTarja() para inicializar a tarja com base no valor do select
-    if (typeof mostrarTarja === 'function') {
-        mostrarTarja();
-    }
+    if (typeof mostrarTarja === 'function') mostrarTarja();
     
-    // 📢 NOVO BLOCO: Restrição de edição dos campos de Status
+    // Restrição Master
     const statusAjusteCustoInput = document.getElementById('statusAjusteCusto');
     const statusCaixinhaInput = document.getElementById('statusCaixinha');
-
     if (statusAjusteCustoInput && statusCaixinhaInput) {
-        if (!temPermissaoMaster) {
-            // Desabilita os campos se o usuário NÃO for Master
-            statusAjusteCustoInput.disabled = true;
-            statusCaixinhaInput.disabled = true;
-            console.log("Status de Ajuste/Caixinha desabilitados: Permissão Master requerida.");
-        } else {
-            // Garante que os campos estão habilitados se o usuário for Master
-            statusAjusteCustoInput.disabled = false;
-            statusCaixinhaInput.disabled = false;
-        }
+        statusAjusteCustoInput.disabled = !temPermissaoMaster;
+        statusCaixinhaInput.disabled = !temPermissaoMaster;
     }
-    // 📢 FIM DO NOVO BLOCO    
 
-    const datasDoFlatpickr = window.datasEventoPicker?.selectedDates.map(d => d.toISOString().split('T')[0]) || [];
+    // 🚀 CHAMADA DO INTERTRAVAMENTO (SETOR vs PAVILHÃO)
+    // Usamos um delay para garantir que os selects e campos carreguem totalmente
+    setTimeout(realizarIntertravamentoSetorPavilhao, 800);
 
     console.log("Entrou configurar Staff no STAFF.js.");
+}
 
+/**
+ * Função responsável por travar os campos de local conforme o orçamento
+ */
+function realizarIntertravamentoSetorPavilhao() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const modo = urlParams.get("modo_local");
+    const valorRaw = urlParams.get("valor_local");
+
+    // Validação de segurança: se não houver instrução na URL, não faz nada
+    if (!modo || !valorRaw || valorRaw === "undefined" || valorRaw === "null" || valorRaw.trim() === "") {
+        console.log("ℹ️ Sem instruções de intertravamento na URL.");
+        return;
+    }
+
+    const valor = decodeURIComponent(valorRaw).trim();
+    const inputSetor = document.getElementById("setor");
+    const selectPav = document.getElementById("nmPavilhao"); 
+
+    console.log("🔒 Executando trava de local:", modo, valor);
+
+    if (modo === "setor") {
+        // MODO SETOR: Preenche texto, trava o input e desabilita o Pavilhão
+        if (inputSetor) {
+            inputSetor.value = valor.toUpperCase();
+            inputSetor.readOnly = true;
+            inputSetor.style.backgroundColor = "#e9ecef";
+            inputSetor.style.fontWeight = "bold";
+        }
+        if (selectPav) {
+            selectPav.value = "";
+            selectPav.disabled = true;
+            selectPav.style.opacity = "0.6";
+        }
+    } 
+    else if (modo === "pavilhao") {
+        // MODO PAVILHÃO: Limpa/trava o setor e seleciona o item no dropdown
+        if (inputSetor) {
+            inputSetor.value = "";
+            inputSetor.disabled = true;
+            inputSetor.placeholder = "Vinculado ao Pavilhão";
+        }
+        if (selectPav) {
+            const opcoes = selectPav.options;
+            for (let i = 0; i < opcoes.length; i++) {
+                if (opcoes[i].text.trim().toUpperCase() === valor.toUpperCase()) {
+                    selectPav.selectedIndex = i;
+                    selectPav.disabled = true;
+                    break;
+                }
+            }
+        }
+    }
 }
 
 // NO INÍCIO OU FINAL DO SEU STAFF.JS (Escopo Global)
