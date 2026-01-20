@@ -138,6 +138,7 @@ router.get('/funcao', async (req, res) => {
       filtros
     );
 
+    console.log("🔍 Backend - Funções retornadas:", resultado.rows.map(f => ({ descfuncao: f.descfuncao, vlrfuncionario: f.vlrfuncionario })));
     res.json(resultado.rows);
   } catch (error) {
     console.error(error);
