@@ -3396,6 +3396,9 @@ BotaoEnviar.addEventListener("click", async (event) => {
             .replace(/\./g, "")
             .replace(",", "."),
 
+        vlrtotcache: (document.getElementById("vlrTotalCacheHidden")?.value || "0"),
+        vlrtotajdcusto: (document.getElementById("vlrTotalAjdCustoHidden")?.value || "0"),
+
         statuspgto: '',
         statuspgtoajdcto: '',
         statuspgtocaixinha: '',
@@ -3671,7 +3674,6 @@ BotaoEnviar.addEventListener("click", async (event) => {
         Swal.fire("Erro", error.message, "error");
     }
 });
-
     }
 }
   
@@ -4609,7 +4611,8 @@ async function carregarEquipeStaff() {
 async function carregarFuncaoStaff() {
     try{
         const funcaofetch = await fetchComToken('/staff/funcao');
-        console.log("ENTROU NO CARREGARFUNCAOSTAFF", funcaofetch);       
+        console.log("ENTROU NO CARREGARFUNCAOSTAFF", funcaofetch);
+        console.log("🔍 Verificando vlrfuncionario nas funções:", funcaofetch.map(f => ({ descfuncao: f.descfuncao, vlrfuncionario: f.vlrfuncionario })));       
 
         let selects = document.querySelectorAll(".descFuncao");
 
@@ -4640,6 +4643,7 @@ async function carregarFuncaoStaff() {
                     
                     // 🟢 Linha Adicionada para trazer o valor do funcionário
                     option.setAttribute("data-vlrfuncionario", funcao.vlrfuncionario || 0); 
+                    console.log(`🔍 Função: ${funcao.descfuncao}, vlrfuncionario: ${funcao.vlrfuncionario}, atributo: ${funcao.vlrfuncionario || 0}`);
                     
                     option.setAttribute("data-alimentacao", funcao.alimentacao || 0);
                     option.setAttribute("data-transporte", funcao.transporte || 0);
@@ -4869,16 +4873,37 @@ async function carregarFuncionarioStaff() {
                         isLote = false;
                         labelFuncionario.textContent = "FREE-LANCER";
                         labelFuncionario.style.color = "red";
+                        
+                        // 🟢 Libera todos os checkboxes para freelancer
+                        if (seniorCheck) seniorCheck.disabled = false;
+                        if (plenoCheck) plenoCheck.disabled = false;
+                        if (juniorCheck) juniorCheck.disabled = false;
+                        if (baseCheck) baseCheck.disabled = false;
+                        
                     } if ((perfilSelecionado.toLowerCase() === "interno") || (perfilSelecionado.toLowerCase() === "externo")) {
                         isLote = false;
                         labelFuncionario.textContent = "FUNCIONÁRIO";
                         labelFuncionario.style.color = "green"
                         descBeneficioTextarea.value = "Cachê é pago se escala cair em Fim de Semana ou Feriado";
+                        
+                        // 🔴 ADICIONA: Trava os checkboxes no Base quando é funcionário
+                        console.log("🔴 FUNCIONÁRIO SELECIONADO: Travando nível Base");
+                        if (baseCheck) baseCheck.checked = true;
+                        if (seniorCheck) seniorCheck.disabled = true;
+                        if (plenoCheck) plenoCheck.disabled = true;
+                        if (juniorCheck) juniorCheck.disabled = true;
+                        if (baseCheck) baseCheck.disabled = false;
 
                     }else if (perfilSelecionado.toLowerCase() === "lote") {
                         isLote = true;
                         labelFuncionario.textContent = "LOTE";
-                        labelFuncionario.style.color = "blue";                    
+                        labelFuncionario.style.color = "blue";
+                        
+                        // 🟢 Libera todos os checkboxes para lote
+                        if (seniorCheck) seniorCheck.disabled = false;
+                        if (plenoCheck) plenoCheck.disabled = false;
+                        if (juniorCheck) juniorCheck.disabled = false;
+                        if (baseCheck) baseCheck.disabled = false;
                     }
                 } else {
                     labelFuncionario.style.display = "none"; // se não tiver perfil
@@ -6390,18 +6415,20 @@ function calcularValorTotal() {
     document.getElementById('vlrTotalHidden').value = valorLimpo;
 
     const valorFormatTotCache = 'R$ ' + totalCache.toFixed(2).replace('.', ',');
-    const valorLimpoCache = total.toFixed(2);
+    const valorLimpoCache = totalCache.toFixed(2);
 
     document.getElementById('vlrTotalCache').value = valorFormatTotCache;
     document.getElementById('vlrTotalCacheHidden').value = valorLimpoCache;
 
     const valorFormatTotAjdCusto = 'R$ ' + totalAjdCusto.toFixed(2).replace('.', ',');
-    const valorLimpoAjdCusto = total.toFixed(2);
+    const valorLimpoAjdCusto = totalAjdCusto.toFixed(2);
 
     document.getElementById('vlrTotalAjdCusto').value = valorFormatTotAjdCusto;
     document.getElementById('vlrTotalAjdCustoHidden').value = valorLimpoAjdCusto;
 
     console.log("Valor Total Final: R$", total.toFixed(2));
+    console.log("Total Cache: R$", totalCache.toFixed(2));
+    console.log("Total Ajd Custo: R$", totalAjdCusto.toFixed(2));
 }
 
 // O restante do seu código de listeners está correto VERIFICAR SE É PARA REMOVER TODO O TRECHO

@@ -841,7 +841,7 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
       descajustecusto, datasevento, vlrtotal, descbeneficios, setor, statuspgto, 
       statusajustecusto, statuscaixinha, statusdiariadobrada, statusmeiadiaria, datadiariadobrada, datameiadiaria,
       desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoas, idequipe, nmequipe, tipoajudacustoviagem,  
-      statuspgtoajdcto, statuspgtocaixinha, idorcamento
+      statuspgtoajdcto, statuspgtocaixinha, idorcamento, vlrtotcache, vlrtotajdcusto
     } = req.body;
 
     console.log("BACKEND", req.body);
@@ -1008,10 +1008,10 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
           desccaixinha = $29, descdiariadobrada = $30, descmeiadiaria = $31,
           comppgtocache = $32, comppgtoajdcusto = $33, comppgtoajdcusto50 = $34, comppgtocaixinha = $35, 
           nivelexperiencia = $36, qtdpessoaslote = $37, idequipe = $38, nmequipe = $39, tipoajudacustoviagem = $40,
-          statuspgtoajdcto = $41, statuspgtocaixinha = $42, idorcamento = $43
+          statuspgtoajdcto = $41, statuspgtocaixinha = $42, idorcamento = $43, vlrtotcache = $44, vlrtotajdcusto = $45
         FROM staff s
         INNER JOIN staffempresas sme ON sme.idstaff = s.idstaff
-        WHERE se.idstaff = s.idstaff AND se.idstaffevento = $44 AND sme.idempresa = $45
+        WHERE se.idstaff = s.idstaff AND se.idstaffevento = $46 AND sme.idempresa = $47
         RETURNING se.idstaffevento, se.datasevento;
       
       `;
@@ -1042,6 +1042,8 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa,
       // Caminhos dos comprovantes
       newComppgtoCachePath, newComppgtoAjdCustoPath, newComppgtoAjdCusto50Path, newComppgtoCaixinhaPath,
       nivelexperiencia, qtdpessoas, idequipe, nmequipe, tipoajudacustoviagem, statuspgtoajdcto, statuspgtocaixinha, idorcamento,
+      parseFloat(String(vlrtotcache || '0').replace(',', '.')) || 0,
+      parseFloat(String(vlrtotajdcusto || '0').replace(',', '.')) || 0,
       // Parâmetros de identificação da linha
       idStaffEvento, idempresa
       ];
@@ -1136,7 +1138,7 @@ router.post(
       descajustecusto, descbeneficios, vlrtotal, setor, statuspgto, statusajustecusto, statuscaixinha,
       statusdiariadobrada, statusmeiadiaria, datadiariadobrada, datameiadiaria, desccaixinha,
       descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoas, idequipe, nmequipe, tipoajudacustoviagem,
-      statuspgtoajdcto, statuspgtocaixinha, idorcamento
+      statuspgtoajdcto, statuspgtocaixinha, idorcamento, vlrtotcache, vlrtotajdcusto
     } = req.body;
 
     // Parse opcionais de datas (sem rollback aqui, só validação)
@@ -1248,10 +1250,10 @@ router.post(
         vlrcaixinha, descajustecusto, datasevento, vlrtotal, comppgtocache, comppgtoajdcusto, comppgtocaixinha,
         descbeneficios, setor, statuspgto, statusajustecusto, statuscaixinha, statusdiariadobrada, statusmeiadiaria, dtdiariadobrada,
         comppgtoajdcusto50, dtmeiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoaslote, idequipe, 
-        nmequipe, tipoajudacustoviagem, statuspgtocaixinha, statuspgtoajdcto, idorcamento
+        nmequipe, tipoajudacustoviagem, statuspgtocaixinha, statuspgtoajdcto, idorcamento, vlrtotcache, vlrtotajdcusto
         
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47
       )
       RETURNING idstaffevento;
     `;
@@ -1292,8 +1294,9 @@ router.post(
       descmeiadiaria,
       nivelexperiencia,
       qtdpessoas,
-      idequipe, nmequipe, tipoajudacustoviagem, statuspgtocaixinha, statuspgtoajdcto, idorcamento
-    
+      idequipe, nmequipe, tipoajudacustoviagem, statuspgtocaixinha, statuspgtoajdcto, idorcamento,
+      parseFloatOrNull(vlrtotcache),
+      parseFloatOrNull(vlrtotajdcusto)
     ];
 
     const insertResult = await client.query(eventoInsertQuery, eventoInsertValues);
