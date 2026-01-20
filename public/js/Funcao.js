@@ -134,14 +134,15 @@ function verificaFuncao() {
             return Swal.fire("Acesso negado", "Você não tem permissão para alterar funções.", "error");
         }
 
-        console.log("campos antes de salvar", idFuncao, descFuncao, venda, obsProposta, obsFuncao, idCatFuncao, idEquipe, ativo);
+            // Validação mais precisa
+        const camposVazios = !descFuncao || idCatFuncao === "" || idEquipe === "";
+        const valoresInvalidos = isNaN(custoBase) || isNaN(venda);
 
-        if (!descFuncao ||  !custoBase || !venda || !idCatFuncao || !idEquipe) {
-
+        if (camposVazios || valoresInvalidos) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Campos obrigatórios!',
-                text: 'Preencha todos os campos antes de enviar.',
+                text: 'Preencha todos os campos corretamente antes de enviar.',
                 confirmButtonText: 'Entendi'
             });
             return;
@@ -173,8 +174,29 @@ function verificaFuncao() {
             return;
         }
 
-       //  const dados = { descFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, obsProposta, obsFuncao, alimentacao, ativo };
-        const dados = { descFuncao, venda, obsProposta, obsFuncao, ativo, idCatFuncao, idEquipe };
+const getNum = (selector) => {
+        const el = document.querySelector(selector);
+        if (!el) return 0;
+        const num = parseFloat(String(el.value).replace(",", "."));
+        return isNaN(num) ? 0 : num;
+    };
+    const dados = {
+        descFuncao,
+        custoBase: getNum("#CustoBase"),
+        venda: getNum("#Venda"),
+        transporte: getNum("#transporte"),
+        almoco: getNum("#almoco"),
+        alimentacao: getNum("#alimentacao"),
+        transpSenior: getNum("#transpSenior"),
+        custoSenior: getNum("#custoSenior"),
+        custoPleno: getNum("#custoPleno"),
+        custoJunior: getNum("#custoJunior"),
+        obsProposta: document.querySelector("#obsProposta").value.trim(),
+        obsFuncao: document.querySelector("#obsFuncao").value.trim(),
+        ativo: document.getElementById('funcaoAtiva').checked,
+        idCatFuncao: document.querySelector("#idCatFuncao").value,
+        idEquipe: document.querySelector("#idEquipeFuncao").value
+    };
         const token = localStorage.getItem('token');
         const idEmpresa = localStorage.getItem('idEmpresa');
 
