@@ -4864,6 +4864,33 @@ async function carregarFuncionarioStaff() {
                 const labelFuncionario = document.getElementById("labelFuncionario");
                 const qtdPessoasDiv = document.querySelector('label[for="lote"]').closest('.field');
                 console.log("Perfil selecionado:", perfilSelecionado);
+                
+                // 🔥 NOVA LÓGICA: Se já tiver função selecionada E for INTERNO/EXTERNO, recalcula o cachê
+                const funcaoSelect = document.getElementById("descFuncao");
+                if (funcaoSelect && funcaoSelect.value && (perfilSelecionado.toLowerCase() === "interno" || perfilSelecionado.toLowerCase() === "externo")) {
+                    console.log("🔄 Funcionário INTERNO/EXTERNO selecionado DEPOIS da função. Recalculando cachê...");
+                    
+                    const selectedFuncaoOption = funcaoSelect.options[funcaoSelect.selectedIndex];
+                    const vlrFuncionarioAttr = selectedFuncaoOption.getAttribute("data-vlrfuncionario");
+                    const vlrAlimentacaoAttr = selectedFuncaoOption.getAttribute("data-alimentacao");
+                    const vlrTransporteAttr = selectedFuncaoOption.getAttribute("data-transporte");
+                    
+                    const vlrFuncionarioRecalculado = parseFloat(vlrFuncionarioAttr) || 0;
+                    const vlrAlimentacaoRecalculado = parseFloat(vlrAlimentacaoAttr) || 0;
+                    const vlrTransporteRecalculado = parseFloat(vlrTransporteAttr) || 0;
+                    
+                    console.log("💰 vlrFuncionario:", vlrFuncionarioRecalculado, "Alimentação:", vlrAlimentacaoRecalculado, "Transporte:", vlrTransporteRecalculado);
+                    
+                    // Preenche os campos
+                    document.getElementById("vlrCusto").value = vlrFuncionarioRecalculado.toFixed(2).replace('.', ',');
+                    document.getElementById("alimentacao").value = vlrAlimentacaoRecalculado.toFixed(2).replace('.', ',');
+                    document.getElementById("transporte").value = vlrTransporteRecalculado.toFixed(2).replace('.', ',');
+                    
+                    // Chama o cálculo do total
+                    if (typeof calcularValorTotal === 'function') {
+                        calcularValorTotal();
+                    }
+                }
 
                 // Se não for freelancer, mostra label em verde
                 if (perfilSelecionado) {
