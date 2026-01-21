@@ -290,324 +290,448 @@ async function abrirModalLocal(url, modulo) {
 
     let html;
     try {
+        console.log("[abrirModalLocal] fetchHtmlComToken ->", url);
         html = await fetchHtmlComToken(url);
+        console.log("[abrirModalLocal] HTML recebido, tamanho:", html ? html.length : 0);
     } catch (err) {
-        console.error("[abrirModalLocal] Erro ao carregar modal:", err);
+        console.error("[abrirModalLocal] Erro ao carregar modal (local):", err);
         return;
     }
 
     const container = document.getElementById("modal-container");
-    if (!container) return;
+    if (!container) {
+        console.error("[abrirModalLocal] modal-container não encontrado no DOM.");
+        return;
+    }
 
-    // Injeta HTML e gerencia scripts
+    // injeta HTML do modal
     container.innerHTML = html;
+    console.log("[abrirModalLocal] HTML injetado no #modal-container");
+
+    // remove script anterior se existir
     const scriptId = 'scriptModuloDinamico';
     const scriptAntigo = document.getElementById(scriptId);
-    if (scriptAntigo) scriptAntigo.remove();
+    if (scriptAntigo) {
+        scriptAntigo.remove();
+        console.log("[abrirModalLocal] script anterior removido");
+    }
 
+    // carrega script do módulo (Staff.js por exemplo)
     const scriptName = modulo.charAt(0).toUpperCase() + modulo.slice(1) + ".js";
     const scriptSrc = `js/${scriptName}`;
 
+    // cria promise para aguardar load / execução do módulo
     await new Promise((resolve, reject) => {
+        console.log("[abrirModalLocal] carregando script do módulo:", scriptSrc);
         const script = document.createElement("script");
         script.id = scriptId;
         script.src = scriptSrc;
         script.defer = true;
         script.type = "module";
-        script.onload = () => setTimeout(resolve, 50);
-        script.onerror = reject;
+
+        script.onload = () => {
+            // aguarda um tick para garantir execução de exports/global assignments
+            setTimeout(() => {
+                console.log(`[abrirModalLocal] Script ${scriptName} carregado e executado.`);
+                resolve();
+            }, 50);
+        };
+        script.onerror = (e) => {
+            console.error(`[abrirModalLocal] Erro ao carregar script ${scriptSrc}`, e);
+            reject(new Error(`Erro ao carregar script ${scriptSrc}`));
+        };
         document.body.appendChild(script);
+    }).catch(err => {
+        console.error("[abrirModalLocal] falha ao carregar script do módulo:", err);
+        return;
     });
 
     // =========================================================================
-    // 🎯 LOGICA DE PREENCHIMENTO E DESTRAVE (Edição)
+    // 🎯 PONTO DE INSERÇÃO: BUSCA DE DADOS E CARREGAMENTO DE DATAS (Edição)
     // =========================================================================
     const recordId = getRecordIdFromUrl(url);
 
+    console.log("RECORD ID", recordId);
+
     if (recordId) {
         try {
+            // 1. Busca os dados do Staff/Evento (Assumindo que o endpoint é: /staff/data/ID)
             const dataUrl = `/${modulo.toLowerCase()}/data/${recordId}`;
             const staffData = await fetchComToken(dataUrl);
+            console.log("[abrirModalLocal] Dados do Staff para edição carregados:", staffData);
+
 
             if (staffData) {
+                // Expõe os dados para que o applyModalPrefill ou o Staff.js possam usá-los
                 window.__modalFetchedData = staffData;
 
-                // 🔥 PASSO 1: Injeção Imediata de IDs (Evita Erro 400 e destrava Setor)
-                setTimeout(() => {
-                    console.log("[abrirModalLocal] Injetando dados mestre...");
-                    
-                    const camposMestre = {
-                        'nmevento': staffData.idevento,
-                        'nmcliente': staffData.idcliente,
-                        'nmlocalmontagem': staffData.idmontagem,
-                        'descFuncao': staffData.idfuncao
-                    };
+                const datasOrcamento = staffData.datasOrcamento.map(item => item.data); // Array de datas no formato "YYYY-MM-DD"
+                console.log("[abrirModalLocal] Datas do orçamento extraídas:", datasOrcamento);
 
-                    // Preenche selects normais
-                    for (const [id, valor] of Object.entries(camposMestre)) {
-                        const el = document.getElementById(id);
-                        if (el && valor) {
-                            el.value = valor;
-                            el.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
-                    }
+                const datasDoStaff = staffData.datasevento;
 
-                    // --- LÓGICA ESPECÍFICA PARA O SETOR (PAVILHÃO) ---
-                    const elSetor = document.getElementById('setor') || document.querySelector('select[name="pavilhao"]');
-                    if (elSetor && staffData.setor) {
-                        console.log("[abrirModalLocal] Tratando setor múltiplo:", staffData.setor);
-                        
-                        // Converte o que vem do banco em array (ex: "AMARELO, AZUL" -> ["AMARELO", "AZUL"])
-                        const setoresSalvos = String(staffData.setor).split(',').map(s => s.trim().toUpperCase());
+                // 2. Preenchimento do Flatpickr (COMENTADO PARA SER FEITO NO SEGUNDO SETTIMEOUT DE 500MS)
+                // Se o picker não estiver pronto neste momento, o bloco de 500ms fará o preenchimento.
 
-                        Array.from(elSetor.options).forEach(opt => {
-                            const match = setoresSalvos.some(s => opt.text.toUpperCase().includes(s) || opt.value === s);
-                            if (match) {
-                                opt.selected = true;
-                            }
-                        });
-                        elSetor.dispatchEvent(new Event('change', { bubbles: true }));
-                    }
+                // 3. (Opcional) Chamar o debounce para garantir o carregamento do orçamento
+                if (typeof window.debouncedOnCriteriosChanged === 'function') {
+                    window.debouncedOnCriteriosChanged();
+                    console.log("[abrirModalLocal] Verificação de orçamento (debounce) chamada.");
+                }
 
-                    if (typeof window.debouncedOnCriteriosChanged === 'function') {
-                        window.debouncedOnCriteriosChanged();
-                    }
-                }, 300);
-                // 🌟 PASSO 2: Sincronização do Flatpickr
-                setTimeout(() => {
-                    const datasDoStaff = staffData.datasevento;
-                    if (window.datasEventoPicker && datasDoStaff && Array.isArray(datasDoStaff)) {
-                        window.datasEventoPicker.setDate(datasDoStaff, true);
+                // 4. (Opcional) Disparar um evento para o Staff.js preencher os outros campos
+                document.dispatchEvent(new CustomEvent("modal:data:loaded", { detail: staffData }));
 
-                        if (typeof window.atualizarContadorEDatas === 'function') {
-                            window.atualizarContadorEDatas(window.datasEventoPicker.selectedDates);
-                        }
-
-                        // Garante que o texto das datas apareça no formato correto no input
-                        if (window.datasEventoPicker.altInput) {
-                            window.datasEventoPicker.altInput.value = window.datasEventoPicker.formatDate(
-                                window.datasEventoPicker.selectedDates,
-                                window.datasEventoPicker.config.altFormat
-                            );
-                        }
-                        console.log("[abrirModalLocal] Flatpickr e contador sincronizados.");
-                    }
-                }, 600);
             }
         } catch (error) {
-            console.error(`[abrirModalLocal] Erro ao processar prefill:`, error);
+            console.error(`[abrirModalLocal] Erro ao carregar dados do ${modulo} (ID: ${recordId}):`, error);
         }
     }
+    // =========================================================================
 
-    // =========================================================================
-    // 🚪 EXIBIÇÃO E FECHAMENTO
-    // =========================================================================
+    // mostra modal (espera elemento modal injetado)
     const modal = document.querySelector("#modal-container .modal");
     const overlay = document.getElementById("modal-overlay");
-
     if (modal && overlay) {
         modal.style.display = "block";
         overlay.style.display = "block";
         document.body.classList.add("modal-open");
+        console.log("[abrirModalLocal] modal exibido");
 
-        const encerrarModal = () => {
+        // fechar por overlay
+        overlay.addEventListener("mousedown", (event) => {
+            console.log("EVENT TARGET", event.target, "OVERLAY FECHAR", overlay);
+            if (event.target === overlay) {
+                console.log("[abrirModalLocal] overlay clicado -> fechar");
+                if (typeof fecharModal === "function") {
+                    fecharModal();
+                    // 🟢 CORREÇÃO: RECARREGA A PÁGINA
+                    window.location.reload(); 
+                } else {
+                    overlay.style.display = "none";
+                    container.innerHTML = "";
+                    document.body.classList.remove("modal-open");
+                    // Chama o callback AQUI
+                    if (typeof window.onStaffModalClosed === 'function') {
+                        window.onStaffModalClosed(false);
+                    }
+                    // 🟢 CORREÇÃO: RECARREGA A PÁGINA (Fallback)
+                    window.location.reload();
+                }
+            }
+        });
+
+        // fechar por botão ".close"
+        modal.querySelector(".close")?.addEventListener("click", () => {
+            console.log("[abrirModalLocal] fechar (botão X)");
+
+            // Se a função global existir, use-a para garantir o comportamento de callback.
             if (typeof fecharModal === "function") {
                 fecharModal();
+                // 🟢 CORREÇÃO: RECARREGA A PÁGINA
+                window.location.reload();
             } else {
+                // Fallback de fechamento, e aqui você DEVE incluir o callback.
                 overlay.style.display = "none";
                 container.innerHTML = "";
                 document.body.classList.remove("modal-open");
+                // Chama o callback AQUI para garantir que a tela volte, mesmo sem a função fecharModal
                 if (typeof window.onStaffModalClosed === 'function') {
-                    window.onStaffModalClosed(false);
+                    window.onStaffModalClosed(false); // false indica que não foi fechado pela função principal, mas ainda deve voltar
                 }
+                // 🟢 CORREÇÃO: RECARREGA A PÁGINA (Fallback)
+                window.location.reload();
             }
-            window.location.reload(); // Recarrega para limpar estados e atualizar grid
-        };
-
-        overlay.onclick = (e) => { if (e.target === overlay) encerrarModal(); };
-        modal.querySelector(".close")?.addEventListener("click", encerrarModal);
+        });
+    } else {
+        console.warn("[abrirModalLocal] estrutura de modal não encontrada após injeção do HTML.");
     }
 
-    // Inicialização final do módulo
+    // --- Inicializa o módulo carregado (LÓGICA LIMPA) ---
     try {
-        if (window.moduloHandlers?.[modulo]?.configurar) {
+        console.log("[abrirModalLocal] inicializando módulo:", modulo);
+
+        // 1) preferencial: handler registrado pelo módulo (window.moduloHandlers)
+        if (window.moduloHandlers && window.moduloHandlers[modulo] && typeof window.moduloHandlers[modulo].configurar === "function") {
+            console.log("[abrirModalLocal] chamando window.moduloHandlers[...] .configurar");
             window.moduloHandlers[modulo].configurar();
+        } else if (typeof window.configurarEventosEspecificos === "function") {
+            console.log("[abrirModalLocal] chamando window.configurarEventosEspecificos");
+            window.configurarEventosEspecificos(modulo);
         } else if (typeof window.configurarEventosStaff === "function" && modulo.toLowerCase() === "staff") {
+            console.log("[abrirModalLocal] chamando window.configurarEventosStaff");
             window.configurarEventosStaff();
+        } else {
+            console.log("[abrirModalLocal] nenhuma função de configuração detectada");
         }
 
-        // Prefill genérico de fallback
+        // ❌ Bloco de 100ms removido para evitar a duplicação na inicialização.
+
+        // 4) tenta aplicar prefill imediato (se o módulo já injetou selects/inputs)
         setTimeout(() => {
-            if (typeof window.applyModalPrefill === "function") {
-                window.applyModalPrefill(window.__modalInitialParams || "");
+            try {
+                console.log("[abrirModalLocal] tentando applyModalPrefill imediato");
+                if (typeof window.applyModalPrefill === "function") {
+                    const ok = window.applyModalPrefill(window.__modalInitialParams || "");
+                    console.log("[abrirModalLocal] applyModalPrefill retornou:", ok);
+                } else {
+                    const evt = new CustomEvent("modal:prefill", { detail: window.__modalInitialParams || "" });
+                    document.dispatchEvent(evt);
+                    console.log("[abrirModalLocal] evento modal:prefill disparado");
+                }
+            } catch (e) {
+                console.warn("[abrirModalLocal] prefill falhou", e);
             }
         }, 800);
+
+        // pequena garantia: re-tentar inicialização caso o módulo popule DOM com atraso
+        // setTimeout(() => {
+        //     try {
+        //         if (window.moduloHandlers && window.moduloHandlers[modulo] && typeof window.moduloHandlers[modulo].configurar === "function") {
+        //             console.log("[abrirModalLocal] re-executando moduloHandlers.configurar (retry 400ms)");
+        //             window.moduloHandlers[modulo].configurar();
+        //         }
+        //     } catch (e) { console.warn("[abrirModalLocal] retry configurar falhou", e); }
+        // }, 400);
+
+        // 🌟 Bloco de preenchimento do Flatpickr (500ms) - Garante que o Flatpickr esteja pronto
+        setTimeout(() => {
+            const staffData = window.__modalFetchedData;
+            const datasDoStaff = staffData?.datasevento; // Usa optional chaining para segurança
+
+            // Verifica se o picker e os dados existem
+            if (window.datasEventoPicker && datasDoStaff && Array.isArray(datasDoStaff)) {
+
+                // Define as datas, disparando onChange (necessário para sincronizar com Diária Dobrada/Meia Diária)
+                window.datasEventoPicker.setDate(datasDoStaff, true);
+
+                if (typeof window.atualizarContadorEDatas === 'function') {
+                    // Chama a função de atualização do contador com as datas do staff
+                    window.atualizarContadorEDatas(window.datasEventoPicker.selectedDates);
+                    console.log("[abrirModalLocal] Contador de datas do evento atualizado após SetDate.");
+                }
+
+                // 🌟 GARANTIA DE FORMATO: Força a re-renderização do altInput
+                // Isso resolve o problema de YYYY-MM-DD e múltiplos campos.
+                if (window.datasEventoPicker.altInput) {
+                    window.datasEventoPicker.altInput.value = window.datasEventoPicker.formatDate(
+                        window.datasEventoPicker.selectedDates,
+                        window.datasEventoPicker.config.altFormat
+                    );
+                }
+
+                console.log(`[abrirModalLocal] [SetDate Seguro] Datas carregadas no Flatpickr: ${datasDoStaff.length} dias, formato corrigido.`);
+
+            } else {
+                console.warn("[abrirModalLocal] [SetDate Seguro] Flatpickr ou dados de staff (datasevento) ausentes/inválidos.");
+            }
+        }, 500);
     } catch (err) {
-        console.warn("[abrirModalLocal] Erro na configuração final do módulo:", err);
+        console.warn("[abrirModalLocal] inicialização do módulo apresentou erro", err);
     }
 }
 
 window.applyModalPrefill = function(rawParams) {
-    try {
-        console.log("[applyModalPrefill] Iniciando processo excludente...");
-        
-        const raw = rawParams || window.__modalInitialParams || (window.location.search ? window.location.search.replace(/^\?/, '') : "");
-        if (!raw) return false;
-        
-        const params = new URLSearchParams(raw);
-        const prefill = {
-            idevento: params.get("idevento"),
-            idfuncao: params.get("idfuncao"),
-            idequipe: params.get("idequipe"),
-            idcliente: params.get("idcliente"),
-            idmontagem: params.get("idmontagem"),
-            nmequipe: params.get("nmequipe") || params.get("idequipe_nome"),
-            nmfuncao: params.get("nmfuncao"),
-            nmevento: params.get("nmevento"),
-            nmcliente: params.get("nmcliente"),
-            nmlocalmontagem: params.get("nmlocalmontagem") || params.get("idmontagem_nome")
-        };
-
-        window.__modalDesiredPrefill = prefill;
-
-        // --- Helpers ---
-        function setHidden(id, value) {
-            const el = document.getElementById(id);
-            if (el && value) el.value = value;
-        }
-
-        function trySelectIfExists(selectId, value, text) {
-            const sel = typeof selectId === 'string' ? document.getElementById(selectId) : selectId;
-            if (!sel || !sel.options) return false;
-            if (value && String(value).trim() !== "") {
-                sel.value = value;
-                if (sel.value === String(value)) {
-                    sel.dispatchEvent(new Event('change', { bubbles: true }));
-                    return true;
-                }
-            }
-            if (text) {
-                const normalized = text.trim().toUpperCase();
-                for (let i = 0; i < sel.options.length; i++) {
-                    const optText = sel.options[i].text.trim().toUpperCase();
-                    if (optText === normalized || optText.includes(normalized)) {
-                        sel.selectedIndex = i;
-                        sel.dispatchEvent(new Event('change', { bubbles: true }));
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-
-        // Injeção Básica
-        setHidden("idEvento", prefill.idevento);
-        setHidden("idEquipe", prefill.idequipe);
-        setHidden("idFuncao", prefill.idfuncao);
-        setHidden("idCliente", prefill.idcliente);
-        setHidden("idMontagem", prefill.idmontagem);
-
-        const selectsToTry = [
-            { id: "nmEvento", val: prefill.idevento, txt: prefill.nmevento },
-            { id: "nmCliente", val: prefill.idcliente, txt: prefill.nmcliente },
-            { id: "nmLocalMontagem", val: prefill.idmontagem, txt: prefill.nmlocalmontagem },
-            { id: "nmEquipe", val: prefill.idequipe, txt: prefill.nmequipe },
-            { id: "descFuncao", val: prefill.idfuncao, txt: prefill.nmfuncao }
-        ];
-
-        selectsToTry.forEach(s => {
-            if (!trySelectIfExists(s.id, s.val, s.txt)) {
-                setTimeout(() => trySelectIfExists(s.id, s.val, s.txt), 500);
-            }
-        });
-
-// =========================================================================
-        // 🚀 LÓGICA DE SETOR HÍBRIDA (ANTI-TRAVAMENTO DE TABELA)
-        // =========================================================================
-        const nmFuncaoRaw = prefill.nmfuncao || ""; 
-        let setorAlvo = null;
-
-        if (nmFuncaoRaw.includes('(')) {
-            const match = nmFuncaoRaw.match(/\(([^)]+)\)/);
-            if (match) setorAlvo = match[1].trim().toUpperCase();
-        }
-
-        if (setorAlvo) {
-            let tentativas = 0;
-            const monitorSetor = setInterval(() => {
-                tentativas++;
-                const modalContainer = document.getElementById("modal-container") || document.body;
-                
-                const selPav = Array.from(modalContainer.querySelectorAll('select')).find(s => 
-                    s.id.toLowerCase().includes('setor') || s.name.toLowerCase().includes('pavilhao') || s.multiple
-                );
-                const inputSetor = document.getElementById('setor') || document.querySelector('input[name="setor"]');
-
-                if (selPav && selPav.options && selPav.options.length > 0) {
-                    clearInterval(monitorSetor);
-                    
-                    const options = Array.from(selPav.options);
-                    const alvoOficial = options.find(opt => opt.text.trim().toUpperCase().includes(setorAlvo));
-
-                    // Estilo de bloqueio visual sem desativar o elemento para o Staff.js
-                    const estiloTrava = {
-                        backgroundColor: "#f8f9fa",
-                        cursor: "not-allowed",
-                        pointerEvents: "none",
-                        fontWeight: "bold"
-                    };
-
-                    if (alvoOficial) {
-                        // --- CASO A: PAVILHÃO OFICIAL ---
-                        const val = alvoOficial.value;
-                        const txt = alvoOficial.text.trim();
-
-                        selPav.innerHTML = ""; 
-                        selPav.appendChild(new Option(txt, val, true, true));
-                        Object.assign(selPav.style, estiloTrava);
-
-                        if (inputSetor) {
-                            inputSetor.value = setorAlvo;
-                            inputSetor.readOnly = true;
-                            inputSetor.style.display = "block";
-                            Object.assign(inputSetor.style, estiloTrava);
-                        }
-                    } else {
-                        // --- CASO B: SETOR INFORMATIVO (GERAL) ---
-                        selPav.innerHTML = "";
-                        // Importante: O valor e o texto devem ser idênticos ao que o Staff.js busca
-                        const optLimpa = new Option(setorAlvo, setorAlvo, true, true);
-                        selPav.appendChild(optLimpa);
-                        Object.assign(selPav.style, estiloTrava);
-
-                        if (inputSetor) {
-                            inputSetor.value = setorAlvo;
-                            inputSetor.readOnly = true;
-                            inputSetor.style.display = "block";
-                            Object.assign(inputSetor.style, estiloTrava);
-                        }
-                    }
-                    
-                    // 🔥 O PULO DO GATO: Timeout para garantir que o DOM atualizou antes do Staff.js ler
-                    setTimeout(() => {
-                        selPav.dispatchEvent(new Event('change', { bubbles: true }));
-                        console.log("[DEBUG-SETOR] Evento Change disparado para sincronizar tabela.");
-                    }, 100);
-                }
-
-                if (tentativas >= 25) clearInterval(monitorSetor);
-            }, 250);
-        }
-
-        document.dispatchEvent(new CustomEvent("prefill:registered", { detail: { prefill } }));
-        try { delete window.__modalInitialParams; } catch(e) { window.__modalInitialParams = null; }
-        return true;
-
-    } catch (err) {
-        console.error("[applyModalPrefill] Erro Crítico:", err);
-        return false;
+  try {
+    console.log("[applyModalPrefill] iniciar. rawParams:", rawParams);
+    console.log("[applyModalPrefill] Parâmetros definidos:", window.__modalInitialParams);
+    const raw = rawParams || window.__modalInitialParams || (window.location.search ? window.location.search.replace(/^\?/,'') : "");
+    console.log("[applyModalPrefill] raw usado:", raw);
+    if (!raw) {
+      console.log("[applyModalPrefill] sem params, abortando");
+      return false;
     }
+    const params = new URLSearchParams(raw);
+
+    console.log("[applyModalPrefill ABRIRMODALLOCAL] URLSearchParams:", Array.from(params.entries()));
+
+    // leitura dos valores esperados
+    const prefill = {
+      idevento: params.get("idevento"),
+      idfuncao: params.get("idfuncao"),
+      idequipe: params.get("idequipe"),
+      idcliente: params.get("idcliente"),
+      idmontagem: params.get("idmontagem"),
+      idorcamento: params.get("idorcamento"),
+      nmequipe: params.get("nmequipe") || params.get("idequipe_nome"),
+      nmfuncao: params.get("nmfuncao"),
+      nmevento: params.get("nmevento"),
+      nmcliente: params.get("nmcliente"),
+      nmlocalmontagem: params.get("nmlocalmontagem") || params.get("idmontagem_nome")
+    };
+    console.log("[applyModalPrefill] prefill parseado:", prefill);
+
+  // expõe para uso posterior (Staff.js ou observers)
+  window.__modalDesiredPrefill = prefill;
+
+  // helper: tenta aplicar em hidden/input simples
+  function setHidden(id, value) {
+    if (!value) return;
+    const el = document.getElementById(id);
+    if (el) {
+      el.value = value;
+      console.log(`[applyModalPrefill] setHidden ${id}=${value}`);
+    } else {
+      console.log(`[applyModalPrefill] hidden ${id} não encontrado`);
+    }
+  }
+
+  setHidden("idEvento", prefill.idevento);
+  //setHidden("idStaffEvento", prefill.idstaffevento);
+  setHidden("idEquipe", prefill.idequipe);
+  setHidden("idFuncao", prefill.idfuncao);
+  setHidden("idCliente", prefill.idcliente);
+  setHidden("idMontagem", prefill.idmontagem);
+  setHidden("idorcamento", prefill.idorcamento);
+
+  // helper: tenta selecionar option existente — NÃO cria option para evitar sobrescrever listas carregadas depois
+  function trySelectIfExists(selectId, value, text) {
+    if (!value && !text) return false;
+    const sel = document.getElementById(selectId);
+    if (!sel) {
+      console.log(`[applyModalPrefill] select ${selectId} não existe ainda`);
+      return false;
+    }
+    const options = Array.from(sel.options || []);
+  // tenta por value primeiro
+    let opt = options.find(o => String(o.value) === String(value));
+    if (!opt && text) {
+      opt = options.find(o => (o.textContent || o.text || "").trim() === String(text).trim());
+    }
+    if (opt) {
+      sel.value = opt.value;
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      console.log(`[applyModalPrefill] selecionado ${selectId} -> value:${opt.value} text:${opt.text}`);
+      return true;
+    }
+    console.log(`[applyModalPrefill] opção não encontrada em ${selectId} para value:${value} text:${text}`);
+    return false;
+  }
+
+  // Observador que aguarda opções serem adicionadas a um <select> e então tenta aplicar
+  function observeSelectUntilPopulated(selectId, value, text, timeout = 3000) {
+    const sel = document.getElementById(selectId);
+    if (!sel) {
+    console.log(`[applyModalPrefill] observe: select ${selectId} não existe, pulando`);
+    return;
+    }
+    if (trySelectIfExists(selectId, value, text)) return;
+
+    console.log(`[applyModalPrefill] observando select ${selectId} até popular (timeout ${timeout}ms)`);
+    const mo = new MutationObserver((mutations) => {
+    if (trySelectIfExists(selectId, value, text)) {
+    try { mo.disconnect(); } catch(e) {}
+    console.log(`[applyModalPrefill] observe: option aplicada em ${selectId}`);
+    }
+    });
+
+    mo.observe(sel, { childList: true, subtree: true });
+
+    setTimeout(() => {
+    try { mo.disconnect(); } catch (e) {}
+    const still = document.getElementById(selectId);
+
+    // LINHA 244 ATUALIZADA (CORREÇÃO DO PRIMEIRO TypeError: reading 'length')
+    if (still && still.options && (still.options.length === 0 || !trySelectIfExists(selectId, value, text))) { 
+    console.log(`[applyModalPrefill] timeout atingido para ${selectId}. Criando option fallback (se tiver texto).`);
+    if (text || value) {
+    const opt = document.createElement("option");
+    opt.value = value || text || "";
+    opt.text = text || value || "Selecionado";
+    opt.selected = true;
+    still.appendChild(opt);
+
+    // NOVA LINHA (CORREÇÃO DO SEGUNDO TypeError em Staff.js:3345)
+    still.value = opt.value; 
+
+    // LINHA 252 ATUALIZADA (agora mais segura)
+    still.dispatchEvent(new Event('change', { bubbles: true }));
+    console.log(`[applyModalPrefill] option fallback criado em ${selectId} value:${opt.value}`);
+    }
+  }
+  }, timeout);
+}
+
+  // Campos para tentar aplicar agora / observar
+  const selectsToTry = [
+  { id: "nmEvento", val: prefill.idevento, txt: prefill.nmevento },
+  { id: "nmCliente", val: prefill.idcliente, txt: prefill.nmcliente },
+  { id: "nmLocalMontagem", val: prefill.idmontagem, txt: prefill.nmlocalmontagem },
+  { id: "nmEquipe", val: prefill.idequipe, txt: prefill.nmequipe },
+  { id: "descFuncao", val: prefill.idfuncao, txt: prefill.nmfuncao }
+  ];
+
+  console.log("[applyModalPrefill] selectsToTry:", selectsToTry);
+  
+
+  selectsToTry.forEach(s => {
+  console.log("[applyModalPrefill] tentativa imediata select:", s.id, s.val, s.txt);
+
+  if (!trySelectIfExists(s.id, s.val, s.txt)) {
+  // Se a seleção imediata falhar, inicie a observação para *todos* os campos.
+  // Atrasamos o início da observação na função abrirModalLocal (Passo 1), o que é suficiente.
+  observeSelectUntilPopulated(s.id, s.val, s.txt, 3000);
+  }
+  });
+
+// No Main.js, no bloco selectsToTry.forEach(...)
+
+
+
+// Nota: Com esta abordagem, você pode APAGAR a função observeSelectUntilPopulated
+// (ou pelo menos remover as chamadas a ela), pois não estamos mais usando o MutationObserver,
+// mas sim o retry forçado via setTimeout.
+
+  // Quando o usuário escolher um funcionário, aplicar campos dependentes (equipe/função/evento/cliente/local)
+  const nmFuncionario = document.getElementById("nmFuncionario");
+  if (nmFuncionario) {
+  console.log("[applyModalPrefill] nmFuncionario existe -> adicionando listener para aplicar dependentes quando escolhido");
+  nmFuncionario.addEventListener("change", function handler() {
+  console.log("[applyModalPrefill] nmFuncionario change detectado, aplicando dependentes");
+  selectsToTry.forEach(s => {
+  const el = document.getElementById(s.id);
+  const userSelected = el && el.value && el.value !== "" && Array.from(el.options || []).some(o => o.value === el.value);
+  if (!userSelected) trySelectIfExists(s.id, s.val, s.txt);
+  });
+  nmFuncionario.removeEventListener("change", handler);
+  }, { once: true });
+  } else {
+  console.log("[applyModalPrefill] nmFuncionario não existe ainda -> observando DOM para adicioná-lo");
+  const bodyObs = new MutationObserver((mut, obs) => {
+  const sel = document.getElementById("nmFuncionario");
+  if (sel) {
+  console.log("[applyModalPrefill] nmFuncionario injetado -> adicionando listener");
+  sel.addEventListener("change", function handler() {
+  console.log("[applyModalPrefill] nmFuncionario change detectado (via observer)");
+  selectsToTry.forEach(s => {
+  const el = document.getElementById(s.id);
+  const userSelected = el && el.value && el.value !== "" && Array.from(el.options || []).some(o => o.value === el.value);
+  if (!userSelected) trySelectIfExists(s.id, s.val, s.txt);
+  });
+  sel.removeEventListener("change", handler);
+  }, { once: true });
+  obs.disconnect();
+  }
+  });
+  bodyObs.observe(document.body, { childList: true, subtree: true });
+  }
+
+
+
+  // notifica listeners que o prefill foi registrado (módulo pode reagir)
+  console.log("[applyModalPrefill] prefill registrado, dispatching prefill:registered");
+  document.dispatchEvent(new CustomEvent("prefill:registered", { detail: { prefill } }));
+
+  // limpa var global inicial, mantemos __modalDesiredPrefill para possíveis usos posteriores
+  try { delete window.__modalInitialParams; } catch(e) { window.__modalInitialParams = null; }
+
+  return true;
+  } catch (err) {
+  console.error("[applyModalPrefill] erro:", err);
+  return false;
+  }
 };
+
 
 
 
@@ -2009,28 +2133,51 @@ try {
   const data_referencia = ev.dtinimontagem || ev.dtinirealizacao || ev.dtinimarcacao;
   const fim_evento = ev.dtfimdesmontagem || ev.dtfimrealizacao;
 
-  let equipesDetalhes = Array.isArray(ev.equipes_detalhes) ? ev.equipes_detalhes : [];
+    let equipesDetalhes = Array.isArray(ev.equipes_detalhes) ? ev.equipes_detalhes : [];
 
-  // 🛑 CORREÇÃO DE DADOS: Recalcula totais a partir dos detalhes das equipes para garantir consistência
-  const totalVagasCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.total_vagas || 0), 0);
-  const totalStaffCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.preenchidas || 0), 0);
-  const vagasRestantesCalculado = totalVagasCalculado - totalStaffCalculado;
+    // 🛑 CORREÇÃO DE DADOS: Recalcula totais a partir dos detalhes das equipes para garantir consistência
+    const totalVagasCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.total_vagas || 0), 0);
+    const totalStaffCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.preenchidas || 0), 0);
+    const vagasRestantesCalculado = totalVagasCalculado - totalStaffCalculado;
 
-  return {
-  ...ev,
-  data_referencia,
-  inicio_realizacao,
-  fim_realizacao,
-  fim_evento,
+    // 🧮 Recalcula resumo por categoria evitando categorias inexistentes
+    const grupos = equipesDetalhes.reduce((acc, item) => {
+        const categoria = (item.equipe || item.categoria || item.nmequipe || 'OPERACIONAL').toString().trim().toUpperCase();
+        const total = item.total_vagas || 0;
+        const preench = item.preenchidas || 0;
+        if (!acc[categoria]) acc[categoria] = { total: 0, preench: 0 };
+        acc[categoria].total += total;
+        acc[categoria].preench += preench;
+        return acc;
+    }, {});
 
-  // 🛑 Usa os totais calculados para o status principal
-  total_vagas: totalVagasCalculado,
-  total_staff: totalStaffCalculado,
-  vagas_restantes: vagasRestantesCalculado,
+    const resumoEquipesCalc = Object.entries(grupos)
+        .filter(([, vals]) => vals.total > 0) // só mostra categorias que realmente têm vagas
+        .map(([cat, vals]) => {
+            let statusIcon = "🟢";
+            if (vals.total === 0) statusIcon = "⚪";
+            else if (vals.preench === 0) statusIcon = "🔴";
+            else if (vals.preench < vals.total) statusIcon = "🟡";
+            return `${statusIcon} ${cat}: ${vals.preench}/${vals.total}`;
+        })
+        .join(' | ');
 
-  total_staff_api: ev.total_staff, // Mantém o valor original do backend para referência (opcional)
-  equipes_detalhes: equipesDetalhes
-  };
+    return {
+    ...ev,
+    data_referencia,
+    inicio_realizacao,
+    fim_realizacao,
+    fim_evento,
+
+    // 🛑 Usa os totais calculados para o status principal
+    total_vagas: totalVagasCalculado,
+    total_staff: totalStaffCalculado,
+    vagas_restantes: vagasRestantesCalculado,
+
+    total_staff_api: ev.total_staff, // Mantém o valor original do backend para referência (opcional)
+    equipes_detalhes: equipesDetalhes,
+    resumoEquipes: resumoEquipesCalc || ev.resumoEquipes || 'Nenhuma equipe cadastrada'
+    };
   }
 
 function criarCard(evt) {
@@ -2582,6 +2729,7 @@ async function abrirListaFuncionarios(equipe, evento) {
         <div class="funcionario-grupo-header">
           <h4 class="grupo-titulo">${escapeHtml(funcao)}</h4>
           <span class="grupo-badge">${grupos[funcao].length} Pessoa(s)</span>
+          <span class="grupo-badge"> Status Pagamento</span>
         </div>
         <div class="grupo-divisor"></div>
         <ul class="funcionario-lista">
@@ -2627,149 +2775,149 @@ function abrirDetalhesEquipe(equipe, evento) {
   const totalFuncoes = equipe.funcoes?.length || 0;
   const concluidas = equipe.funcoes?.filter(f => f.concluido)?.length || 0;
 
-  // Funções de utilidade
   function escapeHtml(str) {
-  if (!str && str !== 0) return "";
-  return String(str)
-  .replace(/&/g, "&amp;")
-  .replace(/</g, "&lt;")
-  .replace(/>/g, "&gt;")
-  .replace(/"/g, "&quot;")
-  .replace(/'/g, "&#39;");
+    if (!str && str !== 0) return "";
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
-  // helper local (assumindo que está definido globalmente ou em escopo superior)
   function formatarPeriodo(inicio, fim) {
-  const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
-  return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
+    const fmt = d => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+    return inicio && fim ? `${fmt(inicio)} a ${fmt(fim)}` : fmt(inicio || fim);
   }
 
-  // 1. FUNÇÃO DE VOLTA DEFINIDA AQUI
   const voltarParaEquipes = () => abrirTelaEquipesEvento(evento);
 
-  // ===== HEADER - COMPACTADO PARA REMOVER #text =====
+  // HEADER
   const header = document.createElement("div");
   header.className = "header-equipes-evento";
-  header.innerHTML = `<button class="btn-voltar" title="Voltar">←</button><div class="info-evento"><h2>${escapeHtml(equipe.equipe || equipe.nome || "Equipe")}</h2><p>${escapeHtml(evento.nmevento || "Evento sem nome")} — ${concluidas}/${totalFuncoes} concluídas</p><p>📍 ${escapeHtml(evento.nmlocalmontagem || evento.local || "Local não informado")}</p><p>👤 Cliente: ${escapeHtml(evento.nmfantasia || evento.cliente || "")}</p></div>`;
+  header.innerHTML = `
+    <button class="btn-voltar" title="Voltar">←</button>
+    <div class="info-evento">
+      <h2>${escapeHtml(equipe.equipe || "Equipe")}</h2>
+      <p>${escapeHtml(evento.nmevento)} — ${concluidas}/${totalFuncoes} concluídas</p>
+      <p>📍 ${escapeHtml(evento.nmlocalmontagem || "Local não informado")}</p>
+      <p>👤 Cliente: ${escapeHtml(evento.nmfantasia || evento.cliente || "")}</p>
+    </div>`;
   container.appendChild(header);
 
-  // ===== LISTA DE FUNÇÕES =====
   const lista = document.createElement("ul");
   lista.className = "funcoes-lista";
 
   (equipe.funcoes || []).forEach(func => {
-  const total = Number(func.total ?? func.total_vagas ?? func.qtd_orcamento ?? 0);
-  const preenchidas = Number(func.preenchidas ?? func.qtd_cadastrada ?? 0);
-  const concluido = total > 0 && preenchidas >= total;
+    const total = Number(func.qtd_orcamento ?? func.total ?? 0);
+    const preenchidas = Number(func.qtd_cadastrada ?? func.preenchidas ?? 0);
+    const concluido = total > 0 && preenchidas >= total;
 
-  const li = document.createElement("li");
-  li.className = "funcao-item";
-  if (concluido) li.classList.add("concluido");
-  li.setAttribute("role", "button");
-  li.tabIndex = 0;
+    const li = document.createElement("li");
+    li.className = "funcao-item";
+    if (concluido) li.classList.add("concluido");
 
-  const periodoVaga = formatarPeriodo(func.dtini_vaga, func.dtfim_vaga);
+    const periodoVaga = formatarPeriodo(func.dtini_vaga, func.dtfim_vaga);
 
-  // NÓS DE TEXTO criados por createElement geralmente não são um problema,
-  // mas vamos garantir que o HTML injetado seja compacto.
+    li.innerHTML = `
+      <div class="func-wrapper">
+        <div class="func-nome">${escapeHtml(func.nome)} <span class="func-data-vaga">(${periodoVaga})</span></div>
+        <div class="func-estado">${preenchidas}/${total}</div>
+        <div class="func-detalhes">
+          ${concluido ? '✅ Completa' : `<button class="btn-abrir-staff status-urgente-vermelho">⏳ Abrir staff</button>`}
+        </div>
+      </div>`;
 
-  // CORREÇÃO: Usando a abordagem de wrapper para evitar nós #text.
-  li.innerHTML = `
-<div class="func-wrapper">
-  <div class="func-nome">${escapeHtml(func.nome || func.nmfuncao || "Função")} <span class="func-data-vaga">(${periodoVaga})</span></div>
-  <div class="func-estado">${preenchidas}/${total}</div>
-  <div class="func-detalhes">
-  ${concluido 
-  ? '✅ Completa' 
-  : `<button class="btn-abrir-staff status-urgente-vermelho">⏳ Abrir staff</button>`
-  }
-  </div>
-</div>
-  `;
+    function abrirStaffModal() {
+      if (concluido) return;
 
-  // Se não estiver concluído, precisamos adicionar o listener ao botão.
-  if (!concluido) {
-   const botao = li.querySelector(".btn-abrir-staff");
-   if (botao) {
-   botao.addEventListener("click", (e) => {
-   e.stopPropagation(); // evita conflito com o clique no <li>
-   abrirStaffModal();
-   });
-   }
-  }
+      // 🔍 DEBUG COMPLETO DO OBJETO FUNC
+      console.log("🔍 [Main.js] Objeto FUNC COMPLETO:", func);
+      console.log("🔍 [Main.js] Objeto EVENTO COMPLETO:", evento);
 
-  function abrirStaffModal() {
-  if (concluido) return;
+      const params = new URLSearchParams();
+      params.set("idfuncao", func.idfuncao);
+      params.set("nmfuncao", func.nome);
+      params.set("idevento", evento.idevento);
+      params.set("idorcamento", evento.idorcamento);
+      params.set("idcliente", evento.idcliente);
+      params.set("idmontagem", evento.idmontagem);
+      params.set("nmcliente", evento.nmfantasia || evento.cliente || "");
+      params.set("nmevento", evento.nmevento || "");
 
-  const params = new URLSearchParams();
+      // --- CAPTURA ROBUSTA DO SETOR ---
+      // 1️⃣ Tenta setor_orcamento (que vem do orçamento)
+      let valorSetor = (func.setor_orcamento || func.setor || func.nmsetor || func.local || func.localmontagem || "").trim();
+      
+      // 2️⃣ Se vazio, EXTRAI do nome da função - formato: "FUNÇÃO (SETOR)"
+      if (!valorSetor && func.nome) {
+        const match = func.nome.match(/\(([^)]+)\)$/);
+        if (match && match[1]) {
+          valorSetor = match[1].trim();
+          console.log("✅ [Main.js] Setor extraído do nome:", valorSetor);
+        }
+      }
+      
+      const periodoDoEvento = func.datas_staff || func.dtini_vaga || "";
+      
+      console.log("🔍 [Main.js] Valor do setor identificado:", {
+        setor_orcamento: func.setor_orcamento,
+        setor: func.setor,
+        nomeDaFuncao: func.nome,
+        valorFinal: valorSetor,
+        datas_staff: func.datas_staff,
+        periodoDoEvento: periodoDoEvento
+      });
 
-  params.set("idfuncao", func.idfuncao ?? func.idFuncao);
-  params.set("nmfuncao", func.nome ?? func.nmfuncao);
-  params.set("idequipe", equipe.idequipe || "");
-  params.set("nmequipe", equipe.equipe || "");
-  params.set("idmontagem", evento.idmontagem || "");
-  params.set("nmlocalmontagem", evento.nmlocalmontagem || "");
-  params.set("idcliente", evento.idcliente || "");
-  params.set("nmcliente", evento.nmfantasia || evento.cliente || "");
-  params.set("idevento", evento.idevento || "");
-  params.set("nmevento", evento.nmevento || "");
-  params.set("idorcamento", evento.idorcamento || "");
+      const pavilhoesOficiais = evento.pavilhoes_nomes || []; 
+      const ehPavilhaoOficial = pavilhoesOficiais.some(p => 
+        p.trim().toUpperCase() === valorSetor.toUpperCase()
+      );
 
-  if (Array.isArray(evento.dataeventos)) {
-  params.set("dataeventos", JSON.stringify(evento.dataeventos));
-  } else if (evento.dataeventos) {
-  params.set("dataeventos", evento.dataeventos);
-  }
+      // Define instruções para o Modal
+      params.set("modo_local", ehPavilhaoOficial ? "pavilhao" : "setor");
+      params.set("valor_local", valorSetor);
 
-  params.set("dtini_vaga", func.dtini_vaga || null);
-  params.set("dtfim_vaga", func.dtfim_vaga || null);
+      // 🔥 ADICIONA DATAS E PERÍODO
+      if (func.datas_staff && Array.isArray(func.datas_staff)) {
+        params.set("datas_existentes", JSON.stringify(func.datas_staff));
+        console.log("✅ [Main.js] Datas adicionadas aos parâmetros:", func.datas_staff);
+      } else {
+        console.warn("⚠️ [Main.js] Nenhuma data em datas_staff:", func.datas_staff);
+      }
 
-  // 2. LÓGICA DE CALLBACK: Define uma função global temporária.
-  // O código de fechar o modal deve chamar window.onStaffModalClosed()
-  window.onStaffModalClosed = function(modalClosedSuccessfully) {
-  // Limpa a função global logo após ser chamada.
-  delete window.onStaffModalClosed;
-  console.log("Callback do modal Staff acionado. Atualizando a tela...");
+      if (func.dtini_vaga) {
+        params.set("dtini_vaga", func.dtini_vaga);
+      }
+      if (func.dtfim_vaga) {
+        params.set("dtfim_vaga", func.dtfim_vaga);
+      }
+      
+      window.onStaffModalClosed = () => {
+        delete window.onStaffModalClosed;
+        voltarParaEquipes(); 
+      };
 
-  // Chama a função para voltar à tela anterior e recarregar os dados.
-  voltarParaEquipes(); 
-  };
+      window.__modalInitialParams = params.toString();
+      
+      console.log("📤 [Main.js] Parâmetros finais enviados para modal:", Object.fromEntries(params.entries()));
+      
+      const targetUrl = `CadStaff.html?${params.toString()}`;
 
-  console.log("Abrindo modal Staff com parâmetros:", Object.fromEntries(params.entries()));
+      if (typeof abrirModalLocal === "function") abrirModalLocal(targetUrl, "Staff");
+      else if (typeof abrirModal === "function") abrirModal(targetUrl, "Staff");
+    }
 
-  window.__modalInitialParams = params.toString();
-  window.moduloAtual = "Staff";
-
-  const targetUrl = `CadStaff.html?${params.toString()}`;
-
-  if (typeof abrirModalLocal === "function") {
-  abrirModalLocal(targetUrl, "Staff");
-  } else if (typeof abrirModal === "function") {
-  abrirModal(targetUrl, "Staff");
-  } else {
-  console.error("ERRO FATAL: Nenhuma função global para abrir o modal foi encontrada.");
-  }
-  }
-
-  li.addEventListener("click", abrirStaffModal);
-  li.addEventListener("keypress", (e) => { if (e.key === "Enter") abrirStaffModal(); });
-
-  lista.appendChild(li);
+    if (!concluido) {
+      li.querySelector(".btn-abrir-staff")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        abrirStaffModal();
+      });
+      li.addEventListener("click", abrirStaffModal);
+    }
+    lista.appendChild(li);
   });
 
   container.appendChild(lista);
-
-  // ===== RODAPÉ - COMPACTADO PARA REMOVER #text =====
-  const rodape = document.createElement("div");
-  rodape.className = "rodape-equipes";
-  rodape.innerHTML = `<button class="btn-voltar-rodape">← Voltar</button><span class="status-texto">${concluidas === totalFuncoes ? "✅ Finalizado" : "⏳ Em andamento"}</span>`;
-  container.appendChild(rodape);
-
   painel.appendChild(container);
-
-  // Eventos de navegação
+  
+  // Adiciona listener para o botão voltar
   container.querySelector(".btn-voltar")?.addEventListener("click", voltarParaEquipes);
-  container.querySelector(".btn-voltar-rodape")?.addEventListener("click", voltarParaEquipes);
 }
 
 
