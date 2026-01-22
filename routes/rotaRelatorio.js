@@ -294,45 +294,45 @@ try {
                             OR (CAST(COALESCE(NULLIF(TRIM(tse.vlrcaixinha::TEXT), ''), '0') AS NUMERIC) > 0 AND (tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '')))
                         THEN 'Pago' ELSE 'Pendente'
                     END AS "STATUS PGTO",                    
-CASE 
-    -- 1. ISENTO
-    WHEN (COALESCE(tse.vlrcache, 0) <= 0 AND COALESCE(tse.vlrcaixinha, 0) <= 0) THEN 'Isento'
+                    CASE 
+                        -- 1. ISENTO
+                        WHEN (COALESCE(tse.vlrcache, 0) <= 0 AND COALESCE(tse.vlrcaixinha, 0) <= 0) THEN 'Isento'
 
-    -- 2. TUDO PENDENTE (Cachê > 0 e Caixinha > 0, mas ambos sem comprovante)
-    WHEN (COALESCE(tse.vlrcache, 0) > 0 AND (tse.comppgtocache IS NULL OR tse.comppgtocache = ''))
-         AND (COALESCE(tse.vlrcaixinha, 0) > 0 AND (tse.comppgtocaixinha IS NULL OR tse.comppgtocaixinha = ''))
-         THEN 'Cachê e Caixinha Pendentes'
+                        -- 2. TUDO PENDENTE (Cachê > 0 e Caixinha > 0, mas ambos sem comprovante)
+                        WHEN (COALESCE(tse.vlrcache, 0) > 0 AND (tse.comppgtocache IS NULL OR tse.comppgtocache = ''))
+                            AND (COALESCE(tse.vlrcaixinha, 0) > 0 AND (tse.comppgtocaixinha IS NULL OR tse.comppgtocaixinha = ''))
+                            THEN 'Cachê e Caixinha Pendentes'
 
-    -- 3. CACHÊ PENDENTE (Mas Caixinha está OK ou é Isenta)
-    WHEN (COALESCE(tse.vlrcache, 0) > 0 AND (tse.comppgtocache IS NULL OR tse.comppgtocache = ''))
-         AND (COALESCE(tse.vlrcaixinha, 0) <= 0 OR (tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != ''))
-         THEN 'Cachê Pendente'
+                        -- 3. CACHÊ PENDENTE (Mas Caixinha está OK ou é Isenta)
+                        WHEN (COALESCE(tse.vlrcache, 0) > 0 AND (tse.comppgtocache IS NULL OR tse.comppgtocache = ''))
+                            AND (COALESCE(tse.vlrcaixinha, 0) <= 0 OR (tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != ''))
+                            THEN 'Cachê Pendente'
 
-    -- 4. CAIXINHA PENDENTE (Mas Cachê está OK ou é Isento)
-    WHEN (COALESCE(tse.vlrcaixinha, 0) > 0 AND (tse.comppgtocaixinha IS NULL OR tse.comppgtocaixinha = ''))
-         AND (COALESCE(tse.vlrcache, 0) <= 0 OR (tse.comppgtocache IS NOT NULL AND tse.comppgtocache != ''))
-         THEN 'Caixinha Pendente'
+                        -- 4. CAIXINHA PENDENTE (Mas Cachê está OK ou é Isento)
+                        WHEN (COALESCE(tse.vlrcaixinha, 0) > 0 AND (tse.comppgtocaixinha IS NULL OR tse.comppgtocaixinha = ''))
+                            AND (COALESCE(tse.vlrcache, 0) <= 0 OR (tse.comppgtocache IS NOT NULL AND tse.comppgtocache != ''))
+                            THEN 'Caixinha Pendente'
 
-    -- 5. AMBOS ANEXADOS
-    WHEN (COALESCE(tse.vlrcache, 0) > 0 AND tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '') 
-         AND (COALESCE(tse.vlrcaixinha, 0) > 0 AND tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '') 
-         THEN 'Cachê e Caixinha Anexados'
+                        -- 5. AMBOS ANEXADOS
+                        WHEN (COALESCE(tse.vlrcache, 0) > 0 AND tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '') 
+                            AND (COALESCE(tse.vlrcaixinha, 0) > 0 AND tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '') 
+                            THEN 'Cachê e Caixinha Anexados'
 
-    -- 6. CACHÊ ANEXADO (Mas tem valor de Caixinha faltando ou Caixinha é isenta)
-    WHEN (COALESCE(tse.vlrcache, 0) > 0 AND tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '') 
-         THEN CASE 
-                WHEN COALESCE(tse.vlrcaixinha, 0) > 0 AND (tse.comppgtocaixinha IS NULL OR tse.comppgtocaixinha = '') 
-                THEN 'Cachê Anexado (Falta Caixinha)'
-                ELSE 'Cachê Anexado'
-              END
+                        -- 6. CACHÊ ANEXADO (Mas tem valor de Caixinha faltando ou Caixinha é isenta)
+                        WHEN (COALESCE(tse.vlrcache, 0) > 0 AND tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '') 
+                            THEN CASE 
+                                    WHEN COALESCE(tse.vlrcaixinha, 0) > 0 AND (tse.comppgtocaixinha IS NULL OR tse.comppgtocaixinha = '') 
+                                    THEN 'Cachê Anexado (Falta Caixinha)'
+                                    ELSE 'Cachê Anexado'
+                                END
 
-    -- 7. CAIXINHA ANEXADA (Caso o cachê seja zero e a caixinha tenha valor e comprovante)
-    WHEN (COALESCE(tse.vlrcaixinha, 0) > 0 AND tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '') 
-         AND COALESCE(tse.vlrcache, 0) <= 0
-         THEN 'Caixinha Anexada'
+                        -- 7. CAIXINHA ANEXADA (Caso o cachê seja zero e a caixinha tenha valor e comprovante)
+                        WHEN (COALESCE(tse.vlrcaixinha, 0) > 0 AND tse.comppgtocaixinha IS NOT NULL AND tse.comppgtocaixinha != '') 
+                            AND COALESCE(tse.vlrcache, 0) <= 0
+                            THEN 'Caixinha Anexada'
 
-    ELSE 'Comprovantes Pendentes'
-END AS "COMP STATUS",
+                        ELSE 'Comprovantes Pendentes'
+                    END AS "COMP STATUS",
                     CAST((
                         CASE 
                             WHEN tse.statuspgto IS DISTINCT FROM 'Pago'
@@ -465,7 +465,7 @@ END AS "COMP STATUS",
             ORDER BY tse.nmevento, tbf.nome;
             `;
     }
-
+    console.log("QUERY FECHAMENTO PRINCIPAL:", queryFechamentoPrincipal);
     
         const resultFechamentoPrincipal = await pool.query(queryFechamentoPrincipal, params);
         const fechamentoCache = resultFechamentoPrincipal.rows; 
