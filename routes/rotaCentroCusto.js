@@ -27,6 +27,25 @@ router.get("/empresas", autenticarToken(), async (req, res) => {
     }
 });
 
+router.get("/contas",  async (req, res) => {
+  
+  const idempresa = req.idempresa;
+  try {
+    
+      const result = await pool.query(
+        `SELECT * FROM contas WHERE idempresa = $1 ORDER BY nmconta ASC`,
+        [idempresa]
+      );
+      return result.rows.length
+        ? res.json(result.rows)
+        : res.status(404).json({ message: "Nenhuma conta encontrada" });
+    
+  } catch (error) {
+    console.error("Erro ao buscar conta:", error);
+    res.status(500).json({ message: "Erro ao buscar conta" });
+  }
+});
+
 // GET todas ou por nome
 router.get("/", verificarPermissao('centrocusto', 'pesquisar'), async (req, res) => {
   const nmCentrocusto = req.query.nmCentrocusto || null;

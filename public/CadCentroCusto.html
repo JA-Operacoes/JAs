@@ -20,6 +20,11 @@
                 <fieldset>
                     <legend>Cadastre o Centro de Custo</legend>
                     <br>
+                    <div class="form">
+                        <select id="nomeConta" name="nomeConta" class="nomeConta required">
+                            <option value="">Selecione a Conta</option>
+                        </select>                        
+                    </div>
                     <div class="form-3colunas">
                         <div class="form">
                             <input type="text" name="idCentroCusto" id="idCentroCusto" readonly spellcheck="false">
@@ -45,11 +50,10 @@
                     </div>
                     
                     <div class="form">
-                        <div class="user-box">
-                            <select id="empresaSelect" name="idempresa" required class="form" multiple style="height: 100px;">
-                            </select>                           
-                        </div>
-                    </div>                   
+                        <select id="empresaSelect" name="empresaSelect" class="empresaSelect required">
+                            <option value="">Selecione uma Empresa</option>
+                        </select>  
+                    </div>                  
                 </fieldset>
             </form>
         </div>
