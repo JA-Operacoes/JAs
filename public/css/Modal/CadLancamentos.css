@@ -67,6 +67,8 @@
     align-items: center;
 }
 
+
+
 /* Quando o modal estiver visível */
 .modal-open #modal-overlay, 
 .modal-open #modal-container {
@@ -190,12 +192,53 @@ legend{
   width: 180px;
 }
 
+input#descricao{
+  width: 600px;
+}
+
+ select#descricao{
+  width: 600px;
+} 
+
+input#qtdeParcelas{
+  width: 90px;
+}
+
 select#periodicidade, select#tipoRepeticao{
-    width: 180px;
+    width: 130px;
 }
 
 select#idContaSelect{
-    width: 250px;
+    width: 450px;
+}
+
+/* Seleciona o container (.form) que contém especificamente o idContaSelect */
+/* Container do campo específico */
+.form:has(#idContaSelect) {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    height: auto !important; /* Permite que a div cresça para caber label + select */
+    min-height: 55px; /* Garante espaço para os dois elementos */
+}
+
+/* O Label acima do campo */
+label[for="idContaSelect"] {
+    position: static !important;
+    order: -1;
+    margin-bottom: 4px !important; /* Espaço entre texto e select */
+    transform: none !important;
+    font-size: 12px !important;
+    font-weight: bold;
+}
+
+/* O Select com a altura corrigida */
+#idContaSelect {
+    display: block !important;
+    height: 30px !important; /* Altura que você solicitou */
+    width: 450px !important;
+    padding: 0 10px !important;
+    line-height: 30px !important;
 }
 
 .form2 {
@@ -529,6 +572,37 @@ input#id{
     background-color: #f1f1f1;
 }
 
+
+/* Container que agrupa o checkbox e o label */
+.field-group-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-top: 15px;
+    margin-left: 12px; /* Alinha com a margem dos outros campos */
+}
+
+/* Estilo do Input Checkbox */
+.field-group-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    margin: 0;
+}
+
+/* Correção específica para o Label do Checkbox */
+/* Usamos classes específicas para ignorar as regras de '.form label' */
+.field-group-checkbox label.label-checkbox {
+    position: relative !important; /* Remove o 'absolute' da linha 173 */
+    top: auto !important;          /* Remove o 'top: 50%' da linha 174 */
+    left: auto !important;         /* Remove o 'left: 20px' da linha 179 */
+    transform: none !important;    /* Remove o centralizador vertical */
+    color: #000000 !important;
+    font-size: 20px;
+    pointer-events: auto !important; /* Permite clicar no texto para marcar o box */
+    cursor: pointer;
+    white-space: nowrap;
+}
 
 @-webkit-keyframes ripple-33 {
   from {
