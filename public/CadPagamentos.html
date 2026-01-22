@@ -65,16 +65,46 @@
                         </div>
                     </div>
 
-                    <!-- <div class="form-2colunas">
-                        <div class="campo">
-                            <label for="arquivo_conta">Imagem da Conta/Boleto:</label>
-                            <input type="file" id="arquivo_conta" accept="image/*,application/pdf">
+                    
+                    <div class="pdf">
+                        <div class="collumn">
+                            <h5>Imagem da Conta/Boleto</h5>
+                            <div class="containerPDF">
+                                <label for="arquivoConta" class="footerPDF" name="footerPDF[]">
+                                    <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+                                        <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+                                        <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+                                    </svg>
+                                    <p id="fileNameConta" class="fileNamePDF">Nenhum arquivo selecionado</p>
+                                </label>
+                                <input id="arquivoConta" class="filePDFInput" type="file" name="imagemConta" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
+                            </div>
+                            <div id="imagemContaDisplay" style="display: none; margin-top: 10px;">
+                                <div id="linkContainerConta"></div>
+                            </div>
                         </div>
-                        <div class="campo">
-                            <label for="comprovante_pagto">Comprovante de Pagamento:</label>
-                            <input type="file" id="comprovante_pagto" accept="image/*,application/pdf">
+                        
+                        <br>
+                    
+                        <div class="collumn">
+                            <h5>Comprovante de Pagamento</h5>
+                            <div class="containerPDF">
+                                <label for="comprovantePagto" class="footerPDF" name="footerPDF[]">
+                                    <svg fill="#000000" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+                                        <path d="M15.331 6H8.5v20h15V14.154h-8.169z"/>
+                                        <path d="M18.153 6h-.009v5.342H23.5v-.002z"/>
+                                    </svg>
+                                    <p id="fileNameComprovante" class="fileNamePDF">Nenhum arquivo selecionado</p>
+                                </label>
+                                <input id="comprovantePagto" class="filePDFInput" type="file" name="comprovantePagamento" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp,image/jfif,image/svg+xml">
+                            </div>
+                            <div id="comprovantePagtoDisplay" style="display: none; margin-top: 10px;">
+                                <div id="linkContainerComprovante"></div>
+                            </div>
                         </div>
-                    </div> -->
+                        <input type="hidden" name="limparComprovanteImagem" id="limparComprovanteImagem" value="false">
+                        <input type="hidden" name="limparComprovantePagto" id="limparComprovantePagto" value="false">
+                    </div>
 
                     <div class="form-checkbox" style="margin-top: 15px;">
                         <div class="checkbox-wrapper-33">
@@ -88,7 +118,8 @@
                                 </span>
                             </label>
                         </div>
-                    </div>
+                    </div>                     
+                    
                     <div class="previa-lancamentos">
                         <h3>Histórico de Pagamentos deste Lançamento</h3>
                         <div class="table-container">
