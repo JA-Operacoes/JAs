@@ -170,7 +170,18 @@ router.post("/",
         // Iniciamos uma transação para garantir que ou salva todos ou nenhum
         await pool.query("BEGIN");
 
-        const promessas = empresas.map(idEmp => {
+        const empresasValidas = empresas
+            .filter(e => e !== "" && e !== null && e !== undefined)
+            .map(e => parseInt(e));
+
+        if (!empresasValidas.length) {
+            throw new Error("Nenhuma empresa válida recebida.");
+        }
+
+        console.log("Empresas recebidas:", empresas);
+        console.log("Empresas válidas:", empresasValidas);
+
+        const promessas = empresasValidas.map(idEmp => {
             return pool.query(
                 "INSERT INTO centrocusto (nmcentrocusto, ativo, idempresa) VALUES ($1, $2, $3)", 
                 [nmCentroCusto, ativo, idEmp]

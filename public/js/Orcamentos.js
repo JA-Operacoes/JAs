@@ -736,9 +736,14 @@ function recalcularTotaisGerais() {
     totalCustoGeral += desformatarMoeda(cell.textContent);
   });
 
-  // Soma as vendas
+  // Soma as vendas (excluindo itens bonificados)
   document.querySelectorAll(".totVdaDiaria").forEach((cell) => {
-    totalVendaGeral += desformatarMoeda(cell.textContent);
+    const linha = cell.closest("tr");
+    const isBonificado = linha?.dataset?.extrabonificado === "true";
+    
+    if (!isBonificado) {
+      totalVendaGeral += desformatarMoeda(cell.textContent);
+    }
   });
 
   document.querySelectorAll(".totAjdCusto").forEach((cell) => {
@@ -1927,51 +1932,76 @@ function adicionarLinhaOrc() {
   limparSelects();
 }
 
-function adicionarLinhaAdicional() {
-// 1. Configurações Iniciais e Preparação do DOM
-// Assume-se que 'liberarSelectsParaAdicional' é uma função existente
-liberarSelectsParaAdicional();
+async function adicionarLinhaAdicional(isBonificado = false) {
+    // 🎯 NOVA LÓGICA: Perguntar se é Aditivo ou Extra Bonificado usando botões nativos
+    if (isBonificado === false) { 
+        const result = await Swal.fire({
+            title: 'Tipo de Item Adicional',
+            text: "Selecione o tipo de item que deseja adicionar:",
+            icon: 'question',
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonText: 'Aditivo ($)',
+            denyButtonText: 'Extra Bonificado (Grátis)',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#3085d6',
+            denyButtonColor: '#28a745',
+        });
 
-const tabelaBody = document.getElementById("tabela")?.getElementsByTagName("tbody")[0];
-if (!tabelaBody) {
-console.error(
-"Erro: Elemento <tbody> da tabela de orçamento não encontrado."
-);
-return;
-}
-// NÃO apaga as linhas existentes (orçamento fechado) ao adicionar linha adicional
-// tabelaBody.innerHTML = "";
+        if (result.isDismissed && result.dismiss === Swal.DismissReason.cancel) return; // Usuário cancelou no botão "Cancelar"
+        if (!result.isConfirmed && !result.isDenied) return; // Proteção extra para fechamento do modal
 
-const ufAtual = document.getElementById("ufmontagem")?.value || "SP";
-// O estilo inicial é usado para colunas que só devem aparecer para UF's diferentes de SP
-const initialDisplayStyle =
-ufAtual.toUpperCase() === "SP" ? "display: none;" : "display: table-cell;";
+        // result.isConfirmed -> Aditivo ($)
+        // result.isDenied -> Extra Bonificado (Grátis)
+        isBonificado = result.isDenied;
+    }
+    
+    // 1. Configurações Iniciais e Preparação do DOM
+    liberarSelectsParaAdicional();
 
-const novaLinha = tabelaBody.insertRow();
+    const tabelaBody = document.getElementById("tabela")?.getElementsByTagName("tbody")[0];
+    if (!tabelaBody) {
+        console.error("Erro: Elemento <tbody> da tabela de orçamento não encontrado.");
+        return;
+    }
 
-// Aplica classes e dataset para identificação e estilo
-novaLinha.classList.add("liberada", "linhaAdicional", "adicional"); // aplica nova cor e identificação
-novaLinha.dataset.adicional = "true";
+    const ufAtual = document.getElementById("ufmontagem")?.value || "SP";
+    const initialDisplayStyle = ufAtual.toUpperCase() === "SP" ? "display: none;" : "display: table-cell;";
 
-// 2. HTML da Nova Linha (Template Literal)
-novaLinha.innerHTML = `
+    const novaLinha = tabelaBody.insertRow();
+
+    // Aplica classes e dataset para identificação e estilo
+    novaLinha.classList.add("liberada", "linhaAdicional", "adicional");
+    novaLinha.dataset.adicional = "true";
+    novaLinha.dataset.bonificado = isBonificado ? "true" : "false"; // Marcação para o cálculo
+    novaLinha.dataset.extrabonificado = isBonificado ? "true" : "false"; // ✅ Novo atributo padronizado
+
+    // Estilização visual para bonificados (Fundo verde claro + borda)
+    if (isBonificado) {
+        novaLinha.style.backgroundColor = "#f0fff4";
+        novaLinha.style.borderLeft = "4px solid #48bb78"; // Borda verde
+    }
+
+    // 2. HTML da Nova Linha
+    novaLinha.innerHTML = `
       <td style="display: none;"><input type="hidden" class="idItemOrcamento" value=""></td>
       <td style="display: none;"><input type="hidden" class="idFuncao" value=""></td>
       <td style="display: none;"><input type="hidden" class="idEquipamento" value=""></td>
       <td style="display: none;"><input type="hidden" class="idSuprimento" value=""></td>
       <td style="display: none;"><input type="hidden" class="isAdicional" value="true"></td>
+      <td style="display: none;"><input type="hidden" class="isBonificadoHidden" value="${isBonificado}"></td>
 
       <td class="Proposta">
         <div class="checkbox-wrapper-33">
           <label class="checkbox">
-            <input class="checkbox__trigger visuallyhidden" type="checkbox" checked />
+            <input class="checkbox__trigger visuallyhidden" type="checkbox" ${isBonificado ? '' : 'checked'} ${isBonificado ? 'disabled' : ''} />
               <span class="checkbox__symbol">
-                <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
+                <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
                   <path d="M4 14l8 7L24 7"></path>
                 </svg>
               </span>
-              <p class="checkbox__textwrapper"></p>
           </label>
+          ${isBonificado ? '<br><span style="font-size: 10px; color: #48bb78; font-weight: bold;">🎁 BONIFICADO</span>' : ''}
         </div>
       </td>
 
@@ -1979,7 +2009,7 @@ novaLinha.innerHTML = `
 
       <td class="qtdProduto">
         <div class="add-less">
-          <input type="number" class="qtdProduto" min="0" value="0">
+          <input type="number" class="qtdProduto" min="0" value="1">
             <div class="Bt">
               <button type="button" class="increment">+</button>
               <button type="button" class="decrement">-</button>
@@ -1987,344 +2017,162 @@ novaLinha.innerHTML = `
         </div>
       </td>
 
-      <td class="produto"><input type="text" class="produto-input" value=""></td>
+      <td class="produto">
+        <input type="text" class="produto-input" value="" placeholder="Nome do item...">
+        ${isBonificado ? '<br><small style="color: #28a745; font-weight: bold;">[EXTRA BONIFICADO]</small>' : ''}
+      </td>
 
       <td class="setor"><input type="text" class="setor-input" value=""></td>
 
       <td class="qtdDias">
         <div class="add-less">
-          <input type="number" readonly class="qtdDias" min="0" value="0">
-          </div>
+          <input type="number" readonly class="qtdDias" min="0" value="1">
+        </div>
       </td>
 
       <td class="Periodo">
-      <div class="flatpickr-container">
-      <input type="text" class="datas datas-item" data-input required readonly placeholder="Clique para Selecionar">
-      </div>
+        <div class="flatpickr-container">
+          <input type="text" class="datas datas-item" data-input required readonly placeholder="Clique para Selecionar">
+        </div>
       </td>
       <td class="descontoItem Moeda">
-      <div class="Acres-Desc">
-      <input type="text" class="ValorInteiros" value="R$ 0,00">
-      <input type="text" class="valorPerCent" value="0%">
-      </div>
+        <div class="Acres-Desc">
+          <input type="text" class="ValorInteiros" value="R$ 0,00" ${isBonificado ? 'readonly' : ''}>
+          <input type="text" class="valorPerCent" value="0%" ${isBonificado ? 'readonly' : ''}>
+        </div>
       </td>
       <td class="acrescimoItem Moeda">
-      <div class="Acres-Desc">
-      <input type="text" class="ValorInteiros" value="R$ 0,00">
-      <input type="text" class="valorPerCent" value="0%">
-      </div>
+        <div class="Acres-Desc">
+          <input type="text" class="ValorInteiros" value="R$ 0,00" ${isBonificado ? 'readonly' : ''}>
+          <input type="text" class="valorPerCent" value="0%" ${isBonificado ? 'readonly' : ''}>
+        </div>
       </td>
       <td class="vlrVenda Moeda" data-original-venda="0">${formatarMoeda(0)}</td>
       <td class="totVdaDiaria Moeda">${formatarMoeda(0)}</td>
       <td class="vlrCusto Moeda">${formatarMoeda(0)}</td>
       <td class="totCtoDiaria Moeda">${formatarMoeda(0)}</td>
-      <td class="ajdCusto Moeda alimentacao" data-original-ajdcusto="0">
-                    <input type="text" class="vlralimentacao-input" value="${formatarMoeda(0)}">
+      <td class="ajdCusto Moeda alimentacao">
+        <input type="text" class="vlralimentacao-input" value="${formatarMoeda(0)}">
       </td>
-      <td class="ajdCusto Moeda transporte" data-original-ajdcusto="0">
-                    <input type="text" class="vlrtransporte-input" value="${formatarMoeda(0)}">
+      <td class="ajdCusto Moeda transporte">
+        <input type="text" class="vlrtransporte-input" value="${formatarMoeda(0)}">
       </td>
       <td class="totAjdCusto Moeda">${formatarMoeda(0)}</td>
       <td class="extraCampo" style="${initialDisplayStyle}">
-      <input type="text" class="hospedagem" value=" R$ 0,00">
+        <input type="text" class="hospedagem" value=" R$ 0,00">
       </td>
       <td class="extraCampo" style="${initialDisplayStyle}">
-      <input type="text" class="transporteExtraInput" value=" R$ 0,00">
+        <input type="text" class="transporteExtraInput" value=" R$ 0,00">
       </td>
       <td class="totGeral Moeda">${formatarMoeda(0)}</td>
       <td>
-      <div class="Acao">
-      <button class="btnApagar" type="button">
-      <svg class="delete-svgIcon" viewBox="0 0 448 512">
-      <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path>
-      </svg>
-      </button>
-      </div>
+        <div class="Acao">
+          <button class="btnApagar" type="button">
+            <svg class="delete-svgIcon" viewBox="0 0 448 512">
+              <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path>
+            </svg>
+          </button>
+        </div>
       </td>
-`;
+    `;
 
-// Insere a nova linha no início do <tbody>
-tabelaBody.insertBefore(novaLinha, tabelaBody.firstChild);
+    // Insere no topo
+    tabelaBody.insertBefore(novaLinha, tabelaBody.firstChild);
 
-// 3. Função Auxiliar para Desconto/Acréscimo (Reduz Repetição)
+    // 3. Listeners de Desconto/Acréscimo
+    const attachAcresDescListeners = (linha, type) => {
+        const selector = `.${type}Item`;
+        const itemCell = linha.querySelector(selector);
+        if (!itemCell) return;
 
-/**
- * Anexa os listeners de input e blur para os campos de valor e percentual de Desconto/Acréscimo.
- * @param {HTMLElement} linha A linha da tabela (<tr>).
- * @param {'desconto'|'acrescimo'} type O tipo de cálculo.
- */
-const attachAcresDescListeners = (linha, type) => {
-const selector = `.${type}Item`;
-const itemCell = linha.querySelector(selector);
-if (!itemCell) return;
+        const valorInput = itemCell.querySelector(".ValorInteiros");
+        const percentualInput = itemCell.querySelector(".valorPerCent");
 
-const valorInput = itemCell.querySelector(".ValorInteiros");
-const percentualInput = itemCell.querySelector(".valorPerCent");
+        if (valorInput) {
+            valorInput.addEventListener("input", function () {
+                window.lastEditedFieldType = "valor";
+                recalcularDescontoAcrescimo(this, type, "valor", this.closest("tr"));
+            });
+            valorInput.addEventListener("blur", function () {
+                this.value = formatarMoeda(desformatarMoeda(this.value));
+            });
+        }
 
-if (valorInput) {
-valorInput.addEventListener("input", function () {
-      console.log(`EVENTO INPUT: Campo ValorInteiros de ${type} alterado.`);
-      window.lastEditedFieldType = "valor"; // Assumindo que lastEditedFieldType é global (window)
-      recalcularDescontoAcrescimo(this, type, "valor", this.closest("tr"));
-});
-valorInput.addEventListener("blur", function () {
-      console.log(`EVENTO BLUR: Campo ValorInteiros de ${type}.`);
-      this.value = formatarMoeda(desformatarMoeda(this.value));
-      setTimeout(() => {
-      const campoPercentual =
-      this.closest(selector).querySelector(".valorPerCent");
-      if (
-      document.activeElement !== campoPercentual &&
-      !this.closest(".Acres-Desc").contains(document.activeElement)
-      ) {
-      window.lastEditedFieldType = null;
-      console.log(
-      "lastEditedFieldType resetado para null após blur do ValorInteiros."
-      );
-      }
-      }, 0);
-});
+        if (percentualInput) {
+            percentualInput.addEventListener("input", function () {
+                window.lastEditedFieldType = "percentual";
+                recalcularDescontoAcrescimo(this, type, "percentual", this.closest("tr"));
+            });
+            percentualInput.addEventListener("blur", function () {
+                this.value = formatarPercentual(desformatarPercentual(this.value));
+            });
+        }
+    };
+
+    attachAcresDescListeners(novaLinha, "desconto");
+    attachAcresDescListeners(novaLinha, "acrescimo");
+
+    // 4. Inicialização do Flatpickr
+    const novoInputData = novaLinha.querySelector('input[type="text"].datas');
+    if (novoInputData && typeof flatpickr !== "undefined") {
+        flatpickr(novoInputData, typeof commonFlatpickrOptionsTable !== "undefined" ? commonFlatpickrOptionsTable : {});
+    }
+
+    // 5. Event Listeners para Quantidade e Botões +/-
+    const incrementButton = novaLinha.querySelector(".qtdProduto .increment");
+    const decrementButton = novaLinha.querySelector(".qtdProduto .decrement");
+    const quantityInput = novaLinha.querySelector('.qtdProduto input[type="number"]');
+
+    if (incrementButton && quantityInput) {
+        incrementButton.addEventListener("click", function () {
+            quantityInput.value = parseInt(quantityInput.value) + 1;
+            recalcularLinha(this.closest("tr"));
+        });
+    }
+
+    if (decrementButton && quantityInput) {
+        decrementButton.addEventListener("click", function () {
+            let currentValue = parseInt(quantityInput.value);
+            if (currentValue > 0) {
+                quantityInput.value = currentValue - 1;
+                recalcularLinha(this.closest("tr"));
+            }
+        });
+    }
+
+    // Inputs Gerais que disparam recálculo
+    novaLinha.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', () => recalcularLinha(novaLinha));
+    });
+
+    // 6. Lógica do Botão Apagar
+    const deleteButton = novaLinha.querySelector(".btnApagar");
+    if (deleteButton) {
+        deleteButton.addEventListener("click", async function (event) {
+            event.preventDefault();
+            const result = await Swal.fire({
+                title: "Remover item?",
+                text: "Deseja remover este adicional da lista?",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonText: "Sim, remover!",
+                cancelButtonText: "Cancelar",
+            });
+
+            if (result.isConfirmed) {
+                novaLinha.remove();
+                recalcularTotaisGerais();
+                if (typeof calcularLucro === "function") calcularLucro();
+            }
+        });
+    }
+
+    // 7. Recálculos e Formatação Finais
+    recalcularLinha(novaLinha);
+    recalcularTotaisGerais();
+    if (typeof aplicarMascaraMoeda === "function") aplicarMascaraMoeda();
+    if (typeof limparSelects === "function") limparSelects();
 }
-
-if (percentualInput) {
-percentualInput.addEventListener("input", function () {
-      console.log(`EVENTO INPUT: Campo valorPerCent de ${type} alterado.`);
-      window.lastEditedFieldType = "percentual"; // Assumindo que lastEditedFieldType é global (window)
-      recalcularDescontoAcrescimo(
-      this,
-      type,
-      "percentual",
-      this.closest("tr")
-      );
-});
-percentualInput.addEventListener("blur", function () {
-      console.log(`EVENTO BLUR: Campo valorPerCent de ${type}.`);
-      this.value = formatarPercentual(desformatarPercentual(this.value));
-      setTimeout(() => {
-      if (!this.closest(".Acres-Desc").contains(document.activeElement)) {
-      window.lastEditedFieldType = null;
-      console.log(
-      "lastEditedFieldType resetado para null após blur do valorPerCent."
-      );
-      }
-      }, 0);
-});
-}
-};
-
-// Anexa os listeners de Desconto e Acréscimo usando a função auxiliar
-attachAcresDescListeners(novaLinha, "desconto");
-attachAcresDescListeners(novaLinha, "acrescimo");
-
-// 4. Inicialização do Flatpickr para o campo de data
-const novoInputData = novaLinha.querySelector('input[type="text"].datas');
-if (novoInputData) {
-// Assume-se que 'commonFlatpickrOptionsTable' é uma variável global de configuração
-flatpickr(novoInputData, commonFlatpickrOptionsTable);
-console.log(
-"Flatpickr inicializado para nova linha adicionada:",
-novoInputData
-);
-} else {
-console.error("Erro: Novo input de data não encontrado na nova linha.");
-}
-
-// 5. Event Listeners para Quantidade (qtdProduto)
-const { incrementButton, decrementButton, quantityInput } = {
-incrementButton: novaLinha.querySelector(".qtdProduto .increment"),
-decrementButton: novaLinha.querySelector(".qtdProduto .decrement"),
-quantityInput: novaLinha.querySelector('.qtdProduto input[type="number"]'),
-};
-
-if (incrementButton && quantityInput) {
-incrementButton.addEventListener("click", function () {
-quantityInput.value = parseInt(quantityInput.value) + 1;
-recalcularLinha(this.closest("tr"));
-});
-}
-
-if (decrementButton && quantityInput) {
-decrementButton.addEventListener("click", function () {
-let currentValue = parseInt(quantityInput.value);
-if (currentValue > 0) {
-      quantityInput.value = currentValue - 1;
-      recalcularLinha(this.closest("tr"));
-}
-});
-}
-
-// Listener de input para Qtd. Produto e Qtd. Dias
-novaLinha
-.querySelector(".qtdProduto input")
-?.addEventListener("input", function () {
-recalcularLinha(this.closest("tr"));
-});
-novaLinha
-.querySelector(".qtdDias input")
-?.addEventListener("input", function () {
-recalcularLinha(this.closest("tr"));
-});
-
-// Event listeners para auxílios de custo (Alimentação e Transporte)
-// ✅ ATUALIZAÇÃO: Agora os seletores .vlralimentacao-input e .vlrtransporte-input estão em <input> tags e o evento funcionará.
-novaLinha
-.querySelector(".vlralimentacao-input")
-?.addEventListener("input", function () {
-recalcularLinha(this.closest("tr"));
-});
-novaLinha
-.querySelector(".vlrtransporte-input")
-?.addEventListener("input", function () {
-recalcularLinha(this.closest("tr"));
-});
-
-// Event listeners para campos extras (Hospedagem, Transporte Extra)
-novaLinha
-.querySelector(".hospedagem")
-?.addEventListener("input", function () {
-recalcularLinha(this.closest("tr"));
-});
-const transporteExtraInput = novaLinha.querySelector(".transporteExtraInput");
-if (transporteExtraInput) {
-transporteExtraInput.addEventListener("input", function () {
-recalcularLinha(this.closest("tr"));
-console.log(
-      "INPUT TRANSPORTE ALTERADO NO ADICIONARLINHAORC:",
-      this.value
-);
-});
-}
-
-// 6. Lógica do Botão Apagar
-const temPermissaoApagar = temPermissao("Orcamentos", "apagar"); // Assume-se que temPermissao é uma função existente
-const deleteButton = novaLinha.querySelector(".btnApagar");
-const idItemInput = novaLinha.querySelector("input.idItemOrcamento");
-
-if (deleteButton) {
-// Aplica estilo de desabilitado visualmente se não tiver permissão para itens EXISTENTES
-if (!temPermissaoApagar) {
-deleteButton.classList.add("btnDesabilitado");
-deleteButton.title =
-      "Você não tem permissão para apagar itens de orçamento que já estão salvos.";
-}
-
-deleteButton.addEventListener("click", async function (event) {
-event.preventDefault();
-
-const linhaParaRemover = this.closest("tr");
-const idOrcamentoItem = idItemInput?.value || null;
-
-// Verifica se o item é novo/vazio
-if (!idOrcamentoItem || idOrcamentoItem.trim() === "") {
-      // Item novo/vazio (sem ID) -> Remoção local
-      console.log("DEBUG: Item sem ID. Permitindo exclusão local.");
-      const result = await Swal.fire({
-      // Assume-se que Swal.fire é uma função existente (SweetAlert2)
-      title: "Remover item?",
-      text: "Este item ainda não foi salvo no banco de dados. Deseja apenas removê-lo da lista?",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#3085d6",
-      cancelButtonColor: "#d33",
-      confirmButtonText: "Sim, remover!",
-      cancelButtonText: "Cancelar",
-      });
-
-      if (result.isConfirmed) {
-      linhaParaRemover.remove();
-      recalcularTotaisGerais();
-      calcularLucro();
-      Swal.fire("Removido!", "O item foi removido da lista.", "success");
-      }
-} else {
-      // Item salvo (com ID) -> Excluir no Backend se tiver permissão
-
-      // Verifica permissão ANTES de tentar excluir
-      if (!temPermissaoApagar) {
-      Swal.fire(
-      "Acesso Negado",
-      "Você não tem permissão para apagar este item.",
-      "error"
-      );
-      return; 
-      }
-
-      // Lógica para obter o nome do item para o SweetAlert
-      let currentItemProduct =
-      linhaParaRemover.querySelector(".produto-input")?.value ||
-      "este item";
-      if (!currentItemProduct || currentItemProduct.trim() === "") {
-      currentItemProduct =
-      linhaParaRemover.querySelector(".produto")?.textContent.trim() ||
-      "este item";
-      }
-
-
-      const { isConfirmed } = await Swal.fire({
-      title: `Tem Certeza que deseja EXCLUIR o item "${currentItemProduct}" ?`,
-      text: "Você não poderá reverter esta ação!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#3085d6",
-      cancelButtonColor: "#d33",
-      confirmButtonText: "Sim, deletar!",
-      cancelButtonText: "Cancelar",
-      });
-
-      if (isConfirmed) {
-      try {
-      const idOrcamentoPrincipal =
-      document.getElementById("idOrcamento")?.value;
-      if (!idOrcamentoPrincipal)
-      throw new Error("ID do Orçamento principal não encontrado.");
-
-      console.log(
-      "IDS ORCAMENTO:",
-      idOrcamentoPrincipal,
-      idOrcamentoItem
-      );
-
-      // Assume-se que 'fetchComToken' é uma função existente para requisições com autenticação
-      await fetchComToken(
-      `/orcamentos/${idOrcamentoPrincipal}/itens/${idOrcamentoItem}`,
-      {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      }
-      );
-
-      linhaParaRemover.remove();
-      recalcularTotaisGerais();
-      calcularLucro();
-
-      Swal.fire(
-      "Deletado!",
-      "O item foi removido com sucesso.",
-      "success"
-      );
-      } catch (error) {
-      console.error("Erro ao deletar item:", error);
-      // Mensagem de erro mais robusta para o usuário
-      const errorMessage = error.response
-      ? `Erro: ${error.response.status} - ${error.response.statusText}`
-      : error.message;
-      Swal.fire(
-      "Erro!",
-      `Não foi possível deletar o item: ${errorMessage}`,
-      "error"
-      );
-      }
-      }
-}
-});
-}
-
-// 7. Recálculos e Formatação Finais
-recalcularTotaisGerais(); // Assume-se que recalcularTotaisGerais é uma função existente
-aplicarMascaraMoeda(); // Assume-se que aplicarMascaraMoeda é uma função existente
-limparSelects(); // Assume-se que limparSelects é uma função existente
-}
-
 function removerLinhaOrc(botao) {
   let linha = botao.closest("tr"); // Encontra a linha mais próxima
   removerLinha(linha); // Remove a linha
@@ -3538,6 +3386,9 @@ async function verificaOrcamento() {
         // 2. CORREÇÃO DE ATRIBUIÇÃO:
         // Usa a variável local 'isAdicional' (calculada corretamente acima).
         adicional: isAdicional, // <--- ESSA LINHA GARANTE QUE O TRUE É ENVIADO
+        
+        // 3. ATRIBUTO EXTRA BONIFICADO:
+        extrabonificado: linha.dataset?.extrabonificado === "true" || false,
     };
 
     // 🎯 Aqui vem o tratamento correto dos períodos:
@@ -4705,6 +4556,16 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
     newRow.dataset.idfuncao = item.idfuncao || "";
     newRow.dataset.idequipamento = item.idequipamento || "";
     newRow.dataset.idsuprimento = item.idsuprimento || "";
+    
+    // ✅ Atributos adicionais
+    newRow.dataset.adicional = item.adicional ? "true" : "false";
+    newRow.dataset.extrabonificado = item.extrabonificado ? "true" : "false";
+    
+    // ✅ Estilização visual para bonificados
+    if (item.extrabonificado) {
+        newRow.style.backgroundColor = "#f0fff4";
+        newRow.style.borderLeft = "4px solid #48bb78";
+    }
     // Formatação de datas para Flatpickr
     const inicioDiarias = item.periododiariasinicio;
     const fimDiarias = item.periododiariasfim;
@@ -4758,8 +4619,8 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
                 <div class="checkbox-wrapper-33">
                     <label class="checkbox">
                         <input class="checkbox__trigger visuallyhidden" type="checkbox" ${
-                          item.enviarnaproposta ? "checked" : ""
-                        } />
+                          item.enviarnaproposta && !item.extrabonificado ? "checked" : ""
+                        } ${item.extrabonificado ? "disabled" : ""} />
                         <span class="checkbox__symbol">
                             <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M4 14l8 7L24 7"></path>
@@ -4767,6 +4628,7 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
                         </span>
                         <p class="checkbox__textwrapper"></p>
                     </label>
+                    ${item.extrabonificado ? '<span style="font-size: 10px; color: #48bb78; font-weight: bold;">🎁 BONIFICADO</span>' : ''}
                 </div>
             </td>
             <td class="Categoria">${item.categoria || ""}</td>
@@ -5764,6 +5626,14 @@ function recalcularLinha(linha) {
     // --- Cálculo do valor de venda corrigido ---
     let vlrVendaCorrigido = vlrVendaOriginal - desconto + acrescimo;
 
+    // --- Verificar se é item bonificado (venda = 0) ---
+    const isBonificado = linha.dataset?.extrabonificado === "true";
+    if (isBonificado) {
+      vlrVendaCorrigido = 0;
+      desconto = 0;
+      acrescimo = 0;
+    }
+
     // --- Totais intermediários ---
     let totalIntermediario = qtdItens * qtdDias;
     let totalVenda =
@@ -6259,7 +6129,6 @@ elementosEditaveis.forEach((el) => {
     // Adiciona o listener uma única vez
     el.addEventListener("focus", handleCampoFocus);
 });
-
 
 function liberarSelectsParaAdicional() {
   const selectsParaLiberar = [
@@ -7296,88 +7165,235 @@ function gerenciarBotoesProposta(status) {
     }
 }
 
+// async function gerarPropostaPDF() {
+//     // 1. Pegar IDs básicos do formulário (seu código original)
+//     let nrOrcamentoElem = document.getElementById("nrOrcamento");
+//     let nrOrcamento = nrOrcamentoElem?.value?.trim() || nrOrcamentoElem?.innerText?.trim() || "";
+
+//     if (!nrOrcamento) {
+//         return Swal.fire("Erro!", "Número do orçamento não encontrado!", "error");
+//     }
+
+//     try {
+//         // 2. BUSCAR TEXTOS DO BANCO DE DADOS
+//         // Você precisará de uma rota que retorne os 12 textos (id, titulo, conteudo)
+//         const responseTextos = await fetchComToken('/configuracoes/textos-proposta');
+//         const textosDisponiveis = responseTextos.data; // Array de objetos
+
+//         // 3. MONTAR O HTML DOS CHECKBOXES
+//         let htmlCheckboxes = `<div style="text-align: left; max-height: 300px; overflow-y: auto; padding: 10px;">
+//             <p class="mb-3 text-sm text-gray-600">Selecione as cláusulas que deseja incluir nesta proposta:</p>`;
+//         textosDisponiveis.forEach(t => {
+//             htmlCheckboxes += `
+//                 <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 10px;">
+//                     <input type="checkbox" id="texto_${t.id}" value="${t.id}" class="swal2-checkbox-custom" checked style="margin:0;">
+//                     <label for="texto_${t.id}" style="cursor:pointer; font-size: 14px;">${t.titulo}</label>
+//                 </div>`;
+//         });
+//         htmlCheckboxes += `</div>`;
+
+//         // 4. ABRIR SWAL PARA SELEÇÃO
+//         const { value: formValues, isConfirmed } = await Swal.fire({
+//             title: 'Configurar Cláusulas',
+//             html: htmlCheckboxes,
+//             focusConfirm: false,
+//             showCancelButton: true,
+//             confirmButtonText: 'Gerar PDF <i class="fas fa-file-pdf"></i>',
+//             cancelButtonText: 'Cancelar',
+//             preConfirm: () => {
+//                 const selecionados = [];
+//                 textosDisponiveis.forEach(t => {
+//                     if (document.getElementById(`texto_${t.id}`).checked) {
+//                         selecionados.push(t.id);
+//                     }
+//                 });
+//                 return selecionados;
+//             }
+//         });
+
+//         if (!isConfirmed) return;
+
+//         // 5. SEGUIR COM A GERAÇÃO ENVIANDO OS TEXTOS SELECIONADOS
+//         Swal.fire({
+//             title: "Gerando Proposta...",
+//             html: `<div id="page"><div id="container"><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="h1">JA</div></div></div>`,
+//             allowOutsideClick: false,
+//             showConfirmButton: false,
+//         });
+
+//         const result = await fetchComToken(`/orcamentos/${nrOrcamento}/proposta`, {
+//             method: "POST", // Mudamos para POST para enviar o corpo
+//             headers: { "Content-Type": "application/json" },
+//             body: JSON.stringify({ textosIds: formValues }) // Enviamos os IDs dos textos selecionados
+//         });
+
+//         // ... resto do seu código de download e atualização de status ...
+//         Swal.close();
+//         if (result.success) {
+//             // Lógica de download que você já possui
+//         }
+
+//     } catch (err) {
+//         console.error(err);
+//         Swal.fire("Erro", "Falha ao processar textos da proposta.", "error");
+//     }
+// }
+
 async function gerarPropostaPDF() {
-    // 1. Pegar IDs básicos do formulário (seu código original)
-    let nrOrcamentoElem = document.getElementById("nrOrcamento");
-    let nrOrcamento = nrOrcamentoElem?.value?.trim() || nrOrcamentoElem?.innerText?.trim() || "";
+  let nrOrcamentoElem = document.getElementById("nrOrcamento");
+  let nrOrcamento = "";
 
-    if (!nrOrcamento) {
-        return Swal.fire("Erro!", "Número do orçamento não encontrado!", "error");
-    }
+  if (nrOrcamentoElem) {
+    nrOrcamento =
+      nrOrcamentoElem.tagName === "INPUT"
+        ? nrOrcamentoElem.value.trim()
+        : nrOrcamentoElem.innerText.trim();
+  }
 
-    try {
-        // 2. BUSCAR TEXTOS DO BANCO DE DADOS
-        const responseTextos = await fetchComToken('/propostatextos');
-        
-        // CORREÇÃO: Garante que se responseTextos ou data forem nulos, usamos um array vazio
-        const textosDisponiveis = (responseTextos && responseTextos.data) ? responseTextos.data : [];
+    let idOrcamentoElem = document.getElementById('idOrcamento');   
+    let idOrcamento = "";
 
-        if (textosDisponiveis.length === 0) {
-            return Swal.fire("Atenção", "Nenhum texto ativo encontrado para a proposta.", "warning");
-        }
+    if (idOrcamentoElem) {
+        idOrcamento = idOrcamentoElem.tagName === "INPUT"
+            ? idOrcamentoElem.value.trim()
+            : idOrcamentoElem.innerText.trim();
+    } 
 
-        // 3. MONTAR O HTML DOS CHECKBOXES
-        let htmlCheckboxes = `<div style="text-align: left; max-height: 300px; overflow-y: auto; padding: 10px;">
-            <p class="mb-3 text-sm text-gray-600">Selecione as cláusulas que deseja incluir nesta proposta:</p>`;
-        
-        // Agora o forEach nunca falhará, pois textosDisponiveis é no mínimo []
-        textosDisponiveis.forEach(t => {
-            htmlCheckboxes += `
-                <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 10px;">
-                    <input type="checkbox" id="texto_${t.id}" value="${t.id}" class="swal2-checkbox-custom" checked style="margin:0;">
-                    <label for="texto_${t.id}" style="cursor:pointer; font-size: 14px;">${t.titulo}</label>
-                </div>`;
-        });
-        htmlCheckboxes += `</div>`;
+  if (!nrOrcamento) {
+    Swal.fire({
+      icon: "error",
+      title: "Erro!",
+      text: "Número do orçamento não encontrado!",
+      confirmButtonText: "Fechar",
+    });
+    console.warn("Número do orçamento não encontrado!");
+    return;
+  }
 
-        // 4. ABRIR SWAL PARA SELEÇÃO
-        const { value: formValues, isConfirmed } = await Swal.fire({
-            title: 'Configurar Cláusulas',
-            html: htmlCheckboxes,
-            focusConfirm: false,
-            showCancelButton: true,
-            confirmButtonText: 'Gerar PDF <i class="fas fa-file-pdf"></i>',
-            cancelButtonText: 'Cancelar',
-            preConfirm: () => {
-                const selecionados = [];
-                textosDisponiveis.forEach(t => {
-                    if (document.getElementById(`texto_${t.id}`).checked) {
-                        selecionados.push(t.id);
-                    }
-                });
-                return selecionados;
+  try {
+    console.log("🔍 Iniciando requisição para gerar a proposta...");
+
+    Swal.fire({
+      title: "Gerando Proposta...",
+      html: `<div id="page"><div id="container"><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="h1">JA</div></div></div><p class="text-gray-500 text-sm mt-2">Aguarde enquanto a proposta é gerada.</p>`,
+      allowOutsideClick: false,
+      showConfirmButton: false,
+    });
+
+    const result = await fetchComToken(`/orcamentos/${nrOrcamento}/proposta`, {
+      method: "GET",
+    });
+
+    Swal.close();
+
+    if (result.success) {
+      console.log("✅ Proposta gerada com sucesso!");
+      console.log("🔄 Tentando atualizar o status do orçamento para 'P'...");
+      if (!idOrcamento) {
+          console.warn("⚠️ Falha ao atualizar o status: ID do Orçamento não encontrado no HTML!");
+          // Não interrompe, mas avisa que o status não será atualizado.
+      } else {
+          console.log("🔄 Tentando atualizar o status do orçamento para 'P'...");
+
+          // USA O ID OBTIDO DO HTML
+          const statusUpdateResult = await fetchComToken(`/orcamentos/${idOrcamento}/status`, {
+              method: "PATCH", // Ou 'PUT', dependendo da sua API
+              headers: {
+                  "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                  status: "P" 
+              })
+          });
+
+          if (statusUpdateResult.success) {
+              console.log("✅ Status do orçamento atualizado para 'P' com sucesso!", nrOrcamento);
+              
+              try {
+                  const url = `orcamentos?nrOrcamento=${nrOrcamento}`;
+
+                  const orcamento = await fetchComToken(url, { method: 'GET' });
+                  preencherFormularioComOrcamento(orcamento);
+
+              } catch (error) {
+                  console.error("Erro ao buscar orçamento:", error);
+
+                  let errorMessage = error.message;
+                  if (error.message.includes("404")) {
+                      errorMessage = `Orçamento com o número ${nrOrcamento} não encontrado.`;
+                      limparOrcamento();
+                  } else if (error.message.includes("400")) {
+                      errorMessage = "Número do orçamento é inválido ou vazio.";
+                      limparOrcamento();
+                  } else {
+                      errorMessage = `Erro ao carregar orçamento: ${error.message}`;
+                      limparOrcamento();
+                  }
+
+                  Swal.fire("Erro!", errorMessage, "error");
+              }
+              //gerenciarBotoesProposta('P'); 
+                              
+          } else {
+              console.warn("⚠️ Falha ao atualizar o status do orçamento para 'P':", statusUpdateResult.message);
+              // Você pode decidir se isso deve interromper o fluxo ou apenas mostrar um aviso.
+          }
+      }
+      Swal.fire({
+        icon: "success",
+        title: "Proposta gerada!",
+        text: "A proposta foi gerada com sucesso.",
+        showCancelButton: true,
+        confirmButtonText: "📥 Baixar Proposta",
+        cancelButtonText: "OK",
+        reverseButtons: true,
+      }).then((res) => {
+        if (res.isConfirmed) {
+          (async () => {
+            try {
+              const fileUrl = result.fileUrl;
+              const fileName = decodeURIComponent(fileUrl.split("/").pop());
+
+              const response = await fetch(fileUrl, {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
+              });
+
+              if (!response.ok) throw new Error("Erro ao baixar o arquivo");
+
+              const blob = await response.blob();
+              const link = document.createElement("a");
+              link.href = window.URL.createObjectURL(blob);
+              link.download = fileName;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            } catch (err) {
+              console.error("❌ Erro no download:", err);
+              Swal.fire("Erro", "Não foi possível baixar o arquivo", "error");
             }
-        });
-
-        if (!isConfirmed) return;
-
-        // 5. SEGUIR COM A GERAÇÃO ENVIANDO OS TEXTOS SELECIONADOS
-        Swal.fire({
-            title: "Gerando Proposta...",
-            html: `<div id="page"><div id="container"><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="ring"></div><div id="h1">JA</div></div></div>`,
-            allowOutsideClick: false,
-            showConfirmButton: false,
-        });
-
-        const result = await fetchComToken(`/orcamentos/${nrOrcamento}/proposta`, {
-            method: "POST", // Mudamos para POST para enviar o corpo
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ textosIds: formValues }) // Enviamos os IDs dos textos selecionados
-        });
-
-        // ... resto do seu código de download e atualização de status ...
-        Swal.close();
-        if (result.success) {
-            // Lógica de download que você já possui
+          })();
         }
-
-    } catch (err) {
-        console.error(err);
-        Swal.fire("Erro", "Falha ao processar textos da proposta.", "error");
+      });
+    } else {
+      throw new Error(
+        result.message || "Ocorreu um erro desconhecido ao gerar a proposta."
+      );
     }
+  } catch (err) {
+    console.error("❌ Erro ao gerar proposta:", err);
+
+    Swal.close();
+
+    Swal.fire({
+      icon: "error",
+      title: "Erro!",
+      text: `Ocorreu um erro ao gerar a proposta: ${err.message}`,
+      confirmButtonText: "Fechar",
+    });
+  }
 }
-
-
 
 async function gerarContrato() {
   let nrOrcamentoElem = document.getElementById("nrOrcamento");
@@ -7511,6 +7527,7 @@ document.getElementById('AprovarProposta')?.addEventListener('click', function(e
         event.preventDefault();
         aprovarProposta();
 });
+
 /**
  * Tenta atualizar o status do orçamento para 'E' (Em Fechamento) após aprovação.
  */
@@ -7608,8 +7625,6 @@ async function aprovarProposta() {
         });
     }
 }
-
-
 
 // 🔴 Evento para o botão Reprovar Proposta
 document.getElementById('ReprovarProposta')?.addEventListener('click', function(event) {
