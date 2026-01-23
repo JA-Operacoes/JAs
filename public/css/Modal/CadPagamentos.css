@@ -45,7 +45,7 @@
   padding: 5px;
   margin-top: 10px;
   width: 1000px; /* Ajuste o tamanho conforme necessário */
-  height: 750px;
+  height: 870px;
   font-size: 16px;
   z-index: 9999;
 }
@@ -105,7 +105,7 @@ body{
   background-color: white;
   max-width: 980px;   
   width: 100%;  
-  height: 670px; 
+  height: 800px; 
   margin: 0 auto;         
   padding: 10px;                
   background-color: #cacaca; 
@@ -119,11 +119,12 @@ fieldset {
   display: flex;
   flex-direction: column;
   width: 730px;
-  height: 600px;
+  height: 700px;
   background-color: transparent;
   border-color: var(--dark-color);
   margin: 0 auto;
 }
+
 legend{
   margin-left: 20px;
   padding: 0 10px;
@@ -234,9 +235,135 @@ select#idContaSelect{
   outline: none;
 }
 
-/* #tpConta.form select {
-    width: 100px;
-} */
+/* Estilização do container PDF */
+.containerPDF {
+  height: auto;                  /* Remova altura fixa */
+  width: 250px;
+  border-radius: 10px;
+  box-shadow: 4px 4px 30px rgba(0, 0, 0, .2);
+  display: flex;
+  align-items: center;
+  justify-content: center;  /* Mantém conteúdo no topo */
+  padding: 10px;
+  gap: 6px;
+  background-color: rgba(0, 110, 255, 0.041);
+}
+
+.headerPDF {
+  flex: 1;
+  width: 100%;
+  border: 2px dashed var(--primary-color);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.headerPDF svg {
+  height: 100px;
+}
+
+.headerPDF p {
+  text-align: center;
+  color: black;
+}
+
+.footerPDF {
+  background-color: rgba(0, 110, 255, 0.075);
+  width: 100%;
+  padding: 6px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  color: black;
+  border: none;
+  box-sizing: border-box;
+}
+
+
+.footerPDF svg {
+  height:25px;
+  fill: var(--primary-color);
+  background-color: transparent;
+  border-radius: 50%;
+  padding: 2px;
+  cursor: pointer;
+  box-shadow: 0 2px 30px transparent;
+}
+
+.footerPDF p {
+  flex: 1;
+  text-align: center;
+  font-size: 15px;
+}
+
+#filePDF {
+display: none;
+}
+
+#previewFotoPDF {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 8px;
+  display: none;
+  margin-bottom: 4px; /* reduz a margem */
+  flex-shrink: 0;
+}
+
+.pdf{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: row;
+  gap: 20px ;
+}
+
+.comprovante-salvo-link {
+flex-grow: 1;
+display: inline-block; /* Para ocupar apenas a largura do conteúdo */
+padding: 5px 8px;
+border-radius: 5px;
+text-decoration: none;
+color: #007bff; /* Cor azul padrão de link */
+font-size: 14px;
+font-weight: normal; /* Remove o negrito */
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+background-color: #e9ecef; /* Um fundo cinza claro */
+border: 1px solid #ced4da; /* Borda sutil */
+}
+
+.comprovante-salvo-link.btn-success {
+color: green;
+background-color: #d1e7dd;
+border-color: #c3e6cb;
+}
+
+.comprovante-salvo-link.btn-info {
+color: #0c5460;
+background-color: #d1ecf1;
+border-color: #bee5eb;
+}
+
+/* Mantém o estilo do botão remover */
+.remover-comprovante-btn {
+height: 30px; /* Reduz a altura do botão */
+padding: 0.2rem 0.5rem;
+font-size: 0.875rem;
+line-height: 1.5;
+border-radius: 0.2rem;
+flex-shrink: 0;
+background-color: #dc3545;
+color: white;
+border: 1px solid #dc3545;
+}
+
+
 
 button.close {
   display: flex;
@@ -579,6 +706,41 @@ input#id{
 .celula-obs:hover {
     color: var(--cor-primaria, #3085d6);
     text-decoration: underline;
+}
+
+/* Container onde o link aparece */
+#linkContainerConta, #linkContainerComprovante {
+    margin-top: 5px;
+}
+
+/* Botão de Visualização */
+.btn-view-file {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background-color: #ffffff;
+    color: var(--primary-color, #1976d2);
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: "Abel", sans-serif;
+    font-weight: bold;
+    border: 1px solid var(--primary-color, #1976d2);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.btn-view-file:hover {
+    background-color: var(--primary-color, #1976d2);
+    color: #ffffff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+input[type="file"]:disabled {
+    background-color: #f4f4f4;
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 
 @-webkit-keyframes ripple-33 {

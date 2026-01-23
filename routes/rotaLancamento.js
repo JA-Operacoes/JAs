@@ -18,7 +18,19 @@ router.get("/contas", async (req, res) => {
     try {
         
         const result = await pool.query(
-            `SELECT * FROM contas WHERE idempresa = $1 ORDER BY nmconta ASC`,
+            `SELECT 
+                c.idconta,
+                c.nmconta,
+                c.ativo,
+                c.idempresa,
+                c.idtipoconta,
+                c.idempresapagadora,
+                e.nmfantasia AS nmempresapagadora
+            FROM contas c
+            LEFT JOIN empresas e 
+                ON e.idempresa = c.idempresapagadora
+            WHERE c.idempresa = $1
+            ORDER BY c.nmconta ASC`,
             [idempresa]
         );
         return result.rows.length
@@ -31,6 +43,7 @@ router.get("/contas", async (req, res) => {
     }
 });
 
+// GET - Listar centros de custo ativos INATIVAMOS  CENTRO CUSTO
 router.get("/centrocusto",  async (req, res) => {
    
   try {  const result = await pool.query(
@@ -59,10 +72,10 @@ router.get("/", verificarPermissao('Lancamentos', 'pesquisar'), async (req, res)
 
     try {
         let query = `
-            SELECT l.*, c.nmconta, cc.nmcentrocusto 
+            SELECT l.*, c.nmconta --, cc.nmcentrocusto 
             FROM public.lancamentos l
             LEFT JOIN contas c ON l.idconta = c.idconta
-            LEFT JOIN centrocusto cc ON l.idcentrocusto = cc.idcentrocusto
+            --LEFT JOIN centrocusto cc ON l.idcentrocusto = cc.idcentrocusto
             WHERE l.idempresa = $1
         `;
         let params = [idempresa];
@@ -113,22 +126,38 @@ router.put("/:id",
         const id = req.params.id;
         const idempresa = req.idempresa;
         const { 
-            idconta, idcentrocusto, descricao, vlrestimado, 
+            idconta, //idcentrocusto, 
+            descricao, vlrestimado, 
             vctobase, periodicidade, tiporepeticao, 
-            dttermino, indeterminado, ativo 
+            dttermino, indeterminado, ativo, locado,
+            qtdParcelas, dtRecebimento
         } = req.body;
 
         try {
             const result = await pool.query(
                 `UPDATE public.lancamentos 
-                 SET idconta = $1, idcentrocusto = $2, descricao = $3, vlrestimado = $4, 
-                     vctobase = $5, periodicidade = $6, tiporepeticao = $7, 
-                     dttermino = $8, indeterminado = $9, ativo = $10
-                 WHERE idlancamento = $11 AND idempresa = $12
-                 RETURNING *`,
-                [idconta, idcentrocusto, descricao?.toUpperCase(), vlrestimado, 
-                 vctobase, periodicidade, tiporepeticao, 
-                 dttermino || null, indeterminado, ativo, id, idempresa]
+                SET idconta = $1, descricao = $2, vlrestimado = $3, 
+                    vctobase = $4, periodicidade = $5, tiporepeticao = $6, 
+                    dttermino = $7, indeterminado = $8, ativo = $9, locado = $10,
+                    qtdeparcelas = $11, dtrecebimento = $12
+                WHERE idlancamento = $13 AND idempresa = $14
+                RETURNING *`,
+                [
+                    idconta, 
+                    descricao?.toUpperCase(), 
+                    vlrestimado, 
+                    vctobase, 
+                    periodicidade, 
+                    tiporepeticao, 
+                    dttermino || null,        // Garante NULL se estiver vazio
+                    indeterminado, 
+                    ativo, 
+                    locado, 
+                    qtdParcelas || null,      // Garante NULL se estiver vazio (evita erro integer)
+                    dtRecebimento || null,    // Garante NULL se estiver vazio (salva dtrecebimento)
+                    id, 
+                    idempresa
+                ]
             );
 
             if (result.rowCount) {
@@ -302,9 +331,9 @@ router.post("/",
     async (req, res) => {
         const idempresa = req.idempresa;
         const { 
-            idconta, idcentrocusto, descricao, vlrestimado, 
+            idconta, descricao, vlrestimado, 
             vctobase, periodicidade, tiporepeticao, 
-            dttermino, indeterminado, ativo 
+            dttermino, indeterminado, ativo, locado, qtdParcelas, dtRecebimento
         } = req.body;
 
         const client = await pool.connect(); 
@@ -316,14 +345,26 @@ router.post("/",
             // Removemos a lógica de gerar parcelas automáticas em pagamentos
             const resLanc = await client.query(
                 `INSERT INTO public.lancamentos (
-                    idempresa, idconta, idcentrocusto, descricao, 
+                    idempresa, idconta, descricao, 
                     vlrestimado, vctobase, periodicidade, tiporepeticao, 
-                    dttermino, indeterminado, ativo
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
+                    dttermino, indeterminado, ativo, locado, qtdeparcelas, dtrecebimento
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
                 RETURNING idlancamento`,
-                [idempresa, idconta, idcentrocusto, descricao?.toUpperCase(), 
-                 vlrestimado, vctobase, periodicidade, tiporepeticao, 
-                 dttermino || null, indeterminado, ativo]
+                [
+                    idempresa, 
+                    idconta, 
+                    descricao?.toUpperCase(), 
+                    vlrestimado, 
+                    vctobase, 
+                    periodicidade, 
+                    tiporepeticao, 
+                    dttermino || null, 
+                    indeterminado, 
+                    ativo, 
+                    locado, 
+                    qtdParcelas || null,   // Garante NULL em vez de ""
+                    dtRecebimento || null  // Garante NULL em vez de ""
+                ]
             );
 
             const idlancamento = resLanc.rows[0].idlancamento;

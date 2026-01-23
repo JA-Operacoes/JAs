@@ -39,6 +39,7 @@ if (typeof window.CentroCustoOriginal === "undefined") {
 async function verificaCentroCusto() {
     console.log("Carregando Centro de Custo...");
 
+    carregarContas();
     carregarEmpresas();
 
     const botaoEnviar = document.querySelector("#Enviar");
@@ -58,45 +59,7 @@ async function verificaCentroCusto() {
     }
 
     validarFormulario();
-
-    // No seu verificaCentroCusto() ou carregarEmpresas()
-
-    empresaSelect.addEventListener("mousedown", async function(e) { // Marcada como async
-        e.preventDefault();
-        const option = e.target;
-        
-        if (option.tagName === "OPTION") {
-            const acao = option.selected ? "REMOVER" : "INCLUIR";
-            const cor = option.selected ? "#d33" : "#3085d6";
-
-            // Primeiro Swal: Pergunta se quer alterar
-            const result = await Swal.fire({
-                title: acao === "INCLUIR" ? "Vincular Empresa" : "Inativar Vínculo",
-                text: `Deseja ${acao} a empresa ${option.text} neste Centro de Custo? Lembre-se de clicar em ENVIAR para confirmar.`,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: cor,
-                confirmButtonText: `Sim, ${acao}`,
-                cancelButtonText: "Cancelar"
-            });
-
-            if (result.isConfirmed) {
-                // Aplica a alteração visual
-                option.selected = !option.selected; 
-                validarFormulario(); 
-
-                // Segundo Swal: Aguarda o OK do usuário (com await)
-                await Swal.fire({
-                    icon: 'info',
-                    title: 'Alteração registrada',
-                    text: 'Atenção: A alteração foi aplicada na tela, mas ainda NÃO foi salva no banco de dados. Você PRECISA clicar no botão "ENVIAR" para gravar as mudanças definitivamente.',
-                    confirmButtonText: 'Entendi',
-                    confirmButtonColor: 'var(--primary-color)',
-                    allowOutsideClick: false // Impede fechar clicando fora
-                });
-            }
-        }
-    });
+    
 
     const ativoCheckbox = document.querySelector("#ativo");
     if (ativoCheckbox) {
@@ -356,68 +319,66 @@ async function verificaCentroCusto() {
     });
 }
 
-
-
-
-async function carregarEmpresas() {
-    const selectEmpresa = document.getElementById('empresaSelect');
-    
-    // Limpa as opções atuais, mantendo apenas a primeira (o placeholder)
-    selectEmpresa.innerHTML = '<option value="" selected disabled>Selecione Empresa (Segure CTRL Para mais de uma) </option>';
-
+async function carregarContas() {   
+    const selectConta = document.getElementById('nomeConta');
+    if (!selectConta) return console.error("Elemento nomeConta não encontrado no DOM");
+    // Limpa TUDO e garante que o display não esteja 'none'
+    selectConta.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Selecione a Conta';
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    selectConta.appendChild(placeholder);
     try {
-        console.log("Iniciando busca de empresas...");
-        
-        // Faz a requisição ao banco
-        const empresas = await fetchComToken(`/centrocusto/empresas`);
-        console.log("Empresas retornadas:", empresas);
-
-        if (Array.isArray(empresas) && empresas.length > 0) {
-            // Itera sobre o array de empresas para criar as opções
-            empresas.forEach(emp => {
+        const contas = await fetchComToken(`/centrocusto/contas`);
+        if (Array.isArray(contas)) {
+            contas.forEach(conta => {
                 const option = document.createElement('option');
-                option.value = emp.idempresa; // O ID que vai para o banco
-                option.textContent = emp.nmfantasia || emp.nmempresa; // O nome que o usuário vê
-                
-                // Opcional: Desabilitar visualmente se a empresa estiver inativa no cadastro geral
-                if (emp.ativo === false) {
-                    option.textContent += " (Inativa)";
-                }
-
-                selectEmpresa.appendChild(option);
+                option.value = conta.idconta;
+                option.textContent = conta.nmconta;
+                selectConta.appendChild(option);
+                console.log("Adicionada conta ao select:", option.value, option.textContent);
             });
-
-            console.log("Select preenchido com sucesso.");
-        } else {
-            console.warn("Nenhuma empresa encontrada no retorno da API.");
+            console.log("Select populado com " + contas.length + " contas.");
         }
-
     } catch (e) {
-        console.error("Erro ao carregar empresas no select:", e);
-        // Opcional: Adicionar uma mensagem de erro visual para o usuário
+        console.error("Erro:", e);
     }
 }
 
-// function validarFormulario() {
-//     const elNm = document.querySelector("#nmCentroCusto");
-//     const elEmp = document.querySelector("#empresaSelect");
-//     const botaoEnviar = document.querySelector("#Enviar");
+async function carregarEmpresas() {
+    const selectEmpresa = document.getElementById('empresaSelect');
+    if (!selectEmpresa) return console.error("Elemento empresaSelect não encontrado no DOM");
 
-//     if (!elNm || !elEmp || !botaoEnviar) return;
+    // Limpa TUDO e garante que o display não esteja 'none'
+    selectEmpresa.innerHTML = ''; 
+    
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Selecione a Empresa Responsável';
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    selectEmpresa.appendChild(placeholder);
 
-//     const nmCentroCusto = elNm.value.trim();
-//     const idEmpresa = elEmp.value;
-
-//     if (nmCentroCusto !== "" && idEmpresa !== "") {
-//         botaoEnviar.disabled = false;
-//         botaoEnviar.style.opacity = "1";
-//         botaoEnviar.style.cursor = "pointer";
-//     } else {
-//         botaoEnviar.disabled = true;
-//         botaoEnviar.style.opacity = "0.5";
-//         botaoEnviar.style.cursor = "not-allowed";
-//     }
-// }
+    try {
+        const empresas = await fetchComToken(`/centrocusto/empresas`);
+        
+        if (Array.isArray(empresas)) {
+            empresas.forEach(emp => {
+                const option = document.createElement('option');
+                option.value = emp.idempresa;
+                // Use nmfantasia ou nmfantasia dependendo do que vem no seu log (vi que vem nmfantasia)
+                option.textContent = emp.nmfantasia || emp.razaosocial;
+                selectEmpresa.appendChild(option);
+                console.log("Adicionada empresa ao select:", option.value, option.textContent);
+            });
+            console.log("Select populado com " + empresas.length + " empresas.");
+        }
+    } catch (e) {
+        console.error("Erro:", e);
+    }
+}
 
 function validarFormulario() {
     const elNm = document.querySelector("#nmCentroCusto");
@@ -952,3 +913,5 @@ window.moduloHandlers['CentroCusto'] = { // Use 'CentroCusto' (com C maiúsculo)
     configurar: configurarCadCentroCusto,
     desinicializar: desinicializarCentroCustoModal
 };
+
+

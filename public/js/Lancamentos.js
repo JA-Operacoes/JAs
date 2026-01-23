@@ -16,12 +16,18 @@ let limparButtonListener = null;
 let enviarButtonListener = null;
 let pesquisarButtonListener = null;
 
+const tipoRepeticao = document.querySelector("#tipoRepeticao");
+const qtdParcelasInput = document.querySelector("#qtdeParcelas");
+const indeterminadoCheck = document.querySelector("#indeterminado");
+const dtTerminoInput = document.querySelector("#dtTermino");
+const vctoBaseInput = document.querySelector("#vctoBase");
+
 // Objeto para Dirty Checking (Estado Original)
 if (typeof window.LancamentoOriginal === "undefined") {
     window.LancamentoOriginal = {
         idLancamento: "",
         idconta: "",
-        idcentrocusto: "",
+    //    idcentrocusto: "",
         descricao: "",
         vlrestimado: "",
         vctobase: "",
@@ -29,238 +35,10 @@ if (typeof window.LancamentoOriginal === "undefined") {
         tiporepeticao: "FIXO",
         dttermino: "",
         indeterminado: false,
-        ativo: true
+        ativo: true,
+        locado: false // Novo campo
     };
 }
-
-// async function verificaLancamento() {
-//     console.log("Carregando Lançamento...");
-
-//     const botaoEnviar = document.querySelector("#Enviar");
-//     const botaoPesquisar = document.querySelector("#Pesquisar");
-//     const botaoLimpar = document.querySelector("#Limpar");
-    
-//     // Inputs
-//     const checkIndeterminado = document.querySelector("#indeterminado");
-//     const campoTermino = document.querySelector("#dtTermino");
-
-//     // Inicialização
-//     validarFormulario();
-//     carregarSelectsIniciais();    
-//     renderizarPrevia();
-
-//     // --- GATILHOS AUTOMÁTICOS (Validação e Prévia) ---
-//     const camposGatilho = ["#idContaSelect", "#idCentroCusto", "#vlrEstimado", "#vctoBase", "#periodicidade", "#tipoRepeticao", "#dtTermino", "#indeterminado"];
-    
-//     camposGatilho.forEach(seletor => {
-//         const el = document.querySelector(seletor);
-//         if (el) {
-//             // Unificamos input e change em um só lugar
-//             ["input", "change"].forEach(evento => {
-//                 el.addEventListener(evento, () => {
-//                     validarFormulario();
-//                     renderizarPrevia(); 
-//                 });
-//             });
-//         }
-//     });
-
-//     // --- LOGICA DE CAMPO INDETERMINADO ---
-//     if (checkIndeterminado) {
-//         checkIndeterminado.addEventListener("change", function() {
-//             campoTermino.disabled = this.checked;
-//             if (this.checked) campoTermino.value = "";
-//             // A prévia e validação já são chamadas pelo loop de camposGatilho acima
-//         });
-//     }
-
-//     // --- Listener: LIMPAR ---
-//     limparButtonListener = (e) => {
-//         e.preventDefault();
-//         limparCamposLancamento();
-//         document.querySelector("#container-previa").innerHTML = ""; // Limpa a prévia ao limpar tudo
-//     };
-//     botaoLimpar.addEventListener("click", limparButtonListener);
-
-//     // --- Listener: ENVIAR (POST/PUT) ---
-//     enviarButtonListener = async (e) => {
-//         e.preventDefault();
-
-//         const idLancamento = document.querySelector("#idLancamento").value.trim();
-//         const periodicidade = document.querySelector("#periodicidade").value;
-//         const tipoRepeticao = document.querySelector("#tipoRepeticao").value;
-//         const vctoBase = document.querySelector("#vctoBase").value;
-//         const dtTermino = document.querySelector("#dtTermino").value;
-//         const indeterminado = document.querySelector("#indeterminado").checked;
-
-//         if (tipoRepeticao === "PARCELADO" && !dtTermino && !indeterminado) {
-//             return Swal.fire("Erro", "Para lançamentos parcelados, a data de término é obrigatória.", "error");
-//         }
-    
-//         // Lógica de Descrição Automática
-//         let descricaoInput = document.querySelector("#descricao").value.trim().toUpperCase();
-//         let descricaoFinal = descricaoInput;
-
-//         if (!descricaoFinal) {
-//             // 1. Pega o Nome da Conta (Corrigido de selConta para selectConta para evitar o erro)
-//             const selectConta = document.querySelector("#idContaSelect");
-//             const nomeConta = selectConta.options[selectConta.selectedIndex].text;
-
-//             // 2. Pega o Centro de Custo e Empresa
-//             const selectCentro = document.querySelector("#idCentroCusto");
-//             const centroEmpresa = selectCentro.options[selectCentro.selectedIndex].text;
-
-//             // 3. Pega o Mês/Ano (MM/YYYY)
-//             const vctoBaseStr = document.querySelector("#vctoBase").value;
-//             let mesAnoFormatado = "SEM DATA";
-
-//             if (vctoBaseStr) {
-//                 const [ano, mes] = vctoBaseStr.split('-'); 
-//                 mesAnoFormatado = `${mes}/${ano}`;      
-//             }
-
-//             // Resultado: "CONTA - CENTRO/EMPRESA - 01/2026"
-//             descricaoFinal = `${nomeConta.toUpperCase()} - ${centroEmpresa.toUpperCase()} - ${mesAnoFormatado}`;
-//         }
-        
-//         const dados = {
-//             idconta: document.querySelector("#idContaSelect").value,
-//             idcentrocusto: document.querySelector("#idCentroCusto").value,
-//             descricao: descricaoFinal,
-//             vlrestimado: parseFloat(document.querySelector("#vlrEstimado").value),
-//             vctobase: vctoBase,
-//             periodicidade: periodicidade,
-//             tiporepeticao: tipoRepeticao,
-//             dttermino: dtTermino || null,
-//             indeterminado: indeterminado,
-//             ativo: document.querySelector("#ativo").checked
-//         };
-
-//         // --- NOVO TRECHO: TRAVA DE DUPLICIDADE ---
-//         // Só verifica duplicidade se for um NOVO cadastro (sem idLancamento)
-//         // --- NOVO TRECHO CORRIGIDO ---
-//         if (!idLancamento) {
-//             try {
-//                 const existentes = await fetchComToken("/lancamentos");
-
-//                 console.log("Verificando duplicidade entre:", existentes, "lançamentos existentes.");
-                
-//                 // Usamos Number() e toFixed(2) para garantir que 125 seja igual a 125.00
-//                 const duplicado = existentes.find(l => {
-//                     const contaIgual = String(l.idconta) === String(dados.idconta);
-//                     const centroIgual = String(l.idcentrocusto) === String(dados.idcentrocusto);
-//                     const empresaIgual = String(l.idempresa) === String(dados.idempresa);
-//                     const valorIgual = Number(l.vlrestimado).toFixed(2) === Number(dados.vlrestimado).toFixed(2);
-//                     const dataIgual = l.vctobase === dados.vctobase;
-
-//                     return contaIgual && centroIgual && empresaIgual && valorIgual && dataIgual;
-//                 });
-
-//                 if (duplicado) {
-//                     const result = await Swal.fire({
-//                         title: "Lançamento Duplicado!",
-//                         html: `Atenção: Já existe um registro para <b>${duplicado.descricao}</b>.<br><br>Deseja salvar uma cópia?`,
-//                         icon: "warning",
-//                         showCancelButton: true,
-//                         confirmButtonColor: "#3085d6",
-//                         cancelButtonColor: "#d33",
-//                         confirmButtonText: "Sim, salvar cópia",
-//                         cancelButtonText: "Não, cancelar"
-//                     });
-
-//                     // Se o usuário NÃO confirmar (clicar em cancelar), paramos aqui
-//                     if (!result.isConfirmed) {
-//                         return; 
-//                     }
-//                 }
-//             } catch (err) {
-//                 console.error("Erro ao validar duplicidade", err);
-//             }
-//         }
-//         // Permissões e Dirty Checking
-//         const temPermissaoCadastrar = temPermissao("Lancamentos", "cadastrar");
-//         const temPermissaoAlterar = temPermissao("Lancamentos", "alterar");
-
-//         if (!idLancamento && !temPermissaoCadastrar) return Swal.fire("Acesso negado", "Sem permissão para cadastrar.", "error");
-//         if (idLancamento && !temPermissaoAlterar) return Swal.fire("Acesso negado", "Sem permissão para alterar.", "error");
-
-//         const semAlteracao = idLancamento && 
-//             String(idLancamento) === String(window.LancamentoOriginal?.idlancamento) &&
-//             dados.descricao === window.LancamentoOriginal?.descricao &&
-//             dados.vlrestimado === window.LancamentoOriginal?.vlrestimado &&
-//             dados.idconta === window.LancamentoOriginal?.idconta &&
-//             dados.idcentrocusto === window.LancamentoOriginal?.idcentrocusto;
-
-//         if (semAlteracao) return Swal.fire("Aviso", "Nenhuma alteração detectada.", "info");
-
-//         const url = idLancamento ? `/lancamentos/${idLancamento}` : "/lancamentos";
-//         const metodo = idLancamento ? "PUT" : "POST";
-
-//         try {
-//             if (metodo === "PUT") {
-//                 const { isConfirmed } = await Swal.fire({
-//                     title: "Salvar alterações?",
-//                     icon: "question",
-//                     showCancelButton: true,
-//                     confirmButtonText: "Sim"
-//                 });
-//                 if (!isConfirmed) return;
-//             }
-
-//             await fetchComToken(url, {
-//                 method: metodo,
-//                 headers: { 'Content-Type': 'application/json' },
-//                 body: JSON.stringify(dados)
-//             });
-
-//             await Swal.fire("Sucesso!", "Lançamento salvo.", "success");
-//             limparCamposLancamento();
-//             renderizarPrevia(); // Limpa ou atualiza a prévia após salvar
-//         } catch (error) {
-//             Swal.fire("Erro", error.message, "error");
-//         }
-//     };
-//     botaoEnviar.addEventListener("click", enviarButtonListener);
-
-//     // --- Listener: PESQUISAR ---
-//     pesquisarButtonListener = async (e) => {
-//         e.preventDefault();
-//         const temPermissaoPesquisar = temPermissao('Lancamentos', 'pesquisar');
-//         if (!temPermissaoPesquisar) return Swal.fire("Acesso negado", "Sem permissão.", "warning");
-
-//         try {
-//             const lista = await fetchComToken("/lancamentos");
-//             if (!lista || lista.length === 0) return Swal.fire("Info", "Nenhum lançamento encontrado.", "info");
-
-//             const select = criarSelectPesquisa(lista);
-//             const inputDesc = document.querySelector("#descricao");
-            
-//             // --- CORREÇÃO AQUI: Esconder o Label ---
-//             const labelDesc = document.querySelector('label[for="descricao"]');
-//             if (labelDesc) labelDesc.style.display = 'none'; 
-//             // ---------------------------------------
-
-//             inputDesc.parentNode.replaceChild(select, inputDesc);
-
-//             select.addEventListener("change", async function() {
-//                 const idEscolhido = this.value;
-//                 const lancamento = lista.find(l => String(l.idlancamento) === String(idEscolhido));
-                
-//                 preencherCampos(lancamento);
-//                 renderizarPrevia(); 
-                
-//                 // Ao restaurar, a função restaurarInputDescricao cuidará de mostrar o label
-//                 const novoInput = restaurarInputDescricao(lancamento.descricao);
-//                 this.parentNode.replaceChild(novoInput, this);
-//             });
-//         } catch (error) {
-//             Swal.fire("Erro", "Erro ao pesquisar.", "error");
-//         }
-//     };
-//     botaoPesquisar.addEventListener("click", pesquisarButtonListener);
-
-//     adicionarEventoBlurDescricao();
-// }
 
 
 async function verificaLancamento() {
@@ -271,14 +49,15 @@ async function verificaLancamento() {
     const botaoLimpar = document.querySelector("#Limpar");
     
     const checkIndeterminado = document.querySelector("#indeterminado");
-    const campoTermino = document.querySelector("#dtTermino");
+    const campoTermino = document.querySelector("#dtTermino");    
 
     validarFormulario();
-    carregarSelectsIniciais();    
+    carregarSelectsIniciais();   
+    gerenciarCampos(); 
     renderizarPrevia();
 
     // --- GATILHOS AUTOMÁTICOS ---
-    const camposGatilho = ["#idContaSelect", "#idCentroCusto", "#vlrEstimado", "#vctoBase", "#periodicidade", "#tipoRepeticao", "#dtTermino", "#indeterminado"];
+    const camposGatilho = ["#idContaSelect", "#idCentroCusto", "#vlrEstimado", "#vctoBase", "#periodicidade", "#tipoRepeticao", "#dtTermino", "#indeterminado", "#qtdeParcelas"];
     
     camposGatilho.forEach(seletor => {
         const el = document.querySelector(seletor);
@@ -292,10 +71,25 @@ async function verificaLancamento() {
         }
     });
 
-    if (checkIndeterminado) {
-        checkIndeterminado.addEventListener("change", function() {
-            campoTermino.disabled = this.checked;
-            if (this.checked) campoTermino.value = "";
+    // if (checkIndeterminado) {
+    //     checkIndeterminado.addEventListener("change", function() {
+    //         campoTermino.disabled = this.checked;
+    //         if (this.checked) campoTermino.value = "";
+    //     });
+    // }
+
+    const locadoCheckbox = document.querySelector("#locadoCheck") || document.querySelector("#Locadocheck");
+
+    if (locadoCheckbox) {
+        locadoCheckbox.addEventListener("change", function() {
+            // Este Swal aparece tanto na troca para TRUE quanto para FALSE
+            Swal.fire({
+                title: "Atenção: Vínculo de Pagamento",
+                text: "Você alterou o status 'Locado'. Lembre-se que esta mudança pode exigir a atualização de quem irá pagar no cadastro do Centro de Custo.",
+                icon: "info",
+                confirmButtonText: "Entendido",
+                confirmButtonColor: "var(--primary-color)"
+            });
         });
     }
 
@@ -309,49 +103,66 @@ async function verificaLancamento() {
     botaoEnviar.onclick = async (e) => {
         e.preventDefault();
 
-        const idLancamento = document.querySelector("#idLancamento").value.trim();
+        // Captura segura de elementos
+        const elIdLancamento = document.querySelector("#idLancamento");
+        const idLancamento = elIdLancamento ? elIdLancamento.value.trim() : "";
+        
         const tipoRepeticao = document.querySelector("#tipoRepeticao").value;
         const dtTermino = document.querySelector("#dtTermino").value;
         const indeterminado = document.querySelector("#indeterminado").checked;
+        
+        const inputLocado = document.querySelector("#locadoCheck") || document.querySelector("#Locadocheck");
+        const locado = inputLocado ? inputLocado.checked : false;
 
+        const elQtde = document.querySelector("#qtdeParcelas");
+        const qtdParcelas = (elQtde && elQtde.value.trim() !== "") ? parseInt(elQtde.value) : null;
+
+        const elDtRec = document.querySelector("#dtRecebimento");
+        const dtRecebimento = (elDtRec && elDtRec.value.trim() !== "") ? elDtRec.value : null;
+
+        // Validação de Parcelados
         if (tipoRepeticao === "PARCELADO" && !dtTermino && !indeterminado) {
             return Swal.fire("Erro", "Para lançamentos parcelados, a data de término é obrigatória.", "error");
         }
-    
-        // 1. GERAÇÃO DA DESCRIÇÃO FINAL (SEM DATA)
+
+        // 1. GESTÃO DA DESCRIÇÃO (EDIÇÃO vs CADASTRO)
         let descricaoInput = document.querySelector("#descricao").value.trim().toUpperCase();
         let descricaoFinal = descricaoInput;
 
-        if (!descricaoFinal) {
+        // Se estiver vazio e NÃO for edição, tenta gerar descrição automática
+        if (!descricaoFinal && !idLancamento) {
             const selectConta = document.querySelector("#idContaSelect");
-            const nomeConta = selectConta.options[selectConta.selectedIndex].text;
-
-            const selectCentro = document.querySelector("#idCentroCusto");
-            const centroEmpresa = selectCentro.options[selectCentro.selectedIndex].text;
-
-            // Removido o mês/ano conforme solicitado para evitar textos datados em contas fixas
-            descricaoFinal = `${nomeConta.toUpperCase()} - ${centroEmpresa.toUpperCase()}`;
+            if (selectConta && selectConta.selectedIndex >= 0) {
+                descricaoFinal = selectConta.options[selectConta.selectedIndex].text.toUpperCase();
+            }
         }
-        
+
+        // Se ainda assim estiver vazio, impede o envio
+        if (!descricaoFinal) {
+            return Swal.fire("Erro", "Por favor, preencha a descrição do lançamento.", "warning");
+        }
+
         const dados = {
             idconta: document.querySelector("#idContaSelect").value,
-            idcentrocusto: document.querySelector("#idCentroCusto").value,
             descricao: descricaoFinal,
-            vlrestimado: parseFloat(document.querySelector("#vlrEstimado").value),
+            vlrestimado: parseFloat(document.querySelector("#vlrEstimado").value) || 0,
             vctobase: document.querySelector("#vctoBase").value,
             periodicidade: document.querySelector("#periodicidade").value,
             tiporepeticao: tipoRepeticao,
             dttermino: dtTermino || null,
             indeterminado: indeterminado,
-            ativo: document.querySelector("#ativo").checked
+            ativo: document.querySelector("#ativo").checked,
+            locado: locado,
+            qtdParcelas: qtdParcelas,
+            dtRecebimento: dtRecebimento
         };
 
-        // 2. VALIDAÇÃO DE DUPLICIDADE POR DESCRIÇÃO
+        console.log("Dados a serem enviados:", dados);
+
+        // 2. VALIDAÇÃO DE DUPLICIDADE (Apenas para NOVOS cadastros)
         if (!idLancamento) {
             try {
                 const existentes = await fetchComToken("/lancamentos");
-                
-                // Busca se já existe um lançamento com o MESMO NOME (descrição)
                 const duplicadoPorNome = existentes.find(l => 
                     l.descricao.trim().toUpperCase() === dados.descricao.trim().toUpperCase()
                 );
@@ -360,17 +171,17 @@ async function verificaLancamento() {
                     return Swal.fire({
                         title: "Descrição já existe!",
                         html: `Já existe um lançamento cadastrado como: <b>${dados.descricao}</b>.<br><br>` +
-                              `Para diferenciar (ex: duas manutenções), por favor, <b>altere a descrição</b> manualmente no campo de texto.`,
+                            `Para diferenciar, por favor, altere a descrição manualmente.`,
                         icon: "warning",
                         confirmButtonText: "Entendido"
                     });
                 }
             } catch (err) {
-                console.error("Erro ao validar duplicidade por nome", err);
+                console.error("Erro ao validar duplicidade", err);
             }
         }
 
-        // --- Permissões e Dirty Checking ---
+        // --- Permissões ---
         const temPermissaoCadastrar = temPermissao("Lancamentos", "cadastrar");
         const temPermissaoAlterar = temPermissao("Lancamentos", "alterar");
 
@@ -384,9 +195,10 @@ async function verificaLancamento() {
             if (metodo === "PUT") {
                 const { isConfirmed } = await Swal.fire({
                     title: "Salvar alterações?",
+                    text: "Você está editando um lançamento existente.",
                     icon: "question",
                     showCancelButton: true,
-                    confirmButtonText: "Sim"
+                    confirmButtonText: "Sim, salvar"
                 });
                 if (!isConfirmed) return;
             }
@@ -397,7 +209,9 @@ async function verificaLancamento() {
                 body: JSON.stringify(dados)
             });
 
-            await Swal.fire("Sucesso!", "Lançamento salvo.", "success");
+            await Swal.fire("Sucesso!", "Lançamento salvo com sucesso.", "success");
+            
+            // Limpa e fecha/reseta se necessário
             limparCamposLancamento();
             renderizarPrevia(); 
         } catch (error) {
@@ -411,6 +225,8 @@ async function verificaLancamento() {
         const temPermissaoPesquisar = temPermissao('Lancamentos', 'pesquisar');
         if (!temPermissaoPesquisar) return Swal.fire("Acesso negado", "Sem permissão.", "warning");
 
+        limparCamposLancamento();
+        
         try {
             const lista = await fetchComToken("/lancamentos");
             if (!lista || lista.length === 0) return Swal.fire("Info", "Nenhum lançamento encontrado.", "info");
@@ -440,6 +256,131 @@ async function verificaLancamento() {
     };
 
     adicionarEventoBlurDescricao();
+}
+
+
+function gerenciarCampos() {
+    const tipoRep = document.querySelector("#tipoRepeticao");
+    const qtdeInput = document.querySelector("#qtdeParcelas");
+    const checkIndet = document.querySelector("#indeterminado");
+    const campoTermino = document.querySelector("#dtTermino");
+
+    if (!tipoRep || !qtdeInput || !checkIndet || !campoTermino) return;
+
+    const atualizarEstado = () => {
+        const valorTipo = tipoRep.value.toUpperCase();
+        const isParcelado = valorTipo === "PARCELADO";
+
+        // REGRA NOIVA: Se mudar para PARCELADO, remove o check de indeterminado
+        if (isParcelado && checkIndet.checked) {
+            checkIndet.checked = false;
+        }
+
+        const isIndeterminado = checkIndet.checked;
+
+        // Gerencia bloqueios
+        qtdeInput.disabled = !isParcelado || isIndeterminado;
+        qtdeInput.style.backgroundColor = qtdeInput.disabled ? "#e9ecef" : "#ffffff";
+        campoTermino.disabled = isIndeterminado;
+        
+        if (isIndeterminado) {
+            qtdeInput.value = "";
+            campoTermino.value = "";
+        }
+        
+        validarFormulario(); // Revalida o botão Enviar sempre que mudar o estado
+    };
+
+    // Listeners existentes...
+    tipoRep.addEventListener("change", atualizarEstado);
+    
+    checkIndet.addEventListener("change", () => {
+        // Se o usuário tentar marcar indeterminado sendo parcelado, avisamos ou impedimos
+        if (tipoRep.value.toUpperCase() === "PARCELADO" && checkIndet.checked) {
+             checkIndet.checked = false;
+             Swal.fire("Atenção", "Lançamentos parcelados devem ter uma duração definida.", "info");
+        }
+        atualizarEstado();
+        renderizarPrevia();
+    });
+
+    campoTermino.addEventListener("change", () => {
+        if (campoTermino.value) {
+            checkIndet.checked = false;
+            if (tipoRep.value.toUpperCase() !== "PARCELADO") tipoRep.value = "PARCELADO";
+            atualizarEstado();
+            calcularParcelasPelaDataTermino();
+            renderizarPrevia();
+        }
+    });
+
+    qtdeInput.addEventListener("input", () => {
+        calcularDataTerminoPorParcelas();
+        renderizarPrevia();
+        validarFormulario();
+    });
+
+    atualizarEstado();
+}
+
+function calcularDataTerminoPorParcelas() {
+    const vcto = document.querySelector("#vctoBase").value;
+    const qtdeField = document.querySelector("#qtdeParcelas");
+    const qtd = parseInt(qtdeField.value);
+    const periodicidade = document.querySelector("#periodicidade").value; // Ex: "Mensal"
+    const dtTerminoInput = document.querySelector("#dtTermino");
+
+    if (vcto && qtd > 0) {
+        let dataFim = new Date(vcto + 'T00:00:00');
+        const multiplicador = qtd - 1;
+
+        // Garante que o switch ignore diferenças de maiúsculas/minúsculas
+        const p = periodicidade.charAt(0).toUpperCase() + periodicidade.slice(1).toLowerCase();
+
+        switch (p) {
+            case "Semanal":   dataFim.setDate(dataFim.getDate() + (multiplicador * 7)); break;
+            case "Quinzenal": dataFim.setDate(dataFim.getDate() + (multiplicador * 15)); break;
+            case "Mensal":    dataFim.setMonth(dataFim.getMonth() + multiplicador); break;
+            case "Bimestral": dataFim.setMonth(dataFim.getMonth() + (multiplicador * 2)); break;
+            case "Trimestral":dataFim.setMonth(dataFim.getMonth() + (multiplicador * 3)); break;
+            case "Semestral": dataFim.setMonth(dataFim.getMonth() + (multiplicador * 6)); break;
+            case "Anual":     dataFim.setFullYear(dataFim.getFullYear() + multiplicador); break;
+        }
+
+        dtTerminoInput.value = dataFim.toISOString().split('T')[0];
+    }
+}
+
+function calcularParcelasPelaDataTermino() {
+    const vcto = document.querySelector("#vctoBase").value;
+    const termino = document.querySelector("#dtTermino").value;
+    const periodicidade = document.querySelector("#periodicidade").value;
+    const qtdeInput = document.querySelector("#qtdeParcelas");
+
+    if (vcto && termino) {
+        const d1 = new Date(vcto + 'T00:00:00');
+        const d2 = new Date(termino + 'T00:00:00');
+
+        if (d2 < d1) return; // Data de término menor que a inicial
+
+        let difMeses = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
+        let difDias = Math.floor((d2 - d1) / (1000 * 60 * 60 * 24));
+        let qtd = 1;
+
+        const p = periodicidade.charAt(0).toUpperCase() + periodicidade.slice(1).toLowerCase();
+
+        switch (p) {
+            case "Semanal":   qtd = Math.floor(difDias / 7) + 1; break;
+            case "Quinzenal": qtd = Math.floor(difDias / 15) + 1; break;
+            case "Mensal":    qtd = difMeses + 1; break;
+            case "Bimestral": qtd = Math.floor(difMeses / 2) + 1; break;
+            case "Trimestral":qtd = Math.floor(difMeses / 3) + 1; break;
+            case "Semestral": qtd = Math.floor(difMeses / 6) + 1; break;
+            case "Anual":     qtd = (d2.getFullYear() - d1.getFullYear()) + 1; break;
+        }
+
+        qtdeInput.value = qtd > 0 ? qtd : 1;
+    }
 }
 
 
@@ -495,9 +436,100 @@ function calcularPreviaParcelas(dados) {
     return parcelas;
 }
 
+// function renderizarPrevia() {
+//     const containerPrevia = document.querySelector("#container-previa");
+//     if (!containerPrevia) return;
+
+//     const vlr = document.querySelector("#vlrEstimado").value;
+//     const vcto = document.querySelector("#vctoBase").value;
+
+//     // Se os campos essenciais estiverem vazios, mostra o informativo
+//     if (!vlr || !vcto || parseFloat(vlr) <= 0) {
+//         containerPrevia.style.display = "block";
+//         containerPrevia.innerHTML = `
+//             <div class="previa-placeholder">
+//                 <div class="placeholder-conteudo">
+//                     <span class="placeholder-icone">📊</span>
+//                     <h4>Cronograma de Lançamentos</h4>
+//                     <p>Preencha o <b>Valor Estimado</b> e o <b>Vencimento Base</b> para visualizar a projeção das parcelas aqui.</p>
+//                 </div>
+//             </div>
+//         `;
+//         return;
+//     }
+
+//     // Coleta dados atuais do formulário
+//     const dados = {
+//         vlrestimado: parseFloat(document.querySelector("#vlrEstimado").value) || 0,
+//         vctobase: vcto,
+//         periodicidade: document.querySelector("#periodicidade").value,
+//         dttermino: document.querySelector("#dtTermino").value,
+//         indeterminado: document.querySelector("#indeterminado").checked,
+//         qtdparcelas: parseInt(document.querySelector("#qtdeParcelas").value) || 0,
+//         tipoRepeticao: document.querySelector("#tipoRepeticao").value
+//     };
+
+//     // // Validação para exibição
+//     // if (!dados.vctobase || dados.vlrestimado <= 0) {
+//     //     containerPrevia.style.display = "block"; // Mantém visível para mostrar a mensagem
+//     //     containerPrevia.innerHTML = `
+//     //         <div class="previa-vazia">
+//     //             <i class="fas fa-calendar-alt"></i>
+//     //             <p>Preencha o <b>Valor</b> e o <b>Vencimento Base</b> para visualizar o cronograma de parcelas aqui.</p>
+//     //         </div>
+//     //     `;
+//     //     return;
+//     // }
+
+//     const todasParcelas = calcularPreviaParcelas(dados);
+    
+//     // Filtro para Indeterminado: Mostrar apenas o ano do sistema
+//     // const anoAtual = new Date().getFullYear();
+//     // const parcelasExibicao = dados.indeterminado 
+//     //     ? todasParcelas.filter(p => p.dataObjeto.getFullYear() === anoAtual)
+//     //     : todasParcelas;
+
+//     const hoje = new Date();
+//     const dozeMesesParaFrente = new Date();
+//     dozeMesesParaFrente.setMonth(hoje.getMonth() + 12);
+
+//     const parcelasExibicao = dados.indeterminado 
+//         ? todasParcelas.filter(p => p.dataObjeto >= hoje && p.dataObjeto <= dozeMesesParaFrente)
+//         : todasParcelas;
+
+
+//     if (parcelasExibicao.length === 0) {
+//         containerPrevia.style.display = "none";
+//         return;
+//     }
+
+//     // Ativa o container
+//     containerPrevia.style.display = "block";
+
+//     // Lógica de divisão em 2 colunas
+//     const metade = Math.ceil(parcelasExibicao.length / 2);
+//     const col1 = parcelasExibicao.slice(0, metade);
+//     const col2 = parcelasExibicao.slice(metade);
+
+//     containerPrevia.innerHTML = `
+//         <div class="previa-wrapper">
+//             <h6 class="previa-titulo">
+//                 ${dados.indeterminado ? `Projeção de Gastos em ${anoAtual}` : `Cronograma Previsto (${todasParcelas.length} parcelas)`}
+//             </h6>
+//             <div class="previa-grades">
+//                 <div class="previa-coluna">${gerarTabelaHTML(col1, todasParcelas.length, dados.indeterminado)}</div>
+//                 <div class="previa-coluna">${gerarTabelaHTML(col2, todasParcelas.length, dados.indeterminado)}</div>
+//             </div>
+//         </div>
+//     `;
+// }
+
 function renderizarPrevia() {
     const containerPrevia = document.querySelector("#container-previa");
     if (!containerPrevia) return;
+
+    // 1. Define o ano atual dinamicamente para evitar o erro de ReferenceError
+    const anoAtual = new Date().getFullYear();
 
     const vlr = document.querySelector("#vlrEstimado").value;
     const vcto = document.querySelector("#vctoBase").value;
@@ -517,33 +549,29 @@ function renderizarPrevia() {
         return;
     }
 
-    // Coleta dados atuais do formulário
+    // 2. Coleta dados atuais (Certifique-se que o ID no HTML é #qtdeParcelas ou #qtdParcelas)
     const dados = {
-        vlrestimado: parseFloat(document.querySelector("#vlrEstimado").value) || 0,
-        vctobase: document.querySelector("#vctoBase").value,
+        vlrestimado: parseFloat(vlr) || 0,
+        vctobase: vcto,
         periodicidade: document.querySelector("#periodicidade").value,
         dttermino: document.querySelector("#dtTermino").value,
-        indeterminado: document.querySelector("#indeterminado").checked
+        indeterminado: document.querySelector("#indeterminado").checked,
+        qtdparcelas: parseInt(document.querySelector("#qtdeParcelas")?.value) || 0,
+        tipoRepeticao: document.querySelector("#tipoRepeticao").value
     };
-
-    // // Validação para exibição
-    // if (!dados.vctobase || dados.vlrestimado <= 0) {
-    //     containerPrevia.style.display = "block"; // Mantém visível para mostrar a mensagem
-    //     containerPrevia.innerHTML = `
-    //         <div class="previa-vazia">
-    //             <i class="fas fa-calendar-alt"></i>
-    //             <p>Preencha o <b>Valor</b> e o <b>Vencimento Base</b> para visualizar o cronograma de parcelas aqui.</p>
-    //         </div>
-    //     `;
-    //     return;
-    // }
 
     const todasParcelas = calcularPreviaParcelas(dados);
     
-    // Filtro para Indeterminado: Mostrar apenas o ano de 2026
-    const anoAtual = 2026;
+    // 3. Lógica de Filtro: 12 meses para indeterminado ou todas para fixo/parcelado
+    const hoje = new Date();
+    // Zera as horas para comparar apenas datas
+    hoje.setHours(0, 0, 0, 0); 
+    
+    const dozeMesesParaFrente = new Date();
+    dozeMesesParaFrente.setMonth(hoje.getMonth() + 12);
+
     const parcelasExibicao = dados.indeterminado 
-        ? todasParcelas.filter(p => p.dataObjeto.getFullYear() === anoAtual)
+        ? todasParcelas.filter(p => p.dataObjeto >= hoje && p.dataObjeto <= dozeMesesParaFrente)
         : todasParcelas;
 
     if (parcelasExibicao.length === 0) {
@@ -559,10 +587,13 @@ function renderizarPrevia() {
     const col1 = parcelasExibicao.slice(0, metade);
     const col2 = parcelasExibicao.slice(metade);
 
+    // 4. Montagem do HTML com o Título Dinâmico
     containerPrevia.innerHTML = `
         <div class="previa-wrapper">
             <h6 class="previa-titulo">
-                ${dados.indeterminado ? `Projeção de Gastos em ${anoAtual}` : `Cronograma Previsto (${todasParcelas.length} parcelas)`}
+                ${dados.indeterminado 
+                    ? `Projeção para os próximos 12 meses` 
+                    : `Cronograma Previsto (${todasParcelas.length} parcelas)`}
             </h6>
             <div class="previa-grades">
                 <div class="previa-coluna">${gerarTabelaHTML(col1, todasParcelas.length, dados.indeterminado)}</div>
@@ -596,25 +627,54 @@ function gerarTabelaHTML(lista, total, isIndeterminado) {
         </table>`;
 }
 
+// async function carregarSelectsIniciais() {
+//     try {
+//             //const [contas, centros] = await Promise.all([
+//             const [contas] = await Promise.all([
+//             fetchComToken('/lancamentos/contas'),
+//           //  fetchComToken('/lancamentos/centrocusto') // Esta rota deve trazer nmempresa agora
+//         ]);
+
+//         const selConta = document.querySelector("#idContaSelect");
+//       //  const selCentro = document.querySelector("#idCentroCusto");
+
+//         selConta.innerHTML = '<option value="" disabled selected>Selecione a Conta (Setor - Empresa)...</option>';
+//         contas.forEach(c => {
+//             const labelAjustado = `${c.nmconta.toUpperCase()} - ${c.nmempresa.toUpperCase()}`;
+//             selConta.add(new Option(labelAjustado, c.idconta));
+//         });
+
+//         // selCentro.innerHTML = '<option value="" disabled selected>Centro de Custo (Setor - Empresa)...</option>';
+//         // centros.forEach(cc => {
+//         //     // Aqui fazemos a concatenação: "ADMINISTRATIVO - MATRIZ"
+//         //     const labelAjustado = `${cc.nmcentrocusto.toUpperCase()} - ${cc.nmempresa.toUpperCase()}`;
+//         //     selCentro.add(new Option(labelAjustado, cc.idcentrocusto));
+//         // });
+//     } catch (e) { 
+//         console.error("Erro ao carregar selects:", e); 
+//     }
+// }
+
 async function carregarSelectsIniciais() {
     try {
-        const [contas, centros] = await Promise.all([
-            fetchComToken('/lancamentos/contas'),
-            fetchComToken('/lancamentos/centrocusto') // Esta rota deve trazer nmempresa agora
-        ]);
+        // Busca apenas as contas
+        const contas = await fetchComToken('/lancamentos/contas');
 
         const selConta = document.querySelector("#idContaSelect");
-        const selCentro = document.querySelector("#idCentroCusto");
+        if (!selConta) return;
 
-        selConta.innerHTML = '<option value="" disabled selected>Selecione a Conta...</option>';
-        contas.forEach(c => selConta.add(new Option(c.nmconta, c.idconta)));
-
-        selCentro.innerHTML = '<option value="" disabled selected>Centro de Custo (Setor - Empresa)...</option>';
-        centros.forEach(cc => {
-            // Aqui fazemos a concatenação: "ADMINISTRATIVO - MATRIZ"
-            const labelAjustado = `${cc.nmcentrocusto.toUpperCase()} - ${cc.nmempresa.toUpperCase()}`;
-            selCentro.add(new Option(labelAjustado, cc.idcentrocusto));
-        });
+        selConta.innerHTML = '<option value="" disabled selected>Selecione a Conta (Setor - Empresa)...</option>';
+        
+        if (contas && Array.isArray(contas)) {
+            contas.forEach(c => {
+                // Proteção contra valores nulos
+                const conta = (c.nmconta || "").toUpperCase();
+                const empresa = (c.nmempresapagadora || "").toUpperCase();
+                
+                const labelAjustado = `${conta} - ${empresa}`;
+                selConta.add(new Option(labelAjustado, c.idconta));
+            });
+        }
     } catch (e) { 
         console.error("Erro ao carregar selects:", e); 
     }
@@ -639,23 +699,62 @@ function gerarTabelaPrevia(lista, total, isIndeterminado) {
         </table>`;
 }
 
-function preencherCampos(l) {
-    document.querySelector("#idLancamento").value = l.idlancamento;
-    document.querySelector("#descricao").value = l.descricao;
-    document.querySelector("#idContaSelect").value = l.idconta;
-    document.querySelector("#idCentroCusto").value = l.idcentrocusto;
-    document.querySelector("#vlrEstimado").value = l.vlrestimado;
-    document.querySelector("#vctoBase").value = l.vctobase.split('T')[0];
-    document.querySelector("#periodicidade").value = l.periodicidade;
-    document.querySelector("#tipoRepeticao").value = l.tiporepeticao;
-    document.querySelector("#indeterminado").checked = l.indeterminado;
-    document.querySelector("#ativo").checked = l.ativo;
-    
-    const campoTermino = document.querySelector("#dtTermino");
-    campoTermino.value = l.dttermino ? l.dttermino.split('T')[0] : "";
-    campoTermino.disabled = l.indeterminado;
 
-    window.LancamentoOriginal = { ...l };
+function preencherCampos(lancamento) {
+    console.log("Preenchendo campos com lançamento:", lancamento);
+    
+    // Use uma função auxiliar para evitar repetição e erros de null
+    const setCampo = (id, valor) => {
+        const el = document.querySelector(id);
+        if (el) el.value = valor || "";
+    };
+
+    setCampo("#idLancamento", lancamento.idlancamento);
+    setCampo("#idContaSelect", lancamento.idconta);
+    setCampo("#descricao", lancamento.descricao);
+    setCampo("#vlrEstimado", lancamento.vlrestimado);
+    setCampo("#periodicidade", lancamento.periodicidade);
+    setCampo("#tipoRepeticao", lancamento.tiporepeticao);
+
+    // Tratamento de Datas com verificação de existência
+    if (lancamento.vctobase) {
+        setCampo("#vctoBase", lancamento.vctobase.split('T')[0]);
+    }
+
+    // Campo de Quantidade
+    const qtde = (lancamento.qtdeparcelas !== null && lancamento.qtdeparcelas !== undefined) 
+                 ? lancamento.qtdeparcelas 
+                 : "";
+    setCampo("#qtdeParcelas", qtde);
+
+    // Data de Término
+    if (lancamento.dttermino) {
+        setCampo("#dtTermino", lancamento.dttermino.split('T')[0]);
+    } else {
+        setCampo("#dtTermino", "");
+    }
+
+    // O provável culpado (dtRecebimento)
+    if (lancamento.dtrecebimento) {
+        setCampo("#dtRecebimento", lancamento.dtrecebimento.split('T')[0]);
+    } else {
+        setCampo("#dtRecebimento", "");
+    }
+
+    // Checkboxes
+    const chkIndet = document.querySelector("#indeterminado");
+    if (chkIndet) chkIndet.checked = !!lancamento.indeterminado;
+
+    const chkAtivo = document.querySelector("#ativo");
+    if (chkAtivo) chkAtivo.checked = !!lancamento.ativo;
+
+    const inputLocado = document.querySelector("#locadoCheck") || document.querySelector("#Locadocheck");
+    if (inputLocado) inputLocado.checked = !!lancamento.locado;
+
+    // Sincronização da Interface
+    if (typeof gerenciarCampos === "function") gerenciarCampos();
+    
+    window.LancamentoOriginal = { ...lancamento };
     validarFormulario();
     renderizarPrevia();
 }
@@ -726,34 +825,30 @@ function validarFormulario() {
     const valor = document.querySelector("#vlrEstimado").value;
     const vcto = document.querySelector("#vctoBase").value;
     const conta = document.querySelector("#idContaSelect").value;
-    const centro = document.querySelector("#idCentroCusto").value;
-    
-    // Novas condições de parada
+    const tipoRepeticao = document.querySelector("#tipoRepeticao").value.toUpperCase();
     const indeterminado = document.querySelector("#indeterminado").checked;
     const dtTermino = document.querySelector("#dtTermino").value;
-    const tipoRepeticao = document.querySelector("#tipoRepeticao").value;
-
+    const qtdeParcelas = document.querySelector("#qtdeParcelas").value;
     const botao = document.querySelector("#Enviar");
 
     let erros = [];
     if (!valor || valor <= 0) erros.push("Valor Estimado");
     if (!vcto) erros.push("Vencimento Base");
     if (!conta) erros.push("Conta");
-    if (!centro) erros.push("Centro de Custo");
     
-    // Regra de término
-    if (tipoRepeticao !== "UNICO" && !indeterminado && !dtTermino) {
-        erros.push("Data de Término ou marcar Indeterminado");
+    // REGRA DE OURO PARA PARCELADOS
+    if (tipoRepeticao === "PARCELADO") {
+        if (!indeterminado && !dtTermino && (!qtdeParcelas || qtdeParcelas <= 0)) {
+            erros.push("Qtde de Parcelas ou Data de Término");
+        }
     }
 
     if (erros.length === 0) {
         botao.disabled = false;
         botao.style.opacity = "1";
-        botao.title = "Clique para salvar o lançamento";
     } else {
         botao.disabled = true;
         botao.style.opacity = "0.5";
-        // O popup nativo que aparece ao passar o mouse:
         botao.title = "Campos obrigatórios: " + erros.join(", ");
     }
 }
@@ -808,10 +903,10 @@ function restaurarInputDescricao(valor) {
 }
 
 function configurarEventosLancamentos() {
-    console.log("Configurando eventos Funcao...");
+    console.log("Configurando eventos Lancamentos...");
     verificaLancamento(); // Carrega os Funcao ao abrir o modal
     adicionarEventoBlurDescricao();
-    console.log("Entrou configurar Funcao no FUNCAO.js.");
+    console.log("Entrou configurar Funcao no LANCAMENTOS.js.");
 } 
 window.configurarEventosLancamentos = configurarEventosLancamentos;
 

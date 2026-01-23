@@ -5,6 +5,60 @@ const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlew
 const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 const logMiddleware = require('../middlewares/logMiddleware');
 
+
+// --- Importações e Configuração do Multer ---
+// --- Importações e Configuração do Multer ---
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Definição dos caminhos das pastas
+const dirContas = path.join(__dirname, '../uploads/contas/imagemboleto');
+const dirComprovantes = path.join(__dirname, '../uploads/contas/comprovantespgto');
+
+// Criar pastas se não existirem
+[dirContas, dirComprovantes].forEach(dir => {
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+});
+
+const storagePagamentos = multer.diskStorage({
+    destination: (req, file, cb) => {
+        // Lógica de destino baseada no nome do campo (fieldname)
+        if (file.fieldname === 'imagemConta') {
+            cb(null, dirContas);
+        } else if (file.fieldname === 'comprovantePagamento') {
+            cb(null, dirComprovantes);
+        } else {
+            cb(new Error('Campo de arquivo inválido'), null);
+        }
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const fileFilterPagamentos = (req, file, cb) => {
+    // Permite imagens e PDFs (comum para boletos e comprovantes)
+    if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+        cb(null, true);
+    } else {
+        cb(new Error('Apenas imagens e PDFs são permitidos!'), false);
+    }
+};
+
+const uploadPagamentosMiddleware = multer({
+    storage: storagePagamentos,
+    fileFilter: fileFilterPagamentos,
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+}).fields([
+    { name: 'imagemConta', maxCount: 1 },
+    { name: 'comprovantePagamento', maxCount: 1 }
+]);
+
+
 // Aplica autenticação e contexto em todas as rotas de lançamentos
 router.use(autenticarToken());
 router.use(contextoEmpresa);
@@ -61,7 +115,7 @@ router.get("/historico/:idLancamento", async (req, res) => {
         const idEmpresa = req.idempresa || req.user.idempresa;
 
         const sql = `
-            SELECT idpagamento, numparcela, dtvcto, vlrpago, dtpgto, observacao, status 
+            SELECT * 
             FROM pagamentos 
             WHERE idlancamento = $1 AND idempresa = $2
             ORDER BY numparcela DESC`; // Alterado para DESC
@@ -111,97 +165,109 @@ router.get("/historico/:idLancamento", async (req, res) => {
 
 // Rota para atualizar um pagamento existente (PUT)
 router.put("/:id", 
-    verificarPermissao('Pagamentos', 'alterar'), // Verifica permissão de alterar
+    verificarPermissao('Pagamentos', 'alterar'),
+    uploadPagamentosMiddleware,
     logMiddleware('Pagamentos', { 
         buscarDadosAnteriores: async (req) => {
             const result = await pool.query('SELECT * FROM pagamentos WHERE idpagamento = $1', [req.params.id]);
-            return { 
-                dadosanteriores: result.rows[0], 
-                idregistroalterado: req.params.id 
-            };
+            return { dadosanteriores: result.rows[0], idregistroalterado: req.params.id };
         } 
     }),
     async (req, res) => {
         const { id } = req.params;
         const idempresa = req.idempresa;
+        
+        // Captura dados do corpo e as flags de limpeza do front
         const { 
-            vlrpago, dtvcto, dtpgto, observacao, status 
+            vlrpago, dtvcto, dtpgto, observacao, status,
+            limparComprovanteImagem, limparComprovantePagto 
         } = req.body;
 
         try {
+            let sqlArquivos = "";
+            const valoresExtras = [];
+            // O próximo índice começa após os 7 valores base ($1 a $7)
+            let proximoIndice = 8; 
+
+            // 1. Lógica para Imagem da Conta (Boleto)
+            if (req.files && req.files['imagemConta']) {
+                sqlArquivos += `, imagemconta = $${proximoIndice++}`;
+                valoresExtras.push(req.files['imagemConta'][0].filename);
+            } else if (limparComprovanteImagem === "true") {
+                sqlArquivos += `, imagemconta = NULL`;
+            }
+
+            // 2. Lógica para Comprovante de Pagamento
+            if (req.files && req.files['comprovantePagamento']) {
+                sqlArquivos += `, comprovantepgto = $${proximoIndice++}`;
+                valoresExtras.push(req.files['comprovantePagamento'][0].filename);
+            } else if (limparComprovantePagto === "true") {
+                sqlArquivos += `, comprovantepgto = NULL`;
+            }
+
             const sql = `
                 UPDATE pagamentos 
                 SET vlrpago = $1, 
                     dtvcto = $2, 
                     dtpgto = $3, 
                     observacao = $4, 
-                    status = $5
+                    status = $5 
+                    ${sqlArquivos}
                 WHERE idpagamento = $6 AND idempresa = $7
                 RETURNING *`;
 
-            const valores = [
+            const valoresBase = [
                 vlrpago || 0, 
                 dtvcto, 
                 dtpgto || null, 
                 observacao, 
-                status || 'pago', 
+                status, 
                 id, 
                 idempresa
             ];
-
-            const resultado = await pool.query(sql, valores);
+            
+            const resultado = await pool.query(sql, [...valoresBase, ...valoresExtras]);
 
             if (resultado.rows.length === 0) {
-                return res.status(404).json({ message: "Pagamento não encontrado ou sem permissão para esta empresa." });
+                return res.status(404).json({ message: "Registro não encontrado." });
             }
 
-            res.json({ message: "Pagamento atualizado com sucesso!", data: resultado.rows[0] });
+            res.json({ message: "Atualizado com sucesso!", data: resultado.rows[0] });
         } catch (error) {
             console.error("Erro ao atualizar pagamento:", error);
-            res.status(500).json({ message: "Erro interno ao atualizar pagamento." });
+            res.status(500).json({ message: "Erro interno ao atualizar." });
         }
     }
 );
 
+
+// Rota para criar um novo pagamento (POST)
 router.post("/", 
     verificarPermissao('Pagamentos', 'cadastrar'),
-    logMiddleware('Pagamentos', { 
-        buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) 
-    }),
+    uploadPagamentosMiddleware, // Middleware aqui
+    logMiddleware('Pagamentos', { buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) }),
     async (req, res) => {
-    const idempresa = req.idempresa;
-    const { 
-        idlancamento, numparcela, vlrprevisto, vlrpago, 
-        dtvcto, dtpgto, observacao, status // status também pode vir do body
-    } = req.body;
+        const idempresa = req.idempresa;
+        const { idlancamento, numparcela, vlrprevisto, vlrpago, dtvcto, dtpgto, observacao, status } = req.body;
 
-    console.log("DEBUG BODY:", req.body); 
+        // Captura dos nomes dos arquivos salvos
+        const imagemConta = req.files['imagemConta'] ? req.files['imagemConta'][0].filename : null;
+        const comprovantePagamento = req.files['comprovantePagamento'] ? req.files['comprovantePagamento'][0].filename : null;
 
-    try {
-        const result = await pool.query(
-            `INSERT INTO pagamentos (
-                idlancamento, idempresa, numparcela, vlrprevisto, 
-                vlrpago, dtvcto, dtpgto, status, observacao
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
-            RETURNING *`,
-            [
-                idlancamento, 
-                idempresa, 
-                numparcela || 1, 
-                vlrprevisto || 0, 
-                vlrpago || 0, 
-                dtvcto,   
-                dtpgto || null,   
-                status || 'pago', // Usa o status do front ou 'pago' por padrão
-                observacao        // Agora como o 9º parâmetro ($9)
-            ]
-        );
-
-        res.status(201).json({ message: "Pagamento registrado com sucesso!", data: result.rows[0] });
-    } catch (error) {
-        console.error("Erro no INSERT:", error);
-        res.status(500).json({ message: "Erro ao registrar pagamento." });
+        try {
+            const result = await pool.query(
+                `INSERT INTO pagamentos (
+                    idlancamento, idempresa, numparcela, vlrprevisto, 
+                    vlrpago, dtvcto, dtpgto, status, observacao, imagemconta, comprovantepgto
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+                [idlancamento, idempresa, numparcela, vlrprevisto, vlrpago, dtvcto, dtpgto || null, status, observacao, imagemConta, comprovantePagamento]
+            );
+            res.status(201).json({ message: "Salvo!", data: result.rows[0] });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: "Erro ao inserir no banco." });
+        }
     }
-});
+);
 
 module.exports = router;

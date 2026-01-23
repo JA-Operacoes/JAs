@@ -26,7 +26,8 @@ if (typeof window.ContaOriginal === "undefined") {
         idConta: "",
         nmConta: "",
         ativo: false,
-        idtipoconta: "" // Alterado de tpConta para idtipoconta
+        idtipoconta: "",
+        idempresapagadora: "" // Alterado de tpConta para idtipoconta
     };
 }
 
@@ -40,6 +41,7 @@ async function verificaConta() {
 
     const nmContaInput = document.querySelector("#nmConta");
     const tpContaSelect = document.querySelector("#tpConta");
+    const empresaPagadoraSelect = document.querySelector("#empresaPagadora");
 
     if (nmContaInput) {
         nmContaInput.addEventListener("input", validarFormulario);
@@ -47,9 +49,13 @@ async function verificaConta() {
     if (tpContaSelect) {
         tpContaSelect.addEventListener("change", validarFormulario);
     }
+    if (empresaPagadoraSelect) {
+        empresaPagadoraSelect.addEventListener("change", validarFormulario);
+    }
 
     validarFormulario();
     carregarSelectTipoConta();
+    carregarSelectEmpresaPagadora();
 
     const ativoCheckbox = document.querySelector("#ativo");
     if (ativoCheckbox) {
@@ -75,6 +81,7 @@ async function verificaConta() {
         const nmConta = document.querySelector("#nmConta").value.toUpperCase().trim();
         const ativo = document.querySelector("#ativo").checked;
         const idtipoconta = document.querySelector("#tpConta").value; // O valor do select agora é o ID
+        const idempresapagadora = document.querySelector("#empresaPagadora").value; // Novo campo
 
         const temPermissaoCadastrar = temPermissao("Contas", "cadastrar");
         const temPermissaoAlterar = temPermissao("Contas", "alterar");
@@ -89,18 +96,19 @@ async function verificaConta() {
             return Swal.fire("Acesso negado", "Você não tem permissão para alterar Contas.", "error");
         }
 
-        if (!nmConta || nmConta.length === 0 || !idtipoconta || idtipoconta.length === 0) {
+        if (!nmConta || nmConta.length === 0 || !idtipoconta || idtipoconta.length === 0 || !idempresapagadora || idempresapagadora.length === 0) {
             return Swal.fire("Campos obrigatórios!", "Preencha todos os campos antes de enviar.", "warning");
         }
 
-        const dados = { nmConta, ativo, idtipoconta }; // Objeto com novo nome de campo
+        const dados = { nmConta, ativo, idtipoconta, idempresapagadora }; // Objeto com novo nome de campo
         
         // Dirty Checking ajustado para String para comparar com o valor do Select
         const semAlteracao = 
             String(idConta) === String(window.ContaOriginal?.idConta) &&
             nmConta === window.ContaOriginal?.nmConta &&
             ativo === window.ContaOriginal?.ativo &&
-            String(idtipoconta) === String(window.ContaOriginal?.idtipoconta);
+            String(idtipoconta) === String(window.ContaOriginal?.idtipoconta) &&
+            String(idempresapagadora) === String(window.ContaOriginal?.idempresapagadora);
 
         if (idConta && semAlteracao) {
             return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
@@ -292,6 +300,29 @@ async function carregarSelectTipoConta() {
     }
 }
 
+async function carregarSelectEmpresaPagadora() {
+    const selectEmpresaPagadora = document.querySelector("#empresaPagadora");
+    if (!selectEmpresaPagadora) return;
+
+    try {
+        const empresas = await fetchComToken('/empresas');
+        selectEmpresaPagadora.innerHTML = '<option value="" disabled selected>Selecione a Empresa Pagadora</option>';
+        if (empresas && Array.isArray(empresas)) {
+            empresas.forEach(empresa => {
+                if (empresa.ativo) {
+                    const option = document.createElement("option");
+                    option.value = empresa.idempresa;
+                    option.textContent = empresa.nmfantasia;
+                    selectEmpresaPagadora.appendChild(option);
+                }
+            });
+        }
+    } catch (error) {
+        console.error("Erro ao carregar empresas:", error);
+    }
+}
+
+
 async function carregarContaDescricao(desc, elementoAtual) {
     try {
         const dadosRecebidos = await fetchComToken(`/contas?nmConta=${encodeURIComponent(desc)}`);
@@ -315,6 +346,16 @@ async function carregarContaDescricao(desc, elementoAtual) {
                 console.warn("Aviso: Tipo de conta legado ou não encontrado:", valorBanco);
             }
         }
+
+        const selectEmpPagadora = document.querySelector("#empresaPagadora");
+        if (selectEmpPagadora) {
+            // Suporta tanto o ID vindo como Integer quanto o legado vindo como String
+            const valorBanco = String(conta.idempresapagadora || conta.empresaPagadora); 
+            selectEmpPagadora.value = valorBanco;
+            if (selectEmpPagadora.selectedIndex <= 0 && valorBanco !== "undefined" && valorBanco !== "null") {
+                console.warn("Aviso: Empresa Pagadora legada ou não encontrada:", valorBanco);
+            }
+        }
         
         const isAtivo = conta.ativo === true || conta.ativo === 1 || conta.ativo === "S" || conta.ativo === "T";
         document.querySelector("#ativo").checked = isAtivo;
@@ -323,15 +364,51 @@ async function carregarContaDescricao(desc, elementoAtual) {
             idConta: conta.idconta,     
             nmConta: conta.nmconta,
             ativo: isAtivo,
-            idtipoconta: String(conta.idtipoconta || conta.tpconta)
+            idtipoconta: String(conta.idtipoconta || conta.tpconta),
+            idempresapagadora: String(conta.idempresapagadora || conta.empresaPagadora)
         };
 
         validarFormulario();
 
-    } catch (error) {
-        console.warn("Conta não encontrada, abrindo opção de cadastro.");
-        document.querySelector("#idConta").value = "";
+    // } catch (error) {
+    //     console.warn("Conta não encontrada, abrindo opção de cadastro.");
+    //     document.querySelector("#idConta").value = "";
 
+    //     if (temPermissao("Contas", "cadastrar")) {
+    //         const resultado = await Swal.fire({
+    //             icon: 'question',
+    //             title: `Deseja cadastrar "${desc.toUpperCase()}"?`,
+    //             text: `A conta não foi encontrada no sistema.`,
+    //             showCancelButton: true,
+    //             confirmButtonText: "Sim, cadastrar",
+    //             cancelButtonText: "Cancelar",
+    //             reverseButtons: true
+    //         });
+
+    //         if (!resultado.isConfirmed) {
+    //             elementoAtual.value = "";
+    //             validarFormulario();
+    //         }
+    //     } else {
+    //         Swal.fire("Acesso negado", "Você não tem permissão para cadastrar.", "info");
+    //         elementoAtual.value = "";
+    //         validarFormulario();
+    //     }
+    // }
+    // ... dentro da função carregarContaDescricao ...
+    } catch (error) {
+        console.warn("Conta não encontrada com este nome exato.");
+        
+        const idExistente = document.querySelector("#idConta").value;
+
+        // Se JÁ EXISTE um ID, não oferecemos novo cadastro. 
+        // Apenas deixamos o usuário continuar editando o nome para o PUT.
+        if (idExistente) {
+            console.log("Editando conta existente, permitindo alteração de nome.");
+            return; 
+        }
+
+        // Se NÃO existe ID, aí sim verificamos permissão para novo cadastro
         if (temPermissao("Contas", "cadastrar")) {
             const resultado = await Swal.fire({
                 icon: 'question',
@@ -360,6 +437,9 @@ function limparCamposConta() {
     const nmContaEl = document.getElementById("nmConta");
     const tpContaEl = document.getElementById("tpConta");
     const ativoEl = document.getElementById("ativo");
+    const empresaPagadoraEl = document.getElementById("empresaPagadora");
+
+    if (empresaPagadoraEl) empresaPagadoraEl.value = "";
 
     if (idEvent) idEvent.value = "";
     if (nmContaEl) nmContaEl.value = "";
@@ -387,20 +467,54 @@ function limparCamposConta() {
             label.textContent = "Nome do Conta";
         }
     }
+
+    
     validarFormulario();
 }
+
+// function validarFormulario() {
+//     const elNm = document.querySelector("#nmConta");
+//     const elTp = document.querySelector("#tpConta");
+//     const elEmpPagadora = document.querySelector("#empresaPagadora");
+//     const botaoEnviar = document.querySelector("#Enviar");
+
+//     console.log("Validando formulário de Conta...", elNm, elTp, elEmpPagadora, botaoEnviar);
+
+//     if (!elNm || !elTp || !elEmpPagadora || !botaoEnviar) return;
+
+//     const nmConta = elNm.value.trim();
+//     const tpConta = elTp.value.trim();
+//     const idempresapagadora = elEmpPagadora.value.trim();
+
+//     if (nmConta.length > 0 && tpConta.length > 0 && idempresapagadora.length > 0) {
+//         botaoEnviar.disabled = false;
+//         botaoEnviar.style.opacity = "1";
+//         botaoEnviar.style.cursor = "pointer";
+//     } else {
+//         botaoEnviar.disabled = true;
+//         botaoEnviar.style.opacity = "0.5";
+//         botaoEnviar.style.cursor = "not-allowed";
+//     }
+// }
+
 
 function validarFormulario() {
     const elNm = document.querySelector("#nmConta");
     const elTp = document.querySelector("#tpConta");
+    const elEmpPagadora = document.querySelector("#empresaPagadora");
     const botaoEnviar = document.querySelector("#Enviar");
 
-    if (!elNm || !elTp || !botaoEnviar) return;
+    console.log("Validando formulário de Conta...", "Nome Conta:", elNm.value, "Tipo Conta:", elTp.value, "Empresa Pagadora:", elEmpPagadora.value, botaoEnviar);
+    if (!elNm || !elTp || !elEmpPagadora || !botaoEnviar) return;
 
     const nmConta = elNm.value.trim();
     const tpConta = elTp.value.trim();
+    const idempresapagadora = elEmpPagadora.value.trim();
 
-    if (nmConta.length > 0 && tpConta.length > 0) {
+    // Debug para você ver no console qual campo está travando:
+    // console.log({ nmConta, tpConta, idempresapagadora });
+
+    if (nmConta.length > 0 && tpConta.length > 0 && idempresapagadora.length > 0) {
         botaoEnviar.disabled = false;
         botaoEnviar.style.opacity = "1";
         botaoEnviar.style.cursor = "pointer";
