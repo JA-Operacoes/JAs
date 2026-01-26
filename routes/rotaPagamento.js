@@ -82,6 +82,33 @@ router.get("/lancamentos", async (req, res) => {
     }
 });
 
+// Rota para buscar detalhes de UM lançamento específico
+router.get("/lancamentos/detalhe/:idLancamento", async (req, res) => {
+    try {
+        const { idLancamento } = req.params;
+        const idEmpresa = req.idempresa || req.user.idempresa;
+
+        // Query simples apenas na tabela de lancamentos
+        const sql = `
+            SELECT descricao, vlrestimado 
+            FROM lancamentos 
+            WHERE idlancamento = $1 AND idempresa = $2 
+            LIMIT 1`;
+
+        const resultado = await pool.query(sql, [idLancamento, idEmpresa]);
+
+        if (resultado.rows.length === 0) {
+            return res.status(404).json({ error: "Lançamento não encontrado" });
+        }
+
+        // Retorna apenas o objeto (rows[0]) e não o array completo
+        res.json(resultado.rows[0]);
+    } catch (error) {
+        console.error("Erro ao buscar detalhe do lançamento:", error);
+        res.status(500).json({ error: "Erro interno" });
+    }
+});
+
 router.get("/ultimo/:idLancamento", async (req, res) => {
     try {
         const { idLancamento } = req.params;
@@ -126,6 +153,8 @@ router.get("/historico/:idLancamento", async (req, res) => {
         res.status(500).json({ error: "Erro ao buscar histórico" });
     }
 });
+
+
 
 // Rota para recalcular a média de pagamentos e atualizar o lançamento
 // router.get("/recalcular-media/:idLancamento", async (req, res) => {
