@@ -14,7 +14,7 @@
                 <h1>Registro de Pagamentos</h1>
             </div>
 
-            <form method="post" id="form" name="form" autocomplete="on">
+            <form id="form" name="form">
                 <fieldset>
                     <legend>Dados da Baixa / Pagamento</legend>
                     
@@ -146,7 +146,7 @@
         <div class="BTNs">
             <!-- <button class="bntPesquisar" id="Pesquisar" type="button">Histórico</button> -->
             <button class="bntLimpar" id="Limpar" type="button">Limpar</button>
-            <button class="btnEnviar" id="Enviar" type="button">Confirmar Pagamento</button>
+            <button type="button" id="Enviar" onclick="salvarPagamento(event)">Enviar</button>
         </div>
     </div>
 </div>
