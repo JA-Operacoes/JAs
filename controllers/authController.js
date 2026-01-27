@@ -556,6 +556,27 @@ async function buscarModulos(req, res) {
 
 }
 
+async function carregarTodasEmpresas(req, res) {
+  console.log('✅ [GET /empresas] Rota Auth/Empresas acessada com sucesso'); 
+  try {   
+      
+      console.log("🔍 Buscando todas as empresas:");
+      const result = await db.query(
+        `SELECT * 
+        FROM empresas        
+        ORDER BY nmfantasia`
+        );
+      console.log("✅ Consulta de todos as empresas retornou:", result.rows.length, "linhas.");
+      return result.rows.length
+        ? res.json(result.rows)
+        : res.status(404).json({ message: "Nenhuma Empresa encontrada" });
+    
+  } catch (error) {
+    console.error("❌ Erro ao buscar empresas:", error);
+    res.status(500).json({ message: "Erro ao buscar nome fantasia" });
+  }
+};
+
 module.exports = {
   listarEmpresasDoUsuario,
   getEmpresasDoUsuario,
@@ -568,6 +589,7 @@ module.exports = {
   login,
   listarPermissoes,
   buscarUsuarioPorEmail,
-  buscarModulos
+  buscarModulos,
+  carregarTodasEmpresas
  
 };

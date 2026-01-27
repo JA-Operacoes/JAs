@@ -1658,10 +1658,18 @@ async function carregarEmpresasUsuario(idusuario) {
     }
 }
 
+// function limparListaEmpresas() {
+//   const container = document.getElementById('listaEmpresas');
+//   container.innerHTML = '';
+//   empresasOriginais = [];
+// }
+
 function limparListaEmpresas() {
-  const container = document.getElementById('listaEmpresas');
-  container.innerHTML = '';
-  empresasOriginais = [];
+  const select = document.getElementById('listaEmpresas');
+  if (select) {
+      select.value = ""; // Apenas volta para "Selecione Empresa"
+  }
+  empresasOriginais = []; // Limpa o estado da memória, mas mantém o HTML
 }
 
 async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) {
@@ -1750,83 +1758,7 @@ async function carregarPermissoesUsuario(idusuario, idEmpresaAtual, nomeModulo) 
   }
 }
 
-// async function fetchComToken(url, options = {}) {
-//   console.log("URL FETCHCOMTOKEN:", url);
-//   const token = localStorage.getItem("token");
-//   const idempresaLocalStorage = localStorage.getItem("idempresa");
 
-//   console.log("ID da empresa no localStorage:", idempresaLocalStorage);
-//   console.log("Token no localStorage:", token);
-
-//   if (!options.headers) options.headers = {};
-
-//   if (options.body && typeof options.body === 'string' && options.body.startsWith('{')) {
-//         options.headers['Content-Type'] = 'application/json';
-//     }
-
-//   options.headers['Authorization'] = 'Bearer ' + token;
-
-  
- 
-//   if (!options.headers['idempresa']) { // Se o header 'idempresa' ainda não foi definido
-//         if (
-//             idempresaLocalStorage &&
-//             idempresaLocalStorage !== 'null' &&
-//             idempresaLocalStorage !== 'undefined' &&
-//             idempresaLocalStorage.trim() !== '' &&
-//             !isNaN(idempresaLocalStorage) &&
-//             Number(idempresaLocalStorage) > 0
-//         ) {
-//             options.headers['idempresa'] = idempresaLocalStorage;
-//             console.log('[fetchComToken] Enviando idempresa do localStorage no header:', idempresaLocalStorage);
-//         } else {
-//             console.warn('[fetchComToken] idempresa inválido no localStorage, não será enviado no header:', idempresaLocalStorage);
-//         }
-//   } else {
-//         console.log('[fetchComToken] idempresa já definido no options.headers, usando-o:', options.headers['idempresa']);
-//   }
-
-//   console.log("URL OPTIONS", url, options);
-//   const resposta = await fetch(url, options);
-//   console.log("Resposta da requisição Usuarios.js:", resposta);
-  
-  
-//   let responseBody = null;
-//   try {
-//       // Primeiro, tente ler como JSON, pois é o mais comum para APIs
-//       responseBody = await resposta.json();
-//   } catch (jsonError) {
-//       // Se falhar (não é JSON, ou resposta vazia, etc.), tente ler como texto
-//       try {
-//           responseBody = await resposta.text();
-//       } catch (textError) {
-//           // Se nem como texto conseguir, assume que não há corpo lido ou que é inválido
-//           responseBody = null;
-//       }
-//   }
-
-//   if (resposta.status === 401) {
-//     localStorage.clear();
-//     Swal.fire({
-//       icon: "warning",
-//       title: "Sessão expirada",
-//       text: "Por favor, faça login novamente."
-//     }).then(() => {
-//       window.location.href = "login.html"; // ajuste conforme necessário
-//     });
-//     //return;
-//     throw new Error('Sessão expirada'); 
-//   }
-
-//   if (!resposta.ok) {
-//         // Se a resposta NÃO foi bem-sucedida (status 4xx ou 5xx)
-//         // Use o responseBody já lido para obter a mensagem de erro
-//         const errorMessage = (responseBody && responseBody.erro) || (responseBody && responseBody.message) || responseBody || resposta.statusText;
-//         throw new Error(`Erro na requisição: ${errorMessage}`);
-//   }
-
-//   return responseBody;
-// }
 
 let idEmpresaSelecionada = null;
 
@@ -1856,48 +1788,83 @@ function preencherEmpresaDefault(idEmpresaDefault) {
     }
 }
 
-async function carregarEmpresas(selectIds = ['listaEmpresas', 'empresaDefaultSelect']) {
+
+// async function carregarEmpresas(selectIds = ['listaEmpresas', 'empresaDefaultSelect']) {
+//     try {
+//         console.log("Carregando empresas...");
+//         const empresas = await fetchComToken('auth/empresas');
+//         console.log("Empresas carregadas:", empresas);            
+
+//         selectIds.forEach(id => {
+//             const selectElement = document.getElementById(id);
+
+//             if (selectElement) {
+//                 selectElement.innerHTML = ''; // Limpa todas as opções
+
+//                 //let defaultOptionText = "Selecione uma empresa";
+//                 // if (id === 'listaEmpresas') {
+//                 //     defaultOptionText = "Todas as empresas";
+//                 // }
+//                 const defaultOption = document.createElement('option');
+//                 defaultOption.value = "";
+//                 defaultOption.textContent = "Selecione Empresa";
+//                 defaultOption.selected = true;
+//                 defaultOption.disabled = true;
+//                 selectElement.appendChild(defaultOption);
+
+//                 empresas.forEach(emp => {
+//                     const option = document.createElement('option');
+//                     option.value = String(emp.idempresa); // Mantenha como String
+//                     option.textContent = emp.nmfantasia;
+//                     selectElement.appendChild(option);
+//                 }); 
+//                 console.log(`Select #${id} preenchido com ${empresas.length + 1} opções.`);
+//             } else {
+//                 console.error(`ERRO CRÍTICO: Elemento select com ID '${id}' NÃO ENCONTRADO no DOM.`); // Altere para error
+//             }
+//         });
+
+//     } catch (error) {
+//         console.error('Erro ao carregar empresas:', error);
+//         Swal.fire({
+//             icon: 'error',
+//             title: 'Erro',
+//             text: 'Não foi possível carregar a lista de empresas.'
+//         });
+//     }
+// }
+
+async function carregarEmpresas(selectIds = ['empresaDefaultSelect', 'listaEmpresas']) {
     try {
-        console.log("Carregando empresas...");
-        const empresas = await fetchComToken('/empresas');
-        console.log("Empresas carregadas:", empresas);            
+        const empresas = await fetchComToken('auth/empresas');
+        if (!empresas) return;
 
         selectIds.forEach(id => {
             const selectElement = document.getElementById(id);
-
             if (selectElement) {
-                selectElement.innerHTML = ''; // Limpa todas as opções
-
-                //let defaultOptionText = "Selecione uma empresa";
-                // if (id === 'listaEmpresas') {
-                //     defaultOptionText = "Todas as empresas";
-                // }
+                selectElement.innerHTML = ''; // Limpa
+                
+                // Opção padrão
                 const defaultOption = document.createElement('option');
                 defaultOption.value = "";
                 defaultOption.textContent = "Selecione Empresa";
-                defaultOption.selected = true;
                 defaultOption.disabled = true;
+                defaultOption.selected = true;
                 selectElement.appendChild(defaultOption);
 
+                // Preenche com os dados do banco
                 empresas.forEach(emp => {
                     const option = document.createElement('option');
-                    option.value = String(emp.idempresa); // Mantenha como String
+                    option.value = String(emp.idempresa);
                     option.textContent = emp.nmfantasia;
                     selectElement.appendChild(option);
-                }); 
-                console.log(`Select #${id} preenchido com ${empresas.length + 1} opções.`);
+                });
             } else {
-                console.error(`ERRO CRÍTICO: Elemento select com ID '${id}' NÃO ENCONTRADO no DOM.`); // Altere para error
+                console.warn(`Aviso: Elemento #${id} não encontrado nesta tela.`);
             }
         });
-
     } catch (error) {
         console.error('Erro ao carregar empresas:', error);
-        Swal.fire({
-            icon: 'error',
-            title: 'Erro',
-            text: 'Não foi possível carregar a lista de empresas.'
-        });
     }
 }
 
@@ -1988,27 +1955,49 @@ function limparCheckboxesPermissao() {
     });
 }
 
+// const selectModulo = document.getElementById("modulo");
+// selectModulo.addEventListener("change", () => {
+
+//   const idusuarioAtual = document.getElementById("idusuario").value;
+//   const idEmpresaAtual = document.getElementById('listaEmpresas').value
+//   const moduloSelecionado = selectModulo.value; 
+//   const moduloSelecionadoNome = selectModulo.options[selectModulo.selectedIndex].textContent; // Para pegar o nome
+  
+//   console.log("IDEMPRESA DA LISTA DE EMPRESAS", idEmpresaAtual);
+
+//   if (idusuarioAtual && idEmpresaAtual && idEmpresaAtual !== 'all' && moduloSelecionadoNome && moduloSelecionadoNome !== 'Escolha o Módulo') {
+//         carregarPermissoesUsuario(idusuarioAtual, idEmpresaAtual, moduloSelecionadoNome);
+//     } else {
+        
+//         limparCheckboxesPermissao; // Chame sua função para limpar os checkboxes de permissão
+//     }
+// });
+
 const selectModulo = document.getElementById("modulo");
 selectModulo.addEventListener("change", () => {
-
   const idusuarioAtual = document.getElementById("idusuario").value;
-  const idEmpresaAtual = document.getElementById('listaEmpresas').value
-  const moduloSelecionado = selectModulo.value; 
-  const moduloSelecionadoNome = selectModulo.options[selectModulo.selectedIndex].textContent; // Para pegar o nome
-  
-  console.log("IDEMPRESA DA LISTA DE EMPRESAS", idEmpresaAtual);
+  const idEmpresaAtual = document.getElementById('listaEmpresas').value;
+  const moduloSelecionadoNome = selectModulo.options[selectModulo.selectedIndex].textContent;
 
-  if (idusuarioAtual && idEmpresaAtual && idEmpresaAtual !== 'all' && moduloSelecionadoNome && moduloSelecionadoNome !== 'Escolha o Módulo') {
-        carregarPermissoesUsuario(idusuarioAtual, idEmpresaAtual, moduloSelecionadoNome);
-    } else {
-        
-        limparCheckboxesPermissao; // Chame sua função para limpar os checkboxes de permissão
-    }
+  // VALIDAÇÃO: Só chama o banco se todos os campos forem válidos
+  const empresaValida = idEmpresaAtual && idEmpresaAtual !== "" && idEmpresaAtual !== "all";
+  const moduloValido = moduloSelecionadoNome && moduloSelecionadoNome !== "Escolha o Modulo" && selectModulo.value !== "choose";
+
+  if (idusuarioAtual && empresaValida && moduloValido) {
+      console.log("Buscando permissões para:", moduloSelecionadoNome);
+      carregarPermissoesUsuario(idusuarioAtual, idEmpresaAtual, moduloSelecionadoNome);
+  } else {
+      console.warn("Dados insuficientes para carregar permissões. Limpando campos.");
+      // Certifique-se de que limparCheckboxesPermissao é uma função ()
+      if(typeof limparCheckboxesPermissao === 'function') {
+          limparCheckboxesPermissao(); 
+      }
+  }
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
   console.log("DOMContentLoaded disparado. Iniciando carregamento de dados...");
-  await carregarEmpresas();
+  await carregarEmpresas(['empresaDefaultSelect', 'listaEmpresas']);
   await carregarModulos();
   console.log("--> carregarEmpresas() e carregarModulos() concluídos.");
 

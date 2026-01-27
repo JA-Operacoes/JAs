@@ -7,7 +7,7 @@ const logMiddleware = require('../middlewares/logMiddleware');
 
 
 
-const { cadastrarOuAtualizarUsuario, verificarUsuarioExistente, listarUsuarios, buscarUsuariosPorNome, buscarUsuarioPorEmail, listarPermissoes, verificarNomeExistente, listarEmpresasDoUsuario, buscarModulos  } = require('../controllers/authController');
+const { cadastrarOuAtualizarUsuario, verificarUsuarioExistente, listarUsuarios, buscarUsuariosPorNome, buscarUsuarioPorEmail, listarPermissoes, verificarNomeExistente, listarEmpresasDoUsuario, buscarModulos, carregarTodasEmpresas  } = require('../controllers/authController');
 
 router.post('/login', authController.login);
 
@@ -27,5 +27,7 @@ router.get('/usuarios/modulos', autenticarToken({ verificarEmpresa: false }), bu
 router.get('/email/:email', autenticarToken({ verificarEmpresa: false }), buscarUsuarioPorEmail );
 // Rota para verificar se o usuário existe
 router.get('/permissoes', autenticarToken({ verificarEmpresa: false }), authController.listarPermissoes);
+
+router.get('/empresas', autenticarToken({ verificarEmpresa: false }), carregarTodasEmpresas);
 
 module.exports = router;

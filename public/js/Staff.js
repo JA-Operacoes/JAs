@@ -7758,7 +7758,7 @@ async function gerarPdfFichaTrabalho(eventos, nomeFiltro) {
 
         return [
             { 
-                content: `STATUS: ${estaEncerrado ? "ENCERRADO" : "EM ANDAMENTO"}\nEVENTO: ${ev.evento}\nCLIENTE: ${ev.cliente}\nLOCAL: ${ev.local}`,
+                content: `STATUS: ${estaEncerrado ? "ENCERRADO" : "EM ANDAMENTO"}\nEVENTO: ${ev.evento}\n"Período sujeito a alteração"\nCLIENTE: ${ev.cliente}\nLOCAL: ${ev.local}\n`,
                 estaEncerrado
             },
             { 
