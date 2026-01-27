@@ -478,6 +478,7 @@ try {
             if (!totaisPorEvento[eventoId]) {
                 totaisPorEvento[eventoId] = {
                     totalVlrAdicional: 0,
+                    totalQtdDiarias: 0,
                     totalVlrDiarias:0,
                     totalTotalDiarias: 0,
                     totalTotalGeral: 0,
@@ -486,6 +487,7 @@ try {
             }
             
             totaisPorEvento[eventoId].totalVlrAdicional += parseFloat(item["VLR ADICIONAL"] || 0);
+            totaisPorEvento[eventoId].totalQtdDiarias += parseInt(item["QTD"] || 0);
             totaisPorEvento[eventoId].totalVlrDiarias += parseFloat(item["VLR DIÁRIA"] || 0);
             totaisPorEvento[eventoId].totalTotalDiarias += parseFloat(item["TOT DIÁRIAS"] || 0);
             totaisPorEvento[eventoId].totalTotalGeral += parseFloat(item["TOT GERAL"] || 0);
@@ -571,14 +573,15 @@ try {
         // `;
 
         const queryUtilizacaoDiarias = `
-    SELECT
+SELECT
         o.idevento,
         o.nrorcamento,
         oi.produto AS "INFORMAÇÕES EM PROPOSTA",
         SUM(oi.qtditens) AS "QTD PROFISSIONAIS",
         SUM(oi.qtditens * oi.qtddias) AS "DIÁRIAS CONTRATADAS",
-        COALESCE(MAX(td.diarias_utilizadas_por_funcao), 0) AS "DIÁRIAS UTILIZADAS",
-        SUM(oi.qtditens * oi.qtddias) - COALESCE(MAX(td.diarias_utilizadas_por_funcao), 0) AS "SALDO"
+        -- Usamos a contagem seletiva que funcionou no pgAdmin
+        COALESCE(MAX(td.diarias_utilizadas_no_periodo), 0) AS "DIÁRIAS UTILIZADAS",
+        SUM(oi.qtditens * oi.qtddias) - COALESCE(MAX(td.diarias_utilizadas_no_periodo), 0) AS "SALDO"
     FROM
         orcamentos o
     JOIN orcamentoitens oi ON oi.idorcamento = o.idorcamento
@@ -589,15 +592,17 @@ try {
             tse.idcliente,
             semp.idempresa,
             tse.nmfuncao,
-            SUM(jsonb_array_length(
-                (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
-                 WHERE ${phaseFilterSql})
-            )) AS diarias_utilizadas_por_funcao
+            -- AQUI ESTÁ A CORREÇÃO: Conta apenas os dias do período solicitado
+            SUM((
+                SELECT COUNT(*) 
+                FROM jsonb_array_elements_text(tse.datasevento) AS s(date_val)
+                WHERE date_val::date >= $2::date AND date_val::date <= $3::date
+            )) AS diarias_utilizadas_no_periodo
         FROM
             staffeventos tse
         JOIN staffempresas semp ON semp.idstaff = tse.idstaff
         WHERE
-            semp.idempresa = $1 ${wherePeriodoFinal} -- Aqui o cast já está incluso
+            semp.idempresa = $1
         GROUP BY
             tse.idevento, tse.idcliente, semp.idempresa, tse.nmfuncao
     ) AS td ON td.idevento = o.idevento
@@ -606,19 +611,28 @@ try {
             AND td.nmfuncao = oi.produto
     WHERE
         oe.idempresa = $1
+        -- ESTA É A TRAVA REAL: O orçamento deve estar dentro do ano/período selecionado
+        -- Se o filtro é 2026, orçamentos de 2025 morrem aqui.
+        AND o.dtinirealizacao >= $2::date 
+        AND o.dtinirealizacao <= $3::date
+        
         AND EXISTS (
             SELECT 1
             FROM staffeventos inner_tse
-            JOIN staffempresas inner_semp ON inner_semp.idstaff = inner_tse.idstaff AND inner_semp.idempresa = oe.idempresa
+            JOIN staffempresas inner_semp ON inner_semp.idstaff = inner_tse.idstaff 
+                 AND inner_semp.idempresa = oe.idempresa
             CROSS JOIN jsonb_array_elements_text(inner_tse.datasevento) AS inner_event_date
-            WHERE inner_tse.idevento = o.idevento
-            AND inner_tse.idcliente = o.idcliente
-            AND inner_event_date::date >= $2::date
-            AND inner_event_date::date <= $3::date
-            -- CORREÇÃO AQUI: Cast para texto na comparação manual
-            AND ($4::text IS NULL OR $4::text = '' OR inner_tse.idevento::text = $4::text)
-            AND ($5::text IS NULL OR $5::text = '' OR inner_tse.idcliente::text = $5::text)
-            AND ($6::text IS NULL OR $6::text = '' OR inner_tse.idequipe::text = $6::text)
+            WHERE 
+                inner_tse.idevento = o.idevento
+                AND inner_tse.idcliente = o.idcliente
+                -- Garante que o staff também tenha diárias nesse período
+                AND inner_event_date::date >= $2::date
+                AND inner_event_date::date <= $3::date
+                
+                -- Filtros opcionais dos selects da tela
+                AND ($4::text IS NULL OR $4::text = '' OR inner_tse.idevento::text = $4::text)
+                AND ($5::text IS NULL OR $5::text = '' OR inner_tse.idcliente::text = $5::text)
+                AND ($6::text IS NULL OR $6::text = '' OR inner_tse.idequipe::text = $6::text)
         )
     GROUP BY
         o.idevento, o.nrorcamento, oi.produto

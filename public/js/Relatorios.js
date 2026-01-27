@@ -186,11 +186,88 @@ function formatarData(dataString) {
 }
 
 
+// async function preencherEventosPeriodo() {
+//     const startDate = document.getElementById('reportStartDate').value;
+//     const endDate = document.getElementById('reportEndDate').value;
+//     const eventSelect = document.getElementById('eventSelect');
+//     const clientSelect = document.getElementById('clientSelect'); // Supondo que você tenha um select de clientes
+
+//     if (!startDate || !endDate) {
+//         eventSelect.innerHTML = '<option value="">Selecione um Evento</option>';
+//         clientSelect.innerHTML = '<option value="">Selecione um Cliente</option>';
+//         return;
+//     }
+
+//     try {
+//         // Altere a rota da sua API para retornar todos os eventos e seus clientes
+//         // para o período selecionado.
+//         const url = `/relatorios/eventos?inicio=${startDate}&fim=${endDate}`;
+//         const dados = await fetchComToken(url);       
+
+//         const dadosAgrupados = {};
+
+//         console.log('Dados brutos para o período:', dados);
+
+//         dados.forEach(item => {
+//             if (!dadosAgrupados[item.idevento]) {
+//                 dadosAgrupados[item.idevento] = {
+//                     idevento: item.idevento,
+//                     nmevento: item.nmevento,
+//                     nomenclatura: item.nomenclatura,
+//                     dtiniinframontagem: item.dtiniinframontagem,
+//                     dtfiminframontagem: item.dtfiminframontagem,
+//                     dtinimarcacao: item.dtinimarcacao,
+//                     dtfimmarcacao: item.dtfimmarcacao,
+//                     dtinirealizacao: item.dtinirealizacao,
+//                     dtfimrealizacao: item.dtfimrealizacao,
+//                     dtinidesmontagem: item.dtinidesmontagem,
+//                     dtfimdesmontagem: item.dtfimdesmontagem,
+//                     dtiniinfradesmontagem: item.dtiniinfradesmontagem,
+//                     dtfiminfradesmontagem: item.dtfiminfradesmontagem,
+//                     clientes: []
+//                 };
+//             }
+//             dadosAgrupados[item.idevento].clientes.push({
+//                 idcliente: item.idcliente,
+//                 nomeCliente: item.cliente
+//             });
+//         });
+
+//         // Converte o objeto de volta para um array para facilitar a iteração
+//         todosOsDadosDoPeriodo = Object.values(dadosAgrupados);
+        
+//         // Armazena os dados em uma variável global
+//       //  todosOsDadosDoPeriodo = dados;
+//         console.log('Dados AGRUPADOS para o período:', todosOsDadosDoPeriodo);
+//         // 1. Preencher o select de Eventos
+//         eventSelect.innerHTML = '<option value="">Todos os Eventos</option>';
+//         dados.forEach(evento => {
+//             const opt = document.createElement('option');
+//             opt.value = evento.idevento;
+//             //opt.textContent = evento.nmevento;
+//             const nomenclaturaDisplay = evento.nomenclatura ? ` (${evento.nomenclatura})` : '';
+//             opt.textContent = `${evento.nmevento}${nomenclaturaDisplay}`;
+//             eventSelect.appendChild(opt);
+//         });
+
+//         // 2. Preencher o select de Clientes com todos os clientes
+//         preencherClientesEvento();
+
+
+//         preencherEquipesEvento();
+
+//     } catch (error) {
+//         console.error('Erro ao carregar dados:', error);
+//         eventSelect.innerHTML = '<option value="">Nenhum evento encontrado</option>';
+//         clientSelect.innerHTML = '<option value="">Nenhum cliente encontrado</option>';
+//     }
+// }
+
 async function preencherEventosPeriodo() {
     const startDate = document.getElementById('reportStartDate').value;
     const endDate = document.getElementById('reportEndDate').value;
     const eventSelect = document.getElementById('eventSelect');
-    const clientSelect = document.getElementById('clientSelect'); // Supondo que você tenha um select de clientes
+    const clientSelect = document.getElementById('clientSelect');
 
     if (!startDate || !endDate) {
         eventSelect.innerHTML = '<option value="">Selecione um Evento</option>';
@@ -199,67 +276,64 @@ async function preencherEventosPeriodo() {
     }
 
     try {
-        // Altere a rota da sua API para retornar todos os eventos e seus clientes
-        // para o período selecionado.
         const url = `/relatorios/eventos?inicio=${startDate}&fim=${endDate}`;
         const dados = await fetchComToken(url);       
 
         const dadosAgrupados = {};
 
-        console.log('Dados brutos para o período:', dados);
+        // --- FILTRO DE SEGURANÇA NO FRONT-END ---
+        // Garante que se o backend enviou algo de 2025 por engano, o front ignora
+        const dadosFiltrados = dados.filter(item => {
+            const dataItem = (item.dtinirealizacao || '').split('T')[0];
+            return dataItem >= startDate && dataItem <= endDate;
+        });
 
-        dados.forEach(item => {
+        console.log('Dados filtrados para o período:', dadosFiltrados);
+
+        dadosFiltrados.forEach(item => {
             if (!dadosAgrupados[item.idevento]) {
                 dadosAgrupados[item.idevento] = {
                     idevento: item.idevento,
                     nmevento: item.nmevento,
                     nomenclatura: item.nomenclatura,
-                    dtiniinframontagem: item.dtiniinframontagem,
-                    dtfiminframontagem: item.dtfiminframontagem,
-                    dtinimarcacao: item.dtinimarcacao,
-                    dtfimmarcacao: item.dtfimmarcacao,
                     dtinirealizacao: item.dtinirealizacao,
-                    dtfimrealizacao: item.dtfimrealizacao,
-                    dtinidesmontagem: item.dtinidesmontagem,
-                    dtfimdesmontagem: item.dtfimdesmontagem,
-                    dtiniinfradesmontagem: item.dtiniinfradesmontagem,
-                    dtfiminfradesmontagem: item.dtfiminfradesmontagem,
+                    // ... (demais datas)
                     clientes: []
                 };
             }
-            dadosAgrupados[item.idevento].clientes.push({
-                idcliente: item.idcliente,
-                nomeCliente: item.cliente
-            });
+            
+            // Evita duplicar clientes no mesmo evento
+            const clienteJaExiste = dadosAgrupados[item.idevento].clientes.some(c => c.idcliente === item.idcliente);
+            if (!clienteJaExiste) {
+                dadosAgrupados[item.idevento].clientes.push({
+                    idcliente: item.idcliente,
+                    nomeCliente: item.cliente
+                });
+            }
         });
 
-        // Converte o objeto de volta para um array para facilitar a iteração
+        // Atualiza a variável global com os dados filtrados e agrupados
         todosOsDadosDoPeriodo = Object.values(dadosAgrupados);
         
-        // Armazena os dados em uma variável global
-      //  todosOsDadosDoPeriodo = dados;
-        console.log('Dados AGRUPADOS para o período:', todosOsDadosDoPeriodo);
         // 1. Preencher o select de Eventos
         eventSelect.innerHTML = '<option value="">Todos os Eventos</option>';
-        dados.forEach(evento => {
+        
+        // USAMOS OS DADOS AGRUPADOS PARA NÃO REPETIR O NOME DO EVENTO NO SELECT
+        todosOsDadosDoPeriodo.forEach(evento => {
             const opt = document.createElement('option');
             opt.value = evento.idevento;
-            //opt.textContent = evento.nmevento;
             const nomenclaturaDisplay = evento.nomenclatura ? ` (${evento.nomenclatura})` : '';
             opt.textContent = `${evento.nmevento}${nomenclaturaDisplay}`;
             eventSelect.appendChild(opt);
         });
 
-        // 2. Preencher o select de Clientes com todos os clientes
+        // 2. Chama as funções dependentes
         preencherClientesEvento();
-
-
         preencherEquipesEvento();
 
     } catch (error) {
         console.error('Erro ao carregar dados:', error);
-        eventSelect.innerHTML = '<option value="">Nenhum evento encontrado</option>';
-        clientSelect.innerHTML = '<option value="">Nenhum cliente encontrado</option>';
+        eventSelect.innerHTML = '<option value="">Erro ao carregar</option>';
     }
 }
 
@@ -288,26 +362,98 @@ const normalizeDate = (dateString, isEndOfDay = false) => {
 };
 
 
+// function preencherClientesEvento() {
+//     const eventSelect = document.getElementById('eventSelect');
+//     const clientSelect = document.getElementById('clientSelect');
+//     const eventoId = eventSelect.value;
+
+//      console.log('Dados carregados para o período no PREENCHER CLIENTES:', todosOsDadosDoPeriodo);
+    
+//     // Reseta o select de clientes
+//     clientSelect.innerHTML = '<option value="">Todos os Clientes</option>';
+
+//     if (!todosOsDadosDoPeriodo) {
+//         return; // Não há dados para preencher
+//     }
+
+//     // Se um evento específico foi selecionado
+//     if (eventoId) {
+//         console.log('Evento selecionado:', eventoId);
+//         const eventoIdNum = parseInt(eventoId, 10);
+//        // const eventoSelecionado = todosOsDadosDoPeriodo.find(ev => ev.idevento === eventoId);
+//        const eventoSelecionado = todosOsDadosDoPeriodo.find(ev => ev.idevento === eventoIdNum);
+//         if (eventoSelecionado && eventoSelecionado.clientes) {
+//             eventoSelecionado.clientes.forEach(cliente => {
+//                 const opt = document.createElement('option');
+//                 opt.value = cliente.idcliente;
+//                 opt.textContent = cliente.nomeCliente;
+//                 clientSelect.appendChild(opt);
+//             });
+//         }
+//     // } else {
+//     //     // Se nenhum evento foi selecionado, carrega todos os clientes de todos os eventos
+//     //     const clientesUnicos = new Set();
+//     //     todosOsDadosDoPeriodo.forEach(evento => {
+//     //         if (evento.clientes) {
+//     //             evento.clientes.forEach(cliente => {
+//     //                 clientesUnicos.add(JSON.stringify({ id: cliente.idcliente, nome: cliente.nomeCliente }));
+//     //             });
+//     //         }
+//     //     });
+        
+//     //     const clientesArray = Array.from(clientesUnicos).map(c => JSON.parse(c)).sort((a, b) => a.nome.localeCompare(b.nome));
+//     //     clientesArray.forEach(cliente => {
+//     //         const opt = document.createElement('option');
+//     //         opt.value = cliente.id;
+//     //         opt.textContent = cliente.nome;
+//     //         clientSelect.appendChild(opt);
+//     //     });
+//     // }
+
+//     }else {
+//         const clientesUnicos = new Set();
+//         const dataInicioFiltro = document.getElementById('reportStartDate').value;
+//         const dataFimFiltro = document.getElementById('reportEndDate').value;
+
+//         // Filtramos para garantir que o cliente só apareça se tiver evento no período de 2026
+//         todosOsDadosDoPeriodo
+//             .filter(e => {
+//                 const d = (e.dtinirealizacao || '').split('T')[0];
+//                 return d >= dataInicioFiltro && d <= dataFimFiltro;
+//             })
+//             .forEach(evento => {
+//                 if (evento.clientes) {
+//                     evento.clientes.forEach(cliente => {
+//                         clientesUnicos.add(JSON.stringify({ id: cliente.idcliente, nome: cliente.nomeCliente }));
+//                     });
+//                 }
+//             });
+//     }
+// }
+
 function preencherClientesEvento() {
     const eventSelect = document.getElementById('eventSelect');
     const clientSelect = document.getElementById('clientSelect');
     const eventoId = eventSelect.value;
-
-     console.log('Dados carregados para o período no PREENCHER CLIENTES:', todosOsDadosDoPeriodo);
     
-    // Reseta o select de clientes
+    // Pegamos as datas dos filtros da tela para comparar
+    const dataInicioFiltro = document.getElementById('reportStartDate').value;
+    const dataFimFiltro = document.getElementById('reportEndDate').value;
+
+    console.log('Dados carregados para o período no PREENCHER CLIENTES:', todosOsDadosDoPeriodo);
+    
     clientSelect.innerHTML = '<option value="">Todos os Clientes</option>';
 
-    if (!todosOsDadosDoPeriodo) {
-        return; // Não há dados para preencher
-    }
+    if (!todosOsDadosDoPeriodo) return;
 
-    // Se um evento específico foi selecionado
     if (eventoId) {
-        console.log('Evento selecionado:', eventoId);
+        // --- CORREÇÃO AQUI: Filtramos o evento, mas checamos se ele pertence ao período ---
         const eventoIdNum = parseInt(eventoId, 10);
-       // const eventoSelecionado = todosOsDadosDoPeriodo.find(ev => ev.idevento === eventoId);
-       const eventoSelecionado = todosOsDadosDoPeriodo.find(ev => ev.idevento === eventoIdNum);
+        const eventoSelecionado = todosOsDadosDoPeriodo.find(ev => {
+            const dataEvento = (ev.dtinirealizacao || '').split('T')[0];
+            return ev.idevento === eventoIdNum && (dataEvento >= dataInicioFiltro && dataEvento <= dataFimFiltro);
+        });
+
         if (eventoSelecionado && eventoSelecionado.clientes) {
             eventoSelecionado.clientes.forEach(cliente => {
                 const opt = document.createElement('option');
@@ -317,16 +463,23 @@ function preencherClientesEvento() {
             });
         }
     } else {
-        // Se nenhum evento foi selecionado, carrega todos os clientes de todos os eventos
+        // --- SEU TRECHO CORRIGIDO ---
         const clientesUnicos = new Set();
-        todosOsDadosDoPeriodo.forEach(evento => {
-            if (evento.clientes) {
-                evento.clientes.forEach(cliente => {
-                    clientesUnicos.add(JSON.stringify({ id: cliente.idcliente, nome: cliente.nomeCliente }));
-                });
-            }
-        });
-        
+
+        todosOsDadosDoPeriodo
+            .filter(e => {
+                const d = (e.dtinirealizacao || '').split('T')[0];
+                return d >= dataInicioFiltro && d <= dataFimFiltro;
+            })
+            .forEach(evento => {
+                if (evento.clientes) {
+                    evento.clientes.forEach(cliente => {
+                        clientesUnicos.add(JSON.stringify({ id: cliente.idcliente, nome: cliente.nomeCliente }));
+                    });
+                }
+            });
+
+        // Não esqueça de renderizar os clientes únicos encontrados no else:
         const clientesArray = Array.from(clientesUnicos).map(c => JSON.parse(c)).sort((a, b) => a.nome.localeCompare(b.nome));
         clientesArray.forEach(cliente => {
             const opt = document.createElement('option');
@@ -744,7 +897,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                         
                         ${tipo === 'cache' ? '<td></td>' : ''}
 
-                        <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalQtd || ''}</td> 
+                        <td class="text-center" style="font-weight: bold;">${totaisFechamentoCache.totalQtdDiarias || ''}</td> 
                         <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalDiarias)}</td>
                         <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalGeral)}</td>
                         <td></td> <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalPagar)}</td>
@@ -1299,8 +1452,8 @@ async function gerarRelatorio() {
                 eventosOrdenados.forEach(evento => {
                     const eventoIdParaTotal = evento.fechamentoCache.length > 0 ? evento.fechamentoCache[0].idevento : null;
                     const totaisDoEventoAtual = eventoIdParaTotal && dados.fechamentoCacheTotaisPorEvento ?
-                        (dados.fechamentoCacheTotaisPorEvento[eventoIdParaTotal] || { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0, totalTotalGeral: 0, totalTotalPagar: 0 }) :
-                        { totalVlrDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0, totalTotalGeral: 0, totalTotalPagar: 0 };
+                        (dados.fechamentoCacheTotaisPorEvento[eventoIdParaTotal] || { totalVlrDiarias: 0, totalQtdDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0, totalTotalGeral: 0, totalTotalPagar: 0 }) :
+                        { totalVlrDiarias: 0, totalQtdDiarias: 0, totalVlrAdicional: 0, totalTotalDiarias: 0, totalTotalGeral: 0, totalTotalPagar: 0 };
                     console.log('Totais do evento atual:', totaisDoEventoAtual); // Log para verificar os totais
                     relatorioHtmlCompleto += montarRelatorioHtmlEvento(
                         evento.fechamentoCache,
