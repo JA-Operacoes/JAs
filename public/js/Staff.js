@@ -1209,8 +1209,8 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     vlrTotalInput.value = parseFloat(eventData.vlrtotal || 0).toFixed(2).replace('.', ',');
 
     console.log("VALOR TOTAL", vlrTotalInput.value);
-    setorInput.value = eventData.setor.toUpperCase() || '';
-    statusPagtoInput.value = eventData.statuspgto.toUpperCase() || '';
+    setorInput.value = (eventData.setor || '').toUpperCase();
+    statusPagtoInput.value = (eventData.statuspgto || '').toUpperCase();
 
 
     // Lógica para checkboxes de Bônus e Caixinha
@@ -4522,49 +4522,135 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
             return;
         }
 
-        // --- 2. TRATAMENTO DO CAMPO SETOR (PAVILHÃO) ---
-       const elSetor = document.getElementById('setor'); 
-        if (elSetor) {
-            let setorEncontrado = dadosDoOrcamento[0].setor; 
+        //// --- 2. TRATAMENTO DO CAMPO SETOR (PAVILHÃO) ---
+        // const elSetor = document.getElementById('setor'); 
+        // if (elSetor) {
+        //     let setorEncontrado = dadosDoOrcamento[0].setor; 
 
-            // Tenta extrair do nome da função se o campo setor vier vazio do orçamento
-            if (!setorEncontrado && dadosDoOrcamento[0].descfuncao?.includes('(')) {
-                const match = dadosDoOrcamento[0].descfuncao.match(/\(([^)]+)\)/);
+        //     // Tenta extrair do nome da função se o campo setor vier vazio do orçamento
+        //     if (!setorEncontrado && dadosDoOrcamento[0].descfuncao?.includes('(')) {
+        //         const match = dadosDoOrcamento[0].descfuncao.match(/\(([^)]+)\)/);
+        //         if (match) setorEncontrado = match[1];
+        //     }
+
+        //     // Prioridade final para o que já está salvo no banco (edição)
+        //     if (!setorEncontrado && window.__modalFetchedData?.setor) {
+        //         setorEncontrado = window.__modalFetchedData.setor;
+        //     }
+
+        //     if (setorEncontrado) {
+        //         console.log(`🔍 Aplicando setor(es): ${setorEncontrado}`);
+        //         const alvos = String(setorEncontrado).split(',').map(s => s.trim().toUpperCase());
+
+        //         Array.from(elSetor.options).forEach(opt => {
+        //             if (alvos.some(a => opt.text.toUpperCase().includes(a))) {
+        //                 opt.selected = true;
+        //             }
+        //         });
+                
+        //         // Estilização de "Travado" para o Select
+        //         elSetor.style.backgroundColor = "#e9ecef";
+        //         elSetor.style.pointerEvents = "none"; // Impede alteração manual se vier do orçamento
+        //     }
+        // }
+
+
+        
+
+        // // --- 3. VALIDAÇÃO DE DATAS ---
+        // const descFuncaoSelect = document.getElementById('descFuncao');
+        // const funcaoTexto = descFuncaoSelect?.options[descFuncaoSelect.selectedIndex]?.text || "";
+        // const datasPermitidas = new Set();
+
+        // dadosDoOrcamento.forEach(item => {
+        //     if (item.descfuncao === funcaoTexto && item.datas_totais_orcadas) {
+        //         item.datas_totais_orcadas.forEach(d => datasPermitidas.add(d.split('T')[0]));
+        //     }
+        // });
+
+        // const datasNaoOrcadas = datasEvento.filter(d => !datasPermitidas.has(d));
+
+       
+        // --- 2. TRATAMENTO DO CAMPO SETOR E PAVILHÃO (COM TRATAMENTO DE NULL) ---
+        const elSelectPavilhao = document.getElementById('nmPavilhao');
+        const elInputSetor = document.getElementById('setor');
+
+        if (elSelectPavilhao && elInputSetor) {
+            // 🛡️ PROTEÇÃO: Garante que dadosDoOrcamento[0] existe antes de ler as chaves
+            const orcamentoBase = (Array.isArray(dadosDoOrcamento) && dadosDoOrcamento.length > 0) ? dadosDoOrcamento[0] : {};
+            
+            let setorEncontrado = orcamentoBase.setor;
+
+            // Fallback 1: Tenta extrair do nome da função
+            if (!setorEncontrado && orcamentoBase.descfuncao?.includes('(')) {
+                const match = orcamentoBase.descfuncao.match(/\(([^)]+)\)/);
                 if (match) setorEncontrado = match[1];
             }
 
-            // Prioridade final para o que já está salvo no banco (edição)
+            // Fallback 2: Dados vindos da edição/banco
             if (!setorEncontrado && window.__modalFetchedData?.setor) {
                 setorEncontrado = window.__modalFetchedData.setor;
             }
 
-            if (setorEncontrado) {
-                console.log(`🔍 Aplicando setor(es): ${setorEncontrado}`);
-                const alvos = String(setorEncontrado).split(',').map(s => s.trim().toUpperCase());
+            // 🛑 LÓGICA DE DECISÃO:
+            if (setorEncontrado && setorEncontrado !== "null") {
+                const nomeUpper = String(setorEncontrado).trim().toUpperCase();
+                console.log(`🔍 Setor encontrado no orçamento: ${nomeUpper}. Travando campos.`);
 
-                Array.from(elSetor.options).forEach(opt => {
-                    if (alvos.some(a => opt.text.toUpperCase().includes(a))) {
-                        opt.selected = true;
+                // Sincroniza Select
+                elSelectPavilhao.innerHTML = ''; 
+                elSelectPavilhao.appendChild(new Option(nomeUpper, nomeUpper, true, true));
+                if (typeof $ !== 'undefined' && $(elSelectPavilhao).data('select2')) $(elSelectPavilhao).trigger('change');
+
+                // Sincroniza Input e Label
+                elInputSetor.value = nomeUpper;
+                elInputSetor.classList.add('active');
+                const container = elInputSetor.closest('.form2') || elInputSetor.parentElement;
+                if (container) container.classList.add('active', 'is-filled');
+
+                // Trava os campos
+                [elSelectPavilhao, elInputSetor].forEach(el => {
+                    el.style.backgroundColor = "#e9ecef";
+                    el.style.pointerEvents = "none";
+                    if (el.tagName === 'INPUT') el.readOnly = true;
+                });
+            } else {
+                // 🔓 CASO O SETOR SEJA NULL: Libera para preenchimento manual
+                console.warn("⚠️ Setor/Pavilhão não definido no orçamento. Liberando campos para preenchimento.");
+                
+                [elSelectPavilhao, elInputSetor].forEach(el => {
+                    el.style.backgroundColor = "#ffffff";
+                    el.style.pointerEvents = "auto";
+                    if (el.tagName === 'INPUT') {
+                        el.readOnly = false;
+                        el.value = ""; // Limpa o campo para o usuário digitar
                     }
                 });
                 
-                // Estilização de "Travado" para o Select
-                elSetor.style.backgroundColor = "#e9ecef";
-                elSetor.style.pointerEvents = "none"; // Impede alteração manual se vier do orçamento
+                // Remove classes de preenchimento para o label voltar ao normal
+                elInputSetor.classList.remove('active');
+                const container = elInputSetor.closest('.form2') || elInputSetor.parentElement;
+                if (container) container.classList.remove('active', 'is-filled');
             }
         }
+
         // --- 3. VALIDAÇÃO DE DATAS ---
         const descFuncaoSelect = document.getElementById('descFuncao');
         const funcaoTexto = descFuncaoSelect?.options[descFuncaoSelect.selectedIndex]?.text || "";
         const datasPermitidas = new Set();
 
-        dadosDoOrcamento.forEach(item => {
-            if (item.descfuncao === funcaoTexto && item.datas_totais_orcadas) {
-                item.datas_totais_orcadas.forEach(d => datasPermitidas.add(d.split('T')[0]));
-            }
-        });
+        if (Array.isArray(dadosDoOrcamento)) {
+            dadosDoOrcamento.forEach(item => {
+                if (item && item.descfuncao === funcaoTexto && Array.isArray(item.datas_totais_orcadas)) {
+                    item.datas_totais_orcadas.forEach(d => {
+                        if (d) datasPermitidas.add(d.split('T')[0]);
+                    });
+                }
+            });
+        }
 
-        const datasNaoOrcadas = datasEvento.filter(d => !datasPermitidas.has(d));
+        const listaDatasEvento = Array.isArray(datasEvento) ? datasEvento : [];
+        const datasNaoOrcadas = listaDatasEvento.filter(d => !datasPermitidas.has(d));
 
         if (datasNaoOrcadas.length > 0) {
             const result = await Swal.fire({
@@ -4598,6 +4684,8 @@ async function buscarEPopularOrcamento(idEvento, idCliente, idLocalMontagem, idF
             temOrcamento = true;
             controlarBotaoSalvarStaff(true);
         }
+
+        console.log("✅ Orçamento carregado com sucesso:", dadosDoOrcamento, temOrcamento);
 
         // --- 4. ATUALIZAÇÃO GLOBAL ---
         dadosDoOrcamento.forEach(item => {
