@@ -2129,12 +2129,31 @@ function criarCard(evt) {
 
   const inicioMarcacao = evt.dtinimarcacao ? parseDateLocal(evt.dtinimarcacao) : 'ND';
   const inicioRealizacaoFormatado = evt.dtinirealizacao ? parseDateLocal(evt.dtinirealizacao) : 'ND';
+  const inicioMontagem = evt.dtinimontagem ? parseDateLocal(evt.dtinimontagem) : 'ND';
+  const fimMontagem = evt.dtfimmontagem ? parseDateLocal(evt.dtfimmontagem) : 'ND';
+  const inicioDesmontagem = evt.dtinidesmontagem ? parseDateLocal(evt.dtinidesmontagem) : 'ND';
   const fimRealizacaoFormatado = evt.dtfimrealizacao ? parseDateLocal(evt.dtfimrealizacao) : 'ND';
   const fimDesmontagem = evt.dtfimdesmontagem ? parseDateLocal(evt.dtfimdesmontagem) : (evt.fim_evento ? parseDateLocal(evt.fim_evento) : 'ND');
 
-  if (inicioMarcacao !== 'ND' || fimDesmontagem !== 'ND') {
-  periodoTexto = `🗓️ Marcação: ${inicioMarcacao} | Realização: ${inicioRealizacaoFormatado} a ${fimRealizacaoFormatado} | Desmontagem: ${fimDesmontagem}`;
-  }
+if (inicioMarcacao !== 'ND' || fimDesmontagem !== 'ND') {
+  // Função auxiliar interna para formatar o intervalo
+  const formatIntervalo = (ini, fim) => {
+    if (ini === 'ND' && fim === 'ND') return 'ND';
+    if (ini === fim || fim === 'ND') return ini;
+    if (ini === 'ND') return fim;
+    return `${ini} a ${fim}`;
+  };
+
+  const txtMontagem = formatIntervalo(inicioMontagem, fimMontagem);
+  const txtRealizacao = formatIntervalo(inicioRealizacaoFormatado, fimRealizacaoFormatado);
+  const txtDesmontagem = formatIntervalo(inicioDesmontagem, fimDesmontagem);
+
+  periodoTexto = `🗓️ Marcação: ${inicioMarcacao} | Montagem: ${txtMontagem} | Realização: ${txtRealizacao} | Desmontagem: ${txtDesmontagem}`;
+}
+
+//   if (inicioMarcacao !== 'ND' || fimDesmontagem !== 'ND') {
+//   periodoTexto = `🗓️ Marcação: ${inicioMarcacao} | Montagem: ${inicioMontagem} a ${fimMontagem} | Realização: ${inicioRealizacaoFormatado} a ${fimRealizacaoFormatado} | Desmontagem: ${inicioDesmontagem} a ${fimDesmontagem}`;
+//   }
   // 🌟 FIM DO BLOCO DE PERÍODO ATUALIZADO
 
   // ======= Resumo das equipes/funções em uma linha (Sem alteração) =======
@@ -2321,6 +2340,7 @@ async function abrirTelaEquipesEvento(evento) {
   }).filter(f => f !== null); // Remove as funções que retornaram null (0/0)
   };
 
+  console.log("Mapeando e filtrando funções...", equipesRaw);
 
   // converte e normaliza cada item
   let equipes = equipesRaw.map(item => {
@@ -2331,11 +2351,11 @@ async function abrirTelaEquipesEvento(evento) {
 
   // se veio com funcoes já montadas (compatível com rota atual)
   if (item.funcoes && Array.isArray(item.funcoes)) {
-  funcoesResult = mapFuncoes(item.funcoes);
+    funcoesResult = mapFuncoes(item.funcoes);
   }
   // se veio como categorias agregadas (campo 'categorias' do backend)
   else if (item.categorias && Array.isArray(item.categorias)) {
-  funcoesResult = mapFuncoes(item.categorias);
+    funcoesResult = mapFuncoes(item.categorias);
   }
   // item vindo como categoria direta
   else if (item.categoria) {
@@ -3456,85 +3476,151 @@ async function atualizarResumo() {
 //  Pedidos Financeiros
 // ==============================================================================================
 
+// async function buscarPedidosUsuario() {
+//     const idusuario = getIdExecutor(); 
+
+//     // ----------------------------------------------------
+//     // FUNÇÕES UTILS SIMPLIFICADAS (V43.0)
+//     // ----------------------------------------------------
+//     function preencherSolicitante(p) {
+//         return {
+//             ...p,
+//             // Usa idusuariosolicitante, ou idusuario (V40.0)
+//             solicitante: p.idusuariosolicitante || p.idusuario, 
+//             solicitante_nome: p.nomeSolicitante || p.solicitante_nome || (String(p.solicitante) === String(idusuario) ? "Você" : "Solicitante desconhecido")
+//         };
+//     }
+//     // A função garantirCamposDeStatus e desmembrarPedidos SÃO REMOVIDAS
+//     // ----------------------------------------------------
+
+//     try {
+//         const resposta = await fetchComToken(`/main/notificacoes-financeiras`, {
+//             headers: { idempresa: getIdEmpresa() }
+//         });  
+
+//         console.log("DEBUG: Resposta Bruta do Fetch (length):", resposta ? resposta.length : 0);
+        
+//         const podeVerTodos = usuarioTemPermissaoSupremo(); 
+//         const ehMasterStaff = usuarioTemPermissao(); 
+
+//         if (!resposta || !Array.isArray(resposta)) {
+//             console.error("Resposta inválida ou não é um array:", resposta);
+//             return [];
+//         }
+
+//         // 🛑 NOVO FLUXO V43.0: Os 412 itens são pedidos únicos (já desmembrados pelo servidor)
+//         let pedidosProcessados = resposta.map(p => preencherSolicitante(p));
+
+//         // pedidosProcessados = pedidosProcessados.map(p => ({
+//         //     ...p,
+//         //     // 🛑 CORREÇÃO V48.0: Converte o status para minúsculas.
+//         //     status_aprovacao: p.status ? p.status.toLowerCase() : null, 
+//         //     categoria_item: p.categoria 
+//         // }));
+
+//         pedidosProcessados = pedidosProcessados.map(p => {
+//     // Tenta encontrar o status real em diferentes colunas que o banco pode usar
+//     // Prioriza o que NÃO for pendente se houver outra info disponível
+//     const statusReal = p.status_item || p.status_aprovacao || p.status || 'pendente';
+    
+//     return {
+//         ...p,
+//         status_aprovacao: statusReal.toString().toLowerCase().trim(),
+//         categoria_item: p.categoria || p.categoria_item
+//     };
+// });
+
+//         // 🛑 DEBUG V50: Confirma o status padronizado
+//         if (pedidosProcessados.length > 0) {
+//             console.log("DEBUG V50: Status Padronizado do 1º Pedido Financeiro:", pedidosProcessados[0].status_aprovacao);
+//         }
+
+//         // 🛑 DEBUG V37: Loga o resultado ANTES do filtro de usuário
+//         console.log("DEBUG V37: Pedidos Processados ANTES do filtro de usuário:", pedidosProcessados.length);
+
+
+//         // 3. APLICAÇÃO DA LÓGICA DE VISUALIZAÇÃO E FILTRO
+//         if (podeVerTodos) { 
+//             console.log(`✅ Usuário tem Visualização Total (Master/Financeiro) → Retornando ${pedidosProcessados.length} pedidos.`);
+            
+//             pedidosProcessados = pedidosProcessados.map(p => ({ 
+//                 ...p, 
+//                 ehMasterStaff: ehMasterStaff,
+//                 podeVerTodos: true 
+//             }));
+
+//         } else {
+//             console.log("👤 Usuário comum → Vendo apenas os próprios pedidos.");
+            
+//             // Filtra no array de 412 itens, usando a chave 'solicitante'
+//             pedidosProcessados = pedidosProcessados
+//                 .filter(p => String(p.solicitante) === String(idusuario))
+//                 .map(p => ({ 
+//                     ...p, 
+//                     ehMasterStaff: false,
+//                     podeVerTodos: false
+//                 }));
+//         }
+
+//         console.log(`RESPOSTA NO BUSCAR PEDIDOS (${pedidosProcessados.length})`);
+        
+//         return pedidosProcessados; 
+
+//     } catch (err) {
+//         console.error("Erro na requisição de pedidos:", err);
+//         return [];
+//     }
+// }
+
 async function buscarPedidosUsuario() {
     const idusuario = getIdExecutor(); 
 
-    // ----------------------------------------------------
-    // FUNÇÕES UTILS SIMPLIFICADAS (V43.0)
-    // ----------------------------------------------------
+    // Função interna para normalizar dados do solicitante
     function preencherSolicitante(p) {
+        const idSolicitante = p.idusuariosolicitante || p.idusuario;
         return {
             ...p,
-            // Usa idusuariosolicitante, ou idusuario (V40.0)
-            solicitante: p.idusuariosolicitante || p.idusuario, 
-            solicitante_nome: p.nomeSolicitante || p.solicitante_nome || (String(p.solicitante) === String(idusuario) ? "Você" : "Solicitante desconhecido")
+            solicitante: idSolicitante, 
+            solicitante_nome: p.nomeSolicitante || p.solicitante_nome || (String(idSolicitante) === String(idusuario) ? "Você" : "Solicitante desconhecido")
         };
     }
-    // A função garantirCamposDeStatus e desmembrarPedidos SÃO REMOVIDAS
-    // ----------------------------------------------------
 
     try {
         const resposta = await fetchComToken(`/main/notificacoes-financeiras`, {
             headers: { idempresa: getIdEmpresa() }
-        });  
+        });  
 
-        console.log("DEBUG: Resposta Bruta do Fetch (length):", resposta ? resposta.length : 0);
-        
-        const podeVerTodos = usuarioTemPermissaoSupremo(); 
-        const ehMasterStaff = usuarioTemPermissao(); 
+        const ehSupremo = usuarioTemPermissaoSupremo(); 
+        const ehMaster = usuarioTemPermissao(); 
 
-        if (!resposta || !Array.isArray(resposta)) {
-            console.error("Resposta inválida ou não é um array:", resposta);
-            return [];
-        }
+        if (!resposta || !Array.isArray(resposta)) return [];
 
-        // 🛑 NOVO FLUXO V43.0: Os 412 itens são pedidos únicos (já desmembrados pelo servidor)
-        let pedidosProcessados = resposta.map(p => preencherSolicitante(p));
-
-        // pedidosProcessados = pedidosProcessados.map(p => ({
-        //     ...p,
-        //     // 🛑 CORREÇÃO V48.0: Converte o status para minúsculas.
-        //     status_aprovacao: p.status ? p.status.toLowerCase() : null, 
-        //     categoria_item: p.categoria 
-        // }));
-
-        pedidosProcessados = pedidosProcessados.map(p => {
-    // Tenta encontrar o status real em diferentes colunas que o banco pode usar
-    // Prioriza o que NÃO for pendente se houver outra info disponível
-    const statusReal = p.status_item || p.status_aprovacao || p.status || 'pendente';
-    
-    return {
-        ...p,
-        status_aprovacao: statusReal.toString().toLowerCase().trim(),
-        categoria_item: p.categoria || p.categoria_item
-    };
-});
-
-        // 🛑 DEBUG V50: Confirma o status padronizado
-        if (pedidosProcessados.length > 0) {
-            console.log("DEBUG V50: Status Padronizado do 1º Pedido Financeiro:", pedidosProcessados[0].status_aprovacao);
-        }
-
-        // 🛑 DEBUG V37: Loga o resultado ANTES do filtro de usuário
-        console.log("DEBUG V37: Pedidos Processados ANTES do filtro de usuário:", pedidosProcessados.length);
-
-
-        // 3. APLICAÇÃO DA LÓGICA DE VISUALIZAÇÃO E FILTRO
-        if (podeVerTodos) { 
-            console.log(`✅ Usuário tem Visualização Total (Master/Financeiro) → Retornando ${pedidosProcessados.length} pedidos.`);
+        // 1. Mapeamento e Normalização Inicial
+        let pedidosProcessados = resposta.map(p => {
+            const tempPedido = preencherSolicitante(p);
+            const statusReal = tempPedido.status_item || tempPedido.status_aprovacao || tempPedido.status || 'pendente';
             
+            return {
+                ...tempPedido,
+                status_aprovacao: statusReal.toString().toLowerCase().trim(),
+                categoria_item: tempPedido.categoria || tempPedido.categoria_item
+            };
+        });
+
+        // 2. APLICAÇÃO DA LÓGICA DE VISUALIZAÇÃO (Master ou Supremo vê tudo)
+        const usuarioPodeVerTudo = ehSupremo || ehMaster;
+
+        if (usuarioPodeVerTudo) { 
+            console.log(`✅ Visualização Total (${ehSupremo ? 'Supremo' : 'Master'})`);
             pedidosProcessados = pedidosProcessados.map(p => ({ 
                 ...p, 
-                ehMasterStaff: ehMasterStaff,
+                ehMasterStaff: ehMaster,
                 podeVerTodos: true 
             }));
-
         } else {
-            console.log("👤 Usuário comum → Vendo apenas os próprios pedidos.");
-            
-            // Filtra no array de 412 itens, usando a chave 'solicitante'
+            console.log("👤 Usuário comum → Filtrando pedidos do ID:", idusuario);
             pedidosProcessados = pedidosProcessados
-                .filter(p => String(p.solicitante) === String(idusuario))
+                .filter(p => String(p.solicitante).trim() === String(idusuario).trim())
                 .map(p => ({ 
                     ...p, 
                     ehMasterStaff: false,
@@ -3542,8 +3628,6 @@ async function buscarPedidosUsuario() {
                 }));
         }
 
-        console.log(`RESPOSTA NO BUSCAR PEDIDOS (${pedidosProcessados.length})`);
-        
         return pedidosProcessados; 
 
     } catch (err) {
@@ -3580,8 +3664,8 @@ async function buscarAditivoExtraCompleto() {
         console.log("DEBUG: Resposta Bruta do Fetch AditivoExtra (length):", resposta.dados ? (Array.isArray(resposta.dados) ? resposta.dados.length : 'N/D') : 0);
 
         if (resposta && resposta.sucesso && Array.isArray(resposta.dados)) {
-      //console.log(`✅ Sucesso! ${resposta.dados.length} solicitações Aditivo/Extra carregadas.`);
-      return resposta.dados; 
+            //console.log(`✅ Sucesso! ${resposta.dados.length} solicitações Aditivo/Extra carregadas.`);
+            return resposta.dados; 
         }
 
         console.error("❌Erro ao buscar AditivoExtra completo:", resposta?.erro || 'Resposta inválida do servidor.');
@@ -3597,8 +3681,13 @@ async function mostrarPedidosUsuario() {
     const lista = document.getElementById("painelDetalhes");
     if (!lista) return;
 
-    let pedidos = []; // Array final de grupos
-    const podeAprovar = usuarioTemPermissao();
+    let pedidos = []; // Array final de grupos    
+
+    const ehMaster = usuarioTemPermissao();
+    const ehSupremo = usuarioTemPermissaoSupremo();
+
+    // REGRA: Apenas o Supremo pode aprovar. O Master pode ver (na busca), mas não agir.
+    const podeAprovar = ehSupremo;
 
     // 🛑 NOVA CONFIGURAÇÃO: Mapeamento do campo de status para o campo de dados que é um JSON String de array
     const dataFieldMapping = {
@@ -3742,6 +3831,7 @@ async function mostrarPedidosUsuario() {
         const pedidosAgrupados = {};
         const chavesDosItensAdicionados = new Set(); 
 
+        
         // 🛑 ITERAR AGORA SOBRE pedidosDesmembrados 🛑
         pedidosDesmembrados.forEach(p => {
             // Variáveis de Agrupamento
@@ -3830,11 +3920,38 @@ async function mostrarPedidosUsuario() {
 
             
         // Primeiro, filtramos os grupos
-        // const gruposFuncionarios = pedidos.filter(p => !!p.funcionario);
-        // const gruposFuncoes = pedidos.filter(p => !p.funcionario);        
+       
 
-        window.gruposFuncionariosGlobais = pedidos.filter(p => !!p.funcionario);
-        window.gruposFuncoesGlobais = pedidos.filter(p => !p.funcionario);
+       // window.gruposFuncionariosGlobais = pedidos.filter(p => !!p.funcionario);
+       // window.gruposFuncoesGlobais = pedidos.filter(p => !p.funcionario);
+
+       // --- SUBSTITUIÇÃO DA SEPARAÇÃO DAS ABAS ---
+
+// Filtro para a aba Funções (Onde devem aparecer os excessos de vaga)
+window.gruposFuncoesGlobais = pedidos.filter(p => {
+    const dadosInternos = p.registrosOriginais?.[0]?.[CAMPO_ADITIVO_EXTRA]?.[0];
+    const tipoSolicitacao = dadosInternos?.tipoSolicitacao || "";
+
+    // Se no nome da solicitação contiver "Vaga Excedida", vai para a aba FUNÇÕES
+    if (tipoSolicitacao.includes("Vaga Excedida")) {
+        return true; 
+    }
+
+    return !p.funcionario; // Regra padrão para o restante
+});
+
+// Filtro para a aba Funcionários
+window.gruposFuncionariosGlobais = pedidos.filter(p => {
+    const dadosInternos = p.registrosOriginais?.[0]?.[CAMPO_ADITIVO_EXTRA]?.[0];
+    const tipoSolicitacao = dadosInternos?.tipoSolicitacao || "";
+
+    // Se for vaga excedida, NÃO entra aqui
+    if (tipoSolicitacao.includes("Vaga Excedida")) {
+        return false;
+    }
+
+    return !!p.funcionario;
+});
 
         // Agora, contamos quantos registros individuais existem dentro de cada grupo
         const totalPedidosFuncionarios = window.gruposFuncionariosGlobais.reduce((acc, grupo) => 
@@ -4409,7 +4526,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         if (categoria === 'funcionario' && pedido.funcionario) {
                             htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario} - <strong>Solicitante:</strong> ${nomeSolic}<br>`;
                         } else {
-                            htmlBody += `<strong>Evento:</strong> ${pedido.evento}<br>`;
+                            htmlBody += `<strong>Evento:</strong> ${pedido.evento} - <strong>Funcionário:</strong> ${pedido.funcionario} -<strong>Solicitante:</strong> ${nomeSolic}<br>`;
                         }
                     }
 
@@ -5243,64 +5360,64 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             </tr>`;
     };
 
-const obterLinhasTabela = (evento, filtro) => {
-    let lista = evento.funcionarios || [];
-    if (filtro === 'caixinha') lista = lista.filter(f => (f.totalcaixinha_filtrado || 0) > 0);
-    if (lista.length === 0) return `<tr><td colspan="10" style="text-align:center; padding: 20px;">Nenhum registro.</td></tr>`;
+        const obterLinhasTabela = (evento, filtro) => {
+            let lista = evento.funcionarios || [];
+            if (filtro === 'caixinha') lista = lista.filter(f => (f.totalcaixinha_filtrado || 0) > 0);
+            if (lista.length === 0) return `<tr><td colspan="10" style="text-align:center; padding: 20px;">Nenhum registro.</td></tr>`;
 
-    const podeVerAcoes = usuarioTemPermissaoSupremo();
-    const mostraUploadPermissao = (usuarioTemPermissao() || usuarioTemPermissaoFinanceiro());
+            const podeVerAcoes = usuarioTemPermissaoSupremo();
+            const mostraUploadPermissao = (usuarioTemPermissao() || usuarioTemPermissaoFinanceiro());
 
-    return lista.map(f => {
-        // Mapeamento de dados conforme o filtro selecionado
-        const info = {
-            'cache': { 
-                status: formatarStatusFront(f.statuspgto || "Pendente"), 
-                valor: f.totalcache_filtrado, 
-                tipoAcao: 'Cache', // <-- Corrigido para 'Cache' (Maiúsculo)
-                comp: f.comppgtocache 
-            },
-            'ajuda_custo': { 
-                status: formatarStatusFront(f.statuspgtoajdcto || "Pendente"), 
-                valor: f.totalajudacusto_filtrado, 
-                tipoAcao: 'Ajuda', 
-                comp: f.comppgtoajdcusto 
-            },
-            'caixinha': { 
-                status: formatarStatusFront(f.statuscaixinha || "Pendente"), 
-                valor: f.totalcaixinha_filtrado, 
-                tipoAcao: 'Caixinha', 
-                comp: f.comppgtocaixinha 
-            }
-        }[filtro];
+            return lista.map(f => {
+                // Mapeamento de dados conforme o filtro selecionado
+                const info = {
+                    'cache': { 
+                        status: formatarStatusFront(f.statuspgto || "Pendente"), 
+                        valor: f.totalcache_filtrado, 
+                        tipoAcao: 'Cache', // <-- Corrigido para 'Cache' (Maiúsculo)
+                        comp: f.comppgtocache 
+                    },
+                    'ajuda_custo': { 
+                        status: formatarStatusFront(f.statuspgtoajdcto || "Pendente"), 
+                        valor: f.totalajudacusto_filtrado, 
+                        tipoAcao: 'Ajuda', 
+                        comp: f.comppgtoajdcusto 
+                    },
+                    'caixinha': { 
+                        status: formatarStatusFront(f.statuscaixinha || "Pendente"), 
+                        valor: f.totalcaixinha_filtrado, 
+                        tipoAcao: 'Caixinha', 
+                        comp: f.comppgtocaixinha 
+                    }
+                }[filtro];
 
-        const statusLimpo = info.status.toLowerCase();
-        const estaPago = statusLimpo.startsWith('pago');
-        const classeStatus = statusLimpo.replace(/\s+/g, '-').replace('%', '');
+                const statusLimpo = info.status.toLowerCase();
+                const estaPago = statusLimpo.startsWith('pago');
+                const classeStatus = statusLimpo.replace(/\s+/g, '-').replace('%', '');
 
-        return `
-            <tr>
-                <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
-                <td style="text-align:center">${f.qtddiarias_filtradas || 0}</td>
-                <td style="text-align:center"><small>${f.periodo_evento || '---'}</small></td>
+                return `
+                    <tr>
+                        <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
+                        <td style="text-align:center">${f.qtddiarias_filtradas || 0}</td>
+                        <td style="text-align:center"><small>${f.periodo_evento || '---'}</small></td>
 
-                ${podeVerAcoes ? `
-                    <td class="acoes-supremo" style="text-align:center">
-                        ${renderConteudoAcao(f.idstaffevento, info.tipoAcao, info.status)}
-                    </td>` : ''}
+                        ${podeVerAcoes ? `
+                            <td class="acoes-supremo" style="text-align:center">
+                                ${renderConteudoAcao(f.idstaffevento, info.tipoAcao, info.status)}
+                            </td>` : ''}
 
-        <td class="comprovantes-cell">
-                ${estaPago ? 
-                    gerarHTMLComprovanteDinamico(f.idstaffevento, filtro, info.status, criarHTMLComprovantes(f, filtro)) 
-                : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'}
-            </td>
+                <td class="comprovantes-cell">
+                        ${estaPago ? 
+                            gerarHTMLComprovanteDinamico(f.idstaffevento, filtro, info.status, criarHTMLComprovantes(f, filtro)) 
+                        : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'}
+                    </td>
 
-                <td class="status-celula status-${classeStatus}">${info.status}</td>
+                        <td class="status-celula status-${classeStatus}">${info.status}</td>
 
-                <td>${formatarMoeda(info.valor || 0)}</td>
-            </tr>`;
-    }).join("");
-};
+                        <td>${formatarMoeda(info.valor || 0)}</td>
+                    </tr>`;
+            }).join("");
+        };
 
         dados.eventos.forEach(evento => {
             const item = document.createElement("div");

@@ -1048,6 +1048,134 @@ router.get("/eventos-fechados", async (req, res) => {
     }
 });
 
+// router.get("/detalhes-eventos-abertos", async (req, res) => {
+//   try {
+//     const idevento = req.query.idevento || req.headers.idevento;
+//     const idempresa = req.query.idempresa || req.headers.idempresa;
+//     const ano = req.query.ano ? Number(req.query.ano) : new Date().getFullYear();
+
+//     if (!idevento || !idempresa) {
+//       return res.status(400).json({ error: "Parâmetros 'idevento' e 'idempresa' são obrigatórios." });
+//     }
+
+//     // 1️⃣ Busca orçamento principal
+//     const { rows: orcamentos } = await pool.query(
+//       `SELECT o.idorcamento, o.idcliente, o.idmontagem
+//        FROM orcamentos o
+//        JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+//        WHERE o.idevento = $1 AND oe.idempresa = $2 
+//        AND EXTRACT(YEAR FROM o.dtinirealizacao) = $3`,
+//       [idevento, idempresa, ano]
+//     );
+
+//     if (!orcamentos.length) return res.status(200).json({ equipes: [] });
+//     const { idorcamento, idcliente, idmontagem } = orcamentos[0];
+
+//     // 2️⃣ Busca Vagas do Orçamento (Usando o setor como local principal)
+//     const { rows: itensOrcamento } = await pool.query(
+//       `SELECT f.idequipe, eq.nmequipe AS equipe, i.idfuncao, f.descfuncao AS funcao,
+//               COALESCE(i.setor, '') AS setor_orcamento,
+//               SUM(i.qtditens) AS qtd_orcamento,
+//               MIN(i.periododiariasinicio) AS dtini_vaga,
+//               MAX(i.periododiariasfim) AS dtfim_vaga
+//        FROM orcamentoitens i
+//        JOIN funcao f ON f.idfuncao = i.idfuncao
+//        JOIN equipe eq ON eq.idequipe = f.idequipe
+//        WHERE i.idorcamento = $1 AND i.categoria = 'Produto(s)'
+//        GROUP BY f.idequipe, eq.nmequipe, i.idfuncao, f.descfuncao, i.setor`,
+//       [idorcamento]
+//     );
+
+//     // 3️⃣ Busca quantidades cadastradas (Lógica COALESCE para bater com o setor do orçamento)
+//     const { rows: staffCount } = await pool.query(
+//       `SELECT se.idfuncao, 
+//               COALESCE(NULLIF(se.pavilhao, ''), se.setor, '') AS localizacao,
+//               COUNT(DISTINCT se.idstaff) AS qtd_cadastrada
+//        FROM staffeventos se
+//        WHERE se.idevento = $1 
+//          AND se.idcliente = $2
+//          AND EXISTS (
+//              SELECT 1 FROM jsonb_array_elements_text(se.datasevento) AS d(dt)
+//              WHERE EXTRACT(YEAR FROM (d.dt)::date) = $3
+//          )
+//        GROUP BY se.idfuncao, localizacao`,
+//       [idevento, idcliente, ano]
+//     );
+
+//     // 4️⃣ Busca Datas (IMPORTANTE: A chave aqui deve ser idfuncao + localizacao)
+//     const { rows: datasStaffRaw } = await pool.query(
+//       `SELECT se.idfuncao, 
+//               COALESCE(NULLIF(se.pavilhao, ''), se.setor, '') AS localizacao,
+//               array_agg(DISTINCT d.dt ORDER BY d.dt) AS datas_staff
+//        FROM staffeventos se
+//        CROSS JOIN LATERAL (
+//            SELECT dt FROM jsonb_array_elements_text(se.datasevento) AS dt
+//            WHERE EXTRACT(YEAR FROM dt::date) = $2
+//        ) AS d
+//        WHERE se.idevento = $1 AND se.idcliente = $3
+//        GROUP BY se.idfuncao, localizacao`,
+//       [idevento, ano, idcliente]
+//     );
+
+//     // Criamos o mapa usando a string normalizada para evitar erros de case ou espaços
+//     const datasStaffMap = datasStaffRaw.reduce((acc, row) => {
+//       const key = `${row.idfuncao}_${String(row.localizacao).trim().toUpperCase()}`;
+//       acc[key] = row.datas_staff;
+//       return acc;
+//     }, {});
+
+//     // 5️⃣ Agrupamento por equipe e montagem do objeto final
+//     const equipesMap = {};
+//     for (const item of itensOrcamento) {
+//       const idequipeKey = item.idequipe || "SEM_EQUIPE";
+
+//       if (!equipesMap[idequipeKey]) {
+//         equipesMap[idequipeKey] = {
+//           equipe: item.equipe || "Sem equipe",
+//           idequipe: item.idequipe,
+//           funcoes: [],
+//         };
+//       }
+
+//       const setorNormalizado = String(item.setor_orcamento).trim().toUpperCase();
+
+//       // Busca a quantidade
+//       const cadastrado = staffCount.find(s => 
+//         String(s.idfuncao) === String(item.idfuncao) && 
+//         String(s.localizacao).trim().toUpperCase() === setorNormalizado
+//       ); 
+
+//       const qtd_cadastrada = cadastrado ? Number(cadastrado.qtd_cadastrada) : 0;
+      
+//       // Busca as datas no mapa usando a mesma chave normalizada
+//       const chaveDatas = `${item.idfuncao}_${setorNormalizado}`;
+//       const datas_staff = datasStaffMap[chaveDatas] || [];
+
+//       equipesMap[idequipeKey].funcoes.push({
+//         idfuncao: item.idfuncao,
+//         nome: item.setor_orcamento ? `${item.funcao} (${item.setor_orcamento})` : item.funcao,
+//         setor_orcamento: item.setor_orcamento,
+//         qtd_orcamento: Number(item.qtd_orcamento) || 0,
+//         qtd_cadastrada,
+//         concluido: qtd_cadastrada >= (Number(item.qtd_orcamento) || 0),
+//         dtini_vaga: item.dtini_vaga,
+//         dtfim_vaga: item.dtfim_vaga,
+//         datas_staff: datas_staff // Agora as datas voltarão a aparecer
+//       });
+//     }
+
+//     res.status(200).json({ 
+//       equipes: Object.values(equipesMap), 
+//       idmontagem,
+//       idorcamento
+//     });
+
+//   } catch (err) {
+//     console.error("Erro ao processar detalhes dos eventos:", err);
+//     res.status(500).json({ error: err.message });
+//   }
+// });
+
 router.get("/detalhes-eventos-abertos", async (req, res) => {
   try {
     const idevento = req.query.idevento || req.headers.idevento;
@@ -1058,21 +1186,24 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
       return res.status(400).json({ error: "Parâmetros 'idevento' e 'idempresa' são obrigatórios." });
     }
 
-    // 1️⃣ Busca orçamento principal
+    // 1️⃣ Busca TODOS os orçamentos da empresa no evento
     const { rows: orcamentos } = await pool.query(
       `SELECT o.idorcamento, o.idcliente, o.idmontagem
        FROM orcamentos o
        JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
        WHERE o.idevento = $1 AND oe.idempresa = $2 
-       AND EXTRACT(YEAR FROM o.dtinirealizacao) = $3
-       LIMIT 1`,
+       AND EXTRACT(YEAR FROM o.dtinirealizacao) = $3`,
       [idevento, idempresa, ano]
     );
 
     if (!orcamentos.length) return res.status(200).json({ equipes: [] });
-    const { idorcamento, idcliente, idmontagem } = orcamentos[0];
 
-    // 2️⃣ Busca Vagas do Orçamento (Usando o setor como local principal)
+    // Extrai a lista de IDs de orçamento e dados comuns
+    const idsOrcamentos = orcamentos.map(o => o.idorcamento);
+    const idcliente = orcamentos[0].idcliente; // Assume-se que o cliente é o mesmo
+    const idmontagem = orcamentos[0].idmontagem;
+
+    // 2️⃣ Busca Vagas (Usando ANY para pegar itens de TODOS os orçamentos da lista)
     const { rows: itensOrcamento } = await pool.query(
       `SELECT f.idequipe, eq.nmequipe AS equipe, i.idfuncao, f.descfuncao AS funcao,
               COALESCE(i.setor, '') AS setor_orcamento,
@@ -1082,12 +1213,12 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
        FROM orcamentoitens i
        JOIN funcao f ON f.idfuncao = i.idfuncao
        JOIN equipe eq ON eq.idequipe = f.idequipe
-       WHERE i.idorcamento = $1 AND i.categoria = 'Produto(s)'
+       WHERE i.idorcamento = ANY($1) AND i.categoria = 'Produto(s)'
        GROUP BY f.idequipe, eq.nmequipe, i.idfuncao, f.descfuncao, i.setor`,
-      [idorcamento]
+      [idsOrcamentos] // Passa o array de IDs
     );
 
-    // 3️⃣ Busca quantidades cadastradas (Lógica COALESCE para bater com o setor do orçamento)
+    // 3️⃣ Busca quantidades cadastradas (Inalterado, já usa idevento e idcliente)
     const { rows: staffCount } = await pool.query(
       `SELECT se.idfuncao, 
               COALESCE(NULLIF(se.pavilhao, ''), se.setor, '') AS localizacao,
@@ -1103,7 +1234,7 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
       [idevento, idcliente, ano]
     );
 
-    // 4️⃣ Busca Datas (IMPORTANTE: A chave aqui deve ser idfuncao + localizacao)
+    // 4️⃣ Busca Datas (Inalterado)
     const { rows: datasStaffRaw } = await pool.query(
       `SELECT se.idfuncao, 
               COALESCE(NULLIF(se.pavilhao, ''), se.setor, '') AS localizacao,
@@ -1118,14 +1249,13 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
       [idevento, ano, idcliente]
     );
 
-    // Criamos o mapa usando a string normalizada para evitar erros de case ou espaços
     const datasStaffMap = datasStaffRaw.reduce((acc, row) => {
       const key = `${row.idfuncao}_${String(row.localizacao).trim().toUpperCase()}`;
       acc[key] = row.datas_staff;
       return acc;
     }, {});
 
-    // 5️⃣ Agrupamento por equipe e montagem do objeto final
+    // 5️⃣ Agrupamento final (Agora processará itens do orçamento 166 e 230 juntos)
     const equipesMap = {};
     for (const item of itensOrcamento) {
       const idequipeKey = item.idequipe || "SEM_EQUIPE";
@@ -1139,16 +1269,12 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
       }
 
       const setorNormalizado = String(item.setor_orcamento).trim().toUpperCase();
-
-      // Busca a quantidade
       const cadastrado = staffCount.find(s => 
         String(s.idfuncao) === String(item.idfuncao) && 
         String(s.localizacao).trim().toUpperCase() === setorNormalizado
       ); 
 
       const qtd_cadastrada = cadastrado ? Number(cadastrado.qtd_cadastrada) : 0;
-      
-      // Busca as datas no mapa usando a mesma chave normalizada
       const chaveDatas = `${item.idfuncao}_${setorNormalizado}`;
       const datas_staff = datasStaffMap[chaveDatas] || [];
 
@@ -1161,18 +1287,18 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
         concluido: qtd_cadastrada >= (Number(item.qtd_orcamento) || 0),
         dtini_vaga: item.dtini_vaga,
         dtfim_vaga: item.dtfim_vaga,
-        datas_staff: datas_staff // Agora as datas voltarão a aparecer
+        datas_staff: datas_staff
       });
     }
 
     res.status(200).json({ 
       equipes: Object.values(equipesMap), 
       idmontagem,
-      idorcamento
+      idorcamento: idsOrcamentos[0] // Retorna o principal para referência
     });
 
   } catch (err) {
-    console.error("Erro ao processar detalhes dos eventos:", err);
+    console.error("Erro ao processar detalhes:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -2223,6 +2349,7 @@ router.get("/vencimentos", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 router.post("/vencimentos/update-status", async (req, res) => {
     let { idStaff, tipo, novoStatus } = req.body;
 

@@ -1747,7 +1747,8 @@ div#calendarioVertical {
   width: 100%;
   overflow-y: auto;
   scrollbar-width: thin;
-  max-height: 500px;
+  /* max-height: 500px; */
+  max-height: 700px;
   height: 100%;
   align-items: flex-start;
   justify-content: flex-start;
@@ -2500,7 +2501,8 @@ body.dark .indicador-evento {
 /* Tabela de Funcionários (Limpo e Funcional) */
 
 .funcionarios-scroll-container {
-  max-height: 180px; /* ⬅️ Continua o limite para a lista de funcionários */
+  /*max-height: 180px; /* ⬅️ Continua o limite para a lista de funcionários */
+  max-height: 300px;
   overflow-y: auto;  /* ⬅️ CRÍTICO: Habilita o scroll */
   overflow-x: hidden;
   border: 1px solid #ccc; 
