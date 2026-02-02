@@ -309,6 +309,7 @@ router.post("/orcamento/consultar",
             idCliente,
             idLocalMontagem,
             idFuncao,
+            setor,
             datasEvento = [],
         } = req.body;
 
@@ -383,7 +384,9 @@ router.post("/orcamento/consultar",
                 AND o.idevento = $2
                 AND o.idcliente = $3
                 AND o.idmontagem = $4
-                AND oi.idfuncao IS NOT NULL
+                --AND oi.idfuncao IS NOT NULL
+                AND oi.idfuncao = $6
+                AND (oi.setor = $7 OR $7 IS NULL)
                 -- Filtra para trazer apenas itens que tenham choque de data com o que foi pesquisado
                 AND dto.periodos_disponiveis && $5::date[]
             GROUP BY
@@ -413,6 +416,8 @@ router.post("/orcamento/consultar",
             idCliente,
             idLocalMontagem,
             datasEvento,
+            idFuncao,
+            setor || null
         ];
 
         const result = await client.query(query, values);
@@ -955,6 +960,570 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
     } finally { if (client) client.release(); }
 });
 
+// router.post('/aditivoextra/solicitacao', 
+//   autenticarToken(), 
+//   contextoEmpresa, 
+//   verificarPermissao('staff', 'cadastrar'), 
+
+//   logMiddleware('aditivoextra', { 
+//     buscarDadosAnteriores: async (req) => {
+//     return { dadosanteriores: null, idregistroalterado: null };
+//     }
+//   }),
+
+//   async (req, res) => {
+//     console.log("🔥 Rota /staff/aditivoextra/solicitacao acessada", req.body);
+
+//     // 1. Desestruturar, Sanitizar e INCLUIR idEmpresa
+//     const { 
+//       idOrcamento, 
+//       idFuncao, 
+//       qtdSolicitada, 
+//       tipoSolicitacao, 
+//       justificativa, 
+//       idFuncionario,
+//       dataSolicitada // Novo campo opcional  
+//     } = req.body; 
+
+//     const idEmpresaContexto = req.empresa?.idempresa || req.idempresa;
+//     const idUsuarioSolicitante = req.usuario?.idusuario; 
+    
+//     // 💡 NOVO: Status inicial
+//     const statusInicial = 'Pendente';
+
+//     // 2. Validação Atualizada (incluindo idEmpresa)
+    
+//     if (!idUsuarioSolicitante) {
+//         let erroDetalhe = "ID do usuário solicitante (idUsuarioSolicitante) não encontrado no token de autenticação.";
+//         return res.status(401).json({ // Retornar 401 (Não Autorizado) ou 500 para erro de contexto
+//             sucesso: false,
+//             erro: erroDetalhe
+//         });
+//     }
+//     if (!idEmpresaContexto) {
+//         let erroDetalhe = "ID da Empresa (idEmpresa) não encontrado no contexto da requisição.";
+//         return res.status(500).json({ // Erro interno se o contexto falhar
+//             sucesso: false,
+//             erro: erroDetalhe
+//         });
+//     }
+
+//     let campoFaltante = null;
+
+//     if (!idOrcamento) {
+//         campoFaltante = 'idOrcamento';
+//     } else if (!idFuncao) {
+//         campoFaltante = 'idFuncao';
+//     } else if (!qtdSolicitada) {
+//         campoFaltante = 'qtdSolicitada';
+//     } else if (!tipoSolicitacao) {
+//         campoFaltante = 'tipoSolicitacao';
+//     } else if (!justificativa) {
+//         campoFaltante = 'justificativa';
+//     }
+
+    
+
+//     if (campoFaltante) { 
+//         // Se algum campo do BODY estiver faltando, retorna 400 com a mensagem específica
+//         const erroDetalhe = `Dados incompletos. O campo obrigatório **${campoFaltante}** está faltando na requisição.`;
+        
+//         return res.status(400).json({ 
+//             sucesso: false,
+//             erro: erroDetalhe
+//         });
+//     }
+
+//     if (tipoSolicitacao === 'FuncExcedido' && !idFuncionario) {
+//         return res.status(400).json({ 
+//             sucesso: false, 
+//             erro: "Para o tipo de solicitação 'FuncExcedido', o campo idFuncionario é obrigatório." 
+//         });
+//     }
+
+//     // 3. Validação de Lógica
+//     if (qtdSolicitada <= 0) {
+//       return res.status(400).json({ sucesso: false, erro: "A quantidade solicitada deve ser maior que zero." });
+//     }
+
+//     const dataTratada = Array.isArray(dataSolicitada) ? dataSolicitada[0] : dataSolicitada;
+//     const dataParaBanco = (dataTratada && dataTratada !== 'undefined' && dataTratada.trim() !== "") 
+//         ? dataTratada 
+//         : null;
+
+//     // 2. Validação Extra: Se for um caso que EXIGE data, barra aqui
+//     const tiposQueExigemData = ['Aditivo - Data fora', 'Extra Bonificado - Data fora'];
+//     if (tiposQueExigemData.includes(tipoSolicitacao) && !dataParaBanco) {
+//         return res.status(400).json({ 
+//             sucesso: false, 
+//             erro: `Para o tipo '${tipoSolicitacao}', a data específica é obrigatória.` 
+//         });
+//     }
+
+    
+
+//     try {
+//     // 4. Comando SQL de INSERÇÃO (Atualizado para incluir idEmpresa e status)
+//     const query = `
+//         INSERT INTO AditivoExtra (
+//           idOrcamento, 
+//           idFuncao, 
+//           idEmpresa,        
+//           tipoSolicitacao, 
+//           qtdSolicitada, 
+//           justificativa, 
+//           idUsuarioSolicitante,
+//           status,              
+//           idFuncionario,
+//           dtSolicitada      
+//         )
+//         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+//         RETURNING idAditivoExtra;
+//    `;
+
+//     const values = [
+//       idOrcamento, 
+//       idFuncao, 
+//       idEmpresaContexto,        // $3: idempresa
+//       tipoSolicitacao, 
+//       qtdSolicitada, 
+//       justificativa, 
+//       idUsuarioSolicitante,
+//       statusInicial,      // $8: 'Pendente'
+//     //   tipoSolicitacao === 'FuncExcedido' ? idFuncionario : null // $9: idFuncionario (ou null)
+//        idFuncionario || null, // $9: idFuncionario (ou null)
+//        dataParaBanco // $10: dataSolicitada (ou null)
+//     ];
+
+//     const resultado = await pool.query(query, values);
+
+//     // 5. Finalização e Log
+//     if (resultado.rows.length === 0) {
+//       throw new Error("A inserção falhou ou o ID não foi retornado.");
+//     }
+
+//     const idAditivoExtra = resultado.rows[0].idAditivoExtra;
+
+//     // 💡 Finaliza o Log de Auditoria
+//     if (req.logData && logMiddleware.salvarLog) {
+//       req.logData.idregistroalterado = idAditivoExtra;
+//       await logMiddleware.salvarLog(req.logData); 
+//     }
+
+//     // 6. Resposta de Sucesso (Status 201 Created)
+//     res.status(201).json({ 
+//       sucesso: true, 
+//       mensagem: `Solicitação de ${tipoSolicitacao} salva com sucesso com status ${statusInicial}.`,
+//       idAditivoExtra: idAditivoExtra
+//     });
+
+//     } catch (error) {
+//       console.error("Erro ao salvar solicitação AditivoExtra:", error.message || error);
+
+//       res.status(500).json({ 
+//         sucesso: false, 
+//         erro: "Erro interno do servidor ao processar a solicitação.",
+//           detalhe: error.message,
+//           valores_enviados: values // **CRÍTICO PARA VERIFICARMOS O UNDEFINED/NULL**
+//     });
+//   }
+// });
+
+
+// router.get('/aditivoextra/verificar-status',
+//     autenticarToken(),
+//     contextoEmpresa,
+//     async (req, res) => {
+//         const { idOrcamento, idFuncao, tipoSolicitacao, idFuncionario } = req.query;
+//         const idEmpresa = req.idempresa; 
+
+//         console.log(`🔥 Rota GET /aditivoextra/verificar-status: Orcamento: ${idOrcamento}, Funcao: ${idFuncao}`);
+
+//         if (!idOrcamento || !idFuncao || !idEmpresa || !tipoSolicitacao) {
+//             return res.status(400).json({
+//                 sucesso: false,
+//                 erro: "Parâmetros idOrcamento, idFuncao e/ou idEmpresa são obrigatórios."
+//             });
+//         }
+
+//         if (tipoSolicitacao === 'FuncExcedido' && !idFuncionario) {
+//              return res.status(400).json({
+//                  sucesso: false,
+//                  erro: "Para tipoSolicitacao 'FuncExcedido', o parâmetro idFuncionario é obrigatório."
+//              });
+//         }
+
+//         try {
+//             // --- 1. BUSCA A ÚLTIMA SOLICITAÇÃO DE ADITIVO/EXTRA PENDENTE/REJEITADO ---
+//             let solicitacaoQuery = `
+//                 SELECT 
+//                     idAditivoExtra, 
+//                     status, 
+//                     tipoSolicitacao, 
+//                     dtSolicitacao 
+//                 FROM AditivoExtra
+//                 WHERE 
+//                     idOrcamento = $1 AND 
+//                     idFuncao = $2 AND 
+//                     idEmpresa = $3 AND
+//                     tipoSolicitacao = $4
+//             `;
+//             let params = [idOrcamento, idFuncao, idEmpresa, tipoSolicitacao];
+            
+//             // 🎯 CORREÇÃO CRÍTICA: Filtra por idFuncionario se o tipo for 'FuncExcedido'
+//             if (tipoSolicitacao === 'FuncExcedido' && idFuncionario) {
+//                 solicitacaoQuery += ` AND idFuncionario = $5`;
+//                 params.push(idFuncionario); // Adiciona idFuncionario como 5º parâmetro
+//             }
+
+//             solicitacaoQuery += ` ORDER BY dtSolicitacao DESC LIMIT 1;`;
+
+//             const solicitacaoResult = await pool.query(solicitacaoQuery, params);
+//             const solicitacaoRecente = solicitacaoResult.rows[0] || null;
+
+//             // --- 2. BUSCA TOTAIS DO ORÇAMENTO E QUANTIDADES APROVADAS ---
+            
+//             // 2a. Busca Qtd. Orçada (SUM(qtditens)) e Qtd. Escalada (COUNT no staffeventos)
+//             // sqlanterior WITH OrcamentoContexto AS (
+//             //         SELECT 
+//             //             o.idevento, o.idcliente, o.idmontagem
+//             //         FROM orcamentos o
+//             //         WHERE o.idorcamento = $1
+//             //     )
+//             //     SELECT 
+//             //         -- Total orçado é a soma de todos os itens com aquela função no orçamento
+//             //         COALESCE(SUM(oi.qtditens), 0) AS "totalOrcado",
+//             //         -- Total escalado (vagas preenchidas) é o COUNT(DISTINCT staff)
+//             //         (
+//             //             SELECT COALESCE(COUNT(DISTINCT se.idfuncionario), 0)
+//             //             FROM staffeventos se
+//             //             JOIN OrcamentoContexto c ON 
+//             //                 se.idevento = c.idevento AND 
+//             //                 se.idcliente = c.idcliente AND 
+//             //                 se.idmontagem = c.idmontagem
+//             //             WHERE
+//             //                 se.idfuncao = $2
+//             //         ) AS "totalVagasPreenchidas"
+//             //     FROM orcamentoitens oi -- 🎯 CORRIGIDO O NOME DA TABELA
+//             //     WHERE 
+//             //         oi.idorcamento = $1 AND 
+//             //         oi.idfuncao = $2;
+//             const orcamentoQuery = `
+//                 SELECT 
+//                 -- Total de vagas definidas no Orçamento
+//                 (SELECT COALESCE(SUM(oi.qtditens), 0) 
+//                 FROM orcamentoitens oi 
+//                 WHERE oi.idorcamento = $1 AND oi.idfuncao = $2) AS "totalOrcado",
+
+//                 -- Total de pessoas já escaladas para ESTE orçamento específico
+//                 (SELECT COALESCE(COUNT(DISTINCT se.idfuncionario), 0)
+//                 FROM staffeventos se
+//                 WHERE se.idorcamento = $1 AND se.idfuncao = $2) AS "totalVagasPreenchidas";
+//             `;
+//             const orcamentoResult = await pool.query(orcamentoQuery, [idOrcamento, idFuncao]);
+            
+//             if (orcamentoResult.rows.length === 0) {
+//                  // Deve retornar 0, 0 se a função não estiver no orçamento, mas não 404.
+//                  // Neste caso, se a query não retornou linhas (o que não deve acontecer devido ao COALESCE), tratamos como 0.
+//                  let totaisFuncao = {
+//                     totalOrcado: 0,
+//                     totalVagasPreenchidas: 0
+//                  };
+//             } else {
+//                  // Usa o resultado da query
+//                  var totaisFuncao = orcamentoResult.rows[0];
+//             }
+            
+//             // 2b. Soma das Quantidades de Aditivos APROVADOS
+//             const aditivoAprovadoQuery = `
+//                 SELECT 
+//                     COALESCE(SUM(qtdSolicitada), 0) AS "totalAditivoAprovado"
+//                 FROM AditivoExtra
+//                 WHERE 
+//                     idOrcamento = $1 AND 
+//                     idFuncao = $2 AND 
+//                     idEmpresa = $3 AND
+//                     tipoSolicitacao = 'Aditivo' AND
+//                     status = 'Autorizado';
+//             `;
+//             const aditivoResult = await pool.query(aditivoAprovadoQuery, [idOrcamento, idFuncao, idEmpresa]);
+            
+//             // 2c. Soma das Quantidades de Extra Bonificado APROVADOS
+//             const extraAprovadoQuery = `
+//                 SELECT 
+//                     COALESCE(SUM(qtdSolicitada), 0) AS "totalExtraAprovado"
+//                 FROM AditivoExtra
+//                 WHERE 
+//                     idOrcamento = $1 AND 
+//                     idFuncao = $2 AND 
+//                     idEmpresa = $3 AND
+//                     tipoSolicitacao = 'ExtraBonificado' AND
+//                     status = 'Autorizado';
+//             `;
+//             const extraResult = await pool.query(extraAprovadoQuery, [idOrcamento, idFuncao, idEmpresa]);
+
+
+//             // 3. Monta o objeto final de totais
+//             totaisFuncao = {
+//                 totalOrcado: parseInt(totaisFuncao.totalOrcado), // Garante que é um número
+//                 totalVagasPreenchidas: parseInt(totaisFuncao.totalVagasPreenchidas), // Garante que é um número
+//                 totalAditivoAprovado: parseInt(aditivoResult.rows[0].totalAditivoAprovado),
+//                 totalExtraAprovado: parseInt(extraResult.rows[0].totalExtraAprovado)
+//             };
+
+
+//             // 4. Resposta de Sucesso
+//             res.json({
+//                 sucesso: true,
+//                 dados: {
+//                     solicitacaoRecente: solicitacaoRecente,
+//                     totaisFuncao: totaisFuncao
+//                 }
+//             });
+
+//         } catch (error) {
+//             console.error("Erro ao buscar status AditivoExtra:", error.message || error);
+//             res.status(500).json({
+//                 sucesso: false,
+//                 erro: "Erro interno do servidor ao buscar dados de Aditivo/Extra."
+//             });
+//         }
+// });
+
+
+// router.get('/aditivoextra/verificar-status',
+//     autenticarToken(),
+//     contextoEmpresa,
+//     async (req, res) => {
+//         // 🎯 Adicionamos 'dataSolicitada' aos parâmetros recebidos
+//         const { idOrcamento, idFuncao, tipoSolicitacao, idFuncionario, dataSolicitada } = req.query;
+//         const idEmpresa = req.idempresa; 
+
+//         const dataValida = (dataSolicitada && dataSolicitada !== 'undefined') ? dataSolicitada : null;
+
+//         if (!idOrcamento || !idFuncao || !idEmpresa || !tipoSolicitacao) {
+//             return res.status(400).json({
+//                 sucesso: false,
+//                 erro: "Parâmetros básicos são obrigatórios."
+//             });
+//         }
+
+//         try {
+//             // --- 1. BUSCA A SOLICITAÇÃO ESPECÍFICA PARA AQUELA DATA ---
+//             let solicitacaoQuery = `
+//                 SELECT 
+//                     ae.idAditivoExtra, 
+//                     ae.status, 
+//                     ae.tipoSolicitacao, 
+//                     ae.dtSolicitacao,
+//                     ae.dtsolicitada,
+//                     ae.idFuncionario,
+//                     f.nmfuncionario AS "nmFuncionarioDono"
+//                 FROM AditivoExtra ae
+//                 LEFT JOIN funcionarios f ON ae.idFuncionario = f.idfuncionario
+//                 WHERE 
+//                     ae.idOrcamento = $1 AND 
+//                     ae.idFuncao = $2 AND 
+//                     ae.idEmpresa = $3 AND
+//                     ae.tipoSolicitacao = $4
+//             `;
+            
+//             let params = [idOrcamento, idFuncao, idEmpresa, tipoSolicitacao];
+
+//             // 🎯 FILTRO POR DATA: Crucial para o controle granular
+//             if (dataValida) {
+//                 solicitacaoQuery += ` AND ae.dtsolicitada = $5`;
+//                 params.push(dataValida);
+//             }
+
+//             // Se for excedido, ainda filtramos pelo funcionário
+//             if (tipoSolicitacao.includes('Excedido') && idFuncionario) {
+//                 // Se já houver data, este será o $6, senão $5.
+//                 const nextIndex = params.length + 1;
+//                 solicitacaoQuery += ` AND ae.idFuncionario = $${nextIndex}`;
+//                 params.push(idFuncionario);
+//             }
+
+//             solicitacaoQuery += ` ORDER BY ae.dtSolicitacao DESC LIMIT 1;`;
+
+//             const solicitacaoResult = await pool.query(solicitacaoQuery, params);
+//             const solicitacaoRecente = solicitacaoResult.rows[0] || null;
+
+//             const orcamentoQuery = `
+//                 SELECT 
+//                 -- Total de vagas definidas no Orçamento
+//                 (SELECT COALESCE(SUM(oi.qtditens), 0) 
+//                 FROM orcamentoitens oi 
+//                 WHERE oi.idorcamento = $1 AND oi.idfuncao = $2) AS "totalOrcado",
+
+//                 -- Total de pessoas já escaladas para ESTE orçamento específico
+//                 (SELECT COALESCE(COUNT(DISTINCT se.idfuncionario), 0)
+//                 FROM staffeventos se
+//                 WHERE se.idorcamento = $1 AND se.idfuncao = $2) AS "totalVagasPreenchidas";
+//             `;
+//             const orcamentoResult = await pool.query(orcamentoQuery, [idOrcamento, idFuncao]);
+            
+//             if (orcamentoResult.rows.length === 0) {
+//                  // Deve retornar 0, 0 se a função não estiver no orçamento, mas não 404.
+//                  // Neste caso, se a query não retornou linhas (o que não deve acontecer devido ao COALESCE), tratamos como 0.
+//                  let totaisFuncao = {
+//                     totalOrcado: 0,
+//                     totalVagasPreenchidas: 0
+//                  };
+//             } else {
+//                  // Usa o resultado da query
+//                  var totaisFuncao = orcamentoResult.rows[0];
+//             }
+            
+//             // 2b. Soma das Quantidades de Aditivos APROVADOS
+//             const aditivoAprovadoQuery = `
+//                 SELECT 
+//                     COALESCE(SUM(qtdSolicitada), 0) AS "totalAditivoAprovado"
+//                 FROM AditivoExtra
+//                 WHERE 
+//                     idOrcamento = $1 AND 
+//                     idFuncao = $2 AND 
+//                     idEmpresa = $3 AND
+//                     tipoSolicitacao = 'Aditivo' AND
+//                     status = 'Autorizado';
+//             `;
+//             const aditivoResult = await pool.query(aditivoAprovadoQuery, [idOrcamento, idFuncao, idEmpresa]);
+            
+//             // 2c. Soma das Quantidades de Extra Bonificado APROVADOS
+//             const extraAprovadoQuery = `
+//                 SELECT 
+//                     COALESCE(SUM(qtdSolicitada), 0) AS "totalExtraAprovado"
+//                 FROM AditivoExtra
+//                 WHERE 
+//                     idOrcamento = $1 AND 
+//                     idFuncao = $2 AND 
+//                     idEmpresa = $3 AND
+//                     tipoSolicitacao = 'ExtraBonificado' AND
+//                     status = 'Autorizado';
+//             `;
+//             const extraResult = await pool.query(extraAprovadoQuery, [idOrcamento, idFuncao, idEmpresa]);
+
+
+//             // 3. Monta o objeto final de totais
+//             totaisFuncao = {
+//                 totalOrcado: parseInt(totaisFuncao.totalOrcado), // Garante que é um número
+//                 totalVagasPreenchidas: parseInt(totaisFuncao.totalVagasPreenchidas), // Garante que é um número
+//                 totalAditivoAprovado: parseInt(aditivoResult.rows[0].totalAditivoAprovado),
+//                 totalExtraAprovado: parseInt(extraResult.rows[0].totalExtraAprovado)
+//             };
+
+
+//             // 4. Resposta de Sucesso
+//             res.json({
+//                 sucesso: true,
+//                 dados: {
+//                     solicitacaoRecente: solicitacaoRecente,
+//                     totaisFuncao: totaisFuncao
+//                 }
+//             });
+
+//         } catch (error) {
+//             console.error("Erro ao buscar status AditivoExtra:", error.message || error);
+//             res.status(500).json({
+//                 sucesso: false,
+//                 erro: "Erro interno do servidor ao buscar dados de Aditivo/Extra."
+//             });
+//         }
+// });
+
+//está correta para setor e pavilhão e data
+// router.get('/aditivoextra/verificar-status',
+//     autenticarToken(),
+//     contextoEmpresa,
+//     async (req, res) => {
+//         const { idOrcamento, idFuncao, tipoSolicitacao, idFuncionario, dataSolicitada } = req.query;
+//         const idEmpresa = req.idempresa;
+
+//         // Validação inicial rigorosa para evitar erro 500 por undefined
+//         if (!idOrcamento || !idFuncao || !idEmpresa || !tipoSolicitacao) {
+//             return res.status(400).json({ sucesso: false, erro: "Parâmetros incompletos." });
+//         }
+
+//         const dataValida = (dataSolicitada && dataSolicitada !== 'undefined' && dataSolicitada !== '') ? dataSolicitada : null;
+
+//         try {
+//             // --- 1. BUSCA SOLICITAÇÃO RECENTE ---
+//             let solicitacaoQuery = `
+//                 SELECT 
+//                     ae.idAditivoExtra, 
+//                     ae.status, 
+//                     ae.tipoSolicitacao, 
+//                     ae.dtSolicitacao, 
+//                     ae.idFuncionario,
+//                     f.nome AS "nmfuncionariodono" -- Certifique-se que o nome da coluna na tabela funcionarios é este
+//                 FROM AditivoExtra ae
+//                 LEFT JOIN funcionarios f ON ae.idfuncionario = f.idfuncionario
+//                 WHERE ae.idOrcamento = $1 
+//                 AND ae.idFuncao = $2 
+//                 AND ae.idEmpresa = $3 
+//                 AND ae.tipoSolicitacao = $4
+//             `;
+            
+//             let params = [idOrcamento, idFuncao, idEmpresa, tipoSolicitacao];
+//             if (dataValida) {
+//                 // solicitacaoQuery += ` AND ae.dtsolicitada = $5`;
+//                 solicitacaoQuery += ` AND (ae.dtsolicitada::date = $5::date OR ae.dtsolicitada IS NULL)`;
+//                 params.push(dataValida);
+//             }
+
+//             // if (tipoSolicitacao.includes('Excedida') && idFuncionario) {
+//             //     const nextIndex = params.length + 1;
+//             //     solicitacaoQuery += ` AND ae.idFuncionario = $${nextIndex}`;
+//             //     params.push(idFuncionario);
+//             // }
+
+//             solicitacaoQuery += ` ORDER BY ae.dtSolicitacao DESC LIMIT 1;`;
+//             const solicitacaoResult = await pool.query(solicitacaoQuery, params);
+//             const solicitacaoRecente = solicitacaoResult.rows[0] || null;
+
+//             // --- 2. BUSCA TOTAIS (Inicializamos fora para evitar erro de escopo) ---
+//             const orcamentoQuery = `
+//                 SELECT 
+//                     (SELECT COALESCE(SUM(oi.qtditens), 0) FROM orcamentoitens oi WHERE oi.idorcamento = $1 AND oi.idfuncao = $2) AS "totalOrcado",
+//                     (SELECT COALESCE(COUNT(DISTINCT se.idfuncionario), 0) FROM staffeventos se WHERE se.idorcamento = $1 AND se.idfuncao = $2) AS "totalVagasPreenchidas"
+//             `;
+//             const orcamentoResult = await pool.query(orcamentoQuery, [idOrcamento, idFuncao]);
+//             const dadosBase = orcamentoResult.rows[0] || { totalOrcado: 0, totalVagasPreenchidas: 0 };
+
+//             // Padronização para as queries de soma (Remove " - Vaga Excedida")
+//             const tipoLimpo = tipoSolicitacao.split(' - ')[0].replace(/\s/g, ''); 
+
+//             const aditivoResult = await pool.query(`
+//                 SELECT COALESCE(SUM(qtdSolicitada), 0) AS total FROM AditivoExtra 
+//                 WHERE idOrcamento = $1 AND idFuncao = $2 AND idEmpresa = $3 AND status = 'Autorizado' AND tipoSolicitacao ILIKE '%Aditivo%'
+//             `, [idOrcamento, idFuncao, idEmpresa]);
+
+//             const extraResult = await pool.query(`
+//                 SELECT COALESCE(SUM(qtdSolicitada), 0) AS total FROM AditivoExtra 
+//                 WHERE idOrcamento = $1 AND idFuncao = $2 AND idEmpresa = $3 AND status = 'Autorizado' AND tipoSolicitacao ILIKE '%Extra%'
+//             `, [idOrcamento, idFuncao, idEmpresa]);
+
+//             // --- 3. MONTAGEM DO OBJETO FINAL ---
+//             const totaisFuncao = {
+//                 totalOrcado: parseInt(dadosBase.totalOrcado) || 0,
+//                 totalVagasPreenchidas: parseInt(dadosBase.totalVagasPreenchidas) || 0,
+//                 totalAditivoAprovado: parseInt(aditivoResult.rows[0].total) || 0,
+//                 totalExtraAprovado: parseInt(extraResult.rows[0].total) || 0
+//             };
+
+//             res.json({
+//                 sucesso: true,
+//                 dados: { solicitacaoRecente, totaisFuncao }
+//             });
+
+//         } catch (error) {
+//             console.error("ERRO CRÍTICO NO BANCO:", error.stack); // stack mostra a linha exata do erro
+//             res.status(500).json({ sucesso: false, erro: error.message });
+//         }
+//     }
+// );
+
+
 router.post('/aditivoextra/solicitacao', 
   autenticarToken(), 
   contextoEmpresa, 
@@ -962,306 +1531,261 @@ router.post('/aditivoextra/solicitacao',
 
   logMiddleware('aditivoextra', { 
     buscarDadosAnteriores: async (req) => {
-    return { dadosanteriores: null, idregistroalterado: null };
+      return { dadosanteriores: null, idregistroalterado: null };
     }
   }),
 
   async (req, res) => {
     console.log("🔥 Rota /staff/aditivoextra/solicitacao acessada", req.body);
 
-    // 1. Desestruturar, Sanitizar e INCLUIR idEmpresa
     const { 
       idOrcamento, 
       idFuncao, 
       qtdSolicitada, 
       tipoSolicitacao, 
       justificativa, 
-      idFuncionario  
+      idFuncionario,
+      dataSolicitada 
     } = req.body; 
 
     const idEmpresaContexto = req.empresa?.idempresa || req.idempresa;
     const idUsuarioSolicitante = req.usuario?.idusuario; 
-    
-    // 💡 NOVO: Status inicial
     const statusInicial = 'Pendente';
 
-    // 2. Validação Atualizada (incluindo idEmpresa)
-    
-    if (!idUsuarioSolicitante) {
-        let erroDetalhe = "ID do usuário solicitante (idUsuarioSolicitante) não encontrado no token de autenticação.";
-        return res.status(401).json({ // Retornar 401 (Não Autorizado) ou 500 para erro de contexto
-            sucesso: false,
-            erro: erroDetalhe
-        });
-    }
-    if (!idEmpresaContexto) {
-        let erroDetalhe = "ID da Empresa (idEmpresa) não encontrado no contexto da requisição.";
-        return res.status(500).json({ // Erro interno se o contexto falhar
-            sucesso: false,
-            erro: erroDetalhe
+    // 1. Validações de Contexto
+    if (!idUsuarioSolicitante || !idEmpresaContexto) {
+        return res.status(401).json({ 
+            sucesso: false, 
+            erro: "Usuário ou Empresa não identificados no contexto da requisição." 
         });
     }
 
+    // 2. Validação de Campos Obrigatórios
     let campoFaltante = null;
-
-    if (!idOrcamento) {
-        campoFaltante = 'idOrcamento';
-    } else if (!idFuncao) {
-        campoFaltante = 'idFuncao';
-    } else if (!qtdSolicitada) {
-        campoFaltante = 'qtdSolicitada';
-    } else if (!tipoSolicitacao) {
-        campoFaltante = 'tipoSolicitacao';
-    } else if (!justificativa) {
-        campoFaltante = 'justificativa';
-    }
-
+    if (!idOrcamento) campoFaltante = 'idOrcamento';
+    else if (!idFuncao) campoFaltante = 'idFuncao';
+    else if (!qtdSolicitada) campoFaltante = 'qtdSolicitada';
+    else if (!tipoSolicitacao) campoFaltante = 'tipoSolicitacao';
+    else if (!justificativa) campoFaltante = 'justificativa';
 
     if (campoFaltante) { 
-        // Se algum campo do BODY estiver faltando, retorna 400 com a mensagem específica
-        const erroDetalhe = `Dados incompletos. O campo obrigatório **${campoFaltante}** está faltando na requisição.`;
-        
         return res.status(400).json({ 
             sucesso: false,
-            erro: erroDetalhe
+            erro: `O campo obrigatório **${campoFaltante}** está faltando.` 
         });
     }
 
-    if (tipoSolicitacao === 'FuncExcedido' && !idFuncionario) {
-        return res.status(400).json({ 
-            sucesso: false, 
-            erro: "Para o tipo de solicitação 'FuncExcedido', o campo idFuncionario é obrigatório." 
-        });
-    }
+    // 3. Tratamento da Data (Crucial para evitar o erro de undefined)
+    const dataTratada = Array.isArray(dataSolicitada) ? dataSolicitada[0] : dataSolicitada;
+    const dataParaBanco = (dataTratada && dataTratada !== 'undefined' && String(dataTratada).trim() !== "") 
+        ? dataTratada 
+        : null;
 
-    // 3. Validação de Lógica
-    if (qtdSolicitada <= 0) {
-      return res.status(400).json({ sucesso: false, erro: "A quantidade solicitada deve ser maior que zero." });
-    }
-
+    // 4. Verificação de Duplicidade (CORRIGIDA)
     try {
-    // 4. Comando SQL de INSERÇÃO (Atualizado para incluir idEmpresa e status)
-    const query = `
-        INSERT INTO AditivoExtra (
+        const checkDuplicidade = await pool.query(`
+            SELECT idAditivoExtra FROM AditivoExtra 
+            WHERE idOrcamento = $1 
+              AND idFuncionario = $2 
+              AND idFuncao = $3 
+              AND tipoSolicitacao = $4 
+              AND (dtsolicitada = $5 OR (dtsolicitada IS NULL AND $5 IS NULL))
+              AND idEmpresa = $6
+              AND status = 'Pendente'
+        `, [idOrcamento, idFuncionario, idFuncao, tipoSolicitacao, dataParaBanco, idEmpresaContexto]);
+
+        if (checkDuplicidade.rows.length > 0) {
+            return res.status(409).json({ 
+                sucesso: false, 
+                erro: "Já existe uma solicitação pendente idêntica para este funcionário." 
+            });
+        }
+
+        // 5. Inserção no Banco
+        const queryInsert = `
+            INSERT INTO AditivoExtra (
+              idOrcamento, idFuncao, idEmpresa, tipoSolicitacao, 
+              qtdSolicitada, justificativa, idUsuarioSolicitante,
+              status, idFuncionario, dtSolicitada
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            RETURNING idAditivoExtra;
+        `;
+
+        const values = [
           idOrcamento, 
           idFuncao, 
-          idEmpresa,        
+          idEmpresaContexto, 
           tipoSolicitacao, 
           qtdSolicitada, 
           justificativa, 
           idUsuarioSolicitante,
-          status,              
-          idFuncionario      
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        RETURNING idAditivoExtra;
-   `;
+          statusInicial,
+          idFuncionario || null,
+          dataParaBanco
+        ];
 
-    const values = [
-      idOrcamento, 
-      idFuncao, 
-      idEmpresaContexto,        // $3: idempresa
-      tipoSolicitacao, 
-      qtdSolicitada, 
-      justificativa, 
-      idUsuarioSolicitante,
-      statusInicial,      // $8: 'Pendente'
-      tipoSolicitacao === 'FuncExcedido' ? idFuncionario : null // $9: idFuncionario (ou null)
-    ];
+        const resultado = await pool.query(queryInsert, values);
+        const idAditivoExtra = resultado.rows[0].idaditivoextra;
 
-    const resultado = await pool.query(query, values);
+        // Log de Auditoria
+        if (req.logData && logMiddleware.salvarLog) {
+          req.logData.idregistroalterado = idAditivoExtra;
+          await logMiddleware.salvarLog(req.logData); 
+        }
 
-    // 5. Finalização e Log
-    if (resultado.rows.length === 0) {
-      throw new Error("A inserção falhou ou o ID não foi retornado.");
-    }
-
-    const idAditivoExtra = resultado.rows[0].idAditivoExtra;
-
-    // 💡 Finaliza o Log de Auditoria
-    if (req.logData && logMiddleware.salvarLog) {
-      req.logData.idregistroalterado = idAditivoExtra;
-      await logMiddleware.salvarLog(req.logData); 
-    }
-
-    // 6. Resposta de Sucesso (Status 201 Created)
-    res.status(201).json({ 
-      sucesso: true, 
-      mensagem: `Solicitação de ${tipoSolicitacao} salva com sucesso com status ${statusInicial}.`,
-      idAditivoExtra: idAditivoExtra
-    });
+        res.status(201).json({ 
+          sucesso: true, 
+          mensagem: `Solicitação salva com sucesso.`,
+          idAditivoExtra: idAditivoExtra
+        });
 
     } catch (error) {
-      console.error("Erro ao salvar solicitação AditivoExtra:", error.message || error);
-
-      res.status(500).json({ 
-        sucesso: false, 
-        erro: "Erro interno do servidor ao processar a solicitação.",
-          detalhe: error.message,
-          valores_enviados: values // **CRÍTICO PARA VERIFICARMOS O UNDEFINED/NULL**
-    });
-  }
+        console.error("❌ Erro ao processar AditivoExtra:", error.message);
+        res.status(500).json({ 
+            sucesso: false, 
+            erro: "Erro interno ao processar a solicitação.",
+            detalhe: error.message 
+        });
+    }
 });
-
 
 router.get('/aditivoextra/verificar-status',
     autenticarToken(),
     contextoEmpresa,
     async (req, res) => {
-        const { idOrcamento, idFuncao, tipoSolicitacao, idFuncionario } = req.query;
-        const idEmpresa = req.idempresa; 
-
-        console.log(`🔥 Rota GET /aditivoextra/verificar-status: Orcamento: ${idOrcamento}, Funcao: ${idFuncao}`);
+        const { idOrcamento, idFuncao, tipoSolicitacao, idFuncionario, dataSolicitada } = req.query;
+        const idEmpresa = req.idempresa;
 
         if (!idOrcamento || !idFuncao || !idEmpresa || !tipoSolicitacao) {
-            return res.status(400).json({
-                sucesso: false,
-                erro: "Parâmetros idOrcamento, idFuncao e/ou idEmpresa são obrigatórios."
-            });
-        }
-
-        if (tipoSolicitacao === 'FuncExcedido' && !idFuncionario) {
-             return res.status(400).json({
-                 sucesso: false,
-                 erro: "Para tipoSolicitacao 'FuncExcedido', o parâmetro idFuncionario é obrigatório."
-             });
+            return res.status(400).json({ sucesso: false, erro: "Parâmetros incompletos." });
         }
 
         try {
-            // --- 1. BUSCA A ÚLTIMA SOLICITAÇÃO DE ADITIVO/EXTRA PENDENTE/REJEITADO ---
-            let solicitacaoQuery = `
-                SELECT 
-                    idAditivoExtra, 
-                    status, 
-                    tipoSolicitacao, 
-                    dtSolicitacao 
-                FROM AditivoExtra
-                WHERE 
-                    idOrcamento = $1 AND 
-                    idFuncao = $2 AND 
-                    idEmpresa = $3 AND
-                    tipoSolicitacao = $4
-            `;
-            let params = [idOrcamento, idFuncao, idEmpresa, tipoSolicitacao];
-            
-            // 🎯 CORREÇÃO CRÍTICA: Filtra por idFuncionario se o tipo for 'FuncExcedido'
-            if (tipoSolicitacao === 'FuncExcedido' && idFuncionario) {
-                solicitacaoQuery += ` AND idFuncionario = $5`;
-                params.push(idFuncionario); // Adiciona idFuncionario como 5º parâmetro
+            let params = [idOrcamento, idFuncao, idEmpresa];
+            let filtroTipo = "";
+
+            if (tipoSolicitacao === 'QUALQUER_VAGA') {
+                // 🎯 Busca tanto o padrão antigo quanto o novo
+                filtroTipo = "AND UPPER(ae.tipoSolicitacao) IN ('ADITIVO - VAGA EXCEDIDA', 'EXTRA BONIFICADO - VAGA EXCEDIDA')";
+            } else if (tipoSolicitacao === 'QUALQUER_DATA') {
+                // 🎯 Busca tanto "DATA FORA" quanto "DATAS FORA"
+                filtroTipo = "AND (UPPER(ae.tipoSolicitacao) LIKE '%DATA%FORA%ORÇAMENTO%')";
+            } else if (tipoSolicitacao === 'QUALQUER_FUNC') {
+                filtroTipo = "AND ae.tipoSolicitacao ILIKE '%FuncExcedido%'";
+            } else {
+                // Busca exata ignorando maiúsculas/minúsculas
+                filtroTipo = "AND UPPER(ae.tipoSolicitacao) = UPPER($4)";
+                params.push(tipoSolicitacao);
             }
 
-            solicitacaoQuery += ` ORDER BY dtSolicitacao DESC LIMIT 1;`;
+            // 2. FILTRO DE DATA
+            let filtroData = "";
+            if (dataSolicitada && dataSolicitada !== 'undefined' && dataSolicitada !== '') {
+                // O índice da data depende se o $4 foi usado ou não
+                const dataIndex = params.length + 1;
+                filtroData = ` AND (ae.dtsolicitada::date = $${dataIndex}::date OR ae.dtsolicitada IS NULL)`;
+                params.push(dataSolicitada);
+            }
 
+            // --- 1. BUSCA A ÚLTIMA SOLICITAÇÃO ---
+            const solicitacaoQuery = `
+                SELECT ae.*, f.nome AS "nmfuncionariodono"
+                FROM AditivoExtra ae
+                LEFT JOIN funcionarios f ON ae.idfuncionario = f.idfuncionario
+                WHERE ae.idOrcamento = $1 AND ae.idFuncao = $2 AND ae.idEmpresa = $3
+                ${filtroTipo}
+                ${filtroData}
+                ORDER BY ae.dtSolicitacao DESC LIMIT 1;
+            `;
             const solicitacaoResult = await pool.query(solicitacaoQuery, params);
             const solicitacaoRecente = solicitacaoResult.rows[0] || null;
 
-            // --- 2. BUSCA TOTAIS DO ORÇAMENTO E QUANTIDADES APROVADAS ---
-            
-            // 2a. Busca Qtd. Orçada (SUM(qtditens)) e Qtd. Escalada (COUNT no staffeventos)
-            // sqlanterior WITH OrcamentoContexto AS (
-            //         SELECT 
-            //             o.idevento, o.idcliente, o.idmontagem
-            //         FROM orcamentos o
-            //         WHERE o.idorcamento = $1
-            //     )
-            //     SELECT 
-            //         -- Total orçado é a soma de todos os itens com aquela função no orçamento
-            //         COALESCE(SUM(oi.qtditens), 0) AS "totalOrcado",
-            //         -- Total escalado (vagas preenchidas) é o COUNT(DISTINCT staff)
-            //         (
-            //             SELECT COALESCE(COUNT(DISTINCT se.idfuncionario), 0)
-            //             FROM staffeventos se
-            //             JOIN OrcamentoContexto c ON 
-            //                 se.idevento = c.idevento AND 
-            //                 se.idcliente = c.idcliente AND 
-            //                 se.idmontagem = c.idmontagem
-            //             WHERE
-            //                 se.idfuncao = $2
-            //         ) AS "totalVagasPreenchidas"
-            //     FROM orcamentoitens oi -- 🎯 CORRIGIDO O NOME DA TABELA
-            //     WHERE 
-            //         oi.idorcamento = $1 AND 
-            //         oi.idfuncao = $2;
+            // --- 2. VERIFICAÇÃO ESPECÍFICA (CORRIGIDA) ---
+            let autorizadoEspecifico = false;
+            if (idFuncionario && idFuncionario !== 'undefined') {
+                let paramsCheck = [idOrcamento, idFuncao, idFuncionario, idEmpresa];
+                let filtroTipoCheck = "";
+
+                if (tipoSolicitacao === 'QUALQUER_VAGA') {
+                    filtroTipoCheck = "AND UPPER(ae.tipoSolicitacao) IN ('ADITIVO - VAGA EXCEDIDA', 'EXTRA BONIFICADO - VAGA EXCEDIDA')";
+                } else if (tipoSolicitacao === 'QUALQUER_DATA') {
+                    filtroTipoCheck = "AND (UPPER(ae.tipoSolicitacao) LIKE '%DATA%FORA%ORÇAMENTO%')";
+                } else {
+                    filtroTipoCheck = "AND UPPER(ae.tipoSolicitacao) = UPPER($5)";
+                    paramsCheck.push(tipoSolicitacao);
+                }
+
+                let filtroDataCheck = "";
+                if (dataSolicitada && dataSolicitada !== 'undefined' && dataSolicitada !== '') {
+                    const idxD = paramsCheck.length + 1;
+                    filtroDataCheck = ` AND (ae.dtsolicitada::date = $${idxD}::date OR ae.dtsolicitada IS NULL)`;
+                    paramsCheck.push(dataSolicitada);
+                }
+
+                const checkQuery = `
+                    SELECT ae.status, ae.tipoSolicitacao -- 🎯 Adicionamos o tipoSolicitacao aqui
+                    FROM AditivoExtra ae 
+                    WHERE ae.idOrcamento = $1 
+                    AND ae.idFuncao = $2 
+                    AND ae.idFuncionario = $3 
+                    AND ae.idEmpresa = $4
+                    AND ae.status IN ('Autorizado', 'Aprovado', 'Pendente', 'Em Análise') -- 🎯 Pegamos pendentes também
+                    ${filtroTipoCheck} 
+                    ${filtroDataCheck}
+                    ORDER BY ae.dtSolicitacao DESC LIMIT 1
+                `;
+                
+                const checkResult = await pool.query(checkQuery, paramsCheck);
+                
+                // Se achou algo, enviamos os detalhes
+                if (checkResult.rows.length > 0) {
+                    autorizadoEspecifico = checkResult.rows[0].status === 'Autorizado' || checkResult.rows[0].status === 'Aprovado';
+                    solicitacaoPendente = checkResult.rows[0]; // Retorna o objeto completo
+                }
+            }
+
+            // --- 3. BUSCA TOTAIS ---
             const orcamentoQuery = `
                 SELECT 
-                -- Total de vagas definidas no Orçamento
-                (SELECT COALESCE(SUM(oi.qtditens), 0) 
-                FROM orcamentoitens oi 
-                WHERE oi.idorcamento = $1 AND oi.idfuncao = $2) AS "totalOrcado",
-
-                -- Total de pessoas já escaladas para ESTE orçamento específico
-                (SELECT COALESCE(COUNT(DISTINCT se.idfuncionario), 0)
-                FROM staffeventos se
-                WHERE se.idorcamento = $1 AND se.idfuncao = $2) AS "totalVagasPreenchidas";
+                    (SELECT COALESCE(SUM(oi.qtditens), 0) FROM orcamentoitens oi WHERE oi.idorcamento = $1 AND oi.idfuncao = $2) AS "totalOrcado",
+                    (SELECT COALESCE(COUNT(DISTINCT se.idfuncionario), 0) FROM staffeventos se WHERE se.idorcamento = $1 AND se.idfuncao = $2) AS "totalVagasPreenchidas"
             `;
             const orcamentoResult = await pool.query(orcamentoQuery, [idOrcamento, idFuncao]);
-            
-            if (orcamentoResult.rows.length === 0) {
-                 // Deve retornar 0, 0 se a função não estiver no orçamento, mas não 404.
-                 // Neste caso, se a query não retornou linhas (o que não deve acontecer devido ao COALESCE), tratamos como 0.
-                 let totaisFuncao = {
-                    totalOrcado: 0,
-                    totalVagasPreenchidas: 0
-                 };
-            } else {
-                 // Usa o resultado da query
-                 var totaisFuncao = orcamentoResult.rows[0];
-            }
-            
-            // 2b. Soma das Quantidades de Aditivos APROVADOS
-            const aditivoAprovadoQuery = `
-                SELECT 
-                    COALESCE(SUM(qtdSolicitada), 0) AS "totalAditivoAprovado"
-                FROM AditivoExtra
-                WHERE 
-                    idOrcamento = $1 AND 
-                    idFuncao = $2 AND 
-                    idEmpresa = $3 AND
-                    tipoSolicitacao = 'Aditivo' AND
-                    status = 'Autorizado';
-            `;
-            const aditivoResult = await pool.query(aditivoAprovadoQuery, [idOrcamento, idFuncao, idEmpresa]);
-            
-            // 2c. Soma das Quantidades de Extra Bonificado APROVADOS
-            const extraAprovadoQuery = `
-                SELECT 
-                    COALESCE(SUM(qtdSolicitada), 0) AS "totalExtraAprovado"
-                FROM AditivoExtra
-                WHERE 
-                    idOrcamento = $1 AND 
-                    idFuncao = $2 AND 
-                    idEmpresa = $3 AND
-                    tipoSolicitacao = 'ExtraBonificado' AND
-                    status = 'Autorizado';
-            `;
-            const extraResult = await pool.query(extraAprovadoQuery, [idOrcamento, idFuncao, idEmpresa]);
+            const dadosBase = orcamentoResult.rows[0];
 
+            const aditivoResult = await pool.query(`
+                SELECT COALESCE(SUM(qtdSolicitada), 0) AS total FROM AditivoExtra 
+                WHERE idOrcamento = $1 AND idFuncao = $2 AND idEmpresa = $3 AND status = 'Autorizado' AND tipoSolicitacao ILIKE '%Aditivo%'
+            `, [idOrcamento, idFuncao, idEmpresa]);
 
-            // 3. Monta o objeto final de totais
-            totaisFuncao = {
-                totalOrcado: parseInt(totaisFuncao.totalOrcado), // Garante que é um número
-                totalVagasPreenchidas: parseInt(totaisFuncao.totalVagasPreenchidas), // Garante que é um número
-                totalAditivoAprovado: parseInt(aditivoResult.rows[0].totalAditivoAprovado),
-                totalExtraAprovado: parseInt(extraResult.rows[0].totalExtraAprovado)
+            const extraResult = await pool.query(`
+                SELECT COALESCE(SUM(qtdSolicitada), 0) AS total FROM AditivoExtra 
+                WHERE idOrcamento = $1 AND idFuncao = $2 AND idEmpresa = $3 AND status = 'Autorizado' AND tipoSolicitacao ILIKE '%Extra%'
+            `, [idOrcamento, idFuncao, idEmpresa]);
+
+            const totaisFuncao = {
+                totalOrcado: parseInt(dadosBase.totalOrcado) || 0,
+                totalVagasPreenchidas: parseInt(dadosBase.totalVagasPreenchidas) || 0,
+                totalAditivoAprovado: parseInt(aditivoResult.rows[0].total) || 0,
+                totalExtraAprovado: parseInt(extraResult.rows[0].total) || 0
             };
 
-
-            // 4. Resposta de Sucesso
+            // --- 4. RESPOSTA FINAL ---
             res.json({
                 sucesso: true,
-                dados: {
-                    solicitacaoRecente: solicitacaoRecente,
-                    totaisFuncao: totaisFuncao
+                dados: { 
+                    solicitacaoRecente, 
+                    autorizadoEspecifico,
+                    totaisFuncao: totaisFuncao // 🚀 AJUSTE: Agora enviando o objeto preenchido
                 }
             });
 
         } catch (error) {
-            console.error("Erro ao buscar status AditivoExtra:", error.message || error);
-            res.status(500).json({
-                sucesso: false,
-                erro: "Erro interno do servidor ao buscar dados de Aditivo/Extra."
-            });
+            console.error("ERRO CRÍTICO NO BANCO:", error.stack);
+            res.status(500).json({ sucesso: false, erro: error.message });
         }
-});
+    }
+);
 
 module.exports = router;

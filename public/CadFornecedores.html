@@ -1,0 +1,215 @@
+  <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+  <link rel="stylesheet" href="css/MensagensSwal/mensagensSwal.css">
+  <link rel="stylesheet" href="css/Modal/CadFornecedores.css">
+  <link rel="stylesheet" href="css/Roots/Roots.css">
+  <div id="cadModalFornecedores" class="modal">
+    <div class="modal-content">    
+
+      <div class="Close"><button class="close" id="Fechar"> X </button></div>
+
+      <div id="form-content">
+
+        <div class="title">
+          <h1>Cadastro de Fornecedores</h1>
+        </div>
+
+        <form id="form" name="form" autocomplete="off">
+
+          <fieldset>
+            <legend>Informações do Fornecedor</legend>
+            <div class="form-2colunas">
+              <div class="form2">
+                <input type="text" class="uppercase" name="nmFantasia" id="nmFantasia" required>
+                <label for="nmFantasia"> Nome Fantasia</label>
+              </div>
+
+              <div class="form2">
+                <input type="text" class="uppercase" name="razaoSocial" id="razaoSocial" required>
+                <label for="razaoSocial"> Razão Social</label>
+              </div>
+            </div>
+            <div class="form-2colunas">
+              <div class="form2">
+                <input type="text" name="cnpj" id="cnpj" maxlength="20" required oninput="formatCNPJ(this)">
+                <!-- maxlength="20" oninput="formatCNPJ(this)" required > -->
+                <label for="cnpj">CPF/CNPJ</label>
+              </div>
+              <div class="form2">
+                <input type="text" class="uppercase" name="inscEstadual" id="inscEstadual" required
+                  oninput="formatIE(this)">
+                <label for="inscEstadual">Inscrição Estadual</label>
+              </div>
+            </div>
+            <div class="form-2colunas">
+              <div class="form2">
+                <input type="email" name="emailFornecedor" id="emailFornecedor" required>
+                <label for="emailFornecedor">Email Fornecedor</label>
+              </div>
+               <div class="form2">
+                <input type="tel" name="telefone" id="telefone" maxlength="15" oninput="formatTelefone(this)" required>
+                <label for="tel"> Telefone </label>
+              </div>
+            </div>  
+
+            <div class="form-3colunas">
+              <div class="checkbox-wrapper-33">
+                <label class="checkbox">
+                  <p class="checkbox__textwrapper">Fornecedor Ativo</p>
+                  <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo" />
+                  <span class="checkbox__symbol">
+                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28"
+                      version="1" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M4 14l8 7L24 7"></path>
+                    </svg>
+                  </span>
+
+                </label>
+              </div>
+
+              <div class="form2">
+                <input type="text" class="uppercase" name="tpfornecedor" id="tpfornecedor" maxlength="1" pattern="^[jJfF]$"
+                  title="F = Física | J = Jurídica" required spellcheck="false" />
+                <label for="tpfornecedor">F/J</label>
+              </div>
+
+              <div class="form2">
+                <input type="text" class="uppercase" name="idFornecedor" id="idFornecedor" placeholder=" "
+                  spellcheck="false" readonly />
+                <label for="idFornecedor">Código</label>
+              </div>
+            </div>
+
+
+          </fieldset><br>
+
+          <fieldset>
+            <legend>Dados Bancários</legend>
+            <div class="form-2colunas">
+              <div class="form2">
+                <!-- <input type="text" name="codBanco" id="codBanco"  required  oninput="autoPreencherBanco(this, 'input')" onblur="autoPreencherBanco(this, 'blur')"> -->
+                <input type="text" name="codBanco" id="codBanco"  required >
+                <label for="codBanco"> Cod. Banco </label>
+              </div>
+              <div class="form2">
+                <!-- <input type="text" name="banco" id="banco" class = "uppercase" required  oninput="autoPreencherBanco(this, 'input')" onblur="autoPreencherBanco(this, 'blur')"> -->
+                <input type="text" name="banco" id="banco" class = "uppercase" required readonly>
+                <label for="banco">Banco</label>
+              </div>                 
+              
+            </div>
+            <div class="form-2colunas">
+              <div class="form2">
+                <input type="text" name="agencia" id="agencia"  required >
+                <label for="agencia"> Agência </label>
+              </div>
+              <div class="form2">
+                <input type="text" name="digitoAgencia" id="digitoAgencia"  required >
+                <label for="digitoAgencia"> Dígito da Agência </label>
+              </div>
+            </div>
+            <div class="form-2colunas">
+              <div class="form2">
+                <input type="text" name="nConta" id="nConta" required >
+                <label for="nConta">N° da Conta </label>
+              </div>
+              <div class="form2">
+                <input type="text" name="digitoConta" id="digitoConta"  required >
+                <label for="digitoConta"> Dígito da Conta </label>
+              </div>              
+            </div>
+            <!-- <div class="form-2colunas"> -->
+              <div class="form2">
+                <input type="text" name="pix" id="pix" spellcheck="false" required>
+                <label for="pix"> Pix </label>
+              </div>              
+            <!-- </div> -->
+          </fieldset><br>
+
+          <fieldset>
+            <legend> Dados Contato</legend>
+            <div class="form-2colunas">
+              <div class="form2">
+                <input type="text" class="uppercase" name="nmContato" id="nmContato" required>
+                <label for="nmContato"> Nome Contato </label>
+              </div>
+              <div class="form2">
+                <input type="tel" name="celContato" id="celContato" maxlength="15" oninput="formatTelefone(this)"
+                  required>
+                <label for="celContato">Celular para contato </label>
+              </div>
+            </div>
+            <div class="form-2colunas">
+              <div class="form2">
+                <input type="emailContato" name="emailContato" id="emailContato" required>
+                <label for="email">Email Contato</label>
+              </div>
+              <div class="form2">
+                <textarea name="observacao" id="observacao" style="padding-top: 0.7em;" required></textarea>
+                <label for="observacao">Observação</label>
+              </div>
+            </div>
+
+
+          </fieldset>
+          <br>
+
+          <fieldset>
+            <legend>Dados de Localização</legend>
+            <div class="form-2colunas">
+              <div class="form2">
+                <input type="text" id="cep" name="cep" maxlength="9" oninput="formatCEP(this)" oninput="buscarCEP()"
+                  required>
+                <label for="cep">CEP</label>
+              </div>
+              <div class="form2">
+                <input type="text" class="uppercase" id="rua" name="rua" required>
+                <label for="rua">Rua</label>
+              </div>
+            </div>
+            <div class="form-2colunas">
+              <div class="form2">
+                <input type="text" id="numero" name="numero" required>
+                <label for="numero">Número</label>
+              </div>
+              <div class="form2">
+                <input type="text" class="uppercase" class="Complemento" name="complemento"
+                  id="complemento" required spellcheck="false">
+                <label for="complemento">Complemento</label>
+              </div>
+              <div class="form2">
+                <input type="text" class="uppercase" id="bairro" name="bairro" required>
+                <label for="bairro"> Bairro </label>
+              </div>
+            </div>
+
+            <div class="form-2colunas">
+              <div class="form2">
+                <input type="text" class="uppercase" id="cidade" name="cidade" required>
+                <label for="cidade">Cidade</label>
+              </div>
+              <div class="form2">
+                <input type="text" class="uppercase" id="estado" name="estado" required>
+                <label for="estado"> Estado</label>
+              </div>
+              <div class="form2">
+                <input type="text" class="uppercase" id="pais" name="pais" required>
+                <label for="pais">Pais</label>
+              </div>
+            </div>
+
+          </fieldset>
+      </div>
+      <div class="BTNs">
+   
+          <button class="btnPesquisar" id="Pesquisar" type="button">Pesquisar</button>
+          <button class="btnLimpar" id="Limpar" type="button">Limpar</button>
+          <button class="btnEnviar" id="Enviar" type="button">Enviar</button>
+  
+      </div>
+      </form>
+    </div>
+  </div>
+  </div>
+  
+  <script src="https://cdn.jsdelivr.net/npm/imask" defer></script>
