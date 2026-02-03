@@ -35,7 +35,7 @@
 } 
 
 /* Estilo opcional para o modal (você pode personalizar conforme necessário) */
-#cadModalCentroCusto.modal {
+#cadModalPlanoContas.modal {
   position: fixed;
   top: 50%; /* Alinha verticalmente ao centro */
   left: 50%; /* Alinha horizontalmente ao centro */   
@@ -43,24 +43,24 @@
   background-color: #4d4d4d;
   padding: 5px;
   margin-top: 10px;
-  width: 750px; /* Ajuste o tamanho conforme necessário */
-  height: 530px;
+  width: 770px; /* Ajuste o tamanho conforme necessário */
+  height: 480px;
   font-size: 16px;
   z-index: 9999;
 }
 
-#cadModalCentroCusto.modal-content{
+#cadModalPlanoContas.modal-content{
   height: 590px;
 }
 
-#cadModalCentroCusto.modal-open{
+#cadModalPlanoContas.modal-open{
   /* overflow: visible; Permite a rolagem do modal */
   overflow: hidden;
   pointer-events: none;
 }
 
 /* --- Estilização conforme Equipamentos (Alinhamento) --- */
-#cadModalCentroCusto .form {
+#cadModalPlanoContas .form {
     margin: 20px 12px;
     display: flex;
     align-items: center;
@@ -96,15 +96,15 @@ body{
 }
 
 
-#form-centroCusto {
+#form-planocontas {
   font-family: "Abel", sans-serif;
   display: flex;                
   flex-direction: column; 
   justify-content: center;
   background-color: white;
-  max-width: 725px;   
+  max-width: 750px;   
   width: 100%;  
-  height: 440px; 
+  height: 400px; 
   margin: 0 auto;         
   padding: 10px;                
   background-color: #cacaca; 
@@ -118,7 +118,7 @@ fieldset {
   display: flex;
   flex-direction: column;
   width: 690px;
-  height: 300px;
+  height: 250px;
   background-color: transparent;
   border-color: var(--dark-color);
   margin: 0 auto;
@@ -155,7 +155,7 @@ legend{
 
 .form input{
   font-family:  var(--Font-primary);
-  width: 470px;
+  width: 450px;
   height: 30px;
   border-radius: 6px;
   font-size: 13px;
@@ -165,11 +165,14 @@ legend{
   color: #000000;
   outline: none;
 }
+input#codPlanoConta{
+  width: 160px;
+}
 
 .form2 input{
   flex: 1;
   font-family: var(--Font-primary);
-  width: 430px;
+  width: 270px;
   height: 30px;
   border-radius: 6px;
   font-size: 13px;
@@ -180,8 +183,8 @@ legend{
   outline: none;
 }
 
-#idCentroCusto, #siglaCentroCusto{
-  width: 100px;
+#idPlanoConta{
+  width: 80px;
 }
 
 .form2 {
@@ -196,7 +199,7 @@ legend{
   border-radius: 5px;
   flex: 1;
   font-family: var(--Font-primary);
-  width: 470px; 
+  width: 450px; 
   height: 30px;
   border-radius: 6px;
   font-size: 13px;
@@ -208,23 +211,11 @@ legend{
   outline: none;
 }
 
-.user-box{
-    width: 100%;
-    display: flex;
-    justify-content: center;
-}
+/* #tpConta.form select {
+    width: 350px;
+} */
 
-/* No seu arquivo de estilos (ex: style.css) */
 
-#empresaSelect option:checked {
-    background-color:var(--primary-color) !important; /* Cor azul (ex: Bootstrap primary) */
-    color: var(--font-color) !important;
-}
-
-/* Para navegadores baseados em Webkit (Chrome, Edge, Safari) */
-#empresaSelect option:checked {
-    box-shadow: 0 0 10px 100px var(--primary-color) inset !important;
-}
 
 button.close {
   display: flex;
@@ -286,8 +277,7 @@ input:focus{
 }
 
 input:focus ~ label,
-input:valid ~ label,
-select:valid ~ label {
+input:valid ~ label{
   top: 0;
   left: 25%;
   font-size: 15px;
@@ -319,8 +309,8 @@ input#id{
 }
 
 
-#idCentroCusto.has-value + label,
-#idCentroCusto:focus + label {
+#idPlanoConta.has-value + label,
+#idPlanoConta:focus + label {
   top: 0;
   left: 25%;
   font-size: 15px;
@@ -465,6 +455,8 @@ input#id{
 .checkbox-wrapper-33 .checkbox__trigger:focus + .checkbox__symbol {
   box-shadow: 0 0 0 0.25em var(--c-primary-20-percent-opacity);
 }
+
+
 
 @-webkit-keyframes ripple-33 {
   from {

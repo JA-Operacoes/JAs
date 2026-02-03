@@ -169,6 +169,7 @@ router.get("/eventos-calendario", async (req, res) => {
       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
       JOIN eventos e ON e.idevento = o.idevento
       WHERE oe.idempresa = $1
+      AND o.status != 'R'
       AND (
         -- Verifica se qualquer uma das datas cai dentro do mês/ano solicitado
         EXISTS (

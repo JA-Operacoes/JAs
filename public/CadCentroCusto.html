@@ -20,40 +20,36 @@
                 <fieldset>
                     <legend>Cadastre o Centro de Custo</legend>
                     <br>
-                    <div class="form">
-                        <select id="nomeConta" name="nomeConta" class="nomeConta required">
-                            <option value="">Selecione a Conta</option>
-                        </select>                        
-                    </div>
+                    
                     <div class="form-3colunas">
                         <div class="form">
-                            <input type="text" name="idCentroCusto" id="idCentroCusto" readonly spellcheck="false">
-                            <label for ="idCentroCusto">Código</label>     
+                            <input hidden type="text" name="idCentroCusto" id="idCentroCusto" readonly spellcheck="false">
+                            <label hidden for ="idCentroCusto">Código</label>     
                         </div>
                         <div class="form">
+                            <input type="text" class="uppercase" name="siglaCentroCusto" id="siglaCentroCusto"  required spellcheck="false">
+                            <label for = "siglaCentroCusto">Sigla</label>
+                        </div>
+                        <div class="form">                            
                             <input type="text" class="uppercase" name="nmCentroCusto" id="nmCentroCusto"  required spellcheck="false">
                             <label for = "nmCentroCusto">Nome do Centro de Custo</label>
                         </div>
-                        <div class="form-checkbox">
-                            <div class="checkbox-wrapper-33">
-                                <label class="checkbox">
-                                    <p class="checkbox__textwrapper">Centro de Custo Ativo</p>
-                                    <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo" checked />
-                                    <span class="checkbox__symbol">
-                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
-                                            <path d="M4 14l8 7L24 7"></path>
-                                        </svg>
-                                    </span>
-                                </label>
-                            </div>
+                    </div>
+                    <div class="form-checkbox">
+                        <div class="checkbox-wrapper-33">
+                            <label class="checkbox">
+                                <p class="checkbox__textwrapper">Centro de Custo Ativo</p>
+                                <input class="checkbox__trigger visuallyhidden" type="checkbox" id="ativo" name="ativo" checked />
+                                <span class="checkbox__symbol">
+                                    <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                                        <path d="M4 14l8 7L24 7"></path>
+                                    </svg>
+                                </span>
+                            </label>
                         </div>
                     </div>
-                    
-                    <div class="form">
-                        <select id="empresaSelect" name="empresaSelect" class="empresaSelect required">
-                            <option value="">Selecione uma Empresa</option>
-                        </select>  
-                    </div>                  
+                                        
+                                   
                 </fieldset>
             </form>
         </div>

@@ -43,8 +43,8 @@
   background-color: #4d4d4d;
   padding: 5px;
   margin-top: 10px;
-  width: 750px; /* Ajuste o tamanho conforme necessário */
-  height: 520px;
+  width: 820px; /* Ajuste o tamanho conforme necessário */
+  height: 580px;
   font-size: 16px;
   z-index: 9999;
 }
@@ -102,9 +102,9 @@ body{
   flex-direction: column; 
   justify-content: center;
   background-color: white;
-  max-width: 730px;   
+  max-width: 790px;   
   width: 100%;  
-  height: 440px; 
+  height: 500px; 
   margin: 0 auto;         
   padding: 10px;                
   background-color: #cacaca; 
@@ -166,6 +166,10 @@ legend{
   outline: none;
 }
 
+input#codConta{
+  width: 150px;
+}
+
 .form2 input{
   flex: 1;
   font-family: var(--Font-primary);
@@ -206,6 +210,10 @@ legend{
   background: transparent;
   color: #000000;
   outline: none;
+}
+
+select#nmConta{
+  width: 320px;
 }
 
 /* #tpConta.form select {
@@ -274,7 +282,9 @@ input:focus{
 }
 
 input:focus ~ label,
-input:valid ~ label{
+input:valid ~ label,
+select:focus ~ label,
+select:valid ~ label{
   top: 0;
   left: 25%;
   font-size: 15px;
@@ -287,7 +297,7 @@ input:not([value=""]) ~ label {
   left: 2%;
   font-size: 15px;
   padding: 0 2px;
-  background: #cacaca; /* Certifique-se que esta cor corresponde ao background do seu #form-content ou fieldset */
+  background: #cacaca; 
 }
 
 input[type=date]{

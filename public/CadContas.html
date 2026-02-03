@@ -22,8 +22,12 @@
                     <br>
                     <div class="form-3colunas">
                         <div class="form">
-                            <input type="text" name="idConta" id="idConta" readonly spellcheck="false">
-                            <label for ="idConta">Código</label>     
+                            <input hidden type="text" name="idConta" id="idConta" readonly spellcheck="false">
+                            <label hidden for ="idConta">Código</label>     
+                        </div>
+                        <div class="form">
+                            <input type="text" name="codConta" id="codConta" readonly spellcheck="false">
+                            <label for ="codConta">Código da Conta</label>     
                         </div>
                         <div class="form">
                             <input type="text" class="uppercase" name="nmConta" id="nmConta"  required spellcheck="false">
@@ -43,21 +47,27 @@
                             </div>
                         </div>
                     </div>
-                    <!-- <div class="form-2colunas"> -->
-                        <div class="form"> 
-                            <!-- <label for="tpConta">Tipo de Conta</label>                        -->
-                            <select name="tpConta" id="tpConta" required class="form">
-                                <option value="" disabled selected>Carregando tipos...</option>
-                            </select>
-                        </div>
-                        <div class="form">
-                            <!-- <label for="empresaPagadora">Empresa Pagadora</label> -->
-                            <select name="empresaPagadora" id="empresaPagadora"  class="required">
-                                <option value="">Empresa Pagadora</option>
-                            </select>
-                        </div>
-                    <!-- </div> -->
-                   
+                    
+                    <div class="form">
+                                             
+                        <select name="planoContas" id="planoContas" class="required">
+                            <option value="" disabled selected></option>
+                        </select>
+                        <label for="planoContas">Plano de Contas</label>   
+                    </div>
+                    <div class="form">                                            
+                        <select name="tpConta" id="tpConta" class="required">
+                            <option value="" disabled selected></option>
+                        </select>
+                        <label for="tpConta">Tipo de Conta</label>
+                    </div>
+                    <div class="form">                        
+                        <select name="empresaPagadora" id="empresaPagadora"  class="required">
+                            <option value="" disabled selected></option>
+                        </select>
+                        <label for="empresaPagadora">Empresa Pagadora</label>
+                    </div>
+                  
                 </fieldset>
             </form>
         </div>

@@ -24,15 +24,16 @@ let pesquisarButtonListener = null;
 if (typeof window.ContaOriginal === "undefined") {
     window.ContaOriginal = {
         idConta: "",
+        codConta: "",
         nmConta: "",
         ativo: false,
-        idtipoconta: "",
-        idempresapagadora: "" // Alterado de tpConta para idtipoconta
+        idTipoConta: "",
+        idEmpresaPagadora: "" // Alterado de tpConta para idtipoconta
     };
 }
 
 async function verificaConta() {
-    console.log("Carregando Conta...");
+    console.log("Carregando Conta...");    
 
     const botaoEnviar = document.querySelector("#Enviar");
     const botaoPesquisar = document.querySelector("#Pesquisar");
@@ -56,6 +57,39 @@ async function verificaConta() {
     validarFormulario();
     carregarSelectTipoConta();
     carregarSelectEmpresaPagadora();
+    carregarSelectPlanoContas();
+
+    // Dentro da função verificaConta ou configurarCadConta
+    const selectPlano = document.querySelector("#planoContas");
+    const inputCodigo = document.querySelector("#codConta"); // Ou o campo onde fica o código da conta
+
+    if (selectPlano) {
+        selectPlano.addEventListener("change", async function() {
+            const idPlano = this.value;
+            if (!idPlano) return;
+
+            // Pegar o texto da opção selecionada para extrair o prefixo (ex: "01.00.00")
+            const textoSelecionado = this.options[this.selectedIndex].text;
+            const prefixo = textoSelecionado.split(' - ')[0]; 
+            
+            // Remove os zeros finais se quiser que a conta seja filha direta
+            // Ex: 01.00.00 vira prefixo 01.00
+            const prefixoLimpo = prefixo.split('.').slice(0, 2).join('.');
+
+            try {
+                const dados = await fetchComToken(`/contas/proximo-codigo/${prefixoLimpo}`);
+                if (dados.proximoCodigo) {
+                    inputCodigo.value = dados.proximoCodigo;
+                    // Dispara o evento input para o label subir se necessário
+                    inputCodigo.dispatchEvent(new Event('input'));
+                }
+
+            } catch (error) {
+                console.error("Erro ao buscar próximo código:", error);
+            }
+        });
+    }
+    
 
     const ativoCheckbox = document.querySelector("#ativo");
     if (ativoCheckbox) {
@@ -77,11 +111,13 @@ async function verificaConta() {
     enviarButtonListener = async (e) => {
         e.preventDefault();       
 
-        const idConta = document.querySelector("#idConta").value.trim();
+        const idConta = document.querySelector("#idConta")?.value || "";
+        const codConta = document.querySelector("#codConta").value.trim();
         const nmConta = document.querySelector("#nmConta").value.toUpperCase().trim();
         const ativo = document.querySelector("#ativo").checked;
-        const idtipoconta = document.querySelector("#tpConta").value; // O valor do select agora é o ID
-        const idempresapagadora = document.querySelector("#empresaPagadora").value; // Novo campo
+        const idTipoConta = document.querySelector("#tpConta").value; // O valor do select agora é o ID
+        const idEmpresaPagadora = document.querySelector("#empresaPagadora").value; // Novo campo
+        const idPlanoContas = document.querySelector("#planoContas") ? document.querySelector("#planoContas").value : null; // Novo campo opcional
 
         const temPermissaoCadastrar = temPermissao("Contas", "cadastrar");
         const temPermissaoAlterar = temPermissao("Contas", "alterar");
@@ -96,23 +132,27 @@ async function verificaConta() {
             return Swal.fire("Acesso negado", "Você não tem permissão para alterar Contas.", "error");
         }
 
-        if (!nmConta || nmConta.length === 0 || !idtipoconta || idtipoconta.length === 0 || !idempresapagadora || idempresapagadora.length === 0) {
+        if (!nmConta || nmConta.length === 0 || !codConta || codConta.length === 0 || !idTipoConta || idTipoConta.length === 0 || !idEmpresaPagadora || idEmpresaPagadora.length === 0) {
             return Swal.fire("Campos obrigatórios!", "Preencha todos os campos antes de enviar.", "warning");
         }
 
-        const dados = { nmConta, ativo, idtipoconta, idempresapagadora }; // Objeto com novo nome de campo
+        const dados = { nmConta, codConta, ativo, idTipoConta, idEmpresaPagadora, idPlanoContas }; // Objeto com novo nome de campo
         
         // Dirty Checking ajustado para String para comparar com o valor do Select
         const semAlteracao = 
-            String(idConta) === String(window.ContaOriginal?.idConta) &&
-            nmConta === window.ContaOriginal?.nmConta &&
+            String(idConta) === String(window.ContaOriginal?.idconta) &&
+            nmConta === window.ContaOriginal?.nmconta &&
+            codConta === window.ContaOriginal?.codconta &&
             ativo === window.ContaOriginal?.ativo &&
-            String(idtipoconta) === String(window.ContaOriginal?.idtipoconta) &&
-            String(idempresapagadora) === String(window.ContaOriginal?.idempresapagadora);
+            String(idTipoConta) === String(window.ContaOriginal?.idtipoconta) &&
+            String(idEmpresaPagadora) === String(window.ContaOriginal?.idempresapagadora) &&
+            String(idPlanoContas) === String(window.ContaOriginal?.idplanocontas);
 
         if (idConta && semAlteracao) {
             return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
         }
+
+        console.log("Enviando dados da Conta:", dados);
 
         const url = idConta ? `/Contas/${idConta}` : "/Contas";
 
@@ -144,6 +184,7 @@ async function verificaConta() {
             Swal.fire("Erro", error.message || "Erro ao salvar conta.", "error");
         }
     };
+   
     botaoEnviar.addEventListener("click", enviarButtonListener);
 
     pesquisarButtonListener = async function (e) {
@@ -227,7 +268,7 @@ function desinicializarContasModal() {
     enviarButtonListener = null;
     pesquisarButtonListener = null;
 
-    window.ContaOriginal = { idConta: "", nmConta: "", ativo: false, idtipoconta: "" };
+    window.ContaOriginal = { idConta: "", nmConta: "", codConta: "", ativo: false, idTipoConta: "" };
 }
 
 function criarSelectConta(contasEncontrados) {
@@ -282,7 +323,7 @@ async function carregarSelectTipoConta() {
     if (!selectTpConta) return;
 
     try {
-        const tipos = await fetchComToken('/tipoconta');
+        const tipos = await fetchComToken('/contas/tipoconta');
         selectTpConta.innerHTML = '<option value="" disabled selected>Selecione o Tipo de Conta</option>';
 
         if (tipos && Array.isArray(tipos)) {
@@ -305,20 +346,78 @@ async function carregarSelectEmpresaPagadora() {
     if (!selectEmpresaPagadora) return;
 
     try {
-        const empresas = await fetchComToken('/empresas');
+        const empresas = await fetchComToken('/contas/empresas');
         selectEmpresaPagadora.innerHTML = '<option value="" disabled selected>Selecione a Empresa Pagadora</option>';
         if (empresas && Array.isArray(empresas)) {
             empresas.forEach(empresa => {
-                if (empresa.ativo) {
+               // if (empresa.ativo) {
                     const option = document.createElement("option");
                     option.value = empresa.idempresa;
                     option.textContent = empresa.nmfantasia;
                     selectEmpresaPagadora.appendChild(option);
-                }
+                //}
             });
         }
     } catch (error) {
         console.error("Erro ao carregar empresas:", error);
+    }
+}
+
+async function carregarSelectPlanoContas() {
+    const selectPlanoContas = document.querySelector("#planoContas"); // ID do select no HTML
+    if (!selectPlanoContas) return;
+
+    try {
+        // Busca os planos de contas cadastrados
+        const planos = await fetchComToken('/contas/planocontas');
+        
+        // Limpa o select e adiciona a opção padrão (vazia para o label subir corretamente)
+        selectPlanoContas.innerHTML = '<option value="" disabled selected>Selecione o Plano de Contas</option>';
+        
+        if (planos && Array.isArray(planos)) {
+            planos.forEach(plano => {
+                // Verifica se está ativo (considerando que seu banco retorna boolean ou 'T'/'S')
+                const isAtivo = plano.ativo === true || plano.ativo === 'T' || plano.ativo === 'S' || plano.ativo === 1;
+                
+                if (isAtivo) {
+                    const option = document.createElement("option");
+                    option.value = plano.idplanocontas; // Valor que vai para o banco
+                    option.textContent = `${plano.codigo} - ${plano.nmplanocontas}`; // O que o usuário vê
+                    selectPlanoContas.appendChild(option);
+                }
+            });
+
+            // Dentro da função carregarSelectPlanoContas()
+            // Remova qualquer listener antigo antes de adicionar o novo para evitar duplicidade
+            selectPlanoContas.replaceWith(selectPlanoContas.cloneNode(true));
+            const novoSelect = document.querySelector("#planoContas");
+
+            novoSelect.addEventListener("change", async function() {
+                const idPlano = this.value; // Pega o ID (Ex: 2)
+
+                // VALIDAÇÃO: Se o idPlano não for um número (ex: vier "02.00"), pare aqui.
+                if (!idPlano || isNaN(idPlano)) {
+                    console.warn("⚠️ O valor selecionado não é um ID válido:", idPlano);
+                    return;
+                }
+
+                try {
+                    const dados = await fetchComToken(`/contas/proximo-codigo/${idPlano}`);
+                    
+                    if (dados && dados.proximoCodigo) {
+                        const inputCod = document.querySelector("#codConta");
+                        inputCod.value = dados.proximoCodigo;
+                        
+                        inputCod.dispatchEvent(new Event('input'));
+                        if (typeof validarFormulario === "function") validarFormulario();
+                    }
+                } catch (e) {
+                    console.error("Erro capturado no Front:", e.message);
+                }
+            });
+        }
+    } catch (error) {
+        console.error("Erro ao carregar planos de contas para o select:", error);
     }
 }
 
@@ -334,6 +433,7 @@ async function carregarContaDescricao(desc, elementoAtual) {
         const conta = Array.isArray(dadosRecebidos) ? dadosRecebidos[0] : dadosRecebidos;
 
         document.querySelector("#idConta").value = conta.idconta || "";
+        document.querySelector("#codConta").value = conta.codconta || "";
         document.querySelector("#nmConta").value = conta.nmconta || "";
         
         const selectTp = document.querySelector("#tpConta");
@@ -356,16 +456,27 @@ async function carregarContaDescricao(desc, elementoAtual) {
                 console.warn("Aviso: Empresa Pagadora legada ou não encontrada:", valorBanco);
             }
         }
+
+        const selectPlanoContas = document.querySelector("#planoContas");
+        if (selectPlanoContas) {
+            const valorBanco = String(conta.idplanocontas || conta.planoContas); 
+            selectPlanoContas.value = valorBanco;
+            if (selectPlanoContas.selectedIndex <= 0 && valorBanco !== "undefined" && valorBanco !== "null") {
+                console.warn("Aviso: Plano de Contas legado ou não encontrado:", valorBanco);
+            }   
+        }
         
         const isAtivo = conta.ativo === true || conta.ativo === 1 || conta.ativo === "S" || conta.ativo === "T";
         document.querySelector("#ativo").checked = isAtivo;
 
         window.ContaOriginal = {
-            idConta: conta.idconta,     
-            nmConta: conta.nmconta,
+            idconta: conta.idconta,  // Use minúsculo para bater com o objeto 'conta'
+            codconta: conta.codconta,   
+            nmconta: conta.nmconta,
             ativo: isAtivo,
             idtipoconta: String(conta.idtipoconta || conta.tpconta),
-            idempresapagadora: String(conta.idempresapagadora || conta.empresaPagadora)
+            idempresapagadora: String(conta.idempresapagadora || conta.empresapagadora),
+            idplanocontas: String(conta.idplanocontas || conta.planoContas)
         };
 
         validarFormulario();
@@ -434,16 +545,20 @@ async function carregarContaDescricao(desc, elementoAtual) {
 
 function limparCamposConta() {
     const idEvent = document.getElementById("idConta");
+    const codContaEl = document.getElementById("codConta");
     const nmContaEl = document.getElementById("nmConta");
     const tpContaEl = document.getElementById("tpConta");
     const ativoEl = document.getElementById("ativo");
     const empresaPagadoraEl = document.getElementById("empresaPagadora");
+    const planoContasEl = document.getElementById("planoContas");
 
     if (empresaPagadoraEl) empresaPagadoraEl.value = "";
 
     if (idEvent) idEvent.value = "";
+    if (codContaEl) codContaEl.value = "";
     if (nmContaEl) nmContaEl.value = "";
     if (tpContaEl) tpContaEl.value = "";
+    if (planoContasEl) planoContasEl.value = "";
     if (ativoEl) ativoEl.checked = false;
 
     if (nmContaEl && nmContaEl.tagName === "SELECT") {
@@ -498,23 +613,89 @@ function limparCamposConta() {
 // }
 
 
+// function validarFormulario() {
+//     const elCod = document.querySelector("#codConta");
+//     const elNm = document.querySelector("#nmConta");
+//     const elTp = document.querySelector("#tpConta");
+//     const elEmpPagadora = document.querySelector("#empresaPagadora");
+//     const elPlanoContas = document.querySelector("#planoContas");
+//     const botaoEnviar = document.querySelector("#Enviar");
+
+//     console.log("Validando formulário de Conta...", "Código Conta:", elCod.value,   "Nome Conta:", elNm.value, "Tipo Conta:", elTp.value, "Empresa Pagadora:", elEmpPagadora.value, "Plano Contas:", elPlanoContas.value, botaoEnviar);
+//     if (!elCod || !elNm || !elTp || !elEmpPagadora || !elPlanoContas || !botaoEnviar) return;
+   
+//     const codConta = elCod.value.trim();
+//     const nmConta = elNm.value.trim();
+//     const tpConta = elTp.value.trim();
+//     const idempresapagadora = elEmpPagadora.value.trim();
+//     const idplanocontas = elPlanoContas.value.trim();
+
+//     // Debug para você ver no console qual campo está travando:
+//     // console.log({ nmConta, tpConta, idempresapagadora });
+
+//     if (nmConta.length > 0 && tpConta.length > 0 && idempresapagadora.length > 0 && codConta.length > 0 && idplanocontas.length > 0) {
+//         botaoEnviar.disabled = false;
+//         botaoEnviar.style.opacity = "1";
+//         botaoEnviar.style.cursor = "pointer";
+//     } else {
+//         botaoEnviar.disabled = true;
+//         botaoEnviar.style.opacity = "0.5";
+//         botaoEnviar.style.cursor = "not-allowed";
+//     }
+// }
+
+
+// function validarFormulario() {
+//     const elNm = document.querySelector("#nmConta");
+//     const elTp = document.querySelector("#tpConta");
+//     const elEmpPagadora = document.querySelector("#empresaPagadora");
+//     const elPlanoContas = document.querySelector("#planoContas");    
+//     const elCod = document.querySelector("#codConta"); // Onde entra o código da conta
+//     const botaoEnviar = document.querySelector("#Enviar");
+
+//     if (!elNm || !elTp || !elEmpPagadora || !elPlanoContas || !botaoEnviar) return;
+
+//     const values = {
+//         nome: elNm.value.trim(),      
+//         tipo: elTp.value.trim(),
+//         empresa: elEmpPagadora.value.trim(),
+//         plano: elPlanoContas.value.trim(),
+//         codigo: elCod.value.trim()
+//     };
+
+//     // O botão só habilita se todos os 5 campos tiverem valor
+//     const isValido = Object.values(values).every(val => val.length > 0);
+
+//     if (isValido) {
+//         botaoEnviar.disabled = false;
+//         botaoEnviar.style.opacity = "1";
+//         botaoEnviar.style.cursor = "pointer";
+//     } else {
+//         botaoEnviar.disabled = true;
+//         botaoEnviar.style.opacity = "0.5";
+//         botaoEnviar.style.cursor = "not-allowed";
+//     }
+// }
+
 function validarFormulario() {
     const elNm = document.querySelector("#nmConta");
     const elTp = document.querySelector("#tpConta");
     const elEmpPagadora = document.querySelector("#empresaPagadora");
+    const elPlanoContas = document.querySelector("#planoContas"); 
+    const elCod = document.querySelector("#codConta"); 
     const botaoEnviar = document.querySelector("#Enviar");
 
-    console.log("Validando formulário de Conta...", "Nome Conta:", elNm.value, "Tipo Conta:", elTp.value, "Empresa Pagadora:", elEmpPagadora.value, botaoEnviar);
-    if (!elNm || !elTp || !elEmpPagadora || !botaoEnviar) return;
+    if (!elNm || !elTp || !elEmpPagadora || !elPlanoContas || !elCod || !botaoEnviar) return;
 
-    const nmConta = elNm.value.trim();
-    const tpConta = elTp.value.trim();
-    const idempresapagadora = elEmpPagadora.value.trim();
+    // Remova o elId da validação obrigatória, pois em cadastros novos ele é vazio
+    const isValido = 
+        elNm.value.trim().length > 0 &&
+        elTp.value.trim().length > 0 &&
+        elEmpPagadora.value.trim().length > 0 &&
+        elPlanoContas.value.trim().length > 0 &&
+        elCod.value.trim().length > 0;
 
-    // Debug para você ver no console qual campo está travando:
-    // console.log({ nmConta, tpConta, idempresapagadora });
-
-    if (nmConta.length > 0 && tpConta.length > 0 && idempresapagadora.length > 0) {
+    if (isValido) {
         botaoEnviar.disabled = false;
         botaoEnviar.style.opacity = "1";
         botaoEnviar.style.cursor = "pointer";
