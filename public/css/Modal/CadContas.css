@@ -212,6 +212,10 @@ input#codConta{
   outline: none;
 }
 
+select#nmConta{
+  width: 320px;
+}
+
 /* #tpConta.form select {
     width: 350px;
 } */

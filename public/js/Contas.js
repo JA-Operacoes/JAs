@@ -387,24 +387,33 @@ async function carregarSelectPlanoContas() {
                 }
             });
 
-            selectPlanoContas.addEventListener("change", async function() {
-                const texto = this.options[this.selectedIndex].text;
-                if (!this.value) return;
+            // Dentro da função carregarSelectPlanoContas()
+            // Remova qualquer listener antigo antes de adicionar o novo para evitar duplicidade
+            selectPlanoContas.replaceWith(selectPlanoContas.cloneNode(true));
+            const novoSelect = document.querySelector("#planoContas");
 
-                // Extrai o prefixo (Ex: de "01.00.00 - TESTE" pega "01.00")
-                const prefixo = texto.split(' - ')[0].split('.').slice(0, 2).join('.');
+            novoSelect.addEventListener("change", async function() {
+                const idPlano = this.value; // Pega o ID (Ex: 2)
+
+                // VALIDAÇÃO: Se o idPlano não for um número (ex: vier "02.00"), pare aqui.
+                if (!idPlano || isNaN(idPlano)) {
+                    console.warn("⚠️ O valor selecionado não é um ID válido:", idPlano);
+                    return;
+                }
 
                 try {
-                    const dados = await fetchComToken(`/contas/proximo-codigo/${prefixo}`);
-                    if (dados.proximoCodigo) {
+                    const dados = await fetchComToken(`/contas/proximo-codigo/${idPlano}`);
+                    
+                    if (dados && dados.proximoCodigo) {
                         const inputCod = document.querySelector("#codConta");
                         inputCod.value = dados.proximoCodigo;
                         
-                        // ESSENCIAL: Disparar manualmente a validação e o evento de input (pro label subir)
                         inputCod.dispatchEvent(new Event('input'));
-                        validarFormulario();
+                        if (typeof validarFormulario === "function") validarFormulario();
                     }
-                } catch (e) { console.error(e); }
+                } catch (e) {
+                    console.error("Erro capturado no Front:", e.message);
+                }
             });
         }
     } catch (error) {

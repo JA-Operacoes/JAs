@@ -68,43 +68,99 @@ router.get("/planocontas", autenticarToken(), async (req, res) => {
   }
 });
 
-router.get("/proximo-codigo/:prefixo", autenticarToken(), async (req, res) => {
-    const { prefixo } = req.params; 
-    const idempresa = req.idempresa;
+// router.get("/proximo-codigo/:prefixo", autenticarToken(), async (req, res) => {
+//     const { prefixo } = req.params; 
+//     const idempresa = req.idempresa;
 
+//     try {
+//         // Busca o maior código que comece com o prefixo (ex: 01.00.%)
+//         const result = await pool.query(
+//             `SELECT codconta FROM contas 
+//              WHERE idempresa = $1 AND codconta LIKE $2 
+//              ORDER BY codconta DESC LIMIT 1`,
+//             [idempresa, `${prefixo}.%`]
+//         );
+
+//         let novoSequencial = 1;
+
+//         // VERIFICAÇÃO: Só tenta dar split se a query retornou algo e o campo não é nulo
+//         if (result.rows.length > 0 && result.rows[0].codigo) {
+//             const ultimoCodigo = result.rows[0].codigo;
+//             const partes = ultimoCodigo.split('.'); // Aqui não dará mais erro
+            
+//             // Pega o último número da sequência
+//             const ultimoSegmento = parseInt(partes[partes.length - 1]);
+            
+//             if (!isNaN(ultimoSegmento)) {
+//                 novoSequencial = ultimoSegmento + 1;
+//             }
+//         }
+
+//         // Formata o próximo código (ex: 01.00.01)
+//         const proximoCodigo = `${prefixo}.${novoSequencial.toString().padStart(2, '0')}`;
+        
+//         console.log(`Próximo código gerado para prefixo ${prefixo}: ${proximoCodigo}`);
+//         res.json({ proximoCodigo });
+
+//     } catch (error) {
+//         console.error("❌ Erro detalhado ao calcular próximo código:", error);
+//         res.status(500).json({ message: "Erro interno ao gerar sequência de código" });
+//     }
+// });
+
+
+router.get("/proximo-codigo/:idplanocontas", autenticarToken(), async (req, res) => {
     try {
-        // Busca o maior código que comece com o prefixo (ex: 01.00.%)
+        const idplanocontas = parseInt(req.params.idplanocontas);
+        const idempresa = req.idempresa;
+
+        // Se o parseInt falhar (ex: receber "02.00"), retorna erro 400 amigável
+        if (isNaN(idplanocontas)) {
+            return res.status(400).json({ message: "ID inválido recebido no servidor." });
+        }
+
+        const planoResult = await pool.query(
+            `SELECT codigo FROM planocontas WHERE idplanocontas = $1 AND idempresa = $2`,
+            [idplanocontas, idempresa]
+        );
+
+        if (planoResult.rows.length === 0) {
+            return res.status(404).json({ message: "Plano não encontrado." });
+        }
+
+        const codPai = planoResult.rows[0].codigo;
+        
+        // Proteção para o Split: verifica se codPai existe e tem pontos
+        if (!codPai || typeof codPai !== 'string' || !codPai.includes('.')) {
+            throw new Error(`Código do plano pai inválido: ${codPai}`);
+        }
+
+        const partesPai = codPai.split('.');
+        const prefixo = partesPai.slice(0, 2).join('.'); 
+
         const result = await pool.query(
             `SELECT codconta FROM contas 
-             WHERE idempresa = $1 AND codconta LIKE $2 
+             WHERE idempresa = $1 AND idplanocontas = $2 
              ORDER BY codconta DESC LIMIT 1`,
-            [idempresa, `${prefixo}.%`]
+            [idempresa, idplanocontas]
         );
 
         let novoSequencial = 1;
-
-        // VERIFICAÇÃO: Só tenta dar split se a query retornou algo e o campo não é nulo
-        if (result.rows.length > 0 && result.rows[0].codigo) {
-            const ultimoCodigo = result.rows[0].codigo;
-            const partes = ultimoCodigo.split('.'); // Aqui não dará mais erro
-            
-            // Pega o último número da sequência
-            const ultimoSegmento = parseInt(partes[partes.length - 1]);
-            
-            if (!isNaN(ultimoSegmento)) {
-                novoSequencial = ultimoSegmento + 1;
+        if (result.rows.length > 0 && result.rows[0].codconta) {
+            const ultimoCodigo = String(result.rows[0].codconta);
+            if (ultimoCodigo.includes('.')) {
+                const partes = ultimoCodigo.split('.');
+                const ultimoSegmento = parseInt(partes[partes.length - 1]);
+                if (!isNaN(ultimoSegmento)) novoSequencial = ultimoSegmento + 1;
             }
         }
 
-        // Formata o próximo código (ex: 01.00.01)
         const proximoCodigo = `${prefixo}.${novoSequencial.toString().padStart(2, '0')}`;
-        
-        console.log(`Próximo código gerado para prefixo ${prefixo}: ${proximoCodigo}`);
         res.json({ proximoCodigo });
 
     } catch (error) {
-        console.error("❌ Erro detalhado ao calcular próximo código:", error);
-        res.status(500).json({ message: "Erro interno ao gerar sequência de código" });
+        console.error("❌ ERRO NO BACKEND:", error.message);
+        res.status(500).json({ message: error.message });
     }
 });
 
