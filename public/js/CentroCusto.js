@@ -25,10 +25,14 @@ let enviarButtonListener = null;
 let pesquisarButtonListener = null;
 let selectCentroCustoChangeListener = null;
 let inputNmCentroCustoBlurListener = null;
+let inputSgCentroCustoBlurListener = null;
+
+let jaPerguntouCadastro = false;
 
 if (typeof window.CentroCustoOriginal === "undefined") {
     window.CentroCustoOriginal = {
         idCentroCusto: "",
+        sgCentroCusto: "",
         nmCentroCusto: "",
         ativo: false,
         idempresa: ""
@@ -39,27 +43,71 @@ if (typeof window.CentroCustoOriginal === "undefined") {
 async function verificaCentroCusto() {
     console.log("Carregando Centro de Custo...");
 
-    carregarContas();
-    carregarEmpresas();
-
     const botaoEnviar = document.querySelector("#Enviar");
     const botaoPesquisar = document.querySelector("#Pesquisar");
     const botaoLimpar = document.querySelector("#Limpar");
     const form = document.querySelector("#form");  
 
+    // Dentro da função verificaCentroCusto()
+
+    const nmInput = document.querySelector("#nmCentroCusto");
+    const sgInput = document.querySelector("#siglaCentroCusto");
+
+    if (nmInput) {
+        nmInput.addEventListener("input", function() {
+            this.value = this.value.toUpperCase();
+            validarFormulario(); // Libera o botão se a sigla já estiver preenchida
+        });
+    }
+
+    if (sgInput) {
+        sgInput.addEventListener("input", function() {
+            this.value = this.value.toUpperCase();
+            validarFormulario(); // Libera o botão se o nome já estiver preenchido
+        });
+    }
+
     const nmCentroCustoInput = document.querySelector("#nmCentroCusto");
-    const empresaSelect = document.querySelector("#empresaSelect");
+    const sgCentroCustoInput = document.querySelector("#siglaCentroCusto");  
 
-    // Adiciona ouvintes para validar em tempo real
+   
+    if (sgCentroCustoInput) {
+        sgCentroCustoInput.addEventListener("blur", async function() {
+            const sigla = this.value.trim();
+            const idVazio = !document.querySelector("#idCentroCusto").value;
+
+            if (!sigla || !idVazio || jaPerguntouCadastro) return;
+
+            try {
+                const dados = await fetchComToken(`/centrocusto?sigla=${encodeURIComponent(sigla)}`);
+                const lista = Array.isArray(dados) ? dados : [dados];
+
+                if (lista.length > 0) {
+                    // Se achou pela sigla, carrega os dados completos pelo nome encontrado
+                    await carregarCentroCustoDescricao(lista[0].nmcentrocusto, this);
+                } else {
+                    // Se a sigla NÃO existe, tenta usar o nome atual ou a própria sigla para perguntar
+                    const nomeAtual = document.querySelector("#nmCentroCusto").value.trim();
+                    await carregarCentroCustoDescricao(nomeAtual || sigla, this);
+                }
+            } catch (e) {
+                console.error("Erro na busca por sigla", e);
+            }
+        });
+    }
+
     if (nmCentroCustoInput) {
-        nmCentroCustoInput.addEventListener("input", validarFormulario);
-    }
-    if (empresaSelect) {
-        empresaSelect.addEventListener("change", validarFormulario);
-    }
+        nmCentroCustoInput.addEventListener("blur", async function() {
+            const nome = this.value.trim();
+            const siglaVazia = document.querySelector("#siglaCentroCusto").value.trim() === "";
+            const idVazio = !document.querySelector("#idCentroCusto").value;
 
-    validarFormulario();
-    
+            // Se eu saí do nome, a sigla está vazia e eu ainda não perguntei nada:
+            if (nome && siglaVazia && idVazio && !jaPerguntouCadastro) {
+                await carregarCentroCustoDescricao(nome, this);
+            }
+        });
+    }
 
     const ativoCheckbox = document.querySelector("#ativo");
     if (ativoCheckbox) {
@@ -77,103 +125,22 @@ async function verificaCentroCusto() {
 
     botaoLimpar.addEventListener("click", (e) => {
         e.preventDefault();
+        jaPerguntouCadastro = false;
         limparCamposCentroCusto();
     });
-
-    // botaoEnviar.addEventListener("click", async (e) => {
-    //     e.preventDefault();
-
-    //     const idCentroCusto = document.querySelector("#idCentroCusto").value.trim();
-    //     const nmCentroCusto = document.querySelector("#nmCentroCusto").value.toUpperCase().trim();
-    //     const ativo = document.querySelector("#ativo").checked;
-    //     // Dentro do evento de clique do botaoEnviar:
-    //     const selectEmpresa = document.querySelector("#empresaSelect");
-    //     const idsEmpresas = Array.from(selectEmpresa.selectedOptions).map(option => option.value);
-
-    //     if (idsEmpresas.length === 0) {
-    //         return Swal.fire("Campo obrigatório", "Selecione pelo menos uma empresa.", "warning");
-    //     }
-
-    //     const temPermissaoCadastrar = temPermissao("CentroCusto", "cadastrar");
-    //     const temPermissaoAlterar = temPermissao("CentroCusto", "alterar");
-
-    //     const metodo = idCentroCusto ? "PUT" : "POST";
-
-    //     if (!idCentroCusto && !temPermissaoCadastrar) {
-    //         return Swal.fire("Acesso negado", "Você não tem permissão para cadastrar novos CentroCusto.", "error");
-    //     }
-
-    //     if (idCentroCusto && !temPermissaoAlterar) {
-    //         return Swal.fire("Acesso negado", "Você não tem permissão para alterar CentroCusto.", "error");
-    //     }
-
-    //     // Validação de campos obrigatórios
-    //     if (!nmCentroCusto || !idsEmpresas.length) {
-    //         return Swal.fire("Campos obrigatórios!", "Preencha o nome e selecione a empresa.", "warning");
-    //     }
-
-    //     const dados = {nmCentroCusto, ativo, empresas: idsEmpresas };
-    //     if (
-    //         parseInt(idCentroCusto) === parseInt(CentroCustoOriginal?.idCentroCusto) &&
-    //         nmCentroCusto === CentroCustoOriginal?.nmCentroCusto &&
-    //         ativo === CentroCustoOriginal?.ativo &&
-    //         idsEmpresas.length === CentroCustoOriginal?.empresas?.length && // Corrigido de empresas.length para idsEmpresas.length
-    //         idsEmpresas.every(id => CentroCustoOriginal?.empresas?.includes(id))
-          
-    //     ) {
-    //         return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
-    //     }
-
-    //     const url = idCentroCusto ? `/CentroCusto/${idCentroCusto}` : "/CentroCusto";
-
-    //     try {
-    //         if (metodo === "PUT") {
-    //             const { isConfirmed } = await Swal.fire({
-    //                 title: "Deseja salvar as alterações?",
-    //                 text: "Você está prestes a atualizar os dados do Centro Custo.",
-    //                 icon: "question",
-    //                 showCancelButton: true,
-    //                 confirmButtonText: "Sim, salvar",
-    //                 cancelButtonText: "Cancelar",
-    //                 reverseButtons: true,
-    //                 focusCancel: true
-    //             });
-    //             if (!isConfirmed) return;
-    //         }
-
-    //         console.log("Enviando dados para o servidor:", dados, url, metodo);
-    //         const respostaApi = await fetchComToken(url, {
-    //             method: metodo,
-    //             headers: { 'Content-Type': 'application/json' },
-    //             body: JSON.stringify(dados)
-    //         });
-
-    //         await Swal.fire("Sucesso!", respostaApi.message || "CentroCusto salvo com sucesso.", "success");
-    //         limparCamposCentroCusto();
-
-    //     } catch (error) {
-    //         console.error("Erro ao enviar dados:", error);
-    //         Swal.fire("Erro", error.message || "Erro ao salvar banco.", "error");
-    //     }
-    // });
+    
 
     botaoEnviar.addEventListener("click", async (e) => {
         e.preventDefault();
 
         const idCentroCusto = document.querySelector("#idCentroCusto").value.trim();
         const nmCentroCusto = document.querySelector("#nmCentroCusto").value.toUpperCase().trim();
-        const ativo = document.querySelector("#ativo").checked;
-        
-        const selectEmpresa = document.querySelector("#empresaSelect");
-        // Convertemos para String para garantir comparação idêntica com o que vem da API
-        const idsEmpresas = Array.from(selectEmpresa.selectedOptions).map(option => String(option.value));
-
-        // 1. Validações Iniciais
-        if (idsEmpresas.length === 0) {
-            return Swal.fire("Campo obrigatório", "Selecione pelo menos uma empresa.", "warning");
-        }
-        if (!nmCentroCusto) {
-            return Swal.fire("Campo obrigatório", "Informe o nome do Centro de Custo.", "warning");
+        const sgCentroCusto = document.querySelector("#siglaCentroCusto").value.toUpperCase().trim();
+        const ativo = document.querySelector("#ativo").checked;       
+       
+       
+        if (!nmCentroCusto || !sgCentroCusto) {
+            return Swal.fire("Campos obrigatórios", "Informe o nome e a sigla.", "warning");
         }
 
         // 2. Permissões
@@ -190,22 +157,21 @@ async function verificaCentroCusto() {
 
         // 3. BLOCO DE COMPARAÇÃO (Revisado)
         // Garantimos que comparamos arrays de strings e tratamos valores nulos/undefined
-        const empresasOriginais = (CentroCustoOriginal?.empresas || []).map(String);
+       
         
         const semAlteracao = 
-            idCentroCusto && // Só bloqueia se for uma edição
+            idCentroCusto && // Só bloqueia se for uma edição            
             parseInt(idCentroCusto) === parseInt(CentroCustoOriginal?.idCentroCusto) &&
             nmCentroCusto === CentroCustoOriginal?.nmCentroCusto &&
-            ativo === CentroCustoOriginal?.ativo &&
-            idsEmpresas.length === empresasOriginais.length &&
-            idsEmpresas.every(id => empresasOriginais.includes(id));
+            sgCentroCusto === CentroCustoOriginal?.sgCentroCusto &&
+            ativo === CentroCustoOriginal?.ativo           
 
-        if (semAlteracao) {
+        if (idCentroCusto && semAlteracao) {
             return Swal.fire("Nenhuma alteração detectada!", "Altere algum dado antes de salvar.", "info");
         }
 
         // 4. Envio dos Dados
-        const dados = { nmCentroCusto, ativo, empresas: idsEmpresas };
+        const dados = { nmCentroCusto, ativo, sgCentroCusto };
         const url = idCentroCusto ? `/CentroCusto/${idCentroCusto}` : "/CentroCusto";
 
         try {
@@ -235,6 +201,7 @@ async function verificaCentroCusto() {
             console.error("Erro ao enviar dados:", error);
             Swal.fire("Erro", error.message || "Erro ao salvar.", "error");
         }
+        
     });
 
     botaoPesquisar.addEventListener("click", async function (e) {
@@ -317,81 +284,23 @@ async function verificaCentroCusto() {
             });
         }
     });
+    validarFormulario();
 }
 
-async function carregarContas() {   
-    const selectConta = document.getElementById('nomeConta');
-    if (!selectConta) return console.error("Elemento nomeConta não encontrado no DOM");
-    // Limpa TUDO e garante que o display não esteja 'none'
-    selectConta.innerHTML = '';
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = 'Selecione a Conta';
-    placeholder.disabled = true;
-    placeholder.selected = true;
-    selectConta.appendChild(placeholder);
-    try {
-        const contas = await fetchComToken(`/centrocusto/contas`);
-        if (Array.isArray(contas)) {
-            contas.forEach(conta => {
-                const option = document.createElement('option');
-                option.value = conta.idconta;
-                option.textContent = conta.nmconta;
-                selectConta.appendChild(option);
-                console.log("Adicionada conta ao select:", option.value, option.textContent);
-            });
-            console.log("Select populado com " + contas.length + " contas.");
-        }
-    } catch (e) {
-        console.error("Erro:", e);
-    }
-}
-
-async function carregarEmpresas() {
-    const selectEmpresa = document.getElementById('empresaSelect');
-    if (!selectEmpresa) return console.error("Elemento empresaSelect não encontrado no DOM");
-
-    // Limpa TUDO e garante que o display não esteja 'none'
-    selectEmpresa.innerHTML = ''; 
-    
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = 'Selecione a Empresa Responsável';
-    placeholder.disabled = true;
-    placeholder.selected = true;
-    selectEmpresa.appendChild(placeholder);
-
-    try {
-        const empresas = await fetchComToken(`/centrocusto/empresas`);
-        
-        if (Array.isArray(empresas)) {
-            empresas.forEach(emp => {
-                const option = document.createElement('option');
-                option.value = emp.idempresa;
-                // Use nmfantasia ou nmfantasia dependendo do que vem no seu log (vi que vem nmfantasia)
-                option.textContent = emp.nmfantasia || emp.razaosocial;
-                selectEmpresa.appendChild(option);
-                console.log("Adicionada empresa ao select:", option.value, option.textContent);
-            });
-            console.log("Select populado com " + empresas.length + " empresas.");
-        }
-    } catch (e) {
-        console.error("Erro:", e);
-    }
-}
 
 function validarFormulario() {
     const elNm = document.querySelector("#nmCentroCusto");
-    const elEmp = document.querySelector("#empresaSelect");
+    const elSg = document.querySelector("#siglaCentroCusto");
     const botaoEnviar = document.querySelector("#Enviar");
 
-    if (!elNm || !elEmp || !botaoEnviar) return;
+    if (!elNm || !elSg || !botaoEnviar) return;
 
     const nmCentroCusto = elNm.value.trim();
+    const siglaCentroCusto = elSg.value.trim();
     // Pega o array de IDs selecionados
-    const empresasSelecionadas = Array.from(elEmp.selectedOptions).map(opt => opt.value);
+    
 
-    const formularioValido = nmCentroCusto !== "" && empresasSelecionadas.length > 0;
+    const formularioValido = nmCentroCusto !== "" && siglaCentroCusto !== "";
 
     if (formularioValido) {
         botaoEnviar.disabled = false;
@@ -403,21 +312,83 @@ function validarFormulario() {
         botaoEnviar.style.opacity = "0.5";
         botaoEnviar.style.cursor = "not-allowed";
         // Aviso nativo ao passar o mouse
-        botaoEnviar.title = "Para habilitar, informe o Nome do Centro de Custo e selecione pelo menos uma Empresa.";
+        botaoEnviar.title = "Para habilitar, informe o Nome do Centro de Custo e a Sigla.";
+    }
+}
+
+async function verificarSiglaExistente(sigla, elementoAtual) {
+    if (!sigla) return;
+
+    try {
+        // Faz uma busca na API filtrando pela sigla
+        const dados = await fetchComToken(`/centrocusto?sigla=${encodeURIComponent(sigla)}`);
+        const lista = Array.isArray(dados) ? dados : [dados];
+
+        if (lista.length > 0) {
+            const registro = lista[0];
+            const idAtual = document.querySelector("#idCentroCusto").value;
+
+            // Se encontrou uma sigla que não é do registro que estamos editando atualmente
+            if (String(registro.idcentrocusto) !== String(idAtual)) {
+                await Swal.fire({
+                    icon: 'warning',
+                    title: 'Sigla já utilizada',
+                    text: `A sigla "${sigla}" já está cadastrada no Centro de Custo: ${registro.nmcentrocusto}`,
+                    confirmButtonText: 'Entendido'
+                });
+                elementoAtual.value = ""; // Limpa o campo
+                validarFormulario();
+            }
+        }
+    } catch (error) {
+        console.log("Sigla disponível ou erro na busca:", error);
+    }
+}
+
+async function perguntarNovoCadastro(termo, elementoAtual) {
+    const resultado = await Swal.fire({
+        icon: 'question',
+        title: `Deseja cadastrar "${termo.toUpperCase()}"?`,
+        text: `Este Centro de Custo não foi encontrado no sistema.`,
+        showCancelButton: true,
+        confirmButtonText: "Sim, cadastrar",
+        cancelButtonText: "Cancelar",
+        reverseButtons: true,
+        focusCancel: true
+    });
+
+    if (resultado.isConfirmed) {
+        // Usuário quer cadastrar: Mantemos o que ele digitou
+        jaPerguntouCadastro = true;
+        
+        // Se o que ele digitou foi no campo de nome, garantimos que o nome está lá
+        // Se foi na sigla, garantimos que a sigla está lá.
+        if (elementoAtual) {
+            elementoAtual.value = termo.toUpperCase();
+        }
+
+        validarFormulario();
+        return true;
+    } else {
+        // Usuário cancelou: Agora sim limpamos para evitar confusão
+        document.querySelector("#nmCentroCusto").value = "";
+        document.querySelector("#siglaCentroCusto").value = "";
+        document.querySelector("#idCentroCusto").value = "";
+        jaPerguntouCadastro = false;
+        validarFormulario();
+        return false;
     }
 }
 
 function desinicializarCentroCustoModal() {
     console.log("🧹 Desinicializando módulo CentroCusto.js");
 
-   // const inputCodCentroCustoElement = document.querySelector("#codCentroCusto");
     const botaoEnviar = document.querySelector("#Enviar");
     const botaoPesquisar = document.querySelector("#Pesquisar");
     const botaoLimpar = document.querySelector("#Limpar");
-    const inputNmCentroCusto = document.querySelector("#nmCentroCusto"); // Pode ser input ou select
-    const ativoCheckbox = document.querySelector("#ativo");
-   
-    const empresaSelect = document.querySelector("#empresaSelect");
+    const inputNmCentroCusto = document.querySelector("#nmCentroCusto");
+    const inputSgCentroCusto = document.querySelector("#siglaCentroCusto");
+    const ativoCheckbox = document.querySelector("#ativo");    
 
     if (botaoLimpar && limparButtonListener) {
         botaoLimpar.removeEventListener("click", limparButtonListener);
@@ -431,28 +402,26 @@ function desinicializarCentroCustoModal() {
         botaoPesquisar.removeEventListener("click", pesquisarButtonListener);
         pesquisarButtonListener = null;
     }
-    // Remover listener do select (se o #nmCentroCusto for um select no momento da desinicialização)
     if (inputNmCentroCusto && inputNmCentroCusto.tagName === "SELECT" && selectCentroCustoChangeListener) {
         inputNmCentroCusto.removeEventListener("change", selectCentroCustoChangeListener);
         selectCentroCustoChangeListener = null;
     }
-    // Remover listener do input #nmCentroCusto (se for um input no momento da desinicialização)
     if (inputNmCentroCusto && inputNmCentroCusto.tagName === "INPUT" && inputNmCentroCustoBlurListener) {
         inputNmCentroCusto.removeEventListener("blur", inputNmCentroCustoBlurListener);
         inputNmCentroCustoBlurListener = null;
     }
+    // Agora a variável existe e o erro ReferenceError sumirá
+    if (inputSgCentroCusto && inputSgCentroCustoBlurListener) {
+        inputSgCentroCusto.removeEventListener("blur", inputSgCentroCustoBlurListener);
+        inputSgCentroCustoBlurListener = null;
+    }
 
     if (ativoCheckbox) {
-        ativoCheckbox.checked = false;
-    }
-
-    // ADICIONADO: Reset do Select de Empresa
-    if (empresaSelect) {
-        empresaSelect.selectedIndex = 0; // Volta para o "Selecione Empresa"
+        ativoCheckbox.checked = false; 
     }
     
-    // Limpar o estado global CentroCustoOriginal
-    CentroCustoOriginal = { idCentroCusto: "", nmCentroCusto: "", ativo: "" };
+    jaPerguntouCadastro = false; // Resetar o controle ao fechar
+    window.CentroCustoOriginal = { idCentroCusto: "", sgCentroCusto:"", nmCentroCusto: "", ativo: false };
     console.log("✅ Módulo CentroCusto.js desinicializado.");
 }
 
@@ -539,218 +508,6 @@ function adicionarEventoBlurCentroCusto() {
     });
 }
 
-// async function preencherCentroCusto(codCentroCusto) {
-//     try {
-//         const contas = await fetchComToken(`/contas?codCentroCusto=${encodeURIComponent(codCentroCusto)}`);    
-        
-//         document.querySelector("#idCentroCusto").value = contas.idbanco;
-//         document.querySelector("#nmCentroCusto").value = contas.nmbanco;
-//         document.querySelector("#ativo").checked = contas.ativo;
-
-//         window.CentroCustoOriginal = {
-//             idCentroCusto: contas.idbanco,
-//           //  codCentroCusto:contas.codbanco,
-//             nmCentroCusto: contas.nmbanco,
-//             ativo: contas.ativo
-//         };
-
-//         console.log("CentroCusto encontrado:", CentroCustoOriginal);
-
-//     } catch (error) {
-//         console.warn("CentroCusto não encontrado.");
-
-//         const inputIdCentroCusto = document.querySelector("#idCentroCusto");
-//         const podeCadastrarCentroCusto = temPermissao("contas", "cadastrar");
-
-//         if (!inputIdCentroCusto.value && podeCadastrarCentroCusto) {
-//             const resultado = await Swal.fire({
-//                 icon: 'question',
-//                 title: `Deseja cadastrar "${idCentroCusto.toUpperCase()}" como novo CentroCusto?`,
-//                 text: `CentroCusto "${idCentroCusto.toUpperCase()}" não encontrado.`,
-//                 showCancelButton: true,
-//                 confirmButtonText: "Sim, cadastrar",
-//                 cancelButtonText: "Cancelar",
-//                 reverseButtons: true,
-//                 focusCancel: true
-//             });
-            
-//             if (!resultado.isConfirmed) {
-//                 console.log("Usuário cancelou o cadastro do CentroCusto.");
-//                 elementoAtual.value = ""; // Limpa o campo se não for cadastrar
-//                 setTimeout(() => {
-//                     elementoAtual.focus();
-//                 }, 0);
-//                 return;
-//             }
-//         } else if (!podeCadastrarCentroCusto) {
-//             Swal.fire({
-//                 icon: "info",
-//                 title:"CentroCusto não cadastrado",
-//                 text: "Você não tem permissão para cadastrar contas.",
-//                 confirmButtonText: "OK"
-//             });
-//         }
-        
-//     }   
-// }
-
-
-// async function carregarCentroCustoDescricao(desc, elementoAtual) {
-//     try {
-//             const dados = await fetchComToken(`/centrocusto?nmCentrocusto=${encodeURIComponent(desc)}`);
-           
-
-//             const centrocusto = Array.isArray(dados) ? dados[0] : dados;
-//             console.log("CentroCusto encontrado da API:", centrocusto); // Log mais descritivo
-
-//             document.querySelector("#idCentroCusto").value = centrocusto.idcentrocusto;
-//             document.querySelector("#nmCentroCusto").value = centrocusto.nmcentrocusto || "";
-            
-
-//             const selectEmpresa = document.querySelector("#empresaSelect");
-//             if (centrocusto.idempresa && selectEmpresa) {
-//                 selectEmpresa.value = centrocusto.idempresa;
-//             }
-
-//             const isAtivo = centrocusto.ativo === true || centrocusto.ativo === 1 || centrocusto.ativo === "S";
-//             document.querySelector("#ativo").checked = isAtivo;
-            
-            
-//             window.CentroCustoOriginal = {
-//                 idCentroCusto: centrocusto.idcentrocusto,              
-//                 nmCentroCusto: centrocusto.nmcentrocusto,
-//                 ativo: isAtivo,
-//                 idempresa: centrocusto.idempresa
-//             };
-
-//             validarFormulario();
-    
-//             console.log("CentroCusto encontrado:", CentroCustoOriginal);
-    
-//         } catch (error) {
-//             console.warn("CentroCusto não encontrado.");
-    
-//             const inputIdCentroCusto = document.querySelector("#idCentroCusto");
-//             const podeCadastrarCentroCusto = temPermissao("contas", "cadastrar");
-    
-//            if (!inputIdCentroCusto.value && podeCadastrarCentroCusto) {
-//                  const resultado = await Swal.fire({
-//                     icon: 'question',
-//                     title: `Deseja cadastrar "${desc.toUpperCase()}" como novo CentroCusto?`,
-//                     text: `CentroCusto "${desc.toUpperCase()}" não encontrado.`,
-//                     showCancelButton: true,
-//                     confirmButtonText: "Sim, cadastrar",
-//                     cancelButtonText: "Cancelar",
-//                     reverseButtons: true,
-//                     focusCancel: true
-//                 });
-    
-                
-//                 if (!resultado.isConfirmed) {
-//                     console.log("Usuário cancelou o cadastro do CentroCusto.");
-//                     elementoAtual.value = ""; // Limpa o campo se não for cadastrar
-//                     validarFormulario();
-//                     setTimeout(() => {
-//                         elementoAtual.focus();
-//                     }, 0);
-//                     return;
-//                 }
-//             } else if (!podeCadastrarCentroCusto) {
-//                 Swal.fire({
-//                     icon: "info",
-//                     title:"CentroCusto não cadastrado",
-//                     text: "Você não tem permissão para cadastrar contas.",
-//                     confirmButtonText: "OK"
-//                 });
-//             }
-//             validarFormulario();
-//         }
-// }
-
-// async function carregarCentroCustoDescricao(desc, elementoAtual) {
-//     try {
-//         // 1. Busca os registros (pode retornar vários para o mesmo nome em empresas diferentes)
-//         const dados = await fetchComToken(`/centrocusto?nmCentrocusto=${encodeURIComponent(desc)}`);
-//         const listaRegistros = Array.isArray(dados) ? dados : [dados];
-        
-//         if (listaRegistros.length === 0) throw new Error("Não encontrado");
-
-//         const centrocustoPrincipal = listaRegistros[0];
-
-//         // Preenche campos básicos
-//         document.querySelector("#idCentroCusto").value = centrocustoPrincipal.idcentrocusto;
-//         document.querySelector("#nmCentroCusto").value = centrocustoPrincipal.nmcentrocusto || "";
-
-//         // 2. Lógica de Seleção Visual das Empresas
-//         const selectEmpresa = document.querySelector("#empresaSelect");
-//         if (selectEmpresa) {
-//             // Limpamos seleções anteriores
-//             Array.from(selectEmpresa.options).forEach(option => option.selected = false);
-
-//             const idsEmpresasVinculadas = listaRegistros.map(reg => String(reg.idempresa));
-
-//             Array.from(selectEmpresa.options).forEach(option => {
-//                 if (idsEmpresasVinculadas.includes(String(option.value))) {
-//                     option.selected = true; // Marca a opção internamente
-//                 }
-//             });
-
-//             // ADICIONE ESTA LINHA: Força a atualização visual da UI
-//             selectEmpresa.dispatchEvent(new Event('change')); 
-//         }
-
-//         // Resto do preenchimento...
-//         const isAtivo = centrocustoPrincipal.ativo === true || centrocustoPrincipal.ativo === 1 || centrocustoPrincipal.ativo === "S";
-//         document.querySelector("#ativo").checked = isAtivo;
-        
-//         window.CentroCustoOriginal = {
-//             idCentroCusto: centrocustoPrincipal.idcentrocusto,              
-//             nmCentroCusto: centrocustoPrincipal.nmcentrocusto,
-//             ativo: isAtivo,
-//             empresas: listaRegistros.map(reg => String(reg.idempresa))
-//         };
-
-//         validarFormulario();
-
-//     } catch (error) {
-//         console.warn("CentroCusto não encontrado.");
-    
-//         const inputIdCentroCusto = document.querySelector("#idCentroCusto");
-//         const podeCadastrarCentroCusto = temPermissao("contas", "cadastrar");
-
-//         if (!inputIdCentroCusto.value && podeCadastrarCentroCusto) {
-//                 const resultado = await Swal.fire({
-//                 icon: 'question',
-//                 title: `Deseja cadastrar "${desc.toUpperCase()}" como novo CentroCusto?`,
-//                 text: `CentroCusto "${desc.toUpperCase()}" não encontrado.`,
-//                 showCancelButton: true,
-//                 confirmButtonText: "Sim, cadastrar",
-//                 cancelButtonText: "Cancelar",
-//                 reverseButtons: true,
-//                 focusCancel: true
-//             });
-
-            
-//             if (!resultado.isConfirmed) {
-//                 console.log("Usuário cancelou o cadastro do CentroCusto.");
-//                 elementoAtual.value = ""; // Limpa o campo se não for cadastrar
-//                 validarFormulario();
-//                 setTimeout(() => {
-//                     elementoAtual.focus();
-//                 }, 0);
-//                 return;
-//             }
-//         } else if (!podeCadastrarCentroCusto) {
-//             Swal.fire({
-//                 icon: "info",
-//                 title:"CentroCusto não cadastrado",
-//                 text: "Você não tem permissão para cadastrar contas.",
-//                 confirmButtonText: "OK"
-//             });
-//         }
-//         validarFormulario();
-//     }
-// }
 
 async function carregarCentroCustoDescricao(desc, elementoAtual) {
     try {
@@ -764,96 +521,89 @@ async function carregarCentroCustoDescricao(desc, elementoAtual) {
         const centrocustoPrincipal = listaRegistros[0];
 
         const isAtivo = listaRegistros.some(reg => reg.ativo === true || reg.ativo === 1 || reg.ativo === "S");
-
-        document.querySelector("#ativo").checked = isAtivo;
+       
 
         document.querySelector("#idCentroCusto").value = centrocustoPrincipal.idcentrocusto;
+        document.querySelector("#siglaCentroCusto").value = centrocustoPrincipal.sigla || "";
         document.querySelector("#nmCentroCusto").value = centrocustoPrincipal.nmcentrocusto || "";
-
-        // 2. Lógica de Seleção Visual das Empresas (REVISADA)
-        const selectEmpresa = document.querySelector("#empresaSelect");
-        if (selectEmpresa) {
-            Array.from(selectEmpresa.options).forEach(option => option.selected = false);
-
-            Array.from(selectEmpresa.options).forEach(option => {
-                // Procuramos o registro correspondente a esta opção no array que veio do banco
-                const vinculoBanco = listaRegistros.find(reg => String(reg.idempresa) === String(option.value));
-                
-                // SÓ marcamos como selecionada se o vínculo existir E o ativoempresa for true
-                if (vinculoBanco && vinculoBanco.ativoempresa === true) {
-                    option.selected = true;
-                }
-            });
-
-            selectEmpresa.dispatchEvent(new Event('change')); 
-        }
-
-       
+        document.querySelector("#ativo").checked = isAtivo;
+             
         
         // Atualizamos o objeto original salvando apenas os IDs das empresas que estão REALMENTE ativas
         window.CentroCustoOriginal = {
             idCentroCusto: centrocustoPrincipal.idcentrocusto,              
             nmCentroCusto: centrocustoPrincipal.nmcentrocusto,
-            ativo: isAtivo,
-            empresas: listaRegistros
-                .filter(reg => reg.ativoempresa === true) // Filtra apenas as ativas
-                .map(reg => String(reg.idempresa))
+            sgCentroCusto: centrocustoPrincipal.sigla || "",
+            ativo: isAtivo
+            
         };
 
+        jaPerguntouCadastro = false;
         validarFormulario();
 
     } catch (error) {
-       console.warn("CentroCusto não encontrado.");
-    
-        const inputIdCentroCusto = document.querySelector("#idCentroCusto");
-        const podeCadastrarCentroCusto = temPermissao("centrocusto", "cadastrar");
+        console.warn("Centro de Custo não encontrado.");
+        const idVazio = !document.querySelector("#idCentroCusto").value;
+        const podeCadastrar = temPermissao("centrocusto", "cadastrar");
 
-        if (!inputIdCentroCusto.value && podeCadastrarCentroCusto) {
-                const resultado = await Swal.fire({
-                icon: 'question',
-                title: `Deseja cadastrar "${desc.toUpperCase()}" como novo CentroCusto?`,
-                text: `CentroCusto "${desc.toUpperCase()}" não encontrado.`,
-                showCancelButton: true,
-                confirmButtonText: "Sim, cadastrar",
-                cancelButtonText: "Cancelar",
-                reverseButtons: true,
-                focusCancel: true
-            });
+        if (idVazio && podeCadastrar && !jaPerguntouCadastro) {
+            // PASSANDO OS ARGUMENTOS CORRETOS AQUI
+            await perguntarNovoCadastro(desc, elementoAtual);
+        }
+    }
+
+    // } catch (error) {
+    //    console.warn("CentroCusto não encontrado.");
+    
+    //     const inputIdCentroCusto = document.querySelector("#idCentroCusto");
+    //     const podeCadastrarCentroCusto = temPermissao("centrocusto", "cadastrar");
+
+    //     if (!inputIdCentroCusto.value && podeCadastrarCentroCusto) {
+    //             const resultado = await Swal.fire({
+    //             icon: 'question',
+    //             title: `Deseja cadastrar "${desc.toUpperCase()}" como novo CentroCusto?`,
+    //             text: `CentroCusto "${desc.toUpperCase()}" não encontrado.`,
+    //             showCancelButton: true,
+    //             confirmButtonText: "Sim, cadastrar",
+    //             cancelButtonText: "Cancelar",
+    //             reverseButtons: true,
+    //             focusCancel: true
+    //         });
 
             
-            if (!resultado.isConfirmed) {
-                console.log("Usuário cancelou o cadastro do CentroCusto.");
-                elementoAtual.value = ""; // Limpa o campo se não for cadastrar
-                validarFormulario();
-                setTimeout(() => {
-                    elementoAtual.focus();
-                }, 0);
-                return;
-            }
-        } else if (!podeCadastrarCentroCusto) {
-            Swal.fire({
-                icon: "info",
-                title:"CentroCusto não cadastrado",
-                text: "Você não tem permissão para cadastrar contas.",
-                confirmButtonText: "OK"
-            });
-        }
-        validarFormulario();
+    //         if (!resultado.isConfirmed) {
+    //             console.log("Usuário cancelou o cadastro do CentroCusto.");
+    //             elementoAtual.value = ""; // Limpa o campo se não for cadastrar
+    //             validarFormulario();
+    //             setTimeout(() => {
+    //                 elementoAtual.focus();
+    //             }, 0);
+    //             return;
+    //         }
+    //     } else if (!podeCadastrarCentroCusto) {
+    //         Swal.fire({
+    //             icon: "info",
+    //             title:"CentroCusto não cadastrado",
+    //             text: "Você não tem permissão para cadastrar contas.",
+    //             confirmButtonText: "OK"
+    //         });
+    //     }
+    //     validarFormulario();
     
-    }
+    // }
 }
 
 function limparCamposCentroCusto() {
     const idEvent = document.getElementById("idCentroCusto");
-    const nmCentroCustoEl = document.getElementById("nmCentroCusto");
-    const empresaSelectEl = document.getElementById("empresaSelect");
+    const sgCentroCustoEl = document.getElementById("siglaCentroCusto");
+    const nmCentroCustoEl = document.getElementById("nmCentroCusto"); 
     const ativoEl = document.getElementById("ativo");
 
     if (idEvent) idEvent.value = "";
+    if (sgCentroCustoEl) sgCentroCustoEl.value = "";
     if (nmCentroCustoEl) nmCentroCustoEl.value = "";
     if (ativoEl) ativoEl.checked = false;
-
-    if (empresaSelectEl) empresaSelectEl.selectedIndex = 0;
+   
 
     if (nmCentroCustoEl && nmCentroCustoEl.tagName === "SELECT") {
         const novoInput = document.createElement("input");
@@ -872,7 +622,7 @@ function limparCamposCentroCusto() {
             await carregarCentroCustoDescricao(this.value, this);
         });
 
-        descEventEl.parentNode.replaceChild(novoInput, nmCentroCustoEl);
+        nmCentroCustoEl.parentNode.replaceChild(novoInput, nmCentroCustoEl);
         adicionarEventoBlurCentroCusto();
         const label = document.querySelector('label[for="nmCentroCusto"]');
         if (label) {

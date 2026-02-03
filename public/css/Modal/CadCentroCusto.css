@@ -43,7 +43,7 @@
   background-color: #4d4d4d;
   padding: 5px;
   margin-top: 10px;
-  width: 725px; /* Ajuste o tamanho conforme necessário */
+  width: 750px; /* Ajuste o tamanho conforme necessário */
   height: 530px;
   font-size: 16px;
   z-index: 9999;
@@ -102,7 +102,7 @@ body{
   flex-direction: column; 
   justify-content: center;
   background-color: white;
-  max-width: 700px;   
+  max-width: 725px;   
   width: 100%;  
   height: 440px; 
   margin: 0 auto;         
@@ -117,7 +117,7 @@ body{
 fieldset {
   display: flex;
   flex-direction: column;
-  width: 650px;
+  width: 690px;
   height: 300px;
   background-color: transparent;
   border-color: var(--dark-color);
@@ -155,7 +155,7 @@ legend{
 
 .form input{
   font-family:  var(--Font-primary);
-  width: 350px;
+  width: 470px;
   height: 30px;
   border-radius: 6px;
   font-size: 13px;
@@ -169,7 +169,7 @@ legend{
 .form2 input{
   flex: 1;
   font-family: var(--Font-primary);
-  width: 270px;
+  width: 430px;
   height: 30px;
   border-radius: 6px;
   font-size: 13px;
@@ -180,8 +180,8 @@ legend{
   outline: none;
 }
 
-#idCentroCusto{
-  width: 80px;
+#idCentroCusto, #siglaCentroCusto{
+  width: 100px;
 }
 
 .form2 {
@@ -196,7 +196,7 @@ legend{
   border-radius: 5px;
   flex: 1;
   font-family: var(--Font-primary);
-  width: 250px; 
+  width: 470px; 
   height: 30px;
   border-radius: 6px;
   font-size: 13px;
@@ -286,7 +286,8 @@ input:focus{
 }
 
 input:focus ~ label,
-input:valid ~ label{
+input:valid ~ label,
+select:valid ~ label {
   top: 0;
   left: 25%;
   font-size: 15px;

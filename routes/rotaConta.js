@@ -68,41 +68,6 @@ router.get("/planocontas", autenticarToken(), async (req, res) => {
   }
 });
 
-// router.get("/proximo-codigo/:prefixo", autenticarToken(), async (req, res) => {
-//     const { prefixo } = req.params; // Recebe algo como "01.00"
-//     const idempresa = req.idempresa;
-
-//     try {
-//         // Busca o maior código que comece com o prefixo
-//         const result = await pool.query(
-//             `SELECT codconta FROM contas 
-//              WHERE idempresa = $1 AND codconta LIKE $2 
-//              ORDER BY codconta DESC LIMIT 1`,
-//             [idempresa, `${prefixo}.%`]
-//         );
-
-//         let novoSequencial = 1;
-
-//         if (result.rows.length > 0) {
-//             const ultimoCodigo = result.rows[0].codigo;
-//             const partes = ultimoCodigo.split('.');
-//             const ultimoSegmento = parseInt(partes[partes.length - 1]);
-//             novoSequencial = ultimoSegmento + 1;
-//         }
-
-//         // Formata com zeros à esquerda (ex: 1 vira 01)
-//         const proximoCodigo = `${prefixo}.${novoSequencial.toString().padStart(2, '0')}`;
-        
-//         res.json({ proximoCodigo });
-//     } catch (error) {
-//         console.error("Erro ao calcular próximo código:", error);
-//         res.status(500).json({ message: "Erro interno" });
-//     }
-// });
-
-// Aplica autenticação em todas as rotas
-
-
 router.get("/proximo-codigo/:prefixo", autenticarToken(), async (req, res) => {
     const { prefixo } = req.params; 
     const idempresa = req.idempresa;
@@ -176,92 +141,6 @@ router.get("/", verificarPermissao('Contas', 'pesquisar'), async (req, res) => {
   }
 });
 
-// PUT atualizar
-// router.put("/:id", 
-//   verificarPermissao('Contas', 'alterar'),
-//   logMiddleware('Contas', {
-//       buscarDadosAnteriores: async (req) => {
-//           const idConta = req.params.id;
-//           const idempresa = req.idempresa;
-//           try {
-//               const result = await pool.query(
-//                   `SELECT * FROM contas WHERE idconta = $1 AND idempresa = $2`,
-//                   [idConta, idempresa]
-//               );
-//               const linha = result.rows[0] || null;
-//               return {
-//                   dadosanteriores: linha,
-//                   idregistroalterado: linha?.idconta || null
-//               };
-//           } catch (error) {
-//               console.error("Erro ao buscar dados anteriores da conta:", error);
-//               return { dadosanteriores: null, idregistroalterado: null };
-//           }
-//       }
-//   }),
-//   async (req, res) => {
-//     const id = req.params.id;
-//     const idempresa = req.idempresa;
-    
-//     // ALTERADO: agora recebe idtipoconta do body (enviado pelo JS como dados)
-//     const { nmConta, idtipoconta } = req.body; 
-//     const ativo = req.body.ativo === true || req.body.ativo === 'true';
-    
-//     try {
-//         // ATUALIZADO: Query usando a nova coluna idtipoconta
-//         const result = await pool.query(
-//           `UPDATE contas 
-//            SET nmconta = $1, ativo = $2, idtipoconta = $3 
-//            WHERE idconta = $4 AND idempresa = $5 
-//            RETURNING idconta, nmconta, ativo, idtipoconta`, 
-//           [nmConta, ativo, idtipoconta, id, idempresa]
-//         );
-
-//         if (result.rowCount) {
-//           res.locals.acao = 'atualizou';
-//           res.locals.idregistroalterado = result.rows[0].idconta; 
-//           return res.json({ message: "Conta atualizada com sucesso!", conta: result.rows[0] });
-//         } else {
-//           return res.status(404).json({ message: "Conta não encontrada para atualizar." });
-//         }
-//     } catch (error) {
-//         console.error("Erro ao atualizar conta:", error);
-//         res.status(500).json({ message: "Erro ao atualizar conta." });
-//     }
-// });
-
-// // POST criar nova conta
-// router.post("/", verificarPermissao('Contas', 'cadastrar'), 
-//   logMiddleware('Contas', { 
-//       buscarDadosAnteriores: async (req) => {
-//         return { dadosanteriores: null, idregistroalterado: null };
-//       }
-//   }),
-//   async (req, res) => {
-//     // ALTERADO: agora recebe idtipoconta
-//     const { nmConta, ativo, idtipoconta } = req.body;
-//     const idempresa = req.idempresa;
-
-//     try {
-//         // ATUALIZADO: Query usando idtipoconta no INSERT
-//         const result = await pool.query(
-//             "INSERT INTO contas (nmconta, ativo, idempresa, idtipoconta) VALUES ($1, $2, $3, $4) RETURNING idconta, nmconta, idtipoconta", 
-//             [nmConta, ativo, idempresa, idtipoconta]
-//         );
-
-//         const novaConta = result.rows[0];
-//         res.locals.acao = 'cadastrou';
-//         res.locals.idregistroalterado = novaConta.idconta; 
-
-//         // Padronizado para 'message' para facilitar no Frontend
-//         res.status(201).json({ message: "Conta salva com sucesso!", conta: novaConta });
-//     } catch (error) {
-//         console.error("Erro ao salvar conta:", error);
-//         res.status(500).json({ message: "Erro ao salvar conta.", detail: error.message });
-//     }
-// });
-
-// ... (outras rotas e middlewares)
 
 // PUT atualizar
 router.put("/:id", 
