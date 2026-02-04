@@ -240,7 +240,7 @@ label[for="idContaSelect"] {
 #idContaSelect {
     display: block !important;
     height: 30px !important; /* Altura que você solicitou */
-    width: 500px !important;
+    width: 520px !important;
     padding: 0 10px !important;
     line-height: 30px !important;
 }

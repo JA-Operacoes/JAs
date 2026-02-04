@@ -118,7 +118,7 @@ fieldset {
   display: flex;
   flex-direction: column;
   width: 700px;
-  height: 520px;
+  height: 540px;
   background-color: transparent;
   border-color: var(--dark-color);
   margin: 0 auto;

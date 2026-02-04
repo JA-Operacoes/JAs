@@ -87,105 +87,129 @@ router.get("/centrocusto",  autenticarToken(), async (req, res) => {
 });
 
 // Função auxiliar para evitar repetição de código
-async function buscarEntidadeVinculo(tabelaPrincipal, tabelaRelacao, idCol, nomeCol, fkCol, idempresa) {
-    // tabelaPrincipal: ex 'clientes'
-    // tabelaRelacao: ex 'clienteempresas'
-    // fkCol: a coluna que liga as duas, ex 'idcliente'
+// async function buscarEntidadeVinculo(tabelaPrincipal, tabelaRelacao, idCol, nomeCol, fkCol, idempresa) {
+//     // tabelaPrincipal: ex 'clientes'
+//     // tabelaRelacao: ex 'clienteempresas'
+//     // fkCol: a coluna que liga as duas, ex 'idcliente'
     
-    const query = `
+//     const query = `
+//         SELECT p.${idCol} AS id, p.${nomeCol} AS nome 
+//         FROM ${tabelaPrincipal} p
+//         INNER JOIN ${tabelaRelacao} r ON p.${idCol} = r.${fkCol}
+//         WHERE r.idempresa = $1 AND p.ativo = true 
+//         ORDER BY nome
+//     `;
+    
+//     const result = await pool.query(query, [idempresa]);
+//     return result.rows;
+// }
+
+async function buscarEntidadeVinculo(tabelaPrincipal, tabelaRelacao, idCol, nomeCol, fkCol, idempresa, perfil = null) {
+    
+    console.log("🔍 Buscando Vínculo:", { tabelaPrincipal, idempresa, perfil });
+    
+    let query = `
         SELECT p.${idCol} AS id, p.${nomeCol} AS nome 
         FROM ${tabelaPrincipal} p
         INNER JOIN ${tabelaRelacao} r ON p.${idCol} = r.${fkCol}
-        WHERE r.idempresa = $1 AND p.ativo = true 
-        ORDER BY nome
+        WHERE r.idempresa = $1 AND p.ativo = true
     `;
     
-    const result = await pool.query(query, [idempresa]);
+    const params = [idempresa];
+
+    if (perfil) {
+        // Normaliza para minúsculas e remove espaços para comparação segura
+        const p = perfil.toLowerCase().trim();
+
+        if (p.includes('func')) { 
+            // Se o valor do rádio for "funcionário", busca Interno ou Externo
+            // O ILIKE garante que encontre "Interno" ou "interno" no banco
+            query += ` AND (p.perfil ILIKE 'Interno' OR p.perfil ILIKE 'Externo')`;
+        } else if (p.includes('free') || p.includes('sem')) {
+            // Se o valor for "free-lancer", busca Freelancer ou Lote
+            query += ` AND (p.perfil ILIKE 'Freelancer' OR p.perfil ILIKE 'Lote')`;
+        }
+    }
+
+    query += ` ORDER BY nome`;
+    
+    const result = await pool.query(query, params);
     return result.rows;
 }
 
+
 // Rota Genérica de Vínculo
+// router.get("/vinculo/:tipo", autenticarToken(), async (req, res) => {
+//     const { tipo } = req.params;
+//     const idempresa = req.idempresa;
+
+//     try {
+//         let dados = [];
+//         if (tipo === 'clientes') {
+//             dados = await buscarEntidadeVinculo('clientes', 'clienteempresas', 'idcliente', 'nmfantasia', 'idcliente', idempresa);
+//         } else if (tipo === 'fornecedores') {
+//             // Usando nmfantasia conforme sua estrutura
+//             dados = await buscarEntidadeVinculo('fornecedores', 'fornecedorempresas', 'idfornecedor', 'nmfantasia', 'idfornecedor', idempresa);
+//         } else if (tipo === 'funcionarios') {
+//             dados = await buscarEntidadeVinculo('funcionarios', 'funcionarioempresas', 'idfuncionario', 'nome', 'idfuncionario', idempresa);
+//         }
+        
+//         res.json(dados);
+//     } catch (error) {
+//         console.error(`❌ ERRO NA ROTA /vinculo/${tipo}:`, error.message);
+//         res.status(500).json({ message: "Erro ao buscar dados do banco", detail: error.message });
+//     }
+// });
+
+
+// Rota Genérica de Vínculo com Suporte a Perfil
 router.get("/vinculo/:tipo", autenticarToken(), async (req, res) => {
-    const { tipo } = req.params;
+    const { tipo } = req.params; // clientes, fornecedores, funcionarios
+    const { perfil } = req.query;
     const idempresa = req.idempresa;
 
     try {
         let dados = [];
-        if (tipo === 'clientes') {
-            dados = await buscarEntidadeVinculo('clientes', 'clienteempresas', 'idcliente', 'nmfantasia', 'idcliente', idempresa);
+        
+        if (tipo === 'funcionarios') {
+            dados = await buscarEntidadeVinculo(
+                'funcionarios', 
+                'funcionarioempresas', 
+                'idfuncionario', 
+                'nome', 
+                'idfuncionario', 
+                idempresa, 
+                perfil 
+            );
         } else if (tipo === 'fornecedores') {
-            // Usando nmfantasia conforme sua estrutura
-            dados = await buscarEntidadeVinculo('fornecedores', 'fornecedorempresas', 'idfornecedor', 'nmfantasia', 'idfornecedor', idempresa);
-        } else if (tipo === 'funcionarios') {
-            dados = await buscarEntidadeVinculo('funcionarios', 'funcionarioempresas', 'idfuncionario', 'nome', 'idfuncionario', idempresa);
+            // CORREÇÃO AQUI: explicitando os nomes para evitar erro de concatenação
+            dados = await buscarEntidadeVinculo(
+                'fornecedores', 
+                'fornecedorempresas', 
+                'idfornecedor', 
+                'nmfantasia', 
+                'idfornecedor', 
+                idempresa, 
+                null
+            );
+        } else if (tipo === 'clientes') {
+            dados = await buscarEntidadeVinculo(
+                'clientes', 
+                'clienteempresas', 
+                'idcliente', 
+                'nmfantasia', 
+                'idcliente', 
+                idempresa, 
+                null
+            );
         }
         
         res.json(dados);
     } catch (error) {
         console.error(`❌ ERRO NA ROTA /vinculo/${tipo}:`, error.message);
-        res.status(500).json({ message: "Erro ao buscar dados do banco", detail: error.message });
+        res.status(500).json({ message: "Erro ao buscar dados do banco" });
     }
 });
-
-// router.get("/centrocusto", autenticarToken(), async (req, res) => {
-//     try {
-//         const idempresa = req.idempresa;
-        
-//         const query = `
-//             SELECT idcentrocusto, nmcentrocusto 
-//             FROM centrocusto 
-//             WHERE idempresa = $1 AND ativo = true 
-//             ORDER BY nmcentrocusto
-//         `;
-        
-//         const result = await pool.query(query, [idempresa]);
-//         res.json(result.rows);
-//     } catch (error) {
-//         console.error("❌ Erro ao buscar centros de custo:", error.message);
-//         res.status(500).json({ message: "Erro ao buscar centros de custo" });
-//     }
-// });
-
-// router.get("/proximo-codigo/:prefixo", autenticarToken(), async (req, res) => {
-//     const { prefixo } = req.params; 
-//     const idempresa = req.idempresa;
-
-//     try {
-//         // Busca o maior código que comece com o prefixo (ex: 01.00.%)
-//         const result = await pool.query(
-//             `SELECT codconta FROM contas 
-//              WHERE idempresa = $1 AND codconta LIKE $2 
-//              ORDER BY codconta DESC LIMIT 1`,
-//             [idempresa, `${prefixo}.%`]
-//         );
-
-//         let novoSequencial = 1;
-
-//         // VERIFICAÇÃO: Só tenta dar split se a query retornou algo e o campo não é nulo
-//         if (result.rows.length > 0 && result.rows[0].codigo) {
-//             const ultimoCodigo = result.rows[0].codigo;
-//             const partes = ultimoCodigo.split('.'); // Aqui não dará mais erro
-            
-//             // Pega o último número da sequência
-//             const ultimoSegmento = parseInt(partes[partes.length - 1]);
-            
-//             if (!isNaN(ultimoSegmento)) {
-//                 novoSequencial = ultimoSegmento + 1;
-//             }
-//         }
-
-//         // Formata o próximo código (ex: 01.00.01)
-//         const proximoCodigo = `${prefixo}.${novoSequencial.toString().padStart(2, '0')}`;
-        
-//         console.log(`Próximo código gerado para prefixo ${prefixo}: ${proximoCodigo}`);
-//         res.json({ proximoCodigo });
-
-//     } catch (error) {
-//         console.error("❌ Erro detalhado ao calcular próximo código:", error);
-//         res.status(500).json({ message: "Erro interno ao gerar sequência de código" });
-//     }
-// });
-
 
 router.get("/proximo-codigo/:idplanocontas", autenticarToken(), async (req, res) => {
     try {
@@ -246,15 +270,53 @@ router.use(autenticarToken());
 router.use(contextoEmpresa);
 
 // GET todas ou por nome
+// router.get("/", verificarPermissao('Contas', 'pesquisar'), async (req, res) => {
+//   const { nmConta } = req.query;
+//   const idempresa = req.idempresa;
+
+//   try {
+//     if (nmConta) {
+//       // Retorna idtipoconta agora
+//       const result = await pool.query(
+//         `SELECT * FROM contas WHERE idempresa = $1 AND nmconta ILIKE $2 LIMIT 1`,
+//         [idempresa, nmConta]
+//       );
+//       return result.rows.length
+//         ? res.json(result.rows[0])
+//         : res.status(404).json({ message: "Conta não encontrada" });
+//     } else {
+//       const result = await pool.query(
+//         `SELECT * FROM contas WHERE idempresa = $1 ORDER BY nmconta ASC`,
+//         [idempresa]
+//       );
+//       return result.rows.length
+//         ? res.json(result.rows)
+//         : res.status(404).json({ message: "Nenhuma conta encontrada" });
+//     }
+//   } catch (error) {
+//     console.error("Erro ao buscar conta:", error);
+//     res.status(500).json({ message: "Erro ao buscar conta" });
+//   }
+// });
+
 router.get("/", verificarPermissao('Contas', 'pesquisar'), async (req, res) => {
   const { nmConta } = req.query;
   const idempresa = req.idempresa;
 
+  // Query que traz o perfil apenas se o vínculo for um funcionário
+  const queryBase = `
+    SELECT 
+        c.*,
+        f.perfil AS perfil_vinculo
+    FROM contas c
+    LEFT JOIN funcionarios f ON c.idvinculo = f.idfuncionario AND c.tipovinculo = 'funcionario'
+    WHERE c.idempresa = $1
+  `;
+
   try {
     if (nmConta) {
-      // Retorna idtipoconta agora
       const result = await pool.query(
-        `SELECT * FROM contas WHERE idempresa = $1 AND nmconta ILIKE $2 LIMIT 1`,
+        `${queryBase} AND c.nmconta ILIKE $2 LIMIT 1`,
         [idempresa, nmConta]
       );
       return result.rows.length
@@ -262,7 +324,7 @@ router.get("/", verificarPermissao('Contas', 'pesquisar'), async (req, res) => {
         : res.status(404).json({ message: "Conta não encontrada" });
     } else {
       const result = await pool.query(
-        `SELECT * FROM contas WHERE idempresa = $1 ORDER BY nmconta ASC`,
+        `${queryBase} ORDER BY c.nmconta ASC`,
         [idempresa]
       );
       return result.rows.length
