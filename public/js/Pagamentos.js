@@ -178,152 +178,6 @@ async function carregarHistoricoPagto(idLanc) {
     }
 }
 
-// function preencherParaEdicao(p) {
-//     const dataVctoFormatada = formatarDataBR(p.dtvcto);
-
-//     Swal.fire({
-//         title: 'Confirmar Edição?',
-//         html: `Deseja alterar a <b>Parcela ${p.numparcela}º</b><br>Vencimento: <b>${dataVctoFormatada}</b>?`,
-//         icon: 'question',
-//         showCancelButton: true,
-//         confirmButtonText: 'Sim, carregar dados',
-//         cancelButtonText: 'Cancelar',
-//         confirmButtonColor: '#f39c12'
-//     }).then((result) => {
-//         if (result.isConfirmed) {
-
-//             limparFormularioTotalmente();
-//             // 1. Identificar Permissões
-//             const eSupremo = typeof temPermissao === "function" ? temPermissao("Pagamentos", "supremo") : false;
-
-//             // 2. Preenchimento dos campos básicos
-//             document.querySelector("#idPagamento").value = p.idpagamento || "";
-//             document.querySelector("#numParcela").value = p.numparcela;
-//             document.querySelector("#vlrPago").value = parseFloat(p.vlrpago).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-//             document.querySelector("#dtvcto").value = p.dtvcto.split('T')[0];
-//             document.querySelector("#dtpgto").value = p.dtpgto ? p.dtpgto.split('T')[0] : "";
-//             document.querySelector("#observacaoPagto").value = p.observacao || "";
-//             document.querySelector("#statusPagto").checked = (p.status.toLowerCase() === 'pago');
-
-//             // 3. BLOQUEIO PARA NÃO SUPREMO (Trava de campos de texto/data)
-//             const camposParaBloquear = ["#numParcela", "#vlrPago", "#dtvcto", "#dtpgto", "#statusPagto", "#observacaoPagto"];
-//             camposParaBloquear.forEach(selector => {
-//                 const el = document.querySelector(selector);
-//                 if (el) el.disabled = !eSupremo; // Se não for supremo, desabilita
-//             });
-
-//             // 4. Carrega os anexos (a função carregarAnexosExistentes já cuida das lixeiras e bloqueios dos inputs file)
-//             carregarAnexosExistentes(p);
-
-//             // 5. Ajuste visual do botão principal
-//             const btnEnviar = document.querySelector("#Enviar");
-//             if (btnEnviar) {
-//                 if (!eSupremo) {
-//                     btnEnviar.textContent = "Salvar Anexos";
-//                     btnEnviar.style.backgroundColor = "#27ae60"; // Verde para indicar que é apenas complemento de dados
-//                 } else {
-//                     btnEnviar.textContent = "Atualizar Parcela";
-//                     btnEnviar.style.backgroundColor = "#f39c12"; 
-//                 }
-//             }
-
-//             // Ativa labels e foca no que estiver disponível
-//             document.querySelectorAll('#form input').forEach(i => i.dispatchEvent(new Event('input')));
-            
-//             if(eSupremo) {
-//                 document.querySelector("#vlrPago").focus();
-//             } else {
-//                 Swal.fire({
-//                     title: 'Modo de Complemento',
-//                     text: 'Você não tem permissão para alterar os dados da parcela, apenas gerenciar os anexos permitidos.',
-//                     icon: 'info',
-//                     timer: 3000
-//                 });
-//             }
-//         }
-//     });
-// }
-
-
-
-// async function preencherParaEdicao(p) {
-
-//     const dataVctoFormatada = formatarDataBR(p.dtvcto);
-
-//     const result = await Swal.fire({
-//         title: 'Confirmar Edição?',
-//         html: `Deseja alterar a <b>Parcela ${p.numparcela}º</b><br>Vencimento: <b>${dataVctoFormatada}</b>?`,
-//         icon: 'question',
-//         showCancelButton: true,
-//         confirmButtonText: 'Sim, carregar dados',
-//         cancelButtonText: 'Cancelar',
-//         confirmButtonColor: '#f39c12'
-//     });
-
-//     if (result.isConfirmed) {
-//         // 1. Limpa o formulário antes de tudo
-//         limparFormularioTotalmente(); 
-
-//         // 2. Preenche o ID de pagamento (essencial para o PUT funcionar)
-//         document.querySelector("#idPagamento").value = p.idpagamento || "";
-
-//         // 3. BUSCAR DADOS COMPLEMENTARES (Valor Previsto e Descrição)
-//         // Usamos o idlancamento que já existe no objeto 'p' vindo do histórico
-       
-//         try {
-//             carregandoEdicao = true;
-
-//             const selectLanc = document.querySelector("#idLancamentoSelect");
-//             const originalOnChange = selectLanc ? selectLanc.onchange : null;
-//             if (selectLanc) selectLanc.onchange = null;
-
-//             const dadosLanc = await fetchComToken(`/pagamentos/lancamentos/detalhe/${p.idlancamento}`);
-//             console.log("Dados do lançamento para edição:", dadosLanc, p.idlancamento);
-//             if (dadosLanc) {
-//                 // 1. Preencher o SELECT principal
-//                  if (selectLanc) selectLanc.value = p.idlancamento;
-//                 // 2. Preencher os campos de exibição (Texto e Valor)
-//                 const elDesc = document.querySelector("#descLancamento"); 
-//                 const elVlrPrev = document.querySelector("#vlrPrevisto");
-
-//                 if (elDesc) elDesc.value = dadosLanc.descricao || "";
-//                 if (elVlrPrev) {
-//                     elVlrPrev.value = parseFloat(dadosLanc.vlrestimado || 0)
-//                         .toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-//                 }
-                
-//                 // 3. Importante: Disparar evento de mudança se houver lógica atrelada ao select
-//                 // selectLanc.dispatchEvent(new Event('change')); 
-//             }
-//         } catch (error) {
-//             console.error("Erro ao buscar detalhes:", error);
-//         }finally {
-//             carregandoEdicao = false; // LIBERA A TRAVA
-//         }
-
-//         // 4. Preenchimento dos campos da parcela
-//         document.querySelector("#numParcela").value = p.numparcela;
-//         document.querySelector("#vlrPago").value = parseFloat(p.vlrpago).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-//         document.querySelector("#dtvcto").value = p.dtvcto.split('T')[0];
-//         document.querySelector("#dtpgto").value = p.dtpgto ? p.dtpgto.split('T')[0] : "";
-//         document.querySelector("#observacaoPagto").value = p.observacao || "";
-//         document.querySelector("#statusPagto").checked = (p.status.toLowerCase() === 'pago');
-
-//         // 5. Bloqueios de permissão (Supremo vs Comum)
-//         const eSupremo = typeof temPermissao === "function" ? temPermissao("Pagamentos", "supremo") : false;
-//         const camposParaBloquear = ["#numParcela", "#vlrPago", "#dtvcto", "#dtpgto", "#statusPagto", "#observacaoPagto"];
-//         camposParaBloquear.forEach(selector => {
-//             const el = document.querySelector(selector);
-//             if (el) el.disabled = !eSupremo;
-//         });
-
-//         // 6. Carrega anexos e atualiza interface
-//         carregarAnexosExistentes(p);
-        
-//         // Atualiza labels (materialize/custom)
-//         document.querySelectorAll('#form input').forEach(i => i.dispatchEvent(new Event('input')));
-//     }
-// }
 
 async function preencherParaEdicao(p) {
     const dataVctoFormatada = formatarDataBR(p.dtvcto);
@@ -373,6 +227,7 @@ async function preencherParaEdicao(p) {
 
             // 2. Preenchimento dos campos da parcela vindo do objeto 'p'
             document.querySelector("#numParcela").value = p.numparcela;
+            document.querySelector("#vlrReal").value = parseFloat(p.vlrreal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
             document.querySelector("#vlrPago").value = parseFloat(p.vlrpago || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
             document.querySelector("#dtvcto").value = p.dtvcto ? p.dtvcto.split('T')[0] : "";
             document.querySelector("#dtpgto").value = p.dtpgto ? p.dtpgto.split('T')[0] : "";
@@ -439,9 +294,12 @@ async function salvarPagamento(event) {
     // Captura dos dados
     const numParcela = document.querySelector("#numParcela").value;
     const vlrPagoStr = document.querySelector("#vlrPago").value;
+    const vlrRealStr = document.querySelector("#vlrReal").value;
+
     const dtVcto = document.querySelector("#dtvcto").value;
     const dtPgto = document.querySelector("#dtpgto").value;
     const isPago = document.querySelector("#statusPagto").checked;
+
 
     // --- BLOCO DE CONFIRMAÇÃO DINÂMICO ---
     if (!idPagamento) {
@@ -483,6 +341,7 @@ async function salvarPagamento(event) {
     formData.append("idlancamento", idLancamento);
     formData.append("numparcela", parseInt(numParcela));
     formData.append("vlrprevisto", prepararNumeroParaEnvio(document.querySelector("#vlrPrevisto").value));
+    formData.append("vlrreal", prepararNumeroParaEnvio(vlrRealStr));
     formData.append("vlrpago", prepararNumeroParaEnvio(vlrPagoStr));
     formData.append("dtvcto", dtVcto);
     formData.append("dtpgto", dtPgto);
@@ -530,26 +389,26 @@ async function salvarPagamento(event) {
 
 
 
-function inicializarEventosUpload() {
-    const config = [
-        { input: "#arquivoConta", label: "#fileNameConta" },
-        { input: "#comprovantePagto", label: "#fileNameComprovante" }
-    ];
+// function inicializarEventosUpload() {
+//     const config = [
+//         { input: "#arquivoConta", label: "#fileNameConta" },
+//         { input: "#comprovantePagto", label: "#fileNameComprovante" }
+//     ];
 
-    config.forEach(item => {
-        const input = document.querySelector(item.input);
-        const label = document.querySelector(item.label);
+//     config.forEach(item => {
+//         const input = document.querySelector(item.input);
+//         const label = document.querySelector(item.label);
 
-        if (input && label) {
-            input.addEventListener("change", (e) => {
-                const fileName = e.target.files[0]?.name || "Nenhum arquivo selecionado";
-                label.textContent = fileName;
-                // Opcional: mudar a cor para destacar que há um arquivo
-                label.style.color = e.target.files[0] ? "var(--primary-color)" : "";
-            });
-        }
-    });
-}
+//         if (input && label) {
+//             input.addEventListener("change", (e) => {
+//                 const fileName = e.target.files[0]?.name || "Nenhum arquivo selecionado";
+//                 label.textContent = fileName;
+//                 // Opcional: mudar a cor para destacar que há um arquivo
+//                 label.style.color = e.target.files[0] ? "var(--primary-color)" : "";
+//             });
+//         }
+//     });
+// }
 
 
 function carregarAnexosExistentes(p) {

@@ -208,7 +208,7 @@ router.put("/:id",
         
         // Captura dados do corpo e as flags de limpeza do front
         const { 
-            vlrpago, dtvcto, dtpgto, observacao, status,
+            vlrpago, dtvcto, dtpgto, observacao, status, vlrreal,
             limparComprovanteImagem, limparComprovantePagto 
         } = req.body;
 
@@ -240,7 +240,8 @@ router.put("/:id",
                     dtvcto = $2, 
                     dtpgto = $3, 
                     observacao = $4, 
-                    status = $5 
+                    status = $5,
+                    vlrreal = $6 
                     ${sqlArquivos}
                 WHERE idpagamento = $6 AND idempresa = $7
                 RETURNING *`;
@@ -251,6 +252,7 @@ router.put("/:id",
                 dtpgto || null, 
                 observacao, 
                 status, 
+                vlrreal,
                 id, 
                 idempresa
             ];
@@ -277,7 +279,7 @@ router.post("/",
     logMiddleware('Pagamentos', { buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) }),
     async (req, res) => {
         const idempresa = req.idempresa;
-        const { idlancamento, numparcela, vlrprevisto, vlrpago, dtvcto, dtpgto, observacao, status } = req.body;
+        const { idlancamento, numparcela, vlrprevisto, vlrpago, dtvcto, dtpgto, observacao, status, vlrreal } = req.body;
 
         // Captura dos nomes dos arquivos salvos
         const imagemConta = req.files['imagemConta'] ? req.files['imagemConta'][0].filename : null;
@@ -287,9 +289,9 @@ router.post("/",
             const result = await pool.query(
                 `INSERT INTO pagamentos (
                     idlancamento, idempresa, numparcela, vlrprevisto, 
-                    vlrpago, dtvcto, dtpgto, status, observacao, imagemconta, comprovantepgto
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
-                [idlancamento, idempresa, numparcela, vlrprevisto, vlrpago, dtvcto, dtpgto || null, status, observacao, imagemConta, comprovantePagamento]
+                    vlrpago, dtvcto, dtpgto, status, observacao, imagemconta, comprovantepgto, vlrreal
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+                [idlancamento, idempresa, numparcela, vlrprevisto, vlrpago, dtvcto, dtpgto || null, status, observacao, imagemConta, comprovantePagamento, vlrreal]
             );
             res.status(201).json({ message: "Salvo!", data: result.rows[0] });
         } catch (error) {

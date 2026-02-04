@@ -168,7 +168,7 @@ legend{
   outline: none;
 }
 
-input#vlrPrevisto, input#vlrPago{
+input#vlrPrevisto, input#vlrPago, input#vlrReal{
   width: 180px;
 }
 
@@ -178,7 +178,7 @@ input#numParcela{
 }
 
 input#observacaoPagto{
-  width: 800px;
+  width: 900px;
 } 
 
 .form2 input{
@@ -204,13 +204,7 @@ input#observacaoPagto{
   width: 180px;
 }
 
-select#periodicidade, select#tipoRepeticao{
-    width: 180px;
-}
 
-select#idContaSelect{
-    width: 250px;
-}
 
 .form2 {
   display: flex;
@@ -223,7 +217,7 @@ select#idContaSelect{
   border-radius: 5px;
   flex: 1;
   font-family: var(--Font-primary);
-  width: 350px; 
+  width: 800px; 
   height: 30px;
   border-radius: 6px;
   font-size: 13px;
