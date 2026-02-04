@@ -47,7 +47,7 @@
                     <div class="form-3colunas">
                         
                         <div class="form">
-                            <label for="idContaSelect">Selecione a Conta (Setor - Empresa)</label>
+                            <label for="idContaSelect">Selecione a Conta (Conta | Plano de Contas | Centro de Custo | Empresa Pagadora)</label>
                             <select name="idConta" id="idContaSelect" required>
                                 <option value="" disabled selected>Selecione a Conta (Setor - Empresa)...</option>                        
                             </select>
@@ -120,6 +120,12 @@
                             <input type="date" name="dtTermino" id="dtTermino">
                             <label for="dtTermino">Data de Término</label>
                         </div>                       
+                    </div>
+                    <div class="form-1coluna">
+                        <div class="form">
+                            <input type="text" class="uppercase" name="observacao" id="observacao" required>
+                            <label for="observacao">Observações</label>
+                        </div>
                     </div>
                     <div id="container-previa"></div>
                 </fieldset>

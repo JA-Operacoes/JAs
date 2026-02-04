@@ -44,7 +44,7 @@
   background-color: #4d4d4d;
   padding: 5px;
   margin-top: 10px;
-  width: 1000px; /* Ajuste o tamanho conforme necessário */
+  width: 1050px; /* Ajuste o tamanho conforme necessário */
   height: 750px;
   font-size: 16px;
   z-index: 9999;
@@ -105,7 +105,7 @@ body{
   flex-direction: column; 
   justify-content: center;
   background-color: white;
-  max-width: 980px;   
+  max-width: 1030px;   
   width: 100%;  
   height: 670px; 
   margin: 0 auto;         
@@ -120,7 +120,7 @@ body{
 fieldset {
   display: flex;
   flex-direction: column;
-  width: 650px;
+  width: 680px;
   height: 600px;
   background-color: transparent;
   border-color: var(--dark-color);
@@ -169,6 +169,10 @@ legend{
   outline: none;
 }
 
+input#observacao{
+  width: 100%;
+}
+
 .form2 input{
   flex: 1;
   font-family: var(--Font-primary);
@@ -209,7 +213,7 @@ select#periodicidade, select#tipoRepeticao{
 }
 
 select#idContaSelect{
-    width: 450px;
+    width: 500px;
 }
 
 /* Seleciona o container (.form) que contém especificamente o idContaSelect */
@@ -236,7 +240,7 @@ label[for="idContaSelect"] {
 #idContaSelect {
     display: block !important;
     height: 30px !important; /* Altura que você solicitou */
-    width: 450px !important;
+    width: 500px !important;
     padding: 0 10px !important;
     line-height: 30px !important;
 }

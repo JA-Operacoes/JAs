@@ -21,15 +21,26 @@ router.get("/contas", async (req, res) => {
             `SELECT 
                 c.idconta,
                 c.nmconta,
-                c.ativo,
-                c.idempresa,
+                c.idcentrocusto,
+                c.idplanocontas,
+                c.idvinculo,
+                c.tipovinculo,
                 c.idtipoconta,
                 c.idempresapagadora,
-                e.nmfantasia AS nmempresapagadora
+                e.nmfantasia AS nmempresapagadora,
+                tp.nmtipoconta,
+                pc.nmplanocontas,
+                cc.nmcentrocusto,
+                COALESCE(cli.nmfantasia, forn.nmfantasia, func.nome) AS nmvinculo
             FROM contas c
-            LEFT JOIN empresas e 
-                ON e.idempresa = c.idempresapagadora
-            WHERE c.idempresa = $1
+            LEFT JOIN empresas e ON e.idempresa = c.idempresapagadora
+            LEFT JOIN tipoconta tp ON tp.idtipoconta = c.idtipoconta
+            LEFT JOIN planocontas pc ON pc.idplanocontas = c.idplanocontas
+            LEFT JOIN centrocusto cc ON cc.idcentrocusto = c.idcentrocusto
+            LEFT JOIN clientes cli ON c.idvinculo = cli.idcliente AND c.tipovinculo = 'cliente'
+            LEFT JOIN fornecedores forn ON c.idvinculo = forn.idfornecedor AND c.tipovinculo = 'fornecedor'
+            LEFT JOIN funcionarios func ON c.idvinculo = func.idfuncionario AND c.tipovinculo = 'funcionario'
+            WHERE c.idempresa = $1 AND c.ativo = true
             ORDER BY c.nmconta ASC`,
             [idempresa]
         );
@@ -72,21 +83,24 @@ router.get("/", verificarPermissao('Lancamentos', 'pesquisar'), async (req, res)
 
     try {
         let query = `
-            SELECT l.*, c.nmconta --, cc.nmcentrocusto 
+            SELECT 
+                l.*, 
+                c.nmconta 
             FROM public.lancamentos l
             LEFT JOIN contas c ON l.idconta = c.idconta
-            --LEFT JOIN centrocusto cc ON l.idcentrocusto = cc.idcentrocusto
-            WHERE l.idempresa = $1
-            ORDER BY l.descricao ASC
+            WHERE l.idempresa = $1            
         `;
         let params = [idempresa];
 
         if (descricao) {
-            query += ` AND l.descricao ILIKE $2 ORDER BY l.vctobase DESC`;
+            query += ` AND l.descricao ILIKE $2`;
             params.push(`%${descricao}%`);
-        } else {
-            query += ` ORDER BY l.vctobase DESC`;
         }
+        else{
+            query += ` ORDER BY l.descricao ASC`;  
+        }
+        
+              
 
         const result = await pool.query(query, params);
         
@@ -131,17 +145,18 @@ router.put("/:id",
             descricao, vlrestimado, 
             vctobase, periodicidade, tiporepeticao, 
             dttermino, indeterminado, ativo, locado,
-            qtdParcelas, dtRecebimento
+            qtdParcelas, dtRecebimento, observacao
         } = req.body;
 
+        console.log("ROTA PUT LANCAMENTOS", req.body);
         try {
             const result = await pool.query(
                 `UPDATE public.lancamentos 
                 SET idconta = $1, descricao = $2, vlrestimado = $3, 
                     vctobase = $4, periodicidade = $5, tiporepeticao = $6, 
                     dttermino = $7, indeterminado = $8, ativo = $9, locado = $10,
-                    qtdeparcelas = $11, dtrecebimento = $12
-                WHERE idlancamento = $13 AND idempresa = $14
+                    qtdeparcelas = $11, dtrecebimento = $12, observacao = $13
+                WHERE idlancamento = $14 AND idempresa = $15
                 RETURNING *`,
                 [
                     idconta, 
@@ -155,7 +170,8 @@ router.put("/:id",
                     ativo, 
                     locado, 
                     qtdParcelas || null,      // Garante NULL se estiver vazio (evita erro integer)
-                    dtRecebimento || null,    // Garante NULL se estiver vazio (salva dtrecebimento)
+                    dtRecebimento || null, 
+                    observacao || null,   // Garante NULL se estiver vazio (salva dtrecebimento)
                     id, 
                     idempresa
                 ]
@@ -334,7 +350,7 @@ router.post("/",
         const { 
             idconta, descricao, vlrestimado, 
             vctobase, periodicidade, tiporepeticao, 
-            dttermino, indeterminado, ativo, locado, qtdParcelas, dtRecebimento
+            dttermino, indeterminado, ativo, locado, qtdParcelas, dtRecebimento, observacao
         } = req.body;
 
         const client = await pool.connect(); 
@@ -348,8 +364,8 @@ router.post("/",
                 `INSERT INTO public.lancamentos (
                     idempresa, idconta, descricao, 
                     vlrestimado, vctobase, periodicidade, tiporepeticao, 
-                    dttermino, indeterminado, ativo, locado, qtdeparcelas, dtrecebimento
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
+                    dttermino, indeterminado, ativo, locado, qtdeparcelas, dtrecebimento, observacao
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
                 RETURNING idlancamento`,
                 [
                     idempresa, 
@@ -364,7 +380,8 @@ router.post("/",
                     ativo, 
                     locado, 
                     qtdParcelas || null,   // Garante NULL em vez de ""
-                    dtRecebimento || null  // Garante NULL em vez de ""
+                    dtRecebimento || null,
+                    observacao  // Garante NULL em vez de ""
                 ]
             );
 

@@ -120,6 +120,8 @@ async function verificaLancamento() {
         const elDtRec = document.querySelector("#dtRecebimento");
         const dtRecebimento = (elDtRec && elDtRec.value.trim() !== "") ? elDtRec.value : null;
 
+        
+
         // Validação de Parcelados
         if (tipoRepeticao === "PARCELADO" && !dtTermino && !indeterminado) {
             return Swal.fire("Erro", "Para lançamentos parcelados, a data de término é obrigatória.", "error");
@@ -142,6 +144,9 @@ async function verificaLancamento() {
             return Swal.fire("Erro", "Por favor, preencha a descrição do lançamento.", "warning");
         }
 
+        const elObs = document.querySelector("#observacao");
+        const observacao = elObs ? elObs.value.trim().toUpperCase() : null; 
+
         const dados = {
             idconta: document.querySelector("#idContaSelect").value,
             descricao: descricaoFinal,
@@ -154,7 +159,8 @@ async function verificaLancamento() {
             ativo: document.querySelector("#ativo").checked,
             locado: locado,
             qtdParcelas: qtdParcelas,
-            dtRecebimento: dtRecebimento
+            dtRecebimento: dtRecebimento,
+            observacao: observacao
         };
 
         console.log("Dados a serem enviados:", dados);
@@ -557,7 +563,8 @@ function renderizarPrevia() {
         dttermino: document.querySelector("#dtTermino").value,
         indeterminado: document.querySelector("#indeterminado").checked,
         qtdparcelas: parseInt(document.querySelector("#qtdeParcelas")?.value) || 0,
-        tipoRepeticao: document.querySelector("#tipoRepeticao").value
+        tipoRepeticao: document.querySelector("#tipoRepeticao").value,
+        observacao: document.querySelector("#observacao").value
     };
 
     const todasParcelas = calcularPreviaParcelas(dados);
@@ -627,77 +634,105 @@ function gerarTabelaHTML(lista, total, isIndeterminado) {
         </table>`;
 }
 
+
+
 // async function carregarSelectsIniciais() {
 //     try {
-//             //const [contas, centros] = await Promise.all([
-//             const [contas] = await Promise.all([
-//             fetchComToken('/lancamentos/contas'),
-//           //  fetchComToken('/lancamentos/centrocusto') // Esta rota deve trazer nmempresa agora
-//         ]);
+//         // Busca apenas as contas
+//         const contas = await fetchComToken('/lancamentos/contas');
 
 //         const selConta = document.querySelector("#idContaSelect");
-//       //  const selCentro = document.querySelector("#idCentroCusto");
+//         if (!selConta) return;
 
 //         selConta.innerHTML = '<option value="" disabled selected>Selecione a Conta (Setor - Empresa)...</option>';
-//         contas.forEach(c => {
-//             const labelAjustado = `${c.nmconta.toUpperCase()} - ${c.nmempresa.toUpperCase()}`;
-//             selConta.add(new Option(labelAjustado, c.idconta));
-//         });
+        
+//         if (contas && Array.isArray(contas)) {
+//             contas.forEach(c => {
+//                 // Proteção contra valores nulos
+//                 const conta = (c.nmconta || "").toUpperCase();
+//                 const empresa = (c.nmempresapagadora || "").toUpperCase();
+                
+//                 const labelAjustado = `${conta} - ${empresa}`;
+//                 // selConta.add(new Option(labelAjustado, c.idconta));
 
-//         // selCentro.innerHTML = '<option value="" disabled selected>Centro de Custo (Setor - Empresa)...</option>';
-//         // centros.forEach(cc => {
-//         //     // Aqui fazemos a concatenação: "ADMINISTRATIVO - MATRIZ"
-//         //     const labelAjustado = `${cc.nmcentrocusto.toUpperCase()} - ${cc.nmempresa.toUpperCase()}`;
-//         //     selCentro.add(new Option(labelAjustado, cc.idcentrocusto));
-//         // });
+//                 const option = new Option(labelAjustado, c.idconta);
+                
+//                 // ARMAZENAR DADOS EXTRAS NO OPTION
+//                 option.dataset.idcentrocusto = c.idcentrocusto || "";
+//                 option.dataset.idplanocontas = c.idplanocontas || "";
+//                 option.dataset.tipovinculo = c.tipovinculo || "";
+//                 option.dataset.idvinculo = c.idvinculo || "";
+                
+//                 selConta.add(option);
+//             });
+//         }
+//         selConta.addEventListener('change', preencherDadosAutomaticosDaConta);
+
 //     } catch (e) { 
 //         console.error("Erro ao carregar selects:", e); 
 //     }
 // }
 
+// function gerarTabelaPrevia(lista, total, isIndeterminado) {
+//     if (lista.length === 0) return '';
+//     return `
+//         <table class="table-previa">
+//             <thead>
+//                 <tr><th>Parc.</th><th>Vencimento</th><th>Valor</th></tr>
+//             </thead>
+//             <tbody>
+//                 ${lista.map(p => `
+//                     <tr>
+//                         <td>${p.numero}${isIndeterminado ? '' : '/' + total}</td>
+//                         <td>${p.vencimento}</td>
+//                         <td>R$ ${p.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+//                     </tr>
+//                 `).join('')}
+//             </tbody>
+//         </table>`;
+// }
+
+
+
+
 async function carregarSelectsIniciais() {
     try {
-        // Busca apenas as contas
         const contas = await fetchComToken('/lancamentos/contas');
-
         const selConta = document.querySelector("#idContaSelect");
         if (!selConta) return;
 
-        selConta.innerHTML = '<option value="" disabled selected>Selecione a Conta (Setor - Empresa)...</option>';
+        selConta.innerHTML = '<option value="" disabled selected>Selecione a Conta...</option>';
         
         if (contas && Array.isArray(contas)) {
             contas.forEach(c => {
-                // Proteção contra valores nulos
-                const conta = (c.nmconta || "").toUpperCase();
-                const empresa = (c.nmempresapagadora || "").toUpperCase();
+                const nome = (c.nmconta || "").toUpperCase();
+                const plano = (c.nmplanocontas || "S/ PLANO").toUpperCase();
+                const centro = (c.nmcentrocusto || "S/ CENTRO").toUpperCase();
+                const empresa = (c.nmempresapagadora || "S/ EMPRESA").toUpperCase();
+                const tipoconta = (c.nmtipoconta || "S/ TIPO").toUpperCase();
+                const vinculo = c.nmvinculo ? ` ${c.nmvinculo.toUpperCase()}` : "S/ VÍNCULO";
                 
-                const labelAjustado = `${conta} - ${empresa}`;
-                selConta.add(new Option(labelAjustado, c.idconta));
+                // Montagem do Label robusto
+                const labelCompleto = `${nome} | ${vinculo} | ${plano} | ${centro} | ${tipoconta} | ${empresa}`;
+                
+                const option = new Option(labelCompleto, c.idconta);
+                
+                // DATASETS para preenchimento automático
+                option.dataset.idcentrocusto = c.idcentrocusto || "";
+                option.dataset.idplanocontas = c.idplanocontas || "";
+                option.dataset.tipovinculo = c.tipovinculo || "";
+                option.dataset.idvinculo = c.idvinculo || "";
+                option.dataset.idtipoconta = c.idtipoconta || "";
+                option.dataset.idempresapagadora = c.idempresapagadora || "";
+
+                selConta.add(option);
             });
         }
     } catch (e) { 
-        console.error("Erro ao carregar selects:", e); 
+        console.error("Erro ao carregar select de contas:", e); 
     }
 }
 
-function gerarTabelaPrevia(lista, total, isIndeterminado) {
-    if (lista.length === 0) return '';
-    return `
-        <table class="table-previa">
-            <thead>
-                <tr><th>Parc.</th><th>Vencimento</th><th>Valor</th></tr>
-            </thead>
-            <tbody>
-                ${lista.map(p => `
-                    <tr>
-                        <td>${p.numero}${isIndeterminado ? '' : '/' + total}</td>
-                        <td>${p.vencimento}</td>
-                        <td>R$ ${p.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>`;
-}
 
 
 function preencherCampos(lancamento) {
@@ -715,6 +750,7 @@ function preencherCampos(lancamento) {
     setCampo("#vlrEstimado", lancamento.vlrestimado);
     setCampo("#periodicidade", lancamento.periodicidade);
     setCampo("#tipoRepeticao", lancamento.tiporepeticao);
+    setCampo("#observacao", lancamento.observacao);
 
     // Tratamento de Datas com verificação de existência
     if (lancamento.vctobase) {
