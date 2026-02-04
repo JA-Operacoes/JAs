@@ -77,6 +77,7 @@ router.get("/", verificarPermissao('Lancamentos', 'pesquisar'), async (req, res)
             LEFT JOIN contas c ON l.idconta = c.idconta
             --LEFT JOIN centrocusto cc ON l.idcentrocusto = cc.idcentrocusto
             WHERE l.idempresa = $1
+            ORDER BY l.descricao ASC
         `;
         let params = [idempresa];
 
