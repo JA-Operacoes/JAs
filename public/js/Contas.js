@@ -26,9 +26,7 @@ if (typeof window.ContaOriginal === "undefined") {
         idConta: "",
         codConta: "",
         nmConta: "",
-        ativo: false,
-        idTipoConta: "",
-        idEmpresaPagadora: "" // Alterado de tpConta para idtipoconta
+        ativo: false      
     };
 }
 
@@ -41,25 +39,16 @@ async function verificaConta() {
     const form = document.querySelector("#form-contas");
 
     const nmContaInput = document.querySelector("#nmConta");
-    const tpContaSelect = document.querySelector("#tpConta");
-    const empresaPagadoraSelect = document.querySelector("#empresaPagadora");
+    
 
     if (nmContaInput) {
         nmContaInput.addEventListener("input", validarFormulario);
     }
-    if (tpContaSelect) {
-        tpContaSelect.addEventListener("change", validarFormulario);
-    }
-    if (empresaPagadoraSelect) {
-        empresaPagadoraSelect.addEventListener("change", validarFormulario);
-    }
+    
 
     validarFormulario();
-    carregarSelectTipoConta();
-    carregarSelectEmpresaPagadora();
     carregarSelectPlanoContas();
-    carregarSelectCentroCusto();
-    configurarEventosVinculo();
+   
 
     // Dentro da função verificaConta ou configurarCadConta
     const selectPlano = document.querySelector("#planoContas");
@@ -116,17 +105,10 @@ async function verificaConta() {
         const idConta = document.querySelector("#idConta")?.value || "";
         const codConta = document.querySelector("#codConta").value.trim();
         const nmConta = document.querySelector("#nmConta").value.toUpperCase().trim();
-        const ativo = document.querySelector("#ativo").checked;
-        const idTipoConta = document.querySelector("#tpConta").value; // O valor do select agora é o ID
-        const idEmpresaPagadora = document.querySelector("#empresaPagadora").value; // Novo campo
+        const ativo = document.querySelector("#ativo").checked;  
         const idPlanoContas = document.querySelector("#planoContas") ? document.querySelector("#planoContas").value : null; // Novo campo opcional
-        const idCentroCusto = document.querySelector("#centroCusto")?.value;
-
-        // CAPTURA DO VÍNCULO (NOVO)
-        const checkMarcado = document.querySelector('.tipo-vinculo:checked');
-        const tipoVinculo = checkMarcado ? checkMarcado.value : null; // 'cliente', 'fornecedor' ou 'funcionario'
-        const idVinculo = document.querySelector('#idVinculo')?.value || null;
-
+      
+      
         const temPermissaoCadastrar = temPermissao("Contas", "cadastrar");
         const temPermissaoAlterar = temPermissao("Contas", "alterar");
 
@@ -140,23 +122,20 @@ async function verificaConta() {
             return Swal.fire("Acesso negado", "Você não tem permissão para alterar Contas.", "error");
         }
 
-        if (!nmConta || !codConta || !idTipoConta || !idEmpresaPagadora ) {
+        if (!nmConta || !codConta || !idPlanoContas ) {
             return Swal.fire("Campos obrigatórios!", "Preencha todos os campos antes de enviar.", "warning");
         }
 
-        const dados = { nmConta, codConta, ativo, idTipoConta, idEmpresaPagadora, idPlanoContas, 
-            idCentroCusto, tipoVinculo, idVinculo  }; // Objeto com novo nome de campo
+        const dados = { nmConta, codConta, ativo, idPlanoContas }; // Objeto com novo nome de campo
         
         // Dirty Checking ajustado para String para comparar com o valor do Select
         const semAlteracao = 
             String(idConta) === String(window.ContaOriginal?.idconta) &&
             nmConta === window.ContaOriginal?.nmconta &&
             codConta === window.ContaOriginal?.codconta &&
-            ativo === window.ContaOriginal?.ativo &&
-            String(idTipoConta) === String(window.ContaOriginal?.idtipoconta) &&
-            String(idEmpresaPagadora) === String(window.ContaOriginal?.idempresapagadora) &&
-            String(idPlanoContas) === String(window.ContaOriginal?.idplanocontas) &&
-            String(idCentroCusto) === String(window.ContaOriginal?.idcentrocusto);
+            ativo === window.ContaOriginal?.ativo && 
+            String(idPlanoContas) === String(window.ContaOriginal?.idplanocontas) 
+       
 
         if (idConta && semAlteracao) {
             return Swal.fire("Nenhuma alteração foi detectada!", "Faça alguma alteração antes de salvar.", "info");
@@ -280,7 +259,7 @@ function desinicializarContasModal() {
     enviarButtonListener = null;
     pesquisarButtonListener = null;
 
-    window.ContaOriginal = { idConta: "", nmConta: "", codConta: "", ativo: false, idTipoConta: "" };
+    window.ContaOriginal = { idConta: "", nmConta: "", codConta: "", ativo: false, };
 }
 
 function criarSelectConta(contasEncontrados) {
@@ -330,72 +309,7 @@ function adicionarEventoBlurConta() {
     });
 }
 
-async function carregarSelectTipoConta() {
-    const selectTpConta = document.querySelector("#tpConta");
-    if (!selectTpConta) return;
 
-    try {
-        const tipos = await fetchComToken('/contas/tipoconta');
-        selectTpConta.innerHTML = '<option value="" disabled selected>Selecione o Tipo de Conta</option>';
-
-        if (tipos && Array.isArray(tipos)) {
-            tipos.forEach(tipo => {
-                if (tipo.ativo) {
-                    const option = document.createElement("option");
-                    option.value = tipo.idtipoconta;
-                    option.textContent = tipo.nmtipoconta;
-                    selectTpConta.appendChild(option);
-                }
-            });
-        }
-    } catch (error) {
-        console.error("Erro ao carregar tipos de conta:", error);
-    }
-}
-
-async function carregarSelectEmpresaPagadora() {
-    const selectEmpresaPagadora = document.querySelector("#empresaPagadora");
-    if (!selectEmpresaPagadora) return;
-
-    try {
-        const empresas = await fetchComToken('/contas/empresas');
-        selectEmpresaPagadora.innerHTML = '<option value="" disabled selected>Selecione a Empresa Pagadora</option>';
-        if (empresas && Array.isArray(empresas)) {
-            empresas.forEach(empresa => {
-               // if (empresa.ativo) {
-                    const option = document.createElement("option");
-                    option.value = empresa.idempresa;
-                    option.textContent = empresa.nmfantasia;
-                    selectEmpresaPagadora.appendChild(option);
-                //}
-            });
-        }
-    } catch (error) {
-        console.error("Erro ao carregar empresas:", error);
-    }
-}
-
-async function carregarSelectCentroCusto() {
-    const selectCentroCusto = document.querySelector("#centroCusto");
-    if (!selectCentroCusto) return;
-
-    try {
-        const centrocusto = await fetchComToken('/contas/centrocusto');
-        selectCentroCusto.innerHTML = '<option value="" disabled selected>Selecione o Centro de Custo</option>';
-        if (centrocusto && Array.isArray(centrocusto)) {
-            centrocusto.forEach(ccusto => {
-               // if (empresa.ativo) {
-                    const option = document.createElement("option");
-                    option.value = ccusto.idcentrocusto;
-                    option.textContent = ccusto.nmcentrocusto;
-                    selectCentroCusto.appendChild(option);
-                //}
-            });
-        }
-    } catch (error) {
-        console.error("Erro ao carregar centro de custo:", error);
-    }
-}
 
 async function carregarSelectPlanoContas() {
     const selectPlanoContas = document.querySelector("#planoContas"); // ID do select no HTML
@@ -456,137 +370,6 @@ async function carregarSelectPlanoContas() {
 }
 
 
-// Dentro da sua função que gerencia a mudança de vínculo no Contas.js
-function gerenciarExibicaoPerfil() {
-    const checkFuncionario = document.querySelector("#checkFuncionario");
-    const containerPerfil = document.querySelector("#containerPerfilFuncionario");
-    const selectPerfil = document.querySelector("#perfilFuncionario");
-
-    if (checkFuncionario && checkFuncionario.checked) {
-        containerPerfil.style.display = "block"; // Mostra o campo
-        selectPerfil.classList.add("required"); // Adiciona validação se necessário
-    } else {
-        containerPerfil.style.display = "none";  // Esconde o campo
-        selectPerfil.value = "";                 // Limpa o valor
-        selectPerfil.classList.remove("required");
-    }
-}
-
-
-// Adicione dentro da sua função de inicialização ou verificaContas
-// function configurarEventosVinculo() {
-//     const checks = document.querySelectorAll('.tipo-vinculo');
-//     const containerVinculo = document.querySelector('#containerVinculo');
-//     const selectVinculo = document.querySelector('#idVinculo');
-//     const labelVinculo = document.querySelector('#labelVinculo');
-
-//     checks.forEach(check => {
-//         check.addEventListener('change', async function() {
-//             if (this.checked) {
-//                 // Desmarca os outros (comportamento de Radio Button)
-//                 checks.forEach(c => { if (c !== this) c.checked = false; });
-
-//                 // Exibe o container e muda o label
-//                 containerVinculo.style.display = 'block';
-//                 const tipo = this.value; // cliente, fornecedor ou funcionario
-//                 labelVinculo.textContent = `Selecionar ${this.previousElementSibling.textContent}`;
-
-//                 // Busca os dados no banco
-//                 await carregarDadosVinculo(tipo);
-//             } else {
-//                 // Se desmarcar, esconde o select
-//                 containerVinculo.style.display = 'none';
-//                 selectVinculo.innerHTML = '<option value="" disabled selected></option>';
-//             }
-//         });
-//     });
-// }
-
-function configurarEventosVinculo() {
-    const checks = document.querySelectorAll('.tipo-vinculo');
-    const containerVinculo = document.querySelector('#containerVinculo');
-    const containerPerfil = document.querySelector('#containerPerfilFuncionario');
-    const perfilRadios = document.querySelectorAll('.perfil-radio');
-
-    checks.forEach(check => {
-        check.addEventListener('change', async function() {
-            // Reset padrão
-            containerVinculo.style.display = 'none';
-            containerPerfil.style.display = 'none';
-            perfilRadios.forEach(r => r.checked = false); // Limpa seleção anterior
-
-            if (this.checked) {
-                // Comportamento Radio entre Cliente/Fornecedor/Funcionario
-                checks.forEach(c => { if (c !== this) c.checked = false; });
-
-                if (this.value === 'funcionario') {
-                    // Se for funcionário, primeiro pede o perfil
-                    containerPerfil.style.display = 'block';
-                } else {
-                    // Se for cliente ou fornecedor, carrega direto
-                    containerVinculo.style.display = 'block';
-                    await carregarDadosVinculo(this.value);
-                }
-            }
-            validarFormulario();
-        });
-    });
-
-    // Evento específico para quando escolher o PERFIL
-    perfilRadios.forEach(radio => {
-        radio.addEventListener('change', async function() {
-            if (this.checked) {
-                containerVinculo.style.display = 'block';
-                // Carrega a lista filtrada pelo perfil (passando o tipo e o perfil)
-                await carregarDadosVinculo('funcionario', this.value);
-                validarFormulario();
-            }
-        });
-    });
-}
-
-async function carregarDadosVinculo(tipo, perfilSelecionado) {
-    const selectVinculo = document.querySelector('#idVinculo');
-    selectVinculo.innerHTML = '<option value="" disabled selected>Carregando...</option>';
-
-    const rotasPlurais = {
-        'cliente': 'clientes',
-        'fornecedor': 'fornecedores',
-        'funcionario': 'funcionarios'
-    };
-
-    try {
-        // CORREÇÃO: Adicionando o perfil na URL caso ele exista
-        let url = `/contas/vinculo/${rotasPlurais[tipo]}`;
-        
-        if (perfilSelecionado) {
-            url += `?perfil=${encodeURIComponent(perfilSelecionado)}`;
-        }
-        
-        console.log("Chamando URL:", url); // Aqui você verá se o perfil está indo corretamente
-
-        const dados = await fetchComToken(url); 
-
-        selectVinculo.innerHTML = '<option value="" disabled selected>Selecione...</option>';
-        
-        if (!dados || dados.length === 0) {
-            selectVinculo.innerHTML = '<option value="" disabled selected>Nenhum registro encontrado</option>';
-            return;
-        }
-
-        dados.forEach(item => {
-            const option = document.createElement('option');
-            option.value = item.id;
-            option.textContent = item.nome;
-            selectVinculo.appendChild(option);
-        });
-
-    } catch (error) {
-        console.error(`Erro ao carregar ${tipo}:`, error);
-        selectVinculo.innerHTML = '<option value="" disabled selected>Erro ao carregar dados</option>';
-    }
-}
-
 async function carregarContaDescricao(desc, elementoAtual) {
     try {
         const dadosRecebidos = await fetchComToken(`/contas?nmConta=${encodeURIComponent(desc)}`);
@@ -603,27 +386,7 @@ async function carregarContaDescricao(desc, elementoAtual) {
         document.querySelector("#codConta").value = conta.codconta || "";
         document.querySelector("#nmConta").value = conta.nmconta || "";
         
-        const selectTp = document.querySelector("#tpConta");
-        if (selectTp) {
-            // Suporta tanto o ID vindo como Integer quanto o legado vindo como String
-            const valorBanco = String(conta.idtipoconta || conta.tpconta); 
-            selectTp.value = valorBanco;
-
-            if (selectTp.selectedIndex <= 0 && valorBanco !== "undefined" && valorBanco !== "null") {
-                console.warn("Aviso: Tipo de conta legado ou não encontrado:", valorBanco);
-            }
-        }
-
-        const selectEmpPagadora = document.querySelector("#empresaPagadora");
-        if (selectEmpPagadora) {
-            // Suporta tanto o ID vindo como Integer quanto o legado vindo como String
-            const valorBanco = String(conta.idempresapagadora || conta.empresaPagadora); 
-            selectEmpPagadora.value = valorBanco;
-            if (selectEmpPagadora.selectedIndex <= 0 && valorBanco !== "undefined" && valorBanco !== "null") {
-                console.warn("Aviso: Empresa Pagadora legada ou não encontrada:", valorBanco);
-            }
-        }
-
+        
         const selectPlanoContas = document.querySelector("#planoContas");
         if (selectPlanoContas) {
             const valorBanco = String(conta.idplanocontas || conta.planoContas); 
@@ -633,59 +396,6 @@ async function carregarContaDescricao(desc, elementoAtual) {
             }   
         }
         
-        if (conta.tipovinculo) {
-            const checkVinculo = document.querySelector(`.tipo-vinculo[value="${conta.tipovinculo}"]`);
-            if (checkVinculo) {
-                checkVinculo.checked = true;
-
-                // Se for FUNCIONÁRIO, precisamos tratar o PERFIL antes de carregar os nomes
-                if (conta.tipovinculo === 'funcionario') {
-                    const containerPerfil = document.querySelector('#containerPerfilFuncionario');
-                    if (containerPerfil) containerPerfil.style.display = 'block';
-
-                    // Mapeamos o perfil que vem do banco para o valor do rádio no HTML
-                    // Se no banco for 'Interno' ou 'Externo' -> value="funcionário" (Registrado)
-                    // Se no banco for 'Freelancer' ou 'Lote' -> value="free-lancer" (Sem Registro)
-                    let valorRadioPerfil = "";
-                    const p = String(conta.perfil_vinculo || "").toLowerCase();
-
-                    if (p.includes('interno') || p.includes('externo')) {
-                        valorRadioPerfil = "funcionário";
-                    } else if (p.includes('free') || p.includes('lote')) {
-                        valorRadioPerfil = "free-lancer";
-                    }
-
-                    if (valorRadioPerfil) {
-                        const radioPerfil = document.querySelector(`.perfil-radio[value="${valorRadioPerfil}"]`);
-                        if (radioPerfil) {
-                            radioPerfil.checked = true;
-                            // Carrega a lista filtrada pelo perfil
-                            await carregarDadosVinculo('funcionario', valorRadioPerfil);
-                        }
-                    }
-                } else {
-                    // Para Cliente ou Fornecedor, carrega direto
-                    await carregarDadosVinculo(conta.tipovinculo);
-                }
-
-                // Após carregar a lista, seleciona o ID do vínculo salvo
-                const selectVinculo = document.querySelector("#idVinculo");
-                if (selectVinculo) {
-                    selectVinculo.value = conta.idvinculo;
-                    document.querySelector("#containerVinculo").style.display = 'block';
-                }
-            }
-        }
-
-        const selectCentroCusto = document.querySelector("#centroCusto");
-        if (selectCentroCusto) {
-            const valorBanco = String(conta.idcentrocusto || conta.centrocusto); 
-            selectCentroCusto.value = valorBanco;
-            if (selectCentroCusto.selectedIndex <= 0 && valorBanco !== "undefined" && valorBanco !== "null") {
-                console.warn("Aviso: Centro de Custo não encontrado:", valorBanco);
-            }   
-        }
-
         const isAtivo = conta.ativo === true || conta.ativo === 1 || conta.ativo === "S" || conta.ativo === "T";
         document.querySelector("#ativo").checked = isAtivo;
 
@@ -693,41 +403,13 @@ async function carregarContaDescricao(desc, elementoAtual) {
             idconta: conta.idconta,  // Use minúsculo para bater com o objeto 'conta'
             codconta: conta.codconta,   
             nmconta: conta.nmconta,
-            ativo: isAtivo,
-            idtipoconta: String(conta.idtipoconta || conta.tpconta),
-            idempresapagadora: String(conta.idempresapagadora || conta.empresapagadora),
-            idplanocontas: String(conta.idplanocontas || conta.planoContas),
-            idcentrocusto: String(conta.idcentrocusto || conta.centrocusto)
+            ativo: isAtivo,            
+            idplanocontas: String(conta.idplanocontas || conta.planoContas)           
         };
 
         validarFormulario();
 
-    // } catch (error) {
-    //     console.warn("Conta não encontrada, abrindo opção de cadastro.");
-    //     document.querySelector("#idConta").value = "";
-
-    //     if (temPermissao("Contas", "cadastrar")) {
-    //         const resultado = await Swal.fire({
-    //             icon: 'question',
-    //             title: `Deseja cadastrar "${desc.toUpperCase()}"?`,
-    //             text: `A conta não foi encontrada no sistema.`,
-    //             showCancelButton: true,
-    //             confirmButtonText: "Sim, cadastrar",
-    //             cancelButtonText: "Cancelar",
-    //             reverseButtons: true
-    //         });
-
-    //         if (!resultado.isConfirmed) {
-    //             elementoAtual.value = "";
-    //             validarFormulario();
-    //         }
-    //     } else {
-    //         Swal.fire("Acesso negado", "Você não tem permissão para cadastrar.", "info");
-    //         elementoAtual.value = "";
-    //         validarFormulario();
-    //     }
-    // }
-    // ... dentro da função carregarContaDescricao ...
+    
     } catch (error) {
         console.warn("Conta não encontrada com este nome exato.");
         
@@ -805,87 +487,33 @@ function limparCamposConta() {
         }
     }
 
-    // 4. Resetar campos de vínculo (específico da sua nova lógica)
-    const checks = document.querySelectorAll('.tipo-vinculo');
-    checks.forEach(c => c.checked = false);
-    
-    const perfilRadios = document.querySelectorAll('.perfil-radio');
-    perfilRadios.forEach(r => r.checked = false);
-
-    // NOVO: Esconder container de perfil
-    const containerPerfil = document.querySelector('#containerPerfilFuncionario');
-    if (containerPerfil) containerPerfil.style.display = 'none';
-
-    const containerVinculo = document.querySelector('#containerVinculo');
-    if (containerVinculo) containerVinculo.style.display = 'none';
-
-    const idVinculo = document.querySelector('#idVinculo');
-    if (idVinculo) idVinculo.innerHTML = '<option value="" disabled selected></option>';
+   
 
     // 5. Atualizar o estado do botão Enviar
     validarFormulario();
 }
 
-// function validarFormulario() {
-//     const elNm = document.querySelector("#nmConta");
-//     const elTp = document.querySelector("#tpConta");
-//     const elEmpPagadora = document.querySelector("#empresaPagadora");
-//     const elPlanoContas = document.querySelector("#planoContas"); 
-//     const elCod = document.querySelector("#codConta"); 
-//     const botaoEnviar = document.querySelector("#Enviar");
 
-//     if (!elNm || !elTp || !elEmpPagadora || !elPlanoContas || !elCod || !botaoEnviar) return;
-
-//     // Remova o elId da validação obrigatória, pois em cadastros novos ele é vazio
-//     const isValido = 
-//         elNm.value.trim().length > 0 &&
-//         elTp.value.trim().length > 0 &&
-//         elEmpPagadora.value.trim().length > 0 &&
-//         elPlanoContas.value.trim().length > 0 &&
-//         elCod.value.trim().length > 0;
-
-//     if (isValido) {
-//         botaoEnviar.disabled = false;
-//         botaoEnviar.style.opacity = "1";
-//         botaoEnviar.style.cursor = "pointer";
-//     } else {
-//         botaoEnviar.disabled = true;
-//         botaoEnviar.style.opacity = "0.5";
-//         botaoEnviar.style.cursor = "not-allowed";
-//     }
-// }
 
 function validarFormulario() {
-    const elNm = document.querySelector("#nmConta");
-    const elTp = document.querySelector("#tpConta");
-    const elEmpPagadora = document.querySelector("#empresaPagadora");
+    const elNm = document.querySelector("#nmConta");  
+   
     const elPlanoContas = document.querySelector("#planoContas"); 
     const elCod = document.querySelector("#codConta"); 
     const botaoEnviar = document.querySelector("#Enviar");
 
-    // Novos elementos de vínculo
-    const checkFuncionario = document.querySelector("#checkFuncionario");
-    const perfilSelecionado = document.querySelector(".perfil-radio:checked");
-    const vinculoSelecionado = document.querySelector("#idVinculo");
+    
 
-    if (!elNm || !elTp || !elEmpPagadora || !elPlanoContas || !elCod || !botaoEnviar) return;
+    if (!elNm ||  !elPlanoContas || !elCod || !botaoEnviar) return;
 
     // Validação básica dos campos obrigatórios
     let isValido = 
-        elNm.value.trim().length > 0 &&
-        elTp.value.trim().length > 0 &&
-        elEmpPagadora.value.trim().length > 0 &&
+        elNm.value.trim().length > 0 &&    
         elPlanoContas.value.trim().length > 0 &&
         elCod.value.trim().length > 0;
 
-    // Lógica condicional: Se for funcionário, exige perfil e seleção do nome
-    if (checkFuncionario && checkFuncionario.checked) {
-        const temPerfil = perfilSelecionado !== null;
-        const temNomeVinculo = vinculoSelecionado && vinculoSelecionado.value !== "";
-        
-        isValido = isValido && temPerfil && temNomeVinculo;
-    }
-
+   
+    
     // Aplica o estado ao botão
     if (isValido) {
         botaoEnviar.disabled = false;
