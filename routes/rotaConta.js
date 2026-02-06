@@ -6,47 +6,6 @@ const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 const logMiddleware = require('../middlewares/logMiddleware');
 
 
-router.get("/empresas", autenticarToken(), async (req, res) => {    
-  const idempresa = req.idempresa;
-
-  console.log('Query Params EMPRESAS recebidos em ROTA CONTAS:', req.query);
-
-    try {
-        const result = await pool.query(
-            `SELECT idempresa, nmfantasia, razaosocial
-             FROM empresas 
-             WHERE ativo = true      
-             ORDER BY nmfantasia ASC`             
-        );
-
-        console.log("Empresas buscadas com sucesso.");
-        res.json(result.rows);
-        
-    } catch (error) {
-        console.error("Erro ao buscar empresas:", error);
-        res.status(500).json({ message: "Erro ao buscar empresas" });
-    }
-});
-
-router.get("/tipoconta", autenticarToken(), async (req, res) => {
-  
-  const idempresa = req.idempresa;
-
-  console.log('Query Params TIPO CONTA recebidos em ROTA CONTAS:', req.query);
-
-  try {    
-      const result = await pool.query(
-        // CORREÇÃO: Order by nmtipoconta (nome da coluna correto)
-        `SELECT * FROM tipoconta WHERE idempresa = $1 ORDER BY nmtipoconta ASC`,
-        [idempresa]
-      );
-      return res.json(result.rows);
-    
-  } catch (error) {
-    console.error("Erro ao buscar conta:", error);
-    res.status(500).json({ message: "Erro ao buscar conta no banco de dados" });
-  }
-});
 
 router.get("/planocontas", autenticarToken(), async (req, res) => {
   const idempresa = req.idempresa;
@@ -68,41 +27,6 @@ router.get("/planocontas", autenticarToken(), async (req, res) => {
   }
 });
 
-router.get("/centrocusto",  autenticarToken(), async (req, res) => {
-    const idempresa = req.idempresa;
-  
-    try {
-        const result = await pool.query(
-            `SELECT * FROM centrocusto  WHERE idempresa = $1 ORDER BY nmcentrocusto ASC`,
-            [idempresa] 
-        );
-        return result.rows.length
-        ? res.json(result.rows)
-        : res.status(404).json({ message: "Nenhuma conta encontrada" });           
-    
-    } catch (error) {
-        console.error("Erro ao buscar conta:", error);
-        res.status(500).json({ message: "Erro ao buscar conta" });
-    }      
-});
-
-// Função auxiliar para evitar repetição de código
-// async function buscarEntidadeVinculo(tabelaPrincipal, tabelaRelacao, idCol, nomeCol, fkCol, idempresa) {
-//     // tabelaPrincipal: ex 'clientes'
-//     // tabelaRelacao: ex 'clienteempresas'
-//     // fkCol: a coluna que liga as duas, ex 'idcliente'
-    
-//     const query = `
-//         SELECT p.${idCol} AS id, p.${nomeCol} AS nome 
-//         FROM ${tabelaPrincipal} p
-//         INNER JOIN ${tabelaRelacao} r ON p.${idCol} = r.${fkCol}
-//         WHERE r.idempresa = $1 AND p.ativo = true 
-//         ORDER BY nome
-//     `;
-    
-//     const result = await pool.query(query, [idempresa]);
-//     return result.rows;
-// }
 
 async function buscarEntidadeVinculo(tabelaPrincipal, tabelaRelacao, idCol, nomeCol, fkCol, idempresa, perfil = null) {
     
@@ -136,31 +60,6 @@ async function buscarEntidadeVinculo(tabelaPrincipal, tabelaRelacao, idCol, nome
     const result = await pool.query(query, params);
     return result.rows;
 }
-
-
-// Rota Genérica de Vínculo
-// router.get("/vinculo/:tipo", autenticarToken(), async (req, res) => {
-//     const { tipo } = req.params;
-//     const idempresa = req.idempresa;
-
-//     try {
-//         let dados = [];
-//         if (tipo === 'clientes') {
-//             dados = await buscarEntidadeVinculo('clientes', 'clienteempresas', 'idcliente', 'nmfantasia', 'idcliente', idempresa);
-//         } else if (tipo === 'fornecedores') {
-//             // Usando nmfantasia conforme sua estrutura
-//             dados = await buscarEntidadeVinculo('fornecedores', 'fornecedorempresas', 'idfornecedor', 'nmfantasia', 'idfornecedor', idempresa);
-//         } else if (tipo === 'funcionarios') {
-//             dados = await buscarEntidadeVinculo('funcionarios', 'funcionarioempresas', 'idfuncionario', 'nome', 'idfuncionario', idempresa);
-//         }
-        
-//         res.json(dados);
-//     } catch (error) {
-//         console.error(`❌ ERRO NA ROTA /vinculo/${tipo}:`, error.message);
-//         res.status(500).json({ message: "Erro ao buscar dados do banco", detail: error.message });
-//     }
-// });
-
 
 // Rota Genérica de Vínculo com Suporte a Perfil
 router.get("/vinculo/:tipo", autenticarToken(), async (req, res) => {
@@ -269,35 +168,6 @@ router.get("/proximo-codigo/:idplanocontas", autenticarToken(), async (req, res)
 router.use(autenticarToken());
 router.use(contextoEmpresa);
 
-// GET todas ou por nome
-// router.get("/", verificarPermissao('Contas', 'pesquisar'), async (req, res) => {
-//   const { nmConta } = req.query;
-//   const idempresa = req.idempresa;
-
-//   try {
-//     if (nmConta) {
-//       // Retorna idtipoconta agora
-//       const result = await pool.query(
-//         `SELECT * FROM contas WHERE idempresa = $1 AND nmconta ILIKE $2 LIMIT 1`,
-//         [idempresa, nmConta]
-//       );
-//       return result.rows.length
-//         ? res.json(result.rows[0])
-//         : res.status(404).json({ message: "Conta não encontrada" });
-//     } else {
-//       const result = await pool.query(
-//         `SELECT * FROM contas WHERE idempresa = $1 ORDER BY nmconta ASC`,
-//         [idempresa]
-//       );
-//       return result.rows.length
-//         ? res.json(result.rows)
-//         : res.status(404).json({ message: "Nenhuma conta encontrada" });
-//     }
-//   } catch (error) {
-//     console.error("Erro ao buscar conta:", error);
-//     res.status(500).json({ message: "Erro ao buscar conta" });
-//   }
-// });
 
 router.get("/", verificarPermissao('Contas', 'pesquisar'), async (req, res) => {
   const { nmConta } = req.query;
@@ -305,18 +175,15 @@ router.get("/", verificarPermissao('Contas', 'pesquisar'), async (req, res) => {
 
   // Query que traz o perfil apenas se o vínculo for um funcionário
   const queryBase = `
-    SELECT 
-        c.*,
-        f.perfil AS perfil_vinculo
-    FROM contas c
-    LEFT JOIN funcionarios f ON c.idvinculo = f.idfuncionario AND c.tipovinculo = 'funcionario'
-    WHERE c.idempresa = $1
+    SELECT *        
+    FROM contas    
+    WHERE idempresa = $1
   `;
 
   try {
     if (nmConta) {
       const result = await pool.query(
-        `${queryBase} AND c.nmconta ILIKE $2 LIMIT 1`,
+        `${queryBase} AND nmconta ILIKE $2 LIMIT 1`,
         [idempresa, nmConta]
       );
       return result.rows.length
@@ -324,7 +191,7 @@ router.get("/", verificarPermissao('Contas', 'pesquisar'), async (req, res) => {
         : res.status(404).json({ message: "Conta não encontrada" });
     } else {
       const result = await pool.query(
-        `${queryBase} ORDER BY c.nmconta ASC`,
+        `${queryBase} ORDER BY nmconta ASC`,
         [idempresa]
       );
       return result.rows.length
@@ -367,7 +234,7 @@ router.put("/:id",
     
     // INCLUÍDO: idempresapagadora vindo do body
     
-    const { nmConta, idTipoConta, idEmpresaPagadora, idPlanoContas, codConta, idCentroCusto, idVinculo, tipoVinculo } = req.body;
+    const { nmConta, idPlanoContas, codConta } = req.body;
 
     console.log('Dados recebidos para atualização da conta:', req.body, `ID Empresa Contexto: ${idempresaContexto}`, `ID Conta: ${idConta}`);
      
@@ -378,26 +245,16 @@ router.put("/:id",
         const result = await pool.query(
             `UPDATE contas 
             SET nmconta = $1, 
-                ativo = $2, 
-                idtipoconta = $3, 
-                idempresapagadora = $4, 
-                codconta = $5, 
-                idplanocontas = $6, 
-                idcentrocusto = $7, 
-                idvinculo = $8, 
-                tipovinculo = $9
-            WHERE idconta = $10 AND idempresa = $11 
+                ativo = $2,  
+                codconta = $3, 
+                idplanocontas = $4,       
+            WHERE idconta = $5 AND idempresa = $6
             RETURNING idconta`, 
             [
                 nmConta,            // $1
-                ativo,              // $2
-                idTipoConta,        // $3
-                idEmpresaPagadora,  // $4
+                ativo,              // $2  
                 codConta,           // $5
-                idPlanoContas,      // $6
-                idCentroCusto || null, // $7 (Garante null se vier vazio)
-                idVinculo || null,     // $8 (Garante null se vier vazio)
-                tipoVinculo || null,   // $9
+                idPlanoContas,      // $6             
                 idConta,            // $10
                 idempresaContexto   // $11
             ]
@@ -423,26 +280,21 @@ router.post("/", verificarPermissao('Contas', 'cadastrar'),
   }),
   async (req, res) => {
     // INCLUÍDO: idempresapagadora vindo do body
-    const { nmConta, ativo, idTipoConta, idEmpresaPagadora, codConta, idPlanoContas, idCentroCusto, idVinculo, tipoVinculo } = req.body;
+    const { nmConta, ativo, codConta, idPlanoContas } = req.body;
     const idempresaContexto = req.idempresa; // Empresa que está realizando o cadastro
 
     try {
         // ATUALIZADO: Query usando idempresapagadora no INSERT
         const result = await pool.query(
-            `INSERT INTO contas (nmconta, ativo, idempresa, idtipoconta, idempresapagadora, codconta, idplanocontas, idcentrocusto, idvinculo, tipovinculo) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+            `INSERT INTO contas (nmconta, ativo, idempresa, codconta, idplanocontas) 
+            VALUES ($1, $2, $3, $4, $5) 
             RETURNING idconta`, 
             [
             nmConta, 
             ativo, 
-            idempresaContexto, 
-            idTipoConta, 
-            idEmpresaPagadora, 
+            idempresaContexto,      
             codConta, 
-            idPlanoContas, 
-            idCentroCusto || null, // Se vier string vazia, vira NULL no banco
-            idVinculo || null, 
-            tipoVinculo || null
+            idPlanoContas           
             ]
         );
 

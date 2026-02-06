@@ -42,28 +42,106 @@
                                 </label>
                             </div>
                         </div>
-                    </div>                    
-
+                    </div>  
+                                        
                     <div class="form-3colunas">
-                        
-                        <div class="form">
-                            <label for="idContaSelect">Selecione a Conta (Nome Conta | Vínculo |  Plano de Contas | Centro de Custo | Tipo Conta | Empresa Pagadora)</label>
-                            <select name="idConta" id="idContaSelect" required>
-                                <option value="" disabled selected>Selecione a Conta (Setor - Empresa)...</option>                        
+                        <div class="form">                            
+                            <select name="idConta" id="idContaSelect" class="required">
+                                <option value="" disabled selected></option>                        
                             </select>
+                            <label for="idContaSelect">Selecione a Conta</label>
+                        </div>
+
+                        <div class="form-checkbox">
+                            <div class="checkbox-wrapper-33">
+                                <label class="checkbox">
+                                    <p class="checkbox__textwrapper">Cliente</p>
+                                    <input class="checkbox__trigger visuallyhidden tipo-vinculo" type="checkbox" id="checkCliente" name="tipoVinculo" value="cliente" />
+                                    <span class="checkbox__symbol">
+                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                                            <path d="M4 14l8 7L24 7"></path>
+                                        </svg>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-checkbox">
+                            <div class="checkbox-wrapper-33">
+                                <label class="checkbox">
+                                    <p class="checkbox__textwrapper">Fornecedor</p>
+                                    <input class="checkbox__trigger visuallyhidden tipo-vinculo" type="checkbox" id="checkFornecedor" name="tipoVinculo" value="fornecedor" />
+                                    <span class="checkbox__symbol">
+                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                                            <path d="M4 14l8 7L24 7"></path>
+                                        </svg>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-checkbox">
+                            <div class="checkbox-wrapper-33">
+                                <label class="checkbox">
+                                    <p class="checkbox__textwrapper">Funcionário</p>
+                                    <input class="checkbox__trigger visuallyhidden tipo-vinculo" type="checkbox" id="checkFuncionario" name="tipoVinculo" value="funcionario" />
+                                    <span class="checkbox__symbol">
+                                        <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28">
+                                            <path d="M4 14l8 7L24 7"></path>
+                                        </svg>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        
+
+                        <div id="containerPerfilFuncionario" style="margin-left: 20px; margin-top: 10px;">
+                            <label>
+                                <input type="radio" name="perfilFuncionario" value="funcionário" class="perfil-radio" disabled> Registrado
+                            </label>
+                            <label style="margin-left: 15px;">
+                                <input type="radio" name="perfilFuncionario" value="free-lancer" class="perfil-radio" disabled> Sem Registro
+                            </label>                        
+                        </div>
+                        <div class="form" id="containerVinculo"> 
+                            <select name="idVinculo" id="idVinculo" class="required">
+                                <option value="" disabled selected></option>
+                            </select>
+                            <label for="idVinculo" id="labelVinculo">Selecione o Vínculo</label> 
                         </div>
 
                         <div class="field-group-checkbox">                            
                             <input id="locadoCheck" type="checkbox" />
                             <label for="locadoCheck" class="label-inline">Locado</label>                                                 
                         </div>
-                        <!-- <div class="form">
-                            <select name="idCentroCusto" id="idCentroCusto" required>
-                                <option value="" disabled selected>Centro de Custo (Setor - Empresa)...</option>
+                    </div>
+
+                    <div class="form-3colunas">
+                        <div class="form">                                            
+                            <select name="tpConta" id="tpConta" class="required">
+                                <option value="" disabled selected></option>
                             </select>
-                            
-                        </div> -->
-                        
+                            <label for="tpConta">Tipo de Conta</label>
+                        </div>
+
+                        <div class="form">                        
+                            <select name="centroCusto" id="centroCusto"  class="required">
+                                <option value="" disabled selected></option>
+                            </select>
+                            <label for="centroCusto">Centro Custo</label>
+                        </div>
+
+                        <div class="form">                        
+                            <select name="empresaPagadora" id="empresaPagadora"  class="required">
+                                <option value="" disabled selected></option>
+                            </select>
+                            <label for="empresaPagadora">Empresa Pagadora</label>
+                        </div>
+                    </div>
+
+                    
+       
+
+                    <div class="form-3colunas">
                         <div class="form">
                             <input type="text" name="vlrEstimado" id="vlrEstimado" required>
                             <label for="vlrEstimado">Valor Estimado (R$)</label>
@@ -73,10 +151,6 @@
                             <input type="date" name="dtRecebimento" id="dtRecebimento" required>
                             <label for="dtRecebimento">Recebimento Conta</label>
                         </div>
-                        
-                    </div>
-
-                    <div class="form-3colunas">
                         <div class="form">
                             <input type="date" name="vctoBase" id="vctoBase" required>
                             <label for="vctoBase">Vencimento Base</label>

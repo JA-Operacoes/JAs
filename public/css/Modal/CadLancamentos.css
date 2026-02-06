@@ -44,8 +44,8 @@
   background-color: #4d4d4d;
   padding: 5px;
   margin-top: 10px;
-  width: 1050px; /* Ajuste o tamanho conforme necessário */
-  height: 750px;
+  width: 1560px; /* Ajuste o tamanho conforme necessário */
+  height: 850px;
   font-size: 16px;
   z-index: 9999;
 }
@@ -105,9 +105,9 @@ body{
   flex-direction: column; 
   justify-content: center;
   background-color: white;
-  max-width: 1030px;   
+  max-width: 1540px;   
   width: 100%;  
-  height: 670px; 
+  height: 770px; 
   margin: 0 auto;         
   padding: 10px;                
   background-color: #cacaca; 
@@ -120,12 +120,13 @@ body{
 fieldset {
   display: flex;
   flex-direction: column;
-  width: 680px;
-  height: 600px;
+  width: 780px;
+  height: 680px;
   background-color: transparent;
   border-color: var(--dark-color);
   margin: 0 auto;
 }
+
 legend{
   margin-left: 20px;
   padding: 0 10px;
@@ -200,7 +201,7 @@ input#descricao{
   width: 600px;
 }
 
- select#descricao{
+select#descricao{
   width: 600px;
 } 
 
@@ -212,38 +213,38 @@ select#periodicidade, select#tipoRepeticao{
     width: 130px;
 }
 
-select#idContaSelect{
+/* select#idContaSelect{
     width: 500px;
-}
+} */
 
 /* Seleciona o container (.form) que contém especificamente o idContaSelect */
 /* Container do campo específico */
-.form:has(#idContaSelect) {
+/* .form:has(#idContaSelect) {
     display: flex !important;
     flex-direction: column !important;
     justify-content: flex-end !important;
-    height: auto !important; /* Permite que a div cresça para caber label + select */
-    min-height: 55px; /* Garante espaço para os dois elementos */
-}
+    height: auto !important; 
+    min-height: 55px; 
+} */
 
 /* O Label acima do campo */
-label[for="idContaSelect"] {
+/* label[for="idContaSelect"] {
     position: static !important;
     order: -1;
-    margin-bottom: 4px !important; /* Espaço entre texto e select */
+    margin-bottom: 4px !important; /
     transform: none !important;
     font-size: 12px !important;
     font-weight: bold;
 }
 
 /* O Select com a altura corrigida */
-#idContaSelect {
+/*#idContaSelect {
     display: block !important;
-    height: 30px !important; /* Altura que você solicitou */
+    height: 30px !important; 
     width: 520px !important;
     padding: 0 10px !important;
     line-height: 30px !important;
-}
+} */
 
 .form2 {
   display: flex;
@@ -268,9 +269,6 @@ label[for="idContaSelect"] {
   outline: none;
 }
 
-/* #tpConta.form select {
-    width: 100px;
-} */
 
 button.close {
   display: flex;
@@ -333,7 +331,9 @@ input:focus{
 }
 
 input:focus ~ label,
-input:valid ~ label{
+input:valid ~ label,
+select:focus ~ label,
+select:valid ~ label{
   top: 0;
   left: 25%;
   font-size: 15px;
@@ -397,7 +397,7 @@ input#id{
 .form-checkbox {
     display: flex;
     align-items: center;
-    min-width: 150px;
+    min-width: 10px;
     height: 35px;
 }
 
@@ -607,6 +607,36 @@ input#id{
     cursor: pointer;
     white-space: nowrap;
 }
+
+/* Quando o container ou o label contém um input desabilitado */
+#containerPerfilFuncionario label:has(input:disabled) {
+    color: #5a5858; /* Cinza claro */
+    cursor: not-allowed;
+    transition: color 0.3s ease;
+}
+
+/* Quando o input está habilitado */
+#containerPerfilFuncionario label:has(input:enabled) {
+    color: #000; /* Preto */
+    cursor: pointer;
+    font-weight: 500;
+}
+
+/* Opcional: Efeito visual no rádio quando desabilitado */
+.perfil-radio:disabled {
+    filter: grayscale(1);
+    opacity: 0.6;
+}
+
+
+/* Ajuste para o Container de Perfil caber sem quebrar */
+#containerPerfilFuncionario {
+    display: flex;
+    flex-wrap: nowrap; /* Impede que "Sem Registro" caia para a linha de baixo */
+    align-items: center;
+    min-width: 250px; /* Garante espaço para os textos Registrado/Sem Registro */
+}
+
 
 @-webkit-keyframes ripple-33 {
   from {
