@@ -247,7 +247,7 @@ router.put("/:id",
             SET nmconta = $1, 
                 ativo = $2,  
                 codconta = $3, 
-                idplanocontas = $4,       
+                idplanocontas = $4     
             WHERE idconta = $5 AND idempresa = $6
             RETURNING idconta`, 
             [
