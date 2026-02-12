@@ -1588,6 +1588,9 @@ function adicionarLinhaOrc() {
   // }
   tabela.insertBefore(novaLinha, tabela.firstChild);
 
+  // Base do item (valor original sem desconto/acréscimo)
+  novaLinha.dataset.vlrbase = "0";
+
   const descontoValorItem = novaLinha.querySelector(
     ".descontoItem .ValorInteiros"
   );
@@ -1975,6 +1978,7 @@ async function adicionarLinhaAdicional(isBonificado = false) {
     novaLinha.dataset.adicional = "true";
     novaLinha.dataset.bonificado = isBonificado ? "true" : "false"; // Marcação para o cálculo
     novaLinha.dataset.extrabonificado = isBonificado ? "true" : "false"; // ✅ Novo atributo padronizado
+    novaLinha.dataset.vlrbase = "0"; // Base inicial
 
     // Estilização visual para bonificados (Fundo verde claro + borda)
     if (isBonificado) {
@@ -2539,6 +2543,7 @@ function atualizaProdutoOrc(event) {
     if (!tabela) return;
     let ultimaLinha = tabela.querySelector("tbody tr:first-child");
     if (ultimaLinha) {
+      ultimaLinha.dataset.valorTabela = vlrVendaNumerico;
         let celulaProduto = ultimaLinha.querySelector(".produto");
         let celulaCategoria = ultimaLinha.querySelector(".Categoria");
         let inputIdFuncao = ultimaLinha.querySelector("input.idFuncao");
@@ -2583,6 +2588,7 @@ function atualizaProdutoOrc(event) {
             celulaVlrVenda.textContent = formatarMoeda(vlrVendaNumerico);
             celulaVlrVenda.dataset.originalVenda = vlrVendaNumerico.toString();
         }
+        ultimaLinha.dataset.vlrbase = vlrVendaNumerico.toString();
         console.log(" valor de Venda é:", vlrVendaNumerico);
     }
     gerarObservacoesProposta([ultimaLinha]);
@@ -2648,28 +2654,58 @@ function atualizarValoresAjdCustoNaLinha(linha) {
     baseTransporte = parseFloat(vlrTransporte || 0); // Use o valor global aqui
   }
 
-  console.log(
-    `Bases lidas (da linha ${idFuncaoDaLinha}): Almoco: ${baseAlmoco}, Jantar: ${baseJantar}, Transporte: ${baseTransporte}`
+  const qtdItens = parseFloat(linha.querySelector(".qtdProduto input")?.value || 0) || 0;
+  const qtdDias = parseFloat(linha.querySelector(".qtdDias input")?.value || 0) || 0;
+
+  const alimEl = linha.querySelector(".vlralimentacao-input");
+  const transpEl = linha.querySelector(".vlrtransporte-input");
+
+  let valorAlimentacaoAtual = desformatarMoeda(
+    alimEl?.tagName === "INPUT" ? alimEl.value : alimEl?.textContent || "0"
+  );
+  let valorTransporteAtual = desformatarMoeda(
+    transpEl?.tagName === "INPUT" ? transpEl.value : transpEl?.textContent || "0"
   );
 
-  totalAlimentacaoLinha = baseAlimentacao;
-  totalTransporteLinha = baseTransporte;
+  if (valorAlimentacaoAtual === 0 && valorTransporteAtual === 0) {
+    valorAlimentacaoAtual = baseAlimentacao;
+    valorTransporteAtual = baseTransporte;
+  }
+
+  totalAlimentacaoLinha = valorAlimentacaoAtual;
+  totalTransporteLinha = valorTransporteAtual;
 
   // Atualiza o display e o data-attribute (necessário para recalcularTotaisGerais)
 
   // Se você está usando as variáveis celulaAlimentacao / celulaTransporte do Passo 3.1:
-  if (celulaAlimentacao) {
+  if (alimEl) {
+    if (alimEl.tagName === "INPUT") {
+      alimEl.value = formatarMoeda(totalAlimentacaoLinha);
+    } else {
+      alimEl.textContent = formatarMoeda(totalAlimentacaoLinha);
+    }
+  } else if (celulaAlimentacao) {
     celulaAlimentacao.textContent = formatarMoeda(totalAlimentacaoLinha);
-    // Garante que o valor bruto fica acessível para recalculo e exportação
-    celulaAlimentacao.dataset.originalAjdcusto = totalAlimentacaoLinha;
   }
 
-  if (celulaTransporte) {
+  if (transpEl) {
+    if (transpEl.tagName === "INPUT") {
+      transpEl.value = formatarMoeda(totalTransporteLinha);
+    } else {
+      transpEl.textContent = formatarMoeda(totalTransporteLinha);
+    }
+  } else if (celulaTransporte) {
     celulaTransporte.textContent = formatarMoeda(totalTransporteLinha);
+  }
+
+  if (celulaAlimentacao) {
+    celulaAlimentacao.dataset.originalAjdcusto = totalAlimentacaoLinha;
+  }
+  if (celulaTransporte) {
     celulaTransporte.dataset.originalAjdcusto = totalTransporteLinha;
   }
 
-  totalAjdCustoLinha = totalAlimentacaoLinha + totalTransporteLinha;
+  totalAjdCustoLinha = (totalAlimentacaoLinha + totalTransporteLinha) * qtdItens * qtdDias;
 
   if (totAjdCustoCell) {
     totAjdCustoCell.textContent = formatarMoeda(totalAjdCustoLinha);
@@ -3199,6 +3235,7 @@ async function verificaOrcamento() {
         }
       }
       console.log("Pavilhões para enviar:", pavilhoesParaEnviar);
+      
 
       const dadosOrcamento = {
         id: orcamentoId,
@@ -3307,6 +3344,22 @@ async function verificaOrcamento() {
     // O console.log agora reflete o resultado da nova e mais robusta lógica
     console.log("Processando linha. É adicional?", isAdicional, linha);
 
+    const descontoItemValor = desformatarMoeda(
+      linha.querySelector(".descontoItem.Moeda .ValorInteiros")?.value ||
+      "0"
+    );
+    const acrescimoItemValor = desformatarMoeda(
+      linha.querySelector(".acrescimoItem.Moeda .ValorInteiros")?.value ||
+      "0"
+    );
+    const vlrVendaAtual = desformatarMoeda(
+      linha.querySelector(".vlrVenda.Moeda")?.textContent || "0"
+    );
+    const vlrBaseLinhaRaw = parseFloat(linha.dataset.vlrbase);
+    const vlrBaseLinha = !isNaN(vlrBaseLinhaRaw) && vlrBaseLinhaRaw > 0
+      ? vlrBaseLinhaRaw
+      : (vlrVendaAtual + descontoItemValor - acrescimoItemValor);
+
     const item = {
         id: parseInt(linha.querySelector(".idItemOrcamento")?.value) || null,
         nrorcamento:
@@ -3329,24 +3382,16 @@ async function verificaOrcamento() {
 
         qtdDias: linha.querySelector(".qtdDias input")?.value || "0",
 
-        descontoitem: desformatarMoeda(
-            linha.querySelector(".descontoItem.Moeda .ValorInteiros")?.value ||
-            "0"
-        ),
+        descontoitem: descontoItemValor,
         percentdescontoitem: parsePercentValue(
             linha.querySelector(".descontoItem.Moeda .valorPerCent")?.value
         ),
-        acrescimoitem: desformatarMoeda(
-            linha.querySelector(".acrescimoItem.Moeda .ValorInteiros")?.value ||
-            "0"
-        ),
+        acrescimoitem: acrescimoItemValor,
         percentacrescimoitem: parsePercentValue(
             linha.querySelector(".acrescimoItem.Moeda .valorPerCent")?.value
         ),
 
-        vlrdiaria: desformatarMoeda(
-            linha.querySelector(".vlrVenda.Moeda")?.textContent || "0"
-        ),
+        vlrdiaria: vlrVendaAtual,
         totvdadiaria: desformatarMoeda(
             linha.querySelector(".totVdaDiaria.Moeda")?.textContent || "0"
         ),
@@ -3382,6 +3427,9 @@ async function verificaOrcamento() {
         totgeralitem: desformatarMoeda(
             linha.querySelector(".totGeral")?.textContent || "0"
         ),
+
+        // Base do item para manter o valor original sem desconto/acréscimo
+        vlrbase: vlrBaseLinha,
 
         // 2. CORREÇÃO DE ATRIBUIÇÃO:
         // Usa a variável local 'isAdicional' (calculada corretamente acima).
@@ -4551,11 +4599,17 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
       totGeralItem = totAjuda + totCtoDiaria;
     }
 
+    const vlrBaseItemRaw = parseFloat(item.vlrbase);
+    const vlrBaseItem = !isNaN(vlrBaseItemRaw) && vlrBaseItemRaw > 0
+      ? vlrBaseItemRaw
+      : (vlrDiaria + descontoItem - acrescimoItem);
+
     const newRow = tabelaBody.insertRow(); // Cria a linha DOM de uma vez
     newRow.dataset.idorcamentoitem = item.idorcamentoitem || "";
     newRow.dataset.idfuncao = item.idfuncao || "";
     newRow.dataset.idequipamento = item.idequipamento || "";
     newRow.dataset.idsuprimento = item.idsuprimento || "";
+    newRow.dataset.vlrbase = (vlrBaseItem || 0).toString();
     
     // ✅ Atributos adicionais
     newRow.dataset.adicional = item.adicional ? "true" : "false";
@@ -5544,344 +5598,127 @@ function formatarMoeda(valor) {
 }
 
 function recalcularLinha(linha) {
-  if (!linha) return;
+    if (!linha) return;
 
-  try {
-    console.log("Linha recebida para recalcular:", linha);
+    try {
+        // --- 1. CAPTURA DE QUANTIDADES (Obrigatórias) ---
+        const qtdItens = parseFloat(linha.querySelector(".qtdProduto input")?.value || linha.querySelector(".qtdItens")?.value) || 0;
+        const qtdDias = parseFloat(linha.querySelector(".qtdDias input")?.value || linha.querySelector(".qtddias")?.value) || 0;
+        const totalFator = qtdItens * qtdDias;
 
-    let qtdItens =
-      parseFloat(linha.querySelector(".qtdProduto input")?.value) || 0;
-    let qtdDias = parseFloat(linha.querySelector(".qtdDias input")?.value) || 0;
+        // --- 2. VALOR DE VENDA (Base Imutável) ---
+        const celulaVenda = linha.querySelector(".vlrVenda");
+        // Prioriza o dataset para não perder o valor original após descontos
+        let vlrVendaOriginal = parseFloat(linha.dataset.vlrbase) || 
+                               parseFloat(celulaVenda?.dataset.originalVenda) || 
+                               desformatarMoeda(celulaVenda?.textContent) || 0;
+        
+        // Garante que a linha saiba sua base para sempre
+        if (!linha.dataset.vlrbase) linha.dataset.vlrbase = vlrVendaOriginal;
 
-    let celulaVenda = linha.querySelector(".vlrVenda");
-    const vlrVendaOriginal =
-      parseFloat(celulaVenda?.dataset.originalVenda) || 0;
-    console.log(
-      "DEBUG - recalcularLinha: vlrVendaOriginal (Lido do data-attribute) =",
-      vlrVendaOriginal
-    );
-    let vlrVenda = vlrVendaOriginal;
+        // --- 3. AJUSTES (Desconto e Acréscimo) ---
+        const lerAjuste = (seletor) => {
+            const el = linha.querySelector(seletor);
+            if (!el) return 0;
+            return el.mask ? (parseFloat(el.mask.unmaskedValue) || 0) : (desformatarMoeda(el.value) || 0);
+        };
 
-    let vlrCusto =
-      desformatarMoeda(linha.querySelector(".vlrCusto")?.textContent) || 0;
+        const desconto = lerAjuste(".descontoItem .ValorInteiros");
+        const acrescimo = lerAjuste(".acrescimoItem .ValorInteiros");
 
-    const vlrAlimentacaoDiaria =
-      desformatarMoeda(
-        linha.querySelector(".vlralimentacao-input")?.textContent
-      ) ||
-      desformatarMoeda(
-        linha.querySelector(".ajdCusto.alimentacao")?.textContent
-      ) ||
-      0;
-    const vlrTransporteDiaria =
-      desformatarMoeda(
-        linha.querySelector(".vlrtransporte-input")?.textContent
-      ) ||
-      desformatarMoeda(
-        linha.querySelector(".ajdCusto.transporte")?.textContent
-      ) ||
-      0;
+        // --- 4. LOGÍSTICA (Alimentação, Transporte, Hospedagem) ---
+        const lerCustoUnitario = (seletor) => {
+            const el = linha.querySelector(seletor);
+            return desformatarMoeda(el?.tagName === "INPUT" ? el.value : el?.textContent) || 0;
+        };
 
-    const totalAlimentacaoLinha = vlrAlimentacaoDiaria;
-    const totalTransporteLinha = vlrTransporteDiaria;
+        const vlrAlimUnit = lerCustoUnitario(".vlralimentacao-input") || lerCustoUnitario(".ajdCusto.alimentacao");
+        const vlrTranspUnit = lerCustoUnitario(".vlrtransporte-input") || lerCustoUnitario(".ajdCusto.transporte");
+        const vlrCustoFixoUnit = lerCustoUnitario(".vlrCusto");
+        
+        const hospedagemTotal = desformatarMoeda(linha.querySelector(".hospedagem")?.value) || 0;
+        const transporteExtra = desformatarMoeda(linha.querySelector(".transporteExtraInput")?.value) || 0;
 
-    console.log(
-      "ALIMENTACAO (lido do DOM):",
-      linha.querySelector(".vlralimentacao-input"),
-      vlrAlimentacaoDiaria
-    );
+        // --- 5. MATEMÁTICA FINANCEIRA ---
+        let vlrVendaFinalUnit = vlrVendaOriginal - desconto + acrescimo;
 
-    let hospedagemValor =
-      desformatarMoeda(linha.querySelector(".hospedagem")?.value) || 0;
-    let transporteExtraValor =
-      desformatarMoeda(linha.querySelector(".transporteExtraInput")?.value) ||
-      0;
-    console.log(
-      "HOSPEDAGEM E TRANSPORTE EXTRA:",
-      hospedagemValor,
-      transporteExtraValor
-    );
+        // Regra de Bonificação (Se for brinde, venda é zero)
+        if (linha.dataset?.extrabonificado === "true") vlrVendaFinalUnit = 0;
 
-    let vlrAjdCusto = totalAlimentacaoLinha + totalTransporteLinha;
+        const totalVendaLinha = (vlrVendaFinalUnit * totalFator) + (hospedagemTotal * totalFator) + transporteExtra;
+        const totalAjudaCusto = (vlrAlimUnit + vlrTranspUnit) * totalFator;
+        const totalCustoBase = vlrCustoFixoUnit * totalFator;
+        const custoTotalReal = totalCustoBase + totalAjudaCusto;
 
-    // --- Leitura de Desconto e Acréscimo ---
-    let campoDescValor = linha.querySelector(".descontoItem .ValorInteiros");
-    let campoAcrescValor = linha.querySelector(".acrescimoItem .ValorInteiros");
+        // --- 6. ATUALIZAÇÃO SEGURA DA DOM ---
+        const atualizar = (seletor, valor, isInput = false) => {
+            const el = linha.querySelector(seletor);
+            if (!el) return;
+            const formatado = valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+            if (isInput) el.value = formatado; else el.textContent = formatado;
+        };
 
-    let desconto = 0;
-    let acrescimo = 0;
+        atualizar(".vlrVenda", vlrVendaFinalUnit);
+        atualizar(".totVdaDiaria", totalVendaLinha);
+        atualizar(".totCtoDiaria", totalCustoBase);
+        atualizar(".totAjdCusto", totalAjudaCusto);
+        atualizar(".totGeral", custoTotalReal);
 
-    if (campoDescValor && campoDescValor.mask) {
-      desconto = parseFloat(campoDescValor.mask.unmaskedValue) || 0;
-    } else if (campoDescValor) {
-      desconto = desformatarMoeda(campoDescValor.value);
+        // --- 7. SINCRONIA GERAL ---
+        if (typeof recalcularTotaisGerais === "function") {
+            recalcularTotaisGerais();
+        }
+
+    } catch (error) {
+        console.error("Falha crítica no cálculo da linha:", error);
     }
-
-    if (campoAcrescValor && campoAcrescValor.mask) {
-      acrescimo = parseFloat(campoAcrescValor.mask.unmaskedValue) || 0;
-    } else if (campoAcrescValor) {
-      acrescimo = desformatarMoeda(campoAcrescValor.value);
-    }
-
-    // --- Cálculo do valor de venda corrigido ---
-    let vlrVendaCorrigido = vlrVendaOriginal - desconto + acrescimo;
-
-    // --- Verificar se é item bonificado (venda = 0) ---
-    const isBonificado = linha.dataset?.extrabonificado === "true";
-    if (isBonificado) {
-      vlrVendaCorrigido = 0;
-      desconto = 0;
-      acrescimo = 0;
-    }
-
-    // --- Totais intermediários ---
-    let totalIntermediario = qtdItens * qtdDias;
-    let totalVenda =
-      totalIntermediario * vlrVendaCorrigido +
-      hospedagemValor * totalIntermediario +
-      transporteExtraValor;
-    let totalCusto = totalIntermediario * vlrCusto;
-    let totalAjdCusto = totalIntermediario * vlrAjdCusto;
-    let totGeralCtoItem = totalCusto + totalAjdCusto;
-
-    console.log(
-      "Ajuda Custo RECALCULAR LINHA:",
-      totalAjdCusto,
-      "totalIntermediario:",
-      totalIntermediario,
-      "vlrAjdCusto:",
-      vlrAjdCusto
-    );
-
-    // --- Atualização da DOM (protegendo null) ---
-    function setValueIfExists(selector, valor, isInput = false) {
-      const el = linha.querySelector(selector);
-      if (el) {
-        if (isInput) el.value = valor;
-        else el.textContent = valor;
-      }
-    }
-
-    setValueIfExists(
-      ".vlralimentacao-input",
-      vlrAlimentacaoDiaria.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      }),
-      true
-    );
-    setValueIfExists(
-      ".vlrtransporte-input",
-      vlrTransporteDiaria.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      }),
-      true
-    );
-    setValueIfExists(
-      ".totVdaDiaria",
-      totalVenda.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-    );
-    setValueIfExists(
-      ".vlrVenda",
-      vlrVendaCorrigido.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      })
-    );
-    setValueIfExists(
-      ".totCtoDiaria",
-      totalCusto.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-    );
-    setValueIfExists(
-      ".totAjdCusto",
-      totalAjdCusto.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      })
-    );
-    setValueIfExists(
-      ".totGeral",
-      totGeralCtoItem.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      })
-    );
-
-    // --- Logs finais ---
-    console.log(
-      "Calculo desc e Acresc (final):",
-      vlrVendaOriginal,
-      "-",
-      desconto,
-      "+",
-      acrescimo
-    );
-    console.log("valor c/ desc e Acresc (final):", vlrVendaCorrigido);
-
-    // --- Recalcula totais gerais ---
-    recalcularTotaisGerais();
-  } catch (error) {
-    console.error("Erro no recalcularLinha:", error);
-  }
 }
 
-function recalcularDescontoAcrescimo(
-  campoAlterado,
-  tipoCampo,
-  tipoValorAlterado,
-  linha
-) {
-  if (isRecalculatingDiscountAcrescimo) {
-    console.log("DEBUG: Recálculo em andamento, ignorando nova chamada.");
-    return;
-  }
+let isRecalculandoSincronizado = false;
 
-  isRecalculatingDiscountAcrescimo = true;
+function recalcularDescontoAcrescimo(campoAlterado, tipoCampo, tipoValorAlterado, linha) {
+    if (isRecalculandoSincronizado) return;
+    isRecalculandoSincronizado = true;
 
-  try {
-    const celulaVenda = linha.querySelector(".vlrVenda");
-    let vlrVendaOriginal =
-      parseFloat(celulaVenda?.dataset.originalVenda || "0") || 0;
+    try {
+        const vlrBase = parseFloat(linha.dataset.vlrbase) || 0;
+        if (vlrBase <= 0) return;
 
-    if (vlrVendaOriginal === 0 && celulaVenda) {
-      const vlrVendaAtualFormatado = celulaVenda.textContent;
-      vlrVendaOriginal = desformatarMoeda(vlrVendaAtualFormatado);
-      console.log(
-        "DEBUG: vlrVendaOriginal ajustado para o valor atual da celulaVenda:",
-        vlrVendaOriginal
-      );
-    }
+        const container = linha.querySelector(`.${tipoCampo}Item`);
+        if (!container) return;
 
-    console.log("DEBUG - recalcularDescontoAcrescimo - INÍCIO");
-    console.log(
-      "Campo Alterado (elemento):",
-      campoAlterado.className,
-      "Tipo Campo (desc/acresc):",
-      tipoCampo,
-      "Tipo Valor Alterado (valor/percentual):",
-      tipoValorAlterado
-    );
-    console.log(
-      "Valor de Venda Original da Linha (base para cálculo):",
-      vlrVendaOriginal
-    );
+        const campoValor = container.querySelector(".ValorInteiros");
+        const campoPercent = container.querySelector(".valorPerCent");
 
-    let campoValor;
-    let campoPercentual;
+        let valorMonetario = 0;
+        let percentual = 0;
 
-    if (tipoCampo === "desconto") {
-      campoValor = linha.querySelector(".descontoItem .ValorInteiros");
-      campoPercentual = linha.querySelector(".descontoItem .valorPerCent");
-    } else {
-      // tipoCampo === 'acrescimo'
-      campoValor = linha.querySelector(".acrescimoItem .ValorInteiros");
-      campoPercentual = linha.querySelector(".acrescimoItem .valorPerCent");
-    }
-
-    let valorMonetarioAtual = desformatarMoeda(campoValor?.value || "0");
-    let percentualAtual = desformatarPercentual(campoPercentual?.value || "0");
-
-    console.log(
-      `Valores lidos dos campos (monetário: ${valorMonetarioAtual}, percentual: ${percentualAtual})`
-    );
-    console.log("lastEditedFieldType ANTES DO CÁLCULO:", lastEditedFieldType);
-
-    // A lógica de qual campo calcular deve ser baseada no lastEditedFieldType
-    // que foi setado pelo evento 'input'.
-
-    if (lastEditedFieldType === "valor") {
-      // Se o último campo EDITADO foi o valor monetário
-      if (vlrVendaOriginal > 0) {
-        percentualAtual = (valorMonetarioAtual / vlrVendaOriginal) * 100;
-      } else {
-        percentualAtual = 0;
-      }
-      if (campoPercentual) {
-        percentualAtual = Math.round(percentualAtual * 100) / 100; // Arredonda para 2 casas
-        campoPercentual.value = formatarPercentual(percentualAtual);
-        console.log(
-          `Atualizando ${tipoCampo} Percentual (baseado em valor) para: ${campoPercentual.value}`
-        );
-      }
-    } else if (lastEditedFieldType === "percentual") {
-      // Se o último campo EDITADO foi o percentual
-      valorMonetarioAtual = vlrVendaOriginal * (percentualAtual / 100);
-      if (campoValor) {
-        valorMonetarioAtual = Math.round(valorMonetarioAtual * 100) / 100; // Arredonda para 2 casas
-        campoValor.value = formatarMoeda(valorMonetarioAtual);
-        console.log(
-          `Atualizando ${tipoCampo} Valor (baseado em percentual) para: ${campoValor.value}`
-        );
-      }
-    }
-    // Se lastEditedFieldType for null, significa que foi um disparo inicial ou um caso atípico.
-    // Neste caso, use o tipoValorAlterado que veio do evento.
-    else {
-      console.warn(
-        "lastEditedFieldType é null. Usando tipoValorAlterado do evento como fallback."
-      );
-      if (tipoValorAlterado === "valor") {
-        if (vlrVendaOriginal > 0) {
-          percentualAtual = (valorMonetarioAtual / vlrVendaOriginal) * 100;
-        } else {
-          percentualAtual = 0;
+        // Se o usuário mudou o Valor (R$), calculamos a %
+        if (tipoValorAlterado === "valor") {
+            valorMonetario = campoValor.mask ? (parseFloat(campoValor.mask.unmaskedValue) || 0) : desformatarMoeda(campoValor.value);
+            percentual = (valorMonetario / vlrBase) * 100;
+            if (campoPercent) campoPercent.value = percentual.toFixed(2).replace(".", ",");
+        } 
+        // Se o usuário mudou a %, calculamos o Valor (R$)
+        else {
+            percentual = parseFloat(campoPercent.value.replace(",", ".")) || 0;
+            valorMonetario = vlrBase * (percentual / 100);
+            if (campoValor) {
+                if (campoValor.mask) campoValor.mask.value = valorMonetario.toFixed(2);
+                else campoValor.value = formatarMoeda(valorMonetario);
+            }
         }
-        if (campoPercentual) {
-          percentualAtual = Math.round(percentualAtual * 100) / 100; // Arredonda para 2 casas
-          campoPercentual.value = formatarPercentual(percentualAtual);
-          console.log(
-            `Atualizando ${tipoCampo} Percentual (fallback) para: ${campoPercentual.value}`
-          );
-        }
-      } else {
-        // tipoValorAlterado === 'percentual'
-        valorMonetarioAtual = vlrVendaOriginal * (percentualAtual / 100);
-        if (campoValor) {
-          valorMonetarioAtual = Math.round(valorMonetarioAtual * 100) / 100; // Arredonda para 2 casas
-          campoValor.value = formatarMoeda(valorMonetarioAtual);
-          console.log(
-            `Atualizando ${tipoCampo} Valor (fallback) para: ${campoValor.value}`
-          );
-        }
-      }
-    }
 
-    // --- Lógica para zerar o campo "parceiro" se o campo alterado for zerado ---
-    let valorDigitadoNoCampoAlterado;
-    if (tipoValorAlterado === "valor") {
-      // Se o evento veio de um campo de valor
-      valorDigitadoNoCampoAlterado = desformatarMoeda(
-        campoAlterado.value || "0"
-      );
-    } else {
-      // Se o evento veio de um campo de percentual
-      valorDigitadoNoCampoAlterado = desformatarPercentual(
-        campoAlterado.value || "0"
-      );
-    }
+        // Após sincronizar os campos, roda o cálculo final da linha
+        recalcularLinha(linha);
 
-    if (valorDigitadoNoCampoAlterado === 0) {
-      console.log("Campo alterado foi zerado. Zerando campo parceiro.");
-      if (tipoValorAlterado === "valor" && campoPercentual) {
-        campoPercentual.value = formatarPercentual(0);
-      } else if (tipoValorAlterado === "percentual" && campoValor) {
-        campoValor.value = formatarMoeda(0);
-      }
+    } catch (error) {
+        console.error("Erro na sincronia de desconto/acréscimo:", error);
+    } finally {
+        isRecalculandoSincronizado = false;
     }
-
-    recalcularLinha(linha); // Recalcula o total da linha
-  } finally {
-    isRecalculatingDiscountAcrescimo = false;
-    // O RESET DE lastEditedFieldType DEVE ACONTECER FORA DESTE CONTEXTO SÓ QUANDO O USUÁRIO SAIU DE AMBOS OS CAMPOS
-    // Para depuração, temporariamente não vamos zerar ele aqui.
-    // lastEditedFieldType = null; // COMENTE ESTA LINHA POR ENQUANTO PARA DEPURAR O FLUXO
-    console.log(
-      "DEBUG - recalcularDescontoAcrescimo - FIM. lastEditedFieldType APÓS RECALC (para depuração):",
-      lastEditedFieldType
-    );
-  }
 }
+
 
 function aplicarMascaraMoeda() {
   // Formatar valores de <td> com a classe .Moeda
