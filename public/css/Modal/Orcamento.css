@@ -324,6 +324,7 @@
     display: flex;
     gap: 20px;
     align-items: flex-start;
+    flex-direction: column;
 }
 
 .Observacoes {
@@ -535,6 +536,14 @@
   .aviso{
     font-size: 18px;
     justify-content: center;
+  }
+
+  #avisoReajusteMensagem{
+    color: var(--primary-color);
+    font-weight: bold;
+    font-size: 15px;
+    padding: 0px 10px;
+    margin: 0 10px;
   }
 
 .select label, .select2 label {
