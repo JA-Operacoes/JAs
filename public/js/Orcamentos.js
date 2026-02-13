@@ -3382,7 +3382,12 @@ async function verificaOrcamento() {
             linha.querySelector(".setor-input")?.value?.trim().toUpperCase() ||
             null,
 
-        qtdDias: linha.querySelector(".qtdDias input")?.value || "0",
+        qtdDias:
+          parseInt(linha.querySelector(".qtdDias input")?.value || "0", 10) ||
+          0,
+        qtddias:
+          parseInt(linha.querySelector(".qtdDias input")?.value || "0", 10) ||
+          0,
 
         descontoitem: descontoItemValor,
         percentdescontoitem: parsePercentValue(
