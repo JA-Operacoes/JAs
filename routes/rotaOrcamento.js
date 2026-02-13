@@ -28,218 +28,89 @@ router.get(
     const client = await pool.connect();
     try {
       const idempresa = req.idempresa; // ID da empresa do middleware 'contextoEmpresa'
-
       const { nrOrcamento } = req.query; // Pega apenas o nrOrcamento
 
       let query = `
         SELECT
-            o.idorcamento,
-            o.status,
-            o.idcliente,
-            c.nmfantasia AS nomecliente,
-            o.idevento,
-            e.nmevento AS nomeevento,
-            o.idmontagem,
-            lm.descmontagem AS nomelocalmontagem,
-            o.nrorcamento,
-            o.inframontagem,
-            o.dtinipreevento,
-            o.dtfimpreevento,
-            o.dtiniinframontagem,
-            o.dtfiminframontagem,
-            o.dtinimarcacao,
-            o.dtfimmarcacao,
-            o.dtinimontagem,
-            o.dtfimmontagem,          
-            o.dtinirealizacao,
-            o.dtfimrealizacao,            
-            o.dtinidesmontagem,
-            o.dtfimdesmontagem,
-            o.dtiniinfradesmontagem,
-            o.dtfiminfradesmontagem,
-            o.dtiniposevento,
-            o.dtfimposevento,
-            o.obsitens,
-            o.obsproposta,
-            o.totgeralvda,
-            o.totgeralcto,
-            o.totajdcto,
-            o.lucrobruto,
-            o.percentlucro,
-            o.desconto,
-            o.percentdesconto,
-            o.acrescimo,
-            o.percentacrescimo,
-            o.lucroreal,
-            o.percentlucroreal,
-            o.vlrimposto,
-            o.percentimposto,
-            o.vlrcliente,
-            o.nomenclatura,
-            o.formapagamento,
-            o.edicao,
-            o.geradoanoposterior,
-            o.indicesaplicados,
-            o.vlrctofixo,
-            o.percentctofixo,
-            o.contratourl,
-            o.contratarstaff  
-        FROM
-            orcamentos o
-        JOIN
-            orcamentoempresas oe ON o.idorcamento = oe.idorcamento
-        LEFT JOIN
-            clientes c ON o.idcliente = c.idcliente
-        LEFT JOIN
-            eventos e ON o.idevento = e.idevento
-        LEFT JOIN
-            localmontagem lm ON o.idmontagem = lm.idmontagem
-        --LEFT JOIN
-        --    localmontpavilhao p ON o.idpavilhao = p.idpavilhao
-        WHERE
-            oe.idempresa = $1 -- Sempre filtra pela empresa do usuário logado
+            o.idorcamento, o.status, o.idcliente, c.nmfantasia AS nomecliente,
+            o.idevento, e.nmevento AS nomeevento, o.idmontagem,
+            lm.descmontagem AS nomelocalmontagem, o.nrorcamento,
+            o.inframontagem, o.dtinipreevento, o.dtfimpreevento,
+            o.dtiniinframontagem, o.dtfiminframontagem, o.dtinimarcacao,
+            o.dtfimmarcacao, o.dtinimontagem, o.dtfimmontagem,          
+            o.dtinirealizacao, o.dtfimrealizacao,            
+            o.dtinidesmontagem, o.dtfimdesmontagem,
+            o.dtiniinfradesmontagem, o.dtfiminfradesmontagem,
+            o.dtiniposevento, o.dtfimposevento, o.obsitens, o.obsproposta,
+            o.totgeralvda, o.totgeralcto, o.totajdcto, o.lucrobruto,
+            o.percentlucro, o.desconto, o.percentdesconto, o.acrescimo,
+            o.percentacrescimo, o.lucroreal, o.percentlucroreal,
+            o.vlrimposto, o.percentimposto, o.vlrcliente, o.nomenclatura,
+            o.formapagamento, o.edicao, o.geradoanoposterior,
+            o.indicesaplicados, o.vlrctofixo, o.percentctofixo,
+            o.contratourl, o.contratarstaff  
+        FROM orcamentos o
+        JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
+        LEFT JOIN clientes c ON o.idcliente = c.idcliente
+        LEFT JOIN eventos e ON o.idevento = e.idevento
+        LEFT JOIN localmontagem lm ON o.idmontagem = lm.idmontagem
+        WHERE oe.idempresa = $1 
       `;
+      
       const valuesOrcamento = [idempresa];
-      let paramIndex = 2; // Começa em 2 porque $1 já é idempresa
+      let paramIndex = 2;
 
-      // Adiciona condição WHERE para nrOrcamento
       if (nrOrcamento) {
         query += ` AND o.nrorcamento = $${paramIndex++}`;
         valuesOrcamento.push(nrOrcamento);
       } else {
-        // Se nrOrcamento não for fornecido, não retorne nada ou retorne um erro 400.
-        // Para esta funcionalidade, se não há nrOrcamento, não deve haver busca.
-        return res
-          .status(400)
-          .json({
-            error: "Número do orçamento é obrigatório para esta pesquisa.",
-          });
+        return res.status(400).json({ error: "Número do orçamento é obrigatório." });
       }
 
-      query += ` ORDER BY o.nrorcamento DESC LIMIT 1;`; // Adiciona LIMIT 1 para garantir apenas um resultado
-
-      console.log("Query de busca por nrOrcamento:", query);
-      console.log("Valores da busca por nrOrcamento:", valuesOrcamento);
+      query += ` ORDER BY o.nrorcamento DESC LIMIT 1;`;
 
       const resultOrcamento = await client.query(query, valuesOrcamento);
 
-      console.log(
-        "Resultado da busca por nrOrcamento:",
-        resultOrcamento.rows.length,
-        "linhas.",
-        resultOrcamento
-      );
-
       if (resultOrcamento.rows.length === 0) {
-        return res
-          .status(404)
-          .json({
-            message: "Orçamento não encontrado com o número fornecido.",
-          });
+        return res.status(404).json({ message: "Orçamento não encontrado." });
       }
 
-      // Retorna o primeiro (e único) orçamento encontrado
-      //     res.status(200).json(resultOrcamento.rows[0]);
-
-      //   } catch (error) {
-      //     console.error("Erro ao buscar orçamento por número:", error);
-      //     res.status(500).json({ error: "Erro ao buscar orçamento.", detail: error.message });
-      //   } finally {
-      //     client.release();
-      //   }
-      // }
       const orcamento = resultOrcamento.rows[0];
 
-      // Agora, busque os itens do orçamento
-      console.log("Buscando itens do orçamento com ID:", orcamento.idorcamento);
-
-      // Query para buscar os itens do orçamento
+      // --- BUSCA DOS ITENS (ATUALIZADA COM VLRBASE) ---
       const queryItens = `
         SELECT
-            idorcamentoitem,
-            idorcamento,
-            enviarnaproposta,
-            categoria,
-            produto,
-            idfuncao,
-            idequipamento,
-            idsuprimento,
-            qtditens,
-            qtddias,
-            periododiariasinicio,
-            periododiariasfim,
-            vlrdiaria,
-            totvdadiaria,
-            ctodiaria,
-            totctodiaria,
-            descontoitem,
-            percentdescontoitem,
-            acrescimoitem,
-            percentacrescimoitem,
-            tpajdctoalimentacao,
-            vlrajdctoalimentacao,
-            tpajdctotransporte,
-            vlrajdctotransporte,
-            totajdctoitem,
-            hospedagem,
-            transporte,            
-            totgeralitem,
-            setor
-        FROM
-            orcamentoitens
-        WHERE
-            idorcamento = $1
+            idorcamentoitem, idorcamento, enviarnaproposta, categoria,
+            produto, idfuncao, idequipamento, idsuprimento,
+            qtditens, qtddias, periododiariasinicio, periododiariasfim,
+            vlrbase, -- <-- ADICIONADO AQUI
+            vlrdiaria, totvdadiaria, ctodiaria, totctodiaria,
+            descontoitem, percentdescontoitem, acrescimoitem, percentacrescimoitem,
+            tpajdctoalimentacao, vlrajdctoalimentacao, tpajdctotransporte,
+            vlrajdctotransporte, totajdctoitem, hospedagem, transporte,            
+            totgeralitem, setor
+        FROM orcamentoitens
+        WHERE idorcamento = $1
         ORDER BY idorcamentoitem ASC;
       `;
-      // Use o idorcamento que você acabou de buscar para encontrar os itens
-      const resultItens = await client.query(queryItens, [
-        orcamento.idorcamento,
-      ]);
-      const itensDoOrcamento = resultItens.rows;
+      
+      const resultItens = await client.query(queryItens, [orcamento.idorcamento]);
+      orcamento.itens = resultItens.rows;
 
-      console.log(
-        "Itens encontrados para o orçamento:",
-        itensDoOrcamento.length,
-        "itens."
-      );
-
-      // --- PASSO CRUCIAL: ANEXAR OS ITENS AO OBJETO DO ORÇAMENTO ---
-      orcamento.itens = itensDoOrcamento;
-
-      console.log(
-        "Buscando pavilhões para o orçamento com ID:",
-        orcamento.idorcamento
-      );
-
+      // --- BUSCA DOS PAVILHÕES ---
       const queryPavilhoes = `
-        SELECT
-            op.idpavilhao AS id, -- Renomeado para 'id' para consistência
-            p.nmpavilhao AS nomepavilhao
-        FROM
-            orcamentopavilhoes op
-        JOIN
-            localmontpavilhao p ON op.idpavilhao = p.idpavilhao
-        WHERE
-            op.idorcamento = $1;
+        SELECT op.idpavilhao AS id, p.nmpavilhao AS nomepavilhao
+        FROM orcamentopavilhoes op
+        JOIN localmontpavilhao p ON op.idpavilhao = p.idpavilhao
+        WHERE op.idorcamento = $1;
       `;
-      const resultPavilhoes = await client.query(queryPavilhoes, [
-        orcamento.idorcamento,
-      ]);
-      orcamento.pavilhoes = resultPavilhoes.rows; // Anexa os pavilhões ao objeto do orçamento
+      const resultPavilhoes = await client.query(queryPavilhoes, [orcamento.idorcamento]);
+      orcamento.pavilhoes = resultPavilhoes.rows;
 
-      console.log(
-        "Pavilhões encontrados para o orçamento:",
-        orcamento.pavilhoes.length,
-        "pavilhões."
-      );
-
-      // Retorna o orçamento completo, agora com os itens
       res.status(200).json(orcamento);
     } catch (error) {
-      console.error("Erro ao buscar orçamento por número:", error);
-      res
-        .status(500)
-        .json({ error: "Erro ao buscar orçamento.", detail: error.message });
+      console.error("Erro ao buscar orçamento:", error);
+      res.status(500).json({ error: "Erro ao buscar orçamento.", detail: error.message });
     } finally {
       client.release();
     }
@@ -519,381 +390,112 @@ router.post(
   contextoEmpresa,
   verificarPermissao("Orcamentos", "cadastrar"),
   logMiddleware("Orcamentos", {
-    buscarDadosAnteriores: async (req) => {
-      return { dadosanteriores: null, idregistroalterado: null };
-    },
+    buscarDadosAnteriores: async (req) => ({ dadosanteriores: null, idregistroalterado: null }),
   }),
-
   async (req, res) => {
     const client = await pool.connect();
-    console.log("🔥 Rota /orcamentos acessada", req.body); // Removido 'req' para evitar logar objeto grande
-
-    const {
-      status,
-      idCliente,
-      idEvento,
-      idMontagem, // nrOrcamento será gerado pelo DB, não o desestruture daqui se for novo
-      infraMontagem,
-      dtIniInfraMontagem,
-      dtFimInfraMontagem,
-      dtIniMontagem,
-      dtFimMontagem,
-      dtIniMarcacao,
-      dtFimMarcacao,
-      dtIniRealizacao,
-      dtFimRealizacao,
-      dtIniDesmontagem,
-      dtFimDesmontagem,
-      dtIniDesmontagemInfra,
-      dtFimDesmontagemInfra,
-      obsItens,
-      obsProposta,
-      totGeralVda,
-      totGeralCto,
-      totAjdCusto,
-      lucroBruto,
-      percentLucro,
-      desconto,
-      percentDesconto,
-      acrescimo,
-      percentAcrescimo,
-      lucroReal,
-      percentLucroReal,
-      vlrImposto,
-      percentImposto,
-      vlrCliente,
-      idsPavilhoes,
-      nomenclatura,
-      formaPagamento,
-      edicao,
-      geradoAnoPosterior,
-      dtIniPreEvento,
-      dtFimPreEvento,
-      dtIniPosEvento,
-      dtFimPosEvento,
-      avisoReajusteTexto,
-      nrOrcamentoOriginal,
-      vlrCtoFixo,
-      percentCtoFixo,
-      itens,
-      contratarstaff
-    } = req.body;
-
     const idempresa = req.idempresa;
-
-    if (!idCliente) {
-      return res.status(400).json({
-        error: "Erro de validação.",
-        detail: "O campo 'Cliente' é obrigatório e não pode ser nulo.",
-      });
-    }
-    if (!idEvento) {
-      return res.status(400).json({
-        error: "Erro de validação.",
-        detail: "O campo 'Evento' é obrigatório e não pode ser nulo.",
-      });
-    }
-    if (!idMontagem) {
-      return res.status(400).json({
-        error: "Erro de validação.",
-        detail: "O campo 'Montagem' é obrigatório e não pode ser nulo.",
-      });
-    }
+    const data = req.body;
 
     try {
       await client.query("BEGIN");
 
+      // 1. Inserir o Cabeçalho do Orçamento
       const insertOrcamentoQuery = `
-                INSERT INTO orcamentos (
-                    Status, idcliente, idevento, idmontagem,
-                    inframontagem, dtiniinframontagem, dtfiminframontagem,
-                    dtinimontagem, dtfimmontagem, dtinimarcacao, dtfimmarcacao,
-                    dtinirealizacao, dtfimrealizacao, dtinidesmontagem, dtfimdesmontagem,
-                    dtiniinfradesmontagem, dtfiminfradesmontagem, obsitens, obsproposta,
-                    totgeralvda, totgeralcto, totajdcto, lucrobruto, percentlucro,
-                    desconto, percentdesconto, acrescimo, percentacrescimo,
-                    lucroreal, percentlucroreal, vlrimposto, percentimposto, vlrcliente, nomenclatura, 
-                    formapagamento, edicao, geradoanoposterior, dtinipreevento, dtfimpreevento, dtiniposevento,
-                    dtfimposevento, indicesAplicados, nrorcamentooriginal, vlrctofixo, percentctofixo, contratarstaff
-                ) VALUES (
-                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                    $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-                    $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, 
-                    $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, 
-                    $41, $42, $43, $44, $45, $46
-                ) RETURNING idorcamento, nrorcamento; -- Adicionado nrorcamento aqui!
-            `;
+        INSERT INTO orcamentos (
+          Status, idcliente, idevento, idmontagem, inframontagem, 
+          dtiniinframontagem, dtfiminframontagem, dtinimontagem, dtfimmontagem, 
+          dtinimarcacao, dtfimmarcacao, dtinirealizacao, dtfimrealizacao, 
+          dtinidesmontagem, dtfimdesmontagem, dtiniinfradesmontagem, dtfiminfradesmontagem, 
+          obsitens, obsproposta, totgeralvda, totgeralcto, totajdcto, lucrobruto, 
+          percentlucro, desconto, percentdesconto, acrescimo, percentacrescimo, 
+          lucroreal, percentlucroreal, vlrimposto, percentimposto, vlrcliente, 
+          nomenclatura, formapagamento, edicao, geradoanoposterior, 
+          dtinipreevento, dtfimpreevento, dtiniposevento, dtfimposevento, 
+          indicesAplicados, nrorcamentooriginal, vlrctofixo, percentctofixo, contratarstaff
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 
+          $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, 
+          $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46
+        ) RETURNING idorcamento, nrorcamento;
+      `;
 
-      // Os valores também precisam ser ajustados, removendo o nrOrcamento daqui
-      const orcamentoValues = [
-        status,
-        idCliente,
-        idEvento,
-        idMontagem,
-        infraMontagem,
-        dtIniInfraMontagem,
-        dtFimInfraMontagem,
-        dtIniMontagem,
-        dtFimMontagem,
-        dtIniMarcacao,
-        dtFimMarcacao,
-        dtIniRealizacao,
-        dtFimRealizacao,
-        dtIniDesmontagem,
-        dtFimDesmontagem,
-        dtIniDesmontagemInfra,
-        dtFimDesmontagemInfra,
-        obsItens,
-        obsProposta,
-        totGeralVda,
-        totGeralCto,
-        totAjdCusto,
-        lucroBruto,
-        percentLucro,
-        desconto,
-        percentDesconto,
-        acrescimo,
-        percentAcrescimo,
-        lucroReal,
-        percentLucroReal,
-        vlrImposto,
-        percentImposto,
-        vlrCliente,
-        nomenclatura,
-        formaPagamento,
-        edicao,
-        geradoAnoPosterior,
-        dtIniPreEvento,
-        dtFimPreEvento,
-        dtIniPosEvento,
-        dtFimPosEvento,
-        avisoReajusteTexto,
-        nrOrcamentoOriginal || null,
-        vlrCtoFixo,
-        percentCtoFixo,
-        contratarstaff
-      ];
-
-      const resultOrcamento = await client.query(
-        insertOrcamentoQuery,
-        orcamentoValues
-      );
-      const { idorcamento, nrorcamento } = resultOrcamento.rows[0]; // Agora desestrutura ambos
-
-      if (nrOrcamentoOriginal) {
-        try {
-          const updateOriginalQuery = `
-                  UPDATE orcamentos
-                  SET geradoanoposterior = TRUE
-                  WHERE idorcamento = $1
-                  RETURNING idorcamento;
-              `;
-          const originalResult = await client.query(updateOriginalQuery, [
-            nrOrcamentoOriginal,
-          ]);
-          if (originalResult.rowCount === 0) {
-            console.warn(
-              `[WARNING] Orçamento Original ID ${nrOrcamentoOriginal} não encontrado para ser marcado como gerado.`
-            );
-            // A falha em marcar o original não deve impedir o novo orçamento de ser salvo.
-          } else {
-            console.log(
-              `[GERAR_ESPELHO] Marcado Original ID ${nrOrcamentoOriginal} como gerado.`
-            );
-          }
-        } catch (updateError) {
-          console.error(
-            "Falha Crítica ao marcar o orçamento original:",
-            updateError.message
-          );
-          // A falha aqui não faz um ROLLBACK completo, pois está dentro de um try/catch.
-          // Para ser 100% seguro, você poderia forçar um throw aqui se esta marcação for CRÍTICA.
-        }
-      }
-
-      // 2. Inserir na tabela 'orcamentoempresas' para associar o orçamento à empresa
-      const insertOrcamentoEmpresasQuery = `
-                INSERT INTO orcamentoempresas (idorcamento, idempresa)
-                VALUES ($1, $2);
-            `;
-      await client.query(insertOrcamentoEmpresasQuery, [
-        idorcamento,
-        idempresa,
+      const resultOrcamento = await client.query(insertOrcamentoQuery, [
+        data.status, data.idCliente, data.idEvento, data.idMontagem, data.infraMontagem,
+        data.dtIniInfraMontagem, data.dtFimInfraMontagem, data.dtIniMontagem, data.dtFimMontagem,
+        data.dtIniMarcacao, data.dtFimMarcacao, data.dtIniRealizacao, data.dtFimRealizacao,
+        data.dtIniDesmontagem, data.dtFimDesmontagem, data.dtIniDesmontagemInfra, data.dtFimDesmontagemInfra,
+        data.obsItems, data.obsProposta, data.totGeralVda, data.totGeralCto, data.totAjdCusto,
+        data.lucroBruto, data.percentLucro, data.desconto, data.percentDesconto, data.acrescimo,
+        data.percentAcrescimo, data.lucroReal, data.percentLucroReal, data.vlrImposto,
+        data.percentImposto, data.vlrCliente, data.nomenclatura, data.formaPagamento,
+        data.edicao, data.geradoAnoPosterior, data.dtIniPreEvento, data.dtFimPreEvento,
+        data.dtIniPosEvento, data.dtFimPosEvento, data.avisoReajusteTexto, 
+        data.nrOrcamentoOriginal || null, data.vlrCtoFixo, data.percentCtoFixo, data.contratarstaff
       ]);
 
-      if (
-        idsPavilhoes &&
-        Array.isArray(idsPavilhoes) &&
-        idsPavilhoes.length > 0
-      ) {
-        for (const idPavilhao of idsPavilhoes) {
-          const insertOrcamentoPavilhaoQuery = `
-            INSERT INTO orcamentopavilhoes (idorcamento, idpavilhao)
-            VALUES ($1, $2);
+      const { idorcamento, nrorcamento } = resultOrcamento.rows[0];
+      await client.query("INSERT INTO orcamentoempresas (idorcamento, idempresa) VALUES ($1, $2)", [idorcamento, idempresa]);
+
+      // 2. Processar os Itens do Orçamento
+      if (data.itens?.length > 0) {
+        for (const item of data.itens) {
+          let vlrBaseOriginal = 0;
+          let ctoBaseOriginal = 0;
+
+          // AUDITORIA OBRIGATÓRIA: Busca o preço real direto no cadastro (Função, Equip ou Suprimento)
+          if (item.idfuncao) {
+            const res = await client.query(
+              "SELECT vdafuncao, ctofuncaobase FROM funcao WHERE idfuncao = $1", 
+              [item.idfuncao]
+            );
+            vlrBaseOriginal = parseFloat(res.rows[0]?.vdafuncao || 0);
+            ctoBaseOriginal = parseFloat(res.rows[0]?.ctofuncaobase || 0);
+          } else if (item.idequipamento) {
+            const res = await client.query(
+              "SELECT vdaequip, ctoequip FROM equipamentos WHERE idequip = $1", 
+              [item.idequipamento]
+            );
+            vlrBaseOriginal = parseFloat(res.rows[0]?.vdaequip || 0);
+            ctoBaseOriginal = parseFloat(res.rows[0]?.ctoequip || 0);
+          } else if (item.idsuprimento) {
+            const res = await client.query(
+              "SELECT vdasup, ctosup FROM suprimentos WHERE idsup = $1", 
+              [item.idsuprimento]
+            );
+            vlrBaseOriginal = parseFloat(res.rows[0]?.vdasup || 0);
+            ctoBaseOriginal = parseFloat(res.rows[0]?.ctosup || 0);
+          }
+
+          // Define o vlrbase final: prioriza o que está no cadastro. Se não houver ID (item manual), usa o do front.
+          const vlrBaseFinal = vlrBaseOriginal > 0 ? vlrBaseOriginal : (parseFloat(item.vlrbase) || parseFloat(item.vlrdiaria));
+          const ctoFinal = ctoBaseOriginal > 0 ? ctoBaseOriginal : parseFloat(item.ctodiaria || 0);
+
+          const insertItemQuery = `
+            INSERT INTO orcamentoitens (
+              idorcamento, enviarnaproposta, categoria, produto, qtditens, qtddias, 
+              vlrbase, vlrdiaria, totvdadiaria, ctodiaria, totctodiaria,
+              idfuncao, idequipamento, idsuprimento, descontoitem, percentdescontoitem, 
+              acrescimoitem, percentacrescimoitem, totgeralitem, setor
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
           `;
-          await client.query(insertOrcamentoPavilhaoQuery, [
-            idorcamento,
-            idPavilhao,
+
+          await client.query(insertItemQuery, [
+            idorcamento, item.enviarnaproposta, item.categoria, item.produto, item.qtditens, item.qtddias,
+            vlrBaseFinal, item.vlrdiaria, item.totvdadiaria, ctoFinal, item.totctodiaria,
+            item.idfuncao, item.idequipamento, item.idsuprimento, item.descontoitem, item.percentdescontoitem,
+            item.acrescimoitem, item.percentacrescimoitem, item.totgeralitem, item.setor
           ]);
         }
       }
 
-      // 3. Inserir os itens na tabela 'orcamentoitens'
-      if (itens && itens.length > 0) {
-        for (const item of itens) {
-          // Se este for um orçamento gerado para o ano seguinte (espelho),
-          // re-hidratar valores canônicos (VDA / CTO) a partir das tabelas mestres
-          // para garantir que o espelho use os valores atuais do sistema.
-          if (geradoAnoPosterior === true || nrOrcamentoOriginal) {
-            try {
-              // Valores iniciais vindos do payload (fallback)
-              let vlrdiaria = parseFloat(item.vlrdiaria || 0) || 0;
-              let ctodiaria = parseFloat(item.ctodiaria || 0) || 0;
-
-              // 1) Função
-              if (item.idfuncao) {
-                const funcRes = await client.query(
-                  `SELECT f.vdafuncao AS vda, cf.ctofuncaobase AS cto
-                   FROM funcao f
-                   LEFT JOIN categoriafuncao cf ON cf.idcategoriafuncao = f.idcategoriafuncao
-                   WHERE f.idfuncao = $1 LIMIT 1`,
-                  [item.idfuncao]
-                );
-                if (funcRes.rows && funcRes.rows[0]) {
-                  vlrdiaria = parseFloat(funcRes.rows[0].vda) || vlrdiaria;
-                  ctodiaria = parseFloat(funcRes.rows[0].cto) || ctodiaria;
-                }
-              }
-
-              // 2) Equipamento
-              else if (item.idequipamento) {
-                const eqRes = await client.query(
-                  `SELECT e.vdaequip AS vda, e.ctoequip AS cto
-                   FROM equipamentos e
-                   INNER JOIN equipamentoempresas ee ON ee.idequip = e.idequip
-                   WHERE e.idequip = $1 AND ee.idempresa = $2 LIMIT 1`,
-                  [item.idequipamento, idempresa]
-                );
-                if (eqRes.rows && eqRes.rows[0]) {
-                  vlrdiaria = parseFloat(eqRes.rows[0].vda) || vlrdiaria;
-                  ctodiaria = parseFloat(eqRes.rows[0].cto) || ctodiaria;
-                }
-              }
-
-              // 3) Suprimento
-              else if (item.idsuprimento) {
-                const supRes = await client.query(
-                  `SELECT s.vdasup AS vda, s.ctosup AS cto
-                   FROM suprimentos s
-                   INNER JOIN suprimentoempresas se ON se.idsup = s.idsup
-                   WHERE s.idsup = $1 AND se.idempresa = $2 LIMIT 1`,
-                  [item.idsuprimento, idempresa]
-                );
-                if (supRes.rows && supRes.rows[0]) {
-                  vlrdiaria = parseFloat(supRes.rows[0].vda) || vlrdiaria;
-                  ctodiaria = parseFloat(supRes.rows[0].cto) || ctodiaria;
-                }
-              }
-
-              // Recalcular totais com base nas quantidades (mantendo desconto/acréscimo do item)
-              const qtdItens = parseFloat(item.qtditens || item.qtdItens || 0) || 0;
-              const qtdDias = parseFloat(item.qtddias || item.qtdDias || 0) || 0;
-              const descontoItem = parseFloat(item.descontoitem || 0) || 0;
-              const acrescimoItem = parseFloat(item.acrescimoitem || 0) || 0;
-
-              const totvdadiaria = Math.round((vlrdiaria * qtdItens * qtdDias + acrescimoItem - descontoItem) * 100) / 100;
-              const totctodiaria = Math.round((ctodiaria * qtdItens * qtdDias) * 100) / 100;
-              const vlrajd = parseFloat(item.vlrajdctoalimentacao || 0) + parseFloat(item.vlrajdctotransporte || 0);
-              const totajdctoitem = Math.round(vlrajd * qtdItens * qtdDias * 100) / 100;
-              const totgeralitem = Math.round((totctodiaria + totajdctoitem) * 100) / 100;
-
-              // Atualiza o objeto item para ser inserido com valores atualizados
-              item.vlrdiaria = vlrdiaria;
-              item.ctodiaria = ctodiaria;
-              item.totvdadiaria = totvdadiaria;
-              item.totctodiaria = totctodiaria;
-              item.totajdctoitem = totajdctoitem;
-              item.totgeralitem = totgeralitem;
-            } catch (err) {
-              console.warn('[GERAR_ESPELHO] Falha ao re-hidratar valores canônicos para item:', err.message);
-              // Em caso de falha, prossegue com os valores já presentes no item
-            }
-          }
-
-          const insertItemQuery = `
-                        INSERT INTO orcamentoitens (
-                            idorcamento, enviarnaproposta, categoria, qtditens, idfuncao,
-                            idequipamento, idsuprimento, produto, qtddias, periododiariasinicio,
-                            periododiariasfim, descontoitem, percentdescontoitem, acrescimoitem,
-                            percentacrescimoitem, vlrdiaria, totvdadiaria, ctodiaria, totctodiaria,
-                            tpajdctoalimentacao, vlrajdctoalimentacao, tpajdctotransporte, vlrajdctotransporte,
-                            totajdctoitem, hospedagem, transporte, totgeralitem, setor
-                        ) VALUES (
-                            $1, $2, $3, $4, $5,
-                            $6, $7, $8, $9, $10,
-                            $11, $12, $13, $14,
-                            $15, $16, $17, $18, $19,
-                            $20, $21, $22, $23,
-                            $24, $25, $26, $27, $28
-                        );
-                    `;
-          const itemValues = [
-            idorcamento,
-            item.enviarnaproposta,
-            item.categoria,
-            item.qtditens,
-            item.idfuncao,
-            item.idequipamento,
-            item.idsuprimento,
-            item.produto,
-            item.qtdDias,
-            item.periododiariasinicio,
-            item.periododiariasfim,
-            item.descontoitem,
-            item.percentdescontoitem,
-            item.acrescimoitem,
-            item.percentacrescimoitem,
-            item.vlrdiaria,
-            item.totvdadiaria,
-            item.ctodiaria,
-            item.totctodiaria,
-            item.tpajdctoalimentacao,
-            item.vlrajdctoalimentacao,
-            item.tpajdctotransporte,
-            item.vlrajdctotransporte,
-            item.totajdctoitem,
-            item.hospedagem,
-            item.transporte,
-            item.totgeralitem,
-            item.setor,
-          ];
-          await client.query(insertItemQuery, itemValues);
-        }
-      }
-
-      await client.query("COMMIT"); // Confirma a transação
-
-      // Define os dados para o log middleware
-      res.locals.acao = "cadastrou";
-      res.locals.idregistroalterado = idorcamento;
-      res.locals.idusuarioAlvo = null;
-
-      // Retorne o nrOrcamento gerado para o frontend
-      res
-        .status(201)
-        .json({
-          message: "Orçamento salvo com sucesso!",
-          id: idorcamento,
-          nrOrcamento: nrorcamento,
-        });
+      await client.query("COMMIT");
+      res.status(201).json({ message: "Sucesso!", id: idorcamento, nrOrcamento: nrorcamento });
     } catch (error) {
-      await client.query("ROLLBACK"); // Reverte a transação em caso de erro
-      console.error("Erro ao salvar orçamento e seus itens:", error);
-      res
-        .status(500)
-        .json({ error: "Erro ao salvar orçamento.", detail: error.message });
+      await client.query("ROLLBACK");
+      res.status(500).json({ error: "Erro ao salvar.", detail: error.message });
     } finally {
-      client.release(); // Libera o cliente do pool
+      client.release();
     }
   }
 );
@@ -1831,21 +1433,15 @@ router.post(
   }
 );
 
-router.put(
- "/:id", 
- (req, res, next) => {
-         console.log("DEBUG: req.body antes de middlewares:", req.body);
-         next();
-  },
- autenticarToken(), contextoEmpresa,
- verificarPermissao("Orcamentos", "alterar"), // Permissão para editar
- logMiddleware("Orcamentos", {
-  buscarDadosAnteriores: async (req) => {
-         const idOrcamento = req.params.id;
-         const client = await pool.connect();
-         try {
-             // Busca os dados do orçamento e seus itens antes da alteração
-             const result = await client.query(`SELECT
+router.put("/:id",
+  autenticarToken(), contextoEmpresa,
+  verificarPermissao("Orcamentos", "alterar"),
+  logMiddleware("Orcamentos", {
+    buscarDadosAnteriores: async (req) => {
+      const idOrcamento = req.params.id;
+      const client = await pool.connect();
+      try {
+        const result = await client.query(`SELECT
                         o.*,
                         oe.idempresa,
                         json_agg(oi.*) AS itens
@@ -1855,42 +1451,42 @@ router.put(
                  WHERE o.idorcamento = $1
                  GROUP BY o.idorcamento, oe.idempresa;
              `, [idOrcamento]);
-             return {
-                 dadosanteriores: result.rows[0] || null,
-                 idregistroalterado: idOrcamento
-             };
-         } catch (error) {
-             console.error("Erro ao buscar dados anteriores para log:", error);
-             return { dadosanteriores: null, idregistroalterado: idOrcamento };
-         } finally {
-             client.release();
-         }
-  },
- }),
- 
- async (req, res) => {
-  const client = await pool.connect();
-  const idOrcamento = req.params.id; // ID do orçamento a ser atualizado
-  const { status, idCliente, idEvento, idMontagem, //nrOrcamento, // nrOrcamento pode vir para validação, mas não será atualizado se for gerado
-             infraMontagem, dtIniInfraMontagem, dtFimInfraMontagem,
-             dtIniMontagem, dtFimMontagem, dtIniMarcacao, dtFimMarcacao,
-             dtIniRealizacao, dtFimRealizacao, dtIniDesmontagem, dtFimDesmontagem,
-             dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
-             totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
-             desconto, percentDesconto, acrescimo, percentAcrescimo,
-             lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idsPavilhoes, nomenclatura, 
-             formaPagamento, edicao, geradoAnoPosterior, dtIniPreEvento, dtFimPreEvento, dtIniPosEvento, 
-             dtFimPosEvento, avisoReajusteTexto, vlrCtoFixo, percentCtoFixo, itens, contratarstaff } = req.body;
+        return {
+          dadosanteriores: result.rows[0] || null,
+          idregistroalterado: idOrcamento
+        };
+      } catch (error) {
+        console.error("Erro ao buscar dados anteriores para log:", error);
+        return { dadosanteriores: null, idregistroalterado: idOrcamento };
+      } finally {
+        client.release();
+      }
+    },
+  }),
 
-  const idempresa = req.idempresa; // ID da empresa do middleware 'contextoEmpresa'
+  async (req, res) => {
+    const client = await pool.connect();
+    const idOrcamento = req.params.id;
+    const { 
+      status, idCliente, idEvento, idMontagem,
+      infraMontagem, dtIniInfraMontagem, dtFimInfraMontagem,
+      dtIniMontagem, dtFimMontagem, dtIniMarcacao, dtFimMarcacao,
+      dtIniRealizacao, dtFimRealizacao, dtIniDesmontagem, dtFimDesmontagem,
+      dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
+      totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
+      desconto, percentDesconto, acrescimo, percentAcrescimo,
+      lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, idsPavilhoes, nomenclatura,
+      formaPagamento, edicao, geradoAnoPosterior, dtIniPreEvento, dtFimPreEvento, dtIniPosEvento,
+      dtFimPosEvento, avisoReajusteTexto, vlrCtoFixo, percentCtoFixo, itens, contratarstaff 
+    } = req.body;
 
-  console.log("🔥 Rota PUT /orcamentos/:id acessada para atualizar o orçamento:", req.body);
+    const idempresa = req.idempresa;
 
-  try {
-        await client.query("BEGIN"); // Inicia a transação
+    try {
+      await client.query("BEGIN");
 
-        // 1. Atualizar a tabela 'orcamentos'
-        const updateOrcamentoQuery = `UPDATE orcamentos SET
+      // 1. Atualizar a tabela 'orcamentos'
+      const updateOrcamentoQuery = `UPDATE orcamentos SET
                         "status" = $1, idcliente = $2, idevento = $3, idmontagem = $4,
                         inframontagem = $5, dtiniinframontagem = $6, dtfiminframontagem = $7,
                         dtinimontagem = $8, dtfimmontagem = $9, dtinimarcacao = $10, dtfimmarcacao = $11,
@@ -1902,250 +1498,98 @@ router.put(
                         nomenclatura = $34, formapagamento = $35, edicao = $36, geradoanoposterior = $37, dtinipreevento = $38, 
                         dtfimpreevento = $39, dtiniposevento = $40, dtfimposevento = $41, indicesaplicados = $42, vlrctofixo = $43,
                         percentctofixo = $44, contratarstaff = $45
-                 WHERE idorcamento = $46  AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $46) =$47 ;
-             `;
+                 WHERE idorcamento = $46  AND (SELECT idempresa FROM orcamentoempresas WHERE idorcamento = $46) =$47 ;`;
 
-        const orcamentoValues = [
-         status, idCliente, idEvento, idMontagem,
-         infraMontagem, dtIniInfraMontagem, dtFimInfraMontagem,
-         dtIniMontagem, dtFimMontagem, dtIniMarcacao, dtFimMarcacao,
-         dtIniRealizacao, dtFimRealizacao, dtIniDesmontagem, dtFimDesmontagem,
-         dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
-         totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
-         desconto, percentDesconto, acrescimo, percentAcrescimo,
-         lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, nomenclatura,
-         formaPagamento, edicao, geradoAnoPosterior, dtIniPreEvento, dtFimPreEvento, dtIniPosEvento, dtFimPosEvento,
-         avisoReajusteTexto, vlrCtoFixo, percentCtoFixo,contratarstaff,
-         idOrcamento, // $45
-         idempresa  // $46
-        ];
+      const orcamentoValues = [
+        status, idCliente, idEvento, idMontagem,
+        infraMontagem, dtIniInfraMontagem, dtFimInfraMontagem,
+        dtIniMontagem, dtFimMontagem, dtIniMarcacao, dtFimMarcacao,
+        dtIniRealizacao, dtFimRealizacao, dtIniDesmontagem, dtFimDesmontagem,
+        dtIniDesmontagemInfra, dtFimDesmontagemInfra, obsItens, obsProposta,
+        totGeralVda, totGeralCto, totAjdCusto, lucroBruto, percentLucro,
+        desconto, percentDesconto, acrescimo, percentAcrescimo,
+        lucroReal, percentLucroReal, vlrImposto, percentImposto, vlrCliente, nomenclatura,
+        formaPagamento, edicao, geradoAnoPosterior, dtIniPreEvento, dtFimPreEvento, dtIniPosEvento, dtFimPosEvento,
+        avisoReajusteTexto, vlrCtoFixo, percentCtoFixo, contratarstaff,
+        idOrcamento, idempresa
+      ];
 
-        const resultUpdateOrcamento = await client.query(updateOrcamentoQuery, orcamentoValues);
-        console.log("result",resultUpdateOrcamento);
+      await client.query(updateOrcamentoQuery, orcamentoValues);
 
-        if (resultUpdateOrcamento.rowCount === 0) {
-            throw new Error('Orçamento não encontrado ou você não tem permissão para editá-lo.');
-        }
+      // 2. Lidar com Pavilhões
+      const currentPavilhoesResult = await client.query(
+        `SELECT idpavilhao FROM orcamentopavilhoes WHERE idorcamento = $1;`,
+        [idOrcamento]
+      );
+      const currentPavilhaoIds = new Set(currentPavilhoesResult.rows.map(row => row.idpavilhao));
+      const newPavilhaoIds = new Set(idsPavilhoes && Array.isArray(idsPavilhoes) ? idsPavilhoes : []);
 
-        const currentPavilhoesResult = await client.query(
-            `SELECT idpavilhao FROM orcamentopavilhoes WHERE idorcamento = $1;`,
-            [idOrcamento]
+      const pavilhoesToRemove = [...currentPavilhaoIds].filter(id => !newPavilhaoIds.has(id));
+      for (const idPavilhao of pavilhoesToRemove) {
+        await client.query(`DELETE FROM orcamentopavilhoes WHERE idorcamento = $1 AND idpavilhao = $2;`, [idOrcamento, idPavilhao]);
+      }
+
+      const pavilhoesToAdd = [...newPavilhaoIds].filter(id => !currentPavilhaoIds.has(id));
+      for (const idPavilhao of pavilhoesToAdd) {
+        await client.query(`INSERT INTO orcamentopavilhoes (idorcamento, idpavilhao) VALUES ($1, $2);`, [idOrcamento, idPavilhao]);
+      }
+
+      // 3. Lidar com os ITENS do orçamento (orcamentoitens)
+      const existingItemsResult = await client.query(
+        `SELECT idorcamentoitem FROM orcamentoitens WHERE idorcamento = $1`,
+        [idOrcamento]
+      );
+      const existingItemIds = new Set(existingItemsResult.rows.map(r => Number(r.idorcamentoitem)));
+      const receivedItemIds = new Set(itens.filter(item => item.id).map(item => Number(item.id)));
+
+      const itemsToDelete = [...existingItemIds].filter(id => !receivedItemIds.has(id));
+      if (itemsToDelete.length > 0) {
+        await client.query(
+          `DELETE FROM orcamentoitens WHERE idorcamento = $1 AND idorcamentoitem = ANY($2)`,
+          [idOrcamento, itemsToDelete]
         );
-        const currentPavilhaoIds = new Set(currentPavilhoesResult.rows.map(row => row.idpavilhao));
+      }
 
-        // 2. Converta a lista de IDs recebida do frontend para um Set para comparação eficiente
-        const newPavilhaoIds = new Set(idsPavilhoes && Array.isArray(idsPavilhoes) ? idsPavilhoes : []);
+      for (const item of itens) {
+        const isAdicional = item.adicional === true;
+        // Se o frontend não enviar vlrbase, usamos o vlrdiaria como fallback (mas o ideal é enviar)
+        const valorBase = item.vlrbase ?? item.vlrdiaria; 
 
-        // 3. Identificar pavilhões a serem REMOVIDOS (estão no DB mas não na nova lista)
-        const pavilhoesToRemove = [...currentPavilhaoIds].filter(id => !newPavilhaoIds.has(id));
-        if (pavilhoesToRemove.length > 0) {
-         for (const idPavilhao of pavilhoesToRemove) {
-            await client.query(
-            `DELETE FROM orcamentopavilhoes WHERE idorcamento = $1 AND idpavilhao = $2;`,
-            [idOrcamento, idPavilhao]
-            );
-         }
-        }
-
-        // 4. Identificar pavilhões a serem ADICIONADOS (estão na nova lista mas não no DB)
-        const pavilhoesToAdd = [...newPavilhaoIds].filter(id => !currentPavilhaoIds.has(id));
-        if (pavilhoesToAdd.length > 0) {
-         for (const idPavilhao of pavilhoesToAdd) {
-            await client.query(
-             `INSERT INTO orcamentopavilhoes (idorcamento, idpavilhao) VALUES ($1, $2);`,
-             [idOrcamento, idPavilhao]
-            );
-         }
-        }
-//         // 2. Lidar com os itens do orçamento (orcamentoitens)
-//         // Primeiro, busque os IDs dos itens existentes para este orçamento
-//         const existingItemsResult = await client.query(
-//             `SELECT idorcamentoitem FROM orcamentoitens WHERE idorcamento = $1`,
-//             [idOrcamento]
-//         );
-//         const existingItemIds = new Set(existingItemsResult.rows.map(row => row.idorcamentoitem));
-//         const receivedItemIds = new Set(itens.filter(item => item.id).map(item => item.id));
-
-// // Identificar itens a serem deletados (estão no DB mas não foram recebidos no payload)
-//         // ... (código de deleção omitido para simplificação)
-
-//         // Iterar sobre os itens recebidos no payload
-//         for (const item of itens) {
-        
-//          // 🛑 Lógica do 'ADICIONAL' (dependente de item.adicional === true)
-//          const isAdicional = item.adicional === true; 
-        
-//          if (item.id && existingItemIds.has(item.id)) {
-//             // Item existente: UPDATE
-//             const updateItemQuery = `UPDATE orcamentoitens SET
-//                     enviarnaproposta = $1, categoria = $2, qtditens = $3, idfuncao = $4,
-//                     idequipamento = $5, idsuprimento = $6, produto = $7, qtddias = $8, periododiariasinicio = $9,
-//                     periododiariasfim = $10, descontoitem = $11, percentdescontoitem = $12, acrescimoitem = $13,
-//                     percentacrescimoitem = $14, vlrdiaria = $15, totvdadiaria = $16, ctodiaria = $17, totctodiaria = $18,
-//                     tpajdctoalimentacao = $19, vlrajdctoalimentacao = $20, tpajdctotransporte = $21, vlrajdctotransporte = $22,
-//                     totajdctoitem = $23, hospedagem = $24, transporte = $25, totgeralitem = $26, setor = $27,
-//                     adicional = $28
-//                 WHERE idorcamentoitem = $29 AND idorcamento = $30;
-//             `;
-
-//             const itemValues = [
-//                 item.enviarnaproposta, item.categoria, item.qtditens, item.idfuncao,
-//                 item.idequipamento, item.idsuprimento, item.produto, item.qtdDias,
-//                 item.periododiariasinicio, item.periododiariasfim, item.descontoitem,
-//                 item.percentdescontoitem, item.acrescimoitem, item.percentacrescimoitem,
-//                 item.vlrdiaria, item.totvdadiaria, item.ctodiaria, item.totctodiaria,
-//                 item.tpajdctoalimentacao, item.vlrajdctoalimentacao,
-//                 item.tpajdctotransporte, item.vlrajdctotransporte,
-//                 item.totajdctoitem, item.hospedagem, item.transporte,
-//                 item.totgeralitem, 
-//                 item.setor ?? '',     
-//                 isAdicional,      
-//                 item.id,            // idorcamentoitem
-//                 idOrcamento
-//             ];
-
-//             await client.query(updateItemQuery, itemValues);
-//          } else {
-//             // Novo item: INSERT
-//             const insertItemQuery = `INSERT INTO orcamentoitens (
-//                     idorcamento, enviarnaproposta, categoria, qtditens, idfuncao,
-//                     idequipamento, idsuprimento, produto, qtddias, periododiariasinicio,
-//                     periododiariasfim, descontoitem, percentdescontoitem, acrescimoitem,
-//                     percentacrescimoitem, vlrdiaria, totvdadiaria, ctodiaria, totctodiaria,
-//                     tpajdctoalimentacao, vlrajdctoalimentacao, tpajdctotransporte,
-//                     vlrajdctotransporte, totajdctoitem, hospedagem, transporte,
-//                     totgeralitem, setor, adicional
-//                 ) VALUES (
-//                     $1, $2, $3, $4, $5,
-//                     $6, $7, $8, $9, $10,
-//                     $11, $12, $13, $14,
-//                     $15, $16, $17, $18, $19,
-//                     $20, $21, $22, $23,
-//                     $24, $25, $26, $27, $28,
-//                     $29
-//                 );
-//             `;
-
-//             const itemValues = [
-//                 idOrcamento, item.enviarnaproposta, item.categoria, item.qtditens,
-//                 item.idfuncao, item.idequipamento, item.idsuprimento, item.produto,
-//                 item.qtdDias, item.periododiariasinicio, item.periododiariasfim,
-//                 item.descontoitem, item.percentdescontoitem, item.acrescimoitem,
-//                 item.percentacrescimoitem, item.vlrdiaria, item.totvdadiaria,
-//                 item.ctodiaria, item.totctodiaria, item.tpajdctoalimentacao,
-//                 item.vlrajdctoalimentacao, item.tpajdctotransporte,
-//                 item.vlrajdctotransporte, item.totajdctoitem, item.hospedagem,
-//                 item.transporte, item.totgeralitem, 
-//                 item.setor ?? '',
-//                 isAdicional 
-//             ];
-
-//             await client.query(insertItemQuery, itemValues);
-//          }
-//         }     
-
-// ==========================================================
-// 2. Lidar com os itens do orçamento (orcamentoitens)
-// ==========================================================
-
-// 1. Buscar IDs existentes no banco
-const existingItemsResult = await client.query(
-    `SELECT idorcamentoitem 
-       FROM orcamentoitens 
-      WHERE idorcamento = $1`,
-    [idOrcamento]
-);
-const existingItemIds = new Set(existingItemsResult.rows.map(r => Number(r.idorcamentoitem)));
-
-
-// 2. IDs enviados pelo frontend
-const receivedItemIds = new Set(
-    itens
-        .filter(item => item.id) 
-        .map(item => Number(item.id))
-);
-
-
-// 3. Identificar itens que devem ser DELETADOS
-const itemsToDelete = [...existingItemIds].filter(id => !receivedItemIds.has(id));
-
-if (itemsToDelete.length > 0) {
-    await client.query(
-        `DELETE FROM orcamentoitens
-          WHERE idorcamento = $1
-            AND idorcamentoitem = ANY($2)`,
-        [idOrcamento, itemsToDelete]
-    );
-}
-
-
-// 4. Inserir / Atualizar cada item enviado
-for (const item of itens) {
-    
-    const isAdicional = item.adicional === true;
-
-    if (item.id && existingItemIds.has(Number(item.id))) {
-        // ----------------------
-        // UPDATE DO ITEM EXISTENTE
-        // ----------------------
-        const updateItemQuery = `
+        if (item.id && existingItemIds.has(Number(item.id))) {
+          // UPDATE DO ITEM EXISTENTE
+          const updateItemQuery = `
             UPDATE orcamentoitens SET
-                enviarnaproposta = $1,
-                categoria = $2,
-                qtditens = $3,
-                idfuncao = $4,
-                idequipamento = $5,
-                idsuprimento = $6,
-                produto = $7,
-                qtddias = $8,
-                periododiariasinicio = $9,
-                periododiariasfim = $10,
-                descontoitem = $11,
-                percentdescontoitem = $12,
-                acrescimoitem = $13,
-                percentacrescimoitem = $14,
-                vlrdiaria = $15,
-                totvdadiaria = $16,
-                ctodiaria = $17,
-                totctodiaria = $18,
-                tpajdctoalimentacao = $19,
-                vlrajdctoalimentacao = $20,
-                tpajdctotransporte = $21,
-                vlrajdctotransporte = $22,
-                totajdctoitem = $23,
-                hospedagem = $24,
-                transporte = $25,
-                totgeralitem = $26,
-                setor = $27,
-                adicional = $28
-            WHERE idorcamentoitem = $29
-              AND idorcamento = $30
-        `;
+                enviarnaproposta = $1, categoria = $2, qtditens = $3, idfuncao = $4,
+                idequipamento = $5, idsuprimento = $6, produto = $7, qtddias = $8, periododiariasinicio = $9,
+                periododiariasfim = $10, descontoitem = $11, percentdescontoitem = $12, acrescimoitem = $13,
+                percentacrescimoitem = $14, vlrdiaria = $15, totvdadiaria = $16, ctodiaria = $17, totctodiaria = $18,
+                tpajdctoalimentacao = $19, vlrajdctoalimentacao = $20, tpajdctotransporte = $21, vlrajdctotransporte = $22,
+                totajdctoitem = $23, hospedagem = $24, transporte = $25, totgeralitem = $26, setor = $27,
+                adicional = $28, 
+                vlrbase = $29 -- <-- ADICIONADO VLRBASE
+            WHERE idorcamentoitem = $30 AND idorcamento = $31;
+          `;
 
-        const itemValues = [
-            item.enviarnaproposta, item.categoria, item.qtditens,
-            item.idfuncao, item.idequipamento, item.idsuprimento, item.produto,
-            item.qtdDias, item.periododiariasinicio, item.periododiariasfim,
-            item.descontoitem, item.percentdescontoitem,
-            item.acrescimoitem, item.percentacrescimoitem,
+          const itemValues = [
+            item.enviarnaproposta, item.categoria, item.qtditens, item.idfuncao,
+            item.idequipamento, item.idsuprimento, item.produto, item.qtdDias,
+            item.periododiariasinicio, item.periododiariasfim, item.descontoitem,
+            item.percentdescontoitem, item.acrescimoitem, item.percentacrescimoitem,
             item.vlrdiaria, item.totvdadiaria, item.ctodiaria, item.totctodiaria,
             item.tpajdctoalimentacao, item.vlrajdctoalimentacao,
             item.tpajdctotransporte, item.vlrajdctotransporte,
             item.totajdctoitem, item.hospedagem, item.transporte,
-            item.totgeralitem,
-            item.setor ?? '',
-            isAdicional,
-            item.id,
-            idOrcamento
-        ];
+            item.totgeralitem, item.setor ?? '', isAdicional,
+            valorBase, // $29
+            item.id,   // $30
+            idOrcamento // $31
+          ];
 
-        await client.query(updateItemQuery, itemValues);
+          await client.query(updateItemQuery, itemValues);
 
-    } else {
-        // ----------------------
-        // INSERT DE NOVO ITEM
-        // ----------------------
-        const insertItemQuery = `
+        } else {
+          // INSERT DE NOVO ITEM
+          const insertItemQuery = `
             INSERT INTO orcamentoitens (
                 idorcamento, enviarnaproposta, categoria, qtditens,
                 idfuncao, idequipamento, idsuprimento, produto,
@@ -2156,7 +1600,8 @@ for (const item of itens) {
                 vlrajdctoalimentacao, tpajdctotransporte,
                 vlrajdctotransporte, totajdctoitem,
                 hospedagem, transporte, totgeralitem,
-                setor, adicional
+                setor, adicional, 
+                vlrbase -- <-- ADICIONADO VLRBASE
             ) VALUES (
                 $1, $2, $3, $4,
                 $5, $6, $7, $8,
@@ -2166,46 +1611,43 @@ for (const item of itens) {
                 $18, $19, $20,
                 $21, $22, $23,
                 $24, $25, $26,
-                $27, $28, $29
+                $27, $28, $29,
+                $30 -- <-- VALOR DO VLRBASE
             )
-        `;
+          `;
 
-        const itemValues = [
-            idOrcamento, item.enviarnaproposta, item.categoria,
-            item.qtditens, item.idfuncao, item.idequipamento,
-            item.idsuprimento, item.produto, item.qtdDias,
-            item.periododiariasinicio, item.periododiariasfim,
-            item.descontoitem, item.percentdescontoitem,
-            item.acrescimoitem, item.percentacrescimoitem,
-            item.vlrdiaria, item.totvdadiaria, item.ctodiaria,
-            item.totctodiaria, item.tpajdctoalimentacao,
+          const itemValues = [
+            idOrcamento, item.enviarnaproposta, item.categoria, item.qtditens,
+            item.idfuncao, item.idequipamento, item.idsuprimento, item.produto,
+            item.qtdDias, item.periododiariasinicio, item.periododiariasfim,
+            item.descontoitem, item.percentdescontoitem, item.acrescimoitem,
+            item.percentacrescimoitem, item.vlrdiaria, item.totvdadiaria,
+            item.ctodiaria, item.totctodiaria, item.tpajdctoalimentacao,
             item.vlrajdctoalimentacao, item.tpajdctotransporte,
             item.vlrajdctotransporte, item.totajdctoitem,
             item.hospedagem, item.transporte, item.totgeralitem,
-            item.setor ?? '',
-            isAdicional
-        ];
+            item.setor ?? '', isAdicional,
+            valorBase // $30
+          ];
 
-        await client.query(insertItemQuery, itemValues);
+          await client.query(insertItemQuery, itemValues);
+        }
+      }
+
+      await client.query("COMMIT");
+
+      res.locals.acao = 'atualizou';
+      res.locals.idregistroalterado = idOrcamento;
+
+      res.status(200).json({ message: "Orçamento atualizado com sucesso!", id: idOrcamento });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      console.error("Erro ao atualizar orçamento e seus itens:", error);
+      res.status(500).json({ error: "Erro ao atualizar orçamento.", detail: error.message });
+    } finally {
+      client.release();
     }
-}
-
-        await client.query("COMMIT"); // Confirma a transação
-
-        // Define os dados para o log middleware
-        res.locals.acao = 'editou'; // Altera a ação para 'editou'
-        res.locals.idregistroalterado = idOrcamento;
-        res.locals.idusuarioAlvo = null; 
-
-        res.status(200).json({ message: "Orçamento atualizado com sucesso!", id: idOrcamento });
-  } catch (error) {
-        await client.query("ROLLBACK"); // Reverte a transação em caso de erro
-        console.error("Erro ao atualizar orçamento e seus itens:", error);
-        res.status(500).json({ error: "Erro ao atualizar orçamento.", detail: error.message });
-  } finally {
-        client.release(); // Libera o cliente do pool
   }
- }
 );
 
 router.put(

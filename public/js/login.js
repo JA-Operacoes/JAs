@@ -4,7 +4,7 @@ import { fetchComToken } from "../../utils/utils.js";
 document.getElementById("Login").addEventListener("submit", async function (e) {
   e.preventDefault();
 
-  const email = document.getElementById("emailusuario").value.trim();
+  const email = document.getElementById("emailusuario").value.trim().toLowerCase();
   const password = document.getElementById("senha").value;
 
   if (!email || !password) {
