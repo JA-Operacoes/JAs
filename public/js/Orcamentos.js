@@ -3382,12 +3382,7 @@ async function verificaOrcamento() {
             linha.querySelector(".setor-input")?.value?.trim().toUpperCase() ||
             null,
 
-        qtdDias:
-          parseInt(linha.querySelector(".qtdDias input")?.value || "0", 10) ||
-          0,
-        qtddias:
-          parseInt(linha.querySelector(".qtdDias input")?.value || "0", 10) ||
-          0,
+        qtdDias: linha.querySelector(".qtdDias input")?.value || "0",
 
         descontoitem: descontoItemValor,
         percentdescontoitem: parsePercentValue(
@@ -7379,41 +7374,42 @@ function configurarEventosOrcamento() {
 window.configurarEventosOrcamento = configurarEventosOrcamento;
 
 function gerenciarVisibilidadeValores(permissoes) {
-  const p = Array.isArray(permissoes) ? permissoes[0] : permissoes;
-  if (!p) return;
+  // ✅ MUDANÇA: Em vez de pegar o índice [0], buscamos pelo nome do módulo
+  let p;
+  if (Array.isArray(permissoes)) {
+    p = permissoes.find(item => item.modulo.toLowerCase() === "orcamentos");
+  } else {
+    p = permissoes;
+  }
 
+  if (!p) {
+    console.warn("⚠️ Permissão do módulo Orcamentos não encontrada no array.");
+    return;
+  }
+
+  // No servidor as propriedades são 'pode_pesquisar', 'pode_alterar', etc.
   const ocultarFinanceiro = p.pode_pesquisar === true && 
                             p.pode_alterar === false && 
                             p.pode_cadastrar === false;
+
+  console.log("Debug Permissão encontrada:", p);
 
   if (ocultarFinanceiro) {
     document.body.classList.add('restrito-visualizacao');
     console.log("🔒 Sistema em modo restrito (Financeiro oculto)");
 
-    // --- BLOQUEIO DO FLATPICKR ---
-    // Selecionamos todos os inputs que possuem a classe de período/data
     const camposData = document.querySelectorAll('.Periodo input, .flatpickr-input');
-    
     camposData.forEach(input => {
-      // 1. Impede que o clique chegue ao input (Bloqueio via JS/CSS dinâmico)
       input.style.pointerEvents = 'none'; 
-      
-      // 2. Garante que o input não abra o teclado em dispositivos móveis
       input.readOnly = true; 
-
-      // 3. Se o flatpickr já estiver instanciado, podemos desativá-lo
       if (input._flatpickr) {
-        // Opção A: Apenas fechar e impedir de abrir
         input._flatpickr.close();
-        // Opção B: Remover a funcionalidade (mais seguro para modo leitura)
-        // input._flatpickr.destroy(); 
       }
     });
 
   } else {
     document.body.classList.remove('restrito-visualizacao');
     
-    // Remove o bloqueio caso o usuário mude de nível de permissão sem dar reload
     const camposData = document.querySelectorAll('.Periodo input, .flatpickr-input');
     camposData.forEach(input => {
       input.style.pointerEvents = 'auto';
