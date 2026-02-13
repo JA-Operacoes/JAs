@@ -72,7 +72,7 @@ router.get("/lancamentos", async (req, res) => {
         const sql = `SELECT idlancamento, descricao, vlrestimado, vctobase 
                      FROM lancamentos 
                      WHERE ativo = true 
-                     ORDER BY vctobase ASC`;
+                     ORDER BY descricao ASC`;
         
         const resultado = await pool.query(sql); // Use seu objeto de conexão aqui
         res.json(resultado.rows);
@@ -193,6 +193,84 @@ router.get("/historico/:idLancamento", async (req, res) => {
 
 
 // Rota para atualizar um pagamento existente (PUT)
+// router.put("/:id", 
+//     verificarPermissao('Pagamentos', 'alterar'),
+//     uploadPagamentosMiddleware,
+//     logMiddleware('Pagamentos', { 
+//         buscarDadosAnteriores: async (req) => {
+//             const result = await pool.query('SELECT * FROM pagamentos WHERE idpagamento = $1', [req.params.id]);
+//             return { dadosanteriores: result.rows[0], idregistroalterado: req.params.id };
+//         } 
+//     }),
+//     async (req, res) => {
+//         const { id } = req.params;
+//         const idempresa = req.idempresa;
+        
+//         // Captura dados do corpo e as flags de limpeza do front
+//         const { 
+//             vlrpago, dtvcto, dtpgto, observacao, status, vlrreal,
+//             limparComprovanteImagem, limparComprovantePagto 
+//         } = req.body;
+
+//         try {
+//             let sqlArquivos = "";
+//             const valoresExtras = [];
+//             // O próximo índice começa após os 7 valores base ($1 a $7)
+//             let proximoIndice = 8; 
+
+//             // 1. Lógica para Imagem da Conta (Boleto)
+//             if (req.files && req.files['imagemConta']) {
+//                 sqlArquivos += `, imagemconta = $${proximoIndice++}`;
+//                 valoresExtras.push(req.files['imagemConta'][0].filename);
+//             } else if (limparComprovanteImagem === "true") {
+//                 sqlArquivos += `, imagemconta = NULL`;
+//             }
+
+//             // 2. Lógica para Comprovante de Pagamento
+//             if (req.files && req.files['comprovantePagamento']) {
+//                 sqlArquivos += `, comprovantepgto = $${proximoIndice++}`;
+//                 valoresExtras.push(req.files['comprovantePagamento'][0].filename);
+//             } else if (limparComprovantePagto === "true") {
+//                 sqlArquivos += `, comprovantepgto = NULL`;
+//             }
+
+//             const sql = `
+//                 UPDATE pagamentos 
+//                 SET vlrpago = $1, 
+//                     dtvcto = $2, 
+//                     dtpgto = $3, 
+//                     observacao = $4, 
+//                     status = $5,
+//                     vlrreal = $6 
+//                     ${sqlArquivos}
+//                 WHERE idpagamento = $6 AND idempresa = $7
+//                 RETURNING *`;
+
+//             const valoresBase = [
+//                 vlrpago || 0, 
+//                 dtvcto, 
+//                 dtpgto || null, 
+//                 observacao, 
+//                 status, 
+//                 vlrreal,
+//                 id, 
+//                 idempresa
+//             ];
+            
+//             const resultado = await pool.query(sql, [...valoresBase, ...valoresExtras]);
+
+//             if (resultado.rows.length === 0) {
+//                 return res.status(404).json({ message: "Registro não encontrado." });
+//             }
+
+//             res.json({ message: "Atualizado com sucesso!", data: resultado.rows[0] });
+//         } catch (error) {
+//             console.error("Erro ao atualizar pagamento:", error);
+//             res.status(500).json({ message: "Erro interno ao atualizar." });
+//         }
+//     }
+// );
+
 router.put("/:id", 
     verificarPermissao('Pagamentos', 'alterar'),
     uploadPagamentosMiddleware,
@@ -202,11 +280,11 @@ router.put("/:id",
             return { dadosanteriores: result.rows[0], idregistroalterado: req.params.id };
         } 
     }),
+    // ... dentro do router.put
     async (req, res) => {
         const { id } = req.params;
         const idempresa = req.idempresa;
         
-        // Captura dados do corpo e as flags de limpeza do front
         const { 
             vlrpago, dtvcto, dtpgto, observacao, status, vlrreal,
             limparComprovanteImagem, limparComprovantePagto 
@@ -214,25 +292,39 @@ router.put("/:id",
 
         try {
             let sqlArquivos = "";
-            const valoresExtras = [];
-            // O próximo índice começa após os 7 valores base ($1 a $7)
-            let proximoIndice = 8; 
+            const valoresParaUpdate = [
+                vlrpago || 0,   // $1
+                dtvcto,         // $2
+                dtpgto || null, // $3
+                observacao,     // $4
+                status,         // $5
+                vlrreal || 0    // $6
+            ];
 
-            // 1. Lógica para Imagem da Conta (Boleto)
+            let proximoIndice = 7; 
+
+            // 1. Imagem da Conta
             if (req.files && req.files['imagemConta']) {
                 sqlArquivos += `, imagemconta = $${proximoIndice++}`;
-                valoresExtras.push(req.files['imagemConta'][0].filename);
+                valoresParaUpdate.push(req.files['imagemConta'][0].filename);
             } else if (limparComprovanteImagem === "true") {
                 sqlArquivos += `, imagemconta = NULL`;
             }
 
-            // 2. Lógica para Comprovante de Pagamento
+            // 2. Comprovante de Pagamento
             if (req.files && req.files['comprovantePagamento']) {
                 sqlArquivos += `, comprovantepgto = $${proximoIndice++}`;
-                valoresExtras.push(req.files['comprovantePagamento'][0].filename);
+                valoresParaUpdate.push(req.files['comprovantePagamento'][0].filename);
             } else if (limparComprovantePagto === "true") {
                 sqlArquivos += `, comprovantepgto = NULL`;
             }
+
+            // Agora definimos os índices do WHERE dinamicamente
+            const indiceId = proximoIndice++;
+            const indiceEmpresa = proximoIndice++;
+            
+            valoresParaUpdate.push(id);        // Valor para indiceId
+            valoresParaUpdate.push(idempresa); // Valor para indiceEmpresa
 
             const sql = `
                 UPDATE pagamentos 
@@ -243,21 +335,10 @@ router.put("/:id",
                     status = $5,
                     vlrreal = $6 
                     ${sqlArquivos}
-                WHERE idpagamento = $6 AND idempresa = $7
+                WHERE idpagamento = $${indiceId} AND idempresa = $${indiceEmpresa}
                 RETURNING *`;
 
-            const valoresBase = [
-                vlrpago || 0, 
-                dtvcto, 
-                dtpgto || null, 
-                observacao, 
-                status, 
-                vlrreal,
-                id, 
-                idempresa
-            ];
-            
-            const resultado = await pool.query(sql, [...valoresBase, ...valoresExtras]);
+            const resultado = await pool.query(sql, valoresParaUpdate);
 
             if (resultado.rows.length === 0) {
                 return res.status(404).json({ message: "Registro não encontrado." });

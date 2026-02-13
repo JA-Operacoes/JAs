@@ -73,8 +73,9 @@ router.get("/contas", autenticarToken(), async (req, res) => {
 
   // Query que traz o perfil apenas se o vínculo for um funcionário
   const queryBase = `
-    SELECT *  
-    FROM contas c    
+    SELECT c.*, pc.nmplanocontas  
+    FROM contas c
+    LEFT JOIN planocontas pc ON pc.idplanocontas = c.idplanocontas  
     WHERE c.idempresa = $1
   `;
 
