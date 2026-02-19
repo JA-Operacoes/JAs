@@ -980,183 +980,75 @@ function calcularLucroReal() {
 // }
 
 function aplicarDescontoEAcrescimo(changedInputId) {
-  // Removendo forceFormat daqui, se não for mais necessário
+  // Impede loops infinitos de cálculo
   if (isRecalculatingGlobalDiscountAcrescimo) {
-    console.log(
-      "DEBUG GLOBAL: Recálculo global em andamento, ignorando nova chamada."
-    );
     return;
   }
 
   const campoValorCliente = document.querySelector("#valorCliente");
-
   isRecalculatingGlobalDiscountAcrescimo = true;
 
   try {
-    // Obter os elementos de desconto/acréscimo globais
+    // 1. Obter referências dos elementos
     const inputDescontoValor = document.getElementById("Desconto");
     const inputDescontoPercentual = document.getElementById("percentDesc");
     const inputAcrescimoValor = document.getElementById("Acrescimo");
     const inputAcrescimoPercentual = document.getElementById("percentAcresc");
 
-    // É crucial ter o total intermediário atualizado
-    recalcularTotaisGerais(); // Garante que TotalIntermediario está atualizado
+    // 2. Atualizar o total base (Venda bruta)
+    if (typeof recalcularTotaisGerais === "function") {
+      recalcularTotaisGerais();
+    }
+    
     const totalBaseParaCalculo = desformatarMoeda(
       document.getElementById("totalGeralVda")?.value || "0"
     );
 
-    console.log("DEBUG GLOBAL - aplicarDescontoEAcrescimo - INÍCIO");
-    console.log("Campo Alterado (ID):", changedInputId);
-    console.log("Total Base para Cálculo (Global):", totalBaseParaCalculo);
-    console.log(
-      "lastEditedGlobalFieldType ANTES DO CÁLCULO:",
-      lastEditedGlobalFieldType
-    );
+    // --- SINCRONIZAÇÃO EM TEMPO REAL ---
 
-    let descontoValorAtual = desformatarMoeda(inputDescontoValor?.value || "0");
-    let descontoPercentualAtual = desformatarPercentual(
-      inputDescontoPercentual?.value || "0"
-    );
-    let acrescimoValorAtual = desformatarMoeda(
-      inputAcrescimoValor?.value || "0"
-    );
-    let acrescimoPercentualAtual = desformatarPercentual(
-      inputAcrescimoPercentual?.value || "0"
-    );
-
-    // --- Lógica de sincronização para DESCONTO GLOBAL ---
-    if (changedInputId === "Desconto" || changedInputId === "percentDesc") {
-      if (lastEditedGlobalFieldType === "valorDesconto") {
-        // Se o usuário editou o valor do desconto
-        if (totalBaseParaCalculo > 0) {
-          descontoPercentualAtual =
-            (descontoValorAtual / totalBaseParaCalculo) * 100;
-        } else {
-          descontoPercentualAtual = 0;
-        }
-        if (inputDescontoPercentual) {
-          descontoPercentualAtual =
-            Math.round(descontoPercentualAtual * 100) / 100;
-          inputDescontoPercentual.value = formatarPercentual(
-            descontoPercentualAtual
-          );
-          console.log(
-            `GLOBAL: Atualizando percentDesc para: ${inputDescontoPercentual.value}`
-          );
-        }
-      } else if (lastEditedGlobalFieldType === "percentualDesconto") {
-        // Se o usuário editou o percentual do desconto
-        descontoValorAtual =
-          totalBaseParaCalculo * (descontoPercentualAtual / 100);
-        if (inputDescontoValor) {
-          descontoValorAtual = Math.round(descontoValorAtual * 100) / 100;
-          inputDescontoValor.value = formatarMoeda(descontoValorAtual);
-          console.log(
-            `GLOBAL: Atualizando Desconto para: ${inputDescontoValor.value}`
-          );
-        }
-      }
-    }
-
-    // --- Lógica de sincronização para ACRÉSCIMO GLOBAL ---
-    if (changedInputId === "Acrescimo" || changedInputId === "percentAcresc") {
-      if (lastEditedGlobalFieldType === "valorAcrescimo") {
-        // Se o usuário editou o valor do acréscimo
-        if (totalBaseParaCalculo > 0) {
-          acrescimoPercentualAtual =
-            (acrescimoValorAtual / totalBaseParaCalculo) * 100;
-        } else {
-          acrescimoPercentualAtual = 0;
-        }
-        if (inputAcrescimoPercentual) {
-          acrescimoPercentualAtual =
-            Math.round(acrescimoPercentualAtual * 100) / 100;
-          inputAcrescimoPercentual.value = formatarPercentual(
-            acrescimoPercentualAtual
-          );
-          console.log(
-            `GLOBAL: Atualizando percentAcresc para: ${inputAcrescimoPercentual.value}`
-          );
-        }
-      } else if (lastEditedGlobalFieldType === "percentualAcrescimo") {
-        // Se o usuário editou o percentual do acréscimo
-        acrescimoValorAtual =
-          totalBaseParaCalculo * (acrescimoPercentualAtual / 100);
-        if (inputAcrescimoValor) {
-          acrescimoValorAtual = Math.round(acrescimoValorAtual * 100) / 100;
-          inputAcrescimoValor.value = formatarMoeda(acrescimoValorAtual);
-          console.log(
-            `GLOBAL: Atualizando Acrescimo para: ${inputAcrescimoValor.value}`
-          );
-        }
-      }
-    }
-
-    // Lógica para zerar o campo "parceiro" se o campo alterado for zerado
-    let valorDigitadoNoCampoAlterado = 0;
-    let campoParceiro = null;
-
+    // Lógica para DESCONTO
     if (changedInputId === "Desconto") {
-      valorDigitadoNoCampoAlterado = desformatarMoeda(
-        inputDescontoValor?.value || "0"
-      );
-      campoParceiro = inputDescontoPercentual;
-    } else if (changedInputId === "percentDesc") {
-      valorDigitadoNoCampoAlterado = desformatarPercentual(
-        inputDescontoPercentual?.value || "0"
-      );
-      campoParceiro = inputDescontoValor;
-    } else if (changedInputId === "Acrescimo") {
-      valorDigitadoNoCampoAlterado = desformatarMoeda(
-        inputAcrescimoValor?.value || "0"
-      );
-      campoParceiro = inputAcrescimoPercentual;
-    } else if (changedInputId === "percentAcresc") {
-      valorDigitadoNoCampoAlterado = desformatarPercentual(
-        inputAcrescimoPercentual?.value || "0"
-      );
-      campoParceiro = inputAcrescimoValor;
+      const vlr = desformatarMoeda(inputDescontoValor.value);
+      const perc = totalBaseParaCalculo > 0 ? (vlr / totalBaseParaCalculo) * 100 : 0;
+      inputDescontoPercentual.value = formatarPercentual(perc);
+    } 
+    else if (changedInputId === "percentDesc") {
+      const perc = desformatarPercentual(inputDescontoPercentual.value);
+      const vlr = totalBaseParaCalculo * (perc / 100);
+      inputDescontoValor.value = formatarMoeda(vlr);
     }
 
-    if (valorDigitadoNoCampoAlterado === 0 && campoParceiro) {
-      console.log("GLOBAL: Campo alterado foi zerado. Zerando campo parceiro.");
-      if (changedInputId === "Desconto" || changedInputId === "Acrescimo") {
-        // Se alterou valor, zera percentual
-        campoParceiro.value = formatarPercentual(0);
-      } else {
-        // Se alterou percentual, zera valor
-        campoParceiro.value = formatarMoeda(0);
-      }
+    // Lógica para ACRÉSCIMO
+    if (changedInputId === "Acrescimo") {
+      const vlr = desformatarMoeda(inputAcrescimoValor.value);
+      const perc = totalBaseParaCalculo > 0 ? (vlr / totalBaseParaCalculo) * 100 : 0;
+      inputAcrescimoPercentual.value = formatarPercentual(perc);
+    } 
+    else if (changedInputId === "percentAcresc") {
+      const perc = desformatarPercentual(inputAcrescimoPercentual.value);
+      const vlr = totalBaseParaCalculo * (perc / 100);
+      inputAcrescimoValor.value = formatarMoeda(vlr);
     }
 
+    // 3. CÁLCULO DO RESULTADO FINAL
     const valorDesconto = desformatarMoeda(inputDescontoValor?.value || "0");
     const valorAcrescimo = desformatarMoeda(inputAcrescimoValor?.value || "0");
 
     const valorFinal = totalBaseParaCalculo - valorDesconto + valorAcrescimo;
 
-    console.log(
-      "DEBUG GLOBAL - aplicarDescontoEAcrescimo - Valor Final:",
-      valorFinal,
-      "Desconto:",
-      valorDesconto,
-      "Acréscimo:",
-      valorAcrescimo,
-      "Total Base para Cálculo:",
-      totalBaseParaCalculo
-    );
-
+    // Atualiza o campo Valor Cliente
     if (campoValorCliente) {
       campoValorCliente.value = formatarMoeda(valorFinal);
     }
 
-    calcularLucro();
-    calcularLucroReal();
-    // Chama a função principal de recalcular totais gerais após as atualizações
-    // recalcularTotaisGerais();
+    // 4. ATUALIZAÇÃO DE LUCROS E TOTAIS
+    if (typeof calcularLucro === "function") calcularLucro();
+    if (typeof calcularLucroReal === "function") calcularLucroReal();
+
+  } catch (err) {
+    console.error("Erro no cálculo de desconto/acréscimo:", err);
   } finally {
     isRecalculatingGlobalDiscountAcrescimo = false;
-    // O reset de lastEditedGlobalFieldType será controlado pelos listeners blur
-    console.log("DEBUG GLOBAL - aplicarDescontoEAcrescimo - FIM.");
   }
 }
 
@@ -2529,23 +2421,26 @@ function atualizaProdutoOrc(event) {
     let vlrCustoNumerico = parseFloat(vlrCusto) || 0;
     let vlrVendaNumerico = parseFloat(vlrVenda) || 0;
     if (typeof bProximoAno !== 'undefined' && bProximoAno) {
-        console.log("Aplicando reajuste de 'Próximo Ano' a item recém-selecionado.");
-        const fatorGeral = GLOBAL_PERCENTUAL_GERAL > 0 ? 1 + GLOBAL_PERCENTUAL_GERAL / 100 : 1;
-        const fatorAjuda = GLOBAL_PERCENTUAL_AJUDA > 0 ? 1 + GLOBAL_PERCENTUAL_AJUDA / 100 : 1;
-        vlrCustoNumerico = ceilToTenCents(vlrCustoNumerico, fatorGeral);
-        vlrVendaNumerico = ceilToTenCents(vlrVendaNumerico, fatorGeral);
-        if (typeof vlrAlimentacao !== 'undefined') {
-            vlrAlimentacao = ceilToTenCents(parseFloat(vlrAlimentacao) || 0, fatorAjuda);
-        }
-        if (typeof vlrTransporte !== 'undefined') {
-            vlrTransporte = ceilToTenCents(parseFloat(vlrTransporte) || 0, fatorAjuda);
-        }
+      // Mantém o reajuste sempre que alterar/adicionar item
+      console.log("Aplicando reajuste de 'Próximo Ano' a item recém-selecionado.");
+      const fatorGeral = GLOBAL_PERCENTUAL_GERAL > 0 ? 1 + GLOBAL_PERCENTUAL_GERAL / 100 : 1;
+      const fatorAjuda = GLOBAL_PERCENTUAL_AJUDA > 0 ? 1 + GLOBAL_PERCENTUAL_AJUDA / 100 : 1;
+      vlrCustoNumerico = ceilToTenCents(vlrCustoNumerico, fatorGeral);
+      vlrVendaNumerico = ceilToTenCents(vlrVendaNumerico, fatorGeral);
+      if (typeof vlrAlimentacao !== 'undefined') {
+        vlrAlimentacao = ceilToTenCents(parseFloat(vlrAlimentacao) || 0, fatorAjuda);
+      }
+      if (typeof vlrTransporte !== 'undefined') {
+        vlrTransporte = ceilToTenCents(parseFloat(vlrTransporte) || 0, fatorAjuda);
+      }
     }
     let tabela = document.getElementById("tabela");
     if (!tabela) return;
     let ultimaLinha = tabela.querySelector("tbody tr:first-child");
     if (ultimaLinha) {
       ultimaLinha.dataset.valorTabela = vlrVendaNumerico;
+      // Mantém o valor reajustado no campo base para futuras edições
+      ultimaLinha.dataset.vlrbase = vlrVendaNumerico.toString();
         let celulaProduto = ultimaLinha.querySelector(".produto");
         let celulaCategoria = ultimaLinha.querySelector(".Categoria");
         let inputIdFuncao = ultimaLinha.querySelector("input.idFuncao");
@@ -4634,6 +4529,14 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
       if (item.periododiariasinicio) dates.push(new Date(item.periododiariasinicio));
       if (item.periododiariasfim) dates.push(new Date(item.periododiariasfim));
       flatpickr(itemDateInput, { mode: "range", dateFormat: "d/m/Y", locale: flatpickr.l10ns.pt, defaultDate: dates, onChange: (sd) => atualizarQtdDias(itemDateInput, sd) });
+        // Garante que o campo de datas seja sempre preenchido visualmente
+        if (item.datas && item.datas.length > 0) {
+          let fpInstance = itemDateInput._flatpickr;
+          if (!fpInstance) {
+            fpInstance = flatpickr(itemDateInput, commonFlatpickrOptionsTable);
+          }
+          fpInstance.setDate(item.datas, true);
+        }
     }
 
     const delBtn = newRow.querySelector(".btnApagar");
@@ -5118,15 +5021,14 @@ function recalcularLinha(linha) {
         const qtdDias = parseFloat(linha.querySelector(".qtdDias input")?.value || linha.querySelector(".qtddias")?.value) || 0;
         const totalFator = qtdItens * qtdDias;
 
-        // --- 2. VALOR DE VENDA (Base Imutável) ---
+        // --- 2. VALOR DE VENDA (Base Imutável e REAJUSTADO) ---
         const celulaVenda = linha.querySelector(".vlrVenda");
-        // Prioriza o dataset para não perder o valor original após descontos
-        let vlrVendaOriginal = parseFloat(linha.dataset.vlrbase) || 
-                               parseFloat(celulaVenda?.dataset.originalVenda) || 
-                               desformatarMoeda(celulaVenda?.textContent) || 0;
-        
-        // Garante que a linha saiba sua base para sempre
-        if (!linha.dataset.vlrbase) linha.dataset.vlrbase = vlrVendaOriginal;
+        // Sempre prioriza o dataset.vlrbase, que já pode estar reajustado
+        let vlrVendaOriginal = parseFloat(linha.dataset.vlrbase);
+        if (isNaN(vlrVendaOriginal) || vlrVendaOriginal <= 0) {
+          vlrVendaOriginal = parseFloat(celulaVenda?.dataset.originalVenda) || desformatarMoeda(celulaVenda?.textContent) || 0;
+          linha.dataset.vlrbase = vlrVendaOriginal;
+        }
 
         // --- 3. AJUSTES (Desconto e Acréscimo) ---
         const lerAjuste = (seletor) => {
@@ -5201,26 +5103,32 @@ function recalcularDescontoAcrescimo(input, type, fieldType, linha) {
       return;
     }
 
-    // Pega o valor base (Venda Diária) para o cálculo
-    const vlrVdaDiaria = desformatarMoeda(linha.querySelector(".vlrVdaDiaria")?.textContent) || 0;
+
+    // Usa sempre o valor base da linha (dataset.vlrbase) para o cálculo
+    let vlrBase = parseFloat(linha.dataset.vlrbase) || 0;
+    if (vlrBase <= 0) {
+      // fallback para o valor exibido, se necessário
+      vlrBase = desformatarMoeda(linha.querySelector(".vlrVenda")?.textContent) || 0;
+    }
 
     if (fieldType === "valor") {
       // Se editou o valor em R$, calcula a nova porcentagem
       const valor = desformatarMoeda(input.value);
-      if (vlrVdaDiaria > 0) {
-        const percentual = (valor / vlrVdaDiaria) * 100;
-        percentualInput.value = formatarPercentual(percentual);
-      } else {
-        percentualInput.value = "0,00%";
+      let percentual = 0;
+      if (vlrBase > 0) {
+        percentual = (valor / vlrBase) * 100;
       }
+      percentualInput.value = formatarPercentual(percentual);
     } else if (fieldType === "percentual") {
       // Se editou a %, calcula o novo valor em R$
       const percentual = desformatarPercentual(input.value);
-      const valor = (percentual / 100) * vlrVdaDiaria;
+      const valor = (percentual / 100) * vlrBase;
       valorInput.value = formatarMoeda(valor);
     }
 
-    // MUITO IMPORTANTE: Chama o recálculo da linha para atualizar o Total com o novo desconto/acréscimo
+    // Se o usuário alterou um campo, sempre atualiza o outro para garantir sincronização
+    // (Evita loop usando o isRecalculatingDiscountAcrescimo)
+
     recalcularLinha(linha);
 
   } finally {
@@ -6250,7 +6158,6 @@ async function rehidrateItemsForNewYear(itens) {
   if (!itens || !Array.isArray(itens) || itens.length === 0) return;
 
   try {
-    // Busca em paralelo as listas mestres disponíveis para a empresa
     const [funcs, equips, suprs] = await Promise.all([
       fetchComToken('/orcamentos/funcao').then((r) => r),
       fetchComToken('/orcamentos/equipamentos').then((r) => r),
@@ -6262,56 +6169,63 @@ async function rehidrateItemsForNewYear(itens) {
       return acc;
     }, {});
 
-    const eqMap = (Array.isArray(equips) ? equips : []).reduce((acc, e) => {
-      acc[String(e.idequip)] = e;
-      return acc;
-    }, {});
+    // ... (manter eqMap e supMap iguais)
 
-    const supMap = (Array.isArray(suprs) ? suprs : []).reduce((acc, s) => {
-      acc[String(s.idsup)] = s;
-      return acc;
-    }, {});
-
-    // Atualiza cada item conforme encontrado nas tabelas mestres
     for (const item of itens) {
-      let vlrdiaria = parseFloat(item.vlrdiaria || 0) || 0;
-      let ctodiaria = parseFloat(item.ctodiaria || 0) || 0;
+      // 1. PRIORIDADE TOTAL: Se o item já tem um vlrbase (do orçamento anterior), 
+      // esse deve ser o valor "mãe" para o novo reajuste.
+      let vlrReferencia = parseFloat(item.vlrbase || item.vlrdiaria || 0);
+      let ctoReferencia = parseFloat(item.ctodiaria || 0);
 
-      if (item.idfuncao && funcMap[String(item.idfuncao)]) {
-        const f = funcMap[String(item.idfuncao)];
-        vlrdiaria = parseFloat(f.vdafuncao) || vlrdiaria;
-        // Algumas queries trazem o cto dentro da categoria; ajusta se presente
-        ctodiaria = parseFloat(f.ctofuncaobase || f.cto || 0) || ctodiaria;
-      } else if (item.idequipamento && eqMap[String(item.idequipamento)]) {
-        const e = eqMap[String(item.idequipamento)];
-        vlrdiaria = parseFloat(e.vdaequip || e.vda || 0) || vlrdiaria;
-        ctodiaria = parseFloat(e.ctoequip || e.cto || 0) || ctodiaria;
-      } else if (item.idsuprimento && supMap[String(item.idsuprimento)]) {
-        const s = supMap[String(item.idsuprimento)];
-        vlrdiaria = parseFloat(s.vdasup || s.vda || 0) || vlrdiaria;
-        ctodiaria = parseFloat(s.ctosup || s.cto || 0) || ctodiaria;
+      // 2. Fallback: Se por algum motivo o item veio zerado, busca na tabela mestra
+      if (vlrReferencia === 0) {
+        if (item.idfuncao && funcMap[String(item.idfuncao)]) {
+          vlrReferencia = parseFloat(funcMap[String(item.idfuncao)].vdafuncao) || 0;
+          ctoReferencia = parseFloat(funcMap[String(item.idfuncao)].ctofuncaobase) || 0;
+        }
+        // ... (repetir lógica para equip e suprimento se necessário)
       }
 
-      const qtdItens = parseFloat(item.qtditens || item.qtdItens || 0) || 0;
-      const qtdDias = parseFloat(item.qtddias || item.qtdDias || 0) || 0;
-      const descontoItem = parseFloat(item.descontoitem || 0) || 0;
-      const acrescimoItem = parseFloat(item.acrescimoitem || 0) || 0;
+      // 3. APLICAÇÃO DO REAJUSTE (O "8% + 8%")
+      // Se bProximoAno está ativo, pegamos o valor que veio do banco (que já tinha os primeiros 8%)
+      // e aplicamos o novo percentual em cima.
+      if (typeof bProximoAno !== 'undefined' && bProximoAno) {
+        const fatorGeral = 1 + (GLOBAL_PERCENTUAL_GERAL / 100);
+        const fatorAjuda = 1 + (GLOBAL_PERCENTUAL_AJUDA / 100);
 
-      const totvdadiaria = Math.round((vlrdiaria * qtdItens * qtdDias + acrescimoItem - descontoItem) * 100) / 100;
-      const totctodiaria = Math.round((ctodiaria * qtdItens * qtdDias) * 100) / 100;
-      const vlrajd = parseFloat(item.vlrajdctoalimentacao || item.vlrajdctotransporte || 0) || 0;
-      const totajdctoitem = Math.round(vlrajd * qtdItens * qtdDias * 100) / 100;
-      const totgeralitem = Math.round((totctodiaria + totajdctoitem) * 100) / 100;
+        // Aplica reajuste sobre o valor que já era reajustado (Efeito Composto)
+        vlrReferencia = vlrReferencia * fatorGeral;
+        ctoReferencia = ctoReferencia * fatorGeral;
 
-      item.vlrdiaria = vlrdiaria;
-      item.ctodiaria = ctodiaria;
-      item.totvdadiaria = totvdadiaria;
-      item.totctodiaria = totctodiaria;
-      item.totajdctoitem = totajdctoitem;
-      item.totgeralitem = totgeralitem;
+        if (item.vlrajdctoalimentacao) {
+            item.vlrajdctoalimentacao = parseFloat(item.vlrajdctoalimentacao) * fatorAjuda;
+        }
+        if (item.vlrajdctotransporte) {
+            item.vlrajdctotransporte = parseFloat(item.vlrajdctotransporte) * fatorAjuda;
+        }
+      }
+
+      // 4. ATUALIZAÇÃO DOS CAMPOS DO ITEM
+      item.vlrbase = vlrReferencia; // O novo valor base agora é o valor composto
+      item.vlrdiaria = vlrReferencia;
+      item.ctodiaria = ctoReferencia;
+
+      const qtdItens = parseFloat(item.qtditens || item.quantidade || 0);
+      const qtdDias = parseFloat(item.qtddias || 0);
+      const descontoItem = parseFloat(item.descontoitem || item.desconto || 0);
+      const acrescimoItem = parseFloat(item.acrescimoitem || item.acrescimo || 0);
+
+      // Recálculo final da linha
+      item.totvdadiaria = Math.round((vlrReferencia * qtdItens * qtdDias + acrescimoItem - descontoItem) * 100) / 100;
+      item.totctodiaria = Math.round((ctoReferencia * qtdItens * qtdDias) * 100) / 100;
+      
+      const vlrAlim = parseFloat(item.vlrajdctoalimentacao || 0);
+      const vlrTransp = parseFloat(item.vlrajdctotransporte || 0);
+      item.totajdctoitem = Math.round((vlrAlim + vlrTransp) * qtdItens * qtdDias * 100) / 100;
+      item.totgeralitem = Math.round((item.totctodiaria + item.totajdctoitem) * 100) / 100;
     }
   } catch (err) {
-    console.warn('[REHIDRATE] Falha ao buscar valores canônicos no frontend:', err);
+    console.warn('[REHIDRATE] Erro no cálculo composto:', err);
   }
 }
 

@@ -18,7 +18,7 @@ verificarPermissao('Relatorios', 'pesquisar'), async (req, res) => {
         return res.status(400).json({ error: 'Parâmetros tipo, dataInicio, dataFim e evento são obrigatórios.' });
     }
     
-    const tiposPermitidos = ['ajuda_custo', 'cache', 'operacional'];
+    const tiposPermitidos = ['ajuda_custo', 'cache', 'operacional', 'cache_ajuda'];
     if (!tiposPermitidos.includes(tipo)) {
         return res.status(400).json({ error: 'Tipo de relatório inválido.' });
     }
@@ -119,7 +119,20 @@ try {
                     )`;
                     statusConditions.push(condicaoPendente);
                 }
-            }
+                } else if (tipo === 'cache_ajuda') {
+                    // Para cache_ajuda, consideramos "Pago" apenas se AMBOS (cachê e ajuda) estiverem com comprovante
+                    const comprovanteCacheOk = `(tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '')`;
+                    const comprovanteAjudaOk = `(tse.comppgtoajdcusto IS NOT NULL AND tse.comppgtoajdcusto != '')`;
+
+                    if (incluirPagos) {
+                        // PAGO: Tem os dois comprovantes anexados
+                        statusConditions.push(`(${comprovanteCacheOk} AND ${comprovanteAjudaOk})`);
+                    }
+                    if (incluirPendentes) {
+                        // PENDENTE: Se faltar qualquer um dos dois
+                        statusConditions.push(`(${comprovanteCacheOk} IS FALSE OR ${comprovanteAjudaOk} IS FALSE)`);
+                    }
+                }
             
             console.log("CONDICAO STATUS", statusConditions);
             if (statusConditions.length > 0) {
@@ -464,7 +477,82 @@ try {
                   ) > 0
             ORDER BY tse.nmevento, tbf.nome;
             `;
-    }
+        } else if (tipo === 'cache_ajuda') {
+            queryFechamentoPrincipal = `
+                WITH ano_evento AS (
+                    SELECT DISTINCT EXTRACT(YEAR FROM (date_value::date))::int AS ano
+                    FROM staffeventos tse,
+                        jsonb_array_elements_text(tse.datasevento) AS s(date_value)
+                    WHERE tse.idstaff IN (SELECT idstaff FROM staffempresas WHERE idempresa = $1)
+                ),
+                feriados AS (
+                    SELECT data::date FROM (
+                        SELECT make_date(a.ano, 1, 1) FROM ano_evento a UNION
+                        SELECT make_date(a.ano, 4, 21) FROM ano_evento a UNION
+                        SELECT make_date(a.ano, 5, 1) FROM ano_evento a UNION
+                        SELECT make_date(a.ano, 9, 7) FROM ano_evento a UNION
+                        SELECT make_date(a.ano, 10, 12) FROM ano_evento a UNION
+                        SELECT make_date(a.ano, 11, 2) FROM ano_evento a UNION
+                        SELECT make_date(a.ano, 11, 15) FROM ano_evento a UNION
+                        SELECT make_date(a.ano, 11, 20) FROM ano_evento a UNION
+                        SELECT make_date(a.ano, 12, 25) FROM ano_evento a
+                    ) f(data)
+                )
+                SELECT 
+                    sub.*,
+                    -- TOTAIS CALCULADOS (Agora incluindo o Ajuste de Custo se houver)
+                    CAST(sub."VLR CACHÊ" * sub."QTD" AS NUMERIC(10,2)) AS "TOT CACHÊ",
+                    CAST(sub."VLR AJUDA" * sub."QTD" AS NUMERIC(10,2)) AS "TOT AJUDA",
+                    CAST(((sub."VLR CACHÊ" + sub."VLR AJUDA") * sub."QTD") + sub."VLR AJUSTE" AS NUMERIC(10,2)) AS "TOT GERAL",
+                    
+                    -- LÓGICA DO TOT PAGAR (Baseada no status real do banco)
+                    CAST(CASE 
+                        WHEN (sub."STATUS CACHÊ" = 'Pago' AND sub."STATUS AJUDA" = 'Pago') THEN 0 
+                        WHEN (sub."STATUS CACHÊ" = 'Pago') THEN (sub."VLR AJUDA" * sub."QTD")
+                        WHEN (sub."STATUS AJUDA" = 'Pago') THEN (sub."VLR CACHÊ" * sub."QTD") + sub."VLR AJUSTE"
+                        ELSE ((sub."VLR CACHÊ" + sub."VLR AJUDA") * sub."QTD") + sub."VLR AJUSTE"
+                    END AS NUMERIC(10,2)) AS "TOT PAGAR"
+                FROM (
+                    SELECT 
+                        tse.idevento, 
+                        tse.nmcliente AS "nomeCliente",
+                        tse.nmevento AS "nomeEvento", 
+                        tse.nmfuncao AS "FUNÇÃO",
+                        tbf.nome AS "NOME", 
+                        tbf.pix AS "PIX",
+                        (SELECT MIN(d_val::date) FROM jsonb_array_elements_text(tse.datasevento) AS d_val)::text AS "INÍCIO",
+                        (SELECT MAX(d_val::date) FROM jsonb_array_elements_text(tse.datasevento) AS d_val)::text AS "TÉRMINO",
+                        
+                        (SELECT COUNT(*)::int
+                        FROM jsonb_array_elements_text(tse.datasevento) AS s(date_val)
+                        WHERE date_val::date >= $2::date AND date_val::date <= $3::date
+                        AND (
+                            tbf.perfil ILIKE '%Free%' 
+                            OR ((tbf.perfil ILIKE '%Interno%' OR tbf.perfil ILIKE '%Externo%') 
+                            AND (EXTRACT(DOW FROM date_val::date) IN (0, 6) OR date_val::date IN (SELECT data FROM feriados)))
+                        )
+                        ) AS "QTD",
+
+                        CAST(COALESCE(tse.vlrcache, 0) AS NUMERIC(10,2)) AS "VLR CACHÊ",
+                        CAST((COALESCE(tse.vlralimentacao, 0) + COALESCE(tse.vlrtransporte, 0)) AS NUMERIC(10,2)) AS "VLR AJUDA",
+                        CAST(COALESCE(tse.vlrajustecusto, 0) AS NUMERIC(10,2)) AS "VLR AJUSTE",
+
+                        -- CORREÇÃO: Busca o status real gravado no banco
+                        COALESCE(tse.statuspgto, 'Pendente') AS "STATUS CACHÊ",
+                        COALESCE(tse.statuspgtoajdcto, 'Pendente') AS "STATUS AJUDA",
+
+                        -- CORREÇÃO: Valida se o caminho do arquivo existe no banco
+                        CASE WHEN (tse.comppgtocache IS NOT NULL AND tse.comppgtocache != '') THEN 'Anexado' ELSE 'Pendente' END AS "COMP CACHÊ",
+                        CASE WHEN (tse.comppgtoajdcusto IS NOT NULL AND tse.comppgtoajdcusto != '') THEN 'Anexado' ELSE 'Pendente' END AS "COMP AJUDA"
+                    FROM staffeventos tse
+                    JOIN funcionarios tbf ON tse.idfuncionario = tbf.idfuncionario
+                    JOIN staffempresas semp ON tse.idstaff = semp.idstaff
+                    WHERE semp.idempresa = $1 ${wherePeriodoFinal} ${whereStatus}
+                    AND jsonb_array_length((SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value) WHERE ${phaseFilterSql})) > 0
+                ) AS sub
+                ORDER BY sub."nomeEvento", sub."NOME";
+            `;
+        }
     console.log("QUERY FECHAMENTO PRINCIPAL:", queryFechamentoPrincipal);
     
         const resultFechamentoPrincipal = await pool.query(queryFechamentoPrincipal, params);
@@ -499,78 +587,6 @@ try {
         let whereEventosExiste = whereEventos.replace(' AND ', '');
             // 2. Substitui o alias 'tse.' pelo alias 'inner_tse.' nas subqueries (se for o caso da queryUtilizacaoDiarias)
             whereEventosExiste = whereEventosExiste.replace(/tse\./g, 'inner_tse.');
-
-
-            
-        // Utilização de Diárias (não filtra por evento)
-        // const queryUtilizacaoDiarias = `
-        //     SELECT
-        //         o.idevento,
-        //         o.nrorcamento,
-        //         oi.produto AS "INFORMAÇÕES EM PROPOSTA",
-        //         SUM(oi.qtditens) AS "QTD PROFISSIONAIS",
-        //         SUM(oi.qtditens * oi.qtddias) AS "DIÁRIAS CONTRATADAS",
-        //         COALESCE(MAX(td.diarias_utilizadas_por_funcao), 0) AS "DIÁRIAS UTILIZADAS",
-        //         SUM(oi.qtditens * oi.qtddias) - COALESCE(MAX(td.diarias_utilizadas_por_funcao), 0) AS "SALDO"
-        //     FROM
-        //         orcamentos o
-        //     JOIN orcamentoitens oi ON oi.idorcamento = o.idorcamento
-        //     JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-        //     LEFT JOIN (
-        //         SELECT
-        //             tse.idevento,
-        //             tse.idcliente,
-        //             semp.idempresa,
-        //             tse.nmfuncao,
-        //             SUM(jsonb_array_length(
-        //                 (SELECT jsonb_agg(date_value) FROM jsonb_array_elements_text(tse.datasevento) AS s(date_value)
-        //                  WHERE ${phaseFilterSql})
-        //             )) AS diarias_utilizadas_por_funcao
-        //         FROM
-        //             staffeventos tse
-        //         JOIN staffempresas semp ON semp.idstaff = tse.idstaff
-        //         WHERE
-        //             semp.idempresa = $1 ${wherePeriodoFinal}
-        //             --AND EXISTS (
-        //             --    SELECT 1 FROM jsonb_array_elements_text(tse.datasevento) AS s_check(date_value_check)
-        //             --    WHERE s_check.date_value_check::date >= $2::date AND s_check.date_value_check::date <= $3::date
-        //             --)
-        //             ${evento && evento !== "todos" ? `AND tse.idevento = $${params.indexOf(evento) + 1}` : ''}
-        //             ${cliente && cliente !== "todos" ? `AND tse.idcliente = $${params.indexOf(cliente) + 1}` : ''}
-        //             ${equipe && equipe !== "todos" ? `AND tse.idequipe = $${params.indexOf(equipe) + 1}` : ''}
-                  
-
-        //         GROUP BY
-        //             tse.idevento, tse.idcliente, semp.idempresa, tse.nmfuncao
-        //     ) AS td ON td.idevento = o.idevento
-        //             AND td.idcliente = o.idcliente
-        //             AND td.idempresa = oe.idempresa
-        //             AND td.nmfuncao = oi.produto
-        //     WHERE
-        //         oe.idempresa = $1
-        //         AND EXISTS (
-        //             SELECT 1
-        //             FROM staffeventos inner_tse
-        //             JOIN staffempresas inner_semp ON inner_semp.idstaff = inner_tse.idstaff AND inner_semp.idempresa = oe.idempresa
-        //             CROSS JOIN jsonb_array_elements_text(inner_tse.datasevento) AS inner_event_date
-        //             WHERE inner_tse.idevento = o.idevento
-        //             AND inner_tse.idcliente = o.idcliente
-        //             AND inner_event_date::date >= $2::date
-        //             AND inner_event_date::date <= $3::date
-        //             ${evento && evento !== "todos" ? `AND inner_tse.idevento = $${params.indexOf(evento) + 1}` : ''}
-        //             ${cliente && cliente !== "todos" ? `AND inner_tse.idcliente = $${params.indexOf(cliente) + 1}` : ''}
-        //             ${equipe && equipe !== "todos" ? `AND inner_tse.idequipe = $${params.indexOf(equipe) + 1}` : ''}                  
-                
-        //         )
-        //     GROUP BY
-        //         o.idevento,
-        //         o.nrorcamento,
-        //         oi.produto
-        //     ORDER BY
-        //         o.idevento,
-        //         o.nrorcamento,
-        //         oi.produto;
-        // `;
 
         const queryUtilizacaoDiarias = `
 SELECT
