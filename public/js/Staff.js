@@ -1746,7 +1746,7 @@ const carregarTabelaStaff = async (funcionarioId) => {
                      (parseFloat(eventData.vlrcaixinha || 0) > 0 ? statusCxnha === "pago" : true);
 
 
-                const bloqueioParcial = !temPermissaoTotal && (statusAjd === "pago" || statusCache === "pago" || statusCxnha === "pago");
+                const bloqueioParcial = !temPermissaoTotal && (statusCache === "pago" || statusCxnha === "pago");
 
                 const row = eventsTableBody.insertRow();
                 row.dataset.eventData = JSON.stringify(eventData);
@@ -3468,8 +3468,10 @@ async function verificaStaff() {
             else {
                 //if (FUNCOES_EXCECAO_IDS.includes(String(idFuncaoDoFormulario))) {
                 //limiteMaximo = 2; //JOÃO PEDIU PARA RETIRAR LIMITE, DEIXAR COMO 0 E FAZER SOLICITAÇÃO SÓ CADASTRA SE ELE AUTORIZAR
-                limiteMaximo = 0; // SEM LIMITE PADRÃO
-                motivoLiberacao = "É permitido até 2 agendamentos, por funcionário para o mesmo dia.";
+                //motivoLiberacao = "É permitido até 2 agendamentos, por funcionário para o mesmo dia.";
+
+                limiteMaximo = 1; // SEM LIMITE PADRÃO
+                motivoLiberacao = "O limite padrão é de 1 agendamento por funcionário para o mesmo dia. Para exceder esse limite, é necessário solicitar autorização.";
             } 
             
            
@@ -3970,14 +3972,18 @@ async function verificaStaff() {
             //     }
             // }
 
-            if (vlrCaixinha === 0) { 
+            if (!statusCaixinha || statusCaixinha.trim() === '') { 
                 // Se não tem valor, o status deve ser vazio, conforme solicitado.
-                statusCaixinha = '';  
+                statusCaixinha = 'Pendente';
             }
 
-            if (vlrAjusteCusto === 0) { 
+            if (statusCaixinha === 'Autorizado') {      
+                statuspgtocaixinha = 'Pendente';
+            }
+
+            if (!statusAjusteCusto || statusAjusteCusto.trim() === '') { 
                 // Se não tem valor, o status deve ser vazio, conforme solicitado.
-                statusAjusteCusto = '';  
+                statusAjusteCusto = 'Pendente'; 
             }
 
             // if (statusPgtoAjusteCusto !== "Pago" && statusPgtoAjusteCusto !== "Pago50") {
