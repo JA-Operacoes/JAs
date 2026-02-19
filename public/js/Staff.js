@@ -1746,7 +1746,7 @@ const carregarTabelaStaff = async (funcionarioId) => {
                      (parseFloat(eventData.vlrcaixinha || 0) > 0 ? statusCxnha === "pago" : true);
 
 
-                const bloqueioParcial = !temPermissaoTotal && (statusAjd === "pago" || statusCache === "pago" || statusCxnha === "pago");
+                const bloqueioParcial = !temPermissaoTotal && (statusCache === "pago" || statusCxnha === "pago");
 
                 const row = eventsTableBody.insertRow();
                 row.dataset.eventData = JSON.stringify(eventData);
@@ -3970,14 +3970,18 @@ async function verificaStaff() {
             //     }
             // }
 
-            if (vlrCaixinha === 0) { 
-                // Se não tem valor, o status deve ser vazio, conforme solicitado.
-                statusCaixinha = '';  
+            if (!statusCaixinha || statusCaixinha.trim() === '') { 
+                // Se o status vir vazio do banco ou for inexistente, define como Pendente
+                statusCaixinha = 'Pendente';
             }
 
-            if (vlrAjusteCusto === 0) { 
-                // Se não tem valor, o status deve ser vazio, conforme solicitado.
-                statusAjusteCusto = '';  
+            if (statusCaixinha === 'Autorizado') {
+                // Se está autorizado, o status de pagamento da caixinha deve ser Pendente
+                statusPgtoCaixinha = 'Pendente';
+            } 
+
+           if (!statusAjusteCusto || statusAjusteCusto.trim() === '') { 
+                statusAjusteCusto = 'Pendente';  
             }
 
             // if (statusPgtoAjusteCusto !== "Pago" && statusPgtoAjusteCusto !== "Pago50") {
