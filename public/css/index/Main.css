@@ -500,6 +500,65 @@ button#btnVoltarorc {
     justify-content: space-around;
 }
 
+/* accordion mestre para encolher/mostrar eventos e contas a pagar */
+
+/* Botão Principal (Mestre) */
+.accordion-mestre-header {
+    width: 100%;
+    background-color: #f1f3f4;
+    color: #202124;
+    padding: 18px 20px;
+    border: 1px solid #dadce0;
+    border-radius: 10px;
+    text-align: left;
+    font-size: 1.15rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+/* Estilo inicial da setinha */
+.setinha {
+    display: inline-block;
+    transition: transform 0.3s ease;
+    font-size: 0.8em;
+}
+
+/* Quando o botão estiver ativo, a setinha gira 90 graus para baixo */
+.accordion-mestre-header.active .setinha {
+    transform: rotate(90deg);
+}
+/* Estilo para o contador (o que fica entre parênteses) */
+.accordion-mestre-header small {
+    opacity: 0.7;
+    font-weight: normal;
+    margin-left: auto; /* Joga o contador para a direita, se preferir */
+}
+
+.accordion-mestre-header:hover {
+    background-color: #e8eaed;
+}
+
+.accordion-mestre-header.active {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    background-color: #ffffff;
+    border-bottom: 2px solid #800000; /* Linha de destaque */
+}
+
+/* Espaçamento interno para os itens que vão aparecer */
+#container-mestre-eventos, #container-mestre-contas {
+    padding: 15px;
+    background: #fafafa;
+    border: 1px solid #dadce0;
+    border-top: none;
+    border-radius: 0 0 10px 10px;
+    margin-bottom: 20px;
+}
+
 .valor-container {
     display: flex;
     gap: 20px;
@@ -1279,9 +1338,9 @@ span.verMais {
    ANIMAÇÕES PULSAR POR COR
 =========================== */
 @keyframes pulsar-vermelho {
-  0% { box-shadow: 0 0 0 0 rgba(249, 22, 22, 0.6); }
-  70% { box-shadow: 0 0 0 10px rgba(249, 22, 22, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(249, 22, 22, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(249, 22, 22, 0.6)!important; }
+  70% { box-shadow: 0 0 0 10px rgba(249, 22, 22, 0)!important; }
+  100% { box-shadow: 0 0 0 0 rgba(249, 22, 22, 0)!important; }
 }
 @keyframes pulsar-vermelho2 {
   0% { box-shadow: 0 0 0 0 rgba(249, 22, 22, 0.6); }
@@ -1293,9 +1352,9 @@ span.verMais {
 }
 
 @keyframes pulsar-amarelo {
-  0% { box-shadow: 0 0 0 0 rgba(255, 204, 0, 0.6); }
-  70% { box-shadow: 0 0 0 10px rgba(255, 204, 0, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(255, 204, 0, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(255, 204, 0, 0.6)!important; }
+  70% { box-shadow: 0 0 0 10px rgba(255, 204, 0, 0)!important; }
+  100% { box-shadow: 0 0 0 0 rgba(255, 204, 0, 0)!important; }
 }
 
 @keyframes pulsar-verde {
@@ -1304,7 +1363,25 @@ span.verMais {
   100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
 }
 
+@keyframes flash-success {
+    0% { background-color: transparent; }
+    30% { background-color: #d4edda; } /* Verde bem clarinho */
+    100% { background-color: transparent; }
+}
 
+.linha-flash-sucesso {
+    animation: flash-success 2s ease-out;
+}
+
+.pulse-vencido {
+    animation: pulsar-vermelho 2s infinite !important;
+    border-color: #d9534f !important; /* Força a borda a combinar */
+}
+
+.pulse-hoje {
+    animation: pulsar-amarelo 2s infinite !important;
+    border-color: #f0ad4e !important; /* Força a borda a combinar */
+}
 /* ===== CORPO (DETALHES) ===== */
 .evento-body {
   max-height: 0;
@@ -1748,7 +1825,7 @@ div#calendarioVertical {
   overflow-y: auto;
   scrollbar-width: thin;
   /* max-height: 500px; */
-  max-height: 700px;
+  max-height: 800px;
   height: 100%;
   align-items: flex-start;
   justify-content: flex-start;
@@ -1944,6 +2021,129 @@ div#calendarioVertical {
   transform: scale(1.05);
   transition: transform 0.1s ease;
 }
+
+/* novo para colocar pagos e a pagar por evento */
+.evento-info-container-inline {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    gap: 15px;
+}
+
+.evento-titulo-col {
+    flex: 1; /* Faz o nome do evento ocupar o espaço restante */
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.evento-valores-col {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    font-size: 17px;
+}
+
+.fin-resumo-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-left: 10px;
+    border-left: 1px solid #ddd;
+}
+
+.label-categoria {
+    font-weight: 800;
+    color: #666;
+}
+
+.fin-resumo-item .pg {
+    color: #2e7d32; /* Verde para Pagos */
+}
+
+.fin-resumo-item .ap {
+    color: #c62828; /* Vermelho para A Pagar */
+}
+
+.fin-resumo-item.orcado {
+    background: #f8f9fa;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border-left: none;
+}
+/* fim no novo cache e ajuda por evento */
+
+/* ALERTA DE VENCIMENTO */
+.dot-alerta {
+  height: 10px;
+  width: 10px;
+  background-color: #ff0000;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 5px;
+  box-shadow: 0 0 0 rgba(255, 0, 0, 0.4);
+  animation: pulso-alerta 1.5s infinite;
+}
+
+@keyframes pulso-alerta {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+}
+
+/* FIM ALERTA VENCIMENTO */
+
+/* CONTAS A PAGAR */
+/* Título da seção de contas fixas */
+.titulo-secao-financeira {
+    background: #f4f4f4;
+    padding: 15px;
+    margin: 30px 0 15px 0;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    color: #5c2d91; /* Roxo para diferenciar */
+    border-left: 5px solid #5c2d91;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Estilo para cards de contas fixas */
+.accordion-item.conta-fixa {
+    border-left: 4px solid #999;
+}
+
+.accordion-item.conta-fixa .label-categoria {
+    color: #666;
+    font-size: 0.75rem;
+}
+
+.titulo-secao-financeira {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #444;
+    padding: 10px 5px;
+    margin-bottom: 15px;
+    border-bottom: 2px solid #eee; /* Linha divisória discreta */
+}
+
+/* Opcional: cores diferentes para os ícones ou bordas laterais */
+.titulo-secao-financeira:first-of-type {
+    border-left: 4px solid #007bff; /* Azul para Eventos */
+    padding-left: 15px;
+}
+
+.titulo-secao-financeira:nth-of-type(2) {
+    border-left: 4px solid #5c2d91; /* Roxo para Contas */
+    padding-left: 15px;
+}
+/* FIM CONTAS A PAGAR */
+
 
 .dark-mode .icon {
   color: #fff; /* se usar tema escuro */
@@ -2624,11 +2824,49 @@ body.dark .indicador-evento {
 .btn-pago { background-color: #28a745; }
 .btn-pago:hover { background-color: #218838; }
 
-.btn-suspenso { background-color: #ff7f07; color: #000; }
-.btn-suspenso:hover { background-color: #e06c00; }
+.btn-suspenso { background-color: #ffc107; color: #000; }
+.btn-suspenso:hover { background-color: #ffc107; }
 
 .btn-complementar {background-color: #17a2b8; color: white;}
 .btn-complementar:hover {background-color: #117483;}
+
+
+/* 1. Estilo da linha (container) */
+.linha-suspensa {
+    background-color: #e7e8e8 !important; /* Fundo cinza bem claro */
+    opacity: 0.7; /* Deixa um pouco "apagado", mas totalmente legível */
+    transition: opacity 0.3s;
+}
+
+.linha-suspensa:hover {
+    opacity: 1; /* Quando passar o mouse, ele ganha nitidez total */
+}
+
+/* 3. PROTEÇÃO: Remove o risco de ícones, botões e links */
+/* Agrupamos todos os seletores que NÃO devem ter o risco */
+.linha-suspensa td i, 
+.linha-suspensa td .fas, 
+.linha-suspensa td .far, 
+.linha-suspensa td button, 
+.linha-suspensa td a,
+.linha-suspensa td .badge {
+    text-decoration: none !important; /* Remove o risco */
+    display: inline-block;           /* Ajuda a isolar o elemento do texto ao lado */
+}
+
+/* 4. Destaque para o botão de reverter */
+/* Como a linha está com opacidade 0.6, o botão pode ficar muito apagado. 
+   Forçamos ele a ficar 100% visível ao passar o mouse. */
+.btn-reverter-suspensao {
+    color: #ffc107;
+    cursor: pointer;
+    transition: transform 0.2s, opacity 0.2s;
+}
+
+.btn-reverter-suspensao:hover {
+    transform: scale(1.1);
+    opacity: 1 !important;
+}
 
 /* Estilo para as Datas do Evento */
 .categoria-bloco .datas-evento {
@@ -2701,6 +2939,13 @@ p.pendentes-pagos {
 .resumo-categorias-totais {
     display: flex;
     justify-content: space-evenly;
+}
+
+.resumo-status.three-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 15px;
+    text-align: center;
 }
 
 .AJDC, .CACHE {

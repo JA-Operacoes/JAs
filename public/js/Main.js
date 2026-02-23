@@ -1950,88 +1950,88 @@ try {
 
   // Movida a lógica de mapeamento para uma função separada para reuso
   function normalizarEvento(ev) {
-  const inicio_realizacao = ev.dtinirealizacao || ev.dtinimontagem || ev.dtinimarcacao;
-  const fim_realizacao = ev.dtfimrealizacao || ev.dtfimdesmontagem || ev.dtfimmontagem;
-  const data_referencia = ev.dtinimontagem || ev.dtinirealizacao || ev.dtinimarcacao;
-  const fim_evento = ev.dtfimdesmontagem || ev.dtfimrealizacao;
+    const inicio_realizacao = ev.dtinirealizacao || ev.dtinimontagem || ev.dtinimarcacao;
+    const fim_realizacao = ev.dtfimrealizacao || ev.dtfimdesmontagem || ev.dtfimmontagem;
+    const data_referencia = ev.dtinimontagem || ev.dtinirealizacao || ev.dtinimarcacao;
+    const fim_evento = ev.dtfimdesmontagem || ev.dtfimrealizacao;
 
-  // O backend já está retornando equipes_detalhes, vamos usá-lo se disponível
-  let equipesDetalhes = Array.isArray(ev.equipes_detalhes) ? ev.equipes_detalhes : [];
+    // O backend já está retornando equipes_detalhes, vamos usá-lo se disponível
+    let equipesDetalhes = Array.isArray(ev.equipes_detalhes) ? ev.equipes_detalhes : [];
 
-  return {
-  ...ev,
-  data_referencia,
-  inicio_realizacao,
-  fim_realizacao,
-  fim_evento,
-  total_staff: ev.total_staff ?? ev.totalStaff ?? 0,
-  equipes_detalhes: equipesDetalhes // Garante que o campo existe
-  };
+    return {
+        ...ev,
+        data_referencia,
+        inicio_realizacao,
+        fim_realizacao,
+        fim_evento,
+        total_staff: ev.total_staff ?? ev.totalStaff ?? 0,
+        equipes_detalhes: equipesDetalhes // Garante que o campo existe
+    };
   }
 
   function parseDateLocal(dataISO) {
-  if (!dataISO) return "";
-  const data = new Date(dataISO);
-  if (isNaN(data)) return dataISO; // se não for uma data válida
-  // Usa o toLocaleDateString com fuso horário UTC para evitar problemas de offset
-  return data.toLocaleDateString("pt-BR", { timeZone: "UTC" }); 
+    if (!dataISO) return "";
+    const data = new Date(dataISO);
+    if (isNaN(data)) return dataISO; // se não for uma data válida
+    // Usa o toLocaleDateString com fuso horário UTC para evitar problemas de offset
+    return data.toLocaleDateString("pt-BR", { timeZone: "UTC" }); 
   }
 
   // Ajuste para criarCard para aceitar o formato de data no cálculo de dias
-  function parseDateForComparison(dateStr) {
-  if (!dateStr) return null;
-  if (typeof dateStr === "string") {
-  // Regex simples para ISO date sem time
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  // Cria a data no fuso zero (meia-noite UTC)
-  return new Date(Date.UTC(y, m - 1, d)); 
-  }
-  // Tenta criar a data normal, mas ajusta para meia-noite local para comparação
-  const d = new Date(dateStr);
-  if (isNaN(d)) return null;
-  d.setHours(0, 0, 0, 0);
-  return d;
-  }
-  if (dateStr instanceof Date) {
-  dateStr.setHours(0, 0, 0, 0);
-  return dateStr;
-  }
-  return null;
-  }
+function parseDateForComparison(dateStr) {
+    if (!dateStr) return null;
+    if (typeof dateStr === "string") {
+        // Regex simples para ISO date sem time
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            const [y, m, d] = dateStr.split("-").map(Number);
+            // Cria a data no fuso zero (meia-noite UTC)
+            return new Date(Date.UTC(y, m - 1, d)); 
+        }
+        // Tenta criar a data normal, mas ajusta para meia-noite local para comparação
+        const d = new Date(dateStr);
+        if (isNaN(d)) return null;
+        d.setHours(0, 0, 0, 0);
+        return d;
+    }
+    if (dateStr instanceof Date) {
+        dateStr.setHours(0, 0, 0, 0);
+        return dateStr;
+    }
+    return null;
+}
 
 
   // ======= Função para criar card de evento =======
   // MANTIDA A LÓGICA DE ALERTA, MAS USANDO FUNÇÕES CORRIGIDAS PARA DATA
   function normalizarEvento(ev) {
-  const inicio_realizacao = ev.dtinirealizacao || ev.dtinimontagem || ev.dtinimarcacao;
-  const fim_realizacao = ev.dtfimrealizacao || ev.dtfimdesmontagem || ev.dtfimmontagem;
-  const data_referencia = ev.dtinimontagem || ev.dtinirealizacao || ev.dtinimarcacao;
-  const fim_evento = ev.dtfimdesmontagem || ev.dtfimrealizacao;
+    const inicio_realizacao = ev.dtinirealizacao || ev.dtinimontagem || ev.dtinimarcacao;
+    const fim_realizacao = ev.dtfimrealizacao || ev.dtfimdesmontagem || ev.dtfimmontagem;
+    const data_referencia = ev.dtinimontagem || ev.dtinirealizacao || ev.dtinimarcacao;
+    const fim_evento = ev.dtfimdesmontagem || ev.dtfimrealizacao;
 
-  let equipesDetalhes = Array.isArray(ev.equipes_detalhes) ? ev.equipes_detalhes : [];
+    let equipesDetalhes = Array.isArray(ev.equipes_detalhes) ? ev.equipes_detalhes : [];
 
-  // 🛑 CORREÇÃO DE DADOS: Recalcula totais a partir dos detalhes das equipes para garantir consistência
-  const totalVagasCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.total_vagas || 0), 0);
-  const totalStaffCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.preenchidas || 0), 0);
-  const vagasRestantesCalculado = totalVagasCalculado - totalStaffCalculado;
+    // 🛑 CORREÇÃO DE DADOS: Recalcula totais a partir dos detalhes das equipes para garantir consistência
+    const totalVagasCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.total_vagas || 0), 0);
+    const totalStaffCalculado = equipesDetalhes.reduce((sum, item) => sum + (item.preenchidas || 0), 0);
+    const vagasRestantesCalculado = totalVagasCalculado - totalStaffCalculado;
 
-  return {
-  ...ev,
-  data_referencia,
-  inicio_realizacao,
-  fim_realizacao,
-  fim_evento,
+    return {
+        ...ev,
+        data_referencia,
+        inicio_realizacao,
+        fim_realizacao,
+        fim_evento,
 
-  // 🛑 Usa os totais calculados para o status principal
-  total_vagas: totalVagasCalculado,
-  total_staff: totalStaffCalculado,
-  vagas_restantes: vagasRestantesCalculado,
+        // 🛑 Usa os totais calculados para o status principal
+        total_vagas: totalVagasCalculado,
+        total_staff: totalStaffCalculado,
+        vagas_restantes: vagasRestantesCalculado,
 
-  total_staff_api: ev.total_staff, // Mantém o valor original do backend para referência (opcional)
-  equipes_detalhes: equipesDetalhes
-  };
-  }
+        total_staff_api: ev.total_staff, // Mantém o valor original do backend para referência (opcional)
+        equipes_detalhes: equipesDetalhes
+    };
+}
 
 function criarCard(evt) {
   const hoje = new Date();
@@ -2055,54 +2055,54 @@ function criarCard(evt) {
 
   // === Lógica de Status do Evento (Sem alteração) ===
   if (dataFimDesmontagem && dataFimDesmontagem < hoje) {
-  if (percentual === 0) {
-  alertaTexto = "✔ Realizado sem staff";
-  alertaClasse = "status-realizado-vermelho";
-  } else if (percentual < 100) {
-  alertaTexto = `✔ Realizado - Staff parcial (${percentual}% Cadastrado)`;
-  alertaClasse = "status-realizado-amarelo";
-  } else { // >= 100%
-  alertaTexto = "✔ Realizado - Staff OK";
-  alertaClasse = "status-realizado-verde";
-  }
+    if (percentual === 0) {
+        alertaTexto = "✔ Realizado sem staff";
+        alertaClasse = "status-realizado-vermelho";
+    } else if (percentual < 100) {
+        alertaTexto = `✔ Realizado - Staff parcial (${percentual}% Cadastrado)`;
+        alertaClasse = "status-realizado-amarelo";
+    } else { // >= 100%
+        alertaTexto = "✔ Realizado - Staff OK";
+        alertaClasse = "status-realizado-verde";
+    }
 
   } else if (inicioRealizacao && fimRealizacao && hoje >= inicioRealizacao && hoje <= fimRealizacao) {
-  if (percentual === 0) {
-  alertaTexto = "🚨 Sem staff — Realizando";
-  alertaClasse = "status-realizando-vermelho";
-  } else if (percentual < 100) {
-  alertaTexto = `⚠️ Staff faltando - Realizando (${percentual}%)`;
-  alertaClasse = "status-realizando-amarelo";
-  } else { // >= 100%
-  alertaTexto = "✅ Staff OK - Realizando";
-  alertaClasse = "status-realizando-verde";
-  }
+    if (percentual === 0) {
+        alertaTexto = "🚨 Sem staff — Realizando";
+        alertaClasse = "status-realizando-vermelho";
+    } else if (percentual < 100) {
+        alertaTexto = `⚠️ Staff faltando - Realizando (${percentual}%)`;
+        alertaClasse = "status-realizando-amarelo";
+    } else { // >= 100%
+        alertaTexto = "✅ Staff OK - Realizando";
+        alertaClasse = "status-realizando-verde";
+    }
 
   } else if (diasFaltam !== null && diasFaltam <= 5 && diasFaltam >= 0) {
-  const diasText = `${diasFaltam} dia${diasFaltam !== 1 ? "s" : ""}`;
+    const diasText = `${diasFaltam} dia${diasFaltam !== 1 ? "s" : ""}`;
 
-  if (percentual === 0) {
-  alertaTexto = `🚨 Sem staff — faltam ${diasText}`;
-  alertaClasse = "status-urgente-vermelho";
-  } else if (percentual < 100) {
-  alertaTexto = `⚠️ Staff faltando (${percentual}% Cadastrado) — faltam ${diasText} p/ realização`;
-  alertaClasse = "status-urgente-amarelo";
-  } else { // >= 100%
-  alertaTexto = `✅ Staff OK — faltam ${diasText}`;
-  alertaClasse = "status-urgente-verde";
-  }
+    if (percentual === 0) {
+        alertaTexto = `🚨 Sem staff — faltam ${diasText}`;
+        alertaClasse = "status-urgente-vermelho";
+    } else if (percentual < 100) {
+        alertaTexto = `⚠️ Staff faltando (${percentual}% Cadastrado) — faltam ${diasText} p/ realização`;
+        alertaClasse = "status-urgente-amarelo";
+    } else { // >= 100%
+        alertaTexto = `✅ Staff OK — faltam ${diasText}`;
+        alertaClasse = "status-urgente-verde";
+    }
 
   } else {
-  if (percentual === 0) {
-  alertaTexto = "🚨 Sem staff";
-  alertaClasse = "status-pendente-vermelho";
-  } else if (percentual < 100) {
-  alertaTexto = `⚠️ Staff faltando (${percentual}% Cadastrado)`;
-  alertaClasse = "status-pendente-amarelo";
-  } else { // >= 100%
-  alertaTexto = "✅ Staff OK";
-  alertaClasse = "status-pendente-verde";
-  }
+    if (percentual === 0) {
+        alertaTexto = "🚨 Sem staff";
+        alertaClasse = "status-pendente-vermelho";
+    } else if (percentual < 100) {
+        alertaTexto = `⚠️ Staff faltando (${percentual}% Cadastrado)`;
+        alertaClasse = "status-pendente-amarelo";
+    } else { // >= 100%
+        alertaTexto = "✅ Staff OK";
+        alertaClasse = "status-pendente-verde";
+    }
   }
 
   // Converte a data de Fim de Desmontagem para exibição (string formatada)
@@ -5139,6 +5139,7 @@ function gerarHTMLComprovanteDinamico(idStaff, filtro, statusTexto, htmlAtual = 
 
     return extrairBotao("Ver") || (éPagamentoTotal ? renderBotaoUploadUiverse(idStaff, filtro) : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>');
 }
+
 window.handleFileUpload = async function(input, idStaff, tipo, idFuncionario = null) {
     const file = input.files[0];
     if (!file) return;
@@ -5215,7 +5216,7 @@ window.abrirComprovanteSwal = function(encodedUrl) {
         denyButtonColor: '#2ecc71',
     };
 
-    if (ext === 'pdf') {
+   // if (ext === 'pdf') {
         Swal.fire({
             ...configBase,
             text: 'Deseja visualizar o PDF ou baixar o arquivo?',
@@ -5226,13 +5227,13 @@ window.abrirComprovanteSwal = function(encodedUrl) {
             if (res.isConfirmed) window.open(url, '_blank');
             else if (res.isDenied) triggerDownload(url);
         });
-    } else {
-        Swal.fire({
-            ...configBase,
-            text: 'Este arquivo é uma imagem ou formato de download. Deseja baixar?',
-            confirmButtonText: '<i class="fas fa-download"></i> Baixar Arquivo'
-        }).then(res => { if (res.isConfirmed) triggerDownload(url); });
-    }
+    // } else {
+    //     Swal.fire({
+    //         ...configBase,
+    //         text: 'Este arquivo é uma imagem ou formato de download. Deseja baixar?',
+    //         confirmButtonText: '<i class="fas fa-download"></i> Baixar Arquivo'
+    //     }).then(res => { if (res.isConfirmed) triggerDownload(url); });
+    // }
 };
 
 function triggerDownload(url) {
@@ -5312,244 +5313,2206 @@ function renderBotaoUploadUiverse(idStaff, tipo, idFuncionario = null) {
     `;
 }
 
-// ======================================================
+// =============CONTAS A PAGAR==========
 
+function verificarSeEventoEstaNoIntervalo(ev, inicio, fim) {
+    const parseData = (dStr) => {
+        if (!dStr || dStr === '---') return null;
+        const [d, m, y] = dStr.split('/').map(Number);
+        return new Date(y, m - 1, d);
+    };
+
+    const dAj = parseData(ev.dataVencimentoAjuda);
+    const dCh = parseData(ev.dataVencimentoCache);
+    
+    const vencimentoNaSemana = (dAj && dAj >= inicio && dAj <= fim) || (dCh && dCh >= inicio && dCh <= fim);
+    const escalaNaSemana = ev.funcionarios?.some(f => {
+        const dF = parseData(f.data);
+        return dF && dF >= inicio && dF <= fim;
+    });
+
+    return vencimentoNaSemana || escalaNaSemana;
+}
+
+
+function obterIntervaloDatasFiltro() {
+    const filtroTipo = document.querySelector('input[name="periodo"]:checked')?.value || 'diario';
+    const inputDataStr = document.querySelector("#sub-filtro-data")?.value;
+    const mesSel = document.querySelector("#sub-filtro-select")?.value;
+
+    // 1. Pega o ano do Card Financeiro
+    const selectAno = document.getElementById('selectAno');
+    const anoRef = selectAno ? parseInt(selectAno.value, 10) : new Date().getFullYear();
+
+    let inicio, fim;
+
+    // 2. LÓGICA DE DIA (Selecione o dia)
+    if (filtroTipo === 'diario') {
+        if (inputDataStr) {
+            // Se o usuário escolheu um dia no calendário, usamos esse dia mas FORÇAMOS o ano do Card
+            const partes = inputDataStr.split("-"); // [yyyy, mm, dd]
+            inicio = new Date(anoRef, partes[1] - 1, partes[2]);
+        } else {
+            // Se não escolheu, usamos o dia/mês de HOJE mas no ANO do Card
+            const hoje = new Date();
+            inicio = new Date(anoRef, hoje.getMonth(), hoje.getDate());
+        }
+        fim = new Date(inicio);
+    } 
+    // 3. LÓGICA MENSAL
+    else if (filtroTipo === "mensal") {
+        const mesIndex = mesSel ? (parseInt(mesSel) - 1) : new Date().getMonth();
+        inicio = new Date(anoRef, mesIndex, 1);
+        fim = new Date(anoRef, mesIndex + 1, 0);
+    }
+    // 4. LÓGICA TRIMESTRAL
+    else if (filtroTipo === "trimestral" || filtroTipo === "trimestre") {
+        const mesIndex = mesSel ? (parseInt(mesSel) - 1) : new Date().getMonth();
+        const trimInicio = Math.floor(mesIndex / 3) * 3;
+        inicio = new Date(anoRef, trimInicio, 1);
+        fim = new Date(anoRef, trimInicio + 3, 0);
+    }
+    // 5. LÓGICA SEMANAL
+    else if (filtroTipo === "semanal" && inputDataStr) {
+        const partes = inputDataStr.split("-");
+        inicio = new Date(anoRef, partes[1] - 1, partes[2]);
+        fim = new Date(inicio);
+        fim.setDate(inicio.getDate() + 7);
+    } else {
+        // Fallback: Ano inteiro do Card
+        inicio = new Date(anoRef, 0, 1);
+        fim = new Date(anoRef, 11, 31);
+    }
+
+    inicio.setHours(0, 0, 0, 0);
+    fim.setHours(23, 59, 59, 999);
+
+    console.log(`✅ FILTRO SINCRONIZADO COM CARD (${anoRef}): ${inicio.toLocaleDateString()} até ${fim.toLocaleDateString()}`);
+    return { inicio, fim };
+}
 
 async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) { 
+    let contasProjetadas = [];
+    let dados = [];
+    let contasParaExibir = [];
+
     if (!conteudoGeral) return;
     conteudoGeral.innerHTML = '<h3>Carregando dados financeiros...</h3>';
-    if (valoresResumoElement) valoresResumoElement.innerHTML = '';
+   
+    if (valoresResumoElement) valoresResumoElement.innerHTML = '';    
 
-    const params = construirParametrosFiltro();
-    const url = `/main/vencimentos${params}`;
+    
+    const filtroTipo = document.querySelector('input[name="periodo"]:checked')?.value || 'diario';
+    const inputDataStr = document.querySelector("#sub-filtro-data")?.value;
+    const anoSelecionado = parseInt(document.getElementById('selectAno')?.value) || new Date().getFullYear();
+
+    let dataAlvoBR = "";
+    let hojeRelativo = new Date(); // Referência para saber o que é "Vencido"
+
+    if (inputDataStr) {
+        const [ano, mes, dia] = inputDataStr.split("-");
+        dataAlvoBR = `${dia}/${mes}/${ano}`;
+    }
+
+    // Se o usuário está vendo um ano anterior (ex: 2025), o "hoje" para cálculos de 
+    // vencimento deve ser o último dia daquele ano, ou os dados nunca aparecerão como "a vencer"
+    if (anoSelecionado < new Date().getFullYear()) {
+        hojeRelativo = new Date(anoSelecionado, 11, 31, 23, 59, 59);
+    } else if (anoSelecionado > new Date().getFullYear()) {
+        hojeRelativo = new Date(anoSelecionado, 0, 1, 0, 0, 0);
+    }
+    hojeRelativo.setHours(0,0,0,0);
+
+    let params = construirParametrosFiltro();
+
+    // 1. Removemos o ano que venha do filtro padrão para não dar conflito
+    params = params.split('&').filter(p => !p.startsWith('ano=') && !p.startsWith('?ano=')).join('&');
+    if (!params.startsWith('?')) params = '?' + params;
+
+    // 2. Garante a troca de período se necessário
+    if (filtroTipo === "diario" || filtroTipo === "semanal") {
+        params = params.replace("periodo=diario", "periodo=mensal").replace("periodo=semanal", "periodo=mensal");
+    }
+
+    // 3. Agora sim, injeta o ano selecionado no card4
+    const paramsComAno = `${params}&ano=${anoSelecionado}`;
+
+    
+
+   // console.log("AGORA VAI:", paramsComAno);
 
     try {
-        const dados = await fetchComToken(url);
-        if (!dados || !dados.eventos || dados.eventos.length === 0) {
-            conteudoGeral.innerHTML = '<p class="alerta-info">Nenhum dado encontrado.</p>';
-            return;
-        }
+       // const paramsComAno = params.includes("ano=") ? params : `${params}&ano=${anoSelecionado}`;
 
-        // Bloqueio Global do Botão Caixinha no Topo
-        const totalCaixinhaGeral = dados.eventos.reduce((acc, ev) => acc + (ev.caixinha?.total || 0), 0);
+       // console.log("PARAMSCOMANO", paramsComAno);
+
+        const [resEventos, resContas] = await Promise.all([
+            fetchComToken(`/main/vencimentos${paramsComAno}`), 
+            fetchComToken(`/main/contas-pagar${paramsComAno}`) // Adicione o parâmetro aqui também
+        ]);
+
+        
+        dados = resEventos?.eventos || [];
+
+        console.log("DADOS EVENTOS", dados);
+
+        
+
+        dados = dados.filter(ev => {
+            const ajPendente = parseFloat(ev.ajuda?.pendente) || 0;
+            const chPendente = parseFloat(ev.cache?.pendente) || 0;
+            
+            // --- CONSOLE PARA RASTREAR O EVENTO ESPECÍFICO ---
+            if (ev.dataVencimentoAjuda?.includes("/03") || ev.dataVencimentoCache?.includes("/03")) {
+                console.log(`🔎 Rastreando Staff: ${ev.nomeEvento}`, {
+                    vencAjuda: ev.dataVencimentoAjuda,
+                    vencCache: ev.dataVencimentoCache,
+                    tipoFiltro: filtroTipo,
+                    anoSelecionado: anoSelecionado
+                });
+            }
+
+            let estaVencido = false;
+            [{d: ev.dataVencimentoAjuda, v: ajPendente}, {d: ev.dataVencimentoCache, v: chPendente}].forEach(item => {
+                if (item.d && item.d !== '---' && item.v > 0) {
+                    const [d, m, a] = item.d.split('/').map(Number);
+                    if (new Date(a, m - 1, d) < hojeRelativo) estaVencido = true;
+                }
+            });
+
+            if (estaVencido) return true; 
+
+            // Extração de datas para o filtro mensal/trimestral
+            const mAj = ev.dataVencimentoAjuda !== '---' ? parseInt(ev.dataVencimentoAjuda.split('/')[1]) : null;
+            const aAj = ev.dataVencimentoAjuda !== '---' ? parseInt(ev.dataVencimentoAjuda.split('/')[2]) : null;
+            const mCh = ev.dataVencimentoCache !== '---' ? parseInt(ev.dataVencimentoCache.split('/')[1]) : null;
+            const aCh = ev.dataVencimentoCache !== '---' ? parseInt(ev.dataVencimentoCache.split('/')[2]) : null;
+
+            // --- LÓGICA DE PERÍODOS EXPANDIDOS ---
+            if (["mensal", "trimestral", "semestral"].includes(filtroTipo)) {
+                const mesInicial = parseInt(document.querySelector("#sub-filtro-select")?.value);
+                let mesesNoPeriodo = [mesInicial];
+
+                if (filtroTipo === "trimestral") {
+                    mesesNoPeriodo = [mesInicial, mesInicial + 1, mesInicial + 2];
+                } else if (filtroTipo === "semestral") {
+                    mesesNoPeriodo = [mesInicial, mesInicial + 1, mesInicial + 2, mesInicial + 3, mesInicial + 4, mesInicial + 5];
+                }
+
+                const passouNoFiltro = (mesesNoPeriodo.includes(mAj) && aAj === anoSelecionado) || 
+                                    (mesesNoPeriodo.includes(mCh) && aCh === anoSelecionado);
+                
+                if (ev.dataVencimentoAjuda?.includes("/03")) {
+                    console.log(`📌 Resultado do Filtro para ${ev.nomeEvento}: ${passouNoFiltro ? 'PASSOU' : 'BARRADO'}`);
+                }
+
+                return passouNoFiltro;
+            }
+
+            // Se for diário ou semanal, mantém sua lógica original...
+            if (filtroTipo === "diario") {
+                return (ev.dataVencimentoAjuda === dataAlvoBR || ev.dataVencimentoCache === dataAlvoBR || ev.funcionarios?.some(f => f.data === dataAlvoBR));
+            }
+
+            return true;
+        });
+
+        // Configuração visual do filtro caixinha
+        const totalCaixinhaGeral = dados.reduce((acc, ev) => acc + (ev.caixinha?.total || 0), 0);
         const radioCaixinhaTopo = document.querySelector('input[name="categoria"][value="caixinha"]');
         if (radioCaixinhaTopo) {
             radioCaixinhaTopo.disabled = totalCaixinhaGeral === 0;
             radioCaixinhaTopo.closest('.option').classList.toggle('disabled-option', totalCaixinhaGeral === 0);
         }
 
-        const filtroSelecionadoNoTopo = document.querySelector('input[name="categoria"]:checked');
-        const categoriaInicial = filtroSelecionadoNoTopo ? filtroSelecionadoNoTopo.value : 'ajuda_custo';
+        const categoriaInicial = document.querySelector('input[name="categoria"]:checked')?.value || 'ajuda_custo';
 
         conteudoGeral.innerHTML = "";
         const accordionContainer = document.createElement("div");
         accordionContainer.className = "accordion-vencimentos";
 
-        // Funções internas de renderização (obterHeaderTabela e obterLinhasTabela permanecem iguais)
-        const obterHeaderTabela = (filtro) =>{
+        const obterHeaderTabela = (filtro) => {
             const podeVerAcoes = usuarioTemPermissaoSupremo();
-            return `
-            <tr>
-                <th>NOME / FUNÇÃO</th>
-                <th style="text-align:center">DIÁRIAS</th>
-                <th style="text-align:center">PERÍODO</th>
-                ${podeVerAcoes ? `<th style="text-align:center">AÇÕES</th>` : ''}
-                <th>COMPROVANTE(S)</th>
-                <th>STATUS</th>
-                <th>VALOR</th>
-            </tr>`;
-    };
+            return `<tr><th>NOME / FUNÇÃO</th><th style="text-align:center">DIÁRIAS</th><th style="text-align:center">PERÍODO</th>${podeVerAcoes ? `<th style="text-align:center">AÇÕES</th>` : ''}<th>COMPROVANTE(S)</th><th>STATUS</th><th>VALOR</th></tr>`;
+        };
 
         const obterLinhasTabela = (evento, filtro) => {
             let lista = evento.funcionarios || [];
             if (filtro === 'caixinha') lista = lista.filter(f => (f.totalcaixinha_filtrado || 0) > 0);
             if (lista.length === 0) return `<tr><td colspan="10" style="text-align:center; padding: 20px;">Nenhum registro.</td></tr>`;
-
             const podeVerAcoes = usuarioTemPermissaoSupremo();
-            const mostraUploadPermissao = (usuarioTemPermissao() || usuarioTemPermissaoFinanceiro());
-
             return lista.map(f => {
-                // Mapeamento de dados conforme o filtro selecionado
                 const info = {
-                    'cache': { 
-                        status: formatarStatusFront(f.statuspgto || "Pendente"), 
-                        valor: f.totalcache_filtrado, 
-                        tipoAcao: 'Cache', // <-- Corrigido para 'Cache' (Maiúsculo)
-                        comp: f.comppgtocache 
-                    },
-                    'ajuda_custo': { 
-                        status: formatarStatusFront(f.statuspgtoajdcto || "Pendente"), 
-                        valor: f.totalajudacusto_filtrado, 
-                        tipoAcao: 'Ajuda', 
-                        comp: f.comppgtoajdcusto 
-                    },
-                    'caixinha': { 
-                        status: formatarStatusFront(f.statuscaixinha || "Pendente"), 
-                        valor: f.totalcaixinha_filtrado, 
-                        tipoAcao: 'Caixinha', 
-                        comp: f.comppgtocaixinha 
-                    }
+                    'cache': { status: formatarStatusFront(f.statuspgto || "Pendente"), valor: f.totalcache_full, tipoAcao: 'Cache' },
+                    'ajuda_custo': { status: formatarStatusFront(f.statuspgtoajdcto || "Pendente"), valor: f.totalajudacusto_full, tipoAcao: 'Ajuda' },
+                    'caixinha': { status: formatarStatusFront(f.statuscaixinha || "Pendente"), valor: f.totalcaixinha_full, tipoAcao: 'Caixinha' }
                 }[filtro];
-
-                const statusLimpo = info.status.toLowerCase();
-                const estaPago = statusLimpo.startsWith('pago');
-                const classeStatus = statusLimpo.replace(/\s+/g, '-').replace('%', '');
-
-                return `
+                const estaPago = info.status.toLowerCase().startsWith('pago');
+                const classeStatus = info.status.toLowerCase().replace(/\s+/g, '-').replace('%', '');
+                //return `<tr><td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td><td style="text-align:center">${f.qtddiarias_filtradas || 0}</td><td style="text-align:center"><small>${f.periodo_eventoini_fmt || '---'}</small></td>${podeVerAcoes ? `<td style="text-align:center">${renderConteudoAcao(f.idstaffevento, info.tipoAcao, info.status)}</td>` : ''}<td class="comprovantes-cell">${estaPago ? gerarHTMLComprovanteDinamico(f.idstaffevento, filtro, info.status, criarHTMLComprovantes(f, filtro)) : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'}</td><td class="status-celula status-${classeStatus}">${info.status}</td><td>${formatarMoeda(info.valor || 0)}</td></tr>`;
+            return `
                     <tr>
-                        <td><strong>${f.nome}</strong><br><small>${f.funcao}</small></td>
-                        <td style="text-align:center">${f.qtddiarias_filtradas || 0}</td>
-                        <td style="text-align:center"><small>${f.periodo_evento || '---'}</small></td>
+                        <td>
+                            <strong>${f.nome}</strong><br>
+                            <small>${f.funcao}</small>
+                        </td>
+
+                        <td style="text-align:center">
+                            ${f.qtddiarias_filtradas || 0}
+                        </td>
+
+                        <td style="text-align:center">
+                            <small>${f.periodo_eventoini_fmt || '---'}</small>
+                        </td>
 
                         ${podeVerAcoes ? `
-                            <td class="acoes-supremo" style="text-align:center">
+                            <td style="text-align:center">
                                 ${renderConteudoAcao(f.idstaffevento, info.tipoAcao, info.status)}
-                            </td>` : ''}
+                            </td>
+                        ` : ''}
 
-                <td class="comprovantes-cell">
-                        ${estaPago ? 
-                            gerarHTMLComprovanteDinamico(f.idstaffevento, filtro, info.status, criarHTMLComprovantes(f, filtro)) 
-                        : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'}
-                    </td>
+                        <td class="comprovantes-cell">
+                            ${estaPago 
+                                ? gerarHTMLComprovanteDinamico(f.idstaffevento, filtro, info.status, criarHTMLComprovantes(f, filtro)) 
+                                : '<span style="font-size:9px; color:#999;">Aguardando Pgto</span>'
+                            }
+                        </td>
 
-                        <td class="status-celula status-${classeStatus}">${info.status}</td>
+                        <td class="status-celula status-${classeStatus}">
+                            ${info.status}
+                        </td>
 
-                        <td>${formatarMoeda(info.valor || 0)}</td>
-                    </tr>`;
+                        <td>
+                            ${formatarMoeda(info.valor || 0)}
+                        </td>
+                    </tr>
+                `;
             }).join("");
         };
 
-        dados.eventos.forEach(evento => {
-            const item = document.createElement("div");
-            item.className = "accordion-item";
+        
+        if (dados.length > 0) {
 
-            const header = document.createElement("button");
-            header.className = "accordion-header";
-            header.innerHTML = `
-                <div class="evento-info">
-                    <strong>${evento.nomeEvento}</strong>
-                    <span class="total-geral">Total: ${formatarMoeda(evento.totalGeral)}</span> 
-                </div>
-            `;
-            header.onclick = () => item.classList.toggle("active");
+            const resumoStaffMestre = dados.reduce((acc, ev) => {
+                const hojeBR = hojeRelativo.toLocaleDateString('pt-BR');
 
-            const body = document.createElement("div");
-            body.className = "accordion-body";
-            
-            body.innerHTML = `
-                <div class="resumo-categorias">
-                    <div class="categoria-bloco">
-                        <h3>Ajuda de Custo</h3>
-                        <p class="datas-evento">Período Evento: <strong>${evento.periodo_evento}</strong> a <strong>${evento.dataFimEvento}</strong></p>
-                        <p class="vencimento">Vence em: <strong>${evento.dataVencimentoAjuda}</strong></p>
-                        <p class="pendentes-pagos"><strong>Pendentes:</strong> ${formatarMoeda(evento.ajuda?.pendente || 0)}<strong>Pagos:</strong> ${formatarMoeda(evento.ajuda?.pago || 0)}</p>
+                // Função auxiliar para classificar cada componente
+                const classificar = (dataStr, valorPendente) => {
+                    if (!dataStr || dataStr === '---' || valorPendente <= 0) return;
+                    const [d, m, a] = dataStr.split('/').map(Number);
+                    const dtVcto = new Date(a, m - 1, d);
+                    dtVcto.setHours(0,0,0,0);
+
+                    if (dtVcto < hojeRelativo) {
+                        acc.vencido += valorPendente;
+                    } else {
+                        acc.aVencer += valorPendente;
+                    }
+                };
+
+                // Pagos (Soma tudo)
+                acc.pago += (parseFloat(ev.cache?.pago) || 0) + (parseFloat(ev.ajuda?.pago) || 0) + (parseFloat(ev.caixinha?.pago) || 0);
+
+                // Pendentes (Classifica individualmente Ajuda e Cachê)
+                classificar(ev.dataVencimentoAjuda, parseFloat(ev.ajuda?.pendente) || 0);
+                classificar(ev.dataVencimentoCache, parseFloat(ev.cache?.pendente) || 0);
+                // Caixinha geralmente não tem data de vencimento separada, somamos no A Vencer por padrão se houver
+                acc.aVencer += (parseFloat(ev.caixinha?.pendente) || 0);
+
+                acc.total = acc.pago + acc.vencido + acc.aVencer;
+                return acc;
+            }, { pago: 0, vencido: 0, aVencer: 0, total: 0 });
+
+            const btnMestreEventos = document.createElement('button');
+            btnMestreEventos.className = 'accordion-mestre-header active';            
+           
+
+            btnMestreEventos.innerHTML = `
+                <div class="evento-info-container-inline">
+                    <div class="evento-titulo-col">
+                        <span class="setinha">▶</span> 📅 Pagamentos de Staff (Eventos) 
+                        <small>(${dados.length} eventos)</small>
                     </div>
-
-                    <div class="categoria-bloco">
-                        <h3>Cachê</h3>
-                        <p class="datas-evento">Período Evento: <strong>${evento.periodo_evento}</strong> a <strong>${evento.dataFimEvento}</strong></p>
-                        <p class="vencimento">Vence em: <strong>${evento.dataVencimentoCache}</strong></p>
-                        <p class="pendentes-pagos"><strong>Pendentes:</strong> ${formatarMoeda(evento.cache?.pendente || 0)}<strong>Pagos:</strong> ${formatarMoeda(evento.cache?.pago || 0)}</p>
-                    </div>
-
-                    ${(evento.caixinha?.total > 0) ? `
-                        <div class="categoria-bloco">
-                            <h3>Caixinha</h3>
-                            <div class="caixinhaPP">
-                                <p><strong>Pendentes:</strong> ${formatarMoeda(evento.caixinha?.pendente || 0)}</p>
-                                <p><strong>Pagos:</strong> ${formatarMoeda(evento.caixinha?.pago || 0)}</p>
-                            </div>
+                    <div class="evento-valores-col">
+                        <div class="fin-resumo-item">
+                            <span class="label-categoria">PAGOS:</span>
+                            <span class="pg">${formatarMoeda(resumoStaffMestre.pago)}</span>
                         </div>
-                    ` : ''}
-                </div>
-
-                <div class="container-filtro-local" style="margin: 10px 0;"></div>
-                <div class="funcionarios-scroll-container"> 
-                    <table class="tabela-funcionarios-venc">
-                        <thead>${obterHeaderTabela(categoriaInicial)}</thead>
-                        <tbody>${obterLinhasTabela(evento, categoriaInicial)}</tbody>
-                    </table>
-                </div>
-            `;
-
-            // Filtro Local Interno
-            const cFiltro = body.querySelector(".container-filtro-local");
-            const fHtml = criarFiltroCategorias(null, null); 
+                        <div class="fin-resumo-item">
+                            <span class="label-categoria" style="color: #d9534f;">VENCIDOS:</span>
+                            <span class="ap" style="color: #d9534f; font-weight: bold;">${formatarMoeda(resumoStaffMestre.vencido)}</span>
+                        </div>
+                        <div class="fin-resumo-item">
+                            <span class="label-categoria" style="color: #007bff;">A VENCER:</span>
+                            <span class="ap" style="color: #007bff; font-weight: bold;">${formatarMoeda(resumoStaffMestre.aVencer)}</span>
+                        </div>
+                        <div class="fin-resumo-item orcado">
+                            <span class="label-categoria">TOTAL:</span>
+                            <strong>${formatarMoeda(resumoStaffMestre.total)}</strong>
+                        </div>
+                    </div>
+                </div>`;
             
-            const radioLocalCaixinha = fHtml.querySelector('input[value="caixinha"]');
-            if (radioLocalCaixinha && (evento.caixinha?.total || 0) === 0) {
-                radioLocalCaixinha.disabled = true;
-                radioLocalCaixinha.closest('.option').classList.add('disabled-option');
-            }
+            const wrapperEventos = document.createElement('div');
+            wrapperEventos.id = 'container-mestre-eventos';
+            wrapperEventos.style.display = 'block'; // Deixa aberto por padrão se houver dados
 
-            const radioLocalAtivo = fHtml.querySelector(`input[value="${categoriaInicial}"]`);
-            if (radioLocalAtivo && !radioLocalAtivo.disabled) radioLocalAtivo.checked = true;
+            btnMestreEventos.onclick = () => {
+                wrapperEventos.style.display = wrapperEventos.style.display === 'block' ? 'none' : 'block';
+                btnMestreEventos.classList.toggle('active');
+            };
+           
 
-            cFiltro.appendChild(fHtml);
-            fHtml.querySelectorAll('input[name="categoria"]').forEach(r => {
-                r.addEventListener('change', (e) => {
-                    const v = e.target.value;
-                    const tab = body.querySelector(".tabela-funcionarios-venc");
-                    tab.querySelector("thead").innerHTML = obterHeaderTabela(v);
-                    tab.querySelector("tbody").innerHTML = obterLinhasTabela(evento, v);
-                });
+            accordionContainer.appendChild(btnMestreEventos);
+            accordionContainer.appendChild(wrapperEventos);
+
+            // Criar container de filtros rápidos
+            const containerFiltrosRapidos = document.createElement("div");
+            containerFiltrosRapidos.className = "filtros-rapidos-eventos";
+            containerFiltrosRapidos.style = "margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #ddd;";
+
+            const opcoesFiltro = [
+                { id: 'todos', label: 'Todos', color: '#666' },
+                { id: 'vencidos', label: 'Vencidos', color: '#d9534f' }, // Vermelho
+                { id: 'hoje', label: 'Hoje', color: '#f0ad4e' },       // Amarelo/Laranja
+                { id: 'aguardando', label: 'Aguardando Staff', color: '#6c757d' },
+                { id: 'a_vencer', label: 'A Vencer', color: '#007bff' },
+                { id: 'liquidado', label: 'Liquidados', color: '#28a745' }
+            ];
+
+            opcoesFiltro.forEach(opt => {
+                const btn = document.createElement("button");
+                btn.innerText = opt.label;
+                btn.className = "btn-filtro-rapido";
+                btn.dataset.filter = opt.id;
+                btn.style = `padding: 6px 12px; border-radius: 20px; border: 1px solid ${opt.color}; background: white; color: ${opt.color}; cursor: pointer; font-weight: 500; transition: 0.3s;`;
+                
+                if(opt.id === 'todos') {
+                    btn.style.background = opt.color;
+                    btn.style.color = "white";
+                }
+
+                btn.onclick = () => {
+                    // Resetar estilos de todos os botões
+                    containerFiltrosRapidos.querySelectorAll(".btn-filtro-rapido").forEach(b => {
+                        const bColor = b.style.borderColor;
+                        b.style.background = "white";
+                        b.style.color = bColor;
+                    });
+                    // Ativar botão clicado
+                    btn.style.background = opt.color;
+                    btn.style.color = "white";
+                    
+                    filtrarEventosNaTela(opt.id);
+                };
+                containerFiltrosRapidos.appendChild(btn);
             });
 
-            item.appendChild(header);
-            item.appendChild(body);
-            accordionContainer.appendChild(item);
-        });
+            wrapperEventos.appendChild(containerFiltrosRapidos);
+
+            
+            dados.forEach(evento => {
+                const ajPendente = parseFloat(evento.ajuda?.pendente) || 0;
+                const chPendente = parseFloat(evento.cache?.pendente) || 0;
+                const hojeBR = hojeRelativo.toLocaleDateString('pt-BR');
+
+                let detalheVencidos = { cache: 0, ajuda: 0 };
+                let detalheHoje = { cache: 0, ajuda: 0 };
+                let detalheAVencer = { cache: 0, ajuda: 0 };
+                
+                let temVencido = false;
+                let temHoje = false;
+                let temAVencer = false;
+
+                // --- 1. CLASSIFICAÇÃO DOS VALORES ---
+                
+                // Processar Ajuda
+                if (evento.dataVencimentoAjuda && evento.dataVencimentoAjuda !== '---' && ajPendente > 0) {
+                    const [d, m, a] = evento.dataVencimentoAjuda.split('/').map(Number);
+                    const dtVcto = new Date(a, m - 1, d);
+                    if (dtVcto < hojeRelativo) {
+                        detalheVencidos.ajuda += ajPendente;
+                        temVencido = true;
+                    } else if (evento.dataVencimentoAjuda === hojeBR) {
+                        detalheHoje.ajuda += ajPendente;
+                        temHoje = true;
+                    } else {
+                        detalheAVencer.ajuda += ajPendente;
+                        temAVencer = true;
+                    }
+                }
+
+                // Processar Cachê
+                if (evento.dataVencimentoCache && evento.dataVencimentoCache !== '---' && chPendente > 0) {
+                    const [d, m, a] = evento.dataVencimentoCache.split('/').map(Number);
+                    const dtVcto = new Date(a, m - 1, d);
+                    if (dtVcto < hojeRelativo) {
+                        detalheVencidos.cache += chPendente;
+                        temVencido = true;
+                    } else if (evento.dataVencimentoCache === hojeBR) {
+                        detalheHoje.cache += chPendente;
+                        temHoje = true;
+                    } else {
+                        detalheAVencer.cache += chPendente;
+                        temAVencer = true;
+                    }
+                }
+
+                // --- 2. MONTAGEM DOS TEXTOS DE ALERTA (ACUMULATIVOS) ---
+                let alertasTexto = [];
+
+                if (temVencido) {
+                    let partesV = [];
+                    if (detalheVencidos.ajuda > 0) partesV.push(`Ajuda: ${formatarMoeda(detalheVencidos.ajuda)}`);
+                    if (detalheVencidos.cache > 0) partesV.push(`Cachê: ${formatarMoeda(detalheVencidos.cache)}`);
+                    alertasTexto.push(`
+                        <span style="display: inline-flex; align-items: center; gap: 4px;">
+                            <span class="dot-alerta" style="background-color: #d9534f;"></span>
+                            <strong style="color:#d9534f; font-size: 16px;">VENCIDOS: ${partesV.join(' | ')}</strong>
+                        </span>`);
+                }
+
+                if (temHoje) {
+                    let partesH = [];
+                    if (detalheHoje.ajuda > 0) partesH.push(`Ajuda: ${formatarMoeda(detalheHoje.ajuda)}`);
+                    if (detalheHoje.cache > 0) partesH.push(`Cachê: ${formatarMoeda(detalheHoje.cache)}`);
+                    alertasTexto.push(`
+                        <span style="display: inline-flex; align-items: center; gap: 4px;">
+                            <span class="dot-alerta" style="background-color: #ffcc00; animation: pulsar-amarelo 1.5s infinite;"></span>
+                            <strong style="color:#f0ad4e; font-size: 16px;">HOJE: ${partesH.join(' | ')}</strong>
+                        </span>`);
+                }
+
+                if (temAVencer) {
+                    let partesA = [];
+                    if (detalheAVencer.ajuda > 0) partesA.push(`Ajuda: ${formatarMoeda(detalheAVencer.ajuda)}`);
+                    if (detalheAVencer.cache > 0) partesA.push(`Cachê: ${formatarMoeda(detalheAVencer.cache)}`);
+                    alertasTexto.push(`
+                        <span style="display: inline-flex; align-items: center; gap: 4px;">
+                            <span class="dot-alerta" style="background-color: #007bff; box-shadow: none;"></span>
+                            <strong style="color:#007bff; font-size: 16px;">A VENCER: ${partesA.join(' | ')}</strong>
+                        </span>`);
+                }
+
+                // --- 3. LOGICA DO FILTRO (ATRIBUIÇÃO DE CATEGORIA) ---
+                // Regra: Se tiver algo vencido, ele cai na categoria 'vencidos' para o botão vermelho.
+                // Se não tiver vencido mas tiver algo hoje, cai na categoria 'hoje' para o botão amarelo.
+               
+                const temPendente = (ajPendente > 0 || chPendente > 0);
+                const temFuncionarios = evento.funcionarios && evento.funcionarios.length > 0;
+
+                let statusParaFiltro = "liquidado";
+                let subStatusHtml = "";
+
+                if (!temFuncionarios) {
+                    statusParaFiltro = "aguardando";
+                    subStatusHtml = `
+                        <span style="display: inline-flex; align-items: center; gap: 4px; border: 1px solid #ccc; padding: 2px 8px; border-radius: 4px; background: #f9f9f9; margin-top: 4px;">
+                            <i class="fas fa-user-plus" style="color: #6c757d; font-size: 12px;"></i>
+                            <strong style="color:#6c757d; font-size: 13px;">AGUARDANDO CADASTRO STAFF</strong>
+                        </span>`;
+                } else if (!temPendente) {
+                    statusParaFiltro = "liquidado";
+                    // Colocando o Liquidado no mesmo formato de "tag" dos outros alertas
+                    subStatusHtml = `
+                        <div style="margin-top: 4px;">
+                            <span style="display: inline-flex; align-items: center; gap: 4px; border: 1px solid #d6e9c6; padding: 2px 8px; border-radius: 4px; background: #f2f9ed;">
+                                <i class="fas fa-check-circle" style="color: #28a745;"></i>
+                                <strong style="color:#28a745; font-size: 13px;">LIQUIDADO</strong>
+                            </span>
+                        </div>`;
+                } else {
+                    // Prioridade de exibição no filtro: Vencido > Hoje > A Vencer
+                    if (temVencido) statusParaFiltro = "vencidos";
+                    else if (temHoje) statusParaFiltro = "hoje";
+                    else statusParaFiltro = "a_vencer";
+
+                    // Mostra as tags acumuladas (Vencidos, Hoje, A Vencer)
+                    subStatusHtml = `<div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 10px;">${alertasTexto.join('')}</div>`;
+                }
+
+                // --- 4. CRIAÇÃO DO ELEMENTO HTML ---
+                const item = document.createElement("div");
+                item.className = "accordion-item";
+                item.setAttribute("data-status-filtro", statusParaFiltro);
+                
+                
+
+        
+                // --- FUNÇÃO AUXILIAR PARA MONTAR O VALOR COLORIDO NA DIREITA ---
+
+                const montarValorColorido = (vencido, hoje, aVencer) => {
+                    let html = [];
+                    if (vencido > 0) html.push(`<span style="color:#d9534f; font-weight:bold;">${formatarMoeda(vencido)}</span>`);
+                    if (hoje > 0) html.push(`<span style="color:#f0ad4e; font-weight:bold;">${formatarMoeda(hoje)}</span>`);
+                    if (aVencer > 0) html.push(`<span style="color:#007bff; font-weight:bold;">${formatarMoeda(aVencer)}</span>`);
+                    
+                    return html.length > 0 ? html.join('<br>') : `<span style="color:#666;">${formatarMoeda(0)}</span>`;
+                };
+
+                const header = document.createElement("button");
+                header.className = "accordion-header";
+                header.innerHTML = `
+                    <div class="evento-info-container-inline ${temVencido ? 'vencido-critico' : ''}" style="display: flex; align-items: center; width: 100%; justify-content: space-between;">
+                    
+                    <div class="evento-titulo-col" style="flex: 1; text-align: left;">
+                        <strong style="font-size: 18px;">${evento.nomeEvento}</strong>
+                        <div style="display:block; margin-top: 5px;">${subStatusHtml}</div>
+                    </div>
+
+                    <div class="evento-valores-col" style="display: flex; flex-direction: column; gap: 8px; min-width: 280px;">
+                        
+                        <div class="fin-resumo-item" style="display: grid; grid-template-columns: 80px 100px 100px; gap: 10px; align-items: center; text-align: right;">
+                            <span class="label-categoria" style="font-size: 11px; color: #666; text-align: left;">CACHÊ:</span>
+                            <span class="pg" style="color: #28a745; font-weight: 500;">${formatarMoeda(evento.cache?.pago || 0)}</span>
+                            <div class="valores-detalhados-col" style="line-height: 1.1; font-size: 14px;">
+                                ${montarValorColorido(detalheVencidos.cache, detalheHoje.cache, detalheAVencer.cache)}
+                            </div>
+                        </div>
+                        
+                        <div class="fin-resumo-item" style="display: grid; grid-template-columns: 80px 100px 100px; gap: 10px; align-items: center; text-align: right;">
+                            <span class="label-categoria" style="font-size: 11px; color: #666; text-align: left;">AJUDA:</span>
+                            <span class="pg" style="color: #28a745; font-weight: 500;">${formatarMoeda(evento.ajuda?.pago || 0)}</span>
+                            <div class="valores-detalhados-col" style="line-height: 1.1; font-size: 14px;">
+                                ${montarValorColorido(detalheVencidos.ajuda, detalheHoje.ajuda, detalheAVencer.ajuda)}
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+
+
+                header.onclick = () => item.classList.toggle("active");
+
+
+                const body = document.createElement("div");
+                body.className = "accordion-body";
+                body.innerHTML = `
+                    <div class="resumo-categorias">
+                        <div class="categoria-bloco">
+                            <h3>Ajuda de Custo</h3>
+                            <p class="datas-evento">Período Evento Início Marcação a Fim Desmontagem: <strong>${evento.periodo_evento}</strong> a <strong>${evento.dataFimEvento}</strong></p>
+                            <p class="vencimento">Vence em: <strong>${evento.dataVencimentoAjuda}</strong> (2 dias após Início Montagem <strong>${evento.dataInicioMontagem}</strong>)</p>                            
+                            <p class="pendentes-pagos"><strong>Pendente:</strong> ${formatarMoeda(ajPendente)}</p>
+                        </div>
+                        <div class="categoria-bloco">
+                            <h3>Cachê</h3>
+                            <p class="datas-evento">Período Evento Início Marcação a Fim Desmontagem: <strong>${evento.periodo_evento}</strong> a <strong>${evento.dataFimEvento}</strong></p>
+                            <p class="vencimento">Vence em: <strong>${evento.dataVencimentoCache}</strong>(2 dias após Fim Desmontagem <strong>${evento.dataFimEvento}</strong>)</p>
+                            <p class="pendentes-pagos"><strong>Pendente:</strong> ${formatarMoeda(chPendente)}</p>
+                        </div>
+                    </div>
+                    <div class="container-filtro-local" style="margin: 10px 0;"></div>
+                    <div class="funcionarios-scroll-container"> 
+                        <table class="tabela-funcionarios-venc">
+                            <thead>${obterHeaderTabela(categoriaInicial)}</thead>
+                            <tbody>${obterLinhasTabela(evento, categoriaInicial)}</tbody>
+                        </table>
+                    </div>`;
+
+                const fHtml = criarFiltroCategorias(null, null); 
+                body.querySelector(".container-filtro-local").appendChild(fHtml);
+                fHtml.querySelectorAll('input[name="categoria"]').forEach(r => {
+                    r.addEventListener('change', (e) => {
+                        const v = e.target.value;
+                        const tab = body.querySelector(".tabela-funcionarios-venc");
+                        tab.querySelector("thead").innerHTML = obterHeaderTabela(v);
+                        tab.querySelector("tbody").innerHTML = obterLinhasTabela(evento, v);
+                    });
+                });
+
+                item.appendChild(header);
+                item.appendChild(body);
+                wrapperEventos.appendChild(item);
+            });
+        }
+
+        console.log("DADOS CONTAS", resContas);
+        if (resContas.sucesso && resContas.contas) {
+            // const hoje = new Date();
+            // hoje.setHours(0, 0, 0, 0);
+            // const anoFiltro = parseInt(anoSelecionado);
+
+            // Pega a data de hoje para referência
+
+            // --- DEFINIÇÃO DOS LIMITES DE DATA PARA O FILTRO DE TELA ---
+            const hoje = hojeRelativo || new Date(); 
+            const anoFiltro = parseInt(anoSelecionado);
+            
+            // 1. MAPEAMENTO DE DADOS REAIS (Evita os 143,33 de diferença)
+            // Guardamos o objeto INTEIRO do banco indexado por ID-ANO-MES
+            const mapaDadosReais = new Map();
+            resContas.contas.forEach(reg => {
+                const dStr = (reg.dtvcto || reg.vctobase || "").split('T')[0];
+                if (dStr) {
+                    const d = new Date(dStr + 'T12:00:00');
+                    const chave = `${reg.idlancamento}-${d.getFullYear()}-${d.getMonth()}`;
+                    // Se houver duplicata no banco, o Map garante que ficamos com o registro mais completo
+                    mapaDadosReais.set(chave, reg);
+                }
+            });
+
+            const mesesProcessadosNoLoop = new Set();
+
+            resContas.contas.forEach(c => {
+                const dataOriginalStr = c.vctobase || c.dtvcto;
+                const vctoBase = (typeof converterData === 'function') ? converterData(dataOriginalStr) : new Date(dataOriginalStr);
+                if (!vctoBase || isNaN(vctoBase)) return;
+
+                const ehFixo = (c.tiporepeticao === "FIXO" || c.indeterminado === true);
+                const ehParcelado = (c.tiporepeticao === "PARCELADO");
+                let maxLoop = ehParcelado ? (parseInt(c.qtdeparcelas) || 1) : (ehFixo ? 12 : 1);
+
+                for (let i = 0; i < maxLoop; i++) {
+                    let dProj = new Date(vctoBase.getFullYear(), vctoBase.getMonth() + i, vctoBase.getDate(), 12, 0, 0);
+                    
+                    if (dProj.getFullYear() !== anoFiltro) {
+                        if (dProj.getFullYear() > anoFiltro) break;
+                        continue;
+                    }
+
+                    const chaveMes = `${c.idlancamento}-${dProj.getFullYear()}-${dProj.getMonth()}`;
+                    if (mesesProcessadosNoLoop.has(chaveMes)) continue;
+
+                    // 2. BUSCA DADO REAL OU PROJETA
+                    const dadoReal = mapaDadosReais.get(chaveMes);
+                    
+                    let statusFinal = "";
+                    let statusFiltro = "";
+                    let valorTotal = 0;
+                    let valorPago = 0;
+
+                    // if (dadoReal) {
+                    //     // Se existe no banco, usamos os valores EXATOS (R$ 2129,13 ou R$ 1832,18)
+                    //     const sBanco = (dadoReal.status || "").toLowerCase();
+                    //     const foiPago = (sBanco === 'pago' || sBanco === 'liquidado' || dadoReal.dtpagamento);
+                        
+                    //     statusFinal = foiPago ? "Pago" : (dProj < hoje ? "Atrasado" : "Pendente");
+                    //     statusFiltro = foiPago ? "liquidado" : (dProj < hoje ? "vencidos" : "a_vencer");
+                        
+                    //     valorTotal = parseFloat(dadoReal.vlrreal || dadoReal.valor || dadoReal.vlrestimado || 0);
+                    //     valorPago = statusFinal === "Pago" ? parseFloat(dadoReal.vlrpago || valorTotal) : 0;
+                    // } else {
+                    //     // Se NÃO existe no banco, é uma projeção matemática pura
+                    //     statusFinal = dProj < hoje ? "Atrasado" : "Projeção";
+                    //     statusFiltro = dProj < hoje ? "vencidos" : "a_vencer";
+
+                    //     // --- CORREÇÃO AQUI ---
+                    //     // Priorizamos o vlrreal ou valor do cadastro original, 
+                    //     // deixando o vlrestimado como última opção.
+                    //     valorTotal = parseFloat(c.vlrreal || c.valor || c.vlrestimado || 0);
+                    //     valorPago = 0;
+                    // }
+
+                    if (dadoReal) {
+                        // 1. Normalizamos o status que vem do banco
+                        const sBanco = (dadoReal.status || "").toLowerCase();
+                        
+                        // 2. Criamos as travas (Booleans)
+                        const ehSuspenso = (sBanco === 'suspenso');
+                        const foiPago = (sBanco === 'pago' || sBanco === 'liquidado' || !!dadoReal.dtpagamento);
+
+                        // 3. DEFINIÇÃO DO STATUS (Com hierarquia de prioridade)
+                        if (ehSuspenso) {
+                            statusFinal = "Suspenso";
+                            statusFiltro = "suspenso";
+                        } else if (foiPago) {
+                            statusFinal = "Pago";
+                            statusFiltro = "liquidado";
+                        } else {
+                            // Só aqui, se não for suspenso nem pago, olhamos a data
+                            statusFinal = (dProj < hoje) ? "Atrasado" : "Pendente";
+                            statusFiltro = (dProj < hoje) ? "vencidos" : "a_vencer";
+                        }
+                        
+                        // 4. VALORES
+                        valorTotal = parseFloat(dadoReal.vlrreal || dadoReal.valor || dadoReal.vlrestimado || 0);
+                        valorPago = (statusFinal === "Pago") ? parseFloat(dadoReal.vlrpago || valorTotal) : 0;
+
+                    } else {
+                        // Para projeções que não existem no banco, mantemos a lógica original
+                        statusFinal = dProj < hoje ? "Atrasado" : "Projeção";
+                        statusFiltro = dProj < hoje ? "vencidos" : "a_vencer";
+                        valorTotal = parseFloat(c.vlrreal || c.valor || c.vlrestimado || 0);
+                        valorPago = 0;
+                    }
+
+                    contasProjetadas.push({
+                        ...(dadoReal || c), // Prioriza os dados do registro real (ID 16, etc)
+                        idempresapagadora: c.idempresapagadora, 
+                        empresapagadora: c.empresapagadora,
+                        vencimento: dProj.toLocaleDateString('pt-BR'),
+                        dtvcto: dProj.toISOString().split('T')[0],
+                        valorTotal: valorTotal,
+                        valorPago: valorPago,
+                        status: statusFinal,
+                        statusFiltro: statusFiltro
+                    });
+
+                    mesesProcessadosNoLoop.add(chaveMes);
+                }
+            });
+
+            // --- 1. DEFINIÇÃO DOS LIMITES DE DATA (Adicione isso antes de filtrar) ---
+            let dInicioComp, dFimComp;
+            let dataBase = inputDataStr ? new Date(inputDataStr + 'T12:00:00') : new Date();
+
+            switch (filtroTipo) {
+                case 'diario':
+                    dInicioComp = new Date(dataBase);
+                    dInicioComp.setHours(0,0,0,0);
+                    dFimComp = new Date(dataBase);
+                    dFimComp.setHours(23,59,59,999);
+                    break;
+                case 'semanal':
+                    dInicioComp = new Date(dataBase);
+                    dInicioComp.setDate(dataBase.getDate() - dataBase.getDay());
+                    dInicioComp.setHours(0,0,0,0);
+                    dFimComp = new Date(dInicioComp);
+                    dFimComp.setDate(dInicioComp.getDate() + 6);
+                    dFimComp.setHours(23,59,59,999);
+                    break;
+                case 'mensal':
+                    const mesSel = parseInt(document.querySelector("#sub-filtro-select")?.value) - 1 || dataBase.getMonth();
+                    dInicioComp = new Date(anoSelecionado, mesSel, 1, 0, 0, 0);
+                    dFimComp = new Date(anoSelecionado, mesSel + 1, 0, 23, 59, 59);
+                    break;
+                case 'trimestral':
+                    const mesInicioTrim = Math.floor(dataBase.getMonth() / 3) * 3;
+                    dInicioComp = new Date(anoSelecionado, mesInicioTrim, 1, 0, 0, 0);
+                    dFimComp = new Date(anoSelecionado, mesInicioTrim + 3, 0, 23, 59, 59);
+                    break;
+                case 'semestral':
+                    const mesInicioSem = dataBase.getMonth() < 6 ? 0 : 6;
+                    dInicioComp = new Date(anoSelecionado, mesInicioSem, 1, 0, 0, 0);
+                    dFimComp = new Date(anoSelecionado, mesInicioSem + 6, 0, 23, 59, 59);
+                    break;
+                case 'anual':
+                    dInicioComp = new Date(anoSelecionado, 0, 1, 0, 0, 0);
+                    dFimComp = new Date(anoSelecionado, 11, 31, 23, 59, 59);
+                    break;
+                default:
+                    dInicioComp = new Date(anoSelecionado, 0, 1, 0, 0, 0);
+                    dFimComp = new Date(anoSelecionado, 11, 31, 23, 59, 59);
+            }
+
+            // --- 2. FILTRAGEM DAS CONTAS PROJETADAS ---
+            // contasParaExibir = contasProjetadas.filter(c => {
+            //     const dataVcto = new Date(c.dtvcto + 'T12:00:00');
+            //     const statusC = (c.status || '').toLowerCase();
+
+            //     const estaNoPeriodo = (dataVcto >= dInicioComp && dataVcto <= dFimComp);
+            //     const ehAtrasado = (statusC === "atrasado" && dataVcto < dFimComp);
+                
+            //     // NOVO: Incluir pagos de meses anteriores para que apareçam no histórico da lista
+            //     const ehPagoAnterior = (statusC === "pago" && dataVcto < dFimComp && dataVcto.getFullYear() === anoFiltro);
+
+            //     return estaNoPeriodo || ehAtrasado || ehPagoAnterior;
+            // });
+
+            contasParaExibir = contasProjetadas.filter(c => {
+                const dataVcto = new Date(c.dtvcto + 'T12:00:00');
+                const statusC = (c.status || '').toLowerCase();
+
+                // 1. Verificações de Status
+                const ehSuspenso = (statusC === "suspenso");
+                const ehPago = (statusC === "pago");
+
+                // 2. Lógica de Período
+                const estaNoPeriodo = (dataVcto >= dInicioComp && dataVcto <= dFimComp);
+
+                // 3. Lógica de Atrasados: SÓ é atrasado se NÃO estiver suspenso e NÃO estiver pago
+                const ehAtrasado = (!ehSuspenso && !ehPago && statusC === "atrasado" && dataVcto < dFimComp);
+
+                // 4. Lógica de Pagos Anteriores
+                const ehPagoAnterior = (ehPago && dataVcto < dFimComp && dataVcto.getFullYear() === anoFiltro);
+
+                // 5. Lógica de Suspensos: Queremos que eles apareçam se forem do período ou se estiverem "pendentes" (atrás)
+                // Se você quer que suspensos antigos continuem aparecendo na lista:
+                const ehSuspensoRelevante = (ehSuspenso && dataVcto <= dFimComp);
+
+                return estaNoPeriodo || ehAtrasado || ehPagoAnterior || ehSuspensoRelevante;
+            });
+
+            // --- 3. CÁLCULO DO RESUMO BASEADO NO FILTRO ---
+            // const resumo = contasParaExibir.reduce((acc, c) => {
+            //     const v = parseFloat(c.valorTotal || 0);
+            //     acc.total += v;
+            //     if (c.status === "Pago") {
+            //         acc.pago += parseFloat(c.valorPago || v);
+            //     } else if (c.status === "Atrasado") {
+            //         acc.vencidos += v;
+            //     } else {
+            //         acc.aVencer += v;
+            //     }
+            //     return acc;
+            // }, { pago: 0, vencidos: 0, aVencer: 0, total: 0 });
+
+            const resumo = contasParaExibir.reduce((acc, c) => {
+                const v = parseFloat(c.valorTotal || 0);
+                const statusC = (c.status || "").toLowerCase(); // Normaliza para evitar erro de maiúscula
+
+                acc.total += v;
+
+                if (statusC === "pago") {
+                    acc.pago += parseFloat(c.valorPago || v);
+                } 
+                else if (statusC === "suspenso") {
+                    acc.suspensos = (acc.suspensos || 0) + v; // Soma em categoria à parte
+                } 
+                else if (statusC === "atrasado") {
+                    acc.vencidos += v;
+                } 
+                else {
+                    acc.aVencer += v;
+                }
+                return acc;
+            }, { pago: 0, vencidos: 0, aVencer: 0, total: 0, suspensos: 0 });
+
+
+            // 3. RENDERIZAÇÃO
+            // Usamos 'contasParaExibir' que já definimos e filtramos lá em cima
+            if (contasParaExibir.length > 0) { 
+                // Ordenação por data de vencimento
+                contasParaExibir.sort((a, b) => new Date(a.dtvcto) - new Date(b.dtvcto));
+
+                // Título Mestre
+                const btnMestreContas = document.createElement('button');
+                btnMestreContas.className = 'accordion-mestre-header active';
+                
+                // Usamos o 'resumo' que já foi calculado lá em cima logo após o filtro
+                btnMestreContas.innerHTML = `
+                    <div class="evento-info-container-inline">
+                        <div class="evento-titulo-col">
+                            <span class="setinha">▶</span> 💸 Contas a Pagar <small>(${contasParaExibir.length})</small>
+                        </div>
+                        <div class="evento-valores-col">
+                            <div class="fin-resumo-item">
+                                <span class="label-categoria">PAGO:</span> <span class="pg">${formatarMoeda(resumo.pago)}</span>
+                                <span class="label-categoria" style="margin-left:15px; color:#d9534f;">VENCIDOS:</span> <span class="ap" style="color:#d9534f;">${formatarMoeda(resumo.vencidos)}</span>
+                                <span class="label-categoria" style="margin-left:15px; color:#007bff;">A VENCER:</span> <span class="ap" style="color:#007bff;">${formatarMoeda(resumo.aVencer)}</span>
+                                <span style="margin-left:20px; padding-left:15px; border-left: 2px solid #ddd;">
+                                    <span class="label-categoria" style="color:#333;">TOTAL:</span> 
+                                    <strong style="color:#333; font-size: 16px;">${formatarMoeda(resumo.total)}</strong>
+                                </span>
+                            </div>
+                        </div>
+                    </div>`;
+
+                const wrapperContas = document.createElement('div');
+                wrapperContas.className = "wrapper-contas-financeiro";
+                wrapperContas.style.display = 'block';
+
+                btnMestreContas.addEventListener('click', () => {
+                    // 1. Alterna a classe active (isso fará a setinha girar via CSS)
+                    btnMestreContas.classList.toggle('active');
+                    
+                    // 2. Alterna a visibilidade do wrapper
+                    const isVisible = wrapperContas.style.display === 'block';
+                    wrapperContas.style.display = isVisible ? 'none' : 'block';
+                });
+
+                // --- NOVO: CAPTURAR EMPRESAS PAGADORAS ---
+                
+                const empresasMap = new Map();
+                contasParaExibir.forEach(c => {
+                    // Só adiciona ao mapa se houver um ID válido e for diferente de 0
+                    if (c.idempresapagadora && c.idempresapagadora !== 0) { 
+                        empresasMap.set(c.idempresapagadora, c.empresapagadora);
+                    } else {
+                        // Opcional: Agrupar tudo que não tem empresa em um ID fictício
+                        empresasMap.set("nulo", "Sem Empresa Definida");
+                    }
+                });
+
+                // --- NOVO: FILTRO DE EMPRESAS PAGADORAS ---
+                const containerFiltroEmpresas = document.createElement("div");
+                containerFiltroEmpresas.className = "filtro-empresas-contas";
+                containerFiltroEmpresas.style = "margin: 10px; display: flex; align-items: center; gap: 10px; padding: 10px; background: #fff; border-radius: 8px; border: 1px solid #dee2e6;";
+
+                containerFiltroEmpresas.innerHTML = `<span style="font-size: 12px; font-weight: bold; color: #555;">Filtrar Empresa:</span>`;
+
+                const selectEmpresa = document.createElement("select");
+                selectEmpresa.id = "select-empresa-pagadora";
+                selectEmpresa.style = "padding: 5px; border-radius: 5px; border: 1px solid #ccc; font-size: 13px; flex: 1;";
+                selectEmpresa.innerHTML = `<option value="todas">Todas as Empresas</option>`;
+
+                // Preenche o select com as empresas encontradas nas contas
+                empresasMap.forEach((nome, id) => {
+                    selectEmpresa.innerHTML += `<option value="${id}">${nome}</option>`;
+                });
+
+                selectEmpresa.onchange = () => {
+                    const idSelecionado = selectEmpresa.value;
+                    filtrarPorEmpresaNaTela(idSelecionado);
+                };
+
+                containerFiltroEmpresas.appendChild(selectEmpresa);
+                wrapperContas.appendChild(containerFiltroEmpresas); // Adiciona antes dos botões de status
+
+
+                // --- BOTÕES DE FILTRO (Atrasadas, Hoje, etc) ---
+                const containerFiltrosContas = document.createElement("div");
+                containerFiltrosContas.className = "filtros-rapidos-contas";
+                containerFiltrosContas.style = "margin: 10px; display: flex; gap: 8px; flex-wrap: wrap; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6;";
+
+                const opcoesContas = [
+                    { id: 'todos', label: 'Tudo', color: '#343a40' },
+                    { id: 'vencidos', label: 'Atrasadas', color: '#d9534f' },
+                    { id: 'hoje', label: 'Hoje', color: '#f0ad4e' },
+                    { id: 'a_vencer', label: 'A Vencer', color: '#007bff' },
+                    { id: 'liquidado', label: 'Pagas', color: '#28a745' }
+                ];
+
+                opcoesContas.forEach(opt => {
+                    const btn = document.createElement("button");
+                    btn.setAttribute("data-label-base", opt.label); 
+                    btn.setAttribute("data-filtro-id", opt.id); 
+                    btn.innerText = opt.label;
+                    btn.className = "btn-filtro-financeiro";
+                    btn.style = `padding: 5px 12px; border-radius: 15px; border: 1px solid ${opt.color}; background: white; color: ${opt.color}; cursor: pointer; font-weight: bold; font-size: 12px;`;
+                    
+                    btn.onclick = () => {
+                        filtrarEventosNaTela(opt.id);
+                        containerFiltrosContas.querySelectorAll("button").forEach(b => {
+                            b.style.background = "white"; b.style.color = b.style.borderColor;
+                        });
+                        btn.style.background = opt.color; btn.style.color = "white";
+                    };
+                    containerFiltrosContas.appendChild(btn);
+                });
+
+                wrapperContas.appendChild(containerFiltrosContas);
+                accordionContainer.appendChild(btnMestreContas);
+                accordionContainer.appendChild(wrapperContas);
+
+                // Agrupamento por Vínculo (Usando as contas JÁ FILTRADAS para a tela)
+                const agrupados = contasParaExibir.reduce((acc, c) => {
+                    let tipo = (c.tipovinculo || 'OUTROS').toUpperCase();
+                    if (!acc[tipo]) acc[tipo] = [];
+                    acc[tipo].push(c);
+                    return acc;
+                }, {});
+
+                ['FORNECEDOR', 'FUNCIONARIO', 'CLIENTE', 'OUTROS'].forEach(t => {
+                    // Passamos 'hojeRelativo' em vez de 'hoje' para manter a consistência do ano
+                    if (agrupados[t]) wrapperContas.appendChild(criarAccordionVinculo(t, agrupados[t], hojeRelativo));
+                });
+
+                setTimeout(atualizarContadoresFiltrosContas, 300);
+            }
+       }
+
+        console.log("✅ AGORA HÁ ITENS?", contasProjetadas.length);
 
         conteudoGeral.appendChild(accordionContainer);
-        atualizarResumoGeralEstatico(dados.eventos, valoresResumoElement);
+
+        // Certifique-se que o nome do array aqui é o mesmo que você deu o 'push' lá em cima
+        atualizarResumoGeralEstatico(dados, contasParaExibir, valoresResumoElement);
+        // Como deve ser (Correto: usa apenas o que passou pelos filtros de data):
+        
 
     } catch (error) {
-        console.error("Erro crítico:", error);
+        console.error("Erro:", error);
+        conteudoGeral.innerHTML = '<p class="alerta-erro">Erro ao carregar dados.</p>';
     }
 }
 
-function atualizarResumoGeralEstatico(eventos, element) {
-    if (!element) return;
 
-    // Totais por categoria
-    let totalPendAjuda = 0, totalPagoAjuda = 0;
-    let totalPendCache = 0, totalPagoCache = 0;
-    let totalPendCaix = 0, totalPagoCaix = 0;
+function filtrarEventosNaTela(statusAlvo) {
+    // 1. Seleciona todos os accordions (Staff, Grupos de Financeiro, etc)
+    const itens = document.querySelectorAll(".accordion-item");
+    
+    console.log(`Filtrando por: ${statusAlvo}`);
 
-    eventos.forEach(e => {
-        totalPendAjuda += Number(e.ajuda?.pendente || 0);
-        totalPagoAjuda += Number(e.ajuda?.pago || 0);
+    itens.forEach(item => {
+        // Verifica se este item é um grupo do financeiro (tem linhas dentro)
+        const linhasInternas = item.querySelectorAll(".item-financeiro-linha");
+        
+        if (linhasInternas.length > 0) {
+            // --- LÓGICA PARA CONTAS A PAGAR (GRUPOS) ---
+            let temFilhoVisivel = false;
+            
+            linhasInternas.forEach(linha => {
+                const statusLinha = linha.getAttribute("data-status-filtro");
+                if (statusAlvo === 'todos' || statusLinha === statusAlvo) {
+                    linha.style.display = ""; // Mostra linha
+                    temFilhoVisivel = true;
+                } else {
+                    linha.style.display = "none"; // Esconde linha
+                }
+            });
 
-        totalPendCache += Number(e.cache?.pendente || 0);
-        totalPagoCache += Number(e.cache?.pago || 0);
+            // Mostra o grupo (ex: Fornecedor) apenas se sobrar alguma linha visível
+            item.style.display = (statusAlvo === 'todos' || temFilhoVisivel) ? "block" : "none";
 
-        totalPendCaix += Number(e.caixinha?.pendente || 0);
-        totalPagoCaix += Number(e.caixinha?.pago || 0);
+        } else {
+            // --- LÓGICA PARA STAFF (ITENS ÚNICOS) ---
+            // Mantém a lógica original que você disse que funcionava
+            const statusDoItem = item.getAttribute("data-status-filtro");
+            if (statusAlvo === 'todos' || statusDoItem === statusAlvo) {
+                item.style.display = "block";
+            } else {
+                item.style.display = "none";
+            }
+        }
+    });
+}
+
+function atualizarContadoresFiltrosContas() {
+    const container = document.querySelector(".filtros-rapidos-contas");
+    if (!container) return;
+
+    const contadores = {
+        todos: document.querySelectorAll(".item-financeiro-linha").length,
+        vencidos: document.querySelectorAll('.item-financeiro-linha[data-status-filtro="vencidos"]').length,
+        hoje: document.querySelectorAll('.item-financeiro-linha[data-status-filtro="hoje"]').length,
+        a_vencer: document.querySelectorAll('.item-financeiro-linha[data-status-filtro="a_vencer"]').length,
+        liquidado: document.querySelectorAll('.item-financeiro-linha[data-status-filtro="liquidado"]').length
+    };
+
+    const botoes = container.querySelectorAll("button");
+    botoes.forEach(btn => {
+        const idFiltro = btn.getAttribute("data-filtro-id");
+        const labelBase = btn.getAttribute("data-label-base");
+        
+        if (contadores[idFiltro] !== undefined) {
+            const valor = contadores[idFiltro];
+            btn.innerText = `${labelBase} (${valor})`;
+            
+            // Lógica de Pulsação
+            if (idFiltro === 'vencidos' && valor > 0) {
+                btn.classList.add('pulse-vencido');
+            } else if (idFiltro === 'hoje' && valor > 0) {
+                btn.classList.add('pulse-hoje');
+            } else {
+                btn.classList.remove('pulse-vencido', 'pulse-hoje');
+            }
+
+            // Opacidade para botões vazios
+            if (valor === 0 && idFiltro !== 'todos') {
+                btn.style.opacity = "0.4";
+                btn.style.pointerEvents = "none";
+            } else {
+                btn.style.opacity = "1";
+                btn.style.pointerEvents = "auto";
+            }
+        }
+    });
+}
+
+function converterData(dataStr) {
+    if (!dataStr || dataStr === '---') return null;
+
+    // Se vier no formato ISO do banco (Ex: 2026-02-10T03:00... ou apenas 2026-02-10)
+    let dataLimpa = dataStr.split('T')[0]; 
+    let partes = dataLimpa.split(/[-/]/);
+
+    if (partes.length === 3) {
+        let ano, mes, dia;
+        
+        if (partes[0].length === 4) { // Formato YYYY-MM-DD
+            ano = parseInt(partes[0]);
+            mes = parseInt(partes[1]) - 1;
+            dia = parseInt(partes[2]);
+        } else { // Formato DD-MM-YYYY
+            ano = parseInt(partes[2]);
+            mes = parseInt(partes[1]) - 1;
+            dia = parseInt(partes[0]);
+        }
+        
+        // Criamos ao meio-dia para evitar que o fuso horário mude o dia
+        return new Date(ano, mes, dia, 12, 0, 0);
+    }
+    return null;
+}
+
+
+// function criarAccordionVinculo(tipo, lista, hoje) {
+//     const temPermissaoSupremo = temPermissao("Pagamentos", "supremo");
+//     const hojeISO = hoje.toLocaleDateString('sv-SE');
+//     const hojeBR = hoje.toLocaleDateString('pt-BR');
+
+//     const dHoje = new Date(hoje); 
+//     dHoje.setHours(0,0,0,0);
+    
+
+//     const resumoVinculo = lista.reduce((acc, c) => {
+//         // 1. Pegamos os valores brutos
+//         const vPago = Math.max(0, parseFloat(c.vlrpago || 0));
+//         const vSaldo = Math.max(0, parseFloat(c.saldo || 0));
+//         const vTotalItem = parseFloat(c.valorTotal || c.vlrreal || c.vlrestimado || 0);
+
+//         const urlComprovante = (c.comprovante && c.comprovante !== '---') 
+//             ? `http://localhost:3000/${c.comprovante}` 
+//             : null;
+
+//         // Encode para passar via atributo HTML com segurança
+//         const urlEncoded = urlComprovante ? encodeURIComponent(urlComprovante) : '';
+
+//         // 2. IDENTIFICAÇÃO DE STATUS REAL (Sincronizada com o Topo)
+//         const statusOriginal = (c.status || 'pendente').toLowerCase();
+        
+//         if (statusOriginal === 'suspenso') {
+//             return acc; // Pula este item, não soma em nada, nem em 'pendente' nem em 'total'
+//         }
+//         // Pegamos a data para comparar com "hoje"
+//        // const dHoje = new Date(); dHoje.setHours(0,0,0,0);
+       
+//         const dataVctoStr = c.dtvcto || (c.vencimento ? c.vencimento.split('/').reverse().join('-') : "");
+//         const dParcela = dataVctoStr ? new Date(dataVctoStr + "T12:00:00") : null;
+//         if(dParcela) dParcela.setHours(0,0,0,0);
+
+//         // Definimos o status de cálculo
+//         let statusCalculo = statusOriginal;
+
+//         console.log(`Processamento do Item: ${c.descricao || c.categoria} | Status Original: ${statusOriginal} | Data Vcto: ${dataVctoStr} | Hoje: ${hojeBR}`);
+//         if (statusOriginal !== 'pago' && dParcela && dParcela < dHoje) {
+//             statusCalculo = 'atrasado'; // Força o atraso se a data passou
+//         }
+
+//         // 3. ACÚMULO DOS TOTAIS
+//         if (statusCalculo === 'pago') {
+//             acc.pagos += vPago || vTotalItem;
+//             acc.total += vPago || vTotalItem;
+//         } else if (statusCalculo === 'atrasado') {
+//             acc.vencidos += vSaldo || vTotalItem;
+//             acc.total += vTotalItem;
+//             acc.pendente += vSaldo || vTotalItem;
+//             acc.temVencido = true;
+//         } else {
+//             // Pendentes futuros, Hoje e Projeções
+//             if (dParcela && dParcela.getTime() === dHoje.getTime()) {
+//                 acc.valorHoje += vSaldo || vTotalItem;
+//                 acc.temHoje = true;
+//             } else {
+//                 acc.aVencer += vSaldo || vTotalItem;
+//             }
+//             acc.total += vTotalItem;
+//             acc.pendente += vSaldo || vTotalItem;
+//         }
+
+//         return acc;
+//     }, { pagos: 0, pendente: 0, total: 0, vencidos: 0, valorHoje: 0, aVencer: 0, temVencido: false, temHoje: false });
+    
+// // 2. MONTAGEM DOS ALERTAS (ESTILO STAFF - EM LINHA)
+//     let alertasTexto = [];
+//     if (resumoVinculo.vencidos > 0) {
+//         alertasTexto.push(`
+//             <span style="display: inline-flex; align-items: center; gap: 4px;">
+//                 <span class="dot-alerta"></span>
+//                 <strong style="color:#d9534f; font-size: 16px;">VENCIDOS: ${formatarMoeda(resumoVinculo.vencidos)}</strong>
+//             </span>
+//         `);
+//     }
+//     if (resumoVinculo.temHoje) {
+//         alertasTexto.push(`
+//             <span style="display: inline-flex; align-items: center; gap: 6px; margin-right: 10px;">
+//                 <span class="dot-alerta pulse-amarelo" style="background-color: #ffcc00; width: 10px; height: 10px; border-radius: 50%;"></span>
+//                 <strong style="color:#f0ad4e; font-size: 16px;">HOJE: ${formatarMoeda(resumoVinculo.valorHoje)}</strong>
+//             </span>
+//         `);
+//     }
+//     if (resumoVinculo.aVencer > 0) {
+//         alertasTexto.push(`
+//             <span style="display: inline-flex; align-items: center; gap:6px; margin-right: 10px;">
+//             <span class="dot-alerta pulse-azul" style="background-color: #007bff; width: 10px; height: 10px; border-radius: 50%;"></span>
+//                 <strong style="color:#007bff; font-size: 16px;">A VENCER: ${formatarMoeda(resumoVinculo.aVencer)}</strong>
+//             </span>
+//         `);
+//     }
+//     if (resumoVinculo.pagos > 0) {
+//         alertasTexto.push(`<strong style="color:#2E8B57; font-size: 16px;">PAGOS: ${formatarMoeda(resumoVinculo.pagos)}</strong>`);
+//     }
+
+//     let subStatusHtml = alertasTexto.length > 0 
+//         ? `<div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">${alertasTexto.join(' <span style="color:#ddd">|</span> ')}</div>`
+//         : `<small style="color:#28a745; font-weight: bold; display:block; margin-top:4px;">✓ LIQUIDADO</small>`;
+
+//     // 3. CRIAÇÃO DO ITEM E DEFINIÇÃO DO FILTRO DE GRUPO
+//     const item = document.createElement("div");
+//     item.className = "accordion-item item-financeiro"; 
+    
+//     let statusParaFiltro = "a_vencer";
+//     if (resumoVinculo.temVencido) statusParaFiltro = "vencidos";
+//     else if (resumoVinculo.temHoje) statusParaFiltro = "hoje";
+//     else if (resumoVinculo.pendente <= 0) statusParaFiltro = "liquidado";
+//     item.setAttribute("data-status-filtro", statusParaFiltro);
+
+//     //ordena a lista por vencimento e alfabética
+//     lista.sort((a, b) => {
+//         // Preparar as datas para comparação
+//         const dataA = (a.dtvcto || a.data_referencia_fmt || "").substring(0, 10);
+//         const dataB = (b.dtvcto || b.data_referencia_fmt || "").substring(0, 10);
+
+//         // 1º Critério: Data de Vencimento
+//         if (dataA < dataB) return -1;
+//         if (dataA > dataB) return 1;
+
+//         // 2º Critério: Ordem Alfabética (se as datas forem iguais)
+//         const nomeA = (a.nome_vinculo || "").toLowerCase();
+//         const nomeB = (b.nome_vinculo || "").toLowerCase();
+//         return nomeA.localeCompare(nomeB);
+//     });
+
+//     const meses = lista.reduce((acc, curr) => {
+//         const chave = `${curr.mes_agrupador} / ${curr.ano_agrupador}`;
+//         if (!acc[chave]) acc[chave] = [];
+//         acc[chave].push(curr);
+//         return acc;
+//     }, {});
+
+//     item.innerHTML = `
+//         <button class="accordion-header">
+//             <div class="evento-info-container-inline ${resumoVinculo.temVencido ? 'vencido-critico' : ''}" style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+//                 <div class="evento-titulo-col" style="text-align: left;">
+//                     <strong style="font-size: 19px;">${tipo}</strong>
+//                     ${subStatusHtml}
+//                 </div>
+//                 <div class="evento-valores-col" style="display: flex; gap: 15px; text-align: right;">
+//                     <div class="fin-resumo-item orcado">
+//                         <span style="font-size: 12px; color: #888; display:block;">TOTAL DO GRUPO</span>
+//                         <strong style="font-size: 17px;">${formatarMoeda(resumoVinculo.total)}</strong>
+//                     </div>
+//                 </div>
+//             </div>
+//         </button>
+//         <div class="accordion-body">
+//             <div class="funcionarios-scroll-container">
+//                 <table class="tabela-funcionarios-venc">
+//                     <thead>
+//                         <tr>
+//                             <th>VÍNCULO / DESCRIÇÃO</th>
+//                             <th style="text-align:center">VENCIMENTO</th>
+//                             <th style="text-align:center">IMAGEM CONTA</th>
+//                             <th style="text-align:center">AÇÕES</th>
+//                             <th style="text-align:center">STATUS</th>
+//                             <th style="text-align:center">DATA PAGAMENTO</th>
+//                             <th style="text-align:center">COMPROVANTE</th>
+//                             <th style="text-align:right">VALOR</th>
+//                         </tr>
+//                     </thead>
+//                     <tbody>
+//                     ${(() => {
+//                         if (!lista || lista.length === 0) return '<tr><td colspan="8" style="text-align:center;">Nenhum registro encontrado.</td></tr>';
+
+//                         // 1. Agrupamento dinâmico (caso os campos sanitizados tenham falhado)
+//                         const gruposPorMes = lista.reduce((acc, curr) => {
+//                             // Tenta pegar a data de qualquer lugar possível
+//                             const dStr = curr.dtvcto || curr.vencimento || curr.data_referencia || "";
+//                             let rotulo = "SEM DATA";
+                            
+//                             if (dStr) {
+//                                 const dt = dStr.includes('-') ? new Date(dStr + "T12:00:00") : converterData(dStr);
+//                                 if (dt) {
+//                                     const mesesNome = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
+//                                     rotulo = `${mesesNome[dt.getMonth()]} / ${dt.getFullYear()}`;
+//                                 }
+//                             }
+                            
+//                             if (!acc[rotulo]) acc[rotulo] = [];
+//                             acc[rotulo].push(curr);
+//                             return acc;
+//                         }, {});
+
+//                         // 2. Renderização dos Grupos
+//                         return Object.keys(gruposPorMes).map(mesAno => {
+//                             const itens = gruposPorMes[mesAno];                            
+                            
+//                             const temVencidoNoMes = itens.some(it => {
+//                                 const statusIt = (it.status || '').toLowerCase();
+//                                 const dStr = it.dtvcto || "";
+//                                 const dIt = dStr ? new Date(dStr + "T12:00:00") : null;
+//                                 if(dIt) dIt.setHours(0,0,0,0);
+                                
+//                                 return statusIt !== 'pago' && dIt && dIt < dHoje;
+//                             });
+
+//                             const headerMes = `
+//                                 <tr class="item-financeiro-linha" data-status-filtro="${temVencidoNoMes ? 'vencidos' : 'todos'}" style="background: #f8f9fa; border-left: 5px solid #007bff;">
+//                                     <td colspan="8" style="padding: 12px; font-weight: bold; color: #333;">
+//                                         <i class="fas fa-calendar-alt" style="color: #007bff; margin-right: 8px;"></i> ${mesAno}
+//                                         ${temVencidoNoMes ? '<span style="color: #d9534f; font-size: 11px; margin-left: 10px;">(DÉBITOS PENDENTES)</span>' : ''}
+//                                     </td>
+//                                 </tr>`;
+
+//                             // Linhas dos Itens
+//                             const linhas = itens.map(c => {
+//                                 const statusC = (c.status || 'pendente').toLowerCase();
+
+//                                 const ehSuspenso = statusC === 'suspenso';                                
+
+//                                 // Define a classe CSS baseada no status
+//                                 const classeStatus = ehSuspenso ? 'linha-suspensa' : '';
+                                
+//                                 // --- LÓGICA DE VALOR À PROVA DE FALHAS (Sincronizada com o topo) ---
+//                                 let vExibicao = 0;
+//                                 if (statusC === 'pago') {
+//                                     vExibicao = parseFloat(c.vlrpago || c.valorPago || c.vlrreal || c.vlrestimado || 0);
+//                                 } else {
+//                                     vExibicao = parseFloat(c.vlrreal || c.vlrestimado || c.valorTotal || c.valor || 0);
+//                                 }
+
+//                                 // Datas e Estilos
+//                                 const dataExibicao = c.vencimento || (c.dtvcto ? c.dtvcto.split('-').reverse().join('/') : '---');
+//                                 const vctoISO = c.dtvcto || "";
+
+                               
+                                
+//                                 // --- LÓGICA DE STATUS E FILTRO (CORRIGIDA) ---
+//                                 let estiloVencido = "";
+//                                 let avisoStatus = "";
+//                                 let filterLinha = "";
+
+//                                 if (ehSuspenso) {
+//                                     // PRIORIDADE 1: Se é suspenso, ignoramos qualquer cálculo de atraso
+//                                     filterLinha = "suspenso";
+//                                     avisoStatus = ""; 
+//                                     estiloVencido = ""; 
+//                                 } else if (statusC === 'pago') {
+//                                     // PRIORIDADE 2: Se está pago, é liquidado
+//                                     filterLinha = "liquidado";
+//                                 } else {
+//                                     // PRIORIDADE 3: Só checamos atraso/vencimento se NÃO for suspenso e NÃO for pago
+//                                     if (dataExibicao === hojeBR) {
+//                                         filterLinha = "hoje";
+//                                         estiloVencido = "color: #f0ad4e; font-weight: bold;";
+//                                         avisoStatus = `<span style="background:#f0ad4e; color:white; padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">HOJE</span>`;
+//                                     } else if (vctoISO && vctoISO < hojeISO) {
+//                                         filterLinha = "vencidos";
+//                                         estiloVencido = "color: #d9534f; font-weight: bold;";
+//                                         avisoStatus = `<span style="background:#d9534f; color:white; padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">VENCIDO</span>`;
+//                                     } else {
+//                                         filterLinha = "a_vencer";
+//                                     }
+//                                 }                                
+
+//                                 // console.log(`Processando item: ${c.nome_vinculo || '---'} - ${c.descricao} | Status: ${statusC} | Suspenso? ${ehSuspenso} | Data Vcto: ${dataExibicao} `);
+//                                 const obsAtualParaJs = (c.observacao || c.descricao || "").replace(/'/g, "\\'").replace(/"/g, '&quot;');
+//                                 return `
+//                                     <tr class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}">
+//                                         <td style="${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}">
+//                                             ${ehSuspenso ? '<i class="fas fa-pause-circle" title="SUSPENSO" style="color: #6c757d; margin-right: 5px; display:inline-block;"></i>' : avisoStatus}
+//                                             <strong>${c.nome_vinculo || '---'}</strong><br>
+//                                             <small style="color:#777;">${c.observacao || c.descricao || ''}</small>
+//                                         </td>
+//                                         <td style="text-align:center;">${dataExibicao}</td>
+//                                         <td style="text-align:center;">
+//                                             ${c.imagemconta && c.imagemconta !== '---' ? `<a href="${c.imagemconta}" target="_blank"><i class="fas fa-file-invoice-dollar" style="color:#2E8B57;"></i></a>` : '<i class="fas fa-camera" style="color:#ccc;"></i>'}
+//                                         </td>
+//                                         <td style="text-align:center;">
+//                                             ${ehSuspenso 
+//                                                 ? `<button 
+//                                                     onclick="${temPermissaoSupremo ? `reverterSuspensao('${c.idlancamento}', '${c.idpagamento}', '${vctoISO}', '${obsAtualParaJs}')` : `Swal.fire('Acesso Negado', 'Apenas usuários com nível Supremo podem reverter suspensões.', 'warning')`}" 
+//                                                     class="btn-reverter-suspensao" 
+//                                                     style="cursor: ${temPermissaoSupremo ? 'pointer' : 'not-allowed'}; background: ${temPermissaoSupremo ? '#6c757d' : '#eee'}; border: none; padding: 5px 8px; border-radius: 4px;"
+//                                                     title="${temPermissaoSupremo ? 'Reverter Suspensão' : 'Bloqueado para seu nível'}">
+//                                                     <i class="fas fa-unlock-alt" style="color: ${temPermissaoSupremo ? '#fff' : '#ccc'};"></i>
+//                                                 </button>` 
+//                                                 : (statusC === 'pago' ? '<i class="fas fa-lock"></i>' : (typeof renderBotaoPagamento === 'function' ? renderBotaoPagamento(c) : ''))
+//                                             }
+//                                         </td>
+//                                         <td style="text-align:center;"><span class="badge-status-${statusC}">${statusC.toUpperCase()}</span></td>
+//                                         <td style="text-align:center;">${c.dtpgto || '---'}</td>
+//                                         <td style="text-align:center;">
+//                                             ${urlComprovante 
+//                                                 ? `<a href="javascript:void(0)" onclick="abrirComprovanteSwal('${urlEncoded}')" title="Visualizar Comprovante">
+//                                                     <i class="fas fa-file-signature" style="color: #27ae60; font-size: 1.2em;"></i>
+//                                                 </a>`
+//                                                 : '<i class="fas fa-times" style="color: #eee;" title="Sem comprovante"></i>'
+//                                             }
+//                                         </td>
+//                                         <td style="text-align:right; ${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}">
+//                                             <strong>${formatarMoeda(vExibicao)}</strong>
+//                                         </td>
+//                                     </tr>`;
+//                                 }).join('');                              
+
+//                                 return headerMes + linhas;
+//                             }).join('');
+//                         })()}
+//                     </tbody>
+//                 </table>
+//             </div>
+//         </div>
+//     `;
+
+//     item.querySelector('.accordion-header').onclick = () => item.classList.toggle("active");
+//     return item;
+// }
+
+function criarAccordionVinculo(tipo, lista, hoje) {
+    const temPermissaoSupremo = temPermissao("Pagamentos", "supremo");
+    const hojeISO = hoje.toLocaleDateString('sv-SE');
+    const hojeBR = hoje.toLocaleDateString('pt-BR');
+
+    const dHoje = new Date(hoje); 
+    dHoje.setHours(0,0,0,0);
+
+    // 1. CÁLCULO DO RESUMO DO CABEÇALHO (Ignora suspensos)
+    const resumoVinculo = lista.reduce((acc, c) => {
+        const statusOriginal = (c.status || 'pendente').toLowerCase();
+        
+        if (statusOriginal === 'suspenso') return acc;
+
+        const vPago = Math.max(0, parseFloat(c.vlrpago || 0));
+        const vSaldo = Math.max(0, parseFloat(c.saldo || 0));
+        const vTotalItem = parseFloat(c.valorTotal || c.vlrreal || c.vlrestimado || 0);
+
+        const dataVctoStr = c.dtvcto || (c.vencimento ? c.vencimento.split('/').reverse().join('-') : "");
+        const dParcela = dataVctoStr ? new Date(dataVctoStr + "T12:00:00") : null;
+        if(dParcela) dParcela.setHours(0,0,0,0);
+
+        let statusCalculo = statusOriginal;
+        if (statusOriginal !== 'pago' && dParcela && dParcela < dHoje) {
+            statusCalculo = 'atrasado';
+        }
+
+        if (statusCalculo === 'pago') {
+            acc.pagos += vPago || vTotalItem;
+            acc.total += vPago || vTotalItem;
+        } else if (statusCalculo === 'atrasado') {
+            acc.vencidos += vSaldo || vTotalItem;
+            acc.total += vTotalItem;
+            acc.pendente += vSaldo || vTotalItem;
+            acc.temVencido = true;
+        } else {
+            if (dParcela && dParcela.getTime() === dHoje.getTime()) {
+                acc.valorHoje += vSaldo || vTotalItem;
+                acc.temHoje = true;
+            } else {
+                acc.aVencer += vSaldo || vTotalItem;
+            }
+            acc.total += vTotalItem;
+            acc.pendente += vSaldo || vTotalItem;
+        }
+        return acc;
+    }, { pagos: 0, pendente: 0, total: 0, vencidos: 0, valorHoje: 0, aVencer: 0, temVencido: false, temHoje: false });
+
+    // 2. MONTAGEM DOS ALERTAS DO HEADER
+    let alertasTexto = [];
+    if (resumoVinculo.vencidos > 0) {
+        alertasTexto.push(`<span style="display: inline-flex; align-items: center; gap: 4px;"><span class="dot-alerta"></span><strong style="color:#d9534f; font-size: 16px;">VENCIDOS: ${formatarMoeda(resumoVinculo.vencidos)}</strong></span>`);
+    }
+    if (resumoVinculo.temHoje) {
+        alertasTexto.push(`<span style="display: inline-flex; align-items: center; gap: 6px; margin-right: 10px;"><span class="dot-alerta pulse-amarelo" style="background-color: #ffcc00; width: 10px; height: 10px; border-radius: 50%;"></span><strong style="color:#f0ad4e; font-size: 16px;">HOJE: ${formatarMoeda(resumoVinculo.valorHoje)}</strong></span>`);
+    }
+    if (resumoVinculo.aVencer > 0) {
+        alertasTexto.push(`<span style="display: inline-flex; align-items: center; gap:6px; margin-right: 10px;"><span class="dot-alerta pulse-azul" style="background-color: #007bff; width: 10px; height: 10px; border-radius: 50%;"></span><strong style="color:#007bff; font-size: 16px;">A VENCER: ${formatarMoeda(resumoVinculo.aVencer)}</strong></span>`);
+    }
+    if (resumoVinculo.pagos > 0) {
+        alertasTexto.push(`<strong style="color:#2E8B57; font-size: 16px;">PAGOS: ${formatarMoeda(resumoVinculo.pagos)}</strong>`);
+    }
+
+    let subStatusHtml = alertasTexto.length > 0 
+        ? `<div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">${alertasTexto.join(' <span style="color:#ddd">|</span> ')}</div>`
+        : `<small style="color:#28a745; font-weight: bold; display:block; margin-top:4px;">✓ LIQUIDADO</small>`;
+
+    const item = document.createElement("div");
+    item.className = "accordion-item item-financeiro"; 
+    
+    let statusParaFiltro = "a_vencer";
+    if (resumoVinculo.temVencido) statusParaFiltro = "vencidos";
+    else if (resumoVinculo.temHoje) statusParaFiltro = "hoje";
+    else if (resumoVinculo.pendente <= 0) statusParaFiltro = "liquidado";
+    item.setAttribute("data-status-filtro", statusParaFiltro);
+
+    // Ordenação
+    lista.sort((a, b) => {
+        const dataA = (a.dtvcto || "").substring(0, 10);
+        const dataB = (b.dtvcto || "").substring(0, 10);
+        if (dataA < dataB) return -1;
+        if (dataA > dataB) return 1;
+        return (a.nome_vinculo || "").toLowerCase().localeCompare((b.nome_vinculo || "").toLowerCase());
     });
 
-    const totalPend = totalPendAjuda + totalPendCache + totalPendCaix;
-    const totalPago = totalPagoAjuda + totalPagoCache + totalPagoCaix;
+    item.innerHTML = `
+        <button class="accordion-header">
+            <div class="evento-info-container-inline ${resumoVinculo.temVencido ? 'vencido-critico' : ''}" style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                <div class="evento-titulo-col" style="text-align: left;">
+                    <strong style="font-size: 19px;">${tipo}</strong>
+                    ${subStatusHtml}
+                </div>
+                <div class="evento-valores-col" style="display: flex; gap: 15px; text-align: right;">
+                    <div class="fin-resumo-item orcado">
+                        <span style="font-size: 12px; color: #888; display:block;">TOTAL DO GRUPO</span>
+                        <strong style="font-size: 17px;">${formatarMoeda(resumoVinculo.total)}</strong>
+                    </div>
+                </div>
+            </div>
+        </button>
+        <div class="accordion-body">
+            <div class="funcionarios-scroll-container">
+                <table class="tabela-funcionarios-venc">
+                    <thead>
+                        <tr>
+                            <th>VÍNCULO / DESCRIÇÃO</th>
+                            <th style="text-align:center">VENCIMENTO</th>
+                            <th style="text-align:center">IMAGEM CONTA</th>
+                            <th style="text-align:center">AÇÕES</th>
+                            <th style="text-align:center">STATUS</th>
+                            <th style="text-align:center">EMPRESA PAGADORA</th>
+                            <th style="text-align:center">DATA PAGAMENTO</th>
+                            <th style="text-align:center">COMPROVANTE</th>
+                            <th style="text-align:right">VALOR</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    ${(() => {
+                        if (!lista || lista.length === 0) return '<tr><td colspan="8" style="text-align:center;">Nenhum registro encontrado.</td></tr>';
+
+                        const gruposPorMes = lista.reduce((acc, curr) => {
+                            const dStr = curr.dtvcto || curr.vencimento || "";
+                            let rotulo = "SEM DATA";
+                            if (dStr) {
+                                const dt = new Date(dStr + "T12:00:00");
+                                const mesesNome = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
+                                rotulo = `${mesesNome[dt.getMonth()]} / ${dt.getFullYear()}`;
+                            }
+                            if (!acc[rotulo]) acc[rotulo] = [];
+                            acc[rotulo].push(curr);
+                            return acc;
+                        }, {});
+
+                        return Object.keys(gruposPorMes).map(mesAno => {
+                            const itens = gruposPorMes[mesAno];
+                            const headerMes = `<tr class="item-financeiro-linha" style="background: #f8f9fa; border-left: 5px solid #007bff;"><td colspan="8" style="padding: 12px; font-weight: bold;">${mesAno}</td></tr>`;
+
+                            const linhas = itens.map(c => {
+                                const statusC = (c.status || 'pendente').toLowerCase();
+                                const ehSuspenso = statusC === 'suspenso';
+                                
+                                // Lógica do Comprovante (Movida para dentro do map)
+                                const arquivoComp = c.comprovantepagto;
+                                const urlComp = (arquivoComp && arquivoComp !== '---') ? `${arquivoComp}` : null;
+                                const urlEncoded = urlComp ? encodeURIComponent(urlComp) : '';
+
+                                let vExibicao = statusC === 'pago' ? parseFloat(c.vlrpago || c.vlrreal || 0) : parseFloat(c.vlrreal || c.vlrestimado || 0);
+                                const dataExibicao = c.dtvcto ? c.dtvcto.split('-').reverse().join('/') : '---';
+                                const pgtoExibicao = (c.dtpgto && c.dtpgto !== '---') ? c.dtpgto.substring(0, 10).split('-').reverse().join('/') : '---';
+                                const vctoISO = c.dtvcto || "";
+
+                                let estiloVencido = ""; let avisoStatus = ""; let filterLinha = "";
+                                if (ehSuspenso) { filterLinha = "suspenso"; }
+                                else if (statusC === 'pago') { filterLinha = "liquidado"; }
+                                else {
+                                    if (dataExibicao === hojeBR) { filterLinha = "hoje"; estiloVencido = "color: #f0ad4e; font-weight: bold;"; avisoStatus = `<span style="background:#f0ad4e; color:white; padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">HOJE</span>`; }
+                                    else if (vctoISO && vctoISO < hojeISO) { filterLinha = "vencidos"; estiloVencido = "color: #d9534f; font-weight: bold;"; avisoStatus = `<span style="background:#d9534f; color:white; padding:2px 4px; border-radius:3px; font-size:10px; margin-right:5px;">VENCIDO</span>`; }
+                                    else { filterLinha = "a_vencer"; }
+                                }
+
+                                const obsParaJs = (c.observacao || c.descricao || "").replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+                                return `
+                                    <tr class="item-financeiro-linha ${ehSuspenso ? 'linha-suspensa' : ''}" data-status-filtro="${ehSuspenso ? 'suspenso' : filterLinha}" data-id-empresa="${c.idempresapagadora || 'nulo'}">
+                                        <td style="${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}">
+                                            ${ehSuspenso ? '<i class="fas fa-pause-circle" style="color: #6c757d; margin-right: 5px;"></i>' : avisoStatus}
+                                            <strong>${c.nome_vinculo || '---'}</strong><br><small style="color:#777;">${c.observacao || c.descricao || ''}</small>
+                                        </td>
+                                        <td style="text-align:center;">${dataExibicao}</td>
+                                        <td style="text-align:center;">
+                                            ${c.imagemconta && c.imagemconta !== '---' 
+                                                ? `<a href="javascript:void(0)" 
+                                                    onclick="abrirComprovanteSwal(encodeURIComponent('/uploads/contas/imagemboleto/${c.imagemconta}'))">
+                                                    <i class="fas fa-receipt" style="color:#2E8B57; font-size: 1.2em;"></i>
+                                                </a>` 
+                                                : '<i class="fas fa-upload" style="color:#f0ad4e;" title="Aguardando envio"></i>'
+                                            }
+                                        </td>
+                                        <td style="text-align:center;">
+                                            ${ehSuspenso 
+                                                ? `<button onclick="${temPermissaoSupremo ? `reverterSuspensao('${c.idlancamento}', '${c.idpagamento}', '${vctoISO}', '${obsParaJs}')` : `Swal.fire('Negado','Acesso Supremo Requerido','warning')`}" class="btn-reverter-suspensao" style="cursor: ${temPermissaoSupremo ? 'pointer' : 'not-allowed'}; background: ${temPermissaoSupremo ? '#6c757d' : '#eee'}; border:none; padding:5px 8px; border-radius:4px;"><i class="fas fa-unlock-alt" style="color:${temPermissaoSupremo ? '#fff' : '#ccc'}"></i></button>` 
+                                                : (statusC === 'pago' ? '<i class="fas fa-lock"></i>' : (typeof renderBotaoPagamento === 'function' ? renderBotaoPagamento(c) : ''))}
+                                        </td>
+                                        <td style="text-align:center;"><span class="badge-status-${statusC}">${statusC.toUpperCase()}</span></td>
+                                        <td style="text-align:center;">${c.empresapagadora}</td>
+                                        <td style="text-align:center;">${pgtoExibicao}</td>
+                                        <td style="text-align:center;">
+                                            ${(c.comprovantepgto && c.comprovantepgto !== '---')
+                                                ? // SE HOUVER ARQUIVO: Sempre mostra o ícone do comprovante
+                                                `<a href="javascript:void(0)" 
+                                                    onclick="abrirComprovanteSwal(encodeURIComponent('/uploads/contas/comprovantespgto/${c.comprovantepgto}'))">
+                                                    <i class="fas fa-receipt" style="color:#2E8B57; font-size: 1.2em;"></i>
+                                                </a>`
+                                                : // SE NÃO HOUVER ARQUIVO: Verifica o status
+                                                (statusC === 'pago' 
+                                                    ? '<i class="fas fa-upload" style="color:#f0ad4e;" title="Enviar comprovante"></i>' 
+                                                    : '<small style="color:#999; font-style: italic;">Aguardando Pagamento</small>'
+                                                )
+                                            }
+                                        </td>
+                                    
+                                        <td style="text-align:right; ${ehSuspenso ? 'text-decoration: none !important;' : estiloVencido}"><strong>${formatarMoeda(vExibicao)}</strong></td>
+                                    </tr>`;
+                            }).join('');
+                            return headerMes + linhas;
+                        }).join('');
+                    })()}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    item.querySelector('.accordion-header').onclick = () => item.classList.toggle("active");
+    return item;
+}
+
+function aplicarFiltrosFinanceiros() {
+    const empresaSel = document.querySelector("#select-empresa-pagadora")?.value || "todas";
+    // Busca qual botão de status está "ativo" (precisamos adicionar a classe 'active' no clique)
+    const statusSel = document.querySelector(".btn-filtro-financeiro.active")?.getAttribute("data-filtro-id") || "todos";
+
+    const todasAsLinhas = document.querySelectorAll(".wrapper-contas-financeiro tr[data-id-empresa]");
+
+    todasAsLinhas.forEach(linha => {
+        const idEmpresa = linha.getAttribute("data-id-empresa");
+        const statusFiltro = linha.getAttribute("data-status-filtro");
+
+        const bateEmpresa = (empresaSel === "todas" || idEmpresa === empresaSel);
+        const bateStatus = (statusSel === "todos" || statusFiltro === statusSel);
+
+        // Só exibe se passar pelos dois filtros
+        linha.style.display = (bateEmpresa && bateStatus) ? "" : "none";
+    });
+    
+    // Opcional: Se uma categoria (ex: FORNECEDORES) ficar vazia, você pode esconder o accordion dela aqui
+}
+
+function filtrarPorEmpresaNaTela(idSelecionado) {
+    // 1. Seleciona todas as linhas de contas que possuem o atributo de empresa
+    const linhas = document.querySelectorAll(".item-financeiro-linha[data-id-empresa]");
+    
+    linhas.forEach(linha => {
+        const idEmpresaLinha = linha.getAttribute("data-id-empresa");
+        
+        // Lógica: Se for "todas" ou o ID bater, mostra. Senão, esconde.
+        if (idSelecionado === "todas" || idEmpresaLinha === String(idSelecionado)) {
+            linha.style.display = "";
+        } else {
+            linha.style.display = "none";
+        }
+    });
+
+    // 2. Opcional: Esconder os headers de Meses que ficarem sem nenhuma conta visível
+    document.querySelectorAll('tr[style*="background: #f8f9fa"]').forEach(headerMes => {
+        let proximaLinha = headerMes.nextElementSibling;
+        let temVisivel = false;
+        
+        // Verifica se há alguma conta visível até o próximo header de mês
+        while (proximaLinha && !proximaLinha.style.background.includes('#f8f9fa')) {
+            if (proximaLinha.style.display !== "none") {
+                temVisivel = true;
+                break;
+            }
+            proximaLinha = proximaLinha.nextElementSibling;
+        }
+        headerMes.style.display = temVisivel ? "" : "none";
+    });
+}
+
+function headerClickHandler(item) {
+    const btn = item.querySelector('.accordion-header');
+    if(btn) btn.onclick = () => item.classList.toggle("active");
+}
+
+function renderAcoesComprovante(c) {
+    // Se já houver um comprovante (Conta já foi paga e arquivada)
+    if (c.comprovante_url) {
+        return `
+            <a href="${c.comprovante_url}" target="_blank" class="btn-ver-comprovante" title="Ver Comprovante">
+                <i class="fas fa-file-invoice-dollar" style="font-size: 1.2em; color: #2E8B57;"></i>
+            </a>
+        `;
+    }
+
+    // Se o status for pago mas não tem arquivo, mostra o ícone de upload
+    if (c.status.toLowerCase() === 'pago') {
+        return `
+            <label class="label-upload-comprovante" title="Subir Comprovante">
+                <input type="file" style="display:none" onchange="uploadComprovanteConta(this, ${c.idpagamento || c.idlancamento})">
+                <i class="fas fa-cloud-upload-alt" style="cursor:pointer; color:#007bff; font-size: 1.2em;"></i>
+            </label>
+        `;
+    }
+
+    // Caso contrário, está pendente
+    return `<small style="color: #999; font-style: italic;">Aguardando Pagamento</small>`;
+}
+
+
+function renderBotaoPagamento(c) {
+    // 1. Se já estiver pago, mostra o ícone de confirmação
+    if (c.status && c.status.toLowerCase() === 'pago') {
+        return `<i class="fas fa-check-double" style="color: #2E8B57;" title="Lançamento Confirmado"></i>`;
+    }
+
+    // 2. Tratamento da observação para evitar quebra no JS
+    const textoObs = (c.observacao || c.observacao_vencimento || "")
+        .replace(/[\n\r]/g, ' ')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '\\"');
+
+    const dataVcto = c.dtvcto || c.vencimento || "";
+    const valorParaPagar = c.vlrprevisto || c.valor || 0;
+    const idPgto = (c.idpagamento && c.idpagamento !== 'null') ? c.idpagamento : 'null';
+
+    
+
+    // 3. Retorno usando suas classes .btn-pago e .btn-suspenso
+    return `
+        <div class="btn-group-acoes" style="display:flex; gap:8px; justify-content:center;">
+            <button class="btn-pago" 
+                    onclick="abrirModalPagamento(${idPgto}, ${c.idlancamento}, ${valorParaPagar}, '${dataVcto}', '${textoObs}')">
+                <i class="fas fa-money-bill-wave"></i> PAGAR
+            </button>
+            
+            <button class="btn-suspenso" 
+                    onclick="suspenderConta(${c.idlancamento}, ${idPgto}, '${dataVcto}', '${textoObs}')">
+                <i class="fas fa-pause"></i> SUSP.
+            </button>
+        </div>
+    `;
+}
+
+async function abrirModalPagamento(idPagamento, idLancamento, valorSugerido, vencimento, obsExistente = "") {
+    const dataHoje = new Date().toISOString().split('T')[0];
+
+    // --- FORMATAÇÃO DA DATA DE EXIBIÇÃO ---
+    let vencimentoFormatado = vencimento;
+    if (vencimento && vencimento.includes('-')) {
+        const [ano, mes, dia] = vencimento.split('-');
+        vencimentoFormatado = `${dia}/${mes}/${ano}`;
+    }
+
+    const { value: formValues } = await Swal.fire({
+        title: 'Confirmar Pagamento',
+        html: `
+            <div style="text-align: left; font-family: sans-serif;">
+                <label style="display:block; margin-bottom:5px;"><b>Valor Pago (R$):</b></label>
+                <input id="swal-vlrpago" class="swal2-input" type="number" step="0.01" value="${valorSugerido}" style="margin-top:0; width: 85%;">
+                
+                <label style="display:block; margin: 15px 0 5px;"><b>Data do Pagamento:</b></label>
+                <input id="swal-dtpgto" class="swal2-input" type="date" value="${dataHoje}" style="margin-top:0; width: 85%;">
+                
+                <p style="font-size: 15px; color: #666; margin-top: 15px;">
+                    Vencimento original: <b>${vencimentoFormatado}</b>
+                </p>
+
+                <label style="display:block; margin: 15px 0 5px;"><b>Observação:</b></label>
+                <textarea id="swal-obs" class="swal2-textarea" style="margin-top:0; width: 85%; height: 60px; font-size:14px;">${obsExistente}</textarea>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Confirmar Baixa',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#28a745',
+        focusConfirm: false,
+        preConfirm: () => {
+            const vlr = document.getElementById('swal-vlrpago').value;
+            const data = document.getElementById('swal-dtpgto').value;
+            const obs = document.getElementById('swal-obs').value;
+
+            if (!vlr || !data) {
+                Swal.showValidationMessage('Preencha o valor e a data!');
+                return false;
+            }
+            return { vlrpago: vlr, dtpagamento: data, observacao: obs };
+        }
+    });
+
+    if (formValues) {
+        // Importante: Mantemos o "vencimento" original (ISO) para o envio, se o seu backend exigir assim.
+        enviarBaixaPagamento(idPagamento, idLancamento, formValues.vlrpago, formValues.dtpagamento, vencimento, formValues.observacao);
+    }
+}
+window.abrirModalPagamento = abrirModalPagamento;
+
+// 2. FUNÇÃO QUE ENVIA PARA O BACKEND (A nova lógica de comunicação)
+async function enviarBaixaPagamento(idPagamento, idLancamento, vlrpago, dtpagamento, dtvcto, observacao) {
+    try {
+        // A função fetchComToken provavelmente já retorna o corpo do JSON
+        const dados = await fetchComToken('/main/confirmar-pagamento-conta', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                idpagamento: idPagamento,
+                idlancamento: idLancamento,
+                vlrpago: vlrpago,
+                dtpagamento: dtpagamento,
+                dtvcto: dtvcto,
+                observacao: observacao
+            })
+        });
+
+        // Agora verificamos 'dados' diretamente, sem o res.json()
+        if (dados && dados.sucesso) {
+            Swal.fire({ icon: 'success', title: 'Pago!', timer: 1000, showConfirmButton: false });
+
+            // Busca a linha da tabela pelo ID que acabamos de criar
+            const linha = document.getElementById(`linha-pgto-${idLancamento}`);
+
+            if (linha) {
+                const tbody = linha.parentElement;
+                
+                // Efeito visual suave
+                linha.style.transition = 'all 0.4s ease';
+                linha.style.opacity = '0';
+                linha.style.backgroundColor = '#d4edda'; // Fica verdinho antes de sumir
+
+                setTimeout(() => {
+                    linha.remove(); // Remove a <tr> da tabela
+                    
+                    // Se a tabela ficar vazia, podemos limpar o accordion
+                    if (tbody.querySelectorAll('tr').length === 0) {
+                        const accordionBody = tbody.closest('.accordion-body');
+                        accordionBody.innerHTML = '<p style="padding:20px; text-align:center; color:#999;">Todas as pendências deste grupo foram pagas!</p>';
+                    }
+                }, 400);
+            }
+        }
+        
+        else {
+            Swal.fire('Erro', (dados ? dados.erro : 'Erro desconhecido'), 'error');
+        }
+    } catch (err) {
+        console.error("Erro na requisição:", err);
+        Swal.fire('Erro', 'Falha ao processar pagamento.', 'error');
+    }
+}
+
+function verificarSeAccordionVazio(container) {
+    // Se o container não tiver mais filhos (itens), mostra mensagem de vazio
+    if (container && container.querySelectorAll('.linha-vencimento').length === 0) {
+        container.innerHTML = `
+            <div style="padding: 20px; text-align: center; color: #888; font-style: italic;">
+                <i class="fas fa-check-circle" style="color: #28a745; margin-bottom: 8px; display: block; font-size: 1.5em;"></i>
+                Nenhum pagamento pendente neste grupo.
+            </div>`;
+    }
+}
+
+
+async function suspenderConta(idLancamento, idPagamento, dataVcto, obsAntiga) {
+    // 1. Abre o Swal apenas com a Textarea
+    const { value: novaObservacao } = await Swal.fire({
+        title: 'Suspender Lançamento',
+        text: "Informe o motivo da suspensão:",
+        input: 'textarea',
+        inputValue: obsAntiga, 
+        inputPlaceholder: 'Digite a observação aqui...',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ffc107',
+        confirmButtonText: 'Confirmar Suspensão',
+        cancelButtonText: 'Cancelar',
+        inputValidator: (value) => {
+            if (!value) return 'A observação é obrigatória!';
+        }
+    });
+
+    if (novaObservacao) {
+        try {
+            // Se o idPagamento for de outro mês (como o 32 que você viu), 
+            // a rota deve ignorá-lo e procurar pelo par (idLancamento + dataVcto)
+            const pgtoIdEnviado = (idPagamento === 'null' || idPagamento === null) ? null : idPagamento;
+
+            const res = await fetchComToken('/main/confirmar-pagamento-conta', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    idpagamento: pgtoIdEnviado,
+                    idlancamento: idLancamento,
+                    vlrpago: 0,
+                    dtvcto: dataVcto, // Essencial para o Node não errar a parcela
+                    dtpagamento: new Date().toISOString().split('T')[0],
+                    observacao: novaObservacao,
+                    status: 'suspenso'
+                })
+            });
+
+            // Log para debug no console do navegador
+            console.log("Resposta da rota:", res);
+
+            if (res && res.sucesso) {
+                await Swal.fire('Suspenso!', 'Status alterado para suspenso.', 'success');
+                location.reload();
+            } else {
+                // Se res.sucesso for false, mostra o erro que veio do Node
+                Swal.fire('Erro', res.erro || 'Erro ao processar suspensão', 'error');
+            }
+        } catch (error) {
+            console.error("Erro técnico:", error);
+            Swal.fire('Erro', 'Falha na comunicação com o servidor', 'error');
+        }
+    }
+}
+window.suspenderConta = suspenderConta;
+
+async function reverterSuspensao(idLancamento, idPagamento, dataVcto, obsAtual = "") {
+    // 1. Swal de Confirmação com campo de texto para observação
+    const { value: motivo } = await Swal.fire({
+        title: 'Reverter Suspensão?',
+        text: "O lançamento voltará para o fluxo de pagamentos pendentes.",
+        input: 'textarea',
+        inputLabel: 'Justificativa para a reversão:',
+        inputPlaceholder: 'Digite o motivo aqui...',
+        showCancelButton: true,
+        confirmButtonText: 'Sim, Reativar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#28a745',
+        inputValidator: (value) => {
+            if (!value) {
+                return 'Você precisa digitar uma justificativa!';
+            }
+        }
+    });
+
+    if (motivo) {
+        try {
+            // Prepara a observação agregada (mantém a antiga e pula linha para a nova)
+            const novaObservacao = `${obsAtual}\n--- REVERSÃO SUPREMO (${new Date().toLocaleDateString()}): ${motivo}`.trim();
+
+            const res = await fetchComToken('/main/confirmar-pagamento-conta', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    idpagamento: idPagamento,
+                    idlancamento: idLancamento,
+                    dtvcto: dataVcto,
+                    status: 'pendente', // Retorna ao fluxo normal
+                    vlrpago: 0,
+                    observacao: novaObservacao 
+                })
+            });
+
+            if (res.sucesso) {
+                await Swal.fire('Reativado!', 'O lançamento agora consta como Pendente.', 'success');
+                location.reload();
+            } else {
+                throw new Error(res.mensagem || 'Erro no servidor');
+            }
+        } catch (e) {
+            Swal.fire('Erro', 'Falha ao reverter: ' + e.message, 'error');
+        }
+    }
+}
+window.reverterSuspensao = reverterSuspensao;
+
+window.uploadArquivoFinanceiro = async function(input, id, tipoUpload = 'comprovante') {
+    const arquivo = input.files[0];
+    if (!arquivo) return;
+
+    if (!id || id === 'undefined') {
+        alert("Erro: ID não identificado.");
+        return;
+    }
+
+    const container = input.parentElement;
+    const tdPai = container.closest('td');
+    const linhaInteira = container.closest('tr');
+    const htmlOriginal = container.innerHTML;
+
+    // Feedback de carregamento
+    container.innerHTML = `<i class="fas fa-circle-notch fa-spin" style="color: #007bff; font-size: 18px;"></i>`;
+
+    const formData = new FormData();
+    formData.append('idPagamento', id);
+    formData.append('tipo', tipoUpload); // Aqui enviamos 'comprovante' ou 'imagem'
+    formData.append('comprovante', arquivo); 
+
+    try {
+        const response = await fetch('/main/vencimentoconta/uploads_comprovantesconta', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            body: formData
+        });
+
+        const res = await response.json();
+
+        if (res.success) {
+            // Define o ícone baseado no que foi subido
+            const icone = tipoUpload === 'imagem' ? 'fa-file-invoice-dollar' : 'fa-receipt';
+            const label = tipoUpload === 'imagem' ? 'Ver Conta' : 'Ver Comp.';
+            
+            tdPai.innerHTML = `
+                <a href="${res.path}" target="_blank" style="text-decoration: none; color: #2E8B57; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                    <i class="fas ${icone}" style="font-size: 18px;"></i>
+                    <span style="font-size: 10px; font-weight: bold;">${label}</span>
+                </a>`;
+
+            if (linhaInteira) {
+                linhaInteira.classList.add('linha-flash-sucesso');
+                setTimeout(() => linhaInteira.classList.remove('linha-flash-sucesso'), 2000);
+            }
+        } else {
+            alert("❌ Erro: " + (res.error || res.message));
+            container.innerHTML = htmlOriginal;
+        }
+    } catch (err) {
+        console.error("Erro:", err);
+        container.innerHTML = htmlOriginal;
+    }
+};
+
+
+function formatarDataParaExibir(dataRaw) {
+    if (!dataRaw) return '---';
+
+    try {
+        // Se vier como string ISO
+        if (typeof dataRaw === 'string') {
+            // Remove milissegundos
+            dataRaw = dataRaw.trim();
+
+            // Converte direto
+            const d = new Date(dataRaw);
+            if (!isNaN(d.getTime())) {
+                const dia = String(d.getUTCDate()).padStart(2, '0');
+                const mes = String(d.getUTCMonth() + 1).padStart(2, '0');
+                const ano = d.getUTCFullYear();
+                return `${dia}/${mes}/${ano}`;
+            }
+
+            // Fallback manual
+            if (dataRaw.includes('-')) {
+                const partes = dataRaw.split('T')[0].split('-');
+                return `${partes[2]}/${partes[1]}/${partes[0]}`;
+            }
+        }
+
+        // Se vier como Date
+        if (dataRaw instanceof Date) {
+            const dia = String(dataRaw.getUTCDate()).padStart(2, '0');
+            const mes = String(dataRaw.getUTCMonth() + 1).padStart(2, '0');
+            const ano = dataRaw.getUTCFullYear();
+            return `${dia}/${mes}/${ano}`;
+        }
+
+        return '---';
+    } catch (e) {
+        return '---';
+    }
+}
+
+
+function atualizarResumoGeralEstatico(eventosVisiveis = [], contasVisiveis = [], element) {
+    if (!element) return;
+
+    // 1. Pegamos as referências do filtro de tela
+    const filtroTipo = document.querySelector('input[name="periodo"]:checked')?.value || 'diario';
+    const inputDataStr = document.querySelector("#sub-filtro-data")?.value;
+    
+    // Data de referência (Hoje) para saber o que é ATRASADO (Vencido)
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    // Data limite do que o usuário está vendo na tela agora
+    let dataLimiteExibicao = new Date(hoje); 
+    if (inputDataStr) {
+        const [ano, mes, dia] = inputDataStr.split("-").map(Number);
+        dataLimiteExibicao = new Date(ano, mes - 1, dia, 0, 0, 0);
+    }
+
+    let sVenc = 0, sAVenc = 0, sPago = 0;
+    let cVenc = 0, cAVenc = 0, cPago = 0;
+    let totAditivos = 0;
+
+    // --- PROCESSAR EVENTOS (STAFF) ---
+    eventosVisiveis.forEach(ev => {
+        // PAGO: Soma sempre se o evento está visível
+        sPago += (parseFloat(ev.ajuda?.pago || 0) + parseFloat(ev.cache?.pago || 0) + parseFloat(ev.caixinha?.pago || 0));
+
+        const classificarStaff = (dataStr, valor) => {
+            if (!dataStr || dataStr === '---' || valor <= 0) return;
+            const [d, m, a] = dataStr.split('/').map(Number);
+            const dVcto = new Date(a, m - 1, d, 0, 0, 0);
+
+            // FILTRO DIÁRIO: Se a data de vencimento for maior que a data selecionada, IGNORA no resumo
+            if (filtroTipo === 'diario' && dVcto > dataLimiteExibicao) return;
+
+            if (dVcto < hoje) {
+                sVenc += valor;
+            } else {
+                sAVenc += valor;
+            }
+        };
+
+        classificarStaff(ev.dataVencimentoAjuda, parseFloat(ev.ajuda?.pendente) || 0);
+        classificarStaff(ev.dataVencimentoCache, parseFloat(ev.cache?.pendente) || 0);
+        
+        // Caixinha: No diário, só entra se o evento for na data selecionada
+        if (filtroTipo !== 'diario') {
+            sAVenc += parseFloat(ev.caixinha?.pendente || 0);
+        }
+
+        // Aditivos
+        const tit = (ev.titulo || "").toLowerCase();
+        if (tit.includes("aditivo") || tit.includes("extra bonificado")) {
+            totAditivos += (parseFloat(ev.ajuda?.pendente || 0) + parseFloat(ev.cache?.pendente || 0) + (parseFloat(ev.ajuda?.pago || 0) + parseFloat(ev.cache?.pago || 0)));
+        }
+    });
+
+    // --- PROCESSAR CONTAS ---
+    contasVisiveis.forEach(c => {
+        const status = (c.status || '').toLowerCase();
+        const vBase = parseFloat(c.vlrreal || c.valor || c.vlrestimado || 0);
+        
+        if (status === 'pago') {
+            cPago += parseFloat(c.vlrpago || vBase);
+        } else {
+            const dStr = (c.dtvcto || c.vctobase || "").substring(0, 10);
+            if (dStr) {
+                const [ano, mes, dia] = dStr.split('-').map(Number);
+                const dVcto = new Date(ano, mes - 1, dia, 0, 0, 0);
+
+                // FILTRO DIÁRIO: Se a data da conta for maior que a selecionada, IGNORA no resumo
+                if (filtroTipo === 'diario' && dVcto > dataLimiteExibicao) return;
+
+                if (dVcto < hoje) cVenc += vBase; else cAVenc += vBase;
+            } else {
+                if (filtroTipo !== 'diario') cAVenc += vBase;
+            }
+        }
+    });
+
+    const vGeral = sVenc + cVenc;
+    const aVGeral = sAVenc + cAVenc;
+    const pGeral = sPago + cPago;
 
     element.innerHTML = `
         <div class="resumo-detalhado">
-            <div class="resumo-status">
-                <div class="bloco-pendente">
-                    <h4>A Pagar (Total)</h4>
-                    <span class="valor-pendente">${formatarMoeda(totalPend)}</span>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; width: 100%;gap: 8px; text-align: center;">
+                
+                <div style="background: #fff5f5; padding: 10px; border-radius: 8px; border: 1px solid #feb2b2;">
+                    <h2 style="margin:0; font-size: 16px; color: #c53030; text-transform: uppercase;">Vencidos Geral (no período): ${formatarMoeda(vGeral)}</h2>                   
+                    <div style="font-size: 14px; color: #742a2a; border-top: 1px solid #feb2b2; padding-top: 4px;">
+                        Staff: ${formatarMoeda(sVenc)} | Contas: ${formatarMoeda(cVenc)}
+                    </div>
                 </div>
-                <div class="bloco-pago">
-                    <h4>Pago (Total)</h4>
-                    <span class="valor-pago">${formatarMoeda(totalPago)}</span>
+
+                <div style="background: #ebf8ff; padding: 10px; border-radius: 8px; border: 1px solid #bee3f8;">
+                    <h4 style="margin:0; font-size: 16px; color: #007bff; text-transform: uppercase;">A Vencer Geral (no período): ${formatarMoeda(aVGeral)}</h4>
+                    <div style="font-size: 14px; color: #2c5282; border-top: 1px solid #bee3f8; padding-top: 4px;">
+                        Staff: ${formatarMoeda(sAVenc)} | Contas: ${formatarMoeda(cAVenc)}
+                    </div>
                 </div>
-            </div>
-            <div class="resumo-categorias-totais">
-                <div><label><strong>Ajuda:</strong></label><p>Pend: ${formatarMoeda(totalPendAjuda)} / Pago: ${formatarMoeda(totalPagoAjuda)}</p></div>
-                <div><label><strong>Cachê:</strong></label><p>Pend: ${formatarMoeda(totalPendCache)} / Pago: ${formatarMoeda(totalPagoCache)}</p></div>
-                <div><label><strong>Caixinha:</strong></label><p>Pend: ${formatarMoeda(totalPendCaix)} / Pago: ${formatarMoeda(totalPagoCaix)}</p></div>
-            </div>
+
+                <div style="background: #f0fff4; padding: 10px; border-radius: 8px; border: 1px solid #9ae6b4;">
+                    <h4 style="margin:0; font-size: 16px; color: #2f855a; text-transform: uppercase;">Pago Geral (no período): ${formatarMoeda(pGeral)}</h4>             
+                    <div style="font-size: 14px; color: #22543d; border-top: 1px solid #9ae6b4; padding-top: 4px;">
+                        Staff: ${formatarMoeda(sPago)} | Contas: ${formatarMoeda(cPago)}
+                    </div>
+                </div>
+                <div style="background: white; padding: 10px; border-radius: 8px; border: 1px solid #babebb;">
+                    <h4 style="margin:0; font-size: 16px; color: #010101; text-transform: uppercase;">Total Geral: ${formatarMoeda((sVenc+cVenc) + (sAVenc+cAVenc) + (sPago+cPago))}</h4>                    
+                    <div style="font-size: 14px; color: #0c0c0c; border-top: 1px solid #c9c9c9; padding-top: 4px;">
+                        Staff: ${formatarMoeda(sVenc+sAVenc+sPago)} | Contas: ${formatarMoeda(cVenc+cAVenc+cPago)}
+                    </div>
+                </div>                
+            </div>            
+            
         </div>`;
 }
-
 
 function exibirToastSucesso(mensagem = 'Status atualizado!') {
     const Toast = Swal.mixin({
@@ -5647,6 +7610,7 @@ async function alterarStatusStaff(idStaff, tipo, novoStatus, elementoBotao) {
         Swal.fire('Erro', 'Não foi possível atualizar o status.', 'error');
     }
 }
+window.alterarStatusStaff = alterarStatusStaff;
 
 async function atualizarCardsResumoSilencioso() {
     try {
@@ -5682,124 +7646,101 @@ async function atualizarCardsResumoSilencioso() {
     }
 }
 
-function renderConteudoAcao(idStaff, tipo, statusAtual) {
-    // Se estiver 100% ou Pago (Cache), mostra cadeado
-    if (statusAtual === 'Pago' || statusAtual === 'Pago 100%') {
+
+function renderConteudoAcao(id, tipo, statusAtual) {
+    const statusLimpo = (statusAtual || "").trim();
+
+    // 1. Caso Comum: Já está Pago ou Finalizado
+    if (statusLimpo === 'Pago' || statusLimpo === 'Pago 100%') {
         return `<div class="btn-group-acoes"><span class="check-finalizado"><i class="fas fa-lock"></i></span></div>`;
     }
 
+    // 2. Lógica Específica para CONTAS FIXAS
+    if (tipo === 'ContaFixa') {
+        return `
+            <div class="btn-group-acoes">
+                <button class="btn-pago" onclick="confirmarPagamentoContaFixa(${id})">
+                    <i class="fas fa-check"></i> Pagar Conta
+                </button>
+            </div>`;
+    }
+
+    // 3. Lógica Específica para STAFF (Cachê, Ajuda, Caixinha)
     // Se estiver 50%, mostra botão para completar o resto
-    if (statusAtual === 'Pago 50%') {
+    if (statusLimpo === 'Pago 50%') {
         return `
             <div class="btn-group-acoes">
                 <button class="btn-complementar" title="Pagar os 50% restantes" 
-                    onclick="alterarStatusStaff(${idStaff}, '${tipo}', 'Pago 100%', this)">
+                    onclick="alterarStatusStaff(${id}, '${tipo}', 'Pago 100%', this)">
                     <i class="fas fa-plus-circle"></i> +50%
                 </button>
             </div>`;
     }
 
-    // Pendente / Suspenso
+    // Pendente / Suspenso para Staff
     return `
         <div class="btn-group-acoes">
-            <button class="btn-pago" onclick="alterarStatusStaff(${idStaff}, '${tipo}', 'Pago', this)">
+            <button class="btn-pago" onclick="alterarStatusStaff(${id}, '${tipo}', 'Pago', this)">
                 <i class="fas fa-check"></i> Pago
             </button>
-            <button class="btn-suspenso" onclick="alterarStatusStaff(${idStaff}, '${tipo}', 'Suspenso', this)">
-                <i class="fas fa-pause"></i> Suspenso
+            <button class="btn-suspenso" onclick="alterarStatusStaff(${id}, '${tipo}', 'Suspenso', this)">
+                <i class="fas fa-pause"></i> Susp.
             </button>
         </div>`;
 }
 
-window.alterarStatusStaff = alterarStatusStaff;
+
 window.abrirComprovantesStaff = abrirComprovantesStaff;
 window.handleFileUpload = handleFileUpload;
 
 
 function construirParametrosFiltro() {
-    // Captura o tipo de filtro principal (Obrigatório para o backend)
-    const tipo = document.querySelector("input[name='periodo']:checked")?.value || 'diario';
-    
-    // Inicia a string de parâmetros com o tipo
-    let params = `?periodo=${tipo}`;
-    
-    // Variável para o ano, usada em vários filtros
+    const tipoOriginal = document.querySelector("input[name='periodo']:checked")?.value || 'diario';
     const anoAtual = new Date().getFullYear(); 
+    
+    // Captura o mês do select (Ex: Março = 3)
+    const seletorMes = document.querySelector("#sub-filtro-select");
+    const mesSelecionado = seletorMes ? seletorMes.value : (new Date().getMonth() + 1);
 
-    // ----------------------------------------------------
-    // DIÁRIO
-    // ----------------------------------------------------
-    if (tipo === "diario") {
-        const dia = document.querySelector("#sub-filtro-data")?.value;
-        // O backend deve usar a dataInicio e a dataFim como o mesmo dia
-        if (dia) {
-      params += `&dataInicio=${dia}&dataFim=${dia}`;
-        }
+    let params = `?periodo=${tipoOriginal}`;
+
+    // 1. Regra para DIÁRIO / SEMANAL (Busca o mês todo para pegar vencidos)
+    if (tipoOriginal === "diario" || tipoOriginal === "semanal") {
+        const dataInput = document.querySelector("#sub-filtro-data")?.value;
+        const mesParaBackend = dataInput ? new Date(dataInput + "T12:00:00").getMonth() + 1 : mesSelecionado;
+        params = `?periodo=mensal&mes=${mesParaBackend}&ano=${anoAtual}`;
+    } 
+    // 2. Regra para MENSAL (Crucial para Março aparecer!)
+    else if (tipoOriginal === "mensal") {
+        params = `?periodo=mensal&mes=${mesSelecionado}&ano=${anoAtual}`;
     }
-
-    // ----------------------------------------------------
-    // ✅ SEMANAL (NOVO BLOCO INSERIDO)
-    // ----------------------------------------------------
-    else if (tipo === "semanal") {
-        const data = document.querySelector("#sub-filtro-data")?.value;
-        // O backend usará esta data para calcular o Domingo anterior e o Sábado seguinte.
-        if (data) {
-      params += `&dataInicio=${data}`;
-        }
+    // 3. Regra para TRIMESTRAL
+    else if (tipoOriginal === "trimestral" || tipoOriginal === "trimestre") {
+        // Se você tiver rádio de trimestre (T1, T2...), ele usa. 
+        // Se não, calcula o trimestre baseado no mês do select
+        const triRadio = document.querySelector("input[name='sub']:checked")?.value;
+        const triCalculado = triRadio || Math.ceil(mesSelecionado / 3);
+        params = `?periodo=trimestral&trimestre=${triCalculado}&ano=${anoAtual}`;
     }
-
-    // ----------------------------------------------------
-    // MENSAL
-    // ----------------------------------------------------
-    else if (tipo === "mensal") {
-        const mes = document.querySelector("#sub-filtro-select")?.value;
-        if (mes) {
-      // Envia mês e ano. O backend deve calcular dataInicio (dia 1) e dataFim (último dia).
-      params += `&mes=${mes}&ano=${anoAtual}`;
-        }
-    }
-
-    // ----------------------------------------------------
-    // TRIMESTRAL
-    // ----------------------------------------------------
-    else if (tipo === "trimestral") {
-        // Usa o seletor genérico 'sub' que criamos
-        const tri = document.querySelector("input[name='sub']:checked")?.value;
-        if (tri) {
-      // Envia trimestre e ano. O backend deve calcular as datas de início e fim.
-      params += `&trimestre=${tri}&ano=${anoAtual}`;
-        }
-    }
-
-    // ----------------------------------------------------
-    // SEMESTRAL
-    // ----------------------------------------------------
-    else if (tipo === "semestral") {
-        // Usa o seletor genérico 'sub' que criamos
-        const sem = document.querySelector("input[name='sub']:checked")?.value;
-        if (sem) {
-      // Envia semestre e ano. O backend deve calcular as datas de início e fim.
-      params += `&semestre=${sem}&ano=${anoAtual}`;
-        }
-    }
-
-    // ----------------------------------------------------
-    // ANUAL
-    // ----------------------------------------------------
-    else if (tipo === "anual") {
-        // Envia apenas o ano. O backend deve calcular dataInicio (Jan 1) e dataFim (Dez 31).
-        params += `&ano=${anoAtual}`;
+    else if (tipoOriginal === "anual") {
+        params = `?periodo=anual&ano=${anoAtual}`;
     }
     
     return params;
 }
 
-// 1. Gatilho para o Select
+
 window.carregarDadosDoFiltro = function() {
     const select = document.getElementById('selectAno');
     if (select) {
-        console.log("Filtrando para o ano:", select.value);
-        carregarDadosVencimentos(parseInt(select.value, 10));
+        // console.log("Filtrando para o ano:", select.value);
+        // carregarDadosVencimentos(parseInt(select.value, 10));
+
+        const ano = parseInt(select.value, 10);
+        console.log("🔄 Filtrando Financeiro Geral para o ano:", ano);
+        
+        // Esta função agora é a "Cérebro" que dispara o Promise.all interno
+        carregarDadosVencimentos(ano);
     }
 };
 
@@ -5827,7 +7768,8 @@ function configurarSelectAno() {
     });
 
     // Após configurar, carrega os dados do ano atual pela primeira vez
-    carregarDadosVencimentos(anoAtual);
+    //carregarDadosVencimentos(anoAtual);
+    window.carregarDadosDoFiltro();
 }
 
 // Chame esta função quando a página carregar
@@ -5836,93 +7778,140 @@ document.addEventListener('DOMContentLoaded', () => {
     // outras inicializações...
 });
 
+
 async function carregarDadosVencimentos(anoFiltro) {
-    const hoje = new Date();
+    const dataSistema = new Date();
+    const ano = parseInt(anoFiltro) || dataSistema.getFullYear();
+
+    let hoje = new Date(dataSistema);
+    if (ano < dataSistema.getFullYear()) hoje = new Date(ano, 11, 31, 23, 59, 59);
+    else if (ano > dataSistema.getFullYear()) hoje = new Date(ano, 0, 1, 0, 0, 0);
     hoje.setHours(0, 0, 0, 0);
 
-    const ano = anoFiltro || hoje.getFullYear();
-    const url = `/main/vencimentos?periodo=anual&ano=${ano}`;
+    let soma = {
+        ajAVencer: 0, ajVencidos: 0, ajPagos: 0,
+        chAVencer: 0, chVencidos: 0, chPagos: 0,
+        cxAVencer: 0, cxPagos: 0,
+        contasAVencer: 0, contasVencidas: 0, contasPagos: 0
+    };
 
     try {
-        const dados = await fetchComToken(url);
-        
-        let soma = {
-            previsto: 0, pagos: 0, 
-            ajAVencer: 0, ajVencidos: 0, ajPagos: 0,
-            chAVencer: 0, chVencidos: 0, chPagos: 0
-        };
+        const [resStaff, resContas] = await Promise.all([
+            fetchComToken(`/main/vencimentos?periodo=anual&ano=${ano}`),
+            fetchComToken(`/main/contas-pagar?periodo=anual&ano=${ano}`)
+        ]);
 
-        if (dados && dados.eventos) {
-            dados.eventos.forEach(ev => {
-                // --- AJUDA DE CUSTO ---
-                const ajPendente = parseFloat(ev.ajuda.pendente) || 0;
-                const ajJaPago = parseFloat(ev.ajuda.pago ?? ev.ajuda.pagos) || 0;
-
-                // Regra: Soma no card de PAGOS tudo que já foi pago (Total ou 50%)
-                soma.ajPagos += ajJaPago;
-
-                // Regra: Se ainda tem algo pendente, verifica o vencimento
-                if (ajPendente > 0) {
-                    const [da, ma, ya] = ev.dataVencimentoAjuda.split('/').map(Number);
-                    const dtAj = new Date(ya, ma - 1, da);
-                    
-                    if (dtAj < hoje) {
-                        soma.ajVencidos += ajPendente;
-                    } else {
-                        soma.ajAVencer += ajPendente;
+        // --- 1. PROCESSAR STAFF ---
+        if (resStaff?.eventos) {
+            resStaff.eventos.forEach(ev => {
+                const ajP = parseFloat(ev.ajuda?.pendente) || 0;
+                const ajPg = parseFloat(ev.ajuda?.pago || ev.ajuda?.pagos || 0);
+                soma.ajPagos += ajPg;
+                if (ajP > 0 && ev.dataVencimentoAjuda) {
+                    const parts = ev.dataVencimentoAjuda.split('/');
+                    const dV = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]), 12, 0, 0);
+                    if (dV.getFullYear() === ano) {
+                        if (dV < hoje) soma.ajVencidos += ajP;
+                        else soma.ajAVencer += ajP;
                     }
                 }
-
-                // --- CACHÊ ---
-                const chPendente = parseFloat(ev.cache.pendente) || 0;
-                const chJaPago = parseFloat(ev.cache.pago ?? ev.cache.pagos) || 0;
-
-                // Soma o que já foi pago de Cachê
-                soma.chPagos += chJaPago;
-
-                // Se houver cachê pendente, calcula se está vencido
-                if (chPendente > 0 && ev.dataVencimentoCache !== 'N/A') {
-                    const [dc, mc, yc] = ev.dataVencimentoCache.split('/').map(Number);
-                    const dtCh = new Date(yc, mc - 1, dc);
-                    
-                    if (dtCh < hoje) {
-                        soma.chVencidos += chPendente;
-                    } else {
-                        soma.chAVencer += chPendente;
+                const chP = parseFloat(ev.cache?.pendente) || 0;
+                const chPg = parseFloat(ev.cache?.pago || ev.cache?.pagos || 0);
+                soma.chPagos += chPg;
+                if (chP > 0 && ev.dataVencimentoCache && ev.dataVencimentoCache !== 'N/A') {
+                    const partsC = ev.dataVencimentoCache.split('/');
+                    const dC = new Date(parseInt(partsC[2]), parseInt(partsC[1]) - 1, parseInt(partsC[0]), 12, 0, 0);
+                    if (dC.getFullYear() === ano) {
+                        if (dC < hoje) soma.chVencidos += chP;
+                        else soma.chAVencer += chP;
                     }
                 }
+                soma.cxPagos += parseFloat(ev.caixinha?.pago) || 0;
+                soma.cxAVencer += parseFloat(ev.caixinha?.pendente) || 0;
             });
         }
 
-        // Cálculos dos Totais Gerais dos Cards Superiores
-        soma.previsto = soma.ajAVencer + soma.ajVencidos + soma.chAVencer + soma.chVencidos;
-        soma.pagos = soma.ajPagos + soma.chPagos;
+        // --- 2. PROCESSAR CONTAS A PAGAR (COM TRAVA DE DUPLICIDADE) ---
+        const listaContas = Array.isArray(resContas) ? resContas : (resContas?.contas || []);
+        const ocupacaoMensal = {}; 
 
-        // Função auxiliar para injetar os valores no HTML
-        const atualizarTexto = (id, valor) => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = formatarMoeda(valor);
+        listaContas.forEach(c => {
+            const dStr = (c.dtvcto || c.vctobase || "").substring(0, 10);
+            if (!dStr) return;
+            const vctoReal = new Date(dStr + "T12:00:00");
+            if (vctoReal.getFullYear() !== ano) return;
+
+            const chave = `${c.idlancamento || c.nome_vinculo}-${vctoReal.getMonth()}`;
+            ocupacaoMensal[chave] = true;
+
+            const status = (c.status || "").toLowerCase();
+            const vTotal = Number(c.vlrreal || c.valor || c.vlrestimado || 0);
+            const vPago = Number(c.vlrpago || 0);
+
+            if (status === 'pago') soma.contasPagos += (vPago || vTotal);
+            else {
+                if (vctoReal < hoje) soma.contasVencidas += vTotal;
+                else soma.contasAVencer += vTotal;
+            }
+        });
+
+        listaContas.forEach(c => {
+            if (!(c.tiporepeticao === "FIXO" || c.indeterminado === true)) return;
+            const dStr = (c.vctobase || c.dtvcto || "").substring(0, 10);
+            const vctoBase = new Date(dStr + "T12:00:00");
+            const vProj = Number(c.vlrreal || c.valor || c.vlrestimado || 0);
+
+            for (let i = 1; i < 12; i++) {
+                const dParcela = new Date(vctoBase.getFullYear(), vctoBase.getMonth() + i, vctoBase.getDate(), 12, 0, 0);
+                if (dParcela.getFullYear() === ano) {
+                    const chaveProj = `${c.idlancamento || c.nome_vinculo}-${dParcela.getMonth()}`;
+                    if (!ocupacaoMensal[chaveProj]) {
+                        if (dParcela < hoje) soma.contasVencidas += vProj;
+                        else soma.contasAVencer += vProj;
+                        ocupacaoMensal[chaveProj] = true; 
+                    }
+                }
+            }
+        });
+
+        // --- 3. ATUALIZAÇÃO DA UI (STAFF + CONTAS) ---
+        const format = (val) => formatarMoeda(val);
+        const safeSetText = (id, value) => {
+            const elementos = document.querySelectorAll(`#${id}`);
+            elementos.forEach(el => { el.textContent = format(value); });
         };
 
-        // Atualização Visual
-        atualizarTexto('vencimentosTotal', soma.previsto);
-        atualizarTexto('vencimentosPagos', soma.pagos);
-        
-        atualizarTexto('vencAjudaAVencer', soma.ajAVencer);
-        atualizarTexto('vencAjudaVencidos', soma.ajVencidos);
-        atualizarTexto('vencAjudaPagos', soma.ajPagos);
-        
-        atualizarTexto('vencCacheAVencer', soma.chAVencer);
-        atualizarTexto('vencCacheVencidos', soma.chVencidos);
-        atualizarTexto('vencCachePagos', soma.chPagos);
+        const totalPagos = soma.ajPagos + soma.chPagos + soma.cxPagos + soma.contasPagos;
+        const totalVencidos = soma.ajVencidos + soma.chVencidos + soma.contasVencidas;
+        const totalAVencer = soma.ajAVencer + soma.chAVencer + soma.cxAVencer + soma.contasAVencer;
 
-        if (document.getElementById('cardContainerVencimentos')) {
-            document.getElementById('cardContainerVencimentos').style.display = 'block';
-        }
+        // Cards Superiores
+        safeSetText('vencimentosTotal', totalAVencer); 
+        safeSetText('vencimentosPagos', totalPagos);
+        safeSetText('vencimentosVencidas', totalVencidos);
+        safeSetText('vencTotalGeral', totalPagos + totalVencidos + totalAVencer);
 
-    } catch (error) {
-        console.error("Erro ao carregar dados financeiros:", error);
-    }
+        // Seção Contas
+        safeSetText('vencTotalContas', soma.contasPagos + soma.contasVencidas + soma.contasAVencer);
+        safeSetText('vencContasPagos', soma.contasPagos);
+        safeSetText('vencContasVencidas', soma.contasVencidas);
+        safeSetText('vencContasPendente', soma.contasAVencer);
+
+        // --- SEÇÃO STAFF (RESTURADA) ---
+        const totalStaff = (soma.ajPagos + soma.chPagos + soma.cxPagos) + (soma.ajAVencer + soma.chAVencer + soma.cxAVencer) + (soma.ajVencidos + soma.chVencidos);
+        safeSetText('vencTotalStaff', totalStaff);
+        
+        // Ajuda
+        safeSetText('vencAjudaPagos', soma.ajPagos);
+        safeSetText('vencAjudaVencidos', soma.ajVencidos);
+        safeSetText('vencAjudaAVencer', soma.ajAVencer);
+        
+        // Cachê
+        safeSetText('vencCachePagos', soma.chPagos);
+        safeSetText('vencCacheVencidos', soma.chVencidos);
+        safeSetText('vencCacheAVencer', soma.chAVencer);
+
+    } catch (e) { console.error("Erro financeiro:", e); }
 }
 
 async function inicializarCardVencimentos() {
@@ -5964,61 +7953,33 @@ async function inicializarCardVencimentos() {
     }
 }
 
-function criarControlesDeFiltro(conteudoGeral, valoresResumoElement) { 
-    const anoAtual = new Date().getFullYear();
 
+function criarControlesDeFiltro(conteudoGeral, valoresResumoElement) {
     const filtrosContainer = document.createElement("div");
     filtrosContainer.className = "filtros-vencimentos";
 
-    // ------------------------------
-    // 1. Filtro Principal (RADIO CUSTOM)
-    // ------------------------------
+    // 1. Filtro Principal (Radios)
     const grupoPeriodo = document.createElement("div");
     grupoPeriodo.className = "filtro-periodo";
     grupoPeriodo.innerHTML = `
       <label class="label-select">Tipo de Filtro</label>
       <div class="wrapper" id="periodo-wrapper">
-        <div class="option">
-            <input checked value="diario" name="periodo" type="radio" class="input" />
-            <div class="btn"><span class="span">Diário</span></div>
-        </div>
-        <div class="option">
-          <input value="semanal" name="periodo" type="radio" class="input" />
-          <div class="btn"><span class="span">Semanal</span></div>
-        </div>
-        <div class="option">
-          <input value="mensal" name="periodo" type="radio" class="input" />
-          <div class="btn"><span class="span">Mensal</span></div>
-        </div>
-        <div class="option">
-          <input value="trimestral" name="periodo" type="radio" class="input" />
-          <div class="btn"><span class="span">Trimestral</span></div>
-        </div>
-        <div class="option">
-          <input value="semestral" name="periodo" type="radio" class="input" />
-          <div class="btn"><span class="span">Semestral</span></div>
-        </div>
-        <div class="option">
-          <input value="anual" name="periodo" type="radio" class="input" />
-          <div class="btn"><span class="span">Anual</span></div>
-        </div>
+        ${["diario", "semanal", "mensal", "trimestral", "semestral", "anual"].map(t => `
+            <div class="option">
+                <input ${t === 'diario' ? 'checked' : ''} value="${t}" name="periodo" type="radio" class="input" />
+                <div class="btn"><span class="span">${t.charAt(0).toUpperCase() + t.slice(1)}</span></div>
+            </div>
+        `).join('')}
       </div>
-`;
-
+    `;
     filtrosContainer.appendChild(grupoPeriodo);
 
-    // ------------------------------
-    // 2. Sub-Filtro (DINÂMICO, TB CUSTOM)
-    // ------------------------------
+    // 2. Sub-Filtro Wrapper
     const subFiltroWrapper = document.createElement("div");
     subFiltroWrapper.id = "sub-filtro-wrapper";
     subFiltroWrapper.className = "sub-filtro";
     filtrosContainer.appendChild(subFiltroWrapper);
 
-
-    // --------------------------------------
-    // FUNÇÃO PARA CRIAR BOTÕES CUSTOMIZADOS
-    // --------------------------------------
     function montarOpcoes(titulo, valores) {
         return `
             <label class="label-select">${titulo}</label>
@@ -6033,191 +7994,94 @@ function criarControlesDeFiltro(conteudoGeral, valoresResumoElement) {
         `;
     }
 
-    // ------------------------------
-    //  FUNÇÃO PARA ATUALIZAR SUB-FILTRO
-    // ------------------------------
-
+    // --- FUNÇÃO CENTRALIZADA ---
     function atualizarSubFiltro(tipo) {
-        // Limpa o conteúdo anterior do sub-filtro
         subFiltroWrapper.innerHTML = "";
+        
+        // Centralização do Ano: Captura uma única vez para todos os blocos
+        const selectAno = document.getElementById('selectAno');
+        const anoRef = selectAno ? parseInt(selectAno.value, 10) : new Date().getFullYear();
+        
+        const hoje = new Date();
+        const mesPadrao = String(hoje.getMonth() + 1).padStart(2, '0');
+        const diaPadrao = String(hoje.getDate()).padStart(2, '0');
+        const dataDefault = `${anoRef}-${mesPadrao}-${diaPadrao}`;
 
-        // O ano atual (anoAtual)
-        const anoAtual = new Date().getFullYear(); 
-
-        // --------------------------
-        // 1. DIÁRIO → INPUT DE DATA
-        // --------------------------
-        if (tipo === "diario") {
-            // Data atual como padrão
-            const hoje = new Date().toISOString().split("T")[0];
-
+        if (tipo === "diario" || tipo === "semanal") {
+            const label = tipo === "diario" ? "Selecione o Dia" : "Data de Início da Semana";
             subFiltroWrapper.innerHTML = `
-                <label class="label-select">Selecione o Dia</label>
-
+                <label class="label-select">${label}</label>
                 <div class="wrapper select-wrapper">
-                    <input 
-                        type="date"
-                        id="sub-filtro-data"
-                        class="input-data-simples" 
-                        value="${hoje}"
-                    >
+                    <input type="date" id="sub-filtro-data" class="input-data-simples" value="${dataDefault}">
                 </div>
             `;
-
-            // Aciona o carregamento ao mudar a data (listener)
-            subFiltroWrapper
-            .querySelector("#sub-filtro-data")
-            .addEventListener("change", () => 
-                carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) // ✅ PASSANDO
-            );
-
-            // Dispara a busca Imediatamente com o filtro padrão (hoje)
-            carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement); // ✅ PASSANDO
-
-            return; 
-        }
-
-        // --------------------------
-        // 2. SEMANAL → INPUT DE DATA
-        // --------------------------
-        else if (tipo === "semanal") {
-            // Data atual como padrão
-            const hoje = new Date().toISOString().split("T")[0]; 
-
-            subFiltroWrapper.innerHTML = `
-                <label class="label-select">Selecione uma data na semana</label>
-
-                <div class="wrapper select-wrapper">
-                    <input 
-                        type="date"
-                        id="sub-filtro-data"
-                        class="input-data-simples" 
-                        value="${hoje}"
-                    >
-                </div>
-            `;
-
-            // Aciona o carregamento ao mudar a data (listener)
-            subFiltroWrapper
-            .querySelector("#sub-filtro-data")
-            .addEventListener("change", () => 
-            carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) // ✅ PASSANDO
-            );
-
-            // Dispara a busca Imediatamente com o filtro padrão (hoje)
-            carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement); // ✅ PASSANDO
-
-            return;
-        }
-
-
-        // --------------------------
-        // 3. MENSAL → SELECT ESTILIZADO
-        // --------------------------
-        else if (tipo === "mensal") { 
+            subFiltroWrapper.querySelector("#sub-filtro-data").addEventListener("change", () => carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement));
+        } 
+        
+        else if (tipo === "mensal") {
             let optionsHtml = "";
-            const mesAtual = new Date().getMonth() + 1; // 1 a 12
-
             for (let i = 1; i <= 12; i++) {
-                const isCurrentMonth = (i === mesAtual);
-                optionsHtml += `
-                    <option value="${i}" ${isCurrentMonth ? "selected" : ""}>
-                        ${nomeDoMes(i)} / ${anoAtual}
-                    </option>
-                `;
+                const isCurrentMonth = (i === hoje.getMonth() + 1);
+                optionsHtml += `<option value="${i}" ${isCurrentMonth ? "selected" : ""}>${nomeDoMes(i)} / ${anoRef}</option>`;
             }
-
             subFiltroWrapper.innerHTML = `
                 <label class="label-select">Selecione o Mês</label>
                 <div class="wrapper select-wrapper">
-                    <select id="sub-filtro-select" class="select-simples">
-                        ${optionsHtml}
-                    </select>
+                    <select id="sub-filtro-select" class="select-simples">${optionsHtml}</select>
                 </div>
             `;
-
-            // Aciona o carregamento ao mudar o mês (listener)
-            subFiltroWrapper.querySelector("#sub-filtro-select")
-            .addEventListener("change", () => carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement)); // ✅ PASSANDO
-
-            // Dispara a busca Imediatamente com o filtro padrão (mês atual)
-            carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement); // ✅ PASSANDO
-
-            return;
-        }
-
-        // --------------------------
-        // 4. TRIMESTRAL → RADIO CUSTOM
-        // --------------------------
+            subFiltroWrapper.querySelector("#sub-filtro-select").addEventListener("change", () => carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement));
+        } 
+        
         else if (tipo === "trimestral") {
-            const mesAtual = new Date().getMonth() + 1; // 1 a 12
-            const trimestreAtual = Math.ceil(mesAtual / 3); // 1, 2, 3 ou 4
-
+            const trimestreAtual = Math.ceil((hoje.getMonth() + 1) / 3);
             const trimes = [1, 2, 3, 4].map(t => ({
                 value: t,
-                label: `Trimestre ${t} / ${anoAtual}`,
+                label: `Trimestre ${t} / ${anoRef}`,
                 checked: t === trimestreAtual
             }));
-
             subFiltroWrapper.innerHTML = montarOpcoes("Selecione o Trimestre", trimes);
-        }
-
-        // --------------------------
-        // 5. SEMESTRAL → RADIO CUSTOM
-        // --------------------------
+        } 
+        
         else if (tipo === "semestral") {
-            const mesAtual = new Date().getMonth() + 1; // 1 a 12
-            const semestreAtual = mesAtual <= 6 ? 1 : 2; // 1 ou 2
-
+            const semestreAtual = (hoje.getMonth() + 1) <= 6 ? 1 : 2;
             const semestres = [
-                { value: 1, label: `1º Semestre / ${anoAtual}`, checked: semestreAtual === 1 },
-                { value: 2, label: `2º Semestre / ${anoAtual}`, checked: semestreAtual === 2 }
+                { value: 1, label: `1º Semestre / ${anoRef}`, checked: semestreAtual === 1 },
+                { value: 2, label: `2º Semestre / ${anoRef}`, checked: semestreAtual === 2 }
             ];
-
             subFiltroWrapper.innerHTML = montarOpcoes("Selecione o Semestre", semestres);
-        }
-
-
-        // --------------------------
-        // 6. ANUAL → Exibe Ano Atual
-        // --------------------------
+        } 
+        
         else if (tipo === "anual") {
             subFiltroWrapper.innerHTML = `
                 <label class="label-select">Período Anual</label>
-                <p class="anual-info">Eventos do ano de ${anoAtual}</p>
+                <p class="anual-info">Eventos do ano de ${anoRef}</p>
             `;
-
-            // Dispara a busca Imediatamente com o filtro padrão (ano atual)
-            carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement); // ✅ PASSANDO
-
-            return;
         }
 
-        // --------------------------
-        // LISTENER GENÉRICO PARA SUB-FILTROS DE RÁDIO (TRIMESTRAL/SEMESTRAL)
-        // --------------------------
-        // Este bloco só é executado para 'trimestral' ou 'semestral'
+        // Listeners para Radios Custom (Trimestral/Semestral)
         const radios = subFiltroWrapper.querySelectorAll("input[name='sub']");
-        radios.forEach(r => r.addEventListener("change", () => carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement))); // ✅ PASSANDO
+        radios.forEach(r => r.addEventListener("change", () => carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement)));
 
-        // Dispara a busca Imediatamente para o filtro padrão
-        if (tipo === 'trimestral' || tipo === 'semestral') {
-            carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement); // ✅ PASSANDO
-        }
+        // Disparo imediato do carregamento
+        carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement);
     }
-    // Inicializa
+
+    // Inicialização e Listeners Principais
     atualizarSubFiltro("diario");
 
-    // Listener Periodo
     grupoPeriodo.querySelectorAll("input[name='periodo']").forEach(radio => {
-        radio.addEventListener("change", (e) => {
-            const tipo = e.target.value;
-            atualizarSubFiltro(tipo);
-
-            if (tipo === "anual") carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement); // ✅ PASSANDO
-        });
+        radio.addEventListener("change", (e) => atualizarSubFiltro(e.target.value));
     });
 
+    // BÔNUS: Sincroniza quando o ano do card mudar
+    const selectAnoGlobal = document.getElementById('selectAno');
+    if (selectAnoGlobal) {
+        selectAnoGlobal.addEventListener('change', () => {
+            const tipoAtivo = grupoPeriodo.querySelector("input[name='periodo']:checked").value;
+            atualizarSubFiltro(tipoAtivo);
+        });
+    }
 
     return filtrosContainer;
 }

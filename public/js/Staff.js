@@ -10,6 +10,8 @@ let statusExtraBonificadoFinal = null;
 let permitirCadastro = false;
 let nmFuncaoDoFormulario = '';
 
+let bLiberacaoAutorizada = false;
+
 let decisaoUsuarioDataFora = null;
 
 // Crie uma flag global para rastrear se o evento foi capturado
@@ -3469,285 +3471,303 @@ async function verificaStaff() {
                 //if (FUNCOES_EXCECAO_IDS.includes(String(idFuncaoDoFormulario))) {
                 //limiteMaximo = 2; //JOÃO PEDIU PARA RETIRAR LIMITE, DEIXAR COMO 0 E FAZER SOLICITAÇÃO SÓ CADASTRA SE ELE AUTORIZAR
                 //motivoLiberacao = "É permitido até 2 agendamentos, por funcionário para o mesmo dia.";
-
                 limiteMaximo = 1; // SEM LIMITE PADRÃO
-                motivoLiberacao = "O limite padrão é de 1 agendamento por funcionário para o mesmo dia. Para exceder esse limite, é necessário solicitar autorização.";
-            } 
-            
+                motivoLiberacao = "O limite padrão é de 1 agendamento por funcionário para o mesmo dia. Funções específicas podem ter limites diferentes.";
+            }        
            
+            console.log("LIBERAÇÃO AUTORIZADA", categoriaFuncaoDoFormulario, "Limite definido:", limiteMaximo, bLiberacaoAutorizada);
 
-            if (totalConflitosExistentes > 0) {
-                const datasConflito = encontrarDatasConflitantes(datasParaVerificacao, conflitosReais);
-                const datasFormatadas = formatarDatas(datasConflito);
-                
-                let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado em <br>${totalConflitosExistentes}</br> atividade(s) `;
-                
-                // Adiciona as datas conflitantes à mensagem
-                if (datasConflito.length > 0) {
-                    msg += `na(s) data(s) conflitante(s): <strong>${datasFormatadas}</strong>.`;
+            if (totalConflitosExistentes > 0)  {
+
+                //trecho incluido para verificar se já existe uma solicitação de limite "FuncExcedido")
+                const statusBanco = await verificarStatusAditivoExtra(
+                    idOrcamentoAtual, 
+                    idFuncaoDoFormulario, 
+                    'FuncExcedido', 
+                    idFuncionarioParaVerificacao, 
+                    nmFuncionario, 
+                    nmFuncaoDoFormulario
+                );
+
+                // 2. Se a função retornou que está bloqueado (Ex: Pendente), para aqui.
+                if (statusBanco.bloqueado) {
+                    return; 
                 }
+                // fim do trecho de verificação de bloqueio existente.
 
-                // 3.1: VERIFICA SE O LIMITE FOI ATINGIDO OU EXCEDIDO (SOLICITA AUTORIZAÇÃO)
-                if (totalConflitosExistentes >= limiteMaximo) {
+                if (bLiberacaoAutorizada === false) {
+                    const datasConflito = encontrarDatasConflitantes(datasParaVerificacao, conflitosReais);
+                    const datasFormatadas = formatarDatas(datasConflito);
                     
-                    // --- NOVO PASSO 1: VERIFICAÇÃO DE STATUS EXISTENTE (PENDENTE/AUTORIZADO) ---
-                   
-                    if (!idOrcamentoAtual) {
-                        await Swal.fire("Erro", "Não foi possível obter o ID do Orçamento (idOrcamento) necessário para a solicitação.", "error");
-                        return; 
-                    }
-
-                    const aditivoExistente = await verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulario, 'FuncExcedido', idFuncionarioParaVerificacao, nmFuncionario, nmFuncaoDoFormulario);
-
-                    if (aditivoExistente === false) {
-                        return; // 🛑 BLOQUEIA O AGENDAMENTO AQUI E SAI DA FUNÇÃO PRINCIPAL.
-                    }
-
-                    if (aditivoExistente.bloqueado) {
-                        return; // 🛑 PARA TUDO AQUI. O Swal já foi mostrado dentro da função.
-                    }
+                    let msg = `O funcionário <strong>${nmFuncionario}</strong> já está agendado em <br>${totalConflitosExistentes}</br> atividade(s) `;
                     
-                    if (aditivoExistente.encontrado) {
+                    // Adiciona as datas conflitantes à mensagem
+                    if (datasConflito.length > 0) {
+                        msg += `na(s) data(s) conflitante(s): <strong>${datasFormatadas}</strong>.`;
+                    }
+
+                    // 3.1: VERIFICA SE O LIMITE FOI ATINGIDO OU EXCEDIDO (SOLICITA AUTORIZAÇÃO)
+                    if (totalConflitosExistentes >= limiteMaximo) {
                         
-                        // A. STATUS PENDENTE: BLOQUEIA
-                        if (aditivoExistente.status === 'Pendente') {
-                            // await Swal.fire({
-                            //     title: "Solicitação Pendente",
-                            //     html: `Já existe uma solicitação de exceção <strong>PENDENTE</strong> para esta função, evento e período (ID: ${aditivoExistente.detalhes.idAditivoExtra}). Aguarde a aprovação.`,
-                            //     icon: "info",
-                            //     confirmButtonText: "Entendi"
-                            // });
-                            //return; // Bloqueia o agendamento
+                        // --- NOVO PASSO 1: VERIFICAÇÃO DE STATUS EXISTENTE (PENDENTE/AUTORIZADO) ---
+                    
+                        if (!idOrcamentoAtual) {
+                            await Swal.fire("Erro", "Não foi possível obter o ID do Orçamento (idOrcamento) necessário para a solicitação.", "error");
+                            return; 
                         }
 
-                        // B. STATUS AUTORIZADO: PROSSEGUE SEM NOVA SOLICITAÇÃO
-                        if (aditivoExistente.status === 'Autorizado') {
-                            await Swal.fire({
-                                title: "Autorização Existente",
-                                html: `Já existe uma solicitação de exceção <strong>AUTORIZADA</strong> para esta função, evento e período (ID: ${aditivoExistente.detalhes.idAditivoExtra}). O agendamento será processado sem gerar um novo aditivo.`,
-                                icon: "success",
-                                confirmButtonText: "Prosseguir com o Agendamento"
-                            });
-                            return; // PROSSEGUE (pula o restante do bloco IF)
+                        const aditivoExistente = await verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulario, 'FuncExcedido', idFuncionarioParaVerificacao, nmFuncionario, nmFuncaoDoFormulario);
+
+                        if (aditivoExistente === false) {
+                            return; // 🛑 BLOQUEIA O AGENDAMENTO AQUI E SAI DA FUNÇÃO PRINCIPAL.
+                        }
+
+                        if (aditivoExistente.bloqueado) {
+                            return; // 🛑 PARA TUDO AQUI. O Swal já foi mostrado dentro da função.
                         }
                         
-                        // C. Se o status for Rejeitado ou outro, o código continua para criar uma nova solicitação.
-                    }
-                    
-                    // --- PASSO 2: CRIAÇÃO DE NOVA SOLICITAÇÃO DE ADITIVO (Se necessário) ---
-                    
-                    // Mensagem padrão para solicitação de autorização
-                    msg += `<br><br>⚠️ <strong>LIMITE ATINGIDO!</strong> O limite máximo é de <strong>${limiteMaximo}</strong> agendamentos por funcionário para o mesmo dia.`;
-                    msg += `<br><br>Eventos Agendados (${totalConflitosExistentes}):`;
-                    conflitosReais.forEach(c => {
-                        msg += `<br> - <strong>${c.nmevento || 'N/A'}</strong> (Função: ${c.nmfuncao})`;
-                    });
-
-                    msg += `<br><br>Para continuar, você deve SOLICITAR AUTORIZAÇÃO por exceder o limite. Deseja prosseguir?`;
-                    
-                    let justificativa = '';
-                    let isConfirmed = false;
-                    const swalResult =  await Swal.fire({
-                    //const { value: justificativa, isConfirmed } = await Swal.fire({
-                        title: "Solicitar Autorização de Exceção?",
-                        html: `
-                            ${msg}<br>
-                            <label for="swal-input-justificativa">Justificativa:</label>
-                            <textarea id="swal-input-justificativa" class="swal2-textarea" placeholder="Descreva o motivo..." required></textarea>
-                        `, 
-                        icon: "warning", 
-                        showCancelButton: true,
-                        confirmButtonText: "Sim, Solicitar Autorização e Agendar",
-                        cancelButtonText: "Não, Cancelar Agendamento",
-                        preConfirm: () => {
-                            const input = document.getElementById('swal-input-justificativa').value.trim();
-                            if (!input) {
-                                Swal.showValidationMessage('A justificativa é obrigatória para a solicitação.');
-                                return false;
+                        if (aditivoExistente.encontrado) {
+                            
+                            // A. STATUS PENDENTE: BLOQUEIA
+                            if (aditivoExistente.status === 'Pendente') {
+                                // await Swal.fire({
+                                //     title: "Solicitação Pendente",
+                                //     html: `Já existe uma solicitação de exceção <strong>PENDENTE</strong> para esta função, evento e período (ID: ${aditivoExistente.detalhes.idAditivoExtra}). Aguarde a aprovação.`,
+                                //     icon: "info",
+                                //     confirmButtonText: "Entendi"
+                                // });
+                                //return; // Bloqueia o agendamento
                             }
-                            return input; 
-                        }
-                    });
 
-                    justificativa = swalResult.value || '';
-                    isConfirmed = swalResult.isConfirmed;
-
-                    if (!isConfirmed) {
-                        return; // **Cancela o envio**
-                    }
-                    console.log("Justificativa confirmada e pronta para processamento:", justificativa);
-                    
-                    try { 
-                        // 2.1: AJUSTE DA JUSTIFICATIVA COM O PERÍODO (MOVIDO PARA DENTRO DO TRY)
-                        const { dtInicio, dtFim } = getPeriodoEvento(datasParaVerificacao);
-                        let justificativaFinal = justificativa;
-
-                        if (dtInicio && dtFim) {
-                            // Adiciona o período do novo agendamento à justificativa
-                            justificativaFinal = `[Período Agendamento: ${dtInicio} a ${dtFim}] - ${justificativa}`;
-                        }
-                        
-                        console.log("IdFuncaoDoFormulario Antes de Salvar Solicitação:", idFuncaoDoFormulario, "NmFuncaoDoFormulario:", nmFuncaoDoFormulario);
-                        
-                        const result = await salvarSolicitacaoAditivoExtra(
-                            idOrcamentoAtual, 
-                            idFuncaoDoFormulario,                       
-                            1, // Solicitando +1 (para o agendamento atual)
-                            'FuncExcedido', 
-                            justificativaFinal, // Usar a justificativa ajustada
-                            idFuncionarioParaVerificacao
-                        );                       
-                        
-
-                        // Flag para rastrear o resultado e o ID, e se foi cancelado
-                        let solicitacaoInfo = { 
-                            salva: false, 
-                            id: null, 
-                            cancelada: !isConfirmed 
-                        };
-
-                        // 1. TENTA SALVAR A SOLICITAÇÃO APENAS SE O USUÁRIO CONFIRMOU A JUSTIFICATIVA
-                        if (isConfirmed) {
-                            try { 
-                                // 2.1: AJUSTE DA JUSTIFICATIVA COM O PERÍODO
-                                // Certifique-se de que a função getPeriodoEvento foi definida antes (conforme discutido anteriormente)
-                                const { dtInicio, dtFim } = getPeriodoEvento(datasParaVerificacao);
-                                let justificativaFinal = justificativa;
-
-                                if (dtInicio && dtFim) {
-                                    justificativaFinal = `[Período Agendamento: ${dtInicio} a ${dtFim}] - ${justificativa}`;
-                                }
-                                
-                                console.log("IdFuncaoDoFormulario Antes de Salvar Solicitação:", idFuncaoDoFormulario, "NmFuncaoDoFormulario:", nmFuncaoDoFormulario);
-                                
-                                const result = await salvarSolicitacaoAditivoExtra(
-                                    idOrcamentoAtual, 
-                                    idFuncaoDoFormulario,             
-                                    1, // Solicitando +1
-                                    'FuncExcedido', 
-                                    justificativaFinal,
-                                    idFuncionarioParaVerificacao
-                                );
-
-                                if (!result.sucesso) {
-                                    await Swal.fire("Falha na Solicitação", `Não foi possível registrar a solicitação de exceção. Detalhes: <strong>${result.erro}</strong>`, "error");
-                                    return; // Bloqueia o agendamento em caso de falha no servidor/API
-                                }
-
-                                // Sucesso
-                                solicitacaoInfo.salva = true;
-                                solicitacaoInfo.id = result.idAditivoExtra;
-                                
-                            } catch (error) {
-                                console.error("Erro inesperado no fluxo de aditivo:", error);
-                                await Swal.fire("Erro Crítico", `Ocorreu um erro inesperado durante a solicitação de aditivo. Verifique o console. Detalhes: ${error.message}`, "error");
-                                return; // Bloqueia o agendamento em caso de erro crítico
+                            // B. STATUS AUTORIZADO: PROSSEGUE SEM NOVA SOLICITAÇÃO
+                            if (aditivoExistente.status === 'Autorizado') {
+                                await Swal.fire({
+                                    title: "Autorização Existente",
+                                    html: `Já existe uma solicitação de exceção <strong>AUTORIZADA</strong> para esta função, evento e período (ID: ${aditivoExistente.detalhes.idAditivoExtra}). O agendamento será processado sem gerar um novo aditivo.`,
+                                    icon: "success",
+                                    confirmButtonText: "Prosseguir com o Agendamento"
+                                });
+                                return; // PROSSEGUE (pula o restante do bloco IF)
                             }
+                            
+                            // C. Se o status for Rejeitado ou outro, o código continua para criar uma nova solicitação.
                         }
-
-                        // 2. EXIBIÇÃO DO SWAL DE DECISÃO FINAL (Unificado para Sucesso ou Cancelamento)
-
-                        let swalTitle;
-                        let htmlMessage;
-                        let swalIcon;
-
-                        if (solicitacaoInfo.salva) {
-                            swalTitle = "Solicitação Pendente Registrada!";
-                            htmlMessage = `Sua solicitação de exceção foi registrada com sucesso e está <strong>Pendente de aprovação<strong>. O agendamento do staff <strong>NÃO<strong> foi realizado.`;
-                            swalIcon = "info";
-                        } else if (solicitacaoInfo.cancelada) {
-                            swalTitle = "Agendamento Cancelado";
-                            htmlMessage = `Você optou por <strong>NÃO</strong> solicitar a autorização de exceção. O agendamento foi cancelado.`;
-                            swalIcon = "warning";
-                        } else {
-                            // Se não salvou e não foi cancelado (o que indica que o 'return' foi chamado acima devido a um erro de API)
-                            return;
-                        }
-
-                        htmlMessage += `<br><br>Qual a próxima ação?`;
-
-                        const resultDecisao = await Swal.fire({
-                            title: swalTitle,
-                            html: htmlMessage,
-                            icon: swalIcon,
-                            showCancelButton: true,
-                            showDenyButton: true,
-                            confirmButtonText: "Cadastrar mais um (Manter evento/função)",
-                            cancelButtonText: "Finalizar e Sair",
-                            denyButtonText: "Cadastrar novo staff (Limpar tudo)",
-                            reverseButtons: true,
-                            focusCancel: true
+                        
+                        // --- PASSO 2: CRIAÇÃO DE NOVA SOLICITAÇÃO DE ADITIVO (Se necessário) ---
+                        
+                        // Mensagem padrão para solicitação de autorização
+                        msg += `<br><br>⚠️ <strong>LIMITE ATINGIDO!</strong> O limite máximo é de <strong>${limiteMaximo}</strong> agendamentos por funcionário para o mesmo dia.`;
+                        msg += `<br><br>Eventos Agendados (${totalConflitosExistentes}):`;
+                        conflitosReais.forEach(c => {
+                            msg += `<br> - <strong>${c.nmevento || 'N/A'}</strong> (Função: ${c.nmfuncao})`;
                         });
 
-                        // 3. TRATAMENTO DA DECISÃO DO USUÁRIO
-                        if (resultDecisao.isConfirmed) {
-                            // Manter dados (Limpeza parcial)
-                            if (typeof limparCamposStaffParcial === "function") {
-                                limparCamposStaffParcial();
-                            } else {
-                                limparCamposStaff();
+                        msg += `<br><br>Para continuar, você deve SOLICITAR AUTORIZAÇÃO por exceder o limite. Deseja prosseguir?`;
+                        
+                        let justificativa = '';
+                        let isConfirmed = false;
+                        const swalResult =  await Swal.fire({
+                        //const { value: justificativa, isConfirmed } = await Swal.fire({
+                            title: "Solicitar Autorização de Exceção?",
+                            html: `
+                                ${msg}<br>
+                                <label for="swal-input-justificativa">Justificativa:</label>
+                                <textarea id="swal-input-justificativa" class="swal2-textarea" placeholder="Descreva o motivo..." required></textarea>
+                            `, 
+                            icon: "warning", 
+                            showCancelButton: true,
+                            confirmButtonText: "Sim, Solicitar Autorização e Agendar",
+                            cancelButtonText: "Não, Cancelar Agendamento",
+                            preConfirm: () => {
+                                const input = document.getElementById('swal-input-justificativa').value.trim();
+                                if (!input) {
+                                    Swal.showValidationMessage('A justificativa é obrigatória para a solicitação.');
+                                    return false;
+                                }
+                                return input; 
                             }
-                        } else if (resultDecisao.isDenied) {
-                            // Cadastrar outro (Limpeza total)
-                            limparCamposStaff();
-                        } else if (resultDecisao.dismiss === Swal.DismissReason.cancel) {
-                            // 🚪 FINALIZAR E SAIR
-                            console.log("🚀 Fechando modal e resetando sistema...");
-                            
-                            prefillEventFired = false; 
-                            window.orcamentoAtual = null; 
-                            
-                            const tableBody = document.getElementById('eventsTableBody');
-                            if (tableBody) tableBody.innerHTML = ''; 
+                        });
 
-                            if (typeof fecharModal === "function") {
-                                fecharModal();
-                                // Recarregar é a forma mais segura de limpar TODOS os eventos do JS
-                                window.location.reload(); 
-                            } else {
-                                document.getElementById("modal-overlay").style.display = "none";
-                                document.body.classList.remove("modal-open");
-                                window.location.reload();
+                        justificativa = swalResult.value || '';
+                        isConfirmed = swalResult.isConfirmed;
+
+                        if (!isConfirmed) {
+                            return; // **Cancela o envio**
+                        }
+                        console.log("Justificativa confirmada e pronta para processamento:", justificativa);
+                        
+                        try { 
+                            // 2.1: AJUSTE DA JUSTIFICATIVA COM O PERÍODO (MOVIDO PARA DENTRO DO TRY)
+                            const { dtInicio, dtFim } = getPeriodoEvento(datasParaVerificacao);
+                            let justificativaFinal = justificativa;
+
+                            if (dtInicio && dtFim) {
+                                // Adiciona o período do novo agendamento à justificativa
+                                justificativaFinal = `[Período Agendamento: ${dtInicio} a ${dtFim}] - ${justificativa}`;
                             }
+                            
+                            console.log("IdFuncaoDoFormulario Antes de Salvar Solicitação:", idFuncaoDoFormulario, "NmFuncaoDoFormulario:", nmFuncaoDoFormulario);
+                            
+                            const result = await salvarSolicitacaoAditivoExtra(
+                                idOrcamentoAtual, 
+                                idFuncaoDoFormulario,                       
+                                1, // Solicitando +1 (para o agendamento atual)
+                                'FuncExcedido', 
+                                justificativaFinal, // Usar a justificativa ajustada
+                                idFuncionarioParaVerificacao
+                            );                       
+                            
+
+                            // Flag para rastrear o resultado e o ID, e se foi cancelado
+                            let solicitacaoInfo = { 
+                                salva: false, 
+                                id: null, 
+                                cancelada: !isConfirmed 
+                            };
+
+                            // 1. TENTA SALVAR A SOLICITAÇÃO APENAS SE O USUÁRIO CONFIRMOU A JUSTIFICATIVA
+                            if (isConfirmed) {
+                                try { 
+                                    // 2.1: AJUSTE DA JUSTIFICATIVA COM O PERÍODO
+                                    // Certifique-se de que a função getPeriodoEvento foi definida antes (conforme discutido anteriormente)
+                                    const { dtInicio, dtFim } = getPeriodoEvento(datasParaVerificacao);
+                                    let justificativaFinal = justificativa;
+
+                                    if (dtInicio && dtFim) {
+                                        justificativaFinal = `[Período Agendamento: ${dtInicio} a ${dtFim}] - ${justificativa}`;
+                                    }
+                                    
+                                    console.log("IdFuncaoDoFormulario Antes de Salvar Solicitação:", idFuncaoDoFormulario, "NmFuncaoDoFormulario:", nmFuncaoDoFormulario);
+                                    
+                                    const result = await salvarSolicitacaoAditivoExtra(
+                                        idOrcamentoAtual, 
+                                        idFuncaoDoFormulario,             
+                                        1, // Solicitando +1
+                                        'FuncExcedido', 
+                                        justificativaFinal,
+                                        idFuncionarioParaVerificacao
+                                    );
+
+                                    if (!result.sucesso) {
+                                        await Swal.fire("Falha na Solicitação", `Não foi possível registrar a solicitação de exceção. Detalhes: <strong>${result.erro}</strong>`, "error");
+                                        return; // Bloqueia o agendamento em caso de falha no servidor/API
+                                    }
+
+                                    // Sucesso
+                                    solicitacaoInfo.salva = true;
+                                    solicitacaoInfo.id = result.idAditivoExtra;
+                                    
+                                } catch (error) {
+                                    console.error("Erro inesperado no fluxo de aditivo:", error);
+                                    await Swal.fire("Erro Crítico", `Ocorreu um erro inesperado durante a solicitação de aditivo. Verifique o console. Detalhes: ${error.message}`, "error");
+                                    return; // Bloqueia o agendamento em caso de erro crítico
+                                }
+                            }
+
+                            // 2. EXIBIÇÃO DO SWAL DE DECISÃO FINAL (Unificado para Sucesso ou Cancelamento)
+
+                            let swalTitle;
+                            let htmlMessage;
+                            let swalIcon;
+
+                            if (solicitacaoInfo.salva) {
+                                swalTitle = "Solicitação Pendente Registrada!";
+                                htmlMessage = `Sua solicitação de exceção foi registrada com sucesso e está <strong>Pendente de aprovação<strong>. O agendamento do staff <strong>NÃO<strong> foi realizado.`;
+                                swalIcon = "info";
+                            } else if (solicitacaoInfo.cancelada) {
+                                swalTitle = "Agendamento Cancelado";
+                                htmlMessage = `Você optou por <strong>NÃO</strong> solicitar a autorização de exceção. O agendamento foi cancelado.`;
+                                swalIcon = "warning";
+                            } else {
+                                // Se não salvou e não foi cancelado (o que indica que o 'return' foi chamado acima devido a um erro de API)
+                                return;
+                            }
+
+                            htmlMessage += `<br><br>Qual a próxima ação?`;
+
+                            const resultDecisao = await Swal.fire({
+                                title: swalTitle,
+                                html: htmlMessage,
+                                icon: swalIcon,
+                                showCancelButton: true,
+                                showDenyButton: true,
+                                confirmButtonText: "Cadastrar mais um (Manter evento/função)",
+                                cancelButtonText: "Finalizar e Sair",
+                                denyButtonText: "Cadastrar novo staff (Limpar tudo)",
+                                reverseButtons: true,
+                                focusCancel: true
+                            });
+
+                            // 3. TRATAMENTO DA DECISÃO DO USUÁRIO
+                            if (resultDecisao.isConfirmed) {
+                                // Manter dados (Limpeza parcial)
+                                if (typeof limparCamposStaffParcial === "function") {
+                                    limparCamposStaffParcial();
+                                } else {
+                                    limparCamposStaff();
+                                }
+                            } else if (resultDecisao.isDenied) {
+                                // Cadastrar outro (Limpeza total)
+                                limparCamposStaff();
+                            } else if (resultDecisao.dismiss === Swal.DismissReason.cancel) {
+                                // 🚪 FINALIZAR E SAIR
+                                console.log("🚀 Fechando modal e resetando sistema...");
+                                
+                                prefillEventFired = false; 
+                                window.orcamentoAtual = null; 
+                                
+                                const tableBody = document.getElementById('eventsTableBody');
+                                if (tableBody) tableBody.innerHTML = ''; 
+
+                                if (typeof fecharModal === "function") {
+                                    fecharModal();
+                                    // Recarregar é a forma mais segura de limpar TODOS os eventos do JS
+                                    window.location.reload(); 
+                                } else {
+                                    document.getElementById("modal-overlay").style.display = "none";
+                                    document.body.classList.remove("modal-open");
+                                    window.location.reload();
+                                }
+                            }
+
+                            return; // 🛑 ESSENCIAL: Bloqueia o agendamento do staff. A decisão já foi tomada.
+
+                        } catch (error) {
+                            console.error("Erro inesperado no fluxo de aditivo:", error);
+                            await Swal.fire("Erro Crítico", `Ocorreu um erro inesperado durante a solicitação de aditivo. Verifique o console. Detalhes: ${error.message}`, "error");
+                            return; // Bloqueia o agendamento
                         }
 
-                        return; // 🛑 ESSENCIAL: Bloqueia o agendamento do staff. A decisão já foi tomada.
 
-                    } catch (error) {
-                        console.error("Erro inesperado no fluxo de aditivo:", error);
-                        await Swal.fire("Erro Crítico", `Ocorreu um erro inesperado durante a solicitação de aditivo. Verifique o console. Detalhes: ${error.message}`, "error");
-                        return; // Bloqueia o agendamento
+                    } else {
+                        // 3.2: Conflito, mas DENTRO do Limite (Aviso com Permissão - Lógica Original)
+                        
+                        // *** AVISO: Conflito, mas DENTRO do Limite ***
+                        
+                        msg += `<br><br>Você está tentando agendar o <strong>${(totalConflitosExistentes + 1)}º</strong> evento.`;
+                        msg += `<br>Motivo do Prosseguimento: <strong>${motivoLiberacao}</strong>`;
+                        
+                        msg += `<br><br>Eventos Agendados (${totalConflitosExistentes}):`;
+                        conflitosReais.forEach(c => {
+                            msg += `<br> - <strong>${c.nmevento || 'N/A'}</strong> (Função: ${c.nmfuncao})`;
+                        });
+
+                        msg += `<br><br>Deseja continuar com o agendamento? (Limite total: ${limiteMaximo})`;
+
+                        const { isConfirmed } = await Swal.fire({
+                            title: "Atenção: Conflito de Agendamento!",
+                            html: msg,
+                            icon: "warning",
+                            showCancelButton: true,
+                            confirmButtonText: "Sim, continuar",
+                            cancelButtonText: "Não, cancelar",
+                        });
+
+                        if (!isConfirmed) {
+                            return; // **Cancela o envio**
+                        }
+                        
                     }
-
-
-                } else {
-                    // 3.2: Conflito, mas DENTRO do Limite (Aviso com Permissão - Lógica Original)
-                    
-                    // *** AVISO: Conflito, mas DENTRO do Limite ***
-                    
-                    msg += `<br><br>Você está tentando agendar o <strong>${(totalConflitosExistentes + 1)}º</strong> evento.`;
-                    msg += `<br>Motivo do Prosseguimento: <strong>${motivoLiberacao}</strong>`;
-                    
-                    msg += `<br><br>Eventos Agendados (${totalConflitosExistentes}):`;
-                    conflitosReais.forEach(c => {
-                        msg += `<br> - <strong>${c.nmevento || 'N/A'}</strong> (Função: ${c.nmfuncao})`;
-                    });
-
-                    msg += `<br><br>Deseja continuar com o agendamento? (Limite total: ${limiteMaximo})`;
-
-                    const { isConfirmed } = await Swal.fire({
-                        title: "Atenção: Conflito de Agendamento!",
-                        html: msg,
-                        icon: "warning",
-                        showCancelButton: true,
-                        confirmButtonText: "Sim, continuar",
-                        cancelButtonText: "Não, cancelar",
-                    });
-
-                    if (!isConfirmed) {
-                        return; // **Cancela o envio**
-                    }
-                    
                 }
             }
         
@@ -5355,6 +5375,7 @@ function limparStaffOriginal() {
         qtdpessoas: ""
     };
 
+    bLiberacaoAutorizada = false; // Reset da variável de controle de liberação
     // Log dos campos limpados
     console.log("✅ StaffOriginal foi resetado com os seguintes campos:");
     Object.entries(window.StaffOriginal).forEach(([chave, valor]) => {
@@ -5975,6 +5996,7 @@ async function carregarPavilhaoStaff(idMontagem, idorcamento = null, idfuncao = 
 
 function limparCamposEvento() {
     console.log("Limpeza parcial do formulário iniciada (apenas campos do evento).");
+    bLiberacaoAutorizada = false; // Reset da variável de controle de liberação
 
     const btn = document.getElementById('Enviar');
     if (btn) {
@@ -8388,16 +8410,22 @@ async function verificarStatusAditivoExtra(idOrcamentoAtual, idFuncaoDoFormulari
             // 🎯 Simplificamos a lógica aqui usando o nome já tratado
             const mensagemFinal = `Autorização de ${infoMsg.textoBase} detectada.`;
 
+            // Variável global para controle de liberação
+
+            bLiberacaoAutorizada = true;
+             console.log("RESPOSTA DA LIBERACAO ESPECÍFICA:", autorizadoEspecifico, bLiberacaoAutorizada);
             await Swal.fire({
                 icon: 'success',
                 title: 'Liberação Detectada!',
                 html: `${mensagemFinal}<hr><div style="color: #28a745;">O cadastro do funcionário está liberado.</div>`,
-                timer: 3500,
+                timer: 3000,
                 showConfirmButton: false
             });
             return { bloqueado: false, autorizado: true };
+             
         }
 
+       
         // --- 2. CASO PENDENTE (Bloqueio) ---
         // Se você tiver a parte de "Em Análise", use o infoMsg.textoBase também
         if (solicitacaoRecente && (solicitacaoRecente.status === 'Pendente' || solicitacaoRecente.status === 'Em Análise')) {
