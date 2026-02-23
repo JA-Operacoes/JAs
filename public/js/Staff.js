@@ -1747,7 +1747,6 @@ const carregarTabelaStaff = async (funcionarioId) => {
 
 
                 const bloqueioParcial = !temPermissaoTotal && (statusCache === "pago" || statusCxnha === "pago");
-                const bloqueioParcial = !temPermissaoTotal && (statusCache === "pago" || statusCxnha === "pago");
 
                 const row = eventsTableBody.insertRow();
                 row.dataset.eventData = JSON.stringify(eventData);

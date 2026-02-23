@@ -780,8 +780,12 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
 
     const formatarData = (data) => {
         if (!data) return '';
+        if(typeof data === 'string' && data.includes('-')) {
+            const [ano, mes, dia] = data.split('T')[0].split('-');
+            return `${dia}-${mes}-${ano}`;
+        }
         const d = new Date(data);
-        return d.toLocaleDateString('pt-BR');
+        return d.toLocaleDateString('pt-BR',{timeZone: 'UTC'});
     };
 
     const obterClasseStatus = (status) => {
