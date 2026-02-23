@@ -1,5 +1,19 @@
 import { fetchComToken, aplicarTema, fetchHtmlComToken  } from '/utils/utils.js';
 
+async function carregarVersaoSistema() {
+    try {
+        // Usando o seu fetchComToken que já está no arquivo
+        const data = await fetchComToken("/main/versao");
+        if (data && data.versao) {
+            document.getElementById('app-version').innerText = `v${data.versao}`;
+        }
+    } catch (err) {
+        console.error("Erro ao carregar versão:", err);
+    }
+}
+
+// Chame a função no início do carregamento ou no DOMContentLoaded
+carregarVersaoSistema();
 
 const CAMPO_ADITIVO_EXTRA = "statusaditivoextra"; 
 const STATUS_PENDENTE = "pendente";
@@ -20,7 +34,6 @@ const getRecordIdFromUrl = (url) => {
   // Retorna o último segmento se for um número, caso contrário retorna null
   return !isNaN(parseInt(lastPart)) ? lastPart : null;
 };
-
 
 
 // async function abrirModalLocal(url, modulo) {
@@ -4179,12 +4192,11 @@ function criarSubTabsHTML(listContainerIdBase, categoria, statusCounts) {
 
     // ESTRUTURA PRINCIPAL DO CONTEÚDO (INCLUI BOTÃO VOLTAR)
     return `
-        <button class="btn-voltar-main-tabs" type="button">
-            <i class="fas fa-arrow-left"></i> Voltar para Pedidos e Solicitações
-        </button>
-
         <div class="sub-tab-view">
             <div class="sub-abas-pedidos" data-categoria="${categoria}">
+                <button class="btn-voltar-main-tabs" type="button">
+                    <i class="fas fa-arrow-left"></i> Voltar
+                </button>
                 ${tabButtons}
             </div>
             <div class="sub-tabs-content">
@@ -4339,7 +4351,6 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
     let totalItensRenderizados = 0;
     // --- 1. FILTRAGEM E CONSOLIDAÇÃO ---
     const gruposFiltrados = [];
-    const solicitantesPendentesPorChave = {}; // Resetamos para cada renderização
 
     pedidosCompletos.forEach(grupoConsolidado => {
         let chaveRenderizacao = categoria === 'funcionario'
@@ -4350,7 +4361,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
 
         const registros = grupoConsolidado.registrosOriginais || [];
         const pedidosConsolidadosPorId = new Map();
-        let temAlgumMatchNesteGrupo = false; // Flag crucial
+        let temAlgumMatchNesteGrupo = false;
 
         registros.forEach(pedidoOriginal => {
             const id = pedidoOriginal.idstaffevento || pedidoOriginal.idpedido || pedidoOriginal.id;
@@ -4379,29 +4390,19 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
 
                 if (itensFiltrados.length > 0) {
                     pedidoConsolidado.temMatch = true;
-                    pedidoConsolidado[campo] = itensFiltrados;
+                    // 🔹 Em vez de apenas atribuir, podemos acumular ou garantir a atribuição
+                    pedidoConsolidado[campo] = itensFiltrados; 
                     temAlgumMatchNesteGrupo = true;
-                } else {
-                    delete pedidoConsolidado[campo]; // Remove para não lixo no card
-                }
+                } 
+                // 🛑 REMOVIDO: o "else { delete pedidoConsolidado[campo] }" 
+                // para não apagar dados de campos que já foram preenchidos por outros registros/lógicas.
             });
         });
 
-        // 🛑 CORREÇÃO FINAL: Só cria o grupo e o nome se houver match
         if (temAlgumMatchNesteGrupo) {
             const registrosValidos = Array.from(pedidosConsolidadosPorId.values()).filter(p => p.temMatch);
 
             if (registrosValidos.length > 0) {
-                // SÓ AQUI criamos a entrada no dicionário de nomes
-                if (!solicitantesPendentesPorChave[chaveRenderizacao]) {
-                    solicitantesPendentesPorChave[chaveRenderizacao] = new Set();
-                }
-
-                registrosValidos.forEach(p => {
-                    const nome = p.nomeSolicitante || p.nmfuncionario || chaveRenderizacao;
-                    solicitantesPendentesPorChave[chaveRenderizacao].add(nome);
-                });
-
                 gruposFiltrados.push({
                     ...grupoConsolidado,
                     registrosOriginais: registrosValidos
@@ -4443,7 +4444,12 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
             ? grupo.funcionario
             : (grupo.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
 
-        const solicitantesGrupo = Array.from(solicitantesPendentesPorChave[chaveNome] || []).join(', ') || 'N/D';
+        // Pega o nome direto do primeiro registro do grupo (já que é a mesma pessoa)
+        const p = pedidosDoGrupo[0];
+        const solicitantesGrupo = p.nomeSolicitante || p.solicitante_nome || p.funcionario || "N/D";
+        console.log(`Renderizando grupo: ${chaveNome} - Solicitante(s): ${solicitantesGrupo} - Total Pedidos no Grupo: ${pedidosDoGrupo.length}`);
+        console .log (`Debug`, pedidosDoGrupo);
+
 
         const divGrupo = document.createElement("div");
         divGrupo.className = "funcionario";

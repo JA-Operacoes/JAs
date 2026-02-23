@@ -1560,18 +1560,24 @@ router.get('/notificacoes-financeiras', async (req, res) => {
             ORDER BY idregistroalterado, criado_em ASC
         )
         SELECT DISTINCT ON (se.idstaffevento) 
-            se.idstaffevento AS id, oe.idexecutor, (u.nome || ' ' || u.sobrenome) AS nomesolicitante,
-            f.nome AS nomefuncionario, e.nmevento AS evento,
-            se.vlrcaixinha::text, se.desccaixinha, se.statuscaixinha, se.vlrajustecusto::text, 
-            se.descajustecusto, se.statusajustecusto, se.dtdiariadobrada::text, 
-            se.descdiariadobrada, se.statusdiariadobrada, se.dtmeiadiaria::text, 
-            se.descmeiadiaria, se.statusmeiadiaria, se.datasevento::text, oe.criado_em, 
-            se.idfuncionario AS idusuarioalvo, COALESCE(o.dtfiminfradesmontagem, o.dtfimdesmontagem) AS dtfimrealizacao
+            se.idstaffevento AS id, 
+            oe.idexecutor, 
+            (u.nome || ' ' || u.sobrenome) AS nomeexecutor,
+            f.nome AS nomefuncionario, 
+            e.nmevento AS evento,
+            se.vlrcaixinha, se.desccaixinha, se.statuscaixinha, se.vlrajustecusto, 
+            se.descajustecusto, se.statusajustecusto, se.dtdiariadobrada, 
+            se.descdiariadobrada, se.statusdiariadobrada, se.dtmeiadiaria, 
+            se.descmeiadiaria, se.statusmeiadiaria, se.datasevento, oe.criado_em, 
+            se.idfuncionario AS idusuarioalvo, 
+            COALESCE(o.dtfiminfradesmontagem, o.dtfimdesmontagem) AS dtfimrealizacao,
+            (us.nome || ' ' || us.sobrenome) AS nomesolicitante_real
         FROM staffeventos se
         INNER JOIN staffempresas semp ON se.idstaff = semp.idstaff
         LEFT JOIN OriginalExecutor oe ON oe.idstaffevento = se.idstaffevento 
         LEFT JOIN funcionarios f ON f.idfuncionario = se.idfuncionario
         LEFT JOIN usuarios u ON u.idusuario = oe.idexecutor 
+        LEFT JOIN usuarios us ON us.idusuario = se.idfuncionario
         LEFT JOIN eventos e ON e.idevento = se.idevento
         LEFT JOIN orcamentos o ON o.idevento = e.idevento
         WHERE 
@@ -1617,50 +1623,37 @@ router.get('/notificacoes-financeiras', async (req, res) => {
         };
 
         const pedidosConsolidados = rows.map(r => {
-
             // Helper para gerar a string JSON de Caixinha/Ajuste (Array de 1 Item)
             const stringifyUnico = (statusField, valorRaw, descricaoRaw) => {
-
                 const valor = parseValor(valorRaw);
                 const status = statusField || '';
                 const descricao = descricaoRaw && descricaoRaw !== '-' ? descricaoRaw : null;
-
-                // Inclui se o status ou valor não for zero/vazio
                 if (status.trim() !== '' || valor !== 0) {
                     return JSON.stringify([{ 
-            status: status, 
-            valor: valor, 
-            descricao: descricao 
+                        status: status, 
+                        valor: valor, 
+                        descricao: descricao 
                     }]);
                 }
                 return null;
             };
-
             // ** CORREÇÃO APLICADA AQUI **
             const diariaDobrada = isJsonbArrayEmpty(r.dtdiariadobrada) ? null : r.dtdiariadobrada;
             const meiaDiaria = isJsonbArrayEmpty(r.dtmeiadiaria) ? null : r.dtmeiadiaria;
-
             // Mapeamento que garante a estrutura de objeto principal com os campos aninhados:
             return {
                 idpedido: r.id, 
                 solicitante: r.idexecutor || null,
-                nomeSolicitante: r.nomesolicitante || '-',
+                nomeSolicitante: r.nomesolicitante_real || r.nomeexecutor || '', // Preferencialmente o nome real do solicitante
                 funcionario: r.nomefuncionario || '-',
                 evento: r.evento,
                 dtCriacao: r.criado_em,
-
-                // CAMPOS DE STATUS ANINHADOS: 
-                // Diárias (Agora só incluídas se não forem '[]')
                 statusmeiadiaria: meiaDiaria, 
                 statusdiariadobrada: diariaDobrada,
-
-                // Caixinha / Ajuste (Transformado em JSON de 1 item)
                 statuscaixinha: stringifyUnico(r.statuscaixinha, r.vlrcaixinha, r.desccaixinha),
                 statusajustecusto: stringifyUnico(r.statusajustecusto, r.vlrajustecusto, r.descajustecusto),
-
                 ehMasterStaff: ehMasterStaff, 
                 podeVerTodos: podeVerTodos,
-
                 datasevento: r.datasevento || '-',
                 dtfimrealizacao: r.dtfimrealizacao || null,
             };
@@ -2737,5 +2730,15 @@ router.get('/aditivoextra', async (req, res) => {
     }
 });
 // =======================================
+// Rota para retornar a versão do sistema
+router.get("/versao", (req, res) => {
+    try {
+        // Importa o package.json dinamicamente
+        const pkg = require('../package.json'); 
+        res.json({ versao: pkg.version });
+    } catch (err) {
+        res.status(500).json({ erro: "Não foi possível ler a versão" });
+    }
+});
 
 module.exports = router;
