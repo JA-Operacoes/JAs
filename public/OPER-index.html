@@ -180,7 +180,7 @@
             
             <div class="cards" id="Cards">
                 
-                <div class="card" id="cardContainerVencimentos" style="display: none;">  
+                <!-- <div class="card" id="cardContainerVencimentos" style="display: none;">   
                     <div class="card-vencimentos">
                         <div class="vec-header">
                             <span class="vec-title">Financeiro</span>
@@ -188,13 +188,7 @@
                                 <select id="selectAno" onchange="carregarDadosDoFiltro()"></select>
                             </span>
                         </div>
-                            <!-- <span class="vec-title">Previsto:</span>
-                            <span id="vencimentosTotal" class="venc-total total-vencimentos">R$ 0,00</span>
-                        </div>
-                        <div class="vec-header">
-                            <span class="vec-title">Pagos:</span>
-                            <span id="vencimentosPagos" class="venc-total total-vencimentos">R$ 0,00</span>
-                        </div> -->
+                            
                         <div class="vec-body">
                             <div class="venc-grupo total-group">
                                 <h4>PagaGeral:</h4>
@@ -219,6 +213,57 @@
                                 <span>Ajuda Custo: <span id="vencAjudaVencidos">R$ 0,00</span></span>
                                 <span>Cachê: <span id="vencCacheVencidos">R$ 0,00</span></span>
                             </div>
+                        </div>
+                    </div>
+                </div>-->
+
+                <div class="card" id="cardContainerVencimentos" style="display: none;">
+                    <div class="card-vencimentos">
+                        <div class="vec-header">
+                            <span class="vec-title">Financeiro</span>
+                            <span id="filtoanual">
+                                <select id="selectAno" onchange="carregarDadosDoFiltro()"></select>
+                            </span>
+                        </div>
+
+                        <div class="vec-body">
+                            <div class="venc-grupo total-group">
+                                <h4>Geral (Staff + Contas):</h4>
+                                <span>Previsto: <span id="vencimentosTotal" class="venc-total total-vencimentos">R$ 0,00</span></span>
+                                <span>Pagos: <span id="vencimentosPagos" class="venc-total total-vencimentos">R$ 0,00</span></span>
+                                <span>Vencidos: <span id="vencimentosVencidas" style="color: #dc2e2e;">R$ 0,00</span></span>
+                                
+                            </div>
+                            <span>Total Anual: <strong id="vencTotalGeral">R$ 0,00</strong></span>
+                            <hr>
+
+                            <div class="venc-grupo a-vencer-group">
+                                <h4>Previsto Staff:</h4>
+                                <span>Ajuda Cto: <span id="vencAjudaAVencer">R$ 0,00</span></span>
+                                <span>Cachê: <span id="vencCacheAVencer">R$ 0,00</span></span>
+                            </div>
+                            <div class="venc-grupo Pagos-group">
+                                <h4>Pagos Staff:</h4>
+                                <span>Ajuda Cto: <span id="vencAjudaPagos">R$ 0,00</span></span>
+                                <span>Cachê: <span id="vencCachePagos">R$ 0,00</span></span>
+                            </div>
+                            <div class="venc-grupo vencido-group">
+                                <h4>Vencidos Staff:</h4>
+                                <span>Ajuda Cto: <span id="vencAjudaVencidos" style="color: #dc2e2e;">R$ 0,00</span></span>
+                                <span>Cachê: <span id="vencCacheVencidos" style="color: #dc2e2e;">R$ 0,00</span></span>
+                            </div>
+                            <span>Total Staff: <strong id="vencTotalStaff">R$ 0,00</strong></span>
+                            <hr>
+
+                            <div class="venc-grupo contas-group">
+                                <h4>Contas / Fornecedores:</h4>
+                                <span>Previsto: <span id="vencContasPendente">R$ 0,00</span></span>
+                                <span>Pagos: <span id="vencContasPagos">R$ 0,00</span></span>
+                                <span>Vencidos: <span id="vencContasVencidas" style="color: #dc2e2e;">R$ 0,00</span></span>
+                            </div>
+                            <span>Total Contas: <strong id="vencTotalContas">R$ 0,00</strong></span>
+
+                            
                         </div>
                     </div>
                 </div>

@@ -71,7 +71,7 @@ router.get("/lancamentos", async (req, res) => {
         // Ajuste os nomes das colunas conforme seu banco (ex: idlancamento, descricao)
         const sql = `SELECT idlancamento, descricao, vlrestimado, vctobase 
                      FROM lancamentos 
-                     WHERE ativo = true 
+                     WHERE ativo = true                     
                      ORDER BY descricao ASC`;
         
         const resultado = await pool.query(sql); // Use seu objeto de conexão aqui
