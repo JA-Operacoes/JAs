@@ -288,33 +288,65 @@ async function verificaCentroCusto() {
 }
 
 
+// function validarFormulario() {
+//     const elNm = document.querySelector("#nmCentroCusto");
+//     const elSg = document.querySelector("#siglaCentroCusto");
+//     const botaoEnviar = document.querySelector("#Enviar");
+
+//     if (!elNm || !elSg || !botaoEnviar) return;
+
+//     const nmCentroCusto = elNm.value.trim();
+//     const siglaCentroCusto = elSg.value.trim();
+//     // Pega o array de IDs selecionados
+    
+
+//     const formularioValido = nmCentroCusto !== "" && siglaCentroCusto !== "";
+
+//     if (formularioValido) {
+//         botaoEnviar.disabled = false;
+//         botaoEnviar.style.opacity = "1";
+//         botaoEnviar.style.cursor = "pointer";
+//         botaoEnviar.title = "Salvar alterações"; // Limpa o aviso
+//     } else {
+//         botaoEnviar.disabled = true;
+//         botaoEnviar.style.opacity = "0.5";
+//         botaoEnviar.style.cursor = "not-allowed";
+//         // Aviso nativo ao passar o mouse
+//         botaoEnviar.title = "Para habilitar, informe o Nome do Centro de Custo e a Sigla.";
+//     }
+// }
+
 function validarFormulario() {
     const elNm = document.querySelector("#nmCentroCusto");
     const elSg = document.querySelector("#siglaCentroCusto");
+    const elId = document.querySelector("#idCentroCusto");
     const botaoEnviar = document.querySelector("#Enviar");
 
     if (!elNm || !elSg || !botaoEnviar) return;
 
     const nmCentroCusto = elNm.value.trim();
     const siglaCentroCusto = elSg.value.trim();
-    // Pega o array de IDs selecionados
-    
+    const idCentroCusto = elId ? elId.value.trim() : "";
 
-    const formularioValido = nmCentroCusto !== "" && siglaCentroCusto !== "";
+    // ✅ Se for cadastro novo confirmado, não precisa ter ID
+    const formularioValido =
+        nmCentroCusto !== "" &&
+        siglaCentroCusto !== "" &&
+        (idCentroCusto !== "" || jaPerguntouCadastro);
 
     if (formularioValido) {
         botaoEnviar.disabled = false;
         botaoEnviar.style.opacity = "1";
         botaoEnviar.style.cursor = "pointer";
-        botaoEnviar.title = "Salvar alterações"; // Limpa o aviso
+        botaoEnviar.title = "Salvar alterações";
     } else {
         botaoEnviar.disabled = true;
         botaoEnviar.style.opacity = "0.5";
         botaoEnviar.style.cursor = "not-allowed";
-        // Aviso nativo ao passar o mouse
         botaoEnviar.title = "Para habilitar, informe o Nome do Centro de Custo e a Sigla.";
     }
 }
+
 
 async function verificarSiglaExistente(sigla, elementoAtual) {
     if (!sigla) return;
@@ -345,6 +377,40 @@ async function verificarSiglaExistente(sigla, elementoAtual) {
     }
 }
 
+// async function perguntarNovoCadastro(termo, elementoAtual) {
+//     const resultado = await Swal.fire({
+//         icon: 'question',
+//         title: `Deseja cadastrar "${termo.toUpperCase()}"?`,
+//         text: `Este Centro de Custo não foi encontrado no sistema.`,
+//         showCancelButton: true,
+//         confirmButtonText: "Sim, cadastrar",
+//         cancelButtonText: "Cancelar",
+//         reverseButtons: true,
+//         focusCancel: true
+//     });
+
+//     if (resultado.isConfirmed) {
+//         // Usuário quer cadastrar: Mantemos o que ele digitou
+//         jaPerguntouCadastro = true;
+        
+//         // Se o que ele digitou foi no campo de nome, garantimos que o nome está lá
+//         // Se foi na sigla, garantimos que a sigla está lá.
+//         if (elementoAtual) {
+//             elementoAtual.value = termo.toUpperCase();
+//         }
+
+//         validarFormulario();
+//         return true;
+//     } else {
+//         // Usuário cancelou: Agora sim limpamos para evitar confusão
+//         document.querySelector("#nmCentroCusto").value = "";
+//         document.querySelector("#siglaCentroCusto").value = "";
+//         document.querySelector("#idCentroCusto").value = "";
+//         jaPerguntouCadastro = false;
+//         validarFormulario();
+//         return false;
+//     }
+// }
 async function perguntarNovoCadastro(termo, elementoAtual) {
     const resultado = await Swal.fire({
         icon: 'question',
@@ -358,27 +424,33 @@ async function perguntarNovoCadastro(termo, elementoAtual) {
     });
 
     if (resultado.isConfirmed) {
-        // Usuário quer cadastrar: Mantemos o que ele digitou
+
         jaPerguntouCadastro = true;
-        
-        // Se o que ele digitou foi no campo de nome, garantimos que o nome está lá
-        // Se foi na sigla, garantimos que a sigla está lá.
+
         if (elementoAtual) {
             elementoAtual.value = termo.toUpperCase();
         }
 
+        // 🔥 IMPORTANTE: limpar ID se for novo cadastro
+        const idEl = document.querySelector("#idCentroCusto");
+        if (idEl) idEl.value = "";
+
         validarFormulario();
         return true;
+
     } else {
-        // Usuário cancelou: Agora sim limpamos para evitar confusão
+
         document.querySelector("#nmCentroCusto").value = "";
         document.querySelector("#siglaCentroCusto").value = "";
         document.querySelector("#idCentroCusto").value = "";
+
         jaPerguntouCadastro = false;
+
         validarFormulario();
         return false;
     }
 }
+
 
 function desinicializarCentroCustoModal() {
     console.log("🧹 Desinicializando módulo CentroCusto.js");

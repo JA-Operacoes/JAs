@@ -980,183 +980,75 @@ function calcularLucroReal() {
 // }
 
 function aplicarDescontoEAcrescimo(changedInputId) {
-  // Removendo forceFormat daqui, se não for mais necessário
+  // Impede loops infinitos de cálculo
   if (isRecalculatingGlobalDiscountAcrescimo) {
-    console.log(
-      "DEBUG GLOBAL: Recálculo global em andamento, ignorando nova chamada."
-    );
     return;
   }
 
   const campoValorCliente = document.querySelector("#valorCliente");
-
   isRecalculatingGlobalDiscountAcrescimo = true;
 
   try {
-    // Obter os elementos de desconto/acréscimo globais
+    // 1. Obter referências dos elementos
     const inputDescontoValor = document.getElementById("Desconto");
     const inputDescontoPercentual = document.getElementById("percentDesc");
     const inputAcrescimoValor = document.getElementById("Acrescimo");
     const inputAcrescimoPercentual = document.getElementById("percentAcresc");
 
-    // É crucial ter o total intermediário atualizado
-    recalcularTotaisGerais(); // Garante que TotalIntermediario está atualizado
+    // 2. Atualizar o total base (Venda bruta)
+    if (typeof recalcularTotaisGerais === "function") {
+      recalcularTotaisGerais();
+    }
+    
     const totalBaseParaCalculo = desformatarMoeda(
       document.getElementById("totalGeralVda")?.value || "0"
     );
 
-    console.log("DEBUG GLOBAL - aplicarDescontoEAcrescimo - INÍCIO");
-    console.log("Campo Alterado (ID):", changedInputId);
-    console.log("Total Base para Cálculo (Global):", totalBaseParaCalculo);
-    console.log(
-      "lastEditedGlobalFieldType ANTES DO CÁLCULO:",
-      lastEditedGlobalFieldType
-    );
+    // --- SINCRONIZAÇÃO EM TEMPO REAL ---
 
-    let descontoValorAtual = desformatarMoeda(inputDescontoValor?.value || "0");
-    let descontoPercentualAtual = desformatarPercentual(
-      inputDescontoPercentual?.value || "0"
-    );
-    let acrescimoValorAtual = desformatarMoeda(
-      inputAcrescimoValor?.value || "0"
-    );
-    let acrescimoPercentualAtual = desformatarPercentual(
-      inputAcrescimoPercentual?.value || "0"
-    );
-
-    // --- Lógica de sincronização para DESCONTO GLOBAL ---
-    if (changedInputId === "Desconto" || changedInputId === "percentDesc") {
-      if (lastEditedGlobalFieldType === "valorDesconto") {
-        // Se o usuário editou o valor do desconto
-        if (totalBaseParaCalculo > 0) {
-          descontoPercentualAtual =
-            (descontoValorAtual / totalBaseParaCalculo) * 100;
-        } else {
-          descontoPercentualAtual = 0;
-        }
-        if (inputDescontoPercentual) {
-          descontoPercentualAtual =
-            Math.round(descontoPercentualAtual * 100) / 100;
-          inputDescontoPercentual.value = formatarPercentual(
-            descontoPercentualAtual
-          );
-          console.log(
-            `GLOBAL: Atualizando percentDesc para: ${inputDescontoPercentual.value}`
-          );
-        }
-      } else if (lastEditedGlobalFieldType === "percentualDesconto") {
-        // Se o usuário editou o percentual do desconto
-        descontoValorAtual =
-          totalBaseParaCalculo * (descontoPercentualAtual / 100);
-        if (inputDescontoValor) {
-          descontoValorAtual = Math.round(descontoValorAtual * 100) / 100;
-          inputDescontoValor.value = formatarMoeda(descontoValorAtual);
-          console.log(
-            `GLOBAL: Atualizando Desconto para: ${inputDescontoValor.value}`
-          );
-        }
-      }
-    }
-
-    // --- Lógica de sincronização para ACRÉSCIMO GLOBAL ---
-    if (changedInputId === "Acrescimo" || changedInputId === "percentAcresc") {
-      if (lastEditedGlobalFieldType === "valorAcrescimo") {
-        // Se o usuário editou o valor do acréscimo
-        if (totalBaseParaCalculo > 0) {
-          acrescimoPercentualAtual =
-            (acrescimoValorAtual / totalBaseParaCalculo) * 100;
-        } else {
-          acrescimoPercentualAtual = 0;
-        }
-        if (inputAcrescimoPercentual) {
-          acrescimoPercentualAtual =
-            Math.round(acrescimoPercentualAtual * 100) / 100;
-          inputAcrescimoPercentual.value = formatarPercentual(
-            acrescimoPercentualAtual
-          );
-          console.log(
-            `GLOBAL: Atualizando percentAcresc para: ${inputAcrescimoPercentual.value}`
-          );
-        }
-      } else if (lastEditedGlobalFieldType === "percentualAcrescimo") {
-        // Se o usuário editou o percentual do acréscimo
-        acrescimoValorAtual =
-          totalBaseParaCalculo * (acrescimoPercentualAtual / 100);
-        if (inputAcrescimoValor) {
-          acrescimoValorAtual = Math.round(acrescimoValorAtual * 100) / 100;
-          inputAcrescimoValor.value = formatarMoeda(acrescimoValorAtual);
-          console.log(
-            `GLOBAL: Atualizando Acrescimo para: ${inputAcrescimoValor.value}`
-          );
-        }
-      }
-    }
-
-    // Lógica para zerar o campo "parceiro" se o campo alterado for zerado
-    let valorDigitadoNoCampoAlterado = 0;
-    let campoParceiro = null;
-
+    // Lógica para DESCONTO
     if (changedInputId === "Desconto") {
-      valorDigitadoNoCampoAlterado = desformatarMoeda(
-        inputDescontoValor?.value || "0"
-      );
-      campoParceiro = inputDescontoPercentual;
-    } else if (changedInputId === "percentDesc") {
-      valorDigitadoNoCampoAlterado = desformatarPercentual(
-        inputDescontoPercentual?.value || "0"
-      );
-      campoParceiro = inputDescontoValor;
-    } else if (changedInputId === "Acrescimo") {
-      valorDigitadoNoCampoAlterado = desformatarMoeda(
-        inputAcrescimoValor?.value || "0"
-      );
-      campoParceiro = inputAcrescimoPercentual;
-    } else if (changedInputId === "percentAcresc") {
-      valorDigitadoNoCampoAlterado = desformatarPercentual(
-        inputAcrescimoPercentual?.value || "0"
-      );
-      campoParceiro = inputAcrescimoValor;
+      const vlr = desformatarMoeda(inputDescontoValor.value);
+      const perc = totalBaseParaCalculo > 0 ? (vlr / totalBaseParaCalculo) * 100 : 0;
+      inputDescontoPercentual.value = formatarPercentual(perc);
+    } 
+    else if (changedInputId === "percentDesc") {
+      const perc = desformatarPercentual(inputDescontoPercentual.value);
+      const vlr = totalBaseParaCalculo * (perc / 100);
+      inputDescontoValor.value = formatarMoeda(vlr);
     }
 
-    if (valorDigitadoNoCampoAlterado === 0 && campoParceiro) {
-      console.log("GLOBAL: Campo alterado foi zerado. Zerando campo parceiro.");
-      if (changedInputId === "Desconto" || changedInputId === "Acrescimo") {
-        // Se alterou valor, zera percentual
-        campoParceiro.value = formatarPercentual(0);
-      } else {
-        // Se alterou percentual, zera valor
-        campoParceiro.value = formatarMoeda(0);
-      }
+    // Lógica para ACRÉSCIMO
+    if (changedInputId === "Acrescimo") {
+      const vlr = desformatarMoeda(inputAcrescimoValor.value);
+      const perc = totalBaseParaCalculo > 0 ? (vlr / totalBaseParaCalculo) * 100 : 0;
+      inputAcrescimoPercentual.value = formatarPercentual(perc);
+    } 
+    else if (changedInputId === "percentAcresc") {
+      const perc = desformatarPercentual(inputAcrescimoPercentual.value);
+      const vlr = totalBaseParaCalculo * (perc / 100);
+      inputAcrescimoValor.value = formatarMoeda(vlr);
     }
 
+    // 3. CÁLCULO DO RESULTADO FINAL
     const valorDesconto = desformatarMoeda(inputDescontoValor?.value || "0");
     const valorAcrescimo = desformatarMoeda(inputAcrescimoValor?.value || "0");
 
     const valorFinal = totalBaseParaCalculo - valorDesconto + valorAcrescimo;
 
-    console.log(
-      "DEBUG GLOBAL - aplicarDescontoEAcrescimo - Valor Final:",
-      valorFinal,
-      "Desconto:",
-      valorDesconto,
-      "Acréscimo:",
-      valorAcrescimo,
-      "Total Base para Cálculo:",
-      totalBaseParaCalculo
-    );
-
+    // Atualiza o campo Valor Cliente
     if (campoValorCliente) {
       campoValorCliente.value = formatarMoeda(valorFinal);
     }
 
-    calcularLucro();
-    calcularLucroReal();
-    // Chama a função principal de recalcular totais gerais após as atualizações
-    // recalcularTotaisGerais();
+    // 4. ATUALIZAÇÃO DE LUCROS E TOTAIS
+    if (typeof calcularLucro === "function") calcularLucro();
+    if (typeof calcularLucroReal === "function") calcularLucroReal();
+
+  } catch (err) {
+    console.error("Erro no cálculo de desconto/acréscimo:", err);
   } finally {
     isRecalculatingGlobalDiscountAcrescimo = false;
-    // O reset de lastEditedGlobalFieldType será controlado pelos listeners blur
-    console.log("DEBUG GLOBAL - aplicarDescontoEAcrescimo - FIM.");
   }
 }
 
@@ -1501,6 +1393,7 @@ function adicionarLinhaOrc() {
         <td style="display: none;"><input type="hidden" class="idFuncao" value=""></td>
         <td style="display: none;"><input type="hidden" class="idEquipamento" value=""></td>
         <td style="display: none;"><input type="hidden" class="idSuprimento" value=""></td>
+
         <td class="Proposta">
             <div class="checkbox-wrapper-33">
                 <label class="checkbox">
@@ -1517,7 +1410,7 @@ function adicionarLinhaOrc() {
         <td class="Categoria"><input type="text" class="categoria-input" value=""></td> <!-- Adicionado input para edição -->
         <td class="qtdProduto">
             <div class="add-less">
-                <input type="number" class="qtdProduto" min="0" value="0">
+                <input type="number" class="qtdProduto" min="0" value="0" readonly>
                 <div class="Bt">
                     <button type="button" class="increment">+</button>
                     <button type="button" class="decrement">-</button>
@@ -1587,6 +1480,9 @@ function adicionarLinhaOrc() {
   //     console.log(`DEBUG ADICIONAR LINHA: HTML do td .setor:`, novaLinha.querySelector('td.setor').outerHTML);
   // }
   tabela.insertBefore(novaLinha, tabela.firstChild);
+
+  // Base do item (valor original sem desconto/acréscimo)
+  novaLinha.dataset.vlrbase = "0";
 
   const descontoValorItem = novaLinha.querySelector(
     ".descontoItem .ValorInteiros"
@@ -1933,6 +1829,7 @@ function adicionarLinhaOrc() {
 }
 
 async function adicionarLinhaAdicional(isBonificado = false) {
+  if (isCleaning) return;
     // 🎯 NOVA LÓGICA: Perguntar se é Aditivo ou Extra Bonificado usando botões nativos
     if (isBonificado === false) { 
         const result = await Swal.fire({
@@ -1975,6 +1872,7 @@ async function adicionarLinhaAdicional(isBonificado = false) {
     novaLinha.dataset.adicional = "true";
     novaLinha.dataset.bonificado = isBonificado ? "true" : "false"; // Marcação para o cálculo
     novaLinha.dataset.extrabonificado = isBonificado ? "true" : "false"; // ✅ Novo atributo padronizado
+    novaLinha.dataset.vlrbase = "0"; // Base inicial
 
     // Estilização visual para bonificados (Fundo verde claro + borda)
     if (isBonificado) {
@@ -2523,22 +2421,26 @@ function atualizaProdutoOrc(event) {
     let vlrCustoNumerico = parseFloat(vlrCusto) || 0;
     let vlrVendaNumerico = parseFloat(vlrVenda) || 0;
     if (typeof bProximoAno !== 'undefined' && bProximoAno) {
-        console.log("Aplicando reajuste de 'Próximo Ano' a item recém-selecionado.");
-        const fatorGeral = GLOBAL_PERCENTUAL_GERAL > 0 ? 1 + GLOBAL_PERCENTUAL_GERAL / 100 : 1;
-        const fatorAjuda = GLOBAL_PERCENTUAL_AJUDA > 0 ? 1 + GLOBAL_PERCENTUAL_AJUDA / 100 : 1;
-        vlrCustoNumerico = ceilToTenCents(vlrCustoNumerico, fatorGeral);
-        vlrVendaNumerico = ceilToTenCents(vlrVendaNumerico, fatorGeral);
-        if (typeof vlrAlimentacao !== 'undefined') {
-            vlrAlimentacao = ceilToTenCents(parseFloat(vlrAlimentacao) || 0, fatorAjuda);
-        }
-        if (typeof vlrTransporte !== 'undefined') {
-            vlrTransporte = ceilToTenCents(parseFloat(vlrTransporte) || 0, fatorAjuda);
-        }
+      // Mantém o reajuste sempre que alterar/adicionar item
+      console.log("Aplicando reajuste de 'Próximo Ano' a item recém-selecionado.");
+      const fatorGeral = GLOBAL_PERCENTUAL_GERAL > 0 ? 1 + GLOBAL_PERCENTUAL_GERAL / 100 : 1;
+      const fatorAjuda = GLOBAL_PERCENTUAL_AJUDA > 0 ? 1 + GLOBAL_PERCENTUAL_AJUDA / 100 : 1;
+      vlrCustoNumerico = ceilToTenCents(vlrCustoNumerico, fatorGeral);
+      vlrVendaNumerico = ceilToTenCents(vlrVendaNumerico, fatorGeral);
+      if (typeof vlrAlimentacao !== 'undefined') {
+        vlrAlimentacao = ceilToTenCents(parseFloat(vlrAlimentacao) || 0, fatorAjuda);
+      }
+      if (typeof vlrTransporte !== 'undefined') {
+        vlrTransporte = ceilToTenCents(parseFloat(vlrTransporte) || 0, fatorAjuda);
+      }
     }
     let tabela = document.getElementById("tabela");
     if (!tabela) return;
     let ultimaLinha = tabela.querySelector("tbody tr:first-child");
     if (ultimaLinha) {
+      ultimaLinha.dataset.valorTabela = vlrVendaNumerico;
+      // Mantém o valor reajustado no campo base para futuras edições
+      ultimaLinha.dataset.vlrbase = vlrVendaNumerico.toString();
         let celulaProduto = ultimaLinha.querySelector(".produto");
         let celulaCategoria = ultimaLinha.querySelector(".Categoria");
         let inputIdFuncao = ultimaLinha.querySelector("input.idFuncao");
@@ -2583,6 +2485,7 @@ function atualizaProdutoOrc(event) {
             celulaVlrVenda.textContent = formatarMoeda(vlrVendaNumerico);
             celulaVlrVenda.dataset.originalVenda = vlrVendaNumerico.toString();
         }
+        ultimaLinha.dataset.vlrbase = vlrVendaNumerico.toString();
         console.log(" valor de Venda é:", vlrVendaNumerico);
     }
     gerarObservacoesProposta([ultimaLinha]);
@@ -2648,28 +2551,58 @@ function atualizarValoresAjdCustoNaLinha(linha) {
     baseTransporte = parseFloat(vlrTransporte || 0); // Use o valor global aqui
   }
 
-  console.log(
-    `Bases lidas (da linha ${idFuncaoDaLinha}): Almoco: ${baseAlmoco}, Jantar: ${baseJantar}, Transporte: ${baseTransporte}`
+  const qtdItens = parseFloat(linha.querySelector(".qtdProduto input")?.value || 0) || 0;
+  const qtdDias = parseFloat(linha.querySelector(".qtdDias input")?.value || 0) || 0;
+
+  const alimEl = linha.querySelector(".vlralimentacao-input");
+  const transpEl = linha.querySelector(".vlrtransporte-input");
+
+  let valorAlimentacaoAtual = desformatarMoeda(
+    alimEl?.tagName === "INPUT" ? alimEl.value : alimEl?.textContent || "0"
+  );
+  let valorTransporteAtual = desformatarMoeda(
+    transpEl?.tagName === "INPUT" ? transpEl.value : transpEl?.textContent || "0"
   );
 
-  totalAlimentacaoLinha = baseAlimentacao;
-  totalTransporteLinha = baseTransporte;
+  if (valorAlimentacaoAtual === 0 && valorTransporteAtual === 0) {
+    valorAlimentacaoAtual = baseAlimentacao;
+    valorTransporteAtual = baseTransporte;
+  }
+
+  totalAlimentacaoLinha = valorAlimentacaoAtual;
+  totalTransporteLinha = valorTransporteAtual;
 
   // Atualiza o display e o data-attribute (necessário para recalcularTotaisGerais)
 
   // Se você está usando as variáveis celulaAlimentacao / celulaTransporte do Passo 3.1:
-  if (celulaAlimentacao) {
+  if (alimEl) {
+    if (alimEl.tagName === "INPUT") {
+      alimEl.value = formatarMoeda(totalAlimentacaoLinha);
+    } else {
+      alimEl.textContent = formatarMoeda(totalAlimentacaoLinha);
+    }
+  } else if (celulaAlimentacao) {
     celulaAlimentacao.textContent = formatarMoeda(totalAlimentacaoLinha);
-    // Garante que o valor bruto fica acessível para recalculo e exportação
-    celulaAlimentacao.dataset.originalAjdcusto = totalAlimentacaoLinha;
   }
 
-  if (celulaTransporte) {
+  if (transpEl) {
+    if (transpEl.tagName === "INPUT") {
+      transpEl.value = formatarMoeda(totalTransporteLinha);
+    } else {
+      transpEl.textContent = formatarMoeda(totalTransporteLinha);
+    }
+  } else if (celulaTransporte) {
     celulaTransporte.textContent = formatarMoeda(totalTransporteLinha);
+  }
+
+  if (celulaAlimentacao) {
+    celulaAlimentacao.dataset.originalAjdcusto = totalAlimentacaoLinha;
+  }
+  if (celulaTransporte) {
     celulaTransporte.dataset.originalAjdcusto = totalTransporteLinha;
   }
 
-  totalAjdCustoLinha = totalAlimentacaoLinha + totalTransporteLinha;
+  totalAjdCustoLinha = (totalAlimentacaoLinha + totalTransporteLinha) * qtdItens * qtdDias;
 
   if (totAjdCustoCell) {
     totAjdCustoCell.textContent = formatarMoeda(totalAjdCustoLinha);
@@ -3199,6 +3132,7 @@ async function verificaOrcamento() {
         }
       }
       console.log("Pavilhões para enviar:", pavilhoesParaEnviar);
+      
 
       const dadosOrcamento = {
         id: orcamentoId,
@@ -3307,6 +3241,22 @@ async function verificaOrcamento() {
     // O console.log agora reflete o resultado da nova e mais robusta lógica
     console.log("Processando linha. É adicional?", isAdicional, linha);
 
+    const descontoItemValor = desformatarMoeda(
+      linha.querySelector(".descontoItem.Moeda .ValorInteiros")?.value ||
+      "0"
+    );
+    const acrescimoItemValor = desformatarMoeda(
+      linha.querySelector(".acrescimoItem.Moeda .ValorInteiros")?.value ||
+      "0"
+    );
+    const vlrVendaAtual = desformatarMoeda(
+      linha.querySelector(".vlrVenda.Moeda")?.textContent || "0"
+    );
+    const vlrBaseLinhaRaw = parseFloat(linha.dataset.vlrbase);
+    const vlrBaseLinha = !isNaN(vlrBaseLinhaRaw) && vlrBaseLinhaRaw > 0
+      ? vlrBaseLinhaRaw
+      : (vlrVendaAtual + descontoItemValor - acrescimoItemValor);
+
     const item = {
         id: parseInt(linha.querySelector(".idItemOrcamento")?.value) || null,
         nrorcamento:
@@ -3327,26 +3277,23 @@ async function verificaOrcamento() {
             linha.querySelector(".setor-input")?.value?.trim().toUpperCase() ||
             null,
 
-        qtdDias: linha.querySelector(".qtdDias input")?.value || "0",
+        qtdDias:
+          parseInt(linha.querySelector(".qtdDias input")?.value || "0", 10) ||
+          0,
+        qtddias:
+          parseInt(linha.querySelector(".qtdDias input")?.value || "0", 10) ||
+          0,
 
-        descontoitem: desformatarMoeda(
-            linha.querySelector(".descontoItem.Moeda .ValorInteiros")?.value ||
-            "0"
-        ),
+        descontoitem: descontoItemValor,
         percentdescontoitem: parsePercentValue(
             linha.querySelector(".descontoItem.Moeda .valorPerCent")?.value
         ),
-        acrescimoitem: desformatarMoeda(
-            linha.querySelector(".acrescimoItem.Moeda .ValorInteiros")?.value ||
-            "0"
-        ),
+        acrescimoitem: acrescimoItemValor,
         percentacrescimoitem: parsePercentValue(
             linha.querySelector(".acrescimoItem.Moeda .valorPerCent")?.value
         ),
 
-        vlrdiaria: desformatarMoeda(
-            linha.querySelector(".vlrVenda.Moeda")?.textContent || "0"
-        ),
+        vlrdiaria: vlrVendaAtual,
         totvdadiaria: desformatarMoeda(
             linha.querySelector(".totVdaDiaria.Moeda")?.textContent || "0"
         ),
@@ -3382,6 +3329,9 @@ async function verificaOrcamento() {
         totgeralitem: desformatarMoeda(
             linha.querySelector(".totGeral")?.textContent || "0"
         ),
+
+        // Base do item para manter o valor original sem desconto/acréscimo
+        vlrbase: vlrBaseLinha,
 
         // 2. CORREÇÃO DE ATRIBUIÇÃO:
         // Usa a variável local 'isAdicional' (calculada corretamente acima).
@@ -3564,17 +3514,43 @@ async function verificaOrcamento() {
     }
   });
 
-  const btnLimpar = document.getElementById("Limpar");
+// 1. Defina a trava no topo do arquivo (fora de qualquer função)
+let isCleaning = false; 
+
+// 2. Localize e substitua a configuração do botão Limpar
+const btnLimpar = document.getElementById("Limpar");
+
+if (btnLimpar) {
+  // Remova qualquer listener antigo se necessário e adicione este:
   btnLimpar.addEventListener("click", async function (event) {
     event.preventDefault();
-    if (btnLimpar) {
-      btnLimpar.addEventListener("click", limparOrcamento());
-    } else {
-      console.warn("Botão 'Limpar' com ID 'Limpar' não encontrado.");
-    }
-  }); // Previne o envio padrão do formulário
 
-  recalcularTotaisGerais();
+    // Ativa o modo de limpeza para silenciar Swals
+    isCleaning = true; 
+
+    try {
+      // Chama a função de limpeza (certifique-se de NÃO usar os parênteses () no addEventListener antigo)
+      if (typeof limparOrcamento === "function") {
+        limparOrcamento(); 
+      }
+      
+      // Limpa manualmente o Status para garantir
+      const statusInput = document.getElementById("Status");
+      if (statusInput) statusInput.value = "";
+
+      recalcularTotaisGerais();
+      
+      console.log("🧹 Formulário limpo com sucesso.");
+    } catch (error) {
+      console.error("Erro ao limpar:", error);
+    } finally {
+      // Pequeno delay para garantir que eventos de 'change' disparados pela limpeza terminem
+      setTimeout(() => {
+        isCleaning = false;
+      }, 500);
+    }
+  });
+}
 }
 
 async function atualizarCampoGeradoAnoPosterior(
@@ -4361,83 +4337,60 @@ function atualizarEstadoLiberaStaff(status) {
 }
 
 export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
-  console.log(
-    "DEBUG FRONTEND: preencherItensOrcamentoTabela foi chamada com itens:",
-    itens
-  );
+  console.log("DEBUG FRONTEND: preencherItensOrcamentoTabela foi chamada com itens:", itens);
 
   const tabelaBody = document.querySelector("#tabela tbody");
 
   if (!tabelaBody) {
-    console.warn(
-      "Corpo da tabela de itens (seletor #tabela tbody) não encontrado. Não é possível preencher os itens."
-    );
+    console.warn("Corpo da tabela de itens (seletor #tabela tbody) não encontrado.");
     return;
   }
 
   tabelaBody.innerHTML = ""; // Limpa as linhas existentes
 
   if (!itens || itens.length === 0) {
-    console.log(
-      "Nenhum item encontrado para este orçamento ou 'itens' está vazio."
-    );
-    // Opcional: Adicionar uma linha indicando que não há itens
     const emptyRow = tabelaBody.insertRow();
     emptyRow.innerHTML = `<td colspan="20" style="text-align: center;">Nenhum item adicionado a este orçamento.</td>`;
     return;
   }
 
-  //arredonda para baixo com precisão de 10 centavos
-  // const floorToTenCents = (valor, fator) => {
-  //             // Correção Importante: O divisor deve ser 10, não 100.
-  //             // A lógica de dividir por 0.10 é o mesmo que multiplicar por 10.
-  //             // Se quisermos 76.59 -> 76.50, usamos 10.
-  //             return Math.floor(valor * fator * 10) / 10;
-  // };
+  // --- LÓGICA DE REAJUSTE ---
+  const ceilToTenCents = (valor, fator) => Math.ceil(valor * fator * 10) / 10;
+  
+  const aplicarReajuste = isNewYearBudget && (GLOBAL_PERCENTUAL_GERAL > 0 || GLOBAL_PERCENTUAL_AJUDA > 0);
+  const fatorGeral = aplicarReajuste && GLOBAL_PERCENTUAL_GERAL > 0 ? 1 + GLOBAL_PERCENTUAL_GERAL / 100 : 1;
+  const fatorAjuda = aplicarReajuste && GLOBAL_PERCENTUAL_AJUDA > 0 ? 1 + GLOBAL_PERCENTUAL_AJUDA / 100 : 1;
 
-  //arredonda para cima com precisão de 10 centavos
-  const ceilToTenCents = (valor, fator) => {
-    // 1. Aplica o fator
-    const valorReajustado = valor * fator;
-
-    // 2. Multiplica por 10 (para mover o decimal uma casa)
-    // 3. Usa Math.ceil para arredondar para cima (ex: 76.59 * 10 = 765.9 -> 766)
-    // 4. Divide por 10 (para mover o decimal de volta)
-    return Math.ceil(valorReajustado * 10) / 10;
+  // =======================================================
+  // ✅ LÓGICA DE ORDENAÇÃO (CATEGORIA + ALFABÉTICA)
+  // =======================================================
+  const PRIORIDADE_CATEGORIAS = {
+    "PRODUTOS": 1,
+    "EQUIPAMENTOS": 2,
+    "SUPRIMENTOS": 3
   };
 
-  // =======================================================
-  // LÓGICA DE REAJUSTE DE PERCENTUAIS
-  // =======================================================
-  const aplicarReajuste =
-    isNewYearBudget &&
-    (GLOBAL_PERCENTUAL_GERAL > 0 || GLOBAL_PERCENTUAL_AJUDA > 0);
+  itens.sort((a, b) => {
+    const catA = (a.categoria || "OUTROS").toUpperCase();
+    const catB = (b.categoria || "OUTROS").toUpperCase();
 
-  console.log(
-    "APLICAR REAJUSTE",
-    aplicarReajuste,
-    isNewYearBudget,
-    GLOBAL_PERCENTUAL_AJUDA,
-    GLOBAL_PERCENTUAL_GERAL
-  );
+    const pesoA = PRIORIDADE_CATEGORIAS[catA] || 99;
+    const pesoB = PRIORIDADE_CATEGORIAS[catB] || 99;
 
-  const fatorGeral =
-    aplicarReajuste && GLOBAL_PERCENTUAL_GERAL > 0
-      ? 1 + GLOBAL_PERCENTUAL_GERAL / 100
-      : 1;
+    // 1º Passo: Comparar o peso da Categoria
+    if (pesoA !== pesoB) {
+      return pesoA - pesoB;
+    }
 
-  const fatorAjuda =
-    aplicarReajuste && GLOBAL_PERCENTUAL_AJUDA > 0
-      ? 1 + GLOBAL_PERCENTUAL_AJUDA / 100
-      : 1;
-
-  // =======================================================
-  // FIM LÓGICA DE REAJUSTE
+    // 2º Passo: Se a categoria for a mesma, ordenar por ordem alfabética do PRODUTO
+    // (Verificamos todos os campos possíveis de nome para garantir a ordenação)
+    const nomeA = (a.produto || a.nmfuncao || a.nmequipamento || a.nmsuprimento || "").toLowerCase();
+    const nomeB = (b.produto || b.nmfuncao || b.nmequipamento || b.nmsuprimento || "").toLowerCase();
+    return nomeA.localeCompare(nomeB);
+  });
   // =======================================================
 
   itens.forEach((item) => {
-    console.log("DEBUG FRONTEND: Adicionando item à tabela:", item);
-
     let vlrDiaria = parseFloat(item.vlrdiaria || 0);
     let ctoDiaria = parseFloat(item.ctodiaria || 0);
     let vlrAjdAlimentacao = parseFloat(item.vlrajdctoalimentacao || 0);
@@ -4446,187 +4399,70 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
     let vlrTransporte = parseFloat(item.transporte || 0);
 
     let itemOrcamentoID = item.idorcamentoitem;
-
     const qtdItens = item.qtditens || 0;
     const qtdDias = item.qtddias || 0;
 
     let totVdaDiaria = parseFloat(item.totvdadiaria || 0);
     let totCtoDiaria = parseFloat(item.totctodiaria || 0);
     let totAjuda = parseFloat(item.totajdctoitem || 0);
-
+    let totGeralItem = parseFloat(item.totgeralitem || 0);
     let descontoItem = parseFloat(item.descontoitem || 0);
     let acrescimoItem = parseFloat(item.acrescimoitem || 0);
 
-    // Calcule o total geral com os novos valores reajustados
-    let totGeralItem = parseFloat(item.totgeralitem || 0);
-
-    console.log(
-      "VALORES RECALCULADOS PARA APLICAR REAJUSTE fatorGeral:",
-      fatorGeral,
-      "fatorAjuda:",
-      fatorAjuda,
-      "vlrAjdAlimentacao:",
-      vlrAjdAlimentacao,
-      "vlrAjdTransporte:",
-      vlrAjdTransporte
-    );
-
     if (aplicarReajuste) {
-      // Aplica fator geral em Custo e Venda
-      // vlrDiaria = Math.round(vlrDiaria * fatorGeral);
-      // ctoDiaria = Math.round(ctoDiaria * fatorGeral);
-
-      // // Aplica fator de ajuda em Alimentação e Transporte
-      // vlrAjdAlimentacao = Math.round(vlrAjdAlimentacao * fatorAjuda);
-      // vlrAjdTransporte = Math.round(vlrAjdTransporte * fatorAjuda);
-
-      // vlrHospedagem = Math.round(vlrHospedagem * fatorGeral);
-      // vlrTransporte = Math.round(vlrTransporte * fatorGeral);
-
-      // Aplica fator geral em Custo e Venda
       vlrDiaria = ceilToTenCents(vlrDiaria, fatorGeral);
       ctoDiaria = ceilToTenCents(ctoDiaria, fatorGeral);
-
-      // Aplica fator de ajuda em Alimentação e Transporte
       vlrAjdAlimentacao = ceilToTenCents(vlrAjdAlimentacao, fatorAjuda);
       vlrAjdTransporte = ceilToTenCents(vlrAjdTransporte, fatorAjuda);
-
       vlrHospedagem = ceilToTenCents(vlrHospedagem, fatorGeral);
       vlrTransporte = ceilToTenCents(vlrTransporte, fatorGeral);
 
-      // ZERA o ID do item para garantir que ele seja INSERIDO como novo no SAVE (Backend)
-      itemOrcamentoID = "";
+      itemOrcamentoID = ""; // Novo ID para reajuste
 
-      const percentualGeral = GLOBAL_PERCENTUAL_GERAL || 0;
-      const percentualAjuda = GLOBAL_PERCENTUAL_AJUDA || 0;
-
-      mensagemReajuste = `
-                Aplicado índice de ${percentualGeral.toFixed(
-                  2
-                )}% para Custo e Venda e 
-                índice de ${percentualAjuda.toFixed(
-                  2
-                )}% para ajuda de custo (Alimentação e Transporte), 
-                sobre o valor do orçamento ${nrOrcamentoOriginal}.
-            `;
-
-      totVdaDiaria =
-        vlrDiaria * qtdItens * qtdDias + acrescimoItem - descontoItem;
+      totVdaDiaria = vlrDiaria * qtdItens * qtdDias + acrescimoItem - descontoItem;
       totCtoDiaria = ctoDiaria * qtdItens * qtdDias;
       totAjuda = (vlrAjdAlimentacao + vlrAjdTransporte) * qtdItens * qtdDias;
-
-      //Calcule o total geral com os novos valores reajustados
       totGeralItem = totAjuda + totCtoDiaria;
-
-      console.log(
-        "VALORES RECALCULADOS NO APLICAR REAJUSTE totVdaDiaria:",
-        totVdaDiaria,
-        "totCtoDiaria:",
-        totCtoDiaria,
-        "totAjuda:",
-        totAjuda,
-        "totGeralItem:",
-        totGeralItem
-      );
     }
 
-    // Fallback: se ao carregar os itens os valores individuais de ajuda de custo
-    // vierem zerados, mas existir um total de ajuda de custo no item (totajdctoitem),
-    // distribuímos esse total em um valor por diária para exibição. Isso evita que
-    // a UI mostre R$ 0,00 quando o banco tem o total calculado.
-    if (
-      !aplicarReajuste &&
-      (vlrAjdAlimentacao === 0 && vlrAjdTransporte === 0) &&
-      parseFloat(item.totajdctoitem || 0) > 0
-    ) {
+    // Fallback Ajuda de Custo
+    if (!aplicarReajuste && (vlrAjdAlimentacao === 0 && vlrAjdTransporte === 0) && parseFloat(item.totajdctoitem || 0) > 0) {
       const multiplicador = (qtdItens * qtdDias) || 1;
-      const perUnit = parseFloat(item.totajdctoitem) / multiplicador;
-      console.log(
-        "Fallback AjdCusto: distribuindo totajdctoitem em vlrAjdAlimentacao:",
-        perUnit
-      );
-      vlrAjdAlimentacao = perUnit;
-      vlrAjdTransporte = 0;
-      totAjuda = (vlrAjdAlimentacao + vlrAjdTransporte) * qtdItens * qtdDias;
+      vlrAjdAlimentacao = parseFloat(item.totajdctoitem) / multiplicador;
+      totAjuda = parseFloat(item.totajdctoitem);
       totGeralItem = totAjuda + totCtoDiaria;
     }
 
-    const newRow = tabelaBody.insertRow(); // Cria a linha DOM de uma vez
-    newRow.dataset.idorcamentoitem = item.idorcamentoitem || "";
+    const vlrBaseItemRaw = parseFloat(item.vlrbase);
+    const vlrBaseItem = !isNaN(vlrBaseItemRaw) && vlrBaseItemRaw > 0 ? vlrBaseItemRaw : (vlrDiaria + descontoItem - acrescimoItem);
+
+    // Nome unificado do produto
+    const nomeProduto = item.produto || item.nmfuncao || item.nmequipamento || item.nmsuprimento || "";
+
+    const newRow = tabelaBody.insertRow();
+    newRow.dataset.idorcamentoitem = itemOrcamentoID || "";
     newRow.dataset.idfuncao = item.idfuncao || "";
     newRow.dataset.idequipamento = item.idequipamento || "";
     newRow.dataset.idsuprimento = item.idsuprimento || "";
-    
-    // ✅ Atributos adicionais
+    newRow.dataset.vlrbase = (vlrBaseItem || 0).toString();
     newRow.dataset.adicional = item.adicional ? "true" : "false";
     newRow.dataset.extrabonificado = item.extrabonificado ? "true" : "false";
-    
-    // ✅ Estilização visual para bonificados
+
     if (item.extrabonificado) {
         newRow.style.backgroundColor = "#f0fff4";
         newRow.style.borderLeft = "4px solid #48bb78";
     }
-    // Formatação de datas para Flatpickr
-    const inicioDiarias = item.periododiariasinicio;
-    const fimDiarias = item.periododiariasfim;
-    let valorInicialDoInputDiarias = "";
-    const formattedInicio = formatarDataParaBR(inicioDiarias);
-    const formattedFim = formatarDataParaBR(fimDiarias);
 
-    if (formattedInicio && formattedFim) {
-      valorInicialDoInputDiarias = `${formattedInicio} a ${formattedFim}`;
-    } else if (formattedInicio) {
-      valorInicialDoInputDiarias = formattedInicio;
-    }
-
-    console.log(
-      "DEBUG: SETOR",
-      item.setor,
-      "Funcao",
-      item.idfuncao,
-      "Equipamento",
-      item.idequipamento,
-      "Suprimento",
-      item.idsuprimento
-    );
-
-    // --<td class="vlrVenda Moeda" data-original-venda="${item.vlrdiaria || 0}">${formatarMoeda(item.vlrdiaria || 0)}</td>
-    //<td class="totVdaDiaria Moeda">${formatarMoeda(item.totvdadiaria || 0)}</td>
-    //<td class="vlrCusto Moeda">${formatarMoeda(item.ctodiaria || 0)}</td>
-    //<td class="totCtoDiaria Moeda">${formatarMoeda(item.totctodiaria || 0)}</td>
-
-    //<td class="ajdCusto Moeda alimentacao">${formatarMoeda(item.vlrajdctoalimentacao || 0)}</td>
-    //<td class="ajdCusto Moeda transporte">${formatarMoeda(item.vlrajdctotransporte || 0)}</td>
-
-    //<td class="totAjdCusto Moeda">${formatarMoeda(item.totajdctoitem || 0)}</td>
-    //<td class="totGeral Moeda">${formatarMoeda(item.totgeralitem || 0)}</td>
-
-    // Construa o HTML de TODA a linha como uma única string
     newRow.innerHTML = `
-            <td style="display: none;"><input type="hidden" class="idItemOrcamento" value="${
-              item.idorcamentoitem || ""
-            }"></td>
-            <td style="display: none;"><input type="hidden" class="idFuncao" value="${
-              item.idfuncao || ""
-            }"></td>
-            <td style="display: none;"><input type="hidden" class="idEquipamento" value="${
-              item.idequipamento || ""
-            }"></td>
-            <td style="display: none;"><input type="hidden" class="idSuprimento" value="${
-              item.idsuprimento || ""
-            }"></td>
+            <td style="display: none;"><input type="hidden" class="idItemOrcamento" value="${itemOrcamentoID || ""}"></td>
+            <td style="display: none;"><input type="hidden" class="idFuncao" value="${item.idfuncao || ""}"></td>
+            <td style="display: none;"><input type="hidden" class="idEquipamento" value="${item.idequipamento || ""}"></td>
+            <td style="display: none;"><input type="hidden" class="idSuprimento" value="${item.idsuprimento || ""}"></td>
             <td class="Proposta">
                 <div class="checkbox-wrapper-33">
                     <label class="checkbox">
-                        <input class="checkbox__trigger visuallyhidden" type="checkbox" ${
-                          item.enviarnaproposta && !item.extrabonificado ? "checked" : ""
-                        } ${item.extrabonificado ? "disabled" : ""} />
-                        <span class="checkbox__symbol">
-                            <svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28" version="1" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M4 14l8 7L24 7"></path>
-                            </svg>
-                        </span>
-                        <p class="checkbox__textwrapper"></p>
+                        <input class="checkbox__trigger visuallyhidden" type="checkbox" ${item.enviarnaproposta && !item.extrabonificado ? "checked" : ""} ${item.extrabonificado ? "disabled" : ""} />
+                        <span class="checkbox__symbol"><svg aria-hidden="true" class="icon-checkbox" width="28px" height="28px" viewBox="0 0 28 28"><path d="M4 14l8 7L24 7"></path></svg></span>
                     </label>
                     ${item.extrabonificado ? '<span style="font-size: 10px; color: #48bb78; font-weight: bold;">🎁 BONIFICADO</span>' : ''}
                 </div>
@@ -4634,474 +4470,107 @@ export function preencherItensOrcamentoTabela(itens, isNewYearBudget = false) {
             <td class="Categoria">${item.categoria || ""}</td>
             <td class="qtdProduto">
                 <div class="add-less">
-                    <input type="number" class="qtdProduto" min="0" value="${
-                      item.qtditens || 0
-                    }">
+                    <input type="number" class="qtdProduto" min="0" value="${qtdItens}">
                     <div class="Bt">
                         <button type="button" class="increment">+</button>
                         <button type="button" class="decrement">-</button>
                     </div>
                 </div>
             </td>
-            <td class="produto">${item.produto || ""}</td>
-            <td class="setor">
-                <input type="text" class="setor-input" value="${
-                  item.setor || ""
-                }">
-            </td>
-
-            <td class="qtdDias">
-                <div class="add-less">
-                    <input type="number" readonly class="qtdDias" min="0" value="${
-                      item.qtddias || 0
-                    }">
-                </div>
-            </td>
-            <td class="Periodo">
-                <div class="flatpickr-container">
-                    <input type="text" class="datas datas-item" data-input required readonly placeholder="Clique para Selecionar">
-                </div>
-            </td>
+            <td class="produto">${nomeProduto}</td>
+            <td class="setor"><input type="text" class="setor-input" value="${item.setor || ""}"></td>
+            <td class="qtdDias"><div class="add-less"><input type="number" readonly class="qtdDias" min="0" value="${qtdDias}"></div></td>
+            <td class="Periodo"><div class="flatpickr-container"><input type="text" class="datas datas-item" data-input required readonly placeholder="Selecionar"></div></td>
             <td class="descontoItem Moeda">
                 <div class="Acres-Desc">
-                    <input type="text" class="ValorInteiros" value="${formatarMoeda(
-                      item.descontoitem || 0
-                    )}">
-                    <input type="text" class="valorPerCent" value="${parseFloat(
-                      item.percentdescontoitem || 0
-                    ).toFixed(2)}%">
+                    <input type="text" class="ValorInteiros" value="${formatarMoeda(item.descontoitem || 0)}">
+                    <input type="text" class="valorPerCent" value="${parseFloat(item.percentdescontoitem || 0).toFixed(2)}%">
                 </div>
             </td>
             <td class="acrescimoItem Moeda">
                 <div class="Acres-Desc">
-                    <input type="text" class="ValorInteiros" value="${formatarMoeda(
-                      item.acrescimoitem || 0
-                    )}">
-                    <input type="text" class="valorPerCent" value="${parseFloat(
-                      item.percentacrescimoitem || 0
-                    ).toFixed(2)}%">
+                    <input type="text" class="ValorInteiros" value="${formatarMoeda(item.acrescimoitem || 0)}">
+                    <input type="text" class="valorPerCent" value="${parseFloat(item.percentacrescimoitem || 0).toFixed(2)}%">
                 </div>
             </td>            
-
-            <td class="vlrVenda Moeda" data-original-venda="${vlrDiaria.toFixed(
-              2
-            )}">${formatarMoeda(vlrDiaria)}</td>
+            <td class="vlrVenda Moeda" data-original-venda="${vlrDiaria.toFixed(2)}">${formatarMoeda(vlrDiaria)}</td>
             <td class="totVdaDiaria Moeda">${formatarMoeda(totVdaDiaria)}</td>
             <td class="vlrCusto Moeda">${formatarMoeda(ctoDiaria)}</td>
             <td class="totCtoDiaria Moeda">${formatarMoeda(totCtoDiaria)}</td>
-                    
-            <td class="ajdCusto Moeda alimentacao" data-original-ajdcusto="${vlrAjdAlimentacao}">
-                <span class="vlralimentacao-input">${formatarMoeda(vlrAjdAlimentacao)}</span>
-            </td>
-            <td class="ajdCusto Moeda transporte" data-original-ajdcusto="${vlrAjdTransporte}">
-                <span class="vlrtransporte-input">${formatarMoeda(vlrAjdTransporte)}</span>
-            </td>
-
+            <td class="ajdCusto Moeda alimentacao" data-original-ajdcusto="${vlrAjdAlimentacao}"><span class="vlralimentacao-input">${formatarMoeda(vlrAjdAlimentacao)}</span></td>
+            <td class="ajdCusto Moeda transporte" data-original-ajdcusto="${vlrAjdTransporte}"><span class="vlrtransporte-input">${formatarMoeda(vlrAjdTransporte)}</span></td>
             <td class="totAjdCusto Moeda">${formatarMoeda(totAjuda)}</td>
-           
-
-            <td class="extraCampo Moeda" style="display: none;">
-                <input type="text" class="hospedagem" value="${
-                  vlrHospedagem || 0
-                }">
-            </td>
-            <td class="extraCampo Moeda" style="display: none;">
-                <input type="text" class="transporteExtraInput" value="${
-                  vlrTransporte || 0
-                }">
-            </td>
-           
-             <td class="totGeral Moeda">${formatarMoeda(totGeralItem)}</td>
-            <td>
-                <div class="Acao">
-                    <button class="btnApagar" type="button">
-                        <svg class="delete-svgIcon" viewBox="0 0 448 512">
-                            <path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path>
-                        </svg>
-                    </button>
-                </div>
-            </td>
+            <td class="extraCampo Moeda" style="display: none;"><input type="text" class="hospedagem" value="${vlrHospedagem}"></td>
+            <td class="extraCampo Moeda" style="display: none;"><input type="text" class="transporteExtraInput" value="${vlrTransporte}"></td>
+            <td class="totGeral Moeda">${formatarMoeda(totGeralItem)}</td>
+            <td><div class="Acao"><button class="btnApagar" type="button"><svg class="delete-svgIcon" viewBox="0 0 448 512"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button></div></td>
         `;
 
-    const descontoValorItem = newRow.querySelector(
-      ".descontoItem .ValorInteiros"
-    );
-    if (descontoValorItem) {
-      descontoValorItem.addEventListener("input", function () {
-        console.log("EVENTO INPUT: Campo ValorInteiros de Desconto alterado.");
-        lastEditedFieldType = "valor";
-        recalcularDescontoAcrescimo(
-          this,
-          "desconto",
-          "valor",
-          this.closest("tr")
-        );
-      });
-      descontoValorItem.addEventListener("blur", function () {
-        console.log("EVENTO BLUR: Campo ValorInteiros de Desconto.");
-        this.value = formatarMoeda(desformatarMoeda(this.value));
-        // Adiciona um listener para o próximo tick, para verificar o foco.
-        // Se o foco não está no campo percentual ou em outro campo da mesma célula, zera.
-        setTimeout(() => {
-          const campoPercentual =
-            this.closest(".descontoItem").querySelector(".valorPerCent");
-          // Se o foco não está no campo parceiro OU se o foco saiu da célula Acres-Desc
-          if (
-            document.activeElement !== campoPercentual &&
-            !this.closest(".Acres-Desc").contains(document.activeElement)
-          ) {
-            lastEditedFieldType = null;
-            console.log(
-              "lastEditedFieldType resetado para null após blur do ValorInteiros."
-            );
-          }
-        }, 0); // Pequeno atraso para o browser resolver o foco
-      });
-    }
+    // --- EVENTOS ---
+    const setupAcresDesc = (sel, type) => {
+        const vi = newRow.querySelector(`${sel} .ValorInteiros`);
+        const vp = newRow.querySelector(`${sel} .valorPerCent`);
+        vi?.addEventListener("input", function() { lastEditedFieldType = "valor"; recalcularDescontoAcrescimo(this, type, "valor", newRow); });
+        vi?.addEventListener("blur", function() { this.value = formatarMoeda(desformatarMoeda(this.value)); });
+        vp?.addEventListener("input", function() { lastEditedFieldType = "percentual"; recalcularDescontoAcrescimo(this, type, "percentual", newRow); });
+        vp?.addEventListener("blur", function() { this.value = formatarPercentual(desformatarPercentual(this.value)); });
+    };
 
-    // Campo Percentual de Desconto
-    const descontoPercentualItem = newRow.querySelector(
-      ".descontoItem .valorPerCent"
-    );
-    if (descontoPercentualItem) {
-      descontoPercentualItem.addEventListener("input", function () {
-        console.log("EVENTO INPUT: Campo valorPerCent de Desconto alterado.");
-        lastEditedFieldType = "percentual";
-        recalcularDescontoAcrescimo(
-          this,
-          "desconto",
-          "percentual",
-          this.closest("tr")
-        );
-      });
-      descontoPercentualItem.addEventListener("blur", function () {
-        console.log("EVENTO BLUR: Campo valorPerCent de Desconto.");
-        this.value = formatarPercentual(desformatarPercentual(this.value));
-        // Ao sair do percentual, podemos resetar o lastEditedFieldType
-        // já que o usuário provavelmente terminou a interação com este par de campos.
-        setTimeout(() => {
-          // Verifica se o foco não está dentro do mesmo grupo acres-desc
-          if (!this.closest(".Acres-Desc").contains(document.activeElement)) {
-            lastEditedFieldType = null;
-            console.log(
-              "lastEditedFieldType resetado para null após blur do valorPerCent."
-            );
-          }
-        }, 0);
-      });
-    }
-    const acrescimoValorItem = newRow.querySelector(
-      ".acrescimoItem .ValorInteiros"
-    );
-    if (acrescimoValorItem) {
-      acrescimoValorItem.addEventListener("input", function () {
-        console.log("EVENTO INPUT: Campo ValorInteiros de Acréscimo alterado.");
-        lastEditedFieldType = "valor";
-        recalcularDescontoAcrescimo(
-          this,
-          "acrescimo",
-          "valor",
-          this.closest("tr")
-        );
-      });
-      acrescimoValorItem.addEventListener("blur", function () {
-        console.log("EVENTO BLUR: Campo ValorInteiros de Acréscimo.");
-        this.value = formatarMoeda(desformatarMoeda(this.value));
-        // Adiciona um listener para o próximo tick, para verificar o foco.
-        // Se o foco não está no campo percentual ou em outro campo da mesma célula, zera.
-        setTimeout(() => {
-          const campoPercentual =
-            this.closest(".acrescimoItem").querySelector(".valorPerCent");
-          // Se o foco não está no campo parceiro OU se o foco saiu da célula Acres-Desc
-          if (
-            document.activeElement !== campoPercentual &&
-            !this.closest(".Acres-Desc").contains(document.activeElement)
-          ) {
-            lastEditedFieldType = null;
-            console.log(
-              "lastEditedFieldType resetado para null após blur do ValorInteiros."
-            );
-          }
-        }, 0); // Pequeno atraso para o browser resolver o foco
-      });
-    }
+    setupAcresDesc(".descontoItem", "desconto");
+    setupAcresDesc(".acrescimoItem", "acrescimo");
 
-    // Campo Percentual de Desconto
-    const acrescimoPercentualItem = newRow.querySelector(
-      ".acrescimoItem .valorPerCent"
-    );
-    if (acrescimoPercentualItem) {
-      acrescimoPercentualItem.addEventListener("input", function () {
-        console.log("EVENTO INPUT: Campo valorPerCent de Acréscimo alterado.");
-        lastEditedFieldType = "percentual";
-        recalcularDescontoAcrescimo(
-          this,
-          "acrescimo",
-          "percentual",
-          this.closest("tr")
-        );
-      });
-      acrescimoPercentualItem.addEventListener("blur", function () {
-        console.log("EVENTO BLUR: Campo valorPerCent de Acréscimo.");
-        this.value = formatarPercentual(desformatarPercentual(this.value));
-        // Ao sair do percentual, podemos resetar o lastEditedFieldType
-        // já que o usuário provavelmente terminou a interação com este par de campos.
-        setTimeout(() => {
-          // Verifica se o foco não está dentro do mesmo grupo acres-desc
-          if (!this.closest(".Acres-Desc").contains(document.activeElement)) {
-            lastEditedFieldType = null;
-            console.log(
-              "lastEditedFieldType resetado para null após blur do valorPerCent."
-            );
-          }
-        }, 0);
-      });
-    }
+    newRow.querySelector(".qtdProduto input")?.addEventListener("input", () => recalcularLinha(newRow));
+    newRow.querySelector(".increment")?.addEventListener("click", () => { const i = newRow.querySelector(".qtdProduto input"); i.value = parseInt(i.value) + 1; recalcularLinha(newRow); });
+    newRow.querySelector(".decrement")?.addEventListener("click", () => { const i = newRow.querySelector(".qtdProduto input"); if(parseInt(i.value) > 0){ i.value = parseInt(i.value) - 1; recalcularLinha(newRow); }});
 
-    newRow
-      .querySelector(".qtdProduto input")
-      ?.addEventListener("input", function () {
-        recalcularLinha(this.closest("tr"));
-      });
-
-    newRow
-      .querySelector(".qtdDias input")
-      ?.addEventListener("input", function () {
-        recalcularLinha(this.closest("tr"));
-      });
-
-    // Event listeners para campos de ajuda de custo (selects)
-    newRow
-      .querySelector(".tpAjdCusto-alimentacao")
-      ?.addEventListener("change", function () {
-        recalcularLinha(this.closest("tr"));
-      });
-    newRow
-      .querySelector(".tpAjdCusto-transporte")
-      ?.addEventListener("change", function () {
-        recalcularLinha(this.closest("tr"));
-      });
-
-    // Event listeners para campos extras (hospedagem, transporte)
-    newRow.querySelector(".hospedagem")?.addEventListener("input", function () {
-      recalcularLinha(this.closest("tr"));
-    });
-
-    newRow
-      .querySelector(".transporteExtraInput")
-      ?.addEventListener("input", function () {
-        recalcularLinha(this.closest("tr"));
-        console.log("INPUT DO TRANSPORTE:", this.value); // Log para depuração
-      });
-
-    // const selectAlimentacao = newRow.querySelector('.tpAjdCusto-alimentacao');
-    // if (selectAlimentacao && item.tpajdctoalimentacao) {
-    //     selectAlimentacao.value = item.tpajdctoalimentacao;
-    // }
-
-    // const selectTransporte = newRow.querySelector('.tpAjdCusto-transporte');
-    // if (selectTransporte && item.tpajdctotransporte) {
-    //     selectTransporte.value = item.tpajdctotransporte;
-    // }
-
-    // Inicialização do Flatpickr
-    const itemDateInput = newRow.querySelector(".Periodo .datas-item");
+    const itemDateInput = newRow.querySelector(".datas-item");
     if (itemDateInput) {
-      const defaultDatesArray = [];
-      if (inicioDiarias) {
-        defaultDatesArray.push(new Date(inicioDiarias));
-      }
-      if (fimDiarias) {
-        defaultDatesArray.push(new Date(fimDiarias));
-      }
-
-      flatpickr(itemDateInput, {
-        mode: "range",
-        dateFormat: "d/m/Y",
-        locale: flatpickr.l10ns.pt,
-        defaultDate: defaultDatesArray.length > 0 ? defaultDatesArray : [],
-        onChange: function (selectedDates, dateStr, instance) {
-          const input = instance.input;
-          atualizarQtdDias(input, selectedDates);
-        },
-      });
-    }
-
-    const incrementButton = newRow.querySelector(".qtdProduto .increment");
-    const decrementButton = newRow.querySelector(".qtdProduto .decrement");
-    const quantityInput = newRow.querySelector(
-      '.qtdProduto input[type="number"]'
-    );
-
-    if (incrementButton && quantityInput) {
-      incrementButton.addEventListener("click", function () {
-        quantityInput.value = parseInt(quantityInput.value) + 1;
-        // Chame sua função de recalcular a linha aqui também, se necessário
-        recalcularLinha(this.closest("tr"));
-      });
-    }
-
-    if (decrementButton && quantityInput) {
-      decrementButton.addEventListener("click", function () {
-        let currentValue = parseInt(quantityInput.value);
-        if (currentValue > 0) {
-          // Garante que não decrementa abaixo de zero
-          quantityInput.value = currentValue - 1;
-          // Chame sua função de recalcular a linha aqui também, se necessário
-          recalcularLinha(this.closest("tr"));
-        }
-      });
-    }
-
-    const temPermissaoApagar = temPermissao("Orcamentos", "apagar");
-    const deleteButton = newRow.querySelector(".btnApagar");
-    const idItemInput = newRow.querySelector("input.idItemOrcamento"); // Obtém o input de ID
-
-    if (deleteButton) {
-      deleteButton.addEventListener("click", async function (event) {
-        event.preventDefault(); // Sempre previne o comportamento padrão inicial
-
-        const linhaParaRemover = this.closest("tr");
-        const idOrcamentoItem = idItemInput ? idItemInput.value : null; // Pega o ID na hora do clique
-
-        if (!idOrcamentoItem || idOrcamentoItem.trim() === "") {
-          // Se NÃO tem ID (linha nova/vazia), SEMPRE permite remoção local
-          console.log("DEBUG: Item sem ID. Permitindo exclusão local.");
-          Swal.fire({
-            title: "Remover item?",
-            text: "Este item ainda não foi salvo no banco de dados. Deseja apenas removê-lo da lista?",
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonColor: "#3085d6",
-            cancelButtonColor: "#d33",
-            confirmButtonText: "Sim, remover!",
-            cancelButtonText: "Cancelar",
-          }).then((result) => {
-            if (result.isConfirmed) {
-              linhaParaRemover.remove();
-              recalcularTotaisGerais();
-              // calcularLucro();
-              Swal.fire(
-                "Removido!",
-                "O item foi removido da lista.",
-                "success"
-              );
-            }
-          });
-          // } else if (!temPermissaoApagar) {
-          //     // Se TEM ID, mas o usuário NÃO tem permissão para apagar
-          //     console.warn("Usuário não tem permissão para apagar itens de orçamento. Exibindo Swal.");
-          //     Swal.fire({
-          //         title: "Acesso Negado!",
-          //         text: "Você não tem permissão para apagar itens de orçamento que já estão salvos.",
-          //         icon: "error",
-          //         confirmButtonText: "Entendi"
-          //     });
-        } else {
-          // Se TEM ID E o usuário TEM permissão para apagar (lógica original)
-          let currentItemProduct =
-            linhaParaRemover.querySelector(".produto-input")?.value ||
-            "este item";
-          if (!currentItemProduct || currentItemProduct.trim() === "") {
-            const produtoCell = linhaParaRemover.querySelector(".produto");
-            if (produtoCell) {
-              currentItemProduct = produtoCell.textContent.trim();
-            }
+      const dates = [];
+      if (item.periododiariasinicio) dates.push(new Date(item.periododiariasinicio));
+      if (item.periododiariasfim) dates.push(new Date(item.periododiariasfim));
+      flatpickr(itemDateInput, { mode: "range", dateFormat: "d/m/Y", locale: flatpickr.l10ns.pt, defaultDate: dates, onChange: (sd) => atualizarQtdDias(itemDateInput, sd) });
+        // Garante que o campo de datas seja sempre preenchido visualmente
+        if (item.datas && item.datas.length > 0) {
+          let fpInstance = itemDateInput._flatpickr;
+          if (!fpInstance) {
+            fpInstance = flatpickr(itemDateInput, commonFlatpickrOptionsTable);
           }
+          fpInstance.setDate(item.datas, true);
+        }
+    }
 
-          const { isConfirmed } = await Swal.fire({
-            title: `Tem Certeza que deseja EXCLUIR o item "${currentItemProduct}" ?`,
-            text: "Você não poderá reverter esta ação!",
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonColor: "#3085d6",
-            cancelButtonColor: "#d33",
-            confirmButtonText: "Sim, deletar!",
-            cancelButtonText: "Cancelar",
-          });
-
+    const delBtn = newRow.querySelector(".btnApagar");
+    if (delBtn) {
+      delBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        const id = newRow.dataset.idorcamentoitem;
+        if (!id) { newRow.remove(); recalcularTotaisGerais(); }
+        else {
+          const { isConfirmed } = await Swal.fire({ title: `Excluir "${nomeProduto}"?`, icon: "warning", showCancelButton: true, confirmButtonText: "Sim, deletar!" });
           if (isConfirmed) {
             try {
-              const idOrcamentoPrincipal =
-                document.getElementById("idOrcamento").value;
-              console.log(
-                "IDS ORCAMENTO:",
-                idOrcamentoPrincipal,
-                idOrcamentoItem
-              );
-              await fetchComToken(
-                `/orcamentos/${idOrcamentoPrincipal}/itens/${idOrcamentoItem}`,
-                {
-                  method: "DELETE",
-                  headers: { "Content-Type": "application/json" },
-                }
-              );
-
-              linhaParaRemover.remove();
+              const principalId = document.getElementById("idOrcamento").value;
+              await fetchComToken(`/orcamentos/${principalId}/itens/${id}`, { method: "DELETE" });
+              newRow.remove();
               recalcularTotaisGerais();
-
-              Swal.fire(
-                "Deletado!",
-                "O item foi removido com sucesso.",
-                "success"
-              );
-            } catch (error) {
-              console.error("Erro ao deletar item:", error);
-              Swal.fire(
-                "Erro!",
-                `Não foi possível deletar o item: ${error.message}`,
-                "error"
-              );
-            }
+              Swal.fire("Deletado!", "", "success");
+            } catch (err) { Swal.fire("Erro!", err.message, "error"); }
           }
         }
       });
-
-      if (!temPermissaoApagar) {
-        deleteButton.classList.add("btnDesabilitado");
-        deleteButton.title =
-          "Você não tem permissão para apagar itens de orçamento que já estão salvos.";
-      }
+      if (!temPermissao("Orcamentos", "apagar")) delBtn.classList.add("btnDesabilitado");
     }
   });
 
   if (aplicarReajuste) {
-    // Exibe a mensagem de reajuste
-    const avisoReajusteElement = document.getElementById("avisoReajusteMensagem");
-    if (avisoReajusteElement) {
-      avisoReajusteElement.textContent = mensagemReajuste.trim();
-    }
-    
-    // Recalcula os totais gerais com os novos valores
+    const aviso = document.getElementById("avisoReajusteMensagem");
+    if (aviso) aviso.textContent = `Reajuste aplicado sobre o orçamento original.`;
     recalcularTotaisGerais();
-
-    // Aplica os descontos e acréscimos após recalcular
-    const globalDescontoValor = document.getElementById("Desconto");
-    const globalAcrescimoValor = document.getElementById("Acrescimo");
-
-    if (globalDescontoValor || globalAcrescimoValor) {
-      const descValor = desformatarMoeda(globalDescontoValor?.value || "0");
-      const acrescValor = desformatarMoeda(globalAcrescimoValor?.value || "0");
-
-      if (descValor > 0) {
-        lastEditedGlobalFieldType = "valorDesconto";
-        aplicarDescontoEAcrescimo("Desconto");
-      } else if (acrescValor > 0) {
-        lastEditedGlobalFieldType = "valorAcrescimo";
-        aplicarDescontoEAcrescimo("Acrescimo");
-      } else {
-        // Atualiza o valorCliente de qualquer forma
-        aplicarDescontoEAcrescimo("Desconto");
-      }
-
-      // Reseta após a inicialização
-      lastEditedGlobalFieldType = null;
-    }
+    aplicarDescontoEAcrescimo("Desconto"); 
   }
 
   aplicarMascaraMoeda();
 }
-
 // =============================
 // VERIFICA LINHAS PELO PERÍODO
 // =============================
@@ -5544,344 +5013,129 @@ function formatarMoeda(valor) {
 }
 
 function recalcularLinha(linha) {
-  if (!linha) return;
+    if (!linha) return;
 
-  try {
-    console.log("Linha recebida para recalcular:", linha);
+    try {
+        // --- 1. CAPTURA DE QUANTIDADES (Obrigatórias) ---
+        const qtdItens = parseFloat(linha.querySelector(".qtdProduto input")?.value || linha.querySelector(".qtdItens")?.value) || 0;
+        const qtdDias = parseFloat(linha.querySelector(".qtdDias input")?.value || linha.querySelector(".qtddias")?.value) || 0;
+        const totalFator = qtdItens * qtdDias;
 
-    let qtdItens =
-      parseFloat(linha.querySelector(".qtdProduto input")?.value) || 0;
-    let qtdDias = parseFloat(linha.querySelector(".qtdDias input")?.value) || 0;
+        // --- 2. VALOR DE VENDA (Base Imutável e REAJUSTADO) ---
+        const celulaVenda = linha.querySelector(".vlrVenda");
+        // Sempre prioriza o dataset.vlrbase, que já pode estar reajustado
+        let vlrVendaOriginal = parseFloat(linha.dataset.vlrbase);
+        if (isNaN(vlrVendaOriginal) || vlrVendaOriginal <= 0) {
+          vlrVendaOriginal = parseFloat(celulaVenda?.dataset.originalVenda) || desformatarMoeda(celulaVenda?.textContent) || 0;
+          linha.dataset.vlrbase = vlrVendaOriginal;
+        }
 
-    let celulaVenda = linha.querySelector(".vlrVenda");
-    const vlrVendaOriginal =
-      parseFloat(celulaVenda?.dataset.originalVenda) || 0;
-    console.log(
-      "DEBUG - recalcularLinha: vlrVendaOriginal (Lido do data-attribute) =",
-      vlrVendaOriginal
-    );
-    let vlrVenda = vlrVendaOriginal;
+        // --- 3. AJUSTES (Desconto e Acréscimo) ---
+        const lerAjuste = (seletor) => {
+            const el = linha.querySelector(seletor);
+            if (!el) return 0;
+            return el.mask ? (parseFloat(el.mask.unmaskedValue) || 0) : (desformatarMoeda(el.value) || 0);
+        };
 
-    let vlrCusto =
-      desformatarMoeda(linha.querySelector(".vlrCusto")?.textContent) || 0;
+        const desconto = lerAjuste(".descontoItem .ValorInteiros");
+        const acrescimo = lerAjuste(".acrescimoItem .ValorInteiros");
 
-    const vlrAlimentacaoDiaria =
-      desformatarMoeda(
-        linha.querySelector(".vlralimentacao-input")?.textContent
-      ) ||
-      desformatarMoeda(
-        linha.querySelector(".ajdCusto.alimentacao")?.textContent
-      ) ||
-      0;
-    const vlrTransporteDiaria =
-      desformatarMoeda(
-        linha.querySelector(".vlrtransporte-input")?.textContent
-      ) ||
-      desformatarMoeda(
-        linha.querySelector(".ajdCusto.transporte")?.textContent
-      ) ||
-      0;
+        // --- 4. LOGÍSTICA (Alimentação, Transporte, Hospedagem) ---
+        const lerCustoUnitario = (seletor) => {
+            const el = linha.querySelector(seletor);
+            return desformatarMoeda(el?.tagName === "INPUT" ? el.value : el?.textContent) || 0;
+        };
 
-    const totalAlimentacaoLinha = vlrAlimentacaoDiaria;
-    const totalTransporteLinha = vlrTransporteDiaria;
+        const vlrAlimUnit = lerCustoUnitario(".vlralimentacao-input") || lerCustoUnitario(".ajdCusto.alimentacao");
+        const vlrTranspUnit = lerCustoUnitario(".vlrtransporte-input") || lerCustoUnitario(".ajdCusto.transporte");
+        const vlrCustoFixoUnit = lerCustoUnitario(".vlrCusto");
+        
+        const hospedagemTotal = desformatarMoeda(linha.querySelector(".hospedagem")?.value) || 0;
+        const transporteExtra = desformatarMoeda(linha.querySelector(".transporteExtraInput")?.value) || 0;
 
-    console.log(
-      "ALIMENTACAO (lido do DOM):",
-      linha.querySelector(".vlralimentacao-input"),
-      vlrAlimentacaoDiaria
-    );
+        // --- 5. MATEMÁTICA FINANCEIRA ---
+        let vlrVendaFinalUnit = vlrVendaOriginal - desconto + acrescimo;
 
-    let hospedagemValor =
-      desformatarMoeda(linha.querySelector(".hospedagem")?.value) || 0;
-    let transporteExtraValor =
-      desformatarMoeda(linha.querySelector(".transporteExtraInput")?.value) ||
-      0;
-    console.log(
-      "HOSPEDAGEM E TRANSPORTE EXTRA:",
-      hospedagemValor,
-      transporteExtraValor
-    );
+        // Regra de Bonificação (Se for brinde, venda é zero)
+        if (linha.dataset?.extrabonificado === "true") vlrVendaFinalUnit = 0;
 
-    let vlrAjdCusto = totalAlimentacaoLinha + totalTransporteLinha;
+        const totalVendaLinha = (vlrVendaFinalUnit * totalFator) + (hospedagemTotal * totalFator) + transporteExtra;
+        const totalAjudaCusto = (vlrAlimUnit + vlrTranspUnit) * totalFator;
+        const totalCustoBase = vlrCustoFixoUnit * totalFator;
+        const custoTotalReal = totalCustoBase + totalAjudaCusto;
 
-    // --- Leitura de Desconto e Acréscimo ---
-    let campoDescValor = linha.querySelector(".descontoItem .ValorInteiros");
-    let campoAcrescValor = linha.querySelector(".acrescimoItem .ValorInteiros");
+        // --- 6. ATUALIZAÇÃO SEGURA DA DOM ---
+        const atualizar = (seletor, valor, isInput = false) => {
+            const el = linha.querySelector(seletor);
+            if (!el) return;
+            const formatado = valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+            if (isInput) el.value = formatado; else el.textContent = formatado;
+        };
 
-    let desconto = 0;
-    let acrescimo = 0;
+        atualizar(".vlrVenda", vlrVendaFinalUnit);
+        atualizar(".totVdaDiaria", totalVendaLinha);
+        atualizar(".totCtoDiaria", totalCustoBase);
+        atualizar(".totAjdCusto", totalAjudaCusto);
+        atualizar(".totGeral", custoTotalReal);
 
-    if (campoDescValor && campoDescValor.mask) {
-      desconto = parseFloat(campoDescValor.mask.unmaskedValue) || 0;
-    } else if (campoDescValor) {
-      desconto = desformatarMoeda(campoDescValor.value);
+        // --- 7. SINCRONIA GERAL ---
+        if (typeof recalcularTotaisGerais === "function") {
+            recalcularTotaisGerais();
+        }
+
+    } catch (error) {
+        console.error("Falha crítica no cálculo da linha:", error);
     }
-
-    if (campoAcrescValor && campoAcrescValor.mask) {
-      acrescimo = parseFloat(campoAcrescValor.mask.unmaskedValue) || 0;
-    } else if (campoAcrescValor) {
-      acrescimo = desformatarMoeda(campoAcrescValor.value);
-    }
-
-    // --- Cálculo do valor de venda corrigido ---
-    let vlrVendaCorrigido = vlrVendaOriginal - desconto + acrescimo;
-
-    // --- Verificar se é item bonificado (venda = 0) ---
-    const isBonificado = linha.dataset?.extrabonificado === "true";
-    if (isBonificado) {
-      vlrVendaCorrigido = 0;
-      desconto = 0;
-      acrescimo = 0;
-    }
-
-    // --- Totais intermediários ---
-    let totalIntermediario = qtdItens * qtdDias;
-    let totalVenda =
-      totalIntermediario * vlrVendaCorrigido +
-      hospedagemValor * totalIntermediario +
-      transporteExtraValor;
-    let totalCusto = totalIntermediario * vlrCusto;
-    let totalAjdCusto = totalIntermediario * vlrAjdCusto;
-    let totGeralCtoItem = totalCusto + totalAjdCusto;
-
-    console.log(
-      "Ajuda Custo RECALCULAR LINHA:",
-      totalAjdCusto,
-      "totalIntermediario:",
-      totalIntermediario,
-      "vlrAjdCusto:",
-      vlrAjdCusto
-    );
-
-    // --- Atualização da DOM (protegendo null) ---
-    function setValueIfExists(selector, valor, isInput = false) {
-      const el = linha.querySelector(selector);
-      if (el) {
-        if (isInput) el.value = valor;
-        else el.textContent = valor;
-      }
-    }
-
-    setValueIfExists(
-      ".vlralimentacao-input",
-      vlrAlimentacaoDiaria.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      }),
-      true
-    );
-    setValueIfExists(
-      ".vlrtransporte-input",
-      vlrTransporteDiaria.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      }),
-      true
-    );
-    setValueIfExists(
-      ".totVdaDiaria",
-      totalVenda.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-    );
-    setValueIfExists(
-      ".vlrVenda",
-      vlrVendaCorrigido.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      })
-    );
-    setValueIfExists(
-      ".totCtoDiaria",
-      totalCusto.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-    );
-    setValueIfExists(
-      ".totAjdCusto",
-      totalAjdCusto.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      })
-    );
-    setValueIfExists(
-      ".totGeral",
-      totGeralCtoItem.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      })
-    );
-
-    // --- Logs finais ---
-    console.log(
-      "Calculo desc e Acresc (final):",
-      vlrVendaOriginal,
-      "-",
-      desconto,
-      "+",
-      acrescimo
-    );
-    console.log("valor c/ desc e Acresc (final):", vlrVendaCorrigido);
-
-    // --- Recalcula totais gerais ---
-    recalcularTotaisGerais();
-  } catch (error) {
-    console.error("Erro no recalcularLinha:", error);
-  }
 }
 
-function recalcularDescontoAcrescimo(
-  campoAlterado,
-  tipoCampo,
-  tipoValorAlterado,
-  linha
-) {
-  if (isRecalculatingDiscountAcrescimo) {
-    console.log("DEBUG: Recálculo em andamento, ignorando nova chamada.");
-    return;
-  }
+let isRecalculandoSincronizado = false;
 
+function recalcularDescontoAcrescimo(input, type, fieldType, linha) {
+  if (isRecalculatingDiscountAcrescimo) return;
   isRecalculatingDiscountAcrescimo = true;
 
   try {
-    const celulaVenda = linha.querySelector(".vlrVenda");
-    let vlrVendaOriginal =
-      parseFloat(celulaVenda?.dataset.originalVenda || "0") || 0;
+    const valorInput = linha.querySelector(`.${type}Item .ValorInteiros`);
+    const percentualInput = linha.querySelector(`.${type}Item .valorPerCent`);
 
-    if (vlrVendaOriginal === 0 && celulaVenda) {
-      const vlrVendaAtualFormatado = celulaVenda.textContent;
-      vlrVendaOriginal = desformatarMoeda(vlrVendaAtualFormatado);
-      console.log(
-        "DEBUG: vlrVendaOriginal ajustado para o valor atual da celulaVenda:",
-        vlrVendaOriginal
-      );
+    if (!valorInput || !percentualInput) {
+      isRecalculatingDiscountAcrescimo = false;
+      return;
     }
 
-    console.log("DEBUG - recalcularDescontoAcrescimo - INÍCIO");
-    console.log(
-      "Campo Alterado (elemento):",
-      campoAlterado.className,
-      "Tipo Campo (desc/acresc):",
-      tipoCampo,
-      "Tipo Valor Alterado (valor/percentual):",
-      tipoValorAlterado
-    );
-    console.log(
-      "Valor de Venda Original da Linha (base para cálculo):",
-      vlrVendaOriginal
-    );
 
-    let campoValor;
-    let campoPercentual;
-
-    if (tipoCampo === "desconto") {
-      campoValor = linha.querySelector(".descontoItem .ValorInteiros");
-      campoPercentual = linha.querySelector(".descontoItem .valorPerCent");
-    } else {
-      // tipoCampo === 'acrescimo'
-      campoValor = linha.querySelector(".acrescimoItem .ValorInteiros");
-      campoPercentual = linha.querySelector(".acrescimoItem .valorPerCent");
+    // Usa sempre o valor base da linha (dataset.vlrbase) para o cálculo
+    let vlrBase = parseFloat(linha.dataset.vlrbase) || 0;
+    if (vlrBase <= 0) {
+      // fallback para o valor exibido, se necessário
+      vlrBase = desformatarMoeda(linha.querySelector(".vlrVenda")?.textContent) || 0;
     }
 
-    let valorMonetarioAtual = desformatarMoeda(campoValor?.value || "0");
-    let percentualAtual = desformatarPercentual(campoPercentual?.value || "0");
-
-    console.log(
-      `Valores lidos dos campos (monetário: ${valorMonetarioAtual}, percentual: ${percentualAtual})`
-    );
-    console.log("lastEditedFieldType ANTES DO CÁLCULO:", lastEditedFieldType);
-
-    // A lógica de qual campo calcular deve ser baseada no lastEditedFieldType
-    // que foi setado pelo evento 'input'.
-
-    if (lastEditedFieldType === "valor") {
-      // Se o último campo EDITADO foi o valor monetário
-      if (vlrVendaOriginal > 0) {
-        percentualAtual = (valorMonetarioAtual / vlrVendaOriginal) * 100;
-      } else {
-        percentualAtual = 0;
+    if (fieldType === "valor") {
+      // Se editou o valor em R$, calcula a nova porcentagem
+      const valor = desformatarMoeda(input.value);
+      let percentual = 0;
+      if (vlrBase > 0) {
+        percentual = (valor / vlrBase) * 100;
       }
-      if (campoPercentual) {
-        percentualAtual = Math.round(percentualAtual * 100) / 100; // Arredonda para 2 casas
-        campoPercentual.value = formatarPercentual(percentualAtual);
-        console.log(
-          `Atualizando ${tipoCampo} Percentual (baseado em valor) para: ${campoPercentual.value}`
-        );
-      }
-    } else if (lastEditedFieldType === "percentual") {
-      // Se o último campo EDITADO foi o percentual
-      valorMonetarioAtual = vlrVendaOriginal * (percentualAtual / 100);
-      if (campoValor) {
-        valorMonetarioAtual = Math.round(valorMonetarioAtual * 100) / 100; // Arredonda para 2 casas
-        campoValor.value = formatarMoeda(valorMonetarioAtual);
-        console.log(
-          `Atualizando ${tipoCampo} Valor (baseado em percentual) para: ${campoValor.value}`
-        );
-      }
-    }
-    // Se lastEditedFieldType for null, significa que foi um disparo inicial ou um caso atípico.
-    // Neste caso, use o tipoValorAlterado que veio do evento.
-    else {
-      console.warn(
-        "lastEditedFieldType é null. Usando tipoValorAlterado do evento como fallback."
-      );
-      if (tipoValorAlterado === "valor") {
-        if (vlrVendaOriginal > 0) {
-          percentualAtual = (valorMonetarioAtual / vlrVendaOriginal) * 100;
-        } else {
-          percentualAtual = 0;
-        }
-        if (campoPercentual) {
-          percentualAtual = Math.round(percentualAtual * 100) / 100; // Arredonda para 2 casas
-          campoPercentual.value = formatarPercentual(percentualAtual);
-          console.log(
-            `Atualizando ${tipoCampo} Percentual (fallback) para: ${campoPercentual.value}`
-          );
-        }
-      } else {
-        // tipoValorAlterado === 'percentual'
-        valorMonetarioAtual = vlrVendaOriginal * (percentualAtual / 100);
-        if (campoValor) {
-          valorMonetarioAtual = Math.round(valorMonetarioAtual * 100) / 100; // Arredonda para 2 casas
-          campoValor.value = formatarMoeda(valorMonetarioAtual);
-          console.log(
-            `Atualizando ${tipoCampo} Valor (fallback) para: ${campoValor.value}`
-          );
-        }
-      }
+      percentualInput.value = formatarPercentual(percentual);
+    } else if (fieldType === "percentual") {
+      // Se editou a %, calcula o novo valor em R$
+      const percentual = desformatarPercentual(input.value);
+      const valor = (percentual / 100) * vlrBase;
+      valorInput.value = formatarMoeda(valor);
     }
 
-    // --- Lógica para zerar o campo "parceiro" se o campo alterado for zerado ---
-    let valorDigitadoNoCampoAlterado;
-    if (tipoValorAlterado === "valor") {
-      // Se o evento veio de um campo de valor
-      valorDigitadoNoCampoAlterado = desformatarMoeda(
-        campoAlterado.value || "0"
-      );
-    } else {
-      // Se o evento veio de um campo de percentual
-      valorDigitadoNoCampoAlterado = desformatarPercentual(
-        campoAlterado.value || "0"
-      );
-    }
+    // Se o usuário alterou um campo, sempre atualiza o outro para garantir sincronização
+    // (Evita loop usando o isRecalculatingDiscountAcrescimo)
 
-    if (valorDigitadoNoCampoAlterado === 0) {
-      console.log("Campo alterado foi zerado. Zerando campo parceiro.");
-      if (tipoValorAlterado === "valor" && campoPercentual) {
-        campoPercentual.value = formatarPercentual(0);
-      } else if (tipoValorAlterado === "percentual" && campoValor) {
-        campoValor.value = formatarMoeda(0);
-      }
-    }
+    recalcularLinha(linha);
 
-    recalcularLinha(linha); // Recalcula o total da linha
   } finally {
     isRecalculatingDiscountAcrescimo = false;
-    // O RESET DE lastEditedFieldType DEVE ACONTECER FORA DESTE CONTEXTO SÓ QUANDO O USUÁRIO SAIU DE AMBOS OS CAMPOS
-    // Para depuração, temporariamente não vamos zerar ele aqui.
-    // lastEditedFieldType = null; // COMENTE ESTA LINHA POR ENQUANTO PARA DEPURAR O FLUXO
-    console.log(
-      "DEBUG - recalcularDescontoAcrescimo - FIM. lastEditedFieldType APÓS RECALC (para depuração):",
-      lastEditedFieldType
-    );
   }
 }
+
 
 function aplicarMascaraMoeda() {
   // Formatar valores de <td> com a classe .Moeda
@@ -6904,7 +6158,6 @@ async function rehidrateItemsForNewYear(itens) {
   if (!itens || !Array.isArray(itens) || itens.length === 0) return;
 
   try {
-    // Busca em paralelo as listas mestres disponíveis para a empresa
     const [funcs, equips, suprs] = await Promise.all([
       fetchComToken('/orcamentos/funcao').then((r) => r),
       fetchComToken('/orcamentos/equipamentos').then((r) => r),
@@ -6916,56 +6169,63 @@ async function rehidrateItemsForNewYear(itens) {
       return acc;
     }, {});
 
-    const eqMap = (Array.isArray(equips) ? equips : []).reduce((acc, e) => {
-      acc[String(e.idequip)] = e;
-      return acc;
-    }, {});
+    // ... (manter eqMap e supMap iguais)
 
-    const supMap = (Array.isArray(suprs) ? suprs : []).reduce((acc, s) => {
-      acc[String(s.idsup)] = s;
-      return acc;
-    }, {});
-
-    // Atualiza cada item conforme encontrado nas tabelas mestres
     for (const item of itens) {
-      let vlrdiaria = parseFloat(item.vlrdiaria || 0) || 0;
-      let ctodiaria = parseFloat(item.ctodiaria || 0) || 0;
+      // 1. PRIORIDADE TOTAL: Se o item já tem um vlrbase (do orçamento anterior), 
+      // esse deve ser o valor "mãe" para o novo reajuste.
+      let vlrReferencia = parseFloat(item.vlrbase || item.vlrdiaria || 0);
+      let ctoReferencia = parseFloat(item.ctodiaria || 0);
 
-      if (item.idfuncao && funcMap[String(item.idfuncao)]) {
-        const f = funcMap[String(item.idfuncao)];
-        vlrdiaria = parseFloat(f.vdafuncao) || vlrdiaria;
-        // Algumas queries trazem o cto dentro da categoria; ajusta se presente
-        ctodiaria = parseFloat(f.ctofuncaobase || f.cto || 0) || ctodiaria;
-      } else if (item.idequipamento && eqMap[String(item.idequipamento)]) {
-        const e = eqMap[String(item.idequipamento)];
-        vlrdiaria = parseFloat(e.vdaequip || e.vda || 0) || vlrdiaria;
-        ctodiaria = parseFloat(e.ctoequip || e.cto || 0) || ctodiaria;
-      } else if (item.idsuprimento && supMap[String(item.idsuprimento)]) {
-        const s = supMap[String(item.idsuprimento)];
-        vlrdiaria = parseFloat(s.vdasup || s.vda || 0) || vlrdiaria;
-        ctodiaria = parseFloat(s.ctosup || s.cto || 0) || ctodiaria;
+      // 2. Fallback: Se por algum motivo o item veio zerado, busca na tabela mestra
+      if (vlrReferencia === 0) {
+        if (item.idfuncao && funcMap[String(item.idfuncao)]) {
+          vlrReferencia = parseFloat(funcMap[String(item.idfuncao)].vdafuncao) || 0;
+          ctoReferencia = parseFloat(funcMap[String(item.idfuncao)].ctofuncaobase) || 0;
+        }
+        // ... (repetir lógica para equip e suprimento se necessário)
       }
 
-      const qtdItens = parseFloat(item.qtditens || item.qtdItens || 0) || 0;
-      const qtdDias = parseFloat(item.qtddias || item.qtdDias || 0) || 0;
-      const descontoItem = parseFloat(item.descontoitem || 0) || 0;
-      const acrescimoItem = parseFloat(item.acrescimoitem || 0) || 0;
+      // 3. APLICAÇÃO DO REAJUSTE (O "8% + 8%")
+      // Se bProximoAno está ativo, pegamos o valor que veio do banco (que já tinha os primeiros 8%)
+      // e aplicamos o novo percentual em cima.
+      if (typeof bProximoAno !== 'undefined' && bProximoAno) {
+        const fatorGeral = 1 + (GLOBAL_PERCENTUAL_GERAL / 100);
+        const fatorAjuda = 1 + (GLOBAL_PERCENTUAL_AJUDA / 100);
 
-      const totvdadiaria = Math.round((vlrdiaria * qtdItens * qtdDias + acrescimoItem - descontoItem) * 100) / 100;
-      const totctodiaria = Math.round((ctodiaria * qtdItens * qtdDias) * 100) / 100;
-      const vlrajd = parseFloat(item.vlrajdctoalimentacao || item.vlrajdctotransporte || 0) || 0;
-      const totajdctoitem = Math.round(vlrajd * qtdItens * qtdDias * 100) / 100;
-      const totgeralitem = Math.round((totctodiaria + totajdctoitem) * 100) / 100;
+        // Aplica reajuste sobre o valor que já era reajustado (Efeito Composto)
+        vlrReferencia = vlrReferencia * fatorGeral;
+        ctoReferencia = ctoReferencia * fatorGeral;
 
-      item.vlrdiaria = vlrdiaria;
-      item.ctodiaria = ctodiaria;
-      item.totvdadiaria = totvdadiaria;
-      item.totctodiaria = totctodiaria;
-      item.totajdctoitem = totajdctoitem;
-      item.totgeralitem = totgeralitem;
+        if (item.vlrajdctoalimentacao) {
+            item.vlrajdctoalimentacao = parseFloat(item.vlrajdctoalimentacao) * fatorAjuda;
+        }
+        if (item.vlrajdctotransporte) {
+            item.vlrajdctotransporte = parseFloat(item.vlrajdctotransporte) * fatorAjuda;
+        }
+      }
+
+      // 4. ATUALIZAÇÃO DOS CAMPOS DO ITEM
+      item.vlrbase = vlrReferencia; // O novo valor base agora é o valor composto
+      item.vlrdiaria = vlrReferencia;
+      item.ctodiaria = ctoReferencia;
+
+      const qtdItens = parseFloat(item.qtditens || item.quantidade || 0);
+      const qtdDias = parseFloat(item.qtddias || 0);
+      const descontoItem = parseFloat(item.descontoitem || item.desconto || 0);
+      const acrescimoItem = parseFloat(item.acrescimoitem || item.acrescimo || 0);
+
+      // Recálculo final da linha
+      item.totvdadiaria = Math.round((vlrReferencia * qtdItens * qtdDias + acrescimoItem - descontoItem) * 100) / 100;
+      item.totctodiaria = Math.round((ctoReferencia * qtdItens * qtdDias) * 100) / 100;
+      
+      const vlrAlim = parseFloat(item.vlrajdctoalimentacao || 0);
+      const vlrTransp = parseFloat(item.vlrajdctotransporte || 0);
+      item.totajdctoitem = Math.round((vlrAlim + vlrTransp) * qtdItens * qtdDias * 100) / 100;
+      item.totgeralitem = Math.round((item.totctodiaria + item.totajdctoitem) * 100) / 100;
     }
   } catch (err) {
-    console.warn('[REHIDRATE] Falha ao buscar valores canônicos no frontend:', err);
+    console.warn('[REHIDRATE] Erro no cálculo composto:', err);
   }
 }
 
@@ -8032,6 +7292,53 @@ function configurarEventosOrcamento() {
 
 window.configurarEventosOrcamento = configurarEventosOrcamento;
 
+function gerenciarVisibilidadeValores(permissoes) {
+  // ✅ MUDANÇA: Em vez de pegar o índice [0], buscamos pelo nome do módulo
+  let p;
+  if (Array.isArray(permissoes)) {
+    p = permissoes.find(item => item.modulo.toLowerCase() === "orcamentos");
+  } else {
+    p = permissoes;
+  }
+
+  if (!p) {
+    console.warn("⚠️ Permissão do módulo Orcamentos não encontrada no array.");
+    return;
+  }
+
+  // No servidor as propriedades são 'pode_pesquisar', 'pode_alterar', etc.
+  const ocultarFinanceiro = p.pode_pesquisar === true && 
+                            p.pode_alterar === false && 
+                            p.pode_cadastrar === false;
+
+  console.log("Debug Permissão encontrada:", p);
+
+  if (ocultarFinanceiro) {
+    document.body.classList.add('restrito-visualizacao');
+    console.log("🔒 Sistema em modo restrito (Financeiro oculto)");
+
+    const camposData = document.querySelectorAll('.Periodo input, .flatpickr-input');
+    camposData.forEach(input => {
+      input.style.pointerEvents = 'none'; 
+      input.readOnly = true; 
+      if (input._flatpickr) {
+        input._flatpickr.close();
+      }
+    });
+
+  } else {
+    document.body.classList.remove('restrito-visualizacao');
+    
+    const camposData = document.querySelectorAll('.Periodo input, .flatpickr-input');
+    camposData.forEach(input => {
+      input.style.pointerEvents = 'auto';
+      input.readOnly = false;
+    });
+
+    console.log("✅ Sistema em modo completo");
+  }
+}
+
 function configurarEventosEspecificos(modulo) {
   console.log("⚙️ configurarEventosEspecificos recebeu:", modulo);
 
@@ -8041,6 +7348,7 @@ function configurarEventosEspecificos(modulo) {
 
     if (typeof aplicarPermissoes === "function" && window.permissoes) {
       aplicarPermissoes(window.permissoes);
+      gerenciarVisibilidadeValores(window.permissoes);
     } else {
       console.warn(
         "⚠️ aplicarPermissoes ou window.permissoes ainda não estão disponíveis."

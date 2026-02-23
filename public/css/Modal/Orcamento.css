@@ -191,7 +191,7 @@
     margin: 5px;
   }
   
-  .select{
+  .select, .selectFuncao, .selectEquip, .selectSup, .selectPav{
     display: flex;
     justify-content: center;
     align-items: center;
@@ -324,6 +324,7 @@
     display: flex;
     gap: 20px;
     align-items: flex-start;
+    flex-direction: column;
 }
 
 .Observacoes {
@@ -535,6 +536,14 @@
   .aviso{
     font-size: 18px;
     justify-content: center;
+  }
+
+  #avisoReajusteMensagem{
+    color: var(--primary-color);
+    font-weight: bold;
+    font-size: 15px;
+    padding: 0px 10px;
+    margin: 0 10px;
   }
 
 .select label, .select2 label {
@@ -915,7 +924,6 @@ span.pavilhao-tag {
     align-items: center;
     width: 55px;
     height: 100px;
-    margin: 0 auto;
     margin-left: 12px;
     border: none;
     font-size: 16px;
@@ -1334,6 +1342,104 @@ display: none;
     transition: background-color 0.3s ease;
 }
 
+/*============================================================================= Visualização de Valores Bloqueados =================================================================== */
+.restrito-visualizacao .totais-container,
+.restrito-visualizacao .hide-values {
+    display: none !important;
+}
+
+.restrito-visualizacao .checkbox-wrapper-33.checkbox-coluna.contratarstaff,
+.restrito-visualizacao .form2,
+.restrito-visualizacao .Selects,
+.restrito-visualizacao .selectPav,
+.restrito-visualizacao  .select .edicao,
+.restrito-visualizacao .periodoMontagem{
+  pointer-events: none !important;
+  cursor: not-allowed !important;
+}
+
+.restrito-visualizacao .selectFuncao,
+.restrito-visualizacao .selectEquip,
+.restrito-visualizacao .selectSup,
+.restrito-visualizacao .addLinha,
+.restrito-visualizacao .descontoItem,
+.restrito-visualizacao .acrescimoItem,
+.restrito-visualizacao .vlrVenda,
+.restrito-visualizacao .totVdaDiaria,
+.restrito-visualizacao .vlrCusto,
+.restrito-visualizacao .totCtoDiaria,
+.restrito-visualizacao .ajdCusto,
+.restrito-visualizacao .totAjdCusto,
+.restrito-visualizacao .extraCampo,
+.restrito-visualizacao .totGeral,
+.restrito-visualizacao .totais-container,
+.restrito-visualizacao .Acao,
+.restrito-visualizacao th:last-child, 
+.restrito-visualizacao td:last-child,
+.restrito-visualizacao .Bt,
+.restrito-visualizacao .conteudo-lateral,
+.restrito-visualizacao .GerarProximoAno,
+.restrito-visualizacao .fecharOrc,
+.restrito-visualizacao .Excel,
+.restrito-visualizacao .AprovarProposta,
+.restrito-visualizacao .ReprovarProposta,
+.restrito-visualizacao .Contrato,
+.restrito-visualizacao .Proposta,
+.restrito-visualizacao .pesquisar,
+.restrito-visualizacao .btnEnviar{
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+}
+
+.restrito-visualizacao .table {
+    max-height: 600px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.restrito-visualizacao table {
+    border-collapse: collapse; /* Essencial para que as bordas e o sticky funcionem bem juntos */
+    width: 100%;
+}
+
+.restrito-visualizacao th {
+    position: sticky;
+    top: 0; /* Fixa no topo do container */
+    background-color: #ffffff; /* Cor de fundo para o cabeçalho não ficar transparente ao rolar */
+    z-index: 10; /* Garante que fique acima dos TDs */
+    border: 1px solid black;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
+    font-size: 20px;
+}
+
+.restrito-visualizacao td {
+    border: 1px solid black;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
+    font-size: 20px;
+}
+
+.restrito-visualizacao .setor input{
+  border: none !important;
+  font-size: 20px;
+  width: 100%;
+}
+
+.restrito-visualizacao .Periodo input {
+  border: none !important;
+  font-size: 16px;
+  width: 100%;
+  /* O segredo está aqui */
+  pointer-events: none !important; 
+  background-color: transparent !important;
+  cursor: not-allowed !important;
+}
 
 /* -------------------------------------- @medias ---------------------------------------- */
 
