@@ -797,79 +797,111 @@ function ordenarDatas(datas) {
     return datas.sort((a, b) => new Date(a) - new Date(b));
 }
 
-router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermissao('staff', 'alterar'), uploadComprovantesMiddleware, async (req, res) => {
-    const { idStaffEvento } = req.params;
-    const idempresa = req.idempresa;
-    const body = req.body;
+router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermissao('staff', 'alterar'), uploadComprovantesMiddleware, 
+    logMiddleware('staffeventos', {
+        buscarDadosAnteriores: async (req) => {
+            const idstaffEvento = req.params.idStaffEvento;
+            const idempresa = req.idempresa; // Captura o ID da empresa do contexto
+            if (!idstaffEvento) {
+                return { dadosanteriores: null, idregistroalterado: null };
+            }
+            try {
+                // Ajustar a query para buscar o registro de staffeventos
+                // Incluímos o JOIN com staffempresas para verificar a posse da empresa
+                const result = await pool.query(
+                    `SELECT se.*, se.nmfuncionario AS nmfuncionario_principal,
+                            se.nmfuncao, se.nmcliente, se.nmevento, se.nmlocalmontagem
+                    FROM staffeventos se
+                    INNER JOIN staff s ON se.idfuncionario = s.idstaff
+                    INNER JOIN staffempresas sme ON sme.idstaff = s.idstaff                     
+                    WHERE se.idstaffevento = $1 AND sme.idempresa = $2`, // Verifica a empresa do staff
+                    [idstaffEvento, idempresa]
+                );
+                const linha = result.rows[0] || null;
+                return {
+                    dadosanteriores: linha,
+                    idregistroalterado: linha?.idstaffevento || null
+                };
+            } catch (error) {
+                console.error("Erro ao buscar dados anteriores do evento de staff para log:", error);
+                return { dadosanteriores: null, idregistroalterado: null };
+            }
+        }
+    }),
+    async (req, res) => {
+        const { idStaffEvento } = req.params;
+        const idempresa = req.idempresa;
+        const body = req.body;
 
-    let client;
-    try {
-        client = await pool.connect();
-        await client.query('BEGIN');
+        let client;
+        try {
+            client = await pool.connect();
+            await client.query('BEGIN');
 
-        // 1. Buscar dados antigos para gerir ficheiros
-        const oldResult = await client.query(`
-            SELECT se.* FROM staffeventos se 
-            JOIN staffempresas sme ON se.idstaff = sme.idstaff 
-            WHERE se.idstaffevento = $1 AND sme.idempresa = $2`, [idStaffEvento, idempresa]);
-        
-        if (oldResult.rowCount === 0) throw new Error("Evento não encontrado ou sem permissão.");
-        const old = oldResult.rows[0];
+            // 1. Buscar dados antigos para gerir ficheiros
+            const oldResult = await client.query(`
+                SELECT se.* FROM staffeventos se 
+                JOIN staffempresas sme ON se.idstaff = sme.idstaff 
+                WHERE se.idstaffevento = $1 AND sme.idempresa = $2`, [idStaffEvento, idempresa]);
+            
+            if (oldResult.rowCount === 0) throw new Error("Evento não encontrado ou sem permissão.");
+            const old = oldResult.rows[0];
 
-        const paths = {
-            cache: req.files?.comppgtocache ? `/uploads/staff_comprovantes/${req.files.comppgtocache[0].filename}` : (body.limparComprovanteCache === 'true' ? null : old.comppgtocache),
-            ajd: req.files?.comppgtoajdcusto ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto[0].filename}` : (body.limparComprovanteAjdCusto === 'true' ? null : old.comppgtoajdcusto),
-            ajd50: req.files?.comppgtoajdcusto50 ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto50[0].filename}` : (body.limparComprovanteAjdCusto50 === 'true' ? null : old.comppgtoajdcusto50),
-            cx: req.files?.comppgtocaixinha ? `/uploads/staff_comprovantes/${req.files.comppgtocaixinha[0].filename}` : (body.limparComprovanteCaixinha === 'true' ? null : old.comppgtocaixinha)
-        };
+            const paths = {
+                cache: req.files?.comppgtocache ? `/uploads/staff_comprovantes/${req.files.comppgtocache[0].filename}` : (body.limparComprovanteCache === 'true' ? null : old.comppgtocache),
+                ajd: req.files?.comppgtoajdcusto ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto[0].filename}` : (body.limparComprovanteAjdCusto === 'true' ? null : old.comppgtoajdcusto),
+                ajd50: req.files?.comppgtoajdcusto50 ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto50[0].filename}` : (body.limparComprovanteAjdCusto50 === 'true' ? null : old.comppgtoajdcusto50),
+                cx: req.files?.comppgtocaixinha ? `/uploads/staff_comprovantes/${req.files.comppgtocaixinha[0].filename}` : (body.limparComprovanteCaixinha === 'true' ? null : old.comppgtocaixinha)
+            };
 
-        if (req.files?.comppgtocache) deletarArquivoAntigo(old.comppgtocache);
-        if (req.files?.comppgtoajdcusto) deletarArquivoAntigo(old.comppgtoajdcusto);
+            if (req.files?.comppgtocache) deletarArquivoAntigo(old.comppgtocache);
+            if (req.files?.comppgtoajdcusto) deletarArquivoAntigo(old.comppgtoajdcusto);
 
-        // 2. Query de Update Corrigida
-        const queryUpdate = `
-            UPDATE staffeventos se
-            SET
-              idfuncionario = $1, nmfuncionario = $2, idfuncao = $3, nmfuncao = $4,
-              idcliente = $5, nmcliente = $6, idevento = $7, nmevento = $8, idmontagem = $9,
-              nmlocalmontagem = $10, pavilhao = $11, vlrcache = $12, vlrajustecusto = $13, vlrtransporte = $14,
-              vlralimentacao = $15, vlrcaixinha = $16, descajustecusto = $17, datasevento = $18, 
-              vlrtotal = $19, descbeneficios = $20, setor = $21, statuspgto = $22, statusajustecusto = $23,
-              statuscaixinha = $24, statusdiariadobrada = $25, statusmeiadiaria = $26, dtdiariadobrada = $27, 
-              dtmeiadiaria = $28, desccaixinha = $29, descdiariadobrada = $30, descmeiadiaria = $31,
-              comppgtocache = $32, comppgtoajdcusto = $33, comppgtoajdcusto50 = $34, comppgtocaixinha = $35, 
-              nivelexperiencia = $36, qtdpessoaslote = $37, idequipe = $38, nmequipe = $39, tipoajudacustoviagem = $40,
-              statuspgtoajdcto = $41, statuspgtocaixinha = $42, idorcamento = $43, vlrtotcache = $44, vlrtotajdcusto = $45
-            FROM staffempresas sme
-            WHERE se.idstaff = sme.idstaff AND se.idstaffevento = $46 AND sme.idempresa = $47
-            RETURNING se.idstaffevento;
-        `;
+            // 2. Query de Update Corrigida
+            const queryUpdate = `
+                UPDATE staffeventos se
+                SET
+                idfuncionario = $1, nmfuncionario = $2, idfuncao = $3, nmfuncao = $4,
+                idcliente = $5, nmcliente = $6, idevento = $7, nmevento = $8, idmontagem = $9,
+                nmlocalmontagem = $10, pavilhao = $11, vlrcache = $12, vlrajustecusto = $13, vlrtransporte = $14,
+                vlralimentacao = $15, vlrcaixinha = $16, descajustecusto = $17, datasevento = $18, 
+                vlrtotal = $19, descbeneficios = $20, setor = $21, statuspgto = $22, statusajustecusto = $23,
+                statuscaixinha = $24, statusdiariadobrada = $25, statusmeiadiaria = $26, dtdiariadobrada = $27, 
+                dtmeiadiaria = $28, desccaixinha = $29, descdiariadobrada = $30, descmeiadiaria = $31,
+                comppgtocache = $32, comppgtoajdcusto = $33, comppgtoajdcusto50 = $34, comppgtocaixinha = $35, 
+                nivelexperiencia = $36, qtdpessoaslote = $37, idequipe = $38, nmequipe = $39, tipoajudacustoviagem = $40,
+                statuspgtoajdcto = $41, statuspgtocaixinha = $42, idorcamento = $43, vlrtotcache = $44, vlrtotajdcusto = $45
+                FROM staffempresas sme
+                WHERE se.idstaff = sme.idstaff AND se.idstaffevento = $46 AND sme.idempresa = $47
+                RETURNING se.idstaffevento;
+            `;
 
-        const values = [
-            body.idfuncionario, body.nmfuncionario, body.idfuncao, body.nmfuncao,
-            body.idcliente, body.nmcliente, body.idevento, body.nmevento, body.idmontagem,
-            body.nmlocalmontagem, body.pavilhao,
-            parseFloatOrNull(body.vlrcache), parseFloatOrNull(body.vlrajustecusto), parseFloatOrNull(body.vlrtransporte),
-            parseFloatOrNull(body.vlralimentacao), parseFloatOrNull(body.vlrcaixinha),
-            body.descajustecusto, body.datasevento, parseFloatOrNull(body.vlrtotal),
-            body.descbeneficios, body.setor, body.statuspgto, body.statusajustecusto, body.statuscaixinha,
-            body.statusdiariadobrada, body.statusmeiadiaria, body.datadiariadobrada, body.datameiadiaria,
-            body.desccaixinha, body.descdiariadobrada, body.descmeiadiaria,
-            paths.cache, paths.ajd, paths.ajd50, paths.cx,
-            body.nivelexperiencia, body.qtdpessoas, body.idequipe, body.nmequipe, body.tipoajudacustoviagem,
-            body.statuspgtoajdcto, body.statuspgtocaixinha, body.idorcamento,
-            parseFloatOrNull(body.vlrtotcache), parseFloatOrNull(body.vlrtotajdcusto),
-            idStaffEvento, idempresa
-        ];
+            const values = [
+                body.idfuncionario, body.nmfuncionario, body.idfuncao, body.nmfuncao,
+                body.idcliente, body.nmcliente, body.idevento, body.nmevento, body.idmontagem,
+                body.nmlocalmontagem, body.pavilhao,
+                parseFloatOrNull(body.vlrcache), parseFloatOrNull(body.vlrajustecusto), parseFloatOrNull(body.vlrtransporte),
+                parseFloatOrNull(body.vlralimentacao), parseFloatOrNull(body.vlrcaixinha),
+                body.descajustecusto, body.datasevento, parseFloatOrNull(body.vlrtotal),
+                body.descbeneficios, body.setor, body.statuspgto, body.statusajustecusto, body.statuscaixinha,
+                body.statusdiariadobrada, body.statusmeiadiaria, body.datadiariadobrada, body.datameiadiaria,
+                body.desccaixinha, body.descdiariadobrada, body.descmeiadiaria,
+                paths.cache, paths.ajd, paths.ajd50, paths.cx,
+                body.nivelexperiencia, body.qtdpessoas, body.idequipe, body.nmequipe, body.tipoajudacustoviagem,
+                body.statuspgtoajdcto, body.statuspgtocaixinha, body.idorcamento,
+                parseFloatOrNull(body.vlrtotcache), parseFloatOrNull(body.vlrtotajdcusto),
+                idStaffEvento, idempresa
+            ];
 
-        const resUp = await client.query(queryUpdate, values);
-        await client.query('COMMIT');
-        res.json({ message: "Atualizado", id: resUp.rows[0].idstaffevento });
-    } catch (e) {
-        if (client) await client.query('ROLLBACK');
-        res.status(500).json({ error: e.message });
-    } finally { if (client) client.release(); }
-});
+            const resUp = await client.query(queryUpdate, values);
+            await client.query('COMMIT');
+            res.json({ message: "Atualizado", id: resUp.rows[0].idstaffevento });
+        } catch (e) {
+            if (client) await client.query('ROLLBACK');
+            res.status(500).json({ error: e.message });
+        } finally { if (client) client.release(); }
+    }
+);
 
 function ordenarDatas(datas) {
     if (!datas || datas.length === 0) {
