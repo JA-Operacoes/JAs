@@ -4,10 +4,10 @@ const pool = require("../db/conexaoDB");
 const { autenticarToken, contextoEmpresa } = require('../middlewares/authMiddlewares');
 const { verificarPermissao } = require('../middlewares/permissaoMiddleware');
 const logMiddleware = require("../middlewares/logMiddleware");
+
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-
 
 
 router.get("/extra-bonificado", async (req, res) => {
@@ -2165,37 +2165,513 @@ function calcularIntervaloDeDatas(periodo, params) {
 // =======================================
 // VENCIMENTOS
 // =======================================
+
+
+// const storage = multer.diskStorage({
+//     destination: function (req, file, cb) {
+//         const dir = './uploads/comprovantes/';
+//         // Cria a pasta caso ela não exista
+//         if (!fs.existsSync(dir)){
+//             fs.mkdirSync(dir, { recursive: true });
+//         }
+//         cb(null, dir);
+//     },
+//     filename: function (req, file, cb) {
+//         // Gera um nome único: idStaff-timestamp-nomeoriginal
+//         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+//         cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+//     }
+// });
+
+// // Inicializa o middleware upload (Isso resolve o ReferenceError)
+// const upload = multer({ 
+//     storage: storage,
+//     limits: { fileSize: 5 * 1024 * 1024 }, // Limite de 5MB
+//     fileFilter: (req, file, cb) => {
+//         const extensões = /jpeg|jpg|png|pdf/;
+//         const mimetype = extensões.test(file.mimetype);
+//         const extname = extensões.test(path.extname(file.originalname).toLowerCase());
+
+//         if (mimetype && extname) {
+//             return cb(null, true);
+//         }
+//         cb(new Error("Apenas imagens (JPG/PNG) e PDFs são permitidos."));
+//     }
+// });
+
+
+// const storage = multer.diskStorage({
+//     destination: function (req, file, cb) {
+//         const dir = './uploads/comprovantes/';
+//         if (!fs.existsSync(dir)){
+//             fs.mkdirSync(dir, { recursive: true });
+//         }
+//         cb(null, dir);
+//     },
+//     filename: function (req, file, cb) {
+//         // Prioridade de Nomeclatura: 
+//         // 1. Contexto enviado (Ex: Aditivo - Vaga Excedida)
+//         // 2. Se não houver, verifica se é Staff ou Conta genérica
+//         const contexto = req.body.contexto || (req.body.idStaff ? 'Staff' : 'Pagamento');
+//         const id = req.body.id || req.body.idStaff || '0';
+        
+//         // Limpa o nome para o sistema de arquivos
+//         const nomeLimpo = contexto.replace(/[^a-zA-Z0-9 -]/g, "").replace(/\s+/g, "_");
+//         const ext = path.extname(file.originalname).toLowerCase();
+        
+//         cb(null, `${nomeLimpo}-ID${id}-${Date.now()}${ext}`);
+//     }
+// });
+
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        const dir = './uploads/comprovantes/';
-        // Cria a pasta caso ela não exista
+        let dir = '';
+
+        // Lógica de roteamento de pastas
+        if (req.body.idStaff) {
+            // Staff -> ./uploads/comprovantes/
+            dir = './uploads/staff_comprovantes/';
+        } else if (file.fieldname === 'imagemconta' || req.body.tipoUpload === 'boleto') {
+            // Imagem do Boleto -> ./uploads/contas/imagemboleto/
+            dir = './uploads/contas/imagemboleto/';
+        } else {
+            // Comprovante de Conta -> ./uploads/contas/comprovantepgto/
+            dir = './uploads/contas/comprovantepgto/';
+        }
+
         if (!fs.existsSync(dir)){
             fs.mkdirSync(dir, { recursive: true });
         }
         cb(null, dir);
     },
     filename: function (req, file, cb) {
-        // Gera um nome único: idStaff-timestamp-nomeoriginal
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+        // Formato que você solicitou: Aditivo - Vaga Excedida, etc.
+        const contexto = req.body.contexto || (req.body.idStaff ? 'Staff' : 'Pagamento');
+        const id = req.body.id || req.body.idStaff || '0';
+        
+        // Limpa o nome mantendo hifens e espaços simples conforme seu padrão
+        const nomeLimpo = contexto.replace(/[^a-zA-Z0-9 -]/g, "").replace(/\s+/g, "_");
+        const ext = path.extname(file.originalname).toLowerCase();
+        
+        // Exemplo: Aditivo_-_Vaga_Excedida-ID176-1769529634285.jpeg
+        cb(null, `${nomeLimpo}-ID${id}-${Date.now()}${ext}`);
     }
 });
 
-// Inicializa o middleware upload (Isso resolve o ReferenceError)
 const upload = multer({ 
     storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // Limite de 5MB
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
     fileFilter: (req, file, cb) => {
-        const extensões = /jpeg|jpg|png|pdf/;
-        const mimetype = extensões.test(file.mimetype);
-        const extname = extensões.test(path.extname(file.originalname).toLowerCase());
-
-        if (mimetype && extname) {
-            return cb(null, true);
+        const ext = path.extname(file.originalname).toLowerCase();
+        // Inclusão explícita do .jfif para compatibilidade com WhatsApp
+        if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf' || ext === '.jfif') {
+            cb(null, true);
+        } else {
+            cb(new Error("Apenas imagens (JPG/PNG/JFIF) e PDFs são permitidos."));
         }
-        cb(new Error("Apenas imagens (JPG/PNG) e PDFs são permitidos."));
     }
 });
+
+// router.get("/vencimentos", async (req, res) => {
+//   try {
+//     const idempresa = req.idempresa;
+//     if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
+
+//     const periodo = (req.query.periodo || 'anual').toLowerCase();
+//     const anoFiltro = parseInt(req.query.ano, 10) || 2026;
+
+//     const fmt = d => {
+//       const yyyy = d.getFullYear();
+//       const mm = String(d.getMonth() + 1).padStart(2, '0');
+//       const dd = String(d.getDate()).padStart(2, '0');
+//       return `${yyyy}-${mm}-${dd}`;
+//     };
+
+//     let startDate, endDate;
+//     if (periodo === 'diario') {
+//       const d = req.query.dataInicio ? new Date(req.query.dataInicio + 'T00:00:00') : new Date();
+//       startDate = fmt(d); endDate = fmt(d);
+//     } else if (periodo === 'mensal') {
+//       const m = parseInt(req.query.mes, 10) || (new Date().getMonth() + 1);
+//       const y = parseInt(req.query.ano, 10) || 2026;
+//       startDate = fmt(new Date(y, m - 1, 1));
+//       endDate = fmt(new Date(y, m, 0));
+//     } else {
+//       startDate = `${anoFiltro}-01-01`;
+//       endDate = `${anoFiltro}-12-31`;
+//     }
+
+//     //1. QUERY DE AGREGAÇÃO (Ajustada para usar vlrtotcache e vlrtotajdcusto)
+//     // const queryAgregacao = `
+//     //   SELECT o.idevento, e.nmevento,
+//     //     COALESCE(SUM(COALESCE(tse.vlrtotajdcusto,0)), 0) AS ajuda_total,
+//     //     COALESCE(SUM(COALESCE(tse.vlrtotcache,0)), 0) AS cache_total,
+//     //     COALESCE(SUM(COALESCE(tse.vlrcaixinha,0) * calc.qtd), 0) AS caixinha_total
+//     //   FROM orcamentos o
+//     //   JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
+//     //   JOIN eventos e ON o.idevento = e.idevento
+//     //   JOIN staffeventos tse ON e.idevento = tse.idevento
+//     //   CROSS JOIN LATERAL (
+//     //     SELECT COUNT(*)::int as qtd FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
+//     //     WHERE (d.dt)::date BETWEEN $2 AND $3
+//     //   ) AS calc
+//     //   WHERE oe.idempresa = $1 AND calc.qtd > 0
+//     //   GROUP BY o.idevento, e.nmevento;
+//     // `;
+
+//     const queryAgregacao = `
+//       SELECT 
+//         o.idevento, 
+//         e.nmevento,
+//         MIN(o.dtinimarcacao) AS dtinimarcacao,
+//         MAX(o.dtfimdesmontagem) AS dtfimdesmontagem
+//       FROM orcamentos o
+//       JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
+//       JOIN eventos e ON o.idevento = e.idevento
+//       JOIN staffeventos tse ON e.idevento = tse.idevento
+//       CROSS JOIN LATERAL (
+//         SELECT COUNT(*)::int as qtd FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
+//         WHERE (d.dt)::date BETWEEN $2 AND $3
+//       ) AS calc
+//       WHERE oe.idempresa = $1 AND calc.qtd > 0
+//       GROUP BY o.idevento, e.nmevento;
+//     `;
+ 
+
+//     const { rows: eventosRaw } = await pool.query(queryAgregacao, [idempresa, startDate, endDate]);
+//     if (eventosRaw.length === 0) return res.json({ eventos: [] });
+
+//     //2. QUERY DE DETALHES (Conforme o padrão que definimos)
+//     // const queryDetalhes = `
+//     //   SELECT 
+//     //     tse.idstaffevento, tse.idevento, tse.nmfuncionario AS nome, tse.nmfuncao AS funcao, 
+//     //     calc.qtd AS qtddiarias_filtradas, calc.min_dt AS periodo_eventoini, calc.max_dt AS periodo_eventofim,
+//     //     calc_full.full_min_dt AS periodo_eventoini_all, calc_full.full_max_dt AS periodo_eventofim_all,
+//     //     COALESCE(tse.vlrtotcache, 0) AS totalcache_filtrado,
+//     //     COALESCE(tse.vlrtotajdcusto, 0) AS totalajudacusto_filtrado,
+//     //     (COALESCE(tse.vlrcaixinha, 0) * calc.qtd) AS totalcaixinha_filtrado,
+//     //     tse.statuspgto, tse.statuspgtoajdcto, tse.statuscaixinha,
+//     //     tse.comppgtocache, tse.comppgtocaixinha, tse.comppgtoajdcusto50, tse.comppgtoajdcusto
+//     //   FROM staffeventos tse
+//     //   CROSS JOIN LATERAL (
+//     //     SELECT COUNT(*)::int as qtd, MIN((d.dt)::date) AS min_dt, MAX((d.dt)::date) AS max_dt
+//     //     FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
+//     //     WHERE (d.dt)::date BETWEEN $2 AND $3
+//     //   ) AS calc
+//     //   CROSS JOIN LATERAL (
+//     //     SELECT MIN((d2.dt)::date) AS full_min_dt, MAX((d2.dt)::date) AS full_max_dt
+//     //     FROM jsonb_array_elements_text(tse.datasevento) AS d2(dt)
+//     //   ) AS calc_full
+//     //   WHERE tse.idevento = ANY($1) AND calc.qtd > 0
+//     //   ORDER BY tse.nmfuncionario ASC;
+//     // `;
+
+//     const queryDetalhes = `
+//       SELECT * FROM (
+//         SELECT DISTINCT ON (tse.idstaffevento)
+//           tse.idstaffevento, 
+//           tse.idevento, 
+//           tse.nmfuncionario AS nome, 
+//           tse.nmfuncao AS funcao,
+//           calc.qtd AS qtddiarias_filtradas, 
+//           calc.min_dt AS periodo_eventoini, 
+//           calc.max_dt AS periodo_eventofim,
+//           calc_full.full_min_dt AS periodo_eventoini_all, 
+//           calc_full.full_max_dt AS periodo_eventofim_all,
+//           COALESCE(tse.vlrtotcache, 0) AS totalcache_full,
+//           COALESCE(tse.vlrtotajdcusto, 0) AS totalajudacusto_full,
+//           (COALESCE(tse.vlrcaixinha, 0) * calc_full.full_qtd) AS totalcaixinha_full,
+//           tse.statuspgto, 
+//           tse.statuspgtoajdcto, 
+//           tse.statuscaixinha
+//         FROM staffeventos tse
+//         CROSS JOIN LATERAL (
+//           SELECT COUNT(*)::int as qtd, MIN((d.dt)::date) AS min_dt, MAX((d.dt)::date) AS max_dt
+//           FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
+//           WHERE (d.dt)::date BETWEEN $2 AND $3
+//         ) AS calc
+//         CROSS JOIN LATERAL (
+//           SELECT COUNT(*)::int as full_qtd, MIN((d2.dt)::date) AS full_min_dt, MAX((d2.dt)::date) AS full_max_dt
+//           FROM jsonb_array_elements_text(tse.datasevento) AS d2(dt)
+//         ) AS calc_full
+//         WHERE tse.idevento = ANY($1) AND calc.qtd > 0
+//         ORDER BY tse.idstaffevento
+//       ) AS sub
+//       ORDER BY nome ASC;
+//     `;
+
+//     const { rows: staffRows } = await pool.query(queryDetalhes, [eventosRaw.map(e => e.idevento), startDate, endDate]);
+
+
+//     // Funções de formatação (mantidas conforme seu código original)
+//     const normalizarParaDate = (val) => {
+//         if (!val) return null;
+//         if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+//         const s = String(val).split('T')[0];
+//         const d = new Date(s + 'T00:00:00');
+//         return isNaN(d.getTime()) ? null : d;
+//     };
+
+//     const formatarDDMMYYYY = (dStr) => {
+//         const d = normalizarParaDate(dStr);
+//         return d ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}` : '---';
+//     };
+
+    
+
+//     const resultado = eventosRaw.map(ev => {
+//       const staffs = staffRows.filter(s => s.idevento === ev.idevento);
+//       let ajT = 0, ajP = 0, chT = 0, chP = 0, cxT = 0, cxP = 0;
+//       let minEventDate = null, maxEventDate = null;
+
+//       const dtInicioReal = normalizarParaDate(ev.dtinimarcacao);
+//       const dtFimReal = normalizarParaDate(ev.dtfimdesmontagem);
+
+//       console.log("PERIODO EVENTO", dtInicioReal, dtFimReal, dtinimarcacao, dtfimdesmontagem);
+
+//       const staffsProcessados = staffs.map(s => {
+//         const vC = parseFloat(s.totalcache_filtrado) || 0;
+//         const vA = parseFloat(s.totalajudacusto_filtrado) || 0;
+//         const vX = parseFloat(s.totalcaixinha_filtrado) || 0;
+        
+//         chT += vC; ajT += vA; cxT += vX;
+
+//         const calcPago = (status, amount) => {
+//             if (!status) return 0;
+//             const sStr = String(status);
+//             if (!sStr.startsWith('Pago')) return 0;
+//             const match = sStr.match(/(\d+)/);
+//             if (match) return amount * (Number(match[1]) / 100);
+//             return amount; 
+//         };
+
+//         chP += calcPago(s.statuspgto, vC);
+//         ajP += calcPago(s.statuspgtoajdcto, vA);
+//         cxP += calcPago(s.statuscaixinha, vX);
+
+//         // Datas para o período do funcionário
+//         const startRaw = s.periodo_eventoini || s.periodo_eventoini_all;
+//         const endRaw = s.periodo_eventofim || s.periodo_eventofim_all;
+//         const startD = normalizarParaDate(startRaw);
+//         const endD = normalizarParaDate(endRaw);
+
+//         if (startD && (!minEventDate || startD < minEventDate)) minEventDate = startD;
+//         if (endD && (!maxEventDate || endD > maxEventDate)) maxEventDate = endD;
+
+//         return {
+//           ...s,
+//           periodo_eventoini_fmt: formatarDDMMYYYY(startRaw),
+//           periodo_eventofim_fmt: formatarDDMMYYYY(endRaw),
+//           totalpagar: vC + vA + vX
+//         };
+//       });
+
+//       return {
+//         idevento: ev.idevento,
+//         nomeEvento: ev.nmevento,
+//         totalGeral: ajT + chT + cxT,
+//         // periodo_evento: minEventDate ? formatarDDMMYYYY(minEventDate) : '---',
+//         // dataFimEvento: maxEventDate ? formatarDDMMYYYY(maxEventDate) : '---',
+//         periodo_evento: formatarDDMMYYYY(dtInicioReal), 
+//         dataFimEvento: formatarDDMMYYYY(dtFimReal),
+
+//         dataVencimentoAjuda: minEventDate ? new Date(minEventDate.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---',
+//         dataVencimentoCache: maxEventDate ? new Date(maxEventDate.getTime() + 10*86400000).toLocaleDateString('pt-BR') : '---',
+//         ajuda: { total: ajT, pendente: ajT - ajP, pago: ajP },
+//         cache: { total: chT, pendente: chT - chP, pago: chP },
+//         caixinha: { total: cxT, pendente: cxT - cxP, pago: cxP },
+//         funcionarios: staffsProcessados
+//       };
+//     });
+
+//     res.json({ eventos: resultado });
+    
+
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// });
+
+//Está correta e funcional
+// router.get("/vencimentos", async (req, res) => {
+//   try {
+//     const idempresa = req.idempresa;
+//     if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
+
+//     const periodo = (req.query.periodo || 'anual').toLowerCase();
+//     const anoFiltro = parseInt(req.query.ano, 10) || 2026;
+
+//     const fmt = d => {
+//       const yyyy = d.getFullYear();
+//       const mm = String(d.getMonth() + 1).padStart(2, '0');
+//       const dd = String(d.getDate()).padStart(2, '0');
+//       return `${yyyy}-${mm}-${dd}`;
+//     };
+
+//     let startDate, endDate;
+//     if (periodo === 'diario') {
+//       const d = req.query.dataInicio ? new Date(req.query.dataInicio + 'T00:00:00') : new Date();
+//       startDate = fmt(d); endDate = fmt(d);
+//     } else if (periodo === 'mensal') {
+//       const m = parseInt(req.query.mes, 10) || (new Date().getMonth() + 1);
+//       const y = parseInt(req.query.ano, 10) || 2026;
+//       startDate = fmt(new Date(y, m - 1, 1));
+//       endDate = fmt(new Date(y, m, 0));
+//     } else {
+//       startDate = `${anoFiltro}-01-01`;
+//       endDate = `${anoFiltro}-12-31`;
+//     }
+
+//     // 1. QUERY DE AGREGAÇÃO - Aqui as datas do orçamento funcionam bem com GROUP BY
+//     // 1. QUERY DE AGREGAÇÃO - Ajustada para filtrar o ano do orçamento também
+//     const queryAgregacao = `
+//         SELECT 
+//             o.idevento, 
+//             e.nmevento,
+//             MIN(o.dtinimarcacao) AS dtinimarcacao,
+//             MIN(o.dtinimontagem) AS dtinimontagem,
+//             MAX(o.dtfimdesmontagem) AS dtfimdesmontagem
+//         FROM orcamentos o
+//         JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
+//         JOIN eventos e ON o.idevento = e.idevento
+//         JOIN staffeventos tse ON e.idevento = tse.idevento
+//         CROSS JOIN LATERAL (
+//             SELECT COUNT(*)::int as qtd FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
+//             WHERE (d.dt)::date BETWEEN $2 AND $3
+//         ) AS calc
+//         WHERE oe.idempresa = $1 
+//             AND calc.qtd > 0
+//             AND o.dtinimarcacao BETWEEN $2 AND $3 -- ESTA LINHA GARANTE O ANO CORRETO
+//         GROUP BY o.idevento, e.nmevento;
+//     `;
+
+//     const { rows: eventosRaw } = await pool.query(queryAgregacao, [idempresa, startDate, endDate]);
+//     if (eventosRaw.length === 0) return res.json({ eventos: [] });
+
+//     // 2. QUERY DE DETALHES - Limpa, sem MIN/MAX para não dar erro de GROUP BY
+//     const queryDetalhes = `
+//       SELECT * FROM (
+//         SELECT DISTINCT ON (tse.idstaffevento)
+//           tse.idstaffevento, 
+//           tse.idevento, 
+//           tse.nmfuncionario AS nome, 
+//           tse.nmfuncao AS funcao,
+//           calc.qtd AS qtddiarias_filtradas, 
+//           calc.min_dt AS periodo_eventoini, 
+//           calc.max_dt AS periodo_eventofim,
+//           calc_full.full_min_dt AS periodo_eventoini_all, 
+//           calc_full.full_max_dt AS periodo_eventofim_all,
+//           COALESCE(tse.vlrtotcache, 0) AS totalcache_full,
+//           COALESCE(tse.vlrtotajdcusto, 0) AS totalajudacusto_full,
+//           (COALESCE(tse.vlrcaixinha, 0) * calc_full.full_qtd) AS totalcaixinha_full,
+//           tse.statuspgto, 
+//           tse.statuspgtoajdcto, 
+//           tse.statuscaixinha
+//         FROM staffeventos tse
+//         CROSS JOIN LATERAL (
+//           SELECT COUNT(*)::int as qtd, MIN((d.dt)::date) AS min_dt, MAX((d.dt)::date) AS max_dt
+//           FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
+//           WHERE (d.dt)::date BETWEEN $2 AND $3
+//         ) AS calc
+//         CROSS JOIN LATERAL (
+//           SELECT COUNT(*)::int as full_qtd, MIN((d2.dt)::date) AS full_min_dt, MAX((d2.dt)::date) AS full_max_dt
+//           FROM jsonb_array_elements_text(tse.datasevento) AS d2(dt)
+//         ) AS calc_full
+//         WHERE tse.idevento = ANY($1) AND calc.qtd > 0
+//         ORDER BY tse.idstaffevento
+//       ) AS sub
+//       ORDER BY nome ASC;
+//     `;
+
+//     const { rows: staffRows } = await pool.query(queryDetalhes, [eventosRaw.map(e => e.idevento), startDate, endDate]);
+
+//     const normalizarParaDate = (val) => {
+//         if (!val) return null;
+//         if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+//         const s = String(val).split('T')[0];
+//         const d = new Date(s + 'T00:00:00');
+//         return isNaN(d.getTime()) ? null : d;
+//     };
+
+//     const formatarDDMMYYYY = (dStr) => {
+//         const d = normalizarParaDate(dStr);
+//         return d ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}` : '---';
+//     };
+
+//     const resultado = eventosRaw.map(ev => {
+//         const staffs = staffRows.filter(s => s.idevento === ev.idevento);
+//         let ajT = 0, ajP = 0, chT = 0, chP = 0, cxT = 0, cxP = 0;
+        
+//         // Variáveis para capturar a escala real do staff
+//         let minEscalaStaff = null;
+//         let maxEscalaStaff = null;
+
+//         // Datas oficiais do orçamento para o "Período do Evento"
+//         const dtInicioMarcacao = normalizarParaDate(ev.dtinimarcacao);
+//         const dtInicioMontagem = normalizarParaDate(ev.dtinimontagem);
+//         const dtFimDesmontagem = normalizarParaDate(ev.dtfimdesmontagem);
+
+//         const staffsProcessados = staffs.map(s => {
+//             const vC = parseFloat(s.totalcache_full) || 0;
+//             const vA = parseFloat(s.totalajudacusto_full) || 0;
+//             const vX = parseFloat(s.totalcaixinha_full) || 0;
+            
+//             chT += vC; ajT += vA; cxT += vX;
+
+//             const calcPago = (status, amount) => {
+//                 if (!status || !String(status).startsWith('Pago')) return 0;
+//                 const match = String(status).match(/(\d+)/);
+//                 return match ? amount * (Number(match[1]) / 100) : amount;
+//             };
+
+//             chP += calcPago(s.statuspgto, vC);
+//             ajP += calcPago(s.statuspgtoajdcto, vA);
+//             cxP += calcPago(s.statuscaixinha, vX);
+
+//             // --- LÓGICA DE ESCALA REAL (VENCIMENTOS) ---
+//             const startD = normalizarParaDate(s.periodo_eventoini_all);
+//             const endD = normalizarParaDate(s.periodo_eventofim_all);
+            
+//             if (startD && (!minEscalaStaff || startD < minEscalaStaff)) minEscalaStaff = startD;
+//             if (endD && (!maxEscalaStaff || endD > maxEscalaStaff)) maxEscalaStaff = endD;
+
+//             return {
+//                 ...s,
+//                 periodo_eventoini_fmt: formatarDDMMYYYY(s.periodo_eventoini_all),
+//                 periodo_eventofim_fmt: formatarDDMMYYYY(s.periodo_eventofim_all),
+//                 totalpagar: vC + vA + vX
+//             };
+//         });
+
+//         // Cálculos de Vencimento baseados no Staff (Escala Real)
+//         // Ajuda: 2 dias após o início do primeiro staff | Cachê: 10 dias após o fim do último
+//         //const dataVencAjuda = minEscalaStaff ? new Date(minEscalaStaff.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---';
+//         //const dataVencCache = maxEscalaStaff ? new Date(maxEscalaStaff.getTime() + 10*86400000).toLocaleDateString('pt-BR') : '---';
+
+//         return {
+//             idevento: ev.idevento,
+//             nomeEvento: ev.nmevento,
+//             totalGeral: ajT + chT + cxT,
+//             // Exibição visual: Baseada no Orçamento
+//             periodo_evento: formatarDDMMYYYY(dtInicioMarcacao), 
+//             dataFimEvento: formatarDDMMYYYY(dtFimDesmontagem),
+//             dataInicioMontagem: formatarDDMMYYYY(dtInicioMontagem),
+//             // Regra de Negócio: Baseada na Escala do Staff
+//             dataVencimentoAjuda: dtInicioMontagem ? new Date(dtInicioMontagem.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---',
+//             dataVencimentoCache: dtFimDesmontagem ? new Date(dtFimDesmontagem.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---',
+//             ajuda: { total: ajT, pendente: ajT - ajP, pago: ajP },
+//             cache: { total: chT, pendente: chT - chP, pago: chP },
+//             caixinha: { total: cxT, pendente: cxT - cxP, pago: cxP },
+//             funcionarios: staffsProcessados
+//         };
+//     });
+//     res.json({ eventos: resultado });
+
+//   } catch (error) {
+//     console.error("ERRO ROTA VENCIMENTOS:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// });
 
 router.get("/vencimentos", async (req, res) => {
   try {
@@ -2203,7 +2679,7 @@ router.get("/vencimentos", async (req, res) => {
     if (!idempresa) return res.status(400).json({ error: "idempresa obrigatório." });
 
     const periodo = (req.query.periodo || 'anual').toLowerCase();
-    const anoFiltro = parseInt(req.query.ano, 10) || 2026;
+    const anoFiltro = parseInt(req.query.ano, 10) || new Date().getFullYear();
 
     const fmt = d => {
       const yyyy = d.getFullYear();
@@ -2226,55 +2702,97 @@ router.get("/vencimentos", async (req, res) => {
       endDate = `${anoFiltro}-12-31`;
     }
 
-    // 1. QUERY DE AGREGAÇÃO (Ajustada para usar vlrtotcache e vlrtotajdcusto)
+    // 1. QUERY DE AGREGAÇÃO - Aqui as datas do orçamento funcionam bem com GROUP BY
+    // 1. QUERY DE AGREGAÇÃO - Ajustada para filtrar o ano do orçamento também
+    // const queryAgregacao = `
+    //     SELECT 
+    //         o.idevento, 
+    //         e.nmevento,
+    //         MIN(o.dtinimarcacao) AS dtinimarcacao,
+    //         MIN(o.dtinimontagem) AS dtinimontagem,
+    //         MAX(o.dtfimdesmontagem) AS dtfimdesmontagem
+    //     FROM orcamentos o
+    //     JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
+    //     JOIN eventos e ON o.idevento = e.idevento
+    //     JOIN staffeventos tse ON e.idevento = tse.idevento
+    //     CROSS JOIN LATERAL (
+    //         SELECT COUNT(*)::int as qtd FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
+    //         WHERE (d.dt)::date BETWEEN $2 AND $3
+    //     ) AS calc
+    //     WHERE oe.idempresa = $1 
+    //         AND calc.qtd > 0
+    //         AND o.dtinimarcacao BETWEEN $2 AND $3 -- ESTA LINHA GARANTE O ANO CORRETO
+    //     GROUP BY o.idevento, e.nmevento;
+    // `;
+
     const queryAgregacao = `
-      SELECT o.idevento, e.nmevento,
-        COALESCE(SUM(COALESCE(tse.vlrtotajdcusto,0)), 0) AS ajuda_total,
-        COALESCE(SUM(COALESCE(tse.vlrtotcache,0)), 0) AS cache_total,
-        COALESCE(SUM(COALESCE(tse.vlrcaixinha,0) * calc.qtd), 0) AS caixinha_total
-      FROM orcamentos o
-      JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
-      JOIN eventos e ON o.idevento = e.idevento
-      JOIN staffeventos tse ON e.idevento = tse.idevento
-      CROSS JOIN LATERAL (
-        SELECT COUNT(*)::int as qtd FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
-        WHERE (d.dt)::date BETWEEN $2 AND $3
-      ) AS calc
-      WHERE oe.idempresa = $1 AND calc.qtd > 0
-      GROUP BY o.idevento, e.nmevento;
+        SELECT 
+            o.idevento, 
+            e.nmevento,
+            MIN(o.dtinimarcacao) AS dtinimarcacao,
+            MIN(o.dtinimontagem) AS dtinimontagem,
+            MAX(o.dtfimdesmontagem) AS dtfimdesmontagem
+        FROM orcamentos o
+        JOIN orcamentoempresas oe ON o.idorcamento = oe.idorcamento
+        JOIN eventos e ON o.idevento = e.idevento
+        WHERE oe.idempresa = $1 
+        AND (
+            -- Vencimento da Ajuda (2 dias após início da montagem)
+            (o.dtinimontagem + INTERVAL '2 days')::date BETWEEN $2 AND $3
+            OR 
+            -- Vencimento do Cachê (2 dias após fim da desmontagem)
+            (o.dtfimdesmontagem + INTERVAL '2 days')::date BETWEEN $2 AND $3
+            OR
+            o.dtinimarcacao BETWEEN $2 AND $3
+        )
+        GROUP BY o.idevento, e.nmevento
+        ORDER BY dtinimarcacao ASC;
     `;
 
     const { rows: eventosRaw } = await pool.query(queryAgregacao, [idempresa, startDate, endDate]);
     if (eventosRaw.length === 0) return res.json({ eventos: [] });
 
-    // 2. QUERY DE DETALHES (Conforme o padrão que definimos)
+    // 2. QUERY DE DETALHES - Limpa, sem MIN/MAX para não dar erro de GROUP BY
     const queryDetalhes = `
-      SELECT 
-        tse.idstaffevento, tse.idevento, tse.nmfuncionario AS nome, tse.nmfuncao AS funcao,
-        calc.qtd AS qtddiarias_filtradas, calc.min_dt AS periodo_eventoini, calc.max_dt AS periodo_eventofim,
-        calc_full.full_min_dt AS periodo_eventoini_all, calc_full.full_max_dt AS periodo_eventofim_all,
-        COALESCE(tse.vlrtotcache, 0) AS totalcache_filtrado,
-        COALESCE(tse.vlrtotajdcusto, 0) AS totalajudacusto_filtrado,
-        (COALESCE(tse.vlrcaixinha, 0) * calc.qtd) AS totalcaixinha_filtrado,
-        tse.statuspgto, tse.statuspgtoajdcto, tse.statuscaixinha,
-        tse.comppgtocache, tse.comppgtocaixinha, tse.comppgtoajdcusto50, tse.comppgtoajdcusto
-      FROM staffeventos tse
-      CROSS JOIN LATERAL (
-        SELECT COUNT(*)::int as qtd, MIN((d.dt)::date) AS min_dt, MAX((d.dt)::date) AS max_dt
-        FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
-        WHERE (d.dt)::date BETWEEN $2 AND $3
-      ) AS calc
-      CROSS JOIN LATERAL (
-        SELECT MIN((d2.dt)::date) AS full_min_dt, MAX((d2.dt)::date) AS full_max_dt
-        FROM jsonb_array_elements_text(tse.datasevento) AS d2(dt)
-      ) AS calc_full
-      WHERE tse.idevento = ANY($1) AND calc.qtd > 0
-      ORDER BY tse.nmfuncionario ASC;
+      SELECT * FROM (
+        SELECT DISTINCT ON (tse.idstaffevento)
+          tse.idstaffevento, 
+          tse.idevento, 
+          tse.nmfuncionario AS nome, 
+          tse.nmfuncao AS funcao,
+          calc.qtd AS qtddiarias_filtradas, 
+          calc.min_dt AS periodo_eventoini, 
+          calc.max_dt AS periodo_eventofim,
+          calc_full.full_min_dt AS periodo_eventoini_all, 
+          calc_full.full_max_dt AS periodo_eventofim_all,
+          COALESCE(tse.vlrtotcache, 0) AS totalcache_full,
+          COALESCE(tse.vlrtotajdcusto, 0) AS totalajudacusto_full,
+          (COALESCE(tse.vlrcaixinha, 0) * calc_full.full_qtd) AS totalcaixinha_full,
+          tse.statuspgto, 
+          tse.statuspgtoajdcto, 
+          tse.statuscaixinha,
+          tse.comppgtocache,
+          tse.comppgtocaixinha,
+          tse.comppgtoajdcusto50,
+          tse.comppgtoajdcusto
+        FROM staffeventos tse
+        CROSS JOIN LATERAL (
+          SELECT COUNT(*)::int as qtd, MIN((d.dt)::date) AS min_dt, MAX((d.dt)::date) AS max_dt
+          FROM jsonb_array_elements_text(tse.datasevento) AS d(dt)
+          WHERE (d.dt)::date BETWEEN $2 AND $3
+        ) AS calc
+        CROSS JOIN LATERAL (
+          SELECT COUNT(*)::int as full_qtd, MIN((d2.dt)::date) AS full_min_dt, MAX((d2.dt)::date) AS full_max_dt
+          FROM jsonb_array_elements_text(tse.datasevento) AS d2(dt)
+        ) AS calc_full
+        WHERE tse.idevento = ANY($1) AND calc.qtd > 0
+        ORDER BY tse.idstaffevento
+      ) AS sub
+      ORDER BY nome ASC;
     `;
 
     const { rows: staffRows } = await pool.query(queryDetalhes, [eventosRaw.map(e => e.idevento), startDate, endDate]);
 
-    // Funções de formatação (mantidas conforme seu código original)
     const normalizarParaDate = (val) => {
         if (!val) return null;
         if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
@@ -2289,64 +2807,76 @@ router.get("/vencimentos", async (req, res) => {
     };
 
     const resultado = eventosRaw.map(ev => {
-      const staffs = staffRows.filter(s => s.idevento === ev.idevento);
-      let ajT = 0, ajP = 0, chT = 0, chP = 0, cxT = 0, cxP = 0;
-      let minEventDate = null, maxEventDate = null;
-
-      const staffsProcessados = staffs.map(s => {
-        const vC = parseFloat(s.totalcache_filtrado) || 0;
-        const vA = parseFloat(s.totalajudacusto_filtrado) || 0;
-        const vX = parseFloat(s.totalcaixinha_filtrado) || 0;
+        const staffs = staffRows.filter(s => s.idevento === ev.idevento);
+        let ajT = 0, ajP = 0, chT = 0, chP = 0, cxT = 0, cxP = 0;
         
-        chT += vC; ajT += vA; cxT += vX;
+        // Variáveis para capturar a escala real do staff
+        let minEscalaStaff = null;
+        let maxEscalaStaff = null;
 
-        const calcPago = (status, amount) => {
-            if (!status) return 0;
-            const sStr = String(status);
-            if (!sStr.startsWith('Pago')) return 0;
-            const match = sStr.match(/(\d+)/);
-            if (match) return amount * (Number(match[1]) / 100);
-            return amount; 
-        };
+        // Datas oficiais do orçamento para o "Período do Evento"
+        const dtInicioMarcacao = normalizarParaDate(ev.dtinimarcacao);
+        const dtInicioMontagem = normalizarParaDate(ev.dtinimontagem);
+        const dtFimDesmontagem = normalizarParaDate(ev.dtfimdesmontagem);
 
-        chP += calcPago(s.statuspgto, vC);
-        ajP += calcPago(s.statuspgtoajdcto, vA);
-        cxP += calcPago(s.statuscaixinha, vX);
+        const staffsProcessados = staffs.map(s => {
+            const vC = parseFloat(s.totalcache_full) || 0;
+            const vA = parseFloat(s.totalajudacusto_full) || 0;
+            const vX = parseFloat(s.totalcaixinha_full) || 0;
+            
+            chT += vC; ajT += vA; cxT += vX;
 
-        // Datas para o período do funcionário
-        const startRaw = s.periodo_eventoini || s.periodo_eventoini_all;
-        const endRaw = s.periodo_eventofim || s.periodo_eventofim_all;
-        const startD = normalizarParaDate(startRaw);
-        const endD = normalizarParaDate(endRaw);
+            const calcPago = (status, amount) => {
+                if (!status || !String(status).startsWith('Pago')) return 0;
+                const match = String(status).match(/(\d+)/);
+                return match ? amount * (Number(match[1]) / 100) : amount;
+            };
 
-        if (startD && (!minEventDate || startD < minEventDate)) minEventDate = startD;
-        if (endD && (!maxEventDate || endD > maxEventDate)) maxEventDate = endD;
+            chP += calcPago(s.statuspgto, vC);
+            ajP += calcPago(s.statuspgtoajdcto, vA);
+            cxP += calcPago(s.statuscaixinha, vX);
+
+            // --- LÓGICA DE ESCALA REAL (VENCIMENTOS) ---
+            const startD = normalizarParaDate(s.periodo_eventoini_all);
+            const endD = normalizarParaDate(s.periodo_eventofim_all);
+            
+            if (startD && (!minEscalaStaff || startD < minEscalaStaff)) minEscalaStaff = startD;
+            if (endD && (!maxEscalaStaff || endD > maxEscalaStaff)) maxEscalaStaff = endD;
+
+            return {
+                ...s,
+                periodo_eventoini_fmt: formatarDDMMYYYY(s.periodo_eventoini_all),
+                periodo_eventofim_fmt: formatarDDMMYYYY(s.periodo_eventofim_all),
+                totalpagar: vC + vA + vX
+            };
+        });
+
+        // Cálculos de Vencimento baseados no Staff (Escala Real)
+        // Ajuda: 2 dias após o início do primeiro staff | Cachê: 10 dias após o fim do último
+        //const dataVencAjuda = minEscalaStaff ? new Date(minEscalaStaff.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---';
+        //const dataVencCache = maxEscalaStaff ? new Date(maxEscalaStaff.getTime() + 10*86400000).toLocaleDateString('pt-BR') : '---';
 
         return {
-          ...s,
-          periodo_eventoini_fmt: formatarDDMMYYYY(startRaw),
-          periodo_eventofim_fmt: formatarDDMMYYYY(endRaw),
-          totalpagar: vC + vA + vX
+            idevento: ev.idevento,
+            nomeEvento: ev.nmevento,
+            totalGeral: ajT + chT + cxT,
+            // Exibição visual: Baseada no Orçamento
+            periodo_evento: formatarDDMMYYYY(dtInicioMarcacao), 
+            dataFimEvento: formatarDDMMYYYY(dtFimDesmontagem),
+            dataInicioMontagem: formatarDDMMYYYY(dtInicioMontagem),
+            // Regra de Negócio: Baseada na Escala do Staff
+            dataVencimentoAjuda: dtInicioMontagem ? new Date(dtInicioMontagem.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---',
+            dataVencimentoCache: dtFimDesmontagem ? new Date(dtFimDesmontagem.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---',
+            ajuda: { total: ajT, pendente: ajT - ajP, pago: ajP },
+            cache: { total: chT, pendente: chT - chP, pago: chP },
+            caixinha: { total: cxT, pendente: cxT - cxP, pago: cxP },
+            funcionarios: staffsProcessados
         };
-      });
-
-      return {
-        idevento: ev.idevento,
-        nomeEvento: ev.nmevento,
-        totalGeral: ajT + chT + cxT,
-        periodo_evento: minEventDate ? formatarDDMMYYYY(minEventDate) : '---',
-        dataFimEvento: maxEventDate ? formatarDDMMYYYY(maxEventDate) : '---',
-        dataVencimentoAjuda: minEventDate ? new Date(minEventDate.getTime() + 2*86400000).toLocaleDateString('pt-BR') : '---',
-        dataVencimentoCache: maxEventDate ? new Date(maxEventDate.getTime() + 10*86400000).toLocaleDateString('pt-BR') : '---',
-        ajuda: { total: ajT, pendente: ajT - ajP, pago: ajP },
-        cache: { total: chT, pendente: chT - chP, pago: chP },
-        caixinha: { total: cxT, pendente: cxT - cxP, pago: cxP },
-        funcionarios: staffsProcessados
-      };
     });
-
     res.json({ eventos: resultado });
+
   } catch (error) {
+    console.error("ERRO ROTA VENCIMENTOS:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2454,6 +2984,376 @@ router.post("/vencimentos/upload-comprovante", upload.single('arquivo'), async (
         res.status(500).json({ error: "Erro interno ao salvar comprovante." });
     }
 });
+
+
+//=========CONTAS A PAGAR========//
+
+router.get('/contas-pagar', async (req, res) => {
+    try {
+
+        const idEmpresa = String(req.headers.idempresa || req.query.idempresa || '').trim();
+
+        // Validação básica para evitar consulta sem ID
+        if (!idEmpresa) {
+            return res.status(400).json({ sucesso: false, erro: "ID da empresa não fornecido." });
+        }
+
+        const anoFiltro = parseInt(req.query.ano, 10) || new Date().getFullYear();
+        
+        const query = `
+            SELECT DISTINCT 
+                l.idlancamento, 
+                l.descricao, 
+                l.vctobase,
+                -- Campos vitais para a projeção no Front-end:
+                l.tiporepeticao, 
+                l.periodicidade,
+                l.qtdeparcelas,
+                l.indeterminado,
+                l.dttermino,
+                COALESCE(l.idempresapagadora, 0) AS idempresapagadora,
+                COALESCE(e.nmfantasia, 'Empresa Não Informada') AS empresapagadora,
+                -- -------------------------------------------
+                COALESCE(p.dtvcto, l.vctobase) AS data_referencia,
+                COALESCE(NULLIF(LOWER(TRIM(l.tipovinculo)), ''), 'outros') AS tipovinculo,
+                CAST(L.vlrestimado AS FLOAT) AS vlrestimado,
+                p.idpagamento, 
+                p.numparcela,
+                CAST(COALESCE(p.vlrreal, p.vlrprevisto, l.vlrestimado, 0) AS FLOAT) AS valor,
+                CAST(p.vlrreal AS FLOAT) as vlrreal,
+                CAST(p.vlrpago AS FLOAT) as vlrpago,             
+                p.dtvcto,
+                p.dtpgto,
+                p.status,
+                p.comprovantepgto,
+                p.imagemconta,
+                COALESCE(forn.nmfantasia, func.nome, cli.nmfantasia, 'Lançamento Geral') AS nome_vinculo
+            FROM lancamentos l
+            LEFT JOIN pagamentos p ON l.idlancamento = p.idlancamento
+            LEFT JOIN fornecedores forn ON (LOWER(TRIM(l.tipovinculo)) = 'fornecedor' AND l.idvinculo = forn.idfornecedor)
+            LEFT JOIN funcionarios func ON (LOWER(TRIM(l.tipovinculo)) = 'funcionario' AND l.idvinculo = func.idfuncionario)
+            LEFT JOIN clientes cli ON (LOWER(TRIM(l.tipovinculo)) = 'cliente' AND l.idvinculo = cli.idcliente)
+            LEFT JOIN empresas e ON l.idempresapagadora = e.idempresa
+            WHERE l.ativo = true AND l.idempresa = $1
+            AND (
+      -- Filtra pelo ano passado como parâmetro ($2)
+                EXTRACT(YEAR FROM COALESCE(p.dtvcto, l.vctobase)) = $2
+                OR 
+                (l.tiporepeticao = 'FIXO' AND (l.dttermino IS NULL OR EXTRACT(YEAR FROM l.dttermino) >= $2))
+            ) AND EXTRACT(YEAR FROM l.vctobase) <= $2
+            ORDER BY l.idlancamento, p.numparcela DESC, p.dtvcto DESC;
+        `;
+
+        const { rows } = await pool.query(query, [idEmpresa, anoFiltro]);
+        console.log("PRIMEIRA LINHA DO BANCO:", rows[0]);
+        res.json({ sucesso: true, anoReferencia: anoFiltro, contas: rows });
+    } catch (error) {
+        res.status(500).json({ sucesso: false, erro: error.message });
+    }
+});
+
+
+// router.post('/confirmar-pagamento-conta', 
+//    verificarPermissao('Pagamentos', 'alterar'),
+    
+//     logMiddleware('Pagamentos', { 
+//         buscarDadosAnteriores: async (req) => {
+//             const result = await pool.query('SELECT * FROM pagamentos WHERE idpagamento = $1', [req.body.id]);
+//             return { dadosanteriores: result.rows[0], idregistroalterado: req.body.id };
+//         } 
+//     }),
+//     async (req, res) => {
+//     1. Recebemos 'observacao' do corpo da requisição
+//     const { idpagamento, idlancamento, vlrpago, dtvcto, dtpagamento, observacao } = req.body;
+//     const client = await pool.connect();
+
+//     try {
+//         await client.query('BEGIN');
+
+//         let idFinal = idpagamento;
+
+//         if (!idpagamento || idpagamento === 'null') {
+//             CENÁRIO: Parcela projetada (Cria o registro e salva a observação)
+//             const insertQuery = `
+//                 INSERT INTO pagamentos (
+//                     idlancamento, 
+//                     vlrprevisto, 
+//                     vlrpago, 
+//                     dtvcto, 
+//                     status, 
+//                     numparcela, 
+//                     dtpgto,
+//                     observacao
+//                 )
+//                 VALUES (
+//                     $1, 
+//                     (SELECT COALESCE(vlrestimado, 0) FROM lancamentos WHERE idlancamento = $1), 
+//                     $2, $3, 'pago', 
+//                     (SELECT COALESCE(MAX(numparcela), 0) + 1 FROM pagamentos WHERE idlancamento = $1), 
+//                     $4,
+//                     $5
+//                 )
+//                 RETURNING idpagamento;
+//             `;
+//             Adicionamos 'observacao' como o 5º parâmetro ($5)
+//             const resInsert = await client.query(insertQuery, [idlancamento, vlrpago, dtvcto, dtpagamento, observacao]);
+//             idFinal = resInsert.rows[0].idpagamento;
+//         } 
+//         else {
+//             CENÁRIO: Parcela já existente (Atualiza valor, data e a observação)
+//             const updateQuery = `
+//                 UPDATE pagamentos 
+//                 SET status = 'pago', 
+//                     vlrpago = $1, 
+//                     dtpgto = $2,
+//                     observacao = $3 
+//                 WHERE idpagamento = $4;
+//             `;
+//             Note que aqui a observação é o $3 e o idpagamento passou a ser $4
+//             await client.query(updateQuery, [vlrpago, dtpagamento, observacao, idpagamento]);
+//         }
+
+//         await client.query('COMMIT');
+//         res.json({ sucesso: true, mensagem: "Pagamento confirmado!", idpagamento: idFinal });
+
+//     } catch (error) {
+//         await client.query('ROLLBACK');
+//         console.error("Erro na rota confirmar-pagamento:", error.message);
+//         res.status(500).json({ sucesso: false, erro: error.message });
+//     } finally {
+//         client.release();
+//     }
+// });
+
+
+// Rota específica para upload rápido via Main (Lista de Vencimentos)
+// router.post("/vencimentoconta/uploads_comprovantesconta", 
+//     //verificarPermissao('Pagamentos', 'alterar'),
+//     // upload.single('comprovantePagamento'), 
+//     // logMiddleware('Pagamentos', { 
+//     //     buscarDadosAnteriores: async (req) => {
+//     //         const result = await pool.query('SELECT * FROM pagamentos WHERE idpagamento = $1', [req.body.id]);
+//     //         return { dadosanteriores: result.rows[0], idregistroalterado: req.body.id };
+//     //     } 
+//     // }),
+//     async (req, res) => {
+//         const { id } = req.body;
+//         const idempresa = req.idempresa;
+
+//         if (!req.file) {
+//             return res.status(400).json({ success: false, message: "Arquivo não recebido." });
+//         }
+
+//         // Caminho salvo pelo multer
+//         const nomeArquivo = req.file.filename;
+
+//         try {
+//             // Atualiza a tabela de pagamentos (Contas)
+//             const sql = `
+//                 UPDATE pagamentos 
+//                 SET comprovantepgto = $1, 
+//                     dtpgto = CURRENT_DATE, 
+//                     status = 'pago'
+//                 WHERE idpagamento = $2 AND idempresa = $3
+//                 RETURNING *`;
+
+//             const result = await pool.query(sql, [nomeArquivo, id, idempresa]);
+
+//             if (result.rowCount === 0) {
+//                 return res.status(404).json({ success: false, message: "Registro não encontrado." });
+//             }
+
+//             res.json({ 
+//                 success: true, 
+//                 message: "Comprovante salvo!", 
+//                 path: nomeArquivo 
+//             });
+
+//         } catch (error) {
+//             console.error("Erro no upload de conta:", error);
+//             res.status(500).json({ success: false, message: "Erro interno no servidor." });
+//         }
+//     }
+// );
+
+
+// router.post('/confirmar-pagamento-conta', async (req, res) => {
+//     // Adicionamos 'status' no corpo da requisição
+//     const { idpagamento, idlancamento, vlrpago, dtvcto, dtpagamento, observacao, status } = req.body;
+//     const client = await pool.connect();
+
+//     // Define se é 'pago' ou 'suspenso' (padrão 'pago' para não quebrar o que já existe)
+//     const statusFinal = status || 'pago';
+//     console.log("Status recebido para atualização:", status, "Status final definido:", statusFinal, req.body);
+//     try {
+//         await client.query('BEGIN');
+
+//         let idFinal = idpagamento;
+
+//         if (!idpagamento || idpagamento === 'null' || idpagamento === null) {
+//             const insertQuery = `
+//                 INSERT INTO pagamentos (
+//                     idlancamento, vlrprevisto, vlrpago, dtvcto, 
+//                     status, numparcela, dtpgto, observacao
+//                 )
+//                 VALUES (
+//                     $1, 
+//                     (SELECT COALESCE(vlrestimado, 0) FROM lancamentos WHERE idlancamento = $1), 
+//                     $2, $3, $4, 
+//                     (SELECT COALESCE(MAX(numparcela), 0) + 1 FROM pagamentos WHERE idlancamento = $1), 
+//                     $5, $6
+//                 )
+//                 RETURNING idpagamento;
+//             `;
+//             // $4 agora é o statusFinal, $5 data, $6 observação
+//             const resInsert = await client.query(insertQuery, [idlancamento, vlrpago, dtvcto, statusFinal, dtpagamento, observacao]);
+//             idFinal = resInsert.rows[0].idpagamento;
+//         } 
+//         else {
+//             const updateQuery = `
+//                 UPDATE pagamentos 
+//                 SET status = $1, 
+//                     vlrpago = $2, 
+//                     dtpgto = $3,
+//                     observacao = CONCAT(observacao, ' | SUSPENSO: ', $4) -- Mantém a antiga e soma a nova
+//                 WHERE idpagamento = $5;
+//             `;
+           
+//             await client.query(updateQuery, [statusFinal, vlrpago, dtpagamento, observacao, idpagamento]);
+//         }
+
+//         await client.query('COMMIT');
+//         res.json({ sucesso: true, mensagem: `Lançamento atualizado como ${statusFinal}!`, idpagamento: idFinal });
+
+//     } catch (error) {
+//         await client.query('ROLLBACK');
+//         res.status(500).json({ sucesso: false, erro: error.message });
+//     } finally {
+//         client.release();
+//     }
+// });
+
+
+router.post('/confirmar-pagamento-conta', async (req, res) => {
+    const { idpagamento, idlancamento, vlrpago, dtvcto, dtpagamento, observacao, status } = req.body;
+    const idempresa = req.headers.idempresa;
+    const statusFinal = status || 'pago';
+    const client = await pool.connect();
+
+    
+
+    // 🟦 LOG DE ENTRADA (Aparecerá com fundo azul no terminal)
+    console.log("\n\x1b[44m 📥 [REQUISIÇÃO RECEBIDA] \x1b[0m");
+    console.log(`> Lançamento: ${idlancamento} | Vcto: ${dtvcto}`);
+    console.log(`> ID vindo do Front: ${idpagamento} | Status: ${statusFinal}`);
+
+    try {
+        await client.query('BEGIN');
+
+        // 🔍 VERIFICAÇÃO REAL: 
+        // Não confiamos no ID que vem do front. Verificamos se existe registro PARA ESTA DATA.
+        await client.query('BEGIN');
+
+        const checkPgto = await client.query(
+            `SELECT idpagamento FROM pagamentos WHERE idlancamento = $1 AND dtvcto = $2::date`,
+            [idlancamento, dtvcto]
+        );
+
+        const registroExistente = checkPgto.rows[0];
+        let idFinal;
+
+        if (!registroExistente) {
+            // Adicionado idempresa no INSERT
+            const insertQuery = `
+                INSERT INTO pagamentos (
+                    idlancamento, idempresa, vlrprevisto, vlrpago, dtvcto, 
+                    status, numparcela, dtpgto, observacao
+                )
+                VALUES (
+                    $1, $2,
+                    (SELECT COALESCE(vlrestimado, 0) FROM lancamentos WHERE idlancamento = $1), 
+                    $3, $4, $5, 
+                    (SELECT COALESCE(MAX(numparcela), 0) + 1 FROM pagamentos WHERE idlancamento = $1), 
+                    $6, $7
+                ) RETURNING idpagamento;`;
+            
+            const resInsert = await client.query(insertQuery, [idlancamento, idempresa, vlrpago, dtvcto, statusFinal, dtpagamento, observacao]);
+            idFinal = resInsert.rows[0].idpagamento;
+        } else {
+            idFinal = registroExistente.idpagamento;
+            // 🟧 LOG DE UPDATE (Fundo laranja)
+            console.log(`\x1b[43m ⚠️ [CENÁRIO: UPDATE] \x1b[0m Atualizando registro ID: ${idFinal}`);
+            
+            const updateQuery = `
+                UPDATE pagamentos 
+                SET status = $1, vlrpago = $2, dtpgto = $3, observacao = $4 
+                WHERE idpagamento = $5;`;
+            
+            await client.query(updateQuery, [statusFinal, vlrpago, dtpagamento, observacao, idFinal]);
+        }
+
+        await client.query('COMMIT');
+        console.log("\x1b[32m✅ SUCESSO: Transação finalizada.\x1b[0m\n");
+        res.json({ sucesso: true, idpagamento: idFinal, mensagem: "Processado com sucesso" });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.log("\x1b[41m ❌ [ERRO CRÍTICO] \x1b[0m");
+        console.error(error.message);
+        res.status(500).json({ sucesso: false, erro: error.message });
+    } finally {
+        client.release();
+    }
+});
+
+
+router.post("/vencimentoconta/uploads_comprovantesconta", upload.single('comprovante'), async (req, res) => {
+    const { idPagamento, tipo } = req.body;
+    
+    if (!req.file) {
+        return res.status(400).json({ error: "Nenhum arquivo enviado." });
+    }
+
+    const pathArquivo = req.file.path.replace(/\\/g, "/"); 
+
+    try {
+        let coluna = "";
+
+        // Mapeamento direto dos tipos vindo do frontend
+        if (tipo === 'comprovante') {
+            coluna = 'comprovantepgto';
+        } 
+        else if (tipo === 'imagem') {
+            coluna = 'imagemconta';
+        } 
+        
+        // Se o tipo enviado não bater com nenhum acima, a coluna será vazia
+        if (!coluna) {
+            console.error("Tipo de upload inválido recebido:", tipo);
+            return res.status(400).json({ error: `Tipo de comprovante '${tipo}' não reconhecido.` });
+        }
+
+        const result = await pool.query(
+            `UPDATE pagamentos SET ${coluna} = $1 WHERE idpagamento = $2`,
+            [pathArquivo, idPagamento]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: "Pagamento não encontrado em contas." });
+        }
+
+        res.json({ 
+            success: true, 
+            path: pathArquivo, 
+            colunaDestino: coluna 
+        });
+
+    } catch (error) {
+        console.error("Erro no processamento do upload:", error);
+        res.status(500).json({ error: "Erro interno ao salvar comprovante/imagem." });
+    }
+});
+
 // =======================================
 
 
