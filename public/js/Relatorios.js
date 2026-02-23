@@ -780,10 +780,20 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
 
     const formatarData = (data) => {
         if (!data) return '';
-        const d = new Date(data);
-        return d.toLocaleDateString('pt-BR');
-    };
+        
+        // Se a data vier no formato 'YYYY-MM-DD', dividimos os componentes
+        // para evitar que o JS aplique fuso horário UTC.
+        if (typeof data === 'string' && data.includes('-')) {
+            const [ano, mes, dia] = data.split('T')[0].split('-');
+            return `${dia}/${mes}/${ano}`;
+        }
 
+        // Caso a data já seja um objeto Date ou outro formato
+        const d = new Date(data);
+        // Adicionamos um ajuste manual se detectar que o fuso "comeu" horas
+        // ou usamos o método que ignora o fuso:
+        return d.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+    };
     const obterClasseStatus = (status) => {
         if (!podeVerFinanceiro) return ''; 
         switch (status) {
@@ -803,7 +813,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
     };
 
     const equipeSelectElement = document.getElementById('equipeSelect');   
-    const selectedIndex = equipeSelectElement ? equipeSelectElement.selectedIndex : -1;
+    const selectedIndex = equipeSelectElement.selectedIndex;
     let nomeEquipe = selectedIndex >= 0 ? ` - Equipe: ${equipeSelectElement.options[selectedIndex].text}` : '';
 
     let html = `
@@ -831,7 +841,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
         let colunas;
         if (podeVerFinanceiro) {
             if (tipo === 'cache_ajuda') {
-                colunas = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'QTD', 'VLR CACHÊ', 'VLR AJUDA', 'TOT CACHÊ', 'TOT AJUDA', 'TOT GERAL', 'TOT PAGAR', 'STATUS CACHÊ', 'STATUS AJUDA', 'COMP CACHÊ', 'COMP AJUDA'];
+                colunas = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'QTD', 'VLR CACHÊ', 'VLR AJUDA', 'TOT CACHÊ', 'TOT AJUDA',`VLR ADICIONAL`, 'TOT GERAL', 'TOT PAGAR', 'STATUS CACHÊ', 'STATUS AJUDA', 'COMP CACHÊ', 'COMP AJUDA'];
             } else {
                 colunas = ['FUNÇÃO', 'NOME', 'PIX', 'INÍCIO', 'TÉRMINO', 'VLR DIÁRIA', ...(tipo !== 'ajuda_custo' ? ['VLR ADICIONAL'] : []), ...(tipo === 'cache' ? ['STATUS CX'] : []), 'QTD', 'TOT DIÁRIAS', 'TOT GERAL', 'STATUS PGTO', 'TOT PAGAR', 'STATUS COMPROVANTE'];
             }
@@ -871,6 +881,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                         <td class="${alinhamentos['VLR AJUDA']}">${formatarMoeda(item["VLR AJUDA"])}</td>
                         <td class="${alinhamentos['TOT CACHÊ']}">${formatarMoeda(item["TOT CACHÊ"])}</td>
                         <td class="${alinhamentos['TOT AJUDA']}">${formatarMoeda(item["TOT AJUDA"])}</td>
+                        <td class="${alinhamentos['VLR ADICIONAL']}">${formatarMoeda(item["VLR ADICIONAL"])}</td>
                         <td class="${alinhamentos['TOT GERAL']}">${formatarMoeda(item["TOT GERAL"])}</td>
                         <td class="${alinhamentos['TOT PAGAR']}">${formatarMoeda(item["TOT PAGAR"])}</td>
                         <td class="${alinhamentos['STATUS CACHÊ']} ${obterClasseStatus(item["STATUS CACHÊ"])}">${item["STATUS CACHÊ"] || 'Pendente'}</td>
@@ -905,6 +916,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                 <td class="text-right" style="font-weight: bold;">-</td>
                 <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrCache)}</td>
                 <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrAjuda)}</td>
+                <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalVlrAdicional)}</td>
                 <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalGeral)}</td>
                 <td class="text-right" style="font-weight: bold;">${formatarMoeda(totaisFechamentoCache.totalTotalPagar)}</td>
                 <td colspan="4"></td> ` : 
