@@ -3969,12 +3969,19 @@ async function verificaStaff() {
             //         statusPgto = "Pendente";
             //     }
             // }
-
             if (!statusCaixinha || statusCaixinha.trim() === '') { 
-                // Se o status vir vazio do banco ou for inexistente, define como Pendente
-                statusCaixinha = 'Pendente';
-            }
+                
+                // Pegamos os valores de dentro dos elementos que você declarou
+                const valorCaixinhaNumerico = parseFloat(caixinhaInput.value.replace(',', '.')) || 0;
+                const textoDescricao = descCaixinhaTextarea.value ? descCaixinhaTextarea.value.trim() : '';
 
+                // A sua regra: Só vira Pendente se tiver valor > 0 ou se tiver algo escrito
+                if (valorCaixinhaNumerico > 0 || (textoDescricao !== '' && textoDescricao !== '-')) {
+                    statusCaixinha = 'Pendente';
+                } else {
+                    statusCaixinha = ''; // Mantém vazio para não gerar card sem necessidade
+                }
+            }
             if (statusCaixinha === 'Autorizado') {
                 // Se está autorizado, o status de pagamento da caixinha deve ser Pendente
                 statusPgtoCaixinha = 'Pendente';
