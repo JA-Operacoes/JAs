@@ -544,7 +544,7 @@ async function carregarSelectContas() {
                 if (conta.ativo) {
                     const option = document.createElement("option");
                     option.value = conta.idconta;
-                    const nomeExibicao = `${conta.nmconta} | ${conta.nmplano || 'Sem Plano de Contas'}`;
+                    const nomeExibicao = `${conta.nmconta} | ${conta.nmplanocontas || 'Sem Plano de Contas'}`;
                     option.textContent = nomeExibicao;
                     selectConta.appendChild(option);
                 }

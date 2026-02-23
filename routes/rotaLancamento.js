@@ -73,9 +73,11 @@ router.get("/contas", autenticarToken(), async (req, res) => {
 
   // Query que traz o perfil apenas se o vínculo for um funcionário
   const queryBase = `
-    SELECT *  
-    FROM contas c    
+    SELECT c.*, pc.nmplanocontas 
+    FROM contas c  
+    LEFT JOIN planocontas pc ON pc.idplanocontas = c.idplanocontas  
     WHERE c.idempresa = $1
+    ORDER BY c.nmconta ASC
   `;
 
   try {
@@ -337,7 +339,7 @@ router.get("/", verificarPermissao('Lancamentos', 'pesquisar'), async (req, res)
                 cc.nmcentrocusto,
                 tc.nmtipoconta,
                 ep.nmfantasia
-            FROM public.lancamentos l
+            FROM lancamentos l
             -- Joins para Vínculos
             LEFT JOIN funcionarios f ON l.idvinculo = f.idfuncionario AND l.tipovinculo = 'funcionario'
             LEFT JOIN fornecedores forn ON l.idvinculo = forn.idfornecedor AND l.tipovinculo = 'fornecedor'
@@ -355,7 +357,7 @@ router.get("/", verificarPermissao('Lancamentos', 'pesquisar'), async (req, res)
             params.push(`%${descricao}%`);
         }
         
-        query += ` ORDER BY l.idlancamento DESC`; // Geralmente melhor ver os últimos primeiro
+        query += ` ORDER BY l.descricao ASC`; // Geralmente melhor ver os últimos primeiro
 
         const result = await pool.query(query, params);
         
