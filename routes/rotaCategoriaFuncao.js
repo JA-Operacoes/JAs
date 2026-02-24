@@ -92,6 +92,7 @@ router.put("/:id", autenticarToken({ verificarEmpresa: false }), verificarPermis
     const { descCatFuncao } = body; 
     const valorFuncionario = toNumeric(body.valorFuncionario);
     const custoSenior = toNumeric(body.custoSenior);
+    const custoSenior2 = toNumeric(body.custoSenior2);
     const custoPleno = toNumeric(body.custoPleno);
     const custoJunior = toNumeric(body.custoJunior);
     const custoBase = toNumeric(body.custoBase);
@@ -106,11 +107,11 @@ router.put("/:id", autenticarToken({ verificarEmpresa: false }), verificarPermis
       const result = await pool.query(
         `UPDATE categoriafuncao cf
          SET nmcategoriafuncao = $1, ctofuncaosenior = $2, ctofuncaopleno = $3, ctofuncaojunior = $4, ctofuncaobase = $5, vdafuncao = $6, transporte = $7, 
-              transpsenior = $8, alimentacao = $9, vlrfuncionario = $10
+              transpsenior = $8, alimentacao = $9, vlrfuncionario = $10, ctofuncaosenior2 = $11
          FROM categoriafuncaoempresas cfe
-         WHERE cf.idcategoriafuncao = $11 AND cfe.idcategoriafuncao = cf.idcategoriafuncao AND cfe.idempresa = $12
+         WHERE cf.idcategoriafuncao = $12 AND cfe.idcategoriafuncao = cf.idcategoriafuncao AND cfe.idempresa = $13
          RETURNING cf.idcategoriafuncao`,
-        [descCatFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, alimentacao, valorFuncionario, id, idempresa]
+        [descCatFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, alimentacao, valorFuncionario, custoSenior2, id, idempresa]
       );
 
      if (result.rowCount) {
@@ -168,8 +169,8 @@ router.post("/", autenticarToken({ verificarEmpresa: false }), verificarPermissa
         await client.query('BEGIN');
        
         const resultFuncao = await client.query(
-            "INSERT INTO categoriafuncao (nmcategoriafuncao, ctofuncaosenior, ctofuncaopleno, ctofuncaojunior, ctofuncaobase, vdafuncao, transporte, transpsenior, alimentacao, vlrfuncionario) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING idcategoriafuncao, nmcategoriafuncao", // ✅ Retorna idFuncao
-            [descCatFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, alimentacao, valorFuncionario]
+            "INSERT INTO categoriafuncao (nmcategoriafuncao, ctofuncaosenior, ctofuncaopleno, ctofuncaojunior, ctofuncaobase, vdafuncao, transporte, transpsenior, alimentacao, vlrfuncionario, ctofuncaosenior2) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING idcategoriafuncao, nmcategoriafuncao", // ✅ Retorna idFuncao
+            [descCatFuncao, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, alimentacao, valorFuncionario, custoSenior2]
         );
 
         const novaFuncao = resultFuncao.rows[0];

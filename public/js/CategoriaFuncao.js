@@ -41,6 +41,7 @@ if (typeof window.CatFuncaoOriginal === "undefined") {
         idCatFuncao: "",
         descCatFuncao: "",
         vlrCustoSenior: "",
+        vlrCustoSenior2: "",
         vlrCustoPleno: "",
         vlrCustoJunior: "",
         vlrCustoBase: "",
@@ -103,6 +104,7 @@ function verificaCatFuncao() {
         const descCatFuncao = document.querySelector("#descCatFuncao").value.toUpperCase().trim();
         const vlrFuncionario = document.querySelector("#valorFuncionario").value || 0.00;
         const vlrCustoSenior = document.querySelector("#CustoSenior").value || 0.00;
+        const vlrCustoSenior2 = document.querySelector("#CustoSenior2").value || 0.00;
         const vlrCustoPleno = document.querySelector("#CustoPleno").value || 0.00;
         const vlrCustoJunior = document.querySelector("#CustoJunior").value || 0.00;
         const vlrCustoBase = document.querySelector("#CustoBase").value || 0.00;
@@ -113,6 +115,7 @@ function verificaCatFuncao() {
         
         const valorFuncionario = parseFloat(String(vlrFuncionario).replace(",", "."));
         const custoSenior = parseFloat(String(vlrCustoSenior).replace(",", "."));
+        const custoSenior2 = parseFloat(String(vlrCustoSenior2).replace(",", "."));
         const custoPleno = parseFloat(String(vlrCustoPleno).replace(",", "."));
         const custoJunior = parseFloat(String(vlrCustoJunior).replace(",", "."));
         const custoBase = parseFloat(String(vlrCustoBase).replace(",", "."));
@@ -139,7 +142,7 @@ function verificaCatFuncao() {
             return Swal.fire("Acesso negado", "Você não tem permissão para alterar funções.", "error");
         }
 
-        console.log("campos antes de salvar", idCatFuncao, descCatFuncao, valorFuncionario, custoSenior, custoPleno, custoJunior, custoBase, venda,  transporte, transporteSenior, alimentacao);
+        console.log("campos antes de salvar", idCatFuncao, descCatFuncao, valorFuncionario, custoSenior, custoSenior2, custoPleno, custoJunior, custoBase, venda,  transporte, transporteSenior, alimentacao);
 
          if (!descCatFuncao) { // || !venda
 
@@ -151,8 +154,8 @@ function verificaCatFuncao() {
             });
             return;
         }
-        console.log("Valores do Funcao:", idCatFuncao, descCatFuncao, valorFuncionario, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, alimentacao);
-        console.log("Valores do Funcao Original:", window.CatFuncaoOriginal.idCatFuncao, window.CatFuncaoOriginal.descCatFuncao, window.CatFuncaoOriginal.valorFuncionario, window.CatFuncaoOriginal.vlrCusto, window.CatFuncaoOriginal.vlrCustoSenior,
+        console.log("Valores do Funcao:", idCatFuncao, descCatFuncao, valorFuncionario, custoSenior, custoSenior2, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior, alimentacao);
+        console.log("Valores do Funcao Original:", window.CatFuncaoOriginal.idCatFuncao, window.CatFuncaoOriginal.descCatFuncao, window.CatFuncaoOriginal.valorFuncionario, window.CatFuncaoOriginal.vlrCusto, window.CatFuncaoOriginal.vlrCustoSenior, window.CatFuncaoOriginal.vlrCustoSenior2,
             window.CatFuncaoOriginal.vlrCustoPleno, window.CatFuncaoOriginal.vlrCustoJunior, window.CatFuncaoOriginal.vlrBase, window.CatFuncaoOriginal.vlrVenda, window.CatFuncaoOriginal.vlrTransporte, 
             window.CatFuncaoOriginal.vlrTransporteSenior,  window.CatFuncaoOriginal.vlrAlimentacao);
             
@@ -162,6 +165,7 @@ function verificaCatFuncao() {
             descCatFuncao === window.CatFuncaoOriginal.descCatFuncao && 
             Number(valorFuncionario).toFixed(2) === Number(window.CatFuncaoOriginal.vlrFuncionario).toFixed(2) &&
             Number(custoSenior).toFixed(2) === Number(window.CatFuncaoOriginal.vlrCustoSenior).toFixed(2) &&
+            Number(custoSenior2).toFixed(2) === Number(window.CatFuncaoOriginal.vlrCustoSenior2).toFixed(2) &&
             Number(custoPleno).toFixed(2) === Number(window.CatFuncaoOriginal.vlrCustoPleno).toFixed(2) &&
             Number(custoJunior).toFixed(2) === Number(window.CatFuncaoOriginal.vlrCustoJunior).toFixed(2) &&
             Number(custoBase).toFixed(2) === Number(window.CatFuncaoOriginal.vlrBase).toFixed(2) &&
@@ -180,7 +184,7 @@ function verificaCatFuncao() {
             return;
         }
 
-        const dados = { descCatFuncao, valorFuncionario, custoSenior, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior,alimentacao};
+        const dados = { descCatFuncao, valorFuncionario, custoSenior, custoSenior2, custoPleno, custoJunior, custoBase, venda, transporte, transporteSenior,alimentacao};
         const token = localStorage.getItem('token');
         const idEmpresa = localStorage.getItem('idEmpresa');
 
@@ -428,6 +432,7 @@ async function carregarCatFuncaoDescricao(desc, elementoAtual) {
          document.querySelector("#idCatFuncao").value = catfuncao.idcategoriafuncao;
          document.querySelector("#valorFuncionario").value = catfuncao.vlrfuncionario || 0.00;
          document.querySelector("#CustoSenior").value = catfuncao.ctofuncaosenior || 0.00;
+         document.querySelector("#CustoSenior2").value = catfuncao.ctofuncaosenior2 || 0.00;
          document.querySelector("#CustoPleno").value = catfuncao.ctofuncaopleno || 0.00;
          document.querySelector("#CustoJunior").value = catfuncao.ctofuncaojunior || 0.00;
          document.querySelector("#CustoBase").value = catfuncao.ctofuncaobase || 0.00;
@@ -436,12 +441,13 @@ async function carregarCatFuncaoDescricao(desc, elementoAtual) {
          document.querySelector("#TranspSenior").value = catfuncao.transpsenior || 0.00;      
          document.querySelector("#alimentacao").value = catfuncao.alimentacao || 0.00;      
          
-        console.log("Valores da Função carregada:", catfuncao.ctofuncaosenior, catfuncao.ctofuncaopleno, catfuncao.ctofuncaojunior, catfuncao.ctofuncaobase, catfuncao.vdafuncao, catfuncao.transporte, catfuncao.alimentacao);
+        console.log("Valores da Função carregada:", catfuncao.ctofuncaosenior,  catfuncao.ctofuncaosenior2, catfuncao.ctofuncaopleno, catfuncao.ctofuncaojunior, catfuncao.ctofuncaobase, catfuncao.vdafuncao, catfuncao.transporte, catfuncao.alimentacao);
         
         window.CatFuncaoOriginal = {
             idCatFuncao: catfuncao.idcategoriafuncao,
             descCatFuncao: catfuncao.nmcategoriafuncao,
             vlrCustoSenior: catfuncao.ctofuncaosenior,
+            vlrCustoSenior2: catfuncao.ctofuncaosenior2,
             vlrCustoPleno: catfuncao.ctofuncaopleno,
             vlrCustoJunior: catfuncao.ctofuncaojunior,
             vlrCustoBase: catfuncao.ctofuncaobase,
@@ -501,6 +507,7 @@ function limparCatFuncaoOriginal() {
         vlrCustoPleno: "",
         vlrCustoJunior: "",
         vlrCustoSenior: "",
+        vlrCustoSenior2: "",
         vlrVenda: "",
         vlrTransporte: "",
         vlrTransporteSenior: "",
@@ -511,7 +518,7 @@ function limparCatFuncaoOriginal() {
 }
 
 function limparCamposCatFuncao() {
-    const campos = ["idCatFuncao", "descCatFuncao","CustoSenior", "CustoPleno", "CustoJunior", "CustoBase", "Venda", "transporte", "transporteSenior",  "alimentacao"];
+    const campos = ["idCatFuncao", "descCatFuncao","CustoSenior", "CustoSenior2", "CustoPleno", "CustoJunior", "CustoBase", "Venda", "transporte", "transporteSenior",  "alimentacao"];
     campos.forEach(id => {
         const campo = document.getElementById(id);
         if (campo) {
@@ -605,7 +612,7 @@ function desinicializarCatFuncaoModal() { // Renomeado para seguir o padrão 'de
     
     // 3. Limpar o estado global FuncaoOriginal
     // Assumindo que window.FuncaoOriginal existe, ou defina-o como um objeto vazio
-    window.CatFuncaoOriginal = { idCatFuncao: "", descCatFuncao: "", vlrCustoSenior: 0.00, vlrCustoPleno: 0.00, vlrCustoJunior: 0.00, vlrCustoBase: 0.00, vlrVenda: 0.00, vlrTransporte: 0.00, vlrTransporteSenior: 0.00, vlrAliemntacao: 0.00 };
+    window.CatFuncaoOriginal = { idCatFuncao: "", descCatFuncao: "", vlrCustoSenior: 0.00, vlrCustoSenior2: 0.00, vlrCustoPleno: 0.00, vlrCustoJunior: 0.00, vlrCustoBase: 0.00, vlrVenda: 0.00, vlrTransporte: 0.00, vlrTransporteSenior: 0.00, vlrAliemntacao: 0.00 };
     limparCamposCatFuncao(); // Chame a função que limpa os campos do formulário para garantir um estado limpo
     document.getElementById('form').reset(); // Garante que o formulário seja resetado
     document.querySelector("#idCatFuncao").value = ""; // Garante que o ID oculto seja limpo
