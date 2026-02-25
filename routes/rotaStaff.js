@@ -118,7 +118,7 @@ router.get('/funcao', async (req, res) => {
     const resultado = await pool.query(`
       SELECT f.idcategoriafuncao, f.idfuncao, f.descfuncao, f.ativo, f.vdafuncao, f.obsproposta, f.obsfuncao,
           e.idequipe, e.nmequipe, cf.nmcategoriafuncao,
-          cf.ctofuncaobase, cf.ctofuncaojunior, cf.ctofuncaopleno, cf.ctofuncaosenior, cf.transporte, cf.transpsenior, cf.alimentacao, cf.vlrfuncionario
+          cf.ctofuncaobase, cf.ctofuncaojunior, cf.ctofuncaopleno, cf.ctofuncaosenior, cf.transporte, cf.transpsenior, cf.alimentacao, cf.vlrfuncionario, cf.ctofuncaosenior2
       FROM funcao f
       INNER JOIN categoriafuncao cf ON f.idcategoriafuncao = cf.idcategoriafuncao
       INNER JOIN equipe e ON f.idequipe = e.idequipe
@@ -926,7 +926,7 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         datadiariadobrada, datameiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria,
         nivelexperiencia, qtdpessoas, idequipe, nmequipe, tipoajudacustoviagem,
         statuspgtoajdcto, statuspgtocaixinha, idorcamento,
-        vlrtotcache, vlrtotajdcusto // Novos campos
+        vlrtotcache, vlrtotajdcusto// Novos campos
     } = req.body;
 
     const idempresa = req.idempresa;

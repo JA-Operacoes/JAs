@@ -59,6 +59,23 @@ main#conteudo {
   margin: auto;
 }
 
+/* Container da Versão */
+.Versao-sistema {
+    padding: 10px 15px;
+    background-color: #f9f9f9; /* Um fundo levemente diferente para destacar que é o rodapé */
+    border-top: 1px solid #eee;
+    text-align: right;
+}
+
+/* Texto da Versão */
+#app-version {
+    font-size: 11px;
+    color: #999;
+    font-family: 'Abel', sans-serif; /* Estilo técnico */
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+
 /* -------------------- Cards de resumo -------------------- */
 .cards {
   display: flex;
@@ -670,7 +687,6 @@ button.btn-detalhes-orcamento:hover {
   width: 100%;
   padding: 10px 16px;
   border-radius: 6px;
-  margin-bottom: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   font-size: 20px;
   top: 0;
@@ -691,7 +707,7 @@ button.btn-detalhes-orcamento:hover {
 
 .funcionario-header {
   background: linear-gradient(to right, #f3f4f6, #e5e7eb);
-  width: 800px;
+  width: 100%;
   padding: 14px 16px;
   cursor: pointer;
   display: flex;
@@ -816,8 +832,7 @@ button.btn-detalhes-orcamento:hover {
   border: none;
   color: var(--cor-texto-secundario, #555);
   cursor: pointer;
-  padding: 5px 0;
-  margin-bottom: 10px;
+  padding: 5px 5px;
   font-size: 0.9em;
   display: flex;
   align-items: center;
@@ -863,6 +878,12 @@ button.btn-detalhes-orcamento:hover {
 
 .painel-tabs.desativado {
   display: none !important; /* Esconde o painel quando está 'desativado' */
+}
+
+.sub-tab-view {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
 }
 
 

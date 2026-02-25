@@ -758,6 +758,7 @@ let currentRowSelected = null;
 let currentEditingStaffEvent = null;
 let retornoDados = false;
 let vlrCustoSeniorFuncao = 0;
+let vlrCustoSeniorFuncao2 = 0;
 let vlrCustoPlenoFuncao = 0;
 let vlrCustoJuniorFuncao = 0;
 let vlrCustoBaseFuncao = 0;
@@ -897,6 +898,7 @@ const container2 = document.getElementById('labelFileAjdCusto2').parentElement;
 const mensagemConcluido = document.getElementById('mensagemConcluido');
 
 const seniorCheck = document.getElementById('Seniorcheck');
+const seniorCheck2 = document.getElementById('Seniorcheck2');
 const plenoCheck = document.getElementById('Plenocheck');
 const juniorCheck = document.getElementById('Juniorcheck');
 const baseCheck = document.getElementById('Basecheck');
@@ -1081,16 +1083,34 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     if (descFuncaoSelect) {
         descFuncaoSelect.value = eventData.idfuncao || '';
         
-        // --- NOVO PASSO: Garante que os valores de almoço e alimentacao sejam carregados na edição ---
-        // Pega a opção selecionada no dropdown de função
+        // Pega a opção que foi selecionada automaticamente pelo ID
         const selectedOption = descFuncaoSelect.options[descFuncaoSelect.selectedIndex];
 
-        // Se uma opção válida for encontrada, atualiza as variáveis globais
-        if (selectedOption) {//AQUI QUE TEMOS QUE FAZER A CORREÇÃO CARREGANDO OS VALORES CORRETOS
-            //vlrAlimentacaoDobra = parseFloat(selectedOption.getAttribute("data-alimentacao")) || 0;
-            vlrAlimentacaoDobra = parseFloat(eventData.vlralimentacao) || 0;
+        if (selectedOption) {
+            console.log("📥 Recarregando custos da função para permitir troca de nível...");
+            
+            // RECARGA DAS VARIÁVEIS GLOBAIS (O pulo do gato)
+            // Certifique-se de que os nomes das variáveis batem com os que você usa nos eventos 'change'
+            window.vlrCustoSeniorFuncao = parseFloat(selectedOption.getAttribute("data-ctosenior")) || 0;
+            window.vlrCustoSeniorFuncao2 = parseFloat(selectedOption.getAttribute("data-ctosenior2")) || 0;
+            window.vlrCustoPlenoFuncao  = parseFloat(selectedOption.getAttribute("data-ctopleno")) || 0;
+            window.vlrCustoJuniorFuncao = parseFloat(selectedOption.getAttribute("data-ctojunior")) || 0;
+            window.vlrCustoBaseFuncao   = parseFloat(selectedOption.getAttribute("data-ctobase")) || 0;
+            
+            // Também recarrega as variáveis de Senior 2 se você as separou, 
+            // ou usa a Senior padrão se for a mesma
+            window.vlrCustoSeniorFuncao2 = window.vlrCustoSeniorFuncao; 
 
-            console.log("Valores de Almoço e Jantar carregados para edição:", vlrAlimentacaoDobra);
+            window.vlrAlimentacaoFuncao = parseFloat(selectedOption.getAttribute("data-alimentacao")) || 0;
+            window.vlrTransporteFuncao  = parseFloat(selectedOption.getAttribute("data-transporte")) || 0;
+
+            // Regra específica para exibir o Senior 2 se for Fiscal
+            const descFuncaoTexto = selectedOption.textContent.trim().toUpperCase();
+            if (descFuncaoTexto === "FISCAL DE MARCAÇÃO") {
+                const inputSenior2 = document.getElementById("Seniorcheck2");
+                const divPaiSenior2 = inputSenior2 ? inputSenior2.closest('.Vertical') : null;
+                if (divPaiSenior2) divPaiSenior2.style.setProperty("display", "flex", "important");
+            }
         }
     }
 
@@ -1285,20 +1305,38 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
         statusPgtoAjudaCustoInput.classList.add('suspenso');
     }
 
-    switch(eventData.nivelexperiencia) {
-        case "Base":
-            baseCheck.checked = true;
-            break;
-        case "Junior":
-            juniorCheck.checked = true;
-            break;
-        case "Pleno":
-            plenoCheck.checked = true;
-            break;
-        case "Senior":
-            seniorCheck.checked = true;
-            break;
-    }      
+    const nivelBanco = (eventData.nivelexperiencia || "").trim().toUpperCase();
+
+// Reset de visibilidade (opcional, para garantir)
+if (seniorCheck2) seniorCheck2.closest('.Vertical').style.display = 'none';
+
+switch(nivelBanco) {
+    case "BASE":
+        if (baseCheck) baseCheck.checked = true;
+        break;
+    case "JUNIOR":
+        if (juniorCheck) juniorCheck.checked = true;
+        break;
+    case "PLENO":
+        if (plenoCheck) plenoCheck.checked = true;
+        break;
+    case "SENIOR":
+        if (seniorCheck) seniorCheck.checked = true;
+        break;
+    case "SENIOR2":
+    case "SENIOR 2": // Trata as duas formas possíveis
+        if (seniorCheck2) {
+            // 1. Primeiro mostramos a DIV pai
+            const divPaiSenior2 = seniorCheck2.closest('.Vertical');
+            if (divPaiSenior2) {
+                divPaiSenior2.style.setProperty("display", "flex", "important");
+            }
+            // 2. Depois marcamos o check
+            seniorCheck2.checked = true;
+            console.log("✅ Senior 2 marcado na edição.");
+        }
+        break;
+}
 
     preencherComprovanteCampo(eventData.comppgtocache, 'Cache');
     preencherComprovanteCampo(eventData.comppgtoajdcusto, 'AjdCusto');
@@ -2232,6 +2270,7 @@ async function limparCamposStaffParcial() {
     const descfuncaoElement = document.getElementById('nmFuncaoSelect'); 
     const descfuncaoAtual = (descfuncaoElement ? descfuncaoElement.value : '').trim();
     const isAjudanteDeMarcacao = descfuncaoAtual.toUpperCase() === 'AJUDANTE DE MARCAÇÃO';
+    const isFiscalDeMarcacao = descfuncaoAtual.toUpperCase() === 'FISCAL DE MARCAÇÃO';
 
     document.querySelector("#apelidoFuncionario").value = '';
     const apelido = document.getElementById("apelidoFuncionario");
@@ -2265,7 +2304,16 @@ async function limparCamposStaffParcial() {
         document.getElementById('Basecheck').checked = false;
         console.log("Níveis de experiência limpos.");
     }
-       
+    if (isFiscalDeMarcacao) {
+        console.log("Função 'Fiscal de Marcação' detectada. Pulando a limpeza dos Níveis de Experiência.");
+    } else {
+        document.getElementById('Seniorcheck2').checked = false;
+        document.getElementById('Seniorcheck').checked = false;
+        document.getElementById('Plenocheck').checked = false;
+        document.getElementById('Juniorcheck').checked = false;
+        document.getElementById('Basecheck').checked = false;
+        console.log("Níveis de experiência limpos.");
+    }
     
     // 4. 🛑 LIMPEZA TOTAL DE DATAS (Flatpickr)
     // Usamos o método clear() em todas as instâncias do flatpickr.
@@ -2707,6 +2755,7 @@ async function verificaStaff() {
     juniorCheck.addEventListener('change', debouncedOnCriteriosChanged);
     plenoCheck.addEventListener('change', debouncedOnCriteriosChanged);
     seniorCheck.addEventListener('change', debouncedOnCriteriosChanged);
+    seniorCheck2.addEventListener('change', debouncedOnCriteriosChanged);
 
     ajusteCustoInput.addEventListener('change', () => {
         let valor = ajusteCustoInput.value.replace(',', '.');
@@ -3074,6 +3123,7 @@ async function verificaStaff() {
             let statusMeiaDiaria = document.getElementById("statusMeiaDiaria").value;
 
             const seniorCheck = document.getElementById('Seniorcheck');
+            const seniorCheck2 = document.getElementById('Seniorcheck2');
             const plenoCheck = document.getElementById('Plenocheck');
             const juniorCheck = document.getElementById('Juniorcheck');
             const baseCheck = document.getElementById('Basecheck');       
@@ -3133,7 +3183,7 @@ async function verificaStaff() {
                 return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Funcionário, Função, Cachê, Transportes, Alimentação, Cliente, Evento e Período do Evento.", "warning");
             }
 
-            if (!seniorCheck.checked &&  !plenoCheck.checked &&  !juniorCheck.checked &&  !baseCheck.checked) {
+            if (!seniorCheck2.checked &&  !seniorCheck.checked &&   !plenoCheck.checked &&  !juniorCheck.checked &&  !baseCheck.checked) {
                 return Swal.fire(
                     "Nível de Experiência não selecionado!",
                     "Por favor, selecione pelo menos um nível de experiência: Sênior, Pleno, Júnior ou Base.",
@@ -3991,15 +4041,23 @@ async function verificaStaff() {
             //         statusPgto = "Pendente";
             //     }
             // }
-
             if (!statusCaixinha || statusCaixinha.trim() === '') { 
-                // Se não tem valor, o status deve ser vazio, conforme solicitado.
-                statusCaixinha = 'Pendente';
-            }
+                
+                // Pegamos os valores de dentro dos elementos que você declarou
+                const valorCaixinhaNumerico = parseFloat(caixinhaInput.value.replace(',', '.')) || 0;
+                const textoDescricao = descCaixinhaTextarea.value ? descCaixinhaTextarea.value.trim() : '';
 
-            if (statusCaixinha === 'Autorizado') {      
-                statuspgtocaixinha = 'Pendente';
+                // A sua regra: Só vira Pendente se tiver valor > 0 ou se tiver algo escrito
+                if (valorCaixinhaNumerico > 0 || (textoDescricao !== '' && textoDescricao !== '-')) {
+                    statusCaixinha = 'Pendente';
+                } else {
+                    statusCaixinha = ''; // Mantém vazio para não gerar card sem necessidade
+                }
             }
+            if (statusCaixinha === 'Autorizado') {
+                // Se está autorizado, o status de pagamento da caixinha deve ser Pendente
+                statusPgtoCaixinha = 'Pendente';
+            } 
 
             if (!statusAjusteCusto || statusAjusteCusto.trim() === '') { 
                 // Se não tem valor, o status deve ser vazio, conforme solicitado.
@@ -4052,6 +4110,9 @@ async function verificaStaff() {
         
             let nivelExperienciaSelecionado ="";
 
+            if (seniorCheck2.checked) {
+                nivelExperienciaSelecionado =  "Senior 2";
+            } 
             if (seniorCheck.checked) {
                 nivelExperienciaSelecionado =  "Senior";
             } 
@@ -5448,6 +5509,7 @@ async function carregarFuncaoStaff() {
                     option.setAttribute("data-idFuncao", funcao.idfuncao);
                     option.setAttribute("data-descproduto", funcao.descfuncao);
                     option.setAttribute("data-ctosenior", funcao.ctofuncaosenior);
+                    option.setAttribute("data-ctosenior2", funcao.ctofuncaosenior2);
                     option.setAttribute("data-ctopleno", funcao.ctofuncaopleno);
                     option.setAttribute("data-ctojunior", funcao.ctofuncaojunior);
                     option.setAttribute("data-ctobase", funcao.ctofuncaobase);
@@ -5486,11 +5548,13 @@ async function carregarFuncaoStaff() {
                 
                 // Referências aos checkboxes (use IDs consistentes com o seu HTML)
                 const seniorCheck = document.getElementById("seniorCheck") || document.getElementById("Seniorcheck"); 
+                const seniorCheck2 = document.getElementById("seniorCheck2") || document.getElementById("Seniorcheck2"); 
                 const plenoCheck = document.getElementById("plenoCheck") || document.getElementById("Plenocheck"); 
                 const juniorCheck = document.getElementById("juniorCheck") || document.getElementById("Juniorcheck"); 
                 const baseCheck = document.getElementById("baseCheck") || document.getElementById("Basecheck"); 
                 
                 if (seniorCheck) seniorCheck.checked = false;
+                if (seniorCheck2) seniorCheck2.checked = false; 
                 if (plenoCheck) plenoCheck.checked = false;
                 if (juniorCheck) juniorCheck.checked = false;
                 if (baseCheck) baseCheck.checked = false;
@@ -5516,6 +5580,7 @@ async function carregarFuncaoStaff() {
                 } 
 
                 vlrCustoSeniorFuncao = parseFloat(selectedOption.getAttribute("data-ctosenior")) || 0;
+                vlrCustoSeniorFuncao2 = parseFloat(selectedOption.getAttribute("data-ctosenior2")) || 0;
                 vlrCustoPlenoFuncao = parseFloat(selectedOption.getAttribute("data-ctopleno")) || 0;
                 vlrCustoJuniorFuncao = parseFloat(selectedOption.getAttribute("data-ctojunior")) || 0;
                 vlrCustoBaseFuncao = parseFloat(selectedOption.getAttribute("data-ctobase")) || 0;         
@@ -5532,6 +5597,23 @@ async function carregarFuncaoStaff() {
                 // ----------------------------------------------------
                 // LÓGICA DE OVERRIDE POR FUNÇÃO E PERFIL
                 // ----------------------------------------------------
+                if  (descFuncao === "FISCAL DE MARCAÇÃO") {
+                    console.log(`🔵 REGRA ATIVA: ${descFuncao}.`);
+
+                    // 1. Mostra a DIV pai do Senior 2
+                    const inputSenior2 = document.getElementById("Seniorcheck2");
+                    const divPaiSenior2 = inputSenior2 ? inputSenior2.closest('.Vertical') : null;
+                    
+                    if (divPaiSenior2) {
+                        divPaiSenior2.style.setProperty("display", "flex", "important");
+                    }
+                } else {
+                    // Esconde o Senior 2 se mudar para outra função
+                    const inputSenior2 = document.getElementById("Seniorcheck2");
+                    const divPaiSenior2 = inputSenior2 ? inputSenior2.closest('.Vertical') : null;
+                    if (divPaiSenior2) divPaiSenior2.style.display = 'none';
+                    if (inputSenior2) inputSenior2.checked = false;
+                }
                 if (descFuncao === "AJUDANTE DE MARCAÇÃO") {
                     console.log(`🟡 REGRA FUNÇÃO ATIVA: ${descFuncao}. Trava no Base e Custo Base.`);
                     
@@ -6653,6 +6735,7 @@ document.getElementById('Seniorcheck').addEventListener('change', function () {
             return;
         }
 
+        seniorCheck2.checked = false;
         plenoCheck.checked = false;
         juniorCheck.checked = false;
         baseCheck.checked = false;
@@ -6677,6 +6760,39 @@ document.getElementById('Seniorcheck').addEventListener('change', function () {
 
 });
 
+document.getElementById('Seniorcheck2').addEventListener('change', function () {
+    const seniorCheck2 = this;
+
+    if (seniorCheck2.checked) {
+        // 1. Validação essencial igual ao seu Basecheck
+        if (typeof validarCamposEssenciais === 'function' && !validarCamposEssenciais()) {
+            seniorCheck2.checked = false; 
+            return;
+        }
+
+        // 2. Exclusividade: Desmarca todos os outros
+        if (document.getElementById("Seniorcheck")) document.getElementById("Seniorcheck").checked = false;
+        if (document.getElementById("Plenocheck")) document.getElementById("Plenocheck").checked = false;
+        if (document.getElementById("Juniorcheck")) document.getElementById("Juniorcheck").checked = false;
+        if (document.getElementById("Basecheck")) document.getElementById("Basecheck").checked = false;
+
+        // 3. Preenche custos (Usando o valor sênior conforme sua regra)
+        // Certifique-se que vlrCustoSeniorFuncao esteja acessível aqui
+        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoSeniorFuncao2) || 0).toFixed(2);
+        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);   
+        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+
+        // 4. Cálculo de Total
+        const datasEventoInput = document.getElementById('datasEvento');
+        if (datasEventoInput && typeof getPeriodoDatas === 'function') {
+            const periodoDatas = getPeriodoDatas(datasEventoInput.value);   
+            if (periodoDatas.length > 0 && typeof calcularValorTotal === 'function') {
+                calcularValorTotal();
+            }
+        }
+    }
+});
+
 document.getElementById('Plenocheck').addEventListener('change', function () {
     if (plenoCheck.checked) {
         // Lógica para quando o checkbox de Pleno estiver marcado
@@ -6684,6 +6800,7 @@ document.getElementById('Plenocheck').addEventListener('change', function () {
             plenoCheck.checked = false; // Desmarca se a validação falhar
             return;
         }
+        seniorCheck2.checked = false;
         seniorCheck.checked = false;
         juniorCheck.checked = false;
         baseCheck.checked = false;        
@@ -6714,6 +6831,7 @@ document.getElementById('Juniorcheck').addEventListener('change', function () {
             return;
         }
         seniorCheck.checked = false;
+        seniorCheck2.checked = false;
         plenoCheck.checked = false;
         baseCheck.checked = false;
 
@@ -6744,6 +6862,7 @@ document.getElementById('Basecheck').addEventListener('change', function () {
             baseCheck.checked = false; // Desmarca se a validação falhar
             return;
         }
+        seniorCheck2.checked = false;
         seniorCheck.checked = false;
         plenoCheck.checked = false;
         juniorCheck.checked = false;
@@ -9000,7 +9119,7 @@ function validarCamposAntesDoPeriodo() {
     if (document.getElementById('descFuncao').value === '') {
         return 'Função';
     }
-    const idsNivelExperiencia = ['Seniorcheck', 'Plenocheck', 'Juniorcheck', 'Basecheck'];
+    const idsNivelExperiencia = ['Seniorcheck2','Seniorcheck', 'Plenocheck', 'Juniorcheck', 'Basecheck'];
     
     // A função 'isAnyChecked' será TRUE se pelo menos UMA checkbox estiver marcada
     const isAnyChecked = idsNivelExperiencia.some(id => {
