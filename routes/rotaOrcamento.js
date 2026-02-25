@@ -95,6 +95,7 @@ router.get(
       `;
       
       const resultItens = await client.query(queryItens, [orcamento.idorcamento]);
+      console.log("✅ Itens do orçamento encontrados:", resultItens.rows.length);
       orcamento.itens = resultItens.rows;
 
       // --- BUSCA DOS PAVILHÕES ---
@@ -398,6 +399,8 @@ router.post(
     const data = req.body;
 
     try {
+
+      console.log("📥 Dados recebidos para criação de orçamento:", data);
       await client.query("BEGIN");
 
       // 1. Inserir o Cabeçalho do Orçamento
@@ -476,20 +479,25 @@ router.post(
               idorcamento, enviarnaproposta, categoria, produto, qtditens, qtddias, 
               vlrbase, vlrdiaria, totvdadiaria, ctodiaria, totctodiaria,
               idfuncao, idequipamento, idsuprimento, descontoitem, percentdescontoitem, 
-              acrescimoitem, percentacrescimoitem, totgeralitem, setor
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+              acrescimoitem, percentacrescimoitem, totgeralitem, setor, periododiariasinicio, periododiariasfim
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
           `;
 
           await client.query(insertItemQuery, [
             idorcamento, item.enviarnaproposta, item.categoria, item.produto, item.qtditens, item.qtddias,
             vlrBaseFinal, item.vlrdiaria, item.totvdadiaria, ctoFinal, item.totctodiaria,
             item.idfuncao, item.idequipamento, item.idsuprimento, item.descontoitem, item.percentdescontoitem,
-            item.acrescimoitem, item.percentacrescimoitem, item.totgeralitem, item.setor
+            item.acrescimoitem, item.percentacrescimoitem, item.totgeralitem, item.setor, item.periododiariasinicio, item.periododiariasfim
           ]);
         }
       }
 
       await client.query("COMMIT");
+
+      res.locals.acao = "cadastrou";
+      res.locals.idregistroalterado = idorcamento;
+      res.locals.idusuarioAlvo = null;
+
       res.status(201).json({ message: "Sucesso!", id: idorcamento, nrOrcamento: nrorcamento });
     } catch (error) {
       await client.query("ROLLBACK");
