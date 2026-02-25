@@ -867,8 +867,13 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
             </tr>
         </thead>  
         <tbody>
-            ${dadosFechamento.map(item => `
-                <tr>
+            ${dadosFechamento.map(item => {
+                // Lógica para destacar linha se houver valor adicional (positivo ou negativo)
+                const vlrAdic = parseFloat(item["VLR ADICIONAL"]) || 0;
+                const styleDestaque = vlrAdic !== 0 ? 'style="color: white; font-weight: bold; background-color: rgb(136, 9, 9);"' : '';
+
+                return `
+                <tr ${styleDestaque}>
                     <td class="${alinhamentos['FUNÇÃO']}">${item.FUNÇÃO || ''}</td>
                     <td class="${alinhamentos['NOME']}">${item.NOME || ''}</td>
                     ${podeVerFinanceiro ? `<td class="${alinhamentos['PIX']}">${item.PIX || ''}</td>` : `<td class="${alinhamentos['CPF']}">${item.CPF || ''}</td>`}
@@ -904,7 +909,7 @@ function montarRelatorioHtmlEvento(dadosFechamento, nomeEvento, nomeRelatorio, n
                         <td class="${alinhamentos['STATUS PGTO']} ${obterClasseStatus(item["STATUS PGTO"])}">${item["STATUS PGTO"] || ''}</td>
                     `}
                 </tr>
-            `).join('')}
+            `}).join('')}
 
             ${podeVerFinanceiro && totaisFechamentoCache ? `
         <tr class="row-total">
