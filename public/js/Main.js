@@ -5543,7 +5543,8 @@ async function carregarDetalhesVencimentos(conteudoGeral, valoresResumoElement) 
             const podeVerAcoes = usuarioTemPermissaoSupremo();
             return lista.map(f => {
                 const info = {
-                    'cache': { status: formatarStatusFront(f.statuspgto || "Pendente"), valor: f.totalcache_full, tipoAcao: 'Cache' },
+                    // 'cache': { status: formatarStatusFront(f.statuspgto || "Pendente"), valor: f.totalcache_full, tipoAcao: 'Cache' },
+                    'cache': { status: formatarStatusFront(f.statuspgto || "Pendente"), valor: f.cache_com_ajuste, tipoAcao: 'Cache' },
                     'ajuda_custo': { status: formatarStatusFront(f.statuspgtoajdcto || "Pendente"), valor: f.totalajudacusto_full, tipoAcao: 'Ajuda' },
                     'caixinha': { status: formatarStatusFront(f.statuscaixinha || "Pendente"), valor: f.totalcaixinha_full, tipoAcao: 'Caixinha' }
                 }[filtro];

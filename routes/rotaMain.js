@@ -2766,6 +2766,8 @@ router.get("/vencimentos", async (req, res) => {
           calc_full.full_min_dt AS periodo_eventoini_all, 
           calc_full.full_max_dt AS periodo_eventofim_all,
           COALESCE(tse.vlrtotcache, 0) AS totalcache_full,
+          COALESCE(tse.vlrajustecusto, 0) AS totalajustecusto_full,
+          (COALESCE(tse.vlrtotcache, 0) + COALESCE(tse.vlrajustecusto, 0)) AS cache_com_ajuste,
           COALESCE(tse.vlrtotajdcusto, 0) AS totalajudacusto_full,
           (COALESCE(tse.vlrcaixinha, 0) * calc_full.full_qtd) AS totalcaixinha_full,
           tse.statuspgto, 
