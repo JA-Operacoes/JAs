@@ -23,7 +23,7 @@ main#conteudo {
   align-items: center;    /* centraliza horizontalmente */
   width: 1900px;
   align-items: center;
-  margin: 100px 10px 0;
+  margin: 100px 0 0 0;
   gap: 20px;
 }
 
@@ -1797,6 +1797,65 @@ li.funcionario-item {
   border-radius: 20px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.2);
   animation: aparecerAgenda 0.4s ease-in-out;
+}
+
+#listaAgendaUsuario {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.mini-item-agenda {
+    display: flex;
+    align-items: center;
+    padding: 8px 10px;
+    margin-bottom: 5px;
+    background: transparent;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+
+.mini-hora {
+    font-weight: bold;
+    padding-left: 8px;
+    margin-right: 12px;
+    min-width: 45px;
+    color: #000000;
+}
+
+.mini-detalhes {
+    display: flex;
+    flex-direction: column;
+}
+
+.mini-titulo {
+    font-weight: 600;
+    color: #000000;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+
+.mini-tipo {
+    font-size: 11px;
+    color: #888;
+}
+
+.agenda-vazia {
+    text-align: center;
+    padding: 20px;
+    color: #000000;
+    font-style: italic;
+}
+
+.mini-mais {
+    font-size: 11px;
+    text-align: center;
+    color: #ffffff;
+    padding-top: 5px;
+    font-weight: bold;
 }
 
 @keyframes aparecerAgenda {

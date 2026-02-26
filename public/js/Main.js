@@ -8222,6 +8222,11 @@ document.getElementById("cardContainerVencimentos").addEventListener("click", as
 // ======================
 // ABRIR AGENDA
 // ======================
+async function inicializarAgendaCard() {
+    window.eventosSalvos = await carregarAgendaUsuario();
+    atualizarMiniCardAgenda();
+}
+
 document.getElementById("card-agenda").addEventListener("click", async function() {
   const painel = document.getElementById("painelDetalhes");
   painel.innerHTML = "";
@@ -8346,9 +8351,57 @@ calendarioDiv.appendChild(cabecalhoDiasSemana);
   btnAdicionar.addEventListener("click", abrirPopupNovoEvento);
 });
 
-// ==================================================================================
-// GERA CALENDÁRIO MENSAL
-// ==================================================================================
+function atualizarMiniCardAgenda() {
+    const listaUl = document.getElementById("listaAgendaUsuario");
+    if (!listaUl) return;
+
+    listaUl.innerHTML = "";
+
+    // Pega a data de hoje formatada (AAAA-MM-DD) para comparar
+    const hoje = new Date();
+    const hojeStr = hoje.getFullYear() + '-' + 
+                    String(hoje.getMonth() + 1).padStart(2, '0') + '-' + 
+                    String(hoje.getDate()).padStart(2, '0');
+
+    // Filtra eventos de hoje
+    const eventosHoje = (window.eventosSalvos || []).filter(ev => {
+        const dataEv = new Date(ev.data_evento).toISOString().split('T')[0];
+        return dataEv === hojeStr;
+    });
+
+    if (eventosHoje.length === 0) {
+        listaUl.innerHTML = `<li class="agenda-vazia">Agenda Livre</li>`;
+        return;
+    }
+
+    // Mostra os 3 primeiros eventos (para não estourar o card)
+    eventosHoje.slice(0, 3).forEach(ev => {
+        const li = document.createElement("li");
+        li.className = "mini-item-agenda";
+        
+        // Define uma cor ou ícone baseado no tipo
+        let corStatus = ev.tipo === 'Reunião' ? '#ff4d4d' : '#4CAF50';
+
+        li.innerHTML = `
+            <div class="mini-hora" style="border-left: 3px solid ${corStatus}">
+                ${ev.hora_evento || '--:--'}
+            </div>
+            <div class="mini-detalhes">
+                <span class="mini-titulo">${ev.titulo}</span>
+                <span class="mini-tipo">${ev.tipo}</span>
+            </div>
+        `;
+        listaUl.appendChild(li);
+    });
+
+    if (eventosHoje.length > 3) {
+        const mais = document.createElement("li");
+        mais.className = "mini-mais";
+        mais.textContent = `+ ${eventosHoje.length - 3} outros hoje`;
+        listaUl.appendChild(mais);
+    }
+}
+
 function gerarCalendarioMensal(mesParam) {
   const diasDiv = document.getElementById("diasCalendario");
   if (!diasDiv) return;
@@ -8416,9 +8469,6 @@ function gerarCalendarioMensal(mesParam) {
   }
 }
 
-// ==================================================================================
-// SELEÇÃO DE DIA
-// ==================================================================================
 function selecionarDia(div, data) {
   const calendario = document.getElementById("diasCalendario");
   if (calendario) {
@@ -8434,9 +8484,6 @@ function selecionarDia(div, data) {
   carregarEventosDoDia(data);
 }
 
-// ==================================================================================
-// CARREGA EVENTOS DO DIA
-// ==================================================================================
 function carregarEventosDoDia(data) {
   const lista = document.getElementById("listaEventosDia");
   if (!lista) return;
@@ -8511,10 +8558,6 @@ function carregarEventosDoDia(data) {
   }
 }
 
-
-// ==================================================================================
-// POPUP DE NOVO EVENTO
-// ==================================================================================
 function abrirPopupNovoEvento() {
   const overlay = document.createElement("div");
   overlay.className = "popup-overlay";
@@ -8590,9 +8633,6 @@ function abrirPopupNovoEvento() {
   });
 }
 
-// ==================================================================================
-// FUNÇÕES DE INTEGRAÇÃO COM O BACKEND
-// ==================================================================================
 async function salvarEventoAgenda(dadosEvento) {
   try {
     const json = await fetchComToken("/main/agenda", {
@@ -8639,6 +8679,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   await atualizarEventosEmAberto();
   await atualizarProximoEvento();
   await inicializarCardVencimentos();
+  await inicializarAgendaCard();
 });
 
 
