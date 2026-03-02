@@ -76,8 +76,7 @@ router.get("/contas", autenticarToken(), async (req, res) => {
     SELECT c.*, pc.nmplanocontas  
     FROM contas c
     LEFT JOIN planocontas pc ON pc.idplanocontas = c.idplanocontas  
-    WHERE c.idempresa = $1
-    ORDER BY c.nmconta ASC
+    WHERE c.idempresa = $1 AND c.ativo = true    
   `;
 
   try {
