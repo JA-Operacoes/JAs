@@ -178,6 +178,13 @@
                         <input id="Basecheck" type="checkbox" />
                         <label for="Basecheck">Base</label>
                       </div>
+                      <div class="Verical">
+                        <p>|</p>
+                      </div>
+                      <div class="Vertical">
+                        <input id="Fechadocheck" type="checkbox" />
+                        <label for="Fechadocheck">Cachê Fechado</label>
+                    </div>
                     </div>
                   </div>
                   
@@ -261,18 +268,28 @@
                 </div>
                 <div class="form-2colunas">              
 
-                  <div class="form2">
-                      <input type="text" name="vlrCusto" id="vlrCusto" class="preenchido" readonly data-permanent-readonly="true" required>
-                      <label for="vlrCusto">Cache</label>
-                  </div>                                 
-
-                  <div class="form2">
-                    <input type="text" name="alimentacao" id="alimentacao" class="preenchido"  readonly data-permanent-readonly="true" required>
-                    <label for="alimentacao">Alimentação</label>
-                  </div>   
-                  <div class="form2">
-                    <input type="text" name="transporte" id="transporte" class="preenchido"  readonly data-permanent-readonly="true" required>
-                    <label for="transporte">Transporte</label>
+                  <div class="Valores">
+                    <div class="form2">
+                        <input type="text" name="vlrCusto" id="vlrCusto" class="preenchido" readonly data-permanent-readonly="true" required>
+                        <label for="vlrCusto">Cache</label>
+                    </div>
+                    <div class="form2" id="campoStatusCustoFechado" style="display: none;">
+                        <input type="text" id="statusCustoFechado" name ="statusCustoFechado"  readonly data-permanent-readonly="true" required/>
+                        <select id="selectStatusCustoFechado" style="display:none;">
+                          <option value="none" disabled selected>Autorização do Cachê Fechado</option>
+                          <option value="Pendente">Pendente</option>
+                          <option value="Autorizado">Autorizado</option>
+                          <option value="Rejeitado">Rejeitado</option>
+                        </select>
+                      </div>
+                    <div class="form2">
+                      <input type="text" name="alimentacao" id="alimentacao" class="preenchido"  readonly data-permanent-readonly="true" required>
+                      <label for="alimentacao">Alimentação</label>
+                    </div>
+                    <div class="form2">
+                      <input type="text" name="transporte" id="transporte" class="preenchido"  readonly data-permanent-readonly="true" required>
+                      <label for="transporte">Transporte</label>
+                    </div>
                   </div>
                   <textarea name="descBeneficio" id="descBeneficio" placeholder="Descritivo dos Benefícios" required></textarea>
                 </div> 

@@ -555,7 +555,7 @@ input[type="file"]{
 
 
 /* Estilos para o SELECT de status */
-#selectStatusAjusteCusto, #selectStatusCaixinha, #selectStatusDiariaDobrada, #selectStatusMeiaDiaria {
+#selectStatusAjusteCusto, #selectStatusCaixinha, #selectStatusDiariaDobrada, #selectStatusMeiaDiaria, #selectStatusCustoFechado {
     /* Garante que o fundo e a cor do texto do select sejam definidos */
     background-color: transparent;
     color: #000000;
@@ -565,7 +565,8 @@ input[type="file"]{
 #selectStatusAjusteCusto.status-Pendente,
 #selectStatusCaixinha.status-Pendente,
 #selectStatusDiariaDobrada.status-Pendente,
-#selectStatusMeiaDiaria.status-Pendente {
+#selectStatusMeiaDiaria.status-Pendente,
+#selectStatusCustoFechado.status-Pendente {
     background-color: #FFC107; /* Amarelo */
     color: #000000; /* Preto */
 }
@@ -574,7 +575,8 @@ input[type="file"]{
 #selectStatusAjusteCusto.status-Autorizado,
 #selectStatusCaixinha.status-Autorizado,
 #selectStatusDiariaDobrada.status-Autorizado,
-#selectStatusMeiaDiaria.status-Autorizado {
+#selectStatusMeiaDiaria.status-Autorizado,
+#selectStatusCustoFechado.status-Autorizado {
     background-color: green; /* Verde */
     color: #FFFFFF; /* Branco */
 }
@@ -583,7 +585,8 @@ input[type="file"]{
 #selectStatusAjusteCusto.status-Rejeitado,
 #selectStatusCaixinha.status-Rejeitado,
 #selectStatusDiariaDobrada.status-Rejeitado,
-#selectStatusMeiaDiaria.status-Rejeitado {
+#selectStatusMeiaDiaria.status-Rejeitado,
+#selectStatusCustoFechado.status-Rejeitado {
     background-color: #DC3545; /* Vermelho */
     color: #FFFFFF; /* Branco */
 }
@@ -592,7 +595,8 @@ input[type="file"]{
 input#statusAjusteCusto.status-Pendente,
 input#statusCaixinha.status-Pendente,
 input#statusDiariaDobrada.status-Pendente,
-input#statusMeiaDiaria.status-Pendente {
+input#statusMeiaDiaria.status-Pendente,
+input#statusCustoFechado.status-Pendente {
     background: #FFC107;
     color: #000000;
 }
@@ -600,15 +604,17 @@ input#statusMeiaDiaria.status-Pendente {
 input#statusAjusteCusto.status-Autorizado,
 input#statusCaixinha.status-Autorizado,
 input#statusDiariaDobrada.status-Autorizado,
-input#statusMeiaDiaria.status-Autorizado {
+input#statusMeiaDiaria.status-Autorizado,
+input#statusCustoFechado.status-Autorizado {
     background: green;
     color: #FFFFFF;
 }
 
 input#statusAjusteCusto.status-Rejeitado,
 input#statusCaixinha.status-Rejeitado,
-input#statusDiariaDobrada.status-Rejeitado
-input#statusMeiaDiaria.status-Rejeitado {
+input#statusDiariaDobrada.status-Rejeitado,
+input#statusMeiaDiaria.status-Rejeitado,
+input#statusCustoFechado.status-Rejeitado {
     background: #DC3545;
     color: #FFFFFF;
 }
@@ -849,6 +855,12 @@ select#nmPavilhao {
     height: 100px;
     cursor: pointer;
 }
+
+.Valores {
+  display: flex;
+  justify-content: center;
+}
+
 
 .field {
   display: flex;
