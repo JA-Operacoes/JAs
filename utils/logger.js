@@ -8,7 +8,8 @@ async function registrarLog({
   idregistroalterado = null,
   idusuarioalvo = null,
   dadosanteriores = null,
-  dadosnovos = null
+  dadosnovos = null,
+  idlog_origem = null
 }) {
   try {
     if (!idexecutor || !acao || !modulo) {
@@ -33,8 +34,9 @@ async function registrarLog({
         idregistroalterado,
         idusuarioalvo,
         dadosanteriores,
-        dadosnovos
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        dadosnovos,
+        idlog_origem
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     `, [
       idexecutor,
       idempresa || null,
@@ -43,7 +45,8 @@ async function registrarLog({
       idregistroalterado,
       idusuarioalvo,
       dadosanterioresJSON,
-      dadosnovosJSON
+      dadosnovosJSON,
+      idlog_origem
     ]);
   } catch (err) {
     console.error('Erro ao registrar log:', err);
