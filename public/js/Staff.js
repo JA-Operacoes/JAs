@@ -758,6 +758,7 @@ let currentRowSelected = null;
 let currentEditingStaffEvent = null;
 let retornoDados = false;
 let vlrCustoSeniorFuncao = 0;
+let vlrCustoSeniorFuncao2 = 0;
 let vlrCustoPlenoFuncao = 0;
 let vlrCustoJuniorFuncao = 0;
 let vlrCustoBaseFuncao = 0;
@@ -897,9 +898,11 @@ const container2 = document.getElementById('labelFileAjdCusto2').parentElement;
 const mensagemConcluido = document.getElementById('mensagemConcluido');
 
 const seniorCheck = document.getElementById('Seniorcheck');
+const seniorCheck2 = document.getElementById('Seniorcheck2');
 const plenoCheck = document.getElementById('Plenocheck');
 const juniorCheck = document.getElementById('Juniorcheck');
 const baseCheck = document.getElementById('Basecheck');
+const fechadoCheck =  document.getElementById('Fechadocheck');
 
 const qtdPessoasInput = document.getElementById('qtdPessoas');
 
@@ -1081,16 +1084,34 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
     if (descFuncaoSelect) {
         descFuncaoSelect.value = eventData.idfuncao || '';
         
-        // --- NOVO PASSO: Garante que os valores de almoço e alimentacao sejam carregados na edição ---
-        // Pega a opção selecionada no dropdown de função
+        // Pega a opção que foi selecionada automaticamente pelo ID
         const selectedOption = descFuncaoSelect.options[descFuncaoSelect.selectedIndex];
 
-        // Se uma opção válida for encontrada, atualiza as variáveis globais
-        if (selectedOption) {//AQUI QUE TEMOS QUE FAZER A CORREÇÃO CARREGANDO OS VALORES CORRETOS
-            //vlrAlimentacaoDobra = parseFloat(selectedOption.getAttribute("data-alimentacao")) || 0;
-            vlrAlimentacaoDobra = parseFloat(eventData.vlralimentacao) || 0;
+        if (selectedOption) {
+            console.log("📥 Recarregando custos da função para permitir troca de nível...");
+            
+            // RECARGA DAS VARIÁVEIS GLOBAIS (O pulo do gato)
+            // Certifique-se de que os nomes das variáveis batem com os que você usa nos eventos 'change'
+            window.vlrCustoSeniorFuncao = parseFloat(selectedOption.getAttribute("data-ctosenior")) || 0;
+            window.vlrCustoSeniorFuncao2 = parseFloat(selectedOption.getAttribute("data-ctosenior2")) || 0;
+            window.vlrCustoPlenoFuncao  = parseFloat(selectedOption.getAttribute("data-ctopleno")) || 0;
+            window.vlrCustoJuniorFuncao = parseFloat(selectedOption.getAttribute("data-ctojunior")) || 0;
+            window.vlrCustoBaseFuncao   = parseFloat(selectedOption.getAttribute("data-ctobase")) || 0;
+            
+            // Também recarrega as variáveis de Senior 2 se você as separou, 
+            // ou usa a Senior padrão se for a mesma
+            window.vlrCustoSeniorFuncao2 = window.vlrCustoSeniorFuncao; 
 
-            console.log("Valores de Almoço e Jantar carregados para edição:", vlrAlimentacaoDobra);
+            window.vlrAlimentacaoFuncao = parseFloat(selectedOption.getAttribute("data-alimentacao")) || 0;
+            window.vlrTransporteFuncao  = parseFloat(selectedOption.getAttribute("data-transporte")) || 0;
+
+            // Regra específica para exibir o Senior 2 se for Fiscal
+            const descFuncaoTexto = selectedOption.textContent.trim().toUpperCase();
+            if (descFuncaoTexto === "FISCAL DE MARCAÇÃO") {
+                const inputSenior2 = document.getElementById("Seniorcheck2");
+                const divPaiSenior2 = inputSenior2 ? inputSenior2.closest('.Vertical') : null;
+                if (divPaiSenior2) divPaiSenior2.style.setProperty("display", "flex", "important");
+            }
         }
     }
 
@@ -1285,20 +1306,71 @@ const carregarDadosParaEditar = (eventData, bloquear) => {
         statusPgtoAjudaCustoInput.classList.add('suspenso');
     }
 
-    switch(eventData.nivelexperiencia) {
-        case "Base":
-            baseCheck.checked = true;
-            break;
-        case "Junior":
-            juniorCheck.checked = true;
-            break;
-        case "Pleno":
-            plenoCheck.checked = true;
-            break;
-        case "Senior":
-            seniorCheck.checked = true;
-            break;
-    }      
+    const nivelBanco = (eventData.nivelexperiencia || "").trim().toUpperCase();
+
+// Reset de visibilidade (opcional, para garantir)
+if (seniorCheck2) seniorCheck2.closest('.Vertical').style.display = 'none';
+
+switch(nivelBanco) {
+    case "BASE":
+        if (baseCheck) baseCheck.checked = true;
+        break;
+    case "JUNIOR":
+        if (juniorCheck) juniorCheck.checked = true;
+        break;
+    case "PLENO":
+        if (plenoCheck) plenoCheck.checked = true;
+        break;
+    case "SENIOR":
+        if (seniorCheck) seniorCheck.checked = true;
+        break;
+    case "SENIOR2":
+    case "SENIOR 2": // Trata as duas formas possíveis
+        if (seniorCheck2) {
+            // 1. Primeiro mostramos a DIV pai
+            const divPaiSenior2 = seniorCheck2.closest('.Vertical');
+            if (divPaiSenior2) {
+                divPaiSenior2.style.setProperty("display", "flex", "important");
+            }
+            // 2. Depois marcamos o check
+            seniorCheck2.checked = true;
+            console.log("✅ Senior 2 marcado na edição.");
+        }
+        break;
+    case "FECHADO":
+        if (fechadoCheck) {
+            fechadoCheck.checked = true;
+
+            // --- ADICIONE ESTA PARTE PARA MOSTRAR OS CAMPOS ---
+            const divStatusContainer = document.getElementById('campoStatusCustoFechado');
+            const selectStatus = document.getElementById('selectStatusCustoFechado');
+            const inputStatusTxt = document.getElementById('statusCustoFechado');
+            const inputVlrCusto = document.getElementById('vlrCusto');
+
+            if (divStatusContainer) divStatusContainer.style.display = 'block';
+            if (inputVlrCusto) {
+                inputVlrCusto.readOnly = false;
+                inputVlrCusto.removeAttribute('data-permanent-readonly');
+            }
+
+            // Preenche o valor do status vindo do banco (eventData)
+            if (inputStatusTxt) {
+                inputStatusTxt.value = eventData.statuscustofechado || '';
+            }
+
+            // Seleciona o valor correspondente no Select
+            if (selectStatus) {
+                selectStatus.value = eventData.statuscustofechado || '';
+                
+                // Só mostra o select se for Master ou Financeiro
+                const temAcessoStatus = temPermissaoMaster || temPermissaoFinanceiro;
+                selectStatus.style.display = temAcessoStatus ? 'block' : 'none';
+            }
+
+            // ------------------------------------------------
+        }
+        break;
+}
 
     preencherComprovanteCampo(eventData.comppgtocache, 'Cache');
     preencherComprovanteCampo(eventData.comppgtoajdcusto, 'AjdCusto');
@@ -2232,6 +2304,7 @@ async function limparCamposStaffParcial() {
     const descfuncaoElement = document.getElementById('nmFuncaoSelect'); 
     const descfuncaoAtual = (descfuncaoElement ? descfuncaoElement.value : '').trim();
     const isAjudanteDeMarcacao = descfuncaoAtual.toUpperCase() === 'AJUDANTE DE MARCAÇÃO';
+    const isFiscalDeMarcacao = descfuncaoAtual.toUpperCase() === 'FISCAL DE MARCAÇÃO';
 
     document.querySelector("#apelidoFuncionario").value = '';
     const apelido = document.getElementById("apelidoFuncionario");
@@ -2263,9 +2336,20 @@ async function limparCamposStaffParcial() {
         document.getElementById('Plenocheck').checked = false;
         document.getElementById('Juniorcheck').checked = false;
         document.getElementById('Basecheck').checked = false;
+        document.getElementById('Fechadocheck').checked = false;
         console.log("Níveis de experiência limpos.");
     }
-       
+    if (isFiscalDeMarcacao) {
+        console.log("Função 'Fiscal de Marcação' detectada. Pulando a limpeza dos Níveis de Experiência.");
+    } else {
+        document.getElementById('Seniorcheck2').checked = false;
+        document.getElementById('Seniorcheck').checked = false;
+        document.getElementById('Plenocheck').checked = false;
+        document.getElementById('Juniorcheck').checked = false;
+        document.getElementById('Basecheck').checked = false;
+        document.getElementById('Fechadocheck').checked = false;
+        console.log("Níveis de experiência limpos.");
+    }
     
     // 4. 🛑 LIMPEZA TOTAL DE DATAS (Flatpickr)
     // Usamos o método clear() em todas as instâncias do flatpickr.
@@ -2707,6 +2791,7 @@ async function verificaStaff() {
     juniorCheck.addEventListener('change', debouncedOnCriteriosChanged);
     plenoCheck.addEventListener('change', debouncedOnCriteriosChanged);
     seniorCheck.addEventListener('change', debouncedOnCriteriosChanged);
+    seniorCheck2.addEventListener('change', debouncedOnCriteriosChanged);
 
     ajusteCustoInput.addEventListener('change', () => {
         let valor = ajusteCustoInput.value.replace(',', '.');
@@ -3068,15 +3153,20 @@ async function verificaStaff() {
             const selectStatusCaixinha = document.getElementById("statusCaixinha");
             let statusCaixinha = selectStatusCaixinha?.value?.trim() || '';
 
+            const inputStatusFechado = document.getElementById("statusCustoFechado");
+            let statusFechado = inputStatusFechado ? inputStatusFechado.value : '';
+
             const diariaDobrada = document.getElementById("diariaDobradacheck")?.checked;
             const meiaDiaria = document.getElementById("meiaDiariacheck")?.checked;
             let statusDiariaDobrada = document.getElementById("statusDiariaDobrada").value;
             let statusMeiaDiaria = document.getElementById("statusMeiaDiaria").value;
 
             const seniorCheck = document.getElementById('Seniorcheck');
+            const seniorCheck2 = document.getElementById('Seniorcheck2');
             const plenoCheck = document.getElementById('Plenocheck');
             const juniorCheck = document.getElementById('Juniorcheck');
-            const baseCheck = document.getElementById('Basecheck');       
+            const baseCheck = document.getElementById('Basecheck');
+            const fechadoCheck = document.getElementById('Fechadocheck');
 
             const qtdPessoas = parseInt(document.getElementById('qtdPessoas').value, 10) || 0;
 
@@ -3133,7 +3223,7 @@ async function verificaStaff() {
                 return Swal.fire("Campos obrigatórios!", "Preencha todos os campos obrigatórios: Funcionário, Função, Cachê, Transportes, Alimentação, Cliente, Evento e Período do Evento.", "warning");
             }
 
-            if (!seniorCheck.checked &&  !plenoCheck.checked &&  !juniorCheck.checked &&  !baseCheck.checked) {
+            if (!seniorCheck2.checked &&  !seniorCheck.checked &&   !plenoCheck.checked &&  !juniorCheck.checked &&  !baseCheck.checked &&  !fechadoCheck.checked) {
                 return Swal.fire(
                     "Nível de Experiência não selecionado!",
                     "Por favor, selecione pelo menos um nível de experiência: Sênior, Pleno, Júnior ou Base.",
@@ -3991,20 +4081,49 @@ async function verificaStaff() {
             //         statusPgto = "Pendente";
             //     }
             // }
-
             if (!statusCaixinha || statusCaixinha.trim() === '') { 
-                // Se não tem valor, o status deve ser vazio, conforme solicitado.
-                statusCaixinha = 'Pendente';
+                
+                // Pegamos os valores de dentro dos elementos que você declarou
+                const valorCaixinhaNumerico = parseFloat(caixinhaInput.value.replace(',', '.')) || 0;
+                const textoDescricao = descCaixinhaTextarea.value ? descCaixinhaTextarea.value.trim() : '';
+
+                // A sua regra: Só vira Pendente se tiver valor > 0 ou se tiver algo escrito
+                if (valorCaixinhaNumerico > 0 || (textoDescricao !== '' && textoDescricao !== '-')) {
+                    statusCaixinha = 'Pendente';
+                } else {
+                    statusCaixinha = ''; // Mantém vazio para não gerar card sem necessidade
+                }
+            }
+            if (statusCaixinha === 'Autorizado') {
+                // Se está autorizado, o status de pagamento da caixinha deve ser Pendente
+                statusPgtoCaixinha = 'Pendente';
+            } 
+
+            const checkAjusteManual = document.getElementById("ajusteCustocheck");
+            const vlrAjusteNum = parseFloat(ajusteCusto) || 0;
+            const descAjusteTxt = document.getElementById("descAjusteCusto").value.trim();
+
+            // LÓGICA CORRIGIDA:
+            if (!statusAjusteCusto || statusAjusteCusto.trim() === '') {
+                // Só vira 'Pendente' se: tiver valor OU tiver descrição OU o checkbox estiver marcado
+                if (vlrAjusteNum > 0 || (descAjusteTxt !== '' && descAjusteTxt !== '-') || (checkAjusteManual && checkAjusteManual.checked)) {
+                    statusAjusteCusto = 'Pendente';
+                } else {
+                    statusAjusteCusto = ''; // Caso contrário, mantém vazio
+                }
             }
 
-            if (statusCaixinha === 'Autorizado') {      
-                statuspgtocaixinha = 'Pendente';
+            if (!statusFechado || statusFechado.trim() === '') {
+                if (fechadoCheck && fechadoCheck.checked && vlrCusto > 0) {
+                    statusFechado = 'Pendente';
+                } else {
+                    statusFechado = ''; // Mantém vazio se o checkbox não estiver marcado
+                }
+            }
+            if (fechadoCheck && !fechadoCheck.checked) {
+                statusFechado = '';
             }
 
-            if (!statusAjusteCusto || statusAjusteCusto.trim() === '') { 
-                // Se não tem valor, o status deve ser vazio, conforme solicitado.
-                statusAjusteCusto = 'Pendente'; 
-            }
 
             // if (statusPgtoAjusteCusto !== "Pago" && statusPgtoAjusteCusto !== "Pago50") {
             //     if (temComprovanteAjudaCusto) {
@@ -4037,7 +4156,8 @@ async function verificaStaff() {
             formData.append('statuspgtocaixinha', statusPgtoCaixinha);
 
             formData.append('statusajustecusto', statusAjusteCusto);
-            formData.append('statuscaixinha', statusCaixinha);            
+            formData.append('statuscaixinha', statusCaixinha);
+            formData.append('statuscustofechado', statusFechado);
             formData.append('descdiariadobrada', descDiariaDobradaTextarea.value.trim());
             formData.append('descmeiadiaria', descMeiaDiariaTextarea.value.trim());
             formData.append('desccaixinha', descCaixinhaTextarea.value.trim()); 
@@ -4052,6 +4172,9 @@ async function verificaStaff() {
         
             let nivelExperienciaSelecionado ="";
 
+            if (seniorCheck2.checked) {
+                nivelExperienciaSelecionado =  "Senior 2";
+            } 
             if (seniorCheck.checked) {
                 nivelExperienciaSelecionado =  "Senior";
             } 
@@ -4063,6 +4186,9 @@ async function verificaStaff() {
             } 
             if (baseCheck.checked) {
                 nivelExperienciaSelecionado =  "Base";
+            }
+            if (fechadoCheck.checked) {
+                nivelExperienciaSelecionado =  "Fechado";
             }
 
             formData.append('nivelexperiencia', nivelExperienciaSelecionado);
@@ -4282,6 +4408,7 @@ async function verificaStaff() {
                 (currentEditingStaffEvent.statuscaixinha || '').trim() != statusCaixinha.trim() ||
                 (currentEditingStaffEvent.statusdiariadobrada || '').trim() != statusDiariaDobrada.trim() ||
                 (currentEditingStaffEvent.statusmeiadiaria || '').trim() != statusMeiaDiaria.trim() ||
+                (currentEditingStaffEvent.statuscustofechado || '').trim() != statusFechado.trim() ||
                 currentEditingStaffEvent.diariadobrada != diariaDobradaAtual ||
                 currentEditingStaffEvent.meiadiaria != meiaDiariaAtual ||
                 currentEditingStaffEvent.nivelexperiencia != nivelExperienciaAtual ||
@@ -4314,6 +4441,7 @@ async function verificaStaff() {
                 //logAndCheck('StatusAjusteCusto', (currentEditingStaffEvent.statusajustecusto || '').trim(), statusAjusteCusto.trim(), (currentEditingStaffEvent.statusajustecusto || '').trim() != statusAjusteCusto.trim()) ||
                 logAndCheck('StatusAjusteCusto', (currentEditingStaffEvent.statusajustecusto || '').trim(), (statusAjusteCusto || '').trim(), (currentEditingStaffEvent.statusajustecusto || '').trim() != (statusAjusteCusto || '').trim()) ||
                 logAndCheck('StatusCaixinha', (currentEditingStaffEvent.statuscaixinha || '').trim(), (statusCaixinha || '').trim(), (currentEditingStaffEvent.statuscaixinha || '').trim() != (statusCaixinha || '').trim()) ||
+                logAndCheck('StatusCustoFechado', (currentEditingStaffEvent.statuscustofechado || '').trim(), (statusFechado || '').trim(), (currentEditingStaffEvent.statuscustofechado || '').trim() != (statusFechado || '').trim()) ||
                 logAndCheck('ID Cliente', currentEditingStaffEvent.idcliente, idCliente, currentEditingStaffEvent.idcliente != idCliente) ||
                 logAndCheck('ID Evento', currentEditingStaffEvent.idevento, idEvento, currentEditingStaffEvent.idevento != idEvento) ||
                 logAndCheck('ID Montagem', currentEditingStaffEvent.idmontagem, idMontagem, currentEditingStaffEvent.idmontagem != idMontagem) ||
@@ -4477,6 +4605,9 @@ async function verificaStaff() {
                 Swal.fire("Erro", error.message || "Erro ao salvar funcionário.", "error");
             }
         })
+        document.getElementById("selectStatusCustoFechado").addEventListener("change", function() {
+    document.getElementById("statusCustoFechado").value = this.value;
+});
     }
 }
   
@@ -5448,6 +5579,7 @@ async function carregarFuncaoStaff() {
                     option.setAttribute("data-idFuncao", funcao.idfuncao);
                     option.setAttribute("data-descproduto", funcao.descfuncao);
                     option.setAttribute("data-ctosenior", funcao.ctofuncaosenior);
+                    option.setAttribute("data-ctosenior2", funcao.ctofuncaosenior2);
                     option.setAttribute("data-ctopleno", funcao.ctofuncaopleno);
                     option.setAttribute("data-ctojunior", funcao.ctofuncaojunior);
                     option.setAttribute("data-ctobase", funcao.ctofuncaobase);
@@ -5486,14 +5618,18 @@ async function carregarFuncaoStaff() {
                 
                 // Referências aos checkboxes (use IDs consistentes com o seu HTML)
                 const seniorCheck = document.getElementById("seniorCheck") || document.getElementById("Seniorcheck"); 
+                const seniorCheck2 = document.getElementById("seniorCheck2") || document.getElementById("Seniorcheck2"); 
                 const plenoCheck = document.getElementById("plenoCheck") || document.getElementById("Plenocheck"); 
                 const juniorCheck = document.getElementById("juniorCheck") || document.getElementById("Juniorcheck"); 
                 const baseCheck = document.getElementById("baseCheck") || document.getElementById("Basecheck"); 
+                const fechadoCheck = document.getElementById("fechadoCheck") || document.getElementById("Fechadocheck"); 
                 
                 if (seniorCheck) seniorCheck.checked = false;
+                if (seniorCheck2) seniorCheck2.checked = false; 
                 if (plenoCheck) plenoCheck.checked = false;
                 if (juniorCheck) juniorCheck.checked = false;
                 if (baseCheck) baseCheck.checked = false;
+                if (fechadoCheck) fechadoCheck.checked = false;
 
                 inputIdEquipe.value = '';
                 inputNmEquipe.value = '';
@@ -5516,6 +5652,7 @@ async function carregarFuncaoStaff() {
                 } 
 
                 vlrCustoSeniorFuncao = parseFloat(selectedOption.getAttribute("data-ctosenior")) || 0;
+                vlrCustoSeniorFuncao2 = parseFloat(selectedOption.getAttribute("data-ctosenior2")) || 0;
                 vlrCustoPlenoFuncao = parseFloat(selectedOption.getAttribute("data-ctopleno")) || 0;
                 vlrCustoJuniorFuncao = parseFloat(selectedOption.getAttribute("data-ctojunior")) || 0;
                 vlrCustoBaseFuncao = parseFloat(selectedOption.getAttribute("data-ctobase")) || 0;         
@@ -5532,6 +5669,23 @@ async function carregarFuncaoStaff() {
                 // ----------------------------------------------------
                 // LÓGICA DE OVERRIDE POR FUNÇÃO E PERFIL
                 // ----------------------------------------------------
+                if  (descFuncao === "FISCAL DE MARCAÇÃO") {
+                    console.log(`🔵 REGRA ATIVA: ${descFuncao}.`);
+
+                    // 1. Mostra a DIV pai do Senior 2
+                    const inputSenior2 = document.getElementById("Seniorcheck2");
+                    const divPaiSenior2 = inputSenior2 ? inputSenior2.closest('.Vertical') : null;
+                    
+                    if (divPaiSenior2) {
+                        divPaiSenior2.style.setProperty("display", "flex", "important");
+                    }
+                } else {
+                    // Esconde o Senior 2 se mudar para outra função
+                    const inputSenior2 = document.getElementById("Seniorcheck2");
+                    const divPaiSenior2 = inputSenior2 ? inputSenior2.closest('.Vertical') : null;
+                    if (divPaiSenior2) divPaiSenior2.style.display = 'none';
+                    if (inputSenior2) inputSenior2.checked = false;
+                }
                 if (descFuncao === "AJUDANTE DE MARCAÇÃO") {
                     console.log(`🟡 REGRA FUNÇÃO ATIVA: ${descFuncao}. Trava no Base e Custo Base.`);
                     
@@ -6356,6 +6510,9 @@ function limparCamposStaff() {
     const baseCheck = document.getElementById('Basecheck');
     if (baseCheck) baseCheck.checked = false;
 
+    const fechadoCheck = document.getElementById('Fechadocheck');
+    if (fechadoCheck) fechadoCheck.checked = false;
+
     const viagem1Check = document.getElementById('viagem1Check');
     if (viagem1Check) viagem1Check.checked = false;
 
@@ -6644,7 +6801,6 @@ document.getElementById('Caixinhacheck').addEventListener('change', function () 
   }
 });
 
-
 document.getElementById('Seniorcheck').addEventListener('change', function () {
     if (seniorCheck.checked) {
         // Lógica para quando o checkbox de Senior estiver marcado
@@ -6653,9 +6809,11 @@ document.getElementById('Seniorcheck').addEventListener('change', function () {
             return;
         }
 
+        seniorCheck2.checked = false;
         plenoCheck.checked = false;
         juniorCheck.checked = false;
         baseCheck.checked = false;
+        fechadoCheck.checked = false;
 
         //console.log("Valores para Senior - Custo:", vlrCustoSeniorFuncao, "Alimentação:", vlrAlimentacao, "Transporte:", vlrTransporteSeniorFuncao);
         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
@@ -6677,6 +6835,40 @@ document.getElementById('Seniorcheck').addEventListener('change', function () {
 
 });
 
+document.getElementById('Seniorcheck2').addEventListener('change', function () {
+    const seniorCheck2 = this;
+
+    if (seniorCheck2.checked) {
+        // 1. Validação essencial igual ao seu Basecheck
+        if (typeof validarCamposEssenciais === 'function' && !validarCamposEssenciais()) {
+            seniorCheck2.checked = false; 
+            return;
+        }
+
+        // 2. Exclusividade: Desmarca todos os outros
+        if (document.getElementById("Seniorcheck")) document.getElementById("Seniorcheck").checked = false;
+        if (document.getElementById("Plenocheck")) document.getElementById("Plenocheck").checked = false;
+        if (document.getElementById("Juniorcheck")) document.getElementById("Juniorcheck").checked = false;
+        if (document.getElementById("Basecheck")) document.getElementById("Basecheck").checked = false;
+        if (document.getElementById("Fechadocheck")) document.getElementById("Fechadocheck").checked = false;
+
+        // 3. Preenche custos (Usando o valor sênior conforme sua regra)
+        // Certifique-se que vlrCustoSeniorFuncao esteja acessível aqui
+        document.getElementById("vlrCusto").value = (parseFloat(vlrCustoSeniorFuncao2) || 0).toFixed(2);
+        document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);   
+        document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+
+        // 4. Cálculo de Total
+        const datasEventoInput = document.getElementById('datasEvento');
+        if (datasEventoInput && typeof getPeriodoDatas === 'function') {
+            const periodoDatas = getPeriodoDatas(datasEventoInput.value);   
+            if (periodoDatas.length > 0 && typeof calcularValorTotal === 'function') {
+                calcularValorTotal();
+            }
+        }
+    }
+});
+
 document.getElementById('Plenocheck').addEventListener('change', function () {
     if (plenoCheck.checked) {
         // Lógica para quando o checkbox de Pleno estiver marcado
@@ -6684,9 +6876,11 @@ document.getElementById('Plenocheck').addEventListener('change', function () {
             plenoCheck.checked = false; // Desmarca se a validação falhar
             return;
         }
+        seniorCheck2.checked = false;
         seniorCheck.checked = false;
         juniorCheck.checked = false;
-        baseCheck.checked = false;        
+        baseCheck.checked = false;
+        fechadoCheck.checked = false;
         
         document.getElementById("vlrCusto").value = (parseFloat(vlrCustoPlenoFuncao) || 0).toFixed(2);   
         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);
@@ -6713,9 +6907,11 @@ document.getElementById('Juniorcheck').addEventListener('change', function () {
             juniorCheck.checked = false; // Desmarca se a validação falhar
             return;
         }
+        seniorCheck2.checked = false;
         seniorCheck.checked = false;
         plenoCheck.checked = false;
         baseCheck.checked = false;
+        fechadoCheck.checked = false;
 
         document.getElementById("vlrCusto").value = (parseFloat(vlrCustoJuniorFuncao) || 0).toFixed(2); 
         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);  
@@ -6744,13 +6940,45 @@ document.getElementById('Basecheck').addEventListener('change', function () {
             baseCheck.checked = false; // Desmarca se a validação falhar
             return;
         }
+        seniorCheck2.checked = false;
         seniorCheck.checked = false;
         plenoCheck.checked = false;
         juniorCheck.checked = false;
+        fechadoCheck.checked = false;
 
         document.getElementById("vlrCusto").value = (parseFloat(vlrCustoBaseFuncao) || 0).toFixed(2);
         document.getElementById("alimentacao").value = (parseFloat(vlrAlimentacaoFuncao) || 0).toFixed(2);   
         document.getElementById("transporte").value = (parseFloat(vlrTransporteFuncao) || 0).toFixed(2);
+
+        const datasEventoInput = document.getElementById('datasEvento');
+        if (datasEventoInput) {
+            const periodoDatas = getPeriodoDatas(datasEventoInput.value);   
+            
+            if (periodoDatas.length > 0) {
+                console.log("➡️ Tentando chamar calcularValorTotal()..."); // LOG DE ENTRADA
+                calcularValorTotal();
+                console.log("⬅️ calcularValorTotal() chamado com sucesso (ou completou)."); // LOG DE SAÍDA
+            }
+            console.log("Período de datas obtido para Base:", periodoDatas);
+        }
+    }
+});
+
+document.getElementById('Fechadocheck').addEventListener('change', function () {
+    if (fechadoCheck.checked) {
+        // Lógica para quando o checkbox de Base estiver marcado
+
+        if (!validarCamposEssenciais()) {
+            fechadoCheck.checked = false; // Desmarca se a validação falhar
+            return;
+        }
+        seniorCheck2.checked = false;
+        seniorCheck.checked = false;
+        plenoCheck.checked = false;
+        juniorCheck.checked = false;
+        baseCheck.checked = false;
+
+        document.getElementById("vlrCusto").value =  0 .toFixed(2);
 
         const datasEventoInput = document.getElementById('datasEvento');
         if (datasEventoInput) {
@@ -6794,6 +7022,22 @@ function validarCamposEssenciais() {
     }
 
     return true;
+}
+
+function atualizarVisibilidadeCacheFechado() {
+    const check = document.getElementById('Fechadocheck');
+    const divStatus = document.getElementById('campoStatusCustoFechado');
+    const inputVlrCusto = document.getElementById('vlrCusto');
+
+    if (check && divStatus) {
+        if (!check.checked) {
+            divStatus.style.display = 'none';
+            inputVlrCusto.readOnly = true;
+        } else {
+            divStatus.style.display = 'block';
+            inputVlrCusto.readOnly = false;
+        }
+    }
 }
 
 function criarRegexRemocao(textoPuro) {
@@ -7043,12 +7287,30 @@ function calcularValorTotal() {
     const caixinha = parseFloat(document.getElementById('caixinha').value.replace(',', '.')) || 0;
     const perfilFuncionario = document.getElementById("perfilFuncionario").value;
     const qtdpessoas = parseInt(document.getElementById("qtdPessoas").value) || 1;
+    const isFechado = document.getElementById('Fechadocheck').checked;
+    // Inicializa o valor total com os itens que são sempre calculados
+  
+    let total = 0;
+    let totalCache = 0; 
+    let totalAjdCusto = 0;
 
 
     if (isFormLoadedFromDoubleClick)
     {
         console.log("VALORES PARA RECALCULAR", vlrAlimentacaoDobra);
     }
+    const statusFechado = document.getElementById("statusCustoFechado").value;
+    if (isFechado) {
+            if (statusFechado === "Autorizado") {
+                total = cache;
+                totalCache = cache;
+                console.log("Cachê Fechado Autorizado: Adicionando ao total.");
+            } else {
+                total = 0;
+                totalCache = 0;
+                console.log("Cachê Fechado Pendente/Rejeitado: Total zerado.");
+            }
+    } else {
 
     // Pega o número de diárias selecionadas
     const contadorTexto = document.getElementById('contadorDatas').innerText;
@@ -7061,12 +7323,6 @@ function calcularValorTotal() {
 
     // Conta apenas o número de datas do evento
     console.log("Número de diárias:", contadorTexto, match, numeroDias, cache, ajusteCusto, transporte, alimentacao, caixinha, datasParaProcessar);
-
-    // Inicializa o valor total com os itens que são sempre calculados
-  
-    let total = 0;
-    let totalCache = 0; 
-    let totalAjdCusto = 0;
 
     //(datasEventoSelecionadas || []).forEach(data => {
     (datasParaProcessar || []).forEach(data => {
@@ -7099,9 +7355,10 @@ function calcularValorTotal() {
                 console.log(`Data ${data.toLocaleDateString()} não é fim de semana nem feriado. Cachê não adicionado.`);
             }
         }
-       
-        
     });
+}
+
+document.getElementById('vlrTotal').value = 'R$ ' + total.toFixed(2).replace('.', ',');
 
     console.log("Total inicial (sem adicionais):", total.toFixed(2));
 
@@ -8927,6 +9184,8 @@ function configurarEventosStaff() {
         }
     }
 
+
+
     const caixinhacheck = document.getElementById('Caixinhacheck');
     const campoCaixinha = document.getElementById('campoCaixinha');
     const campoPgtoCaixinha = document.getElementById('campoPgtoCaixinha');
@@ -8981,6 +9240,61 @@ function configurarEventosStaff() {
             statusCaixinhaInput.disabled = false;
         }
     }
+        // Dentro da função configurarEventosStaff()
+    const checkboxFechado = document.getElementById('Fechadocheck');
+    const divStatusContainer = document.getElementById('campoStatusCustoFechado');
+    const selectStatus = document.getElementById('selectStatusCustoFechado');
+    const inputStatusTxt = document.getElementById('statusCustoFechado');
+    const inputVlrCusto = document.getElementById('vlrCusto');
+
+    // Verifica se o usuário é Master ou Financeiro
+    const temAcessoStatus = temPermissaoMaster || temPermissaoFinanceiro;
+
+    if (checkboxFechado) {
+    // 1. Executa assim que a função é chamada (caso já venha marcado do banco)
+    atualizarVisibilidadeCacheFechado();
+
+    checkboxFechado.addEventListener('change', function() {
+        atualizarVisibilidadeCacheFechado(); // Chama a função centralizada
+        
+        if (this.checked) {
+            inputVlrCusto.removeAttribute('data-permanent-readonly');
+            // Regra de permissão para o SELECT
+            if (temAcessoStatus) {
+                selectStatus.style.display = 'block';
+            } else {
+                selectStatus.style.display = 'none';
+                inputStatusTxt.value = "Pendente"; 
+            }
+        } else {
+            // Reseta valores ao desativar
+            inputVlrCusto.value = '';
+            inputStatusTxt.value = '';
+            selectStatus.selectedIndex = 0;
+            inputVlrCusto.setAttribute('data-permanent-readonly', 'true');
+        }
+        calcularValorTotal();
+    });
+
+    // --- CORREÇÃO DO BUG NA TROCA DE NÍVEL ---
+    // Sempre que o nível ou a função mudar, o sistema pode tentar reexibir os campos.
+    // Nós forçamos ele a esconder novamente se o check estiver falso.
+    const selectNivel = document.getElementById('nivelExperiencia'); // Verifique se o ID é este
+    const selectFuncao = document.getElementById('funcaoStaff');      // Verifique se o ID é este
+
+    if (selectNivel) {
+        selectNivel.addEventListener('change', () => {
+            // Usamos um pequeno delay (200ms) para dar tempo do sistema 
+            // buscar o preço no banco e depois nós escondemos a div.
+            setTimeout(atualizarVisibilidadeCacheFechado, 200);
+        });
+    }
+    if (selectFuncao) {
+        selectFuncao.addEventListener('change', () => {
+            setTimeout(atualizarVisibilidadeCacheFechado, 200);
+        });
+    }
+}
     // 📢 FIM DO NOVO BLOCO    
 
     const datasDoFlatpickr = window.datasEventoPicker?.selectedDates.map(d => d.toISOString().split('T')[0]) || [];
@@ -9000,7 +9314,7 @@ function validarCamposAntesDoPeriodo() {
     if (document.getElementById('descFuncao').value === '') {
         return 'Função';
     }
-    const idsNivelExperiencia = ['Seniorcheck', 'Plenocheck', 'Juniorcheck', 'Basecheck'];
+    const idsNivelExperiencia = ['Seniorcheck2','Seniorcheck', 'Plenocheck', 'Juniorcheck', 'Basecheck','Fechadocheck'];
     
     // A função 'isAnyChecked' será TRUE se pelo menos UMA checkbox estiver marcada
     const isAnyChecked = idsNivelExperiencia.some(id => {

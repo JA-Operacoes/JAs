@@ -1,5 +1,19 @@
 import { fetchComToken, aplicarTema, fetchHtmlComToken  } from '/utils/utils.js';
 
+async function carregarVersaoSistema() {
+    try {
+        // Usando o seu fetchComToken que já está no arquivo
+        const data = await fetchComToken("/main/versao");
+        if (data && data.versao) {
+            document.getElementById('app-version').innerText = `v${data.versao}`;
+        }
+    } catch (err) {
+        console.error("Erro ao carregar versão:", err);
+    }
+}
+
+// Chame a função no início do carregamento ou no DOMContentLoaded
+carregarVersaoSistema();
 
 const CAMPO_ADITIVO_EXTRA = "statusaditivoextra"; 
 const STATUS_PENDENTE = "pendente";
@@ -20,7 +34,6 @@ const getRecordIdFromUrl = (url) => {
   // Retorna o último segmento se for um número, caso contrário retorna null
   return !isNaN(parseInt(lastPart)) ? lastPart : null;
 };
-
 
 
 // async function abrirModalLocal(url, modulo) {
@@ -3476,102 +3489,6 @@ async function atualizarResumo() {
 //  Pedidos Financeiros
 // ==============================================================================================
 
-// async function buscarPedidosUsuario() {
-//     const idusuario = getIdExecutor(); 
-
-//     // ----------------------------------------------------
-//     // FUNÇÕES UTILS SIMPLIFICADAS (V43.0)
-//     // ----------------------------------------------------
-//     function preencherSolicitante(p) {
-//         return {
-//             ...p,
-//             // Usa idusuariosolicitante, ou idusuario (V40.0)
-//             solicitante: p.idusuariosolicitante || p.idusuario, 
-//             solicitante_nome: p.nomeSolicitante || p.solicitante_nome || (String(p.solicitante) === String(idusuario) ? "Você" : "Solicitante desconhecido")
-//         };
-//     }
-//     // A função garantirCamposDeStatus e desmembrarPedidos SÃO REMOVIDAS
-//     // ----------------------------------------------------
-
-//     try {
-//         const resposta = await fetchComToken(`/main/notificacoes-financeiras`, {
-//             headers: { idempresa: getIdEmpresa() }
-//         });  
-
-//         console.log("DEBUG: Resposta Bruta do Fetch (length):", resposta ? resposta.length : 0);
-        
-//         const podeVerTodos = usuarioTemPermissaoSupremo(); 
-//         const ehMasterStaff = usuarioTemPermissao(); 
-
-//         if (!resposta || !Array.isArray(resposta)) {
-//             console.error("Resposta inválida ou não é um array:", resposta);
-//             return [];
-//         }
-
-//         // 🛑 NOVO FLUXO V43.0: Os 412 itens são pedidos únicos (já desmembrados pelo servidor)
-//         let pedidosProcessados = resposta.map(p => preencherSolicitante(p));
-
-//         // pedidosProcessados = pedidosProcessados.map(p => ({
-//         //     ...p,
-//         //     // 🛑 CORREÇÃO V48.0: Converte o status para minúsculas.
-//         //     status_aprovacao: p.status ? p.status.toLowerCase() : null, 
-//         //     categoria_item: p.categoria 
-//         // }));
-
-//         pedidosProcessados = pedidosProcessados.map(p => {
-//     // Tenta encontrar o status real em diferentes colunas que o banco pode usar
-//     // Prioriza o que NÃO for pendente se houver outra info disponível
-//     const statusReal = p.status_item || p.status_aprovacao || p.status || 'pendente';
-    
-//     return {
-//         ...p,
-//         status_aprovacao: statusReal.toString().toLowerCase().trim(),
-//         categoria_item: p.categoria || p.categoria_item
-//     };
-// });
-
-//         // 🛑 DEBUG V50: Confirma o status padronizado
-//         if (pedidosProcessados.length > 0) {
-//             console.log("DEBUG V50: Status Padronizado do 1º Pedido Financeiro:", pedidosProcessados[0].status_aprovacao);
-//         }
-
-//         // 🛑 DEBUG V37: Loga o resultado ANTES do filtro de usuário
-//         console.log("DEBUG V37: Pedidos Processados ANTES do filtro de usuário:", pedidosProcessados.length);
-
-
-//         // 3. APLICAÇÃO DA LÓGICA DE VISUALIZAÇÃO E FILTRO
-//         if (podeVerTodos) { 
-//             console.log(`✅ Usuário tem Visualização Total (Master/Financeiro) → Retornando ${pedidosProcessados.length} pedidos.`);
-            
-//             pedidosProcessados = pedidosProcessados.map(p => ({ 
-//                 ...p, 
-//                 ehMasterStaff: ehMasterStaff,
-//                 podeVerTodos: true 
-//             }));
-
-//         } else {
-//             console.log("👤 Usuário comum → Vendo apenas os próprios pedidos.");
-            
-//             // Filtra no array de 412 itens, usando a chave 'solicitante'
-//             pedidosProcessados = pedidosProcessados
-//                 .filter(p => String(p.solicitante) === String(idusuario))
-//                 .map(p => ({ 
-//                     ...p, 
-//                     ehMasterStaff: false,
-//                     podeVerTodos: false
-//                 }));
-//         }
-
-//         console.log(`RESPOSTA NO BUSCAR PEDIDOS (${pedidosProcessados.length})`);
-        
-//         return pedidosProcessados; 
-
-//     } catch (err) {
-//         console.error("Erro na requisição de pedidos:", err);
-//         return [];
-//     }
-// }
-
 async function buscarPedidosUsuario() {
     const idusuario = getIdExecutor(); 
 
@@ -3696,11 +3613,12 @@ async function mostrarPedidosUsuario() {
     const dataFieldMapping = {
         "statusdiariadobrada": "dtdiariadobrada",
         "statusmeiadiaria": "dtmeiadiaria",
+        "statuscustofechado": "vlrcache",
         // Outros campos de status que contêm JSON Array devem ser adicionados aqui
     };
 
     const camposTodos = [
-        "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada", CAMPO_ADITIVO_EXTRA
+        "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada", "statuscustofechado", CAMPO_ADITIVO_EXTRA
     ];
 
     try {
@@ -4199,12 +4117,11 @@ function criarSubTabsHTML(listContainerIdBase, categoria, statusCounts) {
 
     // ESTRUTURA PRINCIPAL DO CONTEÚDO (INCLUI BOTÃO VOLTAR)
     return `
-        <button class="btn-voltar-main-tabs" type="button">
-            <i class="fas fa-arrow-left"></i> Voltar para Pedidos e Solicitações
-        </button>
-
         <div class="sub-tab-view">
             <div class="sub-abas-pedidos" data-categoria="${categoria}">
+                <button class="btn-voltar-main-tabs" type="button">
+                    <i class="fas fa-arrow-left"></i> Voltar
+                </button>
                 ${tabButtons}
             </div>
             <div class="sub-tabs-content">
@@ -4255,6 +4172,7 @@ function formatarNomeSolicitacao(campoNome) {
         "caixinha": "Caixinha",
         "meiadiaria": "Meia Diária",
         "diariadobrada": "Diária Dobrada",
+        "custofechado": "Cachê Fechado",
         "aditivoextra": "Aditivo Extra"
     };
 
@@ -4788,6 +4706,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
         "statuscaixinha",
         "statusmeiadiaria",
         "statusdiariadobrada",
+        "statuscustofechado",
         CAMPO_ADITIVO_EXTRA
     ];
     // 🛑 V65.0: Inclui o campo placeholder para renderização na Seção 2
@@ -4800,7 +4719,6 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
     let totalItensRenderizados = 0;
     // --- 1. FILTRAGEM E CONSOLIDAÇÃO ---
     const gruposFiltrados = [];
-    const solicitantesPendentesPorChave = {}; // Resetamos para cada renderização
 
     pedidosCompletos.forEach(grupoConsolidado => {
         let chaveRenderizacao = categoria === 'funcionario'
@@ -4811,7 +4729,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
 
         const registros = grupoConsolidado.registrosOriginais || [];
         const pedidosConsolidadosPorId = new Map();
-        let temAlgumMatchNesteGrupo = false; // Flag crucial
+        let temAlgumMatchNesteGrupo = false;
 
         registros.forEach(pedidoOriginal => {
             // const id = pedidoOriginal.idStaffEvento || pedidoOriginal.idpedido || pedidoOriginal.id;
@@ -4866,29 +4784,19 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
 
                 if (itensFiltrados.length > 0) {
                     pedidoConsolidado.temMatch = true;
-                    pedidoConsolidado[campo] = itensFiltrados;
+                    // 🔹 Em vez de apenas atribuir, podemos acumular ou garantir a atribuição
+                    pedidoConsolidado[campo] = itensFiltrados; 
                     temAlgumMatchNesteGrupo = true;
-                } else {
-                    delete pedidoConsolidado[campo]; // Remove para não lixo no card
-                }
+                } 
+                // 🛑 REMOVIDO: o "else { delete pedidoConsolidado[campo] }" 
+                // para não apagar dados de campos que já foram preenchidos por outros registros/lógicas.
             });
         });
 
-        // 🛑 CORREÇÃO FINAL: Só cria o grupo e o nome se houver match
         if (temAlgumMatchNesteGrupo) {
             const registrosValidos = Array.from(pedidosConsolidadosPorId.values()).filter(p => p.temMatch);
 
             if (registrosValidos.length > 0) {
-                // SÓ AQUI criamos a entrada no dicionário de nomes
-                if (!solicitantesPendentesPorChave[chaveRenderizacao]) {
-                    solicitantesPendentesPorChave[chaveRenderizacao] = new Set();
-                }
-
-                registrosValidos.forEach(p => {
-                    const nome = p.nomeSolicitante || p.nmfuncionario || chaveRenderizacao;
-                    solicitantesPendentesPorChave[chaveRenderizacao].add(nome);
-                });
-
                 gruposFiltrados.push({
                     ...grupoConsolidado,
                     registrosOriginais: registrosValidos
@@ -4930,7 +4838,12 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
             ? grupo.funcionario
             : (grupo.nmfuncao || 'SOLICITAÇÃO DE FUNÇÃO');
 
-        const solicitantesGrupo = Array.from(solicitantesPendentesPorChave[chaveNome] || []).join(', ') || 'N/D';
+        // Pega o nome direto do primeiro registro do grupo (já que é a mesma pessoa)
+        const p = pedidosDoGrupo[0];
+        const solicitantesGrupo = p.nomeSolicitante || p.solicitante_nome || p.funcionario || "N/D";
+        console.log(`Renderizando grupo: ${chaveNome} - Solicitante(s): ${solicitantesGrupo} - Total Pedidos no Grupo: ${pedidosDoGrupo.length}`);
+        console .log (`Debug`, pedidosDoGrupo);
+
 
         const divGrupo = document.createElement("div");
         divGrupo.className = "funcionario";
@@ -8751,6 +8664,11 @@ document.getElementById("cardContainerVencimentos").addEventListener("click", as
 // ======================
 // ABRIR AGENDA
 // ======================
+async function inicializarAgendaCard() {
+    window.eventosSalvos = await carregarAgendaUsuario();
+    atualizarMiniCardAgenda();
+}
+
 document.getElementById("card-agenda").addEventListener("click", async function() {
   const painel = document.getElementById("painelDetalhes");
   painel.innerHTML = "";
@@ -8875,9 +8793,57 @@ calendarioDiv.appendChild(cabecalhoDiasSemana);
   btnAdicionar.addEventListener("click", abrirPopupNovoEvento);
 });
 
-// ==================================================================================
-// GERA CALENDÁRIO MENSAL
-// ==================================================================================
+function atualizarMiniCardAgenda() {
+    const listaUl = document.getElementById("listaAgendaUsuario");
+    if (!listaUl) return;
+
+    listaUl.innerHTML = "";
+
+    // Pega a data de hoje formatada (AAAA-MM-DD) para comparar
+    const hoje = new Date();
+    const hojeStr = hoje.getFullYear() + '-' + 
+                    String(hoje.getMonth() + 1).padStart(2, '0') + '-' + 
+                    String(hoje.getDate()).padStart(2, '0');
+
+    // Filtra eventos de hoje
+    const eventosHoje = (window.eventosSalvos || []).filter(ev => {
+        const dataEv = new Date(ev.data_evento).toISOString().split('T')[0];
+        return dataEv === hojeStr;
+    });
+
+    if (eventosHoje.length === 0) {
+        listaUl.innerHTML = `<li class="agenda-vazia">Agenda Livre</li>`;
+        return;
+    }
+
+    // Mostra os 3 primeiros eventos (para não estourar o card)
+    eventosHoje.slice(0, 3).forEach(ev => {
+        const li = document.createElement("li");
+        li.className = "mini-item-agenda";
+        
+        // Define uma cor ou ícone baseado no tipo
+        let corStatus = ev.tipo === 'Reunião' ? '#ff4d4d' : '#4CAF50';
+
+        li.innerHTML = `
+            <div class="mini-hora" style="border-left: 3px solid ${corStatus}">
+                ${ev.hora_evento || '--:--'}
+            </div>
+            <div class="mini-detalhes">
+                <span class="mini-titulo">${ev.titulo}</span>
+                <span class="mini-tipo">${ev.tipo}</span>
+            </div>
+        `;
+        listaUl.appendChild(li);
+    });
+
+    if (eventosHoje.length > 3) {
+        const mais = document.createElement("li");
+        mais.className = "mini-mais";
+        mais.textContent = `+ ${eventosHoje.length - 3} outros hoje`;
+        listaUl.appendChild(mais);
+    }
+}
+
 function gerarCalendarioMensal(mesParam) {
   const diasDiv = document.getElementById("diasCalendario");
   if (!diasDiv) return;
@@ -8945,9 +8911,6 @@ function gerarCalendarioMensal(mesParam) {
   }
 }
 
-// ==================================================================================
-// SELEÇÃO DE DIA
-// ==================================================================================
 function selecionarDia(div, data) {
   const calendario = document.getElementById("diasCalendario");
   if (calendario) {
@@ -8963,9 +8926,6 @@ function selecionarDia(div, data) {
   carregarEventosDoDia(data);
 }
 
-// ==================================================================================
-// CARREGA EVENTOS DO DIA
-// ==================================================================================
 function carregarEventosDoDia(data) {
   const lista = document.getElementById("listaEventosDia");
   if (!lista) return;
@@ -9040,10 +9000,6 @@ function carregarEventosDoDia(data) {
   }
 }
 
-
-// ==================================================================================
-// POPUP DE NOVO EVENTO
-// ==================================================================================
 function abrirPopupNovoEvento() {
   const overlay = document.createElement("div");
   overlay.className = "popup-overlay";
@@ -9119,9 +9075,6 @@ function abrirPopupNovoEvento() {
   });
 }
 
-// ==================================================================================
-// FUNÇÕES DE INTEGRAÇÃO COM O BACKEND
-// ==================================================================================
 async function salvarEventoAgenda(dadosEvento) {
   try {
     const json = await fetchComToken("/main/agenda", {
@@ -9168,6 +9121,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   await atualizarEventosEmAberto();
   await atualizarProximoEvento();
   await inicializarCardVencimentos();
+  await inicializarAgendaCard();
 });
 
 

@@ -611,7 +611,8 @@ router.get("/eventos-abertos", async (req, res) => {
                         'datas_staff', COALESCE(sdf.datas_staff, ARRAY[]::text[])
                     ))
                     FROM json_array_elements(
-                        (SELECT equipes_detalhes_base FROM vagas_orc WHERE idevento = e.idevento)
+                        -- ADICIONADO (SELECT ... LIMIT 1) PARA EVITAR O ERRO
+                        (SELECT equipes_detalhes_base FROM vagas_orc WHERE idevento = e.idevento LIMIT 1)
                     ) AS b
                     LEFT JOIN staff_por_funcao spf ON spf.idevento = e.idevento 
                         AND spf.idfuncao = (b->>'idfuncao')::int
@@ -1189,11 +1190,14 @@ router.get("/detalhes-eventos-abertos", async (req, res) => {
 
     // 1️⃣ Busca TODOS os orçamentos da empresa no evento
     const { rows: orcamentos } = await pool.query(
-      `SELECT o.idorcamento, o.idcliente, o.idmontagem
-       FROM orcamentos o
-       JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
-       WHERE o.idevento = $1 AND oe.idempresa = $2 
-       AND EXTRACT(YEAR FROM o.dtinirealizacao) = $3`,
+      `SELECT o.idorcamento, o.status, o.idcliente, o.idmontagem
+        FROM orcamentos o
+        JOIN orcamentoempresas oe ON oe.idorcamento = o.idorcamento
+        WHERE o.idevento = $1
+        AND oe.idempresa = $2
+        AND EXTRACT(YEAR FROM o.dtinirealizacao) = $3
+        AND o.status <> 'R'
+        ORDER BY o.dtinirealizacao DESC;`,
       [idevento, idempresa, ano]
     );
 
@@ -1691,17 +1695,16 @@ router.get('/notificacoes-financeiras', async (req, res) => {
         };
 
         const pedidosConsolidados = rows.map(r => {
-
             // Helper para gerar a string JSON de Caixinha/Ajuste (Array de 1 Item)
             const stringifyUnico = (statusField, valorRaw, descricaoRaw) => {
-
                 const valor = parseValor(valorRaw);
                 const status = statusField || '';
                 const descricao = descricaoRaw && descricaoRaw !== '-' ? descricaoRaw : null;
-
-                // Inclui se o status ou valor não for zero/vazio
                 if (status.trim() !== '' || valor !== 0) {
                     return JSON.stringify([{ 
+                        status: status, 
+                        valor: valor, 
+                        descricao: descricao 
                         status: status, 
                         valor: valor, 
                         descricao: descricao 
@@ -1709,7 +1712,6 @@ router.get('/notificacoes-financeiras', async (req, res) => {
                 }
                 return null;
             };
-
             // ** CORREÇÃO APLICADA AQUI **
             const diariaDobrada = isJsonbArrayEmpty(r.dtdiariadobrada) ? null : r.dtdiariadobrada;
             const meiaDiaria = isJsonbArrayEmpty(r.dtmeiadiaria) ? null : r.dtmeiadiaria;
@@ -1720,7 +1722,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
                 idStaffEvento: r.idstaffevento,
                 idpedido: r.id, 
                 solicitante: r.idexecutor || null,
-                nomeSolicitante: r.nomesolicitante || '-',
+                nomeSolicitante: r.nomesolicitante_real || r.nomeexecutor || '', // Preferencialmente o nome real do solicitante
                 funcionario: r.nomefuncionario || '-',
                 evento: r.evento,
                 dtCriacao: r.criado_em,
@@ -1732,14 +1734,11 @@ router.get('/notificacoes-financeiras', async (req, res) => {
                 // Diárias (Agora só incluídas se não forem '[]')
                 statusmeiadiaria: meiaDiaria, 
                 statusdiariadobrada: diariaDobrada,
-
-                // Caixinha / Ajuste (Transformado em JSON de 1 item)
                 statuscaixinha: stringifyUnico(r.statuscaixinha, r.vlrcaixinha, r.desccaixinha),
                 statusajustecusto: stringifyUnico(r.statusajustecusto, r.vlrajustecusto, r.descajustecusto),
-
+                statuscustofechado: stringifyUnico(r.statuscustofechado, r.vlrcache),
                 ehMasterStaff: ehMasterStaff, 
                 podeVerTodos: podeVerTodos,
-
                 datasevento: r.datasevento || '-',
                 dtfimrealizacao: r.dtfimrealizacao || null,
             };
@@ -1774,7 +1773,8 @@ router.patch('/notificacoes-financeiras/atualizar-status',
                     statuscaixinha, 
                     statusajustecusto, 
                     dtdiariadobrada, 
-                    dtmeiadiaria
+                    dtmeiadiaria,
+                    statuscustofechado
                 FROM staffeventos 
                 WHERE idstaffevento = $1`;
             const result = await pool.query(query, [id]);
@@ -1807,7 +1807,8 @@ router.patch('/notificacoes-financeiras/atualizar-status',
             'statuscaixinha': 'statuscaixinha',
             'statusajustecusto': 'statusajustecusto',
             'statusdiariadobrada': 'dtdiariadobrada', 
-            'statusmeiadiaria': 'dtmeiadiaria',      
+            'statusmeiadiaria': 'dtmeiadiaria',
+            'statuscustofechado': 'statuscustofechado'     
         };
         const colunaDB = mapCategoriaToColuna[categoria];
 
@@ -1858,6 +1859,8 @@ router.patch('/notificacoes-financeiras/atualizar-status',
 
                 console.log(`Status atualizado para ${acaoCapitalizada} na categoria ${categoria} para o pedido ${idpedido} data ${dataDecisao}.`);
                 
+
+
 
                 return res.json({
                     sucesso: true,
@@ -2044,7 +2047,10 @@ router.post('/notificacoes-financeiras/atualizar-status',
             updatedRows = updatedStaff;
         }
 
-        if (!updatedRows.length) return res.status(404).json({ error: 'Registro não encontrado em nenhuma tabela' });
+  res.locals.acao = 'cadastrou';
+        res.locals.idregistroalterado = idpedido; 
+
+  if (!updatedRows.length) return res.status(404).json({ error: 'Registro não encontrado em nenhuma tabela' });
 
         res.json({ sucesso: true, atualizado: updatedRows[0] });
 
@@ -2995,7 +3001,14 @@ router.get("/vencimentos", async (req, res) => {
   }
 });
 
-router.post("/vencimentos/update-status", async (req, res) => {
+router.post("/vencimentos/update-status", logMiddleware("Vencimentos", {
+    buscarDadosAnteriores: async (req) => {
+        const { idStaff } = req.body;
+        const query = `SELECT idstaffevento, statuspgto, statuspgtoajdcto, statuscaixinha FROM staffeventos WHERE idstaffevento = $1`;
+        const result = await pool.query(query, [idStaff]);
+        return result.rows[0] ? { dadosanteriores: result.rows[0], idregistroalterado: idStaff } : null;
+    }
+}), async (req, res) => {
     let { idStaff, tipo, novoStatus } = req.body;
 
     // 1. Mapeamento da Coluna (Corrigido para incluir Caixinha)
@@ -3026,6 +3039,9 @@ router.post("/vencimentos/update-status", async (req, res) => {
             [statusFinal, idStaff]
         );
 
+        res.locals.acao = 'Atualizou';
+        res.locals.idregistroalterado = idStaff; 
+
         if (result.rowCount > 0) {
             res.json({ success: true, statusSalvo: statusFinal });
         } else {
@@ -3037,7 +3053,14 @@ router.post("/vencimentos/update-status", async (req, res) => {
     }
 });
 
-router.post("/vencimentos/upload-comprovante", upload.single('arquivo'), async (req, res) => {
+router.post("/vencimentos/upload-comprovante", upload.single('arquivo'), logMiddleware("Vencimentos", {
+    buscarDadosAnteriores: async (req) => {
+        const { idStaff } = req.body;
+        const query = `SELECT idstaffevento, comppgtocache, comppgtocaixinha, comppgtoajdcusto50, comppgtoajdcusto FROM staffeventos WHERE idstaffevento = $1`;
+        const result = await pool.query(query, [idStaff]);
+        return result.rows[0] ? { dadosanteriores: result.rows[0], idregistroalterado: idStaff } : null;
+    }
+}), async (req, res) => {
     const { idStaff, tipo } = req.body;
     
     if (!req.file) {
@@ -3082,6 +3105,9 @@ router.post("/vencimentos/upload-comprovante", upload.single('arquivo'), async (
             `UPDATE staffeventos SET ${coluna} = $1 WHERE idstaffevento = $2`,
             [pathArquivo, idStaff]
         );
+
+        res.locals.acao = 'cadastrou';
+        res.locals.idregistroalterado = idStaff; 
 
         if (result.rowCount === 0) {
             return res.status(404).json({ error: "Funcionário não encontrado no evento." });
@@ -3348,7 +3374,20 @@ router.get('/contas-pagar', async (req, res) => {
 // });
 
 
-router.post('/confirmar-pagamento-conta', async (req, res) => {
+router.post('/confirmar-pagamento-conta',logMiddleware('pagamentos', {
+        buscarDadosAnteriores: async (req) => {
+            const { idlancamento, dtvcto } = req.body;
+            if (!idlancamento || !dtvcto) return null;
+
+            const query = `SELECT idpagamento, status, vlrpago, dtpgto FROM pagamentos WHERE idlancamento = $1 AND dtvcto = $2::date`;
+            const result = await pool.query(query, [idlancamento, dtvcto]);
+            
+            return result.rows[0] ? { 
+                dadosanteriores: result.rows[0], 
+                idregistroalterado: result.rows[0].idpagamento 
+            } : null;
+        }
+    }), async (req, res) => {
     const { idpagamento, idlancamento, vlrpago, dtvcto, dtpagamento, observacao, status } = req.body;
     const idempresa = req.headers.idempresa;
     const statusFinal = status || 'pago';
@@ -3407,6 +3446,10 @@ router.post('/confirmar-pagamento-conta', async (req, res) => {
         }
 
         await client.query('COMMIT');
+
+        res.locals.acao = 'cadastrou';
+        res.locals.idregistroalterado = idFinal; 
+
         console.log("\x1b[32m✅ SUCESSO: Transação finalizada.\x1b[0m\n");
         res.json({ sucesso: true, idpagamento: idFinal, mensagem: "Processado com sucesso" });
 
@@ -3421,7 +3464,20 @@ router.post('/confirmar-pagamento-conta', async (req, res) => {
 });
 
 
-router.post("/vencimentoconta/uploads_comprovantesconta", upload.single('comprovante'), async (req, res) => {
+router.post("/vencimentoconta/uploads_comprovantesconta", upload.single('comprovante'),logMiddleware('pagamentos comp.', {
+        buscarDadosAnteriores: async (req) => {
+            const { idPagamento } = req.body;
+            if (!idPagamento || isNaN(parseInt(idPagamento))) return null;
+
+            const query = `SELECT idpagamento, comprovantepgto, imagemconta FROM pagamentos WHERE idpagamento = $1`;
+            const result = await pool.query(query, [idPagamento]);
+
+            return result.rows[0] ? { 
+                dadosanteriores: result.rows[0], 
+                idregistroalterado: idPagamento 
+            } : null;
+        }
+    }), async (req, res) => {
     const { idPagamento, tipo } = req.body;
     
     if (!req.file) {
@@ -3451,6 +3507,9 @@ router.post("/vencimentoconta/uploads_comprovantesconta", upload.single('comprov
             `UPDATE pagamentos SET ${coluna} = $1 WHERE idpagamento = $2`,
             [pathArquivo, idPagamento]
         );
+
+        res.locals.acao = 'cadastrou';
+        res.locals.idregistroalterado = idPagamento; 
 
         if (result.rowCount === 0) {
             return res.status(404).json({ error: "Pagamento não encontrado em contas." });
@@ -3496,7 +3555,20 @@ router.get("/agenda", async (req, res) => {
   }
 });
 
-router.post("/agenda", async (req, res) => {
+router.post("/agenda",logMiddleware('agenda', {
+        buscarDadosAnteriores: async (req) => {
+            const { titulo, data_evento } = req.body;
+            if (!titulo || !data_evento) return null;
+
+            const query = `SELECT idagenda, titulo, descricao, data_evento, hora_evento, tipo FROM agendas WHERE titulo = $1 AND data_evento = $2::date`;
+            const result = await pool.query(query, [titulo, data_evento]);
+
+            return result.rows[0] ? { 
+                dadosanteriores: result.rows[0], 
+                idregistroalterado: result.rows[0].idagenda 
+            } : null;
+        }
+    }), async (req, res) => {
   try {
   const idusuario = req.usuario?.idusuario || req.headers.idusuario;
   const { titulo, descricao, data_evento, hora_evento, tipo } = req.body;
@@ -3512,6 +3584,8 @@ router.post("/agenda", async (req, res) => {
   [idusuario, titulo, descricao, data_evento, hora_evento, tipo || "Evento"]
 );
 
+    res.locals.acao = 'cadastrou';
+    res.locals.idregistroalterado = resultado.rows[0].idagenda; 
 
   res.status(201).json(resultado.rows[0]);
   } catch (err) {
@@ -3520,7 +3594,14 @@ router.post("/agenda", async (req, res) => {
   }
 });
 
-router.delete("/agenda/:idagenda", async (req, res) => {
+router.delete("/agenda/:idagenda", logMiddleware('agenda', {
+        buscarDadosAnteriores: async (req) => {
+            const { idagenda } = req.params;
+            const query = `SELECT idagenda, titulo, descricao, data_evento, hora_evento, tipo FROM agendas WHERE idagenda = $1`;
+            const result = await pool.query(query, [idagenda]);
+            return result.rows[0] ? { dadosanteriores: result.rows[0], idregistroalterado: idagenda } : null;
+        }
+    }), async (req, res) => {
   try {
   const idusuario = req.usuario?.idusuario || req.headers.idusuario;
   const { idagenda } = req.params;
@@ -3535,6 +3616,8 @@ router.delete("/agenda/:idagenda", async (req, res) => {
   [idagenda, idusuario]
 );
 
+    res.locals.acao = 'excluiu';
+    res.locals.idregistroalterado = idagenda 
 
   if (resultado.rowCount === 0) {
   return res.status(404).json({ erro: "Evento não encontrado ou não pertence ao usuário." });
@@ -3653,6 +3736,9 @@ router.patch('/aditivoextra/:idAditivoExtra/status',
     throw new Error("A atualização falhou. Nenhuma linha afetada.");
     }
 
+    res.locals.acao = 'atualizou';
+    res.locals.idregistroalterado = idAditivoExtra; 
+
     // 4. Resposta de Sucesso
     res.json({
     sucesso: true,
@@ -3751,5 +3837,15 @@ router.get('/aditivoextra', async (req, res) => {
     }
 });
 // =======================================
+// Rota para retornar a versão do sistema
+router.get("/versao", (req, res) => {
+    try {
+        // Importa o package.json dinamicamente
+        const pkg = require('../package.json'); 
+        res.json({ versao: pkg.version });
+    } catch (err) {
+        res.status(500).json({ erro: "Não foi possível ler a versão" });
+    }
+});
 
 module.exports = router;
