@@ -513,8 +513,8 @@ router.get('/check-duplicate', autenticarToken(), contextoEmpresa, async (req, r
         queryValues.push(idFuncao); 
 
         // Log para depuração
-        console.log("QUERY DINÂMICA:", query);
-        console.log("VALUES DA QUERY:", queryValues);
+        //console.log("QUERY DINÂMICA:", query);
+        //console.log("VALUES DA QUERY:", queryValues);
 
         const result = await client.query(query, queryValues);
 

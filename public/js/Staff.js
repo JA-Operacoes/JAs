@@ -4112,18 +4112,23 @@ async function verificaStaff() {
                     statusAjusteCusto = ''; // Caso contrário, mantém vazio
                 }
             }
-
+            const vlrCustoNumerico = parseFloat(String(vlrCusto).replace(',', '.')) || 0;
+            
+            console.log("Status CUSTO FECHADO antes lógica:", statusFechado, fechadoCheck.checked, vlrCusto);
             if (!statusFechado || statusFechado.trim() === '') {
-                if (fechadoCheck && fechadoCheck.checked && vlrCusto > 0) {
+                console.log("Entrou na lógica de custo fechado");
+                if (fechadoCheck.checked && vlrCustoNumerico > 0) {
+                    console.log("Custo fechado marcado e valor do custo é maior que 0, definindo como Pendente");
                     statusFechado = 'Pendente';
                 } else {
                     statusFechado = ''; // Mantém vazio se o checkbox não estiver marcado
                 }
             }
-            if (fechadoCheck && !fechadoCheck.checked) {
+            console.log("Status CUSTO FECHADO meio da lógica:", statusFechado);
+            if (!statusFechado && !fechadoCheck.checked) {
                 statusFechado = '';
             }
-
+            console.log("Status CUSTO FECHADO depois lógica:", statusFechado);
 
             // if (statusPgtoAjusteCusto !== "Pago" && statusPgtoAjusteCusto !== "Pago50") {
             //     if (temComprovanteAjudaCusto) {
