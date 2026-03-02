@@ -423,6 +423,9 @@ router.post("/orcamento/consultar",
         const result = await client.query(query, values);
         const orcamentoItems = result.rows;
 
+        res.locals.acao = 'cadastrou';
+        res.locals.idregistroalterado = orcamentoItems.length > 0 ? orcamentoItems[0].idorcamento : null; 
+
         res.status(200).json(orcamentoItems);
        } catch (error) {
         console.error("Erro ao buscar itens de orçamento por critérios:", error);
@@ -599,6 +602,9 @@ router.post('/check-availability', autenticarToken(), contextoEmpresa, async (re
 
         const result = await client.query(query, params);
 
+        res.locals.acao = 'cadastrou';
+        res.locals.idregistroalterado = result.rows.length > 0 ? result.rows[0].idstaffevento : null; 
+
         if (result.rows.length > 0) {
             // Se houver conflito, retorna o primeiro encontrado
             return res.json({
@@ -610,6 +616,8 @@ router.post('/check-availability', autenticarToken(), contextoEmpresa, async (re
             // Não há conflito de agenda
             return res.json({ isAvailable: true, conflictingEvent: null, conflicts: [] });
         }
+
+        
 
     } catch (error) {
         console.error("❌ Erro no backend ao verificar disponibilidade:", error);
@@ -690,6 +698,7 @@ router.get("/:idFuncionario", autenticarToken(), contextoEmpresa,
           se.idorcamento,
           s.idstaff,
           s.avaliacao,
+          se.statuscustofechado,
           (
             SELECT jsonb_agg(elem ORDER BY elem::date)
             FROM jsonb_array_elements_text(
@@ -870,9 +879,9 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermi
                 dtmeiadiaria = $28, desccaixinha = $29, descdiariadobrada = $30, descmeiadiaria = $31,
                 comppgtocache = $32, comppgtoajdcusto = $33, comppgtoajdcusto50 = $34, comppgtocaixinha = $35, 
                 nivelexperiencia = $36, qtdpessoaslote = $37, idequipe = $38, nmequipe = $39, tipoajudacustoviagem = $40,
-                statuspgtoajdcto = $41, statuspgtocaixinha = $42, idorcamento = $43, vlrtotcache = $44, vlrtotajdcusto = $45
+                statuspgtoajdcto = $41, statuspgtocaixinha = $42, idorcamento = $43, vlrtotcache = $44, vlrtotajdcusto = $45, statuscustofechado = $46
                 FROM staffempresas sme
-                WHERE se.idstaff = sme.idstaff AND se.idstaffevento = $46 AND sme.idempresa = $47
+                WHERE se.idstaff = sme.idstaff AND se.idstaffevento = $47 AND sme.idempresa = $48
                 RETURNING se.idstaffevento;
             `;
 
@@ -889,12 +898,16 @@ router.put("/:idStaffEvento", autenticarToken(), contextoEmpresa, verificarPermi
                 paths.cache, paths.ajd, paths.ajd50, paths.cx,
                 body.nivelexperiencia, body.qtdpessoas, body.idequipe, body.nmequipe, body.tipoajudacustoviagem,
                 body.statuspgtoajdcto, body.statuspgtocaixinha, body.idorcamento,
-                parseFloatOrNull(body.vlrtotcache), parseFloatOrNull(body.vlrtotajdcusto),
+                parseFloatOrNull(body.vlrtotcache), parseFloatOrNull(body.vlrtotajdcusto), body.statuscustofechado,
                 idStaffEvento, idempresa
             ];
 
             const resUp = await client.query(queryUpdate, values);
             await client.query('COMMIT');
+
+            res.locals.acao = 'alterou';
+            res.locals.idregistroalterado = idStaffEvento; 
+
             res.json({ message: "Atualizado", id: resUp.rows[0].idstaffevento });
         } catch (e) {
             if (client) await client.query('ROLLBACK');
@@ -926,7 +939,7 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
         datadiariadobrada, datameiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria,
         nivelexperiencia, qtdpessoas, idequipe, nmequipe, tipoajudacustoviagem,
         statuspgtoajdcto, statuspgtocaixinha, idorcamento,
-        vlrtotcache, vlrtotajdcusto// Novos campos
+        vlrtotcache, vlrtotajdcusto, statuscustofechado
     } = req.body;
 
     const idempresa = req.idempresa;
@@ -960,9 +973,9 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
                 statusdiariadobrada, statusmeiadiaria, dtdiariadobrada, comppgtoajdcusto50,
                 dtmeiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia,
                 qtdpessoaslote, idequipe, nmequipe, tipoajudacustoviagem, statuspgtocaixinha,
-                statuspgtoajdcto, idorcamento, vlrtotcache, vlrtotajdcusto
+                statuspgtoajdcto, idorcamento, vlrtotcache, vlrtotajdcusto, statuscustofechado
             ) VALUES (
-                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48
             ) RETURNING idstaffevento;
         `;
 
@@ -980,11 +993,15 @@ router.post("/", autenticarToken(), contextoEmpresa, verificarPermissao('staff',
             req.files?.comppgtoajdcusto50?.[0] ? `/uploads/staff_comprovantes/${req.files.comppgtoajdcusto50[0].filename}` : null,
             datameiadiaria, desccaixinha, descdiariadobrada, descmeiadiaria, nivelexperiencia, qtdpessoas,
             idequipe, nmequipe, tipoajudacustoviagem, statuspgtocaixinha, statuspgtoajdcto, idorcamento,
-            parseFloatOrNull(vlrtotcache), parseFloatOrNull(vlrtotajdcusto)
+            parseFloatOrNull(vlrtotcache), parseFloatOrNull(vlrtotajdcusto), statuscustofechado
         ];
 
         const resIns = await client.query(queryInsert, values);
         await client.query('COMMIT');
+
+        res.locals.acao = 'cadastrou';
+        res.locals.idregistroalterado = resIns.rows[0].idstaffevento; 
+
         res.status(201).json({ message: "Sucesso", idstaffevento: resIns.rows[0].idstaffevento });
     } catch (e) {
         if (client) await client.query('ROLLBACK');
@@ -1665,6 +1682,9 @@ router.post('/aditivoextra/solicitacao',
           req.logData.idregistroalterado = idAditivoExtra;
           await logMiddleware.salvarLog(req.logData); 
         }
+
+        res.locals.acao = 'cadastrou';
+        res.locals.idregistroalterado = idAditivoExtra; 
 
         res.status(201).json({ 
           sucesso: true, 

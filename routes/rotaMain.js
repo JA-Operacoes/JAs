@@ -1558,7 +1558,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
         const query = `
         WITH OriginalExecutor AS (
             SELECT DISTINCT ON (idregistroalterado)
-            idregistroalterado AS idstaffevento, idexecutor, criado_em
+                idregistroalterado AS idstaffevento, idexecutor, criado_em
             FROM logs
             WHERE modulo = 'staffeventos' AND idempresa = $1 
             ORDER BY idregistroalterado, criado_em ASC
@@ -1569,10 +1569,12 @@ router.get('/notificacoes-financeiras', async (req, res) => {
             (u.nome || ' ' || u.sobrenome) AS nomeexecutor,
             f.nome AS nomefuncionario, 
             e.nmevento AS evento,
-            se.vlrcaixinha, se.desccaixinha, se.statuscaixinha, se.vlrajustecusto, 
-            se.descajustecusto, se.statusajustecusto, se.dtdiariadobrada, 
-            se.descdiariadobrada, se.statusdiariadobrada, se.dtmeiadiaria, 
-            se.descmeiadiaria, se.statusmeiadiaria, se.datasevento, oe.criado_em, 
+            se.vlrcaixinha, se.desccaixinha, se.statuscaixinha, 
+            se.vlrajustecusto, se.descajustecusto, se.statusajustecusto, 
+            se.dtdiariadobrada, se.descdiariadobrada, se.statusdiariadobrada, 
+            se.dtmeiadiaria, se.descmeiadiaria, se.statusmeiadiaria,
+            se.statuscustofechado,
+            se.datasevento, oe.criado_em, 
             se.idfuncionario AS idusuarioalvo, 
             COALESCE(o.dtfiminfradesmontagem, o.dtfimdesmontagem) AS dtfimrealizacao,
             (us.nome || ' ' || us.sobrenome) AS nomesolicitante_real
@@ -1586,18 +1588,23 @@ router.get('/notificacoes-financeiras', async (req, res) => {
         LEFT JOIN orcamentos o ON o.idevento = e.idevento
         WHERE 
         (
+            -- Verifica se qualquer um dos status financeiros está preenchido
             (se.statuscaixinha IS NOT NULL AND se.statuscaixinha <> '') OR
             (se.statusajustecusto IS NOT NULL AND se.statusajustecusto <> '') OR
             (se.statusdiariadobrada IS NOT NULL AND se.statusdiariadobrada <> '') OR 
-            (se.statusmeiadiaria IS NOT NULL AND se.statusmeiadiaria <> '')
+            (se.statusmeiadiaria IS NOT NULL AND se.statusmeiadiaria <> '') OR
+            (se.statuscustofechado IS NOT NULL AND se.statuscustofechado <> '')
         )
         AND 
         ( 
+            -- Regra de exibição: deve ter valor ou ser um array de datas não vazio
             (COALESCE(se.vlrcaixinha, '0')::numeric > 0) OR 
             (COALESCE(se.vlrajustecusto, '0')::numeric != 0) OR 
             (se.dtdiariadobrada IS NOT NULL AND se.dtdiariadobrada <> '[]'::jsonb) OR 
-            (se.dtmeiadiaria IS NOT NULL AND se.dtmeiadiaria <> '[]'::jsonb)
-        ) AND semp.idempresa = $1
+            (se.dtmeiadiaria IS NOT NULL AND se.dtmeiadiaria <> '[]'::jsonb) OR
+            (se.statuscustofechado = 'Pendente')
+        ) 
+        AND semp.idempresa = $1
         ${filtroSolicitante} 
         ORDER BY se.idstaffevento, oe.criado_em DESC;
         `;
@@ -1656,6 +1663,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
                 statusdiariadobrada: diariaDobrada,
                 statuscaixinha: stringifyUnico(r.statuscaixinha, r.vlrcaixinha, r.desccaixinha),
                 statusajustecusto: stringifyUnico(r.statusajustecusto, r.vlrajustecusto, r.descajustecusto),
+                statuscustofechado: stringifyUnico(r.statuscustofechado, r.vlrcache),
                 ehMasterStaff: ehMasterStaff, 
                 podeVerTodos: podeVerTodos,
                 datasevento: r.datasevento || '-',
@@ -1691,7 +1699,8 @@ router.patch('/notificacoes-financeiras/atualizar-status',
                     statuscaixinha, 
                     statusajustecusto, 
                     dtdiariadobrada, 
-                    dtmeiadiaria
+                    dtmeiadiaria,
+                    statuscustofechado
                 FROM staffeventos 
                 WHERE idstaffevento = $1`;
             const result = await pool.query(query, [id]);
@@ -1724,7 +1733,8 @@ router.patch('/notificacoes-financeiras/atualizar-status',
             'statuscaixinha': 'statuscaixinha',
             'statusajustecusto': 'statusajustecusto',
             'statusdiariadobrada': 'dtdiariadobrada', 
-            'statusmeiadiaria': 'dtmeiadiaria',      
+            'statusmeiadiaria': 'dtmeiadiaria',
+            'statuscustofechado': 'statuscustofechado'     
         };
         const colunaDB = mapCategoriaToColuna[categoria];
 
@@ -1870,7 +1880,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
   if (!idpedido) return { dadosanteriores: null, idregistroalterado: null };
 
   const { rows } = await pool.query(`
-  SELECT statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria
+  SELECT statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria, statuscustofechado
   FROM staffeventos
   WHERE idstaffevento = $1
   `, [idpedido]);
@@ -1904,7 +1914,8 @@ router.post('/notificacoes-financeiras/atualizar-status',
   statuscaixinha: "statuscaixinha",
   statusajustecusto: "statusajustecusto",
   statusdiariadobrada: "statusdiariadobrada",
-  statusmeiadiaria: "statusmeiadiaria"
+  statusmeiadiaria: "statusmeiadiaria",
+  statuscustofechado: "statuscustofechado"
   };
 
   const coluna = mapCategorias[categoria];
@@ -1919,7 +1930,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
   UPDATE staffeventos
   SET ${coluna} = $2
   WHERE idstaffevento = $1
-  RETURNING idstaffevento, statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria;
+  RETURNING idstaffevento, statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria, statuscustofechado;
   `, [idpedido, statusParaAtualizar]);
 
   // 🔹 Se não encontrou no staffeventos, tenta atualizar na tabela staff
@@ -1928,7 +1939,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
   UPDATE staff
   SET ${coluna} = $2
   WHERE idstaffevento = $1
-  RETURNING idstaff, idstaffevento, statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria;
+  RETURNING idstaff, idstaffevento, statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria, statuscustofechado;
   `, [idpedido, statusParaAtualizar]);
 
   updatedRows = updatedStaff;

@@ -3489,102 +3489,6 @@ async function atualizarResumo() {
 //  Pedidos Financeiros
 // ==============================================================================================
 
-// async function buscarPedidosUsuario() {
-//     const idusuario = getIdExecutor(); 
-
-//     // ----------------------------------------------------
-//     // FUNÇÕES UTILS SIMPLIFICADAS (V43.0)
-//     // ----------------------------------------------------
-//     function preencherSolicitante(p) {
-//         return {
-//             ...p,
-//             // Usa idusuariosolicitante, ou idusuario (V40.0)
-//             solicitante: p.idusuariosolicitante || p.idusuario, 
-//             solicitante_nome: p.nomeSolicitante || p.solicitante_nome || (String(p.solicitante) === String(idusuario) ? "Você" : "Solicitante desconhecido")
-//         };
-//     }
-//     // A função garantirCamposDeStatus e desmembrarPedidos SÃO REMOVIDAS
-//     // ----------------------------------------------------
-
-//     try {
-//         const resposta = await fetchComToken(`/main/notificacoes-financeiras`, {
-//             headers: { idempresa: getIdEmpresa() }
-//         });  
-
-//         console.log("DEBUG: Resposta Bruta do Fetch (length):", resposta ? resposta.length : 0);
-        
-//         const podeVerTodos = usuarioTemPermissaoSupremo(); 
-//         const ehMasterStaff = usuarioTemPermissao(); 
-
-//         if (!resposta || !Array.isArray(resposta)) {
-//             console.error("Resposta inválida ou não é um array:", resposta);
-//             return [];
-//         }
-
-//         // 🛑 NOVO FLUXO V43.0: Os 412 itens são pedidos únicos (já desmembrados pelo servidor)
-//         let pedidosProcessados = resposta.map(p => preencherSolicitante(p));
-
-//         // pedidosProcessados = pedidosProcessados.map(p => ({
-//         //     ...p,
-//         //     // 🛑 CORREÇÃO V48.0: Converte o status para minúsculas.
-//         //     status_aprovacao: p.status ? p.status.toLowerCase() : null, 
-//         //     categoria_item: p.categoria 
-//         // }));
-
-//         pedidosProcessados = pedidosProcessados.map(p => {
-//     // Tenta encontrar o status real em diferentes colunas que o banco pode usar
-//     // Prioriza o que NÃO for pendente se houver outra info disponível
-//     const statusReal = p.status_item || p.status_aprovacao || p.status || 'pendente';
-    
-//     return {
-//         ...p,
-//         status_aprovacao: statusReal.toString().toLowerCase().trim(),
-//         categoria_item: p.categoria || p.categoria_item
-//     };
-// });
-
-//         // 🛑 DEBUG V50: Confirma o status padronizado
-//         if (pedidosProcessados.length > 0) {
-//             console.log("DEBUG V50: Status Padronizado do 1º Pedido Financeiro:", pedidosProcessados[0].status_aprovacao);
-//         }
-
-//         // 🛑 DEBUG V37: Loga o resultado ANTES do filtro de usuário
-//         console.log("DEBUG V37: Pedidos Processados ANTES do filtro de usuário:", pedidosProcessados.length);
-
-
-//         // 3. APLICAÇÃO DA LÓGICA DE VISUALIZAÇÃO E FILTRO
-//         if (podeVerTodos) { 
-//             console.log(`✅ Usuário tem Visualização Total (Master/Financeiro) → Retornando ${pedidosProcessados.length} pedidos.`);
-            
-//             pedidosProcessados = pedidosProcessados.map(p => ({ 
-//                 ...p, 
-//                 ehMasterStaff: ehMasterStaff,
-//                 podeVerTodos: true 
-//             }));
-
-//         } else {
-//             console.log("👤 Usuário comum → Vendo apenas os próprios pedidos.");
-            
-//             // Filtra no array de 412 itens, usando a chave 'solicitante'
-//             pedidosProcessados = pedidosProcessados
-//                 .filter(p => String(p.solicitante) === String(idusuario))
-//                 .map(p => ({ 
-//                     ...p, 
-//                     ehMasterStaff: false,
-//                     podeVerTodos: false
-//                 }));
-//         }
-
-//         console.log(`RESPOSTA NO BUSCAR PEDIDOS (${pedidosProcessados.length})`);
-        
-//         return pedidosProcessados; 
-
-//     } catch (err) {
-//         console.error("Erro na requisição de pedidos:", err);
-//         return [];
-//     }
-// }
-
 async function buscarPedidosUsuario() {
     const idusuario = getIdExecutor(); 
 
@@ -3706,11 +3610,12 @@ async function mostrarPedidosUsuario() {
     const dataFieldMapping = {
         "statusdiariadobrada": "dtdiariadobrada",
         "statusmeiadiaria": "dtmeiadiaria",
+        "statuscustofechado": "vlrcache",
         // Outros campos de status que contêm JSON Array devem ser adicionados aqui
     };
 
     const camposTodos = [
-        "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada", CAMPO_ADITIVO_EXTRA
+        "statusajustecusto", "statuscaixinha", "statusmeiadiaria", "statusdiariadobrada", "statuscustofechado", CAMPO_ADITIVO_EXTRA
     ];
 
     try {
@@ -4247,6 +4152,7 @@ function formatarNomeSolicitacao(campoNome) {
         "caixinha": "Caixinha",
         "meiadiaria": "Meia Diária",
         "diariadobrada": "Diária Dobrada",
+        "custofechado": "Cachê Fechado",
         "aditivoextra": "Aditivo Extra"
     };
 
@@ -4339,6 +4245,7 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
         "statuscaixinha",
         "statusmeiadiaria",
         "statusdiariadobrada",
+        "statuscustofechado",
         CAMPO_ADITIVO_EXTRA
     ];
     // 🛑 V65.0: Inclui o campo placeholder para renderização na Seção 2
