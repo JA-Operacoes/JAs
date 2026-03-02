@@ -4920,8 +4920,19 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         // Verifica se a data é válida antes de formatar
                         dataSolicFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataSolicitacao;
                     }
+                   
+                    let dataFormatada = '';
+                    if (pedido.dataDecisao) {
+                        const dataObj = new Date(pedido.dataDecisao);
+                        // Verifica se a data é válida antes de formatar
+                        dataFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataDecisao;
+                    }
 
                     const nomeSolic = pedido.nomeSolicitante || "N/D";
+
+                    const aprovadorTxt = (statusLower !== STATUS_PENDENTE_LOWER && pedido.nomeAprovador) 
+                                ? ` por <strong>${pedido.nomeAprovador}</strong> em <strong> ${dataFormatada}</strong>` 
+                                : '';
 
                     htmlBody += `
                         <div class="pedido-card">
@@ -4952,22 +4963,15 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                         //     htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
                         // }
 
-                        let dataFormatada = '';
-                        if (pedido.dataDecisao) {
-                            const dataObj = new Date(pedido.dataDecisao);
-                            // Verifica se a data é válida antes de formatar
-                            dataFormatada = !isNaN(dataObj) ? dataObj.toLocaleDateString('pt-BR') : pedido.dataDecisao;
-                        }
-                        const aprovadorTxt = (statusLower !== STATUS_PENDENTE_LOWER && pedido.nomeAprovador) 
-                                ? ` por <strong>${pedido.nomeAprovador}</strong> em <strong> ${dataFormatada}</strong>` 
-                                : '';
+                        
+                        
 
-                            if (valor !== 0) {
-                                const valorFmt = valor.toFixed(2).replace('.', ',');
-                                htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
-                            } else {
-                                htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
-                            }
+                        if (valor !== 0) {
+                            const valorFmt = valor.toFixed(2).replace('.', ',');
+                            htmlBody += `Valor: R$ ${valorFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+                        } else {
+                            htmlBody += `Status: <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
+                        }
 
                     } else if (isDataUnica) {
                         const dataBruta = String(infoItem.data || '').trim();
@@ -4976,13 +4980,13 @@ function renderizarPedidos(pedidosCompletos, containerId, categoria, statusDesej
                             const dataObj = parseDateLocal(dataBruta);
                             dataFmt = dataObj ? dataObj.toLocaleDateString('pt-BR') : 'Data indefinida';
                         }
-                        htmlBody += `Data: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+                        htmlBody += `Data: ${dataFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
                     } else if (infoItem.datas) {
                         const datasFmt = infoItem.datas
                             .map(d => parseDateLocal(d.data)?.toLocaleDateString('pt-BR'))
                             .filter(d => d)
                             .join(', ');
-                        htmlBody += `Datas: ${datasFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span><br>`;
+                        htmlBody += `Datas: ${datasFmt} - <span class="status-text font-semibold"><strong>${statusTexto}</strong></span>${aprovadorTxt}<br>`;
                     }
 
                     if (infoItem.descricao) {

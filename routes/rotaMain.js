@@ -1558,7 +1558,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
         // A QUERY ESTÁ CORRETA NESTE PONTO.
         const query = `
             WITH PedidosDetalhados AS (
-                -- 1. Bloco Caixinha
+                -- 1. Bloco Caixinha (Define a estrutura mestre)
                 SELECT 
                     l.id AS id_log, se.idstaffevento, l.idexecutor, (u.nome || ' ' || u.sobrenome) AS nomesolicitante,
                     f.nome AS nomefuncionario, e.nmevento AS evento, se.datasevento, l.criado_em,
@@ -1566,6 +1566,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
                     l.dadosnovos->>'statuscaixinha' AS status_atual,
                     se.vlrcaixinha, se.desccaixinha, se.statuscaixinha,
                     NULL::numeric AS vlrajustecusto, NULL AS descajustecusto, NULL AS statusajustecusto,
+                    NULL::numeric AS vlrcache, NULL AS desccustofechado, NULL AS statuscustofechado,
                     NULL AS dtdiariadobrada, NULL AS descdiariadobrada, NULL AS statusdiariadobrada,
                     NULL AS dtmeiadiaria, NULL AS descmeiadiaria, NULL AS statusmeiadiaria,
                     se.idfuncionario AS idusuarioalvo
@@ -1576,9 +1577,8 @@ router.get('/notificacoes-financeiras', async (req, res) => {
                 LEFT JOIN eventos e ON e.idevento = se.idevento
                 WHERE l.modulo = 'staffeventos' AND l.idempresa = $1 
                 AND l.dadosnovos ? 'statuscaixinha' 
-                AND l.dadosnovos ? 'vlrcaixinha'
                 AND (REPLACE(COALESCE(l.dadosnovos->>'vlrcaixinha', '0'), ',', '.'))::numeric <> 0
-                ${filtroSolicitante} -- 🔍 Aqui entra "AND l.idexecutor = $2" se não for master
+                ${filtroSolicitante}
 
                 UNION ALL
 
@@ -1588,10 +1588,11 @@ router.get('/notificacoes-financeiras', async (req, res) => {
                     f.nome AS nomefuncionario, e.nmevento AS evento, se.datasevento, l.criado_em,
                     'statusajustecusto' AS categoria, 
                     l.dadosnovos->>'statusajustecusto' AS status_atual,
-                    NULL, NULL, NULL,
+                    NULL, NULL, NULL, -- Caixinha
                     se.vlrajustecusto, se.descajustecusto, se.statusajustecusto,
-                    NULL, NULL, NULL,
-                    NULL, NULL, NULL,
+                    NULL, NULL, NULL, -- Cachê Fechado
+                    NULL, NULL, NULL, -- Diária Dobrada
+                    NULL, NULL, NULL, -- Meia Diária
                     se.idfuncionario AS idusuarioalvo
                 FROM logs l
                 JOIN staffeventos se ON l.idregistroalterado = se.idstaffevento
@@ -1600,23 +1601,46 @@ router.get('/notificacoes-financeiras', async (req, res) => {
                 LEFT JOIN eventos e ON e.idevento = se.idevento
                 WHERE l.modulo = 'staffeventos' AND l.idempresa = $1 
                 AND l.dadosnovos ? 'statusajustecusto' 
-                AND l.dadosnovos ? 'vlrajustecusto'
                 AND (REPLACE(COALESCE(l.dadosnovos->>'vlrajustecusto', '0'), ',', '.'))::numeric <> 0
                 ${filtroSolicitante}
 
                 UNION ALL
 
-                -- 3. Bloco Diária Dobrada
+                -- 3. Bloco Cachê Fechado
+                SELECT 
+                    l.id AS id_log, se.idstaffevento, l.idexecutor, (u.nome || ' ' || u.sobrenome) AS nomesolicitante,
+                    f.nome AS nomefuncionario, e.nmevento AS evento, se.datasevento, l.criado_em,
+                    'statuscustofechado' AS categoria, 
+                    l.dadosnovos->>'statuscustofechado' AS status_atual,
+                    NULL, NULL, NULL, -- Caixinha
+                    NULL, NULL, NULL, -- Ajuste Custo
+                    se.vlrcache, se.desccustofechado, se.statuscustofechado,
+                    NULL, NULL, NULL, -- Diária Dobrada
+                    NULL, NULL, NULL, -- Meia Diária
+                    se.idfuncionario AS idusuarioalvo
+                FROM logs l
+                JOIN staffeventos se ON l.idregistroalterado = se.idstaffevento
+                LEFT JOIN usuarios u ON u.idusuario = l.idexecutor
+                LEFT JOIN funcionarios f ON f.idfuncionario = se.idfuncionario
+                LEFT JOIN eventos e ON e.idevento = se.idevento
+                WHERE l.modulo = 'staffeventos' AND l.idempresa = $1 
+                AND l.dadosnovos ? 'statuscustofechado' 
+                AND (REPLACE(COALESCE(l.dadosnovos->>'vlrcache', '0'), ',', '.'))::numeric <> 0
+                ${filtroSolicitante}
+
+                UNION ALL
+
+                -- 4. Bloco Diária Dobrada
                 SELECT 
                     l.id AS id_log, se.idstaffevento, l.idexecutor, (u.nome || ' ' || u.sobrenome) AS nomesolicitante,
                     f.nome AS nomefuncionario, e.nmevento AS evento, se.datasevento, l.criado_em,
                     'statusdiariadobrada' AS categoria, 
                     l.dadosnovos->>'statusdiariadobrada' AS status_atual,
-                    NULL, NULL, NULL,
-                    NULL, NULL, NULL,
-                    se.dtdiariadobrada::text AS dtdiariadobrada, 
-                    se.descdiariadobrada, se.statusdiariadobrada,
-                    NULL, NULL, NULL,
+                    NULL, NULL, NULL, -- Caixinha
+                    NULL, NULL, NULL, -- Ajuste Custo
+                    NULL, NULL, NULL, -- Cachê Fechado
+                    se.dtdiariadobrada::text, se.descdiariadobrada, se.statusdiariadobrada,
+                    NULL, NULL, NULL, -- Meia Diária
                     se.idfuncionario AS idusuarioalvo
                 FROM logs l
                 JOIN staffeventos se ON l.idregistroalterado = se.idstaffevento
@@ -1625,24 +1649,23 @@ router.get('/notificacoes-financeiras', async (req, res) => {
                 LEFT JOIN eventos e ON e.idevento = se.idevento
                 WHERE l.modulo = 'staffeventos' AND l.idempresa = $1 
                 AND l.dadosnovos ? 'statusdiariadobrada'
-                AND se.dtdiariadobrada IS NOT NULL 
-                AND se.dtdiariadobrada::text <> '[]'
+                AND se.dtdiariadobrada IS NOT NULL AND se.dtdiariadobrada::text <> '[]'
                 AND jsonb_array_length(se.dtdiariadobrada) > 0
                 ${filtroSolicitante}
 
                 UNION ALL
 
-                -- 4. Bloco Meia Diária
+                -- 5. Bloco Meia Diária
                 SELECT 
                     l.id AS id_log, se.idstaffevento, l.idexecutor, (u.nome || ' ' || u.sobrenome) AS nomesolicitante,
                     f.nome AS nomefuncionario, e.nmevento AS evento, se.datasevento, l.criado_em,
                     'statusmeiadiaria' AS categoria, 
                     l.dadosnovos->>'statusmeiadiaria' AS status_atual,
-                    NULL, NULL, NULL,
-                    NULL, NULL, NULL,
-                    NULL, NULL, NULL,
-                    se.dtmeiadiaria::text AS dtmeiadiaria, 
-                    se.descmeiadiaria, se.statusmeiadiaria,
+                    NULL, NULL, NULL, -- Caixinha
+                    NULL, NULL, NULL, -- Ajuste Custo
+                    NULL, NULL, NULL, -- Cachê Fechado
+                    NULL, NULL, NULL, -- Diária Dobrada
+                    se.dtmeiadiaria::text, se.descmeiadiaria, se.statusmeiadiaria,
                     se.idfuncionario AS idusuarioalvo
                 FROM logs l
                 JOIN staffeventos se ON l.idregistroalterado = se.idstaffevento
@@ -1651,25 +1674,22 @@ router.get('/notificacoes-financeiras', async (req, res) => {
                 LEFT JOIN eventos e ON e.idevento = se.idevento
                 WHERE l.modulo = 'staffeventos' AND l.idempresa = $1 
                 AND l.dadosnovos ? 'statusmeiadiaria'
-                AND se.dtmeiadiaria IS NOT NULL 
-                AND se.dtmeiadiaria::text <> '[]'
+                AND se.dtmeiadiaria IS NOT NULL AND se.dtmeiadiaria::text <> '[]'
                 AND jsonb_array_length(se.dtmeiadiaria) > 0
                 ${filtroSolicitante}
-            
             )
             SELECT DISTINCT ON (pd.idstaffevento, pd.categoria, pd.id_log)
                 pd.*,
                 COALESCE(o.dtfiminfradesmontagem, o.dtfimdesmontagem) AS dtfimrealizacao,
-                -- 🟢 BUSCA O APROVADOR PELA COLUNA FÍSICA INDEXADA
                 u2.nome || ' ' || u2.sobrenome AS nome_aprovador,
                 l2.criado_em AS data_decisao
             FROM PedidosDetalhados pd
             LEFT JOIN orcamentos o ON o.idevento = (SELECT se2.idevento FROM staffeventos se2 WHERE se2.idstaffevento = pd.idstaffevento LIMIT 1)
             LEFT JOIN logs l2 ON l2.idlog_origem = pd.id_log
             LEFT JOIN usuarios u2 ON u2.idusuario = l2.idexecutor
-            WHERE pd.status_atual = 'Pendente' -- 🟢 Mantém apenas os Pendentes na listagem
+            WHERE pd.status_atual = 'Pendente' 
             ORDER BY pd.idstaffevento, pd.categoria, pd.id_log, pd.criado_em ASC;
-`;
+        `;
         const { rows } = await pool.query(query, params); 
         console.log(`[FINANCEIRO DEBUG] Linhas retornadas do DB: ${rows.length}`);
         // console.log("Dados retornados", rows);
@@ -1704,10 +1724,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
                     return JSON.stringify([{ 
                         status: status, 
                         valor: valor, 
-                        descricao: descricao 
-                        status: status, 
-                        valor: valor, 
-                        descricao: descricao 
+                        descricao: descricao                      
                     }]);
                 }
                 return null;
@@ -1715,14 +1732,14 @@ router.get('/notificacoes-financeiras', async (req, res) => {
             // ** CORREÇÃO APLICADA AQUI **
             const diariaDobrada = isJsonbArrayEmpty(r.dtdiariadobrada) ? null : r.dtdiariadobrada;
             const meiaDiaria = isJsonbArrayEmpty(r.dtmeiadiaria) ? null : r.dtmeiadiaria;
-            console.log(`DEBUG - ID ${r.idstaffevento} | Diária Dobrada: ${diariaDobrada} | Meia Diária: ${meiaDiaria}`);
+       
             // Mapeamento que garante a estrutura de objeto principal com os campos aninhados:
             return {
                 id_log: r.id_log,
                 idStaffEvento: r.idstaffevento,
                 idpedido: r.id, 
                 solicitante: r.idexecutor || null,
-                nomeSolicitante: r.nomesolicitante_real || r.nomeexecutor || '', // Preferencialmente o nome real do solicitante
+                nomeSolicitante: r.nomesolicitante || r.nomeexecutor || '', // Preferencialmente o nome real do solicitante
                 funcionario: r.nomefuncionario || '-',
                 evento: r.evento,
                 dtCriacao: r.criado_em,
@@ -1736,7 +1753,7 @@ router.get('/notificacoes-financeiras', async (req, res) => {
                 statusdiariadobrada: diariaDobrada,
                 statuscaixinha: stringifyUnico(r.statuscaixinha, r.vlrcaixinha, r.desccaixinha),
                 statusajustecusto: stringifyUnico(r.statusajustecusto, r.vlrajustecusto, r.descajustecusto),
-                statuscustofechado: stringifyUnico(r.statuscustofechado, r.vlrcache),
+                statuscustofechado: stringifyUnico(r.statuscustofechado, r.vlrcache, r.desccustofechado),
                 ehMasterStaff: ehMasterStaff, 
                 podeVerTodos: podeVerTodos,
                 datasevento: r.datasevento || '-',
@@ -1830,7 +1847,7 @@ router.patch('/notificacoes-financeiras/atualizar-status',
             // =========================================================
             // LÓGICA 1: Caixinha / Ajuste de Custo (Status Simples - STRING)
             // =========================================================
-            if (categoria === 'statuscaixinha' || categoria === 'statusajustecusto') {
+            if (categoria === 'statuscaixinha' || categoria === 'statusajustecusto' || categoria === 'statuscustofechado') {
 
                 const query = `
                     UPDATE staffeventos se
@@ -1980,7 +1997,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
         if (!idpedido) return { dadosanteriores: null, idregistroalterado: null };
 
         const { rows } = await pool.query(`
-            SELECT statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria
+            SELECT statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria, statuscustofechado
             FROM staffeventos
             WHERE idstaffevento = $1
             `, [idpedido]
@@ -2016,7 +2033,8 @@ router.post('/notificacoes-financeiras/atualizar-status',
             statuscaixinha: "statuscaixinha",
             statusajustecusto: "statusajustecusto",
             statusdiariadobrada: "statusdiariadobrada",
-            statusmeiadiaria: "statusmeiadiaria"
+            statusmeiadiaria: "statusmeiadiaria",
+            statuscustofechado: "statuscustofechado"
         };
 
         const coluna = mapCategorias[categoria];
@@ -2031,7 +2049,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
             UPDATE staffeventos
             SET ${coluna} = $2
             WHERE idstaffevento = $1
-            RETURNING idstaffevento, statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria;
+            RETURNING idstaffevento, statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria, statuscustofechado;
             `, [idpedido, statusParaAtualizar]
         );
 
@@ -2041,7 +2059,7 @@ router.post('/notificacoes-financeiras/atualizar-status',
             UPDATE staff
             SET ${coluna} = $2
             WHERE idstaffevento = $1
-            RETURNING idstaff, idstaffevento, statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria;
+            RETURNING idstaff, idstaffevento, statuscaixinha, statusajustecusto, statusdiariadobrada, statusmeiadiaria, statuscustofechado;
             `, [idpedido, statusParaAtualizar]);
 
             updatedRows = updatedStaff;
