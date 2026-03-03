@@ -23,22 +23,64 @@ const dirComprovantes = path.join(__dirname, '../uploads/contas/comprovantespgto
     }
 });
 
+// const storagePagamentos = multer.diskStorage({
+//     destination: (req, file, cb) => {
+//         // Lógica de destino baseada no nome do campo (fieldname)
+//         if (file.fieldname === 'imagemConta') {
+//             cb(null, dirContas);
+//         } else if (file.fieldname === 'comprovantePagamento') {
+//             cb(null, dirComprovantes);
+//         } else {
+//             cb(new Error('Campo de arquivo inválido'), null);
+//         }
+//     },
+//     filename: (req, file, cb) => {
+//         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+//         cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+//     }
+// });
+
+
 const storagePagamentos = multer.diskStorage({
     destination: (req, file, cb) => {
-        // Lógica de destino baseada no nome do campo (fieldname)
-        if (file.fieldname === 'imagemConta') {
+        // Mantemos sua lógica de pastas separadas
+        if (file.fieldname === 'imagemConta' || req.body.tipo === 'imagem') {
             cb(null, dirContas);
-        } else if (file.fieldname === 'comprovantePagamento') {
+        } else if (file.fieldname === 'comprovantePagamento' || req.body.tipo === 'comprovante') {
             cb(null, dirComprovantes);
         } else {
             cb(new Error('Campo de arquivo inválido'), null);
         }
     },
     filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+        // 1. Pegamos o ID do pagamento (enviado pelo frontend)
+        const id = req.body.idpagamento || req.body.id || '0';
+        
+        // 2. Definimos o prefixo baseado no campo ou tipo
+        let contexto = req.body.contexto;
+        if (!contexto) {
+            contexto = (file.fieldname === 'imagemConta' || req.body.tipo === 'imagem') 
+                ? 'imagemConta' 
+                : 'comprovantePagamento';
+        }
+
+        // 3. Limpamos o nome original do arquivo (Ex: "conta luz.pdf" -> "contaLuz")
+        const nomeOriginalLimpo = path.parse(file.originalname).name
+            .replace(/\s+/g, '') 
+            .replace(/[^a-zA-Z0-9]/g, '');
+
+        // 4. Geramos a data legível (AAAAMMDD)
+        const dataHoje = new Date().toISOString().split('T')[0].replace(/-/g, ''); 
+
+        const ext = path.extname(file.originalname).toLowerCase();
+        
+        // RESULTADO: imagemboleto-ID133-20260303-contaLuz.pdf
+        const nomeFinal = `${contexto}-ID${id}-${dataHoje}-${nomeOriginalLimpo}${ext}`;
+        
+        cb(null, nomeFinal);
     }
 });
+
 
 const fileFilterPagamentos = (req, file, cb) => {
     // Permite imagens e PDFs (comum para boletos e comprovantes)
@@ -69,7 +111,7 @@ router.get("/lancamentos", async (req, res) => {
     try {
         // Exemplo de query SQL: busca lançamentos ativos
         // Ajuste os nomes das colunas conforme seu banco (ex: idlancamento, descricao)
-        const sql = `SELECT idlancamento, descricao, vlrestimado, vctobase 
+        const sql = `SELECT idlancamento, descricao, vlrestimado, vctobase
                      FROM lancamentos 
                      WHERE ativo = true                     
                      ORDER BY descricao ASC`;
@@ -90,7 +132,7 @@ router.get("/lancamentos/detalhe/:idLancamento", async (req, res) => {
 
         // Query simples apenas na tabela de lancamentos
         const sql = `
-            SELECT descricao, vlrestimado 
+            SELECT descricao, vlrestimado
             FROM lancamentos 
             WHERE idlancamento = $1 AND idempresa = $2 
             LIMIT 1`;
@@ -115,7 +157,7 @@ router.get("/ultimo/:idLancamento", async (req, res) => {
         const idEmpresa = req.idempresa || (req.user && req.user.idempresa);
 
         const sql = `
-            SELECT numparcela, dtvcto 
+            SELECT numparcela, dtvcto
             FROM pagamentos 
             WHERE idlancamento = $1 AND idempresa = $2
             ORDER BY numparcela DESC 
@@ -287,7 +329,7 @@ router.put("/:id",
         
         const { 
             vlrpago, dtvcto, dtpgto, observacao, status, vlrreal,
-            limparComprovanteImagem, limparComprovantePagto 
+            limparComprovanteImagem, limparComprovantePagto, vlratraso, vlrdesconto 
         } = req.body;
 
         try {
@@ -298,10 +340,12 @@ router.put("/:id",
                 dtpgto || null, // $3
                 observacao,     // $4
                 status,         // $5
-                vlrreal || 0    // $6
+                vlrreal || 0,    // $6
+                vlratraso || 0,  // $7
+                vlrdesconto || 0 // $8
             ];
 
-            let proximoIndice = 7; 
+            let proximoIndice = 9; 
 
             // 1. Imagem da Conta
             if (req.files && req.files['imagemConta']) {
@@ -333,7 +377,9 @@ router.put("/:id",
                     dtpgto = $3, 
                     observacao = $4, 
                     status = $5,
-                    vlrreal = $6 
+                    vlrreal = $6,
+                    vlratraso = $7,
+                    vlrdesconto = $8 
                     ${sqlArquivos}
                 WHERE idpagamento = $${indiceId} AND idempresa = $${indiceEmpresa}
                 RETURNING *`;
@@ -360,7 +406,7 @@ router.post("/",
     logMiddleware('Pagamentos', { buscarDadosAnteriores: async () => ({ dadosanteriores: null, idregistroalterado: null }) }),
     async (req, res) => {
         const idempresa = req.idempresa;
-        const { idlancamento, numparcela, vlrprevisto, vlrpago, dtvcto, dtpgto, observacao, status, vlrreal } = req.body;
+        const { idlancamento, numparcela, vlrprevisto, vlrpago, dtvcto, dtpgto, observacao, status, vlrreal, vlratraso, vlrdesconto } = req.body;
 
         // Captura dos nomes dos arquivos salvos
         const imagemConta = req.files['imagemConta'] ? req.files['imagemConta'][0].filename : null;
@@ -370,9 +416,9 @@ router.post("/",
             const result = await pool.query(
                 `INSERT INTO pagamentos (
                     idlancamento, idempresa, numparcela, vlrprevisto, 
-                    vlrpago, dtvcto, dtpgto, status, observacao, imagemconta, comprovantepgto, vlrreal
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
-                [idlancamento, idempresa, numparcela, vlrprevisto, vlrpago, dtvcto, dtpgto || null, status, observacao, imagemConta, comprovantePagamento, vlrreal]
+                    vlrpago, dtvcto, dtpgto, status, observacao, imagemconta, comprovantepgto, vlrreal, vlratraso, vlrdesconto
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+                [idlancamento, idempresa, numparcela, vlrprevisto, vlrpago, dtvcto, dtpgto || null, status, observacao, imagemConta, comprovantePagamento, vlrreal || 0, vlratraso || 0, vlrdesconto || 0]
             );
             res.status(201).json({ message: "Salvo!", data: result.rows[0] });
         } catch (error) {
