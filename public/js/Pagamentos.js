@@ -72,6 +72,39 @@ async function carregarLancamentosParaPagto() {
             select.appendChild(opt);
         });
 
+        // --- INICIALIZAÇÃO DA BUSCA (SELECT2) ---
+        // Destruímos qualquer instância anterior para evitar duplicidade ao recarregar
+        if ($(select).hasClass("select2-hidden-accessible")) {
+            $(select).select2('destroy');
+        }
+
+        $(select).select2({
+            placeholder: "Digite para buscar (ex: Luz, Condomínio, Salário...)",
+            allowClear: true,
+            width: '100%',
+            // Esta opção garante que ele procure tanto no ID quanto na Descrição
+            matcher: function(params, data) {
+                if ($.trim(params.term) === '') return data;
+                if (typeof data.text === 'undefined') return null;
+                
+                // Busca ignorando maiúsculas/minúsculas
+                if (data.text.toLowerCase().indexOf(params.term.toLowerCase()) > -1) {
+                    return data;
+                }
+                return null;
+            }
+        });
+
+        // Vincula o evento do Select2 ao seu onchange nativo que já está funcionando
+        $(select).on('select2:select', function (e) {
+            this.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        $(select).on('select2:unselect', function (e) {
+            this.value = "";
+            this.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
         console.log("✅ Select de lançamentos populado com sucesso.");
         return true; // Indica que terminou
     } catch (error) {
@@ -231,6 +264,8 @@ async function preencherParaEdicao(p) {
             document.querySelector("#vlrPago").value = parseFloat(p.vlrpago || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
             document.querySelector("#dtvcto").value = p.dtvcto ? p.dtvcto.split('T')[0] : "";
             document.querySelector("#dtpgto").value = p.dtpgto ? p.dtpgto.split('T')[0] : "";
+            document.querySelector("#vlrDespesasAtraso").value = parseFloat(p.vlratraso || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+            document.querySelector("#vlrDesconto").value = parseFloat(p.vlrdesconto || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
             document.querySelector("#observacaoPagto").value = p.observacao || "";
             document.querySelector("#statusPagto").checked = (p.status && p.status.toLowerCase() === 'pago');
 
@@ -276,116 +311,207 @@ async function preencherParaEdicao(p) {
 
 
 
-async function salvarPagamento(event) {
+// async function salvarPagamento(event) {
    
-    if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
+//     if (event) {
+//         event.preventDefault();
+//         event.stopPropagation();
+//     }
 
-    const idLancamento = document.querySelector("#idLancamentoSelect").value;
-    const idPagamento = document.querySelector("#idPagamento").value;
-    const temPermissaoSupremo = temPermissao("Pagamentos", "supremo");
+//     const idLancamento = document.querySelector("#idLancamentoSelect").value;
+//     const idPagamento = document.querySelector("#idPagamento").value;
+//     const temPermissaoSupremo = temPermissao("Pagamentos", "supremo");
 
-    if (!idLancamento) {
-        return Swal.fire("Atenção", "Selecione um lançamento!", "warning");
-    }
+//     if (!idLancamento) {
+//         return Swal.fire("Atenção", "Selecione um lançamento!", "warning");
+//     }
 
-    // Captura dos dados
-    const numParcela = document.querySelector("#numParcela").value;
-    const vlrPagoStr = document.querySelector("#vlrPago").value;
-    const vlrRealStr = document.querySelector("#vlrReal").value;
+//     // Captura dos dados
+//     const numParcela = document.querySelector("#numParcela").value;
+//     const vlrPagoStr = document.querySelector("#vlrPago").value;
+//     const vlrRealStr = document.querySelector("#vlrReal").value;
+//     const vlrAtrasoStr = document.querySelector("#vlrDespesasAtraso").value; // ID corrigido conforme conversa anterior
+//     const vlrDescontoStr = document.querySelector("#vlrDesconto").value;
 
-    const dtVcto = document.querySelector("#dtvcto").value;
-    const dtPgto = document.querySelector("#dtpgto").value;
-    const isPago = document.querySelector("#statusPagto").checked;
+//     const dtVcto = document.querySelector("#dtvcto").value;
+//     const dtPgto = document.querySelector("#dtpgto").value;
+//     const isPago = document.querySelector("#statusPagto").checked;
 
 
-    // --- BLOCO DE CONFIRMAÇÃO DINÂMICO ---
-    if (!idPagamento) {
-        let tituloSwal, textoBotao;
+//     // if (!idPagamento) {
+//     //     let tituloSwal, textoBotao;
+        
+//     //     // Lógica de exibição condicional para o HTML do Swal
+//     //     // Só adiciona a linha se o valor for maior que zero ou não estiver vazio
+//     //     const htmlAtraso = (parseFloat(vlrAtrasoStr.replace(',', '.')) > 0) 
+//     //         ? `<p><b>Atraso/Taxas:</b> <span style="color:red">+ R$ ${vlrAtrasoStr}</span></p>` 
+//     //         : '';
+        
+//     //     const htmlDesconto = (parseFloat(vlrDescontoStr.replace(',', '.')) > 0) 
+//     //         ? `<p><b>Desconto:</b> <span style="color:blue">- R$ ${vlrDescontoStr}</span></p>` 
+//     //         : '';
 
-        if (temPermissaoSupremo) {
-            tituloSwal = 'Confirmar Pagamento?';
-            textoBotao = 'Sim, Confirmar Pagamento';
-        } else {
-            tituloSwal = 'Enviar Dados de Pagamento?';
-            textoBotao = 'Sim, Enviar';
-        }
+//     //     if (temPermissaoSupremo) {
+//     //         tituloSwal = 'Confirmar Pagamento?';
+//     //         textoBotao = 'Sim, Confirmar Pagamento';
+//     //     } else {
+//     //         tituloSwal = 'Enviar Dados de Pagamento?';
+//     //         textoBotao = 'Sim, Enviar';
+//     //     }
 
-        const confirmacao = await Swal.fire({
-            title: tituloSwal,
-            html: `
-                <div style="text-align: left; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
-                    <p><b>Parcela:</b> ${numParcela}º</p>
-                    <p><b>Valor Pago:</b> R$ ${vlrPagoStr}</p>
-                    <p><b>Vencimento:</b> ${formatarDataBR(dtVcto)}</p>
-                    <p><b>Data Pagto:</b> ${formatarDataBR(dtPgto)}</p>
-                    <p><b>Status:</b> ${isPago ? '<span style="color:green">PAGO</span>' : '<span style="color:orange">PENDENTE</span>'}</p>
-                </div>
-                <br>Deseja prosseguir com o envio?`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: textoBotao,
-            cancelButtonText: 'Revisar',
-            confirmButtonColor: '#27ae60',
-            cancelButtonColor: '#d33'
-        });
+//     //     const confirmacao = await Swal.fire({
+//     //         title: tituloSwal,
+//     //         html: `
+//     //             <div style="text-align: left; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+//     //                 <p><b>Parcela:</b> ${numParcela}º</p>
+//     //                 <p><b>Valor Base:</b> R$ ${vlrRealStr}</p>
+//     //                 ${htmlAtraso}
+//     //                 ${htmlDesconto}
+//     //                 <hr>
+//     //                 <p><b>Total Efetivo:</b> <mark>R$ ${vlrPagoStr}</mark></p>
+//     //                 <p><b>Vencimento:</b> ${formatarDataBR(dtVcto)}</p>
+//     //                 <p><b>Data Pagto:</b> ${formatarDataBR(dtPgto)}</p>
+//     //                 <p><b>Status:</b> ${isPago ? '<span style="color:green">PAGO</span>' : '<span style="color:orange">PENDENTE</span>'}</p>
+//     //             </div>
+//     //             <br>Deseja prosseguir com o envio?`,
+//     //         icon: 'question',
+//     //         showCancelButton: true,
+//     //         confirmButtonText: textoBotao,
+//     //         cancelButtonText: 'Revisar',
+//     //         confirmButtonColor: '#27ae60',
+//     //         cancelButtonColor: '#d33'
+//     //     });
 
-        if (!confirmacao.isConfirmed) return;
-    }
+//     //     if (!confirmacao.isConfirmed) return;
+//     // }
 
-    // --- MONTAGEM DO FORMDATA ---
-    const formData = new FormData();
-    formData.append("idpagamento", idPagamento || "");
-    formData.append("idlancamento", idLancamento);
-    formData.append("numparcela", parseInt(numParcela));
-    formData.append("vlrprevisto", prepararNumeroParaEnvio(document.querySelector("#vlrPrevisto").value));
-    formData.append("vlrreal", prepararNumeroParaEnvio(vlrRealStr));
-    formData.append("vlrpago", prepararNumeroParaEnvio(vlrPagoStr));
-    formData.append("dtvcto", dtVcto);
-    formData.append("dtpgto", dtPgto);
-    formData.append("observacao", document.querySelector("#observacaoPagto").value);
+//     if (!idPagamento) {
+//     let htmlBotoes = "";
+//     let tituloSwal = "Confirmar Atualização de Dados";
+
+//     // Lógica para SUPREMO: Sempre mostra as 3 opções (Pagar, Atualizar, Revisar)
+//     if (temPermissaoSupremo) {
+//         tituloSwal = "Confirmar Pagamento / Atualização de Dados";
+//         htmlBotoes = `
+//             <div style="display: flex; flex-direction: row; gap: 10px; justify-content: center; margin-top: 20px; flex-wrap: wrap;">
+//                 <button id="btnConfirmarPagto" class="swal2-confirm swal2-styled" style="background-color: #27ae60 !important; margin: 5px; flex: 1; min-width: 150px;">Sim, Confirmar Pagamento</button>
+//                 <button id="btnSomenteAtualizar" class="swal2-confirm swal2-styled" style="background-color: #3085d6 !important; margin: 5px; flex: 1; min-width: 150px;">Somente Atualizar Dados</button>
+//                 <button id="btnRevisar" class="swal2-cancel swal2-styled" style="background-color: #d33 !important; margin: 5px; flex: 1; min-width: 100px;">Revisar</button>
+//             </div>
+//         `;
+//     } else {
+//         // Usuário comum: Apenas Atualiza e Revisar lado a lado
+//         tituloSwal = "Confirmar Atualização de Dados";
+//         htmlBotoes = `
+//             <div style="display: flex; flex-direction: row; gap: 10px; justify-content: center; margin-top: 20px;">
+//                 <button id="btnSomenteAtualizar" class="swal2-confirm swal2-styled" style="background-color: #3085d6 !important; margin: 5px;">Confirmar Atualização</button>
+//                 <button id="btnRevisar" class="swal2-cancel swal2-styled" style="background-color: #d33 !important; margin: 5px;">Revisar</button>
+//             </div>
+//         `;
+//     }
+
+//     const htmlAtraso = (parseFloat(vlrAtrasoStr.replace(',', '.')) > 0) 
+//         ? `<p><b>Atraso/Taxas:</b> <span style="color:red">+ R$ ${vlrAtrasoStr}</span></p>` : '';
+//     const htmlDesconto = (parseFloat(vlrDescontoStr.replace(',', '.')) > 0) 
+//         ? `<p><b>Desconto:</b> <span style="color:blue">- R$ ${vlrDescontoStr}</span></p>` : '';
+
+//     const confirmacao = await Swal.fire({
+//         title: tituloSwal,
+//         html: `
+//             <div style="text-align: left; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.9em;">
+//                 <p><b>Parcela:</b> ${numParcela}º</p>
+//                 <p><b>Valor Base:</b> R$ ${vlrRealStr}</p>
+//                 ${htmlAtraso}
+//                 ${htmlDesconto}
+//                 <hr style="margin: 8px 0;">
+//                 <p style="font-size: 1.1em;"><b>Total Efetivo:</b> <mark><b>R$ ${vlrPagoStr}</b></mark></p>
+//                 <p><b>Status Atual:</b> ${isPago ? '<span style="color:green">PAGO</span>' : '<span style="color:orange">PENDENTE</span>'}</p>
+//             </div>
+//             ${htmlBotoes}`,
+//         icon: 'question',
+//         showConfirmButton: false, 
+//         showCancelButton: false,
+//         didOpen: () => {
+//             const btnPagto = document.getElementById('btnConfirmarPagto');
+//             const btnAtualizar = document.getElementById('btnSomenteAtualizar');
+//             const btnRevisar = document.getElementById('btnRevisar');
+
+//             if (btnPagto) {
+//                 btnPagto.addEventListener('click', () => {
+//                     // Se clicar em Pagar, garantimos que o checkbox de status esteja ATIVO
+//                     document.querySelector("#statusPagto").checked = true;
+//                     Swal.clickConfirm();
+//                 });
+//             }
+//             if (btnAtualizar) {
+//                 btnAtualizar.addEventListener('click', () => {
+//                     // Se clicar em apenas atualizar, garantimos que o status seja PENDENTE
+//                     document.querySelector("#statusPagto").checked = false;
+//                     Swal.clickConfirm();
+//                 });
+//             }
+//             if (btnRevisar) {
+//                 btnRevisar.addEventListener('click', () => Swal.clickDeny());
+//             }
+//         }
+//     });
+
+//     if (confirmacao.isDismissed || confirmacao.isDenied) return;
+// }
+
+//     // --- MONTAGEM DO FORMDATA ---
+//     const formData = new FormData();
+//     formData.append("idpagamento", idPagamento || "");
+//     formData.append("idlancamento", idLancamento);
+//     formData.append("numparcela", parseInt(numParcela));
+//     formData.append("vlrprevisto", prepararNumeroParaEnvio(document.querySelector("#vlrPrevisto").value));
+//     formData.append("vlrreal", prepararNumeroParaEnvio(vlrRealStr));
+//     formData.append("vlrpago", prepararNumeroParaEnvio(vlrPagoStr));
+//     formData.append("dtvcto", dtVcto);
+//     formData.append("dtpgto", dtPgto);
+//     formData.append("vlratraso", prepararNumeroParaEnvio(vlrAtrasoStr));
+//     formData.append("vlrdesconto", prepararNumeroParaEnvio(vlrDescontoStr));
+//     formData.append("observacao", document.querySelector("#observacaoPagto").value);
+        
+//     // Regra: se não for supremo, o status será sempre 'pendente' no envio para segurança, 
+//     // ou manterá o valor do campo que já deve estar bloqueado no DOM.
     
-    // Regra: se não for supremo, o status será sempre 'pendente' no envio para segurança, 
-    // ou manterá o valor do campo que já deve estar bloqueado no DOM.
-    
-    formData.append("status", (temPermissaoSupremo && isPago) ? 'pago' : 'pendente');
+//     formData.append("status", (temPermissaoSupremo && isPago) ? 'pago' : 'pendente');
 
-    // Flags e arquivos permanecem iguais...
-    formData.append("limparComprovanteImagem", document.getElementById('limparComprovanteImagem').value);
-    formData.append("limparComprovantePagto", document.getElementById('limparComprovantePagto').value);
+//     // Flags e arquivos permanecem iguais...
+//     formData.append("limparComprovanteImagem", document.getElementById('limparComprovanteImagem').value);
+//     formData.append("limparComprovantePagto", document.getElementById('limparComprovantePagto').value);
 
-    const arquivoConta = document.querySelector("#arquivoConta").files[0];
-    const comprovantePagto = document.querySelector("#comprovantePagto").files[0];
-    if (arquivoConta) formData.append("imagemConta", arquivoConta);
-    if (comprovantePagto) formData.append("comprovantePagamento", comprovantePagto);
+//     const arquivoConta = document.querySelector("#arquivoConta").files[0];
+//     const comprovantePagto = document.querySelector("#comprovantePagto").files[0];
+//     if (arquivoConta) formData.append("imagemConta", arquivoConta);
+//     if (comprovantePagto) formData.append("comprovantePagamento", comprovantePagto);
 
-    try {
-        const metodo = idPagamento ? "PUT" : "POST";
-        const url = idPagamento ? `/pagamentos/${idPagamento}` : "/pagamentos";
+//     try {
+//         const metodo = idPagamento ? "PUT" : "POST";
+//         const url = idPagamento ? `/pagamentos/${idPagamento}` : "/pagamentos";
 
-        console.log(`🚀 Enviando requisição ${metodo} para: ${url}`);
+//         console.log(`🚀 Enviando requisição ${metodo} para: ${url}`);
 
-        const response = await fetchComToken(url, {
-            method: metodo,
-            body: formData
-        });
+//         const response = await fetchComToken(url, {
+//             method: metodo,
+//             body: formData
+//         });
 
-        if (response) {
-            await Swal.fire("Sucesso!", `${idPagamento ? 'Alterado' : 'Registrado'} com sucesso.`, "success");
-           // const idParaRecarregar = idLancamento;
-            limparFormularioTotalmente(true);
-           // if (idParaRecarregar) {
-           //     document.querySelector("#idLancamentoSelect").value = idParaRecarregar;
-            //    await carregarHistoricoPagto(idParaRecarregar);
-           // }
-        }
-    } catch (error) {
-        console.error(error);
-        Swal.fire("Erro", "Erro ao processar operação.", "error");
-    }
-}
+//         if (response) {
+//             await Swal.fire("Sucesso!", `${idPagamento ? 'Alterado' : 'Registrado'} com sucesso.`, "success");
+//            // const idParaRecarregar = idLancamento;
+//             limparFormularioTotalmente(true);
+//            // if (idParaRecarregar) {
+//            //     document.querySelector("#idLancamentoSelect").value = idParaRecarregar;
+//             //    await carregarHistoricoPagto(idParaRecarregar);
+//            // }
+//         }
+//     } catch (error) {
+//         console.error(error);
+//         Swal.fire("Erro", "Erro ao processar operação.", "error");
+//     }
+// }
 
 
 
@@ -409,6 +535,131 @@ async function salvarPagamento(event) {
 //         }
 //     });
 // }
+
+async function salvarPagamento(event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
+    const idLancamento = document.querySelector("#idLancamentoSelect").value;
+    const idPagamento = document.querySelector("#idPagamento").value;
+    const temPermissaoSupremo = temPermissao("Pagamentos", "supremo");
+
+    if (!idLancamento) {
+        return Swal.fire("Atenção", "Selecione um lançamento!", "warning");
+    }
+
+    // Captura dos dados iniciais
+    const numParcela = document.querySelector("#numParcela").value;
+    const vlrPagoStr = document.querySelector("#vlrPago").value;
+    const vlrRealStr = document.querySelector("#vlrReal").value;
+    const vlrAtrasoStr = document.querySelector("#vlrDespesasAtraso").value;
+    const vlrDescontoStr = document.querySelector("#vlrDesconto").value;
+    const dtVcto = document.querySelector("#dtvcto").value;
+    const dtPgto = document.querySelector("#dtpgto").value;
+
+    // --- BLOCO DE CONFIRMAÇÃO ---
+    if (!idPagamento) {
+        let htmlBotoes = "";
+        let tituloSwal = "Confirmar Atualização de Dados";
+
+        if (temPermissaoSupremo) {
+            tituloSwal = "Confirmar Pagamento / Atualização de Dados";
+            htmlBotoes = `
+                <div style="display: flex; flex-direction: row; gap: 10px; justify-content: center; margin-top: 20px; flex-wrap: wrap;">
+                    <button id="btnConfirmarPagto" class="swal2-confirm swal2-styled" style="background-color: #27ae60 !important; margin: 5px; flex: 1; min-width: 150px;">Sim, Confirmar Pagamento</button>
+                    <button id="btnSomenteAtualizar" class="swal2-confirm swal2-styled" style="background-color: #3085d6 !important; margin: 5px; flex: 1; min-width: 150px;">Somente Atualizar Dados</button>
+                    <button id="btnRevisar" class="swal2-cancel swal2-styled" style="background-color: #d33 !important; margin: 5px; flex: 1; min-width: 100px;">Revisar</button>
+                </div>
+            `;
+        } else {
+            htmlBotoes = `
+                <div style="display: flex; flex-direction: row; gap: 10px; justify-content: center; margin-top: 20px;">
+                    <button id="btnSomenteAtualizar" class="swal2-confirm swal2-styled" style="background-color: #3085d6 !important; margin: 5px;">Confirmar Atualização</button>
+                    <button id="btnRevisar" class="swal2-cancel swal2-styled" style="background-color: #d33 !important; margin: 5px;">Revisar</button>
+                </div>
+            `;
+        }
+
+        const htmlAtraso = (parseFloat(vlrAtrasoStr.replace(',', '.')) > 0) ? `<p><b>Atraso:</b> <span style="color:red">+ R$ ${vlrAtrasoStr}</span></p>` : '';
+        const htmlDesconto = (parseFloat(vlrDescontoStr.replace(',', '.')) > 0) ? `<p><b>Desconto:</b> <span style="color:blue">- R$ ${vlrDescontoStr}</span></p>` : '';
+
+        const confirmacao = await Swal.fire({
+            title: tituloSwal,
+            html: `
+                <div style="text-align: left; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.9em;">
+                    <p><b>Parcela:</b> ${numParcela}º</p>
+                    <p><b>Valor Base:</b> R$ ${vlrRealStr}</p>
+                    ${htmlAtraso}
+                    ${htmlDesconto}
+                    <hr style="margin: 8px 0;">
+                    <p style="font-size: 1.1em;"><b>Total Efetivo:</b> <mark><b>R$ ${vlrPagoStr}</b></mark></p>
+                </div>
+                ${htmlBotoes}`,
+            icon: 'question',
+            showConfirmButton: false, 
+            showCancelButton: false,
+            didOpen: () => {
+                document.getElementById('btnConfirmarPagto')?.addEventListener('click', () => {
+                    document.querySelector("#statusPagto").checked = true; // Seta no HTML
+                    Swal.clickConfirm();
+                });
+                document.getElementById('btnSomenteAtualizar')?.addEventListener('click', () => {
+                    document.querySelector("#statusPagto").checked = false; // Seta no HTML
+                    Swal.clickConfirm();
+                });
+                document.getElementById('btnRevisar')?.addEventListener('click', () => Swal.clickDeny());
+            }
+        });
+
+        if (confirmacao.isDismissed || confirmacao.isDenied) return;
+    }
+
+    // --- RECAPTURA O STATUS REAL APÓS O SWAL ---
+    const statusFinal = document.querySelector("#statusPagto").checked;
+
+    const formData = new FormData();
+ 
+    formData.append("idpagamento", idPagamento || "");
+    formData.append("idlancamento", idLancamento);
+    formData.append("numparcela", parseInt(numParcela));
+    formData.append("vlrprevisto", prepararNumeroParaEnvio(document.querySelector("#vlrPrevisto").value));
+    formData.append("vlrreal", prepararNumeroParaEnvio(vlrRealStr));
+    formData.append("vlrpago", prepararNumeroParaEnvio(vlrPagoStr));
+    formData.append("dtvcto", dtVcto);
+    formData.append("dtpgto", dtPgto);
+    formData.append("vlratraso", prepararNumeroParaEnvio(vlrAtrasoStr));
+    formData.append("vlrdesconto", prepararNumeroParaEnvio(vlrDescontoStr));
+    formData.append("observacao", document.querySelector("#observacaoPagto").value);
+    
+    // Agora enviamos o status baseado no que foi decidido nos botões do Swal
+    formData.append("status", (temPermissaoSupremo && statusFinal) ? 'pago' : 'pendente');
+
+    // Arquivos e Flags
+    formData.append("limparComprovanteImagem", document.getElementById('limparComprovanteImagem').value);
+    formData.append("limparComprovantePagto", document.getElementById('limparComprovantePagto').value);
+
+    const arquivoConta = document.querySelector("#arquivoConta").files[0];
+    const comprovantePagto = document.querySelector("#comprovantePagto").files[0];
+    if (arquivoConta) formData.append("imagemConta", arquivoConta);
+    if (comprovantePagto) formData.append("comprovantePagamento", comprovantePagto);
+
+    try {
+        const metodo = idPagamento ? "PUT" : "POST";
+        const url = idPagamento ? `/pagamentos/${idPagamento}` : "/pagamentos";
+        const response = await fetchComToken(url, { method: metodo, body: formData });
+
+        if (response) {
+            await Swal.fire("Sucesso!", `${idPagamento ? 'Alterado' : 'Registrado'} com sucesso.`, "success");
+            limparFormularioTotalmente(true);
+            document.querySelector("#corpoHistoricoPagto").innerHTML = "";
+        }
+    } catch (error) {
+        console.error(error);
+        Swal.fire("Erro", "Erro ao processar operação.", "error");
+    }
+}
 
 
 function carregarAnexosExistentes(p) {
@@ -539,6 +790,17 @@ function limparFormularioTotalmente(limparTabela = true) {
     if (document.getElementById('fileNameConta')) document.getElementById('fileNameConta').textContent = "Nenhum arquivo selecionado";
     if (document.getElementById('fileNameComprovante')) document.getElementById('fileNameComprovante').textContent = "Nenhum arquivo selecionado";
 
+    // Dentro da sua função limparFormularioTotalmente
+
+    if (elDesc) elDesc.value = ""; 
+
+    // Garante que o botão volte ao estado original de "Salvar" (caso estivesse em "Atualizar")
+    const btnEnviar = document.querySelector("#Enviar");
+    if (btnEnviar) {
+        btnEnviar.textContent = "Salvar Pagamento";
+        btnEnviar.style.backgroundColor = "#27ae60"; 
+    }
+
     // 6. Sincronizar UI (Forçar atualização visual dos campos)
     document.querySelectorAll('#form input, #form select').forEach(i => {
         i.dispatchEvent(new Event('input', { bubbles: true }));
@@ -591,38 +853,66 @@ function configurarEventosPagamentos() {
     const limparBtn = document.querySelector("#Limpar");
     const selectLanc = document.querySelector("#idLancamentoSelect");
 
-    const pagoCheckbox = document.querySelector("#statusPagto");
-    const temPermissaoSupremo = temPermissao("Pagamentos", "supremo");    
+    const pagoCheckbox = document.querySelector("#statusPagto");    
+    const temPermissaoSupremo = temPermissao("Pagamentos", "supremo"); 
     
-    // if (pagoCheckbox) {
-    //     pagoCheckbox.checked = false; // Inicia inativo
+    
+    const atraso = document.querySelector("#vlrDespesasAtraso");
+    const desconto = document.querySelector("#vlrDesconto");
+    const vlrReal = document.querySelector("#vlrReal"); // O valor base vindo do banco/preenchido
+    const vlrEfetivo = document.querySelector("#vlrPago"); // Onde o resultado aparece
+    
+    const parseMoeda = (valor) => {
+        if (!valor) return 0;
+        // Remove espaços, troca vírgula por ponto
+        let limpo = valor.toString().replace(/\s/g, '').replace(',', '.');
+        return parseFloat(limpo) || 0;
+    };
+
+    const calcularTotalEfetivo = () => {
+        const valorBase = parseMoeda(vlrReal.value);
+        const valorAtraso = parseMoeda(atraso.value);
+        const valorDesconto = parseMoeda(desconto.value);
+
+        // Validação: Se tentar colocar atraso/desconto sem valor real
+        if (valorBase === 0 && (valorAtraso > 0 || valorDesconto > 0)) {
+            Swal.fire({
+                title: 'Valor Real Ausente',
+                text: "Informe o Valor Real antes de aplicar taxas ou descontos.",
+                icon: 'warning'
+            });
+            atraso.value = "";
+            desconto.value = "";
+            return;
+        }
+
+        // Cálculo: Real + Atraso - Desconto
+        const resultado = valorBase + valorAtraso - valorDesconto;
         
-    //     // Desbloqueia apenas se for Supremo
-    //     pagoCheckbox.disabled = !temPermissaoSupremo;
+        // Formata para 2 casas decimais e volta para vírgula se quiser exibir padrão BR
+        vlrEfetivo.value = resultado.toFixed(2).replace('.', ',');
+        
+        // Notifica outros scripts que o valor mudou
+        vlrEfetivo.dispatchEvent(new Event('input', { bubbles: true }));
+    };
 
-    //     // NOVA LÓGICA DE DATA AUTOMÁTICA
-    //     pagoCheckbox.addEventListener('change', () => {
-    //         const campoDtPgto = document.querySelector("#dtpgto");
-    //         if (!campoDtPgto) return;
+    // Aplicar a troca de vírgula por ponto no "blur" (quando sai do campo)
+    [atraso, desconto, vlrReal].forEach(campo => {
+        if (campo) {
+            campo.addEventListener('blur', (e) => {
+                // Troca vírgula por ponto visualmente no campo ao sair
+                e.target.value = e.target.value.replace(',', '.');
+                calcularTotalEfetivo();
+            });
 
-    //         if (pagoCheckbox.checked) {
-    //             // Se marcou como pago e o campo está vazio, preenche com a data atual (Brasília/Local)
-    //             if (!campoDtPgto.value) {
-    //                 const hoje = new Date();
-    //                 const offset = hoje.getTimezoneOffset();
-    //                 const dataLocal = new Date(hoje.getTime() - (offset * 60 * 1000));
-    //                 campoDtPgto.value = dataLocal.toISOString().split('T')[0];
-                    
-    //                 // Dispara o evento 'input' para que a interface (labels) reconheça o valor
-    //                 campoDtPgto.dispatchEvent(new Event('input', { bubbles: true }));
-    //             }
-    //         } else {
-    //             // Opcional: Limpa a data se desmarcar o status 'Pago'
-    //             campoDtPgto.value = "";
-    //             campoDtPgto.dispatchEvent(new Event('input', { bubbles: true }));
-    //         }
-    //     });
-    // }
+            // Também calcula enquanto digita (opcional, remova se preferir apenas no sair)
+            campo.addEventListener('input', calcularTotalEfetivo);
+        }
+    });
+
+    if (atraso) atraso.addEventListener('input', calcularTotalEfetivo);
+    if (desconto) desconto.addEventListener('input', calcularTotalEfetivo);
+    if (vlrReal) vlrReal.addEventListener('input', calcularTotalEfetivo);
 
 
     if (pagoCheckbox) {
@@ -680,27 +970,159 @@ function configurarEventosPagamentos() {
         document.querySelector("#corpoHistoricoPagto").innerHTML = "";
     };
 
-    if (selectLanc) {
-        selectLanc.onchange = async (e) => {
+    // if (selectLanc) {
+    //     selectLanc.onchange = async (e) => {
 
-        if (carregandoEdicao) return;
+    //     if (carregandoEdicao) return;
         
-        const idPagamentoAtual = document.querySelector("#idPagamento").value;
-        if (idPagamentoAtual) {
-            console.warn("Mudança de lançamento ignorada pois estamos em modo de edição.");
-            return; 
-        }
-            const idLanc = e.target.value;
-            if (!idLanc) return;
+    //     const idPagamentoAtual = document.querySelector("#idPagamento").value;
+    //     if (idPagamentoAtual) {
+    //         console.warn("Mudança de lançamento ignorada pois estamos em modo de edição.");
+    //         return; 
+    //     }
+    //         const idLanc = e.target.value;
+    //         if (!idLanc) return;
 
-            await carregarHistoricoPagto(idLanc);
-            const dadosOpcao = e.target.selectedOptions[0].dataset;
-            document.querySelector("#vlrPrevisto").value = dadosOpcao.valor || "";
-            document.querySelector("#dtvcto").value = dadosOpcao.vctobase?.split('T')[0] || "";
-            await buscarDadosParcela(idLanc, dadosOpcao.vctobase);
-            document.querySelectorAll('#form input').forEach(i => i.dispatchEvent(new Event('input')));
+    //         await carregarHistoricoPagto(idLanc);
+    //         const dadosOpcao = e.target.selectedOptions[0].dataset;
+    //         document.querySelector("#vlrPrevisto").value = dadosOpcao.valor || "";
+    //         document.querySelector("#dtvcto").value = dadosOpcao.vctobase?.split('T')[0] || "";
+    //         await buscarDadosParcela(idLanc, dadosOpcao.vctobase);
+    //         document.querySelectorAll('#form input').forEach(i => i.dispatchEvent(new Event('input')));
+    //     };
+    // }
+
+    // if (selectLanc) {
+    //     selectLanc.onchange = async (e) => {
+    //         if (carregandoEdicao) return;
+
+    //         const idPagamentoAtual = document.querySelector("#idPagamento").value;
+    //         if (idPagamentoAtual) {
+    //             console.warn("Mudança de lançamento ignorada pois estamos em modo de edição.");
+    //             return;
+    //         }
+
+    //         const idLanc = e.target.value;
+    //         if (!idLanc) {
+    //             // Se o usuário desmarcar o select, limpamos tudo e paramos
+    //             limparFormularioTotalmente(false); 
+    //             return;
+    //         }
+
+    //         // --- PASSO CRUCIAL: Limpar antes de carregar o próximo ---
+    //         // Chamamos a sua função de limpeza, mas passamos um parâmetro 
+    //         // para NÃO limpar o select que o usuário acabou de clicar.
+    //         limparDadosParaNovoLancamento();
+
+    //         try {
+    //             await carregarHistoricoPagto(idLanc);
+                
+    //             const opcaoSelecionada = e.target.selectedOptions[0];
+    //             if (!opcaoSelecionada) return;
+
+    //             const dadosOpcao = opcaoSelecionada.dataset;
+
+    //             // Preenchimento dos novos dados
+    //             document.querySelector("#vlrPrevisto").value = dadosOpcao.valor || "";
+    //             document.querySelector("#dtvcto").value = dadosOpcao.vctobase?.split('T')[0] || "";
+                
+    //             await buscarDadosParcela(idLanc, dadosOpcao.vctobase);
+
+    //             // Dispara evento de input para atualizar cálculos/máscaras
+    //             document.querySelectorAll('#form input').forEach(i => i.dispatchEvent(new Event('input')));
+
+    //         } catch (error) {
+    //             console.error("Erro ao carregar novo lançamento:", error);
+    //         }
+    //     };
+    // }
+
+        if (selectLanc) {
+        selectLanc.onchange = async (e) => {
+            if (carregandoEdicao) return;
+
+            // --- A SOLUÇÃO ESTÁ AQUI ---
+            // Em vez de dar 'return' se tiver ID, nós limpamos o ID para permitir a troca
+            const campoIdPagamento = document.querySelector("#idPagamento");
+            if (campoIdPagamento.value) {
+                console.log("Saindo do modo edição para carregar novo registro.");
+                campoIdPagamento.value = ""; // Destrava o formulário
+            }
+
+            const idLanc = e.target.value;
+            if (!idLanc) {
+                limparFormularioTotalmente(true); 
+                return;
+            }
+
+            // Limpa os resíduos da edição anterior (inclusive campos desabilitados)
+            limparDadosParaNovoLancamento();
+            
+            // Reabilita o formulário caso a edição tenha bloqueado para não-supremos
+            document.querySelectorAll('#form input, #form select').forEach(el => el.disabled = false);
+
+            try {
+                await carregarHistoricoPagto(idLanc);
+                
+                const opcaoSelecionada = e.target.selectedOptions[0];
+                if (!opcaoSelecionada) return;
+
+                const dadosOpcao = opcaoSelecionada.dataset;
+
+                // Preenche os dados do registro selecionado
+                document.querySelector("#vlrPrevisto").value = dadosOpcao.valor || "";
+                document.querySelector("#dtvcto").value = dadosOpcao.vctobase?.split('T')[0] || "";
+                
+                // Preenche a descrição com seus formatos: Aditivo ou Extra Bonificado
+                const elDesc = document.querySelector("#descLancamento");
+                if (elDesc) elDesc.value = opcaoSelecionada.text.trim();
+
+                await buscarDadosParcela(idLanc, dadosOpcao.vctobase);
+
+                // Atualiza a interface (máscaras e cálculos)
+                document.querySelectorAll('#form input').forEach(i => i.dispatchEvent(new Event('input', { bubbles: true })));
+
+                // Reseta o botão para o estado de "Salvar"
+                const btnEnviar = document.querySelector("#Enviar");
+                if (btnEnviar) {
+                    btnEnviar.textContent = "Salvar Pagamento";
+                    btnEnviar.style.backgroundColor = "#27ae60";
+                }
+
+            } catch (error) {
+                console.error("Erro ao carregar novo lançamento:", error);
+            }
         };
     }
+}
+
+function limparDadosParaNovoLancamento() {
+    // Lista de campos que DEVEM ser zerados
+    const camposParaLimpar = [
+        "#idPagamento", "#numParcela", "#vlrPago", "#vlrReal", 
+        "#vlrDespesasAtraso", "#vlrDesconto", "#dtpgto", 
+        "#observacaoPagto", "#statusPagto"
+    ];
+
+    camposParaLimpar.forEach(selector => {
+        const campo = document.querySelector(selector);
+        if (!campo) return;
+
+        if (campo.type === 'checkbox') {
+            campo.checked = false;
+        } else {
+            campo.value = "";
+        }
+    });
+
+    // Limpa os inputs de arquivo e reseta os nomes exibidos
+    document.querySelector("#arquivoConta").value = "";
+    document.querySelector("#comprovantePagto").value = "";
+    document.getElementById('limparComprovanteImagem').value = "false";
+    document.getElementById('limparComprovantePagto').value = "false";
+    
+    // Se você tiver elementos de preview (texto do nome do arquivo), limpe-os também:
+    // Ex: document.querySelector("#nomeArquivoSelecionado").textContent = "";
 }
 
 window.configurarEventosEspecificos = function(modulo) {

@@ -3037,9 +3037,6 @@ p.pendentes-pagos {
 
 
 
-
-
-/*--------------------- Scrool-------------------------*/
 .lista-funcionarios::-webkit-scrollbar {
   display: none;
 }

@@ -2317,61 +2317,23 @@ function calcularIntervaloDeDatas(periodo, params) {
 //     }
 // });
 
-// // Inicializa o middleware upload (Isso resolve o ReferenceError)
-// const upload = multer({ 
-//     storage: storage,
-//     limits: { fileSize: 5 * 1024 * 1024 }, // Limite de 5MB
-//     fileFilter: (req, file, cb) => {
-//         const extensões = /jpeg|jpg|png|pdf/;
-//         const mimetype = extensões.test(file.mimetype);
-//         const extname = extensões.test(path.extname(file.originalname).toLowerCase());
 
-//         if (mimetype && extname) {
-//             return cb(null, true);
-//         }
-//         cb(new Error("Apenas imagens (JPG/PNG) e PDFs são permitidos."));
-//     }
-// });
-
-
-// const storage = multer.diskStorage({
-//     destination: function (req, file, cb) {
-//         const dir = './uploads/comprovantes/';
-//         if (!fs.existsSync(dir)){
-//             fs.mkdirSync(dir, { recursive: true });
-//         }
-//         cb(null, dir);
-//     },
-//     filename: function (req, file, cb) {
-//         // Prioridade de Nomeclatura: 
-//         // 1. Contexto enviado (Ex: Aditivo - Vaga Excedida)
-//         // 2. Se não houver, verifica se é Staff ou Conta genérica
-//         const contexto = req.body.contexto || (req.body.idStaff ? 'Staff' : 'Pagamento');
-//         const id = req.body.id || req.body.idStaff || '0';
-        
-//         // Limpa o nome para o sistema de arquivos
-//         const nomeLimpo = contexto.replace(/[^a-zA-Z0-9 -]/g, "").replace(/\s+/g, "_");
-//         const ext = path.extname(file.originalname).toLowerCase();
-        
-//         cb(null, `${nomeLimpo}-ID${id}-${Date.now()}${ext}`);
-//     }
-// });
 
 const storage = multer.diskStorage({
+    
     destination: function (req, file, cb) {
-        let dir = '';
+        console.log("REQ.BODY NO STORAGE FILENAME:", req.body); // Debug para verificar o conteúdo do body
+        let dir = './uploads/contas/comprovantespgto/'; // Padrão
 
-        // Lógica de roteamento de pastas
-        if (req.body.idStaff) {
-            // Staff -> ./uploads/comprovantes/
+        // 1. Se houver qualquer indício de Staff, vai para a pasta de staff
+        if (req.body.idStaff || req.body.idStaffEvento || req.body.tipo === 'staff') {
             dir = './uploads/staff_comprovantes/';
-        } else if (file.fieldname === 'imagemconta' || req.body.tipoUpload === 'boleto') {
-            // Imagem do Boleto -> ./uploads/contas/imagemboleto/
+        } 
+        // 2. Se for explicitamente uma imagem de conta (boleto)
+        else if (req.body.tipo === 'imagem') {
             dir = './uploads/contas/imagemboleto/';
-        } else {
-            // Comprovante de Conta -> ./uploads/contas/comprovantepgto/
-            dir = './uploads/contas/comprovantepgto/';
         }
+        // 3. Caso contrário, cai na pasta de comprovantes de conta (já definida no padrão)
 
         if (!fs.existsSync(dir)){
             fs.mkdirSync(dir, { recursive: true });
@@ -2379,16 +2341,31 @@ const storage = multer.diskStorage({
         cb(null, dir);
     },
     filename: function (req, file, cb) {
-        // Formato que você solicitou: Aditivo - Vaga Excedida, etc.
-        const contexto = req.body.contexto || (req.body.idStaff ? 'Staff' : 'Pagamento');
-        const id = req.body.id || req.body.idStaff || '0';
+        const id = req.body.idPagamento || req.body.idStaff || '0';        
+        const tipo = req.body.tipo;
         
-        // Limpa o nome mantendo hifens e espaços simples conforme seu padrão
-        const nomeLimpo = contexto.replace(/[^a-zA-Z0-9 -]/g, "").replace(/\s+/g, "_");
+        // 1. Definir o Prefixo (Contexto)
+        let contexto = req.body.contexto;
+        if (!contexto) {
+            contexto = (req.body.idStaffEvento || tipo === 'staff') ? 'comppgtocache' : 
+                    (tipo === 'imagem' ? 'imagemboleto' : 'comprovantePagamento');
+        }
+
+        // 2. Tratar o nome original do arquivo para remover espaços e caracteres chatos
+        // Exemplo: "agua indaiatuba.jfif" -> "aguaIndaiatuba"
+        const nomeOriginalLimpo = path.parse(file.originalname).name
+            .replace(/\s+/g, '') // Remove espaços
+            .replace(/[^a-zA-Z0-9]/g, ''); // Remove símbolos
+
+        // 3. Criar uma data legível (AAAAMMDD) em vez de apenas o timestamp puro
+        const dataHoje = new Date().toISOString().split('T')[0].replace(/-/g, ''); 
+
         const ext = path.extname(file.originalname).toLowerCase();
         
-        // Exemplo: Aditivo_-_Vaga_Excedida-ID176-1769529634285.jpeg
-        cb(null, `${nomeLimpo}-ID${id}-${Date.now()}${ext}`);
+        // FORMATO FINAL: comprovantepgto-ID133-20260303-aguaIndaiatuba.jfif
+        const nomeFinal = `${contexto}-ID${id}-${dataHoje}-${nomeOriginalLimpo}${ext}`;
+        
+        cb(null, nomeFinal);
     }
 });
 
@@ -3211,79 +3188,6 @@ router.get('/contas-pagar', async (req, res) => {
 });
 
 
-// router.post('/confirmar-pagamento-conta', 
-//    verificarPermissao('Pagamentos', 'alterar'),
-    
-//     logMiddleware('Pagamentos', { 
-//         buscarDadosAnteriores: async (req) => {
-//             const result = await pool.query('SELECT * FROM pagamentos WHERE idpagamento = $1', [req.body.id]);
-//             return { dadosanteriores: result.rows[0], idregistroalterado: req.body.id };
-//         } 
-//     }),
-//     async (req, res) => {
-//     1. Recebemos 'observacao' do corpo da requisição
-//     const { idpagamento, idlancamento, vlrpago, dtvcto, dtpagamento, observacao } = req.body;
-//     const client = await pool.connect();
-
-//     try {
-//         await client.query('BEGIN');
-
-//         let idFinal = idpagamento;
-
-//         if (!idpagamento || idpagamento === 'null') {
-//             CENÁRIO: Parcela projetada (Cria o registro e salva a observação)
-//             const insertQuery = `
-//                 INSERT INTO pagamentos (
-//                     idlancamento, 
-//                     vlrprevisto, 
-//                     vlrpago, 
-//                     dtvcto, 
-//                     status, 
-//                     numparcela, 
-//                     dtpgto,
-//                     observacao
-//                 )
-//                 VALUES (
-//                     $1, 
-//                     (SELECT COALESCE(vlrestimado, 0) FROM lancamentos WHERE idlancamento = $1), 
-//                     $2, $3, 'pago', 
-//                     (SELECT COALESCE(MAX(numparcela), 0) + 1 FROM pagamentos WHERE idlancamento = $1), 
-//                     $4,
-//                     $5
-//                 )
-//                 RETURNING idpagamento;
-//             `;
-//             Adicionamos 'observacao' como o 5º parâmetro ($5)
-//             const resInsert = await client.query(insertQuery, [idlancamento, vlrpago, dtvcto, dtpagamento, observacao]);
-//             idFinal = resInsert.rows[0].idpagamento;
-//         } 
-//         else {
-//             CENÁRIO: Parcela já existente (Atualiza valor, data e a observação)
-//             const updateQuery = `
-//                 UPDATE pagamentos 
-//                 SET status = 'pago', 
-//                     vlrpago = $1, 
-//                     dtpgto = $2,
-//                     observacao = $3 
-//                 WHERE idpagamento = $4;
-//             `;
-//             Note que aqui a observação é o $3 e o idpagamento passou a ser $4
-//             await client.query(updateQuery, [vlrpago, dtpagamento, observacao, idpagamento]);
-//         }
-
-//         await client.query('COMMIT');
-//         res.json({ sucesso: true, mensagem: "Pagamento confirmado!", idpagamento: idFinal });
-
-//     } catch (error) {
-//         await client.query('ROLLBACK');
-//         console.error("Erro na rota confirmar-pagamento:", error.message);
-//         res.status(500).json({ sucesso: false, erro: error.message });
-//     } finally {
-//         client.release();
-//     }
-// });
-
-
 // Rota específica para upload rápido via Main (Lista de Vencimentos)
 // router.post("/vencimentoconta/uploads_comprovantesconta", 
 //     //verificarPermissao('Pagamentos', 'alterar'),
@@ -3335,69 +3239,16 @@ router.get('/contas-pagar', async (req, res) => {
 // );
 
 
-// router.post('/confirmar-pagamento-conta', async (req, res) => {
-//     // Adicionamos 'status' no corpo da requisição
-//     const { idpagamento, idlancamento, vlrpago, dtvcto, dtpagamento, observacao, status } = req.body;
-//     const client = await pool.connect();
-
-//     // Define se é 'pago' ou 'suspenso' (padrão 'pago' para não quebrar o que já existe)
-//     const statusFinal = status || 'pago';
-//     console.log("Status recebido para atualização:", status, "Status final definido:", statusFinal, req.body);
-//     try {
-//         await client.query('BEGIN');
-
-//         let idFinal = idpagamento;
-
-//         if (!idpagamento || idpagamento === 'null' || idpagamento === null) {
-//             const insertQuery = `
-//                 INSERT INTO pagamentos (
-//                     idlancamento, vlrprevisto, vlrpago, dtvcto, 
-//                     status, numparcela, dtpgto, observacao
-//                 )
-//                 VALUES (
-//                     $1, 
-//                     (SELECT COALESCE(vlrestimado, 0) FROM lancamentos WHERE idlancamento = $1), 
-//                     $2, $3, $4, 
-//                     (SELECT COALESCE(MAX(numparcela), 0) + 1 FROM pagamentos WHERE idlancamento = $1), 
-//                     $5, $6
-//                 )
-//                 RETURNING idpagamento;
-//             `;
-//             // $4 agora é o statusFinal, $5 data, $6 observação
-//             const resInsert = await client.query(insertQuery, [idlancamento, vlrpago, dtvcto, statusFinal, dtpagamento, observacao]);
-//             idFinal = resInsert.rows[0].idpagamento;
-//         } 
-//         else {
-//             const updateQuery = `
-//                 UPDATE pagamentos 
-//                 SET status = $1, 
-//                     vlrpago = $2, 
-//                     dtpgto = $3,
-//                     observacao = CONCAT(observacao, ' | SUSPENSO: ', $4) -- Mantém a antiga e soma a nova
-//                 WHERE idpagamento = $5;
-//             `;
-           
-//             await client.query(updateQuery, [statusFinal, vlrpago, dtpagamento, observacao, idpagamento]);
-//         }
-
-//         await client.query('COMMIT');
-//         res.json({ sucesso: true, mensagem: `Lançamento atualizado como ${statusFinal}!`, idpagamento: idFinal });
-
-//     } catch (error) {
-//         await client.query('ROLLBACK');
-//         res.status(500).json({ sucesso: false, erro: error.message });
-//     } finally {
-//         client.release();
-//     }
-// });
 
 
-router.post('/confirmar-pagamento-conta',logMiddleware('pagamentos', {
+
+router.post('/confirmar-pagamento-conta',
+    logMiddleware('pagamentos', {
         buscarDadosAnteriores: async (req) => {
             const { idlancamento, dtvcto } = req.body;
             if (!idlancamento || !dtvcto) return null;
 
-            const query = `SELECT idpagamento, status, vlrpago, dtpgto FROM pagamentos WHERE idlancamento = $1 AND dtvcto = $2::date`;
+            const query = `SELECT idpagamento, status, vlrpago, vlratraso, vlrdesconto, dtvcto, dtpgto FROM pagamentos WHERE idlancamento = $1 AND dtvcto = $2::date`;
             const result = await pool.query(query, [idlancamento, dtvcto]);
             
             return result.rows[0] ? { 
@@ -3406,7 +3257,7 @@ router.post('/confirmar-pagamento-conta',logMiddleware('pagamentos', {
             } : null;
         }
     }), async (req, res) => {
-    const { idpagamento, idlancamento, vlrpago, dtvcto, dtpagamento, observacao, status } = req.body;
+    const { idpagamento, idlancamento, vlrpago, vlratraso, vlrdesconto, dtvcto, dtpagamento, observacao, status } = req.body;
     const idempresa = req.headers.idempresa;
     const statusFinal = status || 'pago';
     const client = await pool.connect();
@@ -3415,7 +3266,7 @@ router.post('/confirmar-pagamento-conta',logMiddleware('pagamentos', {
 
     // 🟦 LOG DE ENTRADA (Aparecerá com fundo azul no terminal)
     console.log("\n\x1b[44m 📥 [REQUISIÇÃO RECEBIDA] \x1b[0m");
-    console.log(`> Lançamento: ${idlancamento} | Vcto: ${dtvcto}`);
+    console.log(`> Lançamento: ${idlancamento} | Vcto: ${dtvcto} | Valor Pago: ${vlrpago} | Atraso: ${vlratraso} | Desconto: ${vlrdesconto}`);
     console.log(`> ID vindo do Front: ${idpagamento} | Status: ${statusFinal}`);
 
     try {
@@ -3437,18 +3288,18 @@ router.post('/confirmar-pagamento-conta',logMiddleware('pagamentos', {
             // Adicionado idempresa no INSERT
             const insertQuery = `
                 INSERT INTO pagamentos (
-                    idlancamento, idempresa, vlrprevisto, vlrpago, dtvcto, 
-                    status, numparcela, dtpgto, observacao
+                    idlancamento, idempresa, vlrprevisto, vlrpago, dtvcto,  
+                    status, numparcela, dtpgto, observacao, vlratraso, vlrdesconto
                 )
                 VALUES (
                     $1, $2,
                     (SELECT COALESCE(vlrestimado, 0) FROM lancamentos WHERE idlancamento = $1), 
                     $3, $4, $5, 
                     (SELECT COALESCE(MAX(numparcela), 0) + 1 FROM pagamentos WHERE idlancamento = $1), 
-                    $6, $7
+                    $6, $7, $8, $9
                 ) RETURNING idpagamento;`;
             
-            const resInsert = await client.query(insertQuery, [idlancamento, idempresa, vlrpago, dtvcto, statusFinal, dtpagamento, observacao]);
+            const resInsert = await client.query(insertQuery, [idlancamento, idempresa, vlrpago, dtvcto, statusFinal, dtpagamento, observacao, vlratraso, vlrdesconto]);
             idFinal = resInsert.rows[0].idpagamento;
         } else {
             idFinal = registroExistente.idpagamento;
@@ -3457,10 +3308,10 @@ router.post('/confirmar-pagamento-conta',logMiddleware('pagamentos', {
             
             const updateQuery = `
                 UPDATE pagamentos 
-                SET status = $1, vlrpago = $2, dtpgto = $3, observacao = $4 
-                WHERE idpagamento = $5;`;
+                SET status = $1, vlrpago = $2, dtpgto = $3, observacao = $4, vlratraso = $5, vlrdesconto = $6 
+                WHERE idpagamento = $7;`;
             
-            await client.query(updateQuery, [statusFinal, vlrpago, dtpagamento, observacao, idFinal]);
+            await client.query(updateQuery, [statusFinal, vlrpago, dtpagamento, observacao, vlratraso, vlrdesconto, idFinal]);
         }
 
         await client.query('COMMIT');
@@ -3482,9 +3333,89 @@ router.post('/confirmar-pagamento-conta',logMiddleware('pagamentos', {
 });
 
 
-router.post("/vencimentoconta/uploads_comprovantesconta", upload.single('comprovante'),logMiddleware('pagamentos comp.', {
+// router.post("/vencimentoconta/uploads_comprovantesconta", 
+//     upload.single('comprovante'),
+//     logMiddleware('pagamentos comp.', {
+//         buscarDadosAnteriores: async (req) => {
+//             const { idPagamento } = req.body;
+//             if (!idPagamento || isNaN(parseInt(idPagamento))) return null;
+
+//             const query = `SELECT idpagamento, comprovantepgto, imagemconta FROM pagamentos WHERE idpagamento = $1`;
+//             const result = await pool.query(query, [idPagamento]);
+
+//             return result.rows[0] ? { 
+//                 dadosanteriores: result.rows[0], 
+//                 idregistroalterado: idPagamento 
+//             } : null;
+//         }
+//     }), async (req, res) => {
+//     const { idPagamento, tipo } = req.body;
+//     const contexto = req.body.contexto
+
+//     console.log("ENTROU NA ROTA DE UPLOAD DE COMPROVANTE/IMAGEM DE CONTA", req.body);
+    
+//     if (!req.file) {
+//         return res.status(400).json({ error: "Nenhum arquivo enviado." });
+//     }
+
+//     //const pathArquivo = req.file.path.replace(/\\/g, "/"); 
+//     const pathArquivo = req.file.filename;
+
+//     try {
+//         let coluna = "";
+
+//         // Mapeamento direto dos tipos vindo do frontend
+//         if (tipo === 'comprovante') {
+//             coluna = 'comprovantepgto';
+//         } 
+//         else if (tipo === 'imagem') {
+//             coluna = 'imagemconta';
+//         } 
+        
+//         // Se o tipo enviado não bater com nenhum acima, a coluna será vazia
+//         if (!coluna) {
+//             console.error("Tipo de upload inválido recebido:", tipo);
+//             return res.status(400).json({ error: `Tipo de comprovante '${tipo}' não reconhecido.` });
+//         }
+
+//         const result = await pool.query(
+//             `UPDATE pagamentos SET ${coluna} = $1 WHERE idpagamento = $2`,
+//             [pathArquivo, idPagamento]
+//         );
+
+//         res.locals.acao = 'cadastrou';
+//         res.locals.idregistroalterado = idPagamento; 
+
+//         if (result.rowCount === 0) {
+//             return res.status(404).json({ error: "Pagamento não encontrado em contas." });
+//         }
+
+//         res.json({ 
+//             success: true, 
+//             path: pathArquivo, 
+//             colunaDestino: coluna 
+//         });
+
+//     } catch (error) {
+//         console.error("Erro no processamento do upload:", error);
+//         res.status(500).json({ error: "Erro interno ao salvar comprovante/imagem." });
+//     }
+// });
+
+// =======================================
+
+
+// =======================================
+// AGENDA
+// =======================================
+
+
+router.post("/vencimentoconta/uploads_comprovantesconta", 
+    upload.single('comprovante'),
+    logMiddleware('pagamentos comp.', {
         buscarDadosAnteriores: async (req) => {
-            const { idPagamento } = req.body;
+            // Usamos o nome enviado pelo FormData: idPagamento
+            const idPagamento = req.body.idPagamento;
             if (!idPagamento || isNaN(parseInt(idPagamento))) return null;
 
             const query = `SELECT idpagamento, comprovantepgto, imagemconta FROM pagamentos WHERE idpagamento = $1`;
@@ -3496,18 +3427,24 @@ router.post("/vencimentoconta/uploads_comprovantesconta", upload.single('comprov
             } : null;
         }
     }), async (req, res) => {
+    // Extraímos os dados enviados pelo frontend
     const { idPagamento, tipo } = req.body;
+
+    console.log(`[UPLOAD] Iniciando processamento. Tipo: ${tipo} | ID: ${idPagamento}`);
     
+    // 1. Verificação de segurança: arquivo existe?
     if (!req.file) {
         return res.status(400).json({ error: "Nenhum arquivo enviado." });
     }
 
-    const pathArquivo = req.file.path.replace(/\\/g, "/"); 
+    // 2. Definimos o que vai para o banco: APENAS o nome gerado pelo Multer
+    // Isso evita caminhos duplicados como "uploads/contas/uploads/contas..."
+    const nomeArquivoNoBanco = req.file.filename;
 
     try {
         let coluna = "";
 
-        // Mapeamento direto dos tipos vindo do frontend
+        // 3. Mapeamento da coluna baseado no tipo (conforme seu frontend envia)
         if (tipo === 'comprovante') {
             coluna = 'comprovantepgto';
         } 
@@ -3515,42 +3452,40 @@ router.post("/vencimentoconta/uploads_comprovantesconta", upload.single('comprov
             coluna = 'imagemconta';
         } 
         
-        // Se o tipo enviado não bater com nenhum acima, a coluna será vazia
         if (!coluna) {
-            console.error("Tipo de upload inválido recebido:", tipo);
-            return res.status(400).json({ error: `Tipo de comprovante '${tipo}' não reconhecido.` });
+            console.error("Tipo de upload inválido:", tipo);
+            return res.status(400).json({ error: `Tipo '${tipo}' não reconhecido.` });
         }
 
+        // 4. Executa o UPDATE no banco de dados
         const result = await pool.query(
             `UPDATE pagamentos SET ${coluna} = $1 WHERE idpagamento = $2`,
-            [pathArquivo, idPagamento]
+            [nomeArquivoNoBanco, idPagamento]
         );
 
+        // 5. Verificação se o ID realmente existia
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: "Pagamento não encontrado no banco de dados." });
+        }
+
+        // Configurações para o logMiddleware concluir
         res.locals.acao = 'cadastrou';
         res.locals.idregistroalterado = idPagamento; 
 
-        if (result.rowCount === 0) {
-            return res.status(404).json({ error: "Pagamento não encontrado em contas." });
-        }
-
+        // 6. Retorno de sucesso para o frontend
         res.json({ 
             success: true, 
-            path: pathArquivo, 
+            path: nomeArquivoNoBanco, // Retorna o nome para o Swal e para atualizar a tela
             colunaDestino: coluna 
         });
 
     } catch (error) {
-        console.error("Erro no processamento do upload:", error);
-        res.status(500).json({ error: "Erro interno ao salvar comprovante/imagem." });
+        console.error("Erro crítico no upload:", error);
+        res.status(500).json({ error: "Erro interno ao salvar no banco de dados." });
     }
 });
 
-// =======================================
 
-
-// =======================================
-// AGENDA
-// =======================================
 router.get("/agenda", async (req, res) => {
   try {
   // Tenta obter o idusuario do objeto de requisição (middleware de autenticação) ou do header
@@ -3619,33 +3554,34 @@ router.delete("/agenda/:idagenda", logMiddleware('agenda', {
             const result = await pool.query(query, [idagenda]);
             return result.rows[0] ? { dadosanteriores: result.rows[0], idregistroalterado: idagenda } : null;
         }
-    }), async (req, res) => {
-  try {
-  const idusuario = req.usuario?.idusuario || req.headers.idusuario;
-  const { idagenda } = req.params;
+    }), 
+    async (req, res) => {
+        try {
+        const idusuario = req.usuario?.idusuario || req.headers.idusuario;
+        const { idagenda } = req.params;
 
-  if (!idusuario) return res.status(400).json({ erro: "Usuário não informado" });
+        if (!idusuario) return res.status(400).json({ erro: "Usuário não informado" });
 
-  // Garantindo que o usuário só possa excluir seus próprios eventos
-  const resultado = await pool.query(
-  `DELETE FROM agendas
-  WHERE idagenda = $1 AND idusuario = $2
-  RETURNING idagenda`,
-  [idagenda, idusuario]
-);
+        // Garantindo que o usuário só possa excluir seus próprios eventos
+        const resultado = await pool.query(
+        `DELETE FROM agendas
+        WHERE idagenda = $1 AND idusuario = $2
+        RETURNING idagenda`,
+        [idagenda, idusuario]
+        );
 
-    res.locals.acao = 'excluiu';
-    res.locals.idregistroalterado = idagenda 
+        res.locals.acao = 'excluiu';
+        res.locals.idregistroalterado = idagenda 
 
-  if (resultado.rowCount === 0) {
-  return res.status(404).json({ erro: "Evento não encontrado ou não pertence ao usuário." });
-  }
+        if (resultado.rowCount === 0) {
+        return res.status(404).json({ erro: "Evento não encontrado ou não pertence ao usuário." });
+    }
 
-  res.json({ sucesso: true, idagenda: idagenda });
-  } catch (err) {
-  console.error("Erro ao excluir evento:", err);
-  res.status(500).json({ erro: "Erro ao excluir evento" });
-  }
+    res.json({ sucesso: true, idagenda: idagenda });
+    } catch (err) {
+    console.error("Erro ao excluir evento:", err);
+    res.status(500).json({ erro: "Erro ao excluir evento" });
+    }
 });
 
 
